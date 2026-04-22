@@ -59,17 +59,11 @@ run([
   '--format=esm',
   '--sourcemap',
   '--external', '#editor-vendor/codemirror',
-  '--external', './vendor/preact-htm.js',
-  '--external', '../vendor/preact-htm.js',
 ]);
 move(`${webSrc}/app.js`,     `${distDir}/app.bundle.js`);
 move(`${webSrc}/app.js.map`, `${distDir}/app.bundle.js.map`);
 
-// Post-process: wrap in IIFE to isolate var declarations from global scope.
-// This prevents Safari's "duplicate variable that shadows a global property" 
-// error without breaking var's re-declaration semantics.
-const appBundle = readFileSync(`${distDir}/app.bundle.js`, 'utf-8');
-writeFileSync(`${distDir}/app.bundle.js`, `(function(){\n${appBundle}\n})();\n`, 'utf-8');
+// No post-processing needed — vendor scripts are loaded as modules.
 
 // Now clean up preact-htm alias
 const phtmAlias = `${webSrc}/vendor/preact-htm.js`;
@@ -82,8 +76,8 @@ if (existsSync(phtmAlias)) rmSync(phtmAlias);
 });
 
 // ── CSS bundle ────────────────────────────────────────────────────────────
-const appCss = readFileSync(`${webSrc}/styles/app.css`, 'utf-8');
-const minCss = appCss.replace(/\/\*[\s\S]*?\*\//g, '').replace(/[ \t]*\n[ \t]*/g, '\n').replace(/\n{2,}/g, '\n').trim();
-writeFileSync(`${distDir}/app.bundle.css`, minCss, 'utf-8');
+// CSS bundle — all Piclaw CSS is served from /css/styles.css (with @import partials).
+// app.bundle.css is kept minimal — only Gi-specific overrides go here.
+writeFileSync(`${distDir}/app.bundle.css`, '/* Gi app overrides */\n', 'utf-8');
 
 console.log('Gi web build complete.');

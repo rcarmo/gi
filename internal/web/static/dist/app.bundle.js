@@ -1,4 +1,3 @@
-(function(){
 // web/src/vendor/preact-htm.js
 var f;
 var L;
@@ -18140,5 +18139,3 @@ c0(X1`<${GiApp} />`, document.getElementById("app"));
 
 //# debugId=335B66BDFD218DAB64756E2164756E21
 //# sourceMappingURL=app.js.map
-
-})();

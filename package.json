@@ -37,9 +37,11 @@
     "@codemirror/state": "6.6.0",
     "@codemirror/view": "6.41.0",
     "@lezer/highlight": "1.2.3",
+    "@playwright/test": "^1.59.1",
     "@replit/codemirror-indentation-markers": "6.5.3",
     "@replit/codemirror-vim": "6.3.0",
     "@uiw/codemirror-theme-github": "4.25.9",
-    "codemirror": "6.0.2"
+    "codemirror": "6.0.2",
+    "playwright": "^1.59.1"
   }
 }
