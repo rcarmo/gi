@@ -244,7 +244,7 @@ func (s *Store) ListTurnEvents(ctx context.Context, turnID string) ([]TurnEvent,
 		select seq, turn_id, session_id, event_type, payload_json, created_at
 		from turn_events where turn_id = ?
 		order by seq asc
-	` , turnID)
+	`, turnID)
 	if err != nil {
 		return nil, fmt.Errorf("list turn events: %w", err)
 	}

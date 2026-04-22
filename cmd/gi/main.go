@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/rcarmo/gi/internal/store"
-	giweb "github.com/rcarmo/gi/internal/web"
 	"github.com/rcarmo/gi/internal/turn"
+	giweb "github.com/rcarmo/gi/internal/web"
 )
 
 func main() {
