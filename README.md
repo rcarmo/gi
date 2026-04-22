@@ -1,5 +1,7 @@
 # Gi
 
+<img src="docs/icon-256.png" width="128" alt="Gi">
+
 A coding agent built on `go-ai`, informed by lessons learned from Pi, Piclaw, and Vibes.
 
 ## Status
