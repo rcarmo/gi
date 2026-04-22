@@ -1,6 +1,6 @@
 PORT ?= 8090
 BIND ?= 0.0.0.0
-MODEL ?= github-copilot/claude-opus-4.6
+MODEL ?= github-copilot/gpt-5-mini
 WORKSPACE ?= /workspace
 RUN_DIR ?= .gi-run
 BIN_DIR ?= bin

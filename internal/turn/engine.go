@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os/exec"
 	"sort"
 	"sync"
 	"syscall"
 
+	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/store"
+	goai "github.com/rcarmo/go-ai"
 )
 
 type Engine struct {
@@ -152,7 +155,45 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 	model := stringValue(turnRec.Metadata["model"], "bootstrap")
 	_ = s.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "model": model, "status": "running"})
 	_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, map[string]any{"kind": "chat", "intent": intent, "turn_id": turnID})
-	_ = s.AppendTurnEvent(ctx, turnID, sessionID, "turn.started", map[string]any{"phase": "turn", "prompt": prompt, "intent": intent, "checkpoint": true})
+	_ = s.AppendTurnEvent(ctx, turnID, sessionID, "turn.started", map[string]any{"phase": "turn", "prompt": prompt, "intent": intent, "model": model, "checkpoint": true})
+
+	// Try LLM inference if model is not the bootstrap stub
+	if model != "bootstrap" && model != "test-model" && model != "" {
+		_ = s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "checkpoint": true})
+		log.Printf("inference: calling %s with prompt: %s", model, prompt[:min(len(prompt), 80)])
+
+		// Build conversation history from session messages
+		msgs, _ := s.ListMessages(ctx, sessionID)
+		var history []goai.Message
+		for _, m := range msgs {
+			switch m.Role {
+			case "user":
+				history = append(history, goai.UserMessage(m.Content))
+			case "assistant":
+				history = append(history, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: m.Content}}})
+			}
+		}
+
+		result, inferErr := inference.Complete(ctx, model, "You are a helpful coding assistant called Gi.", history)
+		if inferErr != nil {
+			log.Printf("inference error: %v", inferErr)
+			_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error()})
+			_ = s.UpdateTurnStatus(context.Background(), turnID, "failed")
+			_ = s.AddMessage(context.Background(), store.NowID("msg"), sessionID, "system", fmt.Sprintf("Inference error: %v", inferErr), map[string]any{"kind": "error", "turn_id": turnID})
+			_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
+			return
+		}
+
+		log.Printf("inference: got %d chars from %s", len(result), model)
+		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "inference.finished", map[string]any{"phase": "inference", "checkpoint": true, "length": len(result)})
+		_ = s.AddMessage(context.Background(), store.NowID("msg"), sessionID, "assistant", result, map[string]any{"kind": "chat", "source": "inference", "model": model, "turn_id": turnID})
+		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed"})
+		_ = s.UpdateTurnStatus(context.Background(), turnID, "completed")
+		_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
+		return
+	}
+
+	// Fallback: shell stub for bootstrap/test mode
 	_ = s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "command": []string{"sh", "-lc", "printf 'Gi received: %s' \"$GI_PROMPT\""}})
 
 	out, runErr, cancelled := runShell(ctx, prompt, func(cmd *exec.Cmd) {

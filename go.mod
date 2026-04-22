@@ -2,7 +2,10 @@ module github.com/rcarmo/gi
 
 go 1.26.2
 
-require modernc.org/sqlite v1.49.1
+require (
+	github.com/rcarmo/go-ai v0.0.0-20260422133506-49fc88510130
+	modernc.org/sqlite v1.49.1
+)
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect

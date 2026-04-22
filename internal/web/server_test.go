@@ -21,7 +21,7 @@ func TestServerSessionPromptTurnsFlow(t *testing.T) {
 		t.Fatalf("open store: %v", err)
 	}
 	defer s.Close()
-	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "ollama", DefaultModel: "gemma4:latest", DefaultThinkingLevel: "medium"})
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "test-model", DefaultThinkingLevel: "medium"})
 
 	createReq := httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewBufferString(`{"title":"Demo"}`))
 	createReq.Header.Set("Content-Type", "application/json")
