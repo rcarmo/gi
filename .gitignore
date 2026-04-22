@@ -27,8 +27,10 @@ gi-live*.log
 gi-live*.pid
 # Source-tree build intermediates — web/src must never contain compiled JS
 # (only build.js at the repo root and internal/web/static/** are intentional)
+# Exception: genuine .js source files that are not TypeScript (copied from Piclaw)
 web/src/**/*.js
 web/src/**/*.js.map
+!web/src/ui/status-dot.js
 
 # Editors
 .vscode/

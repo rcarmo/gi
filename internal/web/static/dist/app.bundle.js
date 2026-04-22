@@ -1,63 +1,233 @@
-var w4,x1,u3,z9,J2,T3,g3,m3,I5,y4,s2,h3,k5,T5,M5,W9,E4={},P4=[],G9=/acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ntw|ine[ch]|zoo|^ord|itera/i,x4=Array.isArray;function a0($,j){for(var q in j)$[q]=j[q];return $}function R5($){$&&$.parentNode&&$.parentNode.removeChild($)}function E5($,j,q){var B,Q,J,K={};for(J in j)J=="key"?B=j[J]:J=="ref"?Q=j[J]:K[J]=j[J];if(arguments.length>2&&(K.children=arguments.length>3?w4.call(arguments,2):q),typeof $=="function"&&$.defaultProps!=null)for(J in $.defaultProps)K[J]===void 0&&(K[J]=$.defaultProps[J]);return k4($,K,B,Q,null)}function k4($,j,q,B,Q){var J={type:$,props:j,key:q,ref:B,__k:null,__:null,__b:0,__e:null,__c:null,constructor:void 0,__v:Q==null?++u3:Q,__i:-1,__u:0};return Q==null&&x1.vnode!=null&&x1.vnode(J),J}function b4($){return $.children}function o2($,j){this.props=$,this.context=j}function w2($,j){if(j==null)return $.__?w2($.__,$.__i+1):null;for(var q;j<$.__k.length;j++)if((q=$.__k[j])!=null&&q.__e!=null)return q.__e;return typeof $.type=="function"?w2($):null}function N9($){if($.__P&&$.__d){var j=$.__v,q=j.__e,B=[],Q=[],J=a0({},j);J.__v=j.__v+1,x1.vnode&&x1.vnode(J),P5($.__P,J,j,$.__n,$.__P.namespaceURI,32&j.__u?[q]:null,B,q==null?w2(j):q,!!(32&j.__u),Q),J.__v=j.__v,J.__.__k[J.__i]=J,l3(B,J,Q),j.__e=j.__=null,J.__e!=q&&p3(J)}}function p3($){if(($=$.__)!=null&&$.__c!=null)return $.__e=$.__c.base=null,$.__k.some(function(j){if(j!=null&&j.__e!=null)return $.__e=$.__c.base=j.__e}),p3($)}function M3($){(!$.__d&&($.__d=!0)&&J2.push($)&&!f4.__r++||T3!=x1.debounceRendering)&&((T3=x1.debounceRendering)||g3)(f4)}function f4(){try{for(var $,j=1;J2.length;)J2.length>j&&J2.sort(m3),$=J2.shift(),j=J2.length,N9($)}finally{J2.length=f4.__r=0}}function c3($,j,q,B,Q,J,K,X,z,U,L){var N,V,O,g,h,p,d,P=B&&B.__k||P4,t=j.length;for(z=L9(q,j,P,z,t),N=0;N<t;N++)(O=q.__k[N])!=null&&(V=O.__i!=-1&&P[O.__i]||E4,O.__i=N,p=P5($,O,V,Q,J,K,X,z,U,L),g=O.__e,O.ref&&V.ref!=O.ref&&(V.ref&&f5(V.ref,null,O),L.push(O.ref,O.__c||g,O)),h==null&&g!=null&&(h=g),(d=!!(4&O.__u))||V.__k===O.__k?(z=d3(O,z,$,d),d&&V.__e&&(V.__e=null)):typeof O.type=="function"&&p!==void 0?z=p:g&&(z=g.nextSibling),O.__u&=-7);return q.__e=h,z}function L9($,j,q,B,Q){var J,K,X,z,U,L=q.length,N=L,V=0;for($.__k=Array(Q),J=0;J<Q;J++)(K=j[J])!=null&&typeof K!="boolean"&&typeof K!="function"?(typeof K=="string"||typeof K=="number"||typeof K=="bigint"||K.constructor==String?K=$.__k[J]=k4(null,K,null,null,null):x4(K)?K=$.__k[J]=k4(b4,{children:K},null,null,null):K.constructor===void 0&&K.__b>0?K=$.__k[J]=k4(K.type,K.props,K.key,K.ref?K.ref:null,K.__v):$.__k[J]=K,z=J+V,K.__=$,K.__b=$.__b+1,X=null,(U=K.__i=V9(K,q,z,N))!=-1&&(N--,(X=q[U])&&(X.__u|=2)),X==null||X.__v==null?(U==-1&&(Q>L?V--:Q<L&&V++),typeof K.type!="function"&&(K.__u|=4)):U!=z&&(U==z-1?V--:U==z+1?V++:(U>z?V--:V++,K.__u|=4))):$.__k[J]=null;if(N)for(J=0;J<L;J++)(X=q[J])!=null&&(2&X.__u)==0&&(X.__e==B&&(B=w2(X)),i3(X,X));return B}function d3($,j,q,B){var Q,J;if(typeof $.type=="function"){for(Q=$.__k,J=0;Q&&J<Q.length;J++)Q[J]&&(Q[J].__=$,j=d3(Q[J],j,q,B));return j}$.__e!=j&&(B&&(j&&$.type&&!j.parentNode&&(j=w2($)),q.insertBefore($.__e,j||null)),j=$.__e);do j=j&&j.nextSibling;while(j!=null&&j.nodeType==8);return j}function V9($,j,q,B){var Q,J,K,X=$.key,z=$.type,U=j[q],L=U!=null&&(2&U.__u)==0;if(U===null&&X==null||L&&X==U.key&&z==U.type)return q;if(B>(L?1:0)){for(Q=q-1,J=q+1;Q>=0||J<j.length;)if((U=j[K=Q>=0?Q--:J++])!=null&&(2&U.__u)==0&&X==U.key&&z==U.type)return K}return-1}function S3($,j,q){j[0]=="-"?$.setProperty(j,q==null?"":q):$[j]=q==null?"":typeof q!="number"||G9.test(j)?q:q+"px"}function S4($,j,q,B,Q){var J,K;$:if(j=="style")if(typeof q=="string")$.style.cssText=q;else{if(typeof B=="string"&&($.style.cssText=B=""),B)for(j in B)q&&j in q||S3($.style,j,"");if(q)for(j in q)B&&q[j]==B[j]||S3($.style,j,q[j])}else if(j[0]=="o"&&j[1]=="n")J=j!=(j=j.replace(h3,"$1")),K=j.toLowerCase(),j=K in $||j=="onFocusOut"||j=="onFocusIn"?K.slice(2):j.slice(2),$.l||($.l={}),$.l[j+J]=q,q?B?q[s2]=B[s2]:(q[s2]=k5,$.addEventListener(j,J?M5:T5,J)):$.removeEventListener(j,J?M5:T5,J);else{if(Q=="http://www.w3.org/2000/svg")j=j.replace(/xlink(H|:h)/,"h").replace(/sName$/,"s");else if(j!="width"&&j!="height"&&j!="href"&&j!="list"&&j!="form"&&j!="tabIndex"&&j!="download"&&j!="rowSpan"&&j!="colSpan"&&j!="role"&&j!="popover"&&j in $)try{$[j]=q==null?"":q;break $}catch(X){}typeof q=="function"||(q==null||q===!1&&j[4]!="-"?$.removeAttribute(j):$.setAttribute(j,j=="popover"&&q==1?"":q))}}function y3($){return function(j){if(this.l){var q=this.l[j.type+$];if(j[y4]==null)j[y4]=k5++;else if(j[y4]<q[s2])return;return q(x1.event?x1.event(j):j)}}}function P5($,j,q,B,Q,J,K,X,z,U){var L,N,V,O,g,h,p,d,P,t,v,e,W1,D1,N1,X1=j.type;if(j.constructor!==void 0)return null;128&q.__u&&(z=!!(32&q.__u),J=[X=j.__e=q.__e]),(L=x1.__b)&&L(j);$:if(typeof X1=="function")try{if(d=j.props,P=X1.prototype&&X1.prototype.render,t=(L=X1.contextType)&&B[L.__c],v=L?t?t.props.value:L.__:B,q.__c?p=(N=j.__c=q.__c).__=N.__E:(P?j.__c=N=new X1(d,v):(j.__c=N=new o2(d,v),N.constructor=X1,N.render=F9),t&&t.sub(N),N.state||(N.state={}),N.__n=B,V=N.__d=!0,N.__h=[],N._sb=[]),P&&N.__s==null&&(N.__s=N.state),P&&X1.getDerivedStateFromProps!=null&&(N.__s==N.state&&(N.__s=a0({},N.__s)),a0(N.__s,X1.getDerivedStateFromProps(d,N.__s))),O=N.props,g=N.state,N.__v=j,V)P&&X1.getDerivedStateFromProps==null&&N.componentWillMount!=null&&N.componentWillMount(),P&&N.componentDidMount!=null&&N.__h.push(N.componentDidMount);else{if(P&&X1.getDerivedStateFromProps==null&&d!==O&&N.componentWillReceiveProps!=null&&N.componentWillReceiveProps(d,v),j.__v==q.__v||!N.__e&&N.shouldComponentUpdate!=null&&N.shouldComponentUpdate(d,N.__s,v)===!1){j.__v!=q.__v&&(N.props=d,N.state=N.__s,N.__d=!1),j.__e=q.__e,j.__k=q.__k,j.__k.some(function(x){x&&(x.__=j)}),P4.push.apply(N.__h,N._sb),N._sb=[],N.__h.length&&K.push(N);break $}N.componentWillUpdate!=null&&N.componentWillUpdate(d,N.__s,v),P&&N.componentDidUpdate!=null&&N.__h.push(function(){N.componentDidUpdate(O,g,h)})}if(N.context=v,N.props=d,N.__P=$,N.__e=!1,e=x1.__r,W1=0,P)N.state=N.__s,N.__d=!1,e&&e(j),L=N.render(N.props,N.state,N.context),P4.push.apply(N.__h,N._sb),N._sb=[];else do N.__d=!1,e&&e(j),L=N.render(N.props,N.state,N.context),N.state=N.__s;while(N.__d&&++W1<25);N.state=N.__s,N.getChildContext!=null&&(B=a0(a0({},B),N.getChildContext())),P&&!V&&N.getSnapshotBeforeUpdate!=null&&(h=N.getSnapshotBeforeUpdate(O,g)),D1=L!=null&&L.type===b4&&L.key==null?r3(L.props.children):L,X=c3($,x4(D1)?D1:[D1],j,q,B,Q,J,K,X,z,U),N.base=j.__e,j.__u&=-161,N.__h.length&&K.push(N),p&&(N.__E=N.__=null)}catch(x){if(j.__v=null,z||J!=null)if(x.then){for(j.__u|=z?160:128;X&&X.nodeType==8&&X.nextSibling;)X=X.nextSibling;J[J.indexOf(X)]=null,j.__e=X}else{for(N1=J.length;N1--;)R5(J[N1]);S5(j)}else j.__e=q.__e,j.__k=q.__k,x.then||S5(j);x1.__e(x,j,q)}else J==null&&j.__v==q.__v?(j.__k=q.__k,j.__e=q.__e):X=j.__e=Z9(q.__e,j,q,B,Q,J,K,z,U);return(L=x1.diffed)&&L(j),128&j.__u?void 0:X}function S5($){$&&($.__c&&($.__c.__e=!0),$.__k&&$.__k.some(S5))}function l3($,j,q){for(var B=0;B<q.length;B++)f5(q[B],q[++B],q[++B]);x1.__c&&x1.__c(j,$),$.some(function(Q){try{$=Q.__h,Q.__h=[],$.some(function(J){J.call(Q)})}catch(J){x1.__e(J,Q.__v)}})}function r3($){return typeof $!="object"||$==null||$.__b>0?$:x4($)?$.map(r3):a0({},$)}function Z9($,j,q,B,Q,J,K,X,z){var U,L,N,V,O,g,h,p=q.props||E4,d=j.props,P=j.type;if(P=="svg"?Q="http://www.w3.org/2000/svg":P=="math"?Q="http://www.w3.org/1998/Math/MathML":Q||(Q="http://www.w3.org/1999/xhtml"),J!=null){for(U=0;U<J.length;U++)if((O=J[U])&&"setAttribute"in O==!!P&&(P?O.localName==P:O.nodeType==3)){$=O,J[U]=null;break}}if($==null){if(P==null)return document.createTextNode(d);$=document.createElementNS(Q,P,d.is&&d),X&&(x1.__m&&x1.__m(j,J),X=!1),J=null}if(P==null)p===d||X&&$.data==d||($.data=d);else{if(J=J&&w4.call($.childNodes),!X&&J!=null)for(p={},U=0;U<$.attributes.length;U++)p[(O=$.attributes[U]).name]=O.value;for(U in p)O=p[U],U=="dangerouslySetInnerHTML"?N=O:U=="children"||(U in d)||U=="value"&&("defaultValue"in d)||U=="checked"&&("defaultChecked"in d)||S4($,U,null,O,Q);for(U in d)O=d[U],U=="children"?V=O:U=="dangerouslySetInnerHTML"?L=O:U=="value"?g=O:U=="checked"?h=O:X&&typeof O!="function"||p[U]===O||S4($,U,O,p[U],Q);if(L)X||N&&(L.__html==N.__html||L.__html==$.innerHTML)||($.innerHTML=L.__html),j.__k=[];else if(N&&($.innerHTML=""),c3(j.type=="template"?$.content:$,x4(V)?V:[V],j,q,B,P=="foreignObject"?"http://www.w3.org/1999/xhtml":Q,J,K,J?J[0]:q.__k&&w2(q,0),X,z),J!=null)for(U=J.length;U--;)R5(J[U]);X||(U="value",P=="progress"&&g==null?$.removeAttribute("value"):g!=null&&(g!==$[U]||P=="progress"&&!g||P=="option"&&g!=p[U])&&S4($,U,g,p[U],Q),U="checked",h!=null&&h!=$[U]&&S4($,U,h,p[U],Q))}return $}function f5($,j,q){try{if(typeof $=="function"){var B=typeof $.__u=="function";B&&$.__u(),B&&j==null||($.__u=$(j))}else $.current=j}catch(Q){x1.__e(Q,q)}}function i3($,j,q){var B,Q;if(x1.unmount&&x1.unmount($),(B=$.ref)&&(B.current&&B.current!=$.__e||f5(B,null,j)),(B=$.__c)!=null){if(B.componentWillUnmount)try{B.componentWillUnmount()}catch(J){x1.__e(J,j)}B.base=B.__P=null}if(B=$.__k)for(Q=0;Q<B.length;Q++)B[Q]&&i3(B[Q],j,q||typeof $.type!="function");q||R5($.__e),$.__c=$.__=$.__e=void 0}function F9($,j,q){return this.constructor($,q)}function b2($,j,q){var B,Q,J,K;j==document&&(j=document.documentElement),x1.__&&x1.__($,j),Q=(B=typeof q=="function")?null:q&&q.__k||j.__k,J=[],K=[],P5(j,$=(!B&&q||j).__k=E5(b4,null,[$]),Q||E4,E4,j.namespaceURI,!B&&q?[q]:Q?null:j.firstChild?w4.call(j.childNodes):null,J,!B&&q?q:Q?Q.__e:j.firstChild,B,K),l3(J,$,K)}w4=P4.slice,x1={__e:function($,j,q,B){for(var Q,J,K;j=j.__;)if((Q=j.__c)&&!Q.__)try{if((J=Q.constructor)&&J.getDerivedStateFromError!=null&&(Q.setState(J.getDerivedStateFromError($)),K=Q.__d),Q.componentDidCatch!=null&&(Q.componentDidCatch($,B||{}),K=Q.__d),K)return Q.__E=Q}catch(X){$=X}throw $}},u3=0,z9=function($){return $!=null&&$.constructor===void 0},o2.prototype.setState=function($,j){var q;q=this.__s!=null&&this.__s!=this.state?this.__s:this.__s=a0({},this.state),typeof $=="function"&&($=$(a0({},q),this.props)),$&&a0(q,$),$!=null&&this.__v&&(j&&this._sb.push(j),M3(this))},o2.prototype.forceUpdate=function($){this.__v&&(this.__e=!0,$&&this.__h.push($),M3(this))},o2.prototype.render=b4,J2=[],g3=typeof Promise=="function"?Promise.prototype.then.bind(Promise.resolve()):setTimeout,m3=function($,j){return $.__v.__b-j.__v.__b},f4.__r=0,I5=Math.random().toString(8),y4="__d"+I5,s2="__a"+I5,h3=/(PointerCapture)$|Capture$/i,k5=0,T5=y3(!1),M5=y3(!0),W9=0;var x2,n1,O5,k3,a2=0,n3=[],i1=x1,R3=i1.__b,E3=i1.__r,P3=i1.diffed,f3=i1.__c,w3=i1.unmount,x3=i1.__;function v4($,j){i1.__h&&i1.__h(n1,$,a2||j),a2=0;var q=n1.__H||(n1.__H={__:[],__h:[]});return $>=q.__.length&&q.__.push({}),q.__[$]}function M($){return a2=1,s3(o3,$)}function s3($,j,q){var B=v4(x2++,2);if(B.t=$,!B.__c&&(B.__=[q?q(j):o3(void 0,j),function(X){var z=B.__N?B.__N[0]:B.__[0],U=B.t(z,X);z!==U&&(B.__N=[U,B.__[1]],B.__c.setState({}))}],B.__c=n1,!n1.__f)){var Q=function(X,z,U){if(!B.__c.__H)return!0;var L=B.__c.__H.__.filter(function(V){return V.__c});if(L.every(function(V){return!V.__N}))return!J||J.call(this,X,z,U);var N=B.__c.props!==X;return L.some(function(V){if(V.__N){var O=V.__[0];V.__=V.__N,V.__N=void 0,O!==V.__[0]&&(N=!0)}}),J&&J.call(this,X,z,U)||N};n1.__f=!0;var{shouldComponentUpdate:J,componentWillUpdate:K}=n1;n1.componentWillUpdate=function(X,z,U){if(this.__e){var L=J;J=void 0,Q(X,z,U),J=L}K&&K.call(this,X,z,U)},n1.shouldComponentUpdate=Q}return B.__N||B.__}function w($,j){var q=v4(x2++,3);!i1.__s&&x5(q.__H,j)&&(q.__=$,q.u=j,n1.__H.__h.push(q))}function w5($,j){var q=v4(x2++,4);!i1.__s&&x5(q.__H,j)&&(q.__=$,q.u=j,n1.__h.push(q))}function T($){return a2=5,H1(function(){return{current:$}},[])}function H1($,j){var q=v4(x2++,7);return x5(q.__H,j)&&(q.__=$(),q.__H=j,q.__h=$),q.__}function m($,j){return a2=8,H1(function(){return $},j)}function H9(){for(var $;$=n3.shift();){var j=$.__H;if($.__P&&j)try{j.__h.some(R4),j.__h.some(y5),j.__h=[]}catch(q){j.__h=[],i1.__e(q,$.__v)}}}i1.__b=function($){n1=null,R3&&R3($)},i1.__=function($,j){$&&j.__k&&j.__k.__m&&($.__m=j.__k.__m),x3&&x3($,j)},i1.__r=function($){E3&&E3($),x2=0;var j=(n1=$.__c).__H;j&&(O5===n1?(j.__h=[],n1.__h=[],j.__.some(function(q){q.__N&&(q.__=q.__N),q.u=q.__N=void 0})):(j.__h.some(R4),j.__h.some(y5),j.__h=[],x2=0)),O5=n1},i1.diffed=function($){P3&&P3($);var j=$.__c;j&&j.__H&&(j.__H.__h.length&&(n3.push(j)!==1&&k3===i1.requestAnimationFrame||((k3=i1.requestAnimationFrame)||Y9)(H9)),j.__H.__.some(function(q){q.u&&(q.__H=q.u),q.u=void 0})),O5=n1=null},i1.__c=function($,j){j.some(function(q){try{q.__h.some(R4),q.__h=q.__h.filter(function(B){return!B.__||y5(B)})}catch(B){j.some(function(Q){Q.__h&&(Q.__h=[])}),j=[],i1.__e(B,q.__v)}}),f3&&f3($,j)},i1.unmount=function($){w3&&w3($);var j,q=$.__c;q&&q.__H&&(q.__H.__.some(function(B){try{R4(B)}catch(Q){j=Q}}),q.__H=void 0,j&&i1.__e(j,q.__v))};var b3=typeof requestAnimationFrame=="function";function Y9($){var j,q=function(){clearTimeout(B),b3&&cancelAnimationFrame(j),setTimeout($)},B=setTimeout(q,35);b3&&(j=requestAnimationFrame(q))}function R4($){var j=n1,q=$.__c;typeof q=="function"&&($.__c=void 0,q()),n1=j}function y5($){var j=n1;$.__c=$.__(),n1=j}function x5($,j){return!$||$.length!==j.length||j.some(function(q,B){return q!==$[B]})}function o3($,j){return typeof j=="function"?j($):j}var a3=function($,j,q,B){var Q;j[0]=0;for(var J=1;J<j.length;J++){var K=j[J++],X=j[J]?(j[0]|=K?1:2,q[j[J++]]):j[++J];K===3?B[0]=X:K===4?B[1]=Object.assign(B[1]||{},X):K===5?(B[1]=B[1]||{})[j[++J]]=X:K===6?B[1][j[++J]]+=X+"":K?(Q=$.apply(X,a3($,X,q,["",null])),B.push(Q),X[0]?j[0]|=2:(j[J-2]=0,j[J]=Q)):B.push(X)}return B},v3=new Map;function A9($){var j=v3.get(this);return j||(j=new Map,v3.set(this,j)),(j=a3(this,j.get($)||(j.set($,j=function(q){for(var B,Q,J=1,K="",X="",z=[0],U=function(V){J===1&&(V||(K=K.replace(/^\s*\n\s*|\s*\n\s*$/g,"")))?z.push(0,V,K):J===3&&(V||K)?(z.push(3,V,K),J=2):J===2&&K==="..."&&V?z.push(4,V,0):J===2&&K&&!V?z.push(5,0,!0,K):J>=5&&((K||!V&&J===5)&&(z.push(J,0,K,Q),J=6),V&&(z.push(J,V,0,Q),J=6)),K=""},L=0;L<q.length;L++){L&&(J===1&&U(),U(L));for(var N=0;N<q[L].length;N++)B=q[L][N],J===1?B==="<"?(U(),z=[z],J=3):K+=B:J===4?K==="--"&&B===">"?(J=1,K=""):K=B+K[0]:X?B===X?X="":K+=B:B==='"'||B==="'"?X=B:B===">"?(U(),J=1):J&&(B==="="?(J=5,Q=K,K=""):B==="/"&&(J<5||q[L][N+1]===">")?(U(),J===3&&(z=z[0]),J=z,(z=z[0]).push(2,0,J),J=0):B===" "||B==="\t"||B===`
-`||B==="\r"?(U(),J=2):K+=B),J===3&&K==="!--"&&(J=4,z=z[0])}return U(),z}($)),j),arguments,[])).length>1?j:j[0]}var G=A9.bind(E5);function k0($){if(typeof window>"u"||!window.localStorage)return null;try{return window.localStorage.getItem($)}catch{return null}}function E0($,j){if(typeof window>"u"||!window.localStorage)return;try{window.localStorage.setItem($,j)}catch{return}}function t3($,j=!1){let q=k0($);if(q===null)return j;return q==="true"}function e3($,j=null){let q=k0($);if(q===null)return j;let B=parseInt(q,10);return Number.isFinite(B)?B:j}var b5=($)=>{let j=new Set;return($||[]).filter((q)=>{if(!q||j.has(q.id))return!1;return j.add(q.id),!0})};function $6(){let[$,j]=M(null),[q,B]=M({text:"",totalLines:0}),[Q,J]=M(""),[K,X]=M({text:"",totalLines:0}),[z,U]=M(null),[L,N]=M(null),[V,O]=M(null),g=T(null),h=T(0),p=T(!1),d=T(""),P=T(""),t=T(!1),v=T(0),e=T(null),W1=T(null),D1=T(null),N1=T(null),X1=T(!1),x=T(!1);return{agentStatus:$,setAgentStatus:j,agentDraft:q,setAgentDraft:B,agentPlan:Q,setAgentPlan:J,agentThought:K,setAgentThought:X,pendingRequest:z,setPendingRequest:U,currentTurnId:L,setCurrentTurnId:N,steerQueuedTurnId:V,setSteerQueuedTurnId:O,lastAgentEventRef:g,lastSilenceNoticeRef:h,isAgentRunningRef:p,draftBufferRef:d,thoughtBufferRef:P,previewResyncPendingRef:t,previewResyncGenerationRef:v,pendingRequestRef:e,stalledPostIdRef:W1,currentTurnIdRef:D1,steerQueuedTurnIdRef:N1,thoughtExpandedRef:X1,draftExpandedRef:x}}var B6="piclaw_theme",u5="piclaw_tint",D9="piclaw_chat_themes",e0={bgPrimary:"#ffffff",bgSecondary:"#f7f9fa",bgHover:"#e8ebed",textPrimary:"#0f1419",textSecondary:"#536471",borderColor:"#eff3f4",accent:"#1d9bf0",accentHover:"#1a8cd8",warning:"#f0b429",danger:"#f4212e",success:"#00ba7c"},m4={bgPrimary:"#000000",bgSecondary:"#16181c",bgHover:"#1d1f23",textPrimary:"#e7e9ea",textSecondary:"#71767b",borderColor:"#2f3336",accent:"#1d9bf0",accentHover:"#1a8cd8",warning:"#f0b429",danger:"#f4212e",success:"#00ba7c"},j6={default:{label:"Default",mode:"auto",light:e0,dark:m4},tango:{label:"Tango",mode:"light",light:{bgPrimary:"#f6f5f4",bgSecondary:"#efedeb",bgHover:"#e5e3e1",textPrimary:"#2e3436",textSecondary:"#5c6466",borderColor:"#d3d7cf",accent:"#3465a4",accentHover:"#2c5890",danger:"#cc0000",success:"#4e9a06"}},xterm:{label:"XTerm",mode:"dark",dark:{bgPrimary:"#000000",bgSecondary:"#0a0a0a",bgHover:"#121212",textPrimary:"#d0d0d0",textSecondary:"#8a8a8a",borderColor:"#1f1f1f",accent:"#00a2ff",accentHover:"#0086d1",danger:"#ff5f5f",success:"#5fff87"}},monokai:{label:"Monokai",mode:"dark",dark:{bgPrimary:"#272822",bgSecondary:"#2f2f2f",bgHover:"#3a3a3a",textPrimary:"#f8f8f2",textSecondary:"#cfcfc2",borderColor:"#3e3d32",accent:"#f92672",accentHover:"#e81560",danger:"#f92672",success:"#a6e22e"}},"monokai-pro":{label:"Monokai Pro",mode:"dark",dark:{bgPrimary:"#2d2a2e",bgSecondary:"#363237",bgHover:"#403a40",textPrimary:"#fcfcfa",textSecondary:"#c1c0c0",borderColor:"#444046",accent:"#ff6188",accentHover:"#f74f7e",danger:"#ff4f5e",success:"#a9dc76"}},ristretto:{label:"Ristretto",mode:"dark",dark:{bgPrimary:"#2c2525",bgSecondary:"#362d2d",bgHover:"#403535",textPrimary:"#f4f1ef",textSecondary:"#cbbdb8",borderColor:"#4a3c3c",accent:"#ff9f43",accentHover:"#f28a2e",danger:"#ff5f56",success:"#a9dc76"}},dracula:{label:"Dracula",mode:"dark",dark:{bgPrimary:"#282a36",bgSecondary:"#303445",bgHover:"#3a3f52",textPrimary:"#f8f8f2",textSecondary:"#c5c8d6",borderColor:"#44475a",accent:"#bd93f9",accentHover:"#a87ded",danger:"#ff5555",success:"#50fa7b"}},catppuccin:{label:"Catppuccin",mode:"dark",dark:{bgPrimary:"#1e1e2e",bgSecondary:"#24273a",bgHover:"#2c2f41",textPrimary:"#cdd6f4",textSecondary:"#a6adc8",borderColor:"#313244",accent:"#89b4fa",accentHover:"#74a0f5",danger:"#f38ba8",success:"#a6e3a1"}},nord:{label:"Nord",mode:"dark",dark:{bgPrimary:"#2e3440",bgSecondary:"#3b4252",bgHover:"#434c5e",textPrimary:"#eceff4",textSecondary:"#d8dee9",borderColor:"#4c566a",accent:"#88c0d0",accentHover:"#78a9c0",danger:"#bf616a",success:"#a3be8c"}},gruvbox:{label:"Gruvbox",mode:"dark",dark:{bgPrimary:"#282828",bgSecondary:"#32302f",bgHover:"#3c3836",textPrimary:"#ebdbb2",textSecondary:"#bdae93",borderColor:"#3c3836",accent:"#d79921",accentHover:"#c28515",danger:"#fb4934",success:"#b8bb26"}},solarized:{label:"Solarized",mode:"auto",light:{bgPrimary:"#fdf6e3",bgSecondary:"#f5efdc",bgHover:"#eee8d5",textPrimary:"#586e75",textSecondary:"#657b83",borderColor:"#e0d8c6",accent:"#268bd2",accentHover:"#1f78b3",danger:"#dc322f",success:"#859900"},dark:{bgPrimary:"#002b36",bgSecondary:"#073642",bgHover:"#0b3c4a",textPrimary:"#eee8d5",textSecondary:"#93a1a1",borderColor:"#18424a",accent:"#268bd2",accentHover:"#1f78b3",danger:"#dc322f",success:"#859900"}},tokyo:{label:"Tokyo",mode:"dark",dark:{bgPrimary:"#1a1b26",bgSecondary:"#24283b",bgHover:"#2f3549",textPrimary:"#c0caf5",textSecondary:"#9aa5ce",borderColor:"#414868",accent:"#7aa2f7",accentHover:"#6b92e6",danger:"#f7768e",success:"#9ece6a"}},miasma:{label:"Miasma",mode:"dark",dark:{bgPrimary:"#1f1f23",bgSecondary:"#29292f",bgHover:"#33333a",textPrimary:"#e5e5e5",textSecondary:"#b4b4b4",borderColor:"#3d3d45",accent:"#c9739c",accentHover:"#b8618c",danger:"#e06c75",success:"#98c379"}},github:{label:"GitHub",mode:"auto",light:{bgPrimary:"#ffffff",bgSecondary:"#f6f8fa",bgHover:"#eaeef2",textPrimary:"#24292f",textSecondary:"#57606a",borderColor:"#d0d7de",accent:"#0969da",accentHover:"#0550ae",danger:"#cf222e",success:"#1a7f37"},dark:{bgPrimary:"#0d1117",bgSecondary:"#161b22",bgHover:"#21262d",textPrimary:"#c9d1d9",textSecondary:"#8b949e",borderColor:"#30363d",accent:"#2f81f7",accentHover:"#1f6feb",danger:"#f85149",success:"#3fb950"}},gotham:{label:"Gotham",mode:"dark",dark:{bgPrimary:"#0b0f14",bgSecondary:"#111720",bgHover:"#18212b",textPrimary:"#cbd6e2",textSecondary:"#9bb0c3",borderColor:"#1f2a37",accent:"#5ccfe6",accentHover:"#48b8ce",danger:"#d26937",success:"#2aa889"}}},C9=["--bg-primary","--bg-secondary","--bg-hover","--text-primary","--text-secondary","--border-color","--accent-color","--accent-hover","--accent-color-alpha","--accent-contrast-text","--accent-soft","--accent-soft-strong","--warning-color","--danger-color","--success-color","--search-highlight-color"],C2={theme:"default",tint:null},Q6="light",v5=!1;function h4($){let j=String($||"").trim().toLowerCase();if(!j)return"default";if(j==="solarized-dark"||j==="solarized-light")return"solarized";if(j==="github-dark"||j==="github-light")return"github";if(j==="tokyo-night")return"tokyo";return j}function J6($){if(!$)return null;let j=String($).trim();if(!j)return null;let q=j.startsWith("#")?j.slice(1):j;if(!/^[0-9a-fA-F]{3}$/.test(q)&&!/^[0-9a-fA-F]{6}$/.test(q))return null;let B=q.length===3?q.split("").map((J)=>J+J).join(""):q,Q=parseInt(B,16);return{r:Q>>16&255,g:Q>>8&255,b:Q&255,hex:`#${B.toLowerCase()}`}}function I9($,j){try{if(document.body){$.style.display="none",document.body.appendChild($);let q=getComputedStyle($).color||$.style.color;return document.body.removeChild($),q}}catch{return j}return j}function O9($){if(!$||typeof document>"u")return null;let j=String($).trim();if(!j)return null;let q=document.createElement("div");if(q.style.color="",q.style.color=j,!q.style.color)return null;let Q=I9(q,q.style.color).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);if(!Q)return null;let J=parseInt(Q[1],10),K=parseInt(Q[2],10),X=parseInt(Q[3],10);if(![J,K,X].every((U)=>Number.isFinite(U)))return null;let z=`#${[J,K,X].map((U)=>U.toString(16).padStart(2,"0")).join("")}`;return{r:J,g:K,b:X,hex:z}}function D2($){return J6($)||O9($)}function g5($,j,q){let B=Math.round($.r+(j.r-$.r)*q),Q=Math.round($.g+(j.g-$.g)*q),J=Math.round($.b+(j.b-$.b)*q);return`rgb(${B} ${Q} ${J})`}function u4($,j){return`rgba(${$.r}, ${$.g}, ${$.b}, ${j})`}function T9($){let j=$.r/255,q=$.g/255,B=$.b/255,Q=j<=0.03928?j/12.92:Math.pow((j+0.055)/1.055,2.4),J=q<=0.03928?q/12.92:Math.pow((q+0.055)/1.055,2.4),K=B<=0.03928?B/12.92:Math.pow((B+0.055)/1.055,2.4);return 0.2126*Q+0.7152*J+0.0722*K}function M9($){return T9($)>0.4?"#000000":"#ffffff"}function K6(){if(typeof window>"u")return"light";try{return window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch{return"light"}}function m5($){return j6[$]||j6.default}function S9($){return $.mode==="auto"?K6():$.mode}function X6($,j){let q=m5($);if(j==="dark"&&q.dark)return q.dark;if(j==="light"&&q.light)return q.light;return q.dark||q.light||e0}function t0($,j,q){let B=D2($);if(!B)return $;return g5(B,j,q)}function U6($,j,q){let B=D2(j);if(!B)return $;let J=J6(q==="dark"?"#ffffff":"#000000");return{...$,bgPrimary:t0($.bgPrimary,B,0.08),bgSecondary:t0($.bgSecondary,B,0.12),bgHover:t0($.bgHover,B,0.16),textPrimary:t0($.textPrimary,B,q==="dark"?0.08:0.06),textSecondary:t0($.textSecondary,B,q==="dark"?0.12:0.1),borderColor:t0($.borderColor,B,0.1),accent:B.hex,accentHover:J?g5(B,J,0.18):B.hex,warning:t0($.warning||e0.warning,B,0.14),danger:t0($.danger,B,0.16),success:t0($.success,B,0.16)}}function y9($,j){let q=D2($?.warning);if(q)return q.hex;let B=D2(j==="dark"?m4.warning:e0.warning)||D2(e0.warning),Q=D2($?.accent);if(B&&Q)return g5(B,Q,j==="dark"?0.18:0.14);return j==="dark"?m4.warning:e0.warning}function k9($,j){if(typeof document>"u")return;let q=document.documentElement,B=$.accent,Q=D2(B),J=Q?u4(Q,j==="dark"?0.35:0.2):$.searchHighlight||$.searchHighlightColor,K=Q?u4(Q,j==="dark"?0.16:0.12):"rgba(29, 155, 240, 0.12)",X=Q?u4(Q,j==="dark"?0.28:0.2):"rgba(29, 155, 240, 0.2)",z=Q?M9(Q):j==="dark"?"#000000":"#ffffff",U=Q?u4(Q,j==="dark"?0.35:0.25):"rgba(29, 155, 240, 0.25)",L=y9($,j),N={"--bg-primary":$.bgPrimary,"--bg-secondary":$.bgSecondary,"--bg-hover":$.bgHover,"--text-primary":$.textPrimary,"--text-secondary":$.textSecondary,"--border-color":$.borderColor,"--accent-color":B,"--accent-hover":$.accentHover||B,"--accent-color-alpha":U,"--accent-soft":K,"--accent-soft-strong":X,"--accent-contrast-text":z,"--warning-color":L,"--danger-color":$.danger||e0.danger,"--success-color":$.success||e0.success,"--search-highlight-color":J||"rgba(29, 155, 240, 0.2)"};Object.entries(N).forEach(([V,O])=>{if(O)q.style.setProperty(V,O)})}function R9(){if(typeof document>"u")return;let $=document.documentElement;C9.forEach((j)=>$.style.removeProperty(j))}function v2($,j={}){if(typeof document>"u")return null;let q=typeof j.id==="string"&&j.id.trim()?j.id.trim():null,B=q?document.getElementById(q):document.querySelector(`meta[name="${$}"]`);if(!B)B=document.createElement("meta"),document.head.appendChild(B);if(B.setAttribute("name",$),q)B.setAttribute("id",q);return B}function q6($){let j=h4(C2?.theme||"default"),q=C2?.tint?String(C2.tint).trim():null,B=X6(j,$);if(j==="default"&&q)B=U6(B,q,$);if(B?.bgPrimary)return B.bgPrimary;return $==="dark"?m4.bgPrimary:e0.bgPrimary}function E9($,j){if(typeof document>"u")return;let q=v2("theme-color",{id:"dynamic-theme-color"});if(q&&$)q.removeAttribute("media"),q.setAttribute("content",$);let B=v2("theme-color",{id:"theme-color-light"});if(B)B.setAttribute("media","(prefers-color-scheme: light)"),B.setAttribute("content",q6("light"));let Q=v2("theme-color",{id:"theme-color-dark"});if(Q)Q.setAttribute("media","(prefers-color-scheme: dark)"),Q.setAttribute("content",q6("dark"));let J=v2("msapplication-TileColor");if(J&&$)J.setAttribute("content",$);let K=v2("msapplication-navbutton-color");if(K&&$)K.setAttribute("content",$);let X=v2("apple-mobile-web-app-status-bar-style");if(X)X.setAttribute("content",j==="dark"?"black-translucent":"default")}function P9(){if(typeof window>"u")return;let $={...C2,mode:Q6};window.dispatchEvent(new CustomEvent("piclaw-theme-change",{detail:$}))}function f9(){try{let $=k0(D9);if(!$)return{};let j=JSON.parse($);return typeof j==="object"&&j!==null?j:{}}catch{return{}}}function w9($){if(!$)return null;return f9()[$]||null}function x9(){if(typeof window>"u")return"web:default";try{let j=new URL(window.location.href).searchParams.get("chat_jid");return j&&j.trim()?j.trim():"web:default"}catch{return"web:default"}}function _6($,j={}){if(typeof window>"u"||typeof document>"u")return;let q=h4($?.theme||"default"),B=$?.tint?String($.tint).trim():null,Q=m5(q),J=S9(Q),K=X6(q,J);C2={theme:q,tint:B},Q6=J;let X=document.documentElement;X.dataset.theme=J,X.dataset.colorTheme=q,X.dataset.tint=B?String(B):"",X.style.colorScheme=J;let z=K;if(q==="default"&&B)z=U6(K,B,J);if(q==="default"&&!B)R9();else k9(z,J);if(E9(z.bgPrimary,J),P9(),j.persist!==!1)if(E0(B6,q),B)E0(u5,B);else E0(u5,"")}function g4(){if(m5(C2.theme).mode!=="auto")return;_6(C2,{persist:!1})}function z6(){if(typeof window>"u")return()=>{};let $=x9(),j=w9($),q=j?h4(j.theme||"default"):h4(k0(B6)||"default"),B=j?j.tint?String(j.tint).trim():null:(()=>{let Q=k0(u5);return Q?Q.trim():null})();if(_6({theme:q,tint:B},{persist:!1}),window.matchMedia&&!v5){let Q=window.matchMedia("(prefers-color-scheme: dark)");if(Q.addEventListener)Q.addEventListener("change",g4);else if(Q.addListener)Q.addListener(g4);return v5=!0,()=>{if(Q.removeEventListener)Q.removeEventListener("change",g4);else if(Q.removeListener)Q.removeListener(g4);v5=!1}}return()=>{}}function W6(){if(typeof document>"u")return"light";let $=document.documentElement?.dataset?.theme;if($==="dark"||$==="light")return $;return K6()}var b9="";async function K2($,j={}){let q=typeof performance<"u"&&typeof performance.now==="function"?performance.now():Date.now(),B;try{B=await fetch(b9+$,{...j,headers:{"Content-Type":"application/json",...j.headers||{}}})}catch(J){throw G6({method:String(j.method||"GET").toUpperCase(),url:$,startedAt:q,durationMs:performance.now()-q,ok:!1,detail:{failedBeforeResponse:!0}}),J}let Q=performance.now()-q;if(G6({method:String(j.method||"GET").toUpperCase(),url:$,startedAt:q,durationMs:Q,status:B.status,ok:B.ok,requestId:B.headers?.get?.("x-request-id")||null,serverTiming:B.headers?.get?.("Server-Timing")||null}),!B.ok){let J=await B.json().catch(()=>({error:"Unknown error"}));throw Error(J.error||`HTTP ${B.status}`)}return B.json()}async function N6($=50,j=null,q=null){let B=q?.startsWith("gi:")?q.slice(3):null;if(!B)return{posts:[]};let Q=`/api/sessions/${encodeURIComponent(B)}/messages?limit=${$}`;if(j)Q+=`&before=${j}`;return{posts:((await K2(Q)).messages||[]).map((X)=>({id:X.id,chat_jid:q,content:X.content,timestamp:X.created_at,sender:X.role==="user"?"user":"agent",is_from_me:X.role==="user",is_bot_message:X.role==="assistant",data:{thread_id:null,agent_id:X.role==="assistant"?"gi":null,content_blocks:X.payload?.content_blocks||null,kind:X.payload?.kind||null,source:X.payload?.source||null,clipped:X.payload?.clipped||!1}}))}}async function L6($,j=null){let q=j?.startsWith("gi:")?j.slice(3):null;if(!q)return null;let Q=(await K2(`/api/sessions/${encodeURIComponent(q)}/turns`).catch(()=>({turns:[]}))).turns||[],J=Q.find((K)=>K.status==="running"||K.status==="cancelling")||Q.find((K)=>K.status==="queued");if(!J)return null;return{type:J.status==="running"?"tool_call":"intent",title:J.status==="cancelling"?"Cancelling…":J.status==="queued"?"Queued":J.prompt,status:J.status}}async function p4($=null){let j=await K2("/api/runtime/config").catch(()=>({}));return{models:(j.enabled_models||[]).map((B)=>({id:B,provider:j.default_provider||"",label:B})),current:j.default_model||""}}async function u2($,j,q=null,B=[],Q=null,J=null){let K=J?.startsWith("gi:")?J.slice(3):null;if(!K)throw Error("No active session");let X=Q==="steer"?"steer":Q==="queue"?"queue":"prompt";return K2(`/api/sessions/${encodeURIComponent(K)}/prompt`,{method:"POST",body:JSON.stringify({prompt:j,intent:X})})}async function V6($,j=null){return null}async function h5($){return K2(`/api/media/${$}`).catch(()=>null)}function t2($){return`/api/media/${$}/raw`}function Z6($){return`/api/media/${$}/thumbnail`}async function F6($){return null}async function c4($=null){return K2("/api/workspace/tree")}async function H6($,j=null){return K2(`/api/workspace/file?path=${encodeURIComponent($)}`)}async function Y6($=null){return{status:"ready",indexed_at:null}}async function A6($=null){return null}async function D6($,j,q=null){return K2("/api/workspace/file",{method:"POST",body:JSON.stringify({path:$,content:j})}).catch(()=>null)}async function C6($,j,q=null){return null}async function I6($,j,q=null){return null}async function O6($,j=null){return null}async function p5($,j,q=null){return null}async function d4($,j,q=null){return null}function c5($){return`/api/workspace/file?path=${encodeURIComponent($)}`}async function T6($=null){return null}function M6($,j={}){let q=new URLSearchParams({path:String($||"")});if(j?.download)q.set("download","1");return`/api/workspace/raw?${q.toString()}`}function d5($){return M6($,{download:!0})}async function G6($){}import{classHighlighter as v9,highlightTree as u9,StreamLanguage as O2,cssLanguage as g9,goLanguage as m9,htmlLanguage as h9,javascriptLanguage as p9,jsxLanguage as c9,tsxLanguage as d9,typescriptLanguage as l9,jsonLanguage as r9,markdownLanguage as i9,pythonLanguage as n9,StandardSQL as s9,xmlLanguage as o9,yamlLanguage as a9,dockerFile as t9,powerShell as e9,ruby as $7,rust as j7,shell as q7,swift as B7,toml as Q7}from"#editor-vendor/codemirror";function I2($){return $.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}var J7=O2.define(q7).parser,K7=O2.define(e9).parser,X7=O2.define(t9).parser,U7=O2.define($7).parser,_7=O2.define(j7).parser,z7=O2.define(B7).parser,W7=O2.define(Q7).parser;function G7($){switch(String($||"").trim().toLowerCase()){case"js":case"javascript":return p9.parser;case"ts":case"typescript":return l9.parser;case"jsx":return c9.parser;case"tsx":return d9.parser;case"py":case"python":return n9.parser;case"json":return r9.parser;case"css":return g9.parser;case"html":return h9.parser;case"xml":return o9.parser;case"yaml":case"yml":return a9.parser;case"md":case"markdown":return i9.parser;case"sql":return s9.language.parser;case"go":return m9.parser;case"sh":case"bash":case"shell":case"zsh":return J7;case"ps1":case"powershell":return K7;case"dockerfile":return X7;case"rb":case"ruby":return U7;case"rs":case"rust":return _7;case"swift":return z7;case"toml":return W7;default:return null}}function S6($,j){let q=G7(j);if(!q)return I2($);let B=[];try{let K=q.parse($);u9(K,v9,(X,z,U)=>{if(!U||X>=z)return;B.push({from:X,to:z,cls:U})})}catch{return I2($)}if(!B.length)return I2($);B.sort((K,X)=>K.from-X.from||K.to-X.to);let Q=0,J="";for(let K of B){if(K.from>Q)J+=I2($.slice(Q,K.from));J+=`<span class="${I2(K.cls)}">${I2($.slice(K.from,K.to))}</span>`,Q=Math.max(Q,K.to)}if(Q<$.length)J+=I2($.slice(Q));return J}var l4=/#(\w+)/g,N7=new Set(["strong","em","b","i","u","s","del","ins","sub","sup","mark","small","br","p","ul","ol","li","blockquote","ruby","rt","rp","span","input"]),L7=new Set(["a","abbr","blockquote","br","code","del","div","em","hr","h1","h2","h3","h4","h5","h6","i","img","input","ins","kbd","li","mark","ol","p","pre","ruby","rt","rp","s","small","span","strong","sub","sup","table","tbody","td","th","thead","tr","u","ul","math","semantics","mrow","mi","mn","mo","mtext","mspace","msup","msub","msubsup","mfrac","msqrt","mroot","mtable","mtr","mtd","annotation"]),V7=new Set(["class","title","role","aria-hidden","aria-label","aria-expanded","aria-live","data-mermaid","data-hashtag"]),y6={a:new Set(["href","target","rel"]),img:new Set(["src","alt","title"]),input:new Set(["type","checked","disabled"])},Z7=new Set(["http:","https:","mailto:",""]);function F7($,j){let q=String($||"").toLowerCase(),B=String(j||"").toLowerCase();if(!B||B.startsWith("on"))return!1;if(B.startsWith("data-")||B.startsWith("aria-"))return!0;return(y6[q]||new Set).has(B)||V7.has(B)}function l5($){return String($||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/'/g,"&#39;")}function T2($,j={}){if(!$)return null;let q=String($).trim();if(!q)return null;if(q.startsWith("#")||q.startsWith("/"))return q;if(q.startsWith("data:")){if(j.allowDataImage&&/^data:image\//i.test(q))return q;return null}if(q.startsWith("blob:"))return q;try{let B=new URL(q,typeof window<"u"?window.location.origin:"http://localhost");if(!Z7.has(B.protocol))return null;return B.href}catch{return null}}function k6($,j={}){if(!$)return"";if(j?.sanitize===!1)return $;let q=new DOMParser().parseFromString($,"text/html"),B=[],Q=q.createTreeWalker(q.body,NodeFilter.SHOW_ELEMENT),J;while(J=Q.nextNode())B.push(J);for(let K of B){let X=K.tagName.toLowerCase();if(!L7.has(X)){let U=K.parentNode;if(!U)continue;while(K.firstChild)U.insertBefore(K.firstChild,K);U.removeChild(K);continue}let z=y6[X]||new Set;for(let U of Array.from(K.attributes)){let L=U.name.toLowerCase(),N=U.value;if(L.startsWith("on")){K.removeAttribute(U.name);continue}if(F7(X,L)){if(L==="href"){let V=T2(N);if(!V)K.removeAttribute(U.name);else if(K.setAttribute(U.name,V),X==="a"){if(!K.getAttribute("rel"))K.setAttribute("rel","noopener noreferrer");if(/^https?:\/\//i.test(V))K.setAttribute("target","_blank")}}else if(L==="src"){let V=X==="img"&&typeof j.rewriteImageSrc==="function"?j.rewriteImageSrc(N):N,O=T2(V,{allowDataImage:X==="img"});if(!O)K.removeAttribute(U.name);else K.setAttribute(U.name,O)}continue}K.removeAttribute(U.name)}}return q.body.innerHTML}function R6($){if(!$)return $;let j=$.replace(/</g,"&lt;").replace(/>/g,"&gt;");return new DOMParser().parseFromString(j,"text/html").documentElement.textContent}function e2($,j=2){if(!$)return $;let q=$;for(let B=0;B<j;B+=1){let Q=R6(q);if(Q===q)break;q=Q}return q}function H7($){if(!$)return{text:"",frontmatter:null};let j=$.replace(/^\uFEFF/,"").replace(/\r\n/g,`
+var m4,b1,e3,h$,J2,g3,$8,j8,R5,R4,j4,q8,m5,x5,v5,c$,v4={},b4=[],l$=/acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ntw|ine[ch]|zoo|^ord|itera/i,g4=Array.isArray;function $2($,j){for(var q in j)$[q]=j[q];return $}function g5($){$&&$.parentNode&&$.parentNode.removeChild($)}function p5($,j,q){var B,_,Q,U={};for(Q in j)Q=="key"?B=j[Q]:Q=="ref"?_=j[Q]:U[Q]=j[Q];if(arguments.length>2&&(U.children=arguments.length>3?m4.call(arguments,2):q),typeof $=="function"&&$.defaultProps!=null)for(Q in $.defaultProps)U[Q]===void 0&&(U[Q]=$.defaultProps[Q]);return w4($,U,B,_,null)}function w4($,j,q,B,_){var Q={type:$,props:j,key:q,ref:B,__k:null,__:null,__b:0,__e:null,__c:null,constructor:void 0,__v:_==null?++e3:_,__i:-1,__u:0};return _==null&&b1.vnode!=null&&b1.vnode(Q),Q}function p4($){return $.children}function q4($,j){this.props=$,this.context=j}function b2($,j){if(j==null)return $.__?b2($.__,$.__i+1):null;for(var q;j<$.__k.length;j++)if((q=$.__k[j])!=null&&q.__e!=null)return q.__e;return typeof $.type=="function"?b2($):null}function r$($){if($.__P&&$.__d){var j=$.__v,q=j.__e,B=[],_=[],Q=$2({},j);Q.__v=j.__v+1,b1.vnode&&b1.vnode(Q),h5($.__P,Q,j,$.__n,$.__P.namespaceURI,32&j.__u?[q]:null,B,q==null?b2(j):q,!!(32&j.__u),_),Q.__v=j.__v,Q.__.__k[Q.__i]=Q,U8(B,Q,_),j.__e=j.__=null,Q.__e!=q&&B8(Q)}}function B8($){if(($=$.__)!=null&&$.__c!=null)return $.__e=$.__c.base=null,$.__k.some(function(j){if(j!=null&&j.__e!=null)return $.__e=$.__c.base=j.__e}),B8($)}function p3($){(!$.__d&&($.__d=!0)&&J2.push($)&&!u4.__r++||g3!=b1.debounceRendering)&&((g3=b1.debounceRendering)||$8)(u4)}function u4(){try{for(var $,j=1;J2.length;)J2.length>j&&J2.sort(j8),$=J2.shift(),j=J2.length,r$($)}finally{J2.length=u4.__r=0}}function _8($,j,q,B,_,Q,U,X,J,W,V){var G,L,C,b,c,l,w,S=B&&B.__k||b4,m=j.length;for(J=d$(q,j,S,J,m),G=0;G<m;G++)(C=q.__k[G])!=null&&(L=C.__i!=-1&&S[C.__i]||v4,C.__i=G,l=h5($,C,L,_,Q,U,X,J,W,V),b=C.__e,C.ref&&L.ref!=C.ref&&(L.ref&&c5(L.ref,null,C),V.push(C.ref,C.__c||b,C)),c==null&&b!=null&&(c=b),(w=!!(4&C.__u))||L.__k===C.__k?(J=Q8(C,J,$,w),w&&L.__e&&(L.__e=null)):typeof C.type=="function"&&l!==void 0?J=l:b&&(J=b.nextSibling),C.__u&=-7);return q.__e=c,J}function d$($,j,q,B,_){var Q,U,X,J,W,V=q.length,G=V,L=0;for($.__k=Array(_),Q=0;Q<_;Q++)(U=j[Q])!=null&&typeof U!="boolean"&&typeof U!="function"?(typeof U=="string"||typeof U=="number"||typeof U=="bigint"||U.constructor==String?U=$.__k[Q]=w4(null,U,null,null,null):g4(U)?U=$.__k[Q]=w4(p4,{children:U},null,null,null):U.constructor===void 0&&U.__b>0?U=$.__k[Q]=w4(U.type,U.props,U.key,U.ref?U.ref:null,U.__v):$.__k[Q]=U,J=Q+L,U.__=$,U.__b=$.__b+1,X=null,(W=U.__i=i$(U,q,J,G))!=-1&&(G--,(X=q[W])&&(X.__u|=2)),X==null||X.__v==null?(W==-1&&(_>V?L--:_<V&&L++),typeof U.type!="function"&&(U.__u|=4)):W!=J&&(W==J-1?L--:W==J+1?L++:(W>J?L--:L++,U.__u|=4))):$.__k[Q]=null;if(G)for(Q=0;Q<V;Q++)(X=q[Q])!=null&&(2&X.__u)==0&&(X.__e==B&&(B=b2(X)),W8(X,X));return B}function Q8($,j,q,B){var _,Q;if(typeof $.type=="function"){for(_=$.__k,Q=0;_&&Q<_.length;Q++)_[Q]&&(_[Q].__=$,j=Q8(_[Q],j,q,B));return j}$.__e!=j&&(B&&(j&&$.type&&!j.parentNode&&(j=b2($)),q.insertBefore($.__e,j||null)),j=$.__e);do j=j&&j.nextSibling;while(j!=null&&j.nodeType==8);return j}function i$($,j,q,B){var _,Q,U,X=$.key,J=$.type,W=j[q],V=W!=null&&(2&W.__u)==0;if(W===null&&X==null||V&&X==W.key&&J==W.type)return q;if(B>(V?1:0)){for(_=q-1,Q=q+1;_>=0||Q<j.length;)if((W=j[U=_>=0?_--:Q++])!=null&&(2&W.__u)==0&&X==W.key&&J==W.type)return U}return-1}function h3($,j,q){j[0]=="-"?$.setProperty(j,q==null?"":q):$[j]=q==null?"":typeof q!="number"||l$.test(j)?q:q+"px"}function P4($,j,q,B,_){var Q,U;$:if(j=="style")if(typeof q=="string")$.style.cssText=q;else{if(typeof B=="string"&&($.style.cssText=B=""),B)for(j in B)q&&j in q||h3($.style,j,"");if(q)for(j in q)B&&q[j]==B[j]||h3($.style,j,q[j])}else if(j[0]=="o"&&j[1]=="n")Q=j!=(j=j.replace(q8,"$1")),U=j.toLowerCase(),j=U in $||j=="onFocusOut"||j=="onFocusIn"?U.slice(2):j.slice(2),$.l||($.l={}),$.l[j+Q]=q,q?B?q[j4]=B[j4]:(q[j4]=m5,$.addEventListener(j,Q?v5:x5,Q)):$.removeEventListener(j,Q?v5:x5,Q);else{if(_=="http://www.w3.org/2000/svg")j=j.replace(/xlink(H|:h)/,"h").replace(/sName$/,"s");else if(j!="width"&&j!="height"&&j!="href"&&j!="list"&&j!="form"&&j!="tabIndex"&&j!="download"&&j!="rowSpan"&&j!="colSpan"&&j!="role"&&j!="popover"&&j in $)try{$[j]=q==null?"":q;break $}catch(X){}typeof q=="function"||(q==null||q===!1&&j[4]!="-"?$.removeAttribute(j):$.setAttribute(j,j=="popover"&&q==1?"":q))}}function c3($){return function(j){if(this.l){var q=this.l[j.type+$];if(j[R4]==null)j[R4]=m5++;else if(j[R4]<q[j4])return;return q(b1.event?b1.event(j):j)}}}function h5($,j,q,B,_,Q,U,X,J,W){var V,G,L,C,b,c,l,w,S,m,O,d,g,U1,k,r=j.type;if(j.constructor!==void 0)return null;128&q.__u&&(J=!!(32&q.__u),Q=[X=j.__e=q.__e]),(V=b1.__b)&&V(j);$:if(typeof r=="function")try{if(w=j.props,S=r.prototype&&r.prototype.render,m=(V=r.contextType)&&B[V.__c],O=V?m?m.props.value:V.__:B,q.__c?l=(G=j.__c=q.__c).__=G.__E:(S?j.__c=G=new r(w,O):(j.__c=G=new q4(w,O),G.constructor=r,G.render=s$),m&&m.sub(G),G.state||(G.state={}),G.__n=B,L=G.__d=!0,G.__h=[],G._sb=[]),S&&G.__s==null&&(G.__s=G.state),S&&r.getDerivedStateFromProps!=null&&(G.__s==G.state&&(G.__s=$2({},G.__s)),$2(G.__s,r.getDerivedStateFromProps(w,G.__s))),C=G.props,b=G.state,G.__v=j,L)S&&r.getDerivedStateFromProps==null&&G.componentWillMount!=null&&G.componentWillMount(),S&&G.componentDidMount!=null&&G.__h.push(G.componentDidMount);else{if(S&&r.getDerivedStateFromProps==null&&w!==C&&G.componentWillReceiveProps!=null&&G.componentWillReceiveProps(w,O),j.__v==q.__v||!G.__e&&G.shouldComponentUpdate!=null&&G.shouldComponentUpdate(w,G.__s,O)===!1){j.__v!=q.__v&&(G.props=w,G.state=G.__s,G.__d=!1),j.__e=q.__e,j.__k=q.__k,j.__k.some(function(f){f&&(f.__=j)}),b4.push.apply(G.__h,G._sb),G._sb=[],G.__h.length&&U.push(G);break $}G.componentWillUpdate!=null&&G.componentWillUpdate(w,G.__s,O),S&&G.componentDidUpdate!=null&&G.__h.push(function(){G.componentDidUpdate(C,b,c)})}if(G.context=O,G.props=w,G.__P=$,G.__e=!1,d=b1.__r,g=0,S)G.state=G.__s,G.__d=!1,d&&d(j),V=G.render(G.props,G.state,G.context),b4.push.apply(G.__h,G._sb),G._sb=[];else do G.__d=!1,d&&d(j),V=G.render(G.props,G.state,G.context),G.state=G.__s;while(G.__d&&++g<25);G.state=G.__s,G.getChildContext!=null&&(B=$2($2({},B),G.getChildContext())),S&&!L&&G.getSnapshotBeforeUpdate!=null&&(c=G.getSnapshotBeforeUpdate(C,b)),U1=V!=null&&V.type===p4&&V.key==null?X8(V.props.children):V,X=_8($,g4(U1)?U1:[U1],j,q,B,_,Q,U,X,J,W),G.base=j.__e,j.__u&=-161,G.__h.length&&U.push(G),l&&(G.__E=G.__=null)}catch(f){if(j.__v=null,J||Q!=null)if(f.then){for(j.__u|=J?160:128;X&&X.nodeType==8&&X.nextSibling;)X=X.nextSibling;Q[Q.indexOf(X)]=null,j.__e=X}else{for(k=Q.length;k--;)g5(Q[k]);b5(j)}else j.__e=q.__e,j.__k=q.__k,f.then||b5(j);b1.__e(f,j,q)}else Q==null&&j.__v==q.__v?(j.__k=q.__k,j.__e=q.__e):X=j.__e=n$(q.__e,j,q,B,_,Q,U,J,W);return(V=b1.diffed)&&V(j),128&j.__u?void 0:X}function b5($){$&&($.__c&&($.__c.__e=!0),$.__k&&$.__k.some(b5))}function U8($,j,q){for(var B=0;B<q.length;B++)c5(q[B],q[++B],q[++B]);b1.__c&&b1.__c(j,$),$.some(function(_){try{$=_.__h,_.__h=[],$.some(function(Q){Q.call(_)})}catch(Q){b1.__e(Q,_.__v)}})}function X8($){return typeof $!="object"||$==null||$.__b>0?$:g4($)?$.map(X8):$2({},$)}function n$($,j,q,B,_,Q,U,X,J){var W,V,G,L,C,b,c,l=q.props||v4,w=j.props,S=j.type;if(S=="svg"?_="http://www.w3.org/2000/svg":S=="math"?_="http://www.w3.org/1998/Math/MathML":_||(_="http://www.w3.org/1999/xhtml"),Q!=null){for(W=0;W<Q.length;W++)if((C=Q[W])&&"setAttribute"in C==!!S&&(S?C.localName==S:C.nodeType==3)){$=C,Q[W]=null;break}}if($==null){if(S==null)return document.createTextNode(w);$=document.createElementNS(_,S,w.is&&w),X&&(b1.__m&&b1.__m(j,Q),X=!1),Q=null}if(S==null)l===w||X&&$.data==w||($.data=w);else{if(Q=Q&&m4.call($.childNodes),!X&&Q!=null)for(l={},W=0;W<$.attributes.length;W++)l[(C=$.attributes[W]).name]=C.value;for(W in l)C=l[W],W=="dangerouslySetInnerHTML"?G=C:W=="children"||(W in w)||W=="value"&&("defaultValue"in w)||W=="checked"&&("defaultChecked"in w)||P4($,W,null,C,_);for(W in w)C=w[W],W=="children"?L=C:W=="dangerouslySetInnerHTML"?V=C:W=="value"?b=C:W=="checked"?c=C:X&&typeof C!="function"||l[W]===C||P4($,W,C,l[W],_);if(V)X||G&&(V.__html==G.__html||V.__html==$.innerHTML)||($.innerHTML=V.__html),j.__k=[];else if(G&&($.innerHTML=""),_8(j.type=="template"?$.content:$,g4(L)?L:[L],j,q,B,S=="foreignObject"?"http://www.w3.org/1999/xhtml":_,Q,U,Q?Q[0]:q.__k&&b2(q,0),X,J),Q!=null)for(W=Q.length;W--;)g5(Q[W]);X||(W="value",S=="progress"&&b==null?$.removeAttribute("value"):b!=null&&(b!==$[W]||S=="progress"&&!b||S=="option"&&b!=l[W])&&P4($,W,b,l[W],_),W="checked",c!=null&&c!=$[W]&&P4($,W,c,l[W],_))}return $}function c5($,j,q){try{if(typeof $=="function"){var B=typeof $.__u=="function";B&&$.__u(),B&&j==null||($.__u=$(j))}else $.current=j}catch(_){b1.__e(_,q)}}function W8($,j,q){var B,_;if(b1.unmount&&b1.unmount($),(B=$.ref)&&(B.current&&B.current!=$.__e||c5(B,null,j)),(B=$.__c)!=null){if(B.componentWillUnmount)try{B.componentWillUnmount()}catch(Q){b1.__e(Q,j)}B.base=B.__P=null}if(B=$.__k)for(_=0;_<B.length;_++)B[_]&&W8(B[_],j,q||typeof $.type!="function");q||g5($.__e),$.__c=$.__=$.__e=void 0}function s$($,j,q){return this.constructor($,q)}function m2($,j,q){var B,_,Q,U;j==document&&(j=document.documentElement),b1.__&&b1.__($,j),_=(B=typeof q=="function")?null:q&&q.__k||j.__k,Q=[],U=[],h5(j,$=(!B&&q||j).__k=p5(p4,null,[$]),_||v4,v4,j.namespaceURI,!B&&q?[q]:_?null:j.firstChild?m4.call(j.childNodes):null,Q,!B&&q?q:_?_.__e:j.firstChild,B,U),U8(Q,$,U)}m4=b4.slice,b1={__e:function($,j,q,B){for(var _,Q,U;j=j.__;)if((_=j.__c)&&!_.__)try{if((Q=_.constructor)&&Q.getDerivedStateFromError!=null&&(_.setState(Q.getDerivedStateFromError($)),U=_.__d),_.componentDidCatch!=null&&(_.componentDidCatch($,B||{}),U=_.__d),U)return _.__E=_}catch(X){$=X}throw $}},e3=0,h$=function($){return $!=null&&$.constructor===void 0},q4.prototype.setState=function($,j){var q;q=this.__s!=null&&this.__s!=this.state?this.__s:this.__s=$2({},this.state),typeof $=="function"&&($=$($2({},q),this.props)),$&&$2(q,$),$!=null&&this.__v&&(j&&this._sb.push(j),p3(this))},q4.prototype.forceUpdate=function($){this.__v&&(this.__e=!0,$&&this.__h.push($),p3(this))},q4.prototype.render=p4,J2=[],$8=typeof Promise=="function"?Promise.prototype.then.bind(Promise.resolve()):setTimeout,j8=function($,j){return $.__v.__b-j.__v.__b},u4.__r=0,R5=Math.random().toString(8),R4="__d"+R5,j4="__a"+R5,q8=/(PointerCapture)$|Capture$/i,m5=0,x5=c3(!1),v5=c3(!0),c$=0;var u2,a1,w5,l3,B4=0,J8=[],o1=b1,r3=o1.__b,d3=o1.__r,i3=o1.diffed,n3=o1.__c,s3=o1.unmount,o3=o1.__;function h4($,j){o1.__h&&o1.__h(a1,$,B4||j),B4=0;var q=a1.__H||(a1.__H={__:[],__h:[]});return $>=q.__.length&&q.__.push({}),q.__[$]}function y($){return B4=1,K8(z8,$)}function K8($,j,q){var B=h4(u2++,2);if(B.t=$,!B.__c&&(B.__=[q?q(j):z8(void 0,j),function(X){var J=B.__N?B.__N[0]:B.__[0],W=B.t(J,X);J!==W&&(B.__N=[W,B.__[1]],B.__c.setState({}))}],B.__c=a1,!a1.__f)){var _=function(X,J,W){if(!B.__c.__H)return!0;var V=B.__c.__H.__.filter(function(L){return L.__c});if(V.every(function(L){return!L.__N}))return!Q||Q.call(this,X,J,W);var G=B.__c.props!==X;return V.some(function(L){if(L.__N){var C=L.__[0];L.__=L.__N,L.__N=void 0,C!==L.__[0]&&(G=!0)}}),Q&&Q.call(this,X,J,W)||G};a1.__f=!0;var{shouldComponentUpdate:Q,componentWillUpdate:U}=a1;a1.componentWillUpdate=function(X,J,W){if(this.__e){var V=Q;Q=void 0,_(X,J,W),Q=V}U&&U.call(this,X,J,W)},a1.shouldComponentUpdate=_}return B.__N||B.__}function E($,j){var q=h4(u2++,3);!o1.__s&&r5(q.__H,j)&&(q.__=$,q.u=j,a1.__H.__h.push(q))}function l5($,j){var q=h4(u2++,4);!o1.__s&&r5(q.__H,j)&&(q.__=$,q.u=j,a1.__h.push(q))}function M($){return B4=5,B1(function(){return{current:$}},[])}function B1($,j){var q=h4(u2++,7);return r5(q.__H,j)&&(q.__=$(),q.__H=j,q.__h=$),q.__}function i($,j){return B4=8,B1(function(){return $},j)}function o$(){for(var $;$=J8.shift();){var j=$.__H;if($.__P&&j)try{j.__h.some(x4),j.__h.some(u5),j.__h=[]}catch(q){j.__h=[],o1.__e(q,$.__v)}}}o1.__b=function($){a1=null,r3&&r3($)},o1.__=function($,j){$&&j.__k&&j.__k.__m&&($.__m=j.__k.__m),o3&&o3($,j)},o1.__r=function($){d3&&d3($),u2=0;var j=(a1=$.__c).__H;j&&(w5===a1?(j.__h=[],a1.__h=[],j.__.some(function(q){q.__N&&(q.__=q.__N),q.u=q.__N=void 0})):(j.__h.some(x4),j.__h.some(u5),j.__h=[],u2=0)),w5=a1},o1.diffed=function($){i3&&i3($);var j=$.__c;j&&j.__H&&(j.__H.__h.length&&(J8.push(j)!==1&&l3===o1.requestAnimationFrame||((l3=o1.requestAnimationFrame)||a$)(o$)),j.__H.__.some(function(q){q.u&&(q.__H=q.u),q.u=void 0})),w5=a1=null},o1.__c=function($,j){j.some(function(q){try{q.__h.some(x4),q.__h=q.__h.filter(function(B){return!B.__||u5(B)})}catch(B){j.some(function(_){_.__h&&(_.__h=[])}),j=[],o1.__e(B,q.__v)}}),n3&&n3($,j)},o1.unmount=function($){s3&&s3($);var j,q=$.__c;q&&q.__H&&(q.__H.__.some(function(B){try{x4(B)}catch(_){j=_}}),q.__H=void 0,j&&o1.__e(j,q.__v))};var a3=typeof requestAnimationFrame=="function";function a$($){var j,q=function(){clearTimeout(B),a3&&cancelAnimationFrame(j),setTimeout($)},B=setTimeout(q,35);a3&&(j=requestAnimationFrame(q))}function x4($){var j=a1,q=$.__c;typeof q=="function"&&($.__c=void 0,q()),a1=j}function u5($){var j=a1;$.__c=$.__(),a1=j}function r5($,j){return!$||$.length!==j.length||j.some(function(q,B){return q!==$[B]})}function z8($,j){return typeof j=="function"?j($):j}var G8=function($,j,q,B){var _;j[0]=0;for(var Q=1;Q<j.length;Q++){var U=j[Q++],X=j[Q]?(j[0]|=U?1:2,q[j[Q++]]):j[++Q];U===3?B[0]=X:U===4?B[1]=Object.assign(B[1]||{},X):U===5?(B[1]=B[1]||{})[j[++Q]]=X:U===6?B[1][j[++Q]]+=X+"":U?(_=$.apply(X,G8($,X,q,["",null])),B.push(_),X[0]?j[0]|=2:(j[Q-2]=0,j[Q]=_)):B.push(X)}return B},t3=new Map;function t$($){var j=t3.get(this);return j||(j=new Map,t3.set(this,j)),(j=G8(this,j.get($)||(j.set($,j=function(q){for(var B,_,Q=1,U="",X="",J=[0],W=function(L){Q===1&&(L||(U=U.replace(/^\s*\n\s*|\s*\n\s*$/g,"")))?J.push(0,L,U):Q===3&&(L||U)?(J.push(3,L,U),Q=2):Q===2&&U==="..."&&L?J.push(4,L,0):Q===2&&U&&!L?J.push(5,0,!0,U):Q>=5&&((U||!L&&Q===5)&&(J.push(Q,0,U,_),Q=6),L&&(J.push(Q,L,0,_),Q=6)),U=""},V=0;V<q.length;V++){V&&(Q===1&&W(),W(V));for(var G=0;G<q[V].length;G++)B=q[V][G],Q===1?B==="<"?(W(),J=[J],Q=3):U+=B:Q===4?U==="--"&&B===">"?(Q=1,U=""):U=B+U[0]:X?B===X?X="":U+=B:B==='"'||B==="'"?X=B:B===">"?(W(),Q=1):Q&&(B==="="?(Q=5,_=U,U=""):B==="/"&&(Q<5||q[V][G+1]===">")?(W(),Q===3&&(J=J[0]),Q=J,(J=J[0]).push(2,0,Q),Q=0):B===" "||B==="\t"||B===`
+`||B==="\r"?(W(),Q=2):U+=B),Q===3&&U==="!--"&&(Q=4,J=J[0])}return W(),J}($)),j),arguments,[])).length>1?j:j[0]}var K=t$.bind(p5);function E0($){if(typeof window>"u"||!window.localStorage)return null;try{return window.localStorage.getItem($)}catch{return null}}function R0($,j){if(typeof window>"u"||!window.localStorage)return;try{window.localStorage.setItem($,j)}catch{return}}function Z8($,j=!1){let q=E0($);if(q===null)return j;return q==="true"}function V8($,j=null){let q=E0($);if(q===null)return j;let B=parseInt(q,10);return Number.isFinite(B)?B:j}var d5=($)=>{let j=new Set;return($||[]).filter((q)=>{if(!q||j.has(q.id))return!1;return j.add(q.id),!0})};function L8(){let[$,j]=y(null),[q,B]=y({text:"",totalLines:0}),[_,Q]=y(""),[U,X]=y({text:"",totalLines:0}),[J,W]=y(null),[V,G]=y(null),[L,C]=y(null),b=M(null),c=M(0),l=M(!1),w=M(""),S=M(""),m=M(!1),O=M(0),d=M(null),g=M(null),U1=M(null),k=M(null),r=M(!1),f=M(!1);return{agentStatus:$,setAgentStatus:j,agentDraft:q,setAgentDraft:B,agentPlan:_,setAgentPlan:Q,agentThought:U,setAgentThought:X,pendingRequest:J,setPendingRequest:W,currentTurnId:V,setCurrentTurnId:G,steerQueuedTurnId:L,setSteerQueuedTurnId:C,lastAgentEventRef:b,lastSilenceNoticeRef:c,isAgentRunningRef:l,draftBufferRef:w,thoughtBufferRef:S,previewResyncPendingRef:m,previewResyncGenerationRef:O,pendingRequestRef:d,stalledPostIdRef:g,currentTurnIdRef:U1,steerQueuedTurnIdRef:k,thoughtExpandedRef:r,draftExpandedRef:f}}var H8="piclaw_theme",n5="piclaw_tint",e$="piclaw_chat_themes",q2={bgPrimary:"#ffffff",bgSecondary:"#f7f9fa",bgHover:"#e8ebed",textPrimary:"#0f1419",textSecondary:"#536471",borderColor:"#eff3f4",accent:"#1d9bf0",accentHover:"#1a8cd8",warning:"#f0b429",danger:"#f4212e",success:"#00ba7c"},r4={bgPrimary:"#000000",bgSecondary:"#16181c",bgHover:"#1d1f23",textPrimary:"#e7e9ea",textSecondary:"#71767b",borderColor:"#2f3336",accent:"#1d9bf0",accentHover:"#1a8cd8",warning:"#f0b429",danger:"#f4212e",success:"#00ba7c"},N8={default:{label:"Default",mode:"auto",light:q2,dark:r4},tango:{label:"Tango",mode:"light",light:{bgPrimary:"#f6f5f4",bgSecondary:"#efedeb",bgHover:"#e5e3e1",textPrimary:"#2e3436",textSecondary:"#5c6466",borderColor:"#d3d7cf",accent:"#3465a4",accentHover:"#2c5890",danger:"#cc0000",success:"#4e9a06"}},xterm:{label:"XTerm",mode:"dark",dark:{bgPrimary:"#000000",bgSecondary:"#0a0a0a",bgHover:"#121212",textPrimary:"#d0d0d0",textSecondary:"#8a8a8a",borderColor:"#1f1f1f",accent:"#00a2ff",accentHover:"#0086d1",danger:"#ff5f5f",success:"#5fff87"}},monokai:{label:"Monokai",mode:"dark",dark:{bgPrimary:"#272822",bgSecondary:"#2f2f2f",bgHover:"#3a3a3a",textPrimary:"#f8f8f2",textSecondary:"#cfcfc2",borderColor:"#3e3d32",accent:"#f92672",accentHover:"#e81560",danger:"#f92672",success:"#a6e22e"}},"monokai-pro":{label:"Monokai Pro",mode:"dark",dark:{bgPrimary:"#2d2a2e",bgSecondary:"#363237",bgHover:"#403a40",textPrimary:"#fcfcfa",textSecondary:"#c1c0c0",borderColor:"#444046",accent:"#ff6188",accentHover:"#f74f7e",danger:"#ff4f5e",success:"#a9dc76"}},ristretto:{label:"Ristretto",mode:"dark",dark:{bgPrimary:"#2c2525",bgSecondary:"#362d2d",bgHover:"#403535",textPrimary:"#f4f1ef",textSecondary:"#cbbdb8",borderColor:"#4a3c3c",accent:"#ff9f43",accentHover:"#f28a2e",danger:"#ff5f56",success:"#a9dc76"}},dracula:{label:"Dracula",mode:"dark",dark:{bgPrimary:"#282a36",bgSecondary:"#303445",bgHover:"#3a3f52",textPrimary:"#f8f8f2",textSecondary:"#c5c8d6",borderColor:"#44475a",accent:"#bd93f9",accentHover:"#a87ded",danger:"#ff5555",success:"#50fa7b"}},catppuccin:{label:"Catppuccin",mode:"dark",dark:{bgPrimary:"#1e1e2e",bgSecondary:"#24273a",bgHover:"#2c2f41",textPrimary:"#cdd6f4",textSecondary:"#a6adc8",borderColor:"#313244",accent:"#89b4fa",accentHover:"#74a0f5",danger:"#f38ba8",success:"#a6e3a1"}},nord:{label:"Nord",mode:"dark",dark:{bgPrimary:"#2e3440",bgSecondary:"#3b4252",bgHover:"#434c5e",textPrimary:"#eceff4",textSecondary:"#d8dee9",borderColor:"#4c566a",accent:"#88c0d0",accentHover:"#78a9c0",danger:"#bf616a",success:"#a3be8c"}},gruvbox:{label:"Gruvbox",mode:"dark",dark:{bgPrimary:"#282828",bgSecondary:"#32302f",bgHover:"#3c3836",textPrimary:"#ebdbb2",textSecondary:"#bdae93",borderColor:"#3c3836",accent:"#d79921",accentHover:"#c28515",danger:"#fb4934",success:"#b8bb26"}},solarized:{label:"Solarized",mode:"auto",light:{bgPrimary:"#fdf6e3",bgSecondary:"#f5efdc",bgHover:"#eee8d5",textPrimary:"#586e75",textSecondary:"#657b83",borderColor:"#e0d8c6",accent:"#268bd2",accentHover:"#1f78b3",danger:"#dc322f",success:"#859900"},dark:{bgPrimary:"#002b36",bgSecondary:"#073642",bgHover:"#0b3c4a",textPrimary:"#eee8d5",textSecondary:"#93a1a1",borderColor:"#18424a",accent:"#268bd2",accentHover:"#1f78b3",danger:"#dc322f",success:"#859900"}},tokyo:{label:"Tokyo",mode:"dark",dark:{bgPrimary:"#1a1b26",bgSecondary:"#24283b",bgHover:"#2f3549",textPrimary:"#c0caf5",textSecondary:"#9aa5ce",borderColor:"#414868",accent:"#7aa2f7",accentHover:"#6b92e6",danger:"#f7768e",success:"#9ece6a"}},miasma:{label:"Miasma",mode:"dark",dark:{bgPrimary:"#1f1f23",bgSecondary:"#29292f",bgHover:"#33333a",textPrimary:"#e5e5e5",textSecondary:"#b4b4b4",borderColor:"#3d3d45",accent:"#c9739c",accentHover:"#b8618c",danger:"#e06c75",success:"#98c379"}},github:{label:"GitHub",mode:"auto",light:{bgPrimary:"#ffffff",bgSecondary:"#f6f8fa",bgHover:"#eaeef2",textPrimary:"#24292f",textSecondary:"#57606a",borderColor:"#d0d7de",accent:"#0969da",accentHover:"#0550ae",danger:"#cf222e",success:"#1a7f37"},dark:{bgPrimary:"#0d1117",bgSecondary:"#161b22",bgHover:"#21262d",textPrimary:"#c9d1d9",textSecondary:"#8b949e",borderColor:"#30363d",accent:"#2f81f7",accentHover:"#1f6feb",danger:"#f85149",success:"#3fb950"}},gotham:{label:"Gotham",mode:"dark",dark:{bgPrimary:"#0b0f14",bgSecondary:"#111720",bgHover:"#18212b",textPrimary:"#cbd6e2",textSecondary:"#9bb0c3",borderColor:"#1f2a37",accent:"#5ccfe6",accentHover:"#48b8ce",danger:"#d26937",success:"#2aa889"}}},$9=["--bg-primary","--bg-secondary","--bg-hover","--text-primary","--text-secondary","--border-color","--accent-color","--accent-hover","--accent-color-alpha","--accent-contrast-text","--accent-soft","--accent-soft-strong","--warning-color","--danger-color","--success-color","--search-highlight-color"],y2={theme:"default",tint:null},Y8="light",i5=!1;function d4($){let j=String($||"").trim().toLowerCase();if(!j)return"default";if(j==="solarized-dark"||j==="solarized-light")return"solarized";if(j==="github-dark"||j==="github-light")return"github";if(j==="tokyo-night")return"tokyo";return j}function A8($){if(!$)return null;let j=String($).trim();if(!j)return null;let q=j.startsWith("#")?j.slice(1):j;if(!/^[0-9a-fA-F]{3}$/.test(q)&&!/^[0-9a-fA-F]{6}$/.test(q))return null;let B=q.length===3?q.split("").map((Q)=>Q+Q).join(""):q,_=parseInt(B,16);return{r:_>>16&255,g:_>>8&255,b:_&255,hex:`#${B.toLowerCase()}`}}function j9($,j){try{if(document.body){$.style.display="none",document.body.appendChild($);let q=getComputedStyle($).color||$.style.color;return document.body.removeChild($),q}}catch{return j}return j}function q9($){if(!$||typeof document>"u")return null;let j=String($).trim();if(!j)return null;let q=document.createElement("div");if(q.style.color="",q.style.color=j,!q.style.color)return null;let _=j9(q,q.style.color).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);if(!_)return null;let Q=parseInt(_[1],10),U=parseInt(_[2],10),X=parseInt(_[3],10);if(![Q,U,X].every((W)=>Number.isFinite(W)))return null;let J=`#${[Q,U,X].map((W)=>W.toString(16).padStart(2,"0")).join("")}`;return{r:Q,g:U,b:X,hex:J}}function M2($){return A8($)||q9($)}function s5($,j,q){let B=Math.round($.r+(j.r-$.r)*q),_=Math.round($.g+(j.g-$.g)*q),Q=Math.round($.b+(j.b-$.b)*q);return`rgb(${B} ${_} ${Q})`}function c4($,j){return`rgba(${$.r}, ${$.g}, ${$.b}, ${j})`}function B9($){let j=$.r/255,q=$.g/255,B=$.b/255,_=j<=0.03928?j/12.92:Math.pow((j+0.055)/1.055,2.4),Q=q<=0.03928?q/12.92:Math.pow((q+0.055)/1.055,2.4),U=B<=0.03928?B/12.92:Math.pow((B+0.055)/1.055,2.4);return 0.2126*_+0.7152*Q+0.0722*U}function _9($){return B9($)>0.4?"#000000":"#ffffff"}function D8(){if(typeof window>"u")return"light";try{return window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch{return"light"}}function o5($){return N8[$]||N8.default}function Q9($){return $.mode==="auto"?D8():$.mode}function C8($,j){let q=o5($);if(j==="dark"&&q.dark)return q.dark;if(j==="light"&&q.light)return q.light;return q.dark||q.light||q2}function j2($,j,q){let B=M2($);if(!B)return $;return s5(B,j,q)}function I8($,j,q){let B=M2(j);if(!B)return $;let Q=A8(q==="dark"?"#ffffff":"#000000");return{...$,bgPrimary:j2($.bgPrimary,B,0.08),bgSecondary:j2($.bgSecondary,B,0.12),bgHover:j2($.bgHover,B,0.16),textPrimary:j2($.textPrimary,B,q==="dark"?0.08:0.06),textSecondary:j2($.textSecondary,B,q==="dark"?0.12:0.1),borderColor:j2($.borderColor,B,0.1),accent:B.hex,accentHover:Q?s5(B,Q,0.18):B.hex,warning:j2($.warning||q2.warning,B,0.14),danger:j2($.danger,B,0.16),success:j2($.success,B,0.16)}}function U9($,j){let q=M2($?.warning);if(q)return q.hex;let B=M2(j==="dark"?r4.warning:q2.warning)||M2(q2.warning),_=M2($?.accent);if(B&&_)return s5(B,_,j==="dark"?0.18:0.14);return j==="dark"?r4.warning:q2.warning}function X9($,j){if(typeof document>"u")return;let q=document.documentElement,B=$.accent,_=M2(B),Q=_?c4(_,j==="dark"?0.35:0.2):$.searchHighlight||$.searchHighlightColor,U=_?c4(_,j==="dark"?0.16:0.12):"rgba(29, 155, 240, 0.12)",X=_?c4(_,j==="dark"?0.28:0.2):"rgba(29, 155, 240, 0.2)",J=_?_9(_):j==="dark"?"#000000":"#ffffff",W=_?c4(_,j==="dark"?0.35:0.25):"rgba(29, 155, 240, 0.25)",V=U9($,j),G={"--bg-primary":$.bgPrimary,"--bg-secondary":$.bgSecondary,"--bg-hover":$.bgHover,"--text-primary":$.textPrimary,"--text-secondary":$.textSecondary,"--border-color":$.borderColor,"--accent-color":B,"--accent-hover":$.accentHover||B,"--accent-color-alpha":W,"--accent-soft":U,"--accent-soft-strong":X,"--accent-contrast-text":J,"--warning-color":V,"--danger-color":$.danger||q2.danger,"--success-color":$.success||q2.success,"--search-highlight-color":Q||"rgba(29, 155, 240, 0.2)"};Object.entries(G).forEach(([L,C])=>{if(C)q.style.setProperty(L,C)})}function W9(){if(typeof document>"u")return;let $=document.documentElement;$9.forEach((j)=>$.style.removeProperty(j))}function g2($,j={}){if(typeof document>"u")return null;let q=typeof j.id==="string"&&j.id.trim()?j.id.trim():null,B=q?document.getElementById(q):document.querySelector(`meta[name="${$}"]`);if(!B)B=document.createElement("meta"),document.head.appendChild(B);if(B.setAttribute("name",$),q)B.setAttribute("id",q);return B}function F8($){let j=d4(y2?.theme||"default"),q=y2?.tint?String(y2.tint).trim():null,B=C8(j,$);if(j==="default"&&q)B=I8(B,q,$);if(B?.bgPrimary)return B.bgPrimary;return $==="dark"?r4.bgPrimary:q2.bgPrimary}function J9($,j){if(typeof document>"u")return;let q=g2("theme-color",{id:"dynamic-theme-color"});if(q&&$)q.removeAttribute("media"),q.setAttribute("content",$);let B=g2("theme-color",{id:"theme-color-light"});if(B)B.setAttribute("media","(prefers-color-scheme: light)"),B.setAttribute("content",F8("light"));let _=g2("theme-color",{id:"theme-color-dark"});if(_)_.setAttribute("media","(prefers-color-scheme: dark)"),_.setAttribute("content",F8("dark"));let Q=g2("msapplication-TileColor");if(Q&&$)Q.setAttribute("content",$);let U=g2("msapplication-navbutton-color");if(U&&$)U.setAttribute("content",$);let X=g2("apple-mobile-web-app-status-bar-style");if(X)X.setAttribute("content",j==="dark"?"black-translucent":"default")}function K9(){if(typeof window>"u")return;let $={...y2,mode:Y8};window.dispatchEvent(new CustomEvent("piclaw-theme-change",{detail:$}))}function z9(){try{let $=E0(e$);if(!$)return{};let j=JSON.parse($);return typeof j==="object"&&j!==null?j:{}}catch{return{}}}function G9($){if(!$)return null;return z9()[$]||null}function Z9(){if(typeof window>"u")return"web:default";try{let j=new URL(window.location.href).searchParams.get("chat_jid");return j&&j.trim()?j.trim():"web:default"}catch{return"web:default"}}function O8($,j={}){if(typeof window>"u"||typeof document>"u")return;let q=d4($?.theme||"default"),B=$?.tint?String($.tint).trim():null,_=o5(q),Q=Q9(_),U=C8(q,Q);y2={theme:q,tint:B},Y8=Q;let X=document.documentElement;X.dataset.theme=Q,X.dataset.colorTheme=q,X.dataset.tint=B?String(B):"",X.style.colorScheme=Q;let J=U;if(q==="default"&&B)J=I8(U,B,Q);if(q==="default"&&!B)W9();else X9(J,Q);if(J9(J.bgPrimary,Q),K9(),j.persist!==!1)if(R0(H8,q),B)R0(n5,B);else R0(n5,"")}function l4(){if(o5(y2.theme).mode!=="auto")return;O8(y2,{persist:!1})}function T8(){if(typeof window>"u")return()=>{};let $=Z9(),j=G9($),q=j?d4(j.theme||"default"):d4(E0(H8)||"default"),B=j?j.tint?String(j.tint).trim():null:(()=>{let _=E0(n5);return _?_.trim():null})();if(O8({theme:q,tint:B},{persist:!1}),window.matchMedia&&!i5){let _=window.matchMedia("(prefers-color-scheme: dark)");if(_.addEventListener)_.addEventListener("change",l4);else if(_.addListener)_.addListener(l4);return i5=!0,()=>{if(_.removeEventListener)_.removeEventListener("change",l4);else if(_.removeListener)_.removeListener(l4);i5=!1}}return()=>{}}function M8(){if(typeof document>"u")return"light";let $=document.documentElement?.dataset?.theme;if($==="dark"||$==="light")return $;return D8()}function a5($,j){try{if(typeof window>"u")return j;let q=window.__PICLAW_SILENCE||{},B=`__PICLAW_SILENCE_${$.toUpperCase()}_MS`,_=q[$]??window[B],Q=Number(_);return Number.isFinite(Q)?Q:j}catch{return j}}var QB=a5("warning",30000),UB=a5("finalize",120000),XB=a5("refresh",30000);function y8(){if(/iPad|iPhone/.test(navigator.userAgent))return!0;return navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1}function i4($){if(!$||typeof $!=="object")return null;let j=$.started_at??$.startedAt;if(typeof j!=="string"||!j)return null;let q=Date.parse(j);return Number.isFinite(q)?q:null}function V9($){if(!$||typeof $!=="object")return null;let j=$.retry_at??$.retryAt;if(typeof j!=="string"||!j)return null;let q=Date.parse(j);return Number.isFinite(q)?q:null}function t5($){if(!$||typeof $!=="object")return null;let j=$.last_event_at??$.lastEventAt??$.started_at??$.startedAt;if(typeof j!=="string"||!j)return null;let q=Date.parse(j);return Number.isFinite(q)?q:null}function K2($){if(!$||typeof $!=="object")return!1;let j=$.intent_key??$.intentKey;return $.type==="intent"&&j==="compaction"}function n4($){if(!$||typeof $!=="object")return"";let j=$.title;if(typeof j==="string"&&j.trim())return j.trim();let q=$.status;if(typeof q==="string"&&q.trim())return q.trim();return K2($)?"Compacting context":"Working..."}function S8($){let j=Math.max(0,Math.floor($/1000)),q=j%60,B=Math.floor(j/60)%60,_=Math.floor(j/3600);if(_>0)return`${_}:${String(B).padStart(2,"0")}:${String(q).padStart(2,"0")}`;return`${B}:${String(q).padStart(2,"0")}`}function s4($,j=Date.now()){let q=i4($);if(q===null)return null;return S8(Math.max(0,j-q))}function k8($,j=Date.now()){let q=V9($);if(q===null)return null;let B=q-j;if(B<=0)return"retrying now";return`retry in ${S8(B)}`}var L9="";async function z2($,j={}){let q=typeof performance<"u"&&typeof performance.now==="function"?performance.now():Date.now(),B;try{B=await fetch(L9+$,{...j,headers:{"Content-Type":"application/json",...j.headers||{}}})}catch(Q){throw E8({method:String(j.method||"GET").toUpperCase(),url:$,startedAt:q,durationMs:performance.now()-q,ok:!1,detail:{failedBeforeResponse:!0}}),Q}let _=performance.now()-q;if(E8({method:String(j.method||"GET").toUpperCase(),url:$,startedAt:q,durationMs:_,status:B.status,ok:B.ok,requestId:B.headers?.get?.("x-request-id")||null,serverTiming:B.headers?.get?.("Server-Timing")||null}),!B.ok){let Q=await B.json().catch(()=>({error:"Unknown error"}));throw Error(Q.error||`HTTP ${B.status}`)}return B.json()}async function f8($=50,j=null,q=null){let B=q?.startsWith("gi:")?q.slice(3):null;if(!B)return{posts:[]};let _=`/api/sessions/${encodeURIComponent(B)}/messages?limit=${$}`;if(j)_+=`&before=${j}`;return{posts:((await z2(_)).messages||[]).map((X)=>({id:X.id,chat_jid:q,content:X.content,timestamp:X.created_at,sender:X.role==="user"?"user":"agent",is_from_me:X.role==="user",is_bot_message:X.role==="assistant",data:{thread_id:null,agent_id:X.role==="assistant"?"gi":null,content_blocks:X.payload?.content_blocks||null,kind:X.payload?.kind||null,source:X.payload?.source||null,clipped:X.payload?.clipped||!1}}))}}async function P8($,j=null){let q=j?.startsWith("gi:")?j.slice(3):null;if(!q)return null;let _=(await z2(`/api/sessions/${encodeURIComponent(q)}/turns`).catch(()=>({turns:[]}))).turns||[],Q=_.find((U)=>U.status==="running"||U.status==="cancelling")||_.find((U)=>U.status==="queued");if(!Q)return null;return{type:Q.status==="running"?"tool_call":"intent",title:Q.status==="cancelling"?"Cancelling…":Q.status==="queued"?"Queued":Q.prompt,status:Q.status}}async function o4($=null){let j=await z2("/api/runtime/config").catch(()=>({}));return{models:(j.enabled_models||[]).map((B)=>({id:B,provider:j.default_provider||"",label:B})),current:j.default_model||""}}async function e5($,j,q=null,B=[],_=null,Q=null){let U=Q?.startsWith("gi:")?Q.slice(3):null;if(!U)throw Error("No active session");let X=_==="steer"?"steer":_==="queue"?"queue":"prompt";return z2(`/api/sessions/${encodeURIComponent(U)}/prompt`,{method:"POST",body:JSON.stringify({prompt:j,intent:X})})}async function R8($,j=null){return null}async function $3($){return z2(`/api/media/${$}`).catch(()=>null)}function i0($){return`/api/media/${$}/raw`}function w8($){return`/api/media/${$}/thumbnail`}async function x8($){return null}async function a4($=null){return z2("/api/workspace/tree")}async function v8($,j=null){return z2(`/api/workspace/file?path=${encodeURIComponent($)}`)}async function b8($=null){return{status:"ready",indexed_at:null}}async function u8($=null){return null}async function m8($,j,q=null){return z2("/api/workspace/file",{method:"POST",body:JSON.stringify({path:$,content:j})}).catch(()=>null)}async function g8($,j,q=null){return null}async function p8($,j,q=null){return null}async function h8($,j=null){return null}async function j3($,j,q=null){return null}async function t4($,j,q=null){return null}function q3($){return`/api/workspace/file?path=${encodeURIComponent($)}`}async function c8($=null){return null}function l8($,j={}){let q=new URLSearchParams({path:String($||"")});if(j?.download)q.set("download","1");return`/api/workspace/raw?${q.toString()}`}function B3($){return l8($,{download:!0})}async function E8($){}async function r8(...$){return null}import{classHighlighter as N9,highlightTree as F9,StreamLanguage as k2,cssLanguage as H9,goLanguage as Y9,htmlLanguage as A9,javascriptLanguage as D9,jsxLanguage as C9,tsxLanguage as I9,typescriptLanguage as O9,jsonLanguage as T9,markdownLanguage as M9,pythonLanguage as y9,StandardSQL as S9,xmlLanguage as k9,yamlLanguage as E9,dockerFile as f9,powerShell as P9,ruby as R9,rust as w9,shell as x9,swift as v9,toml as b9}from"#editor-vendor/codemirror";function S2($){return $.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}var u9={js:"JavaScript",javascript:"JavaScript",ts:"TypeScript",typescript:"TypeScript",jsx:"JSX",tsx:"TSX",py:"Python",python:"Python",sh:"Shell",shell:"Shell",bash:"Bash",zsh:"Zsh",ps1:"PowerShell",powershell:"PowerShell",md:"Markdown",markdown:"Markdown",yml:"YAML",yaml:"YAML",json:"JSON",html:"HTML",css:"CSS",sql:"SQL",go:"Go",rust:"Rust",ruby:"Ruby",swift:"Swift",toml:"TOML",dockerfile:"Dockerfile"},m9=k2.define(x9).parser,g9=k2.define(P9).parser,p9=k2.define(f9).parser,h9=k2.define(R9).parser,c9=k2.define(w9).parser,l9=k2.define(v9).parser,r9=k2.define(b9).parser;function d8($){let j=String($||"").trim().toLowerCase();if(!j)return"text";return u9[j]||String($||"").trim()}function d9($){switch(String($||"").trim().toLowerCase()){case"js":case"javascript":return D9.parser;case"ts":case"typescript":return O9.parser;case"jsx":return C9.parser;case"tsx":return I9.parser;case"py":case"python":return y9.parser;case"json":return T9.parser;case"css":return H9.parser;case"html":return A9.parser;case"xml":return k9.parser;case"yaml":case"yml":return E9.parser;case"md":case"markdown":return M9.parser;case"sql":return S9.language.parser;case"go":return Y9.parser;case"sh":case"bash":case"shell":case"zsh":return m9;case"ps1":case"powershell":return g9;case"dockerfile":return p9;case"rb":case"ruby":return h9;case"rs":case"rust":return c9;case"swift":return l9;case"toml":return r9;default:return null}}function e4($,j){let q=d9(j);if(!q)return S2($);let B=[];try{let U=q.parse($);F9(U,N9,(X,J,W)=>{if(!W||X>=J)return;B.push({from:X,to:J,cls:W})})}catch{return S2($)}if(!B.length)return S2($);B.sort((U,X)=>U.from-X.from||U.to-X.to);let _=0,Q="";for(let U of B){if(U.from>_)Q+=S2($.slice(_,U.from));Q+=`<span class="${S2(U.cls)}">${S2($.slice(U.from,U.to))}</span>`,_=Math.max(_,U.to)}if(_<$.length)Q+=S2($.slice(_));return Q}var $5=/#(\w+)/g,i9=new Set(["strong","em","b","i","u","s","del","ins","sub","sup","mark","small","br","p","ul","ol","li","blockquote","ruby","rt","rp","span","input"]),n9=new Set(["a","abbr","blockquote","br","code","del","div","em","hr","h1","h2","h3","h4","h5","h6","i","img","input","ins","kbd","li","mark","ol","p","pre","ruby","rt","rp","s","small","span","strong","sub","sup","table","tbody","td","th","thead","tr","u","ul","math","semantics","mrow","mi","mn","mo","mtext","mspace","msup","msub","msubsup","mfrac","msqrt","mroot","mtable","mtr","mtd","annotation"]),s9=new Set(["class","title","role","aria-hidden","aria-label","aria-expanded","aria-live","data-mermaid","data-hashtag"]),i8={a:new Set(["href","target","rel"]),img:new Set(["src","alt","title"]),input:new Set(["type","checked","disabled"])},o9=new Set(["http:","https:","mailto:",""]);function a9($,j){let q=String($||"").toLowerCase(),B=String(j||"").toLowerCase();if(!B||B.startsWith("on"))return!1;if(B.startsWith("data-")||B.startsWith("aria-"))return!0;return(i8[q]||new Set).has(B)||s9.has(B)}function _3($){return String($||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/'/g,"&#39;")}function E2($,j={}){if(!$)return null;let q=String($).trim();if(!q)return null;if(q.startsWith("#")||q.startsWith("/"))return q;if(q.startsWith("data:")){if(j.allowDataImage&&/^data:image\//i.test(q))return q;return null}if(q.startsWith("blob:"))return q;try{let B=new URL(q,typeof window<"u"?window.location.origin:"http://localhost");if(!o9.has(B.protocol))return null;return B.href}catch{return null}}function n8($,j={}){if(!$)return"";if(j?.sanitize===!1)return $;let q=new DOMParser().parseFromString($,"text/html"),B=[],_=q.createTreeWalker(q.body,NodeFilter.SHOW_ELEMENT),Q;while(Q=_.nextNode())B.push(Q);for(let U of B){let X=U.tagName.toLowerCase();if(!n9.has(X)){let W=U.parentNode;if(!W)continue;while(U.firstChild)W.insertBefore(U.firstChild,U);W.removeChild(U);continue}let J=i8[X]||new Set;for(let W of Array.from(U.attributes)){let V=W.name.toLowerCase(),G=W.value;if(V.startsWith("on")){U.removeAttribute(W.name);continue}if(a9(X,V)){if(V==="href"){let L=E2(G);if(!L)U.removeAttribute(W.name);else if(U.setAttribute(W.name,L),X==="a"){if(!U.getAttribute("rel"))U.setAttribute("rel","noopener noreferrer");if(/^https?:\/\//i.test(L))U.setAttribute("target","_blank")}}else if(V==="src"){let L=X==="img"&&typeof j.rewriteImageSrc==="function"?j.rewriteImageSrc(G):G,C=E2(L,{allowDataImage:X==="img"});if(!C)U.removeAttribute(W.name);else U.setAttribute(W.name,C)}continue}U.removeAttribute(W.name)}}return q.body.innerHTML}function s8($){if(!$)return $;let j=$.replace(/</g,"&lt;").replace(/>/g,"&gt;");return new DOMParser().parseFromString(j,"text/html").documentElement.textContent}function _4($,j=2){if(!$)return $;let q=$;for(let B=0;B<j;B+=1){let _=s8(q);if(_===q)break;q=_}return q}function t9($){if(!$)return{text:"",frontmatter:null};let j=$.replace(/^\uFEFF/,"").replace(/\r\n/g,`
 `).replace(/\r/g,`
 `);if(!j.startsWith(`---
 `))return{text:j,frontmatter:null};let q=j.split(`
-`),B=-1;for(let K=1;K<q.length;K+=1)if(/^(---|\.\.\.)\s*$/.test(q[K])){B=K;break}if(B<=0)return{text:j,frontmatter:null};let Q=q.slice(1,B).join(`
+`),B=-1;for(let U=1;U<q.length;U+=1)if(/^(---|\.\.\.)\s*$/.test(q[U])){B=U;break}if(B<=0)return{text:j,frontmatter:null};let _=q.slice(1,B).join(`
 `);return{text:q.slice(B+1).join(`
-`).replace(/^\n+/,""),frontmatter:Q}}function Y7($){let{text:j,frontmatter:q}=H7($);if(q===null)return j;return["<!--frontmatter-block-start-->","```yaml",q,"```","<!--frontmatter-block-end-->",j].filter(Boolean).join(`
+`).replace(/^\n+/,""),frontmatter:_}}function e9($){let{text:j,frontmatter:q}=t9($);if(q===null)return j;return["<!--frontmatter-block-start-->","```yaml",q,"```","<!--frontmatter-block-end-->",j].filter(Boolean).join(`
 
-`)}function A7($){if(!$)return{text:"",blocks:[]};let q=$.replace(/\r\n/g,`
+`)}function $7($){if(!$)return{text:"",blocks:[]};let q=$.replace(/\r\n/g,`
 `).replace(/\r/g,`
 `).split(`
-`),B=[],Q=[],J=!1,K=[];for(let X of q){if(!J&&X.trim().match(/^```mermaid\s*$/i)){J=!0,K=[];continue}if(J&&X.trim().match(/^```\s*$/)){let z=B.length;B.push(K.join(`
-`)),Q.push(`@@MERMAID_BLOCK_${z}@@`),J=!1,K=[];continue}if(J)K.push(X);else Q.push(X)}if(J)Q.push("```mermaid"),Q.push(...K);return{text:Q.join(`
-`),blocks:B}}function D7($){if(!$)return $;return e2($,5)}function C7($){let j=new TextEncoder().encode(String($||"")),q="";for(let B of j)q+=String.fromCharCode(B);return btoa(q)}function I7($){let j=atob(String($||"")),q=new Uint8Array(j.length);for(let B=0;B<j.length;B+=1)q[B]=j.charCodeAt(B);return new TextDecoder().decode(q)}function O7($,j){if(!$||!j||j.length===0)return $;return $.replace(/@@MERMAID_BLOCK_(\d+)@@/g,(q,B)=>{let Q=Number(B),J=j[Q]??"",K=D7(J);return`<div class="mermaid-container" data-mermaid="${C7(K)}"><div class="mermaid-loading">Loading diagram...</div></div>`})}function E6($){if(!$)return $;return $.replace(/<code>([\s\S]*?)<\/code>/gi,(j,q)=>{if(q.includes(`
+`),B=[],_=[],Q=!1,U=[];for(let X of q){if(!Q&&X.trim().match(/^```mermaid\s*$/i)){Q=!0,U=[];continue}if(Q&&X.trim().match(/^```\s*$/)){let J=B.length;B.push(U.join(`
+`)),_.push(`@@MERMAID_BLOCK_${J}@@`),Q=!1,U=[];continue}if(Q)U.push(X);else _.push(X)}if(Q)_.push("```mermaid"),_.push(...U);return{text:_.join(`
+`),blocks:B}}function j7($){if(!$)return $;return _4($,5)}function q7($){let j=new TextEncoder().encode(String($||"")),q="";for(let B of j)q+=String.fromCharCode(B);return btoa(q)}function B7($){let j=atob(String($||"")),q=new Uint8Array(j.length);for(let B=0;B<j.length;B+=1)q[B]=j.charCodeAt(B);return new TextDecoder().decode(q)}function _7($,j){if(!$||!j||j.length===0)return $;return $.replace(/@@MERMAID_BLOCK_(\d+)@@/g,(q,B)=>{let _=Number(B),Q=j[_]??"",U=j7(Q);return`<div class="mermaid-container" data-mermaid="${q7(U)}"><div class="mermaid-loading">Loading diagram...</div></div>`})}function o8($){if(!$)return $;return $.replace(/<code>([\s\S]*?)<\/code>/gi,(j,q)=>{if(q.includes(`
 `))return`
 \`\`\`
 ${q}
 \`\`\`
-`;return`\`${q}\``})}function T7($){if(!$)return $;return $.replace(/<pre><code(?:\s+class="language-([A-Za-z0-9_+-]+)")?>([\s\S]*?)<\/code><\/pre>/g,(q,B,Q)=>{let J=String(B||"").trim().toLowerCase(),K=e2(Q,2),X=J||"plaintext",z=S6(K,J);return`<pre><code class="hljs language-${l5(X)}">${z}</code></pre>`}).replace(/<!--frontmatter-block-start-->\s*<pre>/g,'<pre class="frontmatter-block">').replace(/<\/pre>\s*<!--frontmatter-block-end-->/g,"</pre>")}var M7={span:new Set(["title","class","lang","dir"]),input:new Set(["type","checked","disabled"])};function S7($,j){let q=M7[$];if(!q||!j)return"";let B=[],Q=/([a-zA-Z_:][\w:.-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+)))?/g,J;while(J=Q.exec(j)){let K=(J[1]||"").toLowerCase();if(!K||K.startsWith("on")||!q.has(K))continue;let X=J[2]??J[3]??J[4]??"";B.push(` ${K}="${l5(X)}"`)}return B.join("")}function P6($){if(!$)return $;return $.replace(/&lt;((?:[^"'<>]|"[^"]*"|'[^']*')*?)(?:&gt;|>)/g,(j,q)=>{let B=q.trim(),Q=B.startsWith("/"),J=Q?B.slice(1).trim():B,X=J.endsWith("/")?J.slice(0,-1).trim():J,[z=""]=X.split(/\s+/,1),U=z.toLowerCase();if(!U||!N7.has(U))return j;if(U==="br")return Q?"":"<br>";if(Q)return`</${U}>`;let L=X.slice(z.length).trim(),N=S7(U,L);return`<${U}${N}>`})}function f6($){if(!$)return $;let j=(q)=>q.replace(/&amp;lt;/g,"&lt;").replace(/&amp;gt;/g,"&gt;").replace(/&amp;quot;/g,"&quot;").replace(/&amp;#39;/g,"&#39;").replace(/&amp;amp;/g,"&amp;");return $.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g,(q,B)=>`<pre><code>${j(B)}</code></pre>`).replace(/<code>([\s\S]*?)<\/code>/g,(q,B)=>`<code>${j(B)}</code>`)}function w6($){if(!$)return $;let j=new DOMParser().parseFromString($,"text/html"),q=j.createTreeWalker(j.body,NodeFilter.SHOW_TEXT),B=(J)=>J.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,"&"),Q;while(Q=q.nextNode()){if(!Q.nodeValue)continue;let J=B(Q.nodeValue);if(J!==Q.nodeValue)Q.nodeValue=J}return j.body.innerHTML}function y7($){if(!window.katex)return $;let j=(K)=>R6(K).replace(/&gt;/g,">").replace(/&lt;/g,"<").replace(/&amp;/g,"&").replace(/<br\s*\/?\s*>/gi,`
-`),q=(K)=>{let X=[],z=K.replace(/<pre\b[^>]*>\s*<code\b[^>]*>[\s\S]*?<\/code>\s*<\/pre>/gi,(U)=>{let L=X.length;return X.push(U),`@@CODE_BLOCK_${L}@@`});return z=z.replace(/<code\b[^>]*>[\s\S]*?<\/code>/gi,(U)=>{let L=X.length;return X.push(U),`@@CODE_INLINE_${L}@@`}),{html:z,blocks:X}},B=(K,X)=>{if(!X.length)return K;return K.replace(/@@CODE_(?:BLOCK|INLINE)_(\d+)@@/g,(z,U)=>{let L=Number(U);return X[L]??""})},Q=q($),J=Q.html;return J=J.replace(/(^|\n|<br\s*\/?\s*>|<p>|<\/p>)\s*\$\$([\s\S]+?)\$\$\s*(?=\n|<br\s*\/?\s*>|<\/p>|$)/gi,(K,X,z)=>{try{let U=katex.renderToString(j(z.trim()),{displayMode:!0,throwOnError:!1});return`${X}${U}`}catch(U){return`<span class="math-error" title="${l5(U.message)}">${K}</span>`}}),B(J,Q.blocks)}function k7($){if(!$)return $;let j=new DOMParser().parseFromString($,"text/html"),q=j.createTreeWalker(j.body,NodeFilter.SHOW_TEXT),B=[],Q;while(Q=q.nextNode())B.push(Q);for(let J of B){let K=J.nodeValue;if(!K)continue;if(l4.lastIndex=0,!l4.test(K))continue;l4.lastIndex=0;let X=J.parentElement;if(X&&(X.closest("a")||X.closest("code")||X.closest("pre")))continue;let z=K.split(l4);if(z.length<=1)continue;let U=j.createDocumentFragment();z.forEach((L,N)=>{if(N%2===1){let V=j.createElement("a");V.setAttribute("href","#"),V.className="hashtag",V.setAttribute("data-hashtag",L),V.textContent=`#${L}`,U.appendChild(V)}else U.appendChild(j.createTextNode(L))}),J.parentNode?.replaceChild(U,J)}return j.body.innerHTML}function R7($){if(!$)return $;let q=$.replace(/\r\n/g,`
+`;return`\`${q}\``})}function Q7($){if(!$)return $;return $.replace(/<pre><code(?:\s+class="language-([A-Za-z0-9_+-]+)")?>([\s\S]*?)<\/code><\/pre>/g,(q,B,_)=>{let Q=String(B||"").trim().toLowerCase(),U=_4(_,2),X=Q||"plaintext",J=e4(U,Q);return`<pre><code class="hljs language-${_3(X)}">${J}</code></pre>`}).replace(/<!--frontmatter-block-start-->\s*<pre>/g,'<pre class="frontmatter-block">').replace(/<\/pre>\s*<!--frontmatter-block-end-->/g,"</pre>")}var U7={span:new Set(["title","class","lang","dir"]),input:new Set(["type","checked","disabled"])};function X7($,j){let q=U7[$];if(!q||!j)return"";let B=[],_=/([a-zA-Z_:][\w:.-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'`=<>]+)))?/g,Q;while(Q=_.exec(j)){let U=(Q[1]||"").toLowerCase();if(!U||U.startsWith("on")||!q.has(U))continue;let X=Q[2]??Q[3]??Q[4]??"";B.push(` ${U}="${_3(X)}"`)}return B.join("")}function a8($){if(!$)return $;return $.replace(/&lt;((?:[^"'<>]|"[^"]*"|'[^']*')*?)(?:&gt;|>)/g,(j,q)=>{let B=q.trim(),_=B.startsWith("/"),Q=_?B.slice(1).trim():B,X=Q.endsWith("/")?Q.slice(0,-1).trim():Q,[J=""]=X.split(/\s+/,1),W=J.toLowerCase();if(!W||!i9.has(W))return j;if(W==="br")return _?"":"<br>";if(_)return`</${W}>`;let V=X.slice(J.length).trim(),G=X7(W,V);return`<${W}${G}>`})}function t8($){if(!$)return $;let j=(q)=>q.replace(/&amp;lt;/g,"&lt;").replace(/&amp;gt;/g,"&gt;").replace(/&amp;quot;/g,"&quot;").replace(/&amp;#39;/g,"&#39;").replace(/&amp;amp;/g,"&amp;");return $.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g,(q,B)=>`<pre><code>${j(B)}</code></pre>`).replace(/<code>([\s\S]*?)<\/code>/g,(q,B)=>`<code>${j(B)}</code>`)}function e8($){if(!$)return $;let j=new DOMParser().parseFromString($,"text/html"),q=j.createTreeWalker(j.body,NodeFilter.SHOW_TEXT),B=(Q)=>Q.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,"&"),_;while(_=q.nextNode()){if(!_.nodeValue)continue;let Q=B(_.nodeValue);if(Q!==_.nodeValue)_.nodeValue=Q}return j.body.innerHTML}function W7($){if(!window.katex)return $;let j=(U)=>s8(U).replace(/&gt;/g,">").replace(/&lt;/g,"<").replace(/&amp;/g,"&").replace(/<br\s*\/?\s*>/gi,`
+`),q=(U)=>{let X=[],J=U.replace(/<pre\b[^>]*>\s*<code\b[^>]*>[\s\S]*?<\/code>\s*<\/pre>/gi,(W)=>{let V=X.length;return X.push(W),`@@CODE_BLOCK_${V}@@`});return J=J.replace(/<code\b[^>]*>[\s\S]*?<\/code>/gi,(W)=>{let V=X.length;return X.push(W),`@@CODE_INLINE_${V}@@`}),{html:J,blocks:X}},B=(U,X)=>{if(!X.length)return U;return U.replace(/@@CODE_(?:BLOCK|INLINE)_(\d+)@@/g,(J,W)=>{let V=Number(W);return X[V]??""})},_=q($),Q=_.html;return Q=Q.replace(/(^|\n|<br\s*\/?\s*>|<p>|<\/p>)\s*\$\$([\s\S]+?)\$\$\s*(?=\n|<br\s*\/?\s*>|<\/p>|$)/gi,(U,X,J)=>{try{let W=katex.renderToString(j(J.trim()),{displayMode:!0,throwOnError:!1});return`${X}${W}`}catch(W){return`<span class="math-error" title="${_3(W.message)}">${U}</span>`}}),B(Q,_.blocks)}function J7($){if(!$)return $;let j=new DOMParser().parseFromString($,"text/html"),q=j.createTreeWalker(j.body,NodeFilter.SHOW_TEXT),B=[],_;while(_=q.nextNode())B.push(_);for(let Q of B){let U=Q.nodeValue;if(!U)continue;if($5.lastIndex=0,!$5.test(U))continue;$5.lastIndex=0;let X=Q.parentElement;if(X&&(X.closest("a")||X.closest("code")||X.closest("pre")))continue;let J=U.split($5);if(J.length<=1)continue;let W=j.createDocumentFragment();J.forEach((V,G)=>{if(G%2===1){let L=j.createElement("a");L.setAttribute("href","#"),L.className="hashtag",L.setAttribute("data-hashtag",V),L.textContent=`#${V}`,W.appendChild(L)}else W.appendChild(j.createTextNode(V))}),Q.parentNode?.replaceChild(W,Q)}return j.body.innerHTML}function K7($){if(!$)return $;let q=$.replace(/\r\n/g,`
 `).replace(/\r/g,`
 `).split(`
-`),B=[],Q=!1;for(let J of q){if(!Q&&J.trim().match(/^```(?:math|katex|latex)\s*$/i)){Q=!0,B.push("$$");continue}if(Q&&J.trim().match(/^```\s*$/)){Q=!1,B.push("$$");continue}B.push(J)}return B.join(`
-`)}function E7($){let j=Y7($||""),q=R7(j),{text:B,blocks:Q}=A7(q),J=e2(B,2),X=E6(J).replace(/</g,"&lt;");return{safeHtml:P6(X),mermaidBlocks:Q}}function M2($,j,q={}){if(!$)return"";let{safeHtml:B,mermaidBlocks:Q}=E7($),J=window.marked?marked.parse(B,{headerIds:!1,mangle:!1}):B.replace(/\n/g,"<br>");return J=f6(J),J=w6(J),J=T7(J),J=y7(J),J=k7(J),J=O7(J,Q),J=k6(J,q),J}function r5($){if(!$)return"";let j=$.replace(/\r\n/g,`
+`),B=[],_=!1;for(let Q of q){if(!_&&Q.trim().match(/^```(?:math|katex|latex)\s*$/i)){_=!0,B.push("$$");continue}if(_&&Q.trim().match(/^```\s*$/)){_=!1,B.push("$$");continue}B.push(Q)}return B.join(`
+`)}function z7($){let j=e9($||""),q=K7(j),{text:B,blocks:_}=$7(q),Q=_4(B,2),X=o8(Q).replace(/</g,"&lt;");return{safeHtml:a8(X),mermaidBlocks:_}}function B2($,j,q={}){if(!$)return"";let{safeHtml:B,mermaidBlocks:_}=z7($),Q=window.marked?marked.parse(B,{headerIds:!1,mangle:!1}):B.replace(/\n/g,"<br>");return Q=t8(Q),Q=e8(Q),Q=Q7(Q),Q=W7(Q),Q=J7(Q),Q=_7(Q,_),Q=n8(Q,q),Q}function Q3($){if(!$)return"";let j=$.replace(/\r\n/g,`
 `).replace(/\r/g,`
-`),q=e2(j,2),Q=E6(q).replace(/</g,"&lt;").replace(/>/g,"&gt;"),J=P6(Q),K=window.marked?marked.parse(J):J.replace(/\n/g,"<br>");return K=f6(K),K=w6(K),K=k6(K),K}function P7($,j=6){return $.replace(/<polyline\b([^>]*)\bpoints="([^"]+)"([^>]*)\/?\s*>/g,(q,B,Q,J)=>{let K=Q.trim().split(/\s+/).map((z)=>{let[U,L]=z.split(",").map(Number);return{x:U,y:L}});if(K.length<3)return`<polyline${B}points="${Q}"${J}/>`;let X=[`M ${K[0].x},${K[0].y}`];for(let z=1;z<K.length-1;z++){let U=K[z-1],L=K[z],N=K[z+1],V=L.x-U.x,O=L.y-U.y,g=N.x-L.x,h=N.y-L.y,p=Math.sqrt(V*V+O*O),d=Math.sqrt(g*g+h*h),P=Math.min(j,p/2,d/2);if(P<0.5){X.push(`L ${L.x},${L.y}`);continue}let t=L.x-V/p*P,v=L.y-O/p*P,e=L.x+g/d*P,W1=L.y+h/d*P,N1=V*h-O*g>0?1:0;X.push(`L ${t},${v}`),X.push(`A ${P},${P} 0 0 ${N1} ${e},${W1}`)}return X.push(`L ${K[K.length-1].x},${K[K.length-1].y}`),`<path${B}d="${X.join(" ")}"${J}/>`})}async function x6($){if(!window.beautifulMermaid)return;let{renderMermaid:j,THEMES:q}=window.beautifulMermaid,Q=W6()==="dark"?q["tokyo-night"]:q["github-light"],J=$.querySelectorAll(".mermaid-container[data-mermaid]");for(let K of J)try{let X=K.dataset.mermaid,z=I7(X||""),U=e2(z,2),L=await j(U,{...Q,transparent:!0});L=P7(L),K.innerHTML=L,K.removeAttribute("data-mermaid")}catch(X){console.error("Mermaid render error:",X);let z=document.createElement("pre");z.className="mermaid-error",z.textContent=`Diagram error: ${X.message}`,K.innerHTML="",K.appendChild(z),K.removeAttribute("data-mermaid")}}function b6($){let j=new Date($);if(Number.isNaN(j.getTime()))return $;let B=new Date-j,Q=B/1000,J=86400000;if(B<J){if(Q<60)return"just now";if(Q<3600)return`${Math.floor(Q/60)}m`;return`${Math.floor(Q/3600)}h`}if(B<5*J){let z=j.toLocaleDateString(void 0,{weekday:"short"}),U=j.toLocaleTimeString(void 0,{hour:"2-digit",minute:"2-digit"});return`${z} ${U}`}let K=j.toLocaleDateString(void 0,{month:"short",day:"numeric"}),X=j.toLocaleTimeString(void 0,{hour:"2-digit",minute:"2-digit"});return`${K} ${X}`}function $4($){if(!Number.isFinite($))return"0";return Math.round($).toLocaleString()}function X2($){if($<1024)return $+" B";if($<1048576)return($/1024).toFixed(1)+" KB";return($/1048576).toFixed(1)+" MB"}function r4($){let j=new Date($);if(Number.isNaN(j.getTime()))return $;return j.toLocaleString()}function j4($){if($==null)return"";if(typeof $==="string")return $.trim();if(typeof $==="number")return String($);if(typeof $==="boolean")return $?"yes":"no";if(Array.isArray($))return $.map((j)=>j4(j)).filter(Boolean).join(", ");if(typeof $==="object")return Object.entries($).filter(([j])=>!j.startsWith("__")).map(([j,q])=>`${j}: ${j4(q)}`).filter((j)=>!j.endsWith(": ")).join(", ");return String($).trim()}function v6($){if(typeof $!=="object"||$==null||Array.isArray($))return[];return Object.entries($).filter(([j])=>!j.startsWith("__")).map(([j,q])=>({key:j,value:j4(q)})).filter((j)=>j.value)}function f7($){if(!$||typeof $!=="object")return!1;let j=$;return j.type==="adaptive_card_submission"&&typeof j.card_id==="string"&&typeof j.source_post_id==="number"&&typeof j.submitted_at==="string"}function i5($){if(!Array.isArray($))return[];return $.filter(f7)}function i4($){let j=String($.title||$.card_id||"card").trim()||"card",q=$.data;if(q==null)return`Card submission: ${j}`;if(typeof q==="string"||typeof q==="number"||typeof q==="boolean"){let B=j4(q);return B?`Card submission: ${j} — ${B}`:`Card submission: ${j}`}if(typeof q==="object"){let Q=v6(q).map(({key:J,value:K})=>`${J}: ${K}`);return Q.length>0?`Card submission: ${j} — ${Q.join(", ")}`:`Card submission: ${j}`}return`Card submission: ${j}`}function u6($){let j=String($.title||$.card_id||"Card submission").trim()||"Card submission",q=v6($.data),B=q.length>0?q.slice(0,2).map(({key:J,value:K})=>`${J}: ${K}`).join(", "):j4($.data)||null,Q=q.length;return{title:j,summary:B,fields:q,fieldCount:Q,submittedAt:$.submitted_at}}function u1($){return typeof $==="string"?$.trim():""}function g6($){return $.map((j)=>String(j||"").trim()).filter(Boolean).join(`
+`),q=_4(j,2),_=o8(q).replace(/</g,"&lt;").replace(/>/g,"&gt;"),Q=a8(_),U=window.marked?marked.parse(Q):Q.replace(/\n/g,"<br>");return U=t8(U),U=e8(U),U=n8(U),U}function G7($,j=6){return $.replace(/<polyline\b([^>]*)\bpoints="([^"]+)"([^>]*)\/?\s*>/g,(q,B,_,Q)=>{let U=_.trim().split(/\s+/).map((J)=>{let[W,V]=J.split(",").map(Number);return{x:W,y:V}});if(U.length<3)return`<polyline${B}points="${_}"${Q}/>`;let X=[`M ${U[0].x},${U[0].y}`];for(let J=1;J<U.length-1;J++){let W=U[J-1],V=U[J],G=U[J+1],L=V.x-W.x,C=V.y-W.y,b=G.x-V.x,c=G.y-V.y,l=Math.sqrt(L*L+C*C),w=Math.sqrt(b*b+c*c),S=Math.min(j,l/2,w/2);if(S<0.5){X.push(`L ${V.x},${V.y}`);continue}let m=V.x-L/l*S,O=V.y-C/l*S,d=V.x+b/w*S,g=V.y+c/w*S,k=L*c-C*b>0?1:0;X.push(`L ${m},${O}`),X.push(`A ${S},${S} 0 0 ${k} ${d},${g}`)}return X.push(`L ${U[U.length-1].x},${U[U.length-1].y}`),`<path${B}d="${X.join(" ")}"${Q}/>`})}async function j5($){if(!window.beautifulMermaid)return;let{renderMermaid:j,THEMES:q}=window.beautifulMermaid,_=M8()==="dark"?q["tokyo-night"]:q["github-light"],Q=$.querySelectorAll(".mermaid-container[data-mermaid]");for(let U of Q)try{let X=U.dataset.mermaid,J=B7(X||""),W=_4(J,2),V=await j(W,{..._,transparent:!0});V=G7(V),U.innerHTML=V,U.removeAttribute("data-mermaid")}catch(X){console.error("Mermaid render error:",X);let J=document.createElement("pre");J.className="mermaid-error",J.textContent=`Diagram error: ${X.message}`,U.innerHTML="",U.appendChild(J),U.removeAttribute("data-mermaid")}}function $6($){let j=new Date($);if(Number.isNaN(j.getTime()))return $;let B=new Date-j,_=B/1000,Q=86400000;if(B<Q){if(_<60)return"just now";if(_<3600)return`${Math.floor(_/60)}m`;return`${Math.floor(_/3600)}h`}if(B<5*Q){let J=j.toLocaleDateString(void 0,{weekday:"short"}),W=j.toLocaleTimeString(void 0,{hour:"2-digit",minute:"2-digit"});return`${J} ${W}`}let U=j.toLocaleDateString(void 0,{month:"short",day:"numeric"}),X=j.toLocaleTimeString(void 0,{hour:"2-digit",minute:"2-digit"});return`${U} ${X}`}function Q4($){if(!Number.isFinite($))return"0";return Math.round($).toLocaleString()}function C0($){if($<1024)return $+" B";if($<1048576)return($/1024).toFixed(1)+" KB";return($/1048576).toFixed(1)+" MB"}function p2($){let j=new Date($);if(Number.isNaN(j.getTime()))return $;return j.toLocaleString()}function U4($){if($==null)return"";if(typeof $==="string")return $.trim();if(typeof $==="number")return String($);if(typeof $==="boolean")return $?"yes":"no";if(Array.isArray($))return $.map((j)=>U4(j)).filter(Boolean).join(", ");if(typeof $==="object")return Object.entries($).filter(([j])=>!j.startsWith("__")).map(([j,q])=>`${j}: ${U4(q)}`).filter((j)=>!j.endsWith(": ")).join(", ");return String($).trim()}function j6($){if(typeof $!=="object"||$==null||Array.isArray($))return[];return Object.entries($).filter(([j])=>!j.startsWith("__")).map(([j,q])=>({key:j,value:U4(q)})).filter((j)=>j.value)}function Z7($){if(!$||typeof $!=="object")return!1;let j=$;return j.type==="adaptive_card_submission"&&typeof j.card_id==="string"&&typeof j.source_post_id==="number"&&typeof j.submitted_at==="string"}function U3($){if(!Array.isArray($))return[];return $.filter(Z7)}function q5($){let j=String($.title||$.card_id||"card").trim()||"card",q=$.data;if(q==null)return`Card submission: ${j}`;if(typeof q==="string"||typeof q==="number"||typeof q==="boolean"){let B=U4(q);return B?`Card submission: ${j} — ${B}`:`Card submission: ${j}`}if(typeof q==="object"){let _=j6(q).map(({key:Q,value:U})=>`${Q}: ${U}`);return _.length>0?`Card submission: ${j} — ${_.join(", ")}`:`Card submission: ${j}`}return`Card submission: ${j}`}function q6($){let j=String($.title||$.card_id||"Card submission").trim()||"Card submission",q=j6($.data),B=q.length>0?q.slice(0,2).map(({key:Q,value:U})=>`${Q}: ${U}`).join(", "):U4($.data)||null,_=q.length;return{title:j,summary:B,fields:q,fieldCount:_,submittedAt:$.submitted_at}}function p1($){return typeof $==="string"?$.trim():""}function B6($){return $.map((j)=>String(j||"").trim()).filter(Boolean).join(`
 
 `).replace(/\n{3,}/g,`
 
-`).trim()}function w7($,j){let q=[],B=[],Q=[];if($.forEach((J,K)=>{if(!J||typeof J!=="object")return;let X=u1(J.type);if(X==="text"){let z=u1(J.text)||u1(J.content);if(z)q.push(z);return}if(X==="resource_link"){let z=u1(J.uri),U=u1(J.title)||u1(J.name)||z;if(z&&U)q.push(U===z?z:`[${U}](${z})`);return}if(X==="resource"){let z=u1(J.title)||u1(J.name)||u1(J.uri)||"Embedded resource",U=u1(J.text);if(U)q.push(`### ${z}
+`).trim()}function V7($,j){let q=[],B=[],_=[];if($.forEach((Q,U)=>{if(!Q||typeof Q!=="object")return;let X=p1(Q.type);if(X==="text"){let J=p1(Q.text)||p1(Q.content);if(J)q.push(J);return}if(X==="resource_link"){let J=p1(Q.uri),W=p1(Q.title)||p1(Q.name)||J;if(J&&W)q.push(W===J?J:`[${W}](${J})`);return}if(X==="resource"){let J=p1(Q.title)||p1(Q.name)||p1(Q.uri)||"Embedded resource",W=p1(Q.text);if(W)q.push(`### ${J}
 
 \`\`\`
-${U}
-\`\`\``);else q.push(`### ${z}`);return}if(X==="generated_widget"){let z=u1(J.title)||u1(J.name)||"Generated widget",U=u1(J.description)||u1(J.subtitle);q.push(g6([`### ${z}`,U]));return}if(X==="adaptive_card"&&u1(J.fallback_text)){q.push(u1(J.fallback_text));return}if(X==="adaptive_card_submission"){let z=i4(J);if(u1(z))q.push(u1(z));return}if(X==="file"){let z=u1(J.name)||u1(J.filename)||u1(J.title)||`attachment:${j[K]??K+1}`;B.push(`- ${z}`);return}if(X==="image"||!X){let z=u1(J.name)||u1(J.filename)||u1(J.title)||`attachment:${j[K]??K+1}`;Q.push(`- ${z}`)}}),Q.length>0)q.push(`Images:
-${Q.join(`
+${W}
+\`\`\``);else q.push(`### ${J}`);return}if(X==="generated_widget"){let J=p1(Q.title)||p1(Q.name)||"Generated widget",W=p1(Q.description)||p1(Q.subtitle);q.push(B6([`### ${J}`,W]));return}if(X==="adaptive_card"&&p1(Q.fallback_text)){q.push(p1(Q.fallback_text));return}if(X==="adaptive_card_submission"){let J=q5(Q);if(p1(J))q.push(p1(J));return}if(X==="file"){let J=p1(Q.name)||p1(Q.filename)||p1(Q.title)||`attachment:${j[U]??U+1}`;B.push(`- ${J}`);return}if(X==="image"||!X){let J=p1(Q.name)||p1(Q.filename)||p1(Q.title)||`attachment:${j[U]??U+1}`;_.push(`- ${J}`)}}),_.length>0)q.push(`Images:
+${_.join(`
 `)}`);if(B.length>0)q.push(`Attachments:
 ${B.join(`
-`)}`);return g6(q)}function m6($){let j=$?.data||{},q=typeof j.content==="string"?j.content.replace(/\r\n/g,`
+`)}`);return B6(q)}function _6($){let j=$?.data||{},q=typeof j.content==="string"?j.content.replace(/\r\n/g,`
 `).replace(/\r/g,`
-`).trimEnd():"";if(q.trim())return q;let B=Array.isArray(j.content_blocks)?j.content_blocks:[],Q=Array.isArray(j.media_ids)?j.media_ids:[];return w7(B,Q)}var h6="PiClaw";function n5($,j,q=!1){let B=$||"PiClaw",Q=B.charAt(0).toUpperCase(),J=["#FF6B6B","#4ECDC4","#45B7D1","#FFA07A","#98D8C8","#F7DC6F","#BB8FCE","#85C1E2","#F8B195","#6C5CE7","#00B894","#FDCB6E","#E17055","#74B9FF","#A29BFE","#FD79A8","#00CEC9","#FFEAA7","#DFE6E9","#FF7675","#55EFC4","#81ECEC","#FAB1A0","#74B9FF","#A29BFE","#FD79A8"],K=Q.charCodeAt(0)%J.length,X=J[K],z=B.trim().toLowerCase(),U=typeof j==="string"?j.trim():"",L=U?U:null,N=q||z==="PiClaw".toLowerCase()||z==="pi";return{letter:Q,color:X,image:L||(N?"/static/icon-192.png":null)}}function p6($,j){if(!$)return"PiClaw";let q=j[$]?.name||$;return q?q.charAt(0).toUpperCase()+q.slice(1):"PiClaw"}function c6($,j){if(!$)return null;let q=j[$]||{};return q.avatar_url||q.avatarUrl||q.avatar||null}function d6($){if(!$)return null;if(typeof document<"u"){let J=document.documentElement,K=J?.dataset?.colorTheme||"",X=J?.dataset?.tint||"",z=getComputedStyle(J).getPropertyValue("--accent-color")?.trim();if(z&&(X||K&&K!=="default"))return z}let j=["#4ECDC4","#FF6B6B","#45B7D1","#BB8FCE","#FDCB6E","#00B894","#74B9FF","#FD79A8","#81ECEC","#FFA07A"],q=String($),B=0;for(let J=0;J<q.length;J+=1)B=(B*31+q.charCodeAt(J))%2147483647;let Q=Math.abs(B)%j.length;return j[Q]}var x7=new Set(["application/json","application/xml","text/csv","text/html","text/markdown","text/plain","text/xml"]);var b7=new Set(["application/msword","application/rtf","application/vnd.ms-excel","application/vnd.ms-powerpoint","application/vnd.oasis.opendocument.presentation","application/vnd.oasis.opendocument.spreadsheet","application/vnd.oasis.opendocument.text","application/vnd.openxmlformats-officedocument.presentationml.presentation","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/vnd.openxmlformats-officedocument.wordprocessingml.document"]),v7=new Set(["application/vnd.jgraph.mxfile"]);function S2($){return typeof $==="string"?$.trim().toLowerCase():""}function u7($){let j=S2($);return!!j&&(j.endsWith(".drawio")||j.endsWith(".drawio.xml")||j.endsWith(".drawio.svg")||j.endsWith(".drawio.png"))}function g7($){let j=S2($);return!!j&&j.endsWith(".pdf")}function m7($){let j=S2($);return!!j&&(j.endsWith(".docx")||j.endsWith(".doc")||j.endsWith(".odt")||j.endsWith(".rtf")||j.endsWith(".xlsx")||j.endsWith(".xls")||j.endsWith(".ods")||j.endsWith(".pptx")||j.endsWith(".ppt")||j.endsWith(".odp"))}var h7=new Set(["application/zip","application/x-zip-compressed"]);function p7($){let j=S2($);return!!j&&j.endsWith(".zip")}function c7($){let j=S2($);return!!j&&(j.endsWith(".html")||j.endsWith(".htm"))}function d7($){let j=S2($);if(!j)return!1;return j.endsWith(".sh")||j.endsWith(".bash")||j.endsWith(".zsh")||j.endsWith(".sb")}function s5($,j){let q=S2($);if(u7(j)||v7.has(q))return"drawio";if(g7(j)||q==="application/pdf")return"pdf";if(m7(j)||b7.has(q))return"office";if(p7(j)||h7.has(q))return"archive";if(c7(j)||q==="text/html")return"html";if(d7(j))return"text";if(!q)return"unsupported";if(q.startsWith("video/"))return"video";if(q.startsWith("image/"))return"image";if(x7.has(q)||q.startsWith("text/"))return"text";return"unsupported"}function l6($,j,q){try{return $.setAttribute(j,q),!0}catch(B){return!1}}function r6($,j){try{return $[j]=!0,!0}catch(q){return!1}}function i6($){$.classList.add("adaptive-card-readonly");for(let j of Array.from($.querySelectorAll("input, textarea, select, button"))){let q=j;if(l6(q,"aria-disabled","true"),l6(q,"tabindex","-1"),"disabled"in q)r6(q,"disabled");if("readOnly"in q)r6(q,"readOnly")}}function l7($){let q=String($||"").trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);if(!q)return null;let B=q[1].length===3?q[1].split("").map((Q)=>`${Q}${Q}`).join(""):q[1];return{r:parseInt(B.slice(0,2),16),g:parseInt(B.slice(2,4),16),b:parseInt(B.slice(4,6),16)}}function r7($){let q=String($||"").trim().match(/^rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/i);if(!q)return null;let B=Number(q[1]),Q=Number(q[2]),J=Number(q[3]);if(![B,Q,J].every((K)=>Number.isFinite(K)))return null;return{r:B,g:Q,b:J}}function n6($){return l7($)||r7($)}function n4($){let j=(J)=>{let K=J/255;return K<=0.03928?K/12.92:((K+0.055)/1.055)**2.4},q=j($.r),B=j($.g),Q=j($.b);return 0.2126*q+0.7152*B+0.0722*Q}function i7($,j){let q=Math.max(n4($),n4(j)),B=Math.min(n4($),n4(j));return(q+0.05)/(B+0.05)}function n7($,j,q="#ffffff"){let B=n6($);if(!B)return q;let Q=q,J=-1;for(let K of j){let X=n6(K);if(!X)continue;let z=i7(B,X);if(z>J)Q=K,J=z}return Q}function o5(){let $=getComputedStyle(document.documentElement),j=(g,h)=>{for(let p of g){let d=$.getPropertyValue(p).trim();if(d)return d}return h},q=j(["--text-primary","--color-text"],"#0f1419"),B=j(["--text-secondary","--color-text-muted"],"#536471"),Q=j(["--bg-primary","--color-bg-primary"],"#ffffff"),J=j(["--bg-secondary","--color-bg-secondary"],"#f7f9fa"),K=j(["--bg-hover","--bg-tertiary","--color-bg-tertiary"],"#e8ebed"),X=j(["--accent-color","--color-accent"],"#1d9bf0"),z=j(["--success-color","--color-success"],"#00ba7c"),U=j(["--warning-color","--color-warning","--accent-color"],"#f0b429"),L=j(["--danger-color","--color-error"],"#f4212e"),N=j(["--border-color","--color-border"],"#eff3f4"),V=j(["--font-family"],"system-ui, sans-serif"),O=n7(X,[q,Q],q);return{fg:q,fgMuted:B,bgPrimary:Q,bg:J,bgEmphasis:K,accent:X,good:z,warning:U,attention:L,border:N,fontFamily:V,buttonTextColor:O}}function s6(){let{fg:$,fgMuted:j,bg:q,bgEmphasis:B,accent:Q,good:J,warning:K,attention:X,border:z,fontFamily:U}=o5();return{fontFamily:U,containerStyles:{default:{backgroundColor:q,foregroundColors:{default:{default:$,subtle:j},accent:{default:Q,subtle:Q},good:{default:J,subtle:J},warning:{default:K,subtle:K},attention:{default:X,subtle:X}}},emphasis:{backgroundColor:B,foregroundColors:{default:{default:$,subtle:j},accent:{default:Q,subtle:Q},good:{default:J,subtle:J},warning:{default:K,subtle:K},attention:{default:X,subtle:X}}}},actions:{actionsOrientation:"horizontal",actionAlignment:"left",buttonSpacing:8,maxActions:5,showCard:{actionMode:"inline"},spacing:"default"},adaptiveCard:{allowCustomStyle:!1},spacing:{small:4,default:8,medium:12,large:16,extraLarge:24,padding:12},separator:{lineThickness:1,lineColor:z},fontSizes:{small:12,default:14,medium:16,large:18,extraLarge:22},fontWeights:{lighter:300,default:400,bolder:600},imageSizes:{small:40,medium:80,large:120},textBlock:{headingLevel:2}}}var s7=new Set(["1.0","1.1","1.2","1.3","1.4","1.5","1.6"]),o6=!1,s4=null,a6=!1;function a5($){$.querySelector(".adaptive-card-notice")?.remove()}function o7($,j,q="error"){a5($);let B=document.createElement("div");B.className=`adaptive-card-notice adaptive-card-notice-${q}`,B.textContent=j,$.appendChild(B)}function a7($,j=(q)=>M2(q,null)){let q=typeof $==="string"?$:String($??"");if(!q.trim())return{outputHtml:"",didProcess:!1};return{outputHtml:j(q),didProcess:!0}}function t7($=(j)=>M2(j,null)){return(j,q)=>{try{let B=a7(j,$);q.outputHtml=B.outputHtml,q.didProcess=B.didProcess}catch(B){console.error("[adaptive-card] Failed to process markdown:",B),q.outputHtml=String(j??""),q.didProcess=!1}}}function e7($){if(a6||!$?.AdaptiveCard)return;$.AdaptiveCard.onProcessMarkdown=t7(),a6=!0}async function $$(){if(o6)return;if(s4)return s4;return s4=new Promise(($,j)=>{let q=document.createElement("script");q.src="/static/js/vendor/adaptivecards.min.js",q.onload=()=>{o6=!0,$()},q.onerror=()=>j(Error("Failed to load adaptivecards SDK")),document.head.appendChild(q)}),s4}function j$(){return globalThis.AdaptiveCards}function q$($){if(!$||typeof $!=="object")return!1;let j=$;return j.type==="adaptive_card"&&typeof j.card_id==="string"&&typeof j.schema_version==="string"&&typeof j.payload==="object"&&j.payload!==null}function B$($){return s7.has($)}function e5($){if(!Array.isArray($))return[];return $.filter(q$)}function Q$($){let j=(typeof $?.getJsonTypeName==="function"?$.getJsonTypeName():"")||$?.constructor?.name||"Unknown",q=(typeof $?.title==="string"?$.title:"")||"",B=(typeof $?.url==="string"?$.url:"")||void 0,Q=$?.data??void 0;return{type:j,title:q,data:Q,url:B,raw:$}}function t5($){if($==null)return"";if(typeof $==="string")return $.trim();if(typeof $==="number")return String($);if(typeof $==="boolean")return $?"yes":"no";if(Array.isArray($))return $.map((j)=>t5(j)).filter(Boolean).join(", ");if(typeof $==="object")return Object.entries($).map(([q,B])=>`${q}: ${t5(B)}`).filter((q)=>!q.endsWith(": ")).join(", ");return String($).trim()}function J$($,j,q){if(j==null)return j;if($==="Input.Toggle"){if(typeof j==="boolean"){if(j)return q?.valueOn??"true";return q?.valueOff??"false"}return typeof j==="string"?j:String(j)}if($==="Input.ChoiceSet"){if(Array.isArray(j))return j.join(",");return typeof j==="string"?j:String(j)}if(Array.isArray(j))return j.join(", ");if(typeof j==="object")return t5(j);return typeof j==="string"?j:String(j)}function K$($,j){if(!$||typeof $!=="object")return $;if(!j||typeof j!=="object"||Array.isArray(j))return $;let q=j,B=(Q)=>{if(Array.isArray(Q))return Q.map((X)=>B(X));if(!Q||typeof Q!=="object")return Q;let K={...Q};if(typeof K.id==="string"&&K.id in q&&String(K.type||"").startsWith("Input."))K.value=J$(K.type,q[K.id],K);for(let[X,z]of Object.entries(K))if(Array.isArray(z)||z&&typeof z==="object")K[X]=B(z);return K};return B($)}function X$($){if(typeof $!=="string"||!$.trim())return"";let j=new Date($);if(Number.isNaN(j.getTime()))return"";return new Intl.DateTimeFormat(void 0,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}).format(j)}function U$($){if($.state==="active")return null;let j=$.state==="completed"?"Submitted":$.state==="cancelled"?"Cancelled":"Failed",q=$.last_submission&&typeof $.last_submission==="object"?$.last_submission:null,B=q&&typeof q.title==="string"?q.title.trim():"",Q=X$($.completed_at||q?.submitted_at),J=[B||null,Q||null].filter(Boolean).join(" · ")||null;return{label:j,detail:J}}async function t6($,j,q){if(!B$(j.schema_version))return console.warn(`[adaptive-card] Unsupported schema version ${j.schema_version} for card ${j.card_id}`),!1;try{await $$()}catch(B){return console.error("[adaptive-card] Failed to load SDK:",B),!1}try{let B=j$();e7(B);let Q=new B.AdaptiveCard,J=o5();Q.hostConfig=new B.HostConfig(s6());let K=j.last_submission&&typeof j.last_submission==="object"?j.last_submission.data:void 0,X=j.state==="active"?j.payload:K$(j.payload,K);Q.parse(X),Q.onExecuteAction=(L)=>{let N=Q$(L);if(q?.onAction)a5($),$.classList.add("adaptive-card-busy"),Promise.resolve(q.onAction(N)).catch((V)=>{console.error("[adaptive-card] Action failed:",V);let O=V instanceof Error?V.message:String(V||"Action failed.");o7($,O||"Action failed.","error")}).finally(()=>{$.classList.remove("adaptive-card-busy")});else console.log("[adaptive-card] Action executed (not wired yet):",N)};let z=Q.render();if(!z)return console.warn(`[adaptive-card] Card ${j.card_id} rendered to null`),!1;$.classList.add("adaptive-card-container"),$.style.setProperty("--adaptive-card-button-text-color",J.buttonTextColor);let U=U$(j);if(U){$.classList.add("adaptive-card-finished");let L=document.createElement("div");L.className=`adaptive-card-status adaptive-card-status-${j.state}`;let N=document.createElement("span");if(N.className="adaptive-card-status-label",N.textContent=U.label,L.appendChild(N),U.detail){let V=document.createElement("span");V.className="adaptive-card-status-detail",V.textContent=U.detail,L.appendChild(V)}$.appendChild(L)}if(a5($),$.appendChild(z),U)i6(z);return!0}catch(B){return console.error(`[adaptive-card] Failed to render card ${j.card_id}:`,B),!1}}function _$($){let j=$?.artifact||{},q=j.kind||$?.kind||null;if(q!=="html"&&q!=="svg"&&q!=="session_tree")return null;if(q==="html"){let Q=typeof j.html==="string"?j.html:typeof $?.html==="string"?$.html:"";return Q?{kind:q,html:Q}:null}if(q==="svg"){let Q=typeof j.svg==="string"?j.svg:typeof $?.svg==="string"?$.svg:"";return Q?{kind:q,svg:Q}:null}let B=j.tree&&typeof j.tree==="object"?j.tree:$?.tree&&typeof $.tree==="object"?$.tree:null;return{kind:q,tree:B}}function z$($,j=!1){let B=(Array.isArray($)?$:j?["interactive"]:[]).filter((Q)=>typeof Q==="string").map((Q)=>Q.trim().toLowerCase()).filter(Boolean);return Array.from(new Set(B))}function $3($,j){if(!$||$.type!=="generated_widget")return null;let q=_$($);if(!q)return null;return{title:$.title||$.name||"Generated widget",subtitle:typeof $.subtitle==="string"?$.subtitle:"",description:$.description||$.subtitle||"",originPostId:Number.isFinite(j?.id)?j.id:null,originChatJid:typeof j?.chat_jid==="string"?j.chat_jid:null,widgetId:$.widget_id||$.id||null,artifact:q,capabilities:z$($.capabilities,$.interactive===!0),source:"timeline",status:"final"}}function e6($){return $3($,null)!==null}function j3({children:$,className:j=""}){let[q,B]=M(null);return w(()=>{if(typeof document>"u")return;let Q=document.createElement("div");if(j)Q.className=j;return document.body.appendChild(Q),B(Q),()=>{try{b2(null,Q)}finally{Q.remove(),B((J)=>J===Q?null:J)}}},[j]),w5(()=>{if(!q)return;b2($,q);return},[$,q]),null}function $8({src:$,onClose:j}){return w(()=>{let q=(B)=>{if(B.key==="Escape")j()};return document.addEventListener("keydown",q),()=>document.removeEventListener("keydown",q)},[j]),G`
-        <${j3} className="image-modal-portal-root">
+`).trimEnd():"";if(q.trim())return q;let B=Array.isArray(j.content_blocks)?j.content_blocks:[],_=Array.isArray(j.media_ids)?j.media_ids:[];return V7(B,_)}var Q6="PiClaw";function X3($,j,q=!1){let B=$||"PiClaw",_=B.charAt(0).toUpperCase(),Q=["#FF6B6B","#4ECDC4","#45B7D1","#FFA07A","#98D8C8","#F7DC6F","#BB8FCE","#85C1E2","#F8B195","#6C5CE7","#00B894","#FDCB6E","#E17055","#74B9FF","#A29BFE","#FD79A8","#00CEC9","#FFEAA7","#DFE6E9","#FF7675","#55EFC4","#81ECEC","#FAB1A0","#74B9FF","#A29BFE","#FD79A8"],U=_.charCodeAt(0)%Q.length,X=Q[U],J=B.trim().toLowerCase(),W=typeof j==="string"?j.trim():"",V=W?W:null,G=q||J==="PiClaw".toLowerCase()||J==="pi";return{letter:_,color:X,image:V||(G?"/static/icon-192.png":null)}}function U6($,j){if(!$)return"PiClaw";let q=j[$]?.name||$;return q?q.charAt(0).toUpperCase()+q.slice(1):"PiClaw"}function X6($,j){if(!$)return null;let q=j[$]||{};return q.avatar_url||q.avatarUrl||q.avatar||null}function W6($){if(!$)return null;if(typeof document<"u"){let Q=document.documentElement,U=Q?.dataset?.colorTheme||"",X=Q?.dataset?.tint||"",J=getComputedStyle(Q).getPropertyValue("--accent-color")?.trim();if(J&&(X||U&&U!=="default"))return J}let j=["#4ECDC4","#FF6B6B","#45B7D1","#BB8FCE","#FDCB6E","#00B894","#74B9FF","#FD79A8","#81ECEC","#FFA07A"],q=String($),B=0;for(let Q=0;Q<q.length;Q+=1)B=(B*31+q.charCodeAt(Q))%2147483647;let _=Math.abs(B)%j.length;return j[_]}var L7=new Set(["application/json","application/xml","text/csv","text/html","text/markdown","text/plain","text/xml"]),N7=new Set(["text/markdown"]),F7=new Set(["application/msword","application/rtf","application/vnd.ms-excel","application/vnd.ms-powerpoint","application/vnd.oasis.opendocument.presentation","application/vnd.oasis.opendocument.spreadsheet","application/vnd.oasis.opendocument.text","application/vnd.openxmlformats-officedocument.presentationml.presentation","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","application/vnd.openxmlformats-officedocument.wordprocessingml.document"]),H7=new Set(["application/vnd.jgraph.mxfile"]);function G2($){return typeof $==="string"?$.trim().toLowerCase():""}function Y7($){let j=G2($);return!!j&&(j.endsWith(".drawio")||j.endsWith(".drawio.xml")||j.endsWith(".drawio.svg")||j.endsWith(".drawio.png"))}function A7($){let j=G2($);return!!j&&j.endsWith(".pdf")}function D7($){let j=G2($);return!!j&&(j.endsWith(".docx")||j.endsWith(".doc")||j.endsWith(".odt")||j.endsWith(".rtf")||j.endsWith(".xlsx")||j.endsWith(".xls")||j.endsWith(".ods")||j.endsWith(".pptx")||j.endsWith(".ppt")||j.endsWith(".odp"))}var C7=new Set(["application/zip","application/x-zip-compressed"]);function I7($){let j=G2($);return!!j&&j.endsWith(".zip")}function O7($){let j=G2($);return!!j&&(j.endsWith(".html")||j.endsWith(".htm"))}function T7($){let j=G2($);if(!j)return!1;return j.endsWith(".sh")||j.endsWith(".bash")||j.endsWith(".zsh")||j.endsWith(".sb")}function X4($,j){let q=G2($);if(Y7(j)||H7.has(q))return"drawio";if(A7(j)||q==="application/pdf")return"pdf";if(D7(j)||F7.has(q))return"office";if(I7(j)||C7.has(q))return"archive";if(O7(j)||q==="text/html")return"html";if(T7(j))return"text";if(!q)return"unsupported";if(q.startsWith("video/"))return"video";if(q.startsWith("image/"))return"image";if(L7.has(q)||q.startsWith("text/"))return"text";return"unsupported"}function J6($){let j=G2($);return N7.has(j)}function K6($){switch($){case"image":return"Image preview";case"video":return"Video player";case"pdf":return"PDF preview";case"office":return"Office viewer";case"drawio":return"Draw.io preview (read-only)";case"html":return"HTML preview";case"text":return"Text preview";case"archive":return"ZIP archive preview";default:return"Preview unavailable"}}function z6($,j,q){try{return $.setAttribute(j,q),!0}catch(B){return!1}}function G6($,j){try{return $[j]=!0,!0}catch(q){return!1}}function Z6($){$.classList.add("adaptive-card-readonly");for(let j of Array.from($.querySelectorAll("input, textarea, select, button"))){let q=j;if(z6(q,"aria-disabled","true"),z6(q,"tabindex","-1"),"disabled"in q)G6(q,"disabled");if("readOnly"in q)G6(q,"readOnly")}}function M7($){let q=String($||"").trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);if(!q)return null;let B=q[1].length===3?q[1].split("").map((_)=>`${_}${_}`).join(""):q[1];return{r:parseInt(B.slice(0,2),16),g:parseInt(B.slice(2,4),16),b:parseInt(B.slice(4,6),16)}}function y7($){let q=String($||"").trim().match(/^rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/i);if(!q)return null;let B=Number(q[1]),_=Number(q[2]),Q=Number(q[3]);if(![B,_,Q].every((U)=>Number.isFinite(U)))return null;return{r:B,g:_,b:Q}}function V6($){return M7($)||y7($)}function B5($){let j=(Q)=>{let U=Q/255;return U<=0.03928?U/12.92:((U+0.055)/1.055)**2.4},q=j($.r),B=j($.g),_=j($.b);return 0.2126*q+0.7152*B+0.0722*_}function S7($,j){let q=Math.max(B5($),B5(j)),B=Math.min(B5($),B5(j));return(q+0.05)/(B+0.05)}function k7($,j,q="#ffffff"){let B=V6($);if(!B)return q;let _=q,Q=-1;for(let U of j){let X=V6(U);if(!X)continue;let J=S7(B,X);if(J>Q)_=U,Q=J}return _}function W3(){let $=getComputedStyle(document.documentElement),j=(b,c)=>{for(let l of b){let w=$.getPropertyValue(l).trim();if(w)return w}return c},q=j(["--text-primary","--color-text"],"#0f1419"),B=j(["--text-secondary","--color-text-muted"],"#536471"),_=j(["--bg-primary","--color-bg-primary"],"#ffffff"),Q=j(["--bg-secondary","--color-bg-secondary"],"#f7f9fa"),U=j(["--bg-hover","--bg-tertiary","--color-bg-tertiary"],"#e8ebed"),X=j(["--accent-color","--color-accent"],"#1d9bf0"),J=j(["--success-color","--color-success"],"#00ba7c"),W=j(["--warning-color","--color-warning","--accent-color"],"#f0b429"),V=j(["--danger-color","--color-error"],"#f4212e"),G=j(["--border-color","--color-border"],"#eff3f4"),L=j(["--font-family"],"system-ui, sans-serif"),C=k7(X,[q,_],q);return{fg:q,fgMuted:B,bgPrimary:_,bg:Q,bgEmphasis:U,accent:X,good:J,warning:W,attention:V,border:G,fontFamily:L,buttonTextColor:C}}function L6(){let{fg:$,fgMuted:j,bg:q,bgEmphasis:B,accent:_,good:Q,warning:U,attention:X,border:J,fontFamily:W}=W3();return{fontFamily:W,containerStyles:{default:{backgroundColor:q,foregroundColors:{default:{default:$,subtle:j},accent:{default:_,subtle:_},good:{default:Q,subtle:Q},warning:{default:U,subtle:U},attention:{default:X,subtle:X}}},emphasis:{backgroundColor:B,foregroundColors:{default:{default:$,subtle:j},accent:{default:_,subtle:_},good:{default:Q,subtle:Q},warning:{default:U,subtle:U},attention:{default:X,subtle:X}}}},actions:{actionsOrientation:"horizontal",actionAlignment:"left",buttonSpacing:8,maxActions:5,showCard:{actionMode:"inline"},spacing:"default"},adaptiveCard:{allowCustomStyle:!1},spacing:{small:4,default:8,medium:12,large:16,extraLarge:24,padding:12},separator:{lineThickness:1,lineColor:J},fontSizes:{small:12,default:14,medium:16,large:18,extraLarge:22},fontWeights:{lighter:300,default:400,bolder:600},imageSizes:{small:40,medium:80,large:120},textBlock:{headingLevel:2}}}var E7=new Set(["1.0","1.1","1.2","1.3","1.4","1.5","1.6"]),N6=!1,_5=null,F6=!1;function J3($){$.querySelector(".adaptive-card-notice")?.remove()}function f7($,j,q="error"){J3($);let B=document.createElement("div");B.className=`adaptive-card-notice adaptive-card-notice-${q}`,B.textContent=j,$.appendChild(B)}function P7($,j=(q)=>B2(q,null)){let q=typeof $==="string"?$:String($??"");if(!q.trim())return{outputHtml:"",didProcess:!1};return{outputHtml:j(q),didProcess:!0}}function R7($=(j)=>B2(j,null)){return(j,q)=>{try{let B=P7(j,$);q.outputHtml=B.outputHtml,q.didProcess=B.didProcess}catch(B){console.error("[adaptive-card] Failed to process markdown:",B),q.outputHtml=String(j??""),q.didProcess=!1}}}function w7($){if(F6||!$?.AdaptiveCard)return;$.AdaptiveCard.onProcessMarkdown=R7(),F6=!0}async function x7(){if(N6)return;if(_5)return _5;return _5=new Promise(($,j)=>{let q=document.createElement("script");q.src="/static/js/vendor/adaptivecards.min.js",q.onload=()=>{N6=!0,$()},q.onerror=()=>j(Error("Failed to load adaptivecards SDK")),document.head.appendChild(q)}),_5}function v7(){return globalThis.AdaptiveCards}function b7($){if(!$||typeof $!=="object")return!1;let j=$;return j.type==="adaptive_card"&&typeof j.card_id==="string"&&typeof j.schema_version==="string"&&typeof j.payload==="object"&&j.payload!==null}function u7($){return E7.has($)}function z3($){if(!Array.isArray($))return[];return $.filter(b7)}function m7($){let j=(typeof $?.getJsonTypeName==="function"?$.getJsonTypeName():"")||$?.constructor?.name||"Unknown",q=(typeof $?.title==="string"?$.title:"")||"",B=(typeof $?.url==="string"?$.url:"")||void 0,_=$?.data??void 0;return{type:j,title:q,data:_,url:B,raw:$}}function K3($){if($==null)return"";if(typeof $==="string")return $.trim();if(typeof $==="number")return String($);if(typeof $==="boolean")return $?"yes":"no";if(Array.isArray($))return $.map((j)=>K3(j)).filter(Boolean).join(", ");if(typeof $==="object")return Object.entries($).map(([q,B])=>`${q}: ${K3(B)}`).filter((q)=>!q.endsWith(": ")).join(", ");return String($).trim()}function g7($,j,q){if(j==null)return j;if($==="Input.Toggle"){if(typeof j==="boolean"){if(j)return q?.valueOn??"true";return q?.valueOff??"false"}return typeof j==="string"?j:String(j)}if($==="Input.ChoiceSet"){if(Array.isArray(j))return j.join(",");return typeof j==="string"?j:String(j)}if(Array.isArray(j))return j.join(", ");if(typeof j==="object")return K3(j);return typeof j==="string"?j:String(j)}function p7($,j){if(!$||typeof $!=="object")return $;if(!j||typeof j!=="object"||Array.isArray(j))return $;let q=j,B=(_)=>{if(Array.isArray(_))return _.map((X)=>B(X));if(!_||typeof _!=="object")return _;let U={..._};if(typeof U.id==="string"&&U.id in q&&String(U.type||"").startsWith("Input."))U.value=g7(U.type,q[U.id],U);for(let[X,J]of Object.entries(U))if(Array.isArray(J)||J&&typeof J==="object")U[X]=B(J);return U};return B($)}function h7($){if(typeof $!=="string"||!$.trim())return"";let j=new Date($);if(Number.isNaN(j.getTime()))return"";return new Intl.DateTimeFormat(void 0,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}).format(j)}function c7($){if($.state==="active")return null;let j=$.state==="completed"?"Submitted":$.state==="cancelled"?"Cancelled":"Failed",q=$.last_submission&&typeof $.last_submission==="object"?$.last_submission:null,B=q&&typeof q.title==="string"?q.title.trim():"",_=h7($.completed_at||q?.submitted_at),Q=[B||null,_||null].filter(Boolean).join(" · ")||null;return{label:j,detail:Q}}async function H6($,j,q){if(!u7(j.schema_version))return console.warn(`[adaptive-card] Unsupported schema version ${j.schema_version} for card ${j.card_id}`),!1;try{await x7()}catch(B){return console.error("[adaptive-card] Failed to load SDK:",B),!1}try{let B=v7();w7(B);let _=new B.AdaptiveCard,Q=W3();_.hostConfig=new B.HostConfig(L6());let U=j.last_submission&&typeof j.last_submission==="object"?j.last_submission.data:void 0,X=j.state==="active"?j.payload:p7(j.payload,U);_.parse(X),_.onExecuteAction=(V)=>{let G=m7(V);if(q?.onAction)J3($),$.classList.add("adaptive-card-busy"),Promise.resolve(q.onAction(G)).catch((L)=>{console.error("[adaptive-card] Action failed:",L);let C=L instanceof Error?L.message:String(L||"Action failed.");f7($,C||"Action failed.","error")}).finally(()=>{$.classList.remove("adaptive-card-busy")});else console.log("[adaptive-card] Action executed (not wired yet):",G)};let J=_.render();if(!J)return console.warn(`[adaptive-card] Card ${j.card_id} rendered to null`),!1;$.classList.add("adaptive-card-container"),$.style.setProperty("--adaptive-card-button-text-color",Q.buttonTextColor);let W=c7(j);if(W){$.classList.add("adaptive-card-finished");let V=document.createElement("div");V.className=`adaptive-card-status adaptive-card-status-${j.state}`;let G=document.createElement("span");if(G.className="adaptive-card-status-label",G.textContent=W.label,V.appendChild(G),W.detail){let L=document.createElement("span");L.className="adaptive-card-status-detail",L.textContent=W.detail,V.appendChild(L)}$.appendChild(V)}if(J3($),$.appendChild(J),W)Z6(J);return!0}catch(B){return console.error(`[adaptive-card] Failed to render card ${j.card_id}:`,B),!1}}function l7($){let j=$?.artifact||{},q=j.kind||$?.kind||null;if(q!=="html"&&q!=="svg"&&q!=="session_tree")return null;if(q==="html"){let _=typeof j.html==="string"?j.html:typeof $?.html==="string"?$.html:"";return _?{kind:q,html:_}:null}if(q==="svg"){let _=typeof j.svg==="string"?j.svg:typeof $?.svg==="string"?$.svg:"";return _?{kind:q,svg:_}:null}let B=j.tree&&typeof j.tree==="object"?j.tree:$?.tree&&typeof $.tree==="object"?$.tree:null;return{kind:q,tree:B}}function Q5($){return typeof $==="number"&&Number.isFinite($)?$:null}function N0($){return typeof $==="string"&&$.trim()?$.trim():null}function r7($,j=!1){let B=(Array.isArray($)?$:j?["interactive"]:[]).filter((_)=>typeof _==="string").map((_)=>_.trim().toLowerCase()).filter(Boolean);return Array.from(new Set(B))}var A6="__PICLAW_WIDGET_HOST__:";function Y6($){return JSON.stringify($).replace(/</g,"\\u003c").replace(/>/g,"\\u003e").replace(/&/g,"\\u0026").replace(/\u2028/g,"\\u2028").replace(/\u2029/g,"\\u2029")}function G3($,j){if(!$||$.type!=="generated_widget")return null;let q=l7($);if(!q)return null;return{title:$.title||$.name||"Generated widget",subtitle:typeof $.subtitle==="string"?$.subtitle:"",description:$.description||$.subtitle||"",originPostId:Number.isFinite(j?.id)?j.id:null,originChatJid:typeof j?.chat_jid==="string"?j.chat_jid:null,widgetId:$.widget_id||$.id||null,artifact:q,capabilities:r7($.capabilities,$.interactive===!0),source:"timeline",status:"final"}}function D6($){return G3($,null)!==null}function Z3($){let j=N0($?.toolCallId)||N0($?.tool_call_id);if(j)return j;let q=N0($?.widgetId)||N0($?.widget_id);if(q)return q;let B=Q5($?.originPostId)??Q5($?.origin_post_id);if(B!==null)return`post:${B}`;return null}function C6($){let q=($?.artifact||{}).kind||$?.kind||null,_=(Array.isArray($?.capabilities)?$.capabilities:[]).some((Q)=>typeof Q==="string"&&Q.trim().toLowerCase()==="interactive");return q==="html"&&($?.source==="live"||_)}function I6($){return C6($)?"allow-downloads allow-scripts allow-same-origin":"allow-downloads"}function U5($){return{title:N0($?.title)||"Generated widget",widgetId:N0($?.widgetId)||N0($?.widget_id),toolCallId:N0($?.toolCallId)||N0($?.tool_call_id),turnId:N0($?.turnId)||N0($?.turn_id),capabilities:Array.isArray($?.capabilities)?$.capabilities:[],source:$?.source==="live"?"live":"timeline",status:N0($?.status)||"final"}}function X5($){return{...U5($),subtitle:N0($?.subtitle)||"",description:N0($?.description)||"",error:N0($?.error)||null,width:Q5($?.width),height:Q5($?.height),runtimeState:$?.runtimeState&&typeof $.runtimeState==="object"?$.runtimeState:null}}function W5($){return`${A6}${JSON.stringify(X5($))}`}function O6($){let j=N0($?.status);if(j==="loading"||j==="streaming")return"Widget is loading…";if(j==="error")return N0($?.error)||"Widget failed to load.";if(($?.artifact?.kind||$?.kind)==="session_tree")return"Session tree widget is unavailable.";return"Widget artifact is missing or unsupported."}function d7($){let j=U5($);return`<script>
+(function () {
+  const meta = ${Y6(j)};
+  function post(kind, payload) {
+    try {
+      window.parent.postMessage({
+        __piclawGeneratedWidget: true,
+        kind,
+        widgetId: meta.widgetId || null,
+        toolCallId: meta.toolCallId || null,
+        turnId: meta.turnId || null,
+        payload: payload || {}
+      }, '*');
+    } catch {
+      /* expected: parent bridge may be unavailable while the iframe is unloading. */
+    }
+  }
+
+  const windowNamePrefix = ${Y6(A6)};
+  let lastWindowName = null;
+  let pendingHostEnvelope = null;
+  let pendingHostEnvelopeFrame = 0;
+  let lastDispatchedEnvelopeKey = null;
+
+  function getEnvelopeKey(data) {
+    try {
+      return JSON.stringify([
+        data?.type || null,
+        data?.widgetId || null,
+        data?.toolCallId || null,
+        data?.turnId || null,
+        data?.payload || null,
+      ]);
+    } catch {
+      return null;
+    }
+  }
+
+  function flushHostEnvelope() {
+    pendingHostEnvelopeFrame = 0;
+    const data = pendingHostEnvelope;
+    pendingHostEnvelope = null;
+    if (!data) return;
+
+    window.piclawWidget.lastHostMessage = data;
+    const nextPayload = data.payload || null;
+    if (data.type === 'widget.init') {
+      const previous = window.piclawWidget.hostState && typeof window.piclawWidget.hostState === 'object'
+        ? window.piclawWidget.hostState
+        : null;
+      if (nextPayload && typeof nextPayload === 'object') {
+        window.piclawWidget.hostState = {
+          ...(previous || {}),
+          ...nextPayload,
+          ...(Object.prototype.hasOwnProperty.call(nextPayload, 'runtimeState')
+            ? {}
+            : { runtimeState: previous?.runtimeState ?? null }),
+        };
+      } else {
+        window.piclawWidget.hostState = previous || null;
+      }
+    } else if (data.type === 'widget.update' || data.type === 'widget.complete' || data.type === 'widget.error') {
+      window.piclawWidget.hostState = nextPayload;
+    }
+
+    const effectivePayload = window.piclawWidget.hostState ?? nextPayload ?? null;
+    const detail = (effectivePayload === data.payload)
+      ? data
+      : { ...data, payload: effectivePayload };
+    const envelopeKey = getEnvelopeKey(detail);
+    if (envelopeKey && envelopeKey === lastDispatchedEnvelopeKey) return;
+    lastDispatchedEnvelopeKey = envelopeKey;
+    window.dispatchEvent(new CustomEvent('piclaw:widget-message', { detail }));
+  }
+
+  function scheduleHostEnvelope(data) {
+    if (!data) return;
+    pendingHostEnvelope = data;
+    if (pendingHostEnvelopeFrame) return;
+    const schedule = typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame
+      : (cb) => setTimeout(cb, 0);
+    pendingHostEnvelopeFrame = schedule(flushHostEnvelope);
+  }
+
+  function readWindowNameState() {
+    try {
+      const raw = window.name || '';
+      if (!raw || raw === lastWindowName || !raw.startsWith(windowNamePrefix)) return;
+      lastWindowName = raw;
+      const payload = JSON.parse(raw.slice(windowNamePrefix.length));
+      scheduleHostEnvelope({
+        __piclawGeneratedWidgetHost: true,
+        type: 'widget.update',
+        widgetId: meta.widgetId || null,
+        toolCallId: meta.toolCallId || null,
+        turnId: meta.turnId || null,
+        payload,
+      });
+    } catch {
+      /* expected: host window.name payload can be absent or mid-update while polling. */
+    }
+  }
+
+  window.piclawWidget = {
+    meta,
+    lastHostMessage: null,
+    hostState: null,
+    ready(payload) { post('widget.ready', payload); },
+    close(payload) { post('widget.close', payload); },
+    requestRefresh(payload) { post('widget.request_refresh', payload); },
+    submit(payload) { post('widget.submit', payload); },
+  };
+
+  window.addEventListener('message', function (event) {
+    const data = event && event.data;
+    if (!data || data.__piclawGeneratedWidgetHost !== true) return;
+    if ((data.widgetId || null) !== (meta.widgetId || null)) return;
+    scheduleHostEnvelope(data);
+  });
+
+  function announceReady() {
+    readWindowNameState();
+    post('widget.ready', { title: document.title || meta.title || 'Generated widget' });
+  }
+
+  setInterval(readWindowNameState, 250);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', announceReady, { once: true });
+  } else {
+    announceReady();
+  }
+})();
+</script>`}function T6($){let j=$?.artifact||{},q=j.kind||$?.kind||null,B=typeof j.html==="string"?j.html:typeof $?.html==="string"?$.html:"",_=typeof j.svg==="string"?j.svg:typeof $?.svg==="string"?$.svg:"",Q=typeof $?.title==="string"&&$.title.trim()?$.title.trim():"Generated widget",U=q==="svg"?_:B;if(!U)return"";let X=C6($),J=["default-src 'none'","img-src data: blob: https: http:","style-src 'unsafe-inline'","font-src 'self' data: https: http:","media-src data: blob: https: http:","connect-src 'none'","frame-src 'none'",X?"script-src 'unsafe-inline' 'self'":"script-src 'none'","object-src 'none'","base-uri 'none'","form-action 'none'"].join("; "),W=q==="svg"?`<div class="widget-svg-shell">${U}</div>`:U,V=X?d7($):"";return`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="${J}" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${Q.replace(/[<&>]/g,"")}</title>
+<style>
+:root { color-scheme: dark light; }
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: #0f1117;
+  color: #f5f7fb;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+body {
+  box-sizing: border-box;
+}
+.widget-svg-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+.widget-svg-shell svg {
+  max-width: 100%;
+  height: auto;
+}
+</style>
+${V}
+</head>
+<body>${W}</body>
+</html>`}function h2({children:$,className:j=""}){let[q,B]=y(null);return E(()=>{if(typeof document>"u")return;let _=document.createElement("div");if(j)_.className=j;return document.body.appendChild(_),B(_),()=>{try{m2(null,_)}finally{_.remove(),B((Q)=>Q===_?null:Q)}}},[j]),l5(()=>{if(!q)return;m2($,q);return},[$,q]),null}function M6({src:$,onClose:j}){return E(()=>{let q=(B)=>{if(B.key==="Escape")j()};return document.addEventListener("keydown",q),()=>document.removeEventListener("keydown",q)},[j]),K`
+        <${h2} className="image-modal-portal-root">
             <div class="image-modal" onClick=${j}>
                 <img src=${$} alt="Full size" />
             </div>
-        </${j3}>
-    `}function P0({prefix:$="file",label:j,title:q,onRemove:B,onClick:Q,removeTitle:J="Remove",icon:K="file"}){let X=`${$}-file-pill`,z=`${$}-file-name`,U=`${$}-file-remove`,L=K==="message"?G`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        </${h2}>
+    `}function w0({prefix:$="file",label:j,title:q,onRemove:B,onClick:_,removeTitle:Q="Remove",icon:U="file"}){let X=`${$}-file-pill`,J=`${$}-file-name`,W=`${$}-file-remove`,V=U==="message"?K`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-      </svg>`:G`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      </svg>`:K`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
         <polyline points="14 2 14 8 20 8"/>
-      </svg>`;return G`
-    <span class=${X} title=${q||j} onClick=${Q}>
-      ${L}
-      <span class=${z}>${j}</span>
-      ${B&&G`
+      </svg>`;return K`
+    <span class=${X} title=${q||j} onClick=${_}>
+      ${V}
+      <span class=${J}>${j}</span>
+      ${B&&K`
         <button
-          class=${U}
-          onClick=${(N)=>{N.preventDefault(),N.stopPropagation(),B()}}
-          title=${J}
+          class=${W}
+          onClick=${(G)=>{G.preventDefault(),G.stopPropagation(),B()}}
+          title=${Q}
           type="button"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -66,9 +236,9 @@ ${B.join(`
         </button>
       `}
     </span>
-  `}async function q8($,j){try{return await $?.writeText?.(j),!0}catch(q){return!1}}function q3($,j){let q=typeof j?.text==="string"?j.text:"",B=typeof j?.html==="string"?j.html:"";if(!$||!q||typeof $.createElement!=="function"||typeof $.execCommand!=="function")return!1;let Q=null,J=!1,K=(X)=>{let z=X?.clipboardData;if(!z||typeof z.setData!=="function")return;if(z.setData("text/plain",q),B)z.setData("text/html",B);if(typeof X.preventDefault==="function")X.preventDefault();J=!0};try{if(Q=$.createElement("textarea"),Q.value=q,typeof Q.setAttribute==="function")Q.setAttribute("readonly","");if(Q.style)Q.style.position="fixed",Q.style.opacity="0",Q.style.pointerEvents="none";if($.body?.appendChild?.(Q),typeof Q.select==="function")Q.select();if(typeof Q.setSelectionRange==="function")Q.setSelectionRange(0,Q.value.length);$.addEventListener?.("copy",K,!0);let X=$.execCommand("copy");return Boolean(J||X)}catch{return!1}finally{if($.removeEventListener?.("copy",K,!0),Q)$.body?.removeChild?.(Q)}}function j8($){if(!$||typeof $!=="object")return null;let j=$;if(typeof j.nodeType==="number"&&j.nodeType===3)return j.parentNode||null;return j}function B8($,j){let q=$?.clipboardData,B=j?.root,Q=j?.selection;if(!q||typeof q.setData!=="function"||!B||!Q)return!1;if(Q.isCollapsed)return!1;let J=!1;if(Number(Q.rangeCount||0)>0&&typeof Q.getRangeAt==="function")try{let z=Q.getRangeAt(0);if(z&&typeof z.intersectsNode==="function")J=Boolean(z.intersectsNode(B))}catch{J=!1}if(!J&&typeof B.contains==="function"){let z=j8(Q.anchorNode),U=j8(Q.focusNode);J=Boolean(z&&B.contains(z)||U&&B.contains(U))}if(!J)return!1;let X=typeof Q.toString==="function"?String(Q.toString()||"").replace(/\u00a0/g," "):"";if(!X)return!1;return q.setData("text/plain",X),$?.preventDefault?.(),!0}function Q8($,j){try{return Boolean($?.getItem?.(j))}catch(q){return!1}}function J8($,j,q){try{return $?.setItem?.(j,q),!0}catch(B){return!1}}function K8($,j){let q=typeof $==="string"&&$.trim()?$.trim():null;if(q)return q;if(!j)return null;try{return new URL(j).hostname}catch(B){return j}}function W$({mediaId:$,onPreview:j}){let[q,B]=M(null);if(w(()=>{h5($).then(B).catch((U)=>{console.warn("[post] Failed to load attachment metadata for file card:",$,U)})},[$]),!q)return null;let Q=q.filename||"file",J=q.metadata?.size,K=J?X2(J):"",z=s5(q.content_type,q.filename)==="unsupported"?"Details":"Preview";return G`
-        <div class="file-attachment" onClick=${(U)=>U.stopPropagation()}>
-            <a href=${t2($)} download=${Q} class="file-attachment-main">
+  `}async function S6($,j){try{return await $?.writeText?.(j),!0}catch(q){return!1}}function V3($,j){let q=typeof j?.text==="string"?j.text:"",B=typeof j?.html==="string"?j.html:"";if(!$||!q||typeof $.createElement!=="function"||typeof $.execCommand!=="function")return!1;let _=null,Q=!1,U=(X)=>{let J=X?.clipboardData;if(!J||typeof J.setData!=="function")return;if(J.setData("text/plain",q),B)J.setData("text/html",B);if(typeof X.preventDefault==="function")X.preventDefault();Q=!0};try{if(_=$.createElement("textarea"),_.value=q,typeof _.setAttribute==="function")_.setAttribute("readonly","");if(_.style)_.style.position="fixed",_.style.opacity="0",_.style.pointerEvents="none";if($.body?.appendChild?.(_),typeof _.select==="function")_.select();if(typeof _.setSelectionRange==="function")_.setSelectionRange(0,_.value.length);$.addEventListener?.("copy",U,!0);let X=$.execCommand("copy");return Boolean(Q||X)}catch{return!1}finally{if($.removeEventListener?.("copy",U,!0),_)$.body?.removeChild?.(_)}}function y6($){if(!$||typeof $!=="object")return null;let j=$;if(typeof j.nodeType==="number"&&j.nodeType===3)return j.parentNode||null;return j}function k6($,j){let q=$?.clipboardData,B=j?.root,_=j?.selection;if(!q||typeof q.setData!=="function"||!B||!_)return!1;if(_.isCollapsed)return!1;let Q=!1;if(Number(_.rangeCount||0)>0&&typeof _.getRangeAt==="function")try{let J=_.getRangeAt(0);if(J&&typeof J.intersectsNode==="function")Q=Boolean(J.intersectsNode(B))}catch{Q=!1}if(!Q&&typeof B.contains==="function"){let J=y6(_.anchorNode),W=y6(_.focusNode);Q=Boolean(J&&B.contains(J)||W&&B.contains(W))}if(!Q)return!1;let X=typeof _.toString==="function"?String(_.toString()||"").replace(/\u00a0/g," "):"";if(!X)return!1;return q.setData("text/plain",X),$?.preventDefault?.(),!0}function E6($,j){try{return Boolean($?.getItem?.(j))}catch(q){return!1}}function f6($,j,q){try{return $?.setItem?.(j,q),!0}catch(B){return!1}}function P6($,j){let q=typeof $==="string"&&$.trim()?$.trim():null;if(q)return q;if(!j)return null;try{return new URL(j).hostname}catch(B){return j}}function i7({mediaId:$,onPreview:j}){let[q,B]=y(null);if(E(()=>{$3($).then(B).catch((W)=>{console.warn("[post] Failed to load attachment metadata for file card:",$,W)})},[$]),!q)return null;let _=q.filename||"file",Q=q.metadata?.size,U=Q?C0(Q):"",J=X4(q.content_type,q.filename)==="unsupported"?"Details":"Preview";return K`
+        <div class="file-attachment" onClick=${(W)=>W.stopPropagation()}>
+            <a href=${i0($)} download=${_} class="file-attachment-main">
                 <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                     <polyline points="14 2 14 8 20 8"/>
@@ -77,10 +247,10 @@ ${B.join(`
                     <polyline points="10 9 9 9 8 9"/>
                 </svg>
                 <div class="file-info">
-                    <span class="file-name">${Q}</span>
+                    <span class="file-name">${_}</span>
                     <span class="file-meta-row">
-                        ${K&&G`<span class="file-size">${K}</span>`}
-                        ${q.content_type&&G`<span class="file-size">${q.content_type}</span>`}
+                        ${U&&K`<span class="file-size">${U}</span>`}
+                        ${q.content_type&&K`<span class="file-size">${q.content_type}</span>`}
                     </span>
                 </div>
                 <svg class="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -92,34 +262,34 @@ ${B.join(`
             <button
                 class="file-attachment-preview"
                 type="button"
-                onClick=${(U)=>{U.preventDefault(),U.stopPropagation(),j?.({mediaId:$,info:q})}}
+                onClick=${(W)=>{W.preventDefault(),W.stopPropagation(),j?.({mediaId:$,info:q})}}
             >
-                ${z}
+                ${J}
             </button>
         </div>
-    `}function G$($){if(!Array.isArray($))return[];return $.filter((j)=>j&&typeof j==="object"&&j.type==="recovery_marker"&&j.recovered)}function N$($){if(!Array.isArray($))return[];return $.filter((j)=>j&&typeof j==="object"&&j.type==="timeout_marker"&&(j.timed_out??!0))}var L$={context_recover:"context limit exceeded",rate_limit:"rate limit hit",api_error:"API error",timeout:"request timeout",overloaded:"service overloaded",connection:"connection error"};function V$($){let j=Number($?.attempts_used||0),q=String($?.classifier||"").trim(),B=L$[q]||(q?q.replace(/_/g," "):""),Q=["Recovered automatically"];if(j>1)Q[0]=`Recovered after ${j} attempts`;if(B)Q.push(B);return Q.join(" — ")}function Z$($){let j=typeof $?.tool_action_summary==="string"?$.tool_action_summary.trim():"";return j?`Turn timed out — ${j}`:"Turn timed out before the model finished responding"}function F$({attachment:$,onPreview:j}){let q=Number($?.id),[B,Q]=M(null);w(()=>{if(!Number.isFinite(q))return;h5(q).then(Q).catch((U)=>{console.warn("[post] Failed to load attachment metadata for attachment pill:",q,U)});return},[q]);let J=B?.filename||$.label||`attachment-${$.id}`,K=Number.isFinite(q)?t2(q):null,z=s5(B?.content_type,B?.filename||$?.label)==="unsupported"?"Details":"Preview";return G`
-        <span class="attachment-pill" title=${J}>
-            ${K?G`
-                    <a href=${K} download=${J} class="attachment-pill-main" onClick=${(U)=>U.stopPropagation()}>
-                        <${P0}
+    `}function n7($){if(!Array.isArray($))return[];return $.filter((j)=>j&&typeof j==="object"&&j.type==="recovery_marker"&&j.recovered)}function s7($){if(!Array.isArray($))return[];return $.filter((j)=>j&&typeof j==="object"&&j.type==="timeout_marker"&&(j.timed_out??!0))}var o7={context_recover:"context limit exceeded",rate_limit:"rate limit hit",api_error:"API error",timeout:"request timeout",overloaded:"service overloaded",connection:"connection error"};function a7($){let j=Number($?.attempts_used||0),q=String($?.classifier||"").trim(),B=o7[q]||(q?q.replace(/_/g," "):""),_=["Recovered automatically"];if(j>1)_[0]=`Recovered after ${j} attempts`;if(B)_.push(B);return _.join(" — ")}function t7($){let j=typeof $?.tool_action_summary==="string"?$.tool_action_summary.trim():"";return j?`Turn timed out — ${j}`:"Turn timed out before the model finished responding"}function e7({attachment:$,onPreview:j}){let q=Number($?.id),[B,_]=y(null);E(()=>{if(!Number.isFinite(q))return;$3(q).then(_).catch((W)=>{console.warn("[post] Failed to load attachment metadata for attachment pill:",q,W)});return},[q]);let Q=B?.filename||$.label||`attachment-${$.id}`,U=Number.isFinite(q)?i0(q):null,J=X4(B?.content_type,B?.filename||$?.label)==="unsupported"?"Details":"Preview";return K`
+        <span class="attachment-pill" title=${Q}>
+            ${U?K`
+                    <a href=${U} download=${Q} class="attachment-pill-main" onClick=${(W)=>W.stopPropagation()}>
+                        <${w0}
                             prefix="post"
                             label=${$.label}
-                            title=${J}
+                            title=${Q}
                         />
                     </a>
-                `:G`
-                    <${P0}
+                `:K`
+                    <${w0}
                         prefix="post"
                         label=${$.label}
-                        title=${J}
+                        title=${Q}
                     />
                 `}
-            ${Number.isFinite(q)&&B&&G`
+            ${Number.isFinite(q)&&B&&K`
                 <button
                     class="attachment-pill-preview"
                     type="button"
-                    title=${z}
-                    onClick=${(U)=>{U.preventDefault(),U.stopPropagation(),j?.({mediaId:q,info:B})}}
+                    title=${J}
+                    onClick=${(W)=>{W.preventDefault(),W.stopPropagation(),j?.({mediaId:q,info:B})}}
                 >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>
@@ -128,104 +298,104 @@ ${B.join(`
                 </button>
             `}
         </span>
-    `}function o4({annotations:$}){if(!$)return null;let{audience:j,priority:q,lastModified:B}=$,Q=B?r4(B):null;return G`
+    `}function J5({annotations:$}){if(!$)return null;let{audience:j,priority:q,lastModified:B}=$,_=B?p2(B):null;return K`
         <div class="content-annotations">
-            ${j&&j.length>0&&G`
+            ${j&&j.length>0&&K`
                 <span class="content-annotation">Audience: ${j.join(", ")}</span>
             `}
-            ${typeof q==="number"&&G`
+            ${typeof q==="number"&&K`
                 <span class="content-annotation">Priority: ${q}</span>
             `}
-            ${Q&&G`
-                <span class="content-annotation">Updated: ${Q}</span>
+            ${_&&K`
+                <span class="content-annotation">Updated: ${_}</span>
             `}
         </div>
-    `}function H$({block:$}){let j=$.title||$.name||$.uri,q=$.description,B=$.size?X2($.size):"",Q=$.mime_type||"",J=D$(Q),K=T2($.uri);return G`
+    `}function $j({block:$}){let j=$.title||$.name||$.uri,q=$.description,B=$.size?C0($.size):"",_=$.mime_type||"",Q=Bj(_),U=E2($.uri);return K`
         <a
-            href=${K||"#"}
+            href=${U||"#"}
             class="resource-link"
-            target=${K?"_blank":void 0}
-            rel=${K?"noopener noreferrer":void 0}
+            target=${U?"_blank":void 0}
+            rel=${U?"noopener noreferrer":void 0}
             onClick=${(X)=>X.stopPropagation()}>
             <div class="resource-link-main">
                 <div class="resource-link-header">
-                    <span class="resource-link-icon-inline">${J}</span>
+                    <span class="resource-link-icon-inline">${Q}</span>
                     <div class="resource-link-title">${j}</div>
                 </div>
-                ${q&&G`<div class="resource-link-description">${q}</div>`}
+                ${q&&K`<div class="resource-link-description">${q}</div>`}
                 <div class="resource-link-meta">
-                    ${Q&&G`<span>${Q}</span>`}
-                    ${B&&G`<span>${B}</span>`}
+                    ${_&&K`<span>${_}</span>`}
+                    ${B&&K`<span>${B}</span>`}
                 </div>
             </div>
             <div class="resource-link-icon">↗</div>
         </a>
-    `}function Y$({block:$}){let[j,q]=M(!1),B=$.uri||"Embedded resource",Q=$.text||"",J=Boolean($.data),K=$.mime_type||"";return G`
+    `}function jj({block:$}){let[j,q]=y(!1),B=$.uri||"Embedded resource",_=$.text||"",Q=Boolean($.data),U=$.mime_type||"";return K`
         <div class="resource-embed">
             <button class="resource-embed-toggle" onClick=${(X)=>{X.preventDefault(),X.stopPropagation(),q(!j)}}>
                 ${j?"▼":"▶"} ${B}
             </button>
-            ${j&&G`
-                ${Q&&G`<pre class="resource-embed-content">${Q}</pre>`}
-                ${J&&G`
+            ${j&&K`
+                ${_&&K`<pre class="resource-embed-content">${_}</pre>`}
+                ${Q&&K`
                     <div class="resource-embed-blob">
                         <span class="resource-embed-blob-label">Embedded blob</span>
-                        ${K&&G`<span class="resource-embed-blob-meta">${K}</span>`}
-                        <button class="resource-embed-blob-btn" onClick=${(X)=>{X.preventDefault(),X.stopPropagation();let z=new Blob([Uint8Array.from(atob($.data),(N)=>N.charCodeAt(0))],{type:K||"application/octet-stream"}),U=URL.createObjectURL(z),L=document.createElement("a");L.href=U,L.download=B.split("/").pop()||"resource",L.click(),URL.revokeObjectURL(U)}}>Download</button>
+                        ${U&&K`<span class="resource-embed-blob-meta">${U}</span>`}
+                        <button class="resource-embed-blob-btn" onClick=${(X)=>{X.preventDefault(),X.stopPropagation();let J=new Blob([Uint8Array.from(atob($.data),(G)=>G.charCodeAt(0))],{type:U||"application/octet-stream"}),W=URL.createObjectURL(J),V=document.createElement("a");V.href=W,V.download=B.split("/").pop()||"resource",V.click(),URL.revokeObjectURL(W)}}>Download</button>
                     </div>
                 `}
             `}
         </div>
-    `}function A$({block:$,post:j,onOpenWidget:q}){if(!$)return null;let B=$3($,j),Q=e6($),J=B?.artifact?.kind||$?.artifact?.kind||$?.kind||null,K=B?.title||$.title||$.name||"Generated widget",X=B?.description||$.description||$.subtitle||"",z=$.open_label||"Open widget",U=T(!1),L=(N)=>{if(N)N.preventDefault(),N.stopPropagation();if(!B)return;q?.(B)};return w(()=>{if(!$?.auto_open||!B||!Q||U.current)return;let N=j?.timestamp?new Date(j.timestamp).getTime():0;if(N&&Date.now()-N>1e4)return;let V=`widget_opened_${$.widget_id||j?.id||""}`;if(Q8(sessionStorage,V))return;U.current=!0,J8(sessionStorage,V,"1"),q?.(B)},[$?.auto_open,B,Q]),G`
-        <div class="generated-widget-launch" onClick=${(N)=>N.stopPropagation()}>
+    `}function qj({block:$,post:j,onOpenWidget:q}){if(!$)return null;let B=G3($,j),_=D6($),Q=B?.artifact?.kind||$?.artifact?.kind||$?.kind||null,U=B?.title||$.title||$.name||"Generated widget",X=B?.description||$.description||$.subtitle||"",J=$.open_label||"Open widget",W=M(!1),V=(G)=>{if(G)G.preventDefault(),G.stopPropagation();if(!B)return;q?.(B)};return E(()=>{if(!$?.auto_open||!B||!_||W.current)return;let G=j?.timestamp?new Date(j.timestamp).getTime():0;if(G&&Date.now()-G>1e4)return;let L=`widget_opened_${$.widget_id||j?.id||""}`;if(E6(sessionStorage,L))return;W.current=!0,f6(sessionStorage,L,"1"),q?.(B)},[$?.auto_open,B,_]),K`
+        <div class="generated-widget-launch" onClick=${(G)=>G.stopPropagation()}>
             <div class="generated-widget-launch-header">
-                <div class="generated-widget-launch-eyebrow">Generated widget${J?` • ${String(J).toUpperCase()}`:""}</div>
-                <div class="generated-widget-launch-title">${K}</div>
+                <div class="generated-widget-launch-eyebrow">Generated widget${Q?` • ${String(Q).toUpperCase()}`:""}</div>
+                <div class="generated-widget-launch-title">${U}</div>
             </div>
-            ${X&&G`<div class="generated-widget-launch-description">${X}</div>`}
+            ${X&&K`<div class="generated-widget-launch-description">${X}</div>`}
             <div class="generated-widget-launch-actions">
                 <button
                     class="generated-widget-launch-btn"
                     type="button"
-                    disabled=${!Q}
-                    onClick=${L}
-                    title=${Q?"Open widget in a floating pane":"Unsupported widget artifact"}
+                    disabled=${!_}
+                    onClick=${V}
+                    title=${_?"Open widget in a floating pane":"Unsupported widget artifact"}
                 >
-                    ${z}
+                    ${J}
                 </button>
                 <span class="generated-widget-launch-note">
-                    ${Q?"Opens in a dismissible floating pane.":"This widget artifact is missing or unsupported."}
+                    ${_?"Opens in a dismissible floating pane.":"This widget artifact is missing or unsupported."}
                 </span>
             </div>
         </div>
-    `}function D$($){if(!$)return"\uD83D\uDCCE";if($.startsWith("image/"))return"\uD83D\uDDBC️";if($.startsWith("audio/"))return"\uD83C\uDFB5";if($.startsWith("video/"))return"\uD83C\uDFAC";if($.includes("pdf"))return"\uD83D\uDCC4";if($.includes("zip")||$.includes("gzip"))return"\uD83D\uDDDC️";if($.startsWith("text/"))return"\uD83D\uDCC4";return"\uD83D\uDCCE"}function C$($){let j=T2($,{allowDataImage:!0});return j?{backgroundImage:`url("${j}")`}:void 0}function I$({preview:$}){let j=T2($.url),q=C$($.image),B=K8($.site_name,j);return G`
+    `}function Bj($){if(!$)return"\uD83D\uDCCE";if($.startsWith("image/"))return"\uD83D\uDDBC️";if($.startsWith("audio/"))return"\uD83C\uDFB5";if($.startsWith("video/"))return"\uD83C\uDFAC";if($.includes("pdf"))return"\uD83D\uDCC4";if($.includes("zip")||$.includes("gzip"))return"\uD83D\uDDDC️";if($.startsWith("text/"))return"\uD83D\uDCC4";return"\uD83D\uDCCE"}function _j($){let j=E2($,{allowDataImage:!0});return j?{backgroundImage:`url("${j}")`}:void 0}function Qj({preview:$}){let j=E2($.url),q=_j($.image),B=P6($.site_name,j);return K`
         <a
             href=${j||"#"}
             class="link-preview ${q?"has-image":""}"
             target=${j?"_blank":void 0}
             rel=${j?"noopener noreferrer":void 0}
-            onClick=${(Q)=>Q.stopPropagation()}
+            onClick=${(_)=>_.stopPropagation()}
             style=${q}>
             <div class="link-preview-overlay">
                 <div class="link-preview-site">${B||""}</div>
                 <div class="link-preview-title">${$.title}</div>
-                ${$.description&&G`
+                ${$.description&&K`
                     <div class="link-preview-description">${$.description}</div>
                 `}
             </div>
         </a>
-    `}function O$($,j){return typeof $==="string"?$:""}var X8=1800,T$=`
+    `}function Uj($,j){return typeof $==="string"?$:""}var R6=1800,Xj=`
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <rect x="9" y="9" width="10" height="10" rx="2"></rect>
         <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
-    </svg>`,M$=`
+    </svg>`,Wj=`
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M20 6L9 17l-5-5"></path>
-    </svg>`,S$=`
+    </svg>`,Jj=`
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <circle cx="12" cy="12" r="9"></circle>
         <path d="M9 9l6 6M15 9l-6 6"></path>
-    </svg>`,y$=`
+    </svg>`,Kj=`
 <style>
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -261,47 +431,47 @@ ${B.join(`
   a { color: #0969da; text-decoration: none; }
   hr { border: none; border-top: 1px solid #d0d7de; margin: 1em 0; }
   img { max-width: 100%; }
-</style>`;async function U8($){let j=typeof $==="string"?$:"";if(!j)return!1;if(q3(document,{text:j}))return!0;if(await q8(navigator.clipboard,j))return!0;try{let q=document.createElement("textarea");q.value=j,q.setAttribute("readonly",""),q.style.position="fixed",q.style.opacity="0",q.style.pointerEvents="none",document.body.appendChild(q),q.select(),q.setSelectionRange(0,q.value.length);let B=document.execCommand("copy");return document.body.removeChild(q),B}catch{return!1}}async function k$($){let j=typeof $==="string"?$:"";if(!j)return!1;let q=M2(j,null),B=`<html><head>${y$}</head><body>${q}</body></html>`;if(q3(document,{text:j,html:B}))return!0;if(navigator.clipboard?.write&&typeof ClipboardItem<"u")try{let Q=new ClipboardItem({"text/plain":new Blob([j],{type:"text/plain"}),"text/html":new Blob([B],{type:"text/html"})});return await navigator.clipboard.write([Q]),!0}catch(Q){console.warn("[post] Rich clipboard write failed, falling back to plain text copy.",Q)}return U8(j)}function R$($){if(!$)return()=>{};let j=Array.from($.querySelectorAll("pre")).filter((K)=>K.querySelector("code"));if(j.length===0)return()=>{};let q=new Map,B=[],Q=(K)=>{let X=window.getSelection?.();if(!X||X.isCollapsed)return;for(let z of j)if(B8(K,{root:z,selection:X}))return};document.addEventListener("copy",Q,!0),B.push(()=>document.removeEventListener("copy",Q,!0));let J=(K,X)=>{let z=X||"idle";if(K.dataset.copyState=z,z==="success")K.innerHTML=M$,K.setAttribute("aria-label","Copied"),K.setAttribute("title","Copied"),K.classList.add("is-success"),K.classList.remove("is-error");else if(z==="error")K.innerHTML=S$,K.setAttribute("aria-label","Copy failed"),K.setAttribute("title","Copy failed"),K.classList.add("is-error"),K.classList.remove("is-success");else K.innerHTML=T$,K.setAttribute("aria-label","Copy code"),K.setAttribute("title","Copy code"),K.classList.remove("is-success","is-error")};return j.forEach((K)=>{let X=document.createElement("div");X.className="post-code-block",K.parentNode?.insertBefore(X,K),X.appendChild(K);let z=document.createElement("button");z.type="button",z.className="post-code-copy-btn",J(z,"idle"),X.appendChild(z);let U=async(L)=>{L.preventDefault(),L.stopPropagation();let V=K.querySelector("code")?.textContent||"",O=await U8(V);J(z,O?"success":"error");let g=q.get(z);if(g)clearTimeout(g);let h=setTimeout(()=>{J(z,"idle"),q.delete(z)},X8);q.set(z,h)};z.addEventListener("click",U),B.push(()=>{z.removeEventListener("click",U);let L=q.get(z);if(L)clearTimeout(L);if(X.parentNode)X.parentNode.insertBefore(K,X),X.remove()})}),()=>{B.forEach((K)=>K())}}function E$($){if(!$)return{content:$,fileRefs:[]};let q=$.replace(/\r\n/g,`
+</style>`;async function w6($){let j=typeof $==="string"?$:"";if(!j)return!1;if(V3(document,{text:j}))return!0;if(await S6(navigator.clipboard,j))return!0;try{let q=document.createElement("textarea");q.value=j,q.setAttribute("readonly",""),q.style.position="fixed",q.style.opacity="0",q.style.pointerEvents="none",document.body.appendChild(q),q.select(),q.setSelectionRange(0,q.value.length);let B=document.execCommand("copy");return document.body.removeChild(q),B}catch{return!1}}async function zj($){let j=typeof $==="string"?$:"";if(!j)return!1;let q=B2(j,null),B=`<html><head>${Kj}</head><body>${q}</body></html>`;if(V3(document,{text:j,html:B}))return!0;if(navigator.clipboard?.write&&typeof ClipboardItem<"u")try{let _=new ClipboardItem({"text/plain":new Blob([j],{type:"text/plain"}),"text/html":new Blob([B],{type:"text/html"})});return await navigator.clipboard.write([_]),!0}catch(_){console.warn("[post] Rich clipboard write failed, falling back to plain text copy.",_)}return w6(j)}function Gj($){if(!$)return()=>{};let j=Array.from($.querySelectorAll("pre")).filter((U)=>U.querySelector("code"));if(j.length===0)return()=>{};let q=new Map,B=[],_=(U)=>{let X=window.getSelection?.();if(!X||X.isCollapsed)return;for(let J of j)if(k6(U,{root:J,selection:X}))return};document.addEventListener("copy",_,!0),B.push(()=>document.removeEventListener("copy",_,!0));let Q=(U,X)=>{let J=X||"idle";if(U.dataset.copyState=J,J==="success")U.innerHTML=Wj,U.setAttribute("aria-label","Copied"),U.setAttribute("title","Copied"),U.classList.add("is-success"),U.classList.remove("is-error");else if(J==="error")U.innerHTML=Jj,U.setAttribute("aria-label","Copy failed"),U.setAttribute("title","Copy failed"),U.classList.add("is-error"),U.classList.remove("is-success");else U.innerHTML=Xj,U.setAttribute("aria-label","Copy code"),U.setAttribute("title","Copy code"),U.classList.remove("is-success","is-error")};return j.forEach((U)=>{let X=document.createElement("div");X.className="post-code-block",U.parentNode?.insertBefore(X,U),X.appendChild(U);let J=document.createElement("button");J.type="button",J.className="post-code-copy-btn",Q(J,"idle"),X.appendChild(J);let W=async(V)=>{V.preventDefault(),V.stopPropagation();let L=U.querySelector("code")?.textContent||"",C=await w6(L);Q(J,C?"success":"error");let b=q.get(J);if(b)clearTimeout(b);let c=setTimeout(()=>{Q(J,"idle"),q.delete(J)},R6);q.set(J,c)};J.addEventListener("click",W),B.push(()=>{J.removeEventListener("click",W);let V=q.get(J);if(V)clearTimeout(V);if(X.parentNode)X.parentNode.insertBefore(U,X),X.remove()})}),()=>{B.forEach((U)=>U())}}function Zj($){if(!$)return{content:$,fileRefs:[]};let q=$.replace(/\r\n/g,`
 `).replace(/\r/g,`
 `).split(`
-`),B=-1;for(let U=0;U<q.length;U+=1)if(q[U].trim()==="Files:"&&q[U+1]&&/^\s*-\s+/.test(q[U+1])){B=U;break}if(B===-1)return{content:$,fileRefs:[]};let Q=[],J=B+1;for(;J<q.length;J+=1){let U=q[J];if(/^\s*-\s+/.test(U))Q.push(U.replace(/^\s*-\s+/,"").trim());else if(!U.trim())break;else break}if(Q.length===0)return{content:$,fileRefs:[]};let K=q.slice(0,B),X=q.slice(J),z=[...K,...X].join(`
-`);return z=z.replace(/\n{3,}/g,`
+`),B=-1;for(let W=0;W<q.length;W+=1)if(q[W].trim()==="Files:"&&q[W+1]&&/^\s*-\s+/.test(q[W+1])){B=W;break}if(B===-1)return{content:$,fileRefs:[]};let _=[],Q=B+1;for(;Q<q.length;Q+=1){let W=q[Q];if(/^\s*-\s+/.test(W))_.push(W.replace(/^\s*-\s+/,"").trim());else if(!W.trim())break;else break}if(_.length===0)return{content:$,fileRefs:[]};let U=q.slice(0,B),X=q.slice(Q),J=[...U,...X].join(`
+`);return J=J.replace(/\n{3,}/g,`
 
-`).trim(),{content:z,fileRefs:Q}}function P$($){if(!$)return{content:$,messageRefs:[]};let q=$.replace(/\r\n/g,`
+`).trim(),{content:J,fileRefs:_}}function Vj($){if(!$)return{content:$,messageRefs:[]};let q=$.replace(/\r\n/g,`
 `).replace(/\r/g,`
 `).split(`
-`),B=-1;for(let U=0;U<q.length;U+=1)if(q[U].trim()==="Referenced messages:"&&q[U+1]&&/^\s*-\s+/.test(q[U+1])){B=U;break}if(B===-1)return{content:$,messageRefs:[]};let Q=[],J=B+1;for(;J<q.length;J+=1){let U=q[J];if(/^\s*-\s+/.test(U)){let N=U.replace(/^\s*-\s+/,"").trim().match(/^message:(\S+)$/i);if(N)Q.push(N[1])}else if(!U.trim())break;else break}if(Q.length===0)return{content:$,messageRefs:[]};let K=q.slice(0,B),X=q.slice(J),z=[...K,...X].join(`
-`);return z=z.replace(/\n{3,}/g,`
+`),B=-1;for(let W=0;W<q.length;W+=1)if(q[W].trim()==="Referenced messages:"&&q[W+1]&&/^\s*-\s+/.test(q[W+1])){B=W;break}if(B===-1)return{content:$,messageRefs:[]};let _=[],Q=B+1;for(;Q<q.length;Q+=1){let W=q[Q];if(/^\s*-\s+/.test(W)){let G=W.replace(/^\s*-\s+/,"").trim().match(/^message:(\S+)$/i);if(G)_.push(G[1])}else if(!W.trim())break;else break}if(_.length===0)return{content:$,messageRefs:[]};let U=q.slice(0,B),X=q.slice(Q),J=[...U,...X].join(`
+`);return J=J.replace(/\n{3,}/g,`
 
-`).trim(),{content:z,messageRefs:Q}}function f$($){if(!$)return{content:$,attachments:[]};let q=$.replace(/\r\n/g,`
+`).trim(),{content:J,messageRefs:_}}function Lj($){if(!$)return{content:$,attachments:[]};let q=$.replace(/\r\n/g,`
 `).replace(/\r/g,`
 `).split(`
-`),B=-1;for(let U=0;U<q.length;U+=1){let L=q[U].trim();if((L==="Images:"||L==="Attachments:")&&q[U+1]&&/^\s*-\s+/.test(q[U+1])){B=U;break}}if(B===-1)return{content:$,attachments:[]};let Q=[],J=B+1;for(;J<q.length;J+=1){let U=q[J];if(/^\s*-\s+/.test(U)){let L=U.replace(/^\s*-\s+/,"").trim(),N=L.match(/^attachment:([^\s)]+)\s*(?:\((.+)\))?$/i)||L.match(/^attachment:([^\s]+)\s+(.+)$/i);if(N){let V=N[1],O=(N[2]||"").trim()||V;Q.push({id:V,label:O,raw:L})}else Q.push({id:null,label:L,raw:L})}else if(!U.trim())break;else break}if(Q.length===0)return{content:$,attachments:[]};let K=q.slice(0,B),X=q.slice(J),z=[...K,...X].join(`
-`);return z=z.replace(/\n{3,}/g,`
+`),B=-1;for(let W=0;W<q.length;W+=1){let V=q[W].trim();if((V==="Images:"||V==="Attachments:")&&q[W+1]&&/^\s*-\s+/.test(q[W+1])){B=W;break}}if(B===-1)return{content:$,attachments:[]};let _=[],Q=B+1;for(;Q<q.length;Q+=1){let W=q[Q];if(/^\s*-\s+/.test(W)){let V=W.replace(/^\s*-\s+/,"").trim(),G=V.match(/^attachment:([^\s)]+)\s*(?:\((.+)\))?$/i)||V.match(/^attachment:([^\s]+)\s+(.+)$/i);if(G){let L=G[1],C=(G[2]||"").trim()||L;_.push({id:L,label:C,raw:V})}else _.push({id:null,label:V,raw:V})}else if(!W.trim())break;else break}if(_.length===0)return{content:$,attachments:[]};let U=q.slice(0,B),X=q.slice(Q),J=[...U,...X].join(`
+`);return J=J.replace(/\n{3,}/g,`
 
-`).trim(),{content:z,attachments:Q}}function w$($){return $.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}function x$($,j){if(!$||!j)return $;let q=String(j).trim().split(/\s+/).filter(Boolean);if(q.length===0)return $;let B=q.map(w$).sort((L,N)=>N.length-L.length),Q=new RegExp(`(${B.join("|")})`,"gi"),J=new RegExp(`^(${B.join("|")})$`,"i"),K=new DOMParser().parseFromString($,"text/html"),X=K.createTreeWalker(K.body,NodeFilter.SHOW_TEXT),z=[],U;while(U=X.nextNode())z.push(U);for(let L of z){let N=L.nodeValue;if(!N||!Q.test(N)){Q.lastIndex=0;continue}Q.lastIndex=0;let V=L.parentElement;if(V&&V.closest("code, pre, script, style"))continue;let O=N.split(Q).filter((h)=>h!=="");if(O.length===0)continue;let g=K.createDocumentFragment();for(let h of O)if(J.test(h)){let p=K.createElement("mark");p.className="search-highlight-term",p.textContent=h,g.appendChild(p)}else g.appendChild(K.createTextNode(h));L.parentNode.replaceChild(g,L)}return K.body.innerHTML}function _8({post:$,onClick:j,onHashtagClick:q,onMessageRef:B,onScrollToMessage:Q,agentName:J,agentAvatarUrl:K,userName:X,userAvatarUrl:z,userAvatarBackground:U,onDelete:L,isThreadReply:N,isThreadPrev:V,isThreadNext:O,isRemoving:g,highlightQuery:h,onFileRef:p,onOpenWidget:d,onOpenAttachmentPreview:P}){let[t,v]=M(null),[e,W1]=M("idle"),D1=T(null),N1=T(null),X1=$.data,x=X1.type==="agent_response",U1=X||"You",E1=x?J||h6:U1,b1=typeof $.chat_agent_name==="string"?$.chat_agent_name.trim():"",P1=Boolean(x&&h&&b1&&b1!==E1),l=x?n5(J,K,!0):n5(U1,z),s=typeof U==="string"?U.trim().toLowerCase():"",Q1=!x&&l.image&&(s==="clear"||s==="transparent"),_1=x&&Boolean(l.image),D=`background-color: ${Q1||_1?"transparent":l.color}`,r=X1.content_meta,L1=Boolean(r?.truncated),j1=Boolean(r?.preview),M1=L1&&!j1,R1=L1?{originalLength:Number.isFinite(r?.original_length)?r.original_length:X1.content?X1.content.length:0,maxLength:Number.isFinite(r?.max_length)?r.max_length:0}:null,Y1=X1.content_blocks||[],p1=X1.media_ids||[],C1=O$(X1.content,X1.link_previews),{content:j0,fileRefs:s1}=E$(C1),{content:O0,messageRefs:K0}=P$(j0),{content:f0,attachments:G0}=f$(O0);C1=f0;let o1=e5(Y1),q0=i5(Y1),y1=G$(Y1)[0]||null,N0=N$(Y1)[0]||null,a1=o1.length===1&&typeof o1[0]?.fallback_text==="string"?o1[0].fallback_text.trim():"",t1=q0.length===1?i4(q0[0]).trim():"",a=Boolean(a1)&&C1?.trim()===a1||Boolean(t1)&&C1?.trim()===t1,z1=Boolean(C1)&&!M1&&!a,J1=typeof h==="string"?h.trim():"",A1=H1(()=>{if(!C1||a)return"";let Y=M2(C1,q);return J1?x$(Y,J1):Y},[C1,a,J1]),k1=H1(()=>m6($),[$]),c1=(Y,S)=>{Y.stopPropagation(),v(t2(S))},f1=(Y)=>{P?.(Y)},Y0=(Y)=>{Y.stopPropagation(),L?.($)},e1=async(Y)=>{Y.stopPropagation();let S=await k$(k1);if(W1(S?"success":"error"),N1.current)clearTimeout(N1.current);N1.current=setTimeout(()=>{N1.current=null,W1("idle")},X8)},l0=(Y,S)=>{let $1=new Set;if(!Y||S.length===0)return{content:Y,usedIds:$1};return{content:Y.replace(/attachment:([^\s)"']+)/g,(c,O1,w1,T1)=>{let S1=O1.replace(/^\/+/,""),I1=S.find((T0)=>T0.name&&T0.name.toLowerCase()===S1.toLowerCase()&&!$1.has(T0.id))||S.find((T0)=>!$1.has(T0.id));if(!I1)return c;if($1.add(I1.id),T1.slice(Math.max(0,w1-2),w1)==="](")return`/media/${I1.id}`;return I1.name||"attachment"}),usedIds:$1}},B0=[],m1=[],$0=[],Z0=[],A0=[],h1=[],Q0=[],D0=0;if(Y1.length>0)Y1.forEach((Y)=>{if(Y?.type==="text"&&Y.annotations)Q0.push(Y.annotations);if(Y?.type==="generated_widget")h1.push(Y);else if(Y?.type==="resource_link")Z0.push(Y);else if(Y?.type==="resource")A0.push(Y);else if(Y?.type==="file"){let S=p1[D0++];if(S)m1.push(S),$0.push({id:S,name:Y?.name||Y?.filename||Y?.title})}else if(Y?.type==="image"||!Y?.type){let S=p1[D0++];if(S){let $1=typeof Y?.mime_type==="string"?Y.mime_type:void 0;B0.push({id:S,annotations:Y?.annotations,mimeType:$1}),$0.push({id:S,name:Y?.name||Y?.filename||Y?.title})}}});else if(p1.length>0){let Y=G0.length>0;p1.forEach((S,$1)=>{let K1=G0[$1]||null;if($0.push({id:S,name:K1?.label||null}),Y)m1.push(S);else B0.push({id:S,annotations:null})})}if(G0.length>0)G0.forEach((Y)=>{if(!Y?.id)return;let S=$0.find(($1)=>String($1.id)===String(Y.id));if(S&&!S.name)S.name=Y.label});let{content:C,usedIds:b}=l0(C1,$0);C1=C;let E=B0.filter(({id:Y})=>!b.has(Y)),i=m1.filter((Y)=>!b.has(Y)),n=G0.length>0?G0.map((Y,S)=>({id:Y.id||`attachment-${S+1}`,label:Y.label||`attachment-${S+1}`})):$0.map((Y,S)=>({id:Y.id,label:Y.name||`attachment-${S+1}`})),V1=H1(()=>e5(Y1),[Y1]),Z1=H1(()=>i5(Y1),[Y1]),G1=H1(()=>{return V1.map((Y)=>`${Y.card_id}:${Y.state}`).join("|")},[V1]);w(()=>{if(!D1.current)return;return x6(D1.current),R$(D1.current)},[A1]),w(()=>()=>{if(N1.current)clearTimeout(N1.current)},[]);let F1=T(null);return w(()=>{if(!F1.current||V1.length===0)return;let Y=F1.current;Y.innerHTML="";for(let S of V1){let $1=document.createElement("div");Y.appendChild($1),t6($1,S,{onAction:async(K1)=>{if(K1.type==="Action.OpenUrl"){let c=T2(K1.url||"");if(!c)throw Error("Invalid URL");window.open(c,"_blank","noopener,noreferrer");return}if(K1.type==="Action.Submit"){await F6({post_id:$.id,thread_id:X1.thread_id||$.id,chat_jid:$.chat_jid||null,card_id:S.card_id,action:{type:K1.type,title:K1.title||"",data:K1.data}});return}console.warn("[post] unsupported adaptive card action:",K1.type,K1)}}).catch((K1)=>{console.error("[post] adaptive card render error:",K1),$1.textContent=S.fallback_text||"Card failed to render."})}},[G1,$.id]),G`
-        <div id=${`post-${$.id}`} class="post ${x?"agent-post":""} ${N?"thread-reply":""} ${V?"thread-prev":""} ${O?"thread-next":""} ${g?"removing":""}" onClick=${j}>
-            <div class="post-avatar ${x?"agent-avatar":""} ${l.image?"has-image":""}" style=${D}>
-                ${l.image?G`<img src=${l.image} alt=${E1} />`:l.letter}
+`).trim(),{content:J,attachments:_}}function Nj($){return $.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}function Fj($,j){if(!$||!j)return $;let q=String(j).trim().split(/\s+/).filter(Boolean);if(q.length===0)return $;let B=q.map(Nj).sort((V,G)=>G.length-V.length),_=new RegExp(`(${B.join("|")})`,"gi"),Q=new RegExp(`^(${B.join("|")})$`,"i"),U=new DOMParser().parseFromString($,"text/html"),X=U.createTreeWalker(U.body,NodeFilter.SHOW_TEXT),J=[],W;while(W=X.nextNode())J.push(W);for(let V of J){let G=V.nodeValue;if(!G||!_.test(G)){_.lastIndex=0;continue}_.lastIndex=0;let L=V.parentElement;if(L&&L.closest("code, pre, script, style"))continue;let C=G.split(_).filter((c)=>c!=="");if(C.length===0)continue;let b=U.createDocumentFragment();for(let c of C)if(Q.test(c)){let l=U.createElement("mark");l.className="search-highlight-term",l.textContent=c,b.appendChild(l)}else b.appendChild(U.createTextNode(c));V.parentNode.replaceChild(b,V)}return U.body.innerHTML}function x6({post:$,onClick:j,onHashtagClick:q,onMessageRef:B,onScrollToMessage:_,agentName:Q,agentAvatarUrl:U,userName:X,userAvatarUrl:J,userAvatarBackground:W,onDelete:V,isThreadReply:G,isThreadPrev:L,isThreadNext:C,isRemoving:b,highlightQuery:c,onFileRef:l,onOpenWidget:w,onOpenAttachmentPreview:S}){let[m,O]=y(null),[d,g]=y("idle"),U1=M(null),k=M(null),r=$.data,f=r.type==="agent_response",_1=X||"You",Y1=f?Q||Q6:_1,k1=typeof $.chat_agent_name==="string"?$.chat_agent_name.trim():"",O1=Boolean(f&&c&&k1&&k1!==Y1),s=f?X3(Q,U,!0):X3(_1,J),t=typeof W==="string"?W.trim().toLowerCase():"",K1=!f&&s.image&&(t==="clear"||t==="transparent"),G1=f&&Boolean(s.image),I=`background-color: ${K1||G1?"transparent":s.color}`,a=r.content_meta,F1=Boolean(a?.truncated),X1=Boolean(a?.preview),T1=F1&&!X1,u1=F1?{originalLength:Number.isFinite(a?.original_length)?a.original_length:r.content?r.content.length:0,maxLength:Number.isFinite(a?.max_length)?a.max_length:0}:null,A1=r.content_blocks||[],t1=r.media_ids||[],M1=Uj(r.content,r.link_previews),{content:G0,fileRefs:l1}=Zj(M1),{content:I0,messageRefs:j0}=Vj(G0),{content:g0,attachments:F0}=Lj(I0);M1=g0;let q0=z3(A1),B0=U3(A1),S1=n7(A1)[0]||null,H0=s7(A1)[0]||null,_0=q0.length===1&&typeof q0[0]?.fallback_text==="string"?q0[0].fallback_text.trim():"",Q0=B0.length===1?q5(B0[0]).trim():"",h1=Boolean(_0)&&M1?.trim()===_0||Boolean(Q0)&&M1?.trim()===Q0,Y0=Boolean(M1)&&!T1&&!h1,E1=typeof c==="string"?c.trim():"",R1=B1(()=>{if(!M1||h1)return"";let A=B2(M1,q);return E1?Fj(A,E1):A},[M1,h1,E1]),w1=B1(()=>_6($),[$]),e1=(A,P)=>{A.stopPropagation(),O(i0(P))},f1=(A)=>{S?.(A)},A0=(A)=>{A.stopPropagation(),V?.($)},d1=async(A)=>{A.stopPropagation();let P=await zj(w1);if(g(P?"success":"error"),k.current)clearTimeout(k.current);k.current=setTimeout(()=>{k.current=null,g("idle")},R6)},f0=(A,P)=>{let Q1=new Set;if(!A||P.length===0)return{content:A,usedIds:Q1};return{content:A.replace(/attachment:([^\s)"']+)/g,(o,C1,v1,I1)=>{let y1=C1.replace(/^\/+/,""),D1=P.find((M0)=>M0.name&&M0.name.toLowerCase()===y1.toLowerCase()&&!Q1.has(M0.id))||P.find((M0)=>!Q1.has(M0.id));if(!D1)return o;if(Q1.add(D1.id),I1.slice(Math.max(0,v1-2),v1)==="](")return`/media/${D1.id}`;return D1.name||"attachment"}),usedIds:Q1}},x1=[],P1=[],r1=[],$0=[],Z0=[],m1=[],j1=[],H1=0;if(A1.length>0)A1.forEach((A)=>{if(A?.type==="text"&&A.annotations)j1.push(A.annotations);if(A?.type==="generated_widget")m1.push(A);else if(A?.type==="resource_link")$0.push(A);else if(A?.type==="resource")Z0.push(A);else if(A?.type==="file"){let P=t1[H1++];if(P)P1.push(P),r1.push({id:P,name:A?.name||A?.filename||A?.title})}else if(A?.type==="image"||!A?.type){let P=t1[H1++];if(P){let Q1=typeof A?.mime_type==="string"?A.mime_type:void 0;x1.push({id:P,annotations:A?.annotations,mimeType:Q1}),r1.push({id:P,name:A?.name||A?.filename||A?.title})}}});else if(t1.length>0){let A=F0.length>0;t1.forEach((P,Q1)=>{let z1=F0[Q1]||null;if(r1.push({id:P,name:z1?.label||null}),A)P1.push(P);else x1.push({id:P,annotations:null})})}if(F0.length>0)F0.forEach((A)=>{if(!A?.id)return;let P=r1.find((Q1)=>String(Q1.id)===String(A.id));if(P&&!P.name)P.name=A.label});let{content:H,usedIds:p}=f0(M1,r1);M1=H;let v=x1.filter(({id:A})=>!p.has(A)),e=P1.filter((A)=>!p.has(A)),$1=F0.length>0?F0.map((A,P)=>({id:A.id||`attachment-${P+1}`,label:A.label||`attachment-${P+1}`})):r1.map((A,P)=>({id:A.id,label:A.name||`attachment-${P+1}`})),V1=B1(()=>z3(A1),[A1]),L1=B1(()=>U3(A1),[A1]),Z1=B1(()=>{return V1.map((A)=>`${A.card_id}:${A.state}`).join("|")},[V1]);E(()=>{if(!U1.current)return;return j5(U1.current),Gj(U1.current)},[R1]),E(()=>()=>{if(k.current)clearTimeout(k.current)},[]);let N1=M(null);return E(()=>{if(!N1.current||V1.length===0)return;let A=N1.current;A.innerHTML="";for(let P of V1){let Q1=document.createElement("div");A.appendChild(Q1),H6(Q1,P,{onAction:async(z1)=>{if(z1.type==="Action.OpenUrl"){let o=E2(z1.url||"");if(!o)throw Error("Invalid URL");window.open(o,"_blank","noopener,noreferrer");return}if(z1.type==="Action.Submit"){await x8({post_id:$.id,thread_id:r.thread_id||$.id,chat_jid:$.chat_jid||null,card_id:P.card_id,action:{type:z1.type,title:z1.title||"",data:z1.data}});return}console.warn("[post] unsupported adaptive card action:",z1.type,z1)}}).catch((z1)=>{console.error("[post] adaptive card render error:",z1),Q1.textContent=P.fallback_text||"Card failed to render."})}},[Z1,$.id]),K`
+        <div id=${`post-${$.id}`} class="post ${f?"agent-post":""} ${G?"thread-reply":""} ${L?"thread-prev":""} ${C?"thread-next":""} ${b?"removing":""}" onClick=${j}>
+            <div class="post-avatar ${f?"agent-avatar":""} ${s.image?"has-image":""}" style=${I}>
+                ${s.image?K`<img src=${s.image} alt=${Y1} />`:s.letter}
             </div>
             <div class="post-body">
                 <div class="post-actions">
                     <button
-                        class=${`post-action-btn post-copy-btn${e==="success"?" is-success":e==="error"?" is-error":""}`}
+                        class=${`post-action-btn post-copy-btn${d==="success"?" is-success":d==="error"?" is-error":""}`}
                         type="button"
-                        title=${e==="success"?"Copied":e==="error"?"Copy failed":"Copy message"}
-                        aria-label=${e==="success"?"Copied":e==="error"?"Copy failed":"Copy message"}
-                        onClick=${e1}
-                        disabled=${!k1}
+                        title=${d==="success"?"Copied":d==="error"?"Copy failed":"Copy message"}
+                        aria-label=${d==="success"?"Copied":d==="error"?"Copy failed":"Copy message"}
+                        onClick=${d1}
+                        disabled=${!w1}
                     >
-                        ${e==="success"?G`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6L9 17l-5-5"></path></svg>`:e==="error"?G`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>`:G`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="10" height="10" rx="2"></rect><path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path></svg>`}
+                        ${d==="success"?K`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6L9 17l-5-5"></path></svg>`:d==="error"?K`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>`:K`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="10" height="10" rx="2"></rect><path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path></svg>`}
                     </button>
                     <button
                         class="post-action-btn post-delete-btn"
                         type="button"
                         title="Delete message"
                         aria-label="Delete message"
-                        onClick=${Y0}
+                        onClick=${A0}
                     >
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                             <path d="M18 6L6 18M6 6l12 12" />
@@ -309,233 +479,233 @@ ${B.join(`
                     </button>
                 </div>
                 <div class="post-meta">
-                    <span class="post-author">${E1}</span>
-                    ${P1&&G`<span class="post-chat-agent-tag" title=${`Chat: ${b1}`}>@${b1}</span>`}
-                    ${y1&&G`
+                    <span class="post-author">${Y1}</span>
+                    ${O1&&K`<span class="post-chat-agent-tag" title=${`Chat: ${k1}`}>@${k1}</span>`}
+                    ${S1&&K`
                         <span
                             class="post-recovery-chip"
-                            title=${V$(y1)}
+                            title=${a7(S1)}
                         >
                             recovered
                         </span>
                     `}
-                    ${N0&&G`
+                    ${H0&&K`
                         <span
                             class="post-recovery-chip post-timeout-chip"
-                            title=${Z$(N0)}
+                            title=${t7(H0)}
                         >
                             timeout
                         </span>
                     `}
-                    <a class="post-time" href=${`#msg-${$.id}`} onClick=${(Y)=>{if(Y.preventDefault(),Y.stopPropagation(),B)B($.id)}}>${b6($.timestamp)}</a>
+                    <a class="post-time" href=${`#msg-${$.id}`} onClick=${(A)=>{if(A.preventDefault(),A.stopPropagation(),B)B($.id)}}>${$6($.timestamp)}</a>
                 </div>
-                ${M1&&R1&&G`
+                ${T1&&u1&&K`
                     <div class="post-content truncated">
                         <div class="truncated-title">Message too large to display.</div>
                         <div class="truncated-meta">
-                            Original length: ${$4(R1.originalLength)} chars
-                            ${R1.maxLength?G` • Display limit: ${$4(R1.maxLength)} chars`:""}
+                            Original length: ${Q4(u1.originalLength)} chars
+                            ${u1.maxLength?K` • Display limit: ${Q4(u1.maxLength)} chars`:""}
                         </div>
                     </div>
                 `}
-                ${j1&&R1&&G`
+                ${X1&&u1&&K`
                     <div class="post-content preview">
                         <div class="truncated-title">Preview truncated.</div>
                         <div class="truncated-meta">
-                            Showing first ${$4(R1.maxLength)} of ${$4(R1.originalLength)} chars. Download full text below.
+                            Showing first ${Q4(u1.maxLength)} of ${Q4(u1.originalLength)} chars. Download full text below.
                         </div>
                     </div>
                 `}
-                ${(s1.length>0||K0.length>0||n.length>0)&&G`
+                ${(l1.length>0||j0.length>0||$1.length>0)&&K`
                     <div class="post-file-refs">
-                        ${K0.map((Y)=>{let S=($1)=>{if($1.preventDefault(),$1.stopPropagation(),Q)Q(Y,$.chat_jid||null);else{let K1=document.getElementById("post-"+Y);if(K1)K1.scrollIntoView({behavior:"smooth",block:"center"}),K1.classList.add("post-highlight"),setTimeout(()=>K1.classList.remove("post-highlight"),2000)}};return G`
-                                <a href=${`#msg-${Y}`} class="post-msg-pill-link" onClick=${S}>
-                                    <${P0}
+                        ${j0.map((A)=>{let P=(Q1)=>{if(Q1.preventDefault(),Q1.stopPropagation(),_)_(A,$.chat_jid||null);else{let z1=document.getElementById("post-"+A);if(z1)z1.scrollIntoView({behavior:"smooth",block:"center"}),z1.classList.add("post-highlight"),setTimeout(()=>z1.classList.remove("post-highlight"),2000)}};return K`
+                                <a href=${`#msg-${A}`} class="post-msg-pill-link" onClick=${P}>
+                                    <${w0}
                                         prefix="post"
-                                        label=${"msg:"+Y}
-                                        title=${"Message "+Y}
+                                        label=${"msg:"+A}
+                                        title=${"Message "+A}
                                         icon="message"
-                                        onClick=${S}
+                                        onClick=${P}
                                     />
                                 </a>
                             `})}
-                        ${s1.map((Y)=>{let S=Y.split("/").pop()||Y;return G`
-                                <${P0}
+                        ${l1.map((A)=>{let P=A.split("/").pop()||A;return K`
+                                <${w0}
                                     prefix="post"
-                                    label=${S}
-                                    title=${Y}
-                                    onClick=${()=>p?.(Y)}
+                                    label=${P}
+                                    title=${A}
+                                    onClick=${()=>l?.(A)}
                                 />
                             `})}
-                        ${n.map((Y)=>G`
-                            <${F$}
-                                key=${Y.id}
-                                attachment=${Y}
+                        ${$1.map((A)=>K`
+                            <${e7}
+                                key=${A.id}
+                                attachment=${A}
                                 onPreview=${f1}
                             />
                         `)}
                     </div>
                 `}
-                ${z1&&G`
+                ${Y0&&K`
                     <div 
-                        ref=${D1}
+                        ref=${U1}
                         class="post-content"
-                        dangerouslySetInnerHTML=${{__html:A1}}
-                        onClick=${(Y)=>{if(Y.target.classList.contains("hashtag")){Y.preventDefault(),Y.stopPropagation();let S=Y.target.dataset.hashtag;if(S)q?.(S)}else if(Y.target.tagName==="IMG")Y.preventDefault(),Y.stopPropagation(),v(Y.target.src)}}
+                        dangerouslySetInnerHTML=${{__html:R1}}
+                        onClick=${(A)=>{if(A.target.classList.contains("hashtag")){A.preventDefault(),A.stopPropagation();let P=A.target.dataset.hashtag;if(P)q?.(P)}else if(A.target.tagName==="IMG")A.preventDefault(),A.stopPropagation(),O(A.target.src)}}
                     />
                 `}
-                ${V1.length>0&&G`
-                    <div ref=${F1} class="post-adaptive-cards" />
+                ${V1.length>0&&K`
+                    <div ref=${N1} class="post-adaptive-cards" />
                 `}
-                ${Z1.length>0&&G`
+                ${L1.length>0&&K`
                     <div class="post-adaptive-card-submissions">
-                        ${Z1.map((Y,S)=>{let $1=u6(Y),K1=`${Y.card_id}-${S}`;return G`
-                                <div key=${K1} class="adaptive-card-submission-receipt">
+                        ${L1.map((A,P)=>{let Q1=q6(A),z1=`${A.card_id}-${P}`;return K`
+                                <div key=${z1} class="adaptive-card-submission-receipt">
                                     <div class="adaptive-card-submission-header">
                                         <span class="adaptive-card-submission-icon" aria-hidden="true">✓</span>
                                         <div class="adaptive-card-submission-title-wrap">
                                             <span class="adaptive-card-submission-title">Submitted</span>
-                                            <span class="adaptive-card-submission-title-action">${$1.title}</span>
+                                            <span class="adaptive-card-submission-title-action">${Q1.title}</span>
                                         </div>
                                     </div>
-                                    ${$1.fields.length>0&&G`
+                                    ${Q1.fields.length>0&&K`
                                         <div class="adaptive-card-submission-fields">
-                                            ${$1.fields.map((c)=>G`
-                                                <span class="adaptive-card-submission-field" title=${`${c.key}: ${c.value}`}>
-                                                    <span class="adaptive-card-submission-field-key">${c.key}</span>
+                                            ${Q1.fields.map((o)=>K`
+                                                <span class="adaptive-card-submission-field" title=${`${o.key}: ${o.value}`}>
+                                                    <span class="adaptive-card-submission-field-key">${o.key}</span>
                                                     <span class="adaptive-card-submission-field-sep">:</span>
-                                                    <span class="adaptive-card-submission-field-value">${c.value}</span>
+                                                    <span class="adaptive-card-submission-field-value">${o.value}</span>
                                                 </span>
                                             `)}
                                         </div>
                                     `}
                                     <div class="adaptive-card-submission-meta">
-                                        Submitted ${r4($1.submittedAt)}
+                                        Submitted ${p2(Q1.submittedAt)}
                                     </div>
                                 </div>
                             `})}
                     </div>
                 `}
-                ${h1.length>0&&G`
+                ${m1.length>0&&K`
                     <div class="generated-widget-launches">
-                        ${h1.map((Y,S)=>G`
-                            <${A$}
-                                key=${Y.widget_id||Y.id||`${$.id}-widget-${S}`}
-                                block=${Y}
+                        ${m1.map((A,P)=>K`
+                            <${qj}
+                                key=${A.widget_id||A.id||`${$.id}-widget-${P}`}
+                                block=${A}
                                 post=${$}
-                                onOpenWidget=${d}
+                                onOpenWidget=${w}
                             />
                         `)}
                     </div>
                 `}
-                ${Q0.length>0&&G`
-                    ${Q0.map((Y,S)=>G`
-                        <${o4} key=${S} annotations=${Y} />
+                ${j1.length>0&&K`
+                    ${j1.map((A,P)=>K`
+                        <${J5} key=${P} annotations=${A} />
                     `)}
                 `}
-                ${E.length>0&&G`
+                ${v.length>0&&K`
                     <div class="media-preview">
-                        ${E.map(({id:Y,mimeType:S})=>{let K1=typeof S==="string"&&S.toLowerCase().startsWith("image/svg")?t2(Y):Z6(Y);return G`
+                        ${v.map(({id:A,mimeType:P})=>{let z1=typeof P==="string"&&P.toLowerCase().startsWith("image/svg")?i0(A):w8(A);return K`
                                 <img 
-                                    key=${Y} 
-                                    src=${K1} 
+                                    key=${A} 
+                                    src=${z1} 
                                     alt="Media" 
                                     loading="lazy"
                                     decoding="async"
-                                    onClick=${(c)=>c1(c,Y)}
+                                    onClick=${(o)=>e1(o,A)}
                                 />
                             `})}
                     </div>
                 `}
-                ${E.length>0&&G`
-                    ${E.map(({annotations:Y},S)=>G`
-                        ${Y&&G`<${o4} key=${S} annotations=${Y} />`}
+                ${v.length>0&&K`
+                    ${v.map(({annotations:A},P)=>K`
+                        ${A&&K`<${J5} key=${P} annotations=${A} />`}
                     `)}
                 `}
-                ${i.length>0&&G`
+                ${e.length>0&&K`
                     <div class="file-attachments">
-                        ${i.map((Y)=>G`
-                            <${W$} key=${Y} mediaId=${Y} onPreview=${f1} />
+                        ${e.map((A)=>K`
+                            <${i7} key=${A} mediaId=${A} onPreview=${f1} />
                         `)}
                     </div>
                 `}
-                ${Z0.length>0&&G`
+                ${$0.length>0&&K`
                     <div class="resource-links">
-                        ${Z0.map((Y,S)=>G`
-                            <div key=${S}>
-                                <${H$} block=${Y} />
-                                <${o4} annotations=${Y.annotations} />
+                        ${$0.map((A,P)=>K`
+                            <div key=${P}>
+                                <${$j} block=${A} />
+                                <${J5} annotations=${A.annotations} />
                             </div>
                         `)}
                     </div>
                 `}
-                ${A0.length>0&&G`
+                ${Z0.length>0&&K`
                     <div class="resource-embeds">
-                        ${A0.map((Y,S)=>G`
-                            <div key=${S}>
-                                <${Y$} block=${Y} />
-                                <${o4} annotations=${Y.annotations} />
+                        ${Z0.map((A,P)=>K`
+                            <div key=${P}>
+                                <${jj} block=${A} />
+                                <${J5} annotations=${A.annotations} />
                             </div>
                         `)}
                     </div>
                 `}
-                ${X1.link_previews?.length>0&&G`
+                ${r.link_previews?.length>0&&K`
                     <div class="link-previews">
-                        ${X1.link_previews.map((Y,S)=>G`
-                            <${I$} key=${S} preview=${Y} />
+                        ${r.link_previews.map((A,P)=>K`
+                            <${Qj} key=${P} preview=${A} />
                         `)}
                     </div>
                 `}
             </div>
         </div>
-        ${t&&G`<${$8} src=${t} onClose=${()=>v(null)} />`}
+        ${m&&K`<${M6} src=${m} onClose=${()=>O(null)} />`}
 
-    `}function z8({posts:$,hasMore:j,onLoadMore:q,onPostClick:B,onHashtagClick:Q,onMessageRef:J,onScrollToMessage:K,onFileRef:X,onOpenWidget:z,onOpenAttachmentPreview:U,emptyMessage:L,timelineRef:N,agents:V,user:O,onDeletePost:g,reverse:h=!0,removingPostIds:p,searchQuery:d}){let[P,t]=M(!1),v=T(null),e=typeof IntersectionObserver<"u",W1=m(async()=>{if(!q||!j||P)return;t(!0);try{await q({preserveScroll:!0,preserveMode:"top"})}finally{t(!1)}},[j,P,q]),D1=m((l)=>{let{scrollTop:s,scrollHeight:Q1,clientHeight:_1}=l.target,D=h?Q1-_1-s:s,r=Math.max(300,_1);if(D<r)W1()},[h,W1]);w(()=>{if(!e)return;let l=v.current,s=N?.current;if(!l||!s)return;let Q1=300,_1=new IntersectionObserver((D)=>{for(let r of D){if(!r.isIntersecting)continue;W1()}},{root:s,rootMargin:`${Q1}px 0px ${Q1}px 0px`,threshold:0});return _1.observe(l),()=>_1.disconnect()},[e,j,q,N,W1]);let N1=T(W1);if(N1.current=W1,w(()=>{if(e)return;if(!N?.current)return;let{scrollTop:l,scrollHeight:s,clientHeight:Q1}=N.current,_1=h?s-Q1-l:l,D=Math.max(300,Q1);if(_1<D)N1.current?.()},[e,$,j,h,N]),w(()=>{if(!N?.current)return;if(!j||P)return;let{scrollTop:l,scrollHeight:s,clientHeight:Q1}=N.current,_1=h?s-Q1-l:l,D=Math.max(300,Q1);if(s<=Q1+1||_1<D)N1.current?.()},[$,j,P,h,N]),!$)return G`<div class="loading"><div class="spinner"></div></div>`;if($.length===0)return G`
-            <div class="timeline" ref=${N}>
+    `}function v6({posts:$,hasMore:j,onLoadMore:q,onPostClick:B,onHashtagClick:_,onMessageRef:Q,onScrollToMessage:U,onFileRef:X,onOpenWidget:J,onOpenAttachmentPreview:W,emptyMessage:V,timelineRef:G,agents:L,user:C,onDeletePost:b,reverse:c=!0,removingPostIds:l,searchQuery:w}){let[S,m]=y(!1),O=M(null),d=typeof IntersectionObserver<"u",g=i(async()=>{if(!q||!j||S)return;m(!0);try{await q({preserveScroll:!0,preserveMode:"top"})}finally{m(!1)}},[j,S,q]),U1=i((s)=>{let{scrollTop:t,scrollHeight:K1,clientHeight:G1}=s.target,I=c?K1-G1-t:t,a=Math.max(300,G1);if(I<a)g()},[c,g]);E(()=>{if(!d)return;let s=O.current,t=G?.current;if(!s||!t)return;let K1=300,G1=new IntersectionObserver((I)=>{for(let a of I){if(!a.isIntersecting)continue;g()}},{root:t,rootMargin:`${K1}px 0px ${K1}px 0px`,threshold:0});return G1.observe(s),()=>G1.disconnect()},[d,j,q,G,g]);let k=M(g);if(k.current=g,E(()=>{if(d)return;if(!G?.current)return;let{scrollTop:s,scrollHeight:t,clientHeight:K1}=G.current,G1=c?t-K1-s:s,I=Math.max(300,K1);if(G1<I)k.current?.()},[d,$,j,c,G]),E(()=>{if(!G?.current)return;if(!j||S)return;let{scrollTop:s,scrollHeight:t,clientHeight:K1}=G.current,G1=c?t-K1-s:s,I=Math.max(300,K1);if(t<=K1+1||G1<I)k.current?.()},[$,j,S,c,G]),!$)return K`<div class="loading"><div class="spinner"></div></div>`;if($.length===0)return K`
+            <div class="timeline" ref=${G}>
                 <div class="timeline-content">
                     <div style="padding: var(--spacing-xl); text-align: center; color: var(--text-secondary)">
-                        ${L||"No messages yet. Start a conversation!"}
+                        ${V||"No messages yet. Start a conversation!"}
                     </div>
                 </div>
             </div>
-        `;let X1=$.slice().sort((l,s)=>l.id-s.id),x=(l)=>{let s=l?.data?.thread_id;if(s===null||s===void 0||s==="")return null;let Q1=Number(s);return Number.isFinite(Q1)?Q1:null},U1=new Map;for(let l=0;l<X1.length;l+=1){let s=X1[l],Q1=Number(s?.id),_1=x(s);if(_1!==null){let D=U1.get(_1)||{anchorIndex:-1,replyIndexes:[]};D.replyIndexes.push(l),U1.set(_1,D)}else if(Number.isFinite(Q1)){let D=U1.get(Q1)||{anchorIndex:-1,replyIndexes:[]};D.anchorIndex=l,U1.set(Q1,D)}}let E1=new Map;for(let[l,s]of U1.entries()){let Q1=new Set;if(s.anchorIndex>=0)Q1.add(s.anchorIndex);for(let _1 of s.replyIndexes)Q1.add(_1);E1.set(l,Array.from(Q1).sort((_1,D)=>_1-D))}let b1=X1.map((l,s)=>{let Q1=x(l);if(Q1===null)return{hasThreadPrev:!1,hasThreadNext:!1};let _1=E1.get(Q1);if(!_1||_1.length===0)return{hasThreadPrev:!1,hasThreadNext:!1};let D=_1.indexOf(s);if(D<0)return{hasThreadPrev:!1,hasThreadNext:!1};return{hasThreadPrev:D>0,hasThreadNext:D<_1.length-1}}),P1=G`<div class="timeline-sentinel" ref=${v}></div>`;return G`
-        <div class="timeline ${h?"reverse":"normal"}" ref=${N} onScroll=${D1}>
+        `;let r=$.slice().sort((s,t)=>s.id-t.id),f=(s)=>{let t=s?.data?.thread_id;if(t===null||t===void 0||t==="")return null;let K1=Number(t);return Number.isFinite(K1)?K1:null},_1=new Map;for(let s=0;s<r.length;s+=1){let t=r[s],K1=Number(t?.id),G1=f(t);if(G1!==null){let I=_1.get(G1)||{anchorIndex:-1,replyIndexes:[]};I.replyIndexes.push(s),_1.set(G1,I)}else if(Number.isFinite(K1)){let I=_1.get(K1)||{anchorIndex:-1,replyIndexes:[]};I.anchorIndex=s,_1.set(K1,I)}}let Y1=new Map;for(let[s,t]of _1.entries()){let K1=new Set;if(t.anchorIndex>=0)K1.add(t.anchorIndex);for(let G1 of t.replyIndexes)K1.add(G1);Y1.set(s,Array.from(K1).sort((G1,I)=>G1-I))}let k1=r.map((s,t)=>{let K1=f(s);if(K1===null)return{hasThreadPrev:!1,hasThreadNext:!1};let G1=Y1.get(K1);if(!G1||G1.length===0)return{hasThreadPrev:!1,hasThreadNext:!1};let I=G1.indexOf(t);if(I<0)return{hasThreadPrev:!1,hasThreadNext:!1};return{hasThreadPrev:I>0,hasThreadNext:I<G1.length-1}}),O1=K`<div class="timeline-sentinel" ref=${O}></div>`;return K`
+        <div class="timeline ${c?"reverse":"normal"}" ref=${G} onScroll=${U1}>
             <div class="timeline-content">
-                ${h?P1:null}
-                ${X1.map((l,s)=>{let Q1=Boolean(l.data?.thread_id&&l.data.thread_id!==l.id),_1=p?.has?.(l.id),D=b1[s]||{};return G`
-                    <${_8}
-                        key=${l.id}
-                        post=${l}
-                        isThreadReply=${Q1}
-                        isThreadPrev=${D.hasThreadPrev}
-                        isThreadNext=${D.hasThreadNext}
-                        isRemoving=${_1}
-                        highlightQuery=${d}
-                        agentName=${p6(l.data?.agent_id,V||{})}
-                        agentAvatarUrl=${c6(l.data?.agent_id,V||{})}
-                        userName=${O?.name||O?.user_name}
-                        userAvatarUrl=${O?.avatar_url||O?.avatarUrl||O?.avatar}
-                        userAvatarBackground=${O?.avatar_background||O?.avatarBackground}
-                        onClick=${()=>B?.(l)}
-                        onHashtagClick=${Q}
-                        onMessageRef=${J}
-                        onScrollToMessage=${K}
+                ${c?O1:null}
+                ${r.map((s,t)=>{let K1=Boolean(s.data?.thread_id&&s.data.thread_id!==s.id),G1=l?.has?.(s.id),I=k1[t]||{};return K`
+                    <${x6}
+                        key=${s.id}
+                        post=${s}
+                        isThreadReply=${K1}
+                        isThreadPrev=${I.hasThreadPrev}
+                        isThreadNext=${I.hasThreadNext}
+                        isRemoving=${G1}
+                        highlightQuery=${w}
+                        agentName=${U6(s.data?.agent_id,L||{})}
+                        agentAvatarUrl=${X6(s.data?.agent_id,L||{})}
+                        userName=${C?.name||C?.user_name}
+                        userAvatarUrl=${C?.avatar_url||C?.avatarUrl||C?.avatar}
+                        userAvatarBackground=${C?.avatar_background||C?.avatarBackground}
+                        onClick=${()=>B?.(s)}
+                        onHashtagClick=${_}
+                        onMessageRef=${Q}
+                        onScrollToMessage=${U}
                         onFileRef=${X}
-                        onOpenWidget=${z}
-                        onDelete=${g}
-                        onOpenAttachmentPreview=${U}
+                        onOpenWidget=${J}
+                        onDelete=${b}
+                        onOpenAttachmentPreview=${W}
                     />
                 `})}
-                ${h?null:P1}
+                ${c?null:O1}
             </div>
         </div>
-    `}function a4($){return String($||"").toLowerCase().replace(/^@/,"").replace(/\s+/g," ").trim()}function b$($,j){let q=a4($),B=a4(j);if(!B)return!1;return q.startsWith(B)||q.includes(B)}function B3($){if(!$)return!1;if($.isComposing)return!1;if($.ctrlKey||$.metaKey||$.altKey)return!1;return typeof $.key==="string"&&$.key.length===1&&/\S/.test($.key)}function Q3($,j,q=Date.now(),B=700){let Q=$&&typeof $==="object"?$:{value:"",updatedAt:0},J=String(j||"").trim().toLowerCase();if(!J)return{value:"",updatedAt:q};return{value:!Q.value||!Number.isFinite(Q.updatedAt)||q-Q.updatedAt>B?J:`${Q.value}${J}`,updatedAt:q}}function v$($,j){let q=Math.max(0,Number($)||0);if(q<=0)return[];let Q=((Number.isInteger(j)?j:0)%q+q)%q,J=[];for(let K=0;K<q;K+=1)J.push((Q+K)%q);return J}function u$($,j,q=0,B=(Q)=>Q){let Q=a4(j);if(!Q)return-1;let J=Array.isArray($)?$:[],K=v$(J.length,q),X=J.map((z)=>a4(B(z)));for(let z of K)if(X[z].startsWith(Q))return z;for(let z of K)if(X[z].includes(Q))return z;return-1}function J3($,j,q=-1,B=(Q)=>Q){let Q=Array.isArray($)?$:[];if(q>=0&&q<Q.length){let J=B(Q[q]);if(b$(J,j))return q}return u$(Q,j,0,B)}function t4($){return String($||"").trim().toLowerCase()}function K3($){let j=String($||"").match(/^@([a-zA-Z0-9_-]*)$/);if(!j)return null;return t4(j[1]||"")}function g$($){let j=new Set,q=[];for(let B of Array.isArray($)?$:[]){let Q=t4(B?.agent_name);if(!Q||j.has(Q))continue;j.add(Q),q.push(B)}return q}function W8($,j,q={}){let B=K3(j);if(B==null)return[];let Q=typeof q?.currentChatJid==="string"?q.currentChatJid:null;return g$($).filter((J)=>{if(Q&&J?.chat_jid===Q)return!1;return t4(J?.agent_name).startsWith(B)})}function X3($){let j=t4($);return j?`@${j} `:""}function G8($,j,q={}){if(!$||$.isComposing)return!1;if(q.searchMode)return!1;if(!q.showSessionSwitcherButton)return!1;if($.ctrlKey||$.metaKey||$.altKey)return!1;if($.key!=="@")return!1;return String(j||"")===""}function N8($){let j=m$($);return j?`@${j}`:""}function m$($){return String($||"").trim().toLowerCase().replace(/[^a-z0-9_-]+/g,"-").replace(/^-+|-+$/g,"").replace(/-{2,}/g,"-")}function L8($,j){let q=typeof $?.agent_name==="string"&&$.agent_name.trim()?N8($.agent_name):String(j||"").trim(),B=typeof $?.chat_jid==="string"&&$.chat_jid.trim()?$.chat_jid.trim():String(j||"").trim();return`${q} — ${B} • current branch`}function h$($,j={}){let q=[],B=typeof j.currentChatJid==="string"?j.currentChatJid.trim():"",Q=typeof $?.chat_jid==="string"?$.chat_jid.trim():"";if(B&&Q===B)q.push("current");if($?.archived_at)q.push("archived");else if($?.is_active)q.push("active");return q}function V8($,j={}){let q=N8($?.agent_name)||String($?.chat_jid||"").trim(),B=typeof $?.chat_jid==="string"&&$.chat_jid.trim()?$.chat_jid.trim():"unknown-chat",Q=h$($,j);return Q.length>0?`${q} — ${B} • ${Q.join(" • ")}`:`${q} — ${B}`}function e4({steerQueued:$=!1,pulsing:j=!1}={}){let q=["turn-dot"];if($)q.push("turn-dot-queued");if(j)q.push("turn-dot-pulsing");return q.join(" ")}function U3({pulsing:$=!1}={}){let j=["compose-inline-status-dot"];if($)j.push("compose-inline-status-dot-pulsing");return j.join(" ")}function $5($,{isLastActivity:j=!1,pendingRequest:q=!1}={}){if(q)return"dot";if(j)return"none";if($?.type==="error")return"none";if($?.type==="intent")return"dot";let B=typeof $?.type==="string"?$.type:"";if(Boolean(typeof $?.tool_name==="string"&&$.tool_name.trim()||$?.tool_args))return"spinner";if(B==="tool_call"||B==="tool_status"||B==="thinking"||B==="waiting")return"spinner";return"dot"}function Z8($,j={}){return $5($,j)==="dot"}function j5($){if(!$||typeof $!=="object")return null;let j=$.started_at??$.startedAt;if(typeof j!=="string"||!j)return null;let q=Date.parse(j);return Number.isFinite(q)?q:null}function p$($){if(!$||typeof $!=="object")return null;let j=$.retry_at??$.retryAt;if(typeof j!=="string"||!j)return null;let q=Date.parse(j);return Number.isFinite(q)?q:null}function _3($){if(!$||typeof $!=="object")return null;let j=$.last_event_at??$.lastEventAt??$.started_at??$.startedAt;if(typeof j!=="string"||!j)return null;let q=Date.parse(j);return Number.isFinite(q)?q:null}function g2($){if(!$||typeof $!=="object")return!1;let j=$.intent_key??$.intentKey;return $.type==="intent"&&j==="compaction"}function q5($){if(!$||typeof $!=="object")return"";let j=$.title;if(typeof j==="string"&&j.trim())return j.trim();let q=$.status;if(typeof q==="string"&&q.trim())return q.trim();return g2($)?"Compacting context":"Working..."}function F8($){let j=Math.max(0,Math.floor($/1000)),q=j%60,B=Math.floor(j/60)%60,Q=Math.floor(j/3600);if(Q>0)return`${Q}:${String(B).padStart(2,"0")}:${String(q).padStart(2,"0")}`;return`${B}:${String(q).padStart(2,"0")}`}function B5($,j=Date.now()){let q=j5($);if(q===null)return null;return F8(Math.max(0,j-q))}function H8($,j=Date.now()){let q=p$($);if(q===null)return null;let B=q-j;if(B<=0)return"retrying now";return`retry in ${F8(B)}`}var Y8=350;function c$($){return String($||"Connecting").replace(/[-_]+/g," ").replace(/^./,(j)=>j.toUpperCase())}function d$($,j={}){let q=typeof $==="string"&&$.trim()?$.trim():"connecting";if(q==="connected")return{show:!1,statusClass:"connected",label:"Connected",title:"Connection: Connected"};if(q!=="disconnected"){let X=c$(q);return{show:!0,statusClass:q,label:X,title:`Connection: ${X}`}}let B=Number.isFinite(Number(j?.delayMs))?Math.max(0,Number(j.delayMs)):Y8,Q=Number.isFinite(Number(j?.nowMs))?Number(j.nowMs):Date.now(),J=Number.isFinite(Number(j?.disconnectedAtMs))?Number(j.disconnectedAtMs):Q;return Q-J>=B?{show:!0,statusClass:"disconnected",label:"Reconnecting",title:"Reconnecting"}:{show:!0,statusClass:"connecting",label:"Connecting",title:"Connecting"}}function z3($,j={}){let q=Number.isFinite(Number(j?.delayMs))?Math.max(0,Number(j.delayMs)):Y8,[B,Q]=M(null),[J,K]=M(()=>Date.now());return w(()=>{if($==="disconnected"){let X=Date.now();Q((z)=>z??X),K(X);return}Q(null),K(Date.now())},[$]),w(()=>{if($!=="disconnected"||B===null)return;let X=q-(Date.now()-B);if(X<=0)return;let z=setTimeout(()=>{K(Date.now())},X);return()=>clearTimeout(z)},[$,B,q]),H1(()=>d$($,{delayMs:q,disconnectedAtMs:B,nowMs:J}),[$,q,B,J])}async function W3($,j,q){if(typeof $!=="function")return!1;try{let B=await $(j);if(!B)return!1;return q(B),!0}catch(B){return!1}}var l$=[{name:"/model",description:"Select model or list available models"},{name:"/cycle-model",description:"Cycle to the next available model"},{name:"/thinking",description:"Show or set thinking/effort level"},{name:"/effort",description:"Show or set thinking/effort level (alias for /thinking)"},{name:"/cycle-thinking",description:"Cycle thinking level"},{name:"/theme",description:"Set UI theme (no name to show available themes)"},{name:"/meters",description:"Toggle the top-right CPU/RAM HUD (/meters on|off|toggle)"},{name:"/tint",description:"Tint default light/dark UI (usage: /tint #hex or /tint off)"},{name:"/btw",description:"Open a side conversation panel without interrupting the main chat"},{name:"/state",description:"Show current session state"},{name:"/stats",description:"Show session token and cost stats"},{name:"/context",description:"Show context window usage"},{name:"/last",description:"Show last assistant response"},{name:"/compact",description:"Manually compact the session"},{name:"/auto-compact",description:"Toggle auto-compaction"},{name:"/auto-retry",description:"Toggle auto-retry"},{name:"/abort",description:"Abort the current response"},{name:"/abort-retry",description:"Abort retry backoff"},{name:"/abort-bash",description:"Abort running bash command"},{name:"/shell",description:"Run a shell command and return output"},{name:"/bash",description:"Run a shell command and add output to context"},{name:"/queue",description:"Queue a follow-up message (one-at-a-time)"},{name:"/queue-all",description:"Queue a follow-up message (batch all)"},{name:"/steer",description:"Steer the current response"},{name:"/steering-mode",description:"Set steering mode (all|one)"},{name:"/followup-mode",description:"Set follow-up mode (all|one)"},{name:"/session-name",description:"Set or show the session name"},{name:"/new-session",description:"Start a new session"},{name:"/switch-session",description:"Switch to a session file"},{name:"/session-rotate",description:"Rotate the current persisted session into an archived file"},{name:"/clone",description:"Duplicate the current active branch into a new session"},{name:"/fork",description:"Fork from a previous message"},{name:"/forks",description:"List forkable messages"},{name:"/tree",description:"List the session tree"},{name:"/label",description:"Set or clear a label on a tree entry"},{name:"/labels",description:"List labeled entries"},{name:"/agent-name",description:"Set or show the agent display name"},{name:"/agent-avatar",description:"Set or show the agent avatar URL"},{name:"/user-name",description:"Set or show your display name"},{name:"/user-avatar",description:"Set or show your avatar URL"},{name:"/user-github",description:"Set name/avatar from GitHub profile"},{name:"/export-html",description:"Export session to HTML"},{name:"/passkey",description:"Manage passkeys (enrol/list/delete)"},{name:"/totp",description:"Show a TOTP enrolment QR code"},{name:"/qr",description:"Generate a QR code for text or URL"},{name:"/search",description:"Search notes and skills in the workspace"},{name:"/dream",description:"Run Dream memory maintenance over recent days (default 7)"},{name:"/tasks",description:"List scheduled tasks"},{name:"/scheduled",description:"List scheduled tasks"},{name:"/restart",description:"Restart the agent and stop subprocesses"},{name:"/exit",description:"Exit the current piclaw process immediately (Supervisor will restart it)"},{name:"/login",description:"Login to an AI model provider (OAuth or API key)"},{name:"/logout",description:"Logout from an AI model provider"},{name:"/commands",description:"List available commands"},{name:"/skill:",description:"Run a workspace skill (e.g. /skill:visual-artifact-generator, /skill:web-search)"}],A8="piclaw_compose_history";function r$($,j,q=!1){if(q)return{shouldApply:!1,nextToken:j,text:""};if(!$||typeof $!=="object")return{shouldApply:!1,nextToken:j,text:""};let B=typeof $.token==="string"?$.token:"",Q=typeof $.text==="string"?$.text:"";if(!B||B===j||!Q.trim())return{shouldApply:!1,nextToken:j,text:""};return{shouldApply:!0,nextToken:B,text:Q}}function i$($="web:default"){let j=typeof $==="string"&&$.trim()?$.trim():"web:default";if(j==="web:default")return A8;return`${A8}:${encodeURIComponent(j)}`}function D8($,j){let q=typeof j?.command?.message==="string"?j.command.message.trim():"";if(!j?.ui_only||!q)return null;let B=typeof $==="string"?$.trim():"";if(!B.startsWith("/"))return null;let Q=B.split(/\s+/).filter(Boolean),J=Q[0]?.toLowerCase()||"";if(!(Q.length>1)&&(J==="/model"||J==="/thinking"||J==="/effort"))return q;return null}function n$($,j,q=!1){if($&&q)return{mode:"compacting",className:"icon-btn send-btn abort-mode compacting-mode",title:"Compacting context — Stop response",ariaLabel:"Compacting context — Stop response",disabled:!1};if($)return{mode:"abort",className:"icon-btn send-btn abort-mode",title:"Stop response",ariaLabel:"Stop response",disabled:!1};return{mode:"send",className:"icon-btn send-btn",title:"Send (Enter)",ariaLabel:"Send message",disabled:!j}}function s$($){return $==="abort"||$==="compacting"}function o$($,j=0){let q=typeof $?.message==="string"&&$.message.trim()?$.message.trim():null,B=$?.indicator&&typeof $.indicator==="object"?$.indicator:null;if(!q&&!B)return{visible:!1,title:"",indicatorText:null,animateDot:!1};if(B?.mode==="hidden")return{visible:Boolean(q),title:q||"Working…",indicatorText:null,animateDot:!1};if(B?.mode==="custom"&&Array.isArray(B.frames)&&B.frames.length>0){let Q=B.frames,J=Number.isFinite(j)&&j>=0?Math.floor(j)%Q.length:0;return{visible:!0,title:q||"Working…",indicatorText:Q[J],animateDot:!1}}return{visible:!0,title:q||"Working…",indicatorText:null,animateDot:!0}}function a$({usage:$,onCompact:j}){let q=Math.min(100,Math.max(0,$.percent||0)),B=$.tokens,Q=$.contextWindow,J="Compact context",X=`${B!=null?`Context: ${G3(B)} / ${G3(Q)} tokens (${q.toFixed(0)}%)`:`Context: ${q.toFixed(0)}%`} — ${"Compact context"}`,z=9,U=2*Math.PI*9,L=q/100*U,N=q>90?"var(--context-red, #ef4444)":q>75?"var(--context-amber, #f59e0b)":"var(--context-green, #22c55e)";return G`
+    `}function K5($){return String($||"").toLowerCase().replace(/^@/,"").replace(/\s+/g," ").trim()}function Hj($,j){let q=K5($),B=K5(j);if(!B)return!1;return q.startsWith(B)||q.includes(B)}function L3($){if(!$)return!1;if($.isComposing)return!1;if($.ctrlKey||$.metaKey||$.altKey)return!1;return typeof $.key==="string"&&$.key.length===1&&/\S/.test($.key)}function N3($,j,q=Date.now(),B=700){let _=$&&typeof $==="object"?$:{value:"",updatedAt:0},Q=String(j||"").trim().toLowerCase();if(!Q)return{value:"",updatedAt:q};return{value:!_.value||!Number.isFinite(_.updatedAt)||q-_.updatedAt>B?Q:`${_.value}${Q}`,updatedAt:q}}function Yj($,j){let q=Math.max(0,Number($)||0);if(q<=0)return[];let _=((Number.isInteger(j)?j:0)%q+q)%q,Q=[];for(let U=0;U<q;U+=1)Q.push((_+U)%q);return Q}function Aj($,j,q=0,B=(_)=>_){let _=K5(j);if(!_)return-1;let Q=Array.isArray($)?$:[],U=Yj(Q.length,q),X=Q.map((J)=>K5(B(J)));for(let J of U)if(X[J].startsWith(_))return J;for(let J of U)if(X[J].includes(_))return J;return-1}function F3($,j,q=-1,B=(_)=>_){let _=Array.isArray($)?$:[];if(q>=0&&q<_.length){let Q=B(_[q]);if(Hj(Q,j))return q}return Aj(_,j,0,B)}function z5($){return String($||"").trim().toLowerCase()}function H3($){let j=String($||"").match(/^@([a-zA-Z0-9_-]*)$/);if(!j)return null;return z5(j[1]||"")}function Dj($){let j=new Set,q=[];for(let B of Array.isArray($)?$:[]){let _=z5(B?.agent_name);if(!_||j.has(_))continue;j.add(_),q.push(B)}return q}function b6($,j,q={}){let B=H3(j);if(B==null)return[];let _=typeof q?.currentChatJid==="string"?q.currentChatJid:null;return Dj($).filter((Q)=>{if(_&&Q?.chat_jid===_)return!1;return z5(Q?.agent_name).startsWith(B)})}function Y3($){let j=z5($);return j?`@${j} `:""}function u6($,j,q={}){if(!$||$.isComposing)return!1;if(q.searchMode)return!1;if(!q.showSessionSwitcherButton)return!1;if($.ctrlKey||$.metaKey||$.altKey)return!1;if($.key!=="@")return!1;return String(j||"")===""}function m6($){let j=Cj($);return j?`@${j}`:""}function Cj($){return String($||"").trim().toLowerCase().replace(/[^a-z0-9_-]+/g,"-").replace(/^-+|-+$/g,"").replace(/-{2,}/g,"-")}function g6($,j){let q=typeof $?.agent_name==="string"&&$.agent_name.trim()?m6($.agent_name):String(j||"").trim(),B=typeof $?.chat_jid==="string"&&$.chat_jid.trim()?$.chat_jid.trim():String(j||"").trim();return`${q} — ${B} • current branch`}function Ij($,j={}){let q=[],B=typeof j.currentChatJid==="string"?j.currentChatJid.trim():"",_=typeof $?.chat_jid==="string"?$.chat_jid.trim():"";if(B&&_===B)q.push("current");if($?.archived_at)q.push("archived");else if($?.is_active)q.push("active");return q}function p6($,j={}){let q=m6($?.agent_name)||String($?.chat_jid||"").trim(),B=typeof $?.chat_jid==="string"&&$.chat_jid.trim()?$.chat_jid.trim():"unknown-chat",_=Ij($,j);return _.length>0?`${q} — ${B} • ${_.join(" • ")}`:`${q} — ${B}`}function G5({steerQueued:$=!1,pulsing:j=!1}={}){let q=["turn-dot"];if($)q.push("turn-dot-queued");if(j)q.push("turn-dot-pulsing");return q.join(" ")}function A3({pulsing:$=!1}={}){let j=["compose-inline-status-dot"];if($)j.push("compose-inline-status-dot-pulsing");return j.join(" ")}function Z5($,{isLastActivity:j=!1,pendingRequest:q=!1}={}){if(q)return"dot";if(j)return"none";if($?.type==="error")return"none";if($?.type==="intent")return"dot";let B=typeof $?.type==="string"?$.type:"";if(Boolean(typeof $?.tool_name==="string"&&$.tool_name.trim()||$?.tool_args))return"spinner";if(B==="tool_call"||B==="tool_status"||B==="thinking"||B==="waiting")return"spinner";return"dot"}function h6($,j={}){return Z5($,j)==="dot"}var c6=350;function Oj($){return String($||"Connecting").replace(/[-_]+/g," ").replace(/^./,(j)=>j.toUpperCase())}function Tj($,j={}){let q=typeof $==="string"&&$.trim()?$.trim():"connecting";if(q==="connected")return{show:!1,statusClass:"connected",label:"Connected",title:"Connection: Connected"};if(q!=="disconnected"){let X=Oj(q);return{show:!0,statusClass:q,label:X,title:`Connection: ${X}`}}let B=Number.isFinite(Number(j?.delayMs))?Math.max(0,Number(j.delayMs)):c6,_=Number.isFinite(Number(j?.nowMs))?Number(j.nowMs):Date.now(),Q=Number.isFinite(Number(j?.disconnectedAtMs))?Number(j.disconnectedAtMs):_;return _-Q>=B?{show:!0,statusClass:"disconnected",label:"Reconnecting",title:"Reconnecting"}:{show:!0,statusClass:"connecting",label:"Connecting",title:"Connecting"}}function D3($,j={}){let q=Number.isFinite(Number(j?.delayMs))?Math.max(0,Number(j.delayMs)):c6,[B,_]=y(null),[Q,U]=y(()=>Date.now());return E(()=>{if($==="disconnected"){let X=Date.now();_((J)=>J??X),U(X);return}_(null),U(Date.now())},[$]),E(()=>{if($!=="disconnected"||B===null)return;let X=q-(Date.now()-B);if(X<=0)return;let J=setTimeout(()=>{U(Date.now())},X);return()=>clearTimeout(J)},[$,B,q]),B1(()=>Tj($,{delayMs:q,disconnectedAtMs:B,nowMs:Q}),[$,q,B,Q])}async function C3($,j,q){if(typeof $!=="function")return!1;try{let B=await $(j);if(!B)return!1;return q(B),!0}catch(B){return!1}}var Mj=[{name:"/model",description:"Select model or list available models"},{name:"/cycle-model",description:"Cycle to the next available model"},{name:"/thinking",description:"Show or set thinking/effort level"},{name:"/effort",description:"Show or set thinking/effort level (alias for /thinking)"},{name:"/cycle-thinking",description:"Cycle thinking level"},{name:"/theme",description:"Set UI theme (no name to show available themes)"},{name:"/meters",description:"Toggle the top-right CPU/RAM HUD (/meters on|off|toggle)"},{name:"/tint",description:"Tint default light/dark UI (usage: /tint #hex or /tint off)"},{name:"/btw",description:"Open a side conversation panel without interrupting the main chat"},{name:"/state",description:"Show current session state"},{name:"/stats",description:"Show session token and cost stats"},{name:"/context",description:"Show context window usage"},{name:"/last",description:"Show last assistant response"},{name:"/compact",description:"Manually compact the session"},{name:"/auto-compact",description:"Toggle auto-compaction"},{name:"/auto-retry",description:"Toggle auto-retry"},{name:"/abort",description:"Abort the current response"},{name:"/abort-retry",description:"Abort retry backoff"},{name:"/abort-bash",description:"Abort running bash command"},{name:"/shell",description:"Run a shell command and return output"},{name:"/bash",description:"Run a shell command and add output to context"},{name:"/queue",description:"Queue a follow-up message (one-at-a-time)"},{name:"/queue-all",description:"Queue a follow-up message (batch all)"},{name:"/steer",description:"Steer the current response"},{name:"/steering-mode",description:"Set steering mode (all|one)"},{name:"/followup-mode",description:"Set follow-up mode (all|one)"},{name:"/session-name",description:"Set or show the session name"},{name:"/new-session",description:"Start a new session"},{name:"/switch-session",description:"Switch to a session file"},{name:"/session-rotate",description:"Rotate the current persisted session into an archived file"},{name:"/clone",description:"Duplicate the current active branch into a new session"},{name:"/fork",description:"Fork from a previous message"},{name:"/forks",description:"List forkable messages"},{name:"/tree",description:"List the session tree"},{name:"/label",description:"Set or clear a label on a tree entry"},{name:"/labels",description:"List labeled entries"},{name:"/agent-name",description:"Set or show the agent display name"},{name:"/agent-avatar",description:"Set or show the agent avatar URL"},{name:"/user-name",description:"Set or show your display name"},{name:"/user-avatar",description:"Set or show your avatar URL"},{name:"/user-github",description:"Set name/avatar from GitHub profile"},{name:"/export-html",description:"Export session to HTML"},{name:"/passkey",description:"Manage passkeys (enrol/list/delete)"},{name:"/totp",description:"Show a TOTP enrolment QR code"},{name:"/qr",description:"Generate a QR code for text or URL"},{name:"/search",description:"Search notes and skills in the workspace"},{name:"/dream",description:"Run Dream memory maintenance over recent days (default 7)"},{name:"/tasks",description:"List scheduled tasks"},{name:"/scheduled",description:"List scheduled tasks"},{name:"/restart",description:"Restart the agent and stop subprocesses"},{name:"/exit",description:"Exit the current piclaw process immediately (Supervisor will restart it)"},{name:"/login",description:"Login to an AI model provider (OAuth or API key)"},{name:"/logout",description:"Logout from an AI model provider"},{name:"/commands",description:"List available commands"},{name:"/skill:",description:"Run a workspace skill (e.g. /skill:visual-artifact-generator, /skill:web-search)"}],l6="piclaw_compose_history";function yj($,j,q=!1){if(q)return{shouldApply:!1,nextToken:j,text:""};if(!$||typeof $!=="object")return{shouldApply:!1,nextToken:j,text:""};let B=typeof $.token==="string"?$.token:"",_=typeof $.text==="string"?$.text:"";if(!B||B===j||!_.trim())return{shouldApply:!1,nextToken:j,text:""};return{shouldApply:!0,nextToken:B,text:_}}function Sj($="web:default"){let j=typeof $==="string"&&$.trim()?$.trim():"web:default";if(j==="web:default")return l6;return`${l6}:${encodeURIComponent(j)}`}function r6($,j){let q=typeof j?.command?.message==="string"?j.command.message.trim():"";if(!j?.ui_only||!q)return null;let B=typeof $==="string"?$.trim():"";if(!B.startsWith("/"))return null;let _=B.split(/\s+/).filter(Boolean),Q=_[0]?.toLowerCase()||"";if(!(_.length>1)&&(Q==="/model"||Q==="/thinking"||Q==="/effort"))return q;return null}function kj($,j,q=!1){if($&&q)return{mode:"compacting",className:"icon-btn send-btn abort-mode compacting-mode",title:"Compacting context — Stop response",ariaLabel:"Compacting context — Stop response",disabled:!1};if($)return{mode:"abort",className:"icon-btn send-btn abort-mode",title:"Stop response",ariaLabel:"Stop response",disabled:!1};return{mode:"send",className:"icon-btn send-btn",title:"Send (Enter)",ariaLabel:"Send message",disabled:!j}}function Ej($){return $==="abort"||$==="compacting"}function fj($,j=0){let q=typeof $?.message==="string"&&$.message.trim()?$.message.trim():null,B=$?.indicator&&typeof $.indicator==="object"?$.indicator:null;if(!q&&!B)return{visible:!1,title:"",indicatorText:null,animateDot:!1};if(B?.mode==="hidden")return{visible:Boolean(q),title:q||"Working…",indicatorText:null,animateDot:!1};if(B?.mode==="custom"&&Array.isArray(B.frames)&&B.frames.length>0){let _=B.frames,Q=Number.isFinite(j)&&j>=0?Math.floor(j)%_.length:0;return{visible:!0,title:q||"Working…",indicatorText:_[Q],animateDot:!1}}return{visible:!0,title:q||"Working…",indicatorText:null,animateDot:!0}}function Pj({usage:$,onCompact:j}){let q=Math.min(100,Math.max(0,$.percent||0)),B=$.tokens,_=$.contextWindow,Q="Compact context",X=`${B!=null?`Context: ${I3(B)} / ${I3(_)} tokens (${q.toFixed(0)}%)`:`Context: ${q.toFixed(0)}%`} — ${"Compact context"}`,J=9,W=2*Math.PI*9,V=q/100*W,G=q>90?"var(--context-red, #ef4444)":q>75?"var(--context-amber, #f59e0b)":"var(--context-green, #22c55e)";return K`
         <button
             class="compose-context-pie icon-btn"
             type="button"
             title=${X}
             aria-label="Compact context"
-            onClick=${(V)=>{V.preventDefault(),V.stopPropagation(),j?.()}}
+            onClick=${(L)=>{L.preventDefault(),L.stopPropagation(),j?.()}}
         >
             <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r=${9}
@@ -544,84 +714,84 @@ ${B.join(`
                     stroke-width="2.5" />
                 <circle cx="12" cy="12" r=${9}
                     fill="none"
-                    stroke=${N}
+                    stroke=${G}
                     stroke-width="2.5"
-                    stroke-dasharray=${`${L} ${U}`}
+                    stroke-dasharray=${`${V} ${W}`}
                     stroke-linecap="round"
                     transform="rotate(-90 12 12)" />
             </svg>
         </button>
-    `}function G3($){if($==null)return"?";if($>=1e6)return($/1e6).toFixed(1)+"M";if($>=1000)return($/1000).toFixed(0)+"K";return String($)}function N3($){let j=Number($);if(!Number.isFinite(j)||j<=0)return"";return`${G3(j)} ctx`}function t$($,j){let q=typeof $==="string"?$.trim():"",B=N3(j);if(!q)return B;if(!B)return q;return`${q} • ${B}`}function e$($,j="",q=""){let B=typeof $==="string"?$.trim():"";if(B)return B;let Q=typeof j==="string"?j.trim():"",J=typeof q==="string"?q.trim():"";if(Q&&J)return`${Q}/${J}`;return J||Q||""}function C8($){let j=Array.isArray($?.model_options)?$.model_options:null,q=Array.isArray($?.models)?$.models:[],B=j&&j.length>0?j:q,Q=[];for(let J of B){if(typeof J==="string"){let N=J.trim();if(!N)continue;let V=N.indexOf("/"),O=V>0?N.slice(0,V).trim():"",g=V>0?N.slice(V+1).trim():N;Q.push({label:N,provider:O,id:g,name:null,contextWindow:null,reasoning:!1});continue}if(!J||typeof J!=="object")continue;let K=typeof J.provider==="string"?J.provider.trim():"",X=typeof J.id==="string"?J.id.trim():"",z=e$(J.label,K,X);if(!z)continue;let U=typeof J.name==="string"&&J.name.trim()?J.name.trim():null,L=Number(J.context_window??J.contextWindow);Q.push({label:z,provider:K,id:X,name:U,contextWindow:Number.isFinite(L)&&L>0?L:null,reasoning:Boolean(J.reasoning)})}return Q.sort((J,K)=>J.label.localeCompare(K.label,void 0,{sensitivity:"base"})),Q}function $j($){if(!$||typeof $!=="object")return"";return[$.label,$.provider,$.id,$.name,N3($.contextWindow)].filter(Boolean).join(" ")}function jj($,j){let q=typeof $==="string"?$.trim():"";if(q)return{showPicker:!0,label:q,hasAvailableModels:!0};let B=C8(j).length>0;return{showPicker:B,label:B?"Select model":"",hasAvailableModels:B}}function qj($){if(!$)return $;let j=$.replace(/\r\n/g,`
+    `}function I3($){if($==null)return"?";if($>=1e6)return($/1e6).toFixed(1)+"M";if($>=1000)return($/1000).toFixed(0)+"K";return String($)}function O3($){let j=Number($);if(!Number.isFinite(j)||j<=0)return"";return`${I3(j)} ctx`}function Rj($,j){let q=typeof $==="string"?$.trim():"",B=O3(j);if(!q)return B;if(!B)return q;return`${q} • ${B}`}function wj($,j="",q=""){let B=typeof $==="string"?$.trim():"";if(B)return B;let _=typeof j==="string"?j.trim():"",Q=typeof q==="string"?q.trim():"";if(_&&Q)return`${_}/${Q}`;return Q||_||""}function d6($){let j=Array.isArray($?.model_options)?$.model_options:null,q=Array.isArray($?.models)?$.models:[],B=j&&j.length>0?j:q,_=[];for(let Q of B){if(typeof Q==="string"){let G=Q.trim();if(!G)continue;let L=G.indexOf("/"),C=L>0?G.slice(0,L).trim():"",b=L>0?G.slice(L+1).trim():G;_.push({label:G,provider:C,id:b,name:null,contextWindow:null,reasoning:!1});continue}if(!Q||typeof Q!=="object")continue;let U=typeof Q.provider==="string"?Q.provider.trim():"",X=typeof Q.id==="string"?Q.id.trim():"",J=wj(Q.label,U,X);if(!J)continue;let W=typeof Q.name==="string"&&Q.name.trim()?Q.name.trim():null,V=Number(Q.context_window??Q.contextWindow);_.push({label:J,provider:U,id:X,name:W,contextWindow:Number.isFinite(V)&&V>0?V:null,reasoning:Boolean(Q.reasoning)})}return _.sort((Q,U)=>Q.label.localeCompare(U.label,void 0,{sensitivity:"base"})),_}function xj($){if(!$||typeof $!=="object")return"";return[$.label,$.provider,$.id,$.name,O3($.contextWindow)].filter(Boolean).join(" ")}function vj($,j){let q=typeof $==="string"?$.trim():"";if(q)return{showPicker:!0,label:q,hasAvailableModels:!0};let B=d6(j).length>0;return{showPicker:B,label:B?"Select model":"",hasAvailableModels:B}}function bj($){if(!$)return $;let j=$.replace(/\r\n/g,`
 `).replace(/\r/g,`
 `);if(!j.includes(" @ ")||!j.includes(`:
 `))return $;let q=j.split(`
-`),B=[],Q=0,J=!1;while(Q<q.length){let X=q[Q].trim();if(!X){Q+=1;continue}if(X==="Messages:"||X.startsWith("Channel:")){J=!0,Q+=1;continue}if(/^[^\n]+\s@\s[^\n]+:$/.test(X)){J=!0,Q+=1;let z=[];while(Q<q.length){let U=q[Q],L=U.trim();if(/^[^\n]+\s@\s[^\n]+:$/.test(L))break;if(L.startsWith("Channel:")||L==="Messages:")break;z.push(U.startsWith("  ")?U.slice(2):U),Q+=1}if(z.length>0)B.push(z.join(`
-`).trim());continue}return $}return J&&B.length>0?B.filter(Boolean).join(`
+`),B=[],_=0,Q=!1;while(_<q.length){let X=q[_].trim();if(!X){_+=1;continue}if(X==="Messages:"||X.startsWith("Channel:")){Q=!0,_+=1;continue}if(/^[^\n]+\s@\s[^\n]+:$/.test(X)){Q=!0,_+=1;let J=[];while(_<q.length){let W=q[_],V=W.trim();if(/^[^\n]+\s@\s[^\n]+:$/.test(V))break;if(V.startsWith("Channel:")||V==="Messages:")break;J.push(W.startsWith("  ")?W.slice(2):W),_+=1}if(J.length>0)B.push(J.join(`
+`).trim());continue}return $}return Q&&B.length>0?B.filter(Boolean).join(`
 
-`):$}function Bj($){if(!$)return{content:$,fileRefs:[]};let q=$.replace(/\r\n/g,`
+`):$}function uj($){if(!$)return{content:$,fileRefs:[]};let q=$.replace(/\r\n/g,`
 `).replace(/\r/g,`
 `).split(`
-`),B=-1;for(let U=0;U<q.length;U+=1)if(q[U].trim()==="Files:"&&q[U+1]&&/^\s*-\s+/.test(q[U+1])){B=U;break}if(B===-1)return{content:$,fileRefs:[]};let Q=[],J=B+1;for(;J<q.length;J+=1){let U=q[J];if(/^\s*-\s+/.test(U))Q.push(U.replace(/^\s*-\s+/,"").trim());else if(!U.trim())break;else break}if(Q.length===0)return{content:$,fileRefs:[]};let K=q.slice(0,B),X=q.slice(J);return{content:[...K,...X].join(`
+`),B=-1;for(let W=0;W<q.length;W+=1)if(q[W].trim()==="Files:"&&q[W+1]&&/^\s*-\s+/.test(q[W+1])){B=W;break}if(B===-1)return{content:$,fileRefs:[]};let _=[],Q=B+1;for(;Q<q.length;Q+=1){let W=q[Q];if(/^\s*-\s+/.test(W))_.push(W.replace(/^\s*-\s+/,"").trim());else if(!W.trim())break;else break}if(_.length===0)return{content:$,fileRefs:[]};let U=q.slice(0,B),X=q.slice(Q);return{content:[...U,...X].join(`
 `).replace(/\n{3,}/g,`
 
-`).trim(),fileRefs:Q}}function Qj($){if(!$)return{content:$,messageRefs:[]};let q=$.replace(/\r\n/g,`
+`).trim(),fileRefs:_}}function mj($){if(!$)return{content:$,messageRefs:[]};let q=$.replace(/\r\n/g,`
 `).replace(/\r/g,`
 `).split(`
-`),B=-1;for(let U=0;U<q.length;U+=1)if(q[U].trim()==="Referenced messages:"&&q[U+1]&&/^\s*-\s+/.test(q[U+1])){B=U;break}if(B===-1)return{content:$,messageRefs:[]};let Q=[],J=B+1;for(;J<q.length;J+=1){let U=q[J];if(/^\s*-\s+/.test(U)){let L=U.replace(/^\s*-\s+/,"").trim().match(/^message:(\S+)$/i);if(L)Q.push(L[1])}else if(!U.trim())break;else break}if(Q.length===0)return{content:$,messageRefs:[]};let K=q.slice(0,B),X=q.slice(J);return{content:[...K,...X].join(`
+`),B=-1;for(let W=0;W<q.length;W+=1)if(q[W].trim()==="Referenced messages:"&&q[W+1]&&/^\s*-\s+/.test(q[W+1])){B=W;break}if(B===-1)return{content:$,messageRefs:[]};let _=[],Q=B+1;for(;Q<q.length;Q+=1){let W=q[Q];if(/^\s*-\s+/.test(W)){let V=W.replace(/^\s*-\s+/,"").trim().match(/^message:(\S+)$/i);if(V)_.push(V[1])}else if(!W.trim())break;else break}if(_.length===0)return{content:$,messageRefs:[]};let U=q.slice(0,B),X=q.slice(Q);return{content:[...U,...X].join(`
 `).replace(/\n{3,}/g,`
 
-`).trim(),messageRefs:Q}}function Jj($){if(!$)return{content:$,attachmentRefs:[]};let q=$.replace(/\r\n/g,`
+`).trim(),messageRefs:_}}function gj($){if(!$)return{content:$,attachmentRefs:[]};let q=$.replace(/\r\n/g,`
 `).replace(/\r/g,`
 `).split(`
-`),B=-1;for(let U=0;U<q.length;U+=1)if(q[U].trim()==="Attachments:"&&q[U+1]&&/^\s*-\s+/.test(q[U+1])){B=U;break}if(B===-1)return{content:$,attachmentRefs:[]};let Q=[],J=B+1;for(;J<q.length;J+=1){let U=q[J];if(/^\s*-\s+/.test(U)){let L=U.replace(/^\s*-\s+/,"").trim(),N=L.match(/^attachment:(\d+)(?:\s*\((.+)\))?$/i);if(N)Q.push({id:N[1],label:(N[2]||"").trim()||`attachment:${N[1]}`,raw:L})}else if(!U.trim())break;else break}if(Q.length===0)return{content:$,attachmentRefs:[]};let K=q.slice(0,B),X=q.slice(J);return{content:[...K,...X].join(`
+`),B=-1;for(let W=0;W<q.length;W+=1)if(q[W].trim()==="Attachments:"&&q[W+1]&&/^\s*-\s+/.test(q[W+1])){B=W;break}if(B===-1)return{content:$,attachmentRefs:[]};let _=[],Q=B+1;for(;Q<q.length;Q+=1){let W=q[Q];if(/^\s*-\s+/.test(W)){let V=W.replace(/^\s*-\s+/,"").trim(),G=V.match(/^attachment:(\d+)(?:\s*\((.+)\))?$/i);if(G)_.push({id:G[1],label:(G[2]||"").trim()||`attachment:${G[1]}`,raw:V})}else if(!W.trim())break;else break}if(_.length===0)return{content:$,attachmentRefs:[]};let U=q.slice(0,B),X=q.slice(Q);return{content:[...U,...X].join(`
 `).replace(/\n{3,}/g,`
 
-`).trim(),attachmentRefs:Q}}function Kj($){let j=qj($||""),q=Bj(j||""),B=Qj(q.content||""),Q=Jj(B.content||"");return{text:Q.content||"",fileRefs:q.fileRefs,messageRefs:B.messageRefs,attachmentRefs:Q.attachmentRefs}}function Xj({items:$=[],onInjectQueuedFollowup:j,onRemoveQueuedFollowup:q,onMoveQueuedFollowup:B,onOpenFilePill:Q}){if(!Array.isArray($)||$.length===0)return null;return G`
+`).trim(),attachmentRefs:_}}function pj($){let j=bj($||""),q=uj(j||""),B=mj(q.content||""),_=gj(B.content||"");return{text:_.content||"",fileRefs:q.fileRefs,messageRefs:B.messageRefs,attachmentRefs:_.attachmentRefs}}function T3({items:$=[],onInjectQueuedFollowup:j,onRemoveQueuedFollowup:q,onMoveQueuedFollowup:B,onOpenFilePill:_}){if(!Array.isArray($)||$.length===0)return null;return K`
         <div class="compose-queue-stack">
-            ${$.map((J,K)=>{let X=typeof J?.content==="string"?J.content:"",z=Kj(X);if(!z.text.trim()&&z.fileRefs.length===0&&z.messageRefs.length===0&&z.attachmentRefs.length===0)return null;let U=K>0,L=K<$.length-1;return G`
+            ${$.map((Q,U)=>{let X=typeof Q?.content==="string"?Q.content:"",J=pj(X);if(!J.text.trim()&&J.fileRefs.length===0&&J.messageRefs.length===0&&J.attachmentRefs.length===0)return null;let W=U>0,V=U<$.length-1;return K`
                     <div class="compose-queue-stack-item" role="listitem">
                         <div class="compose-queue-stack-content" title=${X}>
-                            ${z.text.trim()&&G`<div class="compose-queue-stack-text">${z.text}</div>`}
-                            ${(z.messageRefs.length>0||z.fileRefs.length>0||z.attachmentRefs.length>0)&&G`
+                            ${J.text.trim()&&K`<div class="compose-queue-stack-text">${J.text}</div>`}
+                            ${(J.messageRefs.length>0||J.fileRefs.length>0||J.attachmentRefs.length>0)&&K`
                                 <div class="compose-queue-stack-refs">
-                                    ${z.messageRefs.map((N)=>G`
-                                        <${P0}
-                                            key=${"queue-msg-"+N}
+                                    ${J.messageRefs.map((G)=>K`
+                                        <${w0}
+                                            key=${"queue-msg-"+G}
                                             prefix="compose"
-                                            label=${"msg:"+N}
-                                            title=${"Message reference: "+N}
+                                            label=${"msg:"+G}
+                                            title=${"Message reference: "+G}
                                             icon="message"
                                         />
                                     `)}
-                                    ${z.fileRefs.map((N)=>{let V=N.split("/").pop()||N;return G`
-                                            <${P0}
-                                                key=${"queue-file-"+N}
+                                    ${J.fileRefs.map((G)=>{let L=G.split("/").pop()||G;return K`
+                                            <${w0}
+                                                key=${"queue-file-"+G}
                                                 prefix="compose"
-                                                label=${V}
-                                                title=${N}
-                                                onClick=${()=>Q?.(N)}
+                                                label=${L}
+                                                title=${G}
+                                                onClick=${()=>_?.(G)}
                                             />
                                         `})}
-                                    ${z.attachmentRefs.map((N)=>G`
-                                        <${P0}
-                                            key=${"queue-attachment-"+N.id}
+                                    ${J.attachmentRefs.map((G)=>K`
+                                        <${w0}
+                                            key=${"queue-attachment-"+G.id}
                                             prefix="compose"
-                                            label=${N.label}
-                                            title=${N.raw}
+                                            label=${G.label}
+                                            title=${G.raw}
                                         />
                                     `)}
                                 </div>
                             `}
                         </div>
                         <div class="compose-queue-stack-actions" role="group" aria-label="Queued follow-up controls">
-                            ${$.length>1&&G`
+                            ${$.length>1&&K`
                                 <button
                                     class="compose-queue-stack-move-btn"
                                     type="button"
                                     title="Move up"
                                     aria-label="Move up in queue"
-                                    disabled=${!U}
-                                    onClick=${()=>U&&B?.(K,K-1)}
+                                    disabled=${!W}
+                                    onClick=${()=>W&&B?.(U,U-1)}
                                 >
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="18 15 12 9 6 15"></polyline>
@@ -632,8 +802,8 @@ ${B.join(`
                                     type="button"
                                     title="Move down"
                                     aria-label="Move down in queue"
-                                    disabled=${!L}
-                                    onClick=${()=>L&&B?.(K,K+1)}
+                                    disabled=${!V}
+                                    onClick=${()=>V&&B?.(U,U+1)}
                                 >
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                         <polyline points="6 9 12 15 18 9"></polyline>
@@ -645,7 +815,7 @@ ${B.join(`
                                 type="button"
                                 title="Inject queued follow-up as steer"
                                 aria-label="Inject queued follow-up as steer"
-                                onClick=${()=>j?.(J)}
+                                onClick=${()=>j?.(Q)}
                             >
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M4 20h12a2 2 0 0 0 2-2V8" />
@@ -658,7 +828,7 @@ ${B.join(`
                                 type="button"
                                 title="Cancel queued message"
                                 aria-label="Cancel queued message"
-                                onClick=${()=>q?.(J)}
+                                onClick=${()=>q?.(Q)}
                             >
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <line x1="18" y1="6" x2="6" y2="18" />
@@ -669,101 +839,101 @@ ${B.join(`
                     </div>
                 `})}
         </div>
-    `}function I8({onPost:$,onFocus:j,searchMode:q,searchScope:B="current",onSearch:Q,onSearchScopeChange:J,onEnterSearch:K,onExitSearch:X,fileRefs:z=[],onRemoveFileRef:U,onClearFileRefs:L,messageRefs:N=[],onRemoveMessageRef:V,onClearMessageRefs:O,activeModel:g=null,agentModelsPayload:h=null,modelUsage:p=null,thinkingLevel:d=null,supportsThinking:P=!1,contextUsage:t=null,onContextCompact:v,notificationsEnabled:e=!1,notificationPermission:W1="default",onToggleNotifications:D1,onModelChange:N1,onModelStateChange:X1,activeEditorPath:x=null,onAttachEditorFile:U1,onOpenFilePill:E1,followupQueueItems:b1=[],onInjectQueuedFollowup:P1,onRemoveQueuedFollowup:l,onMoveQueuedFollowup:s,onSubmitIntercept:Q1,onMessageResponse:_1,onPopOutChat:D,isAgentActive:r=!1,activeChatAgents:L1=[],currentChatJid:j1="web:default",connectionStatus:M1="connected",onSetFileRefs:R1,onSetMessageRefs:Y1,onSubmitError:p1,onSwitchChat:C1,onRenameSession:j0,isRenameSessionInProgress:s1=!1,onCreateSession:O0,onDeleteSession:K0,onRestoreSession:f0,showQueueStack:G0=!0,statusNotice:o1=null,extensionWorkingState:q0=null,prefillRequest:H0=null}){let[y1,X0]=M(""),[N0,a1]=M(""),[t1,a]=M([]),[z1,J1]=M(!1),[A1,k1]=M([]),[c1,f1]=M(0),[Y0,e1]=M(!1),l0=T(null),[B0,m1]=M([]),[$0,Z0]=M(0),[A0,h1]=M(!1),[Q0,D0]=M(!1),[C,b]=M(!1),[E,i]=M(!1),[n,V1]=M([]),[Z1,G1]=M(0),[F1,Y]=M(0),[S,$1]=M(!1),[K1,c]=M(0),[O1,w1]=M(null),[T1,S1]=M(null),[U0,I1]=M(()=>Date.now()),[S0,T0]=M(0),g1=T(null),m2=T(null),h2=T(null),w0=T(null),B4=T(null),p2=T(null),F0=T(null),u0=T(null),L0=T({value:"",updatedAt:0}),J0=T(0),V0=T(!1),r0=200,x0=i$(j1),U2=(_)=>{let F=new Set,I=[];for(let f of _||[]){if(typeof f!=="string")continue;let B1=f.trim();if(!B1||F.has(B1))continue;F.add(B1),I.push(B1)}return I},_2=(_=x0)=>{let F=k0(_);if(!F)return[];try{let I=JSON.parse(F);if(!Array.isArray(I))return[];return U2(I)}catch{return[]}},Q4=(_,F=x0)=>{E0(F,JSON.stringify(_))},R0=T(_2(x0)),g0=T(-1),z2=T(""),c2=T("");w(()=>{R0.current=_2(x0),g0.current=-1,z2.current=""},[x0]),w(()=>{let _=!1;return fetch(`/agent/commands?chat_jid=${encodeURIComponent(j1||"web:default")}`).then((I)=>I.ok?I.json():null).then((I)=>{if(_||!I?.commands)return;l0.current=I.commands.map((f)=>({name:f.name,description:f.description||""}))}).catch((I)=>{console.debug("[compose] failed to fetch dynamic commands",I)}),()=>{_=!0}},[j1]),w(()=>{let _=r$(H0,c2.current,q);if(!_.shouldApply)return;c2.current=_.nextToken,w1(null),X0(_.text),L4(_.text),r2(_.text),requestAnimationFrame(()=>{c0();let F=g1.current;if(!F)return;try{F.focus({preventScroll:!0})}catch{F.focus()}let I=_.text.length;F.setSelectionRange?.(I,I)})},[H0,q]);let k2=y1.trim()||t1.length>0||z.length>0||N.length>0,J4=typeof window<"u"&&typeof navigator<"u"&&Boolean(navigator.geolocation)&&Boolean(window.isSecureContext),i0=typeof window<"u"&&typeof Notification<"u",K4=typeof window<"u"?Boolean(window.isSecureContext):!1,X5=i0&&K4&&W1!=="denied",X4=W1==="granted"&&e,W2=g2(o1),d1=q5(o1),m0=typeof o1?.detail==="string"&&o1.detail.trim()?o1.detail.trim():"",U4=W2?B5(o1,U0):null,n0=o$(q0,S0),b0=q0?.indicator&&typeof q0.indicator==="object"?q0.indicator:null,U5=X4?"Disable notifications":"Enable notifications",_5=t1.length>0||z.length>0||N.length>0,$2=z3(M1),z5=$2.label,W5=$2.title,h0=n$(r,k2,W2),_4=(Array.isArray(L1)?L1:[]).filter((_)=>!_?.archived_at),v1=(()=>{for(let _ of Array.isArray(L1)?L1:[]){let F=typeof _?.chat_jid==="string"?_.chat_jid.trim():"";if(F&&F===j1)return _}return null})(),l1=Boolean(v1&&v1.chat_jid===(v1.root_chat_jid||v1.chat_jid)),E2=H1(()=>{let _=new Set,F=[];for(let I of Array.isArray(L1)?L1:[]){let f=typeof I?.chat_jid==="string"?I.chat_jid.trim():"";if(!f||f===j1||_.has(f))continue;if(!(typeof I?.agent_name==="string"?I.agent_name.trim():""))continue;_.add(f),F.push(I)}return F},[L1,j1]),p0=E2.length>0,j2=p0&&typeof C1==="function",q2=p0&&typeof f0==="function",P2=Boolean(s1||V0.current),s0=!q&&typeof j0==="function"&&!P2,v0=!q&&typeof O0==="function",y0=!q&&typeof K0==="function"&&!l1,B2=!q&&(j2||q2||s0||v0||y0),z4=jj(g,h),G2=z4.showPicker,N2=z4.label,d2=P&&d?` (${d})`:"",G5=d2.trim()?`${d}`:"",l2=typeof p?.hint_short==="string"?p.hint_short.trim():"",W4=[G5||null,l2||null].filter(Boolean).join(" • "),N5=[g?`Current model: ${N2}${d2}`:null,p?.plan?`Plan: ${p.plan}`:null,l2||null,p?.primary?.reset_description||null,p?.secondary?.reset_description||null].filter(Boolean),G4=Q0?"Switching model…":N5.join(" • ")||(G2?"Select a model (tap to open model picker)":`Current model: ${N2}${d2} (tap to open model picker)`),N4=!q&&(G2||t&&t.percent!=null),o0=(_)=>{if(!_||typeof _!=="object")return;let F=_.model??_.current;if(typeof X1==="function")X1({model:F??null,thinking_level:_.thinking_level??null,thinking_level_label:_.thinking_level_label??null,supports_thinking:_.supports_thinking,provider_usage:_.provider_usage??null});if(F&&typeof N1==="function")N1(F)},c0=(_)=>{let F=_||g1.current;if(!F)return;F.style.height="auto",F.style.height=`${F.scrollHeight}px`,F.style.overflowY="hidden"},L4=(_)=>{if(!_.startsWith("/")||_.includes(`
-`)){e1(!1),k1([]);return}let F=_.toLowerCase().split(" ")[0];if(F.length<1){e1(!1),k1([]);return}let f=(l0.current||l$).filter((B1)=>B1.name.startsWith(F)||B1.name.replace(/-/g,"").startsWith(F.replace(/-/g,"")));if(f.length>0&&!(f.length===1&&f[0].name===F))h1(!1),m1([]),k1(f),f1(0),e1(!0);else e1(!1),k1([])},V4=(_)=>{let F=y1,I=F.indexOf(" "),f=I>=0?F.slice(I):"",B1=_.name+f;X0(B1),e1(!1),k1([]),requestAnimationFrame(()=>{let r1=g1.current;if(!r1)return;let W0=B1.length;r1.selectionStart=W0,r1.selectionEnd=W0,r1.focus()})},r2=(_)=>{if(K3(_)==null){h1(!1),m1([]);return}let F=W8(_4,_,{currentChatJid:j1});if(F.length>0&&!(F.length===1&&X3(F[0].agent_name).trim().toLowerCase()===String(_||"").trim().toLowerCase()))e1(!1),k1([]),m1(F),Z0(0),h1(!0);else h1(!1),m1([])},L2=(_)=>{let F=X3(_?.agent_name);if(!F)return;X0(F),h1(!1),m1([]),requestAnimationFrame(()=>{let I=g1.current;if(!I)return;let f=F.length;I.selectionStart=f,I.selectionEnd=f,I.focus()})},Z4=()=>{if(q||!j2&&!q2&&!s0&&!v0&&!y0)return!1;return L0.current={value:"",updatedAt:0},b(!1),e1(!1),k1([]),h1(!1),m1([]),i(!0),!0},F4=(_)=>{if(_?.preventDefault?.(),_?.stopPropagation?.(),q||!j2&&!q2&&!s0&&!v0&&!y0)return;if(E){L0.current={value:"",updatedAt:0},i(!1);return}Z4()},H4=(_)=>{let F=typeof _==="string"?_.trim():"";if(i(!1),!F||F===j1){requestAnimationFrame(()=>g1.current?.focus());return}C1?.(F)},f2=async(_)=>{let F=typeof _==="string"?_.trim():"";if(i(!1),!F||typeof f0!=="function"){requestAnimationFrame(()=>g1.current?.focus());return}try{await f0(F)}catch(I){console.warn("Failed to restore session:",I),requestAnimationFrame(()=>g1.current?.focus())}},L5=(_)=>{let I=(Array.isArray(_)?_:[]).findIndex((f)=>!f?.disabled);return I>=0?I:0},_0=H1(()=>{let _=[];for(let F of E2){let I=Boolean(F?.archived_at),f=typeof F?.agent_name==="string"?F.agent_name.trim():"",B1=typeof F?.chat_jid==="string"?F.chat_jid.trim():"";if(!f||!B1)continue;_.push({type:"session",key:`session:${B1}`,label:`@${f} — ${B1}${F?.is_active?" active":""}${I?" archived":""}`,chat:F,disabled:I?!q2:!j2})}if(v0)_.push({type:"action",key:"action:new",label:"New session",action:"new",disabled:!1});if(s0)_.push({type:"action",key:"action:rename",label:"Rename current session",action:"rename",disabled:P2});if(y0)_.push({type:"action",key:"action:delete",label:"Delete current session",action:"delete",disabled:!1});return _},[E2,q2,j2,v0,s0,y0,P2]),Y4=async(_)=>{if(_?.preventDefault)_.preventDefault();if(_?.stopPropagation)_.stopPropagation();if(typeof j0!=="function"||s1||V0.current)return;V0.current=!0,i(!1);try{await j0()}catch(F){console.warn("Failed to rename session:",F)}finally{V0.current=!1}requestAnimationFrame(()=>g1.current?.focus())},A4=async()=>{if(typeof O0!=="function")return;i(!1);try{await O0()}catch(_){console.warn("Failed to create session:",_)}requestAnimationFrame(()=>g1.current?.focus())},D4=async()=>{if(typeof K0!=="function")return;i(!1);try{await K0(j1)}catch(_){console.warn("Failed to delete session:",_)}requestAnimationFrame(()=>g1.current?.focus())},V2=(_)=>{if(q)a1(_);else X0(_),L4(_),r2(_);requestAnimationFrame(()=>c0())},V5=(_)=>{let F=q?N0:y1,I=F&&!F.endsWith(`
+    `}function i6({onPost:$,onFocus:j,searchMode:q,searchScope:B="current",onSearch:_,onSearchScopeChange:Q,onEnterSearch:U,onExitSearch:X,fileRefs:J=[],onRemoveFileRef:W,onClearFileRefs:V,messageRefs:G=[],onRemoveMessageRef:L,onClearMessageRefs:C,activeModel:b=null,agentModelsPayload:c=null,modelUsage:l=null,thinkingLevel:w=null,supportsThinking:S=!1,contextUsage:m=null,onContextCompact:O,notificationsEnabled:d=!1,notificationPermission:g="default",onToggleNotifications:U1,onModelChange:k,onModelStateChange:r,activeEditorPath:f=null,onAttachEditorFile:_1,onOpenFilePill:Y1,followupQueueItems:k1=[],onInjectQueuedFollowup:O1,onRemoveQueuedFollowup:s,onMoveQueuedFollowup:t,onSubmitIntercept:K1,onMessageResponse:G1,onPopOutChat:I,isAgentActive:a=!1,activeChatAgents:F1=[],currentChatJid:X1="web:default",connectionStatus:T1="connected",onSetFileRefs:u1,onSetMessageRefs:A1,onSubmitError:t1,onSwitchChat:M1,onRenameSession:G0,isRenameSessionInProgress:l1=!1,onCreateSession:I0,onDeleteSession:j0,onRestoreSession:g0,showQueueStack:F0=!0,statusNotice:q0=null,extensionWorkingState:B0=null,prefillRequest:x0=null}){let[S1,X0]=y(""),[H0,_0]=y(""),[Q0,h1]=y([]),[Y0,E1]=y(!1),[R1,w1]=y([]),[e1,f1]=y(0),[A0,d1]=y(!1),f0=M(null),[x1,P1]=y([]),[r1,$0]=y(0),[Z0,m1]=y(!1),[j1,H1]=y(!1),[H,p]=y(!1),[v,e]=y(!1),[$1,V1]=y([]),[L1,Z1]=y(0),[N1,A]=y(0),[P,Q1]=y(!1),[z1,o]=y(0),[C1,v1]=y(null),[I1,y1]=y(null),[W0,D1]=y(()=>Date.now()),[S0,M0]=y(0),c1=M(null),d2=M(null),i2=M(null),v0=M(null),W4=M(null),n2=M(null),D0=M(null),p0=M(null),V0=M({value:"",updatedAt:0}),U0=M(0),L0=M(!1),s0=200,b0=Sj(X1),Z2=(z)=>{let F=new Set,T=[];for(let h of z||[]){if(typeof h!=="string")continue;let J1=h.trim();if(!J1||F.has(J1))continue;F.add(J1),T.push(J1)}return T},V2=(z=b0)=>{let F=E0(z);if(!F)return[];try{let T=JSON.parse(F);if(!Array.isArray(T))return[];return Z2(T)}catch{return[]}},J4=(z,F=b0)=>{R0(F,JSON.stringify(z))},P0=M(V2(b0)),h0=M(-1),L2=M(""),s2=M("");E(()=>{P0.current=V2(b0),h0.current=-1,L2.current=""},[b0]),E(()=>{let z=!1;return fetch(`/agent/commands?chat_jid=${encodeURIComponent(X1||"web:default")}`).then((T)=>T.ok?T.json():null).then((T)=>{if(z||!T?.commands)return;f0.current=T.commands.map((h)=>({name:h.name,description:h.description||""}))}).catch((T)=>{console.debug("[compose] failed to fetch dynamic commands",T)}),()=>{z=!0}},[X1]),E(()=>{let z=yj(x0,s2.current,q);if(!z.shouldApply)return;s2.current=z.nextToken,v1(null),X0(z.text),Y4(z.text),t2(z.text),requestAnimationFrame(()=>{d0();let F=c1.current;if(!F)return;try{F.focus({preventScroll:!0})}catch{F.focus()}let T=z.text.length;F.setSelectionRange?.(T,T)})},[x0,q]);let P2=S1.trim()||Q0.length>0||J.length>0||G.length>0,K4=typeof window<"u"&&typeof navigator<"u"&&Boolean(navigator.geolocation)&&Boolean(window.isSecureContext),o0=typeof window<"u"&&typeof Notification<"u",z4=typeof window<"u"?Boolean(window.isSecureContext):!1,F5=o0&&z4&&g!=="denied",G4=g==="granted"&&d,N2=K2(q0),i1=n4(q0),c0=typeof q0?.detail==="string"&&q0.detail.trim()?q0.detail.trim():"",Z4=N2?s4(q0,W0):null,a0=fj(B0,S0),u0=B0?.indicator&&typeof B0.indicator==="object"?B0.indicator:null,H5=G4?"Disable notifications":"Enable notifications",Y5=Q0.length>0||J.length>0||G.length>0,_2=D3(T1),A5=_2.label,D5=_2.title,l0=kj(a,P2,N2),V4=(Array.isArray(F1)?F1:[]).filter((z)=>!z?.archived_at),g1=(()=>{for(let z of Array.isArray(F1)?F1:[]){let F=typeof z?.chat_jid==="string"?z.chat_jid.trim():"";if(F&&F===X1)return z}return null})(),n1=Boolean(g1&&g1.chat_jid===(g1.root_chat_jid||g1.chat_jid)),w2=B1(()=>{let z=new Set,F=[];for(let T of Array.isArray(F1)?F1:[]){let h=typeof T?.chat_jid==="string"?T.chat_jid.trim():"";if(!h||h===X1||z.has(h))continue;if(!(typeof T?.agent_name==="string"?T.agent_name.trim():""))continue;z.add(h),F.push(T)}return F},[F1,X1]),r0=w2.length>0,Q2=r0&&typeof M1==="function",U2=r0&&typeof g0==="function",x2=Boolean(l1||L0.current),t0=!q&&typeof G0==="function"&&!x2,m0=!q&&typeof I0==="function",k0=!q&&typeof j0==="function"&&!n1,X2=!q&&(Q2||U2||t0||m0||k0),L4=vj(b,c),F2=L4.showPicker,H2=L4.label,o2=S&&w?` (${w})`:"",C5=o2.trim()?`${w}`:"",a2=typeof l?.hint_short==="string"?l.hint_short.trim():"",N4=[C5||null,a2||null].filter(Boolean).join(" • "),I5=[b?`Current model: ${H2}${o2}`:null,l?.plan?`Plan: ${l.plan}`:null,a2||null,l?.primary?.reset_description||null,l?.secondary?.reset_description||null].filter(Boolean),F4=j1?"Switching model…":I5.join(" • ")||(F2?"Select a model (tap to open model picker)":`Current model: ${H2}${o2} (tap to open model picker)`),H4=!q&&(F2||m&&m.percent!=null),e0=(z)=>{if(!z||typeof z!=="object")return;let F=z.model??z.current;if(typeof r==="function")r({model:F??null,thinking_level:z.thinking_level??null,thinking_level_label:z.thinking_level_label??null,supports_thinking:z.supports_thinking,provider_usage:z.provider_usage??null});if(F&&typeof k==="function")k(F)},d0=(z)=>{let F=z||c1.current;if(!F)return;F.style.height="auto",F.style.height=`${F.scrollHeight}px`,F.style.overflowY="hidden"},Y4=(z)=>{if(!z.startsWith("/")||z.includes(`
+`)){d1(!1),w1([]);return}let F=z.toLowerCase().split(" ")[0];if(F.length<1){d1(!1),w1([]);return}let h=(f0.current||Mj).filter((J1)=>J1.name.startsWith(F)||J1.name.replace(/-/g,"").startsWith(F.replace(/-/g,"")));if(h.length>0&&!(h.length===1&&h[0].name===F))m1(!1),P1([]),w1(h),f1(0),d1(!0);else d1(!1),w1([])},A4=(z)=>{let F=S1,T=F.indexOf(" "),h=T>=0?F.slice(T):"",J1=z.name+h;X0(J1),d1(!1),w1([]),requestAnimationFrame(()=>{let s1=c1.current;if(!s1)return;let z0=J1.length;s1.selectionStart=z0,s1.selectionEnd=z0,s1.focus()})},t2=(z)=>{if(H3(z)==null){m1(!1),P1([]);return}let F=b6(V4,z,{currentChatJid:X1});if(F.length>0&&!(F.length===1&&Y3(F[0].agent_name).trim().toLowerCase()===String(z||"").trim().toLowerCase()))d1(!1),w1([]),P1(F),$0(0),m1(!0);else m1(!1),P1([])},Y2=(z)=>{let F=Y3(z?.agent_name);if(!F)return;X0(F),m1(!1),P1([]),requestAnimationFrame(()=>{let T=c1.current;if(!T)return;let h=F.length;T.selectionStart=h,T.selectionEnd=h,T.focus()})},D4=()=>{if(q||!Q2&&!U2&&!t0&&!m0&&!k0)return!1;return V0.current={value:"",updatedAt:0},p(!1),d1(!1),w1([]),m1(!1),P1([]),e(!0),!0},C4=(z)=>{if(z?.preventDefault?.(),z?.stopPropagation?.(),q||!Q2&&!U2&&!t0&&!m0&&!k0)return;if(v){V0.current={value:"",updatedAt:0},e(!1);return}D4()},I4=(z)=>{let F=typeof z==="string"?z.trim():"";if(e(!1),!F||F===X1){requestAnimationFrame(()=>c1.current?.focus());return}M1?.(F)},v2=async(z)=>{let F=typeof z==="string"?z.trim():"";if(e(!1),!F||typeof g0!=="function"){requestAnimationFrame(()=>c1.current?.focus());return}try{await g0(F)}catch(T){console.warn("Failed to restore session:",T),requestAnimationFrame(()=>c1.current?.focus())}},O5=(z)=>{let T=(Array.isArray(z)?z:[]).findIndex((h)=>!h?.disabled);return T>=0?T:0},J0=B1(()=>{let z=[];for(let F of w2){let T=Boolean(F?.archived_at),h=typeof F?.agent_name==="string"?F.agent_name.trim():"",J1=typeof F?.chat_jid==="string"?F.chat_jid.trim():"";if(!h||!J1)continue;z.push({type:"session",key:`session:${J1}`,label:`@${h} — ${J1}${F?.is_active?" active":""}${T?" archived":""}`,chat:F,disabled:T?!U2:!Q2})}if(m0)z.push({type:"action",key:"action:new",label:"New session",action:"new",disabled:!1});if(t0)z.push({type:"action",key:"action:rename",label:"Rename current session",action:"rename",disabled:x2});if(k0)z.push({type:"action",key:"action:delete",label:"Delete current session",action:"delete",disabled:!1});return z},[w2,U2,Q2,m0,t0,k0,x2]),O4=async(z)=>{if(z?.preventDefault)z.preventDefault();if(z?.stopPropagation)z.stopPropagation();if(typeof G0!=="function"||l1||L0.current)return;L0.current=!0,e(!1);try{await G0()}catch(F){console.warn("Failed to rename session:",F)}finally{L0.current=!1}requestAnimationFrame(()=>c1.current?.focus())},T4=async()=>{if(typeof I0!=="function")return;e(!1);try{await I0()}catch(z){console.warn("Failed to create session:",z)}requestAnimationFrame(()=>c1.current?.focus())},M4=async()=>{if(typeof j0!=="function")return;e(!1);try{await j0(X1)}catch(z){console.warn("Failed to delete session:",z)}requestAnimationFrame(()=>c1.current?.focus())},A2=(z)=>{if(q)_0(z);else X0(z),Y4(z),t2(z);requestAnimationFrame(()=>d0())},T5=(z)=>{let F=q?H0:S1,T=F&&!F.endsWith(`
 `)?`
-`:"",f=`${F}${I}${_}`.trimStart();V2(f)},Z5=(_)=>{let F=_?.command?.model_label;if(F)return F;let I=_?.command?.message;if(typeof I==="string"){let f=I.match(/•\s+([^\n]+?)\s+\(current\)/);if(f?.[1])return f[1].trim()}return null},C4=async(_)=>{if(q||Q0)return;w1(null),S1(null),D0(!0);try{let F=await u2("default",_,null,[],null,j1),I=Z5(F);return o0({model:I??g??null,thinking_level:F?.command?.thinking_level,thinking_level_label:F?.command?.thinking_level_label,supports_thinking:F?.command?.supports_thinking}),await W3(p4,j1,o0),S1(D8(_,F)),$?.(F),!0}catch(F){return console.error("Failed to switch model:",F),alert("Failed to switch model: "+F.message),!1}finally{D0(!1)}},F5=async()=>{await C4("/cycle-model")},i2=async(_)=>{let F=typeof _==="string"?_:typeof _?.label==="string"?_.label:"";if(!F||Q0)return;if(await C4(`/model ${F}`))b(!1)},H5=(_)=>{if(!_||_.disabled)return;if(_.type==="session"){let F=_.chat;if(F?.archived_at)f2(F.chat_jid);else H4(F.chat_jid);return}if(_.type==="action"){if(_.action==="new"){A4();return}if(_.action==="rename"){Y4();return}if(_.action==="delete")D4()}},Y5=(_)=>{_.preventDefault(),_.stopPropagation(),L0.current={value:"",updatedAt:0},i(!1),b((F)=>!F)},A5=async()=>{if(q)return;v?.(),await W("/compact",null,{includeMedia:!1,includeFileRefs:!1,includeMessageRefs:!1,clearAfterSubmit:!1,recordHistory:!1})},D5=(_)=>{if(_==="queue"||_==="steer"||_==="auto")return _;return r?"queue":void 0},W=async(_,F,I={})=>{let{includeMedia:f=!0,includeFileRefs:B1=!0,includeMessageRefs:r1=!0,clearAfterSubmit:W0=!0,recordHistory:I0=!0}=I||{},F2=typeof _==="string"?_:_&&typeof _?.target?.value==="string"?_.target.value:y1,n2=typeof F2==="string"?F2:"";if(!n2.trim()&&(f?t1.length===0:!0)&&(B1?z.length===0:!0)&&(r1?N.length===0:!0))return;e1(!1),k1([]),h1(!1),m1([]),i(!1),w1(null),S1(null);let I4=f?[...t1]:[],O4=B1?[...z]:[],T4=r1?[...N]:[],H2=n2.trim();if(I0&&H2){let Y2=R0.current,M0=U2(Y2.filter((C5)=>C5!==H2));if(M0.push(H2),M0.length>200)M0.splice(0,M0.length-200);R0.current=M0,Q4(M0),g0.current=-1,z2.current=""}let J9=()=>{if(f)a([...I4]);if(B1)R1?.(O4);if(r1)Y1?.(T4);X0(H2),requestAnimationFrame(()=>c0())};if(W0)X0(""),a([]),L?.(),O?.();(async()=>{try{let Y2=await Q1?.({content:H2,submitMode:F,fileRefs:O4,messageRefs:T4,mediaFiles:I4});if(Y2){$?.(Y2);return}let M0=[];for(let A2 of I4){let M4=await V6(A2);M0.push(M4.id)}let C5=O4.length?`Files:
-${O4.map((A2)=>`- ${A2}`).join(`
-`)}`:"",K9=T4.length?`Referenced messages:
-${T4.map((A2)=>`- message:${A2}`).join(`
-`)}`:"",X9=M0.length?`Attachments:
-${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment:${A2} (${_9})`}).join(`
-`)}`:"",U9=[H2,C5,K9,X9].filter(Boolean).join(`
+`:"",h=`${F}${T}${z}`.trimStart();A2(h)},M5=(z)=>{let F=z?.command?.model_label;if(F)return F;let T=z?.command?.message;if(typeof T==="string"){let h=T.match(/•\s+([^\n]+?)\s+\(current\)/);if(h?.[1])return h[1].trim()}return null},y4=async(z)=>{if(q||j1)return;v1(null),y1(null),H1(!0);try{let F=await e5("default",z,null,[],null,X1),T=M5(F);return e0({model:T??b??null,thinking_level:F?.command?.thinking_level,thinking_level_label:F?.command?.thinking_level_label,supports_thinking:F?.command?.supports_thinking}),await C3(o4,X1,e0),y1(r6(z,F)),$?.(F),!0}catch(F){return console.error("Failed to switch model:",F),alert("Failed to switch model: "+F.message),!1}finally{H1(!1)}},y5=async()=>{await y4("/cycle-model")},e2=async(z)=>{let F=typeof z==="string"?z:typeof z?.label==="string"?z.label:"";if(!F||j1)return;if(await y4(`/model ${F}`))p(!1)},S5=(z)=>{if(!z||z.disabled)return;if(z.type==="session"){let F=z.chat;if(F?.archived_at)v2(F.chat_jid);else I4(F.chat_jid);return}if(z.type==="action"){if(z.action==="new"){T4();return}if(z.action==="rename"){O4();return}if(z.action==="delete")M4()}},k5=(z)=>{z.preventDefault(),z.stopPropagation(),V0.current={value:"",updatedAt:0},e(!1),p((F)=>!F)},E5=async()=>{if(q)return;O?.(),await Z("/compact",null,{includeMedia:!1,includeFileRefs:!1,includeMessageRefs:!1,clearAfterSubmit:!1,recordHistory:!1})},f5=(z)=>{if(z==="queue"||z==="steer"||z==="auto")return z;return a?"queue":void 0},Z=async(z,F,T={})=>{let{includeMedia:h=!0,includeFileRefs:J1=!0,includeMessageRefs:s1=!0,clearAfterSubmit:z0=!0,recordHistory:T0=!0}=T||{},C2=typeof z==="string"?z:z&&typeof z?.target?.value==="string"?z.target.value:S1,$4=typeof C2==="string"?C2:"";if(!$4.trim()&&(h?Q0.length===0:!0)&&(J1?J.length===0:!0)&&(s1?G.length===0:!0))return;d1(!1),w1([]),m1(!1),P1([]),e(!1),v1(null),y1(null);let S4=h?[...Q0]:[],k4=J1?[...J]:[],E4=s1?[...G]:[],I2=$4.trim();if(T0&&I2){let O2=P0.current,y0=Z2(O2.filter((P5)=>P5!==I2));if(y0.push(I2),y0.length>200)y0.splice(0,y0.length-200);P0.current=y0,J4(y0),h0.current=-1,L2.current=""}let b$=()=>{if(h)h1([...S4]);if(J1)u1?.(k4);if(s1)A1?.(E4);X0(I2),requestAnimationFrame(()=>d0())};if(z0)X0(""),h1([]),V?.(),C?.();(async()=>{try{let O2=await K1?.({content:I2,submitMode:F,fileRefs:k4,messageRefs:E4,mediaFiles:S4});if(O2){$?.(O2);return}let y0=[];for(let T2 of S4){let f4=await R8(T2);y0.push(f4.id)}let P5=k4.length?`Files:
+${k4.map((T2)=>`- ${T2}`).join(`
+`)}`:"",u$=E4.length?`Referenced messages:
+${E4.map((T2)=>`- message:${T2}`).join(`
+`)}`:"",m$=y0.length?`Attachments:
+${y0.map((T2,f4)=>{let p$=S4[f4]?.name||`attachment-${f4+1}`;return`- attachment:${T2} (${p$})`}).join(`
+`)}`:"",g$=[I2,P5,u$,m$].filter(Boolean).join(`
 
-`),Q2=await u2("default",U9,null,M0,D5(F),j1);if(_1?.(Q2),Q2?.command)o0({model:Q2.command.model_label??g??null,thinking_level:Q2.command.thinking_level,thinking_level_label:Q2.command.thinking_level_label,supports_thinking:Q2.command.supports_thinking}),await W3(p4,j1,o0);S1(D8(H2,Q2)),$?.(Q2)}catch(Y2){if(W0)J9();let M0=Y2?.message||"Failed to send message.";w1(M0),p1?.(M0),console.error("Failed to post:",Y2)}})()},Z=(_)=>{P1?.(_)},H=m((_)=>{if(q||!C&&!E||_?.isComposing)return!1;let F=()=>{_.preventDefault?.(),_.stopPropagation?.()},I=()=>{L0.current={value:"",updatedAt:0}};if(_.key==="Escape"){if(F(),I(),C)b(!1);if(E)i(!1);return!0}if(C){if(_.key==="ArrowDown"){if(F(),I(),n.length>0)G1((f)=>(f+1)%n.length);return!0}if(_.key==="ArrowUp"){if(F(),I(),n.length>0)G1((f)=>(f-1+n.length)%n.length);return!0}if((_.key==="Enter"||_.key==="Tab")&&n.length>0)return F(),I(),i2(n[Math.max(0,Math.min(Z1,n.length-1))]),!0;if(B3(_)&&n.length>0){F();let f=Q3(L0.current,_.key);L0.current=f;let B1=J3(n,f.value,Z1,(r1)=>$j(r1));if(B1>=0)G1(B1);return!0}}if(E){if(_.key==="ArrowDown"){if(F(),I(),_0.length>0)Y((f)=>(f+1)%_0.length);return!0}if(_.key==="ArrowUp"){if(F(),I(),_0.length>0)Y((f)=>(f-1+_0.length)%_0.length);return!0}if((_.key==="Enter"||_.key==="Tab")&&_0.length>0)return F(),I(),H5(_0[Math.max(0,Math.min(F1,_0.length-1))]),!0;if(B3(_)&&_0.length>0){F();let f=Q3(L0.current,_.key);L0.current=f;let B1=J3(_0,f.value,F1,(r1)=>r1.label);if(B1>=0)Y(B1);return!0}}return!1},[q,C,E,n,Z1,_0,F1,i2]),A=(_)=>{if(_.isComposing)return;if(q&&_.key==="Escape"){_.preventDefault(),a1(""),X?.();return}if(H(_))return;let F=g1.current?.value??(q?N0:y1);if(G8(_,F,{searchMode:q,showSessionSwitcherButton:B2})){_.preventDefault(),Z4();return}if(A0&&B0.length>0){let I=g1.current?.value??(q?N0:y1);if(!String(I||"").match(/^@([a-zA-Z0-9_-]*)$/))h1(!1),m1([]);else{if(_.key==="ArrowDown"){_.preventDefault(),Z0((f)=>(f+1)%B0.length);return}if(_.key==="ArrowUp"){_.preventDefault(),Z0((f)=>(f-1+B0.length)%B0.length);return}if(_.key==="Tab"||_.key==="Enter"){_.preventDefault(),L2(B0[$0]);return}if(_.key==="Escape"){_.preventDefault(),h1(!1),m1([]);return}}}if(Y0&&A1.length>0){let I=g1.current?.value??(q?N0:y1);if(!String(I||"").startsWith("/"))e1(!1),k1([]);else{if(_.key==="ArrowDown"){_.preventDefault(),f1((f)=>(f+1)%A1.length);return}if(_.key==="ArrowUp"){_.preventDefault(),f1((f)=>(f-1+A1.length)%A1.length);return}if(_.key==="Tab"){_.preventDefault(),V4(A1[c1]);return}if(_.key==="Enter"&&!_.shiftKey){if(!F.includes(" ")){_.preventDefault();let B1=A1[c1];e1(!1),k1([]),W(B1.name);return}}if(_.key==="Escape"){_.preventDefault(),e1(!1),k1([]);return}}}if(!q&&(_.key==="ArrowUp"||_.key==="ArrowDown")&&!_.metaKey&&!_.ctrlKey&&!_.altKey&&!_.shiftKey){let I=g1.current;if(!I)return;let f=I.value||"",B1=I.selectionStart===0&&I.selectionEnd===0,r1=I.selectionStart===f.length&&I.selectionEnd===f.length;if(_.key==="ArrowUp"&&B1||_.key==="ArrowDown"&&r1){let W0=R0.current;if(!W0.length)return;_.preventDefault();let I0=g0.current;if(_.key==="ArrowUp"){if(I0===-1)z2.current=f,I0=W0.length-1;else if(I0>0)I0-=1;g0.current=I0,V2(W0[I0]||"")}else{if(I0===-1)return;if(I0<W0.length-1)I0+=1,g0.current=I0,V2(W0[I0]||"");else g0.current=-1,V2(z2.current||""),z2.current=""}requestAnimationFrame(()=>{let F2=g1.current;if(!F2)return;let n2=F2.value.length;F2.selectionStart=n2,F2.selectionEnd=n2});return}}if(_.key==="Enter"&&!_.shiftKey&&(_.ctrlKey||_.metaKey)){if(_.preventDefault(),q){if(F.trim())Q?.(F.trim(),B)}else W(F,"steer");return}if(_.key==="Enter"&&!_.shiftKey)if(_.preventDefault(),q){if(F.trim())Q?.(F.trim(),B)}else W(F)},k=(_)=>{let F=Array.from(_||[]).filter((I)=>I instanceof File&&!String(I.name||"").startsWith(".DS_Store"));if(!F.length)return;a((I)=>[...I,...F]),w1(null)},y=(_)=>{k(_.target.files),_.target.value=""},u=(_)=>{if(q)return;_.preventDefault(),_.stopPropagation(),J0.current+=1,J1(!0)},o=(_)=>{if(q)return;if(_.preventDefault(),_.stopPropagation(),J0.current=Math.max(0,J0.current-1),J0.current===0)J1(!1)},R=(_)=>{if(q)return;if(_.preventDefault(),_.stopPropagation(),_.dataTransfer)_.dataTransfer.dropEffect="copy";J1(!0)},q1=(_)=>{if(q)return;_.preventDefault(),_.stopPropagation(),J0.current=0,J1(!1),k(_.dataTransfer?.files||[])},z0=(_)=>{if(q)return;let F=_.clipboardData?.items;if(!F||!F.length)return;let I=[];for(let f of F){if(f.kind!=="file")continue;let B1=f.getAsFile?.();if(B1)I.push(B1)}if(I.length>0)_.preventDefault(),k(I)},C0=(_)=>{a((F)=>F.filter((I,f)=>f!==_))},Z2=()=>{w1(null),a([]),L?.(),O?.()},O3=()=>{if(!navigator.geolocation){alert("Geolocation is not available in this browser.");return}navigator.geolocation.getCurrentPosition((_)=>{let{latitude:F,longitude:I,accuracy:f}=_.coords,B1=`${F.toFixed(5)}, ${I.toFixed(5)}`,r1=Number.isFinite(f)?` ±${Math.round(f)}m`:"",W0=`https://maps.google.com/?q=${F},${I}`,I0=`Location: ${B1}${r1} ${W0}`;V5(I0)},(_)=>{let F=_?.message||"Unable to retrieve location.";alert(`Location error: ${F}`)},{enableHighAccuracy:!0,timeout:1e4,maximumAge:0})};w(()=>{if(!C)return;L0.current={value:"",updatedAt:0},$1(!0),p4(j1).then((_)=>{V1(C8(_)),o0(_)}).catch((_)=>{console.warn("Failed to load model list:",_),V1([])}).finally(()=>{$1(!1)})},[C,g]),w(()=>{if(q)b(!1),i(!1),e1(!1),k1([]),h1(!1),m1([])},[q]),w(()=>{if(E&&!B2)i(!1)},[E,B2]),w(()=>{if(!C)return;let _=n.findIndex((F)=>F?.label===g);G1(_>=0?_:0)},[C,n,g]),w(()=>{if(!E)return;Y(L5(_0)),L0.current={value:"",updatedAt:0}},[E,j1]),w(()=>{if(!C)return;let _=(F)=>{let I=w0.current,f=B4.current,B1=F.target;if(I&&I.contains(B1))return;if(f&&f.contains(B1))return;b(!1)};return document.addEventListener("pointerdown",_),()=>document.removeEventListener("pointerdown",_)},[C]),w(()=>{if(!E)return;let _=(F)=>{let I=p2.current,f=F0.current,B1=F.target;if(I&&I.contains(B1))return;if(f&&f.contains(B1))return;i(!1)};return document.addEventListener("pointerdown",_),()=>document.removeEventListener("pointerdown",_)},[E]),w(()=>{if(q||!C&&!E)return;let _=(F)=>{H(F)};return document.addEventListener("keydown",_,!0),()=>document.removeEventListener("keydown",_,!0)},[q,C,E,H]),w(()=>{if(!C)return;let _=w0.current;_?.focus?.(),_?.querySelector?.(".compose-model-popup-item.active")?.scrollIntoView?.({block:"nearest"})},[C,Z1,n]),w(()=>{if(!E)return;let _=p2.current;_?.focus?.(),_?.querySelector?.(".compose-model-popup-item.active")?.scrollIntoView?.({block:"nearest"})},[E,F1,_0.length]),w(()=>{if(!A0||!h2.current)return;h2.current.querySelector?.(".slash-item.active")?.scrollIntoView?.({block:"nearest"})},[A0,$0,B0.length]),w(()=>{if(!Y0||!m2.current)return;m2.current.querySelector?.(".slash-item.active")?.scrollIntoView?.({block:"nearest"})},[Y0,c1,A1.length]),w(()=>{let _=()=>{let r1=u0.current?.clientWidth||0;c((W0)=>W0===r1?W0:r1)};_();let F=u0.current,I=0,f=()=>{if(I)cancelAnimationFrame(I);I=requestAnimationFrame(()=>{I=0,_()})},B1=null;if(F&&typeof ResizeObserver<"u")B1=new ResizeObserver(()=>f()),B1.observe(F);if(typeof window<"u")window.addEventListener("resize",f);return()=>{if(I)cancelAnimationFrame(I);if(B1?.disconnect?.(),typeof window<"u")window.removeEventListener("resize",f)}},[q,g,v1?.agent_name,B2,t?.percent]);let Q9=(_)=>{let F=_.target.value;if(w1(null),S1(null),E)i(!1);c0(_.target),V2(F)};return w(()=>{requestAnimationFrame(()=>c0())},[y1,N0,q]),w(()=>{if(!W2)return;I1(Date.now());let _=setInterval(()=>I1(Date.now()),1000);return()=>clearInterval(_)},[W2,o1?.started_at,o1?.startedAt]),w(()=>{if(T0(0),b0?.mode!=="custom"||!Array.isArray(b0.frames)||b0.frames.length<=1)return;let _=typeof b0.intervalMs==="number"&&Number.isFinite(b0.intervalMs)&&b0.intervalMs>0?b0.intervalMs:120,F=setInterval(()=>{T0((I)=>(I+1)%b0.frames.length)},_);return()=>clearInterval(F)},[b0]),w(()=>{if(q)return;r2(y1)},[_4,j1,y1,q]),G`
+`),W2=await e5("default",g$,null,y0,f5(F),X1);if(G1?.(W2),W2?.command)e0({model:W2.command.model_label??b??null,thinking_level:W2.command.thinking_level,thinking_level_label:W2.command.thinking_level_label,supports_thinking:W2.command.supports_thinking}),await C3(o4,X1,e0);y1(r6(I2,W2)),$?.(W2)}catch(O2){if(z0)b$();let y0=O2?.message||"Failed to send message.";v1(y0),t1?.(y0),console.error("Failed to post:",O2)}})()},N=(z)=>{O1?.(z)},Y=i((z)=>{if(q||!H&&!v||z?.isComposing)return!1;let F=()=>{z.preventDefault?.(),z.stopPropagation?.()},T=()=>{V0.current={value:"",updatedAt:0}};if(z.key==="Escape"){if(F(),T(),H)p(!1);if(v)e(!1);return!0}if(H){if(z.key==="ArrowDown"){if(F(),T(),$1.length>0)Z1((h)=>(h+1)%$1.length);return!0}if(z.key==="ArrowUp"){if(F(),T(),$1.length>0)Z1((h)=>(h-1+$1.length)%$1.length);return!0}if((z.key==="Enter"||z.key==="Tab")&&$1.length>0)return F(),T(),e2($1[Math.max(0,Math.min(L1,$1.length-1))]),!0;if(L3(z)&&$1.length>0){F();let h=N3(V0.current,z.key);V0.current=h;let J1=F3($1,h.value,L1,(s1)=>xj(s1));if(J1>=0)Z1(J1);return!0}}if(v){if(z.key==="ArrowDown"){if(F(),T(),J0.length>0)A((h)=>(h+1)%J0.length);return!0}if(z.key==="ArrowUp"){if(F(),T(),J0.length>0)A((h)=>(h-1+J0.length)%J0.length);return!0}if((z.key==="Enter"||z.key==="Tab")&&J0.length>0)return F(),T(),S5(J0[Math.max(0,Math.min(N1,J0.length-1))]),!0;if(L3(z)&&J0.length>0){F();let h=N3(V0.current,z.key);V0.current=h;let J1=F3(J0,h.value,N1,(s1)=>s1.label);if(J1>=0)A(J1);return!0}}return!1},[q,H,v,$1,L1,J0,N1,e2]),D=(z)=>{if(z.isComposing)return;if(q&&z.key==="Escape"){z.preventDefault(),_0(""),X?.();return}if(Y(z))return;let F=c1.current?.value??(q?H0:S1);if(u6(z,F,{searchMode:q,showSessionSwitcherButton:X2})){z.preventDefault(),D4();return}if(Z0&&x1.length>0){let T=c1.current?.value??(q?H0:S1);if(!String(T||"").match(/^@([a-zA-Z0-9_-]*)$/))m1(!1),P1([]);else{if(z.key==="ArrowDown"){z.preventDefault(),$0((h)=>(h+1)%x1.length);return}if(z.key==="ArrowUp"){z.preventDefault(),$0((h)=>(h-1+x1.length)%x1.length);return}if(z.key==="Tab"||z.key==="Enter"){z.preventDefault(),Y2(x1[r1]);return}if(z.key==="Escape"){z.preventDefault(),m1(!1),P1([]);return}}}if(A0&&R1.length>0){let T=c1.current?.value??(q?H0:S1);if(!String(T||"").startsWith("/"))d1(!1),w1([]);else{if(z.key==="ArrowDown"){z.preventDefault(),f1((h)=>(h+1)%R1.length);return}if(z.key==="ArrowUp"){z.preventDefault(),f1((h)=>(h-1+R1.length)%R1.length);return}if(z.key==="Tab"){z.preventDefault(),A4(R1[e1]);return}if(z.key==="Enter"&&!z.shiftKey){if(!F.includes(" ")){z.preventDefault();let J1=R1[e1];d1(!1),w1([]),Z(J1.name);return}}if(z.key==="Escape"){z.preventDefault(),d1(!1),w1([]);return}}}if(!q&&(z.key==="ArrowUp"||z.key==="ArrowDown")&&!z.metaKey&&!z.ctrlKey&&!z.altKey&&!z.shiftKey){let T=c1.current;if(!T)return;let h=T.value||"",J1=T.selectionStart===0&&T.selectionEnd===0,s1=T.selectionStart===h.length&&T.selectionEnd===h.length;if(z.key==="ArrowUp"&&J1||z.key==="ArrowDown"&&s1){let z0=P0.current;if(!z0.length)return;z.preventDefault();let T0=h0.current;if(z.key==="ArrowUp"){if(T0===-1)L2.current=h,T0=z0.length-1;else if(T0>0)T0-=1;h0.current=T0,A2(z0[T0]||"")}else{if(T0===-1)return;if(T0<z0.length-1)T0+=1,h0.current=T0,A2(z0[T0]||"");else h0.current=-1,A2(L2.current||""),L2.current=""}requestAnimationFrame(()=>{let C2=c1.current;if(!C2)return;let $4=C2.value.length;C2.selectionStart=$4,C2.selectionEnd=$4});return}}if(z.key==="Enter"&&!z.shiftKey&&(z.ctrlKey||z.metaKey)){if(z.preventDefault(),q){if(F.trim())_?.(F.trim(),B)}else Z(F,"steer");return}if(z.key==="Enter"&&!z.shiftKey)if(z.preventDefault(),q){if(F.trim())_?.(F.trim(),B)}else Z(F)},x=(z)=>{let F=Array.from(z||[]).filter((T)=>T instanceof File&&!String(T.name||"").startsWith(".DS_Store"));if(!F.length)return;h1((T)=>[...T,...F]),v1(null)},R=(z)=>{x(z.target.files),z.target.value=""},n=(z)=>{if(q)return;z.preventDefault(),z.stopPropagation(),U0.current+=1,E1(!0)},q1=(z)=>{if(q)return;if(z.preventDefault(),z.stopPropagation(),U0.current=Math.max(0,U0.current-1),U0.current===0)E1(!1)},u=(z)=>{if(q)return;if(z.preventDefault(),z.stopPropagation(),z.dataTransfer)z.dataTransfer.dropEffect="copy";E1(!0)},W1=(z)=>{if(q)return;z.preventDefault(),z.stopPropagation(),U0.current=0,E1(!1),x(z.dataTransfer?.files||[])},K0=(z)=>{if(q)return;let F=z.clipboardData?.items;if(!F||!F.length)return;let T=[];for(let h of F){if(h.kind!=="file")continue;let J1=h.getAsFile?.();if(J1)T.push(J1)}if(T.length>0)z.preventDefault(),x(T)},O0=(z)=>{h1((F)=>F.filter((T,h)=>h!==z))},D2=()=>{v1(null),h1([]),V?.(),C?.()},m3=()=>{if(!navigator.geolocation){alert("Geolocation is not available in this browser.");return}navigator.geolocation.getCurrentPosition((z)=>{let{latitude:F,longitude:T,accuracy:h}=z.coords,J1=`${F.toFixed(5)}, ${T.toFixed(5)}`,s1=Number.isFinite(h)?` ±${Math.round(h)}m`:"",z0=`https://maps.google.com/?q=${F},${T}`,T0=`Location: ${J1}${s1} ${z0}`;T5(T0)},(z)=>{let F=z?.message||"Unable to retrieve location.";alert(`Location error: ${F}`)},{enableHighAccuracy:!0,timeout:1e4,maximumAge:0})};E(()=>{if(!H)return;V0.current={value:"",updatedAt:0},Q1(!0),o4(X1).then((z)=>{V1(d6(z)),e0(z)}).catch((z)=>{console.warn("Failed to load model list:",z),V1([])}).finally(()=>{Q1(!1)})},[H,b]),E(()=>{if(q)p(!1),e(!1),d1(!1),w1([]),m1(!1),P1([])},[q]),E(()=>{if(v&&!X2)e(!1)},[v,X2]),E(()=>{if(!H)return;let z=$1.findIndex((F)=>F?.label===b);Z1(z>=0?z:0)},[H,$1,b]),E(()=>{if(!v)return;A(O5(J0)),V0.current={value:"",updatedAt:0}},[v,X1]),E(()=>{if(!H)return;let z=(F)=>{let T=v0.current,h=W4.current,J1=F.target;if(T&&T.contains(J1))return;if(h&&h.contains(J1))return;p(!1)};return document.addEventListener("pointerdown",z),()=>document.removeEventListener("pointerdown",z)},[H]),E(()=>{if(!v)return;let z=(F)=>{let T=n2.current,h=D0.current,J1=F.target;if(T&&T.contains(J1))return;if(h&&h.contains(J1))return;e(!1)};return document.addEventListener("pointerdown",z),()=>document.removeEventListener("pointerdown",z)},[v]),E(()=>{if(q||!H&&!v)return;let z=(F)=>{Y(F)};return document.addEventListener("keydown",z,!0),()=>document.removeEventListener("keydown",z,!0)},[q,H,v,Y]),E(()=>{if(!H)return;let z=v0.current;z?.focus?.(),z?.querySelector?.(".compose-model-popup-item.active")?.scrollIntoView?.({block:"nearest"})},[H,L1,$1]),E(()=>{if(!v)return;let z=n2.current;z?.focus?.(),z?.querySelector?.(".compose-model-popup-item.active")?.scrollIntoView?.({block:"nearest"})},[v,N1,J0.length]),E(()=>{if(!Z0||!i2.current)return;i2.current.querySelector?.(".slash-item.active")?.scrollIntoView?.({block:"nearest"})},[Z0,r1,x1.length]),E(()=>{if(!A0||!d2.current)return;d2.current.querySelector?.(".slash-item.active")?.scrollIntoView?.({block:"nearest"})},[A0,e1,R1.length]),E(()=>{let z=()=>{let s1=p0.current?.clientWidth||0;o((z0)=>z0===s1?z0:s1)};z();let F=p0.current,T=0,h=()=>{if(T)cancelAnimationFrame(T);T=requestAnimationFrame(()=>{T=0,z()})},J1=null;if(F&&typeof ResizeObserver<"u")J1=new ResizeObserver(()=>h()),J1.observe(F);if(typeof window<"u")window.addEventListener("resize",h);return()=>{if(T)cancelAnimationFrame(T);if(J1?.disconnect?.(),typeof window<"u")window.removeEventListener("resize",h)}},[q,b,g1?.agent_name,X2,m?.percent]);let v$=(z)=>{let F=z.target.value;if(v1(null),y1(null),v)e(!1);d0(z.target),A2(F)};return E(()=>{requestAnimationFrame(()=>d0())},[S1,H0,q]),E(()=>{if(!N2)return;D1(Date.now());let z=setInterval(()=>D1(Date.now()),1000);return()=>clearInterval(z)},[N2,q0?.started_at,q0?.startedAt]),E(()=>{if(M0(0),u0?.mode!=="custom"||!Array.isArray(u0.frames)||u0.frames.length<=1)return;let z=typeof u0.intervalMs==="number"&&Number.isFinite(u0.intervalMs)&&u0.intervalMs>0?u0.intervalMs:120,F=setInterval(()=>{M0((T)=>(T+1)%u0.frames.length)},z);return()=>clearInterval(F)},[u0]),E(()=>{if(q)return;t2(S1)},[V4,X1,S1,q]),K`
         <div class="compose-box">
-            ${G0&&!q&&G`
-                <${Xj}
-                    items=${b1}
-                    onInjectQueuedFollowup=${Z}
-                    onRemoveQueuedFollowup=${l}
-                    onMoveQueuedFollowup=${s}
-                    onOpenFilePill=${E1}
+            ${F0&&!q&&K`
+                <${T3}
+                    items=${k1}
+                    onInjectQueuedFollowup=${N}
+                    onRemoveQueuedFollowup=${s}
+                    onMoveQueuedFollowup=${t}
+                    onOpenFilePill=${Y1}
                 />
             `}
-            ${n0.visible&&G`
+            ${a0.visible&&K`
                 <div class="compose-inline-status extension-working" role="status" aria-live="polite">
                     <div class="compose-inline-status-row">
-                        ${n0.indicatorText?G`<span class="compose-inline-status-glyph" aria-hidden="true">${n0.indicatorText}</span>`:n0.animateDot?G`<span class=${U3({pulsing:!0})} aria-hidden="true"></span>`:null}
-                        <span class="compose-inline-status-title">${n0.title}</span>
+                        ${a0.indicatorText?K`<span class="compose-inline-status-glyph" aria-hidden="true">${a0.indicatorText}</span>`:a0.animateDot?K`<span class=${A3({pulsing:!0})} aria-hidden="true"></span>`:null}
+                        <span class="compose-inline-status-title">${a0.title}</span>
                     </div>
                 </div>
             `}
-            ${o1&&G`
+            ${q0&&K`
                 <div
-                    class=${`compose-inline-status${W2?" compaction":""}`}
+                    class=${`compose-inline-status${N2?" compaction":""}`}
                     role="status"
                     aria-live="polite"
-                    title=${m0||""}
+                    title=${c0||""}
                 >
                     <div class="compose-inline-status-row">
-                        <span class=${U3({pulsing:W2})} aria-hidden="true"></span>
-                        <span class="compose-inline-status-title">${d1}</span>
-                        ${U4&&G`<span class="compose-inline-status-elapsed">${U4}</span>`}
+                        <span class=${A3({pulsing:N2})} aria-hidden="true"></span>
+                        <span class="compose-inline-status-title">${i1}</span>
+                        ${Z4&&K`<span class="compose-inline-status-elapsed">${Z4}</span>`}
                     </div>
-                    ${m0&&G`<div class="compose-inline-status-detail">${m0}</div>`}
+                    ${c0&&K`<div class="compose-inline-status-detail">${c0}</div>`}
                 </div>
             `}
-            ${T1&&G`
+            ${I1&&K`
                 <div class="compose-inline-status compose-command-notice" role="status" aria-live="polite">
-                    <div class="compose-inline-status-detail compose-command-notice-text">${T1}</div>
+                    <div class="compose-inline-status-detail compose-command-notice-text">${I1}</div>
                 </div>
             `}
             <div
-                class=${`compose-input-wrapper${z1?" drag-active":""}`}
-                onDragEnter=${u}
-                onDragOver=${R}
-                onDragLeave=${o}
-                onDrop=${q1}
+                class=${`compose-input-wrapper${Y0?" drag-active":""}`}
+                onDragEnter=${n}
+                onDragOver=${u}
+                onDragLeave=${q1}
+                onDrop=${W1}
             >
                 <div class="compose-input-main">
-                    ${_5&&G`
+                    ${Y5&&K`
                         <div class="compose-file-refs">
-                            ${N.map((_)=>{return G`
-                                    <${P0}
-                                        key=${"msg-"+_}
+                            ${G.map((z)=>{return K`
+                                    <${w0}
+                                        key=${"msg-"+z}
                                         prefix="compose"
-                                        label=${"msg:"+_}
-                                        title=${"Message reference: "+_}
+                                        label=${"msg:"+z}
+                                        title=${"Message reference: "+z}
                                         removeTitle="Remove reference"
                                         icon="message"
-                                        onRemove=${()=>V?.(_)}
+                                        onRemove=${()=>L?.(z)}
                                     />
                                 `})}
-                            ${z.map((_)=>{let F=_.split("/").pop()||_;return G`
-                                    <${P0}
+                            ${J.map((z)=>{let F=z.split("/").pop()||z;return K`
+                                    <${w0}
                                         prefix="compose"
                                         label=${F}
-                                        title=${_}
-                                        onClick=${()=>E1?.(_)}
+                                        title=${z}
+                                        onClick=${()=>Y1?.(z)}
                                         removeTitle="Remove file"
-                                        onRemove=${()=>U?.(_)}
+                                        onRemove=${()=>W?.(z)}
                                     />
                                 `})}
-                            ${t1.map((_,F)=>{let I=_?.name||`attachment-${F+1}`;return G`
-                                    <${P0}
-                                        key=${I+F}
+                            ${Q0.map((z,F)=>{let T=z?.name||`attachment-${F+1}`;return K`
+                                    <${w0}
+                                        key=${T+F}
                                         prefix="compose"
-                                        label=${I}
-                                        title=${I}
+                                        label=${T}
+                                        title=${T}
                                         removeTitle="Remove attachment"
-                                        onRemove=${()=>C0(F)}
+                                        onRemove=${()=>O0(F)}
                                     />
                                 `})}
                             <button
                                 type="button"
                                 class="compose-clear-attachments-btn"
-                                onClick=${Z2}
+                                onClick=${D2}
                                 title="Clear all attachments and references"
                                 aria-label="Clear all attachments and references"
                             >
@@ -771,11 +941,11 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                             </button>
                         </div>
                     `}
-                    ${!q&&typeof D==="function"&&G`
+                    ${!q&&typeof I==="function"&&K`
                         <button
                             type="button"
                             class="compose-popout-btn"
-                            onClick=${()=>D?.()}
+                            onClick=${()=>I?.()}
                             title="Open this chat in a new chat-only window"
                             aria-label="Open this chat in a new chat-only window"
                         >
@@ -790,67 +960,67 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                         </button>
                     `}
                     <textarea
-                        ref=${g1}
+                        ref=${c1}
                         placeholder=${q?"Search (Enter to run)...":"Message (Enter to send, Shift+Enter for newline)..."}
-                        value=${q?N0:y1}
-                        onInput=${Q9}
-                        onKeyDown=${A}
-                        onPaste=${z0}
+                        value=${q?H0:S1}
+                        onInput=${v$}
+                        onKeyDown=${D}
+                        onPaste=${K0}
                         onFocus=${j}
                         onClick=${j}
                         rows="1"
                     />
-                    ${A0&&B0.length>0&&G`
-                        <div class="slash-autocomplete" ref=${h2}>
-                            ${B0.map((_,F)=>G`
+                    ${Z0&&x1.length>0&&K`
+                        <div class="slash-autocomplete" ref=${i2}>
+                            ${x1.map((z,F)=>K`
                                 <div
-                                    key=${_.chat_jid||_.agent_name}
-                                    class=${`slash-item${F===$0?" active":""}`}
-                                    onMouseDown=${(I)=>{I.preventDefault(),L2(_)}}
-                                    onMouseEnter=${()=>Z0(F)}
+                                    key=${z.chat_jid||z.agent_name}
+                                    class=${`slash-item${F===r1?" active":""}`}
+                                    onMouseDown=${(T)=>{T.preventDefault(),Y2(z)}}
+                                    onMouseEnter=${()=>$0(F)}
                                 >
-                                    <span class="slash-name">@${_.agent_name}</span>
-                                    <span class="slash-desc">${_.chat_jid||"Active agent"}</span>
+                                    <span class="slash-name">@${z.agent_name}</span>
+                                    <span class="slash-desc">${z.chat_jid||"Active agent"}</span>
                                 </div>
                             `)}
                         </div>
                     `}
-                    ${Y0&&A1.length>0&&G`
-                        <div class="slash-autocomplete" ref=${m2}>
-                            ${A1.map((_,F)=>G`
+                    ${A0&&R1.length>0&&K`
+                        <div class="slash-autocomplete" ref=${d2}>
+                            ${R1.map((z,F)=>K`
                                 <div
-                                    key=${_.name}
-                                    class=${`slash-item${F===c1?" active":""}`}
-                                    onMouseDown=${(I)=>{I.preventDefault(),V4(_)}}
+                                    key=${z.name}
+                                    class=${`slash-item${F===e1?" active":""}`}
+                                    onMouseDown=${(T)=>{T.preventDefault(),A4(z)}}
                                     onMouseEnter=${()=>f1(F)}
                                 >
-                                    <span class="slash-name">${_.name}</span>
-                                    <span class="slash-desc">${_.description}</span>
+                                    <span class="slash-name">${z.name}</span>
+                                    <span class="slash-desc">${z.description}</span>
                                 </div>
                             `)}
                         </div>
                     `}
-                    ${C&&!q&&G`
-                        <div class="compose-model-popup" ref=${w0} tabIndex="-1" onKeyDown=${H}>
+                    ${H&&!q&&K`
+                        <div class="compose-model-popup" ref=${v0} tabIndex="-1" onKeyDown=${Y}>
                             <div class="compose-model-popup-title">Select model</div>
                             <div class="compose-model-popup-menu" role="menu" aria-label="Model picker">
-                                ${S&&G`
+                                ${P&&K`
                                     <div class="compose-model-popup-empty">Loading models…</div>
                                 `}
-                                ${!S&&n.length===0&&G`
+                                ${!P&&$1.length===0&&K`
                                     <div class="compose-model-popup-empty">No models available.</div>
                                 `}
-                                ${!S&&n.map((_,F)=>{let I=typeof _?.label==="string"?_.label:"",f=N3(_?.contextWindow);return G`
+                                ${!P&&$1.map((z,F)=>{let T=typeof z?.label==="string"?z.label:"",h=O3(z?.contextWindow);return K`
                                         <button
-                                            key=${I}
+                                            key=${T}
                                             type="button"
                                             role="menuitem"
-                                            class=${`compose-model-popup-item compose-model-popup-model-item${Z1===F?" active":""}${g===I?" current-model":""}`}
-                                            onClick=${()=>{i2(_)}}
-                                            disabled=${Q0}
-                                            title=${[I,f].filter(Boolean).join(" • ")}
+                                            class=${`compose-model-popup-item compose-model-popup-model-item${L1===F?" active":""}${b===T?" current-model":""}`}
+                                            onClick=${()=>{e2(z)}}
+                                            disabled=${j1}
+                                            title=${[T,h].filter(Boolean).join(" • ")}
                                         >
-                                            <span class="compose-model-popup-model-label">${t$(I,_?.contextWindow)}</span>
+                                            <span class="compose-model-popup-model-label">${Rj(T,z?.contextWindow)}</span>
                                         </button>
                                     `})}
                             </div>
@@ -858,45 +1028,45 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                                 <button
                                     type="button"
                                     class="compose-model-popup-btn"
-                                    onClick=${()=>{F5()}}
-                                    disabled=${Q0}
+                                    onClick=${()=>{y5()}}
+                                    disabled=${j1}
                                 >
                                     Next model
                                 </button>
                             </div>
                         </div>
                     `}
-                    ${E&&!q&&G`
-                        <div class="compose-model-popup" ref=${p2} tabIndex="-1" onKeyDown=${H}>
+                    ${v&&!q&&K`
+                        <div class="compose-model-popup" ref=${n2} tabIndex="-1" onKeyDown=${Y}>
                             <div class="compose-model-popup-title">Manage sessions & agents</div>
                             <div class="compose-model-popup-menu" role="menu" aria-label="Sessions and agents">
-                                ${G`
+                                ${K`
                                     <div class="compose-model-popup-item current" role="note" aria-live="polite">
-                                        ${(()=>{return L8(v1,j1)})()}
+                                        ${(()=>{return g6(g1,X1)})()}
                                     </div>
                                 `}
-                                ${!p0&&G`
+                                ${!r0&&K`
                                     <div class="compose-model-popup-empty">No other sessions yet.</div>
                                 `}
-                                ${p0&&E2.map((_,F)=>{let I=Boolean(_.archived_at),B1=_.chat_jid!==(_.root_chat_jid||_.chat_jid)&&!_.is_active&&!I&&typeof K0==="function",r1=V8(_,{currentChatJid:j1});return G`
-                                        <div key=${_.chat_jid} class=${`compose-model-popup-item-row${I?" archived":""}`}>
+                                ${r0&&w2.map((z,F)=>{let T=Boolean(z.archived_at),J1=z.chat_jid!==(z.root_chat_jid||z.chat_jid)&&!z.is_active&&!T&&typeof j0==="function",s1=p6(z,{currentChatJid:X1});return K`
+                                        <div key=${z.chat_jid} class=${`compose-model-popup-item-row${T?" archived":""}`}>
                                             <button
                                                 type="button"
                                                 role="menuitem"
-                                                class=${`compose-model-popup-item${I?" archived":""}${F1===F?" active":""}`}
-                                                onClick=${()=>{if(I){f2(_.chat_jid);return}H4(_.chat_jid)}}
-                                                disabled=${I?!q2:!j2}
-                                                title=${I?`Restore archived ${`@${_.agent_name}`}`:`Switch to ${`@${_.agent_name}`}`}
+                                                class=${`compose-model-popup-item${T?" archived":""}${N1===F?" active":""}`}
+                                                onClick=${()=>{if(T){v2(z.chat_jid);return}I4(z.chat_jid)}}
+                                                disabled=${T?!U2:!Q2}
+                                                title=${T?`Restore archived ${`@${z.agent_name}`}`:`Switch to ${`@${z.agent_name}`}`}
                                             >
-                                                ${r1}
+                                                ${s1}
                                             </button>
-                                            ${B1&&G`
+                                            ${J1&&K`
                                                 <button
                                                     type="button"
                                                     class="compose-model-popup-item-delete"
                                                     title="Delete this branch"
-                                                    aria-label=${`Delete @${_.agent_name}`}
-                                                    onClick=${(W0)=>{W0.stopPropagation(),i(!1),K0(_.chat_jid)}}
+                                                    aria-label=${`Delete @${z.agent_name}`}
+                                                    onClick=${(z0)=>{z0.stopPropagation(),e(!1),j0(z.chat_jid)}}
                                                 >
                                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                                         <line x1="18" y1="6" x2="6" y2="18" />
@@ -907,34 +1077,34 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                                         </div>
                                     `})}
                             </div>
-                            ${(v0||s0||y0)&&G`
+                            ${(m0||t0||k0)&&K`
                                 <div class="compose-model-popup-actions">
-                                    ${v0&&G`
+                                    ${m0&&K`
                                         <button
                                             type="button"
-                                            class=${`compose-model-popup-btn primary${_0.findIndex((_)=>_.key==="action:new")===F1?" active":""}`}
-                                            onClick=${()=>{A4()}}
+                                            class=${`compose-model-popup-btn primary${J0.findIndex((z)=>z.key==="action:new")===N1?" active":""}`}
+                                            onClick=${()=>{T4()}}
                                             title="Create a new agent/session branch from this chat"
                                         >
                                             New
                                         </button>
                                     `}
-                                    ${s0&&G`
+                                    ${t0&&K`
                                         <button
                                             type="button"
-                                            class=${`compose-model-popup-btn${_0.findIndex((_)=>_.key==="action:rename")===F1?" active":""}`}
-                                            onClick=${(_)=>{Y4(_)}}
+                                            class=${`compose-model-popup-btn${J0.findIndex((z)=>z.key==="action:rename")===N1?" active":""}`}
+                                            onClick=${(z)=>{O4(z)}}
                                             title="Rename the current branch handle"
-                                            disabled=${P2}
+                                            disabled=${x2}
                                         >
                                             Rename current…
                                         </button>
                                     `}
-                                    ${y0&&G`
+                                    ${k0&&K`
                                         <button
                                             type="button"
-                                            class=${`compose-model-popup-btn danger${_0.findIndex((_)=>_.key==="action:delete")===F1?" active":""}`}
-                                            onClick=${()=>{D4()}}
+                                            class=${`compose-model-popup-btn danger${J0.findIndex((z)=>z.key==="action:delete")===N1?" active":""}`}
+                                            onClick=${()=>{M4()}}
                                             title="Delete (prune) current agent/session branch"
                                         >
                                             Delete current…
@@ -945,61 +1115,61 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                         </div>
                     `}
                 </div>
-                <div class="compose-footer" ref=${u0}>
-                    ${N4&&G`
+                <div class="compose-footer" ref=${p0}>
+                    ${H4&&K`
                     <div class="compose-meta-row">
-                        ${G2&&G`
+                        ${F2&&K`
                             <div class="compose-model-meta">
                                 <button
-                                    ref=${B4}
+                                    ref=${W4}
                                     type="button"
                                     class="compose-model-hint compose-model-hint-btn"
-                                    title=${G4}
+                                    title=${F4}
                                     aria-label="Open model picker"
-                                    onClick=${Y5}
-                                    disabled=${Q0}
+                                    onClick=${k5}
+                                    disabled=${j1}
                                 >
-                                    ${Q0?"Switching…":N2}
+                                    ${j1?"Switching…":H2}
                                 </button>
                                 <div class="compose-model-meta-subline">
-                                    ${!Q0&&W4&&G`
-                                        <span class="compose-model-usage-hint" title=${G4}>
-                                            ${W4}
+                                    ${!j1&&N4&&K`
+                                        <span class="compose-model-usage-hint" title=${F4}>
+                                            ${N4}
                                         </span>
                                     `}
                                 </div>
                             </div>
                         `}
-                        ${!q&&t&&t.percent!=null&&G`
-                            <${a$} usage=${t} onCompact=${A5} />
+                        ${!q&&m&&m.percent!=null&&K`
+                            <${Pj} usage=${m} onCompact=${E5} />
                         `}
                     </div>
                     `}
                     <div class="compose-actions ${q?"search-mode":""}">
-                    ${B2&&G`
+                    ${X2&&K`
                         <div
-                            ref=${F0}
+                            ref=${D0}
                             class="compose-session-trigger-group"
                         >
-                            ${v1?.agent_name&&G`
+                            ${g1?.agent_name&&K`
                                 <button
                                     type="button"
-                                    class=${`compose-session-trigger compose-session-trigger-pill${E?" active":""}`}
-                                    onClick=${F4}
-                                    title=${v1?.chat_jid||j1}
-                                    aria-label=${`Manage sessions for @${v1.agent_name}`}
-                                    aria-expanded=${E?"true":"false"}
+                                    class=${`compose-session-trigger compose-session-trigger-pill${v?" active":""}`}
+                                    onClick=${C4}
+                                    title=${g1?.chat_jid||X1}
+                                    aria-label=${`Manage sessions for @${g1.agent_name}`}
+                                    aria-expanded=${v?"true":"false"}
                                 >
-                                    <span class="compose-current-agent-label active">@${v1.agent_name}</span>
+                                    <span class="compose-current-agent-label active">@${g1.agent_name}</span>
                                 </button>
                             `}
                             <button
                                 type="button"
-                                class=${`compose-session-trigger compose-session-trigger-icon-btn${E?" active":""}`}
-                                onClick=${F4}
-                                title=${v1?.chat_jid||j1}
-                                aria-label=${v1?.agent_name?`Manage sessions for @${v1.agent_name}`:"Manage Sessions/Agents"}
-                                aria-expanded=${E?"true":"false"}
+                                class=${`compose-session-trigger compose-session-trigger-icon-btn${v?" active":""}`}
+                                onClick=${C4}
+                                title=${g1?.chat_jid||X1}
+                                aria-label=${g1?.agent_name?`Manage sessions for @${g1.agent_name}`:"Manage Sessions/Agents"}
+                                aria-expanded=${v?"true":"false"}
                             >
                                 <span class="compose-session-trigger-icon" aria-hidden="true">
                                     <svg class="compose-mention-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" focusable="false">
@@ -1010,13 +1180,13 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                             </button>
                         </div>
                     `}
-                    ${q&&G`
+                    ${q&&K`
                         <label class="compose-search-scope-wrap" title="Search scope">
                             <span class="compose-search-scope-label">Scope</span>
                             <select
                                 class="compose-search-scope-select"
                                 value=${B}
-                                onChange=${(_)=>J?.(_.currentTarget.value)}
+                                onChange=${(z)=>Q?.(z.currentTarget.value)}
                             >
                                 <option value="current">Current</option>
                                 <option value="root">Branch family</option>
@@ -1026,24 +1196,24 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                     `}
                     <button
                         class="icon-btn search-toggle"
-                        onClick=${q?X:K}
+                        onClick=${q?X:U}
                         title=${q?"Close search":"Search"}
                     >
-                        ${q?G`
+                        ${q?K`
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M18 6L6 18M6 6l12 12"/>
                             </svg>
-                        `:G`
+                        `:K`
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="11" cy="11" r="8"/>
                                 <path d="M21 21l-4.35-4.35"/>
                             </svg>
                         `}
                     </button>
-                    ${J4&&!q&&G`
+                    ${K4&&!q&&K`
                         <button
                             class="icon-btn location-btn"
-                            onClick=${O3}
+                            onClick=${m3}
                             title="Share location"
                             type="button"
                             disabled=${!1}
@@ -1055,11 +1225,11 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                             </svg>
                         </button>
                     `}
-                    ${X5&&!q&&G`
+                    ${F5&&!q&&K`
                         <button
-                            class=${`icon-btn notification-btn${X4?" active":""}`}
-                            onClick=${D1}
-                            title=${U5}
+                            class=${`icon-btn notification-btn${G4?" active":""}`}
+                            onClick=${U1}
+                            title=${H5}
                             type="button"
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1068,47 +1238,47 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                             </svg>
                         </button>
                     `}
-                    ${!q&&G`
-                        ${x&&U1&&G`
+                    ${!q&&K`
+                        ${f&&_1&&K`
                             <button
                                 class="icon-btn attach-editor-btn"
-                                onClick=${U1}
-                                title=${`Attach open file: ${x}`}
+                                onClick=${_1}
+                                title=${`Attach open file: ${f}`}
                                 type="button"
-                                disabled=${z.includes(x)}
+                                disabled=${J.includes(f)}
                             >
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
                             </button>
                         `}
                         <label class="icon-btn" title="Attach file">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                            <input type="file" multiple hidden onChange=${y} />
+                            <input type="file" multiple hidden onChange=${R} />
                         </label>
                     `}
-                    ${(M1!=="connected"||!q)&&G`
+                    ${(T1!=="connected"||!q)&&K`
                         <div class="compose-send-stack">
-                            ${M1!=="connected"&&G`
-                                <span class="compose-connection-status connection-status ${$2.statusClass}" title=${W5}>
-                                    ${z5}
+                            ${T1!=="connected"&&K`
+                                <span class="compose-connection-status connection-status ${_2.statusClass}" title=${D5}>
+                                    ${A5}
                                 </span>
                             `}
-                            ${!q&&G`
+                            ${!q&&K`
                                 <button 
-                                    class=${h0.className}
+                                    class=${l0.className}
                                     type="button"
-                                    onClick=${()=>{if(s$(h0.mode)){W("/abort","steer");return}W()}}
-                                    disabled=${h0.disabled}
-                                    title=${h0.title}
-                                    aria-label=${h0.ariaLabel}
+                                    onClick=${()=>{if(Ej(l0.mode)){Z("/abort","steer");return}Z()}}
+                                    disabled=${l0.disabled}
+                                    title=${l0.title}
+                                    aria-label=${l0.ariaLabel}
                                 >
-                                    ${h0.mode==="compacting"?G`
+                                    ${l0.mode==="compacting"?K`
                                             <span class="compose-submit-spinner" aria-hidden="true">
                                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                                                     <circle class="compose-submit-spinner-ring" cx="12" cy="12" r="10.5" stroke-width="2.25" stroke-linecap="round"></circle>
                                                     <rect class="compose-submit-spinner-stop" x="6" y="6" width="12" height="12" rx="0" fill="currentColor"></rect>
                                                 </svg>
                                             </span>
-                                        `:h0.mode==="abort"?G`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2.5"/></svg>`:G`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`}
+                                        `:l0.mode==="abort"?K`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2.5"/></svg>`:K`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`}
                                 </button>
                             `}
                         </div>
@@ -1117,114 +1287,114 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
             </div>
         </div>
         </div>
-    `}function L3(...$){for(let j of $)if(typeof j==="string"&&j.trim())return j.trim();return null}function Uj($){if($.startsWith('"')&&$.endsWith('"')||$.startsWith("'")&&$.endsWith("'"))return $.slice(1,-1);return $}function O8($){if(typeof $!=="string"||!$.trim())return null;let j=$.match(/^\s*cd\s+(.+?)(?:\s*(?:&&|;|\n))/s);if(!j?.[1])return null;return Uj(j[1].trim())||null}function T8($,j){let q=j&&typeof j==="object"?j:null;if(!q)return null;let B=L3(q.cwd,q.working_directory,q.workingDirectory);if(B)return B;let Q=L3(q.project_dir,q.projectDir,q.repo_path,q.repoPath);if(Q)return Q;let J=L3(q.command),K=O8(J);if(K)return K;if(Array.isArray(q.commands))for(let X of q.commands){let z=O8(X);if(z)return z}return null}var _j=G`
+    `}function M3(...$){for(let j of $)if(typeof j==="string"&&j.trim())return j.trim();return null}function hj($){if($.startsWith('"')&&$.endsWith('"')||$.startsWith("'")&&$.endsWith("'"))return $.slice(1,-1);return $}function n6($){if(typeof $!=="string"||!$.trim())return null;let j=$.match(/^\s*cd\s+(.+?)(?:\s*(?:&&|;|\n))/s);if(!j?.[1])return null;return hj(j[1].trim())||null}function s6($,j){let q=j&&typeof j==="object"?j:null;if(!q)return null;let B=M3(q.cwd,q.working_directory,q.workingDirectory);if(B)return B;let _=M3(q.project_dir,q.projectDir,q.repo_path,q.repoPath);if(_)return _;let Q=M3(q.command),U=n6(Q);if(U)return U;if(Array.isArray(q.commands))for(let X of q.commands){let J=n6(X);if(J)return J}return null}var cj=K`
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <rect x="9" y="9" width="10" height="10" rx="2"></rect>
         <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
     </svg>
-`,zj=G`
+`,lj=K`
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
         <path d="M6 3v12"></path>
         <circle cx="18" cy="6" r="3"></circle>
         <circle cx="6" cy="18" r="3"></circle>
         <path d="M18 9a9 9 0 0 1-9 9"></path>
     </svg>
-`,Wj=G`
+`,rj=K`
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
         <circle cx="12" cy="12" r="9"></circle>
         <path d="M12 7v5l3 2"></path>
     </svg>
-`,Gj=1e4;function Nj($){return(Array.isArray($)?$:$&&Array.isArray($.status_hints)?$.status_hints:[]).filter((q)=>q&&typeof q==="object").map((q,B)=>({key:typeof q.key==="string"&&q.key.trim()?q.key.trim():`hint-${B}`,iconSvg:typeof q.icon_svg==="string"?q.icon_svg.trim():"",label:typeof q.label==="string"?q.label.trim():"",title:typeof q.title==="string"?q.title.trim():""})).filter((q)=>q.iconSvg&&q.label)}function Lj($){if(!($ instanceof Set)||$.size===0)return null;let j=Array.from($.values());for(let q=j.length-1;q>=0;q-=1){let B=j[q];if(B==="thought"||B==="draft")return B}return null}function Vj($){if(!Array.isArray($)||$.length===0)return[];let j=new Map([["ssh",0]]);return $.map((q,B)=>({hint:q,index:B})).sort((q,B)=>{let Q=j.get(q.hint?.key)??100,J=j.get(B.hint?.key)??100;if(Q!==J)return Q-J;return q.index-B.index}).map((q)=>q.hint)}function Zj($,j){let q=typeof $==="string"?$.trim():"",B=typeof j==="string"?j.trim():"";return[q?q.split(/[\\/]+/).filter(Boolean).pop()||q:"",B].filter(Boolean).join(" • ")}function M8($){if(!$||typeof $!=="object")return!1;let j=typeof $.type==="string"?$.type:"",q=Boolean($.last_activity||$.lastActivity),B=j==="tool_call"||j==="tool_status"||Boolean($.tool_name||$.tool_args);if(!q&&!B)return!1;return _3($)!==null}function S8($){if(!$||typeof $!=="object")return!1;return $.type==="intent"&&j5($)!==null}function y8($,j=Date.now()){if(!Number.isFinite($))return!1;return j-$>=Gj}function Fj($,j=Date.now()){if(!M8($))return null;let q=_3($);if(q===null||!y8(q,j))return null;let B=V3(new Date(q).toISOString(),j);return B?`${B} ago`:null}function Hj($,j=Date.now()){if(!S8($))return null;let q=j5($);if(q===null||!y8(q,j))return null;return B5($,j)}function Yj($,j={}){let q=j?.isLastActivity??Boolean($?.last_activity||$?.lastActivity),B=$?.title,Q=$?.status,J="";if($?.type==="plan")J=B?`Planning: ${B}`:"Planning...";else if($?.type==="tool_call")J=B?`Running: ${B}`:"Running tool...";else if($?.type==="tool_status")J=B?`${B}: ${Q||"Working..."}`:Q||"Working...";else if($?.type==="error")J=B||"Agent error";else J=B||Q||"Working...";if(!q)return J;if(J&&J!=="Working...")return`Recent activity: ${J}`;return"Last activity"}function V3($,j=Date.now()){if(!$)return null;let q=j-new Date($).getTime();if(!Number.isFinite(q)||q<0)return null;let B=Math.floor(q/1000),Q=Math.floor(B/3600),J=Math.floor(B%3600/60),K=B%60;if(Q>0)return`${Q}h ${J}m`;if(J>0)return`${J}m ${K}s`;return`${K}s`}function k8({status:$,draft:j,plan:q,thought:B,pendingRequest:Q,intent:J,extensionPanels:K=[],pendingPanelActions:X=new Set,onExtensionPanelAction:z,turnId:U,steerQueued:L,onPanelToggle:N,showCorePanels:V=!0,showExtensionPanels:O=!0}){let p=(C)=>{if(!C)return{text:"",totalLines:0,fullText:""};if(typeof C==="string"){let n=C,V1=n?n.replace(/\r\n/g,`
+`,dj=1e4;function ij($){return(Array.isArray($)?$:$&&Array.isArray($.status_hints)?$.status_hints:[]).filter((q)=>q&&typeof q==="object").map((q,B)=>({key:typeof q.key==="string"&&q.key.trim()?q.key.trim():`hint-${B}`,iconSvg:typeof q.icon_svg==="string"?q.icon_svg.trim():"",label:typeof q.label==="string"?q.label.trim():"",title:typeof q.title==="string"?q.title.trim():""})).filter((q)=>q.iconSvg&&q.label)}function nj($){if(!($ instanceof Set)||$.size===0)return null;let j=Array.from($.values());for(let q=j.length-1;q>=0;q-=1){let B=j[q];if(B==="thought"||B==="draft")return B}return null}function sj($){if(!Array.isArray($)||$.length===0)return[];let j=new Map([["ssh",0]]);return $.map((q,B)=>({hint:q,index:B})).sort((q,B)=>{let _=j.get(q.hint?.key)??100,Q=j.get(B.hint?.key)??100;if(_!==Q)return _-Q;return q.index-B.index}).map((q)=>q.hint)}function oj($,j){let q=typeof $==="string"?$.trim():"",B=typeof j==="string"?j.trim():"";return[q?q.split(/[\\/]+/).filter(Boolean).pop()||q:"",B].filter(Boolean).join(" • ")}function o6($){if(!$||typeof $!=="object")return!1;let j=typeof $.type==="string"?$.type:"",q=Boolean($.last_activity||$.lastActivity),B=j==="tool_call"||j==="tool_status"||Boolean($.tool_name||$.tool_args);if(!q&&!B)return!1;return t5($)!==null}function a6($){if(!$||typeof $!=="object")return!1;return $.type==="intent"&&i4($)!==null}function t6($,j=Date.now()){if(!Number.isFinite($))return!1;return j-$>=dj}function aj($,j=Date.now()){if(!o6($))return null;let q=t5($);if(q===null||!t6(q,j))return null;let B=y3(new Date(q).toISOString(),j);return B?`${B} ago`:null}function tj($,j=Date.now()){if(!a6($))return null;let q=i4($);if(q===null||!t6(q,j))return null;return s4($,j)}function ej($,j={}){let q=j?.isLastActivity??Boolean($?.last_activity||$?.lastActivity),B=$?.title,_=$?.status,Q="";if($?.type==="plan")Q=B?`Planning: ${B}`:"Planning...";else if($?.type==="tool_call")Q=B?`Running: ${B}`:"Running tool...";else if($?.type==="tool_status")Q=B?`${B}: ${_||"Working..."}`:_||"Working...";else if($?.type==="error")Q=B||"Agent error";else Q=B||_||"Working...";if(!q)return Q;if(Q&&Q!=="Working...")return`Recent activity: ${Q}`;return"Last activity"}function y3($,j=Date.now()){if(!$)return null;let q=j-new Date($).getTime();if(!Number.isFinite(q)||q<0)return null;let B=Math.floor(q/1000),_=Math.floor(B/3600),Q=Math.floor(B%3600/60),U=B%60;if(_>0)return`${_}h ${Q}m`;if(Q>0)return`${Q}m ${U}s`;return`${U}s`}function e6({status:$,draft:j,plan:q,thought:B,pendingRequest:_,intent:Q,extensionPanels:U=[],pendingPanelActions:X=new Set,onExtensionPanelAction:J,turnId:W,steerQueued:V,onPanelToggle:G,showCorePanels:L=!0,showExtensionPanels:C=!0}){let l=(H)=>{if(!H)return{text:"",totalLines:0,fullText:""};if(typeof H==="string"){let $1=H,V1=$1?$1.replace(/\r\n/g,`
 `).split(`
-`).length:0;return{text:n,totalLines:V1,fullText:n}}let b=C.text||"",E=C.fullText||C.full_text||b,i=Number.isFinite(C.totalLines)?C.totalLines:E?E.replace(/\r\n/g,`
+`).length:0;return{text:$1,totalLines:V1,fullText:$1}}let p=H.text||"",v=H.fullText||H.full_text||p,e=Number.isFinite(H.totalLines)?H.totalLines:v?v.replace(/\r\n/g,`
 `).split(`
-`).length:0;return{text:b,totalLines:i,fullText:E}},d=160,P=(C)=>String(C||"").replace(/<\/?internal>/gi,""),t=(C)=>{if(!C)return 1;return Math.max(1,Math.ceil(C.length/160))},v=(C,b,E)=>{let i=(C||"").replace(/\r\n/g,`
+`).length:0;return{text:p,totalLines:e,fullText:v}},w=160,S=(H)=>String(H||"").replace(/<\/?internal>/gi,""),m=(H)=>{if(!H)return 1;return Math.max(1,Math.ceil(H.length/160))},O=(H,p,v)=>{let e=(H||"").replace(/\r\n/g,`
 `).replace(/\r/g,`
-`);if(!i)return{text:"",omitted:0,totalLines:Number.isFinite(E)?E:0,visibleLines:0};let n=i.split(`
-`),V1=n.length>b?n.slice(0,b).join(`
-`):i,Z1=Number.isFinite(E)?E:n.reduce((Y,S)=>Y+t(S),0),G1=V1?V1.split(`
-`).reduce((Y,S)=>Y+t(S),0):0,F1=Math.max(Z1-G1,0);return{text:V1,omitted:F1,totalLines:Z1,visibleLines:G1}},e=p(q),W1=p(B),D1=p(j),N1=Boolean(e.text)||e.totalLines>0,X1=Boolean(W1.text)||W1.totalLines>0,x=Boolean(D1.fullText?.trim()||D1.text?.trim()),U1=Boolean($||x||N1||X1||Q||J),E1=Array.isArray(K)&&K.length>0,[b1,P1]=M(new Set),[l,s]=M(null),[Q1,_1]=M(()=>Date.now()),D=(C)=>P1((b)=>{let E=new Set(b),i=!E.has(C);if(i)E.add(C);else E.delete(C);if(typeof N==="function")N(C,i);return E});w(()=>{P1(new Set),s(null)},[U]),w(()=>{if(!(Array.isArray(K)&&K.some((E)=>b1.has(E?.key)&&(E?.started_at||E?.last_activity_at))))return;let b=setInterval(()=>_1(Date.now()),1000);return()=>clearInterval(b)},[b1,K]);let r=H1(()=>Lj(b1),[b1]);w(()=>{if(!r||typeof document>"u")return;let C=(b)=>{if(b?.defaultPrevented)return;if(b?.key!=="Escape")return;if(b?.altKey||b?.ctrlKey||b?.metaKey||b?.shiftKey)return;let E=b?.target;if(E instanceof Element){if(E.closest?.('input, textarea, select, [contenteditable="true"]'))return;if(E.isContentEditable)return}if(P1((i)=>{if(!(i instanceof Set)||!i.has(r))return i;let n=new Set(i);return n.delete(r),n}),typeof N==="function")N(r,!1);b.preventDefault?.(),b.stopPropagation?.()};return document.addEventListener("keydown",C),()=>document.removeEventListener("keydown",C)},[r,N]);let L1=g2($),j1=Boolean($?.last_activity||$?.lastActivity),M1=H1(()=>M8($),[$]),R1=H1(()=>S8($),[$]),Y1=H1(()=>T8($?.tool_name,$?.tool_args),[$?.tool_name,$?.tool_args]),[p1,C1]=M(null);w(()=>{if(!Boolean(R1||$?.retry_at||$?.retryAt||M1))return;_1(Date.now());let b=setInterval(()=>_1(Date.now()),1000);return()=>clearInterval(b)},[M1,R1,$?.retry_at,$?.retryAt,$?.last_event_at,$?.lastEventAt,$?.started_at,$?.startedAt,$?.type,$?.tool_name,$?.tool_args]),w(()=>{if(!($?.type==="tool_call"||$?.type==="tool_status")||!Y1){C1(null);return}let b=!0;return T6(Y1).then((E)=>{if(!b)return;if(E?.branch)C1({branch:E.branch,repoPath:E.repo_path||null,path:Y1});else C1(null)}).catch(()=>{if(b)C1(null)}),()=>{b=!1}},[$?.type,Y1]);let j0=$?.turn_id||U,s1=d6(j0),O0=e4({steerQueued:L}),K0=(C)=>C,f0=Z8($,{isLastActivity:j1}),G0=$5($,{isLastActivity:j1}),o1=$5(null,{pendingRequest:!0}),q0=(C)=>C==="warning"?"#f59e0b":C==="error"?"var(--danger-color)":C==="success"?"var(--success-color)":s1,H0=J?.kind||"info",y1=q0(H0),X0=q0($?.kind||(L1?"warning":"info")),N0=Yj($,{isLastActivity:j1}),a1=Fj($,Q1),t1=p1?.repoPath||"",a=p1?.branch||"",z1=p1?Zj(t1,a):"",J1=Nj($?.status_hints||$?.statusHints),A1=H1(()=>Vj(J1),[J1]),k1=H1(()=>A1.filter((C)=>C?.key==="ssh"),[A1]),c1=H1(()=>A1.filter((C)=>C?.key!=="ssh"),[A1]);if((!V||!U1)&&(!O||!E1))return null;let f1=({panelTitle:C,text:b,fullText:E,totalLines:i,maxLines:n,titleClass:V1,panelKey:Z1})=>{let G1=b1.has(Z1),F1=E||b||"",Y=Z1==="thought"||Z1==="draft"?P(F1):F1,S=typeof n==="number",$1=G1&&S,K1=S?v(Y,n,i):{text:Y||"",omitted:0,totalLines:Number.isFinite(i)?i:0};if(!Y&&!(Number.isFinite(K1.totalLines)&&K1.totalLines>0))return null;let c=`agent-thinking-body${S?" agent-thinking-body-collapsible":""}`,O1=S?`--agent-thinking-collapsed-lines: ${n};`:"";return G`
+`);if(!e)return{text:"",omitted:0,totalLines:Number.isFinite(v)?v:0,visibleLines:0};let $1=e.split(`
+`),V1=$1.length>p?$1.slice(0,p).join(`
+`):e,L1=Number.isFinite(v)?v:$1.reduce((A,P)=>A+m(P),0),Z1=V1?V1.split(`
+`).reduce((A,P)=>A+m(P),0):0,N1=Math.max(L1-Z1,0);return{text:V1,omitted:N1,totalLines:L1,visibleLines:Z1}},d=l(q),g=l(B),U1=l(j),k=Boolean(d.text)||d.totalLines>0,r=Boolean(g.text)||g.totalLines>0,f=Boolean(U1.fullText?.trim()||U1.text?.trim()),_1=Boolean($||f||k||r||_||Q),Y1=Array.isArray(U)&&U.length>0,[k1,O1]=y(new Set),[s,t]=y(null),[K1,G1]=y(()=>Date.now()),I=(H)=>O1((p)=>{let v=new Set(p),e=!v.has(H);if(e)v.add(H);else v.delete(H);if(typeof G==="function")G(H,e);return v});E(()=>{O1(new Set),t(null)},[W]),E(()=>{if(!(Array.isArray(U)&&U.some((v)=>k1.has(v?.key)&&(v?.started_at||v?.last_activity_at))))return;let p=setInterval(()=>G1(Date.now()),1000);return()=>clearInterval(p)},[k1,U]);let a=B1(()=>nj(k1),[k1]);E(()=>{if(!a||typeof document>"u")return;let H=(p)=>{if(p?.defaultPrevented)return;if(p?.key!=="Escape")return;if(p?.altKey||p?.ctrlKey||p?.metaKey||p?.shiftKey)return;let v=p?.target;if(v instanceof Element){if(v.closest?.('input, textarea, select, [contenteditable="true"]'))return;if(v.isContentEditable)return}if(O1((e)=>{if(!(e instanceof Set)||!e.has(a))return e;let $1=new Set(e);return $1.delete(a),$1}),typeof G==="function")G(a,!1);p.preventDefault?.(),p.stopPropagation?.()};return document.addEventListener("keydown",H),()=>document.removeEventListener("keydown",H)},[a,G]);let F1=K2($),X1=Boolean($?.last_activity||$?.lastActivity),T1=B1(()=>o6($),[$]),u1=B1(()=>a6($),[$]),A1=B1(()=>s6($?.tool_name,$?.tool_args),[$?.tool_name,$?.tool_args]),[t1,M1]=y(null);E(()=>{if(!Boolean(u1||$?.retry_at||$?.retryAt||T1))return;G1(Date.now());let p=setInterval(()=>G1(Date.now()),1000);return()=>clearInterval(p)},[T1,u1,$?.retry_at,$?.retryAt,$?.last_event_at,$?.lastEventAt,$?.started_at,$?.startedAt,$?.type,$?.tool_name,$?.tool_args]),E(()=>{if(!($?.type==="tool_call"||$?.type==="tool_status")||!A1){M1(null);return}let p=!0;return c8(A1).then((v)=>{if(!p)return;if(v?.branch)M1({branch:v.branch,repoPath:v.repo_path||null,path:A1});else M1(null)}).catch(()=>{if(p)M1(null)}),()=>{p=!1}},[$?.type,A1]);let G0=$?.turn_id||W,l1=W6(G0),I0=G5({steerQueued:V}),j0=(H)=>H,g0=h6($,{isLastActivity:X1}),F0=Z5($,{isLastActivity:X1}),q0=Z5(null,{pendingRequest:!0}),B0=(H)=>H==="warning"?"#f59e0b":H==="error"?"var(--danger-color)":H==="success"?"var(--success-color)":l1,x0=Q?.kind||"info",S1=B0(x0),X0=B0($?.kind||(F1?"warning":"info")),H0=ej($,{isLastActivity:X1}),_0=aj($,K1),Q0=t1?.repoPath||"",h1=t1?.branch||"",Y0=t1?oj(Q0,h1):"",E1=ij($?.status_hints||$?.statusHints),R1=B1(()=>sj(E1),[E1]),w1=B1(()=>R1.filter((H)=>H?.key==="ssh"),[R1]),e1=B1(()=>R1.filter((H)=>H?.key!=="ssh"),[R1]);if((!L||!_1)&&(!C||!Y1))return null;let f1=({panelTitle:H,text:p,fullText:v,totalLines:e,maxLines:$1,titleClass:V1,panelKey:L1})=>{let Z1=k1.has(L1),N1=v||p||"",A=L1==="thought"||L1==="draft"?S(N1):N1,P=typeof $1==="number",Q1=Z1&&P,z1=P?O(A,$1,e):{text:A||"",omitted:0,totalLines:Number.isFinite(e)?e:0};if(!A&&!(Number.isFinite(z1.totalLines)&&z1.totalLines>0))return null;let o=`agent-thinking-body${P?" agent-thinking-body-collapsible":""}`,C1=P?`--agent-thinking-collapsed-lines: ${$1};`:"";return K`
             <div
                 class="agent-thinking"
-                data-expanded=${G1?"true":"false"}
-                data-collapsible=${S?"true":"false"}
-                style=${s1?`--turn-color: ${s1};`:""}
+                data-expanded=${Z1?"true":"false"}
+                data-collapsible=${P?"true":"false"}
+                style=${l1?`--turn-color: ${l1};`:""}
             >
                 <div class="agent-thinking-title ${V1||""}">
-                    ${s1&&G`<span class=${O0} aria-hidden="true"></span>`}
-                    ${C}
-                    ${$1&&G`
+                    ${l1&&K`<span class=${I0} aria-hidden="true"></span>`}
+                    ${H}
+                    ${Q1&&K`
                         <button
                             class="agent-thinking-close"
-                            aria-label=${`Close ${C} panel`}
-                            onClick=${()=>D(Z1)}
+                            aria-label=${`Close ${H} panel`}
+                            onClick=${()=>I(L1)}
                         >
                             ×
                         </button>
                     `}
                 </div>
                 <div
-                    class=${c}
-                    style=${O1}
-                    dangerouslySetInnerHTML=${{__html:r5(Y)}}
+                    class=${o}
+                    style=${C1}
+                    dangerouslySetInnerHTML=${{__html:Q3(A)}}
                 />
-                ${!G1&&K1.omitted>0&&G`
-                    <button class="agent-thinking-truncation" onClick=${()=>D(Z1)}>
-                        ▸ ${K1.omitted} more lines
+                ${!Z1&&z1.omitted>0&&K`
+                    <button class="agent-thinking-truncation" onClick=${()=>I(L1)}>
+                        ▸ ${z1.omitted} more lines
                     </button>
                 `}
-                ${G1&&K1.omitted>0&&G`
-                    <button class="agent-thinking-truncation" onClick=${()=>D(Z1)}>
+                ${Z1&&z1.omitted>0&&K`
+                    <button class="agent-thinking-truncation" onClick=${()=>I(L1)}>
                         ▴ show less
                     </button>
                 `}
             </div>
-        `},Y0=Q?.tool_call?.title,e1=Y0?`Awaiting approval: ${Y0}`:"Awaiting approval",l0=Hj($,Q1),B0=(C,b,E=null)=>{let i=q5(C),n=H8(C,Q1),V1=[E,n].filter(Boolean).join(" · "),Z1=e4({steerQueued:L,pulsing:g2(C)||Boolean(n)});return G`
+        `},A0=_?.tool_call?.title,d1=A0?`Awaiting approval: ${A0}`:"Awaiting approval",f0=tj($,K1),x1=(H,p,v=null)=>{let e=n4(H),$1=k8(H,K1),V1=[v,$1].filter(Boolean).join(" · "),L1=G5({steerQueued:V,pulsing:K2(H)||Boolean($1)});return K`
             <div
                 class="agent-thinking agent-thinking-intent"
                 aria-live="polite"
-                style=${b?`--turn-color: ${b};`:""}
-                title=${C?.detail||""}
+                style=${p?`--turn-color: ${p};`:""}
+                title=${H?.detail||""}
             >
                 <div class="agent-thinking-title intent">
-                    ${b&&G`<span class=${Z1} aria-hidden="true"></span>`}
-                    <span class="agent-thinking-title-text">${i}</span>
-                    ${V1&&G`<span class="agent-status-elapsed">${V1}</span>`}
+                    ${p&&K`<span class=${L1} aria-hidden="true"></span>`}
+                    <span class="agent-thinking-title-text">${e}</span>
+                    ${V1&&K`<span class="agent-status-elapsed">${V1}</span>`}
                 </div>
-                ${C.detail&&G`<div class="agent-thinking-body">${C.detail}</div>`}
+                ${H.detail&&K`<div class="agent-thinking-body">${H.detail}</div>`}
             </div>
-        `},m1=(C,b,E,i,n,V1,Z1,G1=8,F1=8)=>{let Y=Math.max(n-i,0.000000001),S=Math.max(b-G1*2,1),$1=Math.max(E-F1*2,1),K1=Math.max(Z1-V1,1),c=Z1===V1?b/2:G1+(C.run-V1)/K1*S,O1=F1+($1-(C.value-i)/Y*$1);return{x:c,y:O1}},$0=(C,b,E,i,n,V1,Z1,G1=8,F1=8)=>{if(!Array.isArray(C)||C.length===0)return"";return C.map((Y,S)=>{let{x:$1,y:K1}=m1(Y,b,E,i,n,V1,Z1,G1,F1);return`${S===0?"M":"L"} ${$1.toFixed(2)} ${K1.toFixed(2)}`}).join(" ")},Z0=(C,b="")=>{if(!Number.isFinite(C))return"—";return`${Math.abs(C)>=100?C.toFixed(0):C.toFixed(2).replace(/\.0+$/,"").replace(/(\.\d*[1-9])0+$/,"$1")}${b}`},A0=["var(--accent-color)","var(--success-color)","var(--warning-color, #f59e0b)","var(--danger-color)"],h1=(C,b)=>{let E=A0;if(!Array.isArray(E)||E.length===0)return"var(--accent-color)";if(E.length===1||!Number.isFinite(b)||b<=1)return E[0];let n=Math.max(0,Math.min(Number.isFinite(C)?C:0,b-1))/Math.max(1,b-1)*(E.length-1),V1=Math.floor(n),Z1=Math.min(E.length-1,V1+1),G1=n-V1,F1=E[V1],Y=E[Z1];if(!Y||V1===Z1||G1<=0.001)return F1;if(G1>=0.999)return Y;let S=Math.round((1-G1)*1000)/10,$1=Math.round(G1*1000)/10;return`color-mix(in oklab, ${F1} ${S}%, ${Y} ${$1}%)`},Q0=(C,b="autoresearch")=>{let E=Array.isArray(C)?C.map((c)=>({...c,points:Array.isArray(c?.points)?c.points.filter((O1)=>Number.isFinite(O1?.value)&&Number.isFinite(O1?.run)):[]})).filter((c)=>c.points.length>0):[],i=E.map((c,O1)=>({...c,color:h1(O1,E.length)}));if(i.length===0)return null;let n=320,V1=120,Z1=i.flatMap((c)=>c.points),G1=Z1.map((c)=>c.value),F1=Z1.map((c)=>c.run),Y=Math.min(...G1),S=Math.max(...G1),$1=Math.min(...F1),K1=Math.max(...F1);return G`
+        `},P1=(H,p,v,e,$1,V1,L1,Z1=8,N1=8)=>{let A=Math.max($1-e,0.000000001),P=Math.max(p-Z1*2,1),Q1=Math.max(v-N1*2,1),z1=Math.max(L1-V1,1),o=L1===V1?p/2:Z1+(H.run-V1)/z1*P,C1=N1+(Q1-(H.value-e)/A*Q1);return{x:o,y:C1}},r1=(H,p,v,e,$1,V1,L1,Z1=8,N1=8)=>{if(!Array.isArray(H)||H.length===0)return"";return H.map((A,P)=>{let{x:Q1,y:z1}=P1(A,p,v,e,$1,V1,L1,Z1,N1);return`${P===0?"M":"L"} ${Q1.toFixed(2)} ${z1.toFixed(2)}`}).join(" ")},$0=(H,p="")=>{if(!Number.isFinite(H))return"—";return`${Math.abs(H)>=100?H.toFixed(0):H.toFixed(2).replace(/\.0+$/,"").replace(/(\.\d*[1-9])0+$/,"$1")}${p}`},Z0=["var(--accent-color)","var(--success-color)","var(--warning-color, #f59e0b)","var(--danger-color)"],m1=(H,p)=>{let v=Z0;if(!Array.isArray(v)||v.length===0)return"var(--accent-color)";if(v.length===1||!Number.isFinite(p)||p<=1)return v[0];let $1=Math.max(0,Math.min(Number.isFinite(H)?H:0,p-1))/Math.max(1,p-1)*(v.length-1),V1=Math.floor($1),L1=Math.min(v.length-1,V1+1),Z1=$1-V1,N1=v[V1],A=v[L1];if(!A||V1===L1||Z1<=0.001)return N1;if(Z1>=0.999)return A;let P=Math.round((1-Z1)*1000)/10,Q1=Math.round(Z1*1000)/10;return`color-mix(in oklab, ${N1} ${P}%, ${A} ${Q1}%)`},j1=(H,p="autoresearch")=>{let v=Array.isArray(H)?H.map((o)=>({...o,points:Array.isArray(o?.points)?o.points.filter((C1)=>Number.isFinite(C1?.value)&&Number.isFinite(C1?.run)):[]})).filter((o)=>o.points.length>0):[],e=v.map((o,C1)=>({...o,color:m1(C1,v.length)}));if(e.length===0)return null;let $1=320,V1=120,L1=e.flatMap((o)=>o.points),Z1=L1.map((o)=>o.value),N1=L1.map((o)=>o.run),A=Math.min(...Z1),P=Math.max(...Z1),Q1=Math.min(...N1),z1=Math.max(...N1);return K`
             <div class="agent-series-chart agent-series-chart-combined">
                 <div class="agent-series-chart-header">
                     <span class="agent-series-chart-title">Tracked variables</span>
-                    <span class="agent-series-chart-value">${i.length} series</span>
+                    <span class="agent-series-chart-value">${e.length} series</span>
                 </div>
                 <div class="agent-series-chart-plot">
-                    <svg class="agent-series-chart-svg" viewBox=${`0 0 ${n} ${V1}`} preserveAspectRatio="none" aria-hidden="true">
-                        ${i.map((c)=>{let O1=c?.key||c?.label||"series",w1=l?.panelKey===b&&l?.seriesKey===O1;return G`
-                                <g key=${O1}>
+                    <svg class="agent-series-chart-svg" viewBox=${`0 0 ${$1} ${V1}`} preserveAspectRatio="none" aria-hidden="true">
+                        ${e.map((o)=>{let C1=o?.key||o?.label||"series",v1=s?.panelKey===p&&s?.seriesKey===C1;return K`
+                                <g key=${C1}>
                                     <path
-                                        class=${`agent-series-chart-line${w1?" is-hovered":""}`}
-                                        d=${$0(c.points,n,V1,Y,S,$1,K1)}
-                                        style=${`--agent-series-color: ${c.color};`}
-                                        onMouseEnter=${()=>s({panelKey:b,seriesKey:O1})}
-                                        onMouseLeave=${()=>s((T1)=>T1?.panelKey===b&&T1?.seriesKey===O1?null:T1)}
+                                        class=${`agent-series-chart-line${v1?" is-hovered":""}`}
+                                        d=${r1(o.points,$1,V1,A,P,Q1,z1)}
+                                        style=${`--agent-series-color: ${o.color};`}
+                                        onMouseEnter=${()=>t({panelKey:p,seriesKey:C1})}
+                                        onMouseLeave=${()=>t((I1)=>I1?.panelKey===p&&I1?.seriesKey===C1?null:I1)}
                                     ></path>
                                 </g>
                             `})}
                     </svg>
                     <div class="agent-series-chart-points-layer">
-                        ${i.flatMap((c)=>{let O1=typeof c?.unit==="string"?c.unit:"",w1=c?.key||c?.label||"series";return c.points.map((T1,S1)=>{let U0=m1(T1,n,V1,Y,S,$1,K1);return G`
+                        ${e.flatMap((o)=>{let C1=typeof o?.unit==="string"?o.unit:"",v1=o?.key||o?.label||"series";return o.points.map((I1,y1)=>{let W0=P1(I1,$1,V1,A,P,Q1,z1);return K`
                                     <button
-                                        key=${`${w1}-point-${S1}`}
+                                        key=${`${v1}-point-${y1}`}
                                         type="button"
                                         class="agent-series-chart-point-hit"
-                                        style=${`--agent-series-color: ${c.color}; left:${U0.x/n*100}%; top:${U0.y/V1*100}%;`}
-                                        onMouseEnter=${()=>s({panelKey:b,seriesKey:w1,run:T1.run,value:T1.value,unit:O1})}
-                                        onMouseLeave=${()=>s((I1)=>I1?.panelKey===b?null:I1)}
-                                        onFocus=${()=>s({panelKey:b,seriesKey:w1,run:T1.run,value:T1.value,unit:O1})}
-                                        onBlur=${()=>s((I1)=>I1?.panelKey===b?null:I1)}
-                                        aria-label=${`${c?.label||"Series"} ${Z0(T1.value,O1)} at run ${T1.run}`}
+                                        style=${`--agent-series-color: ${o.color}; left:${W0.x/$1*100}%; top:${W0.y/V1*100}%;`}
+                                        onMouseEnter=${()=>t({panelKey:p,seriesKey:v1,run:I1.run,value:I1.value,unit:C1})}
+                                        onMouseLeave=${()=>t((D1)=>D1?.panelKey===p?null:D1)}
+                                        onFocus=${()=>t({panelKey:p,seriesKey:v1,run:I1.run,value:I1.value,unit:C1})}
+                                        onBlur=${()=>t((D1)=>D1?.panelKey===p?null:D1)}
+                                        aria-label=${`${o?.label||"Series"} ${$0(I1.value,C1)} at run ${I1.run}`}
                                     >
                                         <span class="agent-series-chart-point"></span>
                                     </button>
@@ -1232,161 +1402,161 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                     </div>
                 </div>
                 <div class="agent-series-legend">
-                    ${i.map((c)=>{let O1=c.points[c.points.length-1]?.value,w1=typeof c?.unit==="string"?c.unit:"",T1=c?.key||c?.label||"series",S1=l?.panelKey===b&&l?.seriesKey===T1?l:null,U0=S1&&Number.isFinite(S1.value)?S1.value:O1,I1=S1&&typeof S1.unit==="string"?S1.unit:w1,S0=S1&&Number.isFinite(S1.run)?S1.run:null;return G`
-                            <div key=${`${T1}-legend`} class=${`agent-series-legend-item${S1?" is-hovered":""}`} style=${`--agent-series-color: ${c.color};`}>
-                                <span class="agent-series-legend-swatch" style=${`--agent-series-color: ${c.color};`}></span>
-                                <span class="agent-series-legend-label">${c?.label||"Series"}</span>
-                                ${S0!==null&&G`<span class="agent-series-legend-run">run ${S0}</span>`}
-                                <span class="agent-series-legend-value">${Z0(U0,I1)}</span>
+                    ${e.map((o)=>{let C1=o.points[o.points.length-1]?.value,v1=typeof o?.unit==="string"?o.unit:"",I1=o?.key||o?.label||"series",y1=s?.panelKey===p&&s?.seriesKey===I1?s:null,W0=y1&&Number.isFinite(y1.value)?y1.value:C1,D1=y1&&typeof y1.unit==="string"?y1.unit:v1,S0=y1&&Number.isFinite(y1.run)?y1.run:null;return K`
+                            <div key=${`${I1}-legend`} class=${`agent-series-legend-item${y1?" is-hovered":""}`} style=${`--agent-series-color: ${o.color};`}>
+                                <span class="agent-series-legend-swatch" style=${`--agent-series-color: ${o.color};`}></span>
+                                <span class="agent-series-legend-label">${o?.label||"Series"}</span>
+                                ${S0!==null&&K`<span class="agent-series-legend-run">run ${S0}</span>`}
+                                <span class="agent-series-legend-value">${$0(W0,D1)}</span>
                             </div>
                         `})}
                 </div>
             </div>
-        `},D0=(C)=>{if(!C)return null;let b=typeof C?.key==="string"?C.key:`panel-${Math.random()}`,E=b1.has(b),i=C?.title||"Extension status",n=C?.collapsed_text||"",V1=String(C?.state||"").replace(/[-_]+/g," ").replace(/^./,(I1)=>I1.toUpperCase()),Z1=q0(C?.state==="completed"?"success":C?.state==="failed"?"error":C?.state==="stopped"?"warning":"info"),G1=e4({steerQueued:L,pulsing:C?.state==="running"}),F1=typeof C?.detail_markdown==="string"?C.detail_markdown.trim():"",Y=typeof C?.last_run_text==="string"?C.last_run_text.trim():"",S=typeof C?.tmux_command==="string"?C.tmux_command.trim():"",$1=Array.isArray(C?.series)?C.series:[],K1=Array.isArray(C?.actions)?C.actions:[],c=V3(C?.started_at),O1=c?` · ${c}`:"",w1=n+O1,T1=Boolean(F1||S||c),S1=Boolean(F1||$1.length>0||S),U0=[i,w1].filter(Boolean).join(" — ");return G`
+        `},H1=(H)=>{if(!H)return null;let p=typeof H?.key==="string"?H.key:`panel-${Math.random()}`,v=k1.has(p),e=H?.title||"Extension status",$1=H?.collapsed_text||"",V1=String(H?.state||"").replace(/[-_]+/g," ").replace(/^./,(D1)=>D1.toUpperCase()),L1=B0(H?.state==="completed"?"success":H?.state==="failed"?"error":H?.state==="stopped"?"warning":"info"),Z1=G5({steerQueued:V,pulsing:H?.state==="running"}),N1=typeof H?.detail_markdown==="string"?H.detail_markdown.trim():"",A=typeof H?.last_run_text==="string"?H.last_run_text.trim():"",P=typeof H?.tmux_command==="string"?H.tmux_command.trim():"",Q1=Array.isArray(H?.series)?H.series:[],z1=Array.isArray(H?.actions)?H.actions:[],o=y3(H?.started_at),C1=o?` · ${o}`:"",v1=$1+C1,I1=Boolean(N1||P||o),y1=Boolean(N1||Q1.length>0||P),W0=[e,v1].filter(Boolean).join(" — ");return K`
             <div
                 class="agent-thinking agent-thinking-intent agent-thinking-autoresearch"
                 aria-live="polite"
-                data-expanded=${E?"true":"false"}
-                style=${Z1?`--turn-color: ${Z1};`:""}
-                title=${!E?U0||i:""}
+                data-expanded=${v?"true":"false"}
+                style=${L1?`--turn-color: ${L1};`:""}
+                title=${!v?W0||e:""}
             >
                 <div class="agent-thinking-header agent-thinking-header-inline">
                     <button
                         class="agent-thinking-title intent agent-thinking-title-clickable"
                         type="button"
-                        onClick=${()=>S1?D(b):null}
+                        onClick=${()=>y1?I(p):null}
                     >
-                        ${Z1&&G`<span class=${G1} aria-hidden="true"></span>`}
-                        <span class="agent-thinking-title-text">${i}</span>
-                        ${w1&&G`<span class="agent-thinking-title-meta">${w1}</span>`}
+                        ${L1&&K`<span class=${Z1} aria-hidden="true"></span>`}
+                        <span class="agent-thinking-title-text">${e}</span>
+                        ${v1&&K`<span class="agent-thinking-title-meta">${v1}</span>`}
                     </button>
-                    ${(K1.length>0||S1)&&G`
+                    ${(z1.length>0||y1)&&K`
                         <div class="agent-thinking-tools-inline">
-                            ${K1.length>0&&G`
+                            ${z1.length>0&&K`
                                 <div class="agent-thinking-actions agent-thinking-actions-inline">
-                                    ${K1.map((I1)=>{let S0=`${b}:${I1?.key||""}`,T0=X?.has?.(S0);return G`
+                                    ${z1.map((D1)=>{let S0=`${p}:${D1?.key||""}`,M0=X?.has?.(S0);return K`
                                             <button
                                                 key=${S0}
-                                                class=${`agent-thinking-action-btn${I1?.tone==="danger"?" danger":""}`}
-                                                onClick=${()=>z?.(C,I1)}
-                                                disabled=${Boolean(T0)}
+                                                class=${`agent-thinking-action-btn${D1?.tone==="danger"?" danger":""}`}
+                                                onClick=${()=>J?.(H,D1)}
+                                                disabled=${Boolean(M0)}
                                             >
-                                                ${T0?"Working…":I1?.label||"Run"}
+                                                ${M0?"Working…":D1?.label||"Run"}
                                             </button>
                                         `})}
                                 </div>
                             `}
-                            ${S1&&G`
+                            ${y1&&K`
                                 <button
                                     class="agent-thinking-corner-toggle agent-thinking-corner-toggle-inline"
                                     type="button"
-                                    aria-label=${`${E?"Collapse":"Expand"} ${i}`}
-                                    title=${E?"Collapse details":"Expand details"}
-                                    onClick=${()=>D(b)}
+                                    aria-label=${`${v?"Collapse":"Expand"} ${e}`}
+                                    title=${v?"Collapse details":"Expand details"}
+                                    onClick=${()=>I(p)}
                                 >
                                     <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        ${E?G`<polyline points="4 6 8 10 12 6"></polyline>`:G`<polyline points="4 10 8 6 12 10"></polyline>`}
+                                        ${v?K`<polyline points="4 6 8 10 12 6"></polyline>`:K`<polyline points="4 10 8 6 12 10"></polyline>`}
                                     </svg>
                                 </button>
                             `}
                         </div>
                     `}
                 </div>
-                ${E&&G`
-                    <div class=${`agent-thinking-autoresearch-layout${T1?"":" chart-only"}`}>
-                        ${T1&&G`
+                ${v&&K`
+                    <div class=${`agent-thinking-autoresearch-layout${I1?"":" chart-only"}`}>
+                        ${I1&&K`
                             <div class="agent-thinking-autoresearch-meta-stack">
-                                ${c&&G`
+                                ${o&&K`
                                     <div class="agent-thinking-autoresearch-elapsed">
-                                        <span title="Experiment duration">⏱ ${c}</span>
-                                        ${C?.last_activity_at&&C?.state==="running"&&G`<span title="Since last activity">⟳ ${V3(C.last_activity_at)} ago</span>`}
+                                        <span title="Experiment duration">⏱ ${o}</span>
+                                        ${H?.last_activity_at&&H?.state==="running"&&K`<span title="Since last activity">⟳ ${y3(H.last_activity_at)} ago</span>`}
                                     </div>
                                 `}
-                                ${F1&&G`
+                                ${N1&&K`
                                     <div
                                         class="agent-thinking-body agent-thinking-autoresearch-detail"
-                                        dangerouslySetInnerHTML=${{__html:r5(F1)}}
+                                        dangerouslySetInnerHTML=${{__html:Q3(N1)}}
                                     />
                                 `}
-                                ${S&&G`
+                                ${P&&K`
                                     <div class="agent-series-chart-command">
                                         <div class="agent-series-chart-command-header">
                                             <span>Attach to session</span>
                                         </div>
                                         <div class="agent-series-chart-command-shell">
-                                            <pre class="agent-series-chart-command-code">${S}</pre>
+                                            <pre class="agent-series-chart-command-code">${P}</pre>
                                             <button
                                                 type="button"
                                                 class="agent-series-chart-command-copy"
                                                 aria-label="Copy tmux command"
                                                 title="Copy tmux command"
-                                                onClick=${()=>z?.(C,{key:"copy_tmux",action_type:"autoresearch.copy_tmux",label:"Copy tmux"})}
+                                                onClick=${()=>J?.(H,{key:"copy_tmux",action_type:"autoresearch.copy_tmux",label:"Copy tmux"})}
                                             >
-                                                ${_j}
+                                                ${cj}
                                             </button>
                                         </div>
                                     </div>
                                 `}
                             </div>
                         `}
-                        ${$1.length>0?G`
+                        ${Q1.length>0?K`
                                 <div class="agent-series-chart-stack">
-                                    ${Q0($1,b)}
-                                    ${Y&&G`<div class="agent-series-chart-note">${Y}</div>`}
+                                    ${j1(Q1,p)}
+                                    ${A&&K`<div class="agent-series-chart-note">${A}</div>`}
                                 </div>
-                            `:G`<div class="agent-thinking-body agent-thinking-autoresearch-summary">Variable history will appear after the first completed run.</div>`}
+                            `:K`<div class="agent-thinking-body agent-thinking-autoresearch-summary">Variable history will appear after the first completed run.</div>`}
                     </div>
                 `}
             </div>
-        `};return G`
+        `};return K`
         <div class="agent-status-panel">
-            ${V&&J&&B0(J,y1)}
-            ${O&&Array.isArray(K)&&K.map((C)=>D0(C))}
-            ${V&&$?.type==="intent"&&B0($,X0,l0)}
-            ${V&&Q&&G`
-                <div class="agent-status agent-status-request" aria-live="polite" style=${s1?`--turn-color: ${s1};`:""}>
-                    ${o1==="dot"&&G`<span class=${O0} aria-hidden="true"></span>`}
-                    ${o1==="spinner"&&G`<div class="agent-status-spinner"></div>`}
-                    <span class="agent-status-text">${e1}</span>
+            ${L&&Q&&x1(Q,S1)}
+            ${C&&Array.isArray(U)&&U.map((H)=>H1(H))}
+            ${L&&$?.type==="intent"&&x1($,X0,f0)}
+            ${L&&_&&K`
+                <div class="agent-status agent-status-request" aria-live="polite" style=${l1?`--turn-color: ${l1};`:""}>
+                    ${q0==="dot"&&K`<span class=${I0} aria-hidden="true"></span>`}
+                    ${q0==="spinner"&&K`<div class="agent-status-spinner"></div>`}
+                    <span class="agent-status-text">${d1}</span>
                 </div>
             `}
-            ${V&&N1&&f1({panelTitle:K0("Planning"),text:e.text,fullText:e.fullText,totalLines:e.totalLines,panelKey:"plan"})}
-            ${V&&X1&&f1({panelTitle:K0("Thoughts"),text:W1.text,fullText:W1.fullText,totalLines:W1.totalLines,maxLines:8,titleClass:"thought",panelKey:"thought"})}
-            ${V&&x&&f1({panelTitle:K0("Draft"),text:D1.text,fullText:D1.fullText,totalLines:D1.totalLines,maxLines:8,titleClass:"thought",panelKey:"draft"})}
-            ${V&&$&&$?.type!=="intent"&&G`
-                <div class=${`agent-status${j1?" agent-status-last-activity":""}${$?.type==="error"?" agent-status-error":""}${z1||J1.length>0||a1?" agent-status-multiline":""}`} aria-live="polite" style=${s1?`--turn-color: ${s1};`:""}>
-                    ${s1&&f0&&G`<span class=${O0} aria-hidden="true"></span>`}
-                    ${$?.type==="error"?G`<span class="agent-status-error-icon" aria-hidden="true">⚠</span>`:G0==="spinner"&&G`<div class="agent-status-spinner"></div>`}
+            ${L&&k&&f1({panelTitle:j0("Planning"),text:d.text,fullText:d.fullText,totalLines:d.totalLines,panelKey:"plan"})}
+            ${L&&r&&f1({panelTitle:j0("Thoughts"),text:g.text,fullText:g.fullText,totalLines:g.totalLines,maxLines:8,titleClass:"thought",panelKey:"thought"})}
+            ${L&&f&&f1({panelTitle:j0("Draft"),text:U1.text,fullText:U1.fullText,totalLines:U1.totalLines,maxLines:8,titleClass:"thought",panelKey:"draft"})}
+            ${L&&$&&$?.type!=="intent"&&K`
+                <div class=${`agent-status${X1?" agent-status-last-activity":""}${$?.type==="error"?" agent-status-error":""}${Y0||E1.length>0||_0?" agent-status-multiline":""}`} aria-live="polite" style=${l1?`--turn-color: ${l1};`:""}>
+                    ${l1&&g0&&K`<span class=${I0} aria-hidden="true"></span>`}
+                    ${$?.type==="error"?K`<span class="agent-status-error-icon" aria-hidden="true">⚠</span>`:F0==="spinner"&&K`<div class="agent-status-spinner"></div>`}
                     <div class="agent-status-copy">
-                        <span class="agent-status-text">${N0}</span>
-                        ${(z1||A1.length>0||a1)&&G`
+                        <span class="agent-status-text">${H0}</span>
+                        ${(Y0||R1.length>0||_0)&&K`
                             <span class="agent-status-meta-row">
-                                ${k1.map((C)=>G`
-                                    <span key=${C.key} class="agent-status-hint-row" title=${C.title||C.label}>
-                                        <span class="agent-status-hint-icon" dangerouslySetInnerHTML=${{__html:C.iconSvg}}></span>
-                                        <span class="agent-status-hint-label">${C.label}</span>
+                                ${w1.map((H)=>K`
+                                    <span key=${H.key} class="agent-status-hint-row" title=${H.title||H.label}>
+                                        <span class="agent-status-hint-icon" dangerouslySetInnerHTML=${{__html:H.iconSvg}}></span>
+                                        <span class="agent-status-hint-label">${H.label}</span>
                                     </span>
                                 `)}
-                                ${z1&&G`
-                                    <span class="agent-status-git-row" title=${Y1||z1}>
-                                        <span class="agent-status-git-icon">${zj}</span>
+                                ${Y0&&K`
+                                    <span class="agent-status-git-row" title=${A1||Y0}>
+                                        <span class="agent-status-git-icon">${lj}</span>
                                         <span class="agent-status-git-label">
-                                            ${t1&&G`<span class="agent-status-git-part">${t1}</span>`}
-                                            ${t1&&a&&G`<span class="agent-status-git-separator" aria-hidden="true">•</span>`}
-                                            ${a&&G`<span class="agent-status-git-part">${a}</span>`}
+                                            ${Q0&&K`<span class="agent-status-git-part">${Q0}</span>`}
+                                            ${Q0&&h1&&K`<span class="agent-status-git-separator" aria-hidden="true">•</span>`}
+                                            ${h1&&K`<span class="agent-status-git-part">${h1}</span>`}
                                         </span>
                                     </span>
                                 `}
-                                ${c1.map((C)=>G`
-                                    <span key=${C.key} class="agent-status-hint-row" title=${C.title||C.label}>
-                                        <span class="agent-status-hint-icon" dangerouslySetInnerHTML=${{__html:C.iconSvg}}></span>
-                                        <span class="agent-status-hint-label">${C.label}</span>
+                                ${e1.map((H)=>K`
+                                    <span key=${H.key} class="agent-status-hint-row" title=${H.title||H.label}>
+                                        <span class="agent-status-hint-icon" dangerouslySetInnerHTML=${{__html:H.iconSvg}}></span>
+                                        <span class="agent-status-hint-label">${H.label}</span>
                                     </span>
                                 `)}
-                                ${a1&&G`
-                                    <span class="agent-status-hint-row agent-status-activity-row" title=${`${j1?"Recent activity":"Last event"} ${a1}`}>
-                                        <span class="agent-status-hint-icon">${Wj}</span>
-                                        <span class="agent-status-hint-label">${a1}</span>
+                                ${_0&&K`
+                                    <span class="agent-status-hint-row agent-status-activity-row" title=${`${X1?"Recent activity":"Last event"} ${_0}`}>
+                                        <span class="agent-status-hint-icon">${rj}</span>
+                                        <span class="agent-status-hint-label">${_0}</span>
                                     </span>
                                 `}
                             </span>
@@ -1395,32 +1565,32 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                 </div>
             `}
         </div>
-    `}class R8{extensions=new Map;register($){this.extensions.set($.id,$)}unregister($){this.extensions.delete($)}resolve($){let j,q=-1/0;for(let B of this.extensions.values()){if(B.placement!=="tabs")continue;if(!B.canHandle)continue;try{let Q=B.canHandle($);if(Q===!1||Q===0)continue;let J=Q===!0?0:typeof Q==="number"?Q:0;if(J>q)q=J,j=B}catch(Q){console.warn(`[PaneRegistry] canHandle() error for "${B.id}":`,Q)}}return j}list(){return Array.from(this.extensions.values())}getDockPanes(){return Array.from(this.extensions.values()).filter(($)=>$.placement==="dock")}getTabPanes(){return Array.from(this.extensions.values()).filter(($)=>$.placement==="tabs")}get($){return this.extensions.get($)}get size(){return this.extensions.size}}var d0=new R8;var eB=Symbol();var $Q=new TextDecoder("utf-16le",{fatal:!0});Object.hasOwn=Object.hasOwn||function($,j){return Object.prototype.hasOwnProperty.call($,j)};var Cj={Backspace:65288,Tab:65289,Enter:65293,Escape:65307,Insert:65379,Delete:65535,Home:65360,End:65367,PageUp:65365,PageDown:65366,ArrowLeft:65361,ArrowUp:65362,ArrowRight:65363,ArrowDown:65364,Shift:65505,ShiftLeft:65505,ShiftRight:65506,Control:65507,ControlLeft:65507,ControlRight:65508,Alt:65513,AltLeft:65513,AltRight:65514,Meta:65515,MetaLeft:65515,MetaRight:65516,Super:65515,Super_L:65515,Super_R:65516,CapsLock:65509,NumLock:65407,ScrollLock:65300,Pause:65299,PrintScreen:65377,ContextMenu:65383,Menu:65383," ":32};for(let $=1;$<=12;$+=1)Cj[`F${$}`]=65470+($-1);var Ij=new Uint8Array(256);for(let $=0;$<256;$+=1){let j=0;for(let q=0;q<8;q+=1)j=j<<1|$>>q&1;Ij[$]=j}var tQ=String(Date.now());var XJ=String(Date.now());class E8{tabs=new Map;activeId=null;mruOrder=[];listeners=new Set;onChange($){return this.listeners.add($),()=>this.listeners.delete($)}notify(){let $=this.getTabs(),j=this.activeId;for(let q of this.listeners)try{q($,j)}catch(B){console.warn("[tab-store] Change listener failed:",B)}}open($,j){let q=this.tabs.get($);if(!q)q={id:$,label:j||$.split("/").pop()||$,path:$,dirty:!1,pinned:!1},this.tabs.set($,q);return this.activate($),q}activate($){if(!this.tabs.has($))return;this.activeId=$,this.mruOrder=[$,...this.mruOrder.filter((j)=>j!==$)],this.notify()}close($){if(!this.tabs.get($))return!1;if(this.tabs.delete($),this.mruOrder=this.mruOrder.filter((q)=>q!==$),this.activeId===$)this.activeId=this.mruOrder[0]||null;return this.notify(),!0}closeOthers($){for(let[j,q]of this.tabs)if(j!==$&&!q.pinned)this.tabs.delete(j),this.mruOrder=this.mruOrder.filter((B)=>B!==j);if(this.activeId&&!this.tabs.has(this.activeId))this.activeId=$;this.notify()}closeAll(){for(let[$,j]of this.tabs)if(!j.pinned)this.tabs.delete($),this.mruOrder=this.mruOrder.filter((q)=>q!==$);if(this.activeId&&!this.tabs.has(this.activeId))this.activeId=this.mruOrder[0]||null;this.notify()}setDirty($,j){let q=this.tabs.get($);if(!q||q.dirty===j)return;q.dirty=j,this.notify()}togglePin($){let j=this.tabs.get($);if(!j)return;j.pinned=!j.pinned,this.notify()}saveViewState($,j){let q=this.tabs.get($);if(q)q.viewState=j}getViewState($){return this.tabs.get($)?.viewState}rename($,j,q){let B=this.tabs.get($);if(!B)return;if(this.tabs.delete($),B.id=j,B.path=j,B.label=q||j.split("/").pop()||j,this.tabs.set(j,B),this.mruOrder=this.mruOrder.map((Q)=>Q===$?j:Q),this.activeId===$)this.activeId=j;this.notify()}getTabs(){return Array.from(this.tabs.values())}getActiveId(){return this.activeId}getActive(){return this.activeId?this.tabs.get(this.activeId)||null:null}get($){return this.tabs.get($)}get size(){return this.tabs.size}hasUnsaved(){for(let $ of this.tabs.values())if($.dirty)return!0;return!1}getDirtyTabs(){return Array.from(this.tabs.values()).filter(($)=>$.dirty)}nextTab(){let $=this.getTabs();if($.length<=1)return;let j=$.findIndex((B)=>B.id===this.activeId),q=$[(j+1)%$.length];this.activate(q.id)}prevTab(){let $=this.getTabs();if($.length<=1)return;let j=$.findIndex((B)=>B.id===this.activeId),q=$[(j-1+$.length)%$.length];this.activate(q.id)}mruSwitch(){if(this.mruOrder.length>1)this.activate(this.mruOrder[1])}}var Tj=new E8;function P8($){try{return $?.focus?.(),$?.select?.(),!0}catch(j){return!1}}var Q5="workspaceExplorerScale",Mj=["compact","default","comfortable"],Sj=new Set(Mj),yj={compact:{indentPx:14},default:{indentPx:16},comfortable:{indentPx:18}};function f8($,j="default"){if(typeof $!=="string")return j;let q=$.trim().toLowerCase();return Sj.has(q)?q:j}function Z3(){if(typeof window>"u")return{width:0,isTouch:!1};let $=Number(window.innerWidth)||0,j=Boolean(window.matchMedia?.("(pointer: coarse)")?.matches),q=Boolean(window.matchMedia?.("(hover: none)")?.matches),B=Number(globalThis.navigator?.maxTouchPoints||0)>0;return{width:$,isTouch:j||B&&q}}function kj($={}){let j=Math.max(0,Number($.width)||0);if(Boolean($.isTouch))return"comfortable";if(j>0&&j<1180)return"comfortable";return"default"}function Rj($,j={}){if(Boolean(j.isTouch)&&$==="compact")return"default";return $}function F3($={}){let j=kj($),q=$.stored?f8($.stored,j):j;return Rj(q,$)}function w8($){return yj[f8($)]}function Ej($){if(!$||$.kind!=="text")return!1;let j=Number($.size);return!Number.isFinite(j)||j<=262144}function H3($,j){let q=String($||"").trim();if(!q||q.endsWith("/"))return!1;if(typeof j!=="function")return!1;let B=j({path:q,mode:"edit"});if(!B||typeof B!=="object")return!1;return B.id!=="editor"}function x8($,j,q={}){let B=q.resolvePane;if(H3($,B))return!0;return Ej(j)}var Pj=60000,m8=($)=>{if(!$||!$.name)return!1;if($.path===".")return!1;return $.name.startsWith(".")};function fj($){let j=String($||"").trim();if(!j||j.endsWith("/"))return!1;return H3(j,(q)=>d0.resolve(q))}function h8($,j,q,B=0,Q=[]){if(!q&&m8($))return Q;if(!$)return Q;if(Q.push({node:$,depth:B}),$.type==="dir"&&$.children&&j.has($.path))for(let J of $.children)h8(J,j,q,B+1,Q);return Q}function b8($,j,q){if(!$)return"";let B=[],Q=(J)=>{if(!q&&m8(J))return;if(B.push(J.type==="dir"?`d:${J.path}`:`f:${J.path}`),J.children&&j?.has(J.path))for(let K of J.children)Q(K)};return Q($),B.join("|")}function C3($,j){if(!j)return null;if(!$)return j;if($.path!==j.path||$.type!==j.type)return j;let q=Array.isArray($.children)?$.children:null,B=Array.isArray(j.children)?j.children:null;if(!B)return $;let Q=q?new Map(q.map((X)=>[X?.path,X])):new Map,J=!q||q.length!==B.length,K=B.map((X)=>{let z=C3(Q.get(X.path),X);if(z!==Q.get(X.path))J=!0;return z});return J?{...j,children:K}:$}function A3($,j,q){if(!$)return $;if($.path===j)return C3($,q);if(!Array.isArray($.children))return $;let B=!1,Q=$.children.map((J)=>{let K=A3(J,j,q);if(K!==J)B=!0;return K});return B?{...$,children:Q}:$}var p8=4,Y3=14,wj=8,xj=16;function c8($){if(!$)return 0;if($.type==="file"){let B=Math.max(0,Number($.size)||0);return $.__bytes=B,B}let j=Array.isArray($.children)?$.children:[],q=0;for(let B of j)q+=c8(B);return $.__bytes=q,q}function d8($,j=0){let q=Math.max(0,Number($?.__bytes??$?.size??0)),B={name:$?.name||$?.path||".",path:$?.path||".",size:q,children:[]};if(!$||$.type!=="dir"||j>=p8)return B;let Q=Array.isArray($.children)?$.children:[],J=[];for(let X of Q){let z=Math.max(0,Number(X?.__bytes??X?.size??0));if(z<=0)continue;if(X.type==="dir")J.push({kind:"dir",node:X,size:z});else J.push({kind:"file",name:X.name,path:X.path,size:z})}J.sort((X,z)=>z.size-X.size);let K=J;if(J.length>Y3){let X=J.slice(0,Y3-1),z=J.slice(Y3-1),U=z.reduce((L,N)=>L+N.size,0);X.push({kind:"other",name:`+${z.length} more`,path:`${B.path}/[other]`,size:U}),K=X}return B.children=K.map((X)=>{if(X.kind==="dir")return d8(X.node,j+1);return{name:X.name,path:X.path,size:X.size,children:[]}}),B}function v8(){if(typeof window>"u"||typeof document>"u")return!1;let{documentElement:$,body:j}=document,q=$?.getAttribute?.("data-theme")?.toLowerCase?.()||"";if(q==="dark")return!0;if(q==="light")return!1;if($?.classList?.contains("dark")||j?.classList?.contains("dark"))return!0;if($?.classList?.contains("light")||j?.classList?.contains("light"))return!1;return Boolean(window.matchMedia?.("(prefers-color-scheme: dark)")?.matches)}function l8($,j,q){let B=(($+Math.PI/2)*180/Math.PI+360)%360,Q=q?Math.max(30,70-j*10):Math.max(34,66-j*8),J=q?Math.min(70,45+j*5):Math.min(60,42+j*4);return`hsl(${B.toFixed(1)} ${Q}% ${J}%)`}function J5($,j,q,B){return{x:$+q*Math.cos(B),y:j+q*Math.sin(B)}}function I3($,j,q,B,Q,J){let K=Math.PI*2-0.0001,X=J-Q>K?Q+K:J,z=J5($,j,B,Q),U=J5($,j,B,X),L=J5($,j,q,X),N=J5($,j,q,Q),V=X-Q>Math.PI?1:0;return[`M ${z.x.toFixed(3)} ${z.y.toFixed(3)}`,`A ${B} ${B} 0 ${V} 1 ${U.x.toFixed(3)} ${U.y.toFixed(3)}`,`L ${L.x.toFixed(3)} ${L.y.toFixed(3)}`,`A ${q} ${q} 0 ${V} 0 ${N.x.toFixed(3)} ${N.y.toFixed(3)}`,"Z"].join(" ")}var r8={1:[26,46],2:[48,68],3:[70,90],4:[92,112]};function i8($,j,q){let B=[],Q=[],J=Math.max(0,Number(j)||0),K=(X,z,U,L)=>{let N=Array.isArray(X?.children)?X.children:[];if(!N.length)return;let V=Math.max(0,Number(X.size)||0);if(V<=0)return;let O=U-z,g=z;N.forEach((h,p)=>{let d=Math.max(0,Number(h.size)||0);if(d<=0)return;let P=d/V,t=g,v=p===N.length-1?U:g+O*P;if(g=v,v-t<0.003)return;let e=r8[L];if(e){let W1=l8(t,L,q);if(B.push({key:h.path,path:h.path,label:h.name,size:d,color:W1,depth:L,startAngle:t,endAngle:v,innerRadius:e[0],outerRadius:e[1],d:I3(120,120,e[0],e[1],t,v)}),L===1)Q.push({key:h.path,name:h.name,size:d,pct:J>0?d/J*100:0,color:W1})}if(L<p8)K(h,t,v,L+1)})};return K($,-Math.PI/2,Math.PI*3/2,1),{segments:B,legend:Q}}function D3($,j){if(!$||!j)return null;if($.path===j)return $;let q=Array.isArray($.children)?$.children:[];for(let B of q){let Q=D3(B,j);if(Q)return Q}return null}function n8($,j,q,B){if(!q||q<=0)return{segments:[],legend:[]};let Q=r8[1];if(!Q)return{segments:[],legend:[]};let J=-Math.PI/2,K=Math.PI*3/2,X=l8(J,1,B),U=`${j||"."}/[files]`;return{segments:[{key:U,path:U,label:$,size:q,color:X,depth:1,startAngle:J,endAngle:K,innerRadius:Q[0],outerRadius:Q[1],d:I3(120,120,Q[0],Q[1],J,K)}],legend:[{key:U,name:$,size:q,pct:100,color:X}]}}function u8($,j=!1,q=!1){if(!$)return null;let B=c8($),Q=d8($,0),J=Q.size||B,{segments:K,legend:X}=i8(Q,J,q);if(!K.length&&J>0){let z=n8("[files]",Q.path,J,q);K=z.segments,X=z.legend}return{root:Q,totalSize:J,segments:K,legend:X,truncated:j,isDarkTheme:q}}function bj({payload:$}){if(!$)return null;let[j,q]=M(null),[B,Q]=M($?.root?.path||"."),[J,K]=M(()=>[$?.root?.path||"."]),[X,z]=M(!1);w(()=>{let x=$?.root?.path||".";Q(x),K([x]),q(null)},[$?.root?.path,$?.totalSize]),w(()=>{if(!B)return;z(!0);let x=setTimeout(()=>z(!1),180);return()=>clearTimeout(x)},[B]);let U=H1(()=>{return D3($.root,B)||$.root},[$?.root,B]),L=U?.size||$.totalSize||0,{segments:N,legend:V}=H1(()=>{let x=i8(U,L,$.isDarkTheme);if(x.segments.length>0)return x;if(L<=0)return x;let U1=U?.children?.length?"Total":"[files]";return n8(U1,U?.path||$?.root?.path||".",L,$.isDarkTheme)},[U,L,$.isDarkTheme,$?.root?.path]),[O,g]=M(N),h=T(new Map),p=T(0);w(()=>{let x=h.current,U1=new Map(N.map((l)=>[l.key,l])),E1=performance.now(),b1=220,P1=(l)=>{let s=Math.min(1,(l-E1)/220),Q1=s*(2-s),_1=N.map((D)=>{let L1=x.get(D.key)||{startAngle:D.startAngle,endAngle:D.startAngle,innerRadius:D.innerRadius,outerRadius:D.innerRadius},j1=(C1,j0)=>C1+(j0-C1)*Q1,M1=j1(L1.startAngle,D.startAngle),R1=j1(L1.endAngle,D.endAngle),Y1=j1(L1.innerRadius,D.innerRadius),p1=j1(L1.outerRadius,D.outerRadius);return{...D,d:I3(120,120,Y1,p1,M1,R1)}});if(g(_1),s<1)p.current=requestAnimationFrame(P1)};if(p.current)cancelAnimationFrame(p.current);return p.current=requestAnimationFrame(P1),h.current=U1,()=>{if(p.current)cancelAnimationFrame(p.current)}},[N]);let d=O.length?O:N,P=L>0?X2(L):"0 B",t=U?.name||"",e=(t&&t!=="."?t:"Total")||"Total",W1=P,D1=J.length>1,N1=(x)=>{if(!x?.path)return;let U1=D3($.root,x.path);if(!U1||!Array.isArray(U1.children)||U1.children.length===0)return;K((E1)=>[...E1,U1.path]),Q(U1.path),q(null)},X1=()=>{if(!D1)return;K((x)=>{let U1=x.slice(0,-1);return Q(U1[U1.length-1]||$?.root?.path||"."),U1}),q(null)};return G`
+    `}class $${extensions=new Map;register($){this.extensions.set($.id,$)}unregister($){this.extensions.delete($)}resolve($){let j,q=-1/0;for(let B of this.extensions.values()){if(B.placement!=="tabs")continue;if(!B.canHandle)continue;try{let _=B.canHandle($);if(_===!1||_===0)continue;let Q=_===!0?0:typeof _==="number"?_:0;if(Q>q)q=Q,j=B}catch(_){console.warn(`[PaneRegistry] canHandle() error for "${B.id}":`,_)}}return j}list(){return Array.from(this.extensions.values())}getDockPanes(){return Array.from(this.extensions.values()).filter(($)=>$.placement==="dock")}getTabPanes(){return Array.from(this.extensions.values()).filter(($)=>$.placement==="tabs")}get($){return this.extensions.get($)}get size(){return this.extensions.size}}var n0=new $$;var qQ=Symbol();var BQ=new TextDecoder("utf-16le",{fatal:!0});Object.hasOwn=Object.hasOwn||function($,j){return Object.prototype.hasOwnProperty.call($,j)};var qq={Backspace:65288,Tab:65289,Enter:65293,Escape:65307,Insert:65379,Delete:65535,Home:65360,End:65367,PageUp:65365,PageDown:65366,ArrowLeft:65361,ArrowUp:65362,ArrowRight:65363,ArrowDown:65364,Shift:65505,ShiftLeft:65505,ShiftRight:65506,Control:65507,ControlLeft:65507,ControlRight:65508,Alt:65513,AltLeft:65513,AltRight:65514,Meta:65515,MetaLeft:65515,MetaRight:65516,Super:65515,Super_L:65515,Super_R:65516,CapsLock:65509,NumLock:65407,ScrollLock:65300,Pause:65299,PrintScreen:65377,ContextMenu:65383,Menu:65383," ":32};for(let $=1;$<=12;$+=1)qq[`F${$}`]=65470+($-1);var Bq=new Uint8Array(256);for(let $=0;$<256;$+=1){let j=0;for(let q=0;q<8;q+=1)j=j<<1|$>>q&1;Bq[$]=j}var jU=String(Date.now());var KU=String(Date.now());class j${tabs=new Map;activeId=null;mruOrder=[];listeners=new Set;onChange($){return this.listeners.add($),()=>this.listeners.delete($)}notify(){let $=this.getTabs(),j=this.activeId;for(let q of this.listeners)try{q($,j)}catch(B){console.warn("[tab-store] Change listener failed:",B)}}open($,j){let q=this.tabs.get($);if(!q)q={id:$,label:j||$.split("/").pop()||$,path:$,dirty:!1,pinned:!1},this.tabs.set($,q);return this.activate($),q}activate($){if(!this.tabs.has($))return;this.activeId=$,this.mruOrder=[$,...this.mruOrder.filter((j)=>j!==$)],this.notify()}close($){if(!this.tabs.get($))return!1;if(this.tabs.delete($),this.mruOrder=this.mruOrder.filter((q)=>q!==$),this.activeId===$)this.activeId=this.mruOrder[0]||null;return this.notify(),!0}closeOthers($){for(let[j,q]of this.tabs)if(j!==$&&!q.pinned)this.tabs.delete(j),this.mruOrder=this.mruOrder.filter((B)=>B!==j);if(this.activeId&&!this.tabs.has(this.activeId))this.activeId=$;this.notify()}closeAll(){for(let[$,j]of this.tabs)if(!j.pinned)this.tabs.delete($),this.mruOrder=this.mruOrder.filter((q)=>q!==$);if(this.activeId&&!this.tabs.has(this.activeId))this.activeId=this.mruOrder[0]||null;this.notify()}setDirty($,j){let q=this.tabs.get($);if(!q||q.dirty===j)return;q.dirty=j,this.notify()}togglePin($){let j=this.tabs.get($);if(!j)return;j.pinned=!j.pinned,this.notify()}saveViewState($,j){let q=this.tabs.get($);if(q)q.viewState=j}getViewState($){return this.tabs.get($)?.viewState}rename($,j,q){let B=this.tabs.get($);if(!B)return;if(this.tabs.delete($),B.id=j,B.path=j,B.label=q||j.split("/").pop()||j,this.tabs.set(j,B),this.mruOrder=this.mruOrder.map((_)=>_===$?j:_),this.activeId===$)this.activeId=j;this.notify()}getTabs(){return Array.from(this.tabs.values())}getActiveId(){return this.activeId}getActive(){return this.activeId?this.tabs.get(this.activeId)||null:null}get($){return this.tabs.get($)}get size(){return this.tabs.size}hasUnsaved(){for(let $ of this.tabs.values())if($.dirty)return!0;return!1}getDirtyTabs(){return Array.from(this.tabs.values()).filter(($)=>$.dirty)}nextTab(){let $=this.getTabs();if($.length<=1)return;let j=$.findIndex((B)=>B.id===this.activeId),q=$[(j+1)%$.length];this.activate(q.id)}prevTab(){let $=this.getTabs();if($.length<=1)return;let j=$.findIndex((B)=>B.id===this.activeId),q=$[(j-1+$.length)%$.length];this.activate(q.id)}mruSwitch(){if(this.mruOrder.length>1)this.activate(this.mruOrder[1])}}var Qq=new j$;function q$($){try{return $?.focus?.(),$?.select?.(),!0}catch(j){return!1}}var V5="workspaceExplorerScale",Uq=["compact","default","comfortable"],Xq=new Set(Uq),Wq={compact:{indentPx:14},default:{indentPx:16},comfortable:{indentPx:18}};function B$($,j="default"){if(typeof $!=="string")return j;let q=$.trim().toLowerCase();return Xq.has(q)?q:j}function S3(){if(typeof window>"u")return{width:0,isTouch:!1};let $=Number(window.innerWidth)||0,j=Boolean(window.matchMedia?.("(pointer: coarse)")?.matches),q=Boolean(window.matchMedia?.("(hover: none)")?.matches),B=Number(globalThis.navigator?.maxTouchPoints||0)>0;return{width:$,isTouch:j||B&&q}}function Jq($={}){let j=Math.max(0,Number($.width)||0);if(Boolean($.isTouch))return"comfortable";if(j>0&&j<1180)return"comfortable";return"default"}function Kq($,j={}){if(Boolean(j.isTouch)&&$==="compact")return"default";return $}function k3($={}){let j=Jq($),q=$.stored?B$($.stored,j):j;return Kq(q,$)}function _$($){return Wq[B$($)]}function zq($){if(!$||$.kind!=="text")return!1;let j=Number($.size);return!Number.isFinite(j)||j<=262144}function E3($,j){let q=String($||"").trim();if(!q||q.endsWith("/"))return!1;if(typeof j!=="function")return!1;let B=j({path:q,mode:"edit"});if(!B||typeof B!=="object")return!1;return B.id!=="editor"}function Q$($,j,q={}){let B=q.resolvePane;if(E3($,B))return!0;return zq(j)}var Gq=60000,K$=($)=>{if(!$||!$.name)return!1;if($.path===".")return!1;return $.name.startsWith(".")};function Zq($){let j=String($||"").trim();if(!j||j.endsWith("/"))return!1;return E3(j,(q)=>n0.resolve(q))}function z$($,j,q,B=0,_=[]){if(!q&&K$($))return _;if(!$)return _;if(_.push({node:$,depth:B}),$.type==="dir"&&$.children&&j.has($.path))for(let Q of $.children)z$(Q,j,q,B+1,_);return _}function U$($,j,q){if(!$)return"";let B=[],_=(Q)=>{if(!q&&K$(Q))return;if(B.push(Q.type==="dir"?`d:${Q.path}`:`f:${Q.path}`),Q.children&&j?.has(Q.path))for(let U of Q.children)_(U)};return _($),B.join("|")}function w3($,j){if(!j)return null;if(!$)return j;if($.path!==j.path||$.type!==j.type)return j;let q=Array.isArray($.children)?$.children:null,B=Array.isArray(j.children)?j.children:null;if(!B)return $;let _=q?new Map(q.map((X)=>[X?.path,X])):new Map,Q=!q||q.length!==B.length,U=B.map((X)=>{let J=w3(_.get(X.path),X);if(J!==_.get(X.path))Q=!0;return J});return Q?{...j,children:U}:$}function P3($,j,q){if(!$)return $;if($.path===j)return w3($,q);if(!Array.isArray($.children))return $;let B=!1,_=$.children.map((Q)=>{let U=P3(Q,j,q);if(U!==Q)B=!0;return U});return B?{...$,children:_}:$}var G$=4,f3=14,Vq=8,Lq=16;function Z$($){if(!$)return 0;if($.type==="file"){let B=Math.max(0,Number($.size)||0);return $.__bytes=B,B}let j=Array.isArray($.children)?$.children:[],q=0;for(let B of j)q+=Z$(B);return $.__bytes=q,q}function V$($,j=0){let q=Math.max(0,Number($?.__bytes??$?.size??0)),B={name:$?.name||$?.path||".",path:$?.path||".",size:q,children:[]};if(!$||$.type!=="dir"||j>=G$)return B;let _=Array.isArray($.children)?$.children:[],Q=[];for(let X of _){let J=Math.max(0,Number(X?.__bytes??X?.size??0));if(J<=0)continue;if(X.type==="dir")Q.push({kind:"dir",node:X,size:J});else Q.push({kind:"file",name:X.name,path:X.path,size:J})}Q.sort((X,J)=>J.size-X.size);let U=Q;if(Q.length>f3){let X=Q.slice(0,f3-1),J=Q.slice(f3-1),W=J.reduce((V,G)=>V+G.size,0);X.push({kind:"other",name:`+${J.length} more`,path:`${B.path}/[other]`,size:W}),U=X}return B.children=U.map((X)=>{if(X.kind==="dir")return V$(X.node,j+1);return{name:X.name,path:X.path,size:X.size,children:[]}}),B}function X$(){if(typeof window>"u"||typeof document>"u")return!1;let{documentElement:$,body:j}=document,q=$?.getAttribute?.("data-theme")?.toLowerCase?.()||"";if(q==="dark")return!0;if(q==="light")return!1;if($?.classList?.contains("dark")||j?.classList?.contains("dark"))return!0;if($?.classList?.contains("light")||j?.classList?.contains("light"))return!1;return Boolean(window.matchMedia?.("(prefers-color-scheme: dark)")?.matches)}function L$($,j,q){let B=(($+Math.PI/2)*180/Math.PI+360)%360,_=q?Math.max(30,70-j*10):Math.max(34,66-j*8),Q=q?Math.min(70,45+j*5):Math.min(60,42+j*4);return`hsl(${B.toFixed(1)} ${_}% ${Q}%)`}function L5($,j,q,B){return{x:$+q*Math.cos(B),y:j+q*Math.sin(B)}}function x3($,j,q,B,_,Q){let U=Math.PI*2-0.0001,X=Q-_>U?_+U:Q,J=L5($,j,B,_),W=L5($,j,B,X),V=L5($,j,q,X),G=L5($,j,q,_),L=X-_>Math.PI?1:0;return[`M ${J.x.toFixed(3)} ${J.y.toFixed(3)}`,`A ${B} ${B} 0 ${L} 1 ${W.x.toFixed(3)} ${W.y.toFixed(3)}`,`L ${V.x.toFixed(3)} ${V.y.toFixed(3)}`,`A ${q} ${q} 0 ${L} 0 ${G.x.toFixed(3)} ${G.y.toFixed(3)}`,"Z"].join(" ")}var N$={1:[26,46],2:[48,68],3:[70,90],4:[92,112]};function F$($,j,q){let B=[],_=[],Q=Math.max(0,Number(j)||0),U=(X,J,W,V)=>{let G=Array.isArray(X?.children)?X.children:[];if(!G.length)return;let L=Math.max(0,Number(X.size)||0);if(L<=0)return;let C=W-J,b=J;G.forEach((c,l)=>{let w=Math.max(0,Number(c.size)||0);if(w<=0)return;let S=w/L,m=b,O=l===G.length-1?W:b+C*S;if(b=O,O-m<0.003)return;let d=N$[V];if(d){let g=L$(m,V,q);if(B.push({key:c.path,path:c.path,label:c.name,size:w,color:g,depth:V,startAngle:m,endAngle:O,innerRadius:d[0],outerRadius:d[1],d:x3(120,120,d[0],d[1],m,O)}),V===1)_.push({key:c.path,name:c.name,size:w,pct:Q>0?w/Q*100:0,color:g})}if(V<G$)U(c,m,O,V+1)})};return U($,-Math.PI/2,Math.PI*3/2,1),{segments:B,legend:_}}function R3($,j){if(!$||!j)return null;if($.path===j)return $;let q=Array.isArray($.children)?$.children:[];for(let B of q){let _=R3(B,j);if(_)return _}return null}function H$($,j,q,B){if(!q||q<=0)return{segments:[],legend:[]};let _=N$[1];if(!_)return{segments:[],legend:[]};let Q=-Math.PI/2,U=Math.PI*3/2,X=L$(Q,1,B),W=`${j||"."}/[files]`;return{segments:[{key:W,path:W,label:$,size:q,color:X,depth:1,startAngle:Q,endAngle:U,innerRadius:_[0],outerRadius:_[1],d:x3(120,120,_[0],_[1],Q,U)}],legend:[{key:W,name:$,size:q,pct:100,color:X}]}}function W$($,j=!1,q=!1){if(!$)return null;let B=Z$($),_=V$($,0),Q=_.size||B,{segments:U,legend:X}=F$(_,Q,q);if(!U.length&&Q>0){let J=H$("[files]",_.path,Q,q);U=J.segments,X=J.legend}return{root:_,totalSize:Q,segments:U,legend:X,truncated:j,isDarkTheme:q}}function Nq({payload:$}){if(!$)return null;let[j,q]=y(null),[B,_]=y($?.root?.path||"."),[Q,U]=y(()=>[$?.root?.path||"."]),[X,J]=y(!1);E(()=>{let f=$?.root?.path||".";_(f),U([f]),q(null)},[$?.root?.path,$?.totalSize]),E(()=>{if(!B)return;J(!0);let f=setTimeout(()=>J(!1),180);return()=>clearTimeout(f)},[B]);let W=B1(()=>{return R3($.root,B)||$.root},[$?.root,B]),V=W?.size||$.totalSize||0,{segments:G,legend:L}=B1(()=>{let f=F$(W,V,$.isDarkTheme);if(f.segments.length>0)return f;if(V<=0)return f;let _1=W?.children?.length?"Total":"[files]";return H$(_1,W?.path||$?.root?.path||".",V,$.isDarkTheme)},[W,V,$.isDarkTheme,$?.root?.path]),[C,b]=y(G),c=M(new Map),l=M(0);E(()=>{let f=c.current,_1=new Map(G.map((s)=>[s.key,s])),Y1=performance.now(),k1=220,O1=(s)=>{let t=Math.min(1,(s-Y1)/220),K1=t*(2-t),G1=G.map((I)=>{let F1=f.get(I.key)||{startAngle:I.startAngle,endAngle:I.startAngle,innerRadius:I.innerRadius,outerRadius:I.innerRadius},X1=(M1,G0)=>M1+(G0-M1)*K1,T1=X1(F1.startAngle,I.startAngle),u1=X1(F1.endAngle,I.endAngle),A1=X1(F1.innerRadius,I.innerRadius),t1=X1(F1.outerRadius,I.outerRadius);return{...I,d:x3(120,120,A1,t1,T1,u1)}});if(b(G1),t<1)l.current=requestAnimationFrame(O1)};if(l.current)cancelAnimationFrame(l.current);return l.current=requestAnimationFrame(O1),c.current=_1,()=>{if(l.current)cancelAnimationFrame(l.current)}},[G]);let w=C.length?C:G,S=V>0?C0(V):"0 B",m=W?.name||"",d=(m&&m!=="."?m:"Total")||"Total",g=S,U1=Q.length>1,k=(f)=>{if(!f?.path)return;let _1=R3($.root,f.path);if(!_1||!Array.isArray(_1.children)||_1.children.length===0)return;U((Y1)=>[...Y1,_1.path]),_(_1.path),q(null)},r=()=>{if(!U1)return;U((f)=>{let _1=f.slice(0,-1);return _(_1[_1.length-1]||$?.root?.path||"."),_1}),q(null)};return K`
         <div class="workspace-folder-starburst">
             <svg viewBox="0 0 240 240" class=${`workspace-folder-starburst-svg${X?" is-zooming":""}`} role="img"
-                aria-label=${`Folder sizes for ${U?.path||$?.root?.path||"."}`}
-                data-segments=${d.length}
-                data-base-size=${L}>
-                ${d.map((x)=>G`
+                aria-label=${`Folder sizes for ${W?.path||$?.root?.path||"."}`}
+                data-segments=${w.length}
+                data-base-size=${V}>
+                ${w.map((f)=>K`
                     <path
-                        key=${x.key}
-                        d=${x.d}
-                        fill=${x.color}
+                        key=${f.key}
+                        d=${f.d}
+                        fill=${f.color}
                         stroke="var(--bg-primary)"
                         stroke-width="1"
-                        class=${`workspace-folder-starburst-segment${j?.key===x.key?" is-hovered":""}`}
-                        onMouseEnter=${()=>q(x)}
+                        class=${`workspace-folder-starburst-segment${j?.key===f.key?" is-hovered":""}`}
+                        onMouseEnter=${()=>q(f)}
                         onMouseLeave=${()=>q(null)}
-                        onTouchStart=${()=>q(x)}
+                        onTouchStart=${()=>q(f)}
                         onTouchEnd=${()=>q(null)}
-                        onClick=${()=>N1(x)}
+                        onClick=${()=>k(f)}
                     >
-                        <title>${x.label} — ${X2(x.size)}</title>
+                        <title>${f.label} — ${C0(f.size)}</title>
                     </path>
                 `)}
                 <g
-                    class=${`workspace-folder-starburst-center-hit${D1?" is-drill":""}`}
-                    onClick=${X1}
+                    class=${`workspace-folder-starburst-center-hit${U1?" is-drill":""}`}
+                    onClick=${r}
                     role="button"
                     aria-label="Zoom out"
                 >
@@ -1433,49 +1603,49 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                         stroke-width="1"
                         class="workspace-folder-starburst-center"
                     />
-                    <text x="120" y="114" text-anchor="middle" class="workspace-folder-starburst-total-label">${e}</text>
-                    <text x="120" y="130" text-anchor="middle" class="workspace-folder-starburst-total-value">${W1}</text>
+                    <text x="120" y="114" text-anchor="middle" class="workspace-folder-starburst-total-label">${d}</text>
+                    <text x="120" y="130" text-anchor="middle" class="workspace-folder-starburst-total-value">${g}</text>
                 </g>
             </svg>
-            ${V.length>0&&G`
+            ${L.length>0&&K`
                 <div class="workspace-folder-starburst-legend">
-                    ${V.slice(0,8).map((x)=>G`
-                        <div key=${x.key} class="workspace-folder-starburst-legend-item">
-                            <span class="workspace-folder-starburst-swatch" style=${`background:${x.color}`}></span>
-                            <span class="workspace-folder-starburst-name" title=${x.name}>${x.name}</span>
-                            <span class="workspace-folder-starburst-size">${X2(x.size)}</span>
-                            <span class="workspace-folder-starburst-pct">${x.pct.toFixed(1)}%</span>
+                    ${L.slice(0,8).map((f)=>K`
+                        <div key=${f.key} class="workspace-folder-starburst-legend-item">
+                            <span class="workspace-folder-starburst-swatch" style=${`background:${f.color}`}></span>
+                            <span class="workspace-folder-starburst-name" title=${f.name}>${f.name}</span>
+                            <span class="workspace-folder-starburst-size">${C0(f.size)}</span>
+                            <span class="workspace-folder-starburst-pct">${f.pct.toFixed(1)}%</span>
                         </div>
                     `)}
                 </div>
             `}
-            ${$.truncated&&G`
+            ${$.truncated&&K`
                 <div class="workspace-folder-starburst-note">Preview is truncated by tree depth/entry limits.</div>
             `}
         </div>
-    `}function g8($){if(typeof document>"u"||!$)return;let j=document.createElement("a");j.href=$,j.setAttribute("download",""),j.rel="noopener",j.style.display="none",document.body.appendChild(j),j.click(),j.remove()}function s8($){switch($?.state){case"indexing":return"Indexing workspace…";case"ready":return"Workspace index ready";case"stale":return"Workspace index may be stale";case"failed":return"Workspace index failed";case"never_indexed":return"Workspace index not built yet";default:return"Checking workspace index…"}}function vj($){if(!$)return"Workspace index status";let j=[s8($)];if($.last_indexed_at)j.push(`Last indexed: ${$.last_indexed_at}`);if(typeof $.indexed_file_count==="number")j.push(`Indexed files: ${$.indexed_file_count}`);if(Array.isArray($.roots)&&$.roots.length)j.push(`Roots: ${$.roots.join(", ")}`);if($.last_error)j.push(`Error: ${$.last_error}`);return j.join(`
-`)}function uj($){let j=$?.target;if(j&&typeof j==="object")return j;return j?.parentElement||null}function gj($){return Boolean($?.closest?.(".workspace-node-icon, .workspace-label-text"))}function mj($,j=null){let q=uj($),B=q?.closest?.(".workspace-row");if(!B)return null;let Q=B.dataset.type,J=B.dataset.path;if(!J||J===".")return null;if(j===J)return null;let K=$?.touches?.[0];if(!K)return null;return{type:Q,path:J,dragPath:gj(q)?J:null,startX:K.clientX,startY:K.clientY}}function o8({onFileSelect:$,visible:j=!0,active:q=void 0,onOpenEditor:B,onOpenTerminalTab:Q,onOpenVncTab:J,onToggleTerminal:K,terminalVisible:X=!1}){let[z,U]=M(null),[L,N]=M(new Set(["."])),[V,O]=M(null),[g,h]=M(null),[p,d]=M(""),[P,t]=M(null),[,v]=M(null),[e,W1]=M(!0),[D1,N1]=M(!1),[X1,x]=M(null),[U1,E1]=M(()=>t3("workspaceShowHidden",!1)),[b1,P1]=M(!1),[l,s]=M(null),[Q1,_1]=M(null),[D,r]=M(null),[L1,j1]=M(!1),[M1,R1]=M(null),[Y1,p1]=M(null),[C1,j0]=M(null),[s1,O0]=M(!1),[K0,f0]=M(()=>v8()),[G0,o1]=M(()=>F3({stored:k0(Q5),...Z3()})),[q0,H0]=M(!1),y1=T(L),X0=T(""),N0=T(null),a1=T(0),t1=T(new Set),a=T(null),z1=T(null),J1=T(new Map),A1=T($),k1=T(B),c1=T(null),f1=T(null),Y0=T(null),e1=T(null),l0=T(null),B0=T(null),m1=T("."),$0=T(0),Z0=T({path:null,dragging:!1,startX:0,startY:0}),A0=T({path:null,dragging:!1,startX:0,startY:0}),h1=T({path:null,timer:0}),Q0=T(!1),D0=T(0),C=T(new Map),b=T(null),E=T(null),i=T(null),n=T(null),V1=T(null),Z1=T(null),G1=T(U1),F1=T(j),Y=T(q??j),S=T(0),$1=T(D),K1=T(b1),c=T(l),O1=T(null),w1=T({x:0,y:0}),T1=T(0),S1=T(null),U0=T(V),I1=T(g),S0=T(null),T0=T(P);A1.current=$,k1.current=B,w(()=>{y1.current=L},[L]),w(()=>{G1.current=U1},[U1]),w(()=>{F1.current=j},[j]),w(()=>{Y.current=q??j},[q,j]),w(()=>{$1.current=D},[D]);let g1=m(()=>{if(!$0.current)return;clearTimeout($0.current),$0.current=0},[]);w(()=>()=>g1(),[g1]),w(()=>{if(typeof window>"u")return;let W=()=>{o1(F3({stored:k0(Q5),...Z3()}))};W();let Z=()=>W(),H=()=>W(),A=(R)=>{if(!R||R.key===null||R.key===Q5)W()};window.addEventListener("resize",Z),window.addEventListener("focus",H),window.addEventListener("storage",A);let k=window.matchMedia?.("(pointer: coarse)"),y=window.matchMedia?.("(hover: none)"),u=(R,q1)=>{if(!R)return;if(R.addEventListener)R.addEventListener("change",q1);else if(R.addListener)R.addListener(q1)},o=(R,q1)=>{if(!R)return;if(R.removeEventListener)R.removeEventListener("change",q1);else if(R.removeListener)R.removeListener(q1)};return u(k,Z),u(y,Z),()=>{window.removeEventListener("resize",Z),window.removeEventListener("focus",H),window.removeEventListener("storage",A),o(k,Z),o(y,Z)}},[]),w(()=>{let W=(Z)=>{let H=Z?.detail?.path;if(!H)return;let A=H.split("/"),k=[];for(let y=1;y<A.length;y++)k.push(A.slice(0,y).join("/"));if(k.length)N((y)=>{let u=new Set(y);u.add(".");for(let o of k)u.add(o);return u});O(H),requestAnimationFrame(()=>{let y=document.querySelector(`[data-path="${CSS.escape(H)}"]`);if(y)y.scrollIntoView({block:"nearest",behavior:"smooth"})})};return window.addEventListener("workspace-reveal-path",W),()=>window.removeEventListener("workspace-reveal-path",W)},[]),w(()=>{K1.current=b1},[b1]),w(()=>{c.current=l},[l]),w(()=>{U0.current=V},[V]),w(()=>{I1.current=g},[g]),w(()=>{T0.current=P},[P]),w(()=>{if(typeof window>"u"||typeof document>"u")return;let W=()=>f0(v8());W();let Z=window.matchMedia?.("(prefers-color-scheme: dark)"),H=()=>W();if(Z?.addEventListener)Z.addEventListener("change",H);else if(Z?.addListener)Z.addListener(H);let A=typeof MutationObserver<"u"?new MutationObserver(()=>W()):null;if(A?.observe(document.documentElement,{attributes:!0,attributeFilter:["class","data-theme"]}),document.body)A?.observe(document.body,{attributes:!0,attributeFilter:["class","data-theme"]});return()=>{if(Z?.removeEventListener)Z.removeEventListener("change",H);else if(Z?.removeListener)Z.removeListener(H);A?.disconnect()}},[]),w(()=>{if(!g)return;let W=l0.current;if(!W)return;let Z=requestAnimationFrame(()=>{P8(W)});return()=>cancelAnimationFrame(Z)},[g]),w(()=>{if(!q0)return;let W=(H)=>{let A=H?.target;if(!(A instanceof Element))return;if(V1.current?.contains(A))return;if(Z1.current?.contains(A))return;H0(!1)},Z=(H)=>{if(H?.key==="Escape")H0(!1),Z1.current?.focus?.()};return document.addEventListener("mousedown",W),document.addEventListener("touchstart",W,{passive:!0}),document.addEventListener("keydown",Z),()=>{document.removeEventListener("mousedown",W),document.removeEventListener("touchstart",W),document.removeEventListener("keydown",Z)}},[q0]);let m2=async(W,Z={})=>{let H=Boolean(Z?.autoOpen),A=String(W||"").trim();N1(!0),t(null),v(null);try{let k=await H6(A,20000);if(H&&A&&x8(A,k,{resolvePane:(y)=>d0.resolve(y)}))return k1.current?.(A,k),k;return t(k),k}catch(k){let y={error:k.message||"Failed to load preview"};return t(y),y}finally{N1(!1)}};c1.current=m2;let h2=m(async()=>{try{let W=await Y6("all");return j0(W),W}catch(W){return console.warn("[workspace-explorer] Failed to load workspace index status:",W),null}},[]);z1.current=h2;let w0=m(()=>{z1.current?.()},[]),B4=async()=>{if(!F1.current)return;try{let W=await c4("",1,G1.current),Z=b8(W.root,y1.current,G1.current);if(Z===X0.current){W1(!1);return}if(X0.current=Z,N0.current=W.root,!a1.current)a1.current=requestAnimationFrame(()=>{a1.current=0,U((H)=>C3(H,N0.current)),W1(!1)})}catch(W){x(W.message||"Failed to load workspace"),W1(!1)}},p2=async(W)=>{if(!W)return;if(t1.current.has(W))return;t1.current.add(W);try{let Z=await c4(W,1,G1.current);U((H)=>A3(H,W,Z.root))}catch(Z){x(Z.message||"Failed to load workspace")}finally{t1.current.delete(W)}};f1.current=p2;let F0=m(()=>{let W=V;if(!W)return".";let Z=J1.current?.get(W);if(Z&&Z.type==="dir")return Z.path;if(W==="."||!W.includes("/"))return".";let H=W.split("/");return H.pop(),H.join("/")||"."},[V]),u0=m((W)=>{let Z=W?.closest?.(".workspace-row");if(!Z)return null;let H=Z.dataset.path,A=Z.dataset.type;if(!H)return null;if(A==="dir")return H;if(H.includes("/")){let k=H.split("/");return k.pop(),k.join("/")||"."}return"."},[]),L0=m((W)=>{return u0(W?.target||null)},[u0]),J0=m((W)=>{$1.current=W,r(W)},[]),V0=m(()=>{let W=h1.current;if(W?.timer)clearTimeout(W.timer);h1.current={path:null,timer:0}},[]),r0=m((W)=>{if(!W||W==="."){V0();return}let Z=J1.current?.get(W);if(!Z||Z.type!=="dir"){V0();return}if(y1.current?.has(W)){V0();return}if(h1.current?.path===W)return;V0();let H=setTimeout(()=>{h1.current={path:null,timer:0},f1.current?.(W),N((A)=>{let k=new Set(A);return k.add(W),k})},600);h1.current={path:W,timer:H}},[V0]),x0=m((W,Z)=>{if(w1.current={x:W,y:Z},T1.current)return;T1.current=requestAnimationFrame(()=>{T1.current=0;let H=O1.current;if(!H)return;let A=w1.current;H.style.transform=`translate(${A.x+12}px, ${A.y+12}px)`})},[]),U2=m((W)=>{if(!W)return;let H=(J1.current?.get(W)?.name||W.split("/").pop()||W).trim();if(!H)return;_1({path:W,label:H})},[]),_2=m(()=>{if(_1(null),T1.current)cancelAnimationFrame(T1.current),T1.current=0;if(O1.current)O1.current.style.transform="translate(-9999px, -9999px)"},[]),Q4=m((W)=>{if(!W)return".";let Z=J1.current?.get(W);if(Z&&Z.type==="dir")return Z.path;if(W==="."||!W.includes("/"))return".";let H=W.split("/");return H.pop(),H.join("/")||"."},[]),R0=m(()=>{h(null),d("")},[]),g0=m((W)=>{if(!W)return;let H=(J1.current?.get(W)?.name||W.split("/").pop()||W).trim();if(!H||W===".")return;h(W),d(H)},[]),z2=m(async()=>{let W=I1.current;if(!W)return;let Z=(p||"").trim();if(!Z){R0();return}let H=J1.current?.get(W),A=(H?.name||W.split("/").pop()||W).trim();if(Z===A){R0();return}try{let y=(await C6(W,Z))?.path||W,u=W.includes("/")?W.split("/").slice(0,-1).join("/")||".":".";if(R0(),x(null),window.dispatchEvent(new CustomEvent("workspace-file-renamed",{detail:{oldPath:W,newPath:y,type:H?.type||"file"}})),H?.type==="dir")N((o)=>{let R=new Set;for(let q1 of o)if(q1===W)R.add(y);else if(q1.startsWith(`${W}/`))R.add(`${y}${q1.slice(W.length)}`);else R.add(q1);return R});if(O(y),H?.type==="dir")t(null),N1(!1),v(null);else c1.current?.(y);f1.current?.(u),w0()}catch(k){x(k?.message||"Failed to rename file")}},[R0,p,w0]),c2=m(async(W)=>{let A=W||".";for(let k=0;k<50;k+=1){let u=`untitled${k===0?"":`-${k}`}.md`;try{let R=(await D6(A,u,""))?.path||(A==="."?u:`${A}/${u}`);if(A&&A!==".")N((q1)=>new Set([...q1,A]));O(R),x(null),f1.current?.(A),c1.current?.(R),w0();return}catch(o){if(o?.status===409||o?.code==="file_exists")continue;x(o?.message||"Failed to create file");return}}x("Failed to create file (untitled name already in use).")},[]),k2=m((W)=>{if(W?.stopPropagation?.(),L1)return;let Z=Q4(U0.current);c2(Z)},[L1,Q4,c2]);w(()=>{if(typeof window>"u")return;let W=(Z)=>{let H=Z?.detail?.updates||[];if(!Array.isArray(H)||H.length===0)return;U((o)=>{let R=o;for(let q1 of H){if(!q1?.root)continue;if(!R||q1.path==="."||!q1.path)R=q1.root;else R=A3(R,q1.path,q1.root)}if(R)X0.current=b8(R,y1.current,G1.current);return W1(!1),R});let A=U0.current;if(Boolean(A)&&H.some((o)=>{let R=o?.path||"";if(!R||R===".")return!0;return A===R||A.startsWith(`${R}/`)||R.startsWith(`${A}/`)}))C.current.clear();if(w0(),!A||!T0.current)return;let y=J1.current?.get(A);if(y&&y.type==="dir")return;if(H.some((o)=>{let R=o?.path||"";if(!R||R===".")return!0;return A===R||A.startsWith(`${R}/`)}))c1.current?.(A)};return window.addEventListener("workspace-update",W),()=>window.removeEventListener("workspace-update",W)},[]),a.current=B4;let J4=T(()=>{if(typeof window>"u")return;let W=window.matchMedia("(min-width: 1024px) and (orientation: landscape)"),Z=Y.current??F1.current,H=document.visibilityState!=="hidden"&&(Z||W.matches&&F1.current);d4(H,G1.current).catch((A)=>{console.debug("[workspace-explorer] Workspace visibility ping failed.",A,{visible:H,showHidden:G1.current})})}).current,i0=T(0),K4=T(()=>{if(i0.current)clearTimeout(i0.current);i0.current=setTimeout(()=>{i0.current=0,J4()},250)}).current;w(()=>{if(F1.current)a.current?.(),z1.current?.();K4()},[j,q]),w(()=>{a.current(),z1.current?.(),J4();let W=setInterval(()=>{a.current(),z1.current?.()},Pj),Z=e3("previewHeight",null),H=Number.isFinite(Z)?Math.min(Math.max(Z,80),600):280;if(D0.current=H,Y0.current)Y0.current.style.setProperty("--preview-height",`${H}px`);let A=window.matchMedia("(min-width: 1024px) and (orientation: landscape)"),k=()=>K4();if(A.addEventListener)A.addEventListener("change",k);else if(A.addListener)A.addListener(k);return document.addEventListener("visibilitychange",k),()=>{if(clearInterval(W),a1.current)cancelAnimationFrame(a1.current),a1.current=0;if(A.removeEventListener)A.removeEventListener("change",k);else if(A.removeListener)A.removeListener(k);if(document.removeEventListener("visibilitychange",k),i0.current)clearTimeout(i0.current),i0.current=0;d4(!1,G1.current).catch((y)=>{console.debug("[workspace-explorer] Workspace visibility teardown ping failed.",y,{showHidden:G1.current})})}},[]);let R2=H1(()=>h8(z,L,U1),[z,L,U1]),X5=H1(()=>new Map(R2.map((W)=>[W.node.path,W.node])),[R2]),X4=H1(()=>w8(G0),[G0]);J1.current=X5;let d1=(V?J1.current.get(V):null)?.type==="dir";w(()=>{if(!V||!d1){p1(null),b.current=null,E.current=null;return}let W=V,Z=`${U1?"hidden":"visible"}:${V}`,H=C.current,A=H.get(Z);if(A?.root){H.delete(Z),H.set(Z,A);let u=u8(A.root,Boolean(A.truncated),K0);if(u)b.current=u,E.current=V,p1({loading:!1,error:null,payload:u});return}let k=b.current,y=E.current;p1({loading:!0,error:null,payload:y===V?k:null}),c4(V,wj,U1).then((u)=>{if(U0.current!==W)return;let o={root:u?.root,truncated:Boolean(u?.truncated)};H.delete(Z),H.set(Z,o);while(H.size>xj){let q1=H.keys().next().value;if(!q1)break;H.delete(q1)}let R=u8(o.root,o.truncated,K0);b.current=R,E.current=V,p1({loading:!1,error:null,payload:R})}).catch((u)=>{if(U0.current!==W)return;p1({loading:!1,error:u?.message||"Failed to load folder size chart",payload:y===V?k:null})})},[V,d1,U1,K0]);let m0=Boolean(P&&P.kind==="text"&&!d1&&(!P.size||P.size<=262144)),U4=m0?"Open in editor":P?.size>262144?"File too large to edit":"File is not editable",n0=Boolean(V&&!d1&&fj(V)),b0=Boolean(V&&V!=="."),U5=Boolean(V&&!d1),_5=Boolean(V&&!d1),$2=V&&d1?c5(V,U1):null,z5=s8(C1),W5=vj(C1),h0=C1?.state||"never_indexed",_4=h0!=="ready",v1=m(()=>H0(!1),[]),l1=m(async(W)=>{v1();try{await W?.()}catch(Z){console.warn("[workspace-explorer] Header menu action failed:",Z)}},[v1]),E2=m(async(W)=>{W?.stopPropagation?.(),O0(!0),j0((Z)=>({scope:"all",last_indexed_at:Z?.last_indexed_at||null,last_error:null,indexed_file_count:Z?.indexed_file_count||0,roots:Z?.roots||[],updated_at:Z?.updated_at||null,state:"indexing"}));try{let Z=await A6("all");j0(Z),x(null),X0.current="",a.current?.()}catch(Z){let H=Z?.message||"Failed to reindex workspace";j0((A)=>({scope:"all",last_indexed_at:A?.last_indexed_at||null,last_error:H,indexed_file_count:A?.indexed_file_count||0,roots:A?.roots||[],updated_at:A?.updated_at||null,state:"failed"})),x(H)}finally{O0(!1)}},[]);w(()=>{let W=i.current;if(n.current)n.current.dispose(),n.current=null;if(!W)return;if(W.innerHTML="",!V||d1||!P||P.error)return;let Z={path:V,content:typeof P.text==="string"?P.text:void 0,mtime:P.mtime,size:P.size,preview:P,mode:"view"},H=d0.resolve(Z)||d0.get("workspace-preview-default");if(!H)return;let A=H.mount(W,Z);return n.current=A,()=>{if(n.current===A)A.dispose(),n.current=null;W.innerHTML=""}},[V,d1,P]);let p0=(W)=>{let Z=W?.target;if(Z instanceof Element)return Z;return Z?.parentElement||null},j2=(W)=>{return Boolean(W?.closest?.(".workspace-node-icon, .workspace-label-text"))},q2=(W)=>{if(!W)return!1;if(W.closest?.('input, textarea, [contenteditable="true"]'))return!0;return Boolean(W.isContentEditable)},P2=T((W)=>{let Z=p0(W),H=Z?.closest?.("[data-path]");if(!H)return;let A=H.dataset.path;if(!A||A===".")return;let k=Boolean(Z?.closest?.("button"))||Boolean(Z?.closest?.("a"))||Boolean(Z?.closest?.("input")),y=Boolean(Z?.closest?.(".workspace-caret"));if(k||y)return;if(I1.current===A)return;g0(A)}).current,s0=T((W)=>{if(Q0.current){Q0.current=!1;return}let Z=p0(W),H=Z?.closest?.("[data-path]");if(e1.current?.focus?.(),!H)return;let A=H.dataset.path,k=H.dataset.type,y=Boolean(Z?.closest?.(".workspace-caret")),u=Boolean(Z?.closest?.("button"))||Boolean(Z?.closest?.("a"))||Boolean(Z?.closest?.("input")),o=U0.current===A,R=I1.current;if(R){if(R===A)return;R0()}if(k==="dir"){if(S0.current=null,O(A),t(null),v(null),N1(!1),!y1.current.has(A))f1.current?.(A);if(o&&!y)return;N((z0)=>{let C0=new Set(z0);if(C0.has(A))C0.delete(A);else C0.add(A);return C0})}else{S0.current=null,O(A);let q1=J1.current.get(A);if(q1)A1.current?.(q1.path,q1);if(!u&&!y)c1.current?.(A)}}).current,v0=T(()=>{X0.current="",a.current(),z1.current?.(),Array.from(y1.current||[]).filter((Z)=>Z&&Z!==".").forEach((Z)=>f1.current?.(Z))}).current,y0=T(()=>{S0.current=null,O(null),t(null),v(null),N1(!1)}).current,B2=T(()=>{E1((W)=>{let Z=!W;if(typeof window<"u")E0("workspaceShowHidden",String(Z));return G1.current=Z,d4(!0,Z).catch((A)=>{console.debug("[workspace-explorer] Workspace visibility refresh after toggling hidden files failed.",A,{showHidden:Z})}),X0.current="",a.current?.(),Array.from(y1.current||[]).filter((A)=>A&&A!==".").forEach((A)=>f1.current?.(A)),Z})}).current,z4=T((W)=>{if(p0(W)?.closest?.("[data-path]"))return;y0()}).current,G2=m(async(W)=>{if(!W)return;let Z=W.split("/").pop()||W;if(!window.confirm(`Delete "${Z}"? This cannot be undone.`))return;try{await O6(W);let A=W.includes("/")?W.split("/").slice(0,-1).join("/")||".":".";if(U0.current===W)y0();f1.current?.(A),x(null),w0()}catch(A){t((k)=>({...k||{},error:A.message||"Failed to delete file"}))}},[y0]),N2=m((W)=>{let Z=e1.current;if(!Z||!W||typeof CSS>"u"||typeof CSS.escape!=="function")return;Z.querySelector(`[data-path="${CSS.escape(W)}"]`)?.scrollIntoView?.({block:"nearest"})},[]),d2=m((W)=>{let Z=p0(W);if(I1.current||q2(Z))return;let H=R2;if(!H||H.length===0)return;let A=V?H.findIndex((k)=>k.node.path===V):-1;if(W.key==="ArrowDown"){W.preventDefault();let k=Math.min(A+1,H.length-1),y=H[k];if(!y)return;if(O(y.node.path),y.node.type!=="dir")A1.current?.(y.node.path,y.node),c1.current?.(y.node.path);else t(null),N1(!1),v(null);N2(y.node.path);return}if(W.key==="ArrowUp"){W.preventDefault();let k=A<=0?0:A-1,y=H[k];if(!y)return;if(O(y.node.path),y.node.type!=="dir")A1.current?.(y.node.path,y.node),c1.current?.(y.node.path);else t(null),N1(!1),v(null);N2(y.node.path);return}if(W.key==="ArrowRight"&&A>=0){let k=H[A];if(k?.node?.type==="dir"&&!L.has(k.node.path))W.preventDefault(),f1.current?.(k.node.path),N((y)=>new Set([...y,k.node.path]));return}if(W.key==="ArrowLeft"&&A>=0){let k=H[A];if(k?.node?.type==="dir"&&L.has(k.node.path))W.preventDefault(),N((y)=>{let u=new Set(y);return u.delete(k.node.path),u});return}if(W.key==="Enter"&&A>=0){W.preventDefault();let k=H[A];if(!k)return;let y=k.node.path;if(k.node.type==="dir"){if(!y1.current.has(y))f1.current?.(y);N((o)=>{let R=new Set(o);if(R.has(y))R.delete(y);else R.add(y);return R}),t(null),v(null),N1(!1)}else A1.current?.(y,k.node),c1.current?.(y);return}if((W.key==="Delete"||W.key==="Backspace")&&A>=0){let k=H[A];if(!k||k.node.type==="dir")return;W.preventDefault(),G2(k.node.path);return}if(W.key==="Escape")W.preventDefault(),y0()},[y0,G2,L,R2,N2,V]),G5=m((W)=>{let Z=mj(W,I1.current);if(!Z)return;Z0.current={path:Z.dragPath,dragging:!1,startX:Z.startX,startY:Z.startY}},[]),l2=m(()=>{let W=Z0.current;if(W?.dragging&&W.path){let Z=$1.current||F0(),H=S1.current;if(typeof H==="function")H(W.path,Z)}Z0.current={path:null,dragging:!1,startX:0,startY:0},S.current=0,P1(!1),s(null),J0(null),V0(),_2()},[F0,_2,J0,V0]),W4=m((W)=>{let Z=Z0.current,H=W?.touches?.[0];if(!H||!Z?.path)return;let A=Math.abs(H.clientX-Z.startX),k=Math.abs(H.clientY-Z.startY),y=A>8||k>8;if(!Z.dragging&&y)Z.dragging=!0,P1(!0),s("move"),U2(Z.path);if(Z.dragging){W.preventDefault(),x0(H.clientX,H.clientY);let u=document.elementFromPoint(H.clientX,H.clientY),o=u0(u)||F0();if($1.current!==o)J0(o);r0(o)}},[u0,F0,U2,x0,J0,r0]),N5=T((W)=>{W.preventDefault();let Z=Y0.current;if(!Z)return;let H=W.clientY,A=D0.current||280,k=W.currentTarget;k.classList.add("dragging"),document.body.style.cursor="row-resize",document.body.style.userSelect="none";let y=H,u=(R)=>{y=R.clientY;let q1=Z.clientHeight-80,z0=Math.min(Math.max(A-(R.clientY-H),80),q1);Z.style.setProperty("--preview-height",`${z0}px`),D0.current=z0},o=()=>{let R=Z.clientHeight-80,q1=Math.min(Math.max(A-(y-H),80),R);D0.current=q1,k.classList.remove("dragging"),document.body.style.cursor="",document.body.style.userSelect="",E0("previewHeight",String(Math.round(q1))),document.removeEventListener("mousemove",u),document.removeEventListener("mouseup",o)};document.addEventListener("mousemove",u),document.addEventListener("mouseup",o)}).current,G4=T((W)=>{W.preventDefault();let Z=Y0.current;if(!Z)return;let H=W.touches[0];if(!H)return;let A=H.clientY,k=D0.current||280,y=W.currentTarget;y.classList.add("dragging"),document.body.style.userSelect="none";let u=(R)=>{let q1=R.touches[0];if(!q1)return;R.preventDefault();let z0=Z.clientHeight-80,C0=Math.min(Math.max(k-(q1.clientY-A),80),z0);Z.style.setProperty("--preview-height",`${C0}px`),D0.current=C0},o=()=>{y.classList.remove("dragging"),document.body.style.userSelect="",E0("previewHeight",String(Math.round(D0.current||k))),document.removeEventListener("touchmove",u),document.removeEventListener("touchend",o),document.removeEventListener("touchcancel",o)};document.addEventListener("touchmove",u,{passive:!1}),document.addEventListener("touchend",o),document.addEventListener("touchcancel",o)}).current,N4=m((W=V)=>{if(!W)return;g8(d5(W))},[V]),o0=async()=>{if(!V||d1)return;await G2(V)},c0=(W)=>{return Array.from(W?.dataTransfer?.types||[]).includes("Files")},L4=m((W)=>{if(!c0(W))return;if(W.preventDefault(),S.current+=1,!K1.current)P1(!0);s("upload");let Z=L0(W)||F0();J0(Z),r0(Z)},[F0,L0,J0,r0]),V4=m((W)=>{if(!c0(W))return;if(W.preventDefault(),W.dataTransfer)W.dataTransfer.dropEffect="copy";if(!K1.current)P1(!0);if(c.current!=="upload")s("upload");let Z=L0(W)||F0();if($1.current!==Z)J0(Z);r0(Z)},[F0,L0,J0,r0]),r2=m((W)=>{if(!c0(W))return;if(W.preventDefault(),S.current=Math.max(0,S.current-1),S.current===0)P1(!1),s(null),J0(null),V0()},[J0,V0]),L2=m(async(W,Z=".")=>{let H=Array.from(W||[]);if(H.length===0)return;let A=Z&&Z!==""?Z:".",k=A!=="."?A:"workspace root";g1(),j1(!0),R1({current:0,total:H.length,name:"",percent:0,done:!1,error:null});try{let y=null;for(let u=0;u<H.length;u++){let o=H[u],R=o?.name||`file ${u+1}`;R1((z0)=>({...z0,current:u+1,name:R,percent:0}));let q1=(z0)=>R1((C0)=>({...C0,percent:z0.percent}));try{y=await p5(o,A,{onProgress:q1})}catch(z0){let C0=z0?.status,Z2=z0?.code;if(C0===409||Z2==="file_exists"){if(!window.confirm(`"${R}" already exists in ${k}. Overwrite?`))continue;y=await p5(o,A,{overwrite:!0,onProgress:q1})}else throw z0}}if(y?.path)S0.current=y.path,O(y.path),c1.current?.(y.path);f1.current?.(A),w0(),R1((u)=>({...u,done:!0})),g1(),$0.current=window.setTimeout(()=>{$0.current=0,R1(null)},1500)}catch(y){x(y.message||"Failed to upload file"),R1((u)=>u?{...u,error:y.message||"Upload failed"}:null),g1(),$0.current=window.setTimeout(()=>{$0.current=0,R1(null)},4000)}finally{j1(!1)}},[g1]),Z4=m(async(W,Z)=>{if(!W)return;let H=J1.current?.get(W);if(!H)return;let A=Z&&Z!==""?Z:".",k=W.includes("/")?W.split("/").slice(0,-1).join("/")||".":".";if(A===k)return;try{let u=(await I6(W,A))?.path||W;if(H.type==="dir")N((o)=>{let R=new Set;for(let q1 of o)if(q1===W)R.add(u);else if(q1.startsWith(`${W}/`))R.add(`${u}${q1.slice(W.length)}`);else R.add(q1);return R});if(O(u),H.type==="dir")t(null),N1(!1),v(null);else c1.current?.(u);f1.current?.(k),f1.current?.(A),w0()}catch(y){x(y?.message||"Failed to move entry")}},[]);S1.current=Z4;let F4=m(async(W)=>{if(!c0(W))return;W.preventDefault(),S.current=0,P1(!1),s(null),r(null),V0();let Z=Array.from(W?.dataTransfer?.files||[]);if(Z.length===0)return;let H=$1.current||L0(W)||F0();await L2(Z,H)},[F0,L0,L2]),H4=m((W)=>{if(W?.stopPropagation?.(),L1)return;let Z=W?.currentTarget?.dataset?.uploadTarget||".";m1.current=Z,B0.current?.click()},[L1]),f2=m(()=>{if(L1)return;let W=U0.current,Z=W?J1.current?.get(W):null;m1.current=Z?.type==="dir"?Z.path:".",B0.current?.click()},[L1]),L5=m(()=>{l1(()=>k2(null))},[l1,k2]),_0=m(()=>{l1(()=>f2())},[l1,f2]),Y4=m(()=>{l1(()=>v0())},[l1,v0]),A4=m(()=>{l1(()=>B2())},[l1,B2]),D4=m(()=>{if(!V||!n0)return;l1(()=>k1.current?.(V,P))},[l1,V,n0,P]),V2=m(()=>{if(!V||!m0)return;l1(()=>k1.current?.(V,P))},[l1,V,m0,P]),V5=m(()=>{if(!V||V===".")return;l1(()=>g0(V))},[l1,V,g0]),Z5=m(()=>{if(!V||d1)return;l1(()=>o0())},[l1,V,d1,o0]),C4=m(()=>{if(!V||d1)return;l1(()=>N4())},[l1,V,d1,N4]),F5=m(()=>{if(!$2)return;v1(),g8($2)},[v1,$2]),i2=m(()=>{v1(),Q?.()},[v1,Q]),H5=m(()=>{v1(),J?.()},[v1,J]),Y5=m(()=>{v1(),K?.()},[v1,K]),A5=m((W)=>{if(!W||W.button!==0)return;let Z=W.currentTarget;if(!Z||!Z.dataset)return;let H=Z.dataset.path;if(!H||H===".")return;if(I1.current===H)return;let A=p0(W);if(A?.closest?.("button, a, input, .workspace-caret"))return;if(!j2(A))return;W.preventDefault(),A0.current={path:H,dragging:!1,startX:W.clientX,startY:W.clientY};let k=(u)=>{let o=A0.current;if(!o?.path)return;let R=Math.abs(u.clientX-o.startX),q1=Math.abs(u.clientY-o.startY),z0=R>4||q1>4;if(!o.dragging&&z0)o.dragging=!0,Q0.current=!0,P1(!0),s("move"),U2(o.path),x0(u.clientX,u.clientY),document.body.style.userSelect="none",document.body.style.cursor="grabbing";if(o.dragging){u.preventDefault(),x0(u.clientX,u.clientY);let C0=document.elementFromPoint(u.clientX,u.clientY),Z2=u0(C0)||F0();if($1.current!==Z2)J0(Z2);r0(Z2)}},y=()=>{document.removeEventListener("mousemove",k),document.removeEventListener("mouseup",y);let u=A0.current;if(u?.dragging&&u.path){let o=$1.current||F0(),R=S1.current;if(typeof R==="function")R(u.path,o)}A0.current={path:null,dragging:!1,startX:0,startY:0},S.current=0,P1(!1),s(null),J0(null),V0(),_2(),document.body.style.userSelect="",document.body.style.cursor="",setTimeout(()=>{Q0.current=!1},0)};document.addEventListener("mousemove",k),document.addEventListener("mouseup",y)},[u0,F0,U2,x0,_2,J0,r0,V0]),D5=m(async(W)=>{let Z=Array.from(W?.target?.files||[]);if(Z.length===0)return;let H=m1.current||".";if(await L2(Z,H),m1.current=".",W?.target)W.target.value=""},[L2]);return G`
+    `}function J$($){if(typeof document>"u"||!$)return;let j=document.createElement("a");j.href=$,j.setAttribute("download",""),j.rel="noopener",j.style.display="none",document.body.appendChild(j),j.click(),j.remove()}function Y$($){switch($?.state){case"indexing":return"Indexing workspace…";case"ready":return"Workspace index ready";case"stale":return"Workspace index may be stale";case"failed":return"Workspace index failed";case"never_indexed":return"Workspace index not built yet";default:return"Checking workspace index…"}}function Fq($){if(!$)return"Workspace index status";let j=[Y$($)];if($.last_indexed_at)j.push(`Last indexed: ${$.last_indexed_at}`);if(typeof $.indexed_file_count==="number")j.push(`Indexed files: ${$.indexed_file_count}`);if(Array.isArray($.roots)&&$.roots.length)j.push(`Roots: ${$.roots.join(", ")}`);if($.last_error)j.push(`Error: ${$.last_error}`);return j.join(`
+`)}function Hq($){let j=$?.target;if(j&&typeof j==="object")return j;return j?.parentElement||null}function Yq($){return Boolean($?.closest?.(".workspace-node-icon, .workspace-label-text"))}function Aq($,j=null){let q=Hq($),B=q?.closest?.(".workspace-row");if(!B)return null;let _=B.dataset.type,Q=B.dataset.path;if(!Q||Q===".")return null;if(j===Q)return null;let U=$?.touches?.[0];if(!U)return null;return{type:_,path:Q,dragPath:Yq(q)?Q:null,startX:U.clientX,startY:U.clientY}}function A$({onFileSelect:$,visible:j=!0,active:q=void 0,onOpenEditor:B,onOpenTerminalTab:_,onOpenVncTab:Q,onToggleTerminal:U,terminalVisible:X=!1}){let[J,W]=y(null),[V,G]=y(new Set(["."])),[L,C]=y(null),[b,c]=y(null),[l,w]=y(""),[S,m]=y(null),[,O]=y(null),[d,g]=y(!0),[U1,k]=y(!1),[r,f]=y(null),[_1,Y1]=y(()=>Z8("workspaceShowHidden",!1)),[k1,O1]=y(!1),[s,t]=y(null),[K1,G1]=y(null),[I,a]=y(null),[F1,X1]=y(!1),[T1,u1]=y(null),[A1,t1]=y(null),[M1,G0]=y(null),[l1,I0]=y(!1),[j0,g0]=y(()=>X$()),[F0,q0]=y(()=>k3({stored:E0(V5),...S3()})),[B0,x0]=y(!1),S1=M(V),X0=M(""),H0=M(null),_0=M(0),Q0=M(new Set),h1=M(null),Y0=M(null),E1=M(new Map),R1=M($),w1=M(B),e1=M(null),f1=M(null),A0=M(null),d1=M(null),f0=M(null),x1=M(null),P1=M("."),r1=M(0),$0=M({path:null,dragging:!1,startX:0,startY:0}),Z0=M({path:null,dragging:!1,startX:0,startY:0}),m1=M({path:null,timer:0}),j1=M(!1),H1=M(0),H=M(new Map),p=M(null),v=M(null),e=M(null),$1=M(null),V1=M(null),L1=M(null),Z1=M(_1),N1=M(j),A=M(q??j),P=M(0),Q1=M(I),z1=M(k1),o=M(s),C1=M(null),v1=M({x:0,y:0}),I1=M(0),y1=M(null),W0=M(L),D1=M(b),S0=M(null),M0=M(S);R1.current=$,w1.current=B,E(()=>{S1.current=V},[V]),E(()=>{Z1.current=_1},[_1]),E(()=>{N1.current=j},[j]),E(()=>{A.current=q??j},[q,j]),E(()=>{Q1.current=I},[I]);let c1=i(()=>{if(!r1.current)return;clearTimeout(r1.current),r1.current=0},[]);E(()=>()=>c1(),[c1]),E(()=>{if(typeof window>"u")return;let Z=()=>{q0(k3({stored:E0(V5),...S3()}))};Z();let N=()=>Z(),Y=()=>Z(),D=(u)=>{if(!u||u.key===null||u.key===V5)Z()};window.addEventListener("resize",N),window.addEventListener("focus",Y),window.addEventListener("storage",D);let x=window.matchMedia?.("(pointer: coarse)"),R=window.matchMedia?.("(hover: none)"),n=(u,W1)=>{if(!u)return;if(u.addEventListener)u.addEventListener("change",W1);else if(u.addListener)u.addListener(W1)},q1=(u,W1)=>{if(!u)return;if(u.removeEventListener)u.removeEventListener("change",W1);else if(u.removeListener)u.removeListener(W1)};return n(x,N),n(R,N),()=>{window.removeEventListener("resize",N),window.removeEventListener("focus",Y),window.removeEventListener("storage",D),q1(x,N),q1(R,N)}},[]),E(()=>{let Z=(N)=>{let Y=N?.detail?.path;if(!Y)return;let D=Y.split("/"),x=[];for(let R=1;R<D.length;R++)x.push(D.slice(0,R).join("/"));if(x.length)G((R)=>{let n=new Set(R);n.add(".");for(let q1 of x)n.add(q1);return n});C(Y),requestAnimationFrame(()=>{let R=document.querySelector(`[data-path="${CSS.escape(Y)}"]`);if(R)R.scrollIntoView({block:"nearest",behavior:"smooth"})})};return window.addEventListener("workspace-reveal-path",Z),()=>window.removeEventListener("workspace-reveal-path",Z)},[]),E(()=>{z1.current=k1},[k1]),E(()=>{o.current=s},[s]),E(()=>{W0.current=L},[L]),E(()=>{D1.current=b},[b]),E(()=>{M0.current=S},[S]),E(()=>{if(typeof window>"u"||typeof document>"u")return;let Z=()=>g0(X$());Z();let N=window.matchMedia?.("(prefers-color-scheme: dark)"),Y=()=>Z();if(N?.addEventListener)N.addEventListener("change",Y);else if(N?.addListener)N.addListener(Y);let D=typeof MutationObserver<"u"?new MutationObserver(()=>Z()):null;if(D?.observe(document.documentElement,{attributes:!0,attributeFilter:["class","data-theme"]}),document.body)D?.observe(document.body,{attributes:!0,attributeFilter:["class","data-theme"]});return()=>{if(N?.removeEventListener)N.removeEventListener("change",Y);else if(N?.removeListener)N.removeListener(Y);D?.disconnect()}},[]),E(()=>{if(!b)return;let Z=f0.current;if(!Z)return;let N=requestAnimationFrame(()=>{q$(Z)});return()=>cancelAnimationFrame(N)},[b]),E(()=>{if(!B0)return;let Z=(Y)=>{let D=Y?.target;if(!(D instanceof Element))return;if(V1.current?.contains(D))return;if(L1.current?.contains(D))return;x0(!1)},N=(Y)=>{if(Y?.key==="Escape")x0(!1),L1.current?.focus?.()};return document.addEventListener("mousedown",Z),document.addEventListener("touchstart",Z,{passive:!0}),document.addEventListener("keydown",N),()=>{document.removeEventListener("mousedown",Z),document.removeEventListener("touchstart",Z),document.removeEventListener("keydown",N)}},[B0]);let d2=async(Z,N={})=>{let Y=Boolean(N?.autoOpen),D=String(Z||"").trim();k(!0),m(null),O(null);try{let x=await v8(D,20000);if(Y&&D&&Q$(D,x,{resolvePane:(R)=>n0.resolve(R)}))return w1.current?.(D,x),x;return m(x),x}catch(x){let R={error:x.message||"Failed to load preview"};return m(R),R}finally{k(!1)}};e1.current=d2;let i2=i(async()=>{try{let Z=await b8("all");return G0(Z),Z}catch(Z){return console.warn("[workspace-explorer] Failed to load workspace index status:",Z),null}},[]);Y0.current=i2;let v0=i(()=>{Y0.current?.()},[]),W4=async()=>{if(!N1.current)return;try{let Z=await a4("",1,Z1.current),N=U$(Z.root,S1.current,Z1.current);if(N===X0.current){g(!1);return}if(X0.current=N,H0.current=Z.root,!_0.current)_0.current=requestAnimationFrame(()=>{_0.current=0,W((Y)=>w3(Y,H0.current)),g(!1)})}catch(Z){f(Z.message||"Failed to load workspace"),g(!1)}},n2=async(Z)=>{if(!Z)return;if(Q0.current.has(Z))return;Q0.current.add(Z);try{let N=await a4(Z,1,Z1.current);W((Y)=>P3(Y,Z,N.root))}catch(N){f(N.message||"Failed to load workspace")}finally{Q0.current.delete(Z)}};f1.current=n2;let D0=i(()=>{let Z=L;if(!Z)return".";let N=E1.current?.get(Z);if(N&&N.type==="dir")return N.path;if(Z==="."||!Z.includes("/"))return".";let Y=Z.split("/");return Y.pop(),Y.join("/")||"."},[L]),p0=i((Z)=>{let N=Z?.closest?.(".workspace-row");if(!N)return null;let Y=N.dataset.path,D=N.dataset.type;if(!Y)return null;if(D==="dir")return Y;if(Y.includes("/")){let x=Y.split("/");return x.pop(),x.join("/")||"."}return"."},[]),V0=i((Z)=>{return p0(Z?.target||null)},[p0]),U0=i((Z)=>{Q1.current=Z,a(Z)},[]),L0=i(()=>{let Z=m1.current;if(Z?.timer)clearTimeout(Z.timer);m1.current={path:null,timer:0}},[]),s0=i((Z)=>{if(!Z||Z==="."){L0();return}let N=E1.current?.get(Z);if(!N||N.type!=="dir"){L0();return}if(S1.current?.has(Z)){L0();return}if(m1.current?.path===Z)return;L0();let Y=setTimeout(()=>{m1.current={path:null,timer:0},f1.current?.(Z),G((D)=>{let x=new Set(D);return x.add(Z),x})},600);m1.current={path:Z,timer:Y}},[L0]),b0=i((Z,N)=>{if(v1.current={x:Z,y:N},I1.current)return;I1.current=requestAnimationFrame(()=>{I1.current=0;let Y=C1.current;if(!Y)return;let D=v1.current;Y.style.transform=`translate(${D.x+12}px, ${D.y+12}px)`})},[]),Z2=i((Z)=>{if(!Z)return;let Y=(E1.current?.get(Z)?.name||Z.split("/").pop()||Z).trim();if(!Y)return;G1({path:Z,label:Y})},[]),V2=i(()=>{if(G1(null),I1.current)cancelAnimationFrame(I1.current),I1.current=0;if(C1.current)C1.current.style.transform="translate(-9999px, -9999px)"},[]),J4=i((Z)=>{if(!Z)return".";let N=E1.current?.get(Z);if(N&&N.type==="dir")return N.path;if(Z==="."||!Z.includes("/"))return".";let Y=Z.split("/");return Y.pop(),Y.join("/")||"."},[]),P0=i(()=>{c(null),w("")},[]),h0=i((Z)=>{if(!Z)return;let Y=(E1.current?.get(Z)?.name||Z.split("/").pop()||Z).trim();if(!Y||Z===".")return;c(Z),w(Y)},[]),L2=i(async()=>{let Z=D1.current;if(!Z)return;let N=(l||"").trim();if(!N){P0();return}let Y=E1.current?.get(Z),D=(Y?.name||Z.split("/").pop()||Z).trim();if(N===D){P0();return}try{let R=(await g8(Z,N))?.path||Z,n=Z.includes("/")?Z.split("/").slice(0,-1).join("/")||".":".";if(P0(),f(null),window.dispatchEvent(new CustomEvent("workspace-file-renamed",{detail:{oldPath:Z,newPath:R,type:Y?.type||"file"}})),Y?.type==="dir")G((q1)=>{let u=new Set;for(let W1 of q1)if(W1===Z)u.add(R);else if(W1.startsWith(`${Z}/`))u.add(`${R}${W1.slice(Z.length)}`);else u.add(W1);return u});if(C(R),Y?.type==="dir")m(null),k(!1),O(null);else e1.current?.(R);f1.current?.(n),v0()}catch(x){f(x?.message||"Failed to rename file")}},[P0,l,v0]),s2=i(async(Z)=>{let D=Z||".";for(let x=0;x<50;x+=1){let n=`untitled${x===0?"":`-${x}`}.md`;try{let u=(await m8(D,n,""))?.path||(D==="."?n:`${D}/${n}`);if(D&&D!==".")G((W1)=>new Set([...W1,D]));C(u),f(null),f1.current?.(D),e1.current?.(u),v0();return}catch(q1){if(q1?.status===409||q1?.code==="file_exists")continue;f(q1?.message||"Failed to create file");return}}f("Failed to create file (untitled name already in use).")},[]),P2=i((Z)=>{if(Z?.stopPropagation?.(),F1)return;let N=J4(W0.current);s2(N)},[F1,J4,s2]);E(()=>{if(typeof window>"u")return;let Z=(N)=>{let Y=N?.detail?.updates||[];if(!Array.isArray(Y)||Y.length===0)return;W((q1)=>{let u=q1;for(let W1 of Y){if(!W1?.root)continue;if(!u||W1.path==="."||!W1.path)u=W1.root;else u=P3(u,W1.path,W1.root)}if(u)X0.current=U$(u,S1.current,Z1.current);return g(!1),u});let D=W0.current;if(Boolean(D)&&Y.some((q1)=>{let u=q1?.path||"";if(!u||u===".")return!0;return D===u||D.startsWith(`${u}/`)||u.startsWith(`${D}/`)}))H.current.clear();if(v0(),!D||!M0.current)return;let R=E1.current?.get(D);if(R&&R.type==="dir")return;if(Y.some((q1)=>{let u=q1?.path||"";if(!u||u===".")return!0;return D===u||D.startsWith(`${u}/`)}))e1.current?.(D)};return window.addEventListener("workspace-update",Z),()=>window.removeEventListener("workspace-update",Z)},[]),h1.current=W4;let K4=M(()=>{if(typeof window>"u")return;let Z=window.matchMedia("(min-width: 1024px) and (orientation: landscape)"),N=A.current??N1.current,Y=document.visibilityState!=="hidden"&&(N||Z.matches&&N1.current);t4(Y,Z1.current).catch((D)=>{console.debug("[workspace-explorer] Workspace visibility ping failed.",D,{visible:Y,showHidden:Z1.current})})}).current,o0=M(0),z4=M(()=>{if(o0.current)clearTimeout(o0.current);o0.current=setTimeout(()=>{o0.current=0,K4()},250)}).current;E(()=>{if(N1.current)h1.current?.(),Y0.current?.();z4()},[j,q]),E(()=>{h1.current(),Y0.current?.(),K4();let Z=setInterval(()=>{h1.current(),Y0.current?.()},Gq),N=V8("previewHeight",null),Y=Number.isFinite(N)?Math.min(Math.max(N,80),600):280;if(H1.current=Y,A0.current)A0.current.style.setProperty("--preview-height",`${Y}px`);let D=window.matchMedia("(min-width: 1024px) and (orientation: landscape)"),x=()=>z4();if(D.addEventListener)D.addEventListener("change",x);else if(D.addListener)D.addListener(x);return document.addEventListener("visibilitychange",x),()=>{if(clearInterval(Z),_0.current)cancelAnimationFrame(_0.current),_0.current=0;if(D.removeEventListener)D.removeEventListener("change",x);else if(D.removeListener)D.removeListener(x);if(document.removeEventListener("visibilitychange",x),o0.current)clearTimeout(o0.current),o0.current=0;t4(!1,Z1.current).catch((R)=>{console.debug("[workspace-explorer] Workspace visibility teardown ping failed.",R,{showHidden:Z1.current})})}},[]);let R2=B1(()=>z$(J,V,_1),[J,V,_1]),F5=B1(()=>new Map(R2.map((Z)=>[Z.node.path,Z.node])),[R2]),G4=B1(()=>_$(F0),[F0]);E1.current=F5;let i1=(L?E1.current.get(L):null)?.type==="dir";E(()=>{if(!L||!i1){t1(null),p.current=null,v.current=null;return}let Z=L,N=`${_1?"hidden":"visible"}:${L}`,Y=H.current,D=Y.get(N);if(D?.root){Y.delete(N),Y.set(N,D);let n=W$(D.root,Boolean(D.truncated),j0);if(n)p.current=n,v.current=L,t1({loading:!1,error:null,payload:n});return}let x=p.current,R=v.current;t1({loading:!0,error:null,payload:R===L?x:null}),a4(L,Vq,_1).then((n)=>{if(W0.current!==Z)return;let q1={root:n?.root,truncated:Boolean(n?.truncated)};Y.delete(N),Y.set(N,q1);while(Y.size>Lq){let W1=Y.keys().next().value;if(!W1)break;Y.delete(W1)}let u=W$(q1.root,q1.truncated,j0);p.current=u,v.current=L,t1({loading:!1,error:null,payload:u})}).catch((n)=>{if(W0.current!==Z)return;t1({loading:!1,error:n?.message||"Failed to load folder size chart",payload:R===L?x:null})})},[L,i1,_1,j0]);let c0=Boolean(S&&S.kind==="text"&&!i1&&(!S.size||S.size<=262144)),Z4=c0?"Open in editor":S?.size>262144?"File too large to edit":"File is not editable",a0=Boolean(L&&!i1&&Zq(L)),u0=Boolean(L&&L!=="."),H5=Boolean(L&&!i1),Y5=Boolean(L&&!i1),_2=L&&i1?q3(L,_1):null,A5=Y$(M1),D5=Fq(M1),l0=M1?.state||"never_indexed",V4=l0!=="ready",g1=i(()=>x0(!1),[]),n1=i(async(Z)=>{g1();try{await Z?.()}catch(N){console.warn("[workspace-explorer] Header menu action failed:",N)}},[g1]),w2=i(async(Z)=>{Z?.stopPropagation?.(),I0(!0),G0((N)=>({scope:"all",last_indexed_at:N?.last_indexed_at||null,last_error:null,indexed_file_count:N?.indexed_file_count||0,roots:N?.roots||[],updated_at:N?.updated_at||null,state:"indexing"}));try{let N=await u8("all");G0(N),f(null),X0.current="",h1.current?.()}catch(N){let Y=N?.message||"Failed to reindex workspace";G0((D)=>({scope:"all",last_indexed_at:D?.last_indexed_at||null,last_error:Y,indexed_file_count:D?.indexed_file_count||0,roots:D?.roots||[],updated_at:D?.updated_at||null,state:"failed"})),f(Y)}finally{I0(!1)}},[]);E(()=>{let Z=e.current;if($1.current)$1.current.dispose(),$1.current=null;if(!Z)return;if(Z.innerHTML="",!L||i1||!S||S.error)return;let N={path:L,content:typeof S.text==="string"?S.text:void 0,mtime:S.mtime,size:S.size,preview:S,mode:"view"},Y=n0.resolve(N)||n0.get("workspace-preview-default");if(!Y)return;let D=Y.mount(Z,N);return $1.current=D,()=>{if($1.current===D)D.dispose(),$1.current=null;Z.innerHTML=""}},[L,i1,S]);let r0=(Z)=>{let N=Z?.target;if(N instanceof Element)return N;return N?.parentElement||null},Q2=(Z)=>{return Boolean(Z?.closest?.(".workspace-node-icon, .workspace-label-text"))},U2=(Z)=>{if(!Z)return!1;if(Z.closest?.('input, textarea, [contenteditable="true"]'))return!0;return Boolean(Z.isContentEditable)},x2=M((Z)=>{let N=r0(Z),Y=N?.closest?.("[data-path]");if(!Y)return;let D=Y.dataset.path;if(!D||D===".")return;let x=Boolean(N?.closest?.("button"))||Boolean(N?.closest?.("a"))||Boolean(N?.closest?.("input")),R=Boolean(N?.closest?.(".workspace-caret"));if(x||R)return;if(D1.current===D)return;h0(D)}).current,t0=M((Z)=>{if(j1.current){j1.current=!1;return}let N=r0(Z),Y=N?.closest?.("[data-path]");if(d1.current?.focus?.(),!Y)return;let D=Y.dataset.path,x=Y.dataset.type,R=Boolean(N?.closest?.(".workspace-caret")),n=Boolean(N?.closest?.("button"))||Boolean(N?.closest?.("a"))||Boolean(N?.closest?.("input")),q1=W0.current===D,u=D1.current;if(u){if(u===D)return;P0()}if(x==="dir"){if(S0.current=null,C(D),m(null),O(null),k(!1),!S1.current.has(D))f1.current?.(D);if(q1&&!R)return;G((K0)=>{let O0=new Set(K0);if(O0.has(D))O0.delete(D);else O0.add(D);return O0})}else{S0.current=null,C(D);let W1=E1.current.get(D);if(W1)R1.current?.(W1.path,W1);if(!n&&!R)e1.current?.(D)}}).current,m0=M(()=>{X0.current="",h1.current(),Y0.current?.(),Array.from(S1.current||[]).filter((N)=>N&&N!==".").forEach((N)=>f1.current?.(N))}).current,k0=M(()=>{S0.current=null,C(null),m(null),O(null),k(!1)}).current,X2=M(()=>{Y1((Z)=>{let N=!Z;if(typeof window<"u")R0("workspaceShowHidden",String(N));return Z1.current=N,t4(!0,N).catch((D)=>{console.debug("[workspace-explorer] Workspace visibility refresh after toggling hidden files failed.",D,{showHidden:N})}),X0.current="",h1.current?.(),Array.from(S1.current||[]).filter((D)=>D&&D!==".").forEach((D)=>f1.current?.(D)),N})}).current,L4=M((Z)=>{if(r0(Z)?.closest?.("[data-path]"))return;k0()}).current,F2=i(async(Z)=>{if(!Z)return;let N=Z.split("/").pop()||Z;if(!window.confirm(`Delete "${N}"? This cannot be undone.`))return;try{await h8(Z);let D=Z.includes("/")?Z.split("/").slice(0,-1).join("/")||".":".";if(W0.current===Z)k0();f1.current?.(D),f(null),v0()}catch(D){m((x)=>({...x||{},error:D.message||"Failed to delete file"}))}},[k0]),H2=i((Z)=>{let N=d1.current;if(!N||!Z||typeof CSS>"u"||typeof CSS.escape!=="function")return;N.querySelector(`[data-path="${CSS.escape(Z)}"]`)?.scrollIntoView?.({block:"nearest"})},[]),o2=i((Z)=>{let N=r0(Z);if(D1.current||U2(N))return;let Y=R2;if(!Y||Y.length===0)return;let D=L?Y.findIndex((x)=>x.node.path===L):-1;if(Z.key==="ArrowDown"){Z.preventDefault();let x=Math.min(D+1,Y.length-1),R=Y[x];if(!R)return;if(C(R.node.path),R.node.type!=="dir")R1.current?.(R.node.path,R.node),e1.current?.(R.node.path);else m(null),k(!1),O(null);H2(R.node.path);return}if(Z.key==="ArrowUp"){Z.preventDefault();let x=D<=0?0:D-1,R=Y[x];if(!R)return;if(C(R.node.path),R.node.type!=="dir")R1.current?.(R.node.path,R.node),e1.current?.(R.node.path);else m(null),k(!1),O(null);H2(R.node.path);return}if(Z.key==="ArrowRight"&&D>=0){let x=Y[D];if(x?.node?.type==="dir"&&!V.has(x.node.path))Z.preventDefault(),f1.current?.(x.node.path),G((R)=>new Set([...R,x.node.path]));return}if(Z.key==="ArrowLeft"&&D>=0){let x=Y[D];if(x?.node?.type==="dir"&&V.has(x.node.path))Z.preventDefault(),G((R)=>{let n=new Set(R);return n.delete(x.node.path),n});return}if(Z.key==="Enter"&&D>=0){Z.preventDefault();let x=Y[D];if(!x)return;let R=x.node.path;if(x.node.type==="dir"){if(!S1.current.has(R))f1.current?.(R);G((q1)=>{let u=new Set(q1);if(u.has(R))u.delete(R);else u.add(R);return u}),m(null),O(null),k(!1)}else R1.current?.(R,x.node),e1.current?.(R);return}if((Z.key==="Delete"||Z.key==="Backspace")&&D>=0){let x=Y[D];if(!x||x.node.type==="dir")return;Z.preventDefault(),F2(x.node.path);return}if(Z.key==="Escape")Z.preventDefault(),k0()},[k0,F2,V,R2,H2,L]),C5=i((Z)=>{let N=Aq(Z,D1.current);if(!N)return;$0.current={path:N.dragPath,dragging:!1,startX:N.startX,startY:N.startY}},[]),a2=i(()=>{let Z=$0.current;if(Z?.dragging&&Z.path){let N=Q1.current||D0(),Y=y1.current;if(typeof Y==="function")Y(Z.path,N)}$0.current={path:null,dragging:!1,startX:0,startY:0},P.current=0,O1(!1),t(null),U0(null),L0(),V2()},[D0,V2,U0,L0]),N4=i((Z)=>{let N=$0.current,Y=Z?.touches?.[0];if(!Y||!N?.path)return;let D=Math.abs(Y.clientX-N.startX),x=Math.abs(Y.clientY-N.startY),R=D>8||x>8;if(!N.dragging&&R)N.dragging=!0,O1(!0),t("move"),Z2(N.path);if(N.dragging){Z.preventDefault(),b0(Y.clientX,Y.clientY);let n=document.elementFromPoint(Y.clientX,Y.clientY),q1=p0(n)||D0();if(Q1.current!==q1)U0(q1);s0(q1)}},[p0,D0,Z2,b0,U0,s0]),I5=M((Z)=>{Z.preventDefault();let N=A0.current;if(!N)return;let Y=Z.clientY,D=H1.current||280,x=Z.currentTarget;x.classList.add("dragging"),document.body.style.cursor="row-resize",document.body.style.userSelect="none";let R=Y,n=(u)=>{R=u.clientY;let W1=N.clientHeight-80,K0=Math.min(Math.max(D-(u.clientY-Y),80),W1);N.style.setProperty("--preview-height",`${K0}px`),H1.current=K0},q1=()=>{let u=N.clientHeight-80,W1=Math.min(Math.max(D-(R-Y),80),u);H1.current=W1,x.classList.remove("dragging"),document.body.style.cursor="",document.body.style.userSelect="",R0("previewHeight",String(Math.round(W1))),document.removeEventListener("mousemove",n),document.removeEventListener("mouseup",q1)};document.addEventListener("mousemove",n),document.addEventListener("mouseup",q1)}).current,F4=M((Z)=>{Z.preventDefault();let N=A0.current;if(!N)return;let Y=Z.touches[0];if(!Y)return;let D=Y.clientY,x=H1.current||280,R=Z.currentTarget;R.classList.add("dragging"),document.body.style.userSelect="none";let n=(u)=>{let W1=u.touches[0];if(!W1)return;u.preventDefault();let K0=N.clientHeight-80,O0=Math.min(Math.max(x-(W1.clientY-D),80),K0);N.style.setProperty("--preview-height",`${O0}px`),H1.current=O0},q1=()=>{R.classList.remove("dragging"),document.body.style.userSelect="",R0("previewHeight",String(Math.round(H1.current||x))),document.removeEventListener("touchmove",n),document.removeEventListener("touchend",q1),document.removeEventListener("touchcancel",q1)};document.addEventListener("touchmove",n,{passive:!1}),document.addEventListener("touchend",q1),document.addEventListener("touchcancel",q1)}).current,H4=i((Z=L)=>{if(!Z)return;J$(B3(Z))},[L]),e0=async()=>{if(!L||i1)return;await F2(L)},d0=(Z)=>{return Array.from(Z?.dataTransfer?.types||[]).includes("Files")},Y4=i((Z)=>{if(!d0(Z))return;if(Z.preventDefault(),P.current+=1,!z1.current)O1(!0);t("upload");let N=V0(Z)||D0();U0(N),s0(N)},[D0,V0,U0,s0]),A4=i((Z)=>{if(!d0(Z))return;if(Z.preventDefault(),Z.dataTransfer)Z.dataTransfer.dropEffect="copy";if(!z1.current)O1(!0);if(o.current!=="upload")t("upload");let N=V0(Z)||D0();if(Q1.current!==N)U0(N);s0(N)},[D0,V0,U0,s0]),t2=i((Z)=>{if(!d0(Z))return;if(Z.preventDefault(),P.current=Math.max(0,P.current-1),P.current===0)O1(!1),t(null),U0(null),L0()},[U0,L0]),Y2=i(async(Z,N=".")=>{let Y=Array.from(Z||[]);if(Y.length===0)return;let D=N&&N!==""?N:".",x=D!=="."?D:"workspace root";c1(),X1(!0),u1({current:0,total:Y.length,name:"",percent:0,done:!1,error:null});try{let R=null;for(let n=0;n<Y.length;n++){let q1=Y[n],u=q1?.name||`file ${n+1}`;u1((K0)=>({...K0,current:n+1,name:u,percent:0}));let W1=(K0)=>u1((O0)=>({...O0,percent:K0.percent}));try{R=await j3(q1,D,{onProgress:W1})}catch(K0){let O0=K0?.status,D2=K0?.code;if(O0===409||D2==="file_exists"){if(!window.confirm(`"${u}" already exists in ${x}. Overwrite?`))continue;R=await j3(q1,D,{overwrite:!0,onProgress:W1})}else throw K0}}if(R?.path)S0.current=R.path,C(R.path),e1.current?.(R.path);f1.current?.(D),v0(),u1((n)=>({...n,done:!0})),c1(),r1.current=window.setTimeout(()=>{r1.current=0,u1(null)},1500)}catch(R){f(R.message||"Failed to upload file"),u1((n)=>n?{...n,error:R.message||"Upload failed"}:null),c1(),r1.current=window.setTimeout(()=>{r1.current=0,u1(null)},4000)}finally{X1(!1)}},[c1]),D4=i(async(Z,N)=>{if(!Z)return;let Y=E1.current?.get(Z);if(!Y)return;let D=N&&N!==""?N:".",x=Z.includes("/")?Z.split("/").slice(0,-1).join("/")||".":".";if(D===x)return;try{let n=(await p8(Z,D))?.path||Z;if(Y.type==="dir")G((q1)=>{let u=new Set;for(let W1 of q1)if(W1===Z)u.add(n);else if(W1.startsWith(`${Z}/`))u.add(`${n}${W1.slice(Z.length)}`);else u.add(W1);return u});if(C(n),Y.type==="dir")m(null),k(!1),O(null);else e1.current?.(n);f1.current?.(x),f1.current?.(D),v0()}catch(R){f(R?.message||"Failed to move entry")}},[]);y1.current=D4;let C4=i(async(Z)=>{if(!d0(Z))return;Z.preventDefault(),P.current=0,O1(!1),t(null),a(null),L0();let N=Array.from(Z?.dataTransfer?.files||[]);if(N.length===0)return;let Y=Q1.current||V0(Z)||D0();await Y2(N,Y)},[D0,V0,Y2]),I4=i((Z)=>{if(Z?.stopPropagation?.(),F1)return;let N=Z?.currentTarget?.dataset?.uploadTarget||".";P1.current=N,x1.current?.click()},[F1]),v2=i(()=>{if(F1)return;let Z=W0.current,N=Z?E1.current?.get(Z):null;P1.current=N?.type==="dir"?N.path:".",x1.current?.click()},[F1]),O5=i(()=>{n1(()=>P2(null))},[n1,P2]),J0=i(()=>{n1(()=>v2())},[n1,v2]),O4=i(()=>{n1(()=>m0())},[n1,m0]),T4=i(()=>{n1(()=>X2())},[n1,X2]),M4=i(()=>{if(!L||!a0)return;n1(()=>w1.current?.(L,S))},[n1,L,a0,S]),A2=i(()=>{if(!L||!c0)return;n1(()=>w1.current?.(L,S))},[n1,L,c0,S]),T5=i(()=>{if(!L||L===".")return;n1(()=>h0(L))},[n1,L,h0]),M5=i(()=>{if(!L||i1)return;n1(()=>e0())},[n1,L,i1,e0]),y4=i(()=>{if(!L||i1)return;n1(()=>H4())},[n1,L,i1,H4]),y5=i(()=>{if(!_2)return;g1(),J$(_2)},[g1,_2]),e2=i(()=>{g1(),_?.()},[g1,_]),S5=i(()=>{g1(),Q?.()},[g1,Q]),k5=i(()=>{g1(),U?.()},[g1,U]),E5=i((Z)=>{if(!Z||Z.button!==0)return;let N=Z.currentTarget;if(!N||!N.dataset)return;let Y=N.dataset.path;if(!Y||Y===".")return;if(D1.current===Y)return;let D=r0(Z);if(D?.closest?.("button, a, input, .workspace-caret"))return;if(!Q2(D))return;Z.preventDefault(),Z0.current={path:Y,dragging:!1,startX:Z.clientX,startY:Z.clientY};let x=(n)=>{let q1=Z0.current;if(!q1?.path)return;let u=Math.abs(n.clientX-q1.startX),W1=Math.abs(n.clientY-q1.startY),K0=u>4||W1>4;if(!q1.dragging&&K0)q1.dragging=!0,j1.current=!0,O1(!0),t("move"),Z2(q1.path),b0(n.clientX,n.clientY),document.body.style.userSelect="none",document.body.style.cursor="grabbing";if(q1.dragging){n.preventDefault(),b0(n.clientX,n.clientY);let O0=document.elementFromPoint(n.clientX,n.clientY),D2=p0(O0)||D0();if(Q1.current!==D2)U0(D2);s0(D2)}},R=()=>{document.removeEventListener("mousemove",x),document.removeEventListener("mouseup",R);let n=Z0.current;if(n?.dragging&&n.path){let q1=Q1.current||D0(),u=y1.current;if(typeof u==="function")u(n.path,q1)}Z0.current={path:null,dragging:!1,startX:0,startY:0},P.current=0,O1(!1),t(null),U0(null),L0(),V2(),document.body.style.userSelect="",document.body.style.cursor="",setTimeout(()=>{j1.current=!1},0)};document.addEventListener("mousemove",x),document.addEventListener("mouseup",R)},[p0,D0,Z2,b0,V2,U0,s0,L0]),f5=i(async(Z)=>{let N=Array.from(Z?.target?.files||[]);if(N.length===0)return;let Y=P1.current||".";if(await Y2(N,Y),P1.current=".",Z?.target)Z.target.value=""},[Y2]);return K`
         <aside
-            class=${`workspace-sidebar${b1?" workspace-drop-active":""}`}
-            data-workspace-scale=${G0}
-            ref=${Y0}
-            onDragEnter=${L4}
-            onDragOver=${V4}
-            onDragLeave=${r2}
-            onDrop=${F4}
+            class=${`workspace-sidebar${k1?" workspace-drop-active":""}`}
+            data-workspace-scale=${F0}
+            ref=${A0}
+            onDragEnter=${Y4}
+            onDragOver=${A4}
+            onDragLeave=${t2}
+            onDrop=${C4}
         >
-            <input type="file" multiple style="display:none" ref=${B0} onChange=${D5} />
+            <input type="file" multiple style="display:none" ref=${x1} onChange=${f5} />
             <div class="workspace-header">
                 <div class="workspace-header-left">
                     <div class="workspace-menu-wrap">
                         <button
-                            ref=${Z1}
-                            class=${`workspace-menu-button${q0?" active":""}`}
-                            onClick=${(W)=>{W.stopPropagation(),H0((Z)=>!Z)}}
+                            ref=${L1}
+                            class=${`workspace-menu-button${B0?" active":""}`}
+                            onClick=${(Z)=>{Z.stopPropagation(),x0((N)=>!N)}}
                             title="Workspace actions"
                             aria-label="Workspace actions"
                             aria-haspopup="menu"
-                            aria-expanded=${q0?"true":"false"}
+                            aria-expanded=${B0?"true":"false"}
                         >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1484,53 +1654,53 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                                 <line x1="4" y1="17" x2="20" y2="17" />
                             </svg>
                         </button>
-                        ${q0&&G`
+                        ${B0&&K`
                             <div class="workspace-menu-dropdown" ref=${V1} role="menu" aria-label="Workspace options">
-                                <button class="workspace-menu-item" role="menuitem" onClick=${L5} disabled=${L1}>New file</button>
-                                <button class="workspace-menu-item" role="menuitem" onClick=${_0} disabled=${L1}>Upload files</button>
-                                <button class="workspace-menu-item" role="menuitem" onClick=${Y4}>Refresh tree</button>
-                                <button class="workspace-menu-item" role="menuitem" onClick=${()=>l1(()=>E2())} disabled=${s1}>
-                                    ${s1?"Reindexing workspace…":"Reindex workspace"}
+                                <button class="workspace-menu-item" role="menuitem" onClick=${O5} disabled=${F1}>New file</button>
+                                <button class="workspace-menu-item" role="menuitem" onClick=${J0} disabled=${F1}>Upload files</button>
+                                <button class="workspace-menu-item" role="menuitem" onClick=${O4}>Refresh tree</button>
+                                <button class="workspace-menu-item" role="menuitem" onClick=${()=>n1(()=>w2())} disabled=${l1}>
+                                    ${l1?"Reindexing workspace…":"Reindex workspace"}
                                 </button>
-                                <button class=${`workspace-menu-item${U1?" active":""}`} role="menuitem" onClick=${A4}>
-                                    ${U1?"Hide hidden files":"Show hidden files"}
+                                <button class=${`workspace-menu-item${_1?" active":""}`} role="menuitem" onClick=${T4}>
+                                    ${_1?"Hide hidden files":"Show hidden files"}
                                 </button>
 
-                                ${(Q||J||K)&&G`<div class="workspace-menu-separator"></div>`}
-                                ${Q&&G`
-                                    <button class="workspace-menu-item" role="menuitem" onClick=${i2}>
+                                ${(_||Q||U)&&K`<div class="workspace-menu-separator"></div>`}
+                                ${_&&K`
+                                    <button class="workspace-menu-item" role="menuitem" onClick=${e2}>
                                         Open terminal in tab
                                     </button>
                                 `}
-                                ${J&&G`
-                                    <button class="workspace-menu-item" role="menuitem" onClick=${H5}>
+                                ${Q&&K`
+                                    <button class="workspace-menu-item" role="menuitem" onClick=${S5}>
                                         Open VNC in tab
                                     </button>
                                 `}
-                                ${K&&G`
-                                    <button class="workspace-menu-item" role="menuitem" onClick=${Y5}>
+                                ${U&&K`
+                                    <button class="workspace-menu-item" role="menuitem" onClick=${k5}>
                                         ${X?"Hide terminal dock":"Show terminal dock"}
                                     </button>
                                 `}
 
-                                ${V&&G`<div class="workspace-menu-separator"></div>`}
-                                ${n0&&G`
-                                    <button class="workspace-menu-item" role="menuitem" onClick=${D4}>Open in tab</button>
+                                ${L&&K`<div class="workspace-menu-separator"></div>`}
+                                ${a0&&K`
+                                    <button class="workspace-menu-item" role="menuitem" onClick=${M4}>Open in tab</button>
                                 `}
-                                ${V&&!d1&&G`
-                                    <button class="workspace-menu-item" role="menuitem" onClick=${V2} disabled=${!m0}>Open in editor</button>
+                                ${L&&!i1&&K`
+                                    <button class="workspace-menu-item" role="menuitem" onClick=${A2} disabled=${!c0}>Open in editor</button>
                                 `}
-                                ${b0&&G`
-                                    <button class="workspace-menu-item" role="menuitem" onClick=${V5}>Rename selected</button>
+                                ${u0&&K`
+                                    <button class="workspace-menu-item" role="menuitem" onClick=${T5}>Rename selected</button>
                                 `}
-                                ${_5&&G`
-                                    <button class="workspace-menu-item" role="menuitem" onClick=${C4}>Download selected file</button>
+                                ${Y5&&K`
+                                    <button class="workspace-menu-item" role="menuitem" onClick=${y4}>Download selected file</button>
                                 `}
-                                ${$2&&G`
-                                    <button class="workspace-menu-item" role="menuitem" onClick=${F5}>Download selected folder (zip)</button>
+                                ${_2&&K`
+                                    <button class="workspace-menu-item" role="menuitem" onClick=${y5}>Download selected folder (zip)</button>
                                 `}
-                                ${U5&&G`
-                                    <button class="workspace-menu-item danger" role="menuitem" onClick=${Z5}>Delete selected file</button>
+                                ${H5&&K`
+                                    <button class="workspace-menu-item danger" role="menuitem" onClick=${M5}>Delete selected file</button>
                                 `}
                             </div>
                         `}
@@ -1538,14 +1708,14 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                     <span>Workspace</span>
                 </div>
                 <div class="workspace-header-actions">
-                    <button class="workspace-create" onClick=${k2} title="New file" disabled=${L1}>
+                    <button class="workspace-create" onClick=${P2} title="New file" disabled=${F1}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <line x1="12" y1="5" x2="12" y2="19" />
                             <line x1="5" y1="12" x2="19" y2="12" />
                         </svg>
                     </button>
-                    <button class="workspace-refresh" onClick=${v0} title="Refresh tree">
+                    <button class="workspace-refresh" onClick=${m0} title="Refresh tree">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <circle cx="12" cy="12" r="8.5" stroke-dasharray="42 12" stroke-dashoffset="6"
@@ -1555,81 +1725,81 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                     </button>
                 </div>
             </div>
-            ${_4&&G`
+            ${V4&&K`
                 <div class="workspace-index-status-row">
-                    <div class=${`workspace-index-status-chip state-${h0}`} title=${W5}>
+                    <div class=${`workspace-index-status-chip state-${l0}`} title=${D5}>
                         <span class="workspace-index-status-dot" aria-hidden="true"></span>
-                        <span>${z5}</span>
+                        <span>${A5}</span>
                     </div>
                 </div>
             `}
-            <div class="workspace-tree" onClick=${z4}>
-                ${M1&&G`
+            <div class="workspace-tree" onClick=${L4}>
+                ${T1&&K`
                     <div class="workspace-upload-strip">
                         <div class="workspace-upload-strip-text">
-                            ${M1.error?G`<span class="workspace-upload-strip-error">${M1.error}</span>`:M1.done?G`<span>Done</span>`:G`<span>${M1.total>1?`Uploading ${M1.current}/${M1.total}: ${M1.name}`:`Uploading ${M1.name}`}${M1.percent>0?` (${M1.percent}%)`:"…"}</span>`}
+                            ${T1.error?K`<span class="workspace-upload-strip-error">${T1.error}</span>`:T1.done?K`<span>Done</span>`:K`<span>${T1.total>1?`Uploading ${T1.current}/${T1.total}: ${T1.name}`:`Uploading ${T1.name}`}${T1.percent>0?` (${T1.percent}%)`:"…"}</span>`}
                         </div>
-                        ${!M1.done&&!M1.error&&G`
+                        ${!T1.done&&!T1.error&&K`
                             <div class="workspace-upload-strip-bar">
-                                <div class="workspace-upload-strip-fill" style=${`width:${M1.percent||0}%`}></div>
+                                <div class="workspace-upload-strip-fill" style=${`width:${T1.percent||0}%`}></div>
                             </div>
                         `}
                     </div>
                 `}
-                ${e&&G`<div class="workspace-loading">Loading…</div>`}
-                ${X1&&G`<div class="workspace-error">${X1}</div>`}
-                ${z&&G`
+                ${d&&K`<div class="workspace-loading">Loading…</div>`}
+                ${r&&K`<div class="workspace-error">${r}</div>`}
+                ${J&&K`
                     <div
                         class="workspace-tree-list"
-                        ref=${e1}
+                        ref=${d1}
                         tabIndex="0"
-                        onClick=${s0}
-                        onDblClick=${P2}
-                        onKeyDown=${d2}
-                        onTouchStart=${G5}
-                        onTouchEnd=${l2}
-                        onTouchMove=${W4}
-                        onTouchCancel=${l2}
+                        onClick=${t0}
+                        onDblClick=${x2}
+                        onKeyDown=${o2}
+                        onTouchStart=${C5}
+                        onTouchEnd=${a2}
+                        onTouchMove=${N4}
+                        onTouchCancel=${a2}
                     >
-                        ${R2.map(({node:W,depth:Z})=>{let H=W.type==="dir",A=W.path===V,k=W.path===g,y=H&&L.has(W.path),u=D&&W.path===D,o=Array.isArray(W.children)&&W.children.length>0?W.children.length:Number(W.child_count)||0;return G`
+                        ${R2.map(({node:Z,depth:N})=>{let Y=Z.type==="dir",D=Z.path===L,x=Z.path===b,R=Y&&V.has(Z.path),n=I&&Z.path===I,q1=Array.isArray(Z.children)&&Z.children.length>0?Z.children.length:Number(Z.child_count)||0;return K`
                                 <div
-                                    key=${W.path}
-                                    class=${`workspace-row${A?" selected":""}${u?" drop-target":""}`}
-                                    style=${{paddingLeft:`${8+Z*X4.indentPx}px`}}
-                                    data-path=${W.path}
-                                    data-type=${W.type}
-                                    onMouseDown=${A5}
+                                    key=${Z.path}
+                                    class=${`workspace-row${D?" selected":""}${n?" drop-target":""}`}
+                                    style=${{paddingLeft:`${8+N*G4.indentPx}px`}}
+                                    data-path=${Z.path}
+                                    data-type=${Z.type}
+                                    onMouseDown=${E5}
                                 >
                                     <span class="workspace-caret" aria-hidden="true">
-                                        ${H?y?G`<svg viewBox="0 0 12 12"><polygon points="1,2 11,2 6,11"/></svg>`:G`<svg viewBox="0 0 12 12"><polygon points="2,1 11,6 2,11"/></svg>`:null}
+                                        ${Y?R?K`<svg viewBox="0 0 12 12"><polygon points="1,2 11,2 6,11"/></svg>`:K`<svg viewBox="0 0 12 12"><polygon points="2,1 11,6 2,11"/></svg>`:null}
                                     </span>
-                                    <svg class=${`workspace-node-icon${H?" folder":""}`}
+                                    <svg class=${`workspace-node-icon${Y?" folder":""}`}
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                                         aria-hidden="true">
-                                        ${H?G`<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>`:G`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>`}
+                                        ${Y?K`<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>`:K`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>`}
                                     </svg>
-                                    ${k?G`
+                                    ${x?K`
                                             <input
                                                 class="workspace-rename-input"
-                                                ref=${l0}
-                                                value=${p}
-                                                onInput=${(R)=>d(R?.target?.value||"")}
-                                                onKeyDown=${(R)=>{if(R.stopPropagation(),R.key==="Enter")R.preventDefault(),z2();else if(R.key==="Escape")R.preventDefault(),R0()}}
-                                                onBlur=${R0}
-                                                onClick=${(R)=>R.stopPropagation()}
+                                                ref=${f0}
+                                                value=${l}
+                                                onInput=${(u)=>w(u?.target?.value||"")}
+                                                onKeyDown=${(u)=>{if(u.stopPropagation(),u.key==="Enter")u.preventDefault(),L2();else if(u.key==="Escape")u.preventDefault(),P0()}}
+                                                onBlur=${P0}
+                                                onClick=${(u)=>u.stopPropagation()}
                                             />
-                                        `:G`<span class="workspace-label"><span class="workspace-label-text">${W.name}</span></span>`}
-                                    ${H&&!y&&o>0&&G`
-                                        <span class="workspace-count">${o}</span>
+                                        `:K`<span class="workspace-label"><span class="workspace-label-text">${Z.name}</span></span>`}
+                                    ${Y&&!R&&q1>0&&K`
+                                        <span class="workspace-count">${q1}</span>
                                     `}
-                                    ${H&&G`
+                                    ${Y&&K`
                                         <button
                                             class="workspace-folder-upload"
-                                            data-upload-target=${W.path}
+                                            data-upload-target=${Z.path}
                                             title="Upload files to this folder"
-                                            onClick=${H4}
-                                            disabled=${L1}
+                                            onClick=${I4}
+                                            disabled=${F1}
                                         >
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1644,25 +1814,25 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                     </div>
                 `}
             </div>
-            ${V&&G`
-                <div class="workspace-preview-splitter-h" onMouseDown=${N5} onTouchStart=${G4}></div>
+            ${L&&K`
+                <div class="workspace-preview-splitter-h" onMouseDown=${I5} onTouchStart=${F4}></div>
                 <div class="workspace-preview">
                     <div class="workspace-preview-header">
-                        <span class="workspace-preview-title">${V}</span>
+                        <span class="workspace-preview-title">${L}</span>
                         <div class="workspace-preview-actions">
-                            <button class="workspace-create" onClick=${k2} title="New file" disabled=${L1}>
+                            <button class="workspace-create" onClick=${P2} title="New file" disabled=${F1}>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                     <line x1="12" y1="5" x2="12" y2="19" />
                                     <line x1="5" y1="12" x2="19" y2="12" />
                                 </svg>
                             </button>
-                            ${!d1&&G`
+                            ${!i1&&K`
                                 <button
                                     class="workspace-download workspace-edit"
-                                    onClick=${()=>m0&&k1.current?.(V,P)}
-                                    title=${U4}
-                                    disabled=${!m0}
+                                    onClick=${()=>c0&&w1.current?.(L,S)}
+                                    title=${Z4}
+                                    disabled=${!c0}
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1672,7 +1842,7 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                                 </button>
                                 <button
                                     class="workspace-download workspace-delete"
-                                    onClick=${o0}
+                                    onClick=${e0}
                                     title="Delete file"
                                 >
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -1685,9 +1855,9 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                                     </svg>
                                 </button>
                             `}
-                            ${d1?G`
-                                    <button class="workspace-download" onClick=${f2}
-                                        title="Upload files to this folder" disabled=${L1}>
+                            ${i1?K`
+                                    <button class="workspace-download" onClick=${v2}
+                                        title="Upload files to this folder" disabled=${F1}>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -1695,16 +1865,16 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                                             <line x1="12" y1="3" x2="12" y2="15"/>
                                         </svg>
                                     </button>
-                                    <a class="workspace-download" href=${c5(V,U1)} download
-                                        title="Download folder as zip" onClick=${(W)=>W.stopPropagation()}>
+                                    <a class="workspace-download" href=${q3(L,_1)} download
+                                        title="Download folder as zip" onClick=${(Z)=>Z.stopPropagation()}>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                                             <polyline points="7 10 12 15 17 10"/>
                                             <line x1="12" y1="15" x2="12" y2="3"/>
                                         </svg>
-                                    </a>`:G`<a class="workspace-download" href=${d5(V)} download
-                                        title="Download" onClick=${(W)=>W.stopPropagation()}>
+                                    </a>`:K`<a class="workspace-download" href=${B3(L)} download
+                                        title="Download" onClick=${(Z)=>Z.stopPropagation()}>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -1714,76 +1884,76 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                                 </a>`}
                         </div>
                     </div>
-                    ${D1&&G`<div class="workspace-loading">Loading preview…</div>`}
-                    ${P?.error&&G`<div class="workspace-error">${P.error}</div>`}
-                    ${d1&&G`
+                    ${U1&&K`<div class="workspace-loading">Loading preview…</div>`}
+                    ${S?.error&&K`<div class="workspace-error">${S.error}</div>`}
+                    ${i1&&K`
                         <div class="workspace-preview-text">Folder selected — create file, upload files, or download as zip.</div>
-                        ${Y1?.loading&&G`<div class="workspace-loading">Loading folder size preview…</div>`}
-                        ${Y1?.error&&G`<div class="workspace-error">${Y1.error}</div>`}
-                        ${Y1?.payload&&Y1.payload.segments?.length>0&&G`
-                            <${bj} payload=${Y1.payload} />
+                        ${A1?.loading&&K`<div class="workspace-loading">Loading folder size preview…</div>`}
+                        ${A1?.error&&K`<div class="workspace-error">${A1.error}</div>`}
+                        ${A1?.payload&&A1.payload.segments?.length>0&&K`
+                            <${Nq} payload=${A1.payload} />
                         `}
-                        ${Y1?.payload&&(!Y1.payload.segments||Y1.payload.segments.length===0)&&G`
+                        ${A1?.payload&&(!A1.payload.segments||A1.payload.segments.length===0)&&K`
                             <div class="workspace-preview-text">No file size data available for this folder yet.</div>
                         `}
                     `}
-                    ${P&&!P.error&&!d1&&G`
-                        <div class="workspace-preview-body" ref=${i}></div>
+                    ${S&&!S.error&&!i1&&K`
+                        <div class="workspace-preview-body" ref=${e}></div>
                     `}
                 </div>
             `}
-            ${Q1&&G`
-                <div class="workspace-drag-ghost" ref=${O1}>${Q1.label}</div>
+            ${K1&&K`
+                <div class="workspace-drag-ghost" ref=${C1}>${K1.label}</div>
             `}
         </aside>
-    `}var hj=new Set(["html-viewer","kanban-editor","mindmap-editor"]);function K5($,j,q){let B=String($||"").trim();if(!B)return null;if(j)return j;if(typeof q!=="function")return null;return q({path:B,mode:"edit"})?.id||null}function a8($,j,q){let B=K5($,j,q);return B!=null&&hj.has(B)}function t8($,j,q){return K5($,j,q)==="html-viewer"?"Edit":"Edit Source"}function e8($,j,q){return K5($,j,q)==="editor"}var pj=/\.(docx?|xlsx?|pptx?|odt|ods|odp|rtf)$/i,cj=/\.(csv|tsv)$/i,dj=/\.pdf$/i,lj=/\.(png|jpe?g|gif|webp|bmp|ico|svg)$/i,$9=/\.drawio(\.xml|\.svg|\.png)?$/i;function rj($,{hasPopOutTab:j=!1}={}){let q=typeof $==="string"?$.trim():"";if(!q)return null;if(pj.test(q)){let B="/workspace/raw?path="+encodeURIComponent(q),Q=q.split("/").pop()||"document";return"/office-viewer/?url="+encodeURIComponent(B)+"&name="+encodeURIComponent(Q)}if(cj.test(q))return"/csv-viewer/?path="+encodeURIComponent(q);if(dj.test(q))return"/workspace/raw?path="+encodeURIComponent(q);if(lj.test(q)&&!$9.test(q))return"/image-viewer/?path="+encodeURIComponent(q);if($9.test(q)&&!j)return"/drawio/edit?path="+encodeURIComponent(q);return null}function j9({tabs:$,activeId:j,onActivate:q,onClose:B,onCloseOthers:Q,onCloseAll:J,onTogglePin:K,onTogglePreview:X,onToggleDiff:z,onEditSource:U,previewTabs:L,diffTabs:N,paneOverrides:V,detachedTabs:O,onReattachTab:g,onToggleDock:h,dockVisible:p,onToggleZen:d,zenMode:P,onPopOutTab:t}){let[v,e]=M(null),W1=T(null);w(()=>{if(!v)return;let D=(r)=>{if(r.type==="keydown"&&r.key!=="Escape")return;e(null)};return document.addEventListener("click",D),document.addEventListener("keydown",D),()=>{document.removeEventListener("click",D),document.removeEventListener("keydown",D)}},[v]),w(()=>{let D=(r)=>{if(r.ctrlKey&&r.key==="Tab"){if(r.preventDefault(),!$.length)return;let L1=$.findIndex((j1)=>j1.id===j);if(r.shiftKey){let j1=$[(L1-1+$.length)%$.length];q?.(j1.id)}else{let j1=$[(L1+1)%$.length];q?.(j1.id)}return}if((r.ctrlKey||r.metaKey)&&r.key==="w"){let L1=document.querySelector(".editor-pane");if(L1&&L1.contains(document.activeElement)){if(r.preventDefault(),j)B?.(j)}}};return document.addEventListener("keydown",D),()=>document.removeEventListener("keydown",D)},[$,j,q,B]);let D1=m((D,r)=>{if(D.button===1)D.preventDefault(),B?.(r)},[B]),N1=m((D,r)=>{if(D.defaultPrevented)return;if(D.button===0)q?.(r)},[q]),X1=m((D,r)=>{D.preventDefault(),e({id:r,x:D.clientX,y:D.clientY})},[]),x=m((D)=>{D.preventDefault(),D.stopPropagation()},[]),U1=m((D,r)=>{D.preventDefault(),D.stopPropagation(),B?.(r)},[B]);w(()=>{if(!j||!W1.current)return;let D=W1.current.querySelector(".tab-item.active");if(D)D.scrollIntoView({block:"nearest",inline:"nearest",behavior:"smooth"})},[j]);let E1=m((D)=>{if(!(V instanceof Map))return null;return V.get(D)||null},[V]),b1=H1(()=>$.find((D)=>D.id===v?.id)||null,[v?.id,$]),P1=H1(()=>{let D=v?.id;if(!D)return!1;return a8(D,E1(D),(r)=>d0.resolve(r))},[v?.id,E1]),l=H1(()=>{let D=v?.id;if(!D)return"Edit Source";return t8(D,E1(D),(r)=>d0.resolve(r))},[v?.id,E1]),s=H1(()=>{let D=v?.id;if(!D||!(O instanceof Map))return!1;return O.has(D)},[v?.id,O]),Q1=H1(()=>{let D=v?.id;if(!D||!(N instanceof Set))return!1;return N.has(D)},[v?.id,N]),_1=H1(()=>{let D=v?.id;if(!D)return!1;let r=$.find((j1)=>j1.id===D)||null;if(!r)return!1;return e8(D,E1(D),(j1)=>d0.resolve(j1))&&Boolean(r.dirty||Q1)},[v?.id,Q1,E1,$]);if(!$.length)return null;return G`
-        <div class="tab-strip" ref=${W1} role="tablist">
-            ${$.map((D)=>G`
+    `}var Dq=new Set(["html-viewer","kanban-editor","mindmap-editor"]);function N5($,j,q){let B=String($||"").trim();if(!B)return null;if(j)return j;if(typeof q!=="function")return null;return q({path:B,mode:"edit"})?.id||null}function D$($,j,q){let B=N5($,j,q);return B!=null&&Dq.has(B)}function C$($,j,q){return N5($,j,q)==="html-viewer"?"Edit":"Edit Source"}function I$($,j,q){return N5($,j,q)==="editor"}var Cq=/\.(docx?|xlsx?|pptx?|odt|ods|odp|rtf)$/i,Iq=/\.(csv|tsv)$/i,Oq=/\.pdf$/i,Tq=/\.(png|jpe?g|gif|webp|bmp|ico|svg)$/i,O$=/\.drawio(\.xml|\.svg|\.png)?$/i;function Mq($,{hasPopOutTab:j=!1}={}){let q=typeof $==="string"?$.trim():"";if(!q)return null;if(Cq.test(q)){let B="/workspace/raw?path="+encodeURIComponent(q),_=q.split("/").pop()||"document";return"/office-viewer/?url="+encodeURIComponent(B)+"&name="+encodeURIComponent(_)}if(Iq.test(q))return"/csv-viewer/?path="+encodeURIComponent(q);if(Oq.test(q))return"/workspace/raw?path="+encodeURIComponent(q);if(Tq.test(q)&&!O$.test(q))return"/image-viewer/?path="+encodeURIComponent(q);if(O$.test(q)&&!j)return"/drawio/edit?path="+encodeURIComponent(q);return null}function T$({tabs:$,activeId:j,onActivate:q,onClose:B,onCloseOthers:_,onCloseAll:Q,onTogglePin:U,onTogglePreview:X,onToggleDiff:J,onEditSource:W,previewTabs:V,diffTabs:G,paneOverrides:L,detachedTabs:C,onReattachTab:b,onToggleDock:c,dockVisible:l,onToggleZen:w,zenMode:S,onPopOutTab:m}){let[O,d]=y(null),g=M(null);E(()=>{if(!O)return;let I=(a)=>{if(a.type==="keydown"&&a.key!=="Escape")return;d(null)};return document.addEventListener("click",I),document.addEventListener("keydown",I),()=>{document.removeEventListener("click",I),document.removeEventListener("keydown",I)}},[O]),E(()=>{let I=(a)=>{if(a.ctrlKey&&a.key==="Tab"){if(a.preventDefault(),!$.length)return;let F1=$.findIndex((X1)=>X1.id===j);if(a.shiftKey){let X1=$[(F1-1+$.length)%$.length];q?.(X1.id)}else{let X1=$[(F1+1)%$.length];q?.(X1.id)}return}if((a.ctrlKey||a.metaKey)&&a.key==="w"){let F1=document.querySelector(".editor-pane");if(F1&&F1.contains(document.activeElement)){if(a.preventDefault(),j)B?.(j)}}};return document.addEventListener("keydown",I),()=>document.removeEventListener("keydown",I)},[$,j,q,B]);let U1=i((I,a)=>{if(I.button===1)I.preventDefault(),B?.(a)},[B]),k=i((I,a)=>{if(I.defaultPrevented)return;if(I.button===0)q?.(a)},[q]),r=i((I,a)=>{I.preventDefault(),d({id:a,x:I.clientX,y:I.clientY})},[]),f=i((I)=>{I.preventDefault(),I.stopPropagation()},[]),_1=i((I,a)=>{I.preventDefault(),I.stopPropagation(),B?.(a)},[B]);E(()=>{if(!j||!g.current)return;let I=g.current.querySelector(".tab-item.active");if(I)I.scrollIntoView({block:"nearest",inline:"nearest",behavior:"smooth"})},[j]);let Y1=i((I)=>{if(!(L instanceof Map))return null;return L.get(I)||null},[L]),k1=B1(()=>$.find((I)=>I.id===O?.id)||null,[O?.id,$]),O1=B1(()=>{let I=O?.id;if(!I)return!1;return D$(I,Y1(I),(a)=>n0.resolve(a))},[O?.id,Y1]),s=B1(()=>{let I=O?.id;if(!I)return"Edit Source";return C$(I,Y1(I),(a)=>n0.resolve(a))},[O?.id,Y1]),t=B1(()=>{let I=O?.id;if(!I||!(C instanceof Map))return!1;return C.has(I)},[O?.id,C]),K1=B1(()=>{let I=O?.id;if(!I||!(G instanceof Set))return!1;return G.has(I)},[O?.id,G]),G1=B1(()=>{let I=O?.id;if(!I)return!1;let a=$.find((X1)=>X1.id===I)||null;if(!a)return!1;return I$(I,Y1(I),(X1)=>n0.resolve(X1))&&Boolean(a.dirty||K1)},[O?.id,K1,Y1,$]);if(!$.length)return null;return K`
+        <div class="tab-strip" ref=${g} role="tablist">
+            ${$.map((I)=>K`
                 <div
-                    key=${D.id}
-                    class=${`tab-item${D.id===j?" active":""}${D.dirty?" dirty":""}${D.pinned?" pinned":""}`}
+                    key=${I.id}
+                    class=${`tab-item${I.id===j?" active":""}${I.dirty?" dirty":""}${I.pinned?" pinned":""}`}
                     role="tab"
-                    aria-selected=${D.id===j}
-                    title=${D.path}
-                    onMouseDown=${(r)=>D1(r,D.id)}
-                    onClick=${(r)=>N1(r,D.id)}
-                    onContextMenu=${(r)=>X1(r,D.id)}
+                    aria-selected=${I.id===j}
+                    title=${I.path}
+                    onMouseDown=${(a)=>U1(a,I.id)}
+                    onClick=${(a)=>k(a,I.id)}
+                    onContextMenu=${(a)=>r(a,I.id)}
                 >
-                    ${D.pinned&&G`
+                    ${I.pinned&&K`
                         <span class="tab-pin-icon" aria-label="Pinned">
                             <svg viewBox="0 0 16 16" width="10" height="10" fill="currentColor">
                                 <path d="M4.456.734a1.75 1.75 0 0 1 2.826.504l.613 1.327a3.1 3.1 0 0 0 2.084 1.707l2.454.584c1.332.317 1.8 1.972.832 2.94L11.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06L10 11.06l-2.204 2.205c-.968.968-2.623.5-2.94-.832l-.584-2.454a3.1 3.1 0 0 0-1.707-2.084l-1.327-.613a1.75 1.75 0 0 1-.504-2.826z"/>
                             </svg>
                         </span>
                     `}
-                    <span class="tab-label">${D.label}</span>
-                    ${O instanceof Map&&O.has(D.id)&&G`
+                    <span class="tab-label">${I.label}</span>
+                    ${C instanceof Map&&C.has(I.id)&&K`
                         <span class="tab-detached-badge" aria-label="Detached" title="Open in separate window">↗</span>
                     `}
                     <button
                         type="button"
                         class="tab-close"
-                        onPointerDown=${x}
-                        onMouseDown=${x}
-                        onClick=${(r)=>U1(r,D.id)}
-                        title=${D.dirty?"Unsaved changes":"Close"}
-                        aria-label=${D.dirty?"Unsaved changes":`Close ${D.label}`}
+                        onPointerDown=${f}
+                        onMouseDown=${f}
+                        onClick=${(a)=>_1(a,I.id)}
+                        title=${I.dirty?"Unsaved changes":"Close"}
+                        aria-label=${I.dirty?"Unsaved changes":`Close ${I.label}`}
                     >
-                        ${D.dirty?G`<span class="tab-dirty-dot" aria-hidden="true"></span>`:G`<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" focusable="false" style=${{pointerEvents:"none"}}>
+                        ${I.dirty?K`<span class="tab-dirty-dot" aria-hidden="true"></span>`:K`<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" focusable="false" style=${{pointerEvents:"none"}}>
                                 <line x1="4" y1="4" x2="12" y2="12" style=${{pointerEvents:"none"}}/>
                                 <line x1="12" y1="4" x2="4" y2="12" style=${{pointerEvents:"none"}}/>
                             </svg>`}
                     </button>
                 </div>
             `)}
-            ${h&&G`
+            ${c&&K`
                 <div class="tab-strip-spacer"></div>
                 <button
-                    class=${`tab-strip-dock-toggle${p?" active":""}`}
-                    onClick=${h}
-                    title=${`${p?"Hide":"Show"} terminal (Ctrl+\`)`}
-                    aria-label=${`${p?"Hide":"Show"} terminal`}
-                    aria-pressed=${p?"true":"false"}
+                    class=${`tab-strip-dock-toggle${l?" active":""}`}
+                    onClick=${c}
+                    title=${`${l?"Hide":"Show"} terminal (Ctrl+\`)`}
+                    aria-label=${`${l?"Hide":"Show"} terminal`}
+                    aria-pressed=${l?"true":"false"}
                 >
                     <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="1.75" y="2.25" width="12.5" height="11.5" rx="2"/>
@@ -1792,178 +1962,456 @@ ${M0.map((A2,M4)=>{let _9=I4[M4]?.name||`attachment-${M4+1}`;return`- attachment
                     </svg>
                 </button>
             `}
-            ${d&&G`
+            ${w&&K`
                 <button
-                    class=${`tab-strip-zen-toggle${P?" active":""}`}
-                    onClick=${d}
-                    title=${`${P?"Exit":"Enter"} zen mode (Ctrl+Shift+Z)`}
-                    aria-label=${`${P?"Exit":"Enter"} zen mode`}
-                    aria-pressed=${P?"true":"false"}
+                    class=${`tab-strip-zen-toggle${S?" active":""}`}
+                    onClick=${w}
+                    title=${`${S?"Exit":"Enter"} zen mode (Ctrl+Shift+Z)`}
+                    aria-label=${`${S?"Exit":"Enter"} zen mode`}
+                    aria-pressed=${S?"true":"false"}
                 >
                     <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        ${P?G`<polyline points="4 8 1.5 8 1.5 1.5 14.5 1.5 14.5 8 12 8"/><polyline points="4 8 1.5 8 1.5 14.5 14.5 14.5 14.5 8 12 8"/>`:G`<polyline points="5.5 1.5 1.5 1.5 1.5 5.5"/><polyline points="10.5 1.5 14.5 1.5 14.5 5.5"/><polyline points="5.5 14.5 1.5 14.5 1.5 10.5"/><polyline points="10.5 14.5 14.5 14.5 14.5 10.5"/>`}
+                        ${S?K`<polyline points="4 8 1.5 8 1.5 1.5 14.5 1.5 14.5 8 12 8"/><polyline points="4 8 1.5 8 1.5 14.5 14.5 14.5 14.5 8 12 8"/>`:K`<polyline points="5.5 1.5 1.5 1.5 1.5 5.5"/><polyline points="10.5 1.5 14.5 1.5 14.5 5.5"/><polyline points="5.5 14.5 1.5 14.5 1.5 10.5"/><polyline points="10.5 14.5 14.5 14.5 14.5 10.5"/>`}
                     </svg>
                 </button>
             `}
         </div>
-        ${v&&G`
-            <div class="tab-context-menu" style=${{left:v.x+"px",top:v.y+"px"}}>
-                <button onClick=${()=>{B?.(v.id),e(null)}}>Close</button>
-                <button onClick=${()=>{Q?.(v.id),e(null)}}>Close Others</button>
-                <button onClick=${()=>{J?.(),e(null)}}>Close All</button>
+        ${O&&K`
+            <div class="tab-context-menu" style=${{left:O.x+"px",top:O.y+"px"}}>
+                <button onClick=${()=>{B?.(O.id),d(null)}}>Close</button>
+                <button onClick=${()=>{_?.(O.id),d(null)}}>Close Others</button>
+                <button onClick=${()=>{Q?.(),d(null)}}>Close All</button>
                 <hr />
-                <button onClick=${()=>{K?.(v.id),e(null)}}>
-                    ${b1?.pinned?"Unpin":"Pin"}
+                <button onClick=${()=>{U?.(O.id),d(null)}}>
+                    ${k1?.pinned?"Unpin":"Pin"}
                 </button>
-                ${P1&&U&&G`
-                    <button onClick=${()=>{U(v.id),e(null)}}>${l}</button>
+                ${O1&&W&&K`
+                    <button onClick=${()=>{W(O.id),d(null)}}>${s}</button>
                 `}
-                ${s&&g&&G`
-                    <button onClick=${()=>{g(v.id),e(null)}}>Reattach</button>
+                ${t&&b&&K`
+                    <button onClick=${()=>{b(O.id),d(null)}}>Reattach</button>
                 `}
-                ${t&&!s&&G`
-                    <button onClick=${()=>{let D=$.find((r)=>r.id===v.id);t(v.id,D?.label),e(null)}}>Open in Window</button>
+                ${m&&!t&&K`
+                    <button onClick=${()=>{let I=$.find((a)=>a.id===O.id);m(O.id,I?.label),d(null)}}>Open in Window</button>
                 `}
-                ${_1&&z&&G`
+                ${G1&&J&&K`
                     <hr />
-                    <button onClick=${()=>{q?.(v.id),z(v.id),e(null)}}>${Q1?"Hide Diff":"Compare to Saved"}</button>
+                    <button onClick=${()=>{q?.(O.id),J(O.id),d(null)}}>${K1?"Hide Diff":"Compare to Saved"}</button>
                 `}
-                ${X&&/\.(md|mdx|markdown)$/i.test(v.id)&&G`
+                ${X&&/\.(md|mdx|markdown)$/i.test(O.id)&&K`
                     <hr />
-                    <button onClick=${()=>{X(v.id),e(null)}}>
-                        ${L?.has(v.id)?"Hide Preview":"Preview"}
+                    <button onClick=${()=>{X(O.id),d(null)}}>
+                        ${V?.has(O.id)?"Hide Preview":"Preview"}
                     </button>
                 `}
-                ${(()=>{let D=rj(v.id,{hasPopOutTab:typeof t==="function"});if(!D)return null;return G`
+                ${(()=>{let I=Mq(O.id,{hasPopOutTab:typeof m==="function"});if(!I)return null;return K`
                         <hr />
-                        <button onClick=${()=>{window.open(D,"_blank","noopener"),e(null)}}>Open in New Tab</button>
+                        <button onClick=${()=>{window.open(I,"_blank","noopener"),d(null)}}>Open in New Tab</button>
                     `})()}
             </div>
         `}
-    `}var y2="gi",q9="gi_current_session_id",ij=1200;function q4($){return $?`gi:${$}`:"web:default"}async function B9(){let $=await fetch("/api/sessions");if(!$.ok)return[];return(await $.json()).sessions||[]}async function nj($){let j=await fetch("/api/sessions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:$})});if(!j.ok)throw Error("Failed to create session");return j.json()}async function sj(){let $=await fetch("/api/runtime/config");if(!$.ok)return{};return $.json()}function oj({sessions:$,currentSessionId:j,onSelect:q,onCreate:B}){let[Q,J]=M("");return G`
-        <div class="gi-session-sidebar">
-            <div class="workspace-header">
-                <span class="workspace-header-left">Sessions</span>
-                <div class="workspace-header-actions">
-                    <button
-                        class="workspace-create"
-                        title="New session"
-                        onClick=${async()=>{let K=await B(Q||"Session");J(""),q(K.id)}}
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                        </svg>
-                    </button>
+    `}function v3($,j){try{if($)$.name=j;return!0}catch(q){return!1}}function b3($,j){try{return $?.contentWindow?.postMessage?.(j,"*"),!0}catch(q){return!1}}function yq($){let j=new Map,q=[];for(let U of $||[])j.set(U.id,{...U,children:[],depth:0});for(let U of $||[]){let X=j.get(U.id);if(!X)continue;let J=U.parentId?j.get(U.parentId):null;if(J)J.children.push(X);else q.push(X)}let B=new Set;for(let[,U]of j){if(U.role!=="assistant"||!U.toolName)continue;if(U.children.length!==1)continue;let X=U.children[0];if(X.role!=="toolResult")continue;U.resultDetail=X.detail||null,U.resultLength=X.contentLength||0,U.resultId=X.id,U.merged=!0,U.children=X.children;for(let J of U.children)J.parentId=U.id;B.add(X.id)}let _=q.filter((U)=>!B.has(U.id)),Q=[];for(let U=_.length-1;U>=0;U--)_[U].depth=0,Q.push(_[U]);while(Q.length>0){let U=Q.pop(),X=U.children.length>1;for(let J=U.children.length-1;J>=0;J--)U.children[J].depth=X?U.depth+1:U.depth,Q.push(U.children[J])}return _}function Sq($){let j=[],q=[];for(let B=$.length-1;B>=0;B--)q.push($[B]);while(q.length>0){let B=q.pop();j.push(B);for(let _=B.children.length-1;_>=0;_--)q.push(B.children[_])}return j}function M$($){if(!$||$<=0)return"";if($<1000)return`${$}`;if($<1e6)return`${($/1000).toFixed(1)}k`;return`${($/1e6).toFixed(1)}M`}function c2($){if(!$||$<=0)return"";if($<1000)return`${$} chars`;if($<1e6)return`${($/1000).toFixed(1)}k chars`;return`${($/1e6).toFixed(1)}M chars`}function kq($){let j=$.type;if(j==="model_change")return{tag:"model",tagClass:"system",text:`${$.preview?.replace("[model ","").replace("]","")||""}`};if(j==="thinking_level_change")return{tag:"thinking",tagClass:"system",text:$.preview?.replace("[thinking ","").replace("]","")||""};if(j==="compaction")return{tag:"compaction",tagClass:"system",text:$.preview?.replace("[compaction: ","").replace("]","")||""};if(j==="label")return{tag:"label",tagClass:"system",text:$.preview?.replace("[label ","").replace("]","")||""};if(j==="session_info")return{tag:"session",tagClass:"system",text:$.preview?.replace("[session name ","").replace("]","")||""};if(j==="branch_summary")return{tag:"summary",tagClass:"system",text:$.preview||""};if(j!=="message")return{tag:j||"?",tagClass:"system",text:$.preview||""};let q=$.role||"message";if($.merged&&$.toolName){let _=($.toolInput||"").split(`
+`)[0],Q=_.length>120?_.slice(0,119)+"…":_;return{tag:$.toolName,tagClass:"tool",text:Q||""}}if(q==="assistant"&&$.toolName){let _=($.toolInput||"").split(`
+`)[0],Q=_.length>120?_.slice(0,119)+"…":_;return{tag:$.toolName,tagClass:"tool",text:Q||"…"}}if(q==="toolResult"){let _=($.detail||"").split(`
+`)[0],Q=_.length>120?_.slice(0,119)+"…":_;return{tag:`→ ${$.toolName||"result"}`,tagClass:"result",text:Q}}if(q==="user"){let Q=($.previewText||$.detail||$.preview||"").replace(/^user:\s*"?/,"").replace(/"?\s*$/,"").split(`
+`)[0];return{tag:"user",tagClass:"user",text:Q.length>120?Q.slice(0,119)+"…":Q}}if(q==="assistant"){let Q=($.detail||$.preview||"").replace(/^assistant:\s*"?/,"").replace(/"?\s*$/,"").split(`
+`)[0];return{tag:"assistant",tagClass:"assistant",text:Q.length>120?Q.slice(0,119)+"…":Q}}return{tag:q,tagClass:"other",text:$.preview||""}}function Eq($,j=!1){let q=typeof $==="string"?$.trim():"";if(!q)return null;return{text:j?`/tree ${q} --summarize`:`/tree ${q}`,navigateTargetId:q,summarize:Boolean(j)}}function y$($){let j=typeof $==="string"?$.trim():"";if(!j.startsWith("/tree"))return null;let q=j.split(/\s+/).filter(Boolean);if(q[0]!=="/tree")return null;let B=null,_=!1;for(let Q=1;Q<q.length;Q++){let U=q[Q];if(U==="--summarize"){_=!0;continue}if(!B&&!U.startsWith("--"))B=U}return B?{targetId:B,summarize:_}:null}function fq($,j,q,B){let _=Array.isArray($)?$:[];if(_.length===0)return null;let Q=(X)=>typeof X==="string"&&_.some((J)=>J?.id===X);if(Q(j))return j;if(Q(q))return q;if(Q(B))return B;let U=_.find((X)=>X?.active);if(U?.id)return U.id;return _[0]?.id||null}function Pq($){if(!$||typeof $!=="object")return null;let j=typeof $.type==="string"?$.type:"",q=typeof $.preview==="string"?$.preview.trim():"",B=typeof $.error==="string"?$.error.trim():"",_=y$(q),Q=q||"tree command";if(j==="submit_pending")return{tone:"pending",text:_?`Sending ${Q}`:"Sending tree command…",refreshDelays:[]};if(j==="submit_sent")return{tone:"info",text:_?`Running ${Q}`:"Tree command sent.",refreshDelays:_?[500,1500,3500,8000]:[]};if(j==="submit_queued")return{tone:"info",text:_?`Queued ${Q}`:"Tree command queued.",refreshDelays:_?[1200,3200,7000,12000]:[]};if(j==="submit_failed")return{tone:"error",text:B?`Tree command failed: ${B}`:"Tree command failed.",refreshDelays:[]};if(j==="refresh_building")return{tone:"pending",text:"Refreshing widget…",refreshDelays:[]};if(j==="refresh_failed")return{tone:"error",text:B?`Refresh failed: ${B}`:"Refresh failed.",refreshDelays:[]};if(j==="refresh_dashboard"||j==="refresh_ack")return{tone:"success",text:"Widget refreshed.",refreshDelays:[]};return null}function S$({widget:$,onWidgetEvent:j}){let q=$?.artifact?.tree&&typeof $.artifact.tree==="object"?$.artifact.tree:null,B=typeof $?.originChatJid==="string"&&$.originChatJid.trim()?$.originChatJid.trim():null,_=$?.runtimeState&&typeof $.runtimeState==="object"?$.runtimeState:null,Q=_?.lastHostUpdate&&typeof _.lastHostUpdate==="object"?_.lastHostUpdate:null,[U,X]=y(()=>({loading:!q,error:null,data:q})),[J,W]=y(()=>q?.leafId||null),[V,G]=y(""),L=M(null),C=M(null),b=M(q?.leafId||null),c=M(null),l=M(""),w=async()=>{X((k)=>({...k,loading:!0,error:null}));try{let k=B?`?chat_jid=${encodeURIComponent(B)}`:"",r=await fetch(`/agent/session-tree${k}`,{method:"GET",credentials:"same-origin",headers:{Accept:"application/json"}}),f=await r.json().catch(()=>({}));if(!r.ok)throw Error(f?.error||`HTTP ${r.status}`);X({loading:!1,error:null,data:f})}catch(k){X((r)=>({loading:!1,error:k?.message||"Failed to load tree.",data:r?.data||q||null}))}};c.current=w,E(()=>{w()},[B]);let S=B1(()=>{let k=U.data;if(!k||!Array.isArray(k.nodes)||k.nodes.length===0)return[];return Sq(k.flat?yq(k.nodes):k.nodes)},[U.data]);E(()=>{let k=fq(S,J,b.current,U.data?.leafId||null);if(k!==J)W(k);if(b.current&&U.data?.leafId===b.current)b.current=null},[S,J,U.data?.leafId]);let m=B1(()=>{let k=(V||"").trim().toLowerCase();if(!k)return S;return S.filter((r)=>{return[r.preview,r.toolInput,r.toolInputFull,r.detail,r.toolName,r.role,r.id,r.resultDetail,r.type,r.label].some((_1)=>typeof _1==="string"&&_1.toLowerCase().includes(k))})},[S,V]),O=B1(()=>m.find((k)=>k.id===J)||null,[m,J]),d=B1(()=>Pq(Q),[Q?.type,Q?.preview,Q?.error,Q?.submittedAt]);E(()=>{if(C.current)C.current.scrollIntoView({block:"center",behavior:"auto"})},[J,U.data?.leafId,m.length]),E(()=>{let k=y$(Q?.preview);if(k?.targetId)b.current=k.targetId;let r=d?.refreshDelays||[];if(!r.length)return;let f=[B||"",Q?.type||"",Q?.submittedAt||"",Q?.preview||""].join("|");if(l.current===f)return;l.current=f;let _1=r.map((Y1)=>setTimeout(()=>c.current?.(),Y1));return()=>_1.forEach((Y1)=>clearTimeout(Y1))},[B,Q?.type,Q?.submittedAt,Q?.preview,d?.refreshDelays]);let g=(k=!1)=>{let r=O?.id,f=Eq(r,k);if(!f)return;b.current=f.navigateTargetId,j?.({kind:"widget.submit",payload:f},$)},U1=d?.tone||"info";return K`
+        <div class="session-tree-widget">
+            <div class="session-tree-toolbar">
+                <div class="session-tree-toolbar-left">
+                    <button class="session-tree-btn" type="button" onClick=${()=>w()} disabled=${U.loading}>${U.loading?"Loading…":"Refresh"}</button>
+                    <input ref=${L}
+                        class="st-search-input" type="text" placeholder="Filter\u2026"
+                        value=${V}
+                        onInput=${(k)=>G(k.currentTarget.value)}
+                        onKeyDown=${(k)=>{if(k.key==="Escape")G(""),k.currentTarget.blur()}}
+                    />
+                    ${V&&K`<span class="session-tree-meta">${m.length} match${m.length!==1?"es":""}</span>`}
+                    ${U.error&&K`<span class="session-tree-error-inline">${U.error}</span>`}
+                </div>
+                <div class="session-tree-toolbar-right">
+                    ${d?.text&&K`<span class=${`session-tree-host-update ${U1}`}>${d.text}</span>`}
+                    ${U.data?.capped&&K`<span class="session-tree-meta">Showing ${U.data?.nodes?.length||0} of ${U.data?.total||0}</span>`}
+                    ${B&&K`<span class="session-tree-meta">${B}</span>`}
                 </div>
             </div>
-            <div class="workspace-tree">
-                ${$.map((K)=>G`
-                    <button
-                        key=${K.id}
-                        class=${`workspace-row${j===K.id?" workspace-row-active":""}`}
-                        style="padding-left:12px"
-                        onClick=${()=>q(K.id)}
-                    >
-                        <span class="workspace-row-icon">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                            </svg>
-                        </span>
-                        <span class="workspace-row-label">${K.title||K.id}</span>
-                    </button>
-                `)}
+
+            <div class="session-tree-content">
+                <div class="session-tree-list" role="tree" aria-label="Session tree">
+                    ${U.loading&&m.length===0&&!V&&K`<div class="session-tree-empty">Loading session tree\u2026</div>`}
+                    ${!U.loading&&m.length===0&&!V&&K`<div class="session-tree-empty">Session tree is empty.</div>`}
+                    ${!U.loading&&m.length===0&&V&&K`<div class="session-tree-empty">No entries match \u201c${V}\u201d</div>`}
+                    ${m.map((k)=>{let r=J===k.id,f=`st-row${k.active?" active":""}${r?" selected":""}`,_1=(k.children||[]).length>1,Y1=kq(k);return K`
+                            <button key=${k.id} ref=${k.active||r?C:null}
+                                class=${f} type="button" role="treeitem" aria-selected=${r}
+                                onClick=${()=>W(k.id)}>
+                                <span class="st-indent" style=${`width:${(k.depth||0)*16+6}px`}></span>
+                                <span class=${`st-dot${k.active?" active":_1?" branch":""}`}></span>
+                                <span class=${`st-tag ${Y1.tagClass}`}>${Y1.tag}</span>
+                                <span class="st-text">${Y1.text}</span>
+                                ${k.merged&&k.resultLength>0&&K`<span class="st-size">${M$(k.resultLength)}</span>`}
+                                ${!k.merged&&k.contentLength>3000&&K`<span class="st-size">${M$(k.contentLength)}</span>`}
+                                ${k.hasThinking&&K`<span class="st-badge thinking">\u{1F4AD}</span>`}
+                                ${k.label&&K`<span class="st-label">${k.label}</span>`}
+                                ${k.active&&K`<span class="st-active">\u25C0</span>`}
+                            </button>
+                        `})}
+                </div>
+
+                <aside class="session-tree-sidebar">
+                    ${O?K`
+                        <div class="st-side-section">
+                            <div class="st-side-label">Entry</div>
+                            <div class="st-side-mono">${O.id}${O.resultId?` → ${O.resultId}`:""}</div>
+                        </div>
+                        <div class="st-side-section">
+                            <div class="st-side-label">Type</div>
+                            <div class="st-side-value">${O.role||O.type||"entry"}${O.toolName?` → ${O.toolName}`:""}${O.merged?" (merged)":""}</div>
+                        </div>
+                        ${O.toolInputFull&&K`
+                            <div class="st-side-section">
+                                <div class="st-side-label">${O.toolName==="bash"?"Command":"Input"}</div>
+                                <pre class="st-side-code">${O.toolInputFull}</pre>
+                            </div>
+                        `}
+                        ${O.resultDetail&&K`
+                            <div class="st-side-section">
+                                <div class="st-side-label">Result${O.resultLength?` (${c2(O.resultLength)})`:""}</div>
+                                <pre class="st-side-code">${O.resultDetail}</pre>
+                            </div>
+                        `}
+                        ${O.detail&&!O.toolInput&&K`
+                            <div class="st-side-section">
+                                <div class="st-side-label">${O.role==="toolResult"?"Output":"Content"}${O.contentLength?` (${c2(O.contentLength)})`:""}</div>
+                                <pre class="st-side-code">${O.detail}</pre>
+                            </div>
+                        `}
+                        ${O.rawDetail&&K`
+                            <div class="st-side-section">
+                                <div class="st-side-label">Raw prompt${O.rawContentLength?` (${c2(O.rawContentLength)})`:""}</div>
+                                <pre class="st-side-code">${O.rawDetail}</pre>
+                            </div>
+                        `}
+                        ${O.timestamp&&K`
+                            <div class="st-side-section">
+                                <div class="st-side-label">Time</div>
+                                <div class="st-side-value">${new Date(O.timestamp).toLocaleString()}</div>
+                            </div>
+                        `}
+                        ${(O.contentLength>0||O.hasThinking)&&K`
+                            <div class="st-side-section">
+                                <div class="st-side-label">Size</div>
+                                <div class="st-side-badges">
+                                    ${O.contentLength>0&&K`<span class="st-pill">${c2(O.contentLength)} content</span>`}
+                                    ${O.hasThinking&&K`<span class="st-pill thinking">${c2(O.thinkingLength)} thinking</span>`}
+                                    ${O.merged&&O.resultLength>0&&K`<span class="st-pill">${c2(O.resultLength)} result</span>`}
+                                </div>
+                            </div>
+                        `}
+                        <div class="st-side-actions">
+                            <button class="session-tree-btn primary" type="button" onClick=${()=>g(!1)}>Navigate here</button>
+                            <button class="session-tree-btn" type="button" onClick=${()=>g(!0)}>Navigate + summarize</button>
+                        </div>
+                    `:K`<div class="session-tree-empty side">Select an entry to inspect.</div>`}
+                </aside>
             </div>
         </div>
-    `}function aj(){let[$,j]=M({}),[q,B]=M([]),[Q,J]=M(()=>k0(q9)||null),K=H1(()=>q4(Q),[Q]),{agentStatus:X,setAgentStatus:z,agentDraft:U,setAgentDraft:L,agentPlan:N,setAgentPlan:V,agentThought:O,setAgentThought:g,pendingRequest:h,setPendingRequest:p,currentTurnId:d,setCurrentTurnId:P,steerQueuedTurnId:t,setSteerQueuedTurnId:v,lastAgentEventRef:e,lastSilenceNoticeRef:W1,isAgentRunningRef:D1,draftBufferRef:N1,thoughtBufferRef:X1,previewResyncPendingRef:x,previewResyncGenerationRef:U1,pendingRequestRef:E1,stalledPostIdRef:b1,currentTurnIdRef:P1,steerQueuedTurnIdRef:l,thoughtExpandedRef:s,draftExpandedRef:Q1}=$6(),[_1,D]=M([]),[r,L1]=M(!1),[j1,M1]=M(!1),[R1,Y1]=M([]),[p1,C1]=M(null),[j0,s1]=M({}),[O0,K0]=M(null),[f0,G0]=M(!1);w(()=>{let a=z6();return sj().then((z1)=>{j(z1),K0({name:z1.user_name,avatar_url:z1.user_avatar}),s1({[y2]:{id:y2,name:z1.assistant_name||"Gi",avatar_url:z1.assistant_avatar||null}})}),B9().then(B),a},[]),w(()=>{if(Q)E0(q9,Q)},[Q]);async function o1(a){J(a),D([]),await H0(a)}async function q0(a){let z1=await nj(a),J1=await B9();return B(J1),z1}async function H0(a=Q,z1=null){if(!a)return;let J1=q4(a),k1=(await N6(50,z1,J1)).posts||[];if(z1)D((c1)=>b5([...k1,...c1]));else D(b5(k1));L1(k1.length>=50)}w(()=>{if(!Q)return;let a=setInterval(async()=>{await H0(Q);let z1=q4(Q),J1=await L6(y2,z1).catch(()=>null);if(J1){z(J1);let A1=J1.status==="running"||J1.status==="cancelling";G0(A1),D1.current=A1}else z(null),G0(!1),D1.current=!1},ij);return H0(Q),()=>clearInterval(a)},[Q]);async function y1(a,z1={}){if(!Q)return;let J1=q4(Q);await u2(y2,a,null,[],z1.mode||"auto",J1)}async function X0(){if(!Q)return;let a=q4(Q);await u2(y2,"/abort",null,[],"steer",a).catch(()=>null)}function N0(a){let z1=R1.find((A1)=>A1.path===a);if(z1){C1(z1.id);return}let J1=`tab-${Date.now()}`;Y1((A1)=>[...A1,{id:J1,path:a,label:a.split("/").pop()||a}]),C1(J1)}function a1(a){Y1((z1)=>{let J1=z1.filter((A1)=>A1.id!==a);if(p1===a)C1(J1[J1.length-1]?.id||null);return J1})}let t1=Boolean(Q);return G`
-        <div class="app-shell ${j1?"":"workspace-collapsed"}">
-            <${o8}
-                currentChatJid=${K}
-                onOpenFile=${N0}
-            />
-            <div class="workspace-splitter"></div>
-            <div class="container">
-                <${oj}
-                    sessions=${q}
-                    currentSessionId=${Q}
-                    onSelect=${o1}
-                    onCreate=${q0}
-                />
-                <div class="chat-window">
-                    <div class="chat-window-header">
-                        <div class="chat-window-header-main">
-                            <div class="chat-window-header-title">
-                                ${$.assistant_name||"Gi"}
-                            </div>
-                            <div class="chat-window-header-subtitle">
-                                ${Q?q.find((a)=>a.id===Q)?.title||Q:"No session — create or select one"}
-                            </div>
+    `}function k$({widget:$,onClose:j,onWidgetEvent:q}){let B=M(null),_=M(!1),Q=B1(()=>T6($),[$?.artifact?.kind,$?.artifact?.html,$?.artifact?.svg,$?.widgetId,$?.toolCallId,$?.turnId,$?.title]);if(E(()=>{if(!$)return;let w=(S)=>{if(S.key==="Escape")j?.()};return document.addEventListener("keydown",w),()=>document.removeEventListener("keydown",w)},[$,j]),E(()=>{_.current=!1},[Q]),E(()=>{if(!$)return;let w=B.current;if(!w)return;let S=(U1)=>{let k=W5($),r=U1==="widget.init"?U5($):X5($);v3(w,k),b3(w,{__piclawGeneratedWidgetHost:!0,type:U1,widgetId:$?.widgetId||null,toolCallId:$?.toolCallId||null,turnId:$?.turnId||null,payload:r})},m=()=>{S("widget.init"),S("widget.update")},O=()=>{_.current=!0,m()};w.addEventListener("load",O);let g=[0,40,120,300,800].map((U1)=>setTimeout(m,U1));return()=>{w.removeEventListener("load",O),g.forEach((U1)=>clearTimeout(U1))}},[Q,$?.widgetId,$?.toolCallId,$?.turnId]),E(()=>{if(!$)return;let w=B.current;if(!w?.contentWindow)return;let S=W5($),m=X5($);v3(w,S),b3(w,{__piclawGeneratedWidgetHost:!0,type:"widget.update",widgetId:$?.widgetId||null,toolCallId:$?.toolCallId||null,turnId:$?.turnId||null,payload:m});return},[$?.widgetId,$?.toolCallId,$?.turnId,$?.status,$?.subtitle,$?.description,$?.error,$?.width,$?.height,$?.runtimeState]),E(()=>{if(!$)return;let w=(S)=>{let m=S?.data;if(!m||m.__piclawGeneratedWidget!==!0)return;let O=B.current,d=Z3($),g=Z3({widgetId:m.widgetId,toolCallId:m.toolCallId});if(g&&d&&g!==d)return;if(!g&&O?.contentWindow&&S.source!==O.contentWindow)return;q?.(m,$)};return window.addEventListener("message",w),()=>window.removeEventListener("message",w)},[$,q]),!$)return null;let X=($?.artifact||{}).kind||$?.kind||"html",J=typeof $?.title==="string"&&$.title.trim()?$.title.trim():"Generated widget",W=typeof $?.subtitle==="string"&&$.subtitle.trim()?$.subtitle.trim():"",V=$?.source==="live"?"live":"timeline",G=typeof $?.status==="string"&&$.status.trim()?$.status.trim():"final",L=V==="live"?`Live widget • ${G.toUpperCase()}`:$?.originPostId?`Message #${$.originPostId}`:"Timeline launch",C=typeof $?.description==="string"&&$.description.trim()?$.description.trim():"",b=!Q,c=O6($),l=I6($);return K`
+        <div class="floating-widget-backdrop" onClick=${()=>j?.()}>
+            <section
+                class="floating-widget-pane"
+                aria-label=${J}
+                onClick=${(w)=>w.stopPropagation()}
+            >
+                <div class="floating-widget-header">
+                    <div class="floating-widget-heading">
+                        <div class="floating-widget-eyebrow">${L} • ${X.toUpperCase()}</div>
+                        <div class="floating-widget-title">${J}</div>
+                        ${(W||C)&&K`
+                            <div class="floating-widget-subtitle">${W||C}</div>
+                        `}
+                    </div>
+                    <button
+                        class="floating-widget-close"
+                        type="button"
+                        onClick=${()=>j?.()}
+                        title="Close widget"
+                        aria-label="Close widget"
+                    >
+                        Close
+                    </button>
+                </div>
+                <div class="floating-widget-body">
+                    ${X==="session_tree"?K`<${S$} widget=${$} onWidgetEvent=${q} />`:b?K`<div class="floating-widget-empty">${c}</div>`:K`
+                                <iframe
+                                    ref=${B}
+                                    class="floating-widget-frame"
+                                    title=${J}
+                                    name=${W5($)}
+                                    sandbox=${l}
+                                    referrerpolicy="no-referrer"
+                                    srcdoc=${Q}
+                                ></iframe>
+                            `}
+                </div>
+            </section>
+        </div>
+    `}var Rq=new TextDecoder("utf-8",{fatal:!1});function l2($,j){return $[j]|$[j+1]<<8}function f2($,j){return($[j]|$[j+1]<<8|$[j+2]<<16|$[j+3]<<24)>>>0}function E$($,j,q){return Rq.decode($.subarray(j,j+q))}function wq($){let j=Math.max(0,$.length-65557);for(let q=$.length-22;q>=j;q-=1)if(f2($,q)===101010256)return q;return-1}function xq($,j){let q=Math.max(0,j-20);for(let B=q;B<=j-4;B+=1)if(f2($,B)===117853008)return!0;return!1}function vq($){let j=new Set;for(let q of $){let B=q.path.replace(/\/+/g,"/");if(!B)continue;if(q.isDirectory){j.add(B.endsWith("/")?B.slice(0,-1):B);continue}let _=B.split("/").filter(Boolean);if(_.length<=1)continue;let Q="";for(let U=0;U<_.length-1;U+=1)Q=Q?`${Q}/${_[U]}`:_[U],j.add(Q)}return j}function bq($){return String($||"").replace(/\\/g,"/").trim()}function f$($){switch(Number($)){case 0:return"Stored";case 8:return"Deflate";case 9:return"Deflate64";case 12:return"BZIP2";case 14:return"LZMA";case 93:return"Zstandard";default:return`Method ${$}`}}function P$($){let j=$ instanceof Uint8Array?$:$ instanceof ArrayBuffer?new Uint8Array($):new Uint8Array($.buffer,$.byteOffset,$.byteLength);if(j.length<22)throw Error("ZIP archive is too small to contain a valid directory.");let q=wq(j);if(q<0)throw Error("ZIP archive directory could not be found.");if(xq(j,q))throw Error("ZIP64 archives are not previewable yet.");let B=l2(j,q+10),_=f2(j,q+12),Q=f2(j,q+16);if(Q+_>j.length)throw Error("ZIP archive directory is truncated.");let U=[],X=Q,J=Q+_;while(X<J){if(X+46>j.length)throw Error("ZIP archive directory entry is truncated.");if(f2(j,X)!==33639248)throw Error("ZIP archive directory contains an unexpected record.");let G=l2(j,X+8),L=l2(j,X+10),C=f2(j,X+20),b=f2(j,X+24),c=l2(j,X+28),l=l2(j,X+30),w=l2(j,X+32),S=X+46,m=S+c+l,O=m+w;if(O>j.length)throw Error("ZIP archive directory entry metadata is truncated.");let d=(G&2048)===2048,g=bq(E$(j,S,c)),U1=E$(j,m,w),k=g.endsWith("/");if(g)U.push({path:g,isDirectory:k,compressedSize:C,uncompressedSize:b,compressionMethod:L,comment:d?U1:U1});X=O}U.sort((G,L)=>{if(G.isDirectory!==L.isDirectory)return G.isDirectory?-1:1;return G.path.localeCompare(L.path)});let W=U.filter((G)=>!G.isDirectory),V=vq(U);return{entries:U,summary:{fileCount:W.length,directoryCount:V.size,totalEntries:U.length,compressedBytes:W.reduce((G,L)=>G+L.compressedSize,0),uncompressedBytes:W.reduce((G,L)=>G+L.uncompressedSize,0)}}}function R$($){if(!$)return null;if($.uncompressedBytes<=0)return null;let j=1-$.compressedBytes/$.uncompressedBytes;if(!Number.isFinite(j))return null;return`${Math.round(j*100)}% smaller`}var uq="allow-scripts";function mq($){if(!($ instanceof Uint8Array)||$.length===0)return!0;let j=0,q=$.subarray(0,Math.min($.length,4096));for(let B of q){if(B===0)return!1;if(B<32&&B!==9&&B!==10&&B!==13&&B!==12)j+=1}return j/q.length<0.02}function gq($,j){let q=String($?.content_type||"").trim().toLowerCase(),B=String(j||"").trim().toLowerCase();if(q.startsWith("text/")||q==="application/json"||q==="application/xml")return!1;return q==="application/octet-stream"||B.endsWith(".sb")||B.endsWith(".sh")}function pq($){try{return new TextDecoder("utf-8",{fatal:!1}).decode($)}catch{return new TextDecoder().decode($)}}function hq($,j=null,q=null){let B=$?.metadata?.size,_=$?.content_type||"application/octet-stream",Q=q?.summary||null;return[{label:"Type",value:_},{label:"Syntax",value:j},{label:"Entries",value:Q?String(Q.totalEntries):null},{label:"Files",value:Q?String(Q.fileCount):null},{label:"Folders",value:Q?String(Q.directoryCount):null},{label:"Compressed",value:Q?C0(Q.compressedBytes):null},{label:"Uncompressed",value:Q?C0(Q.uncompressedBytes):null},{label:"Savings",value:R$(Q)},{label:"Size",value:typeof B==="number"?C0(B):null},{label:"Added",value:$?.created_at?p2($.created_at):null}].filter((U)=>U.value)}function cq($,j){let q=String($?.content_type||"").trim().toLowerCase(),B=String(j||"").trim().toLowerCase(),_=B.split("/").pop()||B;if(B.endsWith(".yaml")||B.endsWith(".yml")||q==="text/yaml"||q==="application/yaml")return"yaml";if(B.endsWith(".json")||B.endsWith(".jsonl")||q==="application/json")return"json";if(B.endsWith(".xml")||B.endsWith(".svg")||q==="application/xml"||q==="text/xml"||q==="image/svg+xml")return"xml";if(B.endsWith(".html")||B.endsWith(".htm")||q==="text/html")return"html";if(B.endsWith(".css")||q==="text/css")return"css";if(B.endsWith(".ts")||B.endsWith(".tsx")||q==="text/typescript")return B.endsWith(".tsx")?"tsx":"ts";if(B.endsWith(".js")||B.endsWith(".jsx")||q==="text/javascript"||q==="application/javascript")return B.endsWith(".jsx")?"jsx":"js";if(B.endsWith(".py")||q==="text/x-python"||q==="application/x-python-code")return"python";if(B.endsWith(".go")||q==="text/x-go")return"go";if(B.endsWith(".rb")||q==="text/x-ruby")return"ruby";if(B.endsWith(".rs")||q==="text/x-rustsrc")return"rust";if(B.endsWith(".ps1")||B.endsWith(".psm1")||B.endsWith(".psd1")||q==="text/x-powershell")return"powershell";if(_==="dockerfile"||B.endsWith(".dockerfile"))return"dockerfile";if(B.endsWith(".md")||B.endsWith(".markdown")||q==="text/markdown")return"markdown";if(B.endsWith(".sh")||B.endsWith(".bash")||B.endsWith(".zsh")||_===".bashrc"||_===".bash_profile"||_===".profile"||_===".zshrc"||_===".zprofile"||_===".zshenv"||_===".env"||_.startsWith(".env.")||q==="text/x-shellscript")return"bash";if(B.endsWith(".sql"))return"sql";if(B.endsWith(".toml")||B.endsWith(".ini")||B.endsWith(".cfg")||B.endsWith(".conf")||B.endsWith(".properties")||q==="text/toml")return"toml";return null}function lq($,j,q){let B=encodeURIComponent(j||`attachment-${$}`),_=encodeURIComponent(String($));if(q==="pdf")return`/pdf-viewer/?media=${_}&name=${B}#media=${_}&name=${B}`;if(q==="office"){let Q=i0($);return`/office-viewer/?url=${encodeURIComponent(Q)}&name=${B}`}if(q==="drawio")return`/drawio/edit.html?media=${_}&name=${B}&readonly=1#media=${_}&name=${B}&readonly=1`;return null}function w$({mediaId:$,info:j,onClose:q}){let B=j?.filename||`attachment-${$}`,_=B1(()=>X4(j?.content_type,B),[j?.content_type,B]),Q=K6(_),U=B1(()=>J6(j?.content_type),[j?.content_type]),[X,J]=y(_==="text"||_==="html"||_==="archive"),[W,V]=y(""),[G,L]=y(null),[C,b]=y(null),c=M(null),l=B1(()=>cq(j,B),[j,B]),w=B1(()=>l?d8(l):null,[l]),S=B1(()=>hq(j,!U?w:null,G),[j,U,w,G]),m=B1(()=>lq($,B,_),[$,B,_]),O=B1(()=>{if(!U||!W)return"";return B2(W)},[U,W]),d=B1(()=>{if(U||!W||!l)return"";return e4(W,l)},[U,W,l]);return E(()=>{let g=(U1)=>{if(U1.key==="Escape")q()};return document.addEventListener("keydown",g),()=>document.removeEventListener("keydown",g)},[q]),E(()=>{if(!c.current||!O)return;j5(c.current);return},[O]),E(()=>{let g=!1;async function U1(){if(_!=="text"&&_!=="html"&&_!=="archive"){J(!1),b(null),V(""),L(null);return}J(!0),b(null),V(""),L(null);try{let k=await r8($),r=new Uint8Array(await k.arrayBuffer());if(_==="text"||_==="html"){if(_==="text"&&gq(j,B)&&!mq(r))throw Error("Attachment does not appear to contain text content.");let _1=pq(r);if(!g)V(_1);return}let f=P$(r);if(!g)L(f)}catch(k){if(!g){let r=k instanceof Error?k.message:String(k||"Unknown error");b(_==="archive"?`Failed to load ZIP preview. ${r}`:`Failed to load text preview. ${r}`)}}finally{if(!g)J(!1)}}return U1(),()=>{g=!0}},[$,_]),K`
+        <${h2} className="attachment-preview-portal-root">
+            <div class="image-modal attachment-preview-modal" onClick=${q}>
+                <div class="attachment-preview-shell" onClick=${(g)=>{g.stopPropagation()}}>
+                    <div class="attachment-preview-header">
+                        <div class="attachment-preview-heading">
+                            <div class="attachment-preview-title">${B}</div>
+                            <div class="attachment-preview-subtitle">${Q}</div>
                         </div>
-                        <div class="chat-window-header-actions">
-                            <button
-                                class="chat-window-header-button"
-                                title="Toggle workspace"
-                                onClick=${()=>M1((a)=>!a)}
+                        <div class="attachment-preview-header-actions">
+                            ${m&&K`
+                                <a
+                                    href=${m}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="attachment-preview-download"
+                                    onClick=${(g)=>g.stopPropagation()}
+                                >
+                                    Open in Tab
+                                </a>
+                            `}
+                            <a
+                                href=${i0($)}
+                                download=${B}
+                                class="attachment-preview-download"
+                                onClick=${(g)=>g.stopPropagation()}
                             >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                                    <polyline points="9 22 9 12 15 12 15 22"/>
-                                </svg>
-                            </button>
+                                Download
+                            </a>
+                            <button class="attachment-preview-close" type="button" onClick=${q}>Close</button>
                         </div>
                     </div>
-                    ${R1.length>0?G`
-                        <${j9}
-                            tabs=${R1}
-                            activeId=${p1}
-                            onActivate=${(a)=>C1(a)}
-                            onClose=${a1}
-                            onCloseOthers=${(a)=>Y1((z1)=>z1.filter((J1)=>J1.id===a))}
-                            onCloseAll=${()=>Y1([])}
-                            onTogglePin=${()=>{}}
-                        />
-                    `:null}
-                    <${k8}
-                        status=${X}
-                        draft=${U}
-                        plan=${N}
-                        thought=${O}
-                        pendingRequest=${h}
-                        turnId=${d}
-                        steerQueued=${Boolean(t)}
-                    />
-                    <${z8}
-                        posts=${_1}
-                        hasMore=${r}
-                        onLoadMore=${async({preserveScroll:a})=>{let z1=_1[0];if(z1)await H0(Q,z1.id)}}
-                        onPostClick=${()=>{}}
-                        onHashtagClick=${()=>{}}
-                        onMessageRef=${()=>{}}
-                        onScrollToMessage=${()=>{}}
-                        onFileRef=${N0}
-                        onOpenWidget=${()=>{}}
-                        onOpenAttachmentPreview=${()=>{}}
-                        emptyMessage=${t1?"No messages yet.":"Create or select a session to start."}
-                        agents=${j0}
-                        user=${O0}
-                        onDeletePost=${()=>{}}
-                        reverse=${!0}
-                    />
-                    <${I8}
-                        currentChatJid=${K}
-                        isAgentActive=${f0}
-                        onSend=${(a,z1)=>y1(a,z1)}
-                        onAbort=${X0}
-                        agents=${j0}
-                        currentSessionAgent=${j0[y2]?{...j0[y2],chat_jid:K}:null}
-                        agentStatus=${X}
-                        agentDraft=${U}
-                        contextUsage=${null}
-                        disabled=${!t1}
-                    />
+                    <div class="attachment-preview-body">
+                        ${X&&K`<div class="attachment-preview-state">Loading preview…</div>`}
+                        ${!X&&C&&K`<div class="attachment-preview-state">${C}</div>`}
+                        ${!X&&!C&&_==="image"&&K`
+                            <img class="attachment-preview-image" src=${i0($)} alt=${B} />
+                        `}
+                        ${!X&&!C&&_==="video"&&K`
+                            <video class="attachment-preview-video" src=${i0($)} controls autoplay style="max-width:100%;max-height:100%;" />
+                        `}
+                        ${!X&&!C&&_==="html"&&K`
+                            <iframe class="attachment-preview-frame" srcdoc=${W||""} sandbox=${uq} title=${B}></iframe>
+                        `}
+                        ${!X&&!C&&(_==="pdf"||_==="office"||_==="drawio")&&m&&K`
+                            <iframe class="attachment-preview-frame" src=${m} title=${B}></iframe>
+                        `}
+                        ${!X&&!C&&_==="drawio"&&K`
+                            <div class="attachment-preview-readonly-note">Draw.io preview is read-only. Editing tools are disabled in this preview.</div>
+                        `}
+                        ${!X&&!C&&_==="archive"&&G&&K`
+                            <div class="attachment-preview-archive">
+                                <div class="attachment-preview-archive-summary">
+                                    <div class="attachment-preview-archive-card">
+                                        <span class="attachment-preview-archive-card-label">Files</span>
+                                        <strong class="attachment-preview-archive-card-value">${G.summary.fileCount}</strong>
+                                    </div>
+                                    <div class="attachment-preview-archive-card">
+                                        <span class="attachment-preview-archive-card-label">Folders</span>
+                                        <strong class="attachment-preview-archive-card-value">${G.summary.directoryCount}</strong>
+                                    </div>
+                                    <div class="attachment-preview-archive-card">
+                                        <span class="attachment-preview-archive-card-label">Compressed</span>
+                                        <strong class="attachment-preview-archive-card-value">${C0(G.summary.compressedBytes)}</strong>
+                                    </div>
+                                    <div class="attachment-preview-archive-card">
+                                        <span class="attachment-preview-archive-card-label">Uncompressed</span>
+                                        <strong class="attachment-preview-archive-card-value">${C0(G.summary.uncompressedBytes)}</strong>
+                                    </div>
+                                </div>
+                                <div class="attachment-preview-archive-table-wrap">
+                                    <table class="attachment-preview-archive-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Type</th>
+                                                <th>Method</th>
+                                                <th>Compressed</th>
+                                                <th>Size</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${G.entries.map((g)=>K`
+                                                <tr key=${g.path}>
+                                                    <td class="attachment-preview-archive-name">${g.path}</td>
+                                                    <td>${g.isDirectory?"Folder":"File"}</td>
+                                                    <td>${g.isDirectory?"—":f$(g.compressionMethod)}</td>
+                                                    <td>${g.isDirectory?"—":C0(g.compressedSize)}</td>
+                                                    <td>${g.isDirectory?"—":C0(g.uncompressedSize)}</td>
+                                                </tr>
+                                            `)}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        `}
+                        ${!X&&!C&&_==="text"&&U&&K`
+                            <div
+                                ref=${c}
+                                class="attachment-preview-markdown post-content"
+                                dangerouslySetInnerHTML=${{__html:O}}
+                            />
+                        `}
+                        ${!X&&!C&&_==="text"&&!U&&d&&K`
+                            <pre class="attachment-preview-text attachment-preview-code"><code dangerouslySetInnerHTML=${{__html:d}} /></pre>
+                        `}
+                        ${!X&&!C&&_==="text"&&!U&&!d&&K`
+                            <pre class="attachment-preview-text">${W}</pre>
+                        `}
+                        ${!X&&!C&&_==="unsupported"&&K`
+                            <div class="attachment-preview-state">
+                                Preview is not available for this file type yet. You can still download it directly.
+                            </div>
+                        `}
+                    </div>
+                    <div class="attachment-preview-meta">
+                        ${S.map((g)=>K`
+                            <div class="attachment-preview-meta-item" key=${g.label}>
+                                <span class="attachment-preview-meta-label">${g.label}</span>
+                                <span class="attachment-preview-meta-value">${g.value}</span>
+                            </div>
+                        `)}
+                    </div>
                 </div>
             </div>
+        </${h2}>
+    `}var rq="default",x$="gi_session_id",dq=1200,r2="gi";function u3($){return`gi:${$}`}async function iq(){let $=E0(x$);if($)try{if((await fetch(`/api/sessions/${encodeURIComponent($)}`)).ok)return $}catch{}let j=await fetch("/api/sessions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:rq})});if(!j.ok)throw Error("Failed to create default session");let q=await j.json();return R0(x$,q.id),q.id}async function nq(){let $=await fetch("/api/runtime/config");if(!$.ok)return{};return $.json()}function sq(){let[$,j]=y(!1),[q,B]=y(null),[_,Q]=y({}),[U,X]=y({}),[J,W]=y(null),[V,G]=y(!1),[L,C]=y([]),[b,c]=y(null),l=L.length>0,[w,S]=y([]),[m,O]=y(!1),d=M(null),[g,U1]=y([]),[k,r]=y([]),[f,_1]=y([]),[Y1,k1]=y(null),[O1,s]=y(null),[t,K1]=y(null),[G1,I]=y(""),[a,F1]=y(null),[X1,T1]=y(""),[u1,A1]=y("connected"),[t1,M1]=y(!1),G0=M(!1),{agentStatus:l1,setAgentStatus:I0,agentDraft:j0,setAgentDraft:g0,agentPlan:F0,setAgentPlan:q0,agentThought:B0,setAgentThought:x0,pendingRequest:S1,setPendingRequest:X0,currentTurnId:H0,setCurrentTurnId:_0,steerQueuedTurnId:Q0,setSteerQueuedTurnId:h1,lastAgentEventRef:Y0,draftBufferRef:E1,thoughtBufferRef:R1,pendingRequestRef:w1,currentTurnIdRef:e1,steerQueuedTurnIdRef:f1,thoughtExpandedRef:A0,draftExpandedRef:d1}=L8(),f0=B1(()=>q?u3(q):"",[q]);E(()=>{let j1=T8();return Promise.all([iq(),nq()]).then(([H1,H])=>{B(H1),Q(H),W({name:H.user_name,avatarUrl:H.user_avatar}),X({[r2]:{id:r2,name:H.assistant_name||"Gi",avatar_url:H.assistant_avatar||null}}),I(H.default_model||""),T1(H.default_thinking_level||""),j(!0)}).catch((H1)=>{console.error("[gi] Bootstrap failed:",H1)}),j1},[]);let x1=i(async(j1={})=>{if(!q)return;let H1=u3(q),p=(await f8(50,j1.beforeId||null,H1)).posts||[];if(j1.beforeId)S((v)=>d5([...p,...v]));else S(d5(p));O(p.length>=50)},[q]),P1=i(()=>{let j1=d.current;if(!j1)return;j1.scrollTop=j1.scrollHeight},[]);E(()=>{if(!$||!q)return;x1();let j1=setInterval(async()=>{await x1();let H1=u3(q),H=await P8(r2,H1).catch(()=>null);if(H){I0(H);let p=H?.status==="running"||H?.status==="cancelling";M1(p),G0.current=p}else I0(null),M1(!1),G0.current=!1},dq);return()=>clearInterval(j1)},[$,q]);let r1=i(async(j1)=>{await x1(),P1()},[x1,P1]),$0=i((j1)=>{let H1=L.find((H)=>H.id===j1||H.path===j1);if(H1){c(H1.id);return}C((H)=>[...H,{id:j1,path:j1,label:j1.split("/").pop()||j1,dirty:!1,pinned:!1}]),c(j1)},[L]),Z0=i((j1)=>{C((H1)=>{let H=H1.filter((p)=>p.id!==j1);if(b===j1)c(H[H.length-1]?.id||null);return H})},[b]),m1=["app-shell",V?"":"workspace-collapsed",l?"editor-open":""].filter(Boolean).join(" ");if(!$)return K`<div id="app"><div style="padding:20px;text-align:center;color:var(--text-secondary,#888)">Loading…</div></div>`;return K`
+        <div class=${m1}>
+            <${A$}
+                onFileSelect=${(j1)=>U1((H1)=>[...H1,j1])}
+                visible=${V}
+                active=${V||l}
+                onOpenEditor=${$0}
+                onOpenTerminalTab=${()=>{}}
+                onOpenVncTab=${()=>{}}
+            />
+            <button
+                class=${`workspace-toggle-tab${V?" open":" closed"}`}
+                onClick=${()=>G((j1)=>!j1)}
+                title=${V?"Hide workspace":"Show workspace"}
+            >
+                <svg class="workspace-toggle-tab-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 3 11 8 6 13" />
+                </svg>
+            </button>
+            <div class="workspace-splitter"></div>
+            ${l&&K`
+                <div class="editor-pane-container">
+                    <${T$}
+                        tabs=${L}
+                        activeId=${b}
+                        onActivate=${(j1)=>c(j1)}
+                        onClose=${Z0}
+                        onCloseOthers=${(j1)=>C((H1)=>H1.filter((H)=>H.id===j1))}
+                        onCloseAll=${()=>{C([]),c(null)}}
+                        onTogglePin=${()=>{}}
+                    />
+                    <div class="editor-pane-host"></div>
+                </div>
+                <div class="editor-splitter"></div>
+            `}
+            <div class="container">
+                <${v6}
+                    posts=${w}
+                    hasMore=${m}
+                    onLoadMore=${({preserveScroll:j1})=>{let H1=w[0];if(H1)x1({beforeId:H1.id})}}
+                    timelineRef=${d}
+                    onHashtagClick=${()=>{}}
+                    onMessageRef=${()=>{}}
+                    onScrollToMessage=${()=>{}}
+                    onFileRef=${$0}
+                    onPostClick=${void 0}
+                    onDeletePost=${()=>{}}
+                    onOpenWidget=${(j1)=>k1(j1)}
+                    onOpenAttachmentPreview=${s}
+                    emptyMessage="Send a message to get started."
+                    agents=${U}
+                    user=${J}
+                    reverse=${!0}
+                    removingPostIds=${new Set}
+                    searchQuery=""
+                />
+                <${e6}
+                    status=${K2(l1)?null:l1}
+                    draft=${j0}
+                    plan=${F0}
+                    thought=${B0}
+                    pendingRequest=${S1}
+                    intent=${null}
+                    turnId=${H0}
+                    steerQueued=${Boolean(Q0)}
+                    onPanelToggle=${()=>{}}
+                    showExtensionPanels=${!1}
+                />
+                <${k$}
+                    widget=${Y1}
+                    onClose=${()=>k1(null)}
+                    onWidgetEvent=${()=>{}}
+                />
+                ${O1&&K`
+                    <${w$}
+                        mediaId=${O1.mediaId}
+                        info=${O1.info}
+                        onClose=${()=>s(null)}
+                    />
+                `}
+                <${T3}
+                    items=${f}
+                    onInjectQueuedFollowup=${()=>{}}
+                    onRemoveQueuedFollowup=${()=>{}}
+                    onMoveQueuedFollowup=${()=>{}}
+                    onOpenFilePill=${$0}
+                />
+                <${i6}
+                    currentChatJid=${f0}
+                    isAgentActive=${t1}
+                    onPost=${r1}
+                    onFocus=${()=>{if(!y8())P1()}}
+                    agents=${U}
+                    currentSessionAgent=${U[r2]?{...U[r2],chat_jid:f0,agent_name:U[r2].name}:null}
+                    agentStatus=${l1}
+                    agentDraft=${j0}
+                    contextUsage=${t}
+                    fileRefs=${g}
+                    messageRefs=${k}
+                    onRemoveFileRef=${(j1)=>U1((H1)=>H1.filter((H)=>H!==j1))}
+                    onClearFileRefs=${()=>U1([])}
+                    onRemoveMessageRef=${()=>{}}
+                    onClearMessageRefs=${()=>r([])}
+                    connectionStatus=${u1}
+                    activeChatAgents=${[]}
+                    currentChatBranches=${[]}
+                    formatBranchPickerLabel=${(j1)=>j1?.label||j1?.chat_jid||""}
+                    handleBranchPickerChange=${()=>{}}
+                    searchOpen=${!1}
+                    onEnterSearch=${()=>{}}
+                    onExitSearch=${()=>{}}
+                    onSearch=${()=>{}}
+                    searchScope="current"
+                    onSearchScopeChange=${()=>{}}
+                    activeModel=${G1}
+                    agentModelsPayload=${a}
+                    activeModelUsage=${null}
+                    activeThinkingLevel=${X1}
+                    supportsThinking=${!1}
+                    followupQueueCount=${f.length}
+                    notificationsEnabled=${!1}
+                    notificationPermission="default"
+                    onToggleNotifications=${()=>{}}
+                    onComposeSubmitError=${()=>{}}
+                    pendingRequestRef=${w1}
+                    setPendingRequest=${X0}
+                />
+            </div>
         </div>
-    `}b2(G`<${aj} />`,document.getElementById("app"));
+    `}m2(K`<${sq} />`,document.getElementById("app"));
 
-//# debugId=410E268FB52E446664756E2164756E21
+//# debugId=B30E117E7EB7E18A64756E2164756E21
 //# sourceMappingURL=app.js.map

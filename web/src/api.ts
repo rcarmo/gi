@@ -432,3 +432,4 @@ export class SSEClient {
     close() {}
 }
 export async function getWorkspaceFileStat(_path: string, _chatJid: string | null = null) { return null; }
+export async function getMediaBlob(..._args: any[]) { return null; }
