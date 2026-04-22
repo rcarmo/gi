@@ -81,6 +81,16 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 The ComposeBox already has Piclaw's slash command autocomplete UI. The backend needs to handle them.
 
+### System meters HUD
+
+Direct port of Piclaw's `/meters` functionality. On by default until slash commands are implemented.
+
+- [ ] Add `/api/system-metrics` endpoint (CPU, RAM, swap, RSS)
+- [ ] Wire `SystemMetersHud` component in `app.ts` (already copied from Piclaw)
+- [ ] Enable meters on by default (skip `/meters` toggle until slash commands exist)
+- [ ] Poll metrics every 5s from the Go backend
+- [ ] SSE `ui_meters` event for real-time updates
+
 #### Session/model commands (Phase 1)
 - [ ] `/model` — list available models or switch model
 - [ ] `/cycle-model` — cycle to next available model
