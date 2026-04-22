@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -18,6 +19,7 @@ type RuntimeConfig struct {
 	DefaultModel         string   `json:"default_model"`
 	DefaultThinkingLevel string   `json:"default_thinking_level"`
 	EnabledModels        []string `json:"enabled_models"`
+	SystemPrompt         string   `json:"-"`
 }
 
 type piclawConfig struct {
@@ -64,6 +66,13 @@ func Load(workspaceRoot string) RuntimeConfig {
 	}
 	if cfg.DefaultModel == "" && len(cfg.EnabledModels) > 0 {
 		cfg.DefaultModel = cfg.EnabledModels[0]
+	}
+	// Load system prompt from AGENTS.md
+	agentsPath := filepath.Join(workspaceRoot, "AGENTS.md")
+	if data, err := os.ReadFile(agentsPath); err == nil && len(data) > 0 {
+		cfg.SystemPrompt = string(data)
+	} else {
+		cfg.SystemPrompt = fmt.Sprintf("You are %s, a helpful coding assistant.", cfg.AssistantName)
 	}
 	return cfg
 }

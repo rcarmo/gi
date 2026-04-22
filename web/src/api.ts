@@ -432,8 +432,127 @@ export async function createWorkspaceFolder(_path: string, _chatJid: string | nu
 export async function recordAppPerfRequest(_payload: unknown) {}
 
 export class SSEClient {
-    constructor(_url: string, _options: any = {}) {}
-    close() {}
+    onEvent: any;
+    onStatusChange: any;
+    chatJid: string | null;
+    eventSource: EventSource | null;
+    reconnectTimeout: any;
+    reconnectDelay: number;
+    status: string;
+    connecting: boolean;
+    staleMonitor: any;
+
+    constructor(onEvent: any, onStatusChange: any, options: any = {}) {
+        this.onEvent = onEvent;
+        this.onStatusChange = onStatusChange;
+        this.chatJid = typeof options?.chatJid === 'string' && options.chatJid.trim() ? options.chatJid.trim() : null;
+        this.eventSource = null;
+        this.reconnectTimeout = null;
+        this.reconnectDelay = 1000;
+        this.status = 'disconnected';
+        this.connecting = false;
+        this.staleMonitor = null;
+    }
+
+    connect() {
+        if (this.connecting) return;
+        if (this.eventSource && this.status === 'connected') return;
+        this.connecting = true;
+        if (this.eventSource) this.eventSource.close();
+        this.clearStaleMonitor();
+
+        const query = this.chatJid ? `?chat_jid=${encodeURIComponent(this.chatJid)}` : '';
+        this.eventSource = new EventSource(API_BASE + '/sse/stream' + query);
+
+        const bindJsonEvent = (eventType: string) => {
+            this.eventSource!.addEventListener(eventType, (e: any) => {
+                this.resetStaleMonitor();
+                try {
+                    const data = JSON.parse(e.data);
+                    this.onEvent(eventType, data);
+                } catch {}
+            });
+        };
+
+        this.eventSource.addEventListener('connected', () => {
+            this.connecting = false;
+            this.reconnectDelay = 1000;
+            this.setStatus('connected');
+            this.resetStaleMonitor();
+        });
+
+        this.eventSource.addEventListener('heartbeat', () => {
+            this.resetStaleMonitor();
+        });
+
+        bindJsonEvent('new_post');
+        bindJsonEvent('new_reply');
+        bindJsonEvent('agent_response');
+        bindJsonEvent('interaction_updated');
+        bindJsonEvent('interaction_deleted');
+        bindJsonEvent('agent_status');
+        bindJsonEvent('agent_steer_queued');
+        bindJsonEvent('agent_followup_queued');
+        bindJsonEvent('agent_followup_consumed');
+        bindJsonEvent('agent_followup_removed');
+        bindJsonEvent('workspace_update');
+        bindJsonEvent('agent_draft');
+        bindJsonEvent('agent_draft_delta');
+        bindJsonEvent('agent_thought');
+        bindJsonEvent('agent_thought_delta');
+        bindJsonEvent('model_changed');
+        bindJsonEvent('ui_theme');
+        bindJsonEvent('ui_meters');
+
+        this.eventSource.onerror = () => {
+            this.connecting = false;
+            this.setStatus('disconnected');
+            this.scheduleReconnect();
+        };
+    }
+
+    disconnect() {
+        this.clearStaleMonitor();
+        if (this.reconnectTimeout) { clearTimeout(this.reconnectTimeout); this.reconnectTimeout = null; }
+        if (this.eventSource) { this.eventSource.close(); this.eventSource = null; }
+        this.setStatus('disconnected');
+    }
+
+    reconnectIfNeeded() {
+        if (this.status !== 'connected') this.connect();
+    }
+
+    forceReconnect() {
+        this.disconnect();
+        this.connect();
+    }
+
+    setStatus(status: string) {
+        if (this.status === status) return;
+        this.status = status;
+        this.onStatusChange?.(status);
+    }
+
+    scheduleReconnect() {
+        if (this.reconnectTimeout) return;
+        this.reconnectTimeout = setTimeout(() => {
+            this.reconnectTimeout = null;
+            this.reconnectDelay = Math.min(this.reconnectDelay * 1.5, 30000);
+            this.connect();
+        }, this.reconnectDelay);
+    }
+
+    resetStaleMonitor() {
+        this.clearStaleMonitor();
+        this.staleMonitor = setTimeout(() => {
+            this.setStatus('stale');
+            this.forceReconnect();
+        }, 60000);
+    }
+
+    clearStaleMonitor() {
+        if (this.staleMonitor) { clearTimeout(this.staleMonitor); this.staleMonitor = null; }
+    }
 }
 export async function getWorkspaceFileStat(_path: string, _chatJid: string | null = null) { return null; }
 export async function getMediaBlob(..._args: any[]) { return null; }

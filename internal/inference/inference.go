@@ -78,6 +78,10 @@ func loadAuth(provider string) (string, string, error) {
 }
 
 func Complete(ctx context.Context, modelID string, systemPrompt string, messages []goai.Message) (string, error) {
+	return CompleteWithBroadcast(ctx, modelID, systemPrompt, messages, nil)
+}
+
+func CompleteWithBroadcast(ctx context.Context, modelID string, systemPrompt string, messages []goai.Message, broadcast func(map[string]any)) (string, error) {
 	Init()
 
 	// Parse provider/model from "provider/model" format
@@ -113,12 +117,32 @@ func Complete(ctx context.Context, modelID string, systemPrompt string, messages
 		opts.Headers = goai.CopilotHeaders()
 	}
 
-	result, err := goai.Complete(ctx, model, convCtx, opts)
-	if err != nil {
-		return "", fmt.Errorf("complete: %w", err)
+	// Stream and collect
+	var fullText string
+	for ev := range goai.Stream(ctx, model, convCtx, opts) {
+		switch e := ev.(type) {
+		case *goai.TextDeltaEvent:
+			fullText += e.Delta
+			if broadcast != nil {
+				broadcast(map[string]any{"type": "text_delta", "delta": e.Delta})
+			}
+		case *goai.ThinkingDeltaEvent:
+			if broadcast != nil {
+				broadcast(map[string]any{"type": "thinking_delta", "delta": e.Delta})
+			}
+		case *goai.DoneEvent:
+			if broadcast != nil {
+				broadcast(map[string]any{"type": "done", "model": modelID})
+			}
+			return fullText, nil
+		case *goai.ErrorEvent:
+			if broadcast != nil {
+				broadcast(map[string]any{"type": "error", "error": e.Err.Error()})
+			}
+			return fullText, e.Err
+		}
 	}
-
-	return goai.GetTextContent(result), nil
+	return fullText, nil
 }
 
 func splitModelID(id string) (string, string) {

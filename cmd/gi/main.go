@@ -62,7 +62,7 @@ func main() {
 	if *model != "" {
 		runtimeCfg.DefaultModel = *model
 	}
-	engine := turn.New(s)
+	engine := turn.NewWithSystemPrompt(s, runtimeCfg.SystemPrompt)
 	server := giweb.New(s, engine, runtimeCfg)
 
 	log.Printf("Gi web listening on %s using %s", effectiveListen, *dbPath)

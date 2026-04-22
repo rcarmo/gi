@@ -9,6 +9,7 @@ import (
 	"sort"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/store"
@@ -16,13 +17,17 @@ import (
 )
 
 type Engine struct {
-	store    *store.Store
-	sessions sync.Map // sessionID -> *sessionRunner
+	store        *store.Store
+	systemPrompt string
+	sessions     sync.Map // sessionID -> *sessionRunner
+	subs         sync.Map // sessionID -> map[chan map[string]any]bool
+	subsMu       sync.Mutex
 }
 
 type sessionRunner struct {
 	mu      sync.Mutex
 	store   *store.Store
+	engine  *Engine
 	busy    bool
 	current *runningTurn
 }
@@ -57,6 +62,10 @@ type Summary struct {
 }
 
 func New(s *store.Store) *Engine { return &Engine{store: s} }
+
+func NewWithSystemPrompt(s *store.Store, systemPrompt string) *Engine {
+	return &Engine{store: s, systemPrompt: systemPrompt}
+}
 
 func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, error) {
 	if in.Intent == "" {
@@ -122,7 +131,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 }
 
 func (e *Engine) runner(sessionID string) *sessionRunner {
-	v, _ := e.sessions.LoadOrStore(sessionID, &sessionRunner{store: e.store})
+	v, _ := e.sessions.LoadOrStore(sessionID, &sessionRunner{store: e.store, engine: e})
 	return v.(*sessionRunner)
 }
 
@@ -162,6 +171,9 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 		_ = s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "checkpoint": true})
 		log.Printf("inference: calling %s with prompt: %s", model, prompt[:min(len(prompt), 80)])
 
+		// Broadcast status
+		r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "Thinking…", "status": "running", "turn_id": turnID})
+
 		// Build conversation history from session messages
 		msgs, _ := s.ListMessages(ctx, sessionID)
 		var history []goai.Message
@@ -174,7 +186,27 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 			}
 		}
 
-		result, inferErr := inference.Complete(ctx, model, "You are a helpful coding assistant called Gi.", history)
+		sysPrompt := r.engine.systemPrompt
+		if sysPrompt == "" {
+			sysPrompt = "You are a helpful coding assistant."
+		}
+		result, inferErr := inference.CompleteWithBroadcast(ctx, model, sysPrompt, history, func(ev map[string]any) {
+			ev["chat_jid"] = "gi:" + sessionID
+			ev["turn_id"] = turnID
+			// Map to Piclaw event types
+			switch ev["type"] {
+			case "text_delta":
+				ev["type"] = "agent_draft_delta"
+				r.engine.broadcast(sessionID, ev)
+			case "thinking_delta":
+				ev["type"] = "agent_thought_delta"
+				r.engine.broadcast(sessionID, ev)
+			case "done":
+				// Will handle below
+			case "error":
+				r.engine.broadcast(sessionID, ev)
+			}
+		})
 		if inferErr != nil {
 			log.Printf("inference error: %v", inferErr)
 			_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error()})
@@ -186,7 +218,30 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 
 		log.Printf("inference: got %d chars from %s", len(result), model)
 		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "inference.finished", map[string]any{"phase": "inference", "checkpoint": true, "length": len(result)})
-		_ = s.AddMessage(context.Background(), store.NowID("msg"), sessionID, "assistant", result, map[string]any{"kind": "chat", "source": "inference", "model": model, "turn_id": turnID})
+
+		// Add assistant message
+		msgID := store.NowID("msg")
+		_ = s.AddMessage(context.Background(), msgID, sessionID, "assistant", result, map[string]any{"kind": "chat", "source": "inference", "model": model, "turn_id": turnID})
+
+		// Broadcast the new post (as Piclaw agent_response + new_post)
+		postPayload := map[string]any{
+			"type":           "new_post",
+			"id":             msgID,
+			"chat_jid":       "gi:" + sessionID,
+			"content":        result,
+			"timestamp":      time.Now().UTC().Format(time.RFC3339Nano),
+			"sender":         "agent",
+			"is_bot_message": true,
+			"data": map[string]any{
+				"type":     "agent_response",
+				"content":  result,
+				"agent_id": "gi",
+			},
+		}
+		r.engine.broadcast(sessionID, postPayload)
+		r.engine.broadcast(sessionID, map[string]any{"type": "agent_response", "chat_jid": "gi:" + sessionID, "id": msgID})
+		r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
+
 		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed"})
 		_ = s.UpdateTurnStatus(context.Background(), turnID, "completed")
 		_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
@@ -298,4 +353,41 @@ func turnIDSession(s *store.Store, turnID string) string {
 
 func SortQueuedTurns(turns []store.Turn) {
 	sort.SliceStable(turns, func(i, j int) bool { return turns[i].CreatedAt < turns[j].CreatedAt })
+}
+
+func (e *Engine) Subscribe(sessionID string) chan map[string]any {
+	ch := make(chan map[string]any, 64)
+	e.subsMu.Lock()
+	defer e.subsMu.Unlock()
+	v, _ := e.subs.LoadOrStore(sessionID, make(map[chan map[string]any]bool))
+	m := v.(map[chan map[string]any]bool)
+	m[ch] = true
+	e.subs.Store(sessionID, m)
+	return ch
+}
+
+func (e *Engine) Unsubscribe(sessionID string, ch chan map[string]any) {
+	e.subsMu.Lock()
+	defer e.subsMu.Unlock()
+	v, ok := e.subs.Load(sessionID)
+	if !ok {
+		return
+	}
+	m := v.(map[chan map[string]any]bool)
+	delete(m, ch)
+	close(ch)
+}
+
+func (e *Engine) broadcast(sessionID string, ev map[string]any) {
+	v, ok := e.subs.Load(sessionID)
+	if !ok {
+		return
+	}
+	m := v.(map[chan map[string]any]bool)
+	for ch := range m {
+		select {
+		case ch <- ev:
+		default:
+		}
+	}
 }
