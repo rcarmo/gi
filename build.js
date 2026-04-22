@@ -29,6 +29,8 @@ if (existsSync(`${vendorDir}/preact-htm.js`)) rmSync(`${vendorDir}/preact-htm.js
 if (existsSync(`${vendorDir}/preact-htm.js.map`)) rmSync(`${vendorDir}/preact-htm.js.map`);
 renameSync(`${webSrc}/vendor/preact-htm-entry.js`, `${vendorDir}/preact-htm.js`);
 renameSync(`${webSrc}/vendor/preact-htm-entry.js.map`, `${vendorDir}/preact-htm.js.map`);
+if (existsSync(`${webSrc}/vendor/preact-htm-entry.js`)) rmSync(`${webSrc}/vendor/preact-htm-entry.js`);
+if (existsSync(`${webSrc}/vendor/preact-htm-entry.js.map`)) rmSync(`${webSrc}/vendor/preact-htm-entry.js.map`);
 
 run([
   'bun', 'build',
@@ -42,6 +44,8 @@ if (existsSync(`${distDir}/app.bundle.js`)) rmSync(`${distDir}/app.bundle.js`);
 if (existsSync(`${distDir}/app.bundle.js.map`)) rmSync(`${distDir}/app.bundle.js.map`);
 renameSync(`${webSrc}/app.js`, `${distDir}/app.bundle.js`);
 renameSync(`${webSrc}/app.js.map`, `${distDir}/app.bundle.js.map`);
+if (existsSync(`${webSrc}/app.js`)) rmSync(`${webSrc}/app.js`);
+if (existsSync(`${webSrc}/app.js.map`)) rmSync(`${webSrc}/app.js.map`);
 
 const cssSources = [`${webSrc}/styles.css`];
 const combined = cssSources.map((f) => readFileSync(f, 'utf-8')).join('\n');
