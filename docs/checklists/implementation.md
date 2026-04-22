@@ -74,8 +74,63 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Frontend log bridge (`/api/frontend/log`)
 - [x] Runtime config API (`/api/runtime/config`)
 - [x] Workspace tree/file APIs (`/api/workspace/tree`, `/api/workspace/file`)
-- [ ] SSE-driven real-time timeline updates (wired but not yet consuming events in app.ts)
-- [ ] Streaming draft display in compose area
+- [x] SSE-driven real-time timeline updates (wired but not yet consuming events in app.ts)
+- [x] Streaming draft display in compose area
+
+### Slash commands
+
+The ComposeBox already has Piclaw's slash command autocomplete UI. The backend needs to handle them.
+
+#### Session/model commands (Phase 1)
+- [ ] `/model` — list available models or switch model
+- [ ] `/cycle-model` — cycle to next available model
+- [ ] `/thinking` — show or set thinking/effort level
+- [ ] `/cycle-thinking` — cycle thinking level
+- [ ] `/theme` — set UI theme
+- [ ] `/tint` — tint default light/dark UI
+- [ ] `/abort` — abort current response
+- [ ] `/state` — show current session state
+- [ ] `/stats` — show session token and cost stats
+- [ ] `/context` — show context window usage
+- [ ] `/last` — show last assistant response
+- [ ] `/commands` — list available commands
+
+#### Queue/steering commands (Phase 1)
+- [ ] `/queue` — queue a follow-up message
+- [ ] `/steer` — steer the current response
+- [ ] `/abort-retry` — abort retry backoff
+
+#### Session management commands (Phase 2)
+- [ ] `/new-session` — start a new session
+- [ ] `/session-name` — set or show the session name
+- [ ] `/compact` — manually compact the session
+- [ ] `/auto-compact` — toggle auto-compaction
+- [ ] `/auto-retry` — toggle auto-retry
+- [ ] `/fork` — fork from a previous message
+- [ ] `/clone` — duplicate current branch into a new session
+- [ ] `/tree` — list the session tree
+
+#### Identity commands (Phase 2)
+- [ ] `/agent-name` — set or show agent display name
+- [ ] `/agent-avatar` — set or show agent avatar URL
+- [ ] `/user-name` — set or show user display name
+- [ ] `/user-avatar` — set or show user avatar URL
+
+#### Tool commands (Phase 2)
+- [ ] `/shell` — run a shell command and return output
+- [ ] `/bash` — run a shell command and add output to context
+- [ ] `/search` — search notes and skills in workspace
+- [ ] `/skill:` — run a workspace skill
+
+#### Auth/admin commands (Phase 3)
+- [ ] `/login` — login to an AI model provider
+- [ ] `/logout` — logout from a provider
+- [ ] `/passkey` — manage passkeys
+- [ ] `/totp` — show TOTP enrolment QR code
+- [ ] `/restart` — restart the agent
+- [ ] `/exit` — exit the process
+- [ ] `/export-html` — export session to HTML
+- [ ] `/tasks` — list scheduled tasks
 
 ### Pi/Piclaw config compatibility
 - [x] Load `.piclaw/config.json` (assistant name/avatar, user name/avatar/background)
