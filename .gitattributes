@@ -1,0 +1,11 @@
+# Gi reuses Piclaw's TypeScript frontend source verbatim.
+# Mark the imported UI tree as vendored so GitHub Linguist reflects
+# Gi's actual implementation language mix more accurately.
+web/src/** linguist-vendored
+
+# Keep the Gi-specific integration points counted as real project code.
+web/src/api.ts linguist-vendored=false
+web/src/app.ts linguist-vendored=false
+
+# Built assets and generated bundles should not influence language stats.
+web/dist/** linguist-generated=true
