@@ -24,19 +24,19 @@ function SessionList({ sessions, currentSessionId, onSelect, onCreate }) {
 }
 
 function Timeline({ messages }) {
-  return html`<section class="timeline">${messages.length === 0 ? html`<div class="empty-state">No messages yet.</div>` : null}${messages.map((msg) => html`<article class=${`message message-${msg.role}`}><div class="message-role">${msg.role}</div><div class="message-content">${msg.content}</div></article>`)}</section>`;
+  return html`<section class="timeline normal"><div class="timeline-content">${messages.length === 0 ? html`<div class="empty-state">No messages yet.</div>` : null}${messages.map((msg) => html`<article class=${`post gi-post role-${msg.role}`}><div class="post-avatar">${(msg.role || '?').slice(0,1).toUpperCase()}</div><div class="post-body"><div class="post-header"><span class="post-author">${msg.role}</span></div><div class="post-content"><div class="message-content">${msg.content}</div></div></div></article>`)}</div></section>`;
 }
 
 function TurnQueue({ turns, onCancel }) {
-  return html`<section class="turn-queue"><div class="panel-title">Turns</div>${turns.length === 0 ? html`<div class="empty-state">No turns yet.</div>` : turns.map((turn) => html`<div class="turn-item"><div><div class="turn-status turn-status-${turn.status}">${turn.status}</div><div class="turn-prompt">${turn.prompt}</div></div>${turn.status === 'queued' || turn.status === 'running' || turn.status === 'cancelling' ? html`<button class="secondary-btn" onClick=${() => onCancel(turn.id)}>Cancel</button>` : null}</div>` )}</section>`;
+  return html`<aside class="gi-turn-queue"><div class="panel-title">Turns</div>${turns.length === 0 ? html`<div class="empty-state">No turns yet.</div>` : turns.map((turn) => html`<div class="turn-item"><div><div class="turn-status turn-status-${turn.status}">${turn.status}</div><div class="turn-prompt">${turn.prompt}</div></div>${turn.status === 'queued' || turn.status === 'running' || turn.status === 'cancelling' ? html`<button class="chat-window-header-button" onClick=${() => onCancel(turn.id)}>Cancel</button>` : null}</div>` )}</aside>`;
 }
 
 function ComposeBox({ disabled, onSend }) {
   const [text, setText] = useState('');
-  return html`<div class="compose-shell"><textarea rows="5" placeholder="Send a prompt" value=${text} onInput=${(e) => setText(e.target.value)} /> <div class="compose-actions"><button disabled=${disabled || !text.trim()} onClick=${async () => { const payload = text; setText(''); await onSend(payload); }}>${disabled ? 'Running…' : 'Send'}</button></div></div>`;
+  return html`<div class="compose-box"><div class="compose-input-wrapper"><div class="compose-input-main"><textarea class="compose-input" rows="5" placeholder="Send a prompt" value=${text} onInput=${(e) => setText(e.target.value)} /></div></div><div class="compose-actions"><button class="icon-btn send-btn" disabled=${disabled || !text.trim()} onClick=${async () => { const payload = text; setText(''); await onSend(payload); }}>${disabled ? 'Running…' : 'Send'}</button></div></div>`;
 }
 
-function StatusBar({ text }) { return html`<div class="status-bar">${text || 'Ready.'}</div>`; }
+function StatusBar({ text }) { return html`<div class="agent-status"><div class="status-bar"><div class="status-text">${text || 'Ready.'}</div></div></div>`; }
 
 function App() {
   const [sessions, setSessions] = useState([]);
@@ -65,7 +65,7 @@ function App() {
   async function handleSend(prompt) { if (!currentSessionId) return recordStatus('Create or open a session first.'); const result = await sendPrompt(currentSessionId, prompt); await refreshTurns(currentSessionId); recordStatus(result.queued ? `Queued ${result.turn_id}` : `Started ${result.turn_id}`); }
   async function handleCancel(turnID) { await cancelTurn(turnID); await refreshTurns(currentSessionId); recordStatus(`Cancelling ${turnID}`); }
 
-  return html`<div class="app-shell"><${SessionList} sessions=${sessions} currentSessionId=${currentSessionId} onSelect=${handleSelect} onCreate=${handleCreate} /><main class="main-pane"><header class="chat-window-header"><div class="chat-window-header-main"><div class="chat-window-header-title">${runtimeConfig.assistant_name || 'Gi'}</div><div class="chat-window-header-subtitle">${runtimeConfig.default_provider || 'provider'} / ${runtimeConfig.default_model || 'model'}${runtimeConfig.default_thinking_level ? ` · ${runtimeConfig.default_thinking_level}` : ''}</div></div><div class="chat-window-header-actions"><span class="chat-window-header-badge">${runtimeConfig.user_name || 'User'}</span></div></header><${StatusBar} text=${status} /><div class="main-grid"><div class="chat-column"><${Timeline} messages=${messages} /><${ComposeBox} disabled=${false} onSend=${handleSend} /></div><div class="side-column"><${TurnQueue} turns=${turns} onCancel=${handleCancel} /></div></div></main></div>`;
+  return html`<div class="app-shell chat-only"><${SessionList} sessions=${sessions} currentSessionId=${currentSessionId} onSelect=${handleSelect} onCreate=${handleCreate} /><main class="container"><section class="chat-window"><header class="chat-window-header"><div class="chat-window-header-main"><div class="chat-window-header-title">${runtimeConfig.assistant_name || 'Gi'}</div><div class="chat-window-header-subtitle">${runtimeConfig.default_provider || 'provider'} / ${runtimeConfig.default_model || 'model'}${runtimeConfig.default_thinking_level ? ` · ${runtimeConfig.default_thinking_level}` : ''}</div></div><div class="chat-window-header-actions"><span class="chat-window-header-badge">${runtimeConfig.user_name || 'User'}</span></div></header><${StatusBar} text=${status} /><div class="main-grid"><div class="chat-column"><${Timeline} messages=${messages} /><${ComposeBox} disabled=${false} onSend=${handleSend} /></div><div class="side-column"><${TurnQueue} turns=${turns} onCancel=${handleCancel} /></div></div></section></main></div>`;
 }
 
 render(html`<${App} />`, document.getElementById('app'));
