@@ -23,6 +23,8 @@ coverage.out
 *.db-wal
 node_modules/
 .gi-run/
+.gi-test/
+test-results/
 gi-live*.log
 gi-live*.pid
 # Source-tree build intermediates — web/src must never contain compiled JS

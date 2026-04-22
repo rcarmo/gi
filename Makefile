@@ -10,7 +10,14 @@ LOG ?= $(RUN_DIR)/gi.log
 PID ?= $(RUN_DIR)/gi.pid
 LISTEN ?=
 
-.PHONY: build-web build test vet start stop restart status logs run clean
+TEST_PORT ?= 19090
+TEST_DIR ?= .gi-test
+TEST_DB ?= $(TEST_DIR)/gi.db
+TEST_LOG ?= $(TEST_DIR)/gi.log
+TEST_PID ?= $(TEST_DIR)/gi.pid
+TEST_WORKSPACE ?= $(TEST_DIR)/workspace
+
+.PHONY: build-web build test vet bun-checks start stop restart status logs run clean test-instance-start test-instance-stop test-ux
 
 build-web:
 	bun run build:web
@@ -71,4 +78,42 @@ logs:
 	tail -f $(LOG)
 
 clean:
-	rm -rf $(RUN_DIR) $(BIN_DIR)
+	rm -rf $(RUN_DIR) $(BIN_DIR) $(TEST_DIR) test-results/
+
+# ── Isolated test instance ──────────────────────────────────────────────
+
+test-instance-start: build
+	@mkdir -p $(TEST_DIR)
+	@rm -rf $(TEST_WORKSPACE) $(TEST_DB) $(TEST_LOG)
+	@mkdir -p $(TEST_WORKSPACE)/.piclaw $(TEST_WORKSPACE)/.pi
+	@echo '{"assistant":{"assistantName":"Gi Test"},"user":{"userName":"Test User"}}' > $(TEST_WORKSPACE)/.piclaw/config.json
+	@echo '{"defaultProvider":"test","defaultModel":"test-model","defaultThinkingLevel":"low","enabledModels":["test-model"]}' > $(TEST_WORKSPACE)/.pi/settings.json
+	@if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null; then \
+		kill $$(cat $(TEST_PID)) 2>/dev/null || true; \
+		sleep 1; \
+	fi
+	$(abspath $(BIN)) -bind 127.0.0.1 -port $(TEST_PORT) \
+		-model test-model \
+		-db $(abspath $(TEST_DB)) \
+		-workspace $(abspath $(TEST_WORKSPACE)) \
+		-log-file $(abspath $(TEST_LOG)) \
+		-pid-file $(abspath $(TEST_PID)) \
+		>/dev/null 2>&1 </dev/null &
+	@sleep 2
+	@if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null; then \
+		echo "Test instance running on 127.0.0.1:$(TEST_PORT) with PID $$(cat $(TEST_PID))"; \
+	else \
+		echo "Test instance failed to start"; cat $(TEST_LOG) 2>/dev/null; exit 1; \
+	fi
+
+test-instance-stop:
+	@if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null; then \
+		kill $$(cat $(TEST_PID)) && echo "Stopped test instance"; \
+	fi
+	@rm -rf $(TEST_DIR)
+
+test-ux: test-instance-start
+	GI_TEST_URL=http://127.0.0.1:$(TEST_PORT) bunx playwright test tests/base-ux.spec.ts --reporter=line; \
+	rc=$$?; \
+	$(MAKE) --no-print-directory test-instance-stop; \
+	exit $$rc
