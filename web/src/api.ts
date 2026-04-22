@@ -20,6 +20,8 @@ export const listMessages = (sessionID: string) => request(`/api/sessions/${enco
 export const listTurns = (sessionID: string) => request(`/api/sessions/${encodeURIComponent(sessionID)}/turns`);
 export const listTurnEvents = (turnID: string) => request(`/api/turns/${encodeURIComponent(turnID)}/events`);
 export const cancelTurn = (turnID: string) => request(`/api/turns/${encodeURIComponent(turnID)}/cancel`, { method: 'POST' });
+export const getWorkspaceTree = () => request('/api/workspace/tree');
+export const getWorkspaceFile = (path: string) => request(`/api/workspace/file?path=${encodeURIComponent(path)}`);
 export async function sendPrompt(sessionID: string, prompt: string, intent = 'prompt', model = 'bootstrap') {
   recordStatus('Submitting turn…');
   return request(`/api/sessions/${encodeURIComponent(sessionID)}/prompt`, {

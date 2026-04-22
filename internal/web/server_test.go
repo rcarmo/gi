@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -59,5 +61,32 @@ func TestServerSessionPromptTurnsFlow(t *testing.T) {
 	}
 	if !bytes.Contains(messagesRes.Body.Bytes(), []byte("Gi received: hello")) {
 		t.Fatalf("unexpected messages body: %s", messagesRes.Body.String())
+	}
+}
+
+func TestWorkspaceEndpoints(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "hello.md"), []byte("# hi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{WorkspaceRoot: root})
+
+	treeReq := httptest.NewRequest(http.MethodGet, "/api/workspace/tree", nil)
+	treeRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(treeRes, treeReq)
+	if treeRes.Code != http.StatusOK || !bytes.Contains(treeRes.Body.Bytes(), []byte("hello.md")) {
+		t.Fatalf("unexpected tree response: %d %s", treeRes.Code, treeRes.Body.String())
+	}
+
+	fileReq := httptest.NewRequest(http.MethodGet, "/api/workspace/file?path=hello.md", nil)
+	fileRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(fileRes, fileReq)
+	if fileRes.Code != http.StatusOK || !bytes.Contains(fileRes.Body.Bytes(), []byte("# hi")) {
+		t.Fatalf("unexpected file response: %d %s", fileRes.Code, fileRes.Body.String())
 	}
 }

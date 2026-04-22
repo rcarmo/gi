@@ -2,11 +2,13 @@
 import { html, render, useState, useEffect } from './vendor/preact-htm-entry.ts';
 import { getRuntimeConfig, listSessions, createSession, listMessages, sendPrompt, listTurns, cancelTurn } from './api.ts';
 import { recordStatus, bindStatusListener } from './status.ts';
-import { initTheme, cycleThemePreset, getCurrentThemeLabel } from './ui/theme.ts';
+import { initTheme, cycleThemePreset, getCurrentThemeLabel, cycleTint, getCurrentTintLabel } from './ui/theme.ts';
 import { installFrontendLogging } from './ui/frontend-log.ts';
 import { ComposeBox } from './components/compose-box.ts';
 import { StatusBar } from './components/status.ts';
 import { Post } from './components/post.ts';
+import { WorkspaceBrowser } from './components/workspace-browser.ts';
+import { PaneShell } from './components/pane-shell.ts';
 
 const ICONS = {
   assistant: html`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v1H8a4 4 0 0 0-4 4v3a4 4 0 0 0 4 4h1v1a3 3 0 0 0 6 0v-1h1a4 4 0 0 0 4-4v-3a4 4 0 0 0-4-4h-1V5a3 3 0 0 0-3-3Z"/><path d="M9 11h.01M15 11h.01"/></svg>`,
@@ -35,15 +37,18 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [turns, setTurns] = useState([]);
   const [status, setStatus] = useState('Ready.');
-  const [running, setRunning] = useState(false);
   const [runtimeConfig, setRuntimeConfig] = useState({ assistant_name: 'Gi', user_name: 'User', default_model: '', default_provider: '', default_thinking_level: '' });
   const [themeLabel, setThemeLabel] = useState('Default');
+  const [tintLabel, setTintLabel] = useState('Off');
+  const [panePath, setPanePath] = useState('');
+  const [paneContent, setPaneContent] = useState('');
 
   useEffect(() => {
     installFrontendLogging();
     bindStatusListener(setStatus);
     const cleanupTheme = initTheme();
     setThemeLabel(getCurrentThemeLabel());
+    setTintLabel(getCurrentTintLabel());
     refreshRuntimeConfig();
     refreshSessions();
     console.info('[app] mounted');
@@ -62,7 +67,7 @@ function App() {
   async function refreshRuntimeConfig() { const data = await getRuntimeConfig(); setRuntimeConfig(data || {}); }
   async function refreshSessions() { const data = await listSessions(); setSessions(data.sessions || []); }
   async function refreshMessages(sessionID = currentSessionId) { if (!sessionID) return setMessages([]); const data = await listMessages(sessionID); setMessages(data.messages || []); }
-  async function refreshTurns(sessionID = currentSessionId) { if (!sessionID) return setTurns([]); const data = await listTurns(sessionID); setTurns(data.turns || []); setRunning((data.turns || []).some((t) => t.status === 'running' || t.status === 'cancelling')); }
+  async function refreshTurns(sessionID = currentSessionId) { if (!sessionID) return setTurns([]); const data = await listTurns(sessionID); setTurns(data.turns || []); }
   async function handleCreate(title) { const created = await createSession(title || 'Untitled'); await refreshSessions(); await refreshMessages(created.id); await refreshTurns(created.id); setCurrentSessionId(created.id); recordStatus(`Created ${created.id}`); return created; }
   async function handleSelect(sessionID) { setCurrentSessionId(sessionID); await refreshMessages(sessionID); await refreshTurns(sessionID); recordStatus(`Opened ${sessionID}`); }
   async function handleSend(prompt) { if (!currentSessionId) return recordStatus('Create or open a session first.'); const result = await sendPrompt(currentSessionId, prompt); await refreshTurns(currentSessionId); recordStatus(result.queued ? `Queued ${result.turn_id}` : `Started ${result.turn_id}`); }
@@ -70,7 +75,7 @@ function App() {
   const currentSession = sessions.find((s) => s.id === currentSessionId) || null;
   const queuedCount = turns.filter((t) => t.status === 'queued').length;
 
-  return html`<div class="app-shell chat-only"><${SessionList} sessions=${sessions} currentSessionId=${currentSessionId} onSelect=${handleSelect} onCreate=${handleCreate} /><main class="container"><section class="chat-window"><header class="chat-window-header"><div class="chat-window-header-main"><div class="chat-window-header-title">${runtimeConfig.assistant_name || 'Gi'}</div><div class="chat-window-header-subtitle">${runtimeConfig.default_provider || 'provider'} / ${runtimeConfig.default_model || 'model'}${runtimeConfig.default_thinking_level ? ` · ${runtimeConfig.default_thinking_level}` : ''}</div></div><div class="chat-window-header-actions"><span class="chat-window-header-badge">${runtimeConfig.user_name || 'User'}</span><span class="chat-window-header-badge">${ICONS.model}${currentSession?.state?.model || runtimeConfig.default_model || 'model'}</span><button class="chat-window-header-button" onClick=${() => { cycleThemePreset(); setThemeLabel(getCurrentThemeLabel()); }}>${ICONS.theme}${themeLabel}</button></div></header><${StatusBar} text=${status} /><div class="main-grid"><div class="chat-column"><${Timeline} messages=${messages} /><${ComposeBox} disabled=${false} onSend=${handleSend} runtimeConfig=${runtimeConfig} sessionState=${currentSession?.state || {}} queuedCount=${queuedCount} /></div><div class="side-column"><${TurnQueue} turns=${turns} onCancel=${handleCancel} /></div></div></section></main></div>`;
+  return html`<div class="app-shell"><${WorkspaceBrowser} onOpenFile=${(path, content) => { setPanePath(path); setPaneContent(content); }} /><${SessionList} sessions=${sessions} currentSessionId=${currentSessionId} onSelect=${handleSelect} onCreate=${handleCreate} /><main class="container"><section class="chat-window"><header class="chat-window-header"><div class="chat-window-header-main"><div class="chat-window-header-title">${runtimeConfig.assistant_name || 'Gi'}</div><div class="chat-window-header-subtitle">${runtimeConfig.default_provider || 'provider'} / ${runtimeConfig.default_model || 'model'}${runtimeConfig.default_thinking_level ? ` · ${runtimeConfig.default_thinking_level}` : ''}</div></div><div class="chat-window-header-actions"><span class="chat-window-header-badge">${runtimeConfig.user_name || 'User'}</span><span class="chat-window-header-badge">${ICONS.model}${currentSession?.state?.model || runtimeConfig.default_model || 'model'}</span><button class="chat-window-header-button" onClick=${() => { cycleThemePreset(); setThemeLabel(getCurrentThemeLabel()); }}>${ICONS.theme}${themeLabel}</button><button class="chat-window-header-button" onClick=${() => { cycleTint(); setTintLabel(getCurrentTintLabel()); }}>tint ${tintLabel}</button></div></header><${StatusBar} text=${status} /><div class="main-grid"><div class="chat-column"><${Timeline} messages=${messages} /><${ComposeBox} disabled=${false} onSend=${handleSend} runtimeConfig=${runtimeConfig} sessionState=${currentSession?.state || {}} queuedCount=${queuedCount} /></div><div class="side-column"><${TurnQueue} turns=${turns} onCancel=${handleCancel} /><${PaneShell} filePath=${panePath} fileContent=${paneContent} /></div></div></section></main></div>`;
 }
 
 render(html`<${App} />`, document.getElementById('app'));

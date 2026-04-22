@@ -17,6 +17,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Allow concurrent turns across sessions
 - [~] Implement queue/reorder/cancel state model
 - [x] Implement cancellation state transitions (`running` → `cancelling` → `cancelled`)
+- [ ] Add centralized runtime budget config (tool calls per turn, retries, queue depth, other turn/session limits)
 
 ### Database/state model
 - [x] Create SQLite schema baseline

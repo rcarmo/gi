@@ -22,6 +22,11 @@ Checkpoints are required at:
 
 Compaction and retries stay **inside the same turn**.
 
+Gi also needs centralized runtime budget controls for turn handling, including:
+- maximum tool calls per turn
+- other per-turn and per-session safety/resource limits
+- a single code-level configuration structure so limits are defined consistently and applied in one place
+
 A turn is considered complete whenever control returns to the user with consistent persisted state, including:
 - successful completion
 - partial output with surfaced failure
