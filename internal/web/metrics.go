@@ -27,7 +27,7 @@ type metricsCollector struct {
 
 var collector = &metricsCollector{
 	maxSamples:     30,
-	sampleInterval: 5 * time.Second,
+	sampleInterval: 2 * time.Second,
 }
 
 func (s *Server) handleSystemMetrics(w http.ResponseWriter, r *http.Request) {
