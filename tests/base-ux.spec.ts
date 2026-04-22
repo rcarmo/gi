@@ -54,7 +54,8 @@ test.describe('Gi base UX', () => {
     await textarea.fill('Playwright test message');
     await textarea.press('Enter');
     // Wait for at least 2 posts to appear (user + assistant)
-    await page.waitForTimeout(5000);
+    // SSE delivers the response; safety-net poll catches it if SSE is slow
+    await page.waitForFunction(() => document.querySelectorAll('.post').length >= 2, null, { timeout: 15000 });
     const postCount = await page.locator('.post').count();
     expect(postCount).toBeGreaterThanOrEqual(2);
   });

@@ -534,6 +534,17 @@ var dedupePosts = (items) => {
   });
 };
 
+// web/src/ui/app-realtime-timeline.ts
+function appendUniqueTimelinePost(posts, nextPost) {
+  if (!Array.isArray(posts) || posts.length === 0) {
+    return [nextPost];
+  }
+  if (posts.some((post) => post?.id === nextPost?.id)) {
+    return posts;
+  }
+  return [...posts, nextPost];
+}
+
 // web/src/ui/use-agent-state.ts
 function useAgentState() {
   const [agentStatus, setAgentStatus] = w0(null);
@@ -585,6 +596,393 @@ function useAgentState() {
     thoughtExpandedRef,
     draftExpandedRef
   };
+}
+
+// web/src/api.ts
+var API_BASE = "";
+async function request(url, options = {}) {
+  const startedAt = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
+  let response;
+  try {
+    response = await fetch(API_BASE + url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers || {}
+      }
+    });
+  } catch (error) {
+    recordAppPerfRequest({
+      method: String(options.method || "GET").toUpperCase(),
+      url,
+      startedAt,
+      durationMs: performance.now() - startedAt,
+      ok: false,
+      detail: { failedBeforeResponse: true }
+    });
+    throw error;
+  }
+  const durationMs = performance.now() - startedAt;
+  recordAppPerfRequest({
+    method: String(options.method || "GET").toUpperCase(),
+    url,
+    startedAt,
+    durationMs,
+    status: response.status,
+    ok: response.ok,
+    requestId: response.headers?.get?.("x-request-id") || null,
+    serverTiming: response.headers?.get?.("Server-Timing") || null
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: "Unknown error" }));
+    throw new Error(err.error || `HTTP ${response.status}`);
+  }
+  return response.json();
+}
+async function getTimeline(limit = 50, beforeId = null, chatJid = null) {
+  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
+  if (!sessionId)
+    return { posts: [] };
+  let url = `/api/sessions/${encodeURIComponent(sessionId)}/messages?limit=${limit}`;
+  if (beforeId)
+    url += `&before=${beforeId}`;
+  const data = await request(url);
+  const messages = data.messages || [];
+  return {
+    posts: messages.map((m2) => ({
+      id: m2.id,
+      chat_jid: chatJid,
+      content: m2.content,
+      timestamp: m2.created_at,
+      sender: m2.role === "user" ? "user" : "agent",
+      is_from_me: m2.role === "user",
+      is_bot_message: m2.role === "assistant",
+      data: {
+        type: m2.role === "assistant" ? "agent_response" : "user_message",
+        content: m2.content,
+        thread_id: null,
+        agent_id: m2.role === "assistant" ? "gi" : null,
+        content_blocks: m2.payload?.content_blocks || null,
+        content_meta: null,
+        link_previews: null,
+        kind: m2.payload?.kind || null,
+        source: m2.payload?.source || null,
+        clipped: m2.payload?.clipped || false
+      }
+    }))
+  };
+}
+async function getAgentModels(_chatJid = null) {
+  const data = await request("/api/runtime/config").catch(() => ({}));
+  const models = (data.enabled_models || []).map((id) => ({
+    id,
+    provider: data.default_provider || "",
+    label: id
+  }));
+  return { models, current: data.default_model || "" };
+}
+async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = [], mode = null, chatJid = null) {
+  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
+  if (!sessionId)
+    throw new Error("No active session");
+  const intent = mode === "steer" ? "steer" : mode === "queue" ? "queue" : "prompt";
+  return request(`/api/sessions/${encodeURIComponent(sessionId)}/prompt`, {
+    method: "POST",
+    body: JSON.stringify({ prompt: content, intent })
+  });
+}
+async function uploadMedia(_file, _chatJid = null) {
+  return null;
+}
+async function getMediaInfo(mediaId) {
+  return request(`/api/media/${mediaId}`).catch(() => null);
+}
+function getMediaUrl(mediaId) {
+  return `/api/media/${mediaId}/raw`;
+}
+function getThumbnailUrl(mediaId) {
+  return `/api/media/${mediaId}/thumbnail`;
+}
+async function submitAdaptiveCardAction(_payload) {
+  return null;
+}
+async function getWorkspaceTree(_chatJid = null) {
+  return request("/api/workspace/tree");
+}
+async function getWorkspaceFile(path, _chatJid = null) {
+  return request(`/api/workspace/file?path=${encodeURIComponent(path)}`);
+}
+async function getWorkspaceIndexStatus(_chatJid = null) {
+  return { status: "ready", indexed_at: null };
+}
+async function reindexWorkspace(_chatJid = null) {
+  return null;
+}
+async function createWorkspaceFile(path, content, _chatJid = null) {
+  return request("/api/workspace/file", { method: "POST", body: JSON.stringify({ path, content }) }).catch(() => null);
+}
+async function renameWorkspaceFile(_oldPath, _newPath, _chatJid = null) {
+  return null;
+}
+async function moveWorkspaceEntry(_from, _to, _chatJid = null) {
+  return null;
+}
+async function deleteWorkspaceFile(_path, _chatJid = null) {
+  return null;
+}
+async function uploadWorkspaceFile(_path, _file, _chatJid = null) {
+  return null;
+}
+async function setWorkspaceVisibility(_path, _hidden, _chatJid = null) {
+  return null;
+}
+function getWorkspaceDownloadUrl(path) {
+  return `/api/workspace/file?path=${encodeURIComponent(path)}`;
+}
+async function getWorkspaceBranch(_chatJid = null) {
+  return null;
+}
+function getWorkspaceRawUrl(path, options = {}) {
+  const q = new URLSearchParams({ path: String(path || "") });
+  if (options?.download)
+    q.set("download", "1");
+  return `/api/workspace/raw?${q.toString()}`;
+}
+function getWorkspaceFileDownloadUrl(path) {
+  return getWorkspaceRawUrl(path, { download: true });
+}
+async function recordAppPerfRequest(_payload) {}
+
+class SSEClient {
+  onEvent;
+  onStatusChange;
+  chatJid;
+  eventSource;
+  reconnectTimeout;
+  reconnectDelay;
+  status;
+  connecting;
+  staleMonitor;
+  constructor(onEvent, onStatusChange, options = {}) {
+    this.onEvent = onEvent;
+    this.onStatusChange = onStatusChange;
+    this.chatJid = typeof options?.chatJid === "string" && options.chatJid.trim() ? options.chatJid.trim() : null;
+    this.eventSource = null;
+    this.reconnectTimeout = null;
+    this.reconnectDelay = 1000;
+    this.status = "disconnected";
+    this.connecting = false;
+    this.staleMonitor = null;
+  }
+  connect() {
+    if (this.connecting)
+      return;
+    if (this.eventSource && this.status === "connected")
+      return;
+    this.connecting = true;
+    if (this.eventSource)
+      this.eventSource.close();
+    this.clearStaleMonitor();
+    const query = this.chatJid ? `?chat_jid=${encodeURIComponent(this.chatJid)}` : "";
+    this.eventSource = new EventSource(API_BASE + "/sse/stream" + query);
+    const bindJsonEvent = (eventType) => {
+      this.eventSource.addEventListener(eventType, (e2) => {
+        this.resetStaleMonitor();
+        try {
+          const data = JSON.parse(e2.data);
+          this.onEvent(eventType, data);
+        } catch {}
+      });
+    };
+    this.eventSource.addEventListener("connected", () => {
+      this.connecting = false;
+      this.reconnectDelay = 1000;
+      this.setStatus("connected");
+      this.resetStaleMonitor();
+    });
+    this.eventSource.addEventListener("heartbeat", () => {
+      this.resetStaleMonitor();
+    });
+    bindJsonEvent("new_post");
+    bindJsonEvent("new_reply");
+    bindJsonEvent("agent_response");
+    bindJsonEvent("interaction_updated");
+    bindJsonEvent("interaction_deleted");
+    bindJsonEvent("agent_status");
+    bindJsonEvent("agent_steer_queued");
+    bindJsonEvent("agent_followup_queued");
+    bindJsonEvent("agent_followup_consumed");
+    bindJsonEvent("agent_followup_removed");
+    bindJsonEvent("workspace_update");
+    bindJsonEvent("agent_draft");
+    bindJsonEvent("agent_draft_delta");
+    bindJsonEvent("agent_thought");
+    bindJsonEvent("agent_thought_delta");
+    bindJsonEvent("model_changed");
+    bindJsonEvent("ui_theme");
+    bindJsonEvent("ui_meters");
+    this.eventSource.onerror = () => {
+      this.connecting = false;
+      this.setStatus("disconnected");
+      this.scheduleReconnect();
+    };
+  }
+  disconnect() {
+    this.clearStaleMonitor();
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = null;
+    }
+    this.setStatus("disconnected");
+  }
+  reconnectIfNeeded() {
+    if (this.status !== "connected")
+      this.connect();
+  }
+  forceReconnect() {
+    this.disconnect();
+    this.connect();
+  }
+  setStatus(status) {
+    if (this.status === status)
+      return;
+    this.status = status;
+    this.onStatusChange?.(status);
+  }
+  scheduleReconnect() {
+    if (this.reconnectTimeout)
+      return;
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null;
+      this.reconnectDelay = Math.min(this.reconnectDelay * 1.5, 30000);
+      this.connect();
+    }, this.reconnectDelay);
+  }
+  resetStaleMonitor() {
+    this.clearStaleMonitor();
+    this.staleMonitor = setTimeout(() => {
+      this.setStatus("stale");
+      this.forceReconnect();
+    }, 60000);
+  }
+  clearStaleMonitor() {
+    if (this.staleMonitor) {
+      clearTimeout(this.staleMonitor);
+      this.staleMonitor = null;
+    }
+  }
+}
+async function getMediaBlob(..._args) {
+  return null;
+}
+
+// web/src/ui/app-helpers.ts
+function readSilenceOverride(key, fallback) {
+  try {
+    if (typeof window === "undefined")
+      return fallback;
+    const overrides = window.__PICLAW_SILENCE || {};
+    const directKey = `__PICLAW_SILENCE_${key.toUpperCase()}_MS`;
+    const raw = overrides[key] ?? window[directKey];
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+var SILENCE_WARNING_MS = readSilenceOverride("warning", 30000);
+var SILENCE_FINALIZE_MS = readSilenceOverride("finalize", 120000);
+var SILENCE_REFRESH_MS = readSilenceOverride("refresh", 30000);
+function isIOSDevice() {
+  if (/iPad|iPhone/.test(navigator.userAgent)) {
+    return true;
+  }
+  return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+}
+
+// web/src/ui/use-sse-connection.ts
+function bindSseWakeLifecycle({ sse, onWake }, runtime = {}) {
+  const win = runtime.window ?? (typeof window !== "undefined" ? window : null);
+  const doc = runtime.document ?? (typeof document !== "undefined" ? document : null);
+  if (!win || !doc || !sse) {
+    return () => {};
+  }
+  const reconnectAfterReturn = () => {
+    if (typeof sse.forceReconnect === "function") {
+      sse.forceReconnect();
+      return;
+    }
+    sse.reconnectIfNeeded();
+  };
+  const shouldUseFocusReconnect = typeof runtime.useFocusReconnect === "boolean" ? runtime.useFocusReconnect : !isIOSDevice();
+  let pendingWake = doc.visibilityState && doc.visibilityState !== "visible";
+  const handleHiddenState = () => {
+    if (doc.visibilityState && doc.visibilityState !== "visible") {
+      pendingWake = true;
+      return true;
+    }
+    return false;
+  };
+  const handleVisibleReturn = () => {
+    if (handleHiddenState())
+      return;
+    if (pendingWake) {
+      pendingWake = false;
+      reconnectAfterReturn();
+      onWake?.();
+    }
+  };
+  const handleWindowFocus = () => {
+    if (handleHiddenState())
+      return;
+    if (pendingWake) {
+      handleVisibleReturn();
+      return;
+    }
+    if (shouldUseFocusReconnect) {
+      sse.reconnectIfNeeded();
+    }
+  };
+  const handlePageShow = () => {
+    handleVisibleReturn();
+  };
+  const handleVisibilityChange = () => {
+    handleVisibleReturn();
+  };
+  win.addEventListener("focus", handleWindowFocus);
+  win.addEventListener("pageshow", handlePageShow);
+  doc.addEventListener("visibilitychange", handleVisibilityChange);
+  return () => {
+    win.removeEventListener("focus", handleWindowFocus);
+    win.removeEventListener("pageshow", handlePageShow);
+    doc.removeEventListener("visibilitychange", handleVisibilityChange);
+  };
+}
+function useSseConnection({ handleSseEvent, handleConnectionStatusChange, loadPosts, onWake, chatJid }) {
+  const sseEventRef = o0(handleSseEvent);
+  sseEventRef.current = handleSseEvent;
+  const statusChangeRef = o0(handleConnectionStatusChange);
+  statusChangeRef.current = handleConnectionStatusChange;
+  const loadPostsRef = o0(loadPosts);
+  loadPostsRef.current = loadPosts;
+  const onWakeRef = o0(onWake);
+  onWakeRef.current = onWake;
+  r0(() => {
+    const sse = new SSEClient((type, data) => sseEventRef.current(type, data), (status) => statusChangeRef.current(status), { chatJid });
+    sse.connect();
+    const disposeWakeLifecycle = bindSseWakeLifecycle({
+      sse,
+      onWake: () => onWakeRef.current?.()
+    });
+    return () => {
+      disposeWakeLifecycle();
+      sse.disconnect();
+    };
+  }, [chatJid]);
 }
 
 // web/src/ui/theme.ts
@@ -1254,30 +1652,6 @@ function getThemeMode() {
   return resolveSystemMode();
 }
 
-// web/src/ui/app-helpers.ts
-function readSilenceOverride(key, fallback) {
-  try {
-    if (typeof window === "undefined")
-      return fallback;
-    const overrides = window.__PICLAW_SILENCE || {};
-    const directKey = `__PICLAW_SILENCE_${key.toUpperCase()}_MS`;
-    const raw = overrides[key] ?? window[directKey];
-    const value = Number(raw);
-    return Number.isFinite(value) ? value : fallback;
-  } catch {
-    return fallback;
-  }
-}
-var SILENCE_WARNING_MS = readSilenceOverride("warning", 30000);
-var SILENCE_FINALIZE_MS = readSilenceOverride("finalize", 120000);
-var SILENCE_REFRESH_MS = readSilenceOverride("refresh", 30000);
-function isIOSDevice() {
-  if (/iPad|iPhone/.test(navigator.userAgent)) {
-    return true;
-  }
-  return navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
-}
-
 // web/src/ui/status-duration.ts
 function parseStatusStartedAt(status) {
   if (!status || typeof status !== "object")
@@ -1347,179 +1721,6 @@ function getStatusRetryCountdownLabel(status, nowMs = Date.now()) {
   if (remainingMs <= 0)
     return "retrying now";
   return `retry in ${formatElapsedDuration(remainingMs)}`;
-}
-
-// web/src/api.ts
-var API_BASE = "";
-async function request(url, options = {}) {
-  const startedAt = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
-  let response;
-  try {
-    response = await fetch(API_BASE + url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers || {}
-      }
-    });
-  } catch (error) {
-    recordAppPerfRequest({
-      method: String(options.method || "GET").toUpperCase(),
-      url,
-      startedAt,
-      durationMs: performance.now() - startedAt,
-      ok: false,
-      detail: { failedBeforeResponse: true }
-    });
-    throw error;
-  }
-  const durationMs = performance.now() - startedAt;
-  recordAppPerfRequest({
-    method: String(options.method || "GET").toUpperCase(),
-    url,
-    startedAt,
-    durationMs,
-    status: response.status,
-    ok: response.ok,
-    requestId: response.headers?.get?.("x-request-id") || null,
-    serverTiming: response.headers?.get?.("Server-Timing") || null
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(err.error || `HTTP ${response.status}`);
-  }
-  return response.json();
-}
-async function getTimeline(limit = 50, beforeId = null, chatJid = null) {
-  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
-  if (!sessionId)
-    return { posts: [] };
-  let url = `/api/sessions/${encodeURIComponent(sessionId)}/messages?limit=${limit}`;
-  if (beforeId)
-    url += `&before=${beforeId}`;
-  const data = await request(url);
-  const messages = data.messages || [];
-  return {
-    posts: messages.map((m2) => ({
-      id: m2.id,
-      chat_jid: chatJid,
-      content: m2.content,
-      timestamp: m2.created_at,
-      sender: m2.role === "user" ? "user" : "agent",
-      is_from_me: m2.role === "user",
-      is_bot_message: m2.role === "assistant",
-      data: {
-        type: m2.role === "assistant" ? "agent_response" : "user_message",
-        content: m2.content,
-        thread_id: null,
-        agent_id: m2.role === "assistant" ? "gi" : null,
-        content_blocks: m2.payload?.content_blocks || null,
-        content_meta: null,
-        link_previews: null,
-        kind: m2.payload?.kind || null,
-        source: m2.payload?.source || null,
-        clipped: m2.payload?.clipped || false
-      }
-    }))
-  };
-}
-async function getAgentStatus(agentId, chatJid = null) {
-  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
-  if (!sessionId)
-    return null;
-  const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/turns`).catch(() => ({ turns: [] }));
-  const turns = data.turns || [];
-  const active = turns.find((t2) => t2.status === "running" || t2.status === "cancelling") || turns.find((t2) => t2.status === "queued");
-  if (!active)
-    return null;
-  return {
-    type: active.status === "running" ? "tool_call" : "intent",
-    title: active.status === "cancelling" ? "Cancelling…" : active.status === "queued" ? "Queued" : active.prompt,
-    status: active.status
-  };
-}
-async function getAgentModels(_chatJid = null) {
-  const data = await request("/api/runtime/config").catch(() => ({}));
-  const models = (data.enabled_models || []).map((id) => ({
-    id,
-    provider: data.default_provider || "",
-    label: id
-  }));
-  return { models, current: data.default_model || "" };
-}
-async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = [], mode = null, chatJid = null) {
-  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
-  if (!sessionId)
-    throw new Error("No active session");
-  const intent = mode === "steer" ? "steer" : mode === "queue" ? "queue" : "prompt";
-  return request(`/api/sessions/${encodeURIComponent(sessionId)}/prompt`, {
-    method: "POST",
-    body: JSON.stringify({ prompt: content, intent })
-  });
-}
-async function uploadMedia(_file, _chatJid = null) {
-  return null;
-}
-async function getMediaInfo(mediaId) {
-  return request(`/api/media/${mediaId}`).catch(() => null);
-}
-function getMediaUrl(mediaId) {
-  return `/api/media/${mediaId}/raw`;
-}
-function getThumbnailUrl(mediaId) {
-  return `/api/media/${mediaId}/thumbnail`;
-}
-async function submitAdaptiveCardAction(_payload) {
-  return null;
-}
-async function getWorkspaceTree(_chatJid = null) {
-  return request("/api/workspace/tree");
-}
-async function getWorkspaceFile(path, _chatJid = null) {
-  return request(`/api/workspace/file?path=${encodeURIComponent(path)}`);
-}
-async function getWorkspaceIndexStatus(_chatJid = null) {
-  return { status: "ready", indexed_at: null };
-}
-async function reindexWorkspace(_chatJid = null) {
-  return null;
-}
-async function createWorkspaceFile(path, content, _chatJid = null) {
-  return request("/api/workspace/file", { method: "POST", body: JSON.stringify({ path, content }) }).catch(() => null);
-}
-async function renameWorkspaceFile(_oldPath, _newPath, _chatJid = null) {
-  return null;
-}
-async function moveWorkspaceEntry(_from, _to, _chatJid = null) {
-  return null;
-}
-async function deleteWorkspaceFile(_path, _chatJid = null) {
-  return null;
-}
-async function uploadWorkspaceFile(_path, _file, _chatJid = null) {
-  return null;
-}
-async function setWorkspaceVisibility(_path, _hidden, _chatJid = null) {
-  return null;
-}
-function getWorkspaceDownloadUrl(path) {
-  return `/api/workspace/file?path=${encodeURIComponent(path)}`;
-}
-async function getWorkspaceBranch(_chatJid = null) {
-  return null;
-}
-function getWorkspaceRawUrl(path, options = {}) {
-  const q = new URLSearchParams({ path: String(path || "") });
-  if (options?.download)
-    q.set("download", "1");
-  return `/api/workspace/raw?${q.toString()}`;
-}
-function getWorkspaceFileDownloadUrl(path) {
-  return getWorkspaceRawUrl(path, { download: true });
-}
-async function recordAppPerfRequest(_payload) {}
-async function getMediaBlob(..._args) {
-  return null;
 }
 
 // web/src/utils/code-highlighting.ts
@@ -17819,7 +18020,6 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
 // web/src/app.ts
 var DEFAULT_SESSION_TITLE = "default";
 var SESSION_KEY = "gi_session_id";
-var POLL_INTERVAL_MS = 1200;
 var DEFAULT_AGENT_ID = "gi";
 function sessionToChatJid(id) {
   return `gi:${id}`;
@@ -17943,25 +18143,57 @@ function GiApp() {
       return;
     el.scrollTop = el.scrollHeight;
   }, []);
+  const handleSseEvent = t0((eventType, data) => {
+    if (eventType === "new_post" || eventType === "agent_response") {
+      if (data && data.id) {
+        setPosts((prev) => appendUniqueTimelinePost(prev, data));
+        scrollToBottom();
+      }
+    }
+    if (eventType === "agent_status") {
+      setAgentStatus(data);
+      const active = data?.status === "running" || data?.status === "cancelling";
+      setIsAgentTurnActive(active);
+      isAgentRunningRef.current = active;
+    }
+    if (eventType === "agent_draft_delta") {
+      const delta = data?.delta || "";
+      if (delta) {
+        draftBufferRef.current = (draftBufferRef.current || "") + delta;
+        setAgentDraft({ text: draftBufferRef.current, totalLines: 0, fullText: draftBufferRef.current });
+      }
+    }
+    if (eventType === "agent_thought_delta") {
+      const delta = data?.delta || "";
+      if (delta) {
+        thoughtBufferRef.current = (thoughtBufferRef.current || "") + delta;
+        setAgentThought({ text: thoughtBufferRef.current, totalLines: 0, fullText: thoughtBufferRef.current });
+      }
+    }
+    if (eventType === "agent_response") {
+      draftBufferRef.current = "";
+      thoughtBufferRef.current = "";
+      setAgentDraft(null);
+      setAgentThought(null);
+    }
+  }, [scrollToBottom]);
+  const handleConnectionStatusChange = t0((status) => {
+    setConnectionStatus(status);
+  }, []);
+  useSseConnection({
+    handleSseEvent,
+    handleConnectionStatusChange,
+    loadPosts,
+    onWake: () => {
+      loadPosts();
+    },
+    chatJid: currentChatJid
+  });
   r0(() => {
     if (!ready || !sessionId)
       return;
     loadPosts();
-    const id = setInterval(async () => {
-      await loadPosts();
-      const chatJid = sessionToChatJid(sessionId);
-      const status = await getAgentStatus(DEFAULT_AGENT_ID, chatJid).catch(() => null);
-      if (status) {
-        setAgentStatus(status);
-        const active = status?.status === "running" || status?.status === "cancelling";
-        setIsAgentTurnActive(active);
-        isAgentRunningRef.current = active;
-      } else {
-        setAgentStatus(null);
-        setIsAgentTurnActive(false);
-        isAgentRunningRef.current = false;
-      }
-    }, POLL_INTERVAL_MS);
+    const id = setInterval(() => loadPosts(), 1e4);
     return () => clearInterval(id);
   }, [ready, sessionId]);
   const handlePost = t0(async (response) => {
@@ -18140,5 +18372,5 @@ function GiApp() {
 }
 c0(X1`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=04FD4E44849C700F64756E2164756E21
+//# debugId=CDF38FB41DA8291C64756E2164756E21
 //# sourceMappingURL=app.js.map

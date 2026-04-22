@@ -77,11 +77,11 @@ func loadAuth(provider string) (string, string, error) {
 	return "", "", fmt.Errorf("no token/key in auth entry for %q", provider)
 }
 
-func Complete(ctx context.Context, modelID string, systemPrompt string, messages []goai.Message) (string, error) {
+func Complete(ctx context.Context, modelID string, systemPrompt string, messages []goai.Message) (string, *goai.Usage, error) {
 	return CompleteWithBroadcast(ctx, modelID, systemPrompt, messages, nil)
 }
 
-func CompleteWithBroadcast(ctx context.Context, modelID string, systemPrompt string, messages []goai.Message, broadcast func(map[string]any)) (string, error) {
+func CompleteWithBroadcast(ctx context.Context, modelID string, systemPrompt string, messages []goai.Message, broadcast func(map[string]any)) (string, *goai.Usage, error) {
 	Init()
 
 	// Parse provider/model from "provider/model" format
@@ -89,12 +89,12 @@ func CompleteWithBroadcast(ctx context.Context, modelID string, systemPrompt str
 
 	model := goai.GetModel(goai.Provider(provider), modelName)
 	if model == nil {
-		return "", fmt.Errorf("model not found: %s/%s", provider, modelName)
+		return "", nil, fmt.Errorf("model not found: %s/%s", provider, modelName)
 	}
 
 	apiKey, baseURLOverride, err := loadAuth(provider)
 	if err != nil {
-		return "", fmt.Errorf("load auth for %s: %w", provider, err)
+		return "", nil, fmt.Errorf("load auth for %s: %w", provider, err)
 	}
 
 	// Override the base URL if the auth provider gives us one
@@ -119,6 +119,7 @@ func CompleteWithBroadcast(ctx context.Context, modelID string, systemPrompt str
 
 	// Stream and collect
 	var fullText string
+	var usage *goai.Usage
 	for ev := range goai.Stream(ctx, model, convCtx, opts) {
 		switch e := ev.(type) {
 		case *goai.TextDeltaEvent:
@@ -131,18 +132,31 @@ func CompleteWithBroadcast(ctx context.Context, modelID string, systemPrompt str
 				broadcast(map[string]any{"type": "thinking_delta", "delta": e.Delta})
 			}
 		case *goai.DoneEvent:
-			if broadcast != nil {
-				broadcast(map[string]any{"type": "done", "model": modelID})
+			if e.Message != nil && e.Message.Usage != nil {
+				usage = e.Message.Usage
 			}
-			return fullText, nil
+			if broadcast != nil {
+				usageMap := map[string]any{}
+				if usage != nil {
+					usageMap = map[string]any{
+						"input": usage.Input, "output": usage.Output,
+						"total":      usage.TotalTokens,
+						"cache_read": usage.CacheRead, "cache_write": usage.CacheWrite,
+						"cost_input": usage.Cost.Input, "cost_output": usage.Cost.Output,
+						"cost_total": usage.Cost.Total,
+					}
+				}
+				broadcast(map[string]any{"type": "done", "model": modelID, "usage": usageMap})
+			}
+			return fullText, usage, nil
 		case *goai.ErrorEvent:
 			if broadcast != nil {
 				broadcast(map[string]any{"type": "error", "error": e.Err.Error()})
 			}
-			return fullText, e.Err
+			return fullText, nil, e.Err
 		}
 	}
-	return fullText, nil
+	return fullText, nil, nil
 }
 
 func splitModelID(id string) (string, string) {

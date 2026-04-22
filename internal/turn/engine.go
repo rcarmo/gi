@@ -190,7 +190,7 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 		if sysPrompt == "" {
 			sysPrompt = "You are a helpful coding assistant."
 		}
-		result, inferErr := inference.CompleteWithBroadcast(ctx, model, sysPrompt, history, func(ev map[string]any) {
+		result, usage, inferErr := inference.CompleteWithBroadcast(ctx, model, sysPrompt, history, func(ev map[string]any) {
 			ev["chat_jid"] = "gi:" + sessionID
 			ev["turn_id"] = turnID
 			// Map to Piclaw event types
@@ -217,7 +217,18 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 		}
 
 		log.Printf("inference: got %d chars from %s", len(result), model)
-		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "inference.finished", map[string]any{"phase": "inference", "checkpoint": true, "length": len(result)})
+		usageMap := map[string]any{}
+		if usage != nil {
+			usageMap = map[string]any{
+				"input": usage.Input, "output": usage.Output,
+				"total":      usage.TotalTokens,
+				"cache_read": usage.CacheRead, "cache_write": usage.CacheWrite,
+				"cost_input": usage.Cost.Input, "cost_output": usage.Cost.Output,
+				"cost_total": usage.Cost.Total,
+			}
+			log.Printf("inference: usage input=%d output=%d total=%d cost=%.6f", usage.Input, usage.Output, usage.TotalTokens, usage.Cost.Total)
+		}
+		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "inference.finished", map[string]any{"phase": "inference", "checkpoint": true, "length": len(result), "usage": usageMap})
 
 		// Add assistant message
 		msgID := store.NowID("msg")
@@ -274,7 +285,14 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 		return
 	}
 	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "output": out})
-	_ = s.AddMessage(context.Background(), store.NowID("msg"), sessionID, "assistant", out, map[string]any{"kind": "chat", "source": "shell", "turn_id": turnID})
+	msgID := store.NowID("msg")
+	_ = s.AddMessage(context.Background(), msgID, sessionID, "assistant", out, map[string]any{"kind": "chat", "source": "shell", "turn_id": turnID})
+	r.engine.broadcast(sessionID, map[string]any{
+		"type": "new_post", "id": msgID, "chat_jid": "gi:" + sessionID,
+		"content": out, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
+		"sender": "agent", "is_bot_message": true,
+		"data": map[string]any{"type": "agent_response", "content": out, "agent_id": "gi"},
+	})
 	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed"})
 	_ = s.UpdateTurnStatus(context.Background(), turnID, "completed")
 	_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})

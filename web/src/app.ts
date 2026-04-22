@@ -10,7 +10,10 @@
 import { html, render, useState, useEffect, useMemo, useCallback, useRef } from './vendor/preact-htm.js';
 import { getLocalStorageItem, setLocalStorageItem } from './utils/storage.js';
 import { dedupePosts } from './ui/timeline-utils.js';
+import { appendUniqueTimelinePost } from './ui/app-realtime-timeline.js';
 import { useAgentState } from './ui/use-agent-state.js';
+import { useSseConnection } from './ui/use-sse-connection.js';
+import { handleAppSseEvent } from './ui/app-sse-events.js';
 import { initTheme } from './ui/theme.js';
 import {
     LAST_ACTIVITY_TTL_MS,
@@ -200,26 +203,71 @@ function GiApp() {
         el.scrollTop = el.scrollHeight;
     }, []);
 
-    // ── Polling ───────────────────────────────────────────────────────────────
+    // ── SSE connection (replaces polling) ─────────────────────────────────────
+
+    const handleSseEvent = useCallback((eventType: string, data: any) => {
+        // Handle new_post events directly for immediate timeline updates
+        if (eventType === 'new_post' || eventType === 'agent_response') {
+            if (data && data.id) {
+                setPosts((prev: any[]) => appendUniqueTimelinePost(prev, data));
+                scrollToBottom();
+            }
+        }
+
+        // Handle agent status events
+        if (eventType === 'agent_status') {
+            setAgentStatus(data);
+            const active = data?.status === 'running' || data?.status === 'cancelling';
+            setIsAgentTurnActive(active);
+            isAgentRunningRef.current = active;
+        }
+
+        // Handle draft deltas for streaming display
+        if (eventType === 'agent_draft_delta') {
+            const delta = data?.delta || '';
+            if (delta) {
+                draftBufferRef.current = (draftBufferRef.current || '') + delta;
+                setAgentDraft({ text: draftBufferRef.current, totalLines: 0, fullText: draftBufferRef.current });
+            }
+        }
+
+        // Handle thought deltas
+        if (eventType === 'agent_thought_delta') {
+            const delta = data?.delta || '';
+            if (delta) {
+                thoughtBufferRef.current = (thoughtBufferRef.current || '') + delta;
+                setAgentThought({ text: thoughtBufferRef.current, totalLines: 0, fullText: thoughtBufferRef.current });
+            }
+        }
+
+        // Clear draft/thought on agent_response (turn complete)
+        if (eventType === 'agent_response') {
+            draftBufferRef.current = '';
+            thoughtBufferRef.current = '';
+            setAgentDraft(null);
+            setAgentThought(null);
+        }
+    }, [scrollToBottom]);
+
+    const handleConnectionStatusChange = useCallback((status: string) => {
+        setConnectionStatus(status);
+    }, []);
+
+    useSseConnection({
+        handleSseEvent,
+        handleConnectionStatusChange,
+        loadPosts,
+        onWake: () => { loadPosts(); },
+        chatJid: currentChatJid,
+    });
+
+    // ── Initial load + light periodic refresh ─────────────────────────────────
 
     useEffect(() => {
         if (!ready || !sessionId) return;
         loadPosts();
-        const id = setInterval(async () => {
-            await loadPosts();
-            const chatJid = sessionToChatJid(sessionId);
-            const status = await getAgentStatus(DEFAULT_AGENT_ID, chatJid).catch(() => null);
-            if (status) {
-                setAgentStatus(status);
-                const active = status?.status === 'running' || status?.status === 'cancelling';
-                setIsAgentTurnActive(active);
-                isAgentRunningRef.current = active;
-            } else {
-                setAgentStatus(null);
-                setIsAgentTurnActive(false);
-                isAgentRunningRef.current = false;
-            }
-        }, POLL_INTERVAL_MS);
+        // Light refresh every 10s as a safety net (SSE handles real-time)
+        const id = setInterval(() => loadPosts(), 10000);
         return () => clearInterval(id);
     }, [ready, sessionId]);
 
