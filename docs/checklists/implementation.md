@@ -15,8 +15,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Persist turn start/progress/end events
 - [x] Serialize turns per session
 - [x] Allow concurrent turns across sessions
-- [ ] Implement queue/reorder/cancel state model
-- [ ] Implement cancellation state transitions (`running` → `cancelling` → `cancelled`)
+- [~] Implement queue/reorder/cancel state model
+- [x] Implement cancellation state transitions (`running` → `cancelling` → `cancelled`)
 
 ### Database/state model
 - [x] Create SQLite schema baseline
@@ -35,7 +35,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Implement session list/open/create
 - [x] Implement basic chat timeline rendering
 - [x] Implement compose box with Piclaw-style progress/status area
-- [ ] Implement streaming output rendering
+- [~] Implement streaming output rendering
 - [x] Implement one prompt → one turn flow
 - [x] Implement clean control return after turn
 
@@ -53,7 +53,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Open/create session
 - [x] Send one prompt
 - [x] Run one shell tool call
-- [ ] Stream progress
+- [~] Stream progress
 - [x] Persist all messages/events in SQLite
 - [x] Return control cleanly
 

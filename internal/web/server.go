@@ -1,7 +1,6 @@
 package web
 
 import (
-	"context"
 	"embed"
 	"encoding/json"
 	"io/fs"
@@ -37,6 +36,8 @@ func (s *Server) routes() {
 	s.mux.Handle("/", http.FileServer(http.FS(staticRoot)))
 	s.mux.HandleFunc("/api/sessions", s.handleSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleSessionSubroutes)
+	// /api/turns/{turnID}/cancel and /api/turns/{turnID}/events
+	s.mux.HandleFunc("/api/turns/", s.handleTurnSubroutes)
 }
 
 func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
@@ -50,10 +51,12 @@ func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"sessions": sessions})
 	case http.MethodPost:
-		var req struct{ Title string `json:"title"` }
+		var req struct {
+			Title string `json:"title"`
+		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		id := store.NowID("session")
-		session, err := s.store.CreateSession(ctx, id, req.Title, map[string]any{"status": "idle"})
+		session, err := s.store.CreateSession(ctx, id, req.Title, map[string]any{"status": "idle", "queue_count": 0})
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 			return
@@ -81,14 +84,51 @@ func (s *Server) handleSessionSubroutes(w http.ResponseWriter, r *http.Request) 
 		s.handleMessages(w, r, sessionID)
 	case "prompt":
 		s.handlePrompt(w, r, sessionID)
+	case "turns":
+		s.handleTurns(w, r, sessionID)
+	default:
+		http.NotFound(w, r)
+	}
+}
+
+func (s *Server) handleTurnSubroutes(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/api/turns/")
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) < 2 || parts[0] == "" {
+		http.NotFound(w, r)
+		return
+	}
+	turnID := parts[0]
+	switch parts[1] {
+	case "cancel":
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		turnRec, err := s.store.GetTurn(r.Context(), turnID)
+		if err != nil {
+			writeJSON(w, http.StatusNotFound, map[string]any{"error": err.Error()})
+			return
+		}
+		if err := s.turns.CancelTurn(r.Context(), turnRec.SessionID, turnID); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	case "events":
+		events, err := s.store.ListTurnEvents(r.Context(), turnID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"events": events})
 	default:
 		http.NotFound(w, r)
 	}
 }
 
 func (s *Server) handleSession(w http.ResponseWriter, r *http.Request, sessionID string) {
-	ctx := r.Context()
-	session, err := s.store.GetSession(ctx, sessionID)
+	session, err := s.store.GetSession(r.Context(), sessionID)
 	if err != nil {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": err.Error()})
 		return
@@ -109,6 +149,19 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request, sessionI
 	writeJSON(w, http.StatusOK, map[string]any{"messages": msgs})
 }
 
+func (s *Server) handleTurns(w http.ResponseWriter, r *http.Request, sessionID string) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	turns, err := s.store.ListTurns(r.Context(), sessionID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"turns": turns})
+}
+
 func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -123,12 +176,12 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
-	summary, err := s.turns.RunPrompt(context.Background(), turn.RunInput{SessionID: sessionID, Prompt: req.Prompt, Intent: req.Intent, Model: req.Model})
+	result, err := s.turns.SubmitPrompt(r.Context(), turn.RunInput{SessionID: sessionID, Prompt: req.Prompt, Intent: req.Intent, Model: req.Model})
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error(), "summary": summary})
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, summary)
+	writeJSON(w, http.StatusAccepted, result)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
