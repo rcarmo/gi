@@ -59,12 +59,23 @@ run([
   '--format=esm',
   '--sourcemap',
   '--external', '#editor-vendor/codemirror',
+  '--external', './vendor/preact-htm.js',
+  '--external', '../vendor/preact-htm.js',
 ]);
 move(`${webSrc}/app.js`,     `${distDir}/app.bundle.js`);
 move(`${webSrc}/app.js.map`, `${distDir}/app.bundle.js.map`);
 
-// Clean up any vendor alias copies left in src/vendor/
-['preact-htm.js', 'marked.min.js', 'katex.min.js', 'beautiful-mermaid.js', 'codemirror.js'].forEach((f) => {
+// Post-process: replace top-level var with let to avoid Safari/browser
+// "duplicate variable that shadows a global property" errors in ESM scope.
+const appBundle = readFileSync(`${distDir}/app.bundle.js`, 'utf-8');
+writeFileSync(`${distDir}/app.bundle.js`, appBundle.replace(/^var /gm, 'let '), 'utf-8');
+
+// Now clean up preact-htm alias
+const phtmAlias = `${webSrc}/vendor/preact-htm.js`;
+if (existsSync(phtmAlias)) rmSync(phtmAlias);
+
+// Clean up vendor alias copies EXCEPT preact-htm.js (kept for app externals resolution)
+['marked.min.js', 'katex.min.js', 'beautiful-mermaid.js', 'codemirror.js'].forEach((f) => {
   const p = `${webSrc}/vendor/${f}`;
   if (existsSync(p)) rmSync(p);
 });
