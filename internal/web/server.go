@@ -57,6 +57,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/workspace/tree", s.handleWorkspaceTree)
 	s.mux.HandleFunc("/api/workspace/file", s.handleWorkspaceFile)
 	s.mux.HandleFunc("/sse/stream", s.handleSSEStream)
+	s.mux.HandleFunc("/api/system-metrics", s.handleSystemMetrics)
+	s.mux.HandleFunc("/agent/system-metrics", s.handleSystemMetrics)
 	s.mux.HandleFunc("/api/sessions", s.handleSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleSessionSubroutes)
 	s.mux.HandleFunc("/api/turns/", s.handleTurnSubroutes)

@@ -59,6 +59,7 @@ import { WorkspaceExplorer } from './components/workspace-explorer.js';
 import { TabStrip } from './components/tab-strip.js';
 import { FloatingWidgetPane } from './components/floating-widget-pane.js';
 import { AttachmentPreviewModal } from './components/attachment-preview-modal.js';
+import { SystemMetersHud } from './components/system-meters-hud.js';
 
 // ── Gi session bridge ──────────────────────────────────────────────────────
 // Piclaw components expect chat_jid strings. We map Gi sessions onto that
@@ -159,6 +160,10 @@ function GiApp() {
 
     useEffect(() => {
         const cleanupTheme = initTheme();
+        // Enable meters by default until /meters slash command exists
+        if (getLocalStorageItem('piclaw_system_meters_enabled') === null) {
+            setLocalStorageItem('piclaw_system_meters_enabled', 'true');
+        }
         Promise.all([
             ensureDefaultSession(),
             getRuntimeConfig(),
@@ -312,6 +317,7 @@ function GiApp() {
 
     return html`
         <div class=${appShellClass}>
+            <${SystemMetersHud} mode="overlay" />
             <${WorkspaceExplorer}
                 onFileSelect=${(path: string) => setFileRefs((p: string[]) => [...p, path])}
                 visible=${workspaceOpen}

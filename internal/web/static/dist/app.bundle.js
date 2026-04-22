@@ -672,6 +672,9 @@ async function getTimeline(limit = 50, beforeId = null, chatJid = null) {
     }))
   };
 }
+async function getSystemMetrics() {
+  return request("/api/system-metrics").catch(() => null);
+}
 async function getAgentModels(_chatJid = null) {
   const data = await request("/api/runtime/config").catch(() => ({}));
   const models = (data.enabled_models || []).map((id) => ({
@@ -18017,6 +18020,269 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
     `;
 }
 
+// web/src/ui/meters.ts
+var METERS_STORAGE_KEY = "piclaw_system_meters_enabled";
+var METERS_COLLAPSED_STORAGE_KEY = "piclaw_system_meters_collapsed";
+var METERS_EVENT_NAME = "piclaw-meters-change";
+var METERS_COLLAPSED_EVENT_NAME = "piclaw-meters-collapsed-change";
+function dispatchMetersCollapsedChange(collapsed) {
+  if (typeof window === "undefined")
+    return;
+  window.dispatchEvent(new CustomEvent(METERS_COLLAPSED_EVENT_NAME, {
+    detail: { collapsed: Boolean(collapsed) }
+  }));
+}
+function readStoredMetersEnabled(defaultValue = false) {
+  return getLocalStorageBoolean(METERS_STORAGE_KEY, defaultValue);
+}
+function readStoredMetersCollapsed(defaultValue = false) {
+  return getLocalStorageBoolean(METERS_COLLAPSED_STORAGE_KEY, defaultValue);
+}
+function applyMetersCollapsed(collapsed, options = {}) {
+  const persist = options.persist !== false;
+  const next = Boolean(collapsed);
+  if (persist) {
+    setLocalStorageItem(METERS_COLLAPSED_STORAGE_KEY, next ? "true" : "false");
+  }
+  dispatchMetersCollapsedChange(next);
+  return next;
+}
+function toggleMetersCollapsed() {
+  const next = !readStoredMetersCollapsed(false);
+  return applyMetersCollapsed(next);
+}
+
+// web/src/components/system-meters-hud.ts
+function sanitizeSeries(input, maxPoints = 30) {
+  const series = Array.isArray(input) ? input.map((value) => Number(value)).filter((value) => Number.isFinite(value)) : [];
+  return series.length > maxPoints ? series.slice(series.length - maxPoints) : series;
+}
+function clampPercentSeries(input, maxPoints = 30) {
+  return sanitizeSeries(input, maxPoints).map((value) => Math.max(0, Math.min(100, value)));
+}
+function buildSparklinePath(series, width = 56, height = 16, options = {}) {
+  const points = sanitizeSeries(series);
+  if (points.length === 0)
+    return "";
+  const minValue = Number.isFinite(options.min) ? Number(options.min) : Math.min(...points);
+  const maxValue = Number.isFinite(options.max) ? Number(options.max) : Math.max(...points);
+  if (!(maxValue > minValue)) {
+    const y2 = (height / 2).toFixed(2);
+    return `M 0 ${y2} L ${width} ${y2}`;
+  }
+  if (points.length === 1) {
+    const normalized = (points[0] - minValue) / (maxValue - minValue);
+    const y2 = (height - normalized * height).toFixed(2);
+    return `M 0 ${y2} L ${width} ${y2}`;
+  }
+  return points.map((value, index) => {
+    const x3 = index / (points.length - 1 || 1) * width;
+    const normalized = (value - minValue) / (maxValue - minValue);
+    const y2 = height - normalized * height;
+    return `${index === 0 ? "M" : "L"} ${x3.toFixed(2)} ${y2.toFixed(2)}`;
+  }).join(" ");
+}
+function formatPercent(value) {
+  return `${Math.round(Number(value) || 0)}%`;
+}
+function formatBytesCompact(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes <= 0)
+    return "0B";
+  const units = ["B", "K", "M", "G", "T"];
+  let unitIndex = 0;
+  let scaled = bytes;
+  while (scaled >= 1024 && unitIndex < units.length - 1) {
+    scaled /= 1024;
+    unitIndex += 1;
+  }
+  const digits = scaled >= 100 || unitIndex === 0 ? 0 : scaled >= 10 ? 0 : 1;
+  return `${scaled.toFixed(digits)}${units[unitIndex]}`;
+}
+function buildCompactMetersSummary(metrics) {
+  const parts = [
+    `CPU ${formatPercent(metrics?.cpu_percent)}`,
+    `RAM ${formatPercent(metrics?.ram_percent)}`
+  ];
+  if (Number.isFinite(Number(metrics?.swap_percent)) && Number(metrics?.swap_total_bytes) > 0) {
+    parts.push(`SWP ${formatPercent(metrics?.swap_percent)}`);
+  }
+  return parts.join(" • ");
+}
+function resolveCurrentRssBytes(metrics) {
+  return Number(metrics?.process_memory?.vm_rss_bytes) > 0 ? Number(metrics.process_memory.vm_rss_bytes) : Number(metrics?.process_memory?.rss_bytes) || 0;
+}
+function shouldShowRss(metrics) {
+  return resolveCurrentRssBytes(metrics) > 0 && sanitizeSeries(metrics?.process_rss_series_bytes).length > 0;
+}
+function readIsNarrowLayout() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function")
+    return false;
+  return window.matchMedia("(max-width: 900px)").matches;
+}
+function SystemMetersHud({ mode = "overlay" }) {
+  const [enabled, setEnabled] = w0(() => readStoredMetersEnabled(false));
+  const [collapsed, setCollapsed] = w0(() => readStoredMetersCollapsed(false));
+  const [isNarrowLayout, setIsNarrowLayout] = w0(() => readIsNarrowLayout());
+  const [metrics, setMetrics] = w0({
+    cpu_percent: 0,
+    ram_percent: 0,
+    swap_percent: null,
+    cpu_series: [],
+    ram_series: [],
+    swap_series: [],
+    process_rss_series_bytes: [],
+    process_memory: {
+      rss_bytes: 0,
+      vm_rss_bytes: null
+    },
+    swap_total_bytes: 0,
+    swap_used_bytes: 0,
+    sample_interval_ms: 2000,
+    platform: ""
+  });
+  const [loading, setLoading] = w0(false);
+  r0(() => {
+    const onMetersChange = (event) => {
+      setEnabled(Boolean(event?.detail?.enabled));
+    };
+    const onMetersCollapsedChange = (event) => {
+      setCollapsed(Boolean(event?.detail?.collapsed));
+    };
+    window.addEventListener(METERS_EVENT_NAME, onMetersChange);
+    window.addEventListener(METERS_COLLAPSED_EVENT_NAME, onMetersCollapsedChange);
+    return () => {
+      window.removeEventListener(METERS_EVENT_NAME, onMetersChange);
+      window.removeEventListener(METERS_COLLAPSED_EVENT_NAME, onMetersCollapsedChange);
+    };
+  }, []);
+  r0(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function")
+      return;
+    const mediaQuery = window.matchMedia("(max-width: 900px)");
+    const sync = () => setIsNarrowLayout(Boolean(mediaQuery.matches));
+    sync();
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", sync);
+      return () => mediaQuery.removeEventListener("change", sync);
+    }
+    mediaQuery.addListener(sync);
+    return () => mediaQuery.removeListener(sync);
+  }, []);
+  const activeMode = "overlay";
+  const isActiveInstance = mode === activeMode;
+  r0(() => {
+    if (!enabled || !isActiveInstance)
+      return;
+    let cancelled = false;
+    let timer = 0;
+    const refresh = async () => {
+      setLoading((prev) => prev || metrics.cpu_series.length > 0 ? prev : true);
+      try {
+        const next = await getSystemMetrics();
+        if (cancelled)
+          return;
+        setMetrics({
+          cpu_percent: Number(next?.cpu_percent) || 0,
+          ram_percent: Number(next?.ram_percent) || 0,
+          swap_percent: Number.isFinite(Number(next?.swap_percent)) ? Number(next?.swap_percent) : null,
+          cpu_series: clampPercentSeries(next?.cpu_series),
+          ram_series: clampPercentSeries(next?.ram_series),
+          swap_series: clampPercentSeries(next?.swap_series),
+          process_rss_series_bytes: sanitizeSeries(next?.process_rss_series_bytes),
+          process_memory: {
+            rss_bytes: Number(next?.process_memory?.rss_bytes) || 0,
+            vm_rss_bytes: Number.isFinite(Number(next?.process_memory?.vm_rss_bytes)) ? Number(next?.process_memory?.vm_rss_bytes) : null
+          },
+          swap_total_bytes: Number(next?.swap_total_bytes) || 0,
+          swap_used_bytes: Number(next?.swap_used_bytes) || 0,
+          sample_interval_ms: Number(next?.sample_interval_ms) || 2000,
+          platform: String(next?.platform || "")
+        });
+      } catch {
+        if (cancelled)
+          return;
+      } finally {
+        if (!cancelled)
+          setLoading(false);
+      }
+    };
+    refresh();
+    timer = window.setInterval(() => {
+      if (document?.visibilityState === "hidden")
+        return;
+      refresh();
+    }, Math.max(1000, Number(metrics.sample_interval_ms) || 2000));
+    return () => {
+      cancelled = true;
+      if (timer)
+        window.clearInterval(timer);
+    };
+  }, [enabled, isActiveInstance]);
+  const cpuPath = G0(() => buildSparklinePath(metrics.cpu_series, 56, 16, { min: 0, max: 100 }), [metrics.cpu_series]);
+  const ramPath = G0(() => buildSparklinePath(metrics.ram_series, 56, 16, { min: 0, max: 100 }), [metrics.ram_series]);
+  const swapPath = G0(() => buildSparklinePath(metrics.swap_series, 56, 16, { min: 0, max: 100 }), [metrics.swap_series]);
+  const rssPath = G0(() => buildSparklinePath(metrics.process_rss_series_bytes), [metrics.process_rss_series_bytes]);
+  const showSwap = Number.isFinite(Number(metrics.swap_percent)) && metrics.swap_total_bytes > 0;
+  const currentRssBytes = resolveCurrentRssBytes(metrics);
+  const showRss = shouldShowRss(metrics);
+  const compactSummary = G0(() => buildCompactMetersSummary(metrics), [metrics]);
+  if (!enabled || !isActiveInstance)
+    return null;
+  const title = collapsed ? "Show system meters" : loading ? "Updating system meters… Click to collapse." : "System meters — click to collapse.";
+  const handleToggleCollapsed = (event) => {
+    event?.stopPropagation?.();
+    toggleMetersCollapsed();
+  };
+  return X1`
+        <div class=${`system-meters-hud system-meters-hud-${mode}${collapsed ? " is-collapsed" : ""}`} aria-live="polite">
+            <button
+                class="system-meters-card"
+                type="button"
+                title=${title}
+                aria-label=${title}
+                aria-expanded=${collapsed ? "false" : "true"}
+                onClick=${handleToggleCollapsed}
+            >
+                ${collapsed ? X1`<span class="system-meters-collapse-tab" aria-hidden="true">◂</span>` : isNarrowLayout ? X1`<span class="system-meters-compact-summary">${compactSummary}</span>` : X1`
+                            <div class="system-meters-row cpu">
+                                <span class="system-meters-label">CPU</span>
+                                <svg class="system-meters-spark" viewBox="0 0 56 16" preserveAspectRatio="none" aria-hidden="true">
+                                    <path d=${cpuPath}></path>
+                                </svg>
+                                <span class="system-meters-value">${formatPercent(metrics.cpu_percent)}</span>
+                            </div>
+                            <div class="system-meters-row ram">
+                                <span class="system-meters-label">RAM</span>
+                                <svg class="system-meters-spark" viewBox="0 0 56 16" preserveAspectRatio="none" aria-hidden="true">
+                                    <path d=${ramPath}></path>
+                                </svg>
+                                <span class="system-meters-value">${formatPercent(metrics.ram_percent)}</span>
+                            </div>
+                            ${showRss && X1`
+                                <div class="system-meters-row rss">
+                                    <span class="system-meters-label">RSS</span>
+                                    <svg class="system-meters-spark" viewBox="0 0 56 16" preserveAspectRatio="none" aria-hidden="true">
+                                        <path d=${rssPath}></path>
+                                    </svg>
+                                    <span class="system-meters-value">${formatBytesCompact(currentRssBytes)}</span>
+                                </div>
+                            `}
+                            ${showSwap && X1`
+                                <div class="system-meters-row swap">
+                                    <span class="system-meters-label">SWP</span>
+                                    <svg class="system-meters-spark" viewBox="0 0 56 16" preserveAspectRatio="none" aria-hidden="true">
+                                        <path d=${swapPath}></path>
+                                    </svg>
+                                    <span class="system-meters-value">${formatPercent(metrics.swap_percent)}</span>
+                                </div>
+                            `}
+                        `}
+            </button>
+        </div>
+    `;
+}
+
 // web/src/app.ts
 var DEFAULT_SESSION_TITLE = "default";
 var SESSION_KEY = "gi_session_id";
@@ -18102,6 +18368,9 @@ function GiApp() {
   const currentChatJid = G0(() => sessionId ? sessionToChatJid(sessionId) : "", [sessionId]);
   r0(() => {
     const cleanupTheme = initTheme();
+    if (getLocalStorageItem("piclaw_system_meters_enabled") === null) {
+      setLocalStorageItem("piclaw_system_meters_enabled", "true");
+    }
     Promise.all([
       ensureDefaultSession(),
       getRuntimeConfig()
@@ -18227,6 +18496,7 @@ function GiApp() {
   }
   return X1`
         <div class=${appShellClass}>
+            <${SystemMetersHud} mode="overlay" />
             <${WorkspaceExplorer}
                 onFileSelect=${(path) => setFileRefs((p2) => [...p2, path])}
                 visible=${workspaceOpen}
@@ -18372,5 +18642,5 @@ function GiApp() {
 }
 c0(X1`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=CDF38FB41DA8291C64756E2164756E21
+//# debugId=A920E3DA3E3419FD64756E2164756E21
 //# sourceMappingURL=app.js.map
