@@ -1,0 +1,16 @@
+/*
+ * styles.css - Ordered manifest for the PiClaw web UI stylesheet layers.
+ *
+ * Keep this file as the stable entrypoint imported by runtime/web/src/styles/app.css
+ * while the underlying rules live in purpose-based partials.
+ */
+
+@import "./base.css";
+@import "./shell.css";
+@import "./workspace.css";
+@import "./editor.css";
+@import "./chat.css";
+@import "./content.css";
+@import "./agent.css";
+@import "./overlays.css";
+@import "./responsive.css";

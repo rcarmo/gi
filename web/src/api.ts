@@ -13,6 +13,7 @@ async function request(url: string, options: RequestInit = {}) {
   return body;
 }
 
+export const getRuntimeConfig = () => request('/api/runtime/config');
 export const listSessions = () => request('/api/sessions');
 export const createSession = (title: string) => { recordStatus('Creating session…'); return request('/api/sessions', { method: 'POST', body: JSON.stringify({ title }) }); };
 export const listMessages = (sessionID: string) => request(`/api/sessions/${encodeURIComponent(sessionID)}/messages`);

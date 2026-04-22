@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/turn"
 )
@@ -17,11 +18,12 @@ var staticFS embed.FS
 type Server struct {
 	store *store.Store
 	turns *turn.Engine
+	cfg   config.RuntimeConfig
 	mux   *http.ServeMux
 }
 
-func New(s *store.Store, t *turn.Engine) *Server {
-	srv := &Server{store: s, turns: t, mux: http.NewServeMux()}
+func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
+	srv := &Server{store: s, turns: t, cfg: cfg, mux: http.NewServeMux()}
 	srv.routes()
 	return srv
 }
@@ -34,6 +36,7 @@ func (s *Server) routes() {
 		panic(err)
 	}
 	s.mux.Handle("/", http.FileServer(http.FS(staticRoot)))
+	s.mux.HandleFunc("/api/runtime/config", s.handleRuntimeConfig)
 	s.mux.HandleFunc("/api/sessions", s.handleSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleSessionSubroutes)
 	// /api/turns/{turnID}/cancel and /api/turns/{turnID}/events
@@ -56,7 +59,7 @@ func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		id := store.NowID("session")
-		session, err := s.store.CreateSession(ctx, id, req.Title, map[string]any{"status": "idle", "queue_count": 0})
+		session, err := s.store.CreateSession(ctx, id, req.Title, map[string]any{"status": "idle", "queue_count": 0, "model": s.cfg.DefaultModel, "provider": s.cfg.DefaultProvider, "thinking_level": s.cfg.DefaultThinkingLevel})
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 			return
@@ -176,12 +179,20 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
-	result, err := s.turns.SubmitPrompt(r.Context(), turn.RunInput{SessionID: sessionID, Prompt: req.Prompt, Intent: req.Intent, Model: req.Model})
+	model := req.Model
+	if model == "" {
+		model = s.cfg.DefaultModel
+	}
+	result, err := s.turns.SubmitPrompt(r.Context(), turn.RunInput{SessionID: sessionID, Prompt: req.Prompt, Intent: req.Intent, Model: model})
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusAccepted, result)
+}
+
+func (s *Server) handleRuntimeConfig(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, s.cfg)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

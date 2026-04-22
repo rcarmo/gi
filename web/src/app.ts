@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { html, render, useState, useEffect } from './vendor/preact-htm-entry.ts';
-import { listSessions, createSession, listMessages, sendPrompt, listTurns, cancelTurn } from './api.ts';
+import { getRuntimeConfig, listSessions, createSession, listMessages, sendPrompt, listTurns, cancelTurn } from './api.ts';
 import { bindStatusListener, recordStatus } from './status.ts';
 
 function SessionList({ sessions, currentSessionId, onSelect, onCreate }) {
@@ -45,8 +45,9 @@ function App() {
   const [turns, setTurns] = useState([]);
   const [status, setStatus] = useState('Ready.');
   const [running, setRunning] = useState(false);
+  const [runtimeConfig, setRuntimeConfig] = useState({ assistant_name: 'Gi', user_name: 'User', default_model: '', default_provider: '', default_thinking_level: '' });
 
-  useEffect(() => { bindStatusListener(setStatus); refreshSessions(); }, []);
+  useEffect(() => { bindStatusListener(setStatus); refreshRuntimeConfig(); refreshSessions(); }, []);
   useEffect(() => {
     if (!currentSessionId) return;
     const timer = setInterval(async () => {
@@ -55,6 +56,7 @@ function App() {
     return () => clearInterval(timer);
   }, [currentSessionId]);
 
+  async function refreshRuntimeConfig() { const data = await getRuntimeConfig(); setRuntimeConfig(data || {}); }
   async function refreshSessions() { const data = await listSessions(); setSessions(data.sessions || []); }
   async function refreshMessages(sessionID = currentSessionId) { if (!sessionID) return setMessages([]); const data = await listMessages(sessionID); setMessages(data.messages || []); }
   async function refreshTurns(sessionID = currentSessionId) { if (!sessionID) return setTurns([]); const data = await listTurns(sessionID); setTurns(data.turns || []); setRunning((data.turns || []).some((t) => t.status === 'running' || t.status === 'cancelling')); }
@@ -63,7 +65,7 @@ function App() {
   async function handleSend(prompt) { if (!currentSessionId) return recordStatus('Create or open a session first.'); const result = await sendPrompt(currentSessionId, prompt); await refreshTurns(currentSessionId); recordStatus(result.queued ? `Queued ${result.turn_id}` : `Started ${result.turn_id}`); }
   async function handleCancel(turnID) { await cancelTurn(turnID); await refreshTurns(currentSessionId); recordStatus(`Cancelling ${turnID}`); }
 
-  return html`<div class="app-shell"><${SessionList} sessions=${sessions} currentSessionId=${currentSessionId} onSelect=${handleSelect} onCreate=${handleCreate} /><main class="main-pane"><header class="topbar"><div><h1>Gi</h1><div class="subtitle">UAT-oriented Phase 1 shell</div></div></header><${StatusBar} text=${status} /><div class="main-grid"><div class="chat-column"><${Timeline} messages=${messages} /><${ComposeBox} disabled=${false} onSend=${handleSend} /></div><div class="side-column"><${TurnQueue} turns=${turns} onCancel=${handleCancel} /></div></div></main></div>`;
+  return html`<div class="app-shell"><${SessionList} sessions=${sessions} currentSessionId=${currentSessionId} onSelect=${handleSelect} onCreate=${handleCreate} /><main class="main-pane"><header class="chat-window-header"><div class="chat-window-header-main"><div class="chat-window-header-title">${runtimeConfig.assistant_name || 'Gi'}</div><div class="chat-window-header-subtitle">${runtimeConfig.default_provider || 'provider'} / ${runtimeConfig.default_model || 'model'}${runtimeConfig.default_thinking_level ? ` · ${runtimeConfig.default_thinking_level}` : ''}</div></div><div class="chat-window-header-actions"><span class="chat-window-header-badge">${runtimeConfig.user_name || 'User'}</span></div></header><${StatusBar} text=${status} /><div class="main-grid"><div class="chat-column"><${Timeline} messages=${messages} /><${ComposeBox} disabled=${false} onSend=${handleSend} /></div><div class="side-column"><${TurnQueue} turns=${turns} onCancel=${handleCancel} /></div></div></main></div>`;
 }
 
 render(html`<${App} />`, document.getElementById('app'));

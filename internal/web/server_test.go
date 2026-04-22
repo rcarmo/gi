@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/turn"
 )
@@ -18,7 +19,7 @@ func TestServerSessionPromptTurnsFlow(t *testing.T) {
 		t.Fatalf("open store: %v", err)
 	}
 	defer s.Close()
-	srv := New(s, turn.New(s))
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "ollama", DefaultModel: "gemma4:latest", DefaultThinkingLevel: "medium"})
 
 	createReq := httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewBufferString(`{"title":"Demo"}`))
 	createReq.Header.Set("Content-Type", "application/json")
