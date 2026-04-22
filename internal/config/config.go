@@ -13,6 +13,7 @@ type RuntimeConfig struct {
 	AssistantAvatar      string   `json:"assistant_avatar"`
 	UserName             string   `json:"user_name"`
 	UserAvatar           string   `json:"user_avatar"`
+	UserAvatarBackground string   `json:"user_avatar_background"`
 	DefaultProvider      string   `json:"default_provider"`
 	DefaultModel         string   `json:"default_model"`
 	DefaultThinkingLevel string   `json:"default_thinking_level"`
@@ -25,8 +26,9 @@ type piclawConfig struct {
 		AssistantAvatar string `json:"assistantAvatar"`
 	} `json:"assistant"`
 	User struct {
-		UserName   string `json:"userName"`
-		UserAvatar string `json:"userAvatar"`
+		UserName             string `json:"userName"`
+		UserAvatar           string `json:"userAvatar"`
+		UserAvatarBackground string `json:"userAvatarBackground"`
 	} `json:"user"`
 }
 
@@ -45,6 +47,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.AssistantAvatar = pc.Assistant.AssistantAvatar
 		cfg.UserName = pc.User.UserName
 		cfg.UserAvatar = pc.User.UserAvatar
+		cfg.UserAvatarBackground = pc.User.UserAvatarBackground
 	}
 	var ps piSettings
 	if err := readJSON(filepath.Join(workspaceRoot, ".pi", "settings.json"), &ps); err == nil {

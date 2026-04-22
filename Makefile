@@ -1,6 +1,6 @@
 PORT ?= 8090
 BIND ?= 0.0.0.0
-MODEL ?= gemma4:latest
+MODEL ?= github-copilot/claude-opus-4.6
 WORKSPACE ?= /workspace
 RUN_DIR ?= .gi-run
 BIN_DIR ?= bin

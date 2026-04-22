@@ -162,7 +162,7 @@ function GiApp() {
         ]).then(([sid, cfg]) => {
             setSessionId(sid);
             setRuntimeConfig(cfg);
-            setUserProfile({ name: cfg.user_name, avatarUrl: cfg.user_avatar });
+            setUserProfile({ name: cfg.user_name, avatarUrl: cfg.user_avatar, avatarBackground: cfg.user_avatar_background });
             setAgents({
                 [DEFAULT_AGENT_ID]: {
                     id: DEFAULT_AGENT_ID,
