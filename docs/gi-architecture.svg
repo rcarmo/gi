@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" font-family="Inter, system-ui, sans-serif" font-size="12">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#666"/></marker>
+    <marker id="dasharrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1d9bf0"/></marker>
+  </defs>
+  <style>
+    .box { rx: 8; ry: 8; stroke-width: 1.5; }
+    .label { font-weight: 600; font-size: 11px; }
+    .sublabel { font-size: 10px; fill: #666; }
+    .group-label { font-weight: 700; font-size: 13px; fill: #333; }
+    .line { stroke: #999; stroke-width: 1.2; fill: none; marker-end: url(#arrow); }
+    .sse-line { stroke: #1d9bf0; stroke-width: 1.5; stroke-dasharray: 6 3; fill: none; marker-end: url(#dasharrow); }
+  </style>
+
+  <!-- Binaries -->
+  <rect x="30" y="20" width="180" height="80" fill="#e8f5e9" stroke="#4caf50" class="box"/>
+  <text x="120" y="40" text-anchor="middle" class="group-label">Gi Binaries</text>
+  <rect x="40" y="50" width="70" height="40" fill="#fff" stroke="#4caf50" class="box"/>
+  <text x="75" y="68" text-anchor="middle" class="label">gi</text>
+  <text x="75" y="80" text-anchor="middle" class="sublabel">web server</text>
+  <rect x="130" y="50" width="70" height="40" fill="#fff" stroke="#4caf50" class="box"/>
+  <text x="165" y="68" text-anchor="middle" class="label">gi-tui</text>
+  <text x="165" y="80" text-anchor="middle" class="sublabel">terminal</text>
+
+  <!-- Internal packages -->
+  <rect x="20" y="130" width="500" height="200" fill="#e3f2fd" stroke="#1d9bf0" class="box"/>
+  <text x="270" y="150" text-anchor="middle" class="group-label">Internal Packages</text>
+
+  <rect x="35" y="165" width="90" height="45" fill="#fff" stroke="#1976d2" class="box"/>
+  <text x="80" y="183" text-anchor="middle" class="label">config</text>
+  <text x="80" y="198" text-anchor="middle" class="sublabel">Pi/Piclaw loader</text>
+
+  <rect x="140" y="165" width="90" height="45" fill="#fff" stroke="#1976d2" class="box"/>
+  <text x="185" y="183" text-anchor="middle" class="label">store</text>
+  <text x="185" y="198" text-anchor="middle" class="sublabel">SQLite WAL</text>
+
+  <rect x="245" y="165" width="90" height="45" fill="#fff" stroke="#1976d2" class="box"/>
+  <text x="290" y="183" text-anchor="middle" class="label">turn</text>
+  <text x="290" y="198" text-anchor="middle" class="sublabel">event-log engine</text>
+
+  <rect x="350" y="165" width="90" height="45" fill="#fff" stroke="#1976d2" class="box"/>
+  <text x="395" y="183" text-anchor="middle" class="label">inference</text>
+  <text x="395" y="198" text-anchor="middle" class="sublabel">go-ai streaming</text>
+
+  <rect x="35" y="225" width="90" height="45" fill="#fff" stroke="#1976d2" class="box"/>
+  <text x="80" y="243" text-anchor="middle" class="label">web</text>
+  <text x="80" y="258" text-anchor="middle" class="sublabel">HTTP + SSE</text>
+
+  <rect x="140" y="225" width="90" height="45" fill="#fff" stroke="#1976d2" class="box"/>
+  <text x="185" y="243" text-anchor="middle" class="label">metrics</text>
+  <text x="185" y="258" text-anchor="middle" class="sublabel">CPU/RAM/RSS</text>
+
+  <rect x="245" y="225" width="90" height="45" fill="#fff" stroke="#1976d2" class="box"/>
+  <text x="290" y="243" text-anchor="middle" class="label">workspace</text>
+  <text x="290" y="258" text-anchor="middle" class="sublabel">file tree/read</text>
+
+  <rect x="350" y="225" width="90" height="45" fill="#fff" stroke="#1976d2" class="box"/>
+  <text x="395" y="243" text-anchor="middle" class="label">sse</text>
+  <text x="395" y="258" text-anchor="middle" class="sublabel">event streaming</text>
+
+  <rect x="455" y="225" width="55" height="45" fill="#fff" stroke="#1976d2" class="box"/>
+  <text x="483" y="243" text-anchor="middle" class="label">log</text>
+  <text x="483" y="258" text-anchor="middle" class="sublabel">frontend</text>
+
+  <!-- Arrows: binaries to internal -->
+  <line x1="75" y1="90" x2="75" y2="165" class="line"/>
+  <line x1="165" y1="90" x2="185" y2="165" class="line"/>
+  <line x1="290" y1="210" x2="290" y2="225" class="line"/>
+  <line x1="395" y1="210" x2="395" y2="165" class="line" transform="rotate(180,395,187)"/>
+
+  <!-- Frontend -->
+  <rect x="550" y="20" width="330" height="200" fill="#fff3e0" stroke="#ff9800" class="box"/>
+  <text x="715" y="42" text-anchor="middle" class="group-label">Frontend (Piclaw TS verbatim)</text>
+
+  <rect x="565" y="55" width="80" height="35" fill="#fff" stroke="#e65100" class="box"/>
+  <text x="605" y="73" text-anchor="middle" class="label">app.ts</text>
+  <text x="605" y="85" text-anchor="middle" class="sublabel">Gi entry</text>
+
+  <rect x="660" y="55" width="80" height="35" fill="#fff" stroke="#e65100" class="box"/>
+  <text x="700" y="73" text-anchor="middle" class="label">api.ts</text>
+  <text x="700" y="85" text-anchor="middle" class="sublabel">Gi adapter</text>
+
+  <rect x="755" y="55" width="110" height="35" fill="#fff" stroke="#e65100" class="box"/>
+  <text x="810" y="73" text-anchor="middle" class="label">SSEClient</text>
+  <text x="810" y="85" text-anchor="middle" class="sublabel">real-time events</text>
+
+  <rect x="565" y="105" width="300" height="35" fill="#fff" stroke="#e65100" class="box"/>
+  <text x="715" y="123" text-anchor="middle" class="label">Piclaw Components (199 files)</text>
+  <text x="715" y="135" text-anchor="middle" class="sublabel">Post · ComposeBox · Status · Workspace · TabStrip · Meters · Theme</text>
+
+  <rect x="565" y="155" width="300" height="35" fill="#fff" stroke="#e65100" class="box"/>
+  <text x="715" y="173" text-anchor="middle" class="label">Vendor Bundles</text>
+  <text x="715" y="185" text-anchor="middle" class="sublabel">Preact · Marked · KaTeX · Mermaid · CodeMirror</text>
+
+  <!-- External -->
+  <rect x="550" y="260" width="330" height="160" fill="#fce4ec" stroke="#e91e63" class="box"/>
+  <text x="715" y="282" text-anchor="middle" class="group-label">External Dependencies</text>
+
+  <rect x="565" y="295" width="80" height="35" fill="#fff" stroke="#c2185b" class="box"/>
+  <text x="605" y="313" text-anchor="middle" class="label">go-ai</text>
+  <text x="605" y="325" text-anchor="middle" class="sublabel">providers</text>
+
+  <rect x="660" y="295" width="80" height="35" fill="#fff" stroke="#c2185b" class="box"/>
+  <text x="700" y="313" text-anchor="middle" class="label">go-tui</text>
+  <text x="700" y="325" text-anchor="middle" class="sublabel">terminal</text>
+
+  <rect x="755" y="295" width="110" height="35" fill="#fff" stroke="#c2185b" class="box"/>
+  <text x="810" y="313" text-anchor="middle" class="label">SQLite</text>
+  <text x="810" y="325" text-anchor="middle" class="sublabel">WAL database</text>
+
+  <rect x="565" y="345" width="130" height="35" fill="#fff" stroke="#c2185b" class="box"/>
+  <text x="630" y="363" text-anchor="middle" class="label">GitHub Copilot</text>
+  <text x="630" y="375" text-anchor="middle" class="sublabel">enterprise API</text>
+
+  <rect x="710" y="345" width="155" height="35" fill="#fff" stroke="#c2185b" class="box"/>
+  <text x="788" y="363" text-anchor="middle" class="label">Pi config</text>
+  <text x="788" y="375" text-anchor="middle" class="sublabel">auth.json · AGENTS.md</text>
+
+  <!-- SSE lines -->
+  <line x1="810" y1="90" x2="450" y2="247" class="sse-line"/>
+  <text x="620" y="158" class="sublabel" fill="#1d9bf0">SSE</text>
+
+  <!-- REST line -->
+  <line x1="700" y1="90" x2="130" y2="247" class="sse-line" stroke="#ff9800" style="stroke: #ff9800"/>
+  <text x="400" y="158" class="sublabel" fill="#ff9800">REST</text>
+
+  <!-- Stats box -->
+  <rect x="20" y="440" width="860" height="120" fill="#f5f5f5" stroke="#bbb" class="box"/>
+  <text x="450" y="465" text-anchor="middle" class="group-label">Current Status (2026-04-22)</text>
+  <text x="40" y="490" class="sublabel">Go: 2,402 lines · TypeScript: 44,645 lines (199 Piclaw files) · 34 commits · 13 Playwright tests</text>
+  <text x="40" y="510" class="sublabel">Coverage: config 80.6% · store 46.7% · turn 46.0% · web 29.7% · overall 36.3%</text>
+  <text x="40" y="530" class="sublabel">Inference: github-copilot/gpt-5-mini via enterprise token exchange · Streaming via go-ai Stream()</text>
+  <text x="40" y="550" class="sublabel">Web: Piclaw-identical UI · SSE real-time updates · System meters HUD · Cache-busted bundles</text>
+</svg>

@@ -1,0 +1,62 @@
+graph TB
+    subgraph "Gi Binary"
+        CLI["cmd/gi<br/>Web Server"]
+        TUI["cmd/gi-tui<br/>Terminal UI"]
+    end
+
+    subgraph "Internal Packages"
+        CFG["config<br/>Pi/Piclaw loader"]
+        STORE["store<br/>SQLite WAL"]
+        TURN["turn<br/>Event-log engine"]
+        INF["inference<br/>go-ai streaming"]
+        WEB["web<br/>HTTP + SSE"]
+        METRICS["web/metrics<br/>CPU/RAM/RSS"]
+        WORKSPACE["web/workspace<br/>File tree/read"]
+        SSE["web/sse<br/>Event streaming"]
+        LOG["web/frontend_log<br/>Browser→backend"]
+    end
+
+    subgraph "Frontend (Piclaw TS verbatim)"
+        APP["app.ts<br/>Gi entry point"]
+        API["api.ts<br/>Gi API adapter"]
+        COMP["components/<br/>Post, ComposeBox,<br/>Status, Workspace,<br/>TabStrip, Meters"]
+        THEME["ui/theme.ts"]
+        SSECL["api.ts SSEClient"]
+    end
+
+    subgraph "External"
+        GOAI["go-ai<br/>Provider layer"]
+        GOTUI["go-tui<br/>Terminal framework"]
+        SQLITE["SQLite<br/>WAL database"]
+        COPILOT["GitHub Copilot<br/>Enterprise API"]
+        AUTH["~/.pi/agent/<br/>auth.json"]
+        AGENTS["AGENTS.md<br/>System prompt"]
+    end
+
+    CLI --> WEB
+    CLI --> CFG
+    CLI --> STORE
+    CLI --> TURN
+    TUI --> CFG
+    TUI --> STORE
+    TUI --> TURN
+    TUI --> GOTUI
+    WEB --> STORE
+    WEB --> TURN
+    WEB --> METRICS
+    WEB --> WORKSPACE
+    WEB --> SSE
+    WEB --> LOG
+    TURN --> INF
+    TURN --> STORE
+    INF --> GOAI
+    GOAI --> COPILOT
+    INF --> AUTH
+    CFG --> AGENTS
+    STORE --> SQLITE
+    APP --> API
+    APP --> COMP
+    APP --> THEME
+    API --> SSECL
+    SSECL -.->|SSE| SSE
+    API -.->|REST| WEB
