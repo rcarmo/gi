@@ -1410,9 +1410,12 @@ async function getTimeline(limit = 50, beforeId = null, chatJid = null) {
       is_bot_message: m2.role === "assistant",
       data: {
         type: m2.role === "assistant" ? "agent_response" : "user_message",
+        content: m2.content,
         thread_id: null,
         agent_id: m2.role === "assistant" ? "gi" : null,
         content_blocks: m2.payload?.content_blocks || null,
+        content_meta: null,
+        link_previews: null,
         kind: m2.payload?.kind || null,
         source: m2.payload?.source || null,
         clipped: m2.payload?.clipped || false
@@ -18137,5 +18140,5 @@ function GiApp() {
 }
 c0(X1`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=335B66BDFD218DAB64756E2164756E21
+//# debugId=04FD4E44849C700F64756E2164756E21
 //# sourceMappingURL=app.js.map

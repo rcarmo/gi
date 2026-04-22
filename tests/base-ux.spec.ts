@@ -59,6 +59,20 @@ test.describe('Gi base UX', () => {
     expect(postCount).toBeGreaterThanOrEqual(2);
   });
 
+  test('post content text is rendered in the timeline', async ({ page }) => {
+    await page.goto(BASE_URL);
+    await expect(page.locator('.app-shell')).toBeVisible({ timeout: 10000 });
+    const textarea = page.locator('.compose-input, .compose-box textarea, textarea').first();
+    await expect(textarea).toBeVisible({ timeout: 5000 });
+    await textarea.fill('content visibility check');
+    await textarea.press('Enter');
+    await page.waitForTimeout(5000);
+    // The user message text should be visible in a post
+    await expect(page.locator('.post-content').filter({ hasText: 'content visibility check' }).first()).toBeVisible({ timeout: 10000 });
+    // The assistant response should also be visible
+    await expect(page.locator('.post-content').filter({ hasText: 'Gi received' }).first()).toBeVisible({ timeout: 10000 });
+  });
+
   test('timeline shows posts with correct role styling', async ({ page }) => {
     await page.goto(BASE_URL);
     await expect(page.locator('.app-shell')).toBeVisible({ timeout: 10000 });

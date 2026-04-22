@@ -122,9 +122,12 @@ export async function getTimeline(limit = 50, beforeId: number | null = null, ch
             is_bot_message: m.role === 'assistant',
             data: {
                 type: m.role === 'assistant' ? 'agent_response' : 'user_message',
+                content: m.content,
                 thread_id: null,
                 agent_id: m.role === 'assistant' ? 'gi' : null,
                 content_blocks: m.payload?.content_blocks || null,
+                content_meta: null,
+                link_previews: null,
                 kind: m.payload?.kind || null,
                 source: m.payload?.source || null,
                 clipped: m.payload?.clipped || false,
@@ -148,7 +151,7 @@ export async function searchPosts(query: string, limit = 50, offset = 0, chatJid
         id: m.id, chat_jid: chatJid, content: m.content, timestamp: m.created_at,
         sender: m.role === 'user' ? 'user' : 'agent',
         is_from_me: m.role === 'user', is_bot_message: m.role === 'assistant',
-        data: { type: m.role === 'assistant' ? 'agent_response' : 'user_message', thread_id: null, agent_id: m.role === 'assistant' ? 'gi' : null },
+        data: { type: m.role === 'assistant' ? 'agent_response' : 'user_message', content: m.content, thread_id: null, agent_id: m.role === 'assistant' ? 'gi' : null },
     })) };
 }
 
