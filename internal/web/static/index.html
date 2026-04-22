@@ -8,7 +8,16 @@
   <link rel="stylesheet" href="/dist/app.bundle.css">
 </head>
 <body>
-  <div id="app"><div style="padding:20px;color:#9fb0c7">Loading Gi…</div></div>
+  <div id="app"><div style="padding:20px;color:var(--text-secondary,#888)">Loading Gi…</div></div>
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      var text = String((error && error.message) || msg || '');
+      if (/ResizeObserver loop/i.test(text)) return true;
+      document.getElementById('app').innerHTML = '<pre style="padding:20px;color:red;">Error: ' + msg + '\nLine: ' + line + '\n' + url + '</pre>';
+      fetch('/api/frontend/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entries: [{ ts: new Date().toISOString(), level: 'error', message: String(msg), detail: { url: url, line: line, col: col } }] }) }).catch(function() {});
+      return false;
+    };
+  </script>
   <script src="/js/marked.min.js"></script>
   <script src="/js/vendor/katex.min.js"></script>
   <script src="/js/vendor/beautiful-mermaid.js"></script>
