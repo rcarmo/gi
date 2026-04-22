@@ -1,24 +1,25 @@
+(function(){
 // web/src/vendor/preact-htm.js
-let f;
-let L;
-let R0;
-let x0;
-let I;
-let X0;
-let D0;
-let F0;
-let r;
-let m;
-let v;
-let J0;
-let u;
-let o;
-let i;
-let L0;
-let y = {};
-let k = [];
-let y0 = /acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ntw|ine[ch]|zoo|^ord|itera/i;
-let e = Array.isArray;
+var f;
+var L;
+var R0;
+var x0;
+var I;
+var X0;
+var D0;
+var F0;
+var r;
+var m;
+var v;
+var J0;
+var u;
+var o;
+var i;
+var L0;
+var y = {};
+var k = [];
+var y0 = /acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ntw|ine[ch]|zoo|^ord|itera/i;
+var e = Array.isArray;
 function U(O, E) {
   for (var Y in E)
     O[Y] = E[Y];
@@ -312,19 +313,19 @@ f = k.slice, L = { __e: function(O, E, Y, g) {
 }, _.prototype.render = a, I = [], D0 = typeof Promise == "function" ? Promise.prototype.then.bind(Promise.resolve()) : setTimeout, F0 = function(O, E) {
   return O.__v.__b - E.__v.__b;
 }, p.__r = 0, r = Math.random().toString(8), m = "__d" + r, v = "__a" + r, J0 = /(PointerCapture)$|Capture$/i, u = 0, o = K0(false), i = K0(true), L0 = 0;
-let M;
-let d;
-let Z0;
-let U0;
-let A = 0;
-let s0 = [];
-let j = L;
-let B0 = j.__b;
-let I0 = j.__r;
-let M0 = j.diffed;
-let P0 = j.__c;
-let z0 = j.unmount;
-let H0 = j.__;
+var M;
+var d;
+var Z0;
+var U0;
+var A = 0;
+var s0 = [];
+var j = L;
+var B0 = j.__b;
+var I0 = j.__r;
+var M0 = j.diffed;
+var P0 = j.__c;
+var z0 = j.unmount;
+var H0 = j.__;
 function s(O, E) {
   j.__h && j.__h(d, O, A || E), A = 0;
   var Y = d.__H || (d.__H = { __: [], __h: [] });
@@ -441,7 +442,7 @@ j.__b = function(O) {
     }
   }), Y.__H = undefined, E && j.__e(E, Y.__v));
 };
-let A0 = typeof requestAnimationFrame == "function";
+var A0 = typeof requestAnimationFrame == "function";
 function O1(O) {
   var E, Y = function() {
     clearTimeout(g), A0 && cancelAnimationFrame(E), setTimeout(O);
@@ -464,7 +465,7 @@ function Q0(O, E) {
 function $0(O, E) {
   return typeof E == "function" ? E(O) : E;
 }
-let m0 = function(O, E, Y, g) {
+var m0 = function(O, E, Y, g) {
   var V;
   E[0] = 0;
   for (var Z = 1;Z < E.length; Z++) {
@@ -473,7 +474,7 @@ let m0 = function(O, E, Y, g) {
   }
   return g;
 };
-let T0 = new Map;
+var T0 = new Map;
 function V0(O) {
   var E = T0.get(this);
   return E || (E = new Map, T0.set(this, E)), (E = m0(this, E.get(O) || (E.set(O, E = function(Y) {
@@ -488,7 +489,7 @@ function V0(O) {
     return W(), b;
   }(O)), E), arguments, [])).length > 1 ? E : E[0];
 }
-let X1 = V0.bind(E0);
+var X1 = V0.bind(E0);
 
 // web/src/utils/storage.ts
 function getLocalStorageItem(key) {
@@ -524,7 +525,7 @@ function getLocalStorageNumber(key, defaultValue = null) {
 }
 
 // web/src/ui/timeline-utils.ts
-let dedupePosts = (items) => {
+var dedupePosts = (items) => {
   const seen = new Set;
   return (items || []).filter((post) => {
     if (!post || seen.has(post.id))
@@ -588,10 +589,10 @@ function useAgentState() {
 }
 
 // web/src/ui/theme.ts
-let THEME_STORAGE_KEY = "piclaw_theme";
-let TINT_STORAGE_KEY = "piclaw_tint";
-let CHAT_THEMES_STORAGE_KEY = "piclaw_chat_themes";
-let DEFAULT_LIGHT = {
+var THEME_STORAGE_KEY = "piclaw_theme";
+var TINT_STORAGE_KEY = "piclaw_tint";
+var CHAT_THEMES_STORAGE_KEY = "piclaw_chat_themes";
+var DEFAULT_LIGHT = {
   bgPrimary: "#ffffff",
   bgSecondary: "#f7f9fa",
   bgHover: "#e8ebed",
@@ -604,7 +605,7 @@ let DEFAULT_LIGHT = {
   danger: "#f4212e",
   success: "#00ba7c"
 };
-let DEFAULT_DARK = {
+var DEFAULT_DARK = {
   bgPrimary: "#000000",
   bgSecondary: "#16181c",
   bgHover: "#1d1f23",
@@ -617,7 +618,7 @@ let DEFAULT_DARK = {
   danger: "#f4212e",
   success: "#00ba7c"
 };
-let THEME_PRESETS = {
+var THEME_PRESETS = {
   default: {
     label: "Default",
     mode: "auto",
@@ -873,7 +874,7 @@ let THEME_PRESETS = {
     }
   }
 };
-let THEME_VAR_KEYS = [
+var THEME_VAR_KEYS = [
   "--bg-primary",
   "--bg-secondary",
   "--bg-hover",
@@ -891,12 +892,12 @@ let THEME_VAR_KEYS = [
   "--success-color",
   "--search-highlight-color"
 ];
-let currentTheme = {
+var currentTheme = {
   theme: "default",
   tint: null
 };
-let currentMode = "light";
-let mediaListenerAttached = false;
+var currentMode = "light";
+var mediaListenerAttached = false;
 function normalizeThemeName(value) {
   const raw = String(value || "").trim().toLowerCase();
   if (!raw)
@@ -1268,9 +1269,9 @@ function readSilenceOverride(key, fallback) {
     return fallback;
   }
 }
-let SILENCE_WARNING_MS = readSilenceOverride("warning", 30000);
-let SILENCE_FINALIZE_MS = readSilenceOverride("finalize", 120000);
-let SILENCE_REFRESH_MS = readSilenceOverride("refresh", 30000);
+var SILENCE_WARNING_MS = readSilenceOverride("warning", 30000);
+var SILENCE_FINALIZE_MS = readSilenceOverride("finalize", 120000);
+var SILENCE_REFRESH_MS = readSilenceOverride("refresh", 30000);
 function isIOSDevice() {
   if (/iPad|iPhone/.test(navigator.userAgent)) {
     return true;
@@ -1350,7 +1351,7 @@ function getStatusRetryCountdownLabel(status, nowMs = Date.now()) {
 }
 
 // web/src/api.ts
-let API_BASE = "";
+var API_BASE = "";
 async function request(url, options = {}) {
   const startedAt = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
   let response;
@@ -1548,7 +1549,7 @@ import {
 function escapeHtml(value) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
-let LANGUAGE_LABEL_ALIASES = {
+var LANGUAGE_LABEL_ALIASES = {
   js: "JavaScript",
   javascript: "JavaScript",
   ts: "TypeScript",
@@ -1578,13 +1579,13 @@ let LANGUAGE_LABEL_ALIASES = {
   toml: "TOML",
   dockerfile: "Dockerfile"
 };
-let LEGACY_SHELL_PARSER = StreamLanguage.define(shell).parser;
-let LEGACY_POWERSHELL_PARSER = StreamLanguage.define(powerShell).parser;
-let LEGACY_DOCKERFILE_PARSER = StreamLanguage.define(dockerFile).parser;
-let LEGACY_RUBY_PARSER = StreamLanguage.define(ruby).parser;
-let LEGACY_RUST_PARSER = StreamLanguage.define(rust).parser;
-let LEGACY_SWIFT_PARSER = StreamLanguage.define(swift).parser;
-let LEGACY_TOML_PARSER = StreamLanguage.define(toml).parser;
+var LEGACY_SHELL_PARSER = StreamLanguage.define(shell).parser;
+var LEGACY_POWERSHELL_PARSER = StreamLanguage.define(powerShell).parser;
+var LEGACY_DOCKERFILE_PARSER = StreamLanguage.define(dockerFile).parser;
+var LEGACY_RUBY_PARSER = StreamLanguage.define(ruby).parser;
+var LEGACY_RUST_PARSER = StreamLanguage.define(rust).parser;
+var LEGACY_SWIFT_PARSER = StreamLanguage.define(swift).parser;
+var LEGACY_TOML_PARSER = StreamLanguage.define(toml).parser;
 function normalizeCodeLanguageLabel(lang) {
   const raw = String(lang || "").trim().toLowerCase();
   if (!raw)
@@ -1681,8 +1682,8 @@ function highlightCodeToHtml(code, lang) {
 }
 
 // web/src/markdown.ts
-let HASHTAG_REGEX = /#(\w+)/g;
-let ALLOWED_HTML_TAGS = new Set([
+var HASHTAG_REGEX = /#(\w+)/g;
+var ALLOWED_HTML_TAGS = new Set([
   "strong",
   "em",
   "b",
@@ -1707,7 +1708,7 @@ let ALLOWED_HTML_TAGS = new Set([
   "span",
   "input"
 ]);
-let SAFE_TAGS = new Set([
+var SAFE_TAGS = new Set([
   "a",
   "abbr",
   "blockquote",
@@ -1769,7 +1770,7 @@ let SAFE_TAGS = new Set([
   "mtd",
   "annotation"
 ]);
-let GLOBAL_ALLOWED_ATTRS = new Set([
+var GLOBAL_ALLOWED_ATTRS = new Set([
   "class",
   "title",
   "role",
@@ -1780,12 +1781,12 @@ let GLOBAL_ALLOWED_ATTRS = new Set([
   "data-mermaid",
   "data-hashtag"
 ]);
-let TAG_ALLOWED_ATTRS = {
+var TAG_ALLOWED_ATTRS = {
   a: new Set(["href", "target", "rel"]),
   img: new Set(["src", "alt", "title"]),
   input: new Set(["type", "checked", "disabled"])
 };
-let SAFE_PROTOCOLS = new Set(["http:", "https:", "mailto:", ""]);
+var SAFE_PROTOCOLS = new Set(["http:", "https:", "mailto:", ""]);
 function isSanitizedHtmlAttributeAllowed(tagName, attrName) {
   const normalizedTag = String(tagName || "").toLowerCase();
   const normalizedAttr = String(attrName || "").toLowerCase();
@@ -2050,7 +2051,7 @@ function applySyntaxHighlighting(html) {
   });
   return highlighted.replace(/<!--frontmatter-block-start-->\s*<pre>/g, '<pre class="frontmatter-block">').replace(/<\/pre>\s*<!--frontmatter-block-end-->/g, "</pre>");
 }
-let RESTORABLE_HTML_ATTRS = {
+var RESTORABLE_HTML_ATTRS = {
   span: new Set(["title", "class", "lang", "dir"]),
   input: new Set(["type", "checked", "disabled"])
 };
@@ -2532,8 +2533,8 @@ function buildPostMarkdownCopyPayload(post) {
 }
 
 // web/src/ui/agent-utils.ts
-let DEFAULT_AGENT_NAME = "PiClaw";
-let AGENT_AVATAR_URL = "/static/icon-192.png";
+var DEFAULT_AGENT_NAME = "PiClaw";
+var AGENT_AVATAR_URL = "/static/icon-192.png";
 function getAvatarInfo(name, avatarUrl, isAgent = false) {
   const resolvedName = name || DEFAULT_AGENT_NAME;
   const letter = resolvedName.charAt(0).toUpperCase();
@@ -2620,7 +2621,7 @@ function getTurnColor(turnId) {
 }
 
 // web/src/ui/attachment-preview.ts
-let TEXT_PREVIEW_TYPES = new Set([
+var TEXT_PREVIEW_TYPES = new Set([
   "application/json",
   "application/xml",
   "text/csv",
@@ -2629,10 +2630,10 @@ let TEXT_PREVIEW_TYPES = new Set([
   "text/plain",
   "text/xml"
 ]);
-let MARKDOWN_PREVIEW_TYPES = new Set([
+var MARKDOWN_PREVIEW_TYPES = new Set([
   "text/markdown"
 ]);
-let OFFICE_PREVIEW_TYPES = new Set([
+var OFFICE_PREVIEW_TYPES = new Set([
   "application/msword",
   "application/rtf",
   "application/vnd.ms-excel",
@@ -2644,7 +2645,7 @@ let OFFICE_PREVIEW_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 ]);
-let DRAWIO_PREVIEW_TYPES = new Set([
+var DRAWIO_PREVIEW_TYPES = new Set([
   "application/vnd.jgraph.mxfile"
 ]);
 function normalize(value) {
@@ -2662,7 +2663,7 @@ function isOfficeFilename(filename) {
   const name = normalize(filename);
   return !!name && (name.endsWith(".docx") || name.endsWith(".doc") || name.endsWith(".odt") || name.endsWith(".rtf") || name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".ods") || name.endsWith(".pptx") || name.endsWith(".ppt") || name.endsWith(".odp"));
 }
-let ARCHIVE_PREVIEW_TYPES = new Set([
+var ARCHIVE_PREVIEW_TYPES = new Set([
   "application/zip",
   "application/x-zip-compressed"
 ]);
@@ -2945,10 +2946,10 @@ function buildHostConfig() {
 }
 
 // web/src/ui/adaptive-card-renderer.ts
-let SUPPORTED_VERSIONS = new Set(["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6"]);
-let sdkLoaded = false;
-let sdkLoadPromise = null;
-let markdownProcessorConfigured = false;
+var SUPPORTED_VERSIONS = new Set(["1.0", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6"]);
+var sdkLoaded = false;
+var sdkLoadPromise = null;
+var markdownProcessorConfigured = false;
 function clearAdaptiveCardNotice(container) {
   container.querySelector(".adaptive-card-notice")?.remove();
 }
@@ -3217,7 +3218,7 @@ function normalizeCapabilities(input, interactiveFallback = false) {
   const normalized = values.filter((value) => typeof value === "string").map((value) => value.trim().toLowerCase()).filter(Boolean);
   return Array.from(new Set(normalized));
 }
-let GENERATED_WIDGET_WINDOW_NAME_PREFIX = "__PICLAW_WIDGET_HOST__:";
+var GENERATED_WIDGET_WINDOW_NAME_PREFIX = "__PICLAW_WIDGET_HOST__:";
 function escapeJsonForInlineScript(value) {
   return JSON.stringify(value).replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
 }
@@ -3785,7 +3786,7 @@ function extractTimeoutMarkerBlocks(contentBlocks) {
     return [];
   return contentBlocks.filter((block) => block && typeof block === "object" && block.type === "timeout_marker" && (block.timed_out ?? true));
 }
-let RECOVERY_CLASSIFIER_LABELS = {
+var RECOVERY_CLASSIFIER_LABELS = {
   context_recover: "context limit exceeded",
   rate_limit: "rate limit hit",
   api_error: "API error",
@@ -4048,22 +4049,22 @@ function LinkPreview({ preview }) {
 function getDisplayContent(content, _linkPreviews) {
   return typeof content === "string" ? content : "";
 }
-let CODE_COPY_RESET_MS = 1800;
-let COPY_ICON_SVG = `
+var CODE_COPY_RESET_MS = 1800;
+var COPY_ICON_SVG = `
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <rect x="9" y="9" width="10" height="10" rx="2"></rect>
         <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
     </svg>`;
-let COPY_SUCCESS_SVG = `
+var COPY_SUCCESS_SVG = `
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M20 6L9 17l-5-5"></path>
     </svg>`;
-let COPY_ERROR_SVG = `
+var COPY_ERROR_SVG = `
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <circle cx="12" cy="12" r="9"></circle>
         <path d="M9 9l6 6M15 9l-6 6"></path>
     </svg>`;
-let CLIPBOARD_STYLE = `
+var CLIPBOARD_STYLE = `
 <style>
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -5056,7 +5057,7 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
 }
 
 // web/src/ui/popup-typeahead.ts
-let POPUP_TYPEAHEAD_RESET_MS = 700;
+var POPUP_TYPEAHEAD_RESET_MS = 700;
 function normalize2(value) {
   return String(value || "").toLowerCase().replace(/^@/, "").replace(/\s+/g, " ").trim();
 }
@@ -5253,7 +5254,7 @@ function shouldShowRunningStatusDot(status, options = {}) {
 }
 
 // web/src/ui/connection-status.ts
-let RECONNECTING_HINT_DELAY_MS = 350;
+var RECONNECTING_HINT_DELAY_MS = 350;
 function formatConnectionStatusLabel(status) {
   return String(status || "Connecting").replace(/[-_]+/g, " ").replace(/^./, (match) => match.toUpperCase());
 }
@@ -5340,7 +5341,7 @@ async function refreshAgentModelStateBestEffort(getAgentModels2, chatJid, emitMo
 }
 
 // web/src/components/compose-box.ts
-let SLASH_COMMANDS = [
+var SLASH_COMMANDS = [
   { name: "/model", description: "Select model or list available models" },
   { name: "/cycle-model", description: "Cycle to the next available model" },
   { name: "/thinking", description: "Show or set thinking/effort level" },
@@ -5397,7 +5398,7 @@ let SLASH_COMMANDS = [
   { name: "/commands", description: "List available commands" },
   { name: "/skill:", description: "Run a workspace skill (e.g. /skill:visual-artifact-generator, /skill:web-search)" }
 ];
-let COMPOSE_HISTORY_STORAGE_KEY = "piclaw_compose_history";
+var COMPOSE_HISTORY_STORAGE_KEY = "piclaw_compose_history";
 function resolveComposePrefillRequest(prefillRequest, lastHandledToken, searchMode = false) {
   if (searchMode)
     return { shouldApply: false, nextToken: lastHandledToken, text: "" };
@@ -7708,13 +7709,13 @@ function extractToolContextPath(toolName, args) {
 }
 
 // web/src/components/status.ts
-let COPY_ICON_SVG2 = X1`
+var COPY_ICON_SVG2 = X1`
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <rect x="9" y="9" width="10" height="10" rx="2"></rect>
         <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
     </svg>
 `;
-let GIT_BRANCH_ICON_SVG = X1`
+var GIT_BRANCH_ICON_SVG = X1`
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
         <path d="M6 3v12"></path>
         <circle cx="18" cy="6" r="3"></circle>
@@ -7722,13 +7723,13 @@ let GIT_BRANCH_ICON_SVG = X1`
         <path d="M18 9a9 9 0 0 1-9 9"></path>
     </svg>
 `;
-let CLOCK_ICON_SVG = X1`
+var CLOCK_ICON_SVG = X1`
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
         <circle cx="12" cy="12" r="9"></circle>
         <path d="M12 7v5l3 2"></path>
     </svg>
 `;
-let STATUS_TIME_HINT_THRESHOLD_MS = 1e4;
+var STATUS_TIME_HINT_THRESHOLD_MS = 1e4;
 function normalizeStatusHints(value) {
   const source = Array.isArray(value) ? value : value && Array.isArray(value.status_hints) ? value.status_hints : [];
   return source.filter((hint) => hint && typeof hint === "object").map((hint, index) => ({
@@ -8506,7 +8507,7 @@ class PaneRegistryImpl {
     return this.extensions.size;
   }
 }
-let paneRegistry = new PaneRegistryImpl;
+var paneRegistry = new PaneRegistryImpl;
 // web/src/panes/pane-runtime-safety.ts
 function readRandomUuidBestEffort(runtime) {
   try {
@@ -8525,7 +8526,7 @@ function removeStorageItemBestEffort(storage, key) {
 }
 
 // web/src/panes/editor-popout-transfer.ts
-let EDITOR_POPOUT_STATE_TTL_MS = 5 * 60 * 1000;
+var EDITOR_POPOUT_STATE_TTL_MS = 5 * 60 * 1000;
 function consumePanePopoutTransferToken(paramName, runtime = globalThis) {
   const win = runtime?.window ?? runtime;
   if (!win?.location?.href)
@@ -8701,14 +8702,14 @@ function applyTerminalThemeBestEffort(options) {
 }
 
 // web/src/panes/terminal-pane.ts
-let GHOSTTY_WEB_MODULE = "/static/js/vendor/ghostty-web.js";
-let GHOSTTY_WASM_MODULE = "/static/js/vendor/ghostty-vt.wasm";
-let TERMINAL_FONT_FAMILY = 'FiraCode Nerd Font Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
-let TERMINAL_FONT_LOAD_SPEC = '400 13px "FiraCode Nerd Font Mono"';
-let TERMINAL_FONT_LOAD_SPEC_BOLD = '700 13px "FiraCode Nerd Font Mono"';
-let TERMINAL_ANON_CLIENT_HEADER = "x-piclaw-terminal-client";
-let TERMINAL_ANON_CLIENT_STORAGE_KEY = "piclaw_terminal_client";
-let LIGHT_TERMINAL_PALETTE = {
+var GHOSTTY_WEB_MODULE = "/static/js/vendor/ghostty-web.js";
+var GHOSTTY_WASM_MODULE = "/static/js/vendor/ghostty-vt.wasm";
+var TERMINAL_FONT_FAMILY = 'FiraCode Nerd Font Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
+var TERMINAL_FONT_LOAD_SPEC = '400 13px "FiraCode Nerd Font Mono"';
+var TERMINAL_FONT_LOAD_SPEC_BOLD = '700 13px "FiraCode Nerd Font Mono"';
+var TERMINAL_ANON_CLIENT_HEADER = "x-piclaw-terminal-client";
+var TERMINAL_ANON_CLIENT_STORAGE_KEY = "piclaw_terminal_client";
+var LIGHT_TERMINAL_PALETTE = {
   yellow: "#9a6700",
   magenta: "#8250df",
   cyan: "#1b7c83",
@@ -8720,7 +8721,7 @@ let LIGHT_TERMINAL_PALETTE = {
   brightMagenta: "#6f42c1",
   brightCyan: "#0a7b83"
 };
-let DARK_TERMINAL_PALETTE = {
+var DARK_TERMINAL_PALETTE = {
   yellow: "#d29922",
   magenta: "#bc8cff",
   cyan: "#39c5cf",
@@ -8732,8 +8733,8 @@ let DARK_TERMINAL_PALETTE = {
   brightMagenta: "#d2a8ff",
   brightCyan: "#56d4dd"
 };
-let ghosttyInitPromise = null;
-let terminalFontsReadyPromise = null;
+var ghosttyInitPromise = null;
+var terminalFontsReadyPromise = null;
 function shouldRewriteGhosttyWasmRequest(url) {
   if (!url)
     return false;
@@ -9640,33 +9641,33 @@ class WebSocketRemoteDisplayBoundary {
 }
 
 // node_modules/@assemblyscript/loader/index.js
-let ID_OFFSET = -8;
-let SIZE_OFFSET = -4;
-let ARRAYBUFFER_ID = 1;
-let STRING_ID = 2;
-let ARRAYBUFFERVIEW = 1 << 0;
-let ARRAY = 1 << 1;
-let STATICARRAY = 1 << 2;
-let VAL_ALIGN_OFFSET = 6;
-let VAL_SIGNED = 1 << 11;
-let VAL_FLOAT = 1 << 12;
-let VAL_MANAGED = 1 << 14;
-let ARRAYBUFFERVIEW_BUFFER_OFFSET = 0;
-let ARRAYBUFFERVIEW_DATASTART_OFFSET = 4;
-let ARRAYBUFFERVIEW_BYTELENGTH_OFFSET = 8;
-let ARRAYBUFFERVIEW_SIZE = 12;
-let ARRAY_LENGTH_OFFSET = 12;
-let ARRAY_SIZE = 16;
-let E_NO_EXPORT_TABLE = "Operation requires compiling with --exportTable";
-let E_NO_EXPORT_RUNTIME = "Operation requires compiling with --exportRuntime";
-let F_NO_EXPORT_RUNTIME = () => {
+var ID_OFFSET = -8;
+var SIZE_OFFSET = -4;
+var ARRAYBUFFER_ID = 1;
+var STRING_ID = 2;
+var ARRAYBUFFERVIEW = 1 << 0;
+var ARRAY = 1 << 1;
+var STATICARRAY = 1 << 2;
+var VAL_ALIGN_OFFSET = 6;
+var VAL_SIGNED = 1 << 11;
+var VAL_FLOAT = 1 << 12;
+var VAL_MANAGED = 1 << 14;
+var ARRAYBUFFERVIEW_BUFFER_OFFSET = 0;
+var ARRAYBUFFERVIEW_DATASTART_OFFSET = 4;
+var ARRAYBUFFERVIEW_BYTELENGTH_OFFSET = 8;
+var ARRAYBUFFERVIEW_SIZE = 12;
+var ARRAY_LENGTH_OFFSET = 12;
+var ARRAY_SIZE = 16;
+var E_NO_EXPORT_TABLE = "Operation requires compiling with --exportTable";
+var E_NO_EXPORT_RUNTIME = "Operation requires compiling with --exportRuntime";
+var F_NO_EXPORT_RUNTIME = () => {
   throw Error(E_NO_EXPORT_RUNTIME);
 };
-let BIGINT = typeof BigUint64Array !== "undefined";
-let THIS = Symbol();
-let STRING_SMALLSIZE = 192;
-let STRING_CHUNKSIZE = 1024;
-let utf16 = new TextDecoder("utf-16le", { fatal: true });
+var BIGINT = typeof BigUint64Array !== "undefined";
+var THIS = Symbol();
+var STRING_SMALLSIZE = 192;
+var STRING_CHUNKSIZE = 1024;
+var utf16 = new TextDecoder("utf-16le", { fatal: true });
 Object.hasOwn = Object.hasOwn || function(obj, prop) {
   return Object.prototype.hasOwnProperty.call(obj, prop);
 };
@@ -10012,8 +10013,8 @@ function collectAssemblyScriptGarbageBestEffort(runtime) {
 }
 
 // web/src/panes/remote-display-decoder.ts
-let REMOTE_DISPLAY_DECODER_WASM_URL = "/static/js/vendor/remote-display-decoder.wasm";
-let pipelinePromise = null;
+var REMOTE_DISPLAY_DECODER_WASM_URL = "/static/js/vendor/remote-display-decoder.wasm";
+var pipelinePromise = null;
 function normalizeInput(bytes) {
   if (bytes instanceof ArrayBuffer)
     return bytes;
@@ -10239,7 +10240,7 @@ function computeContainedRemoteDisplayScale(availableWidth, availableHeight, fra
     return 1;
   return Math.max(0.01, scale);
 }
-let KEYSYM_BY_KEY = {
+var KEYSYM_BY_KEY = {
   Backspace: 65288,
   Tab: 65289,
   Enter: 65293,
@@ -10300,13 +10301,13 @@ function resolveVncKeysymFromKeyboardEvent(event) {
 }
 
 // node_modules/fflate/esm/browser.js
-let u8 = Uint8Array;
-let u16 = Uint16Array;
-let i32 = Int32Array;
-let fleb = new u8([0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 0, 0, 0]);
-let fdeb = new u8([0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 0, 0]);
-let clim = new u8([16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]);
-let freb = function(eb, start) {
+var u8 = Uint8Array;
+var u16 = Uint16Array;
+var i32 = Int32Array;
+var fleb = new u8([0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 0, 0, 0]);
+var fdeb = new u8([0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 0, 0]);
+var clim = new u8([16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]);
+var freb = function(eb, start) {
   var b = new u16(31);
   for (var i2 = 0;i2 < 31; ++i2) {
     b[i2] = start += 1 << eb[i2 - 1];
@@ -10319,23 +10320,23 @@ let freb = function(eb, start) {
   }
   return { b, r: r2 };
 };
-let _a = freb(fleb, 2);
-let fl = _a.b;
-let revfl = _a.r;
+var _a = freb(fleb, 2);
+var fl = _a.b;
+var revfl = _a.r;
 fl[28] = 258, revfl[258] = 28;
-let _b = freb(fdeb, 0);
-let fd = _b.b;
-let revfd = _b.r;
-let rev = new u16(32768);
+var _b = freb(fdeb, 0);
+var fd = _b.b;
+var revfd = _b.r;
+var rev = new u16(32768);
 for (i2 = 0;i2 < 32768; ++i2) {
   x2 = (i2 & 43690) >> 1 | (i2 & 21845) << 1;
   x2 = (x2 & 52428) >> 2 | (x2 & 13107) << 2;
   x2 = (x2 & 61680) >> 4 | (x2 & 3855) << 4;
   rev[i2] = ((x2 & 65280) >> 8 | (x2 & 255) << 8) >> 1;
 }
-let x2;
-let i2;
-let hMap = function(cd, mb, r2) {
+var x2;
+var i2;
+var hMap = function(cd, mb, r2) {
   var s2 = cd.length;
   var i3 = 0;
   var l2 = new u16(mb);
@@ -10371,28 +10372,28 @@ let hMap = function(cd, mb, r2) {
   }
   return co;
 };
-let flt = new u8(288);
+var flt = new u8(288);
 for (i2 = 0;i2 < 144; ++i2)
   flt[i2] = 8;
-let i2;
+var i2;
 for (i2 = 144;i2 < 256; ++i2)
   flt[i2] = 9;
-let i2;
+var i2;
 for (i2 = 256;i2 < 280; ++i2)
   flt[i2] = 7;
-let i2;
+var i2;
 for (i2 = 280;i2 < 288; ++i2)
   flt[i2] = 8;
-let i2;
-let fdt = new u8(32);
+var i2;
+var fdt = new u8(32);
 for (i2 = 0;i2 < 32; ++i2)
   fdt[i2] = 5;
-let i2;
-let flm = /* @__PURE__ */ hMap(flt, 9, 0);
-let flrm = /* @__PURE__ */ hMap(flt, 9, 1);
-let fdm = /* @__PURE__ */ hMap(fdt, 5, 0);
-let fdrm = /* @__PURE__ */ hMap(fdt, 5, 1);
-let max = function(a2) {
+var i2;
+var flm = /* @__PURE__ */ hMap(flt, 9, 0);
+var flrm = /* @__PURE__ */ hMap(flt, 9, 1);
+var fdm = /* @__PURE__ */ hMap(fdt, 5, 0);
+var fdrm = /* @__PURE__ */ hMap(fdt, 5, 1);
+var max = function(a2) {
   var m2 = a2[0];
   for (var i3 = 1;i3 < a2.length; ++i3) {
     if (a2[i3] > m2)
@@ -10400,25 +10401,25 @@ let max = function(a2) {
   }
   return m2;
 };
-let bits = function(d2, p2, m2) {
+var bits = function(d2, p2, m2) {
   var o2 = p2 / 8 | 0;
   return (d2[o2] | d2[o2 + 1] << 8) >> (p2 & 7) & m2;
 };
-let bits16 = function(d2, p2) {
+var bits16 = function(d2, p2) {
   var o2 = p2 / 8 | 0;
   return (d2[o2] | d2[o2 + 1] << 8 | d2[o2 + 2] << 16) >> (p2 & 7);
 };
-let shft = function(p2) {
+var shft = function(p2) {
   return (p2 + 7) / 8 | 0;
 };
-let slc = function(v2, s2, e2) {
+var slc = function(v2, s2, e2) {
   if (s2 == null || s2 < 0)
     s2 = 0;
   if (e2 == null || e2 > v2.length)
     e2 = v2.length;
   return new u8(v2.subarray(s2, e2));
 };
-let ec = [
+var ec = [
   "unexpected EOF",
   "invalid block type",
   "invalid length/literal",
@@ -10434,7 +10435,7 @@ let ec = [
   "stream finishing",
   "invalid zip data"
 ];
-let err = function(ind, msg, nt) {
+var err = function(ind, msg, nt) {
   var e2 = new Error(msg || ec[ind]);
   e2.code = ind;
   if (Error.captureStackTrace)
@@ -10443,7 +10444,7 @@ let err = function(ind, msg, nt) {
     throw e2;
   return e2;
 };
-let inflt = function(dat, st, buf, dict) {
+var inflt = function(dat, st, buf, dict) {
   var sl = dat.length, dl = dict ? dict.length : 0;
   if (!sl || st.f && !st.l)
     return buf || new u8(0);
@@ -10584,20 +10585,20 @@ let inflt = function(dat, st, buf, dict) {
   } while (!final);
   return bt != buf.length && noBuf ? slc(buf, 0, bt) : buf.subarray(0, bt);
 };
-let wbits = function(d2, p2, v2) {
+var wbits = function(d2, p2, v2) {
   v2 <<= p2 & 7;
   var o2 = p2 / 8 | 0;
   d2[o2] |= v2;
   d2[o2 + 1] |= v2 >> 8;
 };
-let wbits16 = function(d2, p2, v2) {
+var wbits16 = function(d2, p2, v2) {
   v2 <<= p2 & 7;
   var o2 = p2 / 8 | 0;
   d2[o2] |= v2;
   d2[o2 + 1] |= v2 >> 8;
   d2[o2 + 2] |= v2 >> 16;
 };
-let hTree = function(d2, mb) {
+var hTree = function(d2, mb) {
   var t2 = [];
   for (var i3 = 0;i3 < d2.length; ++i3) {
     if (d2[i3])
@@ -10663,10 +10664,10 @@ let hTree = function(d2, mb) {
   }
   return { t: new u8(tr), l: mbt };
 };
-let ln = function(n2, l2, d2) {
+var ln = function(n2, l2, d2) {
   return n2.s == -1 ? Math.max(ln(n2.l, l2, d2 + 1), ln(n2.r, l2, d2 + 1)) : l2[n2.s] = d2;
 };
-let lc = function(c2) {
+var lc = function(c2) {
   var s2 = c2.length;
   while (s2 && !c2[--s2])
     ;
@@ -10701,13 +10702,13 @@ let lc = function(c2) {
   }
   return { c: cl.subarray(0, cli), n: s2 };
 };
-let clen = function(cf, cl) {
+var clen = function(cf, cl) {
   var l2 = 0;
   for (var i3 = 0;i3 < cl.length; ++i3)
     l2 += cf[i3] * cl[i3];
   return l2;
 };
-let wfblk = function(out, pos, dat) {
+var wfblk = function(out, pos, dat) {
   var s2 = dat.length;
   var o2 = shft(pos + 2);
   out[o2] = s2 & 255;
@@ -10718,7 +10719,7 @@ let wfblk = function(out, pos, dat) {
     out[o2 + i3 + 4] = dat[i3];
   return (o2 + 4 + s2) * 8;
 };
-let wblk = function(dat, out, final, syms, lf, df, eb, li, bs, bl, p2) {
+var wblk = function(dat, out, final, syms, lf, df, eb, li, bs, bl, p2) {
   wbits(out, p2++, final);
   ++lf[256];
   var _a2 = hTree(lf, 15), dlt = _a2.t, mlb = _a2.l;
@@ -10782,9 +10783,9 @@ let wblk = function(dat, out, final, syms, lf, df, eb, li, bs, bl, p2) {
   wbits16(out, p2, lm[256]);
   return p2 + ll[256];
 };
-let deo = /* @__PURE__ */ new i32([65540, 131080, 131088, 131104, 262176, 1048704, 1048832, 2114560, 2117632]);
-let et = /* @__PURE__ */ new u8(0);
-let dflt = function(dat, lvl, plvl, pre, post, st) {
+var deo = /* @__PURE__ */ new i32([65540, 131080, 131088, 131104, 262176, 1048704, 1048832, 2114560, 2117632]);
+var et = /* @__PURE__ */ new u8(0);
+var dflt = function(dat, lvl, plvl, pre, post, st) {
   var s2 = st.z || dat.length;
   var o2 = new u8(pre + s2 + 5 * (1 + Math.ceil(s2 / 7000)) + post);
   var w = o2.subarray(pre, o2.length - post);
@@ -10885,7 +10886,7 @@ let dflt = function(dat, lvl, plvl, pre, post, st) {
   }
   return slc(o2, 0, pre + shft(pos) + post);
 };
-let adler = function() {
+var adler = function() {
   var a2 = 1, b = 0;
   return {
     p: function(d2) {
@@ -10905,7 +10906,7 @@ let adler = function() {
     }
   };
 };
-let dopt = function(dat, opt, pre, post, st) {
+var dopt = function(dat, opt, pre, post, st) {
   if (!st) {
     st = { l: 1 };
     if (opt.dictionary) {
@@ -10919,11 +10920,11 @@ let dopt = function(dat, opt, pre, post, st) {
   }
   return dflt(dat, opt.level == null ? 6 : opt.level, opt.mem == null ? st.l ? Math.ceil(Math.max(8, Math.min(13, Math.log(dat.length))) * 1.5) : 20 : 12 + opt.mem, pre, post, st);
 };
-let wbytes = function(d2, b, v2) {
+var wbytes = function(d2, b, v2) {
   for (;v2; ++b)
     d2[b] = v2, v2 >>>= 8;
 };
-let zlh = function(c2, o2) {
+var zlh = function(c2, o2) {
   var lv = o2.level, fl2 = lv == 0 ? 0 : lv < 6 ? 1 : lv == 9 ? 3 : 2;
   c2[0] = 120, c2[1] = fl2 << 6 | (o2.dictionary && 32);
   c2[1] |= 31 - (c2[0] << 8 | c2[1]) % 31;
@@ -10933,14 +10934,14 @@ let zlh = function(c2, o2) {
     wbytes(c2, 2, h.d());
   }
 };
-let zls = function(d2, dict) {
+var zls = function(d2, dict) {
   if ((d2[0] & 15) != 8 || d2[0] >> 4 > 7 || (d2[0] << 8 | d2[1]) % 31)
     err(6, "invalid zlib data");
   if ((d2[1] >> 5 & 1) == +!dict)
     err(6, "invalid zlib data: " + (d2[1] & 32 ? "need" : "unexpected") + " dictionary");
   return (d2[1] >> 3 & 4) + 2;
 };
-let Inflate = /* @__PURE__ */ function() {
+var Inflate = /* @__PURE__ */ function() {
   function Inflate2(opts, cb) {
     if (typeof opts == "function")
       cb = opts, opts = {};
@@ -10985,7 +10986,7 @@ function zlibSync(data, opts) {
   var d2 = dopt(data, opts, opts.dictionary ? 6 : 2, 4);
   return zlh(d2, opts), wbytes(d2, d2.length - 4, a2.d()), d2;
 }
-let Unzlib = /* @__PURE__ */ function() {
+var Unzlib = /* @__PURE__ */ function() {
   function Unzlib2(opts, cb) {
     Inflate.call(this, opts, cb);
     this.v = opts && opts.dictionary ? 2 : 1;
@@ -11006,15 +11007,15 @@ let Unzlib = /* @__PURE__ */ function() {
   };
   return Unzlib2;
 }();
-let td = typeof TextDecoder != "undefined" && /* @__PURE__ */ new TextDecoder;
-let tds = 0;
+var td = typeof TextDecoder != "undefined" && /* @__PURE__ */ new TextDecoder;
+var tds = 0;
 try {
   td.decode(et, { stream: true });
   tds = 1;
 } catch (e2) {}
 
 // web/src/panes/vnc-auth.ts
-let IP_TABLE = [
+var IP_TABLE = [
   58,
   50,
   42,
@@ -11080,7 +11081,7 @@ let IP_TABLE = [
   15,
   7
 ];
-let FP_TABLE = [
+var FP_TABLE = [
   40,
   8,
   48,
@@ -11146,7 +11147,7 @@ let FP_TABLE = [
   57,
   25
 ];
-let E_TABLE = [
+var E_TABLE = [
   32,
   1,
   2,
@@ -11196,7 +11197,7 @@ let E_TABLE = [
   32,
   1
 ];
-let P_TABLE = [
+var P_TABLE = [
   16,
   7,
   20,
@@ -11230,7 +11231,7 @@ let P_TABLE = [
   4,
   25
 ];
-let PC1_TABLE = [
+var PC1_TABLE = [
   57,
   49,
   41,
@@ -11288,7 +11289,7 @@ let PC1_TABLE = [
   12,
   4
 ];
-let PC2_TABLE = [
+var PC2_TABLE = [
   14,
   17,
   11,
@@ -11338,8 +11339,8 @@ let PC2_TABLE = [
   29,
   32
 ];
-let ROTATIONS = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1];
-let S_BOXES = [
+var ROTATIONS = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1];
+var S_BOXES = [
   [
     [14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7],
     [0, 15, 7, 4, 14, 2, 13, 1, 10, 6, 12, 11, 9, 5, 3, 8],
@@ -11389,7 +11390,7 @@ let S_BOXES = [
     [2, 1, 14, 7, 4, 10, 8, 13, 15, 12, 9, 0, 3, 5, 6, 11]
   ]
 ];
-let REVERSED_BITS = new Uint8Array(256);
+var REVERSED_BITS = new Uint8Array(256);
 for (let value = 0;value < 256; value += 1) {
   let reversed = 0;
   for (let bit = 0;bit < 8; bit += 1) {
@@ -11502,7 +11503,7 @@ function buildVncPasswordAuthResponse(password, challenge) {
 }
 
 // web/src/panes/remote-display-vnc.ts
-let PROTOCOL = "vnc";
+var PROTOCOL = "vnc";
 function toEncodingValue(value) {
   return Number(value);
 }
@@ -12025,7 +12026,7 @@ function parseHextileRect(bytes, offset, width, height, pixelFormat, decodeRawRe
     rgba
   };
 }
-let DEFAULT_CLIENT_PIXEL_FORMAT = {
+var DEFAULT_CLIENT_PIXEL_FORMAT = {
   bitsPerPixel: 32,
   depth: 24,
   bigEndian: false,
@@ -12397,13 +12398,13 @@ class VncRemoteDisplayProtocol {
 }
 
 // web/src/panes/vnc-pane.ts
-let VNC_TAB_PREFIX = "piclaw://vnc";
+var VNC_TAB_PREFIX = "piclaw://vnc";
 function buildVncTabPath(targetId) {
   const target = String(targetId || "").trim();
   return target ? `${VNC_TAB_PREFIX}/${encodeURIComponent(target)}` : VNC_TAB_PREFIX;
 }
-let VNC_POPOUT_SECRET_PREFIX = "piclaw:vnc-popout:";
-let VNC_POPOUT_SECRET_TTL_MS = 60000;
+var VNC_POPOUT_SECRET_PREFIX = "piclaw:vnc-popout:";
+var VNC_POPOUT_SECRET_TTL_MS = 60000;
 function getVncPopoutStorage(runtime = globalThis) {
   try {
     return runtime?.localStorage ?? null;
@@ -13706,7 +13707,7 @@ class VncPaneInstance {
   }
 }
 // web/src/panes/office-viewer-pane.ts
-let OFFICE_EXTENSIONS = new Set([
+var OFFICE_EXTENSIONS = new Set([
   ".docx",
   ".doc",
   ".odt",
@@ -13720,9 +13721,9 @@ let OFFICE_EXTENSIONS = new Set([
   ".odp"
 ]);
 // web/src/panes/mindmap-pane.ts
-let VENDOR_CACHE_BUST = String(Date.now());
+var VENDOR_CACHE_BUST = String(Date.now());
 // web/src/panes/kanban-pane.ts
-let VENDOR_CACHE_BUST2 = String(Date.now());
+var VENDOR_CACHE_BUST2 = String(Date.now());
 // web/src/panes/tab-store.ts
 class TabStoreImpl {
   tabs = new Map;
@@ -13885,7 +13886,7 @@ class TabStoreImpl {
     }
   }
 }
-let tabStore = new TabStoreImpl;
+var tabStore = new TabStoreImpl;
 // web/src/components/input-focus-safety.ts
 function focusAndSelectBestEffort(input) {
   try {
@@ -13898,10 +13899,10 @@ function focusAndSelectBestEffort(input) {
 }
 
 // web/src/ui/workspace-scale.ts
-let WORKSPACE_SCALE_STORAGE_KEY = "workspaceExplorerScale";
-let WORKSPACE_SCALE_PRESETS = ["compact", "default", "comfortable"];
-let WORKSPACE_SCALE_SET = new Set(WORKSPACE_SCALE_PRESETS);
-let WORKSPACE_SCALE_METRICS = {
+var WORKSPACE_SCALE_STORAGE_KEY = "workspaceExplorerScale";
+var WORKSPACE_SCALE_PRESETS = ["compact", "default", "comfortable"];
+var WORKSPACE_SCALE_SET = new Set(WORKSPACE_SCALE_PRESETS);
+var WORKSPACE_SCALE_METRICS = {
   compact: { indentPx: 14 },
   default: { indentPx: 16 },
   comfortable: { indentPx: 18 }
@@ -13949,7 +13950,7 @@ function getWorkspaceScaleMetrics(scale) {
 }
 
 // web/src/ui/workspace-auto-open.ts
-let MAX_EDITABLE_PREVIEW_BYTES = 256 * 1024;
+var MAX_EDITABLE_PREVIEW_BYTES = 256 * 1024;
 function isEditableWorkspacePreview(preview) {
   if (!preview || preview.kind !== "text")
     return false;
@@ -13975,8 +13976,8 @@ function shouldAutoOpenWorkspaceFile(path, preview, options = {}) {
 }
 
 // web/src/components/workspace-explorer.ts
-let REFRESH_INTERVAL_MS = 60000;
-let isHiddenNode = (node) => {
+var REFRESH_INTERVAL_MS = 60000;
+var isHiddenNode = (node) => {
   if (!node || !node.name)
     return false;
   if (node.path === ".")
@@ -14054,10 +14055,10 @@ function replaceNodeAtPath(node, targetPath, nextNode) {
   });
   return changed ? { ...node, children } : node;
 }
-let STARBURST_MAX_DEPTH = 4;
-let STARBURST_MAX_CHILDREN = 14;
-let STARBURST_FETCH_DEPTH = 8;
-let STARBURST_CACHE_LIMIT = 16;
+var STARBURST_MAX_DEPTH = 4;
+var STARBURST_MAX_CHILDREN = 14;
+var STARBURST_FETCH_DEPTH = 8;
+var STARBURST_CACHE_LIMIT = 16;
 function computeSubtreeBytes(node) {
   if (!node)
     return 0;
@@ -14160,7 +14161,7 @@ function describeDonutSegment(cx, cy, innerRadius, outerRadius, startAngle, endA
     "Z"
   ].join(" ");
 }
-let STARBURST_RINGS = {
+var STARBURST_RINGS = {
   1: [26, 46],
   2: [48, 68],
   3: [70, 90],
@@ -16369,7 +16370,7 @@ function WorkspaceExplorer({
 }
 
 // web/src/ui/tab-source-editor.ts
-let SOURCE_EDITABLE_PANE_IDS = new Set(["html-viewer", "kanban-editor", "mindmap-editor"]);
+var SOURCE_EDITABLE_PANE_IDS = new Set(["html-viewer", "kanban-editor", "mindmap-editor"]);
 function resolveEffectiveTabPaneId(path, paneOverrideId, resolvePane) {
   const normalized = String(path || "").trim();
   if (!normalized)
@@ -16396,11 +16397,11 @@ function canTabCompareToSaved(path, paneOverrideId, resolvePane) {
 }
 
 // web/src/components/tab-strip.ts
-let OFFICE_EXTENSIONS2 = /\.(docx?|xlsx?|pptx?|odt|ods|odp|rtf)$/i;
-let CSV_EXTENSIONS = /\.(csv|tsv)$/i;
-let PDF_EXTENSIONS = /\.pdf$/i;
-let IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|webp|bmp|ico|svg)$/i;
-let DRAWIO_EXTENSIONS = /\.drawio(\.xml|\.svg|\.png)?$/i;
+var OFFICE_EXTENSIONS2 = /\.(docx?|xlsx?|pptx?|odt|ods|odp|rtf)$/i;
+var CSV_EXTENSIONS = /\.(csv|tsv)$/i;
+var PDF_EXTENSIONS = /\.pdf$/i;
+var IMAGE_EXTENSIONS = /\.(png|jpe?g|gif|webp|bmp|ico|svg)$/i;
+var DRAWIO_EXTENSIONS = /\.drawio(\.xml|\.svg|\.png)?$/i;
 function getStandaloneTabUrl(path, { hasPopOutTab = false } = {}) {
   const normalizedPath = typeof path === "string" ? path.trim() : "";
   if (!normalizedPath)
@@ -17321,12 +17322,12 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
 }
 
 // web/src/ui/zip-preview.ts
-let EOCD_SIGNATURE = 101010256;
-let CENTRAL_DIRECTORY_SIGNATURE = 33639248;
-let ZIP64_EOCD_LOCATOR_SIGNATURE = 117853008;
-let MAX_EOCD_SEARCH_BYTES = 22 + 65535;
-let UTF8_FLAG = 2048;
-let utf8Decoder = new TextDecoder("utf-8", { fatal: false });
+var EOCD_SIGNATURE = 101010256;
+var CENTRAL_DIRECTORY_SIGNATURE = 33639248;
+var ZIP64_EOCD_LOCATOR_SIGNATURE = 117853008;
+var MAX_EOCD_SEARCH_BYTES = 22 + 65535;
+var UTF8_FLAG = 2048;
+var utf8Decoder = new TextDecoder("utf-8", { fatal: false });
 function readUint16(bytes, offset) {
   return bytes[offset] | bytes[offset + 1] << 8;
 }
@@ -17481,7 +17482,7 @@ function formatCompressionRatio(summary) {
 }
 
 // web/src/components/attachment-preview-modal.ts
-let HTML_ATTACHMENT_PREVIEW_SANDBOX = "allow-scripts";
+var HTML_ATTACHMENT_PREVIEW_SANDBOX = "allow-scripts";
 function isProbablyTextBytes(bytes) {
   if (!(bytes instanceof Uint8Array) || bytes.length === 0)
     return true;
@@ -17814,10 +17815,10 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
 }
 
 // web/src/app.ts
-let DEFAULT_SESSION_TITLE = "default";
-let SESSION_KEY = "gi_session_id";
-let POLL_INTERVAL_MS = 1200;
-let DEFAULT_AGENT_ID = "gi";
+var DEFAULT_SESSION_TITLE = "default";
+var SESSION_KEY = "gi_session_id";
+var POLL_INTERVAL_MS = 1200;
+var DEFAULT_AGENT_ID = "gi";
 function sessionToChatJid(id) {
   return `gi:${id}`;
 }
@@ -18139,3 +18140,5 @@ c0(X1`<${GiApp} />`, document.getElementById("app"));
 
 //# debugId=335B66BDFD218DAB64756E2164756E21
 //# sourceMappingURL=app.js.map
+
+})();

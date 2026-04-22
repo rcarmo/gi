@@ -65,10 +65,11 @@ run([
 move(`${webSrc}/app.js`,     `${distDir}/app.bundle.js`);
 move(`${webSrc}/app.js.map`, `${distDir}/app.bundle.js.map`);
 
-// Post-process: replace top-level var with let to avoid Safari/browser
-// "duplicate variable that shadows a global property" errors in ESM scope.
+// Post-process: wrap in IIFE to isolate var declarations from global scope.
+// This prevents Safari's "duplicate variable that shadows a global property" 
+// error without breaking var's re-declaration semantics.
 const appBundle = readFileSync(`${distDir}/app.bundle.js`, 'utf-8');
-writeFileSync(`${distDir}/app.bundle.js`, appBundle.replace(/^var /gm, 'let '), 'utf-8');
+writeFileSync(`${distDir}/app.bundle.js`, `(function(){\n${appBundle}\n})();\n`, 'utf-8');
 
 // Now clean up preact-htm alias
 const phtmAlias = `${webSrc}/vendor/preact-htm.js`;
