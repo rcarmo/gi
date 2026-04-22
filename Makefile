@@ -25,6 +25,7 @@ build-web:
 build: build-web
 	mkdir -p $(BIN_DIR)
 	go build -o $(BIN) ./cmd/gi
+	go build -o $(BIN_DIR)/gi-tui ./cmd/gi-tui
 
 test:
 	go test ./...
