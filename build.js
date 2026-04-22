@@ -13,24 +13,27 @@ const webSrc = 'web/src';
 const staticDir = 'internal/web/static';
 const distDir = 'internal/web/static/dist';
 const vendorDir = 'internal/web/static/js/vendor';
+const jsDir = 'internal/web/static/js';
+const editorVendorDir = 'internal/web/static/editor-vendor';
 
 mkdirSync(distDir, { recursive: true });
 mkdirSync(vendorDir, { recursive: true });
+mkdirSync(jsDir, { recursive: true });
+mkdirSync(editorVendorDir, { recursive: true });
 
-run([
-  'bun', 'build',
-  `${webSrc}/vendor/preact-htm-entry.ts`,
-  '--target=browser',
-  '--format=esm',
-  '--minify',
-  '--sourcemap',
-]);
-if (existsSync(`${vendorDir}/preact-htm.js`)) rmSync(`${vendorDir}/preact-htm.js`);
-if (existsSync(`${vendorDir}/preact-htm.js.map`)) rmSync(`${vendorDir}/preact-htm.js.map`);
-renameSync(`${webSrc}/vendor/preact-htm-entry.js`, `${vendorDir}/preact-htm.js`);
-renameSync(`${webSrc}/vendor/preact-htm-entry.js.map`, `${vendorDir}/preact-htm.js.map`);
-if (existsSync(`${webSrc}/vendor/preact-htm-entry.js`)) rmSync(`${webSrc}/vendor/preact-htm-entry.js`);
-if (existsSync(`${webSrc}/vendor/preact-htm-entry.js.map`)) rmSync(`${webSrc}/vendor/preact-htm-entry.js.map`);
+function vendorEntry(entry, outputDir, outputName) {
+  run(['bun', 'build', `${webSrc}/vendor/${entry}.ts`, '--target=browser', '--format=esm', '--minify', '--sourcemap']);
+  if (existsSync(`${outputDir}/${outputName}`)) rmSync(`${outputDir}/${outputName}`);
+  if (existsSync(`${outputDir}/${outputName}.map`)) rmSync(`${outputDir}/${outputName}.map`);
+  renameSync(`${webSrc}/vendor/${entry}.js`, `${outputDir}/${outputName}`);
+  renameSync(`${webSrc}/vendor/${entry}.js.map`, `${outputDir}/${outputName}.map`);
+}
+
+vendorEntry('preact-htm-entry', vendorDir, 'preact-htm.js');
+vendorEntry('marked-entry', jsDir, 'marked.min.js');
+vendorEntry('katex-entry', vendorDir, 'katex.min.js');
+vendorEntry('mermaid-entry', vendorDir, 'beautiful-mermaid.js');
+vendorEntry('codemirror-entry', editorVendorDir, 'codemirror.js');
 
 run([
   'bun', 'build',
