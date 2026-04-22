@@ -1,0 +1,24 @@
+# Binaries
+bin/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Build/test
+*.test
+coverage.out
+.coverprofile
+
+# Env/local state
+.env
+.env.*
+*.db
+*.db-shm
+*.db-wal
+
+# Editors
+.vscode/
+.idea/
+.DS_Store
