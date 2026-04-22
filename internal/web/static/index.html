@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gi</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #111; color: #eee; }
+    .app { display: grid; grid-template-columns: 280px 1fr; min-height: 100vh; }
+    aside { border-right: 1px solid #2a2a2a; padding: 16px; }
+    main { padding: 16px; }
+    button,input,textarea { font: inherit; }
+    input,textarea { width: 100%; box-sizing: border-box; background:#1a1a1a; color:#eee; border:1px solid #333; border-radius:8px; padding:10px; }
+    button { background:#2d6cdf; color:#fff; border:0; border-radius:8px; padding:10px 14px; cursor:pointer; }
+    .row { display:flex; gap:8px; margin-bottom:12px; }
+    .session { padding:8px; border:1px solid #333; border-radius:8px; margin-bottom:8px; cursor:pointer; }
+    .message { border-bottom:1px solid #222; padding:10px 0; white-space:pre-wrap; }
+    .meta { color:#999; font-size:12px; }
+    .status { margin: 12px 0; color:#9ecbff; min-height: 1.4em; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="row">
+      <input id="title" placeholder="New session title">
+      <button id="newSession">New</button>
+    </div>
+    <div id="sessions"></div>
+  </aside>
+  <main>
+    <h1>Gi</h1>
+    <div id="status" class="status">Ready.</div>
+    <div id="messages"></div>
+    <div class="row">
+      <textarea id="prompt" rows="4" placeholder="Send a prompt"></textarea>
+    </div>
+    <div class="row">
+      <button id="send">Send</button>
+    </div>
+  </main>
+</div>
+<script>
+let currentSession = null;
+
+async function api(path, options={}) {
+  const res = await fetch(path, {headers:{'Content-Type':'application/json'}, ...options});
+  return res.json();
+}
+
+async function loadSessions() {
+  const data = await api('/api/sessions');
+  const root = document.getElementById('sessions');
+  root.innerHTML = '';
+  for (const session of data.sessions || []) {
+    const el = document.createElement('div');
+    el.className = 'session';
+    el.textContent = session.title || session.id;
+    el.onclick = () => { currentSession = session.id; loadMessages(); setStatus(`Opened ${session.id}`); };
+    root.appendChild(el);
+  }
+}
+
+async function loadMessages() {
+  if (!currentSession) return;
+  const data = await api(`/api/sessions/${currentSession}/messages`);
+  const root = document.getElementById('messages');
+  root.innerHTML = '';
+  for (const msg of data.messages || []) {
+    const el = document.createElement('div');
+    el.className = 'message';
+    el.innerHTML = `<div class="meta">${msg.role}</div>${escapeHtml(msg.content)}`;
+    root.appendChild(el);
+  }
+}
+
+function escapeHtml(text) {
+  return (text || '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+}
+
+function setStatus(text) {
+  document.getElementById('status').textContent = text;
+}
+
+document.getElementById('newSession').onclick = async () => {
+  const title = document.getElementById('title').value;
+  const session = await api('/api/sessions', {method:'POST', body: JSON.stringify({title})});
+  currentSession = session.id;
+  await loadSessions();
+  await loadMessages();
+  setStatus(`Created ${session.id}`);
+};
+
+document.getElementById('send').onclick = async () => {
+  if (!currentSession) {
+    setStatus('Create a session first.');
+    return;
+  }
+  const prompt = document.getElementById('prompt').value;
+  setStatus('Running turn…');
+  const result = await api(`/api/sessions/${currentSession}/prompt`, {method:'POST', body: JSON.stringify({prompt, intent:'prompt', model:'bootstrap'})});
+  document.getElementById('prompt').value = '';
+  await loadMessages();
+  if (result.error) {
+    setStatus(`Error: ${result.error}`);
+    return;
+  }
+  setStatus(`Turn ${result.turn_id} finished: ${result.status}`);
+};
+
+loadSessions();
+</script>
+</body>
+</html>

@@ -10,36 +10,36 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 ## Phase 1 — minimal vertical slice
 
 ### Turn engine
-- [ ] Define append-only turn event model
-- [ ] Define turn state reconstruction from events
-- [ ] Persist turn start/progress/end events
-- [ ] Serialize turns per session
-- [ ] Allow concurrent turns across sessions
+- [x] Define append-only turn event model
+- [x] Define turn state reconstruction from events
+- [x] Persist turn start/progress/end events
+- [x] Serialize turns per session
+- [x] Allow concurrent turns across sessions
 - [ ] Implement queue/reorder/cancel state model
 - [ ] Implement cancellation state transitions (`running` → `cancelling` → `cancelled`)
 
 ### Database/state model
-- [ ] Create SQLite schema baseline
-- [ ] Add sessions table
+- [x] Create SQLite schema baseline
+- [x] Add sessions table
 - [ ] Add forks/ancestry table(s)
-- [ ] Add messages/content block tables
-- [ ] Add turn events/checkpoints tables
+- [x] Add messages/content block tables
+- [x] Add turn events/checkpoints tables
 - [ ] Add schedules/background tasks tables
 - [ ] Add attachments metadata tables
 - [ ] Add settings/assets mirror tables
-- [ ] Enable WAL and concurrency-safe pragmas
+- [x] Enable WAL and concurrency-safe pragmas
 
 ### Web UI shell
-- [ ] Boot plain-JS web app from embedded assets
-- [ ] Implement session list/open/create
-- [ ] Implement basic chat timeline rendering
-- [ ] Implement compose box with Piclaw-style progress/status area
+- [x] Boot plain-JS web app from embedded assets
+- [x] Implement session list/open/create
+- [x] Implement basic chat timeline rendering
+- [x] Implement compose box with Piclaw-style progress/status area
 - [ ] Implement streaming output rendering
-- [ ] Implement one prompt → one turn flow
-- [ ] Implement clean control return after turn
+- [x] Implement one prompt → one turn flow
+- [x] Implement clean control return after turn
 
 ### Tools
-- [ ] Implement `shell` minimal path with streaming output and cancellation
+- [x] Implement `shell` minimal path with streaming output and cancellation
 - [ ] Implement `read`
 - [ ] Implement `write`
 - [ ] Implement `edit` baseline
@@ -48,13 +48,13 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [ ] Implement `script` baseline with Joker execution
 
 ### Integration slice
-- [ ] Start web service
-- [ ] Open/create session
-- [ ] Send one prompt
-- [ ] Run one shell tool call
+- [x] Start web service
+- [x] Open/create session
+- [x] Send one prompt
+- [x] Run one shell tool call
 - [ ] Stream progress
-- [ ] Persist all messages/events in SQLite
-- [ ] Return control cleanly
+- [x] Persist all messages/events in SQLite
+- [x] Return control cleanly
 
 ---
 
