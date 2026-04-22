@@ -1,4 +1,4 @@
-import { h, render, Component, createContext } from 'preact';
+import { h, render, Component, createContext } from "preact";
 import {
   useState,
   useReducer,
@@ -11,8 +11,8 @@ import {
   useContext,
   useDebugValue,
   useErrorBoundary,
-} from 'preact/hooks';
-import htm from 'htm';
+} from "preact/hooks";
+import htm from "htm";
 
 const html = htm.bind(h);
 

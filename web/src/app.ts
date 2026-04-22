@@ -1,98 +1,403 @@
 // @ts-nocheck
-import { html, render, useState, useEffect } from './vendor/preact-htm-entry.ts';
-import { getRuntimeConfig, listSessions, createSession, listMessages, sendPrompt, listTurns, listTurnEvents, cancelTurn } from './api.ts';
-import { recordStatus, bindStatusListener } from './status.ts';
-import { initTheme, cycleThemePreset, getCurrentThemeLabel, cycleTint, getCurrentTintLabel } from './ui/theme.ts';
-import { installFrontendLogging } from './ui/frontend-log.ts';
-import { ComposeBox } from './components/compose-box.ts';
-import { StatusBar } from './components/status.ts';
-import { Post } from './components/post.ts';
-import { WorkspaceBrowser } from './components/workspace-browser.ts';
-import { PaneShell } from './components/pane-shell.ts';
-import { resolveActiveTurn, resolveTurnStatusPresentation } from './ui/turn-status.ts';
+/**
+ * app.ts — Gi entry point.
+ *
+ * Uses Piclaw's web shell components verbatim. The only Gi-specific
+ * concern is mapping Gi sessions onto Piclaw's chat_jid model so every
+ * component receives what it expects without modification.
+ */
+import { html, render, useState, useEffect, useMemo, useCallback } from './vendor/preact-htm.js';
+import { getLocalStorageBoolean, getLocalStorageItem, setLocalStorageItem } from './utils/storage.js';
+import { dedupePosts } from './ui/timeline-utils.js';
+import { useAgentState } from './ui/use-agent-state.js';
+import { initTheme } from './ui/theme.js';
+import {
+    LAST_ACTIVITY_TTL_MS,
+    SILENCE_FINALIZE_MS,
+    SILENCE_REFRESH_MS,
+    SILENCE_WARNING_MS,
+    isIOSDevice,
+} from './ui/app-helpers.js';
+import { isCompactionStatus } from './ui/status-duration.js';
+import { formatBranchPickerLabel } from './ui/branch-lifecycle.js';
+import { paneRegistry, tabStore } from './panes/index.js';
+import {
+    getTimeline,
+    getThread,
+    searchPosts,
+    deletePost,
+    getAgents,
+    getAgentThought,
+    setAgentThoughtVisibility,
+    getAgentStatus,
+    getAgentContext,
+    getAutoresearchStatus,
+    stopAutoresearch,
+    dismissAutoresearch,
+    getAgentModels,
+    completeInstanceOobe,
+    getActiveChatAgents,
+    getChatBranches,
+    renameChatBranch,
+    pruneChatBranch,
+    restoreChatBranch,
+    getAgentQueueState,
+    steerAgentQueueItem,
+    removeAgentQueueItem,
+    streamSidePrompt,
+    getWorkspaceFile,
+    sendAgentMessage,
+    forkChatBranch,
+} from './api.js';
+import { Timeline } from './components/timeline.js';
+import { ComposeBox } from './components/compose-box.js';
+import { AgentStatus } from './components/status.js';
+import { WorkspaceExplorer } from './components/workspace-explorer.js';
+import { TabStrip } from './components/tab-strip.js';
 
-const ICONS = {
-  assistant: html`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v1H8a4 4 0 0 0-4 4v3a4 4 0 0 0 4 4h1v1a3 3 0 0 0 6 0v-1h1a4 4 0 0 0 4-4v-3a4 4 0 0 0-4-4h-1V5a3 3 0 0 0-3-3Z"/><path d="M9 11h.01M15 11h.01"/></svg>`,
-  user: html`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>`,
-  system: html`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>`,
-  model: html`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>`,
-  theme: html`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`,
-};
+// ── Constants ──────────────────────────────────────────────────────────────
 
-function SessionList({ sessions, currentSessionId, onSelect, onCreate }) {
-  const [title, setTitle] = useState('');
-  return html`<aside class="sidebar"><div class="panel-title">Sessions</div><div class="new-session-row"><input value=${title} onInput=${(e) => setTitle(e.target.value)} placeholder="New session title" /><button onClick=${async () => { const created = await onCreate(title); setTitle(''); if (created?.id) onSelect(created.id); }}>New</button></div><div class="session-list">${sessions.map((session) => html`<button class=${`session-item ${currentSessionId === session.id ? 'active' : ''}`} onClick=${() => onSelect(session.id)}><span class="session-title">${session.title || session.id}</span><span class="session-meta">${session.state?.status || 'idle'}</span></button>`)}</div></aside>`;
+const DEFAULT_AGENT_ID = 'gi';
+const SESSION_STORAGE_KEY = 'gi_current_session_id';
+const POLL_INTERVAL_MS = 1200;
+
+// ── Gi-specific session bridge ─────────────────────────────────────────────
+
+function sessionToChatJid(sessionId: string | null) {
+    return sessionId ? `gi:${sessionId}` : 'web:default';
 }
 
-function Timeline({ messages }) {
-  return html`<section class="timeline normal"><div class="timeline-content">${messages.length === 0 ? html`<div class="empty-state">No messages yet.</div>` : null}${messages.map((msg) => html`<${Post} msg=${msg} icon=${msg.role === 'assistant' ? ICONS.assistant : msg.role === 'user' ? ICONS.user : ICONS.system} />`)}</div></section>`;
+async function listSessions() {
+    const res = await fetch('/api/sessions');
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.sessions || [];
 }
 
-function TurnQueue({ turns, onCancel }) {
-  return html`<aside class="gi-turn-queue"><div class="panel-title">Turns</div>${turns.length === 0 ? html`<div class="empty-state">No turns yet.</div>` : turns.map((turn) => html`<div class="turn-item"><div><div class="turn-status turn-status-${turn.status}">${turn.status}</div><div class="turn-prompt">${turn.prompt}</div></div>${turn.status === 'queued' || turn.status === 'running' || turn.status === 'cancelling' ? html`<button class="chat-window-header-button" onClick=${() => onCancel(turn.id)}>Cancel</button>` : null}</div>`)}</aside>`;
+async function createSession(title: string) {
+    const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+    });
+    if (!res.ok) throw new Error('Failed to create session');
+    return res.json();
 }
 
-function App() {
-  const [sessions, setSessions] = useState([]);
-  const [currentSessionId, setCurrentSessionId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [turns, setTurns] = useState([]);
-  const [status, setStatus] = useState('Ready.');
-  const [runtimeConfig, setRuntimeConfig] = useState({ assistant_name: 'Gi', user_name: 'User', default_model: '', default_provider: '', default_thinking_level: '' });
-  const [themeLabel, setThemeLabel] = useState('Default');
-  const [tintLabel, setTintLabel] = useState('Off');
-  const [panePath, setPanePath] = useState('');
-  const [paneContent, setPaneContent] = useState('');
-  const [activeTurnEvents, setActiveTurnEvents] = useState([]);
+async function getRuntimeConfig() {
+    const res = await fetch('/api/runtime/config');
+    if (!res.ok) return {};
+    return res.json();
+}
 
-  useEffect(() => {
-    installFrontendLogging();
-    bindStatusListener(setStatus);
-    const cleanupTheme = initTheme();
-    setThemeLabel(getCurrentThemeLabel());
-    setTintLabel(getCurrentTintLabel());
-    refreshRuntimeConfig();
-    refreshSessions();
-    console.info('[app] mounted');
-    return () => { cleanupTheme?.(); console.info('[app] unmounted'); };
-  }, []);
+// ── Session list sidebar ───────────────────────────────────────────────────
 
-  useEffect(() => {
-    if (!currentSessionId) return;
-    const timer = setInterval(async () => {
-      await Promise.all([refreshMessages(currentSessionId), refreshTurns(currentSessionId), refreshSessions()]);
-    }, 1000);
-    console.debug('[app] polling started', { currentSessionId });
-    return () => { clearInterval(timer); console.debug('[app] polling stopped', { currentSessionId }); };
-  }, [currentSessionId]);
+function SessionSidebar({ sessions, currentSessionId, onSelect, onCreate }) {
+    const [title, setTitle] = useState('');
+    return html`
+        <div class="gi-session-sidebar">
+            <div class="workspace-header">
+                <span class="workspace-header-left">Sessions</span>
+                <div class="workspace-header-actions">
+                    <button
+                        class="workspace-create"
+                        title="New session"
+                        onClick=${async () => {
+                            const s = await onCreate(title || 'Session');
+                            setTitle('');
+                            onSelect(s.id);
+                        }}
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="workspace-tree">
+                ${sessions.map((s: any) => html`
+                    <button
+                        key=${s.id}
+                        class=${`workspace-row${currentSessionId === s.id ? ' workspace-row-active' : ''}`}
+                        style="padding-left:12px"
+                        onClick=${() => onSelect(s.id)}
+                    >
+                        <span class="workspace-row-icon">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                        </span>
+                        <span class="workspace-row-label">${s.title || s.id}</span>
+                    </button>
+                `)}
+            </div>
+        </div>
+    `;
+}
 
-  async function refreshRuntimeConfig() { const data = await getRuntimeConfig(); setRuntimeConfig(data || {}); }
-  async function refreshSessions() { const data = await listSessions(); setSessions(data.sessions || []); }
-  async function refreshMessages(sessionID = currentSessionId) { if (!sessionID) return setMessages([]); const data = await listMessages(sessionID); setMessages(data.messages || []); }
-  async function refreshTurns(sessionID = currentSessionId) {
-    if (!sessionID) { setTurns([]); setActiveTurnEvents([]); return; }
-    const data = await listTurns(sessionID);
-    const items = data.turns || [];
-    setTurns(items);
-    const active = resolveActiveTurn(items);
-    if (active?.id) {
-      const ev = await listTurnEvents(active.id).catch(() => ({ events: [] }));
-      setActiveTurnEvents(ev.events || []);
-    } else {
-      setActiveTurnEvents([]);
+// ── Main app ───────────────────────────────────────────────────────────────
+
+function GiApp() {
+    const [runtimeConfig, setRuntimeConfig] = useState<any>({});
+    const [sessions, setSessions] = useState<any[]>([]);
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(() =>
+        getLocalStorageItem(SESSION_STORAGE_KEY) || null
+    );
+
+    const currentChatJid = useMemo(() => sessionToChatJid(currentSessionId), [currentSessionId]);
+
+    // Agent state (matches Piclaw's useAgentState shape)
+    const {
+        agentStatus, setAgentStatus,
+        agentDraft, setAgentDraft,
+        agentPlan, setAgentPlan,
+        agentThought, setAgentThought,
+        pendingRequest, setPendingRequest,
+        currentTurnId, setCurrentTurnId,
+        steerQueuedTurnId, setSteerQueuedTurnId,
+        lastAgentEventRef,
+        lastSilenceNoticeRef,
+        isAgentRunningRef,
+        draftBufferRef,
+        thoughtBufferRef,
+        previewResyncPendingRef,
+        previewResyncGenerationRef,
+        pendingRequestRef,
+        stalledPostIdRef,
+        currentTurnIdRef,
+        steerQueuedTurnIdRef,
+        thoughtExpandedRef,
+        draftExpandedRef,
+    } = useAgentState();
+
+    // Timeline posts
+    const [posts, setPosts] = useState<any[]>([]);
+    const [hasMorePosts, setHasMorePosts] = useState(false);
+
+    // Workspace / pane state
+    const [workspaceOpen, setWorkspaceOpen] = useState(false);
+    const [tabs, setTabs] = useState<any[]>([]);
+    const [activeTabId, setActiveTabId] = useState<string | null>(null);
+
+    // Agents / models
+    const [agents, setAgents] = useState<any>({});
+    const [userProfile, setUserProfile] = useState<any>(null);
+
+    // Agent running/silence
+    const [isAgentTurnActive, setIsAgentTurnActive] = useState(false);
+
+    // ── Initialise ──────────────────────────────────────────────────────────
+
+    useEffect(() => {
+        const cleanup = initTheme();
+        getRuntimeConfig().then((cfg: any) => {
+            setRuntimeConfig(cfg);
+            setUserProfile({ name: cfg.user_name, avatar_url: cfg.user_avatar });
+            setAgents({
+                [DEFAULT_AGENT_ID]: {
+                    id: DEFAULT_AGENT_ID,
+                    name: cfg.assistant_name || 'Gi',
+                    avatar_url: cfg.assistant_avatar || null,
+                },
+            });
+        });
+        listSessions().then(setSessions);
+        return cleanup;
+    }, []);
+
+    // ── Session selection ───────────────────────────────────────────────────
+
+    useEffect(() => {
+        if (currentSessionId) {
+            setLocalStorageItem(SESSION_STORAGE_KEY, currentSessionId);
+        }
+    }, [currentSessionId]);
+
+    async function handleSelectSession(id: string) {
+        setCurrentSessionId(id);
+        setPosts([]);
+        await loadTimeline(id);
     }
-  }
-  async function handleCreate(title) { const created = await createSession(title || 'Untitled'); await refreshSessions(); await refreshMessages(created.id); await refreshTurns(created.id); setCurrentSessionId(created.id); recordStatus(`Created ${created.id}`); return created; }
-  async function handleSelect(sessionID) { setCurrentSessionId(sessionID); await refreshMessages(sessionID); await refreshTurns(sessionID); recordStatus(`Opened ${sessionID}`); }
-  async function handleSend(prompt) { if (!currentSessionId) return recordStatus('Create or open a session first.'); const result = await sendPrompt(currentSessionId, prompt); await refreshTurns(currentSessionId); recordStatus(result.queued ? `Queued ${result.turn_id}` : `Started ${result.turn_id}`); }
-  async function handleCancel(turnID) { await cancelTurn(turnID); await refreshTurns(currentSessionId); recordStatus(`Cancelling ${turnID}`); }
-  const currentSession = sessions.find((s) => s.id === currentSessionId) || null;
-  const queuedCount = turns.filter((t) => t.status === 'queued').length;
-  const activeTurn = resolveActiveTurn(turns);
-  const statusPresentation = resolveTurnStatusPresentation(activeTurn, activeTurnEvents);
-  const isBusy = turns.some((t) => t.status === 'running' || t.status === 'cancelling');
 
-  return html`<div class="app-shell"><${WorkspaceBrowser} onOpenFile=${(path, content) => { setPanePath(path); setPaneContent(content); }} /><${SessionList} sessions=${sessions} currentSessionId=${currentSessionId} onSelect=${handleSelect} onCreate=${handleCreate} /><main class="container"><section class="chat-window"><header class="chat-window-header"><div class="chat-window-header-main"><div class="chat-window-header-title">${runtimeConfig.assistant_name || 'Gi'}</div><div class="chat-window-header-subtitle">${runtimeConfig.default_provider || 'provider'} / ${runtimeConfig.default_model || 'model'}${runtimeConfig.default_thinking_level ? ` · ${runtimeConfig.default_thinking_level}` : ''}</div></div><div class="chat-window-header-actions"><span class="chat-window-header-badge">${runtimeConfig.user_name || 'User'}</span><span class="chat-window-header-badge">${ICONS.model}${currentSession?.state?.model || runtimeConfig.default_model || 'model'}</span><button class="chat-window-header-button" onClick=${() => { cycleThemePreset(); setThemeLabel(getCurrentThemeLabel()); }}>${ICONS.theme}${themeLabel}</button><button class="chat-window-header-button" onClick=${() => { cycleTint(); setTintLabel(getCurrentTintLabel()); }}>tint ${tintLabel}</button></div></header><${StatusBar} title=${statusPresentation.title || status} detail=${statusPresentation.detail} tone=${statusPresentation.tone} queuedCount=${queuedCount} /><div class="main-grid"><div class="chat-column"><${Timeline} messages=${messages} /><${ComposeBox} disabled=${isBusy} onSend=${handleSend} runtimeConfig=${runtimeConfig} sessionState=${currentSession?.state || {}} queuedCount=${queuedCount} /></div><div class="side-column"><${TurnQueue} turns=${turns} onCancel=${handleCancel} /><${PaneShell} filePath=${panePath} fileContent=${paneContent} /></div></div></section></main></div>`;
+    async function handleCreateSession(title: string) {
+        const s = await createSession(title);
+        const updated = await listSessions();
+        setSessions(updated);
+        return s;
+    }
+
+    // ── Timeline loading ────────────────────────────────────────────────────
+
+    async function loadTimeline(sessionId = currentSessionId, beforeId: number | null = null) {
+        if (!sessionId) return;
+        const chatJid = sessionToChatJid(sessionId);
+        const data = await getTimeline(50, beforeId, chatJid);
+        const incoming = data.posts || [];
+        if (beforeId) {
+            setPosts((prev: any[]) => dedupePosts([...incoming, ...prev]));
+        } else {
+            setPosts(dedupePosts(incoming));
+        }
+        setHasMorePosts(incoming.length >= 50);
+    }
+
+    // ── Polling ─────────────────────────────────────────────────────────────
+
+    useEffect(() => {
+        if (!currentSessionId) return;
+        const id = setInterval(async () => {
+            await loadTimeline(currentSessionId);
+            const chatJid = sessionToChatJid(currentSessionId);
+            const status = await getAgentStatus(DEFAULT_AGENT_ID, chatJid).catch(() => null);
+            if (status) {
+                setAgentStatus(status);
+                const active = status.status === 'running' || status.status === 'cancelling';
+                setIsAgentTurnActive(active);
+                isAgentRunningRef.current = active;
+            } else {
+                setAgentStatus(null);
+                setIsAgentTurnActive(false);
+                isAgentRunningRef.current = false;
+            }
+        }, POLL_INTERVAL_MS);
+        loadTimeline(currentSessionId);
+        return () => clearInterval(id);
+    }, [currentSessionId]);
+
+    // ── Send message ────────────────────────────────────────────────────────
+
+    async function handleSend(content: string, options: any = {}) {
+        if (!currentSessionId) return;
+        const chatJid = sessionToChatJid(currentSessionId);
+        await sendAgentMessage(DEFAULT_AGENT_ID, content, null, [], options.mode || 'auto', chatJid);
+    }
+
+    async function handleAbort() {
+        if (!currentSessionId) return;
+        const chatJid = sessionToChatJid(currentSessionId);
+        await sendAgentMessage(DEFAULT_AGENT_ID, '/abort', null, [], 'steer', chatJid).catch(() => null);
+    }
+
+    // ── Pane helpers ────────────────────────────────────────────────────────
+
+    function openEditorTab(path: string) {
+        const existing = tabs.find((t: any) => t.path === path);
+        if (existing) { setActiveTabId(existing.id); return; }
+        const id = `tab-${Date.now()}`;
+        setTabs((prev: any[]) => [...prev, { id, path, label: path.split('/').pop() || path }]);
+        setActiveTabId(id);
+    }
+
+    function closeTab(id: string) {
+        setTabs((prev: any[]) => {
+            const next = prev.filter((t: any) => t.id !== id);
+            if (activeTabId === id) setActiveTabId(next[next.length - 1]?.id || null);
+            return next;
+        });
+    }
+
+    // ── Render ──────────────────────────────────────────────────────────────
+
+    const hasSession = Boolean(currentSessionId);
+
+    return html`
+        <div class="app-shell ${workspaceOpen ? '' : 'workspace-collapsed'}">
+            <${WorkspaceExplorer}
+                currentChatJid=${currentChatJid}
+                onOpenFile=${openEditorTab}
+            />
+            <div class="workspace-splitter"></div>
+            <div class="container">
+                <${SessionSidebar}
+                    sessions=${sessions}
+                    currentSessionId=${currentSessionId}
+                    onSelect=${handleSelectSession}
+                    onCreate=${handleCreateSession}
+                />
+                <div class="chat-window">
+                    <div class="chat-window-header">
+                        <div class="chat-window-header-main">
+                            <div class="chat-window-header-title">
+                                ${runtimeConfig.assistant_name || 'Gi'}
+                            </div>
+                            <div class="chat-window-header-subtitle">
+                                ${currentSessionId
+                                    ? sessions.find((s: any) => s.id === currentSessionId)?.title || currentSessionId
+                                    : 'No session — create or select one'}
+                            </div>
+                        </div>
+                        <div class="chat-window-header-actions">
+                            <button
+                                class="chat-window-header-button"
+                                title="Toggle workspace"
+                                onClick=${() => setWorkspaceOpen((v: boolean) => !v)}
+                            >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                    <polyline points="9 22 9 12 15 12 15 22"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    ${tabs.length > 0 ? html`
+                        <${TabStrip}
+                            tabs=${tabs}
+                            activeId=${activeTabId}
+                            onActivate=${(id: string) => setActiveTabId(id)}
+                            onClose=${closeTab}
+                            onCloseOthers=${(id: string) => setTabs((prev: any[]) => prev.filter((t: any) => t.id === id))}
+                            onCloseAll=${() => setTabs([])}
+                            onTogglePin=${() => {}}
+                        />
+                    ` : null}
+                    <${AgentStatus}
+                        status=${agentStatus}
+                        draft=${agentDraft}
+                        plan=${agentPlan}
+                        thought=${agentThought}
+                        pendingRequest=${pendingRequest}
+                        turnId=${currentTurnId}
+                        steerQueued=${Boolean(steerQueuedTurnId)}
+                    />
+                    <${Timeline}
+                        posts=${posts}
+                        hasMore=${hasMorePosts}
+                        onLoadMore=${async ({ preserveScroll }: any) => {
+                            const oldest = posts[0];
+                            if (oldest) await loadTimeline(currentSessionId, oldest.id);
+                        }}
+                        onPostClick=${() => {}}
+                        onHashtagClick=${() => {}}
+                        onMessageRef=${() => {}}
+                        onScrollToMessage=${() => {}}
+                        onFileRef=${openEditorTab}
+                        onOpenWidget=${() => {}}
+                        onOpenAttachmentPreview=${() => {}}
+                        emptyMessage=${hasSession ? 'No messages yet.' : 'Create or select a session to start.'}
+                        agents=${agents}
+                        user=${userProfile}
+                        onDeletePost=${() => {}}
+                        reverse=${true}
+                    />
+                    <${ComposeBox}
+                        currentChatJid=${currentChatJid}
+                        isAgentActive=${isAgentTurnActive}
+                        onSend=${(content: string, opts: any) => handleSend(content, opts)}
+                        onAbort=${handleAbort}
+                        agents=${agents}
+                        currentSessionAgent=${agents[DEFAULT_AGENT_ID] ? {
+                            ...agents[DEFAULT_AGENT_ID],
+                            chat_jid: currentChatJid,
+                        } : null}
+                        agentStatus=${agentStatus}
+                        agentDraft=${agentDraft}
+                        contextUsage=${null}
+                        disabled=${!hasSession}
+                    />
+                </div>
+            </div>
+        </div>
+    `;
 }
 
-render(html`<${App} />`, document.getElementById('app'));
+render(html`<${GiApp} />`, document.getElementById('app'));

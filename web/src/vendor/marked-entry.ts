@@ -15,7 +15,7 @@ import {
   setOptions,
   use,
   walkTokens,
-} from 'marked';
+} from "marked";
 
 const markedApi = Object.assign(marked, {
   Marked,

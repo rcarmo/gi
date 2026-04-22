@@ -33,9 +33,14 @@ start: build
 		echo "Gi already running with PID $$(cat $(PID))"; \
 		exit 0; \
 	fi
-	nohup $(abspath $(BIN)) $(if $(LISTEN),-listen $(LISTEN),-bind $(BIND) -port $(PORT)) -db $(abspath $(DB)) -workspace $(WORKSPACE) -log-file $(abspath $(LOG)) -pid-file $(abspath $(PID)) >/dev/null 2>&1 &
+	$(abspath $(BIN)) $(if $(LISTEN),-listen $(LISTEN),-bind $(BIND) -port $(PORT)) \
+		-db $(abspath $(DB)) \
+		-workspace $(WORKSPACE) \
+		-log-file $(abspath $(LOG)) \
+		-pid-file $(abspath $(PID)) \
+		>/dev/null 2>&1 </dev/null &
 	@sleep 2
-	@$(MAKE) status
+	@$(MAKE) --no-print-directory status BIND=$(BIND) PORT=$(PORT)
 
 stop:
 	@if [ -f $(PID) ] && kill -0 $$(cat $(PID)) 2>/dev/null; then \
