@@ -25,6 +25,9 @@ test:
 vet:
 	go vet ./...
 
+bun-checks:
+	bun run check:hook-tdz
+
 run: build
 	$(BIN) $(if $(LISTEN),-listen $(LISTEN),-bind $(BIND) -port $(PORT)) -model $(MODEL) -db $(DB) -workspace $(WORKSPACE)
 

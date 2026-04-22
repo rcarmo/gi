@@ -57,7 +57,6 @@ run([
   `${webSrc}/app.ts`,
   '--target=browser',
   '--format=esm',
-  '--minify',
   '--sourcemap',
   '--external', '#editor-vendor/codemirror',
 ]);

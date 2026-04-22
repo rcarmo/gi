@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:web": "bun run build.js"
+    "build:web": "bun run build.js",
+    "check:hook-tdz": "bun run scripts/check-hook-tdz.ts"
   },
   "dependencies": {
     "@assemblyscript/loader": "^0.28.14",
