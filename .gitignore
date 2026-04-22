@@ -22,6 +22,9 @@ coverage.out
 *.db-shm
 *.db-wal
 node_modules/
+.gi-run/
+gi-live*.log
+gi-live*.pid
 web/src/*.js
 web/src/*.js.map
 web/src/vendor/*-entry.js

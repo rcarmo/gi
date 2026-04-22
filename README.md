@@ -22,3 +22,30 @@ Early architecture/spec drafting.
 - `web/` — plain-JS web assets/build inputs
 
 See `docs/README.md`.
+
+## Development targets
+
+Detached lifecycle management lives in the `Makefile`.
+
+- `make start` — build and start Gi detached on port `8090`
+- `make stop` — stop the detached process
+- `make restart` — restart it
+- `make status` — show status/listener
+- `make logs` — tail the log file
+- `make run` — foreground run
+
+Override defaults as needed:
+
+```sh
+make start PORT=3000 BIND=0.0.0.0 WORKSPACE=/workspace
+```
+
+### Relevant CLI flags
+
+- `-listen :8090` — explicit full listen address, overrides bind/port
+- `-bind 0.0.0.0` — bind host/interface
+- `-port 8090` — listen port
+- `-db .gi-run/gi.db`
+- `-workspace /workspace`
+- `-log-file .gi-run/gi.log`
+- `-pid-file .gi-run/gi.pid`
