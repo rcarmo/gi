@@ -1,7 +1,8 @@
 # Gi implementation checklist
 
-Status: Draft
+Status: Active
 Date: 2026-04-22
+Last updated: 2026-04-22
 
 This checklist is organized by **subsystem** and grouped by **phase**.
 
@@ -15,48 +16,89 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Persist turn start/progress/end events
 - [x] Serialize turns per session
 - [x] Allow concurrent turns across sessions
-- [~] Implement queue/reorder/cancel state model
+- [x] Implement queue/cancel state model
 - [x] Implement cancellation state transitions (`running` → `cancelling` → `cancelled`)
-- [ ] Add centralized runtime budget config (tool calls per turn, retries, queue depth, other turn/session limits)
+- [x] Wire go-ai inference into turn engine
+- [x] Load system prompt from workspace AGENTS.md
+- [x] Stream inference tokens via go-ai `Stream()`
+- [x] Broadcast Piclaw-compatible SSE events during inference
+- [ ] Implement queue reorder
+- [ ] Add centralized runtime budget config (tool calls per turn, retries, queue depth)
 
 ### Database/state model
-- [x] Create SQLite schema baseline
+- [x] Create SQLite schema baseline with JSON fields and expression indexes
 - [x] Add sessions table
-- [ ] Add forks/ancestry table(s)
 - [x] Add messages/content block tables
 - [x] Add turn events/checkpoints tables
+- [x] Add turns table with status tracking
+- [x] Enable WAL and concurrency-safe pragmas
+- [x] Auto-create default session on startup
+- [ ] Add forks/ancestry table(s)
 - [ ] Add schedules/background tasks tables
 - [ ] Add attachments metadata tables
 - [ ] Add settings/assets mirror tables
-- [x] Enable WAL and concurrency-safe pragmas
 
-### Web UI shell
-- [x] Boot plain-JS web app from embedded assets
-- [x] Vendor a minimal Preact web stack for the initial shell
-- [x] Implement session list/open/create
-- [x] Implement basic chat timeline rendering
-- [x] Implement compose box with Piclaw-style progress/status area
-- [~] Implement streaming output rendering
-- [x] Implement one prompt → one turn flow
-- [x] Implement clean control return after turn
+### Inference
+- [x] Integrate go-ai as model/provider layer
+- [x] Register builtin models (openai, openairesponses, anthropic)
+- [x] Load auth tokens from `~/.pi/agent/auth.json`
+- [x] GitHub Copilot token exchange (refresh → session token + enterprise endpoint detection)
+- [x] Apply Copilot headers for IDE auth
+- [x] Build conversation history from session messages
+- [x] Streaming inference via `goai.Stream()`
+- [x] Broadcast text deltas during streaming
+- [ ] Token/cost tracking per turn
+- [ ] Provider failover / retry with exponential backoff
+- [ ] Context window overflow detection and compaction
 
-### Tools
-- [x] Implement `shell` minimal path with streaming output and cancellation
-- [ ] Implement `read`
-- [ ] Implement `write`
-- [ ] Implement `edit` baseline
-- [ ] Implement `messages` read/search baseline
-- [ ] Implement `exit`
-- [ ] Implement `script` baseline with Joker execution
+### Web UI
+- [x] Piclaw TypeScript source ported verbatim (199 files)
+- [x] Gi-specific `api.ts` adapter (same function signatures, maps to Gi REST endpoints)
+- [x] Gi-specific `app.ts` entry point (uses Piclaw components verbatim)
+- [x] Piclaw CSS stack served from `/css/styles.css`
+- [x] Piclaw fonts vendored and embedded
+- [x] Vendor bundles: preact-htm, marked, katex, beautiful-mermaid, codemirror
+- [x] Load vendor scripts as ESM modules (scoped var declarations)
+- [x] IIFE-wrapped app bundle to prevent global shadowing
+- [x] Cache busters on all bundle URLs per server restart
+- [x] `window.onerror` error boundary with backend log reporting
+- [x] Import map for `#editor-vendor/codemirror`
+- [x] Piclaw theme/tint runtime (presets, cycling, localStorage, system dark mode)
+- [x] Timeline with Piclaw Post component (markdown rendering, avatars, file pills)
+- [x] ComposeBox with Piclaw component (history, keyboard, slash commands, model picker)
+- [x] AgentStatus with Piclaw component (draft/thought/plan panels)
+- [x] WorkspaceExplorer with Piclaw component
+- [x] TabStrip with Piclaw component
+- [x] SSE streaming endpoint (`/sse/stream`) with Piclaw event model
+- [x] Real SSEClient implementation (reconnection, heartbeat, event bindings)
+- [x] Frontend log bridge (`/api/frontend/log`)
+- [x] Runtime config API (`/api/runtime/config`)
+- [x] Workspace tree/file APIs (`/api/workspace/tree`, `/api/workspace/file`)
+- [ ] SSE-driven real-time timeline updates (wired but not yet consuming events in app.ts)
+- [ ] Streaming draft display in compose area
 
-### Integration slice
-- [x] Start web service
-- [x] Open/create session
-- [x] Send one prompt
-- [x] Run one shell tool call
-- [~] Stream progress
-- [x] Persist all messages/events in SQLite
-- [x] Return control cleanly
+### Pi/Piclaw config compatibility
+- [x] Load `.piclaw/config.json` (assistant name/avatar, user name/avatar/background)
+- [x] Load `.pi/settings.json` (provider, model, thinking level, enabled models)
+- [x] Load `AGENTS.md` as system prompt
+- [x] Load auth from `~/.pi/agent/auth.json`
+- [x] Preserve Pi model/provider naming semantics
+
+### Testing
+- [x] Go unit tests (store, turn, web, config)
+- [x] Playwright base UX tests (13 tests)
+- [x] Isolated test instance with dedicated DB and workspace (`make test-ux`)
+- [x] Hook TDZ checker (`scripts/check-hook-tdz.ts`)
+- [x] `go vet` / `go test ./...`
+- [ ] CI pipeline (`.github/workflows/`)
+
+### Developer tooling
+- [x] Makefile with detached lifecycle management
+- [x] `-bind`, `-port`, `-model`, `-log-file`, `-pid-file` CLI flags
+- [x] `make start/stop/restart/status/logs/run/clean`
+- [x] `make test-ux` (isolated Playwright test instance)
+- [x] `make build-web` / `make bun-checks`
+- [x] Bun build pipeline for vendor + app bundles
 
 ---
 
@@ -100,11 +142,12 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 ## Phase 3 — UI parity and operational surfaces
 
 ### Web UI
-- [ ] Workspace browser
-- [ ] Editor panes openable by agent
+- [x] Workspace browser (basic tree + file open)
+- [x] Tab strip for open files
+- [ ] Editor panes with CodeMirror (read-only pane exists, needs full editing)
 - [ ] Diff view
-- [ ] Split panes/tabs
-- [ ] File pills in timeline
+- [ ] Split panes
+- [x] File pills in timeline
 - [ ] Interactive widgets
 - [ ] Inline charting
 - [ ] Search UI
@@ -164,22 +207,22 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 ## Phase 5 — compatibility and hardening
 
 ### Pi/Piclaw compatibility
-- [ ] Preserve settings semantics
-- [ ] Preserve model/provider naming
+- [x] Preserve settings semantics
+- [x] Preserve model/provider naming
 - [ ] Preserve prompt template semantics
-- [ ] Preserve structured message/content model
+- [x] Preserve structured message/content model (via Piclaw components)
 - [ ] Preserve intents/queue/steer conventions
 - [ ] Preserve keychain env injection semantics
 
 ### Testing
-- [ ] Unit tests
+- [x] Unit tests (Go)
 - [ ] Fake-server provider tests
-- [ ] DB integration tests
+- [x] DB integration tests
 - [ ] Golden tests for rendering/message projection
-- [ ] E2E web smoke tests
+- [x] E2E web smoke tests (Playwright)
 - [ ] E2E CLI smoke tests
 - [ ] E2E TUI smoke tests
-- [ ] `go vet`
+- [x] `go vet`
 - [ ] Fuzzing
 
 ---
@@ -193,4 +236,4 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [ ] Investigate image processing library options for thumbnails/previews
 - [ ] Investigate simple packaged-skill download/extract flow from GitHub URLs
 - [x] Investigate embedded web asset pipeline with plain JS + Bun bundling only at build time
-- [ ] Import additional Piclaw/Vibes UI components for panes, timeline richness, and compose parity
+- [x] Port Piclaw TypeScript web source verbatim

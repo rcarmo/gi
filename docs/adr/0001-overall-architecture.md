@@ -1,49 +1,62 @@
 # ADR 0001: Overall Architecture for Gi
 
-- Status: Draft
+- Status: **Active**
 - Date: 2026-04-22
+- Last updated: 2026-04-22
 
 ## Context
 
 Gi is a coding agent built on `go-ai`, incorporating lessons learned from Pi, Piclaw, and Vibes. The primary pain points to address are upstream churn, unreliable turn/session handling, brittle compaction/retry behavior, and maintenance cost.
 
-The user requires:
-- unified web/TUI/CLI product
-- web UI as canonical surface
-- Piclaw compatibility for settings, message model, keychain semantics, prompt templates, and core UX conventions
-- a simpler, more reliable runtime architecture centered on an append-only event log
-
 ## Decision
 
-Gi will use:
+Gi uses:
 - **Go** for the core runtime
-- **go-ai** as the model/provider layer
-- **plain JS** for the web UI
-- **Joker** as the primary scripting/hook language in v1
+- **go-ai** as the model/provider layer (with streaming inference)
+- **Piclaw TypeScript source** for the web UI (verbatim, with Gi-specific API/entry adapters only)
 - **SQLite (WAL)** as the shared state store across web, TUI, and CLI processes
+- **Bun** for build-time web asset bundling only (not runtime)
 
-The product architecture is:
-- **single binary** with separate modes/process roles
-  - long-running **web mode** under supervisor/systemd
-  - **CLI** as an operational interface
-  - **TUI** as an interactive terminal interface
+### Runtime architecture
+- **single binary** with `-bind`, `-port`, `-model`, `-workspace` flags
+- long-running **web mode** under supervisor/systemd
+- **CLI** and **TUI** as separate processes sharing the SQLite database
 - **workspace-centric** operation with a single workspace root
-- **shared structured message model** compatible with Piclaw
-- **event-log-based turn execution** with checkpoints and resumability
+
+### Web UI architecture
+- Piclaw's 199 TypeScript source files copied verbatim
+- Only `api.ts` (API adapter) and `app.ts` (entry point) are Gi-specific
+- Vendor libraries (preact, marked, katex, mermaid, codemirror) built at compile time
+- All assets embedded in the Go binary via `embed.FS`
+- SSE streaming for real-time events (Piclaw-compatible event model)
+- Cache busters on all bundle URLs per server restart
+
+### Inference architecture
+- go-ai `Stream()` for token-by-token streaming
+- Auth loaded from `~/.pi/agent/auth.json`
+- GitHub Copilot: automatic token exchange with enterprise endpoint detection
+- System prompt loaded from workspace `AGENTS.md`
+- Conversation history built from session messages
+
+### Turn engine architecture
+- Append-only event log with checkpoints at tool-call and provider boundaries
+- Serialized turns per session, concurrent across sessions
+- Queue/cancel state model
+- SSE broadcasting of Piclaw-compatible events during inference
 
 ## Consequences
 
 ### Positive
-- simpler operational model
-- low dependency footprint
+- near-zero UI maintenance: Piclaw updates can be dropped in with no diff on Gi's side
+- low dependency footprint (Go + SQLite + embedded assets)
 - strong portability via binary + database
-- durable observability and resumability
-- easier UI parity because web is canonical and TUI/CLI map onto shared concepts
+- durable observability and resumability via event log
+- real streaming UX from day one via SSE
 
 ### Negative
-- SQLite schema and event model must be designed carefully up front
-- Piclaw compatibility increases initial scope
-- some assets/state mirrored in DB and filesystem adds complexity
+- Piclaw UI code is large (~199 files) and not all features are wired yet
+- some Piclaw components expect APIs that Gi stubs gracefully but doesn't implement
+- Bun required at build time for web asset compilation
 
 ## Notes
 
@@ -52,4 +65,5 @@ See:
 - `0003-state-and-storage.md`
 - `0004-ui-surface-model.md`
 - `0005-tools-skills-and-scripting.md`
+- `../checklists/implementation.md`
 - `../reference/chat-transcript-2026-04-22-gi-spec.md`
