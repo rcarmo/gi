@@ -3,9 +3,11 @@ package web
 import (
 	"embed"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/store"
@@ -16,14 +18,21 @@ import (
 var staticFS embed.FS
 
 type Server struct {
-	store *store.Store
-	turns *turn.Engine
-	cfg   config.RuntimeConfig
-	mux   *http.ServeMux
+	store   *store.Store
+	turns   *turn.Engine
+	cfg     config.RuntimeConfig
+	mux     *http.ServeMux
+	version string
 }
 
 func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
-	srv := &Server{store: s, turns: t, cfg: cfg, mux: http.NewServeMux()}
+	srv := &Server{
+		store:   s,
+		turns:   t,
+		cfg:     cfg,
+		mux:     http.NewServeMux(),
+		version: fmt.Sprintf("%x", time.Now().UnixNano()),
+	}
 	srv.routes()
 	return srv
 }
@@ -35,7 +44,14 @@ func (s *Server) routes() {
 	if err != nil {
 		panic(err)
 	}
-	s.mux.Handle("/", http.FileServer(http.FS(staticRoot)))
+	fileServer := http.FileServer(http.FS(staticRoot))
+	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			s.serveIndex(w, r)
+			return
+		}
+		fileServer.ServeHTTP(w, r)
+	})
 	s.mux.HandleFunc("/api/runtime/config", s.handleRuntimeConfig)
 	s.mux.HandleFunc("/api/frontend/log", s.handleFrontendLog)
 	s.mux.HandleFunc("/api/workspace/tree", s.handleWorkspaceTree)
@@ -194,7 +210,33 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 }
 
 func (s *Server) handleRuntimeConfig(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, s.cfg)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"workspace_root":         s.cfg.WorkspaceRoot,
+		"assistant_name":         s.cfg.AssistantName,
+		"assistant_avatar":       s.cfg.AssistantAvatar,
+		"user_name":              s.cfg.UserName,
+		"user_avatar":            s.cfg.UserAvatar,
+		"user_avatar_background": s.cfg.UserAvatarBackground,
+		"default_provider":       s.cfg.DefaultProvider,
+		"default_model":          s.cfg.DefaultModel,
+		"default_thinking_level": s.cfg.DefaultThinkingLevel,
+		"enabled_models":         s.cfg.EnabledModels,
+		"version":                s.version,
+	})
+}
+
+func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
+	data, err := staticFS.ReadFile("static/index.html")
+	if err != nil {
+		http.Error(w, "index.html not found", http.StatusInternalServerError)
+		return
+	}
+	html := strings.ReplaceAll(string(data), ".js\"", ".js?v="+s.version+"\"")
+	html = strings.ReplaceAll(html, ".css\"", ".css?v="+s.version+"\"")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(html))
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
