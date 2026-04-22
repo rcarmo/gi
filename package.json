@@ -1,0 +1,12 @@
+{
+  "name": "gi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:web": "bun run build.js"
+  },
+  "dependencies": {
+    "htm": "3.1.1",
+    "preact": "10.29.1"
+  }
+}

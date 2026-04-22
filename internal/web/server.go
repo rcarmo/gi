@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"io/fs"
 	"net/http"
 	"strings"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/rcarmo/gi/internal/turn"
 )
 
-//go:embed static/*
+//go:embed all:static
 var staticFS embed.FS
 
 type Server struct {
@@ -29,7 +30,11 @@ func New(s *store.Store, t *turn.Engine) *Server {
 func (s *Server) Handler() http.Handler { return s.mux }
 
 func (s *Server) routes() {
-	s.mux.Handle("/", http.FileServer(http.FS(staticFS)))
+	staticRoot, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		panic(err)
+	}
+	s.mux.Handle("/", http.FileServer(http.FS(staticRoot)))
 	s.mux.HandleFunc("/api/sessions", s.handleSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleSessionSubroutes)
 }

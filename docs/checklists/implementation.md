@@ -31,6 +31,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ### Web UI shell
 - [x] Boot plain-JS web app from embedded assets
+- [x] Vendor a minimal Preact web stack for the initial shell
 - [x] Implement session list/open/create
 - [x] Implement basic chat timeline rendering
 - [x] Implement compose box with Piclaw-style progress/status area
@@ -190,4 +191,5 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [ ] Investigate `go-tui` capabilities vs required parity surface
 - [ ] Investigate image processing library options for thumbnails/previews
 - [ ] Investigate simple packaged-skill download/extract flow from GitHub URLs
-- [ ] Investigate embedded web asset pipeline with plain JS + Bun bundling only at build time
+- [x] Investigate embedded web asset pipeline with plain JS + Bun bundling only at build time
+- [ ] Import additional Piclaw/Vibes UI components for panes, timeline richness, and compose parity

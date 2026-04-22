@@ -1,6 +1,10 @@
 # Binaries
 bin/
 dist/
+!internal/web/static/dist/
+!internal/web/static/dist/**
+!internal/web/static/js/
+!internal/web/static/js/**
 *.exe
 *.dll
 *.so
@@ -17,6 +21,7 @@ coverage.out
 *.db
 *.db-shm
 *.db-wal
+node_modules/
 
 # Editors
 .vscode/

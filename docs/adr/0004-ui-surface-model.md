@@ -8,7 +8,7 @@
 Web UI is canonical.
 
 Gi must provide:
-- **web UI** with functionality equivalent to Piclaw, implemented in plain JS
+- **web UI** with functionality equivalent to Piclaw, implemented as plain JS with a small vendored **Preact** layer
 - **TUI** with shared interaction concepts and minimalistic rendering
 - **CLI** for batch, maintenance, and operations
 
@@ -22,6 +22,11 @@ All surfaces should understand shared concepts for:
 - slash commands
 - message search
 - schedules
+
+The web asset pipeline should follow the Vibes/Piclaw pattern:
+- Bun allowed only at build time
+- embedded static assets in the Go binary
+- vendored browser dependencies checked into the repo/build outputs
 
 ## Web-specific requirements
 
