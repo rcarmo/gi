@@ -25,10 +25,10 @@ node_modules/
 .gi-run/
 gi-live*.log
 gi-live*.pid
-web/src/*.js
-web/src/*.js.map
-web/src/vendor/*-entry.js
-web/src/vendor/*-entry.js.map
+# Source-tree build intermediates — web/src must never contain compiled JS
+# (only build.js at the repo root and internal/web/static/** are intentional)
+web/src/**/*.js
+web/src/**/*.js.map
 
 # Editors
 .vscode/
