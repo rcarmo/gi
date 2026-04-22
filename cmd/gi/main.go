@@ -21,6 +21,7 @@ func main() {
 	port := flag.Int("port", 8081, "HTTP port")
 	dbPath := flag.String("db", "./gi.db", "SQLite database path")
 	workspace := flag.String("workspace", "/workspace", "Workspace root")
+	model := flag.String("model", "", "Override default model (e.g. gemma4:latest)")
 	logFile := flag.String("log-file", "", "Optional log file path")
 	pidFile := flag.String("pid-file", "", "Optional pid file path")
 	flag.Parse()
@@ -58,6 +59,9 @@ func main() {
 	defer s.Close()
 
 	runtimeCfg := config.Load(*workspace)
+	if *model != "" {
+		runtimeCfg.DefaultModel = *model
+	}
 	engine := turn.New(s)
 	server := giweb.New(s, engine, runtimeCfg)
 

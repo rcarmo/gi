@@ -1,5 +1,6 @@
 PORT ?= 8090
 BIND ?= 0.0.0.0
+MODEL ?= gemma4:latest
 WORKSPACE ?= /workspace
 RUN_DIR ?= .gi-run
 BIN_DIR ?= bin
@@ -25,7 +26,7 @@ vet:
 	go vet ./...
 
 run: build
-	$(BIN) $(if $(LISTEN),-listen $(LISTEN),-bind $(BIND) -port $(PORT)) -db $(DB) -workspace $(WORKSPACE)
+	$(BIN) $(if $(LISTEN),-listen $(LISTEN),-bind $(BIND) -port $(PORT)) -model $(MODEL) -db $(DB) -workspace $(WORKSPACE)
 
 start: build
 	mkdir -p $(RUN_DIR)
@@ -34,6 +35,7 @@ start: build
 		exit 0; \
 	fi
 	$(abspath $(BIN)) $(if $(LISTEN),-listen $(LISTEN),-bind $(BIND) -port $(PORT)) \
+		-model $(MODEL) \
 		-db $(abspath $(DB)) \
 		-workspace $(WORKSPACE) \
 		-log-file $(abspath $(LOG)) \
