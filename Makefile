@@ -114,7 +114,7 @@ test-instance-stop:
 	@rm -rf $(TEST_DIR)
 
 test-ux: test-instance-start
-	GI_TEST_URL=http://127.0.0.1:$(TEST_PORT) bunx playwright test tests/base-ux.spec.ts --reporter=line; \
+	GI_TEST_URL=http://127.0.0.1:$(TEST_PORT) bunx playwright test tests/functional/ --reporter=line; \
 	rc=$$?; \
 	$(MAKE) --no-print-directory test-instance-stop; \
 	exit $$rc
