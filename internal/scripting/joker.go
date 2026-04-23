@@ -7,22 +7,22 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"syscall"
 )
 
-// JokerRunner executes Clojure scripts via the Joker CLI.
+// JokerRunner executes Clojure scripts via the Joker CLI binary.
 //
-// Scripts receive the bridge state as a JSON blob on stdin and can call
-// bridge functions by writing JSON-RPC-like requests to a named pipe
-// (future) or by using the injected helper functions.
+// We use subprocess execution rather than compiling Joker/glojure in-process
+// because:
+//   - Joker's core package requires code generation and doesn't compile as a library
+//   - glojure's NewEnvironment panics during init when called from an HTTP handler
+//     in a long-running server (global state corruption)
 //
-// For v1, we use a simpler model: the bridge state is injected as a
-// Clojure map bound to *gi-bridge*, and scripts return their result
-// as the last expression.
+// The Joker CLI binary must be installed (brew install candid82/brew/joker).
+// Bridge state is injected as *gi-bridge* via read-string of an EDN literal.
 type JokerRunner struct {
-	// JokerPath is the path to the joker binary. Auto-detected if empty.
+	// JokerPath overrides PATH lookup. Auto-detected if empty.
 	JokerPath string
 }
 
@@ -38,7 +38,7 @@ func (r *JokerRunner) resolveJoker() (string, error) {
 	}
 	path, err := exec.LookPath("joker")
 	if err != nil {
-		return "", fmt.Errorf("joker not found in PATH: %w", err)
+		return "", fmt.Errorf("joker not found in PATH (install: brew install candid82/brew/joker): %w", err)
 	}
 	return path, nil
 }
@@ -49,13 +49,8 @@ func (r *JokerRunner) Execute(ctx context.Context, script string, bridge *Bridge
 		return "", err
 	}
 
-	// Build the preamble that injects bridge state
-	preamble, err := buildJokerPreamble(ctx, bridge)
-	if err != nil {
-		return "", fmt.Errorf("build preamble: %w", err)
-	}
-
-	fullScript := preamble + "\n(println (do \n" + script + "\n))"
+	preamble := buildPreamble(ctx, bridge)
+	fullScript := preamble + "\n(println (do\n" + script + "\n))"
 
 	cmd := exec.CommandContext(ctx, joker, "-")
 	cmd.Stdin = strings.NewReader(fullScript)
@@ -83,54 +78,50 @@ func (r *JokerRunner) ExecuteFile(ctx context.Context, path string, bridge *Brid
 	return r.Execute(ctx, string(content), bridge)
 }
 
-// buildJokerPreamble creates Clojure code that sets up the bridge state
-// as a var accessible to the script.
-func buildJokerPreamble(ctx context.Context, bridge *Bridge) (string, error) {
+func buildPreamble(ctx context.Context, bridge *Bridge) string {
 	state := map[string]any{
 		"session-id": bridge.SessionID,
 	}
-
 	if bridge.Funcs.GetConfig != nil {
-		cfg, err := bridge.Funcs.GetConfig(ctx)
-		if err == nil {
+		cfg, _ := bridge.Funcs.GetConfig(ctx)
+		if cfg != nil {
 			state["config"] = cfg
 		}
 	}
-
 	if bridge.Funcs.GetSessionState != nil {
-		ss, err := bridge.Funcs.GetSessionState(ctx)
-		if err == nil {
+		ss, _ := bridge.Funcs.GetSessionState(ctx)
+		if ss != nil {
 			state["session-state"] = ss
 		}
 	}
-
-	stateJSON, err := json.Marshal(state)
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf(`(require '[joker.json :as json] '[joker.walk :as walk])
-(def ^:private *gi-bridge* (walk/keywordize-keys (json/read-string %q)))
-`, string(stateJSON)), nil
+	return fmt.Sprintf("(require '[joker.json :as json] '[joker.walk :as walk])\n(def ^:private *gi-bridge* (walk/keywordize-keys (json/read-string %q)))", mustJSON(state))
 }
 
-// FindScripts discovers .joke and .clj scripts in a directory.
+func mustJSON(v any) string {
+	b, _ := json.Marshal(v)
+	return string(b)
+}
+
+// FindScripts discovers script files in a directory.
 func FindScripts(dir string, extensions []string) ([]string, error) {
 	if extensions == nil {
 		extensions = []string{".joke", ".clj"}
 	}
 	var scripts []string
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() {
-			return err
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
 		}
 		for _, ext := range extensions {
-			if strings.HasSuffix(path, ext) {
-				scripts = append(scripts, path)
+			if strings.HasSuffix(e.Name(), ext) {
+				scripts = append(scripts, e.Name())
 				break
 			}
 		}
-		return nil
-	})
+	}
 	return scripts, err
 }
