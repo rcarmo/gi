@@ -18,20 +18,17 @@ import (
 // to gi's bridge state. It can run inline scripts or script files from
 // the workspace.
 type ScriptTool struct {
-	store  *store.Store
-	cfg    config.RuntimeConfig
-	runner scripting.Runner
+	store *store.Store
+	cfg   config.RuntimeConfig
+	joker scripting.Runner
+	js    scripting.Runner
 }
 
 // ScriptInput is what the agent sends to invoke the script tool.
 type ScriptInput struct {
-	// Script is inline script code to execute.
-	Script string `json:"script,omitempty"`
-
-	// Path is a workspace-relative path to a script file.
-	Path string `json:"path,omitempty"`
-
-	// SessionID is the active session (injected by the turn engine).
+	Script    string `json:"script,omitempty"`
+	Path      string `json:"path,omitempty"`
+	Engine    string `json:"engine,omitempty"` // "joker" or "js" (default: auto-detect)
 	SessionID string `json:"session_id,omitempty"`
 }
 
@@ -43,9 +40,10 @@ type ScriptOutput struct {
 
 func NewScriptTool(s *store.Store, cfg config.RuntimeConfig) *ScriptTool {
 	return &ScriptTool{
-		store:  s,
-		cfg:    cfg,
-		runner: scripting.NewJokerRunner(),
+		store: s,
+		cfg:   cfg,
+		joker: scripting.NewJokerRunner(),
+		js:    scripting.NewGojaRunner(),
 	}
 }
 
@@ -53,17 +51,22 @@ func NewScriptTool(s *store.Store, cfg config.RuntimeConfig) *ScriptTool {
 func (t *ScriptTool) Definition() map[string]any {
 	return map[string]any{
 		"name":        "script",
-		"description": "Execute a Joker/Clojure script with access to gi's session state, config, and workspace files. Scripts receive *gi-bridge* with session-id, config, and session-state.",
+		"description": "Execute a script with access to gi's session state, config, and workspace files. Supports Joker/Clojure (.joke, .clj) and JavaScript (.js). The gi bridge object provides sessionId, config, sessionState, listMessages(), readFile(), writeFile(), listDir(), and log().",
 		"parameters": map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"script": map[string]any{
 					"type":        "string",
-					"description": "Inline Joker/Clojure script to execute",
+					"description": "Inline script to execute",
 				},
 				"path": map[string]any{
 					"type":        "string",
-					"description": "Workspace-relative path to a .joke or .clj script file",
+					"description": "Workspace-relative path to a script file",
+				},
+				"engine": map[string]any{
+					"type":        "string",
+					"description": "Script engine: 'js' (JavaScript/goja, compiled-in) or 'joker' (Clojure, requires joker binary). Default: js for .js files, joker for .joke/.clj, js for inline.",
+					"enum":        []string{"js", "joker"},
 				},
 			},
 		},
@@ -73,33 +76,51 @@ func (t *ScriptTool) Definition() map[string]any {
 // Execute runs the script and returns the output.
 func (t *ScriptTool) Execute(ctx context.Context, input ScriptInput) ScriptOutput {
 	bridge := t.buildBridge(input.SessionID)
+	runner := t.resolveRunner(input.Engine, input.Path)
 
 	var result string
 	var err error
 
 	if input.Path != "" {
 		fullPath := filepath.Join(t.cfg.WorkspaceRoot, input.Path)
-		// Safety: ensure path doesn't escape workspace
 		clean := filepath.Clean(fullPath)
 		if !strings.HasPrefix(clean, filepath.Clean(t.cfg.WorkspaceRoot)+string(os.PathSeparator)) && clean != filepath.Clean(t.cfg.WorkspaceRoot) {
 			return ScriptOutput{Error: "path escapes workspace"}
 		}
-		log.Printf("script: executing file %s", input.Path)
-		result, err = t.runner.ExecuteFile(ctx, fullPath, bridge)
+		log.Printf("script[%s]: executing file %s", runner.Name(), input.Path)
+		result, err = runner.ExecuteFile(ctx, fullPath, bridge)
 	} else if input.Script != "" {
-		log.Printf("script: executing inline (%d chars)", len(input.Script))
-		result, err = t.runner.Execute(ctx, input.Script, bridge)
+		log.Printf("script[%s]: executing inline (%d chars)", runner.Name(), len(input.Script))
+		result, err = runner.Execute(ctx, input.Script, bridge)
 	} else {
 		return ScriptOutput{Error: "either script or path is required"}
 	}
 
 	if err != nil {
-		log.Printf("script: error: %v", err)
-		return ScriptOutput{Error: err.Error()}
+		log.Printf("script[%s]: error: %v", runner.Name(), err)
+		return ScriptOutput{Result: result, Error: err.Error()}
 	}
 
-	log.Printf("script: result (%d chars)", len(result))
+	log.Printf("script[%s]: result (%d chars)", runner.Name(), len(result))
 	return ScriptOutput{Result: result}
+}
+
+func (t *ScriptTool) resolveRunner(engine, path string) scripting.Runner {
+	if engine == "joker" {
+		return t.joker
+	}
+	if engine == "js" || engine == "javascript" {
+		return t.js
+	}
+	// Auto-detect from file extension
+	if strings.HasSuffix(path, ".joke") || strings.HasSuffix(path, ".clj") {
+		return t.joker
+	}
+	if strings.HasSuffix(path, ".js") {
+		return t.js
+	}
+	// Default: JS (compiled-in, no external dependency)
+	return t.js
 }
 
 func (t *ScriptTool) buildBridge(sessionID string) *scripting.Bridge {

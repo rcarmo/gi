@@ -47,7 +47,7 @@ test.describe('Scripting', () => {
       data: {
         tool: 'script',
         session_id: sid,
-        input: { script: '(+ 40 2)' },
+        input: { engine: 'joker', script: '(+ 40 2)' },
       },
     });
     expect(res.ok()).toBeTruthy();
@@ -72,7 +72,7 @@ test.describe('Scripting', () => {
       data: {
         tool: 'script',
         session_id: sid,
-        input: { script: '(:session-id *gi-bridge*)' },
+        input: { script: 'gi.sessionId' },
       },
     });
     const output = await res.json();
@@ -87,11 +87,61 @@ test.describe('Scripting', () => {
       data: {
         tool: 'script',
         session_id: sid,
-        input: { script: '(:assistant_name (:config *gi-bridge*))' },
+        input: { script: 'gi.config.assistant_name' },
       },
     });
     const output = await res.json();
     expect(output.result).toBe('Gi Test'); // seeded by test instance
+  });
+
+  test('script tool executes JavaScript (goja, compiled-in)', async ({ request }) => {
+    const sessions = await apiGet(request, '/api/sessions');
+    const sid = sessions.sessions[0]?.id;
+    const res = await request.post(`${BASE_URL}/api/tools/execute`, {
+      data: { tool: 'script', session_id: sid, input: { script: '40 + 2' } },
+    });
+    const output = await res.json();
+    expect(output.result).toBe('42');
+  });
+
+  test('JS engine has bridge with config', async ({ request }) => {
+    const sessions = await apiGet(request, '/api/sessions');
+    const sid = sessions.sessions[0]?.id;
+    const res = await request.post(`${BASE_URL}/api/tools/execute`, {
+      data: { tool: 'script', session_id: sid, input: { script: 'gi.config.assistant_name' } },
+    });
+    const output = await res.json();
+    expect(output.result).toBe('Gi Test');
+  });
+
+  test('JS engine has readFile bridge function', async ({ request }) => {
+    const sessions = await apiGet(request, '/api/sessions');
+    const sid = sessions.sessions[0]?.id;
+    const res = await request.post(`${BASE_URL}/api/tools/execute`, {
+      data: { tool: 'script', session_id: sid, input: { script: 'gi.readFile(".piclaw/config.json")' } },
+    });
+    const output = await res.json();
+    expect(output.result).toContain('Gi Test');
+  });
+
+  test('JS engine supports console.log', async ({ request }) => {
+    const sessions = await apiGet(request, '/api/sessions');
+    const sid = sessions.sessions[0]?.id;
+    const res = await request.post(`${BASE_URL}/api/tools/execute`, {
+      data: { tool: 'script', session_id: sid, input: { script: 'console.log("hello"); console.log("world")' } },
+    });
+    const output = await res.json();
+    expect(output.result).toBe('hello\nworld');
+  });
+
+  test('explicit engine selection works', async ({ request }) => {
+    const sessions = await apiGet(request, '/api/sessions');
+    const sid = sessions.sessions[0]?.id;
+    // JS explicit
+    const jsRes = await request.post(`${BASE_URL}/api/tools/execute`, {
+      data: { tool: 'script', session_id: sid, input: { engine: 'js', script: '1 + 1' } },
+    });
+    expect((await jsRes.json()).result).toBe('2');
   });
 
   test('script tool rejects unknown tool name', async ({ request }) => {
