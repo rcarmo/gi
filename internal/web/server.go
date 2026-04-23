@@ -11,6 +11,7 @@ import (
 
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/tools"
 	"github.com/rcarmo/gi/internal/turn"
 )
 
@@ -18,20 +19,22 @@ import (
 var staticFS embed.FS
 
 type Server struct {
-	store   *store.Store
-	turns   *turn.Engine
-	cfg     config.RuntimeConfig
-	mux     *http.ServeMux
-	version string
+	store      *store.Store
+	turns      *turn.Engine
+	cfg        config.RuntimeConfig
+	mux        *http.ServeMux
+	version    string
+	scriptTool *tools.ScriptTool
 }
 
 func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 	srv := &Server{
-		store:   s,
-		turns:   t,
-		cfg:     cfg,
-		mux:     http.NewServeMux(),
-		version: fmt.Sprintf("%x", time.Now().UnixNano()),
+		store:      s,
+		turns:      t,
+		cfg:        cfg,
+		mux:        http.NewServeMux(),
+		version:    fmt.Sprintf("%x", time.Now().UnixNano()),
+		scriptTool: tools.NewScriptTool(s, cfg),
 	}
 	srv.routes()
 	return srv
@@ -59,6 +62,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/sse/stream", s.handleSSEStream)
 	s.mux.HandleFunc("/api/system-metrics", s.handleSystemMetrics)
 	s.mux.HandleFunc("/agent/system-metrics", s.handleSystemMetrics)
+	s.mux.HandleFunc("/api/tools", s.handleTools)
+	s.mux.HandleFunc("/api/tools/execute", s.handleToolExecute)
 	s.mux.HandleFunc("/api/sessions", s.handleSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleSessionSubroutes)
 	s.mux.HandleFunc("/api/turns/", s.handleTurnSubroutes)
