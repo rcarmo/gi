@@ -18,7 +18,7 @@
 ### Script runtime
 
 `script` runs **Joker** and has full access to:
-- Gi internal state
+- gi internal state
 - go-ai state
 - tools
 - memory

@@ -1,4 +1,4 @@
-# ADR 0001: Overall Architecture for Gi
+# ADR 0001: Overall Architecture for gi
 
 - Status: **Active**
 - Date: 2026-04-22
@@ -6,14 +6,14 @@
 
 ## Context
 
-Gi is a coding agent built on `go-ai`, incorporating lessons learned from Pi, Piclaw, and Vibes. The primary pain points to address are upstream churn, unreliable turn/session handling, brittle compaction/retry behavior, and maintenance cost.
+gi is a coding agent built on `go-ai`, incorporating lessons learned from Pi, Piclaw, and Vibes. The primary pain points to address are upstream churn, unreliable turn/session handling, brittle compaction/retry behavior, and maintenance cost.
 
 ## Decision
 
-Gi uses:
+gi uses:
 - **Go** for the core runtime
 - **go-ai** as the model/provider layer (with streaming inference)
-- **Piclaw TypeScript source** for the web UI (verbatim, with Gi-specific API/entry adapters only)
+- **Piclaw TypeScript source** for the web UI (verbatim, with gi-specific API/entry adapters only)
 - **SQLite (WAL)** as the shared state store across web, TUI, and CLI processes
 - **Bun** for build-time web asset bundling only (not runtime)
 
@@ -25,7 +25,7 @@ Gi uses:
 
 ### Web UI architecture
 - Piclaw's 199 TypeScript source files copied verbatim
-- Only `api.ts` (API adapter) and `app.ts` (entry point) are Gi-specific
+- Only `api.ts` (API adapter) and `app.ts` (entry point) are gi-specific
 - Vendor libraries (preact, marked, katex, mermaid, codemirror) built at compile time
 - All assets embedded in the Go binary via `embed.FS`
 - SSE streaming for real-time events (Piclaw-compatible event model)
@@ -47,7 +47,7 @@ Gi uses:
 ## Consequences
 
 ### Positive
-- near-zero UI maintenance: Piclaw updates can be dropped in with no diff on Gi's side
+- near-zero UI maintenance: Piclaw updates can be dropped in with no diff on gi's side
 - low dependency footprint (Go + SQLite + embedded assets)
 - strong portability via binary + database
 - durable observability and resumability via event log
@@ -55,7 +55,7 @@ Gi uses:
 
 ### Negative
 - Piclaw UI code is large (~199 files) and not all features are wired yet
-- some Piclaw components expect APIs that Gi stubs gracefully but doesn't implement
+- some Piclaw components expect APIs that gi stubs gracefully but doesn't implement
 - Bun required at build time for web asset compilation
 
 ## Notes

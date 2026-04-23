@@ -1,4 +1,4 @@
-# Gi implementation checklist
+# gi implementation checklist
 
 Status: Active
 Date: 2026-04-22
@@ -53,8 +53,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ### Web UI
 - [x] Piclaw TypeScript source ported verbatim (199 files)
-- [x] Gi-specific `api.ts` adapter (same function signatures, maps to Gi REST endpoints)
-- [x] Gi-specific `app.ts` entry point (uses Piclaw components verbatim)
+- [x] gi-specific `api.ts` adapter (same function signatures, maps to gi REST endpoints)
+- [x] gi-specific `app.ts` entry point (uses Piclaw components verbatim)
 - [x] Piclaw CSS stack served from `/css/styles.css`
 - [x] Piclaw fonts vendored and embedded
 - [x] Vendor bundles: preact-htm, marked, katex, beautiful-mermaid, codemirror

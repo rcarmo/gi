@@ -1,4 +1,4 @@
-# Gi docs
+# gi docs
 
 ## Structure
 

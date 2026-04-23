@@ -5,7 +5,7 @@
 
 ## Decision
 
-Gi uses **SQLite WAL** as the shared state database for web, TUI, and CLI.
+gi uses **SQLite WAL** as the shared state database for web, TUI, and CLI.
 
 SQLite stores:
 - sessions

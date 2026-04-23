@@ -1,6 +1,6 @@
-# Gi
+# gi
 
-<img src="docs/icon-256.png" width="128" alt="Gi">
+<img src="docs/icon-256.png" width="128" alt="gi">
 
 A coding agent built on `go-ai`, informed by lessons learned from Pi, Piclaw, and Vibes.
 
@@ -8,7 +8,7 @@ A coding agent built on `go-ai`, informed by lessons learned from Pi, Piclaw, an
 
 **Phase 1 functional** — turn engine, inference, web UI, and Playwright tests working.
 
-The web UI uses Piclaw's TypeScript source verbatim with a Gi-specific API adapter and entry point. Inference runs through `go-ai` with GitHub Copilot enterprise token exchange.
+The web UI uses Piclaw's TypeScript source verbatim with a gi-specific API adapter and entry point. Inference runs through `go-ai` with GitHub Copilot enterprise token exchange.
 
 ## Goals
 
@@ -27,7 +27,7 @@ The web UI uses Piclaw's TypeScript source verbatim with a Gi-specific API adapt
 - `internal/turn/` — append-only turn engine with queue/cancel/streaming
 - `internal/inference/` — go-ai inference with provider auth and SSE broadcasting
 - `internal/web/` — HTTP server, REST API, SSE streaming, workspace file APIs
-- `web/src/` — Piclaw TypeScript web source (verbatim) + Gi `api.ts`/`app.ts` adapters
+- `web/src/` — Piclaw TypeScript web source (verbatim) + gi `api.ts`/`app.ts` adapters
 - `docs/` — ADRs, implementation checklist, transcripts
 - `scripts/` — build/check scripts (hook TDZ checker)
 - `tests/` — Playwright base UX tests
@@ -44,7 +44,7 @@ The web UI uses Piclaw's TypeScript source verbatim with a Gi-specific API adapt
 
 | Target | Description |
 |---|---|
-| `make start` | Build and start Gi detached on port 8090 |
+| `make start` | Build and start gi detached on port 8090 |
 | `make stop` | Stop the detached process |
 | `make restart` | Restart it |
 | `make status` | Show status/listener |
@@ -79,10 +79,10 @@ make start PORT=3000 BIND=0.0.0.0 MODEL=github-copilot/gpt-5-mini WORKSPACE=/wor
 
 ## Web UI
 
-The web UI uses **Piclaw's TypeScript source files verbatim** (199 files). Only two files are Gi-specific:
+The web UI uses **Piclaw's TypeScript source files verbatim** (199 files). Only two files are gi-specific:
 
-- `web/src/api.ts` — API adapter implementing Piclaw's function signatures against Gi's REST endpoints
-- `web/src/app.ts` — Entry point wiring Gi sessions into Piclaw's component tree
+- `web/src/api.ts` — API adapter implementing Piclaw's function signatures against gi's REST endpoints
+- `web/src/app.ts` — Entry point wiring gi sessions into Piclaw's component tree
 
 All Piclaw components, theme runtime, CSS, icons, and vendor libraries work without modification.
 
@@ -105,7 +105,7 @@ The server provides a Piclaw-compatible SSE endpoint at `/sse/stream?chat_jid=..
 
 ## Inference
 
-Gi uses `go-ai` for model inference. Supported providers:
+gi uses `go-ai` for model inference. Supported providers:
 
 - OpenAI (completions + responses)
 - Anthropic

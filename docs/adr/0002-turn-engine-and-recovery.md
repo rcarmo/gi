@@ -9,7 +9,7 @@ The main failure mode to eliminate is unreliable turn/session handling, especial
 
 ## Decision
 
-Gi turn execution will be based on:
+gi turn execution will be based on:
 - an **append-only event log**
 - **minimal in-memory turn state** reconstructed from persisted events/checkpoints
 - **serialized turns per session**
@@ -22,7 +22,7 @@ Checkpoints are required at:
 
 Compaction and retries stay **inside the same turn**.
 
-Gi also needs centralized runtime budget controls for turn handling, including:
+gi also needs centralized runtime budget controls for turn handling, including:
 - maximum tool calls per turn
 - other per-turn and per-session safety/resource limits
 - a single code-level configuration structure so limits are defined consistently and applied in one place

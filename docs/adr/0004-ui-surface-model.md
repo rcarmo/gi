@@ -8,9 +8,9 @@
 
 Web UI is canonical.
 
-Gi uses **Piclaw's TypeScript web source verbatim** (199 files). Only two files are Gi-specific:
-- `api.ts` — API adapter implementing Piclaw's function signatures against Gi's REST endpoints
-- `app.ts` — entry point wiring Gi sessions into Piclaw's component tree
+gi uses **Piclaw's TypeScript web source verbatim** (199 files). Only two files are gi-specific:
+- `api.ts` — API adapter implementing Piclaw's function signatures against gi's REST endpoints
+- `app.ts` — entry point wiring gi sessions into Piclaw's component tree
 
 The web asset pipeline uses Bun at build time only:
 - vendor bundles built from entry files matching Piclaw's vendor manifests
@@ -41,7 +41,7 @@ All surfaces should understand shared concepts for:
 
 ## SSE event model
 
-Gi implements a Piclaw-compatible SSE endpoint at `/sse/stream` that broadcasts:
+gi implements a Piclaw-compatible SSE endpoint at `/sse/stream` that broadcasts:
 - `connected` — initial connection confirmation
 - `heartbeat` — 15-second keep-alive
 - `agent_status` — turn status updates
@@ -61,4 +61,4 @@ Gi implements a Piclaw-compatible SSE endpoint at `/sse/stream` that broadcasts:
 
 ## Non-requirement
 
-Adaptive Cards are not part of Gi v1.
+Adaptive Cards are not part of gi v1.

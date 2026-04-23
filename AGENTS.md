@@ -1,6 +1,6 @@
-# Gi
+# gi
 
-You are a coding agent working on the Gi project — a Go-based coding agent with a Piclaw-compatible web UI.
+You are a coding agent working on the gi project — a Go-based coding agent with a Piclaw-compatible web UI.
 
 ## Repository layout
 
@@ -14,9 +14,9 @@ internal/
   inference/         go-ai streaming inference with auth
   web/               HTTP server, REST API, SSE, metrics, workspace
     static/          embedded assets (CSS, JS, fonts, icons)
-web/src/             Piclaw TypeScript source (verbatim) + Gi adapters
-  api.ts             Gi API adapter (same signatures as Piclaw)
-  app.ts             Gi entry point (wires Piclaw components to Gi backend)
+web/src/             Piclaw TypeScript source (verbatim) + gi adapters
+  api.ts             gi API adapter (same signatures as Piclaw)
+  app.ts             gi entry point (wires Piclaw components to gi backend)
   components/        Piclaw components (DO NOT MODIFY)
   ui/                Piclaw UI utilities (DO NOT MODIFY)
   panes/             Piclaw pane system (DO NOT MODIFY)
@@ -48,9 +48,9 @@ Makefile             canonical build/test/run interface
 
 ### Piclaw UX parity
 - Parts that are ported must be **100% identical** to Piclaw — same DOM, same classes, same behavior, same visual output
-- No approximations — if it's in Gi it matches Piclaw exactly; if it's not ready it simply isn't in Gi yet
+- No approximations — if it's in gi it matches Piclaw exactly; if it's not ready it simply isn't in gi yet
 - **Never modify Piclaw component files** — adapt only `api.ts` or `app.ts`
-- Future Piclaw updates should drop in with zero diff on Gi's side
+- Future Piclaw updates should drop in with zero diff on gi's side
 
 ### Go-native runtime
 - Core runtime is **pure Go** — no CGO, no Node/Bun at runtime
@@ -107,7 +107,7 @@ make bun-checks     # Hook TDZ checker
 ### Dev instance lifecycle
 | Target | Description |
 |---|---|
-| `make start` | Build and start Gi detached (default `0.0.0.0:8090`) |
+| `make start` | Build and start gi detached (default `0.0.0.0:8090`) |
 | `make stop` | Stop the detached process |
 | `make restart` | Rebuild and restart |
 | `make status` | Show PID and listener |
