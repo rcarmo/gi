@@ -13,6 +13,7 @@ import (
 	goai "github.com/rcarmo/go-ai"
 	_ "github.com/rcarmo/go-ai/provider/anthropic"
 	_ "github.com/rcarmo/go-ai/provider/openai"
+	_ "github.com/rcarmo/go-ai/provider/openaicodex"
 	_ "github.com/rcarmo/go-ai/provider/openairesponses"
 )
 
@@ -49,7 +50,6 @@ func loadAuth(provider string) (string, string, error) {
 		return "", "", fmt.Errorf("no auth entry for provider %q", provider)
 	}
 
-	// GitHub Copilot: exchange the refresh token for a Copilot session token
 	if provider == "github-copilot" {
 		refreshToken := entry.Refresh
 		if refreshToken == "" {
@@ -77,49 +77,43 @@ func loadAuth(provider string) (string, string, error) {
 	return "", "", fmt.Errorf("no token/key in auth entry for %q", provider)
 }
 
-func Complete(ctx context.Context, modelID string, systemPrompt string, messages []goai.Message) (string, *goai.Usage, error) {
-	return CompleteWithBroadcast(ctx, modelID, systemPrompt, messages, nil)
+// StreamResult holds the full result from a streaming inference call.
+type StreamResult struct {
+	Message *goai.Message
+	Usage   *goai.Usage
+	Text    string
 }
 
-func CompleteWithBroadcast(ctx context.Context, modelID string, systemPrompt string, messages []goai.Message, broadcast func(map[string]any)) (string, *goai.Usage, error) {
+// StreamWithTools streams a single LLM call (which may produce tool calls).
+// It returns the complete assistant message including any tool-call content blocks.
+// The broadcast callback receives SSE-shaped events for real-time UI updates.
+func StreamWithTools(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*StreamResult, error) {
 	Init()
 
-	// Parse provider/model from "provider/model" format
 	provider, modelName := splitModelID(modelID)
-
 	model := goai.GetModel(goai.Provider(provider), modelName)
 	if model == nil {
-		return "", nil, fmt.Errorf("model not found: %s/%s", provider, modelName)
+		return nil, fmt.Errorf("model not found: %s/%s", provider, modelName)
 	}
 
 	apiKey, baseURLOverride, err := loadAuth(provider)
 	if err != nil {
-		return "", nil, fmt.Errorf("load auth for %s: %w", provider, err)
+		return nil, fmt.Errorf("load auth for %s: %w", provider, err)
 	}
-
-	// Override the base URL if the auth provider gives us one
-	// (e.g., enterprise vs individual Copilot endpoints)
 	if baseURLOverride != "" {
 		model.BaseURL = baseURLOverride
-	}
-
-	convCtx := &goai.Context{
-		SystemPrompt: systemPrompt,
-		Messages:     messages,
 	}
 
 	opts := &goai.StreamOptions{
 		APIKey: apiKey,
 	}
-
-	// Add Copilot headers for GitHub Copilot providers
 	if provider == "github-copilot" {
 		opts.Headers = goai.CopilotHeaders()
 	}
 
-	// Stream and collect
 	var fullText string
-	var usage *goai.Usage
+	var result *StreamResult
+
 	for ev := range goai.Stream(ctx, model, convCtx, opts) {
 		switch e := ev.(type) {
 		case *goai.TextDeltaEvent:
@@ -131,10 +125,24 @@ func CompleteWithBroadcast(ctx context.Context, modelID string, systemPrompt str
 			if broadcast != nil {
 				broadcast(map[string]any{"type": "thinking_delta", "delta": e.Delta})
 			}
-		case *goai.DoneEvent:
-			if e.Message != nil && e.Message.Usage != nil {
-				usage = e.Message.Usage
+		case *goai.ToolCallStartEvent:
+			if broadcast != nil && e.Partial != nil {
+				// Extract tool name from partial message
+				for _, b := range e.Partial.Content {
+					if b.Type == "toolCall" && b.Name != "" {
+						broadcast(map[string]any{"type": "tool_call_start", "name": b.Name, "index": e.ContentIndex})
+						break
+					}
+				}
 			}
+		case *goai.ToolCallDeltaEvent:
+			// accumulation happens inside go-ai; no need to broadcast deltas
+		case *goai.ToolCallEndEvent:
+			if broadcast != nil {
+				broadcast(map[string]any{"type": "tool_call_end", "name": e.ToolCall.Name, "id": e.ToolCall.ID})
+			}
+		case *goai.DoneEvent:
+			usage := e.Message.Usage
 			if broadcast != nil {
 				usageMap := map[string]any{}
 				if usage != nil {
@@ -148,15 +156,18 @@ func CompleteWithBroadcast(ctx context.Context, modelID string, systemPrompt str
 				}
 				broadcast(map[string]any{"type": "done", "model": modelID, "usage": usageMap})
 			}
-			return fullText, usage, nil
+			result = &StreamResult{Message: e.Message, Usage: usage, Text: fullText}
+			return result, nil
 		case *goai.ErrorEvent:
 			if broadcast != nil {
 				broadcast(map[string]any{"type": "error", "error": e.Err.Error()})
 			}
-			return fullText, nil, e.Err
+			return nil, e.Err
 		}
 	}
-	return fullText, nil, nil
+
+	// Stream ended without a DoneEvent — return what we have
+	return &StreamResult{Text: fullText}, nil
 }
 
 func splitModelID(id string) (string, string) {
