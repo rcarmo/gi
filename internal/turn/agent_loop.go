@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -41,6 +42,35 @@ func toolDefs() []goai.Tool {
 			Parameters:  json.RawMessage(`{"type":"object","properties":{"command":{"type":"string","description":"Shell command to execute"}},"required":["command"]}`),
 		},
 	}
+}
+
+const repeatedToolFailureLimit = 4
+
+func toolFailureSignature(call goai.ToolCall, err error) string {
+	if err == nil {
+		return ""
+	}
+	argKeys := make([]string, 0, len(call.Arguments))
+	for k := range call.Arguments {
+		argKeys = append(argKeys, k)
+	}
+	sort.Strings(argKeys)
+	parts := make([]string, 0, len(argKeys))
+	for _, k := range argKeys {
+		parts = append(parts, fmt.Sprintf("%s=%v", k, call.Arguments[k]))
+	}
+	return fmt.Sprintf("%s|%s|%s", call.Name, strings.Join(parts, ","), err.Error())
+}
+
+func nextRepeatedToolFailureCount(lastSig string, lastCount int, call goai.ToolCall, err error) (string, int) {
+	sig := toolFailureSignature(call, err)
+	if sig == "" {
+		return "", 0
+	}
+	if sig == lastSig {
+		return sig, lastCount + 1
+	}
+	return sig, 1
 }
 
 // runAgentLoop runs the core tool-use loop: call LLM, execute any tool calls,
@@ -79,6 +109,8 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "Thinking…", "status": "running", "turn_id": turnID})
 
 	var totalUsage goai.Usage
+	lastToolFailureSig := ""
+	repeatedToolFailureCount := 0
 
 	for iter := 0; iter < maxIter; iter++ {
 		if ctx.Err() != nil {
@@ -212,6 +244,14 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 				_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{
 					"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID,
 				})
+				lastToolFailureSig, repeatedToolFailureCount = nextRepeatedToolFailureCount(lastToolFailureSig, repeatedToolFailureCount, call, toolErr)
+				if repeatedToolFailureCount >= repeatedToolFailureLimit {
+					msg := fmt.Sprintf("Aborting after %d repeated identical tool failures: %v", repeatedToolFailureCount, toolErr)
+					log.Printf("tool [%s] repeated failure guard tripped: %s", call.Name, msg)
+					r.persistUsage(s, turnID, sessionID, &totalUsage, iter+1)
+					r.finishTurn(s, turnID, sessionID, agentID, "failed", msg)
+					return
+				}
 			} else {
 				// Truncate very large results to avoid blowing context
 				displayResult := toolResult
@@ -226,6 +266,8 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 				_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", displayResult, map[string]any{
 					"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID,
 				})
+				lastToolFailureSig = ""
+				repeatedToolFailureCount = 0
 			}
 		}
 		// Loop continues — next iteration will call LLM with tool results
