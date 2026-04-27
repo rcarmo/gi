@@ -6,7 +6,7 @@ require (
 	github.com/candid82/joker v1.7.1
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/grindlemire/go-tui v0.13.0
-	github.com/rcarmo/go-ai v0.70.7
+	github.com/rcarmo/go-ai v0.70.8
 	golang.org/x/net v0.50.0
 	modernc.org/sqlite v1.49.1
 )
