@@ -1,0 +1,20 @@
+(ns joker.macro-test
+  (:require [joker.test :refer [deftest is]]
+            [joker.string :as s]))
+
+(defmacro try-macro [ & body ] `(try ~@body (catch Error)))
+(def try-macro-expand (macroexpand '(try-macro)))
+
+(deftest try-log-test
+  (is (= '(try (catch Error))
+          try-macro-expand)
+      "should properly syntax-quote types"))
+
+(defmacro try-return [ & body ] `(try ~@body (catch Error t# t#)))
+(deftest try-expanding-typename
+  (is (s/includes? (str (try-return (throw (ex-info "Ouch" {})))) "Exception: Ouch")))
+
+(defmacro make-fn [] (fn [] nil))
+(deftest try-expanding-literal
+  (is (macroexpand '(make-fn)) "#object[Fn]")
+  (is (str (make-fn)) "#object[Fn]"))

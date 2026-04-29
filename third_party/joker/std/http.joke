@@ -1,0 +1,34 @@
+(ns ^{:go-imports []
+      :doc "Provides HTTP client and server implementations."}
+  http)
+
+(defn send
+  "Sends an HTTP request and returns an HTTP response.
+  request is a map with the following keys:
+  - url (string)
+  - method (string, keyword or symbol, defaults to :get)
+  - body (string)
+  - host (string, overrides Host header if provided)
+  - headers (map).
+  All keys except for url are optional.
+  response is a map with the following keys:
+  - status (int)
+  - body (string)
+  - headers (map)
+  - content-length (int)"
+  {:added "1.0"
+   :go "sendRequest(request)"}
+  [^Map request])
+
+(defn start-server
+  "Starts HTTP server on the TCP network address addr."
+  {:added "1.0"
+   :go "startServer(addr, handler)"}
+  [^String addr ^Callable handler])
+
+(defn start-file-server
+  "Starts HTTP server on the TCP network address addr that
+  serves HTTP requests with the contents of the file system rooted at root."
+  {:added "1.0"
+   :go "startFileServer(addr, root)"}
+  [^String addr ^String root])

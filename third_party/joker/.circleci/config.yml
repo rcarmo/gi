@@ -1,0 +1,35 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: cimg/go:1.23
+    working_directory: /home/circleci/go/src/github.com/candid82/joker
+    steps:
+      - checkout
+      - run:
+          name: go get liner
+          command: go get -d -v github.com/candid82/liner
+      - run:
+          name: go get profile
+          command: go get -d -v github.com/pkg/profile
+      - run:
+          name: go get yaml
+          command: go get -d -v gopkg.in/yaml.v2
+      - run:
+          name: go generate
+          command: go generate -v ./...
+      - run:
+          name: go build
+          command: go build -v github.com/candid82/joker
+      - run:
+          name: linter tests
+          command: ./linter-tests.sh
+      - run:
+          name: flag tests
+          command: ./flag-tests.sh
+      - run:
+          name: eval tests
+          command: ./eval-tests.sh
+      - run:
+          name: formatter tests
+          command: ./formatter-tests.sh

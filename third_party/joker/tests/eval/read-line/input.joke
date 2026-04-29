@@ -1,0 +1,17 @@
+;;; Move this into core.joke?
+(defmacro while-let
+ "Continue processing an expression as long as it is true"
+ [binding & forms]
+  `(loop []
+     (when-let ~binding
+       ~@forms
+       (recur))))
+
+;; Read from a String.
+(with-in-str (slurp "lines.txt")
+  (while-let [line (read-line)]
+    (println "|" line)))
+
+;; Now read from actual stdin.txt.
+(while-let [line (read-line)]
+  (println "|" line))

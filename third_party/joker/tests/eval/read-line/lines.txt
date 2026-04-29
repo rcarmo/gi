@@ -1,0 +1,2 @@
+This is test input.
+It is substituted for :stdin via with-in-str in the test itself.

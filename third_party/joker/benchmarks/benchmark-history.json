@@ -1,0 +1,50 @@
+{
+  "metadata": {
+    "project": "joker",
+    "scope": "core interpreter optimization",
+    "host": "12th Gen Intel(R) Core(TM) i7-12700",
+    "command": "go test ./core -run '^$' -bench 'BenchmarkCLBG|BenchmarkEval' -benchmem -benchtime=5x",
+    "units": { "time": "ms/op", "memory": "B/op", "allocs": "allocs/op" }
+  },
+  "series": [
+    {
+      "id": "baseline-stable",
+      "label": "Baseline (before optimization)",
+      "date": "2026-04-28",
+      "benchmarks": {
+        "arithmetic_loop": { "ms_per_op": 189.784, "bytes_per_op": 88802755, "allocs_per_op": 3100054 },
+        "recursive_fib": { "ms_per_op": 546.020, "bytes_per_op": 226878404, "allocs_per_op": 8102791 },
+        "word_frequency": { "ms_per_op": 279.922, "bytes_per_op": 518481497, "allocs_per_op": 8178287 }
+      }
+    },
+    {
+      "id": "current",
+      "label": "Current (IR + TCO + compiled fn + self-recursive + stack-backed bufs)",
+      "date": "2026-04-28",
+      "benchmarks": {
+        "arithmetic_loop": { "ms_per_op": 11.6, "bytes_per_op": 14400275, "allocs_per_op": 500006 },
+        "recursive_fib": { "ms_per_op": 84.5, "bytes_per_op": 36014758, "allocs_per_op": 1575571 },
+        "word_frequency": { "ms_per_op": 9.0, "bytes_per_op": 5996523, "allocs_per_op": 152052 },
+        "map_update_loop": { "ms_per_op": 14.2, "bytes_per_op": 8519340, "allocs_per_op": 190045 },
+        "tail_recursive_sum": { "ms_per_op": 65.5, "bytes_per_op": 44800617, "allocs_per_op": 1500017 },
+        "clbg_nbody": { "ms_per_op": 25.5, "bytes_per_op": 17378857, "allocs_per_op": 415288 },
+        "clbg_spectral_norm": { "ms_per_op": 263.8, "bytes_per_op": 136518225, "allocs_per_op": 3081900 },
+        "clbg_binary_trees": { "ms_per_op": 453.0, "bytes_per_op": 227338552, "allocs_per_op": 7409660 }
+      }
+    }
+  ],
+  "cross_language": {
+    "bun_jsc": {
+      "arithmetic_loop": 0.44, "recursive_fib": 1.14, "tail_recursive_sum": 0.33,
+      "clbg_nbody": 0.30, "clbg_spectral_norm": 0.81, "clbg_binary_trees": 6.54
+    },
+    "python_313": {
+      "arithmetic_loop": 4.35, "recursive_fib": 13.17, "tail_recursive_sum": 4.91,
+      "clbg_nbody": 0.61, "clbg_spectral_norm": 8.86, "clbg_binary_trees": 33.80
+    },
+    "goja": {
+      "arithmetic_loop": 27.34, "recursive_fib": 111.85, "tail_recursive_sum": 12.61,
+      "clbg_nbody": 3.76, "clbg_spectral_norm": 83.59, "clbg_binary_trees": 188.05
+    }
+  }
+}

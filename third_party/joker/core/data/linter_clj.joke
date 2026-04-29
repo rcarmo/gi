@@ -1,0 +1,392 @@
+;; This vars are declared for the linter mode to work properly
+
+(def defproject)
+
+(doseq
+  [sym
+   '[AbstractMethodError AbstractStringBuilder Appendable
+     ApplicationShutdownHooks ArithmeticException ArrayIndexOutOfBoundsException
+     ArrayStoreException AssertionError AssertionStatusDirectives
+     AutoCloseable Boolean BootstrapMethodError
+     BigDecimal BigInteger
+     Byte CharSequence Character
+     CharacterData CharacterData00 CharacterData01
+     CharacterData02 CharacterData0E CharacterDataLatin1
+     CharacterDataPrivateUse CharacterDataUndefined CharacterName
+     Class ClassCastException ClassCircularityError
+     ClassFormatError ClassLoader ClassLoaderHelper
+     ClassNotFoundException ClassValue CloneNotSupportedException
+     Cloneable Comparable Compiler
+     ConditionalSpecialCasing Deprecated Double
+     Enum EnumConstantNotPresentException Error
+     Exception ExceptionInInitializerError Float
+     FunctionalInterface IllegalAccessError IllegalAccessException
+     IllegalArgumentException IllegalMonitorStateException IllegalStateException
+     IllegalThreadStateException IncompatibleClassChangeError IndexOutOfBoundsException
+     InheritableThreadLocal InstantiationError InstantiationException
+     Integer InternalError InterruptedException
+     Iterable LinkageError Long
+     Math NegativeArraySizeException NoClassDefFoundError
+     NoSuchFieldError NoSuchFieldException NoSuchMethodError
+     NoSuchMethodException NullPointerException Number
+     NumberFormatException Object OutOfMemoryError
+     Override Package Process
+     ProcessBuilder ProcessEnvironment ProcessImpl
+     Readable ReflectiveOperationException Runnable
+     Runtime RuntimeException RuntimePermission
+     SafeVarargs SecurityException SecurityManager
+     Short Shutdown StackOverflowError
+     StackTraceElement StrictMath String
+     StringBuffer StringBuilder StringCoding
+     StringIndexOutOfBoundsException SuppressWarnings System
+     SystemClassLoaderAction Terminator Thread
+     Thread$State Thread$UncaughtExceptionHandler
+     ThreadDeath ThreadGroup ThreadLocal
+     Throwable TypeNotPresentException UNIXProcess
+     UnknownError UnsatisfiedLinkError UnsupportedClassVersionError
+     UnsupportedOperationException VerifyError VirtualMachineError
+     Void]]
+  (inject-ns__ sym)
+  (inject-linter-type__ sym)
+  (when-not (resolve sym)
+    (intern__ *ns* sym)))
+
+(doseq [sym '(clojure.edn clojure.core clojure.uuid clojure.core.server clojure.java.io clojure.main clojure.core.protocols clojure.instant clojure.string clojure.datafy clojure.math)]
+  (inject-ns__ sym))
+
+;; Unsupported arities
+
+(def __deref__ deref)
+(defn deref
+  ([^Deref ref]
+   (__deref__ ref))
+  ([^Deref ref ^Number timeout-ms timeout-val]))
+
+(def __re-find__ re-find)
+(defn re-find
+  ([m])
+  ([^Regex re ^String s] (__re-find__ re s)))
+
+(defn ^String slurp [f & options])
+(defn read
+  ([])
+  ([stream])
+  ([stream eof-error? eof-value])
+  ([stream eof-error? eof-value recursive?])
+  ([opts stream]))
+
+;; Clojure core functions not supported by Joker
+
+(defn ensure [ref])
+(defn unchecked-remainder-int [x y])
+(defn eduction [& xforms])
+(defn aset ([array idx val]) ([array idx idx2 & idxv]))
+(defn aset-float ([array idx val]) ([array idx idx2 & idxv]))
+(defn ->VecNode [edit arr])
+(defn reduced? [x])
+(defn chunk-first [s])
+(defn sorted-map [& keyvals])
+(defn comparator [pred])
+(defn chunk-cons [chunk rest])
+(defn unchecked-float [x])
+(defn proxy-call-with-super [call this meth])
+(defn deliver [promise val])
+(defn unchecked-subtract [x y])
+(defn file-seq [dir])
+(defn char-array ([size-or-seq]) ([size init-val-or-seq]))
+(defn conj! ([]) ([coll]) ([coll x]))
+(defn biginteger [x])
+(defn alter [ref fun & args])
+(defn unchecked-add [x y])
+(defn compile [lib])
+(defn pcalls [& fns])
+(defn struct-map [s & inits])
+(defn aset-double ([array idx val]) ([array idx idx2 & idxv]))
+(defn rsubseq ([sc test key]) ([sc start-test start-key end-test end-key]))
+(defn sorted? [coll])
+(defn tagged-literal [tag form])
+(defn byte-array ([size-or-seq]) ([size init-val-or-seq]))
+(defn unchecked-dec [x])
+(defn sorted-set [& keys])
+(def extend extend__)
+(defn await [& agents])
+(defn replicate [n x])
+(defn bound-fn* [f])
+(defn hash-combine [x y])
+(defn unchecked-inc-int [x])
+(defn ref-max-history ([ref]) ([ref n]))
+(defn vector-of ([t]) ([t & elements]))
+(defn Throwable->map [o])
+(defn set-error-handler! [a handler-fn])
+(defn underive ([tag parent]) ([h tag parent]))
+(defn add-watch [reference key fn])
+(defn aset-short ([array idx val]) ([array idx idx2 & idxv]))
+(defn float [x])
+(defn construct-proxy [c & ctor-args])
+(defn agent-error [a])
+(defn agent-errors [a])
+(defn ifn? [x])
+(defn print-simple [o w])
+(defn bases [c])
+(defn aset-byte ([array idx val]) ([array idx idx2 & idxv]))
+(defn struct [s & vals])
+(defn chunk-buffer [capacity])
+(defn chunk-next [s])
+(defn init-proxy [proxy mappings])
+(defn longs [xs])
+(defn unchecked-double [x])
+(defn await-for [timeout-ms & agents])
+(defn into-array ([aseq]) ([type aseq]))
+(defn send-off [a f & args])
+(defn ns-imports [ns])
+(defn seque ([s]) ([n-or-q s]))
+(defn vreset! [vol newval])
+(defn set! [var-symbol expr])
+(defn thread-bound? [& vars])
+(defn chunk [b])
+(defn send-via [executor a f & args])
+(defn hash-ordered-coll [coll])
+(defn unchecked-byte [x])
+(defn subseq ([sc test key]) ([sc start-test start-key end-test end-key]))
+(defn bytes [xs])
+(defn unchecked-long [x])
+(defn to-array-2d [coll])
+(defn set-error-mode! [a mode-keyword])
+(defn map-entry? [x])
+(defn ancestors ([tag]) ([h tag]))
+(defn set-agent-send-executor! [executor])
+(defn error-handler [a])
+(defn update-proxy [proxy mappings])
+(defn hash-unordered-coll [coll])
+(defn get-thread-bindings [])
+(defn shorts [xs])
+(defn ref-min-history ([ref]) ([ref n]))
+(defn create-struct [& keys])
+(defn completing ([f]) ([f cf]))
+(defn int-array ([size-or-seq]) ([size init-val-or-seq]))
+(defn ref-set [ref val])
+(defn sorted-map-by [comparator & keyvals])
+(defn await1 [a])
+(defn future-cancel [f])
+(defn object-array [size-or-seq])
+(defn accessor [s key])
+(defn shutdown-agents [])
+(defn print-ctor [o print-args w])
+(defn find-protocol-impl [protocol x])
+(defn volatile? [x])
+(defn release-pending-sends [])
+(defn re-matcher [re s])
+(defn extends? [protocol atype])
+(defn supers [class])
+(defn byte [x])
+(defn unreduced [x])
+(defn floats [xs])
+(defn disj! ([set]) ([set key]) ([set key & ks]))
+(defn load-reader [rdr])
+(defn bean [x])
+(defn booleans [xs])
+(defn error-mode [a])
+(defn decimal? [n])
+(defn set-validator! [iref validator-fn])
+(defn alength [array])
+(defn restart-agent [a new-state & options])
+(defn agent [state & options])
+(defn send [a f & args])
+(defn alter-var-root [v f & args])
+(defn ints [xs])
+(defn ->Eduction [xform coll])
+(defn mix-collection-hash [hash-basis count])
+(defn satisfies? [protocol x])
+(defn reader-conditional [form splicing?])
+(defn bigdec [x])
+(defn to-array [coll])
+(defn unchecked-subtract-int [x y])
+(defn munge [s])
+(defn unchecked-multiply-int [x y])
+(defn aset-boolean ([array idx val]) ([array idx idx2 & idxv]))
+(defn chunk-rest [s])
+(defn isa? ([child parent]) ([h child parent]))
+(defn float-array ([size-or-seq]) ([size init-val-or-seq]))
+(defn future-cancelled? [f])
+(defn unchecked-multiply [x y])
+(defn namespace-munge [ns])
+(defn future-done? [f])
+(defn find-keyword ([name]) ([ns name]))
+(defn ->VecSeq [am vec anode i offset])
+(defn find-protocol-method [protocol methodk x])
+(defn aset-int ([array idx val]) ([array idx idx2 & idxv]))
+(defn pmap ([f coll]) ([f coll & colls]))
+(defn -cache-protocol-fn [pf x c interf])
+(defn ensure-reduced [x])
+(defn unchecked-int [x])
+(defn unchecked-negate [x])
+(defn chars [xs])
+(defn unchecked-short [x])
+(defn class? [x])
+(defn boolean-array ([size-or-seq]) ([size init-val-or-seq]))
+(defn ->ArrayChunk [am arr off end])
+(defn persistent! [coll])
+(defn unchecked-dec-int [x])
+(defn extenders [protocol])
+(defn aset-char ([array idx val]) ([array idx idx2 & idxv]))
+(defn future? [x])
+(defn rationalize [num])
+(defn remove-watch [reference key])
+(defn pop-thread-bindings [])
+(defn proxy-name [super interfaces])
+(defn ref ([x]) ([x & options]))
+(defn push-thread-bindings [bindings])
+(defn aget ([array idx]) ([array idx & idxs]))
+(defn ref-history-count [ref])
+(defn doubles [xs])
+(defn assoc! ([coll key val]) ([coll key val & kvs]))
+(defn get-validator [iref])
+(defn future-call [f])
+(defn long-array ([size-or-seq]) ([size init-val-or-seq]))
+(defn descendants ([tag]) ([h tag]))
+(defn resultset-seq [rs])
+(defn add-classpath [url])
+(defn short [x])
+(defn unchecked-add-int [x y])
+(defn aclone [array])
+(defn reduced [x])
+(defn aset-long ([array idx val]) ([array idx idx2 & idxv]))
+(defn make-hierarchy [])
+(defn dissoc! ([map key]) ([map key & ks]))
+(defn set-agent-send-off-executor! [executor])
+(defn unchecked-inc [x])
+(defn clear-agent-errors [a])
+(defn reader-conditional? [value])
+(defn unchecked-negate-int [x])
+(defn volatile! [val])
+(defn proxy-mappings [proxy])
+(defn enumeration-seq [e])
+(defn short-array ([size-or-seq]) ([size init-val-or-seq]))
+(defn transient [coll])
+(defn compare-and-set! [atom oldval newval])
+(defn transduce ([xform f coll]) ([xform f init coll]))
+(defn unchecked-divide-int [x y])
+(defn clojure-version [])
+(defn iterator-seq [iter])
+(defn unchecked-char [x])
+(defn derive ([tag parent]) ([h tag parent]))
+(defn chunk-append [b x])
+(defn re-groups [m])
+(defn pop! [coll])
+(defn commute [ref fun & args])
+(defn get-proxy-class [& bases])
+(defn method-sig [meth])
+(defn sorted-set-by [comparator & keys])
+(defn long [x])
+(defn make-array ([type len]) ([type dim & more-dims]))
+(defn ->Vec [am cnt shift root tail _meta])
+(defn tagged-literal? [value])
+(defn promise [])
+(defn double-array ([size-or-seq]) ([size init-val-or-seq]))
+(defn parents ([tag]) ([h tag]))
+(defn record? [x])
+(defn -reset-methods [protocol])
+(defn bigdec? [x])
+(defn bytes? [x])
+(defn uri? [x])
+(defn print-method [x writer])
+(defn print-dup [x writer])
+(defn read+string
+  ([])
+  ([stream])
+  ([stream eof-error? eof-value])
+  ([stream eof-error? eof-value recursive?])
+  ([opts stream]))
+(defn PrintWriter-on [flush-fn close-fn])
+
+(defn iteration ^Seqable [^Callable step & opts])
+
+(defn stream-into!
+  ([to stream])
+  ([to xform stream]))
+(defn stream-reduce!
+  ([f s])
+  ([f init s]))
+(defn stream-seq! ^Seq [stream])
+(defn stream-transduce!
+  ([xform f stream])
+  ([xform f init stream]))
+
+;; Clojure core macros not supported by Joker
+
+(defn gen-class [& options])
+(defn with-loading-context [& body])
+(defn future [& body])
+(defn pvalues [& exprs])
+(defn with-precision [precision & exprs])
+(defn dosync [& exprs])
+(defn sync [flags-ignored-for-now & body])
+(defn io! [& body])
+(defn defstruct [name & keys])
+(defn with-local-vars [name-vals-vec & body])
+(defn definline [name & decl])
+(defn gen-interface [& options])
+(defn definterface [name & sigs])
+(defn proxy-super [meth & args])
+(defn with-open [bindings & body])
+
+(defmacro bound-fn
+  [& fntail]
+  `(fn ~@fntail))
+
+(defmacro proxy
+  [class-and-interfaces args & fs]
+  (when-not (vector? class-and-interfaces)
+    (throw (ex-info "Expected a vector of class and intefaces." {:form class-and-interfaces})))
+  (let [impls (fn [fs] (for [f fs]
+                         (derive-info__ (cons 'fn f) f)))]
+    `(fn [this]
+       ~class-and-interfaces
+       ~args
+       ~@(impls fs))))
+
+(def *known-macros*
+  (merge
+   *known-macros*
+   {'definline nil
+    'definterface nil
+    'defstruct nil
+    'gen-interface nil
+    'proxy-super nil
+    'with-local-vars nil
+    'with-open nil
+    'defproject nil
+    'clojure.core.async/go-loop nil
+    'clojure.core.async/alt! nil
+    'clojure.core.async/alt!! nil
+    'clojure.core.async/alts! nil
+    'clojure.core.async/alts!! nil}
+   (:known-macros joker.core/*linter-config*)))
+
+;; Clojure core vars not supported by Joker
+
+(def *warn-on-reflection*)
+(def *clojure-version*)
+(def *compile-files*)
+(def *unchecked-math*)
+(def *default-data-reader-fn*)
+(def *compile-path*)
+(def *compiler-options*)
+(def *agent*)
+(def *read-eval*)
+(def *print-namespace-maps*)
+(def *data-readers*)
+(def *verbose-defrecords*)
+(def *math-context*)
+(def EMPTY-NODE)
+(def char-escape-string)
+(def *suppress-read*)
+(def *fn-loader*)
+(def *use-context-classloader*)
+(def primitives-classnames)
+(def *allow-unresolved-vars*)
+(def *source-path*)
+(def char-name-string)
+
+(in-ns 'user)
+(joker.core/refer 'joker.core)

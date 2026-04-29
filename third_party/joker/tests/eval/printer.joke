@@ -1,0 +1,39 @@
+;   Copyright (c) Rich Hickey. All rights reserved.
+;   The use and distribution terms for this software are covered by the
+;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+;   which can be found in the file epl-v10.html at the root of this distribution.
+;   By using this software in any fashion, you are agreeing to be bound by
+;   the terms of this license.
+;   You must not remove this notice, or any other, from this software.
+
+; Author: Stephen C. Gilardi
+
+(ns joker.test-joker.printer
+  (:require [joker.test :refer [deftest is are]]))
+
+(deftest print-symbol-values
+  (are [s v] (= s (pr-str v))
+    "##Inf" (joker.math/inf 1)
+    "##-Inf" (joker.math/inf -1)
+    "##NaN" (joker.math/nan)))
+
+(deftest print-double-values
+  (are [s v] (= s (pr-str v))
+    "1.9999999" 1.9999999
+    "1e-09" 1e-9
+    "1e-07" 1e-7
+    "0.001" 1e-3
+    "1.0" 1e0))
+
+(deftest print-and-confirm-double-values
+  (are [v] (= v (read-string (pr-str v)))
+    1.9999999
+    1e-9
+    1e-7
+    1e-3
+    1e0
+    99999999.0
+    1.0e-100
+    1.0e+100
+    -2.5
+    -2.5e-3))

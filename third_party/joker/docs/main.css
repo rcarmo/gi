@@ -1,0 +1,177 @@
+html {
+  font-size: 14px;
+}
+
+body {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  letter-spacing: .2px;
+  text-rendering: optimizeLegibility;
+  height: 100%;
+  padding: 30px;
+  margin: 0;
+}
+
+h1 {
+  margin-bottom: 5px;
+}
+
+a {
+  color: #4c880e;
+}
+
+a:visited {
+  color: #690d3f;
+}
+
+.main {
+  max-width: 80%;
+  margin: auto;
+}
+
+#search {
+  float: right;
+  position: relative;
+}
+
+#search-suggestions {
+  border: 1px solid #dcd3d3;
+  border-top: none;
+  border-radius: 0 0 5px 5px;
+  background-color: white;
+  padding: 5px;
+  position: absolute;
+  width: 288px;
+  top: 22px;
+}
+
+#search-suggestions > li {
+  padding: 5px;
+}
+
+#search-suggestions > li.selected {
+  background-color: #d3efff;
+}
+
+#search-input {
+  height: 35px;
+  width: 300px;
+  font-size: 1.2rem;
+  padding: 5px;
+}
+
+p {
+  line-height: 1.6;
+  color: #333;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+ul.index {
+  counter-reset: section;
+
+  -moz-column-count: 6;
+  -moz-column-gap: 20px;
+  -webkit-column-count: 6;
+  -webkit-column-gap: 20px;
+  column-count: 6;
+  column-gap: 20px;
+}
+
+ul.index > li {
+  padding: 2px 0;
+}
+
+ul.index > li > a {
+  color: #477596;
+  background: 0 0;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+ul.index > li > a:hover {
+  color: #008cff;
+}
+
+h3 {
+  font-size: 1.2rem;
+  margin-bottom: 5px;
+  padding-top: 15px;
+  padding-bottom: 5px;
+  border-top: solid 1px #ddd;
+}
+
+h2 {
+  border-top: solid 1px #ddd;
+  padding-top: 15px;
+}
+
+.var-kind, .var-added {
+  display: inline-block;
+  font-size: 0.9rem;
+  color: #444;
+  line-height: 1.5;
+  border: solid 1px #444;
+  border-radius: 3px;
+  padding: 2px 4px;
+  margin-bottom: 20px;
+}
+
+.var-kind {
+  background-color: #fdf7c7;
+}
+
+.var-kind.Constant {
+  background-color: #505050;
+  color: #ffffff;
+}
+
+.var-kind.Function {
+  background-color: #d4f0f5;
+}
+
+.var-kind.Macro {
+  background-color: #f7c15f;
+}
+
+.var-kind.Variable {
+  background-color: #f8f9f8;
+}
+
+.var-kind.Special {
+  background-color: #a5f9b4;
+}
+
+.var-added {
+  background-color: #e7fbc8;
+}
+
+code {
+  font-family: monospace;
+  -webkit-font-smoothing: antialiased;
+  padding: .5rem .2rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  background: #F5F5F5;
+  border-radius: 4px
+}
+
+.var-usage {
+  margin-bottom: 0;
+  margin-top: 0;
+}
+
+.var-docstr {
+  margin-top: 0;
+}
+
+.hide {
+  display: none;
+}
+
+.types {
+  margin-left: 10px;
+}

@@ -1,0 +1,125 @@
+(alias 's 'joker.string)
+(alias 'os 'joker.os)
+
+(def ^:private version-pattern "version\\s+\"(.*)\"")
+
+(defn- exit-err
+  [& args]
+  (apply println-err args)
+  (joker.os/exit 1))
+
+(defn- exec
+  [& args]
+  (let [res (apply os/sh args)]
+    (when-not (:success res)
+      (exit-err (str "'" (s/join " " args) "'") "failed:" (:out res) (:err res)))
+    (:out res)))
+
+(defn- exec-from
+  [dir & args]
+  (let [res (apply os/sh-from dir args)]
+    (when-not (:success res)
+      (exit-err (str "'[" dir "] " (s/join " " args) "'") "failed:" (:out res) (:err res)))
+    (:out res)))
+
+(defn- shasum
+  [filename]
+  (let [res (exec "shasum" "-a" "256" filename)]
+    (first (s/split res #"\s"))))
+
+(defn- update-brew-formula
+  [version]
+  (println "Updating brew formula...")
+  (let [version' (subs version 1)
+        formula-file (get (os/env) "JOKER_FORMULA_PATH")
+        formula (slurp formula-file)
+        [_ current-version] (re-find (re-pattern version-pattern) formula)
+        linux-amd64-sha (shasum "joker-linux-amd64.zip")
+        linux-arm64-sha (shasum "joker-linux-arm64.zip")
+        mac-amd64-sha (shasum "joker-mac-amd64.zip")
+        mac-arm64-sha (shasum "joker-mac-arm64.zip")]
+    (when-not current-version
+      (exit-err "Could not find version number"))
+    (println "SHA256 checksums:")
+    (println "  linux-amd64:" linux-amd64-sha)
+    (println "  linux-arm64:" linux-arm64-sha)
+    (println "  mac-arm64:  " mac-arm64-sha)
+    (println "  mac-amd64:  " mac-amd64-sha)
+    (spit formula-file (-> formula
+                           (s/replace current-version version')
+                           (s/replace #"sha256 \".*\" # linux-amd64" (str "sha256 \"" linux-amd64-sha "\" # linux-amd64"))
+                           (s/replace #"sha256 \".*\" # linux-arm64" (str "sha256 \"" linux-arm64-sha "\" # linux-arm64"))
+                           (s/replace #"sha256 \".*\" # mac-arm64" (str "sha256 \"" mac-arm64-sha "\" # mac-arm64"))
+                           (s/replace #"sha256 \".*\" # mac-amd64" (str "sha256 \"" mac-amd64-sha "\" # mac-amd64"))))
+    (let [res (os/sh-from (s/replace formula-file "/joker.rb" "")
+                          "git" "commit" "-a" "-m" (str "joker-" version))]
+      (when-not (:success res)
+        (exit-err "git commit failed:" (:out res) (:err res))))))
+
+(defn- update-version
+  [version]
+  (println (str "Updating version to " version "..."))
+  (let [procs (slurp "core/procs.go")
+        procs-lines (s/split-lines procs)
+        version-line (first (filter #(re-find #"const VERSION = .*" %) procs-lines))]
+    (when-not procs
+      (exit-err "Could not find version line"))
+    (spit "core/procs.go" (s/replace procs version-line (str "const VERSION = \"" version "\""))))
+  (exec "git" "commit" "-a" "-m" version)
+  (exec "git" "tag" version)
+  (exec "git" "push")
+  (exec "git" "push" "--tags"))
+
+(defn- build-binary
+  [goarch goos]
+  (os/set-env "GOOS" goos)
+  (os/set-env "GOARCH" goarch)
+  (exec "go" "build")
+  (os/unset-env "GOARCH")
+  (os/unset-env "GOOS"))
+
+(defn- zip-binary
+  [goarch goos]
+  (let [os (case goos
+             "darwin" "mac"
+             "windows" "win"
+             goos)
+        zip-filename (str "joker-" os "-" goarch ".zip")
+        filename (if (= "windows" goos) "joker.exe" "joker")]
+    (exec "zip" "-9" zip-filename filename)))
+
+(defn- build-binaries
+  [version]
+  (println "Building binaries...")
+  ;; Build amd64 binaries for all platforms
+  (let [goarch "amd64"]
+    (doseq [goos ["darwin" "linux" "windows" "freebsd" "netbsd" "openbsd"]]
+      (println "Building" goos goarch)
+      (build-binary goarch goos)
+      (zip-binary goarch goos)))
+  ;; Build arm64 binaries
+  (let [goarch "arm64"]
+    (doseq [goos ["darwin" "linux"]]
+      (println "Building" goos goarch)
+      (build-binary goarch goos)
+      (zip-binary goarch goos)))
+  (exec "rm" "-f" "joker.exe")
+  (exec "rm" "-f" "joker"))
+
+(defn- generate-docs
+  []
+  (exec-from "docs" "../joker" "generate-docs.joke"))
+
+(defn- main
+  [args]
+  (let [[_ _ version] args]
+    (when-not version
+      (exit-err "No version provided"))
+    (when-not (re-matches #"v\d\.\d{1,2}\.\d{1,2}" version)
+      (exit-err "Invalid version provided:" version))
+    (generate-docs)
+    (update-version version)
+    (build-binaries version)
+    (update-brew-formula version)))
+
+(main (joker.os/args))

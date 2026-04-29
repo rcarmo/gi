@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">Joker vs Goja — CLBG benchmark ratio</title>
+  <desc id="desc">Vertical bar chart showing Joker/Goja time ratio for all 10 CLBG programs. Below 1.0 = Joker wins.</desc>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f8fc; --panel: #ffffff; --border: #c7d3ea;
+      --text: #172033; --muted: #6b7a96; --grid: #e2e9f4;
+      --win: #23a566; --close: #f5a623; --gap: #e04848;
+      --parity: #3572a5;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1020; --panel: #11182b; --border: #25324f;
+        --text: #e3ecff; --muted: #8da0c4; --grid: #1e2d4a;
+        --win: #37c67e; --close: #f5a623; --gap: #f06060;
+        --parity: #6b9fd4;
+      }
+    }
+    svg { background: var(--bg); }
+    .panel { fill: var(--panel); stroke: var(--border); stroke-width: 1; }
+    .text { fill: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    .muted { fill: var(--muted); font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    .title { font-size: 24px; font-weight: 700; }
+    .subtitle { font-size: 14px; font-weight: 500; }
+    .label { font-size: 13px; font-weight: 600; }
+    .value { font-size: 12px; font-weight: 700; }
+    .small { font-size: 11px; font-weight: 500; }
+    .tiny { font-size: 10px; font-weight: 500; }
+    .grid { stroke: var(--grid); stroke-width: 1; }
+    .parity { stroke: var(--parity); stroke-width: 2; stroke-dasharray: 6,4; }
+    .win { fill: var(--win); }
+    .close { fill: var(--close); }
+    .gap { fill: var(--gap); }
+  </style>
+
+  <rect x="0" y="0" width="1200" height="900" fill="var(--bg)" />
+  <rect class="panel" x="24" y="24" width="1152" height="852" rx="16" />
+
+  <text class="text title" x="56" y="68">Joker / Goja time ratio — all 10 CLBG programs</text>
+  <text class="muted subtitle" x="56" y="92">Bar height = how many × slower than Goja. Below the 1.0× line = Joker wins.</text>
+
+  <!-- Legend -->
+  <g transform="translate(750,60)">
+    <rect class="win" x="0" y="0" width="14" height="14" rx="3" /><text class="text small" x="20" y="12">Joker faster</text>
+    <rect class="close" x="130" y="0" width="14" height="14" rx="3" /><text class="text small" x="150" y="12">Within 4×</text>
+    <rect class="gap" x="250" y="0" width="14" height="14" rx="3" /><text class="text small" x="270" y="12">Over 4×</text>
+  </g>
+
+  <!-- Chart area: x=80..1140, y=130..720, max ratio = 7× -->
+  <!-- Y axis: 0 at bottom (y=720), 7× at top (y=130). Each 1× = (720-130)/7 = 84.3px -->
+  <!-- Parity line at 1.0× = y=720-84.3 = 635.7 -->
+
+  <!-- Grid lines -->
+  <line class="grid" x1="80" y1="636" x2="1140" y2="636" />
+  <line class="grid" x1="80" y1="551" x2="1140" y2="551" />
+  <line class="grid" x1="80" y1="467" x2="1140" y2="467" />
+  <line class="grid" x1="80" y1="383" x2="1140" y2="383" />
+  <line class="grid" x1="80" y1="299" x2="1140" y2="299" />
+  <line class="grid" x1="80" y1="214" x2="1140" y2="214" />
+  <line class="grid" x1="80" y1="130" x2="1140" y2="130" />
+
+  <!-- Parity line (1.0×) -->
+  <line class="parity" x1="80" y1="636" x2="1140" y2="636" />
+
+  <!-- Y labels -->
+  <text class="muted small" x="72" y="724" text-anchor="end">0×</text>
+  <text class="muted small" x="72" y="640" text-anchor="end">1×</text>
+  <text class="muted small" x="72" y="555" text-anchor="end">2×</text>
+  <text class="muted small" x="72" y="471" text-anchor="end">3×</text>
+  <text class="muted small" x="72" y="387" text-anchor="end">4×</text>
+  <text class="muted small" x="72" y="303" text-anchor="end">5×</text>
+  <text class="muted small" x="72" y="218" text-anchor="end">6×</text>
+  <text class="muted small" x="72" y="134" text-anchor="end">7×</text>
+
+  <text class="muted tiny" x="56" y="640" text-anchor="end">parity →</text>
+
+  <!-- Bars: 11 benchmarks, each ~90px wide with 6px gap. Start at x=95 -->
+  <!-- Bar height = ratio × 84.3, capped at 590 (7×). y = 720 - height -->
+
+  <!-- pidigits: 0.11/0.15 = 0.73× → WIN -->
+  <rect class="win" x="95" y="658" width="80" height="62" rx="6" />
+  <text class="text value" x="135" y="654" text-anchor="middle">0.7×</text>
+  <text class="text label" x="135" y="746" text-anchor="middle">pidigits</text>
+  <text class="muted tiny" x="135" y="760" text-anchor="middle">0.11 ms</text>
+
+  <!-- regex-redux: 0.16/0.14 = 1.1× → ~parity -->
+  <rect class="win" x="187" y="627" width="80" height="93" rx="6" />
+  <text class="text value" x="227" y="623" text-anchor="middle">1.1×</text>
+  <text class="text label" x="227" y="746" text-anchor="middle">regex</text>
+  <text class="muted tiny" x="227" y="760" text-anchor="middle">0.16 ms</text>
+
+  <!-- fib: 65.6/80.4 = 0.82× → WIN -->
+  <rect class="win" x="279" y="651" width="80" height="69" rx="6" />
+  <text class="text value" x="319" y="647" text-anchor="middle">0.8×</text>
+  <text class="text label" x="319" y="746" text-anchor="middle">fib</text>
+  <text class="muted tiny" x="319" y="760" text-anchor="middle">65.6 ms</text>
+
+  <!-- binary-trees: 474/172 = 2.8× -->
+  <rect class="close" x="371" y="484" width="80" height="236" rx="6" />
+  <text class="text value" x="411" y="480" text-anchor="middle">2.8×</text>
+  <text class="text label" x="411" y="746" text-anchor="middle">b-trees</text>
+  <text class="muted tiny" x="411" y="760" text-anchor="middle">474 ms</text>
+
+  <!-- fannkuch: 85.8/24.0 = 3.6× -->
+  <rect class="close" x="463" y="416" width="80" height="304" rx="6" />
+  <text class="text value" x="503" y="412" text-anchor="middle">3.6×</text>
+  <text class="text label" x="503" y="746" text-anchor="middle">fannkuch</text>
+  <text class="muted tiny" x="503" y="760" text-anchor="middle">85.8 ms</text>
+
+  <!-- mandelbrot: 158/39 = 4.0× -->
+  <rect class="close" x="555" y="383" width="80" height="337" rx="6" />
+  <text class="text value" x="595" y="379" text-anchor="middle">4.0×</text>
+  <text class="text label" x="595" y="746" text-anchor="middle">mandel</text>
+  <text class="muted tiny" x="595" y="760" text-anchor="middle">158 ms</text>
+
+  <!-- k-nucleotide: 2.0/0.48 = 4.2× -->
+  <rect class="gap" x="647" y="366" width="80" height="354" rx="6" />
+  <text class="text value" x="687" y="362" text-anchor="middle">4.2×</text>
+  <text class="text label" x="687" y="746" text-anchor="middle">k-nucl</text>
+  <text class="muted tiny" x="687" y="760" text-anchor="middle">2.0 ms</text>
+
+  <!-- spectral-norm: 293/65.2 = 4.5× -->
+  <rect class="gap" x="739" y="341" width="80" height="379" rx="6" />
+  <text class="text value" x="779" y="337" text-anchor="middle">4.5×</text>
+  <text class="text label" x="779" y="746" text-anchor="middle">spectral</text>
+  <text class="muted tiny" x="779" y="760" text-anchor="middle">293 ms</text>
+
+  <!-- reverse-complement: 0.60/0.13 = 4.6× -->
+  <rect class="gap" x="831" y="332" width="80" height="388" rx="6" />
+  <text class="text value" x="871" y="328" text-anchor="middle">4.6×</text>
+  <text class="text label" x="871" y="746" text-anchor="middle">rev-comp</text>
+  <text class="muted tiny" x="871" y="760" text-anchor="middle">0.60 ms</text>
+
+  <!-- fasta: 2.8/0.60 = 4.7× -->
+  <rect class="gap" x="923" y="324" width="80" height="396" rx="6" />
+  <text class="text value" x="963" y="320" text-anchor="middle">4.7×</text>
+  <text class="text label" x="963" y="746" text-anchor="middle">fasta</text>
+  <text class="muted tiny" x="963" y="760" text-anchor="middle">2.8 ms</text>
+
+  <!-- n-body: 30.5/4.75 = 6.4× -->
+  <rect class="gap" x="1015" y="181" width="80" height="539" rx="6" />
+  <text class="text value" x="1055" y="177" text-anchor="middle">6.4×</text>
+  <text class="text label" x="1055" y="746" text-anchor="middle">n-body</text>
+  <text class="muted tiny" x="1055" y="760" text-anchor="middle">30.5 ms</text>
+
+  <!-- Annotations -->
+  <g transform="translate(56,790)">
+    <text class="text small" x="0" y="16">Sorted left→right by Joker/Goja ratio. Green bars = Joker wins. Orange = within 4×. Red = over 4×.</text>
+    <text class="muted tiny" x="0" y="36">Joker optimization stack: IR bytecode (26 opcodes) • TCO rewrite • transient vectors • self-recursive dispatch • compiled fn dispatch</text>
+    <text class="muted tiny" x="0" y="50">All values in ms/op. 5 iterations each. Host: i7-12700. Joker beats Goja on 3 of 11 benchmarks (pidigits, regex-redux, recursive fib).</text>
+    <text class="muted tiny" x="0" y="64">vs original Joker baseline: arithmetic 4.9× faster, fib 8.3× faster, word-frequency 40× faster.</text>
+  </g>
+</svg>

@@ -1,0 +1,129 @@
+&lt;?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="940" viewBox="0 0 1200 940" role="img" aria-labelledby="title desc">
+  <title id="title">Joker benchmark improvements</title>
+  <desc id="desc">Benchmark summary for Joker interpreter optimization work, including detailed before, best-after, and latest values for the map update benchmark. Supports light and dark mode.</desc>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f8fc;
+      --panel: #ffffff;
+      --row: #f0f4fb;
+      --track: #dfe7f5;
+      --border: #c7d3ea;
+      --text: #172033;
+      --muted: #55627c;
+      --baseline: #7f93b8;
+      --current: #23a566;
+      --before: #7f93b8;
+      --best: #23a566;
+      --latest: #d69a23;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0b1020;
+        --panel: #11182b;
+        --row: #0f1728;
+        --track: #1c2740;
+        --border: #25324f;
+        --text: #e3ecff;
+        --muted: #9db0d6;
+        --baseline: #7288b3;
+        --current: #37c67e;
+        --before: #7288b3;
+        --best: #37c67e;
+        --latest: #efb64d;
+      }
+    }
+    svg { background: var(--bg); }
+    .panel { fill: var(--panel); stroke: var(--border); stroke-width: 1; }
+    .row { fill: var(--row); stroke: var(--border); stroke-width: 1; }
+    .track { fill: var(--track); }
+    .baseline { fill: var(--baseline); }
+    .current { fill: var(--current); }
+    .before { fill: var(--before); }
+    .best { fill: var(--best); }
+    .latest { fill: var(--latest); }
+    .text { fill: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .muted { fill: var(--muted); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .title { font-size: 28px; font-weight: 700; }
+    .subtitle { font-size: 15px; font-weight: 500; }
+    .section { font-size: 18px; font-weight: 700; }
+    .metric { font-size: 16px; font-weight: 700; }
+    .small { font-size: 14px; font-weight: 500; }
+    .tiny { font-size: 12px; font-weight: 500; }
+    .improve { fill: var(--current); font-size: 18px; font-weight: 800; }
+    .regress { fill: var(--latest); font-size: 18px; font-weight: 800; }
+  </style>
+
+  <rect x="0" y="0" width="1200" height="940" fill="var(--bg)" />
+  <rect class="panel" x="28" y="28" width="1144" height="884" rx="20" />
+
+  <text class="text title" x="56" y="76">Joker benchmark improvements</text>
+  <text class="muted subtitle" x="56" y="104">Stable 5x benchmark checkpoints • lower is better • generated from benchmark-history.json</text>
+  <text class="muted tiny" x="56" y="124">Host: 12th Gen Intel(R) Core(TM) i7-12700</text>
+
+  <g transform="translate(56,142)">
+    <rect class="baseline" x="0" y="0" width="18" height="18" rx="4" />
+    <text class="text small" x="28" y="14">Baseline stable checkpoint</text>
+    <rect class="current" x="252" y="0" width="18" height="18" rx="4" />
+    <text class="text small" x="280" y="14">Latest checkpoint</text>
+    <rect class="before" x="468" y="0" width="18" height="18" rx="4" />
+    <text class="text small" x="496" y="14">Before map fastpaths</text>
+    <rect class="best" x="714" y="0" width="18" height="18" rx="4" />
+    <text class="text small" x="742" y="14">Best after</text>
+    <rect class="latest" x="866" y="0" width="18" height="18" rx="4" />
+    <text class="text small" x="894" y="14">Latest map value</text>
+  </g>
+
+  
+  <g transform="translate(48,182)">
+    <rect class="row" x="0" y="0" width="1104" height="136" rx="16" />
+    <text class="text section" x="20" y="30">Arithmetic loop</text>
+    <text class="improve" x="1058" y="30" text-anchor="end">-89.9%</text>
+    <text class="muted tiny" x="20" y="58">Baseline</text>
+    <rect class="track" x="120" y="44" width="620" height="22" rx="8" />
+    <rect class="baseline" x="120" y="44" width="620" height="22" rx="8" />
+    <text class="muted tiny" x="20" y="96">Latest</text>
+    <rect class="track" x="120" y="82" width="620" height="22" rx="8" />
+    <rect class="current" x="120" y="82" width="63" height="22" rx="8" />
+    <text class="text metric" x="790" y="61">189.8 ms</text><text class="muted small" x="900" y="61">baseline</text>
+    <text class="text metric" x="790" y="99">19.20 ms</text><text class="muted small" x="900" y="99">latest</text>
+  </g>
+  
+  <g transform="translate(48,334)">
+    <rect class="row" x="0" y="0" width="1104" height="136" rx="16" />
+    <text class="text section" x="20" y="30">Recursive fib</text>
+    <text class="improve" x="1058" y="30" text-anchor="end">-25.1%</text>
+    <text class="muted tiny" x="20" y="58">Baseline</text>
+    <rect class="track" x="120" y="44" width="620" height="22" rx="8" />
+    <rect class="baseline" x="120" y="44" width="620" height="22" rx="8" />
+    <text class="muted tiny" x="20" y="96">Latest</text>
+    <rect class="track" x="120" y="82" width="620" height="22" rx="8" />
+    <rect class="current" x="120" y="82" width="465" height="22" rx="8" />
+    <text class="text metric" x="790" y="61">546.0 ms</text><text class="muted small" x="900" y="61">baseline</text>
+    <text class="text metric" x="790" y="99">409.1 ms</text><text class="muted small" x="900" y="99">latest</text>
+  </g>
+  
+  <g transform="translate(48,486)">
+    <rect class="row" x="0" y="0" width="1104" height="136" rx="16" />
+    <text class="text section" x="20" y="30">Word frequency</text>
+    <text class="improve" x="1058" y="30" text-anchor="end">-96.7%</text>
+    <text class="muted tiny" x="20" y="58">Baseline</text>
+    <rect class="track" x="120" y="44" width="620" height="22" rx="8" />
+    <rect class="baseline" x="120" y="44" width="620" height="22" rx="8" />
+    <text class="muted tiny" x="20" y="96">Latest</text>
+    <rect class="track" x="120" y="82" width="620" height="22" rx="8" />
+    <rect class="current" x="120" y="82" width="20" height="22" rx="8" />
+    <text class="text metric" x="790" y="61">279.9 ms</text><text class="muted small" x="900" y="61">baseline</text>
+    <text class="text metric" x="790" y="99">9.10 ms</text><text class="muted small" x="900" y="99">latest</text>
+  </g>
+  
+
+  <g transform="translate(48,646)">
+    <rect class="row" x="0" y="0" width="1104" height="220" rx="16" />
+    <text class="text section" x="20" y="30">Map update loop timeline</text>
+    <text class="muted small" x="20" y="54">Requested view: before map fastpaths • best after • latest</text>
+    
+    <text class="muted tiny" x="20" y="206">The map benchmark improved after `get`/`assoc` fast paths, but later structural experiments moved the latest value back up.</text>
+  </g>
+</svg>

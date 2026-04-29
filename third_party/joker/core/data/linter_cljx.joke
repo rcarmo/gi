@@ -1,0 +1,423 @@
+(defn ^:private conj-import*
+  [v sym]
+  (let [parts (joker.string/split (name sym) #"\.")]
+    (conj v (symbol (last parts)))))
+
+(defmacro import
+  [& import-symbols-or-lists]
+  (let [specs (map #(if (and (seq? %) (= 'quote (first %))) (second %) %)
+                   import-symbols-or-lists)
+        syms (reduce (fn [v spec]
+                       (if (symbol? spec)
+                         (conj-import* v spec)
+                         (let [p (first spec) cs (rest spec)]
+                           (reduce conj-import* v (map #(symbol (str p "." %)) cs)))))
+                     [] specs)]
+    `(do nil nil
+         ~@(map #(list 'joker.core/require (list 'quote %)) syms)
+         ~@(map #(list 'def-linter__ %) (remove resolve syms)))))
+
+(def *known-macros*
+  {'memfn nil
+   '.. nil '. nil 'clojure.test/deftest nil 'clojure.test/is nil 'clojure.test/are nil 'tag__ nil})
+
+(defn ^:private taggify__
+  [x]
+  (list 'tag__ x))
+
+(def default-data-readers
+  (apply merge
+         {'inst #'joker.core/identity
+          'uuid #'joker.core/identity}
+         (map (fn [sym] {sym #'joker.core/taggify__}) (:known-tags joker.core/*linter-config*))))
+
+(defn ^:private validate-fields__
+  [fields name]
+  (when-not (vector? fields)
+    (throw (ex-info "No fields vector given." {:form fields})))
+  (let [specials '#{__meta __hash __hasheq __extmap}]
+    (when (some specials fields)
+      (throw (ex-info (str "The names in " specials " cannot be used as field names for types or records.") {:form fields}))))
+  (let [non-syms (remove symbol? fields)]
+    (when (seq non-syms)
+      (throw (ex-info
+              (str "defrecord and deftype fields must be symbols, "
+                   *ns* "." name " had: "
+                   (apply str (interpose ", " non-syms)))
+              {:form fields})))))
+
+(defn ^:private parse-opts__ [s]
+  (loop [opts {} [k v & rs :as s] s]
+    (if (keyword? k)
+      (recur (assoc opts k v) rs)
+      [opts s])))
+
+(defn ^:private parse-impls__ [specs]
+  (loop [ret {} s specs]
+    (if (seq s)
+      (recur (assoc ret (first s) (take-while seq? (next s)))
+             (drop-while seq? (next s)))
+      ret)))
+
+(defn ^:private parse-opts+specs__ [opts+specs]
+  (let [[opts specs] (parse-opts__ opts+specs)
+        impls (map (fn [[k v]]
+                     [k (map (fn [[name params & body]]
+                               (cons name (maybe-destructured params body)))
+                             v)])
+                   (parse-impls__ specs))]
+    (when-let [bad-opts (seq (remove #{:no-print :load-ns} (keys opts)))]
+      (throw (ex-info (apply print-str "Unsupported option(s) -" bad-opts) {:form opts+specs})))
+    impls))
+
+(defn ^:private defns__
+  [specs]
+  (for [[name params & body] specs]
+    (derive-info__
+     `(fn ~params ~@body)
+     name)))
+
+(defn ^:private defimpls__
+  [impls]
+  (apply concat
+         (for [[i specs] impls]
+           (cons i (defns__ specs)))))
+
+(defn ^:private defmethods__
+  [sigs]
+  (for [sig (vals sigs)]
+    (derive-info__
+     `(defn ~(:name sig) ~(or (:doc sig) "")
+        ~@(map #(cons % '(nil)) (:arglists sig)))
+     (:name sig))))
+
+(defmacro defrecord
+  [name fields & opts+specs]
+  (validate-fields__ fields name)
+  (let [impls (parse-opts+specs__ opts+specs)]
+    `(defn ~(symbol (str "->" name))
+       ~fields
+       (def-linter__ ~(symbol (str name)))
+       (defn ~(symbol (str "map->" name)) [~(symbol "_")] nil)
+       ~@(defimpls__ impls))))
+
+(defmacro deftype
+  [name fields & opts+specs]
+  (validate-fields__ fields name)
+  (let [impls (parse-opts+specs__ opts+specs)]
+    `(defn ~(symbol (str "->" name))
+       ~fields
+       (def-linter__ ~(symbol (str name)))
+       ~@(defimpls__ impls))))
+
+(defmacro reify
+  [& opts+specs]
+  (let [impls (parse-opts+specs__ opts+specs)]
+    `(do nil nil
+         ~@(defimpls__ impls))))
+
+(defmacro defprotocol
+  [name & opts+sigs]
+  (let [[_ sigs]
+        (loop [opts {} sigs opts+sigs]
+          (condp #(%1 %2) (first sigs)
+            string? (recur (assoc opts :doc (first sigs)) (next sigs))
+            keyword? (recur (assoc opts (first sigs) (second sigs)) (nnext sigs))
+            [opts sigs]))
+        sigs (when sigs
+               (reduce (fn [m s]
+                         (let [name-meta (meta (first s))
+                               mname (with-meta (first s) nil)
+                               [arglists doc]
+                               (loop [as [] rs (rest s)]
+                                 (if (vector? (first rs))
+                                   (recur (conj as (first rs)) (next rs))
+                                   [(seq as) (first rs)]))]
+                           (when (some #{0} (map count arglists))
+                             (println-err (ex-info (str "Definition of function " mname " in protocol " name " must take at least one arg.") {:form mname})))
+                           (when (m (keyword mname))
+                             (println-err (ex-info (str "Function " mname " in protocol " name " was redefined. Specify all arities in single definition.") {:form mname})))
+                           (assoc m (keyword mname)
+                                  (merge name-meta
+                                         {:name (vary-meta mname assoc :doc doc :arglists arglists)
+                                          :arglists (map (fn [args] (mapv #(symbol (str "_" %)) args))
+                                                         arglists)
+                                          :doc doc}))))
+                       {} sigs))]
+    `(do nil
+         (def ~name)
+         ~@(defmethods__ sigs))))
+
+(defn- emit-hinted-impl [c [p fs]]
+  (let [hint (fn [specs]
+               (let [specs (if (vector? (first specs))
+                             (list specs)
+                             specs)]
+                 (map (fn [[[target & args] & body]]
+                        (cons (apply vector (vary-meta target assoc :tag c) args)
+                              body))
+                      specs)))]
+    [p (zipmap (map #(-> % first name keyword) fs)
+               (map #(derive-info__ (cons `fn (hint (drop 1 %))) (first %)) fs))]))
+
+(defn ^:private extend__ [atype & proto+mmaps])
+
+(defmacro extend-type
+  [t & specs]
+  (let [impls (parse-impls__ specs)]
+    `(extend__ ~t ~@(mapcat (partial emit-hinted-impl t) impls))))
+
+(defmacro extend-protocol
+  [t & specs]
+  (let [impls (parse-impls__ specs)]
+    `(extend__ ~t ~@(mapcat (partial emit-hinted-impl t) impls))))
+
+(doseq [sym (:known-namespaces joker.core/*linter-config*)]
+  (inject-ns__ sym))
+
+(defn add-tap [f])
+(defn remove-tap [f])
+(defn tap> [x])
+
+;; Redefine some core functions with type hints
+
+(defn cons ^Seq [x ^Seqable seq] (cons__ x seq))
+(defn first [^Seqable coll] (first__ coll))
+(defn next ^Seq [^Seqable coll] (next__ coll))
+(defn rest ^Seq [^Seqable coll] (rest__ coll))
+(defn seq ^Seq [^Seqable coll] (seq__ coll))
+(defn instance? ^Boolean [^Type c x] (instance?__ c x))
+(defn ex-info
+  (^ExInfo [^String msg ^Map map] (ex-info__ msg map))
+  (^ExInfo [^String msg ^Map map ^Error cause] (ex-info__ msg map cause)))
+(defn with-meta [obj ^Map m] (with-meta__ obj m))
+(defn vec ^Vec [^Seqable coll] (vec__ coll))
+(defn not-every? ^Boolean [^Callable pred ^Seqable coll] (not (every? pred coll)))
+(defn not-any? ^Boolean [^Callable pred ^Seqable coll] (not (some pred coll)))
+(defn read-string
+  ([^String s] (read-string__ s))
+  ([^Map opts ^String s] (read-string__ s)))
+
+;; Clojure special forms not supported by Joker
+(defn new [& args])
+
+;; Fake "macro" to handle tagged literals
+(defn tag__ [x])
+
+;; Clojure core macros not supported by Joker
+
+(defn vswap! [vol f & args])
+(defn areduce [a idx ret init expr])
+(defn locking [x & body])
+(defn amap [a idx ret expr])
+(defn memfn [name & args])
+(defn .. [x form & more])
+(defn . [x m & args])
+
+;; Clojure core functions not supported by Joker
+
+(defn abs ^Number [^Number num])
+(defn inst-ms [inst])
+(defn inst? [x])
+(defn uuid? [x])
+(defn parse-uuid [^String s])
+(defn random-uuid [])
+(defn halt-when
+  ([^Callable pred])
+  ([^Callable pred ^Callable retf]))
+(defn seq-to-map-for-destructuring ^Map [s])
+
+;; Clojure core vars not supported by Joker
+
+(def *print-level*)
+(def *print-meta*)
+(def *print-length*)
+(def *print-dup*)
+
+;; Add transducer arity to standard functions
+
+(def __map__ map)
+(defn map
+  ([^Callable x])
+  (^Seq [^Callable x ^Seqable coll]
+   (__map__ x coll))
+  (^Seq [^Callable x c & colls]
+   (apply __map__ x c colls)))
+
+(def __mapcat__ mapcat)
+(defn mapcat
+  ([^Callable x])
+  (^Seq [^Callable x & colls]
+   (apply __mapcat__ x colls)))
+
+(def __filter__ filter)
+(defn filter
+  ([^Callable x])
+  (^Seq [^Callable x ^Seqable coll]
+   (__filter__ x coll)))
+
+(def __remove__ remove)
+(defn remove
+  ([^Callable x])
+  (^Seq [^Callable x ^Seqable coll]
+   (__remove__ x coll)))
+
+(def __take__ take)
+(defn take
+  ([^Number x])
+  (^Seq [^Number x ^Seqable coll]
+   (__take__ x coll)))
+
+(def __take-while__ take-while)
+(defn take-while
+  ([^Callable x])
+  (^Seq [^Callable x ^Seqable coll]
+   (__take-while__ x coll)))
+
+(def __drop__ drop)
+(defn drop
+  ([^Number x])
+  (^Seq [^Number x ^Seqable coll]
+   (__drop__ x coll)))
+
+(def __drop-while__ drop-while)
+(defn drop-while
+  ([^Callable x])
+  (^Seq [^Callable x ^Seqable coll]
+   (__drop-while__ x coll)))
+
+(def __take-nth__ take-nth)
+(defn take-nth
+  ([^Number x])
+  (^Seq [^Number x ^Seqable coll]
+   (__take-nth__ x coll)))
+
+(def __distinct__ distinct)
+(defn distinct
+  ([])
+  (^Seq [^Seqable coll]
+   (__distinct__ coll)))
+
+(def __replace__ replace)
+(defn replace
+  ([^Associative x])
+  ([^Associative x ^Seqable coll]
+   (__replace__ x coll)))
+
+(def __interpose__ interpose)
+(defn interpose
+  ([x])
+  (^Seq [x ^Seqable coll]
+   (__interpose__ x coll)))
+
+(def __into__ into)
+(defn into
+  ([to from]
+   (__into__ to from))
+  ([to xform from]))
+
+(def __partition-by__ partition-by)
+(defn partition-by
+  ([^Callable x])
+  (^Seq [^Callable x ^Seqable coll]
+   (__partition-by__ x coll)))
+
+(def __partition-all__ partition-all)
+(defn partition-all
+  ([^Number n])
+  (^Seq [^Number n ^Seqable coll]
+   (__partition-all__ n coll))
+  (^Seq [^Number n ^Number step ^Seqable coll]
+   (__partition-all__ n step coll)))
+
+(def __map-indexed__ map-indexed)
+(defn map-indexed
+  ([^Callable x])
+  (^Seq [^Callable x ^Seqable coll]
+   (__map-indexed__ x coll)))
+
+(def __keep__ keep)
+(defn keep
+  ([^Callable x])
+  (^Seq [^Callable x ^Seqable coll]
+   (__keep__ x coll)))
+
+(def __keep-indexed__ keep-indexed)
+(defn keep-indexed
+  ([^Callable x])
+  (^Seq [^Callable x ^Seqable coll]
+   (__keep-indexed__ x coll)))
+
+(defn cat
+  [^Callable x])
+
+(def __dedupe__ dedupe)
+(defn dedupe
+  ([])
+  (^Seq [^Seqable coll]
+   (__dedupe__ coll)))
+
+(def __random-sample__ random-sample)
+(defn random-sample
+  ([^Number x])
+  (^Seq [^Number x ^Seqable coll]
+   (__random-sample__ x coll)))
+
+(def __sequence__ sequence)
+(defn sequence
+  (^Seq [coll]
+   (__sequence__ coll))
+  (^Seq [xform coll])
+  (^Seq [xform coll & colls]))
+
+(ns-unmap 'joker.core 'bigfloat?)
+(ns-unmap 'user 'bigfloat?)
+(ns-unmap 'joker.core 'bigfloat)
+(ns-unmap 'user 'bigfloat)
+(ns-unmap 'joker.core 'joker-version)
+(ns-unmap 'user 'joker-version)
+(ns-unmap 'joker.core 'pprint)
+(ns-unmap 'user 'pprint)
+(ns-unmap 'joker.core 'pr-err)
+(ns-unmap 'user 'pr-err)
+(ns-unmap 'joker.core 'prn-err)
+(ns-unmap 'user 'prn-err)
+(ns-unmap 'joker.core 'print-err)
+(ns-unmap 'user 'print-err)
+(ns-unmap 'joker.core 'println-err)
+(ns-unmap 'user 'println-err)
+(ns-unmap 'joker.core 'ns-sources)
+(ns-unmap 'user 'ns-sources)
+(ns-unmap 'joker.core '*main-file*)
+(ns-unmap 'joker.core 'go)
+(ns-unmap 'user 'go)
+(ns-unmap 'joker.core '<!)
+(ns-unmap 'user '<!)
+(ns-unmap 'joker.core '>!)
+(ns-unmap 'user '>!)
+(ns-unmap 'joker.core 'close!)
+(ns-unmap 'user 'close!)
+(ns-unmap 'joker.core 'chan)
+(ns-unmap 'user 'chan)
+(ns-unmap 'joker.core 'exit)
+(ns-unmap 'user 'exit)
+
+(ns clojure.test)
+
+(defmacro deftest
+  [name & body]
+  `(do
+     (defn ~name [] ~@body)
+     ;; To silence "globally unused"" warning.
+     (~name)))
+
+(ns clojure.core.async)
+
+(defmacro go-loop
+  [bindings & body]
+  `(go (loop ~bindings ~@body)))
+
+;; Don't want core's merge mapped in clojure.core.async
+;; to avoid incorrect type checking (core's merge, unline
+;; async's merge, requires Maps as arguments).
+(ns-unmap 'clojure.core.async 'merge)
