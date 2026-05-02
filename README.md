@@ -16,7 +16,7 @@ The web UI uses Piclaw's TypeScript source verbatim with a gi-specific API adapt
 - boringly reliable **turn handling** via append-only event log
 - workspace-centric operation with **SQLite-backed state**
 - **Piclaw compatibility** for settings, message model, keychain, prompt templates, and UX conventions
-- **Joker-first** scripting and skills
+- **Clojure-first** scripting and skills via Joker
 - **go-ai** as the model/provider layer
 
 ## Architecture
