@@ -16,8 +16,10 @@ TEST_DB ?= $(TEST_DIR)/gi.db
 TEST_LOG ?= $(TEST_DIR)/gi.log
 TEST_PID ?= $(TEST_DIR)/gi.pid
 TEST_WORKSPACE ?= $(TEST_DIR)/workspace
+TEST_RESULTS ?= test-results
+TUI_TEST_DIR ?= .gi-tui-test
 
-.PHONY: build-web build test vet bun-checks start stop restart status logs run clean test-instance-start test-instance-stop test-ux
+.PHONY: build-web build test vet bun-checks start stop restart status logs run clean test-instance-start test-instance-stop test-ux test-tui-smoke
 
 build-web:
 	bun run build:web
@@ -25,7 +27,6 @@ build-web:
 build: build-web
 	mkdir -p $(BIN_DIR)
 	go build -o $(BIN) ./cmd/gi
-	go build -o $(BIN_DIR)/gi-tui ./cmd/gi-tui
 
 test:
 	go test ./...
@@ -79,7 +80,8 @@ logs:
 	tail -f $(LOG)
 
 clean:
-	rm -rf $(RUN_DIR) $(BIN_DIR) $(TEST_DIR) test-results/
+	rm -rf $(RUN_DIR) $(BIN_DIR) $(TEST_DIR) $(TUI_TEST_DIR) $(TEST_RESULTS)/
+	rm -f gi gi-tui
 
 # ── Isolated test instance ──────────────────────────────────────────────
 
@@ -114,7 +116,12 @@ test-instance-stop:
 	@rm -rf $(TEST_DIR)
 
 test-ux: test-instance-start
-	GI_TEST_URL=http://127.0.0.1:$(TEST_PORT) bunx playwright test tests/functional/ --reporter=line; \
+	mkdir -p $(TEST_RESULTS)
+	GI_TEST_URL=http://127.0.0.1:$(TEST_PORT) bunx playwright test tests/functional/ --reporter=line --output=$(TEST_RESULTS)/playwright; \
 	rc=$$?; \
 	$(MAKE) --no-print-directory test-instance-stop; \
 	exit $$rc
+
+test-tui-smoke: build
+	chmod +x scripts/test-tui-smoke.sh
+	ARTIFACT_DIR=$(abspath $(TEST_RESULTS))/tui-smoke TEST_DIR=$(abspath $(TUI_TEST_DIR)) scripts/test-tui-smoke.sh

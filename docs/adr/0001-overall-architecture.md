@@ -18,9 +18,10 @@ gi uses:
 - **Bun** for build-time web asset bundling only (not runtime)
 
 ### Runtime architecture
-- **single binary** with `-bind`, `-port`, `-model`, `-workspace` flags
+- **single binary** with `-bind`, `-port`, `-model`, `-workspace`, and `-tui` flags
 - long-running **web mode** under supervisor/systemd
-- **CLI** and **TUI** as separate processes sharing the SQLite database
+- **TUI mode** is launched from the same `gi` binary rather than a separate primary binary
+- **CLI** remains a separate process model where needed
 - **workspace-centric** operation with a single workspace root
 
 ### Web UI architecture

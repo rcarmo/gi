@@ -40,6 +40,11 @@ The DB must generally be queried before the filesystem for mirrored assets.
 
 ## Search
 
+Search is split into two layers:
+
+- **SQLite FTS5** for lexical/token-aware retrieval
+- **vec-backed semantic retrieval** for indexed workspace content
+
 SQLite FTS backs search across:
 - messages
 - files/indexed content
@@ -47,3 +52,5 @@ SQLite FTS backs search across:
 - skills/scripts
 - tasks/schedules where relevant
 - attachments by filename, metadata, and extracted text
+
+Workspace content search is being extended into a hybrid **vec + FTS** design; see `adr/0008-workspace-hybrid-search.md` and `docs/internal/search/README.md` for the canonical design.

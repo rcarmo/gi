@@ -106,7 +106,16 @@ func buildJSBridge(ctx context.Context, vm *goja.Runtime, bridge *Bridge) (*goja
 		cfg, err := bridge.Funcs.GetConfig(ctx)
 		if err == nil && cfg != nil {
 			obj.Set("config", cfg)
+			obj.Set("runtimeConfig", cfg)
 		}
+		obj.Set("getRuntimeConfig", func(call goja.FunctionCall) goja.Value {
+			cfg, err := bridge.Funcs.GetConfig(ctx)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			v, _ := vm.RunString("(" + mustJSONStr(cfg) + ")")
+			return v
+		})
 	}
 
 	// Session state
@@ -115,9 +124,68 @@ func buildJSBridge(ctx context.Context, vm *goja.Runtime, bridge *Bridge) (*goja
 		if err == nil && ss != nil {
 			obj.Set("sessionState", ss)
 		}
+		obj.Set("getSessionState", func(call goja.FunctionCall) goja.Value {
+			ss, err := bridge.Funcs.GetSessionState(ctx)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			v, _ := vm.RunString("(" + mustJSONStr(ss) + ")")
+			return v
+		})
+	}
+	if bridge.Funcs.SetSessionState != nil {
+		obj.Set("setSessionState", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				panic(vm.NewGoError(fmt.Errorf("setSessionState requires a patch argument")))
+			}
+			exported := call.Arguments[0].Export()
+			patch, ok := exported.(map[string]any)
+			if !ok {
+				b, err := json.Marshal(exported)
+				if err != nil {
+					panic(vm.NewGoError(fmt.Errorf("setSessionState patch must be an object")))
+				}
+				if err := json.Unmarshal(b, &patch); err != nil {
+					panic(vm.NewGoError(fmt.Errorf("setSessionState patch must be an object: %w", err)))
+				}
+			}
+			if err := bridge.Funcs.SetSessionState(ctx, patch); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+	}
+	if bridge.Funcs.GetSessionInfo != nil {
+		info, err := bridge.Funcs.GetSessionInfo(ctx)
+		if err == nil && info != nil {
+			obj.Set("sessionInfo", info)
+		}
+		obj.Set("getSessionInfo", func(call goja.FunctionCall) goja.Value {
+			info, err := bridge.Funcs.GetSessionInfo(ctx)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			v, _ := vm.RunString("(" + mustJSONStr(info) + ")")
+			return v
+		})
 	}
 
 	// Functions
+	if bridge.Funcs.ListTurns != nil {
+		obj.Set("listTurns", func(call goja.FunctionCall) goja.Value {
+			limit := 50
+			if len(call.Arguments) > 0 {
+				limit = int(call.Arguments[0].ToInteger())
+			}
+			turns, err := bridge.Funcs.ListTurns(ctx, limit)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			v, _ := vm.RunString("(" + mustJSONStr(turns) + ")")
+			return v
+		})
+	}
+
 	if bridge.Funcs.ListMessages != nil {
 		obj.Set("listMessages", func(call goja.FunctionCall) goja.Value {
 			limit := 50
@@ -174,6 +242,269 @@ func buildJSBridge(ctx context.Context, vm *goja.Runtime, bridge *Bridge) (*goja
 		})
 	}
 
+	// Event hooks
+	if bridge.Funcs.RegisterEventHook != nil {
+		registerEventHookFn := func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				panic(vm.NewGoError(fmt.Errorf("registerEventHook requires a hook spec")))
+			}
+			exported := call.Arguments[0].Export()
+			var spec EventHookSpec
+			if err := mapToStruct(exported, &spec); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			if err := bridge.Funcs.RegisterEventHook(ctx, spec); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		}
+		obj.Set("registerEventHook", registerEventHookFn)
+		obj.Set("on", registerEventHookFn)
+	}
+	if bridge.Funcs.RegisterTool != nil {
+		obj.Set("registerTool", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				panic(vm.NewGoError(fmt.Errorf("registerTool requires a tool spec")))
+			}
+			var spec ToolSpec
+			if err := mapToStruct(call.Arguments[0].Export(), &spec); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			if err := bridge.Funcs.RegisterTool(ctx, spec); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+	}
+	if bridge.Funcs.SetActiveTools != nil {
+		obj.Set("setActiveTools", func(call goja.FunctionCall) goja.Value {
+			var names []string
+			if len(call.Arguments) > 0 {
+				if err := mapToStruct(call.Arguments[0].Export(), &names); err != nil {
+					panic(vm.NewGoError(err))
+				}
+			}
+			if err := bridge.Funcs.SetActiveTools(ctx, names); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+	}
+	if bridge.Funcs.GetActiveTools != nil {
+		obj.Set("getActiveTools", func(call goja.FunctionCall) goja.Value {
+			names, err := bridge.Funcs.GetActiveTools(ctx)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			v, _ := vm.RunString("(" + mustJSONStr(names) + ")")
+			return v
+		})
+	}
+	if bridge.Funcs.SetModel != nil {
+		obj.Set("setModel", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				panic(vm.NewGoError(fmt.Errorf("setModel requires a model id")))
+			}
+			if err := bridge.Funcs.SetModel(ctx, call.Arguments[0].String()); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+	}
+	if bridge.Funcs.AppendEntry != nil {
+		obj.Set("appendEntry", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) < 2 {
+				panic(vm.NewGoError(fmt.Errorf("appendEntry requires type and data")))
+			}
+			var data map[string]any
+			if err := mapToStruct(call.Arguments[1].Export(), &data); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			if err := bridge.Funcs.AppendEntry(ctx, call.Arguments[0].String(), data); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+	}
+	if bridge.Funcs.GetEntries != nil {
+		obj.Set("getEntries", func(call goja.FunctionCall) goja.Value {
+			entryType := ""
+			if len(call.Arguments) > 0 {
+				entryType = call.Arguments[0].String()
+			}
+			entries, err := bridge.Funcs.GetEntries(ctx, entryType)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			v, _ := vm.RunString("(" + mustJSONStr(entries) + ")")
+			return v
+		})
+	}
+	if bridge.Funcs.EmitEvent != nil {
+		obj.Set("emitEvent", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) < 1 {
+				panic(vm.NewGoError(fmt.Errorf("emitEvent requires name and optional payload")))
+			}
+			name := call.Arguments[0].String()
+			payload := map[string]any{}
+			if len(call.Arguments) > 1 {
+				if err := mapToStruct(call.Arguments[1].Export(), &payload); err != nil {
+					panic(vm.NewGoError(err))
+				}
+			}
+			if err := bridge.Funcs.EmitEvent(ctx, name, payload); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+	}
+	if bridge.Funcs.ClearEventHooks != nil {
+		obj.Set("clearEventHooks", func(call goja.FunctionCall) goja.Value {
+			if err := bridge.Funcs.ClearEventHooks(ctx); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+	}
+
+	// Network and transport APIs
+	netObj := vm.NewObject()
+	if bridge.Funcs.OpenRawSocket != nil {
+		netObj.Set("openRawSocket", func(call goja.FunctionCall) goja.Value {
+			spec := RawSocketSpec{Protocol: "tcp", TimeoutMS: 5000}
+			if len(call.Arguments) > 0 {
+				exported := call.Arguments[0].Export()
+				if err := mapToStruct(exported, &spec); err != nil {
+					panic(vm.NewGoError(err))
+				}
+			}
+			id, err := bridge.Funcs.OpenRawSocket(ctx, spec)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return vm.ToValue(id)
+		})
+	}
+	if bridge.Funcs.WriteRawSocket != nil {
+		netObj.Set("writeRawSocket", func(call goja.FunctionCall) goja.Value {
+			payload, err := rawSocketPayloadFromArgs(call)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			n, err := bridge.Funcs.WriteRawSocket(ctx, payload)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return vm.ToValue(n)
+		})
+	}
+	if bridge.Funcs.ReadRawSocket != nil {
+		netObj.Set("readRawSocket", func(call goja.FunctionCall) goja.Value {
+			payload, err := rawSocketPayloadFromArgs(call)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			msg, err := bridge.Funcs.ReadRawSocket(ctx, payload)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return vm.ToValue(msg)
+		})
+	}
+	if bridge.Funcs.CloseRawSocket != nil {
+		netObj.Set("closeRawSocket", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				panic(vm.NewGoError(fmt.Errorf("closeRawSocket requires socketId")))
+			}
+			if err := bridge.Funcs.CloseRawSocket(ctx, call.Arguments[0].String()); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+	}
+	if len(netObj.Keys()) > 0 {
+		obj.Set("net", netObj)
+	}
+
+	wsObj := vm.NewObject()
+	if bridge.Funcs.OpenWebSocket != nil {
+		wsObj.Set("open", func(call goja.FunctionCall) goja.Value {
+			spec := WebSocketSpec{}
+			if len(call.Arguments) > 0 {
+				if err := mapToStruct(call.Arguments[0].Export(), &spec); err != nil {
+					panic(vm.NewGoError(err))
+				}
+			}
+			id, err := bridge.Funcs.OpenWebSocket(ctx, spec)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return vm.ToValue(id)
+		})
+	}
+	if bridge.Funcs.WriteWebSocket != nil {
+		wsObj.Set("write", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) < 2 {
+				panic(vm.NewGoError(fmt.Errorf("websocket.write requires socketId and payload")))
+			}
+			if err := bridge.Funcs.WriteWebSocket(ctx, call.Arguments[0].String(), call.Arguments[1].String()); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+	}
+	if bridge.Funcs.ReadWebSocket != nil {
+		wsObj.Set("read", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) < 1 {
+				panic(vm.NewGoError(fmt.Errorf("websocket.read requires socketId")))
+			}
+			timeout := 5000
+			if len(call.Arguments) >= 2 {
+				timeout = int(call.Arguments[1].ToInteger())
+			}
+			msg, err := bridge.Funcs.ReadWebSocket(ctx, call.Arguments[0].String(), timeout)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return vm.ToValue(msg)
+		})
+	}
+	if bridge.Funcs.CloseWebSocket != nil {
+		wsObj.Set("close", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) < 1 {
+				panic(vm.NewGoError(fmt.Errorf("websocket.close requires socketId")))
+			}
+			if err := bridge.Funcs.CloseWebSocket(ctx, call.Arguments[0].String()); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+	}
+	if len(wsObj.Keys()) > 0 {
+		obj.Set("websocket", wsObj)
+	}
+
+	// HTTP request API (full header control)
+	if bridge.Funcs.DoHTTPRequest != nil {
+		httpObj := vm.NewObject()
+		httpObj.Set("request", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				panic(vm.NewGoError(fmt.Errorf("http.request requires request spec")))
+			}
+			spec := HTTPCallSpec{TimeoutMS: 5000, Headers: map[string][]string{}}
+			if err := mapToStruct(call.Arguments[0].Export(), &spec); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			resp, err := bridge.Funcs.DoHTTPRequest(ctx, spec)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			v, _ := vm.RunString("(" + mustJSONStr(resp) + ")")
+			return v
+		})
+		obj.Set("http", httpObj)
+	}
+
 	if bridge.Funcs.Log != nil {
 		obj.Set("log", func(call goja.FunctionCall) goja.Value {
 			level := "info"
@@ -195,4 +526,26 @@ func buildJSBridge(ctx context.Context, vm *goja.Runtime, bridge *Bridge) (*goja
 func mustJSONStr(v any) string {
 	b, _ := json.Marshal(v)
 	return string(b)
+}
+
+func mapToStruct(src any, dst any) error {
+	b, err := json.Marshal(src)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(b, dst); err != nil {
+		return err
+	}
+	return nil
+}
+
+func rawSocketPayloadFromArgs(call goja.FunctionCall) (RawSocketPayload, error) {
+	if len(call.Arguments) == 0 {
+		return RawSocketPayload{}, fmt.Errorf("socket payload requires an object")
+	}
+	var payload RawSocketPayload
+	if err := mapToStruct(call.Arguments[0].Export(), &payload); err != nil {
+		return RawSocketPayload{}, err
+	}
+	return payload, nil
 }

@@ -1,15 +1,18 @@
 package web
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/rcarmo/gi/internal/config"
+	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/tools"
 	"github.com/rcarmo/gi/internal/turn"
@@ -78,14 +81,50 @@ func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 			return
 		}
+		if sessions == nil {
+			sessions = []store.Session{}
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"sessions": sessions})
 	case http.MethodPost:
 		var req struct {
-			Title string `json:"title"`
+			Title    string `json:"title"`
+			AgentID  string `json:"agent_id"`
+			ForkFrom string `json:"fork_from"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		id := store.NowID("session")
-		session, err := s.store.CreateSession(ctx, id, req.Title, map[string]any{"status": "idle", "queue_count": 0, "model": s.cfg.DefaultModel, "provider": s.cfg.DefaultProvider, "thinking_level": s.cfg.DefaultThinkingLevel})
+		if req.ForkFrom != "" {
+			agentID := req.AgentID
+			if agentID == "" {
+				var err error
+				agentID, err = s.nextForkAgentID(ctx, req.ForkFrom)
+				if err != nil {
+					writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+					return
+				}
+			}
+			title := req.Title
+			if title == "" {
+				title = "@" + agentID
+			}
+			session, err := s.store.CloneSession(ctx, req.ForkFrom, id, title, agentID)
+			if err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+				return
+			}
+			writeJSON(w, http.StatusCreated, session)
+			return
+		}
+		agentID := req.AgentID
+		if agentID == "" {
+			agentID = "agent"
+		}
+		title := req.Title
+		if title == "" {
+			title = "@" + agentID
+		}
+		alloc := gisession.AllocateDefaultSession(agentID, "gi", "default", id)
+		session, err := s.store.CreateSessionWithMetadata(ctx, id, "", title, map[string]any{"status": "idle", "queue_count": 0, "model": s.cfg.DefaultModel, "provider": s.cfg.DefaultProvider, "thinking_level": s.cfg.DefaultThinkingLevel}, &alloc.Scope, alloc.SessionAliases)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 			return
@@ -115,6 +154,14 @@ func (s *Server) handleSessionSubroutes(w http.ResponseWriter, r *http.Request) 
 		s.handlePrompt(w, r, sessionID)
 	case "turns":
 		s.handleTurns(w, r, sessionID)
+	case "route-events":
+		s.handleSessionRouteEvents(w, r, sessionID)
+	case "introspect":
+		s.handleSessionIntrospect(w, r, sessionID)
+	case "fork":
+		s.handleSessionFork(w, r, sessionID)
+	case "peer-message":
+		s.handleSessionPeerMessage(w, r, sessionID)
 	default:
 		http.NotFound(w, r)
 	}
@@ -191,15 +238,81 @@ func (s *Server) handleTurns(w http.ResponseWriter, r *http.Request, sessionID s
 	writeJSON(w, http.StatusOK, map[string]any{"turns": turns})
 }
 
+func (s *Server) handleSessionRouteEvents(w http.ResponseWriter, r *http.Request, sessionID string) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	events, err := s.store.ListRouteEvents(r.Context(), sessionID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	if events == nil {
+		events = []store.RouteEvent{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"route_events": events})
+}
+
+func (s *Server) sessionInfo(ctx context.Context, sessionID string) (map[string]any, error) {
+	session, err := s.store.GetSession(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	messages, err := s.store.ListMessages(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	turns, err := s.store.ListTurns(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	routeEvents, err := s.store.ListRouteEvents(ctx, sessionID)
+	if err != nil {
+		// Non-fatal introspection path; keep core payloads readable.
+		routeEvents = nil
+	}
+	return map[string]any{
+		"session":        session,
+		"runtime":        map[string]any{"default_provider": s.cfg.DefaultProvider, "default_model": s.cfg.DefaultModel, "default_thinking_level": s.cfg.DefaultThinkingLevel, "workspace_root": s.cfg.WorkspaceRoot},
+		"message_count":  len(messages),
+		"turn_count":     len(turns),
+		"route_event_count": func() int {
+			if routeEvents == nil {
+				return 0
+			}
+			return len(routeEvents)
+		}(),
+		"messages":       messages,
+		"turns":          turns,
+		"route_events":   routeEvents,
+	}, nil
+}
+
+func (s *Server) handleSessionIntrospect(w http.ResponseWriter, r *http.Request, sessionID string) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	info, err := s.sessionInfo(r.Context(), sessionID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, info)
+}
+
 func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	var req struct {
-		Prompt string `json:"prompt"`
-		Intent string `json:"intent"`
-		Model  string `json:"model"`
+		Prompt        string `json:"prompt"`
+		Intent        string `json:"intent"`
+		Model         string `json:"model"`
+		TargetAgentID string `json:"target_agent_id"`
+		ParentTurnID  string `json:"parent_turn_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
@@ -209,12 +322,114 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 	if model == "" {
 		model = s.cfg.DefaultModel
 	}
-	result, err := s.turns.SubmitPrompt(r.Context(), turn.RunInput{SessionID: sessionID, Prompt: req.Prompt, Intent: req.Intent, Model: model})
+	var (
+		result *turn.SubmitResult
+		err    error
+	)
+	if req.TargetAgentID != "" && req.TargetAgentID != "default" {
+		result, err = s.turns.SubmitPeerMessage(r.Context(), sessionID, req.TargetAgentID, req.Prompt, req.Intent, model, req.ParentTurnID)
+	} else {
+		result, err = s.turns.SubmitPromptRouted(r.Context(), turn.RunInput{SessionID: sessionID, Prompt: req.Prompt, Intent: req.Intent, Model: model, ParentTurnID: req.ParentTurnID})
+	}
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusAccepted, result)
+}
+
+func (s *Server) handleSessionPeerMessage(w http.ResponseWriter, r *http.Request, sessionID string) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		TargetAgentID string `json:"target_agent_id"`
+		Content       string `json:"content"`
+		Mode          string `json:"mode"`
+		Model         string `json:"model"`
+		ParentTurnID  string `json:"parent_turn_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	intent := req.Mode
+	if intent == "" || intent == "auto" {
+		intent = "prompt"
+	}
+	model := req.Model
+	if model == "" {
+		model = s.cfg.DefaultModel
+	}
+	result, err := s.turns.SubmitPeerMessage(r.Context(), sessionID, req.TargetAgentID, req.Content, intent, model, req.ParentTurnID)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusAccepted, result)
+}
+
+func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request, sessionID string) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		Title   string `json:"title"`
+		AgentID string `json:"agent_id"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	agentID := req.AgentID
+	if agentID == "" {
+		var err error
+		agentID, err = s.nextForkAgentID(r.Context(), sessionID)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+	}
+	title := req.Title
+	if title == "" {
+		title = "@" + agentID
+	}
+	cloned, err := s.store.CloneSession(r.Context(), sessionID, store.NowID("session"), title, agentID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"branch": map[string]any{"chat_jid": "gi:" + cloned.ID, "label": cloned.Title, "agent_id": agentID, "source_chat_jid": "gi:" + sessionID}})
+}
+
+func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (string, error) {
+	source, err := s.store.GetSession(ctx, sourceSessionID)
+	if err != nil {
+		return "", err
+	}
+	base := "agent"
+	if source.Scope != nil && source.Scope.AgentID != "" {
+		base = strings.TrimRightFunc(source.Scope.AgentID, func(r rune) bool { return r >= '0' && r <= '9' })
+		if base == "" {
+			base = source.Scope.AgentID
+		}
+	}
+	sessions, err := s.store.ListSessions(ctx)
+	if err != nil {
+		return "", err
+	}
+	used := map[string]bool{}
+	for _, sess := range sessions {
+		if sess.Scope != nil && sess.Scope.AgentID != "" {
+			used[sess.Scope.AgentID] = true
+		}
+	}
+	for i := 1; i < 1000; i++ {
+		candidate := base + strconv.Itoa(i)
+		if !used[candidate] {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("could not allocate fork agent id from %s", base)
 }
 
 func (s *Server) handleRuntimeConfig(w http.ResponseWriter, r *http.Request) {

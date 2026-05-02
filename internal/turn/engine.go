@@ -7,21 +7,28 @@ import (
 	"log"
 	"os/exec"
 	"sort"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/rcarmo/gi/internal/inference"
+	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/routing"
+	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
-	goai "github.com/rcarmo/go-ai"
 )
 
 type Engine struct {
-	store        *store.Store
-	systemPrompt string
-	sessions     sync.Map // sessionID -> *sessionRunner
-	subs         sync.Map // sessionID -> map[chan map[string]any]bool
-	subsMu       sync.Mutex
+	store         *store.Store
+	systemPrompt  string
+	routeResolver *routing.RouteResolver
+	modelRouter   *routing.Router
+	runtimeCfg    config.RuntimeConfig
+	hooks         *HookRegistry
+	tools         *ToolRegistry
+	sessions      sync.Map // sessionID -> *sessionRunner
+	subs          sync.Map // sessionID -> map[chan map[string]any]bool
+	subsMu        sync.Mutex
 }
 
 type sessionRunner struct {
@@ -40,17 +47,23 @@ type runningTurn struct {
 }
 
 type RunInput struct {
-	SessionID string
-	Prompt    string
-	Intent    string
-	Model     string
+	SessionID    string
+	Prompt       string
+	Intent       string
+	Model        string
+	ParentTurnID string
+	Metadata     map[string]any
 }
 
 type SubmitResult struct {
-	TurnID    string `json:"turn_id"`
-	SessionID string `json:"session_id"`
-	Status    string `json:"status"`
-	Queued    bool   `json:"queued"`
+	TurnID          string `json:"turn_id"`
+	SessionID       string `json:"session_id"`
+	Status          string `json:"status"`
+	Queued          bool   `json:"queued"`
+	SourceSessionID string `json:"source_session_id,omitempty"`
+	TargetAgentID   string `json:"target_agent_id,omitempty"`
+	Routed          bool   `json:"routed,omitempty"`
+	CreatedSession  bool   `json:"created_session,omitempty"`
 }
 
 type Summary struct {
@@ -61,10 +74,42 @@ type Summary struct {
 	Events    []store.TurnEvent `json:"events"`
 }
 
-func New(s *store.Store) *Engine { return &Engine{store: s} }
+func New(s *store.Store) *Engine {
+	cfg := config.RuntimeConfig{
+		DefaultModel: "bootstrap",
+		Agents:       routing.AgentsConfig{List: []routing.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}},
+		Session:      routing.SessionConfig{Dimensions: []string{"chat"}},
+	}
+	return NewWithRuntimeConfig(s, cfg, "")
+}
 
 func NewWithSystemPrompt(s *store.Store, systemPrompt string) *Engine {
-	return &Engine{store: s, systemPrompt: systemPrompt}
+	cfg := config.RuntimeConfig{
+		DefaultModel: "bootstrap",
+		Agents:       routing.AgentsConfig{List: []routing.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}},
+		Session:      routing.SessionConfig{Dimensions: []string{"chat"}},
+	}
+	return NewWithRuntimeConfig(s, cfg, systemPrompt)
+}
+
+func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt string) *Engine {
+	if len(cfg.Agents.List) == 0 {
+		cfg.Agents.List = []routing.AgentConfig{{ID: "agent", Default: true, Model: cfg.DefaultModel}}
+	}
+	if len(cfg.Session.Dimensions) == 0 {
+		cfg.Session.Dimensions = []string{"chat"}
+	}
+	e := &Engine{
+		store:         s,
+		systemPrompt:  systemPrompt,
+		routeResolver: routing.NewRouteResolver(cfg.Agents, cfg.Session),
+		modelRouter:   routing.NewRouter(cfg.Routing),
+		runtimeCfg:    cfg,
+		hooks:         NewHookRegistry(),
+		tools:         NewToolRegistry(),
+	}
+	e.registerDefaultTools()
+	return e
 }
 
 func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, error) {
@@ -80,16 +125,41 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		status = "queued"
 	}
 	metadata := map[string]any{"intent": in.Intent, "model": in.Model, "queued": queued}
+	if in.ParentTurnID != "" {
+		metadata["parent_turn_id"] = in.ParentTurnID
+	}
+	for k, v := range in.Metadata {
+		metadata[k] = v
+	}
 	if _, err := e.store.CreateTurnWithStatus(ctx, turnID, in.SessionID, status, in.Prompt, metadata); err != nil {
 		runner.mu.Unlock()
 		return nil, err
 	}
-	if err := e.store.AppendTurnEvent(ctx, turnID, in.SessionID, "turn.submitted", map[string]any{"phase": "queue", "intent": in.Intent, "queued": queued, "checkpoint": true}); err != nil {
+	if err := e.recordRouteDecision(ctx, in.SessionID, turnID, metadata); err != nil {
+		// Non-fatal: routing decisions are an orchestration artifact.
+		log.Printf("orchestration: route decision persist failed: %v", err)
+	}
+	submittedPayload := map[string]any{"phase": "queue", "intent": in.Intent, "queued": queued, "checkpoint": true}
+	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt"} {
+		if value, ok := metadata[key]; ok {
+			submittedPayload[key] = value
+		}
+	}
+	if routeMatchedBy := metadata["route_matched_by"]; routeMatchedBy != nil {
+		submittedPayload["route_matched_by"] = routeMatchedBy
+	}
+	if err := e.store.AppendTurnEvent(ctx, turnID, in.SessionID, "turn.submitted", submittedPayload); err != nil {
 		runner.mu.Unlock()
 		return nil, err
 	}
 	if queued {
-		if err := e.store.AddMessage(ctx, store.NowID("msg"), in.SessionID, "system", fmt.Sprintf("Queued prompt: %s", in.Prompt), map[string]any{"kind": "queue", "turn_id": turnID, "intent": in.Intent}); err != nil {
+		queuePayload := map[string]any{"kind": "queue", "turn_id": turnID, "intent": in.Intent}
+		for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt"} {
+			if value, ok := metadata[key]; ok {
+				queuePayload[key] = value
+			}
+		}
+		if err := e.store.AddMessage(ctx, store.NowID("msg"), in.SessionID, "system", fmt.Sprintf("Queued prompt: %s", in.Prompt), queuePayload); err != nil {
 			runner.mu.Unlock()
 			return nil, err
 		}
@@ -100,6 +170,90 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	runner.mu.Unlock()
 	_ = e.store.TouchSessionState(ctx, in.SessionID, map[string]any{"model": in.Model})
 	return &SubmitResult{TurnID: turnID, SessionID: in.SessionID, Status: status, Queued: queued}, nil
+}
+
+func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitResult, error) {
+	source, err := e.store.GetSession(ctx, in.SessionID)
+	if err != nil {
+		return nil, err
+	}
+	targetAgentID, body, directed := parseDirectedPrompt(in.Prompt)
+	promptBody := in.Prompt
+	mentioned := false
+	if directed {
+		if body == "" {
+			return nil, fmt.Errorf("directed prompt requires content after @%s", targetAgentID)
+		}
+		promptBody = body
+		mentioned = true
+	}
+	inbound := routing.InboundContext{
+		Channel:   sessionChannel(source),
+		Account:   sessionAccount(source),
+		ChatType:  "direct",
+		ChatID:    source.ID,
+		SenderID:  "user",
+		Mentioned: mentioned,
+		Prompt:    promptBody,
+	}
+	route := e.routeResolver.ResolveRoute(inbound)
+	if directed && targetAgentID != "" {
+		route.AgentID = routing.NormalizeAgentID(targetAgentID)
+		route.MatchedBy = "mention"
+	}
+	target, created, err := e.ResolveOrCreateRouteSession(ctx, source, route, inbound)
+	if err != nil {
+		return nil, err
+	}
+	if target.ID != source.ID {
+		return e.submitPeerRoutedPrompt(ctx, source, target, route, promptBody, in.Intent, in.Model, created, directed, in.ParentTurnID)
+	}
+	in.SessionID = target.ID
+	in.Prompt = promptBody
+	if in.Metadata == nil {
+		in.Metadata = map[string]any{}
+	}
+	in.Metadata["route_mode"] = "prompt"
+	in.Metadata["route_matched_by"] = route.MatchedBy
+	in.Metadata["target_agent_id"] = route.AgentID
+	in.Metadata["target_session_id"] = target.ID
+	in.Metadata["source_agent_id"] = sessionAgentID(source)
+	if route.MatchedBy != "" {
+		in.Metadata["routing_policy"] = route.MatchedBy
+	}
+	in.Metadata["requested_agent_id"] = route.AgentID
+	in.Metadata["source_session_id"] = source.ID
+	in.Metadata["route_created_session"] = created
+	in.Metadata["routing_enabled"] = true
+	return e.SubmitPrompt(ctx, in)
+}
+
+func (e *Engine) SubmitPeerMessage(ctx context.Context, sourceSessionID, targetAgentID, content, intent, model, parentTurnID string) (*SubmitResult, error) {
+	source, err := e.store.GetSession(ctx, sourceSessionID)
+	if err != nil {
+		return nil, err
+	}
+	inbound := routing.InboundContext{Channel: sessionChannel(source), Account: sessionAccount(source), ChatType: "direct", ChatID: source.ID, SenderID: sessionAgentID(source), Mentioned: true, Prompt: content}
+	route := e.routeResolver.ResolveRoute(inbound)
+	route.AgentID = routing.NormalizeAgentID(targetAgentID)
+	route.MatchedBy = "peer-message"
+	target, created, err := e.ResolveOrCreateRouteSession(ctx, source, route, inbound)
+	if err != nil {
+		return nil, err
+	}
+	return e.submitPeerRoutedPrompt(ctx, source, target, route, content, intent, model, created, true, parentTurnID)
+}
+
+func (e *Engine) ResolveOrCreatePeerSession(ctx context.Context, sourceSessionID, targetAgentID string) (*store.Session, bool, error) {
+	source, err := e.store.GetSession(ctx, sourceSessionID)
+	if err != nil {
+		return nil, false, err
+	}
+	inbound := routing.InboundContext{Channel: sessionChannel(source), Account: sessionAccount(source), ChatType: "direct", ChatID: source.ID, SenderID: sessionAgentID(source), Mentioned: true}
+	route := e.routeResolver.ResolveRoute(inbound)
+	route.AgentID = routing.NormalizeAgentID(targetAgentID)
+	route.MatchedBy = "peer-session"
+	return e.ResolveOrCreateRouteSession(ctx, source, route, inbound)
 }
 
 func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error {
@@ -162,100 +316,48 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 	prompt := turnRec.Prompt
 	intent := stringValue(turnRec.Metadata["intent"], "prompt")
 	model := stringValue(turnRec.Metadata["model"], "bootstrap")
+	agentID := "agent"
+	if sess, err := s.GetSession(ctx, sessionID); err == nil && sess.Scope != nil && sess.Scope.AgentID != "" {
+		agentID = sess.Scope.AgentID
+	}
+	// Only run the model router when no explicit model was requested
+	// (i.e., the turn metadata model matches the agent's default model).
+	agentModel := r.engine.modelForAgent(agentID)
+	if strings.TrimSpace(model) == "" {
+		model = agentModel
+	}
+	if model == agentModel {
+		history, _ := s.ListMessages(ctx, sessionID)
+		routingHistory := make([]routing.HistoryMessage, 0, len(history))
+		for _, msg := range history {
+			routingHistory = append(routingHistory, routing.HistoryMessage{Payload: msg.Payload})
+		}
+		selected, usedLight, score := r.engine.modelRouter.SelectModel(prompt, routingHistory, agentModel)
+		if usedLight && strings.TrimSpace(selected) != "" {
+			model = selected
+			turnRec.Metadata["route_model_score"] = score
+			turnRec.Metadata["route_used_light_model"] = usedLight
+		}
+	}
 	_ = s.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "model": model, "status": "running"})
-	_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, map[string]any{"kind": "chat", "intent": intent, "turn_id": turnID})
-	_ = s.AppendTurnEvent(ctx, turnID, sessionID, "turn.started", map[string]any{"phase": "turn", "prompt": prompt, "intent": intent, "model": model, "checkpoint": true})
+	userPayload := map[string]any{"kind": "chat", "intent": intent, "turn_id": turnID}
+	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt"} {
+		if value, ok := turnRec.Metadata[key]; ok {
+			userPayload[key] = value
+		}
+	}
+	_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload)
+	startedPayload := map[string]any{"phase": "turn", "prompt": prompt, "intent": intent, "model": model, "checkpoint": true}
+	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "parent_turn_id", "route_mode", "route_matched_by"} {
+		if value, ok := turnRec.Metadata[key]; ok {
+			startedPayload[key] = value
+		}
+	}
+	_ = s.AppendTurnEvent(ctx, turnID, sessionID, "turn.started", startedPayload)
 
 	// Try LLM inference if model is not the bootstrap stub
 	if model != "bootstrap" && model != "test-model" && model != "" {
-		_ = s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "checkpoint": true})
-		log.Printf("inference: calling %s with prompt: %s", model, prompt[:min(len(prompt), 80)])
-
-		// Broadcast status
-		r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "Thinking…", "status": "running", "turn_id": turnID})
-
-		// Build conversation history from session messages
-		msgs, _ := s.ListMessages(ctx, sessionID)
-		var history []goai.Message
-		for _, m := range msgs {
-			switch m.Role {
-			case "user":
-				history = append(history, goai.UserMessage(m.Content))
-			case "assistant":
-				history = append(history, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: m.Content}}})
-			}
-		}
-
-		sysPrompt := r.engine.systemPrompt
-		if sysPrompt == "" {
-			sysPrompt = "You are a helpful coding assistant."
-		}
-		result, usage, inferErr := inference.CompleteWithBroadcast(ctx, model, sysPrompt, history, func(ev map[string]any) {
-			ev["chat_jid"] = "gi:" + sessionID
-			ev["turn_id"] = turnID
-			// Map to Piclaw event types
-			switch ev["type"] {
-			case "text_delta":
-				ev["type"] = "agent_draft_delta"
-				r.engine.broadcast(sessionID, ev)
-			case "thinking_delta":
-				ev["type"] = "agent_thought_delta"
-				r.engine.broadcast(sessionID, ev)
-			case "done":
-				// Will handle below
-			case "error":
-				r.engine.broadcast(sessionID, ev)
-			}
-		})
-		if inferErr != nil {
-			log.Printf("inference error: %v", inferErr)
-			_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error()})
-			_ = s.UpdateTurnStatus(context.Background(), turnID, "failed")
-			_ = s.AddMessage(context.Background(), store.NowID("msg"), sessionID, "system", fmt.Sprintf("Inference error: %v", inferErr), map[string]any{"kind": "error", "turn_id": turnID})
-			_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
-			return
-		}
-
-		log.Printf("inference: got %d chars from %s", len(result), model)
-		usageMap := map[string]any{}
-		if usage != nil {
-			usageMap = map[string]any{
-				"input": usage.Input, "output": usage.Output,
-				"total":      usage.TotalTokens,
-				"cache_read": usage.CacheRead, "cache_write": usage.CacheWrite,
-				"cost_input": usage.Cost.Input, "cost_output": usage.Cost.Output,
-				"cost_total": usage.Cost.Total,
-			}
-			log.Printf("inference: usage input=%d output=%d total=%d cost=%.6f", usage.Input, usage.Output, usage.TotalTokens, usage.Cost.Total)
-		}
-		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "inference.finished", map[string]any{"phase": "inference", "checkpoint": true, "length": len(result), "usage": usageMap})
-
-		// Add assistant message
-		msgID := store.NowID("msg")
-		_ = s.AddMessage(context.Background(), msgID, sessionID, "assistant", result, map[string]any{"kind": "chat", "source": "inference", "model": model, "turn_id": turnID})
-
-		// Broadcast the new post (as Piclaw agent_response + new_post)
-		postPayload := map[string]any{
-			"type":           "new_post",
-			"id":             msgID,
-			"chat_jid":       "gi:" + sessionID,
-			"content":        result,
-			"timestamp":      time.Now().UTC().Format(time.RFC3339Nano),
-			"sender":         "agent",
-			"is_bot_message": true,
-			"data": map[string]any{
-				"type":     "agent_response",
-				"content":  result,
-				"agent_id": "gi",
-			},
-		}
-		r.engine.broadcast(sessionID, postPayload)
-		r.engine.broadcast(sessionID, map[string]any{"type": "agent_response", "chat_jid": "gi:" + sessionID, "id": msgID})
-		r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
-
-		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed"})
-		_ = s.UpdateTurnStatus(context.Background(), turnID, "completed")
-		_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
+		r.runAgentLoop(ctx, s, turnID, sessionID, model, agentID)
 		return
 	}
 
@@ -286,12 +388,12 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 	}
 	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "output": out})
 	msgID := store.NowID("msg")
-	_ = s.AddMessage(context.Background(), msgID, sessionID, "assistant", out, map[string]any{"kind": "chat", "source": "shell", "turn_id": turnID})
+	_ = s.AddMessage(context.Background(), msgID, sessionID, "assistant", out, map[string]any{"kind": "chat", "source": "shell", "turn_id": turnID, "agent_id": agentID})
 	r.engine.broadcast(sessionID, map[string]any{
 		"type": "new_post", "id": msgID, "chat_jid": "gi:" + sessionID,
 		"content": out, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
 		"sender": "agent", "is_bot_message": true,
-		"data": map[string]any{"type": "agent_response", "content": out, "agent_id": "gi"},
+		"data": map[string]any{"type": "agent_response", "content": out, "agent_id": agentID},
 	})
 	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed"})
 	_ = s.UpdateTurnStatus(context.Background(), turnID, "completed")
@@ -354,6 +456,145 @@ func runShell(ctx context.Context, prompt string, onStart func(*exec.Cmd)) (stri
 	}
 }
 
+func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.Session, route routing.ResolvedRoute, inbound routing.InboundContext) (*store.Session, bool, error) {
+	if source == nil {
+		return nil, false, fmt.Errorf("missing source session")
+	}
+	if sessionAgentID(source) == route.AgentID {
+		return source, false, nil
+	}
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{AgentID: route.AgentID, Context: inbound, SessionPolicy: route.SessionPolicy})
+	sessions, err := e.store.ListSessions(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	targetKey := gisession.BuildSessionKey(alloc.Scope)
+	for i := range sessions {
+		if sessions[i].Scope != nil && gisession.BuildSessionKey(*sessions[i].Scope) == targetKey {
+			return &sessions[i], false, nil
+		}
+		for _, alias := range sessions[i].Aliases {
+			for _, candidate := range alloc.SessionAliases {
+				if strings.EqualFold(alias, candidate) {
+					return &sessions[i], false, nil
+				}
+			}
+		}
+	}
+	for i := range sessions {
+		if sessionAgentID(&sessions[i]) == route.AgentID && (sessions[i].ParentSessionID == source.ID || source.ParentSessionID != "" && sessions[i].ParentSessionID == source.ParentSessionID) {
+			return &sessions[i], false, nil
+		}
+	}
+	state := map[string]any{"status": "idle", "queue_count": 0, "model": e.modelForAgent(route.AgentID), "provider": e.runtimeCfg.DefaultProvider, "thinking_level": e.runtimeCfg.DefaultThinkingLevel}
+	cloned, err := e.store.CreateSessionWithMetadata(ctx, store.NowID("session"), source.ID, "@"+route.AgentID, state, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		return nil, false, err
+	}
+	messages, err := e.store.ListMessages(ctx, source.ID)
+	if err == nil {
+		for _, msg := range messages {
+			payload := map[string]any{}
+			for k, v := range msg.Payload {
+				payload[k] = v
+			}
+			payload["forked_from_message_id"] = msg.ID
+			_ = e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, msg.Role, msg.Content, payload)
+		}
+	}
+	_ = e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sessionAgentID(source)), map[string]any{"kind": "fork", "source_session_id": source.ID, "source_agent_id": sessionAgentID(source), "route_matched_by": route.MatchedBy, "clipped": true})
+	return cloned, true, nil
+}
+
+func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, source, target *store.Session, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string) (*SubmitResult, error) {
+	sourceAgentID := sessionAgentID(source)
+	routingContent := fmt.Sprintf("↪ routed to @%s: %s", route.AgentID, content)
+	routingPayload := map[string]any{"kind": "routing", "target_agent_id": route.AgentID, "target_session_id": target.ID, "source_agent_id": sourceAgentID, "source_session_id": source.ID, "route_matched_by": route.MatchedBy, "clipped": true}
+	_ = e.store.AddMessage(ctx, store.NowID("msg"), source.ID, "system", routingContent, routingPayload)
+	metadata := map[string]any{
+		"source_session_id":     source.ID,
+		"source_agent_id":       sourceAgentID,
+		"target_session_id":     target.ID,
+		"target_agent_id":       route.AgentID,
+		"requested_agent_id":    route.AgentID,
+		"routing_policy":        route.MatchedBy,
+		"route_matched_by":      route.MatchedBy,
+		"routed_from_prompt":    directed,
+		"route_mode":            "peer-message",
+		"route_created_session": created,
+		"routing_enabled":       true,
+	}
+	if strings.TrimSpace(parentTurnID) != "" {
+		metadata["parent_turn_id"] = parentTurnID
+	}
+	result, err := e.SubmitPrompt(ctx, RunInput{SessionID: target.ID, Prompt: content, Intent: intent, Model: model, ParentTurnID: parentTurnID, Metadata: metadata})
+	if err != nil {
+		return nil, err
+	}
+	result.SourceSessionID = source.ID
+	result.TargetAgentID = route.AgentID
+	result.Routed = true
+	result.CreatedSession = created
+	return result, nil
+}
+
+func (e *Engine) modelForAgent(agentID string) string {
+	agentID = routing.NormalizeAgentID(agentID)
+	for _, agent := range e.runtimeCfg.Agents.List {
+		if routing.NormalizeAgentID(agent.ID) == agentID {
+			if strings.TrimSpace(agent.Model) != "" {
+				return agent.Model
+			}
+		}
+	}
+	if strings.TrimSpace(e.runtimeCfg.DefaultModel) != "" {
+		return e.runtimeCfg.DefaultModel
+	}
+	return "bootstrap"
+}
+
+func parseDirectedPrompt(prompt string) (string, string, bool) {
+	trimmed := strings.TrimSpace(prompt)
+	if !strings.HasPrefix(trimmed, "@") {
+		return "", prompt, false
+	}
+	rest := trimmed[1:]
+	end := strings.IndexAny(rest, " \t\r\n:")
+	if end < 0 {
+		return normalizeAgentID(rest), "", true
+	}
+	target := normalizeAgentID(rest[:end])
+	body := strings.TrimSpace(rest[end:])
+	body = strings.TrimPrefix(body, ":")
+	body = strings.TrimSpace(body)
+	return target, body, target != ""
+}
+
+func sessionAgentID(sess *store.Session) string {
+	if sess != nil && sess.Scope != nil && sess.Scope.AgentID != "" {
+		return sess.Scope.AgentID
+	}
+	return "agent"
+}
+
+func sessionChannel(sess *store.Session) string {
+	if sess != nil && sess.Scope != nil && strings.TrimSpace(sess.Scope.Channel) != "" {
+		return sess.Scope.Channel
+	}
+	return "gi"
+}
+
+func sessionAccount(sess *store.Session) string {
+	if sess != nil && sess.Scope != nil && strings.TrimSpace(sess.Scope.Account) != "" {
+		return sess.Scope.Account
+	}
+	return "default"
+}
+
+func normalizeAgentID(v string) string {
+	return strings.TrimSpace(strings.TrimPrefix(strings.ToLower(v), "@"))
+}
+
 func stringValue(v any, fallback string) string {
 	if s, ok := v.(string); ok && s != "" {
 		return s
@@ -367,6 +608,115 @@ func turnIDSession(s *store.Store, turnID string) string {
 		return ""
 	}
 	return turnRec.SessionID
+}
+
+func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnID string, metadata map[string]any) error {
+	sourceSession := stringValue(metadata["source_session_id"], sourceSessionID)
+	targetSession := stringValue(metadata["target_session_id"], "")
+	targetAgentID := stringValue(metadata["target_agent_id"], "")
+	if targetAgentID == "" {
+		return nil
+	}
+	routeMode := stringValue(metadata["route_mode"], stringValue(metadata["mode"], "prompt"))
+	sourceAgent := stringValue(metadata["source_agent_id"], "")
+	if sourceAgent == "" {
+		sess, err := e.store.GetSession(context.Background(), sourceSession)
+		if err == nil {
+			sourceAgent = sessionAgentID(sess)
+		}
+	}
+	routingPolicy := stringValue(metadata["routing_policy"], "")
+	matchedBy := stringValue(metadata["route_matched_by"], "")
+	requestedAgent := stringValue(metadata["requested_agent_id"], "")
+	if requestedAgent == "" {
+		requestedAgent = targetAgentID
+	}
+	if targetSession == "" {
+		targetSession = sourceSession
+	}
+	decision := store.RouteEvent{
+		TurnID:         turnID,
+		SourceSession:  sourceSession,
+		TargetSession:  targetSession,
+		SourceAgentID:  sourceAgent,
+		TargetAgentID:  targetAgentID,
+		Mode:           routeMode,
+		MatchedBy:      matchedBy,
+		RoutingPolicy:  routingPolicy,
+		RequestedAgent: requestedAgent,
+		Metadata: map[string]any{
+			"routed_from_prompt": boolValue(metadata["routed_from_prompt"]),
+			"created_session":    boolValue(metadata["route_created_session"]),
+			"routing_enabled":    boolValueOr(metadata["routing_enabled"], true),
+		},
+	}
+	for k, v := range metadata {
+		if k == "routed_from_prompt" || k == "route_created_session" || k == "routing_enabled" || k == "route_matched_by" || k == "routing_policy" || k == "target_agent_id" || k == "source_agent_id" || k == "target_session_id" || k == "route_mode" || k == "requested_agent_id" {
+			continue
+		}
+		decision.Metadata[k] = v
+	}
+	if !boolValueOr(metadata["routing_enabled"], true) {
+		return nil
+	}
+	if _, err := e.store.RecordRouteEvent(ctx, decision); err != nil {
+		return err
+	}
+	e.broadcast(sourceSession, map[string]any{
+		"type":            "routing_decision",
+		"chat_jid":        "gi:" + sourceSession,
+		"turn_id":         turnID,
+		"source_session":  sourceSession,
+		"target_session":  targetSession,
+		"source_agent_id": sourceAgent,
+		"target_agent_id": targetAgentID,
+		"mode":            routeMode,
+		"matched_by":      matchedBy,
+		"created_session": boolValue(metadata["route_created_session"]),
+	})
+	if targetSession != "" && targetSession != sourceSession {
+		e.broadcast(targetSession, map[string]any{
+			"type":            "routing_incoming",
+			"chat_jid":        "gi:" + targetSession,
+			"source_session":  sourceSession,
+			"target_session":  targetSession,
+			"source_agent_id": sourceAgent,
+			"target_agent_id": targetAgentID,
+			"turn_id":         turnID,
+			"mode":            routeMode,
+		})
+	}
+	return nil
+}
+
+func boolValue(v any) bool {
+	if b, ok := v.(bool); ok {
+		return b
+	}
+	if s, ok := v.(string); ok {
+		s = strings.ToLower(strings.TrimSpace(s))
+		return s == "true" || s == "1" || s == "yes"
+	}
+	return false
+}
+
+func boolValueOr(v any, fallback bool) bool {
+	if b, ok := v.(bool); ok {
+		return b
+	}
+	if v == nil {
+		return fallback
+	}
+	if s, ok := v.(string); ok {
+		s = strings.TrimSpace(strings.ToLower(s))
+		if s == "" {
+			return fallback
+		}
+	}
+	if num, ok := v.(float64); ok {
+		return num != 0
+	}
+	return false
 }
 
 func SortQueuedTurns(turns []store.Turn) {

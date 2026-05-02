@@ -3,7 +3,6 @@ module github.com/rcarmo/gi
 go 1.26.2
 
 require (
-	github.com/candid82/joker v1.7.1
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/grindlemire/go-tui v0.13.0
 	github.com/rcarmo/go-ai v0.70.8
@@ -15,6 +14,7 @@ require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/ProtonMail/go-crypto v1.1.3 // indirect
+	github.com/candid82/joker v1.7.1 // indirect
 	github.com/candid82/liner v1.4.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
@@ -35,9 +35,11 @@ require (
 	github.com/mattn/go-runewidth v0.0.3 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
+	github.com/pkg/profile v1.2.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/skeema/knownhosts v1.3.0 // indirect
+	github.com/tetratelabs/wazero v1.11.0 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/yuin/goldmark v1.4.13 // indirect
 	go.etcd.io/bbolt v1.3.7 // indirect

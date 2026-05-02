@@ -1,0 +1,235 @@
+{
+  "$id": "https://gi.dev/schemas/script-tool-contract.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Gi Script Tool Contract",
+  "description": "Canonical JSON contract for the gi script tool and shared script bridge payload shapes.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ScriptToolInput"
+    },
+    {
+      "$ref": "#/$defs/ScriptToolInput"
+    }
+  ],
+  "$defs": {
+    "ScriptToolInput": {
+      "type": "object",
+      "description": "script tool input",
+      "additionalProperties": false,
+      "properties": {
+        "script": {
+          "type": "string",
+          "description": "Inline script source to execute."
+        },
+        "path": {
+          "type": "string",
+          "description": "Workspace-relative or vfs://path to load script content from."
+        },
+        "engine": {
+          "type": "string",
+          "enum": [
+            "js",
+            "joker"
+          ],
+          "description": "Force engine selection. If omitted, auto-detect from file extension; inline defaults to js."
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Session id used to build runtime bridge context."
+        }
+      },
+      "required": [],
+      "anyOf": [
+        {
+          "required": ["script"]
+        },
+        {
+          "required": ["path"]
+        }
+      ]
+    },
+    "ScriptToolOutput": {
+      "type": "object",
+      "description": "script tool output",
+      "additionalProperties": false,
+      "properties": {
+        "result": {
+          "type": "string",
+          "description": "Script textual result or captured console output."
+        },
+        "error": {
+          "type": "string",
+          "description": "Execution error text when non-empty."
+        }
+      },
+      "required": [
+        "result"
+      ]
+    },
+    "EventHookSpec": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "filter": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "RawSocketSpec": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["address"],
+      "properties": {
+        "protocol": {
+          "type": "string",
+          "enum": [
+            "tcp",
+            "udp"
+          ]
+        },
+        "address": {
+          "type": "string"
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "local_addr": {
+          "type": "string"
+        }
+      }
+    },
+    "RawSocketPayload": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["socket_id"],
+      "properties": {
+        "socket_id": {
+          "type": "string"
+        },
+        "data": {
+          "type": "string"
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "WebSocketSpec": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["url"],
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "subprotocol": {
+          "type": "string"
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "HTTPBody": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["url"],
+      "properties": {
+        "method": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "body": {
+          "type": "string"
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retry": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "allow_redirects": {
+          "type": "boolean"
+        },
+        "skip_tls": {
+          "type": "boolean"
+        }
+      }
+    },
+    "HTTPResponse": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "status_code",
+        "status",
+        "headers",
+        "body",
+        "url"
+      ],
+      "properties": {
+        "status_code": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "body": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

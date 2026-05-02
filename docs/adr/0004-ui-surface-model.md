@@ -52,12 +52,15 @@ gi implements a Piclaw-compatible SSE endpoint at `/sse/stream` that broadcasts:
 
 ## TUI requirements
 
+- launched from the main `gi` binary via a mode flag rather than a distinct primary binary
 - good scrollback
 - minimal formatting
 - expandable input field
 - status/progress parity where practical
 - forms support
 - image previews in capable terminals
+- terminal resize support
+- mouse click support to restore/focus the input where practical
 
 ## Non-requirement
 

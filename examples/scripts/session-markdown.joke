@@ -1,0 +1,24 @@
+;; Render a simple Markdown summary for the current session.
+(require '[joker.string :as str])
+
+(let [info (gi-get-session-info)
+      session (:session info)
+      state (gi-get-session-state)
+      turns (gi-list-turns)
+      messages (:messages info)
+      runtime (or (gi-get-runtime-config) (:runtime info))
+      header (str "# Session " (or (:title session) (:id session) "unknown"))
+      summary [(str "- Model: " (or (:model state) (:default_model runtime) "unknown"))
+               (str "- Provider: " (or (:provider state) (:default_provider runtime) "unknown"))
+               (str "- Thinking: " (or (:thinking_level state) (:default_thinking_level runtime) "unknown"))
+               (str "- Status: " (or (:status state) "unknown"))
+               (str "- Messages: " (count messages))
+               (str "- Turns: " (count turns))]
+      recent (map (fn [m] (str "- **" (:role m) "**: " (subs (str (:content m)) 0 (min 80 (count (str (:content m)))))))
+                  (take-last 5 messages))]
+  (str header
+       "\n\n"
+       (str/join "\n" summary)
+       (if (seq recent)
+         (str "\n\n## Recent messages\n" (str/join "\n" recent))
+         "")))

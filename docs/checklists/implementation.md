@@ -2,7 +2,7 @@
 
 Status: Active
 Date: 2026-04-22
-Last updated: 2026-04-22
+Last updated: 2026-04-28
 
 This checklist is organized by **subsystem** and grouped by **phase**.
 
@@ -71,9 +71,11 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] TabStrip with Piclaw component
 - [x] SSE streaming endpoint (`/sse/stream`) with Piclaw event model
 - [x] Real SSEClient implementation (reconnection, heartbeat, event bindings)
+- [x] Route-event-aware SSE subscriptions for `routing_decision`/`routing_incoming`
 - [x] Frontend log bridge (`/api/frontend/log`)
 - [x] Runtime config API (`/api/runtime/config`)
 - [x] Workspace tree/file APIs (`/api/workspace/tree`, `/api/workspace/file`)
+- [x] Route-event introspection API (`/api/sessions/{id}/route-events`) in frontend adapter
 - [x] SSE-driven real-time timeline updates (wired but not yet consuming events in app.ts)
 - [x] Streaming draft display in compose area
 
@@ -149,6 +151,11 @@ Direct port of Piclaw's `/meters` functionality. On by default until slash comma
 - [x] Load auth from `~/.pi/agent/auth.json`
 - [x] Preserve Pi model/provider naming semantics
 
+### Scripting engines
+- [x] Goja (`js`) runtime implemented
+- [x] Joker runtime implemented and bridge parity expanded
+- [x] QuickJS deliberately out of scope (Goja is the supported JavaScript runtime)
+
 ### Testing
 - [x] Go unit tests (store, turn, web, config)
 - [x] Playwright base UX tests (13 tests)
@@ -194,13 +201,22 @@ Direct port of Piclaw's `/meters` functionality. On by default until slash comma
 
 ### Skills and hooks
 - [ ] Define `SKILL.md` + frontmatter loader
-- [ ] Load skills from DB mirror first, then filesystem
-- [ ] Mirror skills/scripts/prompt templates into DB
+- [ ] Implement SQLite managed VFS for skills/scripts/templates/packages
+- [ ] Load skills from managed VFS first, then filesystem fallback where appropriate
+- [ ] Migrate loose skill/script/template mirrors into the managed VFS
 - [ ] Implement Joker-first hooks
 - [ ] Add Go hook surface
 - [ ] Implement required hook points
 - [ ] Add packaged skill import baseline
 - [ ] Investigate simple GitHub-sourced skill extraction flow
+
+### Internal reference and self-extension docs
+- [x] Create `docs/internal/` as the source tree for shipped internal reference docs
+- [x] Add bootstrap docs for tools, scripting, VFS, and skills
+- [ ] Document every built-in tool contract under `docs/internal/tools/`
+- [ ] Document hook lifecycle and extension contracts under `docs/internal/hooks/`
+- [ ] Embed `docs/internal/` as read-only runtime reference content (for example `vfs://reference/...`)
+- [ ] Add a doc-maintenance check so new internal surfaces cannot land undocumented
 
 ---
 
@@ -244,7 +260,15 @@ Direct port of Piclaw's `/meters` functionality. On by default until slash comma
 ## Phase 4 — storage, search, artifacts, observability
 
 ### Search and indexing
-- [ ] Implement SQLite FTS strategy
+- [x] Decide hybrid workspace search direction: SQLite FTS5 + sqlite-vec + gte-go
+- [x] Add ADR for workspace hybrid search (`adr/0008-workspace-hybrid-search.md`)
+- [x] Add internal design doc for hybrid search/indexing (`docs/internal/search/README.md`)
+- [x] Scaffold `internal/search/` package layout (service, rank, query, chunking, embed, vector, store, indexer)
+- [x] Scaffold workspace search schema definitions (`workspace_documents`, `workspace_chunks`, `workspace_chunks_fts`, `workspace_index_meta`)
+- [ ] Wire workspace search schema into main DB initialization
+- [ ] Implement real `gte-go` embedder
+- [ ] Implement real `sqlite-vec` backend
+- [ ] Implement SQLite FTS strategy for workspace chunks
 - [ ] Index messages
 - [ ] Index notes/memory
 - [ ] Index skills/scripts/templates/assets
@@ -286,7 +310,7 @@ Direct port of Piclaw's `/meters` functionality. On by default until slash comma
 - [ ] Golden tests for rendering/message projection
 - [x] E2E web smoke tests (Playwright)
 - [ ] E2E CLI smoke tests
-- [ ] E2E TUI smoke tests
+- [x] E2E TUI smoke tests (tmux harness)
 - [x] `go vet`
 - [ ] Fuzzing
 

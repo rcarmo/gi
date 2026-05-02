@@ -5,9 +5,10 @@ You are a coding agent working on the gi project — a Go-based coding agent wit
 ## Repository layout
 
 ```
-cmd/gi/              web server binary
-cmd/gi-tui/          terminal UI binary (go-tui)
+cmd/gi/              main binary entrypoint (web server or TUI via `-tui`)
+cmd/gi-tui/          compatibility wrapper for TUI mode
 internal/
+  tui/               terminal UI implementation (go-tui)
   config/            Pi/Piclaw config loader
   store/             SQLite WAL state store
   turn/              append-only turn engine with queue/cancel
@@ -27,6 +28,7 @@ scripts/             build/check scripts (hook TDZ checker)
 docs/
   adr/               architecture decision records
   checklists/        phased implementation checklist
+  internal/          shipped internal reference source tree for tools/scripting/hooks/VFS
   reference/         spec transcripts
 build.js             Bun web asset build script
 Makefile             canonical build/test/run interface
@@ -57,6 +59,7 @@ Makefile             canonical build/test/run interface
 - Bun is allowed **only at build time** for web asset bundling
 - Web assets are **embedded in the Go binary** via `embed.FS`
 - Use `go-ai` for model/provider abstraction, `go-tui` for the terminal UI
+- TUI mode should be reachable from the main `gi` binary rather than requiring a distinct primary binary
 
 ### Configuration compatibility
 - Read existing Pi/Piclaw files without modification:
@@ -73,6 +76,7 @@ Makefile             canonical build/test/run interface
 - Features start in `docs/checklists/implementation.md` — the phased implementation checklist organized by subsystem
 - Architecture decisions are recorded in `docs/adr/` — create a new ADR for significant design choices
 - The original spec conversation is preserved verbatim in `docs/reference/`
+- Internal runtime/tooling/scripting documentation lives in `docs/internal/` and is intended to become a shipped read-only reference tree later (for example `vfs://reference/...`)
 - For new feature areas, add checklist items first, then implement
 
 ### 2. Implement
@@ -81,6 +85,7 @@ Makefile             canonical build/test/run interface
 - Use the Makefile for all operations — not raw `go build` or `bun run`
 - Push as fixes land — do not batch unrelated changes into large commits
 - Commit messages should explain what changed and why
+- If a change adds or materially changes an internal tool, scripting bridge capability, hook, managed `vfs://` behavior, or skill/package contract, update `docs/internal/` in the same change
 
 ### 3. Test
 
@@ -117,7 +122,7 @@ make bun-checks     # Hook TDZ checker
 ### Build
 | Target | Description |
 |---|---|
-| `make build` | Build web assets + both binaries (`gi` and `gi-tui`) |
+| `make build` | Build web assets + the main `gi` binary |
 | `make build-web` | Bun vendor + app bundle only |
 
 ### Test
@@ -125,7 +130,8 @@ make bun-checks     # Hook TDZ checker
 |---|---|
 | `make test` | Go unit tests (`go test ./...`) |
 | `make vet` | Go vet |
-| `make test-ux` | Start isolated instance → run Playwright → stop and clean up |
+| `make test-ux` | Start isolated instance → run Playwright → stop and clean up (artifacts under `test-results/`) |
+| `make test-tui-smoke` | Run the tmux-based TUI smoke harness (startup/resize artifacts under `test-results/tui-smoke/`) |
 | `make bun-checks` | Hook TDZ checker |
 
 ### Isolated test instance

@@ -6,20 +6,26 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/rcarmo/gi/internal/routing"
 )
 
 type RuntimeConfig struct {
-	WorkspaceRoot        string   `json:"workspace_root"`
-	AssistantName        string   `json:"assistant_name"`
-	AssistantAvatar      string   `json:"assistant_avatar"`
-	UserName             string   `json:"user_name"`
-	UserAvatar           string   `json:"user_avatar"`
-	UserAvatarBackground string   `json:"user_avatar_background"`
-	DefaultProvider      string   `json:"default_provider"`
-	DefaultModel         string   `json:"default_model"`
-	DefaultThinkingLevel string   `json:"default_thinking_level"`
-	EnabledModels        []string `json:"enabled_models"`
-	SystemPrompt         string   `json:"-"`
+	WorkspaceRoot        string                     `json:"workspace_root"`
+	AssistantName        string                     `json:"assistant_name"`
+	AssistantAvatar      string                     `json:"assistant_avatar"`
+	UserName             string                     `json:"user_name"`
+	UserAvatar           string                     `json:"user_avatar"`
+	UserAvatarBackground string                     `json:"user_avatar_background"`
+	DefaultProvider      string                     `json:"default_provider"`
+	DefaultModel         string                     `json:"default_model"`
+	DefaultThinkingLevel string                     `json:"default_thinking_level"`
+	EnabledModels        []string                   `json:"enabled_models"`
+	Agents               routing.AgentsConfig       `json:"agents"`
+	Session              routing.SessionConfig      `json:"session"`
+	Routing              routing.ModelRoutingConfig `json:"routing"`
+	MaxIterations        int                        `json:"max_iterations"`
+	SystemPrompt         string                     `json:"-"`
 }
 
 type piclawConfig struct {
@@ -35,10 +41,14 @@ type piclawConfig struct {
 }
 
 type piSettings struct {
-	DefaultProvider      string   `json:"defaultProvider"`
-	DefaultModel         string   `json:"defaultModel"`
-	DefaultThinkingLevel string   `json:"defaultThinkingLevel"`
-	EnabledModels        []string `json:"enabledModels"`
+	DefaultProvider      string                     `json:"defaultProvider"`
+	DefaultModel         string                     `json:"defaultModel"`
+	DefaultThinkingLevel string                     `json:"defaultThinkingLevel"`
+	EnabledModels        []string                   `json:"enabledModels"`
+	MaxIterations        int                        `json:"maxIterations"`
+	Agents               routing.AgentsConfig       `json:"agents"`
+	Session              routing.SessionConfig      `json:"session"`
+	Routing              routing.ModelRoutingConfig `json:"routing"`
 }
 
 func Load(workspaceRoot string) RuntimeConfig {
@@ -57,6 +67,10 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.DefaultModel = ps.DefaultModel
 		cfg.DefaultThinkingLevel = ps.DefaultThinkingLevel
 		cfg.EnabledModels = append([]string(nil), ps.EnabledModels...)
+		cfg.MaxIterations = ps.MaxIterations
+		cfg.Agents = ps.Agents
+		cfg.Session = ps.Session
+		cfg.Routing = ps.Routing
 	}
 	if cfg.AssistantName == "" {
 		cfg.AssistantName = "Gi"
@@ -66,6 +80,15 @@ func Load(workspaceRoot string) RuntimeConfig {
 	}
 	if cfg.DefaultModel == "" && len(cfg.EnabledModels) > 0 {
 		cfg.DefaultModel = cfg.EnabledModels[0]
+	}
+	if len(cfg.Session.Dimensions) == 0 {
+		cfg.Session.Dimensions = []string{"chat"}
+	}
+	if cfg.MaxIterations <= 0 {
+		cfg.MaxIterations = 64
+	}
+	if len(cfg.Agents.List) == 0 {
+		cfg.Agents.List = []routing.AgentConfig{{ID: "agent", Name: cfg.AssistantName, Default: true, Model: cfg.DefaultModel}}
 	}
 	// Load system prompt from AGENTS.md
 	agentsPath := filepath.Join(workspaceRoot, "AGENTS.md")

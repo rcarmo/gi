@@ -661,7 +661,7 @@ async function getTimeline(limit = 50, beforeId = null, chatJid = null) {
         type: m2.role === "assistant" ? "agent_response" : "user_message",
         content: m2.content,
         thread_id: null,
-        agent_id: m2.role === "assistant" ? "gi" : null,
+        agent_id: m2.payload?.agent_id || (m2.role === "assistant" ? "agent" : null),
         content_blocks: m2.payload?.content_blocks || null,
         content_meta: null,
         link_previews: null,
@@ -684,14 +684,23 @@ async function getAgentModels(_chatJid = null) {
   }));
   return { models, current: data.default_model || "" };
 }
-async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = [], mode = null, chatJid = null) {
+async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = [], mode = null, chatJid = null, options = {}) {
   const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
   if (!sessionId)
     throw new Error("No active session");
   const intent = mode === "steer" ? "steer" : mode === "queue" ? "queue" : "prompt";
+  const targetAgentId = agentId && agentId !== "default" ? String(agentId).replace(/^@/, "") : null;
+  const payload = {
+    prompt: content,
+    intent,
+    target_agent_id: targetAgentId
+  };
+  if (options?.parent_turn_id) {
+    payload.parent_turn_id = options.parent_turn_id;
+  }
   return request(`/api/sessions/${encodeURIComponent(sessionId)}/prompt`, {
     method: "POST",
-    body: JSON.stringify({ prompt: content, intent })
+    body: JSON.stringify(payload)
   });
 }
 async function uploadMedia(_file, _chatJid = null) {
@@ -821,6 +830,8 @@ class SSEClient {
     bindJsonEvent("agent_draft_delta");
     bindJsonEvent("agent_thought");
     bindJsonEvent("agent_thought_delta");
+    bindJsonEvent("routing_decision");
+    bindJsonEvent("routing_incoming");
     bindJsonEvent("model_changed");
     bindJsonEvent("ui_theme");
     bindJsonEvent("ui_meters");
@@ -5555,6 +5566,7 @@ var SLASH_COMMANDS = [
   { name: "/cycle-thinking", description: "Cycle thinking level" },
   { name: "/theme", description: "Set UI theme (no name to show available themes)" },
   { name: "/meters", description: "Toggle the top-right CPU/RAM HUD (/meters on|off|toggle)" },
+  { name: "/route-events", description: "Toggle routing event visibility in the timeline (/route-events on|off|toggle)" },
   { name: "/tint", description: "Tint default light/dark UI (usage: /tint #hex or /tint off)" },
   { name: "/btw", description: "Open a side conversation panel without interrupting the main chat" },
   { name: "/state", description: "Show current session state" },
@@ -18642,5 +18654,5 @@ function GiApp() {
 }
 c0(X1`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=A920E3DA3E3419FD64756E2164756E21
+//# debugId=DA3B54ED920C45AC64756E2164756E21
 //# sourceMappingURL=app.js.map

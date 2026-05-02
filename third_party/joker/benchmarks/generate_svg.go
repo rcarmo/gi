@@ -5,75 +5,46 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 )
 
 type Benchmark struct {
-	MSPerOp     float64 `json:"ms_per_op"`
-	BytesPerOp  float64 `json:"bytes_per_op"`
-	AllocsPerOp float64 `json:"allocs_per_op"`
+	MSPerOp float64 `json:"ms_per_op"`
 }
 
 type Series struct {
 	ID         string               `json:"id"`
 	Label      string               `json:"label"`
-	Date       string               `json:"date"`
-	Notes      []string             `json:"notes"`
 	Benchmarks map[string]Benchmark `json:"benchmarks"`
 }
 
-type MapStoryCheckpoint struct {
-	ID        string    `json:"id"`
-	Label     string    `json:"label"`
-	Date      string    `json:"date"`
-	Notes     []string  `json:"notes"`
-	Benchmark Benchmark `json:"benchmark"`
-}
-
-type MapStory struct {
-	Label       string               `json:"label"`
-	Description string               `json:"description"`
-	Checkpoints []MapStoryCheckpoint `json:"checkpoints"`
+type CrossLang struct {
+	BunJSC    map[string]float64 `json:"bun_jsc"`
+	Python313 map[string]float64 `json:"python_313"`
+	Goja      map[string]float64 `json:"goja"`
 }
 
 type History struct {
 	Metadata struct {
-		Project string `json:"project"`
-		Scope   string `json:"scope"`
-		Host    string `json:"host"`
-		Command string `json:"command"`
+		Host string `json:"host"`
 	} `json:"metadata"`
-	Series         []Series `json:"series"`
-	MapUpdateStory MapStory `json:"map_update_story"`
+	Series        []Series  `json:"series"`
+	CrossLanguage CrossLang `json:"cross_language"`
 }
 
-type OverviewRow struct {
-	Label        string
+type Row struct {
+	Name         string
 	BaselineMS   float64
-	LatestMS     float64
+	CurrentMS    float64
+	GojaMS       float64
 	DeltaPct     float64
+	GojaRatio    float64
+	HasBaseline  bool
 	CurrentWidth int
-}
-
-type MapRow struct {
-	Label    string
-	MS       float64
-	Width    int
-	DeltaPct float64
-	Kind     string
-}
-
-type SVGData struct {
-	Title      string
-	Subtitle   string
-	Host       string
-	Rows       []OverviewRow
-	MapRows    []MapRow
-	MapNote    string
-	PanelWidth int
 }
 
 func main() {
@@ -81,280 +52,147 @@ func main() {
 	if len(os.Args) > 1 {
 		baseDir = os.Args[1]
 	}
-	jsonPath := filepath.Join(baseDir, "benchmark-history.json")
-	svgPath := filepath.Join(baseDir, "benchmark-improvements.svg")
 
-	data, err := os.ReadFile(jsonPath)
-	must(err)
-
+	data, _ := os.ReadFile(filepath.Join(baseDir, "benchmark-history.json"))
 	var h History
-	must(json.Unmarshal(data, &h))
+	json.Unmarshal(data, &h)
 
-	baseline := findSeries(h.Series, "baseline-stable")
-	latest := findSeries(h.Series, "current")
-
-	rows := []OverviewRow{
-		makeOverviewRow("Arithmetic loop", baseline, latest, "arithmetic_loop"),
-		makeOverviewRow("Recursive fib", baseline, latest, "recursive_fib"),
-		makeOverviewRow("Word frequency", baseline, latest, "word_frequency"),
-	}
-
-	mapRows := makeMapRows(h.MapUpdateStory.Checkpoints)
-
-	view := SVGData{
-		Title:      "Joker benchmark improvements",
-		Subtitle:   "Stable 5x benchmark checkpoints • lower is better • generated from benchmark-history.json",
-		Host:       h.Metadata.Host,
-		Rows:       rows,
-		MapRows:    mapRows,
-		MapNote:    "The map benchmark improved after `get`/`assoc` fast paths, but later structural experiments moved the latest value back up.",
-		PanelWidth: 1104,
-	}
-
-	f, err := os.Create(svgPath)
-	must(err)
-	defer f.Close()
-
-	tmpl := template.Must(template.New("svg").Funcs(template.FuncMap{
-		"fmtMS":     fmtMS,
-		"fmtPct":    fmtPct,
-		"deltaCls":  deltaClass,
-		"addY":      addY,
-		"mapLabelY": mapLabelY,
-		"mapTrackY": mapTrackY,
-		"mapTextY":  mapTextY,
-	}).Parse(svgTemplate))
-	must(tmpl.Execute(f, view))
-	fmt.Println("wrote", svgPath)
-}
-
-func findSeries(series []Series, id string) Series {
-	for _, s := range series {
-		if s.ID == id {
-			return s
+	var baseline, current Series
+	for _, s := range h.Series {
+		if s.ID == "baseline-stable" {
+			baseline = s
+		}
+		if s.ID == "current" {
+			current = s
 		}
 	}
-	panic("missing series: " + id)
-}
 
-func makeOverviewRow(label string, baseline, latest Series, key string) OverviewRow {
-	b := baseline.Benchmarks[key]
-	l := latest.Benchmarks[key]
-	return OverviewRow{
-		Label:        label,
-		BaselineMS:   b.MSPerOp,
-		LatestMS:     l.MSPerOp,
-		DeltaPct:     pctChange(b.MSPerOp, l.MSPerOp),
-		CurrentWidth: barWidth(l.MSPerOp, b.MSPerOp, 620),
-	}
-}
-
-func makeMapRows(checkpoints []MapStoryCheckpoint) []MapRow {
-	rows := make([]MapRow, 0, len(checkpoints))
-	max := 0.0
-	for _, cp := range checkpoints {
-		if cp.Benchmark.MSPerOp > max {
-			max = cp.Benchmark.MSPerOp
+	var rows []Row
+	for name, cur := range current.Benchmarks {
+		r := Row{
+			Name:      name,
+			CurrentMS: cur.MSPerOp,
 		}
-	}
-	base := 0.0
-	if len(checkpoints) > 0 {
-		base = checkpoints[0].Benchmark.MSPerOp
-	}
-	for i, cp := range checkpoints {
-		kind := "before"
-		switch i {
-		case 1:
-			kind = "best"
-		case 2:
-			kind = "latest"
+		if base, ok := baseline.Benchmarks[name]; ok {
+			r.BaselineMS = base.MSPerOp
+			r.HasBaseline = true
+			r.DeltaPct = ((cur.MSPerOp - base.MSPerOp) / base.MSPerOp) * 100
+			r.CurrentWidth = int(math.Round((cur.MSPerOp / base.MSPerOp) * 600))
+			if r.CurrentWidth > 600 {
+				r.CurrentWidth = 600
+			}
+			if r.CurrentWidth < 10 {
+				r.CurrentWidth = 10
+			}
 		}
-		rows = append(rows, MapRow{
-			Label:    cp.Label,
-			MS:       cp.Benchmark.MSPerOp,
-			Width:    barWidth(cp.Benchmark.MSPerOp, max, 620),
-			DeltaPct: pctChange(base, cp.Benchmark.MSPerOp),
-			Kind:     kind,
-		})
+		if goja, ok := h.CrossLanguage.Goja[name]; ok && goja > 0 {
+			r.GojaMS = goja
+			r.GojaRatio = cur.MSPerOp / goja
+		}
+		rows = append(rows, r)
 	}
-	return rows
-}
 
-func pctChange(before, after float64) float64 {
-	if before == 0 {
-		return 0
+	// Sort: baseline comparisons first (by speedup), then CLBG (by goja ratio)
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].HasBaseline != rows[j].HasBaseline {
+			return rows[i].HasBaseline
+		}
+		if rows[i].HasBaseline {
+			return rows[i].DeltaPct < rows[j].DeltaPct
+		}
+		return rows[i].GojaRatio < rows[j].GojaRatio
+	})
+
+	// Generate SVG
+	rowHeight := 62
+	headerHeight := 100
+	summaryHeight := 80
+	height := headerHeight + len(rows)*rowHeight + summaryHeight + 40
+
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="%d" viewBox="0 0 1200 %d">
+<style>
+:root { color-scheme: light dark; --bg:#f6f8fc;--panel:#fff;--row:#f0f4fb;--track:#dfe7f5;--border:#c7d3ea;--text:#172033;--muted:#55627c;--win:#23a566;--close:#f5a623;--gap:#e04848;--baseline:#7f93b8; }
+@media(prefers-color-scheme:dark){:root{--bg:#0b1020;--panel:#11182b;--row:#0f1728;--track:#1c2740;--border:#25324f;--text:#e3ecff;--muted:#9db0d6;--win:#37c67e;--close:#f5a623;--gap:#f06060;--baseline:#7288b3;}}
+svg{background:var(--bg)}.panel{fill:var(--panel);stroke:var(--border)}.row{fill:var(--row);stroke:var(--border)}.track{fill:var(--track)}.baseline{fill:var(--baseline)}.win{fill:var(--win)}.close{fill:var(--close)}.gap{fill:var(--gap)}
+.text{fill:var(--text);font-family:Inter,system-ui,sans-serif}.muted{fill:var(--muted);font-family:Inter,system-ui,sans-serif}
+.title{font-size:22px;font-weight:700}.subtitle{font-size:12px;font-weight:500}.label{font-size:12px;font-weight:600}.small{font-size:11px;font-weight:500}.tiny{font-size:10px}
+</style>
+`, height, height))
+
+	b.WriteString(fmt.Sprintf(`<rect x="0" y="0" width="1200" height="%d" fill="var(--bg)"/>`, height))
+	b.WriteString(fmt.Sprintf(`<rect class="panel" x="20" y="20" width="1160" height="%d" rx="14"/>`, height-40))
+	b.WriteString(`<text class="text title" x="40" y="56">Joker benchmark improvements</text>`)
+	b.WriteString(fmt.Sprintf(`<text class="muted subtitle" x="40" y="76">Generated from benchmark-history.json • Host: %s</text>`, h.Metadata.Host))
+
+	y := headerHeight
+	for _, r := range rows {
+		b.WriteString(fmt.Sprintf(`<g transform="translate(32,%d)">`, y))
+		b.WriteString(`<rect class="row" x="0" y="0" width="1136" height="54" rx="8"/>`)
+
+		// Name
+		displayName := strings.ReplaceAll(r.Name, "_", " ")
+		b.WriteString(fmt.Sprintf(`<text class="text label" x="10" y="20">%s</text>`, displayName))
+
+		// Current value
+		b.WriteString(fmt.Sprintf(`<text class="muted small" x="10" y="40">%.1f ms</text>`, r.CurrentMS))
+
+		if r.HasBaseline {
+			// Bar: baseline full width, current proportional
+			b.WriteString(`<rect class="track" x="180" y="10" width="600" height="14" rx="5"/>`)
+			b.WriteString(`<rect class="baseline" x="180" y="10" width="600" height="14" rx="5"/>`)
+			barClass := "win"
+			if r.DeltaPct > -20 {
+				barClass = "close"
+			}
+			if r.DeltaPct > 0 {
+				barClass = "gap"
+			}
+			b.WriteString(fmt.Sprintf(`<rect class="%s" x="180" y="28" width="%d" height="14" rx="5"/>`, barClass, r.CurrentWidth))
+			b.WriteString(fmt.Sprintf(`<text class="muted tiny" x="800" y="20">baseline: %.1f ms</text>`, r.BaselineMS))
+			b.WriteString(fmt.Sprintf(`<text class="text label" x="800" y="40">%.1f%% %s</text>`, r.DeltaPct, speedupLabel(r.DeltaPct)))
+		} else if r.GojaMS > 0 {
+			// Show vs Goja
+			barWidth := 600
+			if r.GojaRatio > 0 && r.GojaRatio < 7 {
+				barWidth = int(math.Round(r.GojaRatio / 7.0 * 600))
+			}
+			barClass := "win"
+			if r.GojaRatio > 1 {
+				barClass = "close"
+			}
+			if r.GojaRatio > 4 {
+				barClass = "gap"
+			}
+			b.WriteString(`<rect class="track" x="180" y="18" width="600" height="14" rx="5"/>`)
+			b.WriteString(fmt.Sprintf(`<rect class="%s" x="180" y="18" width="%d" height="14" rx="5"/>`, barClass, barWidth))
+			b.WriteString(fmt.Sprintf(`<text class="muted tiny" x="800" y="22">Goja: %.2f ms</text>`, r.GojaMS))
+			ratioLabel := fmt.Sprintf("%.1f× vs Goja", r.GojaRatio)
+			if r.GojaRatio < 1 {
+				ratioLabel = fmt.Sprintf("%.1f× faster ✅", 1/r.GojaRatio)
+			}
+			b.WriteString(fmt.Sprintf(`<text class="text label" x="800" y="40">%s</text>`, ratioLabel))
+		}
+
+		b.WriteString(`</g>`)
+		y += rowHeight
 	}
-	return ((after - before) / before) * 100
+
+	b.WriteString(`</svg>`)
+
+	os.WriteFile(filepath.Join(baseDir, "benchmark-improvements.svg"), []byte(b.String()), 0644)
+	fmt.Println("wrote", filepath.Join(baseDir, "benchmark-improvements.svg"))
 }
 
-func barWidth(value, max, full float64) int {
-	if max <= 0 {
-		return 0
+func speedupLabel(pct float64) string {
+	if pct <= -50 {
+		return "🚀"
 	}
-	w := int(math.Round((value / max) * full))
-	if value > 0 && w < 20 {
-		w = 20
+	if pct <= -20 {
+		return "⬇️"
 	}
-	if w > int(full) {
-		w = int(full)
+	if pct >= 0 {
+		return "⬆️"
 	}
-	return w
+	return ""
 }
-
-func fmtMS(v float64) string {
-	if v >= 100 {
-		return fmt.Sprintf("%.1f ms", v)
-	}
-	return fmt.Sprintf("%.2f ms", v)
-}
-
-func fmtPct(v float64) string {
-	if v > 0 {
-		return fmt.Sprintf("+%.1f%%", v)
-	}
-	return fmt.Sprintf("%.1f%%", v)
-}
-
-func deltaClass(v float64) string {
-	if v > 0 {
-		return "regress"
-	}
-	return "improve"
-}
-
-func addY(base, index, step int) int {
-	return base + (index * step)
-}
-
-func mapLabelY(index int) int {
-	return 92 + (index * 42)
-}
-
-func mapTrackY(index int) int {
-	return 78 + (index * 42)
-}
-
-func mapTextY(index int) int {
-	return 95 + (index * 42)
-}
-
-func must(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
-const svgTemplate = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="940" viewBox="0 0 1200 940" role="img" aria-labelledby="title desc">
-  <title id="title">{{.Title}}</title>
-  <desc id="desc">Benchmark summary for Joker interpreter optimization work, including detailed before, best-after, and latest values for the map update benchmark. Supports light and dark mode.</desc>
-  <style>
-    :root {
-      color-scheme: light dark;
-      --bg: #f6f8fc;
-      --panel: #ffffff;
-      --row: #f0f4fb;
-      --track: #dfe7f5;
-      --border: #c7d3ea;
-      --text: #172033;
-      --muted: #55627c;
-      --baseline: #7f93b8;
-      --current: #23a566;
-      --before: #7f93b8;
-      --best: #23a566;
-      --latest: #d69a23;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #0b1020;
-        --panel: #11182b;
-        --row: #0f1728;
-        --track: #1c2740;
-        --border: #25324f;
-        --text: #e3ecff;
-        --muted: #9db0d6;
-        --baseline: #7288b3;
-        --current: #37c67e;
-        --before: #7288b3;
-        --best: #37c67e;
-        --latest: #efb64d;
-      }
-    }
-    svg { background: var(--bg); }
-    .panel { fill: var(--panel); stroke: var(--border); stroke-width: 1; }
-    .row { fill: var(--row); stroke: var(--border); stroke-width: 1; }
-    .track { fill: var(--track); }
-    .baseline { fill: var(--baseline); }
-    .current { fill: var(--current); }
-    .before { fill: var(--before); }
-    .best { fill: var(--best); }
-    .latest { fill: var(--latest); }
-    .text { fill: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .muted { fill: var(--muted); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    .title { font-size: 28px; font-weight: 700; }
-    .subtitle { font-size: 15px; font-weight: 500; }
-    .section { font-size: 18px; font-weight: 700; }
-    .metric { font-size: 16px; font-weight: 700; }
-    .small { font-size: 14px; font-weight: 500; }
-    .tiny { font-size: 12px; font-weight: 500; }
-    .improve { fill: var(--current); font-size: 18px; font-weight: 800; }
-    .regress { fill: var(--latest); font-size: 18px; font-weight: 800; }
-  </style>
-
-  <rect x="0" y="0" width="1200" height="940" fill="var(--bg)" />
-  <rect class="panel" x="28" y="28" width="1144" height="884" rx="20" />
-
-  <text class="text title" x="56" y="76">{{.Title}}</text>
-  <text class="muted subtitle" x="56" y="104">{{.Subtitle}}</text>
-  <text class="muted tiny" x="56" y="124">Host: {{.Host}}</text>
-
-  <g transform="translate(56,142)">
-    <rect class="baseline" x="0" y="0" width="18" height="18" rx="4" />
-    <text class="text small" x="28" y="14">Baseline stable checkpoint</text>
-    <rect class="current" x="252" y="0" width="18" height="18" rx="4" />
-    <text class="text small" x="280" y="14">Latest checkpoint</text>
-    <rect class="before" x="468" y="0" width="18" height="18" rx="4" />
-    <text class="text small" x="496" y="14">Before map fastpaths</text>
-    <rect class="best" x="714" y="0" width="18" height="18" rx="4" />
-    <text class="text small" x="742" y="14">Best after</text>
-    <rect class="latest" x="866" y="0" width="18" height="18" rx="4" />
-    <text class="text small" x="894" y="14">Latest map value</text>
-  </g>
-
-  {{range $i, $row := .Rows}}
-  <g transform="translate(48,{{addY 182 $i 152}})">
-    <rect class="row" x="0" y="0" width="1104" height="136" rx="16" />
-    <text class="text section" x="20" y="30">{{$row.Label}}</text>
-    <text class="{{deltaCls $row.DeltaPct}}" x="1058" y="30" text-anchor="end">{{fmtPct $row.DeltaPct}}</text>
-    <text class="muted tiny" x="20" y="58">Baseline</text>
-    <rect class="track" x="120" y="44" width="620" height="22" rx="8" />
-    <rect class="baseline" x="120" y="44" width="620" height="22" rx="8" />
-    <text class="muted tiny" x="20" y="96">Latest</text>
-    <rect class="track" x="120" y="82" width="620" height="22" rx="8" />
-    <rect class="current" x="120" y="82" width="{{$row.CurrentWidth}}" height="22" rx="8" />
-    <text class="text metric" x="790" y="61">{{fmtMS $row.BaselineMS}}</text><text class="muted small" x="900" y="61">baseline</text>
-    <text class="text metric" x="790" y="99">{{fmtMS $row.LatestMS}}</text><text class="muted small" x="900" y="99">latest</text>
-  </g>
-  {{end}}
-
-  <g transform="translate(48,646)">
-    <rect class="row" x="0" y="0" width="1104" height="220" rx="16" />
-    <text class="text section" x="20" y="30">Map update loop timeline</text>
-    <text class="muted small" x="20" y="54">Requested view: before map fastpaths • best after • latest</text>
-    {{range $i, $row := .MapRows}}
-    <text class="muted tiny" x="20" y="{{mapLabelY $i}}">{{$row.Label}}</text>
-    <rect class="track" x="120" y="{{mapTrackY $i}}" width="620" height="22" rx="8" />
-    <rect class="{{$row.Kind}}" x="120" y="{{mapTrackY $i}}" width="{{$row.Width}}" height="22" rx="8" />
-    <text class="text metric" x="790" y="{{mapTextY $i}}">{{fmtMS $row.MS}}</text>
-    {{if eq $i 0}}
-    <text class="muted small" x="900" y="{{mapTextY $i}}">before map fastpaths</text>
-    {{else if eq $i 1}}
-    <text class="muted small" x="900" y="{{mapTextY $i}}">{{fmtPct $row.DeltaPct}} vs before</text>
-    {{else}}
-    <text class="muted small" x="900" y="{{mapTextY $i}}">{{fmtPct $row.DeltaPct}} vs before</text>
-    {{end}}
-    {{end}}
-    <text class="muted tiny" x="20" y="206">{{.MapNote}}</text>
-  </g>
-</svg>
-`

@@ -11,6 +11,7 @@ import (
 
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/store"
+	gitui "github.com/rcarmo/gi/internal/tui"
 	"github.com/rcarmo/gi/internal/turn"
 	giweb "github.com/rcarmo/gi/internal/web"
 )
@@ -24,7 +25,15 @@ func main() {
 	model := flag.String("model", "", "Override default model (e.g. gemma4:latest)")
 	logFile := flag.String("log-file", "", "Optional log file path")
 	pidFile := flag.String("pid-file", "", "Optional pid file path")
+	tuiMode := flag.Bool("tui", false, "Run the terminal UI instead of the web server")
 	flag.Parse()
+
+	if *tuiMode {
+		if err := gitui.Run(*dbPath, *workspace, *model); err != nil {
+			log.Fatalf("tui: %v", err)
+		}
+		return
+	}
 
 	effectiveListen := *listen
 	if effectiveListen == "" {
@@ -62,7 +71,7 @@ func main() {
 	if *model != "" {
 		runtimeCfg.DefaultModel = *model
 	}
-	engine := turn.NewWithSystemPrompt(s, runtimeCfg.SystemPrompt)
+	engine := turn.NewWithRuntimeConfig(s, runtimeCfg, runtimeCfg.SystemPrompt)
 	server := giweb.New(s, engine, runtimeCfg)
 
 	log.Printf("Gi web listening on %s using %s", effectiveListen, *dbPath)

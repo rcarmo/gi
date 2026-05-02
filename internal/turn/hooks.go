@@ -1,0 +1,204 @@
+package turn
+
+import (
+	"context"
+	"fmt"
+	"sync"
+
+	goai "github.com/rcarmo/go-ai"
+)
+
+// Hook names model the non-UX lifecycle surface exposed by the turn engine.
+const (
+	HookSessionStart          = "session_start"
+	HookSessionShutdown       = "session_shutdown"
+	HookSessionBeforeSwitch   = "session_before_switch"
+	HookSessionBeforeFork     = "session_before_fork"
+	HookSessionBeforeTree     = "session_before_tree"
+	HookSessionBeforeCompact  = "session_before_compact"
+	HookSessionCompact        = "session_compact"
+	HookSessionTree           = "session_tree"
+	HookResourcesDiscover     = "resources_discover"
+	HookInput                 = "input"
+	HookBeforeAgentStart      = "before_agent_start"
+	HookAgentStart            = "agent_start"
+	HookAgentEnd              = "agent_end"
+	HookTurnStart             = "turn_start"
+	HookTurnEnd               = "turn_end"
+	HookContext               = "context"
+	HookBeforeProviderRequest = "before_provider_request"
+	HookAfterProviderResponse = "after_provider_response"
+	HookMessageStart          = "message_start"
+	HookMessageUpdate         = "message_update"
+	HookMessageEnd            = "message_end"
+	HookToolExecutionStart    = "tool_execution_start"
+	HookToolCall              = "tool_call"
+	HookToolExecutionUpdate   = "tool_execution_update"
+	HookToolResult            = "tool_result"
+	HookToolExecutionEnd      = "tool_execution_end"
+	HookModelSelect           = "model_select"
+	HookUserBash              = "user_bash"
+)
+
+// HookRequest is the typed envelope delivered to engine hooks. Fields are
+// intentionally broad so the same structure can cover observation, gates, and
+// mutation hooks without adding a new Go type per hook name.
+type HookRequest struct {
+	Name      string         `json:"name"`
+	SessionID string         `json:"session_id,omitempty"`
+	TurnID    string         `json:"turn_id,omitempty"`
+	AgentID   string         `json:"agent_id,omitempty"`
+	Model     string         `json:"model,omitempty"`
+	Iteration int            `json:"iteration,omitempty"`
+	Payload   map[string]any `json:"payload,omitempty"`
+
+	SystemPrompt string         `json:"system_prompt,omitempty"`
+	Messages     []goai.Message `json:"-"`
+	Tools        []goai.Tool    `json:"-"`
+	ToolCall     *goai.ToolCall `json:"-"`
+	ToolResult   string         `json:"tool_result,omitempty"`
+	ToolError    bool           `json:"tool_error,omitempty"`
+}
+
+// HookResponse is merged into the running turn. Mutation hooks are chained in
+// registration order; gate hooks stop at the first blocking response.
+type HookResponse struct {
+	Cancel       bool           `json:"cancel,omitempty"`
+	Block        bool           `json:"block,omitempty"`
+	Handled      bool           `json:"handled,omitempty"`
+	Reason       string         `json:"reason,omitempty"`
+	Payload      map[string]any `json:"payload,omitempty"`
+	Message      string         `json:"message,omitempty"`
+	SystemPrompt string         `json:"system_prompt,omitempty"`
+	Messages     []goai.Message `json:"-"`
+	Tools        []goai.Tool    `json:"-"`
+	ToolCall     *goai.ToolCall `json:"-"`
+	ToolResult   *string        `json:"-"`
+}
+
+// HookHandler is a synchronous engine hook callback.
+type HookHandler func(context.Context, HookRequest) (HookResponse, error)
+
+type registeredHook struct {
+	id      uint64
+	source  string
+	handler HookHandler
+}
+
+// HookRegistry stores hook callbacks. Handlers are copied before invocation so
+// hooks can register/unregister safely outside the call path.
+type HookRegistry struct {
+	mu     sync.RWMutex
+	nextID uint64
+	hooks  map[string][]registeredHook
+}
+
+func NewHookRegistry() *HookRegistry {
+	return &HookRegistry{hooks: make(map[string][]registeredHook)}
+}
+
+func (r *HookRegistry) Register(name, source string, handler HookHandler) (func(), error) {
+	if name == "" {
+		return nil, fmt.Errorf("hook name is required")
+	}
+	if handler == nil {
+		return nil, fmt.Errorf("hook handler is required")
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.nextID++
+	id := r.nextID
+	r.hooks[name] = append(r.hooks[name], registeredHook{id: id, source: source, handler: handler})
+	return func() { r.Unregister(name, id) }, nil
+}
+
+func (r *HookRegistry) Unregister(name string, id uint64) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	items := r.hooks[name]
+	for i, item := range items {
+		if item.id == id {
+			r.hooks[name] = append(items[:i], items[i+1:]...)
+			break
+		}
+	}
+	if len(r.hooks[name]) == 0 {
+		delete(r.hooks, name)
+	}
+}
+
+func (r *HookRegistry) Clear() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.hooks = make(map[string][]registeredHook)
+}
+
+func (r *HookRegistry) Handlers(name string) []registeredHook {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []registeredHook
+	out = append(out, r.hooks[name]...)
+	if name != "*" {
+		out = append(out, r.hooks["*"]...)
+	}
+	return out
+}
+
+func (e *Engine) RegisterHook(name, source string, handler HookHandler) (func(), error) {
+	return e.hooks.Register(name, source, handler)
+}
+
+func (e *Engine) ClearHooks() { e.hooks.Clear() }
+
+func (e *Engine) emitHook(ctx context.Context, req HookRequest) (HookResponse, error) {
+	if req.Name == "" {
+		return HookResponse{}, fmt.Errorf("hook name is required")
+	}
+	var merged HookResponse
+	for _, item := range e.hooks.Handlers(req.Name) {
+		resp, err := item.handler(ctx, req)
+		if err != nil {
+			return merged, fmt.Errorf("hook %s from %s: %w", req.Name, item.source, err)
+		}
+		if resp.Payload != nil {
+			merged.Payload = resp.Payload
+			req.Payload = resp.Payload
+		}
+		if resp.Message != "" {
+			merged.Message = resp.Message
+		}
+		if resp.SystemPrompt != "" {
+			merged.SystemPrompt = resp.SystemPrompt
+			req.SystemPrompt = resp.SystemPrompt
+		}
+		if resp.Messages != nil {
+			merged.Messages = resp.Messages
+			req.Messages = resp.Messages
+		}
+		if resp.Tools != nil {
+			merged.Tools = resp.Tools
+			req.Tools = resp.Tools
+		}
+		if resp.ToolCall != nil {
+			merged.ToolCall = resp.ToolCall
+			req.ToolCall = resp.ToolCall
+		}
+		if resp.ToolResult != nil {
+			merged.ToolResult = resp.ToolResult
+			req.ToolResult = *resp.ToolResult
+		}
+		if resp.Handled {
+			merged.Handled = true
+		}
+		if resp.Cancel || resp.Block {
+			merged.Cancel = resp.Cancel
+			merged.Block = resp.Block
+			merged.Reason = resp.Reason
+			return merged, nil
+		}
+		if resp.Reason != "" {
+			merged.Reason = resp.Reason
+		}
+	}
+	return merged, nil
+}

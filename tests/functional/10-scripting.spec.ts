@@ -168,4 +168,63 @@ test.describe('Scripting', () => {
     const output = await res.json();
     expect(output.error).toContain('required');
   });
+
+  test('read tool reads workspace file', async ({ request }) => {
+    const writeRes = await request.post(`${BASE_URL}/api/tools/execute`, {
+      data: {
+        tool: 'write',
+        input: {
+          path: 'tmp-read-tool.txt',
+          content: 'hello from read tool',
+        },
+      },
+    });
+    expect(writeRes.ok()).toBeTruthy();
+    const writeOutput = await writeRes.json();
+    expect(writeOutput.error).toBeFalsy();
+
+    const res = await request.post(`${BASE_URL}/api/tools/execute`, {
+      data: {
+        tool: 'read',
+        input: {
+          path: 'tmp-read-tool.txt',
+        },
+      },
+    });
+    const output = await res.json();
+    expect(output.error).toBeFalsy();
+    expect(output.result).toContain('hello from read tool');
+  });
+
+  test('write tool writes workspace file', async ({ request }) => {
+    const res = await request.post(`${BASE_URL}/api/tools/execute`, {
+      data: {
+        tool: 'write',
+        input: {
+          path: 'tmp-write-tool.txt',
+          content: 'hello from write tool',
+        },
+      },
+    });
+    const output = await res.json();
+    expect(output.error).toBeFalsy();
+    const file = await request.get(`${BASE_URL}/api/workspace/file?path=tmp-write-tool.txt`);
+    expect(file.ok()).toBeTruthy();
+    const fileJson = await file.json();
+    expect(fileJson.content).toContain('hello from write tool');
+  });
+
+  test('shell tool executes command', async ({ request }) => {
+    const res = await request.post(`${BASE_URL}/api/tools/execute`, {
+      data: {
+        tool: 'shell',
+        input: {
+          command: 'printf shell-output',
+        },
+      },
+    });
+    const output = await res.json();
+    expect(output.error).toBeFalsy();
+    expect(output.result).toContain('shell-output');
+  });
 });

@@ -24,6 +24,7 @@ export const SLASH_COMMANDS = [
   { name: "/cycle-thinking", description: "Cycle thinking level" },
   { name: "/theme", description: "Set UI theme (no name to show available themes)" },
   { name: "/meters", description: "Toggle the top-right CPU/RAM HUD (/meters on|off|toggle)" },
+  { name: "/route-events", description: "Toggle routing event visibility in the timeline (/route-events on|off|toggle)" },
   { name: "/tint", description: "Tint default light/dark UI (usage: /tint #hex or /tint off)" },
   { name: "/btw", description: "Open a side conversation panel without interrupting the main chat" },
   { name: "/state", description: "Show current session state" },

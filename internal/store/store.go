@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rcarmo/gi/internal/session"
 	_ "modernc.org/sqlite"
 )
 
@@ -17,11 +18,14 @@ type Store struct {
 }
 
 type Session struct {
-	ID        string         `json:"id"`
-	Title     string         `json:"title"`
-	State     map[string]any `json:"state"`
-	CreatedAt string         `json:"created_at"`
-	UpdatedAt string         `json:"updated_at"`
+	ID              string                `json:"id"`
+	ParentSessionID string                `json:"parent_session_id,omitempty"`
+	Title           string                `json:"title"`
+	State           map[string]any        `json:"state"`
+	Scope           *session.SessionScope `json:"scope,omitempty"`
+	Aliases         []string              `json:"aliases,omitempty"`
+	CreatedAt       string                `json:"created_at"`
+	UpdatedAt       string                `json:"updated_at"`
 }
 
 type Message struct {
@@ -89,14 +93,31 @@ func configure(db *sql.DB) error {
 }
 
 func (s *Store) CreateSession(ctx context.Context, id, title string, state map[string]any) (*Session, error) {
+	alloc := session.AllocateDefaultSession("gi", "gi", "default", id)
+	return s.CreateSessionWithMetadata(ctx, id, "", title, state, &alloc.Scope, alloc.SessionAliases)
+}
+
+func (s *Store) CreateSessionWithMetadata(ctx context.Context, id, parentSessionID, title string, state map[string]any, scope *session.SessionScope, aliases []string) (*Session, error) {
 	stateJSON, err := marshalJSON(state)
 	if err != nil {
 		return nil, err
 	}
+	scopeJSON, err := marshalJSON(scope)
+	if err != nil {
+		return nil, err
+	}
+	aliasesJSON, err := marshalJSONArray(aliases)
+	if err != nil {
+		return nil, err
+	}
+	var parent any
+	if parentSessionID != "" {
+		parent = parentSessionID
+	}
 	_, err = s.db.ExecContext(ctx, `
-		insert into sessions (id, title, state_json, created_at, updated_at)
-		values (?, ?, ?, `+defaultNow+`, `+defaultNow+`)
-	`, id, title, stateJSON)
+		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
+		values (?, ?, ?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`)
+	`, id, parent, title, stateJSON, scopeJSON, aliasesJSON)
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
@@ -105,25 +126,37 @@ func (s *Store) CreateSession(ctx context.Context, id, title string, state map[s
 
 func (s *Store) GetSession(ctx context.Context, id string) (*Session, error) {
 	row := s.db.QueryRowContext(ctx, `
-		select id, title, state_json, created_at, updated_at
+		select id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at
 		from sessions where id = ?
 	`, id)
 	var out Session
-	var stateJSON string
-	if err := row.Scan(&out.ID, &out.Title, &stateJSON, &out.CreatedAt, &out.UpdatedAt); err != nil {
+	var parent sql.NullString
+	var stateJSON, scopeJSON, aliasesJSON string
+	if err := row.Scan(&out.ID, &parent, &out.Title, &stateJSON, &scopeJSON, &aliasesJSON, &out.CreatedAt, &out.UpdatedAt); err != nil {
 		return nil, err
+	}
+	if parent.Valid {
+		out.ParentSessionID = parent.String
 	}
 	state, err := unmarshalJSONMap(stateJSON)
 	if err != nil {
 		return nil, err
 	}
 	out.State = state
+	out.Scope, err = unmarshalSessionScope(scopeJSON)
+	if err != nil {
+		return nil, err
+	}
+	out.Aliases, err = unmarshalJSONStringArray(aliasesJSON)
+	if err != nil {
+		return nil, err
+	}
 	return &out, nil
 }
 
 func (s *Store) ListSessions(ctx context.Context) ([]Session, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		select id, title, state_json, created_at, updated_at
+		select id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at
 		from sessions
 		order by updated_at desc, created_at desc
 	`)
@@ -134,11 +167,23 @@ func (s *Store) ListSessions(ctx context.Context) ([]Session, error) {
 	var out []Session
 	for rows.Next() {
 		var item Session
-		var stateJSON string
-		if err := rows.Scan(&item.ID, &item.Title, &stateJSON, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		var parent sql.NullString
+		var stateJSON, scopeJSON, aliasesJSON string
+		if err := rows.Scan(&item.ID, &parent, &item.Title, &stateJSON, &scopeJSON, &aliasesJSON, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
+		if parent.Valid {
+			item.ParentSessionID = parent.String
+		}
 		item.State, err = unmarshalJSONMap(stateJSON)
+		if err != nil {
+			return nil, err
+		}
+		item.Scope, err = unmarshalSessionScope(scopeJSON)
+		if err != nil {
+			return nil, err
+		}
+		item.Aliases, err = unmarshalJSONStringArray(aliasesJSON)
 		if err != nil {
 			return nil, err
 		}
@@ -305,6 +350,77 @@ func unmarshalJSONMap(raw string) (map[string]any, error) {
 		out = map[string]any{}
 	}
 	return out, nil
+}
+
+func marshalJSONArray(v []string) (string, error) {
+	if len(v) == 0 {
+		return "[]", nil
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", fmt.Errorf("marshal json array: %w", err)
+	}
+	return string(b), nil
+}
+
+func unmarshalJSONStringArray(raw string) ([]string, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	var out []string
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return nil, fmt.Errorf("unmarshal json string array: %w", err)
+	}
+	return out, nil
+}
+
+func unmarshalSessionScope(raw string) (*session.SessionScope, error) {
+	if raw == "" || raw == "{}" {
+		return nil, nil
+	}
+	var out session.SessionScope
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		return nil, fmt.Errorf("unmarshal session scope: %w", err)
+	}
+	if out.Version == 0 {
+		return nil, nil
+	}
+	return &out, nil
+}
+
+func (s *Store) CloneSession(ctx context.Context, sourceSessionID, newID, newTitle, newAgentID string) (*Session, error) {
+	source, err := s.GetSession(ctx, sourceSessionID)
+	if err != nil {
+		return nil, err
+	}
+	state := map[string]any{}
+	for k, v := range source.State {
+		state[k] = v
+	}
+	state["forked_from"] = sourceSessionID
+	state["status"] = "idle"
+	state["active_turn_id"] = nil
+	logicalChatID := newID
+	alloc := session.AllocateDefaultSession(newAgentID, "gi", "default", logicalChatID)
+	cloned, err := s.CreateSessionWithMetadata(ctx, newID, sourceSessionID, newTitle, state, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		return nil, err
+	}
+	messages, err := s.ListMessages(ctx, sourceSessionID)
+	if err != nil {
+		return nil, err
+	}
+	for _, msg := range messages {
+		payload := map[string]any{}
+		for k, v := range msg.Payload {
+			payload[k] = v
+		}
+		payload["forked_from_message_id"] = msg.ID
+		if err := s.AddMessage(ctx, NowID("msg"), cloned.ID, msg.Role, msg.Content, payload); err != nil {
+			return nil, err
+		}
+	}
+	return s.GetSession(ctx, cloned.ID)
 }
 
 func NowID(prefix string) string {

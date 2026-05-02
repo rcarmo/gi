@@ -1,5 +1,5 @@
 // Package scripting defines the bridge interface between gi's runtime and
-// script engines (Joker/Clojure, QuickJS/JavaScript).
+// script engines (Goja/JavaScript and Joker/Clojure).
 //
 // The bridge exposes gi's internal state to scripts in a controlled way.
 // Each engine implements the Runner interface; the bridge provides the
@@ -8,12 +8,13 @@ package scripting
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 )
 
 // Runner is the interface that script engines must implement.
 type Runner interface {
-	// Name returns the engine name (e.g. "joker", "quickjs").
+	// Name returns the engine name (e.g. "joker", "js").
 	Name() string
 
 	// Execute runs a script string and returns the result.
@@ -24,14 +25,83 @@ type Runner interface {
 }
 
 // Bridge provides host functions that scripts can call to interact with
-// gi's runtime state. It is the single point of contact between the
-// script engine and the gi internals.
+// gi's internals. It is the single point of contact between the
+// script engine and gi.
 type Bridge struct {
 	// SessionID is the active session.
 	SessionID string
 
 	// Funcs are the callable host functions exposed to scripts.
 	Funcs BridgeFuncs
+}
+
+// HTTPCallSpec defines an outbound HTTP request.
+// Headers are provided as a map to preserve full caller control.
+type HTTPCallSpec struct {
+	Method         string              `json:"method"`
+	URL            string              `json:"url"`
+	Headers        map[string][]string `json:"headers"`
+	Body           string              `json:"body"`
+	TimeoutMS      int                 `json:"timeout_ms"`
+	SkipTLS        bool                `json:"skip_tls"`
+	Retry          int                 `json:"retry"`
+	AllowRedirects bool                `json:"allow_redirects"`
+}
+
+// HTTPResponse holds a low-level HTTP response object.
+type HTTPResponse struct {
+	StatusCode int                 `json:"status_code"`
+	Status     string              `json:"status"`
+	Headers    map[string][]string `json:"headers"`
+	Body       string              `json:"body"`
+	URL        string              `json:"url"`
+}
+
+// EventHookSpec captures a host-level event hook registration intent.
+type EventHookSpec struct {
+	Name      string         `json:"name"`
+	Source    string         `json:"source"`
+	Filter    map[string]any `json:"filter"`
+	Arguments map[string]any `json:"arguments"`
+	Engine    string         `json:"engine,omitempty"`
+	Script    string         `json:"script,omitempty"`
+	Path      string         `json:"path,omitempty"`
+}
+
+// ToolSpec captures a script-declared tool registration. A host can either
+// execute Script directly or load Path with Engine when the tool is invoked.
+type ToolSpec struct {
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Parameters  json.RawMessage `json:"parameters"`
+	Engine      string          `json:"engine,omitempty"`
+	Script      string          `json:"script,omitempty"`
+	Path        string          `json:"path,omitempty"`
+	Source      string          `json:"source,omitempty"`
+}
+
+// RawSocketSpec captures raw socket request metadata.
+type RawSocketSpec struct {
+	Protocol  string `json:"protocol"` // tcp|udp
+	Address   string `json:"address"`
+	TimeoutMS int    `json:"timeout_ms"`
+	LocalAddr string `json:"local_addr"`
+}
+
+// RawSocketPayload contains data for read/write style calls.
+type RawSocketPayload struct {
+	SocketID  string `json:"socket_id"`
+	Data      string `json:"data"`
+	MaxBytes  int    `json:"max_bytes"`
+	TimeoutMS int    `json:"timeout_ms"`
+}
+
+// WebSocketSpec captures websocket connection intent.
+type WebSocketSpec struct {
+	URL         string              `json:"url"`
+	Headers     map[string][]string `json:"headers"`
+	Subprotocol string              `json:"subprotocol"`
+	TimeoutMS   int                 `json:"timeout_ms"`
 }
 
 // BridgeFuncs defines the host functions available to scripts.
@@ -41,12 +111,14 @@ type BridgeFuncs struct {
 	// Session state
 	GetSessionState func(ctx context.Context) (map[string]any, error)
 	SetSessionState func(ctx context.Context, patch map[string]any) error
+	GetSessionInfo  func(ctx context.Context) (map[string]any, error)
 
 	// Messages
 	ListMessages func(ctx context.Context, limit int) ([]map[string]any, error)
 	AddMessage   func(ctx context.Context, role, content string) error
 
-	// Turn events
+	// Turns and turn events
+	ListTurns      func(ctx context.Context, limit int) ([]map[string]any, error)
 	ListTurnEvents func(ctx context.Context, turnID string) ([]map[string]any, error)
 
 	// Runtime config
@@ -60,6 +132,32 @@ type BridgeFuncs struct {
 	// Shell execution
 	Exec func(ctx context.Context, command string) (string, error)
 
+	// Event hooks and agentic-loop extension points
+	RegisterEventHook func(ctx context.Context, hook EventHookSpec) error
+	RegisterTool      func(ctx context.Context, tool ToolSpec) error
+	SetActiveTools    func(ctx context.Context, names []string) error
+	GetActiveTools    func(ctx context.Context) ([]string, error)
+	SetModel          func(ctx context.Context, model string) error
+	AppendEntry       func(ctx context.Context, entryType string, data map[string]any) error
+	GetEntries        func(ctx context.Context, entryType string) ([]map[string]any, error)
+	EmitEvent         func(ctx context.Context, name string, payload map[string]any) error
+	ClearEventHooks   func(ctx context.Context) error
+
+	// Raw sockets (tcp/udp)
+	OpenRawSocket  func(ctx context.Context, spec RawSocketSpec) (string, error)
+	WriteRawSocket func(ctx context.Context, payload RawSocketPayload) (int, error)
+	ReadRawSocket  func(ctx context.Context, payload RawSocketPayload) (string, error)
+	CloseRawSocket func(ctx context.Context, socketID string) error
+
+	// WebSocket interface
+	OpenWebSocket  func(ctx context.Context, spec WebSocketSpec) (string, error)
+	WriteWebSocket func(ctx context.Context, socketID string, payload string) error
+	ReadWebSocket  func(ctx context.Context, socketID string, timeoutMS int) (string, error)
+	CloseWebSocket func(ctx context.Context, socketID string) error
+
+	// HTTP with header-first request control
+	DoHTTPRequest func(ctx context.Context, req HTTPCallSpec) (HTTPResponse, error)
+
 	// Logging
 	Log func(ctx context.Context, level, message string)
 }
@@ -69,7 +167,7 @@ func NewBridge(sessionID string, funcs BridgeFuncs) *Bridge {
 	return &Bridge{SessionID: sessionID, Funcs: funcs}
 }
 
-// Validate checks that all required bridge functions are set.
+// Validate checks that required bridge functions are set.
 func (b *Bridge) Validate() error {
 	if b.Funcs.GetSessionState == nil {
 		return fmt.Errorf("bridge: GetSessionState not set")

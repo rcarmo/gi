@@ -124,7 +124,7 @@ export async function getTimeline(limit = 50, beforeId: number | null = null, ch
                 type: m.role === 'assistant' ? 'agent_response' : 'user_message',
                 content: m.content,
                 thread_id: null,
-                agent_id: m.role === 'assistant' ? 'gi' : null,
+                agent_id: m.payload?.agent_id || (m.role === 'assistant' ? 'agent' : null),
                 content_blocks: m.payload?.content_blocks || null,
                 content_meta: null,
                 link_previews: null,
@@ -151,7 +151,7 @@ export async function searchPosts(query: string, limit = 50, offset = 0, chatJid
         id: m.id, chat_jid: chatJid, content: m.content, timestamp: m.created_at,
         sender: m.role === 'user' ? 'user' : 'agent',
         is_from_me: m.role === 'user', is_bot_message: m.role === 'assistant',
-        data: { type: m.role === 'assistant' ? 'agent_response' : 'user_message', content: m.content, thread_id: null, agent_id: m.role === 'assistant' ? 'gi' : null },
+        data: { type: m.role === 'assistant' ? 'agent_response' : 'user_message', content: m.content, thread_id: null, agent_id: m.payload?.agent_id || (m.role === 'assistant' ? 'agent' : null) },
     })) };
 }
 
@@ -166,15 +166,25 @@ export async function getSystemMetrics() {
 }
 
 export async function getAgents() {
-    const data = await request('/api/runtime/config');
-    return {
-        agents: [{
-            id: 'gi',
-            name: data.assistant_name || 'Gi',
-            avatar_url: data.assistant_avatar || null,
-            chat_jid: DEFAULT_CHAT_JID,
-        }],
-    };
+    const data = await request('/api/sessions').catch(() => ({ sessions: [] }));
+    const runtime = await request('/api/runtime/config').catch(() => ({}));
+    const sessions: any[] = data.sessions || [];
+    const agents = new Map();
+    for (const s of sessions) {
+        const id = s.scope?.agent_id || 'agent';
+        if (!agents.has(id)) {
+            agents.set(id, {
+                id,
+                name: s.title || `@${id}`,
+                avatar_url: runtime.assistant_avatar || null,
+                chat_jid: sessionToChatJid(s.id),
+            });
+        }
+    }
+    if (agents.size === 0) {
+        agents.set('agent', { id: 'agent', name: runtime.assistant_name || '@agent', avatar_url: runtime.assistant_avatar || null, chat_jid: DEFAULT_CHAT_JID });
+    }
+    return { agents: Array.from(agents.values()) };
 }
 
 export async function getAgentStatus(agentId: string, chatJid: string | null = null) {
@@ -244,25 +254,56 @@ export async function getActiveChatAgents() {
     return {
         agents: sessions.map((s: any) => ({
             chat_jid: sessionToChatJid(s.id),
-            agent_name: s.title || s.id,
+            agent_name: s.scope?.agent_id ? `@${s.scope.agent_id}` : (s.title || s.id),
+            agent_id: s.scope?.agent_id || 'agent',
+            parent_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : null,
         })),
     };
 }
 
-export async function getChatBranches(_rootChatJid: string | null = null, _options: any = {}) {
+export async function getChatBranches(rootChatJid: string | null = null, _options: any = {}) {
     const data = await request('/api/sessions').catch(() => ({ sessions: [] }));
-    const sessions: any[] = data.sessions || [];
-    return {
-        branches: sessions.map((s: any) => ({
-            chat_jid: sessionToChatJid(s.id),
-            label: s.title || s.id,
-            updated_at: s.updated_at,
-        })),
-    };
+    let sessions: any[] = data.sessions || [];
+    if (rootChatJid?.startsWith('gi:')) {
+        const rootId = rootChatJid.slice(3);
+        const byParent = new Map();
+        for (const s of sessions) {
+            const key = s.parent_session_id || '';
+            const bucket = byParent.get(key) || [];
+            bucket.push(s);
+            byParent.set(key, bucket);
+        }
+        const wanted = new Set([rootId]);
+        const queue = [rootId];
+        while (queue.length > 0) {
+            const current = queue.shift();
+            const children = byParent.get(current) || [];
+            for (const child of children) {
+                if (!wanted.has(child.id)) {
+                    wanted.add(child.id);
+                    queue.push(child.id);
+                }
+            }
+        }
+        sessions = sessions.filter((s: any) => wanted.has(s.id));
+    }
+    const mapped = sessions.map((s: any) => ({
+        chat_jid: sessionToChatJid(s.id),
+        label: s.title || `@${s.scope?.agent_id || s.id}`,
+        updated_at: s.updated_at,
+        parent_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : null,
+        agent_id: s.scope?.agent_id || 'agent',
+    }));
+    return { branches: mapped, chats: mapped };
 }
 
-export async function forkChatBranch(_sourceChatJid: string, _options: any = {}) {
-    return null;
+export async function forkChatBranch(sourceChatJid: string, options: any = {}) {
+    const sessionId = sourceChatJid?.startsWith('gi:') ? sourceChatJid.slice(3) : null;
+    if (!sessionId) throw new Error('No source session to fork');
+    return request(`/api/sessions/${encodeURIComponent(sessionId)}/fork`, {
+        method: 'POST',
+        body: JSON.stringify({ title: options?.title || null, agent_id: options?.agent_id || null }),
+    });
 }
 
 export async function renameChatBranch(_chatJid: string, _options: any = {}) {
@@ -281,8 +322,19 @@ export async function renameChatJid(_oldJid: string, _newJid: string) {
     return null;
 }
 
-export async function sendPeerAgentMessage(_sourceChatJid: string, _target: string, _content: string, _mode = 'auto', _options: any = {}) {
-    return null;
+export async function sendPeerAgentMessage(sourceChatJid: string, target: string, content: string, mode = 'auto', options: any = {}) {
+    const sessionId = sourceChatJid?.startsWith('gi:') ? sourceChatJid.slice(3) : null;
+    if (!sessionId) throw new Error('No source session');
+    return request(`/api/sessions/${encodeURIComponent(sessionId)}/peer-message`, {
+        method: 'POST',
+        body: JSON.stringify({
+            target_agent_id: String(target || '').replace(/^@/, ''),
+            content,
+            mode,
+            model: options?.model || null,
+            parent_turn_id: options?.parent_turn_id || null,
+        }),
+    });
 }
 
 export async function completeInstanceOobe(_chatJid: string | null = null) {
@@ -291,30 +343,43 @@ export async function completeInstanceOobe(_chatJid: string | null = null) {
 
 // ── Posts / messages ──────────────────────────────────────────────────────
 
-export async function createPost(content: string, _mediaIds: number[] = [], chatJid: string | null = null) {
+export async function createPost(content: string, _mediaIds: number[] = [], chatJid: string | null = null, options: any = {}) {
     const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
     if (!sessionId) throw new Error('No active session');
+    const payload: any = { prompt: content, intent: 'prompt' };
+    if (options?.parent_turn_id) {
+        payload.parent_turn_id = options.parent_turn_id;
+    }
     return request(`/api/sessions/${encodeURIComponent(sessionId)}/prompt`, {
         method: 'POST',
-        body: JSON.stringify({ prompt: content, intent: 'prompt' }),
+        body: JSON.stringify(payload),
     });
 }
 
-export async function createReply(threadId: number, content: string, _mediaIds: number[] = [], chatJid: string | null = null) {
-    return createPost(content, [], chatJid);
+export async function createReply(threadId: number, content: string, _mediaIds: number[] = [], chatJid: string | null = null, options: any = {}) {
+    return createPost(content, [], chatJid, options);
 }
 
 export async function deletePost(postId: string, _cascade = false, _chatJid: string | null = null) {
     return null;
 }
 
-export async function sendAgentMessage(agentId: string, content: string, _threadId: number | null = null, _mediaIds: number[] = [], mode: string | null = null, chatJid: string | null = null) {
+export async function sendAgentMessage(agentId: string, content: string, _threadId: number | null = null, _mediaIds: number[] = [], mode: string | null = null, chatJid: string | null = null, options: any = {}) {
     const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
     if (!sessionId) throw new Error('No active session');
     const intent = mode === 'steer' ? 'steer' : mode === 'queue' ? 'queue' : 'prompt';
+    const targetAgentId = agentId && agentId !== 'default' ? String(agentId).replace(/^@/, '') : null;
+    const payload: any = {
+        prompt: content,
+        intent,
+        target_agent_id: targetAgentId,
+    };
+    if (options?.parent_turn_id) {
+        payload.parent_turn_id = options.parent_turn_id;
+    }
     return request(`/api/sessions/${encodeURIComponent(sessionId)}/prompt`, {
         method: 'POST',
-        body: JSON.stringify({ prompt: content, intent }),
+        body: JSON.stringify(payload),
     });
 }
 
@@ -345,6 +410,12 @@ export async function submitAdaptiveCardAction(_payload: unknown) {
 }
 
 // ── Workspace ─────────────────────────────────────────────────────────────
+
+export async function getSessionRouteEvents(chatJid: string | null = null) {
+    const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
+    if (!sessionId) return { route_events: [] };
+    return request(`/api/sessions/${encodeURIComponent(sessionId)}/route-events`);
+}
 
 export async function getWorkspaceTree(_chatJid: string | null = null) {
     return request('/api/workspace/tree');
@@ -500,6 +571,8 @@ export class SSEClient {
         bindJsonEvent('agent_draft_delta');
         bindJsonEvent('agent_thought');
         bindJsonEvent('agent_thought_delta');
+        bindJsonEvent('routing_decision');
+        bindJsonEvent('routing_incoming');
         bindJsonEvent('model_changed');
         bindJsonEvent('ui_theme');
         bindJsonEvent('ui_meters');

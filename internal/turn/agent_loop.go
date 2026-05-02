@@ -2,47 +2,16 @@ package turn
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/store"
-	"github.com/rcarmo/gi/internal/tools"
 	goai "github.com/rcarmo/go-ai"
 )
-
-// toolDefs returns the go-ai Tool definitions sent to the LLM.
-func toolDefs() []goai.Tool {
-	return []goai.Tool{
-		{
-			Name:        "tools",
-			Description: "List available tools or get details about a specific tool. Use with no arguments to list all tools (names + short descriptions). Pass a tool name via the `name` argument to get its full schema and usage. Use `query` to filter tools by keyword.",
-			Parameters:  json.RawMessage(`{"type":"object","properties":{"name":{"type":"string","description":"Exact tool name to get full details for"},"query":{"type":"string","description":"Filter tools by keyword in name or description"}}}`),
-		},
-		{
-			Name:        "read",
-			Description: "Read text content from a workspace file. Supports workspace-relative paths and vfs:// paths.",
-			Parameters:  json.RawMessage(`{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative path or vfs://namespace/path"}},"required":["path"]}`),
-		},
-		{
-			Name:        "write",
-			Description: "Write text content to a workspace file. Creates parent directories for workspace paths.",
-			Parameters:  json.RawMessage(`{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative path or vfs://namespace/path"},"content":{"type":"string","description":"File content to write"}},"required":["path","content"]}`),
-		},
-		{
-			Name:        "shell",
-			Description: "Execute a shell command and return stdout/stderr. Use for running tests, installing packages, searching files, etc.",
-			Parameters:  json.RawMessage(`{"type":"object","properties":{"command":{"type":"string","description":"Shell command to execute"}},"required":["command"]}`),
-		},
-	}
-}
 
 const repeatedToolFailureLimit = 4
 
@@ -93,7 +62,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 	msgs, _ := s.ListMessages(ctx, sessionID)
 	convCtx := &goai.Context{
 		SystemPrompt: sysPrompt,
-		Tools:        toolDefs(),
+		Tools:        r.engine.toolDefs(),
 	}
 	for _, m := range msgs {
 		switch m.Role {
@@ -105,6 +74,28 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			// not persistent history that should be replayed.
 		}
 	}
+
+	if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeAgentStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools}); err != nil {
+		log.Printf("hook before_agent_start error: %v", err)
+	} else {
+		if resp.SystemPrompt != "" {
+			convCtx.SystemPrompt = resp.SystemPrompt
+		}
+		if resp.Messages != nil {
+			convCtx.Messages = resp.Messages
+		}
+		if resp.Tools != nil {
+			convCtx.Tools = resp.Tools
+		}
+		if strings.TrimSpace(resp.Message) != "" {
+			convCtx.Messages = append([]goai.Message{goai.UserMessage(resp.Message)}, convCtx.Messages...)
+		}
+	}
+	_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookAgentStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model})
+	agentEndReason := "completed"
+	defer func() {
+		_, _ = r.engine.emitHook(context.Background(), HookRequest{Name: HookAgentEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: map[string]any{"reason": agentEndReason}})
+	}()
 
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "Thinking…", "status": "running", "turn_id": turnID})
 
@@ -119,6 +110,21 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		}
 
 		iterLabel := fmt.Sprintf("iter=%d/%d", iter+1, maxIter)
+		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1})
+		if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookContext, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools}); err != nil {
+			log.Printf("hook context error: %v", err)
+		} else {
+			if resp.SystemPrompt != "" {
+				convCtx.SystemPrompt = resp.SystemPrompt
+			}
+			if resp.Messages != nil {
+				convCtx.Messages = resp.Messages
+			}
+			if resp.Tools != nil {
+				convCtx.Tools = resp.Tools
+			}
+		}
+		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"model": model, "messages": len(convCtx.Messages), "tools": len(convCtx.Tools)}})
 		_ = s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "iteration": iter + 1, "checkpoint": true})
 		log.Printf("inference [%s]: calling %s", iterLabel, model)
 
@@ -133,6 +139,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			ev["iteration"] = iter + 1
 			switch ev["type"] {
 			case "text_delta":
+				_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookMessageUpdate, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"delta": ev["delta"]}})
 				ev["type"] = "agent_draft_delta"
 				r.engine.broadcast(sessionID, ev)
 			case "thinking_delta":
@@ -148,6 +155,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			}
 		})
 
+		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookAfterProviderResponse, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"ok": inferErr == nil}})
 		if inferErr != nil {
 			log.Printf("inference [%s] error: %v", iterLabel, inferErr)
 			_ = s.AppendTurnEvent(ctx, turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error(), "iteration": iter + 1})
@@ -195,6 +203,8 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			})
 
 			r.broadcastPost(sessionID, turnID, msgID, textContent, agentID)
+			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookMessageEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"chars": len(textContent)}})
+			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"status": "completed"}})
 			r.finishTurnOK(s, turnID, sessionID, iter+1)
 			return
 		}
@@ -215,10 +225,23 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			"turn_id": turnID, "agent_id": agentID,
 		})
 
+		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"count": len(toolCalls)}})
 		for _, call := range toolCalls {
 			if ctx.Err() != nil {
 				r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled during tool execution")
 				return
+			}
+
+			if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
+				log.Printf("hook tool_call error: %v", err)
+			} else if resp.Block {
+				toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool call blocked"))
+				errText := fmt.Sprintf("Error: %v", toolErr)
+				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
+				_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID})
+				continue
+			} else if resp.ToolCall != nil {
+				call = *resp.ToolCall
 			}
 
 			_ = s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{
@@ -253,6 +276,11 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 					return
 				}
 			} else {
+				if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, ToolCall: &call, ToolResult: toolResult, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "is_error": false}}); err != nil {
+					log.Printf("hook tool_result error: %v", err)
+				} else if resp.ToolResult != nil {
+					toolResult = *resp.ToolResult
+				}
 				// Truncate very large results to avoid blowing context
 				displayResult := toolResult
 				if len(displayResult) > 100000 {
@@ -270,6 +298,8 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 				repeatedToolFailureCount = 0
 			}
 		}
+		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"count": len(toolCalls)}})
+		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"status": "tools"}})
 		// Loop continues — next iteration will call LLM with tool results
 	}
 
@@ -281,77 +311,17 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 
 // executeTool dispatches a single tool call and returns the text result.
 func (r *sessionRunner) executeTool(ctx context.Context, call goai.ToolCall, sessionID string) (string, error) {
-	workspaceRoot := r.engine.runtimeCfg.WorkspaceRoot
-
-	switch call.Name {
-	case "tools":
-		return executeToolsTool(call.Arguments)
-
-	case "read":
-		path, _ := call.Arguments["path"].(string)
-		if path == "" {
-			return "", fmt.Errorf("read: path is required")
-		}
-		resolved, err := tools.ResolveToolPath(workspaceRoot, path, false)
-		if err != nil {
-			return "", err
-		}
-		if resolved.IsVFS() {
-			_, raw, err := r.store.GetVFSFileContent(ctx, resolved.VFSNamespace, resolved.VFSPath)
-			if err != nil {
-				return "", err
-			}
-			return string(raw), nil
-		}
-		content, err := os.ReadFile(resolved.WorkspacePath)
-		if err != nil {
-			return "", err
-		}
-		return string(content), nil
-
-	case "write":
-		path, _ := call.Arguments["path"].(string)
-		content, _ := call.Arguments["content"].(string)
-		if path == "" {
-			return "", fmt.Errorf("write: path is required")
-		}
-		resolved, err := tools.ResolveToolPath(workspaceRoot, path, true)
-		if err != nil {
-			return "", err
-		}
-		if resolved.IsVFS() {
-			_, err := r.store.SaveVFSFile(ctx, resolved.VFSNamespace, resolved.VFSPath, "text/plain", []byte(content), map[string]any{})
-			if err != nil {
-				return "", err
-			}
-			return "written", nil
-		}
-		dir := filepath.Dir(resolved.WorkspacePath)
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return "", err
-		}
-		if err := os.WriteFile(resolved.WorkspacePath, []byte(content), 0o644); err != nil {
-			return "", err
-		}
-		return "written", nil
-
-	case "shell":
-		command, _ := call.Arguments["command"].(string)
-		if command == "" {
-			return "", fmt.Errorf("shell: command is required")
-		}
-		cmd := exec.CommandContext(ctx, "sh", "-lc", command)
-		cmd.Dir = workspaceRoot
-		out, err := cmd.CombinedOutput()
-		output := string(out)
-		if err != nil {
-			return output, fmt.Errorf("exit: %w", err)
-		}
-		return output, nil
-
-	default:
+	tool, ok := r.engine.tools.Get(call.Name)
+	if !ok {
 		return "", fmt.Errorf("unknown tool: %s", call.Name)
 	}
+	return tool.Executor(ctx, ToolRuntime{
+		Engine:        r.engine,
+		Runner:        r,
+		Store:         r.store,
+		SessionID:     sessionID,
+		WorkspaceRoot: r.engine.runtimeCfg.WorkspaceRoot,
+	}, call)
 }
 
 // persistUsage records cumulative usage for the turn.
@@ -409,60 +379,4 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, s
 	_ = s.UpdateTurnStatus(context.Background(), turnID, status)
 	_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
-}
-
-// --- tools tool implementation ---
-
-// toolEntry is a compact representation of a tool for the registry.
-type toolEntry struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Parameters  any    `json:"parameters,omitempty"`
-}
-
-// executeToolsTool handles the "tools" meta-tool: list, search, and inspect.
-func executeToolsTool(args map[string]any) (string, error) {
-	name, _ := args["name"].(string)
-	query, _ := args["query"].(string)
-
-	allTools := toolDefs()
-
-	// Detail mode: return full schema for a specific tool
-	if name != "" {
-		for _, t := range allTools {
-			if t.Name == name {
-				var params any
-				_ = json.Unmarshal(t.Parameters, &params)
-				entry := toolEntry{Name: t.Name, Description: t.Description, Parameters: params}
-				b, _ := json.MarshalIndent(entry, "", "  ")
-				return string(b), nil
-			}
-		}
-		return "", fmt.Errorf("tool not found: %s", name)
-	}
-
-	// List/search mode: return compact summaries
-	var entries []toolEntry
-	for _, t := range allTools {
-		if query != "" {
-			lq := strings.ToLower(query)
-			if !strings.Contains(strings.ToLower(t.Name), lq) && !strings.Contains(strings.ToLower(t.Description), lq) {
-				continue
-			}
-		}
-		entries = append(entries, toolEntry{Name: t.Name, Description: t.Description})
-	}
-
-	if len(entries) == 0 {
-		return "No tools matched the query.", nil
-	}
-
-	// Format as compact text list
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "%d tool(s):\n", len(entries))
-	for _, e := range entries {
-		fmt.Fprintf(&sb, "- %s: %s\n", e.Name, e.Description)
-	}
-	sb.WriteString("\nUse tools({name: \"<tool>\"}) for full parameter schema.")
-	return sb.String(), nil
 }

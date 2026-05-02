@@ -21,16 +21,24 @@ The web UI uses Piclaw's TypeScript source verbatim with a gi-specific API adapt
 
 ## Architecture
 
-- `cmd/gi/` — main binary entrypoint
+- `cmd/gi/` — main binary entrypoint for web server or TUI mode (`-tui`)
 - `internal/config/` — Pi/Piclaw config loader (settings, auth, AGENTS.md)
 - `internal/store/` — SQLite state store (sessions, messages, turns, events)
 - `internal/turn/` — append-only turn engine with queue/cancel/streaming
 - `internal/inference/` — go-ai inference with provider auth and SSE broadcasting
 - `internal/web/` — HTTP server, REST API, SSE streaming, workspace file APIs
 - `web/src/` — Piclaw TypeScript web source (verbatim) + gi `api.ts`/`app.ts` adapters
-- `docs/` — ADRs, implementation checklist, transcripts
+- `docs/` — ADRs, internal shipped-reference source docs, implementation checklist, transcripts
 - `scripts/` — build/check scripts (hook TDZ checker)
 - `tests/` — Playwright base UX tests
+
+## Internal reference
+
+The repo includes a growing internal documentation subtree under `docs/internal/`.
+
+This is intended to become a shipped read-only reference surface for the agent itself, likely exposed later as `vfs://reference/...`.
+
+If a change adds or materially changes an internal tool, scripting bridge capability, hook, managed `vfs://` behavior, or skill/package contract, the same change should update `docs/internal/`.
 
 ## Development
 
@@ -50,10 +58,11 @@ The web UI uses Piclaw's TypeScript source verbatim with a gi-specific API adapt
 | `make status` | Show status/listener |
 | `make logs` | Tail the log file |
 | `make run` | Foreground run |
-| `make build` | Build binary (includes `build-web`) |
+| `make build` | Build the main `gi` binary (includes `build-web`) |
 | `make build-web` | Bundle web assets via Bun |
 | `make test` | Go unit tests |
-| `make test-ux` | Playwright tests against isolated instance |
+| `make test-ux` | Playwright tests against isolated instance (artifacts under `test-results/`) |
+| `make test-tui-smoke` | tmux-driven TUI smoke test (artifacts under `test-results/tui-smoke/`) |
 | `make vet` | Go vet |
 | `make bun-checks` | Hook TDZ checker |
 | `make clean` | Remove build/run artifacts |
@@ -72,10 +81,21 @@ make start PORT=3000 BIND=0.0.0.0 MODEL=github-copilot/gpt-5-mini WORKSPACE=/wor
 | `-bind` | `127.0.0.1` | Bind host/interface |
 | `-port` | `8081` | HTTP port |
 | `-model` | (from settings) | Override default model |
+| `-tui` | `false` | Run the terminal UI instead of the web server |
 | `-db` | `./gi.db` | SQLite database path |
 | `-workspace` | `/workspace` | Workspace root |
 | `-log-file` | (none) | Log file path |
 | `-pid-file` | (none) | PID file path |
+
+### TUI mode
+
+Run the terminal UI from the same binary:
+
+```sh
+gi -tui -db .gi-run/gi.db -workspace /workspace
+```
+
+The current TUI uses `go-tui`, supports terminal resize handling through the runtime event loop, and enables mouse clicks so the input can regain focus.
 
 ## Web UI
 
@@ -123,6 +143,8 @@ make bun-checks # hook TDZ checker
 ```
 
 The `test-ux` target creates a completely isolated test environment with its own database, workspace, and config — no state leaks between test runs.
+
+The `test-tui-smoke` target launches `gi -tui` inside tmux, captures the pane, submits input, verifies blur handling, exercises transcript scrolling keys, resizes the terminal, and writes pane captures plus session artifacts under `test-results/tui-smoke/`. Mouse click focus is covered in unit tests.
 
 ## License
 

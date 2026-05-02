@@ -1,6 +1,10 @@
 package store
 
-import "database/sql"
+import (
+	"database/sql"
+	"fmt"
+	"strings"
+)
 
 func initSchema(db *sql.DB) error {
 	stmts := []string{
@@ -61,11 +65,79 @@ func initSchema(db *sql.DB) error {
 		`create index if not exists idx_turn_events_type on turn_events(event_type, created_at asc);`,
 		`create index if not exists idx_turn_events_phase on turn_events(json_extract(payload_json, '$.phase'));`,
 		`create index if not exists idx_turn_events_checkpoint on turn_events(json_extract(payload_json, '$.checkpoint'));`,
+
+		`create table if not exists media (
+			id integer primary key autoincrement,
+			session_id text not null,
+			filename text not null default '',
+			content_type text,
+			metadata_json text not null default '{}',
+			original_size integer not null default 0,
+			compressed_size integer not null default 0,
+			compressed integer not null default 0,
+			content blob not null,
+			created_at text not null,
+			updated_at text not null,
+			foreign key(session_id) references sessions(id) on delete cascade
+		);`,
+		`create index if not exists idx_media_session on media(session_id, created_at desc);`,
+		`create index if not exists idx_media_filename on media(filename);`,
+		`create table if not exists vfs_files (
+			namespace text not null,
+			path text not null,
+			content_type text,
+			metadata_json text not null default '{}',
+			original_size integer not null default 0,
+			compressed_size integer not null default 0,
+			compressed integer not null default 0,
+			content blob not null,
+			created_at text not null,
+			updated_at text not null,
+			primary key (namespace, path)
+		);`,
+		`create index if not exists idx_vfs_namespace_path on vfs_files(namespace, path);`,
+		`create table if not exists routing_events (
+			id integer primary key autoincrement,
+			turn_id text,
+			source_session_id text not null,
+			target_session_id text,
+			source_agent_id text,
+			target_agent_id text not null,
+			mode text not null,
+			matched_by text,
+			routing_policy text,
+			requested_agent_id text,
+			metadata_json text not null default '{}',
+			created_at text not null,
+			foreign key(turn_id) references turns(id) on delete cascade,
+			foreign key(source_session_id) references sessions(id) on delete cascade,
+			foreign key(target_session_id) references sessions(id) on delete set null
+		);`,
+		`create index if not exists idx_routing_events_source on routing_events(source_session_id, created_at desc);`,
+		`create index if not exists idx_routing_events_target on routing_events(target_session_id, created_at desc);`,
+		`create index if not exists idx_routing_events_turn on routing_events(turn_id);`,
+		`create index if not exists idx_routing_events_mode on routing_events(mode);`,
 	}
 	for _, stmt := range stmts {
 		if _, err := db.Exec(stmt); err != nil {
 			return err
 		}
 	}
+	for _, alter := range []string{
+		`alter table sessions add column scope_json text not null default '{}'`,
+		`alter table sessions add column aliases_json text not null default '[]'`,
+	} {
+		if _, err := db.Exec(alter); err != nil && !isDuplicateColumnError(err) {
+			return err
+		}
+	}
 	return nil
+}
+
+func isDuplicateColumnError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "duplicate column") || strings.Contains(msg, "already exists") || strings.Contains(msg, "duplicate") || strings.Contains(msg, fmt.Sprintf("%q", "scope_json"))
 }
