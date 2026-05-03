@@ -34,6 +34,26 @@ func TestAuthorizeHTTPRequestBearer(t *testing.T) {
 	}
 }
 
+func TestAuthorizeHTTPRequestBasic(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodPost, "http://example.test/hook", nil)
+	req.RemoteAddr = "203.0.113.10:1234"
+	req.SetBasicAuth("rui", "secret")
+	spec := RouteSpec{Auth: map[string]any{"type": "basic", "username": "rui", "password": "secret"}}
+	if err := AuthorizeHTTPRequest(spec, req, nil); err != nil {
+		t.Fatalf("basic should pass: %v", err)
+	}
+}
+
+func TestAuthorizeHTTPRequestBasicRejectsWrongPassword(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodPost, "http://example.test/hook", nil)
+	req.RemoteAddr = "203.0.113.10:1234"
+	req.SetBasicAuth("rui", "wrong")
+	spec := RouteSpec{Auth: map[string]any{"type": "basic", "username": "rui", "password": "secret"}}
+	if err := AuthorizeHTTPRequest(spec, req, nil); err == nil {
+		t.Fatal("expected wrong basic password to fail")
+	}
+}
+
 func TestAuthorizeHTTPRequestHMAC(t *testing.T) {
 	body := []byte(`{"ok":true}`)
 	mac := hmac.New(sha256.New, []byte("topsecret"))

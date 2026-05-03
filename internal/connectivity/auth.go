@@ -50,6 +50,20 @@ func checkHTTPRequestAuth(auth map[string]any, r *http.Request, body []byte) err
 			return nil
 		}
 		return fmt.Errorf("invalid bearer token")
+	case "basic":
+		expectedUser := firstNonEmpty(stringMapValue(auth, "username"), stringMapValue(auth, "user"))
+		expectedPassword, err := authPassword(auth)
+		if err != nil {
+			return err
+		}
+		gotUser, gotPassword, ok := r.BasicAuth()
+		if !ok {
+			return fmt.Errorf("missing basic auth")
+		}
+		if constantTimeEqual(gotUser, expectedUser) && constantTimeEqual(gotPassword, expectedPassword) {
+			return nil
+		}
+		return fmt.Errorf("invalid basic auth")
 	case "header":
 		expected, err := authSecret(auth)
 		if err != nil {
@@ -110,6 +124,22 @@ func authSecret(auth map[string]any) (string, error) {
 		return "", fmt.Errorf("auth keychain references are not wired in gi yet: %s", keychain)
 	}
 	return "", fmt.Errorf("auth secret is required")
+}
+
+func authPassword(auth map[string]any) (string, error) {
+	if v := firstNonEmpty(stringMapValue(auth, "password"), stringMapValue(auth, "pass"), stringMapValue(auth, "secret")); v != "" {
+		return v, nil
+	}
+	if env := firstNonEmpty(stringMapValue(auth, "password_env"), stringMapValue(auth, "pass_env"), stringMapValue(auth, "secret_env"), stringMapValue(auth, "env")); env != "" {
+		if value := os.Getenv(env); value != "" {
+			return value, nil
+		}
+		return "", fmt.Errorf("auth env %s is not set", env)
+	}
+	if keychain := stringMapValue(auth, "password_keychain"); keychain != "" {
+		return "", fmt.Errorf("auth keychain references are not wired in gi yet: %s", keychain)
+	}
+	return "", fmt.Errorf("basic auth password is required")
 }
 
 func isLoopbackRemote(remoteAddr string) bool {

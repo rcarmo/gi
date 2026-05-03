@@ -620,7 +620,8 @@ The first connectivity slice is now implemented:
   - request body is capped to 1 MiB in this first slice
   - handlers receive method/path/query/headers/body/remote address
   - auth middleware allows unauthenticated loopback calls but requires auth for non-loopback clients unless `options.allow_unauthenticated_external=true`
-  - supported auth types: `bearer`, `header`, `query`, `hmac` (SHA-256)
+  - supported auth types: `basic`, `bearer`, `header`, `query`, `hmac` (SHA-256)
+  - `basic` supports literal/env-backed username/password today; TOTP/WebAuthn should be modeled as follow-up HTTP auth types once user/session identity exists in gi
 - SSE stream adapter:
   - `/api/connect/sse/{topic-pattern}` streams internal connectivity events
   - `?topic=` can be used instead of a path pattern
