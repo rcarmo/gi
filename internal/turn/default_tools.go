@@ -214,6 +214,39 @@ func (e *Engine) registerDefaultTools() {
 		})
 	}
 	must(RegisteredTool{
+		Name:        "compact",
+		Description: "Inspect compaction thresholds or estimate whether the current session should compact. Supports smart compaction plugins via session_before_compact hooks.",
+		Parameters:  json.RawMessage(`{"type":"object","properties":{"session_id":{"type":"string","description":"Session to inspect; defaults to current session"},"dry_run":{"type":"boolean","description":"Return estimate/preparation without changing context"}}}`),
+		Source:      "builtin",
+		Kind:        "read-only",
+		Weight:      "standard",
+		Activation:  "on-demand",
+		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+			sessionID, _ := call.Arguments["session_id"].(string)
+			if sessionID == "" {
+				sessionID = rt.SessionID
+			}
+			msgs, err := rt.Store.ListMessages(ctx, sessionID)
+			if err != nil {
+				return "", err
+			}
+			var aiMsgs []goai.Message
+			for _, m := range msgs {
+				switch m.Role {
+				case "user":
+					aiMsgs = append(aiMsgs, goai.UserMessage(m.Content))
+				case "assistant":
+					aiMsgs = append(aiMsgs, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: m.Content}}})
+				}
+			}
+			settings := rt.Engine.runtimeCfg.Compaction
+			tokens := estimateMessagesTokens(aiMsgs)
+			prep := prepareCompaction(aiMsgs, tokens, settings.KeepRecentTokens, settings.ReserveTokens, settings.ThresholdTokens, settings.Strategy)
+			b, _ := json.MarshalIndent(map[string]any{"enabled": settings.Enabled, "context_tokens": tokens, "threshold_tokens": settings.ThresholdTokens, "should_compact": settings.Enabled && tokens > settings.ThresholdTokens, "preparation": prep}, "", "  ")
+			return string(b), nil
+		},
+	})
+	must(RegisteredTool{
 		Name:        "shell",
 		Description: "Execute a shell command and return stdout/stderr. Use for running tests, installing packages, searching files, etc.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"command":{"type":"string","description":"Shell command to execute"}},"required":["command"]}`),

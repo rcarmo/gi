@@ -25,6 +25,7 @@ type RuntimeConfig struct {
 	Session              routing.SessionConfig      `json:"session"`
 	Routing              routing.ModelRoutingConfig `json:"routing"`
 	MaxIterations        int                        `json:"max_iterations"`
+	Compaction           CompactionSettings         `json:"compaction"`
 	SystemPrompt         string                     `json:"-"`
 	Discovery            skills.Discovery           `json:"-"`
 }
@@ -41,19 +42,29 @@ type piclawConfig struct {
 	} `json:"user"`
 }
 
+type CompactionSettings struct {
+	Enabled          bool   `json:"enabled"`
+	ContextWindow    int    `json:"context_window"`
+	ReserveTokens    int    `json:"reserve_tokens"`
+	KeepRecentTokens int    `json:"keep_recent_tokens"`
+	ThresholdTokens  int    `json:"threshold_tokens"`
+	Strategy         string `json:"strategy"`
+}
+
 type piSettings struct {
 	DefaultProvider      string                     `json:"defaultProvider"`
 	DefaultModel         string                     `json:"defaultModel"`
 	DefaultThinkingLevel string                     `json:"defaultThinkingLevel"`
 	EnabledModels        []string                   `json:"enabledModels"`
 	MaxIterations        int                        `json:"maxIterations"`
+	Compaction           CompactionSettings         `json:"compaction"`
 	Agents               routing.AgentsConfig       `json:"agents"`
 	Session              routing.SessionConfig      `json:"session"`
 	Routing              routing.ModelRoutingConfig `json:"routing"`
 }
 
 func Load(workspaceRoot string) RuntimeConfig {
-	cfg := RuntimeConfig{WorkspaceRoot: workspaceRoot}
+	cfg := RuntimeConfig{WorkspaceRoot: workspaceRoot, Compaction: CompactionSettings{Enabled: true}}
 	var pc piclawConfig
 	if err := readJSON(filepath.Join(workspaceRoot, ".piclaw", "config.json"), &pc); err == nil {
 		cfg.AssistantName = pc.Assistant.AssistantName
@@ -69,6 +80,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.DefaultThinkingLevel = ps.DefaultThinkingLevel
 		cfg.EnabledModels = append([]string(nil), ps.EnabledModels...)
 		cfg.MaxIterations = ps.MaxIterations
+		cfg.Compaction = ps.Compaction
 		cfg.Agents = ps.Agents
 		cfg.Session = ps.Session
 		cfg.Routing = ps.Routing
@@ -91,6 +103,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 	if cfg.MaxIterations <= 0 {
 		cfg.MaxIterations = 64
 	}
+	applyCompactionDefaults(&cfg.Compaction)
 	if len(cfg.Agents.List) == 0 {
 		cfg.Agents.List = []routing.AgentConfig{{ID: "agent", Name: cfg.AssistantName, Default: true, Model: cfg.DefaultModel}}
 	}

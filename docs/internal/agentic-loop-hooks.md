@@ -346,13 +346,15 @@ The initial implementation now exists in the turn engine:
 
 - `internal/turn/hooks.go` — typed hook registry and pi-compatible non-UX hook constants.
 - `internal/turn/tool_registry.go` — runtime tool registry, active-tool set, metadata-enriched entries (`kind`, `weight`, `activation`, `source`, `active`), staged discovery, activation/reset, and registry-backed `tools` meta-tool.
-- `internal/turn/default_tools.go` — built-in tools registered through the runtime registry (`tools`, `skills`, `read`, `write`, `script`, `shell`).
+- `internal/turn/default_tools.go` — built-in tools registered through the runtime registry (`tools`, `skills`, `compact`, `read`, `write`, `script`, `shell`).
 - `internal/skills/discovery.go` — Pi-style workspace discovery for `.gi/skills/*/SKILL.md`, `.pi/skills/*/SKILL.md`, `.gi/tools/*.json`, and `.pi/tools/*.json`.
 - `internal/turn/skills_tools.go` — `skills` meta-tool and auto-registration of manifest-declared script tools into the same runtime registry as built-ins and script-registered tools.
+- `internal/turn/compaction.go` — Piclaw/Pi-style compaction thresholds, token estimation, `session_before_compact` override hook, `session_compact` notification hook, and default summary wrapping for compacted context.
 - `internal/turn/agent_loop.go` — hook call sites wired through the agent loop:
   - `before_agent_start`
   - `agent_start` / `agent_end`
   - `turn_start` / `turn_end`
+  - `session_before_compact` / `session_compact`
   - `context`
   - `before_provider_request` / `after_provider_response` (metadata-level until provider payload interception lands in `go-ai`)
   - `message_update` / `message_end`

@@ -124,6 +124,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 				convCtx.Tools = resp.Tools
 			}
 		}
+		r.maybeCompactContext(ctx, sessionID, turnID, agentID, model, convCtx)
 		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"model": model, "messages": len(convCtx.Messages), "tools": len(convCtx.Tools)}})
 		_ = s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "iteration": iter + 1, "checkpoint": true})
 		log.Printf("inference [%s]: calling %s", iterLabel, model)
