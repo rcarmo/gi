@@ -68,6 +68,9 @@ func registerDiscoveredTools(e *Engine, scriptTool *tools.ScriptTool) {
 			Description: tool.Description,
 			Parameters:  params,
 			Source:      "workspace-manifest",
+			Kind:        "mixed",
+			Weight:      "standard",
+			Activation:  "on-demand",
 			Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
 				payload := map[string]any{"tool_call_id": call.ID, "name": call.Name, "arguments": call.Arguments, "session_id": rt.SessionID}
 				input := tools.ScriptInput{Engine: tool.Engine, Path: tool.Path, SessionID: rt.SessionID, Script: scriptWithPayload(tool.Engine, "tool", payload, tool.Script)}

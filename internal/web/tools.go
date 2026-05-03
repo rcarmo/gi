@@ -16,68 +16,30 @@ import (
 )
 
 func (s *Server) handleTools(w http.ResponseWriter, r *http.Request) {
-	// Return the list of tools the agent can call.
-	toolDefs := []map[string]any{
-		s.scriptTool.Definition(),
-		{
-			"name":        "tools",
-			"description": "List available tools or get details about a specific tool. Use with no arguments to list all tools (names + short descriptions). Pass a tool name via the `name` argument to get its full schema and usage. Use `query` to filter tools by keyword.",
-			"parameters": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"name":  map[string]any{"type": "string", "description": "Exact tool name to get full details for"},
-					"query": map[string]any{"type": "string", "description": "Filter tools by keyword in name or description"},
-				},
-			},
-		},
-		{
-			"name":        "read",
-			"description": "Read text content from a workspace file or managed VFS asset. Supports both workspace paths and `vfs://` paths.",
-			"parameters": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"path": map[string]any{
-						"type":        "string",
-						"description": "Workspace-relative path or vfs://namespace/path",
-					},
-				},
-				"required": []string{"path"},
-			},
-		},
-		{
-			"name":        "write",
-			"description": "Write text content to a workspace file or managed VFS asset. Creates parent directories for workspace paths.",
-			"parameters": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"path": map[string]any{
-						"type":        "string",
-						"description": "Workspace-relative path or vfs://namespace/path",
-					},
-					"content": map[string]any{
-						"type":        "string",
-						"description": "File content to write",
-					},
-				},
-				"required": []string{"path", "content"},
-			},
-		},
-		{
-			"name":        "shell",
-			"description": "Execute a shell command and return stdout/stderr.",
-			"parameters": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"command": map[string]any{
-						"type":        "string",
-						"description": "Shell command to execute",
-					},
-				},
-				"required": []string{"command"},
-			},
-		},
+	if s.turns != nil {
+		active := map[string]bool{}
+		for _, name := range s.turns.ActiveTools() {
+			active[name] = true
+		}
+		toolDefs := []map[string]any{}
+		for _, tool := range s.turns.ToolEntries() {
+			var params any
+			_ = json.Unmarshal(tool.Parameters, &params)
+			toolDefs = append(toolDefs, map[string]any{
+				"name":        tool.Name,
+				"description": tool.Description,
+				"parameters":  params,
+				"source":      tool.Source,
+				"kind":        tool.Kind,
+				"weight":      tool.Weight,
+				"activation":  tool.Activation,
+				"active":      active[tool.Name],
+			})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"tools": toolDefs})
+		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"tools": toolDefs})
+	writeJSON(w, http.StatusOK, map[string]any{"tools": []map[string]any{}})
 }
 
 type toolOutput struct {

@@ -82,8 +82,13 @@ func TestToolsDiscoveryIncludesReadWriteShell(t *testing.T) {
 			continue
 		}
 		names[name] = true
+		if name == "read" {
+			if tool["kind"] != "read-only" || tool["weight"] == "" || tool["activation"] == "" || tool["source"] == "" {
+				t.Fatalf("read tool missing metadata: %#v", tool)
+			}
+		}
 	}
-	for _, want := range []string{"script", "read", "write", "shell"} {
+	for _, want := range []string{"tools", "skills", "script", "read", "write", "shell"} {
 		if !names[want] {
 			t.Fatalf("missing tool %q in /api/tools", want)
 		}

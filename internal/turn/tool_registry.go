@@ -18,6 +18,10 @@ type toolEntry struct {
 	Description string `json:"description"`
 	Parameters  any    `json:"parameters,omitempty"`
 	Source      string `json:"source,omitempty"`
+	Kind        string `json:"kind,omitempty"`
+	Weight      string `json:"weight,omitempty"`
+	Activation  string `json:"activation,omitempty"`
+	Active      bool   `json:"active"`
 }
 
 // ToolRuntime is supplied to registered tools at execution time.
@@ -39,6 +43,9 @@ type RegisteredTool struct {
 	Description string
 	Parameters  json.RawMessage
 	Source      string
+	Kind        string // read-only, mutating, mixed
+	Weight      string // lightweight, standard, heavy
+	Activation  string // default, on-demand
 	Executor    ToolExecutor
 }
 
@@ -66,6 +73,18 @@ func (r *ToolRegistry) Register(tool RegisteredTool) error {
 	}
 	if len(tool.Parameters) == 0 {
 		tool.Parameters = json.RawMessage(`{"type":"object","properties":{}}`)
+	}
+	if strings.TrimSpace(tool.Source) == "" {
+		tool.Source = "runtime"
+	}
+	if strings.TrimSpace(tool.Kind) == "" {
+		tool.Kind = "mixed"
+	}
+	if strings.TrimSpace(tool.Weight) == "" {
+		tool.Weight = "standard"
+	}
+	if strings.TrimSpace(tool.Activation) == "" {
+		tool.Activation = "default"
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -100,11 +119,19 @@ func (r *ToolRegistry) Definitions() []goai.Tool {
 }
 
 func (r *ToolRegistry) Entries() []RegisteredTool {
+	return r.entries(false)
+}
+
+func (r *ToolRegistry) AllEntries() []RegisteredTool {
+	return r.entries(true)
+}
+
+func (r *ToolRegistry) entries(includeInactive bool) []RegisteredTool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	entries := make([]RegisteredTool, 0, len(r.tools))
 	for _, name := range r.order {
-		if !r.isActiveLocked(name) {
+		if !includeInactive && !r.isActiveLocked(name) {
 			continue
 		}
 		entries = append(entries, r.tools[name])
@@ -157,6 +184,8 @@ func (r *ToolRegistry) isActiveLocked(name string) bool {
 func (e *Engine) RegisterTool(tool RegisteredTool) error { return e.tools.Register(tool) }
 func (e *Engine) SetActiveTools(names []string) error    { return e.tools.SetActive(names) }
 func (e *Engine) ActiveTools() []string                  { return e.tools.ActiveNames() }
+func (e *Engine) ResetActiveTools()                      { _ = e.tools.SetActive(nil) }
+func (e *Engine) ToolEntries() []RegisteredTool          { return e.tools.AllEntries() }
 
 func (e *Engine) toolDefs() []goai.Tool { return e.tools.Definitions() }
 
@@ -164,14 +193,40 @@ func (e *Engine) toolDefs() []goai.Tool { return e.tools.Definitions() }
 func (e *Engine) executeToolsTool(args map[string]any) (string, error) {
 	name, _ := args["name"].(string)
 	query, _ := args["query"].(string)
+	intent, _ := args["intent"].(string)
+	includeInactive, _ := args["include_inactive"].(bool)
+	includeParameters, _ := args["include_parameters"].(bool)
+	if raw, ok := args["activate"].([]any); ok {
+		names := make([]string, 0, len(raw))
+		for _, v := range raw {
+			if s, ok := v.(string); ok && strings.TrimSpace(s) != "" {
+				names = append(names, strings.TrimSpace(s))
+			}
+		}
+		if err := e.SetActiveTools(names); err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("Activated tools: %s", strings.Join(e.ActiveTools(), ", ")), nil
+	}
+	if reset, _ := args["reset_active"].(bool); reset {
+		e.ResetActiveTools()
+		return "Reset active tools to default registry set.", nil
+	}
 	entries := e.tools.Entries()
+	if includeInactive {
+		entries = e.tools.AllEntries()
+	}
+	active := map[string]bool{}
+	for _, n := range e.ActiveTools() {
+		active[n] = true
+	}
 
 	if name != "" {
 		for _, t := range entries {
 			if t.Name == name {
 				var params any
 				_ = json.Unmarshal(t.Parameters, &params)
-				entry := toolEntry{Name: t.Name, Description: t.Description, Parameters: params, Source: t.Source}
+				entry := toolEntry{Name: t.Name, Description: t.Description, Parameters: params, Source: t.Source, Kind: t.Kind, Weight: t.Weight, Activation: t.Activation, Active: active[t.Name]}
 				b, _ := json.MarshalIndent(entry, "", "  ")
 				return string(b), nil
 			}
@@ -181,13 +236,18 @@ func (e *Engine) executeToolsTool(args map[string]any) (string, error) {
 
 	var rows []toolEntry
 	for _, t := range entries {
-		if query != "" {
-			lq := strings.ToLower(query)
-			if !strings.Contains(strings.ToLower(t.Name), lq) && !strings.Contains(strings.ToLower(t.Description), lq) && !strings.Contains(strings.ToLower(t.Source), lq) {
+		needle := strings.ToLower(strings.TrimSpace(firstNonEmpty(query, intent)))
+		if needle != "" {
+			body := strings.ToLower(strings.Join([]string{t.Name, t.Description, t.Source, t.Kind, t.Weight, t.Activation}, " "))
+			if !strings.Contains(body, needle) {
 				continue
 			}
 		}
-		rows = append(rows, toolEntry{Name: t.Name, Description: t.Description, Source: t.Source})
+		row := toolEntry{Name: t.Name, Description: t.Description, Source: t.Source, Kind: t.Kind, Weight: t.Weight, Activation: t.Activation, Active: active[t.Name]}
+		if includeParameters {
+			_ = json.Unmarshal(t.Parameters, &row.Parameters)
+		}
+		rows = append(rows, row)
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
 	if len(rows) == 0 {
@@ -196,8 +256,12 @@ func (e *Engine) executeToolsTool(args map[string]any) (string, error) {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "%d tool(s):\n", len(rows))
 	for _, e := range rows {
-		fmt.Fprintf(&sb, "- %s: %s\n", e.Name, e.Description)
+		status := "inactive"
+		if e.Active {
+			status = "active"
+		}
+		fmt.Fprintf(&sb, "- %s: %s [%s/%s/%s, %s, source=%s]\n", e.Name, e.Description, e.Kind, e.Weight, e.Activation, status, e.Source)
 	}
-	sb.WriteString("\nUse tools({name: \"<tool>\"}) for full parameter schema.")
+	sb.WriteString("\nUse tools({name: \"<tool>\"}) for full metadata/schema. Use tools({activate:[...]}) or tools({reset_active:true}) to change active tools.")
 	return sb.String(), nil
 }

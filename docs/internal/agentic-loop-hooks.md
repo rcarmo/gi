@@ -345,7 +345,7 @@ Before any scripting hook surface can be wired:
 The initial implementation now exists in the turn engine:
 
 - `internal/turn/hooks.go` — typed hook registry and pi-compatible non-UX hook constants.
-- `internal/turn/tool_registry.go` — runtime tool registry, active-tool set, and registry-backed `tools` meta-tool.
+- `internal/turn/tool_registry.go` — runtime tool registry, active-tool set, metadata-enriched entries (`kind`, `weight`, `activation`, `source`, `active`), staged discovery, activation/reset, and registry-backed `tools` meta-tool.
 - `internal/turn/default_tools.go` — built-in tools registered through the runtime registry (`tools`, `skills`, `read`, `write`, `script`, `shell`).
 - `internal/skills/discovery.go` — Pi-style workspace discovery for `.gi/skills/*/SKILL.md`, `.pi/skills/*/SKILL.md`, `.gi/tools/*.json`, and `.pi/tools/*.json`.
 - `internal/turn/skills_tools.go` — `skills` meta-tool and auto-registration of manifest-declared script tools into the same runtime registry as built-ins and script-registered tools.

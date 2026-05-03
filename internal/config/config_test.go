@@ -44,7 +44,7 @@ func TestLoadWrapsAgentsInstructionsInRuntimePrompt(t *testing.T) {
 	if !strings.Contains(cfg.SystemPrompt, "## Workspace instructions") || !strings.Contains(cfg.SystemPrompt, "Project rule: keep APIs stable.") {
 		t.Fatalf("workspace instructions missing from prompt:\n%s", cfg.SystemPrompt)
 	}
-	if !strings.Contains(cfg.SystemPrompt, "Use `tools` to list or inspect registered tools") {
+	if !strings.Contains(cfg.SystemPrompt, "Use `tools` for staged discovery") {
 		t.Fatalf("runtime guidance missing from prompt:\n%s", cfg.SystemPrompt)
 	}
 }

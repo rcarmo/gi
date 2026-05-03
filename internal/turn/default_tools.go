@@ -80,7 +80,7 @@ func (e *Engine) registerDefaultTools() {
 			if len(params) == 0 {
 				params = json.RawMessage(`{"type":"object","properties":{}}`)
 			}
-			return e.RegisterTool(RegisteredTool{Name: spec.Name, Description: spec.Description, Parameters: params, Source: firstNonEmpty(spec.Source, "script"), Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+			return e.RegisterTool(RegisteredTool{Name: spec.Name, Description: spec.Description, Parameters: params, Source: firstNonEmpty(spec.Source, "script"), Kind: "mixed", Weight: "standard", Activation: "on-demand", Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
 				payload := map[string]any{"tool_call_id": call.ID, "name": call.Name, "arguments": call.Arguments, "session_id": rt.SessionID}
 				input := tools.ScriptInput{Engine: spec.Engine, Path: spec.Path, SessionID: rt.SessionID, Script: scriptWithPayload(spec.Engine, "tool", payload, spec.Script)}
 				out := scriptTool.Execute(ctx, input)
@@ -101,8 +101,11 @@ func (e *Engine) registerDefaultTools() {
 	must(RegisteredTool{
 		Name:        "tools",
 		Description: "List available tools or get details about a specific tool. Use with no arguments to list all tools (names + short descriptions). Pass a tool name via the `name` argument to get its full schema and usage. Use `query` to filter tools by keyword.",
-		Parameters:  json.RawMessage(`{"type":"object","properties":{"name":{"type":"string","description":"Exact tool name to get full details for"},"query":{"type":"string","description":"Filter tools by keyword in name or description"}}}`),
+		Parameters:  json.RawMessage(`{"type":"object","properties":{"name":{"type":"string","description":"Exact tool name to get full details for"},"query":{"type":"string","description":"Filter tools by keyword in name/description/metadata"},"intent":{"type":"string","description":"Natural-language goal for staged discovery"},"include_parameters":{"type":"boolean","description":"Include parameter schemas in list results"},"include_inactive":{"type":"boolean","description":"Include inactive tools in discovery results"},"activate":{"type":"array","items":{"type":"string"},"description":"Set active tools by name; tools remains active"},"reset_active":{"type":"boolean","description":"Reset active tools to all default registry tools"}}}`),
 		Source:      "builtin",
+		Kind:        "read-only",
+		Weight:      "lightweight",
+		Activation:  "default",
 		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
 			return rt.Engine.executeToolsTool(call.Arguments)
 		},
@@ -112,6 +115,9 @@ func (e *Engine) registerDefaultTools() {
 		Description: "List workspace-discovered skills or read a skill's SKILL.md. Skills are discovered from .gi/skills and .pi/skills.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"name":{"type":"string","description":"Exact skill name to read; omit to list skills"},"query":{"type":"string","description":"Filter listed skills by name or description"}}}`),
 		Source:      "builtin",
+		Kind:        "read-only",
+		Weight:      "lightweight",
+		Activation:  "default",
 		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
 			return executeSkillsTool(rt.WorkspaceRoot, call.Arguments)
 		},
@@ -122,6 +128,9 @@ func (e *Engine) registerDefaultTools() {
 		Description: "Read text content from a workspace file. Supports workspace-relative paths and vfs:// paths.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative path or vfs://namespace/path"}},"required":["path"]}`),
 		Source:      "builtin",
+		Kind:        "read-only",
+		Weight:      "lightweight",
+		Activation:  "default",
 		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
 			path, _ := call.Arguments["path"].(string)
 			if path == "" {
@@ -150,6 +159,9 @@ func (e *Engine) registerDefaultTools() {
 		Description: "Write text content to a workspace file. Creates parent directories for workspace paths.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative path or vfs://namespace/path"},"content":{"type":"string","description":"File content to write"}},"required":["path","content"]}`),
 		Source:      "builtin",
+		Kind:        "mutating",
+		Weight:      "lightweight",
+		Activation:  "default",
 		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
 			path, _ := call.Arguments["path"].(string)
 			content, _ := call.Arguments["content"].(string)
@@ -184,6 +196,9 @@ func (e *Engine) registerDefaultTools() {
 			Description: fmt.Sprint(def["description"]),
 			Parameters:  params,
 			Source:      "builtin",
+			Kind:        "mixed",
+			Weight:      "standard",
+			Activation:  "default",
 			Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
 				input := tools.ScriptInput{SessionID: rt.SessionID}
 				b, _ := json.Marshal(call.Arguments)
@@ -203,6 +218,9 @@ func (e *Engine) registerDefaultTools() {
 		Description: "Execute a shell command and return stdout/stderr. Use for running tests, installing packages, searching files, etc.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"command":{"type":"string","description":"Shell command to execute"}},"required":["command"]}`),
 		Source:      "builtin",
+		Kind:        "mixed",
+		Weight:      "heavy",
+		Activation:  "default",
 		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
 			command, _ := call.Arguments["command"].(string)
 			if command == "" {

@@ -30,7 +30,8 @@ func buildSystemPrompt(cfg RuntimeConfig, workspaceInstructions string) string {
 
 	sb.WriteString("## Tool environment\n")
 	sb.WriteString("- Available built-in tools include `tools`, `skills`, `read`, `write`, `script`, and `shell`.\n")
-	sb.WriteString("- Use `tools` to list or inspect registered tools; workspace tool manifests can add more tools at startup.\n")
+	sb.WriteString("- Use `tools` for staged discovery: query/intent first, then request a specific tool with full schema when needed.\n")
+	sb.WriteString("- Tool metadata includes `kind`, `weight`, `activation`, `source`, and `active`; activate only the extra tools you need and reset after.\n")
 	sb.WriteString("- Use `skills` to list discovered skills and read a matching `SKILL.md` before applying that skill.\n")
 	sb.WriteString("- Use `read`/`write` for workspace files and `vfs://namespace/path` where appropriate.\n")
 	sb.WriteString("- Use `script` for Goja JavaScript or Joker scripts when a script bridge/API is useful.\n")
