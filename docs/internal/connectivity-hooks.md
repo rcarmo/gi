@@ -652,6 +652,29 @@ Requests to `/api/connect/routes/{routeID}/...` must then include:
 ```http
 Authorization: Bearer <token-from-/api/auth/totp/verify>
 ```
+
+### HTTPS and ACME serving
+
+The web server remains HTTP-by-default for local development, but can now be started with static TLS certificates or ACME-managed certificates for external connectivity routes.
+
+Static certificate mode:
+
+```sh
+gi -listen :8443 -tls-cert /path/fullchain.pem -tls-key /path/privkey.pem
+```
+
+ACME/Let's Encrypt mode:
+
+```sh
+gi \
+  -listen :https \
+  -acme-domains gi.example.com \
+  -acme-email admin@example.com \
+  -acme-accept-tos
+```
+
+ACME stores certificates under `<workspace>/.gi/acme-cache` by default. Use `-acme-cache` to override. `-acme-http-listen :http` starts an HTTP listener for HTTP-01 challenges and redirects; set it to an empty string to disable the companion listener when TLS termination/challenge handling is managed elsewhere.
+
 - SSE stream adapter:
   - `/api/connect/sse/{topic-pattern}` streams internal connectivity events
   - `?topic=` can be used instead of a path pattern

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -8,6 +9,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"golang.org/x/crypto/acme/autocert"
 
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/store"
@@ -20,6 +24,13 @@ func main() {
 	listen := flag.String("listen", "", "HTTP listen address (overrides -bind/-port)")
 	bind := flag.String("bind", "127.0.0.1", "Bind address / interface host")
 	port := flag.Int("port", 8081, "HTTP port")
+	certFile := flag.String("tls-cert", "", "TLS certificate file for HTTPS")
+	keyFile := flag.String("tls-key", "", "TLS private key file for HTTPS")
+	acmeDomains := flag.String("acme-domains", "", "Comma-separated domains for ACME/Let's Encrypt HTTPS")
+	acmeEmail := flag.String("acme-email", "", "Contact email for ACME registration")
+	acmeCache := flag.String("acme-cache", "", "ACME certificate cache directory (default: <workspace>/.gi/acme-cache)")
+	acmeAcceptTOS := flag.Bool("acme-accept-tos", false, "Accept the ACME CA terms of service")
+	acmeHTTPListen := flag.String("acme-http-listen", ":http", "HTTP listen address for ACME HTTP-01 challenges and redirects; empty disables")
 	dbPath := flag.String("db", "./gi.db", "SQLite database path")
 	workspace := flag.String("workspace", "/workspace", "Workspace root")
 	model := flag.String("model", "", "Override default model (e.g. gemma4:latest)")
@@ -74,8 +85,65 @@ func main() {
 	engine := turn.NewWithRuntimeConfig(s, runtimeCfg, runtimeCfg.SystemPrompt)
 	server := giweb.New(s, engine, runtimeCfg)
 
-	log.Printf("Gi web listening on %s using %s", effectiveListen, *dbPath)
-	if err := http.ListenAndServe(effectiveListen, server.Handler()); err != nil {
+	handler := server.Handler()
+	if *acmeDomains != "" {
+		domains := splitCSV(*acmeDomains)
+		if len(domains) == 0 {
+			log.Fatalf("acme-domains must include at least one domain")
+		}
+		cacheDir := *acmeCache
+		if cacheDir == "" {
+			cacheDir = filepath.Join(*workspace, ".gi", "acme-cache")
+		}
+		if !*acmeAcceptTOS {
+			log.Fatalf("ACME requires -acme-accept-tos")
+		}
+		manager := &autocert.Manager{
+			Cache:      autocert.DirCache(cacheDir),
+			Prompt:     autocert.AcceptTOS,
+			HostPolicy: autocert.HostWhitelist(domains...),
+			Email:      *acmeEmail,
+		}
+		if *acmeHTTPListen != "" {
+			go func() {
+				log.Printf("Gi ACME HTTP-01/redirect listener on %s for %s", *acmeHTTPListen, strings.Join(domains, ","))
+				if err := http.ListenAndServe(*acmeHTTPListen, manager.HTTPHandler(nil)); err != nil {
+					log.Printf("acme http listener: %v", err)
+				}
+			}()
+		}
+		log.Printf("Gi HTTPS listening on %s using ACME domains=%s db=%s cache=%s", effectiveListen, strings.Join(domains, ","), *dbPath, cacheDir)
+		srv := &http.Server{Addr: effectiveListen, Handler: handler, TLSConfig: manager.TLSConfig()}
+		if err := srv.ListenAndServeTLS("", ""); err != nil {
+			log.Fatalf("listen https/acme: %v", err)
+		}
+		return
+	}
+	if *certFile != "" || *keyFile != "" {
+		if *certFile == "" || *keyFile == "" {
+			log.Fatalf("both -tls-cert and -tls-key are required for static HTTPS")
+		}
+		log.Printf("Gi HTTPS listening on %s using %s", effectiveListen, *dbPath)
+		srv := &http.Server{Addr: effectiveListen, Handler: handler, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12}}
+		if err := srv.ListenAndServeTLS(*certFile, *keyFile); err != nil {
+			log.Fatalf("listen https: %v", err)
+		}
+		return
+	}
+	log.Printf("Gi HTTP listening on %s using %s", effectiveListen, *dbPath)
+	if err := http.ListenAndServe(effectiveListen, handler); err != nil {
 		log.Fatalf("listen: %v", err)
 	}
+}
+
+func splitCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
