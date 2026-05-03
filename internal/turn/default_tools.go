@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/rcarmo/gi/internal/connectivity"
 	"github.com/rcarmo/gi/internal/scripting"
 	"github.com/rcarmo/gi/internal/tools"
 	goai "github.com/rcarmo/go-ai"
@@ -17,6 +18,43 @@ import (
 
 func (e *Engine) registerDefaultTools() {
 	scriptTool := tools.NewScriptTool(e.store, e.runtimeCfg)
+	scriptTool.SetConnectivityCallbacks(
+		func(ctx context.Context, sessionID string, spec connectivity.RouteSpec) (connectivity.RouteInfo, error) {
+			if spec.SessionID == "" {
+				spec.SessionID = sessionID
+			}
+			return e.connectivity.Register(ctx, spec, func(ctx context.Context, event connectivity.EventEnvelope) (connectivity.RouteResponse, error) {
+				payload := map[string]any{"event": event, "route": spec, "payload": event.Payload}
+				input := tools.ScriptInput{Engine: spec.Engine, Path: spec.Path, SessionID: event.SessionID, Script: scriptWithPayload(spec.Engine, "event", payload, spec.Script)}
+				out := scriptTool.Execute(ctx, input)
+				if out.Error != "" {
+					return connectivity.RouteResponse{Status: 500, Body: out.Result}, errors.New(out.Error)
+				}
+				resp := connectivity.RouteResponse{Status: 200, Body: out.Result}
+				if strings.TrimSpace(out.Result) != "" {
+					_ = json.Unmarshal([]byte(out.Result), &resp)
+					if resp.Status == 0 && resp.Body == "" {
+						resp.Body = out.Result
+					}
+				}
+				if resp.Status == 0 {
+					resp.Status = 200
+				}
+				return resp, nil
+			})
+		},
+		func(ctx context.Context, sessionID, id string) error { return e.connectivity.Unregister(ctx, id) },
+		func(ctx context.Context, sessionID string, filter map[string]any) ([]connectivity.RouteInfo, error) {
+			return e.connectivity.List(ctx, filter)
+		},
+		func(ctx context.Context, sessionID, topic string, payload map[string]any) error {
+			if payload == nil {
+				payload = map[string]any{}
+			}
+			payload["session_id"] = sessionID
+			return e.connectivity.Emit(ctx, topic, payload)
+		},
+	)
 	scriptTool.SetAgenticCallbacks(
 		func(ctx context.Context, sessionID string, hook scripting.EventHookSpec) error {
 			_, err := e.RegisterHook(hook.Name, firstNonEmpty(hook.Source, "script"), func(ctx context.Context, req HookRequest) (HookResponse, error) {

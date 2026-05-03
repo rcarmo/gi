@@ -39,6 +39,7 @@ func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 		version:    fmt.Sprintf("%x", time.Now().UnixNano()),
 		scriptTool: tools.NewScriptTool(s, cfg),
 	}
+	srv.configureScriptConnectivity()
 	srv.routes()
 	return srv
 }
@@ -67,6 +68,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/agent/system-metrics", s.handleSystemMetrics)
 	s.mux.HandleFunc("/api/tools", s.handleTools)
 	s.mux.HandleFunc("/api/tools/execute", s.handleToolExecute)
+	s.mux.HandleFunc(connectivityRoutePrefix, s.handleConnectivityRoutes)
+	s.mux.HandleFunc(connectivitySSEPrefix, s.handleConnectivitySSE)
 	s.mux.HandleFunc("/api/sessions", s.handleSessions)
 	s.mux.HandleFunc("/api/sessions/", s.handleSessionSubroutes)
 	s.mux.HandleFunc("/api/turns/", s.handleTurnSubroutes)
@@ -273,19 +276,19 @@ func (s *Server) sessionInfo(ctx context.Context, sessionID string) (map[string]
 		routeEvents = nil
 	}
 	return map[string]any{
-		"session":        session,
-		"runtime":        map[string]any{"default_provider": s.cfg.DefaultProvider, "default_model": s.cfg.DefaultModel, "default_thinking_level": s.cfg.DefaultThinkingLevel, "workspace_root": s.cfg.WorkspaceRoot},
-		"message_count":  len(messages),
-		"turn_count":     len(turns),
+		"session":       session,
+		"runtime":       map[string]any{"default_provider": s.cfg.DefaultProvider, "default_model": s.cfg.DefaultModel, "default_thinking_level": s.cfg.DefaultThinkingLevel, "workspace_root": s.cfg.WorkspaceRoot},
+		"message_count": len(messages),
+		"turn_count":    len(turns),
 		"route_event_count": func() int {
 			if routeEvents == nil {
 				return 0
 			}
 			return len(routeEvents)
 		}(),
-		"messages":       messages,
-		"turns":          turns,
-		"route_events":   routeEvents,
+		"messages":     messages,
+		"turns":        turns,
+		"route_events": routeEvents,
 	}, nil
 }
 

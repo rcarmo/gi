@@ -10,6 +10,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/rcarmo/gi/internal/connectivity"
 )
 
 // Runner is the interface that script engines must implement.
@@ -142,6 +144,12 @@ type BridgeFuncs struct {
 	GetEntries        func(ctx context.Context, entryType string) ([]map[string]any, error)
 	EmitEvent         func(ctx context.Context, name string, payload map[string]any) error
 	ClearEventHooks   func(ctx context.Context) error
+
+	// Connectivity and route registration
+	RegisterConnectivityRoute   func(ctx context.Context, route connectivity.RouteSpec) (connectivity.RouteInfo, error)
+	UnregisterConnectivityRoute func(ctx context.Context, id string) error
+	ListConnectivityRoutes      func(ctx context.Context, filter map[string]any) ([]connectivity.RouteInfo, error)
+	EmitConnectivityEvent       func(ctx context.Context, topic string, payload map[string]any) error
 
 	// Raw sockets (tcp/udp)
 	OpenRawSocket  func(ctx context.Context, spec RawSocketSpec) (string, error)

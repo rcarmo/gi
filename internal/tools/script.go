@@ -20,6 +20,7 @@ import (
 	xwebsocket "golang.org/x/net/websocket"
 
 	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/connectivity"
 	"github.com/rcarmo/gi/internal/scripting"
 	"github.com/rcarmo/gi/internal/store"
 )
@@ -46,6 +47,10 @@ type ScriptTool struct {
 	onRegisterTool      func(ctx context.Context, sessionID string, spec scripting.ToolSpec) error
 	onSetActiveTools    func(ctx context.Context, sessionID string, names []string) error
 	onGetActiveTools    func(ctx context.Context, sessionID string) ([]string, error)
+	onRegisterRoute     func(ctx context.Context, sessionID string, route connectivity.RouteSpec) (connectivity.RouteInfo, error)
+	onUnregisterRoute   func(ctx context.Context, sessionID string, id string) error
+	onListRoutes        func(ctx context.Context, sessionID string, filter map[string]any) ([]connectivity.RouteInfo, error)
+	onEmitConnectEvent  func(ctx context.Context, sessionID string, topic string, payload map[string]any) error
 }
 
 // ScriptInput is what the agent sends to invoke the script tool.
@@ -85,6 +90,19 @@ func (t *ScriptTool) SetAgenticCallbacks(
 	t.onRegisterTool = registerTool
 	t.onSetActiveTools = setActiveTools
 	t.onGetActiveTools = getActiveTools
+}
+
+// SetConnectivityCallbacks connects scripts to the host connectivity registry.
+func (t *ScriptTool) SetConnectivityCallbacks(
+	registerRoute func(context.Context, string, connectivity.RouteSpec) (connectivity.RouteInfo, error),
+	unregisterRoute func(context.Context, string, string) error,
+	listRoutes func(context.Context, string, map[string]any) ([]connectivity.RouteInfo, error),
+	emitEvent func(context.Context, string, string, map[string]any) error,
+) {
+	t.onRegisterRoute = registerRoute
+	t.onUnregisterRoute = unregisterRoute
+	t.onListRoutes = listRoutes
+	t.onEmitConnectEvent = emitEvent
 }
 
 // Definition returns the tool metadata for the agent.
@@ -437,6 +455,30 @@ func (t *ScriptTool) buildBridge(sessionID string) *scripting.Bridge {
 		},
 		ClearEventHooks: func(ctx context.Context) error {
 			return t.clearEventHooks(ctx, sessionID)
+		},
+		RegisterConnectivityRoute: func(ctx context.Context, route connectivity.RouteSpec) (connectivity.RouteInfo, error) {
+			if t.onRegisterRoute == nil {
+				return connectivity.RouteInfo{}, fmt.Errorf("register route: host connectivity registry is not available")
+			}
+			return t.onRegisterRoute(ctx, sessionID, route)
+		},
+		UnregisterConnectivityRoute: func(ctx context.Context, id string) error {
+			if t.onUnregisterRoute == nil {
+				return fmt.Errorf("unregister route: host connectivity registry is not available")
+			}
+			return t.onUnregisterRoute(ctx, sessionID, id)
+		},
+		ListConnectivityRoutes: func(ctx context.Context, filter map[string]any) ([]connectivity.RouteInfo, error) {
+			if t.onListRoutes == nil {
+				return nil, fmt.Errorf("list routes: host connectivity registry is not available")
+			}
+			return t.onListRoutes(ctx, sessionID, filter)
+		},
+		EmitConnectivityEvent: func(ctx context.Context, topic string, payload map[string]any) error {
+			if t.onEmitConnectEvent == nil {
+				return fmt.Errorf("emit connectivity event: host connectivity registry is not available")
+			}
+			return t.onEmitConnectEvent(ctx, sessionID, topic, payload)
 		},
 		OpenRawSocket: func(ctx context.Context, spec scripting.RawSocketSpec) (string, error) {
 			return t.openRawSocket(ctx, spec)

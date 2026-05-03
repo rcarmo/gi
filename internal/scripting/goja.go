@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/dop251/goja"
+	"github.com/rcarmo/gi/internal/connectivity"
 )
 
 // GojaRunner executes JavaScript scripts using goja — a pure Go
@@ -365,6 +366,73 @@ func buildJSBridge(ctx context.Context, vm *goja.Runtime, bridge *Bridge) (*goja
 			}
 			return goja.Undefined()
 		})
+	}
+
+	// Connectivity route registry
+	connectObj := vm.NewObject()
+	if bridge.Funcs.RegisterConnectivityRoute != nil {
+		connectObj.Set("registerRoute", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				panic(vm.NewGoError(fmt.Errorf("connect.registerRoute requires a route spec")))
+			}
+			var spec connectivity.RouteSpec
+			if err := mapToStruct(call.Arguments[0].Export(), &spec); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			info, err := bridge.Funcs.RegisterConnectivityRoute(ctx, spec)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			v, _ := vm.RunString("(" + mustJSONStr(info) + ")")
+			return v
+		})
+	}
+	if bridge.Funcs.UnregisterConnectivityRoute != nil {
+		connectObj.Set("unregisterRoute", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				panic(vm.NewGoError(fmt.Errorf("connect.unregisterRoute requires a route id")))
+			}
+			if err := bridge.Funcs.UnregisterConnectivityRoute(ctx, call.Arguments[0].String()); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+	}
+	if bridge.Funcs.ListConnectivityRoutes != nil {
+		connectObj.Set("listRoutes", func(call goja.FunctionCall) goja.Value {
+			filter := map[string]any{}
+			if len(call.Arguments) > 0 && call.Arguments[0] != goja.Undefined() && call.Arguments[0] != goja.Null() {
+				if err := mapToStruct(call.Arguments[0].Export(), &filter); err != nil {
+					panic(vm.NewGoError(err))
+				}
+			}
+			routes, err := bridge.Funcs.ListConnectivityRoutes(ctx, filter)
+			if err != nil {
+				panic(vm.NewGoError(err))
+			}
+			v, _ := vm.RunString("(" + mustJSONStr(routes) + ")")
+			return v
+		})
+	}
+	if bridge.Funcs.EmitConnectivityEvent != nil {
+		connectObj.Set("emit", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				panic(vm.NewGoError(fmt.Errorf("connect.emit requires topic")))
+			}
+			payload := map[string]any{}
+			if len(call.Arguments) > 1 && call.Arguments[1] != goja.Undefined() && call.Arguments[1] != goja.Null() {
+				if err := mapToStruct(call.Arguments[1].Export(), &payload); err != nil {
+					panic(vm.NewGoError(err))
+				}
+			}
+			if err := bridge.Funcs.EmitConnectivityEvent(ctx, call.Arguments[0].String(), payload); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+	}
+	if len(connectObj.Keys()) > 0 {
+		obj.Set("connect", connectObj)
 	}
 
 	// Network and transport APIs

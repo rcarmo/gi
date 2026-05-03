@@ -33,6 +33,7 @@ import (
 	_ "github.com/candid82/joker/std/url"
 	_ "github.com/candid82/joker/std/uuid"
 	_ "github.com/candid82/joker/std/yaml"
+	"github.com/rcarmo/gi/internal/connectivity"
 )
 
 var embeddedJokerMu sync.Mutex
@@ -259,6 +260,90 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 			panic(core.RT.NewError(err.Error()))
 		}
 		if err := bridge.Funcs.SetActiveTools(ctx, names); err != nil {
+			panic(core.RT.NewError(err.Error()))
+		}
+		return core.NIL
+	})
+
+	register("__gi-register-route", func(args []core.Object) core.Object {
+		if bridge.Funcs.RegisterConnectivityRoute == nil {
+			panic(core.RT.NewError("register route is not available"))
+		}
+		payload, err := readStringArg(args, 0, "register-route")
+		if err != nil {
+			panic(core.RT.NewError(err.Error()))
+		}
+		var spec connectivity.RouteSpec
+		if err := json.Unmarshal([]byte(payload), &spec); err != nil {
+			panic(core.RT.NewError(err.Error()))
+		}
+		info, err := bridge.Funcs.RegisterConnectivityRoute(ctx, spec)
+		if err != nil {
+			panic(core.RT.NewError(err.Error()))
+		}
+		b, _ := json.Marshal(info)
+		return core.MakeString(string(b))
+	})
+
+	register("__gi-unregister-route", func(args []core.Object) core.Object {
+		if bridge.Funcs.UnregisterConnectivityRoute == nil {
+			panic(core.RT.NewError("unregister route is not available"))
+		}
+		id, err := readStringArg(args, 0, "unregister-route")
+		if err != nil {
+			panic(core.RT.NewError(err.Error()))
+		}
+		if err := bridge.Funcs.UnregisterConnectivityRoute(ctx, id); err != nil {
+			panic(core.RT.NewError(err.Error()))
+		}
+		return core.NIL
+	})
+
+	register("__gi-list-routes", func(args []core.Object) core.Object {
+		if bridge.Funcs.ListConnectivityRoutes == nil {
+			panic(core.RT.NewError("list routes is not available"))
+		}
+		filter := map[string]any{}
+		if len(args) > 0 {
+			payload, err := readStringArg(args, 0, "list-routes")
+			if err != nil {
+				panic(core.RT.NewError(err.Error()))
+			}
+			if strings.TrimSpace(payload) != "" && payload != "{}" {
+				if err := json.Unmarshal([]byte(payload), &filter); err != nil {
+					panic(core.RT.NewError(err.Error()))
+				}
+			}
+		}
+		routes, err := bridge.Funcs.ListConnectivityRoutes(ctx, filter)
+		if err != nil {
+			panic(core.RT.NewError(err.Error()))
+		}
+		b, _ := json.Marshal(routes)
+		return core.MakeString(string(b))
+	})
+
+	register("__gi-emit-connectivity-event", func(args []core.Object) core.Object {
+		if bridge.Funcs.EmitConnectivityEvent == nil {
+			panic(core.RT.NewError("emit connectivity event is not available"))
+		}
+		topic, err := readStringArg(args, 0, "emit-connectivity-event")
+		if err != nil {
+			panic(core.RT.NewError(err.Error()))
+		}
+		payload := map[string]any{}
+		if len(args) > 1 {
+			raw, err := readStringArg(args, 1, "emit-connectivity-event")
+			if err != nil {
+				panic(core.RT.NewError(err.Error()))
+			}
+			if strings.TrimSpace(raw) != "" && raw != "{}" {
+				if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+					panic(core.RT.NewError(err.Error()))
+				}
+			}
+		}
+		if err := bridge.Funcs.EmitConnectivityEvent(ctx, topic, payload); err != nil {
 			panic(core.RT.NewError(err.Error()))
 		}
 		return core.NIL
@@ -492,5 +577,5 @@ func httpResponseToJokerMap(resp HTTPResponse) core.Map {
 }
 
 func buildEmbeddedPreamble(bridgeJSON string) string {
-	return fmt.Sprintf("(require '[joker.json :as json] '[joker.walk :as walk])\n(def ^:private *gi-bridge* (walk/keywordize-keys (json/read-string %q)))\n(def ^:private *gi-session-state* (atom (or (:session-state *gi-bridge*) {})))\n(defn gi-get-session-state [] @*gi-session-state*)\n(defn gi-set-session-state! [patch] (swap! *gi-session-state* merge patch))\n(defn gi-get-session-info [] (:session-info *gi-bridge*))\n(defn gi-get-runtime-config [] (:runtime-config *gi-bridge*))\n(defn gi-list-turns [] (:turns *gi-bridge*))\n(defn gi-list-messages\n  ([]\n   (json/read-string (__gi-list-messages \"{}\")))\n  ([opts]\n   (json/read-string (__gi-list-messages (json/write-string opts))))\n)\n(defn gi-register-event-hook [spec] (__gi-register-event-hook (json/write-string spec)))\n(defn gi-emit-event [name payload] (__gi-emit-event name (if payload (json/write-string payload) \"{}\")))\n(defn gi-clear-event-hooks [] (__gi-clear-event-hooks))\n(defn gi-register-tool [spec] (__gi-register-tool (json/write-string spec)))\n(defn gi-set-active-tools [names] (__gi-set-active-tools (json/write-string names)))\n(defn gi-open-raw-socket [spec] (__gi-open-raw-socket (if spec (json/write-string spec) \"{}\")))\n(defn gi-write-raw-socket [payload] (__gi-write-raw-socket (if payload (json/write-string payload) \"{}\")))\n(defn gi-read-raw-socket [payload] (__gi-read-raw-socket (if payload (json/write-string payload) \"{}\")))\n(defn gi-close-raw-socket [socket-id] (__gi-close-raw-socket (str socket-id)))\n(defn gi-open-websocket [spec] (__gi-open-websocket (if spec (json/write-string spec) \"{}\")))\n(defn gi-write-websocket [socket-id payload] (__gi-write-websocket (str socket-id) payload))\n(defn gi-read-websocket [socket-id timeout-ms] (__gi-read-websocket (str socket-id) (or timeout-ms 0)))\n(defn gi-close-websocket [socket-id] (__gi-close-websocket (str socket-id)))\n(defn gi-http-request [request] (__gi-http-request (if request (json/write-string request) \"{}\")))", bridgeJSON)
+	return fmt.Sprintf("(require '[joker.json :as json] '[joker.walk :as walk])\n(def ^:private *gi-bridge* (walk/keywordize-keys (json/read-string %q)))\n(def ^:private *gi-session-state* (atom (or (:session-state *gi-bridge*) {})))\n(defn gi-get-session-state [] @*gi-session-state*)\n(defn gi-set-session-state! [patch] (swap! *gi-session-state* merge patch))\n(defn gi-get-session-info [] (:session-info *gi-bridge*))\n(defn gi-get-runtime-config [] (:runtime-config *gi-bridge*))\n(defn gi-list-turns [] (:turns *gi-bridge*))\n(defn gi-list-messages\n  ([]\n   (json/read-string (__gi-list-messages \"{}\")))\n  ([opts]\n   (json/read-string (__gi-list-messages (json/write-string opts))))\n)\n(defn gi-register-event-hook [spec] (__gi-register-event-hook (json/write-string spec)))\n(defn gi-emit-event [name payload] (__gi-emit-event name (if payload (json/write-string payload) \"{}\")))\n(defn gi-clear-event-hooks [] (__gi-clear-event-hooks))\n(defn gi-register-tool [spec] (__gi-register-tool (json/write-string spec)))\n(defn gi-set-active-tools [names] (__gi-set-active-tools (json/write-string names)))\n(defn gi-register-route [spec] (json/read-string (__gi-register-route (json/write-string spec))))\n(defn gi-unregister-route [id] (__gi-unregister-route (str id)))\n(defn gi-list-routes ([] (json/read-string (__gi-list-routes \"{}\"))) ([filter] (json/read-string (__gi-list-routes (json/write-string filter)))))\n(defn gi-emit-connectivity-event [topic payload] (__gi-emit-connectivity-event (str topic) (if payload (json/write-string payload) \"{}\")))\n(defn gi-open-raw-socket [spec] (__gi-open-raw-socket (if spec (json/write-string spec) \"{}\")))\n(defn gi-write-raw-socket [payload] (__gi-write-raw-socket (if payload (json/write-string payload) \"{}\")))\n(defn gi-read-raw-socket [payload] (__gi-read-raw-socket (if payload (json/write-string payload) \"{}\")))\n(defn gi-close-raw-socket [socket-id] (__gi-close-raw-socket (str socket-id)))\n(defn gi-open-websocket [spec] (__gi-open-websocket (if spec (json/write-string spec) \"{}\")))\n(defn gi-write-websocket [socket-id payload] (__gi-write-websocket (str socket-id) payload))\n(defn gi-read-websocket [socket-id timeout-ms] (__gi-read-websocket (str socket-id) (or timeout-ms 0)))\n(defn gi-close-websocket [socket-id] (__gi-close-websocket (str socket-id)))\n(defn gi-http-request [request] (__gi-http-request (if request (json/write-string request) \"{}\")))", bridgeJSON)
 }

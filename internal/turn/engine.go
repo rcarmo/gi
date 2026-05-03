@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/connectivity"
 	"github.com/rcarmo/gi/internal/routing"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
@@ -26,6 +27,7 @@ type Engine struct {
 	runtimeCfg    config.RuntimeConfig
 	hooks         *HookRegistry
 	tools         *ToolRegistry
+	connectivity  *connectivity.Registry
 	sessions      sync.Map // sessionID -> *sessionRunner
 	subs          sync.Map // sessionID -> map[chan map[string]any]bool
 	subsMu        sync.Mutex
@@ -107,6 +109,7 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 		runtimeCfg:    cfg,
 		hooks:         NewHookRegistry(),
 		tools:         NewToolRegistry(),
+		connectivity:  connectivity.NewRegistry(),
 	}
 	e.registerDefaultTools()
 	return e
