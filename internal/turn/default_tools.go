@@ -108,6 +108,16 @@ func (e *Engine) registerDefaultTools() {
 		},
 	})
 	must(RegisteredTool{
+		Name:        "skills",
+		Description: "List workspace-discovered skills or read a skill's SKILL.md. Skills are discovered from .gi/skills and .pi/skills.",
+		Parameters:  json.RawMessage(`{"type":"object","properties":{"name":{"type":"string","description":"Exact skill name to read; omit to list skills"},"query":{"type":"string","description":"Filter listed skills by name or description"}}}`),
+		Source:      "builtin",
+		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+			return executeSkillsTool(rt.WorkspaceRoot, call.Arguments)
+		},
+	})
+	registerDiscoveredTools(e, scriptTool)
+	must(RegisteredTool{
 		Name:        "read",
 		Description: "Read text content from a workspace file. Supports workspace-relative paths and vfs:// paths.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative path or vfs://namespace/path"}},"required":["path"]}`),

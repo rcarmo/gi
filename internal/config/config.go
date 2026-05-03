@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/rcarmo/gi/internal/routing"
+	"github.com/rcarmo/gi/internal/skills"
 )
 
 type RuntimeConfig struct {
@@ -26,6 +27,7 @@ type RuntimeConfig struct {
 	Routing              routing.ModelRoutingConfig `json:"routing"`
 	MaxIterations        int                        `json:"max_iterations"`
 	SystemPrompt         string                     `json:"-"`
+	Discovery            skills.Discovery           `json:"-"`
 }
 
 type piclawConfig struct {
@@ -72,6 +74,9 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.Session = ps.Session
 		cfg.Routing = ps.Routing
 	}
+	if discovery, err := skills.Discover(workspaceRoot); err == nil {
+		cfg.Discovery = discovery
+	}
 	if cfg.AssistantName == "" {
 		cfg.AssistantName = "Gi"
 	}
@@ -97,6 +102,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 	} else {
 		cfg.SystemPrompt = fmt.Sprintf("You are %s, a helpful coding assistant.", cfg.AssistantName)
 	}
+	cfg.SystemPrompt += skills.PromptSummary(cfg.Discovery)
 	return cfg
 }
 
