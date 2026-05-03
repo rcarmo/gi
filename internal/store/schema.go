@@ -96,6 +96,15 @@ func initSchema(db *sql.DB) error {
 			primary key (namespace, path)
 		);`,
 		`create index if not exists idx_vfs_namespace_path on vfs_files(namespace, path);`,
+		`create table if not exists kv_store (
+			namespace text not null,
+			key text not null,
+			value blob not null,
+			created_at text not null,
+			updated_at text not null,
+			primary key (namespace, key)
+		);`,
+		`create index if not exists idx_kv_store_namespace on kv_store(namespace, updated_at desc);`,
 		`create table if not exists routing_events (
 			id integer primary key autoincrement,
 			turn_id text,

@@ -28,7 +28,7 @@ func main() {
 	keyFile := flag.String("tls-key", "", "TLS private key file for HTTPS")
 	acmeDomains := flag.String("acme-domains", "", "Comma-separated domains for ACME/Let's Encrypt HTTPS")
 	acmeEmail := flag.String("acme-email", "", "Contact email for ACME registration")
-	acmeCache := flag.String("acme-cache", "", "ACME certificate cache directory (default: <workspace>/.gi/acme-cache)")
+	acmeCache := flag.String("acme-cache", "sqlite", "ACME certificate cache: sqlite, vfs, or filesystem directory path")
 	acmeAcceptTOS := flag.Bool("acme-accept-tos", false, "Accept the ACME CA terms of service")
 	acmeHTTPListen := flag.String("acme-http-listen", ":http", "HTTP listen address for ACME HTTP-01 challenges and redirects; empty disables")
 	dbPath := flag.String("db", "./gi.db", "SQLite database path")
@@ -91,15 +91,15 @@ func main() {
 		if len(domains) == 0 {
 			log.Fatalf("acme-domains must include at least one domain")
 		}
-		cacheDir := *acmeCache
-		if cacheDir == "" {
-			cacheDir = filepath.Join(*workspace, ".gi", "acme-cache")
+		cache, cacheLabel, err := acmeCacheFor(*acmeCache, s)
+		if err != nil {
+			log.Fatalf("acme cache: %v", err)
 		}
 		if !*acmeAcceptTOS {
 			log.Fatalf("ACME requires -acme-accept-tos")
 		}
 		manager := &autocert.Manager{
-			Cache:      autocert.DirCache(cacheDir),
+			Cache:      cache,
 			Prompt:     autocert.AcceptTOS,
 			HostPolicy: autocert.HostWhitelist(domains...),
 			Email:      *acmeEmail,
@@ -112,7 +112,7 @@ func main() {
 				}
 			}()
 		}
-		log.Printf("Gi HTTPS listening on %s using ACME domains=%s db=%s cache=%s", effectiveListen, strings.Join(domains, ","), *dbPath, cacheDir)
+		log.Printf("Gi HTTPS listening on %s using ACME domains=%s db=%s cache=%s", effectiveListen, strings.Join(domains, ","), *dbPath, cacheLabel)
 		srv := &http.Server{Addr: effectiveListen, Handler: handler, TLSConfig: manager.TLSConfig()}
 		if err := srv.ListenAndServeTLS("", ""); err != nil {
 			log.Fatalf("listen https/acme: %v", err)
@@ -134,6 +134,17 @@ func main() {
 	if err := http.ListenAndServe(effectiveListen, handler); err != nil {
 		log.Fatalf("listen: %v", err)
 	}
+}
+
+func acmeCacheFor(value string, s *store.Store) (autocert.Cache, string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" || strings.EqualFold(value, "sqlite") || strings.EqualFold(value, "kv") {
+		return store.NewACMESQLiteCache(s), "sqlite:kv_store/acme/autocert", nil
+	}
+	if strings.EqualFold(value, "vfs") {
+		return store.NewACMEVFSCache(s), "sqlite:vfs_files/acme-autocert", nil
+	}
+	return autocert.DirCache(value), value, nil
 }
 
 func splitCSV(value string) []string {

@@ -673,7 +673,7 @@ gi \
   -acme-accept-tos
 ```
 
-ACME stores certificates under `<workspace>/.gi/acme-cache` by default. Use `-acme-cache` to override. `-acme-http-listen :http` starts an HTTP listener for HTTP-01 challenges and redirects; set it to an empty string to disable the companion listener when TLS termination/challenge handling is managed elsewhere.
+ACME stores certificates in SQLite by default (`-acme-cache sqlite`) under the `kv_store` namespace `acme/autocert`. Use `-acme-cache vfs` to store certificates in the SQLite-backed VFS namespace `acme-autocert`, or pass an explicit filesystem directory path if a file cache is deliberately wanted. `-acme-http-listen :http` starts an HTTP listener for HTTP-01 challenges and redirects; set it to an empty string to disable the companion listener when TLS termination/challenge handling is managed elsewhere.
 
 - SSE stream adapter:
   - `/api/connect/sse/{topic-pattern}` streams internal connectivity events

@@ -8,18 +8,18 @@ import (
 )
 
 type RouteEvent struct {
-	ID             int64             `json:"id"`
-	TurnID         string            `json:"turn_id,omitempty"`
-	SourceSession  string            `json:"source_session_id"`
-	TargetSession  string            `json:"target_session_id,omitempty"`
-	SourceAgentID  string            `json:"source_agent_id,omitempty"`
-	TargetAgentID  string            `json:"target_agent_id"`
-	Mode           string            `json:"mode"`
-	MatchedBy      string            `json:"matched_by,omitempty"`
-	RoutingPolicy  string            `json:"routing_policy,omitempty"`
-	RequestedAgent string            `json:"requested_agent_id,omitempty"`
-	Metadata       map[string]any    `json:"metadata"`
-	CreatedAt      string            `json:"created_at"`
+	ID             int64          `json:"id"`
+	TurnID         string         `json:"turn_id,omitempty"`
+	SourceSession  string         `json:"source_session_id"`
+	TargetSession  string         `json:"target_session_id,omitempty"`
+	SourceAgentID  string         `json:"source_agent_id,omitempty"`
+	TargetAgentID  string         `json:"target_agent_id"`
+	Mode           string         `json:"mode"`
+	MatchedBy      string         `json:"matched_by,omitempty"`
+	RoutingPolicy  string         `json:"routing_policy,omitempty"`
+	RequestedAgent string         `json:"requested_agent_id,omitempty"`
+	Metadata       map[string]any `json:"metadata"`
+	CreatedAt      string         `json:"created_at"`
 }
 
 func (s *Store) RecordRouteEvent(ctx context.Context, event RouteEvent) (int64, error) {
