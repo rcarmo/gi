@@ -37,6 +37,8 @@ func checkHTTPRequestAuth(auth map[string]any, r *http.Request, body []byte) err
 	switch typ {
 	case "none":
 		return nil
+	case "totp", "webauthn":
+		return fmt.Errorf("auth type %s requires host middleware", typ)
 	case "bearer":
 		expected, err := authSecret(auth)
 		if err != nil {
@@ -52,6 +54,9 @@ func checkHTTPRequestAuth(auth map[string]any, r *http.Request, body []byte) err
 		return fmt.Errorf("invalid bearer token")
 	case "basic":
 		expectedUser := firstNonEmpty(stringMapValue(auth, "username"), stringMapValue(auth, "user"))
+		if expectedUser == "" {
+			return fmt.Errorf("basic auth username is required")
+		}
 		expectedPassword, err := authPassword(auth)
 		if err != nil {
 			return err

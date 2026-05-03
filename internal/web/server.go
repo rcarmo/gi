@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	giauth "github.com/rcarmo/gi/internal/auth"
 	"github.com/rcarmo/gi/internal/config"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
@@ -28,6 +29,7 @@ type Server struct {
 	mux        *http.ServeMux
 	version    string
 	scriptTool *tools.ScriptTool
+	auth       *giauth.Manager
 }
 
 func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
@@ -38,6 +40,7 @@ func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 		mux:        http.NewServeMux(),
 		version:    fmt.Sprintf("%x", time.Now().UnixNano()),
 		scriptTool: tools.NewScriptTool(s, cfg),
+		auth:       giauth.NewManager(cfg.WorkspaceRoot),
 	}
 	srv.configureScriptConnectivity()
 	srv.routes()
@@ -59,6 +62,10 @@ func (s *Server) routes() {
 		}
 		fileServer.ServeHTTP(w, r)
 	})
+	s.mux.HandleFunc("/api/auth/status", s.handleAuthStatus)
+	s.mux.HandleFunc("/api/auth/enroll/start", s.handleAuthEnrollStart)
+	s.mux.HandleFunc("/api/auth/enroll/verify", s.handleAuthEnrollVerify)
+	s.mux.HandleFunc("/api/auth/totp/verify", s.handleAuthTOTPVerify)
 	s.mux.HandleFunc("/api/runtime/config", s.handleRuntimeConfig)
 	s.mux.HandleFunc("/api/frontend/log", s.handleFrontendLog)
 	s.mux.HandleFunc("/api/workspace/tree", s.handleWorkspaceTree)

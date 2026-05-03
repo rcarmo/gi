@@ -620,8 +620,38 @@ The first connectivity slice is now implemented:
   - request body is capped to 1 MiB in this first slice
   - handlers receive method/path/query/headers/body/remote address
   - auth middleware allows unauthenticated loopback calls but requires auth for non-loopback clients unless `options.allow_unauthenticated_external=true`
-  - supported auth types: `basic`, `bearer`, `header`, `query`, `hmac` (SHA-256)
-  - `basic` supports literal/env-backed username/password today; TOTP/WebAuthn should be modeled as follow-up HTTP auth types once user/session identity exists in gi
+  - supported auth types: `basic`, `bearer`, `header`, `query`, `hmac` (SHA-256), `totp`
+  - `basic` supports literal/env-backed username/password today
+  - `totp` uses the conditional enrollment/login flow under `/api/auth/*` and accepts the resulting bearer token on connectivity routes
+  - WebAuthn remains a planned follow-up auth type once gi has a browser credential storage layer
+
+### Conditional TOTP enrollment routes
+
+Implemented Piclaw-style conditional enrollment endpoints:
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/auth/status` | `GET` | Reports whether TOTP enrollment is complete and whether enrollment is required. |
+| `/api/auth/enroll/start` | `POST` | Starts first-user enrollment; loopback-only and only allowed while no user is enrolled. Returns a base32 secret and `otpauth://` URL. |
+| `/api/auth/enroll/verify` | `POST` | Verifies the pending enrollment TOTP code and persists the enrolled user. Loopback-only. |
+| `/api/auth/totp/verify` | `POST` | Verifies an enrolled user's TOTP code and returns a short-lived bearer token. |
+
+Example route using TOTP session auth:
+
+```json
+{
+  "name": "external-webhook",
+  "transport": "http",
+  "auth": { "type": "totp" },
+  "mode": "respond"
+}
+```
+
+Requests to `/api/connect/routes/{routeID}/...` must then include:
+
+```http
+Authorization: Bearer <token-from-/api/auth/totp/verify>
+```
 - SSE stream adapter:
   - `/api/connect/sse/{topic-pattern}` streams internal connectivity events
   - `?topic=` can be used instead of a path pattern

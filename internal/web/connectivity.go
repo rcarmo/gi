@@ -103,7 +103,7 @@ func (s *Server) handleConnectivityRoutes(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": "route not found: " + routeID})
 		return
 	}
-	if err := connectivity.AuthorizeHTTPRequest(spec, r, body); err != nil {
+	if err := s.authorizeConnectivityRequest(spec, r, body); err != nil {
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": err.Error()})
 		return
 	}
