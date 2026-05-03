@@ -101,6 +101,16 @@ func (r *Registry) Get(id string) (RouteInfo, bool) {
 	return rec.info(), true
 }
 
+func (r *Registry) GetSpec(id string) (RouteSpec, RouteInfo, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	rec, ok := r.routes[id]
+	if !ok {
+		return RouteSpec{}, RouteInfo{}, false
+	}
+	return rec.spec, rec.info(), true
+}
+
 func (r *Registry) Deliver(ctx context.Context, routeID string, event EventEnvelope) (RouteResponse, error) {
 	r.mu.RLock()
 	rec, ok := r.routes[routeID]

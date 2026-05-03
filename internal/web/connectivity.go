@@ -98,6 +98,15 @@ func (s *Server) handleConnectivityRoutes(w http.ResponseWriter, r *http.Request
 	for k, v := range r.Header {
 		headers[k] = append([]string(nil), v...)
 	}
+	spec, _, ok := s.turns.Connectivity().GetSpec(routeID)
+	if !ok {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "route not found: " + routeID})
+		return
+	}
+	if err := connectivity.AuthorizeHTTPRequest(spec, r, body); err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": err.Error()})
+		return
+	}
 	payload := map[string]any{
 		"method":      r.Method,
 		"path":        r.URL.Path,

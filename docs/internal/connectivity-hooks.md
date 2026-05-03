@@ -619,6 +619,8 @@ The first connectivity slice is now implemented:
   - registered routes are reachable under `/api/connect/routes/{routeID}/...`
   - request body is capped to 1 MiB in this first slice
   - handlers receive method/path/query/headers/body/remote address
+  - auth middleware allows unauthenticated loopback calls but requires auth for non-loopback clients unless `options.allow_unauthenticated_external=true`
+  - supported auth types: `bearer`, `header`, `query`, `hmac` (SHA-256)
 - SSE stream adapter:
   - `/api/connect/sse/{topic-pattern}` streams internal connectivity events
   - `?topic=` can be used instead of a path pattern
