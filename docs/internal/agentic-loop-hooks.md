@@ -366,7 +366,7 @@ The initial implementation now exists in the turn engine:
   - `gi.setModel(model)`
   - `gi.appendEntry(type, data)` / `gi.getEntries(type)`
 - `internal/tools/script.go` connects the script tool to the host engine through callbacks so scripts can register new tools and hooks at runtime.
-- `config.Load` appends a compact discovered-capabilities section to the system prompt, so agents see available skills and workspace tool manifests before choosing tools.
+- `config.Load` builds a Pi-like gi runtime system prompt: operating model, built-in tools, skill-loading guidance, shared path policy, runtime hook/connectivity notes, workspace `AGENTS.md`, and a compact discovered-capabilities section.
 
 ### JS examples
 

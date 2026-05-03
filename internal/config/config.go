@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -95,14 +94,13 @@ func Load(workspaceRoot string) RuntimeConfig {
 	if len(cfg.Agents.List) == 0 {
 		cfg.Agents.List = []routing.AgentConfig{{ID: "agent", Name: cfg.AssistantName, Default: true, Model: cfg.DefaultModel}}
 	}
-	// Load system prompt from AGENTS.md
+	// Load workspace instructions from AGENTS.md and wrap them in gi's runtime prompt.
+	workspaceInstructions := ""
 	agentsPath := filepath.Join(workspaceRoot, "AGENTS.md")
 	if data, err := os.ReadFile(agentsPath); err == nil && len(data) > 0 {
-		cfg.SystemPrompt = string(data)
-	} else {
-		cfg.SystemPrompt = fmt.Sprintf("You are %s, a helpful coding assistant.", cfg.AssistantName)
+		workspaceInstructions = string(data)
 	}
-	cfg.SystemPrompt += skills.PromptSummary(cfg.Discovery)
+	cfg.SystemPrompt = buildSystemPrompt(cfg, workspaceInstructions)
 	return cfg
 }
 
