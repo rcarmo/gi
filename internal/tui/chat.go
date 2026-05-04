@@ -329,6 +329,14 @@ func (c *chatTUI) handleCommand(text string) {
 			query = strings.Join(fields[1:], " ")
 		}
 		c.transcript = append(c.transcript, c.skillLines(query)...)
+	case "/model":
+		c.transcript = append(c.transcript, c.modelCommand(fields)...)
+	case "/thinking":
+		c.transcript = append(c.transcript, c.thinkingCommand(fields)...)
+	case "/compact":
+		c.transcript = append(c.transcript, c.compactLines()...)
+	case "/cancel":
+		c.transcript = append(c.transcript, c.cancelCommand())
 	case "/agents":
 		c.transcript = append(c.transcript, c.listAgentLines()...)
 	case "/fork":
@@ -389,7 +397,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.transcript = append(c.transcript, "sys: commands: /help, /tools [query], /skills [query], /agents, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.transcript = append(c.transcript, "sys: commands: /help, /tools [query], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -404,9 +412,63 @@ func (c *chatTUI) helpLines() []string {
 	return []string{
 		"sys: gi TUI help",
 		"sys: keys: Enter send · Esc blur input · Ctrl-C/Ctrl-D quit · Up/Down history · PgUp/PgDn scroll · Home/End transcript",
-		"sys: commands: /help, /tools [query], /skills [query], /agents, /where",
+		"sys: commands: /help, /tools [query], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /where",
 		"sys: sessions: /fork [@agentN], /switch @agent|session_id, /send @agent message",
 	}
+}
+
+func (c *chatTUI) modelCommand(fields []string) []string {
+	if len(fields) == 1 {
+		return []string{fmt.Sprintf("sys: model: %s", c.cfg.DefaultModel)}
+	}
+	model := strings.TrimSpace(strings.Join(fields[1:], " "))
+	if model == "" {
+		return []string{"sys: usage /model <model>"}
+	}
+	c.cfg.DefaultModel = model
+	_ = c.store.TouchSessionState(context.Background(), c.sessionID, map[string]any{"model": model})
+	return []string{fmt.Sprintf("sys: model set to %s", model)}
+}
+
+func (c *chatTUI) thinkingCommand(fields []string) []string {
+	if len(fields) == 1 {
+		return []string{fmt.Sprintf("sys: thinking: %s", c.cfg.DefaultThinkingLevel)}
+	}
+	level := strings.TrimSpace(fields[1])
+	if level == "" {
+		return []string{"sys: usage /thinking <low|medium|high>"}
+	}
+	c.cfg.DefaultThinkingLevel = level
+	_ = c.store.TouchSessionState(context.Background(), c.sessionID, map[string]any{"thinking_level": level})
+	return []string{fmt.Sprintf("sys: thinking set to %s", level)}
+}
+
+func (c *chatTUI) compactLines() []string {
+	messages, _ := c.store.ListMessages(context.Background(), c.sessionID)
+	turns, _ := c.store.ListTurns(context.Background(), c.sessionID)
+	settings := c.cfg.Compaction
+	return []string{
+		fmt.Sprintf("compact: enabled=%v threshold_tokens=%d keep_recent_tokens=%d reserve_tokens=%d strategy=%s", settings.Enabled, settings.ThresholdTokens, settings.KeepRecentTokens, settings.ReserveTokens, settings.Strategy),
+		fmt.Sprintf("compact: messages=%d turns=%d; use the agent `compact` tool for full JSON preparation", len(messages), len(turns)),
+	}
+}
+
+func (c *chatTUI) cancelCommand() string {
+	turns, err := c.store.ListTurns(context.Background(), c.sessionID)
+	if err != nil {
+		return fmt.Sprintf("error: %v", err)
+	}
+	for i := len(turns) - 1; i >= 0; i-- {
+		if turns[i].Status == "running" || turns[i].Status == "queued" || turns[i].Status == "cancelling" {
+			if err := c.engine.CancelTurn(context.Background(), c.sessionID, turns[i].ID); err != nil {
+				return fmt.Sprintf("error: %v", err)
+			}
+			c.running = false
+			return fmt.Sprintf("sys: cancellation requested for %s", turns[i].ID)
+		}
+	}
+	c.running = false
+	return "sys: no running or queued turn to cancel"
 }
 
 func (c *chatTUI) toolLines(query string) []string {
@@ -583,7 +645,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 
 	inputLabel := gotui.New(
 		gotui.WithWidthPercent(100),
-		gotui.WithText("Input (click to focus, /help, /tools, /skills, /agents, /fork, /switch, /send; Esc blur, Up/Down history, PgUp/PgDn scroll):"),
+		gotui.WithText("Input (/help, /tools, /skills, /model, /thinking, /compact, /cancel, /agents, /fork, /switch, /send; Esc blur):"),
 		gotui.WithTextStyle(gotui.NewStyle().Dim()),
 	)
 	root.AddChild(inputLabel)
