@@ -1,0 +1,64 @@
+;; RTK-inspired Joker/Clojure tool-call filter for gi.
+;;
+;; Drop into .gi/extensions/rtk-tool-filter.joke to install a tool_call hook that
+;; routes token-heavy file/search/test/git/shell output through rtk when present.
+;; If rtk is unavailable, commands fall back to the original gi tool behavior.
+
+(gi-register-event-hook
+ {:name "tool_call"
+  :source "rtk-joker-tool-filter"
+  :engine "joker"
+  :script "
+(defn starts-with? [s prefix]
+  (let [s (str s) prefix (str prefix)]
+    (and (>= (count s) (count prefix)) (= (subs s 0 (count prefix)) prefix))))
+
+(defn shell-quote [s]
+  ;; Good enough for normal workspace paths; full POSIX quote escaping can be
+  ;; added once Joker persistent utility namespaces land.
+  (str \"'\" (str s) \"'\"))
+
+(def rtk-prefixes
+  [\"ls\" \"tree\" \"cat\" \"head\" \"tail\" \"grep\" \"rg\" \"find\" \"diff\"
+   \"git\" \"gh\" \"go\" \"npm\" \"pnpm\" \"yarn\" \"bun\" \"jest\" \"vitest\"
+   \"pytest\" \"cargo\" \"ruff\" \"golangci-lint\" \"eslint\" \"biome\" \"tsc\"
+   \"docker\" \"kubectl\" \"make\" \"cmake\"])
+
+(defn command-covered? [command]
+  (boolean (some (fn [prefix]
+                   (or (= command prefix) (starts-with? command (str prefix \" \"))))
+                 rtk-prefixes)))
+
+(defn rtk-wrapper [command]
+  (str \"if command -v rtk >/dev/null 2>&1; then rtk \" command \"; else \" command \"; fi\"))
+
+(defn rewrite-shell [tool-call]
+  (let [args (:arguments tool-call)
+        command (str (:command args))]
+    (if (and (seq command) (not (starts-with? command \"rtk \")) (command-covered? command))
+      (assoc tool-call :arguments (assoc args :command (rtk-wrapper command)))
+      tool-call)))
+
+(defn rewrite-read [tool-call]
+  (let [path (get-in tool-call [:arguments :path])]
+    (if (and path (not (starts-with? (str path) \"vfs://\")))
+      {:type \"toolCall\"
+       :id (:id tool-call)
+       :name \"shell\"
+       :arguments {:command (str \"if command -v rtk >/dev/null 2>&1; then rtk read \" (shell-quote path) \"; else cat \" (shell-quote path) \"; fi\")}}
+      tool-call)))
+
+(defn rtk-filter [tool-call]
+  (case (:name tool-call)
+    \"shell\" (rewrite-shell tool-call)
+    \"read\"  (rewrite-read tool-call)
+    tool-call))
+
+(let [tool-call (:tool_call *gi-hook*)
+      rewritten (rtk-filter tool-call)]
+  (if (= rewritten tool-call)
+    (json/write-string {})
+    (json/write-string {:tool_call rewritten
+                        :payload {:rtk_filter true
+                                  :original_tool (:name tool-call)
+                                  :rewritten_tool (:name rewritten)}})))"})

@@ -67,11 +67,7 @@ func (e *Engine) registerDefaultTools() {
 				if out.Error != "" {
 					return HookResponse{}, errors.New(out.Error)
 				}
-				var resp HookResponse
-				if strings.TrimSpace(out.Result) != "" {
-					_ = json.Unmarshal([]byte(out.Result), &resp)
-				}
-				return resp, nil
+				return hookResponseFromScript(out.Result)
 			})
 			return err
 		},
