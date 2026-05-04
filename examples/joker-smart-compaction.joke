@@ -1,0 +1,25 @@
+;; Joker smart compaction extension for gi.
+;;
+;; Drop this file into .gi/extensions/smart-compaction.joke (or run it with the
+;; script tool) to override threshold compaction summaries. gi loads
+;; .gi/extensions/*.joke and .pi/extensions/*.joke at engine startup.
+
+(gi-register-event-hook
+ {:name "session_before_compact"
+  :source "joker-smart-compaction-example"
+  :engine "joker"
+  :script "
+(let [prep (get-in *gi-hook* [:payload :preparation])
+      n    (get prep :messages_to_summarize)
+      toks (get prep :context_tokens)
+      transcript (or (get prep :transcript) \"\")
+      excerpt (if (> (count transcript) 6000)
+                (subs transcript (- (count transcript) 6000))
+                transcript)
+      summary (str \"Joker smart compaction summary\\n\\n\"
+                   \"Messages summarized: \" n \"\\n\"
+                   \"Estimated tokens before compaction: \" toks \"\\n\\n\"
+                   \"Important prior context excerpt:\\n\" excerpt)]
+  (json/write-string {:payload {:summary summary
+                                :details {:engine \"joker\"
+                                          :strategy \"excerpt-smart-compaction\"}}}))"})

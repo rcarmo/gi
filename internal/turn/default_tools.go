@@ -93,6 +93,7 @@ func (e *Engine) registerDefaultTools() {
 		func(ctx context.Context, sessionID string, names []string) error { return e.SetActiveTools(names) },
 		func(ctx context.Context, sessionID string) ([]string, error) { return e.ActiveTools(), nil },
 	)
+	e.loadWorkspaceExtensions(scriptTool)
 	must := func(t RegisteredTool) {
 		if err := e.RegisterTool(t); err != nil {
 			panic(err)
@@ -286,7 +287,7 @@ func scriptWithPayload(engine, name string, payload map[string]any, script strin
 	}
 	b, _ := json.Marshal(payload)
 	if engine == "joker" || engine == "" && strings.HasPrefix(strings.TrimSpace(script), "(") {
-		return fmt.Sprintf("(def *gi-%s* (json/read-string %q))\n%s", name, string(b), script)
+		return fmt.Sprintf("(def *gi-%s* (walk/keywordize-keys (json/read-string %q)))\n%s", name, string(b), script)
 	}
 	return fmt.Sprintf("gi.%s = %s; gi.%sPayload = gi.%s; gi.toolArgs = (gi.tool && gi.tool.arguments) || {};\n%s", name, string(b), name, name, script)
 }

@@ -238,7 +238,7 @@ SubmitPrompt(input)
 | `tool_call` (gate) | — | ❌ No pre-execution gate |
 | `tool_result` (mutate) | — | ❌ No result modification |
 | `tool_execution_start/end` | Store events | ✅ Emitted (store), ❌ Not callable |
-| `session_before_compact` | — | ❌ No compaction hook (no compaction yet) |
+| `session_before_compact` | Compaction threshold path | ✅ Emitted; hook may return `payload.summary` |
 | `resources_discover` | — | ❌ No resource injection |
 | `registerTool` | `toolDefs()` hardcoded | ❌ Tools are hardcoded, not registerable |
 | `setActiveTools` | — | ❌ No dynamic tool set |
@@ -350,6 +350,8 @@ The initial implementation now exists in the turn engine:
 - `internal/skills/discovery.go` — Pi-style workspace discovery for `.gi/skills/*/SKILL.md`, `.pi/skills/*/SKILL.md`, `.gi/tools/*.json`, and `.pi/tools/*.json`.
 - `internal/turn/skills_tools.go` — `skills` meta-tool and auto-registration of manifest-declared script tools into the same runtime registry as built-ins and script-registered tools.
 - `internal/turn/compaction.go` — Piclaw/Pi-style compaction thresholds, token estimation, `session_before_compact` override hook, `session_compact` notification hook, and default summary wrapping for compacted context.
+- `internal/turn/extensions.go` — startup loading for `.gi/extensions/*.js`, `.gi/extensions/*.joke`, `.pi/extensions/*.js`, and `.pi/extensions/*.joke`; this enables a Joker smart-compaction plugin to register `session_before_compact` without manual script execution.
+- `examples/joker-smart-compaction.joke` — runnable Joker extension example that returns a custom compaction summary from the hook payload.
 - `internal/turn/agent_loop.go` — hook call sites wired through the agent loop:
   - `before_agent_start`
   - `agent_start` / `agent_end`
