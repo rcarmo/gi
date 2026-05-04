@@ -189,6 +189,10 @@ func (e *Engine) ToolEntries() []RegisteredTool          { return e.tools.AllEnt
 
 func (e *Engine) toolDefs() []goai.Tool { return e.tools.Definitions() }
 
+func (e *Engine) ExecuteToolsMeta(args map[string]any) (string, error) {
+	return e.executeToolsTool(args)
+}
+
 // executeToolsTool handles the "tools" meta-tool: list, search, and inspect.
 func (e *Engine) executeToolsTool(args map[string]any) (string, error) {
 	name, _ := args["name"].(string)

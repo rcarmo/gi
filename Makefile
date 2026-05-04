@@ -19,7 +19,7 @@ TEST_WORKSPACE ?= $(TEST_DIR)/workspace
 TEST_RESULTS ?= test-results
 TUI_TEST_DIR ?= .gi-tui-test
 
-.PHONY: build-web build test vet bun-checks start stop restart status logs run clean test-instance-start test-instance-stop test-ux test-tui-smoke
+.PHONY: build-web build test vet bun-checks start stop restart status logs run clean test-instance-start test-instance-stop test-ux test-tui-smoke test-tui-gherkin
 
 build-web:
 	bun run build:web
@@ -125,3 +125,7 @@ test-ux: test-instance-start
 test-tui-smoke: build
 	chmod +x scripts/test-tui-smoke.sh
 	ARTIFACT_DIR=$(abspath $(TEST_RESULTS))/tui-smoke TEST_DIR=$(abspath $(TUI_TEST_DIR)) scripts/test-tui-smoke.sh
+
+test-tui-gherkin: build
+	chmod +x scripts/test-tui-gherkin.sh
+	ARTIFACT_DIR=$(abspath $(TEST_RESULTS))/tui-gherkin TEST_DIR=$(abspath $(TUI_TEST_DIR))-gherkin scripts/test-tui-gherkin.sh

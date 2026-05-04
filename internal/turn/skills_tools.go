@@ -13,6 +13,10 @@ import (
 	goai "github.com/rcarmo/go-ai"
 )
 
+func ExecuteSkillsMeta(workspaceRoot string, args map[string]any) (string, error) {
+	return executeSkillsTool(workspaceRoot, args)
+}
+
 func executeSkillsTool(workspaceRoot string, args map[string]any) (string, error) {
 	d, err := giskills.Discover(workspaceRoot)
 	if err != nil {

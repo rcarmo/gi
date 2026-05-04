@@ -315,6 +315,20 @@ func (c *chatTUI) handleCommand(text string) {
 		return
 	}
 	switch fields[0] {
+	case "/help":
+		c.transcript = append(c.transcript, c.helpLines()...)
+	case "/tools":
+		query := ""
+		if len(fields) > 1 {
+			query = strings.Join(fields[1:], " ")
+		}
+		c.transcript = append(c.transcript, c.toolLines(query)...)
+	case "/skills":
+		query := ""
+		if len(fields) > 1 {
+			query = strings.Join(fields[1:], " ")
+		}
+		c.transcript = append(c.transcript, c.skillLines(query)...)
 	case "/agents":
 		c.transcript = append(c.transcript, c.listAgentLines()...)
 	case "/fork":
@@ -375,7 +389,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.transcript = append(c.transcript, "sys: commands: /agents, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.transcript = append(c.transcript, "sys: commands: /help, /tools [query], /skills [query], /agents, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -384,6 +398,56 @@ func (c *chatTUI) handleCommand(text string) {
 	if c.app != nil {
 		c.app.MarkDirty()
 	}
+}
+
+func (c *chatTUI) helpLines() []string {
+	return []string{
+		"sys: gi TUI help",
+		"sys: keys: Enter send · Esc blur input · Ctrl-C/Ctrl-D quit · Up/Down history · PgUp/PgDn scroll · Home/End transcript",
+		"sys: commands: /help, /tools [query], /skills [query], /agents, /where",
+		"sys: sessions: /fork [@agentN], /switch @agent|session_id, /send @agent message",
+	}
+}
+
+func (c *chatTUI) toolLines(query string) []string {
+	args := map[string]any{"include_inactive": true}
+	if strings.TrimSpace(query) != "" {
+		args["query"] = strings.TrimSpace(query)
+	}
+	out, err := c.engine.ExecuteToolsMeta(args)
+	if err != nil {
+		return []string{fmt.Sprintf("error: %v", err)}
+	}
+	return prefixMultiline("tools", out)
+}
+
+func (c *chatTUI) skillLines(query string) []string {
+	args := map[string]any{}
+	if strings.TrimSpace(query) != "" {
+		args["query"] = strings.TrimSpace(query)
+	}
+	out, err := turn.ExecuteSkillsMeta(c.cfg.WorkspaceRoot, args)
+	if err != nil {
+		return []string{fmt.Sprintf("error: %v", err)}
+	}
+	return prefixMultiline("skills", out)
+}
+
+func prefixMultiline(prefix, text string) []string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return []string{prefix + ": (empty)"}
+	}
+	parts := strings.Split(text, "\n")
+	out := make([]string, 0, len(parts))
+	for i, line := range parts {
+		if i == 0 {
+			out = append(out, prefix+": "+line)
+		} else {
+			out = append(out, "  "+line)
+		}
+	}
+	return out
 }
 
 func (c *chatTUI) switchSession(sessionID string) {
@@ -519,7 +583,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 
 	inputLabel := gotui.New(
 		gotui.WithWidthPercent(100),
-		gotui.WithText("Input (click to focus, Esc to blur, Up/Down history, PgUp/PgDn scroll, /agents /fork /switch /send):"),
+		gotui.WithText("Input (click to focus, /help, /tools, /skills, /agents, /fork, /switch, /send; Esc blur, Up/Down history, PgUp/PgDn scroll):"),
 		gotui.WithTextStyle(gotui.NewStyle().Dim()),
 	)
 	root.AddChild(inputLabel)
