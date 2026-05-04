@@ -13,7 +13,7 @@ func TestExecuteToolsToolListAll(t *testing.T) {
 	if !strings.Contains(result, "tool(s):") {
 		t.Fatalf("expected tool count header, got: %q", result)
 	}
-	for _, name := range []string{"tools", "skills", "read", "write", "shell"} {
+	for _, name := range []string{"tools", "skills", "compact", "rtk", "read", "write", "shell"} {
 		if !strings.Contains(result, "- "+name+":") {
 			t.Fatalf("expected tool %q in listing, got: %q", name, result)
 		}

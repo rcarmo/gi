@@ -88,7 +88,7 @@ func TestToolsDiscoveryIncludesReadWriteShell(t *testing.T) {
 			}
 		}
 	}
-	for _, want := range []string{"tools", "skills", "script", "read", "write", "shell"} {
+	for _, want := range []string{"tools", "skills", "compact", "rtk", "script", "read", "write", "shell"} {
 		if !names[want] {
 			t.Fatalf("missing tool %q in /api/tools", want)
 		}

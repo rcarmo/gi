@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/rcarmo/gi/internal/connectivity"
+	"github.com/rcarmo/gi/internal/rtk"
 	"github.com/rcarmo/gi/internal/scripting"
 	"github.com/rcarmo/gi/internal/tools"
 	goai "github.com/rcarmo/go-ai"
@@ -240,6 +241,37 @@ func (e *Engine) registerDefaultTools() {
 			tokens := estimateMessagesTokens(aiMsgs)
 			prep := prepareCompaction(aiMsgs, tokens, settings.KeepRecentTokens, settings.ReserveTokens, settings.ThresholdTokens, settings.Strategy)
 			b, _ := json.MarshalIndent(map[string]any{"enabled": settings.Enabled, "context_tokens": tokens, "threshold_tokens": settings.ThresholdTokens, "should_compact": settings.Enabled && tokens > settings.ThresholdTokens, "preparation": prep}, "", "  ")
+			return string(b), nil
+		},
+	})
+	must(RegisteredTool{
+		Name:        "rtk",
+		Description: "Run a shell command and return RTK-style compact output using gi's native Go filters for git/search/listing/test output.",
+		Parameters:  json.RawMessage(`{"type":"object","properties":{"command":{"type":"string","description":"Shell command to execute and compact"},"filter_only":{"type":"boolean","description":"Filter the supplied output instead of executing"},"output":{"type":"string","description":"Raw output to filter when filter_only is true"}},"required":["command"]}`),
+		Source:      "builtin",
+		Kind:        "mixed",
+		Weight:      "standard",
+		Activation:  "on-demand",
+		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+			command, _ := call.Arguments["command"].(string)
+			if command == "" {
+				return "", fmt.Errorf("rtk: command is required")
+			}
+			filterOnly, _ := call.Arguments["filter_only"].(bool)
+			output, _ := call.Arguments["output"].(string)
+			var err error
+			if !filterOnly {
+				cmd := exec.CommandContext(ctx, "sh", "-lc", command)
+				cmd.Dir = rt.WorkspaceRoot
+				out, runErr := cmd.CombinedOutput()
+				output = string(out)
+				err = runErr
+			}
+			res := rtk.Filter(command, output)
+			b, _ := json.MarshalIndent(res, "", "  ")
+			if err != nil {
+				return string(b), fmt.Errorf("exit: %w", err)
+			}
 			return string(b), nil
 		},
 	})
