@@ -259,6 +259,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 
 			if toolErr != nil {
 				log.Printf("tool [%s] error: %v", call.Name, toolErr)
+				r.engine.broadcast(sessionID, map[string]any{"type": "tool_failed", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "error": toolErr.Error()})
 				_ = s.AppendTurnEvent(ctx, turnID, sessionID, "tool.failed", map[string]any{
 					"phase": "tool", "tool": call.Name, "checkpoint": true,
 					"tool_call_id": call.ID, "error": toolErr.Error(),
@@ -287,6 +288,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 				if len(displayResult) > 100000 {
 					displayResult = displayResult[:100000] + "\n... (truncated)"
 				}
+				r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(toolResult)})
 				_ = s.AppendTurnEvent(ctx, turnID, sessionID, "tool.finished", map[string]any{
 					"phase": "tool", "tool": call.Name, "checkpoint": true,
 					"tool_call_id": call.ID, "output_length": len(toolResult),

@@ -173,6 +173,46 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 				c.app.MarkDirty()
 			}
 		}
+	case "agent_thought_delta":
+		c.status = "Thinking…"
+		if c.app != nil {
+			c.app.MarkDirty()
+		}
+	case "tool_finished":
+		toolName, _ := ev["tool"].(string)
+		if toolName != "" {
+			c.status = fmt.Sprintf("Tool finished: %s", toolName)
+		}
+		if c.app != nil {
+			c.app.MarkDirty()
+		}
+	case "tool_failed":
+		toolName, _ := ev["tool"].(string)
+		errText, _ := ev["error"].(string)
+		line := fmt.Sprintf("sys: tool failed: %s", toolName)
+		if errText != "" {
+			line = fmt.Sprintf("%s: %s", line, truncate(errText, 120))
+		}
+		c.transcript = append(c.transcript, line)
+		c.status = fmt.Sprintf("Tool failed: %s", toolName)
+		if c.stickToBottom {
+			c.scrollTranscriptToBottom()
+		}
+		if c.app != nil {
+			c.app.MarkDirty()
+		}
+	case "compaction":
+		before := intFromEvent(ev, "messages_before")
+		after := intFromEvent(ev, "messages_after")
+		tokens := intFromEvent(ev, "tokens_before")
+		c.transcript = append(c.transcript, fmt.Sprintf("sys: compacted context: messages %d→%d, tokens_before=%d", before, after, tokens))
+		c.status = "Compacted context"
+		if c.stickToBottom {
+			c.scrollTranscriptToBottom()
+		}
+		if c.app != nil {
+			c.app.MarkDirty()
+		}
 	case "agent_status":
 		title, _ := ev["title"].(string)
 		if title != "" {
@@ -181,6 +221,33 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		}
 		c.app.MarkDirty()
+	case "error":
+		msg, _ := ev["error"].(string)
+		if msg == "" {
+			msg, _ = ev["message"].(string)
+		}
+		if msg != "" {
+			c.transcript = append(c.transcript, "error: "+truncate(msg, 160))
+			c.status = "Error"
+			if c.app != nil {
+				c.app.MarkDirty()
+			}
+		}
+	}
+}
+
+func intFromEvent(ev map[string]any, key string) int {
+	switch v := ev[key].(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	case float32:
+		return int(v)
+	default:
+		return 0
 	}
 }
 

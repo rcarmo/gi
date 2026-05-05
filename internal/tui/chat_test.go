@@ -101,3 +101,23 @@ func TestResolveSessionRefByAgentID(t *testing.T) {
 		t.Fatalf("unexpected session: %#v", sess)
 	}
 }
+
+func TestHandleEventStatusRendering(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true}
+	c.handleEvent(map[string]any{"type": "agent_thought_delta"})
+	if c.status != "Thinking…" {
+		t.Fatalf("thinking status = %q", c.status)
+	}
+	c.handleEvent(map[string]any{"type": "tool_finished", "tool": "read"})
+	if c.status != "Tool finished: read" {
+		t.Fatalf("tool finished status = %q", c.status)
+	}
+	c.handleEvent(map[string]any{"type": "tool_failed", "tool": "shell", "error": "boom"})
+	if c.status != "Tool failed: shell" || len(c.transcript) == 0 || c.transcript[len(c.transcript)-1] != "sys: tool failed: shell: boom" {
+		t.Fatalf("tool failed status/transcript = %q %#v", c.status, c.transcript)
+	}
+	c.handleEvent(map[string]any{"type": "compaction", "messages_before": 10, "messages_after": 4, "tokens_before": 1234})
+	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys: compacted context: messages 10→4, tokens_before=1234" {
+		t.Fatalf("compaction status/transcript = %q %#v", c.status, c.transcript)
+	}
+}

@@ -63,7 +63,9 @@ func (r *sessionRunner) maybeCompactContext(ctx context.Context, sessionID, turn
 	compacted := []goai.Message{goai.UserMessage(wrapped)}
 	compacted = append(compacted, convCtx.Messages[len(convCtx.Messages)-prep.RecentMessages:]...)
 	convCtx.Messages = compacted
-	_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookSessionCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: map[string]any{"reason": "threshold", "summary": summary, "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(compacted)}})
+	compactPayload := map[string]any{"reason": "threshold", "summary": summary, "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(compacted)}
+	r.engine.broadcast(sessionID, map[string]any{"type": "compaction", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(compacted)})
+	_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookSessionCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: compactPayload})
 	_ = r.store.AddMessage(ctx, "msg_"+turnID+"_compaction", sessionID, "assistant", summary, map[string]any{"kind": "compaction", "turn_id": turnID, "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(compacted), "from_hook": resp.Payload != nil && resp.Payload["summary"] != nil})
 }
 
