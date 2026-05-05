@@ -133,7 +133,20 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	turnID := store.NowID("turn")
 	runner := e.runner(in.SessionID)
 	runner.mu.Lock()
-	queued := runner.busy
+	defer runner.mu.Unlock()
+	queued := false
+	if _, _, err := e.store.GetSessionActiveTurn(ctx, in.SessionID); err == nil {
+		queued = true
+	} else if err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	if !queued {
+		if count, err := e.store.CountQueuedTurns(ctx, in.SessionID); err == nil {
+			queued = count > 0
+		} else {
+			return nil, err
+		}
+	}
 	status := "running"
 	if queued {
 		status = "queued"
@@ -146,7 +159,6 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		metadata[k] = v
 	}
 	if _, err := e.store.CreateTurnWithStatus(ctx, turnID, in.SessionID, status, in.Prompt, metadata); err != nil {
-		runner.mu.Unlock()
 		return nil, err
 	}
 	if err := e.recordRouteDecision(ctx, in.SessionID, turnID, metadata); err != nil {
@@ -163,7 +175,6 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		submittedPayload["route_matched_by"] = routeMatchedBy
 	}
 	if err := e.store.AppendTurnEvent(ctx, turnID, in.SessionID, "turn.submitted", submittedPayload); err != nil {
-		runner.mu.Unlock()
 		return nil, err
 	}
 	if queued {
@@ -174,14 +185,13 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 			}
 		}
 		if err := e.store.AddMessage(ctx, store.NowID("msg"), in.SessionID, "system", fmt.Sprintf("Queued prompt: %s", in.Prompt), queuePayload); err != nil {
-			runner.mu.Unlock()
 			return nil, err
 		}
 	} else {
-		runner.busy = true
-		go runner.runTurn(e.store, turnID)
+		if err := e.launchTurnLocked(ctx, runner, in.SessionID, turnID); err != nil {
+			return nil, err
+		}
 	}
-	runner.mu.Unlock()
 	_ = e.store.SyncSessionQueueCount(ctx, in.SessionID)
 	_ = e.store.TouchSessionState(ctx, in.SessionID, map[string]any{"model": in.Model})
 	return &SubmitResult{TurnID: turnID, SessionID: in.SessionID, Status: status, Queued: queued}, nil
@@ -294,6 +304,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		if err := e.store.UpdateTurnStatusAndPhase(ctx, turnID, "cancelled", "aborted"); err != nil {
 			return err
 		}
+		_ = e.store.SyncSessionQueueCount(ctx, sessionID)
 		return e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "queued": true})
 	}
 	return fmt.Errorf("turn not cancellable")
@@ -304,6 +315,22 @@ func (e *Engine) runner(sessionID string) *sessionRunner {
 	return v.(*sessionRunner)
 }
 
+func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, sessionID, turnID string) error {
+	claimed, err := e.store.ClaimSessionActiveTurn(ctx, sessionID, turnID, "runner", turnID)
+	if err != nil {
+		return err
+	}
+	if !claimed {
+		return fmt.Errorf("session already has an active turn: %s", sessionID)
+	}
+	_ = e.store.MarkTurnClaimed(ctx, turnID, "runner")
+	_ = e.store.UpdateTurnStatusAndPhase(ctx, turnID, "running", "setup")
+	_ = e.store.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "status": "running"})
+	runner.busy = true
+	go runner.runTurn(e.store, turnID)
+	return nil
+}
+
 func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	claimToken := turnID
@@ -312,17 +339,21 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 	r.mu.Unlock()
 	defer func() {
 		cancel()
-		_ = s.ReleaseSessionActiveTurn(context.Background(), turnIDSession(s, turnID), claimToken)
+		sessionID := turnIDSession(s, turnID)
+		_ = s.ReleaseSessionActiveTurn(context.Background(), sessionID, claimToken)
+		_ = s.SyncSessionQueueCount(context.Background(), sessionID)
 		r.mu.Lock()
+		defer r.mu.Unlock()
 		r.current = nil
-		next, _ := s.GetNextQueuedTurn(context.Background(), turnIDSession(s, turnID))
+		next, _ := s.GetNextQueuedTurn(context.Background(), sessionID)
 		if next != nil {
-			_ = s.UpdateTurnStatus(context.Background(), next.ID, "running")
-			go r.runTurn(s, next.ID)
+			if err := r.engine.launchTurnLocked(context.Background(), r, sessionID, next.ID); err != nil {
+				log.Printf("turn coordination: launch queued turn failed: %v", err)
+				r.busy = false
+			}
 		} else {
 			r.busy = false
 		}
-		r.mu.Unlock()
 	}()
 
 	turnRec, err := s.GetTurn(ctx, turnID)
@@ -330,14 +361,6 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 		return
 	}
 	sessionID := turnRec.SessionID
-	claimed, err := s.ClaimSessionActiveTurn(ctx, sessionID, turnID, "runner", claimToken)
-	if err != nil {
-		log.Printf("turn coordination: claim failed: %v", err)
-	} else if !claimed {
-		log.Printf("turn coordination: session %s already claimed when starting turn %s", sessionID, turnID)
-	}
-	_ = s.MarkTurnClaimed(ctx, turnID, "runner")
-	_ = s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "setup")
 	prompt := turnRec.Prompt
 	intent := stringValue(turnRec.Metadata["intent"], "prompt")
 	model := stringValue(turnRec.Metadata["model"], "bootstrap")

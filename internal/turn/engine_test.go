@@ -50,6 +50,13 @@ func TestSubmitPromptQueuesSecondTurn(t *testing.T) {
 	if got := sess.State["queue_count"]; got != float64(1) && got != 1 {
 		t.Fatalf("expected queue_count=1 while queued, got %#v", got)
 	}
+	activeTurnID, _, err := s.GetSessionActiveTurn(ctx, "session_1")
+	if err != nil {
+		t.Fatalf("get active turn: %v", err)
+	}
+	if activeTurnID != first.TurnID {
+		t.Fatalf("expected active turn %s, got %s", first.TurnID, activeTurnID)
+	}
 	queuedTurn, err := s.GetTurn(ctx, second.TurnID)
 	if err != nil {
 		t.Fatalf("get queued turn: %v", err)
@@ -78,6 +85,9 @@ func TestSubmitPromptQueuesSecondTurn(t *testing.T) {
 	}
 	if got := sess.State["queue_count"]; got != float64(0) && got != 0 {
 		t.Fatalf("expected queue_count=0 after completion, got %#v", got)
+	}
+	if _, _, err := s.GetSessionActiveTurn(ctx, "session_1"); err == nil {
+		t.Fatal("expected no active turn after completion")
 	}
 }
 
