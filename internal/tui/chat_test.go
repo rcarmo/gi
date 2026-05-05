@@ -143,6 +143,22 @@ func TestHandleEventStatusRendering(t *testing.T) {
 	}
 }
 
+func TestSettingsLinesExposeRuntimeState(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	engine := turn.New(s)
+	c := &chatTUI{store: s, engine: engine, cfg: config.RuntimeConfig{WorkspaceRoot: "/tmp/ws", DefaultProvider: "test", DefaultModel: "m", DefaultThinkingLevel: "low", MaxIterations: 64}}
+	lines := strings.Join(c.settingsLines(), "\n")
+	for _, want := range []string{"settings: runtime:", "provider=test model=m thinking=low", "workspace=/tmp/ws", "tools active="} {
+		if !strings.Contains(lines, want) {
+			t.Fatalf("settings missing %q:\n%s", want, lines)
+		}
+	}
+}
+
 func TestRenderMessageLineFoldsToolAndCompaction(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
 	toolLine := c.renderMessageLine(store.Message{Role: "tool_result", Content: "long tool output", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": false}})

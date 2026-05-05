@@ -413,6 +413,10 @@ func (c *chatTUI) handleCommand(text string) {
 		c.transcript = append(c.transcript, c.thinkingCommand(fields)...)
 	case "/compact":
 		c.transcript = append(c.transcript, c.compactLines()...)
+	case "/settings", "/config":
+		c.transcript = append(c.transcript, c.settingsLines()...)
+	case "/approvals":
+		c.transcript = append(c.transcript, "approvals: no approval gates are configured in gi yet")
 	case "/cancel":
 		c.transcript = append(c.transcript, c.cancelCommand())
 	case "/agents":
@@ -479,7 +483,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.transcript = append(c.transcript, "sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.transcript = append(c.transcript, "sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -494,7 +498,7 @@ func (c *chatTUI) helpLines() []string {
 	return []string{
 		"sys: gi TUI help",
 		"sys: keys: Enter send · Esc blur input · Ctrl-C/Ctrl-D quit · Up/Down history · PgUp/PgDn scroll · Home/End transcript",
-		"sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /tree, /plugins, /where",
+		"sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /settings, /approvals, /cancel, /agents, /tree, /plugins, /where",
 		"sys: sessions: /fork [@agentN], /switch @agent|session_id, /send @agent message",
 	}
 }
@@ -532,6 +536,17 @@ func (c *chatTUI) compactLines() []string {
 	return []string{
 		fmt.Sprintf("compact: enabled=%v threshold_tokens=%d keep_recent_tokens=%d reserve_tokens=%d strategy=%s", settings.Enabled, settings.ThresholdTokens, settings.KeepRecentTokens, settings.ReserveTokens, settings.Strategy),
 		fmt.Sprintf("compact: messages=%d turns=%d; use the agent `compact` tool for full JSON preparation", len(messages), len(turns)),
+	}
+}
+
+func (c *chatTUI) settingsLines() []string {
+	return []string{
+		"settings: runtime:",
+		fmt.Sprintf("- provider=%s model=%s thinking=%s max_iterations=%d", c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.DefaultThinkingLevel, c.cfg.MaxIterations),
+		fmt.Sprintf("- workspace=%s", c.cfg.WorkspaceRoot),
+		fmt.Sprintf("- compaction enabled=%v threshold_tokens=%d keep_recent_tokens=%d reserve_tokens=%d", c.cfg.Compaction.Enabled, c.cfg.Compaction.ThresholdTokens, c.cfg.Compaction.KeepRecentTokens, c.cfg.Compaction.ReserveTokens),
+		fmt.Sprintf("- peering enabled=%v hostname=%s auth_key_env=%s auth_key_keychain=%s", c.cfg.Peering.Enabled, c.cfg.Peering.Hostname, c.cfg.Peering.AuthKeyEnv, c.cfg.Peering.AuthKeyKeychain),
+		fmt.Sprintf("- tools active=%s", strings.Join(c.engine.ActiveTools(), ", ")),
 	}
 }
 
@@ -854,7 +869,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 }
 
 func (c *chatTUI) footerText() string {
-	return "Hints: /help · /tools active|activate|reset · /skills · /model · /thinking · /compact · /cancel · /agents · /tree · /plugins · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
+	return "Hints: /help · /tools active|activate|reset · /skills · /model · /thinking · /compact · /settings · /approvals · /cancel · /agents · /tree · /plugins · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
 }
 
 func (c *chatTUI) loadTranscript() []string {
