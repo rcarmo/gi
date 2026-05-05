@@ -60,6 +60,17 @@ func TestLoadFallsBackToGiDefaultsWhenNoPiSettingsExist(t *testing.T) {
 	}
 }
 
+func TestPersistScrollbackLimitUpdatesPiSettings(t *testing.T) {
+	root := t.TempDir()
+	if err := PersistScrollbackLimit(root, 250); err != nil {
+		t.Fatal(err)
+	}
+	cfg := Load(root)
+	if cfg.ScrollbackLimit != 250 {
+		t.Fatalf("unexpected scrollback limit: %#v", cfg)
+	}
+}
+
 func TestLoadWrapsAgentsInstructionsInRuntimePrompt(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("Project rule: keep APIs stable."), 0o644); err != nil {

@@ -26,6 +26,7 @@ type RuntimeConfig struct {
 	Session              routing.SessionConfig      `json:"session"`
 	Routing              routing.ModelRoutingConfig `json:"routing"`
 	MaxIterations        int                        `json:"max_iterations"`
+	ScrollbackLimit      int                        `json:"scrollback_limit"`
 	Compaction           CompactionSettings         `json:"compaction"`
 	Peering              PeeringSettings            `json:"peering"`
 	SystemPrompt         string                     `json:"-"`
@@ -67,6 +68,7 @@ type piSettings struct {
 	DefaultThinkingLevel string                     `json:"defaultThinkingLevel"`
 	EnabledModels        []string                   `json:"enabledModels"`
 	MaxIterations        int                        `json:"maxIterations"`
+	TUIScrollbackLimit   int                        `json:"tuiScrollbackLimit"`
 	Compaction           CompactionSettings         `json:"compaction"`
 	Peering              PeeringSettings            `json:"peering"`
 	Agents               routing.AgentsConfig       `json:"agents"`
@@ -91,6 +93,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.DefaultThinkingLevel = ps.DefaultThinkingLevel
 		cfg.EnabledModels = append([]string(nil), ps.EnabledModels...)
 		cfg.MaxIterations = ps.MaxIterations
+		cfg.ScrollbackLimit = ps.TUIScrollbackLimit
 		cfg.Compaction = ps.Compaction
 		cfg.Peering = ps.Peering
 		cfg.Agents = ps.Agents
@@ -123,6 +126,9 @@ func Load(workspaceRoot string) RuntimeConfig {
 	}
 	if cfg.MaxIterations <= 0 {
 		cfg.MaxIterations = 64
+	}
+	if cfg.ScrollbackLimit <= 0 {
+		cfg.ScrollbackLimit = 1000
 	}
 	applyCompactionDefaults(&cfg.Compaction)
 	if len(cfg.Agents.List) == 0 {
@@ -167,6 +173,31 @@ func PersistModelSelection(workspaceRoot, provider, model, thinking string, enab
 	if len(models) > 0 {
 		settings["enabledModels"] = models
 	}
+	blob, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return err
+	}
+	blob = append(blob, '\n')
+	return os.WriteFile(settingsPath, blob, 0o644)
+}
+
+func PersistScrollbackLimit(workspaceRoot string, limit int) error {
+	if strings.TrimSpace(workspaceRoot) == "" {
+		return errors.New("workspace root is required")
+	}
+	if limit <= 0 {
+		return errors.New("scrollback limit must be > 0")
+	}
+	piDir := filepath.Join(workspaceRoot, ".pi")
+	if err := os.MkdirAll(piDir, 0o755); err != nil {
+		return err
+	}
+	settingsPath := filepath.Join(piDir, "settings.json")
+	settings := map[string]any{}
+	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
+		_ = json.Unmarshal(data, &settings)
+	}
+	settings["tuiScrollbackLimit"] = limit
 	blob, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return err

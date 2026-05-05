@@ -5,7 +5,6 @@ Feature: TUI assistant basics
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
     Then the screen should contain "Session:"
-    And the screen should contain "Input:"
     And the screen should contain "Hints: /help"
     When I type "/help" and press Enter
     Then the screen should contain "gi TUI help"

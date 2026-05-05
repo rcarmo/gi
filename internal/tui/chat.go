@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -78,7 +79,7 @@ type chatTUI struct {
 	inputActive      bool
 	eventCh          chan map[string]any
 	subscribedCh     chan map[string]any
-	input            *gotui.Input
+	input            *multilineInput
 	inputRegion      *gotui.Element
 	transcriptRegion *gotui.Element
 	transcriptRef    *gotui.Ref
@@ -92,13 +93,7 @@ func (c *chatTUI) ensureInput() {
 	if c.input != nil {
 		return
 	}
-	c.input = gotui.NewInput(
-		gotui.WithInputPlaceholder("Send a message…"),
-		gotui.WithInputAutoFocus(true),
-		gotui.WithInputWidth(80),
-		gotui.WithInputBorder(gotui.BorderRounded),
-		gotui.WithInputOnSubmit(c.onSubmit),
-	)
+	c.input = newMultilineInput(80, "Send a message…", c.onSubmit, nil)
 }
 
 func (c *chatTUI) Init() func() {
@@ -205,7 +200,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		if errText != "" {
 			line = fmt.Sprintf("%s: %s", line, truncate(errText, 120))
 		}
-		c.transcript = append(c.transcript, line)
+		c.appendTranscript(line)
 		c.status = fmt.Sprintf("Tool failed: %s", toolName)
 		if c.stickToBottom {
 			c.scrollTranscriptToBottom()
@@ -217,7 +212,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		before := intFromEvent(ev, "messages_before")
 		after := intFromEvent(ev, "messages_after")
 		tokens := intFromEvent(ev, "tokens_before")
-		c.transcript = append(c.transcript, fmt.Sprintf("sys: compacted context: messages %d→%d, tokens_before=%d", before, after, tokens))
+		c.appendTranscript(fmt.Sprintf("sys: compacted context: messages %d→%d, tokens_before=%d", before, after, tokens))
 		c.status = "Compacted context"
 		if c.stickToBottom {
 			c.scrollTranscriptToBottom()
@@ -240,7 +235,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		}
 		if msg != "" {
 			c.clearDraftTranscriptLine()
-			c.transcript = append(c.transcript, "error: "+truncate(msg, 160))
+			c.appendTranscript("error: " + truncate(msg, 160))
 			c.status = "Error"
 			if c.app != nil {
 				c.app.MarkDirty()
@@ -255,7 +250,7 @@ func (c *chatTUI) updateDraftTranscriptLine() {
 		c.transcript[c.draftLineIndex] = line
 		return
 	}
-	c.transcript = append(c.transcript, line)
+	c.appendTranscript(line)
 	c.draftLineIndex = len(c.transcript) - 1
 }
 
@@ -265,7 +260,7 @@ func (c *chatTUI) finalizeDraftTranscriptLine(text string) {
 		c.transcript[c.draftLineIndex] = line
 		return
 	}
-	c.transcript = append(c.transcript, line)
+	c.appendTranscript(line)
 }
 
 func (c *chatTUI) clearDraftTranscriptLine() {
@@ -406,7 +401,7 @@ func (c *chatTUI) onSubmit(text string) {
 	c.status = "sending…"
 	c.draft = ""
 	c.draftLineIndex = -1
-	c.transcript = append(c.transcript, fmt.Sprintf("you: %s", text))
+	c.appendTranscript(fmt.Sprintf("you: %s", text))
 	c.stickToBottom = true
 	c.scrollTranscriptToBottom()
 	c.app.MarkDirty()
@@ -421,7 +416,7 @@ func (c *chatTUI) onSubmit(text string) {
 		if err != nil {
 			c.app.QueueUpdate(func() {
 				c.clearDraftTranscriptLine()
-				c.transcript = append(c.transcript, fmt.Sprintf("error: %v", err))
+				c.appendTranscript(fmt.Sprintf("error: %v", err))
 				c.running = false
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 				c.app.MarkDirty()
@@ -431,7 +426,7 @@ func (c *chatTUI) onSubmit(text string) {
 		if result != nil && result.Routed && result.SessionID != c.sessionID {
 			c.app.QueueUpdate(func() {
 				c.clearDraftTranscriptLine()
-				c.transcript = append(c.transcript, fmt.Sprintf("sys: routed to @%s (%s)", result.TargetAgentID, result.SessionID))
+				c.appendTranscript(fmt.Sprintf("sys: routed to @%s (%s)", result.TargetAgentID, result.SessionID))
 				c.running = false
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 				c.app.MarkDirty()
@@ -461,13 +456,15 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/thinking":
 		c.transcript = append(c.transcript, c.thinkingCommand(fields)...)
 	case "/compact":
-		c.transcript = append(c.transcript, c.compactLines()...)
+		c.appendTranscript(c.compactLines()...)
+	case "/scrollback":
+		c.appendTranscript(c.scrollbackCommand(fields)...)
 	case "/settings", "/config":
-		c.transcript = append(c.transcript, c.settingsLines()...)
+		c.appendTranscript(c.settingsLines()...)
 	case "/approvals":
-		c.transcript = append(c.transcript, "approvals: no approval gates are configured in gi yet")
+		c.appendTranscript("approvals: no approval gates are configured in gi yet")
 	case "/cancel":
-		c.transcript = append(c.transcript, c.cancelCommand())
+		c.appendTranscript(c.cancelCommand())
 	case "/agents":
 		c.transcript = append(c.transcript, c.listAgentLines()...)
 	case "/plugins", "/extensions":
@@ -532,7 +529,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.transcript = append(c.transcript, "sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.appendTranscript("sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -554,7 +551,7 @@ func (c *chatTUI) helpLines() []string {
 	return []string{
 		"sys: gi TUI help",
 		"sys: keys: Enter send · Esc blur input · Ctrl-C/Ctrl-D quit · Up/Down history · PgUp/PgDn scroll · Home/End transcript",
-		"sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /settings, /approvals, /cancel, /agents, /tree, /plugins, /where",
+		"sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /where",
 		"sys: sessions: /fork [@agentN], /switch @agent|session_id, /send @agent message",
 	}
 }
@@ -592,6 +589,37 @@ func (c *chatTUI) thinkingCommand(fields []string) []string {
 	return []string{fmt.Sprintf("sys: thinking set to %s", level)}
 }
 
+func (c *chatTUI) currentScrollbackLimit() int {
+	if c.cfg.ScrollbackLimit > 0 {
+		return c.cfg.ScrollbackLimit
+	}
+	return 1000
+}
+
+func (c *chatTUI) pruneTranscript(lines []string) []string {
+	limit := c.currentScrollbackLimit()
+	if limit <= 0 || len(lines) <= limit {
+		return lines
+	}
+	trimmed := append([]string(nil), lines[len(lines)-limit:]...)
+	if c.draftLineIndex >= 0 {
+		drop := len(lines) - len(trimmed)
+		c.draftLineIndex -= drop
+		if c.draftLineIndex < 0 {
+			c.draftLineIndex = -1
+		}
+	}
+	return trimmed
+}
+
+func (c *chatTUI) appendTranscript(lines ...string) {
+	if len(lines) == 0 {
+		return
+	}
+	c.transcript = append(c.transcript, lines...)
+	c.transcript = c.pruneTranscript(c.transcript)
+}
+
 func (c *chatTUI) compactLines() []string {
 	messages, _ := c.store.ListMessages(context.Background(), c.sessionID)
 	turns, _ := c.store.ListTurns(context.Background(), c.sessionID)
@@ -606,11 +634,26 @@ func (c *chatTUI) settingsLines() []string {
 	return []string{
 		"settings: runtime:",
 		fmt.Sprintf("- provider=%s model=%s thinking=%s max_iterations=%d", c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.DefaultThinkingLevel, c.cfg.MaxIterations),
+		fmt.Sprintf("- scrollback_limit=%d", c.currentScrollbackLimit()),
 		fmt.Sprintf("- workspace=%s", c.cfg.WorkspaceRoot),
 		fmt.Sprintf("- compaction enabled=%v threshold_tokens=%d keep_recent_tokens=%d reserve_tokens=%d", c.cfg.Compaction.Enabled, c.cfg.Compaction.ThresholdTokens, c.cfg.Compaction.KeepRecentTokens, c.cfg.Compaction.ReserveTokens),
 		fmt.Sprintf("- peering enabled=%v hostname=%s auth_key_env=%s auth_key_keychain=%s", c.cfg.Peering.Enabled, c.cfg.Peering.Hostname, c.cfg.Peering.AuthKeyEnv, c.cfg.Peering.AuthKeyKeychain),
 		fmt.Sprintf("- tools active=%s", strings.Join(c.engine.ActiveTools(), ", ")),
 	}
+}
+
+func (c *chatTUI) scrollbackCommand(fields []string) []string {
+	if len(fields) == 1 {
+		return []string{fmt.Sprintf("sys: scrollback limit: %d", c.currentScrollbackLimit())}
+	}
+	limit, err := strconv.Atoi(strings.TrimSpace(fields[1]))
+	if err != nil || limit <= 0 {
+		return []string{"sys: usage /scrollback <positive-limit>"}
+	}
+	c.cfg.ScrollbackLimit = limit
+	c.transcript = c.pruneTranscript(c.transcript)
+	_ = config.PersistScrollbackLimit(c.cfg.WorkspaceRoot, limit)
+	return []string{fmt.Sprintf("sys: scrollback limit set to %d", limit)}
 }
 
 func (c *chatTUI) cancelCommand() string {
@@ -910,17 +953,24 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	}
 	root.AddChild(transcript)
 
-	inputLabel := gotui.New(
+	inputTopSep := gotui.New(
 		gotui.WithWidthPercent(100),
-		gotui.WithText("Input:"),
+		gotui.WithText("─────────────────────────────────────────────────────────────────────────────────"),
 		gotui.WithTextStyle(gotui.NewStyle().Dim()),
 	)
-	root.AddChild(inputLabel)
+	root.AddChild(inputTopSep)
 
 	c.ensureInput()
 	inputEl := app.MountPersistent(c, 0, func() gotui.Component { return c.input })
 	c.inputRegion = inputEl
 	root.AddChild(inputEl)
+
+	inputBottomSep := gotui.New(
+		gotui.WithWidthPercent(100),
+		gotui.WithText("─────────────────────────────────────────────────────────────────────────────────"),
+		gotui.WithTextStyle(gotui.NewStyle().Dim()),
+	)
+	root.AddChild(inputBottomSep)
 
 	footer := gotui.New(
 		gotui.WithWidthPercent(100),
@@ -933,7 +983,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 }
 
 func (c *chatTUI) footerText() string {
-	return "Hints: /help · /tools active|activate|reset · /skills · /model · /thinking · /compact · /settings · /approvals · /cancel · /agents · /tree · /plugins · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
+	return "Hints: /help · /tools active|activate|reset · /skills · /model · /thinking · /compact · /scrollback · /settings · /approvals · /cancel · /agents · /tree · /plugins · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
 }
 
 func (c *chatTUI) loadTranscript() []string {
@@ -948,7 +998,7 @@ func (c *chatTUI) loadTranscript() []string {
 	for _, m := range msgs {
 		out = append(out, c.renderMessageLine(m))
 	}
-	return out
+	return c.pruneTranscript(out)
 }
 
 func (c *chatTUI) renderMessageLine(m store.Message) string {
@@ -1058,6 +1108,7 @@ func (c *chatTUI) visibleTranscript() []string {
 	if c.draftLineIndex >= 0 || len(c.transcript) > len(lines) {
 		lines = append([]string(nil), c.transcript...)
 	}
+	lines = c.pruneTranscript(lines)
 	if len(lines) == 0 {
 		return []string{"(no messages yet)"}
 	}

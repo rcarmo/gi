@@ -166,7 +166,7 @@ func TestOnSubmitRequiresModelSelectionBeforeFirstPrompt(t *testing.T) {
 	}
 	defer s.Close()
 	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_1", cfg: config.RuntimeConfig{AssistantName: "Neo"}, draftLineIndex: -1}
-	c.input = gotui.NewInput()
+	c.input = newMultilineInput(80, "", c.onSubmit, nil)
 	c.onSubmit("hello")
 	if c.running {
 		t.Fatal("expected prompt submission to be blocked without a model")
@@ -217,6 +217,27 @@ func TestModelCommandPersistsSelection(t *testing.T) {
 	}
 }
 
+func TestAppendTranscriptPrunesToScrollbackLimit(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{ScrollbackLimit: 3}}
+	c.appendTranscript("1", "2", "3", "4")
+	if got := strings.Join(c.transcript, ","); got != "2,3,4" {
+		t.Fatalf("unexpected pruned transcript: %s", got)
+	}
+}
+
+func TestScrollbackCommandPersistsLimit(t *testing.T) {
+	root := t.TempDir()
+	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: root, ScrollbackLimit: 1000}}
+	lines := c.scrollbackCommand([]string{"/scrollback", "250"})
+	if len(lines) == 0 || !strings.Contains(lines[0], "250") {
+		t.Fatalf("unexpected scrollback output: %#v", lines)
+	}
+	cfg := config.Load(root)
+	if cfg.ScrollbackLimit != 250 {
+		t.Fatalf("unexpected persisted scrollback limit: %#v", cfg)
+	}
+}
+
 func TestSettingsLinesExposeRuntimeState(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
@@ -226,7 +247,7 @@ func TestSettingsLinesExposeRuntimeState(t *testing.T) {
 	engine := turn.New(s)
 	c := &chatTUI{store: s, engine: engine, cfg: config.RuntimeConfig{WorkspaceRoot: "/tmp/ws", DefaultProvider: "test", DefaultModel: "m", DefaultThinkingLevel: "low", MaxIterations: 64}}
 	lines := strings.Join(c.settingsLines(), "\n")
-	for _, want := range []string{"settings: runtime:", "provider=test model=m thinking=low", "workspace=/tmp/ws", "tools active="} {
+	for _, want := range []string{"settings: runtime:", "provider=test model=m thinking=low", "scrollback_limit=1000", "workspace=/tmp/ws", "tools active="} {
 		if !strings.Contains(lines, want) {
 			t.Fatalf("settings missing %q:\n%s", want, lines)
 		}
@@ -242,6 +263,15 @@ func TestRenderMessageLineFoldsToolAndCompaction(t *testing.T) {
 	compactionLine := c.renderMessageLine(store.Message{Role: "assistant", Content: "summary", Payload: map[string]any{"kind": "compaction", "tokens_before": 1200}})
 	if compactionLine != "compact: summary (tokens_before=1200)" {
 		t.Fatalf("compaction line = %q", compactionLine)
+	}
+}
+
+func TestMultilineInputExpandsForWrappedText(t *testing.T) {
+	inp := newMultilineInput(10, "", nil, nil)
+	inp.SetText("1234567890123456789012345")
+	el := inp.Render(nil)
+	if got := el.HeightForWidth(10); got < 3 {
+		t.Fatalf("expected expanded input height, got %d", got)
 	}
 }
 

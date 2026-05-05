@@ -8,6 +8,9 @@ Feature: TUI settings and approval visibility
     When I type "/settings" and press Enter
     Then the screen should contain "settings: runtime:"
     And the screen should contain "provider=test"
+    And the screen should contain "scrollback_limit="
     And the screen should contain "compaction enabled"
+    When I type "/scrollback 250" and press Enter
+    Then the screen should contain "scrollback limit set to 250"
     When I type "/approvals" and press Enter
     Then the screen should contain "approvals: no approval gates"
