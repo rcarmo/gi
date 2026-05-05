@@ -275,6 +275,29 @@ func TestMultilineInputExpandsForWrappedText(t *testing.T) {
 	}
 }
 
+func TestContextSummaryLinesWrapForNarrowWidth(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	sess, err := s.CreateSession(context.Background(), "session_1", "@agent", map[string]any{"status": "idle", "model": "opencode-zen/minimax-m2.5-free", "provider": "opencode-zen", "thinking_level": "low"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{store: s, sessionID: sess.ID, cfg: config.RuntimeConfig{DefaultModel: "opencode-zen/minimax-m2.5-free", DefaultProvider: "opencode-zen", DefaultThinkingLevel: "low"}}
+	lines := c.contextSummaryLines(60)
+	if len(lines) < 3 {
+		t.Fatalf("expected wrapped summary lines, got %#v", lines)
+	}
+	joined := strings.Join(lines, "\n")
+	for _, want := range []string{"Session:", "Agent:", "Model:", "Provider:", "Messages:"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("responsive summary missing %q:\n%s", want, joined)
+		}
+	}
+}
+
 func TestFooterTextContainsStableHints(t *testing.T) {
 	c := &chatTUI{}
 	footer := c.footerText()

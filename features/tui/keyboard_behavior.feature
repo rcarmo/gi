@@ -21,5 +21,9 @@ Feature: TUI keyboard behavior
     Then the tmux session should be alive
     And the screen should contain "Messages:"
     And the screen should contain "Hints: /help"
+    When I resize the terminal to 60x18
+    Then the tmux session should be alive
+    And the screen should contain "Session:"
+    And the screen should contain "Hints: /help"
     When I press Ctrl-D
     Then the tmux session should exit

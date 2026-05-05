@@ -902,37 +902,46 @@ func (c *chatTUI) agentIDForSession(sess *store.Session) string {
 }
 
 func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
+	w, h := app.Size()
+	padding := 1
+	if w < 80 || h < 20 {
+		padding = 0
+	}
+	contentWidth := w - (padding * 2)
+	if contentWidth < 20 {
+		contentWidth = 20
+	}
+
 	root := gotui.New(
 		gotui.WithDirection(gotui.Column),
 		gotui.WithWidthPercent(100),
 		gotui.WithHeightPercent(100),
-		gotui.WithPadding(1),
-		gotui.WithGap(1),
+		gotui.WithPadding(padding),
+		gotui.WithGap(0),
 	)
 
-	statusEl := gotui.New(
-		gotui.WithWidthPercent(100),
-		gotui.WithText(fmt.Sprintf("Status: %s", c.status)),
-		gotui.WithTextStyle(gotui.NewStyle().Bold()),
-	)
-	root.AddChild(statusEl)
+	statusLines := c.wrapLines(fmt.Sprintf("Status: %s", c.status), contentWidth)
+	root.AddChild(c.renderLineBlock(statusLines, gotui.NewStyle().Bold()))
 
-	ctxEl := gotui.New(
-		gotui.WithWidthPercent(100),
-		gotui.WithText(c.contextSummary()),
-		gotui.WithTextStyle(gotui.NewStyle().Dim()),
-	)
-	root.AddChild(ctxEl)
+	ctxLines := c.contextSummaryLines(contentWidth)
+	root.AddChild(c.renderLineBlock(ctxLines, gotui.NewStyle().Dim()))
 
 	sep := gotui.New(
 		gotui.WithWidthPercent(100),
-		gotui.WithText("─────────────────────────────────────────────────────────────────────────────────"),
+		gotui.WithText(c.horizontalRule(contentWidth)),
 		gotui.WithTextStyle(gotui.NewStyle().Dim()),
 	)
 	root.AddChild(sep)
 
-	_, h := app.Size()
-	transcriptHeight := h - 16
+	c.ensureInput()
+	c.input.width = contentWidth
+	inputHeight := c.input.Render(app).HeightForWidth(contentWidth)
+	if inputHeight < 1 {
+		inputHeight = 1
+	}
+	footerLines := c.wrapLines(c.footerText(), contentWidth)
+	reservedHeight := (padding * 2) + len(statusLines) + len(ctxLines) + 3 + inputHeight + len(footerLines)
+	transcriptHeight := h - reservedHeight
 	if transcriptHeight < 4 {
 		transcriptHeight = 4
 	}
@@ -955,35 +964,75 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 
 	inputTopSep := gotui.New(
 		gotui.WithWidthPercent(100),
-		gotui.WithText("─────────────────────────────────────────────────────────────────────────────────"),
+		gotui.WithText(c.horizontalRule(contentWidth)),
 		gotui.WithTextStyle(gotui.NewStyle().Dim()),
 	)
 	root.AddChild(inputTopSep)
 
-	c.ensureInput()
 	inputEl := app.MountPersistent(c, 0, func() gotui.Component { return c.input })
 	c.inputRegion = inputEl
 	root.AddChild(inputEl)
 
 	inputBottomSep := gotui.New(
 		gotui.WithWidthPercent(100),
-		gotui.WithText("─────────────────────────────────────────────────────────────────────────────────"),
+		gotui.WithText(c.horizontalRule(contentWidth)),
 		gotui.WithTextStyle(gotui.NewStyle().Dim()),
 	)
 	root.AddChild(inputBottomSep)
 
-	footer := gotui.New(
-		gotui.WithWidthPercent(100),
-		gotui.WithText(c.footerText()),
-		gotui.WithTextStyle(gotui.NewStyle().Dim()),
-	)
-	root.AddChild(footer)
+	root.AddChild(c.renderLineBlock(footerLines, gotui.NewStyle().Dim()))
 
 	return root
 }
 
 func (c *chatTUI) footerText() string {
 	return "Hints: /help · /tools active|activate|reset · /skills · /model · /thinking · /compact · /scrollback · /settings · /approvals · /cancel · /agents · /tree · /plugins · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
+}
+
+func (c *chatTUI) horizontalRule(width int) string {
+	if width < 8 {
+		width = 8
+	}
+	return strings.Repeat("─", width)
+}
+
+func (c *chatTUI) wrapLines(text string, width int) []string {
+	if width < 1 {
+		width = 1
+	}
+	out := []string{}
+	for _, raw := range strings.Split(text, "\n") {
+		runes := []rune(raw)
+		if len(runes) == 0 {
+			out = append(out, "")
+			continue
+		}
+		for len(runes) > width {
+			out = append(out, string(runes[:width]))
+			runes = runes[width:]
+		}
+		out = append(out, string(runes))
+	}
+	if len(out) == 0 {
+		return []string{""}
+	}
+	return out
+}
+
+func (c *chatTUI) renderLineBlock(lines []string, style gotui.Style) *gotui.Element {
+	block := gotui.New(
+		gotui.WithDirection(gotui.Column),
+		gotui.WithWidthPercent(100),
+		gotui.WithHeight(len(lines)),
+	)
+	for _, line := range lines {
+		block.AddChild(gotui.New(
+			gotui.WithWidthPercent(100),
+			gotui.WithText(line),
+			gotui.WithTextStyle(style),
+		))
+	}
+	return block
 }
 
 func (c *chatTUI) loadTranscript() []string {
@@ -1115,37 +1164,72 @@ func (c *chatTUI) visibleTranscript() []string {
 	return lines
 }
 
-func (c *chatTUI) contextSummary() string {
+type tuiContextSummary struct {
+	sessionTitle string
+	agentID      string
+	parent       string
+	model        string
+	provider     string
+	thinking     string
+	status       string
+	messageCount int
+	turnCount    int
+}
+
+func (c *chatTUI) contextSummaryData() tuiContextSummary {
+	data := tuiContextSummary{sessionTitle: c.sessionID, agentID: "agent", parent: "root", model: c.cfg.DefaultModel, provider: c.cfg.DefaultProvider, thinking: c.cfg.DefaultThinkingLevel, status: "idle"}
 	session, err := c.store.GetSession(context.Background(), c.sessionID)
 	if err != nil {
-		return fmt.Sprintf("session=%s", c.sessionID)
+		return data
 	}
 	messages, _ := c.store.ListMessages(context.Background(), c.sessionID)
-	messageCount := len(messages)
 	turns, _ := c.store.ListTurns(context.Background(), c.sessionID)
+	data.messageCount = len(messages)
+	data.turnCount = len(turns)
+	data.sessionTitle = session.Title
+	data.agentID = c.agentIDForSession(session)
+	if session.ParentSessionID != "" {
+		data.parent = session.ParentSessionID
+	}
 	state := session.State
-	model := c.cfg.DefaultModel
-	provider := c.cfg.DefaultProvider
-	thinking := c.cfg.DefaultThinkingLevel
-	status := "idle"
 	if v, ok := state["model"].(string); ok && v != "" {
-		model = v
+		data.model = v
 	}
 	if v, ok := state["provider"].(string); ok && v != "" {
-		provider = v
+		data.provider = v
 	}
 	if v, ok := state["thinking_level"].(string); ok && v != "" {
-		thinking = v
+		data.thinking = v
 	}
 	if v, ok := state["status"].(string); ok && v != "" {
-		status = v
+		data.status = v
 	}
-	agentID := c.agentIDForSession(session)
-	parent := "root"
-	if session.ParentSessionID != "" {
-		parent = session.ParentSessionID
+	return data
+}
+
+func (c *chatTUI) contextSummaryLines(width int) []string {
+	data := c.contextSummaryData()
+	if width >= 110 {
+		return c.wrapLines(fmt.Sprintf("Session: %s · Agent: @%s · Parent: %s · Model: %s · Provider: %s · Thinking: %s · Status: %s · Messages: %d · Turns: %d", data.sessionTitle, data.agentID, data.parent, data.model, data.provider, data.thinking, data.status, data.messageCount, data.turnCount), width)
 	}
-	return fmt.Sprintf("Session: %s · Agent: @%s · Parent: %s · Model: %s · Provider: %s · Thinking: %s · Status: %s · Messages: %d · Turns: %d", session.Title, agentID, parent, model, provider, thinking, status, messageCount, len(turns))
+	if width >= 80 {
+		return []string{
+			fmt.Sprintf("Session: %s · Agent: @%s · Parent: %s", data.sessionTitle, data.agentID, data.parent),
+			fmt.Sprintf("Model: %s · Provider: %s · Thinking: %s · Status: %s", data.model, data.provider, data.thinking, data.status),
+			fmt.Sprintf("Messages: %d · Turns: %d", data.messageCount, data.turnCount),
+		}
+	}
+	return []string{
+		fmt.Sprintf("Session: %s", data.sessionTitle),
+		fmt.Sprintf("Agent: @%s · Parent: %s", data.agentID, data.parent),
+		fmt.Sprintf("Model: %s", data.model),
+		fmt.Sprintf("Provider: %s · Thinking: %s", data.provider, data.thinking),
+		fmt.Sprintf("Status: %s · Messages: %d · Turns: %d", data.status, data.messageCount, data.turnCount),
+	}
+}
+
+func (c *chatTUI) contextSummary() string {
+	return strings.Join(c.contextSummaryLines(9999), "\n")
 }
 
 func truncate(s string, max int) string {
