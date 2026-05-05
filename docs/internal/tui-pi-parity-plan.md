@@ -42,8 +42,13 @@ Use Gherkin `.feature` files for readable UX requirements, but drive the termina
 
 This gives us the same behavior-level regression style as Piclaw's UX features, adapted to a TUI.
 
-## First implemented slice
+## Implemented slices
 
 - `/help` command with command and keybinding reference.
 - `/tools [query]` command backed by the engine tool registry.
-- Gherkin/tmux feature covering boot, help, tools discovery, prompt submission, and persistence.
+- `/tools active`, `/tools activate ...`, and `/tools reset` for active tool visibility/control.
+- `/skills [query]` command backed by workspace skill discovery.
+- `/model`, `/thinking`, `/compact`, and `/cancel` runtime controls.
+- `/agents`, `/where`, `/fork`, `/switch`, and `/send` session/agent workflows.
+- Keyboard coverage for blur/focus, F2/F3 history hints, scroll, resize, and quit.
+- Gherkin/tmux features covering boot, help, tools discovery/activation, runtime controls, session workflows, prompt submission, persistence, and keyboard behavior.

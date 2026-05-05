@@ -276,7 +276,7 @@ func (c *chatTUI) focusInput() {
 
 func (c *chatTUI) onSubmit(text string) {
 	text = strings.TrimSpace(text)
-	if text == "" || c.running {
+	if text == "" {
 		return
 	}
 	c.history = append(c.history, text)
@@ -284,6 +284,9 @@ func (c *chatTUI) onSubmit(text string) {
 	c.input.SetText("")
 	if strings.HasPrefix(text, "/") {
 		c.handleCommand(text)
+		return
+	}
+	if c.running {
 		return
 	}
 	c.running = true
@@ -330,11 +333,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/help":
 		c.transcript = append(c.transcript, c.helpLines()...)
 	case "/tools":
-		query := ""
-		if len(fields) > 1 {
-			query = strings.Join(fields[1:], " ")
-		}
-		c.transcript = append(c.transcript, c.toolLines(query)...)
+		c.transcript = append(c.transcript, c.toolCommand(fields)...)
 	case "/skills":
 		query := ""
 		if len(fields) > 1 {
@@ -409,7 +408,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.transcript = append(c.transcript, "sys: commands: /help, /tools [query], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.transcript = append(c.transcript, "sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -424,7 +423,7 @@ func (c *chatTUI) helpLines() []string {
 	return []string{
 		"sys: gi TUI help",
 		"sys: keys: Enter send · Esc blur input · Ctrl-C/Ctrl-D quit · Up/Down history · PgUp/PgDn scroll · Home/End transcript",
-		"sys: commands: /help, /tools [query], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /where",
+		"sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /where",
 		"sys: sessions: /fork [@agentN], /switch @agent|session_id, /send @agent message",
 	}
 }
@@ -483,7 +482,42 @@ func (c *chatTUI) cancelCommand() string {
 	return "sys: no running or queued turn to cancel"
 }
 
-func (c *chatTUI) toolLines(query string) []string {
+func (c *chatTUI) toolCommand(fields []string) []string {
+	if len(fields) > 1 {
+		switch fields[1] {
+		case "active":
+			active := c.engine.ActiveTools()
+			if len(active) == 0 {
+				return []string{"tools: active: (none)"}
+			}
+			return []string{fmt.Sprintf("tools: active: %s", strings.Join(active, ", "))}
+		case "activate":
+			if len(fields) < 3 {
+				return []string{"tools: usage /tools activate <tool> [tool...]"}
+			}
+			names := make([]any, 0, len(fields)-2)
+			for _, name := range fields[2:] {
+				if strings.TrimSpace(name) != "" {
+					names = append(names, strings.TrimSpace(name))
+				}
+			}
+			out, err := c.engine.ExecuteToolsMeta(map[string]any{"activate": names})
+			if err != nil {
+				return []string{fmt.Sprintf("error: %v", err)}
+			}
+			return prefixMultiline("tools", out)
+		case "reset":
+			out, err := c.engine.ExecuteToolsMeta(map[string]any{"reset_active": true})
+			if err != nil {
+				return []string{fmt.Sprintf("error: %v", err)}
+			}
+			return prefixMultiline("tools", out)
+		}
+	}
+	query := ""
+	if len(fields) > 1 {
+		query = strings.Join(fields[1:], " ")
+	}
 	args := map[string]any{"include_inactive": true}
 	if strings.TrimSpace(query) != "" {
 		args["query"] = strings.TrimSpace(query)
@@ -657,7 +691,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 
 	inputLabel := gotui.New(
 		gotui.WithWidthPercent(100),
-		gotui.WithText("Input (/help, /tools, /skills, /model, /thinking, /compact, /cancel, /agents, /fork, /switch, /send; Esc blur, Tab focus, F2/F3 history):"),
+		gotui.WithText("Input (/help, /tools active|activate|reset, /skills, /model, /thinking, /compact, /cancel, /agents, /fork, /switch, /send; Esc blur, Tab focus, F2/F3 history):"),
 		gotui.WithTextStyle(gotui.NewStyle().Dim()),
 	)
 	root.AddChild(inputLabel)

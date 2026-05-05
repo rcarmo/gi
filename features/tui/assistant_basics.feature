@@ -9,20 +9,30 @@ Feature: TUI assistant basics
     When I type "/help" and press Enter
     Then the screen should contain "gi TUI help"
     And the screen should contain "commands: /help, /tools"
-    When I type "/tools rtk" and press Enter
-    Then the screen should contain "tools:"
-    And the screen should contain "rtk"
-    When I type "/model test-alt" and press Enter
-    Then the screen should contain "model set to test-alt"
-    When I type "/model test-model" and press Enter
-    Then the screen should contain "model set to test-model"
-    When I type "/thinking high" and press Enter
-    Then the screen should contain "thinking set to high"
     When I type "/compact" and press Enter
     Then the screen should contain "compact:"
     And the screen should contain "threshold_tokens"
+    When I type "/model test-alt" and press Enter
+    Then the screen should contain "Model: test-alt"
+    When I type "/model test-model" and press Enter
+    Then the screen should contain "Model: test-model"
+    When I type "/thinking high" and press Enter
+    Then the screen should contain "Thinking: high"
     When I type "/cancel" and press Enter
     Then the screen should contain "no running or queued turn to cancel"
     When I type "hello from gherkin" and press Enter
     Then the database should contain a user message "hello from gherkin"
     And the database should contain an assistant message "Gi received: hello from gherkin"
+    When I type "/tools active" and press Enter
+    Then the screen should contain "tools: active:"
+    When I type "/tools activate read shell" and press Enter
+    Then the screen should contain "Activated tools:"
+    And the screen should contain "read"
+    And the screen should contain "shell"
+    When I type "/tools active" and press Enter
+    Then the screen should contain "tools: active: tools, read, shell"
+    When I type "/tools reset" and press Enter
+    Then the screen should contain "Reset active tools"
+    When I type "/tools rtk" and press Enter
+    Then the screen should contain "tools:"
+    And the screen should contain "rtk"
