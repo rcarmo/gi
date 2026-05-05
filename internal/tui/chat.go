@@ -735,7 +735,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	root.AddChild(sep)
 
 	_, h := app.Size()
-	transcriptHeight := h - 11
+	transcriptHeight := h - 16
 	if transcriptHeight < 4 {
 		transcriptHeight = 4
 	}
@@ -758,7 +758,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 
 	inputLabel := gotui.New(
 		gotui.WithWidthPercent(100),
-		gotui.WithText("Input (/help, /tools active|activate|reset, /skills, /model, /thinking, /compact, /cancel, /agents, /fork, /switch, /send; Esc blur, Tab focus, F2/F3 history):"),
+		gotui.WithText("Input:"),
 		gotui.WithTextStyle(gotui.NewStyle().Dim()),
 	)
 	root.AddChild(inputLabel)
@@ -768,7 +768,18 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	c.inputRegion = inputEl
 	root.AddChild(inputEl)
 
+	footer := gotui.New(
+		gotui.WithWidthPercent(100),
+		gotui.WithText(c.footerText()),
+		gotui.WithTextStyle(gotui.NewStyle().Dim()),
+	)
+	root.AddChild(footer)
+
 	return root
+}
+
+func (c *chatTUI) footerText() string {
+	return "Hints: /help · /tools active|activate|reset · /skills · /model · /thinking · /compact · /cancel · /agents · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
 }
 
 func (c *chatTUI) loadTranscript() []string {

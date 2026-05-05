@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	gotui "github.com/grindlemire/go-tui"
@@ -119,5 +120,15 @@ func TestHandleEventStatusRendering(t *testing.T) {
 	c.handleEvent(map[string]any{"type": "compaction", "messages_before": 10, "messages_after": 4, "tokens_before": 1234})
 	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys: compacted context: messages 10→4, tokens_before=1234" {
 		t.Fatalf("compaction status/transcript = %q %#v", c.status, c.transcript)
+	}
+}
+
+func TestFooterTextContainsStableHints(t *testing.T) {
+	c := &chatTUI{}
+	footer := c.footerText()
+	for _, want := range []string{"Hints:", "/help", "/tools active|activate|reset", "Tab focus", "F2/F3 history", "Ctrl-D quit"} {
+		if !strings.Contains(footer, want) {
+			t.Fatalf("footer missing %q: %s", want, footer)
+		}
 	}
 }
