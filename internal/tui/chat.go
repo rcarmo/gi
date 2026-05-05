@@ -417,6 +417,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.transcript = append(c.transcript, c.cancelCommand())
 	case "/agents":
 		c.transcript = append(c.transcript, c.listAgentLines()...)
+	case "/tree":
+		c.transcript = append(c.transcript, c.treeLines()...)
 	case "/fork":
 		target := ""
 		if len(fields) > 1 {
@@ -475,7 +477,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.transcript = append(c.transcript, "sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.transcript = append(c.transcript, "sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /tree, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -490,7 +492,7 @@ func (c *chatTUI) helpLines() []string {
 	return []string{
 		"sys: gi TUI help",
 		"sys: keys: Enter send · Esc blur input · Ctrl-C/Ctrl-D quit · Up/Down history · PgUp/PgDn scroll · Home/End transcript",
-		"sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /where",
+		"sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /tree, /where",
 		"sys: sessions: /fork [@agentN], /switch @agent|session_id, /send @agent message",
 	}
 }
@@ -657,6 +659,55 @@ func (c *chatTUI) listAgentLines() []string {
 	return lines
 }
 
+func (c *chatTUI) treeLines() []string {
+	sessions, err := c.store.ListSessions(context.Background())
+	if err != nil {
+		return []string{fmt.Sprintf("error: %v", err)}
+	}
+	if len(sessions) == 0 {
+		return []string{"tree: no sessions"}
+	}
+	children := map[string][]store.Session{}
+	roots := []store.Session{}
+	for _, sess := range sessions {
+		if sess.ParentSessionID == "" {
+			roots = append(roots, sess)
+			continue
+		}
+		children[sess.ParentSessionID] = append(children[sess.ParentSessionID], sess)
+	}
+	lines := []string{"tree: sessions:"}
+	seen := map[string]bool{}
+	var walk func(sess store.Session, prefix string, last bool)
+	walk = func(sess store.Session, prefix string, last bool) {
+		seen[sess.ID] = true
+		branch := "├─"
+		nextPrefix := prefix + "│  "
+		if last {
+			branch = "└─"
+			nextPrefix = prefix + "   "
+		}
+		marker := " "
+		if sess.ID == c.sessionID {
+			marker = "*"
+		}
+		lines = append(lines, fmt.Sprintf("%s%s%s @%s %s", prefix, branch, marker, c.agentIDForSession(&sess), sess.ID))
+		kids := children[sess.ID]
+		for i, child := range kids {
+			walk(child, nextPrefix, i == len(kids)-1)
+		}
+	}
+	for i, root := range roots {
+		walk(root, "", i == len(roots)-1)
+	}
+	for _, sess := range sessions {
+		if !seen[sess.ID] {
+			lines = append(lines, fmt.Sprintf("? @%s %s parent=%s", c.agentIDForSession(&sess), sess.ID, sess.ParentSessionID))
+		}
+	}
+	return lines
+}
+
 func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	ref = strings.TrimSpace(strings.TrimPrefix(ref, "@"))
 	sessions, err := c.store.ListSessions(context.Background())
@@ -779,7 +830,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 }
 
 func (c *chatTUI) footerText() string {
-	return "Hints: /help · /tools active|activate|reset · /skills · /model · /thinking · /compact · /cancel · /agents · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
+	return "Hints: /help · /tools active|activate|reset · /skills · /model · /thinking · /compact · /cancel · /agents · /tree · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
 }
 
 func (c *chatTUI) loadTranscript() []string {

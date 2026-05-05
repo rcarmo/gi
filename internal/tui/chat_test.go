@@ -84,6 +84,24 @@ func TestHandleForkCommandSwitchesSession(t *testing.T) {
 	}
 }
 
+func TestTreeLinesShowsParentChildSessions(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	root, _ := s.CreateSession(ctx, "session_root", "@agent", map[string]any{"model": "bootstrap", "status": "idle"})
+	child, _ := s.CloneSession(ctx, root.ID, "session_child", "@agent1", "agent1")
+	c := &chatTUI{store: s, sessionID: child.ID}
+	lines := strings.Join(c.treeLines(), "\n")
+	for _, want := range []string{"tree: sessions:", "@gi session_root", "* @agent1 session_child"} {
+		if !strings.Contains(lines, want) {
+			t.Fatalf("tree missing %q:\n%s", want, lines)
+		}
+	}
+}
+
 func TestResolveSessionRefByAgentID(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
