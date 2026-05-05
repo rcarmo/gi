@@ -37,6 +37,7 @@ func buildSystemPrompt(cfg RuntimeConfig, workspaceInstructions string) string {
 	sb.WriteString("- Use `compact` to inspect compaction thresholds/preparation; Joker scripts can override smart compaction through `session_before_compact`.\n")
 	sb.WriteString("- Use `script` for Goja JavaScript or Joker scripts when a script bridge/API is useful.\n")
 	sb.WriteString("- Use `rtk` for compact command output when running noisy git/search/listing/test commands; use `shell` when raw output is required.\n")
+	sb.WriteString("- Use `peering` to inspect future tsnet/Tailscale peer-discovery status; peering is disabled unless configured.\n")
 	sb.WriteString("- Use `shell` for commands, tests, package tooling, and repository inspection.\n")
 	sb.WriteString("- Tool execution results should be treated as the source of truth.\n\n")
 

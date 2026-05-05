@@ -14,6 +14,7 @@ import (
 
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/connectivity"
+	"github.com/rcarmo/gi/internal/peering"
 	"github.com/rcarmo/gi/internal/routing"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
@@ -28,6 +29,7 @@ type Engine struct {
 	hooks         *HookRegistry
 	tools         *ToolRegistry
 	connectivity  *connectivity.Registry
+	peering       *peering.Manager
 	extensions    []ExtensionInfo
 	extensionsMu  sync.RWMutex
 	sessions      sync.Map // sessionID -> *sessionRunner
@@ -112,6 +114,7 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 		hooks:         NewHookRegistry(),
 		tools:         NewToolRegistry(),
 		connectivity:  connectivity.NewRegistry(),
+		peering:       peering.NewManager(cfg.Peering, cfg.WorkspaceRoot),
 	}
 	e.registerDefaultTools()
 	return e

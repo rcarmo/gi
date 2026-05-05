@@ -26,6 +26,7 @@ type RuntimeConfig struct {
 	Routing              routing.ModelRoutingConfig `json:"routing"`
 	MaxIterations        int                        `json:"max_iterations"`
 	Compaction           CompactionSettings         `json:"compaction"`
+	Peering              PeeringSettings            `json:"peering"`
 	SystemPrompt         string                     `json:"-"`
 	Discovery            skills.Discovery           `json:"-"`
 }
@@ -51,6 +52,14 @@ type CompactionSettings struct {
 	Strategy         string `json:"strategy"`
 }
 
+type PeeringSettings struct {
+	Enabled         bool   `json:"enabled"`
+	Hostname        string `json:"hostname"`
+	StateDir        string `json:"state_dir"`
+	AuthKeyEnv      string `json:"auth_key_env"`
+	AuthKeyKeychain string `json:"auth_key_keychain"`
+}
+
 type piSettings struct {
 	DefaultProvider      string                     `json:"defaultProvider"`
 	DefaultModel         string                     `json:"defaultModel"`
@@ -58,6 +67,7 @@ type piSettings struct {
 	EnabledModels        []string                   `json:"enabledModels"`
 	MaxIterations        int                        `json:"maxIterations"`
 	Compaction           CompactionSettings         `json:"compaction"`
+	Peering              PeeringSettings            `json:"peering"`
 	Agents               routing.AgentsConfig       `json:"agents"`
 	Session              routing.SessionConfig      `json:"session"`
 	Routing              routing.ModelRoutingConfig `json:"routing"`
@@ -81,6 +91,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.EnabledModels = append([]string(nil), ps.EnabledModels...)
 		cfg.MaxIterations = ps.MaxIterations
 		cfg.Compaction = ps.Compaction
+		cfg.Peering = ps.Peering
 		cfg.Agents = ps.Agents
 		cfg.Session = ps.Session
 		cfg.Routing = ps.Routing

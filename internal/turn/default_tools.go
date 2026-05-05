@@ -245,6 +245,19 @@ func (e *Engine) registerDefaultTools() {
 		},
 	})
 	must(RegisteredTool{
+		Name:        "peering",
+		Description: "Inspect gi peer-discovery status. The backend is tsnet/Tailscale and is disabled by default until configured.",
+		Parameters:  json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","description":"status (default); future: start/stop/discover"}}}`),
+		Source:      "builtin",
+		Kind:        "read-only",
+		Weight:      "lightweight",
+		Activation:  "on-demand",
+		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+			b, _ := json.MarshalIndent(rt.Engine.PeeringStatus(), "", "  ")
+			return string(b), nil
+		},
+	})
+	must(RegisteredTool{
 		Name:        "rtk",
 		Description: "Run a shell command and return RTK-style compact output using gi's native Go filters for git/search/listing/test output.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"command":{"type":"string","description":"Shell command to execute and compact"},"filter_only":{"type":"boolean","description":"Filter the supplied output instead of executing"},"output":{"type":"string","description":"Raw output to filter when filter_only is true"}},"required":["command"]}`),
