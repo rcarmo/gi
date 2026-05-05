@@ -9,16 +9,94 @@ SESSION="gi-tui-gherkin-$$"
 DB="$TEST_DIR/gi.db"
 WORKSPACE="$TEST_DIR/workspace"
 STEP=0
+CURRENT_FEATURE=""
+CURRENT_STEP=""
+STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+write_failure_summary() {
+  local rc="$1"
+  mkdir -p "$ARTIFACT_DIR"
+  {
+    echo "# TUI Gherkin failure summary"
+    echo
+    echo "- status: failed"
+    echo "- exit_code: $rc"
+    echo "- feature: ${CURRENT_FEATURE:-unknown}"
+    echo "- step: ${CURRENT_STEP:-unknown}"
+    echo "- started_at: $STARTED_AT"
+    echo "- failed_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo
+    echo "## Last screen"
+    echo '```'
+    if tmux has-session -t "$SESSION" >/dev/null 2>&1; then
+      tmux capture-pane -pe -t "$SESSION":0 || true
+    else
+      echo "tmux session not running"
+    fi
+    echo '```'
+    echo
+    echo "## Messages"
+    echo '```'
+    sqlite3 -separator '|' "$DB" 'select role, content from messages order by created_at asc, id asc;' 2>/dev/null || true
+    echo '```'
+  } > "$ARTIFACT_DIR/failure-summary.md"
+}
 
 cleanup() {
+  local rc=$?
+  if [[ "$rc" != "0" ]]; then
+    write_failure_summary "$rc" || true
+  fi
   tmux kill-session -t "$SESSION" >/dev/null 2>&1 || true
   rm -rf "$TEST_DIR"
+  exit "$rc"
 }
 trap cleanup EXIT
 
 capture() {
   STEP=$((STEP+1))
   tmux capture-pane -pe -t "$SESSION":0 > "$ARTIFACT_DIR/$(printf '%02d' "$STEP")-screen.txt"
+}
+
+slugify() {
+  basename "$1" .feature | tr -c '[:alnum:]_-' '-'
+}
+
+dump_feature_state() {
+  local feature="$1"
+  local slug
+  slug=$(slugify "$feature")
+  if [[ -f "$DB" ]]; then
+    sqlite3 -header -column "$DB" 'select id, title, parent_session_id, state_json from sessions order by created_at asc;' > "$ARTIFACT_DIR/${slug}-sessions.txt" 2>/dev/null || true
+    sqlite3 -header -column "$DB" 'select role, content, created_at from messages order by created_at asc, id asc;' > "$ARTIFACT_DIR/${slug}-messages.txt" 2>/dev/null || true
+    sqlite3 "$DB" .dump > "$ARTIFACT_DIR/${slug}.sqlite.sql" 2>/dev/null || true
+  fi
+}
+
+write_report() {
+  local status="$1"
+  {
+    echo "# TUI Gherkin report"
+    echo
+    echo "- status: $status"
+    echo "- started_at: $STARTED_AT"
+    echo "- finished_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "- feature_dir: $FEATURE_DIR"
+    echo "- artifact_dir: $ARTIFACT_DIR"
+    echo
+    echo "## Features"
+    for feature in "${features[@]}"; do
+      local slug
+      slug=$(slugify "$feature")
+      echo "- $(basename "$feature")"
+      echo "  - sessions: ${slug}-sessions.txt"
+      echo "  - messages: ${slug}-messages.txt"
+      echo "  - sqlite_dump: ${slug}.sqlite.sql"
+    done
+    echo
+    echo "## Pane captures"
+    find "$ARTIFACT_DIR" -maxdepth 1 -name '*-screen.txt' -printf '- %f\n' | sort
+  } > "$ARTIFACT_DIR/report.md"
 }
 
 screen_should_contain() {
@@ -137,6 +215,7 @@ run_step() {
   local line="$1"
   line="${line#    }"
   line="${line#  }"
+  CURRENT_STEP="$line"
   case "$line" in
     "Given a fresh gi TUI workspace") ;;
     "When I start the gi TUI in tmux") start_tui ;;
@@ -174,10 +253,14 @@ if [[ ${#features[@]} -eq 0 ]]; then
   exit 1
 fi
 for feature in "${features[@]}"; do
+  CURRENT_FEATURE="$feature"
   echo "Running $feature"
   while IFS= read -r line; do
     run_step "$line"
   done < "$feature"
+  dump_feature_state "$feature"
 done
+
+write_report passed
 
 echo "TUI Gherkin tests passed. Artifacts: $ARTIFACT_DIR"

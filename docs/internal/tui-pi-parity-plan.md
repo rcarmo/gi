@@ -52,4 +52,5 @@ This gives us the same behavior-level regression style as Piclaw's UX features, 
 - `/agents`, `/where`, `/tree`, `/plugins`, `/fork`, `/switch`, and `/send` session/agent workflows/debug views.
 - Keyboard coverage for blur/focus, F2/F3 history hints, scroll, resize, and quit.
 - Gherkin/tmux features covering boot, help, tools discovery/activation, runtime controls, session workflows, prompt submission, persistence, and keyboard behavior.
+- CI-friendly tmux/Gherkin artifacts: pane captures, report markdown, per-feature SQLite dumps, session/message extracts, and failure summaries.
 - TUI status rendering for thinking deltas, tool completion/failure, generic errors, and context compaction broadcasts.
