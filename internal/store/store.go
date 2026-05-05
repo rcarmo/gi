@@ -114,12 +114,23 @@ func (s *Store) CreateSessionWithMetadata(ctx context.Context, id, parentSession
 	if parentSessionID != "" {
 		parent = parentSessionID
 	}
-	_, err = s.db.ExecContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create session begin tx: %w", err)
+	}
+	defer tx.Rollback()
+	_, err = tx.ExecContext(ctx, `
 		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
 		values (?, ?, ?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`)
 	`, id, parent, title, stateJSON, scopeJSON, aliasesJSON)
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
+	}
+	if err := s.upsertSessionIdentityTx(ctx, tx, id, scope, aliases); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("create session commit: %w", err)
 	}
 	return s.GetSession(ctx, id)
 }

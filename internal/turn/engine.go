@@ -3,6 +3,7 @@ package turn
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"log"
@@ -304,11 +305,13 @@ func (e *Engine) runner(sessionID string) *sessionRunner {
 
 func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 	ctx, cancel := context.WithCancel(context.Background())
+	claimToken := turnID
 	r.mu.Lock()
 	r.current = &runningTurn{turnID: turnID, cancel: cancel}
 	r.mu.Unlock()
 	defer func() {
 		cancel()
+		_ = s.ReleaseSessionActiveTurn(context.Background(), turnIDSession(s, turnID), claimToken)
 		r.mu.Lock()
 		r.current = nil
 		next, _ := s.GetNextQueuedTurn(context.Background(), turnIDSession(s, turnID))
@@ -326,6 +329,12 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 		return
 	}
 	sessionID := turnRec.SessionID
+	claimed, err := s.ClaimSessionActiveTurn(ctx, sessionID, turnID, "runner", claimToken)
+	if err != nil {
+		log.Printf("turn coordination: claim failed: %v", err)
+	} else if !claimed {
+		log.Printf("turn coordination: session %s already claimed when starting turn %s", sessionID, turnID)
+	}
 	prompt := turnRec.Prompt
 	intent := stringValue(turnRec.Metadata["intent"], "prompt")
 	model := stringValue(turnRec.Metadata["model"], "bootstrap")
@@ -521,26 +530,21 @@ func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.
 		return source, false, nil
 	}
 	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{AgentID: route.AgentID, Context: inbound, SessionPolicy: route.SessionPolicy})
-	sessions, err := e.store.ListSessions(ctx)
-	if err != nil {
+	if existing, err := e.store.FindSessionByAllocation(ctx, alloc); err == nil {
+		return existing, false, nil
+	} else if err != nil && err != sql.ErrNoRows {
 		return nil, false, err
 	}
-	targetKey := gisession.BuildSessionKey(alloc.Scope)
-	for i := range sessions {
-		if sessions[i].Scope != nil && gisession.BuildSessionKey(*sessions[i].Scope) == targetKey {
-			return &sessions[i], false, nil
-		}
-		for _, alias := range sessions[i].Aliases {
-			for _, candidate := range alloc.SessionAliases {
-				if strings.EqualFold(alias, candidate) {
-					return &sessions[i], false, nil
-				}
-			}
-		}
+	if existing, err := e.store.FindChildSessionByParentAndAgent(ctx, source.ID, route.AgentID); err == nil {
+		return existing, false, nil
+	} else if err != nil && err != sql.ErrNoRows {
+		return nil, false, err
 	}
-	for i := range sessions {
-		if sessionAgentID(&sessions[i]) == route.AgentID && (sessions[i].ParentSessionID == source.ID || source.ParentSessionID != "" && sessions[i].ParentSessionID == source.ParentSessionID) {
-			return &sessions[i], false, nil
+	if strings.TrimSpace(source.ParentSessionID) != "" {
+		if existing, err := e.store.FindChildSessionByParentAndAgent(ctx, source.ParentSessionID, route.AgentID); err == nil {
+			return existing, false, nil
+		} else if err != nil && err != sql.ErrNoRows {
+			return nil, false, err
 		}
 	}
 	state := map[string]any{"status": "idle", "queue_count": 0, "model": e.modelForAgent(route.AgentID), "provider": e.runtimeCfg.DefaultProvider, "thinking_level": e.runtimeCfg.DefaultThinkingLevel}

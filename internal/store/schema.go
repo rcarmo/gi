@@ -22,6 +22,43 @@ func initSchema(db *sql.DB) error {
 		`create index if not exists idx_sessions_state_active_turn on sessions(json_extract(state_json, '$.active_turn_id'));`,
 		`create index if not exists idx_sessions_state_model on sessions(json_extract(state_json, '$.model'));`,
 
+		`create table if not exists session_identities (
+			session_id text primary key,
+			agent_id text not null,
+			channel text not null,
+			account text not null,
+			scope_version integer not null default 1,
+			canonical_scope_signature text not null unique,
+			opaque_session_key text not null unique,
+			is_main_session integer not null default 0,
+			created_at text not null,
+			updated_at text not null,
+			foreign key(session_id) references sessions(id) on delete cascade
+		);`,
+		`create index if not exists idx_session_identities_agent on session_identities(agent_id, updated_at desc);`,
+		`create index if not exists idx_session_identities_channel_account on session_identities(channel, account, updated_at desc);`,
+
+		`create table if not exists session_identity_dimensions (
+			session_id text not null,
+			dimension_name text not null,
+			dimension_value text not null,
+			ordinal integer not null,
+			primary key (session_id, dimension_name),
+			foreign key(session_id) references sessions(id) on delete cascade
+		);`,
+		`create index if not exists idx_sid_dim_lookup on session_identity_dimensions(dimension_name, dimension_value);`,
+		`create index if not exists idx_sid_dim_session_ordinal on session_identity_dimensions(session_id, ordinal);`,
+
+		`create table if not exists session_aliases (
+			alias text primary key,
+			session_id text not null,
+			alias_kind text not null,
+			created_at text not null,
+			updated_at text not null,
+			foreign key(session_id) references sessions(id) on delete cascade
+		);`,
+		`create index if not exists idx_session_aliases_session on session_aliases(session_id);`,
+
 		`create table if not exists messages (
 			id text primary key,
 			session_id text not null,
@@ -47,6 +84,35 @@ func initSchema(db *sql.DB) error {
 		);`,
 		`create index if not exists idx_turns_session_status on turns(session_id, status, updated_at desc);`,
 		`create index if not exists idx_turns_metadata_intent on turns(json_extract(metadata_json, '$.intent'));`,
+
+		`create table if not exists session_active_turns (
+			session_id text primary key,
+			turn_id text not null,
+			worker_id text,
+			claim_token text not null,
+			claimed_at text not null,
+			updated_at text not null,
+			foreign key(session_id) references sessions(id) on delete cascade,
+			foreign key(turn_id) references turns(id) on delete cascade
+		);`,
+		`create index if not exists idx_session_active_turns_turn on session_active_turns(turn_id);`,
+
+		`create table if not exists steering_queue (
+			id integer primary key autoincrement,
+			session_id text not null,
+			turn_id text,
+			role text not null default 'user',
+			content text not null default '',
+			payload_json text not null default '{}',
+			media_json text not null default '[]',
+			queue_mode text not null default 'one-at-a-time',
+			status text not null default 'queued',
+			created_at text not null,
+			updated_at text not null,
+			foreign key(session_id) references sessions(id) on delete cascade,
+			foreign key(turn_id) references turns(id) on delete set null
+		);`,
+		`create index if not exists idx_steering_queue_session_status on steering_queue(session_id, status, id);`,
 
 		`create table if not exists turn_events (
 			id integer primary key autoincrement,

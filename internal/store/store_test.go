@@ -2,7 +2,11 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"testing"
+
+	"github.com/rcarmo/gi/internal/routing"
+	gisession "github.com/rcarmo/gi/internal/session"
 )
 
 func TestStoreSessionTurnMessageFlow(t *testing.T) {
@@ -56,6 +60,90 @@ func TestStoreSessionTurnMessageFlow(t *testing.T) {
 	}
 	if len(msgs) != 1 || msgs[0].Content != "hello" {
 		t.Fatalf("unexpected messages: %#v", msgs)
+	}
+}
+
+func TestStoreResolvesSessionByOpaqueKeyAndAlias(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: "chat-1", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_route", "", "@support", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	byKey, err := s.GetSessionByOpaqueKey(ctx, alloc.SessionKey)
+	if err != nil {
+		t.Fatalf("get session by opaque key: %v", err)
+	}
+	if byKey.ID != sess.ID {
+		t.Fatalf("unexpected session by key: %#v", byKey)
+	}
+
+	byAlias, err := s.GetSessionByAlias(ctx, alloc.SessionAliases[0])
+	if err != nil {
+		t.Fatalf("get session by alias: %v", err)
+	}
+	if byAlias.ID != sess.ID {
+		t.Fatalf("unexpected session by alias: %#v", byAlias)
+	}
+
+	byAlloc, err := s.FindSessionByAllocation(ctx, alloc)
+	if err != nil {
+		t.Fatalf("find session by allocation: %v", err)
+	}
+	if byAlloc.ID != sess.ID {
+		t.Fatalf("unexpected allocation resolution: %#v", byAlloc)
+	}
+}
+
+func TestStoreClaimsActiveTurnOncePerSession(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+
+	sess, err := s.CreateSession(ctx, "session_claim", "Test", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_claim_1", sess.ID, "running", "hello", map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create turn 1: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_claim_2", sess.ID, "queued", "hello again", map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create turn 2: %v", err)
+	}
+
+	claimed, err := s.ClaimSessionActiveTurn(ctx, sess.ID, "turn_claim_1", "runner", "claim1")
+	if err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	if !claimed {
+		t.Fatal("expected first claim to succeed")
+	}
+	claimed, err = s.ClaimSessionActiveTurn(ctx, sess.ID, "turn_claim_2", "runner", "claim2")
+	if err != nil {
+		t.Fatalf("claim second active turn: %v", err)
+	}
+	if claimed {
+		t.Fatal("expected second claim to fail while first is active")
+	}
+	if err := s.ReleaseSessionActiveTurn(ctx, sess.ID, "claim1"); err != nil {
+		t.Fatalf("release active turn: %v", err)
+	}
+	if _, _, err := s.GetSessionActiveTurn(ctx, sess.ID); err == nil || err != sql.ErrNoRows {
+		t.Fatalf("expected no active turn after release, got %v", err)
 	}
 }
 
