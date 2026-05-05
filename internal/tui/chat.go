@@ -867,16 +867,52 @@ func (c *chatTUI) loadTranscript() []string {
 	}
 	out := make([]string, 0, len(msgs))
 	for _, m := range msgs {
-		prefix := "you"
-		switch m.Role {
-		case "assistant":
-			prefix = c.cfg.AssistantName
-		case "system":
-			prefix = "sys"
-		}
-		out = append(out, fmt.Sprintf("%s: %s", prefix, truncate(m.Content, 200)))
+		out = append(out, c.renderMessageLine(m))
 	}
 	return out
+}
+
+func (c *chatTUI) renderMessageLine(m store.Message) string {
+	kind, _ := m.Payload["kind"].(string)
+	switch {
+	case kind == "compaction":
+		tokens := toInt(m.Payload["tokens_before"], 0)
+		return fmt.Sprintf("compact: %s (tokens_before=%d)", truncate(m.Content, 160), tokens)
+	case m.Role == "tool_result" || kind == "tool_result":
+		toolName, _ := m.Payload["tool_name"].(string)
+		if toolName == "" {
+			toolName = "tool"
+		}
+		isErr, _ := m.Payload["is_error"].(bool)
+		status := "ok"
+		if isErr {
+			status = "error"
+		}
+		return fmt.Sprintf("tool[%s/%s]: %s", toolName, status, truncate(m.Content, 160))
+	}
+	prefix := "you"
+	switch m.Role {
+	case "assistant":
+		prefix = c.cfg.AssistantName
+	case "system":
+		prefix = "sys"
+	}
+	return fmt.Sprintf("%s: %s", prefix, truncate(m.Content, 200))
+}
+
+func toInt(value any, fallback int) int {
+	switch v := value.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	case float32:
+		return int(v)
+	default:
+		return fallback
+	}
 }
 
 func (c *chatTUI) transcriptViewportHeight() int {

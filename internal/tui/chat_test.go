@@ -143,6 +143,18 @@ func TestHandleEventStatusRendering(t *testing.T) {
 	}
 }
 
+func TestRenderMessageLineFoldsToolAndCompaction(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
+	toolLine := c.renderMessageLine(store.Message{Role: "tool_result", Content: "long tool output", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": false}})
+	if toolLine != "tool[shell/ok]: long tool output" {
+		t.Fatalf("tool line = %q", toolLine)
+	}
+	compactionLine := c.renderMessageLine(store.Message{Role: "assistant", Content: "summary", Payload: map[string]any{"kind": "compaction", "tokens_before": 1200}})
+	if compactionLine != "compact: summary (tokens_before=1200)" {
+		t.Fatalf("compaction line = %q", compactionLine)
+	}
+}
+
 func TestFooterTextContainsStableHints(t *testing.T) {
 	c := &chatTUI{}
 	footer := c.footerText()
