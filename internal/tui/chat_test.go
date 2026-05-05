@@ -123,8 +123,24 @@ func TestResolveSessionRefByAgentID(t *testing.T) {
 	}
 }
 
+func TestHandleEventStreamsDraftIntoTranscript(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.handleEvent(map[string]any{"type": "agent_draft_delta", "delta": "hello"})
+	if c.status != "⏳ hello…" || len(c.transcript) != 1 || c.transcript[0] != "Neo: hello" {
+		t.Fatalf("unexpected first draft state: status=%q transcript=%#v", c.status, c.transcript)
+	}
+	c.handleEvent(map[string]any{"type": "agent_draft_delta", "delta": " world"})
+	if len(c.transcript) != 1 || c.transcript[0] != "Neo: hello world" {
+		t.Fatalf("unexpected merged draft transcript: %#v", c.transcript)
+	}
+	c.handleEvent(map[string]any{"type": "new_post", "data": map[string]any{"content": "hello world"}})
+	if c.running || c.draft != "" || c.draftLineIndex != -1 || c.transcript[0] != "Neo: hello world" {
+		t.Fatalf("unexpected final streamed state: running=%v draft=%q draftLineIndex=%d transcript=%#v", c.running, c.draft, c.draftLineIndex, c.transcript)
+	}
+}
+
 func TestHandleEventStatusRendering(t *testing.T) {
-	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true}
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleEvent(map[string]any{"type": "agent_thought_delta"})
 	if c.status != "Thinking…" {
 		t.Fatalf("thinking status = %q", c.status)
@@ -140,6 +156,64 @@ func TestHandleEventStatusRendering(t *testing.T) {
 	c.handleEvent(map[string]any{"type": "compaction", "messages_before": 10, "messages_after": 4, "tokens_before": 1234})
 	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys: compacted context: messages 10→4, tokens_before=1234" {
 		t.Fatalf("compaction status/transcript = %q %#v", c.status, c.transcript)
+	}
+}
+
+func TestOnSubmitRequiresModelSelectionBeforeFirstPrompt(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_1", cfg: config.RuntimeConfig{AssistantName: "Neo"}, draftLineIndex: -1}
+	c.input = gotui.NewInput()
+	c.onSubmit("hello")
+	if c.running {
+		t.Fatal("expected prompt submission to be blocked without a model")
+	}
+	joined := strings.Join(c.transcript, "\n")
+	if !strings.Contains(joined, "no model selected") {
+		t.Fatalf("expected model-selection guidance, got:\n%s", joined)
+	}
+}
+
+func TestInitUsesConfiguredGiDefaultModelWithoutFirstUsePrompt(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	sess, err := s.CreateSession(context.Background(), "session_1", "@agent", map[string]any{"status": "idle"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{store: s, engine: turn.New(s), sessionID: sess.ID, cfg: config.RuntimeConfig{AssistantName: "Gi", DefaultModel: "opencode-zen/minimax-m2.5-free"}}
+	cleanup := c.Init()
+	defer cleanup()
+	if c.status != "Gi · opencode-zen/minimax-m2.5-free" {
+		t.Fatalf("unexpected status: %q", c.status)
+	}
+	joined := strings.Join(c.transcript, "\n")
+	if strings.Contains(joined, "no model selected") {
+		t.Fatalf("unexpected first-use prompt with default model: %s", joined)
+	}
+}
+
+func TestModelCommandPersistsSelection(t *testing.T) {
+	root := t.TempDir()
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	c := &chatTUI{store: s, sessionID: "session_1", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultThinkingLevel: "medium", EnabledModels: []string{"qwen3:latest"}}}
+	lines := c.modelCommand([]string{"/model", "ollama/gemma4:latest"})
+	if len(lines) == 0 || !strings.Contains(lines[0], "model set to ollama/gemma4:latest") {
+		t.Fatalf("unexpected model command output: %#v", lines)
+	}
+	cfg := config.Load(root)
+	if cfg.DefaultProvider != "ollama" || cfg.DefaultModel != "ollama/gemma4:latest" {
+		t.Fatalf("unexpected persisted model config: %#v", cfg)
 	}
 }
 

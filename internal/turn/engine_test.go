@@ -125,6 +125,27 @@ func TestSubmitPromptRoutedCreatesChildAgentSession(t *testing.T) {
 	}
 }
 
+func TestRunShellStreamsDraftChunks(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	var chunks []string
+	out, err, cancelled := runShell(ctx, "hello", nil, func(delta string) {
+		chunks = append(chunks, delta)
+	})
+	if cancelled || err != nil {
+		t.Fatalf("unexpected shell result: out=%q err=%v cancelled=%v", out, err, cancelled)
+	}
+	if out != "Gi received: hello" {
+		t.Fatalf("unexpected output: %q", out)
+	}
+	if len(chunks) == 0 {
+		t.Fatal("expected streamed chunks")
+	}
+	if got := chunks[0]; got == "" {
+		t.Fatalf("expected non-empty first chunk: %#v", chunks)
+	}
+}
+
 func TestSubmitPeerMessageUsesExistingTargetSession(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

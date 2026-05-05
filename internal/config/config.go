@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rcarmo/gi/internal/routing"
 	"github.com/rcarmo/gi/internal/skills"
@@ -105,8 +106,17 @@ func Load(workspaceRoot string) RuntimeConfig {
 	if cfg.UserName == "" {
 		cfg.UserName = "User"
 	}
+	if strings.TrimSpace(cfg.DefaultProvider) == "" {
+		cfg.DefaultProvider = "opencode-zen"
+	}
+	if len(cfg.EnabledModels) == 0 {
+		cfg.EnabledModels = []string{"opencode-zen/minimax-m2.5-free"}
+	}
 	if cfg.DefaultModel == "" && len(cfg.EnabledModels) > 0 {
 		cfg.DefaultModel = cfg.EnabledModels[0]
+	}
+	if strings.TrimSpace(cfg.DefaultThinkingLevel) == "" {
+		cfg.DefaultThinkingLevel = "low"
 	}
 	if len(cfg.Session.Dimensions) == 0 {
 		cfg.Session.Dimensions = []string{"chat"}
@@ -126,6 +136,52 @@ func Load(workspaceRoot string) RuntimeConfig {
 	}
 	cfg.SystemPrompt = buildSystemPrompt(cfg, workspaceInstructions)
 	return cfg
+}
+
+func PersistModelSelection(workspaceRoot, provider, model, thinking string, enabledModels []string) error {
+	if strings.TrimSpace(workspaceRoot) == "" {
+		return errors.New("workspace root is required")
+	}
+	piDir := filepath.Join(workspaceRoot, ".pi")
+	if err := os.MkdirAll(piDir, 0o755); err != nil {
+		return err
+	}
+	settingsPath := filepath.Join(piDir, "settings.json")
+	settings := map[string]any{}
+	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
+		_ = json.Unmarshal(data, &settings)
+	}
+	if strings.TrimSpace(provider) != "" {
+		settings["defaultProvider"] = provider
+	}
+	if strings.TrimSpace(model) != "" {
+		settings["defaultModel"] = model
+	}
+	if strings.TrimSpace(thinking) != "" {
+		settings["defaultThinkingLevel"] = thinking
+	}
+	models := append([]string(nil), enabledModels...)
+	if strings.TrimSpace(model) != "" && !contains(models, model) {
+		models = append(models, model)
+	}
+	if len(models) > 0 {
+		settings["enabledModels"] = models
+	}
+	blob, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return err
+	}
+	blob = append(blob, '\n')
+	return os.WriteFile(settingsPath, blob, 0o644)
+}
+
+func contains(values []string, needle string) bool {
+	for _, value := range values {
+		if value == needle {
+			return true
+		}
+	}
+	return false
 }
 
 func readJSON(path string, target any) error {

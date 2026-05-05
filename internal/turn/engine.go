@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os/exec"
 	"sort"
@@ -380,6 +381,16 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 			r.current.cmdMu.Unlock()
 		}
 		r.mu.Unlock()
+	}, func(delta string) {
+		if strings.TrimSpace(delta) == "" {
+			return
+		}
+		r.engine.broadcast(sessionID, map[string]any{
+			"type":     "agent_draft_delta",
+			"chat_jid": "gi:" + sessionID,
+			"delta":    delta,
+			"turn_id":  turnID,
+		})
 	})
 	if cancelled {
 		_ = s.AppendTurnEvent(ctx, turnID, sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true})
@@ -428,19 +439,51 @@ func (e *Engine) Summary(ctx context.Context, turnID string) (*Summary, error) {
 	return &Summary{TurnID: turnID, SessionID: turnRec.SessionID, Status: turnRec.Status, Assistant: assistant, Events: events}, nil
 }
 
-func runShell(ctx context.Context, prompt string, onStart func(*exec.Cmd)) (string, error, bool) {
+func runShell(ctx context.Context, prompt string, onStart func(*exec.Cmd), onDelta func(string)) (string, error, bool) {
 	cmd := exec.Command("sh", "-lc", "printf 'Gi received: %s' \"$GI_PROMPT\"; sleep 1")
 	cmd.Env = append(cmd.Environ(), "GI_PROMPT="+prompt)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", err, false
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return "", err, false
+	}
 	if err := cmd.Start(); err != nil {
 		return "", err, false
 	}
 	if onStart != nil {
 		onStart(cmd)
 	}
+	var stdout, stderr bytes.Buffer
+	var readWG sync.WaitGroup
+	readWG.Add(2)
+	go func() {
+		defer readWG.Done()
+		buf := make([]byte, 128)
+		for {
+			n, readErr := stdoutPipe.Read(buf)
+			if n > 0 {
+				chunk := string(buf[:n])
+				stdout.WriteString(chunk)
+				if onDelta != nil {
+					onDelta(chunk)
+				}
+			}
+			if readErr != nil {
+				if readErr != io.EOF {
+					stderr.WriteString(readErr.Error())
+				}
+				return
+			}
+		}
+	}()
+	go func() {
+		defer readWG.Done()
+		_, _ = io.Copy(&stderr, stderrPipe)
+	}()
 	waitCh := make(chan error, 1)
 	go func() { waitCh <- cmd.Wait() }()
 	select {
@@ -449,8 +492,10 @@ func runShell(ctx context.Context, prompt string, onStart func(*exec.Cmd)) (stri
 			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		}
 		<-waitCh
+		readWG.Wait()
 		return stdout.String(), nil, true
 	case err := <-waitCh:
+		readWG.Wait()
 		if err != nil {
 			if stderr.Len() > 0 {
 				return "", fmt.Errorf("%w: %s", err, stderr.String()), false

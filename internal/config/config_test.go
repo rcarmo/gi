@@ -35,6 +35,31 @@ func TestLoadReadsWorkspacePiAndPiclawConfig(t *testing.T) {
 	}
 }
 
+func TestPersistModelSelectionUpdatesPiSettings(t *testing.T) {
+	root := t.TempDir()
+	if err := PersistModelSelection(root, "ollama", "gemma4:latest", "high", []string{"qwen3:latest"}); err != nil {
+		t.Fatal(err)
+	}
+	cfg := Load(root)
+	if cfg.DefaultProvider != "ollama" || cfg.DefaultModel != "gemma4:latest" || cfg.DefaultThinkingLevel != "high" {
+		t.Fatalf("unexpected persisted config: %#v", cfg)
+	}
+	if len(cfg.EnabledModels) != 2 || cfg.EnabledModels[1] != "gemma4:latest" {
+		t.Fatalf("unexpected enabled models after persist: %#v", cfg.EnabledModels)
+	}
+}
+
+func TestLoadFallsBackToGiDefaultsWhenNoPiSettingsExist(t *testing.T) {
+	root := t.TempDir()
+	cfg := Load(root)
+	if cfg.DefaultProvider != "opencode-zen" || cfg.DefaultModel != "opencode-zen/minimax-m2.5-free" || cfg.DefaultThinkingLevel != "low" {
+		t.Fatalf("unexpected defaults: %#v", cfg)
+	}
+	if len(cfg.EnabledModels) != 1 || cfg.EnabledModels[0] != "opencode-zen/minimax-m2.5-free" {
+		t.Fatalf("unexpected enabled-model defaults: %#v", cfg.EnabledModels)
+	}
+}
+
 func TestLoadWrapsAgentsInstructionsInRuntimePrompt(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("Project rule: keep APIs stable."), 0o644); err != nil {

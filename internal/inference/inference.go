@@ -1,6 +1,8 @@
 package inference
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	goai "github.com/rcarmo/go-ai"
@@ -31,10 +34,28 @@ type authEntry struct {
 func Init() {
 	once.Do(func() {
 		goai.RegisterBuiltinModels()
+		registerCustomModels()
+	})
+}
+
+func registerCustomModels() {
+	goai.RegisterModel(&goai.Model{
+		ID:            "minimax-m2.5-free",
+		Name:          "OpenCode Zen / MiniMax M2.5 Free",
+		Api:           goai.ApiOpenAICompletions,
+		Provider:      "opencode-zen",
+		BaseURL:       "https://opencode.ai/zen/v1",
+		Reasoning:     false,
+		Input:         []string{"text"},
+		ContextWindow: 128000,
+		MaxTokens:     16384,
 	})
 }
 
 func loadAuth(provider string) (string, string, error) {
+	if provider == "opencode-zen" {
+		return "", "https://opencode.ai/zen/v1", nil
+	}
 	home, _ := os.UserHomeDir()
 	authPath := filepath.Join(home, ".pi", "agent", "auth.json")
 	data, err := os.ReadFile(authPath)
@@ -94,6 +115,9 @@ func StreamWithTools(ctx context.Context, modelID string, convCtx *goai.Context,
 	model := goai.GetModel(goai.Provider(provider), modelName)
 	if model == nil {
 		return nil, fmt.Errorf("model not found: %s/%s", provider, modelName)
+	}
+	if provider == "opencode-zen" {
+		return streamOpenCodeZen(ctx, model, convCtx, broadcast)
 	}
 
 	apiKey, baseURLOverride, err := loadAuth(provider)
@@ -177,6 +201,192 @@ func splitModelID(id string) (string, string) {
 		}
 	}
 	return "", id
+}
+
+func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Context, broadcast func(map[string]any)) (*StreamResult, error) {
+	payload := map[string]any{
+		"model":    model.ID,
+		"stream":   true,
+		"messages": openAICompatMessages(convCtx),
+	}
+	if len(convCtx.Tools) > 0 {
+		payload["tools"] = openAICompatTools(convCtx.Tools)
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(model.BaseURL, "/")+"/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(b))
+	}
+	var fullText, fullThinking string
+	usage := &goai.Usage{}
+	toolCalls := map[int]*goai.ToolCall{}
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "[DONE]" {
+			break
+		}
+		var chunk struct {
+			Choices []struct {
+				Delta struct {
+					Content   string `json:"content"`
+					Reasoning string `json:"reasoning"`
+					ToolCalls []struct {
+						Index    int    `json:"index"`
+						ID       string `json:"id"`
+						Function struct {
+							Name      string `json:"name"`
+							Arguments string `json:"arguments"`
+						} `json:"function"`
+					} `json:"tool_calls"`
+				} `json:"delta"`
+				FinishReason string `json:"finish_reason"`
+			} `json:"choices"`
+			Usage struct {
+				PromptTokens     int `json:"prompt_tokens"`
+				CompletionTokens int `json:"completion_tokens"`
+				TotalTokens      int `json:"total_tokens"`
+			} `json:"usage"`
+		}
+		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			continue
+		}
+		if chunk.Usage.TotalTokens > 0 {
+			usage.Input = chunk.Usage.PromptTokens
+			usage.Output = chunk.Usage.CompletionTokens
+			usage.TotalTokens = chunk.Usage.TotalTokens
+		}
+		for _, choice := range chunk.Choices {
+			if choice.Delta.Reasoning != "" {
+				fullThinking += choice.Delta.Reasoning
+				if broadcast != nil {
+					broadcast(map[string]any{"type": "thinking_delta", "delta": choice.Delta.Reasoning})
+				}
+			}
+			if choice.Delta.Content != "" {
+				fullText += choice.Delta.Content
+				if broadcast != nil {
+					broadcast(map[string]any{"type": "text_delta", "delta": choice.Delta.Content})
+				}
+			}
+			for _, tc := range choice.Delta.ToolCalls {
+				call := toolCalls[tc.Index]
+				if call == nil {
+					call = &goai.ToolCall{Type: "toolCall"}
+					toolCalls[tc.Index] = call
+					if broadcast != nil && tc.Function.Name != "" {
+						broadcast(map[string]any{"type": "tool_call_start", "name": tc.Function.Name, "index": tc.Index})
+					}
+				}
+				if tc.ID != "" {
+					call.ID = tc.ID
+				}
+				if tc.Function.Name != "" {
+					call.Name = tc.Function.Name
+				}
+				if tc.Function.Arguments != "" {
+					if call.Arguments == nil {
+						call.Arguments = map[string]any{}
+					}
+					var args map[string]any
+					if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err == nil {
+						call.Arguments = args
+					}
+				}
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	msg := &goai.Message{Role: goai.RoleAssistant, Model: model.ID, Provider: model.Provider, Api: model.Api, Usage: usage}
+	if fullThinking != "" {
+		msg.Content = append(msg.Content, goai.ContentBlock{Type: "thinking", Text: fullThinking})
+	}
+	if fullText != "" {
+		msg.Content = append(msg.Content, goai.ContentBlock{Type: "text", Text: fullText})
+	}
+	for _, idx := range sortedToolCallIndexes(toolCalls) {
+		call := toolCalls[idx]
+		msg.Content = append(msg.Content, goai.ContentBlock{Type: "toolCall", ID: call.ID, Name: call.Name, Arguments: call.Arguments})
+		if broadcast != nil {
+			broadcast(map[string]any{"type": "tool_call_end", "name": call.Name, "id": call.ID})
+		}
+	}
+	if broadcast != nil {
+		broadcast(map[string]any{"type": "done", "model": string(model.Provider) + "/" + model.ID, "usage": map[string]any{"input": usage.Input, "output": usage.Output, "total": usage.TotalTokens}})
+	}
+	return &StreamResult{Message: msg, Usage: usage, Text: fullText}, nil
+}
+
+func openAICompatMessages(convCtx *goai.Context) []map[string]any {
+	messages := make([]map[string]any, 0, len(convCtx.Messages)+1)
+	if strings.TrimSpace(convCtx.SystemPrompt) != "" {
+		messages = append(messages, map[string]any{"role": "system", "content": convCtx.SystemPrompt})
+	}
+	for _, msg := range convCtx.Messages {
+		role := strings.ToLower(string(msg.Role))
+		content := goai.GetTextContent(&msg)
+		if role == "tool" || role == "toolresult" {
+			entry := map[string]any{"role": "tool", "content": content}
+			if msg.ToolCallID != "" {
+				entry["tool_call_id"] = msg.ToolCallID
+			}
+			messages = append(messages, entry)
+			continue
+		}
+		messages = append(messages, map[string]any{"role": role, "content": content})
+	}
+	return messages
+}
+
+func openAICompatTools(tools []goai.Tool) []map[string]any {
+	out := make([]map[string]any, 0, len(tools))
+	for _, tool := range tools {
+		out = append(out, map[string]any{
+			"type": "function",
+			"function": map[string]any{
+				"name":        tool.Name,
+				"description": tool.Description,
+				"parameters":  json.RawMessage(tool.Parameters),
+			},
+		})
+	}
+	return out
+}
+
+func sortedToolCallIndexes(calls map[int]*goai.ToolCall) []int {
+	idx := make([]int, 0, len(calls))
+	for k := range calls {
+		idx = append(idx, k)
+	}
+	for i := 0; i < len(idx); i++ {
+		for j := i + 1; j < len(idx); j++ {
+			if idx[j] < idx[i] {
+				idx[i], idx[j] = idx[j], idx[i]
+			}
+		}
+	}
+	return idx
 }
 
 func refreshCopilotToken(refreshToken string) (string, string, error) {

@@ -85,6 +85,7 @@ type chatTUI struct {
 	transcript       []string
 	transcriptScroll int
 	stickToBottom    bool
+	draftLineIndex   int
 }
 
 func (c *chatTUI) ensureInput() {
@@ -108,6 +109,11 @@ func (c *chatTUI) Init() func() {
 	c.history = []string{}
 	c.inputActive = true
 	c.transcript = c.loadTranscript()
+	c.draftLineIndex = -1
+	if strings.TrimSpace(c.cfg.DefaultModel) == "" {
+		c.status = "Select a model with /model <name>"
+		c.transcript = append(c.transcript, c.firstUseModelPromptLines()...)
+	}
 	c.ensureInput()
 	c.scrollTranscriptToBottom()
 
@@ -153,24 +159,30 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 	case "agent_draft_delta":
 		delta, _ := ev["delta"].(string)
 		c.draft += delta
+		c.updateDraftTranscriptLine()
 		c.status = fmt.Sprintf("⏳ %s…", truncate(c.draft, 80))
 		if c.stickToBottom {
 			c.scrollTranscriptToBottom()
 		}
-		c.app.MarkDirty()
+		if c.app != nil {
+			c.app.MarkDirty()
+		}
 	case "new_post":
 		data, _ := ev["data"].(map[string]any)
 		if data != nil {
 			text, _ := data["content"].(string)
 			if text != "" {
-				c.transcript = append(c.transcript, fmt.Sprintf("%s: %s", c.cfg.AssistantName, text))
+				c.finalizeDraftTranscriptLine(text)
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 				c.running = false
 				c.draft = ""
+				c.draftLineIndex = -1
 				if c.stickToBottom {
 					c.scrollTranscriptToBottom()
 				}
-				c.app.MarkDirty()
+				if c.app != nil {
+					c.app.MarkDirty()
+				}
 			}
 		}
 	case "agent_thought_delta":
@@ -227,6 +239,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			msg, _ = ev["message"].(string)
 		}
 		if msg != "" {
+			c.clearDraftTranscriptLine()
 			c.transcript = append(c.transcript, "error: "+truncate(msg, 160))
 			c.status = "Error"
 			if c.app != nil {
@@ -234,6 +247,30 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			}
 		}
 	}
+}
+
+func (c *chatTUI) updateDraftTranscriptLine() {
+	line := fmt.Sprintf("%s: %s", c.cfg.AssistantName, c.draft)
+	if c.draftLineIndex >= 0 && c.draftLineIndex < len(c.transcript) {
+		c.transcript[c.draftLineIndex] = line
+		return
+	}
+	c.transcript = append(c.transcript, line)
+	c.draftLineIndex = len(c.transcript) - 1
+}
+
+func (c *chatTUI) finalizeDraftTranscriptLine(text string) {
+	line := fmt.Sprintf("%s: %s", c.cfg.AssistantName, text)
+	if c.draftLineIndex >= 0 && c.draftLineIndex < len(c.transcript) {
+		c.transcript[c.draftLineIndex] = line
+		return
+	}
+	c.transcript = append(c.transcript, line)
+}
+
+func (c *chatTUI) clearDraftTranscriptLine() {
+	c.draft = ""
+	c.draftLineIndex = -1
 }
 
 func intFromEvent(ev map[string]any, key string) int {
@@ -356,9 +393,19 @@ func (c *chatTUI) onSubmit(text string) {
 	if c.running {
 		return
 	}
+	if strings.TrimSpace(c.cfg.DefaultModel) == "" {
+		c.transcript = append(c.transcript, c.firstUseModelPromptLines()...)
+		c.status = "Select a model with /model <name>"
+		c.scrollTranscriptToBottom()
+		if c.app != nil {
+			c.app.MarkDirty()
+		}
+		return
+	}
 	c.running = true
 	c.status = "sending…"
 	c.draft = ""
+	c.draftLineIndex = -1
 	c.transcript = append(c.transcript, fmt.Sprintf("you: %s", text))
 	c.stickToBottom = true
 	c.scrollTranscriptToBottom()
@@ -373,6 +420,7 @@ func (c *chatTUI) onSubmit(text string) {
 		})
 		if err != nil {
 			c.app.QueueUpdate(func() {
+				c.clearDraftTranscriptLine()
 				c.transcript = append(c.transcript, fmt.Sprintf("error: %v", err))
 				c.running = false
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -382,6 +430,7 @@ func (c *chatTUI) onSubmit(text string) {
 		}
 		if result != nil && result.Routed && result.SessionID != c.sessionID {
 			c.app.QueueUpdate(func() {
+				c.clearDraftTranscriptLine()
 				c.transcript = append(c.transcript, fmt.Sprintf("sys: routed to @%s (%s)", result.TargetAgentID, result.SessionID))
 				c.running = false
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -494,6 +543,13 @@ func (c *chatTUI) handleCommand(text string) {
 	}
 }
 
+func (c *chatTUI) firstUseModelPromptLines() []string {
+	if len(c.cfg.EnabledModels) > 0 {
+		return []string{fmt.Sprintf("sys: no model selected; choose one with /model <name>. available: %s", strings.Join(c.cfg.EnabledModels, ", "))}
+	}
+	return []string{"sys: no model selected; choose one with /model <provider/model> before sending your first prompt"}
+}
+
 func (c *chatTUI) helpLines() []string {
 	return []string{
 		"sys: gi TUI help",
@@ -505,6 +561,9 @@ func (c *chatTUI) helpLines() []string {
 
 func (c *chatTUI) modelCommand(fields []string) []string {
 	if len(fields) == 1 {
+		if strings.TrimSpace(c.cfg.DefaultModel) == "" {
+			return c.firstUseModelPromptLines()
+		}
 		return []string{fmt.Sprintf("sys: model: %s", c.cfg.DefaultModel)}
 	}
 	model := strings.TrimSpace(strings.Join(fields[1:], " "))
@@ -512,7 +571,11 @@ func (c *chatTUI) modelCommand(fields []string) []string {
 		return []string{"sys: usage /model <model>"}
 	}
 	c.cfg.DefaultModel = model
+	if strings.Contains(model, "/") && strings.TrimSpace(c.cfg.DefaultProvider) == "" {
+		c.cfg.DefaultProvider = strings.SplitN(model, "/", 2)[0]
+	}
 	_ = c.store.TouchSessionState(context.Background(), c.sessionID, map[string]any{"model": model})
+	_ = config.PersistModelSelection(c.cfg.WorkspaceRoot, c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.DefaultThinkingLevel, c.cfg.EnabledModels)
 	return []string{fmt.Sprintf("sys: model set to %s", model)}
 }
 
@@ -648,6 +711,7 @@ func (c *chatTUI) switchSession(sessionID string) {
 	c.bindSession(sessionID)
 	c.transcript = c.loadTranscript()
 	c.draft = ""
+	c.draftLineIndex = -1
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 	c.scrollTranscriptToBottom()
@@ -991,11 +1055,8 @@ func (c *chatTUI) scrollTranscriptToBottom() {
 
 func (c *chatTUI) visibleTranscript() []string {
 	lines := c.loadTranscript()
-	if len(c.transcript) > len(lines) {
+	if c.draftLineIndex >= 0 || len(c.transcript) > len(lines) {
 		lines = append([]string(nil), c.transcript...)
-	}
-	if c.draft != "" {
-		lines = append(lines, fmt.Sprintf("draft: %s", c.draft))
 	}
 	if len(lines) == 0 {
 		return []string{"(no messages yet)"}
