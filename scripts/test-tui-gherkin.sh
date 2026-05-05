@@ -49,6 +49,32 @@ db_should_contain() {
   exit 1
 }
 
+message_count_should_be() {
+  local expected="$1"
+  local got
+  got=$(sqlite3 "$DB" 'select count(*) from messages;' 2>/dev/null || echo 0)
+  if [[ "$got" != "$expected" ]]; then
+    echo "message count was $got, expected $expected" >&2
+    sqlite3 -separator '|' "$DB" 'select role, content from messages order by created_at asc, id asc;' >&2 2>/dev/null || true
+    exit 1
+  fi
+}
+
+message_occurrence_should_be() {
+  local expected="$1" role="$2" text="$3"
+  local got
+  for _ in 1 2 3 4 5 6 7 8; do
+    sleep 0.5
+    got=$(sqlite3 "$DB" "select count(*) from messages where role = '$role' and content = '$text';" 2>/dev/null || echo 0)
+    if [[ "$got" == "$expected" ]]; then
+      return 0
+    fi
+  done
+  echo "$role message occurrence count for '$text' was $got, expected $expected" >&2
+  sqlite3 -separator '|' "$DB" 'select role, content from messages order by created_at asc, id asc;' >&2 2>/dev/null || true
+  exit 1
+}
+
 start_tui() {
   tmux kill-session -t "$SESSION" >/dev/null 2>&1 || true
   rm -rf "$TEST_DIR"
@@ -73,6 +99,40 @@ type_and_enter() {
   sleep 0.5
 }
 
+press_key() {
+  local key="$1"
+  case "$key" in
+    "Ctrl-D") tmux send-keys -t "$SESSION":0 C-d ;;
+    "Ctrl-P") tmux send-keys -t "$SESSION":0 C-p ;;
+    "Ctrl-N") tmux send-keys -t "$SESSION":0 C-n ;;
+    *) tmux send-keys -t "$SESSION":0 "$key" ;;
+  esac
+  sleep 0.5
+}
+
+resize_terminal() {
+  local size="$1"
+  local w=${size%x*}
+  local h=${size#*x}
+  tmux resize-window -t "$SESSION":0 -x "$w" -y "$h"
+  sleep 0.5
+}
+
+tmux_should_be_alive() {
+  tmux has-session -t "$SESSION" >/dev/null
+}
+
+tmux_should_exit() {
+  for _ in 1 2 3 4 5; do
+    sleep 0.5
+    if ! tmux has-session -t "$SESSION" >/dev/null 2>&1; then
+      return 0
+    fi
+  done
+  echo "tmux session did not exit" >&2
+  exit 1
+}
+
 run_step() {
   local line="$1"
   line="${line#    }"
@@ -82,8 +142,20 @@ run_step() {
     "When I start the gi TUI in tmux") start_tui ;;
     "Then the screen should contain "*|"And the screen should contain "*)
       local text=${line#*should contain \"}; text=${text%\"}; screen_should_contain "$text" ;;
-    "When I type "*" and press Enter")
-      local text=${line#When I type \"}; text=${text%\" and press Enter}; type_and_enter "$text" ;;
+    "When I type "*" and press Enter"|"And I type "*" and press Enter")
+      local text=${line#*I type \"}; text=${text%\" and press Enter}; type_and_enter "$text" ;;
+    "When I press "*|"And I press "*)
+      local key=${line#*I press }; press_key "$key" ;;
+    "When I resize the terminal to "*)
+      local size=${line#When I resize the terminal to }; resize_terminal "$size" ;;
+    "Then the tmux session should be alive"|"And the tmux session should be alive") tmux_should_be_alive ;;
+    "Then the tmux session should exit"|"And the tmux session should exit") tmux_should_exit ;;
+    "Then the database message count should be "*)
+      local expected=${line#Then the database message count should be }; message_count_should_be "$expected" ;;
+    "Then the database should contain "*" user messages "*)
+      local rest=${line#Then the database should contain }; local expected=${rest%% user messages*}; local text=${line#*user messages \"}; text=${text%\"}; message_occurrence_should_be "$expected" user "$text" ;;
+    "And the database should contain "*" user messages "*)
+      local rest=${line#And the database should contain }; local expected=${rest%% user messages*}; local text=${line#*user messages \"}; text=${text%\"}; message_occurrence_should_be "$expected" user "$text" ;;
     "Then the database should contain a user message "*)
       local text=${line#Then the database should contain a user message \"}; text=${text%\"}; db_should_contain user "$text" ;;
     "And the database should contain an assistant message "*)

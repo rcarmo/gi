@@ -198,35 +198,47 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 				c.app.BlurFocused()
 			}
 		}),
+		gotui.OnStop(gotui.KeyTab, func(ke gotui.KeyEvent) { c.focusInput() }),
 		gotui.OnStop(gotui.KeyPageUp, func(ke gotui.KeyEvent) { c.pageTranscript(-1) }),
 		gotui.OnStop(gotui.KeyPageDown, func(ke gotui.KeyEvent) { c.pageTranscript(1) }),
 		gotui.OnStop(gotui.KeyHome, func(ke gotui.KeyEvent) { c.scrollTranscriptToTop() }),
 		gotui.OnStop(gotui.KeyEnd, func(ke gotui.KeyEvent) { c.scrollTranscriptToBottom() }),
-		gotui.OnStop(gotui.KeyUp, func(ke gotui.KeyEvent) {
-			if c.input == nil || c.input.Text() != "" || len(c.history) == 0 {
-				return
-			}
-			if c.histIdx < 0 {
-				c.histIdx = len(c.history) - 1
-			} else if c.histIdx > 0 {
-				c.histIdx--
-			}
-			c.focusInput()
-			c.input.SetText(c.history[c.histIdx])
+		gotui.OnPreemptStop(gotui.KeyF2, func(ke gotui.KeyEvent) { c.recallHistory(-1) }),
+		gotui.OnPreemptStop(gotui.KeyF3, func(ke gotui.KeyEvent) { c.recallHistory(1) }),
+		gotui.OnPreemptStop(gotui.Rune('p').Ctrl(), func(ke gotui.KeyEvent) { c.recallHistory(-1) }),
+		gotui.OnPreemptStop(gotui.Rune('n').Ctrl(), func(ke gotui.KeyEvent) { c.recallHistory(1) }),
+		gotui.OnPreemptStop(gotui.KeyUp, func(ke gotui.KeyEvent) {
+			c.recallHistory(-1)
 		}),
-		gotui.OnStop(gotui.KeyDown, func(ke gotui.KeyEvent) {
-			if c.histIdx < 0 || c.input == nil {
-				return
-			}
-			c.histIdx++
-			if c.histIdx >= len(c.history) {
-				c.histIdx = -1
-				c.input.SetText("")
-			} else {
-				c.input.SetText(c.history[c.histIdx])
-			}
+		gotui.OnPreemptStop(gotui.KeyDown, func(ke gotui.KeyEvent) {
+			c.recallHistory(1)
 		}),
 	}
+}
+
+func (c *chatTUI) recallHistory(delta int) {
+	if c.input == nil || c.input.Text() != "" || len(c.history) == 0 {
+		return
+	}
+	if delta < 0 {
+		if c.histIdx < 0 {
+			c.histIdx = len(c.history) - 1
+		} else if c.histIdx > 0 {
+			c.histIdx--
+		}
+	} else {
+		if c.histIdx < 0 {
+			return
+		}
+		c.histIdx++
+		if c.histIdx >= len(c.history) {
+			c.histIdx = -1
+			c.input.SetText("")
+			return
+		}
+	}
+	c.focusInput()
+	c.input.SetText(c.history[c.histIdx])
 }
 
 func (c *chatTUI) HandleMouse(me gotui.MouseEvent) bool {
@@ -645,7 +657,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 
 	inputLabel := gotui.New(
 		gotui.WithWidthPercent(100),
-		gotui.WithText("Input (/help, /tools, /skills, /model, /thinking, /compact, /cancel, /agents, /fork, /switch, /send; Esc blur):"),
+		gotui.WithText("Input (/help, /tools, /skills, /model, /thinking, /compact, /cancel, /agents, /fork, /switch, /send; Esc blur, Tab focus, F2/F3 history):"),
 		gotui.WithTextStyle(gotui.NewStyle().Dim()),
 	)
 	root.AddChild(inputLabel)
