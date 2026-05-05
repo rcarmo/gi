@@ -2,6 +2,23 @@
 
 Date: 2026-05-05
 
+## Status
+
+Implemented in this first pass:
+
+- `internal/topics/` in-memory bounded topic bus
+- engine-owned `Topics()` accessor
+- normalized publication of turn/session broadcast events into the topic bus
+- extension lifecycle publication (`extension.loaded`, `extension.failed`)
+- bridge from the existing connectivity event bus into topic topics under `connectivity.*`
+
+Still pending:
+
+- script bridge publish/subscribe APIs
+- dedicated SSE topic-stream endpoint
+- TUI/topic-native consumers
+- deeper convergence between connectivity and topics
+
 ## Goal
 
 Define an internal topic system that can:
@@ -220,16 +237,21 @@ Not every topic should be persisted.
 
 ### Phase 1 — shared internal bus
 
-- add `internal/topics/`
-- implement in-memory bounded bus
-- add publish/subscribe tests
-- add topic envelope type
+Status: **implemented**
+
+- added `internal/topics/`
+- implemented in-memory bounded bus
+- added publish/subscribe tests
+- added topic envelope type
 
 ### Phase 2 — engine + extension bridge
 
-- publish turn/session/extension lifecycle events into topic bus
-- add script bridge APIs for publish/subscribe
-- keep existing engine broadcasts intact
+Status: **partially implemented**
+
+- turn/session broadcast events are now published into the topic bus
+- extension lifecycle events are now published into the topic bus
+- existing engine broadcasts remain intact
+- script bridge APIs for publish/subscribe are still pending
 
 ### Phase 3 — SSE/TUI adapters
 

@@ -19,6 +19,7 @@ import (
 	"github.com/rcarmo/gi/internal/routing"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/topics"
 )
 
 type Engine struct {
@@ -30,6 +31,7 @@ type Engine struct {
 	hooks         *HookRegistry
 	tools         *ToolRegistry
 	connectivity  *connectivity.Registry
+	topics        *topics.Bus
 	peering       *peering.Manager
 	extensions    []ExtensionInfo
 	extensionsMu  sync.RWMutex
@@ -115,9 +117,11 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 		hooks:         NewHookRegistry(),
 		tools:         NewToolRegistry(),
 		connectivity:  connectivity.NewRegistry(),
+		topics:        topics.NewBus(),
 		peering:       peering.NewManager(cfg.Peering, cfg.WorkspaceRoot),
 	}
 	e.registerDefaultTools()
+	e.startTopicBridge()
 	return e
 }
 
@@ -800,6 +804,7 @@ func (e *Engine) Unsubscribe(sessionID string, ch chan map[string]any) {
 }
 
 func (e *Engine) broadcast(sessionID string, ev map[string]any) {
+	e.publishTopicFromBroadcast(sessionID, ev)
 	v, ok := e.subs.Load(sessionID)
 	if !ok {
 		return

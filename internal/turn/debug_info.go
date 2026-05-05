@@ -1,6 +1,10 @@
 package turn
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/rcarmo/gi/internal/topics"
+)
 
 type ExtensionInfo struct {
 	Engine string `json:"engine"`
@@ -29,6 +33,21 @@ func (e *Engine) HookInfos() []HookInfo {
 
 func (e *Engine) recordExtension(info ExtensionInfo) {
 	e.extensionsMu.Lock()
-	defer e.extensionsMu.Unlock()
 	e.extensions = append(e.extensions, info)
+	e.extensionsMu.Unlock()
+	envType := "notice"
+	if info.Status == "failed" {
+		envType = "error"
+	}
+	e.publishTopicEvent(topics.Envelope{
+		Topic:  "extension." + info.Status,
+		Source: "extension",
+		Type:   envType,
+		Payload: map[string]any{
+			"engine": info.Engine,
+			"path":   info.Path,
+			"status": info.Status,
+			"error":  info.Error,
+		},
+	})
 }

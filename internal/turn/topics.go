@@ -1,0 +1,108 @@
+package turn
+
+import (
+	"context"
+	"strings"
+
+	"github.com/rcarmo/gi/internal/topics"
+)
+
+// Topics returns the engine-wide normalized topic bus.
+func (e *Engine) Topics() *topics.Bus { return e.topics }
+
+func (e *Engine) startTopicBridge() {
+	if e == nil || e.topics == nil || e.connectivity == nil || e.connectivity.Bus() == nil {
+		return
+	}
+	ch, _ := e.connectivity.Bus().Subscribe(context.Background(), "*", 64)
+	go func() {
+		for ev := range ch {
+			topic := strings.TrimSpace(ev.Topic)
+			if topic == "" {
+				topic = "event"
+			}
+			if !strings.HasPrefix(topic, "connectivity.") {
+				topic = "connectivity." + topic
+			}
+			e.topics.Publish(topics.Envelope{
+				Topic:     topic,
+				SessionID: ev.SessionID,
+				AgentID:   ev.AgentID,
+				Source:    firstNonEmpty(ev.Source, "connectivity"),
+				Type:      "event",
+				Payload: map[string]any{
+					"id":        ev.ID,
+					"route_id":  ev.RouteID,
+					"transport": ev.Transport,
+					"topic":     ev.Topic,
+					"payload":   ev.Payload,
+				},
+				Timestamp: ev.Timestamp,
+			})
+		}
+	}()
+}
+
+func (e *Engine) publishTopicEvent(env topics.Envelope) {
+	if e == nil || e.topics == nil {
+		return
+	}
+	e.topics.Publish(env)
+}
+
+func (e *Engine) publishTopicFromBroadcast(sessionID string, ev map[string]any) {
+	if e == nil || e.topics == nil || ev == nil {
+		return
+	}
+	evType, _ := ev["type"].(string)
+	topic, envelopeType := topicForBroadcastEvent(evType)
+	if topic == "" {
+		return
+	}
+	agentID, _ := ev["agent_id"].(string)
+	e.publishTopicEvent(topics.Envelope{
+		Topic:     topic,
+		SessionID: sessionID,
+		AgentID:   agentID,
+		Source:    "turn",
+		Type:      envelopeType,
+		Payload:   cloneMap(ev),
+	})
+}
+
+func topicForBroadcastEvent(evType string) (topic string, envelopeType string) {
+	switch strings.TrimSpace(evType) {
+	case "agent_status":
+		return "turn.status", "status"
+	case "agent_draft_delta":
+		return "turn.draft", "delta"
+	case "agent_thought_delta":
+		return "turn.thought", "delta"
+	case "tool_finished":
+		return "turn.tool.end", "result"
+	case "tool_failed":
+		return "turn.tool.end", "error"
+	case "compaction":
+		return "session.compaction", "notice"
+	case "routing_decision", "routing_incoming":
+		return "session.routing", "notice"
+	case "new_post", "agent_response":
+		return "turn.response", "result"
+	default:
+		if strings.TrimSpace(evType) == "" {
+			return "", ""
+		}
+		return "event." + strings.ReplaceAll(evType, "_", "."), "notice"
+	}
+}
+
+func cloneMap(in map[string]any) map[string]any {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
