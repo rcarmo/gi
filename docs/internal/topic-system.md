@@ -1,0 +1,255 @@
+# Internal topic system design
+
+Date: 2026-05-05
+
+## Goal
+
+Define an internal topic system that can:
+
+- propagate information from extensions to SSE or the TUI
+- propagate information between extensions
+- remain transport-neutral so future web/TUI/runtime consumers can subscribe without custom wiring for every event type
+
+## Problem
+
+Today gi has multiple event-like mechanisms, but no single shared topic abstraction:
+
+- turn-engine session broadcasts for TUI/web status updates
+- connectivity registry event bus for connectivity routes/SSE streams
+- hook callbacks for synchronous extension interception
+
+This leaves a gap:
+
+- extensions cannot publish durable, named runtime topics for other extensions
+- TUI/web consumers cannot subscribe to a stable internal topic namespace independent of turn/session broadcast internals
+- SSE integration and extension-to-extension messaging are coupled to whichever subsystem emitted the event first
+
+## Design principles
+
+1. **Transport-neutral core**
+   - topics are internal runtime messages first
+   - SSE/TUI/websocket are delivery adapters, not the source abstraction
+
+2. **Session-aware but not session-bound**
+   - some topics are global
+   - some are session-scoped or agent-scoped
+
+3. **Typed envelope, JSON-safe payload**
+   - payloads should be safe to serialize to SSE/web/TUI observers
+   - avoid exposing arbitrary Go pointers or runtime-only closures
+
+4. **Bounded and observable**
+   - subscriptions should be bounded
+   - slow subscribers should drop or coalesce rather than block the runtime
+
+5. **Extension-friendly**
+   - extensions need simple publish/subscribe APIs
+   - subscriptions must be easy to clean up on unload/reload
+
+## Proposed model
+
+### Topic names
+
+Use dotted topic namespaces:
+
+- `turn.status`
+- `turn.draft`
+- `turn.tool.start`
+- `turn.tool.end`
+- `session.changed`
+- `session.compaction`
+- `extension.loaded`
+- `extension.error`
+- `ui.notice`
+- `connectivity.event`
+
+Optional scoped suffixes:
+
+- `session.<sessionID>.turn.status`
+- `agent.<agentID>.notice`
+- `chat.<sessionID>.draft`
+
+### Envelope
+
+```go
+type TopicEnvelope struct {
+    Topic      string         `json:"topic"`
+    SessionID  string         `json:"session_id,omitempty"`
+    AgentID    string         `json:"agent_id,omitempty"`
+    Source     string         `json:"source,omitempty"`      // turn|extension|connectivity|web|tui
+    Type       string         `json:"type,omitempty"`        // status|delta|notice|result|error
+    Payload    map[string]any `json:"payload,omitempty"`
+    Timestamp  string         `json:"timestamp"`
+}
+```
+
+This is intentionally close to SSE/event-bus payloads already present in gi.
+
+## Core interfaces
+
+```go
+type TopicBus interface {
+    Publish(TopicEnvelope)
+    Subscribe(pattern string, opts SubscribeOptions) (<-chan TopicEnvelope, func())
+}
+
+type SubscribeOptions struct {
+    Buffer    int
+    SessionID string
+    AgentID   string
+}
+```
+
+### Pattern matching
+
+Support simple forms first:
+
+- exact topic: `turn.status`
+- prefix wildcard: `turn.*`
+- all: `*`
+
+No regex at first.
+
+## Relationship to existing systems
+
+### 1. turn.Engine broadcast
+
+Current session broadcast can become an adapter layer:
+
+- engine emits session-local UI events as it does today
+- engine also publishes normalized `TopicEnvelope`s into the topic bus
+- TUI/web can continue consuming session broadcast events during transition
+
+### 2. connectivity event bus
+
+Connectivity already has a bounded internal event bus.
+
+Recommendation:
+
+- do **not** duplicate the implementation long-term
+- evolve toward a shared internal topic bus with connectivity as one publisher/subscriber family
+- keep the connectivity route/topic naming but bridge it into the common bus
+
+### 3. hooks
+
+Hooks stay synchronous mutation/interception surfaces.
+
+They are **not** the same thing as topics.
+
+However, hook callbacks or extension handlers should be able to publish topic messages for observation or fan-out.
+
+## Extension-facing API
+
+### JavaScript
+
+```js
+gi.topics.publish({
+  topic: "ui.notice",
+  session_id: req.sessionId,
+  source: "extension:my-ext",
+  type: "notice",
+  payload: { text: "Index refresh complete" }
+})
+
+const unsub = gi.topics.subscribe("turn.*", (event) => {
+  // inspect or relay
+})
+```
+
+### Joker
+
+- `gi-topic-publish`
+- `gi-topic-subscribe`
+- `gi-topic-unsubscribe`
+
+Initial implementation can keep subscriptions read-only/observe-only.
+
+## TUI / SSE integration
+
+### TUI
+
+The TUI can subscribe to:
+
+- session-scoped turn topics
+- extension notices
+- future cross-extension/internal topics
+
+This avoids hardcoding every new event type into one custom engine broadcast path.
+
+### SSE
+
+Expose a reserved SSE endpoint that streams topic envelopes:
+
+- `/api/topics/stream?topic=turn.*&session_id=...`
+
+This can coexist with current SSE event names while we migrate.
+
+## Delivery semantics
+
+### Default
+
+- bounded buffered channels
+- non-blocking publish
+- drop oldest or drop newest on pressure (explicit policy)
+
+Recommended first policy:
+
+- **drop oldest** for high-frequency delta streams
+- keep latest state-like events available
+
+### Coalescing candidates
+
+Some topics can be coalesced later:
+
+- `turn.draft`
+- `turn.status`
+- `session.changed`
+
+## Persistence
+
+First phase: **in-memory only**.
+
+Optional later persistence:
+
+- selected topic envelopes mirrored into turn/session event tables
+- replay of the latest sticky topic state for new subscribers
+
+Not every topic should be persisted.
+
+## Initial implementation phases
+
+### Phase 1 — shared internal bus
+
+- add `internal/topics/`
+- implement in-memory bounded bus
+- add publish/subscribe tests
+- add topic envelope type
+
+### Phase 2 — engine + extension bridge
+
+- publish turn/session/extension lifecycle events into topic bus
+- add script bridge APIs for publish/subscribe
+- keep existing engine broadcasts intact
+
+### Phase 3 — SSE/TUI adapters
+
+- add topic-stream SSE endpoint
+- let TUI optionally subscribe to normalized topics instead of bespoke event maps
+
+### Phase 4 — convergence with connectivity
+
+- bridge or merge connectivity event bus into topic bus
+- unify topic naming and subscription behavior
+
+## Why this closes the current plan item
+
+The checklist item asked for a **design** for an internal topic system usable by extensions, SSE, and TUI, including extension-to-extension propagation. This document defines:
+
+- goals
+- constraints
+- envelope shape
+- publish/subscribe interfaces
+- relationship to existing engine/connectivity/hook systems
+- phased implementation path
+
+That is enough to guide later implementation without forcing premature runtime rewrites today.
