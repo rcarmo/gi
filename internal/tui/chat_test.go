@@ -2,6 +2,8 @@ package tui
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -147,6 +149,31 @@ func TestFooterTextContainsStableHints(t *testing.T) {
 	for _, want := range []string{"Hints:", "/help", "/tools active|activate|reset", "Tab focus", "F2/F3 history", "Ctrl-D quit"} {
 		if !strings.Contains(footer, want) {
 			t.Fatalf("footer missing %q: %s", want, footer)
+		}
+	}
+}
+
+func TestPluginLinesShowsExtensionsAndHooks(t *testing.T) {
+	rootDir := t.TempDir()
+	extDir := filepath.Join(rootDir, ".gi", "extensions")
+	if err := os.MkdirAll(extDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(extDir, "demo.joke"), []byte("nil"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	engine := turn.NewWithRuntimeConfig(s, config.RuntimeConfig{WorkspaceRoot: rootDir, DefaultModel: "bootstrap"}, "")
+	engine.RegisterHook("tool_call", "test-hook", func(context.Context, turn.HookRequest) (turn.HookResponse, error) { return turn.HookResponse{}, nil })
+	c := &chatTUI{store: s, engine: engine}
+	lines := strings.Join(c.pluginLines(), "\n")
+	for _, want := range []string{"plugins: extensions:", "loaded joker .gi/extensions/demo.joke", "plugins: hooks:", "tool_call from test-hook"} {
+		if !strings.Contains(lines, want) {
+			t.Fatalf("plugins missing %q:\n%s", want, lines)
 		}
 	}
 }

@@ -3,6 +3,7 @@ package turn
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 
 	goai "github.com/rcarmo/go-ai"
@@ -141,6 +142,24 @@ func (r *HookRegistry) Handlers(name string) []registeredHook {
 	if name != "*" {
 		out = append(out, r.hooks["*"]...)
 	}
+	return out
+}
+
+func (r *HookRegistry) Infos() []HookInfo {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var out []HookInfo
+	for name, hooks := range r.hooks {
+		for _, hook := range hooks {
+			out = append(out, HookInfo{Name: name, Source: hook.source, ID: hook.id})
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Name == out[j].Name {
+			return out[i].ID < out[j].ID
+		}
+		return out[i].Name < out[j].Name
+	})
 	return out
 }
 

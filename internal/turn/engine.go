@@ -28,6 +28,8 @@ type Engine struct {
 	hooks         *HookRegistry
 	tools         *ToolRegistry
 	connectivity  *connectivity.Registry
+	extensions    []ExtensionInfo
+	extensionsMu  sync.RWMutex
 	sessions      sync.Map // sessionID -> *sessionRunner
 	subs          sync.Map // sessionID -> map[chan map[string]any]bool
 	subsMu        sync.Mutex

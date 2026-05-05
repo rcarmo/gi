@@ -57,8 +57,10 @@ func (e *Engine) loadWorkspaceExtensions(scriptTool *tools.ScriptTool) {
 		out := scriptTool.Execute(context.Background(), tools.ScriptInput{Engine: ext.Engine, Path: ext.Path})
 		if out.Error != "" {
 			log.Printf("extension load failed path=%s engine=%s: %s", ext.Path, ext.Engine, out.Error)
+			e.recordExtension(ExtensionInfo{Engine: ext.Engine, Path: ext.Path, Status: "failed", Error: out.Error})
 			continue
 		}
+		e.recordExtension(ExtensionInfo{Engine: ext.Engine, Path: ext.Path, Status: "loaded"})
 		log.Printf("extension loaded path=%s engine=%s", ext.Path, ext.Engine)
 	}
 }

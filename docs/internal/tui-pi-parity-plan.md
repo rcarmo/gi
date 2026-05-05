@@ -49,7 +49,7 @@ This gives us the same behavior-level regression style as Piclaw's UX features, 
 - `/tools active`, `/tools activate ...`, and `/tools reset` for active tool visibility/control.
 - `/skills [query]` command backed by workspace skill discovery.
 - `/model`, `/thinking`, `/compact`, and `/cancel` runtime controls.
-- `/agents`, `/where`, `/tree`, `/fork`, `/switch`, and `/send` session/agent workflows.
+- `/agents`, `/where`, `/tree`, `/plugins`, `/fork`, `/switch`, and `/send` session/agent workflows/debug views.
 - Keyboard coverage for blur/focus, F2/F3 history hints, scroll, resize, and quit.
 - Gherkin/tmux features covering boot, help, tools discovery/activation, runtime controls, session workflows, prompt submission, persistence, and keyboard behavior.
 - TUI status rendering for thinking deltas, tool completion/failure, generic errors, and context compaction broadcasts.

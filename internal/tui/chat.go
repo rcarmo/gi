@@ -417,6 +417,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.transcript = append(c.transcript, c.cancelCommand())
 	case "/agents":
 		c.transcript = append(c.transcript, c.listAgentLines()...)
+	case "/plugins", "/extensions":
+		c.transcript = append(c.transcript, c.pluginLines()...)
 	case "/tree":
 		c.transcript = append(c.transcript, c.treeLines()...)
 	case "/fork":
@@ -477,7 +479,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.transcript = append(c.transcript, "sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /tree, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.transcript = append(c.transcript, "sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -492,7 +494,7 @@ func (c *chatTUI) helpLines() []string {
 	return []string{
 		"sys: gi TUI help",
 		"sys: keys: Enter send · Esc blur input · Ctrl-C/Ctrl-D quit · Up/Down history · PgUp/PgDn scroll · Home/End transcript",
-		"sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /tree, /where",
+		"sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /cancel, /agents, /tree, /plugins, /where",
 		"sys: sessions: /fork [@agentN], /switch @agent|session_id, /send @agent message",
 	}
 }
@@ -655,6 +657,28 @@ func (c *chatTUI) listAgentLines() []string {
 			parent = fmt.Sprintf(" parent=%s", sess.ParentSessionID)
 		}
 		lines = append(lines, fmt.Sprintf("%s @%s %s%s", marker, c.agentIDForSession(&sess), sess.ID, parent))
+	}
+	return lines
+}
+
+func (c *chatTUI) pluginLines() []string {
+	lines := []string{"plugins: extensions:"}
+	extensions := c.engine.ExtensionInfos()
+	if len(extensions) == 0 {
+		lines = append(lines, "- none loaded")
+	} else {
+		for _, ext := range extensions {
+			line := fmt.Sprintf("- %s %s %s", ext.Status, ext.Engine, ext.Path)
+			if ext.Error != "" {
+				line += ": " + truncate(ext.Error, 120)
+			}
+			lines = append(lines, line)
+		}
+	}
+	hooks := c.engine.HookInfos()
+	lines = append(lines, fmt.Sprintf("plugins: hooks: %d", len(hooks)))
+	for _, hook := range hooks {
+		lines = append(lines, fmt.Sprintf("- %s from %s #%d", hook.Name, hook.Source, hook.ID))
 	}
 	return lines
 }
@@ -830,7 +854,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 }
 
 func (c *chatTUI) footerText() string {
-	return "Hints: /help · /tools active|activate|reset · /skills · /model · /thinking · /compact · /cancel · /agents · /tree · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
+	return "Hints: /help · /tools active|activate|reset · /skills · /model · /thinking · /compact · /cancel · /agents · /tree · /plugins · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
 }
 
 func (c *chatTUI) loadTranscript() []string {
