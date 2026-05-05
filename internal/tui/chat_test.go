@@ -254,6 +254,29 @@ func TestSettingsLinesExposeRuntimeState(t *testing.T) {
 	}
 }
 
+func TestRenderMessageLinesFormatsMarkdown(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
+	lines := c.renderMessageLines(store.Message{Role: "assistant", Content: "# Title\n\n- first\n- second", Payload: map[string]any{"kind": "chat"}}, 80)
+	joined := strings.Join(lines, "\n")
+	for _, want := range []string{"Neo: TITLE", "=====", "• first", "• second"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("markdown render missing %q:\n%s", want, joined)
+		}
+	}
+}
+
+func TestRenderMessageLinesFormatsTableResponsively(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
+	content := "| Name | Role | Value |\n| --- | --- | --- |\n| Alice | admin | 42 |\n| Bob | user | 7 |"
+	lines := c.renderMessageLines(store.Message{Role: "assistant", Content: content, Payload: map[string]any{"kind": "chat"}}, 20)
+	joined := strings.Join(lines, "\n")
+	for _, want := range []string{"Name: Alice", "Role: admin", "Value: 42", "Name: Bob", "Role: user", "Value: 7"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("responsive table render missing %q:\n%s", want, joined)
+		}
+	}
+}
+
 func TestRenderMessageLineFoldsToolAndCompaction(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
 	toolLine := c.renderMessageLine(store.Message{Role: "tool_result", Content: "long tool output", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": false}})

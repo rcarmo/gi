@@ -167,7 +167,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		if data != nil {
 			text, _ := data["content"].(string)
 			if text != "" {
-				c.finalizeDraftTranscriptLine(text)
+				c.finalizeDraftTranscript(text)
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 				c.running = false
 				c.draft = ""
@@ -254,16 +254,26 @@ func (c *chatTUI) updateDraftTranscriptLine() {
 	c.draftLineIndex = len(c.transcript) - 1
 }
 
-func (c *chatTUI) finalizeDraftTranscriptLine(text string) {
-	line := fmt.Sprintf("%s: %s", c.cfg.AssistantName, text)
+func (c *chatTUI) finalizeDraftTranscript(text string) {
+	lines := renderMarkdownTranscript(c.cfg.AssistantName+": ", text, c.transcriptRenderWidth())
+	if !looksLikeMarkdown(text) {
+		lines = []string{fmt.Sprintf("%s: %s", c.cfg.AssistantName, text)}
+	}
 	if c.draftLineIndex >= 0 && c.draftLineIndex < len(c.transcript) {
-		c.transcript[c.draftLineIndex] = line
+		prefix := append([]string(nil), c.transcript[:c.draftLineIndex]...)
+		suffix := append([]string(nil), c.transcript[c.draftLineIndex+1:]...)
+		c.transcript = append(prefix, append(lines, suffix...)...)
+		c.transcript = c.pruneTranscript(c.transcript)
+		c.draftLineIndex = -1
 		return
 	}
-	c.appendTranscript(line)
+	c.appendTranscript(lines...)
 }
 
 func (c *chatTUI) clearDraftTranscriptLine() {
+	if c.draftLineIndex >= 0 && c.draftLineIndex < len(c.transcript) {
+		c.transcript = append(c.transcript[:c.draftLineIndex], c.transcript[c.draftLineIndex+1:]...)
+	}
 	c.draft = ""
 	c.draftLineIndex = -1
 }
@@ -989,6 +999,32 @@ func (c *chatTUI) footerText() string {
 	return "Hints: /help · /tools active|activate|reset · /skills · /model · /thinking · /compact · /scrollback · /settings · /approvals · /cancel · /agents · /tree · /plugins · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
 }
 
+func (c *chatTUI) currentPadding() int {
+	if c.app != nil {
+		w, h := c.app.Size()
+		if w < 80 || h < 20 {
+			return 0
+		}
+	}
+	return 1
+}
+
+func (c *chatTUI) currentContentWidth() int {
+	if c.app == nil {
+		return 78
+	}
+	w, h := c.app.Size()
+	padding := 1
+	if w < 80 || h < 20 {
+		padding = 0
+	}
+	contentWidth := w - (padding * 2)
+	if contentWidth < 20 {
+		contentWidth = 20
+	}
+	return contentWidth
+}
+
 func (c *chatTUI) horizontalRule(width int) string {
 	if width < 8 {
 		width = 8
@@ -1035,6 +1071,14 @@ func (c *chatTUI) renderLineBlock(lines []string, style gotui.Style) *gotui.Elem
 	return block
 }
 
+func (c *chatTUI) transcriptRenderWidth() int {
+	width := c.currentContentWidth()
+	if width <= 0 {
+		return 80
+	}
+	return width
+}
+
 func (c *chatTUI) loadTranscript() []string {
 	if c.store == nil {
 		return append([]string(nil), c.transcript...)
@@ -1045,9 +1089,27 @@ func (c *chatTUI) loadTranscript() []string {
 	}
 	out := make([]string, 0, len(msgs))
 	for _, m := range msgs {
-		out = append(out, c.renderMessageLine(m))
+		out = append(out, c.renderMessageLines(m, c.transcriptRenderWidth())...)
 	}
 	return c.pruneTranscript(out)
+}
+
+func (c *chatTUI) renderMessageLines(m store.Message, width int) []string {
+	kind, _ := m.Payload["kind"].(string)
+	if kind == "compaction" || m.Role == "tool_result" || kind == "tool_result" {
+		return []string{c.renderMessageLine(m)}
+	}
+	prefix := "you: "
+	switch m.Role {
+	case "assistant":
+		prefix = c.cfg.AssistantName + ": "
+	case "system":
+		prefix = "sys: "
+	}
+	if looksLikeMarkdown(m.Content) {
+		return renderMarkdownTranscript(prefix, m.Content, width)
+	}
+	return []string{c.renderMessageLine(m)}
 }
 
 func (c *chatTUI) renderMessageLine(m store.Message) string {
