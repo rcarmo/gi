@@ -50,6 +50,7 @@ db_should_contain() {
 }
 
 start_tui() {
+  tmux kill-session -t "$SESSION" >/dev/null 2>&1 || true
   rm -rf "$TEST_DIR"
   mkdir -p "$ARTIFACT_DIR" "$WORKSPACE/.pi" "$WORKSPACE/.piclaw"
   cat > "$WORKSPACE/.pi/settings.json" <<'JSON'
