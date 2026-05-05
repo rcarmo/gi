@@ -42,6 +42,10 @@ Use Gherkin `.feature` files for readable UX requirements, but drive the termina
 
 This gives us the same behavior-level regression style as Piclaw's UX features, adapted to a TUI.
 
+### Screenshot/testing backend note
+
+`rcarmo/go-te` was considered for screenshotting-style terminal tests. For the current parity phase, tmux pane captures are the primary artifact because they are text-diffable, CI-lightweight, and already exercise real terminal input/rendering. `go-te` remains a possible future enhancement if we need image-level terminal regression evidence, but it is not required for the current Gherkin evidence loop.
+
 ## Implemented slices
 
 - `/help` command with command and keybinding reference.
