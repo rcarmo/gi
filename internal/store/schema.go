@@ -76,13 +76,19 @@ func initSchema(db *sql.DB) error {
 			id text primary key,
 			session_id text not null,
 			status text not null,
+			phase text not null default 'queued',
 			prompt text not null default '',
 			metadata_json text not null default '{}',
+			claimed_by text,
+			claimed_at text,
+			started_at text,
+			finished_at text,
 			created_at text not null,
 			updated_at text not null,
 			foreign key(session_id) references sessions(id) on delete cascade
 		);`,
 		`create index if not exists idx_turns_session_status on turns(session_id, status, updated_at desc);`,
+		`create index if not exists idx_turns_session_phase on turns(session_id, phase, updated_at desc);`,
 		`create index if not exists idx_turns_metadata_intent on turns(json_extract(metadata_json, '$.intent'));`,
 
 		`create table if not exists session_active_turns (
@@ -201,6 +207,11 @@ func initSchema(db *sql.DB) error {
 	for _, alter := range []string{
 		`alter table sessions add column scope_json text not null default '{}'`,
 		`alter table sessions add column aliases_json text not null default '[]'`,
+		`alter table turns add column phase text not null default 'queued'`,
+		`alter table turns add column claimed_by text`,
+		`alter table turns add column claimed_at text`,
+		`alter table turns add column started_at text`,
+		`alter table turns add column finished_at text`,
 	} {
 		if _, err := db.Exec(alter); err != nil && !isDuplicateColumnError(err) {
 			return err

@@ -126,6 +126,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		}
 		r.maybeCompactContext(ctx, sessionID, turnID, agentID, model, convCtx)
 		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"model": model, "messages": len(convCtx.Messages), "tools": len(convCtx.Tools)}})
+		_ = s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "running")
 		_ = s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "iteration": iter + 1, "checkpoint": true})
 		log.Printf("inference [%s]: calling %s", iterLabel, model)
 
@@ -245,6 +246,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 				call = *resp.ToolCall
 			}
 
+			_ = s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "waiting_on_tools")
 			_ = s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"tool_call_id": call.ID, "iteration": iter + 1,
@@ -360,7 +362,8 @@ func (r *sessionRunner) finishTurnOK(s *store.Store, turnID, sessionID string, i
 	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{
 		"phase": "turn", "checkpoint": true, "status": "completed", "iterations": iterations,
 	})
-	_ = s.UpdateTurnStatus(context.Background(), turnID, "completed")
+	_ = s.UpdateTurnStatusAndPhase(context.Background(), turnID, "completed", "completed")
+	_ = s.MarkTurnFinished(context.Background(), turnID)
 	_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
 }
@@ -379,7 +382,8 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, s
 	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{
 		"phase": "turn", "checkpoint": true, "status": status,
 	})
-	_ = s.UpdateTurnStatus(context.Background(), turnID, status)
+	_ = s.UpdateTurnStatusAndPhase(context.Background(), turnID, status, terminalPhaseForStatus(status))
+	_ = s.MarkTurnFinished(context.Background(), turnID)
 	_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
 }

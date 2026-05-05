@@ -38,13 +38,18 @@ type Message struct {
 }
 
 type Turn struct {
-	ID        string         `json:"id"`
-	SessionID string         `json:"session_id"`
-	Status    string         `json:"status"`
-	Prompt    string         `json:"prompt"`
-	Metadata  map[string]any `json:"metadata"`
-	CreatedAt string         `json:"created_at"`
-	UpdatedAt string         `json:"updated_at"`
+	ID         string         `json:"id"`
+	SessionID  string         `json:"session_id"`
+	Status     string         `json:"status"`
+	Phase      string         `json:"phase,omitempty"`
+	Prompt     string         `json:"prompt"`
+	Metadata   map[string]any `json:"metadata"`
+	ClaimedBy  string         `json:"claimed_by,omitempty"`
+	ClaimedAt  string         `json:"claimed_at,omitempty"`
+	StartedAt  string         `json:"started_at,omitempty"`
+	FinishedAt string         `json:"finished_at,omitempty"`
+	CreatedAt  string         `json:"created_at"`
+	UpdatedAt  string         `json:"updated_at"`
 }
 
 type TurnEvent struct {
@@ -251,8 +256,8 @@ func (s *Store) CreateTurn(ctx context.Context, id, sessionID, prompt string, me
 		return nil, err
 	}
 	_, err = s.db.ExecContext(ctx, `
-		insert into turns (id, session_id, status, prompt, metadata_json, created_at, updated_at)
-		values (?, ?, 'running', ?, ?, `+defaultNow+`, `+defaultNow+`)
+		insert into turns (id, session_id, status, phase, prompt, metadata_json, created_at, updated_at)
+		values (?, ?, 'running', 'setup', ?, ?, `+defaultNow+`, `+defaultNow+`)
 	`, id, sessionID, prompt, metadataJSON)
 	if err != nil {
 		return nil, fmt.Errorf("create turn: %w", err)
@@ -261,10 +266,10 @@ func (s *Store) CreateTurn(ctx context.Context, id, sessionID, prompt string, me
 }
 
 func (s *Store) GetTurn(ctx context.Context, id string) (*Turn, error) {
-	row := s.db.QueryRowContext(ctx, `select id, session_id, status, prompt, metadata_json, created_at, updated_at from turns where id = ?`, id)
+	row := s.db.QueryRowContext(ctx, `select id, session_id, status, phase, prompt, metadata_json, coalesce(claimed_by,''), coalesce(claimed_at,''), coalesce(started_at,''), coalesce(finished_at,''), created_at, updated_at from turns where id = ?`, id)
 	var out Turn
 	var metadataJSON string
-	if err := row.Scan(&out.ID, &out.SessionID, &out.Status, &out.Prompt, &metadataJSON, &out.CreatedAt, &out.UpdatedAt); err != nil {
+	if err := row.Scan(&out.ID, &out.SessionID, &out.Status, &out.Phase, &out.Prompt, &metadataJSON, &out.ClaimedBy, &out.ClaimedAt, &out.StartedAt, &out.FinishedAt, &out.CreatedAt, &out.UpdatedAt); err != nil {
 		return nil, err
 	}
 	var err error
@@ -322,9 +327,12 @@ func (s *Store) ListTurnEvents(ctx context.Context, turnID string) ([]TurnEvent,
 }
 
 func (s *Store) UpdateTurnStatus(ctx context.Context, turnID, status string) error {
-	_, err := s.db.ExecContext(ctx, `update turns set status = ?, updated_at = `+defaultNow+` where id = ?`, status, turnID)
-	if err != nil {
+	phase := turnPhaseForStatus(status)
+	if err := s.UpdateTurnStatusAndPhase(ctx, turnID, status, phase); err != nil {
 		return fmt.Errorf("update turn status: %w", err)
+	}
+	if status == "completed" || status == "failed" || status == "aborted" || status == "cancelled" {
+		_ = s.MarkTurnFinished(ctx, turnID)
 	}
 	return nil
 }

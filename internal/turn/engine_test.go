@@ -43,6 +43,20 @@ func TestSubmitPromptQueuesSecondTurn(t *testing.T) {
 	if !second.Queued || second.Status != "queued" {
 		t.Fatalf("second should be queued: %#v", second)
 	}
+	sess, err := s.GetSession(ctx, "session_1")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if got := sess.State["queue_count"]; got != float64(1) && got != 1 {
+		t.Fatalf("expected queue_count=1 while queued, got %#v", got)
+	}
+	queuedTurn, err := s.GetTurn(ctx, second.TurnID)
+	if err != nil {
+		t.Fatalf("get queued turn: %v", err)
+	}
+	if queuedTurn.Phase != "queued" {
+		t.Fatalf("expected queued phase, got %#v", queuedTurn)
+	}
 
 	time.Sleep(2500 * time.Millisecond)
 	turns, err := s.ListTurns(ctx, "session_1")
@@ -54,6 +68,16 @@ func TestSubmitPromptQueuesSecondTurn(t *testing.T) {
 	}
 	if turns[0].Status != "completed" || turns[1].Status != "completed" {
 		t.Fatalf("unexpected turn statuses: %#v", turns)
+	}
+	if turns[0].Phase != "completed" || turns[1].Phase != "completed" {
+		t.Fatalf("unexpected turn phases: %#v", turns)
+	}
+	sess, err = s.GetSession(ctx, "session_1")
+	if err != nil {
+		t.Fatalf("get session after completion: %v", err)
+	}
+	if got := sess.State["queue_count"]; got != float64(0) && got != 0 {
+		t.Fatalf("expected queue_count=0 after completion, got %#v", got)
 	}
 }
 

@@ -182,6 +182,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		go runner.runTurn(e.store, turnID)
 	}
 	runner.mu.Unlock()
+	_ = e.store.SyncSessionQueueCount(ctx, in.SessionID)
 	_ = e.store.TouchSessionState(ctx, in.SessionID, map[string]any{"model": in.Model})
 	return &SubmitResult{TurnID: turnID, SessionID: in.SessionID, Status: status, Queued: queued}, nil
 }
@@ -276,7 +277,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 	defer runner.mu.Unlock()
 	if runner.current != nil && runner.current.turnID == turnID {
 		_ = e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.cancelling", map[string]any{"phase": "cancel", "checkpoint": true})
-		_ = e.store.UpdateTurnStatus(ctx, turnID, "cancelling")
+		_ = e.store.UpdateTurnStatusAndPhase(ctx, turnID, "cancelling", "cancelling")
 		runner.current.cancel()
 		runner.current.cmdMu.Lock()
 		if runner.current.cmd != nil && runner.current.cmd.Process != nil {
@@ -290,7 +291,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		return err
 	}
 	if turn.Status == "queued" {
-		if err := e.store.UpdateTurnStatus(ctx, turnID, "cancelled"); err != nil {
+		if err := e.store.UpdateTurnStatusAndPhase(ctx, turnID, "cancelled", "aborted"); err != nil {
 			return err
 		}
 		return e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "queued": true})
@@ -335,6 +336,8 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 	} else if !claimed {
 		log.Printf("turn coordination: session %s already claimed when starting turn %s", sessionID, turnID)
 	}
+	_ = s.MarkTurnClaimed(ctx, turnID, "runner")
+	_ = s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "setup")
 	prompt := turnRec.Prompt
 	intent := stringValue(turnRec.Metadata["intent"], "prompt")
 	model := stringValue(turnRec.Metadata["model"], "bootstrap")

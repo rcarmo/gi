@@ -38,10 +38,13 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `skills/` — skill/package structure docs
 - `search/` — hybrid workspace search and indexing design
 - `routing.md` — routing policy, route resolution, and model-routing observability
+- `runtime-target-state.md` — database-backed target state for the core runtime refactor (sessions, turns, steering, hooks, events, IPC, multi-channel bindings)
 
 The `search/` subtree is the canonical reference for the current hybrid workspace search direction: SQLite metadata + FTS5 + vec + local embeddings.
 
 `routing.md` is the canonical in-repo reference for routing decisions and route-event persistence.
+
+`runtime-target-state.md` is the canonical schema/state target for the runtime refactor.
 
 ## Current status
 
