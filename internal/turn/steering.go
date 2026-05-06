@@ -84,6 +84,49 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 	return &SubmitResult{TurnID: activeTurnID, SessionID: sessionID, Status: "running", Queued: false}, nil
 }
 
+func steeringMetadataFromMessages(msgs []store.SteeringMessage) map[string]any {
+	metadata := map[string]any{
+		"initial_steering": steeringMessagesToMetadata(msgs),
+		"continue":         true,
+	}
+	if len(msgs) > 0 && msgs[0].Payload != nil {
+		for _, key := range []string{"intent", "model", "parent_turn_id", "source_session_id", "source_agent_id", "target_agent_id", "route_mode", "route_matched_by"} {
+			if value, ok := msgs[0].Payload[key]; ok {
+				metadata[key] = value
+			}
+		}
+	}
+	return metadata
+}
+
+func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID string) (bool, string, error) {
+	count, err := e.store.CountQueuedTurns(ctx, sessionID)
+	if err != nil {
+		return false, "", err
+	}
+	if count > 0 {
+		return false, "", nil
+	}
+	msgs, err := e.store.DequeueSteering(ctx, sessionID)
+	if err == sql.ErrNoRows {
+		return false, "", nil
+	}
+	if err != nil {
+		return false, "", err
+	}
+	if len(msgs) == 0 {
+		return false, "", nil
+	}
+	metadata := steeringMetadataFromMessages(msgs)
+	turnID := store.NowID("turn")
+	if _, err := e.store.CreateTurnWithStatus(ctx, turnID, sessionID, "queued", "", metadata); err != nil {
+		return false, "", err
+	}
+	_ = e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.submitted", map[string]any{"phase": "queue", "intent": stringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true})
+	_ = e.store.AppendTurnEvent(ctx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)})
+	return true, turnID, nil
+}
+
 func (e *Engine) continueQueuedSteering(ctx context.Context, sessionID string) (bool, error) {
 	msgs, err := e.store.DequeueSteering(ctx, sessionID)
 	if err == sql.ErrNoRows {
@@ -95,19 +138,7 @@ func (e *Engine) continueQueuedSteering(ctx context.Context, sessionID string) (
 	if len(msgs) == 0 {
 		return false, nil
 	}
-	metadata := map[string]any{
-		"initial_steering": steeringMessagesToMetadata(msgs),
-		"continue":         true,
-	}
-	if len(msgs) > 0 {
-		if msgs[0].Payload != nil {
-			for _, key := range []string{"intent", "model", "parent_turn_id", "source_session_id", "source_agent_id", "target_agent_id", "route_mode", "route_matched_by"} {
-				if value, ok := msgs[0].Payload[key]; ok {
-					metadata[key] = value
-				}
-			}
-		}
-	}
+	metadata := steeringMetadataFromMessages(msgs)
 	_, err = e.SubmitPrompt(ctx, RunInput{
 		SessionID: sessionID,
 		Prompt:    "",
@@ -121,6 +152,23 @@ func (e *Engine) continueQueuedSteering(ctx context.Context, sessionID string) (
 	return true, nil
 }
 
+func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, error) {
+	if _, _, err := e.store.GetSessionActiveTurn(ctx, sessionID); err == nil {
+		return false, nil
+	} else if err != nil && err != sql.ErrNoRows {
+		return false, err
+	}
+	if err := e.startNextQueuedTurn(ctx, sessionID); err != nil {
+		return false, err
+	}
+	if _, _, err := e.store.GetSessionActiveTurn(ctx, sessionID); err == nil {
+		return true, nil
+	} else if err != nil && err != sql.ErrNoRows {
+		return false, err
+	}
+	return e.continueQueuedSteering(ctx, sessionID)
+}
+
 func (r *sessionRunner) dequeueSteeringMessages(ctx context.Context, sessionID string) ([]store.SteeringMessage, error) {
 	msgs, err := r.store.DequeueSteering(ctx, sessionID)
 	if err == sql.ErrNoRows {
@@ -132,7 +180,7 @@ func (r *sessionRunner) dequeueSteeringMessages(ctx context.Context, sessionID s
 	return msgs, nil
 }
 
-func (r *sessionRunner) injectSteeringMessages(ctx context.Context, sessionID, turnID string, convCtx *goai.Context, msgs []store.SteeringMessage) int {
+func (r *sessionRunner) persistSteeringMessages(ctx context.Context, sessionID, turnID string, msgs []store.SteeringMessage) int {
 	if len(msgs) == 0 {
 		return 0
 	}
@@ -141,12 +189,6 @@ func (r *sessionRunner) injectSteeringMessages(ctx context.Context, sessionID, t
 		role := strings.TrimSpace(strings.ToLower(msg.Role))
 		if role == "" {
 			role = "user"
-		}
-		switch role {
-		case "assistant":
-			convCtx.Messages = append(convCtx.Messages, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: msg.Content}}})
-		default:
-			convCtx.Messages = append(convCtx.Messages, goai.UserMessage(msg.Content))
 		}
 		payload := map[string]any{"kind": "chat", "intent": stringValue(msg.Payload["intent"], "prompt"), "turn_id": turnID, "steering": true}
 		for k, v := range msg.Payload {
@@ -163,6 +205,25 @@ func (r *sessionRunner) injectSteeringMessages(ctx context.Context, sessionID, t
 	})
 	r.engine.broadcast(sessionID, map[string]any{"type": "steering_injected", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs)})
 	return len(msgs)
+}
+
+func (r *sessionRunner) injectSteeringMessages(ctx context.Context, sessionID, turnID string, convCtx *goai.Context, msgs []store.SteeringMessage) int {
+	if len(msgs) == 0 {
+		return 0
+	}
+	for _, msg := range msgs {
+		role := strings.TrimSpace(strings.ToLower(msg.Role))
+		if role == "" {
+			role = "user"
+		}
+		switch role {
+		case "assistant":
+			convCtx.Messages = append(convCtx.Messages, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: msg.Content}}})
+		default:
+			convCtx.Messages = append(convCtx.Messages, goai.UserMessage(msg.Content))
+		}
+	}
+	return r.persistSteeringMessages(ctx, sessionID, turnID, msgs)
 }
 
 func (r *sessionRunner) skipRemainingToolCalls(ctx context.Context, sessionID, turnID string, convCtx *goai.Context, toolCalls []goai.ToolCall, start int) {

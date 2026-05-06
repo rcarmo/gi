@@ -389,6 +389,11 @@ func (r *sessionRunner) broadcastPost(sessionID, turnID, msgID, content, agentID
 
 // finishTurnOK marks a turn as successfully completed.
 func (r *sessionRunner) finishTurnOK(s *store.Store, turnID, sessionID string, iterations int) {
+	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
+		log.Printf("steering final checkpoint: %v", err)
+	} else if staged {
+		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID})
+	}
 	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{
 		"phase": "turn", "checkpoint": true, "status": "completed", "iterations": iterations,
 	})
@@ -400,6 +405,11 @@ func (r *sessionRunner) finishTurnOK(s *store.Store, turnID, sessionID string, i
 
 // finishTurn persists a terminal status and optional system message.
 func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, status, systemMsg, failureKind string) {
+	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
+		log.Printf("steering final checkpoint: %v", err)
+	} else if staged {
+		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID})
+	}
 	if systemMsg != "" {
 		msgID := store.NowID("msg")
 		_ = s.AddMessage(context.Background(), msgID, sessionID, "assistant", systemMsg, map[string]any{

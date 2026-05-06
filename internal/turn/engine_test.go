@@ -248,6 +248,91 @@ func TestStartupRecoveryHoldsToolPhaseTurnForReview(t *testing.T) {
 	}
 }
 
+func TestStageQueuedSteeringContinuationCreatesQueuedTurn(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	_, err := s.CreateSession(ctx, "session_stage_steering", "Test", map[string]any{"model": "bootstrap", "status": "running"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_stage_active", "session_stage_steering", "running", "active", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_stage_steering", activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_stage_steering", activeTurn.ID, "user", "late steer", map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	engine := New(s)
+	staged, stagedTurnID, err := engine.stageQueuedSteeringContinuation(ctx, "session_stage_steering")
+	if err != nil {
+		t.Fatalf("stage queued steering continuation: %v", err)
+	}
+	if !staged || stagedTurnID == "" {
+		t.Fatalf("expected staged continuation turn, got staged=%v id=%q", staged, stagedTurnID)
+	}
+	if depth, err := s.SteeringQueueLength(ctx, "session_stage_steering"); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 0 {
+		t.Fatalf("expected steering queue to be drained, got %d", depth)
+	}
+	stagedTurn, err := s.GetTurn(ctx, stagedTurnID)
+	if err != nil {
+		t.Fatalf("get staged turn: %v", err)
+	}
+	if stagedTurn.Status != "queued" || stagedTurn.Phase != "queued" {
+		t.Fatalf("expected queued staged turn, got %#v", stagedTurn)
+	}
+	if steeringMessages := steeringMessagesFromMetadata(stagedTurn.Metadata); len(steeringMessages) != 1 || steeringMessages[0].Content != "late steer" {
+		t.Fatalf("expected staged steering metadata, got %#v", stagedTurn.Metadata)
+	}
+}
+
+func TestContinueSessionStartsQueuedSteeringWhenIdle(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	_, err := s.CreateSession(ctx, "session_continue", "Test", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_continue", "", "user", "continue please", map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	engine := New(s)
+	continued, err := engine.ContinueSession(ctx, "session_continue")
+	if err != nil {
+		t.Fatalf("continue session: %v", err)
+	}
+	if !continued {
+		t.Fatal("expected ContinueSession to start queued steering")
+	}
+	time.Sleep(1500 * time.Millisecond)
+	turns, err := s.ListTurns(ctx, "session_continue")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected one continuation turn, got %#v", turns)
+	}
+	msgs, err := s.ListMessages(ctx, "session_continue")
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	found := false
+	for _, msg := range msgs {
+		if msg.Role == "user" && msg.Content == "continue please" && msg.Payload["steering"] == true {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected continued steering message in history, got %#v", msgs)
+	}
+}
+
 func TestBusySameSessionPromptCreatesSteeringNotQueuedTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -159,6 +160,43 @@ func TestForkSessionCreatesChildAgent(t *testing.T) {
 	}
 	if len(msgs) == 0 || msgs[0].Content != "hello" {
 		t.Fatalf("unexpected child messages: %#v", msgs)
+	}
+}
+
+func TestSessionContinueEndpointStartsQueuedSteering(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	engine := turn.New(s)
+	srv := New(s, engine, config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+
+	session, err := s.CreateSession(t.Context(), store.NowID("session"), "Demo", map[string]any{"status": "idle", "model": "bootstrap", "provider": "test", "thinking_level": "medium"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.EnqueueSteering(t.Context(), session.ID, "", "user", "continue me", map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+
+	continueReq := httptest.NewRequest(http.MethodPost, "/api/sessions/"+session.ID+"/continue", nil)
+	continueRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(continueRes, continueReq)
+	if continueRes.Code != http.StatusOK {
+		t.Fatalf("unexpected continue status: %d body=%s", continueRes.Code, continueRes.Body.String())
+	}
+	if !bytes.Contains(continueRes.Body.Bytes(), []byte(`"continued":true`)) {
+		t.Fatalf("unexpected continue response: %s", continueRes.Body.String())
+	}
+
+	time.Sleep(1500 * time.Millisecond)
+	msgs, err := s.ListMessages(t.Context(), session.ID)
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	if !bytes.Contains([]byte(fmt.Sprintf("%v", msgs)), []byte("continue me")) {
+		t.Fatalf("expected continued steering message in history, got %#v", msgs)
 	}
 }
 

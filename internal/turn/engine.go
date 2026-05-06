@@ -410,7 +410,7 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 			userPayload[key] = value
 		}
 	}
-	if strings.TrimSpace(prompt) != "" {
+	if strings.TrimSpace(prompt) != "" && len(initialSteering) == 0 {
 		_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload)
 	}
 	startedPayload := map[string]any{"phase": "turn", "prompt": prompt, "intent": intent, "model": model, "checkpoint": true}
@@ -428,6 +428,9 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 	}
 
 	// Fallback: shell stub for bootstrap/test mode
+	if len(initialSteering) > 0 {
+		r.persistSteeringMessages(ctx, sessionID, turnID, initialSteering)
+	}
 	_ = s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "command": []string{"sh", "-lc", "printf 'Gi received: %s' \"$GI_PROMPT\""}})
 
 	out, runErr, cancelled := runShell(ctx, prompt, func(cmd *exec.Cmd) {
@@ -450,6 +453,11 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 		})
 	})
 	if cancelled {
+		if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
+			log.Printf("steering final checkpoint: %v", err)
+		} else if staged {
+			_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID})
+		}
 		_ = s.AppendTurnEvent(ctx, turnID, sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true})
 		_ = s.UpdateTurnStatus(context.Background(), turnID, "cancelled")
 		_ = s.AddMessage(context.Background(), store.NowID("msg"), sessionID, "system", "Turn cancelled", map[string]any{"kind": "status", "turn_id": turnID, "clipped": true})
@@ -457,11 +465,21 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 		return
 	}
 	if runErr != nil {
+		if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
+			log.Printf("steering final checkpoint: %v", err)
+		} else if staged {
+			_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID})
+		}
 		markTurnFailure(s, turnID, sessionID, "shell_error", runErr.Error())
 		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error()})
 		_ = s.UpdateTurnStatus(context.Background(), turnID, "failed")
 		_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
 		return
+	}
+	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
+		log.Printf("steering final checkpoint: %v", err)
+	} else if staged {
+		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID})
 	}
 	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "output": out})
 	msgID := store.NowID("msg")

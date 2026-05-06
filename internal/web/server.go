@@ -172,6 +172,8 @@ func (s *Server) handleSessionSubroutes(w http.ResponseWriter, r *http.Request) 
 		s.handleSessionFork(w, r, sessionID)
 	case "peer-message":
 		s.handleSessionPeerMessage(w, r, sessionID)
+	case "continue":
+		s.handleSessionContinue(w, r, sessionID)
 	default:
 		http.NotFound(w, r)
 	}
@@ -346,6 +348,19 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 		return
 	}
 	writeJSON(w, http.StatusAccepted, result)
+}
+
+func (s *Server) handleSessionContinue(w http.ResponseWriter, r *http.Request, sessionID string) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	continued, err := s.turns.ContinueSession(r.Context(), sessionID)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"continued": continued})
 }
 
 func (s *Server) handleSessionPeerMessage(w http.ResponseWriter, r *http.Request, sessionID string) {

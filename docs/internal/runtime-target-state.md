@@ -266,9 +266,10 @@ Implemented so far:
 - session-scoped durable steering rows in `steering_queue`
 - dequeue modes `one-at-a-time` and `all`
 - same-session busy submits now steer the active turn instead of immediately creating competing queued turns
-- steering polling at loop start, after each tool, and after direct LLM responses
+- steering polling at loop start, after each tool, after direct LLM responses, and at a final pre-finalization checkpoint
 - skipped remaining tool calls emit durable skipped tool results with `"Skipped due to queued user message."`
 - end-of-turn idle continuation drains queued steering into a follow-on turn when no normal queued turn is ahead of it
+- explicit `ContinueSession(...)` support plus a web continuation endpoint for idle-session steering
 - store/unit coverage for dequeue mode behavior and turn/engine coverage for same-session steering continuation
 
 Current steering semantics:
@@ -277,12 +278,13 @@ Current steering semantics:
 - steering does not interrupt the currently executing tool; it is observed at explicit checkpoints
 - when steering is found after a tool, remaining tool calls in that batch are skipped and recorded as skipped results
 - when steering arrives after a direct non-tool LLM answer, the loop continues instead of finalizing that answer immediately
-- bootstrap/test shell turns pick up queued steering only after the current shell step ends, via continuation turn startup
+- a final pre-finalization checkpoint stages a queued continuation turn before the active turn is released when late steering is already waiting
+- idle sessions can be resumed explicitly through `ContinueSession(...)` / the web continuation endpoint, and runtime fallback continuation still runs after turn end when appropriate
+- bootstrap/test shell turns now preserve queued steering messages in history before running the continuation shell step
 
 Still pending in this area:
 
-- explicit public `Continue` semantics/tooling for idle sessions with queued steering
-- fuller steering lifecycle publication on the internal topic bus (Gi now publishes injected steering notices, but not the whole lifecycle)
+- fuller steering lifecycle publication on the internal topic bus (Gi now publishes injected steering notices, skipped-tool notices, and final-checkpoint staging indirectly, but not the whole lifecycle)
 - media-bearing steering injection through the same multimodal path as normal inbound messages
 - additional concurrency/integration tests for different-session concurrency and skipped-tool reasoning behavior
 
