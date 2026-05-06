@@ -105,7 +105,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 
 	for iter := 0; iter < maxIter; iter++ {
 		if ctx.Err() != nil {
-			r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled")
+			r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled", "")
 			return
 		}
 
@@ -161,12 +161,12 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		if inferErr != nil {
 			log.Printf("inference [%s] error: %v", iterLabel, inferErr)
 			_ = s.AppendTurnEvent(ctx, turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error(), "iteration": iter + 1})
-			r.finishTurn(s, turnID, sessionID, agentID, "failed", fmt.Sprintf("Inference error: %v", inferErr))
+			r.finishTurn(s, turnID, sessionID, agentID, "failed", fmt.Sprintf("Inference error: %v", inferErr), "provider_error")
 			return
 		}
 		if result == nil || result.Message == nil {
 			log.Printf("inference [%s]: nil result", iterLabel)
-			r.finishTurn(s, turnID, sessionID, agentID, "failed", "Inference returned no result")
+			r.finishTurn(s, turnID, sessionID, agentID, "failed", "Inference returned no result", "provider_invalid_result")
 			return
 		}
 
@@ -230,7 +230,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"count": len(toolCalls)}})
 		for _, call := range toolCalls {
 			if ctx.Err() != nil {
-				r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled during tool execution")
+				r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled during tool execution", "")
 				return
 			}
 
@@ -276,7 +276,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 					msg := fmt.Sprintf("Aborting after %d repeated identical tool failures: %v", repeatedToolFailureCount, toolErr)
 					log.Printf("tool [%s] repeated failure guard tripped: %s", call.Name, msg)
 					r.persistUsage(s, turnID, sessionID, &totalUsage, iter+1)
-					r.finishTurn(s, turnID, sessionID, agentID, "failed", msg)
+					r.finishTurn(s, turnID, sessionID, agentID, "failed", msg, "repeated_tool_failure")
 					return
 				}
 			} else {
@@ -311,7 +311,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 	// Budget exhausted
 	log.Printf("inference: max iterations (%d) reached for turn %s", maxIter, turnID)
 	r.persistUsage(s, turnID, sessionID, &totalUsage, maxIter)
-	r.finishTurn(s, turnID, sessionID, agentID, "completed", fmt.Sprintf("Reached maximum iteration limit (%d). The task may be incomplete.", maxIter))
+	r.finishTurn(s, turnID, sessionID, agentID, "completed", fmt.Sprintf("Reached maximum iteration limit (%d). The task may be incomplete.", maxIter), "")
 }
 
 // executeTool dispatches a single tool call and returns the text result.
@@ -369,7 +369,7 @@ func (r *sessionRunner) finishTurnOK(s *store.Store, turnID, sessionID string, i
 }
 
 // finishTurn persists a terminal status and optional system message.
-func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, status, systemMsg string) {
+func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, status, systemMsg, failureKind string) {
 	if systemMsg != "" {
 		msgID := store.NowID("msg")
 		_ = s.AddMessage(context.Background(), msgID, sessionID, "assistant", systemMsg, map[string]any{
@@ -378,6 +378,9 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, s
 		if status == "completed" || status == "failed" {
 			r.broadcastPost(sessionID, turnID, msgID, systemMsg, agentID)
 		}
+	}
+	if failureKind != "" {
+		markTurnFailure(s, turnID, sessionID, failureKind, systemMsg)
 	}
 	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{
 		"phase": "turn", "checkpoint": true, "status": status,

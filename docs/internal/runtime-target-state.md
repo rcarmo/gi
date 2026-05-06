@@ -172,6 +172,8 @@ create table turn_failures (
 );
 ```
 
+Safety rule: this table is **advisory**, not authoritative. It must never decide whether a session is runnable, queued, or stuck. Active-turn claims and queued-turn rows remain the only coordination truth.
+
 ### Why
 
 This gives us:
@@ -192,7 +194,8 @@ Implemented so far:
 - real `queue_count` synchronization from queued turn rows
 - compaction checkpoints now mark a durable `compacting` phase
 - stale active-turn recovery on engine startup and before same-session submission
-- regression coverage for same-session concurrency, active-turn row lifecycle, and stale-turn recovery
+- advisory `turn_failures` rows for durable failure/recovery postmortems
+- regression coverage for same-session concurrency, active-turn row lifecycle, stale-turn recovery, and non-blocking failure markers
 
 Current recovery semantics:
 
@@ -201,9 +204,16 @@ Current recovery semantics:
 - `cancelling` interruptions are finalized as aborted
 - stale active claims are released and session state is normalized back to `idle` or `queued`
 
+Current failure-marker semantics:
+
+- failure markers are written for provider, shell, repeated-tool-failure, and recovery-conservative failure cases
+- failure markers default to `hold_state='none'` today
+- failure markers are cleared automatically when a turn goes back to `queued` or `running`, or reaches `completed`
+- failure markers do not participate in queue decisions, claim decisions, or session liveness
+
 Still pending in this area:
 
-- durable hold/retry/skip failure handling
+- durable hold/retry/skip failure handling beyond advisory `hold_state='none'`
 - fuller lifecycle separation for setup / provider / tool / finalize / recovery
 
 ---

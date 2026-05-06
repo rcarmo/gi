@@ -147,6 +147,45 @@ func TestStoreClaimsActiveTurnOncePerSession(t *testing.T) {
 	}
 }
 
+func TestTurnFailureMarkersClearOnRequeueAndCompletion(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+
+	sess, err := s.CreateSession(ctx, "session_failure", "Test", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_failure", sess.ID, "failed", "hello", map[string]any{"intent": "prompt"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if err := s.UpsertTurnFailure(ctx, turnRec.ID, sess.ID, "provider_error", "none", "provider failed"); err != nil {
+		t.Fatalf("upsert failure marker: %v", err)
+	}
+	if _, err := s.GetTurnFailure(ctx, turnRec.ID); err != nil {
+		t.Fatalf("get failure marker: %v", err)
+	}
+	if err := s.UpdateTurnStatusAndPhase(ctx, turnRec.ID, "queued", "queued"); err != nil {
+		t.Fatalf("requeue turn: %v", err)
+	}
+	if _, err := s.GetTurnFailure(ctx, turnRec.ID); err == nil {
+		t.Fatal("expected requeue to clear failure marker")
+	}
+	if err := s.UpsertTurnFailure(ctx, turnRec.ID, sess.ID, "provider_error", "none", "provider failed again"); err != nil {
+		t.Fatalf("upsert second failure marker: %v", err)
+	}
+	if err := s.UpdateTurnStatusAndPhase(ctx, turnRec.ID, "completed", "completed"); err != nil {
+		t.Fatalf("complete turn: %v", err)
+	}
+	if _, err := s.GetTurnFailure(ctx, turnRec.ID); err == nil {
+		t.Fatal("expected completion to clear failure marker")
+	}
+}
+
 func TestCloneSessionCreatesChildAgentSession(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

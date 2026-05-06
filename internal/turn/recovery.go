@@ -72,6 +72,9 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 	}
 
 	if disposition != "release_terminal" {
+		if disposition == "fail_after_tool_checkpoint" {
+			markTurnFailure(e.store, claim.TurnID, claim.SessionID, "recovery_interrupted_tool_phase", "Recovered stale turn that was interrupted while waiting on tool results")
+		}
 		if err := e.store.UpdateTurnStatusAndPhase(ctx, claim.TurnID, status, phase); err != nil {
 			return err
 		}

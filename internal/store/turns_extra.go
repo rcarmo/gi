@@ -94,6 +94,9 @@ func (s *Store) UpdateTurnStatusAndPhase(ctx context.Context, turnID, status, ph
 	}
 	turnRec, err := s.GetTurn(ctx, turnID)
 	if err == nil {
+		if status == "queued" || status == "running" || status == "completed" {
+			_ = s.ClearTurnFailure(ctx, turnID)
+		}
 		_ = s.SyncSessionQueueCount(ctx, turnRec.SessionID)
 	}
 	return nil

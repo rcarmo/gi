@@ -103,6 +103,20 @@ func initSchema(db *sql.DB) error {
 		);`,
 		`create index if not exists idx_session_active_turns_turn on session_active_turns(turn_id);`,
 
+		`create table if not exists turn_failures (
+			turn_id text primary key,
+			session_id text not null,
+			failure_kind text not null,
+			hold_state text not null,
+			summary text not null default '',
+			created_at text not null,
+			updated_at text not null,
+			foreign key(turn_id) references turns(id) on delete cascade,
+			foreign key(session_id) references sessions(id) on delete cascade
+		);`,
+		`create index if not exists idx_turn_failures_session on turn_failures(session_id, updated_at desc);`,
+		`create index if not exists idx_turn_failures_kind on turn_failures(failure_kind, updated_at desc);`,
+
 		`create table if not exists steering_queue (
 			id integer primary key autoincrement,
 			session_id text not null,

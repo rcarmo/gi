@@ -453,6 +453,7 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 		return
 	}
 	if runErr != nil {
+		markTurnFailure(s, turnID, sessionID, "shell_error", runErr.Error())
 		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error()})
 		_ = s.UpdateTurnStatus(context.Background(), turnID, "failed")
 		_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})

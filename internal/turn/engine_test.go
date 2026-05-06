@@ -242,8 +242,40 @@ func TestStartupRecoveryFailsToolPhaseTurn(t *testing.T) {
 	if recovered.FinishedAt == "" {
 		t.Fatalf("expected finished_at on failed recovered turn, got %#v", recovered)
 	}
+	failureRec, err := s.GetTurnFailure(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("expected recovery failure marker: %v", err)
+	}
+	if failureRec.FailureKind != "recovery_interrupted_tool_phase" || failureRec.HoldState != "none" {
+		t.Fatalf("unexpected recovery failure marker: %#v", failureRec)
+	}
 	if _, _, err := s.GetSessionActiveTurn(ctx, "session_recover_tool"); err == nil {
 		t.Fatal("expected stale active claim to be released")
+	}
+}
+
+func TestFailureMarkerDoesNotBlockLaterTurn(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	_, err := s.CreateSession(ctx, "session_marker", "Test", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	failedTurn, err := s.CreateTurnWithStatus(ctx, "turn_failed_marker", "session_marker", "failed", "broken", map[string]any{"intent": "prompt"})
+	if err != nil {
+		t.Fatalf("create failed turn: %v", err)
+	}
+	if err := s.UpsertTurnFailure(ctx, failedTurn.ID, "session_marker", "provider_error", "none", "provider failed"); err != nil {
+		t.Fatalf("upsert failure marker: %v", err)
+	}
+	engine := New(s)
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_marker", Prompt: "new work", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	if result.Queued {
+		t.Fatalf("expected new turn to start despite prior failure marker: %#v", result)
 	}
 }
 
