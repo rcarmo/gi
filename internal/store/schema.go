@@ -109,10 +109,15 @@ func initSchema(db *sql.DB) error {
 			failure_kind text not null,
 			hold_state text not null,
 			summary text not null default '',
+			resolution_state text not null default '',
+			resolution_summary text not null default '',
+			resolved_at text,
+			resolved_turn_id text,
 			created_at text not null,
 			updated_at text not null,
 			foreign key(turn_id) references turns(id) on delete cascade,
-			foreign key(session_id) references sessions(id) on delete cascade
+			foreign key(session_id) references sessions(id) on delete cascade,
+			foreign key(resolved_turn_id) references turns(id) on delete set null
 		);`,
 		`create index if not exists idx_turn_failures_session on turn_failures(session_id, updated_at desc);`,
 		`create index if not exists idx_turn_failures_kind on turn_failures(failure_kind, updated_at desc);`,
@@ -226,6 +231,10 @@ func initSchema(db *sql.DB) error {
 		`alter table turns add column claimed_at text`,
 		`alter table turns add column started_at text`,
 		`alter table turns add column finished_at text`,
+		`alter table turn_failures add column resolution_state text not null default ''`,
+		`alter table turn_failures add column resolution_summary text not null default ''`,
+		`alter table turn_failures add column resolved_at text`,
+		`alter table turn_failures add column resolved_turn_id text`,
 	} {
 		if _, err := db.Exec(alter); err != nil && !isDuplicateColumnError(err) {
 			return err

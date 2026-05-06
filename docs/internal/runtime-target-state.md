@@ -200,20 +200,28 @@ Implemented so far:
 Current recovery semantics:
 
 - `compacting`, `setup`, and general `running` interruptions are re-queued
-- `waiting_on_tools` interruptions fail conservatively to avoid silently replaying side effects
+- `waiting_on_tools` interruptions are moved into `held_for_retry_or_skip` with `hold_state='review'` to avoid silently replaying side effects
 - `cancelling` interruptions are finalized as aborted
 - stale active claims are released and session state is normalized back to `idle` or `queued`
 
 Current failure-marker semantics:
 
 - failure markers are written for provider, shell, repeated-tool-failure, and recovery-conservative failure cases
-- failure markers default to `hold_state='none'` today
+- failure markers can now carry explicit hold states such as `review`
 - failure markers are cleared automatically when a turn goes back to `queued` or `running`, or reaches `completed`
+- resolved held failures retain advisory audit metadata (`resolution_state`, `resolution_summary`, `resolved_at`, `resolved_turn_id`) without affecting liveness
 - failure markers do not participate in queue decisions, claim decisions, or session liveness
+
+Current hold / retry / skip semantics:
+
+- held failures use turn phase `held_for_retry_or_skip` while the turn status remains terminal (`failed`/`aborted`)
+- hold state is explicit review metadata, not a coordination lock
+- retry resolution creates a **new** turn through normal `SubmitPrompt(...)` queue/claim logic instead of mutating the failed turn back into runnable state
+- skip resolution clears the hold and returns the original turn to its normal terminal phase
+- later fresh submissions continue normally even when held/resolved failure rows exist
 
 Still pending in this area:
 
-- durable hold/retry/skip failure handling beyond advisory `hold_state='none'`
 - fuller lifecycle separation for setup / provider / tool / finalize / recovery
 
 ---

@@ -186,6 +186,61 @@ func TestTurnFailureMarkersClearOnRequeueAndCompletion(t *testing.T) {
 	}
 }
 
+func TestHoldAndResolveTurnFailurePhase(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+
+	sess, err := s.CreateSession(ctx, "session_hold", "Test", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_hold", sess.ID, "failed", "hello", map[string]any{"intent": "prompt"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if err := s.UpsertTurnFailure(ctx, turnRec.ID, sess.ID, "provider_error", "none", "provider failed"); err != nil {
+		t.Fatalf("upsert failure marker: %v", err)
+	}
+	if err := s.HoldTurnFailure(ctx, turnRec.ID, "review", "needs choice"); err != nil {
+		t.Fatalf("hold turn failure: %v", err)
+	}
+	heldTurn, err := s.GetTurn(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get held turn: %v", err)
+	}
+	if heldTurn.Phase != "held_for_retry_or_skip" {
+		t.Fatalf("expected held phase, got %#v", heldTurn)
+	}
+	failureRec, err := s.GetTurnFailure(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get held failure row: %v", err)
+	}
+	if failureRec.HoldState != "review" {
+		t.Fatalf("expected review hold state, got %#v", failureRec)
+	}
+	if err := s.ResolveTurnFailure(ctx, turnRec.ID, "skipped", "skip requested", ""); err != nil {
+		t.Fatalf("resolve turn failure: %v", err)
+	}
+	resolvedTurn, err := s.GetTurn(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get resolved turn: %v", err)
+	}
+	if resolvedTurn.Phase != "failed" {
+		t.Fatalf("expected resolved phase to return to failed, got %#v", resolvedTurn)
+	}
+	failureRec, err = s.GetTurnFailure(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get resolved failure row: %v", err)
+	}
+	if failureRec.HoldState != "none" || failureRec.ResolutionState != "skipped" {
+		t.Fatalf("unexpected resolved failure row: %#v", failureRec)
+	}
+}
+
 func TestCloneSessionCreatesChildAgentSession(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

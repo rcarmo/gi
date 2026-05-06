@@ -8,20 +8,28 @@ import (
 )
 
 func markTurnFailure(s *store.Store, turnID, sessionID, failureKind, summary string) {
+	markTurnFailureWithHold(s, turnID, sessionID, failureKind, "none", summary)
+}
+
+func markTurnFailureWithHold(s *store.Store, turnID, sessionID, failureKind, holdState, summary string) {
 	failureKind = strings.TrimSpace(failureKind)
 	if failureKind == "" {
 		failureKind = "unknown"
+	}
+	holdState = strings.TrimSpace(strings.ToLower(holdState))
+	if holdState == "" {
+		holdState = "none"
 	}
 	summary = strings.TrimSpace(summary)
 	if summary == "" {
 		summary = failureKind
 	}
-	_ = s.UpsertTurnFailure(context.Background(), turnID, sessionID, failureKind, "none", summary)
+	_ = s.UpsertTurnFailure(context.Background(), turnID, sessionID, failureKind, holdState, summary)
 	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.failure_marked", map[string]any{
 		"phase":        "recovery",
 		"checkpoint":   true,
 		"failure_kind": failureKind,
-		"hold_state":   "none",
+		"hold_state":   holdState,
 		"summary":      summary,
 	})
 }

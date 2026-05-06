@@ -208,7 +208,7 @@ func TestStartupRecoveryRequeuesCompactingTurn(t *testing.T) {
 	}
 }
 
-func TestStartupRecoveryFailsToolPhaseTurn(t *testing.T) {
+func TestStartupRecoveryHoldsToolPhaseTurnForReview(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
 	ctx := context.Background()
@@ -236,8 +236,8 @@ func TestStartupRecoveryFailsToolPhaseTurn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get recovered turn: %v", err)
 	}
-	if recovered.Status != "failed" || recovered.Phase != "failed" {
-		t.Fatalf("expected failed recovered turn, got %#v", recovered)
+	if recovered.Status != "failed" || recovered.Phase != "held_for_retry_or_skip" {
+		t.Fatalf("expected held recovered turn, got %#v", recovered)
 	}
 	if recovered.FinishedAt == "" {
 		t.Fatalf("expected finished_at on failed recovered turn, got %#v", recovered)
@@ -246,7 +246,7 @@ func TestStartupRecoveryFailsToolPhaseTurn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected recovery failure marker: %v", err)
 	}
-	if failureRec.FailureKind != "recovery_interrupted_tool_phase" || failureRec.HoldState != "none" {
+	if failureRec.FailureKind != "recovery_interrupted_tool_phase" || failureRec.HoldState != "review" {
 		t.Fatalf("unexpected recovery failure marker: %#v", failureRec)
 	}
 	if _, _, err := s.GetSessionActiveTurn(ctx, "session_recover_tool"); err == nil {
@@ -276,6 +276,97 @@ func TestFailureMarkerDoesNotBlockLaterTurn(t *testing.T) {
 	}
 	if result.Queued {
 		t.Fatalf("expected new turn to start despite prior failure marker: %#v", result)
+	}
+}
+
+func TestRetryHeldTurnCreatesFollowOnWork(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	_, err := s.CreateSession(ctx, "session_retry_hold", "Test", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_retry_hold", "session_retry_hold", "failed", "redo this", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if err := s.UpsertTurnFailure(ctx, turnRec.ID, turnRec.SessionID, "provider_error", "none", "provider failed"); err != nil {
+		t.Fatalf("mark failure: %v", err)
+	}
+	engine := New(s)
+	if err := engine.HoldTurnFailure(ctx, turnRec.ID, "review", "needs operator choice"); err != nil {
+		t.Fatalf("hold turn failure: %v", err)
+	}
+	result, err := engine.RetryHeldTurn(ctx, turnRec.ID, "retry requested")
+	if err != nil {
+		t.Fatalf("retry held turn: %v", err)
+	}
+	if result.TurnID == turnRec.ID {
+		t.Fatalf("expected retry to create a new turn, got %#v", result)
+	}
+	failureRec, err := s.GetTurnFailure(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get resolved failure row: %v", err)
+	}
+	if failureRec.HoldState != "none" || failureRec.ResolutionState != "retried" || failureRec.ResolvedTurnID != result.TurnID {
+		t.Fatalf("unexpected resolved failure row: %#v", failureRec)
+	}
+	time.Sleep(1500 * time.Millisecond)
+	turns, err := s.ListTurns(ctx, "session_retry_hold")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 2 {
+		t.Fatalf("expected original + retry turn, got %#v", turns)
+	}
+	if turns[1].Metadata["retry_of_turn_id"] != turnRec.ID {
+		t.Fatalf("expected retry metadata on new turn, got %#v", turns[1].Metadata)
+	}
+}
+
+func TestHeldTurnDoesNotBlockLaterSubmitAfterSkip(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	_, err := s.CreateSession(ctx, "session_skip_hold", "Test", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_skip_hold", "session_skip_hold", "failed", "skip this", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if err := s.UpsertTurnFailure(ctx, turnRec.ID, turnRec.SessionID, "provider_error", "none", "provider failed"); err != nil {
+		t.Fatalf("mark failure: %v", err)
+	}
+	engine := New(s)
+	if err := engine.HoldTurnFailure(ctx, turnRec.ID, "review", "needs operator choice"); err != nil {
+		t.Fatalf("hold turn failure: %v", err)
+	}
+	if err := engine.SkipHeldTurn(ctx, turnRec.ID, "skip requested"); err != nil {
+		t.Fatalf("skip held turn: %v", err)
+	}
+	failureRec, err := s.GetTurnFailure(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get skipped failure row: %v", err)
+	}
+	if failureRec.HoldState != "none" || failureRec.ResolutionState != "skipped" {
+		t.Fatalf("unexpected skipped failure row: %#v", failureRec)
+	}
+	resolvedTurn, err := s.GetTurn(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get resolved turn: %v", err)
+	}
+	if resolvedTurn.Phase != "failed" {
+		t.Fatalf("expected held turn to return to failed phase after skip, got %#v", resolvedTurn)
+	}
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_skip_hold", Prompt: "fresh work", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit prompt after skip: %v", err)
+	}
+	if result.Queued {
+		t.Fatalf("expected fresh turn to start despite skipped held turn: %#v", result)
 	}
 }
 
