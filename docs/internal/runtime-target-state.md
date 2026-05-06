@@ -181,6 +181,23 @@ This gives us:
 - explicit turn lifecycle
 - crash recovery without guessing from `state_json`
 
+### Current implementation status
+
+Implemented so far:
+
+- `turns.phase`, `claimed_by`, `claimed_at`, `started_at`, and `finished_at`
+- `session_active_turns` claim/release store APIs
+- store-backed run-vs-queue decisions in `turn.Engine.SubmitPrompt(...)`
+- queued-turn handoff through the same launch/claim path as immediately-started turns
+- real `queue_count` synchronization from queued turn rows
+- regression coverage for same-session concurrency and active-turn row lifecycle
+
+Still pending in this area:
+
+- crash/interrupted-turn recovery semantics
+- durable hold/retry/skip failure handling
+- fuller lifecycle separation for setup / provider / tool / finalize / recovery
+
 ---
 
 ## 3. Steering semantics

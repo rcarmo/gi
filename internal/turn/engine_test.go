@@ -3,6 +3,7 @@ package turn
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -88,6 +89,73 @@ func TestSubmitPromptQueuesSecondTurn(t *testing.T) {
 	}
 	if _, _, err := s.GetSessionActiveTurn(ctx, "session_1"); err == nil {
 		t.Fatal("expected no active turn after completion")
+	}
+}
+
+func TestConcurrentSubmitAcrossEnginesQueuesCleanly(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	_, err := s.CreateSession(ctx, "session_1", "Test", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engineA := New(s)
+	engineB := New(s)
+
+	results := make(chan *SubmitResult, 2)
+	errs := make(chan error, 2)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i, engine := range []*Engine{engineA, engineB} {
+		wg.Add(1)
+		go func(idx int, eng *Engine) {
+			defer wg.Done()
+			<-start
+			res, err := eng.SubmitPrompt(ctx, RunInput{SessionID: "session_1", Prompt: fmt.Sprintf("prompt-%d", idx+1), Model: "bootstrap"})
+			if err != nil {
+				errs <- err
+				return
+			}
+			results <- res
+		}(i, engine)
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("unexpected submit error: %v", err)
+		}
+	}
+	var submitted []*SubmitResult
+	queuedCount := 0
+	for res := range results {
+		submitted = append(submitted, res)
+		if res.Queued {
+			queuedCount++
+		}
+	}
+	if len(submitted) != 2 {
+		t.Fatalf("expected 2 submit results, got %d", len(submitted))
+	}
+	if queuedCount != 1 {
+		t.Fatalf("expected exactly one queued turn, got %d: %#v", queuedCount, submitted)
+	}
+
+	time.Sleep(2500 * time.Millisecond)
+	turns, err := s.ListTurns(ctx, "session_1")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 2 {
+		t.Fatalf("expected 2 turns, got %d", len(turns))
+	}
+	for _, turnRec := range turns {
+		if turnRec.Status != "completed" {
+			t.Fatalf("expected completed turns, got %#v", turns)
+		}
 	}
 }
 
