@@ -43,6 +43,12 @@ func (r *sessionRunner) maybeCompactContext(ctx context.Context, sessionID, turn
 		"preparation": prep,
 		"settings":    map[string]any{"enabled": settings.Enabled, "context_window": settings.ContextWindow, "reserve_tokens": settings.ReserveTokens, "keep_recent_tokens": settings.KeepRecentTokens, "threshold_tokens": settings.ThresholdTokens, "strategy": settings.Strategy},
 	}
+	_ = r.store.UpdateTurnStatusAndPhase(ctx, turnID, "running", "compacting")
+	_ = r.store.AppendTurnEvent(ctx, turnID, sessionID, "compaction.started", map[string]any{"phase": "compacting", "checkpoint": true, "reason": "threshold", "tokens_before": tokens, "messages_before": prep.MessagesBefore})
+	defer func() {
+		_ = r.store.TouchSessionActiveTurn(context.Background(), sessionID, turnID)
+		_ = r.store.UpdateTurnStatusAndPhase(context.Background(), turnID, "running", "running")
+	}()
 	resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookSessionBeforeCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload, Messages: convCtx.Messages})
 	if err != nil || resp.Cancel || resp.Block {
 		return
@@ -66,6 +72,7 @@ func (r *sessionRunner) maybeCompactContext(ctx context.Context, sessionID, turn
 	compactPayload := map[string]any{"reason": "threshold", "summary": summary, "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(compacted)}
 	r.engine.broadcast(sessionID, map[string]any{"type": "compaction", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(compacted)})
 	_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookSessionCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: compactPayload})
+	_ = r.store.AppendTurnEvent(ctx, turnID, sessionID, "compaction.completed", map[string]any{"phase": "compacting", "checkpoint": true, "reason": "threshold", "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(compacted)})
 	_ = r.store.AddMessage(ctx, "msg_"+turnID+"_compaction", sessionID, "assistant", summary, map[string]any{"kind": "compaction", "turn_id": turnID, "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(compacted), "from_hook": resp.Payload != nil && resp.Payload["summary"] != nil})
 }
 

@@ -4,7 +4,19 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 )
+
+type ActiveTurnClaim struct {
+	SessionID  string `json:"session_id"`
+	TurnID     string `json:"turn_id"`
+	WorkerID   string `json:"worker_id,omitempty"`
+	ClaimToken string `json:"claim_token"`
+	ClaimedAt  string `json:"claimed_at"`
+	UpdatedAt  string `json:"updated_at"`
+	Status     string `json:"status"`
+	Phase      string `json:"phase"`
+}
 
 func (s *Store) ClaimSessionActiveTurn(ctx context.Context, sessionID, turnID, workerID, claimToken string) (bool, error) {
 	res, err := s.db.ExecContext(ctx, `
@@ -43,6 +55,48 @@ func (s *Store) GetSessionActiveTurn(ctx context.Context, sessionID string) (tur
 		return "", "", err
 	}
 	return turnID, claimToken, nil
+}
+
+func (s *Store) TouchSessionActiveTurn(ctx context.Context, sessionID, claimToken string) error {
+	_, err := s.db.ExecContext(ctx, `update session_active_turns set updated_at = `+defaultNow+` where session_id = ? and claim_token = ?`, sessionID, claimToken)
+	if err != nil {
+		return fmt.Errorf("touch session active turn: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) ListStaleActiveTurnClaims(ctx context.Context, olderThan time.Time, sessionID string) ([]ActiveTurnClaim, error) {
+	cutoff := olderThan.UTC().Format(time.RFC3339Nano)
+	query := `
+		select sat.session_id, sat.turn_id, coalesce(sat.worker_id,''), sat.claim_token, sat.claimed_at, sat.updated_at,
+		       t.status, t.phase
+		from session_active_turns sat
+		join turns t on t.id = sat.turn_id
+		where sat.updated_at < ?
+	`
+	args := []any{cutoff}
+	if sessionID != "" {
+		query += ` and sat.session_id = ?`
+		args = append(args, sessionID)
+	}
+	query += ` order by sat.updated_at asc, sat.session_id asc`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list stale active turn claims: %w", err)
+	}
+	defer rows.Close()
+	var out []ActiveTurnClaim
+	for rows.Next() {
+		var item ActiveTurnClaim
+		if err := rows.Scan(&item.SessionID, &item.TurnID, &item.WorkerID, &item.ClaimToken, &item.ClaimedAt, &item.UpdatedAt, &item.Status, &item.Phase); err != nil {
+			return nil, fmt.Errorf("scan stale active turn claim: %w", err)
+		}
+		out = append(out, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate stale active turn claims: %w", err)
+	}
+	return out, nil
 }
 
 func (s *Store) EnqueueSteering(ctx context.Context, sessionID, turnID, role, content string, payload map[string]any, media []string, queueMode string) (int64, error) {

@@ -186,15 +186,23 @@ This gives us:
 Implemented so far:
 
 - `turns.phase`, `claimed_by`, `claimed_at`, `started_at`, and `finished_at`
-- `session_active_turns` claim/release store APIs
+- `session_active_turns` claim/release store APIs plus active-turn heartbeat refreshes
 - store-backed run-vs-queue decisions in `turn.Engine.SubmitPrompt(...)`
 - queued-turn handoff through the same launch/claim path as immediately-started turns
 - real `queue_count` synchronization from queued turn rows
-- regression coverage for same-session concurrency and active-turn row lifecycle
+- compaction checkpoints now mark a durable `compacting` phase
+- stale active-turn recovery on engine startup and before same-session submission
+- regression coverage for same-session concurrency, active-turn row lifecycle, and stale-turn recovery
+
+Current recovery semantics:
+
+- `compacting`, `setup`, and general `running` interruptions are re-queued
+- `waiting_on_tools` interruptions fail conservatively to avoid silently replaying side effects
+- `cancelling` interruptions are finalized as aborted
+- stale active claims are released and session state is normalized back to `idle` or `queued`
 
 Still pending in this area:
 
-- crash/interrupted-turn recovery semantics
 - durable hold/retry/skip failure handling
 - fuller lifecycle separation for setup / provider / tool / finalize / recovery
 

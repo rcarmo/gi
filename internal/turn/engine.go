@@ -122,12 +122,26 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 	}
 	e.registerDefaultTools()
 	e.startTopicBridge()
+	if e.store != nil {
+		if _, err := e.recoverInterruptedTurns(context.Background(), ""); err != nil {
+			log.Printf("turn recovery: startup scan failed: %v", err)
+		}
+	}
 	return e
 }
 
 func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, error) {
 	if in.Intent == "" {
 		in.Intent = "prompt"
+	}
+	recovered, err := e.recoverInterruptedTurns(ctx, in.SessionID)
+	if err != nil {
+		return nil, err
+	}
+	if recovered {
+		if err := e.startNextQueuedTurn(ctx, in.SessionID); err != nil {
+			return nil, err
+		}
 	}
 	turnID := store.NowID("turn")
 	runner := e.runner(in.SessionID)
@@ -360,6 +374,7 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 		return
 	}
 	sessionID := turnRec.SessionID
+	go r.heartbeatActiveTurn(ctx, sessionID, claimToken)
 	prompt := turnRec.Prompt
 	intent := stringValue(turnRec.Metadata["intent"], "prompt")
 	model := stringValue(turnRec.Metadata["model"], "bootstrap")

@@ -159,6 +159,94 @@ func TestConcurrentSubmitAcrossEnginesQueuesCleanly(t *testing.T) {
 	}
 }
 
+func TestStartupRecoveryRequeuesCompactingTurn(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	_, err := s.CreateSession(ctx, "session_recover_compact", "Test", map[string]any{"model": "bootstrap", "status": "running"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_recover_compact", "session_recover_compact", "running", "hello", map[string]any{"intent": "prompt"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if err := s.UpdateTurnStatusAndPhase(ctx, turnRec.ID, "running", "compacting"); err != nil {
+		t.Fatalf("set compacting phase: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_recover_compact", turnRec.ID, "runner", turnRec.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_active_turns set updated_at = '2000-01-01T00:00:00Z' where session_id = ?`, "session_recover_compact"); err != nil {
+		t.Fatalf("age active turn claim: %v", err)
+	}
+
+	_ = New(s)
+
+	recovered, err := s.GetTurn(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get recovered turn: %v", err)
+	}
+	if recovered.Status != "queued" || recovered.Phase != "queued" {
+		t.Fatalf("expected queued recovered turn, got %#v", recovered)
+	}
+	if _, _, err := s.GetSessionActiveTurn(ctx, "session_recover_compact"); err == nil {
+		t.Fatal("expected stale active claim to be released")
+	}
+	events, err := s.ListTurnEvents(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("list recovery events: %v", err)
+	}
+	found := false
+	for _, event := range events {
+		if event.Type == "turn.recovered" && event.Payload["recovery_disposition"] == "requeue_after_compaction_checkpoint" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected compaction recovery event, got %#v", events)
+	}
+}
+
+func TestStartupRecoveryFailsToolPhaseTurn(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	_, err := s.CreateSession(ctx, "session_recover_tool", "Test", map[string]any{"model": "bootstrap", "status": "running"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_recover_tool", "session_recover_tool", "running", "hello", map[string]any{"intent": "prompt"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if err := s.UpdateTurnStatusAndPhase(ctx, turnRec.ID, "running", "waiting_on_tools"); err != nil {
+		t.Fatalf("set waiting_on_tools phase: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_recover_tool", turnRec.ID, "runner", turnRec.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_active_turns set updated_at = '2000-01-01T00:00:00Z' where session_id = ?`, "session_recover_tool"); err != nil {
+		t.Fatalf("age active turn claim: %v", err)
+	}
+
+	_ = New(s)
+
+	recovered, err := s.GetTurn(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get recovered turn: %v", err)
+	}
+	if recovered.Status != "failed" || recovered.Phase != "failed" {
+		t.Fatalf("expected failed recovered turn, got %#v", recovered)
+	}
+	if recovered.FinishedAt == "" {
+		t.Fatalf("expected finished_at on failed recovered turn, got %#v", recovered)
+	}
+	if _, _, err := s.GetSessionActiveTurn(ctx, "session_recover_tool"); err == nil {
+		t.Fatal("expected stale active claim to be released")
+	}
+}
+
 func TestCancelQueuedTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
