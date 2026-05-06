@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/rcarmo/gi/internal/session"
@@ -12,6 +13,8 @@ import (
 )
 
 const defaultNow = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+
+var ephemeralStoreCounter uint64
 
 type Store struct {
 	db *sql.DB
@@ -62,6 +65,7 @@ type TurnEvent struct {
 }
 
 func Open(path string) (*Store, error) {
+	path = normalizeSQLitePath(path)
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
@@ -75,6 +79,14 @@ func Open(path string) (*Store, error) {
 		return nil, err
 	}
 	return &Store{db: db}, nil
+}
+
+func normalizeSQLitePath(path string) string {
+	if path == "file::memory:?cache=shared" {
+		id := atomic.AddUint64(&ephemeralStoreCounter, 1)
+		return fmt.Sprintf("file:gi_test_%d_%d?mode=memory&cache=shared", time.Now().UnixNano(), id)
+	}
+	return path
 }
 
 func (s *Store) Close() error { return s.db.Close() }

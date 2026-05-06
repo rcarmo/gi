@@ -125,15 +125,22 @@ func (s *Store) EnqueueSteering(ctx context.Context, sessionID, turnID, role, co
 	if queueMode == "" {
 		queueMode = "one-at-a-time"
 	}
-	if depth, err := s.SteeringQueueLength(ctx, sessionID); err == nil && depth >= 10 {
-		return 0, fmt.Errorf("enqueue steering: steering queue is full")
-	}
 	res, err := s.db.ExecContext(ctx, `
 		insert into steering_queue (session_id, turn_id, role, content, payload_json, media_json, queue_mode, status, created_at, updated_at)
-		values (?, ?, ?, ?, ?, ?, ?, 'queued', `+defaultNow+`, `+defaultNow+`)
-	`, sessionID, nilIfEmpty(turnID), role, content, payloadJSON, mediaJSON, queueMode)
+		select ?, ?, ?, ?, ?, ?, ?, 'queued', `+defaultNow+`, `+defaultNow+`
+		where (
+			select count(*) from steering_queue where session_id = ? and status = 'queued'
+		) < 10
+	`, sessionID, nilIfEmpty(turnID), role, content, payloadJSON, mediaJSON, queueMode, sessionID)
 	if err != nil {
 		return 0, fmt.Errorf("enqueue steering: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("enqueue steering rows: %w", err)
+	}
+	if rows == 0 {
+		return 0, fmt.Errorf("enqueue steering: steering queue is full")
 	}
 	id, err := res.LastInsertId()
 	if err != nil {

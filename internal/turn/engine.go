@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -549,7 +551,7 @@ func runShell(ctx context.Context, prompt string, onStart func(*exec.Cmd), onDel
 				}
 			}
 			if readErr != nil {
-				if readErr != io.EOF {
+				if !errors.Is(readErr, io.EOF) && !errors.Is(readErr, os.ErrClosed) {
 					stderr.WriteString(readErr.Error())
 				}
 				return
@@ -836,11 +838,26 @@ func boolValueOr(v any, fallback bool) bool {
 		if s == "" {
 			return fallback
 		}
+		return s == "true" || s == "1" || s == "yes"
 	}
-	if num, ok := v.(float64); ok {
+	switch num := v.(type) {
+	case float64:
 		return num != 0
+	case int:
+		return num != 0
+	case int64:
+		return num != 0
+	case int32:
+		return num != 0
+	case uint:
+		return num != 0
+	case uint64:
+		return num != 0
+	case uint32:
+		return num != 0
+	default:
+		return fallback
 	}
-	return false
 }
 
 func SortQueuedTurns(turns []store.Turn) {
@@ -872,12 +889,19 @@ func (e *Engine) Unsubscribe(sessionID string, ch chan map[string]any) {
 
 func (e *Engine) broadcast(sessionID string, ev map[string]any) {
 	e.publishTopicFromBroadcast(sessionID, ev)
+	e.subsMu.Lock()
 	v, ok := e.subs.Load(sessionID)
 	if !ok {
+		e.subsMu.Unlock()
 		return
 	}
 	m := v.(map[chan map[string]any]bool)
+	chs := make([]chan map[string]any, 0, len(m))
 	for ch := range m {
+		chs = append(chs, ch)
+	}
+	e.subsMu.Unlock()
+	for _, ch := range chs {
 		select {
 		case ch <- ev:
 		default:
