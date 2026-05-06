@@ -259,6 +259,33 @@ This gives us:
 - durable queued steering
 - postmortem visibility into skipped/injected messages
 
+### Current implementation status
+
+Implemented so far:
+
+- session-scoped durable steering rows in `steering_queue`
+- dequeue modes `one-at-a-time` and `all`
+- same-session busy submits now steer the active turn instead of immediately creating competing queued turns
+- steering polling at loop start, after each tool, and after direct LLM responses
+- skipped remaining tool calls emit durable skipped tool results with `"Skipped due to queued user message."`
+- end-of-turn idle continuation drains queued steering into a follow-on turn when no normal queued turn is ahead of it
+- store/unit coverage for dequeue mode behavior and turn/engine coverage for same-session steering continuation
+
+Current steering semantics:
+
+- Gi now follows PicoClaw's core rule that same-session inbound messages during an active turn become steering
+- steering does not interrupt the currently executing tool; it is observed at explicit checkpoints
+- when steering is found after a tool, remaining tool calls in that batch are skipped and recorded as skipped results
+- when steering arrives after a direct non-tool LLM answer, the loop continues instead of finalizing that answer immediately
+- bootstrap/test shell turns pick up queued steering only after the current shell step ends, via continuation turn startup
+
+Still pending in this area:
+
+- explicit public `Continue` semantics/tooling for idle sessions with queued steering
+- fuller steering lifecycle publication on the internal topic bus (Gi now publishes injected steering notices, but not the whole lifecycle)
+- media-bearing steering injection through the same multimodal path as normal inbound messages
+- additional concurrency/integration tests for different-session concurrency and skipped-tool reasoning behavior
+
 ---
 
 ## 4. Sub-turn runtime

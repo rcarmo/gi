@@ -20,7 +20,7 @@ func openTestStore(t *testing.T) *store.Store {
 	return s
 }
 
-func TestSubmitPromptQueuesSecondTurn(t *testing.T) {
+func TestSubmitPromptSteersSecondPromptToActiveTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
 	ctx := context.Background()
@@ -41,15 +41,23 @@ func TestSubmitPromptQueuesSecondTurn(t *testing.T) {
 	if first.Queued {
 		t.Fatalf("first should not be queued: %#v", first)
 	}
-	if !second.Queued || second.Status != "queued" {
-		t.Fatalf("second should be queued: %#v", second)
+	if second.Queued || second.Status != "running" {
+		t.Fatalf("second should be accepted as steering against the active turn: %#v", second)
+	}
+	if second.TurnID != first.TurnID {
+		t.Fatalf("expected steering to target active turn %s, got %#v", first.TurnID, second)
 	}
 	sess, err := s.GetSession(ctx, "session_1")
 	if err != nil {
 		t.Fatalf("get session: %v", err)
 	}
-	if got := sess.State["queue_count"]; got != float64(1) && got != 1 {
-		t.Fatalf("expected queue_count=1 while queued, got %#v", got)
+	if got := sess.State["queue_count"]; got != float64(0) && got != 0 {
+		t.Fatalf("expected queue_count=0 while steering is queued separately, got %#v", got)
+	}
+	if depth, err := s.SteeringQueueLength(ctx, "session_1"); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 1 {
+		t.Fatalf("expected steering queue depth 1, got %d", depth)
 	}
 	activeTurnID, _, err := s.GetSessionActiveTurn(ctx, "session_1")
 	if err != nil {
@@ -57,13 +65,6 @@ func TestSubmitPromptQueuesSecondTurn(t *testing.T) {
 	}
 	if activeTurnID != first.TurnID {
 		t.Fatalf("expected active turn %s, got %s", first.TurnID, activeTurnID)
-	}
-	queuedTurn, err := s.GetTurn(ctx, second.TurnID)
-	if err != nil {
-		t.Fatalf("get queued turn: %v", err)
-	}
-	if queuedTurn.Phase != "queued" {
-		t.Fatalf("expected queued phase, got %#v", queuedTurn)
 	}
 
 	time.Sleep(2500 * time.Millisecond)
@@ -92,7 +93,7 @@ func TestSubmitPromptQueuesSecondTurn(t *testing.T) {
 	}
 }
 
-func TestConcurrentSubmitAcrossEnginesQueuesCleanly(t *testing.T) {
+func TestConcurrentSubmitAcrossEnginesCompletesWithoutConflict(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
 	ctx := context.Background()
@@ -130,18 +131,11 @@ func TestConcurrentSubmitAcrossEnginesQueuesCleanly(t *testing.T) {
 		}
 	}
 	var submitted []*SubmitResult
-	queuedCount := 0
 	for res := range results {
 		submitted = append(submitted, res)
-		if res.Queued {
-			queuedCount++
-		}
 	}
 	if len(submitted) != 2 {
 		t.Fatalf("expected 2 submit results, got %d", len(submitted))
-	}
-	if queuedCount != 1 {
-		t.Fatalf("expected exactly one queued turn, got %d: %#v", queuedCount, submitted)
 	}
 
 	time.Sleep(2500 * time.Millisecond)
@@ -254,6 +248,40 @@ func TestStartupRecoveryHoldsToolPhaseTurnForReview(t *testing.T) {
 	}
 }
 
+func TestBusySameSessionPromptCreatesSteeringNotQueuedTurn(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	_, err := s.CreateSession(ctx, "session_steer_busy", "Test", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	first, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_steer_busy", Prompt: "first", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit first: %v", err)
+	}
+	second, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_steer_busy", Prompt: "second", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit second: %v", err)
+	}
+	if second.TurnID != first.TurnID || second.Queued {
+		t.Fatalf("expected second prompt to steer the active turn, got %#v", second)
+	}
+	turns, err := s.ListTurns(ctx, "session_steer_busy")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected only the active turn before continuation, got %#v", turns)
+	}
+	if depth, err := s.SteeringQueueLength(ctx, "session_steer_busy"); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 1 {
+		t.Fatalf("expected steering queue depth 1, got %d", depth)
+	}
+}
+
 func TestFailureMarkerDoesNotBlockLaterTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
@@ -320,8 +348,12 @@ func TestRetryHeldTurnCreatesFollowOnWork(t *testing.T) {
 	if len(turns) != 2 {
 		t.Fatalf("expected original + retry turn, got %#v", turns)
 	}
-	if turns[1].Metadata["retry_of_turn_id"] != turnRec.ID {
-		t.Fatalf("expected retry metadata on new turn, got %#v", turns[1].Metadata)
+	retryTurn, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get retry turn: %v", err)
+	}
+	if retryTurn.Metadata["retry_of_turn_id"] != turnRec.ID {
+		t.Fatalf("expected retry metadata on new turn, got %#v", retryTurn.Metadata)
 	}
 }
 
@@ -374,14 +406,16 @@ func TestCancelQueuedTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
 	ctx := context.Background()
-	_, _ = s.CreateSession(ctx, "session_1", "Test", map[string]any{"model": "bootstrap"})
+	sess, _ := s.CreateSession(ctx, "session_1", "Test", map[string]any{"model": "bootstrap"})
 	engine := New(s)
-	_, _ = engine.SubmitPrompt(ctx, RunInput{SessionID: "session_1", Prompt: "one", Model: "bootstrap"})
-	second, _ := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_1", Prompt: "two", Model: "bootstrap"})
-	if err := engine.CancelTurn(ctx, "session_1", second.TurnID); err != nil {
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_queued_cancel", sess.ID, "queued", "two", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	if err := engine.CancelTurn(ctx, "session_1", queuedTurn.ID); err != nil {
 		t.Fatalf("cancel queued: %v", err)
 	}
-	turnRec, err := s.GetTurn(ctx, second.TurnID)
+	turnRec, err := s.GetTurn(ctx, queuedTurn.ID)
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}

@@ -147,19 +147,17 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	runner := e.runner(in.SessionID)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
-	queued := false
-	if _, _, err := e.store.GetSessionActiveTurn(ctx, in.SessionID); err == nil {
-		queued = true
+	if activeTurnID, _, err := e.store.GetSessionActiveTurn(ctx, in.SessionID); err == nil {
+		return e.submitSteeringPrompt(ctx, in.SessionID, activeTurnID, in)
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	if !queued {
-		count, err := e.store.CountQueuedTurns(ctx, in.SessionID)
-		if err != nil {
-			return nil, err
-		}
-		queued = count > 0
+	queued := false
+	count, err := e.store.CountQueuedTurns(ctx, in.SessionID)
+	if err != nil {
+		return nil, err
 	}
+	queued = count > 0
 	metadata := map[string]any{"intent": in.Intent, "model": in.Model}
 	if in.ParentTurnID != "" {
 		metadata["parent_turn_id"] = in.ParentTurnID
@@ -356,15 +354,15 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 		_ = s.ReleaseSessionActiveTurn(context.Background(), sessionID, claimToken)
 		_ = s.SyncSessionQueueCount(context.Background(), sessionID)
 		r.mu.Lock()
-		defer r.mu.Unlock()
 		r.current = nil
-		next, _ := s.GetNextQueuedTurn(context.Background(), sessionID)
-		if next != nil {
-			launched, err := r.engine.launchTurnLocked(context.Background(), r, sessionID, next.ID)
-			if err != nil {
-				log.Printf("turn coordination: launch queued turn failed: %v", err)
-			} else if !launched {
-				log.Printf("turn coordination: queued turn %s could not claim session %s", next.ID, sessionID)
+		r.mu.Unlock()
+		if err := r.engine.startNextQueuedTurn(context.Background(), sessionID); err != nil {
+			log.Printf("turn coordination: launch queued turn failed: %v", err)
+			return
+		}
+		if _, _, err := s.GetSessionActiveTurn(context.Background(), sessionID); err == sql.ErrNoRows {
+			if _, err := r.engine.continueQueuedSteering(context.Background(), sessionID); err != nil {
+				log.Printf("steering continuation: %v", err)
 			}
 		}
 	}()
@@ -375,7 +373,11 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 	}
 	sessionID := turnRec.SessionID
 	go r.heartbeatActiveTurn(ctx, sessionID, claimToken)
+	initialSteering := steeringMessagesFromMetadata(turnRec.Metadata)
 	prompt := turnRec.Prompt
+	if strings.TrimSpace(prompt) == "" && len(initialSteering) > 0 {
+		prompt = steeringPromptForShell(initialSteering)
+	}
 	intent := stringValue(turnRec.Metadata["intent"], "prompt")
 	model := stringValue(turnRec.Metadata["model"], "bootstrap")
 	agentID := "agent"
@@ -408,7 +410,9 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 			userPayload[key] = value
 		}
 	}
-	_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload)
+	if strings.TrimSpace(prompt) != "" {
+		_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload)
+	}
 	startedPayload := map[string]any{"phase": "turn", "prompt": prompt, "intent": intent, "model": model, "checkpoint": true}
 	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "parent_turn_id", "route_mode", "route_matched_by"} {
 		if value, ok := turnRec.Metadata[key]; ok {
@@ -419,7 +423,7 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 
 	// Try LLM inference if model is not the bootstrap stub
 	if model != "bootstrap" && model != "test-model" && model != "" {
-		r.runAgentLoop(ctx, s, turnID, sessionID, model, agentID)
+		r.runAgentLoop(ctx, s, turnID, sessionID, model, agentID, initialSteering)
 		return
 	}
 

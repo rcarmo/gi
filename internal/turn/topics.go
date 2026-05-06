@@ -82,6 +82,10 @@ func topicForBroadcastEvent(evType string) (topic string, envelopeType string) {
 		return "turn.tool.end", "result"
 	case "tool_failed":
 		return "turn.tool.end", "error"
+	case "tool_skipped":
+		return "turn.tool.end", "notice"
+	case "steering_injected":
+		return "session.steering", "notice"
 	case "compaction":
 		return "session.compaction", "notice"
 	case "routing_decision", "routing_incoming":

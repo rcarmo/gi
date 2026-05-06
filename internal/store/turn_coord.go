@@ -18,6 +18,20 @@ type ActiveTurnClaim struct {
 	Phase      string `json:"phase"`
 }
 
+type SteeringMessage struct {
+	ID        int64          `json:"id"`
+	SessionID string         `json:"session_id"`
+	TurnID    string         `json:"turn_id,omitempty"`
+	Role      string         `json:"role"`
+	Content   string         `json:"content"`
+	Payload   map[string]any `json:"payload,omitempty"`
+	Media     []string       `json:"media,omitempty"`
+	QueueMode string         `json:"queue_mode"`
+	Status    string         `json:"status"`
+	CreatedAt string         `json:"created_at"`
+	UpdatedAt string         `json:"updated_at"`
+}
+
 func (s *Store) ClaimSessionActiveTurn(ctx context.Context, sessionID, turnID, workerID, claimToken string) (bool, error) {
 	res, err := s.db.ExecContext(ctx, `
 		insert into session_active_turns (session_id, turn_id, worker_id, claim_token, claimed_at, updated_at)
@@ -111,6 +125,9 @@ func (s *Store) EnqueueSteering(ctx context.Context, sessionID, turnID, role, co
 	if queueMode == "" {
 		queueMode = "one-at-a-time"
 	}
+	if depth, err := s.SteeringQueueLength(ctx, sessionID); err == nil && depth >= 10 {
+		return 0, fmt.Errorf("enqueue steering: steering queue is full")
+	}
 	res, err := s.db.ExecContext(ctx, `
 		insert into steering_queue (session_id, turn_id, role, content, payload_json, media_json, queue_mode, status, created_at, updated_at)
 		values (?, ?, ?, ?, ?, ?, ?, 'queued', `+defaultNow+`, `+defaultNow+`)
@@ -132,6 +149,77 @@ func (s *Store) SteeringQueueLength(ctx context.Context, sessionID string) (int,
 		return 0, fmt.Errorf("steering queue length: %w", err)
 	}
 	return count, nil
+}
+
+func (s *Store) DequeueSteering(ctx context.Context, sessionID string) ([]SteeringMessage, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("dequeue steering begin tx: %w", err)
+	}
+	defer tx.Rollback()
+	row := tx.QueryRowContext(ctx, `
+		select id, queue_mode
+		from steering_queue
+		where session_id = ? and status = 'queued'
+		order by id asc
+		limit 1
+	`, sessionID)
+	var firstID int64
+	var queueMode string
+	if err := row.Scan(&firstID, &queueMode); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
+		return nil, fmt.Errorf("dequeue steering head: %w", err)
+	}
+	limit := 1
+	if queueMode == "all" {
+		limit = 1000
+	}
+	rows, err := tx.QueryContext(ctx, `
+		select id, session_id, coalesce(turn_id,''), role, content, payload_json, media_json, queue_mode, status, created_at, updated_at
+		from steering_queue
+		where session_id = ? and status = 'queued'
+		order by id asc
+		limit ?
+	`, sessionID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("dequeue steering rows: %w", err)
+	}
+	defer rows.Close()
+	var out []SteeringMessage
+	var ids []int64
+	for rows.Next() {
+		var item SteeringMessage
+		var payloadJSON, mediaJSON string
+		if err := rows.Scan(&item.ID, &item.SessionID, &item.TurnID, &item.Role, &item.Content, &payloadJSON, &mediaJSON, &item.QueueMode, &item.Status, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan steering row: %w", err)
+		}
+		payload, err := unmarshalJSONMap(payloadJSON)
+		if err != nil {
+			return nil, err
+		}
+		media, err := unmarshalJSONStringArray(mediaJSON)
+		if err != nil {
+			return nil, err
+		}
+		item.Payload = payload
+		item.Media = media
+		out = append(out, item)
+		ids = append(ids, item.ID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate steering rows: %w", err)
+	}
+	for _, id := range ids {
+		if _, err := tx.ExecContext(ctx, `update steering_queue set status = 'dequeued', updated_at = `+defaultNow+` where id = ?`, id); err != nil {
+			return nil, fmt.Errorf("mark steering dequeued: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("dequeue steering commit: %w", err)
+	}
+	return out, nil
 }
 
 func isNotFound(err error) bool { return err == sql.ErrNoRows }

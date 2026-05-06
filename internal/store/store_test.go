@@ -186,6 +186,52 @@ func TestTurnFailureMarkersClearOnRequeueAndCompletion(t *testing.T) {
 	}
 }
 
+func TestSteeringDequeueRespectsQueueMode(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	_, err = s.CreateSession(ctx, "session_steering", "Test", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_steering", "", "user", "one", map[string]any{"intent": "prompt"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering one: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_steering", "", "user", "two", map[string]any{"intent": "prompt"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering two: %v", err)
+	}
+	msgs, err := s.DequeueSteering(ctx, "session_steering")
+	if err != nil {
+		t.Fatalf("dequeue steering: %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Content != "one" {
+		t.Fatalf("expected one-at-a-time dequeue of first message, got %#v", msgs)
+	}
+	msgs, err = s.DequeueSteering(ctx, "session_steering")
+	if err != nil {
+		t.Fatalf("dequeue second steering: %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Content != "two" {
+		t.Fatalf("expected second queued steering message, got %#v", msgs)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_steering", "", "user", "all-1", map[string]any{"intent": "prompt"}, nil, "all"); err != nil {
+		t.Fatalf("enqueue steering all-1: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_steering", "", "user", "all-2", map[string]any{"intent": "prompt"}, nil, "all"); err != nil {
+		t.Fatalf("enqueue steering all-2: %v", err)
+	}
+	msgs, err = s.DequeueSteering(ctx, "session_steering")
+	if err != nil {
+		t.Fatalf("dequeue all steering: %v", err)
+	}
+	if len(msgs) != 2 {
+		t.Fatalf("expected all-mode dequeue to drain both messages, got %#v", msgs)
+	}
+}
+
 func TestHoldAndResolveTurnFailurePhase(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

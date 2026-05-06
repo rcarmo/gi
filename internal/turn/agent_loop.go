@@ -45,7 +45,7 @@ func nextRepeatedToolFailureCount(lastSig string, lastCount int, call goai.ToolC
 // runAgentLoop runs the core tool-use loop: call LLM, execute any tool calls,
 // feed results back, repeat until the LLM produces a final text response or
 // the iteration budget is exhausted.
-func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string) {
+func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, initialSteering []store.SteeringMessage) {
 	maxIter := r.engine.runtimeCfg.MaxIterations
 	if maxIter <= 0 {
 		maxIter = 64
@@ -102,6 +102,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 	var totalUsage goai.Usage
 	lastToolFailureSig := ""
 	repeatedToolFailureCount := 0
+	pendingSteering := append([]store.SteeringMessage(nil), initialSteering...)
 
 	for iter := 0; iter < maxIter; iter++ {
 		if ctx.Err() != nil {
@@ -110,6 +111,15 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		}
 
 		iterLabel := fmt.Sprintf("iter=%d/%d", iter+1, maxIter)
+		if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID); err != nil {
+			log.Printf("steering dequeue error: %v", err)
+		} else if len(steerMsgs) > 0 {
+			pendingSteering = append(pendingSteering, steerMsgs...)
+		}
+		if len(pendingSteering) > 0 {
+			r.injectSteeringMessages(ctx, sessionID, turnID, convCtx, pendingSteering)
+			pendingSteering = nil
+		}
 		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1})
 		if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookContext, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools}); err != nil {
 			log.Printf("hook context error: %v", err)
@@ -194,6 +204,12 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		// Some providers (notably Codex) may return stop="stop" while still emitting tool calls.
 		needsToolExecution := goai.NeedsToolExecution(assistantMsg) || len(toolCalls) > 0
 		if !needsToolExecution {
+			if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID); err != nil {
+				log.Printf("steering dequeue error after direct response: %v", err)
+			} else if len(steerMsgs) > 0 {
+				pendingSteering = append(pendingSteering, steerMsgs...)
+				continue
+			}
 			// Final response — no tool calls. Persist and finish.
 			log.Printf("inference [%s]: final response (%d chars, %d iterations)", iterLabel, len(textContent), iter+1)
 			r.persistUsage(s, turnID, sessionID, &totalUsage, iter+1)
@@ -228,7 +244,8 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		})
 
 		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"count": len(toolCalls)}})
-		for _, call := range toolCalls {
+		skipRemainingTools := false
+		for i, call := range toolCalls {
 			if ctx.Err() != nil {
 				r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled during tool execution", "")
 				return
@@ -302,8 +319,21 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 				lastToolFailureSig = ""
 				repeatedToolFailureCount = 0
 			}
+			if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID); err != nil {
+				log.Printf("steering dequeue error after tool: %v", err)
+			} else if len(steerMsgs) > 0 {
+				pendingSteering = append(pendingSteering, steerMsgs...)
+				if i+1 < len(toolCalls) {
+					r.skipRemainingToolCalls(ctx, sessionID, turnID, convCtx, toolCalls, i+1)
+					skipRemainingTools = true
+				}
+				break
+			}
 		}
 		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"count": len(toolCalls)}})
+		if skipRemainingTools || len(pendingSteering) > 0 {
+			continue
+		}
 		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"status": "tools"}})
 		// Loop continues — next iteration will call LLM with tool results
 	}
