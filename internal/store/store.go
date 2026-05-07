@@ -65,6 +65,21 @@ type TurnEvent struct {
 	CreatedAt string         `json:"created_at"`
 }
 
+type SubTurn struct {
+	ID              int64          `json:"id"`
+	ParentTurnID    string         `json:"parent_turn_id"`
+	ParentSessionID string         `json:"parent_session_id"`
+	ChildTurnID     string         `json:"child_turn_id"`
+	ChildSessionID  string         `json:"child_session_id"`
+	DeliveryMode    string         `json:"delivery_mode"`
+	Status          string         `json:"status"`
+	Depth           int            `json:"depth"`
+	Metadata        map[string]any `json:"metadata"`
+	CreatedAt       string         `json:"created_at"`
+	UpdatedAt       string         `json:"updated_at"`
+	FinishedAt      string         `json:"finished_at,omitempty"`
+}
+
 func Open(path string) (*Store, error) {
 	path = normalizeSQLitePath(path)
 	db, err := sql.Open("sqlite", path)

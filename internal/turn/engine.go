@@ -9,6 +9,7 @@ import (
 	"log"
 	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -163,14 +164,27 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	}
 	queued = count > 0
 	metadata := map[string]any{"intent": in.Intent, "model": in.Model}
+	parentSessionID := ""
+	subTurnDepth := 0
 	if in.ParentTurnID != "" {
 		metadata["parent_turn_id"] = in.ParentTurnID
+		if parentTurn, err := e.store.GetTurn(ctx, in.ParentTurnID); err == nil {
+			parentSessionID = parentTurn.SessionID
+			subTurnDepth = intValueOr(parentTurn.Metadata["subturn_depth"], 0) + 1
+			metadata["subturn_depth"] = subTurnDepth
+			metadata["subturn_parent_turn_id"] = in.ParentTurnID
+		}
 	}
 	for k, v := range in.Metadata {
 		metadata[k] = v
 	}
 	if _, err := e.store.CreateTurnWithStatus(ctx, turnID, in.SessionID, "queued", in.Prompt, metadata); err != nil {
 		return nil, err
+	}
+	if in.ParentTurnID != "" && parentSessionID != "" {
+		if _, err := e.store.CreateSubTurn(ctx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, "sync", subTurnDepth, map[string]any{"intent": in.Intent, "model": in.Model}); err != nil {
+			return nil, err
+		}
 	}
 	if err := e.recordRouteDecision(ctx, in.SessionID, turnID, metadata); err != nil {
 		// Non-fatal: routing decisions are an orchestration artifact.
@@ -850,6 +864,34 @@ func boolValueOr(v any, fallback bool) bool {
 	default:
 		return fallback
 	}
+}
+
+func intValueOr(v any, fallback int) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case int32:
+		return int(n)
+	case uint:
+		return int(n)
+	case uint64:
+		return int(n)
+	case uint32:
+		return int(n)
+	case float64:
+		return int(n)
+	case string:
+		n = strings.TrimSpace(n)
+		if n == "" {
+			return fallback
+		}
+		if parsed, err := strconv.Atoi(n); err == nil {
+			return parsed
+		}
+	}
+	return fallback
 }
 
 func SortQueuedTurns(turns []store.Turn) {

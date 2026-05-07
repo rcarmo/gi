@@ -301,48 +301,47 @@ This should be explicit rather than implicitly encoded inside generic turns.
 
 ```sql
 create table subturns (
-  id text primary key,
+  id integer primary key autoincrement,
   parent_turn_id text not null references turns(id) on delete cascade,
-  root_turn_id text not null references turns(id) on delete cascade,
-  session_id text references sessions(id) on delete set null,
-  status text not null,
-  delivery_mode text not null,
-  critical integer not null default 0,
+  parent_session_id text not null references sessions(id) on delete cascade,
+  child_turn_id text not null unique references turns(id) on delete cascade,
+  child_session_id text not null references sessions(id) on delete cascade,
+  delivery_mode text not null default 'sync',
+  status text not null default 'running',
   depth integer not null default 1,
-  model text not null default '',
-  tool_policy_json text not null default '{}',
-  result_json text not null default '{}',
+  metadata_json text not null default '{}',
   created_at text not null,
   updated_at text not null,
-  started_at text,
-  finished_at text
+  finished_at text,
+  unique(parent_turn_id, child_turn_id)
 );
-create index idx_subturns_parent on subturns(parent_turn_id, created_at);
-create index idx_subturns_root on subturns(root_turn_id, created_at);
-```
-
-### Optional: `subturn_results`
-
-```sql
-create table subturn_results (
-  subturn_id text primary key references subturns(id) on delete cascade,
-  delivery_status text not null,
-  delivered_to_turn_id text references turns(id),
-  result_text text not null default '',
-  payload_json text not null default '{}',
-  created_at text not null,
-  updated_at text not null
-);
+create index idx_subturns_parent on subturns(parent_turn_id, created_at asc);
+create index idx_subturns_child on subturns(child_turn_id);
+create index idx_subturns_parent_session on subturns(parent_session_id, created_at asc);
+create index idx_subturns_child_session on subturns(child_session_id, created_at asc);
 ```
 
 ### Why
 
 This gives us:
 
-- parent/child lineage
-- async delivery tracking
-- orphan-result handling
-- durable audit around child execution
+- parent/child lineage between turns with explicit DB-backed correlation
+- durable audit for child-turn lifecycle progression
+- per-parent listing and child-turn lookup without scanning generic turn metadata
+
+### Current implementation status
+
+Implemented so far:
+
+- schema and store APIs for creating/listing/updating subturn records
+- automatic subturn-link creation when a turn is submitted with `parent_turn_id`
+- subturn status synchronization from child turn status transitions (`running`/`completed`/`failed`/`aborted`/`cancelled`)
+
+Still pending in this area:
+
+- maximum depth / concurrency guardrails at runtime
+- explicit async delivery/orphan-result handling modes
+- restricted tool inheritance policies per subturn
 
 ---
 

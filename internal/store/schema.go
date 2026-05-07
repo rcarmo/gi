@@ -91,6 +91,30 @@ func initSchema(db *sql.DB) error {
 		`create index if not exists idx_turns_session_phase on turns(session_id, phase, updated_at desc);`,
 		`create index if not exists idx_turns_metadata_intent on turns(json_extract(metadata_json, '$.intent'));`,
 
+		`create table if not exists subturns (
+			id integer primary key autoincrement,
+			parent_turn_id text not null,
+			parent_session_id text not null,
+			child_turn_id text not null unique,
+			child_session_id text not null,
+			delivery_mode text not null default 'sync',
+			status text not null default 'running',
+			depth integer not null default 1,
+			metadata_json text not null default '{}',
+			created_at text not null,
+			updated_at text not null,
+			finished_at text,
+			foreign key(parent_turn_id) references turns(id) on delete cascade,
+			foreign key(child_turn_id) references turns(id) on delete cascade,
+			foreign key(parent_session_id) references sessions(id) on delete cascade,
+			foreign key(child_session_id) references sessions(id) on delete cascade,
+			unique(parent_turn_id, child_turn_id)
+		);`,
+		`create index if not exists idx_subturns_parent on subturns(parent_turn_id, created_at asc);`,
+		`create index if not exists idx_subturns_child on subturns(child_turn_id);`,
+		`create index if not exists idx_subturns_parent_session on subturns(parent_session_id, created_at asc);`,
+		`create index if not exists idx_subturns_child_session on subturns(child_session_id, created_at asc);`,
+
 		`create table if not exists session_active_turns (
 			session_id text primary key,
 			turn_id text not null,

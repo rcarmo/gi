@@ -259,6 +259,53 @@ func TestSteeringQueueOverflowReturnsError(t *testing.T) {
 	}
 }
 
+func TestSubTurnLifecycle(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	parentSession, err := s.CreateSession(ctx, "session_parent", "Parent", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	childSession, err := s.CreateSession(ctx, "session_child", "Child", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_parent", parentSession.ID, "running", "parent", map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_child", childSession.ID, "queued", "child", map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create child turn: %v", err)
+	}
+	sub, err := s.CreateSubTurn(ctx, "turn_parent", parentSession.ID, "turn_child", childSession.ID, "sync", 1, map[string]any{"origin": "test"})
+	if err != nil {
+		t.Fatalf("create subturn: %v", err)
+	}
+	if sub.ParentTurnID != "turn_parent" || sub.ChildTurnID != "turn_child" || sub.Status != "running" {
+		t.Fatalf("unexpected created subturn: %#v", sub)
+	}
+	if err := s.UpdateSubTurnStatusByChild(ctx, "turn_child", "completed"); err != nil {
+		t.Fatalf("update subturn status by child: %v", err)
+	}
+	stored, err := s.GetSubTurnByChild(ctx, "turn_child")
+	if err != nil {
+		t.Fatalf("get subturn by child: %v", err)
+	}
+	if stored.Status != "completed" || stored.FinishedAt == "" {
+		t.Fatalf("unexpected updated subturn: %#v", stored)
+	}
+	items, err := s.ListSubTurnsByParent(ctx, "turn_parent")
+	if err != nil {
+		t.Fatalf("list subturns by parent: %v", err)
+	}
+	if len(items) != 1 || items[0].ChildTurnID != "turn_child" {
+		t.Fatalf("unexpected parent listing: %#v", items)
+	}
+}
+
 func TestHoldAndResolveTurnFailurePhase(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

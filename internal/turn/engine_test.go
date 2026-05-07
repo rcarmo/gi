@@ -756,3 +756,28 @@ func TestSkipRemainingToolCallsPersistsSkippedResults(t *testing.T) {
 		t.Fatalf("expected 2 skipped tool_result messages, got %d (%#v)", skippedMsgs, msgs)
 	}
 }
+
+func TestSubmitPromptWithParentTurnCreatesSubTurnRecord(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_turn", "Test", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_submit", "session_parent_turn", "completed", "parent", map[string]any{"intent": "prompt", "subturn_depth": 0})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	engine := New(s)
+	res, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_parent_turn", Prompt: "child", Model: "bootstrap", ParentTurnID: parent.ID})
+	if err != nil {
+		t.Fatalf("submit child turn: %v", err)
+	}
+	link, err := s.GetSubTurnByChild(ctx, res.TurnID)
+	if err != nil {
+		t.Fatalf("get subturn link: %v", err)
+	}
+	if link.ParentTurnID != parent.ID || link.ChildTurnID != res.TurnID || link.Depth != 1 {
+		t.Fatalf("unexpected subturn link: %#v", link)
+	}
+}

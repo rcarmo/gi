@@ -99,6 +99,7 @@ func (s *Store) UpdateTurnStatusAndPhase(ctx context.Context, turnID, status, ph
 		}
 		_ = s.SyncSessionQueueCount(ctx, turnRec.SessionID)
 	}
+	_ = s.UpdateSubTurnStatusByChild(ctx, turnID, status)
 	return nil
 }
 
