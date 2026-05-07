@@ -469,4 +469,86 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 		mirror["chat_jid"] = "gi:" + sub.ChildSessionID
 		r.engine.broadcast(sub.ChildSessionID, mirror)
 	}
+	if !isTerminalSubTurnStatus(status) {
+		return
+	}
+	summary := r.subTurnResultSummary(ctx, sub.ChildSessionID, sub.ChildTurnID)
+	if sub.DeliveryMode == "async" {
+		r.engine.broadcast(sub.ParentSessionID, map[string]any{
+			"type":           "subturn_result_ready",
+			"chat_jid":       "gi:" + sub.ParentSessionID,
+			"parent_turn_id": sub.ParentTurnID,
+			"parent_session": sub.ParentSessionID,
+			"child_turn_id":  sub.ChildTurnID,
+			"child_session":  sub.ChildSessionID,
+			"status":         status,
+			"summary":        summary,
+			"delivery_mode":  "async",
+		})
+		return
+	}
+	if sub.ParentSessionID != sub.ChildSessionID {
+		content := fmt.Sprintf("Sub-turn %s finished with status %s.", sub.ChildTurnID, status)
+		if strings.TrimSpace(summary) != "" {
+			content += "\n\n" + summary
+		}
+		_ = r.store.AddMessage(ctx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
+			"kind":             "subturn_result",
+			"parent_turn_id":   sub.ParentTurnID,
+			"child_turn_id":    sub.ChildTurnID,
+			"child_session_id": sub.ChildSessionID,
+			"status":           status,
+			"delivery_mode":    "sync",
+			"summary":          summary,
+		})
+	}
+	r.engine.broadcast(sub.ParentSessionID, map[string]any{
+		"type":           "subturn_result_delivered",
+		"chat_jid":       "gi:" + sub.ParentSessionID,
+		"parent_turn_id": sub.ParentTurnID,
+		"parent_session": sub.ParentSessionID,
+		"child_turn_id":  sub.ChildTurnID,
+		"child_session":  sub.ChildSessionID,
+		"status":         status,
+		"summary":        summary,
+		"delivery_mode":  "sync",
+	})
+}
+
+func isTerminalSubTurnStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "completed", "failed", "aborted", "cancelled":
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *sessionRunner) subTurnResultSummary(ctx context.Context, childSessionID, childTurnID string) string {
+	if strings.TrimSpace(childSessionID) == "" {
+		return ""
+	}
+	msgs, err := r.store.ListMessages(ctx, childSessionID)
+	if err != nil {
+		return ""
+	}
+	for i := len(msgs) - 1; i >= 0; i-- {
+		msg := msgs[i]
+		if msg.Role != "assistant" {
+			continue
+		}
+		msgTurnID := stringValue(msg.Payload["turn_id"], "")
+		if msgTurnID != "" && msgTurnID != childTurnID {
+			continue
+		}
+		text := strings.TrimSpace(msg.Content)
+		if text == "" {
+			continue
+		}
+		if len(text) > 500 {
+			return text[:500] + "..."
+		}
+		return text
+	}
+	return ""
 }

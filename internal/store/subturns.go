@@ -3,11 +3,16 @@ package store
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 func (s *Store) CreateSubTurn(ctx context.Context, parentTurnID, parentSessionID, childTurnID, childSessionID, deliveryMode string, depth int, metadata map[string]any) (*SubTurn, error) {
+	deliveryMode = strings.ToLower(strings.TrimSpace(deliveryMode))
 	if deliveryMode == "" {
 		deliveryMode = "sync"
+	}
+	if deliveryMode != "sync" && deliveryMode != "async" {
+		return nil, fmt.Errorf("create subturn: invalid delivery mode: %s", deliveryMode)
 	}
 	if depth <= 0 {
 		depth = 1

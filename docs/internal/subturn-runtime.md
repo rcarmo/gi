@@ -1,7 +1,7 @@
 # Sub-turn runtime contract
 
 ## Status
-Partially implemented and active in runtime/store paths.
+Implemented for current sync/async delivery modes and active in runtime/store paths (with orphan/tool-inheritance/cancellation propagation still pending).
 
 ## Purpose
 Define how a child turn (sub-turn) is linked to a parent turn so orchestration can be controlled and audited without relying on ad-hoc metadata scans.
@@ -48,11 +48,27 @@ When `SubmitPrompt(...)` is called with `ParentTurnID`:
 3. limits are enforced:
    - max depth (default `8`)
    - max concurrent running children for parent (default `4`)
-4. child turn is created
-5. `subturns` link row is created
+4. delivery mode is normalized (`sync` by default, explicit `async` supported)
+5. child turn is created
+6. `subturns` link row is created
+7. lifecycle event `subturn_created` is published on `turn.subturn`
 
 ### Status synchronization
 When child turn status transitions, `subturns.status` is synchronized via store update paths.
+
+### Result delivery modes
+
+#### `sync` (default)
+- child completion publishes `subturn_result_delivered` on topic `turn.subturn`
+- if parent and child sessions differ, a parent-session system message is appended with
+  - `kind: subturn_result`
+  - `delivery_mode: sync`
+  - parent/child ids and summary
+
+#### `async`
+- child completion publishes `subturn_result_ready` on topic `turn.subturn`
+- no parent-session result message is appended automatically
+- caller/automation can later fetch child artifacts and decide when/how to surface them
 
 ### Metadata fields
 Runtime annotates child/subturn metadata with:
@@ -96,10 +112,8 @@ Invalid/non-positive values fall back to runtime defaults.
 
 ## Current gaps (next steps)
 
-- explicit async result delivery mode semantics
 - orphan-result handling contract when parent ends first
 - sub-turn tool inheritance/restriction policy
-- sub-turn lifecycle publication on canonical topic bus
 - cancellation propagation policy for parent abort/timeout
 
 ---
@@ -111,3 +125,5 @@ Invalid/non-positive values fall back to runtime defaults.
 - engine link creation on parent-driven submit
 - depth overflow rejection
 - per-parent concurrency overflow rejection
+- delivery mode validation (`sync`/`async`, invalid-mode rejection)
+- sync vs async result-delivery behavior in parent session history

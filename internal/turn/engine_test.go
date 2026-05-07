@@ -833,3 +833,105 @@ func TestSubmitPromptWithParentTurnRejectsConcurrencyOverflow(t *testing.T) {
 		t.Fatalf("unexpected concurrency overflow error: %v", err)
 	}
 }
+
+func TestSubmitPromptWithParentTurnSupportsAsyncDeliveryMode(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_async", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_async", "Child", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_async", "session_parent_async", "completed", "parent", map[string]any{"intent": "prompt", "subturn_depth": 0})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	engine := New(s)
+	res, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_child_async", Prompt: "child", Model: "bootstrap", ParentTurnID: parent.ID, Metadata: map[string]any{"subturn_delivery_mode": "async"}})
+	if err != nil {
+		t.Fatalf("submit async child turn: %v", err)
+	}
+	link, err := s.GetSubTurnByChild(ctx, res.TurnID)
+	if err != nil {
+		t.Fatalf("get async subturn link: %v", err)
+	}
+	if link.DeliveryMode != "async" {
+		t.Fatalf("expected async delivery mode, got %#v", link)
+	}
+}
+
+func TestSubmitPromptWithParentTurnRejectsInvalidDeliveryMode(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_invalid_mode", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_invalid_mode", "Child", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_invalid_mode", "session_parent_invalid_mode", "completed", "parent", map[string]any{"intent": "prompt", "subturn_depth": 0})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	engine := New(s)
+	_, err = engine.SubmitPrompt(ctx, RunInput{SessionID: "session_child_invalid_mode", Prompt: "child", Model: "bootstrap", ParentTurnID: parent.ID, Metadata: map[string]any{"subturn_delivery_mode": "sideband"}})
+	if err == nil {
+		t.Fatal("expected invalid subturn delivery mode error")
+	}
+	if !strings.Contains(err.Error(), "invalid subturn delivery mode") {
+		t.Fatalf("unexpected delivery mode error: %v", err)
+	}
+}
+
+func TestSubTurnSyncVsAsyncResultDelivery(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_delivery", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_sync_delivery", "ChildSync", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create sync child session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_async_delivery", "ChildAsync", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create async child session: %v", err)
+	}
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_delivery", "session_parent_delivery", "completed", "parent", map[string]any{"intent": "prompt", "subturn_depth": 0})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	engine := New(s)
+	if _, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_child_sync_delivery", Prompt: "sync child", Model: "bootstrap", ParentTurnID: parent.ID}); err != nil {
+		t.Fatalf("submit sync child: %v", err)
+	}
+	if _, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_child_async_delivery", Prompt: "async child", Model: "bootstrap", ParentTurnID: parent.ID, Metadata: map[string]any{"subturn_delivery_mode": "async"}}); err != nil {
+		t.Fatalf("submit async child: %v", err)
+	}
+	time.Sleep(1200 * time.Millisecond)
+	msgs, err := s.ListMessages(ctx, "session_parent_delivery")
+	if err != nil {
+		t.Fatalf("list parent messages: %v", err)
+	}
+	syncDelivered := 0
+	asyncDelivered := 0
+	for _, msg := range msgs {
+		if msg.Role != "system" || msg.Payload["kind"] != "subturn_result" {
+			continue
+		}
+		if msg.Payload["delivery_mode"] == "sync" {
+			syncDelivered++
+		}
+		if msg.Payload["delivery_mode"] == "async" {
+			asyncDelivered++
+		}
+	}
+	if syncDelivered == 0 {
+		t.Fatalf("expected at least one sync subturn delivery in parent messages, got %#v", msgs)
+	}
+	if asyncDelivered != 0 {
+		t.Fatalf("expected no async subturn delivery message in parent history, got %#v", msgs)
+	}
+}

@@ -173,6 +173,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	subTurnDepth := 0
 	subTurnMaxDepth := defaultSubTurnMaxDepth
 	subTurnMaxConcurrency := defaultSubTurnMaxConcurrency
+	subTurnDeliveryMode := "sync"
 	if in.ParentTurnID != "" {
 		metadata["parent_turn_id"] = in.ParentTurnID
 		if v, ok := in.Metadata["subturn_max_depth"]; ok {
@@ -180,6 +181,13 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		}
 		if v, ok := in.Metadata["subturn_max_concurrency"]; ok {
 			subTurnMaxConcurrency = intValueOr(v, defaultSubTurnMaxConcurrency)
+		}
+		if modeRaw, ok := in.Metadata["subturn_delivery_mode"]; ok {
+			mode, err := normalizeSubTurnDeliveryMode(stringValue(modeRaw, "sync"))
+			if err != nil {
+				return nil, err
+			}
+			subTurnDeliveryMode = mode
 		}
 		if subTurnMaxDepth <= 0 {
 			subTurnMaxDepth = defaultSubTurnMaxDepth
@@ -207,6 +215,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		metadata["subturn_parent_turn_id"] = in.ParentTurnID
 		metadata["subturn_max_depth"] = subTurnMaxDepth
 		metadata["subturn_max_concurrency"] = subTurnMaxConcurrency
+		metadata["subturn_delivery_mode"] = subTurnDeliveryMode
 	}
 	for k, v := range in.Metadata {
 		metadata[k] = v
@@ -215,8 +224,8 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		return nil, err
 	}
 	if in.ParentTurnID != "" && parentSessionID != "" {
-		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth, "max_depth": subTurnMaxDepth, "max_concurrency": subTurnMaxConcurrency}
-		if _, err := e.store.CreateSubTurn(ctx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, "sync", subTurnDepth, subturnMetadata); err != nil {
+		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth, "max_depth": subTurnMaxDepth, "max_concurrency": subTurnMaxConcurrency, "delivery_mode": subTurnDeliveryMode}
+		if _, err := e.store.CreateSubTurn(ctx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, subTurnDeliveryMode, subTurnDepth, subturnMetadata); err != nil {
 			return nil, err
 		}
 		e.broadcast(parentSessionID, map[string]any{
@@ -227,7 +236,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 			"child_turn_id":   turnID,
 			"child_session":   in.SessionID,
 			"depth":           subTurnDepth,
-			"delivery_mode":   "sync",
+			"delivery_mode":   subTurnDeliveryMode,
 			"max_depth":       subturnMetadata["max_depth"],
 			"max_concurrency": subturnMetadata["max_concurrency"],
 		})
@@ -240,7 +249,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 				"child_turn_id":  turnID,
 				"child_session":  in.SessionID,
 				"depth":          subTurnDepth,
-				"delivery_mode":  "sync",
+				"delivery_mode":  subTurnDeliveryMode,
 			})
 		}
 	}
@@ -953,6 +962,19 @@ func intValueOr(v any, fallback int) int {
 		}
 	}
 	return fallback
+}
+
+func normalizeSubTurnDeliveryMode(mode string) (string, error) {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		return "sync", nil
+	}
+	switch mode {
+	case "sync", "async":
+		return mode, nil
+	default:
+		return "", fmt.Errorf("invalid subturn delivery mode: %s", mode)
+	}
 }
 
 func SortQueuedTurns(turns []store.Turn) {

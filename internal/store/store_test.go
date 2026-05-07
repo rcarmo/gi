@@ -364,6 +364,30 @@ func TestSubTurnLifecycle(t *testing.T) {
 	}
 }
 
+func TestCreateSubTurnRejectsInvalidDeliveryMode(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_invalid_delivery", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_invalid_delivery", "Child", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_parent_invalid_delivery", "session_parent_invalid_delivery", "running", "parent", map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_child_invalid_delivery", "session_child_invalid_delivery", "queued", "child", map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create child turn: %v", err)
+	}
+	if _, err := s.CreateSubTurn(ctx, "turn_parent_invalid_delivery", "session_parent_invalid_delivery", "turn_child_invalid_delivery", "session_child_invalid_delivery", "fanout", 1, map[string]any{}); err == nil {
+		t.Fatal("expected invalid subturn delivery mode error")
+	}
+}
+
 func TestHoldAndResolveTurnFailurePhase(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
