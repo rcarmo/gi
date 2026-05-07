@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/rcarmo/gi/internal/tools"
 )
 
 type workspaceNode struct {
@@ -39,13 +41,16 @@ func (s *Server) handleWorkspaceFile(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "missing path"})
 		return
 	}
-	full := filepath.Clean(filepath.Join(root, rel))
-	rootClean := filepath.Clean(root)
-	if !strings.HasPrefix(full, rootClean+string(os.PathSeparator)) && full != rootClean {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "path escapes workspace"})
+	resolved, err := tools.ResolveToolPath(root, rel, false)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
-	data, err := os.ReadFile(full)
+	if resolved.IsVFS() {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "workspace file endpoint only supports workspace paths"})
+		return
+	}
+	data, err := os.ReadFile(resolved.WorkspacePath)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return

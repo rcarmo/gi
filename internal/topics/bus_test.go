@@ -81,3 +81,32 @@ func TestBusAgentFilter(t *testing.T) {
 		t.Fatal("expected agent-scoped event")
 	}
 }
+
+func TestBusConcurrentUnsubscribeAndPublishDoesNotPanic(t *testing.T) {
+	bus := NewBus()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, unsub := bus.Subscribe(ctx, "turn.*", SubscribeOptions{Buffer: 8})
+
+	panicCh := make(chan any, 1)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		defer func() {
+			if r := recover(); r != nil {
+				panicCh <- r
+			}
+		}()
+		for i := 0; i < 4000; i++ {
+			bus.Publish(Envelope{Topic: "turn.status", SessionID: "s1", Payload: map[string]any{"seq": i}})
+		}
+	}()
+	time.Sleep(2 * time.Millisecond)
+	unsub()
+	<-done
+	select {
+	case p := <-panicCh:
+		t.Fatalf("publish panicked during concurrent unsubscribe: %v", p)
+	default:
+	}
+}

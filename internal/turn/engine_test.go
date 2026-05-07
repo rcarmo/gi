@@ -984,3 +984,37 @@ func TestAsyncSubTurnOrphanHandlingPersistsParentNotice(t *testing.T) {
 		t.Fatalf("expected orphan result notice in parent session, got %#v", parentMsgs)
 	}
 }
+
+func TestBroadcastConcurrentUnsubscribeDoesNotPanic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	sessionID := "session_broadcast_race"
+	ch := engine.Subscribe(sessionID)
+
+	panicCh := make(chan any, 1)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		defer func() {
+			if r := recover(); r != nil {
+				panicCh <- r
+			}
+		}()
+		for i := 0; i < 4000; i++ {
+			engine.broadcast(sessionID, map[string]any{"type": "agent_status", "turn_id": fmt.Sprintf("turn_%d", i)})
+		}
+	}()
+
+	for i := 0; i < 256; i++ {
+		engine.Unsubscribe(sessionID, ch)
+		ch = engine.Subscribe(sessionID)
+	}
+	engine.Unsubscribe(sessionID, ch)
+	<-done
+	select {
+	case p := <-panicCh:
+		t.Fatalf("broadcast panicked during concurrent unsubscribe: %v", p)
+	default:
+	}
+}

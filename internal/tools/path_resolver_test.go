@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -72,6 +74,22 @@ func TestResolveToolPathVFSWritableNamespace(t *testing.T) {
 	}
 	if resolved.VFSNamespace != "scripts" || resolved.VFSPath != "doc.md" {
 		t.Fatalf("unexpected vfs resolution: %#v", resolved)
+	}
+}
+
+func TestResolveToolPathSymlinkEscape(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("nope"), 0o644); err != nil {
+		t.Fatalf("write outside secret: %v", err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "link")); err != nil {
+		t.Skipf("symlink not supported in test env: %v", err)
+	}
+	if _, err := ResolveToolPath(root, "link/secret.txt", false); err == nil {
+		t.Fatalf("expected symlink escape error")
+	} else if !strings.Contains(err.Error(), "path escapes workspace") {
+		t.Fatalf("unexpected symlink escape error: %v", err)
 	}
 }
 

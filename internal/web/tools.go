@@ -148,13 +148,13 @@ func executeReadTool(ctx context.Context, s *Server, path string) toolOutput {
 	return toolOutput{Result: string(content)}
 }
 
-func executeWriteTool(_ context.Context, s *Server, path string, content string) (string, error) {
+func executeWriteTool(ctx context.Context, s *Server, path string, content string) (string, error) {
 	resolved, err := tools.ResolveToolPath(s.cfg.WorkspaceRoot, path, true)
 	if err != nil {
 		return "", err
 	}
 	if resolved.IsVFS() {
-		_, err := s.store.SaveVFSFile(context.Background(), resolved.VFSNamespace, resolved.VFSPath,
+		_, err := s.store.SaveVFSFile(ctx, resolved.VFSNamespace, resolved.VFSPath,
 			inferContentTypeFromFilename(resolved.VFSPath), []byte(content), map[string]any{})
 		if err != nil {
 			return "", err

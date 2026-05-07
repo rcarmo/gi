@@ -53,12 +53,8 @@ func (b *Bus) Publish(env Envelope) {
 		env.Timestamp = time.Now().UTC()
 	}
 	b.mu.RLock()
-	subs := make([]subscriber, 0, len(b.subs))
+	defer b.mu.RUnlock()
 	for _, sub := range b.subs {
-		subs = append(subs, sub)
-	}
-	b.mu.RUnlock()
-	for _, sub := range subs {
 		if !topicMatches(sub.pattern, env.Topic) {
 			continue
 		}

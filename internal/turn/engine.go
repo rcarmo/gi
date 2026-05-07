@@ -398,11 +398,15 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		return err
 	}
 	if turn.Status == "queued" {
+		turnSessionID := turn.SessionID
 		if err := e.store.UpdateTurnStatusAndPhase(ctx, turnID, "cancelled", "aborted"); err != nil {
 			return err
 		}
-		_ = e.store.SyncSessionQueueCount(ctx, sessionID)
-		return e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "queued": true})
+		if err := e.store.MarkTurnFinished(ctx, turnID); err != nil {
+			return err
+		}
+		_ = e.store.SyncSessionQueueCount(ctx, turnSessionID)
+		return e.store.AppendTurnEvent(ctx, turnID, turnSessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "queued": true})
 	}
 	return fmt.Errorf("turn not cancellable")
 }
@@ -413,16 +417,26 @@ func (e *Engine) runner(sessionID string) *sessionRunner {
 }
 
 func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, sessionID, turnID string) (bool, error) {
-	claimed, err := e.store.ClaimSessionActiveTurn(ctx, sessionID, turnID, "runner", turnID)
+	claimToken := turnID
+	claimed, err := e.store.ClaimSessionActiveTurn(ctx, sessionID, turnID, "runner", claimToken)
 	if err != nil {
 		return false, err
 	}
 	if !claimed {
 		return false, nil
 	}
-	_ = e.store.MarkTurnClaimed(ctx, turnID, "runner")
-	_ = e.store.UpdateTurnStatusAndPhase(ctx, turnID, "running", "setup")
-	_ = e.store.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "status": "running"})
+	if err := e.store.MarkTurnClaimed(ctx, turnID, "runner"); err != nil {
+		_ = e.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken)
+		return false, err
+	}
+	if err := e.store.UpdateTurnStatusAndPhase(ctx, turnID, "running", "setup"); err != nil {
+		_ = e.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken)
+		return false, err
+	}
+	if err := e.store.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "status": "running"}); err != nil {
+		_ = e.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken)
+		return false, err
+	}
 	go runner.runTurn(e.store, sessionID, turnID)
 	return true, nil
 }
@@ -1014,17 +1028,12 @@ func (e *Engine) Unsubscribe(sessionID string, ch chan map[string]any) {
 func (e *Engine) broadcast(sessionID string, ev map[string]any) {
 	e.publishTopicFromBroadcast(sessionID, ev)
 	e.subsMu.Lock()
+	defer e.subsMu.Unlock()
 	m, ok := e.subs[sessionID]
 	if !ok {
-		e.subsMu.Unlock()
 		return
 	}
-	chs := make([]chan map[string]any, 0, len(m))
 	for ch := range m {
-		chs = append(chs, ch)
-	}
-	e.subsMu.Unlock()
-	for _, ch := range chs {
 		select {
 		case ch <- ev:
 		default:

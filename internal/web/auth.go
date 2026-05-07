@@ -7,6 +7,34 @@ import (
 	giauth "github.com/rcarmo/gi/internal/auth"
 )
 
+func (s *Server) requireAuthenticatedRequest(w http.ResponseWriter, r *http.Request) bool {
+	if s == nil || s.auth == nil {
+		return true
+	}
+	enrolled, err := s.auth.Enrolled()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return false
+	}
+	if !enrolled {
+		return true
+	}
+	if s.auth.ValidateBearerRequest(r) {
+		return true
+	}
+	writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "authentication required"})
+	return false
+}
+
+func (s *Server) withAuth(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !s.requireAuthenticatedRequest(w, r) {
+			return
+		}
+		handler(w, r)
+	}
+}
+
 func (s *Server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)

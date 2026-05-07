@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/rcarmo/gi/internal/routing"
@@ -419,6 +420,108 @@ func TestUpdateSubTurnMetadataByChild(t *testing.T) {
 	}
 	if sub.Metadata["origin"] != "test" || sub.Metadata["orphaned"] != true || sub.Metadata["orphan_reason"] != "test" {
 		t.Fatalf("unexpected patched metadata: %#v", sub.Metadata)
+	}
+}
+
+func TestTouchSessionStateConcurrentPatchMerge(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	sess, err := s.CreateSession(ctx, "session_state_concurrent", "State", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	const workers = 16
+	var wg sync.WaitGroup
+	errCh := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		i := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			key := fmt.Sprintf("k%d", i)
+			if err := s.TouchSessionState(ctx, sess.ID, map[string]any{key: i}); err != nil {
+				errCh <- err
+			}
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("touch session state concurrent patch: %v", err)
+		}
+	}
+	updated, err := s.GetSession(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("get updated session: %v", err)
+	}
+	for i := 0; i < workers; i++ {
+		key := fmt.Sprintf("k%d", i)
+		if _, ok := updated.State[key]; !ok {
+			t.Fatalf("missing merged key %q in session state: %#v", key, updated.State)
+		}
+	}
+}
+
+func TestUpdateSubTurnMetadataByChildConcurrentPatchMerge(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_metadata_concurrent", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_metadata_concurrent", "Child", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_parent_metadata_concurrent", "session_parent_metadata_concurrent", "running", "parent", map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_child_metadata_concurrent", "session_child_metadata_concurrent", "running", "child", map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create child turn: %v", err)
+	}
+	if _, err := s.CreateSubTurn(ctx, "turn_parent_metadata_concurrent", "session_parent_metadata_concurrent", "turn_child_metadata_concurrent", "session_child_metadata_concurrent", "async", 1, map[string]any{"origin": "test"}); err != nil {
+		t.Fatalf("create subturn: %v", err)
+	}
+	const workers = 12
+	var wg sync.WaitGroup
+	errCh := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		i := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			key := fmt.Sprintf("patch_%d", i)
+			if err := s.UpdateSubTurnMetadataByChild(ctx, "turn_child_metadata_concurrent", map[string]any{key: i}); err != nil {
+				errCh <- err
+			}
+		}()
+	}
+	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("update subturn metadata concurrent patch: %v", err)
+		}
+	}
+	sub, err := s.GetSubTurnByChild(ctx, "turn_child_metadata_concurrent")
+	if err != nil {
+		t.Fatalf("get patched subturn: %v", err)
+	}
+	if sub.Metadata["origin"] != "test" {
+		t.Fatalf("missing origin metadata: %#v", sub.Metadata)
+	}
+	for i := 0; i < workers; i++ {
+		key := fmt.Sprintf("patch_%d", i)
+		if _, ok := sub.Metadata[key]; !ok {
+			t.Fatalf("missing merged subturn metadata key %q: %#v", key, sub.Metadata)
+		}
 	}
 }
 

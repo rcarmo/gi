@@ -331,3 +331,51 @@ func TestWorkspaceEndpoints(t *testing.T) {
 		t.Fatalf("unexpected file response: %d %s", fileRes.Code, fileRes.Body.String())
 	}
 }
+
+func TestWorkspaceFileRejectsSymlinkEscape(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("secret"), 0o644); err != nil {
+		t.Fatalf("write outside file: %v", err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "link")); err != nil {
+		t.Skipf("symlink not supported in test env: %v", err)
+	}
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{WorkspaceRoot: root})
+
+	fileReq := httptest.NewRequest(http.MethodGet, "/api/workspace/file?path=link/secret.txt", nil)
+	fileRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(fileRes, fileReq)
+	if fileRes.Code != http.StatusBadRequest {
+		t.Fatalf("expected symlink escape rejection, got %d body=%s", fileRes.Code, fileRes.Body.String())
+	}
+}
+
+func TestWorkspaceEndpointsRequireAuthWhenEnrolled(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".gi"), 0o755); err != nil {
+		t.Fatalf("create .gi dir: %v", err)
+	}
+	authState := `{"username":"admin","totp_secret":"JBSWY3DPEHPK3PXP","totp_enabled":true,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z","sessions":[]}`
+	if err := os.WriteFile(filepath.Join(root, ".gi", "auth.json"), []byte(authState), 0o600); err != nil {
+		t.Fatalf("write auth state: %v", err)
+	}
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{WorkspaceRoot: root})
+
+	treeReq := httptest.NewRequest(http.MethodGet, "/api/workspace/tree", nil)
+	treeRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(treeRes, treeReq)
+	if treeRes.Code != http.StatusUnauthorized {
+		t.Fatalf("expected unauthorized workspace tree without bearer token, got %d body=%s", treeRes.Code, treeRes.Body.String())
+	}
+}

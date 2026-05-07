@@ -137,16 +137,21 @@ func (s *Store) SyncSessionQueueCount(ctx context.Context, sessionID string) err
 }
 
 func (s *Store) TouchSessionState(ctx context.Context, sessionID string, patch map[string]any) error {
-	session, err := s.GetSession(ctx, sessionID)
+	if len(patch) == 0 {
+		return nil
+	}
+	patchJSON, err := marshalJSON(patch)
 	if err != nil {
 		return err
 	}
-	state := session.State
-	if state == nil {
-		state = map[string]any{}
+	_, err = s.db.ExecContext(ctx, `
+		update sessions
+		set state_json = json_patch(coalesce(nullif(state_json, ''), '{}'), json(?)),
+		    updated_at = `+defaultNow+`
+		where id = ?
+	`, patchJSON, sessionID)
+	if err != nil {
+		return fmt.Errorf("touch session state: %w", err)
 	}
-	for k, v := range patch {
-		state[k] = v
-	}
-	return s.SetSessionState(ctx, sessionID, state)
+	return nil
 }

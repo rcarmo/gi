@@ -116,25 +116,27 @@ func (s *Store) UpdateSubTurnMetadataByChild(ctx context.Context, childTurnID st
 	if strings.TrimSpace(childTurnID) == "" || len(patch) == 0 {
 		return nil
 	}
-	sub, err := s.GetSubTurnByChild(ctx, childTurnID)
-	if err != nil {
-		return fmt.Errorf("update subturn metadata: %w", err)
-	}
-	meta := sub.Metadata
-	if meta == nil {
-		meta = map[string]any{}
-	}
+	normalized := make(map[string]any, len(patch))
 	for k, v := range patch {
 		if strings.TrimSpace(k) == "" {
 			continue
 		}
-		meta[k] = v
+		normalized[k] = v
 	}
-	metadataJSON, err := marshalJSON(meta)
+	if len(normalized) == 0 {
+		return nil
+	}
+	patchJSON, err := marshalJSON(normalized)
 	if err != nil {
 		return err
 	}
-	if _, err := s.db.ExecContext(ctx, `update subturns set metadata_json = ?, updated_at = `+defaultNow+` where child_turn_id = ?`, metadataJSON, childTurnID); err != nil {
+	_, err = s.db.ExecContext(ctx, `
+		update subturns
+		set metadata_json = json_patch(coalesce(nullif(metadata_json, ''), '{}'), json(?)),
+		    updated_at = `+defaultNow+`
+		where child_turn_id = ?
+	`, patchJSON, childTurnID)
+	if err != nil {
 		return fmt.Errorf("update subturn metadata: %w", err)
 	}
 	return nil

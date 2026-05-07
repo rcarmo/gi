@@ -49,10 +49,31 @@ func resolveToolPath(root, raw string, writable bool) (resolvedPath, error) {
 	full := filepath.Join(root, trimmed)
 	clean := filepath.Clean(full)
 	rootClean := filepath.Clean(root)
-	if !strings.HasPrefix(clean, rootClean+string(os.PathSeparator)) && clean != rootClean {
+	rootResolved := rootClean
+	if rp, err := filepath.EvalSymlinks(rootClean); err == nil {
+		rootResolved = filepath.Clean(rp)
+	}
+	targetResolved := clean
+	if tp, err := filepath.EvalSymlinks(clean); err == nil {
+		targetResolved = filepath.Clean(tp)
+	} else if os.IsNotExist(err) {
+		parent := filepath.Dir(clean)
+		if pp, perr := filepath.EvalSymlinks(parent); perr == nil {
+			targetResolved = filepath.Clean(filepath.Join(pp, filepath.Base(clean)))
+		}
+	} else {
+		return resolvedPath{}, err
+	}
+	if !pathWithinRoot(targetResolved, rootResolved) {
 		return resolvedPath{}, fmt.Errorf("path escapes workspace")
 	}
 	return resolvedPath{workspacePath: clean, isVFS: false}, nil
+}
+
+func pathWithinRoot(path, root string) bool {
+	path = filepath.Clean(path)
+	root = filepath.Clean(root)
+	return path == root || strings.HasPrefix(path, root+string(os.PathSeparator))
 }
 
 type resolvedPath struct {
