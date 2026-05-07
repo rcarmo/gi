@@ -215,15 +215,33 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		return nil, err
 	}
 	if in.ParentTurnID != "" && parentSessionID != "" {
-		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth}
-		if value, ok := metadata["subturn_max_depth"]; ok {
-			subturnMetadata["max_depth"] = value
-		}
-		if value, ok := metadata["subturn_max_concurrency"]; ok {
-			subturnMetadata["max_concurrency"] = value
-		}
+		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth, "max_depth": subTurnMaxDepth, "max_concurrency": subTurnMaxConcurrency}
 		if _, err := e.store.CreateSubTurn(ctx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, "sync", subTurnDepth, subturnMetadata); err != nil {
 			return nil, err
+		}
+		e.broadcast(parentSessionID, map[string]any{
+			"type":            "subturn_created",
+			"chat_jid":        "gi:" + parentSessionID,
+			"parent_turn_id":  in.ParentTurnID,
+			"parent_session":  parentSessionID,
+			"child_turn_id":   turnID,
+			"child_session":   in.SessionID,
+			"depth":           subTurnDepth,
+			"delivery_mode":   "sync",
+			"max_depth":       subturnMetadata["max_depth"],
+			"max_concurrency": subturnMetadata["max_concurrency"],
+		})
+		if in.SessionID != parentSessionID {
+			e.broadcast(in.SessionID, map[string]any{
+				"type":           "subturn_created",
+				"chat_jid":       "gi:" + in.SessionID,
+				"parent_turn_id": in.ParentTurnID,
+				"parent_session": parentSessionID,
+				"child_turn_id":  turnID,
+				"child_session":  in.SessionID,
+				"depth":          subTurnDepth,
+				"delivery_mode":  "sync",
+			})
 		}
 	}
 	if err := e.recordRouteDecision(ctx, in.SessionID, turnID, metadata); err != nil {
@@ -519,6 +537,7 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string) {
 		}
 		_ = s.AppendTurnEvent(ctx, turnID, sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true})
 		_ = s.UpdateTurnStatus(context.Background(), turnID, "cancelled")
+		r.publishSubTurnLifecycle(context.Background(), turnID, "cancelled")
 		_ = s.AddMessage(context.Background(), store.NowID("msg"), sessionID, "system", "Turn cancelled", map[string]any{"kind": "status", "turn_id": turnID, "clipped": true})
 		_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
 		return
@@ -532,6 +551,7 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string) {
 		markTurnFailure(s, turnID, sessionID, "shell_error", runErr.Error())
 		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error()})
 		_ = s.UpdateTurnStatus(context.Background(), turnID, "failed")
+		r.publishSubTurnLifecycle(context.Background(), turnID, "failed")
 		_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
 		return
 	}
@@ -551,6 +571,7 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string) {
 	})
 	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed"})
 	_ = s.UpdateTurnStatus(context.Background(), turnID, "completed")
+	r.publishSubTurnLifecycle(context.Background(), turnID, "completed")
 	_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
 }
 

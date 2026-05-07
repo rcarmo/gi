@@ -410,6 +410,7 @@ func (r *sessionRunner) finishTurnOK(s *store.Store, turnID, sessionID string, i
 	})
 	_ = s.UpdateTurnStatusAndPhase(context.Background(), turnID, "completed", "completed")
 	_ = s.MarkTurnFinished(context.Background(), turnID)
+	r.publishSubTurnLifecycle(context.Background(), turnID, "completed")
 	_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
 }
@@ -438,6 +439,34 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, s
 	})
 	_ = s.UpdateTurnStatusAndPhase(context.Background(), turnID, status, terminalPhaseForStatus(status))
 	_ = s.MarkTurnFinished(context.Background(), turnID)
+	r.publishSubTurnLifecycle(context.Background(), turnID, status)
 	_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
+}
+
+func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID, status string) {
+	if strings.TrimSpace(childTurnID) == "" {
+		return
+	}
+	sub, err := r.store.GetSubTurnByChild(ctx, childTurnID)
+	if err != nil {
+		return
+	}
+	payload := map[string]any{
+		"type":           "subturn_status",
+		"chat_jid":       "gi:" + sub.ParentSessionID,
+		"parent_turn_id": sub.ParentTurnID,
+		"parent_session": sub.ParentSessionID,
+		"child_turn_id":  sub.ChildTurnID,
+		"child_session":  sub.ChildSessionID,
+		"status":         status,
+		"depth":          sub.Depth,
+		"delivery_mode":  sub.DeliveryMode,
+	}
+	r.engine.broadcast(sub.ParentSessionID, payload)
+	if sub.ChildSessionID != sub.ParentSessionID {
+		mirror := cloneMap(payload)
+		mirror["chat_jid"] = "gi:" + sub.ChildSessionID
+		r.engine.broadcast(sub.ChildSessionID, mirror)
+	}
 }

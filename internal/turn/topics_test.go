@@ -104,3 +104,28 @@ func TestSteeringBroadcastEventsMapToSessionSteeringTopic(t *testing.T) {
 		}
 	}
 }
+
+func TestSubTurnBroadcastEventsMapToTurnSubTurnTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "turn.subturn", topics.SubscribeOptions{Buffer: 8})
+	defer unsub()
+
+	for _, typ := range []string{"subturn_created", "subturn_status"} {
+		engine.broadcast("session_subturn_topic", map[string]any{"type": typ, "parent_turn_id": "turn_parent", "child_turn_id": "turn_child"})
+		select {
+		case env := <-ch:
+			if env.Topic != "turn.subturn" {
+				t.Fatalf("unexpected subturn topic for %s: %#v", typ, env)
+			}
+			if gotType, _ := env.Payload["type"].(string); gotType != typ {
+				t.Fatalf("unexpected payload type for %s: %#v", typ, env.Payload)
+			}
+		case <-time.After(time.Second):
+			t.Fatalf("expected turn.subturn event for %s", typ)
+		}
+	}
+}
