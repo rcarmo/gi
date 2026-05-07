@@ -101,7 +101,10 @@ func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
 			AgentID  string `json:"agent_id"`
 			ForkFrom string `json:"fork_from"`
 		}
-		_ = json.NewDecoder(r.Body).Decode(&req)
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
 		id := store.NowID("session")
 		if req.ForkFrom != "" {
 			agentID := req.AgentID
@@ -404,7 +407,10 @@ func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request, sessi
 		Title   string `json:"title"`
 		AgentID string `json:"agent_id"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
 	agentID := req.AgentID
 	if agentID == "" {
 		var err error

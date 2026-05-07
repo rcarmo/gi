@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -297,19 +298,32 @@ func (s *Store) AppendTurnEvent(ctx context.Context, turnID, sessionID, eventTyp
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `
-		insert into turn_events (turn_id, session_id, seq, event_type, payload_json, created_at)
-		values (
-			?, ?,
-			coalesce((select max(seq) + 1 from turn_events where turn_id = ?), 1),
-			?, ?, `+defaultNow+`
-		)
-	`, turnID, sessionID, turnID, eventType, payloadJSON)
-	if err != nil {
-		return fmt.Errorf("append turn event: %w", err)
+	for attempt := 0; attempt < 3; attempt++ {
+		_, err = s.db.ExecContext(ctx, `
+			insert into turn_events (turn_id, session_id, seq, event_type, payload_json, created_at)
+			values (
+				?, ?,
+				coalesce((select max(seq) + 1 from turn_events where turn_id = ?), 1),
+				?, ?, `+defaultNow+`
+			)
+		`, turnID, sessionID, turnID, eventType, payloadJSON)
+		if err == nil {
+			_, err = s.db.ExecContext(ctx, `update turns set updated_at = `+defaultNow+` where id = ?`, turnID)
+			return err
+		}
+		if !isTurnEventSeqConflict(err) {
+			return fmt.Errorf("append turn event: %w", err)
+		}
 	}
-	_, err = s.db.ExecContext(ctx, `update turns set updated_at = `+defaultNow+` where id = ?`, turnID)
-	return err
+	return fmt.Errorf("append turn event: retry exhausted due to sequence contention")
+}
+
+func isTurnEventSeqConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique") && strings.Contains(msg, "turn_events.turn_id") && strings.Contains(msg, "turn_events.seq")
 }
 
 func (s *Store) ListTurnEvents(ctx context.Context, turnID string) ([]TurnEvent, error) {

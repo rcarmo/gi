@@ -4,11 +4,9 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -104,6 +102,9 @@ func NewWithSystemPrompt(s *store.Store, systemPrompt string) *Engine {
 }
 
 func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt string) *Engine {
+	if strings.TrimSpace(cfg.DefaultModel) == "" {
+		cfg.DefaultModel = "bootstrap"
+	}
 	if len(cfg.Agents.List) == 0 {
 		cfg.Agents.List = []routing.AgentConfig{{ID: "agent", Default: true, Model: cfg.DefaultModel}}
 	}
@@ -340,11 +341,11 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 	_ = e.store.MarkTurnClaimed(ctx, turnID, "runner")
 	_ = e.store.UpdateTurnStatusAndPhase(ctx, turnID, "running", "setup")
 	_ = e.store.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "status": "running"})
-	go runner.runTurn(e.store, turnID)
+	go runner.runTurn(e.store, sessionID, turnID)
 	return true, nil
 }
 
-func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
+func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	claimToken := turnID
 	r.mu.Lock()
@@ -352,7 +353,6 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 	r.mu.Unlock()
 	defer func() {
 		cancel()
-		sessionID := turnIDSession(s, turnID)
 		_ = s.ReleaseSessionActiveTurn(context.Background(), sessionID, claimToken)
 		_ = s.SyncSessionQueueCount(context.Background(), sessionID)
 		r.mu.Lock()
@@ -373,7 +373,9 @@ func (r *sessionRunner) runTurn(s *store.Store, turnID string) {
 	if err != nil {
 		return
 	}
-	sessionID := turnRec.SessionID
+	if strings.TrimSpace(sessionID) == "" {
+		sessionID = turnRec.SessionID
+	}
 	go r.heartbeatActiveTurn(ctx, sessionID, claimToken)
 	initialSteering := steeringMessagesFromMetadata(turnRec.Metadata)
 	prompt := turnRec.Prompt
@@ -551,9 +553,6 @@ func runShell(ctx context.Context, prompt string, onStart func(*exec.Cmd), onDel
 				}
 			}
 			if readErr != nil {
-				if !errors.Is(readErr, io.EOF) && !errors.Is(readErr, os.ErrClosed) {
-					stderr.WriteString(readErr.Error())
-				}
 				return
 			}
 		}
@@ -726,14 +725,6 @@ func stringValue(v any, fallback string) string {
 		return s
 	}
 	return fallback
-}
-
-func turnIDSession(s *store.Store, turnID string) string {
-	turnRec, err := s.GetTurn(context.Background(), turnID)
-	if err != nil {
-		return ""
-	}
-	return turnRec.SessionID
 }
 
 func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnID string, metadata map[string]any) error {
