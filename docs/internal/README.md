@@ -34,13 +34,13 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `tools/` — built-in tool contracts
 - `scripting/` — scripting runtimes and bridge docs
 - `hooks/` — hook and lifecycle docs
-- `vfs/` — managed VFS and `vfs://` URL docs
+- `vfs/` — managed VFS and `vfs://` URL docs (including `vfs://chat` projection)
 - `skills/` — skill/package structure docs
-- `search/` — hybrid workspace search and indexing design
+- `search/` — hybrid workspace search and indexing design (including `fts://` namespace docs)
 - `routing.md` — routing policy, route resolution, and model-routing observability
 - `runtime-target-state.md` — database-backed target state for the core runtime refactor (sessions, turns, steering, hooks, events, IPC, multi-channel bindings)
 
-The `search/` subtree is the canonical reference for the current hybrid workspace search direction: SQLite metadata + FTS5 + vec + local embeddings.
+The `search/` subtree is the canonical reference for the current hybrid workspace search direction: SQLite metadata + FTS5 + vec + local embeddings, plus the runtime-facing read-only `fts://` locator contract.
 
 `routing.md` is the canonical in-repo reference for routing decisions and route-event persistence.
 
@@ -55,4 +55,5 @@ Current search status:
 - ADR written
 - internal design written
 - Go package scaffold added under `internal/search/`
-- runtime wiring and backend implementations still pending
+- runtime read-only `fts://` namespace is implemented for model/tool retrieval workflows
+- full `internal/search` backend wiring and advanced index pipeline work remains pending

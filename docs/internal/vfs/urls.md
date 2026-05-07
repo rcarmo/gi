@@ -60,3 +60,7 @@ Each document is markdown with JSON-compatible frontmatter for model-friendly st
   - `fts://tooling?q=ResolveToolPath`
 
 See `fts://help` or `fts://namespaces` for the full namespace/hint index.
+
+## Deep-dive docs
+- `docs/internal/vfs/chat-projection.md`
+- `docs/internal/search/fts-namespace.md`

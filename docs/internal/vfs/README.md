@@ -22,8 +22,11 @@ Examples:
 - Relative traversal (`../`) outside namespace is rejected.
 
 ## Namespace rules
-- Writable namespaces: any namespace except `reference`.
-- Read-only namespace: `vfs://reference/...`.
+- Writable namespaces: managed mutable namespaces (e.g. `skills`, `scripts`, `templates`).
+- Read-only namespaces:
+  - `vfs://reference/...` (embedded/internal reference)
+  - `vfs://chat/...` (virtual chat/session projection)
+  - `fts://...` (virtual search locators resolved through read path)
 - `path escapes workspace` and `invalid vfs path` errors are returned for invalid inputs.
 
 ## Runtime behavior
@@ -32,6 +35,11 @@ Examples:
 - Directory/list operations use `Store.ListVFSChildren`.
 
 ## Script/tool integration
-- `script` tool path inputs accept `vfs://` paths.
+- `script` tool path inputs accept virtual paths.
 - Bridge file helpers (`readFile`, `writeFile`, `listDir`) share the same resolver.
-- `read`, `write`, `shell` tools are exposed via `/api/tools` and executed via `/api/tools/execute` with workspace or `vfs://` paths.
+- `read`, `write`, `shell` tools are exposed via `/api/tools` and executed via `/api/tools/execute` with workspace or virtual paths.
+
+## Extended docs
+- URL/resolver details: `docs/internal/vfs/urls.md`
+- Chat tree projection: `docs/internal/vfs/chat-projection.md`
+- Search locators + namespace hints: `docs/internal/search/fts-namespace.md`

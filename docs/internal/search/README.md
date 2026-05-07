@@ -2,6 +2,16 @@
 
 This document describes the proposed internal layout for gi's hybrid workspace search subsystem.
 
+## Runtime virtual search namespace
+
+In addition to this package-level architecture, gi now exposes a read-only virtual search surface via `fts://...` locators.
+
+See:
+- `docs/internal/search/fts-namespace.md`
+- `docs/internal/vfs/chat-projection.md`
+
+This enables model-friendly retrieval paths and source linking without requiring SQL queries in prompts/tool calls.
+
 ## Current implementation status
 
 Implemented now:
