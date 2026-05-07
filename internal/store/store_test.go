@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/rcarmo/gi/internal/routing"
@@ -256,6 +257,49 @@ func TestSteeringQueueOverflowReturnsError(t *testing.T) {
 		t.Fatalf("steering queue length: %v", err)
 	} else if depth != 10 {
 		t.Fatalf("expected queue depth to stay capped at 10, got %d", depth)
+	}
+}
+
+func TestChatVFSVirtualTreeAndMessageDocument(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	session, err := s.CreateSession(ctx, "session_chat_vfs", "Chat VFS", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := s.AddMessage(ctx, "msg_chat_vfs", session.ID, "user", "hello from chat vfs", map[string]any{"kind": "chat"}); err != nil {
+		t.Fatalf("add message: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_chat_vfs", session.ID, "completed", "prompt text", map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	rootEntries, err := s.ListVFSChildren(ctx, "chat", "")
+	if err != nil {
+		t.Fatalf("list chat root: %v", err)
+	}
+	hasSessionsDir := false
+	for _, entry := range rootEntries {
+		if entry.Path == "sessions" && entry.IsDir {
+			hasSessionsDir = true
+		}
+	}
+	if !hasSessionsDir {
+		t.Fatalf("expected sessions dir in chat root: %#v", rootEntries)
+	}
+	_, raw, err := s.GetVFSFileContent(ctx, "chat", "sessions/session_chat_vfs/messages/msg_chat_vfs.md")
+	if err != nil {
+		t.Fatalf("get chat message doc: %v", err)
+	}
+	text := string(raw)
+	if !strings.Contains(text, "kind: \"chat/message\"") || !strings.Contains(text, "hello from chat vfs") {
+		t.Fatalf("unexpected chat vfs message doc: %q", text)
+	}
+	if _, err := s.SaveVFSFile(ctx, "chat", "sessions/session_chat_vfs/messages/evil.md", "text/plain", []byte("nope"), nil); err == nil {
+		t.Fatal("expected read-only chat namespace write failure")
 	}
 }
 

@@ -136,6 +136,12 @@ func TestToolExecuteReadWriteVFSFiles(t *testing.T) {
 	if _, err := storeDB.SaveVFSFile(ctx, "scripts", "nested/seed.txt", "text/plain", []byte("vfs-seed"), map[string]any{"kind": "seed"}); err != nil {
 		t.Fatalf("seed vfs: %v", err)
 	}
+	if _, err := storeDB.CreateSession(ctx, "session_web_chat", "Chat", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := storeDB.AddMessage(ctx, "msg_web_chat", "session_web_chat", "user", "hello chat tree", map[string]any{"kind": "chat"}); err != nil {
+		t.Fatalf("add message: %v", err)
+	}
 
 	readResp := callToolExecute(t, srv, toolReq{
 		Tool:  "read",
@@ -148,6 +154,17 @@ func TestToolExecuteReadWriteVFSFiles(t *testing.T) {
 		t.Fatalf("unexpected vfs read result: %q", readResp.Result)
 	}
 
+	chatResp := callToolExecute(t, srv, toolReq{
+		Tool:  "read",
+		Input: map[string]any{"path": "vfs://chat/sessions/session_web_chat/messages/msg_web_chat.md"},
+	})
+	if chatResp.Error != "" {
+		t.Fatalf("chat vfs read should succeed: %v", chatResp.Error)
+	}
+	if !strings.Contains(chatResp.Result, "kind: \"chat/message\"") || !strings.Contains(chatResp.Result, "hello chat tree") {
+		t.Fatalf("unexpected chat vfs result: %q", chatResp.Result)
+	}
+
 	writeResp := callToolExecute(t, srv, toolReq{
 		Tool:  "write",
 		Input: map[string]any{"path": "vfs://scripts/nested/write.txt", "content": "vfs-write"},
@@ -157,6 +174,32 @@ func TestToolExecuteReadWriteVFSFiles(t *testing.T) {
 	}
 	if _, _, err := storeDB.GetVFSFileContent(ctx, "scripts", "nested/write.txt"); err != nil {
 		t.Fatalf("read-back vfs write: %v", err)
+	}
+}
+
+func TestToolExecuteReadFTSNamespace(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "fts-note.txt"), []byte("steering queue overflow"), 0o644); err != nil {
+		t.Fatalf("seed workspace note: %v", err)
+	}
+	srv, storeDB := newTestWebServer(t, root)
+	ctx := context.Background()
+	if _, err := storeDB.CreateSession(ctx, "session_web_fts", "FTS", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := storeDB.AddMessage(ctx, "msg_web_fts", "session_web_fts", "user", "steering queue overflow", map[string]any{"kind": "chat"}); err != nil {
+		t.Fatalf("add message: %v", err)
+	}
+
+	resp := callToolExecute(t, srv, toolReq{
+		Tool:  "read",
+		Input: map[string]any{"path": "fts://messages?q=steering+queue+overflow&limit=5"},
+	})
+	if resp.Error != "" {
+		t.Fatalf("fts read failed: %v", resp.Error)
+	}
+	if !strings.Contains(resp.Result, "vfs://chat/sessions/session_web_fts/messages/msg_web_fts.md") {
+		t.Fatalf("expected fts message source link, got: %q", resp.Result)
 	}
 }
 
@@ -188,15 +231,24 @@ func TestToolExecutePreventsReferenceWrites(t *testing.T) {
 	root := t.TempDir()
 	srv, _ := newTestWebServer(t, root)
 
-	resp := callToolExecute(t, srv, toolReq{
-		Tool:  "write",
-		Input: map[string]any{"path": "vfs://reference/system/immutable.txt", "content": "blocked"},
-	})
-	if resp.Error == "" {
-		t.Fatal("expected error on reference namespace write")
-	}
-	if !strings.Contains(resp.Error, "read-only") {
-		t.Fatalf("unexpected error for reference write: %v", resp.Error)
+	for _, tc := range []struct {
+		path string
+		name string
+	}{
+		{path: "vfs://reference/system/immutable.txt", name: "reference"},
+		{path: "vfs://chat/sessions/s1/messages/m1.md", name: "chat"},
+		{path: "fts://messages?q=hello", name: "fts"},
+	} {
+		resp := callToolExecute(t, srv, toolReq{
+			Tool:  "write",
+			Input: map[string]any{"path": tc.path, "content": "blocked"},
+		})
+		if resp.Error == "" {
+			t.Fatalf("expected error on %s namespace write", tc.name)
+		}
+		if !strings.Contains(resp.Error, "read-only") {
+			t.Fatalf("unexpected error for %s write: %v", tc.name, resp.Error)
+		}
 	}
 }
 

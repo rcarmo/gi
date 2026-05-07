@@ -13,9 +13,9 @@ import (
 // It can point at either the workspace filesystem or a managed VFS namespace.
 type ToolPath struct {
 	WorkspacePath string
-	VFSNamespace string
-	VFSPath      string
-	isVFS        bool
+	VFSNamespace  string
+	VFSPath       string
+	isVFS         bool
 }
 
 // IsVFS reports whether this path resolves into a managed VFS namespace.
@@ -26,12 +26,22 @@ func resolveToolPath(root, raw string, writable bool) (resolvedPath, error) {
 	if trimmed == "" {
 		return resolvedPath{}, fmt.Errorf("empty path")
 	}
+	if strings.HasPrefix(trimmed, "fts://") {
+		if writable {
+			return resolvedPath{}, fmt.Errorf("fts namespace is read-only")
+		}
+		locator := strings.TrimLeft(strings.TrimPrefix(trimmed, "fts://"), "/")
+		if locator == "" {
+			locator = "help"
+		}
+		return resolvedPath{workspacePath: "", vfsNamespace: "fts", vfsPath: locator, isVFS: true}, nil
+	}
 	if strings.HasPrefix(trimmed, "vfs://") {
 		ns, vpath, err := store.ParseVFSPath(trimmed)
 		if err != nil {
 			return resolvedPath{}, err
 		}
-		if writable && ns == "reference" {
+		if writable && (ns == "reference" || ns == "chat") {
 			return resolvedPath{}, fmt.Errorf("vfs namespace is read-only: %s", ns)
 		}
 		return resolvedPath{workspacePath: "", vfsNamespace: ns, vfsPath: vpath, isVFS: true}, nil
@@ -47,9 +57,9 @@ func resolveToolPath(root, raw string, writable bool) (resolvedPath, error) {
 
 type resolvedPath struct {
 	workspacePath string
-	vfsNamespace string
-	vfsPath      string
-	isVFS        bool
+	vfsNamespace  string
+	vfsPath       string
+	isVFS         bool
 }
 
 // ResolveToolPath exposes the shared path resolution strategy to other packages.

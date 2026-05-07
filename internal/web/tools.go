@@ -122,13 +122,20 @@ func (s *Server) handleToolExecute(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func executeReadTool(_ context.Context, s *Server, path string) toolOutput {
+func executeReadTool(ctx context.Context, s *Server, path string) toolOutput {
 	resolved, err := tools.ResolveToolPath(s.cfg.WorkspaceRoot, path, false)
 	if err != nil {
 		return toolOutput{Error: err.Error()}
 	}
 	if resolved.IsVFS() {
-		_, raw, err := s.store.GetVFSFileContent(context.Background(), resolved.VFSNamespace, resolved.VFSPath)
+		if resolved.VFSNamespace == "fts" {
+			result, err := tools.ReadFTSQuery(ctx, s.cfg.WorkspaceRoot, s.store, resolved.VFSPath)
+			if err != nil {
+				return toolOutput{Error: err.Error()}
+			}
+			return toolOutput{Result: result}
+		}
+		_, raw, err := s.store.GetVFSFileContent(ctx, resolved.VFSNamespace, resolved.VFSPath)
 		if err != nil {
 			return toolOutput{Error: err.Error()}
 		}

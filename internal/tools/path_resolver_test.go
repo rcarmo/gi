@@ -74,3 +74,22 @@ func TestResolveToolPathVFSWritableNamespace(t *testing.T) {
 		t.Fatalf("unexpected vfs resolution: %#v", resolved)
 	}
 }
+
+func TestResolveToolPathFTSReadOnlyNamespace(t *testing.T) {
+	root := t.TempDir()
+	resolved, err := ResolveToolPath(root, "fts://messages?q=hello", false)
+	if err != nil {
+		t.Fatalf("resolve fts path: %v", err)
+	}
+	if !resolved.IsVFS() {
+		t.Fatal("expected fts to resolve as virtual namespace")
+	}
+	if resolved.VFSNamespace != "fts" || resolved.VFSPath != "messages?q=hello" {
+		t.Fatalf("unexpected fts resolution: %#v", resolved)
+	}
+	if _, err := ResolveToolPath(root, "fts://messages?q=hello", true); err == nil {
+		t.Fatal("expected write rejection for fts namespace")
+	} else if !strings.Contains(err.Error(), "read-only") {
+		t.Fatalf("unexpected fts write error: %v", err)
+	}
+}

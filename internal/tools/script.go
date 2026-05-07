@@ -335,6 +335,9 @@ func (t *ScriptTool) buildBridge(sessionID string) *scripting.Bridge {
 				return "", err
 			}
 			if resolved.IsVFS() {
+				if resolved.VFSNamespace == "fts" {
+					return ReadFTSQuery(ctx, t.cfg.WorkspaceRoot, t.store, resolved.VFSPath)
+				}
 				_, raw, err := t.store.GetVFSFileContent(ctx, resolved.VFSNamespace, resolved.VFSPath)
 				if err != nil {
 					return "", err

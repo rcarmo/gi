@@ -139,6 +139,9 @@ func (e *Engine) registerDefaultTools() {
 				return "", err
 			}
 			if resolved.IsVFS() {
+				if resolved.VFSNamespace == "fts" {
+					return tools.ReadFTSQuery(ctx, rt.WorkspaceRoot, rt.Store, resolved.VFSPath)
+				}
 				_, raw, err := rt.Store.GetVFSFileContent(ctx, resolved.VFSNamespace, resolved.VFSPath)
 				if err != nil {
 					return "", err
