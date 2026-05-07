@@ -16,6 +16,18 @@ func TestReadFTSQueryMessagesAndWorkspace(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "note.txt"), []byte("queue overflow happened here"), 0o644); err != nil {
 		t.Fatalf("seed workspace file: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(root, "internal", "tools"), 0o755); err != nil {
+		t.Fatalf("mkdir internal/tools: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "internal", "tools", "resolver.go"), []byte("package tools\n// ResolveToolPath helper"), 0o644); err != nil {
+		t.Fatalf("seed tooling file: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "third_party", "joker"), 0o755); err != nil {
+		t.Fatalf("mkdir third_party/joker: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "third_party", "joker", "core.joke"), []byte("(println :hook)"), 0o644); err != nil {
+		t.Fatalf("seed joker file: %v", err)
+	}
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("open store: %v", err)
@@ -53,5 +65,34 @@ func TestReadFTSQueryMessagesAndWorkspace(t *testing.T) {
 	}
 	if !strings.Contains(allDoc, "## Messages") || !strings.Contains(allDoc, "## Workspace") {
 		t.Fatalf("expected sectioned all-search output: %q", allDoc)
+	}
+
+	nsDoc, err := ReadFTSQuery(ctx, root, s, "tooling?q=ResolveToolPath&limit=5")
+	if err != nil {
+		t.Fatalf("fts tooling namespace: %v", err)
+	}
+	if !strings.Contains(nsDoc, "# Workspace namespace: tooling") || !strings.Contains(nsDoc, "Hints") {
+		t.Fatalf("expected namespace heading+hints, got: %q", nsDoc)
+	}
+	if !strings.Contains(nsDoc, "internal/tools/resolver.go") {
+		t.Fatalf("expected tooling namespace to include tooling file, got: %q", nsDoc)
+	}
+
+	jokerDoc, err := ReadFTSQuery(ctx, root, s, "go-joker?q=hook&limit=5")
+	if err != nil {
+		t.Fatalf("fts go-joker namespace: %v", err)
+	}
+	if !strings.Contains(jokerDoc, "# Workspace namespace: go-joker") {
+		t.Fatalf("expected go-joker namespace heading, got: %q", jokerDoc)
+	}
+
+	helpDoc, err := ReadFTSQuery(ctx, root, s, "help")
+	if err != nil {
+		t.Fatalf("fts help: %v", err)
+	}
+	for _, want := range []string{"gi", "go-joker", "tooling", "hint:"} {
+		if !strings.Contains(helpDoc, want) {
+			t.Fatalf("expected help to mention %q, got: %q", want, helpDoc)
+		}
 	}
 }

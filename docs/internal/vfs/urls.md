@@ -50,3 +50,13 @@ Each document is markdown with JSON-compatible frontmatter for model-friendly st
 - `fts://turns?q=compaction&session=session_1`
 - `fts://workspace?q=HookResponse&glob=internal/**/*.go&limit=20`
 - `fts://all?q=subturn&limit=20`
+
+## `fts://` workspace namespaces and hints
+- `gi` — core/runtime code paths and docs
+  - `fts://gi?q=steering+queue`
+- `go-joker` (alias: `joker`) — Joker runtime/bridge and `.joke` surfaces
+  - `fts://go-joker?q=register+event+hook`
+- `tooling` — tool resolver/execution, web tool API, operational scripts
+  - `fts://tooling?q=ResolveToolPath`
+
+See `fts://help` or `fts://namespaces` for the full namespace/hint index.

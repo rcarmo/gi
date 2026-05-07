@@ -37,13 +37,69 @@ type ftsWorkspaceHit struct {
 	Excerpt string
 }
 
+type ftsWorkspaceNamespace struct {
+	Name        string
+	Aliases     []string
+	Description string
+	PathPrefix  []string
+	PathContain []string
+	Hints       []string
+}
+
+type workspaceSearchOptions struct {
+	Glob      string
+	Namespace string
+}
+
+var ftsWorkspaceNamespaces = []ftsWorkspaceNamespace{
+	{
+		Name:        "gi",
+		Aliases:     []string{"core"},
+		Description: "gi runtime/core code, docs, and runtime scripts",
+		PathPrefix:  []string{"internal/", "cmd/", "docs/internal/", "scripts/", "features/"},
+		PathContain: []string{"runtime", "turn", "session", "routing", "store"},
+		Hints: []string{
+			"fts://gi?q=steering+queue",
+			"fts://gi?q=subturn+parent_turn_id",
+			"fts://workspace?ns=gi&q=hook+approve_tool",
+		},
+	},
+	{
+		Name:        "go-joker",
+		Aliases:     []string{"joker"},
+		Description: "joker language runtime, bridge adapters, and .joke examples",
+		PathPrefix:  []string{"third_party/joker/", "internal/scripting/", "examples/"},
+		PathContain: []string{"joker", ".joke"},
+		Hints: []string{
+			"fts://go-joker?q=register+event+hook",
+			"fts://go-joker?q=setSessionState",
+			"fts://workspace?ns=go-joker&q=tool_call",
+		},
+	},
+	{
+		Name:        "tooling",
+		Aliases:     []string{"tools", "ops"},
+		Description: "tool resolver/execution paths, web tool API, and dev scripts",
+		PathPrefix:  []string{"internal/tools/", "internal/web/", "internal/rtk/", "scripts/", "docs/internal/tools/"},
+		PathContain: []string{"tool", "path_resolver", "api/tools", "read", "write", "fts://", "vfs://"},
+		Hints: []string{
+			"fts://tooling?q=ResolveToolPath",
+			"fts://tooling?q=api/tools/execute",
+			"fts://workspace?ns=tooling&q=vfs://chat",
+		},
+	},
+}
+
 // ReadFTSQuery resolves a read-only fts:// locator into a markdown document.
 // Expected locator forms include:
 //
 //	messages?q=...&limit=20
 //	turns?q=...&limit=20
-//	workspace?q=...&limit=20&glob=*.go
-//	all?q=...&limit=20
+//	workspace?q=...&limit=20&glob=*.go&ns=gi
+//	all?q=...&limit=20&ns=tooling
+//	gi?q=...
+//	go-joker?q=...
+//	tooling?q=...
 func ReadFTSQuery(ctx context.Context, workspaceRoot string, s *store.Store, locator string) (string, error) {
 	locator = strings.TrimLeft(strings.TrimSpace(locator), "/")
 	if locator == "" {
@@ -62,23 +118,17 @@ func ReadFTSQuery(ctx context.Context, workspaceRoot string, s *store.Store, loc
 	limit := parsePositiveInt(params.Get("limit"), 20, 1, 100)
 	sessionID := strings.TrimSpace(params.Get("session"))
 	glob := strings.TrimSpace(params.Get("glob"))
+	namespace := strings.TrimSpace(firstNonEmpty(params.Get("ns"), params.Get("namespace")))
+
+	if ns, ok := resolveFTSWorkspaceNamespace(target); ok {
+		return readFTSWorkspaceNamespace(ctx, workspaceRoot, ns, query, glob, limit)
+	}
 
 	switch target {
 	case "help", "", "index":
-		return strings.TrimSpace(`# FTS namespace
-
-Use `+"`read`"+` with `+"`fts://...`"+` locators.
-
-Examples:
-
-- `+"`fts://messages?q=queue+overflow&limit=20`"+`
-- `+"`fts://messages?q=steering&session=session_1`"+`
-- `+"`fts://turns?q=compaction&limit=20`"+`
-- `+"`fts://workspace?q=HookResponse&glob=internal/**/*.go&limit=20`"+`
-- `+"`fts://all?q=subturn&limit=20`"+`
-
-Results include pointers back into `+"`vfs://chat/...`"+` for raw chat artifacts.
-`) + "\n", nil
+		return renderFTSHelp(), nil
+	case "namespaces":
+		return renderFTSNamespacesIndex(), nil
 	case "messages":
 		if query == "" {
 			return "", fmt.Errorf("fts://messages requires q=... or query=...")
@@ -127,7 +177,13 @@ Results include pointers back into `+"`vfs://chat/...`"+` for raw chat artifacts
 		if query == "" {
 			return "", fmt.Errorf("fts://workspace requires q=... or query=...")
 		}
-		hits, err := searchWorkspaceFiles(workspaceRoot, query, glob, limit)
+		if namespace != "" {
+			if ns, ok := resolveFTSWorkspaceNamespace(namespace); ok {
+				return readFTSWorkspaceNamespace(ctx, workspaceRoot, ns, query, glob, limit)
+			}
+			return "", fmt.Errorf("unknown workspace namespace: %s", namespace)
+		}
+		hits, err := searchWorkspaceFiles(workspaceRoot, query, workspaceSearchOptions{Glob: glob}, limit)
 		if err != nil {
 			return "", err
 		}
@@ -155,12 +211,20 @@ Results include pointers back into `+"`vfs://chat/...`"+` for raw chat artifacts
 		if err != nil {
 			return "", err
 		}
-		wsHits, err := searchWorkspaceFiles(workspaceRoot, query, glob, limit)
+		opts := workspaceSearchOptions{Glob: glob}
+		if namespace != "" {
+			ns, ok := resolveFTSWorkspaceNamespace(namespace)
+			if !ok {
+				return "", fmt.Errorf("unknown workspace namespace: %s", namespace)
+			}
+			opts.Namespace = ns.Name
+		}
+		wsHits, err := searchWorkspaceFiles(workspaceRoot, query, opts, limit)
 		if err != nil {
 			return "", err
 		}
 		var b strings.Builder
-		writeSimpleFrontmatter(&b, map[string]any{"kind": "fts/all", "query": query, "session": sessionID, "glob": glob, "limit": limit, "messages": len(msgHits), "turns": len(turnHits), "workspace": len(wsHits)})
+		writeSimpleFrontmatter(&b, map[string]any{"kind": "fts/all", "query": query, "session": sessionID, "glob": glob, "namespace": opts.Namespace, "limit": limit, "messages": len(msgHits), "turns": len(turnHits), "workspace": len(wsHits)})
 		b.WriteString("# Unified search\n\n")
 		b.WriteString("## Messages\n\n")
 		if len(msgHits) == 0 {
@@ -190,6 +254,101 @@ Results include pointers back into `+"`vfs://chat/...`"+` for raw chat artifacts
 	default:
 		return "", fmt.Errorf("unknown fts target: %s", target)
 	}
+}
+
+func renderFTSHelp() string {
+	var b strings.Builder
+	b.WriteString("# FTS namespace\n\n")
+	b.WriteString("Use `read` with `fts://...` locators.\n\n")
+	b.WriteString("## Built-in targets\n\n")
+	b.WriteString("- `fts://messages?q=...&limit=20`\n")
+	b.WriteString("- `fts://turns?q=...&limit=20`\n")
+	b.WriteString("- `fts://workspace?q=...&limit=20&glob=...&ns=...`\n")
+	b.WriteString("- `fts://all?q=...&limit=20&ns=...`\n")
+	b.WriteString("- `fts://namespaces`\n\n")
+	b.WriteString("## Workspace namespaces\n\n")
+	for _, ns := range ftsWorkspaceNamespaces {
+		b.WriteString(fmt.Sprintf("- `%s` — %s\n", ns.Name, ns.Description))
+		for _, hint := range ns.Hints {
+			b.WriteString(fmt.Sprintf("  - hint: `%s`\n", hint))
+		}
+	}
+	b.WriteString("\nResults include pointers back into `vfs://chat/...` for raw chat artifacts.\n")
+	return b.String()
+}
+
+func renderFTSNamespacesIndex() string {
+	var b strings.Builder
+	writeSimpleFrontmatter(&b, map[string]any{"kind": "fts/namespaces", "count": len(ftsWorkspaceNamespaces)})
+	b.WriteString("# Workspace namespaces\n\n")
+	for _, ns := range ftsWorkspaceNamespaces {
+		b.WriteString(fmt.Sprintf("## %s\n\n", ns.Name))
+		b.WriteString(ns.Description)
+		b.WriteString("\n\n")
+		if len(ns.Aliases) > 0 {
+			b.WriteString("Aliases: `")
+			b.WriteString(strings.Join(ns.Aliases, "`, `"))
+			b.WriteString("`\n\n")
+		}
+		if len(ns.Hints) > 0 {
+			b.WriteString("Hints:\n")
+			for _, hint := range ns.Hints {
+				b.WriteString(fmt.Sprintf("- `%s`\n", hint))
+			}
+			b.WriteString("\n")
+		}
+	}
+	return b.String()
+}
+
+func readFTSWorkspaceNamespace(_ context.Context, workspaceRoot string, ns ftsWorkspaceNamespace, query, glob string, limit int) (string, error) {
+	if strings.TrimSpace(query) == "" {
+		return "", fmt.Errorf("fts://%s requires q=... or query=...", ns.Name)
+	}
+	hits, err := searchWorkspaceFiles(workspaceRoot, query, workspaceSearchOptions{Glob: glob, Namespace: ns.Name}, limit)
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	writeSimpleFrontmatter(&b, map[string]any{"kind": "fts/workspace-namespace", "namespace": ns.Name, "query": query, "glob": glob, "limit": limit, "count": len(hits)})
+	b.WriteString(fmt.Sprintf("# Workspace namespace: %s\n\n", ns.Name))
+	b.WriteString(ns.Description)
+	b.WriteString("\n\n")
+	if len(ns.Hints) > 0 {
+		b.WriteString("## Hints\n\n")
+		for _, hint := range ns.Hints {
+			b.WriteString(fmt.Sprintf("- `%s`\n", hint))
+		}
+		b.WriteString("\n")
+	}
+	if len(hits) == 0 {
+		b.WriteString("No results.\n")
+		return b.String(), nil
+	}
+	b.WriteString("## Results\n\n")
+	for _, hit := range hits {
+		b.WriteString(fmt.Sprintf("- `%s`\n", hit.Path))
+		b.WriteString(fmt.Sprintf("  - excerpt: %q\n", hit.Excerpt))
+	}
+	return b.String(), nil
+}
+
+func resolveFTSWorkspaceNamespace(name string) (ftsWorkspaceNamespace, bool) {
+	needle := strings.ToLower(strings.TrimSpace(name))
+	if needle == "" {
+		return ftsWorkspaceNamespace{}, false
+	}
+	for _, ns := range ftsWorkspaceNamespaces {
+		if ns.Name == needle {
+			return ns, true
+		}
+		for _, alias := range ns.Aliases {
+			if strings.ToLower(strings.TrimSpace(alias)) == needle {
+				return ns, true
+			}
+		}
+	}
+	return ftsWorkspaceNamespace{}, false
 }
 
 func searchMessages(ctx context.Context, s *store.Store, query, sessionID string, limit int) ([]ftsMessageHit, error) {
@@ -258,7 +417,7 @@ func searchTurns(ctx context.Context, s *store.Store, query, sessionID string, l
 	return out, nil
 }
 
-func searchWorkspaceFiles(workspaceRoot, query, glob string, limit int) ([]ftsWorkspaceHit, error) {
+func searchWorkspaceFiles(workspaceRoot, query string, opts workspaceSearchOptions, limit int) ([]ftsWorkspaceHit, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return nil, nil
@@ -267,6 +426,14 @@ func searchWorkspaceFiles(workspaceRoot, query, glob string, limit int) ([]ftsWo
 	root := filepath.Clean(workspaceRoot)
 	if root == "" {
 		root = "."
+	}
+	var ns ftsWorkspaceNamespace
+	if opts.Namespace != "" {
+		resolved, ok := resolveFTSWorkspaceNamespace(opts.Namespace)
+		if !ok {
+			return nil, fmt.Errorf("unknown workspace namespace: %s", opts.Namespace)
+		}
+		ns = resolved
 	}
 	out := []ftsWorkspaceHit{}
 	stop := fmt.Errorf("stop walk")
@@ -290,11 +457,11 @@ func searchWorkspaceFiles(workspaceRoot, query, glob string, limit int) ([]ftsWo
 			return nil
 		}
 		rel = filepath.ToSlash(rel)
-		if glob != "" {
-			matched, mErr := filepath.Match(glob, rel)
-			if mErr == nil && !matched {
-				return nil
-			}
+		if opts.Glob != "" && !matchAnyGlob(opts.Glob, rel) {
+			return nil
+		}
+		if ns.Name != "" && !matchNamespacePath(ns, rel) {
+			return nil
 		}
 		info, err := d.Info()
 		if err != nil {
@@ -326,6 +493,62 @@ func searchWorkspaceFiles(workspaceRoot, query, glob string, limit int) ([]ftsWo
 		out = out[:limit]
 	}
 	return out, nil
+}
+
+func matchNamespacePath(ns ftsWorkspaceNamespace, rel string) bool {
+	relLower := strings.ToLower(strings.TrimSpace(rel))
+	if relLower == "" {
+		return false
+	}
+	for _, prefix := range ns.PathPrefix {
+		if strings.HasPrefix(relLower, strings.ToLower(strings.TrimSpace(prefix))) {
+			return true
+		}
+	}
+	for _, fragment := range ns.PathContain {
+		if strings.Contains(relLower, strings.ToLower(strings.TrimSpace(fragment))) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchAnyGlob(patterns, rel string) bool {
+	for _, raw := range strings.Split(patterns, ",") {
+		pat := strings.TrimSpace(raw)
+		if pat == "" {
+			continue
+		}
+		if matchPseudoGlob(pat, rel) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchPseudoGlob(pattern, rel string) bool {
+	pattern = filepath.ToSlash(strings.TrimSpace(pattern))
+	rel = filepath.ToSlash(strings.TrimSpace(rel))
+	if pattern == "" {
+		return true
+	}
+	if strings.Contains(pattern, "**") {
+		parts := strings.SplitN(pattern, "**", 2)
+		prefix := strings.TrimSuffix(parts[0], "/")
+		suffix := strings.TrimPrefix(parts[1], "/")
+		if prefix != "" && !strings.HasPrefix(rel, strings.TrimPrefix(prefix, "/")) {
+			return false
+		}
+		if suffix != "" && !strings.HasSuffix(rel, strings.TrimPrefix(suffix, "/")) {
+			return false
+		}
+		return true
+	}
+	ok, err := filepath.Match(pattern, rel)
+	if err != nil {
+		return false
+	}
+	return ok
 }
 
 func firstNonEmpty(values ...string) string {
