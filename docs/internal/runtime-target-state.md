@@ -336,10 +336,12 @@ Implemented so far:
 - schema and store APIs for creating/listing/updating subturn records
 - automatic subturn-link creation when a turn is submitted with `parent_turn_id`
 - subturn status synchronization from child turn status transitions (`running`/`completed`/`failed`/`aborted`/`cancelled`)
+- runtime depth guardrails for parent/child submission chains (default max depth = `8`)
+- runtime per-parent concurrency guardrails for running child turns (default max concurrency = `4`)
+- explicit store API support for counting running child turns per parent for guardrail enforcement
 
 Still pending in this area:
 
-- maximum depth / concurrency guardrails at runtime
 - explicit async delivery/orphan-result handling modes
 - restricted tool inheritance policies per subturn
 

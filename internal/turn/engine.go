@@ -84,6 +84,11 @@ type Summary struct {
 	Events    []store.TurnEvent `json:"events"`
 }
 
+const (
+	defaultSubTurnMaxDepth       = 8
+	defaultSubTurnMaxConcurrency = 4
+)
+
 func New(s *store.Store) *Engine {
 	cfg := config.RuntimeConfig{
 		DefaultModel: "bootstrap",
@@ -166,14 +171,42 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	metadata := map[string]any{"intent": in.Intent, "model": in.Model}
 	parentSessionID := ""
 	subTurnDepth := 0
+	subTurnMaxDepth := defaultSubTurnMaxDepth
+	subTurnMaxConcurrency := defaultSubTurnMaxConcurrency
 	if in.ParentTurnID != "" {
 		metadata["parent_turn_id"] = in.ParentTurnID
-		if parentTurn, err := e.store.GetTurn(ctx, in.ParentTurnID); err == nil {
-			parentSessionID = parentTurn.SessionID
-			subTurnDepth = intValueOr(parentTurn.Metadata["subturn_depth"], 0) + 1
-			metadata["subturn_depth"] = subTurnDepth
-			metadata["subturn_parent_turn_id"] = in.ParentTurnID
+		if v, ok := in.Metadata["subturn_max_depth"]; ok {
+			subTurnMaxDepth = intValueOr(v, defaultSubTurnMaxDepth)
 		}
+		if v, ok := in.Metadata["subturn_max_concurrency"]; ok {
+			subTurnMaxConcurrency = intValueOr(v, defaultSubTurnMaxConcurrency)
+		}
+		if subTurnMaxDepth <= 0 {
+			subTurnMaxDepth = defaultSubTurnMaxDepth
+		}
+		if subTurnMaxConcurrency <= 0 {
+			subTurnMaxConcurrency = defaultSubTurnMaxConcurrency
+		}
+		parentTurn, err := e.store.GetTurn(ctx, in.ParentTurnID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve parent turn: %w", err)
+		}
+		parentSessionID = parentTurn.SessionID
+		subTurnDepth = intValueOr(parentTurn.Metadata["subturn_depth"], 0) + 1
+		if subTurnDepth > subTurnMaxDepth {
+			return nil, fmt.Errorf("subturn depth limit exceeded: depth=%d max=%d", subTurnDepth, subTurnMaxDepth)
+		}
+		runningChildren, err := e.store.CountRunningSubTurnsByParent(ctx, in.ParentTurnID)
+		if err != nil {
+			return nil, err
+		}
+		if runningChildren >= subTurnMaxConcurrency {
+			return nil, fmt.Errorf("subturn concurrency limit exceeded: running=%d max=%d", runningChildren, subTurnMaxConcurrency)
+		}
+		metadata["subturn_depth"] = subTurnDepth
+		metadata["subturn_parent_turn_id"] = in.ParentTurnID
+		metadata["subturn_max_depth"] = subTurnMaxDepth
+		metadata["subturn_max_concurrency"] = subTurnMaxConcurrency
 	}
 	for k, v := range in.Metadata {
 		metadata[k] = v
@@ -182,7 +215,14 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		return nil, err
 	}
 	if in.ParentTurnID != "" && parentSessionID != "" {
-		if _, err := e.store.CreateSubTurn(ctx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, "sync", subTurnDepth, map[string]any{"intent": in.Intent, "model": in.Model}); err != nil {
+		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth}
+		if value, ok := metadata["subturn_max_depth"]; ok {
+			subturnMetadata["max_depth"] = value
+		}
+		if value, ok := metadata["subturn_max_concurrency"]; ok {
+			subturnMetadata["max_concurrency"] = value
+		}
+		if _, err := e.store.CreateSubTurn(ctx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, "sync", subTurnDepth, subturnMetadata); err != nil {
 			return nil, err
 		}
 	}

@@ -331,6 +331,13 @@ func TestSubTurnLifecycle(t *testing.T) {
 	if sub.ParentTurnID != "turn_parent" || sub.ChildTurnID != "turn_child" || sub.Status != "running" {
 		t.Fatalf("unexpected created subturn: %#v", sub)
 	}
+	runningCount, err := s.CountRunningSubTurnsByParent(ctx, "turn_parent")
+	if err != nil {
+		t.Fatalf("count running subturns: %v", err)
+	}
+	if runningCount != 1 {
+		t.Fatalf("expected one running subturn, got %d", runningCount)
+	}
 	if err := s.UpdateSubTurnStatusByChild(ctx, "turn_child", "completed"); err != nil {
 		t.Fatalf("update subturn status by child: %v", err)
 	}
@@ -340,6 +347,13 @@ func TestSubTurnLifecycle(t *testing.T) {
 	}
 	if stored.Status != "completed" || stored.FinishedAt == "" {
 		t.Fatalf("unexpected updated subturn: %#v", stored)
+	}
+	runningCount, err = s.CountRunningSubTurnsByParent(ctx, "turn_parent")
+	if err != nil {
+		t.Fatalf("count running subturns after completion: %v", err)
+	}
+	if runningCount != 0 {
+		t.Fatalf("expected no running subturns after completion, got %d", runningCount)
 	}
 	items, err := s.ListSubTurnsByParent(ctx, "turn_parent")
 	if err != nil {

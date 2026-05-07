@@ -39,6 +39,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `search/` — hybrid workspace search and indexing design (including `fts://` namespace docs)
 - `routing.md` — routing policy, route resolution, and model-routing observability
 - `runtime-target-state.md` — database-backed target state for the core runtime refactor (sessions, turns, steering, hooks, events, IPC, multi-channel bindings)
+- `subturn-runtime.md` — concrete sub-turn runtime contract, limits, store APIs, and current implementation status
 
 The `search/` subtree is the canonical reference for the current hybrid workspace search direction: SQLite metadata + FTS5 + vec + local embeddings, plus the runtime-facing read-only `fts://` locator contract.
 

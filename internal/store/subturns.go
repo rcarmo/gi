@@ -93,3 +93,16 @@ func (s *Store) UpdateSubTurnStatusByChild(ctx context.Context, childTurnID, sta
 	}
 	return nil
 }
+
+func (s *Store) CountRunningSubTurnsByParent(ctx context.Context, parentTurnID string) (int, error) {
+	row := s.db.QueryRowContext(ctx, `
+		select count(*)
+		from subturns
+		where parent_turn_id = ? and status = 'running'
+	`, parentTurnID)
+	var count int
+	if err := row.Scan(&count); err != nil {
+		return 0, fmt.Errorf("count running subturns: %w", err)
+	}
+	return count, nil
+}

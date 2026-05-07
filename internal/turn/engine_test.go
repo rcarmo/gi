@@ -3,6 +3,7 @@ package turn
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -779,5 +780,56 @@ func TestSubmitPromptWithParentTurnCreatesSubTurnRecord(t *testing.T) {
 	}
 	if link.ParentTurnID != parent.ID || link.ChildTurnID != res.TurnID || link.Depth != 1 {
 		t.Fatalf("unexpected subturn link: %#v", link)
+	}
+}
+
+func TestSubmitPromptWithParentTurnRejectsDepthOverflow(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_depth", "Test", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_depth", "session_parent_depth", "completed", "parent", map[string]any{"intent": "prompt", "subturn_depth": defaultSubTurnMaxDepth})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	engine := New(s)
+	_, err = engine.SubmitPrompt(ctx, RunInput{SessionID: "session_parent_depth", Prompt: "child", Model: "bootstrap", ParentTurnID: parent.ID})
+	if err == nil {
+		t.Fatal("expected subturn depth overflow error")
+	}
+	if !strings.Contains(err.Error(), "subturn depth limit exceeded") {
+		t.Fatalf("unexpected depth overflow error: %v", err)
+	}
+}
+
+func TestSubmitPromptWithParentTurnRejectsConcurrencyOverflow(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_concurrency", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_concurrency", "Child", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_concurrency", "session_parent_concurrency", "running", "parent", map[string]any{"intent": "prompt", "subturn_depth": 0})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_child_existing", "session_child_concurrency", "running", "child", map[string]any{"intent": "prompt", "subturn_depth": 1, "parent_turn_id": parent.ID}); err != nil {
+		t.Fatalf("create child turn: %v", err)
+	}
+	if _, err := s.CreateSubTurn(ctx, parent.ID, "session_parent_concurrency", "turn_child_existing", "session_child_concurrency", "sync", 1, map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create existing subturn: %v", err)
+	}
+	engine := New(s)
+	_, err = engine.SubmitPrompt(ctx, RunInput{SessionID: "session_child_concurrency", Prompt: "new child", Model: "bootstrap", ParentTurnID: parent.ID, Metadata: map[string]any{"subturn_max_concurrency": 1}})
+	if err == nil {
+		t.Fatal("expected subturn concurrency overflow error")
+	}
+	if !strings.Contains(err.Error(), "subturn concurrency limit exceeded") {
+		t.Fatalf("unexpected concurrency overflow error: %v", err)
 	}
 }
