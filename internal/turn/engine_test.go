@@ -899,7 +899,7 @@ func TestSubTurnSyncVsAsyncResultDelivery(t *testing.T) {
 	if _, err := s.CreateSession(ctx, "session_child_async_delivery", "ChildAsync", map[string]any{"model": "bootstrap"}); err != nil {
 		t.Fatalf("create async child session: %v", err)
 	}
-	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_delivery", "session_parent_delivery", "completed", "parent", map[string]any{"intent": "prompt", "subturn_depth": 0})
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_delivery", "session_parent_delivery", "running", "parent", map[string]any{"intent": "prompt", "subturn_depth": 0})
 	if err != nil {
 		t.Fatalf("create parent turn: %v", err)
 	}
@@ -933,5 +933,54 @@ func TestSubTurnSyncVsAsyncResultDelivery(t *testing.T) {
 	}
 	if asyncDelivered != 0 {
 		t.Fatalf("expected no async subturn delivery message in parent history, got %#v", msgs)
+	}
+}
+
+func TestAsyncSubTurnOrphanHandlingPersistsParentNotice(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_orphan", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_orphan", "Child", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_parent_orphan", "session_parent_orphan", "completed", "parent", map[string]any{"intent": "prompt", "subturn_depth": 0}); err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_child_orphan", "session_child_orphan", "running", "child", map[string]any{"intent": "prompt", "subturn_depth": 1, "parent_turn_id": "turn_parent_orphan"}); err != nil {
+		t.Fatalf("create child turn: %v", err)
+	}
+	if _, err := s.CreateSubTurn(ctx, "turn_parent_orphan", "session_parent_orphan", "turn_child_orphan", "session_child_orphan", "async", 1, map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create async subturn: %v", err)
+	}
+	if err := s.AddMessage(ctx, "msg_child_orphan_summary", "session_child_orphan", "assistant", "child async result", map[string]any{"kind": "chat", "turn_id": "turn_child_orphan"}); err != nil {
+		t.Fatalf("seed child summary message: %v", err)
+	}
+	engine := New(s)
+	runner := engine.runner("session_child_orphan")
+	runner.publishSubTurnLifecycle(ctx, "turn_child_orphan", "completed")
+
+	sub, err := s.GetSubTurnByChild(ctx, "turn_child_orphan")
+	if err != nil {
+		t.Fatalf("get orphaned subturn: %v", err)
+	}
+	if sub.Metadata["orphaned"] != true {
+		t.Fatalf("expected subturn metadata orphaned flag, got %#v", sub.Metadata)
+	}
+
+	parentMsgs, err := s.ListMessages(ctx, "session_parent_orphan")
+	if err != nil {
+		t.Fatalf("list parent orphan messages: %v", err)
+	}
+	found := false
+	for _, msg := range parentMsgs {
+		if msg.Role == "system" && msg.Payload["kind"] == "subturn_orphan_result" && msg.Payload["delivery_mode"] == "async" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected orphan result notice in parent session, got %#v", parentMsgs)
 	}
 }

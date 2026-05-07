@@ -474,8 +474,37 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 	}
 	summary := r.subTurnResultSummary(ctx, sub.ChildSessionID, sub.ChildTurnID)
 	if sub.DeliveryMode == "async" {
+		orphaned := false
+		if parentTurn, err := r.store.GetTurn(ctx, sub.ParentTurnID); err == nil {
+			orphaned = isTerminalSubTurnStatus(parentTurn.Status)
+		}
+		eventType := "subturn_result_ready"
+		if orphaned {
+			eventType = "subturn_orphaned"
+			_ = r.store.UpdateSubTurnMetadataByChild(ctx, sub.ChildTurnID, map[string]any{
+				"orphaned":      true,
+				"orphaned_at":   time.Now().UTC().Format(time.RFC3339Nano),
+				"orphan_reason": "parent_turn_completed_before_async_result_consumption",
+			})
+			if sub.ParentSessionID != sub.ChildSessionID {
+				content := fmt.Sprintf("Async sub-turn %s finished with status %s after parent turn %s had already ended.", sub.ChildTurnID, status, sub.ParentTurnID)
+				if strings.TrimSpace(summary) != "" {
+					content += "\n\n" + summary
+				}
+				_ = r.store.AddMessage(ctx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
+					"kind":             "subturn_orphan_result",
+					"parent_turn_id":   sub.ParentTurnID,
+					"child_turn_id":    sub.ChildTurnID,
+					"child_session_id": sub.ChildSessionID,
+					"status":           status,
+					"delivery_mode":    "async",
+					"orphaned":         true,
+					"summary":          summary,
+				})
+			}
+		}
 		r.engine.broadcast(sub.ParentSessionID, map[string]any{
-			"type":           "subturn_result_ready",
+			"type":           eventType,
 			"chat_jid":       "gi:" + sub.ParentSessionID,
 			"parent_turn_id": sub.ParentTurnID,
 			"parent_session": sub.ParentSessionID,
@@ -484,6 +513,7 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 			"status":         status,
 			"summary":        summary,
 			"delivery_mode":  "async",
+			"orphaned":       orphaned,
 		})
 		return
 	}

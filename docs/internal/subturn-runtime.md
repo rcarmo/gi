@@ -66,9 +66,22 @@ When child turn status transitions, `subturns.status` is synchronized via store 
   - parent/child ids and summary
 
 #### `async`
-- child completion publishes `subturn_result_ready` on topic `turn.subturn`
-- no parent-session result message is appended automatically
+- child completion publishes `subturn_result_ready` on topic `turn.subturn` when parent turn is still non-terminal
+- no parent-session result message is appended automatically in the non-orphan case
 - caller/automation can later fetch child artifacts and decide when/how to surface them
+
+##### Orphan async completion handling
+If async child completion occurs after parent turn is already terminal:
+
+- runtime marks subturn metadata with orphan markers:
+  - `orphaned: true`
+  - `orphaned_at`
+  - `orphan_reason`
+- publishes `subturn_orphaned` on `turn.subturn`
+- appends parent-session system message with:
+  - `kind: subturn_orphan_result`
+  - `delivery_mode: async`
+  - parent/child ids and summary
 
 ### Metadata fields
 Runtime annotates child/subturn metadata with:
@@ -112,7 +125,6 @@ Invalid/non-positive values fall back to runtime defaults.
 
 ## Current gaps (next steps)
 
-- orphan-result handling contract when parent ends first
 - sub-turn tool inheritance/restriction policy
 - cancellation propagation policy for parent abort/timeout
 
@@ -127,3 +139,4 @@ Invalid/non-positive values fall back to runtime defaults.
 - per-parent concurrency overflow rejection
 - delivery mode validation (`sync`/`async`, invalid-mode rejection)
 - sync vs async result-delivery behavior in parent session history
+- async orphan completion handling (durable metadata marker + parent notice message)

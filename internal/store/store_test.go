@@ -388,6 +388,40 @@ func TestCreateSubTurnRejectsInvalidDeliveryMode(t *testing.T) {
 	}
 }
 
+func TestUpdateSubTurnMetadataByChild(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_metadata_patch", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_metadata_patch", "Child", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_parent_metadata_patch", "session_parent_metadata_patch", "running", "parent", map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_child_metadata_patch", "session_child_metadata_patch", "running", "child", map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create child turn: %v", err)
+	}
+	if _, err := s.CreateSubTurn(ctx, "turn_parent_metadata_patch", "session_parent_metadata_patch", "turn_child_metadata_patch", "session_child_metadata_patch", "async", 1, map[string]any{"origin": "test"}); err != nil {
+		t.Fatalf("create subturn: %v", err)
+	}
+	if err := s.UpdateSubTurnMetadataByChild(ctx, "turn_child_metadata_patch", map[string]any{"orphaned": true, "orphan_reason": "test"}); err != nil {
+		t.Fatalf("patch subturn metadata: %v", err)
+	}
+	sub, err := s.GetSubTurnByChild(ctx, "turn_child_metadata_patch")
+	if err != nil {
+		t.Fatalf("lookup patched subturn: %v", err)
+	}
+	if sub.Metadata["origin"] != "test" || sub.Metadata["orphaned"] != true || sub.Metadata["orphan_reason"] != "test" {
+		t.Fatalf("unexpected patched metadata: %#v", sub.Metadata)
+	}
+}
+
 func TestHoldAndResolveTurnFailurePhase(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

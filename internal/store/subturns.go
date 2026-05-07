@@ -111,3 +111,31 @@ func (s *Store) CountRunningSubTurnsByParent(ctx context.Context, parentTurnID s
 	}
 	return count, nil
 }
+
+func (s *Store) UpdateSubTurnMetadataByChild(ctx context.Context, childTurnID string, patch map[string]any) error {
+	if strings.TrimSpace(childTurnID) == "" || len(patch) == 0 {
+		return nil
+	}
+	sub, err := s.GetSubTurnByChild(ctx, childTurnID)
+	if err != nil {
+		return fmt.Errorf("update subturn metadata: %w", err)
+	}
+	meta := sub.Metadata
+	if meta == nil {
+		meta = map[string]any{}
+	}
+	for k, v := range patch {
+		if strings.TrimSpace(k) == "" {
+			continue
+		}
+		meta[k] = v
+	}
+	metadataJSON, err := marshalJSON(meta)
+	if err != nil {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, `update subturns set metadata_json = ?, updated_at = `+defaultNow+` where child_turn_id = ?`, metadataJSON, childTurnID); err != nil {
+		return fmt.Errorf("update subturn metadata: %w", err)
+	}
+	return nil
+}

@@ -340,11 +340,11 @@ Implemented so far:
 - runtime per-parent concurrency guardrails for running child turns (default max concurrency = `4`)
 - explicit store API support for counting running child turns per parent for guardrail enforcement
 - synchronous and asynchronous result delivery modes (`sync` default, `async` opt-in) with explicit lifecycle/result topic events
-- sub-turn lifecycle publication on topic bus (`subturn_created`, `subturn_status`, `subturn_result_ready`, `subturn_result_delivered` → `turn.subturn`)
+- async orphan-result handling when parent turns are already terminal (durable metadata marker + parent notice + `subturn_orphaned` event)
+- sub-turn lifecycle publication on topic bus (`subturn_created`, `subturn_status`, `subturn_result_ready`, `subturn_result_delivered`, `subturn_orphaned` → `turn.subturn`)
 
 Still pending in this area:
 
-- orphan-result handling modes when parent turns complete before async child result consumption
 - restricted tool inheritance policies per subturn
 
 ---
