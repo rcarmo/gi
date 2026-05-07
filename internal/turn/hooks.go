@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	goai "github.com/rcarmo/go-ai"
@@ -34,6 +35,7 @@ const (
 	HookMessageEnd            = "message_end"
 	HookToolExecutionStart    = "tool_execution_start"
 	HookToolCall              = "tool_call"
+	HookApproveTool           = "approve_tool"
 	HookToolExecutionUpdate   = "tool_execution_update"
 	HookToolResult            = "tool_result"
 	HookToolExecutionEnd      = "tool_execution_end"
@@ -64,6 +66,7 @@ type HookRequest struct {
 // HookResponse is merged into the running turn. Mutation hooks are chained in
 // registration order; gate hooks stop at the first blocking response.
 type HookResponse struct {
+	Action       string         `json:"action,omitempty"`
 	Cancel       bool           `json:"cancel,omitempty"`
 	Block        bool           `json:"block,omitempty"`
 	Handled      bool           `json:"handled,omitempty"`
@@ -98,7 +101,23 @@ func NewHookRegistry() *HookRegistry {
 	return &HookRegistry{hooks: make(map[string][]registeredHook)}
 }
 
+func normalizeHookName(name string) string {
+	switch strings.TrimSpace(strings.ToLower(name)) {
+	case "before_llm":
+		return HookBeforeProviderRequest
+	case "after_llm":
+		return HookAfterProviderResponse
+	case "before_tool":
+		return HookToolCall
+	case "after_tool":
+		return HookToolResult
+	default:
+		return strings.TrimSpace(name)
+	}
+}
+
 func (r *HookRegistry) Register(name, source string, handler HookHandler) (func(), error) {
+	name = normalizeHookName(name)
 	if name == "" {
 		return nil, fmt.Errorf("hook name is required")
 	}
@@ -114,6 +133,7 @@ func (r *HookRegistry) Register(name, source string, handler HookHandler) (func(
 }
 
 func (r *HookRegistry) Unregister(name string, id uint64) {
+	name = normalizeHookName(name)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	items := r.hooks[name]
@@ -135,6 +155,7 @@ func (r *HookRegistry) Clear() {
 }
 
 func (r *HookRegistry) Handlers(name string) []registeredHook {
+	name = normalizeHookName(name)
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var out []registeredHook
@@ -170,6 +191,7 @@ func (e *Engine) RegisterHook(name, source string, handler HookHandler) (func(),
 func (e *Engine) ClearHooks() { e.hooks.Clear() }
 
 func (e *Engine) emitHook(ctx context.Context, req HookRequest) (HookResponse, error) {
+	req.Name = normalizeHookName(req.Name)
 	if req.Name == "" {
 		return HookResponse{}, fmt.Errorf("hook name is required")
 	}
@@ -178,6 +200,9 @@ func (e *Engine) emitHook(ctx context.Context, req HookRequest) (HookResponse, e
 		resp, err := item.handler(ctx, req)
 		if err != nil {
 			return merged, fmt.Errorf("hook %s from %s: %w", req.Name, item.source, err)
+		}
+		if resp.Action != "" {
+			merged.Action = strings.ToLower(strings.TrimSpace(resp.Action))
 		}
 		if resp.Payload != nil {
 			merged.Payload = resp.Payload

@@ -262,6 +262,17 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			} else if resp.ToolCall != nil {
 				call = *resp.ToolCall
 			}
+			if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
+				log.Printf("hook approve_tool error: %v", err)
+			} else if resp.Block {
+				toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool not approved"))
+				errText := fmt.Sprintf("Error: %v", toolErr)
+				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
+				_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID})
+				continue
+			} else if resp.ToolCall != nil {
+				call = *resp.ToolCall
+			}
 
 			_ = s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "waiting_on_tools")
 			_ = s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{

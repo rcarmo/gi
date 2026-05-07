@@ -78,3 +78,29 @@ func TestRecordExtensionPublishesExtensionTopic(t *testing.T) {
 		t.Fatal("expected extension lifecycle topic")
 	}
 }
+
+func TestSteeringBroadcastEventsMapToSessionSteeringTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "session.steering", topics.SubscribeOptions{Buffer: 16})
+	defer unsub()
+
+	types := []string{"steering_enqueued", "steering_dequeued", "steering_continue_staged", "steering_continued", "steering_injected"}
+	for _, typ := range types {
+		engine.broadcast("session_steering_topic", map[string]any{"type": typ, "turn_id": "turn_1"})
+		select {
+		case env := <-ch:
+			if env.Topic != "session.steering" {
+				t.Fatalf("unexpected topic for %s: %#v", typ, env)
+			}
+			if gotType, _ := env.Payload["type"].(string); gotType != typ {
+				t.Fatalf("unexpected payload for %s: %#v", typ, env.Payload)
+			}
+		case <-time.After(time.Second):
+			t.Fatalf("expected session.steering event for %s", typ)
+		}
+	}
+}

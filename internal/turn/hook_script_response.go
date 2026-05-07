@@ -30,6 +30,48 @@ func hookResponseFromScript(result string) (HookResponse, error) {
 			}
 		}
 	}
+	resp.Action = strings.ToLower(strings.TrimSpace(resp.Action))
+	if resp.Action == "" {
+		if action := stringValue(raw["action"], ""); strings.TrimSpace(action) != "" {
+			resp.Action = strings.ToLower(strings.TrimSpace(action))
+		}
+	}
+	switch resp.Action {
+	case "continue":
+		// no-op
+	case "modify":
+		// modifications are carried through regular response fields
+	case "respond":
+		resp.Handled = true
+		if strings.TrimSpace(resp.Message) == "" {
+			if response := stringValue(raw["response"], ""); strings.TrimSpace(response) != "" {
+				resp.Message = response
+			} else if payload, ok := raw["payload"].(map[string]any); ok {
+				resp.Message = stringValue(payload["response"], "")
+			}
+		}
+	case "deny":
+		resp.Block = true
+		if strings.TrimSpace(resp.Reason) == "" {
+			resp.Reason = "denied by hook"
+		}
+	case "abort_turn":
+		resp.Cancel = true
+		resp.Block = true
+		if strings.TrimSpace(resp.Reason) == "" {
+			resp.Reason = "aborted by hook"
+		}
+	case "hard_abort":
+		resp.Cancel = true
+		resp.Block = true
+		if resp.Payload == nil {
+			resp.Payload = map[string]any{}
+		}
+		resp.Payload["hard_abort"] = true
+		if strings.TrimSpace(resp.Reason) == "" {
+			resp.Reason = "hard aborted by hook"
+		}
+	}
 	return resp, nil
 }
 

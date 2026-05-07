@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/rcarmo/gi/internal/routing"
@@ -229,6 +230,32 @@ func TestSteeringDequeueRespectsQueueMode(t *testing.T) {
 	}
 	if len(msgs) != 2 {
 		t.Fatalf("expected all-mode dequeue to drain both messages, got %#v", msgs)
+	}
+}
+
+func TestSteeringQueueOverflowReturnsError(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	_, err = s.CreateSession(ctx, "session_steering_overflow", "Test", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	for i := 0; i < 10; i++ {
+		if _, err := s.EnqueueSteering(ctx, "session_steering_overflow", "", "user", fmt.Sprintf("msg-%d", i), map[string]any{"intent": "prompt"}, nil, "one-at-a-time"); err != nil {
+			t.Fatalf("enqueue steering %d: %v", i, err)
+		}
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_steering_overflow", "", "user", "overflow", map[string]any{"intent": "prompt"}, nil, "one-at-a-time"); err == nil {
+		t.Fatal("expected steering queue overflow error")
+	}
+	if depth, err := s.SteeringQueueLength(ctx, "session_steering_overflow"); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 10 {
+		t.Fatalf("expected queue depth to stay capped at 10, got %d", depth)
 	}
 }
 

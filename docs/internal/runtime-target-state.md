@@ -271,6 +271,11 @@ Implemented so far:
 - end-of-turn idle continuation drains queued steering into a follow-on turn when no normal queued turn is ahead of it
 - explicit `ContinueSession(...)` support plus a web continuation endpoint for idle-session steering
 - store/unit coverage for dequeue mode behavior and turn/engine coverage for same-session steering continuation
+- steering lifecycle publication on the topic bus via `session.steering` notices for enqueue/dequeue/stage/continue/inject checkpoints
+- steering queue overflow coverage (cap remains enforced at 10)
+- different-session concurrent submit coverage (sessions execute independently)
+- explicit skipped-tool persistence assertions (`tool.skipped` events plus skipped `tool_result` rows)
+- steering media payloads are now preserved in persisted chat history payloads during injection/continuation
 
 Current steering semantics:
 
@@ -284,9 +289,7 @@ Current steering semantics:
 
 Still pending in this area:
 
-- fuller steering lifecycle publication on the internal topic bus (Gi now publishes injected steering notices, skipped-tool notices, and final-checkpoint staging indirectly, but not the whole lifecycle)
-- media-bearing steering injection through the same multimodal path as normal inbound messages
-- additional concurrency/integration tests for different-session concurrency and skipped-tool reasoning behavior
+- media-bearing steering injection through the exact same multimodal message-content block path as normal inbound web messages (currently media is preserved in steering payload/history and surfaced to the model as attachment hints)
 
 ---
 
@@ -376,6 +379,30 @@ This supports:
 - approval audits
 - process-hook protocol validation
 - tracing hook-induced mutations
+
+### Current implementation status
+
+Implemented so far:
+
+- hook registry/runtime supports canonical alias names for script-facing phases:
+  - `before_llm` → `before_provider_request`
+  - `after_llm` → `after_provider_response`
+  - `before_tool` → `tool_call`
+  - `after_tool` → `tool_result`
+- explicit `approve_tool` phase is now emitted in the tool execution path (after `tool_call`, before tool execution)
+- script hook responses now accept canonical hook actions and map them into runtime semantics:
+  - `continue`
+  - `modify`
+  - `respond`
+  - `deny`
+  - `abort_turn`
+  - `hard_abort`
+
+Still pending in this area:
+
+- durable `hook_invocations` audit table + store APIs
+- process-hook/IPC handshake for external hook executors sharing the same logical contract as in-process hooks
+- timeout/failure policy and richer tracing metadata for hook replay
 
 ---
 

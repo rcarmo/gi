@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rcarmo/gi/internal/store"
+	goai "github.com/rcarmo/go-ai"
 )
 
 func openTestStore(t *testing.T) *store.Store {
@@ -597,5 +598,161 @@ func TestSubmitPeerMessageUsesExistingTargetSession(t *testing.T) {
 	}
 	if result.SessionID != target.ID || result.CreatedSession {
 		t.Fatalf("unexpected peer result: %#v", result)
+	}
+}
+
+func TestConcurrentSubmitDifferentSessionsRunsConcurrently(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_a", "A", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session a: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_b", "B", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session b: %v", err)
+	}
+	engine := New(s)
+
+	start := make(chan struct{})
+	errCh := make(chan error, 2)
+	resCh := make(chan *SubmitResult, 2)
+	for i, sessionID := range []string{"session_a", "session_b"} {
+		go func(idx int, sid string) {
+			<-start
+			res, err := engine.SubmitPrompt(ctx, RunInput{SessionID: sid, Prompt: fmt.Sprintf("hello-%d", idx+1), Model: "bootstrap"})
+			if err != nil {
+				errCh <- err
+				return
+			}
+			resCh <- res
+		}(i, sessionID)
+	}
+	close(start)
+
+	var results []*SubmitResult
+	for i := 0; i < 2; i++ {
+		select {
+		case err := <-errCh:
+			t.Fatalf("submit error: %v", err)
+		case res := <-resCh:
+			results = append(results, res)
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for submit results")
+		}
+	}
+	if results[0].TurnID == results[1].TurnID {
+		t.Fatalf("expected distinct turns across sessions, got %#v", results)
+	}
+
+	time.Sleep(1500 * time.Millisecond)
+	for _, sid := range []string{"session_a", "session_b"} {
+		turns, err := s.ListTurns(ctx, sid)
+		if err != nil {
+			t.Fatalf("list turns %s: %v", sid, err)
+		}
+		if len(turns) != 1 || turns[0].Status != "completed" {
+			t.Fatalf("unexpected turns for %s: %#v", sid, turns)
+		}
+	}
+}
+
+func TestContinueSessionPreservesSteeringMediaInHistory(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_media_steering", "Test", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	media := []string{"media_1", "media_2"}
+	if _, err := s.EnqueueSteering(ctx, "session_media_steering", "", "user", "check these", map[string]any{"intent": "prompt", "model": "bootstrap"}, media, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering with media: %v", err)
+	}
+	engine := New(s)
+	continued, err := engine.ContinueSession(ctx, "session_media_steering")
+	if err != nil {
+		t.Fatalf("continue session: %v", err)
+	}
+	if !continued {
+		t.Fatal("expected session continuation")
+	}
+	time.Sleep(1500 * time.Millisecond)
+
+	msgs, err := s.ListMessages(ctx, "session_media_steering")
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	found := false
+	for _, msg := range msgs {
+		if msg.Role != "user" || msg.Payload["steering"] != true {
+			continue
+		}
+		rawMedia, ok := msg.Payload["media"]
+		if !ok {
+			continue
+		}
+		switch v := rawMedia.(type) {
+		case []any:
+			if len(v) == len(media) {
+				found = true
+			}
+		case []string:
+			if len(v) == len(media) {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("expected persisted steering media in history payloads, got %#v", msgs)
+	}
+}
+
+func TestSkipRemainingToolCallsPersistsSkippedResults(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_skip_tools", "Test", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_skip_tools", "session_skip_tools", "running", "prompt", map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	engine := New(s)
+	runner := engine.runner("session_skip_tools")
+	convCtx := &goai.Context{}
+	calls := []goai.ToolCall{
+		{ID: "tc1", Name: "tool.one", Arguments: map[string]any{}},
+		{ID: "tc2", Name: "tool.two", Arguments: map[string]any{}},
+	}
+	runner.skipRemainingToolCalls(ctx, "session_skip_tools", "turn_skip_tools", convCtx, calls, 0)
+
+	events, err := s.ListTurnEvents(ctx, "turn_skip_tools")
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	skippedEvents := 0
+	for _, event := range events {
+		if event.Type == "tool.skipped" {
+			skippedEvents++
+		}
+	}
+	if skippedEvents != 2 {
+		t.Fatalf("expected 2 tool.skipped events, got %d (%#v)", skippedEvents, events)
+	}
+
+	msgs, err := s.ListMessages(ctx, "session_skip_tools")
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	skippedMsgs := 0
+	for _, msg := range msgs {
+		if msg.Role != "tool_result" {
+			continue
+		}
+		if msg.Payload["skipped"] == true && msg.Payload["skip_reason"] == "queued user steering message" && msg.Content == skippedDueToQueuedUserMessage {
+			skippedMsgs++
+		}
+	}
+	if skippedMsgs != 2 {
+		t.Fatalf("expected 2 skipped tool_result messages, got %d (%#v)", skippedMsgs, msgs)
 	}
 }

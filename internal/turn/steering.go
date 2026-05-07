@@ -71,15 +71,25 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 	for k, v := range in.Metadata {
 		payload[k] = v
 	}
+	media := steeringMediaFromMetadata(in.Metadata)
 	queueMode := stringValue(in.Metadata["steering_mode"], "one-at-a-time")
-	if _, err := e.store.EnqueueSteering(ctx, sessionID, activeTurnID, "user", in.Prompt, payload, nil, queueMode); err != nil {
+	if _, err := e.store.EnqueueSteering(ctx, sessionID, activeTurnID, "user", in.Prompt, payload, media, queueMode); err != nil {
 		return nil, err
 	}
 	_ = e.store.AppendTurnEvent(ctx, activeTurnID, sessionID, "steering.enqueued", map[string]any{
-		"phase":      "steering",
-		"checkpoint": true,
-		"content":    in.Prompt,
-		"queue_mode": queueMode,
+		"phase":       "steering",
+		"checkpoint":  true,
+		"content":     in.Prompt,
+		"queue_mode":  queueMode,
+		"media_count": len(media),
+	})
+	e.broadcast(sessionID, map[string]any{
+		"type":        "steering_enqueued",
+		"chat_jid":    "gi:" + sessionID,
+		"turn_id":     activeTurnID,
+		"queue_mode":  queueMode,
+		"content_len": len(in.Prompt),
+		"media_count": len(media),
 	})
 	return &SubmitResult{TurnID: activeTurnID, SessionID: sessionID, Status: "running", Queued: false}, nil
 }
@@ -124,6 +134,7 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 	}
 	_ = e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.submitted", map[string]any{"phase": "queue", "intent": stringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true})
 	_ = e.store.AppendTurnEvent(ctx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)})
+	e.broadcast(sessionID, map[string]any{"type": "steering_continue_staged", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs)})
 	return true, turnID, nil
 }
 
@@ -139,7 +150,7 @@ func (e *Engine) continueQueuedSteering(ctx context.Context, sessionID string) (
 		return false, nil
 	}
 	metadata := steeringMetadataFromMessages(msgs)
-	_, err = e.SubmitPrompt(ctx, RunInput{
+	res, err := e.SubmitPrompt(ctx, RunInput{
 		SessionID: sessionID,
 		Prompt:    "",
 		Intent:    stringValue(metadata["intent"], "continue"),
@@ -149,6 +160,7 @@ func (e *Engine) continueQueuedSteering(ctx context.Context, sessionID string) (
 	if err != nil {
 		return false, err
 	}
+	e.broadcast(sessionID, map[string]any{"type": "steering_continued", "chat_jid": "gi:" + sessionID, "turn_id": res.TurnID, "count": len(msgs)})
 	return true, nil
 }
 
@@ -177,6 +189,9 @@ func (r *sessionRunner) dequeueSteeringMessages(ctx context.Context, sessionID s
 	if err != nil {
 		return nil, err
 	}
+	if len(msgs) > 0 {
+		r.engine.broadcast(sessionID, map[string]any{"type": "steering_dequeued", "chat_jid": "gi:" + sessionID, "count": len(msgs)})
+	}
 	return msgs, nil
 }
 
@@ -194,6 +209,9 @@ func (r *sessionRunner) persistSteeringMessages(ctx context.Context, sessionID, 
 		for k, v := range msg.Payload {
 			payload[k] = v
 		}
+		if len(msg.Media) > 0 {
+			payload["media"] = append([]string(nil), msg.Media...)
+		}
 		_ = r.store.AddMessage(ctx, store.NowID("msg"), sessionID, role, msg.Content, payload)
 		totalContentLen += len(msg.Content)
 	}
@@ -203,7 +221,7 @@ func (r *sessionRunner) persistSteeringMessages(ctx context.Context, sessionID, 
 		"count":             len(msgs),
 		"total_content_len": totalContentLen,
 	})
-	r.engine.broadcast(sessionID, map[string]any{"type": "steering_injected", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs)})
+	r.engine.broadcast(sessionID, map[string]any{"type": "steering_injected", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs), "media_count": steeringMediaCount(msgs)})
 	return len(msgs)
 }
 
@@ -216,11 +234,19 @@ func (r *sessionRunner) injectSteeringMessages(ctx context.Context, sessionID, t
 		if role == "" {
 			role = "user"
 		}
+		content := msg.Content
+		if len(msg.Media) > 0 {
+			if strings.TrimSpace(content) == "" {
+				content = "[user provided media attachments]"
+			} else {
+				content += "\n\n[media attachments included]"
+			}
+		}
 		switch role {
 		case "assistant":
-			convCtx.Messages = append(convCtx.Messages, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: msg.Content}}})
+			convCtx.Messages = append(convCtx.Messages, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: content}}})
 		default:
-			convCtx.Messages = append(convCtx.Messages, goai.UserMessage(msg.Content))
+			convCtx.Messages = append(convCtx.Messages, goai.UserMessage(content))
 		}
 	}
 	return r.persistSteeringMessages(ctx, sessionID, turnID, msgs)
@@ -248,6 +274,46 @@ func (r *sessionRunner) skipRemainingToolCalls(ctx context.Context, sessionID, t
 		})
 		r.engine.broadcast(sessionID, map[string]any{"type": "tool_skipped", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "reason": "queued user steering message"})
 	}
+}
+
+func steeringMediaFromMetadata(metadata map[string]any) []string {
+	if metadata == nil {
+		return nil
+	}
+	raw, ok := metadata["media"]
+	if !ok || raw == nil {
+		return nil
+	}
+	switch m := raw.(type) {
+	case []string:
+		out := make([]string, 0, len(m))
+		for _, item := range m {
+			if strings.TrimSpace(item) != "" {
+				out = append(out, item)
+			}
+		}
+		return out
+	case []any:
+		out := make([]string, 0, len(m))
+		for _, item := range m {
+			s, ok := item.(string)
+			if !ok || strings.TrimSpace(s) == "" {
+				continue
+			}
+			out = append(out, s)
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func steeringMediaCount(msgs []store.SteeringMessage) int {
+	total := 0
+	for _, msg := range msgs {
+		total += len(msg.Media)
+	}
+	return total
 }
 
 func steeringPromptForShell(msgs []store.SteeringMessage) string {
