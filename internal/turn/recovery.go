@@ -79,10 +79,12 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 			return err
 		}
 		if markFinished {
-			_ = e.store.MarkTurnFinished(ctx, claim.TurnID)
+			if err := e.store.MarkTurnFinished(ctx, claim.TurnID); err != nil {
+				return err
+			}
 		}
 	}
-	_ = e.store.AppendTurnEvent(ctx, claim.TurnID, claim.SessionID, "turn.recovered", payload)
+	warnStore("turn recovered event append", e.store.AppendTurnEvent(ctx, claim.TurnID, claim.SessionID, "turn.recovered", payload))
 	if err := e.store.ReleaseSessionActiveTurn(ctx, claim.SessionID, claim.ClaimToken); err != nil {
 		return err
 	}

@@ -292,8 +292,8 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if err := e.store.AppendTurnEvent(ctx, turnID, in.SessionID, "turn.submitted", submittedPayload); err != nil {
 		return nil, err
 	}
-	_ = e.store.SyncSessionQueueCount(ctx, in.SessionID)
-	_ = e.store.TouchSessionState(ctx, in.SessionID, map[string]any{"model": in.Model})
+	warnStore("sync queue count after submit", e.store.SyncSessionQueueCount(ctx, in.SessionID))
+	warnStore("touch session model after submit", e.store.TouchSessionState(ctx, in.SessionID, map[string]any{"model": in.Model}))
 	return &SubmitResult{TurnID: turnID, SessionID: in.SessionID, Status: status, Queued: queued}, nil
 }
 
@@ -391,8 +391,12 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
 	if runner.current != nil && runner.current.turnID == turnID {
-		_ = e.store.AppendTurnEvent(ctx, turnID, turnSessionID, "turn.cancelling", map[string]any{"phase": "cancel", "checkpoint": true})
-		_ = e.store.UpdateTurnStatusAndPhase(ctx, turnID, "cancelling", "cancelling")
+		if err := e.store.AppendTurnEvent(ctx, turnID, turnSessionID, "turn.cancelling", map[string]any{"phase": "cancel", "checkpoint": true}); err != nil {
+			return err
+		}
+		if err := e.store.UpdateTurnStatusAndPhase(ctx, turnID, "cancelling", "cancelling"); err != nil {
+			return err
+		}
 		runner.current.cancel()
 		runner.current.cmdMu.Lock()
 		if runner.current.cmd != nil && runner.current.cmd.Process != nil {
@@ -408,7 +412,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		if err := e.store.MarkTurnFinished(ctx, turnID); err != nil {
 			return err
 		}
-		_ = e.store.SyncSessionQueueCount(ctx, turnSessionID)
+		warnStore("sync queue count after queued cancel", e.store.SyncSessionQueueCount(ctx, turnSessionID))
 		return e.store.AppendTurnEvent(ctx, turnID, turnSessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "queued": true})
 	}
 	return fmt.Errorf("turn not cancellable")
@@ -429,7 +433,7 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 		return false, nil
 	}
 	releaseClaim := func() {
-		_ = e.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken)
+		warnStore("release active claim after launch failure", e.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken))
 	}
 	if err := e.store.MarkTurnClaimed(ctx, turnID, "runner"); err != nil {
 		releaseClaim()
@@ -440,7 +444,7 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 		return false, err
 	}
 	if err := e.store.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "status": "running"}); err != nil {
-		_ = e.store.UpdateTurnStatusAndPhase(ctx, turnID, "queued", "queued")
+		warnStore("rollback turn status to queued", e.store.UpdateTurnStatusAndPhase(ctx, turnID, "queued", "queued"))
 		releaseClaim()
 		return false, err
 	}
@@ -456,8 +460,8 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string) {
 	r.mu.Unlock()
 	defer func() {
 		cancel()
-		_ = s.ReleaseSessionActiveTurn(context.Background(), sessionID, claimToken)
-		_ = s.SyncSessionQueueCount(context.Background(), sessionID)
+		warnStore("release session active turn", s.ReleaseSessionActiveTurn(context.Background(), sessionID, claimToken))
+		warnStore("sync session queue count", s.SyncSessionQueueCount(context.Background(), sessionID))
 		r.mu.Lock()
 		r.current = nil
 		r.mu.Unlock()
@@ -510,7 +514,7 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string) {
 			turnRec.Metadata["route_used_light_model"] = usedLight
 		}
 	}
-	_ = s.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "model": model, "status": "running"})
+	warnStore("touch session state running", s.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "model": model, "status": "running"}))
 	userPayload := map[string]any{"kind": "chat", "intent": intent, "turn_id": turnID}
 	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt"} {
 		if value, ok := turnRec.Metadata[key]; ok {
@@ -518,7 +522,7 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string) {
 		}
 	}
 	if strings.TrimSpace(prompt) != "" && len(initialSteering) == 0 {
-		_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload)
+		warnStore("add user prompt message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload))
 	}
 	startedPayload := map[string]any{"phase": "turn", "prompt": prompt, "intent": intent, "model": model, "checkpoint": true}
 	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "parent_turn_id", "route_mode", "route_matched_by"} {
@@ -526,7 +530,7 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string) {
 			startedPayload[key] = value
 		}
 	}
-	_ = s.AppendTurnEvent(ctx, turnID, sessionID, "turn.started", startedPayload)
+	warnStore("append turn.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "turn.started", startedPayload))
 
 	// Try LLM inference if model is not the bootstrap stub
 	if model != "bootstrap" && model != "test-model" && model != "" {
@@ -538,7 +542,7 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string) {
 	if len(initialSteering) > 0 {
 		r.persistSteeringMessages(ctx, sessionID, turnID, initialSteering)
 	}
-	_ = s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "command": []string{"sh", "-lc", "printf 'Gi received: %s' \"$GI_PROMPT\""}})
+	warnStore("append shell tool.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "command": []string{"sh", "-lc", "printf 'Gi received: %s' \"$GI_PROMPT\""}}))
 
 	out, runErr, cancelled := runShell(ctx, prompt, func(cmd *exec.Cmd) {
 		r.mu.Lock()
@@ -563,46 +567,46 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string) {
 		if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
 			log.Printf("steering final checkpoint: %v", err)
 		} else if staged {
-			_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID})
+			warnStore("append steering final checkpoint", s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID}))
 		}
-		_ = s.AppendTurnEvent(ctx, turnID, sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true})
-		_ = s.UpdateTurnStatus(context.Background(), turnID, "cancelled")
+		warnStore("append turn.cancelled event", s.AppendTurnEvent(ctx, turnID, sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true}))
+		warnStore("update turn status cancelled", s.UpdateTurnStatus(context.Background(), turnID, "cancelled"))
 		r.publishSubTurnLifecycle(context.Background(), turnID, "cancelled")
-		_ = s.AddMessage(context.Background(), store.NowID("msg"), sessionID, "system", "Turn cancelled", map[string]any{"kind": "status", "turn_id": turnID, "clipped": true})
-		_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
+		warnStore("add turn cancelled system message", s.AddMessage(context.Background(), store.NowID("msg"), sessionID, "system", "Turn cancelled", map[string]any{"kind": "status", "turn_id": turnID, "clipped": true}))
+		warnStore("touch session idle after cancel", s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
 		return
 	}
 	if runErr != nil {
 		if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
 			log.Printf("steering final checkpoint: %v", err)
 		} else if staged {
-			_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID})
+			warnStore("append steering final checkpoint", s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID}))
 		}
 		markTurnFailure(s, turnID, sessionID, "shell_error", runErr.Error())
-		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error()})
-		_ = s.UpdateTurnStatus(context.Background(), turnID, "failed")
+		warnStore("append shell tool.failed event", s.AppendTurnEvent(context.Background(), turnID, sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error()}))
+		warnStore("update turn status failed", s.UpdateTurnStatus(context.Background(), turnID, "failed"))
 		r.publishSubTurnLifecycle(context.Background(), turnID, "failed")
-		_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
+		warnStore("touch session idle after failure", s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
 		return
 	}
 	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
 		log.Printf("steering final checkpoint: %v", err)
 	} else if staged {
-		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID})
+		warnStore("append steering final checkpoint", s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID}))
 	}
-	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "output": out})
+	warnStore("append shell tool.finished event", s.AppendTurnEvent(context.Background(), turnID, sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "output": out}))
 	msgID := store.NowID("msg")
-	_ = s.AddMessage(context.Background(), msgID, sessionID, "assistant", out, map[string]any{"kind": "chat", "source": "shell", "turn_id": turnID, "agent_id": agentID})
+	warnStore("add shell assistant message", s.AddMessage(context.Background(), msgID, sessionID, "assistant", out, map[string]any{"kind": "chat", "source": "shell", "turn_id": turnID, "agent_id": agentID}))
 	r.engine.broadcast(sessionID, map[string]any{
 		"type": "new_post", "id": msgID, "chat_jid": "gi:" + sessionID,
 		"content": out, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
 		"sender": "agent", "is_bot_message": true,
 		"data": map[string]any{"type": "agent_response", "content": out, "agent_id": agentID},
 	})
-	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed"})
-	_ = s.UpdateTurnStatus(context.Background(), turnID, "completed")
+	warnStore("append turn.finished event", s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed"}))
+	warnStore("update turn status completed", s.UpdateTurnStatus(context.Background(), turnID, "completed"))
 	r.publishSubTurnLifecycle(context.Background(), turnID, "completed")
-	_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
+	warnStore("touch session idle after completion", s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
 }
 
 func (e *Engine) Summary(ctx context.Context, turnID string) (*Summary, error) {
@@ -730,10 +734,10 @@ func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.
 				payload[k] = v
 			}
 			payload["forked_from_message_id"] = msg.ID
-			_ = e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, msg.Role, msg.Content, payload)
+			warnStore("copy message to cloned session", e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, msg.Role, msg.Content, payload))
 		}
 	}
-	_ = e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sessionAgentID(source)), map[string]any{"kind": "fork", "source_session_id": source.ID, "source_agent_id": sessionAgentID(source), "route_matched_by": route.MatchedBy, "clipped": true})
+	warnStore("add forked-from message", e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sessionAgentID(source)), map[string]any{"kind": "fork", "source_session_id": source.ID, "source_agent_id": sessionAgentID(source), "route_matched_by": route.MatchedBy, "clipped": true}))
 	return cloned, true, nil
 }
 
@@ -741,7 +745,7 @@ func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, source, target *sto
 	sourceAgentID := sessionAgentID(source)
 	routingContent := fmt.Sprintf("↪ routed to @%s: %s", route.AgentID, content)
 	routingPayload := map[string]any{"kind": "routing", "target_agent_id": route.AgentID, "target_session_id": target.ID, "source_agent_id": sourceAgentID, "source_session_id": source.ID, "route_matched_by": route.MatchedBy, "clipped": true}
-	_ = e.store.AddMessage(ctx, store.NowID("msg"), source.ID, "system", routingContent, routingPayload)
+	warnStore("add routing message to source session", e.store.AddMessage(ctx, store.NowID("msg"), source.ID, "system", routingContent, routingPayload))
 	metadata := map[string]any{
 		"source_session_id":     source.ID,
 		"source_agent_id":       sourceAgentID,

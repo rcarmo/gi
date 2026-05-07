@@ -24,12 +24,12 @@ func markTurnFailureWithHold(s *store.Store, turnID, sessionID, failureKind, hol
 	if summary == "" {
 		summary = failureKind
 	}
-	_ = s.UpsertTurnFailure(context.Background(), turnID, sessionID, failureKind, holdState, summary)
-	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.failure_marked", map[string]any{
+	warnStore("turn failure upsert", s.UpsertTurnFailure(context.Background(), turnID, sessionID, failureKind, holdState, summary))
+	warnStore("turn failure event append", s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.failure_marked", map[string]any{
 		"phase":        "recovery",
 		"checkpoint":   true,
 		"failure_kind": failureKind,
 		"hold_state":   holdState,
 		"summary":      summary,
-	})
+	}))
 }

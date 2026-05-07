@@ -55,13 +55,13 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 	if err := e.store.ResolveTurnFailure(ctx, turnID, "retried", summary, result.TurnID); err != nil {
 		return nil, err
 	}
-	_ = e.store.AppendTurnEvent(ctx, turnID, turnRec.SessionID, "turn.failure_resolved", map[string]any{
+	warnStore("append turn.failure_resolved event", e.store.AppendTurnEvent(ctx, turnID, turnRec.SessionID, "turn.failure_resolved", map[string]any{
 		"phase":              "recovery",
 		"checkpoint":         true,
 		"resolution_state":   "retried",
 		"resolution_summary": summary,
 		"resolved_turn_id":   result.TurnID,
-	})
+	}))
 	return result, nil
 }
 

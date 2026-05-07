@@ -76,13 +76,13 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 	if _, err := e.store.EnqueueSteering(ctx, sessionID, activeTurnID, "user", in.Prompt, payload, media, queueMode); err != nil {
 		return nil, err
 	}
-	_ = e.store.AppendTurnEvent(ctx, activeTurnID, sessionID, "steering.enqueued", map[string]any{
+	warnStore("append steering.enqueued event", e.store.AppendTurnEvent(ctx, activeTurnID, sessionID, "steering.enqueued", map[string]any{
 		"phase":       "steering",
 		"checkpoint":  true,
 		"content":     in.Prompt,
 		"queue_mode":  queueMode,
 		"media_count": len(media),
-	})
+	}))
 	e.broadcast(sessionID, map[string]any{
 		"type":        "steering_enqueued",
 		"chat_jid":    "gi:" + sessionID,
@@ -132,8 +132,8 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 	if _, err := e.store.CreateTurnWithStatus(ctx, turnID, sessionID, "queued", "", metadata); err != nil {
 		return false, "", err
 	}
-	_ = e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.submitted", map[string]any{"phase": "queue", "intent": stringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true})
-	_ = e.store.AppendTurnEvent(ctx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)})
+	warnStore("append continued turn.submitted event", e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.submitted", map[string]any{"phase": "queue", "intent": stringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true}))
+	warnStore("append steering.continue_staged event", e.store.AppendTurnEvent(ctx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)}))
 	e.broadcast(sessionID, map[string]any{"type": "steering_continue_staged", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs)})
 	return true, turnID, nil
 }
@@ -212,15 +212,15 @@ func (r *sessionRunner) persistSteeringMessages(ctx context.Context, sessionID, 
 		if len(msg.Media) > 0 {
 			payload["media"] = append([]string(nil), msg.Media...)
 		}
-		_ = r.store.AddMessage(ctx, store.NowID("msg"), sessionID, role, msg.Content, payload)
+		warnStore("add steering message", r.store.AddMessage(ctx, store.NowID("msg"), sessionID, role, msg.Content, payload))
 		totalContentLen += len(msg.Content)
 	}
-	_ = r.store.AppendTurnEvent(ctx, turnID, sessionID, "steering.injected", map[string]any{
+	warnStore("append steering.injected event", r.store.AppendTurnEvent(ctx, turnID, sessionID, "steering.injected", map[string]any{
 		"phase":             "steering",
 		"checkpoint":        true,
 		"count":             len(msgs),
 		"total_content_len": totalContentLen,
-	})
+	}))
 	r.engine.broadcast(sessionID, map[string]any{"type": "steering_injected", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs), "media_count": steeringMediaCount(msgs)})
 	return len(msgs)
 }
@@ -256,14 +256,14 @@ func (r *sessionRunner) skipRemainingToolCalls(ctx context.Context, sessionID, t
 	for i := start; i < len(toolCalls); i++ {
 		call := toolCalls[i]
 		goai.AppendToolResult(convCtx, call.ID, call.Name, skippedDueToQueuedUserMessage, true)
-		_ = r.store.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
+		warnStore("append tool.skipped event", r.store.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
 			"phase":        "tool",
 			"checkpoint":   true,
 			"tool":         call.Name,
 			"tool_call_id": call.ID,
 			"reason":       "queued user steering message",
-		})
-		_ = r.store.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", skippedDueToQueuedUserMessage, map[string]any{
+		}))
+		warnStore("add skipped tool_result message", r.store.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", skippedDueToQueuedUserMessage, map[string]any{
 			"kind":         "tool_result",
 			"tool_call_id": call.ID,
 			"tool_name":    call.Name,
@@ -271,7 +271,7 @@ func (r *sessionRunner) skipRemainingToolCalls(ctx context.Context, sessionID, t
 			"turn_id":      turnID,
 			"skipped":      true,
 			"skip_reason":  "queued user steering message",
-		})
+		}))
 		r.engine.broadcast(sessionID, map[string]any{"type": "tool_skipped", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "reason": "queued user steering message"})
 	}
 }

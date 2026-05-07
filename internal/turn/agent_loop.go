@@ -136,8 +136,8 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		}
 		r.maybeCompactContext(ctx, sessionID, turnID, agentID, model, convCtx)
 		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"model": model, "messages": len(convCtx.Messages), "tools": len(convCtx.Tools)}})
-		_ = s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "running")
-		_ = s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "iteration": iter + 1, "checkpoint": true})
+		warnStore("update turn running phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "running"))
+		warnStore("append inference.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "iteration": iter + 1, "checkpoint": true}))
 		log.Printf("inference [%s]: calling %s", iterLabel, model)
 
 		r.engine.broadcast(sessionID, map[string]any{
@@ -170,7 +170,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookAfterProviderResponse, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"ok": inferErr == nil}})
 		if inferErr != nil {
 			log.Printf("inference [%s] error: %v", iterLabel, inferErr)
-			_ = s.AppendTurnEvent(ctx, turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error(), "iteration": iter + 1})
+			warnStore("append inference.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error(), "iteration": iter + 1}))
 			r.finishTurn(s, turnID, sessionID, agentID, "failed", fmt.Sprintf("Inference error: %v", inferErr), "provider_error")
 			return
 		}
@@ -215,10 +215,10 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			r.persistUsage(s, turnID, sessionID, &totalUsage, iter+1)
 
 			msgID := store.NowID("msg")
-			_ = s.AddMessage(ctx, msgID, sessionID, "assistant", textContent, map[string]any{
+			warnStore("add assistant inference message", s.AddMessage(ctx, msgID, sessionID, "assistant", textContent, map[string]any{
 				"kind": "chat", "source": "inference", "model": model,
 				"turn_id": turnID, "agent_id": agentID, "iterations": iter + 1,
-			})
+			}))
 
 			r.broadcastPost(sessionID, turnID, msgID, textContent, agentID)
 			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookMessageEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"chars": len(textContent)}})
@@ -238,10 +238,10 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			}
 			toolCallSummary += fmt.Sprintf("[tool_call: %s]", tc.Name)
 		}
-		_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "assistant", toolCallSummary, map[string]any{
+		warnStore("add assistant tool_calls summary", s.AddMessage(ctx, store.NowID("msg"), sessionID, "assistant", toolCallSummary, map[string]any{
 			"kind": "tool_calls", "source": "inference", "model": model,
 			"turn_id": turnID, "agent_id": agentID,
-		})
+		}))
 
 		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"count": len(toolCalls)}})
 		skipRemainingTools := false
@@ -257,7 +257,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 				toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool call blocked"))
 				errText := fmt.Sprintf("Error: %v", toolErr)
 				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
-				_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID})
+				warnStore("add blocked tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID}))
 				continue
 			} else if resp.ToolCall != nil {
 				call = *resp.ToolCall
@@ -268,17 +268,17 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 				toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool not approved"))
 				errText := fmt.Sprintf("Error: %v", toolErr)
 				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
-				_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID})
+				warnStore("add denied tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID}))
 				continue
 			} else if resp.ToolCall != nil {
 				call = *resp.ToolCall
 			}
 
-			_ = s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "waiting_on_tools")
-			_ = s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{
+			warnStore("update turn waiting_on_tools phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "waiting_on_tools"))
+			warnStore("append tool.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"tool_call_id": call.ID, "iteration": iter + 1,
-			})
+			}))
 
 			r.engine.broadcast(sessionID, map[string]any{
 				"type": "agent_status", "chat_jid": "gi:" + sessionID,
@@ -290,15 +290,15 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			if toolErr != nil {
 				log.Printf("tool [%s] error: %v", call.Name, toolErr)
 				r.engine.broadcast(sessionID, map[string]any{"type": "tool_failed", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "error": toolErr.Error()})
-				_ = s.AppendTurnEvent(ctx, turnID, sessionID, "tool.failed", map[string]any{
+				warnStore("append tool.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.failed", map[string]any{
 					"phase": "tool", "tool": call.Name, "checkpoint": true,
 					"tool_call_id": call.ID, "error": toolErr.Error(),
-				})
+				}))
 				errText := fmt.Sprintf("Error: %v", toolErr)
 				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
-				_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{
+				warnStore("add errored tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{
 					"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID,
-				})
+				}))
 				lastToolFailureSig, repeatedToolFailureCount = nextRepeatedToolFailureCount(lastToolFailureSig, repeatedToolFailureCount, call, toolErr)
 				if repeatedToolFailureCount >= repeatedToolFailureLimit {
 					msg := fmt.Sprintf("Aborting after %d repeated identical tool failures: %v", repeatedToolFailureCount, toolErr)
@@ -319,14 +319,14 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 					displayResult = displayResult[:100000] + "\n... (truncated)"
 				}
 				r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(toolResult)})
-				_ = s.AppendTurnEvent(ctx, turnID, sessionID, "tool.finished", map[string]any{
+				warnStore("append tool.finished event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.finished", map[string]any{
 					"phase": "tool", "tool": call.Name, "checkpoint": true,
 					"tool_call_id": call.ID, "output_length": len(toolResult),
-				})
+				}))
 				goai.AppendToolResult(convCtx, call.ID, call.Name, displayResult, false)
-				_ = s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", displayResult, map[string]any{
+				warnStore("add successful tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", displayResult, map[string]any{
 					"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID,
-				})
+				}))
 				lastToolFailureSig = ""
 				repeatedToolFailureCount = 0
 			}
@@ -380,9 +380,9 @@ func (r *sessionRunner) persistUsage(s *store.Store, turnID, sessionID string, u
 		"cost_total": usage.Cost.Total,
 		"iterations": iterations,
 	}
-	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "inference.finished", map[string]any{
+	warnStore("append inference.finished event", s.AppendTurnEvent(context.Background(), turnID, sessionID, "inference.finished", map[string]any{
 		"phase": "inference", "checkpoint": true, "usage": usageMap, "iterations": iterations,
-	})
+	}))
 	log.Printf("inference: usage input=%d output=%d total=%d cost=%.6f iterations=%d",
 		usage.Input, usage.Output, usage.TotalTokens, usage.Cost.Total, iterations)
 }
@@ -403,15 +403,15 @@ func (r *sessionRunner) finishTurnOK(s *store.Store, turnID, sessionID string, i
 	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
 		log.Printf("steering final checkpoint: %v", err)
 	} else if staged {
-		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID})
+		warnStore("append steering final checkpoint", s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID}))
 	}
-	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{
+	warnStore("append turn.finished event", s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{
 		"phase": "turn", "checkpoint": true, "status": "completed", "iterations": iterations,
-	})
-	_ = s.UpdateTurnStatusAndPhase(context.Background(), turnID, "completed", "completed")
-	_ = s.MarkTurnFinished(context.Background(), turnID)
+	}))
+	warnStore("update turn status and phase completed", s.UpdateTurnStatusAndPhase(context.Background(), turnID, "completed", "completed"))
+	warnStore("mark turn finished", s.MarkTurnFinished(context.Background(), turnID))
 	r.publishSubTurnLifecycle(context.Background(), turnID, "completed")
-	_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
+	warnStore("touch session idle", s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
 }
 
@@ -420,13 +420,13 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, s
 	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
 		log.Printf("steering final checkpoint: %v", err)
 	} else if staged {
-		_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID})
+		warnStore("append steering final checkpoint", s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID}))
 	}
 	if systemMsg != "" {
 		msgID := store.NowID("msg")
-		_ = s.AddMessage(context.Background(), msgID, sessionID, "assistant", systemMsg, map[string]any{
+		warnStore("add terminal system message", s.AddMessage(context.Background(), msgID, sessionID, "assistant", systemMsg, map[string]any{
 			"kind": "chat", "source": "system", "turn_id": turnID, "agent_id": agentID,
-		})
+		}))
 		if status == "completed" || status == "failed" {
 			r.broadcastPost(sessionID, turnID, msgID, systemMsg, agentID)
 		}
@@ -434,13 +434,13 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, s
 	if failureKind != "" {
 		markTurnFailure(s, turnID, sessionID, failureKind, systemMsg)
 	}
-	_ = s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{
+	warnStore("append turn.finished event", s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{
 		"phase": "turn", "checkpoint": true, "status": status,
-	})
-	_ = s.UpdateTurnStatusAndPhase(context.Background(), turnID, status, terminalPhaseForStatus(status))
-	_ = s.MarkTurnFinished(context.Background(), turnID)
+	}))
+	warnStore("update turn status and phase terminal", s.UpdateTurnStatusAndPhase(context.Background(), turnID, status, terminalPhaseForStatus(status)))
+	warnStore("mark turn finished", s.MarkTurnFinished(context.Background(), turnID))
 	r.publishSubTurnLifecycle(context.Background(), turnID, status)
-	_ = s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil})
+	warnStore("touch session idle", s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
 }
 
@@ -481,17 +481,17 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 		eventType := "subturn_result_ready"
 		if orphaned {
 			eventType = "subturn_orphaned"
-			_ = r.store.UpdateSubTurnMetadataByChild(ctx, sub.ChildTurnID, map[string]any{
+			warnStore("update async subturn orphan metadata", r.store.UpdateSubTurnMetadataByChild(ctx, sub.ChildTurnID, map[string]any{
 				"orphaned":      true,
 				"orphaned_at":   time.Now().UTC().Format(time.RFC3339Nano),
 				"orphan_reason": "parent_turn_completed_before_async_result_consumption",
-			})
+			}))
 			if sub.ParentSessionID != sub.ChildSessionID {
 				content := fmt.Sprintf("Async sub-turn %s finished with status %s after parent turn %s had already ended.", sub.ChildTurnID, status, sub.ParentTurnID)
 				if strings.TrimSpace(summary) != "" {
 					content += "\n\n" + summary
 				}
-				_ = r.store.AddMessage(ctx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
+				warnStore("add async orphan result message", r.store.AddMessage(ctx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
 					"kind":             "subturn_orphan_result",
 					"parent_turn_id":   sub.ParentTurnID,
 					"child_turn_id":    sub.ChildTurnID,
@@ -500,7 +500,7 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 					"delivery_mode":    "async",
 					"orphaned":         true,
 					"summary":          summary,
-				})
+				}))
 			}
 		}
 		r.engine.broadcast(sub.ParentSessionID, map[string]any{
@@ -522,7 +522,7 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 		if strings.TrimSpace(summary) != "" {
 			content += "\n\n" + summary
 		}
-		_ = r.store.AddMessage(ctx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
+		warnStore("add sync subturn result message", r.store.AddMessage(ctx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
 			"kind":             "subturn_result",
 			"parent_turn_id":   sub.ParentTurnID,
 			"child_turn_id":    sub.ChildTurnID,
@@ -530,7 +530,7 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 			"status":           status,
 			"delivery_mode":    "sync",
 			"summary":          summary,
-		})
+		}))
 	}
 	r.engine.broadcast(sub.ParentSessionID, map[string]any{
 		"type":           "subturn_result_delivered",
