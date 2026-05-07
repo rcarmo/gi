@@ -193,21 +193,23 @@ func (s *Store) DequeueSteering(ctx context.Context, sessionID string) ([]Steeri
 	if err != nil {
 		return nil, fmt.Errorf("dequeue steering rows: %w", err)
 	}
-	defer rows.Close()
 	var out []SteeringMessage
 	var ids []int64
 	for rows.Next() {
 		var item SteeringMessage
 		var payloadJSON, mediaJSON string
 		if err := rows.Scan(&item.ID, &item.SessionID, &item.TurnID, &item.Role, &item.Content, &payloadJSON, &mediaJSON, &item.QueueMode, &item.Status, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			_ = rows.Close()
 			return nil, fmt.Errorf("scan steering row: %w", err)
 		}
 		payload, err := unmarshalJSONMap(payloadJSON)
 		if err != nil {
+			_ = rows.Close()
 			return nil, err
 		}
 		media, err := unmarshalJSONStringArray(mediaJSON)
 		if err != nil {
+			_ = rows.Close()
 			return nil, err
 		}
 		item.Payload = payload
@@ -216,7 +218,11 @@ func (s *Store) DequeueSteering(ctx context.Context, sessionID string) ([]Steeri
 		ids = append(ids, item.ID)
 	}
 	if err := rows.Err(); err != nil {
+		_ = rows.Close()
 		return nil, fmt.Errorf("iterate steering rows: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close steering rows: %w", err)
 	}
 	for _, id := range ids {
 		if _, err := tx.ExecContext(ctx, `update steering_queue set status = 'dequeued', updated_at = `+defaultNow+` where id = ?`, id); err != nil {

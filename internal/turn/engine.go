@@ -37,7 +37,7 @@ type Engine struct {
 	extensions    []ExtensionInfo
 	extensionsMu  sync.RWMutex
 	sessions      sync.Map // sessionID -> *sessionRunner
-	subs          sync.Map // sessionID -> map[chan map[string]any]bool
+	subs          map[string]map[chan map[string]any]bool
 	subsMu        sync.Mutex
 }
 
@@ -122,6 +122,7 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 		connectivity:  connectivity.NewRegistry(),
 		topics:        topics.NewBus(),
 		peering:       peering.NewManager(cfg.Peering, cfg.WorkspaceRoot),
+		subs:          map[string]map[chan map[string]any]bool{},
 	}
 	e.registerDefaultTools()
 	e.startTopicBridge()
@@ -520,7 +521,7 @@ func (e *Engine) Summary(ctx context.Context, turnID string) (*Summary, error) {
 }
 
 func runShell(ctx context.Context, prompt string, onStart func(*exec.Cmd), onDelta func(string)) (string, error, bool) {
-	cmd := exec.Command("sh", "-lc", "printf 'Gi received: %s' \"$GI_PROMPT\"; sleep 1")
+	cmd := exec.Command("sh", "-lc", "printf 'Gi received: %s' \"$GI_PROMPT\"")
 	cmd.Env = append(cmd.Environ(), "GI_PROMPT="+prompt)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -859,34 +860,40 @@ func (e *Engine) Subscribe(sessionID string) chan map[string]any {
 	ch := make(chan map[string]any, 64)
 	e.subsMu.Lock()
 	defer e.subsMu.Unlock()
-	v, _ := e.subs.LoadOrStore(sessionID, make(map[chan map[string]any]bool))
-	m := v.(map[chan map[string]any]bool)
+	if e.subs == nil {
+		e.subs = map[string]map[chan map[string]any]bool{}
+	}
+	m, ok := e.subs[sessionID]
+	if !ok {
+		m = make(map[chan map[string]any]bool)
+		e.subs[sessionID] = m
+	}
 	m[ch] = true
-	e.subs.Store(sessionID, m)
 	return ch
 }
 
 func (e *Engine) Unsubscribe(sessionID string, ch chan map[string]any) {
 	e.subsMu.Lock()
 	defer e.subsMu.Unlock()
-	v, ok := e.subs.Load(sessionID)
+	m, ok := e.subs[sessionID]
 	if !ok {
 		return
 	}
-	m := v.(map[chan map[string]any]bool)
 	delete(m, ch)
+	if len(m) == 0 {
+		delete(e.subs, sessionID)
+	}
 	close(ch)
 }
 
 func (e *Engine) broadcast(sessionID string, ev map[string]any) {
 	e.publishTopicFromBroadcast(sessionID, ev)
 	e.subsMu.Lock()
-	v, ok := e.subs.Load(sessionID)
+	m, ok := e.subs[sessionID]
 	if !ok {
 		e.subsMu.Unlock()
 		return
 	}
-	m := v.(map[chan map[string]any]bool)
 	chs := make([]chan map[string]any, 0, len(m))
 	for ch := range m {
 		chs = append(chs, ch)
