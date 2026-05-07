@@ -144,6 +144,9 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if in.Intent == "" {
 		in.Intent = "prompt"
 	}
+	if in.Metadata == nil {
+		in.Metadata = map[string]any{}
+	}
 	recovered, err := e.recoverInterruptedTurns(ctx, in.SessionID)
 	if err != nil {
 		return nil, err
@@ -379,11 +382,16 @@ func (e *Engine) ResolveOrCreatePeerSession(ctx context.Context, sourceSessionID
 }
 
 func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error {
-	runner := e.runner(sessionID)
+	turn, err := e.store.GetTurn(ctx, turnID)
+	if err != nil {
+		return err
+	}
+	turnSessionID := turn.SessionID
+	runner := e.runner(turnSessionID)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
 	if runner.current != nil && runner.current.turnID == turnID {
-		_ = e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.cancelling", map[string]any{"phase": "cancel", "checkpoint": true})
+		_ = e.store.AppendTurnEvent(ctx, turnID, turnSessionID, "turn.cancelling", map[string]any{"phase": "cancel", "checkpoint": true})
 		_ = e.store.UpdateTurnStatusAndPhase(ctx, turnID, "cancelling", "cancelling")
 		runner.current.cancel()
 		runner.current.cmdMu.Lock()
@@ -393,12 +401,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		runner.current.cmdMu.Unlock()
 		return nil
 	}
-	turn, err := e.store.GetTurn(ctx, turnID)
-	if err != nil {
-		return err
-	}
 	if turn.Status == "queued" {
-		turnSessionID := turn.SessionID
 		if err := e.store.UpdateTurnStatusAndPhase(ctx, turnID, "cancelled", "aborted"); err != nil {
 			return err
 		}
@@ -425,16 +428,20 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 	if !claimed {
 		return false, nil
 	}
-	if err := e.store.MarkTurnClaimed(ctx, turnID, "runner"); err != nil {
+	releaseClaim := func() {
 		_ = e.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken)
+	}
+	if err := e.store.MarkTurnClaimed(ctx, turnID, "runner"); err != nil {
+		releaseClaim()
 		return false, err
 	}
 	if err := e.store.UpdateTurnStatusAndPhase(ctx, turnID, "running", "setup"); err != nil {
-		_ = e.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken)
+		releaseClaim()
 		return false, err
 	}
 	if err := e.store.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "status": "running"}); err != nil {
-		_ = e.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken)
+		_ = e.store.UpdateTurnStatusAndPhase(ctx, turnID, "queued", "queued")
+		releaseClaim()
 		return false, err
 	}
 	go runner.runTurn(e.store, sessionID, turnID)
@@ -1016,6 +1023,9 @@ func (e *Engine) Unsubscribe(sessionID string, ch chan map[string]any) {
 	defer e.subsMu.Unlock()
 	m, ok := e.subs[sessionID]
 	if !ok {
+		return
+	}
+	if _, exists := m[ch]; !exists {
 		return
 	}
 	delete(m, ch)

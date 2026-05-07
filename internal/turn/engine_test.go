@@ -509,6 +509,34 @@ func TestCancelQueuedTurn(t *testing.T) {
 	if turnRec.Status != "cancelled" {
 		t.Fatalf("expected cancelled, got %s", turnRec.Status)
 	}
+	if turnRec.FinishedAt == "" {
+		t.Fatalf("expected queued cancel to set finished_at, got %#v", turnRec)
+	}
+}
+
+func TestCancelQueuedTurnIgnoresCallerSessionID(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	sessA, _ := s.CreateSession(ctx, "session_cancel_a", "A", map[string]any{"model": "bootstrap"})
+	if _, err := s.CreateSession(ctx, "session_cancel_b", "B", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create secondary session: %v", err)
+	}
+	engine := New(s)
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_queued_cancel_cross", sessA.ID, "queued", "two", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	if err := engine.CancelTurn(ctx, "session_cancel_b", queuedTurn.ID); err != nil {
+		t.Fatalf("cancel queued with wrong caller session: %v", err)
+	}
+	turnRec, err := s.GetTurn(ctx, queuedTurn.ID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if turnRec.Status != "cancelled" {
+		t.Fatalf("expected cancelled, got %s", turnRec.Status)
+	}
 }
 
 func TestSubmitPromptRoutedCreatesChildAgentSession(t *testing.T) {
@@ -1017,4 +1045,14 @@ func TestBroadcastConcurrentUnsubscribeDoesNotPanic(t *testing.T) {
 		t.Fatalf("broadcast panicked during concurrent unsubscribe: %v", p)
 	default:
 	}
+}
+
+func TestUnsubscribeIsIdempotent(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	sessionID := "session_unsub_idempotent"
+	ch := engine.Subscribe(sessionID)
+	engine.Unsubscribe(sessionID, ch)
+	engine.Unsubscribe(sessionID, ch)
 }
