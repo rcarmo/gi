@@ -196,6 +196,7 @@ Implemented so far:
 - stale active-turn recovery on engine startup and before same-session submission
 - advisory `turn_failures` rows for durable failure/recovery postmortems
 - regression coverage for same-session concurrency, active-turn row lifecycle, stale-turn recovery, and non-blocking failure markers
+- runner/orchestration now uses explicit phase helpers for setup, context assembly, provider iteration, tool execution, final steering/finalize, and runner cleanup instead of keeping the whole lifecycle implicit inside one long goroutine body
 
 Current recovery semantics:
 
@@ -222,7 +223,7 @@ Current hold / retry / skip semantics:
 
 Still pending in this area:
 
-- fuller lifecycle separation for setup / provider / tool / finalize / recovery
+- thread route/session resolution through the same explicit phase surface so the full submit→run lifecycle is described end-to-end by one coordination model
 
 ---
 

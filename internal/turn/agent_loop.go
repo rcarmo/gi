@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/store"
 	goai "github.com/rcarmo/go-ai"
 )
@@ -51,52 +50,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		maxIter = 64
 	}
 
-	sysPrompt := r.engine.systemPrompt
-	if sysPrompt == "" {
-		sysPrompt = "You are a helpful coding assistant."
-	}
-
-	var turnMetadata map[string]any
-	if turnRec, err := s.GetTurn(ctx, turnID); err == nil {
-		turnMetadata = turnRec.Metadata
-	}
-
-	// Build go-ai conversation context from stored messages.
-	// We only reconstruct text user/assistant history here;
-	// the tool-use loop keeps its own messages in memory.
-	msgs, _ := s.ListMessages(ctx, sessionID)
-	convCtx := &goai.Context{
-		SystemPrompt: sysPrompt,
-		Tools:        r.engine.toolDefsForMetadata(turnMetadata),
-	}
-	for _, m := range msgs {
-		switch m.Role {
-		case "user":
-			convCtx.Messages = append(convCtx.Messages, goai.UserMessage(m.Content))
-		case "assistant":
-			convCtx.Messages = append(convCtx.Messages, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: m.Content}}})
-			// Deliberately skip tool_result — those are part of the current turn's loop,
-			// not persistent history that should be replayed.
-		}
-	}
-
-	if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeAgentStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools}); err != nil {
-		log.Printf("hook before_agent_start error: %v", err)
-	} else {
-		if resp.SystemPrompt != "" {
-			convCtx.SystemPrompt = resp.SystemPrompt
-		}
-		if resp.Messages != nil {
-			convCtx.Messages = resp.Messages
-		}
-		if resp.Tools != nil {
-			convCtx.Tools = resp.Tools
-		}
-		if strings.TrimSpace(resp.Message) != "" {
-			convCtx.Messages = append([]goai.Message{goai.UserMessage(resp.Message)}, convCtx.Messages...)
-		}
-	}
-	_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookAgentStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model})
+	convCtx := r.assembleAgentContext(ctx, s, turnID, sessionID, model, agentID)
 	agentEndReason := "completed"
 	defer func() {
 		_, _ = r.engine.emitHook(context.Background(), HookRequest{Name: HookAgentEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: map[string]any{"reason": agentEndReason}})
@@ -109,73 +63,18 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 	repeatedToolFailureCount := 0
 	pendingSteering := append([]store.SteeringMessage(nil), initialSteering...)
 
-	for iter := 0; iter < maxIter; iter++ {
+	for iter := 1; iter <= maxIter; iter++ {
 		if ctx.Err() != nil {
 			r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled", "")
 			return
 		}
 
-		iterLabel := fmt.Sprintf("iter=%d/%d", iter+1, maxIter)
-		if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID); err != nil {
-			log.Printf("steering dequeue error: %v", err)
-		} else if len(steerMsgs) > 0 {
-			pendingSteering = append(pendingSteering, steerMsgs...)
-		}
-		if len(pendingSteering) > 0 {
-			r.injectSteeringMessages(ctx, sessionID, turnID, convCtx, pendingSteering)
-			pendingSteering = nil
-		}
-		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1})
-		if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookContext, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools}); err != nil {
-			log.Printf("hook context error: %v", err)
-		} else {
-			if resp.SystemPrompt != "" {
-				convCtx.SystemPrompt = resp.SystemPrompt
-			}
-			if resp.Messages != nil {
-				convCtx.Messages = resp.Messages
-			}
-			if resp.Tools != nil {
-				convCtx.Tools = resp.Tools
-			}
-		}
-		r.maybeCompactContext(ctx, sessionID, turnID, agentID, model, convCtx)
-		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"model": model, "messages": len(convCtx.Messages), "tools": len(convCtx.Tools)}})
-		warnStore("update turn running phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "running"))
-		warnStore("append inference.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "iteration": iter + 1, "checkpoint": true}))
-		log.Printf("inference [%s]: calling %s", iterLabel, model)
-
-		r.engine.broadcast(sessionID, map[string]any{
-			"type": "agent_status", "chat_jid": "gi:" + sessionID,
-			"title": fmt.Sprintf("Thinking… (%d)", iter+1), "status": "running", "turn_id": turnID,
-		})
-
-		result, inferErr := inference.StreamWithTools(ctx, model, convCtx, func(ev map[string]any) {
-			ev["chat_jid"] = "gi:" + sessionID
-			ev["turn_id"] = turnID
-			ev["iteration"] = iter + 1
-			switch ev["type"] {
-			case "text_delta":
-				_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookMessageUpdate, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"delta": ev["delta"]}})
-				ev["type"] = "agent_draft_delta"
-				r.engine.broadcast(sessionID, ev)
-			case "thinking_delta":
-				ev["type"] = "agent_thought_delta"
-				r.engine.broadcast(sessionID, ev)
-			case "tool_call_start":
-				r.engine.broadcast(sessionID, map[string]any{
-					"type": "agent_status", "chat_jid": "gi:" + sessionID,
-					"title": fmt.Sprintf("Tool: %s", ev["name"]), "status": "running", "turn_id": turnID,
-				})
-			case "error":
-				r.engine.broadcast(sessionID, ev)
-			}
-		})
-
-		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookAfterProviderResponse, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"ok": inferErr == nil}})
+		pendingSteering = r.prepareAgentIteration(ctx, sessionID, turnID, model, agentID, iter, convCtx, pendingSteering)
+		result, inferErr := r.runProviderIteration(ctx, s, turnID, sessionID, model, agentID, iter, maxIter, convCtx)
+		iterLabel := fmt.Sprintf("iter=%d/%d", iter, maxIter)
 		if inferErr != nil {
 			log.Printf("inference [%s] error: %v", iterLabel, inferErr)
-			warnStore("append inference.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error(), "iteration": iter + 1}))
+			warnStore("append inference.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error(), "iteration": iter}))
 			r.finishTurn(s, turnID, sessionID, agentID, "failed", fmt.Sprintf("Inference error: %v", inferErr), "provider_error")
 			return
 		}
@@ -185,7 +84,6 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			return
 		}
 
-		// Accumulate usage
 		if result.Usage != nil {
 			totalUsage.Input += result.Usage.Input
 			totalUsage.Output += result.Usage.Output
@@ -200,13 +98,9 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		assistantMsg := result.Message
 		textContent := goai.GetTextContent(assistantMsg)
 		toolCalls := goai.GetToolCalls(assistantMsg)
-
 		log.Printf("inference [%s]: stop=%q toolCalls=%d text=%d", iterLabel, assistantMsg.StopReason, len(toolCalls), len(textContent))
-
-		// Append the full assistant message to context for the next iteration
 		goai.AppendAssistantMessage(convCtx, assistantMsg)
 
-		// Some providers (notably Codex) may return stop="stop" while still emitting tool calls.
 		needsToolExecution := goai.NeedsToolExecution(assistantMsg) || len(toolCalls) > 0
 		if !needsToolExecution {
 			if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID); err != nil {
@@ -215,27 +109,23 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 				pendingSteering = append(pendingSteering, steerMsgs...)
 				continue
 			}
-			// Final response — no tool calls. Persist and finish.
-			log.Printf("inference [%s]: final response (%d chars, %d iterations)", iterLabel, len(textContent), iter+1)
-			r.persistUsage(s, turnID, sessionID, &totalUsage, iter+1)
+			log.Printf("inference [%s]: final response (%d chars, %d iterations)", iterLabel, len(textContent), iter)
+			r.persistUsage(s, turnID, sessionID, &totalUsage, iter)
 
 			msgID := store.NowID("msg")
 			warnStore("add assistant inference message", s.AddMessage(ctx, msgID, sessionID, "assistant", textContent, map[string]any{
 				"kind": "chat", "source": "inference", "model": model,
-				"turn_id": turnID, "agent_id": agentID, "iterations": iter + 1,
+				"turn_id": turnID, "agent_id": agentID, "iterations": iter,
 			}))
 
 			r.broadcastPost(sessionID, turnID, msgID, textContent, agentID)
-			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookMessageEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"chars": len(textContent)}})
-			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"status": "completed"}})
-			r.finishTurnOK(s, turnID, sessionID, iter+1)
+			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookMessageEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"chars": len(textContent)}})
+			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"status": "completed"}})
+			r.finishTurnOK(s, turnID, sessionID, iter)
 			return
 		}
 
-		// Tool calls detected — execute them
 		log.Printf("inference [%s]: %d tool call(s)", iterLabel, len(toolCalls))
-
-		// Store the assistant message with tool calls for audit trail
 		toolCallSummary := textContent
 		for _, tc := range toolCalls {
 			if toolCallSummary != "" {
@@ -248,113 +138,19 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			"turn_id": turnID, "agent_id": agentID,
 		}))
 
-		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"count": len(toolCalls)}})
-		skipRemainingTools := false
-		for i, call := range toolCalls {
-			if ctx.Err() != nil {
-				r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled during tool execution", "")
-				return
-			}
-
-			if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
-				log.Printf("hook tool_call error: %v", err)
-			} else if resp.Block {
-				toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool call blocked"))
-				errText := fmt.Sprintf("Error: %v", toolErr)
-				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
-				warnStore("add blocked tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID}))
-				continue
-			} else if resp.ToolCall != nil {
-				call = *resp.ToolCall
-			}
-			if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
-				log.Printf("hook approve_tool error: %v", err)
-			} else if resp.Block {
-				toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool not approved"))
-				errText := fmt.Sprintf("Error: %v", toolErr)
-				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
-				warnStore("add denied tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID}))
-				continue
-			} else if resp.ToolCall != nil {
-				call = *resp.ToolCall
-			}
-
-			warnStore("update turn waiting_on_tools phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "waiting_on_tools"))
-			warnStore("append tool.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{
-				"phase": "tool", "tool": call.Name, "checkpoint": true,
-				"tool_call_id": call.ID, "iteration": iter + 1,
-			}))
-
-			r.engine.broadcast(sessionID, map[string]any{
-				"type": "agent_status", "chat_jid": "gi:" + sessionID,
-				"title": fmt.Sprintf("Running: %s", call.Name), "status": "running", "turn_id": turnID,
-			})
-
-			toolResult, toolErr := r.executeTool(ctx, call, sessionID, turnID)
-
-			if toolErr != nil {
-				log.Printf("tool [%s] error: %v", call.Name, toolErr)
-				r.engine.broadcast(sessionID, map[string]any{"type": "tool_failed", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "error": toolErr.Error()})
-				warnStore("append tool.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.failed", map[string]any{
-					"phase": "tool", "tool": call.Name, "checkpoint": true,
-					"tool_call_id": call.ID, "error": toolErr.Error(),
-				}))
-				errText := fmt.Sprintf("Error: %v", toolErr)
-				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
-				warnStore("add errored tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{
-					"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID,
-				}))
-				lastToolFailureSig, repeatedToolFailureCount = nextRepeatedToolFailureCount(lastToolFailureSig, repeatedToolFailureCount, call, toolErr)
-				if repeatedToolFailureCount >= repeatedToolFailureLimit {
-					msg := fmt.Sprintf("Aborting after %d repeated identical tool failures: %v", repeatedToolFailureCount, toolErr)
-					log.Printf("tool [%s] repeated failure guard tripped: %s", call.Name, msg)
-					r.persistUsage(s, turnID, sessionID, &totalUsage, iter+1)
-					r.finishTurn(s, turnID, sessionID, agentID, "failed", msg, "repeated_tool_failure")
-					return
-				}
-			} else {
-				if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, ToolCall: &call, ToolResult: toolResult, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "is_error": false}}); err != nil {
-					log.Printf("hook tool_result error: %v", err)
-				} else if resp.ToolResult != nil {
-					toolResult = *resp.ToolResult
-				}
-				// Truncate very large results to avoid blowing context
-				displayResult := toolResult
-				if len(displayResult) > 100000 {
-					displayResult = displayResult[:100000] + "\n... (truncated)"
-				}
-				r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(toolResult)})
-				warnStore("append tool.finished event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.finished", map[string]any{
-					"phase": "tool", "tool": call.Name, "checkpoint": true,
-					"tool_call_id": call.ID, "output_length": len(toolResult),
-				}))
-				goai.AppendToolResult(convCtx, call.ID, call.Name, displayResult, false)
-				warnStore("add successful tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", displayResult, map[string]any{
-					"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID,
-				}))
-				lastToolFailureSig = ""
-				repeatedToolFailureCount = 0
-			}
-			if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID); err != nil {
-				log.Printf("steering dequeue error after tool: %v", err)
-			} else if len(steerMsgs) > 0 {
-				pendingSteering = append(pendingSteering, steerMsgs...)
-				if i+1 < len(toolCalls) {
-					r.skipRemainingToolCalls(ctx, sessionID, turnID, convCtx, toolCalls, i+1)
-					skipRemainingTools = true
-				}
-				break
-			}
+		outcome := r.executeToolCallsPhase(ctx, s, turnID, sessionID, model, agentID, iter, convCtx, toolCalls, pendingSteering, lastToolFailureSig, repeatedToolFailureCount, &totalUsage)
+		if outcome.terminated {
+			return
 		}
-		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookToolExecutionEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"count": len(toolCalls)}})
-		if skipRemainingTools || len(pendingSteering) > 0 {
+		pendingSteering = outcome.pendingSteering
+		lastToolFailureSig = outcome.lastToolFailureSig
+		repeatedToolFailureCount = outcome.repeatedToolFailureCount
+		if outcome.skipRemainingTools || len(pendingSteering) > 0 {
 			continue
 		}
-		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter + 1, Payload: map[string]any{"status": "tools"}})
-		// Loop continues — next iteration will call LLM with tool results
+		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"status": "tools"}})
 	}
 
-	// Budget exhausted
 	log.Printf("inference: max iterations (%d) reached for turn %s", maxIter, turnID)
 	r.persistUsage(s, turnID, sessionID, &totalUsage, maxIter)
 	r.finishTurn(s, turnID, sessionID, agentID, "completed", fmt.Sprintf("Reached maximum iteration limit (%d). The task may be incomplete.", maxIter), "")
@@ -415,11 +211,7 @@ func (r *sessionRunner) broadcastPost(sessionID, turnID, msgID, content, agentID
 
 // finishTurnOK marks a turn as successfully completed.
 func (r *sessionRunner) finishTurnOK(s *store.Store, turnID, sessionID string, iterations int) {
-	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
-		log.Printf("steering final checkpoint: %v", err)
-	} else if staged {
-		warnStore("append steering final checkpoint", s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID}))
-	}
+	r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
 	warnStore("append turn.finished event", s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{
 		"phase": "turn", "checkpoint": true, "status": "completed", "iterations": iterations,
 	}))
@@ -433,11 +225,7 @@ func (r *sessionRunner) finishTurnOK(s *store.Store, turnID, sessionID string, i
 
 // finishTurn persists a terminal status and optional system message.
 func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, status, systemMsg, failureKind string) {
-	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
-		log.Printf("steering final checkpoint: %v", err)
-	} else if staged {
-		warnStore("append steering final checkpoint", s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID}))
-	}
+	r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
 	if systemMsg != "" {
 		msgID := store.NowID("msg")
 		warnStore("add terminal system message", s.AddMessage(context.Background(), msgID, sessionID, "assistant", systemMsg, map[string]any{

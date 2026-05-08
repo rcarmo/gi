@@ -1,0 +1,182 @@
+package turn
+
+import (
+	"context"
+	"database/sql"
+	"log"
+	"os/exec"
+	"strings"
+	"time"
+
+	"github.com/rcarmo/gi/internal/routing"
+	"github.com/rcarmo/gi/internal/store"
+)
+
+type preparedTurnRun struct {
+	turn            *store.Turn
+	sessionID       string
+	turnID          string
+	prompt          string
+	intent          string
+	model           string
+	agentID         string
+	initialSteering []store.SteeringMessage
+}
+
+func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string) {
+	ctx := context.Background()
+	warnStore("release session active turn", r.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken))
+	warnStore("sync session queue count", r.store.SyncSessionQueueCount(ctx, sessionID))
+	r.mu.Lock()
+	r.current = nil
+	r.mu.Unlock()
+	if err := r.engine.startNextQueuedTurn(ctx, sessionID); err != nil {
+		log.Printf("turn coordination: launch queued turn failed: %v", err)
+		return
+	}
+	if _, _, err := r.store.GetSessionActiveTurn(ctx, sessionID); err == sql.ErrNoRows {
+		if _, err := r.engine.continueQueuedSteering(ctx, sessionID); err != nil {
+			log.Printf("steering continuation: %v", err)
+		}
+	}
+}
+
+func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessionID, turnID string) (*preparedTurnRun, error) {
+	turnRec, err := s.GetTurn(ctx, turnID)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(sessionID) == "" {
+		sessionID = turnRec.SessionID
+	}
+	initialSteering := steeringMessagesFromMetadata(turnRec.Metadata)
+	prompt := turnRec.Prompt
+	if strings.TrimSpace(prompt) == "" && len(initialSteering) > 0 {
+		prompt = steeringPromptForShell(initialSteering)
+	}
+	intent := stringValue(turnRec.Metadata["intent"], "prompt")
+	agentID, model := r.resolveTurnAgentAndModel(ctx, s, turnRec, sessionID, prompt)
+	warnStore("touch session state running", s.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "model": model, "status": "running"}))
+	userPayload := map[string]any{"kind": "chat", "intent": intent, "turn_id": turnID}
+	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt"} {
+		if value, ok := turnRec.Metadata[key]; ok {
+			userPayload[key] = value
+		}
+	}
+	if strings.TrimSpace(prompt) != "" && len(initialSteering) == 0 {
+		warnStore("add user prompt message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload))
+	}
+	startedPayload := map[string]any{"phase": "turn", "prompt": prompt, "intent": intent, "model": model, "checkpoint": true}
+	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "parent_turn_id", "route_mode", "route_matched_by"} {
+		if value, ok := turnRec.Metadata[key]; ok {
+			startedPayload[key] = value
+		}
+	}
+	warnStore("append turn.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "turn.started", startedPayload))
+	return &preparedTurnRun{
+		turn:            turnRec,
+		sessionID:       sessionID,
+		turnID:          turnID,
+		prompt:          prompt,
+		intent:          intent,
+		model:           model,
+		agentID:         agentID,
+		initialSteering: initialSteering,
+	}, nil
+}
+
+func (r *sessionRunner) resolveTurnAgentAndModel(ctx context.Context, s *store.Store, turnRec *store.Turn, sessionID, prompt string) (string, string) {
+	model := stringValue(turnRec.Metadata["model"], "bootstrap")
+	agentID := "agent"
+	if sess, err := s.GetSession(ctx, sessionID); err == nil && sess.Scope != nil && sess.Scope.AgentID != "" {
+		agentID = sess.Scope.AgentID
+	}
+	agentModel := r.engine.modelForAgent(agentID)
+	if strings.TrimSpace(model) == "" {
+		model = agentModel
+	}
+	if model == agentModel {
+		history, _ := s.ListMessages(ctx, sessionID)
+		routingHistory := make([]routing.HistoryMessage, 0, len(history))
+		for _, msg := range history {
+			routingHistory = append(routingHistory, routing.HistoryMessage{Payload: msg.Payload})
+		}
+		selected, usedLight, score := r.engine.modelRouter.SelectModel(prompt, routingHistory, agentModel)
+		if usedLight && strings.TrimSpace(selected) != "" {
+			model = selected
+			turnRec.Metadata["route_model_score"] = score
+			turnRec.Metadata["route_used_light_model"] = usedLight
+		}
+	}
+	return agentID, model
+}
+
+func (r *sessionRunner) runPreparedTurn(ctx context.Context, s *store.Store, run *preparedTurnRun) {
+	if run.model != "bootstrap" && run.model != "test-model" && run.model != "" {
+		r.runAgentLoop(ctx, s, run.turnID, run.sessionID, run.model, run.agentID, run.initialSteering)
+		return
+	}
+	r.runShellTurn(ctx, s, run)
+}
+
+func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *preparedTurnRun) {
+	if len(run.initialSteering) > 0 {
+		r.persistSteeringMessages(ctx, run.sessionID, run.turnID, run.initialSteering)
+	}
+	warnStore("append shell tool.started event", s.AppendTurnEvent(ctx, run.turnID, run.sessionID, "tool.started", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "command": []string{"sh", "-lc", "printf 'Gi received: %s' \"$GI_PROMPT\""}}))
+
+	out, runErr, cancelled := runShell(ctx, run.prompt, func(cmd *exec.Cmd) {
+		r.mu.Lock()
+		if r.current != nil && r.current.turnID == run.turnID {
+			r.current.cmdMu.Lock()
+			r.current.cmd = cmd
+			r.current.cmdMu.Unlock()
+		}
+		r.mu.Unlock()
+	}, func(delta string) {
+		if strings.TrimSpace(delta) == "" {
+			return
+		}
+		r.engine.broadcast(run.sessionID, map[string]any{
+			"type":     "agent_draft_delta",
+			"chat_jid": "gi:" + run.sessionID,
+			"delta":    delta,
+			"turn_id":  run.turnID,
+		})
+	})
+	if cancelled {
+		r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
+		warnStore("append turn.cancelled event", s.AppendTurnEvent(ctx, run.turnID, run.sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true}))
+		warnStore("update turn status cancelled", s.UpdateTurnStatus(context.Background(), run.turnID, "cancelled"))
+		r.propagateChildSubTurnCancellation(context.Background(), run.turnID, "cancelled", "")
+		r.publishSubTurnLifecycle(context.Background(), run.turnID, "cancelled")
+		warnStore("add turn cancelled system message", s.AddMessage(context.Background(), store.NowID("msg"), run.sessionID, "system", "Turn cancelled", map[string]any{"kind": "status", "turn_id": run.turnID, "clipped": true}))
+		warnStore("touch session idle after cancel", s.TouchSessionState(context.Background(), run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
+		return
+	}
+	if runErr != nil {
+		r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
+		markTurnFailure(s, run.turnID, run.sessionID, "shell_error", runErr.Error())
+		warnStore("append shell tool.failed event", s.AppendTurnEvent(context.Background(), run.turnID, run.sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error()}))
+		warnStore("update turn status failed", s.UpdateTurnStatus(context.Background(), run.turnID, "failed"))
+		r.propagateChildSubTurnCancellation(context.Background(), run.turnID, "failed", "shell_error")
+		r.publishSubTurnLifecycle(context.Background(), run.turnID, "failed")
+		warnStore("touch session idle after failure", s.TouchSessionState(context.Background(), run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
+		return
+	}
+	r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
+	warnStore("append shell tool.finished event", s.AppendTurnEvent(context.Background(), run.turnID, run.sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "output": out}))
+	msgID := store.NowID("msg")
+	warnStore("add shell assistant message", s.AddMessage(context.Background(), msgID, run.sessionID, "assistant", out, map[string]any{"kind": "chat", "source": "shell", "turn_id": run.turnID, "agent_id": run.agentID}))
+	r.engine.broadcast(run.sessionID, map[string]any{
+		"type": "new_post", "id": msgID, "chat_jid": "gi:" + run.sessionID,
+		"content": out, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
+		"sender": "agent", "is_bot_message": true,
+		"data": map[string]any{"type": "agent_response", "content": out, "agent_id": run.agentID},
+	})
+	warnStore("append turn.finished event", s.AppendTurnEvent(context.Background(), run.turnID, run.sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed"}))
+	warnStore("update turn status completed", s.UpdateTurnStatus(context.Background(), run.turnID, "completed"))
+	r.propagateChildSubTurnCancellation(context.Background(), run.turnID, "completed", "")
+	r.publishSubTurnLifecycle(context.Background(), run.turnID, "completed")
+	warnStore("touch session idle after completion", s.TouchSessionState(context.Background(), run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
+}
