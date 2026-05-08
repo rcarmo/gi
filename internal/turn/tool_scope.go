@@ -2,7 +2,6 @@ package turn
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/rcarmo/gi/internal/store"
@@ -135,7 +134,6 @@ func (e *Engine) toolDefsForMetadata(metadata map[string]any) []goai.Tool {
 	}
 	allowedSet := toolNameSet(allowed)
 	entries := e.tools.AllEntries()
-	sort.SliceStable(entries, func(i, j int) bool { return entries[i].Name < entries[j].Name })
 	defs := make([]goai.Tool, 0, len(allowed))
 	for _, entry := range entries {
 		if !allowedSet[entry.Name] {

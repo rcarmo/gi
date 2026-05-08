@@ -235,7 +235,14 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		metadata["subturn_tools_restricted"] = subTurnToolsRestricted
 	}
 	for k, v := range in.Metadata {
+		if k == "effective_tools" || k == "subturn_tools_restricted" {
+			continue
+		}
 		metadata[k] = v
+	}
+	metadata["effective_tools"] = effectiveTools
+	if in.ParentTurnID != "" {
+		metadata["subturn_tools_restricted"] = subTurnToolsRestricted
 	}
 	if _, err := e.store.CreateTurnWithStatus(ctx, turnID, in.SessionID, "queued", in.Prompt, metadata); err != nil {
 		return nil, err
