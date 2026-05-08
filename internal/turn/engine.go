@@ -18,7 +18,6 @@ import (
 	"github.com/rcarmo/gi/internal/connectivity"
 	"github.com/rcarmo/gi/internal/peering"
 	"github.com/rcarmo/gi/internal/routing"
-	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
 )
@@ -322,87 +321,42 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 }
 
 func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitResult, error) {
-	source, err := e.store.GetSession(ctx, in.SessionID)
+	resolution, err := e.preparePromptRouteResolution(ctx, in)
 	if err != nil {
 		return nil, err
 	}
-	targetAgentID, body, directed := parseDirectedPrompt(in.Prompt)
-	promptBody := in.Prompt
-	mentioned := false
-	if directed {
-		if body == "" {
-			return nil, fmt.Errorf("directed prompt requires content after @%s", targetAgentID)
-		}
-		promptBody = body
-		mentioned = true
-	}
-	inbound := routing.InboundContext{
-		Channel:   sessionChannel(source),
-		Account:   sessionAccount(source),
-		ChatType:  "direct",
-		ChatID:    source.ID,
-		SenderID:  "user",
-		Mentioned: mentioned,
-		Prompt:    promptBody,
-	}
-	route := e.routeResolver.ResolveRoute(inbound)
-	if directed && targetAgentID != "" {
-		route.AgentID = routing.NormalizeAgentID(targetAgentID)
-		route.MatchedBy = "mention"
-	}
-	target, created, err := e.ResolveOrCreateRouteSession(ctx, source, route, inbound)
-	if err != nil {
+	if err := e.resolveRoutedPromptTarget(ctx, resolution); err != nil {
 		return nil, err
 	}
-	if target.ID != source.ID {
-		return e.submitPeerRoutedPrompt(ctx, source, target, route, promptBody, in.Intent, in.Model, created, directed, in.ParentTurnID)
+	if resolution.target.ID != resolution.source.ID {
+		return e.submitPeerRoutedPrompt(ctx, resolution.source, resolution.target, resolution.route, resolution.promptBody, in.Intent, in.Model, resolution.created, resolution.directed, in.ParentTurnID)
 	}
-	in.SessionID = target.ID
-	in.Prompt = promptBody
-	if in.Metadata == nil {
-		in.Metadata = map[string]any{}
-	}
-	in.Metadata["route_mode"] = "prompt"
-	in.Metadata["route_matched_by"] = route.MatchedBy
-	in.Metadata["target_agent_id"] = route.AgentID
-	in.Metadata["target_session_id"] = target.ID
-	in.Metadata["source_agent_id"] = sessionAgentID(source)
-	if route.MatchedBy != "" {
-		in.Metadata["routing_policy"] = route.MatchedBy
-	}
-	in.Metadata["requested_agent_id"] = route.AgentID
-	in.Metadata["source_session_id"] = source.ID
-	in.Metadata["route_created_session"] = created
-	in.Metadata["routing_enabled"] = true
+	in.SessionID = resolution.target.ID
+	in.Prompt = resolution.promptBody
+	e.applyLocalRouteMetadata(&in, resolution)
 	return e.SubmitPrompt(ctx, in)
 }
 
 func (e *Engine) SubmitPeerMessage(ctx context.Context, sourceSessionID, targetAgentID, content, intent, model, parentTurnID string) (*SubmitResult, error) {
-	source, err := e.store.GetSession(ctx, sourceSessionID)
+	resolution, err := e.preparePeerRouteResolution(ctx, sourceSessionID, targetAgentID, content, "peer-message")
 	if err != nil {
 		return nil, err
 	}
-	inbound := routing.InboundContext{Channel: sessionChannel(source), Account: sessionAccount(source), ChatType: "direct", ChatID: source.ID, SenderID: sessionAgentID(source), Mentioned: true, Prompt: content}
-	route := e.routeResolver.ResolveRoute(inbound)
-	route.AgentID = routing.NormalizeAgentID(targetAgentID)
-	route.MatchedBy = "peer-message"
-	target, created, err := e.ResolveOrCreateRouteSession(ctx, source, route, inbound)
-	if err != nil {
+	if err := e.resolveRoutedPromptTarget(ctx, resolution); err != nil {
 		return nil, err
 	}
-	return e.submitPeerRoutedPrompt(ctx, source, target, route, content, intent, model, created, true, parentTurnID)
+	return e.submitPeerRoutedPrompt(ctx, resolution.source, resolution.target, resolution.route, content, intent, model, resolution.created, resolution.directed, parentTurnID)
 }
 
 func (e *Engine) ResolveOrCreatePeerSession(ctx context.Context, sourceSessionID, targetAgentID string) (*store.Session, bool, error) {
-	source, err := e.store.GetSession(ctx, sourceSessionID)
+	resolution, err := e.preparePeerRouteResolution(ctx, sourceSessionID, targetAgentID, "", "peer-session")
 	if err != nil {
 		return nil, false, err
 	}
-	inbound := routing.InboundContext{Channel: sessionChannel(source), Account: sessionAccount(source), ChatType: "direct", ChatID: source.ID, SenderID: sessionAgentID(source), Mentioned: true}
-	route := e.routeResolver.ResolveRoute(inbound)
-	route.AgentID = routing.NormalizeAgentID(targetAgentID)
-	route.MatchedBy = "peer-session"
-	return e.ResolveOrCreateRouteSession(ctx, source, route, inbound)
+	if err := e.resolveRoutedPromptTarget(ctx, resolution); err != nil {
+		return nil, false, err
+	}
+	return resolution.target, resolution.created, nil
 }
 
 func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error {
@@ -593,44 +547,24 @@ func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.
 	if source == nil {
 		return nil, false, fmt.Errorf("missing source session")
 	}
-	if sessionAgentID(source) == route.AgentID {
+	if normalizeAgentID(sessionAgentID(source)) == normalizeAgentID(route.AgentID) {
 		return source, false, nil
 	}
-	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{AgentID: route.AgentID, Context: inbound, SessionPolicy: route.SessionPolicy})
-	if existing, err := e.store.FindSessionByAllocation(ctx, alloc); err == nil {
-		return existing, false, nil
-	} else if err != nil && err != sql.ErrNoRows {
-		return nil, false, err
-	}
-	if existing, err := e.store.FindChildSessionByParentAndAgent(ctx, source.ID, route.AgentID); err == nil {
-		return existing, false, nil
-	} else if err != nil && err != sql.ErrNoRows {
-		return nil, false, err
-	}
-	if strings.TrimSpace(source.ParentSessionID) != "" {
-		if existing, err := e.store.FindChildSessionByParentAndAgent(ctx, source.ParentSessionID, route.AgentID); err == nil {
-			return existing, false, nil
-		} else if err != nil && err != sql.ErrNoRows {
-			return nil, false, err
-		}
-	}
-	state := map[string]any{"status": "idle", "queue_count": 0, "model": e.modelForAgent(route.AgentID), "provider": e.runtimeCfg.DefaultProvider, "thinking_level": e.runtimeCfg.DefaultThinkingLevel}
-	cloned, err := e.store.CreateSessionWithMetadata(ctx, store.NowID("session"), source.ID, "@"+route.AgentID, state, &alloc.Scope, alloc.SessionAliases)
+	plan, err := e.prepareRouteSessionPlan(source, route, inbound)
 	if err != nil {
 		return nil, false, err
 	}
-	messages, err := e.store.ListMessages(ctx, source.ID)
-	if err == nil {
-		for _, msg := range messages {
-			payload := map[string]any{}
-			for k, v := range msg.Payload {
-				payload[k] = v
-			}
-			payload["forked_from_message_id"] = msg.ID
-			warnStore("copy message to cloned session", e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, msg.Role, msg.Content, payload))
-		}
+	existing, err := e.resolveExistingRouteSession(ctx, plan)
+	if err != nil {
+		return nil, false, err
 	}
-	warnStore("add forked-from message", e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sessionAgentID(source)), map[string]any{"kind": "fork", "source_session_id": source.ID, "source_agent_id": sessionAgentID(source), "route_matched_by": route.MatchedBy, "clipped": true}))
+	if existing != nil {
+		return existing, false, nil
+	}
+	cloned, err := e.cloneRouteSession(ctx, plan)
+	if err != nil {
+		return nil, false, err
+	}
 	return cloned, true, nil
 }
 

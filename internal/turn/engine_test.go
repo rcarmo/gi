@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rcarmo/gi/internal/routing"
 	"github.com/rcarmo/gi/internal/store"
 	goai "github.com/rcarmo/go-ai"
 )
@@ -584,6 +585,45 @@ func TestSubmitPromptRoutedCreatesChildAgentSession(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected assistant reply from @agent1, got %#v", msgs)
+	}
+}
+
+func TestSubmitPromptRoutedRejectsDirectedPromptWithoutBody(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	root, err := s.CreateSession(ctx, "session_root_directed_empty", "@agent", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	_, err = engine.SubmitPromptRouted(ctx, RunInput{SessionID: root.ID, Prompt: "@agent1", Model: "bootstrap"})
+	if err == nil {
+		t.Fatal("expected directed prompt validation error")
+	}
+	if !strings.Contains(err.Error(), "directed prompt requires content") {
+		t.Fatalf("unexpected directed prompt error: %v", err)
+	}
+}
+
+func TestResolveOrCreateRouteSessionReturnsSourceForSameAgent(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	source, err := s.CreateSession(ctx, "session_same_agent_route", "@agent", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create source session: %v", err)
+	}
+	engine := New(s)
+	target, created, err := engine.ResolveOrCreateRouteSession(ctx, source, routing.ResolvedRoute{AgentID: normalizeAgentID(sessionAgentID(source))}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
+	if err != nil {
+		t.Fatalf("resolve route session: %v", err)
+	}
+	if created {
+		t.Fatalf("expected same-agent route to reuse source, got created=%v", created)
+	}
+	if target.ID != source.ID {
+		t.Fatalf("expected source session reuse, got target=%#v source=%#v", target, source)
 	}
 }
 

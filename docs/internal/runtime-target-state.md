@@ -197,6 +197,7 @@ Implemented so far:
 - advisory `turn_failures` rows for durable failure/recovery postmortems
 - regression coverage for same-session concurrency, active-turn row lifecycle, stale-turn recovery, and non-blocking failure markers
 - runner/orchestration now uses explicit phase helpers for setup, context assembly, provider iteration, tool execution, final steering/finalize, and runner cleanup instead of keeping the whole lifecycle implicit inside one long goroutine body
+- routed submission now uses explicit route/session-resolution helpers for prompt preparation, peer-route preparation, target-session resolution, local-route metadata application, allocation lookup/reuse, and clone-on-miss session creation
 
 Current recovery semantics:
 
@@ -223,7 +224,7 @@ Current hold / retry / skip semantics:
 
 Still pending in this area:
 
-- thread route/session resolution through the same explicit phase surface so the full submit→run lifecycle is described end-to-end by one coordination model
+- keep tightening direct-processing/IPC and future multi-channel inputs so they reuse the same route/session-resolution phase helpers instead of growing side paths
 
 ---
 

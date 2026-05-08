@@ -4,6 +4,20 @@ This document tracks Gi's in-process routing layer and how routing decisions are
 
 It includes mechanism diagrams and concrete sequence flows for prompt, peer-routing, introspection, and parent-turn steering.
 
+## Current runtime shape
+
+Route/session resolution now has an explicit orchestration surface inside `internal/turn/`:
+
+- prompt route preparation (`preparePromptRouteResolution`)
+- peer route preparation (`preparePeerRouteResolution`)
+- target-session resolution (`resolveRoutedPromptTarget`)
+- local-route metadata application (`applyLocalRouteMetadata`)
+- session-allocation planning (`prepareRouteSessionPlan`)
+- existing-session reuse lookup (`resolveExistingRouteSession`)
+- clone-on-miss child-session creation (`cloneRouteSession`)
+
+That keeps the submit path aligned with the newer explicit runtime-phase style used elsewhere in turn execution, instead of leaving route/session allocation buried inline inside `SubmitPromptRouted(...)` and `ResolveOrCreateRouteSession(...)`.
+
 ## Mechanism overview
 
 ```mermaid
