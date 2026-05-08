@@ -173,11 +173,13 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	queued = count > 0
 	metadata := map[string]any{"intent": in.Intent, "model": in.Model}
 	parentSessionID := ""
+	var parentTurn *store.Turn
 	subTurnDepth := 0
 	subTurnMaxDepth := defaultSubTurnMaxDepth
 	subTurnMaxConcurrency := defaultSubTurnMaxConcurrency
 	subTurnDeliveryMode := "sync"
 	subTurnCritical := false
+	subTurnToolsRestricted := false
 	if in.ParentTurnID != "" {
 		metadata["parent_turn_id"] = in.ParentTurnID
 		if v, ok := in.Metadata["subturn_max_depth"]; ok {
@@ -200,7 +202,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		if subTurnMaxConcurrency <= 0 {
 			subTurnMaxConcurrency = defaultSubTurnMaxConcurrency
 		}
-		parentTurn, err := e.store.GetTurn(ctx, in.ParentTurnID)
+		parentTurn, err = e.store.GetTurn(ctx, in.ParentTurnID)
 		if err != nil {
 			return nil, fmt.Errorf("resolve parent turn: %w", err)
 		}
@@ -223,6 +225,15 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		metadata["subturn_delivery_mode"] = subTurnDeliveryMode
 		metadata["subturn_critical"] = subTurnCritical
 	}
+	effectiveTools, restrictedTools, err := e.resolveEffectiveToolNames(parentTurn, in.Metadata)
+	if err != nil {
+		return nil, err
+	}
+	subTurnToolsRestricted = restrictedTools
+	metadata["effective_tools"] = effectiveTools
+	if in.ParentTurnID != "" {
+		metadata["subturn_tools_restricted"] = subTurnToolsRestricted
+	}
 	for k, v := range in.Metadata {
 		metadata[k] = v
 	}
@@ -230,34 +241,36 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		return nil, err
 	}
 	if in.ParentTurnID != "" && parentSessionID != "" {
-		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth, "max_depth": subTurnMaxDepth, "max_concurrency": subTurnMaxConcurrency, "delivery_mode": subTurnDeliveryMode, "subturn_critical": subTurnCritical}
+		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth, "max_depth": subTurnMaxDepth, "max_concurrency": subTurnMaxConcurrency, "delivery_mode": subTurnDeliveryMode, "subturn_critical": subTurnCritical, "effective_tools": effectiveTools, "subturn_tools_restricted": subTurnToolsRestricted}
 		if _, err := e.store.CreateSubTurn(ctx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, subTurnDeliveryMode, subTurnDepth, subturnMetadata); err != nil {
 			return nil, err
 		}
 		e.broadcast(parentSessionID, map[string]any{
-			"type":            "subturn_created",
-			"chat_jid":        "gi:" + parentSessionID,
-			"parent_turn_id":  in.ParentTurnID,
-			"parent_session":  parentSessionID,
-			"child_turn_id":   turnID,
-			"child_session":   in.SessionID,
-			"depth":           subTurnDepth,
-			"delivery_mode":   subTurnDeliveryMode,
-			"critical":        subTurnCritical,
-			"max_depth":       subturnMetadata["max_depth"],
-			"max_concurrency": subturnMetadata["max_concurrency"],
+			"type":             "subturn_created",
+			"chat_jid":         "gi:" + parentSessionID,
+			"parent_turn_id":   in.ParentTurnID,
+			"parent_session":   parentSessionID,
+			"child_turn_id":    turnID,
+			"child_session":    in.SessionID,
+			"depth":            subTurnDepth,
+			"delivery_mode":    subTurnDeliveryMode,
+			"critical":         subTurnCritical,
+			"restricted_tools": subTurnToolsRestricted,
+			"max_depth":        subturnMetadata["max_depth"],
+			"max_concurrency":  subturnMetadata["max_concurrency"],
 		})
 		if in.SessionID != parentSessionID {
 			e.broadcast(in.SessionID, map[string]any{
-				"type":           "subturn_created",
-				"chat_jid":       "gi:" + in.SessionID,
-				"parent_turn_id": in.ParentTurnID,
-				"parent_session": parentSessionID,
-				"child_turn_id":  turnID,
-				"child_session":  in.SessionID,
-				"depth":          subTurnDepth,
-				"delivery_mode":  subTurnDeliveryMode,
-				"critical":       subTurnCritical,
+				"type":             "subturn_created",
+				"chat_jid":         "gi:" + in.SessionID,
+				"parent_turn_id":   in.ParentTurnID,
+				"parent_session":   parentSessionID,
+				"child_turn_id":    turnID,
+				"child_session":    in.SessionID,
+				"depth":            subTurnDepth,
+				"delivery_mode":    subTurnDeliveryMode,
+				"critical":         subTurnCritical,
+				"restricted_tools": subTurnToolsRestricted,
 			})
 		}
 	}

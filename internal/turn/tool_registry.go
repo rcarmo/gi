@@ -106,6 +106,13 @@ func (r *ToolRegistry) Get(name string) (RegisteredTool, bool) {
 	return tool, true
 }
 
+func (r *ToolRegistry) GetRegistered(name string) (RegisteredTool, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	tool, ok := r.tools[name]
+	return tool, ok
+}
+
 func (r *ToolRegistry) Definitions() []goai.Tool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

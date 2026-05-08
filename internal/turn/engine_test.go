@@ -1236,3 +1236,103 @@ func TestTimeoutParentCancelsCriticalChildSubTurns(t *testing.T) {
 		t.Fatalf("expected parent_timeout cancel reason, got %#v", link.Metadata)
 	}
 }
+
+func TestSubmitPromptWithParentTurnInheritsEffectiveTools(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_tools_inherit", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_tools_inherit", "session_parent_tools_inherit", "completed", "parent", map[string]any{"intent": "prompt", "subturn_depth": 0, "effective_tools": []string{"read", "shell"}})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	engine := New(s)
+	res, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_parent_tools_inherit", Prompt: "child", Model: "bootstrap", ParentTurnID: parent.ID})
+	if err != nil {
+		t.Fatalf("submit child turn: %v", err)
+	}
+	turnRec, err := s.GetTurn(ctx, res.TurnID)
+	if err != nil {
+		t.Fatalf("get child turn: %v", err)
+	}
+	got := toolNamesFromValue(turnRec.Metadata["effective_tools"])
+	if strings.Join(got, ",") != "read,shell" {
+		t.Fatalf("expected inherited effective tools read,shell, got %#v", turnRec.Metadata)
+	}
+	if turnRec.Metadata["subturn_tools_restricted"] != false {
+		t.Fatalf("expected inherited tool set to be marked unrestricted, got %#v", turnRec.Metadata)
+	}
+}
+
+func TestSubmitPromptWithParentTurnRestrictsToolsToSubset(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_tools_subset", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_tools_subset", "session_parent_tools_subset", "completed", "parent", map[string]any{"intent": "prompt", "subturn_depth": 0, "effective_tools": []string{"read", "write", "shell"}})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	engine := New(s)
+	res, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_parent_tools_subset", Prompt: "child", Model: "bootstrap", ParentTurnID: parent.ID, Metadata: map[string]any{"subturn_tools": []string{"read", "write"}}})
+	if err != nil {
+		t.Fatalf("submit restricted child turn: %v", err)
+	}
+	turnRec, err := s.GetTurn(ctx, res.TurnID)
+	if err != nil {
+		t.Fatalf("get child turn: %v", err)
+	}
+	got := toolNamesFromValue(turnRec.Metadata["effective_tools"])
+	if strings.Join(got, ",") != "read,write" {
+		t.Fatalf("expected restricted effective tools read,write, got %#v", turnRec.Metadata)
+	}
+	if turnRec.Metadata["subturn_tools_restricted"] != true {
+		t.Fatalf("expected restricted tool set marker, got %#v", turnRec.Metadata)
+	}
+}
+
+func TestSubmitPromptWithParentTurnRejectsRestrictedToolOutsideParentSet(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_tools_reject", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_tools_reject", "session_parent_tools_reject", "completed", "parent", map[string]any{"intent": "prompt", "subturn_depth": 0, "effective_tools": []string{"read"}})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	engine := New(s)
+	_, err = engine.SubmitPrompt(ctx, RunInput{SessionID: "session_parent_tools_reject", Prompt: "child", Model: "bootstrap", ParentTurnID: parent.ID, Metadata: map[string]any{"subturn_tools": []string{"shell"}}})
+	if err == nil {
+		t.Fatal("expected subturn restricted-tool subset error")
+	}
+	if !strings.Contains(err.Error(), "subset of parent effective tools") {
+		t.Fatalf("unexpected restricted-tool error: %v", err)
+	}
+}
+
+func TestExecuteToolRejectsDisallowedToolForTurn(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_tool_restrict_exec", "Demo", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_tool_restrict_exec", "session_tool_restrict_exec", "running", "prompt", map[string]any{"intent": "prompt", "effective_tools": []string{"read"}}); err != nil {
+		t.Fatalf("create restricted turn: %v", err)
+	}
+	engine := New(s)
+	runner := engine.runner("session_tool_restrict_exec")
+	_, err := runner.executeTool(ctx, goai.ToolCall{Name: "write", Arguments: map[string]any{"path": "foo.txt", "content": "hi"}}, "session_tool_restrict_exec", "turn_tool_restrict_exec")
+	if err == nil {
+		t.Fatal("expected disallowed tool execution error")
+	}
+	if !strings.Contains(err.Error(), "tool not allowed in this turn") {
+		t.Fatalf("unexpected disallowed tool error: %v", err)
+	}
+}

@@ -342,11 +342,12 @@ Implemented so far:
 - synchronous and asynchronous result delivery modes (`sync` default, `async` opt-in) with explicit lifecycle/result topic events
 - async orphan-result handling when parent turns are already terminal (durable metadata marker + parent notice + `subturn_orphaned` event)
 - parent-terminal cancellation propagation for child subturns: graceful completion cancels non-critical children, hard abort/timeout cancels descendants regardless of criticality
+- sub-turn tool inheritance/restriction: child turns persist `effective_tools`, inherit from parent by default, and may restrict to explicit subsets via subturn metadata
 - sub-turn lifecycle publication on topic bus (`subturn_created`, `subturn_status`, `subturn_result_ready`, `subturn_result_delivered`, `subturn_orphaned`, `subturn_cancel_requested` → `turn.subturn`)
 
 Still pending in this area:
 
-- restricted tool inheritance policies per subturn
+- richer tool policy classes/presets per subturn if we later need more than explicit tool-name subsets
 
 ---
 

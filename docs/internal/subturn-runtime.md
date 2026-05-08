@@ -1,7 +1,7 @@
 # Sub-turn runtime contract
 
 ## Status
-Implemented for current sync/async delivery modes and active in runtime/store paths (with orphan/tool-inheritance/cancellation propagation still pending).
+Implemented for current sync/async delivery modes, parent-terminal cancellation propagation, and restricted tool inheritance/runtime filtering (with broader future policy refinements still possible).
 
 ## Purpose
 Define how a child turn (sub-turn) is linked to a parent turn so orchestration can be controlled and audited without relying on ad-hoc metadata scans.
@@ -91,6 +91,29 @@ Runtime annotates child/subturn metadata with:
 - `subturn_max_depth`
 - `subturn_max_concurrency`
 - `subturn_critical`
+- `effective_tools`
+- `subturn_tools_restricted`
+
+### Tool inheritance / restriction
+
+#### Default inheritance
+- child turns inherit the parent turn's persisted `effective_tools`
+- if parent metadata has no `effective_tools`, runtime falls back to the engine's current active tool set
+
+#### Explicit restriction
+Child creation may provide either:
+- `subturn_tools`
+- `subturn_allowed_tools`
+
+Behavior:
+- explicit lists must be a subset of the parent turn's `effective_tools`
+- unknown tool names are rejected
+- the resolved child turn tool set is persisted in `effective_tools`
+- `subturn_tools_restricted=true` marks that explicit restriction was applied
+
+#### Runtime enforcement
+- model-visible tool definitions for a child turn are filtered from `effective_tools`
+- tool execution also re-checks the same persisted set, so a provider cannot invoke a tool outside the child turn's allowed scope merely by hallucinating the name
 
 ### Parent-terminal cancellation propagation
 
@@ -150,7 +173,7 @@ Invalid/non-positive values fall back to runtime defaults.
 
 ## Current gaps (next steps)
 
-- sub-turn tool inheritance/restriction policy
+- broader future policy refinements (for example agent-config-driven presets or capability classes) if needed
 
 ---
 
@@ -167,3 +190,5 @@ Invalid/non-positive values fall back to runtime defaults.
 - graceful parent finish cancellation propagation
 - hard-abort descendant cancellation propagation
 - timeout-driven cancellation propagation for critical child subturns
+- child turn effective tool inheritance
+- explicit child turn restricted tool-set enforcement

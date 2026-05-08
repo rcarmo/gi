@@ -56,13 +56,18 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		sysPrompt = "You are a helpful coding assistant."
 	}
 
+	var turnMetadata map[string]any
+	if turnRec, err := s.GetTurn(ctx, turnID); err == nil {
+		turnMetadata = turnRec.Metadata
+	}
+
 	// Build go-ai conversation context from stored messages.
 	// We only reconstruct text user/assistant history here;
 	// the tool-use loop keeps its own messages in memory.
 	msgs, _ := s.ListMessages(ctx, sessionID)
 	convCtx := &goai.Context{
 		SystemPrompt: sysPrompt,
-		Tools:        r.engine.toolDefs(),
+		Tools:        r.engine.toolDefsForMetadata(turnMetadata),
 	}
 	for _, m := range msgs {
 		switch m.Role {
@@ -285,7 +290,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 				"title": fmt.Sprintf("Running: %s", call.Name), "status": "running", "turn_id": turnID,
 			})
 
-			toolResult, toolErr := r.executeTool(ctx, call, sessionID)
+			toolResult, toolErr := r.executeTool(ctx, call, sessionID, turnID)
 
 			if toolErr != nil {
 				log.Printf("tool [%s] error: %v", call.Name, toolErr)
@@ -356,8 +361,17 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 }
 
 // executeTool dispatches a single tool call and returns the text result.
-func (r *sessionRunner) executeTool(ctx context.Context, call goai.ToolCall, sessionID string) (string, error) {
-	tool, ok := r.engine.tools.Get(call.Name)
+func (r *sessionRunner) executeTool(ctx context.Context, call goai.ToolCall, sessionID, turnID string) (string, error) {
+	if strings.TrimSpace(turnID) != "" {
+		turnRec, err := r.store.GetTurn(ctx, turnID)
+		if err != nil {
+			return "", err
+		}
+		if !toolAllowedByMetadata(turnRec.Metadata, call.Name) {
+			return "", fmt.Errorf("tool not allowed in this turn: %s", call.Name)
+		}
+	}
+	tool, ok := r.engine.tools.GetRegistered(call.Name)
 	if !ok {
 		return "", fmt.Errorf("unknown tool: %s", call.Name)
 	}
@@ -366,6 +380,7 @@ func (r *sessionRunner) executeTool(ctx context.Context, call goai.ToolCall, ses
 		Runner:        r,
 		Store:         r.store,
 		SessionID:     sessionID,
+		TurnID:        turnID,
 		WorkspaceRoot: r.engine.runtimeCfg.WorkspaceRoot,
 	}, call)
 }
