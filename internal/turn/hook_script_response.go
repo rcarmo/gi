@@ -16,8 +16,13 @@ func hookResponseFromScript(result string) (HookResponse, error) {
 	if err := json.Unmarshal([]byte(result), &raw); err != nil {
 		return resp, nil
 	}
-	b, _ := json.Marshal(raw)
-	_ = json.Unmarshal(b, &resp)
+	b, err := json.Marshal(raw)
+	if err != nil {
+		return resp, nil
+	}
+	if err := json.Unmarshal(b, &resp); err != nil {
+		return resp, nil
+	}
 	if tc, ok := raw["tool_call"]; ok {
 		if call := decodeToolCall(tc); call != nil {
 			resp.ToolCall = call

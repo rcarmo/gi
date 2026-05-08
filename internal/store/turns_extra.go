@@ -37,7 +37,9 @@ func (s *Store) CreateTurnWithStatus(ctx context.Context, id, sessionID, status,
 	if err != nil {
 		return nil, fmt.Errorf("create turn with status: %w", err)
 	}
-	_ = s.SyncSessionQueueCount(ctx, sessionID)
+	if err := s.SyncSessionQueueCount(ctx, sessionID); err != nil {
+		return nil, err
+	}
 	return s.GetTurn(ctx, id)
 }
 
@@ -95,11 +97,17 @@ func (s *Store) UpdateTurnStatusAndPhase(ctx context.Context, turnID, status, ph
 	turnRec, err := s.GetTurn(ctx, turnID)
 	if err == nil {
 		if status == "queued" || status == "running" || status == "completed" {
-			_ = s.ClearTurnFailure(ctx, turnID)
+			if err := s.ClearTurnFailure(ctx, turnID); err != nil {
+				return err
+			}
 		}
-		_ = s.SyncSessionQueueCount(ctx, turnRec.SessionID)
+		if err := s.SyncSessionQueueCount(ctx, turnRec.SessionID); err != nil {
+			return err
+		}
 	}
-	_ = s.UpdateSubTurnStatusByChild(ctx, turnID, status)
+	if err := s.UpdateSubTurnStatusByChild(ctx, turnID, status); err != nil {
+		return err
+	}
 	return nil
 }
 

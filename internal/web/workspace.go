@@ -65,7 +65,10 @@ func buildWorkspaceTree(root, current string, depth, maxDepth int) (workspaceNod
 	}
 	rel := "."
 	if current != root {
-		rel, _ = filepath.Rel(root, current)
+		computedRel, err := filepath.Rel(root, current)
+		if err == nil {
+			rel = computedRel
+		}
 	}
 	node := workspaceNode{Name: info.Name(), Path: filepath.ToSlash(rel), Type: "file", Size: info.Size()}
 	if info.IsDir() {

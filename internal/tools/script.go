@@ -206,9 +206,14 @@ func (t *ScriptTool) getSessionInfo(ctx context.Context, sessionID string) (map[
 	if err != nil {
 		return nil, err
 	}
-	cfg, _ := json.Marshal(t.cfg)
-	var cfgMap map[string]any
-	_ = json.Unmarshal(cfg, &cfgMap)
+	cfg, err := json.Marshal(t.cfg)
+	if err != nil {
+		return nil, err
+	}
+	cfgMap := map[string]any{}
+	if err := json.Unmarshal(cfg, &cfgMap); err != nil {
+		cfgMap = map[string]any{"raw": string(cfg), "decode_error": err.Error()}
+	}
 
 	info := map[string]any{
 		"session":       session,

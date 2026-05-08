@@ -56,10 +56,14 @@ func (s *Store) RecordRouteEvent(ctx context.Context, event RouteEvent) (int64, 
 		return 0, fmt.Errorf("record route event id: %w", err)
 	}
 	if event.SourceSession != "" {
-		_, _ = s.db.ExecContext(ctx, `update sessions set updated_at = `+defaultNow+` where id = ?`, event.SourceSession)
+		if _, err := s.db.ExecContext(ctx, `update sessions set updated_at = `+defaultNow+` where id = ?`, event.SourceSession); err != nil {
+			return 0, fmt.Errorf("record route event source touch: %w", err)
+		}
 	}
 	if event.TargetSession != "" {
-		_, _ = s.db.ExecContext(ctx, `update sessions set updated_at = `+defaultNow+` where id = ?`, event.TargetSession)
+		if _, err := s.db.ExecContext(ctx, `update sessions set updated_at = `+defaultNow+` where id = ?`, event.TargetSession); err != nil {
+			return 0, fmt.Errorf("record route event target touch: %w", err)
+		}
 	}
 	return id, nil
 }

@@ -142,10 +142,14 @@ func (r *Registry) Deliver(ctx context.Context, routeID string, event EventEnvel
 	if event.Topic == "" {
 		event.Topic = routeTopic(rec.spec)
 	}
-	_ = r.bus.Emit(ctx, event)
+	if err := r.bus.Emit(ctx, event); err != nil {
+		return RouteResponse{}, err
+	}
 	resp, err := rec.handler(ctx, event)
 	for _, emitted := range resp.Events {
-		_ = r.bus.Emit(ctx, emitted)
+		if emitErr := r.bus.Emit(ctx, emitted); emitErr != nil {
+			return resp, emitErr
+		}
 	}
 	return resp, err
 }
@@ -193,7 +197,9 @@ func firstNonEmpty(values ...string) string {
 
 func newID(prefix string) string {
 	var b [8]byte
-	_, _ = rand.Read(b[:])
+	if _, err := rand.Read(b[:]); err != nil {
+		return fmt.Sprintf("%s_%d", prefix, time.Now().UTC().UnixNano())
+	}
 	return prefix + "_" + hex.EncodeToString(b[:])
 }
 

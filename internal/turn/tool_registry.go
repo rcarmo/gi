@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"sync"
@@ -184,8 +185,12 @@ func (r *ToolRegistry) isActiveLocked(name string) bool {
 func (e *Engine) RegisterTool(tool RegisteredTool) error { return e.tools.Register(tool) }
 func (e *Engine) SetActiveTools(names []string) error    { return e.tools.SetActive(names) }
 func (e *Engine) ActiveTools() []string                  { return e.tools.ActiveNames() }
-func (e *Engine) ResetActiveTools()                      { _ = e.tools.SetActive(nil) }
-func (e *Engine) ToolEntries() []RegisteredTool          { return e.tools.AllEntries() }
+func (e *Engine) ResetActiveTools() {
+	if err := e.tools.SetActive(nil); err != nil {
+		log.Printf("reset active tools: %v", err)
+	}
+}
+func (e *Engine) ToolEntries() []RegisteredTool { return e.tools.AllEntries() }
 
 func (e *Engine) toolDefs() []goai.Tool { return e.tools.Definitions() }
 
@@ -237,9 +242,14 @@ func (e *Engine) executeToolsTool(args map[string]any) (string, error) {
 		for _, t := range entries {
 			if t.Name == name {
 				var params any
-				_ = json.Unmarshal(t.Parameters, &params)
+				if err := json.Unmarshal(t.Parameters, &params); err != nil {
+					params = map[string]any{"error": "invalid parameter schema", "raw": string(t.Parameters)}
+				}
 				entry := toolEntry{Name: t.Name, Description: t.Description, Parameters: params, Source: t.Source, Kind: t.Kind, Weight: t.Weight, Activation: t.Activation, Active: active[t.Name]}
-				b, _ := json.MarshalIndent(entry, "", "  ")
+				b, err := json.MarshalIndent(entry, "", "  ")
+				if err != nil {
+					return "", err
+				}
 				return string(b), nil
 			}
 		}
@@ -257,7 +267,9 @@ func (e *Engine) executeToolsTool(args map[string]any) (string, error) {
 		}
 		row := toolEntry{Name: t.Name, Description: t.Description, Source: t.Source, Kind: t.Kind, Weight: t.Weight, Activation: t.Activation, Active: active[t.Name]}
 		if includeParameters {
-			_ = json.Unmarshal(t.Parameters, &row.Parameters)
+			if err := json.Unmarshal(t.Parameters, &row.Parameters); err != nil {
+				row.Parameters = map[string]any{"error": "invalid parameter schema", "raw": string(t.Parameters)}
+			}
 		}
 		rows = append(rows, row)
 	}

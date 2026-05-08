@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -35,8 +36,9 @@ func (s *Server) configureScriptConnectivity() {
 				}
 				resp := connectivity.RouteResponse{Status: http.StatusOK, Body: out.Result}
 				if strings.TrimSpace(out.Result) != "" {
-					_ = json.Unmarshal([]byte(out.Result), &resp)
-					if resp.Status == 0 && resp.Body == "" {
+					if err := json.Unmarshal([]byte(out.Result), &resp); err != nil {
+						resp = connectivity.RouteResponse{Status: http.StatusOK, Body: out.Result}
+					} else if resp.Status == 0 && resp.Body == "" {
 						resp.Body = out.Result
 					}
 				}
@@ -66,7 +68,10 @@ func scriptWithPayload(engine, name string, payload map[string]any, script strin
 	if strings.TrimSpace(script) == "" {
 		return script
 	}
-	b, _ := json.Marshal(payload)
+	b, err := json.Marshal(payload)
+	if err != nil {
+		b = []byte("{}")
+	}
 	if engine == "joker" || engine == "" && strings.HasPrefix(strings.TrimSpace(script), "(") {
 		return fmt.Sprintf("(def *gi-%s* (json/read-string %q))\n%s", name, string(b), script)
 	}
@@ -132,7 +137,9 @@ func (s *Server) handleConnectivityRoutes(w http.ResponseWriter, r *http.Request
 		status = http.StatusOK
 	}
 	w.WriteHeader(status)
-	_, _ = w.Write([]byte(resp.Body))
+	if _, err := w.Write([]byte(resp.Body)); err != nil {
+		log.Printf("connectivity route write response: %v", err)
+	}
 }
 
 func (s *Server) handleConnectivitySSE(w http.ResponseWriter, r *http.Request) {
@@ -158,7 +165,9 @@ func (s *Server) handleConnectivitySSE(w http.ResponseWriter, r *http.Request) {
 	}
 	ch, unsubscribe := s.turns.Connectivity().Bus().Subscribe(r.Context(), pattern, 64)
 	defer unsubscribe()
-	fmt.Fprintf(w, ": connected %s\n\n", time.Now().UTC().Format(time.RFC3339Nano))
+	if _, err := fmt.Fprintf(w, ": connected %s\n\n", time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return
+	}
 	flusher.Flush()
 	for {
 		select {
@@ -168,8 +177,14 @@ func (s *Server) handleConnectivitySSE(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			b, _ := json.Marshal(ev)
-			fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", ev.ID, ev.Topic, string(b))
+			b, err := json.Marshal(ev)
+			if err != nil {
+				log.Printf("connectivity sse marshal event: %v", err)
+				continue
+			}
+			if _, err := fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", ev.ID, ev.Topic, string(b)); err != nil {
+				return
+			}
 			flusher.Flush()
 		}
 	}

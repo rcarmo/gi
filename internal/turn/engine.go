@@ -400,7 +400,9 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		runner.current.cancel()
 		runner.current.cmdMu.Lock()
 		if runner.current.cmd != nil && runner.current.cmd.Process != nil {
-			_ = syscall.Kill(-runner.current.cmd.Process.Pid, syscall.SIGKILL)
+			if err := syscall.Kill(-runner.current.cmd.Process.Pid, syscall.SIGKILL); err != nil {
+				warnStore("kill running command process group", err)
+			}
 		}
 		runner.current.cmdMu.Unlock()
 		return nil
@@ -669,14 +671,18 @@ func runShell(ctx context.Context, prompt string, onStart func(*exec.Cmd), onDel
 	}()
 	go func() {
 		defer readWG.Done()
-		_, _ = io.Copy(&stderr, stderrPipe)
+		if _, err := io.Copy(&stderr, stderrPipe); err != nil {
+			warnStore("copy shell stderr", err)
+		}
 	}()
 	waitCh := make(chan error, 1)
 	go func() { waitCh <- cmd.Wait() }()
 	select {
 	case <-ctx.Done():
 		if cmd.Process != nil {
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil {
+				warnStore("kill timed out shell process group", err)
+			}
 		}
 		<-waitCh
 		readWG.Wait()

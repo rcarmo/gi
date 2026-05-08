@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"sort"
 	"strings"
@@ -67,7 +68,7 @@ func registerDiscoveredTools(e *Engine, scriptTool *tools.ScriptTool) {
 		if len(params) == 0 {
 			params = json.RawMessage(`{"type":"object","properties":{}}`)
 		}
-		_ = e.RegisterTool(RegisteredTool{
+		if err := e.RegisterTool(RegisteredTool{
 			Name:        tool.Name,
 			Description: tool.Description,
 			Parameters:  params,
@@ -84,6 +85,8 @@ func registerDiscoveredTools(e *Engine, scriptTool *tools.ScriptTool) {
 				}
 				return out.Result, nil
 			},
-		})
+		}); err != nil {
+			log.Printf("register discovered tool %q: %v", tool.Name, err)
+		}
 	}
 }

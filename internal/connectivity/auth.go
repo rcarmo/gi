@@ -104,7 +104,9 @@ func checkHTTPRequestAuth(auth map[string]any, r *http.Request, body []byte) err
 			got = strings.TrimSpace(parts[1])
 		}
 		mac := hmac.New(sha256.New, []byte(secret))
-		_, _ = mac.Write(body)
+		if _, err := mac.Write(body); err != nil {
+			return fmt.Errorf("hmac write: %w", err)
+		}
 		expected := hex.EncodeToString(mac.Sum(nil))
 		if constantTimeEqual(got, expected) {
 			return nil

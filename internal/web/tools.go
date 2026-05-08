@@ -24,7 +24,9 @@ func (s *Server) handleTools(w http.ResponseWriter, r *http.Request) {
 		toolDefs := []map[string]any{}
 		for _, tool := range s.turns.ToolEntries() {
 			var params any
-			_ = json.Unmarshal(tool.Parameters, &params)
+			if err := json.Unmarshal(tool.Parameters, &params); err != nil {
+				params = map[string]any{"error": "invalid parameter schema", "raw": string(tool.Parameters)}
+			}
 			toolDefs = append(toolDefs, map[string]any{
 				"name":        tool.Name,
 				"description": tool.Description,

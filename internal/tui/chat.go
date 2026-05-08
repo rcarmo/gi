@@ -221,7 +221,10 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			c.app.MarkDirty()
 		}
 	case "agent_status":
-		title, _ := ev["title"].(string)
+		title := ""
+		if v, ok := ev["title"].(string); ok {
+			title = v
+		}
 		if title != "" {
 			c.status = title
 		} else {
@@ -229,9 +232,14 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		}
 		c.app.MarkDirty()
 	case "error":
-		msg, _ := ev["error"].(string)
+		msg := ""
+		if v, ok := ev["error"].(string); ok {
+			msg = v
+		}
 		if msg == "" {
-			msg, _ = ev["message"].(string)
+			if v, ok := ev["message"].(string); ok {
+				msg = v
+			}
 		}
 		if msg != "" {
 			c.clearDraftTranscriptLine()
@@ -581,9 +589,14 @@ func (c *chatTUI) modelCommand(fields []string) []string {
 	if strings.Contains(model, "/") && strings.TrimSpace(c.cfg.DefaultProvider) == "" {
 		c.cfg.DefaultProvider = strings.SplitN(model, "/", 2)[0]
 	}
-	_ = c.store.TouchSessionState(context.Background(), c.sessionID, map[string]any{"model": model})
-	_ = config.PersistModelSelection(c.cfg.WorkspaceRoot, c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.DefaultThinkingLevel, c.cfg.EnabledModels)
-	return []string{fmt.Sprintf("sys: model set to %s", model)}
+	lines := []string{fmt.Sprintf("sys: model set to %s", model)}
+	if err := c.store.TouchSessionState(context.Background(), c.sessionID, map[string]any{"model": model}); err != nil {
+		lines = append(lines, fmt.Sprintf("warn: failed to persist model in session state: %v", err))
+	}
+	if err := config.PersistModelSelection(c.cfg.WorkspaceRoot, c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.DefaultThinkingLevel, c.cfg.EnabledModels); err != nil {
+		lines = append(lines, fmt.Sprintf("warn: failed to persist model selection: %v", err))
+	}
+	return lines
 }
 
 func (c *chatTUI) thinkingCommand(fields []string) []string {
@@ -595,8 +608,11 @@ func (c *chatTUI) thinkingCommand(fields []string) []string {
 		return []string{"sys: usage /thinking <low|medium|high>"}
 	}
 	c.cfg.DefaultThinkingLevel = level
-	_ = c.store.TouchSessionState(context.Background(), c.sessionID, map[string]any{"thinking_level": level})
-	return []string{fmt.Sprintf("sys: thinking set to %s", level)}
+	lines := []string{fmt.Sprintf("sys: thinking set to %s", level)}
+	if err := c.store.TouchSessionState(context.Background(), c.sessionID, map[string]any{"thinking_level": level}); err != nil {
+		lines = append(lines, fmt.Sprintf("warn: failed to persist thinking level in session state: %v", err))
+	}
+	return lines
 }
 
 func (c *chatTUI) currentScrollbackLimit() int {
@@ -662,8 +678,11 @@ func (c *chatTUI) scrollbackCommand(fields []string) []string {
 	}
 	c.cfg.ScrollbackLimit = limit
 	c.transcript = c.pruneTranscript(c.transcript)
-	_ = config.PersistScrollbackLimit(c.cfg.WorkspaceRoot, limit)
-	return []string{fmt.Sprintf("sys: scrollback limit set to %d", limit)}
+	lines := []string{fmt.Sprintf("sys: scrollback limit set to %d", limit)}
+	if err := config.PersistScrollbackLimit(c.cfg.WorkspaceRoot, limit); err != nil {
+		lines = append(lines, fmt.Sprintf("warn: failed to persist scrollback limit: %v", err))
+	}
+	return lines
 }
 
 func (c *chatTUI) cancelCommand() string {

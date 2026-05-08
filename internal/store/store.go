@@ -87,11 +87,15 @@ func Open(path string) (*Store, error) {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 	if err := configure(db); err != nil {
-		_ = db.Close()
+		if closeErr := db.Close(); closeErr != nil {
+			return nil, fmt.Errorf("configure sqlite: %w (close: %v)", err, closeErr)
+		}
 		return nil, err
 	}
 	if err := initSchema(db); err != nil {
-		_ = db.Close()
+		if closeErr := db.Close(); closeErr != nil {
+			return nil, fmt.Errorf("init schema: %w (close: %v)", err, closeErr)
+		}
 		return nil, err
 	}
 	return &Store{db: db}, nil
@@ -373,7 +377,9 @@ func (s *Store) UpdateTurnStatus(ctx context.Context, turnID, status string) err
 		return fmt.Errorf("update turn status: %w", err)
 	}
 	if status == "completed" || status == "failed" || status == "aborted" || status == "cancelled" {
-		_ = s.MarkTurnFinished(ctx, turnID)
+		if err := s.MarkTurnFinished(ctx, turnID); err != nil {
+			return err
+		}
 	}
 	return nil
 }

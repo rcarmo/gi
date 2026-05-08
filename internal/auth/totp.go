@@ -62,7 +62,9 @@ func totpCode(secret string, counter int64) string {
 	var msg [8]byte
 	binary.BigEndian.PutUint64(msg[:], uint64(counter))
 	mac := hmac.New(sha1.New, key)
-	_, _ = mac.Write(msg[:])
+	if _, err := mac.Write(msg[:]); err != nil {
+		return ""
+	}
 	sum := mac.Sum(nil)
 	offset := sum[len(sum)-1] & 0x0f
 	bin := (uint32(sum[offset])&0x7f)<<24 | (uint32(sum[offset+1])&0xff)<<16 | (uint32(sum[offset+2])&0xff)<<8 | (uint32(sum[offset+3]) & 0xff)

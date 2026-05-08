@@ -33,8 +33,9 @@ func (e *Engine) registerDefaultTools() {
 				}
 				resp := connectivity.RouteResponse{Status: 200, Body: out.Result}
 				if strings.TrimSpace(out.Result) != "" {
-					_ = json.Unmarshal([]byte(out.Result), &resp)
-					if resp.Status == 0 && resp.Body == "" {
+					if err := json.Unmarshal([]byte(out.Result), &resp); err != nil {
+						resp = connectivity.RouteResponse{Status: 200, Body: out.Result}
+					} else if resp.Status == 0 && resp.Body == "" {
 						resp.Body = out.Result
 					}
 				}

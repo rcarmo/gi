@@ -18,7 +18,9 @@ func maybeCompressBlob(raw []byte) ([]byte, bool, error) {
 		return nil, false, err
 	}
 	if _, err := zw.Write(raw); err != nil {
-		_ = zw.Close()
+		if closeErr := zw.Close(); closeErr != nil {
+			return nil, false, closeErr
+		}
 		return nil, false, err
 	}
 	if err := zw.Close(); err != nil {
@@ -40,7 +42,12 @@ func maybeDecompressBlob(raw []byte, compressed bool) ([]byte, error) {
 		return nil, err
 	}
 	decompressed, err := io.ReadAll(gr)
-	_ = gr.Close()
+	if closeErr := gr.Close(); closeErr != nil {
+		if err == nil {
+			return nil, closeErr
+		}
+		return nil, err
+	}
 	if err != nil {
 		return nil, err
 	}

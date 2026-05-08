@@ -415,6 +415,8 @@ func max(a, b int) int {
 
 func markdownToPlain(text string) string {
 	var buf bytes.Buffer
-	_ = tuiMarkdown.Convert([]byte(text), &buf)
+	if err := tuiMarkdown.Convert([]byte(text), &buf); err != nil {
+		return text
+	}
 	return buf.String()
 }

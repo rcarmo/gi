@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -155,7 +156,9 @@ func PersistModelSelection(workspaceRoot, provider, model, thinking string, enab
 	settingsPath := filepath.Join(piDir, "settings.json")
 	settings := map[string]any{}
 	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
-		_ = json.Unmarshal(data, &settings)
+		if err := json.Unmarshal(data, &settings); err != nil {
+			return fmt.Errorf("decode settings.json: %w", err)
+		}
 	}
 	if strings.TrimSpace(provider) != "" {
 		settings["defaultProvider"] = provider
@@ -195,7 +198,9 @@ func PersistScrollbackLimit(workspaceRoot string, limit int) error {
 	settingsPath := filepath.Join(piDir, "settings.json")
 	settings := map[string]any{}
 	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
-		_ = json.Unmarshal(data, &settings)
+		if err := json.Unmarshal(data, &settings); err != nil {
+			return fmt.Errorf("decode settings.json: %w", err)
+		}
 	}
 	settings["tuiScrollbackLimit"] = limit
 	blob, err := json.MarshalIndent(settings, "", "  ")
