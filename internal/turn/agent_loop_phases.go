@@ -2,6 +2,7 @@ package turn
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -17,6 +18,12 @@ type toolExecutionOutcome struct {
 	pendingSteering          []store.SteeringMessage
 	lastToolFailureSig       string
 	repeatedToolFailureCount int
+}
+
+var streamWithTools = inference.StreamWithTools
+
+func isCancellationError(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string) *goai.Context {
@@ -104,7 +111,7 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 		"title": fmt.Sprintf("Thinking… (%d)", iter), "status": "running", "turn_id": turnID,
 	})
 
-	result, inferErr := inference.StreamWithTools(ctx, model, convCtx, func(ev map[string]any) {
+	result, inferErr := streamWithTools(ctx, model, convCtx, func(ev map[string]any) {
 		ev["chat_jid"] = "gi:" + sessionID
 		ev["turn_id"] = turnID
 		ev["iteration"] = iter
@@ -183,6 +190,11 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 
 		toolResult, toolErr := r.executeTool(ctx, call, sessionID, turnID)
 		if toolErr != nil {
+			if ctx.Err() != nil || isCancellationError(toolErr) {
+				r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled during tool execution", "")
+				outcome.terminated = true
+				return outcome
+			}
 			log.Printf("tool [%s] error: %v", call.Name, toolErr)
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_failed", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "error": toolErr.Error()})
 			warnStore("append tool.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.failed", map[string]any{

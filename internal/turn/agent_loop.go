@@ -73,12 +73,20 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		result, inferErr := r.runProviderIteration(ctx, s, turnID, sessionID, model, agentID, iter, maxIter, convCtx)
 		iterLabel := fmt.Sprintf("iter=%d/%d", iter, maxIter)
 		if inferErr != nil {
+			if ctx.Err() != nil || isCancellationError(inferErr) {
+				r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled", "")
+				return
+			}
 			log.Printf("inference [%s] error: %v", iterLabel, inferErr)
 			warnStore("append inference.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error(), "iteration": iter}))
 			r.finishTurn(s, turnID, sessionID, agentID, "failed", fmt.Sprintf("Inference error: %v", inferErr), "provider_error")
 			return
 		}
 		if result == nil || result.Message == nil {
+			if ctx.Err() != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled", "")
+				return
+			}
 			log.Printf("inference [%s]: nil result", iterLabel)
 			r.finishTurn(s, turnID, sessionID, agentID, "failed", "Inference returned no result", "provider_invalid_result")
 			return

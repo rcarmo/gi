@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/routing"
 	"github.com/rcarmo/gi/internal/store"
 	goai "github.com/rcarmo/go-ai"
@@ -21,6 +23,27 @@ func openTestStore(t *testing.T) *store.Store {
 		t.Fatalf("open store: %v", err)
 	}
 	return s
+}
+
+func withStreamWithToolsStub(t *testing.T, stub func(context.Context, string, *goai.Context, func(map[string]any)) (*inference.StreamResult, error)) {
+	t.Helper()
+	original := streamWithTools
+	streamWithTools = stub
+	t.Cleanup(func() {
+		streamWithTools = original
+	})
+}
+
+func waitForCondition(t *testing.T, timeout time.Duration, check func() bool, label string) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if check() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %s", label)
 }
 
 func TestSubmitPromptSteersSecondPromptToActiveTurn(t *testing.T) {
@@ -537,6 +560,192 @@ func TestCancelQueuedTurnIgnoresCallerSessionID(t *testing.T) {
 	}
 	if turnRec.Status != "cancelled" {
 		t.Fatalf("expected cancelled, got %s", turnRec.Status)
+	}
+}
+
+func TestCancelActiveStreamingTurnMarksCancelled(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cancel_streaming", "Streaming", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	started := make(chan struct{})
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		select {
+		case <-started:
+		default:
+			close(started)
+		}
+		if broadcast != nil {
+			broadcast(map[string]any{"type": "text_delta", "delta": "partial"})
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
+	engine := New(s)
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_cancel_streaming", Prompt: "stream please", Model: "mock-stream"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		select {
+		case <-started:
+			return true
+		default:
+			return false
+		}
+	}, "streaming turn start")
+	if err := engine.CancelTurn(ctx, "session_cancel_streaming", result.TurnID); err != nil {
+		t.Fatalf("cancel active streaming turn: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && turnRec.Status == "cancelled"
+	}, "streaming turn cancellation")
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if turnRec.Phase != "aborted" {
+		t.Fatalf("expected aborted terminal phase after cancel, got %#v", turnRec)
+	}
+	if turnRec.FinishedAt == "" {
+		t.Fatalf("expected finished_at after active cancel, got %#v", turnRec)
+	}
+	events, err := s.ListTurnEvents(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundCancelling := false
+	for _, event := range events {
+		if event.Type == "turn.cancelling" {
+			foundCancelling = true
+		}
+	}
+	if !foundCancelling {
+		t.Fatalf("expected turn.cancelling event, got %#v", events)
+	}
+}
+
+func TestCancelTurnDuringToolExecutionMarksCancelled(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cancel_tool", "Tool", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	toolStarted := make(chan struct{})
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonToolUse, Content: []goai.ContentBlock{{Type: "toolCall", ID: "tc_cancel", Name: "block", Arguments: map[string]any{}}}}}, nil
+	})
+	engine := New(s)
+	if err := engine.RegisterTool(RegisteredTool{Name: "block", Description: "blocks until cancelled", Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+		select {
+		case <-toolStarted:
+		default:
+			close(toolStarted)
+		}
+		<-ctx.Done()
+		return "", ctx.Err()
+	}}); err != nil {
+		t.Fatalf("register tool: %v", err)
+	}
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_cancel_tool", Prompt: "tool please", Model: "mock-tool"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		select {
+		case <-toolStarted:
+			return true
+		default:
+			return false
+		}
+	}, "tool execution start")
+	if err := engine.CancelTurn(ctx, "session_cancel_tool", result.TurnID); err != nil {
+		t.Fatalf("cancel turn during tool execution: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && turnRec.Status == "cancelled"
+	}, "tool turn cancellation")
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if turnRec.Phase != "aborted" {
+		t.Fatalf("expected aborted phase after tool cancellation, got %#v", turnRec)
+	}
+	events, err := s.ListTurnEvents(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	for _, event := range events {
+		if event.Type == "tool.failed" {
+			t.Fatalf("expected cancellation to avoid tool.failed event, got %#v", events)
+		}
+	}
+}
+
+func TestCancelActiveParentTurnPropagatesToChildSubTurns(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_cancel_runtime", "Parent", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_cancel_runtime", "Child", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	started := make(chan struct{})
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		select {
+		case <-started:
+		default:
+			close(started)
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
+	engine := New(s)
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_parent_cancel_runtime", Prompt: "stream parent", Model: "mock-stream"})
+	if err != nil {
+		t.Fatalf("submit parent prompt: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		select {
+		case <-started:
+			return true
+		default:
+			return false
+		}
+	}, "parent streaming start")
+	childTurn, err := s.CreateTurnWithStatus(ctx, "turn_child_cancel_runtime", "session_child_cancel_runtime", "running", "child", map[string]any{"intent": "prompt", "parent_turn_id": result.TurnID})
+	if err != nil {
+		t.Fatalf("create child turn: %v", err)
+	}
+	if _, err := s.CreateSubTurn(ctx, result.TurnID, "session_parent_cancel_runtime", childTurn.ID, "session_child_cancel_runtime", "async", 1, map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create subturn link: %v", err)
+	}
+	var childCancelled atomic.Int32
+	runnerChild := engine.runner("session_child_cancel_runtime")
+	runnerChild.mu.Lock()
+	runnerChild.current = &runningTurn{turnID: childTurn.ID, cancel: func() { childCancelled.Add(1) }}
+	runnerChild.mu.Unlock()
+	if err := engine.CancelTurn(ctx, "session_parent_cancel_runtime", result.TurnID); err != nil {
+		t.Fatalf("cancel parent turn: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && turnRec.Status == "cancelled"
+	}, "parent turn cancellation")
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, childTurn.ID)
+		return err == nil && turnRec.Status == "cancelling"
+	}, "child turn cancellation propagation")
+	if childCancelled.Load() != 1 {
+		t.Fatalf("expected child cancel callback once, got %d", childCancelled.Load())
 	}
 }
 
