@@ -1056,3 +1056,183 @@ func TestUnsubscribeIsIdempotent(t *testing.T) {
 	engine.Unsubscribe(sessionID, ch)
 	engine.Unsubscribe(sessionID, ch)
 }
+
+func TestGracefulParentFinishCancelsOnlyNonCriticalChildSubTurns(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_graceful_cancel", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_noncritical", "ChildA", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create noncritical child session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_critical", "ChildB", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create critical child session: %v", err)
+	}
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_graceful_cancel", "session_parent_graceful_cancel", "completed", "parent", map[string]any{"intent": "prompt"})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_child_noncritical", "session_child_noncritical", "running", "child a", map[string]any{"intent": "prompt", "parent_turn_id": parent.ID}); err != nil {
+		t.Fatalf("create noncritical child turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_child_critical", "session_child_critical", "running", "child b", map[string]any{"intent": "prompt", "parent_turn_id": parent.ID, "subturn_critical": true}); err != nil {
+		t.Fatalf("create critical child turn: %v", err)
+	}
+	if _, err := s.CreateSubTurn(ctx, parent.ID, "session_parent_graceful_cancel", "turn_child_noncritical", "session_child_noncritical", "async", 1, map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create noncritical subturn: %v", err)
+	}
+	if _, err := s.CreateSubTurn(ctx, parent.ID, "session_parent_graceful_cancel", "turn_child_critical", "session_child_critical", "async", 1, map[string]any{"intent": "prompt", "subturn_critical": true}); err != nil {
+		t.Fatalf("create critical subturn: %v", err)
+	}
+	engine := New(s)
+	noncriticalCancelled := 0
+	criticalCancelled := 0
+	runnerA := engine.runner("session_child_noncritical")
+	runnerA.mu.Lock()
+	runnerA.current = &runningTurn{turnID: "turn_child_noncritical", cancel: func() { noncriticalCancelled++ }}
+	runnerA.mu.Unlock()
+	runnerB := engine.runner("session_child_critical")
+	runnerB.mu.Lock()
+	runnerB.current = &runningTurn{turnID: "turn_child_critical", cancel: func() { criticalCancelled++ }}
+	runnerB.mu.Unlock()
+
+	parentRunner := engine.runner("session_parent_graceful_cancel")
+	parentRunner.propagateChildSubTurnCancellation(ctx, parent.ID, "completed", "")
+
+	childA, err := s.GetTurn(ctx, "turn_child_noncritical")
+	if err != nil {
+		t.Fatalf("get noncritical child turn: %v", err)
+	}
+	if childA.Status != "cancelling" {
+		t.Fatalf("expected noncritical child to enter cancelling, got %#v", childA)
+	}
+	if noncriticalCancelled != 1 {
+		t.Fatalf("expected noncritical child cancel invoked once, got %d", noncriticalCancelled)
+	}
+	childB, err := s.GetTurn(ctx, "turn_child_critical")
+	if err != nil {
+		t.Fatalf("get critical child turn: %v", err)
+	}
+	if childB.Status != "running" {
+		t.Fatalf("expected critical child to remain running after graceful finish, got %#v", childB)
+	}
+	if criticalCancelled != 0 {
+		t.Fatalf("expected critical child not to be cancelled on graceful finish, got %d", criticalCancelled)
+	}
+}
+
+func TestHardAbortParentCancelsDescendantSubTurns(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_abort_cancel", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_abort_cancel", "Child", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_grandchild_abort_cancel", "Grandchild", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create grandchild session: %v", err)
+	}
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_abort_cancel", "session_parent_abort_cancel", "cancelled", "parent", map[string]any{"intent": "prompt"})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	child, err := s.CreateTurnWithStatus(ctx, "turn_child_abort_cancel", "session_child_abort_cancel", "running", "child", map[string]any{"intent": "prompt", "parent_turn_id": parent.ID, "subturn_critical": true})
+	if err != nil {
+		t.Fatalf("create child turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_grandchild_abort_cancel", "session_grandchild_abort_cancel", "running", "grandchild", map[string]any{"intent": "prompt", "parent_turn_id": child.ID}); err != nil {
+		t.Fatalf("create grandchild turn: %v", err)
+	}
+	if _, err := s.CreateSubTurn(ctx, parent.ID, "session_parent_abort_cancel", child.ID, "session_child_abort_cancel", "async", 1, map[string]any{"intent": "prompt", "subturn_critical": true}); err != nil {
+		t.Fatalf("create child subturn: %v", err)
+	}
+	if _, err := s.CreateSubTurn(ctx, child.ID, "session_child_abort_cancel", "turn_grandchild_abort_cancel", "session_grandchild_abort_cancel", "async", 2, map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create grandchild subturn: %v", err)
+	}
+	engine := New(s)
+	childCancelled := 0
+	grandchildCancelled := 0
+	runnerChild := engine.runner("session_child_abort_cancel")
+	runnerChild.mu.Lock()
+	runnerChild.current = &runningTurn{turnID: child.ID, cancel: func() { childCancelled++ }}
+	runnerChild.mu.Unlock()
+	runnerGrandchild := engine.runner("session_grandchild_abort_cancel")
+	runnerGrandchild.mu.Lock()
+	runnerGrandchild.current = &runningTurn{turnID: "turn_grandchild_abort_cancel", cancel: func() { grandchildCancelled++ }}
+	runnerGrandchild.mu.Unlock()
+
+	parentRunner := engine.runner("session_parent_abort_cancel")
+	parentRunner.propagateChildSubTurnCancellation(ctx, parent.ID, "cancelled", "")
+
+	childTurn, err := s.GetTurn(ctx, child.ID)
+	if err != nil {
+		t.Fatalf("get child turn: %v", err)
+	}
+	if childTurn.Status != "cancelling" {
+		t.Fatalf("expected child turn cancelling after hard abort, got %#v", childTurn)
+	}
+	grandchildTurn, err := s.GetTurn(ctx, "turn_grandchild_abort_cancel")
+	if err != nil {
+		t.Fatalf("get grandchild turn: %v", err)
+	}
+	if grandchildTurn.Status != "cancelling" {
+		t.Fatalf("expected grandchild turn cancelling after hard abort, got %#v", grandchildTurn)
+	}
+	if childCancelled != 1 || grandchildCancelled != 1 {
+		t.Fatalf("expected child/grandchild cancels once each, got child=%d grandchild=%d", childCancelled, grandchildCancelled)
+	}
+}
+
+func TestTimeoutParentCancelsCriticalChildSubTurns(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_timeout_cancel", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_timeout_cancel", "Child", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	parent, err := s.CreateTurnWithStatus(ctx, "turn_parent_timeout_cancel", "session_parent_timeout_cancel", "failed", "parent", map[string]any{"intent": "prompt"})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	child, err := s.CreateTurnWithStatus(ctx, "turn_child_timeout_cancel", "session_child_timeout_cancel", "running", "child", map[string]any{"intent": "prompt", "parent_turn_id": parent.ID, "subturn_critical": true})
+	if err != nil {
+		t.Fatalf("create child turn: %v", err)
+	}
+	if _, err := s.CreateSubTurn(ctx, parent.ID, "session_parent_timeout_cancel", child.ID, "session_child_timeout_cancel", "async", 1, map[string]any{"intent": "prompt", "subturn_critical": true}); err != nil {
+		t.Fatalf("create critical child subturn: %v", err)
+	}
+	engine := New(s)
+	cancelled := 0
+	runnerChild := engine.runner("session_child_timeout_cancel")
+	runnerChild.mu.Lock()
+	runnerChild.current = &runningTurn{turnID: child.ID, cancel: func() { cancelled++ }}
+	runnerChild.mu.Unlock()
+
+	parentRunner := engine.runner("session_parent_timeout_cancel")
+	parentRunner.propagateChildSubTurnCancellation(ctx, parent.ID, "failed", "parent_timeout")
+
+	childTurn, err := s.GetTurn(ctx, child.ID)
+	if err != nil {
+		t.Fatalf("get child turn: %v", err)
+	}
+	if childTurn.Status != "cancelling" {
+		t.Fatalf("expected critical child turn cancelling after timeout, got %#v", childTurn)
+	}
+	if cancelled != 1 {
+		t.Fatalf("expected critical child cancel invoked once on timeout, got %d", cancelled)
+	}
+	link, err := s.GetSubTurnByChild(ctx, child.ID)
+	if err != nil {
+		t.Fatalf("get child subturn link: %v", err)
+	}
+	if got := link.Metadata["cancel_reason"]; got != "parent_timeout" {
+		t.Fatalf("expected parent_timeout cancel reason, got %#v", link.Metadata)
+	}
+}

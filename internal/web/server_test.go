@@ -52,22 +52,29 @@ func TestServerSessionPromptTurnsFlow(t *testing.T) {
 		t.Fatalf("unexpected prompt status: %d body=%s", promptRes.Code, promptRes.Body.String())
 	}
 
-	time.Sleep(1500 * time.Millisecond)
-	turnsReq := httptest.NewRequest(http.MethodGet, "/api/sessions/"+created.ID+"/turns", nil)
-	turnsRes := httptest.NewRecorder()
-	srv.Handler().ServeHTTP(turnsRes, turnsReq)
-	if turnsRes.Code != http.StatusOK || !bytes.Contains(turnsRes.Body.Bytes(), []byte("completed")) {
-		t.Fatalf("unexpected turns status/body: %d %s", turnsRes.Code, turnsRes.Body.String())
-	}
-
-	messagesReq := httptest.NewRequest(http.MethodGet, "/api/sessions/"+created.ID+"/messages", nil)
-	messagesRes := httptest.NewRecorder()
-	srv.Handler().ServeHTTP(messagesRes, messagesReq)
-	if messagesRes.Code != http.StatusOK {
-		t.Fatalf("unexpected messages status: %d body=%s", messagesRes.Code, messagesRes.Body.String())
-	}
-	if !bytes.Contains(messagesRes.Body.Bytes(), []byte("Gi received: hello")) || !bytes.Contains(messagesRes.Body.Bytes(), []byte(`"agent_id":"agent"`)) {
-		t.Fatalf("unexpected messages body: %s", messagesRes.Body.String())
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		turnsReq := httptest.NewRequest(http.MethodGet, "/api/sessions/"+created.ID+"/turns", nil)
+		turnsRes := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(turnsRes, turnsReq)
+		if turnsRes.Code == http.StatusOK && bytes.Contains(turnsRes.Body.Bytes(), []byte("completed")) {
+			messagesReq := httptest.NewRequest(http.MethodGet, "/api/sessions/"+created.ID+"/messages", nil)
+			messagesRes := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(messagesRes, messagesReq)
+			if messagesRes.Code == http.StatusOK && bytes.Contains(messagesRes.Body.Bytes(), []byte("Gi received: hello")) && bytes.Contains(messagesRes.Body.Bytes(), []byte(`"agent_id":"agent"`)) {
+				break
+			}
+		}
+		if time.Now().After(deadline) {
+			turnsReq := httptest.NewRequest(http.MethodGet, "/api/sessions/"+created.ID+"/turns", nil)
+			turnsRes := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(turnsRes, turnsReq)
+			messagesReq := httptest.NewRequest(http.MethodGet, "/api/sessions/"+created.ID+"/messages", nil)
+			messagesRes := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(messagesRes, messagesReq)
+			t.Fatalf("timed out waiting for completed turn + assistant output; turns=%d %s messages=%d %s", turnsRes.Code, turnsRes.Body.String(), messagesRes.Code, messagesRes.Body.String())
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 

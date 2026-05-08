@@ -341,7 +341,8 @@ Implemented so far:
 - explicit store API support for counting running child turns per parent for guardrail enforcement
 - synchronous and asynchronous result delivery modes (`sync` default, `async` opt-in) with explicit lifecycle/result topic events
 - async orphan-result handling when parent turns are already terminal (durable metadata marker + parent notice + `subturn_orphaned` event)
-- sub-turn lifecycle publication on topic bus (`subturn_created`, `subturn_status`, `subturn_result_ready`, `subturn_result_delivered`, `subturn_orphaned` → `turn.subturn`)
+- parent-terminal cancellation propagation for child subturns: graceful completion cancels non-critical children, hard abort/timeout cancels descendants regardless of criticality
+- sub-turn lifecycle publication on topic bus (`subturn_created`, `subturn_status`, `subturn_result_ready`, `subturn_result_delivered`, `subturn_orphaned`, `subturn_cancel_requested` → `turn.subturn`)
 
 Still pending in this area:
 

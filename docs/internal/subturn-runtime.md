@@ -90,6 +90,31 @@ Runtime annotates child/subturn metadata with:
 - `subturn_parent_turn_id`
 - `subturn_max_depth`
 - `subturn_max_concurrency`
+- `subturn_critical`
+
+### Parent-terminal cancellation propagation
+
+#### Graceful parent finish (`completed`)
+- non-critical child subturns receive cancellation requests
+- critical child subturns are allowed to continue
+
+#### Hard abort (`cancelled`/`aborted`)
+- child and descendant subturns receive cancellation requests regardless of criticality
+
+#### Timeout failure (`failure_kind` contains `timeout`/`deadline`)
+- child and descendant subturns receive cancellation requests regardless of criticality
+
+#### Cancellation audit markers
+When a parent-triggered child cancellation is requested, subturn metadata is patched with:
+
+- `cancel_requested_by_parent`
+- `cancel_requested_at`
+- `cancel_requested_parent_turn`
+- `cancel_requested_parent_status`
+- `cancel_requested_failure_kind`
+- `cancel_reason`
+
+Runtime also emits `subturn_cancel_requested` on `turn.subturn`.
 
 ---
 
@@ -126,7 +151,6 @@ Invalid/non-positive values fall back to runtime defaults.
 ## Current gaps (next steps)
 
 - sub-turn tool inheritance/restriction policy
-- cancellation propagation policy for parent abort/timeout
 
 ---
 
@@ -140,3 +164,6 @@ Invalid/non-positive values fall back to runtime defaults.
 - delivery mode validation (`sync`/`async`, invalid-mode rejection)
 - sync vs async result-delivery behavior in parent session history
 - async orphan completion handling (durable metadata marker + parent notice message)
+- graceful parent finish cancellation propagation
+- hard-abort descendant cancellation propagation
+- timeout-driven cancellation propagation for critical child subturns
