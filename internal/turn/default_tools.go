@@ -60,10 +60,7 @@ func (e *Engine) registerDefaultTools() {
 	scriptTool.SetAgenticCallbacks(
 		func(ctx context.Context, sessionID string, hook scripting.EventHookSpec) error {
 			_, err := e.RegisterHook(hook.Name, firstNonEmpty(hook.Source, "script"), func(ctx context.Context, req HookRequest) (HookResponse, error) {
-				payload := map[string]any{"hook": hook.Name, "session_id": req.SessionID, "turn_id": req.TurnID, "agent_id": req.AgentID, "model": req.Model, "iteration": req.Iteration, "payload": req.Payload, "tool_result": req.ToolResult, "tool_error": req.ToolError}
-				if req.ToolCall != nil {
-					payload["tool_call"] = req.ToolCall
-				}
+				payload := hookScriptPayload(req)
 				input := tools.ScriptInput{Engine: hook.Engine, Path: hook.Path, SessionID: req.SessionID, Script: scriptWithPayload(hook.Engine, "hook", payload, hook.Script)}
 				out := scriptTool.Execute(ctx, input)
 				if out.Error != "" {

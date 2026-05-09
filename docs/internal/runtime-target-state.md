@@ -399,6 +399,20 @@ Implemented so far:
   - `before_tool` → `tool_call`
   - `after_tool` → `tool_result`
 - explicit `approve_tool` phase is now emitted in the tool execution path (after `tool_call`, before tool execution)
+- explicit state-oriented hook phases are now emitted for runtime state transitions:
+  - `turn_state`
+  - `session_state`
+- hook request/response DTOs now carry JSON-safe/script-safe structured fields instead of dropping them from JSON:
+  - `messages`
+  - `tools`
+  - `tool_call`
+  - `tool_result`
+  - `session_status`
+  - `turn_status`
+  - `turn_phase`
+- hook requests now include trace metadata scaffolding for debugging/replay correlation:
+  - `trace.id`
+  - `trace.emitted_at`
 - script hook responses now accept canonical hook actions and map them into runtime semantics:
   - `continue`
   - `modify`
@@ -411,7 +425,7 @@ Still pending in this area:
 
 - durable `hook_invocations` audit table + store APIs
 - process-hook/IPC handshake for external hook executors sharing the same logical contract as in-process hooks
-- timeout/failure policy and richer tracing metadata for hook replay
+- timeout/failure policy for hook execution and clearer replay/audit persistence around hook decisions
 
 ---
 

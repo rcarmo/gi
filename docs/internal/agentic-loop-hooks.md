@@ -3,6 +3,8 @@
 **Date:** 2026-05-02  
 **Scope:** Non-UX hooks only (tool registration, event lifecycle, context injection, provider/model control, session state, scripting exposure targets)
 
+> **Status note (2026-05-09):** This document began as a gap-analysis snapshot. Parts of the historical gap table below are now partially outdated because Gi has since landed canonical hook aliases, tool gate/result mutation hooks, script hook callbacks, JSON-safe hook envelopes, trace metadata scaffolding, and explicit `turn_state` / `session_state` phases. Use `docs/internal/runtime-target-state.md` as the current source of truth for what is implemented vs still pending.
+
 ---
 
 ## 1. Pi's agentic loop — canonical flow

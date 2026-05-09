@@ -102,6 +102,7 @@ func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, tu
 func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, iter, maxIter int, convCtx *goai.Context) (*inference.StreamResult, error) {
 	_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"model": model, "messages": len(convCtx.Messages), "tools": len(convCtx.Tools)}})
 	warnStore("update turn running phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "running"))
+	r.emitTurnStateHook(ctx, sessionID, turnID, agentID, model, "running", "running", map[string]any{"reason": "provider_iteration", "iteration": iter})
 	warnStore("append inference.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "iteration": iter, "checkpoint": true}))
 	iterLabel := fmt.Sprintf("iter=%d/%d", iter, maxIter)
 	log.Printf("inference [%s]: calling %s", iterLabel, model)
@@ -149,7 +150,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 	}()
 	for i, call := range toolCalls {
 		if ctx.Err() != nil {
-			r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled during tool execution", "")
+			r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled during tool execution", "")
 			outcome.terminated = true
 			return outcome
 		}
@@ -178,6 +179,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		}
 
 		warnStore("update turn waiting_on_tools phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "waiting_on_tools"))
+		r.emitTurnStateHook(ctx, sessionID, turnID, agentID, model, "running", "waiting_on_tools", map[string]any{"reason": "tool_execution", "tool": call.Name, "iteration": iter})
 		warnStore("append tool.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{
 			"phase": "tool", "tool": call.Name, "checkpoint": true,
 			"tool_call_id": call.ID, "iteration": iter,
@@ -191,7 +193,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		toolResult, toolErr := r.executeTool(ctx, call, sessionID, turnID)
 		if toolErr != nil {
 			if ctx.Err() != nil || isCancellationError(toolErr) {
-				r.finishTurn(s, turnID, sessionID, agentID, "cancelled", "Turn cancelled during tool execution", "")
+				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled during tool execution", "")
 				outcome.terminated = true
 				return outcome
 			}
@@ -211,7 +213,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				msg := fmt.Sprintf("Aborting after %d repeated identical tool failures: %v", outcome.repeatedToolFailureCount, toolErr)
 				log.Printf("tool [%s] repeated failure guard tripped: %s", call.Name, msg)
 				r.persistUsage(s, turnID, sessionID, totalUsage, iter)
-				r.finishTurn(s, turnID, sessionID, agentID, "failed", msg, "repeated_tool_failure")
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", msg, "repeated_tool_failure")
 				outcome.terminated = true
 				return outcome
 			}

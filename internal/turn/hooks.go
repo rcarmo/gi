@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	goai "github.com/rcarmo/go-ai"
 )
@@ -27,6 +29,8 @@ const (
 	HookAgentEnd              = "agent_end"
 	HookTurnStart             = "turn_start"
 	HookTurnEnd               = "turn_end"
+	HookTurnState             = "turn_state"
+	HookSessionState          = "session_state"
 	HookContext               = "context"
 	HookBeforeProviderRequest = "before_provider_request"
 	HookAfterProviderResponse = "after_provider_response"
@@ -43,22 +47,31 @@ const (
 	HookUserBash              = "user_bash"
 )
 
+type HookTrace struct {
+	ID        string `json:"id,omitempty"`
+	EmittedAt string `json:"emitted_at,omitempty"`
+}
+
 // HookRequest is the typed envelope delivered to engine hooks. Fields are
 // intentionally broad so the same structure can cover observation, gates, and
 // mutation hooks without adding a new Go type per hook name.
 type HookRequest struct {
-	Name      string         `json:"name"`
-	SessionID string         `json:"session_id,omitempty"`
-	TurnID    string         `json:"turn_id,omitempty"`
-	AgentID   string         `json:"agent_id,omitempty"`
-	Model     string         `json:"model,omitempty"`
-	Iteration int            `json:"iteration,omitempty"`
-	Payload   map[string]any `json:"payload,omitempty"`
+	Name          string         `json:"name"`
+	SessionID     string         `json:"session_id,omitempty"`
+	TurnID        string         `json:"turn_id,omitempty"`
+	AgentID       string         `json:"agent_id,omitempty"`
+	Model         string         `json:"model,omitempty"`
+	Iteration     int            `json:"iteration,omitempty"`
+	SessionStatus string         `json:"session_status,omitempty"`
+	TurnStatus    string         `json:"turn_status,omitempty"`
+	TurnPhase     string         `json:"turn_phase,omitempty"`
+	Payload       map[string]any `json:"payload,omitempty"`
+	Trace         HookTrace      `json:"trace,omitempty"`
 
 	SystemPrompt string         `json:"system_prompt,omitempty"`
-	Messages     []goai.Message `json:"-"`
-	Tools        []goai.Tool    `json:"-"`
-	ToolCall     *goai.ToolCall `json:"-"`
+	Messages     []goai.Message `json:"messages,omitempty"`
+	Tools        []goai.Tool    `json:"tools,omitempty"`
+	ToolCall     *goai.ToolCall `json:"tool_call,omitempty"`
 	ToolResult   string         `json:"tool_result,omitempty"`
 	ToolError    bool           `json:"tool_error,omitempty"`
 }
@@ -74,10 +87,10 @@ type HookResponse struct {
 	Payload      map[string]any `json:"payload,omitempty"`
 	Message      string         `json:"message,omitempty"`
 	SystemPrompt string         `json:"system_prompt,omitempty"`
-	Messages     []goai.Message `json:"-"`
-	Tools        []goai.Tool    `json:"-"`
-	ToolCall     *goai.ToolCall `json:"-"`
-	ToolResult   *string        `json:"-"`
+	Messages     []goai.Message `json:"messages,omitempty"`
+	Tools        []goai.Tool    `json:"tools,omitempty"`
+	ToolCall     *goai.ToolCall `json:"tool_call,omitempty"`
+	ToolResult   *string        `json:"tool_result,omitempty"`
 }
 
 // HookHandler is a synchronous engine hook callback.
@@ -96,6 +109,8 @@ type HookRegistry struct {
 	nextID uint64
 	hooks  map[string][]registeredHook
 }
+
+var hookTraceSeq atomic.Uint64
 
 func NewHookRegistry() *HookRegistry {
 	return &HookRegistry{hooks: make(map[string][]registeredHook)}
@@ -190,10 +205,43 @@ func (e *Engine) RegisterHook(name, source string, handler HookHandler) (func(),
 
 func (e *Engine) ClearHooks() { e.hooks.Clear() }
 
+func nextHookTrace() HookTrace {
+	seq := hookTraceSeq.Add(1)
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	return HookTrace{ID: fmt.Sprintf("hook_%d_%d", time.Now().UTC().UnixNano(), seq), EmittedAt: now}
+}
+
+func hookScriptPayload(req HookRequest) map[string]any {
+	payload := map[string]any{
+		"hook":           req.Name,
+		"name":           req.Name,
+		"session_id":     req.SessionID,
+		"turn_id":        req.TurnID,
+		"agent_id":       req.AgentID,
+		"model":          req.Model,
+		"iteration":      req.Iteration,
+		"session_status": req.SessionStatus,
+		"turn_status":    req.TurnStatus,
+		"turn_phase":     req.TurnPhase,
+		"system_prompt":  req.SystemPrompt,
+		"messages":       req.Messages,
+		"tools":          req.Tools,
+		"tool_call":      req.ToolCall,
+		"tool_result":    req.ToolResult,
+		"tool_error":     req.ToolError,
+		"payload":        req.Payload,
+		"trace":          req.Trace,
+	}
+	return payload
+}
+
 func (e *Engine) emitHook(ctx context.Context, req HookRequest) (HookResponse, error) {
 	req.Name = normalizeHookName(req.Name)
 	if req.Name == "" {
 		return HookResponse{}, fmt.Errorf("hook name is required")
+	}
+	if req.Trace.ID == "" || req.Trace.EmittedAt == "" {
+		req.Trace = nextHookTrace()
 	}
 	var merged HookResponse
 	for _, item := range e.hooks.Handlers(req.Name) {

@@ -376,6 +376,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		if err := e.store.UpdateTurnStatusAndPhase(ctx, turnID, "cancelling", "cancelling"); err != nil {
 			return err
 		}
+		runner.emitTurnStateHook(ctx, turnSessionID, turnID, "", "", "cancelling", "cancelling", map[string]any{"reason": "cancel_requested"})
 		runner.current.cancel()
 		runner.current.cmdMu.Lock()
 		if runner.current.cmd != nil && runner.current.cmd.Process != nil {
@@ -393,6 +394,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		if err := e.store.MarkTurnFinished(ctx, turnID); err != nil {
 			return err
 		}
+		runner.emitTurnStateHook(ctx, turnSessionID, turnID, "", "", "cancelled", "aborted", map[string]any{"reason": "queued_cancel"})
 		warnStore("sync queue count after queued cancel", e.store.SyncSessionQueueCount(ctx, turnSessionID))
 		return e.store.AppendTurnEvent(ctx, turnID, turnSessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "queued": true})
 	}
@@ -447,7 +449,7 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string) {
 	run, err := r.setupTurnRun(ctx, s, sessionID, turnID)
 	if err != nil {
 		if ctx.Err() != nil || isCancellationError(err) {
-			r.finishTurn(s, turnID, sessionID, "", "cancelled", "Turn cancelled", "")
+			r.finishTurn(s, turnID, sessionID, "", "", "cancelled", "Turn cancelled", "")
 		}
 		return
 	}
