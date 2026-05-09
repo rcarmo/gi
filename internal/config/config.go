@@ -29,6 +29,7 @@ type RuntimeConfig struct {
 	MaxIterations        int                        `json:"max_iterations"`
 	ScrollbackLimit      int                        `json:"scrollback_limit"`
 	Compaction           CompactionSettings         `json:"compaction"`
+	Hooks                HookSettings               `json:"hooks"`
 	Peering              PeeringSettings            `json:"peering"`
 	SystemPrompt         string                     `json:"-"`
 	Discovery            skills.Discovery           `json:"-"`
@@ -55,6 +56,12 @@ type CompactionSettings struct {
 	Strategy         string `json:"strategy"`
 }
 
+type HookSettings struct {
+	TimeoutMS int    `json:"timeout_ms"`
+	OnError   string `json:"on_error"`
+	OnTimeout string `json:"on_timeout"`
+}
+
 type PeeringSettings struct {
 	Enabled         bool   `json:"enabled"`
 	Hostname        string `json:"hostname"`
@@ -71,6 +78,7 @@ type piSettings struct {
 	MaxIterations        int                        `json:"maxIterations"`
 	TUIScrollbackLimit   int                        `json:"tuiScrollbackLimit"`
 	Compaction           CompactionSettings         `json:"compaction"`
+	Hooks                HookSettings               `json:"hooks"`
 	Peering              PeeringSettings            `json:"peering"`
 	Agents               routing.AgentsConfig       `json:"agents"`
 	Session              routing.SessionConfig      `json:"session"`
@@ -96,6 +104,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.MaxIterations = ps.MaxIterations
 		cfg.ScrollbackLimit = ps.TUIScrollbackLimit
 		cfg.Compaction = ps.Compaction
+		cfg.Hooks = ps.Hooks
 		cfg.Peering = ps.Peering
 		cfg.Agents = ps.Agents
 		cfg.Session = ps.Session
@@ -132,6 +141,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.ScrollbackLimit = 1000
 	}
 	applyCompactionDefaults(&cfg.Compaction)
+	applyHookDefaults(&cfg.Hooks)
 	if len(cfg.Agents.List) == 0 {
 		cfg.Agents.List = []routing.AgentConfig{{ID: "agent", Name: cfg.AssistantName, Default: true, Model: cfg.DefaultModel}}
 	}

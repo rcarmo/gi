@@ -2,13 +2,16 @@ package turn
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/rcarmo/gi/internal/config"
 	goai "github.com/rcarmo/go-ai"
 )
 
@@ -102,6 +105,28 @@ type registeredHook struct {
 	handler HookHandler
 }
 
+type HookExecutionError struct {
+	Name      string
+	Source    string
+	Kind      string
+	Trace     HookTrace
+	TimeoutMS int
+	Cause     error
+}
+
+func (e HookExecutionError) Error() string {
+	switch e.Kind {
+	case "timeout":
+		return fmt.Sprintf("hook %s from %s timed out after %dms", e.Name, e.Source, e.TimeoutMS)
+	case "panic":
+		return fmt.Sprintf("hook %s from %s panicked: %v", e.Name, e.Source, e.Cause)
+	default:
+		return fmt.Sprintf("hook %s from %s failed: %v", e.Name, e.Source, e.Cause)
+	}
+}
+
+func (e HookExecutionError) Unwrap() error { return e.Cause }
+
 // HookRegistry stores hook callbacks. Handlers are copied before invocation so
 // hooks can register/unregister safely outside the call path.
 type HookRegistry struct {
@@ -111,6 +136,15 @@ type HookRegistry struct {
 }
 
 var hookTraceSeq atomic.Uint64
+
+func applyHookDefaultsCompat(settings config.HookSettings) config.HookSettings {
+	if settings.TimeoutMS <= 0 {
+		settings.TimeoutMS = 1500
+	}
+	settings.OnError = config.NormalizeHookPolicy(settings.OnError, "error")
+	settings.OnTimeout = config.NormalizeHookPolicy(settings.OnTimeout, "continue")
+	return settings
+}
 
 func NewHookRegistry() *HookRegistry {
 	return &HookRegistry{hooks: make(map[string][]registeredHook)}
@@ -235,6 +269,66 @@ func hookScriptPayload(req HookRequest) map[string]any {
 	return payload
 }
 
+func (e *Engine) invokeHookHandler(ctx context.Context, req HookRequest, item registeredHook) (HookResponse, error) {
+	timeoutMS := e.runtimeCfg.Hooks.TimeoutMS
+	if timeoutMS <= 0 {
+		timeoutMS = 1500
+	}
+	hookCtx := ctx
+	var cancel context.CancelFunc
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		hookCtx, cancel = context.WithTimeout(ctx, time.Duration(timeoutMS)*time.Millisecond)
+		defer cancel()
+	}
+	type hookResult struct {
+		resp HookResponse
+		err  error
+	}
+	resultCh := make(chan hookResult, 1)
+	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				resultCh <- hookResult{err: HookExecutionError{Name: req.Name, Source: item.source, Kind: "panic", Trace: req.Trace, TimeoutMS: timeoutMS, Cause: fmt.Errorf("%v", recovered)}}
+			}
+		}()
+		resp, err := item.handler(hookCtx, req)
+		if err != nil {
+			kind := "handler_error"
+			if errors.Is(err, context.DeadlineExceeded) && ctx.Err() == nil {
+				kind = "timeout"
+			}
+			resultCh <- hookResult{err: HookExecutionError{Name: req.Name, Source: item.source, Kind: kind, Trace: req.Trace, TimeoutMS: timeoutMS, Cause: err}}
+			return
+		}
+		resultCh <- hookResult{resp: resp}
+	}()
+	select {
+	case <-hookCtx.Done():
+		if ctx.Err() != nil {
+			return HookResponse{}, ctx.Err()
+		}
+		return HookResponse{}, HookExecutionError{Name: req.Name, Source: item.source, Kind: "timeout", Trace: req.Trace, TimeoutMS: timeoutMS, Cause: hookCtx.Err()}
+	case res := <-resultCh:
+		return res.resp, res.err
+	}
+}
+
+func (e *Engine) applyHookFailurePolicy(req HookRequest, item registeredHook, err error) error {
+	execErr := HookExecutionError{Name: req.Name, Source: item.source, Kind: "handler_error", Trace: req.Trace, Cause: err}
+	if typed, ok := err.(HookExecutionError); ok {
+		execErr = typed
+	}
+	policy := e.runtimeCfg.Hooks.OnError
+	if execErr.Kind == "timeout" {
+		policy = e.runtimeCfg.Hooks.OnTimeout
+	}
+	if config.NormalizeHookPolicy(policy, "error") == "continue" {
+		log.Printf("hook %s from %s: %v (continuing by policy)", req.Name, item.source, execErr)
+		return nil
+	}
+	return execErr
+}
+
 func (e *Engine) emitHook(ctx context.Context, req HookRequest) (HookResponse, error) {
 	req.Name = normalizeHookName(req.Name)
 	if req.Name == "" {
@@ -245,9 +339,12 @@ func (e *Engine) emitHook(ctx context.Context, req HookRequest) (HookResponse, e
 	}
 	var merged HookResponse
 	for _, item := range e.hooks.Handlers(req.Name) {
-		resp, err := item.handler(ctx, req)
+		resp, err := e.invokeHookHandler(ctx, req, item)
 		if err != nil {
-			return merged, fmt.Errorf("hook %s from %s: %w", req.Name, item.source, err)
+			if policyErr := e.applyHookFailurePolicy(req, item, err); policyErr != nil {
+				return merged, policyErr
+			}
+			continue
 		}
 		if resp.Action != "" {
 			merged.Action = strings.ToLower(strings.TrimSpace(resp.Action))

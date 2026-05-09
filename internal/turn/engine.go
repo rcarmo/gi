@@ -116,6 +116,7 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 	if len(cfg.Session.Dimensions) == 0 {
 		cfg.Session.Dimensions = []string{"chat"}
 	}
+	cfg.Hooks = applyHookDefaultsCompat(cfg.Hooks)
 	e := &Engine{
 		store:         s,
 		systemPrompt:  systemPrompt,

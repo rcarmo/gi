@@ -413,6 +413,15 @@ Implemented so far:
 - hook requests now include trace metadata scaffolding for debugging/replay correlation:
   - `trace.id`
   - `trace.emitted_at`
+- hook execution now has explicit timeout/failure policy with runtime-config defaults:
+  - `hooks.timeout_ms` (default `1500`)
+  - `hooks.on_error` (default `error`)
+  - `hooks.on_timeout` (default `continue`)
+- hook failures now surface as typed execution errors carrying:
+  - hook name
+  - hook source
+  - failure kind (`handler_error` / `timeout` / `panic`)
+  - trace metadata
 - script hook responses now accept canonical hook actions and map them into runtime semantics:
   - `continue`
   - `modify`
@@ -425,7 +434,7 @@ Still pending in this area:
 
 - durable `hook_invocations` audit table + store APIs
 - process-hook/IPC handshake for external hook executors sharing the same logical contract as in-process hooks
-- timeout/failure policy for hook execution and clearer replay/audit persistence around hook decisions
+- clearer replay/audit persistence around hook decisions beyond in-memory/returned typed errors
 
 ---
 

@@ -3,8 +3,10 @@ package turn
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
+	"github.com/rcarmo/gi/internal/config"
 	goai "github.com/rcarmo/go-ai"
 )
 
@@ -176,5 +178,93 @@ func TestTurnAndSessionStateHooksObserveLifecycle(t *testing.T) {
 	}
 	if len(sessionStates) < 2 || sessionStates[0] != "running" || sessionStates[len(sessionStates)-1] != "idle" {
 		t.Fatalf("expected running→idle session states, got %#v", sessionStates)
+	}
+}
+
+func TestHookTimeoutPolicyContinue(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	e.runtimeCfg.Hooks.TimeoutMS = 20
+	e.runtimeCfg.Hooks.OnTimeout = "continue"
+	called := 0
+	if _, err := e.RegisterHook(HookBeforeProviderRequest, "slow", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		<-ctx.Done()
+		return HookResponse{}, ctx.Err()
+	}); err != nil {
+		t.Fatalf("register slow hook: %v", err)
+	}
+	if _, err := e.RegisterHook(HookBeforeProviderRequest, "fast", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		called++
+		return HookResponse{}, nil
+	}); err != nil {
+		t.Fatalf("register fast hook: %v", err)
+	}
+	if _, err := e.emitHook(context.Background(), HookRequest{Name: HookBeforeProviderRequest}); err != nil {
+		t.Fatalf("emit hook with timeout-continue policy: %v", err)
+	}
+	if called != 1 {
+		t.Fatalf("expected later hooks to continue after timeout, got %d", called)
+	}
+}
+
+func TestHookErrorPolicyContinue(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	e.runtimeCfg.Hooks.OnError = "continue"
+	called := 0
+	if _, err := e.RegisterHook(HookToolCall, "broken", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		return HookResponse{}, errors.New("boom")
+	}); err != nil {
+		t.Fatalf("register broken hook: %v", err)
+	}
+	if _, err := e.RegisterHook(HookToolCall, "fast", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		called++
+		return HookResponse{}, nil
+	}); err != nil {
+		t.Fatalf("register fast hook: %v", err)
+	}
+	if _, err := e.emitHook(context.Background(), HookRequest{Name: HookToolCall}); err != nil {
+		t.Fatalf("emit hook with error-continue policy: %v", err)
+	}
+	if called != 1 {
+		t.Fatalf("expected later hooks to continue after handler error, got %d", called)
+	}
+}
+
+func TestHookErrorPolicyReturnsTypedError(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	if _, err := e.RegisterHook(HookToolCall, "broken", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		return HookResponse{}, errors.New("boom")
+	}); err != nil {
+		t.Fatalf("register broken hook: %v", err)
+	}
+	_, err := e.emitHook(context.Background(), HookRequest{Name: HookToolCall})
+	if err == nil {
+		t.Fatal("expected hook execution error")
+	}
+	var hookErr HookExecutionError
+	if !errors.As(err, &hookErr) {
+		t.Fatalf("expected typed hook execution error, got %T %v", err, err)
+	}
+	if hookErr.Kind != "handler_error" || hookErr.Source != "broken" {
+		t.Fatalf("unexpected hook execution error: %#v", hookErr)
+	}
+}
+
+func TestApplyHookDefaultsCompat(t *testing.T) {
+	settings := applyHookDefaultsCompat(config.HookSettings{})
+	if settings.TimeoutMS <= 0 {
+		t.Fatalf("expected default hook timeout, got %#v", settings)
+	}
+	if settings.OnError != "error" || settings.OnTimeout != "continue" {
+		t.Fatalf("unexpected hook defaults: %#v", settings)
+	}
+	custom := applyHookDefaultsCompat(config.HookSettings{TimeoutMS: 25, OnError: "continue", OnTimeout: "error"})
+	if custom.TimeoutMS != 25 || custom.OnError != "continue" || custom.OnTimeout != "error" {
+		t.Fatalf("unexpected custom hook defaults: %#v", custom)
 	}
 }
