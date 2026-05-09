@@ -49,6 +49,9 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 	if strings.TrimSpace(sessionID) == "" {
 		sessionID = turnRec.SessionID
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	initialSteering := steeringMessagesFromMetadata(turnRec.Metadata)
 	prompt := turnRec.Prompt
 	if strings.TrimSpace(prompt) == "" && len(initialSteering) > 0 {
@@ -56,6 +59,12 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 	}
 	intent := stringValue(turnRec.Metadata["intent"], "prompt")
 	agentID, model := r.resolveTurnAgentAndModel(ctx, s, turnRec, sessionID, prompt)
+	if hook := r.engine.beforeSetupHook; hook != nil {
+		hook(ctx, sessionID, turnID)
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	warnStore("touch session state running", s.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "model": model, "status": "running"}))
 	userPayload := map[string]any{"kind": "chat", "intent": intent, "turn_id": turnID}
 	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt"} {

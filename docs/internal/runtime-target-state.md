@@ -198,7 +198,8 @@ Implemented so far:
 - regression coverage for same-session concurrency, active-turn row lifecycle, stale-turn recovery, and non-blocking failure markers
 - runner/orchestration now uses explicit phase helpers for setup, context assembly, provider iteration, tool execution, final steering/finalize, and runner cleanup instead of keeping the whole lifecycle implicit inside one long goroutine body
 - routed submission now uses explicit route/session-resolution helpers for prompt preparation, peer-route preparation, target-session resolution, local-route metadata application, allocation lookup/reuse, and clone-on-miss session creation
-- active cancellation now resolves through terminal `cancelled` state for live provider-stream and live tool-execution turns instead of being misclassified as generic provider/tool failures, and parent-turn cancellation propagates into running child subturns through the normal terminal path
+- active cancellation now resolves through terminal `cancelled` state for live provider-stream, setup-phase, and live tool-execution turns instead of being misclassified as generic provider/tool failures, and parent-turn cancellation propagates into running child subturns through the normal terminal path
+- queued turns are launched oldest-first via durable `created_at`/`id` ordering, and queued ordering is now covered by runtime tests rather than only implied by store queries
 
 Current recovery semantics:
 

@@ -601,7 +601,7 @@ func TestCancelActiveStreamingTurnMarksCancelled(t *testing.T) {
 	}
 	waitForCondition(t, 2*time.Second, func() bool {
 		turnRec, err := s.GetTurn(ctx, result.TurnID)
-		return err == nil && turnRec.Status == "cancelled"
+		return err == nil && turnRec.Status == "cancelled" && turnRec.FinishedAt != ""
 	}, "streaming turn cancellation")
 	turnRec, err := s.GetTurn(ctx, result.TurnID)
 	if err != nil {
@@ -668,7 +668,7 @@ func TestCancelTurnDuringToolExecutionMarksCancelled(t *testing.T) {
 	}
 	waitForCondition(t, 2*time.Second, func() bool {
 		turnRec, err := s.GetTurn(ctx, result.TurnID)
-		return err == nil && turnRec.Status == "cancelled"
+		return err == nil && turnRec.Status == "cancelled" && turnRec.FinishedAt != ""
 	}, "tool turn cancellation")
 	turnRec, err := s.GetTurn(ctx, result.TurnID)
 	if err != nil {
@@ -738,14 +738,194 @@ func TestCancelActiveParentTurnPropagatesToChildSubTurns(t *testing.T) {
 	}
 	waitForCondition(t, 2*time.Second, func() bool {
 		turnRec, err := s.GetTurn(ctx, result.TurnID)
-		return err == nil && turnRec.Status == "cancelled"
+		return err == nil && turnRec.Status == "cancelled" && turnRec.FinishedAt != ""
 	}, "parent turn cancellation")
 	waitForCondition(t, 2*time.Second, func() bool {
 		turnRec, err := s.GetTurn(ctx, childTurn.ID)
 		return err == nil && turnRec.Status == "cancelling"
 	}, "child turn cancellation propagation")
-	if childCancelled.Load() != 1 {
-		t.Fatalf("expected child cancel callback once, got %d", childCancelled.Load())
+	waitForCondition(t, 2*time.Second, func() bool {
+		return childCancelled.Load() == 1
+	}, "child cancel callback propagation")
+}
+
+func TestQueuedTurnsRunInCreatedOrder(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_queue_order", "Queue", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	firstStarted := make(chan struct{})
+	secondStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		prompt := ""
+		for i := len(convCtx.Messages) - 1; i >= 0; i-- {
+			msg := convCtx.Messages[i]
+			if msg.Role == goai.RoleUser && len(msg.Content) > 0 {
+				prompt = msg.Content[0].Text
+				break
+			}
+		}
+		switch prompt {
+		case "first queued":
+			select {
+			case <-firstStarted:
+			default:
+				close(firstStarted)
+			}
+			<-releaseFirst
+			return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "first done"}}}}, nil
+		case "second queued":
+			select {
+			case <-secondStarted:
+			default:
+				close(secondStarted)
+			}
+			return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "second done"}}}}, nil
+		default:
+			return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "unexpected"}}}}, nil
+		}
+	})
+	engine := New(s)
+	firstTurn, err := s.CreateTurnWithStatus(ctx, "turn_queue_order_1", "session_queue_order", "queued", "first queued", map[string]any{"intent": "prompt", "model": "mock-order"})
+	if err != nil {
+		t.Fatalf("create first queued turn: %v", err)
+	}
+	secondTurn, err := s.CreateTurnWithStatus(ctx, "turn_queue_order_2", "session_queue_order", "queued", "second queued", map[string]any{"intent": "prompt", "model": "mock-order"})
+	if err != nil {
+		t.Fatalf("create second queued turn: %v", err)
+	}
+	if err := engine.startNextQueuedTurn(ctx, "session_queue_order"); err != nil {
+		t.Fatalf("start next queued turn: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		select {
+		case <-firstStarted:
+			return true
+		default:
+			return false
+		}
+	}, "first queued turn start")
+	if err := engine.startNextQueuedTurn(ctx, "session_queue_order"); err != nil {
+		t.Fatalf("start next queued turn while active: %v", err)
+	}
+	firstState, err := s.GetTurn(ctx, firstTurn.ID)
+	if err != nil {
+		t.Fatalf("get first turn: %v", err)
+	}
+	secondState, err := s.GetTurn(ctx, secondTurn.ID)
+	if err != nil {
+		t.Fatalf("get second turn: %v", err)
+	}
+	if firstState.StartedAt == "" {
+		t.Fatalf("expected first queued turn to start, got %#v", firstState)
+	}
+	if secondState.Status != "queued" || secondState.StartedAt != "" {
+		t.Fatalf("expected second queued turn to remain queued until first completes, got %#v", secondState)
+	}
+	close(releaseFirst)
+	waitForCondition(t, 2*time.Second, func() bool {
+		select {
+		case <-secondStarted:
+			return true
+		default:
+			return false
+		}
+	}, "second queued turn start")
+	waitForCondition(t, 2*time.Second, func() bool {
+		firstDone, err1 := s.GetTurn(ctx, firstTurn.ID)
+		secondDone, err2 := s.GetTurn(ctx, secondTurn.ID)
+		return err1 == nil && err2 == nil && firstDone.Status == "completed" && secondDone.Status == "completed"
+	}, "queued turn completion order")
+	firstDone, err := s.GetTurn(ctx, firstTurn.ID)
+	if err != nil {
+		t.Fatalf("get completed first turn: %v", err)
+	}
+	secondDone, err := s.GetTurn(ctx, secondTurn.ID)
+	if err != nil {
+		t.Fatalf("get completed second turn: %v", err)
+	}
+	if !(firstDone.StartedAt < secondDone.StartedAt) {
+		t.Fatalf("expected first queued turn to start before second, got first=%q second=%q", firstDone.StartedAt, secondDone.StartedAt)
+	}
+}
+
+func TestCancelTurnDuringSetupMarksCancelled(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cancel_setup", "Setup", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	setupEntered := make(chan struct{})
+	engine.beforeSetupHook = func(ctx context.Context, sessionID, turnID string) {
+		select {
+		case <-setupEntered:
+		default:
+			close(setupEntered)
+		}
+		<-ctx.Done()
+	}
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_cancel_setup", Prompt: "cancel before start", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		select {
+		case <-setupEntered:
+			return true
+		default:
+			return false
+		}
+	}, "setup phase entry")
+	if err := engine.CancelTurn(ctx, "session_cancel_setup", result.TurnID); err != nil {
+		t.Fatalf("cancel during setup: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && turnRec.Status == "cancelled" && turnRec.FinishedAt != ""
+	}, "setup turn cancellation")
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if turnRec.Phase != "aborted" {
+		t.Fatalf("expected aborted phase after setup cancellation, got %#v", turnRec)
+	}
+	if turnRec.FinishedAt == "" {
+		t.Fatalf("expected finished_at after setup cancellation, got %#v", turnRec)
+	}
+	events, err := s.ListTurnEvents(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundCancelling := false
+	foundStarted := false
+	for _, event := range events {
+		if event.Type == "turn.cancelling" {
+			foundCancelling = true
+		}
+		if event.Type == "turn.started" {
+			foundStarted = true
+		}
+	}
+	if !foundCancelling {
+		t.Fatalf("expected turn.cancelling during setup cancellation, got %#v", events)
+	}
+	if foundStarted {
+		t.Fatalf("expected setup cancellation before turn.started, got %#v", events)
+	}
+	msgs, err := s.ListMessages(ctx, "session_cancel_setup")
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	for _, msg := range msgs {
+		if msg.Role == "user" {
+			t.Fatalf("expected no persisted user message before setup cancellation, got %#v", msgs)
+		}
 	}
 }
 
