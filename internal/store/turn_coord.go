@@ -158,12 +158,7 @@ func (s *Store) SteeringQueueLength(ctx context.Context, sessionID string) (int,
 	return count, nil
 }
 
-func (s *Store) DequeueSteering(ctx context.Context, sessionID string) ([]SteeringMessage, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("dequeue steering begin tx: %w", err)
-	}
-	defer tx.Rollback()
+func dequeueSteeringTx(ctx context.Context, tx *sql.Tx, sessionID string) ([]SteeringMessage, error) {
 	row := tx.QueryRowContext(ctx, `
 		select id, queue_mode
 		from steering_queue
@@ -222,6 +217,87 @@ func (s *Store) DequeueSteering(ctx context.Context, sessionID string) ([]Steeri
 		if _, err := tx.ExecContext(ctx, `update steering_queue set status = 'dequeued', updated_at = `+defaultNow+` where id = ?`, id); err != nil {
 			return nil, fmt.Errorf("mark steering dequeued: %w", err)
 		}
+	}
+	return out, nil
+}
+
+func steeringMessagesToContinuationMetadata(msgs []SteeringMessage) map[string]any {
+	metadata := map[string]any{"continue": true}
+	items := make([]map[string]any, 0, len(msgs))
+	for _, msg := range msgs {
+		items = append(items, map[string]any{
+			"role":       msg.Role,
+			"content":    msg.Content,
+			"payload":    msg.Payload,
+			"media":      msg.Media,
+			"queue_mode": msg.QueueMode,
+		})
+	}
+	metadata["initial_steering"] = items
+	if len(msgs) > 0 && msgs[0].Payload != nil {
+		for _, key := range []string{"intent", "model", "parent_turn_id", "source_session_id", "source_agent_id", "target_agent_id", "route_mode", "route_matched_by"} {
+			if value, ok := msgs[0].Payload[key]; ok {
+				metadata[key] = value
+			}
+		}
+	}
+	return metadata
+}
+
+func (s *Store) StageSteeringContinuation(ctx context.Context, sessionID, turnID string) (*Turn, []SteeringMessage, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("stage steering continuation begin tx: %w", err)
+	}
+	defer tx.Rollback()
+	row := tx.QueryRowContext(ctx, `select count(*) from turns where session_id = ? and status = 'queued'`, sessionID)
+	var queuedCount int
+	if err := row.Scan(&queuedCount); err != nil {
+		return nil, nil, fmt.Errorf("stage steering continuation queued count: %w", err)
+	}
+	if queuedCount > 0 {
+		return nil, nil, sql.ErrNoRows
+	}
+	msgs, err := dequeueSteeringTx(ctx, tx, sessionID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(msgs) == 0 {
+		return nil, nil, sql.ErrNoRows
+	}
+	metadata := steeringMessagesToContinuationMetadata(msgs)
+	metadataJSON, err := marshalJSON(metadata)
+	if err != nil {
+		return nil, nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		insert into turns (id, session_id, status, phase, prompt, metadata_json, created_at, updated_at)
+		values (?, ?, 'queued', 'queued', '', ?, `+defaultNow+`, `+defaultNow+`)
+	`, turnID, sessionID, metadataJSON); err != nil {
+		return nil, nil, fmt.Errorf("stage steering continuation create turn: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, nil, fmt.Errorf("stage steering continuation commit: %w", err)
+	}
+	if err := s.SyncSessionQueueCount(ctx, sessionID); err != nil {
+		return nil, nil, err
+	}
+	turnRec, err := s.GetTurn(ctx, turnID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return turnRec, msgs, nil
+}
+
+func (s *Store) DequeueSteering(ctx context.Context, sessionID string) ([]SteeringMessage, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("dequeue steering begin tx: %w", err)
+	}
+	defer tx.Rollback()
+	out, err := dequeueSteeringTx(ctx, tx, sessionID)
+	if err != nil {
+		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("dequeue steering commit: %w", err)

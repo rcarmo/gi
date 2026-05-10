@@ -359,6 +359,48 @@ func TestStageQueuedSteeringContinuationCreatesQueuedTurn(t *testing.T) {
 	}
 }
 
+func TestStageQueuedSteeringContinuationDoesNotDrainWhenQueuedTurnAlreadyExists(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_stage_steering_busy", "Test", map[string]any{"model": "bootstrap", "status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_stage_active_busy", "session_stage_steering_busy", "running", "active", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_stage_steering_busy", activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_stage_existing_queue", "session_stage_steering_busy", "queued", "already queued", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_stage_steering_busy", activeTurn.ID, "user", "late steer", map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	engine := New(s)
+	staged, stagedTurnID, err := engine.stageQueuedSteeringContinuation(ctx, "session_stage_steering_busy")
+	if err != nil {
+		t.Fatalf("stage queued steering continuation: %v", err)
+	}
+	if staged || stagedTurnID != "" {
+		t.Fatalf("expected no staged continuation while a queued turn already exists, got staged=%v id=%q", staged, stagedTurnID)
+	}
+	if depth, err := s.SteeringQueueLength(ctx, "session_stage_steering_busy"); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 1 {
+		t.Fatalf("expected steering queue to remain queued, got %d", depth)
+	}
+	turns, err := s.ListTurns(ctx, "session_stage_steering_busy")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 2 {
+		t.Fatalf("expected only active+queued turns, got %#v", turns)
+	}
+}
+
 func TestContinueSessionStartsQueuedSteeringWhenIdle(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

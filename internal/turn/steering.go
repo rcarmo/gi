@@ -110,28 +110,15 @@ func steeringMetadataFromMessages(msgs []store.SteeringMessage) map[string]any {
 }
 
 func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID string) (bool, string, error) {
-	count, err := e.store.CountQueuedTurns(ctx, sessionID)
-	if err != nil {
-		return false, "", err
-	}
-	if count > 0 {
-		return false, "", nil
-	}
-	msgs, err := e.store.DequeueSteering(ctx, sessionID)
+	turnID := store.NowID("turn")
+	turnRec, msgs, err := e.store.StageSteeringContinuation(ctx, sessionID, turnID)
 	if err == sql.ErrNoRows {
 		return false, "", nil
 	}
 	if err != nil {
 		return false, "", err
 	}
-	if len(msgs) == 0 {
-		return false, "", nil
-	}
-	metadata := steeringMetadataFromMessages(msgs)
-	turnID := store.NowID("turn")
-	if _, err := e.store.CreateTurnWithStatus(ctx, turnID, sessionID, "queued", "", metadata); err != nil {
-		return false, "", err
-	}
+	metadata := turnRec.Metadata
 	warnStore("append continued turn.submitted event", e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.submitted", map[string]any{"phase": "queue", "intent": stringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true}))
 	warnStore("append steering.continue_staged event", e.store.AppendTurnEvent(ctx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)}))
 	e.broadcast(sessionID, map[string]any{"type": "steering_continue_staged", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs)})

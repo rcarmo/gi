@@ -290,6 +290,7 @@ Current steering semantics:
 - when steering is found after a tool, remaining tool calls in that batch are skipped and recorded as skipped results
 - when steering arrives after a direct non-tool LLM answer, the loop continues instead of finalizing that answer immediately
 - a final pre-finalization checkpoint stages a queued continuation turn before the active turn is released when late steering is already waiting
+- steering continuation staging is now transactional at the store layer: "no queued turn exists" + dequeue steering + create queued continuation turn happen in one SQLite transaction so continuation ordering does not race against other queued work
 - idle sessions can be resumed explicitly through `ContinueSession(...)` / the web continuation endpoint, and runtime fallback continuation still runs after turn end when appropriate
 - continuation no longer drains steering directly into a fresh submit call; it first stages a queued continuation turn and then launches through normal queue/claim logic, reducing the race window against concurrent same-session submits
 - bootstrap/test shell turns now preserve queued steering messages in history before running the continuation shell step
