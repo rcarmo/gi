@@ -9,6 +9,7 @@ import (
 
 	gotui "github.com/grindlemire/go-tui"
 	"github.com/rcarmo/gi/internal/config"
+	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/turn"
 )
@@ -120,6 +121,37 @@ func TestResolveSessionRefByAgentID(t *testing.T) {
 	}
 	if sess.Scope == nil || sess.Scope.AgentID != "agent1" {
 		t.Fatalf("unexpected session: %#v", sess)
+	}
+}
+
+func TestResolveSessionRefPrefersCanonicalIdentityOverScopeSnapshot(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	rootAlloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_root_identity")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_root_identity", "", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}, &rootAlloc.Scope, rootAlloc.SessionAliases); err != nil {
+		t.Fatalf("create root session: %v", err)
+	}
+	childAlloc := gisession.AllocateDefaultSession("agent1", "gi", "default", "session_child_identity")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_child_identity", "session_root_identity", "@agent1", map[string]any{"model": "bootstrap", "status": "idle"}, &childAlloc.Scope, childAlloc.SessionAliases); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong77","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:session_child_identity"}}`, "session_child_identity"); err != nil {
+		t.Fatalf("mutate child scope snapshot: %v", err)
+	}
+	c := &chatTUI{store: s, sessionID: "session_root_identity"}
+	sess, err := c.resolveSessionRef("@agent1")
+	if err != nil {
+		t.Fatalf("resolve session ref: %v", err)
+	}
+	if sess.ID != "session_child_identity" {
+		t.Fatalf("expected canonical identity session, got %#v", sess)
+	}
+	if got := c.nextForkAgentID(); got != "agent2" {
+		t.Fatalf("expected canonical next fork agent id agent2, got %q", got)
 	}
 }
 

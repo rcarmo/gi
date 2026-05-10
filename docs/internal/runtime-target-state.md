@@ -129,6 +129,7 @@ Implemented so far:
 - `FindSessionByAllocation(...)` now resolves by opaque key, validated alias matches, and canonical scope signature fallback
 - default session allocation now uses the same `direct:<chat>` chat-dimension encoding and alias format as routed allocation
 - route-preparation and same-agent fast-path checks now read canonical agent/channel/account/dimension identity from the store first, with `scope_json` only as compatibility fallback
+- web/TUI fork-agent allocation and TUI agent/session resolution now prefer canonical identity rows instead of trusting `sessions.scope_json` snapshots
 
 Still pending in this area:
 

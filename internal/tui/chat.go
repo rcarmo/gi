@@ -797,6 +797,7 @@ func (c *chatTUI) listAgentLines() []string {
 	if len(sessions) == 0 {
 		return []string{"sys: no sessions"}
 	}
+	agentIDs := c.sessionAgentIDIndex(sessions)
 	lines := []string{"sys: agents:"}
 	for _, sess := range sessions {
 		marker := " "
@@ -807,7 +808,7 @@ func (c *chatTUI) listAgentLines() []string {
 		if sess.ParentSessionID != "" {
 			parent = fmt.Sprintf(" parent=%s", sess.ParentSessionID)
 		}
-		lines = append(lines, fmt.Sprintf("%s @%s %s%s", marker, c.agentIDForSession(&sess), sess.ID, parent))
+		lines = append(lines, fmt.Sprintf("%s @%s %s%s", marker, c.agentIDForSessionFromIndex(&sess, agentIDs), sess.ID, parent))
 	}
 	return lines
 }
@@ -842,6 +843,7 @@ func (c *chatTUI) treeLines() []string {
 	if len(sessions) == 0 {
 		return []string{"tree: no sessions"}
 	}
+	agentIDs := c.sessionAgentIDIndex(sessions)
 	children := map[string][]store.Session{}
 	roots := []store.Session{}
 	for _, sess := range sessions {
@@ -866,7 +868,7 @@ func (c *chatTUI) treeLines() []string {
 		if sess.ID == c.sessionID {
 			marker = "*"
 		}
-		lines = append(lines, fmt.Sprintf("%s%s%s @%s %s", prefix, branch, marker, c.agentIDForSession(&sess), sess.ID))
+		lines = append(lines, fmt.Sprintf("%s%s%s @%s %s", prefix, branch, marker, c.agentIDForSessionFromIndex(&sess, agentIDs), sess.ID))
 		kids := children[sess.ID]
 		for i, child := range kids {
 			walk(child, nextPrefix, i == len(kids)-1)
@@ -877,7 +879,7 @@ func (c *chatTUI) treeLines() []string {
 	}
 	for _, sess := range sessions {
 		if !seen[sess.ID] {
-			lines = append(lines, fmt.Sprintf("? @%s %s parent=%s", c.agentIDForSession(&sess), sess.ID, sess.ParentSessionID))
+			lines = append(lines, fmt.Sprintf("? @%s %s parent=%s", c.agentIDForSessionFromIndex(&sess, agentIDs), sess.ID, sess.ParentSessionID))
 		}
 	}
 	return lines
@@ -889,8 +891,9 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	agentIDs := c.sessionAgentIDIndex(sessions)
 	for i := range sessions {
-		if sessions[i].ID == ref || c.agentIDForSession(&sessions[i]) == ref {
+		if sessions[i].ID == ref || c.agentIDForSessionFromIndex(&sessions[i], agentIDs) == ref {
 			return &sessions[i], nil
 		}
 	}
@@ -902,17 +905,22 @@ func (c *chatTUI) nextForkAgentID() string {
 	if err != nil {
 		return "agent1"
 	}
-	base := strings.TrimRight(c.agentIDForSession(current), "0123456789")
-	if base == "" {
-		base = c.agentIDForSession(current)
-	}
 	sessions, err := c.store.ListSessions(context.Background())
 	if err != nil {
+		base := strings.TrimRight(c.agentIDForSession(current), "0123456789")
+		if base == "" {
+			base = c.agentIDForSession(current)
+		}
 		return base + "1"
+	}
+	agentIDs := c.sessionAgentIDIndex(sessions)
+	base := strings.TrimRight(c.agentIDForSessionFromIndex(current, agentIDs), "0123456789")
+	if base == "" {
+		base = c.agentIDForSessionFromIndex(current, agentIDs)
 	}
 	used := map[string]bool{}
 	for _, sess := range sessions {
-		used[c.agentIDForSession(&sess)] = true
+		used[c.agentIDForSessionFromIndex(&sess, agentIDs)] = true
 	}
 	for i := 1; i < 1000; i++ {
 		candidate := fmt.Sprintf("%s%d", base, i)
@@ -923,9 +931,44 @@ func (c *chatTUI) nextForkAgentID() string {
 	return base + "999"
 }
 
+func (c *chatTUI) sessionAgentIDIndex(sessions []store.Session) map[string]string {
+	index := map[string]string{}
+	identities, err := c.store.ListSessionIdentities(context.Background())
+	if err == nil {
+		for _, identity := range identities {
+			if strings.TrimSpace(identity.Scope.AgentID) != "" {
+				index[identity.SessionID] = identity.Scope.AgentID
+			}
+		}
+	}
+	for _, sess := range sessions {
+		if _, ok := index[sess.ID]; ok {
+			continue
+		}
+		if sess.Scope != nil && sess.Scope.AgentID != "" {
+			index[sess.ID] = sess.Scope.AgentID
+		}
+	}
+	return index
+}
+
+func (c *chatTUI) agentIDForSessionFromIndex(sess *store.Session, index map[string]string) string {
+	if sess != nil {
+		if agentID := strings.TrimSpace(index[sess.ID]); agentID != "" {
+			return agentID
+		}
+	}
+	return c.agentIDForSession(sess)
+}
+
 func (c *chatTUI) agentIDForSession(sess *store.Session) string {
-	if sess != nil && sess.Scope != nil && sess.Scope.AgentID != "" {
-		return sess.Scope.AgentID
+	if sess != nil {
+		if identity, err := c.store.GetSessionIdentity(context.Background(), sess.ID); err == nil && strings.TrimSpace(identity.Scope.AgentID) != "" {
+			return identity.Scope.AgentID
+		}
+		if sess.Scope != nil && sess.Scope.AgentID != "" {
+			return sess.Scope.AgentID
+		}
 	}
 	return "agent"
 }

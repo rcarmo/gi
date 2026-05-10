@@ -140,6 +140,44 @@ func TestStoreGetSessionIdentity(t *testing.T) {
 	}
 }
 
+func TestStoreListSessionIdentities(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	allocA := gisession.AllocateDefaultSession("agent", "gi", "default", "session_list_a")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_list_a", "", "@agent", map[string]any{"status": "idle"}, &allocA.Scope, allocA.SessionAliases); err != nil {
+		t.Fatalf("create session a: %v", err)
+	}
+	allocB := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "agent1",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_list_b", "session_list_a", "@agent1", map[string]any{"status": "idle"}, &allocB.Scope, allocB.SessionAliases); err != nil {
+		t.Fatalf("create session b: %v", err)
+	}
+	identities, err := s.ListSessionIdentities(ctx)
+	if err != nil {
+		t.Fatalf("list session identities: %v", err)
+	}
+	found := map[string]SessionIdentity{}
+	for _, identity := range identities {
+		found[identity.SessionID] = identity
+	}
+	if found["session_list_a"].Scope.AgentID != "agent" || found["session_list_b"].Scope.AgentID != "agent1" {
+		t.Fatalf("unexpected identities: %#v", found)
+	}
+	if found["session_list_b"].Scope.Values["chat"] != "group:thread-7" || found["session_list_b"].Scope.Values["sender"] != "rui" {
+		t.Fatalf("unexpected identity dimensions: %#v", found["session_list_b"])
+	}
+	if len(found["session_list_a"].Aliases) == 0 || len(found["session_list_b"].Aliases) == 0 {
+		t.Fatalf("expected aliases in listed identities, got %#v", found)
+	}
+}
+
 func TestStoreFindSessionByAllocationFallsBackToCanonicalSignature(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

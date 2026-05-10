@@ -80,65 +80,127 @@ func (s *Store) upsertSessionIdentityTx(ctx context.Context, tx *sql.Tx, session
 	return nil
 }
 
+func scanSessionIdentityRows(rows *sql.Rows) ([]SessionIdentity, error) {
+	identities := make([]SessionIdentity, 0)
+	for rows.Next() {
+		var identity SessionIdentity
+		var isMain int
+		if err := rows.Scan(&identity.SessionID, &identity.Scope.AgentID, &identity.Scope.Channel, &identity.Scope.Account, &identity.Scope.Version, &identity.CanonicalScopeSignature, &identity.OpaqueSessionKey, &isMain); err != nil {
+			return nil, err
+		}
+		identity.IsMainSession = isMain != 0
+		identity.Scope.Values = map[string]string{}
+		identities = append(identities, identity)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return identities, nil
+}
+
+func (s *Store) hydrateSessionIdentityDetails(ctx context.Context, identities []SessionIdentity) error {
+	if len(identities) == 0 {
+		return nil
+	}
+	bySessionID := make(map[string]*SessionIdentity, len(identities))
+	for i := range identities {
+		bySessionID[identities[i].SessionID] = &identities[i]
+	}
+	dimRows, err := s.db.QueryContext(ctx, `
+		select session_id, dimension_name, dimension_value
+		from session_identity_dimensions
+		order by session_id asc, ordinal asc
+	`)
+	if err != nil {
+		return err
+	}
+	defer dimRows.Close()
+	for dimRows.Next() {
+		var sessionID, name, value string
+		if err := dimRows.Scan(&sessionID, &name, &value); err != nil {
+			return err
+		}
+		identity := bySessionID[sessionID]
+		if identity == nil {
+			continue
+		}
+		identity.Scope.Dimensions = append(identity.Scope.Dimensions, name)
+		identity.Scope.Values[name] = value
+	}
+	if err := dimRows.Err(); err != nil {
+		return err
+	}
+	aliasRows, err := s.db.QueryContext(ctx, `
+		select session_id, alias
+		from session_aliases
+		order by session_id asc, alias asc
+	`)
+	if err != nil {
+		return err
+	}
+	defer aliasRows.Close()
+	for aliasRows.Next() {
+		var sessionID, alias string
+		if err := aliasRows.Scan(&sessionID, &alias); err != nil {
+			return err
+		}
+		identity := bySessionID[sessionID]
+		if identity == nil {
+			continue
+		}
+		identity.Aliases = append(identity.Aliases, alias)
+	}
+	if err := aliasRows.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Store) GetSessionIdentity(ctx context.Context, sessionID string) (*SessionIdentity, error) {
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
 		return nil, sql.ErrNoRows
 	}
-	row := s.db.QueryRowContext(ctx, `
-		select agent_id, channel, account, scope_version, canonical_scope_signature, opaque_session_key, is_main_session
+	rows, err := s.db.QueryContext(ctx, `
+		select session_id, agent_id, channel, account, scope_version, canonical_scope_signature, opaque_session_key, is_main_session
 		from session_identities
 		where session_id = ?
-	`, sessionID)
-	identity := SessionIdentity{SessionID: sessionID}
-	var isMain int
-	if err := row.Scan(&identity.Scope.AgentID, &identity.Scope.Channel, &identity.Scope.Account, &identity.Scope.Version, &identity.CanonicalScopeSignature, &identity.OpaqueSessionKey, &isMain); err != nil {
-		return nil, err
-	}
-	identity.IsMainSession = isMain != 0
-	identity.Scope.Values = map[string]string{}
-	rows, err := s.db.QueryContext(ctx, `
-		select dimension_name, dimension_value
-		from session_identity_dimensions
-		where session_id = ?
-		order by ordinal asc
 	`, sessionID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	for rows.Next() {
-		var name, value string
-		if err := rows.Scan(&name, &value); err != nil {
-			return nil, err
-		}
-		identity.Scope.Dimensions = append(identity.Scope.Dimensions, name)
-		identity.Scope.Values[name] = value
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	aliasRows, err := s.db.QueryContext(ctx, `
-		select alias
-		from session_aliases
-		where session_id = ?
-		order by alias asc
-	`, sessionID)
+	identities, err := scanSessionIdentityRows(rows)
 	if err != nil {
 		return nil, err
 	}
-	defer aliasRows.Close()
-	for aliasRows.Next() {
-		var alias string
-		if err := aliasRows.Scan(&alias); err != nil {
-			return nil, err
-		}
-		identity.Aliases = append(identity.Aliases, alias)
+	if len(identities) == 0 {
+		return nil, sql.ErrNoRows
 	}
-	if err := aliasRows.Err(); err != nil {
+	if err := s.hydrateSessionIdentityDetails(ctx, identities); err != nil {
 		return nil, err
 	}
-	return &identity, nil
+	return &identities[0], nil
+}
+
+func (s *Store) ListSessionIdentities(ctx context.Context) ([]SessionIdentity, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		select session_id, agent_id, channel, account, scope_version, canonical_scope_signature, opaque_session_key, is_main_session
+		from session_identities
+		order by session_id asc
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	identities, err := scanSessionIdentityRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.hydrateSessionIdentityDetails(ctx, identities); err != nil {
+		return nil, err
+	}
+	return identities, nil
 }
 
 func (s *Store) GetSessionByOpaqueKey(ctx context.Context, opaqueKey string) (*Session, error) {

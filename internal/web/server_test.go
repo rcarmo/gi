@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rcarmo/gi/internal/config"
+	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/turn"
 )
@@ -167,6 +168,37 @@ func TestForkSessionCreatesChildAgent(t *testing.T) {
 	}
 	if len(msgs) == 0 || msgs[0].Content != "hello" {
 		t.Fatalf("unexpected child messages: %#v", msgs)
+	}
+}
+
+func TestNextForkAgentIDPrefersCanonicalIdentityOverScopeSnapshot(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	ctx := t.Context()
+	rootAlloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_root_identity")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_root_identity", "", "@agent", map[string]any{"status": "idle", "model": "bootstrap"}, &rootAlloc.Scope, rootAlloc.SessionAliases); err != nil {
+		t.Fatalf("create root session: %v", err)
+	}
+	childAlloc := gisession.AllocateDefaultSession("agent1", "gi", "default", "session_child_identity")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_child_identity", "session_root_identity", "@agent1", map[string]any{"status": "idle", "model": "bootstrap"}, &childAlloc.Scope, childAlloc.SessionAliases); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong99","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:session_root_identity"}}`, "session_root_identity"); err != nil {
+		t.Fatalf("mutate root scope snapshot: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong100","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:session_child_identity"}}`, "session_child_identity"); err != nil {
+		t.Fatalf("mutate child scope snapshot: %v", err)
+	}
+	agentID, err := srv.nextForkAgentID(ctx, "session_root_identity")
+	if err != nil {
+		t.Fatalf("next fork agent id: %v", err)
+	}
+	if agentID != "agent2" {
+		t.Fatalf("expected canonical fork agent id agent2, got %q", agentID)
 	}
 }
 
