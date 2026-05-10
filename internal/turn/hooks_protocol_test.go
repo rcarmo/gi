@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/inference"
 	goai "github.com/rcarmo/go-ai"
 )
 
@@ -302,5 +303,215 @@ func TestEmitHookPersistsHookInvocationAudit(t *testing.T) {
 	trace, ok := items[0].Request["trace"].(map[string]any)
 	if !ok || trace["id"] == "" {
 		t.Fatalf("expected persisted trace metadata, got %#v", items[0])
+	}
+}
+
+func TestBeforeProviderRequestCanMutateProviderContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_before_llm", "BeforeLLM", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_before_llm", "session_before_llm", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if _, err := e.RegisterHook(HookBeforeProviderRequest, "mutate-llm", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		return HookResponse{
+			Action:       "modify",
+			SystemPrompt: "mutated system prompt",
+			Messages:     []goai.Message{goai.UserMessage("mutated message")},
+			Tools:        []goai.Tool{{Name: "hook_tool", Description: "Injected", Parameters: json.RawMessage(`{"type":"object","properties":{}}`)}},
+		}, nil
+	}); err != nil {
+		t.Fatalf("register before_provider_request hook: %v", err)
+	}
+	var capturedSystemPrompt string
+	var capturedMessages []goai.Message
+	var capturedTools []goai.Tool
+	withStreamWithToolsStub(t, func(ctx context.Context, model string, convCtx *goai.Context, cb func(map[string]any)) (*inference.StreamResult, error) {
+		capturedSystemPrompt = convCtx.SystemPrompt
+		capturedMessages = append([]goai.Message(nil), convCtx.Messages...)
+		capturedTools = append([]goai.Tool(nil), convCtx.Tools...)
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	runner := e.runner("session_before_llm")
+	convCtx := &goai.Context{
+		SystemPrompt: "original system prompt",
+		Messages:     []goai.Message{goai.UserMessage("original message")},
+		Tools:        []goai.Tool{{Name: "read", Description: "Read", Parameters: json.RawMessage(`{"type":"object","properties":{}}`)}},
+	}
+	if _, err := runner.runProviderIteration(ctx, s, "turn_before_llm", "session_before_llm", "bootstrap", "agent", 1, 4, convCtx); err != nil {
+		t.Fatalf("run provider iteration: %v", err)
+	}
+	if capturedSystemPrompt != "mutated system prompt" {
+		t.Fatalf("expected mutated system prompt, got %q", capturedSystemPrompt)
+	}
+	if len(capturedMessages) != 1 || goai.GetTextContent(&capturedMessages[0]) != "mutated message" {
+		t.Fatalf("expected mutated messages, got %#v", capturedMessages)
+	}
+	if len(capturedTools) != 1 || capturedTools[0].Name != "hook_tool" {
+		t.Fatalf("expected mutated tools, got %#v", capturedTools)
+	}
+}
+
+func TestToolCallHookCanMutateArgumentsDuringExecution(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_tool_mutate", "ToolMutate", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_tool_mutate", "session_tool_mutate", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	executedValue := ""
+	if err := e.RegisterTool(RegisteredTool{Name: "echo_test", Description: "Echo", Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+		executedValue = stringValue(call.Arguments["value"], "")
+		return "exec:" + executedValue, nil
+	}}); err != nil {
+		t.Fatalf("register tool: %v", err)
+	}
+	if _, err := e.RegisterHook(HookToolCall, "mutate-tool-call", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		mutated := *req.ToolCall
+		mutated.Arguments = map[string]any{"value": "mutated"}
+		return HookResponse{Action: "modify", ToolCall: &mutated}, nil
+	}); err != nil {
+		t.Fatalf("register tool_call hook: %v", err)
+	}
+	runner := e.runner("session_tool_mutate")
+	outcome := runner.executeToolCallsPhase(ctx, s, "turn_tool_mutate", "session_tool_mutate", "bootstrap", "agent", 1, &goai.Context{}, []goai.ToolCall{{Type: "toolCall", ID: "tc_mut", Name: "echo_test", Arguments: map[string]any{"value": "original"}}}, nil, "", 0, &goai.Usage{})
+	if outcome.terminated {
+		t.Fatalf("expected tool phase to continue, got %#v", outcome)
+	}
+	if executedValue != "mutated" {
+		t.Fatalf("expected mutated tool argument to execute, got %q", executedValue)
+	}
+	msgs, err := s.ListMessages(ctx, "session_tool_mutate")
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Content != "exec:mutated" {
+		t.Fatalf("expected mutated tool result message, got %#v", msgs)
+	}
+}
+
+func TestToolCallHookCanRespondWithoutExecutingTool(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_tool_respond", "ToolRespond", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_tool_respond", "session_tool_respond", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	afterToolCalls := 0
+	if _, err := e.RegisterHook(HookToolCall, "respond-hook", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		result := "hook injected result"
+		return HookResponse{Action: "respond", Handled: true, ToolResult: &result}, nil
+	}); err != nil {
+		t.Fatalf("register tool_call hook: %v", err)
+	}
+	if _, err := e.RegisterHook(HookToolResult, "after-tool", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		afterToolCalls++
+		return HookResponse{}, nil
+	}); err != nil {
+		t.Fatalf("register tool_result hook: %v", err)
+	}
+	runner := e.runner("session_tool_respond")
+	outcome := runner.executeToolCallsPhase(ctx, s, "turn_tool_respond", "session_tool_respond", "bootstrap", "agent", 1, &goai.Context{}, []goai.ToolCall{{Type: "toolCall", ID: "tc_resp", Name: "plugin_tool", Arguments: map[string]any{"value": "x"}}}, nil, "", 0, &goai.Usage{})
+	if outcome.terminated {
+		t.Fatalf("expected hook response injection to continue, got %#v", outcome)
+	}
+	if afterToolCalls != 0 {
+		t.Fatalf("expected after_tool hook to be skipped on direct response, got %d calls", afterToolCalls)
+	}
+	msgs, err := s.ListMessages(ctx, "session_tool_respond")
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Content != "hook injected result" {
+		t.Fatalf("expected injected tool result message, got %#v", msgs)
+	}
+}
+
+func TestApproveToolHookCanDenyExecution(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_tool_deny", "ToolDeny", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_tool_deny", "session_tool_deny", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	executions := 0
+	if err := e.RegisterTool(RegisteredTool{Name: "deny_test", Description: "Deny", Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+		executions++
+		return "should not run", nil
+	}}); err != nil {
+		t.Fatalf("register tool: %v", err)
+	}
+	if _, err := e.RegisterHook(HookApproveTool, "deny-hook", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		return HookResponse{Action: "deny", Block: true, Reason: "policy denied"}, nil
+	}); err != nil {
+		t.Fatalf("register approve hook: %v", err)
+	}
+	runner := e.runner("session_tool_deny")
+	outcome := runner.executeToolCallsPhase(ctx, s, "turn_tool_deny", "session_tool_deny", "bootstrap", "agent", 1, &goai.Context{}, []goai.ToolCall{{Type: "toolCall", ID: "tc_deny", Name: "deny_test", Arguments: map[string]any{"value": "x"}}}, nil, "", 0, &goai.Usage{})
+	if outcome.terminated {
+		t.Fatalf("expected denied tool to stay in turn loop, got %#v", outcome)
+	}
+	if executions != 0 {
+		t.Fatalf("expected denied tool not to execute, got %d executions", executions)
+	}
+	msgs, err := s.ListMessages(ctx, "session_tool_deny")
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Role != "tool_result" || msgs[0].Content == "" || msgs[0].Content == "should not run" {
+		t.Fatalf("expected denial tool_result message, got %#v", msgs)
+	}
+}
+
+func TestHookAbortSemanticsAbortTurnDuringToolCall(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_hook_abort", "HookAbort", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_hook_abort", "session_hook_abort", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if _, err := e.RegisterHook(HookToolCall, "abort-hook", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		return HookResponse{Action: "abort_turn", Cancel: true, Block: true, Reason: "stop now"}, nil
+	}); err != nil {
+		t.Fatalf("register tool_call hook: %v", err)
+	}
+	runner := e.runner("session_hook_abort")
+	outcome := runner.executeToolCallsPhase(ctx, s, "turn_hook_abort", "session_hook_abort", "bootstrap", "agent", 1, &goai.Context{}, []goai.ToolCall{{Type: "toolCall", ID: "tc_abort", Name: "unknown_tool", Arguments: map[string]any{}}}, nil, "", 0, &goai.Usage{})
+	if !outcome.terminated {
+		t.Fatalf("expected aborting hook to terminate turn, got %#v", outcome)
+	}
+	turnRec, err := s.GetTurn(ctx, "turn_hook_abort")
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if turnRec.Status != "aborted" || turnRec.Phase != "aborted" {
+		t.Fatalf("expected aborted turn, got %#v", turnRec)
+	}
+	msgs, err := s.ListMessages(ctx, "session_hook_abort")
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	if len(msgs) == 0 || msgs[len(msgs)-1].Content != "stop now" {
+		t.Fatalf("expected terminal abort message, got %#v", msgs)
 	}
 }

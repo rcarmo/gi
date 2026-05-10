@@ -26,6 +26,42 @@ func isCancellationError(err error) bool {
 	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
+type hookAbortError struct {
+	reason string
+	hard   bool
+}
+
+func (e hookAbortError) Error() string {
+	if strings.TrimSpace(e.reason) == "" {
+		if e.hard {
+			return "turn hard-aborted by hook"
+		}
+		return "turn aborted by hook"
+	}
+	return e.reason
+}
+
+func hookAbortFromResponse(resp HookResponse, fallback string) error {
+	if !resp.Cancel {
+		return nil
+	}
+	reason := strings.TrimSpace(resp.Reason)
+	if reason == "" {
+		reason = fallback
+	}
+	return hookAbortError{reason: reason, hard: boolValue(resp.Payload["hard_abort"])}
+}
+
+func directToolResultFromHook(resp HookResponse) (string, bool) {
+	if resp.ToolResult != nil {
+		return *resp.ToolResult, true
+	}
+	if resp.Handled && strings.TrimSpace(resp.Message) != "" {
+		return resp.Message, true
+	}
+	return "", false
+}
+
 func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string) *goai.Context {
 	sysPrompt := r.engine.systemPrompt
 	if sysPrompt == "" {
@@ -100,7 +136,25 @@ func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, tu
 }
 
 func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, iter, maxIter int, convCtx *goai.Context) (*inference.StreamResult, error) {
-	_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"model": model, "messages": len(convCtx.Messages), "tools": len(convCtx.Tools)}})
+	if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools, Payload: map[string]any{"model": model, "messages": len(convCtx.Messages), "tools": len(convCtx.Tools)}}); err != nil {
+		log.Printf("hook before_provider_request error: %v", err)
+	} else {
+		if abortErr := hookAbortFromResponse(resp, "aborted before provider request by hook"); abortErr != nil {
+			return nil, abortErr
+		}
+		if resp.SystemPrompt != "" {
+			convCtx.SystemPrompt = resp.SystemPrompt
+		}
+		if resp.Messages != nil {
+			convCtx.Messages = resp.Messages
+		}
+		if resp.Tools != nil {
+			convCtx.Tools = resp.Tools
+		}
+		if strings.TrimSpace(resp.Message) != "" {
+			convCtx.Messages = append([]goai.Message{goai.UserMessage(resp.Message)}, convCtx.Messages...)
+		}
+	}
 	warnStore("update turn running phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "running"))
 	r.emitTurnStateHook(ctx, sessionID, turnID, agentID, model, "running", "running", map[string]any{"reason": "provider_iteration", "iteration": iter})
 	warnStore("append inference.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "iteration": iter, "checkpoint": true}))
@@ -157,25 +211,64 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 
 		if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
 			log.Printf("hook tool_call error: %v", err)
-		} else if resp.Block {
-			toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool call blocked"))
-			errText := fmt.Sprintf("Error: %v", toolErr)
-			goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
-			warnStore("add blocked tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID}))
-			continue
-		} else if resp.ToolCall != nil {
-			call = *resp.ToolCall
+		} else {
+			if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s aborted by hook", call.Name)); abortErr != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
+				outcome.terminated = true
+				return outcome
+			}
+			if resp.ToolCall != nil {
+				call = *resp.ToolCall
+			}
+			if injectedResult, ok := directToolResultFromHook(resp); ok {
+				displayResult := injectedResult
+				if len(displayResult) > 100000 {
+					displayResult = displayResult[:100000] + "\n... (truncated)"
+				}
+				goai.AppendToolResult(convCtx, call.ID, call.Name, displayResult, false)
+				warnStore("add injected tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", displayResult, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID, "source": "hook"}))
+				outcome.lastToolFailureSig = ""
+				outcome.repeatedToolFailureCount = 0
+				if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID); err != nil {
+					log.Printf("steering dequeue error after hook tool response: %v", err)
+				} else if len(steerMsgs) > 0 {
+					outcome.pendingSteering = append(outcome.pendingSteering, steerMsgs...)
+					if i+1 < len(toolCalls) {
+						r.skipRemainingToolCalls(ctx, sessionID, turnID, convCtx, toolCalls, i+1)
+						outcome.skipRemainingTools = true
+					}
+				}
+				if outcome.skipRemainingTools || len(outcome.pendingSteering) > 0 {
+					return outcome
+				}
+				continue
+			}
+			if resp.Block {
+				toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool call blocked"))
+				errText := fmt.Sprintf("Error: %v", toolErr)
+				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
+				warnStore("add blocked tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID}))
+				continue
+			}
 		}
 		if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, ToolCall: &call, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "arguments": call.Arguments}}); err != nil {
 			log.Printf("hook approve_tool error: %v", err)
-		} else if resp.Block {
-			toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool not approved"))
-			errText := fmt.Sprintf("Error: %v", toolErr)
-			goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
-			warnStore("add denied tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID}))
-			continue
-		} else if resp.ToolCall != nil {
-			call = *resp.ToolCall
+		} else {
+			if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s approval aborted by hook", call.Name)); abortErr != nil {
+				r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
+				outcome.terminated = true
+				return outcome
+			}
+			if resp.Block {
+				toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool not approved"))
+				errText := fmt.Sprintf("Error: %v", toolErr)
+				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
+				warnStore("add denied tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID}))
+				continue
+			}
+			if resp.ToolCall != nil {
+				call = *resp.ToolCall
+			}
 		}
 
 		warnStore("update turn waiting_on_tools phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "waiting_on_tools"))
@@ -220,8 +313,15 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		} else {
 			if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, ToolCall: &call, ToolResult: toolResult, Payload: map[string]any{"tool": call.Name, "tool_call_id": call.ID, "is_error": false}}); err != nil {
 				log.Printf("hook tool_result error: %v", err)
-			} else if resp.ToolResult != nil {
-				toolResult = *resp.ToolResult
+			} else {
+				if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s result aborted by hook", call.Name)); abortErr != nil {
+					r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
+					outcome.terminated = true
+					return outcome
+				}
+				if resp.ToolResult != nil {
+					toolResult = *resp.ToolResult
+				}
 			}
 			displayResult := toolResult
 			if len(displayResult) > 100000 {

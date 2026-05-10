@@ -2,6 +2,7 @@ package turn
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -75,6 +76,12 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		if inferErr != nil {
 			if ctx.Err() != nil || isCancellationError(inferErr) {
 				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
+				return
+			}
+			var abortErr hookAbortError
+			if errors.As(inferErr, &abortErr) {
+				warnStore("append inference.aborted event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.aborted", map[string]any{"phase": "inference", "checkpoint": true, "error": abortErr.Error(), "iteration": iter, "hard_abort": abortErr.hard}))
+				r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
 				return
 			}
 			log.Printf("inference [%s] error: %v", iterLabel, inferErr)
