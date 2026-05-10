@@ -445,8 +445,15 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 	if !claimed {
 		return false, nil
 	}
+	runCtx, cancel := context.WithCancel(context.Background())
+	active := &runningTurn{turnID: turnID, cancel: cancel}
+	runner.current = active
 	releaseClaim := func() {
 		warnStore("release active claim after launch failure", e.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken))
+		if runner.current == active {
+			runner.current = nil
+		}
+		cancel()
 	}
 	if err := e.store.MarkTurnClaimed(ctx, turnID, "runner"); err != nil {
 		releaseClaim()
@@ -461,19 +468,15 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 		releaseClaim()
 		return false, err
 	}
-	go runner.runTurn(e.store, sessionID, turnID)
+	go runner.runTurn(e.store, sessionID, turnID, runCtx, cancel, active)
 	return true, nil
 }
 
-func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string) {
-	ctx, cancel := context.WithCancel(context.Background())
+func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx context.Context, cancel context.CancelFunc, active *runningTurn) {
 	claimToken := turnID
-	r.mu.Lock()
-	r.current = &runningTurn{turnID: turnID, cancel: cancel}
-	r.mu.Unlock()
 	defer cancel()
 	defer func() {
-		r.cleanupTurnRun(sessionID, claimToken)
+		r.cleanupTurnRun(sessionID, claimToken, active)
 	}()
 
 	run, err := r.setupTurnRun(ctx, s, sessionID, turnID)

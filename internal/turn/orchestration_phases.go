@@ -23,12 +23,14 @@ type preparedTurnRun struct {
 	initialSteering []store.SteeringMessage
 }
 
-func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string) {
+func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *runningTurn) {
 	ctx := context.Background()
 	warnStore("release session active turn", r.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken))
 	warnStore("sync session queue count", r.store.SyncSessionQueueCount(ctx, sessionID))
 	r.mu.Lock()
-	r.current = nil
+	if r.current == active {
+		r.current = nil
+	}
 	r.mu.Unlock()
 	if err := r.engine.startNextQueuedTurn(ctx, sessionID); err != nil {
 		log.Printf("turn coordination: launch queued turn failed: %v", err)

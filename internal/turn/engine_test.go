@@ -221,6 +221,24 @@ func TestSubmitPromptClaimConflictConvertsFreshTurnToSteering(t *testing.T) {
 	}
 }
 
+func TestCleanupTurnRunDoesNotClearNewerRunningTurn(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cleanup_guard", "Test", map[string]any{"model": "bootstrap", "status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	runner := engine.runner("session_cleanup_guard")
+	oldRunning := &runningTurn{turnID: "turn_old"}
+	newRunning := &runningTurn{turnID: "turn_new"}
+	runner.current = newRunning
+	runner.cleanupTurnRun("session_cleanup_guard", "turn_old", oldRunning)
+	if runner.current != newRunning {
+		t.Fatalf("expected cleanup for older turn not to clear newer running turn, got %#v", runner.current)
+	}
+}
+
 func TestStartupRecoveryRequeuesCompactingTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
