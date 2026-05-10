@@ -191,6 +191,7 @@ Implemented so far:
 - `session_active_turns` claim/release store APIs plus active-turn heartbeat refreshes
 - store-backed run-vs-queue decisions in `turn.Engine.SubmitPrompt(...)`
 - queued-turn handoff through the same launch/claim path as immediately-started turns
+- same-session cross-engine launch claim conflicts now collapse back into steering instead of leaving a transient competing queued turn behind when another worker wins the active-turn claim first
 - real `queue_count` synchronization from queued turn rows
 - compaction checkpoints now mark a durable `compacting` phase
 - stale active-turn recovery on engine startup and before same-session submission
@@ -274,6 +275,7 @@ Implemented so far:
 - skipped remaining tool calls emit durable skipped tool results with `"Skipped due to queued user message."`
 - end-of-turn idle continuation drains queued steering into a follow-on turn when no normal queued turn is ahead of it
 - explicit `ContinueSession(...)` support plus a web continuation endpoint for idle-session steering
+- idle continuation now stages a durable queued continuation turn before launch, so continued steering gets an ordered queue slot before execution starts
 - store/unit coverage for dequeue mode behavior and turn/engine coverage for same-session steering continuation
 - steering lifecycle publication on the topic bus via `session.steering` notices for enqueue/dequeue/stage/continue/inject checkpoints
 - steering queue overflow coverage (cap remains enforced at 10)
@@ -289,6 +291,7 @@ Current steering semantics:
 - when steering arrives after a direct non-tool LLM answer, the loop continues instead of finalizing that answer immediately
 - a final pre-finalization checkpoint stages a queued continuation turn before the active turn is released when late steering is already waiting
 - idle sessions can be resumed explicitly through `ContinueSession(...)` / the web continuation endpoint, and runtime fallback continuation still runs after turn end when appropriate
+- continuation no longer drains steering directly into a fresh submit call; it first stages a queued continuation turn and then launches through normal queue/claim logic, reducing the race window against concurrent same-session submits
 - bootstrap/test shell turns now preserve queued steering messages in history before running the continuation shell step
 
 Still pending in this area:

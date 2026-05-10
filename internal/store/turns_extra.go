@@ -43,6 +43,21 @@ func (s *Store) CreateTurnWithStatus(ctx context.Context, id, sessionID, status,
 	return s.GetTurn(ctx, id)
 }
 
+func (s *Store) DeleteTurn(ctx context.Context, turnID string) error {
+	var sessionID string
+	row := s.db.QueryRowContext(ctx, `select session_id from turns where id = ?`, turnID)
+	if err := row.Scan(&sessionID); err != nil {
+		return fmt.Errorf("delete turn lookup: %w", err)
+	}
+	if _, err := s.db.ExecContext(ctx, `delete from turns where id = ?`, turnID); err != nil {
+		return fmt.Errorf("delete turn: %w", err)
+	}
+	if err := s.SyncSessionQueueCount(ctx, sessionID); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Store) ListTurns(ctx context.Context, sessionID string) ([]Turn, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		select id, session_id, status, phase, prompt, metadata_json, coalesce(claimed_by,''), coalesce(claimed_at,''), coalesce(started_at,''), coalesce(finished_at,''), created_at, updated_at

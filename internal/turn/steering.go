@@ -139,28 +139,17 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 }
 
 func (e *Engine) continueQueuedSteering(ctx context.Context, sessionID string) (bool, error) {
-	msgs, err := e.store.DequeueSteering(ctx, sessionID)
-	if err == sql.ErrNoRows {
-		return false, nil
-	}
+	staged, turnID, err := e.stageQueuedSteeringContinuation(ctx, sessionID)
 	if err != nil {
 		return false, err
 	}
-	if len(msgs) == 0 {
+	if !staged {
 		return false, nil
 	}
-	metadata := steeringMetadataFromMessages(msgs)
-	res, err := e.SubmitPrompt(ctx, RunInput{
-		SessionID: sessionID,
-		Prompt:    "",
-		Intent:    stringValue(metadata["intent"], "continue"),
-		Model:     stringValue(metadata["model"], ""),
-		Metadata:  metadata,
-	})
-	if err != nil {
+	if err := e.startNextQueuedTurn(ctx, sessionID); err != nil {
 		return false, err
 	}
-	e.broadcast(sessionID, map[string]any{"type": "steering_continued", "chat_jid": "gi:" + sessionID, "turn_id": res.TurnID, "count": len(msgs)})
+	e.broadcast(sessionID, map[string]any{"type": "steering_continued", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 	return true, nil
 }
 

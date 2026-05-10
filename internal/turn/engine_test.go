@@ -179,6 +179,48 @@ func TestConcurrentSubmitAcrossEnginesCompletesWithoutConflict(t *testing.T) {
 	}
 }
 
+func TestSubmitPromptClaimConflictConvertsFreshTurnToSteering(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_claim_conflict", "Test", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_existing_active", "session_claim_conflict", "running", "already running", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create existing active turn: %v", err)
+	}
+	engine := New(s)
+	engine.beforeLaunchClaimHook = func(ctx context.Context, sessionID, turnID string) {
+		engine.beforeLaunchClaimHook = nil
+		if _, err := s.ClaimSessionActiveTurn(ctx, sessionID, activeTurn.ID, "runner", activeTurn.ID); err != nil {
+			t.Fatalf("claim existing active turn: %v", err)
+		}
+		if err := s.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": activeTurn.ID, "status": "running"}); err != nil {
+			t.Fatalf("touch session state: %v", err)
+		}
+	}
+	res, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_claim_conflict", Prompt: "steer me", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	if res.Queued || res.Status != "running" || res.TurnID != activeTurn.ID {
+		t.Fatalf("expected claim-conflict submit to steer to existing active turn, got %#v", res)
+	}
+	turns, err := s.ListTurns(ctx, "session_claim_conflict")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 1 || turns[0].ID != activeTurn.ID {
+		t.Fatalf("expected transient queued turn to be removed after steering fallback, got %#v", turns)
+	}
+	if depth, err := s.SteeringQueueLength(ctx, "session_claim_conflict"); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 1 {
+		t.Fatalf("expected steering queue depth 1 after claim-conflict fallback, got %d", depth)
+	}
+}
+
 func TestStartupRecoveryRequeuesCompactingTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

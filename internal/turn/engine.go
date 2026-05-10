@@ -23,22 +23,23 @@ import (
 )
 
 type Engine struct {
-	store           *store.Store
-	systemPrompt    string
-	routeResolver   *routing.RouteResolver
-	modelRouter     *routing.Router
-	runtimeCfg      config.RuntimeConfig
-	hooks           *HookRegistry
-	tools           *ToolRegistry
-	connectivity    *connectivity.Registry
-	topics          *topics.Bus
-	peering         *peering.Manager
-	extensions      []ExtensionInfo
-	extensionsMu    sync.RWMutex
-	sessions        sync.Map // sessionID -> *sessionRunner
-	subs            map[string]map[chan map[string]any]bool
-	subsMu          sync.Mutex
-	beforeSetupHook func(context.Context, string, string)
+	store                 *store.Store
+	systemPrompt          string
+	routeResolver         *routing.RouteResolver
+	modelRouter           *routing.Router
+	runtimeCfg            config.RuntimeConfig
+	hooks                 *HookRegistry
+	tools                 *ToolRegistry
+	connectivity          *connectivity.Registry
+	topics                *topics.Bus
+	peering               *peering.Manager
+	extensions            []ExtensionInfo
+	extensionsMu          sync.RWMutex
+	sessions              sync.Map // sessionID -> *sessionRunner
+	subs                  map[string]map[chan map[string]any]bool
+	subsMu                sync.Mutex
+	beforeSetupHook       func(context.Context, string, string)
+	beforeLaunchClaimHook func(context.Context, string, string)
 }
 
 type sessionRunner struct {
@@ -247,6 +248,24 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if _, err := e.store.CreateTurnWithStatus(ctx, turnID, in.SessionID, "queued", in.Prompt, metadata); err != nil {
 		return nil, err
 	}
+	if err := e.recordRouteDecision(ctx, in.SessionID, turnID, metadata); err != nil {
+		// Non-fatal: routing decisions are an orchestration artifact.
+		log.Printf("orchestration: route decision persist failed: %v", err)
+	}
+	if !queued {
+		launched, err := e.launchTurnLocked(ctx, runner, in.SessionID, turnID)
+		if err != nil {
+			return nil, err
+		}
+		if !launched {
+			if steeringResult, steered, err := e.convertLaunchConflictToSteering(ctx, turnID, in); err != nil {
+				return nil, err
+			} else if steered {
+				return steeringResult, nil
+			}
+		}
+		queued = !launched
+	}
 	if in.ParentTurnID != "" && parentSessionID != "" {
 		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth, "max_depth": subTurnMaxDepth, "max_concurrency": subTurnMaxConcurrency, "delivery_mode": subTurnDeliveryMode, "subturn_critical": subTurnCritical, "effective_tools": effectiveTools, "subturn_tools_restricted": subTurnToolsRestricted}
 		if _, err := e.store.CreateSubTurn(ctx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, subTurnDeliveryMode, subTurnDepth, subturnMetadata); err != nil {
@@ -280,17 +299,6 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 				"restricted_tools": subTurnToolsRestricted,
 			})
 		}
-	}
-	if err := e.recordRouteDecision(ctx, in.SessionID, turnID, metadata); err != nil {
-		// Non-fatal: routing decisions are an orchestration artifact.
-		log.Printf("orchestration: route decision persist failed: %v", err)
-	}
-	if !queued {
-		launched, err := e.launchTurnLocked(ctx, runner, in.SessionID, turnID)
-		if err != nil {
-			return nil, err
-		}
-		queued = !launched
 	}
 	status := "running"
 	if queued {
@@ -402,12 +410,33 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 	return fmt.Errorf("turn not cancellable")
 }
 
+func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID string, in RunInput) (*SubmitResult, bool, error) {
+	activeTurnID, _, err := e.store.GetSessionActiveTurn(ctx, in.SessionID)
+	if err == sql.ErrNoRows {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	if err := e.store.DeleteTurn(ctx, turnID); err != nil {
+		return nil, false, err
+	}
+	res, err := e.submitSteeringPrompt(ctx, in.SessionID, activeTurnID, in)
+	if err != nil {
+		return nil, false, err
+	}
+	return res, true, nil
+}
+
 func (e *Engine) runner(sessionID string) *sessionRunner {
 	v, _ := e.sessions.LoadOrStore(sessionID, &sessionRunner{store: e.store, engine: e})
 	return v.(*sessionRunner)
 }
 
 func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, sessionID, turnID string) (bool, error) {
+	if hook := e.beforeLaunchClaimHook; hook != nil {
+		hook(ctx, sessionID, turnID)
+	}
 	claimToken := turnID
 	claimed, err := e.store.ClaimSessionActiveTurn(ctx, sessionID, turnID, "runner", claimToken)
 	if err != nil {
