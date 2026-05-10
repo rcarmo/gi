@@ -357,7 +357,7 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 	}
 	in.SessionID = resolution.target.ID
 	in.Prompt = resolution.promptBody
-	e.applyLocalRouteMetadata(&in, resolution)
+	e.applyLocalRouteMetadata(ctx, &in, resolution)
 	return e.SubmitPrompt(ctx, in)
 }
 
@@ -609,7 +609,7 @@ func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.
 	if source == nil {
 		return nil, false, fmt.Errorf("missing source session")
 	}
-	if normalizeAgentID(sessionAgentID(source)) == normalizeAgentID(route.AgentID) {
+	if normalizeAgentID(sessionAgentIDWithStore(ctx, e.store, source)) == normalizeAgentID(route.AgentID) {
 		return source, false, nil
 	}
 	plan, err := e.prepareRouteSessionPlan(source, route, inbound)
@@ -631,7 +631,7 @@ func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.
 }
 
 func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, source, target *store.Session, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string) (*SubmitResult, error) {
-	sourceAgentID := sessionAgentID(source)
+	sourceAgentID := sessionAgentIDWithStore(ctx, e.store, source)
 	routingContent := fmt.Sprintf("↪ routed to @%s: %s", route.AgentID, content)
 	routingPayload := map[string]any{"kind": "routing", "target_agent_id": route.AgentID, "target_session_id": target.ID, "source_agent_id": sourceAgentID, "source_session_id": source.ID, "route_matched_by": route.MatchedBy, "clipped": true}
 	warnStore("add routing message to source session", e.store.AddMessage(ctx, store.NowID("msg"), source.ID, "system", routingContent, routingPayload))
@@ -694,6 +694,38 @@ func parseDirectedPrompt(prompt string) (string, string, bool) {
 	return target, body, target != ""
 }
 
+func lookupSessionIdentity(ctx context.Context, s *store.Store, sess *store.Session) *store.SessionIdentity {
+	if s == nil || sess == nil || strings.TrimSpace(sess.ID) == "" {
+		return nil
+	}
+	identity, err := s.GetSessionIdentity(ctx, sess.ID)
+	if err != nil {
+		return nil
+	}
+	return identity
+}
+
+func sessionAgentIDWithStore(ctx context.Context, s *store.Store, sess *store.Session) string {
+	if identity := lookupSessionIdentity(ctx, s, sess); identity != nil && strings.TrimSpace(identity.Scope.AgentID) != "" {
+		return identity.Scope.AgentID
+	}
+	return sessionAgentID(sess)
+}
+
+func sessionChannelWithStore(ctx context.Context, s *store.Store, sess *store.Session) string {
+	if identity := lookupSessionIdentity(ctx, s, sess); identity != nil && strings.TrimSpace(identity.Scope.Channel) != "" {
+		return identity.Scope.Channel
+	}
+	return sessionChannel(sess)
+}
+
+func sessionAccountWithStore(ctx context.Context, s *store.Store, sess *store.Session) string {
+	if identity := lookupSessionIdentity(ctx, s, sess); identity != nil && strings.TrimSpace(identity.Scope.Account) != "" {
+		return identity.Scope.Account
+	}
+	return sessionAccount(sess)
+}
+
 func sessionAgentID(sess *store.Session) string {
 	if sess != nil && sess.Scope != nil && sess.Scope.AgentID != "" {
 		return sess.Scope.AgentID
@@ -738,7 +770,7 @@ func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnI
 	if sourceAgent == "" {
 		sess, err := e.store.GetSession(context.Background(), sourceSession)
 		if err == nil {
-			sourceAgent = sessionAgentID(sess)
+			sourceAgent = sessionAgentIDWithStore(context.Background(), e.store, sess)
 		}
 	}
 	routingPolicy := stringValue(metadata["routing_policy"], "")

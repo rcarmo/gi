@@ -1465,6 +1465,56 @@ func TestPreparePromptRouteResolutionUsesSourceSessionScopeContext(t *testing.T)
 	}
 }
 
+func TestPreparePromptRouteResolutionPrefersSessionIdentityOverScopeSnapshot(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	scope := gisession.SessionScope{Version: gisession.ScopeVersionV1, AgentID: "agent", Channel: "slack", Account: "workspace", Dimensions: []string{"space", "chat", "topic"}, Values: map[string]string{"space": "room:eng", "chat": "group:thread-7", "topic": "topic:builds"}}
+	source, err := s.CreateSessionWithMetadata(ctx, "session_route_scope_identity", "", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}, &scope, []string{"agent:agent:slack:chat:group:thread-7"})
+	if err != nil {
+		t.Fatalf("create source session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:wrong"}}`, source.ID); err != nil {
+		t.Fatalf("mutate scope snapshot: %v", err)
+	}
+	engine := New(s)
+	resolution, err := engine.preparePromptRouteResolution(ctx, RunInput{SessionID: source.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("prepare prompt route resolution: %v", err)
+	}
+	if resolution.inbound.Channel != "slack" || resolution.inbound.Account != "workspace" {
+		t.Fatalf("expected canonical inbound channel/account, got %#v", resolution.inbound)
+	}
+	if resolution.inbound.ChatType != "group" || resolution.inbound.ChatID != "thread-7" || resolution.inbound.SpaceType != "room" || resolution.inbound.SpaceID != "eng" || resolution.inbound.TopicID != "builds" {
+		t.Fatalf("expected canonical scoped inbound context, got %#v", resolution.inbound)
+	}
+}
+
+func TestResolveOrCreateRouteSessionUsesIdentityForSameAgentFastPath(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	scope := gisession.SessionScope{Version: gisession.ScopeVersionV1, AgentID: "agent", Channel: "gi", Account: "default", Dimensions: []string{"chat"}, Values: map[string]string{"chat": "direct:session_same_agent_identity"}}
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_same_agent_identity", "", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}, &scope, []string{"agent:agent:gi:chat:direct:session_same_agent_identity"}); err != nil {
+		t.Fatalf("create source session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:session_same_agent_identity"}}`, "session_same_agent_identity"); err != nil {
+		t.Fatalf("mutate scope snapshot: %v", err)
+	}
+	source, err := s.GetSession(ctx, "session_same_agent_identity")
+	if err != nil {
+		t.Fatalf("reload source session: %v", err)
+	}
+	engine := New(s)
+	target, created, err := engine.ResolveOrCreateRouteSession(ctx, source, routing.ResolvedRoute{AgentID: "agent"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
+	if err != nil {
+		t.Fatalf("resolve route session: %v", err)
+	}
+	if created || target.ID != source.ID {
+		t.Fatalf("expected canonical same-agent fast path reuse, got target=%#v created=%v", target, created)
+	}
+}
+
 func TestSubmitPromptRoutedRejectsDirectedPromptWithoutBody(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

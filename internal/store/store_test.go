@@ -109,6 +109,37 @@ func TestStoreResolvesSessionByOpaqueKeyAndAlias(t *testing.T) {
 	}
 }
 
+func TestStoreGetSessionIdentity(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SpaceType: "room", SpaceID: "eng", TopicID: "builds", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"space", "chat", "topic", "sender"}},
+	})
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_identity", "", "@support", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	identity, err := s.GetSessionIdentity(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("get session identity: %v", err)
+	}
+	if identity.SessionID != sess.ID || identity.Scope.AgentID != "support" || identity.Scope.Channel != "slack" || identity.Scope.Account != "workspace" {
+		t.Fatalf("unexpected session identity header: %#v", identity)
+	}
+	if identity.Scope.Values["space"] != "room:eng" || identity.Scope.Values["chat"] != "group:thread-7" || identity.Scope.Values["topic"] != "topic:builds" || identity.Scope.Values["sender"] != "rui" {
+		t.Fatalf("unexpected session identity scope values: %#v", identity.Scope)
+	}
+	if identity.CanonicalScopeSignature == "" || identity.OpaqueSessionKey == "" || len(identity.Aliases) == 0 {
+		t.Fatalf("expected canonical identity metadata, got %#v", identity)
+	}
+}
+
 func TestStoreFindSessionByAllocationFallsBackToCanonicalSignature(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

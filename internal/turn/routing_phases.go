@@ -43,7 +43,7 @@ func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) 
 		promptBody = body
 		mentioned = true
 	}
-	inbound := inboundContextFromSession(source)
+	inbound := inboundContextFromSession(ctx, e.store, source)
 	inbound.SenderID = "user"
 	inbound.Mentioned = mentioned
 	inbound.Prompt = promptBody
@@ -66,8 +66,8 @@ func (e *Engine) preparePeerRouteResolution(ctx context.Context, sourceSessionID
 	if err != nil {
 		return nil, err
 	}
-	inbound := inboundContextFromSession(source)
-	inbound.SenderID = sessionAgentID(source)
+	inbound := inboundContextFromSession(ctx, e.store, source)
+	inbound.SenderID = sessionAgentIDWithStore(ctx, e.store, source)
 	inbound.Mentioned = true
 	inbound.Prompt = content
 	route := e.routeResolver.ResolveRoute(inbound)
@@ -92,7 +92,7 @@ func (e *Engine) resolveRoutedPromptTarget(ctx context.Context, resolution *rout
 	return nil
 }
 
-func (e *Engine) applyLocalRouteMetadata(in *RunInput, resolution *routedPromptResolution) {
+func (e *Engine) applyLocalRouteMetadata(ctx context.Context, in *RunInput, resolution *routedPromptResolution) {
 	if in.Metadata == nil {
 		in.Metadata = map[string]any{}
 	}
@@ -100,7 +100,7 @@ func (e *Engine) applyLocalRouteMetadata(in *RunInput, resolution *routedPromptR
 	in.Metadata["route_matched_by"] = resolution.route.MatchedBy
 	in.Metadata["target_agent_id"] = resolution.route.AgentID
 	in.Metadata["target_session_id"] = resolution.target.ID
-	in.Metadata["source_agent_id"] = sessionAgentID(resolution.source)
+	in.Metadata["source_agent_id"] = sessionAgentIDWithStore(ctx, e.store, resolution.source)
 	if resolution.route.MatchedBy != "" {
 		in.Metadata["routing_policy"] = resolution.route.MatchedBy
 	}
@@ -154,31 +154,39 @@ func (e *Engine) cloneRouteSession(ctx context.Context, plan *routeSessionPlan) 
 		return nil, err
 	}
 	e.copyRouteSessionHistory(ctx, plan.source.ID, cloned.ID)
-	warnStore("add forked-from message", e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sessionAgentID(plan.source)), map[string]any{"kind": "fork", "source_session_id": plan.source.ID, "source_agent_id": sessionAgentID(plan.source), "route_matched_by": plan.route.MatchedBy, "clipped": true}))
+	sourceAgentID := sessionAgentIDWithStore(ctx, e.store, plan.source)
+	warnStore("add forked-from message", e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sourceAgentID), map[string]any{"kind": "fork", "source_session_id": plan.source.ID, "source_agent_id": sourceAgentID, "route_matched_by": plan.route.MatchedBy, "clipped": true}))
 	return cloned, nil
 }
 
-func inboundContextFromSession(sess *store.Session) routing.InboundContext {
+func inboundContextFromSession(ctx context.Context, s *store.Store, sess *store.Session) routing.InboundContext {
 	inbound := routing.InboundContext{
-		Channel: sessionChannel(sess),
-		Account: sessionAccount(sess),
+		Channel: sessionChannelWithStore(ctx, s, sess),
+		Account: sessionAccountWithStore(ctx, s, sess),
 	}
-	if sess == nil || sess.Scope == nil || sess.Scope.Values == nil {
+	identity := lookupSessionIdentity(ctx, s, sess)
+	var scope *gisession.SessionScope
+	if identity != nil {
+		scope = &identity.Scope
+	} else if sess != nil {
+		scope = sess.Scope
+	}
+	if sess == nil || scope == nil || scope.Values == nil {
 		if sess != nil {
 			inbound.ChatType = "direct"
 			inbound.ChatID = sess.ID
 		}
 		return inbound
 	}
-	if spaceType, spaceID, ok := splitScopedValue(sess.Scope.Values["space"], "space"); ok {
+	if spaceType, spaceID, ok := splitScopedValue(scope.Values["space"], "space"); ok {
 		inbound.SpaceType = spaceType
 		inbound.SpaceID = spaceID
 	}
-	if chatType, chatID, ok := splitScopedValue(sess.Scope.Values["chat"], "direct"); ok {
+	if chatType, chatID, ok := splitScopedValue(scope.Values["chat"], "direct"); ok {
 		inbound.ChatType = chatType
 		inbound.ChatID = chatID
 	}
-	if _, topicID, ok := splitScopedValue(sess.Scope.Values["topic"], "topic"); ok {
+	if _, topicID, ok := splitScopedValue(scope.Values["topic"], "topic"); ok {
 		inbound.TopicID = topicID
 	}
 	if inbound.ChatID == "" && sess != nil {

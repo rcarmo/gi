@@ -125,9 +125,10 @@ This gives us:
 Implemented so far:
 
 - `session_identities`, `session_identity_dimensions`, and `session_aliases` are now populated transactionally with session creation/cloning paths
+- store now exposes a first-class `GetSessionIdentity(...)` read path backed by the relational identity tables instead of requiring runtime callers to infer identity from `sessions.scope_json`
 - `FindSessionByAllocation(...)` now resolves by opaque key, validated alias matches, and canonical scope signature fallback
 - default session allocation now uses the same `direct:<chat>` chat-dimension encoding and alias format as routed allocation
-- route-preparation now derives inbound `channel` / `account` / `space` / `chat` / `topic` context from the source session scope instead of hardcoding `direct` + session id
+- route-preparation and same-agent fast-path checks now read canonical agent/channel/account/dimension identity from the store first, with `scope_json` only as compatibility fallback
 
 Still pending in this area:
 

@@ -10,6 +10,15 @@ import (
 	gisession "github.com/rcarmo/gi/internal/session"
 )
 
+type SessionIdentity struct {
+	SessionID               string                 `json:"session_id"`
+	Scope                   gisession.SessionScope `json:"scope"`
+	Aliases                 []string               `json:"aliases,omitempty"`
+	CanonicalScopeSignature string                 `json:"canonical_scope_signature"`
+	OpaqueSessionKey        string                 `json:"opaque_session_key"`
+	IsMainSession           bool                   `json:"is_main_session"`
+}
+
 func (s *Store) upsertSessionIdentityTx(ctx context.Context, tx *sql.Tx, sessionID string, scope *gisession.SessionScope, aliases []string) error {
 	if scope == nil || strings.TrimSpace(sessionID) == "" {
 		return nil
@@ -69,6 +78,67 @@ func (s *Store) upsertSessionIdentityTx(ctx context.Context, tx *sql.Tx, session
 		}
 	}
 	return nil
+}
+
+func (s *Store) GetSessionIdentity(ctx context.Context, sessionID string) (*SessionIdentity, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return nil, sql.ErrNoRows
+	}
+	row := s.db.QueryRowContext(ctx, `
+		select agent_id, channel, account, scope_version, canonical_scope_signature, opaque_session_key, is_main_session
+		from session_identities
+		where session_id = ?
+	`, sessionID)
+	identity := SessionIdentity{SessionID: sessionID}
+	var isMain int
+	if err := row.Scan(&identity.Scope.AgentID, &identity.Scope.Channel, &identity.Scope.Account, &identity.Scope.Version, &identity.CanonicalScopeSignature, &identity.OpaqueSessionKey, &isMain); err != nil {
+		return nil, err
+	}
+	identity.IsMainSession = isMain != 0
+	identity.Scope.Values = map[string]string{}
+	rows, err := s.db.QueryContext(ctx, `
+		select dimension_name, dimension_value
+		from session_identity_dimensions
+		where session_id = ?
+		order by ordinal asc
+	`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name, value string
+		if err := rows.Scan(&name, &value); err != nil {
+			return nil, err
+		}
+		identity.Scope.Dimensions = append(identity.Scope.Dimensions, name)
+		identity.Scope.Values[name] = value
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	aliasRows, err := s.db.QueryContext(ctx, `
+		select alias
+		from session_aliases
+		where session_id = ?
+		order by alias asc
+	`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer aliasRows.Close()
+	for aliasRows.Next() {
+		var alias string
+		if err := aliasRows.Scan(&alias); err != nil {
+			return nil, err
+		}
+		identity.Aliases = append(identity.Aliases, alias)
+	}
+	if err := aliasRows.Err(); err != nil {
+		return nil, err
+	}
+	return &identity, nil
 }
 
 func (s *Store) GetSessionByOpaqueKey(ctx context.Context, opaqueKey string) (*Session, error) {
