@@ -422,6 +422,13 @@ Implemented so far:
   - hook source
   - failure kind (`handler_error` / `timeout` / `panic`)
   - trace metadata
+- durable `hook_invocations` persistence is now implemented with schema + store APIs and per-handler audit rows carrying:
+  - hook name / phase / source
+  - action
+  - request / response JSON
+  - error text
+  - duration_ms
+  - created_at
 - script hook responses now accept canonical hook actions and map them into runtime semantics:
   - `continue`
   - `modify`
@@ -432,9 +439,8 @@ Implemented so far:
 
 Still pending in this area:
 
-- durable `hook_invocations` audit table + store APIs
 - process-hook/IPC handshake for external hook executors sharing the same logical contract as in-process hooks
-- clearer replay/audit persistence around hook decisions beyond in-memory/returned typed errors
+- clearer replay/audit persistence around hook decisions beyond the current per-handler audit rows
 
 ---
 

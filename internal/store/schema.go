@@ -241,6 +241,25 @@ func initSchema(db *sql.DB) error {
 		`create index if not exists idx_routing_events_target on routing_events(target_session_id, created_at desc);`,
 		`create index if not exists idx_routing_events_turn on routing_events(turn_id);`,
 		`create index if not exists idx_routing_events_mode on routing_events(mode);`,
+		`create table if not exists hook_invocations (
+			id integer primary key autoincrement,
+			turn_id text,
+			session_id text,
+			hook_name text not null,
+			hook_phase text not null,
+			hook_source text not null,
+			action text not null default 'continue',
+			request_json text not null default '{}',
+			response_json text not null default '{}',
+			error_text text not null default '',
+			duration_ms integer not null default 0,
+			created_at text not null,
+			foreign key(turn_id) references turns(id) on delete cascade,
+			foreign key(session_id) references sessions(id) on delete cascade
+		);`,
+		`create index if not exists idx_hook_invocations_turn on hook_invocations(turn_id, id);`,
+		`create index if not exists idx_hook_invocations_phase on hook_invocations(hook_phase, created_at);`,
+		`create index if not exists idx_hook_invocations_session on hook_invocations(session_id, created_at);`,
 	}
 	for _, stmt := range stmts {
 		if _, err := db.Exec(stmt); err != nil {

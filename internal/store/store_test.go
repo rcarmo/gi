@@ -109,6 +109,51 @@ func TestStoreResolvesSessionByOpaqueKeyAndAlias(t *testing.T) {
 	}
 }
 
+func TestStoreRecordsHookInvocations(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	session, err := s.CreateSession(ctx, "session_hook_inv", "HookInv", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turn, err := s.CreateTurnWithStatus(ctx, "turn_hook_inv", session.ID, "running", "hello", map[string]any{"intent": "prompt"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	id, err := s.RecordHookInvocation(ctx, turn.ID, session.ID, "tool_call", "tool_call", "test-hook", "modify", map[string]any{"trace": map[string]any{"id": "hook_1"}}, map[string]any{"action": "modify"}, "", 17)
+	if err != nil {
+		t.Fatalf("record hook invocation: %v", err)
+	}
+	got, err := s.GetHookInvocation(ctx, id)
+	if err != nil {
+		t.Fatalf("get hook invocation: %v", err)
+	}
+	if got.HookName != "tool_call" || got.HookSource != "test-hook" || got.DurationMS != 17 {
+		t.Fatalf("unexpected hook invocation: %#v", got)
+	}
+	if got.Request["trace"].(map[string]any)["id"] != "hook_1" {
+		t.Fatalf("expected request trace in hook invocation: %#v", got)
+	}
+	items, err := s.ListHookInvocationsByTurn(ctx, turn.ID)
+	if err != nil {
+		t.Fatalf("list hook invocations by turn: %v", err)
+	}
+	if len(items) != 1 || items[0].ID != id {
+		t.Fatalf("unexpected turn hook invocations: %#v", items)
+	}
+	sessionItems, err := s.ListHookInvocationsBySession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("list hook invocations by session: %v", err)
+	}
+	if len(sessionItems) != 1 || sessionItems[0].ID != id {
+		t.Fatalf("unexpected session hook invocations: %#v", sessionItems)
+	}
+}
+
 func TestStoreClaimsActiveTurnOncePerSession(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

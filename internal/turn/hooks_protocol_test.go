@@ -268,3 +268,39 @@ func TestApplyHookDefaultsCompat(t *testing.T) {
 		t.Fatalf("unexpected custom hook defaults: %#v", custom)
 	}
 }
+
+func TestEmitHookPersistsHookInvocationAudit(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_audit", "Audit", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_audit", "session_audit", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if _, err := e.RegisterHook(HookToolCall, "audit-test", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		return HookResponse{Action: "modify", Payload: map[string]any{"seen": true}}, nil
+	}); err != nil {
+		t.Fatalf("register hook: %v", err)
+	}
+	_, err := e.emitHook(ctx, HookRequest{Name: HookToolCall, SessionID: "session_audit", TurnID: "turn_audit", ToolCall: &goai.ToolCall{Type: "toolCall", ID: "tc1", Name: "read", Arguments: map[string]any{"path": "README.md"}}})
+	if err != nil {
+		t.Fatalf("emit hook: %v", err)
+	}
+	items, err := s.ListHookInvocationsByTurn(ctx, "turn_audit")
+	if err != nil {
+		t.Fatalf("list persisted hook invocations: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected one persisted hook invocation, got %#v", items)
+	}
+	if items[0].HookName != HookToolCall || items[0].HookSource != "audit-test" || items[0].Action != "modify" {
+		t.Fatalf("unexpected persisted hook invocation: %#v", items[0])
+	}
+	trace, ok := items[0].Request["trace"].(map[string]any)
+	if !ok || trace["id"] == "" {
+		t.Fatalf("expected persisted trace metadata, got %#v", items[0])
+	}
+}

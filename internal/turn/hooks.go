@@ -269,7 +269,8 @@ func hookScriptPayload(req HookRequest) map[string]any {
 	return payload
 }
 
-func (e *Engine) invokeHookHandler(ctx context.Context, req HookRequest, item registeredHook) (HookResponse, error) {
+func (e *Engine) invokeHookHandler(ctx context.Context, req HookRequest, item registeredHook) (HookResponse, int, error) {
+	startedAt := time.Now()
 	timeoutMS := e.runtimeCfg.Hooks.TimeoutMS
 	if timeoutMS <= 0 {
 		timeoutMS = 1500
@@ -304,12 +305,13 @@ func (e *Engine) invokeHookHandler(ctx context.Context, req HookRequest, item re
 	}()
 	select {
 	case <-hookCtx.Done():
+		durationMS := int(time.Since(startedAt).Milliseconds())
 		if ctx.Err() != nil {
-			return HookResponse{}, ctx.Err()
+			return HookResponse{}, durationMS, ctx.Err()
 		}
-		return HookResponse{}, HookExecutionError{Name: req.Name, Source: item.source, Kind: "timeout", Trace: req.Trace, TimeoutMS: timeoutMS, Cause: hookCtx.Err()}
+		return HookResponse{}, durationMS, HookExecutionError{Name: req.Name, Source: item.source, Kind: "timeout", Trace: req.Trace, TimeoutMS: timeoutMS, Cause: hookCtx.Err()}
 	case res := <-resultCh:
-		return res.resp, res.err
+		return res.resp, int(time.Since(startedAt).Milliseconds()), res.err
 	}
 }
 
@@ -329,6 +331,43 @@ func (e *Engine) applyHookFailurePolicy(req HookRequest, item registeredHook, er
 	return execErr
 }
 
+func hookInvocationAction(resp HookResponse, err error, continued bool) string {
+	if err != nil {
+		if continued {
+			return "continue"
+		}
+		return "error"
+	}
+	if strings.TrimSpace(resp.Action) != "" {
+		return strings.ToLower(strings.TrimSpace(resp.Action))
+	}
+	if resp.Cancel {
+		return "abort_turn"
+	}
+	if resp.Block {
+		return "deny"
+	}
+	if resp.Handled {
+		return "respond"
+	}
+	return "continue"
+}
+
+func hookInvocationErrorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+func (e *Engine) recordHookInvocation(ctx context.Context, req HookRequest, item registeredHook, action string, response HookResponse, err error, durationMS int) {
+	if e.store == nil {
+		return
+	}
+	_, recordErr := e.store.RecordHookInvocation(ctx, req.TurnID, req.SessionID, req.Name, req.Name, item.source, action, req, response, hookInvocationErrorText(err), durationMS)
+	warnStore("record hook invocation", recordErr)
+}
+
 func (e *Engine) emitHook(ctx context.Context, req HookRequest) (HookResponse, error) {
 	req.Name = normalizeHookName(req.Name)
 	if req.Name == "" {
@@ -339,13 +378,16 @@ func (e *Engine) emitHook(ctx context.Context, req HookRequest) (HookResponse, e
 	}
 	var merged HookResponse
 	for _, item := range e.hooks.Handlers(req.Name) {
-		resp, err := e.invokeHookHandler(ctx, req, item)
+		resp, durationMS, err := e.invokeHookHandler(ctx, req, item)
 		if err != nil {
-			if policyErr := e.applyHookFailurePolicy(req, item, err); policyErr != nil {
+			policyErr := e.applyHookFailurePolicy(req, item, err)
+			e.recordHookInvocation(context.Background(), req, item, hookInvocationAction(HookResponse{}, err, policyErr == nil), HookResponse{}, err, durationMS)
+			if policyErr != nil {
 				return merged, policyErr
 			}
 			continue
 		}
+		e.recordHookInvocation(context.Background(), req, item, hookInvocationAction(resp, nil, false), resp, nil, durationMS)
 		if resp.Action != "" {
 			merged.Action = strings.ToLower(strings.TrimSpace(resp.Action))
 		}
