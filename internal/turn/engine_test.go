@@ -512,6 +512,106 @@ func TestConcurrentContinueSessionStartsSingleTurn(t *testing.T) {
 	}
 }
 
+func TestCleanupSchedulesContinuationBeforeConcurrentSubmit(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cleanup_continue", "Test", map[string]any{"model": "bootstrap", "status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_cleanup_active", "session_cleanup_continue", "running", "active", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_cleanup_continue", activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_cleanup_continue", activeTurn.ID, "user", "late steer", map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	engineA := New(s)
+	engineB := New(s)
+	hookStarted := make(chan struct{})
+	releaseHook := make(chan struct{})
+	releaseSetup := make(chan struct{})
+	engineA.beforeCleanupNextWorkHook = func(ctx context.Context, sessionID string) {
+		select {
+		case <-hookStarted:
+		default:
+			close(hookStarted)
+		}
+		<-releaseHook
+	}
+	engineA.beforeSetupHook = func(ctx context.Context, sessionID, turnID string) {
+		if sessionID == "session_cleanup_continue" && turnID != activeTurn.ID {
+			<-releaseSetup
+		}
+	}
+	runnerA := engineA.runner("session_cleanup_continue")
+	oldRunning := &runningTurn{turnID: activeTurn.ID}
+	runnerA.current = oldRunning
+	cleanupDone := make(chan struct{})
+	go func() {
+		defer close(cleanupDone)
+		runnerA.cleanupTurnRun("session_cleanup_continue", activeTurn.ID, oldRunning)
+	}()
+	waitForCondition(t, 2*time.Second, func() bool {
+		select {
+		case <-hookStarted:
+			return true
+		default:
+			return false
+		}
+	}, "cleanup next-work hook")
+	resultCh := make(chan *SubmitResult, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		res, err := engineB.SubmitPrompt(ctx, RunInput{SessionID: "session_cleanup_continue", Prompt: "fresh submit", Model: "bootstrap"})
+		if err != nil {
+			errCh <- err
+			return
+		}
+		resultCh <- res
+	}()
+	select {
+	case err := <-errCh:
+		t.Fatalf("submit prompt while cleanup pending: %v", err)
+	case <-resultCh:
+		t.Fatal("expected submit to block behind cleanup session coordination")
+	case <-time.After(150 * time.Millisecond):
+	}
+	close(releaseHook)
+	var res *SubmitResult
+	select {
+	case err := <-errCh:
+		t.Fatalf("submit prompt after cleanup release: %v", err)
+	case res = <-resultCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for submit result")
+	}
+	if res.Queued || res.Status != "running" {
+		t.Fatalf("expected submit to steer or join running continuation, got %#v", res)
+	}
+	turns, err := s.ListTurns(ctx, "session_cleanup_continue")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 2 {
+		t.Fatalf("expected only active turn + continuation turn after concurrent submit, got %#v", turns)
+	}
+	if depth, err := s.SteeringQueueLength(ctx, "session_cleanup_continue"); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 1 {
+		t.Fatalf("expected fresh submit to become steering against continuation, got depth %d", depth)
+	}
+	close(releaseSetup)
+	select {
+	case <-cleanupDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for cleanup completion")
+	}
+}
+
 func TestBusySameSessionPromptCreatesSteeringNotQueuedTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

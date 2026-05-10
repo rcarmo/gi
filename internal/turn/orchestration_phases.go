@@ -25,19 +25,26 @@ type preparedTurnRun struct {
 
 func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *runningTurn) {
 	ctx := context.Background()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	warnStore("release session active turn", r.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken))
 	warnStore("sync session queue count", r.store.SyncSessionQueueCount(ctx, sessionID))
-	r.mu.Lock()
 	if r.current == active {
 		r.current = nil
 	}
-	r.mu.Unlock()
-	if err := r.engine.startNextQueuedTurn(ctx, sessionID); err != nil {
+	if hook := r.engine.beforeCleanupNextWorkHook; hook != nil {
+		hook(ctx, sessionID)
+	}
+	launched, err := r.engine.startNextQueuedTurnLocked(ctx, r, sessionID)
+	if err != nil {
 		log.Printf("turn coordination: launch queued turn failed: %v", err)
 		return
 	}
+	if launched {
+		return
+	}
 	if _, _, err := r.store.GetSessionActiveTurn(ctx, sessionID); err == sql.ErrNoRows {
-		if _, err := r.engine.continueQueuedSteering(ctx, sessionID); err != nil {
+		if _, err := r.engine.continueQueuedSteeringLocked(ctx, r, sessionID); err != nil {
 			log.Printf("steering continuation: %v", err)
 		}
 	}

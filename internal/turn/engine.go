@@ -23,23 +23,24 @@ import (
 )
 
 type Engine struct {
-	store                 *store.Store
-	systemPrompt          string
-	routeResolver         *routing.RouteResolver
-	modelRouter           *routing.Router
-	runtimeCfg            config.RuntimeConfig
-	hooks                 *HookRegistry
-	tools                 *ToolRegistry
-	connectivity          *connectivity.Registry
-	topics                *topics.Bus
-	peering               *peering.Manager
-	extensions            []ExtensionInfo
-	extensionsMu          sync.RWMutex
-	sessions              sync.Map // sessionID -> *sessionRunner
-	subs                  map[string]map[chan map[string]any]bool
-	subsMu                sync.Mutex
-	beforeSetupHook       func(context.Context, string, string)
-	beforeLaunchClaimHook func(context.Context, string, string)
+	store                     *store.Store
+	systemPrompt              string
+	routeResolver             *routing.RouteResolver
+	modelRouter               *routing.Router
+	runtimeCfg                config.RuntimeConfig
+	hooks                     *HookRegistry
+	tools                     *ToolRegistry
+	connectivity              *connectivity.Registry
+	topics                    *topics.Bus
+	peering                   *peering.Manager
+	extensions                []ExtensionInfo
+	extensionsMu              sync.RWMutex
+	sessions                  sync.Map // sessionID -> *sessionRunner
+	subs                      map[string]map[chan map[string]any]bool
+	subsMu                    sync.Mutex
+	beforeSetupHook           func(context.Context, string, string)
+	beforeLaunchClaimHook     func(context.Context, string, string)
+	beforeCleanupNextWorkHook func(context.Context, string)
 }
 
 type sharedSessionCoord struct {

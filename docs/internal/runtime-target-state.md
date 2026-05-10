@@ -195,6 +195,7 @@ Implemented so far:
 - runner-owned active-turn cancellation handles are now installed before the run goroutine starts, and turn cleanup only clears `runner.current` when it still points at the same finishing turn so an older cleanup path cannot wipe a newer active turn's cancel handle
 - same-store engine instances now share the same in-memory session coordination lock/current-turn handle for a given session, so cross-engine submit/cancel paths coordinate on one live ownership record instead of each engine keeping a disconnected local `runner.current`
 - `ContinueSession(...)` now runs its idle no-active check, queued-turn launch attempt, and steering-continuation staging/launch under that same shared session coordination lock, so manual continue behaves like one atomic same-session ownership decision instead of a sequence of loosely related checks
+- turn cleanup now makes its release-active-turn / clear-current / launch-next-queued-or-continued-work decision under the same shared session coordination lock as submit/continue/cancel, so a new same-session submit cannot slip in between active-turn release and continuation scheduling
 - real `queue_count` synchronization from queued turn rows
 - compaction checkpoints now mark a durable `compacting` phase
 - stale active-turn recovery on engine startup and before same-session submission
