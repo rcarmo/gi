@@ -428,11 +428,12 @@ func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID str
 	if err != nil {
 		return nil, false, err
 	}
-	if err := e.store.DeleteTurn(ctx, turnID); err != nil {
-		return nil, false, err
-	}
 	res, err := e.submitSteeringPrompt(ctx, in.SessionID, activeTurnID, in)
 	if err != nil {
+		// Keep the already-persisted queued turn as a fallback rather than dropping the prompt.
+		return nil, false, nil
+	}
+	if err := e.store.DeleteTurn(ctx, turnID); err != nil {
 		return nil, false, err
 	}
 	return res, true, nil

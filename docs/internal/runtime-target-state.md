@@ -192,6 +192,7 @@ Implemented so far:
 - store-backed run-vs-queue decisions in `turn.Engine.SubmitPrompt(...)`
 - queued-turn handoff through the same launch/claim path as immediately-started turns
 - same-session cross-engine launch claim conflicts now collapse back into steering instead of leaving a transient competing queued turn behind when another worker wins the active-turn claim first
+- if that steering fallback cannot enqueue because the steering queue is already full, the already-persisted queued turn is now kept as a safe fallback instead of dropping the prompt
 - once a turn row is durably created, submit-time launch/orchestration writes now continue under a background coordination context so caller/request cancellation cannot make a persisted turn look like submission failed while leaving partially scheduled work behind
 - runner-owned active-turn cancellation handles are now installed before the run goroutine starts, and turn cleanup only clears `runner.current` when it still points at the same finishing turn so an older cleanup path cannot wipe a newer active turn's cancel handle
 - non-cancellation setup failures now finalize the turn as terminal `failed` / `setup_error` instead of leaving a turn stranded in `running` / `setup` until stale-claim recovery notices it

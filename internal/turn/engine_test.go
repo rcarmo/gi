@@ -270,6 +270,53 @@ func TestCleanupTurnRunDoesNotClearNewerRunningTurn(t *testing.T) {
 	}
 }
 
+func TestClaimConflictFallsBackToQueuedTurnWhenSteeringIsFull(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_claim_conflict_full", "Test", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_existing_active_full", "session_claim_conflict_full", "running", "already running", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create existing active turn: %v", err)
+	}
+	for i := 0; i < 10; i++ {
+		if _, err := s.EnqueueSteering(ctx, "session_claim_conflict_full", activeTurn.ID, "user", fmt.Sprintf("queued-%d", i), map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+			t.Fatalf("enqueue steering %d: %v", i, err)
+		}
+	}
+	engine := New(s)
+	engine.beforeLaunchClaimHook = func(ctx context.Context, sessionID, turnID string) {
+		engine.beforeLaunchClaimHook = nil
+		if _, err := s.ClaimSessionActiveTurn(ctx, sessionID, activeTurn.ID, "runner", activeTurn.ID); err != nil {
+			t.Fatalf("claim existing active turn: %v", err)
+		}
+		if err := s.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": activeTurn.ID, "status": "running"}); err != nil {
+			t.Fatalf("touch session state: %v", err)
+		}
+	}
+	res, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_claim_conflict_full", Prompt: "preserve me", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	if !res.Queued || res.Status != "queued" {
+		t.Fatalf("expected queued fallback when steering is full, got %#v", res)
+	}
+	turns, err := s.ListTurns(ctx, "session_claim_conflict_full")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 2 {
+		t.Fatalf("expected active turn plus preserved queued fallback turn, got %#v", turns)
+	}
+	if depth, err := s.SteeringQueueLength(ctx, "session_claim_conflict_full"); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 10 {
+		t.Fatalf("expected steering queue to remain full at 10, got %d", depth)
+	}
+}
+
 func TestStartupRecoveryRequeuesCompactingTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
