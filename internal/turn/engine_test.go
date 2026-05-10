@@ -461,6 +461,57 @@ func TestContinueSessionStartsQueuedSteeringWhenIdle(t *testing.T) {
 	}
 }
 
+func TestConcurrentContinueSessionStartsSingleTurn(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_continue_concurrent", "Test", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_continue_concurrent", "", "user", "continue please", map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	engineA := New(s)
+	engineB := New(s)
+	start := make(chan struct{})
+	results := make(chan bool, 2)
+	errCh := make(chan error, 2)
+	for _, engine := range []*Engine{engineA, engineB} {
+		go func(eng *Engine) {
+			<-start
+			continued, err := eng.ContinueSession(ctx, "session_continue_concurrent")
+			if err != nil {
+				errCh <- err
+				return
+			}
+			results <- continued
+		}(engine)
+	}
+	close(start)
+	for i := 0; i < 2; i++ {
+		select {
+		case err := <-errCh:
+			t.Fatalf("continue session: %v", err)
+		case <-results:
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for continue results")
+		}
+	}
+	time.Sleep(1500 * time.Millisecond)
+	turns, err := s.ListTurns(ctx, "session_continue_concurrent")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 1 {
+		t.Fatalf("expected one continuation turn after concurrent continue, got %#v", turns)
+	}
+	if depth, err := s.SteeringQueueLength(ctx, "session_continue_concurrent"); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 0 {
+		t.Fatalf("expected steering queue drained after concurrent continue, got %d", depth)
+	}
+}
+
 func TestBusySameSessionPromptCreatesSteeringNotQueuedTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

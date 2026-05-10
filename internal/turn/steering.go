@@ -125,7 +125,7 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 	return true, turnID, nil
 }
 
-func (e *Engine) continueQueuedSteering(ctx context.Context, sessionID string) (bool, error) {
+func (e *Engine) continueQueuedSteeringLocked(ctx context.Context, runner *sessionRunner, sessionID string) (bool, error) {
 	staged, turnID, err := e.stageQueuedSteeringContinuation(ctx, sessionID)
 	if err != nil {
 		return false, err
@@ -133,28 +133,45 @@ func (e *Engine) continueQueuedSteering(ctx context.Context, sessionID string) (
 	if !staged {
 		return false, nil
 	}
-	if err := e.startNextQueuedTurn(ctx, sessionID); err != nil {
+	launched, err := e.startNextQueuedTurnLocked(ctx, runner, sessionID)
+	if err != nil {
 		return false, err
 	}
-	e.broadcast(sessionID, map[string]any{"type": "steering_continued", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
+	if launched {
+		e.broadcast(sessionID, map[string]any{"type": "steering_continued", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
+	}
 	return true, nil
 }
 
+func (e *Engine) continueQueuedSteering(ctx context.Context, sessionID string) (bool, error) {
+	runner := e.runner(sessionID)
+	runner.mu.Lock()
+	defer runner.mu.Unlock()
+	return e.continueQueuedSteeringLocked(ctx, runner, sessionID)
+}
+
 func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, error) {
+	runner := e.runner(sessionID)
+	runner.mu.Lock()
+	defer runner.mu.Unlock()
 	if _, _, err := e.store.GetSessionActiveTurn(ctx, sessionID); err == nil {
 		return false, nil
 	} else if err != nil && err != sql.ErrNoRows {
 		return false, err
 	}
-	if err := e.startNextQueuedTurn(ctx, sessionID); err != nil {
+	launched, err := e.startNextQueuedTurnLocked(ctx, runner, sessionID)
+	if err != nil {
 		return false, err
+	}
+	if launched {
+		return true, nil
 	}
 	if _, _, err := e.store.GetSessionActiveTurn(ctx, sessionID); err == nil {
 		return true, nil
 	} else if err != nil && err != sql.ErrNoRows {
 		return false, err
 	}
-	return e.continueQueuedSteering(ctx, sessionID)
+	return e.continueQueuedSteeringLocked(ctx, runner, sessionID)
 }
 
 func (r *sessionRunner) dequeueSteeringMessages(ctx context.Context, sessionID string) ([]store.SteeringMessage, error) {

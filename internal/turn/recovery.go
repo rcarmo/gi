@@ -102,38 +102,43 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 	return e.store.TouchSessionState(ctx, claim.SessionID, map[string]any{"active_turn_id": nil, "status": sessionStatus})
 }
 
+func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionRunner, sessionID string) (bool, error) {
+	if sessionID == "" {
+		return false, nil
+	}
+	if _, _, err := e.store.GetSessionActiveTurn(ctx, sessionID); err == nil {
+		return false, nil
+	} else if err != sql.ErrNoRows {
+		return false, err
+	}
+	next, err := e.store.GetNextQueuedTurn(ctx, sessionID)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if _, _, err := e.store.GetSessionActiveTurn(ctx, sessionID); err == nil {
+		return false, nil
+	} else if err != sql.ErrNoRows {
+		return false, err
+	}
+	launched, err := e.launchTurnLocked(ctx, runner, sessionID, next.ID)
+	if err != nil {
+		return false, err
+	}
+	return launched, nil
+}
+
 func (e *Engine) startNextQueuedTurn(ctx context.Context, sessionID string) error {
 	if sessionID == "" {
 		return nil
 	}
-	if _, _, err := e.store.GetSessionActiveTurn(ctx, sessionID); err == nil {
-		return nil
-	} else if err != sql.ErrNoRows {
-		return err
-	}
-	next, err := e.store.GetNextQueuedTurn(ctx, sessionID)
-	if err == sql.ErrNoRows {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
 	runner := e.runner(sessionID)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
-	if _, _, err := e.store.GetSessionActiveTurn(ctx, sessionID); err == nil {
-		return nil
-	} else if err != sql.ErrNoRows {
-		return err
-	}
-	launched, err := e.launchTurnLocked(ctx, runner, sessionID, next.ID)
-	if err != nil {
-		return err
-	}
-	if !launched {
-		return nil
-	}
-	return nil
+	_, err := e.startNextQueuedTurnLocked(ctx, runner, sessionID)
+	return err
 }
 
 func (r *sessionRunner) heartbeatActiveTurn(ctx context.Context, sessionID, claimToken string) {
