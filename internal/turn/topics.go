@@ -84,7 +84,7 @@ func topicForBroadcastEvent(evType string) (topic string, envelopeType string) {
 		return "turn.tool.end", "error"
 	case "tool_skipped":
 		return "turn.tool.end", "notice"
-	case "steering_enqueued", "steering_dequeued", "steering_continue_staged", "steering_continued", "steering_injected":
+	case "steering_enqueued", "steering_dequeued", "steering_continue_staged", "steering_continued", "steering_injected", "steering_rejected":
 		return "session.steering", "notice"
 	case "subturn_created", "subturn_status", "subturn_result_ready", "subturn_result_delivered", "subturn_orphaned", "subturn_cancel_requested":
 		return "turn.subturn", "notice"

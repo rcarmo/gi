@@ -25,6 +25,7 @@ func AllocateDefaultSession(agentID, channel, account, logicalChatID string) All
 	account = normalize(account, "default")
 	logicalChatID = normalize(logicalChatID, "default")
 
+	chatValue := "direct:" + logicalChatID
 	scope := SessionScope{
 		Version:    ScopeVersionV1,
 		AgentID:    agentID,
@@ -32,14 +33,14 @@ func AllocateDefaultSession(agentID, channel, account, logicalChatID string) All
 		Account:    account,
 		Dimensions: []string{"chat"},
 		Values: map[string]string{
-			"chat": logicalChatID,
+			"chat": chatValue,
 		},
 	}
-	alias := "agent:" + agentID + ":" + channel + ":chat:" + logicalChatID
+	alias := "agent:" + agentID + ":" + channel + ":chat:" + chatValue
 	return Allocation{
 		Scope:          scope,
 		SessionKey:     BuildSessionKey(scope),
-		SessionAliases: []string{alias, channel + ":" + logicalChatID},
+		SessionAliases: []string{alias, channel + ":" + chatValue},
 	}
 }
 

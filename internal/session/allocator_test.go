@@ -19,3 +19,23 @@ func TestAllocateRouteSessionBuildsScopedKey(t *testing.T) {
 		t.Fatalf("expected session key and aliases, got %#v", alloc)
 	}
 }
+
+func TestAllocateDefaultSessionUsesRouteCompatibleChatAlias(t *testing.T) {
+	alloc := AllocateDefaultSession("support", "gi", "default", "chat-1")
+	if alloc.Scope.Values["chat"] != "direct:chat-1" {
+		t.Fatalf("expected direct-scoped default chat value, got %#v", alloc.Scope)
+	}
+	foundCanonicalAlias := false
+	foundChannelAlias := false
+	for _, alias := range alloc.SessionAliases {
+		if alias == "agent:support:gi:chat:direct:chat-1" {
+			foundCanonicalAlias = true
+		}
+		if alias == "gi:direct:chat-1" {
+			foundChannelAlias = true
+		}
+	}
+	if !foundCanonicalAlias || !foundChannelAlias {
+		t.Fatalf("expected route-compatible aliases, got %#v", alloc.SessionAliases)
+	}
+}

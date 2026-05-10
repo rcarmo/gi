@@ -43,15 +43,10 @@ func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) 
 		promptBody = body
 		mentioned = true
 	}
-	inbound := routing.InboundContext{
-		Channel:   sessionChannel(source),
-		Account:   sessionAccount(source),
-		ChatType:  "direct",
-		ChatID:    source.ID,
-		SenderID:  "user",
-		Mentioned: mentioned,
-		Prompt:    promptBody,
-	}
+	inbound := inboundContextFromSession(source)
+	inbound.SenderID = "user"
+	inbound.Mentioned = mentioned
+	inbound.Prompt = promptBody
 	route := e.routeResolver.ResolveRoute(inbound)
 	if directed && targetAgentID != "" {
 		route.AgentID = routing.NormalizeAgentID(targetAgentID)
@@ -71,15 +66,10 @@ func (e *Engine) preparePeerRouteResolution(ctx context.Context, sourceSessionID
 	if err != nil {
 		return nil, err
 	}
-	inbound := routing.InboundContext{
-		Channel:   sessionChannel(source),
-		Account:   sessionAccount(source),
-		ChatType:  "direct",
-		ChatID:    source.ID,
-		SenderID:  sessionAgentID(source),
-		Mentioned: true,
-		Prompt:    content,
-	}
+	inbound := inboundContextFromSession(source)
+	inbound.SenderID = sessionAgentID(source)
+	inbound.Mentioned = true
+	inbound.Prompt = content
 	route := e.routeResolver.ResolveRoute(inbound)
 	route.AgentID = routing.NormalizeAgentID(targetAgentID)
 	route.MatchedBy = matchedBy
@@ -166,6 +156,51 @@ func (e *Engine) cloneRouteSession(ctx context.Context, plan *routeSessionPlan) 
 	e.copyRouteSessionHistory(ctx, plan.source.ID, cloned.ID)
 	warnStore("add forked-from message", e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sessionAgentID(plan.source)), map[string]any{"kind": "fork", "source_session_id": plan.source.ID, "source_agent_id": sessionAgentID(plan.source), "route_matched_by": plan.route.MatchedBy, "clipped": true}))
 	return cloned, nil
+}
+
+func inboundContextFromSession(sess *store.Session) routing.InboundContext {
+	inbound := routing.InboundContext{
+		Channel: sessionChannel(sess),
+		Account: sessionAccount(sess),
+	}
+	if sess == nil || sess.Scope == nil || sess.Scope.Values == nil {
+		if sess != nil {
+			inbound.ChatType = "direct"
+			inbound.ChatID = sess.ID
+		}
+		return inbound
+	}
+	if spaceType, spaceID, ok := splitScopedValue(sess.Scope.Values["space"], "space"); ok {
+		inbound.SpaceType = spaceType
+		inbound.SpaceID = spaceID
+	}
+	if chatType, chatID, ok := splitScopedValue(sess.Scope.Values["chat"], "direct"); ok {
+		inbound.ChatType = chatType
+		inbound.ChatID = chatID
+	}
+	if _, topicID, ok := splitScopedValue(sess.Scope.Values["topic"], "topic"); ok {
+		inbound.TopicID = topicID
+	}
+	if inbound.ChatID == "" && sess != nil {
+		inbound.ChatType = "direct"
+		inbound.ChatID = sess.ID
+	}
+	return inbound
+}
+
+func splitScopedValue(raw, fallbackType string) (string, string, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", "", false
+	}
+	parts := strings.SplitN(raw, ":", 2)
+	if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
+		return strings.ToLower(strings.TrimSpace(parts[0])), strings.ToLower(strings.TrimSpace(parts[1])), true
+	}
+	if strings.TrimSpace(fallbackType) == "" {
+		return "", strings.ToLower(raw), true
+	}
+	return strings.ToLower(strings.TrimSpace(fallbackType)), strings.ToLower(raw), true
 }
 
 func (e *Engine) copyRouteSessionHistory(ctx context.Context, sourceSessionID, targetSessionID string) {

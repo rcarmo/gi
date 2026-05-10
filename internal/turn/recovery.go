@@ -106,24 +106,25 @@ func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionR
 	if sessionID == "" {
 		return false, nil
 	}
-	if _, _, err := e.store.GetSessionActiveTurn(ctx, sessionID); err == nil {
+	coordCtx := context.Background()
+	if _, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
 		return false, nil
 	} else if err != sql.ErrNoRows {
 		return false, err
 	}
-	next, err := e.store.GetNextQueuedTurn(ctx, sessionID)
+	next, err := e.store.GetNextQueuedTurn(coordCtx, sessionID)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
-	if _, _, err := e.store.GetSessionActiveTurn(ctx, sessionID); err == nil {
+	if _, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
 		return false, nil
 	} else if err != sql.ErrNoRows {
 		return false, err
 	}
-	launched, err := e.launchTurnLocked(ctx, runner, sessionID, next.ID)
+	launched, err := e.launchTurnLocked(coordCtx, runner, sessionID, next.ID)
 	if err != nil {
 		return false, err
 	}

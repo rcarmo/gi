@@ -84,6 +84,19 @@ func (s *Store) GetSessionByOpaqueKey(ctx context.Context, opaqueKey string) (*S
 	return s.GetSession(ctx, sessionID)
 }
 
+func (s *Store) GetSessionByCanonicalScopeSignature(ctx context.Context, signature string) (*Session, error) {
+	signature = strings.TrimSpace(strings.ToLower(signature))
+	if signature == "" {
+		return nil, sql.ErrNoRows
+	}
+	row := s.db.QueryRowContext(ctx, `select session_id from session_identities where canonical_scope_signature = ?`, signature)
+	var sessionID string
+	if err := row.Scan(&sessionID); err != nil {
+		return nil, err
+	}
+	return s.GetSession(ctx, sessionID)
+}
+
 func (s *Store) GetSessionByAlias(ctx context.Context, alias string) (*Session, error) {
 	alias = strings.TrimSpace(strings.ToLower(alias))
 	if alias == "" {
@@ -115,6 +128,13 @@ func (s *Store) ResolveSessionByKeyOrAlias(ctx context.Context, key string) (*Se
 	return s.GetSessionByAlias(ctx, key)
 }
 
+func sessionMatchesAllocationScope(sess *Session, scope gisession.SessionScope) bool {
+	if sess == nil || sess.Scope == nil {
+		return false
+	}
+	return gisession.CanonicalScopeSignature(*sess.Scope) == gisession.CanonicalScopeSignature(scope)
+}
+
 func (s *Store) FindSessionByAllocation(ctx context.Context, alloc gisession.Allocation) (*Session, error) {
 	if sess, err := s.GetSessionByOpaqueKey(ctx, alloc.SessionKey); err == nil {
 		return sess, nil
@@ -123,6 +143,18 @@ func (s *Store) FindSessionByAllocation(ctx context.Context, alloc gisession.All
 	}
 	for _, alias := range alloc.SessionAliases {
 		sess, err := s.GetSessionByAlias(ctx, alias)
+		if err == nil {
+			if sessionMatchesAllocationScope(sess, alloc.Scope) {
+				return sess, nil
+			}
+			continue
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return nil, err
+		}
+	}
+	if signature := gisession.CanonicalScopeSignature(alloc.Scope); strings.TrimSpace(signature) != "" {
+		sess, err := s.GetSessionByCanonicalScopeSignature(ctx, signature)
 		if err == nil {
 			return sess, nil
 		}

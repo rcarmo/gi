@@ -120,6 +120,21 @@ This gives us:
 - stable identity independent of current channel
 - a clean base for later multi-channel continuation
 
+### Current implementation status
+
+Implemented so far:
+
+- `session_identities`, `session_identity_dimensions`, and `session_aliases` are now populated transactionally with session creation/cloning paths
+- `FindSessionByAllocation(...)` now resolves by opaque key, validated alias matches, and canonical scope signature fallback
+- default session allocation now uses the same `direct:<chat>` chat-dimension encoding and alias format as routed allocation
+- route-preparation now derives inbound `channel` / `account` / `space` / `chat` / `topic` context from the source session scope instead of hardcoding `direct` + session id
+
+Still pending in this area:
+
+- replacing remaining runtime reads that still infer agent/channel/account from compatibility `scope_json` helpers instead of a first-class identity read path
+- explicit store APIs for session-by-canonical-key / alias management as checklist items, rather than today's narrower lookup helpers
+- channel-binding / multi-channel continuation semantics
+
 ---
 
 ## 2. Turn coordination model
@@ -287,6 +302,7 @@ Implemented so far:
 - store/unit coverage for dequeue mode behavior and turn/engine coverage for same-session steering continuation
 - steering lifecycle publication on the topic bus via `session.steering` notices for enqueue/dequeue/stage/continue/inject checkpoints
 - steering queue overflow coverage (cap remains enforced at 10)
+- steering enqueue failures (for example queue-full rejection) now publish explicit `steering_rejected` runtime events / topic-bus notices instead of only returning a synchronous tool/API error
 - different-session concurrent submit coverage (sessions execute independently)
 - explicit skipped-tool persistence assertions (`tool.skipped` events plus skipped `tool_result` rows)
 - steering media payloads are now preserved in persisted chat history payloads during injection/continuation

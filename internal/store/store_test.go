@@ -27,7 +27,7 @@ func TestStoreSessionTurnMessageFlow(t *testing.T) {
 	if session.State["model"] != "bootstrap" {
 		t.Fatalf("unexpected session state: %#v", session.State)
 	}
-	if session.Scope == nil || session.Scope.AgentID != "gi" || session.Scope.Values["chat"] != "session_1" {
+	if session.Scope == nil || session.Scope.AgentID != "gi" || session.Scope.Values["chat"] != "direct:session_1" {
 		t.Fatalf("unexpected session scope: %#v", session.Scope)
 	}
 	if len(session.Aliases) == 0 {
@@ -106,6 +106,37 @@ func TestStoreResolvesSessionByOpaqueKeyAndAlias(t *testing.T) {
 	}
 	if byAlloc.ID != sess.ID {
 		t.Fatalf("unexpected allocation resolution: %#v", byAlloc)
+	}
+}
+
+func TestStoreFindSessionByAllocationFallsBackToCanonicalSignature(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: "chat-1", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_route_sig", "", "@support", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_identities set opaque_session_key = ? where session_id = ?`, "other-key", sess.ID); err != nil {
+		t.Fatalf("mutate opaque key: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `delete from session_aliases where session_id = ?`, sess.ID); err != nil {
+		t.Fatalf("delete aliases: %v", err)
+	}
+	found, err := s.FindSessionByAllocation(ctx, alloc)
+	if err != nil {
+		t.Fatalf("find session by allocation with signature fallback: %v", err)
+	}
+	if found.ID != sess.ID {
+		t.Fatalf("unexpected signature fallback session: %#v", found)
 	}
 }
 

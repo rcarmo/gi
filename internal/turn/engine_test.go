@@ -11,7 +11,9 @@ import (
 
 	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/routing"
+	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/topics"
 	goai "github.com/rcarmo/go-ai"
 )
 
@@ -318,6 +320,10 @@ func TestClaimConflictFallsBackToQueuedTurnWhenSteeringIsFull(t *testing.T) {
 		}
 	}
 	engine := New(s)
+	topicCtx, topicCancel := context.WithCancel(ctx)
+	defer topicCancel()
+	ch, unsub := engine.Topics().Subscribe(topicCtx, "session.steering", topics.SubscribeOptions{Buffer: 4, SessionID: "session_claim_conflict_full"})
+	defer unsub()
 	engine.beforeLaunchClaimHook = func(ctx context.Context, sessionID, turnID string) {
 		engine.beforeLaunchClaimHook = nil
 		if _, err := s.ClaimSessionActiveTurn(ctx, sessionID, activeTurn.ID, "runner", activeTurn.ID); err != nil {
@@ -333,6 +339,14 @@ func TestClaimConflictFallsBackToQueuedTurnWhenSteeringIsFull(t *testing.T) {
 	}
 	if !res.Queued || res.Status != "queued" {
 		t.Fatalf("expected queued fallback when steering is full, got %#v", res)
+	}
+	select {
+	case env := <-ch:
+		if gotType, _ := env.Payload["type"].(string); gotType != "steering_rejected" {
+			t.Fatalf("expected steering_rejected topic payload, got %#v", env)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected steering_rejected topic event")
 	}
 	turns, err := s.ListTurns(ctx, "session_claim_conflict_full")
 	if err != nil {
@@ -1420,6 +1434,34 @@ func TestSubmitPromptRoutedCreatesChildAgentSession(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected assistant reply from @agent1, got %#v", msgs)
+	}
+}
+
+func TestPreparePromptRouteResolutionUsesSourceSessionScopeContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	scope := gisession.SessionScope{Version: gisession.ScopeVersionV1, AgentID: "agent", Channel: "slack", Account: "workspace", Dimensions: []string{"space", "chat", "topic"}, Values: map[string]string{"space": "room:eng", "chat": "group:thread-7", "topic": "topic:builds"}}
+	source, err := s.CreateSessionWithMetadata(ctx, "session_route_scope", "", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}, &scope, []string{"agent:agent:slack:chat:group:thread-7"})
+	if err != nil {
+		t.Fatalf("create source session: %v", err)
+	}
+	engine := New(s)
+	resolution, err := engine.preparePromptRouteResolution(ctx, RunInput{SessionID: source.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("prepare prompt route resolution: %v", err)
+	}
+	if resolution.inbound.Channel != "slack" || resolution.inbound.Account != "workspace" {
+		t.Fatalf("expected inbound channel/account from scope, got %#v", resolution.inbound)
+	}
+	if resolution.inbound.ChatType != "group" || resolution.inbound.ChatID != "thread-7" {
+		t.Fatalf("expected scoped chat identity, got %#v", resolution.inbound)
+	}
+	if resolution.inbound.SpaceType != "room" || resolution.inbound.SpaceID != "eng" {
+		t.Fatalf("expected scoped space identity, got %#v", resolution.inbound)
+	}
+	if resolution.inbound.TopicID != "builds" {
+		t.Fatalf("expected scoped topic identity, got %#v", resolution.inbound)
 	}
 }
 
