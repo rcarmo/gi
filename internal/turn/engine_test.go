@@ -1145,6 +1145,50 @@ func TestQueuedTurnsRunInCreatedOrder(t *testing.T) {
 	}
 }
 
+func TestSetupErrorMarksTurnFailed(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_setup_error", "Setup", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	engine.beforeSetupErrorHook = func(ctx context.Context, sessionID, turnID string) error {
+		return fmt.Errorf("boom during setup")
+	}
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_setup_error", Prompt: "fail setup", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && turnRec.Status == "failed" && turnRec.FinishedAt != ""
+	}, "setup failure finalization")
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if turnRec.Phase != "failed" {
+		t.Fatalf("expected failed phase after setup error, got %#v", turnRec)
+	}
+	if turnRec.FinishedAt == "" {
+		t.Fatalf("expected finished_at after setup error, got %#v", turnRec)
+	}
+	msgs, err := s.ListMessages(ctx, "session_setup_error")
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	foundFailure := false
+	for _, msg := range msgs {
+		if msg.Role == "assistant" && strings.Contains(msg.Content, "Turn setup error: boom during setup") {
+			foundFailure = true
+		}
+	}
+	if !foundFailure {
+		t.Fatalf("expected setup failure message in history, got %#v", msgs)
+	}
+}
+
 func TestCancelTurnDuringSetupMarksCancelled(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

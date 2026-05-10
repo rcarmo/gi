@@ -279,12 +279,14 @@ func (s *Store) StageSteeringContinuation(ctx context.Context, sessionID, turnID
 	if err := tx.Commit(); err != nil {
 		return nil, nil, fmt.Errorf("stage steering continuation commit: %w", err)
 	}
-	if err := s.SyncSessionQueueCount(ctx, sessionID); err != nil {
-		return nil, nil, err
-	}
-	turnRec, err := s.GetTurn(ctx, turnID)
+	turnRec, err := s.GetTurn(context.Background(), turnID)
 	if err != nil {
 		return nil, nil, err
+	}
+	if err := s.SyncSessionQueueCount(context.Background(), sessionID); err != nil {
+		// The continuation turn is already durable at this point; do not surface a false-negative
+		// error that would make callers think staging failed.
+		return turnRec, msgs, nil
 	}
 	return turnRec, msgs, nil
 }

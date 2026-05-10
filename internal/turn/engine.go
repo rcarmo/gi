@@ -39,6 +39,7 @@ type Engine struct {
 	subs                      map[string]map[chan map[string]any]bool
 	subsMu                    sync.Mutex
 	beforeSetupHook           func(context.Context, string, string)
+	beforeSetupErrorHook      func(context.Context, string, string) error
 	beforeLaunchClaimHook     func(context.Context, string, string)
 	beforeCleanupNextWorkHook func(context.Context, string)
 }
@@ -243,10 +244,6 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		return nil, err
 	}
 	subTurnToolsRestricted = restrictedTools
-	metadata["effective_tools"] = effectiveTools
-	if in.ParentTurnID != "" {
-		metadata["subturn_tools_restricted"] = subTurnToolsRestricted
-	}
 	for k, v := range in.Metadata {
 		if k == "effective_tools" || k == "subturn_tools_restricted" {
 			continue
@@ -467,7 +464,7 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 	active := &runningTurn{turnID: turnID, cancel: cancel}
 	runner.current = active
 	releaseClaim := func() {
-		warnStore("release active claim after launch failure", e.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken))
+		warnStore("release active claim after launch failure", e.store.ReleaseSessionActiveTurn(context.Background(), sessionID, claimToken))
 		if runner.current == active {
 			runner.current = nil
 		}
@@ -501,6 +498,8 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx co
 	if err != nil {
 		if ctx.Err() != nil || isCancellationError(err) {
 			r.finishTurn(s, turnID, sessionID, "", "", "cancelled", "Turn cancelled", "")
+		} else {
+			r.finishTurn(s, turnID, sessionID, "", "", "failed", fmt.Sprintf("Turn setup error: %v", err), "setup_error")
 		}
 		return
 	}

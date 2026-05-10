@@ -71,6 +71,11 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 	if hook := r.engine.beforeSetupHook; hook != nil {
 		hook(ctx, sessionID, turnID)
 	}
+	if hook := r.engine.beforeSetupErrorHook; hook != nil {
+		if err := hook(ctx, sessionID, turnID); err != nil {
+			return nil, err
+		}
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
