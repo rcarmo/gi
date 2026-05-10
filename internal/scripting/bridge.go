@@ -61,13 +61,19 @@ type HTTPResponse struct {
 
 // EventHookSpec captures a host-level event hook registration intent.
 type EventHookSpec struct {
-	Name      string         `json:"name"`
-	Source    string         `json:"source"`
-	Filter    map[string]any `json:"filter"`
-	Arguments map[string]any `json:"arguments"`
-	Engine    string         `json:"engine,omitempty"`
-	Script    string         `json:"script,omitempty"`
-	Path      string         `json:"path,omitempty"`
+	Name      string            `json:"name"`
+	Source    string            `json:"source"`
+	Filter    map[string]any    `json:"filter"`
+	Arguments map[string]any    `json:"arguments"`
+	Engine    string            `json:"engine,omitempty"`
+	Script    string            `json:"script,omitempty"`
+	Path      string            `json:"path,omitempty"`
+	Command   string            `json:"command,omitempty"`
+	Args      []string          `json:"args,omitempty"`
+	Env       map[string]string `json:"env,omitempty"`
+	CWD       string            `json:"cwd,omitempty"`
+	Transport string            `json:"transport,omitempty"`
+	Protocol  string            `json:"protocol,omitempty"`
 }
 
 // ToolSpec captures a script-declared tool registration. A host can either

@@ -59,6 +59,10 @@ func (e *Engine) registerDefaultTools() {
 	)
 	scriptTool.SetAgenticCallbacks(
 		func(ctx context.Context, sessionID string, hook scripting.EventHookSpec) error {
+			if isProcessHookSpec(hook) {
+				_, err := e.RegisterHook(hook.Name, firstNonEmpty(hook.Source, "process"), newProcessHookHandler(e.runtimeCfg.WorkspaceRoot, hook))
+				return err
+			}
 			_, err := e.RegisterHook(hook.Name, firstNonEmpty(hook.Source, "script"), func(ctx context.Context, req HookRequest) (HookResponse, error) {
 				payload := hookScriptPayload(req)
 				input := tools.ScriptInput{Engine: hook.Engine, Path: hook.Path, SessionID: req.SessionID, Script: scriptWithPayload(hook.Engine, "hook", payload, hook.Script)}

@@ -4,10 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/inference"
+	"github.com/rcarmo/gi/internal/routing"
+	"github.com/rcarmo/gi/internal/scripting"
 	goai "github.com/rcarmo/go-ai"
 )
 
@@ -513,5 +517,56 @@ func TestHookAbortSemanticsAbortTurnDuringToolCall(t *testing.T) {
 	}
 	if len(msgs) == 0 || msgs[len(msgs)-1].Content != "stop now" {
 		t.Fatalf("expected terminal abort message, got %#v", msgs)
+	}
+}
+
+func TestProcessHookHandshakeAndBeforeToolProtocol(t *testing.T) {
+	root := t.TempDir()
+	hookPath := filepath.Join(root, "hook.sh")
+	script := `#!/bin/sh
+set -eu
+[ "${GI_HOOK_NAME:-}" = "tool_call" ] || { echo "bad hook env" >&2; exit 1; }
+[ "${GI_SESSION_ID:-}" = "session_process_hook" ] || { echo "bad session env" >&2; exit 1; }
+IFS= read -r hello || exit 1
+case "$hello" in
+  *'"method":"hook.hello"'*) printf '%s\n' '{"jsonrpc":"2.0","id":1,"result":{"ok":true,"name":"process-hook"}}' ;;
+  *) echo "bad hello" >&2; exit 1 ;;
+esac
+IFS= read -r call || exit 1
+case "$call" in
+  *'"method":"hook.before_tool"'*) printf '%s\n' '{"jsonrpc":"2.0","id":2,"result":{"action":"modify","tool_call":{"id":"tc_proc","name":"read","arguments":{"path":"process.md"}}}}' ;;
+  *) echo "bad call" >&2; exit 1 ;;
+esac
+`
+	if err := os.WriteFile(hookPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write hook script: %v", err)
+	}
+	s := openTestStore(t)
+	defer s.Close()
+	e := NewWithRuntimeConfig(s, config.RuntimeConfig{WorkspaceRoot: root, DefaultModel: "bootstrap", Agents: routing.AgentsConfig{List: []routing.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}}}, "")
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_process_hook", "ProcessHook", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_process_hook", "session_process_hook", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	spec := scripting.EventHookSpec{Name: HookToolCall, Engine: "process", Command: hookPath, Source: "process-test"}
+	if _, err := e.RegisterHook(HookToolCall, spec.Source, newProcessHookHandler(root, spec)); err != nil {
+		t.Fatalf("register process hook: %v", err)
+	}
+	resp, err := e.emitHook(ctx, HookRequest{Name: HookToolCall, SessionID: "session_process_hook", TurnID: "turn_process_hook", ToolCall: &goai.ToolCall{Type: "toolCall", ID: "tc_orig", Name: "read", Arguments: map[string]any{"path": "original.md"}}})
+	if err != nil {
+		t.Fatalf("emit process hook: %v", err)
+	}
+	if resp.ToolCall == nil || resp.ToolCall.Name != "read" || stringValue(resp.ToolCall.Arguments["path"], "") != "process.md" {
+		t.Fatalf("expected process hook mutation, got %#v", resp)
+	}
+	items, err := s.ListHookInvocationsByTurn(ctx, "turn_process_hook")
+	if err != nil {
+		t.Fatalf("list hook invocations: %v", err)
+	}
+	if len(items) != 1 || items[0].HookSource != "process-test" || items[0].Action != "modify" {
+		t.Fatalf("unexpected process hook audit rows: %#v", items)
 	}
 }

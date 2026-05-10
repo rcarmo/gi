@@ -433,6 +433,14 @@ Implemented so far:
 - `tool_call` now supports direct hook-handled responses (`respond`) that inject a tool result without executing a registered tool implementation, enabling plugin-style hook tools and cached/mock direct responses
 - `respond` on `tool_call` now skips later `tool_result` hooks for that tool call, matching PicoClaw's documented behavior
 - `abort_turn` / `hard_abort` semantics are now honored in active interception paths (`before_provider_request`, `tool_call`, `approve_tool`, `tool_result`) and finalize the current turn as `aborted`
+- external process hooks are now supported through `EventHookSpec{engine:"process", command, args, env, cwd}` with:
+  - stdio transport
+  - JSON-RPC 2.0 request/response framing
+  - `hook.hello` handshake followed by `hook.<phase>` invocation
+  - PicoClaw-style method aliases for major interceptor phases (`before_llm`, `after_llm`, `before_tool`, `after_tool`)
+- process hooks and in-process/script hooks now share the same logical JSON payload/response contract:
+  - request params reuse the JSON-safe `HookRequest` shape (plus convenience aliases like `tool`, `arguments`, `request`, `result`)
+  - response result reuses the same `HookResponse` JSON fields/action semantics interpreted by `hookResponseFromScript(...)`
 - script hook responses now accept canonical hook actions and map them into runtime semantics:
   - `continue`
   - `modify`
@@ -443,7 +451,6 @@ Implemented so far:
 
 Still pending in this area:
 
-- process-hook/IPC handshake for external hook executors sharing the same logical contract as in-process hooks
 - raw provider payload/header interception parity beyond the current pre-stream context mutation surface (depends on lower-level `go-ai` hookability)
 - clearer replay/audit persistence around hook decisions beyond the current per-handler audit rows
 
