@@ -42,11 +42,22 @@ type Engine struct {
 	beforeLaunchClaimHook func(context.Context, string, string)
 }
 
-type sessionRunner struct {
+type sharedSessionCoord struct {
 	mu      sync.Mutex
-	store   *store.Store
-	engine  *Engine
 	current *runningTurn
+}
+
+var sharedSessionCoords sync.Map // sessionCoordKey -> *sharedSessionCoord
+
+type sessionCoordKey struct {
+	store     *store.Store
+	sessionID string
+}
+
+type sessionRunner struct {
+	*sharedSessionCoord
+	store  *store.Store
+	engine *Engine
 }
 
 type runningTurn struct {
@@ -429,8 +440,14 @@ func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID str
 }
 
 func (e *Engine) runner(sessionID string) *sessionRunner {
-	v, _ := e.sessions.LoadOrStore(sessionID, &sessionRunner{store: e.store, engine: e})
-	return v.(*sessionRunner)
+	if v, ok := e.sessions.Load(sessionID); ok {
+		return v.(*sessionRunner)
+	}
+	coordKey := sessionCoordKey{store: e.store, sessionID: sessionID}
+	coordVal, _ := sharedSessionCoords.LoadOrStore(coordKey, &sharedSessionCoord{})
+	runner := &sessionRunner{sharedSessionCoord: coordVal.(*sharedSessionCoord), store: e.store, engine: e}
+	actual, _ := e.sessions.LoadOrStore(sessionID, runner)
+	return actual.(*sessionRunner)
 }
 
 func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, sessionID, turnID string) (bool, error) {

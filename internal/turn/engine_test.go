@@ -730,6 +730,46 @@ func TestCancelActiveStreamingTurnMarksCancelled(t *testing.T) {
 	}
 }
 
+func TestCrossEngineCancelActiveStreamingTurnMarksCancelled(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cancel_streaming_cross", "Streaming", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	started := make(chan struct{})
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		select {
+		case <-started:
+		default:
+			close(started)
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
+	engineA := New(s)
+	engineB := New(s)
+	result, err := engineA.SubmitPrompt(ctx, RunInput{SessionID: "session_cancel_streaming_cross", Prompt: "stream please", Model: "mock-stream"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		select {
+		case <-started:
+			return true
+		default:
+			return false
+		}
+	}, "cross-engine streaming turn start")
+	if err := engineB.CancelTurn(ctx, "session_cancel_streaming_cross", result.TurnID); err != nil {
+		t.Fatalf("cross-engine cancel active streaming turn: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && turnRec.Status == "cancelled" && turnRec.FinishedAt != ""
+	}, "cross-engine streaming turn cancellation")
+}
+
 func TestCancelTurnDuringToolExecutionMarksCancelled(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

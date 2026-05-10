@@ -193,6 +193,7 @@ Implemented so far:
 - queued-turn handoff through the same launch/claim path as immediately-started turns
 - same-session cross-engine launch claim conflicts now collapse back into steering instead of leaving a transient competing queued turn behind when another worker wins the active-turn claim first
 - runner-owned active-turn cancellation handles are now installed before the run goroutine starts, and turn cleanup only clears `runner.current` when it still points at the same finishing turn so an older cleanup path cannot wipe a newer active turn's cancel handle
+- same-store engine instances now share the same in-memory session coordination lock/current-turn handle for a given session, so cross-engine submit/cancel paths coordinate on one live ownership record instead of each engine keeping a disconnected local `runner.current`
 - real `queue_count` synchronization from queued turn rows
 - compaction checkpoints now mark a durable `compacting` phase
 - stale active-turn recovery on engine startup and before same-session submission
