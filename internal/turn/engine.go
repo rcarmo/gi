@@ -23,25 +23,26 @@ import (
 )
 
 type Engine struct {
-	store                     *store.Store
-	systemPrompt              string
-	routeResolver             *routing.RouteResolver
-	modelRouter               *routing.Router
-	runtimeCfg                config.RuntimeConfig
-	hooks                     *HookRegistry
-	tools                     *ToolRegistry
-	connectivity              *connectivity.Registry
-	topics                    *topics.Bus
-	peering                   *peering.Manager
-	extensions                []ExtensionInfo
-	extensionsMu              sync.RWMutex
-	sessions                  sync.Map // sessionID -> *sessionRunner
-	subs                      map[string]map[chan map[string]any]bool
-	subsMu                    sync.Mutex
-	beforeSetupHook           func(context.Context, string, string)
-	beforeSetupErrorHook      func(context.Context, string, string) error
-	beforeLaunchClaimHook     func(context.Context, string, string)
-	beforeCleanupNextWorkHook func(context.Context, string)
+	store                        *store.Store
+	systemPrompt                 string
+	routeResolver                *routing.RouteResolver
+	modelRouter                  *routing.Router
+	runtimeCfg                   config.RuntimeConfig
+	hooks                        *HookRegistry
+	tools                        *ToolRegistry
+	connectivity                 *connectivity.Registry
+	topics                       *topics.Bus
+	peering                      *peering.Manager
+	extensions                   []ExtensionInfo
+	extensionsMu                 sync.RWMutex
+	sessions                     sync.Map // sessionID -> *sessionRunner
+	subs                         map[string]map[chan map[string]any]bool
+	subsMu                       sync.Mutex
+	beforeSetupHook              func(context.Context, string, string)
+	beforeSetupErrorHook         func(context.Context, string, string) error
+	beforeCreateSubTurnErrorHook func(context.Context, string, string) error
+	beforeLaunchClaimHook        func(context.Context, string, string)
+	beforeCleanupNextWorkHook    func(context.Context, string)
 }
 
 type sharedSessionCoord struct {
@@ -258,27 +259,16 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		return nil, err
 	}
 	durableCtx := context.Background()
-	if err := e.recordRouteDecision(durableCtx, in.SessionID, turnID, metadata); err != nil {
-		// Non-fatal: routing decisions are an orchestration artifact.
-		log.Printf("orchestration: route decision persist failed: %v", err)
-	}
-	if !queued {
-		launched, err := e.launchTurnLocked(durableCtx, runner, in.SessionID, turnID)
-		if err != nil {
-			return nil, err
-		}
-		if !launched {
-			if steeringResult, steered, err := e.convertLaunchConflictToSteering(durableCtx, turnID, in); err != nil {
-				return nil, err
-			} else if steered {
-				return steeringResult, nil
-			}
-		}
-		queued = !launched
-	}
 	if in.ParentTurnID != "" && parentSessionID != "" {
 		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth, "max_depth": subTurnMaxDepth, "max_concurrency": subTurnMaxConcurrency, "delivery_mode": subTurnDeliveryMode, "subturn_critical": subTurnCritical, "effective_tools": effectiveTools, "subturn_tools_restricted": subTurnToolsRestricted}
+		if hook := e.beforeCreateSubTurnErrorHook; hook != nil {
+			if err := hook(durableCtx, in.ParentTurnID, turnID); err != nil {
+				warnStore("rollback turn after create subturn hook failure", e.store.DeleteTurn(context.Background(), turnID))
+				return nil, err
+			}
+		}
 		if _, err := e.store.CreateSubTurn(durableCtx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, subTurnDeliveryMode, subTurnDepth, subturnMetadata); err != nil {
+			warnStore("rollback turn after create subturn failure", e.store.DeleteTurn(context.Background(), turnID))
 			return nil, err
 		}
 		e.broadcast(parentSessionID, map[string]any{
@@ -310,6 +300,24 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 			})
 		}
 	}
+	if err := e.recordRouteDecision(durableCtx, in.SessionID, turnID, metadata); err != nil {
+		// Non-fatal: routing decisions are an orchestration artifact.
+		log.Printf("orchestration: route decision persist failed: %v", err)
+	}
+	if !queued {
+		launched, err := e.launchTurnLocked(durableCtx, runner, in.SessionID, turnID)
+		if err != nil {
+			return nil, err
+		}
+		if !launched {
+			if steeringResult, steered, err := e.convertLaunchConflictToSteering(durableCtx, turnID, in); err != nil {
+				return nil, err
+			} else if steered {
+				return steeringResult, nil
+			}
+		}
+		queued = !launched
+	}
 	status := "running"
 	if queued {
 		status = "queued"
@@ -319,9 +327,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 				queuePayload[key] = value
 			}
 		}
-		if err := e.store.AddMessage(durableCtx, store.NowID("msg"), in.SessionID, "system", fmt.Sprintf("Queued prompt: %s", in.Prompt), queuePayload); err != nil {
-			return nil, err
-		}
+		warnStore("add queued prompt system message", e.store.AddMessage(durableCtx, store.NowID("msg"), in.SessionID, "system", fmt.Sprintf("Queued prompt: %s", in.Prompt), queuePayload))
 	}
 	submittedPayload := map[string]any{"phase": "queue", "intent": in.Intent, "queued": queued, "checkpoint": true}
 	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt"} {
@@ -332,9 +338,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if routeMatchedBy := metadata["route_matched_by"]; routeMatchedBy != nil {
 		submittedPayload["route_matched_by"] = routeMatchedBy
 	}
-	if err := e.store.AppendTurnEvent(durableCtx, turnID, in.SessionID, "turn.submitted", submittedPayload); err != nil {
-		return nil, err
-	}
+	warnStore("append turn.submitted event", e.store.AppendTurnEvent(durableCtx, turnID, in.SessionID, "turn.submitted", submittedPayload))
 	warnStore("sync queue count after submit", e.store.SyncSessionQueueCount(durableCtx, in.SessionID))
 	warnStore("touch session model after submit", e.store.TouchSessionState(durableCtx, in.SessionID, map[string]any{"model": in.Model}))
 	return &SubmitResult{TurnID: turnID, SessionID: in.SessionID, Status: status, Queued: queued}, nil

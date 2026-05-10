@@ -150,6 +150,37 @@ func TestSubmitPromptSurvivesCallerCancellationAfterTurnPersisted(t *testing.T) 
 	}
 }
 
+func TestSubmitPromptRollsBackTurnWhenCreateSubTurnFails(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_subturn_fail", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_subturn_fail", "Child", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	parentTurn, err := s.CreateTurnWithStatus(ctx, "turn_parent_subturn_fail", "session_parent_subturn_fail", "completed", "parent", map[string]any{"intent": "prompt", "model": "bootstrap", "subturn_depth": 0, "effective_tools": []string{"read"}})
+	if err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	engine := New(s)
+	engine.beforeCreateSubTurnErrorHook = func(ctx context.Context, parentTurnID, childTurnID string) error {
+		return fmt.Errorf("boom create subturn")
+	}
+	_, err = engine.SubmitPrompt(ctx, RunInput{SessionID: "session_child_subturn_fail", Prompt: "child", Model: "bootstrap", ParentTurnID: parentTurn.ID})
+	if err == nil || !strings.Contains(err.Error(), "boom create subturn") {
+		t.Fatalf("expected create subturn error, got %v", err)
+	}
+	turns, err := s.ListTurns(ctx, "session_child_subturn_fail")
+	if err != nil {
+		t.Fatalf("list child turns: %v", err)
+	}
+	if len(turns) != 0 {
+		t.Fatalf("expected rollback to remove child turn after create subturn failure, got %#v", turns)
+	}
+}
+
 func TestConcurrentSubmitAcrossEnginesCompletesWithoutConflict(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
