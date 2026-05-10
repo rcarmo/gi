@@ -257,17 +257,18 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if _, err := e.store.CreateTurnWithStatus(ctx, turnID, in.SessionID, "queued", in.Prompt, metadata); err != nil {
 		return nil, err
 	}
-	if err := e.recordRouteDecision(ctx, in.SessionID, turnID, metadata); err != nil {
+	durableCtx := context.Background()
+	if err := e.recordRouteDecision(durableCtx, in.SessionID, turnID, metadata); err != nil {
 		// Non-fatal: routing decisions are an orchestration artifact.
 		log.Printf("orchestration: route decision persist failed: %v", err)
 	}
 	if !queued {
-		launched, err := e.launchTurnLocked(ctx, runner, in.SessionID, turnID)
+		launched, err := e.launchTurnLocked(durableCtx, runner, in.SessionID, turnID)
 		if err != nil {
 			return nil, err
 		}
 		if !launched {
-			if steeringResult, steered, err := e.convertLaunchConflictToSteering(ctx, turnID, in); err != nil {
+			if steeringResult, steered, err := e.convertLaunchConflictToSteering(durableCtx, turnID, in); err != nil {
 				return nil, err
 			} else if steered {
 				return steeringResult, nil
@@ -277,7 +278,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	}
 	if in.ParentTurnID != "" && parentSessionID != "" {
 		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth, "max_depth": subTurnMaxDepth, "max_concurrency": subTurnMaxConcurrency, "delivery_mode": subTurnDeliveryMode, "subturn_critical": subTurnCritical, "effective_tools": effectiveTools, "subturn_tools_restricted": subTurnToolsRestricted}
-		if _, err := e.store.CreateSubTurn(ctx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, subTurnDeliveryMode, subTurnDepth, subturnMetadata); err != nil {
+		if _, err := e.store.CreateSubTurn(durableCtx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, subTurnDeliveryMode, subTurnDepth, subturnMetadata); err != nil {
 			return nil, err
 		}
 		e.broadcast(parentSessionID, map[string]any{
@@ -318,7 +319,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 				queuePayload[key] = value
 			}
 		}
-		if err := e.store.AddMessage(ctx, store.NowID("msg"), in.SessionID, "system", fmt.Sprintf("Queued prompt: %s", in.Prompt), queuePayload); err != nil {
+		if err := e.store.AddMessage(durableCtx, store.NowID("msg"), in.SessionID, "system", fmt.Sprintf("Queued prompt: %s", in.Prompt), queuePayload); err != nil {
 			return nil, err
 		}
 	}
@@ -331,11 +332,11 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if routeMatchedBy := metadata["route_matched_by"]; routeMatchedBy != nil {
 		submittedPayload["route_matched_by"] = routeMatchedBy
 	}
-	if err := e.store.AppendTurnEvent(ctx, turnID, in.SessionID, "turn.submitted", submittedPayload); err != nil {
+	if err := e.store.AppendTurnEvent(durableCtx, turnID, in.SessionID, "turn.submitted", submittedPayload); err != nil {
 		return nil, err
 	}
-	warnStore("sync queue count after submit", e.store.SyncSessionQueueCount(ctx, in.SessionID))
-	warnStore("touch session model after submit", e.store.TouchSessionState(ctx, in.SessionID, map[string]any{"model": in.Model}))
+	warnStore("sync queue count after submit", e.store.SyncSessionQueueCount(durableCtx, in.SessionID))
+	warnStore("touch session model after submit", e.store.TouchSessionState(durableCtx, in.SessionID, map[string]any{"model": in.Model}))
 	return &SubmitResult{TurnID: turnID, SessionID: in.SessionID, Status: status, Queued: queued}, nil
 }
 

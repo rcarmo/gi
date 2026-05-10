@@ -119,6 +119,37 @@ func TestSubmitPromptSteersSecondPromptToActiveTurn(t *testing.T) {
 	}
 }
 
+func TestSubmitPromptSurvivesCallerCancellationAfterTurnPersisted(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	if _, err := s.CreateSession(ctx, "session_submit_cancel", "Test", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	cancelled := false
+	engine.beforeLaunchClaimHook = func(ctx context.Context, sessionID, turnID string) {
+		if !cancelled {
+			cancelled = true
+			cancel()
+		}
+	}
+	res, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_submit_cancel", Prompt: "hello", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit prompt should survive caller cancellation after persistence: %v", err)
+	}
+	if res == nil || res.TurnID == "" {
+		t.Fatalf("expected submit result despite caller cancellation, got %#v", res)
+	}
+	turnRec, err := s.GetTurn(context.Background(), res.TurnID)
+	if err != nil {
+		t.Fatalf("get persisted turn: %v", err)
+	}
+	if turnRec.Status == "" {
+		t.Fatalf("expected persisted turn status, got %#v", turnRec)
+	}
+}
+
 func TestConcurrentSubmitAcrossEnginesCompletesWithoutConflict(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
