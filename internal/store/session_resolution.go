@@ -19,7 +19,7 @@ func (s *Store) ResolveOrCreateSessionFromAllocation(ctx context.Context, in Res
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, false, err
 	}
-	created, err := s.CreateSessionWithMetadata(ctx, in.ID, in.ParentSessionID, in.Title, in.State, &in.Allocation.Scope, in.Allocation.SessionAliases)
+	created, err := s.createSessionWithMetadataAndOpaqueKey(ctx, in.ID, in.ParentSessionID, in.Title, in.State, &in.Allocation.Scope, in.Allocation.SessionAliases, in.Allocation.SessionKey)
 	if err == nil {
 		return created, true, nil
 	}

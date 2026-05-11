@@ -131,10 +131,14 @@ func configure(db *sql.DB) error {
 
 func (s *Store) CreateSession(ctx context.Context, id, title string, state map[string]any) (*Session, error) {
 	alloc := session.AllocateDefaultSession("gi", "gi", "default", id)
-	return s.CreateSessionWithMetadata(ctx, id, "", title, state, &alloc.Scope, alloc.SessionAliases)
+	return s.createSessionWithMetadataAndOpaqueKey(ctx, id, "", title, state, &alloc.Scope, alloc.SessionAliases, "")
 }
 
 func (s *Store) CreateSessionWithMetadata(ctx context.Context, id, parentSessionID, title string, state map[string]any, scope *session.SessionScope, aliases []string) (*Session, error) {
+	return s.createSessionWithMetadataAndOpaqueKey(ctx, id, parentSessionID, title, state, scope, aliases, "")
+}
+
+func (s *Store) createSessionWithMetadataAndOpaqueKey(ctx context.Context, id, parentSessionID, title string, state map[string]any, scope *session.SessionScope, aliases []string, opaqueKey string) (*Session, error) {
 	stateJSON, err := marshalJSON(state)
 	if err != nil {
 		return nil, err
@@ -163,7 +167,7 @@ func (s *Store) CreateSessionWithMetadata(ctx context.Context, id, parentSession
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
-	if err := s.upsertSessionIdentityTx(ctx, tx, id, scope, aliases); err != nil {
+	if err := s.upsertSessionIdentityTx(ctx, tx, id, scope, aliases, opaqueKey); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {

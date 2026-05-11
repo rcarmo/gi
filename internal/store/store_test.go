@@ -237,6 +237,54 @@ func TestStoreAliasManagementAPIs(t *testing.T) {
 	}
 }
 
+func TestStoreResolveOrCreateSessionFromAllocationPreservesExplicitSessionKey(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	derivedKey := alloc.SessionKey
+	explicitKey := gisession.BuildOpaqueSessionKey("explicit:session:key")
+	if explicitKey == derivedKey {
+		t.Fatalf("expected explicit key to differ from derived key: %q", explicitKey)
+	}
+	alloc.SessionKey = explicitKey
+	sess, created, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_alloc_explicit", Title: "@support", State: map[string]any{"status": "idle"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("resolve or create session from allocation with explicit key: %v", err)
+	}
+	if !created {
+		t.Fatalf("expected session creation for explicit key path")
+	}
+	identity, err := s.GetSessionIdentity(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("get session identity: %v", err)
+	}
+	if identity.OpaqueSessionKey != explicitKey {
+		t.Fatalf("expected explicit opaque key %q, got %#v", explicitKey, identity)
+	}
+	resolved, err := s.ResolveSessionByCanonicalKey(ctx, explicitKey)
+	if err != nil {
+		t.Fatalf("resolve session by explicit canonical key: %v", err)
+	}
+	if resolved.ID != sess.ID {
+		t.Fatalf("unexpected explicit-key resolution: %#v", resolved)
+	}
+	reused, created, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_alloc_explicit_other", Title: "@support2", State: map[string]any{"status": "other"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("resolve existing explicit-key allocation session: %v", err)
+	}
+	if created || reused.ID != sess.ID {
+		t.Fatalf("expected existing explicit-key allocation session reuse, got session=%#v created=%v", reused, created)
+	}
+}
+
 func TestStoreResolveOrCreateSessionFromAllocation(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

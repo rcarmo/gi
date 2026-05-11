@@ -34,12 +34,23 @@ func normalizeIdentityTupleValue(value, fallback string) string {
 	return value
 }
 
-func (s *Store) upsertSessionIdentityTx(ctx context.Context, tx *sql.Tx, sessionID string, scope *gisession.SessionScope, aliases []string) error {
+func normalizeOpaqueSessionKey(value string) string {
+	value = strings.TrimSpace(strings.ToLower(value))
+	if gisession.IsOpaqueSessionKey(value) {
+		return value
+	}
+	return ""
+}
+
+func (s *Store) upsertSessionIdentityTx(ctx context.Context, tx *sql.Tx, sessionID string, scope *gisession.SessionScope, aliases []string, opaqueKeyOverride string) error {
 	if scope == nil || strings.TrimSpace(sessionID) == "" {
 		return nil
 	}
 	signature := gisession.CanonicalScopeSignature(*scope)
-	opaqueKey := gisession.BuildSessionKey(*scope)
+	opaqueKey := normalizeOpaqueSessionKey(opaqueKeyOverride)
+	if opaqueKey == "" {
+		opaqueKey = gisession.BuildSessionKey(*scope)
+	}
 	if strings.TrimSpace(signature) == "" || strings.TrimSpace(opaqueKey) == "" {
 		return nil
 	}
