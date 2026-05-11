@@ -83,3 +83,4 @@ Current session/runtime identity status:
 - alias resolution, main-session preference, and allocation resolve-or-create now flow through explicit store APIs
 - multi-channel binding support currently covers explicit continuation plus bound reuse; broader automatic linking/fan-out policy remains intentionally undocumented until it is implemented
 - direct/IPC ingress now has a normalized engine-facing envelope (`DirectInput` / `DirectOrigin`) so non-web/TUI callers can reuse the same submit/route/continue runtime paths instead of creating separate execution flows
+- system/internal-origin processing now has explicit engine entrypoints on top of that envelope, and same-session direct/system follow-ups reuse steering instead of spawning competing turns

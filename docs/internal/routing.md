@@ -333,13 +333,17 @@ The first direct-processing slice now uses a normalized engine-facing envelope:
 - `DirectInput`
 - `DirectOrigin`
 - `Engine.ProcessDirect(...)`
+- `Engine.ProcessSystemDirect(...)`
+- `Engine.ProcessInternalDirect(...)`
 
 Current behavior:
 
 - direct prompt ingress reuses `SubmitPromptRouted(...)`
 - direct peer-message ingress reuses the routed peer-message path
 - direct continue ingress reuses `ContinueSession(...)`
-- direct-origin turns stamp normalized ingress audit metadata onto turn metadata (`ingress_kind`, `ingress_source_kind`, `ingress_source_id`, `ingress_role`, `ingress_label`)
+- explicit system/internal entrypoints default the origin kind/role instead of relying on callers to pass those values ad hoc
+- same-session direct/system follow-up input while a turn is active reuses the steering path instead of spawning a competing queued turn
+- direct-origin turns stamp normalized ingress audit metadata onto turn metadata, persisted user-message payloads, and `turn.started` event payloads (`ingress_kind`, `ingress_source_kind`, `ingress_source_id`, `ingress_role`, `ingress_label`)
 
 This is intentionally a runtime entrypoint and envelope first, not yet a durable inbound work queue.
 
