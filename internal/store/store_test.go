@@ -265,6 +265,87 @@ func TestStoreResolveOrCreateSessionFromAllocation(t *testing.T) {
 	}
 }
 
+func TestStoreSetAndResolveMainSession(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	allocA := gisession.AllocateDefaultSession("agent", "gi", "default", "session_main_a")
+	sessA, err := s.CreateSessionWithMetadata(ctx, "session_main_a", "", "@agent", map[string]any{"status": "idle"}, &allocA.Scope, allocA.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session a: %v", err)
+	}
+	allocB := gisession.AllocateDefaultSession("agent", "gi", "default", "session_main_b")
+	sessB, err := s.CreateSessionWithMetadata(ctx, "session_main_b", "", "@agent", map[string]any{"status": "idle"}, &allocB.Scope, allocB.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session b: %v", err)
+	}
+	if err := s.SetMainSession(ctx, sessA.ID); err != nil {
+		t.Fatalf("set main session a: %v", err)
+	}
+	mainSess, err := s.ResolveMainSession(ctx, "agent", "gi", "default")
+	if err != nil {
+		t.Fatalf("resolve main session a: %v", err)
+	}
+	if mainSess.ID != sessA.ID {
+		t.Fatalf("expected session a as main, got %#v", mainSess)
+	}
+	if err := s.SetMainSession(ctx, sessB.ID); err != nil {
+		t.Fatalf("set main session b: %v", err)
+	}
+	mainSess, err = s.ResolveMainSession(ctx, "agent", "gi", "default")
+	if err != nil {
+		t.Fatalf("resolve main session b: %v", err)
+	}
+	if mainSess.ID != sessB.ID {
+		t.Fatalf("expected session b as main, got %#v", mainSess)
+	}
+	identityA, err := s.GetSessionIdentity(ctx, sessA.ID)
+	if err != nil {
+		t.Fatalf("get session a identity: %v", err)
+	}
+	identityB, err := s.GetSessionIdentity(ctx, sessB.ID)
+	if err != nil {
+		t.Fatalf("get session b identity: %v", err)
+	}
+	if identityA.IsMainSession || !identityB.IsMainSession {
+		t.Fatalf("expected only session b to be main, got a=%v b=%v", identityA.IsMainSession, identityB.IsMainSession)
+	}
+}
+
+func TestStoreResolveOrCreateMainSessionFromAllocation(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_main_create")
+	sess, created, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_main_create", Title: "@agent", State: map[string]any{"status": "idle"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("resolve or create main session: %v", err)
+	}
+	if !created {
+		t.Fatalf("expected session creation for main session")
+	}
+	mainSess, err := s.ResolveMainSession(ctx, "agent", "gi", "default")
+	if err != nil {
+		t.Fatalf("resolve main session: %v", err)
+	}
+	if mainSess.ID != sess.ID {
+		t.Fatalf("expected created session to be main, got %#v", mainSess)
+	}
+	identity, err := s.GetSessionIdentity(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("get created session identity: %v", err)
+	}
+	if !identity.IsMainSession {
+		t.Fatalf("expected created session to be marked main: %#v", identity)
+	}
+}
+
 func TestStoreFindSessionByAllocationFallsBackToCanonicalSignature(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

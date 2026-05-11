@@ -16,6 +16,20 @@ import (
 	"github.com/rcarmo/gi/internal/turn"
 )
 
+func initialSessionID(ctx context.Context, s *store.Store) (string, error) {
+	if sess, err := s.ResolveMainSession(ctx, "agent", "gi", "default"); err == nil {
+		return sess.ID, nil
+	}
+	sessions, err := s.ListSessions(ctx)
+	if err != nil {
+		return "", fmt.Errorf("list sessions: %w", err)
+	}
+	if len(sessions) == 0 {
+		return "", nil
+	}
+	return sessions[0].ID, nil
+}
+
 func Run(dbPath, workspace, model string) error {
 	cfg := config.Load(workspace)
 	if model != "" {
@@ -30,14 +44,14 @@ func Run(dbPath, workspace, model string) error {
 
 	engine := turn.NewWithRuntimeConfig(s, cfg, cfg.SystemPrompt)
 
-	sessions, _ := s.ListSessions(context.Background())
-	var sessionID string
-	if len(sessions) > 0 {
-		sessionID = sessions[0].ID
-	} else {
+	sessionID, err := initialSessionID(context.Background(), s)
+	if err != nil {
+		return err
+	}
+	if sessionID == "" {
 		id := store.NowID("session")
 		alloc := gisession.AllocateDefaultSession("agent", "gi", "default", id)
-		sess, err := s.CreateSessionWithMetadata(context.Background(), id, "", "@agent", map[string]any{"status": "idle", "queue_count": 0, "model": cfg.DefaultModel, "provider": cfg.DefaultProvider, "thinking_level": cfg.DefaultThinkingLevel}, &alloc.Scope, alloc.SessionAliases)
+		sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(context.Background(), store.ResolveOrCreateSessionFromAllocationInput{ID: id, Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": cfg.DefaultModel, "provider": cfg.DefaultProvider, "thinking_level": cfg.DefaultThinkingLevel}, Allocation: alloc})
 		if err != nil {
 			return fmt.Errorf("create session: %w", err)
 		}

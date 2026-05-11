@@ -155,6 +155,33 @@ func TestResolveSessionRefPrefersCanonicalIdentityOverScopeSnapshot(t *testing.T
 	}
 }
 
+func TestInitialSessionIDPrefersMainSession(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	allocA := gisession.AllocateDefaultSession("agent", "gi", "default", "session_main_a")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_main_a", "", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}, &allocA.Scope, allocA.SessionAliases); err != nil {
+		t.Fatalf("create session a: %v", err)
+	}
+	allocB := gisession.AllocateDefaultSession("agent", "gi", "default", "session_main_b")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_main_b", "", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}, &allocB.Scope, allocB.SessionAliases); err != nil {
+		t.Fatalf("create session b: %v", err)
+	}
+	if err := s.SetMainSession(ctx, "session_main_b"); err != nil {
+		t.Fatalf("set main session: %v", err)
+	}
+	sessionID, err := initialSessionID(ctx, s)
+	if err != nil {
+		t.Fatalf("initial session id: %v", err)
+	}
+	if sessionID != "session_main_b" {
+		t.Fatalf("expected main session id, got %q", sessionID)
+	}
+}
+
 func TestHandleEventStreamsDraftIntoTranscript(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleEvent(map[string]any{"type": "agent_draft_delta", "delta": "hello"})

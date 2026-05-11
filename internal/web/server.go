@@ -140,7 +140,7 @@ func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
 			title = "@" + agentID
 		}
 		alloc := gisession.AllocateDefaultSession(agentID, "gi", "default", id)
-		session, err := s.store.CreateSessionWithMetadata(ctx, id, "", title, map[string]any{"status": "idle", "queue_count": 0, "model": s.cfg.DefaultModel, "provider": s.cfg.DefaultProvider, "thinking_level": s.cfg.DefaultThinkingLevel}, &alloc.Scope, alloc.SessionAliases)
+		session, _, err := s.store.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: id, Title: title, State: map[string]any{"status": "idle", "queue_count": 0, "model": s.cfg.DefaultModel, "provider": s.cfg.DefaultProvider, "thinking_level": s.cfg.DefaultThinkingLevel}, Allocation: alloc})
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 			return

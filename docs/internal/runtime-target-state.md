@@ -125,16 +125,17 @@ This gives us:
 Implemented so far:
 
 - `session_identities`, `session_identity_dimensions`, and `session_aliases` are now populated transactionally with session creation/cloning paths
-- store now exposes first-class identity APIs (`GetSessionIdentity(...)`, `ListSessionIdentities(...)`, canonical-key/alias resolution, alias list/update, and resolve-or-create from allocation) backed by the relational identity tables instead of requiring runtime callers to infer identity from `sessions.scope_json`
+- store now exposes first-class identity APIs (`GetSessionIdentity(...)`, `ListSessionIdentities(...)`, canonical-key/alias resolution, alias list/update, resolve-or-create from allocation, and main-session resolve/promote semantics) backed by the relational identity tables instead of requiring runtime callers to infer identity from `sessions.scope_json`
 - `FindSessionByAllocation(...)` now resolves by opaque key, validated alias matches, and canonical scope signature fallback
 - default session allocation now uses the same `direct:<chat>` chat-dimension encoding and alias format as routed allocation
 - route-preparation and same-agent fast-path checks now read canonical agent/channel/account/dimension identity from the store first, with `scope_json` only as compatibility fallback
 - web/TUI fork-agent allocation and TUI agent/session resolution now prefer canonical identity rows instead of trusting `sessions.scope_json` snapshots
+- explicit root-session creation paths now promote the created session to the stored main session for its `(agent, channel, account)` tuple, and TUI startup prefers that stored main session over incidental recency ordering
 
 Still pending in this area:
 
 - replacing remaining runtime reads that still infer agent/channel/account from compatibility `scope_json` helpers instead of a first-class identity read path
-- explicit store APIs for session-by-canonical-key / alias management as checklist items, rather than today's narrower lookup helpers
+- main-session semantics still only cover one preferred session per `(agent, channel, account)` tuple; they do not yet express richer multi-channel binding / continuation policy
 - channel-binding / multi-channel continuation semantics
 
 ---
