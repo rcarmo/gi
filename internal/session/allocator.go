@@ -8,15 +8,64 @@ import (
 )
 
 type Allocation struct {
-	Scope          SessionScope `json:"scope"`
-	SessionKey     string       `json:"session_key"`
-	SessionAliases []string     `json:"session_aliases"`
+	Scope          SessionScope        `json:"scope"`
+	SessionKey     string              `json:"session_key"`
+	SessionAliases []string            `json:"session_aliases"`
+	IdentityLinks  map[string][]string `json:"identity_links,omitempty"`
 }
 
 type AllocationInput struct {
 	AgentID       string
 	Context       routing.InboundContext
 	SessionPolicy routing.SessionPolicy
+}
+
+func sessionAliasesForScope(scope SessionScope) []string {
+	alias := "agent:" + routing.NormalizeAgentID(scope.AgentID) + ":" + strings.ToLower(scope.Channel)
+	for _, dimension := range scope.Dimensions {
+		alias += ":" + dimension + ":" + strings.ToLower(strings.TrimSpace(scope.Values[dimension]))
+	}
+	aliases := []string{alias}
+	if chat := strings.TrimSpace(scope.Values["chat"]); chat != "" {
+		aliases = append(aliases, strings.ToLower(scope.Channel)+":"+chat)
+	}
+	return uniqueAliases(aliases)
+}
+
+func cloneIdentityLinks(identityLinks map[string][]string) map[string][]string {
+	if len(identityLinks) == 0 {
+		return nil
+	}
+	cloned := make(map[string][]string, len(identityLinks))
+	for canonical, ids := range identityLinks {
+		cloned[canonical] = append([]string(nil), ids...)
+	}
+	return cloned
+}
+
+func NormalizeAllocationIdentityLinks(alloc Allocation) Allocation {
+	out := alloc
+	out.IdentityLinks = cloneIdentityLinks(alloc.IdentityLinks)
+	scope := CloneScope(&alloc.Scope)
+	if scope == nil || scope.Values == nil || len(out.IdentityLinks) == 0 {
+		return out
+	}
+	rawSender := strings.TrimSpace(scope.Values["sender"])
+	if rawSender == "" {
+		return out
+	}
+	canonicalSender := canonicalSessionIdentityID(scope.Channel, rawSender, out.IdentityLinks)
+	if canonicalSender == "" {
+		return out
+	}
+	scope.Values["sender"] = canonicalSender
+	out.Scope = *scope
+	oldDerivedKey := BuildSessionKey(alloc.Scope)
+	if strings.TrimSpace(out.SessionKey) == "" || strings.EqualFold(strings.TrimSpace(out.SessionKey), oldDerivedKey) {
+		out.SessionKey = BuildSessionKey(out.Scope)
+	}
+	out.SessionAliases = uniqueAliases(append(sessionAliasesForScope(out.Scope), out.SessionAliases...))
+	return out
 }
 
 func AllocateDefaultSession(agentID, channel, account, logicalChatID string) Allocation {
@@ -36,25 +85,16 @@ func AllocateDefaultSession(agentID, channel, account, logicalChatID string) All
 			"chat": chatValue,
 		},
 	}
-	alias := "agent:" + agentID + ":" + channel + ":chat:" + chatValue
 	return Allocation{
 		Scope:          scope,
 		SessionKey:     BuildSessionKey(scope),
-		SessionAliases: []string{alias, channel + ":" + chatValue},
+		SessionAliases: sessionAliasesForScope(scope),
 	}
 }
 
 func AllocateRouteSession(input AllocationInput) Allocation {
 	scope := buildSessionScope(input)
-	alias := "agent:" + routing.NormalizeAgentID(input.AgentID) + ":" + strings.ToLower(scope.Channel)
-	for _, dimension := range scope.Dimensions {
-		alias += ":" + dimension + ":" + strings.ToLower(strings.TrimSpace(scope.Values[dimension]))
-	}
-	aliases := []string{alias}
-	if chat := strings.TrimSpace(scope.Values["chat"]); chat != "" {
-		aliases = append(aliases, strings.ToLower(scope.Channel)+":"+chat)
-	}
-	return Allocation{Scope: scope, SessionKey: BuildSessionKey(scope), SessionAliases: uniqueAliases(aliases)}
+	return Allocation{Scope: scope, SessionKey: BuildSessionKey(scope), SessionAliases: sessionAliasesForScope(scope), IdentityLinks: cloneIdentityLinks(input.SessionPolicy.IdentityLinks)}
 }
 
 func buildSessionScope(input AllocationInput) SessionScope {

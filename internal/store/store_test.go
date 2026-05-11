@@ -313,6 +313,44 @@ func TestStoreResolveOrCreateSessionFromAllocation(t *testing.T) {
 	}
 }
 
+func TestStoreResolveSessionByAllocationCollapsesIdentityLinksAtStoreBoundary(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	canonicalAlloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "ruicarmo"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}, IdentityLinks: map[string][]string{"rui": {"slack:ruicarmo", "ruicarmo"}}},
+	})
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_identity_link", "", "@support", map[string]any{"status": "idle"}, &canonicalAlloc.Scope, canonicalAlloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create canonical linked session: %v", err)
+	}
+	staleAlloc := gisession.Allocation{
+		Scope: gisession.SessionScope{
+			Version:    gisession.ScopeVersionV1,
+			AgentID:    "support",
+			Channel:    "slack",
+			Account:    "workspace",
+			Dimensions: []string{"chat", "sender"},
+			Values:     map[string]string{"chat": "group:thread-7", "sender": "slack:ruicarmo"},
+		},
+		SessionKey:     gisession.BuildSessionKey(gisession.SessionScope{Version: gisession.ScopeVersionV1, AgentID: "support", Channel: "slack", Account: "workspace", Dimensions: []string{"chat", "sender"}, Values: map[string]string{"chat": "group:thread-7", "sender": "slack:ruicarmo"}}),
+		SessionAliases: []string{"agent:support:slack:chat:group:thread-7:sender:slack:ruicarmo", "slack:group:thread-7"},
+		IdentityLinks:  map[string][]string{"rui": {"slack:ruicarmo", "ruicarmo"}},
+	}
+	resolved, err := s.ResolveSessionByAllocation(ctx, staleAlloc)
+	if err != nil {
+		t.Fatalf("resolve allocation with store-boundary identity-link collapse: %v", err)
+	}
+	if resolved.ID != sess.ID {
+		t.Fatalf("expected identity-link allocation collapse to reuse canonical session, got %#v", resolved)
+	}
+}
+
 func TestStoreSetAndResolveMainSession(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

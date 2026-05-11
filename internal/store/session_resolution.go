@@ -10,10 +10,11 @@ import (
 )
 
 func (s *Store) ResolveSessionByAllocation(ctx context.Context, alloc gisession.Allocation) (*Session, error) {
-	return s.FindSessionByAllocation(ctx, alloc)
+	return s.FindSessionByAllocation(ctx, gisession.NormalizeAllocationIdentityLinks(alloc))
 }
 
 func (s *Store) ResolveOrCreateSessionFromAllocation(ctx context.Context, in ResolveOrCreateSessionFromAllocationInput) (*Session, bool, error) {
+	in.Allocation = gisession.NormalizeAllocationIdentityLinks(in.Allocation)
 	if sess, err := s.ResolveSessionByAllocation(ctx, in.Allocation); err == nil {
 		return sess, false, nil
 	} else if !errors.Is(err, sql.ErrNoRows) {

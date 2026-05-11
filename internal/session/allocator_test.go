@@ -20,6 +20,41 @@ func TestAllocateRouteSessionBuildsScopedKey(t *testing.T) {
 	}
 }
 
+func TestNormalizeAllocationIdentityLinksCanonicalizesSenderAndDerivedKey(t *testing.T) {
+	alloc := Allocation{
+		Scope: SessionScope{
+			Version:    ScopeVersionV1,
+			AgentID:    "support",
+			Channel:    "slack",
+			Account:    "workspace",
+			Dimensions: []string{"chat", "sender"},
+			Values: map[string]string{
+				"chat":   "group:thread-7",
+				"sender": "slack:ruicarmo",
+			},
+		},
+		IdentityLinks: map[string][]string{"rui": {"slack:ruicarmo"}},
+	}
+	alloc.SessionKey = BuildSessionKey(alloc.Scope)
+	alloc.SessionAliases = []string{"agent:support:slack:chat:group:thread-7:sender:slack:ruicarmo", "slack:group:thread-7"}
+	normalized := NormalizeAllocationIdentityLinks(alloc)
+	if normalized.Scope.Values["sender"] != "rui" {
+		t.Fatalf("expected canonical sender identity, got %#v", normalized.Scope)
+	}
+	if normalized.SessionKey != BuildSessionKey(normalized.Scope) {
+		t.Fatalf("expected derived session key to be recomputed, got %#v", normalized)
+	}
+	foundCanonicalAlias := false
+	for _, alias := range normalized.SessionAliases {
+		if alias == "agent:support:slack:chat:group:thread-7:sender:rui" {
+			foundCanonicalAlias = true
+		}
+	}
+	if !foundCanonicalAlias {
+		t.Fatalf("expected canonical sender alias in %#v", normalized.SessionAliases)
+	}
+}
+
 func TestAllocateDefaultSessionUsesRouteCompatibleChatAlias(t *testing.T) {
 	alloc := AllocateDefaultSession("support", "gi", "default", "chat-1")
 	if alloc.Scope.Values["chat"] != "direct:chat-1" {
