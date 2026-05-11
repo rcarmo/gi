@@ -182,6 +182,19 @@ Likely tasks:
 5. Update docs in the same change.
 6. Repeat until the tree feels coherent again.
 
+## Landed slices so far
+
+- `internal/store` session identity code was split into clearer functional files:
+  - `session_identity.go`
+  - `session_aliases.go`
+  - `session_main.go`
+  - `session_resolution.go`
+- `internal/turn` helper drift was reduced by moving session-identity and routing-helper logic out of `engine.go` into dedicated files:
+  - `session_identity_helpers.go`
+  - `routing_helpers.go`
+- `internal/turn` routing-facing engine methods were split out of `engine.go` into:
+  - `routing_runtime.go`
+
 ## Done criteria for the interim phase
 
 This phase is “done enough” when:
