@@ -1596,6 +1596,73 @@ func TestProcessDirectPromptUsesNormalSubmitPathAndIngressMetadata(t *testing.T)
 	}
 }
 
+func TestProcessSystemDirectDefaultsSystemOriginMetadata(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_system_direct")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_system_direct", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	result, err := engine.ProcessSystemDirect(ctx, DirectInput{Kind: DirectKindPrompt, SessionID: sess.ID, Prompt: "hello from system", Model: "bootstrap", Origin: DirectOrigin{SourceID: "scheduler:system", Label: "Scheduler"}})
+	if err != nil {
+		t.Fatalf("process system direct: %v", err)
+	}
+	waitForCondition(t, time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && strings.TrimSpace(turnRec.FinishedAt) != ""
+	}, "system direct completion")
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if stringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindSystem || stringValue(turnRec.Metadata["ingress_role"], "") != "system" || stringValue(turnRec.Metadata["ingress_source_id"], "") != "scheduler:system" {
+		t.Fatalf("expected system ingress metadata on turn, got %#v", turnRec.Metadata)
+	}
+	msgs, err := s.ListMessages(ctx, result.SessionID)
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	if len(msgs) == 0 || stringValue(msgs[0].Payload["ingress_source_kind"], "") != DirectSourceKindSystem || stringValue(msgs[0].Payload["ingress_role"], "") != "system" {
+		t.Fatalf("expected system ingress metadata on persisted user message, got %#v", msgs)
+	}
+}
+
+func TestProcessInternalDirectDefaultsInternalOriginMetadata(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_internal_direct")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_internal_direct", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	result, err := engine.ProcessInternalDirect(ctx, DirectInput{Kind: DirectKindPrompt, SessionID: sess.ID, Prompt: "hello from internal", Model: "bootstrap", Origin: DirectOrigin{SourceID: "engine:internal"}})
+	if err != nil {
+		t.Fatalf("process internal direct: %v", err)
+	}
+	waitForCondition(t, time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && strings.TrimSpace(turnRec.FinishedAt) != ""
+	}, "internal direct completion")
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if stringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindInternal || stringValue(turnRec.Metadata["ingress_role"], "") != "system" || stringValue(turnRec.Metadata["ingress_source_id"], "") != "engine:internal" {
+		t.Fatalf("expected internal ingress metadata on turn, got %#v", turnRec.Metadata)
+	}
+}
+
 func TestProcessDirectPeerMessageCarriesIngressMetadataIntoTargetTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

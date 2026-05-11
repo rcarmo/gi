@@ -10,6 +10,11 @@ const (
 	DirectKindPrompt      = "prompt"
 	DirectKindPeerMessage = "peer-message"
 	DirectKindContinue    = "continue"
+
+	DirectSourceKindDirect   = "direct"
+	DirectSourceKindIPC      = "ipc"
+	DirectSourceKindSystem   = "system"
+	DirectSourceKindInternal = "internal"
 )
 
 func normalizeDirectKind(kind string) string {
@@ -25,6 +30,37 @@ func normalizeDirectKind(kind string) string {
 	}
 }
 
+func normalizeDirectSourceKind(kind string) string {
+	switch strings.TrimSpace(strings.ToLower(kind)) {
+	case "", DirectSourceKindDirect:
+		return DirectSourceKindDirect
+	case DirectSourceKindIPC:
+		return DirectSourceKindIPC
+	case DirectSourceKindSystem:
+		return DirectSourceKindSystem
+	case DirectSourceKindInternal:
+		return DirectSourceKindInternal
+	default:
+		return strings.TrimSpace(strings.ToLower(kind))
+	}
+}
+
+func (e *Engine) ProcessSystemDirect(ctx context.Context, in DirectInput) (*SubmitResult, error) {
+	in.Origin.SourceKind = DirectSourceKindSystem
+	if strings.TrimSpace(in.Origin.Role) == "" {
+		in.Origin.Role = "system"
+	}
+	return e.ProcessDirect(ctx, in)
+}
+
+func (e *Engine) ProcessInternalDirect(ctx context.Context, in DirectInput) (*SubmitResult, error) {
+	in.Origin.SourceKind = DirectSourceKindInternal
+	if strings.TrimSpace(in.Origin.Role) == "" {
+		in.Origin.Role = "system"
+	}
+	return e.ProcessDirect(ctx, in)
+}
+
 func (e *Engine) ProcessDirect(ctx context.Context, in DirectInput) (*SubmitResult, error) {
 	kind := normalizeDirectKind(in.Kind)
 	metadata := map[string]any{}
@@ -32,7 +68,7 @@ func (e *Engine) ProcessDirect(ctx context.Context, in DirectInput) (*SubmitResu
 		metadata[k] = v
 	}
 	metadata["ingress_kind"] = "direct"
-	metadata["ingress_source_kind"] = firstNonEmpty(strings.TrimSpace(in.Origin.SourceKind), "direct")
+	metadata["ingress_source_kind"] = normalizeDirectSourceKind(in.Origin.SourceKind)
 	if value := strings.TrimSpace(in.Origin.SourceID); value != "" {
 		metadata["ingress_source_id"] = value
 	}
