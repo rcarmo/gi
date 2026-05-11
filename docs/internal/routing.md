@@ -341,9 +341,11 @@ Current behavior:
 - direct prompt ingress reuses `SubmitPromptRouted(...)`
 - direct peer-message ingress reuses the routed peer-message path
 - direct continue ingress reuses `ContinueSession(...)`
+- direct ingress may target a session by explicit `SessionID` or by explicit `SessionKey`, with session-key resolution flowing through the same canonical store lookup path used elsewhere; if both are supplied they must agree, otherwise the request is rejected as ambiguous
 - explicit system/internal entrypoints default the origin kind/role instead of relying on callers to pass those values ad hoc
 - same-session direct/system follow-up input while a turn is active reuses the steering path instead of spawning a competing queued turn
-- direct-origin turns stamp normalized ingress audit metadata onto turn metadata, persisted user-message payloads, and `turn.started` event payloads (`ingress_kind`, `ingress_source_kind`, `ingress_source_id`, `ingress_role`, `ingress_label`)
+- routed direct prompts still flow through the normal route/session-resolution path and carry ingress metadata forward onto the resulting target turn
+- direct-origin turns stamp normalized ingress audit metadata onto turn metadata, persisted user-message payloads, and `turn.started` event payloads (`ingress_kind`, `ingress_source_kind`, `ingress_source_id`, `ingress_role`, `ingress_label`, `ingress_session_key` when provided)
 
 This is intentionally a runtime entrypoint and envelope first, not yet a durable inbound work queue.
 

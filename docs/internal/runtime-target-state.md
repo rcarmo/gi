@@ -565,8 +565,10 @@ If we want PicoClaw-style direct mode, we need an inbound work representation.
 Current implementation status (first slice):
 
 - `internal/turn` now exposes a normalized direct-ingress envelope via `DirectInput` / `DirectOrigin`
+- `DirectInput` now supports both `SessionID` and explicit `SessionKey`, with direct processing resolving explicit session keys through the canonical store lookup path before entering runtime submission; when both are supplied they must resolve to the same session or the direct request is rejected as ambiguous
 - `Engine.ProcessDirect(...)` routes direct-origin prompt, peer-message, and continue requests through the same existing queued/runtime submit paths (`SubmitPromptRouted(...)`, routed peer submit, `ContinueSession(...)`) instead of inventing a separate execution path
 - `Engine.ProcessSystemDirect(...)` and `Engine.ProcessInternalDirect(...)` now make system/internal-origin processing explicit on top of the same direct envelope, defaulting the origin kind/role instead of relying on callers to smuggle those values through ad hoc metadata
+- routed direct prompts now reuse the normal prompt-routing path as well, including routed target session creation/reuse and ingress metadata propagation onto the resulting target turn
 - same-session direct/system ingress while a turn is already active now reuses the existing steering path rather than spawning a competing turn, so IPC/system-origin follow-up messages serialize the same way as web/TUI same-session input; system/internal-origin follow-ups also preserve their origin role on the queued steering row instead of degrading back to a generic user steering role
 - direct-origin turns now stamp normalized ingress audit metadata onto the same persisted audit surfaces used by normal chat-origin turns: turn metadata, persisted user-message payloads, and `turn.started` event payloads (`ingress_kind`, `ingress_source_kind`, `ingress_source_id`, `ingress_role`, `ingress_label`)
 - this is not yet a durable inbound work queue; it is the normalized envelope + runtime entrypoint layer that future IPC/CLI/system callers should target

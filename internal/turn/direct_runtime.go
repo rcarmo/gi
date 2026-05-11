@@ -61,6 +61,28 @@ func (e *Engine) ProcessInternalDirect(ctx context.Context, in DirectInput) (*Su
 	return e.ProcessDirect(ctx, in)
 }
 
+func (e *Engine) resolveDirectSessionID(ctx context.Context, in DirectInput) (string, error) {
+	sessionID := strings.TrimSpace(in.SessionID)
+	sessionKey := strings.TrimSpace(in.SessionKey)
+	if sessionKey != "" {
+		if e.store == nil {
+			return "", fmt.Errorf("direct processing requires store-backed session resolution")
+		}
+		sess, err := e.store.ResolveSessionByKeyOrAlias(ctx, sessionKey)
+		if err != nil {
+			return "", err
+		}
+		if sessionID != "" && sessionID != sess.ID {
+			return "", fmt.Errorf("direct processing session id %q does not match session key %q", sessionID, sessionKey)
+		}
+		return sess.ID, nil
+	}
+	if sessionID != "" {
+		return sessionID, nil
+	}
+	return "", fmt.Errorf("direct processing requires session id or session key")
+}
+
 func (e *Engine) ProcessDirect(ctx context.Context, in DirectInput) (*SubmitResult, error) {
 	kind := normalizeDirectKind(in.Kind)
 	metadata := map[string]any{}
@@ -78,29 +100,27 @@ func (e *Engine) ProcessDirect(ctx context.Context, in DirectInput) (*SubmitResu
 	if value := strings.TrimSpace(in.Origin.Label); value != "" {
 		metadata["ingress_label"] = value
 	}
+	if value := strings.TrimSpace(in.SessionKey); value != "" {
+		metadata["ingress_session_key"] = value
+	}
+	sessionID, err := e.resolveDirectSessionID(ctx, in)
+	if err != nil {
+		return nil, err
+	}
 	switch kind {
 	case DirectKindPrompt:
-		if strings.TrimSpace(in.SessionID) == "" {
-			return nil, fmt.Errorf("direct prompt requires session id")
-		}
-		return e.SubmitPromptRouted(ctx, RunInput{SessionID: in.SessionID, Prompt: in.Prompt, Intent: in.Intent, Model: in.Model, ParentTurnID: in.ParentTurnID, Metadata: metadata})
+		return e.SubmitPromptRouted(ctx, RunInput{SessionID: sessionID, Prompt: in.Prompt, Intent: in.Intent, Model: in.Model, ParentTurnID: in.ParentTurnID, Metadata: metadata})
 	case DirectKindPeerMessage:
-		if strings.TrimSpace(in.SessionID) == "" {
-			return nil, fmt.Errorf("direct peer-message requires session id")
-		}
 		if strings.TrimSpace(in.TargetAgentID) == "" {
 			return nil, fmt.Errorf("direct peer-message requires target agent id")
 		}
-		return e.submitPeerMessageWithMetadata(ctx, in.SessionID, in.TargetAgentID, in.Prompt, in.Intent, in.Model, in.ParentTurnID, metadata)
+		return e.submitPeerMessageWithMetadata(ctx, sessionID, in.TargetAgentID, in.Prompt, in.Intent, in.Model, in.ParentTurnID, metadata)
 	case DirectKindContinue:
-		if strings.TrimSpace(in.SessionID) == "" {
-			return nil, fmt.Errorf("direct continue requires session id")
-		}
-		continued, err := e.ContinueSession(ctx, in.SessionID)
+		continued, err := e.ContinueSession(ctx, sessionID)
 		if err != nil {
 			return nil, err
 		}
-		return &SubmitResult{SessionID: in.SessionID, Status: map[bool]string{true: "continued", false: "idle"}[continued], Queued: false}, nil
+		return &SubmitResult{SessionID: sessionID, Status: map[bool]string{true: "continued", false: "idle"}[continued], Queued: false}, nil
 	default:
 		return nil, fmt.Errorf("direct input kind not supported: %s", in.Kind)
 	}

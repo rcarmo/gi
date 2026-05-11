@@ -1540,6 +1540,88 @@ func TestSubmitPromptRoutedRejectsDirectedPromptWithoutBody(t *testing.T) {
 	}
 }
 
+func TestProcessDirectPromptResolvesExplicitSessionKey(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_direct_key")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_direct_key", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	result, err := engine.ProcessDirect(ctx, DirectInput{Kind: DirectKindPrompt, SessionKey: alloc.SessionKey, Prompt: "hello from key", Model: "bootstrap", Origin: DirectOrigin{SourceKind: DirectSourceKindIPC, SourceID: "ipc:key"}})
+	if err != nil {
+		t.Fatalf("process direct prompt by session key: %v", err)
+	}
+	waitForCondition(t, time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && strings.TrimSpace(turnRec.FinishedAt) != ""
+	}, "direct prompt by session key completion")
+	if result.SessionID != sess.ID {
+		t.Fatalf("expected resolved session id %s, got %#v", sess.ID, result)
+	}
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if stringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
+		t.Fatalf("expected ingress session key metadata, got %#v", turnRec.Metadata)
+	}
+}
+
+func TestProcessDirectRoutedPromptPreservesIngressMetadata(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_direct_route")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_direct_route", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	result, err := engine.ProcessDirect(ctx, DirectInput{Kind: DirectKindPrompt, SessionKey: alloc.SessionKey, Prompt: "@agent1 hello routed direct", Model: "bootstrap", Origin: DirectOrigin{SourceKind: DirectSourceKindIPC, SourceID: "ipc:routed"}})
+	if err != nil {
+		t.Fatalf("process routed direct prompt: %v", err)
+	}
+	if !result.Routed || result.SessionID == sess.ID || result.TurnID == "" {
+		t.Fatalf("expected routed direct result, got %#v", result)
+	}
+	waitForCondition(t, time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && strings.TrimSpace(turnRec.FinishedAt) != ""
+	}, "routed direct prompt completion")
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get routed turn: %v", err)
+	}
+	if stringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindIPC || stringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:routed" || stringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
+		t.Fatalf("expected ingress metadata on routed direct turn, got %#v", turnRec.Metadata)
+	}
+}
+
+func TestProcessDirectRejectsMismatchedSessionIDAndSessionKey(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_direct_mismatch")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_direct_mismatch", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	_, err = engine.ProcessDirect(ctx, DirectInput{Kind: DirectKindPrompt, SessionID: "different-session", SessionKey: alloc.SessionKey, Prompt: "hello", Model: "bootstrap"})
+	if err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("expected session id/session key mismatch error, got %v (resolved session=%s)", err, sess.ID)
+	}
+}
+
 func TestProcessDirectPromptUsesNormalSubmitPathAndIngressMetadata(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

@@ -78,6 +78,7 @@ type RunInput struct {
 type DirectInput struct {
 	Kind          string
 	SessionID     string
+	SessionKey    string
 	TargetAgentID string
 	Prompt        string
 	Intent        string
