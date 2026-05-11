@@ -111,3 +111,23 @@ func (e *Engine) ProcessNextInboundWorkIfQueued(ctx context.Context, claimedBy s
 	}
 	return item, result, true, nil
 }
+
+func (e *Engine) ProcessQueuedInboundWork(ctx context.Context, claimedBy string, limit int) ([]*store.InboundWorkItem, []*SubmitResult, error) {
+	if limit <= 0 {
+		limit = 1
+	}
+	items := make([]*store.InboundWorkItem, 0, limit)
+	results := make([]*SubmitResult, 0, limit)
+	for i := 0; i < limit; i++ {
+		item, result, ok, err := e.ProcessNextInboundWorkIfQueued(ctx, claimedBy)
+		if err != nil {
+			return items, results, err
+		}
+		if !ok {
+			break
+		}
+		items = append(items, item)
+		results = append(results, result)
+	}
+	return items, results, nil
+}

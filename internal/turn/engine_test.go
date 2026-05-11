@@ -1540,6 +1540,56 @@ func TestSubmitPromptRoutedRejectsDirectedPromptWithoutBody(t *testing.T) {
 	}
 }
 
+func TestProcessQueuedInboundWorkDrainsMultipleItemsInOrder(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_inbound_drain")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_inbound_drain", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	first, err := engine.EnqueueDirectInbound(ctx, DirectInput{Kind: DirectKindPrompt, SessionID: sess.ID, Prompt: "first inbound", Model: "bootstrap", Origin: DirectOrigin{SourceKind: DirectSourceKindIPC, SourceID: "ipc:first"}})
+	if err != nil {
+		t.Fatalf("enqueue first inbound: %v", err)
+	}
+	second, err := engine.EnqueueDirectInbound(ctx, DirectInput{Kind: DirectKindPrompt, SessionID: sess.ID, Prompt: "second inbound", Model: "bootstrap", Origin: DirectOrigin{SourceKind: DirectSourceKindIPC, SourceID: "ipc:second"}})
+	if err != nil {
+		t.Fatalf("enqueue second inbound: %v", err)
+	}
+	items, results, err := engine.ProcessQueuedInboundWork(ctx, "queue-worker", 10)
+	if err != nil {
+		t.Fatalf("process queued inbound work: %v", err)
+	}
+	if len(items) != 2 || len(results) != 2 {
+		t.Fatalf("expected two processed inbound items/results, got items=%#v results=%#v", items, results)
+	}
+	if items[0].ID != first.ID || items[1].ID != second.ID {
+		t.Fatalf("expected FIFO inbound processing order, got %#v", items)
+	}
+	if items[0].Status != "completed" || items[1].Status != "completed" {
+		t.Fatalf("expected completed inbound items, got %#v", items)
+	}
+}
+
+func TestProcessQueuedInboundWorkReturnsNoopWhenEmpty(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	items, results, err := engine.ProcessQueuedInboundWork(ctx, "queue-worker", 10)
+	if err != nil {
+		t.Fatalf("process empty inbound queue: %v", err)
+	}
+	if len(items) != 0 || len(results) != 0 {
+		t.Fatalf("expected empty inbound processing result, got items=%#v results=%#v", items, results)
+	}
+}
+
 func TestProcessNextInboundWorkProcessesQueuedDirectPrompt(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
