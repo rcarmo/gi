@@ -9,6 +9,8 @@ Implemented in this first pass:
 - `internal/topics/` in-memory bounded topic bus
 - engine-owned `Topics()` accessor
 - normalized publication of turn/session broadcast events into the topic bus
+- steering lifecycle publication under `session.steering`
+- subturn lifecycle publication under `turn.subturn`
 - extension lifecycle publication (`extension.loaded`, `extension.failed`)
 - bridge from the existing connectivity event bus into topic topics under `connectivity.*`
 
@@ -17,6 +19,7 @@ Still pending:
 - script bridge publish/subscribe APIs
 - dedicated SSE topic-stream endpoint
 - TUI/topic-native consumers
+- fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices
 - deeper convergence between connectivity and topics
 
 ## Goal
@@ -249,6 +252,8 @@ Status: **implemented**
 Status: **partially implemented**
 
 - turn/session broadcast events are now published into the topic bus
+- steering lifecycle notices are published under `session.steering`
+- subturn lifecycle notices are published under `turn.subturn`
 - extension lifecycle events are now published into the topic bus
 - existing engine broadcasts remain intact
 - script bridge APIs for publish/subscribe are still pending

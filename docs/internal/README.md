@@ -69,6 +69,11 @@ Current search status:
 - runtime read-only `fts://` namespace is implemented for model/tool retrieval workflows
 - full `internal/search` backend wiring and advanced index pipeline work remains pending
 
+Current topic/runtime publication status:
+- the in-memory topic bus is live and now carries bridged turn/session notices plus runtime-critical steering and subturn lifecycle topics
+- connectivity events are bridged into the topic bus under `connectivity.*`
+- script-facing pub/sub APIs and dedicated topic SSE streaming remain pending
+
 Current session/runtime identity status:
 - canonical session identity lookup is store-backed via relational tables rather than runtime/table scans
 - alias resolution, main-session preference, and allocation resolve-or-create now flow through explicit store APIs
