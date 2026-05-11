@@ -1697,6 +1697,34 @@ func TestProcessSystemDirectWhileActiveSteersSameSession(t *testing.T) {
 	}
 }
 
+func TestPersistSteeringMessagesStoresSystemRoleAsUserChatHistory(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	if _, err := s.CreateSession(ctx, "session_steering_persist_role", "SteeringPersist", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_steering_persist_role", "session_steering_persist_role", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	runner := engine.runner("session_steering_persist_role")
+	count := runner.persistSteeringMessages(ctx, "session_steering_persist_role", "turn_steering_persist_role", []store.SteeringMessage{{Role: "system", Content: "system steering", Payload: map[string]any{"intent": "prompt", "ingress_role": "system", "ingress_source_kind": DirectSourceKindSystem}}})
+	if count != 1 {
+		t.Fatalf("expected one persisted steering message, got %d", count)
+	}
+	msgs, err := s.ListMessages(ctx, "session_steering_persist_role")
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Role != "user" {
+		t.Fatalf("expected system steering to persist as user chat message, got %#v", msgs)
+	}
+	if stringValue(msgs[0].Payload["steering_role"], "") != "system" || stringValue(msgs[0].Payload["ingress_role"], "") != "system" {
+		t.Fatalf("expected steering role audit metadata to be preserved, got %#v", msgs[0])
+	}
+}
+
 func TestProcessSystemDirectDefaultsSystemOriginMetadata(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

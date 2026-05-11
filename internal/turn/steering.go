@@ -22,6 +22,13 @@ func normalizeSteeringRole(role string) string {
 	}
 }
 
+func persistedSteeringChatRole(role string) string {
+	if normalizeSteeringRole(role) == "assistant" {
+		return "assistant"
+	}
+	return "user"
+}
+
 func steeringMessagesToMetadata(msgs []store.SteeringMessage) []map[string]any {
 	out := make([]map[string]any, 0, len(msgs))
 	for _, msg := range msgs {
@@ -224,8 +231,8 @@ func (r *sessionRunner) persistSteeringMessages(ctx context.Context, sessionID, 
 	}
 	totalContentLen := 0
 	for _, msg := range msgs {
-		role := normalizeSteeringRole(msg.Role)
-		payload := map[string]any{"kind": "chat", "intent": stringValue(msg.Payload["intent"], "prompt"), "turn_id": turnID, "steering": true}
+		role := persistedSteeringChatRole(msg.Role)
+		payload := map[string]any{"kind": "chat", "intent": stringValue(msg.Payload["intent"], "prompt"), "turn_id": turnID, "steering": true, "steering_role": normalizeSteeringRole(msg.Role)}
 		for k, v := range msg.Payload {
 			payload[k] = v
 		}
