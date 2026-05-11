@@ -77,5 +77,11 @@ func (s *Store) ResolveOrCreateMainSessionFromAllocation(ctx context.Context, in
 	if err != nil {
 		return nil, false, err
 	}
+	if binding, ok := channelBindingFromAllocation(in.Allocation); ok {
+		binding.SessionID = reloaded.ID
+		if err := s.UpsertSessionChannelBinding(ctx, binding); err != nil {
+			return nil, false, err
+		}
+	}
 	return reloaded, created, nil
 }

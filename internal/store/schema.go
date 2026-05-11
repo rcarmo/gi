@@ -59,6 +59,21 @@ func initSchema(db *sql.DB) error {
 		);`,
 		`create index if not exists idx_session_aliases_session on session_aliases(session_id);`,
 
+		`create table if not exists session_channel_bindings (
+			id integer primary key autoincrement,
+			session_id text not null,
+			channel text not null,
+			account text not null,
+			binding_type text not null,
+			remote_identity text not null,
+			metadata_json text not null default '{}',
+			created_at text not null,
+			updated_at text not null,
+			foreign key(session_id) references sessions(id) on delete cascade,
+			unique(channel, account, remote_identity)
+		);`,
+		`create index if not exists idx_session_channel_bindings_session on session_channel_bindings(session_id, channel, account);`,
+
 		`create table if not exists messages (
 			id text primary key,
 			session_id text not null,

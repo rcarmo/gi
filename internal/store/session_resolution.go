@@ -43,6 +43,17 @@ func (s *Store) FindSessionByAllocation(ctx context.Context, alloc gisession.All
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
+	if binding, ok := channelBindingFromAllocation(alloc); ok {
+		sess, err := s.ResolveSessionByChannelBinding(ctx, binding.Channel, binding.Account, binding.RemoteIdentity)
+		if err == nil {
+			identity, identityErr := s.GetSessionIdentity(ctx, sess.ID)
+			if identityErr == nil && strings.EqualFold(strings.TrimSpace(identity.Scope.AgentID), strings.TrimSpace(alloc.Scope.AgentID)) {
+				return sess, nil
+			}
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return nil, err
+		}
+	}
 	for _, alias := range alloc.SessionAliases {
 		sess, err := s.GetSessionByAlias(ctx, alias)
 		if err == nil {

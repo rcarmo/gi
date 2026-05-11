@@ -129,6 +129,7 @@ Implemented so far:
 - single-session identity reads now hydrate dimensions/aliases with targeted per-session queries instead of falling back to list-style full-table detail scans
 - `FindSessionByAllocation(...)` now resolves by opaque key, validated alias matches, and canonical scope signature fallback
 - allocation-backed store resolution/create paths now normalize `identity_links` at the store boundary, so linked sender identities collapse to the canonical session key/signature even when the incoming allocation was not already pre-canonicalized upstream
+- `session_channel_bindings` now provide a first DB-backed multi-channel attachment path: main-session create paths register their primary chat binding, explicit alternate channel/account chat bindings can be attached to the same session, and allocation resolution consults those bindings before creating a duplicate session (while still requiring agent-id agreement)
 - default session allocation now uses the same `direct:<chat>` chat-dimension encoding and alias format as routed allocation
 - route-preparation and same-agent fast-path checks now read canonical agent/channel/account/dimension identity from the store first, with `scope_json` only as compatibility fallback
 - web/TUI fork-agent allocation and TUI agent/session resolution now prefer canonical identity rows instead of trusting `sessions.scope_json` snapshots
@@ -138,7 +139,7 @@ Still pending in this area:
 
 - replacing remaining runtime reads that still infer agent/channel/account from compatibility `scope_json` helpers instead of a first-class identity read path
 - main-session semantics still only cover one preferred session per `(agent, channel, account)` tuple; they do not yet express richer multi-channel binding / continuation policy
-- channel-binding / multi-channel continuation semantics
+- cross-channel continuation policy and outbound fan-out semantics still need to be defined above the new binding table
 
 ---
 

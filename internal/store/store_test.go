@@ -432,6 +432,77 @@ func TestStoreResolveOrCreateMainSessionFromAllocation(t *testing.T) {
 	}
 }
 
+func TestStoreResolveOrCreateMainSessionRegistersPrimaryChannelBinding(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	sess, created, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_binding_main", Title: "@support", State: map[string]any{"status": "idle"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("resolve or create main session: %v", err)
+	}
+	if !created {
+		t.Fatalf("expected created main session")
+	}
+	bindings, err := s.ListSessionChannelBindings(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("list session channel bindings: %v", err)
+	}
+	if len(bindings) != 1 {
+		t.Fatalf("expected one primary channel binding, got %#v", bindings)
+	}
+	if bindings[0].Channel != "slack" || bindings[0].Account != "workspace" || bindings[0].BindingType != "chat" || bindings[0].RemoteIdentity != "group:thread-7" {
+		t.Fatalf("unexpected primary channel binding: %#v", bindings[0])
+	}
+	resolved, err := s.ResolveSessionByChannelBinding(ctx, "slack", "workspace", "group:thread-7")
+	if err != nil {
+		t.Fatalf("resolve session by primary channel binding: %v", err)
+	}
+	if resolved.ID != sess.ID {
+		t.Fatalf("unexpected binding resolution: %#v", resolved)
+	}
+}
+
+func TestStoreResolveSessionByAllocationUsesAlternateChannelBinding(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_binding_alt", Title: "@support", State: map[string]any{"status": "idle"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("resolve or create main session: %v", err)
+	}
+	if err := s.UpsertSessionChannelBinding(ctx, SessionChannelBinding{SessionID: sess.ID, Channel: "discord", Account: "guild", BindingType: "chat", RemoteIdentity: "direct:user-42", Metadata: map[string]any{"agent_id": "support"}}); err != nil {
+		t.Fatalf("upsert alternate channel binding: %v", err)
+	}
+	altAlloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "discord", Account: "guild", ChatType: "direct", ChatID: "user-42", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	resolved, err := s.ResolveSessionByAllocation(ctx, altAlloc)
+	if err != nil {
+		t.Fatalf("resolve allocation by alternate channel binding: %v", err)
+	}
+	if resolved.ID != sess.ID {
+		t.Fatalf("expected alternate channel binding to reuse same session, got %#v", resolved)
+	}
+}
+
 func TestStoreFindSessionByAllocationFallsBackToCanonicalSignature(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
