@@ -19,11 +19,12 @@ type SessionIdentity struct {
 }
 
 type ResolveOrCreateSessionFromAllocationInput struct {
-	ID              string
-	ParentSessionID string
-	Title           string
-	State           map[string]any
-	Allocation      gisession.Allocation
+	ID                string
+	ParentSessionID   string
+	Title             string
+	State             map[string]any
+	Allocation        gisession.Allocation
+	ContinueSessionID string
 }
 
 func normalizeIdentityTupleValue(value, fallback string) string {

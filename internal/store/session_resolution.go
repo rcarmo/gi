@@ -15,6 +15,16 @@ func (s *Store) ResolveSessionByAllocation(ctx context.Context, alloc gisession.
 
 func (s *Store) ResolveOrCreateSessionFromAllocation(ctx context.Context, in ResolveOrCreateSessionFromAllocationInput) (*Session, bool, error) {
 	in.Allocation = gisession.NormalizeAllocationIdentityLinks(in.Allocation)
+	if continueSessionID := strings.TrimSpace(in.ContinueSessionID); continueSessionID != "" {
+		sess, err := s.GetSession(ctx, continueSessionID)
+		if err != nil {
+			return nil, false, err
+		}
+		if err := s.AttachChannelBindingForAllocation(ctx, sess.ID, in.Allocation); err != nil {
+			return nil, false, err
+		}
+		return sess, false, nil
+	}
 	if sess, err := s.ResolveSessionByAllocation(ctx, in.Allocation); err == nil {
 		return sess, false, nil
 	} else if !errors.Is(err, sql.ErrNoRows) {

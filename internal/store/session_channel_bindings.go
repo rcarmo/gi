@@ -45,6 +45,33 @@ func channelBindingFromAllocation(alloc gisession.Allocation) (SessionChannelBin
 	}, true
 }
 
+func sessionMatchesAllocationAgent(identity *SessionIdentity, alloc gisession.Allocation) bool {
+	if identity == nil {
+		return false
+	}
+	return normalizeIdentityTupleValue(identity.Scope.AgentID, "gi") == normalizeIdentityTupleValue(alloc.Scope.AgentID, "gi")
+}
+
+func (s *Store) AttachChannelBindingForAllocation(ctx context.Context, sessionID string, alloc gisession.Allocation) error {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return sql.ErrNoRows
+	}
+	identity, err := s.GetSessionIdentity(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if !sessionMatchesAllocationAgent(identity, alloc) {
+		return fmt.Errorf("attach channel binding: allocation agent %q does not match session agent %q", alloc.Scope.AgentID, identity.Scope.AgentID)
+	}
+	binding, ok := channelBindingFromAllocation(alloc)
+	if !ok {
+		return nil
+	}
+	binding.SessionID = sessionID
+	return s.UpsertSessionChannelBinding(ctx, binding)
+}
+
 func (s *Store) UpsertSessionChannelBinding(ctx context.Context, binding SessionChannelBinding) error {
 	binding.SessionID = strings.TrimSpace(binding.SessionID)
 	binding.Channel = normalizeChannelBindingValue(binding.Channel)

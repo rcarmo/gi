@@ -470,6 +470,50 @@ func TestStoreResolveOrCreateMainSessionRegistersPrimaryChannelBinding(t *testin
 	}
 }
 
+func TestStoreResolveOrCreateSessionFromAllocationContinuesSessionAcrossChannels(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	baseAlloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_continue_xchan", Title: "@support", State: map[string]any{"status": "idle"}, Allocation: baseAlloc})
+	if err != nil {
+		t.Fatalf("resolve or create base main session: %v", err)
+	}
+	altAlloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "discord", Account: "guild", ChatType: "direct", ChatID: "user-42", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	continued, created, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_continue_xchan_other", Title: "@support2", State: map[string]any{"status": "other"}, Allocation: altAlloc, ContinueSessionID: sess.ID})
+	if err != nil {
+		t.Fatalf("continue session across channels: %v", err)
+	}
+	if created || continued.ID != sess.ID {
+		t.Fatalf("expected explicit cross-channel continuation to reuse same session, got session=%#v created=%v", continued, created)
+	}
+	bindings, err := s.ListSessionChannelBindings(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("list continued session bindings: %v", err)
+	}
+	if len(bindings) < 2 {
+		t.Fatalf("expected alternate channel binding to be attached, got %#v", bindings)
+	}
+	resolved, err := s.ResolveSessionByAllocation(ctx, altAlloc)
+	if err != nil {
+		t.Fatalf("resolve alternate allocation after continuation: %v", err)
+	}
+	if resolved.ID != sess.ID {
+		t.Fatalf("expected alternate allocation to reuse continued session, got %#v", resolved)
+	}
+}
+
 func TestStoreResolveSessionByAllocationUsesAlternateChannelBinding(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
