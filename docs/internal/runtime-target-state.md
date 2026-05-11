@@ -562,6 +562,13 @@ This enables:
 
 If we want PicoClaw-style direct mode, we need an inbound work representation.
 
+Current implementation status (first slice):
+
+- `internal/turn` now exposes a normalized direct-ingress envelope via `DirectInput` / `DirectOrigin`
+- `Engine.ProcessDirect(...)` routes direct-origin prompt, peer-message, and continue requests through the same existing queued/runtime submit paths (`SubmitPromptRouted(...)`, routed peer submit, `ContinueSession(...)`) instead of inventing a separate execution path
+- direct-origin turns now stamp normalized ingress audit metadata onto turn metadata (`ingress_kind`, `ingress_source_kind`, `ingress_source_id`, `ingress_role`, `ingress_label`) so later IPC/CLI/system callers can reuse one shape
+- this is not yet a durable inbound work queue; it is the normalized envelope + runtime entrypoint layer that future IPC/CLI/system callers should target
+
 ### Add: `inbound_work_queue`
 
 ```sql

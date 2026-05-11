@@ -1540,6 +1540,72 @@ func TestSubmitPromptRoutedRejectsDirectedPromptWithoutBody(t *testing.T) {
 	}
 }
 
+func TestProcessDirectPromptUsesNormalSubmitPathAndIngressMetadata(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_direct_prompt")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_direct_prompt", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	result, err := engine.ProcessDirect(ctx, DirectInput{Kind: DirectKindPrompt, SessionID: sess.ID, Prompt: "hello from direct", Model: "bootstrap", Origin: DirectOrigin{SourceKind: "ipc", SourceID: "ipc:test", Role: "system", Label: "IPC test"}})
+	if err != nil {
+		t.Fatalf("process direct prompt: %v", err)
+	}
+	if result.TurnID == "" {
+		t.Fatalf("unexpected direct prompt result: %#v", result)
+	}
+	waitForCondition(t, time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && strings.TrimSpace(turnRec.FinishedAt) != ""
+	}, "direct prompt completion")
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if stringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || stringValue(turnRec.Metadata["ingress_source_kind"], "") != "ipc" || stringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:test" {
+		t.Fatalf("expected direct ingress metadata on turn, got %#v", turnRec.Metadata)
+	}
+}
+
+func TestProcessDirectPeerMessageCarriesIngressMetadataIntoTargetTurn(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	sourceAlloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_direct_source")
+	source, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_direct_source", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: sourceAlloc})
+	if err != nil {
+		t.Fatalf("create source session: %v", err)
+	}
+	result, err := engine.ProcessDirect(ctx, DirectInput{Kind: DirectKindPeerMessage, SessionID: source.ID, TargetAgentID: "agent1", Prompt: "hello peer direct", Intent: "prompt", Model: "bootstrap", Origin: DirectOrigin{SourceKind: "system", SourceID: "scheduler:1"}})
+	if err != nil {
+		t.Fatalf("process direct peer message: %v", err)
+	}
+	if !result.Routed || result.TurnID == "" || result.SessionID == source.ID {
+		t.Fatalf("unexpected direct peer result: %#v", result)
+	}
+	waitForCondition(t, time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && strings.TrimSpace(turnRec.FinishedAt) != ""
+	}, "direct peer completion")
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get routed turn: %v", err)
+	}
+	if stringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || stringValue(turnRec.Metadata["ingress_source_kind"], "") != "system" || stringValue(turnRec.Metadata["ingress_source_id"], "") != "scheduler:1" {
+		t.Fatalf("expected direct ingress metadata on routed turn, got %#v", turnRec.Metadata)
+	}
+}
+
 func TestResolveOrCreateRouteSessionReturnsSourceForSameAgent(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

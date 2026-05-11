@@ -75,6 +75,25 @@ type RunInput struct {
 	Metadata     map[string]any
 }
 
+type DirectInput struct {
+	Kind          string
+	SessionID     string
+	TargetAgentID string
+	Prompt        string
+	Intent        string
+	Model         string
+	ParentTurnID  string
+	Metadata      map[string]any
+	Origin        DirectOrigin
+}
+
+type DirectOrigin struct {
+	SourceKind string
+	SourceID   string
+	Role       string
+	Label      string
+}
+
 type SubmitResult struct {
 	TurnID          string `json:"turn_id"`
 	SessionID       string `json:"session_id"`

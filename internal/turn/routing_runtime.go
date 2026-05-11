@@ -18,7 +18,7 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 		return nil, err
 	}
 	if resolution.target.ID != resolution.source.ID {
-		return e.submitPeerRoutedPrompt(ctx, resolution.source, resolution.target, resolution.route, resolution.promptBody, in.Intent, in.Model, resolution.created, resolution.directed, in.ParentTurnID)
+		return e.submitPeerRoutedPrompt(ctx, resolution.source, resolution.target, resolution.route, resolution.promptBody, in.Intent, in.Model, resolution.created, resolution.directed, in.ParentTurnID, in.Metadata)
 	}
 	in.SessionID = resolution.target.ID
 	in.Prompt = resolution.promptBody
@@ -27,6 +27,10 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 }
 
 func (e *Engine) SubmitPeerMessage(ctx context.Context, sourceSessionID, targetAgentID, content, intent, model, parentTurnID string) (*SubmitResult, error) {
+	return e.submitPeerMessageWithMetadata(ctx, sourceSessionID, targetAgentID, content, intent, model, parentTurnID, nil)
+}
+
+func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessionID, targetAgentID, content, intent, model, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
 	resolution, err := e.preparePeerRouteResolution(ctx, sourceSessionID, targetAgentID, content, "peer-message")
 	if err != nil {
 		return nil, err
@@ -34,7 +38,7 @@ func (e *Engine) SubmitPeerMessage(ctx context.Context, sourceSessionID, targetA
 	if err := e.resolveRoutedPromptTarget(ctx, resolution); err != nil {
 		return nil, err
 	}
-	return e.submitPeerRoutedPrompt(ctx, resolution.source, resolution.target, resolution.route, content, intent, model, resolution.created, resolution.directed, parentTurnID)
+	return e.submitPeerRoutedPrompt(ctx, resolution.source, resolution.target, resolution.route, content, intent, model, resolution.created, resolution.directed, parentTurnID, extraMetadata)
 }
 
 func (e *Engine) ResolveOrCreatePeerSession(ctx context.Context, sourceSessionID, targetAgentID string) (*store.Session, bool, error) {
@@ -73,7 +77,7 @@ func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.
 	return cloned, created, nil
 }
 
-func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, source, target *store.Session, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string) (*SubmitResult, error) {
+func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, source, target *store.Session, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
 	sourceAgentID := sessionAgentIDWithStore(ctx, e.store, source)
 	routingContent := fmt.Sprintf("↪ routed to @%s: %s", route.AgentID, content)
 	routingPayload := map[string]any{"kind": "routing", "target_agent_id": route.AgentID, "target_session_id": target.ID, "source_agent_id": sourceAgentID, "source_session_id": source.ID, "route_matched_by": route.MatchedBy, "clipped": true}
@@ -93,6 +97,9 @@ func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, source, target *sto
 	}
 	if strings.TrimSpace(parentTurnID) != "" {
 		metadata["parent_turn_id"] = parentTurnID
+	}
+	for k, v := range extraMetadata {
+		metadata[k] = v
 	}
 	result, err := e.SubmitPrompt(ctx, RunInput{SessionID: target.ID, Prompt: content, Intent: intent, Model: model, ParentTurnID: parentTurnID, Metadata: metadata})
 	if err != nil {
