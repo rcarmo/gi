@@ -194,6 +194,9 @@ Likely tasks:
   - `routing_helpers.go`
 - `internal/turn` routing-facing engine methods were split out of `engine.go` into:
   - `routing_runtime.go`
+- `internal/turn` generic coercion/sorting helpers and bootstrap shell runtime were split out of `engine.go` into:
+  - `value_helpers.go`
+  - `shell_runtime.go`
 
 ## Done criteria for the interim phase
 
