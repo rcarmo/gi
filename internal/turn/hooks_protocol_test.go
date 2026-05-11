@@ -360,6 +360,54 @@ func TestBeforeProviderRequestCanMutateProviderContext(t *testing.T) {
 	}
 }
 
+func TestBeforeProviderRequestCanReplaceRawProviderPayload(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_before_llm_payload", "BeforeLLMPayload", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_before_llm_payload", "session_before_llm_payload", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	stageCalls := 0
+	if _, err := e.RegisterHook(HookBeforeProviderRequest, "replace-payload", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		if stringValue(req.Payload["stage"], "") != "payload" {
+			return HookResponse{}, nil
+		}
+		stageCalls++
+		return HookResponse{Action: "modify", Payload: map[string]any{"request": map[string]any{"model": "replaced-model", "messages": []map[string]any{{"role": "user", "content": "replaced"}}, "stream": true}}}, nil
+	}); err != nil {
+		t.Fatalf("register before_provider_request hook: %v", err)
+	}
+	withStreamWithToolsHookStub(t, func(ctx context.Context, model string, convCtx *goai.Context, cb func(map[string]any), hooks *inference.StreamHooks) (*inference.StreamResult, error) {
+		if hooks == nil || hooks.OnPayload == nil {
+			t.Fatalf("expected provider payload hook wiring")
+		}
+		payload, err := hooks.OnPayload(map[string]any{"model": model, "messages": []map[string]any{{"role": "user", "content": "original"}}, "stream": true}, &goai.Model{ID: model, Provider: goai.Provider("test-provider"), Api: goai.ApiOpenAICompletions})
+		if err != nil {
+			t.Fatalf("invoke payload hook: %v", err)
+		}
+		payloadMap, ok := payload.(map[string]any)
+		if !ok {
+			t.Fatalf("expected replacement payload map, got %#v", payload)
+		}
+		if stringValue(payloadMap["model"], "") != "replaced-model" {
+			t.Fatalf("expected replaced model payload, got %#v", payloadMap)
+		}
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	runner := e.runner("session_before_llm_payload")
+	convCtx := &goai.Context{SystemPrompt: "original", Messages: []goai.Message{goai.UserMessage("hello")}}
+	if _, err := runner.runProviderIteration(ctx, s, "turn_before_llm_payload", "session_before_llm_payload", "bootstrap", "agent", 1, 4, convCtx); err != nil {
+		t.Fatalf("run provider iteration: %v", err)
+	}
+	if stageCalls != 1 {
+		t.Fatalf("expected payload-stage hook to run once, got %d", stageCalls)
+	}
+}
+
 func TestAfterProviderResponseReceivesObservedStatusAndHeaders(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

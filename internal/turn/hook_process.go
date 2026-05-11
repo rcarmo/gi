@@ -261,11 +261,24 @@ func processHookPayload(req HookRequest) map[string]any {
 		}
 	}
 	if req.Name == HookBeforeProviderRequest || req.Name == normalizeHookName("before_llm") {
-		payload["request"] = map[string]any{
-			"model":         req.Model,
-			"system_prompt": req.SystemPrompt,
-			"messages":      req.Messages,
-			"tools":         req.Tools,
+		if req.Payload != nil {
+			if request, ok := req.Payload["request"]; ok && request != nil {
+				payload["request"] = request
+			} else {
+				payload["request"] = map[string]any{
+					"model":         req.Model,
+					"system_prompt": req.SystemPrompt,
+					"messages":      req.Messages,
+					"tools":         req.Tools,
+				}
+			}
+		} else {
+			payload["request"] = map[string]any{
+				"model":         req.Model,
+				"system_prompt": req.SystemPrompt,
+				"messages":      req.Messages,
+				"tools":         req.Tools,
+			}
 		}
 	}
 	return payload

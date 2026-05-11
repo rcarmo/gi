@@ -62,6 +62,17 @@ func directToolResultFromHook(resp HookResponse) (string, bool) {
 	return "", false
 }
 
+func providerRequestReplacementFromHook(resp HookResponse) (any, bool) {
+	if resp.Payload == nil {
+		return nil, false
+	}
+	replacement, ok := resp.Payload["request"]
+	if !ok || replacement == nil {
+		return nil, false
+	}
+	return replacement, true
+}
+
 func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string) *goai.Context {
 	sysPrompt := r.engine.systemPrompt
 	if sysPrompt == "" {
@@ -188,6 +199,25 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 			r.engine.broadcast(sessionID, ev)
 		}
 	}, &inference.StreamHooks{
+		OnPayload: func(payload any, modelDef *goai.Model) (any, error) {
+			hookPayload := map[string]any{"ok": true, "request": payload, "stage": "payload"}
+			if modelDef != nil {
+				hookPayload["provider"] = string(modelDef.Provider)
+				hookPayload["api"] = string(modelDef.Api)
+				hookPayload["model_id"] = modelDef.ID
+			}
+			resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools, Payload: hookPayload})
+			if err != nil {
+				return nil, err
+			}
+			if abortErr := hookAbortFromResponse(resp, "aborted before provider request send by hook"); abortErr != nil {
+				return nil, abortErr
+			}
+			if replacement, ok := providerRequestReplacementFromHook(resp); ok {
+				return replacement, nil
+			}
+			return payload, nil
+		},
 		OnResponse: func(status int, headers map[string]string, modelDef *goai.Model) {
 			responseObserved = true
 			payload := map[string]any{"ok": true, "status": status, "headers": headers}
