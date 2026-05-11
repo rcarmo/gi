@@ -1540,6 +1540,63 @@ func TestSubmitPromptRoutedRejectsDirectedPromptWithoutBody(t *testing.T) {
 	}
 }
 
+func TestProcessNextInboundWorkProcessesQueuedDirectPrompt(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_inbound_direct")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_inbound_direct", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	queued, err := engine.EnqueueDirectInbound(ctx, DirectInput{Kind: DirectKindPrompt, SessionKey: alloc.SessionKey, Prompt: "hello from inbound queue", Model: "bootstrap", Origin: DirectOrigin{SourceKind: DirectSourceKindIPC, SourceID: "ipc:queue"}})
+	if err != nil {
+		t.Fatalf("enqueue direct inbound: %v", err)
+	}
+	if queued.Status != "queued" {
+		t.Fatalf("expected queued inbound work, got %#v", queued)
+	}
+	item, result, err := engine.ProcessNextInboundWork(ctx, "queue-worker")
+	if err != nil {
+		t.Fatalf("process next inbound work: %v", err)
+	}
+	if item.Status != "completed" || item.ClaimedBy != "queue-worker" {
+		t.Fatalf("expected completed claimed inbound work, got %#v", item)
+	}
+	if result == nil || result.SessionID != sess.ID || result.TurnID == "" {
+		t.Fatalf("unexpected inbound processing result: item=%#v result=%#v", item, result)
+	}
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if stringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:queue" || stringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
+		t.Fatalf("expected ingress metadata on queued direct turn, got %#v", turnRec.Metadata)
+	}
+}
+
+func TestProcessNextInboundWorkMarksFailedOnBadEnvelope(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "missing target session"})
+	if err != nil {
+		t.Fatalf("enqueue bad inbound work: %v", err)
+	}
+	item, result, err := engine.ProcessNextInboundWork(ctx, "queue-worker")
+	if err == nil {
+		t.Fatalf("expected processing error for bad inbound work, got item=%#v result=%#v", item, result)
+	}
+	if item == nil || item.ID != queued.ID || item.Status != "failed" {
+		t.Fatalf("expected failed inbound work item, got queued=%#v item=%#v err=%v", queued, item, err)
+	}
+}
+
 func TestProcessDirectPromptResolvesExplicitSessionKey(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

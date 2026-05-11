@@ -1,0 +1,113 @@
+package turn
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+
+	"github.com/rcarmo/gi/internal/store"
+)
+
+func directEnvelopeFromInput(in DirectInput) map[string]any {
+	envelope := map[string]any{
+		"kind":            in.Kind,
+		"session_id":      in.SessionID,
+		"session_key":     in.SessionKey,
+		"target_agent_id": in.TargetAgentID,
+		"prompt":          in.Prompt,
+		"intent":          in.Intent,
+		"model":           in.Model,
+		"parent_turn_id":  in.ParentTurnID,
+		"metadata":        in.Metadata,
+		"origin": map[string]any{
+			"source_kind": in.Origin.SourceKind,
+			"source_id":   in.Origin.SourceID,
+			"role":        in.Origin.Role,
+			"label":       in.Origin.Label,
+		},
+	}
+	return envelope
+}
+
+func directInputFromEnvelope(envelope map[string]any) DirectInput {
+	in := DirectInput{
+		Kind:          stringValue(envelope["kind"], ""),
+		SessionID:     stringValue(envelope["session_id"], ""),
+		SessionKey:    stringValue(envelope["session_key"], ""),
+		TargetAgentID: stringValue(envelope["target_agent_id"], ""),
+		Prompt:        stringValue(envelope["prompt"], ""),
+		Intent:        stringValue(envelope["intent"], ""),
+		Model:         stringValue(envelope["model"], ""),
+		ParentTurnID:  stringValue(envelope["parent_turn_id"], ""),
+		Metadata:      map[string]any{},
+	}
+	if metadata, ok := envelope["metadata"].(map[string]any); ok && metadata != nil {
+		in.Metadata = metadata
+	}
+	if origin, ok := envelope["origin"].(map[string]any); ok && origin != nil {
+		in.Origin = DirectOrigin{
+			SourceKind: stringValue(origin["source_kind"], ""),
+			SourceID:   stringValue(origin["source_id"], ""),
+			Role:       stringValue(origin["role"], ""),
+			Label:      stringValue(origin["label"], ""),
+		}
+	}
+	return in
+}
+
+func (e *Engine) EnqueueDirectInbound(ctx context.Context, in DirectInput) (*store.InboundWorkItem, error) {
+	if e.store == nil {
+		return nil, fmt.Errorf("direct inbound queue requires store")
+	}
+	sourceKind := normalizeDirectSourceKind(in.Origin.SourceKind)
+	envelope := directEnvelopeFromInput(in)
+	return e.store.EnqueueInboundWork(ctx, sourceKind, strings.TrimSpace(in.SessionID), strings.TrimSpace(in.SessionKey), envelope)
+}
+
+func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (*store.InboundWorkItem, *SubmitResult, error) {
+	if e.store == nil {
+		return nil, nil, fmt.Errorf("inbound work processing requires store")
+	}
+	item, err := e.store.ClaimNextInboundWork(ctx, claimedBy)
+	if err != nil {
+		return nil, nil, err
+	}
+	in := directInputFromEnvelope(item.Envelope)
+	if strings.TrimSpace(in.Origin.SourceKind) == "" {
+		in.Origin.SourceKind = item.SourceKind
+	}
+	if strings.TrimSpace(in.SessionID) == "" {
+		in.SessionID = item.SessionID
+	}
+	if strings.TrimSpace(in.SessionKey) == "" {
+		in.SessionKey = item.ExplicitSessionKey
+	}
+	result, processErr := e.ProcessDirect(ctx, in)
+	status := "completed"
+	if processErr != nil {
+		status = "failed"
+	}
+	if err := e.store.UpdateInboundWorkStatus(context.Background(), item.ID, status); err != nil {
+		return item, result, err
+	}
+	updated, getErr := e.store.GetInboundWork(context.Background(), item.ID)
+	if getErr == nil {
+		item = updated
+	}
+	if processErr != nil {
+		return item, result, processErr
+	}
+	return item, result, nil
+}
+
+func (e *Engine) ProcessNextInboundWorkIfQueued(ctx context.Context, claimedBy string) (*store.InboundWorkItem, *SubmitResult, bool, error) {
+	item, result, err := e.ProcessNextInboundWork(ctx, claimedBy)
+	if err == sql.ErrNoRows {
+		return nil, nil, false, nil
+	}
+	if err != nil {
+		return item, result, true, err
+	}
+	return item, result, true, nil
+}
