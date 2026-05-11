@@ -52,16 +52,17 @@ type mountedProcessHook struct {
 	workspaceRoot string
 	spec          scripting.EventHookSpec
 
-	mu       sync.Mutex
-	started  bool
-	nextID   int
-	cmd      *exec.Cmd
-	stdin    io.WriteCloser
-	stdout   io.ReadCloser
-	enc      *json.Encoder
-	dec      *json.Decoder
-	stderrMu sync.Mutex
-	stderr   bytes.Buffer
+	mu        sync.Mutex
+	started   bool
+	nextID    int
+	stderrGen uint64
+	cmd       *exec.Cmd
+	stdin     io.WriteCloser
+	stdout    io.ReadCloser
+	enc       *json.Encoder
+	dec       *json.Decoder
+	stderrMu  sync.Mutex
+	stderr    bytes.Buffer
 }
 
 func newProcessHookHandler(workspaceRoot string, spec scripting.EventHookSpec) HookHandler {
@@ -155,14 +156,19 @@ func (m *mountedProcessHook) ensureStartedLocked(ctx context.Context, req HookRe
 	}
 	m.stderrMu.Lock()
 	m.stderr.Reset()
+	m.stderrGen++
+	stderrGen := m.stderrGen
 	m.stderrMu.Unlock()
-	go func() {
+	go func(gen uint64) {
 		var buf bytes.Buffer
 		_, _ = io.Copy(&buf, stderr)
 		m.stderrMu.Lock()
+		defer m.stderrMu.Unlock()
+		if gen != m.stderrGen {
+			return
+		}
 		_, _ = m.stderr.Write(buf.Bytes())
-		m.stderrMu.Unlock()
-	}()
+	}(stderrGen)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start process hook: %w", err)
 	}
@@ -215,11 +221,16 @@ func (m *mountedProcessHook) decodeResponseLocked(ctx context.Context) (processH
 		resp processHookRPCResponse
 		err  error
 	}
+	dec := m.dec
+	if dec == nil {
+		return processHookRPCResponse{}, fmt.Errorf("process hook decoder not initialized")
+	}
 	ch := make(chan decoded, 1)
-	go func() {
+	go func(decoder *json.Decoder) {
 		var resp processHookRPCResponse
-		ch <- decoded{resp: resp, err: m.dec.Decode(&resp)}
-	}()
+		err := decoder.Decode(&resp)
+		ch <- decoded{resp: resp, err: err}
+	}(dec)
 	select {
 	case <-ctx.Done():
 		m.closeLocked()
@@ -236,6 +247,9 @@ func (m *mountedProcessHook) stderrStringLocked() string {
 }
 
 func (m *mountedProcessHook) closeLocked() {
+	m.stderrMu.Lock()
+	m.stderrGen++
+	m.stderrMu.Unlock()
 	if m.stdin != nil {
 		_ = m.stdin.Close()
 	}
