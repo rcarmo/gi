@@ -55,6 +55,30 @@ func TestNormalizeAllocationIdentityLinksCanonicalizesSenderAndDerivedKey(t *tes
 	}
 }
 
+func TestAllocateRouteSessionCanonicalKeyStability(t *testing.T) {
+	allocA := AllocateRouteSession(AllocationInput{
+		AgentID:       "Support",
+		Context:       routing.InboundContext{Channel: "Slack", Account: "Workspace", ChatType: "GROUP", ChatID: "Thread-7", SenderID: "Rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	allocB := AllocateRouteSession(AllocationInput{
+		AgentID:       " support ",
+		Context:       routing.InboundContext{Channel: " slack ", Account: " workspace ", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	if allocA.SessionKey != allocB.SessionKey {
+		t.Fatalf("expected canonical session key stability, got %q vs %q", allocA.SessionKey, allocB.SessionKey)
+	}
+	if len(allocA.SessionAliases) != len(allocB.SessionAliases) {
+		t.Fatalf("expected stable alias set, got %#v vs %#v", allocA.SessionAliases, allocB.SessionAliases)
+	}
+	for i := range allocA.SessionAliases {
+		if allocA.SessionAliases[i] != allocB.SessionAliases[i] {
+			t.Fatalf("expected stable alias ordering, got %#v vs %#v", allocA.SessionAliases, allocB.SessionAliases)
+		}
+	}
+}
+
 func TestAllocateDefaultSessionUsesRouteCompatibleChatAlias(t *testing.T) {
 	alloc := AllocateDefaultSession("support", "gi", "default", "chat-1")
 	if alloc.Scope.Values["chat"] != "direct:chat-1" {

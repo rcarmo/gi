@@ -109,6 +109,29 @@ func TestStoreResolvesSessionByOpaqueKeyAndAlias(t *testing.T) {
 	}
 }
 
+func TestStoreResolveSessionByKeyOrAlias(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_key_alias")
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_key_alias", "", "@agent", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	for _, key := range []string{sess.ID, alloc.SessionKey, strings.ToUpper(alloc.SessionAliases[0])} {
+		resolved, err := s.ResolveSessionByKeyOrAlias(ctx, key)
+		if err != nil {
+			t.Fatalf("resolve session by key or alias %q: %v", key, err)
+		}
+		if resolved.ID != sess.ID {
+			t.Fatalf("unexpected resolution for %q: %#v", key, resolved)
+		}
+	}
+}
+
 func TestStoreGetSessionIdentity(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
@@ -282,6 +305,58 @@ func TestStoreResolveOrCreateSessionFromAllocationPreservesExplicitSessionKey(t 
 	}
 	if created || reused.ID != sess.ID {
 		t.Fatalf("expected existing explicit-key allocation session reuse, got session=%#v created=%v", reused, created)
+	}
+}
+
+func TestStoreResolveOrCreateSessionFromAllocationConcurrentSameScope(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	const workers = 12
+	results := make(chan string, workers)
+	errs := make(chan error, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			sess, _, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: fmt.Sprintf("session_alloc_concurrent_%d", i), Title: "@support", State: map[string]any{"status": "idle"}, Allocation: alloc})
+			if err != nil {
+				errs <- err
+				return
+			}
+			results <- sess.ID
+		}(i)
+	}
+	wg.Wait()
+	close(results)
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent resolve-or-create: %v", err)
+		}
+	}
+	unique := map[string]bool{}
+	for id := range results {
+		unique[id] = true
+	}
+	if len(unique) != 1 {
+		t.Fatalf("expected one session from concurrent resolve-or-create, got %#v", unique)
+	}
+	sessions, err := s.ListSessions(ctx)
+	if err != nil {
+		t.Fatalf("list sessions: %v", err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected exactly one persisted session, got %#v", sessions)
 	}
 }
 
@@ -544,6 +619,75 @@ func TestStoreResolveSessionByAllocationUsesAlternateChannelBinding(t *testing.T
 	}
 	if resolved.ID != sess.ID {
 		t.Fatalf("expected alternate channel binding to reuse same session, got %#v", resolved)
+	}
+}
+
+func TestStoreResolveOrCreateSessionFromAllocationIsolatesForumTopics(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	allocA := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "discord", Account: "guild", ChatType: "forum", ChatID: "support", TopicID: "topic-a", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "topic", "sender"}},
+	})
+	sessA, createdA, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_forum_topic_a", Title: "@support", State: map[string]any{"status": "idle"}, Allocation: allocA})
+	if err != nil {
+		t.Fatalf("resolve forum topic a: %v", err)
+	}
+	if !createdA {
+		t.Fatalf("expected topic a session creation")
+	}
+	allocAAgain := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "discord", Account: "guild", ChatType: "forum", ChatID: "support", TopicID: "topic-a", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "topic", "sender"}},
+	})
+	reusedA, createdAAgain, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_forum_topic_a_reuse", Title: "@support", State: map[string]any{"status": "idle"}, Allocation: allocAAgain})
+	if err != nil {
+		t.Fatalf("resolve forum topic a reuse: %v", err)
+	}
+	if createdAAgain || reusedA.ID != sessA.ID {
+		t.Fatalf("expected same topic to reuse same session, got session=%#v created=%v", reusedA, createdAAgain)
+	}
+	allocB := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "discord", Account: "guild", ChatType: "forum", ChatID: "support", TopicID: "topic-b", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "topic", "sender"}},
+	})
+	sessB, createdB, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_forum_topic_b", Title: "@support", State: map[string]any{"status": "idle"}, Allocation: allocB})
+	if err != nil {
+		t.Fatalf("resolve forum topic b: %v", err)
+	}
+	if !createdB || sessB.ID == sessA.ID {
+		t.Fatalf("expected different forum topic to isolate session, got a=%#v b=%#v created=%v", sessA, sessB, createdB)
+	}
+	chatOnlyA := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "discord", Account: "guild", ChatType: "forum", ChatID: "support", TopicID: "topic-x", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	chatOnlySessA, createdChatOnlyA, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_forum_chat_only_a", Title: "@support", State: map[string]any{"status": "idle"}, Allocation: chatOnlyA})
+	if err != nil {
+		t.Fatalf("resolve forum chat-only topic x: %v", err)
+	}
+	if !createdChatOnlyA {
+		t.Fatalf("expected chat-only session creation")
+	}
+	chatOnlyB := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "discord", Account: "guild", ChatType: "forum", ChatID: "support", TopicID: "topic-y", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	chatOnlySessB, createdChatOnlyB, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_forum_chat_only_b", Title: "@support", State: map[string]any{"status": "idle"}, Allocation: chatOnlyB})
+	if err != nil {
+		t.Fatalf("resolve forum chat-only topic y: %v", err)
+	}
+	if createdChatOnlyB || chatOnlySessB.ID != chatOnlySessA.ID {
+		t.Fatalf("expected chat-only policy to reuse same forum session, got a=%#v b=%#v created=%v", chatOnlySessA, chatOnlySessB, createdChatOnlyB)
 	}
 }
 
