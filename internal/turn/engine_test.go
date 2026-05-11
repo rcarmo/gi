@@ -1596,6 +1596,79 @@ func TestProcessDirectPromptUsesNormalSubmitPathAndIngressMetadata(t *testing.T)
 	}
 }
 
+func TestProcessDirectSteersSameSessionWhileActive(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_direct_steer")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_direct_steer", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	first, err := engine.SubmitPrompt(ctx, RunInput{SessionID: sess.ID, Prompt: "first", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit first prompt: %v", err)
+	}
+	second, err := engine.ProcessDirect(ctx, DirectInput{Kind: DirectKindPrompt, SessionID: sess.ID, Prompt: "second via direct", Model: "bootstrap", Origin: DirectOrigin{SourceKind: DirectSourceKindIPC, SourceID: "ipc:active"}})
+	if err != nil {
+		t.Fatalf("process direct steering prompt: %v", err)
+	}
+	if second.TurnID != first.TurnID || second.Status != "running" || second.Queued {
+		t.Fatalf("expected same active turn steering result, got first=%#v second=%#v", first, second)
+	}
+	if depth, err := s.SteeringQueueLength(ctx, sess.ID); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 1 {
+		t.Fatalf("expected steering queue depth 1, got %d", depth)
+	}
+	msgs, err := s.ListMessages(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	if len(msgs) != 0 {
+		t.Fatalf("expected no persisted steering message before injection, got %#v", msgs)
+	}
+}
+
+func TestProcessSystemDirectWhileActiveSteersSameSession(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_system_steer")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_system_steer", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	first, err := engine.SubmitPrompt(ctx, RunInput{SessionID: sess.ID, Prompt: "first", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit first prompt: %v", err)
+	}
+	second, err := engine.ProcessSystemDirect(ctx, DirectInput{Kind: DirectKindPrompt, SessionID: sess.ID, Prompt: "system steer", Model: "bootstrap", Origin: DirectOrigin{SourceID: "scheduler:active"}})
+	if err != nil {
+		t.Fatalf("process system direct steering prompt: %v", err)
+	}
+	if second.TurnID != first.TurnID || second.Status != "running" || second.Queued {
+		t.Fatalf("expected same active turn steering result, got first=%#v second=%#v", first, second)
+	}
+	if depth, err := s.SteeringQueueLength(ctx, sess.ID); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 1 {
+		t.Fatalf("expected one steering row, got depth=%d", depth)
+	}
+	msgs, err := s.DequeueSteering(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("dequeue steering: %v", err)
+	}
+	if len(msgs) != 1 {
+		t.Fatalf("expected one steering row, got %#v", msgs)
+	}
+	if stringValue(msgs[0].Payload["ingress_source_kind"], "") != DirectSourceKindSystem || stringValue(msgs[0].Payload["ingress_source_id"], "") != "scheduler:active" || stringValue(msgs[0].Payload["ingress_role"], "") != "system" {
+		t.Fatalf("expected system ingress metadata on queued steering payload, got %#v", msgs[0])
+	}
+}
+
 func TestProcessSystemDirectDefaultsSystemOriginMetadata(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
