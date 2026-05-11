@@ -1,6 +1,7 @@
 package turn
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/rcarmo/gi/internal/scripting"
 )
@@ -46,131 +48,212 @@ func isProcessHookSpec(spec scripting.EventHookSpec) bool {
 	return strings.TrimSpace(spec.Command) != ""
 }
 
+type mountedProcessHook struct {
+	workspaceRoot string
+	spec          scripting.EventHookSpec
+
+	mu       sync.Mutex
+	started  bool
+	nextID   int
+	cmd      *exec.Cmd
+	stdin    io.WriteCloser
+	stdout   io.ReadCloser
+	enc      *json.Encoder
+	dec      *json.Decoder
+	stderrMu sync.Mutex
+	stderr   bytes.Buffer
+}
+
 func newProcessHookHandler(workspaceRoot string, spec scripting.EventHookSpec) HookHandler {
+	mounted := &mountedProcessHook{workspaceRoot: workspaceRoot, spec: spec}
 	return func(ctx context.Context, req HookRequest) (HookResponse, error) {
-		return invokeProcessHook(ctx, workspaceRoot, spec, req)
+		return mounted.invoke(ctx, req)
 	}
 }
 
 func invokeProcessHook(ctx context.Context, workspaceRoot string, spec scripting.EventHookSpec, req HookRequest) (HookResponse, error) {
-	transport := strings.TrimSpace(spec.Transport)
-	if transport == "" {
-		transport = "stdio"
-	}
-	if transport != "stdio" {
-		return HookResponse{}, fmt.Errorf("process hook transport not supported: %s", transport)
-	}
-	protocol := strings.TrimSpace(spec.Protocol)
-	if protocol == "" {
-		protocol = processHookProtocol
-	}
-	if protocol != processHookProtocol {
-		return HookResponse{}, fmt.Errorf("process hook protocol not supported: %s", protocol)
-	}
-	command, err := resolveProcessHookCommand(workspaceRoot, spec.Command)
-	if err != nil {
+	mounted := &mountedProcessHook{workspaceRoot: workspaceRoot, spec: spec}
+	return mounted.invoke(ctx, req)
+}
+
+func (m *mountedProcessHook) invoke(ctx context.Context, req HookRequest) (HookResponse, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if err := m.ensureStartedLocked(ctx, req); err != nil {
 		return HookResponse{}, err
 	}
-	cmd := exec.CommandContext(ctx, command, spec.Args...)
-	cmd.Dir = resolveProcessHookDir(workspaceRoot, spec.CWD)
-	cmd.Env = appendProcessHookEnv(os.Environ(), spec, req, workspaceRoot)
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return HookResponse{}, fmt.Errorf("process hook stdin: %w", err)
-	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return HookResponse{}, fmt.Errorf("process hook stdout: %w", err)
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return HookResponse{}, fmt.Errorf("process hook stderr: %w", err)
-	}
-	stderrBytes := make(chan []byte, 1)
-	go func() {
-		data, _ := io.ReadAll(stderr)
-		stderrBytes <- data
-	}()
-	if err := cmd.Start(); err != nil {
-		return HookResponse{}, fmt.Errorf("start process hook: %w", err)
-	}
-	enc := json.NewEncoder(stdin)
-	enc.SetEscapeHTML(false)
-	dec := json.NewDecoder(stdout)
-	helloReq := processHookRPCRequest{
-		JSONRPC: "2.0",
-		ID:      1,
-		Method:  "hook.hello",
-		Params: map[string]any{
-			"name":     firstNonEmpty(strings.TrimSpace(spec.Source), strings.TrimSpace(spec.Name), filepath.Base(command)),
-			"version":  1,
-			"modes":    processHookModes(req.Name),
-			"protocol": processHookProtocol,
-		},
-	}
-	if err := enc.Encode(helloReq); err != nil {
-		_ = stdin.Close()
-		_ = cmd.Wait()
-		return HookResponse{}, fmt.Errorf("write process hook hello: %w", err)
-	}
-	var helloResp processHookRPCResponse
-	if err := dec.Decode(&helloResp); err != nil {
-		_ = stdin.Close()
-		_ = cmd.Wait()
-		return HookResponse{}, fmt.Errorf("read process hook hello: %w", err)
-	}
-	if helloResp.Error != nil {
-		_ = stdin.Close()
-		_ = cmd.Wait()
-		return HookResponse{}, fmt.Errorf("process hook hello failed: %s", helloResp.Error.Message)
-	}
-	var helloResult processHookHelloResult
-	if err := json.Unmarshal(helloResp.Result, &helloResult); err != nil {
-		_ = stdin.Close()
-		_ = cmd.Wait()
-		return HookResponse{}, fmt.Errorf("decode process hook hello: %w", err)
-	}
-	if !helloResult.OK {
-		_ = stdin.Close()
-		_ = cmd.Wait()
-		return HookResponse{}, fmt.Errorf("process hook hello rejected hook %s", req.Name)
-	}
+	m.nextID++
 	invokeReq := processHookRPCRequest{
 		JSONRPC: "2.0",
-		ID:      2,
+		ID:      m.nextID,
 		Method:  processHookMethodName(req.Name),
 		Params:  processHookPayload(req),
 	}
-	if err := enc.Encode(invokeReq); err != nil {
-		_ = stdin.Close()
-		_ = cmd.Wait()
+	if err := m.enc.Encode(invokeReq); err != nil {
+		stderrOut := m.stderrStringLocked()
+		m.closeLocked()
+		if stderrOut != "" {
+			return HookResponse{}, fmt.Errorf("write process hook request: %w (%s)", err, stderrOut)
+		}
 		return HookResponse{}, fmt.Errorf("write process hook request: %w", err)
 	}
-	_ = stdin.Close()
-	var invokeResp processHookRPCResponse
-	if err := dec.Decode(&invokeResp); err != nil {
-		_ = cmd.Wait()
+	invokeResp, err := m.decodeResponseLocked(ctx)
+	if err != nil {
+		stderrOut := m.stderrStringLocked()
+		m.closeLocked()
+		if stderrOut != "" {
+			return HookResponse{}, fmt.Errorf("read process hook response: %w (%s)", err, stderrOut)
+		}
 		return HookResponse{}, fmt.Errorf("read process hook response: %w", err)
 	}
-	waitErr := cmd.Wait()
-	stderrOut := strings.TrimSpace(string(<-stderrBytes))
 	if invokeResp.Error != nil {
-		if stderrOut != "" {
-			return HookResponse{}, fmt.Errorf("process hook %s failed: %s (%s)", req.Name, invokeResp.Error.Message, stderrOut)
-		}
 		return HookResponse{}, fmt.Errorf("process hook %s failed: %s", req.Name, invokeResp.Error.Message)
-	}
-	if waitErr != nil {
-		if stderrOut != "" {
-			return HookResponse{}, fmt.Errorf("process hook %s exited: %v (%s)", req.Name, waitErr, stderrOut)
-		}
-		return HookResponse{}, fmt.Errorf("process hook %s exited: %w", req.Name, waitErr)
 	}
 	resp, err := hookResponseFromScript(strings.TrimSpace(string(invokeResp.Result)))
 	if err != nil {
 		return HookResponse{}, err
 	}
 	return resp, nil
+}
+
+func (m *mountedProcessHook) ensureStartedLocked(ctx context.Context, req HookRequest) error {
+	transport := strings.TrimSpace(m.spec.Transport)
+	if transport == "" {
+		transport = "stdio"
+	}
+	if transport != "stdio" {
+		return fmt.Errorf("process hook transport not supported: %s", transport)
+	}
+	protocol := strings.TrimSpace(m.spec.Protocol)
+	if protocol == "" {
+		protocol = processHookProtocol
+	}
+	if protocol != processHookProtocol {
+		return fmt.Errorf("process hook protocol not supported: %s", protocol)
+	}
+	if m.started && m.cmd != nil && m.cmd.Process != nil {
+		return nil
+	}
+	command, err := resolveProcessHookCommand(m.workspaceRoot, m.spec.Command)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(command, m.spec.Args...)
+	cmd.Dir = resolveProcessHookDir(m.workspaceRoot, m.spec.CWD)
+	cmd.Env = appendProcessHookEnv(os.Environ(), m.spec, req, m.workspaceRoot)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("process hook stdin: %w", err)
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("process hook stdout: %w", err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("process hook stderr: %w", err)
+	}
+	m.stderrMu.Lock()
+	m.stderr.Reset()
+	m.stderrMu.Unlock()
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, stderr)
+		m.stderrMu.Lock()
+		_, _ = m.stderr.Write(buf.Bytes())
+		m.stderrMu.Unlock()
+	}()
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start process hook: %w", err)
+	}
+	m.cmd = cmd
+	m.stdin = stdin
+	m.stdout = stdout
+	m.enc = json.NewEncoder(stdin)
+	m.enc.SetEscapeHTML(false)
+	m.dec = json.NewDecoder(stdout)
+	m.started = true
+	m.nextID = 1
+	helloReq := processHookRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "hook.hello",
+		Params: map[string]any{
+			"name":     firstNonEmpty(strings.TrimSpace(m.spec.Source), strings.TrimSpace(m.spec.Name), filepath.Base(command)),
+			"version":  1,
+			"modes":    processHookModes(req.Name),
+			"protocol": processHookProtocol,
+		},
+	}
+	if err := m.enc.Encode(helloReq); err != nil {
+		m.closeLocked()
+		return fmt.Errorf("write process hook hello: %w", err)
+	}
+	helloResp, err := m.decodeResponseLocked(ctx)
+	if err != nil {
+		m.closeLocked()
+		return fmt.Errorf("read process hook hello: %w", err)
+	}
+	if helloResp.Error != nil {
+		m.closeLocked()
+		return fmt.Errorf("process hook hello failed: %s", helloResp.Error.Message)
+	}
+	var helloResult processHookHelloResult
+	if err := json.Unmarshal(helloResp.Result, &helloResult); err != nil {
+		m.closeLocked()
+		return fmt.Errorf("decode process hook hello: %w", err)
+	}
+	if !helloResult.OK {
+		m.closeLocked()
+		return fmt.Errorf("process hook hello rejected hook %s", req.Name)
+	}
+	return nil
+}
+
+func (m *mountedProcessHook) decodeResponseLocked(ctx context.Context) (processHookRPCResponse, error) {
+	type decoded struct {
+		resp processHookRPCResponse
+		err  error
+	}
+	ch := make(chan decoded, 1)
+	go func() {
+		var resp processHookRPCResponse
+		ch <- decoded{resp: resp, err: m.dec.Decode(&resp)}
+	}()
+	select {
+	case <-ctx.Done():
+		m.closeLocked()
+		return processHookRPCResponse{}, ctx.Err()
+	case res := <-ch:
+		return res.resp, res.err
+	}
+}
+
+func (m *mountedProcessHook) stderrStringLocked() string {
+	m.stderrMu.Lock()
+	defer m.stderrMu.Unlock()
+	return strings.TrimSpace(m.stderr.String())
+}
+
+func (m *mountedProcessHook) closeLocked() {
+	if m.stdin != nil {
+		_ = m.stdin.Close()
+	}
+	if m.stdout != nil {
+		_ = m.stdout.Close()
+	}
+	if m.cmd != nil {
+		if m.cmd.Process != nil {
+			_ = m.cmd.Process.Kill()
+		}
+		_ = m.cmd.Wait()
+	}
+	m.started = false
+	m.cmd = nil
+	m.stdin = nil
+	m.stdout = nil
+	m.enc = nil
+	m.dec = nil
 }
 
 func resolveProcessHookCommand(workspaceRoot, command string) (string, error) {

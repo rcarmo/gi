@@ -474,7 +474,8 @@ Implemented so far:
 - external process hooks are now supported through `EventHookSpec{engine:"process", command, args, env, cwd}` with:
   - stdio transport
   - JSON-RPC 2.0 request/response framing
-  - `hook.hello` handshake followed by `hook.<phase>` invocation
+  - a mounted persistent subprocess per registered process-hook handler instead of spawn-per-invocation startup
+  - `hook.hello` handshake followed by `hook.<phase>` invocation over the mounted session
   - PicoClaw-style method aliases for major interceptor phases (`before_llm`, `after_llm`, `before_tool`, `after_tool`)
 - process hooks and in-process/script hooks now share the same logical JSON payload/response contract:
   - request params reuse the JSON-safe `HookRequest` shape (plus convenience aliases like `tool`, `arguments`, `request`, `result`)
@@ -490,6 +491,7 @@ Implemented so far:
 Still pending in this area:
 
 - cleaner dedicated runtime-facing documentation/DTO ergonomics for the send-time raw provider request stage, instead of today’s `before_provider_request` + `payload.request` extension of the existing hook contract
+- fuller mounted-process lifecycle management semantics (for example explicit teardown/reload cleanup across hook-registry resets) beyond the current restart-on-error mounted session behavior
 - clearer replay/audit persistence around hook decisions beyond the current per-handler audit rows
 
 ---

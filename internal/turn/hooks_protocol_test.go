@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rcarmo/gi/internal/config"
@@ -636,16 +638,13 @@ func TestProcessHookHandshakeAndBeforeToolProtocol(t *testing.T) {
 set -eu
 [ "${GI_HOOK_NAME:-}" = "tool_call" ] || { echo "bad hook env" >&2; exit 1; }
 [ "${GI_SESSION_ID:-}" = "session_process_hook" ] || { echo "bad session env" >&2; exit 1; }
-IFS= read -r hello || exit 1
-case "$hello" in
-  *'"method":"hook.hello"'*) printf '%s\n' '{"jsonrpc":"2.0","id":1,"result":{"ok":true,"name":"process-hook"}}' ;;
-  *) echo "bad hello" >&2; exit 1 ;;
-esac
-IFS= read -r call || exit 1
-case "$call" in
-  *'"method":"hook.before_tool"'*) printf '%s\n' '{"jsonrpc":"2.0","id":2,"result":{"action":"modify","tool_call":{"id":"tc_proc","name":"read","arguments":{"path":"process.md"}}}}' ;;
-  *) echo "bad call" >&2; exit 1 ;;
-esac
+while IFS= read -r line; do
+  case "$line" in
+    *'"method":"hook.hello"'*) printf '%s\n' '{"jsonrpc":"2.0","id":1,"result":{"ok":true,"name":"process-hook"}}' ;;
+    *'"method":"hook.before_tool"'*) printf '%s\n' '{"jsonrpc":"2.0","id":2,"result":{"action":"modify","tool_call":{"id":"tc_proc","name":"read","arguments":{"path":"process.md"}}}}' ;;
+    *) echo "bad call" >&2; exit 1 ;;
+  esac
+done
 `
 	if err := os.WriteFile(hookPath, []byte(script), 0o755); err != nil {
 		t.Fatalf("write hook script: %v", err)
@@ -677,5 +676,49 @@ esac
 	}
 	if len(items) != 1 || items[0].HookSource != "process-test" || items[0].Action != "modify" {
 		t.Fatalf("unexpected process hook audit rows: %#v", items)
+	}
+}
+
+func TestProcessHookReusesMountedProcessAcrossInvocations(t *testing.T) {
+	root := t.TempDir()
+	hookPath := filepath.Join(root, "hook.sh")
+	statePath := filepath.Join(root, "state.txt")
+	script := fmt.Sprintf(`#!/bin/sh
+set -eu
+state_file=%q
+: > "$state_file"
+while IFS= read -r line; do
+  case "$line" in
+    *'"method":"hook.hello"'*)
+      printf 'hello\n' >> "$state_file"
+      printf '%%s\n' '{"jsonrpc":"2.0","id":1,"result":{"ok":true,"name":"process-hook"}}'
+      ;;
+    *'"method":"hook.before_tool"'*)
+      printf 'call\n' >> "$state_file"
+      printf '%%s\n' '{"jsonrpc":"2.0","id":2,"result":{"action":"modify","tool_call":{"id":"tc_proc","name":"read","arguments":{"path":"mounted.md"}}}}'
+      ;;
+    *) echo "bad call" >&2; exit 1 ;;
+  esac
+done
+`, statePath)
+	if err := os.WriteFile(hookPath, []byte(script), 0o755); err != nil {
+		t.Fatalf("write hook script: %v", err)
+	}
+	handler := newProcessHookHandler(root, scripting.EventHookSpec{Name: HookToolCall, Engine: "process", Command: hookPath, Source: "mounted-process-test"})
+	for i := 0; i < 2; i++ {
+		resp, err := handler(context.Background(), HookRequest{Name: HookToolCall, SessionID: "session_mounted_process_hook", TurnID: fmt.Sprintf("turn_%d", i), ToolCall: &goai.ToolCall{Type: "toolCall", ID: fmt.Sprintf("tc_%d", i), Name: "read", Arguments: map[string]any{"path": "original.md"}}})
+		if err != nil {
+			t.Fatalf("invoke mounted process hook %d: %v", i, err)
+		}
+		if resp.ToolCall == nil || stringValue(resp.ToolCall.Arguments["path"], "") != "mounted.md" {
+			t.Fatalf("expected mounted process hook mutation, got %#v", resp)
+		}
+	}
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatalf("read mounted hook state: %v", err)
+	}
+	if got := strings.TrimSpace(string(data)); got != "hello\ncall\ncall" {
+		t.Fatalf("expected one hello and two calls through mounted process, got %q", got)
 	}
 }
