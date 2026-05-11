@@ -1,0 +1,167 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+)
+
+type InboundWorkItem struct {
+	ID                 int64          `json:"id"`
+	SourceKind         string         `json:"source_kind"`
+	SessionID          string         `json:"session_id,omitempty"`
+	ExplicitSessionKey string         `json:"explicit_session_key,omitempty"`
+	Envelope           map[string]any `json:"envelope,omitempty"`
+	Status             string         `json:"status"`
+	ClaimedBy          string         `json:"claimed_by,omitempty"`
+	ClaimedAt          string         `json:"claimed_at,omitempty"`
+	CreatedAt          string         `json:"created_at"`
+	UpdatedAt          string         `json:"updated_at"`
+}
+
+func (s *Store) EnqueueInboundWork(ctx context.Context, sourceKind, sessionID, explicitSessionKey string, envelope map[string]any) (*InboundWorkItem, error) {
+	sourceKind = strings.TrimSpace(strings.ToLower(sourceKind))
+	sessionID = strings.TrimSpace(sessionID)
+	explicitSessionKey = strings.TrimSpace(strings.ToLower(explicitSessionKey))
+	if sourceKind == "" {
+		return nil, fmt.Errorf("enqueue inbound work: source kind is required")
+	}
+	envelopeJSON, err := marshalJSON(envelope)
+	if err != nil {
+		return nil, err
+	}
+	res, err := s.db.ExecContext(ctx, `
+		insert into inbound_work_queue (source_kind, session_id, explicit_session_key, envelope_json, status, created_at, updated_at)
+		values (?, ?, ?, ?, 'queued', `+defaultNow+`, `+defaultNow+`)
+	`, sourceKind, nilIfEmpty(sessionID), explicitSessionKey, envelopeJSON)
+	if err != nil {
+		return nil, fmt.Errorf("enqueue inbound work: %w", err)
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, fmt.Errorf("enqueue inbound work id: %w", err)
+	}
+	return s.GetInboundWork(ctx, id)
+}
+
+func (s *Store) GetInboundWork(ctx context.Context, id int64) (*InboundWorkItem, error) {
+	row := s.db.QueryRowContext(ctx, `
+		select id, source_kind, coalesce(session_id,''), explicit_session_key, envelope_json, status, coalesce(claimed_by,''), coalesce(claimed_at,''), created_at, updated_at
+		from inbound_work_queue
+		where id = ?
+	`, id)
+	var item InboundWorkItem
+	var envelopeJSON string
+	if err := row.Scan(&item.ID, &item.SourceKind, &item.SessionID, &item.ExplicitSessionKey, &envelopeJSON, &item.Status, &item.ClaimedBy, &item.ClaimedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		return nil, err
+	}
+	envelope, err := unmarshalJSONMap(envelopeJSON)
+	if err != nil {
+		return nil, err
+	}
+	item.Envelope = envelope
+	return &item, nil
+}
+
+func (s *Store) ListInboundWork(ctx context.Context, status string, limit int) ([]InboundWorkItem, error) {
+	status = strings.TrimSpace(strings.ToLower(status))
+	if limit <= 0 {
+		limit = 100
+	}
+	query := `
+		select id, source_kind, coalesce(session_id,''), explicit_session_key, envelope_json, status, coalesce(claimed_by,''), coalesce(claimed_at,''), created_at, updated_at
+		from inbound_work_queue
+	`
+	args := []any{}
+	if status != "" {
+		query += ` where status = ?`
+		args = append(args, status)
+	}
+	query += ` order by id asc limit ?`
+	args = append(args, limit)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list inbound work: %w", err)
+	}
+	defer rows.Close()
+	out := []InboundWorkItem{}
+	for rows.Next() {
+		var item InboundWorkItem
+		var envelopeJSON string
+		if err := rows.Scan(&item.ID, &item.SourceKind, &item.SessionID, &item.ExplicitSessionKey, &envelopeJSON, &item.Status, &item.ClaimedBy, &item.ClaimedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, err
+		}
+		envelope, err := unmarshalJSONMap(envelopeJSON)
+		if err != nil {
+			return nil, err
+		}
+		item.Envelope = envelope
+		out = append(out, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list inbound work rows: %w", err)
+	}
+	return out, nil
+}
+
+func (s *Store) ClaimNextInboundWork(ctx context.Context, claimedBy string) (*InboundWorkItem, error) {
+	claimedBy = strings.TrimSpace(claimedBy)
+	if claimedBy == "" {
+		claimedBy = "worker"
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("claim inbound work begin tx: %w", err)
+	}
+	defer tx.Rollback()
+	row := tx.QueryRowContext(ctx, `
+		select id
+		from inbound_work_queue
+		where status = 'queued'
+		order by id asc
+		limit 1
+	`)
+	var id int64
+	if err := row.Scan(&id); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, err
+		}
+		return nil, fmt.Errorf("claim inbound work select: %w", err)
+	}
+	res, err := tx.ExecContext(ctx, `
+		update inbound_work_queue
+		set status = 'claimed', claimed_by = ?, claimed_at = `+defaultNow+`, updated_at = `+defaultNow+`
+		where id = ? and status = 'queued'
+	`, claimedBy, id)
+	if err != nil {
+		return nil, fmt.Errorf("claim inbound work update: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("claim inbound work rows: %w", err)
+	}
+	if rows == 0 {
+		return nil, sql.ErrNoRows
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("claim inbound work commit: %w", err)
+	}
+	return s.GetInboundWork(ctx, id)
+}
+
+func (s *Store) UpdateInboundWorkStatus(ctx context.Context, id int64, status string) error {
+	status = strings.TrimSpace(strings.ToLower(status))
+	if status == "" {
+		return fmt.Errorf("update inbound work status: status is required")
+	}
+	_, err := s.db.ExecContext(ctx, `
+		update inbound_work_queue
+		set status = ?, updated_at = `+defaultNow+`
+		where id = ?
+	`, status, id)
+	if err != nil {
+		return fmt.Errorf("update inbound work status: %w", err)
+	}
+	return nil
+}

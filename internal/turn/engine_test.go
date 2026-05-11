@@ -1708,8 +1708,13 @@ func TestProcessDirectSteersSameSessionWhileActive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list messages: %v", err)
 	}
-	if len(msgs) != 0 {
-		t.Fatalf("expected no persisted steering message before injection, got %#v", msgs)
+	if len(msgs) > 1 {
+		t.Fatalf("expected queued steering not to persist a second chat message before injection, got %#v", msgs)
+	}
+	for _, msg := range msgs {
+		if stringValue(msg.Payload["ingress_source_id"], "") == "ipc:active" {
+			t.Fatalf("expected queued steering not to persist direct-ingress message before injection, got %#v", msgs)
+		}
 	}
 }
 

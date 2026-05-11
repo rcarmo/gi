@@ -1238,6 +1238,58 @@ func TestHoldAndResolveTurnFailurePhase(t *testing.T) {
 	}
 }
 
+func TestStoreInboundWorkQueueLifecycle(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	sess, err := s.CreateSession(ctx, "session_inbound", "Inbound", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	queuedA, err := s.EnqueueInboundWork(ctx, "ipc", sess.ID, "", map[string]any{"kind": "prompt", "prompt": "hello"})
+	if err != nil {
+		t.Fatalf("enqueue inbound work a: %v", err)
+	}
+	queuedB, err := s.EnqueueInboundWork(ctx, "system", "", "opaque-session-key", map[string]any{"kind": "continue"})
+	if err != nil {
+		t.Fatalf("enqueue inbound work b: %v", err)
+	}
+	items, err := s.ListInboundWork(ctx, "queued", 10)
+	if err != nil {
+		t.Fatalf("list queued inbound work: %v", err)
+	}
+	if len(items) != 2 || items[0].ID != queuedA.ID || items[1].ID != queuedB.ID {
+		t.Fatalf("unexpected queued inbound work list: %#v", items)
+	}
+	claimed, err := s.ClaimNextInboundWork(ctx, "worker-1")
+	if err != nil {
+		t.Fatalf("claim inbound work: %v", err)
+	}
+	if claimed.ID != queuedA.ID || claimed.Status != "claimed" || claimed.ClaimedBy != "worker-1" {
+		t.Fatalf("unexpected claimed inbound work: %#v", claimed)
+	}
+	if err := s.UpdateInboundWorkStatus(ctx, claimed.ID, "completed"); err != nil {
+		t.Fatalf("update inbound work status: %v", err)
+	}
+	completed, err := s.GetInboundWork(ctx, claimed.ID)
+	if err != nil {
+		t.Fatalf("get completed inbound work: %v", err)
+	}
+	if completed.Status != "completed" {
+		t.Fatalf("expected completed inbound work, got %#v", completed)
+	}
+	remaining, err := s.ClaimNextInboundWork(ctx, "worker-2")
+	if err != nil {
+		t.Fatalf("claim second inbound work: %v", err)
+	}
+	if remaining.ID != queuedB.ID || remaining.ExplicitSessionKey != "opaque-session-key" || remaining.SourceKind != "system" {
+		t.Fatalf("unexpected second claimed inbound work: %#v", remaining)
+	}
+}
+
 func TestCloneSessionCreatesChildAgentSession(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

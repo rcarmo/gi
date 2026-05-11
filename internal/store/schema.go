@@ -178,6 +178,22 @@ func initSchema(db *sql.DB) error {
 		);`,
 		`create index if not exists idx_steering_queue_session_status on steering_queue(session_id, status, id);`,
 
+		`create table if not exists inbound_work_queue (
+			id integer primary key autoincrement,
+			source_kind text not null,
+			session_id text,
+			explicit_session_key text not null default '',
+			envelope_json text not null default '{}',
+			status text not null default 'queued',
+			claimed_by text,
+			claimed_at text,
+			created_at text not null,
+			updated_at text not null,
+			foreign key(session_id) references sessions(id) on delete set null
+		);`,
+		`create index if not exists idx_inbound_work_queue_status on inbound_work_queue(status, id);`,
+		`create index if not exists idx_inbound_work_queue_session on inbound_work_queue(session_id, status, id);`,
+
 		`create table if not exists turn_events (
 			id integer primary key autoincrement,
 			turn_id text not null,
