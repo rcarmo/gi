@@ -648,5 +648,6 @@ It means:
 This document is the schema/state target for the runtime refactor plan. Use it together with:
 
 - the active runtime refactor checklist in the shared plan
+- `docs/internal/repo-structure-refactor.md`
 - `docs/internal/topic-system.md`
 - future ADRs/docs for session identity, turn coordination, steering, sub-turns, and hooks
