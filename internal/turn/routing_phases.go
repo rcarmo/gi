@@ -127,7 +127,7 @@ func (e *Engine) prepareRouteSessionPlan(source *store.Session, route routing.Re
 }
 
 func (e *Engine) resolveExistingRouteSession(ctx context.Context, plan *routeSessionPlan) (*store.Session, error) {
-	if existing, err := e.store.FindSessionByAllocation(ctx, plan.allocation); err == nil {
+	if existing, err := e.store.ResolveSessionByAllocation(ctx, plan.allocation); err == nil {
 		return existing, nil
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
@@ -147,16 +147,25 @@ func (e *Engine) resolveExistingRouteSession(ctx context.Context, plan *routeSes
 	return nil, nil
 }
 
-func (e *Engine) cloneRouteSession(ctx context.Context, plan *routeSessionPlan) (*store.Session, error) {
+func (e *Engine) cloneRouteSession(ctx context.Context, plan *routeSessionPlan) (*store.Session, bool, error) {
 	state := map[string]any{"status": "idle", "queue_count": 0, "model": e.modelForAgent(plan.route.AgentID), "provider": e.runtimeCfg.DefaultProvider, "thinking_level": e.runtimeCfg.DefaultThinkingLevel}
-	cloned, err := e.store.CreateSessionWithMetadata(ctx, store.NowID("session"), plan.source.ID, "@"+plan.route.AgentID, state, &plan.allocation.Scope, plan.allocation.SessionAliases)
+	cloned, created, err := e.store.ResolveOrCreateSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{
+		ID:              store.NowID("session"),
+		ParentSessionID: plan.source.ID,
+		Title:           "@" + plan.route.AgentID,
+		State:           state,
+		Allocation:      plan.allocation,
+	})
 	if err != nil {
-		return nil, err
+		return nil, false, err
+	}
+	if !created {
+		return cloned, false, nil
 	}
 	e.copyRouteSessionHistory(ctx, plan.source.ID, cloned.ID)
 	sourceAgentID := sessionAgentIDWithStore(ctx, e.store, plan.source)
 	warnStore("add forked-from message", e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sourceAgentID), map[string]any{"kind": "fork", "source_session_id": plan.source.ID, "source_agent_id": sourceAgentID, "route_matched_by": plan.route.MatchedBy, "clipped": true}))
-	return cloned, nil
+	return cloned, true, nil
 }
 
 func inboundContextFromSession(ctx context.Context, s *store.Store, sess *store.Session) routing.InboundContext {

@@ -178,6 +178,93 @@ func TestStoreListSessionIdentities(t *testing.T) {
 	}
 }
 
+func TestStoreAliasManagementAPIs(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_alias_api")
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_alias_api", "", "@agent", map[string]any{"status": "idle", "model": "bootstrap"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	aliases, err := s.ListSessionAliases(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("list session aliases: %v", err)
+	}
+	if len(aliases) != len(alloc.SessionAliases) {
+		t.Fatalf("unexpected initial aliases: %#v", aliases)
+	}
+	resolved, err := s.ResolveSessionByAlias(ctx, aliases[0])
+	if err != nil {
+		t.Fatalf("resolve session by alias: %v", err)
+	}
+	if resolved.ID != sess.ID {
+		t.Fatalf("unexpected alias resolution: %#v", resolved)
+	}
+	updatedAliases := []string{"agent:agent:gi:chat:direct:session_alias_api", "custom:Team-Alpha", "custom:team-alpha"}
+	if err := s.UpdateSessionAliases(ctx, sess.ID, updatedAliases); err != nil {
+		t.Fatalf("update session aliases: %v", err)
+	}
+	aliases, err = s.ListSessionAliases(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("list updated aliases: %v", err)
+	}
+	if len(aliases) != 2 || aliases[0] != "agent:agent:gi:chat:direct:session_alias_api" || aliases[1] != "custom:team-alpha" {
+		t.Fatalf("unexpected updated aliases: %#v", aliases)
+	}
+	resolved, err = s.ResolveSessionByAlias(ctx, "custom:TEAM-alpha")
+	if err != nil {
+		t.Fatalf("resolve updated alias: %v", err)
+	}
+	if resolved.ID != sess.ID {
+		t.Fatalf("unexpected updated alias resolution: %#v", resolved)
+	}
+	reloaded, err := s.GetSession(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("reload session: %v", err)
+	}
+	if reloaded.Title != "@agent" || reloaded.State["status"] != "idle" || reloaded.State["model"] != "bootstrap" {
+		t.Fatalf("unexpected session after alias update: %#v", reloaded)
+	}
+	if reloaded.Scope == nil || reloaded.Scope.AgentID != "agent" || reloaded.Scope.Values["chat"] != "direct:session_alias_api" {
+		t.Fatalf("unexpected scope after alias update: %#v", reloaded.Scope)
+	}
+	if len(reloaded.Aliases) != 2 || reloaded.Aliases[1] != "custom:team-alpha" {
+		t.Fatalf("unexpected stored aliases after update: %#v", reloaded.Aliases)
+	}
+}
+
+func TestStoreResolveOrCreateSessionFromAllocation(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	created, wasCreated, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_alloc_api", Title: "@support", State: map[string]any{"status": "idle"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("resolve or create session from allocation: %v", err)
+	}
+	if !wasCreated || created.ID != "session_alloc_api" {
+		t.Fatalf("expected created allocation session, got session=%#v created=%v", created, wasCreated)
+	}
+	reused, wasCreated, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_alloc_api_other", Title: "@support2", State: map[string]any{"status": "other"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("resolve existing allocation session: %v", err)
+	}
+	if wasCreated || reused.ID != created.ID {
+		t.Fatalf("expected existing allocation session reuse, got session=%#v created=%v", reused, wasCreated)
+	}
+}
+
 func TestStoreFindSessionByAllocationFallsBackToCanonicalSignature(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

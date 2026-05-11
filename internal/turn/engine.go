@@ -623,11 +623,11 @@ func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.
 	if existing != nil {
 		return existing, false, nil
 	}
-	cloned, err := e.cloneRouteSession(ctx, plan)
+	cloned, created, err := e.cloneRouteSession(ctx, plan)
 	if err != nil {
 		return nil, false, err
 	}
-	return cloned, true, nil
+	return cloned, created, nil
 }
 
 func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, source, target *store.Session, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string) (*SubmitResult, error) {

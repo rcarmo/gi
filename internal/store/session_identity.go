@@ -19,6 +19,56 @@ type SessionIdentity struct {
 	IsMainSession           bool                   `json:"is_main_session"`
 }
 
+type ResolveOrCreateSessionFromAllocationInput struct {
+	ID              string
+	ParentSessionID string
+	Title           string
+	State           map[string]any
+	Allocation      gisession.Allocation
+}
+
+func normalizeSessionAliases(aliases []string) []string {
+	if len(aliases) == 0 {
+		return nil
+	}
+	normalized := make([]string, 0, len(aliases))
+	seen := make(map[string]struct{}, len(aliases))
+	for _, alias := range aliases {
+		alias = strings.TrimSpace(strings.ToLower(alias))
+		if alias == "" {
+			continue
+		}
+		if _, ok := seen[alias]; ok {
+			continue
+		}
+		seen[alias] = struct{}{}
+		normalized = append(normalized, alias)
+	}
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
+}
+
+func upsertSessionAliasesTx(ctx context.Context, tx *sql.Tx, sessionID string, aliases []string) error {
+	if _, err := tx.ExecContext(ctx, `delete from session_aliases where session_id = ?`, sessionID); err != nil {
+		return fmt.Errorf("clear session aliases: %w", err)
+	}
+	for _, alias := range normalizeSessionAliases(aliases) {
+		if _, err := tx.ExecContext(ctx, `
+			insert into session_aliases (alias, session_id, alias_kind, created_at, updated_at)
+			values (?, ?, 'compat', `+defaultNow+`, `+defaultNow+`)
+			on conflict(alias) do update set
+				session_id = excluded.session_id,
+				alias_kind = excluded.alias_kind,
+				updated_at = `+defaultNow+`
+		`, alias, sessionID); err != nil {
+			return fmt.Errorf("upsert session alias: %w", err)
+		}
+	}
+	return nil
+}
+
 func (s *Store) upsertSessionIdentityTx(ctx context.Context, tx *sql.Tx, sessionID string, scope *gisession.SessionScope, aliases []string) error {
 	if scope == nil || strings.TrimSpace(sessionID) == "" {
 		return nil
@@ -58,26 +108,7 @@ func (s *Store) upsertSessionIdentityTx(ctx context.Context, tx *sql.Tx, session
 			return fmt.Errorf("insert session identity dimension: %w", err)
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `delete from session_aliases where session_id = ?`, sessionID); err != nil {
-		return fmt.Errorf("clear session aliases: %w", err)
-	}
-	for _, alias := range aliases {
-		alias = strings.TrimSpace(strings.ToLower(alias))
-		if alias == "" {
-			continue
-		}
-		if _, err := tx.ExecContext(ctx, `
-			insert into session_aliases (alias, session_id, alias_kind, created_at, updated_at)
-			values (?, ?, 'compat', `+defaultNow+`, `+defaultNow+`)
-			on conflict(alias) do update set
-				session_id = excluded.session_id,
-				alias_kind = excluded.alias_kind,
-				updated_at = `+defaultNow+`
-		`, alias, sessionID); err != nil {
-			return fmt.Errorf("upsert session alias: %w", err)
-		}
-	}
-	return nil
+	return upsertSessionAliasesTx(ctx, tx, sessionID, aliases)
 }
 
 func scanSessionIdentityRows(rows *sql.Rows) ([]SessionIdentity, error) {
@@ -203,6 +234,80 @@ func (s *Store) ListSessionIdentities(ctx context.Context) ([]SessionIdentity, e
 	return identities, nil
 }
 
+func (s *Store) ResolveSessionByCanonicalKey(ctx context.Context, opaqueKey string) (*Session, error) {
+	return s.GetSessionByOpaqueKey(ctx, opaqueKey)
+}
+
+func (s *Store) ResolveSessionByAlias(ctx context.Context, alias string) (*Session, error) {
+	return s.GetSessionByAlias(ctx, alias)
+}
+
+func (s *Store) ListSessionAliases(ctx context.Context, sessionID string) ([]string, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return nil, sql.ErrNoRows
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		select alias
+		from session_aliases
+		where session_id = ?
+		order by alias asc
+	`, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	aliases := make([]string, 0)
+	for rows.Next() {
+		var alias string
+		if err := rows.Scan(&alias); err != nil {
+			return nil, err
+		}
+		aliases = append(aliases, alias)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return aliases, nil
+}
+
+func (s *Store) UpdateSessionAliases(ctx context.Context, sessionID string, aliases []string) error {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return sql.ErrNoRows
+	}
+	aliases = normalizeSessionAliases(aliases)
+	aliasesJSON, err := marshalJSONArray(aliases)
+	if err != nil {
+		return err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("update session aliases begin tx: %w", err)
+	}
+	defer tx.Rollback()
+	result, err := tx.ExecContext(ctx, `
+		update sessions
+		set aliases_json = ?, updated_at = `+defaultNow+`
+		where id = ?
+	`, aliasesJSON, sessionID)
+	if err != nil {
+		return fmt.Errorf("update session aliases: %w", err)
+	}
+	if rowsAffected, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("update session aliases rows affected: %w", err)
+	} else if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+	if err := upsertSessionAliasesTx(ctx, tx, sessionID, aliases); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("update session aliases commit: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) GetSessionByOpaqueKey(ctx context.Context, opaqueKey string) (*Session, error) {
 	opaqueKey = strings.TrimSpace(strings.ToLower(opaqueKey))
 	if opaqueKey == "" {
@@ -252,12 +357,32 @@ func (s *Store) ResolveSessionByKeyOrAlias(ctx context.Context, key string) (*Se
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	if sess, err := s.GetSessionByOpaqueKey(ctx, key); err == nil {
+	if sess, err := s.ResolveSessionByCanonicalKey(ctx, key); err == nil {
 		return sess, nil
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	return s.GetSessionByAlias(ctx, key)
+	return s.ResolveSessionByAlias(ctx, key)
+}
+
+func (s *Store) ResolveSessionByAllocation(ctx context.Context, alloc gisession.Allocation) (*Session, error) {
+	return s.FindSessionByAllocation(ctx, alloc)
+}
+
+func (s *Store) ResolveOrCreateSessionFromAllocation(ctx context.Context, in ResolveOrCreateSessionFromAllocationInput) (*Session, bool, error) {
+	if sess, err := s.ResolveSessionByAllocation(ctx, in.Allocation); err == nil {
+		return sess, false, nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return nil, false, err
+	}
+	created, err := s.CreateSessionWithMetadata(ctx, in.ID, in.ParentSessionID, in.Title, in.State, &in.Allocation.Scope, in.Allocation.SessionAliases)
+	if err == nil {
+		return created, true, nil
+	}
+	if sess, resolveErr := s.ResolveSessionByAllocation(context.Background(), in.Allocation); resolveErr == nil {
+		return sess, false, nil
+	}
+	return nil, false, err
 }
 
 func sessionMatchesAllocationScope(sess *Session, scope gisession.SessionScope) bool {
