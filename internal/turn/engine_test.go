@@ -1631,6 +1631,31 @@ func TestProcessDirectSteersSameSessionWhileActive(t *testing.T) {
 	}
 }
 
+func TestProcessDirectSteeringNormalizesUnexpectedIngressRole(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_direct_role_norm")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_direct_role_norm", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := engine.SubmitPrompt(ctx, RunInput{SessionID: sess.ID, Prompt: "first", Model: "bootstrap"}); err != nil {
+		t.Fatalf("submit first prompt: %v", err)
+	}
+	if _, err := engine.ProcessDirect(ctx, DirectInput{Kind: DirectKindPrompt, SessionID: sess.ID, Prompt: "second", Model: "bootstrap", Origin: DirectOrigin{SourceKind: DirectSourceKindIPC, SourceID: "ipc:role", Role: "bogus-role"}}); err != nil {
+		t.Fatalf("process direct steering prompt: %v", err)
+	}
+	msgs, err := s.DequeueSteering(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("dequeue steering: %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Role != "user" {
+		t.Fatalf("expected normalized user steering role, got %#v", msgs)
+	}
+}
+
 func TestProcessSystemDirectWhileActiveSteersSameSession(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

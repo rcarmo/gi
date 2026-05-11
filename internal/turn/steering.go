@@ -11,6 +11,17 @@ import (
 
 const skippedDueToQueuedUserMessage = "Skipped due to queued user message."
 
+func normalizeSteeringRole(role string) string {
+	switch strings.TrimSpace(strings.ToLower(role)) {
+	case "assistant":
+		return "assistant"
+	case "system":
+		return "system"
+	default:
+		return "user"
+	}
+}
+
 func steeringMessagesToMetadata(msgs []store.SteeringMessage) []map[string]any {
 	out := make([]map[string]any, 0, len(msgs))
 	for _, msg := range msgs {
@@ -53,7 +64,7 @@ func steeringMessagesFromMetadata(metadata map[string]any) []store.SteeringMessa
 			}
 		}
 		out = append(out, store.SteeringMessage{
-			Role:      stringValue(m["role"], "user"),
+			Role:      normalizeSteeringRole(stringValue(m["role"], "user")),
 			Content:   stringValue(m["content"], ""),
 			Payload:   payload,
 			Media:     media,
@@ -73,10 +84,7 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 	}
 	media := steeringMediaFromMetadata(in.Metadata)
 	queueMode := stringValue(in.Metadata["steering_mode"], "one-at-a-time")
-	steeringRole := strings.TrimSpace(strings.ToLower(stringValue(in.Metadata["ingress_role"], "user")))
-	if steeringRole == "" {
-		steeringRole = "user"
-	}
+	steeringRole := normalizeSteeringRole(stringValue(in.Metadata["ingress_role"], "user"))
 	if _, err := e.store.EnqueueSteering(ctx, sessionID, activeTurnID, steeringRole, in.Prompt, payload, media, queueMode); err != nil {
 		warnStore("append steering.rejected event", e.store.AppendTurnEvent(context.Background(), activeTurnID, sessionID, "steering.rejected", map[string]any{
 			"phase":       "steering",
@@ -216,10 +224,7 @@ func (r *sessionRunner) persistSteeringMessages(ctx context.Context, sessionID, 
 	}
 	totalContentLen := 0
 	for _, msg := range msgs {
-		role := strings.TrimSpace(strings.ToLower(msg.Role))
-		if role == "" {
-			role = "user"
-		}
+		role := normalizeSteeringRole(msg.Role)
 		payload := map[string]any{"kind": "chat", "intent": stringValue(msg.Payload["intent"], "prompt"), "turn_id": turnID, "steering": true}
 		for k, v := range msg.Payload {
 			payload[k] = v
@@ -245,10 +250,7 @@ func (r *sessionRunner) injectSteeringMessages(ctx context.Context, sessionID, t
 		return 0
 	}
 	for _, msg := range msgs {
-		role := strings.TrimSpace(strings.ToLower(msg.Role))
-		if role == "" {
-			role = "user"
-		}
+		role := normalizeSteeringRole(msg.Role)
 		content := msg.Content
 		if len(msg.Media) > 0 {
 			if strings.TrimSpace(content) == "" {
