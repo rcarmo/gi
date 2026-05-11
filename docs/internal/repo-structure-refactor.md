@@ -197,6 +197,8 @@ Likely tasks:
 - `internal/turn` generic coercion/sorting helpers and bootstrap shell runtime were split out of `engine.go` into:
   - `value_helpers.go`
   - `shell_runtime.go`
+- `internal/tui` session-reference, agent-tree, and fork-target helpers were split out of `chat.go` into:
+  - `session_refs.go`
 
 ## Done criteria for the interim phase
 
