@@ -1571,6 +1571,29 @@ func TestProcessDirectPromptUsesNormalSubmitPathAndIngressMetadata(t *testing.T)
 	if stringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || stringValue(turnRec.Metadata["ingress_source_kind"], "") != "ipc" || stringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:test" {
 		t.Fatalf("expected direct ingress metadata on turn, got %#v", turnRec.Metadata)
 	}
+	msgs, err := s.ListMessages(ctx, result.SessionID)
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	if len(msgs) == 0 || stringValue(msgs[0].Payload["ingress_source_kind"], "") != "ipc" || stringValue(msgs[0].Payload["ingress_source_id"], "") != "ipc:test" {
+		t.Fatalf("expected direct ingress metadata on persisted user message, got %#v", msgs)
+	}
+	events, err := s.ListTurnEvents(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundStarted := false
+	for _, event := range events {
+		if event.Type == "turn.started" {
+			foundStarted = true
+			if stringValue(event.Payload["ingress_source_kind"], "") != "ipc" || stringValue(event.Payload["ingress_source_id"], "") != "ipc:test" {
+				t.Fatalf("expected ingress metadata on turn.started event, got %#v", event)
+			}
+		}
+	}
+	if !foundStarted {
+		t.Fatalf("expected turn.started event, got %#v", events)
+	}
 }
 
 func TestProcessDirectPeerMessageCarriesIngressMetadataIntoTargetTurn(t *testing.T) {
@@ -1603,6 +1626,22 @@ func TestProcessDirectPeerMessageCarriesIngressMetadataIntoTargetTurn(t *testing
 	}
 	if stringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || stringValue(turnRec.Metadata["ingress_source_kind"], "") != "system" || stringValue(turnRec.Metadata["ingress_source_id"], "") != "scheduler:1" {
 		t.Fatalf("expected direct ingress metadata on routed turn, got %#v", turnRec.Metadata)
+	}
+	events, err := s.ListTurnEvents(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundStarted := false
+	for _, event := range events {
+		if event.Type == "turn.started" {
+			foundStarted = true
+			if stringValue(event.Payload["ingress_source_kind"], "") != "system" || stringValue(event.Payload["ingress_source_id"], "") != "scheduler:1" {
+				t.Fatalf("expected ingress metadata on routed turn.started event, got %#v", event)
+			}
+		}
+	}
+	if !foundStarted {
+		t.Fatalf("expected turn.started event, got %#v", events)
 	}
 }
 
