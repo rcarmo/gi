@@ -74,7 +74,12 @@ Current topic/runtime publication status:
 - connectivity events are bridged into the topic bus under `connectivity.*`
 - script-facing pub/sub APIs and dedicated topic SSE streaming remain pending
 
+Current hook/runtime interception status:
+- provider-level hook parity now reaches the inference layer: `before_provider_request` supports both context mutation and send-time raw request replacement, and `after_provider_response` observes real provider status/headers when available
+- process hooks now run as mounted persistent subprocess sessions per registered handler instead of spawn-per-invocation JSON-RPC calls
+
 Current session/runtime identity status:
 - canonical session identity lookup is store-backed via relational tables rather than runtime/table scans
 - alias resolution, main-session preference, and allocation resolve-or-create now flow through explicit store APIs
 - multi-channel binding support currently covers explicit continuation plus bound reuse; broader automatic linking/fan-out policy remains intentionally undocumented until it is implemented
+- direct/IPC ingress now has a normalized engine-facing envelope (`DirectInput` / `DirectOrigin`) so non-web/TUI callers can reuse the same submit/route/continue runtime paths instead of creating separate execution flows

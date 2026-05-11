@@ -2,7 +2,7 @@
 
 This document tracks Gi's in-process routing layer and how routing decisions are persisted for observability.
 
-It includes mechanism diagrams and concrete sequence flows for prompt, peer-routing, introspection, and parent-turn steering.
+It includes mechanism diagrams and concrete sequence flows for prompt, peer-routing, introspection, parent-turn steering, and the current direct/IPC ingress handoff into the same runtime paths.
 
 ## Current runtime shape
 
@@ -40,6 +40,7 @@ flowchart TD
     WPM["Web API: POST /api/sessions/{session}/peer-message"]
     TC["TUI command /send @agent ..."]
     HE["Inline @mention in user prompt"]
+    DI["Direct/IPC envelope: ProcessDirect(...)"]
   end
 
   subgraph Routing[Routing + session resolution]
@@ -81,6 +82,7 @@ flowchart TD
   WPM --> SUB
   TC --> SUB
   HE --> SUB
+  DI --> SUB
 
   SUB --> SP --> RR --> AR --> CL --> SESS
   SESS --> T
@@ -323,6 +325,23 @@ Columns tracked:
 - `requested_agent_id`
 - `metadata_json`
 - `created_at`
+
+## Direct/IPC ingress handoff
+
+The first direct-processing slice now uses a normalized engine-facing envelope:
+
+- `DirectInput`
+- `DirectOrigin`
+- `Engine.ProcessDirect(...)`
+
+Current behavior:
+
+- direct prompt ingress reuses `SubmitPromptRouted(...)`
+- direct peer-message ingress reuses the routed peer-message path
+- direct continue ingress reuses `ContinueSession(...)`
+- direct-origin turns stamp normalized ingress audit metadata onto turn metadata (`ingress_kind`, `ingress_source_kind`, `ingress_source_id`, `ingress_role`, `ingress_label`)
+
+This is intentionally a runtime entrypoint and envelope first, not yet a durable inbound work queue.
 
 ## Session allocation semantics used by routing
 
