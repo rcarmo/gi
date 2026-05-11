@@ -199,6 +199,10 @@ Likely tasks:
   - `shell_runtime.go`
 - `internal/tui` session-reference, agent-tree, and fork-target helpers were split out of `chat.go` into:
   - `session_refs.go`
+- follow-up audit fixes after the regrouping tightened a few concrete issues without reintroducing grab-bag files:
+  - `GetSessionIdentity(...)` now uses targeted per-session detail hydration instead of list-style full-table detail scans
+  - recent route/allocation helper paths now reuse caller contexts instead of detached background lookups where that was unintentional
+  - TUI transcript rendering now uses maintained in-memory transcript state instead of reloading SQLite on each render path
 
 ## Done criteria for the interim phase
 

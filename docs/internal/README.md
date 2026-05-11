@@ -50,6 +50,12 @@ The `search/` subtree is the canonical reference for the current hybrid workspac
 
 `repo-structure-refactor.md` is the working note for the interim structure-tidying phase that reassesses package/file grouping before deeper runtime changes continue.
 
+Current interim structure status:
+- `internal/store` session identity code has been regrouped by responsibility
+- `internal/turn` routing/session/helper/shell/value logic has been split out of `engine.go`
+- `internal/tui` session-reference helpers have been split out of `chat.go`
+- follow-up audit fixes tightened identity-read query scope and removed repeated transcript DB reloads from the TUI render path
+
 ## Current status
 
 This subtree is being bootstrapped. When internal surfaces are implemented before full docs exist, add at least a minimal placeholder page and update it as the implementation stabilizes.
