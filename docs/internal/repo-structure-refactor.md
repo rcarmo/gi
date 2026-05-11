@@ -184,11 +184,12 @@ Likely tasks:
 
 ## Landed slices so far
 
-- `internal/store` session identity code was split into clearer functional files:
+- `internal/store` session identity/allocation code was split into clearer functional files:
   - `session_identity.go`
   - `session_aliases.go`
   - `session_main.go`
   - `session_resolution.go`
+  - `session_channel_bindings.go`
 - `internal/turn` helper drift was reduced by moving session-identity and routing-helper logic out of `engine.go` into dedicated files:
   - `session_identity_helpers.go`
   - `routing_helpers.go`
@@ -202,6 +203,7 @@ Likely tasks:
 - follow-up audit fixes after the regrouping tightened a few concrete issues without reintroducing grab-bag files:
   - `GetSessionIdentity(...)` now uses targeted per-session detail hydration instead of list-style full-table detail scans
   - recent route/allocation helper paths now reuse caller contexts instead of detached background lookups where that was unintentional
+  - store-backed allocation now owns `identity_links` collapse, main-session promotion, and channel-binding attachment/reuse instead of scattering those semantics back into turn/web/TUI callers
   - TUI transcript rendering now uses maintained in-memory transcript state instead of reloading SQLite on each render path
 
 ## Done criteria for the interim phase

@@ -18,6 +18,19 @@ Route/session resolution now has an explicit orchestration surface inside `inter
 
 That keeps the submit path aligned with the newer explicit runtime-phase style used elsewhere in turn execution, instead of leaving route/session allocation buried inline inside `SubmitPromptRouted(...)` and `ResolveOrCreateRouteSession(...)`.
 
+The routing path now also depends on store-backed session identity/allocation semantics rather than treating `sessions.scope_json` as the source of truth. Route/session resolution prefers:
+
+1. canonical opaque session key lookup
+2. channel-binding reuse when a bound inbound surface already maps to the same logical session
+3. validated alias reuse
+4. canonical scope-signature fallback
+5. create-on-miss
+
+Two guardrails matter here:
+
+- alias matches are only accepted when the persisted session scope still matches the requested routed allocation, so broad compat aliases cannot accidentally collapse distinct routed sessions
+- channel-binding reuse is agent-safe: a binding only qualifies if the bound session identity still belongs to the same agent as the incoming allocation
+
 ## Mechanism overview
 
 ```mermaid
@@ -117,9 +130,11 @@ sequenceDiagram
   TR-->>Engine: ResolvedRoute(agent, matched_by)
   Engine->>SA: ResolveOrCreateRouteSession(source, route, inbound)
   alt matching target session exists
+    SA->>Store: ResolveSessionByAllocation(...)
     SA-->>Engine: target session
   else no target session yet
-    SA->>Store: CreateSessionWithMetadata + alias/scope
+    SA->>Store: ResolveOrCreateSessionFromAllocation(...)
+    SA->>Store: CreateSessionWithMetadata + relational identity + alias rows
     SA->>Store: Copy/fork prior history
     SA-->>Engine: new target session
   end
@@ -183,9 +198,11 @@ sequenceDiagram
   Engine->>SA: ResolveOrCreateRouteSession(source, route, inbound)
 
   alt target session exists
+    SA->>Store: ResolveSessionByAllocation(...)
     SA-->>Engine: target session
   else create target session
-    SA->>Store: CreateSessionWithMetadata + aliases
+    SA->>Store: ResolveOrCreateSessionFromAllocation(...)
+    SA->>Store: CreateSessionWithMetadata + relational identity + aliases
     SA-->>Engine: new target session
   end
 
@@ -306,6 +323,22 @@ Columns tracked:
 - `requested_agent_id`
 - `metadata_json`
 - `created_at`
+
+## Session allocation semantics used by routing
+
+The current routing/session allocation stack assumes:
+
+- routed/default allocation produces a canonical scope plus opaque session key and compat aliases
+- `identity_links` canonicalization happens again at the store boundary, not only at route-preparation time
+- explicit caller-supplied opaque allocation keys are preserved when they are already canonical/valid
+- default/main-session flows can prefer a stored main session for the `(agent, channel, account)` tuple instead of relying only on recency
+- explicit cross-channel continuation can reuse an existing session via `ContinueSessionID`, after which future allocations on that bound inbound surface may resolve back through `session_channel_bindings`
+
+What routing does **not** assume yet:
+
+- automatic cross-channel linking between unrelated inbound identities
+- automatic outbound fan-out to every bound channel
+- richer binding policy beyond explicit continuation plus later bound reuse
 
 ## Recovery / DB-first semantics
 
