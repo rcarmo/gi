@@ -1119,11 +1119,7 @@ func (c *chatTUI) scrollTranscriptToBottom() {
 }
 
 func (c *chatTUI) visibleTranscript() []string {
-	lines := c.loadTranscript()
-	if c.draftLineIndex >= 0 || len(c.transcript) > len(lines) {
-		lines = append([]string(nil), c.transcript...)
-	}
-	lines = c.pruneTranscript(lines)
+	lines := c.pruneTranscript(append([]string(nil), c.transcript...))
 	if len(lines) == 0 {
 		return []string{"(no messages yet)"}
 	}

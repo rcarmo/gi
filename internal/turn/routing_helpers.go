@@ -34,9 +34,9 @@ func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnI
 	routeMode := stringValue(metadata["route_mode"], stringValue(metadata["mode"], "prompt"))
 	sourceAgent := stringValue(metadata["source_agent_id"], "")
 	if sourceAgent == "" {
-		sess, err := e.store.GetSession(context.Background(), sourceSession)
+		sess, err := e.store.GetSession(ctx, sourceSession)
 		if err == nil {
-			sourceAgent = sessionAgentIDWithStore(context.Background(), e.store, sess)
+			sourceAgent = sessionAgentIDWithStore(ctx, e.store, sess)
 		}
 	}
 	routingPolicy := stringValue(metadata["routing_policy"], "")

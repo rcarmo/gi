@@ -152,6 +152,55 @@ func (s *Store) hydrateSessionIdentityDetails(ctx context.Context, identities []
 	return nil
 }
 
+func (s *Store) hydrateSingleSessionIdentityDetails(ctx context.Context, identity *SessionIdentity) error {
+	if identity == nil || strings.TrimSpace(identity.SessionID) == "" {
+		return nil
+	}
+	identity.Scope.Values = map[string]string{}
+	dimRows, err := s.db.QueryContext(ctx, `
+		select dimension_name, dimension_value
+		from session_identity_dimensions
+		where session_id = ?
+		order by ordinal asc
+	`, identity.SessionID)
+	if err != nil {
+		return err
+	}
+	defer dimRows.Close()
+	for dimRows.Next() {
+		var name, value string
+		if err := dimRows.Scan(&name, &value); err != nil {
+			return err
+		}
+		identity.Scope.Dimensions = append(identity.Scope.Dimensions, name)
+		identity.Scope.Values[name] = value
+	}
+	if err := dimRows.Err(); err != nil {
+		return err
+	}
+	aliasRows, err := s.db.QueryContext(ctx, `
+		select alias
+		from session_aliases
+		where session_id = ?
+		order by alias asc
+	`, identity.SessionID)
+	if err != nil {
+		return err
+	}
+	defer aliasRows.Close()
+	for aliasRows.Next() {
+		var alias string
+		if err := aliasRows.Scan(&alias); err != nil {
+			return err
+		}
+		identity.Aliases = append(identity.Aliases, alias)
+	}
+	if err := aliasRows.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Store) GetSessionIdentity(ctx context.Context, sessionID string) (*SessionIdentity, error) {
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
@@ -173,7 +222,7 @@ func (s *Store) GetSessionIdentity(ctx context.Context, sessionID string) (*Sess
 	if len(identities) == 0 {
 		return nil, sql.ErrNoRows
 	}
-	if err := s.hydrateSessionIdentityDetails(ctx, identities); err != nil {
+	if err := s.hydrateSingleSessionIdentityDetails(ctx, &identities[0]); err != nil {
 		return nil, err
 	}
 	return &identities[0], nil

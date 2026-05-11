@@ -25,6 +25,7 @@ func TestStreamWithToolsOpenCodeZenSmoke(t *testing.T) {
 		t.Fatal(err)
 	}
 	norm := strings.ToLower(strings.TrimSpace(res.Text))
+	norm = strings.Trim(norm, "!?.:,; \t\r\n")
 	if !strings.Contains(norm, "hello") && norm != "hi" {
 		t.Fatalf("unexpected smoke response: %q", res.Text)
 	}

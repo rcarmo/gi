@@ -23,7 +23,7 @@ func (s *Store) ResolveOrCreateSessionFromAllocation(ctx context.Context, in Res
 	if err == nil {
 		return created, true, nil
 	}
-	if sess, resolveErr := s.ResolveSessionByAllocation(context.Background(), in.Allocation); resolveErr == nil {
+	if sess, resolveErr := s.ResolveSessionByAllocation(ctx, in.Allocation); resolveErr == nil {
 		return sess, false, nil
 	}
 	return nil, false, err
