@@ -1664,6 +1664,9 @@ func TestProcessSystemDirectWhileActiveSteersSameSession(t *testing.T) {
 	if len(msgs) != 1 {
 		t.Fatalf("expected one steering row, got %#v", msgs)
 	}
+	if msgs[0].Role != "system" {
+		t.Fatalf("expected system steering role, got %#v", msgs[0])
+	}
 	if stringValue(msgs[0].Payload["ingress_source_kind"], "") != DirectSourceKindSystem || stringValue(msgs[0].Payload["ingress_source_id"], "") != "scheduler:active" || stringValue(msgs[0].Payload["ingress_role"], "") != "system" {
 		t.Fatalf("expected system ingress metadata on queued steering payload, got %#v", msgs[0])
 	}
