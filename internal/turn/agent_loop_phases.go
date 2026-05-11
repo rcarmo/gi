@@ -20,7 +20,7 @@ type toolExecutionOutcome struct {
 	repeatedToolFailureCount int
 }
 
-var streamWithTools = inference.StreamWithTools
+var streamWithToolsWithHooks = inference.StreamWithToolsWithHooks
 
 func isCancellationError(err error) bool {
 	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
@@ -136,7 +136,7 @@ func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, tu
 }
 
 func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, iter, maxIter int, convCtx *goai.Context) (*inference.StreamResult, error) {
-	if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools, Payload: map[string]any{"model": model, "messages": len(convCtx.Messages), "tools": len(convCtx.Tools)}}); err != nil {
+	if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools, Payload: map[string]any{"model": model, "messages": len(convCtx.Messages), "tools": len(convCtx.Tools), "stage": "context"}}); err != nil {
 		log.Printf("hook before_provider_request error: %v", err)
 	} else {
 		if abortErr := hookAbortFromResponse(resp, "aborted before provider request by hook"); abortErr != nil {
@@ -166,7 +166,8 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 		"title": fmt.Sprintf("Thinking… (%d)", iter), "status": "running", "turn_id": turnID,
 	})
 
-	result, inferErr := streamWithTools(ctx, model, convCtx, func(ev map[string]any) {
+	responseObserved := false
+	result, inferErr := streamWithToolsWithHooks(ctx, model, convCtx, func(ev map[string]any) {
 		ev["chat_jid"] = "gi:" + sessionID
 		ev["turn_id"] = turnID
 		ev["iteration"] = iter
@@ -186,9 +187,25 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 		case "error":
 			r.engine.broadcast(sessionID, ev)
 		}
+	}, &inference.StreamHooks{
+		OnResponse: func(status int, headers map[string]string, modelDef *goai.Model) {
+			responseObserved = true
+			payload := map[string]any{"ok": true, "status": status, "headers": headers}
+			if modelDef != nil {
+				payload["provider"] = string(modelDef.Provider)
+				payload["api"] = string(modelDef.Api)
+				payload["model_id"] = modelDef.ID
+			}
+			if _, err := r.engine.emitHook(ctx, HookRequest{Name: HookAfterProviderResponse, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: payload}); err != nil {
+				log.Printf("hook after_provider_response error: %v", err)
+			}
+		},
 	})
-
-	_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookAfterProviderResponse, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"ok": inferErr == nil}})
+	if !responseObserved {
+		if _, err := r.engine.emitHook(ctx, HookRequest{Name: HookAfterProviderResponse, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"ok": inferErr == nil}}); err != nil {
+			log.Printf("hook after_provider_response error: %v", err)
+		}
+	}
 	return result, inferErr
 }
 

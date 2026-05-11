@@ -105,10 +105,20 @@ type StreamResult struct {
 	Text    string
 }
 
+type StreamHooks struct {
+	OnPayload  func(payload any, model *goai.Model) (any, error)
+	OnResponse func(status int, headers map[string]string, model *goai.Model)
+}
+
 // StreamWithTools streams a single LLM call (which may produce tool calls).
 // It returns the complete assistant message including any tool-call content blocks.
 // The broadcast callback receives SSE-shaped events for real-time UI updates.
 func StreamWithTools(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*StreamResult, error) {
+	return StreamWithToolsWithHooks(ctx, modelID, convCtx, broadcast, nil)
+}
+
+// StreamWithToolsWithHooks is the hook-aware variant of StreamWithTools.
+func StreamWithToolsWithHooks(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any), hooks *StreamHooks) (*StreamResult, error) {
 	Init()
 
 	provider, modelName := splitModelID(modelID)
@@ -117,7 +127,7 @@ func StreamWithTools(ctx context.Context, modelID string, convCtx *goai.Context,
 		return nil, fmt.Errorf("model not found: %s/%s", provider, modelName)
 	}
 	if provider == "opencode-zen" {
-		return streamOpenCodeZen(ctx, model, convCtx, broadcast)
+		return streamOpenCodeZen(ctx, model, convCtx, broadcast, hooks)
 	}
 
 	apiKey, baseURLOverride, err := loadAuth(provider)
@@ -130,6 +140,10 @@ func StreamWithTools(ctx context.Context, modelID string, convCtx *goai.Context,
 
 	opts := &goai.StreamOptions{
 		APIKey: apiKey,
+	}
+	if hooks != nil {
+		opts.OnPayload = hooks.OnPayload
+		opts.OnResponse = hooks.OnResponse
 	}
 	if provider == "github-copilot" {
 		opts.Headers = goai.CopilotHeaders()
@@ -194,6 +208,21 @@ func StreamWithTools(ctx context.Context, modelID string, convCtx *goai.Context,
 	return &StreamResult{Text: fullText}, nil
 }
 
+func responseHeadersMap(header http.Header) map[string]string {
+	if len(header) == 0 {
+		return map[string]string{}
+	}
+	out := make(map[string]string, len(header))
+	for key, values := range header {
+		if len(values) == 0 {
+			out[key] = ""
+			continue
+		}
+		out[key] = strings.Join(values, ", ")
+	}
+	return out
+}
+
 func splitModelID(id string) (string, string) {
 	for i, c := range id {
 		if c == '/' {
@@ -203,7 +232,7 @@ func splitModelID(id string) (string, string) {
 	return "", id
 }
 
-func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Context, broadcast func(map[string]any)) (*StreamResult, error) {
+func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Context, broadcast func(map[string]any), hooks *StreamHooks) (*StreamResult, error) {
 	payload := map[string]any{
 		"model":    model.ID,
 		"stream":   true,
@@ -212,7 +241,17 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 	if len(convCtx.Tools) > 0 {
 		payload["tools"] = openAICompatTools(convCtx.Tools)
 	}
-	body, err := json.Marshal(payload)
+	var payloadValue any = payload
+	if hooks != nil && hooks.OnPayload != nil {
+		replaced, err := hooks.OnPayload(payloadValue, model)
+		if err != nil {
+			return nil, err
+		}
+		if replaced != nil {
+			payloadValue = replaced
+		}
+	}
+	body, err := json.Marshal(payloadValue)
 	if err != nil {
 		return nil, err
 	}
@@ -227,6 +266,9 @@ func streamOpenCodeZen(ctx context.Context, model *goai.Model, convCtx *goai.Con
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if hooks != nil && hooks.OnResponse != nil {
+		hooks.OnResponse(resp.StatusCode, responseHeadersMap(resp.Header), model)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(b))

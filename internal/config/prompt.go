@@ -51,7 +51,7 @@ func buildSystemPrompt(cfg RuntimeConfig, workspaceInstructions string) string {
 	sb.WriteString("- gi supports script-registered tools and event hooks through the script bridge.\n")
 	sb.WriteString("- The agent loop has hooks for context, provider request/response metadata, messages, tool calls, tool results, and turn/agent lifecycle.\n")
 	sb.WriteString("- Connectivity routes and events may be registered by scripts; external routes should use route auth.\n")
-	sb.WriteString("- `before_provider_request` is metadata-level unless the provider layer exposes raw payload replacement.\n\n")
+	sb.WriteString("- `before_provider_request` currently mutates per-iteration provider context; `after_provider_response` now sees real provider status/headers, while full raw payload replacement remains a narrower advanced path.\n\n")
 
 	sb.WriteString("## Response style\n")
 	sb.WriteString("- Be direct and concise. Lead with what changed or what you found.\n")

@@ -234,8 +234,8 @@ SubmitPrompt(input)
 | `before_agent_start` | — | ❌ No system prompt injection point |
 | `input` | — | ❌ No input transform/intercept |
 | `context` | — | ❌ No per-turn message list rewrite |
-| `before_provider_request` | — | ❌ No payload inspection/replacement |
-| `after_provider_response` | — | ❌ No response header observation |
+| `before_provider_request` | Engine hook + provider-context mutation | ⚠️ Context mutation is implemented; full raw provider-payload replacement is still narrower/pending |
+| `after_provider_response` | Engine hook + provider response observation | ✅ Now receives observed status/header metadata when the provider path exposes it |
 | `turn_start` / `turn_end` | Store events | ✅ Emitted (store), ❌ Not callable |
 | `tool_call` (gate) | — | ❌ No pre-execution gate |
 | `tool_result` (mutate) | — | ❌ No result modification |
@@ -362,7 +362,7 @@ The initial implementation now exists in the turn engine:
   - `turn_start` / `turn_end`
   - `session_before_compact` / `session_compact`
   - `context`
-  - `before_provider_request` / `after_provider_response` (metadata-level until provider payload interception lands in `go-ai`)
+  - `before_provider_request` / `after_provider_response` (provider-context mutation is implemented; `after_provider_response` now receives observed provider status/headers via `internal/inference` / `go-ai` interception, while full raw request replacement remains narrower)
   - `message_update` / `message_end`
   - `tool_execution_start` / `tool_execution_end`
   - `tool_call` gate / rewrite
@@ -414,4 +414,4 @@ gi.on({
 
 ## Summary
 
-Pi has **28 named event hooks**, a fully runtime-registerable tool system, dynamic provider/model control, and a well-defined state persistence model. Gi now has the same core non-UX shape at the engine level: a hook registry, live tool registry, active-tool controls, script-facing registration APIs, and agent-loop call sites. The remaining gap is deep provider payload replacement: `before_provider_request` is wired as an engine hook today, but true raw payload replacement requires lowering the hook into `go-ai` provider calls.
+Pi has **28 named event hooks**, a fully runtime-registerable tool system, dynamic provider/model control, and a well-defined state persistence model. Gi now has the same core non-UX shape at the engine level: a hook registry, live tool registry, active-tool controls, script-facing registration APIs, and agent-loop call sites. The remaining provider-level gap is now narrower: `after_provider_response` is backed by real provider response metadata through `internal/inference` / `go-ai` interception, while full raw `before_provider_request` payload replacement still needs a cleaner runtime-facing contract.

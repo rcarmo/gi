@@ -360,6 +360,67 @@ func TestBeforeProviderRequestCanMutateProviderContext(t *testing.T) {
 	}
 }
 
+func TestAfterProviderResponseReceivesObservedStatusAndHeaders(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_after_llm", "AfterLLM", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_after_llm", "session_after_llm", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	var capturedPayload map[string]any
+	if _, err := e.RegisterHook(HookAfterProviderResponse, "observe-response", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		capturedPayload = req.Payload
+		return HookResponse{}, nil
+	}); err != nil {
+		t.Fatalf("register after_provider_response hook: %v", err)
+	}
+	withStreamWithToolsHookStub(t, func(ctx context.Context, model string, convCtx *goai.Context, cb func(map[string]any), hooks *inference.StreamHooks) (*inference.StreamResult, error) {
+		if hooks == nil || hooks.OnResponse == nil {
+			t.Fatalf("expected provider response hook wiring")
+		}
+		hooks.OnResponse(202, map[string]string{"x-test-header": "ok"}, &goai.Model{ID: model, Provider: goai.Provider("test-provider"), Api: goai.ApiOpenAICompletions})
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	runner := e.runner("session_after_llm")
+	convCtx := &goai.Context{SystemPrompt: "original", Messages: []goai.Message{goai.UserMessage("hello")}}
+	if _, err := runner.runProviderIteration(ctx, s, "turn_after_llm", "session_after_llm", "bootstrap", "agent", 1, 4, convCtx); err != nil {
+		t.Fatalf("run provider iteration: %v", err)
+	}
+	if capturedPayload == nil {
+		t.Fatal("expected after_provider_response payload")
+	}
+	status, ok := capturedPayload["status"].(int)
+	if !ok {
+		if statusFloat, ok := capturedPayload["status"].(float64); ok {
+			status = int(statusFloat)
+		}
+	}
+	if status != 202 {
+		t.Fatalf("expected status 202, got %#v", capturedPayload)
+	}
+	headers, ok := capturedPayload["headers"].(map[string]string)
+	if !ok {
+		generic, ok := capturedPayload["headers"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected response headers map, got %#v", capturedPayload["headers"])
+		}
+		headers = map[string]string{}
+		for k, v := range generic {
+			headers[k] = stringValue(v, "")
+		}
+	}
+	if headers["x-test-header"] != "ok" {
+		t.Fatalf("expected response header payload, got %#v", headers)
+	}
+	if stringValue(capturedPayload["provider"], "") != "test-provider" {
+		t.Fatalf("expected provider metadata, got %#v", capturedPayload)
+	}
+}
+
 func TestToolCallHookCanMutateArgumentsDuringExecution(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

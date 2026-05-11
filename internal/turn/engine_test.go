@@ -29,10 +29,17 @@ func openTestStore(t *testing.T) *store.Store {
 
 func withStreamWithToolsStub(t *testing.T, stub func(context.Context, string, *goai.Context, func(map[string]any)) (*inference.StreamResult, error)) {
 	t.Helper()
-	original := streamWithTools
-	streamWithTools = stub
+	withStreamWithToolsHookStub(t, func(ctx context.Context, model string, convCtx *goai.Context, cb func(map[string]any), hooks *inference.StreamHooks) (*inference.StreamResult, error) {
+		return stub(ctx, model, convCtx, cb)
+	})
+}
+
+func withStreamWithToolsHookStub(t *testing.T, stub func(context.Context, string, *goai.Context, func(map[string]any), *inference.StreamHooks) (*inference.StreamResult, error)) {
+	t.Helper()
+	original := streamWithToolsWithHooks
+	streamWithToolsWithHooks = stub
 	t.Cleanup(func() {
-		streamWithTools = original
+		streamWithToolsWithHooks = original
 	})
 }
 
