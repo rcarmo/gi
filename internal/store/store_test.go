@@ -1238,6 +1238,60 @@ func TestHoldAndResolveTurnFailurePhase(t *testing.T) {
 	}
 }
 
+func TestStoreInboundWorkQueueConcurrentClaimSingleWinner(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "hello"})
+	if err != nil {
+		t.Fatalf("enqueue inbound work: %v", err)
+	}
+	const workers = 8
+	claimedIDs := make(chan int64, workers)
+	errs := make(chan error, workers)
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			item, err := s.ClaimNextInboundWork(ctx, fmt.Sprintf("worker-%d", i))
+			if err == sql.ErrNoRows {
+				return
+			}
+			if err != nil {
+				errs <- err
+				return
+			}
+			claimedIDs <- item.ID
+		}(i)
+	}
+	wg.Wait()
+	close(claimedIDs)
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent claim inbound work: %v", err)
+		}
+	}
+	claims := []int64{}
+	for id := range claimedIDs {
+		claims = append(claims, id)
+	}
+	if len(claims) != 1 || claims[0] != queued.ID {
+		t.Fatalf("expected exactly one successful claim for %d, got %#v", queued.ID, claims)
+	}
+	item, err := s.GetInboundWork(ctx, queued.ID)
+	if err != nil {
+		t.Fatalf("get claimed inbound work: %v", err)
+	}
+	if item.Status != "claimed" || item.ClaimedBy == "" {
+		t.Fatalf("expected claimed inbound work after concurrent claim, got %#v", item)
+	}
+}
+
 func TestStoreInboundWorkQueueLifecycle(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

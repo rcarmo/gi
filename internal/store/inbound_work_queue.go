@@ -110,42 +110,25 @@ func (s *Store) ClaimNextInboundWork(ctx context.Context, claimedBy string) (*In
 	if claimedBy == "" {
 		claimedBy = "worker"
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, fmt.Errorf("claim inbound work begin tx: %w", err)
-	}
-	defer tx.Rollback()
-	row := tx.QueryRowContext(ctx, `
-		select id
-		from inbound_work_queue
-		where status = 'queued'
-		order by id asc
-		limit 1
-	`)
+	row := s.db.QueryRowContext(ctx, `
+		update inbound_work_queue
+		set status = 'claimed', claimed_by = ?, claimed_at = `+defaultNow+`, updated_at = `+defaultNow+`
+		where id = (
+			select id
+			from inbound_work_queue
+			where status = 'queued'
+			order by id asc
+			limit 1
+		)
+		and status = 'queued'
+		returning id
+	`, claimedBy)
 	var id int64
 	if err := row.Scan(&id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, err
 		}
-		return nil, fmt.Errorf("claim inbound work select: %w", err)
-	}
-	res, err := tx.ExecContext(ctx, `
-		update inbound_work_queue
-		set status = 'claimed', claimed_by = ?, claimed_at = `+defaultNow+`, updated_at = `+defaultNow+`
-		where id = ? and status = 'queued'
-	`, claimedBy, id)
-	if err != nil {
-		return nil, fmt.Errorf("claim inbound work update: %w", err)
-	}
-	rows, err := res.RowsAffected()
-	if err != nil {
-		return nil, fmt.Errorf("claim inbound work rows: %w", err)
-	}
-	if rows == 0 {
-		return nil, sql.ErrNoRows
-	}
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("claim inbound work commit: %w", err)
+		return nil, fmt.Errorf("claim inbound work: %w", err)
 	}
 	return s.GetInboundWork(ctx, id)
 }
