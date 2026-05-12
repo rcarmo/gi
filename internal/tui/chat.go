@@ -269,6 +269,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		hookName, _ := payload["hook"].(string)
 		reason, _ := payload["reason"].(string)
 		toolName, _ := payload["tool"].(string)
+		errText, _ := payload["error"].(string)
 		line := ""
 		switch typ {
 		case "hook_deny", "hook_abort":
@@ -277,6 +278,10 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			line = "sys: hook modified"
 		case "hook_respond":
 			line = "sys: hook responded directly"
+		case "hook_invocation":
+			if errText != "" {
+				line = "sys: hook invocation error"
+			}
 		}
 		if line != "" {
 			if hookName != "" {
@@ -287,6 +292,8 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			}
 			if reason != "" {
 				line += ": " + truncate(reason, 120)
+			} else if errText != "" {
+				line += ": " + truncate(errText, 120)
 			}
 			c.appendTranscript(line)
 		}

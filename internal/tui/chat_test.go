@@ -318,6 +318,14 @@ func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 	}
 }
 
+func TestHandleTopicEventHookInvocationErrorRendering(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_invocation", "hook": "tool_call", "tool": "grep", "error": "timed out after 1500ms"}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: hook invocation error via tool_call for grep: timed out after 1500ms" {
+		t.Fatalf("hook invocation error transcript = %q", got)
+	}
+}
+
 func TestHandleTopicEventHookDecisionRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_modify", "hook": "tool_call", "tool": "grep"}})
