@@ -328,15 +328,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		}
 		c.renderRoutingEvent(payload["type"], payload["target_agent_id"], payload["target_session"], payload["target_session_id"], payload["source_agent_id"])
 	case "session.steering":
-		typ, _ := payload["type"].(string)
-		switch typ {
-		case "steering_enqueued":
-			c.status = "Queued follow-up"
-		case "steering_injected":
-			c.status = "Injected follow-up"
-		case "steering_continued":
-			c.status = "Continuing queued follow-up"
-		}
+		c.renderSteeringEvent(payload["type"])
 	case "turn.subturn":
 		c.renderSubturnEvent(payload["type"], payload["child_turn_id"], payload["status"])
 	}
@@ -506,6 +498,18 @@ func (c *chatTUI) clearDraftTranscriptLine() {
 
 func (c *chatTUI) markRunning() {
 	c.running = true
+}
+
+func (c *chatTUI) renderSteeringEvent(eventTypeValue any) {
+	typ, _ := eventTypeValue.(string)
+	switch typ {
+	case "steering_enqueued":
+		c.status = "Queued follow-up"
+	case "steering_injected":
+		c.status = "Injected follow-up"
+	case "steering_continued":
+		c.status = "Continuing queued follow-up"
+	}
 }
 
 func (c *chatTUI) renderSubturnEvent(eventTypeValue, childTurnValue, statusValue any) {
