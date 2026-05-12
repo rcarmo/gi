@@ -190,7 +190,10 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 	runner := e.runner(sessionID)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
-	coordCtx := context.Background()
+	coordCtx := ctx
+	if coordCtx == nil {
+		coordCtx = e.backgroundContext()
+	}
 	if _, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
 		return false, nil
 	} else if err != nil && err != sql.ErrNoRows {

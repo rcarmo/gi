@@ -106,7 +106,10 @@ func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionR
 	if sessionID == "" {
 		return false, nil
 	}
-	coordCtx := context.Background()
+	coordCtx := ctx
+	if coordCtx == nil {
+		coordCtx = e.backgroundContext()
+	}
 	if _, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
 		return false, nil
 	} else if err != sql.ErrNoRows {
@@ -143,6 +146,7 @@ func (e *Engine) startNextQueuedTurn(ctx context.Context, sessionID string) erro
 }
 
 func (r *sessionRunner) heartbeatActiveTurn(ctx context.Context, sessionID, claimToken string) {
+	bgCtx := r.engine.backgroundContext()
 	ticker := time.NewTicker(activeTurnHeartbeatInterval)
 	defer ticker.Stop()
 	for {
@@ -150,7 +154,7 @@ func (r *sessionRunner) heartbeatActiveTurn(ctx context.Context, sessionID, clai
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if err := r.store.TouchSessionActiveTurn(context.Background(), sessionID, claimToken); err != nil {
+			if err := r.store.TouchSessionActiveTurn(bgCtx, sessionID, claimToken); err != nil {
 				log.Printf("turn heartbeat: %v", err)
 			}
 		}
