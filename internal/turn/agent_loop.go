@@ -271,13 +271,19 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, m
 	phase := terminalPhaseForStatus(status)
 	warnStore("update turn status and phase terminal", s.UpdateTurnStatusAndPhase(context.Background(), turnID, status, phase))
 	warnStore("mark turn finished", s.MarkTurnFinished(context.Background(), turnID))
-	r.engine.PublishRuntimeTurnEvent("turn_terminal", sessionID, turnID, agentID, status, phase, map[string]any{"reason": firstNonEmpty(failureKind, status), "failure_kind": failureKind})
+	turnEventType := "turn_terminal"
+	sessionIdleReason := "turn_terminal"
+	if status == "completed" && failureKind == "" {
+		turnEventType = "turn_completed"
+		sessionIdleReason = "turn_completed"
+	}
+	r.engine.PublishRuntimeTurnEvent(turnEventType, sessionID, turnID, agentID, status, phase, map[string]any{"reason": firstNonEmpty(failureKind, status), "failure_kind": failureKind})
 	r.emitTurnStateHookOnly(context.Background(), sessionID, turnID, agentID, model, status, phase, map[string]any{"reason": firstNonEmpty(failureKind, status)})
 	r.propagateChildSubTurnCancellation(context.Background(), turnID, status, failureKind)
 	r.publishSubTurnLifecycle(context.Background(), turnID, status)
 	warnStore("touch session idle", s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
-	r.engine.PublishRuntimeSessionEvent("session_idle", sessionID, agentID, "idle", map[string]any{"reason": "turn_terminal", "turn_id": turnID, "turn_status": status, "model": model})
-	r.emitSessionStateHookOnly(context.Background(), sessionID, agentID, model, "idle", map[string]any{"reason": "turn_terminal", "turn_status": status})
+	r.engine.PublishRuntimeSessionEvent("session_idle", sessionID, agentID, "idle", map[string]any{"reason": sessionIdleReason, "turn_id": turnID, "turn_status": status, "model": model})
+	r.emitSessionStateHookOnly(context.Background(), sessionID, agentID, model, "idle", map[string]any{"reason": sessionIdleReason, "turn_status": status})
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
 }
 

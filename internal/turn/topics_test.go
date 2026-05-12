@@ -317,6 +317,45 @@ func TestHookOnlyStateEmittersDoNotPublishGenericRuntimeTopics(t *testing.T) {
 	}
 }
 
+func TestFinishTurnCompletedPublishesCompletedRuntimeTopics(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	runner := &sessionRunner{store: s, engine: engine}
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_finish_completed", "Test", map[string]any{"status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_finish_completed", "session_finish_completed", "running", "running", map[string]any{}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	subCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	turnCh, unsubTurn := engine.Topics().Subscribe(subCtx, "runtime.turn", topics.SubscribeOptions{Buffer: 8, SessionID: "session_finish_completed"})
+	defer unsubTurn()
+	sessionCh, unsubSession := engine.Topics().Subscribe(subCtx, "runtime.session", topics.SubscribeOptions{Buffer: 8, SessionID: "session_finish_completed"})
+	defer unsubSession()
+
+	runner.finishTurn(s, "turn_finish_completed", "session_finish_completed", "agent", "model", "completed", "Reached maximum iteration limit (1). The task may be incomplete.", "")
+
+	select {
+	case env := <-turnCh:
+		if env.Payload["type"] != "turn_completed" || env.Payload["status"] != "completed" {
+			t.Fatalf("unexpected runtime.turn payload for completed finishTurn: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.turn completed event")
+	}
+	select {
+	case env := <-sessionCh:
+		if env.Payload["type"] != "session_idle" || env.Payload["reason"] != "turn_completed" || env.Payload["turn_status"] != "completed" {
+			t.Fatalf("unexpected runtime.session payload for completed finishTurn: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.session idle event")
+	}
+}
+
 func TestPublishRuntimeRoutingEventUsesExpectedSessionScope(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
