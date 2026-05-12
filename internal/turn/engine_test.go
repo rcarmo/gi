@@ -1044,6 +1044,44 @@ func TestCancelQueuedTurnRestartPublishesSetupTopics(t *testing.T) {
 	}
 }
 
+func TestCancelQueuedTurnPublishesTerminalTopicsWhenSessionBecomesIdle(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	sess, _ := s.CreateSession(ctx, "session_cancel_topics_idle", "Test", map[string]any{"model": "bootstrap"})
+	engine := New(s)
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_queued_cancel_topics_idle", sess.ID, "queued", "two", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	turnTopicCh, unsubTurn := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 8, SessionID: sess.ID})
+	defer unsubTurn()
+	sessionTopicCh, unsubSession := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 8, SessionID: sess.ID})
+	defer unsubSession()
+
+	if err := engine.CancelTurn(ctx, sess.ID, queuedTurn.ID); err != nil {
+		t.Fatalf("cancel queued turn: %v", err)
+	}
+
+	foundTurnTerminal := false
+	foundSessionIdle := false
+	deadline := time.After(2 * time.Second)
+	for !(foundTurnTerminal && foundSessionIdle) {
+		select {
+		case env := <-turnTopicCh:
+			if env.Payload["type"] == "turn_terminal" && env.Payload["turn_id"] == queuedTurn.ID && env.Payload["status"] == "cancelled" && env.Payload["reason"] == "queued_cancel" {
+				foundTurnTerminal = true
+			}
+		case env := <-sessionTopicCh:
+			if env.Payload["type"] == "session_idle" && env.Payload["turn_id"] == queuedTurn.ID && env.Payload["turn_status"] == "cancelled" && env.Payload["reason"] == "turn_terminal" {
+				foundSessionIdle = true
+			}
+		case <-deadline:
+			t.Fatalf("expected queued cancel to publish turn_terminal and session_idle, got turn_terminal=%v session_idle=%v", foundTurnTerminal, foundSessionIdle)
+		}
+	}
+}
+
 func TestCancelQueuedTurnIgnoresCallerSessionID(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
