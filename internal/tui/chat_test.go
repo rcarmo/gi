@@ -310,6 +310,18 @@ func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 	}
 }
 
+func TestHandleTopicEventHookDecisionRendering(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_modify", "hook": "tool_call", "tool": "grep"}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: hook modified via tool_call for grep" {
+		t.Fatalf("hook modify transcript = %q", got)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_respond", "hook": "tool_call", "tool": "grep"}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: hook responded directly via tool_call for grep" {
+		t.Fatalf("hook respond transcript = %q", got)
+	}
+}
+
 func TestHandleTopicEventStatusRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Payload: map[string]any{"type": "tool_started", "tool": "read"}})

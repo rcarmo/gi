@@ -259,11 +259,19 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		}
 	case "runtime.hook":
 		typ, _ := payload["type"].(string)
-		if typ == "hook_deny" || typ == "hook_abort" {
-			hookName, _ := payload["hook"].(string)
-			reason, _ := payload["reason"].(string)
-			toolName, _ := payload["tool"].(string)
-			line := fmt.Sprintf("sys: hook %s", typ)
+		hookName, _ := payload["hook"].(string)
+		reason, _ := payload["reason"].(string)
+		toolName, _ := payload["tool"].(string)
+		line := ""
+		switch typ {
+		case "hook_deny", "hook_abort":
+			line = fmt.Sprintf("sys: hook %s", typ)
+		case "hook_modify":
+			line = "sys: hook modified"
+		case "hook_respond":
+			line = "sys: hook responded directly"
+		}
+		if line != "" {
 			if hookName != "" {
 				line += " via " + hookName
 			}
