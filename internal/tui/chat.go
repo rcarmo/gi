@@ -329,8 +329,11 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		status, _ := payload["status"].(string)
 		switch typ {
 		case "session_running", "session_state":
-			if status == "running" && c.status == "" {
-				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+			if status == "running" {
+				c.running = true
+				if c.status == "" {
+					c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+				}
 			}
 			if status == "idle" {
 				c.resetRunningDraftState()
