@@ -52,9 +52,12 @@ func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnI
 	if !boolValueOr(metadata["routing_enabled"], true) {
 		return nil
 	}
-	if _, err := e.store.RecordRouteEvent(ctx, decision); err != nil {
+	routeEventID, err := e.store.RecordRouteEvent(ctx, decision)
+	if err != nil {
 		return err
 	}
+	decision.ID = routeEventID
+	e.PublishRuntimeRoutingEvent("routing_decision", decision)
 	e.broadcast(sourceSession, map[string]any{
 		"type":            "routing_decision",
 		"chat_jid":        "gi:" + sourceSession,
@@ -68,6 +71,8 @@ func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnI
 		"created_session": boolValue(metadata["route_created_session"]),
 	})
 	if targetSession != "" && targetSession != sourceSession {
+		incoming := decision
+		e.PublishRuntimeRoutingEvent("routing_incoming", incoming)
 		e.broadcast(targetSession, map[string]any{
 			"type":            "routing_incoming",
 			"chat_jid":        "gi:" + targetSession,

@@ -76,6 +76,7 @@ Current topic/runtime publication status:
 - hook invocation lifecycle/decision notices now publish under `runtime.hook`
 - core runtime turn/session lifecycle checkpoints now also publish under `runtime.turn` and `runtime.session` (currently setup start plus terminal/idle transitions)
 - core runtime tool lifecycle checkpoints now also publish under `runtime.tool` (currently started, finished, failed, and skipped)
+- core runtime routing/allocation decision notices now also publish under `runtime.routing` (currently persisted route-decision and incoming-route notices)
 - dedicated topic SSE streaming is now live via `/sse/topics`
 - script-facing topic APIs now exist in the JS script bridge: `gi.topics.publish(...)` plus polling-style `gi.topics.subscribe(...)`, `gi.topics.read(...)`, and `gi.topics.unsubscribe(...)`
 

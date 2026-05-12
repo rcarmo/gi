@@ -17,13 +17,14 @@ Implemented so far:
 - hook invocation lifecycle/decision publication under `runtime.hook`
 - core runtime turn/session lifecycle checkpoints under `runtime.turn` and `runtime.session` (currently setup start plus terminal/idle transitions, not a full mirror of every turn row)
 - core runtime tool lifecycle checkpoints under `runtime.tool` (currently started, finished, failed, and skipped)
+- core runtime routing/allocation decision notices under `runtime.routing` (currently route-decision and route-incoming checkpoints tied to persisted `routing_events` rows)
 - dedicated SSE topic-stream endpoint at `/sse/topics` with topic-pattern plus session/agent scoping
 
 Still pending:
 
 - Joker-side topic bridge functions (JS script bridge now supports publish + polling subscribe/read/unsubscribe)
 - TUI/topic-native consumers
-- fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices; `runtime.turn` / `runtime.session` currently cover only the highest-value lifecycle checkpoints, and `runtime.tool` currently covers only started/finished/failed/skipped rather than every approval/hook sub-phase
+- fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices; `runtime.turn` / `runtime.session` currently cover only the highest-value lifecycle checkpoints, `runtime.tool` currently covers only started/finished/failed/skipped rather than every approval/hook sub-phase, and `runtime.routing` currently covers persisted decision/incoming notices rather than every route-resolution branch before persistence
 - deeper convergence between connectivity and topics
 
 ## Goal

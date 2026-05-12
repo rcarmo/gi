@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
 )
 
@@ -242,6 +243,52 @@ func TestPublishRuntimeToolEventPublishesRuntimeToolTopic(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected runtime.tool topic event")
+	}
+}
+
+func TestPublishRuntimeRoutingEventUsesExpectedSessionScope(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	decisionCh, unsubDecision := engine.Topics().Subscribe(ctx, "runtime.routing", topics.SubscribeOptions{Buffer: 8, SessionID: "session_route_source"})
+	defer unsubDecision()
+	incomingCh, unsubIncoming := engine.Topics().Subscribe(ctx, "runtime.routing", topics.SubscribeOptions{Buffer: 8, SessionID: "session_route_target"})
+	defer unsubIncoming()
+	decision := store.RouteEvent{
+		ID:             42,
+		TurnID:         "turn_route_topic",
+		SourceSession:  "session_route_source",
+		TargetSession:  "session_route_target",
+		SourceAgentID:  "agent_source",
+		TargetAgentID:  "agent_target",
+		Mode:           "prompt",
+		MatchedBy:      "mention",
+		RoutingPolicy:  "mention",
+		RequestedAgent: "agent_target",
+		Metadata:       map[string]any{"created_session": true},
+		CreatedAt:      time.Now().UTC().Format(time.RFC3339Nano),
+	}
+
+	engine.PublishRuntimeRoutingEvent("routing_decision", decision)
+	select {
+	case env := <-decisionCh:
+		if env.SessionID != "session_route_source" || env.Payload["type"] != "routing_decision" || env.Payload["route_event_id"] != int64(42) {
+			t.Fatalf("unexpected routing decision topic: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected routing_decision topic event")
+	}
+
+	engine.PublishRuntimeRoutingEvent("routing_incoming", decision)
+	select {
+	case env := <-incomingCh:
+		if env.SessionID != "session_route_target" || env.Payload["type"] != "routing_incoming" || env.Payload["target_agent_id"] != "agent_target" {
+			t.Fatalf("unexpected routing incoming topic: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected routing_incoming topic event")
 	}
 }
 

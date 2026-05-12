@@ -243,6 +243,33 @@ func (e *Engine) PublishRuntimeToolEvent(eventType, sessionID, turnID, agentID, 
 	e.publishTopicEvent(topics.Envelope{Topic: "runtime.tool", SessionID: strings.TrimSpace(sessionID), AgentID: strings.TrimSpace(agentID), Source: "runtime", Type: envelopeType, Payload: body})
 }
 
+func (e *Engine) PublishRuntimeRoutingEvent(eventType string, decision store.RouteEvent) {
+	if e == nil || e.topics == nil {
+		return
+	}
+	body := cloneMap(decision.Metadata)
+	if body == nil {
+		body = map[string]any{}
+	}
+	body["type"] = strings.TrimSpace(eventType)
+	body["route_event_id"] = decision.ID
+	body["turn_id"] = strings.TrimSpace(decision.TurnID)
+	body["source_session_id"] = strings.TrimSpace(decision.SourceSession)
+	body["target_session_id"] = strings.TrimSpace(decision.TargetSession)
+	body["source_agent_id"] = strings.TrimSpace(decision.SourceAgentID)
+	body["target_agent_id"] = strings.TrimSpace(decision.TargetAgentID)
+	body["mode"] = strings.TrimSpace(decision.Mode)
+	body["matched_by"] = strings.TrimSpace(decision.MatchedBy)
+	body["routing_policy"] = strings.TrimSpace(decision.RoutingPolicy)
+	body["requested_agent_id"] = strings.TrimSpace(decision.RequestedAgent)
+	body["created_at"] = strings.TrimSpace(decision.CreatedAt)
+	sessionID := strings.TrimSpace(decision.SourceSession)
+	if strings.TrimSpace(eventType) == "routing_incoming" && strings.TrimSpace(decision.TargetSession) != "" {
+		sessionID = strings.TrimSpace(decision.TargetSession)
+	}
+	e.publishTopicEvent(topics.Envelope{Topic: "runtime.routing", SessionID: sessionID, AgentID: strings.TrimSpace(decision.TargetAgentID), Source: "runtime", Type: "notice", Payload: body})
+}
+
 func cloneMap(in map[string]any) map[string]any {
 	if in == nil {
 		return nil
