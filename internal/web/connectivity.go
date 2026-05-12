@@ -13,6 +13,7 @@ import (
 
 	"github.com/rcarmo/gi/internal/connectivity"
 	"github.com/rcarmo/gi/internal/tools"
+	"github.com/rcarmo/gi/internal/topics"
 )
 
 const connectivityRoutePrefix = "/api/connect/routes/"
@@ -60,6 +61,32 @@ func (s *Server) configureScriptConnectivity() {
 			}
 			payload["session_id"] = sessionID
 			return s.turns.Connectivity().Emit(ctx, topic, payload)
+		},
+		func(ctx context.Context, sessionID string, envelope map[string]any) error {
+			if s.turns == nil || s.turns.Topics() == nil {
+				return fmt.Errorf("publish topic: topic bus not available")
+			}
+			topicName, _ := envelope["topic"].(string)
+			topicName = strings.TrimSpace(topicName)
+			if topicName == "" {
+				return fmt.Errorf("publish topic: topic is required")
+			}
+			payload, _ := envelope["payload"].(map[string]any)
+			if payload == nil {
+				payload = map[string]any{}
+			}
+			agentID, _ := envelope["agent_id"].(string)
+			source, _ := envelope["source"].(string)
+			if strings.TrimSpace(source) == "" {
+				source = "script"
+			}
+			typ, _ := envelope["type"].(string)
+			sessionValue, _ := envelope["session_id"].(string)
+			if strings.TrimSpace(sessionValue) == "" {
+				sessionValue = sessionID
+			}
+			s.turns.PublishTopicEvent(topics.Envelope{Topic: topicName, SessionID: sessionValue, AgentID: strings.TrimSpace(agentID), Source: source, Type: strings.TrimSpace(typ), Payload: payload})
+			return nil
 		},
 	)
 }

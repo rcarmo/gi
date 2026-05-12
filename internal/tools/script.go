@@ -51,6 +51,7 @@ type ScriptTool struct {
 	onUnregisterRoute   func(ctx context.Context, sessionID string, id string) error
 	onListRoutes        func(ctx context.Context, sessionID string, filter map[string]any) ([]connectivity.RouteInfo, error)
 	onEmitConnectEvent  func(ctx context.Context, sessionID string, topic string, payload map[string]any) error
+	onPublishTopic      func(ctx context.Context, sessionID string, envelope map[string]any) error
 }
 
 // ScriptInput is what the agent sends to invoke the script tool.
@@ -98,11 +99,13 @@ func (t *ScriptTool) SetConnectivityCallbacks(
 	unregisterRoute func(context.Context, string, string) error,
 	listRoutes func(context.Context, string, map[string]any) ([]connectivity.RouteInfo, error),
 	emitEvent func(context.Context, string, string, map[string]any) error,
+	publishTopic func(context.Context, string, map[string]any) error,
 ) {
 	t.onRegisterRoute = registerRoute
 	t.onUnregisterRoute = unregisterRoute
 	t.onListRoutes = listRoutes
 	t.onEmitConnectEvent = emitEvent
+	t.onPublishTopic = publishTopic
 }
 
 // Definition returns the tool metadata for the agent.
@@ -463,6 +466,12 @@ func (t *ScriptTool) buildBridge(sessionID string) *scripting.Bridge {
 		},
 		ClearEventHooks: func(ctx context.Context) error {
 			return t.clearEventHooks(ctx, sessionID)
+		},
+		PublishTopic: func(ctx context.Context, envelope map[string]any) error {
+			if t.onPublishTopic == nil {
+				return fmt.Errorf("publish topic: host topic bus is not available")
+			}
+			return t.onPublishTopic(ctx, sessionID, envelope)
 		},
 		RegisterConnectivityRoute: func(ctx context.Context, route connectivity.RouteSpec) (connectivity.RouteInfo, error) {
 			if t.onRegisterRoute == nil {

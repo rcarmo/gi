@@ -14,6 +14,7 @@ import (
 	"github.com/rcarmo/gi/internal/rtk"
 	"github.com/rcarmo/gi/internal/scripting"
 	"github.com/rcarmo/gi/internal/tools"
+	"github.com/rcarmo/gi/internal/topics"
 	goai "github.com/rcarmo/go-ai"
 )
 
@@ -55,6 +56,32 @@ func (e *Engine) registerDefaultTools() {
 			}
 			payload["session_id"] = sessionID
 			return e.connectivity.Emit(ctx, topic, payload)
+		},
+		func(ctx context.Context, sessionID string, envelope map[string]any) error {
+			if e == nil || e.Topics() == nil {
+				return fmt.Errorf("publish topic: topic bus is not available")
+			}
+			topicName, _ := envelope["topic"].(string)
+			topicName = strings.TrimSpace(topicName)
+			if topicName == "" {
+				return fmt.Errorf("publish topic: topic is required")
+			}
+			payload, _ := envelope["payload"].(map[string]any)
+			if payload == nil {
+				payload = map[string]any{}
+			}
+			agentID, _ := envelope["agent_id"].(string)
+			source, _ := envelope["source"].(string)
+			if strings.TrimSpace(source) == "" {
+				source = "script"
+			}
+			typ, _ := envelope["type"].(string)
+			sessionValue, _ := envelope["session_id"].(string)
+			if strings.TrimSpace(sessionValue) == "" {
+				sessionValue = sessionID
+			}
+			e.PublishTopicEvent(topics.Envelope{Topic: topicName, SessionID: sessionValue, AgentID: strings.TrimSpace(agentID), Source: source, Type: strings.TrimSpace(typ), Payload: payload})
+			return nil
 		},
 	)
 	scriptTool.SetAgenticCallbacks(

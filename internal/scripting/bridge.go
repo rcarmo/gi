@@ -150,6 +150,7 @@ type BridgeFuncs struct {
 	GetEntries        func(ctx context.Context, entryType string) ([]map[string]any, error)
 	EmitEvent         func(ctx context.Context, name string, payload map[string]any) error
 	ClearEventHooks   func(ctx context.Context) error
+	PublishTopic      func(ctx context.Context, envelope map[string]any) error
 
 	// Connectivity and route registration
 	RegisterConnectivityRoute   func(ctx context.Context, route connectivity.RouteSpec) (connectivity.RouteInfo, error)

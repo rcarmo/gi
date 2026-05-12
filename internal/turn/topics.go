@@ -51,6 +51,10 @@ func (e *Engine) publishTopicEvent(env topics.Envelope) {
 	e.topics.Publish(env)
 }
 
+func (e *Engine) PublishTopicEvent(env topics.Envelope) {
+	e.publishTopicEvent(env)
+}
+
 func (e *Engine) publishTopicFromBroadcast(sessionID string, ev map[string]any) {
 	if e == nil || e.topics == nil || ev == nil {
 		return

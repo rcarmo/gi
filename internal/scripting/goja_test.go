@@ -58,6 +58,33 @@ func TestGojaRunnerExecuteSupportsSessionStateAndMetadata(t *testing.T) {
 	}
 }
 
+func TestGojaRunnerExecuteSupportsTopicPublish(t *testing.T) {
+	var published map[string]any
+	bridge := NewBridge("goja-session", BridgeFuncs{
+		PublishTopic: func(ctx context.Context, envelope map[string]any) error {
+			published = envelope
+			return nil
+		},
+	})
+	out, err := NewGojaRunner().Execute(context.Background(), `
+		gi.topics.publish({topic: "runtime.test", payload: {ok: true}, type: "notice", source: "script"});
+		"done";
+	`, bridge)
+	if err != nil {
+		t.Fatalf("goja execute returned error: %v", err)
+	}
+	if out != "done" {
+		t.Fatalf("unexpected output: %q", out)
+	}
+	if published["topic"] != "runtime.test" {
+		t.Fatalf("unexpected published topic envelope: %#v", published)
+	}
+	payload, _ := published["payload"].(map[string]any)
+	if payload == nil || payload["ok"] != true {
+		t.Fatalf("unexpected published topic payload: %#v", published)
+	}
+}
+
 func TestGojaRunnerExecuteSupportsEventHooksAndHTTPRequest(t *testing.T) {
 	var hookSeen bool
 	var emitted bool

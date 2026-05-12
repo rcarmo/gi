@@ -243,6 +243,31 @@ func buildJSBridge(ctx context.Context, vm *goja.Runtime, bridge *Bridge) (*goja
 		})
 	}
 
+	if bridge.Funcs.PublishTopic != nil {
+		topicsObj := vm.NewObject()
+		topicsObj.Set("publish", func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				panic(vm.NewGoError(fmt.Errorf("topics.publish requires an envelope object")))
+			}
+			exported := call.Arguments[0].Export()
+			envelope, ok := exported.(map[string]any)
+			if !ok {
+				b, err := json.Marshal(exported)
+				if err != nil {
+					panic(vm.NewGoError(fmt.Errorf("topics.publish envelope must be an object")))
+				}
+				if err := json.Unmarshal(b, &envelope); err != nil {
+					panic(vm.NewGoError(fmt.Errorf("topics.publish envelope must be an object: %w", err)))
+				}
+			}
+			if err := bridge.Funcs.PublishTopic(ctx, envelope); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		})
+		obj.Set("topics", topicsObj)
+	}
+
 	// Event hooks
 	if bridge.Funcs.RegisterEventHook != nil {
 		registerEventHookFn := func(call goja.FunctionCall) goja.Value {

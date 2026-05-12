@@ -177,6 +177,37 @@ func TestScriptToolCanLoadJSFromVFSPath(t *testing.T) {
 	}
 }
 
+func TestScriptToolJSCanPublishTopics(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	session, err := s.CreateSession(context.Background(), store.NowID("session"), "demo", map[string]any{"model": "test-model", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir(), DefaultModel: "test-model", DefaultProvider: "test", DefaultThinkingLevel: "low"})
+	var published map[string]any
+	tool.SetConnectivityCallbacks(nil, nil, nil, nil, func(ctx context.Context, sessionID string, envelope map[string]any) error {
+		published = envelope
+		if sessionID != session.ID {
+			t.Fatalf("unexpected session id for published topic: %q", sessionID)
+		}
+		return nil
+	})
+	out := tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Script: `gi.topics.publish({topic: "runtime.test", payload: {ok: true}, type: "notice"}); "ok";`})
+	if out.Error != "" {
+		t.Fatalf("script error: %v", out.Error)
+	}
+	if out.Result != "ok" {
+		t.Fatalf("unexpected result: %q", out.Result)
+	}
+	if published["topic"] != "runtime.test" {
+		t.Fatalf("unexpected published topic envelope: %#v", published)
+	}
+}
+
 func TestScriptToolJokerSupportsEventHooksAndEmit(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

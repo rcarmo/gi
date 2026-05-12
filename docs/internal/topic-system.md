@@ -18,7 +18,7 @@ Implemented so far:
 
 Still pending:
 
-- script bridge publish/subscribe APIs
+- script bridge subscribe APIs (publish is now available via `gi.topics.publish(...)` in the JS bridge)
 - TUI/topic-native consumers
 - fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices
 - deeper convergence between connectivity and topics
@@ -166,22 +166,20 @@ However, hook callbacks or extension handlers should be able to publish topic me
 ```js
 gi.topics.publish({
   topic: "ui.notice",
-  session_id: req.sessionId,
-  source: "extension:my-ext",
+  session_id: gi.sessionId,
+  source: "script",
   type: "notice",
   payload: { text: "Index refresh complete" }
 })
 
-const unsub = gi.topics.subscribe("turn.*", (event) => {
-  // inspect or relay
-})
+// Subscribe-side APIs remain pending.
 ```
 
 ### Joker
 
-- `gi-topic-publish`
-- `gi-topic-subscribe`
-- `gi-topic-unsubscribe`
+- `gi-topic-publish` — pending
+- `gi-topic-subscribe` — pending
+- `gi-topic-unsubscribe` — pending
 
 Initial implementation can keep subscriptions read-only/observe-only.
 
