@@ -200,7 +200,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		title, _ := payload["title"].(string)
 		status, _ := payload["status"].(string)
 		if status == "running" {
-			c.running = true
+			c.markRunning()
 		}
 		if title != "" {
 			c.status = title
@@ -232,20 +232,20 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 	case "turn.draft":
 		delta, _ := payload["delta"].(string)
 		if delta != "" {
-			c.running = true
+			c.markRunning()
 			c.draft += delta
 			c.updateDraftTranscriptLine()
 			c.status = fmt.Sprintf("⏳ %s…", truncate(c.draft, 80))
 		}
 	case "turn.thought":
-		c.running = true
+		c.markRunning()
 		c.status = "Thinking…"
 	case "runtime.tool":
 		toolName, _ := payload["tool"].(string)
 		typ, _ := payload["type"].(string)
 		switch typ {
 		case "tool_started":
-			c.running = true
+			c.markRunning()
 			if toolName != "" {
 				c.status = fmt.Sprintf("Running: %s", toolName)
 			}
@@ -317,7 +317,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		case "turn_state":
 			phase, _ := payload["phase"].(string)
 			if status == "running" && phase == "waiting_on_tools" {
-				c.running = true
+				c.markRunning()
 				toolName, _ := payload["tool"].(string)
 				if toolName != "" {
 					c.status = fmt.Sprintf("Running: %s", toolName)
@@ -330,7 +330,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		switch typ {
 		case "session_running", "session_state":
 			if status == "running" {
-				c.running = true
+				c.markRunning()
 				if c.status == "" {
 					c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 				}
@@ -647,6 +647,10 @@ func (c *chatTUI) clearDraftTranscriptLine() {
 	}
 	c.draft = ""
 	c.draftLineIndex = -1
+}
+
+func (c *chatTUI) markRunning() {
+	c.running = true
 }
 
 func (c *chatTUI) resetRunningDraftState() {
