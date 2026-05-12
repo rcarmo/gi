@@ -677,6 +677,58 @@ func TestRuntimeInboundWorkDiscardRejectsCompletedItem(t *testing.T) {
 	}
 }
 
+func TestRuntimeInboundWorkDispatcherUsesSingleLeaseHolder(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	engineA := turn.New(s)
+	engineB := turn.New(s)
+	cfg := config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium", InboundWork: config.InboundWorkSettings{Enabled: true, IntervalMS: 25, BatchSize: 1, WorkerID: "web-test-dispatcher", LeaseTTLMS: 500}}
+	srvA := New(s, engineA, cfg)
+	srvB := New(s, engineB, cfg)
+	ctxA, cancelA := context.WithCancel(t.Context())
+	defer cancelA()
+	ctxB, cancelB := context.WithCancel(t.Context())
+	defer cancelB()
+	srvA.StartInboundWorkDispatcher(ctxA)
+	srvB.StartInboundWorkDispatcher(ctxB)
+	session, err := s.CreateSession(t.Context(), store.NowID("session"), "Demo", map[string]any{"status": "idle", "model": "bootstrap", "provider": "test", "thinking_level": "medium"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	enqueueReq := httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work", bytes.NewBufferString(fmt.Sprintf(`{"kind":"prompt","session_id":%q,"prompt":"lease holder only"}`, session.ID)))
+	enqueueReq.Header.Set("Content-Type", "application/json")
+	enqueueRes := httptest.NewRecorder()
+	srvA.Handler().ServeHTTP(enqueueRes, enqueueReq)
+	if enqueueRes.Code != http.StatusAccepted {
+		t.Fatalf("unexpected enqueue status: %d body=%s", enqueueRes.Code, enqueueRes.Body.String())
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		msgs, err := s.ListMessages(t.Context(), session.ID)
+		if err == nil && bytes.Contains([]byte(fmt.Sprintf("%v", msgs)), []byte("lease holder only")) {
+			break
+		}
+		if time.Now().After(deadline) {
+			items, listErr := s.ListInboundWork(t.Context(), "", 10)
+			if listErr != nil {
+				t.Fatalf("timed out waiting for leased dispatcher; list inbound work: %v", listErr)
+			}
+			t.Fatalf("timed out waiting for leased dispatcher to process queued item; inbound=%#v msgsErr=%v", items, err)
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	items, err := s.ListInboundWork(t.Context(), "completed", 10)
+	if err != nil {
+		t.Fatalf("list completed inbound work: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected exactly one completed inbound item, got %#v", items)
+	}
+}
+
 func TestRuntimeInboundWorkRejectsInvalidEligibleFlag(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

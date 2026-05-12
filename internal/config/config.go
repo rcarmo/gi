@@ -76,6 +76,7 @@ type InboundWorkSettings struct {
 	IntervalMS int    `json:"interval_ms"`
 	BatchSize  int    `json:"batch_size"`
 	WorkerID   string `json:"worker_id"`
+	LeaseTTLMS int    `json:"lease_ttl_ms"`
 }
 
 type piSettings struct {
@@ -243,6 +244,9 @@ func applyInboundWorkDefaults(settings *InboundWorkSettings) {
 	}
 	if strings.TrimSpace(settings.WorkerID) == "" {
 		settings.WorkerID = "web-runtime"
+	}
+	if settings.LeaseTTLMS <= 0 {
+		settings.LeaseTTLMS = 2000
 	}
 }
 

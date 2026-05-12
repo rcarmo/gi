@@ -67,7 +67,20 @@ func (s *Server) StartInboundWorkDispatcher(ctx context.Context) {
 	if workerID == "" {
 		workerID = "web-runtime"
 	}
+	leaseOwner := workerID + ":" + s.version
+	leaseTTL := time.Duration(s.cfg.InboundWork.LeaseTTLMS) * time.Millisecond
+	if leaseTTL <= 0 {
+		leaseTTL = 2 * time.Second
+	}
 	drain := func() {
+		acquired, err := s.store.AcquireInboundDispatcherLease(ctx, leaseOwner, leaseTTL)
+		if err != nil {
+			log.Printf("runtime inbound dispatcher lease: %v", err)
+			return
+		}
+		if !acquired {
+			return
+		}
 		processed := 0
 		for i := 0; i < batchSize; i++ {
 			item, _, ok, err := s.turns.ProcessNextInboundWorkIfQueued(ctx, workerID)
@@ -89,6 +102,11 @@ func (s *Server) StartInboundWorkDispatcher(ctx context.Context) {
 		}
 	}
 	go func() {
+		defer func() {
+			if err := s.store.ReleaseInboundDispatcherLease(context.Background(), leaseOwner); err != nil {
+				log.Printf("runtime inbound dispatcher release lease: %v", err)
+			}
+		}()
 		drain()
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
