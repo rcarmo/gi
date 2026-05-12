@@ -542,6 +542,45 @@ func TestFinishTurnCompletedPublishesCompletedRuntimeTopics(t *testing.T) {
 	}
 }
 
+func TestFinishTurnOKPublishesCompletedMetadataOnTurnAndSession(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	runner := &sessionRunner{store: s, engine: engine}
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_finish_ok", "Test", map[string]any{"status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_finish_ok", "session_finish_ok", "running", "running", map[string]any{}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	subCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	turnCh, unsubTurn := engine.Topics().Subscribe(subCtx, "runtime.turn", topics.SubscribeOptions{Buffer: 8, SessionID: "session_finish_ok"})
+	defer unsubTurn()
+	sessionCh, unsubSession := engine.Topics().Subscribe(subCtx, "runtime.session", topics.SubscribeOptions{Buffer: 8, SessionID: "session_finish_ok"})
+	defer unsubSession()
+
+	runner.finishTurnOK(s, "turn_finish_ok", "session_finish_ok", "agent", "model", 3)
+
+	select {
+	case env := <-turnCh:
+		if env.Payload["type"] != "turn_completed" || env.Payload["status"] != "completed" || env.Payload["iterations"] != 3 || env.Payload["completion_kind"] != "response" {
+			t.Fatalf("unexpected runtime.turn payload for finishTurnOK: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.turn completed event from finishTurnOK")
+	}
+	select {
+	case env := <-sessionCh:
+		if env.Payload["type"] != "session_idle" || env.Payload["reason"] != "turn_completed" || env.Payload["turn_status"] != "completed" || env.Payload["iterations"] != 3 || env.Payload["completion_kind"] != "response" {
+			t.Fatalf("unexpected runtime.session payload for finishTurnOK: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.session idle event from finishTurnOK")
+	}
+}
+
 func TestPublishRuntimeRoutingEventUsesExpectedSessionScope(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
