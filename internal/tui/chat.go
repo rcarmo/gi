@@ -206,14 +206,22 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		}
 	case "turn.response":
 		text := ""
+		responseType := ""
+		sender, _ := payload["sender"].(string)
 		if data, _ := payload["data"].(map[string]any); data != nil {
 			text, _ = data["content"].(string)
+			responseType, _ = data["type"].(string)
 		}
 		if text == "" {
 			text, _ = payload["content"].(string)
 		}
 		if text != "" {
-			c.finalizeDraftTranscript(text)
+			if sender == "system" || responseType == "system_message" {
+				c.clearDraftTranscriptLine()
+				c.appendTranscript("sys: " + truncate(text, 160))
+			} else {
+				c.finalizeDraftTranscript(text)
+			}
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 			c.running = false
 			c.draft = ""

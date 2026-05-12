@@ -241,6 +241,17 @@ func TestHandleTopicEventTurnThoughtRendering(t *testing.T) {
 	}
 }
 
+func TestHandleTopicEventTurnResponseSystemMessageRendering(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, running: true, draft: "hello", transcript: []string{"Neo: hello"}, draftLineIndex: 0}
+	c.handleTopicEvent(topics.Envelope{Topic: "turn.response", Payload: map[string]any{"sender": "system", "data": map[string]any{"type": "system_message", "content": "Turn cancelled"}}})
+	if c.running || c.draft != "" || c.draftLineIndex != -1 {
+		t.Fatalf("expected system turn.response to clear running/draft state, got running=%v draft=%q draftLineIndex=%d", c.running, c.draft, c.draftLineIndex)
+	}
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: Turn cancelled" {
+		t.Fatalf("unexpected system turn.response transcript: %#v", c.transcript)
+	}
+}
+
 func TestHandleTopicEventTurnStatusAndResponseRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1, running: true, draft: "hello"}
 	c.handleTopicEvent(topics.Envelope{Topic: "turn.status", Payload: map[string]any{"title": "Thinking…", "status": "running"}})
