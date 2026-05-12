@@ -574,8 +574,10 @@ Current implementation status:
 - `inbound_work_queue` now provides a first durable queue surface for direct/IPC/system work, with store-backed enqueue/list/get/atomic-claim/status APIs
 - `Engine.EnqueueDirectInbound(...)`, `Engine.ProcessNextInboundWork(...)`, and `Engine.ProcessQueuedInboundWork(...)` now let callers enqueue normalized direct envelopes durably and drain them back through the same `ProcessDirect(...)` runtime path instead of creating a separate queue-only execution flow
 - the guarded web runtime surface now exposes that narrow queue path via `/api/runtime/inbound-work` (enqueue/list) and `/api/runtime/inbound-work/drain` (bounded drain), so the inbound queue is reachable through a real runtime caller instead of only tests/internal code
-- the web server now also starts a small configurable background inbound-work dispatcher in the main web runtime, which periodically drains bounded batches through the same `ProcessQueuedInboundWork(...)` → `ProcessDirect(...)` path rather than inventing a separate worker execution model
-- the current slice is still intentionally narrow: it provides durable queue rows plus engine-side processing/drain helpers, a small guarded runtime caller, and a bounded background dispatcher, but not yet a broader inbound bus abstraction or richer multi-worker policy
+- the web server now also starts a small configurable background inbound-work dispatcher in the main web runtime, which periodically drains bounded batches through the same engine path rather than inventing a separate worker execution model
+- inbound queue rows now carry first-class retry state (`attempt_count`, `last_error`, `next_attempt_at`), and queue processing applies bounded backoff/retry before a row becomes terminal `failed`; retrying items are skipped until eligible again instead of being hot-looped immediately
+- the background dispatcher now continues past retrying/failed items within the same sweep, so one bad queued envelope does not prevent later eligible work from being processed
+- the current slice is still intentionally narrow: it provides durable queue rows plus engine-side processing/drain helpers, a small guarded runtime caller, and a bounded background dispatcher with simple retry semantics, but not yet a broader inbound bus abstraction or richer multi-worker policy
 
 ### Add: `inbound_work_queue`
 

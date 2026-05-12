@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/rcarmo/gi/internal/store"
 )
@@ -56,6 +57,11 @@ func directInputFromEnvelope(envelope map[string]any) DirectInput {
 	return in
 }
 
+const (
+	inboundWorkMaxAttempts = 3
+	inboundWorkRetryDelay  = 2 * time.Second
+)
+
 func (e *Engine) EnqueueDirectInbound(ctx context.Context, in DirectInput) (*store.InboundWorkItem, error) {
 	if e.store == nil {
 		return nil, fmt.Errorf("direct inbound queue requires store")
@@ -84,19 +90,29 @@ func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (
 		in.SessionKey = item.ExplicitSessionKey
 	}
 	result, processErr := e.ProcessDirect(ctx, in)
-	status := "completed"
 	if processErr != nil {
-		status = "failed"
+		attemptCount := item.AttemptCount + 1
+		var updateErr error
+		if attemptCount >= inboundWorkMaxAttempts {
+			updateErr = e.store.RecordInboundWorkFailure(ctx, item.ID, attemptCount, processErr.Error())
+		} else {
+			updateErr = e.store.RecordInboundWorkRetry(ctx, item.ID, attemptCount, processErr.Error(), inboundWorkRetryDelay*time.Duration(attemptCount))
+		}
+		if updateErr != nil {
+			return item, result, updateErr
+		}
+		updated, getErr := e.store.GetInboundWork(ctx, item.ID)
+		if getErr == nil {
+			item = updated
+		}
+		return item, result, processErr
 	}
-	if err := e.store.UpdateInboundWorkStatus(ctx, item.ID, status); err != nil {
+	if err := e.store.UpdateInboundWorkStatus(ctx, item.ID, "completed"); err != nil {
 		return item, result, err
 	}
 	updated, getErr := e.store.GetInboundWork(ctx, item.ID)
 	if getErr == nil {
 		item = updated
-	}
-	if processErr != nil {
-		return item, result, processErr
 	}
 	return item, result, nil
 }

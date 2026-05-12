@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 )
 
 type InboundWorkItem struct {
@@ -14,6 +15,9 @@ type InboundWorkItem struct {
 	ExplicitSessionKey string         `json:"explicit_session_key,omitempty"`
 	Envelope           map[string]any `json:"envelope,omitempty"`
 	Status             string         `json:"status"`
+	AttemptCount       int            `json:"attempt_count"`
+	LastError          string         `json:"last_error,omitempty"`
+	NextAttemptAt      string         `json:"next_attempt_at,omitempty"`
 	ClaimedBy          string         `json:"claimed_by,omitempty"`
 	ClaimedAt          string         `json:"claimed_at,omitempty"`
 	CreatedAt          string         `json:"created_at"`
@@ -47,13 +51,13 @@ func (s *Store) EnqueueInboundWork(ctx context.Context, sourceKind, sessionID, e
 
 func (s *Store) GetInboundWork(ctx context.Context, id int64) (*InboundWorkItem, error) {
 	row := s.db.QueryRowContext(ctx, `
-		select id, source_kind, coalesce(session_id,''), explicit_session_key, envelope_json, status, coalesce(claimed_by,''), coalesce(claimed_at,''), created_at, updated_at
+		select id, source_kind, coalesce(session_id,''), explicit_session_key, envelope_json, status, attempt_count, last_error, coalesce(next_attempt_at,''), coalesce(claimed_by,''), coalesce(claimed_at,''), created_at, updated_at
 		from inbound_work_queue
 		where id = ?
 	`, id)
 	var item InboundWorkItem
 	var envelopeJSON string
-	if err := row.Scan(&item.ID, &item.SourceKind, &item.SessionID, &item.ExplicitSessionKey, &envelopeJSON, &item.Status, &item.ClaimedBy, &item.ClaimedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
+	if err := row.Scan(&item.ID, &item.SourceKind, &item.SessionID, &item.ExplicitSessionKey, &envelopeJSON, &item.Status, &item.AttemptCount, &item.LastError, &item.NextAttemptAt, &item.ClaimedBy, &item.ClaimedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
 		return nil, err
 	}
 	envelope, err := unmarshalJSONMap(envelopeJSON)
@@ -70,7 +74,7 @@ func (s *Store) ListInboundWork(ctx context.Context, status string, limit int) (
 		limit = 100
 	}
 	query := `
-		select id, source_kind, coalesce(session_id,''), explicit_session_key, envelope_json, status, coalesce(claimed_by,''), coalesce(claimed_at,''), created_at, updated_at
+		select id, source_kind, coalesce(session_id,''), explicit_session_key, envelope_json, status, attempt_count, last_error, coalesce(next_attempt_at,''), coalesce(claimed_by,''), coalesce(claimed_at,''), created_at, updated_at
 		from inbound_work_queue
 	`
 	args := []any{}
@@ -89,7 +93,7 @@ func (s *Store) ListInboundWork(ctx context.Context, status string, limit int) (
 	for rows.Next() {
 		var item InboundWorkItem
 		var envelopeJSON string
-		if err := rows.Scan(&item.ID, &item.SourceKind, &item.SessionID, &item.ExplicitSessionKey, &envelopeJSON, &item.Status, &item.ClaimedBy, &item.ClaimedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.SourceKind, &item.SessionID, &item.ExplicitSessionKey, &envelopeJSON, &item.Status, &item.AttemptCount, &item.LastError, &item.NextAttemptAt, &item.ClaimedBy, &item.ClaimedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		envelope, err := unmarshalJSONMap(envelopeJSON)
@@ -116,11 +120,12 @@ func (s *Store) ClaimNextInboundWork(ctx context.Context, claimedBy string) (*In
 		where id = (
 			select id
 			from inbound_work_queue
-			where status = 'queued'
+			where status in ('queued','retry')
+			and (next_attempt_at is null or next_attempt_at = '' or next_attempt_at <= `+defaultNow+`)
 			order by id asc
 			limit 1
 		)
-		and status = 'queued'
+		and status in ('queued','retry')
 		returning id
 	`, claimedBy)
 	var id int64
@@ -140,11 +145,51 @@ func (s *Store) UpdateInboundWorkStatus(ctx context.Context, id int64, status st
 	}
 	_, err := s.db.ExecContext(ctx, `
 		update inbound_work_queue
-		set status = ?, updated_at = `+defaultNow+`
+		set status = ?,
+			last_error = case when ? = 'completed' then '' else last_error end,
+			next_attempt_at = case when ? = 'completed' then null else next_attempt_at end,
+			updated_at = `+defaultNow+`
 		where id = ?
-	`, status, id)
+	`, status, status, status, id)
 	if err != nil {
 		return fmt.Errorf("update inbound work status: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) RecordInboundWorkRetry(ctx context.Context, id int64, attemptCount int, errText string, delay time.Duration) error {
+	errText = strings.TrimSpace(errText)
+	if delay < 0 {
+		delay = 0
+	}
+	_, err := s.db.ExecContext(ctx, `
+		update inbound_work_queue
+		set status = 'retry',
+			attempt_count = ?,
+			last_error = ?,
+			next_attempt_at = strftime('%Y-%m-%dT%H:%M:%fZ','now', '+' || ? || ' seconds'),
+			updated_at = `+defaultNow+`
+		where id = ?
+	`, attemptCount, errText, fmt.Sprintf("%.3f", delay.Seconds()), id)
+	if err != nil {
+		return fmt.Errorf("record inbound work retry: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) RecordInboundWorkFailure(ctx context.Context, id int64, attemptCount int, errText string) error {
+	errText = strings.TrimSpace(errText)
+	_, err := s.db.ExecContext(ctx, `
+		update inbound_work_queue
+		set status = 'failed',
+			attempt_count = ?,
+			last_error = ?,
+			next_attempt_at = null,
+			updated_at = `+defaultNow+`
+		where id = ?
+	`, attemptCount, errText, id)
+	if err != nil {
+		return fmt.Errorf("record inbound work failure: %w", err)
 	}
 	return nil
 }

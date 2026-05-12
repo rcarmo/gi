@@ -68,13 +68,24 @@ func (s *Server) StartInboundWorkDispatcher(ctx context.Context) {
 		workerID = "web-runtime"
 	}
 	drain := func() {
-		items, _, err := s.turns.ProcessQueuedInboundWork(ctx, workerID, batchSize)
-		if err != nil {
-			log.Printf("runtime inbound dispatcher drain: %v", err)
-			return
+		processed := 0
+		for i := 0; i < batchSize; i++ {
+			item, _, ok, err := s.turns.ProcessNextInboundWorkIfQueued(ctx, workerID)
+			if !ok {
+				break
+			}
+			processed++
+			if err != nil {
+				if item != nil {
+					log.Printf("runtime inbound dispatcher item %d -> %s: %v", item.ID, item.Status, err)
+				} else {
+					log.Printf("runtime inbound dispatcher drain: %v", err)
+				}
+				continue
+			}
 		}
-		if len(items) > 0 {
-			log.Printf("runtime inbound dispatcher processed %d queued item(s)", len(items))
+		if processed > 0 {
+			log.Printf("runtime inbound dispatcher processed %d queued item(s)", processed)
 		}
 	}
 	go func() {

@@ -349,6 +349,8 @@ Current behavior:
 - callers can now also enqueue the same normalized direct envelopes into the durable `inbound_work_queue` and drain them through `Engine.ProcessNextInboundWork(...)` / `Engine.ProcessQueuedInboundWork(...)`, which feed back into the same `ProcessDirect(...)` runtime path rather than bypassing routing/session/steering semantics
 - the guarded web runtime layer now exposes that narrow path via `/api/runtime/inbound-work` and `/api/runtime/inbound-work/drain`, giving the queue a real runtime ingress/worker-style caller
 - the main web runtime now also runs a small configurable background dispatcher that drains bounded queued batches through the same engine path, so queued direct/IPC/system work no longer depends solely on manual drain calls
+- inbound queue rows now track retry metadata (`attempt_count`, `last_error`, `next_attempt_at`), and retrying items are deferred until eligible again rather than being retried in a tight loop
+- the dispatcher continues past retrying/failed items in the same sweep, so one bad queued envelope does not block later eligible work from reaching the normal routing/session/turn path
 
 This is now a narrow durable inbound-queue path, not just an envelope-only entrypoint; what remains pending is broader dispatcher policy and multi-worker orchestration above those engine/store primitives.
 

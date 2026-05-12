@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/rcarmo/gi/internal/routing"
 	gisession "github.com/rcarmo/gi/internal/session"
@@ -1289,6 +1290,40 @@ func TestStoreInboundWorkQueueConcurrentClaimSingleWinner(t *testing.T) {
 	}
 	if item.Status != "claimed" || item.ClaimedBy == "" {
 		t.Fatalf("expected claimed inbound work after concurrent claim, got %#v", item)
+	}
+}
+
+func TestStoreInboundWorkRetryScheduling(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "retry me"})
+	if err != nil {
+		t.Fatalf("enqueue inbound work: %v", err)
+	}
+	if err := s.RecordInboundWorkRetry(ctx, queued.ID, 1, "temporary failure", 30*time.Millisecond); err != nil {
+		t.Fatalf("record inbound work retry: %v", err)
+	}
+	retried, err := s.GetInboundWork(ctx, queued.ID)
+	if err != nil {
+		t.Fatalf("get retried inbound work: %v", err)
+	}
+	if retried.Status != "retry" || retried.AttemptCount != 1 || retried.LastError != "temporary failure" || retried.NextAttemptAt == "" {
+		t.Fatalf("unexpected retried inbound work: %#v", retried)
+	}
+	if _, err := s.ClaimNextInboundWork(ctx, "worker-too-early"); err != sql.ErrNoRows {
+		t.Fatalf("expected no eligible retry claim before backoff expires, got %v", err)
+	}
+	time.Sleep(40 * time.Millisecond)
+	claimed, err := s.ClaimNextInboundWork(ctx, "worker-after-backoff")
+	if err != nil {
+		t.Fatalf("claim inbound work after backoff: %v", err)
+	}
+	if claimed.ID != queued.ID || claimed.Status != "claimed" || claimed.AttemptCount != 1 || claimed.LastError != "temporary failure" {
+		t.Fatalf("unexpected claimed retry item: %#v", claimed)
 	}
 }
 

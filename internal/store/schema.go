@@ -185,6 +185,9 @@ func initSchema(db *sql.DB) error {
 			explicit_session_key text not null default '',
 			envelope_json text not null default '{}',
 			status text not null default 'queued',
+			attempt_count integer not null default 0,
+			last_error text not null default '',
+			next_attempt_at text,
 			claimed_by text,
 			claimed_at text,
 			created_at text not null,
@@ -309,6 +312,9 @@ func initSchema(db *sql.DB) error {
 		`alter table turn_failures add column resolution_summary text not null default ''`,
 		`alter table turn_failures add column resolved_at text`,
 		`alter table turn_failures add column resolved_turn_id text`,
+		`alter table inbound_work_queue add column attempt_count integer not null default 0`,
+		`alter table inbound_work_queue add column last_error text not null default ''`,
+		`alter table inbound_work_queue add column next_attempt_at text`,
 	} {
 		if _, err := db.Exec(alter); err != nil && !isDuplicateColumnError(err) {
 			return err

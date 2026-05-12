@@ -1629,7 +1629,7 @@ func TestProcessNextInboundWorkProcessesQueuedDirectPrompt(t *testing.T) {
 	}
 }
 
-func TestProcessNextInboundWorkMarksFailedOnBadEnvelope(t *testing.T) {
+func TestProcessNextInboundWorkMarksRetryOnFirstFailure(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
 	ctx := context.Background()
@@ -1640,10 +1640,31 @@ func TestProcessNextInboundWorkMarksFailedOnBadEnvelope(t *testing.T) {
 	}
 	item, result, err := engine.ProcessNextInboundWork(ctx, "queue-worker")
 	if err == nil {
-		t.Fatalf("expected processing error for bad inbound work, got item=%#v result=%#v", item, result)
+		t.Fatalf("expected processing error for retryable inbound work, got item=%#v result=%#v", item, result)
 	}
-	if item == nil || item.ID != queued.ID || item.Status != "failed" {
-		t.Fatalf("expected failed inbound work item, got queued=%#v item=%#v err=%v", queued, item, err)
+	if item == nil || item.ID != queued.ID || item.Status != "retry" || item.AttemptCount != 1 || item.LastError == "" || item.NextAttemptAt == "" {
+		t.Fatalf("expected retry-marked inbound work item, got queued=%#v item=%#v err=%v", queued, item, err)
+	}
+}
+
+func TestProcessNextInboundWorkEventuallyMarksFailedAfterRetryBudget(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "missing target session"})
+	if err != nil {
+		t.Fatalf("enqueue bad inbound work: %v", err)
+	}
+	if err := s.RecordInboundWorkRetry(ctx, queued.ID, inboundWorkMaxAttempts-1, "previous failure", 0); err != nil {
+		t.Fatalf("seed retry attempt count: %v", err)
+	}
+	item, result, err := engine.ProcessNextInboundWork(ctx, "queue-worker")
+	if err == nil {
+		t.Fatalf("expected terminal processing error for exhausted inbound work, got item=%#v result=%#v", item, result)
+	}
+	if item == nil || item.ID != queued.ID || item.Status != "failed" || item.AttemptCount != inboundWorkMaxAttempts || item.LastError == "" {
+		t.Fatalf("expected failed inbound work item after retry budget, got queued=%#v item=%#v err=%v", queued, item, err)
 	}
 }
 
