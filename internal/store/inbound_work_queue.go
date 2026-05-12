@@ -283,3 +283,30 @@ func (s *Store) RequeueInboundWork(ctx context.Context, id int64, resetAttempts 
 	}
 	return s.GetInboundWork(ctx, id)
 }
+
+func (s *Store) DiscardInboundWork(ctx context.Context, id int64) (*InboundWorkItem, error) {
+	res, err := s.db.ExecContext(ctx, `
+		update inbound_work_queue
+		set status = 'discarded',
+			next_attempt_at = null,
+			claimed_by = '',
+			claimed_at = null,
+			updated_at = `+defaultNow+`
+		where id = ? and status in ('queued','retry','failed')
+	`, id)
+	if err != nil {
+		return nil, fmt.Errorf("discard inbound work: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("discard inbound work rows: %w", err)
+	}
+	if rows == 0 {
+		item, getErr := s.GetInboundWork(ctx, id)
+		if getErr != nil {
+			return nil, fmt.Errorf("discard inbound work: %w", getErr)
+		}
+		return nil, fmt.Errorf("discard inbound work: item %d is not discardable from status %q", id, item.Status)
+	}
+	return s.GetInboundWork(ctx, id)
+}

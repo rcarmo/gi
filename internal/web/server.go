@@ -126,6 +126,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/runtime/inbound-work", guard(s.handleRuntimeInboundWork))
 	s.mux.HandleFunc("/api/runtime/inbound-work/drain", guard(s.handleRuntimeInboundWorkDrain))
 	s.mux.HandleFunc("/api/runtime/inbound-work/requeue", guard(s.handleRuntimeInboundWorkRequeue))
+	s.mux.HandleFunc("/api/runtime/inbound-work/discard", guard(s.handleRuntimeInboundWorkDiscard))
 	s.mux.HandleFunc("/api/frontend/log", guard(s.handleFrontendLog))
 	s.mux.HandleFunc("/api/workspace/tree", guard(s.handleWorkspaceTree))
 	s.mux.HandleFunc("/api/workspace/file", guard(s.handleWorkspaceFile))
@@ -664,6 +665,30 @@ func (s *Server) handleRuntimeInboundWorkRequeue(w http.ResponseWriter, r *http.
 		return
 	}
 	item, err := s.store.RequeueInboundWork(r.Context(), req.ID, req.ResetAttempts)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"item": item})
+}
+
+func (s *Server) handleRuntimeInboundWorkDiscard(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	if req.ID <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "id is required"})
+		return
+	}
+	item, err := s.store.DiscardInboundWork(r.Context(), req.ID)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return

@@ -1371,6 +1371,59 @@ func TestStoreRequeueInboundWork(t *testing.T) {
 	}
 }
 
+func TestStoreDiscardInboundWork(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "discard queued"})
+	if err != nil {
+		t.Fatalf("enqueue queued inbound work: %v", err)
+	}
+	discardedQueued, err := s.DiscardInboundWork(ctx, queued.ID)
+	if err != nil {
+		t.Fatalf("discard queued inbound work: %v", err)
+	}
+	if discardedQueued.Status != "discarded" || discardedQueued.NextAttemptAt != "" || discardedQueued.ClaimedBy != "" || discardedQueued.ClaimedAt != "" {
+		t.Fatalf("unexpected discarded queued item: %#v", discardedQueued)
+	}
+	failed, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "discard failed"})
+	if err != nil {
+		t.Fatalf("enqueue failed inbound work: %v", err)
+	}
+	if err := s.RecordInboundWorkFailure(ctx, failed.ID, 3, "bad input"); err != nil {
+		t.Fatalf("record failure: %v", err)
+	}
+	discardedFailed, err := s.DiscardInboundWork(ctx, failed.ID)
+	if err != nil {
+		t.Fatalf("discard failed inbound work: %v", err)
+	}
+	if discardedFailed.Status != "discarded" {
+		t.Fatalf("unexpected discarded failed item: %#v", discardedFailed)
+	}
+}
+
+func TestStoreDiscardInboundWorkRejectsNonDiscardableState(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "complete me"})
+	if err != nil {
+		t.Fatalf("enqueue inbound work: %v", err)
+	}
+	if err := s.UpdateInboundWorkStatus(ctx, queued.ID, "completed"); err != nil {
+		t.Fatalf("mark inbound work completed: %v", err)
+	}
+	if _, err := s.DiscardInboundWork(ctx, queued.ID); err == nil {
+		t.Fatal("expected discard of completed item to fail")
+	}
+}
+
 func TestStoreRequeueInboundWorkRejectsNonRequeueableState(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
