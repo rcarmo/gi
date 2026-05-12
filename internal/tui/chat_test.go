@@ -302,6 +302,18 @@ func TestHandleTopicEventCompactionAndRoutingRendering(t *testing.T) {
 	}
 }
 
+func TestHandleTopicEventInboundWorkRendering(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_enqueued", "source_kind": "ipc", "status": "queued"}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work queued (ipc) [queued]" {
+		t.Fatalf("inbound work enqueue transcript = %q", got)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_failed", "source_kind": "ipc", "status": "failed", "error": "decode failed"}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work failed (ipc) [failed]: decode failed" {
+		t.Fatalf("inbound work failed transcript = %q", got)
+	}
+}
+
 func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.turn", Payload: map[string]any{"type": "turn_state", "status": "running", "phase": "waiting_on_tools", "tool": "read"}})

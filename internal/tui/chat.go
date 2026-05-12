@@ -353,6 +353,31 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 				c.appendTranscript(line)
 			}
 		}
+	case "runtime.inbound_work":
+		typ, _ := payload["type"].(string)
+		sourceKind, _ := payload["source_kind"].(string)
+		status, _ := payload["status"].(string)
+		errText, _ := payload["error"].(string)
+		line := ""
+		switch typ {
+		case "inbound_work_enqueued":
+			line = fmt.Sprintf("sys: inbound work queued (%s)", sourceKind)
+		case "inbound_work_retry_scheduled":
+			line = fmt.Sprintf("sys: inbound work retry scheduled (%s)", sourceKind)
+		case "inbound_work_failed":
+			line = fmt.Sprintf("sys: inbound work failed (%s)", sourceKind)
+		case "inbound_work_completed":
+			line = fmt.Sprintf("sys: inbound work completed (%s)", sourceKind)
+		}
+		if line != "" {
+			if status != "" {
+				line += fmt.Sprintf(" [%s]", status)
+			}
+			if errText != "" {
+				line += ": " + truncate(errText, 120)
+			}
+			c.appendTranscript(line)
+		}
 	case "session.compaction":
 		before, _ := payload["messages_before"].(int)
 		after, _ := payload["messages_after"].(int)
