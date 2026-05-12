@@ -69,6 +69,10 @@ func (s *Store) GetInboundWork(ctx context.Context, id int64) (*InboundWorkItem,
 }
 
 func (s *Store) ListInboundWork(ctx context.Context, status string, limit int) ([]InboundWorkItem, error) {
+	return s.ListInboundWorkFiltered(ctx, status, limit, nil)
+}
+
+func (s *Store) ListInboundWorkFiltered(ctx context.Context, status string, limit int, eligible *bool) ([]InboundWorkItem, error) {
 	status = strings.TrimSpace(strings.ToLower(status))
 	if limit <= 0 {
 		limit = 100
@@ -77,10 +81,22 @@ func (s *Store) ListInboundWork(ctx context.Context, status string, limit int) (
 		select id, source_kind, coalesce(session_id,''), explicit_session_key, envelope_json, status, attempt_count, last_error, coalesce(next_attempt_at,''), coalesce(claimed_by,''), coalesce(claimed_at,''), created_at, updated_at
 		from inbound_work_queue
 	`
+	where := []string{}
 	args := []any{}
 	if status != "" {
-		query += ` where status = ?`
+		where = append(where, `status = ?`)
 		args = append(args, status)
+	}
+	if eligible != nil {
+		clause := `(status = 'queued' or (status = 'retry' and (next_attempt_at is null or next_attempt_at = '' or next_attempt_at <= ` + defaultNow + `)))`
+		if *eligible {
+			where = append(where, clause)
+		} else {
+			where = append(where, `not `+clause)
+		}
+	}
+	if len(where) > 0 {
+		query += ` where ` + strings.Join(where, ` and `)
 	}
 	query += ` order by id asc limit ?`
 	args = append(args, limit)
@@ -107,6 +123,41 @@ func (s *Store) ListInboundWork(ctx context.Context, status string, limit int) (
 		return nil, fmt.Errorf("list inbound work rows: %w", err)
 	}
 	return out, nil
+}
+
+func (s *Store) CountInboundWorkByStatus(ctx context.Context) (map[string]int, error) {
+	rows, err := s.db.QueryContext(ctx, `select status, count(*) from inbound_work_queue group by status`)
+	if err != nil {
+		return nil, fmt.Errorf("count inbound work by status: %w", err)
+	}
+	defer rows.Close()
+	counts := map[string]int{}
+	for rows.Next() {
+		var status string
+		var count int
+		if err := rows.Scan(&status, &count); err != nil {
+			return nil, fmt.Errorf("scan inbound work status counts: %w", err)
+		}
+		counts[status] = count
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate inbound work status counts: %w", err)
+	}
+	return counts, nil
+}
+
+func (s *Store) CountEligibleInboundWork(ctx context.Context) (int, error) {
+	row := s.db.QueryRowContext(ctx, `
+		select count(*)
+		from inbound_work_queue
+		where status = 'queued'
+		or (status = 'retry' and (next_attempt_at is null or next_attempt_at = '' or next_attempt_at <= `+defaultNow+`))
+	`)
+	var count int
+	if err := row.Scan(&count); err != nil {
+		return 0, fmt.Errorf("count eligible inbound work: %w", err)
+	}
+	return count, nil
 }
 
 func (s *Store) ClaimNextInboundWork(ctx context.Context, claimedBy string) (*InboundWorkItem, error) {

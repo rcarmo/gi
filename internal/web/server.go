@@ -568,7 +568,26 @@ func (s *Server) handleRuntimeInboundWork(w http.ResponseWriter, r *http.Request
 			}
 			limit = parsed
 		}
-		items, err := s.store.ListInboundWork(r.Context(), status, limit)
+		var eligible *bool
+		if raw := strings.TrimSpace(r.URL.Query().Get("eligible")); raw != "" {
+			parsed, err := strconv.ParseBool(raw)
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid eligible flag"})
+				return
+			}
+			eligible = &parsed
+		}
+		items, err := s.store.ListInboundWorkFiltered(r.Context(), status, limit, eligible)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+			return
+		}
+		counts, err := s.store.CountInboundWorkByStatus(r.Context())
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+			return
+		}
+		eligibleCount, err := s.store.CountEligibleInboundWork(r.Context())
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 			return
@@ -576,7 +595,7 @@ func (s *Server) handleRuntimeInboundWork(w http.ResponseWriter, r *http.Request
 		if items == nil {
 			items = []store.InboundWorkItem{}
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"inbound_work": items})
+		writeJSON(w, http.StatusOK, map[string]any{"inbound_work": items, "counts": counts, "eligible_count": eligibleCount})
 	case http.MethodPost:
 		var req turn.DirectInput
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

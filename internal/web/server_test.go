@@ -538,6 +538,68 @@ func TestRuntimeInboundWorkDispatcherContinuesPastRetryingItem(t *testing.T) {
 	}
 }
 
+func TestRuntimeInboundWorkEligibleFilterAndCounts(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	if _, err := s.EnqueueInboundWork(t.Context(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "ready now"}); err != nil {
+		t.Fatalf("enqueue queued item: %v", err)
+	}
+	retrying, err := s.EnqueueInboundWork(t.Context(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "retry later"})
+	if err != nil {
+		t.Fatalf("enqueue retry item: %v", err)
+	}
+	if err := s.RecordInboundWorkRetry(t.Context(), retrying.ID, 1, "temporary failure", time.Minute); err != nil {
+		t.Fatalf("mark retry item: %v", err)
+	}
+	failed, err := s.EnqueueInboundWork(t.Context(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "failed"})
+	if err != nil {
+		t.Fatalf("enqueue failed item: %v", err)
+	}
+	if err := s.RecordInboundWorkFailure(t.Context(), failed.ID, 3, "permanent failure"); err != nil {
+		t.Fatalf("mark failed item: %v", err)
+	}
+	readyReq := httptest.NewRequest(http.MethodGet, "/api/runtime/inbound-work?eligible=true&limit=10", nil)
+	readyRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(readyRes, readyReq)
+	if readyRes.Code != http.StatusOK {
+		t.Fatalf("unexpected eligible list status: %d body=%s", readyRes.Code, readyRes.Body.String())
+	}
+	if !bytes.Contains(readyRes.Body.Bytes(), []byte("ready now")) || bytes.Contains(readyRes.Body.Bytes(), []byte("retry later")) {
+		t.Fatalf("unexpected eligible list response: %s", readyRes.Body.String())
+	}
+	if !bytes.Contains(readyRes.Body.Bytes(), []byte(`"eligible_count":1`)) || !bytes.Contains(readyRes.Body.Bytes(), []byte(`"queued":1`)) || !bytes.Contains(readyRes.Body.Bytes(), []byte(`"retry":1`)) || !bytes.Contains(readyRes.Body.Bytes(), []byte(`"failed":1`)) {
+		t.Fatalf("expected eligible/count metadata in response, got %s", readyRes.Body.String())
+	}
+	blockedReq := httptest.NewRequest(http.MethodGet, "/api/runtime/inbound-work?eligible=false&limit=10", nil)
+	blockedRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(blockedRes, blockedReq)
+	if blockedRes.Code != http.StatusOK {
+		t.Fatalf("unexpected ineligible list status: %d body=%s", blockedRes.Code, blockedRes.Body.String())
+	}
+	if !bytes.Contains(blockedRes.Body.Bytes(), []byte("retry later")) || !bytes.Contains(blockedRes.Body.Bytes(), []byte("failed")) || bytes.Contains(blockedRes.Body.Bytes(), []byte("ready now")) {
+		t.Fatalf("unexpected ineligible list response: %s", blockedRes.Body.String())
+	}
+}
+
+func TestRuntimeInboundWorkRejectsInvalidEligibleFlag(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	req := httptest.NewRequest(http.MethodGet, "/api/runtime/inbound-work?eligible=maybe", nil)
+	res := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(res, req)
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("expected bad request for invalid eligible flag, got %d body=%s", res.Code, res.Body.String())
+	}
+}
+
 func TestRuntimeInboundWorkRejectsInvalidListLimit(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
