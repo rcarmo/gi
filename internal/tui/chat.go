@@ -227,6 +227,13 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			c.draft = ""
 			c.draftLineIndex = -1
 		}
+	case "turn.draft":
+		delta, _ := payload["delta"].(string)
+		if delta != "" {
+			c.draft += delta
+			c.updateDraftTranscriptLine()
+			c.status = fmt.Sprintf("⏳ %s…", truncate(c.draft, 80))
+		}
 	case "turn.thought":
 		c.status = "Thinking…"
 	case "runtime.tool":
@@ -428,6 +435,9 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 	evType, _ := ev["type"].(string)
 	switch evType {
 	case "agent_draft_delta":
+		if c.useTopicNativeRuntimeStatus() {
+			return
+		}
 		delta, _ := ev["delta"].(string)
 		c.draft += delta
 		c.updateDraftTranscriptLine()

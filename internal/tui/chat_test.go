@@ -233,6 +233,14 @@ func TestHandleEventStreamsDraftIntoTranscript(t *testing.T) {
 	}
 }
 
+func TestHandleTopicEventTurnDraftRendering(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.handleTopicEvent(topics.Envelope{Topic: "turn.draft", Payload: map[string]any{"delta": "hello"}})
+	if c.status != "⏳ hello…" || len(c.transcript) != 1 || c.transcript[0] != "Neo: hello" {
+		t.Fatalf("turn.draft rendering = status=%q transcript=%#v", c.status, c.transcript)
+	}
+}
+
 func TestHandleTopicEventTurnThoughtRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "turn.thought", Payload: map[string]any{"delta": "pondering"}})
@@ -379,11 +387,12 @@ func TestHandleEventStatusRenderingSkipsDuplicateLegacyRuntimeEventsWhenTopicNat
 		t.Fatalf("expected topic-native path to suppress duplicate legacy compaction event, got status=%q transcript=%#v", c.status, c.transcript)
 	}
 	c.handleEvent(map[string]any{"type": "agent_status", "title": "Thinking…"})
+	c.handleEvent(map[string]any{"type": "agent_draft_delta", "delta": "hello"})
 	c.handleEvent(map[string]any{"type": "agent_thought_delta", "delta": "pondering"})
 	c.handleEvent(map[string]any{"type": "new_post", "data": map[string]any{"content": "hello world"}})
 	c.handleEvent(map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session": "session_child"})
-	if c.status != "" || len(c.transcript) != 0 {
-		t.Fatalf("expected topic-native path to suppress duplicate legacy turn status/response events, got status=%q transcript=%#v", c.status, c.transcript)
+	if c.status != "" || len(c.transcript) != 0 || c.draft != "" {
+		t.Fatalf("expected topic-native path to suppress duplicate legacy turn status/response events, got status=%q draft=%q transcript=%#v", c.status, c.draft, c.transcript)
 	}
 }
 
