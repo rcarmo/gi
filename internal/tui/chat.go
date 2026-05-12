@@ -196,6 +196,29 @@ func (c *chatTUI) Watchers() []gotui.Watcher {
 func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 	payload := env.Payload
 	switch env.Topic {
+	case "turn.status":
+		title, _ := payload["title"].(string)
+		status, _ := payload["status"].(string)
+		if title != "" {
+			c.status = title
+		} else if status == "idle" {
+			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+		}
+	case "turn.response":
+		text := ""
+		if data, _ := payload["data"].(map[string]any); data != nil {
+			text, _ = data["content"].(string)
+		}
+		if text == "" {
+			text, _ = payload["content"].(string)
+		}
+		if text != "" {
+			c.finalizeDraftTranscript(text)
+			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+			c.running = false
+			c.draft = ""
+			c.draftLineIndex = -1
+		}
 	case "runtime.tool":
 		toolName, _ := payload["tool"].(string)
 		typ, _ := payload["type"].(string)
@@ -369,6 +392,9 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			c.app.MarkDirty()
 		}
 	case "new_post":
+		if c.useTopicNativeRuntimeStatus() {
+			return
+		}
 		data, _ := ev["data"].(map[string]any)
 		if data != nil {
 			text, _ := data["content"].(string)
@@ -436,6 +462,9 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			c.app.MarkDirty()
 		}
 	case "agent_status":
+		if c.useTopicNativeRuntimeStatus() {
+			return
+		}
 		title := ""
 		if v, ok := ev["title"].(string); ok {
 			title = v

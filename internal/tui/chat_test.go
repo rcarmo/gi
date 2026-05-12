@@ -233,6 +233,20 @@ func TestHandleEventStreamsDraftIntoTranscript(t *testing.T) {
 	}
 }
 
+func TestHandleTopicEventTurnStatusAndResponseRendering(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1, running: true, draft: "hello"}
+	c.handleTopicEvent(topics.Envelope{Topic: "turn.status", Payload: map[string]any{"title": "Thinking…", "status": "running"}})
+	if c.status != "Thinking…" {
+		t.Fatalf("turn.status rendering = %q", c.status)
+	}
+	c.transcript = []string{"Neo: hello"}
+	c.draftLineIndex = 0
+	c.handleTopicEvent(topics.Envelope{Topic: "turn.response", Payload: map[string]any{"data": map[string]any{"content": "hello world"}}})
+	if c.running || c.draft != "" || c.draftLineIndex != -1 || c.transcript[0] != "Neo: hello world" {
+		t.Fatalf("turn.response rendering = running=%v draft=%q draftLineIndex=%d transcript=%#v", c.running, c.draft, c.draftLineIndex, c.transcript)
+	}
+}
+
 func TestHandleTopicEventSteeringAndSubturnRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "session.steering", Payload: map[string]any{"type": "steering_enqueued"}})
@@ -302,6 +316,11 @@ func TestHandleEventStatusRenderingSkipsDuplicateLegacyRuntimeEventsWhenTopicNat
 	c.handleEvent(map[string]any{"type": "compaction", "messages_before": 10, "messages_after": 4, "tokens_before": 1234})
 	if c.status != "" || len(c.transcript) != 0 {
 		t.Fatalf("expected topic-native path to suppress duplicate legacy compaction event, got status=%q transcript=%#v", c.status, c.transcript)
+	}
+	c.handleEvent(map[string]any{"type": "agent_status", "title": "Thinking…"})
+	c.handleEvent(map[string]any{"type": "new_post", "data": map[string]any{"content": "hello world"}})
+	if c.status != "" || len(c.transcript) != 0 {
+		t.Fatalf("expected topic-native path to suppress duplicate legacy turn status/response events, got status=%q transcript=%#v", c.status, c.transcript)
 	}
 }
 
