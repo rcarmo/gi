@@ -199,7 +199,7 @@ The TUI can subscribe to:
 - extension notices
 - future cross-extension/internal topics
 
-A first topic-native slice is now live: the TUI subscribes to canonical topic families for the active session and uses `turn.status`, `turn.response`, `turn.thought`, `runtime.tool`, `runtime.hook`, `runtime.turn`, `runtime.session`, `session.compaction`, `session.routing`, `session.steering`, and `turn.subturn` notices for status and transcript updates. Where those topic-native paths have a live active subscription, the overlapping legacy broadcast handlers are treated as fallback compatibility paths rather than the primary source of truth.
+A first topic-native slice is now live: the TUI subscribes to canonical topic families for the active session and uses `turn.status`, `turn.response`, `turn.thought`, `runtime.tool`, `runtime.hook`, `runtime.turn`, `runtime.session`, `runtime.routing`, `session.compaction`, `session.steering`, and `turn.subturn` notices for status and transcript updates. Where those topic-native paths have a live active subscription, the overlapping legacy broadcast handlers are treated as fallback compatibility paths rather than the primary source of truth.
 
 This avoids hardcoding every new event type into one custom engine broadcast path.
 

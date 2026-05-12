@@ -277,7 +277,7 @@ func TestHandleTopicEventCompactionAndRoutingRendering(t *testing.T) {
 	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys: compacted context: messages 10→4, tokens_before=1234" {
 		t.Fatalf("compaction topic status/transcript = %q %#v", c.status, c.transcript)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "session.routing", Payload: map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session": "session_child"}})
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.routing", Payload: map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session_id": "session_child"}})
 	if got := c.transcript[len(c.transcript)-1]; got != "sys: routed to @agent1 (session_child)" {
 		t.Fatalf("routing decision transcript = %q", got)
 	}
@@ -347,6 +347,7 @@ func TestHandleEventStatusRenderingSkipsDuplicateLegacyRuntimeEventsWhenTopicNat
 	c.handleEvent(map[string]any{"type": "agent_status", "title": "Thinking…"})
 	c.handleEvent(map[string]any{"type": "agent_thought_delta", "delta": "pondering"})
 	c.handleEvent(map[string]any{"type": "new_post", "data": map[string]any{"content": "hello world"}})
+	c.handleEvent(map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session": "session_child"})
 	if c.status != "" || len(c.transcript) != 0 {
 		t.Fatalf("expected topic-native path to suppress duplicate legacy turn status/response events, got status=%q transcript=%#v", c.status, c.transcript)
 	}

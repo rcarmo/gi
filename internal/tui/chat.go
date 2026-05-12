@@ -297,6 +297,32 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		case "session_idle":
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		}
+	case "runtime.routing":
+		typ, _ := payload["type"].(string)
+		targetAgent, _ := payload["target_agent_id"].(string)
+		targetSession, _ := payload["target_session"].(string)
+		if targetSession == "" {
+			targetSession, _ = payload["target_session_id"].(string)
+		}
+		sourceAgent, _ := payload["source_agent_id"].(string)
+		switch typ {
+		case "routing_decision":
+			if targetAgent != "" {
+				line := fmt.Sprintf("sys: routed to @%s", targetAgent)
+				if targetSession != "" {
+					line += fmt.Sprintf(" (%s)", targetSession)
+				}
+				c.appendTranscript(line)
+			}
+		case "routing_incoming":
+			if sourceAgent != "" {
+				line := fmt.Sprintf("sys: incoming route from @%s", sourceAgent)
+				if targetSession != "" {
+					line += fmt.Sprintf(" (%s)", targetSession)
+				}
+				c.appendTranscript(line)
+			}
+		}
 	case "session.compaction":
 		before, _ := payload["messages_before"].(int)
 		after, _ := payload["messages_after"].(int)
@@ -313,6 +339,9 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		c.appendTranscript(fmt.Sprintf("sys: compacted context: messages %d→%d, tokens_before=%d", before, after, tokens))
 		c.status = "Compacted context"
 	case "session.routing":
+		if c.useTopicNativeRuntimeStatus() {
+			return
+		}
 		typ, _ := payload["type"].(string)
 		targetAgent, _ := payload["target_agent_id"].(string)
 		targetSession, _ := payload["target_session"].(string)
