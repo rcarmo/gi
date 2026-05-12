@@ -78,7 +78,7 @@ Current topic/runtime publication status:
 - core runtime tool lifecycle checkpoints now also publish under `runtime.tool` (currently started, finished, failed, and skipped)
 - core runtime routing/allocation decision notices now also publish under `runtime.routing` (currently persisted route-decision and incoming-route notices)
 - dedicated topic SSE streaming is now live via `/sse/topics`
-- script-facing topic APIs now exist in the JS script bridge: `gi.topics.publish(...)` plus polling-style `gi.topics.subscribe(...)`, `gi.topics.read(...)`, and `gi.topics.unsubscribe(...)`
+- script-facing topic APIs now exist in both script bridges: JS exposes `gi.topics.publish(...)` plus polling-style `gi.topics.subscribe(...)`, `gi.topics.read(...)`, and `gi.topics.unsubscribe(...)`, while embedded Joker exposes `gi-topic-publish`, `gi-topic-subscribe`, `gi-topic-read`, and `gi-topic-unsubscribe`
 
 Current hook/runtime interception status:
 - provider-level hook parity now reaches the inference layer: `before_provider_request` supports both context mutation and send-time raw request replacement, and `after_provider_response` observes real provider status/headers when available

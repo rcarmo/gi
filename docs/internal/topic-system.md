@@ -22,7 +22,6 @@ Implemented so far:
 
 Still pending:
 
-- Joker-side topic bridge functions (JS script bridge now supports publish + polling subscribe/read/unsubscribe)
 - TUI/topic-native consumers
 - fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices; `runtime.turn` / `runtime.session` now include shared state-hook notices plus the earlier explicit checkpoints, with non-duplicated publication semantics and consistent completed-vs-terminal naming, but still do not mirror every stored event row; `runtime.tool` currently covers only started/finished/failed/skipped rather than every approval/hook sub-phase; `runtime.hook` now includes invocation rows plus high-level tool-related decisions but not every hook family-specific semantic summary yet; and `runtime.routing` currently covers persisted decision/incoming notices rather than every route-resolution branch before persistence
 - deeper convergence between connectivity and topics
@@ -183,12 +182,12 @@ gi.topics.unsubscribe(sub)
 
 ### Joker
 
-- `gi-topic-publish` — pending
-- `gi-topic-subscribe` — pending
-- `gi-topic-read` — pending
-- `gi-topic-unsubscribe` — pending
+- `gi-topic-publish` — publish a canonical topic envelope
+- `gi-topic-subscribe` — open a polling subscription handle
+- `gi-topic-read` — read buffered envelopes from a subscription handle
+- `gi-topic-unsubscribe` — close a polling subscription handle
 
-Initial implementation can keep subscriptions read-only/observe-only.
+Like the JS bridge, the current Joker topic API uses polling handles instead of long-lived callbacks.
 
 ## TUI / SSE integration
 

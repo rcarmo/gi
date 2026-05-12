@@ -121,6 +121,79 @@ func TestExecuteEmbeddedJokerSupportsListMessages(t *testing.T) {
 	}
 }
 
+func TestExecuteEmbeddedJokerSupportsTopicPublish(t *testing.T) {
+	var published map[string]any
+	bridge := NewBridge("joker-session", BridgeFuncs{
+		PublishTopic: func(ctx context.Context, envelope map[string]any) error {
+			published = envelope
+			return nil
+		},
+	})
+	out, err := ExecuteEmbeddedJoker(context.Background(), `
+		(do
+			(gi-topic-publish {:topic "runtime.test" :payload {:ok true} :type "notice" :source "script"})
+			"done")
+	`, bridge)
+	if err != nil {
+		t.Fatalf("joker execute returned error: %v", err)
+	}
+	if out != "done" {
+		t.Fatalf("unexpected output: %q", out)
+	}
+	if published["topic"] != "runtime.test" {
+		t.Fatalf("unexpected published topic envelope: %#v", published)
+	}
+	payload, _ := published["payload"].(map[string]any)
+	if payload == nil || payload["ok"] != true {
+		t.Fatalf("unexpected published topic payload: %#v", published)
+	}
+}
+
+func TestExecuteEmbeddedJokerSupportsTopicSubscribeReadAndUnsubscribe(t *testing.T) {
+	var unsubscribed bool
+	bridge := NewBridge("joker-session", BridgeFuncs{
+		SubscribeTopic: func(ctx context.Context, pattern string, opts TopicSubscribeOptions) (string, error) {
+			if pattern != "runtime.*" {
+				t.Fatalf("unexpected topic pattern: %q", pattern)
+			}
+			if opts.SessionID != "joker-session" {
+				t.Fatalf("unexpected topic subscribe opts: %#v", opts)
+			}
+			return "sub-1", nil
+		},
+		ReadTopicSubscription: func(ctx context.Context, id string, limit int) ([]map[string]any, error) {
+			if id != "sub-1" || limit != 5 {
+				t.Fatalf("unexpected topic read request: id=%q limit=%d", id, limit)
+			}
+			return []map[string]any{{"topic": "runtime.test", "payload": map[string]any{"ok": true}}}, nil
+		},
+		UnsubscribeTopic: func(ctx context.Context, id string) error {
+			if id != "sub-1" {
+				t.Fatalf("unexpected topic unsubscribe id: %q", id)
+			}
+			unsubscribed = true
+			return nil
+		},
+	})
+	out, err := ExecuteEmbeddedJoker(context.Background(), `
+		(do
+			(def sub (gi-topic-subscribe "runtime.*" {:session_id "joker-session"}))
+			(def events (gi-topic-read sub 5))
+			(def first-event (first events))
+			(gi-topic-unsubscribe sub)
+			(str (get first-event "topic") ":" (get (get first-event "payload") "ok")))
+	`, bridge)
+	if err != nil {
+		t.Fatalf("joker execute returned error: %v", err)
+	}
+	if out != "runtime.test:true" {
+		t.Fatalf("unexpected output: %q", out)
+	}
+	if !unsubscribed {
+		t.Fatal("expected topic subscription to be unsubscribed")
+	}
+}
+
 func TestExecuteEmbeddedJokerSupportsEventHooksAndHTTPRequest(t *testing.T) {
 	var hookSeen bool
 	var emitted bool
