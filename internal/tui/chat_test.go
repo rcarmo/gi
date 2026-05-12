@@ -340,9 +340,21 @@ func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 	if c.status != "Turn failed" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
 		t.Fatalf("turn terminal cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
+	c.running = true
+	c.draft = "partial"
+	c.transcript = []string{"Neo: partial"}
+	c.draftLineIndex = 0
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.session", Payload: map[string]any{"type": "session_idle", "status": "idle"}})
-	if c.status != "Neo · bootstrap" {
-		t.Fatalf("session idle status = %q", c.status)
+	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
+		t.Fatalf("session idle cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
+	}
+	c.running = true
+	c.draft = "partial"
+	c.transcript = []string{"Neo: partial"}
+	c.draftLineIndex = 0
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.session", Payload: map[string]any{"type": "session_state", "status": "idle"}})
+	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
+		t.Fatalf("session state idle cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 }
 

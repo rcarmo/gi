@@ -328,7 +328,18 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			if status == "running" && c.status == "" {
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 			}
+			if status == "idle" {
+				c.clearDraftTranscriptLine()
+				c.running = false
+				c.draft = ""
+				c.draftLineIndex = -1
+				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+			}
 		case "session_idle":
+			c.clearDraftTranscriptLine()
+			c.running = false
+			c.draft = ""
+			c.draftLineIndex = -1
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		}
 	case "runtime.routing":
