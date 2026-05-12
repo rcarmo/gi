@@ -1,7 +1,6 @@
 package turn
 
 import (
-	"context"
 	"log"
 	"path/filepath"
 	"sort"
@@ -53,8 +52,9 @@ func discoverExtensionScripts(workspaceRoot string) []extensionScript {
 }
 
 func (e *Engine) loadWorkspaceExtensions(scriptTool *tools.ScriptTool) {
+	bgCtx := e.backgroundContext()
 	for _, ext := range discoverExtensionScripts(e.runtimeCfg.WorkspaceRoot) {
-		out := scriptTool.Execute(context.Background(), tools.ScriptInput{Engine: ext.Engine, Path: ext.Path})
+		out := scriptTool.Execute(bgCtx, tools.ScriptInput{Engine: ext.Engine, Path: ext.Path})
 		if out.Error != "" {
 			log.Printf("extension load failed path=%s engine=%s: %s", ext.Path, ext.Engine, out.Error)
 			e.recordExtension(ExtensionInfo{Engine: ext.Engine, Path: ext.Path, Status: "failed", Error: out.Error})
