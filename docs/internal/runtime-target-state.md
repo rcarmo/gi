@@ -617,7 +617,8 @@ without making web/TUI special forever.
 Current implementation direction:
 
 - Gi is choosing the **narrower DB-backed inbound queue first** rather than a broader shared message-bus abstraction for inbound work
-- the first queue slice is store/schema + claim/status APIs, plus a minimal engine-side enqueue/claim/process/drain path so later IPC/CLI/system ingress can converge on one durable queue without forcing the wider bus design decision up front
+- that queue slice has now expanded from store/schema primitives into a bounded but real runtime surface: engine enqueue/claim/process/drain, guarded web runtime controls, retry/backoff and manual recovery state, lease-coordinated dispatcher ownership, canonical topic-bus publication, and dedicated topic SSE delivery
+- the wider shared inbound-bus abstraction decision is still deferred, but new direct/IPC/system ingress is now converging on one durable queue-backed path rather than growing parallel execution flows
 
 ---
 
