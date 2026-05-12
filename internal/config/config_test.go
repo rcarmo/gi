@@ -58,6 +58,26 @@ func TestLoadFallsBackToGiDefaultsWhenNoPiSettingsExist(t *testing.T) {
 	if len(cfg.EnabledModels) != 1 || cfg.EnabledModels[0] != "opencode-zen/minimax-m2.5-free" {
 		t.Fatalf("unexpected enabled-model defaults: %#v", cfg.EnabledModels)
 	}
+	if !cfg.InboundWork.Enabled || cfg.InboundWork.IntervalMS != 500 || cfg.InboundWork.BatchSize != 8 || cfg.InboundWork.WorkerID != "web-runtime" {
+		t.Fatalf("unexpected inbound-work defaults: %#v", cfg.InboundWork)
+	}
+}
+
+func TestLoadPreservesExplicitInboundWorkDisable(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".pi"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".pi", "settings.json"), []byte(`{"inboundWork":{"enabled":false,"interval_ms":25,"batch_size":2,"worker_id":"test-worker"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg := Load(root)
+	if cfg.InboundWork.Enabled {
+		t.Fatalf("expected inbound work dispatcher to remain disabled, got %#v", cfg.InboundWork)
+	}
+	if cfg.InboundWork.IntervalMS != 25 || cfg.InboundWork.BatchSize != 2 || cfg.InboundWork.WorkerID != "test-worker" {
+		t.Fatalf("unexpected explicit inbound-work config: %#v", cfg.InboundWork)
+	}
 }
 
 func TestPersistScrollbackLimitUpdatesPiSettings(t *testing.T) {

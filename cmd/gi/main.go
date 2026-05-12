@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -84,6 +85,7 @@ func main() {
 	}
 	engine := turn.NewWithRuntimeConfig(s, runtimeCfg, runtimeCfg.SystemPrompt)
 	server := giweb.New(s, engine, runtimeCfg)
+	server.StartInboundWorkDispatcher(context.Background())
 
 	handler := server.Handler()
 	if *acmeDomains != "" {

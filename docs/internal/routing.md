@@ -347,9 +347,10 @@ Current behavior:
 - routed direct prompts still flow through the normal route/session-resolution path and carry ingress metadata forward onto the resulting target turn
 - direct-origin turns stamp normalized ingress audit metadata onto turn metadata, persisted user-message payloads, and `turn.started` event payloads (`ingress_kind`, `ingress_source_kind`, `ingress_source_id`, `ingress_role`, `ingress_label`, `ingress_session_key` when provided)
 - callers can now also enqueue the same normalized direct envelopes into the durable `inbound_work_queue` and drain them through `Engine.ProcessNextInboundWork(...)` / `Engine.ProcessQueuedInboundWork(...)`, which feed back into the same `ProcessDirect(...)` runtime path rather than bypassing routing/session/steering semantics
-- the guarded web runtime layer now exposes that narrow path via `/api/runtime/inbound-work` and `/api/runtime/inbound-work/drain`, giving the queue a real runtime ingress/worker-style caller without yet committing to a daemon/background dispatcher design
+- the guarded web runtime layer now exposes that narrow path via `/api/runtime/inbound-work` and `/api/runtime/inbound-work/drain`, giving the queue a real runtime ingress/worker-style caller
+- the main web runtime now also runs a small configurable background dispatcher that drains bounded queued batches through the same engine path, so queued direct/IPC/system work no longer depends solely on manual drain calls
 
-This is now a narrow durable inbound-queue path, not just an envelope-only entrypoint; what remains pending is a long-lived dispatcher/background worker policy above those engine/store primitives.
+This is now a narrow durable inbound-queue path, not just an envelope-only entrypoint; what remains pending is broader dispatcher policy and multi-worker orchestration above those engine/store primitives.
 
 ## Session allocation semantics used by routing
 

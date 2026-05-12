@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -442,6 +443,45 @@ func TestRuntimeInboundWorkEndpoints(t *testing.T) {
 	}
 	if !bytes.Contains([]byte(fmt.Sprintf("%v", msgs)), []byte("hello from runtime queue")) {
 		t.Fatalf("expected drained inbound prompt in session history, got %#v", msgs)
+	}
+}
+
+func TestRuntimeInboundWorkDispatcherProcessesQueuedItems(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	engine := turn.New(s)
+	srv := New(s, engine, config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium", InboundWork: config.InboundWorkSettings{Enabled: true, IntervalMS: 25, BatchSize: 4, WorkerID: "web-test-dispatcher"}})
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	srv.StartInboundWorkDispatcher(ctx)
+	session, err := s.CreateSession(t.Context(), store.NowID("session"), "Demo", map[string]any{"status": "idle", "model": "bootstrap", "provider": "test", "thinking_level": "medium"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	enqueueReq := httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work", bytes.NewBufferString(fmt.Sprintf(`{"kind":"prompt","session_id":%q,"prompt":"hello from dispatcher"}`, session.ID)))
+	enqueueReq.Header.Set("Content-Type", "application/json")
+	enqueueRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(enqueueRes, enqueueReq)
+	if enqueueRes.Code != http.StatusAccepted {
+		t.Fatalf("unexpected enqueue status: %d body=%s", enqueueRes.Code, enqueueRes.Body.String())
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		msgs, err := s.ListMessages(t.Context(), session.ID)
+		if err == nil && bytes.Contains([]byte(fmt.Sprintf("%v", msgs)), []byte("hello from dispatcher")) {
+			break
+		}
+		if time.Now().After(deadline) {
+			items, listErr := s.ListInboundWork(t.Context(), "", 10)
+			if listErr != nil {
+				t.Fatalf("timed out waiting for dispatcher; list inbound work: %v", listErr)
+			}
+			t.Fatalf("timed out waiting for dispatcher to process queued item; inbound=%#v msgsErr=%v", items, err)
+		}
+		time.Sleep(25 * time.Millisecond)
 	}
 }
 

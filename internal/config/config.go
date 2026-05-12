@@ -31,6 +31,7 @@ type RuntimeConfig struct {
 	Compaction           CompactionSettings         `json:"compaction"`
 	Hooks                HookSettings               `json:"hooks"`
 	Peering              PeeringSettings            `json:"peering"`
+	InboundWork          InboundWorkSettings        `json:"inbound_work"`
 	SystemPrompt         string                     `json:"-"`
 	Discovery            skills.Discovery           `json:"-"`
 }
@@ -70,6 +71,13 @@ type PeeringSettings struct {
 	AuthKeyKeychain string `json:"auth_key_keychain"`
 }
 
+type InboundWorkSettings struct {
+	Enabled    bool   `json:"enabled"`
+	IntervalMS int    `json:"interval_ms"`
+	BatchSize  int    `json:"batch_size"`
+	WorkerID   string `json:"worker_id"`
+}
+
 type piSettings struct {
 	DefaultProvider      string                     `json:"defaultProvider"`
 	DefaultModel         string                     `json:"defaultModel"`
@@ -80,13 +88,14 @@ type piSettings struct {
 	Compaction           CompactionSettings         `json:"compaction"`
 	Hooks                HookSettings               `json:"hooks"`
 	Peering              PeeringSettings            `json:"peering"`
+	InboundWork          *InboundWorkSettings       `json:"inboundWork"`
 	Agents               routing.AgentsConfig       `json:"agents"`
 	Session              routing.SessionConfig      `json:"session"`
 	Routing              routing.ModelRoutingConfig `json:"routing"`
 }
 
 func Load(workspaceRoot string) RuntimeConfig {
-	cfg := RuntimeConfig{WorkspaceRoot: workspaceRoot, Compaction: CompactionSettings{Enabled: true}}
+	cfg := RuntimeConfig{WorkspaceRoot: workspaceRoot, Compaction: CompactionSettings{Enabled: true}, InboundWork: InboundWorkSettings{Enabled: true}}
 	var pc piclawConfig
 	if err := readJSON(filepath.Join(workspaceRoot, ".piclaw", "config.json"), &pc); err == nil {
 		cfg.AssistantName = pc.Assistant.AssistantName
@@ -106,6 +115,9 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.Compaction = ps.Compaction
 		cfg.Hooks = ps.Hooks
 		cfg.Peering = ps.Peering
+		if ps.InboundWork != nil {
+			cfg.InboundWork = *ps.InboundWork
+		}
 		cfg.Agents = ps.Agents
 		cfg.Session = ps.Session
 		cfg.Routing = ps.Routing
@@ -142,6 +154,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 	}
 	applyCompactionDefaults(&cfg.Compaction)
 	applyHookDefaults(&cfg.Hooks)
+	applyInboundWorkDefaults(&cfg.InboundWork)
 	if len(cfg.Agents.List) == 0 {
 		cfg.Agents.List = []routing.AgentConfig{{ID: "agent", Name: cfg.AssistantName, Default: true, Model: cfg.DefaultModel}}
 	}
@@ -219,6 +232,18 @@ func PersistScrollbackLimit(workspaceRoot string, limit int) error {
 	}
 	blob = append(blob, '\n')
 	return os.WriteFile(settingsPath, blob, 0o644)
+}
+
+func applyInboundWorkDefaults(settings *InboundWorkSettings) {
+	if settings.IntervalMS <= 0 {
+		settings.IntervalMS = 500
+	}
+	if settings.BatchSize <= 0 {
+		settings.BatchSize = 8
+	}
+	if strings.TrimSpace(settings.WorkerID) == "" {
+		settings.WorkerID = "web-runtime"
+	}
 }
 
 func contains(values []string, needle string) bool {

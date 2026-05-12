@@ -51,6 +51,47 @@ func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 
 func (s *Server) Handler() http.Handler { return s.mux }
 
+func (s *Server) StartInboundWorkDispatcher(ctx context.Context) {
+	if !s.cfg.InboundWork.Enabled {
+		return
+	}
+	interval := time.Duration(s.cfg.InboundWork.IntervalMS) * time.Millisecond
+	if interval <= 0 {
+		interval = 500 * time.Millisecond
+	}
+	batchSize := s.cfg.InboundWork.BatchSize
+	if batchSize <= 0 {
+		batchSize = 8
+	}
+	workerID := strings.TrimSpace(s.cfg.InboundWork.WorkerID)
+	if workerID == "" {
+		workerID = "web-runtime"
+	}
+	drain := func() {
+		items, _, err := s.turns.ProcessQueuedInboundWork(ctx, workerID, batchSize)
+		if err != nil {
+			log.Printf("runtime inbound dispatcher drain: %v", err)
+			return
+		}
+		if len(items) > 0 {
+			log.Printf("runtime inbound dispatcher processed %d queued item(s)", len(items))
+		}
+	}
+	go func() {
+		drain()
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				drain()
+			}
+		}
+	}()
+}
+
 func (s *Server) routes() {
 	staticRoot, err := fs.Sub(staticFS, "static")
 	if err != nil {
