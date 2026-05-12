@@ -234,6 +234,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 	case "turn.draft":
 		delta, _ := payload["delta"].(string)
 		if delta != "" {
+			c.running = true
 			c.draft += delta
 			c.updateDraftTranscriptLine()
 			c.status = fmt.Sprintf("⏳ %s…", truncate(c.draft, 80))

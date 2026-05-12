@@ -236,8 +236,8 @@ func TestHandleEventStreamsDraftIntoTranscript(t *testing.T) {
 func TestHandleTopicEventTurnDraftRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "turn.draft", Payload: map[string]any{"delta": "hello"}})
-	if c.status != "⏳ hello…" || len(c.transcript) != 1 || c.transcript[0] != "Neo: hello" {
-		t.Fatalf("turn.draft rendering = status=%q transcript=%#v", c.status, c.transcript)
+	if !c.running || c.status != "⏳ hello…" || len(c.transcript) != 1 || c.transcript[0] != "Neo: hello" {
+		t.Fatalf("turn.draft rendering = running=%v status=%q transcript=%#v", c.running, c.status, c.transcript)
 	}
 }
 
