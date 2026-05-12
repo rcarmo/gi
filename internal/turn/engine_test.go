@@ -930,6 +930,22 @@ func TestCancelQueuedTurn(t *testing.T) {
 	if turnRec.Status != "cancelled" {
 		t.Fatalf("expected cancelled, got %s", turnRec.Status)
 	}
+	if events, err := s.ListTurnEvents(ctx, queuedTurn.ID); err != nil {
+		t.Fatalf("list turn events: %v", err)
+	} else {
+		found := false
+		for _, event := range events {
+			if event.Type == "turn.cancelled" {
+				found = true
+				if event.Payload["reason"] != "queued_cancel" || event.Payload["status"] != "cancelled" || event.Payload["turn_phase"] != "aborted" || event.Payload["failure_kind"] != "" {
+					t.Fatalf("unexpected turn.cancelled payload, got %#v", event.Payload)
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("expected turn.cancelled event, got %#v", events)
+		}
+	}
 	if turnRec.FinishedAt == "" {
 		t.Fatalf("expected queued cancel to set finished_at, got %#v", turnRec)
 	}
@@ -1186,6 +1202,9 @@ func TestCancelActiveStreamingTurnMarksCancelled(t *testing.T) {
 	for _, event := range events {
 		if event.Type == "turn.cancelling" {
 			foundCancelling = true
+			if event.Payload["reason"] != "cancel_requested" || event.Payload["status"] != "cancelling" || event.Payload["turn_phase"] != "cancelling" || event.Payload["failure_kind"] != "" {
+				t.Fatalf("unexpected turn.cancelling payload, got %#v", event.Payload)
+			}
 		}
 	}
 	if !foundCancelling {
