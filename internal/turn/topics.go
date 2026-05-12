@@ -142,57 +142,22 @@ func (e *Engine) PublishRuntimeDispatcherEvent(eventType string, payload map[str
 }
 
 func (e *Engine) PublishRuntimeHookEvent(eventType string, req HookRequest, source string, action string, durationMS int, err error) {
-	if e == nil || e.topics == nil {
-		return
-	}
-	payload := map[string]any{
-		"type":           strings.TrimSpace(eventType),
-		"hook":           req.Name,
-		"session_id":     req.SessionID,
-		"turn_id":        req.TurnID,
-		"agent_id":       req.AgentID,
-		"source":         strings.TrimSpace(source),
-		"action":         strings.TrimSpace(action),
-		"duration_ms":    durationMS,
-		"iteration":      req.Iteration,
-		"turn_status":    req.TurnStatus,
-		"turn_phase":     req.TurnPhase,
-		"session_status": req.SessionStatus,
-		"trace": map[string]any{
-			"id":         req.Trace.ID,
-			"emitted_at": req.Trace.EmittedAt,
-		},
-	}
-	if req.ToolCall != nil {
-		payload["tool"] = req.ToolCall.Name
-		payload["tool_call_id"] = req.ToolCall.ID
+	payload := runtimeHookPayload(req, nil)
+	payload["source"] = strings.TrimSpace(source)
+	payload["action"] = strings.TrimSpace(action)
+	payload["duration_ms"] = durationMS
+	payload["trace"] = map[string]any{
+		"id":         req.Trace.ID,
+		"emitted_at": req.Trace.EmittedAt,
 	}
 	if err != nil {
 		payload["error"] = err.Error()
 	}
-	e.publishTopicEvent(topics.Envelope{
-		Topic:     "runtime.hook",
-		SessionID: req.SessionID,
-		AgentID:   req.AgentID,
-		Source:    "runtime",
-		Type:      "notice",
-		Payload:   payload,
-	})
+	e.publishRuntimeTopicEvent("runtime.hook", req.SessionID, req.AgentID, "notice", eventType, payload)
 }
 
 func (e *Engine) PublishRuntimeHookDecisionEvent(eventType string, req HookRequest, payload map[string]any) {
-	body := cloneMap(payload)
-	if body == nil {
-		body = map[string]any{}
-	}
-	body["hook"] = req.Name
-	body["turn_id"] = req.TurnID
-	body["iteration"] = req.Iteration
-	if req.ToolCall != nil {
-		body["tool"] = req.ToolCall.Name
-		body["tool_call_id"] = req.ToolCall.ID
-	}
-	e.publishRuntimeTopicEvent("runtime.hook", req.SessionID, req.AgentID, "notice", eventType, body)
+	e.publishRuntimeTopicEvent("runtime.hook", req.SessionID, req.AgentID, "notice", eventType, runtimeHookPayload(req, payload))
 }
 
 func (e *Engine) PublishRuntimeTurnEvent(eventType, sessionID, turnID, agentID, status, phase string, payload map[string]any) {
@@ -255,6 +220,26 @@ func (e *Engine) PublishRuntimeRoutingEvent(eventType string, decision store.Rou
 		sessionID = strings.TrimSpace(decision.TargetSession)
 	}
 	e.publishRuntimeTopicEvent("runtime.routing", sessionID, strings.TrimSpace(decision.TargetAgentID), "notice", eventType, body)
+}
+
+func runtimeHookPayload(req HookRequest, payload map[string]any) map[string]any {
+	body := cloneMap(payload)
+	if body == nil {
+		body = map[string]any{}
+	}
+	body["hook"] = req.Name
+	body["session_id"] = req.SessionID
+	body["turn_id"] = req.TurnID
+	body["agent_id"] = req.AgentID
+	body["iteration"] = req.Iteration
+	body["turn_status"] = req.TurnStatus
+	body["turn_phase"] = req.TurnPhase
+	body["session_status"] = req.SessionStatus
+	if req.ToolCall != nil {
+		body["tool"] = req.ToolCall.Name
+		body["tool_call_id"] = req.ToolCall.ID
+	}
+	return body
 }
 
 func (e *Engine) publishRuntimeTopicEvent(topic, sessionID, agentID, envelopeType, eventType string, payload map[string]any) {

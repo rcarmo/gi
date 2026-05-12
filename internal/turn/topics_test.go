@@ -199,11 +199,15 @@ func TestPublishRuntimeHookDecisionEventPublishesRuntimeHookTopic(t *testing.T) 
 	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.hook", topics.SubscribeOptions{Buffer: 8, SessionID: "session_hook_decision"})
 	defer unsub()
 	call := goai.ToolCall{ID: "call_hook_decision", Name: "grep"}
-	engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookApproveTool, SessionID: "session_hook_decision", TurnID: "turn_hook_decision", AgentID: "agent", Iteration: 2, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": "tool not approved"})
+	req := HookRequest{Name: HookApproveTool, SessionID: "session_hook_decision", TurnID: "turn_hook_decision", AgentID: "agent", Iteration: 2, TurnStatus: "running", TurnPhase: "waiting_on_tools", SessionStatus: "running", ToolCall: &call}
+	engine.PublishRuntimeHookDecisionEvent("hook_deny", req, map[string]any{"phase": "approve_tool", "reason": "tool not approved"})
 	select {
 	case env := <-ch:
 		if env.Topic != "runtime.hook" || env.Payload["type"] != "hook_deny" || env.Payload["hook"] != HookApproveTool || env.Payload["tool"] != "grep" || env.Payload["tool_call_id"] != "call_hook_decision" {
 			t.Fatalf("unexpected runtime hook decision payload: %#v", env)
+		}
+		if env.Payload["session_id"] != req.SessionID || env.Payload["turn_id"] != req.TurnID || env.Payload["agent_id"] != req.AgentID || env.Payload["turn_status"] != req.TurnStatus || env.Payload["turn_phase"] != req.TurnPhase || env.Payload["session_status"] != req.SessionStatus {
+			t.Fatalf("runtime hook decision payload missing scope/state metadata: %#v", env.Payload)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected runtime.hook decision topic event")
