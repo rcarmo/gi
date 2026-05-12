@@ -147,6 +147,12 @@ func (c *chatTUI) Init() func() {
 }
 
 func (c *chatTUI) bindSession(sessionID string) {
+	if c.eventCh == nil {
+		c.eventCh = make(chan map[string]any, 64)
+	}
+	if c.topicEventCh == nil {
+		c.topicEventCh = make(chan topics.Envelope, 64)
+	}
 	if c.subscribedCh != nil {
 		c.engine.Unsubscribe(c.sessionID, c.subscribedCh)
 		c.subscribedCh = nil
@@ -160,15 +166,14 @@ func (c *chatTUI) bindSession(sessionID string) {
 	if c.engine.Topics() != nil {
 		ch, unsubscribe := c.engine.Topics().Subscribe(context.Background(), "runtime.*", topics.SubscribeOptions{Buffer: 64, SessionID: sessionID})
 		c.topicUnsubscribe = unsubscribe
-		c.topicEventCh = make(chan topics.Envelope, 64)
-		go func(ch <-chan topics.Envelope) {
+		go func(ch <-chan topics.Envelope, target chan topics.Envelope) {
 			for env := range ch {
-				if c.topicEventCh == nil {
+				if target == nil {
 					return
 				}
-				c.topicEventCh <- env
+				target <- env
 			}
-		}(ch)
+		}(ch, c.topicEventCh)
 	}
 	go func(ch chan map[string]any) {
 		for ev := range ch {
@@ -399,7 +404,7 @@ func (c *chatTUI) finalizeDraftTranscript(text string) {
 		prefix := append([]string(nil), c.transcript[:c.draftLineIndex]...)
 		suffix := append([]string(nil), c.transcript[c.draftLineIndex+1:]...)
 		c.transcript = append(prefix, append(lines, suffix...)...)
-		c.transcript = c.pruneTranscript(c.transcript)
+		c.applyTranscriptLimit()
 		c.draftLineIndex = -1
 		return
 	}
@@ -755,15 +760,7 @@ func (c *chatTUI) pruneTranscript(lines []string) []string {
 	if limit <= 0 || len(lines) <= limit {
 		return lines
 	}
-	trimmed := append([]string(nil), lines[len(lines)-limit:]...)
-	if c.draftLineIndex >= 0 {
-		drop := len(lines) - len(trimmed)
-		c.draftLineIndex -= drop
-		if c.draftLineIndex < 0 {
-			c.draftLineIndex = -1
-		}
-	}
-	return trimmed
+	return append([]string(nil), lines[len(lines)-limit:]...)
 }
 
 func (c *chatTUI) appendTranscript(lines ...string) {
@@ -771,7 +768,22 @@ func (c *chatTUI) appendTranscript(lines ...string) {
 		return
 	}
 	c.transcript = append(c.transcript, lines...)
-	c.transcript = c.pruneTranscript(c.transcript)
+	c.applyTranscriptLimit()
+}
+
+func (c *chatTUI) applyTranscriptLimit() {
+	limit := c.currentScrollbackLimit()
+	if limit <= 0 || len(c.transcript) <= limit {
+		return
+	}
+	drop := len(c.transcript) - limit
+	c.transcript = append([]string(nil), c.transcript[drop:]...)
+	if c.draftLineIndex >= 0 {
+		c.draftLineIndex -= drop
+		if c.draftLineIndex < 0 {
+			c.draftLineIndex = -1
+		}
+	}
 }
 
 func (c *chatTUI) compactLines() []string {
@@ -805,7 +817,7 @@ func (c *chatTUI) scrollbackCommand(fields []string) []string {
 		return []string{"sys: usage /scrollback <positive-limit>"}
 	}
 	c.cfg.ScrollbackLimit = limit
-	c.transcript = c.pruneTranscript(c.transcript)
+	c.applyTranscriptLimit()
 	lines := []string{fmt.Sprintf("sys: scrollback limit set to %d", limit)}
 	if err := config.PersistScrollbackLimit(c.cfg.WorkspaceRoot, limit); err != nil {
 		lines = append(lines, fmt.Sprintf("warn: failed to persist scrollback limit: %v", err))

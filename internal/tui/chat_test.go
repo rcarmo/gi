@@ -51,6 +51,40 @@ func TestHandleMouseWheelScrollsTranscript(t *testing.T) {
 	}
 }
 
+func TestVisibleTranscriptDoesNotMutateDraftLineIndex(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{ScrollbackLimit: 3}, transcript: []string{"1", "2", "3", "4"}, draftLineIndex: 3}
+	_ = c.visibleTranscript()
+	if c.draftLineIndex != 3 {
+		t.Fatalf("expected visibleTranscript to leave draftLineIndex unchanged, got %d", c.draftLineIndex)
+	}
+}
+
+func TestBindSessionReusesTopicEventChannel(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_topic_a", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session a: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_topic_b", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session b: %v", err)
+	}
+	engine := turn.New(s)
+	c := &chatTUI{store: s, engine: engine}
+	c.bindSession("session_topic_a")
+	first := c.topicEventCh
+	if first == nil {
+		t.Fatal("expected topicEventCh to be initialized")
+	}
+	c.bindSession("session_topic_b")
+	if c.topicEventCh != first {
+		t.Fatal("expected bindSession to reuse topicEventCh so watchers stay attached")
+	}
+}
+
 func TestScrollTranscriptClampsToBounds(t *testing.T) {
 	c := &chatTUI{transcript: []string{"1", "2", "3", "4", "5", "6", "7"}}
 	c.scrollTranscript(-10)
