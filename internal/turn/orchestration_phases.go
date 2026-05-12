@@ -3,6 +3,7 @@ package turn
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os/exec"
 	"strings"
@@ -195,6 +196,9 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 		markTurnFailure(bgCtx, s, run.turnID, run.sessionID, "shell_error", runErr.Error())
 		r.engine.PublishRuntimeToolEvent("tool_failed", run.sessionID, run.turnID, run.agentID, "shell", "", 0, runErr, map[string]any{"phase": "tool"})
 		warnStore("append shell tool.failed event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error()}))
+		msgID := store.NowID("msg")
+		warnStore("add shell failure system message", s.AddMessage(bgCtx, msgID, run.sessionID, "system", fmt.Sprintf("Shell tool failed: %v", runErr), map[string]any{"kind": "status", "turn_id": run.turnID, "source": "system", "failure_kind": "shell_error"}))
+		r.broadcastSystemPost(run.sessionID, run.turnID, msgID, fmt.Sprintf("Shell tool failed: %v", runErr))
 		warnStore("update turn status failed", s.UpdateTurnStatus(bgCtx, run.turnID, "failed"))
 		r.engine.PublishRuntimeTurnEvent("turn_terminal", run.sessionID, run.turnID, run.agentID, "failed", "failed", map[string]any{"reason": "shell_error", "failure_kind": "shell_error"})
 		r.emitTurnStateHookOnly(bgCtx, run.sessionID, run.turnID, run.agentID, run.model, "failed", "failed", map[string]any{"reason": "shell_error", "failure_kind": "shell_error"})

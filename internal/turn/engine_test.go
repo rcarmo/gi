@@ -2007,6 +2007,44 @@ func TestShellCancelBroadcastsSystemMessageToTurnResponseTopic(t *testing.T) {
 	}
 }
 
+func TestShellFailureBroadcastsSystemMessageToTurnResponseTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_shell_failure_topics", "Shell", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	turnResponseCh, unsub := engine.Topics().Subscribe(ctx, "turn.response", topics.SubscribeOptions{Buffer: 16, SessionID: "session_shell_failure_topics"})
+	defer unsub()
+	t.Setenv("PATH", "")
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_shell_failure_topics", Prompt: "fail shell", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit shell prompt: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && turnRec.Status == "failed" && turnRec.FinishedAt != ""
+	}, "shell turn failure")
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case env := <-turnResponseCh:
+			if env.Payload["sender"] == "system" {
+				data, _ := env.Payload["data"].(map[string]any)
+				if data["type"] == "system_message" {
+					content, _ := data["content"].(string)
+					if strings.Contains(content, "Shell tool failed:") {
+						return
+					}
+				}
+			}
+		case <-deadline:
+			t.Fatal("expected shell failure to publish turn.response system message")
+		}
+	}
+}
+
 func TestSubmitPromptRoutedCreatesChildAgentSession(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
