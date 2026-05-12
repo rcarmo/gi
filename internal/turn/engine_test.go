@@ -1614,8 +1614,8 @@ func TestProcessNextInboundWorkProcessesQueuedDirectPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("process next inbound work: %v", err)
 	}
-	if item.Status != "completed" || item.ClaimedBy != "queue-worker" {
-		t.Fatalf("expected completed claimed inbound work, got %#v", item)
+	if item.Status != "completed" || item.ClaimedBy != "" || item.ClaimedAt != "" {
+		t.Fatalf("expected completed inbound work with cleared claim state, got %#v", item)
 	}
 	if result == nil || result.SessionID != sess.ID || result.TurnID == "" {
 		t.Fatalf("unexpected inbound processing result: item=%#v result=%#v", item, result)

@@ -148,9 +148,11 @@ func (s *Store) UpdateInboundWorkStatus(ctx context.Context, id int64, status st
 		set status = ?,
 			last_error = case when ? = 'completed' then '' else last_error end,
 			next_attempt_at = case when ? = 'completed' then null else next_attempt_at end,
+			claimed_by = case when ? = 'completed' then '' else claimed_by end,
+			claimed_at = case when ? = 'completed' then null else claimed_at end,
 			updated_at = `+defaultNow+`
 		where id = ?
-	`, status, status, status, id)
+	`, status, status, status, status, status, id)
 	if err != nil {
 		return fmt.Errorf("update inbound work status: %w", err)
 	}
@@ -168,6 +170,8 @@ func (s *Store) RecordInboundWorkRetry(ctx context.Context, id int64, attemptCou
 			attempt_count = ?,
 			last_error = ?,
 			next_attempt_at = strftime('%Y-%m-%dT%H:%M:%fZ','now', '+' || ? || ' seconds'),
+			claimed_by = '',
+			claimed_at = null,
 			updated_at = `+defaultNow+`
 		where id = ?
 	`, attemptCount, errText, fmt.Sprintf("%.3f", delay.Seconds()), id)
@@ -185,6 +189,8 @@ func (s *Store) RecordInboundWorkFailure(ctx context.Context, id int64, attemptC
 			attempt_count = ?,
 			last_error = ?,
 			next_attempt_at = null,
+			claimed_by = '',
+			claimed_at = null,
 			updated_at = `+defaultNow+`
 		where id = ?
 	`, attemptCount, errText, id)

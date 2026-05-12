@@ -1311,7 +1311,7 @@ func TestStoreInboundWorkRetryScheduling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get retried inbound work: %v", err)
 	}
-	if retried.Status != "retry" || retried.AttemptCount != 1 || retried.LastError != "temporary failure" || retried.NextAttemptAt == "" {
+	if retried.Status != "retry" || retried.AttemptCount != 1 || retried.LastError != "temporary failure" || retried.NextAttemptAt == "" || retried.ClaimedBy != "" || retried.ClaimedAt != "" {
 		t.Fatalf("unexpected retried inbound work: %#v", retried)
 	}
 	if _, err := s.ClaimNextInboundWork(ctx, "worker-too-early"); err != sql.ErrNoRows {
@@ -1367,8 +1367,8 @@ func TestStoreInboundWorkQueueLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get completed inbound work: %v", err)
 	}
-	if completed.Status != "completed" {
-		t.Fatalf("expected completed inbound work, got %#v", completed)
+	if completed.Status != "completed" || completed.ClaimedBy != "" || completed.ClaimedAt != "" {
+		t.Fatalf("expected completed inbound work with cleared claim state, got %#v", completed)
 	}
 	remaining, err := s.ClaimNextInboundWork(ctx, "worker-2")
 	if err != nil {
