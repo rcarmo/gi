@@ -299,17 +299,17 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if _, err := e.store.CreateTurnWithStatus(ctx, turnID, in.SessionID, "queued", in.Prompt, metadata); err != nil {
 		return nil, err
 	}
-	durableCtx := context.Background()
+	durableCtx := e.backgroundContext()
 	if in.ParentTurnID != "" && parentSessionID != "" {
 		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth, "max_depth": subTurnMaxDepth, "max_concurrency": subTurnMaxConcurrency, "delivery_mode": subTurnDeliveryMode, "subturn_critical": subTurnCritical, "effective_tools": effectiveTools, "subturn_tools_restricted": subTurnToolsRestricted}
 		if hook := e.beforeCreateSubTurnErrorHook; hook != nil {
 			if err := hook(durableCtx, in.ParentTurnID, turnID); err != nil {
-				warnStore("rollback turn after create subturn hook failure", e.store.DeleteTurn(context.Background(), turnID))
+				warnStore("rollback turn after create subturn hook failure", e.store.DeleteTurn(durableCtx, turnID))
 				return nil, err
 			}
 		}
 		if _, err := e.store.CreateSubTurn(durableCtx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, subTurnDeliveryMode, subTurnDepth, subturnMetadata); err != nil {
-			warnStore("rollback turn after create subturn failure", e.store.DeleteTurn(context.Background(), turnID))
+			warnStore("rollback turn after create subturn failure", e.store.DeleteTurn(durableCtx, turnID))
 			return nil, err
 		}
 		e.broadcast(parentSessionID, map[string]any{
@@ -468,11 +468,11 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 	if !claimed {
 		return false, nil
 	}
-	runCtx, cancel := context.WithCancel(context.Background())
+	runCtx, cancel := context.WithCancel(e.backgroundContext())
 	active := &runningTurn{turnID: turnID, cancel: cancel}
 	runner.current = active
 	releaseClaim := func() {
-		warnStore("release active claim after launch failure", e.store.ReleaseSessionActiveTurn(context.Background(), sessionID, claimToken))
+		warnStore("release active claim after launch failure", e.store.ReleaseSessionActiveTurn(e.backgroundContext(), sessionID, claimToken))
 		if runner.current == active {
 			runner.current = nil
 		}

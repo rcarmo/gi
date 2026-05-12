@@ -24,7 +24,7 @@ type preparedTurnRun struct {
 }
 
 func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *runningTurn) {
-	ctx := context.Background()
+	ctx := r.engine.backgroundContext()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	warnStore("release session active turn", r.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken))
