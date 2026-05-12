@@ -382,13 +382,13 @@ func (e *Engine) emitHook(ctx context.Context, req HookRequest) (HookResponse, e
 		resp, durationMS, err := e.invokeHookHandler(ctx, req, item)
 		if err != nil {
 			policyErr := e.applyHookFailurePolicy(req, item, err)
-			e.recordHookInvocation(context.Background(), req, item, hookInvocationAction(HookResponse{}, err, policyErr == nil), HookResponse{}, err, durationMS)
+			e.recordHookInvocation(e.backgroundContext(), req, item, hookInvocationAction(HookResponse{}, err, policyErr == nil), HookResponse{}, err, durationMS)
 			if policyErr != nil {
 				return merged, policyErr
 			}
 			continue
 		}
-		e.recordHookInvocation(context.Background(), req, item, hookInvocationAction(resp, nil, false), resp, nil, durationMS)
+		e.recordHookInvocation(e.backgroundContext(), req, item, hookInvocationAction(resp, nil, false), resp, nil, durationMS)
 		if resp.Action != "" {
 			merged.Action = strings.ToLower(strings.TrimSpace(resp.Action))
 		}

@@ -189,6 +189,13 @@ func (e *Engine) Close() error {
 	return nil
 }
 
+func (e *Engine) backgroundContext() context.Context {
+	if e != nil && e.bgCtx != nil {
+		return e.bgCtx
+	}
+	return context.Background()
+}
+
 func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, error) {
 	if in.Intent == "" {
 		in.Intent = "prompt"

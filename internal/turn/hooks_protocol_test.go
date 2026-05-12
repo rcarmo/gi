@@ -331,6 +331,39 @@ func TestEmitHookPersistsHookInvocationAudit(t *testing.T) {
 	}
 }
 
+func TestHookInvocationAuditPersistsAfterRequestContextCancellation(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	defer e.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_audit_cancel", "AuditCancel", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_audit_cancel", "session_audit_cancel", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	e.runtimeCfg.Hooks.OnError = "continue"
+	if _, err := e.RegisterHook(HookToolCall, "audit-cancel", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		<-ctx.Done()
+		return HookResponse{}, ctx.Err()
+	}); err != nil {
+		t.Fatalf("register hook: %v", err)
+	}
+	reqCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	if _, err := e.emitHook(reqCtx, HookRequest{Name: HookToolCall, SessionID: "session_audit_cancel", TurnID: "turn_audit_cancel", ToolCall: &goai.ToolCall{Type: "toolCall", ID: "tc_cancel", Name: "read", Arguments: map[string]any{"path": "README.md"}}}); err != nil {
+		t.Fatalf("emit hook with canceled context under continue policy: %v", err)
+	}
+	items, err := s.ListHookInvocationsByTurn(ctx, "turn_audit_cancel")
+	if err != nil {
+		t.Fatalf("list persisted hook invocations: %v", err)
+	}
+	if len(items) != 1 || items[0].HookSource != "audit-cancel" || items[0].Action != "continue" || items[0].ErrorText == "" {
+		t.Fatalf("unexpected persisted hook invocations after canceled context: %#v", items)
+	}
+}
+
 func TestBeforeProviderRequestCanMutateProviderContext(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
