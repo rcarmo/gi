@@ -243,38 +243,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 	case "runtime.tool":
 		c.renderToolEvent(payload["type"], payload["tool"], payload["error"], payload["reason"])
 	case "runtime.hook":
-		typ, _ := payload["type"].(string)
-		hookName, _ := payload["hook"].(string)
-		reason, _ := payload["reason"].(string)
-		toolName, _ := payload["tool"].(string)
-		errText, _ := payload["error"].(string)
-		line := ""
-		switch typ {
-		case "hook_deny", "hook_abort":
-			line = fmt.Sprintf("sys: hook %s", typ)
-		case "hook_modify":
-			line = "sys: hook modified"
-		case "hook_respond":
-			line = "sys: hook responded directly"
-		case "hook_invocation":
-			if errText != "" {
-				line = "sys: hook invocation error"
-			}
-		}
-		if line != "" {
-			if hookName != "" {
-				line += " via " + hookName
-			}
-			if toolName != "" {
-				line += " for " + toolName
-			}
-			if reason != "" {
-				line += ": " + truncate(reason, 120)
-			} else if errText != "" {
-				line += ": " + truncate(errText, 120)
-			}
-			c.appendTranscript(line)
-		}
+		c.renderHookEvent(payload["type"], payload["hook"], payload["reason"], payload["tool"], payload["error"])
 	case "runtime.turn":
 		typ, _ := payload["type"].(string)
 		status, _ := payload["status"].(string)
@@ -553,6 +522,41 @@ func (c *chatTUI) clearDraftTranscriptLine() {
 
 func (c *chatTUI) markRunning() {
 	c.running = true
+}
+
+func (c *chatTUI) renderHookEvent(eventTypeValue, hookNameValue, reasonValue, toolNameValue, errValue any) {
+	typ, _ := eventTypeValue.(string)
+	hookName, _ := hookNameValue.(string)
+	reason, _ := reasonValue.(string)
+	toolName, _ := toolNameValue.(string)
+	errText, _ := errValue.(string)
+	line := ""
+	switch typ {
+	case "hook_deny", "hook_abort":
+		line = fmt.Sprintf("sys: hook %s", typ)
+	case "hook_modify":
+		line = "sys: hook modified"
+	case "hook_respond":
+		line = "sys: hook responded directly"
+	case "hook_invocation":
+		if errText != "" {
+			line = "sys: hook invocation error"
+		}
+	}
+	if line != "" {
+		if hookName != "" {
+			line += " via " + hookName
+		}
+		if toolName != "" {
+			line += " for " + toolName
+		}
+		if reason != "" {
+			line += ": " + truncate(reason, 120)
+		} else if errText != "" {
+			line += ": " + truncate(errText, 120)
+		}
+		c.appendTranscript(line)
+	}
 }
 
 func (c *chatTUI) renderCompactionEvent(messagesBeforeValue, messagesAfterValue, tokensBeforeValue any) {
