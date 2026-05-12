@@ -1953,6 +1953,60 @@ func TestShellTurnPublishesTerminalRuntimeTopics(t *testing.T) {
 	}
 }
 
+func TestShellCancelBroadcastsSystemMessageToTurnResponseTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_shell_cancel_topics", "Shell", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	turnResponseCh, unsub := engine.Topics().Subscribe(ctx, "turn.response", topics.SubscribeOptions{Buffer: 16, SessionID: "session_shell_cancel_topics"})
+	defer unsub()
+	setupEntered := make(chan struct{})
+	engine.beforeSetupHook = func(ctx context.Context, sessionID, turnID string) {
+		select {
+		case <-setupEntered:
+		default:
+			close(setupEntered)
+		}
+		<-ctx.Done()
+	}
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_shell_cancel_topics", Prompt: "cancel shell", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit shell prompt: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		select {
+		case <-setupEntered:
+			return true
+		default:
+			return false
+		}
+	}, "shell setup phase entry")
+	if err := engine.CancelTurn(ctx, "session_shell_cancel_topics", result.TurnID); err != nil {
+		t.Fatalf("cancel shell turn during setup: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && turnRec.Status == "cancelled" && turnRec.FinishedAt != ""
+	}, "shell turn cancellation")
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case env := <-turnResponseCh:
+			if env.Payload["sender"] == "system" {
+				data, _ := env.Payload["data"].(map[string]any)
+				if data["type"] == "system_message" && data["content"] == "Turn cancelled" {
+					return
+				}
+			}
+		case <-deadline:
+			t.Fatal("expected shell cancel to publish turn.response system message")
+		}
+	}
+}
+
 func TestSubmitPromptRoutedCreatesChildAgentSession(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
