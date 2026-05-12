@@ -422,8 +422,8 @@ func TestHandleTopicEventStatusRendering(t *testing.T) {
 func TestHandleEventErrorClearsRunningState(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, running: true, draft: "hello", draftLineIndex: 0, transcript: []string{"Neo: hello"}}
 	c.handleEvent(map[string]any{"type": "error", "error": "boom"})
-	if c.running {
-		t.Fatal("expected legacy error path to clear running state")
+	if c.running || c.draft != "" || c.draftLineIndex != -1 {
+		t.Fatalf("expected legacy error path to clear running/draft state, got running=%v draft=%q draftLineIndex=%d", c.running, c.draft, c.draftLineIndex)
 	}
 	if got := c.transcript[len(c.transcript)-1]; got != "error: boom" {
 		t.Fatalf("unexpected error transcript: %#v", c.transcript)
@@ -488,6 +488,14 @@ func TestHandleEventStatusRendering(t *testing.T) {
 	c.handleEvent(map[string]any{"type": "tool_failed", "tool": "shell", "error": "boom"})
 	if c.status != "Tool failed: shell" || len(c.transcript) == 0 || c.transcript[len(c.transcript)-1] != "sys: tool failed: shell: boom" {
 		t.Fatalf("tool failed status/transcript = %q %#v", c.status, c.transcript)
+	}
+	c.running = true
+	c.draft = "partial"
+	c.transcript = []string{"Neo: partial"}
+	c.draftLineIndex = 0
+	c.handleEvent(map[string]any{"type": "new_post", "data": map[string]any{"content": "hello world"}})
+	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 1 || c.transcript[0] != "Neo: hello world" {
+		t.Fatalf("new_post cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 	c.handleEvent(map[string]any{"type": "compaction", "messages_before": 10, "messages_after": 4, "tokens_before": 1234})
 	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys: compacted context: messages 10→4, tokens_before=1234" {
