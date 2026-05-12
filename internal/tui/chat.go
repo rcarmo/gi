@@ -288,38 +288,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 	case "runtime.routing":
 		c.renderRoutingEvent(payload["type"], payload["target_agent_id"], payload["target_session"], payload["target_session_id"], payload["source_agent_id"])
 	case "runtime.inbound_work":
-		typ, _ := payload["type"].(string)
-		sourceKind, _ := payload["source_kind"].(string)
-		status, _ := payload["status"].(string)
-		attemptCount := intFromAny(payload["attempt_count"])
-		errText, _ := payload["error"].(string)
-		line := ""
-		switch typ {
-		case "inbound_work_enqueued":
-			line = fmt.Sprintf("sys: inbound work queued (%s)", sourceKind)
-		case "inbound_work_retry_scheduled":
-			line = fmt.Sprintf("sys: inbound work retry scheduled (%s)", sourceKind)
-			if attemptCount > 0 {
-				line += fmt.Sprintf(" attempt %d", attemptCount)
-			}
-		case "inbound_work_failed":
-			line = fmt.Sprintf("sys: inbound work failed (%s)", sourceKind)
-		case "inbound_work_completed":
-			line = fmt.Sprintf("sys: inbound work completed (%s)", sourceKind)
-		case "inbound_work_requeued":
-			line = fmt.Sprintf("sys: inbound work requeued (%s)", sourceKind)
-		case "inbound_work_discarded":
-			line = fmt.Sprintf("sys: inbound work discarded (%s)", sourceKind)
-		}
-		if line != "" {
-			if status != "" {
-				line += fmt.Sprintf(" [%s]", status)
-			}
-			if errText != "" {
-				line += ": " + truncate(errText, 120)
-			}
-			c.appendTranscript(line)
-		}
+		c.renderInboundWorkEvent(payload["type"], payload["source_kind"], payload["status"], payload["attempt_count"], payload["error"])
 	case "session.compaction":
 		c.renderCompactionEvent(payload["messages_before"], payload["messages_after"], payload["tokens_before"])
 	case "session.routing":
@@ -561,6 +530,41 @@ func (c *chatTUI) renderHookEvent(eventTypeValue, hookNameValue, reasonValue, to
 		if reason != "" {
 			line += ": " + truncate(reason, 120)
 		} else if errText != "" {
+			line += ": " + truncate(errText, 120)
+		}
+		c.appendTranscript(line)
+	}
+}
+
+func (c *chatTUI) renderInboundWorkEvent(eventTypeValue, sourceKindValue, statusValue, attemptCountValue, errValue any) {
+	typ, _ := eventTypeValue.(string)
+	sourceKind, _ := sourceKindValue.(string)
+	status, _ := statusValue.(string)
+	attemptCount := intFromAny(attemptCountValue)
+	errText, _ := errValue.(string)
+	line := ""
+	switch typ {
+	case "inbound_work_enqueued":
+		line = fmt.Sprintf("sys: inbound work queued (%s)", sourceKind)
+	case "inbound_work_retry_scheduled":
+		line = fmt.Sprintf("sys: inbound work retry scheduled (%s)", sourceKind)
+		if attemptCount > 0 {
+			line += fmt.Sprintf(" attempt %d", attemptCount)
+		}
+	case "inbound_work_failed":
+		line = fmt.Sprintf("sys: inbound work failed (%s)", sourceKind)
+	case "inbound_work_completed":
+		line = fmt.Sprintf("sys: inbound work completed (%s)", sourceKind)
+	case "inbound_work_requeued":
+		line = fmt.Sprintf("sys: inbound work requeued (%s)", sourceKind)
+	case "inbound_work_discarded":
+		line = fmt.Sprintf("sys: inbound work discarded (%s)", sourceKind)
+	}
+	if line != "" {
+		if status != "" {
+			line += fmt.Sprintf(" [%s]", status)
+		}
+		if errText != "" {
 			line += ": " + truncate(errText, 120)
 		}
 		c.appendTranscript(line)
