@@ -516,6 +516,51 @@ func TestPublishRuntimeRoutingEventUsesExpectedSessionScope(t *testing.T) {
 	}
 }
 
+func TestPublishRuntimeRoutingEventPreservesCanonicalFields(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.routing", topics.SubscribeOptions{Buffer: 8, SessionID: "session_route_source"})
+	defer unsub()
+
+	decision := store.RouteEvent{
+		ID:             42,
+		TurnID:         "turn_route_topic",
+		SourceSession:  "session_route_source",
+		TargetSession:  "session_route_target",
+		SourceAgentID:  "agent_source",
+		TargetAgentID:  "agent_target",
+		Mode:           "prompt",
+		MatchedBy:      "mention",
+		RoutingPolicy:  "mention",
+		RequestedAgent: "agent_target",
+		CreatedAt:      "2026-05-12T18:00:00Z",
+		Metadata: map[string]any{
+			"type":              "oops",
+			"turn_id":           "wrong_turn",
+			"source_session_id": "wrong_source",
+			"target_session_id": "wrong_target",
+			"routing_policy":    "wrong_policy",
+			"note":              "keep me",
+		},
+	}
+
+	engine.PublishRuntimeRoutingEvent("routing_decision", decision)
+	select {
+	case env := <-ch:
+		if env.Payload["type"] != "routing_decision" || env.Payload["turn_id"] != decision.TurnID || env.Payload["source_session_id"] != decision.SourceSession || env.Payload["target_session_id"] != decision.TargetSession || env.Payload["routing_policy"] != decision.RoutingPolicy {
+			t.Fatalf("canonical routing fields were overridden: %#v", env.Payload)
+		}
+		if env.Payload["note"] != "keep me" {
+			t.Fatalf("custom routing metadata field missing: %#v", env.Payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.routing topic event")
+	}
+}
+
 func TestSubTurnBroadcastEventsMapToTurnSubTurnTopic(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
