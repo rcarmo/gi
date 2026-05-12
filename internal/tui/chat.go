@@ -352,20 +352,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			c.appendTranscript(line)
 		}
 	case "session.compaction":
-		before, _ := payload["messages_before"].(int)
-		after, _ := payload["messages_after"].(int)
-		tokens, _ := payload["tokens_before"].(int)
-		if before == 0 {
-			before = intFromAny(payload["messages_before"])
-		}
-		if after == 0 {
-			after = intFromAny(payload["messages_after"])
-		}
-		if tokens == 0 {
-			tokens = intFromAny(payload["tokens_before"])
-		}
-		c.appendTranscript(fmt.Sprintf("sys: compacted context: messages %d→%d, tokens_before=%d", before, after, tokens))
-		c.status = "Compacted context"
+		c.renderCompactionEvent(payload["messages_before"], payload["messages_after"], payload["tokens_before"])
 	case "session.routing":
 		if c.useTopicNativeRuntimeStatus() {
 			return
@@ -473,11 +460,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		if c.useTopicNativeRuntimeStatus() {
 			return
 		}
-		before := intFromEvent(ev, "messages_before")
-		after := intFromEvent(ev, "messages_after")
-		tokens := intFromEvent(ev, "tokens_before")
-		c.appendTranscript(fmt.Sprintf("sys: compacted context: messages %d→%d, tokens_before=%d", before, after, tokens))
-		c.status = "Compacted context"
+		c.renderCompactionEvent(ev["messages_before"], ev["messages_after"], ev["tokens_before"])
 		if c.stickToBottom {
 			c.scrollTranscriptToBottom()
 		}
@@ -570,6 +553,14 @@ func (c *chatTUI) clearDraftTranscriptLine() {
 
 func (c *chatTUI) markRunning() {
 	c.running = true
+}
+
+func (c *chatTUI) renderCompactionEvent(messagesBeforeValue, messagesAfterValue, tokensBeforeValue any) {
+	before := intFromAny(messagesBeforeValue)
+	after := intFromAny(messagesAfterValue)
+	tokens := intFromAny(tokensBeforeValue)
+	c.appendTranscript(fmt.Sprintf("sys: compacted context: messages %d→%d, tokens_before=%d", before, after, tokens))
+	c.status = "Compacted context"
 }
 
 func (c *chatTUI) renderToolEvent(eventTypeValue, toolNameValue, errValue, reasonValue any) {
