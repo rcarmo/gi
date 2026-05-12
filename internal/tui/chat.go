@@ -239,7 +239,32 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		}
 	case "runtime.turn":
 		typ, _ := payload["type"].(string)
-		if typ == "turn_completed" {
+		status, _ := payload["status"].(string)
+		switch typ {
+		case "turn_completed":
+			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+		case "turn_terminal":
+			if status == "failed" || status == "aborted" || status == "cancelled" {
+				c.status = fmt.Sprintf("Turn %s", status)
+			}
+		case "turn_state":
+			phase, _ := payload["phase"].(string)
+			if status == "running" && phase == "waiting_on_tools" {
+				toolName, _ := payload["tool"].(string)
+				if toolName != "" {
+					c.status = fmt.Sprintf("Running: %s", toolName)
+				}
+			}
+		}
+	case "runtime.session":
+		typ, _ := payload["type"].(string)
+		status, _ := payload["status"].(string)
+		switch typ {
+		case "session_running", "session_state":
+			if status == "running" && c.status == "" {
+				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+			}
+		case "session_idle":
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		}
 	}

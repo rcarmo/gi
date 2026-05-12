@@ -199,6 +199,22 @@ func TestHandleEventStreamsDraftIntoTranscript(t *testing.T) {
 	}
 }
 
+func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.turn", Payload: map[string]any{"type": "turn_state", "status": "running", "phase": "waiting_on_tools", "tool": "read"}})
+	if c.status != "Running: read" {
+		t.Fatalf("turn state status = %q", c.status)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.turn", Payload: map[string]any{"type": "turn_terminal", "status": "failed"}})
+	if c.status != "Turn failed" {
+		t.Fatalf("turn terminal status = %q", c.status)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.session", Payload: map[string]any{"type": "session_idle", "status": "idle"}})
+	if c.status != "Neo · bootstrap" {
+		t.Fatalf("session idle status = %q", c.status)
+	}
+}
+
 func TestHandleTopicEventStatusRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Payload: map[string]any{"type": "tool_started", "tool": "read"}})
