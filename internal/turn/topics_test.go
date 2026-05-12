@@ -295,6 +295,34 @@ func TestPublishRuntimeToolEventPublishesRuntimeToolTopic(t *testing.T) {
 	}
 }
 
+func TestPublishRuntimeInboundWorkEventPreservesCanonicalFields(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.inbound_work", topics.SubscribeOptions{Buffer: 8, SessionID: "session_inbound_topic"})
+	defer unsub()
+
+	item := &store.InboundWorkItem{ID: 17, Status: "retry", SourceKind: "direct", SessionID: "session_inbound_topic", ExplicitSessionKey: "session-key", AttemptCount: 2, LastError: "boom", NextAttemptAt: "2026-05-12T18:00:00Z", ClaimedBy: "worker-1", ClaimedAt: "2026-05-12T17:59:00Z", CreatedAt: "2026-05-12T17:58:00Z", UpdatedAt: "2026-05-12T17:59:30Z"}
+	engine.PublishRuntimeInboundWorkEvent("inbound_work_retry_scheduled", item, map[string]any{"type": "oops", "id": 999, "status": "completed", "session_id": "wrong", "attempt_count": 0, "note": "keep me"})
+
+	select {
+	case env := <-ch:
+		if env.Topic != "runtime.inbound_work" || env.Payload["type"] != "inbound_work_retry_scheduled" {
+			t.Fatalf("unexpected runtime.inbound_work topic: %#v", env)
+		}
+		if env.SessionID != item.SessionID || env.Payload["id"] != item.ID || env.Payload["status"] != item.Status || env.Payload["session_id"] != item.SessionID || env.Payload["attempt_count"] != item.AttemptCount {
+			t.Fatalf("canonical inbound-work fields were overridden: %#v", env.Payload)
+		}
+		if env.Payload["note"] != "keep me" {
+			t.Fatalf("custom inbound-work payload field missing: %#v", env.Payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.inbound_work topic event")
+	}
+}
+
 func TestEmitTurnStateHookPublishesRuntimeTurnStateTopic(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

@@ -110,31 +110,23 @@ func (e *Engine) PublishRuntimeInboundWorkEvent(eventType string, item *store.In
 	if e == nil || e.topics == nil || item == nil {
 		return
 	}
-	payload := map[string]any{
-		"type":                 strings.TrimSpace(eventType),
-		"id":                   item.ID,
-		"status":               item.Status,
-		"source_kind":          item.SourceKind,
-		"session_id":           item.SessionID,
-		"explicit_session_key": item.ExplicitSessionKey,
-		"attempt_count":        item.AttemptCount,
-		"last_error":           item.LastError,
-		"next_attempt_at":      item.NextAttemptAt,
-		"claimed_by":           item.ClaimedBy,
-		"claimed_at":           item.ClaimedAt,
-		"created_at":           item.CreatedAt,
-		"updated_at":           item.UpdatedAt,
+	payload := cloneMap(extra)
+	if payload == nil {
+		payload = map[string]any{}
 	}
-	for k, v := range extra {
-		payload[k] = v
-	}
-	e.publishTopicEvent(topics.Envelope{
-		Topic:     "runtime.inbound_work",
-		SessionID: item.SessionID,
-		Source:    "runtime",
-		Type:      "notice",
-		Payload:   payload,
-	})
+	payload["id"] = item.ID
+	payload["status"] = item.Status
+	payload["source_kind"] = item.SourceKind
+	payload["session_id"] = item.SessionID
+	payload["explicit_session_key"] = item.ExplicitSessionKey
+	payload["attempt_count"] = item.AttemptCount
+	payload["last_error"] = item.LastError
+	payload["next_attempt_at"] = item.NextAttemptAt
+	payload["claimed_by"] = item.ClaimedBy
+	payload["claimed_at"] = item.ClaimedAt
+	payload["created_at"] = item.CreatedAt
+	payload["updated_at"] = item.UpdatedAt
+	e.publishRuntimeTopicEvent("runtime.inbound_work", item.SessionID, "", "notice", eventType, payload)
 }
 
 func (e *Engine) PublishRuntimeDispatcherEvent(eventType string, payload map[string]any) {
