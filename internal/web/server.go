@@ -5,6 +5,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -70,6 +71,8 @@ func (s *Server) routes() {
 
 	guard := s.withAuth
 	s.mux.HandleFunc("/api/runtime/config", guard(s.handleRuntimeConfig))
+	s.mux.HandleFunc("/api/runtime/inbound-work", guard(s.handleRuntimeInboundWork))
+	s.mux.HandleFunc("/api/runtime/inbound-work/drain", guard(s.handleRuntimeInboundWorkDrain))
 	s.mux.HandleFunc("/api/frontend/log", guard(s.handleFrontendLog))
 	s.mux.HandleFunc("/api/workspace/tree", guard(s.handleWorkspaceTree))
 	s.mux.HandleFunc("/api/workspace/file", guard(s.handleWorkspaceFile))
@@ -498,6 +501,77 @@ func (s *Server) handleRuntimeConfig(w http.ResponseWriter, r *http.Request) {
 		"enabled_models":         s.cfg.EnabledModels,
 		"version":                s.version,
 	})
+}
+
+func (s *Server) handleRuntimeInboundWork(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		status := strings.TrimSpace(r.URL.Query().Get("status"))
+		limit := 100
+		if raw := strings.TrimSpace(r.URL.Query().Get("limit")); raw != "" {
+			parsed, err := strconv.Atoi(raw)
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid limit"})
+				return
+			}
+			limit = parsed
+		}
+		items, err := s.store.ListInboundWork(r.Context(), status, limit)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+			return
+		}
+		if items == nil {
+			items = []store.InboundWorkItem{}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"inbound_work": items})
+	case http.MethodPost:
+		var req turn.DirectInput
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+		if strings.TrimSpace(req.Model) == "" {
+			req.Model = s.cfg.DefaultModel
+		}
+		item, err := s.turns.EnqueueDirectInbound(r.Context(), req)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusAccepted, map[string]any{"item": item})
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handleRuntimeInboundWorkDrain(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		ClaimedBy string `json:"claimed_by"`
+		Limit     int    `json:"limit"`
+	}
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+	}
+	items, results, err := s.turns.ProcessQueuedInboundWork(r.Context(), req.ClaimedBy, req.Limit)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		return
+	}
+	if items == nil {
+		items = []*store.InboundWorkItem{}
+	}
+	if results == nil {
+		results = []*turn.SubmitResult{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"processed": len(items), "items": items, "results": results})
 }
 
 func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {

@@ -88,10 +88,10 @@ func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (
 	if processErr != nil {
 		status = "failed"
 	}
-	if err := e.store.UpdateInboundWorkStatus(context.Background(), item.ID, status); err != nil {
+	if err := e.store.UpdateInboundWorkStatus(ctx, item.ID, status); err != nil {
 		return item, result, err
 	}
-	updated, getErr := e.store.GetInboundWork(context.Background(), item.ID)
+	updated, getErr := e.store.GetInboundWork(ctx, item.ID)
 	if getErr == nil {
 		item = updated
 	}

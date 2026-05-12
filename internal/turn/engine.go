@@ -76,23 +76,23 @@ type RunInput struct {
 }
 
 type DirectInput struct {
-	Kind          string
-	SessionID     string
-	SessionKey    string
-	TargetAgentID string
-	Prompt        string
-	Intent        string
-	Model         string
-	ParentTurnID  string
-	Metadata      map[string]any
-	Origin        DirectOrigin
+	Kind          string         `json:"kind"`
+	SessionID     string         `json:"session_id,omitempty"`
+	SessionKey    string         `json:"session_key,omitempty"`
+	TargetAgentID string         `json:"target_agent_id,omitempty"`
+	Prompt        string         `json:"prompt,omitempty"`
+	Intent        string         `json:"intent,omitempty"`
+	Model         string         `json:"model,omitempty"`
+	ParentTurnID  string         `json:"parent_turn_id,omitempty"`
+	Metadata      map[string]any `json:"metadata,omitempty"`
+	Origin        DirectOrigin   `json:"origin,omitempty"`
 }
 
 type DirectOrigin struct {
-	SourceKind string
-	SourceID   string
-	Role       string
-	Label      string
+	SourceKind string `json:"source_kind,omitempty"`
+	SourceID   string `json:"source_id,omitempty"`
+	Role       string `json:"role,omitempty"`
+	Label      string `json:"label,omitempty"`
 }
 
 type SubmitResult struct {

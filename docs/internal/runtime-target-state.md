@@ -573,7 +573,8 @@ Current implementation status:
 - direct-origin turns now stamp normalized ingress audit metadata onto the same persisted audit surfaces used by normal chat-origin turns: turn metadata, persisted user-message payloads, and `turn.started` event payloads (`ingress_kind`, `ingress_source_kind`, `ingress_source_id`, `ingress_role`, `ingress_label`)
 - `inbound_work_queue` now provides a first durable queue surface for direct/IPC/system work, with store-backed enqueue/list/get/atomic-claim/status APIs
 - `Engine.EnqueueDirectInbound(...)`, `Engine.ProcessNextInboundWork(...)`, and `Engine.ProcessQueuedInboundWork(...)` now let callers enqueue normalized direct envelopes durably and drain them back through the same `ProcessDirect(...)` runtime path instead of creating a separate queue-only execution flow
-- the current slice is still intentionally narrow: it provides durable queue rows plus engine-side processing/drain helpers, but not yet a long-lived dispatcher/daemon or broader inbound bus abstraction
+- the guarded web runtime surface now exposes that narrow queue path via `/api/runtime/inbound-work` (enqueue/list) and `/api/runtime/inbound-work/drain` (bounded drain), so the inbound queue is reachable through a real runtime caller instead of only tests/internal code
+- the current slice is still intentionally narrow: it provides durable queue rows plus engine-side processing/drain helpers and a small guarded runtime caller, but not yet a long-lived dispatcher/daemon or broader inbound bus abstraction
 
 ### Add: `inbound_work_queue`
 

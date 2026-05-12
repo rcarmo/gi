@@ -395,6 +395,71 @@ func TestPeerMessageEndpointRoutesToTargetAgent(t *testing.T) {
 	}
 }
 
+func TestRuntimeInboundWorkEndpoints(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	engine := turn.New(s)
+	srv := New(s, engine, config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	session, err := s.CreateSession(t.Context(), store.NowID("session"), "Demo", map[string]any{"status": "idle", "model": "bootstrap", "provider": "test", "thinking_level": "medium"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	enqueueReq := httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work", bytes.NewBufferString(fmt.Sprintf(`{"kind":"prompt","session_id":%q,"prompt":"hello from runtime queue"}`, session.ID)))
+	enqueueReq.Header.Set("Content-Type", "application/json")
+	enqueueRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(enqueueRes, enqueueReq)
+	if enqueueRes.Code != http.StatusAccepted {
+		t.Fatalf("unexpected enqueue status: %d body=%s", enqueueRes.Code, enqueueRes.Body.String())
+	}
+	if !bytes.Contains(enqueueRes.Body.Bytes(), []byte(`"status":"queued"`)) {
+		t.Fatalf("unexpected enqueue response: %s", enqueueRes.Body.String())
+	}
+	listReq := httptest.NewRequest(http.MethodGet, "/api/runtime/inbound-work?status=queued&limit=10", nil)
+	listRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(listRes, listReq)
+	if listRes.Code != http.StatusOK {
+		t.Fatalf("unexpected inbound-work list status: %d body=%s", listRes.Code, listRes.Body.String())
+	}
+	if !bytes.Contains(listRes.Body.Bytes(), []byte("hello from runtime queue")) {
+		t.Fatalf("expected queued inbound work in list response, got %s", listRes.Body.String())
+	}
+	drainReq := httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work/drain", bytes.NewBufferString(`{"claimed_by":"web-test","limit":10}`))
+	drainReq.Header.Set("Content-Type", "application/json")
+	drainRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(drainRes, drainReq)
+	if drainRes.Code != http.StatusOK {
+		t.Fatalf("unexpected drain status: %d body=%s", drainRes.Code, drainRes.Body.String())
+	}
+	if !bytes.Contains(drainRes.Body.Bytes(), []byte(`"processed":1`)) || !bytes.Contains(drainRes.Body.Bytes(), []byte(`"status":"completed"`)) {
+		t.Fatalf("unexpected drain response: %s", drainRes.Body.String())
+	}
+	msgs, err := s.ListMessages(t.Context(), session.ID)
+	if err != nil {
+		t.Fatalf("list session messages after drain: %v", err)
+	}
+	if !bytes.Contains([]byte(fmt.Sprintf("%v", msgs)), []byte("hello from runtime queue")) {
+		t.Fatalf("expected drained inbound prompt in session history, got %#v", msgs)
+	}
+}
+
+func TestRuntimeInboundWorkRejectsInvalidListLimit(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	req := httptest.NewRequest(http.MethodGet, "/api/runtime/inbound-work?limit=nope", nil)
+	res := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(res, req)
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("expected bad request for invalid limit, got %d body=%s", res.Code, res.Body.String())
+	}
+}
+
 func TestWorkspaceEndpoints(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "hello.md"), []byte("# hi\n"), 0o644); err != nil {
