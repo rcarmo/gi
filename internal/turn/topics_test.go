@@ -614,6 +614,63 @@ func TestFinishTurnOKPublishesCompletedMetadataOnTurnAndSession(t *testing.T) {
 	}
 }
 
+func TestFinishTurnFailedPreservesFailureKindAcrossTerminalSurfaces(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	runner := &sessionRunner{store: s, engine: engine}
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_finish_failed", "Test", map[string]any{"status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_finish_failed", "session_finish_failed", "running", "running", map[string]any{}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	subCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	turnCh, unsubTurn := engine.Topics().Subscribe(subCtx, "runtime.turn", topics.SubscribeOptions{Buffer: 8, SessionID: "session_finish_failed"})
+	defer unsubTurn()
+	sessionCh, unsubSession := engine.Topics().Subscribe(subCtx, "runtime.session", topics.SubscribeOptions{Buffer: 8, SessionID: "session_finish_failed"})
+	defer unsubSession()
+
+	runner.finishTurn(s, "turn_finish_failed", "session_finish_failed", "agent", "model", "failed", "Inference error: boom", "provider_error")
+
+	select {
+	case env := <-turnCh:
+		if env.Payload["type"] != "turn_terminal" || env.Payload["status"] != "failed" || env.Payload["failure_kind"] != "provider_error" || env.Payload["reason"] != "provider_error" {
+			t.Fatalf("unexpected runtime.turn payload for failed finishTurn: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.turn terminal event from failed finishTurn")
+	}
+	select {
+	case env := <-sessionCh:
+		if env.Payload["type"] != "session_idle" || env.Payload["turn_status"] != "failed" || env.Payload["failure_kind"] != "provider_error" || env.Payload["reason"] != "turn_terminal" {
+			t.Fatalf("unexpected runtime.session payload for failed finishTurn: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.session idle event from failed finishTurn")
+	}
+
+	events, err := s.ListTurnEvents(ctx, "turn_finish_failed")
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	var found bool
+	for _, ev := range events {
+		if ev.Type != "turn.finished" {
+			continue
+		}
+		found = true
+		if ev.Payload["status"] != "failed" || ev.Payload["failure_kind"] != "provider_error" || ev.Payload["reason"] != "provider_error" {
+			t.Fatalf("unexpected turn.finished payload for failed finishTurn: %#v", ev.Payload)
+		}
+	}
+	if !found {
+		t.Fatal("expected turn.finished event for failed finishTurn")
+	}
+}
+
 func TestPublishRuntimeRoutingEventUsesExpectedSessionScope(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

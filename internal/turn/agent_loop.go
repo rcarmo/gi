@@ -272,6 +272,8 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	finishedPayload["phase"] = "turn"
 	finishedPayload["checkpoint"] = true
 	finishedPayload["status"] = status
+	finishedPayload["reason"] = firstNonEmpty(failureKind, status)
+	finishedPayload["failure_kind"] = failureKind
 	warnStore("append turn.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "turn.finished", finishedPayload))
 	phase := terminalPhaseForStatus(status)
 	warnStore("update turn status and phase terminal", s.UpdateTurnStatusAndPhase(bgCtx, turnID, status, phase))
@@ -294,6 +296,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 		hookPayload = map[string]any{}
 	}
 	hookPayload["reason"] = firstNonEmpty(failureKind, status)
+	hookPayload["failure_kind"] = failureKind
 	r.emitTurnStateHookOnly(bgCtx, sessionID, turnID, agentID, model, status, phase, hookPayload)
 	r.propagateChildSubTurnCancellation(bgCtx, turnID, status, failureKind)
 	r.publishSubTurnLifecycle(bgCtx, turnID, status)
@@ -303,6 +306,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 		sessionPayload = map[string]any{}
 	}
 	sessionPayload["reason"] = sessionIdleReason
+	sessionPayload["failure_kind"] = failureKind
 	sessionPayload["turn_id"] = turnID
 	sessionPayload["turn_status"] = status
 	sessionPayload["model"] = model
@@ -312,6 +316,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 		sessionHookPayload = map[string]any{}
 	}
 	sessionHookPayload["reason"] = sessionIdleReason
+	sessionHookPayload["failure_kind"] = failureKind
 	sessionHookPayload["turn_status"] = status
 	r.emitSessionStateHookOnly(bgCtx, sessionID, agentID, model, "idle", sessionHookPayload)
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
