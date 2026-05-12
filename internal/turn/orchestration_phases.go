@@ -175,14 +175,16 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	if cancelled {
 		bgCtx := r.engine.backgroundContext()
 		r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
-		warnStore("append turn.cancelled event", s.AppendTurnEvent(ctx, run.turnID, run.sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true}))
+		warnStore("append turn.cancelled event", s.AppendTurnEvent(ctx, run.turnID, run.sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "reason": "cancelled", "status": "cancelled", "turn_phase": "aborted", "failure_kind": ""}))
 		warnStore("update turn status cancelled", s.UpdateTurnStatus(bgCtx, run.turnID, "cancelled"))
-		r.emitTurnStateHookOnly(bgCtx, run.sessionID, run.turnID, run.agentID, run.model, "cancelled", "aborted", map[string]any{"reason": "cancelled"})
+		r.engine.PublishRuntimeTurnEvent("turn_terminal", run.sessionID, run.turnID, run.agentID, "cancelled", "aborted", map[string]any{"reason": "cancelled", "failure_kind": ""})
+		r.emitTurnStateHookOnly(bgCtx, run.sessionID, run.turnID, run.agentID, run.model, "cancelled", "aborted", map[string]any{"reason": "cancelled", "failure_kind": ""})
 		r.propagateChildSubTurnCancellation(bgCtx, run.turnID, "cancelled", "")
 		r.publishSubTurnLifecycle(bgCtx, run.turnID, "cancelled")
 		warnStore("add turn cancelled system message", s.AddMessage(bgCtx, store.NowID("msg"), run.sessionID, "system", "Turn cancelled", map[string]any{"kind": "status", "turn_id": run.turnID, "clipped": true}))
 		warnStore("touch session idle after cancel", s.TouchSessionState(bgCtx, run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
-		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_cancelled"})
+		r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "cancelled", "failure_kind": "", "model": run.model})
+		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_terminal", "turn_status": "cancelled", "failure_kind": ""})
 		return
 	}
 	if runErr != nil {
@@ -192,11 +194,13 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 		r.engine.PublishRuntimeToolEvent("tool_failed", run.sessionID, run.turnID, run.agentID, "shell", "", 0, runErr, map[string]any{"phase": "tool"})
 		warnStore("append shell tool.failed event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error()}))
 		warnStore("update turn status failed", s.UpdateTurnStatus(bgCtx, run.turnID, "failed"))
-		r.emitTurnStateHookOnly(bgCtx, run.sessionID, run.turnID, run.agentID, run.model, "failed", "failed", map[string]any{"reason": "shell_error"})
+		r.engine.PublishRuntimeTurnEvent("turn_terminal", run.sessionID, run.turnID, run.agentID, "failed", "failed", map[string]any{"reason": "shell_error", "failure_kind": "shell_error"})
+		r.emitTurnStateHookOnly(bgCtx, run.sessionID, run.turnID, run.agentID, run.model, "failed", "failed", map[string]any{"reason": "shell_error", "failure_kind": "shell_error"})
 		r.propagateChildSubTurnCancellation(bgCtx, run.turnID, "failed", "shell_error")
 		r.publishSubTurnLifecycle(bgCtx, run.turnID, "failed")
 		warnStore("touch session idle after failure", s.TouchSessionState(bgCtx, run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
-		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_failed"})
+		r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "failed", "failure_kind": "shell_error", "model": run.model})
+		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_terminal", "turn_status": "failed", "failure_kind": "shell_error"})
 		return
 	}
 	bgCtx := r.engine.backgroundContext()
@@ -211,11 +215,13 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 		"sender": "agent", "is_bot_message": true,
 		"data": map[string]any{"type": "agent_response", "content": out, "agent_id": run.agentID},
 	})
-	warnStore("append turn.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed"}))
+	warnStore("append turn.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed", "reason": "completed", "failure_kind": ""}))
 	warnStore("update turn status completed", s.UpdateTurnStatus(bgCtx, run.turnID, "completed"))
+	r.engine.PublishRuntimeTurnEvent("turn_completed", run.sessionID, run.turnID, run.agentID, "completed", "completed", map[string]any{"reason": "completed"})
 	r.emitTurnStateHookOnly(bgCtx, run.sessionID, run.turnID, run.agentID, run.model, "completed", "completed", map[string]any{"reason": "completed"})
 	r.propagateChildSubTurnCancellation(bgCtx, run.turnID, "completed", "")
 	r.publishSubTurnLifecycle(bgCtx, run.turnID, "completed")
 	warnStore("touch session idle after completion", s.TouchSessionState(bgCtx, run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
-	r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_completed"})
+	r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", map[string]any{"reason": "turn_completed", "turn_id": run.turnID, "turn_status": "completed", "failure_kind": "", "model": run.model})
+	r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_completed", "turn_status": "completed", "failure_kind": ""})
 }

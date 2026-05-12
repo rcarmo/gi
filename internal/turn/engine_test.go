@@ -1914,6 +1914,45 @@ func TestCancelTurnDuringSetupMarksCancelled(t *testing.T) {
 	}
 }
 
+func TestShellTurnPublishesTerminalRuntimeTopics(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_shell_topics", "Shell", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	turnTopicCh, unsubTurn := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 16, SessionID: "session_shell_topics"})
+	defer unsubTurn()
+	sessionTopicCh, unsubSession := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 16, SessionID: "session_shell_topics"})
+	defer unsubSession()
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_shell_topics", Prompt: "hello shell", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit shell prompt: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && turnRec.Status == "completed" && turnRec.FinishedAt != ""
+	}, "shell turn completion")
+	foundTurnCompleted := false
+	foundSessionIdle := false
+	deadline := time.After(2 * time.Second)
+	for !(foundTurnCompleted && foundSessionIdle) {
+		select {
+		case env := <-turnTopicCh:
+			if env.Payload["type"] == "turn_completed" && env.Payload["turn_id"] == result.TurnID && env.Payload["status"] == "completed" && env.Payload["reason"] == "completed" {
+				foundTurnCompleted = true
+			}
+		case env := <-sessionTopicCh:
+			if env.Payload["type"] == "session_idle" && env.Payload["turn_id"] == result.TurnID && env.Payload["turn_status"] == "completed" && env.Payload["failure_kind"] == "" && env.Payload["model"] == "bootstrap" {
+				foundSessionIdle = true
+			}
+		case <-deadline:
+			t.Fatalf("expected shell turn to publish runtime turn/session terminal topics, got turn_completed=%v session_idle=%v", foundTurnCompleted, foundSessionIdle)
+		}
+	}
+}
+
 func TestSubmitPromptRoutedCreatesChildAgentSession(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
