@@ -233,6 +233,18 @@ func TestHandleEventStreamsDraftIntoTranscript(t *testing.T) {
 	}
 }
 
+func TestHandleTopicEventCompactionAndRoutingRendering(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.handleTopicEvent(topics.Envelope{Topic: "session.compaction", Payload: map[string]any{"messages_before": 10, "messages_after": 4, "tokens_before": 1234}})
+	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys: compacted context: messages 10→4, tokens_before=1234" {
+		t.Fatalf("compaction topic status/transcript = %q %#v", c.status, c.transcript)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "session.routing", Payload: map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session": "session_child"}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: routed to @agent1 (session_child)" {
+		t.Fatalf("routing decision transcript = %q", got)
+	}
+}
+
 func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.turn", Payload: map[string]any{"type": "turn_state", "status": "running", "phase": "waiting_on_tools", "tool": "read"}})

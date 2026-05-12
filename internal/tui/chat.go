@@ -164,7 +164,7 @@ func (c *chatTUI) bindSession(sessionID string) {
 	c.sessionID = sessionID
 	c.subscribedCh = c.engine.Subscribe(sessionID)
 	if c.engine.Topics() != nil {
-		ch, unsubscribe := c.engine.Topics().Subscribe(context.Background(), "runtime.*", topics.SubscribeOptions{Buffer: 64, SessionID: sessionID})
+		ch, unsubscribe := c.engine.Topics().Subscribe(context.Background(), "*", topics.SubscribeOptions{Buffer: 64, SessionID: sessionID})
 		c.topicUnsubscribe = unsubscribe
 		go func(ch <-chan topics.Envelope, target chan topics.Envelope) {
 			for env := range ch {
@@ -271,6 +271,47 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			}
 		case "session_idle":
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+		}
+	case "session.compaction":
+		before, _ := payload["messages_before"].(int)
+		after, _ := payload["messages_after"].(int)
+		tokens, _ := payload["tokens_before"].(int)
+		if before == 0 {
+			before = intFromAny(payload["messages_before"])
+		}
+		if after == 0 {
+			after = intFromAny(payload["messages_after"])
+		}
+		if tokens == 0 {
+			tokens = intFromAny(payload["tokens_before"])
+		}
+		c.appendTranscript(fmt.Sprintf("sys: compacted context: messages %d→%d, tokens_before=%d", before, after, tokens))
+		c.status = "Compacted context"
+	case "session.routing":
+		typ, _ := payload["type"].(string)
+		targetAgent, _ := payload["target_agent_id"].(string)
+		targetSession, _ := payload["target_session"].(string)
+		if targetSession == "" {
+			targetSession, _ = payload["target_session_id"].(string)
+		}
+		sourceAgent, _ := payload["source_agent_id"].(string)
+		switch typ {
+		case "routing_decision":
+			if targetAgent != "" {
+				line := fmt.Sprintf("sys: routed to @%s", targetAgent)
+				if targetSession != "" {
+					line += fmt.Sprintf(" (%s)", targetSession)
+				}
+				c.appendTranscript(line)
+			}
+		case "routing_incoming":
+			if sourceAgent != "" {
+				line := fmt.Sprintf("sys: incoming route from @%s", sourceAgent)
+				if targetSession != "" {
+					line += fmt.Sprintf(" (%s)", targetSession)
+				}
+				c.appendTranscript(line)
+			}
 		}
 	}
 	if c.stickToBottom {
@@ -420,15 +461,21 @@ func (c *chatTUI) clearDraftTranscriptLine() {
 }
 
 func intFromEvent(ev map[string]any, key string) int {
-	switch v := ev[key].(type) {
+	return intFromAny(ev[key])
+}
+
+func intFromAny(v any) int {
+	switch n := v.(type) {
 	case int:
-		return v
+		return n
 	case int64:
-		return int(v)
+		return int(n)
+	case int32:
+		return int(n)
 	case float64:
-		return int(v)
+		return int(n)
 	case float32:
-		return int(v)
+		return int(n)
 	default:
 		return 0
 	}
