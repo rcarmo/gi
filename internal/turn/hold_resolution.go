@@ -13,12 +13,18 @@ func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary
 	if err := e.store.HoldTurnFailure(ctx, turnID, holdState, summary); err != nil {
 		return err
 	}
-	return e.store.AppendTurnEvent(ctx, turnID, turnRec.SessionID, "turn.failure_held", map[string]any{
+	payload := map[string]any{
 		"phase":      "recovery",
 		"checkpoint": true,
+		"reason":     "failure_held",
 		"hold_state": holdState,
 		"summary":    summary,
-	})
+	}
+	if err := e.store.AppendTurnEvent(ctx, turnID, turnRec.SessionID, "turn.failure_held", payload); err != nil {
+		return err
+	}
+	e.PublishRuntimeTurnEvent("turn_failure_held", turnRec.SessionID, turnID, "", turnRec.Status, turnRec.Phase, payload)
+	return nil
 }
 
 func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*SubmitResult, error) {
@@ -55,13 +61,16 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 	if err := e.store.ResolveTurnFailure(ctx, turnID, "retried", summary, result.TurnID); err != nil {
 		return nil, err
 	}
-	warnStore("append turn.failure_resolved event", e.store.AppendTurnEvent(ctx, turnID, turnRec.SessionID, "turn.failure_resolved", map[string]any{
+	payload := map[string]any{
 		"phase":              "recovery",
 		"checkpoint":         true,
+		"reason":             "failure_resolved",
 		"resolution_state":   "retried",
 		"resolution_summary": summary,
 		"resolved_turn_id":   result.TurnID,
-	}))
+	}
+	warnStore("append turn.failure_resolved event", e.store.AppendTurnEvent(ctx, turnID, turnRec.SessionID, "turn.failure_resolved", payload))
+	e.PublishRuntimeTurnEvent("turn_failure_resolved", turnRec.SessionID, turnID, "", turnRec.Status, turnRec.Phase, payload)
 	return result, nil
 }
 
@@ -80,10 +89,16 @@ func (e *Engine) SkipHeldTurn(ctx context.Context, turnID, summary string) error
 	if err := e.store.ResolveTurnFailure(ctx, turnID, "skipped", summary, ""); err != nil {
 		return err
 	}
-	return e.store.AppendTurnEvent(ctx, turnID, turnRec.SessionID, "turn.failure_resolved", map[string]any{
+	payload := map[string]any{
 		"phase":              "recovery",
 		"checkpoint":         true,
+		"reason":             "failure_resolved",
 		"resolution_state":   "skipped",
 		"resolution_summary": summary,
-	})
+	}
+	if err := e.store.AppendTurnEvent(ctx, turnID, turnRec.SessionID, "turn.failure_resolved", payload); err != nil {
+		return err
+	}
+	e.PublishRuntimeTurnEvent("turn_failure_resolved", turnRec.SessionID, turnID, "", turnRec.Status, turnRec.Phase, payload)
+	return nil
 }

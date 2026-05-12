@@ -2045,6 +2045,47 @@ func TestShellFailureBroadcastsSystemMessageToTurnResponseTopic(t *testing.T) {
 	}
 }
 
+func TestHoldResolutionPublishesRuntimeTurnCheckpoints(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	if _, err := s.CreateSession(ctx, "session_hold_topics", "Hold", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_hold_topics", "session_hold_topics", "failed", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if err := s.UpsertTurnFailure(ctx, turnRec.ID, turnRec.SessionID, "provider_error", "none", "provider failed"); err != nil {
+		t.Fatalf("upsert turn failure: %v", err)
+	}
+	turnTopicCh, unsub := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 16, SessionID: turnRec.SessionID})
+	defer unsub()
+	if err := engine.HoldTurnFailure(ctx, turnRec.ID, "review", "needs review"); err != nil {
+		t.Fatalf("hold turn failure: %v", err)
+	}
+	if err := engine.SkipHeldTurn(ctx, turnRec.ID, "skipped on purpose"); err != nil {
+		t.Fatalf("skip held turn: %v", err)
+	}
+	foundHeld := false
+	foundResolved := false
+	deadline := time.After(2 * time.Second)
+	for !(foundHeld && foundResolved) {
+		select {
+		case env := <-turnTopicCh:
+			if env.Payload["type"] == "turn_failure_held" && env.Payload["turn_id"] == turnRec.ID && env.Payload["hold_state"] == "review" && env.Payload["summary"] == "needs review" {
+				foundHeld = true
+			}
+			if env.Payload["type"] == "turn_failure_resolved" && env.Payload["turn_id"] == turnRec.ID && env.Payload["resolution_state"] == "skipped" && env.Payload["resolution_summary"] == "skipped on purpose" {
+				foundResolved = true
+			}
+		case <-deadline:
+			t.Fatalf("expected hold resolution runtime turn checkpoints, got held=%v resolved=%v", foundHeld, foundResolved)
+		}
+	}
+}
+
 func TestSubmitPromptRoutedCreatesChildAgentSession(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
