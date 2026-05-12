@@ -350,6 +350,10 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 	}
 }
 
+func (c *chatTUI) useTopicNativeRuntimeStatus() bool {
+	return c.topicUnsubscribe != nil || c.topicEventCh != nil
+}
+
 func (c *chatTUI) handleEvent(ev map[string]any) {
 	evType, _ := ev["type"].(string)
 	switch evType {
@@ -388,6 +392,9 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			c.app.MarkDirty()
 		}
 	case "tool_finished":
+		if c.useTopicNativeRuntimeStatus() {
+			return
+		}
 		toolName, _ := ev["tool"].(string)
 		if toolName != "" {
 			c.status = fmt.Sprintf("Tool finished: %s", toolName)
@@ -396,6 +403,9 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			c.app.MarkDirty()
 		}
 	case "tool_failed":
+		if c.useTopicNativeRuntimeStatus() {
+			return
+		}
 		toolName, _ := ev["tool"].(string)
 		errText, _ := ev["error"].(string)
 		line := fmt.Sprintf("sys: tool failed: %s", toolName)
@@ -411,6 +421,9 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			c.app.MarkDirty()
 		}
 	case "compaction":
+		if c.useTopicNativeRuntimeStatus() {
+			return
+		}
 		before := intFromEvent(ev, "messages_before")
 		after := intFromEvent(ev, "messages_after")
 		tokens := intFromEvent(ev, "tokens_before")

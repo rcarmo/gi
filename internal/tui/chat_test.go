@@ -293,6 +293,18 @@ func TestHandleTopicEventStatusRendering(t *testing.T) {
 	}
 }
 
+func TestHandleEventStatusRenderingSkipsDuplicateLegacyRuntimeEventsWhenTopicNativeActive(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1, topicEventCh: make(chan topics.Envelope, 1)}
+	c.handleEvent(map[string]any{"type": "tool_failed", "tool": "shell", "error": "boom"})
+	if c.status != "" || len(c.transcript) != 0 {
+		t.Fatalf("expected topic-native path to suppress duplicate legacy tool event, got status=%q transcript=%#v", c.status, c.transcript)
+	}
+	c.handleEvent(map[string]any{"type": "compaction", "messages_before": 10, "messages_after": 4, "tokens_before": 1234})
+	if c.status != "" || len(c.transcript) != 0 {
+		t.Fatalf("expected topic-native path to suppress duplicate legacy compaction event, got status=%q transcript=%#v", c.status, c.transcript)
+	}
+}
+
 func TestHandleEventStatusRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleEvent(map[string]any{"type": "agent_thought_delta"})
