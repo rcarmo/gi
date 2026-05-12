@@ -503,6 +503,39 @@ func TestFinishTurnStoresTerminalSystemMessageAsSystemRole(t *testing.T) {
 	}
 }
 
+func TestFinishTurnAbortedBroadcastsSystemMessageToTurnResponseTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	runner := &sessionRunner{store: s, engine: engine}
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_finish_abort_broadcast", "Test", map[string]any{"status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_finish_abort_broadcast", "session_finish_abort_broadcast", "running", "running", map[string]any{}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	subCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(subCtx, "turn.response", topics.SubscribeOptions{Buffer: 8, SessionID: "session_finish_abort_broadcast"})
+	defer unsub()
+
+	runner.finishTurn(s, "turn_finish_abort_broadcast", "session_finish_abort_broadcast", "agent", "model", "aborted", "stop now", "hook_abort")
+
+	select {
+	case env := <-ch:
+		if env.Payload["sender"] != "system" {
+			t.Fatalf("expected system sender in turn.response payload: %#v", env.Payload)
+		}
+		data, _ := env.Payload["data"].(map[string]any)
+		if data["type"] != "system_message" || data["content"] != "stop now" {
+			t.Fatalf("unexpected turn.response system message payload: %#v", env.Payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected turn.response topic for aborted terminal system message")
+	}
+}
+
 func TestFinishTurnCompletedPublishesCompletedRuntimeTopics(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

@@ -260,9 +260,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 		warnStore("add terminal system message", s.AddMessage(bgCtx, msgID, sessionID, "system", systemMsg, map[string]any{
 			"kind": "chat", "source": "system", "turn_id": turnID, "agent_id": agentID,
 		}))
-		if status == "completed" || status == "failed" {
-			r.broadcastSystemPost(sessionID, turnID, msgID, systemMsg)
-		}
+		r.broadcastSystemPost(sessionID, turnID, msgID, systemMsg)
 	}
 	if failureKind != "" {
 		markTurnFailure(r.engine.backgroundContext(), s, turnID, sessionID, failureKind, systemMsg)
