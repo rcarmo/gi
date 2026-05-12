@@ -45,9 +45,10 @@ func (r *sessionRunner) maybeCompactContext(ctx context.Context, sessionID, turn
 	}
 	warnStore("update turn phase compacting", r.store.UpdateTurnStatusAndPhase(ctx, turnID, "running", "compacting"))
 	warnStore("append compaction.started event", r.store.AppendTurnEvent(ctx, turnID, sessionID, "compaction.started", map[string]any{"phase": "compacting", "checkpoint": true, "reason": "threshold", "tokens_before": tokens, "messages_before": prep.MessagesBefore}))
+	bgCtx := r.engine.backgroundContext()
 	defer func() {
-		warnStore("touch active turn during compaction restore", r.store.TouchSessionActiveTurn(context.Background(), sessionID, turnID))
-		warnStore("restore running phase after compaction", r.store.UpdateTurnStatusAndPhase(context.Background(), turnID, "running", "running"))
+		warnStore("touch active turn during compaction restore", r.store.TouchSessionActiveTurn(bgCtx, sessionID, turnID))
+		warnStore("restore running phase after compaction", r.store.UpdateTurnStatusAndPhase(bgCtx, turnID, "running", "running"))
 	}()
 	resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookSessionBeforeCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload, Messages: convCtx.Messages})
 	if err != nil || resp.Cancel || resp.Block {
