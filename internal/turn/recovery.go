@@ -122,6 +122,7 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 	}
 	runner := e.runner(claim.SessionID)
 	agentID, model := runner.resolveTurnAgentAndModel(ctx, e.store, turnRec, claim.SessionID, turnRec.Prompt)
+	e.PublishRuntimeTurnEvent("turn_recovered", claim.SessionID, claim.TurnID, agentID, status, phase, cloneMap(payload))
 	runner.emitTurnStateHook(ctx, claim.SessionID, claim.TurnID, agentID, model, status, phase, cloneMap(payload))
 	runner.emitSessionStateHook(ctx, claim.SessionID, agentID, model, sessionStatus, map[string]any{"reason": "recovery", "recovery_disposition": disposition, "stale_claim": true, "active_turn_id": nil, "turn_id": claim.TurnID, "turn_status": status, "turn_phase": phase})
 	return nil

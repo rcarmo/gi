@@ -1446,13 +1446,27 @@ func TestRecoverInterruptedTurnPublishesRuntimeStateTopics(t *testing.T) {
 		t.Fatal("expected stale turn to be recovered")
 	}
 
-	select {
-	case env := <-turnTopicCh:
-		if env.Payload["type"] != "turn_state" || env.Payload["status"] != "failed" || env.Payload["phase"] != "held_for_retry_or_skip" || env.Payload["recovery_disposition"] != "hold_for_retry_or_skip_after_tool_checkpoint" {
-			t.Fatalf("unexpected runtime.turn recovery payload: %#v", env)
+	foundTurnRecovered := false
+	foundTurnState := false
+	turnDeadline := time.After(time.Second)
+	for !(foundTurnRecovered && foundTurnState) {
+		select {
+		case env := <-turnTopicCh:
+			switch env.Payload["type"] {
+			case "turn_recovered":
+				if env.Payload["status"] != "failed" || env.Payload["phase"] != "held_for_retry_or_skip" || env.Payload["recovery_disposition"] != "hold_for_retry_or_skip_after_tool_checkpoint" {
+					t.Fatalf("unexpected runtime.turn recovery checkpoint payload: %#v", env)
+				}
+				foundTurnRecovered = true
+			case "turn_state":
+				if env.Payload["status"] != "failed" || env.Payload["phase"] != "held_for_retry_or_skip" || env.Payload["recovery_disposition"] != "hold_for_retry_or_skip_after_tool_checkpoint" {
+					t.Fatalf("unexpected runtime.turn recovery state payload: %#v", env)
+				}
+				foundTurnState = true
+			}
+		case <-turnDeadline:
+			t.Fatalf("expected runtime.turn recovery checkpoint and state topics, got turn_recovered=%v turn_state=%v", foundTurnRecovered, foundTurnState)
 		}
-	case <-time.After(time.Second):
-		t.Fatal("expected runtime.turn recovery state topic")
 	}
 	select {
 	case env := <-sessionTopicCh:
