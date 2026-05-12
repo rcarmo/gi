@@ -376,6 +376,14 @@ func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 	c.draft = "partial"
 	c.transcript = []string{"Neo: partial"}
 	c.draftLineIndex = 0
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.session", Payload: map[string]any{"type": "session_state", "status": "queued"}})
+	if c.status != "Queued" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
+		t.Fatalf("session state queued rendering = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
+	}
+	c.running = true
+	c.draft = "partial"
+	c.transcript = []string{"Neo: partial"}
+	c.draftLineIndex = 0
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.session", Payload: map[string]any{"type": "session_state", "status": "idle"}})
 	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
 		t.Fatalf("session state idle cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)

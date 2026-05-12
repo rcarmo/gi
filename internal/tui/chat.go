@@ -277,6 +277,10 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 					c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 				}
 			}
+			if status == "queued" {
+				c.resetRunningDraftState()
+				c.status = "Queued"
+			}
 			if status == "idle" {
 				c.resetRunningDraftState()
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
