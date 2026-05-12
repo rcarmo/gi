@@ -6,10 +6,20 @@ import (
 )
 
 func (r *sessionRunner) emitTurnStateHook(ctx context.Context, sessionID, turnID, agentID, model, status, phase string, payload map[string]any) {
+	r.emitTurnState(ctx, sessionID, turnID, agentID, model, status, phase, payload, true)
+}
+
+func (r *sessionRunner) emitTurnStateHookOnly(ctx context.Context, sessionID, turnID, agentID, model, status, phase string, payload map[string]any) {
+	r.emitTurnState(ctx, sessionID, turnID, agentID, model, status, phase, payload, false)
+}
+
+func (r *sessionRunner) emitTurnState(ctx context.Context, sessionID, turnID, agentID, model, status, phase string, payload map[string]any, publishTopic bool) {
 	if stringsMapEmpty(payload) {
 		payload = map[string]any{}
 	}
-	r.engine.PublishRuntimeTurnEvent("turn_state", sessionID, turnID, agentID, status, phase, payload)
+	if publishTopic {
+		r.engine.PublishRuntimeTurnEvent("turn_state", sessionID, turnID, agentID, status, phase, payload)
+	}
 	if _, err := r.engine.emitHook(ctx, HookRequest{
 		Name:       HookTurnState,
 		SessionID:  sessionID,
@@ -25,10 +35,20 @@ func (r *sessionRunner) emitTurnStateHook(ctx context.Context, sessionID, turnID
 }
 
 func (r *sessionRunner) emitSessionStateHook(ctx context.Context, sessionID, agentID, model, status string, payload map[string]any) {
+	r.emitSessionState(ctx, sessionID, agentID, model, status, payload, true)
+}
+
+func (r *sessionRunner) emitSessionStateHookOnly(ctx context.Context, sessionID, agentID, model, status string, payload map[string]any) {
+	r.emitSessionState(ctx, sessionID, agentID, model, status, payload, false)
+}
+
+func (r *sessionRunner) emitSessionState(ctx context.Context, sessionID, agentID, model, status string, payload map[string]any, publishTopic bool) {
 	if stringsMapEmpty(payload) {
 		payload = map[string]any{}
 	}
-	r.engine.PublishRuntimeSessionEvent("session_state", sessionID, agentID, status, payload)
+	if publishTopic {
+		r.engine.PublishRuntimeSessionEvent("session_state", sessionID, agentID, status, payload)
+	}
 	if _, err := r.engine.emitHook(ctx, HookRequest{
 		Name:          HookSessionState,
 		SessionID:     sessionID,

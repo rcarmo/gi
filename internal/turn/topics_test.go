@@ -290,6 +290,33 @@ func TestEmitSessionStateHookPublishesRuntimeSessionStateTopic(t *testing.T) {
 	}
 }
 
+func TestHookOnlyStateEmittersDoNotPublishGenericRuntimeTopics(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	runner := &sessionRunner{store: s, engine: engine}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	turnCh, unsubTurn := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 4, SessionID: "session_hook_only"})
+	defer unsubTurn()
+	sessionCh, unsubSession := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 4, SessionID: "session_hook_only"})
+	defer unsubSession()
+
+	runner.emitTurnStateHookOnly(context.Background(), "session_hook_only", "turn_hook_only", "agent", "model", "completed", "completed", map[string]any{"reason": "completed"})
+	runner.emitSessionStateHookOnly(context.Background(), "session_hook_only", "agent", "model", "idle", map[string]any{"reason": "turn_completed"})
+
+	select {
+	case env := <-turnCh:
+		t.Fatalf("unexpected runtime.turn topic from hook-only emitter: %#v", env)
+	case <-time.After(100 * time.Millisecond):
+	}
+	select {
+	case env := <-sessionCh:
+		t.Fatalf("unexpected runtime.session topic from hook-only emitter: %#v", env)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
 func TestPublishRuntimeRoutingEventUsesExpectedSessionScope(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
