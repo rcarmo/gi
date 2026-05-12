@@ -433,8 +433,15 @@ func TestHandleEventErrorClearsRunningState(t *testing.T) {
 func TestHandleEventAgentStatusWithoutAppDoesNotPanic(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}}
 	c.handleEvent(map[string]any{"type": "agent_status", "title": "Thinking…"})
-	if c.status != "Thinking…" {
-		t.Fatalf("agent_status without app = %q", c.status)
+	if !c.running || c.status != "Thinking…" {
+		t.Fatalf("agent_status without app = running=%v status=%q", c.running, c.status)
+	}
+	c.draft = "partial"
+	c.transcript = []string{"Neo: partial"}
+	c.draftLineIndex = 0
+	c.handleEvent(map[string]any{"type": "agent_status"})
+	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
+		t.Fatalf("agent_status idle cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 }
 

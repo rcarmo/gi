@@ -586,8 +586,10 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			title = v
 		}
 		if title != "" {
+			c.markRunning()
 			c.status = title
 		} else {
+			c.resetRunningDraftState()
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		}
 		if c.app != nil {
