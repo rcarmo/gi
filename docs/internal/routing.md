@@ -151,6 +151,7 @@ sequenceDiagram
   Engine->>Store: CreateTurnWithStatus(target session)
   Engine->>Store: RecordRouteEvent(...)
   Engine->>Store: AppendTurnEvent(turn.submitted)
+  Engine->>SSE: emit runtime.turn(turn_submitted)
   Engine->>SSE: emit routing_decision (+ routing_incoming when target differs)
 
   Engine->>Engine: queue/run via session runner
@@ -268,6 +269,7 @@ sequenceDiagram
   Engine->>Store: CreateTurnWithStatus(turn metadata includes parent_turn_id)
   Engine->>Store: RecordRouteEvent(route metadata + parent key)
   Engine->>Store: Append turn.submitted
+  Engine->>SSE: emit runtime.turn(turn_submitted)
   Engine->>Engine: runTurn() as usual (queue/busyness path)
   Engine->>SSE: stream events + completion
   SSE-->>UI: turn-thread aware UI can use metadata
@@ -375,4 +377,4 @@ What routing does **not** assume yet:
 
 ## Recovery / DB-first semantics
 
-Routing never bypasses the normal queue/cancel/recovery path. Route decisions are persisted before execution starts so each routing action is durable even if inference is cancelled or fails.
+Routing never bypasses the normal queue/cancel/recovery path. Route decisions are persisted before execution starts so each routing action is durable even if inference is cancelled or fails. Queued/routed turn creation now also emits the canonical `runtime.turn` `turn_submitted` checkpoint so route-triggered queue entry is visible on the same live runtime topic surface as other turn lifecycle edges, not only in stored `turn.submitted` audit rows.
