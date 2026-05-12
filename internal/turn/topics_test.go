@@ -7,6 +7,7 @@ import (
 
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
+	goai "github.com/rcarmo/go-ai"
 )
 
 func TestBroadcastPublishesNormalizedTopic(t *testing.T) {
@@ -162,6 +163,26 @@ func TestEmitHookPublishesRuntimeHookErrorTopic(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected runtime.hook error topic event")
+	}
+}
+
+func TestPublishRuntimeHookDecisionEventPublishesRuntimeHookTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.hook", topics.SubscribeOptions{Buffer: 8, SessionID: "session_hook_decision"})
+	defer unsub()
+	call := goai.ToolCall{ID: "call_hook_decision", Name: "grep"}
+	engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookApproveTool, SessionID: "session_hook_decision", TurnID: "turn_hook_decision", AgentID: "agent", Iteration: 2, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": "tool not approved"})
+	select {
+	case env := <-ch:
+		if env.Topic != "runtime.hook" || env.Payload["type"] != "hook_deny" || env.Payload["hook"] != HookApproveTool || env.Payload["tool"] != "grep" || env.Payload["tool_call_id"] != "call_hook_decision" {
+			t.Fatalf("unexpected runtime hook decision payload: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.hook decision topic event")
 	}
 }
 

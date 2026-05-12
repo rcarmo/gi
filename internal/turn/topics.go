@@ -177,6 +177,10 @@ func (e *Engine) PublishRuntimeHookEvent(eventType string, req HookRequest, sour
 			"emitted_at": req.Trace.EmittedAt,
 		},
 	}
+	if req.ToolCall != nil {
+		payload["tool"] = req.ToolCall.Name
+		payload["tool_call_id"] = req.ToolCall.ID
+	}
 	if err != nil {
 		payload["error"] = err.Error()
 	}
@@ -188,6 +192,25 @@ func (e *Engine) PublishRuntimeHookEvent(eventType string, req HookRequest, sour
 		Type:      "notice",
 		Payload:   payload,
 	})
+}
+
+func (e *Engine) PublishRuntimeHookDecisionEvent(eventType string, req HookRequest, payload map[string]any) {
+	if e == nil || e.topics == nil {
+		return
+	}
+	body := cloneMap(payload)
+	if body == nil {
+		body = map[string]any{}
+	}
+	body["type"] = strings.TrimSpace(eventType)
+	body["hook"] = req.Name
+	body["turn_id"] = req.TurnID
+	body["iteration"] = req.Iteration
+	if req.ToolCall != nil {
+		body["tool"] = req.ToolCall.Name
+		body["tool_call_id"] = req.ToolCall.ID
+	}
+	e.publishTopicEvent(topics.Envelope{Topic: "runtime.hook", SessionID: req.SessionID, AgentID: req.AgentID, Source: "runtime", Type: "notice", Payload: body})
 }
 
 func (e *Engine) PublishRuntimeTurnEvent(eventType, sessionID, turnID, agentID, status, phase string, payload map[string]any) {

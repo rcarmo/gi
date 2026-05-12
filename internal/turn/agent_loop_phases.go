@@ -264,14 +264,17 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			log.Printf("hook tool_call error: %v", err)
 		} else {
 			if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s aborted by hook", call.Name)); abortErr != nil {
+				r.engine.PublishRuntimeHookDecisionEvent("hook_abort", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "reason": abortErr.Error()})
 				r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
 				outcome.terminated = true
 				return outcome
 			}
 			if resp.ToolCall != nil {
+				r.engine.PublishRuntimeHookDecisionEvent("hook_modify", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "modified_tool": resp.ToolCall.Name, "modified_tool_call_id": resp.ToolCall.ID})
 				call = *resp.ToolCall
 			}
 			if injectedResult, ok := directToolResultFromHook(resp); ok {
+				r.engine.PublishRuntimeHookDecisionEvent("hook_respond", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "source": "hook", "output_length": len(injectedResult)})
 				displayResult := injectedResult
 				if len(displayResult) > 100000 {
 					displayResult = displayResult[:100000] + "\n... (truncated)"
@@ -295,6 +298,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				continue
 			}
 			if resp.Block {
+				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "reason": stringValue(resp.Reason, "tool call blocked")})
 				toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool call blocked"))
 				errText := fmt.Sprintf("Error: %v", toolErr)
 				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
@@ -306,11 +310,13 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			log.Printf("hook approve_tool error: %v", err)
 		} else {
 			if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s approval aborted by hook", call.Name)); abortErr != nil {
+				r.engine.PublishRuntimeHookDecisionEvent("hook_abort", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": abortErr.Error()})
 				r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
 				outcome.terminated = true
 				return outcome
 			}
 			if resp.Block {
+				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": stringValue(resp.Reason, "tool not approved")})
 				toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool not approved"))
 				errText := fmt.Sprintf("Error: %v", toolErr)
 				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
@@ -318,6 +324,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				continue
 			}
 			if resp.ToolCall != nil {
+				r.engine.PublishRuntimeHookDecisionEvent("hook_modify", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "modified_tool": resp.ToolCall.Name, "modified_tool_call_id": resp.ToolCall.ID})
 				call = *resp.ToolCall
 			}
 		}
@@ -368,11 +375,13 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				log.Printf("hook tool_result error: %v", err)
 			} else {
 				if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s result aborted by hook", call.Name)); abortErr != nil {
+					r.engine.PublishRuntimeHookDecisionEvent("hook_abort", HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_result", "reason": abortErr.Error()})
 					r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
 					outcome.terminated = true
 					return outcome
 				}
 				if resp.ToolResult != nil {
+					r.engine.PublishRuntimeHookDecisionEvent("hook_modify", HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_result", "output_length": len(*resp.ToolResult)})
 					toolResult = *resp.ToolResult
 				}
 			}

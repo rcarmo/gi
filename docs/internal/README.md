@@ -73,7 +73,7 @@ Current topic/runtime publication status:
 - the in-memory topic bus is live and now carries bridged turn/session notices plus runtime-critical steering and subturn lifecycle topics
 - connectivity events are bridged into the topic bus under `connectivity.*`
 - inbound queue and dispatcher lifecycle now publish onto the canonical topic bus under `runtime.inbound_work` and `runtime.dispatcher`
-- hook invocation lifecycle/decision notices now publish under `runtime.hook`
+- hook invocation lifecycle plus higher-level hook decision notices now publish under `runtime.hook`
 - core runtime turn/session lifecycle checkpoints now also publish under `runtime.turn` and `runtime.session` (now including generic shared state notices plus explicit setup and terminal/idle transitions, with explicit checkpoints kept non-duplicated and completed paths reported consistently)
 - core runtime tool lifecycle checkpoints now also publish under `runtime.tool` (currently started, finished, failed, and skipped)
 - core runtime routing/allocation decision notices now also publish under `runtime.routing` (currently persisted route-decision and incoming-route notices)
