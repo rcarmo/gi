@@ -338,23 +338,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			c.status = "Continuing queued follow-up"
 		}
 	case "turn.subturn":
-		typ, _ := payload["type"].(string)
-		childTurn, _ := payload["child_turn_id"].(string)
-		status, _ := payload["status"].(string)
-		switch typ {
-		case "subturn_created":
-			if childTurn != "" {
-				c.appendTranscript(fmt.Sprintf("sys: sub-turn started: %s", childTurn))
-			}
-		case "subturn_status":
-			if childTurn != "" && status != "" {
-				c.appendTranscript(fmt.Sprintf("sys: sub-turn %s: %s", childTurn, status))
-			}
-		case "subturn_result_ready", "subturn_result_delivered", "subturn_orphaned":
-			if childTurn != "" && status != "" {
-				c.appendTranscript(fmt.Sprintf("sys: sub-turn %s result: %s", childTurn, status))
-			}
-		}
+		c.renderSubturnEvent(payload["type"], payload["child_turn_id"], payload["status"])
 	}
 	if c.stickToBottom {
 		c.scrollTranscriptToBottom()
@@ -522,6 +506,26 @@ func (c *chatTUI) clearDraftTranscriptLine() {
 
 func (c *chatTUI) markRunning() {
 	c.running = true
+}
+
+func (c *chatTUI) renderSubturnEvent(eventTypeValue, childTurnValue, statusValue any) {
+	typ, _ := eventTypeValue.(string)
+	childTurn, _ := childTurnValue.(string)
+	status, _ := statusValue.(string)
+	switch typ {
+	case "subturn_created":
+		if childTurn != "" {
+			c.appendTranscript(fmt.Sprintf("sys: sub-turn started: %s", childTurn))
+		}
+	case "subturn_status":
+		if childTurn != "" && status != "" {
+			c.appendTranscript(fmt.Sprintf("sys: sub-turn %s: %s", childTurn, status))
+		}
+	case "subturn_result_ready", "subturn_result_delivered", "subturn_orphaned":
+		if childTurn != "" && status != "" {
+			c.appendTranscript(fmt.Sprintf("sys: sub-turn %s result: %s", childTurn, status))
+		}
+	}
 }
 
 func (c *chatTUI) renderHookEvent(eventTypeValue, hookNameValue, reasonValue, toolNameValue, errValue any) {
