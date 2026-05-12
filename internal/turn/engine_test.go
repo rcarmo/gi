@@ -942,6 +942,49 @@ func TestCancelQueuedTurn(t *testing.T) {
 	}
 }
 
+func TestCancelQueuedTurnStartsNextQueuedWorkWhenSessionRemainsQueued(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	started := make(chan struct{}, 1)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "next queued done"}}}}, nil
+	})
+	sess, _ := s.CreateSession(ctx, "session_cancel_queue_chain", "Chain", map[string]any{"model": "mock-cancel"})
+	engine := New(s)
+	firstQueued, err := s.CreateTurnWithStatus(ctx, "turn_queued_cancel_chain_1", sess.ID, "queued", "first queued", map[string]any{"intent": "prompt", "model": "mock-cancel"})
+	if err != nil {
+		t.Fatalf("create first queued turn: %v", err)
+	}
+	secondQueued, err := s.CreateTurnWithStatus(ctx, "turn_queued_cancel_chain_2", sess.ID, "queued", "second queued", map[string]any{"intent": "prompt", "model": "mock-cancel"})
+	if err != nil {
+		t.Fatalf("create second queued turn: %v", err)
+	}
+	if err := engine.CancelTurn(ctx, sess.ID, firstQueued.ID); err != nil {
+		t.Fatalf("cancel first queued turn: %v", err)
+	}
+	firstState, err := s.GetTurn(ctx, firstQueued.ID)
+	if err != nil {
+		t.Fatalf("get cancelled first turn: %v", err)
+	}
+	if firstState.Status != "cancelled" {
+		t.Fatalf("expected first queued turn cancelled, got %#v", firstState)
+	}
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected next queued turn to start after queued cancel")
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, secondQueued.ID)
+		return err == nil && turnRec.StartedAt != ""
+	}, "next queued turn start after queued cancel")
+}
+
 func TestCancelQueuedTurnIgnoresCallerSessionID(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

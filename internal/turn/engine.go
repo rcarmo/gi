@@ -431,7 +431,15 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		}
 		warnStore("touch session state after queued cancel", e.store.TouchSessionState(ctx, turnSessionID, map[string]any{"status": sessionStatus}))
 		runner.emitSessionStateHook(ctx, turnSessionID, "", "", sessionStatus, map[string]any{"reason": "queued_cancel", "turn_id": turnID, "turn_status": "cancelled", "turn_phase": "aborted", "active_turn_id": nil})
-		return e.store.AppendTurnEvent(ctx, turnID, turnSessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "queued": true})
+		if err := e.store.AppendTurnEvent(ctx, turnID, turnSessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "queued": true}); err != nil {
+			return err
+		}
+		if sessionStatus == "queued" {
+			if _, err := e.startNextQueuedTurnLocked(ctx, runner, turnSessionID); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	return fmt.Errorf("turn not cancellable")
 }
