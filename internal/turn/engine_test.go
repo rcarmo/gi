@@ -985,6 +985,65 @@ func TestCancelQueuedTurnStartsNextQueuedWorkWhenSessionRemainsQueued(t *testing
 	}, "next queued turn start after queued cancel")
 }
 
+func TestCancelQueuedTurnRestartPublishesSetupTopics(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	started := make(chan struct{}, 1)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "next queued done"}}}}, nil
+	})
+	sess, _ := s.CreateSession(ctx, "session_cancel_queue_topics", "Chain", map[string]any{"model": "mock-cancel"})
+	engine := New(s)
+	firstQueued, err := s.CreateTurnWithStatus(ctx, "turn_queued_cancel_topics_1", sess.ID, "queued", "first queued", map[string]any{"intent": "prompt", "model": "mock-cancel"})
+	if err != nil {
+		t.Fatalf("create first queued turn: %v", err)
+	}
+	secondQueued, err := s.CreateTurnWithStatus(ctx, "turn_queued_cancel_topics_2", sess.ID, "queued", "second queued", map[string]any{"intent": "prompt", "model": "mock-cancel"})
+	if err != nil {
+		t.Fatalf("create second queued turn: %v", err)
+	}
+	sessionTopicCh, unsubSession := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 16, SessionID: sess.ID})
+	defer unsubSession()
+	turnTopicCh, unsubTurn := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 16, SessionID: sess.ID})
+	defer unsubTurn()
+
+	if err := engine.CancelTurn(ctx, sess.ID, firstQueued.ID); err != nil {
+		t.Fatalf("cancel first queued turn: %v", err)
+	}
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected next queued turn to start after queued cancel")
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, secondQueued.ID)
+		return err == nil && turnRec.StartedAt != ""
+	}, "next queued turn start after queued cancel")
+
+	foundSessionRunning := false
+	foundTurnStarted := false
+	deadline := time.After(2 * time.Second)
+	for !(foundSessionRunning && foundTurnStarted) {
+		select {
+		case env := <-sessionTopicCh:
+			if env.Payload["type"] == "session_running" && env.Payload["status"] == "running" && env.Payload["active_turn_id"] == secondQueued.ID {
+				foundSessionRunning = true
+			}
+		case env := <-turnTopicCh:
+			if env.Payload["type"] == "turn_started" && env.Payload["turn_id"] == secondQueued.ID && env.Payload["status"] == "running" && env.Payload["phase"] == "setup" {
+				foundTurnStarted = true
+			}
+		case <-deadline:
+			t.Fatalf("expected queued cancel restart to publish session_running and turn_started, got session_running=%v turn_started=%v", foundSessionRunning, foundTurnStarted)
+		}
+	}
+}
+
 func TestCancelQueuedTurnIgnoresCallerSessionID(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
