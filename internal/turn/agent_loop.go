@@ -206,6 +206,7 @@ func (r *sessionRunner) executeTool(ctx context.Context, call goai.ToolCall, ses
 
 // persistUsage records cumulative usage for the turn.
 func (r *sessionRunner) persistUsage(s *store.Store, turnID, sessionID string, usage *goai.Usage, iterations int) {
+	bgCtx := r.engine.backgroundContext()
 	usageMap := map[string]any{
 		"input": usage.Input, "output": usage.Output,
 		"total":      usage.TotalTokens,
@@ -214,7 +215,7 @@ func (r *sessionRunner) persistUsage(s *store.Store, turnID, sessionID string, u
 		"cost_total": usage.Cost.Total,
 		"iterations": iterations,
 	}
-	warnStore("append inference.finished event", s.AppendTurnEvent(context.Background(), turnID, sessionID, "inference.finished", map[string]any{
+	warnStore("append inference.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "inference.finished", map[string]any{
 		"phase": "inference", "checkpoint": true, "usage": usageMap, "iterations": iterations,
 	}))
 	log.Printf("inference: usage input=%d output=%d total=%d cost=%.6f iterations=%d",
@@ -243,28 +244,30 @@ func (r *sessionRunner) broadcastSystemPost(sessionID, turnID, msgID, content st
 
 // finishTurnOK marks a turn as successfully completed.
 func (r *sessionRunner) finishTurnOK(s *store.Store, turnID, sessionID, agentID, model string, iterations int) {
+	bgCtx := r.engine.backgroundContext()
 	r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
-	warnStore("append turn.finished event", s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{
+	warnStore("append turn.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "turn.finished", map[string]any{
 		"phase": "turn", "checkpoint": true, "status": "completed", "iterations": iterations,
 	}))
-	warnStore("update turn status and phase completed", s.UpdateTurnStatusAndPhase(context.Background(), turnID, "completed", "completed"))
-	warnStore("mark turn finished", s.MarkTurnFinished(context.Background(), turnID))
+	warnStore("update turn status and phase completed", s.UpdateTurnStatusAndPhase(bgCtx, turnID, "completed", "completed"))
+	warnStore("mark turn finished", s.MarkTurnFinished(bgCtx, turnID))
 	r.engine.PublishRuntimeTurnEvent("turn_completed", sessionID, turnID, agentID, "completed", "completed", map[string]any{"reason": "completed", "iterations": iterations})
-	r.emitTurnStateHookOnly(context.Background(), sessionID, turnID, agentID, model, "completed", "completed", map[string]any{"reason": "completed", "iterations": iterations})
-	r.propagateChildSubTurnCancellation(context.Background(), turnID, "completed", "")
-	r.publishSubTurnLifecycle(context.Background(), turnID, "completed")
-	warnStore("touch session idle", s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
+	r.emitTurnStateHookOnly(bgCtx, sessionID, turnID, agentID, model, "completed", "completed", map[string]any{"reason": "completed", "iterations": iterations})
+	r.propagateChildSubTurnCancellation(bgCtx, turnID, "completed", "")
+	r.publishSubTurnLifecycle(bgCtx, turnID, "completed")
+	warnStore("touch session idle", s.TouchSessionState(bgCtx, sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
 	r.engine.PublishRuntimeSessionEvent("session_idle", sessionID, agentID, "idle", map[string]any{"reason": "turn_completed", "turn_id": turnID, "model": model})
-	r.emitSessionStateHookOnly(context.Background(), sessionID, agentID, model, "idle", map[string]any{"reason": "turn_completed"})
+	r.emitSessionStateHookOnly(bgCtx, sessionID, agentID, model, "idle", map[string]any{"reason": "turn_completed"})
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
 }
 
 // finishTurn persists a terminal status and optional system message.
 func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, model, status, systemMsg, failureKind string) {
+	bgCtx := r.engine.backgroundContext()
 	r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
 	if systemMsg != "" {
 		msgID := store.NowID("msg")
-		warnStore("add terminal system message", s.AddMessage(context.Background(), msgID, sessionID, "system", systemMsg, map[string]any{
+		warnStore("add terminal system message", s.AddMessage(bgCtx, msgID, sessionID, "system", systemMsg, map[string]any{
 			"kind": "chat", "source": "system", "turn_id": turnID, "agent_id": agentID,
 		}))
 		if status == "completed" || status == "failed" {
@@ -274,12 +277,12 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, m
 	if failureKind != "" {
 		markTurnFailure(r.engine.backgroundContext(), s, turnID, sessionID, failureKind, systemMsg)
 	}
-	warnStore("append turn.finished event", s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{
+	warnStore("append turn.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "turn.finished", map[string]any{
 		"phase": "turn", "checkpoint": true, "status": status,
 	}))
 	phase := terminalPhaseForStatus(status)
-	warnStore("update turn status and phase terminal", s.UpdateTurnStatusAndPhase(context.Background(), turnID, status, phase))
-	warnStore("mark turn finished", s.MarkTurnFinished(context.Background(), turnID))
+	warnStore("update turn status and phase terminal", s.UpdateTurnStatusAndPhase(bgCtx, turnID, status, phase))
+	warnStore("mark turn finished", s.MarkTurnFinished(bgCtx, turnID))
 	turnEventType := "turn_terminal"
 	sessionIdleReason := "turn_terminal"
 	if status == "completed" && failureKind == "" {
@@ -287,12 +290,12 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, m
 		sessionIdleReason = "turn_completed"
 	}
 	r.engine.PublishRuntimeTurnEvent(turnEventType, sessionID, turnID, agentID, status, phase, map[string]any{"reason": firstNonEmpty(failureKind, status), "failure_kind": failureKind})
-	r.emitTurnStateHookOnly(context.Background(), sessionID, turnID, agentID, model, status, phase, map[string]any{"reason": firstNonEmpty(failureKind, status)})
-	r.propagateChildSubTurnCancellation(context.Background(), turnID, status, failureKind)
-	r.publishSubTurnLifecycle(context.Background(), turnID, status)
-	warnStore("touch session idle", s.TouchSessionState(context.Background(), sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
+	r.emitTurnStateHookOnly(bgCtx, sessionID, turnID, agentID, model, status, phase, map[string]any{"reason": firstNonEmpty(failureKind, status)})
+	r.propagateChildSubTurnCancellation(bgCtx, turnID, status, failureKind)
+	r.publishSubTurnLifecycle(bgCtx, turnID, status)
+	warnStore("touch session idle", s.TouchSessionState(bgCtx, sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
 	r.engine.PublishRuntimeSessionEvent("session_idle", sessionID, agentID, "idle", map[string]any{"reason": sessionIdleReason, "turn_id": turnID, "turn_status": status, "model": model})
-	r.emitSessionStateHookOnly(context.Background(), sessionID, agentID, model, "idle", map[string]any{"reason": sessionIdleReason, "turn_status": status})
+	r.emitSessionStateHookOnly(bgCtx, sessionID, agentID, model, "idle", map[string]any{"reason": sessionIdleReason, "turn_status": status})
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
 }
 
