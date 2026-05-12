@@ -380,6 +380,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		submittedPayload["route_matched_by"] = routeMatchedBy
 	}
 	warnStore("append turn.submitted event", e.store.AppendTurnEvent(durableCtx, turnID, in.SessionID, "turn.submitted", submittedPayload))
+	e.PublishRuntimeTurnEvent("turn_submitted", in.SessionID, turnID, "", firstNonEmpty(status, "queued"), firstNonEmpty(status, "queued"), submittedPayload)
 	warnStore("sync queue count after submit", e.store.SyncSessionQueueCount(durableCtx, in.SessionID))
 	warnStore("touch session model after submit", e.store.TouchSessionState(durableCtx, in.SessionID, map[string]any{"model": in.Model}))
 	return &SubmitResult{TurnID: turnID, SessionID: in.SessionID, Status: status, Queued: queued}, nil

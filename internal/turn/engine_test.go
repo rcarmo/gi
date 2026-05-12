@@ -56,6 +56,39 @@ func waitForCondition(t *testing.T, timeout time.Duration, check func() bool, la
 	t.Fatalf("timed out waiting for %s", label)
 }
 
+func TestSubmitPromptPublishesQueuedTurnSubmittedTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_submit_topic", "Test", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_submit_topic_active", "session_submit_topic", "queued", "first", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create first queued turn: %v", err)
+	}
+	turnTopicCh, unsub := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 16, SessionID: "session_submit_topic"})
+	defer unsub()
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_submit_topic", Prompt: "second", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit queued prompt: %v", err)
+	}
+	if !result.Queued {
+		t.Fatalf("expected queued submit result, got %#v", result)
+	}
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case env := <-turnTopicCh:
+			if env.Payload["type"] == "turn_submitted" && env.Payload["turn_id"] == result.TurnID && env.Payload["status"] == "queued" && env.Payload["phase"] == "queued" && env.Payload["queued"] == true {
+				return
+			}
+		case <-deadline:
+			t.Fatal("expected queued submit to publish turn_submitted runtime topic")
+		}
+	}
+}
+
 func TestSubmitPromptSteersSecondPromptToActiveTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
@@ -602,6 +635,40 @@ func TestContinueSessionStartsQueuedSteeringWhenIdle(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected continued steering message in history, got %#v", msgs)
+	}
+}
+
+func TestContinueSessionPublishesTurnSubmittedTopicForSteeringContinuation(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	_, err := s.CreateSession(ctx, "session_continue_topics", "Test", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	turnTopicCh, unsub := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 16, SessionID: "session_continue_topics"})
+	defer unsub()
+	if _, err := s.EnqueueSteering(ctx, "session_continue_topics", "", "user", "continue please", map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	continued, err := engine.ContinueSession(ctx, "session_continue_topics")
+	if err != nil {
+		t.Fatalf("continue session: %v", err)
+	}
+	if !continued {
+		t.Fatal("expected ContinueSession to start queued steering")
+	}
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case env := <-turnTopicCh:
+			if env.Payload["type"] == "turn_submitted" && env.Payload["status"] == "queued" && env.Payload["phase"] == "queued" && env.Payload["queued"] == true && env.Payload["continue"] == true {
+				return
+			}
+		case <-deadline:
+			t.Fatal("expected steering continuation to publish turn_submitted runtime topic")
+		}
 	}
 }
 

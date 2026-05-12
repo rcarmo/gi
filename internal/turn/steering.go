@@ -155,7 +155,9 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 		return false, "", err
 	}
 	metadata := turnRec.Metadata
-	warnStore("append continued turn.submitted event", e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.submitted", map[string]any{"phase": "queue", "intent": stringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true}))
+	submittedPayload := map[string]any{"phase": "queue", "intent": stringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true}
+	warnStore("append continued turn.submitted event", e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.submitted", submittedPayload))
+	e.PublishRuntimeTurnEvent("turn_submitted", sessionID, turnID, "", "queued", "queued", submittedPayload)
 	warnStore("append steering.continue_staged event", e.store.AppendTurnEvent(ctx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)}))
 	e.broadcast(sessionID, map[string]any{"type": "steering_continue_staged", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs)})
 	return true, turnID, nil
