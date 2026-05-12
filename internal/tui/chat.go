@@ -241,34 +241,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		c.markRunning()
 		c.status = "Thinking…"
 	case "runtime.tool":
-		toolName, _ := payload["tool"].(string)
-		typ, _ := payload["type"].(string)
-		switch typ {
-		case "tool_started":
-			c.markRunning()
-			if toolName != "" {
-				c.status = fmt.Sprintf("Running: %s", toolName)
-			}
-		case "tool_finished":
-			if toolName != "" {
-				c.status = fmt.Sprintf("Tool finished: %s", toolName)
-			}
-		case "tool_failed":
-			errText, _ := payload["error"].(string)
-			line := fmt.Sprintf("sys: tool failed: %s", toolName)
-			if errText != "" {
-				line = fmt.Sprintf("%s: %s", line, truncate(errText, 120))
-			}
-			c.appendTranscript(line)
-			c.status = fmt.Sprintf("Tool failed: %s", toolName)
-		case "tool_skipped":
-			reason, _ := payload["reason"].(string)
-			line := fmt.Sprintf("sys: tool skipped: %s", toolName)
-			if reason != "" {
-				line = fmt.Sprintf("%s: %s", line, truncate(reason, 120))
-			}
-			c.appendTranscript(line)
-		}
+		c.renderToolEvent(payload["type"], payload["tool"], payload["error"], payload["reason"])
 	case "runtime.hook":
 		typ, _ := payload["type"].(string)
 		hookName, _ := payload["hook"].(string)
@@ -485,29 +458,11 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		if c.app != nil {
 			c.app.MarkDirty()
 		}
-	case "tool_finished":
+	case "tool_finished", "tool_failed":
 		if c.useTopicNativeRuntimeStatus() {
 			return
 		}
-		toolName, _ := ev["tool"].(string)
-		if toolName != "" {
-			c.status = fmt.Sprintf("Tool finished: %s", toolName)
-		}
-		if c.app != nil {
-			c.app.MarkDirty()
-		}
-	case "tool_failed":
-		if c.useTopicNativeRuntimeStatus() {
-			return
-		}
-		toolName, _ := ev["tool"].(string)
-		errText, _ := ev["error"].(string)
-		line := fmt.Sprintf("sys: tool failed: %s", toolName)
-		if errText != "" {
-			line = fmt.Sprintf("%s: %s", line, truncate(errText, 120))
-		}
-		c.appendTranscript(line)
-		c.status = fmt.Sprintf("Tool failed: %s", toolName)
+		c.renderToolEvent(evType, ev["tool"], ev["error"], ev["reason"])
 		if c.stickToBottom {
 			c.scrollTranscriptToBottom()
 		}
@@ -615,6 +570,37 @@ func (c *chatTUI) clearDraftTranscriptLine() {
 
 func (c *chatTUI) markRunning() {
 	c.running = true
+}
+
+func (c *chatTUI) renderToolEvent(eventTypeValue, toolNameValue, errValue, reasonValue any) {
+	typ, _ := eventTypeValue.(string)
+	toolName, _ := toolNameValue.(string)
+	errText, _ := errValue.(string)
+	reason, _ := reasonValue.(string)
+	switch typ {
+	case "tool_started":
+		c.markRunning()
+		if toolName != "" {
+			c.status = fmt.Sprintf("Running: %s", toolName)
+		}
+	case "tool_finished":
+		if toolName != "" {
+			c.status = fmt.Sprintf("Tool finished: %s", toolName)
+		}
+	case "tool_failed":
+		line := fmt.Sprintf("sys: tool failed: %s", toolName)
+		if errText != "" {
+			line = fmt.Sprintf("%s: %s", line, truncate(errText, 120))
+		}
+		c.appendTranscript(line)
+		c.status = fmt.Sprintf("Tool failed: %s", toolName)
+	case "tool_skipped":
+		line := fmt.Sprintf("sys: tool skipped: %s", toolName)
+		if reason != "" {
+			line = fmt.Sprintf("%s: %s", line, truncate(reason, 120))
+		}
+		c.appendTranscript(line)
+	}
 }
 
 func (c *chatTUI) renderRoutingEvent(eventType, targetAgentValue, targetSessionValue, targetSessionIDValue, sourceAgentValue any) {
