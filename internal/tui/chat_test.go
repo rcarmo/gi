@@ -337,9 +337,10 @@ func TestHandleTopicEventInboundWorkRendering(t *testing.T) {
 
 func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.running = false
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.turn", Payload: map[string]any{"type": "turn_state", "status": "running", "phase": "waiting_on_tools", "tool": "read"}})
-	if c.status != "Running: read" {
-		t.Fatalf("turn state status = %q", c.status)
+	if !c.running || c.status != "Running: read" {
+		t.Fatalf("turn state status = running=%v status=%q", c.running, c.status)
 	}
 	c.running = true
 	c.draft = "partial"
@@ -397,9 +398,10 @@ func TestHandleTopicEventHookDecisionRendering(t *testing.T) {
 
 func TestHandleTopicEventStatusRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.running = false
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Payload: map[string]any{"type": "tool_started", "tool": "read"}})
-	if c.status != "Running: read" {
-		t.Fatalf("tool started status = %q", c.status)
+	if !c.running || c.status != "Running: read" {
+		t.Fatalf("tool started status = running=%v status=%q", c.running, c.status)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Payload: map[string]any{"type": "tool_skipped", "tool": "shell", "reason": "queued user steering message"}})
 	if len(c.transcript) == 0 || c.transcript[len(c.transcript)-1] != "sys: tool skipped: shell: queued user steering message" {

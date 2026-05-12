@@ -245,6 +245,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		typ, _ := payload["type"].(string)
 		switch typ {
 		case "tool_started":
+			c.running = true
 			if toolName != "" {
 				c.status = fmt.Sprintf("Running: %s", toolName)
 			}
@@ -316,6 +317,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		case "turn_state":
 			phase, _ := payload["phase"].(string)
 			if status == "running" && phase == "waiting_on_tools" {
+				c.running = true
 				toolName, _ := payload["tool"].(string)
 				if toolName != "" {
 					c.status = fmt.Sprintf("Running: %s", toolName)
