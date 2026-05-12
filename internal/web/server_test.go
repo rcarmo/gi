@@ -547,11 +547,13 @@ func TestTopicSSERejectsInvalidBuffer(t *testing.T) {
 	}
 	defer s.Close()
 	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
-	req := httptest.NewRequest(http.MethodGet, "/sse/topics?buffer=nope", nil)
-	res := httptest.NewRecorder()
-	srv.Handler().ServeHTTP(res, req)
-	if res.Code != http.StatusBadRequest {
-		t.Fatalf("expected bad request for invalid topic SSE buffer, got %d body=%s", res.Code, res.Body.String())
+	for _, raw := range []string{"nope", "0", "2048"} {
+		req := httptest.NewRequest(http.MethodGet, "/sse/topics?buffer="+raw, nil)
+		res := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(res, req)
+		if res.Code != http.StatusBadRequest {
+			t.Fatalf("expected bad request for invalid topic SSE buffer %q, got %d body=%s", raw, res.Code, res.Body.String())
+		}
 	}
 }
 
