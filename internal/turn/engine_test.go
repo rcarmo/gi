@@ -1073,7 +1073,7 @@ func TestCancelQueuedTurnPublishesTerminalTopicsWhenSessionBecomesIdle(t *testin
 				foundTurnTerminal = true
 			}
 		case env := <-sessionTopicCh:
-			if env.Payload["type"] == "session_idle" && env.Payload["turn_id"] == queuedTurn.ID && env.Payload["turn_status"] == "cancelled" && env.Payload["reason"] == "turn_terminal" {
+			if env.Payload["type"] == "session_idle" && env.Payload["turn_id"] == queuedTurn.ID && env.Payload["turn_status"] == "cancelled" && env.Payload["reason"] == "turn_terminal" && env.Payload["failure_kind"] == "" {
 				foundSessionIdle = true
 			}
 		case <-deadline:
