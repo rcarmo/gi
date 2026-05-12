@@ -1327,6 +1327,66 @@ func TestStoreInboundWorkRetryScheduling(t *testing.T) {
 	}
 }
 
+func TestStoreRequeueInboundWork(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	queuedA, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "requeue me"})
+	if err != nil {
+		t.Fatalf("enqueue inbound work a: %v", err)
+	}
+	if err := s.RecordInboundWorkFailure(ctx, queuedA.ID, 3, "bad input"); err != nil {
+		t.Fatalf("record failure a: %v", err)
+	}
+	requeued, err := s.RequeueInboundWork(ctx, queuedA.ID, false)
+	if err != nil {
+		t.Fatalf("requeue inbound work: %v", err)
+	}
+	if requeued.Status != "queued" || requeued.AttemptCount != 3 || requeued.LastError != "" || requeued.NextAttemptAt != "" || requeued.ClaimedBy != "" || requeued.ClaimedAt != "" {
+		t.Fatalf("unexpected requeued inbound work: %#v", requeued)
+	}
+	queuedB, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "requeue and reset"})
+	if err != nil {
+		t.Fatalf("enqueue inbound work b: %v", err)
+	}
+	if err := s.RecordInboundWorkFailure(ctx, queuedB.ID, 2, "bad input again"); err != nil {
+		t.Fatalf("record failure b: %v", err)
+	}
+	reset, err := s.RequeueInboundWork(ctx, queuedB.ID, true)
+	if err != nil {
+		t.Fatalf("requeue inbound work with reset: %v", err)
+	}
+	if reset.AttemptCount != 0 || reset.Status != "queued" {
+		t.Fatalf("expected attempt count reset on requeue, got %#v", reset)
+	}
+	claimed, err := s.ClaimNextInboundWork(ctx, "worker")
+	if err != nil {
+		t.Fatalf("claim requeued work: %v", err)
+	}
+	if claimed.ID != queuedA.ID {
+		t.Fatalf("expected first requeued item to become claimable again, got %#v", claimed)
+	}
+}
+
+func TestStoreRequeueInboundWorkRejectsNonRequeueableState(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "still queued"})
+	if err != nil {
+		t.Fatalf("enqueue inbound work: %v", err)
+	}
+	if _, err := s.RequeueInboundWork(ctx, queued.ID, false); err == nil {
+		t.Fatal("expected requeue of queued item to fail")
+	}
+}
+
 func TestStoreInboundWorkQueueLifecycle(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

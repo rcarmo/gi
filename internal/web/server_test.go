@@ -585,6 +585,52 @@ func TestRuntimeInboundWorkEligibleFilterAndCounts(t *testing.T) {
 	}
 }
 
+func TestRuntimeInboundWorkRequeueEndpoint(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	item, err := s.EnqueueInboundWork(t.Context(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "manual requeue"})
+	if err != nil {
+		t.Fatalf("enqueue inbound work: %v", err)
+	}
+	if err := s.RecordInboundWorkFailure(t.Context(), item.ID, 3, "boom"); err != nil {
+		t.Fatalf("record failure: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work/requeue", bytes.NewBufferString(fmt.Sprintf(`{"id":%d,"reset_attempts":true}`, item.ID)))
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(res, req)
+	if res.Code != http.StatusOK {
+		t.Fatalf("unexpected requeue status: %d body=%s", res.Code, res.Body.String())
+	}
+	if !bytes.Contains(res.Body.Bytes(), []byte(`"status":"queued"`)) || !bytes.Contains(res.Body.Bytes(), []byte(`"attempt_count":0`)) {
+		t.Fatalf("unexpected requeue response: %s", res.Body.String())
+	}
+}
+
+func TestRuntimeInboundWorkRequeueRejectsQueuedItem(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	item, err := s.EnqueueInboundWork(t.Context(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "still queued"})
+	if err != nil {
+		t.Fatalf("enqueue inbound work: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work/requeue", bytes.NewBufferString(fmt.Sprintf(`{"id":%d}`, item.ID)))
+	req.Header.Set("Content-Type", "application/json")
+	res := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(res, req)
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("expected bad request requeueing queued item, got %d body=%s", res.Code, res.Body.String())
+	}
+}
+
 func TestRuntimeInboundWorkRejectsInvalidEligibleFlag(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

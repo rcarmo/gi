@@ -250,3 +250,36 @@ func (s *Store) RecordInboundWorkFailure(ctx context.Context, id int64, attemptC
 	}
 	return nil
 }
+
+func (s *Store) RequeueInboundWork(ctx context.Context, id int64, resetAttempts bool) (*InboundWorkItem, error) {
+	attemptExpr := `attempt_count`
+	if resetAttempts {
+		attemptExpr = `0`
+	}
+	res, err := s.db.ExecContext(ctx, `
+		update inbound_work_queue
+		set status = 'queued',
+			attempt_count = `+attemptExpr+`,
+			last_error = '',
+			next_attempt_at = null,
+			claimed_by = '',
+			claimed_at = null,
+			updated_at = `+defaultNow+`
+		where id = ? and status in ('failed','retry')
+	`, id)
+	if err != nil {
+		return nil, fmt.Errorf("requeue inbound work: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("requeue inbound work rows: %w", err)
+	}
+	if rows == 0 {
+		item, getErr := s.GetInboundWork(ctx, id)
+		if getErr != nil {
+			return nil, fmt.Errorf("requeue inbound work: %w", getErr)
+		}
+		return nil, fmt.Errorf("requeue inbound work: item %d is not requeueable from status %q", id, item.Status)
+	}
+	return s.GetInboundWork(ctx, id)
+}
