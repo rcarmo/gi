@@ -38,6 +38,7 @@ func TestConnectivityBusBridgesIntoTopics(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
 	engine := New(s)
+	defer engine.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ch, unsub := engine.Topics().Subscribe(ctx, "connectivity.*", topics.SubscribeOptions{Buffer: 4})
@@ -54,6 +55,29 @@ func TestConnectivityBusBridgesIntoTopics(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected bridged connectivity topic")
+	}
+}
+
+func TestEngineCloseStopsConnectivityTopicBridge(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "connectivity.*", topics.SubscribeOptions{Buffer: 4})
+	defer unsub()
+	if err := engine.Close(); err != nil {
+		t.Fatalf("close engine: %v", err)
+	}
+	// Allow the connectivity bus subscription goroutine to observe cancellation.
+	time.Sleep(20 * time.Millisecond)
+	if err := engine.Connectivity().Emit(context.Background(), "route.http.demo", map[string]any{"ok": true, "session_id": "s1"}); err != nil {
+		t.Fatalf("emit connectivity event after close: %v", err)
+	}
+	select {
+	case env := <-ch:
+		t.Fatalf("unexpected bridged connectivity topic after close: %#v", env)
+	case <-time.After(100 * time.Millisecond):
 	}
 }
 

@@ -1,7 +1,6 @@
 package turn
 
 import (
-	"context"
 	"strings"
 
 	"github.com/rcarmo/gi/internal/store"
@@ -12,10 +11,10 @@ import (
 func (e *Engine) Topics() *topics.Bus { return e.topics }
 
 func (e *Engine) startTopicBridge() {
-	if e == nil || e.topics == nil || e.connectivity == nil || e.connectivity.Bus() == nil {
+	if e == nil || e.topics == nil || e.connectivity == nil || e.connectivity.Bus() == nil || e.bgCtx == nil {
 		return
 	}
-	ch, _ := e.connectivity.Bus().Subscribe(context.Background(), "*", 64)
+	ch, _ := e.connectivity.Bus().Subscribe(e.bgCtx, "*", 64)
 	go func() {
 		for ev := range ch {
 			topic := strings.TrimSpace(ev.Topic)

@@ -29,6 +29,8 @@ type Engine struct {
 	connectivity                 *connectivity.Registry
 	topics                       *topics.Bus
 	peering                      *peering.Manager
+	bgCtx                        context.Context
+	bgCancel                     context.CancelFunc
 	extensions                   []ExtensionInfo
 	extensionsMu                 sync.RWMutex
 	sessions                     sync.Map // sessionID -> *sessionRunner
@@ -148,6 +150,7 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 		cfg.Session.Dimensions = []string{"chat"}
 	}
 	cfg.Hooks = applyHookDefaultsCompat(cfg.Hooks)
+	bgCtx, bgCancel := context.WithCancel(context.Background())
 	e := &Engine{
 		store:         s,
 		systemPrompt:  systemPrompt,
@@ -159,6 +162,8 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 		connectivity:  connectivity.NewRegistry(),
 		topics:        topics.NewBus(),
 		peering:       peering.NewManager(cfg.Peering, cfg.WorkspaceRoot),
+		bgCtx:         bgCtx,
+		bgCancel:      bgCancel,
 		subs:          map[string]map[chan map[string]any]bool{},
 	}
 	e.registerDefaultTools()
@@ -169,6 +174,19 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 		}
 	}
 	return e
+}
+
+func (e *Engine) Close() error {
+	if e == nil {
+		return nil
+	}
+	if e.bgCancel != nil {
+		e.bgCancel()
+	}
+	if e.peering != nil {
+		return e.peering.Close()
+	}
+	return nil
 }
 
 func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, error) {

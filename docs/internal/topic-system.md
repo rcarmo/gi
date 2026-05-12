@@ -12,7 +12,7 @@ Implemented so far:
 - steering lifecycle publication under `session.steering`
 - subturn lifecycle publication under `turn.subturn`
 - extension lifecycle publication (`extension.loaded`, `extension.failed`)
-- bridge from the existing connectivity event bus into topic topics under `connectivity.*`
+- bridge from the existing connectivity event bus into topic topics under `connectivity.*`, now bound to engine lifecycle context instead of a process-lifetime `context.Background()` subscription
 - inbound queue + dispatcher lifecycle publication under `runtime.inbound_work` and `runtime.dispatcher`
 - hook invocation lifecycle publication plus higher-level hook decision notices under `runtime.hook` (including tool-call/approval/result abort, deny, modify, and direct-respond outcomes)
 - core runtime turn/session lifecycle checkpoints under `runtime.turn` and `runtime.session` (now including generic `turn_state` / `session_state` notices from the shared state-hook path, plus explicit setup and terminal/idle checkpoints; explicit checkpoints stay singular rather than being duplicated by the generic state path, and completed paths use `turn_completed` / `turn_completed`-reasoned idle consistently; still not a full mirror of every turn row)
