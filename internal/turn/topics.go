@@ -138,20 +138,7 @@ func (e *Engine) PublishRuntimeInboundWorkEvent(eventType string, item *store.In
 }
 
 func (e *Engine) PublishRuntimeDispatcherEvent(eventType string, payload map[string]any) {
-	if e == nil || e.topics == nil {
-		return
-	}
-	body := cloneMap(payload)
-	if body == nil {
-		body = map[string]any{}
-	}
-	body["type"] = strings.TrimSpace(eventType)
-	e.publishTopicEvent(topics.Envelope{
-		Topic:   "runtime.dispatcher",
-		Source:  "runtime",
-		Type:    "notice",
-		Payload: body,
-	})
+	e.publishRuntimeTopicEvent("runtime.dispatcher", "", "", "notice", eventType, payload)
 }
 
 func (e *Engine) PublishRuntimeHookEvent(eventType string, req HookRequest, source string, action string, durationMS int, err error) {
@@ -194,14 +181,10 @@ func (e *Engine) PublishRuntimeHookEvent(eventType string, req HookRequest, sour
 }
 
 func (e *Engine) PublishRuntimeHookDecisionEvent(eventType string, req HookRequest, payload map[string]any) {
-	if e == nil || e.topics == nil {
-		return
-	}
 	body := cloneMap(payload)
 	if body == nil {
 		body = map[string]any{}
 	}
-	body["type"] = strings.TrimSpace(eventType)
 	body["hook"] = req.Name
 	body["turn_id"] = req.TurnID
 	body["iteration"] = req.Iteration
@@ -209,71 +192,53 @@ func (e *Engine) PublishRuntimeHookDecisionEvent(eventType string, req HookReque
 		body["tool"] = req.ToolCall.Name
 		body["tool_call_id"] = req.ToolCall.ID
 	}
-	e.publishTopicEvent(topics.Envelope{Topic: "runtime.hook", SessionID: req.SessionID, AgentID: req.AgentID, Source: "runtime", Type: "notice", Payload: body})
+	e.publishRuntimeTopicEvent("runtime.hook", req.SessionID, req.AgentID, "notice", eventType, body)
 }
 
 func (e *Engine) PublishRuntimeTurnEvent(eventType, sessionID, turnID, agentID, status, phase string, payload map[string]any) {
-	if e == nil || e.topics == nil {
-		return
-	}
 	body := cloneMap(payload)
 	if body == nil {
 		body = map[string]any{}
 	}
-	body["type"] = strings.TrimSpace(eventType)
 	body["turn_id"] = strings.TrimSpace(turnID)
 	body["status"] = strings.TrimSpace(status)
 	body["phase"] = strings.TrimSpace(phase)
-	e.publishTopicEvent(topics.Envelope{Topic: "runtime.turn", SessionID: strings.TrimSpace(sessionID), AgentID: strings.TrimSpace(agentID), Source: "runtime", Type: "notice", Payload: body})
+	e.publishRuntimeTopicEvent("runtime.turn", sessionID, agentID, "notice", eventType, body)
 }
 
 func (e *Engine) PublishRuntimeSessionEvent(eventType, sessionID, agentID, status string, payload map[string]any) {
-	if e == nil || e.topics == nil {
-		return
-	}
 	body := cloneMap(payload)
 	if body == nil {
 		body = map[string]any{}
 	}
-	body["type"] = strings.TrimSpace(eventType)
 	body["status"] = strings.TrimSpace(status)
-	e.publishTopicEvent(topics.Envelope{Topic: "runtime.session", SessionID: strings.TrimSpace(sessionID), AgentID: strings.TrimSpace(agentID), Source: "runtime", Type: "notice", Payload: body})
+	e.publishRuntimeTopicEvent("runtime.session", sessionID, agentID, "notice", eventType, body)
 }
 
 func (e *Engine) PublishRuntimeToolEvent(eventType, sessionID, turnID, agentID, toolName, toolCallID string, iteration int, err error, payload map[string]any) {
-	if e == nil || e.topics == nil {
-		return
-	}
 	body := cloneMap(payload)
 	if body == nil {
 		body = map[string]any{}
 	}
-	body["type"] = strings.TrimSpace(eventType)
 	body["turn_id"] = strings.TrimSpace(turnID)
 	body["tool"] = strings.TrimSpace(toolName)
 	body["tool_call_id"] = strings.TrimSpace(toolCallID)
 	if iteration > 0 {
 		body["iteration"] = iteration
 	}
-	if err != nil {
-		body["error"] = err.Error()
-	}
 	envelopeType := "notice"
 	if err != nil {
+		body["error"] = err.Error()
 		envelopeType = "error"
 	}
-	e.publishTopicEvent(topics.Envelope{Topic: "runtime.tool", SessionID: strings.TrimSpace(sessionID), AgentID: strings.TrimSpace(agentID), Source: "runtime", Type: envelopeType, Payload: body})
+	e.publishRuntimeTopicEvent("runtime.tool", sessionID, agentID, envelopeType, eventType, body)
 }
 
 func (e *Engine) PublishRuntimeRoutingEvent(eventType string, decision store.RouteEvent) {
-	if e == nil || e.topics == nil {
-		return
-	}
 	body := cloneMap(decision.Metadata)
 	if body == nil {
 		body = map[string]any{}
 	}
-	body["type"] = strings.TrimSpace(eventType)
 	body["route_event_id"] = decision.ID
 	body["turn_id"] = strings.TrimSpace(decision.TurnID)
 	body["source_session_id"] = strings.TrimSpace(decision.SourceSession)
@@ -289,7 +254,26 @@ func (e *Engine) PublishRuntimeRoutingEvent(eventType string, decision store.Rou
 	if strings.TrimSpace(eventType) == "routing_incoming" && strings.TrimSpace(decision.TargetSession) != "" {
 		sessionID = strings.TrimSpace(decision.TargetSession)
 	}
-	e.publishTopicEvent(topics.Envelope{Topic: "runtime.routing", SessionID: sessionID, AgentID: strings.TrimSpace(decision.TargetAgentID), Source: "runtime", Type: "notice", Payload: body})
+	e.publishRuntimeTopicEvent("runtime.routing", sessionID, strings.TrimSpace(decision.TargetAgentID), "notice", eventType, body)
+}
+
+func (e *Engine) publishRuntimeTopicEvent(topic, sessionID, agentID, envelopeType, eventType string, payload map[string]any) {
+	if e == nil || e.topics == nil {
+		return
+	}
+	body := cloneMap(payload)
+	if body == nil {
+		body = map[string]any{}
+	}
+	body["type"] = strings.TrimSpace(eventType)
+	e.publishTopicEvent(topics.Envelope{
+		Topic:     strings.TrimSpace(topic),
+		SessionID: strings.TrimSpace(sessionID),
+		AgentID:   strings.TrimSpace(agentID),
+		Source:    "runtime",
+		Type:      strings.TrimSpace(firstNonEmpty(envelopeType, "notice")),
+		Payload:   body,
+	})
 }
 
 func cloneMap(in map[string]any) map[string]any {
