@@ -233,6 +233,22 @@ func TestHandleEventStreamsDraftIntoTranscript(t *testing.T) {
 	}
 }
 
+func TestHandleTopicEventSteeringAndSubturnRendering(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.handleTopicEvent(topics.Envelope{Topic: "session.steering", Payload: map[string]any{"type": "steering_enqueued"}})
+	if c.status != "Queued follow-up" {
+		t.Fatalf("steering status = %q", c.status)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "turn.subturn", Payload: map[string]any{"type": "subturn_created", "child_turn_id": "turn_child"}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: sub-turn started: turn_child" {
+		t.Fatalf("subturn created transcript = %q", got)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "turn.subturn", Payload: map[string]any{"type": "subturn_status", "child_turn_id": "turn_child", "status": "completed"}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: sub-turn turn_child: completed" {
+		t.Fatalf("subturn status transcript = %q", got)
+	}
+}
+
 func TestHandleTopicEventCompactionAndRoutingRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "session.compaction", Payload: map[string]any{"messages_before": 10, "messages_after": 4, "tokens_before": 1234}})

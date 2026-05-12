@@ -313,6 +313,34 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 				c.appendTranscript(line)
 			}
 		}
+	case "session.steering":
+		typ, _ := payload["type"].(string)
+		switch typ {
+		case "steering_enqueued":
+			c.status = "Queued follow-up"
+		case "steering_injected":
+			c.status = "Injected follow-up"
+		case "steering_continued":
+			c.status = "Continuing queued follow-up"
+		}
+	case "turn.subturn":
+		typ, _ := payload["type"].(string)
+		childTurn, _ := payload["child_turn_id"].(string)
+		status, _ := payload["status"].(string)
+		switch typ {
+		case "subturn_created":
+			if childTurn != "" {
+				c.appendTranscript(fmt.Sprintf("sys: sub-turn started: %s", childTurn))
+			}
+		case "subturn_status":
+			if childTurn != "" && status != "" {
+				c.appendTranscript(fmt.Sprintf("sys: sub-turn %s: %s", childTurn, status))
+			}
+		case "subturn_result_ready", "subturn_result_delivered", "subturn_orphaned":
+			if childTurn != "" && status != "" {
+				c.appendTranscript(fmt.Sprintf("sys: sub-turn %s result: %s", childTurn, status))
+			}
+		}
 	}
 	if c.stickToBottom {
 		c.scrollTranscriptToBottom()

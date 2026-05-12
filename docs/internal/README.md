@@ -77,7 +77,7 @@ Current topic/runtime publication status:
 - core runtime turn/session lifecycle checkpoints now also publish under `runtime.turn` and `runtime.session` (now including generic shared state notices plus explicit setup and terminal/idle transitions, with explicit checkpoints kept non-duplicated and completed paths reported consistently)
 - core runtime tool lifecycle checkpoints now also publish under `runtime.tool` (currently started, finished, failed, and skipped)
 - core runtime routing/allocation decision notices now also publish under `runtime.routing` (currently persisted route-decision and incoming-route notices)
-- the TUI now has a first topic-native consumption slice for canonical topic families on the active session, using `runtime.tool` / `runtime.hook` / `runtime.turn` / `runtime.session` plus `session.compaction` / `session.routing` notices for status and transcript updates alongside the legacy broadcast channel
+- the TUI now has a first topic-native consumption slice for canonical topic families on the active session, using `runtime.tool` / `runtime.hook` / `runtime.turn` / `runtime.session` plus `session.compaction` / `session.routing` / `session.steering` / `turn.subturn` notices for status and transcript updates alongside the legacy broadcast channel
 - dedicated topic SSE streaming is now live via `/sse/topics`
 - script-facing topic APIs now exist in both script bridges: JS exposes `gi.topics.publish(...)` plus polling-style `gi.topics.subscribe(...)`, `gi.topics.read(...)`, and `gi.topics.unsubscribe(...)`, while embedded Joker exposes `gi-topic-publish`, `gi-topic-subscribe`, `gi-topic-read`, and `gi-topic-unsubscribe`
 
