@@ -262,9 +262,10 @@ func TestHandleTopicEventTurnResponseSystemMessageRendering(t *testing.T) {
 
 func TestHandleTopicEventTurnStatusAndResponseRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1, running: true, draft: "hello"}
+	c.running = false
 	c.handleTopicEvent(topics.Envelope{Topic: "turn.status", Payload: map[string]any{"title": "Thinking…", "status": "running"}})
-	if c.status != "Thinking…" {
-		t.Fatalf("turn.status rendering = %q", c.status)
+	if !c.running || c.status != "Thinking…" {
+		t.Fatalf("turn.status rendering = running=%v status=%q", c.running, c.status)
 	}
 	c.running = true
 	c.draft = "partial"

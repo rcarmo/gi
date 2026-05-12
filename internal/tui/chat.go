@@ -199,6 +199,9 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 	case "turn.status":
 		title, _ := payload["title"].(string)
 		status, _ := payload["status"].(string)
+		if status == "running" {
+			c.running = true
+		}
 		if title != "" {
 			c.status = title
 		} else if status == "idle" {
