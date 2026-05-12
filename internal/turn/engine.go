@@ -469,6 +469,17 @@ func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID str
 	return res, true, nil
 }
 
+func (r *sessionRunner) resolveTurnIdentityForFinalize(ctx context.Context, s *store.Store, sessionID, turnID string) (string, string) {
+	turnRec, err := s.GetTurn(ctx, turnID)
+	if err != nil {
+		return "", ""
+	}
+	if strings.TrimSpace(sessionID) == "" {
+		sessionID = turnRec.SessionID
+	}
+	return r.resolveTurnAgentAndModel(ctx, s, turnRec, sessionID, turnRec.Prompt)
+}
+
 func (e *Engine) runner(sessionID string) *sessionRunner {
 	if v, ok := e.sessions.Load(sessionID); ok {
 		return v.(*sessionRunner)
@@ -528,10 +539,11 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx co
 
 	run, err := r.setupTurnRun(ctx, s, sessionID, turnID)
 	if err != nil {
+		agentID, model := r.resolveTurnIdentityForFinalize(ctx, s, sessionID, turnID)
 		if ctx.Err() != nil || isCancellationError(err) {
-			r.finishTurn(s, turnID, sessionID, "", "", "cancelled", "Turn cancelled", "")
+			r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
 		} else {
-			r.finishTurn(s, turnID, sessionID, "", "", "failed", fmt.Sprintf("Turn setup error: %v", err), "setup_error")
+			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", fmt.Sprintf("Turn setup error: %v", err), "setup_error")
 		}
 		return
 	}

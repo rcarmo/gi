@@ -1751,6 +1751,10 @@ func TestSetupErrorMarksTurnFailed(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 	engine := New(s)
+	turnTopicCh, unsubTurn := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 8, SessionID: "session_setup_error"})
+	defer unsubTurn()
+	sessionTopicCh, unsubSession := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 8, SessionID: "session_setup_error"})
+	defer unsubSession()
 	engine.beforeSetupErrorHook = func(ctx context.Context, sessionID, turnID string) error {
 		return fmt.Errorf("boom during setup")
 	}
@@ -1771,6 +1775,23 @@ func TestSetupErrorMarksTurnFailed(t *testing.T) {
 	}
 	if turnRec.FinishedAt == "" {
 		t.Fatalf("expected finished_at after setup error, got %#v", turnRec)
+	}
+	foundTurnTerminal := false
+	foundSessionIdle := false
+	deadline := time.After(2 * time.Second)
+	for !(foundTurnTerminal && foundSessionIdle) {
+		select {
+		case env := <-turnTopicCh:
+			if env.Payload["type"] == "turn_terminal" && env.Payload["status"] == "failed" && env.Payload["failure_kind"] == "setup_error" && env.Payload["reason"] == "setup_error" {
+				foundTurnTerminal = true
+			}
+		case env := <-sessionTopicCh:
+			if env.Payload["type"] == "session_idle" && env.Payload["turn_status"] == "failed" && env.Payload["failure_kind"] == "setup_error" && env.Payload["model"] == "bootstrap" {
+				foundSessionIdle = true
+			}
+		case <-deadline:
+			t.Fatalf("expected setup failure to publish enriched turn/session terminal topics, got turn_terminal=%v session_idle=%v", foundTurnTerminal, foundSessionIdle)
+		}
 	}
 	msgs, err := s.ListMessages(ctx, "session_setup_error")
 	if err != nil {
