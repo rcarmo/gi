@@ -15,6 +15,7 @@ import (
 	"github.com/rcarmo/gi/internal/config"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/topics"
 	"github.com/rcarmo/gi/internal/turn"
 )
 
@@ -393,6 +394,114 @@ func TestPeerMessageEndpointRoutesToTargetAgent(t *testing.T) {
 	}
 	if !bytes.Contains(peerRes.Body.Bytes(), []byte(`"target_agent_id":"agent1"`)) {
 		t.Fatalf("unexpected peer response: %s", peerRes.Body.String())
+	}
+}
+
+func TestRuntimeInboundWorkPublishesTopicLifecycleEvents(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	engine := turn.New(s)
+	srv := New(s, engine, config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.inbound_work", topics.SubscribeOptions{Buffer: 16})
+	defer unsub()
+	enqueueReq := httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work", bytes.NewBufferString(`{"kind":"prompt","prompt":"topic item"}`))
+	enqueueReq.Header.Set("Content-Type", "application/json")
+	enqueueRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(enqueueRes, enqueueReq)
+	if enqueueRes.Code != http.StatusAccepted {
+		t.Fatalf("unexpected enqueue status: %d body=%s", enqueueRes.Code, enqueueRes.Body.String())
+	}
+	var enqueuePayload struct {
+		Item store.InboundWorkItem `json:"item"`
+	}
+	if err := json.Unmarshal(enqueueRes.Body.Bytes(), &enqueuePayload); err != nil {
+		t.Fatalf("decode enqueue response: %v", err)
+	}
+	requeueReq := httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work/requeue", bytes.NewBufferString(fmt.Sprintf(`{"id":%d}`, enqueuePayload.Item.ID)))
+	requeueReq.Header.Set("Content-Type", "application/json")
+	requeueRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(requeueRes, requeueReq)
+	if requeueRes.Code != http.StatusBadRequest {
+		t.Fatalf("expected queued item requeue rejection, got %d body=%s", requeueRes.Code, requeueRes.Body.String())
+	}
+	if err := s.RecordInboundWorkFailure(t.Context(), enqueuePayload.Item.ID, 1, "bad"); err != nil {
+		t.Fatalf("mark inbound work failed: %v", err)
+	}
+	requeueReq = httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work/requeue", bytes.NewBufferString(fmt.Sprintf(`{"id":%d}`, enqueuePayload.Item.ID)))
+	requeueReq.Header.Set("Content-Type", "application/json")
+	requeueRes = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(requeueRes, requeueReq)
+	if requeueRes.Code != http.StatusOK {
+		t.Fatalf("unexpected requeue status: %d body=%s", requeueRes.Code, requeueRes.Body.String())
+	}
+	discardReq := httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work/discard", bytes.NewBufferString(fmt.Sprintf(`{"id":%d}`, enqueuePayload.Item.ID)))
+	discardReq.Header.Set("Content-Type", "application/json")
+	discardRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(discardRes, discardReq)
+	if discardRes.Code != http.StatusOK {
+		t.Fatalf("unexpected discard status: %d body=%s", discardRes.Code, discardRes.Body.String())
+	}
+	want := map[string]bool{"inbound_work_enqueued": false, "inbound_work_requeued": false, "inbound_work_discarded": false}
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case env := <-ch:
+			if env.Topic != "runtime.inbound_work" {
+				t.Fatalf("unexpected inbound work topic envelope: %#v", env)
+			}
+			if typ, _ := env.Payload["type"].(string); typ != "" {
+				if _, ok := want[typ]; ok {
+					want[typ] = true
+				}
+			}
+		case <-time.After(50 * time.Millisecond):
+		}
+		all := true
+		for _, seen := range want {
+			all = all && seen
+		}
+		if all {
+			return
+		}
+	}
+	t.Fatalf("missing inbound work lifecycle topic events: %#v", want)
+}
+
+func TestRuntimeDispatcherPublishesLeaseTopicEvents(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	engine := turn.New(s)
+	srv := New(s, engine, config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium", InboundWork: config.InboundWorkSettings{Enabled: true, IntervalMS: 25, BatchSize: 1, WorkerID: "web-test-dispatcher", LeaseTTLMS: 500}})
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.dispatcher", topics.SubscribeOptions{Buffer: 32})
+	defer unsub()
+	srv.StartInboundWorkDispatcher(ctx)
+	seenAcquire := false
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case env := <-ch:
+			if env.Topic != "runtime.dispatcher" {
+				t.Fatalf("unexpected runtime.dispatcher topic envelope: %#v", env)
+			}
+			if env.Payload["type"] == "dispatcher_lease_acquired" {
+				seenAcquire = true
+				return
+			}
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+	if !seenAcquire {
+		t.Fatal("expected dispatcher lease topic event")
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
 )
 
@@ -100,6 +101,54 @@ func topicForBroadcastEvent(evType string) (topic string, envelopeType string) {
 		}
 		return "event." + strings.ReplaceAll(evType, "_", "."), "notice"
 	}
+}
+
+func (e *Engine) PublishRuntimeInboundWorkEvent(eventType string, item *store.InboundWorkItem, extra map[string]any) {
+	if e == nil || e.topics == nil || item == nil {
+		return
+	}
+	payload := map[string]any{
+		"type":                 strings.TrimSpace(eventType),
+		"id":                   item.ID,
+		"status":               item.Status,
+		"source_kind":          item.SourceKind,
+		"session_id":           item.SessionID,
+		"explicit_session_key": item.ExplicitSessionKey,
+		"attempt_count":        item.AttemptCount,
+		"last_error":           item.LastError,
+		"next_attempt_at":      item.NextAttemptAt,
+		"claimed_by":           item.ClaimedBy,
+		"claimed_at":           item.ClaimedAt,
+		"created_at":           item.CreatedAt,
+		"updated_at":           item.UpdatedAt,
+	}
+	for k, v := range extra {
+		payload[k] = v
+	}
+	e.publishTopicEvent(topics.Envelope{
+		Topic:     "runtime.inbound_work",
+		SessionID: item.SessionID,
+		Source:    "runtime",
+		Type:      "notice",
+		Payload:   payload,
+	})
+}
+
+func (e *Engine) PublishRuntimeDispatcherEvent(eventType string, payload map[string]any) {
+	if e == nil || e.topics == nil {
+		return
+	}
+	body := cloneMap(payload)
+	if body == nil {
+		body = map[string]any{}
+	}
+	body["type"] = strings.TrimSpace(eventType)
+	e.publishTopicEvent(topics.Envelope{
+		Topic:   "runtime.dispatcher",
+		Source:  "runtime",
+		Type:    "notice",
+		Payload: body,
+	})
 }
 
 func cloneMap(in map[string]any) map[string]any {

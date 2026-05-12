@@ -79,8 +79,10 @@ func (s *Server) StartInboundWorkDispatcher(ctx context.Context) {
 			return
 		}
 		if !acquired {
+			s.turns.PublishRuntimeDispatcherEvent("dispatcher_lease_skipped", map[string]any{"worker_id": workerID, "lease_owner": leaseOwner})
 			return
 		}
+		s.turns.PublishRuntimeDispatcherEvent("dispatcher_lease_acquired", map[string]any{"worker_id": workerID, "lease_owner": leaseOwner, "lease_ttl_ms": s.cfg.InboundWork.LeaseTTLMS})
 		processed := 0
 		for i := 0; i < batchSize; i++ {
 			item, _, ok, err := s.turns.ProcessNextInboundWorkIfQueued(ctx, workerID)
@@ -99,13 +101,16 @@ func (s *Server) StartInboundWorkDispatcher(ctx context.Context) {
 		}
 		if processed > 0 {
 			log.Printf("runtime inbound dispatcher processed %d queued item(s)", processed)
+			s.turns.PublishRuntimeDispatcherEvent("dispatcher_drain_processed", map[string]any{"worker_id": workerID, "lease_owner": leaseOwner, "processed": processed})
 		}
 	}
 	go func() {
 		defer func() {
 			if err := s.store.ReleaseInboundDispatcherLease(context.Background(), leaseOwner); err != nil {
 				log.Printf("runtime inbound dispatcher release lease: %v", err)
+				return
 			}
+			s.turns.PublishRuntimeDispatcherEvent("dispatcher_lease_released", map[string]any{"worker_id": workerID, "lease_owner": leaseOwner})
 		}()
 		drain()
 		ticker := time.NewTicker(interval)
@@ -687,6 +692,7 @@ func (s *Server) handleRuntimeInboundWorkRequeue(w http.ResponseWriter, r *http.
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
+	s.turns.PublishRuntimeInboundWorkEvent("inbound_work_requeued", item, map[string]any{"reset_attempts": req.ResetAttempts})
 	writeJSON(w, http.StatusOK, map[string]any{"item": item})
 }
 
@@ -711,6 +717,7 @@ func (s *Server) handleRuntimeInboundWorkDiscard(w http.ResponseWriter, r *http.
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
+	s.turns.PublishRuntimeInboundWorkEvent("inbound_work_discarded", item, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"item": item})
 }
 

@@ -68,7 +68,12 @@ func (e *Engine) EnqueueDirectInbound(ctx context.Context, in DirectInput) (*sto
 	}
 	sourceKind := normalizeDirectSourceKind(in.Origin.SourceKind)
 	envelope := directEnvelopeFromInput(in)
-	return e.store.EnqueueInboundWork(ctx, sourceKind, strings.TrimSpace(in.SessionID), strings.TrimSpace(in.SessionKey), envelope)
+	item, err := e.store.EnqueueInboundWork(ctx, sourceKind, strings.TrimSpace(in.SessionID), strings.TrimSpace(in.SessionKey), envelope)
+	if err != nil {
+		return nil, err
+	}
+	e.PublishRuntimeInboundWorkEvent("inbound_work_enqueued", item, nil)
+	return item, nil
 }
 
 func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (*store.InboundWorkItem, *SubmitResult, error) {
@@ -98,6 +103,7 @@ func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (
 		} else {
 			updateErr = e.store.RecordInboundWorkRetry(ctx, item.ID, attemptCount, processErr.Error(), inboundWorkRetryDelay*time.Duration(attemptCount))
 		}
+		statusEvent := map[bool]string{true: "inbound_work_failed", false: "inbound_work_retry_scheduled"}[attemptCount >= inboundWorkMaxAttempts]
 		if updateErr != nil {
 			return item, result, updateErr
 		}
@@ -105,6 +111,7 @@ func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (
 		if getErr == nil {
 			item = updated
 		}
+		e.PublishRuntimeInboundWorkEvent(statusEvent, item, map[string]any{"error": processErr.Error()})
 		return item, result, processErr
 	}
 	if err := e.store.UpdateInboundWorkStatus(ctx, item.ID, "completed"); err != nil {
@@ -114,6 +121,7 @@ func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (
 	if getErr == nil {
 		item = updated
 	}
+	e.PublishRuntimeInboundWorkEvent("inbound_work_completed", item, nil)
 	return item, result, nil
 }
 
