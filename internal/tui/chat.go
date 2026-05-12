@@ -344,31 +344,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		}
 	case "runtime.routing":
-		typ, _ := payload["type"].(string)
-		targetAgent, _ := payload["target_agent_id"].(string)
-		targetSession, _ := payload["target_session"].(string)
-		if targetSession == "" {
-			targetSession, _ = payload["target_session_id"].(string)
-		}
-		sourceAgent, _ := payload["source_agent_id"].(string)
-		switch typ {
-		case "routing_decision":
-			if targetAgent != "" {
-				line := fmt.Sprintf("sys: routed to @%s", targetAgent)
-				if targetSession != "" {
-					line += fmt.Sprintf(" (%s)", targetSession)
-				}
-				c.appendTranscript(line)
-			}
-		case "routing_incoming":
-			if sourceAgent != "" {
-				line := fmt.Sprintf("sys: incoming route from @%s", sourceAgent)
-				if targetSession != "" {
-					line += fmt.Sprintf(" (%s)", targetSession)
-				}
-				c.appendTranscript(line)
-			}
-		}
+		c.renderRoutingEvent(payload["type"], payload["target_agent_id"], payload["target_session"], payload["target_session_id"], payload["source_agent_id"])
 	case "runtime.inbound_work":
 		typ, _ := payload["type"].(string)
 		sourceKind, _ := payload["source_kind"].(string)
@@ -421,31 +397,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		if c.useTopicNativeRuntimeStatus() {
 			return
 		}
-		typ, _ := payload["type"].(string)
-		targetAgent, _ := payload["target_agent_id"].(string)
-		targetSession, _ := payload["target_session"].(string)
-		if targetSession == "" {
-			targetSession, _ = payload["target_session_id"].(string)
-		}
-		sourceAgent, _ := payload["source_agent_id"].(string)
-		switch typ {
-		case "routing_decision":
-			if targetAgent != "" {
-				line := fmt.Sprintf("sys: routed to @%s", targetAgent)
-				if targetSession != "" {
-					line += fmt.Sprintf(" (%s)", targetSession)
-				}
-				c.appendTranscript(line)
-			}
-		case "routing_incoming":
-			if sourceAgent != "" {
-				line := fmt.Sprintf("sys: incoming route from @%s", sourceAgent)
-				if targetSession != "" {
-					line += fmt.Sprintf(" (%s)", targetSession)
-				}
-				c.appendTranscript(line)
-			}
-		}
+		c.renderRoutingEvent(payload["type"], payload["target_agent_id"], payload["target_session"], payload["target_session_id"], payload["source_agent_id"])
 	case "session.steering":
 		typ, _ := payload["type"].(string)
 		switch typ {
@@ -581,30 +533,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		if c.useTopicNativeRuntimeStatus() {
 			return
 		}
-		targetAgent, _ := ev["target_agent_id"].(string)
-		targetSession, _ := ev["target_session"].(string)
-		if targetSession == "" {
-			targetSession, _ = ev["target_session_id"].(string)
-		}
-		sourceAgent, _ := ev["source_agent_id"].(string)
-		switch evType {
-		case "routing_decision":
-			if targetAgent != "" {
-				line := fmt.Sprintf("sys: routed to @%s", targetAgent)
-				if targetSession != "" {
-					line += fmt.Sprintf(" (%s)", targetSession)
-				}
-				c.appendTranscript(line)
-			}
-		case "routing_incoming":
-			if sourceAgent != "" {
-				line := fmt.Sprintf("sys: incoming route from @%s", sourceAgent)
-				if targetSession != "" {
-					line += fmt.Sprintf(" (%s)", targetSession)
-				}
-				c.appendTranscript(line)
-			}
-		}
+		c.renderRoutingEvent(evType, ev["target_agent_id"], ev["target_session"], ev["target_session_id"], ev["source_agent_id"])
 		if c.stickToBottom {
 			c.scrollTranscriptToBottom()
 		}
@@ -686,6 +615,34 @@ func (c *chatTUI) clearDraftTranscriptLine() {
 
 func (c *chatTUI) markRunning() {
 	c.running = true
+}
+
+func (c *chatTUI) renderRoutingEvent(eventType, targetAgentValue, targetSessionValue, targetSessionIDValue, sourceAgentValue any) {
+	typ, _ := eventType.(string)
+	targetAgent, _ := targetAgentValue.(string)
+	targetSession, _ := targetSessionValue.(string)
+	if targetSession == "" {
+		targetSession, _ = targetSessionIDValue.(string)
+	}
+	sourceAgent, _ := sourceAgentValue.(string)
+	switch typ {
+	case "routing_decision":
+		if targetAgent != "" {
+			line := fmt.Sprintf("sys: routed to @%s", targetAgent)
+			if targetSession != "" {
+				line += fmt.Sprintf(" (%s)", targetSession)
+			}
+			c.appendTranscript(line)
+		}
+	case "routing_incoming":
+		if sourceAgent != "" {
+			line := fmt.Sprintf("sys: incoming route from @%s", sourceAgent)
+			if targetSession != "" {
+				line += fmt.Sprintf(" (%s)", targetSession)
+			}
+			c.appendTranscript(line)
+		}
+	}
 }
 
 func (c *chatTUI) resetRunningDraftState() {
