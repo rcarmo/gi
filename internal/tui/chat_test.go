@@ -332,9 +332,13 @@ func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 	if c.status != "Running: read" {
 		t.Fatalf("turn state status = %q", c.status)
 	}
+	c.running = true
+	c.draft = "partial"
+	c.transcript = []string{"Neo: partial"}
+	c.draftLineIndex = 0
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.turn", Payload: map[string]any{"type": "turn_terminal", "status": "failed"}})
-	if c.status != "Turn failed" {
-		t.Fatalf("turn terminal status = %q", c.status)
+	if c.status != "Turn failed" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
+		t.Fatalf("turn terminal cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.session", Payload: map[string]any{"type": "session_idle", "status": "idle"}})
 	if c.status != "Neo · bootstrap" {

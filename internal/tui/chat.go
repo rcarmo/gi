@@ -305,6 +305,10 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		case "turn_terminal":
 			if status == "failed" || status == "aborted" || status == "cancelled" {
+				c.clearDraftTranscriptLine()
+				c.running = false
+				c.draft = ""
+				c.draftLineIndex = -1
 				c.status = fmt.Sprintf("Turn %s", status)
 			}
 		case "turn_state":
