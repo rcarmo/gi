@@ -15,7 +15,7 @@ Implemented so far:
 - bridge from the existing connectivity event bus into topic topics under `connectivity.*`
 - inbound queue + dispatcher lifecycle publication under `runtime.inbound_work` and `runtime.dispatcher`
 - hook invocation lifecycle/decision publication under `runtime.hook`
-- core runtime turn/session lifecycle checkpoints under `runtime.turn` and `runtime.session` (currently setup start plus terminal/idle transitions, not a full mirror of every turn row)
+- core runtime turn/session lifecycle checkpoints under `runtime.turn` and `runtime.session` (now including generic `turn_state` / `session_state` notices from the shared state-hook path, plus explicit setup and terminal/idle checkpoints; still not a full mirror of every turn row)
 - core runtime tool lifecycle checkpoints under `runtime.tool` (currently started, finished, failed, and skipped)
 - core runtime routing/allocation decision notices under `runtime.routing` (currently route-decision and route-incoming checkpoints tied to persisted `routing_events` rows)
 - dedicated SSE topic-stream endpoint at `/sse/topics` with topic-pattern plus session/agent scoping
@@ -24,7 +24,7 @@ Still pending:
 
 - Joker-side topic bridge functions (JS script bridge now supports publish + polling subscribe/read/unsubscribe)
 - TUI/topic-native consumers
-- fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices; `runtime.turn` / `runtime.session` currently cover only the highest-value lifecycle checkpoints, `runtime.tool` currently covers only started/finished/failed/skipped rather than every approval/hook sub-phase, and `runtime.routing` currently covers persisted decision/incoming notices rather than every route-resolution branch before persistence
+- fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices; `runtime.turn` / `runtime.session` now include shared state-hook notices plus the earlier setup/terminal checkpoints but still do not mirror every stored event row, `runtime.tool` currently covers only started/finished/failed/skipped rather than every approval/hook sub-phase, and `runtime.routing` currently covers persisted decision/incoming notices rather than every route-resolution branch before persistence
 - deeper convergence between connectivity and topics
 
 ## Goal

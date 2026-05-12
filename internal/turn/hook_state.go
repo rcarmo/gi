@@ -9,6 +9,7 @@ func (r *sessionRunner) emitTurnStateHook(ctx context.Context, sessionID, turnID
 	if stringsMapEmpty(payload) {
 		payload = map[string]any{}
 	}
+	r.engine.PublishRuntimeTurnEvent("turn_state", sessionID, turnID, agentID, status, phase, payload)
 	if _, err := r.engine.emitHook(ctx, HookRequest{
 		Name:       HookTurnState,
 		SessionID:  sessionID,
@@ -27,6 +28,7 @@ func (r *sessionRunner) emitSessionStateHook(ctx context.Context, sessionID, age
 	if stringsMapEmpty(payload) {
 		payload = map[string]any{}
 	}
+	r.engine.PublishRuntimeSessionEvent("session_state", sessionID, agentID, status, payload)
 	if _, err := r.engine.emitHook(ctx, HookRequest{
 		Name:          HookSessionState,
 		SessionID:     sessionID,

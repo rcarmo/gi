@@ -246,6 +246,50 @@ func TestPublishRuntimeToolEventPublishesRuntimeToolTopic(t *testing.T) {
 	}
 }
 
+func TestEmitTurnStateHookPublishesRuntimeTurnStateTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	runner := &sessionRunner{store: s, engine: engine}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 8, SessionID: "session_turn_state"})
+	defer unsub()
+
+	runner.emitTurnStateHook(context.Background(), "session_turn_state", "turn_state_1", "agent_state", "model", "running", "waiting_on_tools", map[string]any{"reason": "tool_execution", "tool": "grep"})
+
+	select {
+	case env := <-ch:
+		if env.Payload["type"] != "turn_state" || env.Payload["status"] != "running" || env.Payload["phase"] != "waiting_on_tools" || env.Payload["tool"] != "grep" {
+			t.Fatalf("unexpected runtime.turn state payload: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.turn state topic event")
+	}
+}
+
+func TestEmitSessionStateHookPublishesRuntimeSessionStateTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	runner := &sessionRunner{store: s, engine: engine}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 8, SessionID: "session_state_hook"})
+	defer unsub()
+
+	runner.emitSessionStateHook(context.Background(), "session_state_hook", "agent_state", "model", "running", map[string]any{"reason": "setup", "active_turn_id": "turn_state_1"})
+
+	select {
+	case env := <-ch:
+		if env.Payload["type"] != "session_state" || env.Payload["status"] != "running" || env.Payload["active_turn_id"] != "turn_state_1" {
+			t.Fatalf("unexpected runtime.session state payload: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.session state topic event")
+	}
+}
+
 func TestPublishRuntimeRoutingEventUsesExpectedSessionScope(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
