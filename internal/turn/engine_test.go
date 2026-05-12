@@ -413,9 +413,10 @@ func TestStartupRecoveryRequeuesCompactingTurn(t *testing.T) {
 		recovered, err := s.GetTurn(ctx, turnRec.ID)
 		return err == nil && recovered.Status == "completed"
 	}, "recovered compacting turn completion")
-	if _, _, err := s.GetSessionActiveTurn(ctx, "session_recover_compact"); err == nil {
-		t.Fatal("expected no lingering active claim after recovered turn completion")
-	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		_, _, err := s.GetSessionActiveTurn(ctx, "session_recover_compact")
+		return err == sql.ErrNoRows
+	}, "recovered compacting turn active-claim release")
 	events, err := s.ListTurnEvents(ctx, turnRec.ID)
 	if err != nil {
 		t.Fatalf("list recovery events: %v", err)
@@ -1405,6 +1406,62 @@ func TestRecoverInterruptedTurnsStartsQueuedWorkAfterReleasingTerminalClaim(t *t
 		turnRec, err := s.GetTurn(ctx, queuedTurn.ID)
 		return err == nil && turnRec.Status == "completed"
 	}, "queued turn completion after recovery")
+}
+
+func TestRecoverInterruptedTurnPublishesRuntimeStateTopics(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+
+	sess, err := s.CreateSession(ctx, "session_recover_topics", "Recover", map[string]any{"status": "running", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_recover_topics", sess.ID, "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if err := s.UpdateTurnStatusAndPhase(ctx, turnRec.ID, "running", "waiting_on_tools"); err != nil {
+		t.Fatalf("set waiting_on_tools phase: %v", err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, sess.ID, turnRec.ID, "runner", "claim-recover-topics"); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	} else if !ok {
+		t.Fatal("expected active turn claim to be acquired")
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_active_turns set updated_at = '2000-01-01T00:00:00Z' where session_id = ?`, sess.ID); err != nil {
+		t.Fatalf("age active turn claim: %v", err)
+	}
+	turnTopicCh, unsubTurn := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 8, SessionID: sess.ID})
+	defer unsubTurn()
+	sessionTopicCh, unsubSession := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 8, SessionID: sess.ID})
+	defer unsubSession()
+
+	recovered, err := engine.recoverInterruptedTurns(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("recover interrupted turns: %v", err)
+	}
+	if !recovered {
+		t.Fatal("expected stale turn to be recovered")
+	}
+
+	select {
+	case env := <-turnTopicCh:
+		if env.Payload["type"] != "turn_state" || env.Payload["status"] != "failed" || env.Payload["phase"] != "held_for_retry_or_skip" || env.Payload["recovery_disposition"] != "hold_for_retry_or_skip_after_tool_checkpoint" {
+			t.Fatalf("unexpected runtime.turn recovery payload: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.turn recovery state topic")
+	}
+	select {
+	case env := <-sessionTopicCh:
+		if env.Payload["type"] != "session_state" || env.Payload["status"] != "idle" || env.Payload["reason"] != "recovery" || env.Payload["recovery_disposition"] != "hold_for_retry_or_skip_after_tool_checkpoint" || env.Payload["turn_status"] != "failed" {
+			t.Fatalf("unexpected runtime.session recovery payload: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.session recovery state topic")
+	}
 }
 
 func TestSetupErrorMarksTurnFailed(t *testing.T) {

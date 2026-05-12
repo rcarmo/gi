@@ -75,6 +75,7 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 	payload := map[string]any{
 		"phase":                "recovery",
 		"checkpoint":           true,
+		"reason":               "recovery",
 		"previous_status":      claim.Status,
 		"previous_phase":       claim.Phase,
 		"recovery_disposition": disposition,
@@ -112,7 +113,18 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 	if queueCount > 0 {
 		sessionStatus = "queued"
 	}
-	return e.store.TouchSessionState(ctx, claim.SessionID, map[string]any{"active_turn_id": nil, "status": sessionStatus})
+	if err := e.store.TouchSessionState(ctx, claim.SessionID, map[string]any{"active_turn_id": nil, "status": sessionStatus}); err != nil {
+		return err
+	}
+	turnRec, err := e.store.GetTurn(ctx, claim.TurnID)
+	if err != nil {
+		return err
+	}
+	runner := e.runner(claim.SessionID)
+	agentID, model := runner.resolveTurnAgentAndModel(ctx, e.store, turnRec, claim.SessionID, turnRec.Prompt)
+	runner.emitTurnStateHook(ctx, claim.SessionID, claim.TurnID, agentID, model, status, phase, cloneMap(payload))
+	runner.emitSessionStateHook(ctx, claim.SessionID, agentID, model, sessionStatus, map[string]any{"reason": "recovery", "recovery_disposition": disposition, "stale_claim": true, "active_turn_id": nil, "turn_id": claim.TurnID, "turn_status": status, "turn_phase": phase})
+	return nil
 }
 
 func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionRunner, sessionID string) (bool, error) {
