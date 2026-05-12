@@ -22,8 +22,8 @@ Implemented so far:
 
 Still pending:
 
-- TUI/topic-native consumers
 - fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices; `runtime.turn` / `runtime.session` now include shared state-hook notices plus the earlier explicit checkpoints, with non-duplicated publication semantics and consistent completed-vs-terminal naming, but still do not mirror every stored event row; `runtime.tool` currently covers only started/finished/failed/skipped rather than every approval/hook sub-phase; `runtime.hook` now includes invocation rows plus high-level tool-related decisions but not every hook family-specific semantic summary yet; and `runtime.routing` currently covers persisted decision/incoming notices rather than every route-resolution branch before persistence
+- broader TUI/topic-native coverage beyond the first adopted runtime families
 - deeper convergence between connectivity and topics
 
 ## Goal
@@ -198,6 +198,8 @@ The TUI can subscribe to:
 - session-scoped turn topics
 - extension notices
 - future cross-extension/internal topics
+
+A first topic-native slice is now live: the TUI subscribes to canonical `runtime.*` topics for the active session and uses `runtime.tool` / `runtime.hook` notices for status and transcript updates alongside the older broadcast channel.
 
 This avoids hardcoding every new event type into one custom engine broadcast path.
 

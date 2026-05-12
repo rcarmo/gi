@@ -13,6 +13,7 @@ import (
 	"github.com/rcarmo/gi/internal/config"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/topics"
 	"github.com/rcarmo/gi/internal/turn"
 )
 
@@ -92,7 +93,9 @@ type chatTUI struct {
 	draft            string
 	inputActive      bool
 	eventCh          chan map[string]any
+	topicEventCh     chan topics.Envelope
 	subscribedCh     chan map[string]any
+	topicUnsubscribe func()
 	input            *multilineInput
 	inputRegion      *gotui.Element
 	transcriptRegion *gotui.Element
@@ -136,6 +139,10 @@ func (c *chatTUI) Init() func() {
 		if c.subscribedCh != nil {
 			c.engine.Unsubscribe(c.sessionID, c.subscribedCh)
 		}
+		if c.topicUnsubscribe != nil {
+			c.topicUnsubscribe()
+			c.topicUnsubscribe = nil
+		}
 	}
 }
 
@@ -144,8 +151,25 @@ func (c *chatTUI) bindSession(sessionID string) {
 		c.engine.Unsubscribe(c.sessionID, c.subscribedCh)
 		c.subscribedCh = nil
 	}
+	if c.topicUnsubscribe != nil {
+		c.topicUnsubscribe()
+		c.topicUnsubscribe = nil
+	}
 	c.sessionID = sessionID
 	c.subscribedCh = c.engine.Subscribe(sessionID)
+	if c.engine.Topics() != nil {
+		ch, unsubscribe := c.engine.Topics().Subscribe(context.Background(), "runtime.*", topics.SubscribeOptions{Buffer: 64, SessionID: sessionID})
+		c.topicUnsubscribe = unsubscribe
+		c.topicEventCh = make(chan topics.Envelope, 64)
+		go func(ch <-chan topics.Envelope) {
+			for env := range ch {
+				if c.topicEventCh == nil {
+					return
+				}
+				c.topicEventCh <- env
+			}
+		}(ch)
+	}
 	go func(ch chan map[string]any) {
 		for ev := range ch {
 			if c.eventCh == nil {
@@ -157,8 +181,73 @@ func (c *chatTUI) bindSession(sessionID string) {
 }
 
 func (c *chatTUI) Watchers() []gotui.Watcher {
-	return []gotui.Watcher{
-		gotui.NewChannelWatcher(c.eventCh, c.handleEvent),
+	watchers := []gotui.Watcher{gotui.NewChannelWatcher(c.eventCh, c.handleEvent)}
+	if c.topicEventCh != nil {
+		watchers = append(watchers, gotui.NewChannelWatcher(c.topicEventCh, c.handleTopicEvent))
+	}
+	return watchers
+}
+
+func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
+	payload := env.Payload
+	switch env.Topic {
+	case "runtime.tool":
+		toolName, _ := payload["tool"].(string)
+		typ, _ := payload["type"].(string)
+		switch typ {
+		case "tool_started":
+			if toolName != "" {
+				c.status = fmt.Sprintf("Running: %s", toolName)
+			}
+		case "tool_finished":
+			if toolName != "" {
+				c.status = fmt.Sprintf("Tool finished: %s", toolName)
+			}
+		case "tool_failed":
+			errText, _ := payload["error"].(string)
+			line := fmt.Sprintf("sys: tool failed: %s", toolName)
+			if errText != "" {
+				line = fmt.Sprintf("%s: %s", line, truncate(errText, 120))
+			}
+			c.appendTranscript(line)
+			c.status = fmt.Sprintf("Tool failed: %s", toolName)
+		case "tool_skipped":
+			reason, _ := payload["reason"].(string)
+			line := fmt.Sprintf("sys: tool skipped: %s", toolName)
+			if reason != "" {
+				line = fmt.Sprintf("%s: %s", line, truncate(reason, 120))
+			}
+			c.appendTranscript(line)
+		}
+	case "runtime.hook":
+		typ, _ := payload["type"].(string)
+		if typ == "hook_deny" || typ == "hook_abort" {
+			hookName, _ := payload["hook"].(string)
+			reason, _ := payload["reason"].(string)
+			toolName, _ := payload["tool"].(string)
+			line := fmt.Sprintf("sys: hook %s", typ)
+			if hookName != "" {
+				line += " via " + hookName
+			}
+			if toolName != "" {
+				line += " for " + toolName
+			}
+			if reason != "" {
+				line += ": " + truncate(reason, 120)
+			}
+			c.appendTranscript(line)
+		}
+	case "runtime.turn":
+		typ, _ := payload["type"].(string)
+		if typ == "turn_completed" {
+			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+		}
+	}
+	if c.stickToBottom {
+		c.scrollTranscriptToBottom()
+	}
+	if c.app != nil {
+		c.app.MarkDirty()
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/rcarmo/gi/internal/config"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/topics"
 	"github.com/rcarmo/gi/internal/turn"
 )
 
@@ -195,6 +196,22 @@ func TestHandleEventStreamsDraftIntoTranscript(t *testing.T) {
 	c.handleEvent(map[string]any{"type": "new_post", "data": map[string]any{"content": "hello world"}})
 	if c.running || c.draft != "" || c.draftLineIndex != -1 || c.transcript[0] != "Neo: hello world" {
 		t.Fatalf("unexpected final streamed state: running=%v draft=%q draftLineIndex=%d transcript=%#v", c.running, c.draft, c.draftLineIndex, c.transcript)
+	}
+}
+
+func TestHandleTopicEventStatusRendering(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Payload: map[string]any{"type": "tool_started", "tool": "read"}})
+	if c.status != "Running: read" {
+		t.Fatalf("tool started status = %q", c.status)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Payload: map[string]any{"type": "tool_skipped", "tool": "shell", "reason": "queued user steering message"}})
+	if len(c.transcript) == 0 || c.transcript[len(c.transcript)-1] != "sys: tool skipped: shell: queued user steering message" {
+		t.Fatalf("tool skipped transcript = %#v", c.transcript)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_deny", "hook": "approve_tool", "tool": "shell", "reason": "tool not approved"}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: hook hook_deny via approve_tool for shell: tool not approved" {
+		t.Fatalf("hook deny transcript = %q", got)
 	}
 }
 
