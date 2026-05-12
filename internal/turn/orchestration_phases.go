@@ -186,7 +186,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	}
 	if runErr != nil {
 		r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
-		markTurnFailure(s, run.turnID, run.sessionID, "shell_error", runErr.Error())
+		markTurnFailure(r.engine.backgroundContext(), s, run.turnID, run.sessionID, "shell_error", runErr.Error())
 		r.engine.PublishRuntimeToolEvent("tool_failed", run.sessionID, run.turnID, run.agentID, "shell", "", 0, runErr, map[string]any{"phase": "tool"})
 		warnStore("append shell tool.failed event", s.AppendTurnEvent(context.Background(), run.turnID, run.sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error()}))
 		warnStore("update turn status failed", s.UpdateTurnStatus(context.Background(), run.turnID, "failed"))

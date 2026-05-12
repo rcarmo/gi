@@ -272,7 +272,7 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, m
 		}
 	}
 	if failureKind != "" {
-		markTurnFailure(s, turnID, sessionID, failureKind, systemMsg)
+		markTurnFailure(r.engine.backgroundContext(), s, turnID, sessionID, failureKind, systemMsg)
 	}
 	warnStore("append turn.finished event", s.AppendTurnEvent(context.Background(), turnID, sessionID, "turn.finished", map[string]any{
 		"phase": "turn", "checkpoint": true, "status": status,
