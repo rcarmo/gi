@@ -317,6 +317,43 @@ func TestHookOnlyStateEmittersDoNotPublishGenericRuntimeTopics(t *testing.T) {
 	}
 }
 
+func TestFinishTurnStoresTerminalSystemMessageAsSystemRole(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	runner := &sessionRunner{store: s, engine: engine}
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_finish_system_role", "Test", map[string]any{"status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_finish_system_role", "session_finish_system_role", "running", "running", map[string]any{}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+
+	runner.finishTurn(s, "turn_finish_system_role", "session_finish_system_role", "agent", "model", "failed", "Inference error: boom", "provider_error")
+
+	msgs, err := s.ListMessages(ctx, "session_finish_system_role")
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	var found bool
+	for _, msg := range msgs {
+		if msg.Content != "Inference error: boom" {
+			continue
+		}
+		found = true
+		if msg.Role != "system" {
+			t.Fatalf("expected terminal status message role=system, got %#v", msg)
+		}
+		if msg.Payload["source"] != "system" {
+			t.Fatalf("expected terminal status payload source=system, got %#v", msg.Payload)
+		}
+	}
+	if !found {
+		t.Fatal("expected stored terminal status message")
+	}
+}
+
 func TestFinishTurnCompletedPublishesCompletedRuntimeTopics(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

@@ -232,6 +232,15 @@ func (r *sessionRunner) broadcastPost(sessionID, turnID, msgID, content, agentID
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_response", "chat_jid": "gi:" + sessionID, "id": msgID})
 }
 
+func (r *sessionRunner) broadcastSystemPost(sessionID, turnID, msgID, content string) {
+	r.engine.broadcast(sessionID, map[string]any{
+		"type": "new_post", "id": msgID, "chat_jid": "gi:" + sessionID,
+		"content": content, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
+		"sender": "system",
+		"data":   map[string]any{"type": "system_message", "content": content, "turn_id": turnID},
+	})
+}
+
 // finishTurnOK marks a turn as successfully completed.
 func (r *sessionRunner) finishTurnOK(s *store.Store, turnID, sessionID, agentID, model string, iterations int) {
 	r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
@@ -255,11 +264,11 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, m
 	r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
 	if systemMsg != "" {
 		msgID := store.NowID("msg")
-		warnStore("add terminal system message", s.AddMessage(context.Background(), msgID, sessionID, "assistant", systemMsg, map[string]any{
+		warnStore("add terminal system message", s.AddMessage(context.Background(), msgID, sessionID, "system", systemMsg, map[string]any{
 			"kind": "chat", "source": "system", "turn_id": turnID, "agent_id": agentID,
 		}))
 		if status == "completed" || status == "failed" {
-			r.broadcastPost(sessionID, turnID, msgID, systemMsg, agentID)
+			r.broadcastSystemPost(sessionID, turnID, msgID, systemMsg)
 		}
 	}
 	if failureKind != "" {

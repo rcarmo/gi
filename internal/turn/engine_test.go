@@ -1310,7 +1310,7 @@ func TestSetupErrorMarksTurnFailed(t *testing.T) {
 	}
 	foundFailure := false
 	for _, msg := range msgs {
-		if msg.Role == "assistant" && strings.Contains(msg.Content, "Turn setup error: boom during setup") {
+		if msg.Role == "system" && strings.Contains(msg.Content, "Turn setup error: boom during setup") {
 			foundFailure = true
 		}
 	}
