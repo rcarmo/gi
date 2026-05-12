@@ -671,6 +671,84 @@ func TestFinishTurnFailedPreservesFailureKindAcrossTerminalSurfaces(t *testing.T
 	}
 }
 
+func TestFinishTurnAbortedPreservesFailureKindAcrossTerminalSurfaces(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	runner := &sessionRunner{store: s, engine: engine}
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_finish_aborted", "Test", map[string]any{"status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_finish_aborted", "session_finish_aborted", "running", "running", map[string]any{}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	subCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	turnCh, unsubTurn := engine.Topics().Subscribe(subCtx, "runtime.turn", topics.SubscribeOptions{Buffer: 8, SessionID: "session_finish_aborted"})
+	defer unsubTurn()
+	sessionCh, unsubSession := engine.Topics().Subscribe(subCtx, "runtime.session", topics.SubscribeOptions{Buffer: 8, SessionID: "session_finish_aborted"})
+	defer unsubSession()
+
+	runner.finishTurn(s, "turn_finish_aborted", "session_finish_aborted", "agent", "model", "aborted", "stop now", "hook_abort")
+
+	select {
+	case env := <-turnCh:
+		if env.Payload["type"] != "turn_terminal" || env.Payload["status"] != "aborted" || env.Payload["failure_kind"] != "hook_abort" || env.Payload["reason"] != "hook_abort" {
+			t.Fatalf("unexpected runtime.turn payload for aborted finishTurn: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.turn terminal event from aborted finishTurn")
+	}
+	select {
+	case env := <-sessionCh:
+		if env.Payload["type"] != "session_idle" || env.Payload["turn_status"] != "aborted" || env.Payload["failure_kind"] != "hook_abort" || env.Payload["reason"] != "turn_terminal" {
+			t.Fatalf("unexpected runtime.session payload for aborted finishTurn: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.session idle event from aborted finishTurn")
+	}
+}
+
+func TestFinishTurnCancelledKeepsFailureKindEmptyAcrossTerminalSurfaces(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	runner := &sessionRunner{store: s, engine: engine}
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_finish_cancelled", "Test", map[string]any{"status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_finish_cancelled", "session_finish_cancelled", "running", "running", map[string]any{}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	subCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	turnCh, unsubTurn := engine.Topics().Subscribe(subCtx, "runtime.turn", topics.SubscribeOptions{Buffer: 8, SessionID: "session_finish_cancelled"})
+	defer unsubTurn()
+	sessionCh, unsubSession := engine.Topics().Subscribe(subCtx, "runtime.session", topics.SubscribeOptions{Buffer: 8, SessionID: "session_finish_cancelled"})
+	defer unsubSession()
+
+	runner.finishTurn(s, "turn_finish_cancelled", "session_finish_cancelled", "agent", "model", "cancelled", "Turn cancelled", "")
+
+	select {
+	case env := <-turnCh:
+		if env.Payload["type"] != "turn_terminal" || env.Payload["status"] != "cancelled" || env.Payload["failure_kind"] != "" || env.Payload["reason"] != "cancelled" {
+			t.Fatalf("unexpected runtime.turn payload for cancelled finishTurn: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.turn terminal event from cancelled finishTurn")
+	}
+	select {
+	case env := <-sessionCh:
+		if env.Payload["type"] != "session_idle" || env.Payload["turn_status"] != "cancelled" || env.Payload["failure_kind"] != "" || env.Payload["reason"] != "turn_terminal" {
+			t.Fatalf("unexpected runtime.session payload for cancelled finishTurn: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.session idle event from cancelled finishTurn")
+	}
+}
+
 func TestPublishRuntimeRoutingEventUsesExpectedSessionScope(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
