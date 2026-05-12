@@ -190,6 +190,34 @@ func (e *Engine) PublishRuntimeHookEvent(eventType string, req HookRequest, sour
 	})
 }
 
+func (e *Engine) PublishRuntimeTurnEvent(eventType, sessionID, turnID, agentID, status, phase string, payload map[string]any) {
+	if e == nil || e.topics == nil {
+		return
+	}
+	body := cloneMap(payload)
+	if body == nil {
+		body = map[string]any{}
+	}
+	body["type"] = strings.TrimSpace(eventType)
+	body["turn_id"] = strings.TrimSpace(turnID)
+	body["status"] = strings.TrimSpace(status)
+	body["phase"] = strings.TrimSpace(phase)
+	e.publishTopicEvent(topics.Envelope{Topic: "runtime.turn", SessionID: strings.TrimSpace(sessionID), AgentID: strings.TrimSpace(agentID), Source: "runtime", Type: "notice", Payload: body})
+}
+
+func (e *Engine) PublishRuntimeSessionEvent(eventType, sessionID, agentID, status string, payload map[string]any) {
+	if e == nil || e.topics == nil {
+		return
+	}
+	body := cloneMap(payload)
+	if body == nil {
+		body = map[string]any{}
+	}
+	body["type"] = strings.TrimSpace(eventType)
+	body["status"] = strings.TrimSpace(status)
+	e.publishTopicEvent(topics.Envelope{Topic: "runtime.session", SessionID: strings.TrimSpace(sessionID), AgentID: strings.TrimSpace(agentID), Source: "runtime", Type: "notice", Payload: body})
+}
+
 func cloneMap(in map[string]any) map[string]any {
 	if in == nil {
 		return nil

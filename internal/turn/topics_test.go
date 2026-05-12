@@ -164,6 +164,60 @@ func TestEmitHookPublishesRuntimeHookErrorTopic(t *testing.T) {
 	}
 }
 
+func TestPublishRuntimeTurnEventPublishesRuntimeTurnTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 8})
+	defer unsub()
+
+	engine.PublishRuntimeTurnEvent("turn_started", "session_turn_topic", "turn_topic_1", "agent_topic", "running", "setup", map[string]any{"reason": "setup"})
+
+	select {
+	case env := <-ch:
+		if env.Topic != "runtime.turn" {
+			t.Fatalf("unexpected runtime.turn topic: %#v", env)
+		}
+		if env.SessionID != "session_turn_topic" || env.AgentID != "agent_topic" {
+			t.Fatalf("unexpected runtime.turn scope: %#v", env)
+		}
+		if env.Payload["type"] != "turn_started" || env.Payload["turn_id"] != "turn_topic_1" || env.Payload["status"] != "running" || env.Payload["phase"] != "setup" {
+			t.Fatalf("unexpected runtime.turn payload: %#v", env.Payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.turn topic event")
+	}
+}
+
+func TestPublishRuntimeSessionEventPublishesRuntimeSessionTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 8})
+	defer unsub()
+
+	engine.PublishRuntimeSessionEvent("session_idle", "session_state_topic", "agent_topic", "idle", map[string]any{"reason": "turn_completed", "turn_id": "turn_topic_1"})
+
+	select {
+	case env := <-ch:
+		if env.Topic != "runtime.session" {
+			t.Fatalf("unexpected runtime.session topic: %#v", env)
+		}
+		if env.SessionID != "session_state_topic" || env.AgentID != "agent_topic" {
+			t.Fatalf("unexpected runtime.session scope: %#v", env)
+		}
+		if env.Payload["type"] != "session_idle" || env.Payload["status"] != "idle" || env.Payload["turn_id"] != "turn_topic_1" {
+			t.Fatalf("unexpected runtime.session payload: %#v", env.Payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.session topic event")
+	}
+}
+
 func TestSubTurnBroadcastEventsMapToTurnSubTurnTopic(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

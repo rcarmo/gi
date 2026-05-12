@@ -15,13 +15,14 @@ Implemented so far:
 - bridge from the existing connectivity event bus into topic topics under `connectivity.*`
 - inbound queue + dispatcher lifecycle publication under `runtime.inbound_work` and `runtime.dispatcher`
 - hook invocation lifecycle/decision publication under `runtime.hook`
+- core runtime turn/session lifecycle checkpoints under `runtime.turn` and `runtime.session` (currently setup start plus terminal/idle transitions, not a full mirror of every turn row)
 - dedicated SSE topic-stream endpoint at `/sse/topics` with topic-pattern plus session/agent scoping
 
 Still pending:
 
 - Joker-side topic bridge functions (JS script bridge now supports publish + polling subscribe/read/unsubscribe)
 - TUI/topic-native consumers
-- fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices
+- fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices; `runtime.turn` / `runtime.session` currently cover only the highest-value lifecycle checkpoints, not every intermediate state transition
 - deeper convergence between connectivity and topics
 
 ## Goal

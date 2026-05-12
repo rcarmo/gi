@@ -73,6 +73,8 @@ Current topic/runtime publication status:
 - the in-memory topic bus is live and now carries bridged turn/session notices plus runtime-critical steering and subturn lifecycle topics
 - connectivity events are bridged into the topic bus under `connectivity.*`
 - inbound queue and dispatcher lifecycle now publish onto the canonical topic bus under `runtime.inbound_work` and `runtime.dispatcher`
+- hook invocation lifecycle/decision notices now publish under `runtime.hook`
+- core runtime turn/session lifecycle checkpoints now also publish under `runtime.turn` and `runtime.session` (currently setup start plus terminal/idle transitions)
 - dedicated topic SSE streaming is now live via `/sse/topics`
 - script-facing topic APIs now exist in the JS script bridge: `gi.topics.publish(...)` plus polling-style `gi.topics.subscribe(...)`, `gi.topics.read(...)`, and `gi.topics.unsubscribe(...)`
 
