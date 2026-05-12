@@ -479,7 +479,9 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		} else {
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		}
-		c.app.MarkDirty()
+		if c.app != nil {
+			c.app.MarkDirty()
+		}
 	case "error":
 		msg := ""
 		if v, ok := ev["error"].(string); ok {
@@ -677,7 +679,9 @@ func (c *chatTUI) onSubmit(text string) {
 	c.appendTranscript(fmt.Sprintf("you: %s", text))
 	c.stickToBottom = true
 	c.scrollTranscriptToBottom()
-	c.app.MarkDirty()
+	if c.app != nil {
+		c.app.MarkDirty()
+	}
 
 	go func() {
 		result, err := c.engine.SubmitPromptRouted(context.Background(), turn.RunInput{
@@ -687,23 +691,37 @@ func (c *chatTUI) onSubmit(text string) {
 			Model:     c.cfg.DefaultModel,
 		})
 		if err != nil {
-			c.app.QueueUpdate(func() {
+			if c.app != nil {
+				c.app.QueueUpdate(func() {
+					c.clearDraftTranscriptLine()
+					c.appendTranscript(fmt.Sprintf("error: %v", err))
+					c.running = false
+					c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+					c.app.MarkDirty()
+				})
+			} else {
 				c.clearDraftTranscriptLine()
 				c.appendTranscript(fmt.Sprintf("error: %v", err))
 				c.running = false
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
-				c.app.MarkDirty()
-			})
+			}
 			return
 		}
 		if result != nil && result.Routed && result.SessionID != c.sessionID {
-			c.app.QueueUpdate(func() {
+			if c.app != nil {
+				c.app.QueueUpdate(func() {
+					c.clearDraftTranscriptLine()
+					c.appendTranscript(fmt.Sprintf("sys: routed to @%s (%s)", result.TargetAgentID, result.SessionID))
+					c.running = false
+					c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+					c.app.MarkDirty()
+				})
+			} else {
 				c.clearDraftTranscriptLine()
 				c.appendTranscript(fmt.Sprintf("sys: routed to @%s (%s)", result.TargetAgentID, result.SessionID))
 				c.running = false
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
-				c.app.MarkDirty()
-			})
+			}
 		}
 	}()
 }
@@ -783,20 +801,32 @@ func (c *chatTUI) handleCommand(text string) {
 		go func() {
 			result, err := c.engine.SubmitPeerMessage(context.Background(), c.sessionID, target, body, "prompt", c.cfg.DefaultModel, "")
 			if err != nil {
-				c.app.QueueUpdate(func() {
+				if c.app != nil {
+					c.app.QueueUpdate(func() {
+						c.transcript = append(c.transcript, fmt.Sprintf("error: %v", err))
+						c.running = false
+						c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+						c.app.MarkDirty()
+					})
+				} else {
 					c.transcript = append(c.transcript, fmt.Sprintf("error: %v", err))
+					c.running = false
+					c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+				}
+				return
+			}
+			if c.app != nil {
+				c.app.QueueUpdate(func() {
+					c.transcript = append(c.transcript, fmt.Sprintf("sys: delivered to @%s (%s)", target, result.SessionID))
 					c.running = false
 					c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 					c.app.MarkDirty()
 				})
-				return
-			}
-			c.app.QueueUpdate(func() {
+			} else {
 				c.transcript = append(c.transcript, fmt.Sprintf("sys: delivered to @%s (%s)", target, result.SessionID))
 				c.running = false
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
-				c.app.MarkDirty()
-			})
+			}
 		}()
 		return
 	case "/where":

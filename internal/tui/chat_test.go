@@ -315,6 +315,14 @@ func TestHandleTopicEventStatusRendering(t *testing.T) {
 	}
 }
 
+func TestHandleEventAgentStatusWithoutAppDoesNotPanic(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}}
+	c.handleEvent(map[string]any{"type": "agent_status", "title": "Thinking…"})
+	if c.status != "Thinking…" {
+		t.Fatalf("agent_status without app = %q", c.status)
+	}
+}
+
 func TestUseTopicNativeRuntimeStatusRequiresLiveSubscription(t *testing.T) {
 	c := &chatTUI{topicEventCh: make(chan topics.Envelope, 1)}
 	if c.useTopicNativeRuntimeStatus() {
