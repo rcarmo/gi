@@ -376,7 +376,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 }
 
 func (c *chatTUI) useTopicNativeRuntimeStatus() bool {
-	return c.topicUnsubscribe != nil || c.topicEventCh != nil
+	return c.topicUnsubscribe != nil
 }
 
 func (c *chatTUI) handleEvent(ev map[string]any) {

@@ -315,8 +315,19 @@ func TestHandleTopicEventStatusRendering(t *testing.T) {
 	}
 }
 
+func TestUseTopicNativeRuntimeStatusRequiresLiveSubscription(t *testing.T) {
+	c := &chatTUI{topicEventCh: make(chan topics.Envelope, 1)}
+	if c.useTopicNativeRuntimeStatus() {
+		t.Fatal("expected topic-native runtime status to remain disabled without a live topic subscription")
+	}
+	c.topicUnsubscribe = func() {}
+	if !c.useTopicNativeRuntimeStatus() {
+		t.Fatal("expected topic-native runtime status to activate with a live topic subscription")
+	}
+}
+
 func TestHandleEventStatusRenderingSkipsDuplicateLegacyRuntimeEventsWhenTopicNativeActive(t *testing.T) {
-	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1, topicEventCh: make(chan topics.Envelope, 1)}
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1, topicEventCh: make(chan topics.Envelope, 1), topicUnsubscribe: func() {}}
 	c.handleEvent(map[string]any{"type": "tool_failed", "tool": "shell", "error": "boom"})
 	if c.status != "" || len(c.transcript) != 0 {
 		t.Fatalf("expected topic-native path to suppress duplicate legacy tool event, got status=%q transcript=%#v", c.status, c.transcript)
