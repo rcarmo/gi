@@ -1816,6 +1816,10 @@ func TestCancelTurnDuringSetupMarksCancelled(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 	engine := New(s)
+	turnTopicCh, unsubTurn := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 16, SessionID: "session_cancel_setup"})
+	defer unsubTurn()
+	sessionTopicCh, unsubSession := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 16, SessionID: "session_cancel_setup"})
+	defer unsubSession()
 	setupEntered := make(chan struct{})
 	engine.beforeSetupHook = func(ctx context.Context, sessionID, turnID string) {
 		select {
@@ -1853,6 +1857,31 @@ func TestCancelTurnDuringSetupMarksCancelled(t *testing.T) {
 	}
 	if turnRec.FinishedAt == "" {
 		t.Fatalf("expected finished_at after setup cancellation, got %#v", turnRec)
+	}
+	foundTurnCancelling := false
+	foundTurnTerminal := false
+	foundSessionCancelRequested := false
+	foundSessionIdle := false
+	deadline := time.After(2 * time.Second)
+	for !(foundTurnCancelling && foundTurnTerminal && foundSessionCancelRequested && foundSessionIdle) {
+		select {
+		case env := <-turnTopicCh:
+			if env.Payload["type"] == "turn_cancelling" && env.Payload["turn_id"] == result.TurnID && env.Payload["status"] == "cancelling" && env.Payload["phase"] == "cancelling" && env.Payload["reason"] == "cancel_requested" {
+				foundTurnCancelling = true
+			}
+			if env.Payload["type"] == "turn_terminal" && env.Payload["turn_id"] == result.TurnID && env.Payload["status"] == "cancelled" && env.Payload["reason"] == "cancelled" && env.Payload["failure_kind"] == "" {
+				foundTurnTerminal = true
+			}
+		case env := <-sessionTopicCh:
+			if env.Payload["type"] == "session_state" && env.Payload["status"] == "running" && env.Payload["active_turn_id"] == result.TurnID && env.Payload["turn_id"] == result.TurnID && env.Payload["turn_status"] == "cancelling" && env.Payload["turn_phase"] == "cancelling" && env.Payload["reason"] == "cancel_requested" && env.Payload["failure_kind"] == "" {
+				foundSessionCancelRequested = true
+			}
+			if env.Payload["type"] == "session_idle" && env.Payload["turn_id"] == result.TurnID && env.Payload["turn_status"] == "cancelled" && env.Payload["reason"] == "turn_terminal" && env.Payload["failure_kind"] == "" && env.Payload["model"] == "bootstrap" {
+				foundSessionIdle = true
+			}
+		case <-deadline:
+			t.Fatalf("expected setup cancel to publish turn/session cancel + terminal topics, got turn_cancelling=%v turn_terminal=%v session_state=%v session_idle=%v", foundTurnCancelling, foundTurnTerminal, foundSessionCancelRequested, foundSessionIdle)
+		}
 	}
 	events, err := s.ListTurnEvents(ctx, result.TurnID)
 	if err != nil {

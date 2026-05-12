@@ -254,6 +254,15 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, m
 
 func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID, agentID, model, status, systemMsg, failureKind string, payload map[string]any) {
 	bgCtx := r.engine.backgroundContext()
+	if strings.TrimSpace(agentID) == "" || strings.TrimSpace(model) == "" {
+		resolvedAgentID, resolvedModel := r.resolveTurnIdentityForFinalize(bgCtx, s, sessionID, turnID)
+		if strings.TrimSpace(agentID) == "" {
+			agentID = resolvedAgentID
+		}
+		if strings.TrimSpace(model) == "" {
+			model = resolvedModel
+		}
+	}
 	r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
 	if systemMsg != "" {
 		msgID := store.NowID("msg")
