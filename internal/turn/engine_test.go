@@ -831,6 +831,8 @@ func TestRetryHeldTurnCreatesFollowOnWork(t *testing.T) {
 		t.Fatalf("mark failure: %v", err)
 	}
 	engine := New(s)
+	turnTopicCh, unsub := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 16, SessionID: turnRec.SessionID})
+	defer unsub()
 	if err := engine.HoldTurnFailure(ctx, turnRec.ID, "review", "needs operator choice"); err != nil {
 		t.Fatalf("hold turn failure: %v", err)
 	}
@@ -862,6 +864,18 @@ func TestRetryHeldTurnCreatesFollowOnWork(t *testing.T) {
 	}
 	if retryTurn.Metadata["retry_of_turn_id"] != turnRec.ID {
 		t.Fatalf("expected retry metadata on new turn, got %#v", retryTurn.Metadata)
+	}
+	foundResolved := false
+	deadline := time.After(2 * time.Second)
+	for !foundResolved {
+		select {
+		case env := <-turnTopicCh:
+			if env.Payload["type"] == "turn_failure_resolved" && env.Payload["turn_id"] == turnRec.ID && env.Payload["resolution_state"] == "retried" && env.Payload["resolution_summary"] == "retry requested" && env.Payload["resolved_turn_id"] == result.TurnID {
+				foundResolved = true
+			}
+		case <-deadline:
+			t.Fatalf("expected retry hold resolution runtime checkpoint with resolved turn id")
+		}
 	}
 }
 
