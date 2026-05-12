@@ -169,7 +169,7 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 	e.registerDefaultTools()
 	e.startTopicBridge()
 	if e.store != nil {
-		if _, err := e.recoverInterruptedTurns(context.Background(), ""); err != nil {
+		if _, err := e.recoverInterruptedTurns(e.backgroundContext(), ""); err != nil {
 			log.Printf("turn recovery: startup scan failed: %v", err)
 		}
 	}
