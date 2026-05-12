@@ -315,6 +315,17 @@ func TestHandleTopicEventStatusRendering(t *testing.T) {
 	}
 }
 
+func TestHandleEventErrorClearsRunningState(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, running: true, draft: "hello", draftLineIndex: 0, transcript: []string{"Neo: hello"}}
+	c.handleEvent(map[string]any{"type": "error", "error": "boom"})
+	if c.running {
+		t.Fatal("expected legacy error path to clear running state")
+	}
+	if got := c.transcript[len(c.transcript)-1]; got != "error: boom" {
+		t.Fatalf("unexpected error transcript: %#v", c.transcript)
+	}
+}
+
 func TestHandleEventAgentStatusWithoutAppDoesNotPanic(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}}
 	c.handleEvent(map[string]any{"type": "agent_status", "title": "Thinking…"})

@@ -524,6 +524,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		if msg != "" {
 			c.clearDraftTranscriptLine()
 			c.appendTranscript("error: " + truncate(msg, 160))
+			c.running = false
 			c.status = "Error"
 			if c.app != nil {
 				c.app.MarkDirty()
