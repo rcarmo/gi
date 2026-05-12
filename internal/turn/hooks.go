@@ -361,6 +361,7 @@ func hookInvocationErrorText(err error) string {
 }
 
 func (e *Engine) recordHookInvocation(ctx context.Context, req HookRequest, item registeredHook, action string, response HookResponse, err error, durationMS int) {
+	e.PublishRuntimeHookEvent("hook_invocation", req, item.source, action, durationMS, err)
 	if e.store == nil {
 		return
 	}

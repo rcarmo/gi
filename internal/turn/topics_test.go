@@ -105,6 +105,65 @@ func TestSteeringBroadcastEventsMapToSessionSteeringTopic(t *testing.T) {
 	}
 }
 
+func TestEmitHookPublishesRuntimeHookTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.hook", topics.SubscribeOptions{Buffer: 8})
+	defer unsub()
+	if _, err := engine.RegisterHook(HookToolCall, "test", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		return HookResponse{Action: "modify"}, nil
+	}); err != nil {
+		t.Fatalf("register hook: %v", err)
+	}
+	if _, err := engine.emitHook(context.Background(), HookRequest{Name: HookToolCall, SessionID: "session_hook_topic", TurnID: "turn_hook_topic", AgentID: "agent"}); err != nil {
+		t.Fatalf("emit hook: %v", err)
+	}
+	select {
+	case env := <-ch:
+		if env.Topic != "runtime.hook" {
+			t.Fatalf("unexpected runtime hook topic: %#v", env)
+		}
+		if env.Payload["hook"] != HookToolCall || env.Payload["action"] != "modify" || env.Payload["source"] != "test" {
+			t.Fatalf("unexpected runtime hook payload: %#v", env.Payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.hook topic event")
+	}
+}
+
+func TestEmitHookPublishesRuntimeHookErrorTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.hook", topics.SubscribeOptions{Buffer: 8})
+	defer unsub()
+	if _, err := engine.RegisterHook(HookToolCall, "broken", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		return HookResponse{}, context.DeadlineExceeded
+	}); err != nil {
+		t.Fatalf("register hook: %v", err)
+	}
+	engine.runtimeCfg.Hooks.OnError = "continue"
+	if _, err := engine.emitHook(context.Background(), HookRequest{Name: HookToolCall, SessionID: "session_hook_topic", TurnID: "turn_hook_topic", AgentID: "agent"}); err != nil {
+		t.Fatalf("emit hook with continue policy: %v", err)
+	}
+	select {
+	case env := <-ch:
+		if env.Topic != "runtime.hook" {
+			t.Fatalf("unexpected runtime hook topic: %#v", env)
+		}
+		if env.Payload["hook"] != HookToolCall || env.Payload["source"] != "broken" || env.Payload["error"] == "" {
+			t.Fatalf("unexpected runtime hook error payload: %#v", env.Payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.hook error topic event")
+	}
+}
+
 func TestSubTurnBroadcastEventsMapToTurnSubTurnTopic(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

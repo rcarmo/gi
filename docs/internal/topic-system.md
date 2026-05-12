@@ -14,6 +14,7 @@ Implemented so far:
 - extension lifecycle publication (`extension.loaded`, `extension.failed`)
 - bridge from the existing connectivity event bus into topic topics under `connectivity.*`
 - inbound queue + dispatcher lifecycle publication under `runtime.inbound_work` and `runtime.dispatcher`
+- hook invocation lifecycle/decision publication under `runtime.hook`
 - dedicated SSE topic-stream endpoint at `/sse/topics` with topic-pattern plus session/agent scoping
 
 Still pending:

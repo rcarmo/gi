@@ -155,6 +155,41 @@ func (e *Engine) PublishRuntimeDispatcherEvent(eventType string, payload map[str
 	})
 }
 
+func (e *Engine) PublishRuntimeHookEvent(eventType string, req HookRequest, source string, action string, durationMS int, err error) {
+	if e == nil || e.topics == nil {
+		return
+	}
+	payload := map[string]any{
+		"type":           strings.TrimSpace(eventType),
+		"hook":           req.Name,
+		"session_id":     req.SessionID,
+		"turn_id":        req.TurnID,
+		"agent_id":       req.AgentID,
+		"source":         strings.TrimSpace(source),
+		"action":         strings.TrimSpace(action),
+		"duration_ms":    durationMS,
+		"iteration":      req.Iteration,
+		"turn_status":    req.TurnStatus,
+		"turn_phase":     req.TurnPhase,
+		"session_status": req.SessionStatus,
+		"trace": map[string]any{
+			"id":         req.Trace.ID,
+			"emitted_at": req.Trace.EmittedAt,
+		},
+	}
+	if err != nil {
+		payload["error"] = err.Error()
+	}
+	e.publishTopicEvent(topics.Envelope{
+		Topic:     "runtime.hook",
+		SessionID: req.SessionID,
+		AgentID:   req.AgentID,
+		Source:    "runtime",
+		Type:      "notice",
+		Payload:   payload,
+	})
+}
+
 func cloneMap(in map[string]any) map[string]any {
 	if in == nil {
 		return nil
