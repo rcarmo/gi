@@ -202,6 +202,10 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		if title != "" {
 			c.status = title
 		} else if status == "idle" {
+			c.clearDraftTranscriptLine()
+			c.running = false
+			c.draft = ""
+			c.draftLineIndex = -1
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		}
 	case "turn.response":

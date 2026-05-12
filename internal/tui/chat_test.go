@@ -266,6 +266,14 @@ func TestHandleTopicEventTurnStatusAndResponseRendering(t *testing.T) {
 	if c.status != "Thinking…" {
 		t.Fatalf("turn.status rendering = %q", c.status)
 	}
+	c.running = true
+	c.draft = "partial"
+	c.transcript = []string{"Neo: partial"}
+	c.draftLineIndex = 0
+	c.handleTopicEvent(topics.Envelope{Topic: "turn.status", Payload: map[string]any{"status": "idle"}})
+	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
+		t.Fatalf("turn.status idle cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
+	}
 	c.transcript = []string{"Neo: hello"}
 	c.draftLineIndex = 0
 	c.handleTopicEvent(topics.Envelope{Topic: "turn.response", Payload: map[string]any{"data": map[string]any{"content": "hello world"}}})
