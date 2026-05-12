@@ -1157,7 +1157,7 @@ func TestCancelActiveStreamingTurnMarksCancelled(t *testing.T) {
 				foundTurnCancelling = true
 			}
 		case env := <-sessionTopicCh:
-			if env.Payload["type"] == "session_state" && env.Payload["status"] == "running" && env.Payload["active_turn_id"] == result.TurnID && env.Payload["reason"] == "cancel_requested" {
+			if env.Payload["type"] == "session_state" && env.Payload["status"] == "running" && env.Payload["active_turn_id"] == result.TurnID && env.Payload["turn_id"] == result.TurnID && env.Payload["turn_status"] == "cancelling" && env.Payload["turn_phase"] == "cancelling" && env.Payload["reason"] == "cancel_requested" && env.Payload["failure_kind"] == "" {
 				foundSessionRunning = true
 			}
 		case <-deadline:

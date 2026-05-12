@@ -401,9 +401,9 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		if err := e.store.UpdateTurnStatusAndPhase(ctx, turnID, "cancelling", "cancelling"); err != nil {
 			return err
 		}
-		e.PublishRuntimeTurnEvent("turn_cancelling", turnSessionID, turnID, "", "cancelling", "cancelling", map[string]any{"reason": "cancel_requested"})
-		runner.emitTurnStateHook(ctx, turnSessionID, turnID, "", "", "cancelling", "cancelling", map[string]any{"reason": "cancel_requested"})
-		runner.emitSessionStateHook(ctx, turnSessionID, "", "", "running", map[string]any{"reason": "cancel_requested", "active_turn_id": turnID})
+		e.PublishRuntimeTurnEvent("turn_cancelling", turnSessionID, turnID, "", "cancelling", "cancelling", map[string]any{"reason": "cancel_requested", "failure_kind": ""})
+		runner.emitTurnStateHook(ctx, turnSessionID, turnID, "", "", "cancelling", "cancelling", map[string]any{"reason": "cancel_requested", "failure_kind": ""})
+		runner.emitSessionStateHook(ctx, turnSessionID, "", "", "running", map[string]any{"reason": "cancel_requested", "failure_kind": "", "active_turn_id": turnID, "turn_id": turnID, "turn_status": "cancelling", "turn_phase": "cancelling"})
 		runner.current.cancel()
 		runner.current.cmdMu.Lock()
 		if runner.current.cmd != nil && runner.current.cmd.Process != nil {
