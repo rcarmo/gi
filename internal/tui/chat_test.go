@@ -471,9 +471,15 @@ func TestHandleEventStatusRenderingSkipsDuplicateLegacyRuntimeEventsWhenTopicNat
 
 func TestHandleEventStatusRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.running = false
 	c.handleEvent(map[string]any{"type": "agent_thought_delta"})
-	if c.status != "Thinking…" {
-		t.Fatalf("thinking status = %q", c.status)
+	if !c.running || c.status != "Thinking…" {
+		t.Fatalf("thinking status = running=%v status=%q", c.running, c.status)
+	}
+	c.running = false
+	c.handleEvent(map[string]any{"type": "agent_draft_delta", "delta": "hello"})
+	if !c.running || c.status != "⏳ hello…" || len(c.transcript) == 0 || c.transcript[len(c.transcript)-1] != "Neo: hello" {
+		t.Fatalf("draft status = running=%v status=%q transcript=%#v", c.running, c.status, c.transcript)
 	}
 	c.handleEvent(map[string]any{"type": "tool_finished", "tool": "read"})
 	if c.status != "Tool finished: read" {

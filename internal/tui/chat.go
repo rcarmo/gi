@@ -495,6 +495,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			return
 		}
 		delta, _ := ev["delta"].(string)
+		c.markRunning()
 		c.draft += delta
 		c.updateDraftTranscriptLine()
 		c.status = fmt.Sprintf("⏳ %s…", truncate(c.draft, 80))
@@ -529,6 +530,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		if c.useTopicNativeRuntimeStatus() {
 			return
 		}
+		c.markRunning()
 		c.status = "Thinking…"
 		if c.app != nil {
 			c.app.MarkDirty()
