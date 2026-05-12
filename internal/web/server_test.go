@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -502,6 +503,55 @@ func TestRuntimeDispatcherPublishesLeaseTopicEvents(t *testing.T) {
 	}
 	if !seenAcquire {
 		t.Fatal("expected dispatcher lease topic event")
+	}
+}
+
+func TestTopicSSEStreamsRuntimeTopicEvents(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	engine := turn.New(s)
+	srv := New(s, engine, config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	req := httptest.NewRequest(http.MethodGet, "/sse/topics?topic=runtime.inbound_work&session_id=session_topic_sse", nil).WithContext(ctx)
+	res := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		srv.Handler().ServeHTTP(res, req)
+	}()
+	time.Sleep(25 * time.Millisecond)
+	engine.PublishRuntimeInboundWorkEvent("inbound_work_test", &store.InboundWorkItem{ID: 1, Status: "queued", SessionID: "session_topic_sse", SourceKind: "ipc"}, nil)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		body := res.Body.String()
+		if strings.Contains(body, "event: runtime.inbound_work") && strings.Contains(body, "inbound_work_test") {
+			cancel()
+			<-done
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	cancel()
+	<-done
+	t.Fatalf("expected topic SSE stream body to contain runtime topic event, got %s", res.Body.String())
+}
+
+func TestTopicSSERejectsInvalidBuffer(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	req := httptest.NewRequest(http.MethodGet, "/sse/topics?buffer=nope", nil)
+	res := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(res, req)
+	if res.Code != http.StatusBadRequest {
+		t.Fatalf("expected bad request for invalid topic SSE buffer, got %d body=%s", res.Code, res.Body.String())
 	}
 }
 

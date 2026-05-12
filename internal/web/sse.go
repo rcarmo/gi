@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
+
+	"github.com/rcarmo/gi/internal/topics"
 )
 
 func (s *Server) handleSSEStream(w http.ResponseWriter, r *http.Request) {
@@ -63,6 +67,57 @@ func (s *Server) handleSSEStream(w http.ResponseWriter, r *http.Request) {
 				eventType = "message"
 			}
 			writeSSE(w, eventType, ev)
+			flusher.Flush()
+		}
+	}
+}
+
+func (s *Server) handleTopicSSE(w http.ResponseWriter, r *http.Request) {
+	if s.turns == nil || s.turns.Topics() == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"error": "topic bus not available"})
+		return
+	}
+	pattern := strings.TrimSpace(r.URL.Query().Get("topic"))
+	if pattern == "" {
+		pattern = "*"
+	}
+	buffer := 64
+	if raw := strings.TrimSpace(r.URL.Query().Get("buffer")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid buffer"})
+			return
+		}
+		buffer = parsed
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+	opts := topics.SubscribeOptions{Buffer: buffer, SessionID: strings.TrimSpace(r.URL.Query().Get("session_id")), AgentID: strings.TrimSpace(r.URL.Query().Get("agent_id"))}
+	ch, unsubscribe := s.turns.Topics().Subscribe(r.Context(), pattern, opts)
+	defer unsubscribe()
+	writeSSE(w, "connected", map[string]any{"topic": pattern, "session_id": opts.SessionID, "agent_id": opts.AgentID, "app_asset_version": s.version})
+	flusher.Flush()
+	heartbeat := time.NewTicker(15 * time.Second)
+	defer heartbeat.Stop()
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-heartbeat.C:
+			writeSSE(w, "heartbeat", map[string]any{"ts": time.Now().UnixMilli(), "topic": pattern})
+			flusher.Flush()
+		case env, ok := <-ch:
+			if !ok {
+				return
+			}
+			writeSSE(w, env.Topic, env)
 			flusher.Flush()
 		}
 	}

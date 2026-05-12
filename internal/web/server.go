@@ -154,6 +154,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/workspace/tree", guard(s.handleWorkspaceTree))
 	s.mux.HandleFunc("/api/workspace/file", guard(s.handleWorkspaceFile))
 	s.mux.HandleFunc("/sse/stream", guard(s.handleSSEStream))
+	s.mux.HandleFunc("/sse/topics", guard(s.handleTopicSSE))
 	s.mux.HandleFunc("/api/system-metrics", guard(s.handleSystemMetrics))
 	s.mux.HandleFunc("/agent/system-metrics", guard(s.handleSystemMetrics))
 	s.mux.HandleFunc("/api/tools", guard(s.handleTools))

@@ -351,6 +351,7 @@ Current behavior:
 - the main web runtime now also runs a small configurable background dispatcher that drains bounded queued batches through the same engine path, so queued direct/IPC/system work no longer depends solely on manual drain calls
 - when multiple web runtimes share the same SQLite store, dispatcher ownership is now coordinated via a store-backed lease so only the current lease holder performs automatic inbound draining at a time
 - inbound queue row lifecycle (`enqueue`, retry/failure/completion, manual requeue/discard) and dispatcher lease/drain notices now publish through the canonical topic bus as `runtime.inbound_work` and `runtime.dispatcher`
+- web consumers can now subscribe to canonical topic-bus streams directly via `/sse/topics?topic=<pattern>` with optional `session_id` / `agent_id` scoping, so newer runtime families do not need ad hoc SSE wiring just to become observable
 - inbound queue rows now track retry metadata (`attempt_count`, `last_error`, `next_attempt_at`), and retrying items are deferred until eligible again rather than being retried in a tight loop
 - the dispatcher continues past retrying/failed items in the same sweep, so one bad queued envelope does not block later eligible work from reaching the normal routing/session/turn path
 
