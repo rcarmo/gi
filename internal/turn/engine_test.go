@@ -374,19 +374,29 @@ func TestStartupRecoveryRequeuesCompactingTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
 	ctx := context.Background()
+	started := make(chan struct{}, 1)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "recovered done"}}}}, nil
+	})
 	_, err := s.CreateSession(ctx, "session_recover_compact", "Test", map[string]any{"model": "bootstrap", "status": "running"})
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_recover_compact", "session_recover_compact", "running", "hello", map[string]any{"intent": "prompt"})
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_recover_compact", "session_recover_compact", "running", "hello", map[string]any{"intent": "prompt", "model": "mock-recover-compact"})
 	if err != nil {
 		t.Fatalf("create turn: %v", err)
 	}
 	if err := s.UpdateTurnStatusAndPhase(ctx, turnRec.ID, "running", "compacting"); err != nil {
 		t.Fatalf("set compacting phase: %v", err)
 	}
-	if _, err := s.ClaimSessionActiveTurn(ctx, "session_recover_compact", turnRec.ID, "runner", turnRec.ID); err != nil {
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "session_recover_compact", turnRec.ID, "runner", turnRec.ID); err != nil {
 		t.Fatalf("claim active turn: %v", err)
+	} else if !ok {
+		t.Fatal("expected active turn claim to be acquired")
 	}
 	if _, err := s.DB().ExecContext(ctx, `update session_active_turns set updated_at = '2000-01-01T00:00:00Z' where session_id = ?`, "session_recover_compact"); err != nil {
 		t.Fatalf("age active turn claim: %v", err)
@@ -394,15 +404,17 @@ func TestStartupRecoveryRequeuesCompactingTurn(t *testing.T) {
 
 	_ = New(s)
 
-	recovered, err := s.GetTurn(ctx, turnRec.ID)
-	if err != nil {
-		t.Fatalf("get recovered turn: %v", err)
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected recovered compacting turn to restart")
 	}
-	if recovered.Status != "queued" || recovered.Phase != "queued" {
-		t.Fatalf("expected queued recovered turn, got %#v", recovered)
-	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		recovered, err := s.GetTurn(ctx, turnRec.ID)
+		return err == nil && recovered.Status == "completed"
+	}, "recovered compacting turn completion")
 	if _, _, err := s.GetSessionActiveTurn(ctx, "session_recover_compact"); err == nil {
-		t.Fatal("expected stale active claim to be released")
+		t.Fatal("expected no lingering active claim after recovered turn completion")
 	}
 	events, err := s.ListTurnEvents(ctx, turnRec.ID)
 	if err != nil {
@@ -1333,6 +1345,66 @@ func TestRecoverInterruptedTurnReleasesCancelledClaimWithoutRequeue(t *testing.T
 	if sessRec.State["status"] != "idle" {
 		t.Fatalf("expected session idle after cancelled recovery, got %#v", sessRec)
 	}
+}
+
+func TestRecoverInterruptedTurnsStartsQueuedWorkAfterReleasingTerminalClaim(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	started := make(chan struct{}, 1)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "queued done"}}}}, nil
+	})
+	engine := New(s)
+
+	sess, err := s.CreateSession(ctx, "session_recover_restart", "Recover", map[string]any{"status": "running"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_recover_terminal", sess.ID, "cancelled", "terminal", map[string]any{"intent": "prompt", "model": "mock-recover"}); err != nil {
+		t.Fatalf("create cancelled turn: %v", err)
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_recover_queued", sess.ID, "queued", "queued after recovery", map[string]any{"intent": "prompt", "model": "mock-recover"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, sess.ID, "turn_recover_terminal", "worker-test", "claim-recover-terminal"); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	} else if !ok {
+		t.Fatal("expected active turn claim to be acquired")
+	}
+	staleTime := time.Now().Add(-(interruptedTurnStaleAfter + 5*time.Second)).UTC().Format(time.RFC3339Nano)
+	if err := s.TouchSessionState(ctx, sess.ID, map[string]any{"active_turn_id": "turn_recover_terminal", "status": "running"}); err != nil {
+		t.Fatalf("touch session state: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_active_turns set updated_at = ? where session_id = ? and turn_id = ?`, staleTime, sess.ID, "turn_recover_terminal"); err != nil {
+		t.Fatalf("age active turn claim: %v", err)
+	}
+
+	recovered, err := engine.recoverInterruptedTurns(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("recover interrupted turns: %v", err)
+	}
+	if !recovered {
+		t.Fatal("expected interrupted terminal turn to be recovered")
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, queuedTurn.ID)
+		return err == nil && turnRec.StartedAt != ""
+	}, "queued turn launch after recovery")
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected queued turn to start after recovery released terminal claim")
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, queuedTurn.ID)
+		return err == nil && turnRec.Status == "completed"
+	}, "queued turn completion after recovery")
 }
 
 func TestSetupErrorMarksTurnFailed(t *testing.T) {

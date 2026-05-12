@@ -20,12 +20,25 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 		return false, err
 	}
 	recovered := false
+	sessionsToRestart := map[string]bool{}
 	for _, claim := range claims {
 		if err := e.recoverInterruptedTurn(ctx, claim); err != nil {
 			log.Printf("turn recovery: recover %s/%s failed: %v", claim.SessionID, claim.TurnID, err)
 			continue
 		}
 		recovered = true
+		queueCount, err := e.store.CountQueuedTurns(ctx, claim.SessionID)
+		if err != nil {
+			return recovered, err
+		}
+		if queueCount > 0 {
+			sessionsToRestart[claim.SessionID] = true
+		}
+	}
+	for recoveredSessionID := range sessionsToRestart {
+		if err := e.startNextQueuedTurn(ctx, recoveredSessionID); err != nil {
+			return recovered, err
+		}
 	}
 	return recovered, nil
 }
