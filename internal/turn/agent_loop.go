@@ -176,7 +176,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 	log.Printf("inference: max iterations (%d) reached for turn %s", maxIter, turnID)
 	agentEndReason = "completed"
 	r.persistUsage(s, turnID, sessionID, &totalUsage, maxIter)
-	r.finishTurn(s, turnID, sessionID, agentID, model, "completed", fmt.Sprintf("Reached maximum iteration limit (%d). The task may be incomplete.", maxIter), "")
+	r.finishTurnWithPayload(s, turnID, sessionID, agentID, model, "completed", fmt.Sprintf("Reached maximum iteration limit (%d). The task may be incomplete.", maxIter), "", map[string]any{"iterations": maxIter, "completion_kind": "max_iterations"})
 }
 
 // executeTool dispatches a single tool call and returns the text result.
@@ -263,6 +263,10 @@ func (r *sessionRunner) finishTurnOK(s *store.Store, turnID, sessionID, agentID,
 
 // finishTurn persists a terminal status and optional system message.
 func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, model, status, systemMsg, failureKind string) {
+	r.finishTurnWithPayload(s, turnID, sessionID, agentID, model, status, systemMsg, failureKind, nil)
+}
+
+func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID, agentID, model, status, systemMsg, failureKind string, payload map[string]any) {
 	bgCtx := r.engine.backgroundContext()
 	r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
 	if systemMsg != "" {
@@ -277,9 +281,14 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, m
 	if failureKind != "" {
 		markTurnFailure(r.engine.backgroundContext(), s, turnID, sessionID, failureKind, systemMsg)
 	}
-	warnStore("append turn.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "turn.finished", map[string]any{
-		"phase": "turn", "checkpoint": true, "status": status,
-	}))
+	finishedPayload := cloneMap(payload)
+	if finishedPayload == nil {
+		finishedPayload = map[string]any{}
+	}
+	finishedPayload["phase"] = "turn"
+	finishedPayload["checkpoint"] = true
+	finishedPayload["status"] = status
+	warnStore("append turn.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "turn.finished", finishedPayload))
 	phase := terminalPhaseForStatus(status)
 	warnStore("update turn status and phase terminal", s.UpdateTurnStatusAndPhase(bgCtx, turnID, status, phase))
 	warnStore("mark turn finished", s.MarkTurnFinished(bgCtx, turnID))
@@ -289,13 +298,38 @@ func (r *sessionRunner) finishTurn(s *store.Store, turnID, sessionID, agentID, m
 		turnEventType = "turn_completed"
 		sessionIdleReason = "turn_completed"
 	}
-	r.engine.PublishRuntimeTurnEvent(turnEventType, sessionID, turnID, agentID, status, phase, map[string]any{"reason": firstNonEmpty(failureKind, status), "failure_kind": failureKind})
-	r.emitTurnStateHookOnly(bgCtx, sessionID, turnID, agentID, model, status, phase, map[string]any{"reason": firstNonEmpty(failureKind, status)})
+	turnPayload := cloneMap(payload)
+	if turnPayload == nil {
+		turnPayload = map[string]any{}
+	}
+	turnPayload["reason"] = firstNonEmpty(failureKind, status)
+	turnPayload["failure_kind"] = failureKind
+	r.engine.PublishRuntimeTurnEvent(turnEventType, sessionID, turnID, agentID, status, phase, turnPayload)
+	hookPayload := cloneMap(payload)
+	if hookPayload == nil {
+		hookPayload = map[string]any{}
+	}
+	hookPayload["reason"] = firstNonEmpty(failureKind, status)
+	r.emitTurnStateHookOnly(bgCtx, sessionID, turnID, agentID, model, status, phase, hookPayload)
 	r.propagateChildSubTurnCancellation(bgCtx, turnID, status, failureKind)
 	r.publishSubTurnLifecycle(bgCtx, turnID, status)
 	warnStore("touch session idle", s.TouchSessionState(bgCtx, sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
-	r.engine.PublishRuntimeSessionEvent("session_idle", sessionID, agentID, "idle", map[string]any{"reason": sessionIdleReason, "turn_id": turnID, "turn_status": status, "model": model})
-	r.emitSessionStateHookOnly(bgCtx, sessionID, agentID, model, "idle", map[string]any{"reason": sessionIdleReason, "turn_status": status})
+	sessionPayload := cloneMap(payload)
+	if sessionPayload == nil {
+		sessionPayload = map[string]any{}
+	}
+	sessionPayload["reason"] = sessionIdleReason
+	sessionPayload["turn_id"] = turnID
+	sessionPayload["turn_status"] = status
+	sessionPayload["model"] = model
+	r.engine.PublishRuntimeSessionEvent("session_idle", sessionID, agentID, "idle", sessionPayload)
+	sessionHookPayload := cloneMap(payload)
+	if sessionHookPayload == nil {
+		sessionHookPayload = map[string]any{}
+	}
+	sessionHookPayload["reason"] = sessionIdleReason
+	sessionHookPayload["turn_status"] = status
+	r.emitSessionStateHookOnly(bgCtx, sessionID, agentID, model, "idle", sessionHookPayload)
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
 }
 

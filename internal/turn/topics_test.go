@@ -522,11 +522,11 @@ func TestFinishTurnCompletedPublishesCompletedRuntimeTopics(t *testing.T) {
 	sessionCh, unsubSession := engine.Topics().Subscribe(subCtx, "runtime.session", topics.SubscribeOptions{Buffer: 8, SessionID: "session_finish_completed"})
 	defer unsubSession()
 
-	runner.finishTurn(s, "turn_finish_completed", "session_finish_completed", "agent", "model", "completed", "Reached maximum iteration limit (1). The task may be incomplete.", "")
+	runner.finishTurnWithPayload(s, "turn_finish_completed", "session_finish_completed", "agent", "model", "completed", "Reached maximum iteration limit (1). The task may be incomplete.", "", map[string]any{"iterations": 1, "completion_kind": "max_iterations"})
 
 	select {
 	case env := <-turnCh:
-		if env.Payload["type"] != "turn_completed" || env.Payload["status"] != "completed" {
+		if env.Payload["type"] != "turn_completed" || env.Payload["status"] != "completed" || env.Payload["iterations"] != 1 || env.Payload["completion_kind"] != "max_iterations" {
 			t.Fatalf("unexpected runtime.turn payload for completed finishTurn: %#v", env)
 		}
 	case <-time.After(time.Second):
@@ -534,7 +534,7 @@ func TestFinishTurnCompletedPublishesCompletedRuntimeTopics(t *testing.T) {
 	}
 	select {
 	case env := <-sessionCh:
-		if env.Payload["type"] != "session_idle" || env.Payload["reason"] != "turn_completed" || env.Payload["turn_status"] != "completed" {
+		if env.Payload["type"] != "session_idle" || env.Payload["reason"] != "turn_completed" || env.Payload["turn_status"] != "completed" || env.Payload["iterations"] != 1 || env.Payload["completion_kind"] != "max_iterations" {
 			t.Fatalf("unexpected runtime.session payload for completed finishTurn: %#v", env)
 		}
 	case <-time.After(time.Second):
