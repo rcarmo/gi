@@ -72,7 +72,9 @@ Current search status:
 Current topic/runtime publication status:
 - the in-memory topic bus is live and now carries bridged turn/session notices plus runtime-critical steering and subturn lifecycle topics
 - connectivity events are bridged into the topic bus under `connectivity.*`
-- script-facing pub/sub APIs and dedicated topic SSE streaming remain pending
+- inbound queue and dispatcher lifecycle now publish onto the canonical topic bus under `runtime.inbound_work` and `runtime.dispatcher`
+- dedicated topic SSE streaming is now live via `/sse/topics`
+- script-facing pub/sub APIs remain pending
 
 Current hook/runtime interception status:
 - provider-level hook parity now reaches the inference layer: `before_provider_request` supports both context mutation and send-time raw request replacement, and `after_provider_response` observes real provider status/headers when available

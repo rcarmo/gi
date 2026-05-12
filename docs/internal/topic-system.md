@@ -4,7 +4,7 @@ Date: 2026-05-05
 
 ## Status
 
-Implemented in this first pass:
+Implemented so far:
 
 - `internal/topics/` in-memory bounded topic bus
 - engine-owned `Topics()` accessor
@@ -13,11 +13,12 @@ Implemented in this first pass:
 - subturn lifecycle publication under `turn.subturn`
 - extension lifecycle publication (`extension.loaded`, `extension.failed`)
 - bridge from the existing connectivity event bus into topic topics under `connectivity.*`
+- inbound queue + dispatcher lifecycle publication under `runtime.inbound_work` and `runtime.dispatcher`
+- dedicated SSE topic-stream endpoint at `/sse/topics` with topic-pattern plus session/agent scoping
 
 Still pending:
 
 - script bridge publish/subscribe APIs
-- dedicated SSE topic-stream endpoint
 - TUI/topic-native consumers
 - fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices
 - deeper convergence between connectivity and topics
@@ -198,11 +199,11 @@ This avoids hardcoding every new event type into one custom engine broadcast pat
 
 ### SSE
 
-Expose a reserved SSE endpoint that streams topic envelopes:
+A reserved SSE endpoint now streams canonical topic envelopes directly:
 
-- `/api/topics/stream?topic=turn.*&session_id=...`
+- `/sse/topics?topic=turn.*&session_id=...`
 
-This can coexist with current SSE event names while we migrate.
+This coexists with the older chat-turn SSE feed while newer runtime families converge onto the topic bus first instead of requiring bespoke SSE adapters.
 
 ## Delivery semantics
 
