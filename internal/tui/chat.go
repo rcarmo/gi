@@ -238,6 +238,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			c.status = fmt.Sprintf("⏳ %s…", truncate(c.draft, 80))
 		}
 	case "turn.thought":
+		c.running = true
 		c.status = "Thinking…"
 	case "runtime.tool":
 		toolName, _ := payload["tool"].(string)
