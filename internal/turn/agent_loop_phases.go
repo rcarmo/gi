@@ -147,6 +147,7 @@ func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, tu
 }
 
 func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, iter, maxIter int, convCtx *goai.Context) (*inference.StreamResult, error) {
+	requestCtx := &goai.Context{SystemPrompt: convCtx.SystemPrompt, Messages: append([]goai.Message(nil), convCtx.Messages...), Tools: append([]goai.Tool(nil), convCtx.Tools...)}
 	if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools, Payload: map[string]any{"model": model, "messages": len(convCtx.Messages), "tools": len(convCtx.Tools), "stage": "context"}}); err != nil {
 		log.Printf("hook before_provider_request error: %v", err)
 	} else {
@@ -155,15 +156,18 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 		}
 		if resp.SystemPrompt != "" {
 			convCtx.SystemPrompt = resp.SystemPrompt
+			requestCtx.SystemPrompt = resp.SystemPrompt
 		}
 		if resp.Messages != nil {
 			convCtx.Messages = resp.Messages
+			requestCtx.Messages = append([]goai.Message(nil), resp.Messages...)
 		}
 		if resp.Tools != nil {
 			convCtx.Tools = resp.Tools
+			requestCtx.Tools = append([]goai.Tool(nil), resp.Tools...)
 		}
 		if strings.TrimSpace(resp.Message) != "" {
-			convCtx.Messages = append([]goai.Message{goai.UserMessage(resp.Message)}, convCtx.Messages...)
+			requestCtx.Messages = append([]goai.Message{goai.UserMessage(resp.Message)}, requestCtx.Messages...)
 		}
 	}
 	warnStore("update turn running phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "running"))
@@ -178,7 +182,7 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 	})
 
 	responseObserved := false
-	result, inferErr := streamWithToolsWithHooks(ctx, model, convCtx, func(ev map[string]any) {
+	result, inferErr := streamWithToolsWithHooks(ctx, model, requestCtx, func(ev map[string]any) {
 		ev["chat_jid"] = "gi:" + sessionID
 		ev["turn_id"] = turnID
 		ev["iteration"] = iter
@@ -206,7 +210,7 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 				hookPayload["api"] = string(modelDef.Api)
 				hookPayload["model_id"] = modelDef.ID
 			}
-			resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools, Payload: hookPayload})
+			resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeProviderRequest, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, SystemPrompt: requestCtx.SystemPrompt, Messages: requestCtx.Messages, Tools: requestCtx.Tools, Payload: hookPayload})
 			if err != nil {
 				return nil, err
 			}

@@ -381,6 +381,43 @@ func TestBeforeProviderRequestCanMutateProviderContext(t *testing.T) {
 	}
 }
 
+func TestBeforeProviderRequestMessagePrependIsRequestLocal(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_before_llm_message_only", "BeforeLLMMessageOnly", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_before_llm_message_only", "session_before_llm_message_only", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if _, err := e.RegisterHook(HookBeforeProviderRequest, "prepend-message", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		if stringValue(req.Payload["stage"], "") != "context" {
+			return HookResponse{}, nil
+		}
+		return HookResponse{Action: "modify", Message: "temporary prepend"}, nil
+	}); err != nil {
+		t.Fatalf("register before_provider_request hook: %v", err)
+	}
+	var capturedMessages []goai.Message
+	withStreamWithToolsStub(t, func(ctx context.Context, model string, convCtx *goai.Context, cb func(map[string]any)) (*inference.StreamResult, error) {
+		capturedMessages = append([]goai.Message(nil), convCtx.Messages...)
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	runner := e.runner("session_before_llm_message_only")
+	convCtx := &goai.Context{SystemPrompt: "original system prompt", Messages: []goai.Message{goai.UserMessage("original message")}}
+	if _, err := runner.runProviderIteration(ctx, s, "turn_before_llm_message_only", "session_before_llm_message_only", "bootstrap", "agent", 1, 4, convCtx); err != nil {
+		t.Fatalf("run provider iteration: %v", err)
+	}
+	if len(capturedMessages) != 2 || goai.GetTextContent(&capturedMessages[0]) != "temporary prepend" || goai.GetTextContent(&capturedMessages[1]) != "original message" {
+		t.Fatalf("expected request-local prepended message plus original message, got %#v", capturedMessages)
+	}
+	if len(convCtx.Messages) != 1 || goai.GetTextContent(&convCtx.Messages[0]) != "original message" {
+		t.Fatalf("expected shared convCtx messages to remain unchanged after request-local prepend, got %#v", convCtx.Messages)
+	}
+}
+
 func TestBeforeProviderRequestCanReplaceRawProviderPayload(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
