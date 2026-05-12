@@ -268,6 +268,54 @@ func TestPublishRuntimeSessionEventPublishesRuntimeSessionTopic(t *testing.T) {
 	}
 }
 
+func TestPublishRuntimeTurnEventPreservesCanonicalFields(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 8, SessionID: "session_turn_topic"})
+	defer unsub()
+
+	engine.PublishRuntimeTurnEvent("turn_started", "session_turn_topic", "turn_topic_1", "agent_topic", "running", "setup", map[string]any{"type": "oops", "turn_id": "wrong", "status": "idle", "phase": "completed", "reason": "setup"})
+
+	select {
+	case env := <-ch:
+		if env.Payload["type"] != "turn_started" || env.Payload["turn_id"] != "turn_topic_1" || env.Payload["status"] != "running" || env.Payload["phase"] != "setup" {
+			t.Fatalf("canonical runtime.turn fields were overridden: %#v", env.Payload)
+		}
+		if env.Payload["reason"] != "setup" {
+			t.Fatalf("custom runtime.turn field missing: %#v", env.Payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.turn topic event")
+	}
+}
+
+func TestPublishRuntimeSessionEventPreservesCanonicalFields(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 8, SessionID: "session_state_topic"})
+	defer unsub()
+
+	engine.PublishRuntimeSessionEvent("session_idle", "session_state_topic", "agent_topic", "idle", map[string]any{"type": "oops", "status": "running", "reason": "turn_completed"})
+
+	select {
+	case env := <-ch:
+		if env.Payload["type"] != "session_idle" || env.Payload["status"] != "idle" {
+			t.Fatalf("canonical runtime.session fields were overridden: %#v", env.Payload)
+		}
+		if env.Payload["reason"] != "turn_completed" {
+			t.Fatalf("custom runtime.session field missing: %#v", env.Payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.session topic event")
+	}
+}
+
 func TestPublishRuntimeToolEventPublishesRuntimeToolTopic(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
@@ -289,6 +337,30 @@ func TestPublishRuntimeToolEventPublishesRuntimeToolTopic(t *testing.T) {
 		}
 		if env.Payload["type"] != "tool_finished" || env.Payload["tool"] != "grep" || env.Payload["tool_call_id"] != "call_1" || env.Payload["turn_id"] != "turn_tool_topic" || env.Payload["iteration"] != 3 || env.Payload["output_length"] != 42 {
 			t.Fatalf("unexpected runtime.tool payload: %#v", env.Payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.tool topic event")
+	}
+}
+
+func TestPublishRuntimeToolEventPreservesCanonicalFields(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.tool", topics.SubscribeOptions{Buffer: 8, SessionID: "session_tool_topic"})
+	defer unsub()
+
+	engine.PublishRuntimeToolEvent("tool_finished", "session_tool_topic", "turn_tool_topic", "agent_tool", "grep", "call_1", 3, nil, map[string]any{"type": "oops", "turn_id": "wrong", "tool": "bad", "tool_call_id": "nope", "iteration": 99, "output_length": 42})
+
+	select {
+	case env := <-ch:
+		if env.Payload["type"] != "tool_finished" || env.Payload["turn_id"] != "turn_tool_topic" || env.Payload["tool"] != "grep" || env.Payload["tool_call_id"] != "call_1" || env.Payload["iteration"] != 3 {
+			t.Fatalf("canonical runtime.tool fields were overridden: %#v", env.Payload)
+		}
+		if env.Payload["output_length"] != 42 {
+			t.Fatalf("custom runtime.tool field missing: %#v", env.Payload)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected runtime.tool topic event")
