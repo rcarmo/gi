@@ -320,6 +320,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 
 		warnStore("update turn waiting_on_tools phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "waiting_on_tools"))
 		r.emitTurnStateHook(ctx, sessionID, turnID, agentID, model, "running", "waiting_on_tools", map[string]any{"reason": "tool_execution", "tool": call.Name, "iteration": iter})
+		r.engine.PublishRuntimeToolEvent("tool_started", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool"})
 		warnStore("append tool.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{
 			"phase": "tool", "tool": call.Name, "checkpoint": true,
 			"tool_call_id": call.ID, "iteration": iter,
@@ -339,6 +340,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			}
 			log.Printf("tool [%s] error: %v", call.Name, toolErr)
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_failed", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "error": toolErr.Error()})
+			r.engine.PublishRuntimeToolEvent("tool_failed", sessionID, turnID, agentID, call.Name, call.ID, iter, toolErr, map[string]any{"phase": "tool"})
 			warnStore("append tool.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.failed", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"tool_call_id": call.ID, "error": toolErr.Error(),
@@ -375,6 +377,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				displayResult = displayResult[:100000] + "\n... (truncated)"
 			}
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(toolResult)})
+			r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "output_length": len(toolResult)})
 			warnStore("append tool.finished event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.finished", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"tool_call_id": call.ID, "output_length": len(toolResult),

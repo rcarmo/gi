@@ -150,6 +150,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	if len(run.initialSteering) > 0 {
 		r.persistSteeringMessages(ctx, run.sessionID, run.turnID, run.initialSteering)
 	}
+	r.engine.PublishRuntimeToolEvent("tool_started", run.sessionID, run.turnID, run.agentID, "shell", "", 0, nil, map[string]any{"phase": "tool", "command": []string{"sh", "-lc", "printf 'Gi received: %s' \"$GI_PROMPT\""}})
 	warnStore("append shell tool.started event", s.AppendTurnEvent(ctx, run.turnID, run.sessionID, "tool.started", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "command": []string{"sh", "-lc", "printf 'Gi received: %s' \"$GI_PROMPT\""}}))
 
 	out, runErr, cancelled := runShell(ctx, run.prompt, func(cmd *exec.Cmd) {
@@ -186,6 +187,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	if runErr != nil {
 		r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
 		markTurnFailure(s, run.turnID, run.sessionID, "shell_error", runErr.Error())
+		r.engine.PublishRuntimeToolEvent("tool_failed", run.sessionID, run.turnID, run.agentID, "shell", "", 0, runErr, map[string]any{"phase": "tool"})
 		warnStore("append shell tool.failed event", s.AppendTurnEvent(context.Background(), run.turnID, run.sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error()}))
 		warnStore("update turn status failed", s.UpdateTurnStatus(context.Background(), run.turnID, "failed"))
 		r.emitTurnStateHook(context.Background(), run.sessionID, run.turnID, run.agentID, run.model, "failed", "failed", map[string]any{"reason": "shell_error"})
@@ -196,6 +198,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 		return
 	}
 	r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
+	r.engine.PublishRuntimeToolEvent("tool_finished", run.sessionID, run.turnID, run.agentID, "shell", "", 0, nil, map[string]any{"phase": "tool", "output_length": len(out)})
 	warnStore("append shell tool.finished event", s.AppendTurnEvent(context.Background(), run.turnID, run.sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "output": out}))
 	msgID := store.NowID("msg")
 	warnStore("add shell assistant message", s.AddMessage(context.Background(), msgID, run.sessionID, "assistant", out, map[string]any{"kind": "chat", "source": "shell", "turn_id": run.turnID, "agent_id": run.agentID}))

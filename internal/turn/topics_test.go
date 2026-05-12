@@ -218,6 +218,33 @@ func TestPublishRuntimeSessionEventPublishesRuntimeSessionTopic(t *testing.T) {
 	}
 }
 
+func TestPublishRuntimeToolEventPublishesRuntimeToolTopic(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.tool", topics.SubscribeOptions{Buffer: 8})
+	defer unsub()
+
+	engine.PublishRuntimeToolEvent("tool_finished", "session_tool_topic", "turn_tool_topic", "agent_tool", "grep", "call_1", 3, nil, map[string]any{"output_length": 42})
+
+	select {
+	case env := <-ch:
+		if env.Topic != "runtime.tool" {
+			t.Fatalf("unexpected runtime.tool topic: %#v", env)
+		}
+		if env.SessionID != "session_tool_topic" || env.AgentID != "agent_tool" {
+			t.Fatalf("unexpected runtime.tool scope: %#v", env)
+		}
+		if env.Payload["type"] != "tool_finished" || env.Payload["tool"] != "grep" || env.Payload["tool_call_id"] != "call_1" || env.Payload["turn_id"] != "turn_tool_topic" || env.Payload["iteration"] != 3 || env.Payload["output_length"] != 42 {
+			t.Fatalf("unexpected runtime.tool payload: %#v", env.Payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.tool topic event")
+	}
+}
+
 func TestSubTurnBroadcastEventsMapToTurnSubTurnTopic(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

@@ -218,6 +218,31 @@ func (e *Engine) PublishRuntimeSessionEvent(eventType, sessionID, agentID, statu
 	e.publishTopicEvent(topics.Envelope{Topic: "runtime.session", SessionID: strings.TrimSpace(sessionID), AgentID: strings.TrimSpace(agentID), Source: "runtime", Type: "notice", Payload: body})
 }
 
+func (e *Engine) PublishRuntimeToolEvent(eventType, sessionID, turnID, agentID, toolName, toolCallID string, iteration int, err error, payload map[string]any) {
+	if e == nil || e.topics == nil {
+		return
+	}
+	body := cloneMap(payload)
+	if body == nil {
+		body = map[string]any{}
+	}
+	body["type"] = strings.TrimSpace(eventType)
+	body["turn_id"] = strings.TrimSpace(turnID)
+	body["tool"] = strings.TrimSpace(toolName)
+	body["tool_call_id"] = strings.TrimSpace(toolCallID)
+	if iteration > 0 {
+		body["iteration"] = iteration
+	}
+	if err != nil {
+		body["error"] = err.Error()
+	}
+	envelopeType := "notice"
+	if err != nil {
+		envelopeType = "error"
+	}
+	e.publishTopicEvent(topics.Envelope{Topic: "runtime.tool", SessionID: strings.TrimSpace(sessionID), AgentID: strings.TrimSpace(agentID), Source: "runtime", Type: envelopeType, Payload: body})
+}
+
 func cloneMap(in map[string]any) map[string]any {
 	if in == nil {
 		return nil

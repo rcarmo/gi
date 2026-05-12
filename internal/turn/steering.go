@@ -297,6 +297,7 @@ func (r *sessionRunner) skipRemainingToolCalls(ctx context.Context, sessionID, t
 			"skip_reason":  "queued user steering message",
 		}))
 		r.engine.broadcast(sessionID, map[string]any{"type": "tool_skipped", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "reason": "queued user steering message"})
+		r.engine.PublishRuntimeToolEvent("tool_skipped", sessionID, turnID, "", call.Name, call.ID, 0, nil, map[string]any{"reason": "queued user steering message", "phase": "tool"})
 	}
 }
 
