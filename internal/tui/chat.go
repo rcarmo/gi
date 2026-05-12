@@ -219,6 +219,8 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			c.draft = ""
 			c.draftLineIndex = -1
 		}
+	case "turn.thought":
+		c.status = "Thinking…"
 	case "runtime.tool":
 		toolName, _ := payload["tool"].(string)
 		typ, _ := payload["type"].(string)
@@ -413,6 +415,9 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			}
 		}
 	case "agent_thought_delta":
+		if c.useTopicNativeRuntimeStatus() {
+			return
+		}
 		c.status = "Thinking…"
 		if c.app != nil {
 			c.app.MarkDirty()
