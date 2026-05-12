@@ -308,6 +308,10 @@ func TestHandleTopicEventInboundWorkRendering(t *testing.T) {
 	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work queued (ipc) [queued]" {
 		t.Fatalf("inbound work enqueue transcript = %q", got)
 	}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_retry_scheduled", "source_kind": "ipc", "status": "retry", "attempt_count": 2}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work retry scheduled (ipc) attempt 2 [retry]" {
+		t.Fatalf("inbound work retry transcript = %q", got)
+	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_requeued", "source_kind": "ipc", "status": "queued"}})
 	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work requeued (ipc) [queued]" {
 		t.Fatalf("inbound work requeued transcript = %q", got)

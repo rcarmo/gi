@@ -357,6 +357,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		typ, _ := payload["type"].(string)
 		sourceKind, _ := payload["source_kind"].(string)
 		status, _ := payload["status"].(string)
+		attemptCount := intFromAny(payload["attempt_count"])
 		errText, _ := payload["error"].(string)
 		line := ""
 		switch typ {
@@ -364,6 +365,9 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			line = fmt.Sprintf("sys: inbound work queued (%s)", sourceKind)
 		case "inbound_work_retry_scheduled":
 			line = fmt.Sprintf("sys: inbound work retry scheduled (%s)", sourceKind)
+			if attemptCount > 0 {
+				line += fmt.Sprintf(" attempt %d", attemptCount)
+			}
 		case "inbound_work_failed":
 			line = fmt.Sprintf("sys: inbound work failed (%s)", sourceKind)
 		case "inbound_work_completed":
