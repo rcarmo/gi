@@ -205,10 +205,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		if title != "" {
 			c.status = title
 		} else if status == "idle" {
-			c.clearDraftTranscriptLine()
-			c.running = false
-			c.draft = ""
-			c.draftLineIndex = -1
+			c.resetRunningDraftState()
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		}
 	case "turn.response":
@@ -230,9 +227,7 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 				c.finalizeDraftTranscript(text)
 			}
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
-			c.running = false
-			c.draft = ""
-			c.draftLineIndex = -1
+			c.resetRunningDraftState()
 		}
 	case "turn.draft":
 		delta, _ := payload["delta"].(string)
@@ -310,17 +305,11 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		status, _ := payload["status"].(string)
 		switch typ {
 		case "turn_completed":
-			c.clearDraftTranscriptLine()
-			c.running = false
-			c.draft = ""
-			c.draftLineIndex = -1
+			c.resetRunningDraftState()
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		case "turn_terminal":
 			if status == "failed" || status == "aborted" || status == "cancelled" {
-				c.clearDraftTranscriptLine()
-				c.running = false
-				c.draft = ""
-				c.draftLineIndex = -1
+				c.resetRunningDraftState()
 				c.status = fmt.Sprintf("Turn %s", status)
 			}
 		case "turn_state":
@@ -341,17 +330,11 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 			}
 			if status == "idle" {
-				c.clearDraftTranscriptLine()
-				c.running = false
-				c.draft = ""
-				c.draftLineIndex = -1
+				c.resetRunningDraftState()
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 			}
 		case "session_idle":
-			c.clearDraftTranscriptLine()
-			c.running = false
-			c.draft = ""
-			c.draftLineIndex = -1
+			c.resetRunningDraftState()
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		}
 	case "runtime.routing":
@@ -656,6 +639,13 @@ func (c *chatTUI) clearDraftTranscriptLine() {
 	if c.draftLineIndex >= 0 && c.draftLineIndex < len(c.transcript) {
 		c.transcript = append(c.transcript[:c.draftLineIndex], c.transcript[c.draftLineIndex+1:]...)
 	}
+	c.draft = ""
+	c.draftLineIndex = -1
+}
+
+func (c *chatTUI) resetRunningDraftState() {
+	c.clearDraftTranscriptLine()
+	c.running = false
 	c.draft = ""
 	c.draftLineIndex = -1
 }
