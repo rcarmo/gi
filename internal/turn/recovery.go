@@ -47,7 +47,7 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 		status = "aborted"
 		phase = "aborted"
 		markFinished = true
-	case "completed", "failed", "aborted":
+	case "completed", "failed", "aborted", "cancelled":
 		// Terminal turn with a stale claim: just release the claim.
 	default:
 		if claim.Phase == "compacting" {

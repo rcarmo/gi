@@ -2,6 +2,7 @@ package turn
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"sync"
@@ -1272,6 +1273,65 @@ func TestQueuedTurnsRunInCreatedOrder(t *testing.T) {
 	}
 	if !(firstDone.StartedAt < secondDone.StartedAt) {
 		t.Fatalf("expected first queued turn to start before second, got first=%q second=%q", firstDone.StartedAt, secondDone.StartedAt)
+	}
+}
+
+func TestRecoverInterruptedTurnReleasesCancelledClaimWithoutRequeue(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+
+	sess, err := s.CreateSession(ctx, "session_recover_cancelled", "Recover", map[string]any{"status": "running"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_recover_cancelled", sess.ID, "cancelled", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create cancelled turn: %v", err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, sess.ID, "turn_recover_cancelled", "worker-test", "claim-recover-cancelled"); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	} else if !ok {
+		t.Fatal("expected active turn claim to be acquired")
+	}
+	staleTime := time.Now().Add(-(interruptedTurnStaleAfter + 5*time.Second)).UTC().Format(time.RFC3339Nano)
+	if err := s.TouchSessionState(ctx, sess.ID, map[string]any{"active_turn_id": "turn_recover_cancelled", "status": "running"}); err != nil {
+		t.Fatalf("touch session state: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_active_turns set updated_at = ? where session_id = ? and turn_id = ?`, staleTime, sess.ID, "turn_recover_cancelled"); err != nil {
+		t.Fatalf("age active turn claim: %v", err)
+	}
+
+	recovered, err := engine.recoverInterruptedTurns(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("recover interrupted turns: %v", err)
+	}
+	if !recovered {
+		t.Fatal("expected interrupted cancelled turn to be recovered")
+	}
+	turnRec, err := s.GetTurn(ctx, "turn_recover_cancelled")
+	if err != nil {
+		t.Fatalf("get recovered turn: %v", err)
+	}
+	if turnRec.Status != "cancelled" || turnRec.Phase != "aborted" {
+		t.Fatalf("expected cancelled turn to remain terminal, got %#v", turnRec)
+	}
+	if _, _, err := s.GetSessionActiveTurn(ctx, sess.ID); err != sql.ErrNoRows {
+		t.Fatalf("expected active claim released, got err=%v", err)
+	}
+	queueCount, err := s.CountQueuedTurns(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("count queued turns: %v", err)
+	}
+	if queueCount != 0 {
+		t.Fatalf("expected no queued turns after cancelled recovery, got %d", queueCount)
+	}
+	sessRec, err := s.GetSession(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "idle" {
+		t.Fatalf("expected session idle after cancelled recovery, got %#v", sessRec)
 	}
 }
 
