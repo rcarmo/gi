@@ -368,6 +368,10 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			line = fmt.Sprintf("sys: inbound work failed (%s)", sourceKind)
 		case "inbound_work_completed":
 			line = fmt.Sprintf("sys: inbound work completed (%s)", sourceKind)
+		case "inbound_work_requeued":
+			line = fmt.Sprintf("sys: inbound work requeued (%s)", sourceKind)
+		case "inbound_work_discarded":
+			line = fmt.Sprintf("sys: inbound work discarded (%s)", sourceKind)
 		}
 		if line != "" {
 			if status != "" {

@@ -308,6 +308,14 @@ func TestHandleTopicEventInboundWorkRendering(t *testing.T) {
 	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work queued (ipc) [queued]" {
 		t.Fatalf("inbound work enqueue transcript = %q", got)
 	}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_requeued", "source_kind": "ipc", "status": "queued"}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work requeued (ipc) [queued]" {
+		t.Fatalf("inbound work requeued transcript = %q", got)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_discarded", "source_kind": "ipc", "status": "discarded"}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work discarded (ipc) [discarded]" {
+		t.Fatalf("inbound work discarded transcript = %q", got)
+	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_failed", "source_kind": "ipc", "status": "failed", "error": "decode failed"}})
 	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work failed (ipc) [failed]: decode failed" {
 		t.Fatalf("inbound work failed transcript = %q", got)
