@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rcarmo/gi/internal/connectivity"
+	"github.com/rcarmo/gi/internal/scripting"
 	"github.com/rcarmo/gi/internal/tools"
 	"github.com/rcarmo/gi/internal/topics"
 )
@@ -87,6 +88,17 @@ func (s *Server) configureScriptConnectivity() {
 			}
 			s.turns.PublishTopicEvent(topics.Envelope{Topic: topicName, SessionID: sessionValue, AgentID: strings.TrimSpace(agentID), Source: source, Type: strings.TrimSpace(typ), Payload: payload})
 			return nil
+		},
+		func(ctx context.Context, sessionID string, pattern string, opts scripting.TopicSubscribeOptions) (<-chan topics.Envelope, func(), error) {
+			if s.turns == nil || s.turns.Topics() == nil {
+				return nil, nil, fmt.Errorf("subscribe topic: topic bus not available")
+			}
+			subOpts := topics.SubscribeOptions{Buffer: opts.Buffer, SessionID: strings.TrimSpace(opts.SessionID), AgentID: strings.TrimSpace(opts.AgentID)}
+			if subOpts.SessionID == "" {
+				subOpts.SessionID = sessionID
+			}
+			ch, unsubscribe := s.turns.Topics().Subscribe(ctx, pattern, subOpts)
+			return ch, unsubscribe, nil
 		},
 	)
 }

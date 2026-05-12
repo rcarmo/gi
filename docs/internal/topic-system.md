@@ -18,7 +18,7 @@ Implemented so far:
 
 Still pending:
 
-- script bridge subscribe APIs (publish is now available via `gi.topics.publish(...)` in the JS bridge)
+- Joker-side topic bridge functions (JS script bridge now supports publish + polling subscribe/read/unsubscribe)
 - TUI/topic-native consumers
 - fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices
 - deeper convergence between connectivity and topics
@@ -172,13 +172,16 @@ gi.topics.publish({
   payload: { text: "Index refresh complete" }
 })
 
-// Subscribe-side APIs remain pending.
+const sub = gi.topics.subscribe("turn.*", { session_id: gi.sessionId, buffer: 32 })
+const events = gi.topics.read(sub, 10)
+gi.topics.unsubscribe(sub)
 ```
 
 ### Joker
 
 - `gi-topic-publish` — pending
 - `gi-topic-subscribe` — pending
+- `gi-topic-read` — pending
 - `gi-topic-unsubscribe` — pending
 
 Initial implementation can keep subscriptions read-only/observe-only.

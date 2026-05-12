@@ -85,6 +85,49 @@ func TestGojaRunnerExecuteSupportsTopicPublish(t *testing.T) {
 	}
 }
 
+func TestGojaRunnerExecuteSupportsTopicSubscribeReadAndUnsubscribe(t *testing.T) {
+	var unsubscribed bool
+	bridge := NewBridge("goja-session", BridgeFuncs{
+		SubscribeTopic: func(ctx context.Context, pattern string, opts TopicSubscribeOptions) (string, error) {
+			if pattern != "runtime.*" {
+				t.Fatalf("unexpected topic pattern: %q", pattern)
+			}
+			if opts.SessionID != "goja-session" {
+				t.Fatalf("unexpected topic subscribe opts: %#v", opts)
+			}
+			return "sub-1", nil
+		},
+		ReadTopicSubscription: func(ctx context.Context, id string, limit int) ([]map[string]any, error) {
+			if id != "sub-1" || limit != 5 {
+				t.Fatalf("unexpected topic read request: id=%q limit=%d", id, limit)
+			}
+			return []map[string]any{{"topic": "runtime.test", "payload": map[string]any{"ok": true}}}, nil
+		},
+		UnsubscribeTopic: func(ctx context.Context, id string) error {
+			if id != "sub-1" {
+				t.Fatalf("unexpected topic unsubscribe id: %q", id)
+			}
+			unsubscribed = true
+			return nil
+		},
+	})
+	out, err := NewGojaRunner().Execute(context.Background(), `
+		var sub = gi.topics.subscribe("runtime.*", {session_id: "goja-session"});
+		var events = gi.topics.read(sub, 5);
+		gi.topics.unsubscribe(sub);
+		events[0].topic + ":" + events[0].payload.ok;
+	`, bridge)
+	if err != nil {
+		t.Fatalf("goja execute returned error: %v", err)
+	}
+	if out != "runtime.test:true" {
+		t.Fatalf("unexpected output: %q", out)
+	}
+	if !unsubscribed {
+		t.Fatal("expected topic subscription to be unsubscribed")
+	}
+}
+
 func TestGojaRunnerExecuteSupportsEventHooksAndHTTPRequest(t *testing.T) {
 	var hookSeen bool
 	var emitted bool

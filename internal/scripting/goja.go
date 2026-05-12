@@ -243,28 +243,78 @@ func buildJSBridge(ctx context.Context, vm *goja.Runtime, bridge *Bridge) (*goja
 		})
 	}
 
-	if bridge.Funcs.PublishTopic != nil {
+	if bridge.Funcs.PublishTopic != nil || bridge.Funcs.SubscribeTopic != nil || bridge.Funcs.ReadTopicSubscription != nil || bridge.Funcs.UnsubscribeTopic != nil {
 		topicsObj := vm.NewObject()
-		topicsObj.Set("publish", func(call goja.FunctionCall) goja.Value {
-			if len(call.Arguments) == 0 {
-				panic(vm.NewGoError(fmt.Errorf("topics.publish requires an envelope object")))
-			}
-			exported := call.Arguments[0].Export()
-			envelope, ok := exported.(map[string]any)
-			if !ok {
-				b, err := json.Marshal(exported)
+		if bridge.Funcs.PublishTopic != nil {
+			topicsObj.Set("publish", func(call goja.FunctionCall) goja.Value {
+				if len(call.Arguments) == 0 {
+					panic(vm.NewGoError(fmt.Errorf("topics.publish requires an envelope object")))
+				}
+				exported := call.Arguments[0].Export()
+				envelope, ok := exported.(map[string]any)
+				if !ok {
+					b, err := json.Marshal(exported)
+					if err != nil {
+						panic(vm.NewGoError(fmt.Errorf("topics.publish envelope must be an object")))
+					}
+					if err := json.Unmarshal(b, &envelope); err != nil {
+						panic(vm.NewGoError(fmt.Errorf("topics.publish envelope must be an object: %w", err)))
+					}
+				}
+				if err := bridge.Funcs.PublishTopic(ctx, envelope); err != nil {
+					panic(vm.NewGoError(err))
+				}
+				return goja.Undefined()
+			})
+		}
+		if bridge.Funcs.SubscribeTopic != nil {
+			topicsObj.Set("subscribe", func(call goja.FunctionCall) goja.Value {
+				pattern := "*"
+				if len(call.Arguments) > 0 && !goja.IsUndefined(call.Arguments[0]) && !goja.IsNull(call.Arguments[0]) {
+					pattern = call.Arguments[0].String()
+				}
+				opts := TopicSubscribeOptions{}
+				if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
+					exported := call.Arguments[1].Export()
+					if err := mapToStruct(exported, &opts); err != nil {
+						panic(vm.NewGoError(err))
+					}
+				}
+				id, err := bridge.Funcs.SubscribeTopic(ctx, pattern, opts)
 				if err != nil {
-					panic(vm.NewGoError(fmt.Errorf("topics.publish envelope must be an object")))
+					panic(vm.NewGoError(err))
 				}
-				if err := json.Unmarshal(b, &envelope); err != nil {
-					panic(vm.NewGoError(fmt.Errorf("topics.publish envelope must be an object: %w", err)))
+				return vm.ToValue(id)
+			})
+		}
+		if bridge.Funcs.ReadTopicSubscription != nil {
+			topicsObj.Set("read", func(call goja.FunctionCall) goja.Value {
+				if len(call.Arguments) == 0 {
+					panic(vm.NewGoError(fmt.Errorf("topics.read requires a subscription id")))
 				}
-			}
-			if err := bridge.Funcs.PublishTopic(ctx, envelope); err != nil {
-				panic(vm.NewGoError(err))
-			}
-			return goja.Undefined()
-		})
+				limit := 50
+				if len(call.Arguments) > 1 {
+					limit = int(call.Arguments[1].ToInteger())
+				}
+				events, err := bridge.Funcs.ReadTopicSubscription(ctx, call.Arguments[0].String(), limit)
+				if err != nil {
+					panic(vm.NewGoError(err))
+				}
+				v, _ := vm.RunString("(" + mustJSONStr(events) + ")")
+				return v
+			})
+		}
+		if bridge.Funcs.UnsubscribeTopic != nil {
+			topicsObj.Set("unsubscribe", func(call goja.FunctionCall) goja.Value {
+				if len(call.Arguments) == 0 {
+					panic(vm.NewGoError(fmt.Errorf("topics.unsubscribe requires a subscription id")))
+				}
+				if err := bridge.Funcs.UnsubscribeTopic(ctx, call.Arguments[0].String()); err != nil {
+					panic(vm.NewGoError(err))
+				}
+				return goja.Undefined()
+			})
+		}
 		obj.Set("topics", topicsObj)
 	}
 

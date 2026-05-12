@@ -112,6 +112,12 @@ type WebSocketSpec struct {
 	TimeoutMS   int                 `json:"timeout_ms"`
 }
 
+type TopicSubscribeOptions struct {
+	Buffer    int    `json:"buffer,omitempty"`
+	SessionID string `json:"session_id,omitempty"`
+	AgentID   string `json:"agent_id,omitempty"`
+}
+
 // BridgeFuncs defines the host functions available to scripts.
 // Each function takes and returns generic types that the engine adapter
 // marshals to/from the script language's native types.
@@ -141,16 +147,19 @@ type BridgeFuncs struct {
 	Exec func(ctx context.Context, command string) (string, error)
 
 	// Event hooks and agentic-loop extension points
-	RegisterEventHook func(ctx context.Context, hook EventHookSpec) error
-	RegisterTool      func(ctx context.Context, tool ToolSpec) error
-	SetActiveTools    func(ctx context.Context, names []string) error
-	GetActiveTools    func(ctx context.Context) ([]string, error)
-	SetModel          func(ctx context.Context, model string) error
-	AppendEntry       func(ctx context.Context, entryType string, data map[string]any) error
-	GetEntries        func(ctx context.Context, entryType string) ([]map[string]any, error)
-	EmitEvent         func(ctx context.Context, name string, payload map[string]any) error
-	ClearEventHooks   func(ctx context.Context) error
-	PublishTopic      func(ctx context.Context, envelope map[string]any) error
+	RegisterEventHook     func(ctx context.Context, hook EventHookSpec) error
+	RegisterTool          func(ctx context.Context, tool ToolSpec) error
+	SetActiveTools        func(ctx context.Context, names []string) error
+	GetActiveTools        func(ctx context.Context) ([]string, error)
+	SetModel              func(ctx context.Context, model string) error
+	AppendEntry           func(ctx context.Context, entryType string, data map[string]any) error
+	GetEntries            func(ctx context.Context, entryType string) ([]map[string]any, error)
+	EmitEvent             func(ctx context.Context, name string, payload map[string]any) error
+	ClearEventHooks       func(ctx context.Context) error
+	PublishTopic          func(ctx context.Context, envelope map[string]any) error
+	SubscribeTopic        func(ctx context.Context, pattern string, opts TopicSubscribeOptions) (string, error)
+	ReadTopicSubscription func(ctx context.Context, id string, limit int) ([]map[string]any, error)
+	UnsubscribeTopic      func(ctx context.Context, id string) error
 
 	// Connectivity and route registration
 	RegisterConnectivityRoute   func(ctx context.Context, route connectivity.RouteSpec) (connectivity.RouteInfo, error)

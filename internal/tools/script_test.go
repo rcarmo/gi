@@ -11,7 +11,9 @@ import (
 	"testing"
 
 	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/scripting"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/topics"
 	xwebsocket "golang.org/x/net/websocket"
 )
 
@@ -195,7 +197,7 @@ func TestScriptToolJSCanPublishTopics(t *testing.T) {
 			t.Fatalf("unexpected session id for published topic: %q", sessionID)
 		}
 		return nil
-	})
+	}, nil)
 	out := tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Script: `gi.topics.publish({topic: "runtime.test", payload: {ok: true}, type: "notice"}); "ok";`})
 	if out.Error != "" {
 		t.Fatalf("script error: %v", out.Error)
@@ -205,6 +207,32 @@ func TestScriptToolJSCanPublishTopics(t *testing.T) {
 	}
 	if published["topic"] != "runtime.test" {
 		t.Fatalf("unexpected published topic envelope: %#v", published)
+	}
+}
+
+func TestScriptToolJSCanSubscribeReadAndUnsubscribeTopics(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	session, err := s.CreateSession(context.Background(), store.NowID("session"), "demo", map[string]any{"model": "test-model", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir(), DefaultModel: "test-model", DefaultProvider: "test", DefaultThinkingLevel: "low"})
+	tool.SetConnectivityCallbacks(nil, nil, nil, nil, nil, func(ctx context.Context, sessionID string, pattern string, opts scripting.TopicSubscribeOptions) (<-chan topics.Envelope, func(), error) {
+		ch := make(chan topics.Envelope, 2)
+		ch <- topics.Envelope{Topic: "runtime.test", SessionID: sessionID, Source: "script", Type: "notice", Payload: map[string]any{"ok": true}}
+		close(ch)
+		return ch, func() {}, nil
+	})
+	out := tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Script: `var sub = gi.topics.subscribe("runtime.*"); var ev = gi.topics.read(sub, 5); gi.topics.unsubscribe(sub); ev[0].topic + ":" + ev[0].payload.ok;`})
+	if out.Error != "" {
+		t.Fatalf("script error: %v", out.Error)
+	}
+	if out.Result != "runtime.test:true" {
+		t.Fatalf("unexpected result: %q", out.Result)
 	}
 }
 

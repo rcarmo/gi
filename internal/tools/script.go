@@ -23,6 +23,7 @@ import (
 	"github.com/rcarmo/gi/internal/connectivity"
 	"github.com/rcarmo/gi/internal/scripting"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/topics"
 )
 
 // ScriptTool is a tool that executes Joker/Clojure scripts with access
@@ -38,6 +39,8 @@ type ScriptTool struct {
 	rawSockets  map[string]net.Conn
 	webSocketMu sync.Mutex
 	webSockets  map[string]*xwebsocket.Conn
+	topicMu     sync.Mutex
+	topicSubs   map[string]topicSubscription
 	hookMu      sync.Mutex
 	eventHooks  []scripting.EventHookSpec
 	ioIDCounter atomic.Int64
@@ -52,6 +55,12 @@ type ScriptTool struct {
 	onListRoutes        func(ctx context.Context, sessionID string, filter map[string]any) ([]connectivity.RouteInfo, error)
 	onEmitConnectEvent  func(ctx context.Context, sessionID string, topic string, payload map[string]any) error
 	onPublishTopic      func(ctx context.Context, sessionID string, envelope map[string]any) error
+	onSubscribeTopic    func(ctx context.Context, sessionID string, pattern string, opts scripting.TopicSubscribeOptions) (<-chan topics.Envelope, func(), error)
+}
+
+type topicSubscription struct {
+	ch          <-chan topics.Envelope
+	unsubscribe func()
 }
 
 // ScriptInput is what the agent sends to invoke the script tool.
@@ -76,6 +85,7 @@ func NewScriptTool(s *store.Store, cfg config.RuntimeConfig) *ScriptTool {
 		js:         scripting.NewGojaRunner(),
 		rawSockets: make(map[string]net.Conn),
 		webSockets: make(map[string]*xwebsocket.Conn),
+		topicSubs:  make(map[string]topicSubscription),
 		httpClient: &http.Client{},
 	}
 }
@@ -100,12 +110,14 @@ func (t *ScriptTool) SetConnectivityCallbacks(
 	listRoutes func(context.Context, string, map[string]any) ([]connectivity.RouteInfo, error),
 	emitEvent func(context.Context, string, string, map[string]any) error,
 	publishTopic func(context.Context, string, map[string]any) error,
+	subscribeTopic func(context.Context, string, string, scripting.TopicSubscribeOptions) (<-chan topics.Envelope, func(), error),
 ) {
 	t.onRegisterRoute = registerRoute
 	t.onUnregisterRoute = unregisterRoute
 	t.onListRoutes = listRoutes
 	t.onEmitConnectEvent = emitEvent
 	t.onPublishTopic = publishTopic
+	t.onSubscribeTopic = subscribeTopic
 }
 
 // Definition returns the tool metadata for the agent.
@@ -473,6 +485,15 @@ func (t *ScriptTool) buildBridge(sessionID string) *scripting.Bridge {
 			}
 			return t.onPublishTopic(ctx, sessionID, envelope)
 		},
+		SubscribeTopic: func(ctx context.Context, pattern string, opts scripting.TopicSubscribeOptions) (string, error) {
+			return t.subscribeTopic(ctx, sessionID, pattern, opts)
+		},
+		ReadTopicSubscription: func(ctx context.Context, id string, limit int) ([]map[string]any, error) {
+			return t.readTopicSubscription(ctx, id, limit)
+		},
+		UnsubscribeTopic: func(ctx context.Context, id string) error {
+			return t.unsubscribeTopic(ctx, id)
+		},
 		RegisterConnectivityRoute: func(ctx context.Context, route connectivity.RouteSpec) (connectivity.RouteInfo, error) {
 			if t.onRegisterRoute == nil {
 				return connectivity.RouteInfo{}, fmt.Errorf("register route: host connectivity registry is not available")
@@ -573,6 +594,76 @@ func (t *ScriptTool) clearEventHooks(_ context.Context, sessionID string) error 
 	defer t.hookMu.Unlock()
 	t.eventHooks = nil
 	log.Printf("script[%s]: clearEventHooks", sessionID)
+	return nil
+}
+
+func (t *ScriptTool) subscribeTopic(ctx context.Context, sessionID, pattern string, opts scripting.TopicSubscribeOptions) (string, error) {
+	if t.onSubscribeTopic == nil {
+		return "", fmt.Errorf("subscribe topic: host topic bus is not available")
+	}
+	if strings.TrimSpace(pattern) == "" {
+		pattern = "*"
+	}
+	if strings.TrimSpace(opts.SessionID) == "" {
+		opts.SessionID = sessionID
+	}
+	ch, unsubscribe, err := t.onSubscribeTopic(ctx, sessionID, pattern, opts)
+	if err != nil {
+		return "", err
+	}
+	id := t.socketID("topic")
+	t.topicMu.Lock()
+	t.topicSubs[id] = topicSubscription{ch: ch, unsubscribe: unsubscribe}
+	t.topicMu.Unlock()
+	return id, nil
+}
+
+func (t *ScriptTool) readTopicSubscription(_ context.Context, id string, limit int) ([]map[string]any, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	t.topicMu.Lock()
+	sub, ok := t.topicSubs[id]
+	t.topicMu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("read topic subscription: unknown id %q", id)
+	}
+	out := make([]map[string]any, 0, limit)
+	for len(out) < limit {
+		select {
+		case env, ok := <-sub.ch:
+			if !ok {
+				return out, nil
+			}
+			out = append(out, map[string]any{
+				"topic":      env.Topic,
+				"session_id": env.SessionID,
+				"agent_id":   env.AgentID,
+				"source":     env.Source,
+				"type":       env.Type,
+				"payload":    env.Payload,
+				"timestamp":  env.Timestamp.Format(time.RFC3339Nano),
+			})
+		default:
+			return out, nil
+		}
+	}
+	return out, nil
+}
+
+func (t *ScriptTool) unsubscribeTopic(_ context.Context, id string) error {
+	t.topicMu.Lock()
+	sub, ok := t.topicSubs[id]
+	if ok {
+		delete(t.topicSubs, id)
+	}
+	t.topicMu.Unlock()
+	if !ok {
+		return fmt.Errorf("unsubscribe topic: unknown id %q", id)
+	}
+	if sub.unsubscribe != nil {
+		sub.unsubscribe()
+	}
 	return nil
 }
 

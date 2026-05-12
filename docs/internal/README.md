@@ -74,7 +74,7 @@ Current topic/runtime publication status:
 - connectivity events are bridged into the topic bus under `connectivity.*`
 - inbound queue and dispatcher lifecycle now publish onto the canonical topic bus under `runtime.inbound_work` and `runtime.dispatcher`
 - dedicated topic SSE streaming is now live via `/sse/topics`
-- script-facing topic publish is now available through the script bridge (`gi.topics.publish(...)` in JS); subscribe-side script APIs remain pending
+- script-facing topic APIs now exist in the JS script bridge: `gi.topics.publish(...)` plus polling-style `gi.topics.subscribe(...)`, `gi.topics.read(...)`, and `gi.topics.unsubscribe(...)`
 
 Current hook/runtime interception status:
 - provider-level hook parity now reaches the inference layer: `before_provider_request` supports both context mutation and send-time raw request replacement, and `after_provider_response` observes real provider status/headers when available
