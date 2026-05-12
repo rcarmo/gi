@@ -417,9 +417,10 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 }
 
 func (r *sessionRunner) appendFinalSteeringCheckpoint(s *store.Store, turnID, sessionID string) {
-	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(context.Background(), sessionID); err != nil {
+	bgCtx := r.engine.backgroundContext()
+	if staged, stagedTurnID, err := r.engine.stageQueuedSteeringContinuation(bgCtx, sessionID); err != nil {
 		log.Printf("steering final checkpoint: %v", err)
 	} else if staged {
-		warnStore("append steering final checkpoint", s.AppendTurnEvent(context.Background(), turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID}))
+		warnStore("append steering final checkpoint", s.AppendTurnEvent(bgCtx, turnID, sessionID, "steering.final_checkpoint", map[string]any{"phase": "steering", "checkpoint": true, "staged_turn_id": stagedTurnID}))
 	}
 }

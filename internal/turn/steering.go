@@ -93,7 +93,7 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 	queueMode := stringValue(in.Metadata["steering_mode"], "one-at-a-time")
 	steeringRole := normalizeSteeringRole(stringValue(in.Metadata["ingress_role"], "user"))
 	if _, err := e.store.EnqueueSteering(ctx, sessionID, activeTurnID, steeringRole, in.Prompt, payload, media, queueMode); err != nil {
-		warnStore("append steering.rejected event", e.store.AppendTurnEvent(context.Background(), activeTurnID, sessionID, "steering.rejected", map[string]any{
+		warnStore("append steering.rejected event", e.store.AppendTurnEvent(e.backgroundContext(), activeTurnID, sessionID, "steering.rejected", map[string]any{
 			"phase":       "steering",
 			"checkpoint":  true,
 			"reason":      err.Error(),
