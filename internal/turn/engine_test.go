@@ -933,6 +933,13 @@ func TestCancelQueuedTurn(t *testing.T) {
 	if turnRec.FinishedAt == "" {
 		t.Fatalf("expected queued cancel to set finished_at, got %#v", turnRec)
 	}
+	sessRec, err := s.GetSession(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "idle" {
+		t.Fatalf("expected queued cancel to leave session idle, got %#v", sessRec)
+	}
 }
 
 func TestCancelQueuedTurnIgnoresCallerSessionID(t *testing.T) {
