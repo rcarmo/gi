@@ -1128,6 +1128,10 @@ func TestCancelActiveStreamingTurnMarksCancelled(t *testing.T) {
 		return nil, ctx.Err()
 	})
 	engine := New(s)
+	turnTopicCh, unsubTurn := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 16, SessionID: "session_cancel_streaming"})
+	defer unsubTurn()
+	sessionTopicCh, unsubSession := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 16, SessionID: "session_cancel_streaming"})
+	defer unsubSession()
 	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_cancel_streaming", Prompt: "stream please", Model: "mock-stream"})
 	if err != nil {
 		t.Fatalf("submit prompt: %v", err)
@@ -1142,6 +1146,23 @@ func TestCancelActiveStreamingTurnMarksCancelled(t *testing.T) {
 	}, "streaming turn start")
 	if err := engine.CancelTurn(ctx, "session_cancel_streaming", result.TurnID); err != nil {
 		t.Fatalf("cancel active streaming turn: %v", err)
+	}
+	foundTurnCancelling := false
+	foundSessionRunning := false
+	deadline := time.After(2 * time.Second)
+	for !(foundTurnCancelling && foundSessionRunning) {
+		select {
+		case env := <-turnTopicCh:
+			if env.Payload["type"] == "turn_cancelling" && env.Payload["turn_id"] == result.TurnID && env.Payload["status"] == "cancelling" && env.Payload["phase"] == "cancelling" {
+				foundTurnCancelling = true
+			}
+		case env := <-sessionTopicCh:
+			if env.Payload["type"] == "session_state" && env.Payload["status"] == "running" && env.Payload["active_turn_id"] == result.TurnID && env.Payload["reason"] == "cancel_requested" {
+				foundSessionRunning = true
+			}
+		case <-deadline:
+			t.Fatalf("expected active cancel to publish turn_cancelling and session_state cancel_requested, got turn_cancelling=%v session_state=%v", foundTurnCancelling, foundSessionRunning)
+		}
 	}
 	waitForCondition(t, 2*time.Second, func() bool {
 		turnRec, err := s.GetTurn(ctx, result.TurnID)
