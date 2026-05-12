@@ -241,8 +241,8 @@ func (e *Engine) ClearHooks() { e.hooks.Clear() }
 
 func nextHookTrace() HookTrace {
 	seq := hookTraceSeq.Add(1)
-	now := time.Now().UTC().Format(time.RFC3339Nano)
-	return HookTrace{ID: fmt.Sprintf("hook_%d_%d", time.Now().UTC().UnixNano(), seq), EmittedAt: now}
+	now := time.Now().UTC()
+	return HookTrace{ID: fmt.Sprintf("hook_%d_%d", now.UnixNano(), seq), EmittedAt: now.Format(time.RFC3339Nano)}
 }
 
 func hookScriptPayload(req HookRequest) map[string]any {

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/inference"
@@ -77,6 +78,24 @@ func TestHookResponseFromScriptAppliesActionSemantics(t *testing.T) {
 	}
 	if hardAbort.Payload == nil || hardAbort.Payload["hard_abort"] != true {
 		t.Fatalf("expected hard_abort payload marker: %#v", hardAbort)
+	}
+}
+
+func TestNextHookTraceUsesConsistentTimestampSource(t *testing.T) {
+	trace := nextHookTrace()
+	if trace.ID == "" || trace.EmittedAt == "" {
+		t.Fatalf("expected populated hook trace, got %#v", trace)
+	}
+	var nanos int64
+	if _, err := fmt.Sscanf(trace.ID, "hook_%d_", &nanos); err != nil {
+		t.Fatalf("parse hook trace id %q: %v", trace.ID, err)
+	}
+	emittedAt, err := time.Parse(time.RFC3339Nano, trace.EmittedAt)
+	if err != nil {
+		t.Fatalf("parse emitted_at %q: %v", trace.EmittedAt, err)
+	}
+	if emittedAt.UnixNano() != nanos {
+		t.Fatalf("expected hook trace id timestamp %d to match emitted_at %d in %#v", nanos, emittedAt.UnixNano(), trace)
 	}
 }
 
