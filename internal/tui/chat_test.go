@@ -508,6 +508,10 @@ func TestHandleEventStatusRendering(t *testing.T) {
 	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys: compacted context: messages 10→4, tokens_before=1234" {
 		t.Fatalf("compaction status/transcript = %q %#v", c.status, c.transcript)
 	}
+	c.handleEvent(map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session": "session_child"})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: routed to @agent1 (session_child)" {
+		t.Fatalf("legacy routing decision transcript = %q", got)
+	}
 }
 
 func TestOnSubmitRequiresModelSelectionBeforeFirstPrompt(t *testing.T) {

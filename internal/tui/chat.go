@@ -577,6 +577,40 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		if c.app != nil {
 			c.app.MarkDirty()
 		}
+	case "routing_decision", "routing_incoming":
+		if c.useTopicNativeRuntimeStatus() {
+			return
+		}
+		targetAgent, _ := ev["target_agent_id"].(string)
+		targetSession, _ := ev["target_session"].(string)
+		if targetSession == "" {
+			targetSession, _ = ev["target_session_id"].(string)
+		}
+		sourceAgent, _ := ev["source_agent_id"].(string)
+		switch evType {
+		case "routing_decision":
+			if targetAgent != "" {
+				line := fmt.Sprintf("sys: routed to @%s", targetAgent)
+				if targetSession != "" {
+					line += fmt.Sprintf(" (%s)", targetSession)
+				}
+				c.appendTranscript(line)
+			}
+		case "routing_incoming":
+			if sourceAgent != "" {
+				line := fmt.Sprintf("sys: incoming route from @%s", sourceAgent)
+				if targetSession != "" {
+					line += fmt.Sprintf(" (%s)", targetSession)
+				}
+				c.appendTranscript(line)
+			}
+		}
+		if c.stickToBottom {
+			c.scrollTranscriptToBottom()
+		}
+		if c.app != nil {
+			c.app.MarkDirty()
+		}
 	case "agent_status":
 		if c.useTopicNativeRuntimeStatus() {
 			return
