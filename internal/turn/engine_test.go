@@ -2086,18 +2086,32 @@ func TestShellCancelBroadcastsSystemMessageToTurnResponseTopic(t *testing.T) {
 		return err == nil && turnRec.Status == "cancelled" && turnRec.FinishedAt != ""
 	}, "shell turn cancellation")
 	deadline := time.After(2 * time.Second)
-	for {
+	foundSystemMessage := false
+	for !foundSystemMessage {
 		select {
 		case env := <-turnResponseCh:
 			if env.Payload["sender"] == "system" {
 				data, _ := env.Payload["data"].(map[string]any)
 				if data["type"] == "system_message" && data["content"] == "Turn cancelled" {
-					return
+					foundSystemMessage = true
 				}
 			}
 		case <-deadline:
 			t.Fatal("expected shell cancel to publish turn.response system message")
 		}
+	}
+	events, err := s.ListTurnEvents(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundFinishedAudit := false
+	for _, event := range events {
+		if event.Type == "turn.finished" && event.Payload["status"] == "cancelled" && event.Payload["reason"] == "cancelled" && event.Payload["failure_kind"] == "" {
+			foundFinishedAudit = true
+		}
+	}
+	if !foundFinishedAudit {
+		t.Fatalf("expected shell cancel to persist turn.finished audit row, got %#v", events)
 	}
 }
 
@@ -2121,7 +2135,8 @@ func TestShellFailureBroadcastsSystemMessageToTurnResponseTopic(t *testing.T) {
 		return err == nil && turnRec.Status == "failed" && turnRec.FinishedAt != ""
 	}, "shell turn failure")
 	deadline := time.After(2 * time.Second)
-	for {
+	foundSystemMessage := false
+	for !foundSystemMessage {
 		select {
 		case env := <-turnResponseCh:
 			if env.Payload["sender"] == "system" {
@@ -2129,13 +2144,26 @@ func TestShellFailureBroadcastsSystemMessageToTurnResponseTopic(t *testing.T) {
 				if data["type"] == "system_message" {
 					content, _ := data["content"].(string)
 					if strings.Contains(content, "Shell tool failed:") {
-						return
+						foundSystemMessage = true
 					}
 				}
 			}
 		case <-deadline:
 			t.Fatal("expected shell failure to publish turn.response system message")
 		}
+	}
+	events, err := s.ListTurnEvents(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundFinishedAudit := false
+	for _, event := range events {
+		if event.Type == "turn.finished" && event.Payload["status"] == "failed" && event.Payload["reason"] == "shell_error" && event.Payload["failure_kind"] == "shell_error" {
+			foundFinishedAudit = true
+		}
+	}
+	if !foundFinishedAudit {
+		t.Fatalf("expected shell failure to persist turn.finished audit row, got %#v", events)
 	}
 }
 
