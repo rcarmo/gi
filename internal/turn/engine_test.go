@@ -2021,16 +2021,29 @@ func TestShellTurnPublishesTerminalRuntimeTopics(t *testing.T) {
 	for !(foundTurnCompleted && foundSessionIdle) {
 		select {
 		case env := <-turnTopicCh:
-			if env.Payload["type"] == "turn_completed" && env.Payload["turn_id"] == result.TurnID && env.Payload["status"] == "completed" && env.Payload["reason"] == "completed" {
+			if env.Payload["type"] == "turn_completed" && env.Payload["turn_id"] == result.TurnID && env.Payload["status"] == "completed" && env.Payload["reason"] == "completed" && env.Payload["completion_kind"] == "response" {
 				foundTurnCompleted = true
 			}
 		case env := <-sessionTopicCh:
-			if env.Payload["type"] == "session_idle" && env.Payload["turn_id"] == result.TurnID && env.Payload["turn_status"] == "completed" && env.Payload["failure_kind"] == "" && env.Payload["model"] == "bootstrap" {
+			if env.Payload["type"] == "session_idle" && env.Payload["turn_id"] == result.TurnID && env.Payload["turn_status"] == "completed" && env.Payload["failure_kind"] == "" && env.Payload["model"] == "bootstrap" && env.Payload["completion_kind"] == "response" {
 				foundSessionIdle = true
 			}
 		case <-deadline:
 			t.Fatalf("expected shell turn to publish runtime turn/session terminal topics, got turn_completed=%v session_idle=%v", foundTurnCompleted, foundSessionIdle)
 		}
+	}
+	events, err := s.ListTurnEvents(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundFinishedAudit := false
+	for _, event := range events {
+		if event.Type == "turn.finished" && event.Payload["status"] == "completed" && event.Payload["completion_kind"] == "response" {
+			foundFinishedAudit = true
+		}
+	}
+	if !foundFinishedAudit {
+		t.Fatalf("expected shell completion to persist completion_kind on turn.finished, got %#v", events)
 	}
 }
 
