@@ -99,3 +99,23 @@ func TestToolDefsForMetadataPreservesRegistryOrderForAllowedSubset(t *testing.T)
 		t.Fatalf("expected registry-order filtered tools %v, got %v", want, got)
 	}
 }
+
+func TestToolNamesFromValueNormalizesAcrossSupportedShapes(t *testing.T) {
+	cases := []struct {
+		name string
+		in   any
+		want string
+	}{
+		{name: "csv", in: " read, shell ,read ,, write ", want: "read,shell,write"},
+		{name: "strings", in: []string{" read ", "shell", "read", "", "write"}, want: "read,shell,write"},
+		{name: "any", in: []any{" read ", "shell", 42, "read", "", "write"}, want: "read,shell,write"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := strings.Join(toolNamesFromValue(tc.in), ",")
+			if got != tc.want {
+				t.Fatalf("expected %q, got %q", tc.want, got)
+			}
+		})
+	}
+}

@@ -8,38 +8,30 @@ import (
 	goai "github.com/rcarmo/go-ai"
 )
 
+func appendToolNames(out []string, names ...string) []string {
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
 func toolNamesFromValue(v any) []string {
 	switch raw := v.(type) {
 	case []string:
-		out := make([]string, 0, len(raw))
-		for _, name := range raw {
-			name = strings.TrimSpace(name)
-			if name != "" {
-				out = append(out, name)
-			}
-		}
-		return normalizeToolNames(out)
+		return normalizeToolNames(appendToolNames(nil, raw...))
 	case []any:
 		out := make([]string, 0, len(raw))
 		for _, item := range raw {
 			if name, ok := item.(string); ok {
-				name = strings.TrimSpace(name)
-				if name != "" {
-					out = append(out, name)
-				}
+				out = appendToolNames(out, name)
 			}
 		}
 		return normalizeToolNames(out)
 	case string:
-		parts := strings.Split(raw, ",")
-		out := make([]string, 0, len(parts))
-		for _, part := range parts {
-			name := strings.TrimSpace(part)
-			if name != "" {
-				out = append(out, name)
-			}
-		}
-		return normalizeToolNames(out)
+		return normalizeToolNames(appendToolNames(nil, strings.Split(raw, ",")...))
 	default:
 		return nil
 	}
