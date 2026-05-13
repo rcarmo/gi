@@ -1802,6 +1802,41 @@ func TestRecoverInterruptedTurnsSurvivesCanceledCallerContext(t *testing.T) {
 	}
 }
 
+func TestMarkTurnFailureSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_failure_ctx", "FailureCtx", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_failure_ctx", "session_failure_ctx", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	markTurnFailureWithHold(cancelCtx, s, "turn_failure_ctx", "session_failure_ctx", "provider_error", "review", "failed under canceled ctx")
+	failureRec, err := s.GetTurnFailure(ctx, "turn_failure_ctx")
+	if err != nil {
+		t.Fatalf("get turn failure: %v", err)
+	}
+	if failureRec.FailureKind != "provider_error" || failureRec.HoldState != "review" || failureRec.Summary != "failed under canceled ctx" {
+		t.Fatalf("unexpected failure marker after canceled caller context: %#v", failureRec)
+	}
+	events, err := s.ListTurnEvents(ctx, "turn_failure_ctx")
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundMarked := false
+	for _, event := range events {
+		if event.Type == "turn.failure_marked" && event.Payload["failure_kind"] == "provider_error" && event.Payload["hold_state"] == "review" {
+			foundMarked = true
+		}
+	}
+	if !foundMarked {
+		t.Fatalf("expected turn.failure_marked audit row despite canceled caller context, got %#v", events)
+	}
+}
+
 func TestRecoverInterruptedTurnsStartsQueuedWorkAfterReleasingTerminalClaim(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
