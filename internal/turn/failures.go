@@ -7,16 +7,6 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 )
 
-func failureOpContext(ctx, fallback context.Context) context.Context {
-	if ctx != nil && ctx.Err() == nil {
-		return ctx
-	}
-	if fallback != nil && fallback.Err() == nil {
-		return fallback
-	}
-	return nil
-}
-
 func markTurnFailure(ctx context.Context, s *store.Store, turnID, sessionID, failureKind, summary string) {
 	markTurnFailureWithFallback(ctx, nil, s, turnID, sessionID, failureKind, summary)
 }
@@ -42,7 +32,7 @@ func markTurnFailureWithHoldAndFallback(ctx, fallback context.Context, s *store.
 	if summary == "" {
 		summary = failureKind
 	}
-	opCtx := failureOpContext(ctx, fallback)
+	opCtx := coordinationContext(ctx, fallback)
 	if opCtx == nil {
 		return
 	}

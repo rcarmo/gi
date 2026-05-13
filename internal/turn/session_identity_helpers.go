@@ -7,21 +7,11 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 )
 
-func identityLookupContext(ctx, fallback context.Context) context.Context {
-	if ctx != nil && ctx.Err() == nil {
-		return ctx
-	}
-	if fallback != nil && fallback.Err() == nil {
-		return fallback
-	}
-	return nil
-}
-
 func lookupSessionIdentityWithFallback(ctx, fallback context.Context, s *store.Store, sess *store.Session) *store.SessionIdentity {
 	if s == nil || sess == nil || strings.TrimSpace(sess.ID) == "" {
 		return nil
 	}
-	opCtx := identityLookupContext(ctx, fallback)
+	opCtx := coordinationContext(ctx, fallback)
 	if opCtx == nil {
 		return nil
 	}
