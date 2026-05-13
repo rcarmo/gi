@@ -2864,6 +2864,33 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityOverScopeSnapshot(t *
 	}
 }
 
+func TestPreparePromptRouteResolutionPrefersSessionIdentityUnderCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	scope := gisession.SessionScope{Version: gisession.ScopeVersionV1, AgentID: "agent", Channel: "slack", Account: "workspace", Dimensions: []string{"space", "chat", "topic"}, Values: map[string]string{"space": "room:eng", "chat": "group:thread-7", "topic": "topic:builds"}}
+	source, err := s.CreateSessionWithMetadata(ctx, "session_route_scope_identity_cancel", "", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}, &scope, []string{"agent:agent:slack:chat:group:thread-7"})
+	if err != nil {
+		t.Fatalf("create source session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:wrong"}}`, source.ID); err != nil {
+		t.Fatalf("mutate scope snapshot: %v", err)
+	}
+	engine := New(s)
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	resolution, err := engine.preparePromptRouteResolution(cancelCtx, RunInput{SessionID: source.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("prepare prompt route resolution under canceled caller context: %v", err)
+	}
+	if resolution.inbound.Channel != "slack" || resolution.inbound.Account != "workspace" {
+		t.Fatalf("expected canonical inbound channel/account under canceled caller context, got %#v", resolution.inbound)
+	}
+	if resolution.inbound.ChatType != "group" || resolution.inbound.ChatID != "thread-7" || resolution.inbound.SpaceType != "room" || resolution.inbound.SpaceID != "eng" || resolution.inbound.TopicID != "builds" {
+		t.Fatalf("expected canonical scoped inbound context under canceled caller context, got %#v", resolution.inbound)
+	}
+}
+
 func TestResolveOrCreateRouteSessionUsesIdentityForSameAgentFastPath(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

@@ -47,7 +47,7 @@ func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) 
 		promptBody = body
 		mentioned = true
 	}
-	inbound := inboundContextFromSession(opCtx, e.store, source)
+	inbound := inboundContextFromSessionWithFallback(opCtx, e.backgroundContext(), e.store, source)
 	inbound.SenderID = "user"
 	inbound.Mentioned = mentioned
 	inbound.Prompt = promptBody
@@ -74,8 +74,8 @@ func (e *Engine) preparePeerRouteResolution(ctx context.Context, sourceSessionID
 	if err != nil {
 		return nil, err
 	}
-	inbound := inboundContextFromSession(opCtx, e.store, source)
-	inbound.SenderID = sessionAgentIDWithStore(opCtx, e.store, source)
+	inbound := inboundContextFromSessionWithFallback(opCtx, e.backgroundContext(), e.store, source)
+	inbound.SenderID = sessionAgentIDWithStoreFallback(opCtx, e.backgroundContext(), e.store, source)
 	inbound.Mentioned = true
 	inbound.Prompt = content
 	route := e.routeResolver.ResolveRoute(inbound)
@@ -111,7 +111,7 @@ func (e *Engine) applyLocalRouteMetadata(ctx context.Context, in *RunInput, reso
 	in.Metadata["route_matched_by"] = resolution.route.MatchedBy
 	in.Metadata["target_agent_id"] = resolution.route.AgentID
 	in.Metadata["target_session_id"] = resolution.target.ID
-	in.Metadata["source_agent_id"] = sessionAgentIDWithStore(ctx, e.store, resolution.source)
+	in.Metadata["source_agent_id"] = sessionAgentIDWithStoreFallback(ctx, e.backgroundContext(), e.store, resolution.source)
 	if resolution.route.MatchedBy != "" {
 		in.Metadata["routing_policy"] = resolution.route.MatchedBy
 	}
@@ -187,12 +187,12 @@ func (e *Engine) cloneRouteSession(ctx context.Context, plan *routeSessionPlan) 
 	return cloned, true, nil
 }
 
-func inboundContextFromSession(ctx context.Context, s *store.Store, sess *store.Session) routing.InboundContext {
+func inboundContextFromSessionWithFallback(ctx, fallback context.Context, s *store.Store, sess *store.Session) routing.InboundContext {
 	inbound := routing.InboundContext{
-		Channel: sessionChannelWithStore(ctx, s, sess),
-		Account: sessionAccountWithStore(ctx, s, sess),
+		Channel: sessionChannelWithStoreFallback(ctx, fallback, s, sess),
+		Account: sessionAccountWithStoreFallback(ctx, fallback, s, sess),
 	}
-	identity := lookupSessionIdentity(ctx, s, sess)
+	identity := lookupSessionIdentityWithFallback(ctx, fallback, s, sess)
 	var scope *gisession.SessionScope
 	if identity != nil {
 		scope = &identity.Scope
@@ -222,6 +222,10 @@ func inboundContextFromSession(ctx context.Context, s *store.Store, sess *store.
 		inbound.ChatID = sess.ID
 	}
 	return inbound
+}
+
+func inboundContextFromSession(ctx context.Context, s *store.Store, sess *store.Session) routing.InboundContext {
+	return inboundContextFromSessionWithFallback(ctx, nil, s, sess)
 }
 
 func splitScopedValue(raw, fallbackType string) (string, string, bool) {
