@@ -86,3 +86,16 @@ func TestExecuteToolsToolQueryNoMatch(t *testing.T) {
 		t.Fatalf("expected no-match message, got: %q", result)
 	}
 }
+
+func TestToolDefsForMetadataPreservesRegistryOrderForAllowedSubset(t *testing.T) {
+	e := New(nil)
+	defs := e.toolDefsForMetadata(map[string]any{"effective_tools": []string{"shell", "tools", "read"}})
+	if len(defs) != 3 {
+		t.Fatalf("expected 3 filtered tool defs, got %#v", defs)
+	}
+	got := []string{defs[0].Name, defs[1].Name, defs[2].Name}
+	want := []string{"tools", "read", "shell"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("expected registry-order filtered tools %v, got %v", want, got)
+	}
+}

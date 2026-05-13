@@ -81,6 +81,21 @@ func toolNameSet(names []string) map[string]bool {
 	return set
 }
 
+func effectiveToolNamesFromMetadata(metadata map[string]any) []string {
+	if metadata == nil {
+		return nil
+	}
+	return toolNamesFromValue(metadata["effective_tools"])
+}
+
+func effectiveToolNameSetFromMetadata(metadata map[string]any) map[string]bool {
+	names := effectiveToolNamesFromMetadata(metadata)
+	if len(names) == 0 {
+		return nil
+	}
+	return toolNameSet(names)
+}
+
 func (e *Engine) allRegisteredToolNames() []string {
 	entries := e.tools.AllEntries()
 	out := make([]string, 0, len(entries))
@@ -98,7 +113,7 @@ func (e *Engine) resolveEffectiveToolNames(parentTurn *store.Turn, inputMetadata
 	if parentTurn == nil {
 		return e.defaultEffectiveToolNames(), false, nil
 	}
-	parentEffective := toolNamesFromValue(parentTurn.Metadata["effective_tools"])
+	parentEffective := effectiveToolNamesFromMetadata(parentTurn.Metadata)
 	if len(parentEffective) == 0 {
 		parentEffective = e.defaultEffectiveToolNames()
 	}
@@ -120,21 +135,20 @@ func (e *Engine) resolveEffectiveToolNames(parentTurn *store.Turn, inputMetadata
 }
 
 func toolAllowedByMetadata(metadata map[string]any, toolName string) bool {
-	allowed := toolNamesFromValue(metadata["effective_tools"])
-	if len(allowed) == 0 {
+	allowedSet := effectiveToolNameSetFromMetadata(metadata)
+	if len(allowedSet) == 0 {
 		return true
 	}
-	return toolNameSet(allowed)[toolName]
+	return allowedSet[toolName]
 }
 
 func (e *Engine) toolDefsForMetadata(metadata map[string]any) []goai.Tool {
-	allowed := toolNamesFromValue(metadata["effective_tools"])
-	if len(allowed) == 0 {
+	allowedSet := effectiveToolNameSetFromMetadata(metadata)
+	if len(allowedSet) == 0 {
 		return e.toolDefs()
 	}
-	allowedSet := toolNameSet(allowed)
 	entries := e.tools.AllEntries()
-	defs := make([]goai.Tool, 0, len(allowed))
+	defs := make([]goai.Tool, 0, len(allowedSet))
 	for _, entry := range entries {
 		if !allowedSet[entry.Name] {
 			continue
