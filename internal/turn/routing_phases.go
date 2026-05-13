@@ -148,8 +148,12 @@ func (e *Engine) resolveExistingRouteSession(ctx context.Context, plan *routeSes
 }
 
 func (e *Engine) cloneRouteSession(ctx context.Context, plan *routeSessionPlan) (*store.Session, bool, error) {
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
 	state := map[string]any{"status": "idle", "queue_count": 0, "model": e.modelForAgent(plan.route.AgentID), "provider": e.runtimeCfg.DefaultProvider, "thinking_level": e.runtimeCfg.DefaultThinkingLevel}
-	cloned, created, err := e.store.ResolveOrCreateSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{
+	cloned, created, err := e.store.ResolveOrCreateSessionFromAllocation(opCtx, store.ResolveOrCreateSessionFromAllocationInput{
 		ID:              store.NowID("session"),
 		ParentSessionID: plan.source.ID,
 		Title:           "@" + plan.route.AgentID,
@@ -162,9 +166,9 @@ func (e *Engine) cloneRouteSession(ctx context.Context, plan *routeSessionPlan) 
 	if !created {
 		return cloned, false, nil
 	}
-	e.copyRouteSessionHistory(ctx, plan.source.ID, cloned.ID)
-	sourceAgentID := sessionAgentIDWithStore(ctx, e.store, plan.source)
-	warnStore("add forked-from message", e.store.AddMessage(ctx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sourceAgentID), map[string]any{"kind": "fork", "source_session_id": plan.source.ID, "source_agent_id": sourceAgentID, "route_matched_by": plan.route.MatchedBy, "clipped": true}))
+	e.copyRouteSessionHistory(opCtx, plan.source.ID, cloned.ID)
+	sourceAgentID := sessionAgentIDWithStore(opCtx, e.store, plan.source)
+	warnStore("add forked-from message", e.store.AddMessage(opCtx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sourceAgentID), map[string]any{"kind": "fork", "source_session_id": plan.source.ID, "source_agent_id": sourceAgentID, "route_matched_by": plan.route.MatchedBy, "clipped": true}))
 	return cloned, true, nil
 }
 

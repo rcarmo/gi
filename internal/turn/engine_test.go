@@ -3195,6 +3195,43 @@ func TestRunShellReportsCancellation(t *testing.T) {
 	}
 }
 
+func TestCloneRouteSessionSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	source, err := s.CreateSession(ctx, "session_root_clone_ctx", "@agent", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create source: %v", err)
+	}
+	engine := New(s)
+	plan, err := engine.prepareRouteSessionPlan(source, routing.ResolvedRoute{AgentID: "agent1", MatchedBy: "mention"}, inboundContextFromSession(ctx, s, source))
+	if err != nil {
+		t.Fatalf("prepare route session plan: %v", err)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	cloned, created, err := engine.cloneRouteSession(cancelCtx, plan)
+	if err != nil {
+		t.Fatalf("clone route session with canceled caller context: %v", err)
+	}
+	if !created || cloned == nil {
+		t.Fatalf("expected cloned route session, got created=%v cloned=%#v", created, cloned)
+	}
+	msgs, err := s.ListMessages(ctx, cloned.ID)
+	if err != nil {
+		t.Fatalf("list cloned session messages: %v", err)
+	}
+	foundFork := false
+	for _, msg := range msgs {
+		if msg.Role == "system" && msg.Payload["kind"] == "fork" {
+			foundFork = true
+		}
+	}
+	if !foundFork {
+		t.Fatalf("expected forked-from notice despite canceled caller context, got %#v", msgs)
+	}
+}
+
 func TestSubmitPeerMessageUsesExistingTargetSession(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
