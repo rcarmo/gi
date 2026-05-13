@@ -2996,6 +2996,37 @@ func TestProcessNextInboundWorkProcessesQueuedDirectPrompt(t *testing.T) {
 	}
 }
 
+func TestFinalizeInboundWorkAttemptSurvivesCanceledCallerContextAfterClaim(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "missing target session"})
+	if err != nil {
+		t.Fatalf("enqueue bad inbound work: %v", err)
+	}
+	claimed, err := s.ClaimNextInboundWork(ctx, "queue-worker")
+	if err != nil {
+		t.Fatalf("claim inbound work: %v", err)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	item, result, err := engine.finalizeInboundWorkAttempt(cancelCtx, claimed, nil, context.Canceled)
+	if err == nil {
+		t.Fatalf("expected processing error after canceled context, got item=%#v result=%#v", item, result)
+	}
+	if item == nil || item.ID != queued.ID || item.Status != "retry" || item.AttemptCount != 1 || item.LastError == "" || item.ClaimedBy != "" || item.ClaimedAt != "" {
+		t.Fatalf("expected retry-marked inbound work with cleared claim state after canceled processing context, got queued=%#v item=%#v err=%v", queued, item, err)
+	}
+	stored, getErr := s.GetInboundWork(ctx, queued.ID)
+	if getErr != nil {
+		t.Fatalf("get inbound work after canceled processing: %v", getErr)
+	}
+	if stored.Status != "retry" || stored.AttemptCount != 1 || stored.ClaimedBy != "" || stored.ClaimedAt != "" {
+		t.Fatalf("expected durable retry state after canceled processing context, got %#v", stored)
+	}
+}
+
 func TestProcessNextInboundWorkMarksRetryOnFirstFailure(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

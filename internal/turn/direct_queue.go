@@ -95,29 +95,37 @@ func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (
 		in.SessionKey = item.ExplicitSessionKey
 	}
 	result, processErr := e.ProcessDirect(ctx, in)
+	return e.finalizeInboundWorkAttempt(ctx, item, result, processErr)
+}
+
+func (e *Engine) finalizeInboundWorkAttempt(ctx context.Context, item *store.InboundWorkItem, result *SubmitResult, processErr error) (*store.InboundWorkItem, *SubmitResult, error) {
+	postCtx := ctx
+	if postCtx == nil || postCtx.Err() != nil {
+		postCtx = e.backgroundContext()
+	}
 	if processErr != nil {
 		attemptCount := item.AttemptCount + 1
 		var updateErr error
 		if attemptCount >= inboundWorkMaxAttempts {
-			updateErr = e.store.RecordInboundWorkFailure(ctx, item.ID, attemptCount, processErr.Error())
+			updateErr = e.store.RecordInboundWorkFailure(postCtx, item.ID, attemptCount, processErr.Error())
 		} else {
-			updateErr = e.store.RecordInboundWorkRetry(ctx, item.ID, attemptCount, processErr.Error(), inboundWorkRetryDelay*time.Duration(attemptCount))
+			updateErr = e.store.RecordInboundWorkRetry(postCtx, item.ID, attemptCount, processErr.Error(), inboundWorkRetryDelay*time.Duration(attemptCount))
 		}
 		statusEvent := map[bool]string{true: "inbound_work_failed", false: "inbound_work_retry_scheduled"}[attemptCount >= inboundWorkMaxAttempts]
 		if updateErr != nil {
 			return item, result, updateErr
 		}
-		updated, getErr := e.store.GetInboundWork(ctx, item.ID)
+		updated, getErr := e.store.GetInboundWork(postCtx, item.ID)
 		if getErr == nil {
 			item = updated
 		}
 		e.PublishRuntimeInboundWorkEvent(statusEvent, item, map[string]any{"error": processErr.Error()})
 		return item, result, processErr
 	}
-	if err := e.store.UpdateInboundWorkStatus(ctx, item.ID, "completed"); err != nil {
+	if err := e.store.UpdateInboundWorkStatus(postCtx, item.ID, "completed"); err != nil {
 		return item, result, err
 	}
-	updated, getErr := e.store.GetInboundWork(ctx, item.ID)
+	updated, getErr := e.store.GetInboundWork(postCtx, item.ID)
 	if getErr == nil {
 		item = updated
 	}
