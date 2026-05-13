@@ -3345,6 +3345,54 @@ func TestCloneRouteSessionSurvivesCanceledCallerContext(t *testing.T) {
 	}
 }
 
+func TestSubmitPeerRoutedPromptSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	source, err := s.CreateSession(ctx, "session_root_routed_ctx", "@agent", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create source: %v", err)
+	}
+	target, err := s.CloneSession(ctx, source.ID, "session_child_routed_ctx", "@agent1", "agent1")
+	if err != nil {
+		t.Fatalf("create target: %v", err)
+	}
+	engine := New(s)
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	result, err := engine.submitPeerRoutedPrompt(cancelCtx, source, target, routing.ResolvedRoute{AgentID: "agent1", MatchedBy: "peer-message"}, "hello from peer", "prompt", "bootstrap", false, true, "", nil)
+	if err != nil {
+		t.Fatalf("submit peer routed prompt with canceled caller context: %v", err)
+	}
+	if result.SessionID != target.ID || result.TurnID == "" {
+		t.Fatalf("unexpected peer routed result: %#v", result)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && strings.TrimSpace(turnRec.FinishedAt) != ""
+	}, "routed peer prompt completion with canceled caller context")
+	msgs, err := s.ListMessages(ctx, source.ID)
+	if err != nil {
+		t.Fatalf("list source messages: %v", err)
+	}
+	foundRoutingNotice := false
+	for _, msg := range msgs {
+		if msg.Role == "system" && msg.Payload["kind"] == "routing" {
+			foundRoutingNotice = true
+		}
+	}
+	if !foundRoutingNotice {
+		t.Fatalf("expected routing notice despite canceled caller context, got %#v", msgs)
+	}
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get target turn: %v", err)
+	}
+	if turnRec.SessionID != target.ID {
+		t.Fatalf("expected target turn in routed target session, got %#v", turnRec)
+	}
+}
+
 func TestSubmitPeerMessageUsesExistingTargetSession(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

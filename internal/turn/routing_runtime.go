@@ -105,7 +105,7 @@ func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, source, target *sto
 	for k, v := range extraMetadata {
 		metadata[k] = v
 	}
-	result, err := e.SubmitPrompt(ctx, RunInput{SessionID: target.ID, Prompt: content, Intent: intent, Model: model, ParentTurnID: parentTurnID, Metadata: metadata})
+	result, err := e.SubmitPrompt(opCtx, RunInput{SessionID: target.ID, Prompt: content, Intent: intent, Model: model, ParentTurnID: parentTurnID, Metadata: metadata})
 	if err != nil {
 		return nil, err
 	}
