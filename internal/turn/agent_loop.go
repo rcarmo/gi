@@ -335,10 +335,7 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 	if strings.TrimSpace(childTurnID) == "" {
 		return
 	}
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = r.engine.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, r.engine.backgroundContext())
 	sub, err := r.store.GetSubTurnByChild(opCtx, childTurnID)
 	if err != nil {
 		return

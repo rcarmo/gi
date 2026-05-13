@@ -387,10 +387,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 }
 
 func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	turn, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
 		return err

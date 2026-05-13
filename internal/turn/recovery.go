@@ -15,10 +15,7 @@ const (
 )
 
 func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) (bool, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	claims, err := e.store.ListStaleActiveTurnClaims(opCtx, time.Now().Add(-interruptedTurnStaleAfter), sessionID)
 	if err != nil {
 		return false, err
@@ -48,10 +45,7 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 }
 
 func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveTurnClaim) error {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	disposition := "release_terminal"
 	status := claim.Status
 	phase := claim.Phase
