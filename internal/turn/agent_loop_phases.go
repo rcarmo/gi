@@ -298,11 +298,22 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				continue
 			}
 			if resp.Block {
-				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "reason": stringValue(resp.Reason, "tool call blocked")})
-				toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool call blocked"))
+				reason := stringValue(resp.Reason, "tool call blocked")
+				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "reason": reason})
+				warnStore("append hook-denied tool.skipped event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
+					"phase":        "tool",
+					"checkpoint":   true,
+					"tool":         call.Name,
+					"tool_call_id": call.ID,
+					"reason":       reason,
+					"hook_phase":   "tool_call",
+				}))
+				r.engine.broadcast(sessionID, map[string]any{"type": "tool_skipped", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "reason": reason})
+				r.engine.PublishRuntimeToolEvent("tool_skipped", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"reason": reason, "phase": "tool", "hook_phase": "tool_call"})
+				toolErr := fmt.Errorf("blocked by hook: %s", reason)
 				errText := fmt.Sprintf("Error: %v", toolErr)
 				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
-				warnStore("add blocked tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID}))
+				warnStore("add blocked tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID, "skipped": true, "skip_reason": reason, "hook_phase": "tool_call"}))
 				continue
 			}
 		}
@@ -316,11 +327,22 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				return outcome
 			}
 			if resp.Block {
-				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": stringValue(resp.Reason, "tool not approved")})
-				toolErr := fmt.Errorf("blocked by hook: %s", stringValue(resp.Reason, "tool not approved"))
+				reason := stringValue(resp.Reason, "tool not approved")
+				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": reason})
+				warnStore("append approve-denied tool.skipped event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
+					"phase":        "tool",
+					"checkpoint":   true,
+					"tool":         call.Name,
+					"tool_call_id": call.ID,
+					"reason":       reason,
+					"hook_phase":   "approve_tool",
+				}))
+				r.engine.broadcast(sessionID, map[string]any{"type": "tool_skipped", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "reason": reason})
+				r.engine.PublishRuntimeToolEvent("tool_skipped", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"reason": reason, "phase": "tool", "hook_phase": "approve_tool"})
+				toolErr := fmt.Errorf("blocked by hook: %s", reason)
 				errText := fmt.Sprintf("Error: %v", toolErr)
 				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
-				warnStore("add denied tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID}))
+				warnStore("add denied tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID, "skipped": true, "skip_reason": reason, "hook_phase": "approve_tool"}))
 				continue
 			}
 			if resp.ToolCall != nil {

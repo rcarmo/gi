@@ -15,6 +15,7 @@ import (
 	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/routing"
 	"github.com/rcarmo/gi/internal/scripting"
+	"github.com/rcarmo/gi/internal/topics"
 	goai "github.com/rcarmo/go-ai"
 )
 
@@ -666,6 +667,8 @@ func TestApproveToolHookCanDenyExecution(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("register approve hook: %v", err)
 	}
+	toolCh, unsub := e.Topics().Subscribe(ctx, "runtime.tool", topics.SubscribeOptions{Buffer: 8, SessionID: "session_tool_deny"})
+	defer unsub()
 	runner := e.runner("session_tool_deny")
 	outcome := runner.executeToolCallsPhase(ctx, s, "turn_tool_deny", "session_tool_deny", "bootstrap", "agent", 1, &goai.Context{}, []goai.ToolCall{{Type: "toolCall", ID: "tc_deny", Name: "deny_test", Arguments: map[string]any{"value": "x"}}}, nil, "", 0, &goai.Usage{})
 	if outcome.terminated {
@@ -680,6 +683,30 @@ func TestApproveToolHookCanDenyExecution(t *testing.T) {
 	}
 	if len(msgs) != 1 || msgs[0].Role != "tool_result" || msgs[0].Content == "" || msgs[0].Content == "should not run" {
 		t.Fatalf("expected denial tool_result message, got %#v", msgs)
+	}
+	if msgs[0].Payload["skipped"] != true || msgs[0].Payload["skip_reason"] != "policy denied" || msgs[0].Payload["hook_phase"] != "approve_tool" {
+		t.Fatalf("expected denial tool_result skip metadata, got %#v", msgs[0].Payload)
+	}
+	events, err := s.ListTurnEvents(ctx, "turn_tool_deny")
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundSkipped := false
+	for _, event := range events {
+		if event.Type == "tool.skipped" && event.Payload["tool"] == "deny_test" && event.Payload["tool_call_id"] == "tc_deny" && event.Payload["reason"] == "policy denied" && event.Payload["hook_phase"] == "approve_tool" {
+			foundSkipped = true
+		}
+	}
+	if !foundSkipped {
+		t.Fatalf("expected tool.skipped event for denied tool, got %#v", events)
+	}
+	select {
+	case env := <-toolCh:
+		if env.Topic != "runtime.tool" || env.Payload["type"] != "tool_skipped" || env.Payload["tool"] != "deny_test" || env.Payload["tool_call_id"] != "tc_deny" || env.Payload["reason"] != "policy denied" || env.Payload["hook_phase"] != "approve_tool" {
+			t.Fatalf("unexpected runtime.tool deny-skip payload: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.tool tool_skipped topic for denied tool")
 	}
 }
 
