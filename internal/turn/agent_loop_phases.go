@@ -279,8 +279,19 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				if len(displayResult) > 100000 {
 					displayResult = displayResult[:100000] + "\n... (truncated)"
 				}
+				r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(injectedResult)})
+				r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "output_length": len(injectedResult), "source": "hook", "hook_phase": "tool_call"})
+				warnStore("append hook-responded tool.finished event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.finished", map[string]any{
+					"phase":         "tool",
+					"tool":          call.Name,
+					"checkpoint":    true,
+					"tool_call_id":  call.ID,
+					"output_length": len(injectedResult),
+					"source":        "hook",
+					"hook_phase":    "tool_call",
+				}))
 				goai.AppendToolResult(convCtx, call.ID, call.Name, displayResult, false)
-				warnStore("add injected tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", displayResult, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID, "source": "hook"}))
+				warnStore("add injected tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", displayResult, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID, "source": "hook", "hook_phase": "tool_call"}))
 				outcome.lastToolFailureSig = ""
 				outcome.repeatedToolFailureCount = 0
 				if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID); err != nil {

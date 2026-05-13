@@ -627,6 +627,8 @@ func TestToolCallHookCanRespondWithoutExecutingTool(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("register tool_result hook: %v", err)
 	}
+	toolCh, unsub := e.Topics().Subscribe(ctx, "runtime.tool", topics.SubscribeOptions{Buffer: 8, SessionID: "session_tool_respond"})
+	defer unsub()
 	runner := e.runner("session_tool_respond")
 	outcome := runner.executeToolCallsPhase(ctx, s, "turn_tool_respond", "session_tool_respond", "bootstrap", "agent", 1, &goai.Context{}, []goai.ToolCall{{Type: "toolCall", ID: "tc_resp", Name: "plugin_tool", Arguments: map[string]any{"value": "x"}}}, nil, "", 0, &goai.Usage{})
 	if outcome.terminated {
@@ -641,6 +643,30 @@ func TestToolCallHookCanRespondWithoutExecutingTool(t *testing.T) {
 	}
 	if len(msgs) != 1 || msgs[0].Content != "hook injected result" {
 		t.Fatalf("expected injected tool result message, got %#v", msgs)
+	}
+	if msgs[0].Payload["source"] != "hook" || msgs[0].Payload["hook_phase"] != "tool_call" {
+		t.Fatalf("expected injected tool result hook metadata, got %#v", msgs[0].Payload)
+	}
+	events, err := s.ListTurnEvents(ctx, "turn_tool_respond")
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundFinished := false
+	for _, event := range events {
+		if event.Type == "tool.finished" && event.Payload["tool"] == "plugin_tool" && event.Payload["tool_call_id"] == "tc_resp" && event.Payload["source"] == "hook" && event.Payload["hook_phase"] == "tool_call" {
+			foundFinished = true
+		}
+	}
+	if !foundFinished {
+		t.Fatalf("expected tool.finished event for hook-responded tool, got %#v", events)
+	}
+	select {
+	case env := <-toolCh:
+		if env.Topic != "runtime.tool" || env.Payload["type"] != "tool_finished" || env.Payload["tool"] != "plugin_tool" || env.Payload["tool_call_id"] != "tc_resp" || env.Payload["source"] != "hook" || env.Payload["hook_phase"] != "tool_call" {
+			t.Fatalf("unexpected runtime.tool hook-respond payload: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.tool tool_finished topic for hook-responded tool")
 	}
 }
 
