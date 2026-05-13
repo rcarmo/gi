@@ -6,11 +6,15 @@ import (
 )
 
 func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary string) error {
-	turnRec, err := e.store.GetTurn(ctx, turnID)
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
+	turnRec, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
 		return err
 	}
-	if err := e.store.HoldTurnFailure(ctx, turnID, holdState, summary); err != nil {
+	if err := e.store.HoldTurnFailure(opCtx, turnID, holdState, summary); err != nil {
 		return err
 	}
 	payload := map[string]any{
@@ -20,7 +24,7 @@ func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary
 		"hold_state": holdState,
 		"summary":    summary,
 	}
-	if err := e.store.AppendTurnEvent(ctx, turnID, turnRec.SessionID, "turn.failure_held", payload); err != nil {
+	if err := e.store.AppendTurnEvent(opCtx, turnID, turnRec.SessionID, "turn.failure_held", payload); err != nil {
 		return err
 	}
 	e.PublishRuntimeTurnEvent("turn_failure_held", turnRec.SessionID, turnID, "", turnRec.Status, turnRec.Phase, payload)
@@ -28,11 +32,15 @@ func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary
 }
 
 func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*SubmitResult, error) {
-	turnRec, err := e.store.GetTurn(ctx, turnID)
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
+	turnRec, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
 		return nil, err
 	}
-	failureRec, err := e.store.GetTurnFailure(ctx, turnID)
+	failureRec, err := e.store.GetTurnFailure(opCtx, turnID)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +55,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 	metadata["retry_failure_kind"] = failureRec.FailureKind
 	metadata["retry_hold_state"] = failureRec.HoldState
 	metadata["failure_resolution"] = "retry"
-	result, err := e.SubmitPrompt(ctx, RunInput{
+	result, err := e.SubmitPrompt(opCtx, RunInput{
 		SessionID:    turnRec.SessionID,
 		Prompt:       turnRec.Prompt,
 		Intent:       stringValue(turnRec.Metadata["intent"], "prompt"),
@@ -58,7 +66,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 	if err != nil {
 		return nil, err
 	}
-	if err := e.store.ResolveTurnFailure(ctx, turnID, "retried", summary, result.TurnID); err != nil {
+	if err := e.store.ResolveTurnFailure(opCtx, turnID, "retried", summary, result.TurnID); err != nil {
 		return nil, err
 	}
 	payload := map[string]any{
@@ -69,24 +77,28 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 		"resolution_summary": summary,
 		"resolved_turn_id":   result.TurnID,
 	}
-	warnStore("append turn.failure_resolved event", e.store.AppendTurnEvent(ctx, turnID, turnRec.SessionID, "turn.failure_resolved", payload))
+	warnStore("append turn.failure_resolved event", e.store.AppendTurnEvent(opCtx, turnID, turnRec.SessionID, "turn.failure_resolved", payload))
 	e.PublishRuntimeTurnEvent("turn_failure_resolved", turnRec.SessionID, turnID, "", turnRec.Status, turnRec.Phase, payload)
 	return result, nil
 }
 
 func (e *Engine) SkipHeldTurn(ctx context.Context, turnID, summary string) error {
-	turnRec, err := e.store.GetTurn(ctx, turnID)
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
+	turnRec, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
 		return err
 	}
-	failureRec, err := e.store.GetTurnFailure(ctx, turnID)
+	failureRec, err := e.store.GetTurnFailure(opCtx, turnID)
 	if err != nil {
 		return err
 	}
 	if failureRec.HoldState == "none" {
 		return fmt.Errorf("skip held turn: turn %s is not currently held", turnID)
 	}
-	if err := e.store.ResolveTurnFailure(ctx, turnID, "skipped", summary, ""); err != nil {
+	if err := e.store.ResolveTurnFailure(opCtx, turnID, "skipped", summary, ""); err != nil {
 		return err
 	}
 	payload := map[string]any{
@@ -96,7 +108,7 @@ func (e *Engine) SkipHeldTurn(ctx context.Context, turnID, summary string) error
 		"resolution_state":   "skipped",
 		"resolution_summary": summary,
 	}
-	if err := e.store.AppendTurnEvent(ctx, turnID, turnRec.SessionID, "turn.failure_resolved", payload); err != nil {
+	if err := e.store.AppendTurnEvent(opCtx, turnID, turnRec.SessionID, "turn.failure_resolved", payload); err != nil {
 		return err
 	}
 	e.PublishRuntimeTurnEvent("turn_failure_resolved", turnRec.SessionID, turnID, "", turnRec.Status, turnRec.Phase, payload)

@@ -1217,6 +1217,48 @@ func TestCancelQueuedTurnPublishesTerminalTopicsWhenSessionBecomesIdle(t *testin
 	}
 }
 
+func TestSkipHeldTurnSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	if _, err := s.CreateSession(ctx, "session_skip_ctx", "Skip", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_skip_ctx", "session_skip_ctx", "failed", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if err := s.UpsertTurnFailure(ctx, turnRec.ID, turnRec.SessionID, "provider_error", "review", "provider failed"); err != nil {
+		t.Fatalf("upsert held failure: %v", err)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := engine.SkipHeldTurn(cancelCtx, turnRec.ID, "skip requested"); err != nil {
+		t.Fatalf("skip held turn with canceled caller context: %v", err)
+	}
+	failureRec, err := s.GetTurnFailure(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get turn failure: %v", err)
+	}
+	if failureRec.HoldState != "none" || failureRec.ResolutionState != "skipped" {
+		t.Fatalf("expected skipped resolution despite canceled caller context, got %#v", failureRec)
+	}
+	events, err := s.ListTurnEvents(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundResolved := false
+	for _, event := range events {
+		if event.Type == "turn.failure_resolved" && event.Payload["resolution_state"] == "skipped" {
+			foundResolved = true
+		}
+	}
+	if !foundResolved {
+		t.Fatalf("expected turn.failure_resolved audit row despite canceled caller context, got %#v", events)
+	}
+}
+
 func TestCancelQueuedTurnIgnoresCallerSessionID(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
@@ -2322,6 +2364,48 @@ func TestShellFailureBroadcastsSystemMessageToTurnResponseTopic(t *testing.T) {
 	}
 	if !foundToolFailedAudit {
 		t.Fatalf("expected shell failure to persist normalized tool.failed audit row, got %#v", events)
+	}
+}
+
+func TestHoldTurnFailureSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	if _, err := s.CreateSession(ctx, "session_hold_ctx", "Hold", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_hold_ctx", "session_hold_ctx", "failed", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if err := s.UpsertTurnFailure(ctx, turnRec.ID, turnRec.SessionID, "provider_error", "none", "provider failed"); err != nil {
+		t.Fatalf("upsert turn failure: %v", err)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := engine.HoldTurnFailure(cancelCtx, turnRec.ID, "review", "needs review"); err != nil {
+		t.Fatalf("hold turn failure with canceled caller context: %v", err)
+	}
+	failureRec, err := s.GetTurnFailure(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get turn failure: %v", err)
+	}
+	if failureRec.HoldState != "review" {
+		t.Fatalf("expected held failure despite canceled caller context, got %#v", failureRec)
+	}
+	events, err := s.ListTurnEvents(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundHeld := false
+	for _, event := range events {
+		if event.Type == "turn.failure_held" && event.Payload["hold_state"] == "review" {
+			foundHeld = true
+		}
+	}
+	if !foundHeld {
+		t.Fatalf("expected turn.failure_held audit row despite canceled caller context, got %#v", events)
 	}
 }
 
