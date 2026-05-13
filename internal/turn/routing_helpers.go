@@ -25,10 +25,7 @@ func parseDirectedPrompt(prompt string) (string, string, bool) {
 }
 
 func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnID string, metadata map[string]any) error {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	sourceSession := stringValue(metadata["source_session_id"], sourceSessionID)
 	targetSession := stringValue(metadata["target_session_id"], "")
 	targetAgentID := stringValue(metadata["target_agent_id"], "")

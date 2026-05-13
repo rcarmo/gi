@@ -99,10 +99,7 @@ func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (
 }
 
 func (e *Engine) finalizeInboundWorkAttempt(ctx context.Context, item *store.InboundWorkItem, result *SubmitResult, processErr error) (*store.InboundWorkItem, *SubmitResult, error) {
-	postCtx := ctx
-	if postCtx == nil || postCtx.Err() != nil {
-		postCtx = e.backgroundContext()
-	}
+	postCtx := coordinationContext(ctx, e.backgroundContext())
 	if processErr != nil {
 		attemptCount := item.AttemptCount + 1
 		var updateErr error

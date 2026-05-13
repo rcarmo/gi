@@ -29,10 +29,7 @@ type routeSessionPlan struct {
 }
 
 func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) (*routedPromptResolution, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	source, err := e.store.GetSession(opCtx, in.SessionID)
 	if err != nil {
 		return nil, err
@@ -66,10 +63,7 @@ func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) 
 }
 
 func (e *Engine) preparePeerRouteResolution(ctx context.Context, sourceSessionID, targetAgentID, content, matchedBy string) (*routedPromptResolution, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	source, err := e.store.GetSession(opCtx, sourceSessionID)
 	if err != nil {
 		return nil, err
@@ -101,9 +95,7 @@ func (e *Engine) resolveRoutedPromptTarget(ctx context.Context, resolution *rout
 }
 
 func (e *Engine) applyLocalRouteMetadata(ctx context.Context, in *RunInput, resolution *routedPromptResolution) {
-	if ctx == nil || ctx.Err() != nil {
-		ctx = e.backgroundContext()
-	}
+	ctx = coordinationContext(ctx, e.backgroundContext())
 	if in.Metadata == nil {
 		in.Metadata = map[string]any{}
 	}
@@ -138,10 +130,7 @@ func (e *Engine) prepareRouteSessionPlan(source *store.Session, route routing.Re
 }
 
 func (e *Engine) resolveExistingRouteSession(ctx context.Context, plan *routeSessionPlan) (*store.Session, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if existing, err := e.store.ResolveSessionByAllocation(opCtx, plan.allocation); err == nil {
 		return existing, nil
 	} else if err != nil && err != sql.ErrNoRows {
@@ -163,10 +152,7 @@ func (e *Engine) resolveExistingRouteSession(ctx context.Context, plan *routeSes
 }
 
 func (e *Engine) cloneRouteSession(ctx context.Context, plan *routeSessionPlan) (*store.Session, bool, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	state := map[string]any{"status": "idle", "queue_count": 0, "model": e.modelForAgent(plan.route.AgentID), "provider": e.runtimeCfg.DefaultProvider, "thinking_level": e.runtimeCfg.DefaultThinkingLevel}
 	cloned, created, err := e.store.ResolveOrCreateSessionFromAllocation(opCtx, store.ResolveOrCreateSessionFromAllocationInput{
 		ID:              store.NowID("session"),
