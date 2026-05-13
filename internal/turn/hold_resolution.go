@@ -14,6 +14,7 @@ func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary
 	if err := e.store.HoldTurnFailure(opCtx, turnID, holdState, summary); err != nil {
 		return err
 	}
+	phase := "held_for_retry_or_skip"
 	payload := map[string]any{
 		"phase":      "recovery",
 		"checkpoint": true,
@@ -24,7 +25,7 @@ func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary
 	if err := e.store.AppendTurnEvent(opCtx, turnID, turnRec.SessionID, "turn.failure_held", payload); err != nil {
 		return err
 	}
-	e.PublishRuntimeTurnEvent("turn_failure_held", turnRec.SessionID, turnID, "", turnRec.Status, turnRec.Phase, payload)
+	e.PublishRuntimeTurnEvent("turn_failure_held", turnRec.SessionID, turnID, "", turnRec.Status, phase, payload)
 	return nil
 }
 
@@ -63,6 +64,10 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 	if err := e.store.ResolveTurnFailure(opCtx, turnID, "retried", summary, result.TurnID); err != nil {
 		return nil, err
 	}
+	phase := turnRec.Phase
+	if phase == "held_for_retry_or_skip" {
+		phase = runtimeTurnPhaseForStatus(turnRec.Status)
+	}
 	payload := map[string]any{
 		"phase":              "recovery",
 		"checkpoint":         true,
@@ -72,7 +77,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 		"resolved_turn_id":   result.TurnID,
 	}
 	warnStore("append turn.failure_resolved event", e.store.AppendTurnEvent(opCtx, turnID, turnRec.SessionID, "turn.failure_resolved", payload))
-	e.PublishRuntimeTurnEvent("turn_failure_resolved", turnRec.SessionID, turnID, "", turnRec.Status, turnRec.Phase, payload)
+	e.PublishRuntimeTurnEvent("turn_failure_resolved", turnRec.SessionID, turnID, "", turnRec.Status, phase, payload)
 	return result, nil
 }
 
@@ -92,6 +97,10 @@ func (e *Engine) SkipHeldTurn(ctx context.Context, turnID, summary string) error
 	if err := e.store.ResolveTurnFailure(opCtx, turnID, "skipped", summary, ""); err != nil {
 		return err
 	}
+	phase := turnRec.Phase
+	if phase == "held_for_retry_or_skip" {
+		phase = runtimeTurnPhaseForStatus(turnRec.Status)
+	}
 	payload := map[string]any{
 		"phase":              "recovery",
 		"checkpoint":         true,
@@ -102,6 +111,6 @@ func (e *Engine) SkipHeldTurn(ctx context.Context, turnID, summary string) error
 	if err := e.store.AppendTurnEvent(opCtx, turnID, turnRec.SessionID, "turn.failure_resolved", payload); err != nil {
 		return err
 	}
-	e.PublishRuntimeTurnEvent("turn_failure_resolved", turnRec.SessionID, turnID, "", turnRec.Status, turnRec.Phase, payload)
+	e.PublishRuntimeTurnEvent("turn_failure_resolved", turnRec.SessionID, turnID, "", turnRec.Status, phase, payload)
 	return nil
 }

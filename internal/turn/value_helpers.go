@@ -104,6 +104,25 @@ func intValueOr(v any, fallback int) int {
 	return fallback
 }
 
+func runtimeTurnPhaseForStatus(status string) string {
+	switch status {
+	case "queued":
+		return "queued"
+	case "running":
+		return "setup"
+	case "cancelling":
+		return "cancelling"
+	case "completed":
+		return "completed"
+	case "failed":
+		return "failed"
+	case "aborted", "cancelled":
+		return "aborted"
+	default:
+		return status
+	}
+}
+
 func normalizeSubTurnDeliveryMode(mode string) (string, error) {
 	mode = strings.ToLower(strings.TrimSpace(mode))
 	if mode == "" {
