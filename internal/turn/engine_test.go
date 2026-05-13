@@ -1040,6 +1040,43 @@ func TestCancelQueuedTurn(t *testing.T) {
 	}
 }
 
+func TestCancelQueuedTurnSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	sess, _ := s.CreateSession(ctx, "session_queued_cancel_ctx", "Test", map[string]any{"model": "bootstrap"})
+	engine := New(s)
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_queued_cancel_ctx", sess.ID, "queued", "two", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := engine.CancelTurn(cancelCtx, sess.ID, queuedTurn.ID); err != nil {
+		t.Fatalf("cancel queued with canceled caller context: %v", err)
+	}
+	turnRec, err := s.GetTurn(ctx, queuedTurn.ID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if turnRec.Status != "cancelled" || turnRec.FinishedAt == "" {
+		t.Fatalf("expected queued cancel to persist despite canceled caller context, got %#v", turnRec)
+	}
+	events, err := s.ListTurnEvents(ctx, queuedTurn.ID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundCancelled := false
+	for _, event := range events {
+		if event.Type == "turn.cancelled" && event.Payload["reason"] == "queued_cancel" {
+			foundCancelled = true
+		}
+	}
+	if !foundCancelled {
+		t.Fatalf("expected queued cancel audit row despite canceled caller context, got %#v", events)
+	}
+}
+
 func TestCancelQueuedTurnStartsNextQueuedWorkWhenSessionRemainsQueued(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
@@ -1291,6 +1328,60 @@ func TestCancelActiveStreamingTurnMarksCancelled(t *testing.T) {
 	}
 	if !foundCancelling {
 		t.Fatalf("expected turn.cancelling event, got %#v", events)
+	}
+}
+
+func TestCancelActiveStreamingTurnSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cancel_streaming_ctx", "Streaming", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	started := make(chan struct{})
+	withStreamWithToolsStub(t, func(ctx context.Context, model string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		select {
+		case <-started:
+		default:
+			close(started)
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
+	engine := New(s)
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_cancel_streaming_ctx", Prompt: "stream please", Model: "mock-stream"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		select {
+		case <-started:
+			return true
+		default:
+			return false
+		}
+	}, "streaming turn start")
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := engine.CancelTurn(cancelCtx, "session_cancel_streaming_ctx", result.TurnID); err != nil {
+		t.Fatalf("cancel active streaming turn with canceled caller context: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && turnRec.Status == "cancelled" && turnRec.FinishedAt != ""
+	}, "streaming turn cancellation with canceled caller context")
+	events, err := s.ListTurnEvents(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundCancelling := false
+	for _, event := range events {
+		if event.Type == "turn.cancelling" && event.Payload["reason"] == "cancel_requested" {
+			foundCancelling = true
+		}
+	}
+	if !foundCancelling {
+		t.Fatalf("expected turn.cancelling audit row despite canceled caller context, got %#v", events)
 	}
 }
 
