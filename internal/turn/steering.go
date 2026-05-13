@@ -146,8 +146,12 @@ func steeringMetadataFromMessages(msgs []store.SteeringMessage) map[string]any {
 }
 
 func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID string) (bool, string, error) {
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
 	turnID := store.NowID("turn")
-	turnRec, msgs, err := e.store.StageSteeringContinuation(ctx, sessionID, turnID)
+	turnRec, msgs, err := e.store.StageSteeringContinuation(opCtx, sessionID, turnID)
 	if err == sql.ErrNoRows {
 		return false, "", nil
 	}
@@ -156,9 +160,9 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 	}
 	metadata := turnRec.Metadata
 	submittedPayload := map[string]any{"phase": "queue", "intent": stringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true}
-	warnStore("append continued turn.submitted event", e.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.submitted", submittedPayload))
+	warnStore("append continued turn.submitted event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "turn.submitted", submittedPayload))
 	e.PublishRuntimeTurnEvent("turn_submitted", sessionID, turnID, "", "queued", "queued", submittedPayload)
-	warnStore("append steering.continue_staged event", e.store.AppendTurnEvent(ctx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)}))
+	warnStore("append steering.continue_staged event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)}))
 	e.broadcast(sessionID, map[string]any{"type": "steering_continue_staged", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs)})
 	return true, turnID, nil
 }
@@ -193,7 +197,7 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
 	coordCtx := ctx
-	if coordCtx == nil {
+	if coordCtx == nil || coordCtx.Err() != nil {
 		coordCtx = e.backgroundContext()
 	}
 	if _, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {

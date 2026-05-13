@@ -639,6 +639,46 @@ func TestContinueSessionStartsQueuedSteeringWhenIdle(t *testing.T) {
 	}
 }
 
+func TestContinueSessionSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	_, err := s.CreateSession(ctx, "session_continue_ctx", "Test", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_continue_ctx", "", "user", "continue please", map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	engine := New(s)
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	continued, err := engine.ContinueSession(cancelCtx, "session_continue_ctx")
+	if err != nil {
+		t.Fatalf("continue session with canceled caller context: %v", err)
+	}
+	if !continued {
+		t.Fatal("expected ContinueSession to stage/start queued steering despite canceled caller context")
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turns, err := s.ListTurns(ctx, "session_continue_ctx")
+		return err == nil && len(turns) > 0
+	}, "continued turn creation with canceled caller context")
+	turns, err := s.ListTurns(ctx, "session_continue_ctx")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	foundSubmitted := false
+	for _, turn := range turns {
+		if turn.Status == "queued" || turn.Status == "running" || turn.Status == "completed" {
+			foundSubmitted = true
+		}
+	}
+	if !foundSubmitted {
+		t.Fatalf("expected continuation turn to be staged/launched despite canceled caller context, got %#v", turns)
+	}
+}
+
 func TestContinueSessionPublishesTurnSubmittedTopicForSteeringContinuation(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
