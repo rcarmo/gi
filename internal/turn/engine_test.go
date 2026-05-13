@@ -370,6 +370,51 @@ func TestLaunchTurnLockedSurvivesCanceledCallerContext(t *testing.T) {
 	}
 }
 
+func TestConvertLaunchConflictToSteeringSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_claim_conflict_ctx", "Test", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_existing_active_ctx", "session_claim_conflict_ctx", "running", "already running", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create existing active turn: %v", err)
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_transient_ctx", "session_claim_conflict_ctx", "queued", "steer me", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create transient queued turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_claim_conflict_ctx", activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim existing active turn: %v", err)
+	}
+	if err := s.TouchSessionState(ctx, "session_claim_conflict_ctx", map[string]any{"active_turn_id": activeTurn.ID, "status": "running"}); err != nil {
+		t.Fatalf("touch session state: %v", err)
+	}
+	engine := New(s)
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	res, steered, err := engine.convertLaunchConflictToSteering(cancelCtx, queuedTurn.ID, RunInput{SessionID: "session_claim_conflict_ctx", Prompt: "steer me", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("convert launch conflict with canceled caller context: %v", err)
+	}
+	if !steered || res == nil || res.TurnID != activeTurn.ID || res.Status != "running" {
+		t.Fatalf("expected steering fallback to existing active turn, got steered=%v res=%#v", steered, res)
+	}
+	turns, err := s.ListTurns(ctx, "session_claim_conflict_ctx")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 1 || turns[0].ID != activeTurn.ID {
+		t.Fatalf("expected transient queued turn removed after canceled-context steering fallback, got %#v", turns)
+	}
+	if depth, err := s.SteeringQueueLength(ctx, "session_claim_conflict_ctx"); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 1 {
+		t.Fatalf("expected steering queue depth 1 after canceled-context claim-conflict fallback, got %d", depth)
+	}
+}
+
 func TestSubmitPromptClaimConflictConvertsFreshTurnToSteering(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
@@ -2167,6 +2212,30 @@ func TestRecoverInterruptedTurnsRestartPublishesSetupTopics(t *testing.T) {
 		case <-deadline:
 			t.Fatalf("expected recovery restart to publish session_running and turn_started, got session_running=%v turn_started=%v", foundSessionRunning, foundTurnStarted)
 		}
+	}
+}
+
+func TestResolveTurnIdentityForFinalizeSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("agentfinalize", "web", "acctfinalize", "session_finalize_ctx")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_finalize_ctx", Title: "@agentfinalize", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session with canonical identity: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_finalize_ctx", sess.ID, "queued", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create finalize turn: %v", err)
+	}
+	engine := New(s)
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	agentID, model := engine.runner(sess.ID).resolveTurnIdentityForFinalize(cancelCtx, s, sess.ID, "turn_finalize_ctx")
+	if agentID != "agentfinalize" {
+		t.Fatalf("expected canonical agent id under canceled caller context, got %q", agentID)
+	}
+	if model == "" {
+		t.Fatal("expected non-empty model resolution under canceled caller context")
 	}
 }
 

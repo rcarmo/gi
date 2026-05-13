@@ -456,33 +456,41 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 }
 
 func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID string, in RunInput) (*SubmitResult, bool, error) {
-	activeTurnID, _, err := e.store.GetSessionActiveTurn(ctx, in.SessionID)
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
+	activeTurnID, _, err := e.store.GetSessionActiveTurn(opCtx, in.SessionID)
 	if err == sql.ErrNoRows {
 		return nil, false, nil
 	}
 	if err != nil {
 		return nil, false, err
 	}
-	res, err := e.submitSteeringPrompt(ctx, in.SessionID, activeTurnID, in)
+	res, err := e.submitSteeringPrompt(opCtx, in.SessionID, activeTurnID, in)
 	if err != nil {
 		// Keep the already-persisted queued turn as a fallback rather than dropping the prompt.
 		return nil, false, nil
 	}
-	if err := e.store.DeleteTurn(ctx, turnID); err != nil {
+	if err := e.store.DeleteTurn(opCtx, turnID); err != nil {
 		return nil, false, err
 	}
 	return res, true, nil
 }
 
 func (r *sessionRunner) resolveTurnIdentityForFinalize(ctx context.Context, s *store.Store, sessionID, turnID string) (string, string) {
-	turnRec, err := s.GetTurn(ctx, turnID)
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = r.engine.backgroundContext()
+	}
+	turnRec, err := s.GetTurn(opCtx, turnID)
 	if err != nil {
 		return "", ""
 	}
 	if strings.TrimSpace(sessionID) == "" {
 		sessionID = turnRec.SessionID
 	}
-	return r.resolveTurnAgentAndModel(ctx, s, turnRec, sessionID, turnRec.Prompt)
+	return r.resolveTurnAgentAndModel(opCtx, s, turnRec, sessionID, turnRec.Prompt)
 }
 
 func (e *Engine) runner(sessionID string) *sessionRunner {
