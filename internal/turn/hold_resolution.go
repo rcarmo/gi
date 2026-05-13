@@ -3,7 +3,28 @@ package turn
 import (
 	"context"
 	"fmt"
+	"strings"
 )
+
+func normalizeHoldResolutionSummary(summary string) string {
+	return strings.TrimSpace(summary)
+}
+
+func normalizedHoldStateForEvent(holdState string) string {
+	holdState = normalizedLowerString(holdState)
+	if holdState == "" {
+		return "none"
+	}
+	return holdState
+}
+
+func holdSummaryForEvent(turnID, holdState, summary string) string {
+	summary = normalizeHoldResolutionSummary(summary)
+	if summary != "" {
+		return summary
+	}
+	return fmt.Sprintf("turn %s placed on %s hold", turnID, holdState)
+}
 
 func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary string) error {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
@@ -11,6 +32,8 @@ func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary
 	if err != nil {
 		return err
 	}
+	holdState = normalizedHoldStateForEvent(holdState)
+	summary = holdSummaryForEvent(turnID, holdState, summary)
 	if err := e.store.HoldTurnFailure(opCtx, turnID, holdState, summary); err != nil {
 		return err
 	}
@@ -31,6 +54,7 @@ func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary
 
 func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*SubmitResult, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
+	summary = normalizeHoldResolutionSummary(summary)
 	turnRec, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
 		return nil, err
@@ -83,6 +107,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 
 func (e *Engine) SkipHeldTurn(ctx context.Context, turnID, summary string) error {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
+	summary = normalizeHoldResolutionSummary(summary)
 	turnRec, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
 		return err

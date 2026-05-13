@@ -2708,6 +2708,43 @@ func TestHoldTurnFailureSurvivesCanceledCallerContext(t *testing.T) {
 	}
 }
 
+func TestHoldResolutionPublishesNormalizedHeldPayload(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_hold_payload_topics", "Hold Payload", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_hold_payload_topics", "session_hold_payload_topics", "failed", "redo this", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create failed turn: %v", err)
+	}
+	engine := New(s)
+	turnTopicCh, unsub := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 16, SessionID: turnRec.SessionID})
+	defer unsub()
+	if err := engine.HoldTurnFailure(ctx, turnRec.ID, "  REVIEW  ", "   "); err != nil {
+		t.Fatalf("hold turn failure: %v", err)
+	}
+	failureRec, err := s.GetTurnFailure(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get turn failure: %v", err)
+	}
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case env := <-turnTopicCh:
+			if env.Payload["type"] == "turn_failure_held" {
+				if env.Payload["hold_state"] != failureRec.HoldState || env.Payload["summary"] != failureRec.Summary {
+					t.Fatalf("expected normalized held payload to match store row, got payload=%#v store=%#v", env.Payload, failureRec)
+				}
+				return
+			}
+		case <-deadline:
+			t.Fatal("expected turn_failure_held runtime topic")
+		}
+	}
+}
+
 func TestHoldResolutionPublishesUpdatedRuntimeTurnPhases(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
