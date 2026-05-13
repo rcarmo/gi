@@ -393,6 +393,9 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		return err
 	}
 	turnSessionID := turn.SessionID
+	if strings.TrimSpace(sessionID) != "" && turnSessionID != sessionID {
+		return fmt.Errorf("turn %s does not belong to session %s", turnID, sessionID)
+	}
 	runner := e.runner(turnSessionID)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()

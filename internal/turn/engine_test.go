@@ -1252,6 +1252,34 @@ func TestCancelQueuedTurn(t *testing.T) {
 	}
 }
 
+func TestCancelTurnRejectsSessionMismatch(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cancel_mismatch_a", "A", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session a: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_cancel_mismatch_b", "B", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session b: %v", err)
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_cancel_mismatch", "session_cancel_mismatch_a", "queued", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	engine := New(s)
+	err = engine.CancelTurn(ctx, "session_cancel_mismatch_b", queuedTurn.ID)
+	if err == nil || !strings.Contains(err.Error(), "does not belong to session") {
+		t.Fatalf("expected session mismatch error, got %v", err)
+	}
+	turnRec, err := s.GetTurn(ctx, queuedTurn.ID)
+	if err != nil {
+		t.Fatalf("get queued turn: %v", err)
+	}
+	if turnRec.Status != "queued" || turnRec.Phase != "queued" || strings.TrimSpace(turnRec.FinishedAt) != "" {
+		t.Fatalf("expected mismatched cancel to leave queued turn untouched, got %#v", turnRec)
+	}
+}
+
 func TestCancelQueuedTurnSurvivesCanceledCallerContext(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
@@ -1471,7 +1499,7 @@ func TestSkipHeldTurnSurvivesCanceledCallerContext(t *testing.T) {
 	}
 }
 
-func TestCancelQueuedTurnIgnoresCallerSessionID(t *testing.T) {
+func TestCancelQueuedTurnRejectsWrongCallerSessionID(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
 	ctx := context.Background()
@@ -1484,15 +1512,15 @@ func TestCancelQueuedTurnIgnoresCallerSessionID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create queued turn: %v", err)
 	}
-	if err := engine.CancelTurn(ctx, "session_cancel_b", queuedTurn.ID); err != nil {
-		t.Fatalf("cancel queued with wrong caller session: %v", err)
+	if err := engine.CancelTurn(ctx, "session_cancel_b", queuedTurn.ID); err == nil || !strings.Contains(err.Error(), "does not belong to session") {
+		t.Fatalf("expected session mismatch error, got %v", err)
 	}
 	turnRec, err := s.GetTurn(ctx, queuedTurn.ID)
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if turnRec.Status != "cancelled" {
-		t.Fatalf("expected cancelled, got %s", turnRec.Status)
+	if turnRec.Status != "queued" || turnRec.Phase != "queued" || strings.TrimSpace(turnRec.FinishedAt) != "" {
+		t.Fatalf("expected queued turn unchanged after wrong-session cancel attempt, got %#v", turnRec)
 	}
 }
 
