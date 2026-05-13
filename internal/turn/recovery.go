@@ -15,19 +15,23 @@ const (
 )
 
 func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) (bool, error) {
-	claims, err := e.store.ListStaleActiveTurnClaims(ctx, time.Now().Add(-interruptedTurnStaleAfter), sessionID)
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
+	claims, err := e.store.ListStaleActiveTurnClaims(opCtx, time.Now().Add(-interruptedTurnStaleAfter), sessionID)
 	if err != nil {
 		return false, err
 	}
 	recovered := false
 	sessionsToRestart := map[string]bool{}
 	for _, claim := range claims {
-		if err := e.recoverInterruptedTurn(ctx, claim); err != nil {
+		if err := e.recoverInterruptedTurn(opCtx, claim); err != nil {
 			log.Printf("turn recovery: recover %s/%s failed: %v", claim.SessionID, claim.TurnID, err)
 			continue
 		}
 		recovered = true
-		queueCount, err := e.store.CountQueuedTurns(ctx, claim.SessionID)
+		queueCount, err := e.store.CountQueuedTurns(opCtx, claim.SessionID)
 		if err != nil {
 			return recovered, err
 		}
@@ -36,7 +40,7 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 		}
 	}
 	for recoveredSessionID := range sessionsToRestart {
-		if err := e.startNextQueuedTurn(ctx, recoveredSessionID); err != nil {
+		if err := e.startNextQueuedTurn(opCtx, recoveredSessionID); err != nil {
 			return recovered, err
 		}
 	}
@@ -44,6 +48,10 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 }
 
 func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveTurnClaim) error {
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
 	disposition := "release_terminal"
 	status := claim.Status
 	phase := claim.Phase
@@ -89,23 +97,23 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 		if disposition == "hold_for_retry_or_skip_after_tool_checkpoint" {
 			markTurnFailureWithHold(e.backgroundContext(), e.store, claim.TurnID, claim.SessionID, "recovery_interrupted_tool_phase", "review", "Recovered stale turn that was interrupted while waiting on tool results")
 		}
-		if err := e.store.UpdateTurnStatusAndPhase(ctx, claim.TurnID, status, phase); err != nil {
+		if err := e.store.UpdateTurnStatusAndPhase(opCtx, claim.TurnID, status, phase); err != nil {
 			return err
 		}
 		if markFinished {
-			if err := e.store.MarkTurnFinished(ctx, claim.TurnID); err != nil {
+			if err := e.store.MarkTurnFinished(opCtx, claim.TurnID); err != nil {
 				return err
 			}
 		}
 	}
-	warnStore("turn recovered event append", e.store.AppendTurnEvent(ctx, claim.TurnID, claim.SessionID, "turn.recovered", payload))
-	if err := e.store.ReleaseSessionActiveTurn(ctx, claim.SessionID, claim.ClaimToken); err != nil {
+	warnStore("turn recovered event append", e.store.AppendTurnEvent(opCtx, claim.TurnID, claim.SessionID, "turn.recovered", payload))
+	if err := e.store.ReleaseSessionActiveTurn(opCtx, claim.SessionID, claim.ClaimToken); err != nil {
 		return err
 	}
-	if err := e.store.SyncSessionQueueCount(ctx, claim.SessionID); err != nil {
+	if err := e.store.SyncSessionQueueCount(opCtx, claim.SessionID); err != nil {
 		return err
 	}
-	queueCount, err := e.store.CountQueuedTurns(ctx, claim.SessionID)
+	queueCount, err := e.store.CountQueuedTurns(opCtx, claim.SessionID)
 	if err != nil {
 		return err
 	}
@@ -113,18 +121,18 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 	if queueCount > 0 {
 		sessionStatus = "queued"
 	}
-	if err := e.store.TouchSessionState(ctx, claim.SessionID, map[string]any{"active_turn_id": nil, "status": sessionStatus}); err != nil {
+	if err := e.store.TouchSessionState(opCtx, claim.SessionID, map[string]any{"active_turn_id": nil, "status": sessionStatus}); err != nil {
 		return err
 	}
-	turnRec, err := e.store.GetTurn(ctx, claim.TurnID)
+	turnRec, err := e.store.GetTurn(opCtx, claim.TurnID)
 	if err != nil {
 		return err
 	}
 	runner := e.runner(claim.SessionID)
-	agentID, model := runner.resolveTurnAgentAndModel(ctx, e.store, turnRec, claim.SessionID, turnRec.Prompt)
+	agentID, model := runner.resolveTurnAgentAndModel(opCtx, e.store, turnRec, claim.SessionID, turnRec.Prompt)
 	e.PublishRuntimeTurnEvent("turn_recovered", claim.SessionID, claim.TurnID, agentID, status, phase, cloneMap(payload))
-	runner.emitTurnStateHook(ctx, claim.SessionID, claim.TurnID, agentID, model, status, phase, cloneMap(payload))
-	runner.emitSessionStateHook(ctx, claim.SessionID, agentID, model, sessionStatus, map[string]any{"reason": "recovery", "recovery_disposition": disposition, "stale_claim": true, "active_turn_id": nil, "turn_id": claim.TurnID, "turn_status": status, "turn_phase": phase})
+	runner.emitTurnStateHook(opCtx, claim.SessionID, claim.TurnID, agentID, model, status, phase, cloneMap(payload))
+	runner.emitSessionStateHook(opCtx, claim.SessionID, agentID, model, sessionStatus, map[string]any{"reason": "recovery", "recovery_disposition": disposition, "stale_claim": true, "active_turn_id": nil, "turn_id": claim.TurnID, "turn_status": status, "turn_phase": phase})
 	return nil
 }
 

@@ -1708,6 +1708,58 @@ func TestRecoverInterruptedTurnReleasesCancelledClaimWithoutRequeue(t *testing.T
 	}
 }
 
+func TestRecoverInterruptedTurnsSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+
+	sess, err := s.CreateSession(ctx, "session_recover_cancel_ctx", "Recover", map[string]any{"status": "running"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_recover_cancel_ctx", sess.ID, "cancelled", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create cancelled turn: %v", err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, sess.ID, "turn_recover_cancel_ctx", "worker-test", "claim-recover-cancel-ctx"); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	} else if !ok {
+		t.Fatal("expected active turn claim to be acquired")
+	}
+	staleTime := time.Now().Add(-(interruptedTurnStaleAfter + 5*time.Second)).UTC().Format(time.RFC3339Nano)
+	if err := s.TouchSessionState(ctx, sess.ID, map[string]any{"active_turn_id": "turn_recover_cancel_ctx", "status": "running"}); err != nil {
+		t.Fatalf("touch session state: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_active_turns set updated_at = ? where session_id = ? and turn_id = ?`, staleTime, sess.ID, "turn_recover_cancel_ctx"); err != nil {
+		t.Fatalf("age active turn claim: %v", err)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	recovered, err := engine.recoverInterruptedTurns(cancelCtx, sess.ID)
+	if err != nil {
+		t.Fatalf("recover interrupted turns with canceled caller context: %v", err)
+	}
+	if !recovered {
+		t.Fatal("expected interrupted cancelled turn to be recovered")
+	}
+	if _, _, err := s.GetSessionActiveTurn(ctx, sess.ID); err != sql.ErrNoRows {
+		t.Fatalf("expected active claim released, got err=%v", err)
+	}
+	events, err := s.ListTurnEvents(ctx, "turn_recover_cancel_ctx")
+	if err != nil {
+		t.Fatalf("list recovery events: %v", err)
+	}
+	foundRecovered := false
+	for _, event := range events {
+		if event.Type == "turn.recovered" && event.Payload["reason"] == "recovery" {
+			foundRecovered = true
+		}
+	}
+	if !foundRecovered {
+		t.Fatalf("expected recovery audit row despite canceled caller context, got %#v", events)
+	}
+}
+
 func TestRecoverInterruptedTurnsStartsQueuedWorkAfterReleasingTerminalClaim(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
