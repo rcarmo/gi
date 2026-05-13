@@ -141,7 +141,7 @@ func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionR
 		return false, nil
 	}
 	coordCtx := ctx
-	if coordCtx == nil {
+	if coordCtx == nil || coordCtx.Err() != nil {
 		coordCtx = e.backgroundContext()
 	}
 	if _, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {

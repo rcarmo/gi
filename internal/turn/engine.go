@@ -497,11 +497,15 @@ func (e *Engine) runner(sessionID string) *sessionRunner {
 }
 
 func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, sessionID, turnID string) (bool, error) {
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
 	if hook := e.beforeLaunchClaimHook; hook != nil {
-		hook(ctx, sessionID, turnID)
+		hook(opCtx, sessionID, turnID)
 	}
 	claimToken := turnID
-	claimed, err := e.store.ClaimSessionActiveTurn(ctx, sessionID, turnID, "runner", claimToken)
+	claimed, err := e.store.ClaimSessionActiveTurn(opCtx, sessionID, turnID, "runner", claimToken)
 	if err != nil {
 		return false, err
 	}
@@ -518,16 +522,16 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 		}
 		cancel()
 	}
-	if err := e.store.MarkTurnClaimed(ctx, turnID, "runner"); err != nil {
+	if err := e.store.MarkTurnClaimed(opCtx, turnID, "runner"); err != nil {
 		releaseClaim()
 		return false, err
 	}
-	if err := e.store.UpdateTurnStatusAndPhase(ctx, turnID, "running", "setup"); err != nil {
+	if err := e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "running", "setup"); err != nil {
 		releaseClaim()
 		return false, err
 	}
-	if err := e.store.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "status": "running"}); err != nil {
-		warnStore("rollback turn status to queued", e.store.UpdateTurnStatusAndPhase(ctx, turnID, "queued", "queued"))
+	if err := e.store.TouchSessionState(opCtx, sessionID, map[string]any{"active_turn_id": turnID, "status": "running"}); err != nil {
+		warnStore("rollback turn status to queued", e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "queued", "queued"))
 		releaseClaim()
 		return false, err
 	}

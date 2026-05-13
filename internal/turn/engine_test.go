@@ -285,6 +285,44 @@ func TestConcurrentSubmitAcrossEnginesCompletesWithoutConflict(t *testing.T) {
 	}
 }
 
+func TestLaunchTurnLockedSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_launch_ctx", "Test", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_launch_ctx", "session_launch_ctx", "queued", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	engine := New(s)
+	runner := engine.runner("session_launch_ctx")
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	launched, err := engine.launchTurnLocked(cancelCtx, runner, "session_launch_ctx", queuedTurn.ID)
+	if err != nil {
+		t.Fatalf("launch turn with canceled caller context: %v", err)
+	}
+	if !launched {
+		t.Fatalf("expected queued turn to launch despite canceled caller context")
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, queuedTurn.ID)
+		return err == nil && strings.TrimSpace(turnRec.FinishedAt) != ""
+	}, "launched turn completion with canceled caller context")
+	turnRec, err := s.GetTurn(ctx, queuedTurn.ID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if turnRec.Status != "completed" {
+		t.Fatalf("expected launched turn to complete, got %#v", turnRec)
+	}
+	if _, _, err := s.GetSessionActiveTurn(ctx, "session_launch_ctx"); err != sql.ErrNoRows {
+		t.Fatalf("expected no lingering active turn after launched completion, got err=%v", err)
+	}
+}
+
 func TestSubmitPromptClaimConflictConvertsFreshTurnToSteering(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
