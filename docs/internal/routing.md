@@ -343,6 +343,7 @@ Current behavior:
 - direct prompt ingress reuses `SubmitPromptRouted(...)`
 - direct peer-message ingress reuses the routed peer-message path
 - direct continue ingress reuses `ContinueSession(...)`
+- direct/session-key resolution and those downstream routed prompt / peer-message / continue actions now fall back to engine-owned durable context when the caller context is already canceled, so direct/IPC/system ingress still reaches the normal runtime path instead of failing before session-key resolution or downstream submission
 - direct ingress may target a session by explicit `SessionID` or by explicit `SessionKey`, with session-key resolution flowing through the same canonical store lookup path used elsewhere; if both are supplied they must agree, otherwise the request is rejected as ambiguous
 - explicit system/internal entrypoints default the origin kind/role instead of relying on callers to pass those values ad hoc
 - same-session direct/system follow-up input while a turn is active reuses the steering path instead of spawning a competing queued turn
@@ -377,4 +378,4 @@ What routing does **not** assume yet:
 
 ## Recovery / DB-first semantics
 
-Routing never bypasses the normal queue/cancel/recovery path. Route decisions are persisted before execution starts so each routing action is durable even if inference is cancelled or fails. Queued/routed turn creation now also emits the canonical `runtime.turn` `turn_submitted` checkpoint so route-triggered queue entry is visible on the same live runtime topic surface as other turn lifecycle edges, not only in stored `turn.submitted` audit rows.
+Routing never bypasses the normal queue/cancel/recovery path. Route decisions are persisted before execution starts so each routing action is durable even if inference is cancelled or fails. Queued/routed turn creation now also emits the canonical `runtime.turn` `turn_submitted` checkpoint so route-triggered queue entry is visible on the same live runtime topic surface as other turn lifecycle edges, not only in stored `turn.submitted` audit rows. The current routing helper layer now also keeps the source-session routing notice, fork notice, and routed-peer downstream submit on the same durable-context footing when the caller context is already canceled, so route-side notices do not land without the corresponding routed action (or vice versa).
