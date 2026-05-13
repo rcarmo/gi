@@ -11,7 +11,11 @@ func lookupSessionIdentity(ctx context.Context, s *store.Store, sess *store.Sess
 	if s == nil || sess == nil || strings.TrimSpace(sess.ID) == "" {
 		return nil
 	}
-	identity, err := s.GetSessionIdentity(ctx, sess.ID)
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = context.Background()
+	}
+	identity, err := s.GetSessionIdentity(opCtx, sess.ID)
 	if err != nil {
 		return nil
 	}

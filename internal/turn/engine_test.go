@@ -285,6 +285,28 @@ func TestConcurrentSubmitAcrossEnginesCompletesWithoutConflict(t *testing.T) {
 	}
 }
 
+func TestSessionIdentityHelpersSurviveCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("agentx", "web", "acctx", "session_identity_ctx")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_identity_ctx", Title: "@agentx", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session with canonical identity: %v", err)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	if got := sessionAgentIDWithStore(cancelCtx, s, sess); got != "agentx" {
+		t.Fatalf("expected canonical agent id under canceled caller context, got %q", got)
+	}
+	if got := sessionChannelWithStore(cancelCtx, s, sess); got != "web" {
+		t.Fatalf("expected canonical channel under canceled caller context, got %q", got)
+	}
+	if got := sessionAccountWithStore(cancelCtx, s, sess); got != "acctx" {
+		t.Fatalf("expected canonical account under canceled caller context, got %q", got)
+	}
+}
+
 func TestLaunchTurnLockedSurvivesCanceledCallerContext(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
