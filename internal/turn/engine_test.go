@@ -2525,6 +2525,32 @@ func TestProcessDirectPromptResolvesExplicitSessionKey(t *testing.T) {
 	if stringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
 		t.Fatalf("expected ingress session key metadata, got %#v", turnRec.Metadata)
 	}
+	msgs, err := s.ListMessages(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("list messages: %v", err)
+	}
+	foundUserIngress := false
+	for _, msg := range msgs {
+		if msg.Role == "user" && msg.Content == "hello from key" && stringValue(msg.Payload["ingress_session_key"], "") == alloc.SessionKey {
+			foundUserIngress = true
+		}
+	}
+	if !foundUserIngress {
+		t.Fatalf("expected persisted user message ingress_session_key, got %#v", msgs)
+	}
+	events, err := s.ListTurnEvents(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("list turn events: %v", err)
+	}
+	foundStartedIngress := false
+	for _, event := range events {
+		if event.Type == "turn.started" && stringValue(event.Payload["ingress_session_key"], "") == alloc.SessionKey {
+			foundStartedIngress = true
+		}
+	}
+	if !foundStartedIngress {
+		t.Fatalf("expected turn.started ingress_session_key, got %#v", events)
+	}
 }
 
 func TestProcessDirectRoutedPromptPreservesIngressMetadata(t *testing.T) {

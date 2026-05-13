@@ -86,7 +86,7 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 	r.engine.PublishRuntimeTurnEvent("turn_started", sessionID, turnID, agentID, "running", "setup", map[string]any{"reason": "setup", "model": model})
 	r.emitTurnStateHookOnly(ctx, sessionID, turnID, agentID, model, "running", "setup", map[string]any{"reason": "setup"})
 	userPayload := map[string]any{"kind": "chat", "intent": intent, "turn_id": turnID}
-	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "ingress_kind", "ingress_source_kind", "ingress_source_id", "ingress_role", "ingress_label"} {
+	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "ingress_kind", "ingress_source_kind", "ingress_source_id", "ingress_role", "ingress_label", "ingress_session_key"} {
 		if value, ok := turnRec.Metadata[key]; ok {
 			userPayload[key] = value
 		}
@@ -95,7 +95,7 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 		warnStore("add user prompt message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload))
 	}
 	startedPayload := map[string]any{"phase": "turn", "prompt": prompt, "intent": intent, "model": model, "checkpoint": true}
-	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "parent_turn_id", "route_mode", "route_matched_by", "ingress_kind", "ingress_source_kind", "ingress_source_id", "ingress_role", "ingress_label"} {
+	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "parent_turn_id", "route_mode", "route_matched_by", "ingress_kind", "ingress_source_kind", "ingress_source_id", "ingress_role", "ingress_label", "ingress_session_key"} {
 		if value, ok := turnRec.Metadata[key]; ok {
 			startedPayload[key] = value
 		}
