@@ -29,7 +29,11 @@ type routeSessionPlan struct {
 }
 
 func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) (*routedPromptResolution, error) {
-	source, err := e.store.GetSession(ctx, in.SessionID)
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
+	source, err := e.store.GetSession(opCtx, in.SessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +47,7 @@ func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) 
 		promptBody = body
 		mentioned = true
 	}
-	inbound := inboundContextFromSession(ctx, e.store, source)
+	inbound := inboundContextFromSession(opCtx, e.store, source)
 	inbound.SenderID = "user"
 	inbound.Mentioned = mentioned
 	inbound.Prompt = promptBody
@@ -62,12 +66,16 @@ func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) 
 }
 
 func (e *Engine) preparePeerRouteResolution(ctx context.Context, sourceSessionID, targetAgentID, content, matchedBy string) (*routedPromptResolution, error) {
-	source, err := e.store.GetSession(ctx, sourceSessionID)
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
+	source, err := e.store.GetSession(opCtx, sourceSessionID)
 	if err != nil {
 		return nil, err
 	}
-	inbound := inboundContextFromSession(ctx, e.store, source)
-	inbound.SenderID = sessionAgentIDWithStore(ctx, e.store, source)
+	inbound := inboundContextFromSession(opCtx, e.store, source)
+	inbound.SenderID = sessionAgentIDWithStore(opCtx, e.store, source)
 	inbound.Mentioned = true
 	inbound.Prompt = content
 	route := e.routeResolver.ResolveRoute(inbound)
@@ -93,6 +101,9 @@ func (e *Engine) resolveRoutedPromptTarget(ctx context.Context, resolution *rout
 }
 
 func (e *Engine) applyLocalRouteMetadata(ctx context.Context, in *RunInput, resolution *routedPromptResolution) {
+	if ctx == nil || ctx.Err() != nil {
+		ctx = e.backgroundContext()
+	}
 	if in.Metadata == nil {
 		in.Metadata = map[string]any{}
 	}
@@ -127,18 +138,22 @@ func (e *Engine) prepareRouteSessionPlan(source *store.Session, route routing.Re
 }
 
 func (e *Engine) resolveExistingRouteSession(ctx context.Context, plan *routeSessionPlan) (*store.Session, error) {
-	if existing, err := e.store.ResolveSessionByAllocation(ctx, plan.allocation); err == nil {
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
+	if existing, err := e.store.ResolveSessionByAllocation(opCtx, plan.allocation); err == nil {
 		return existing, nil
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	if existing, err := e.store.FindChildSessionByParentAndAgent(ctx, plan.source.ID, plan.route.AgentID); err == nil {
+	if existing, err := e.store.FindChildSessionByParentAndAgent(opCtx, plan.source.ID, plan.route.AgentID); err == nil {
 		return existing, nil
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
 	if strings.TrimSpace(plan.source.ParentSessionID) != "" {
-		if existing, err := e.store.FindChildSessionByParentAndAgent(ctx, plan.source.ParentSessionID, plan.route.AgentID); err == nil {
+		if existing, err := e.store.FindChildSessionByParentAndAgent(opCtx, plan.source.ParentSessionID, plan.route.AgentID); err == nil {
 			return existing, nil
 		} else if err != nil && err != sql.ErrNoRows {
 			return nil, err

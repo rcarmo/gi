@@ -10,20 +10,24 @@ import (
 )
 
 func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitResult, error) {
-	resolution, err := e.preparePromptRouteResolution(ctx, in)
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
+	resolution, err := e.preparePromptRouteResolution(opCtx, in)
 	if err != nil {
 		return nil, err
 	}
-	if err := e.resolveRoutedPromptTarget(ctx, resolution); err != nil {
+	if err := e.resolveRoutedPromptTarget(opCtx, resolution); err != nil {
 		return nil, err
 	}
 	if resolution.target.ID != resolution.source.ID {
-		return e.submitPeerRoutedPrompt(ctx, resolution.source, resolution.target, resolution.route, resolution.promptBody, in.Intent, in.Model, resolution.created, resolution.directed, in.ParentTurnID, in.Metadata)
+		return e.submitPeerRoutedPrompt(opCtx, resolution.source, resolution.target, resolution.route, resolution.promptBody, in.Intent, in.Model, resolution.created, resolution.directed, in.ParentTurnID, in.Metadata)
 	}
 	in.SessionID = resolution.target.ID
 	in.Prompt = resolution.promptBody
-	e.applyLocalRouteMetadata(ctx, &in, resolution)
-	return e.SubmitPrompt(ctx, in)
+	e.applyLocalRouteMetadata(opCtx, &in, resolution)
+	return e.SubmitPrompt(opCtx, in)
 }
 
 func (e *Engine) SubmitPeerMessage(ctx context.Context, sourceSessionID, targetAgentID, content, intent, model, parentTurnID string) (*SubmitResult, error) {
@@ -31,46 +35,58 @@ func (e *Engine) SubmitPeerMessage(ctx context.Context, sourceSessionID, targetA
 }
 
 func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessionID, targetAgentID, content, intent, model, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
-	resolution, err := e.preparePeerRouteResolution(ctx, sourceSessionID, targetAgentID, content, "peer-message")
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
+	resolution, err := e.preparePeerRouteResolution(opCtx, sourceSessionID, targetAgentID, content, "peer-message")
 	if err != nil {
 		return nil, err
 	}
-	if err := e.resolveRoutedPromptTarget(ctx, resolution); err != nil {
+	if err := e.resolveRoutedPromptTarget(opCtx, resolution); err != nil {
 		return nil, err
 	}
-	return e.submitPeerRoutedPrompt(ctx, resolution.source, resolution.target, resolution.route, content, intent, model, resolution.created, resolution.directed, parentTurnID, extraMetadata)
+	return e.submitPeerRoutedPrompt(opCtx, resolution.source, resolution.target, resolution.route, content, intent, model, resolution.created, resolution.directed, parentTurnID, extraMetadata)
 }
 
 func (e *Engine) ResolveOrCreatePeerSession(ctx context.Context, sourceSessionID, targetAgentID string) (*store.Session, bool, error) {
-	resolution, err := e.preparePeerRouteResolution(ctx, sourceSessionID, targetAgentID, "", "peer-session")
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
+	resolution, err := e.preparePeerRouteResolution(opCtx, sourceSessionID, targetAgentID, "", "peer-session")
 	if err != nil {
 		return nil, false, err
 	}
-	if err := e.resolveRoutedPromptTarget(ctx, resolution); err != nil {
+	if err := e.resolveRoutedPromptTarget(opCtx, resolution); err != nil {
 		return nil, false, err
 	}
 	return resolution.target, resolution.created, nil
 }
 
 func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.Session, route routing.ResolvedRoute, inbound routing.InboundContext) (*store.Session, bool, error) {
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
 	if source == nil {
 		return nil, false, fmt.Errorf("missing source session")
 	}
-	if normalizeAgentID(sessionAgentIDWithStore(ctx, e.store, source)) == normalizeAgentID(route.AgentID) {
+	if normalizeAgentID(sessionAgentIDWithStore(opCtx, e.store, source)) == normalizeAgentID(route.AgentID) {
 		return source, false, nil
 	}
 	plan, err := e.prepareRouteSessionPlan(source, route, inbound)
 	if err != nil {
 		return nil, false, err
 	}
-	existing, err := e.resolveExistingRouteSession(ctx, plan)
+	existing, err := e.resolveExistingRouteSession(opCtx, plan)
 	if err != nil {
 		return nil, false, err
 	}
 	if existing != nil {
 		return existing, false, nil
 	}
-	cloned, created, err := e.cloneRouteSession(ctx, plan)
+	cloned, created, err := e.cloneRouteSession(opCtx, plan)
 	if err != nil {
 		return nil, false, err
 	}

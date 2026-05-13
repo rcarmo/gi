@@ -2563,6 +2563,43 @@ func TestHoldResolutionPublishesRuntimeTurnCheckpoints(t *testing.T) {
 	}
 }
 
+func TestSubmitPromptRoutedSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	root, err := s.CreateSession(ctx, "session_root_routed_cancel_ctx", "@agent", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	result, err := engine.SubmitPromptRouted(cancelCtx, RunInput{SessionID: root.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit routed prompt with canceled caller context: %v", err)
+	}
+	if !result.Routed || result.TurnID == "" || result.SessionID == root.ID {
+		t.Fatalf("expected routed prompt result despite canceled caller context, got %#v", result)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && strings.TrimSpace(turnRec.FinishedAt) != ""
+	}, "routed prompt completion with canceled caller context")
+	msgs, err := s.ListMessages(ctx, root.ID)
+	if err != nil {
+		t.Fatalf("list source messages: %v", err)
+	}
+	foundRoutingNotice := false
+	for _, msg := range msgs {
+		if msg.Role == "system" && msg.Payload["kind"] == "routing" {
+			foundRoutingNotice = true
+		}
+	}
+	if !foundRoutingNotice {
+		t.Fatalf("expected source routing notice despite canceled caller context, got %#v", msgs)
+	}
+}
+
 func TestSubmitPromptRoutedCreatesChildAgentSession(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
