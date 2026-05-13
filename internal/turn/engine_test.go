@@ -2037,13 +2037,20 @@ func TestShellTurnPublishesTerminalRuntimeTopics(t *testing.T) {
 		t.Fatalf("list turn events: %v", err)
 	}
 	foundFinishedAudit := false
+	foundToolFinishedAudit := false
 	for _, event := range events {
 		if event.Type == "turn.finished" && event.Payload["status"] == "completed" && event.Payload["completion_kind"] == "response" {
 			foundFinishedAudit = true
 		}
+		if event.Type == "tool.finished" && event.Payload["tool"] == "shell" && event.Payload["output_length"] != nil {
+			foundToolFinishedAudit = true
+		}
 	}
 	if !foundFinishedAudit {
 		t.Fatalf("expected shell completion to persist completion_kind on turn.finished, got %#v", events)
+	}
+	if !foundToolFinishedAudit {
+		t.Fatalf("expected shell completion to persist normalized tool.finished audit row, got %#v", events)
 	}
 }
 
@@ -2157,13 +2164,20 @@ func TestShellFailureBroadcastsSystemMessageToTurnResponseTopic(t *testing.T) {
 		t.Fatalf("list turn events: %v", err)
 	}
 	foundFinishedAudit := false
+	foundToolFailedAudit := false
 	for _, event := range events {
 		if event.Type == "turn.finished" && event.Payload["status"] == "failed" && event.Payload["reason"] == "shell_error" && event.Payload["failure_kind"] == "shell_error" {
 			foundFinishedAudit = true
 		}
+		if event.Type == "tool.failed" && event.Payload["tool"] == "shell" && event.Payload["failure_kind"] == "shell_error" {
+			foundToolFailedAudit = true
+		}
 	}
 	if !foundFinishedAudit {
 		t.Fatalf("expected shell failure to persist turn.finished audit row, got %#v", events)
+	}
+	if !foundToolFailedAudit {
+		t.Fatalf("expected shell failure to persist normalized tool.failed audit row, got %#v", events)
 	}
 }
 

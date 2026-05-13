@@ -196,7 +196,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 		r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
 		markTurnFailure(bgCtx, s, run.turnID, run.sessionID, "shell_error", runErr.Error())
 		r.engine.PublishRuntimeToolEvent("tool_failed", run.sessionID, run.turnID, run.agentID, "shell", "", 0, runErr, map[string]any{"phase": "tool"})
-		warnStore("append shell tool.failed event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error()}))
+		warnStore("append shell tool.failed event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error(), "failure_kind": "shell_error"}))
 		msgID := store.NowID("msg")
 		warnStore("add shell failure system message", s.AddMessage(bgCtx, msgID, run.sessionID, "system", fmt.Sprintf("Shell tool failed: %v", runErr), map[string]any{"kind": "status", "turn_id": run.turnID, "source": "system", "failure_kind": "shell_error"}))
 		r.broadcastSystemPost(run.sessionID, run.turnID, msgID, fmt.Sprintf("Shell tool failed: %v", runErr))
@@ -214,7 +214,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	bgCtx := r.engine.backgroundContext()
 	r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
 	r.engine.PublishRuntimeToolEvent("tool_finished", run.sessionID, run.turnID, run.agentID, "shell", "", 0, nil, map[string]any{"phase": "tool", "output_length": len(out)})
-	warnStore("append shell tool.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "output": out}))
+	warnStore("append shell tool.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "output_length": len(out)}))
 	msgID := store.NowID("msg")
 	warnStore("add shell assistant message", s.AddMessage(bgCtx, msgID, run.sessionID, "assistant", out, map[string]any{"kind": "chat", "source": "shell", "turn_id": run.turnID, "agent_id": run.agentID}))
 	r.engine.broadcast(run.sessionID, map[string]any{
