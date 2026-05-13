@@ -25,6 +25,10 @@ func parseDirectedPrompt(prompt string) (string, string, bool) {
 }
 
 func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnID string, metadata map[string]any) error {
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
 	sourceSession := stringValue(metadata["source_session_id"], sourceSessionID)
 	targetSession := stringValue(metadata["target_session_id"], "")
 	targetAgentID := stringValue(metadata["target_agent_id"], "")
@@ -34,9 +38,9 @@ func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnI
 	routeMode := stringValue(metadata["route_mode"], stringValue(metadata["mode"], "prompt"))
 	sourceAgent := stringValue(metadata["source_agent_id"], "")
 	if sourceAgent == "" {
-		sess, err := e.store.GetSession(ctx, sourceSession)
+		sess, err := e.store.GetSession(opCtx, sourceSession)
 		if err == nil {
-			sourceAgent = sessionAgentIDWithStore(ctx, e.store, sess)
+			sourceAgent = sessionAgentIDWithStore(opCtx, e.store, sess)
 		}
 	}
 	routingPolicy := stringValue(metadata["routing_policy"], "")
@@ -52,7 +56,7 @@ func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnI
 	if !boolValueOr(metadata["routing_enabled"], true) {
 		return nil
 	}
-	routeEventID, err := e.store.RecordRouteEvent(ctx, decision)
+	routeEventID, err := e.store.RecordRouteEvent(opCtx, decision)
 	if err != nil {
 		return err
 	}

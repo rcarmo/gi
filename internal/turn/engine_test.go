@@ -2610,6 +2610,53 @@ func TestHoldResolutionPublishesRuntimeTurnCheckpoints(t *testing.T) {
 	}
 }
 
+func TestRecordRouteDecisionSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("routeagent", "web", "routeacct", "session_route_ctx")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_route_ctx", Title: "@routeagent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session with canonical identity: %v", err)
+	}
+	target, err := s.CloneSession(ctx, sess.ID, "session_target_ctx", "@agent1", "agent1")
+	if err != nil {
+		t.Fatalf("create target session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_route_ctx", sess.ID, "queued", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create route turn: %v", err)
+	}
+	engine := New(s)
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	metadata := map[string]any{
+		"source_session_id":  sess.ID,
+		"target_session_id":  target.ID,
+		"target_agent_id":    "agent1",
+		"route_mode":         "prompt",
+		"route_matched_by":   "mention",
+		"routing_policy":     "mention",
+		"requested_agent_id": "agent1",
+		"routing_enabled":    true,
+	}
+	if err := engine.recordRouteDecision(cancelCtx, sess.ID, "turn_route_ctx", metadata); err != nil {
+		t.Fatalf("record route decision with canceled caller context: %v", err)
+	}
+	events, err := s.ListRouteEvents(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("list route events: %v", err)
+	}
+	found := false
+	for _, event := range events {
+		if event.TurnID == "turn_route_ctx" && event.SourceAgentID == "routeagent" && event.TargetAgentID == "agent1" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected route event with canonical source agent despite canceled caller context, got %#v", events)
+	}
+}
+
 func TestSubmitPromptRoutedSurvivesCanceledCallerContext(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
