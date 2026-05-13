@@ -20,6 +20,10 @@ func coordinationContext(ctx context.Context, fallback context.Context) context.
 	return nil
 }
 
+func normalizedLowerString(v string) string {
+	return strings.ToLower(strings.TrimSpace(v))
+}
+
 func stringValue(v any, fallback string) string {
 	if s, ok := v.(string); ok && s != "" {
 		return s

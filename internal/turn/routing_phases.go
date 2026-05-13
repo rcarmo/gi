@@ -221,12 +221,12 @@ func splitScopedValue(raw, fallbackType string) (string, string, bool) {
 	}
 	parts := strings.SplitN(raw, ":", 2)
 	if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
-		return strings.ToLower(strings.TrimSpace(parts[0])), strings.ToLower(strings.TrimSpace(parts[1])), true
+		return normalizedLowerString(parts[0]), normalizedLowerString(parts[1]), true
 	}
 	if strings.TrimSpace(fallbackType) == "" {
-		return "", strings.ToLower(raw), true
+		return "", normalizedLowerString(raw), true
 	}
-	return strings.ToLower(strings.TrimSpace(fallbackType)), strings.ToLower(raw), true
+	return normalizedLowerString(fallbackType), normalizedLowerString(raw), true
 }
 
 func (e *Engine) copyRouteSessionHistory(ctx context.Context, sourceSessionID, targetSessionID string) {

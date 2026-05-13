@@ -81,5 +81,5 @@ func sessionAccount(sess *store.Session) string {
 }
 
 func normalizeAgentID(v string) string {
-	return strings.TrimSpace(strings.TrimPrefix(strings.ToLower(v), "@"))
+	return strings.TrimSpace(strings.TrimPrefix(normalizedLowerString(v), "@"))
 }

@@ -285,6 +285,27 @@ func TestConcurrentSubmitAcrossEnginesCompletesWithoutConflict(t *testing.T) {
 	}
 }
 
+func TestParsingHelpersNormalizeAsExpected(t *testing.T) {
+	if got := normalizeAgentID(" @Agent-One "); got != "agent-one" {
+		t.Fatalf("expected normalized agent id, got %q", got)
+	}
+	if got := normalizeDirectKind("  PEER-message "); got != DirectKindPeerMessage {
+		t.Fatalf("expected normalized direct kind, got %q", got)
+	}
+	if got := normalizeDirectSourceKind("  SYSTEM "); got != DirectSourceKindSystem {
+		t.Fatalf("expected normalized direct source kind, got %q", got)
+	}
+	if target, body, ok := parseDirectedPrompt("  @Agent-One: hello there  "); !ok || target != "agent-one" || body != "hello there" {
+		t.Fatalf("expected directed prompt parse, got target=%q body=%q ok=%v", target, body, ok)
+	}
+	if typ, id, ok := splitScopedValue(" Room:Eng ", "space"); !ok || typ != "room" || id != "eng" {
+		t.Fatalf("expected scoped value parse, got type=%q id=%q ok=%v", typ, id, ok)
+	}
+	if typ, id, ok := splitScopedValue("Thread-7", "group"); !ok || typ != "group" || id != "thread-7" {
+		t.Fatalf("expected fallback scoped value parse, got type=%q id=%q ok=%v", typ, id, ok)
+	}
+}
+
 func TestCoordinationContextPrefersActiveCallerAndFallsBackWhenNeeded(t *testing.T) {
 	activeCtx := context.Background()
 	fallbackCtx := context.Background()

@@ -18,7 +18,8 @@ const (
 )
 
 func normalizeDirectKind(kind string) string {
-	switch strings.TrimSpace(strings.ToLower(kind)) {
+	kind = normalizedLowerString(kind)
+	switch kind {
 	case "", DirectKindPrompt:
 		return DirectKindPrompt
 	case DirectKindPeerMessage:
@@ -26,12 +27,13 @@ func normalizeDirectKind(kind string) string {
 	case DirectKindContinue:
 		return DirectKindContinue
 	default:
-		return strings.TrimSpace(strings.ToLower(kind))
+		return kind
 	}
 }
 
 func normalizeDirectSourceKind(kind string) string {
-	switch strings.TrimSpace(strings.ToLower(kind)) {
+	kind = normalizedLowerString(kind)
+	switch kind {
 	case "", DirectSourceKindDirect:
 		return DirectSourceKindDirect
 	case DirectSourceKindIPC:
@@ -41,7 +43,7 @@ func normalizeDirectSourceKind(kind string) string {
 	case DirectSourceKindInternal:
 		return DirectSourceKindInternal
 	default:
-		return strings.TrimSpace(strings.ToLower(kind))
+		return kind
 	}
 }
 
