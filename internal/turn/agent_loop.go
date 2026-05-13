@@ -335,7 +335,11 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 	if strings.TrimSpace(childTurnID) == "" {
 		return
 	}
-	sub, err := r.store.GetSubTurnByChild(ctx, childTurnID)
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = r.engine.backgroundContext()
+	}
+	sub, err := r.store.GetSubTurnByChild(opCtx, childTurnID)
 	if err != nil {
 		return
 	}
@@ -359,16 +363,16 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 	if !isTerminalSubTurnStatus(status) {
 		return
 	}
-	summary := r.subTurnResultSummary(ctx, sub.ChildSessionID, sub.ChildTurnID)
+	summary := r.subTurnResultSummary(opCtx, sub.ChildSessionID, sub.ChildTurnID)
 	if sub.DeliveryMode == "async" {
 		orphaned := false
-		if parentTurn, err := r.store.GetTurn(ctx, sub.ParentTurnID); err == nil {
+		if parentTurn, err := r.store.GetTurn(opCtx, sub.ParentTurnID); err == nil {
 			orphaned = isTerminalSubTurnStatus(parentTurn.Status)
 		}
 		eventType := "subturn_result_ready"
 		if orphaned {
 			eventType = "subturn_orphaned"
-			warnStore("update async subturn orphan metadata", r.store.UpdateSubTurnMetadataByChild(ctx, sub.ChildTurnID, map[string]any{
+			warnStore("update async subturn orphan metadata", r.store.UpdateSubTurnMetadataByChild(opCtx, sub.ChildTurnID, map[string]any{
 				"orphaned":      true,
 				"orphaned_at":   time.Now().UTC().Format(time.RFC3339Nano),
 				"orphan_reason": "parent_turn_completed_before_async_result_consumption",
@@ -378,7 +382,7 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 				if strings.TrimSpace(summary) != "" {
 					content += "\n\n" + summary
 				}
-				warnStore("add async orphan result message", r.store.AddMessage(ctx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
+				warnStore("add async orphan result message", r.store.AddMessage(opCtx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
 					"kind":             "subturn_orphan_result",
 					"parent_turn_id":   sub.ParentTurnID,
 					"child_turn_id":    sub.ChildTurnID,
@@ -409,7 +413,7 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 		if strings.TrimSpace(summary) != "" {
 			content += "\n\n" + summary
 		}
-		warnStore("add sync subturn result message", r.store.AddMessage(ctx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
+		warnStore("add sync subturn result message", r.store.AddMessage(opCtx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
 			"kind":             "subturn_result",
 			"parent_turn_id":   sub.ParentTurnID,
 			"child_turn_id":    sub.ChildTurnID,

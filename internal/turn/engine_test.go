@@ -3551,6 +3551,48 @@ func TestSubTurnSyncVsAsyncResultDelivery(t *testing.T) {
 	}
 }
 
+func TestSubTurnSyncResultDeliverySurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_parent_delivery_ctx", "Parent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create parent session: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_child_sync_delivery_ctx", "ChildSync", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_parent_delivery_ctx", "session_parent_delivery_ctx", "running", "parent", map[string]any{"intent": "prompt", "subturn_depth": 0}); err != nil {
+		t.Fatalf("create parent turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_child_sync_delivery_ctx", "session_child_sync_delivery_ctx", "completed", "child", map[string]any{"intent": "prompt", "subturn_depth": 1, "parent_turn_id": "turn_parent_delivery_ctx"}); err != nil {
+		t.Fatalf("create child turn: %v", err)
+	}
+	if err := s.AddMessage(ctx, "msg_child_sync_summary_ctx", "session_child_sync_delivery_ctx", "assistant", "child sync result", map[string]any{"kind": "chat", "turn_id": "turn_child_sync_delivery_ctx"}); err != nil {
+		t.Fatalf("seed child summary message: %v", err)
+	}
+	if _, err := s.CreateSubTurn(ctx, "turn_parent_delivery_ctx", "session_parent_delivery_ctx", "turn_child_sync_delivery_ctx", "session_child_sync_delivery_ctx", "sync", 1, map[string]any{"intent": "prompt"}); err != nil {
+		t.Fatalf("create sync subturn: %v", err)
+	}
+	engine := New(s)
+	runner := engine.runner("session_child_sync_delivery_ctx")
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	runner.publishSubTurnLifecycle(cancelCtx, "turn_child_sync_delivery_ctx", "completed")
+	parentMsgs, err := s.ListMessages(ctx, "session_parent_delivery_ctx")
+	if err != nil {
+		t.Fatalf("list parent messages: %v", err)
+	}
+	found := false
+	for _, msg := range parentMsgs {
+		if msg.Role == "system" && msg.Payload["kind"] == "subturn_result" && msg.Payload["delivery_mode"] == "sync" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected sync subturn delivery despite canceled caller context, got %#v", parentMsgs)
+	}
+}
+
 func TestAsyncSubTurnOrphanHandlingPersistsParentNotice(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
@@ -3575,7 +3617,9 @@ func TestAsyncSubTurnOrphanHandlingPersistsParentNotice(t *testing.T) {
 	}
 	engine := New(s)
 	runner := engine.runner("session_child_orphan")
-	runner.publishSubTurnLifecycle(ctx, "turn_child_orphan", "completed")
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	runner.publishSubTurnLifecycle(cancelCtx, "turn_child_orphan", "completed")
 
 	sub, err := s.GetSubTurnByChild(ctx, "turn_child_orphan")
 	if err != nil {
