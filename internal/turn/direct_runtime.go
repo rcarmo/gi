@@ -62,13 +62,17 @@ func (e *Engine) ProcessInternalDirect(ctx context.Context, in DirectInput) (*Su
 }
 
 func (e *Engine) resolveDirectSessionID(ctx context.Context, in DirectInput) (string, error) {
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
 	sessionID := strings.TrimSpace(in.SessionID)
 	sessionKey := strings.TrimSpace(in.SessionKey)
 	if sessionKey != "" {
 		if e.store == nil {
 			return "", fmt.Errorf("direct processing requires store-backed session resolution")
 		}
-		sess, err := e.store.ResolveSessionByKeyOrAlias(ctx, sessionKey)
+		sess, err := e.store.ResolveSessionByKeyOrAlias(opCtx, sessionKey)
 		if err != nil {
 			return "", err
 		}
@@ -84,6 +88,10 @@ func (e *Engine) resolveDirectSessionID(ctx context.Context, in DirectInput) (st
 }
 
 func (e *Engine) ProcessDirect(ctx context.Context, in DirectInput) (*SubmitResult, error) {
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = e.backgroundContext()
+	}
 	kind := normalizeDirectKind(in.Kind)
 	metadata := map[string]any{}
 	for k, v := range in.Metadata {
@@ -103,20 +111,20 @@ func (e *Engine) ProcessDirect(ctx context.Context, in DirectInput) (*SubmitResu
 	if value := strings.TrimSpace(in.SessionKey); value != "" {
 		metadata["ingress_session_key"] = value
 	}
-	sessionID, err := e.resolveDirectSessionID(ctx, in)
+	sessionID, err := e.resolveDirectSessionID(opCtx, in)
 	if err != nil {
 		return nil, err
 	}
 	switch kind {
 	case DirectKindPrompt:
-		return e.SubmitPromptRouted(ctx, RunInput{SessionID: sessionID, Prompt: in.Prompt, Intent: in.Intent, Model: in.Model, ParentTurnID: in.ParentTurnID, Metadata: metadata})
+		return e.SubmitPromptRouted(opCtx, RunInput{SessionID: sessionID, Prompt: in.Prompt, Intent: in.Intent, Model: in.Model, ParentTurnID: in.ParentTurnID, Metadata: metadata})
 	case DirectKindPeerMessage:
 		if strings.TrimSpace(in.TargetAgentID) == "" {
 			return nil, fmt.Errorf("direct peer-message requires target agent id")
 		}
-		return e.submitPeerMessageWithMetadata(ctx, sessionID, in.TargetAgentID, in.Prompt, in.Intent, in.Model, in.ParentTurnID, metadata)
+		return e.submitPeerMessageWithMetadata(opCtx, sessionID, in.TargetAgentID, in.Prompt, in.Intent, in.Model, in.ParentTurnID, metadata)
 	case DirectKindContinue:
-		continued, err := e.ContinueSession(ctx, sessionID)
+		continued, err := e.ContinueSession(opCtx, sessionID)
 		if err != nil {
 			return nil, err
 		}

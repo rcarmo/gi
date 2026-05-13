@@ -2894,6 +2894,38 @@ func TestProcessDirectPromptResolvesExplicitSessionKey(t *testing.T) {
 	}
 }
 
+func TestProcessDirectPromptBySessionKeySurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_direct_key_ctx")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_direct_key_ctx", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	result, err := engine.ProcessDirect(cancelCtx, DirectInput{Kind: DirectKindPrompt, SessionKey: alloc.SessionKey, Prompt: "hello from canceled key", Model: "bootstrap", Origin: DirectOrigin{SourceKind: DirectSourceKindIPC, SourceID: "ipc:key:ctx"}})
+	if err != nil {
+		t.Fatalf("process direct prompt by session key with canceled caller context: %v", err)
+	}
+	waitForCondition(t, time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && strings.TrimSpace(turnRec.FinishedAt) != ""
+	}, "direct prompt by session key completion with canceled caller context")
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get turn: %v", err)
+	}
+	if turnRec.SessionID != sess.ID || stringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
+		t.Fatalf("expected canceled-caller direct prompt to resolve session key and persist turn, got %#v", turnRec)
+	}
+}
+
 func TestProcessDirectRoutedPromptPreservesIngressMetadata(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
