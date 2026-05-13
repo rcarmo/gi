@@ -62,10 +62,7 @@ func (e *Engine) ProcessInternalDirect(ctx context.Context, in DirectInput) (*Su
 }
 
 func (e *Engine) resolveDirectSessionID(ctx context.Context, in DirectInput) (string, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	sessionID := strings.TrimSpace(in.SessionID)
 	sessionKey := strings.TrimSpace(in.SessionKey)
 	if sessionKey != "" {
@@ -88,10 +85,7 @@ func (e *Engine) resolveDirectSessionID(ctx context.Context, in DirectInput) (st
 }
 
 func (e *Engine) ProcessDirect(ctx context.Context, in DirectInput) (*SubmitResult, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	kind := normalizeDirectKind(in.Kind)
 	metadata := map[string]any{}
 	for k, v := range in.Metadata {

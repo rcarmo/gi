@@ -10,10 +10,7 @@ import (
 )
 
 func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitResult, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	resolution, err := e.preparePromptRouteResolution(opCtx, in)
 	if err != nil {
 		return nil, err
@@ -35,10 +32,7 @@ func (e *Engine) SubmitPeerMessage(ctx context.Context, sourceSessionID, targetA
 }
 
 func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessionID, targetAgentID, content, intent, model, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	resolution, err := e.preparePeerRouteResolution(opCtx, sourceSessionID, targetAgentID, content, "peer-message")
 	if err != nil {
 		return nil, err
@@ -50,10 +44,7 @@ func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessio
 }
 
 func (e *Engine) ResolveOrCreatePeerSession(ctx context.Context, sourceSessionID, targetAgentID string) (*store.Session, bool, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	resolution, err := e.preparePeerRouteResolution(opCtx, sourceSessionID, targetAgentID, "", "peer-session")
 	if err != nil {
 		return nil, false, err
@@ -65,10 +56,7 @@ func (e *Engine) ResolveOrCreatePeerSession(ctx context.Context, sourceSessionID
 }
 
 func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.Session, route routing.ResolvedRoute, inbound routing.InboundContext) (*store.Session, bool, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if source == nil {
 		return nil, false, fmt.Errorf("missing source session")
 	}
@@ -94,10 +82,7 @@ func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.
 }
 
 func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, source, target *store.Session, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	sourceAgentID := sessionAgentIDWithStore(opCtx, e.store, source)
 	routingContent := fmt.Sprintf("↪ routed to @%s: %s", route.AgentID, content)
 	routingPayload := map[string]any{"kind": "routing", "target_agent_id": route.AgentID, "target_session_id": target.ID, "source_agent_id": sourceAgentID, "source_session_id": source.ID, "route_matched_by": route.MatchedBy, "clipped": true}

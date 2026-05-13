@@ -1,6 +1,7 @@
 package turn
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
@@ -8,6 +9,16 @@ import (
 
 	"github.com/rcarmo/gi/internal/store"
 )
+
+func coordinationContext(ctx context.Context, fallback context.Context) context.Context {
+	if ctx != nil && ctx.Err() == nil {
+		return ctx
+	}
+	if fallback != nil && fallback.Err() == nil {
+		return fallback
+	}
+	return nil
+}
 
 func stringValue(v any, fallback string) string {
 	if s, ok := v.(string); ok && s != "" {

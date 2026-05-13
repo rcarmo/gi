@@ -146,10 +146,7 @@ func steeringMetadataFromMessages(msgs []store.SteeringMessage) map[string]any {
 }
 
 func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID string) (bool, string, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	turnID := store.NowID("turn")
 	turnRec, msgs, err := e.store.StageSteeringContinuation(opCtx, sessionID, turnID)
 	if err == sql.ErrNoRows {
@@ -196,10 +193,7 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 	runner := e.runner(sessionID)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
-	coordCtx := ctx
-	if coordCtx == nil || coordCtx.Err() != nil {
-		coordCtx = e.backgroundContext()
-	}
+	coordCtx := coordinationContext(ctx, e.backgroundContext())
 	if _, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
 		return false, nil
 	} else if err != nil && err != sql.ErrNoRows {

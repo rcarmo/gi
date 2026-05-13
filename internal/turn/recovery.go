@@ -140,10 +140,7 @@ func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionR
 	if sessionID == "" {
 		return false, nil
 	}
-	coordCtx := ctx
-	if coordCtx == nil || coordCtx.Err() != nil {
-		coordCtx = e.backgroundContext()
-	}
+	coordCtx := coordinationContext(ctx, e.backgroundContext())
 	if _, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
 		return false, nil
 	} else if err != sql.ErrNoRows {

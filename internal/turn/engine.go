@@ -456,10 +456,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 }
 
 func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID string, in RunInput) (*SubmitResult, bool, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	activeTurnID, _, err := e.store.GetSessionActiveTurn(opCtx, in.SessionID)
 	if err == sql.ErrNoRows {
 		return nil, false, nil
@@ -479,10 +476,7 @@ func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID str
 }
 
 func (r *sessionRunner) resolveTurnIdentityForFinalize(ctx context.Context, s *store.Store, sessionID, turnID string) (string, string) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = r.engine.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, r.engine.backgroundContext())
 	turnRec, err := s.GetTurn(opCtx, turnID)
 	if err != nil {
 		return "", ""
@@ -505,10 +499,7 @@ func (e *Engine) runner(sessionID string) *sessionRunner {
 }
 
 func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, sessionID, turnID string) (bool, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if hook := e.beforeLaunchClaimHook; hook != nil {
 		hook(opCtx, sessionID, turnID)
 	}

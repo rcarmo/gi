@@ -6,10 +6,7 @@ import (
 )
 
 func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary string) error {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	turnRec, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
 		return err
@@ -32,10 +29,7 @@ func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary
 }
 
 func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*SubmitResult, error) {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	turnRec, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
 		return nil, err
@@ -83,10 +77,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 }
 
 func (e *Engine) SkipHeldTurn(ctx context.Context, turnID, summary string) error {
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = e.backgroundContext()
-	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	turnRec, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
 		return err
