@@ -176,7 +176,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	if cancelled {
 		bgCtx := r.engine.backgroundContext()
 		r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
-		warnStore("append turn.cancelled event", s.AppendTurnEvent(ctx, run.turnID, run.sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "reason": "cancelled", "status": "cancelled", "turn_phase": "aborted", "failure_kind": ""}))
+		warnStore("append turn.cancelled event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "reason": "cancelled", "status": "cancelled", "turn_phase": "aborted", "failure_kind": ""}))
 		warnStore("append turn.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "cancelled", "reason": "cancelled", "failure_kind": ""}))
 		warnStore("update turn status cancelled", s.UpdateTurnStatus(bgCtx, run.turnID, "cancelled"))
 		r.engine.PublishRuntimeTurnEvent("turn_terminal", run.sessionID, run.turnID, run.agentID, "cancelled", "aborted", map[string]any{"reason": "cancelled", "failure_kind": ""})

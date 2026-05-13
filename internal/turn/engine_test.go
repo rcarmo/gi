@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os/exec"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -2947,6 +2948,23 @@ func TestRunShellStreamsDraftChunks(t *testing.T) {
 	}
 	if got := chunks[0]; got == "" {
 		t.Fatalf("expected non-empty first chunk: %#v", chunks)
+	}
+}
+
+func TestRunShellReportsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	started := make(chan struct{})
+	out, err, cancelled := runShell(ctx, "hello", func(cmd *exec.Cmd) {
+		close(started)
+		cancel()
+	}, nil)
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("expected shell command to start before cancellation")
+	}
+	if !cancelled || err != nil {
+		t.Fatalf("expected cancelled shell result without error, got out=%q err=%v cancelled=%v", out, err, cancelled)
 	}
 }
 
