@@ -7,13 +7,23 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 )
 
-func lookupSessionIdentity(ctx context.Context, s *store.Store, sess *store.Session) *store.SessionIdentity {
+func identityLookupContext(ctx, fallback context.Context) context.Context {
+	if ctx != nil && ctx.Err() == nil {
+		return ctx
+	}
+	if fallback != nil && fallback.Err() == nil {
+		return fallback
+	}
+	return nil
+}
+
+func lookupSessionIdentityWithFallback(ctx, fallback context.Context, s *store.Store, sess *store.Session) *store.SessionIdentity {
 	if s == nil || sess == nil || strings.TrimSpace(sess.ID) == "" {
 		return nil
 	}
-	opCtx := ctx
-	if opCtx == nil || opCtx.Err() != nil {
-		opCtx = context.Background()
+	opCtx := identityLookupContext(ctx, fallback)
+	if opCtx == nil {
+		return nil
 	}
 	identity, err := s.GetSessionIdentity(opCtx, sess.ID)
 	if err != nil {
@@ -22,25 +32,41 @@ func lookupSessionIdentity(ctx context.Context, s *store.Store, sess *store.Sess
 	return identity
 }
 
-func sessionAgentIDWithStore(ctx context.Context, s *store.Store, sess *store.Session) string {
-	if identity := lookupSessionIdentity(ctx, s, sess); identity != nil && strings.TrimSpace(identity.Scope.AgentID) != "" {
+func lookupSessionIdentity(ctx context.Context, s *store.Store, sess *store.Session) *store.SessionIdentity {
+	return lookupSessionIdentityWithFallback(ctx, nil, s, sess)
+}
+
+func sessionAgentIDWithStoreFallback(ctx, fallback context.Context, s *store.Store, sess *store.Session) string {
+	if identity := lookupSessionIdentityWithFallback(ctx, fallback, s, sess); identity != nil && strings.TrimSpace(identity.Scope.AgentID) != "" {
 		return identity.Scope.AgentID
 	}
 	return sessionAgentID(sess)
 }
 
-func sessionChannelWithStore(ctx context.Context, s *store.Store, sess *store.Session) string {
-	if identity := lookupSessionIdentity(ctx, s, sess); identity != nil && strings.TrimSpace(identity.Scope.Channel) != "" {
+func sessionAgentIDWithStore(ctx context.Context, s *store.Store, sess *store.Session) string {
+	return sessionAgentIDWithStoreFallback(ctx, nil, s, sess)
+}
+
+func sessionChannelWithStoreFallback(ctx, fallback context.Context, s *store.Store, sess *store.Session) string {
+	if identity := lookupSessionIdentityWithFallback(ctx, fallback, s, sess); identity != nil && strings.TrimSpace(identity.Scope.Channel) != "" {
 		return identity.Scope.Channel
 	}
 	return sessionChannel(sess)
 }
 
-func sessionAccountWithStore(ctx context.Context, s *store.Store, sess *store.Session) string {
-	if identity := lookupSessionIdentity(ctx, s, sess); identity != nil && strings.TrimSpace(identity.Scope.Account) != "" {
+func sessionChannelWithStore(ctx context.Context, s *store.Store, sess *store.Session) string {
+	return sessionChannelWithStoreFallback(ctx, nil, s, sess)
+}
+
+func sessionAccountWithStoreFallback(ctx, fallback context.Context, s *store.Store, sess *store.Session) string {
+	if identity := lookupSessionIdentityWithFallback(ctx, fallback, s, sess); identity != nil && strings.TrimSpace(identity.Scope.Account) != "" {
 		return identity.Scope.Account
 	}
 	return sessionAccount(sess)
+}
+
+func sessionAccountWithStore(ctx context.Context, s *store.Store, sess *store.Session) string {
+	return sessionAccountWithStoreFallback(ctx, nil, s, sess)
 }
 
 func sessionAgentID(sess *store.Session) string {

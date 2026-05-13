@@ -296,13 +296,13 @@ func TestSessionIdentityHelpersSurviveCanceledCallerContext(t *testing.T) {
 	}
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
-	if got := sessionAgentIDWithStore(cancelCtx, s, sess); got != "agentx" {
+	if got := sessionAgentIDWithStoreFallback(cancelCtx, ctx, s, sess); got != "agentx" {
 		t.Fatalf("expected canonical agent id under canceled caller context, got %q", got)
 	}
-	if got := sessionChannelWithStore(cancelCtx, s, sess); got != "web" {
+	if got := sessionChannelWithStoreFallback(cancelCtx, ctx, s, sess); got != "web" {
 		t.Fatalf("expected canonical channel under canceled caller context, got %q", got)
 	}
-	if got := sessionAccountWithStore(cancelCtx, s, sess); got != "acctx" {
+	if got := sessionAccountWithStoreFallback(cancelCtx, ctx, s, sess); got != "acctx" {
 		t.Fatalf("expected canonical account under canceled caller context, got %q", got)
 	}
 }
@@ -1939,7 +1939,7 @@ func TestMarkTurnFailureSurvivesCanceledCallerContext(t *testing.T) {
 	}
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
-	markTurnFailureWithHold(cancelCtx, s, "turn_failure_ctx", "session_failure_ctx", "provider_error", "review", "failed under canceled ctx")
+	markTurnFailureWithHoldAndFallback(cancelCtx, ctx, s, "turn_failure_ctx", "session_failure_ctx", "provider_error", "review", "failed under canceled ctx")
 	failureRec, err := s.GetTurnFailure(ctx, "turn_failure_ctx")
 	if err != nil {
 		t.Fatalf("get turn failure: %v", err)
