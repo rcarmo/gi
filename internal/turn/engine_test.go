@@ -307,6 +307,31 @@ func TestSessionIdentityHelpersSurviveCanceledCallerContext(t *testing.T) {
 	}
 }
 
+func TestResolveTurnAgentAndModelSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("agentmodel", "web", "acctmodel", "session_agent_model_ctx")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_agent_model_ctx", Title: "@agentmodel", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session with canonical identity: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_agent_model_ctx", sess.ID, "queued", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	engine := New(s)
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	agentID, model := engine.runner(sess.ID).resolveTurnAgentAndModel(cancelCtx, s, turnRec, sess.ID, turnRec.Prompt)
+	if agentID != "agentmodel" {
+		t.Fatalf("expected canonical agent id under canceled caller context, got %q", agentID)
+	}
+	if model == "" {
+		t.Fatal("expected non-empty model resolution")
+	}
+}
+
 func TestLaunchTurnLockedSurvivesCanceledCallerContext(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

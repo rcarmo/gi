@@ -114,17 +114,21 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 }
 
 func (r *sessionRunner) resolveTurnAgentAndModel(ctx context.Context, s *store.Store, turnRec *store.Turn, sessionID, prompt string) (string, string) {
+	opCtx := ctx
+	if opCtx == nil || opCtx.Err() != nil {
+		opCtx = r.engine.backgroundContext()
+	}
 	model := stringValue(turnRec.Metadata["model"], "bootstrap")
 	agentID := "agent"
-	if sess, err := s.GetSession(ctx, sessionID); err == nil {
-		agentID = sessionAgentIDWithStore(ctx, s, sess)
+	if sess, err := s.GetSession(opCtx, sessionID); err == nil {
+		agentID = sessionAgentIDWithStore(opCtx, s, sess)
 	}
 	agentModel := r.engine.modelForAgent(agentID)
 	if strings.TrimSpace(model) == "" {
 		model = agentModel
 	}
 	if model == agentModel {
-		history, _ := s.ListMessages(ctx, sessionID)
+		history, _ := s.ListMessages(opCtx, sessionID)
 		routingHistory := make([]routing.HistoryMessage, 0, len(history))
 		for _, msg := range history {
 			routingHistory = append(routingHistory, routing.HistoryMessage{Payload: msg.Payload})
