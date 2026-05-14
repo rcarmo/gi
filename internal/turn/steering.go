@@ -212,7 +212,14 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
 	coordCtx := coordinationContext(ctx, e.backgroundContext())
-	if _, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
+	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
+		sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
+		if turnRec, turnErr := e.store.GetTurn(coordCtx, activeTurnID); turnErr == nil {
+			if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
+				sessionState["model"] = model
+			}
+		}
+		warnStore("touch session running on active continue", e.store.TouchSessionState(coordCtx, sessionID, sessionState))
 		return false, nil
 	} else if err != nil && err != sql.ErrNoRows {
 		return false, err

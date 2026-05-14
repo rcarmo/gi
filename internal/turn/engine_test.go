@@ -993,6 +993,37 @@ func TestContinueSessionClearsQueueCountAfterLaunchingContinuation(t *testing.T)
 	}
 }
 
+func TestContinueSessionNormalizesRunningStateWhenActiveTurnExists(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_continue_active_normalize", "Test", map[string]any{"model": "bootstrap", "status": "queued", "active_turn_id": nil, "queue_count": 0}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_continue_active_normalize", "session_continue_active_normalize", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_continue_active_normalize", activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	engine := New(s)
+	continued, err := engine.ContinueSession(ctx, "session_continue_active_normalize")
+	if err != nil {
+		t.Fatalf("continue session: %v", err)
+	}
+	if continued {
+		t.Fatal("expected active continue to report no new work launched")
+	}
+	sessRec, err := s.GetSession(ctx, "session_continue_active_normalize")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] != activeTurn.ID || sessRec.State["model"] != "bootstrap" {
+		t.Fatalf("expected active continue to normalize running session state, got %#v", sessRec.State)
+	}
+}
+
 func TestContinueSessionNormalizesIdleStateWhenNoWorkRemains(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
