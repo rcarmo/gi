@@ -82,6 +82,16 @@ func steeringMessagesFromMetadata(metadata map[string]any) []store.SteeringMessa
 }
 
 func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurnID string, in RunInput) (*SubmitResult, error) {
+	if strings.TrimSpace(sessionID) != "" && strings.TrimSpace(activeTurnID) != "" {
+		sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
+		if turnRec, err := e.store.GetTurn(ctx, activeTurnID); err == nil {
+			if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
+				sessionState["model"] = model
+			}
+		}
+		warnStore("sync queue count on steering submit", e.store.SyncSessionQueueCount(ctx, sessionID))
+		warnStore("touch session running on steering submit", e.store.TouchSessionState(ctx, sessionID, sessionState))
+	}
 	payload := map[string]any{"intent": in.Intent, "model": in.Model, "kind": "steering", "active_turn_id": activeTurnID}
 	if in.ParentTurnID != "" {
 		payload["parent_turn_id"] = in.ParentTurnID

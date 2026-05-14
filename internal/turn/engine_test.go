@@ -276,6 +276,40 @@ func TestStageQueuedSteeringContinuationPreservesSessionModelWhenSteeringOmitsMo
 	}
 }
 
+func TestSubmitPromptSteeringNormalizesRunningSessionState(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_submit_steering_state", "Test", map[string]any{"model": "old-model", "status": "queued", "active_turn_id": nil, "queue_count": 1}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_submit_steering_state", "session_submit_steering_state", "running", "one", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_submit_steering_state", activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	engine := New(s)
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_submit_steering_state", Prompt: "two", Model: "ignored-model"})
+	if err != nil {
+		t.Fatalf("submit second prompt: %v", err)
+	}
+	if result.Queued || result.Status != "running" || result.TurnID != activeTurn.ID {
+		t.Fatalf("expected steering result against active turn, got %#v", result)
+	}
+	sessRec, err := s.GetSession(ctx, "session_submit_steering_state")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] != activeTurn.ID || sessRec.State["model"] != "bootstrap" {
+		t.Fatalf("expected steering submit to normalize running session state, got %#v", sessRec.State)
+	}
+	if got := sessRec.State["queue_count"]; got != float64(0) && got != 0 {
+		t.Fatalf("expected steering submit to clear stale queue_count, got %#v", sessRec.State)
+	}
+}
+
 func TestSubmitPromptSteersSecondPromptToActiveTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
