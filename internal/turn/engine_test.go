@@ -1280,6 +1280,37 @@ func TestCancelTurnRejectsSessionMismatch(t *testing.T) {
 	}
 }
 
+func TestCancelQueuedTurnPreservesRunningSessionWithActiveClaim(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	sess, _ := s.CreateSession(ctx, "session_queued_cancel_active", "Test", map[string]any{"model": "bootstrap", "status": "running", "active_turn_id": "turn_active_running"})
+	engine := New(s)
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_active_running", sess.ID, "running", "one", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, sess.ID, activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	} else if !ok {
+		t.Fatal("expected active turn claim")
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_queued_cancel_active", sess.ID, "queued", "two", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	if err := engine.CancelTurn(ctx, sess.ID, queuedTurn.ID); err != nil {
+		t.Fatalf("cancel queued turn: %v", err)
+	}
+	sessRec, err := s.GetSession(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] != activeTurn.ID {
+		t.Fatalf("expected queued cancel to preserve running session state, got %#v", sessRec.State)
+	}
+}
+
 func TestCancelQueuedTurnSurvivesCanceledCallerContext(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
