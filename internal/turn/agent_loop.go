@@ -318,6 +318,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	sessionPayload["failure_kind"] = failureKind
 	sessionPayload["turn_id"] = turnID
 	sessionPayload["turn_status"] = status
+	sessionPayload["turn_phase"] = phase
 	sessionPayload["model"] = model
 	r.engine.PublishRuntimeSessionEvent("session_idle", sessionID, agentID, "idle", sessionPayload)
 	sessionHookPayload := cloneMap(payload)
@@ -328,6 +329,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	sessionHookPayload["failure_kind"] = failureKind
 	sessionHookPayload["turn_id"] = turnID
 	sessionHookPayload["turn_status"] = status
+	sessionHookPayload["turn_phase"] = phase
 	r.emitSessionStateHookOnly(bgCtx, sessionID, agentID, model, "idle", sessionHookPayload)
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
 }

@@ -188,8 +188,8 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 		warnStore("add turn cancelled system message", s.AddMessage(bgCtx, msgID, run.sessionID, "system", "Turn cancelled", map[string]any{"kind": "status", "turn_id": run.turnID, "clipped": true}))
 		r.broadcastSystemPost(run.sessionID, run.turnID, msgID, "Turn cancelled")
 		warnStore("touch session idle after cancel", s.TouchSessionState(bgCtx, run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
-		r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "cancelled", "failure_kind": "", "model": run.model})
-		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "cancelled", "failure_kind": ""})
+		r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "cancelled", "turn_phase": "aborted", "failure_kind": "", "model": run.model})
+		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "cancelled", "turn_phase": "aborted", "failure_kind": ""})
 		return
 	}
 	if runErr != nil {
@@ -208,8 +208,8 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 		r.propagateChildSubTurnCancellation(bgCtx, run.turnID, "failed", "shell_error")
 		r.publishSubTurnLifecycle(bgCtx, run.turnID, "failed")
 		warnStore("touch session idle after failure", s.TouchSessionState(bgCtx, run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
-		r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "failed", "failure_kind": "shell_error", "model": run.model})
-		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "failed", "failure_kind": "shell_error"})
+		r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "failed", "turn_phase": "failed", "failure_kind": "shell_error", "model": run.model})
+		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "failed", "turn_phase": "failed", "failure_kind": "shell_error"})
 		return
 	}
 	bgCtx := r.engine.backgroundContext()
@@ -232,7 +232,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	r.propagateChildSubTurnCancellation(bgCtx, run.turnID, "completed", "")
 	r.publishSubTurnLifecycle(bgCtx, run.turnID, "completed")
 	warnStore("touch session idle after completion", s.TouchSessionState(bgCtx, run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
-	sessionCompletionPayload := map[string]any{"reason": "turn_completed", "turn_id": run.turnID, "turn_status": "completed", "failure_kind": "", "model": run.model, "completion_kind": "response"}
+	sessionCompletionPayload := map[string]any{"reason": "turn_completed", "turn_id": run.turnID, "turn_status": "completed", "turn_phase": "completed", "failure_kind": "", "model": run.model, "completion_kind": "response"}
 	r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", sessionCompletionPayload)
-	r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_completed", "turn_id": run.turnID, "turn_status": "completed", "failure_kind": "", "completion_kind": "response"})
+	r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_completed", "turn_id": run.turnID, "turn_status": "completed", "turn_phase": "completed", "failure_kind": "", "completion_kind": "response"})
 }
