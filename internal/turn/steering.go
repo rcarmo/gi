@@ -178,12 +178,23 @@ func (e *Engine) continueQueuedSteeringLocked(ctx context.Context, runner *sessi
 	if !staged {
 		return false, nil
 	}
-	launched, err := e.startNextQueuedTurnLocked(ctx, runner, sessionID)
+	coordCtx := coordinationContext(ctx, e.backgroundContext())
+	launched, err := e.startNextQueuedTurnLocked(coordCtx, runner, sessionID)
 	if err != nil {
 		return false, err
 	}
 	if launched {
 		e.broadcast(sessionID, map[string]any{"type": "steering_continued", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
+		return true, nil
+	}
+	warnStore("sync queue count after steering continuation handoff", e.store.SyncSessionQueueCount(coordCtx, sessionID))
+	activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID)
+	if err == nil {
+		warnStore("touch session state after steering continuation handoff", e.store.TouchSessionState(coordCtx, sessionID, map[string]any{"status": "running", "active_turn_id": activeTurnID}))
+		return true, nil
+	}
+	if err != nil && err != sql.ErrNoRows {
+		return false, err
 	}
 	return true, nil
 }

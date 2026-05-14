@@ -192,6 +192,62 @@ func TestStageQueuedSteeringContinuationMarksSessionQueued(t *testing.T) {
 	}
 }
 
+func TestContinueSessionNormalizesRunningStateWhenContinuationTurnIsExternallyClaimed(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_continue_claimed", "ContinueState", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_continue_claimed_prev", "session_continue_claimed", "completed", "previous", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create previous turn: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_continue_claimed", "turn_continue_claimed_prev", "user", "continue me", map[string]any{"intent": "continue", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	engine := New(s)
+	engine.beforeLaunchClaimHook = func(ctx context.Context, sessionID, turnID string) {
+		if sessionID == "session_continue_claimed" {
+			if _, err := s.ClaimSessionActiveTurn(ctx, sessionID, turnID, "external", turnID); err != nil {
+				t.Fatalf("claim continuation turn inside launch hook: %v", err)
+			}
+		}
+	}
+	continued, err := engine.ContinueSession(ctx, "session_continue_claimed")
+	if err != nil {
+		t.Fatalf("continue session: %v", err)
+	}
+	if !continued {
+		t.Fatal("expected continuation path to report progress")
+	}
+	sessRec, err := s.GetSession(ctx, "session_continue_claimed")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] == nil {
+		t.Fatalf("expected continuation handoff to normalize running session state, got %#v", sessRec.State)
+	}
+	if got := sessRec.State["queue_count"]; got != float64(1) && got != 1 {
+		t.Fatalf("expected externally claimed continuation turn to remain queued-count-visible until it starts, got %#v", sessRec.State)
+	}
+	turns, err := s.ListTurns(ctx, "session_continue_claimed")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 2 {
+		t.Fatalf("expected previous turn plus staged continuation turn, got %#v", turns)
+	}
+	foundQueued := false
+	for _, turn := range turns {
+		if turn.ID != "turn_continue_claimed_prev" && turn.Status == "queued" {
+			foundQueued = true
+		}
+	}
+	if !foundQueued {
+		t.Fatalf("expected staged continuation turn to remain queued when externally claimed before local launch, got %#v", turns)
+	}
+}
+
 func TestStageQueuedSteeringContinuationPreservesSessionModelWhenSteeringOmitsModel(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
