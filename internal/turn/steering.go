@@ -249,6 +249,7 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 				sessionState["model"] = model
 			}
 		}
+		warnStore("sync queue count on queued continue handoff", e.store.SyncSessionQueueCount(coordCtx, sessionID))
 		warnStore("touch session running on queued continue handoff", e.store.TouchSessionState(coordCtx, sessionID, sessionState))
 		return true, nil
 	} else if err != nil && err != sql.ErrNoRows {

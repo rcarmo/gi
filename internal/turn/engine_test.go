@@ -1044,6 +1044,12 @@ func TestContinueSessionNormalizesRunningStateWhenQueuedTurnIsExternallyClaimed(
 			if _, err := s.ClaimSessionActiveTurn(ctx, sessionID, turnID, "external", turnID); err != nil {
 				t.Fatalf("claim queued turn inside launch hook: %v", err)
 			}
+			if err := s.MarkTurnClaimed(ctx, turnID, "external"); err != nil {
+				t.Fatalf("mark queued turn claimed inside launch hook: %v", err)
+			}
+			if err := s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "setup"); err != nil {
+				t.Fatalf("mark queued turn running inside launch hook: %v", err)
+			}
 		}
 	}
 	continued, err := engine.ContinueSession(ctx, "session_continue_queued_claimed")
@@ -1059,6 +1065,9 @@ func TestContinueSessionNormalizesRunningStateWhenQueuedTurnIsExternallyClaimed(
 	}
 	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] != queuedTurn.ID || sessRec.State["model"] != "bootstrap" {
 		t.Fatalf("expected queued continue handoff to normalize running session state, got %#v", sessRec.State)
+	}
+	if got := sessRec.State["queue_count"]; got != float64(0) && got != 0 {
+		t.Fatalf("expected queued continue handoff to clear stale queue_count, got %#v", sessRec.State)
 	}
 }
 
