@@ -1057,6 +1057,9 @@ func TestContinueSessionNormalizesRunningStateWhenActiveTurnExists(t *testing.T)
 	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] != activeTurn.ID || sessRec.State["model"] != "bootstrap" {
 		t.Fatalf("expected active continue to normalize running session state, got %#v", sessRec.State)
 	}
+	if got := sessRec.State["queue_count"]; got != float64(0) && got != 0 {
+		t.Fatalf("expected active continue to clear stale queue_count, got %#v", sessRec.State)
+	}
 }
 
 func TestContinueSessionNormalizesIdleStateWhenNoWorkRemains(t *testing.T) {
