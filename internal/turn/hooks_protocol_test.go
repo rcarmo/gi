@@ -218,6 +218,40 @@ func TestTurnAndSessionStateHooksObserveLifecycle(t *testing.T) {
 	}
 }
 
+func TestQueuedCancelSessionStateHookCarriesResolvedModel(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cancel_hook_model", "CancelHook", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_cancel_hook_model", "session_cancel_hook_model", "queued", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	payloadCh := make(chan HookRequest, 8)
+	if _, err := e.RegisterHook(HookSessionState, "test", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		if req.SessionID == "session_cancel_hook_model" && req.Payload["reason"] == "queued_cancel" {
+			payloadCh <- req
+		}
+		return HookResponse{}, nil
+	}); err != nil {
+		t.Fatalf("register session_state hook: %v", err)
+	}
+	if err := e.CancelTurn(ctx, "session_cancel_hook_model", queuedTurn.ID); err != nil {
+		t.Fatalf("cancel queued turn: %v", err)
+	}
+	select {
+	case req := <-payloadCh:
+		if req.Model != "bootstrap" || req.Payload["turn_id"] != queuedTurn.ID || req.Payload["turn_status"] != "cancelled" {
+			t.Fatalf("expected queued-cancel session_state hook with resolved model, got %#v", req)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected queued-cancel session_state hook")
+	}
+}
+
 func TestShellTerminalSessionStateHookCarriesTurnID(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

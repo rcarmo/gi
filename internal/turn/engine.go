@@ -397,6 +397,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		return fmt.Errorf("turn %s does not belong to session %s", turnID, sessionID)
 	}
 	runner := e.runner(turnSessionID)
+	agentID, model := runner.resolveTurnAgentAndModel(opCtx, e.store, turn, turnSessionID, turn.Prompt)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
 	if runner.current != nil && runner.current.turnID == turnID {
@@ -406,9 +407,9 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		if err := e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "cancelling", "cancelling"); err != nil {
 			return err
 		}
-		e.PublishRuntimeTurnEvent("turn_cancelling", turnSessionID, turnID, "", "cancelling", "cancelling", map[string]any{"reason": "cancel_requested", "failure_kind": ""})
-		runner.emitTurnStateHook(opCtx, turnSessionID, turnID, "", "", "cancelling", "cancelling", map[string]any{"reason": "cancel_requested", "failure_kind": ""})
-		runner.emitSessionStateHook(opCtx, turnSessionID, "", "", "running", map[string]any{"reason": "cancel_requested", "failure_kind": "", "active_turn_id": turnID, "turn_id": turnID, "turn_status": "cancelling", "turn_phase": "cancelling"})
+		e.PublishRuntimeTurnEvent("turn_cancelling", turnSessionID, turnID, agentID, "cancelling", "cancelling", map[string]any{"reason": "cancel_requested", "failure_kind": ""})
+		runner.emitTurnStateHook(opCtx, turnSessionID, turnID, agentID, model, "cancelling", "cancelling", map[string]any{"reason": "cancel_requested", "failure_kind": ""})
+		runner.emitSessionStateHook(opCtx, turnSessionID, agentID, model, "running", map[string]any{"reason": "cancel_requested", "failure_kind": "", "active_turn_id": turnID, "turn_id": turnID, "turn_status": "cancelling", "turn_phase": "cancelling"})
 		runner.current.cancel()
 		runner.current.cmdMu.Lock()
 		if runner.current.cmd != nil && runner.current.cmd.Process != nil {
@@ -426,8 +427,8 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		if err := e.store.MarkTurnFinished(opCtx, turnID); err != nil {
 			return err
 		}
-		runner.emitTurnStateHook(opCtx, turnSessionID, turnID, "", "", "cancelled", "aborted", map[string]any{"reason": "queued_cancel"})
-		e.PublishRuntimeTurnEvent("turn_terminal", turnSessionID, turnID, "", "cancelled", "aborted", map[string]any{"reason": "queued_cancel", "failure_kind": ""})
+		runner.emitTurnStateHook(opCtx, turnSessionID, turnID, agentID, model, "cancelled", "aborted", map[string]any{"reason": "queued_cancel"})
+		e.PublishRuntimeTurnEvent("turn_terminal", turnSessionID, turnID, agentID, "cancelled", "aborted", map[string]any{"reason": "queued_cancel", "failure_kind": ""})
 		warnStore("sync queue count after queued cancel", e.store.SyncSessionQueueCount(opCtx, turnSessionID))
 		queueCount, err := e.store.CountQueuedTurns(opCtx, turnSessionID)
 		if err != nil {
@@ -438,9 +439,9 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 			sessionStatus = "queued"
 		}
 		warnStore("touch session state after queued cancel", e.store.TouchSessionState(opCtx, turnSessionID, map[string]any{"status": sessionStatus}))
-		runner.emitSessionStateHook(opCtx, turnSessionID, "", "", sessionStatus, map[string]any{"reason": "queued_cancel", "failure_kind": "", "turn_id": turnID, "turn_status": "cancelled", "turn_phase": "aborted", "active_turn_id": nil})
+		runner.emitSessionStateHook(opCtx, turnSessionID, agentID, model, sessionStatus, map[string]any{"reason": "queued_cancel", "failure_kind": "", "turn_id": turnID, "turn_status": "cancelled", "turn_phase": "aborted", "active_turn_id": nil})
 		if sessionStatus == "idle" {
-			e.PublishRuntimeSessionEvent("session_idle", turnSessionID, "", "idle", map[string]any{"reason": "turn_terminal", "failure_kind": "", "turn_id": turnID, "turn_status": "cancelled", "model": stringValue(turn.Metadata["model"], "")})
+			e.PublishRuntimeSessionEvent("session_idle", turnSessionID, agentID, "idle", map[string]any{"reason": "turn_terminal", "failure_kind": "", "turn_id": turnID, "turn_status": "cancelled", "model": model})
 		}
 		if err := e.store.AppendTurnEvent(opCtx, turnID, turnSessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "queued": true, "reason": "queued_cancel", "status": "cancelled", "turn_phase": "aborted", "failure_kind": ""}); err != nil {
 			return err
