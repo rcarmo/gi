@@ -88,6 +88,37 @@ func TestSubmitPromptMarksSessionQueuedWhenWorkRemainsQueued(t *testing.T) {
 	}
 }
 
+func TestSubmitPromptPreservesSessionModelWhenInputModelIsEmpty(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	sess, err := s.CreateSession(ctx, "session_submit_model_preserve", "QueueState", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_submit_model_existing", sess.ID, "queued", "existing", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create existing queued turn: %v", err)
+	}
+	engine := New(s)
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: sess.ID, Prompt: "later"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	if !result.Queued || result.Status != "queued" {
+		t.Fatalf("expected queued submit result, got %#v", result)
+	}
+	sessRec, err := s.GetSession(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["model"] != "bootstrap" || sessRec.State["status"] != "queued" {
+		t.Fatalf("expected queued submit to preserve session model, got %#v", sessRec.State)
+	}
+	if got := sessRec.State["queue_count"]; got != float64(2) && got != 2 {
+		t.Fatalf("expected queue_count 2 after queued submit, got %#v", sessRec.State)
+	}
+}
+
 func TestSubmitPromptPublishesQueuedTurnSubmittedTopic(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

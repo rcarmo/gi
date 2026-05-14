@@ -382,12 +382,17 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	warnStore("append turn.submitted event", e.store.AppendTurnEvent(durableCtx, turnID, in.SessionID, "turn.submitted", submittedPayload))
 	e.PublishRuntimeTurnEvent("turn_submitted", in.SessionID, turnID, "", firstNonEmpty(status, "queued"), firstNonEmpty(status, "queued"), submittedPayload)
 	warnStore("sync queue count after submit", e.store.SyncSessionQueueCount(durableCtx, in.SessionID))
-	sessionStateUpdate := map[string]any{"model": in.Model}
+	sessionStateUpdate := map[string]any{}
+	if model := strings.TrimSpace(in.Model); model != "" {
+		sessionStateUpdate["model"] = model
+	}
 	if queued {
 		sessionStateUpdate["status"] = "queued"
 		sessionStateUpdate["active_turn_id"] = nil
 	}
-	warnStore("touch session state after submit", e.store.TouchSessionState(durableCtx, in.SessionID, sessionStateUpdate))
+	if len(sessionStateUpdate) > 0 {
+		warnStore("touch session state after submit", e.store.TouchSessionState(durableCtx, in.SessionID, sessionStateUpdate))
+	}
 	return &SubmitResult{TurnID: turnID, SessionID: in.SessionID, Status: status, Queued: queued}, nil
 }
 
