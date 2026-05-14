@@ -121,6 +121,46 @@ func TestSubmitPromptPublishesQueuedTurnSubmittedTopic(t *testing.T) {
 	}
 }
 
+func TestStageQueuedSteeringContinuationMarksSessionQueued(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_continue_queued_state", "ContinueState", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_continue_queued_prev", "session_continue_queued_state", "completed", "previous", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create previous turn: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_continue_queued_state", "turn_continue_queued_prev", "user", "continue me", map[string]any{"intent": "continue", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	engine := New(s)
+	staged, turnID, err := engine.stageQueuedSteeringContinuation(ctx, "session_continue_queued_state")
+	if err != nil {
+		t.Fatalf("stage queued steering continuation: %v", err)
+	}
+	if !staged || turnID == "" {
+		t.Fatalf("expected staged continuation turn, got staged=%v id=%q", staged, turnID)
+	}
+	sessRec, err := s.GetSession(ctx, "session_continue_queued_state")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "queued" || sessRec.State["active_turn_id"] != nil || sessRec.State["model"] != "bootstrap" {
+		t.Fatalf("expected staged continuation to mark session queued with cleared active turn, got %#v", sessRec.State)
+	}
+	if got := sessRec.State["queue_count"]; got != float64(1) && got != 1 {
+		t.Fatalf("expected queue_count 1 after staged continuation, got %#v", sessRec.State)
+	}
+	stagedTurn, err := s.GetTurn(ctx, turnID)
+	if err != nil {
+		t.Fatalf("get staged continuation turn: %v", err)
+	}
+	if stagedTurn.Status != "queued" || stagedTurn.Phase != "queued" {
+		t.Fatalf("expected staged continuation turn queued, got %#v", stagedTurn)
+	}
+}
+
 func TestSubmitPromptSteersSecondPromptToActiveTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
