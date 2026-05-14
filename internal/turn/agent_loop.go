@@ -316,6 +316,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	}
 	sessionPayload["reason"] = sessionIdleReason
 	sessionPayload["failure_kind"] = failureKind
+	sessionPayload["active_turn_id"] = nil
 	sessionPayload["turn_id"] = turnID
 	sessionPayload["turn_status"] = status
 	sessionPayload["turn_phase"] = phase
@@ -327,6 +328,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	}
 	sessionHookPayload["reason"] = sessionIdleReason
 	sessionHookPayload["failure_kind"] = failureKind
+	sessionHookPayload["active_turn_id"] = nil
 	sessionHookPayload["turn_id"] = turnID
 	sessionHookPayload["turn_status"] = status
 	sessionHookPayload["turn_phase"] = phase

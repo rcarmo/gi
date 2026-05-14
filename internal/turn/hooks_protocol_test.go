@@ -213,7 +213,7 @@ func TestTurnAndSessionStateHooksObserveLifecycle(t *testing.T) {
 		t.Fatalf("expected setup session_state hook payload with turn correlation, got %#v", setupPayload)
 	}
 	terminalPayload := sessionPayloads[len(sessionPayloads)-1]
-	if terminalPayload["turn_id"] != "turn_hook_state" || terminalPayload["turn_status"] != "failed" || terminalPayload["turn_phase"] != "failed" || terminalPayload["reason"] != "turn_terminal" || terminalPayload["failure_kind"] != "provider_error" {
+	if terminalPayload["active_turn_id"] != nil || terminalPayload["turn_id"] != "turn_hook_state" || terminalPayload["turn_status"] != "failed" || terminalPayload["turn_phase"] != "failed" || terminalPayload["reason"] != "turn_terminal" || terminalPayload["failure_kind"] != "provider_error" {
 		t.Fatalf("expected terminal session_state hook payload with turn correlation, got %#v", terminalPayload)
 	}
 }
@@ -244,7 +244,7 @@ func TestQueuedCancelSessionStateHookCarriesResolvedModel(t *testing.T) {
 	}
 	select {
 	case req := <-payloadCh:
-		if req.Model != "bootstrap" || req.Payload["turn_id"] != queuedTurn.ID || req.Payload["turn_status"] != "cancelled" || req.Payload["turn_phase"] != "aborted" {
+		if req.Model != "bootstrap" || req.Payload["active_turn_id"] != nil || req.Payload["turn_id"] != queuedTurn.ID || req.Payload["turn_status"] != "cancelled" || req.Payload["turn_phase"] != "aborted" {
 			t.Fatalf("expected queued-cancel session_state hook with resolved model, got %#v", req)
 		}
 	case <-time.After(2 * time.Second):
@@ -277,7 +277,7 @@ func TestShellTerminalSessionStateHookCarriesTurnID(t *testing.T) {
 	for {
 		select {
 		case payload := <-payloadCh:
-			if payload["turn_id"] != result.TurnID || payload["turn_status"] != "completed" || payload["turn_phase"] != "completed" || payload["reason"] != "turn_completed" {
+			if payload["active_turn_id"] != nil || payload["turn_id"] != result.TurnID || payload["turn_status"] != "completed" || payload["turn_phase"] != "completed" || payload["reason"] != "turn_completed" {
 				t.Fatalf("expected terminal session_state hook payload with turn id, got %#v", payload)
 			}
 			return
