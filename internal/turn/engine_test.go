@@ -1051,6 +1051,44 @@ func TestContinueSessionNormalizesIdleStateWhenNoWorkRemains(t *testing.T) {
 	}
 }
 
+func TestLaunchTurnLockedSetsSessionModelBeforeSetupRuns(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_launch_model_state", "Test", map[string]any{"model": "old-model", "status": "queued", "queue_count": 1}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_launch_model_state", "session_launch_model_state", "queued", "hello", map[string]any{"intent": "prompt", "model": "new-model"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	engine := New(s)
+	releaseSetup := make(chan struct{})
+	engine.beforeSetupHook = func(ctx context.Context, sessionID, turnID string) {
+		if sessionID == "session_launch_model_state" && turnID == queuedTurn.ID {
+			<-releaseSetup
+		}
+	}
+	runner := engine.runner("session_launch_model_state")
+	launched, err := engine.launchTurnLocked(ctx, runner, "session_launch_model_state", queuedTurn.ID)
+	if err != nil {
+		close(releaseSetup)
+		t.Fatalf("launch queued turn: %v", err)
+	}
+	if !launched {
+		close(releaseSetup)
+		t.Fatal("expected queued turn to launch")
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		sessRec, err := s.GetSession(ctx, "session_launch_model_state")
+		if err != nil {
+			return false
+		}
+		return sessRec.State["status"] == "running" && sessRec.State["active_turn_id"] == queuedTurn.ID && sessRec.State["model"] == "new-model"
+	}, "launch-time running session model")
+	close(releaseSetup)
+}
+
 func TestContinueSessionClearsQueueCountAfterLaunchingQueuedTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

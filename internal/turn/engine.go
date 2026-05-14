@@ -555,7 +555,13 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 		releaseClaim()
 		return false, err
 	}
-	if err := e.store.TouchSessionState(opCtx, sessionID, map[string]any{"active_turn_id": turnID, "status": "running"}); err != nil {
+	sessionState := map[string]any{"active_turn_id": turnID, "status": "running"}
+	if turnRec, turnErr := e.store.GetTurn(opCtx, turnID); turnErr == nil {
+		if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
+			sessionState["model"] = model
+		}
+	}
+	if err := e.store.TouchSessionState(opCtx, sessionID, sessionState); err != nil {
 		warnStore("rollback turn status to queued", e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "queued", "queued"))
 		releaseClaim()
 		return false, err
