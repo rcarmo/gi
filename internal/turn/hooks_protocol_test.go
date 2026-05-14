@@ -176,6 +176,7 @@ func TestTurnAndSessionStateHooksObserveLifecycle(t *testing.T) {
 	}
 	var turnStates []string
 	var sessionStates []string
+	var sessionPayloads []map[string]any
 	if _, err := e.RegisterHook(HookTurnState, "test", func(ctx context.Context, req HookRequest) (HookResponse, error) {
 		turnStates = append(turnStates, req.TurnStatus+"/"+req.TurnPhase)
 		return HookResponse{}, nil
@@ -184,6 +185,7 @@ func TestTurnAndSessionStateHooksObserveLifecycle(t *testing.T) {
 	}
 	if _, err := e.RegisterHook(HookSessionState, "test", func(ctx context.Context, req HookRequest) (HookResponse, error) {
 		sessionStates = append(sessionStates, req.SessionStatus)
+		sessionPayloads = append(sessionPayloads, cloneMap(req.Payload))
 		return HookResponse{}, nil
 	}); err != nil {
 		t.Fatalf("register session_state hook: %v", err)
@@ -205,6 +207,10 @@ func TestTurnAndSessionStateHooksObserveLifecycle(t *testing.T) {
 	}
 	if len(sessionStates) < 2 || sessionStates[0] != "running" || sessionStates[len(sessionStates)-1] != "idle" {
 		t.Fatalf("expected running→idle session states, got %#v", sessionStates)
+	}
+	terminalPayload := sessionPayloads[len(sessionPayloads)-1]
+	if terminalPayload["turn_id"] != "turn_hook_state" || terminalPayload["turn_status"] != "failed" || terminalPayload["reason"] != "turn_terminal" || terminalPayload["failure_kind"] != "provider_error" {
+		t.Fatalf("expected terminal session_state hook payload with turn correlation, got %#v", terminalPayload)
 	}
 }
 

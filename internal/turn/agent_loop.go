@@ -326,6 +326,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	}
 	sessionHookPayload["reason"] = sessionIdleReason
 	sessionHookPayload["failure_kind"] = failureKind
+	sessionHookPayload["turn_id"] = turnID
 	sessionHookPayload["turn_status"] = status
 	r.emitSessionStateHookOnly(bgCtx, sessionID, agentID, model, "idle", sessionHookPayload)
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
