@@ -993,6 +993,41 @@ func TestContinueSessionClearsQueueCountAfterLaunchingContinuation(t *testing.T)
 	}
 }
 
+func TestContinueSessionNormalizesRunningStateWhenQueuedTurnIsExternallyClaimed(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_continue_queued_claimed", "Test", map[string]any{"model": "bootstrap", "status": "queued", "active_turn_id": nil, "queue_count": 1}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_continue_queued_claimed", "session_continue_queued_claimed", "queued", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	engine := New(s)
+	engine.beforeLaunchClaimHook = func(ctx context.Context, sessionID, turnID string) {
+		if sessionID == "session_continue_queued_claimed" && turnID == queuedTurn.ID {
+			if _, err := s.ClaimSessionActiveTurn(ctx, sessionID, turnID, "external", turnID); err != nil {
+				t.Fatalf("claim queued turn inside launch hook: %v", err)
+			}
+		}
+	}
+	continued, err := engine.ContinueSession(ctx, "session_continue_queued_claimed")
+	if err != nil {
+		t.Fatalf("continue session: %v", err)
+	}
+	if !continued {
+		t.Fatal("expected queued continue handoff to report progress")
+	}
+	sessRec, err := s.GetSession(ctx, "session_continue_queued_claimed")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] != queuedTurn.ID || sessRec.State["model"] != "bootstrap" {
+		t.Fatalf("expected queued continue handoff to normalize running session state, got %#v", sessRec.State)
+	}
+}
+
 func TestContinueSessionNormalizesRunningStateWhenActiveTurnExists(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
