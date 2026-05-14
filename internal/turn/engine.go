@@ -494,6 +494,11 @@ func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID str
 	}
 	warnStore("sync queue count after steering fallback", e.store.SyncSessionQueueCount(opCtx, in.SessionID))
 	sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
+	if turnRec, turnErr := e.store.GetTurn(opCtx, activeTurnID); turnErr == nil {
+		if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
+			sessionState["model"] = model
+		}
+	}
 	if model := strings.TrimSpace(in.Model); model != "" {
 		sessionState["model"] = model
 	}

@@ -1797,6 +1797,37 @@ func TestLaunchConflictSteeringFallbackClearsQueuedSessionState(t *testing.T) {
 	}
 }
 
+func TestLaunchConflictSteeringFallbackPreservesSessionModelWhenInputModelIsEmpty(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_launch_conflict_model", "Test", map[string]any{"model": "old-model", "status": "running", "active_turn_id": "turn_launch_conflict_model_active", "queue_count": 0}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_launch_conflict_model_active", "session_launch_conflict_model", "running", "active", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_launch_conflict_model", activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	engine := New(s)
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_launch_conflict_model", Prompt: "steer me"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	if result.Queued || result.Status != "running" || result.TurnID != activeTurn.ID {
+		t.Fatalf("expected steering fallback result against active turn, got %#v", result)
+	}
+	sessRec, err := s.GetSession(ctx, "session_launch_conflict_model")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] != activeTurn.ID || sessRec.State["model"] != "bootstrap" {
+		t.Fatalf("expected steering fallback to preserve active-turn model, got %#v", sessRec.State)
+	}
+}
+
 func TestCancelQueuedTurnPreservesRunningSessionWithActiveClaim(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
