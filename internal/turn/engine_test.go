@@ -993,6 +993,33 @@ func TestContinueSessionClearsQueueCountAfterLaunchingContinuation(t *testing.T)
 	}
 }
 
+func TestContinueSessionNormalizesIdleStateWhenNoWorkRemains(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_continue_idle_normalize", "Test", map[string]any{"model": "bootstrap", "status": "queued", "active_turn_id": "stale-turn", "queue_count": 1}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	engine := New(s)
+	continued, err := engine.ContinueSession(ctx, "session_continue_idle_normalize")
+	if err != nil {
+		t.Fatalf("continue session: %v", err)
+	}
+	if continued {
+		t.Fatal("expected no continuation work")
+	}
+	sessRec, err := s.GetSession(ctx, "session_continue_idle_normalize")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "idle" || sessRec.State["active_turn_id"] != nil {
+		t.Fatalf("expected idle continue to normalize session idle state, got %#v", sessRec.State)
+	}
+	if got := sessRec.State["queue_count"]; got != float64(0) && got != 0 {
+		t.Fatalf("expected idle continue to clear stale queue_count, got %#v", sessRec.State)
+	}
+}
+
 func TestContinueSessionStartsQueuedSteeringWhenIdle(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

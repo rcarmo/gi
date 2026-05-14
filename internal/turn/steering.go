@@ -229,7 +229,16 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 	} else if err != nil && err != sql.ErrNoRows {
 		return false, err
 	}
-	return e.continueQueuedSteeringLocked(coordCtx, runner, sessionID)
+	continued, err := e.continueQueuedSteeringLocked(coordCtx, runner, sessionID)
+	if err != nil {
+		return false, err
+	}
+	if continued {
+		return true, nil
+	}
+	warnStore("sync queue count after idle continue", e.store.SyncSessionQueueCount(coordCtx, sessionID))
+	warnStore("touch session idle after idle continue", e.store.TouchSessionState(coordCtx, sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
+	return false, nil
 }
 
 func (r *sessionRunner) dequeueSteeringMessages(ctx context.Context, sessionID string) ([]store.SteeringMessage, error) {
