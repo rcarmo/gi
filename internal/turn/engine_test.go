@@ -1020,6 +1020,41 @@ func TestContinueSessionNormalizesIdleStateWhenNoWorkRemains(t *testing.T) {
 	}
 }
 
+func TestContinueSessionClearsQueueCountAfterLaunchingQueuedTurn(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_continue_launch_queue", "Test", map[string]any{"model": "bootstrap", "status": "queued", "queue_count": 1}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_continue_launch_queue", "session_continue_launch_queue", "queued", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	engine := New(s)
+	continued, err := engine.ContinueSession(ctx, "session_continue_launch_queue")
+	if err != nil {
+		t.Fatalf("continue session: %v", err)
+	}
+	if !continued {
+		t.Fatal("expected ContinueSession to launch queued turn")
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		sessRec, err := s.GetSession(ctx, "session_continue_launch_queue")
+		if err != nil {
+			return false
+		}
+		got := sessRec.State["queue_count"]
+		return got == float64(0) || got == 0
+	}, "queued turn launch queue_count normalization")
+	sessRec, err := s.GetSession(ctx, "session_continue_launch_queue")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if got := sessRec.State["queue_count"]; got != float64(0) && got != 0 {
+		t.Fatalf("expected launched queued turn to clear queue_count, got %#v", sessRec.State)
+	}
+}
+
 func TestContinueSessionStartsQueuedSteeringWhenIdle(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

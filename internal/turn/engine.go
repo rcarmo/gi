@@ -560,6 +560,7 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 		releaseClaim()
 		return false, err
 	}
+	warnStore("sync queue count after launch", e.store.SyncSessionQueueCount(opCtx, sessionID))
 	go runner.runTurn(e.store, sessionID, turnID, runCtx, cancel, active)
 	return true, nil
 }
