@@ -1405,6 +1405,46 @@ func TestStoreDiscardInboundWork(t *testing.T) {
 	}
 }
 
+func TestStageSteeringContinuationReturnsQueuedTurnWithoutReload(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_stage_store_turn", "Test", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_stage_store_prev", "session_stage_store_turn", "completed", "prev", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create previous turn: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_stage_store_turn", "turn_stage_store_prev", "user", "continue", map[string]any{"intent": "continue", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	turnRec, msgs, err := s.StageSteeringContinuation(ctx, "session_stage_store_turn", "turn_stage_store_new")
+	if err != nil {
+		t.Fatalf("stage steering continuation: %v", err)
+	}
+	if turnRec == nil || turnRec.ID != "turn_stage_store_new" || turnRec.SessionID != "session_stage_store_turn" || turnRec.Status != "queued" || turnRec.Phase != "queued" {
+		t.Fatalf("unexpected staged turn record: %#v", turnRec)
+	}
+	if len(msgs) != 1 || msgs[0].Content != "continue" {
+		t.Fatalf("unexpected staged steering messages: %#v", msgs)
+	}
+	if got, err := s.CountQueuedTurns(ctx, "session_stage_store_turn"); err != nil {
+		t.Fatalf("count queued turns: %v", err)
+	} else if got != 1 {
+		t.Fatalf("expected queued count 1 after stage, got %d", got)
+	}
+	persisted, err := s.GetTurn(ctx, "turn_stage_store_new")
+	if err != nil {
+		t.Fatalf("get persisted staged turn: %v", err)
+	}
+	if persisted.Status != "queued" || persisted.Phase != "queued" {
+		t.Fatalf("unexpected persisted staged turn: %#v", persisted)
+	}
+}
+
 func TestStoreInboundDispatcherLeaseSingleOwner(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
