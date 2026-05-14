@@ -184,6 +184,7 @@ func (e *Engine) continueQueuedSteeringLocked(ctx context.Context, runner *sessi
 		return false, err
 	}
 	if launched {
+		warnStore("sync queue count after steering continuation launch", e.store.SyncSessionQueueCount(coordCtx, sessionID))
 		e.broadcast(sessionID, map[string]any{"type": "steering_continued", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 		return true, nil
 	}

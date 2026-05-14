@@ -955,6 +955,44 @@ func TestStageQueuedSteeringContinuationDoesNotDrainWhenQueuedTurnAlreadyExists(
 	}
 }
 
+func TestContinueSessionClearsQueueCountAfterLaunchingContinuation(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_continue_queue_count", "Test", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_continue_queue_count_prev", "session_continue_queue_count", "completed", "previous", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create previous turn: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_continue_queue_count", "turn_continue_queue_count_prev", "user", "continue please", map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	engine := New(s)
+	continued, err := engine.ContinueSession(ctx, "session_continue_queue_count")
+	if err != nil {
+		t.Fatalf("continue session: %v", err)
+	}
+	if !continued {
+		t.Fatal("expected ContinueSession to start queued steering")
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		sessRec, err := s.GetSession(ctx, "session_continue_queue_count")
+		if err != nil {
+			return false
+		}
+		got := sessRec.State["queue_count"]
+		return got == float64(0) || got == 0
+	}, "continuation launch queue_count normalization")
+	sessRec, err := s.GetSession(ctx, "session_continue_queue_count")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if got := sessRec.State["queue_count"]; got != float64(0) && got != 0 {
+		t.Fatalf("expected launched continuation to clear queue_count, got %#v", sessRec.State)
+	}
+}
+
 func TestContinueSessionStartsQueuedSteeringWhenIdle(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
