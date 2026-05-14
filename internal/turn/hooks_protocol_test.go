@@ -208,6 +208,10 @@ func TestTurnAndSessionStateHooksObserveLifecycle(t *testing.T) {
 	if len(sessionStates) < 2 || sessionStates[0] != "running" || sessionStates[len(sessionStates)-1] != "idle" {
 		t.Fatalf("expected running→idle session states, got %#v", sessionStates)
 	}
+	setupPayload := sessionPayloads[0]
+	if setupPayload["turn_id"] != "turn_hook_state" || setupPayload["active_turn_id"] != "turn_hook_state" || setupPayload["turn_status"] != "running" || setupPayload["turn_phase"] != "setup" || setupPayload["reason"] != "setup" {
+		t.Fatalf("expected setup session_state hook payload with turn correlation, got %#v", setupPayload)
+	}
 	terminalPayload := sessionPayloads[len(sessionPayloads)-1]
 	if terminalPayload["turn_id"] != "turn_hook_state" || terminalPayload["turn_status"] != "failed" || terminalPayload["reason"] != "turn_terminal" || terminalPayload["failure_kind"] != "provider_error" {
 		t.Fatalf("expected terminal session_state hook payload with turn correlation, got %#v", terminalPayload)

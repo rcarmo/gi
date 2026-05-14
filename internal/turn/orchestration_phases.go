@@ -81,8 +81,8 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 		return nil, err
 	}
 	warnStore("touch session state running", s.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": turnID, "model": model, "status": "running"}))
-	r.engine.PublishRuntimeSessionEvent("session_running", sessionID, agentID, "running", map[string]any{"reason": "setup", "active_turn_id": turnID, "model": model})
-	r.emitSessionStateHookOnly(ctx, sessionID, agentID, model, "running", map[string]any{"reason": "setup", "active_turn_id": turnID})
+	r.engine.PublishRuntimeSessionEvent("session_running", sessionID, agentID, "running", map[string]any{"reason": "setup", "active_turn_id": turnID, "turn_id": turnID, "turn_status": "running", "turn_phase": "setup", "model": model})
+	r.emitSessionStateHookOnly(ctx, sessionID, agentID, model, "running", map[string]any{"reason": "setup", "active_turn_id": turnID, "turn_id": turnID, "turn_status": "running", "turn_phase": "setup"})
 	r.engine.PublishRuntimeTurnEvent("turn_started", sessionID, turnID, agentID, "running", "setup", map[string]any{"reason": "setup", "model": model})
 	r.emitTurnStateHookOnly(ctx, sessionID, turnID, agentID, model, "running", "setup", map[string]any{"reason": "setup"})
 	userPayload := map[string]any{"kind": "chat", "intent": intent, "turn_id": turnID}
