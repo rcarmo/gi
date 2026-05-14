@@ -208,6 +208,41 @@ func TestTurnAndSessionStateHooksObserveLifecycle(t *testing.T) {
 	}
 }
 
+func TestShellTerminalSessionStateHookCarriesTurnID(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_shell_hook_turn_id", "ShellHook", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	payloadCh := make(chan map[string]any, 8)
+	if _, err := e.RegisterHook(HookSessionState, "test", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		if req.SessionID == "session_shell_hook_turn_id" && req.SessionStatus == "idle" {
+			payloadCh <- cloneMap(req.Payload)
+		}
+		return HookResponse{}, nil
+	}); err != nil {
+		t.Fatalf("register session_state hook: %v", err)
+	}
+	result, err := e.SubmitPrompt(ctx, RunInput{SessionID: "session_shell_hook_turn_id", Prompt: "hello", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	deadline := time.After(2 * time.Second)
+	for {
+		select {
+		case payload := <-payloadCh:
+			if payload["turn_id"] != result.TurnID || payload["turn_status"] != "completed" || payload["reason"] != "turn_completed" {
+				t.Fatalf("expected terminal session_state hook payload with turn id, got %#v", payload)
+			}
+			return
+		case <-deadline:
+			t.Fatal("expected terminal session_state hook payload for shell turn")
+		}
+	}
+}
+
 func TestHookTimeoutPolicyContinue(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

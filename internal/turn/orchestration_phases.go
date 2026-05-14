@@ -189,7 +189,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 		r.broadcastSystemPost(run.sessionID, run.turnID, msgID, "Turn cancelled")
 		warnStore("touch session idle after cancel", s.TouchSessionState(bgCtx, run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
 		r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "cancelled", "failure_kind": "", "model": run.model})
-		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_terminal", "turn_status": "cancelled", "failure_kind": ""})
+		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "cancelled", "failure_kind": ""})
 		return
 	}
 	if runErr != nil {
@@ -209,7 +209,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 		r.publishSubTurnLifecycle(bgCtx, run.turnID, "failed")
 		warnStore("touch session idle after failure", s.TouchSessionState(bgCtx, run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
 		r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "failed", "failure_kind": "shell_error", "model": run.model})
-		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_terminal", "turn_status": "failed", "failure_kind": "shell_error"})
+		r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_terminal", "turn_id": run.turnID, "turn_status": "failed", "failure_kind": "shell_error"})
 		return
 	}
 	bgCtx := r.engine.backgroundContext()
@@ -234,5 +234,5 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	warnStore("touch session idle after completion", s.TouchSessionState(bgCtx, run.sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
 	sessionCompletionPayload := map[string]any{"reason": "turn_completed", "turn_id": run.turnID, "turn_status": "completed", "failure_kind": "", "model": run.model, "completion_kind": "response"}
 	r.engine.PublishRuntimeSessionEvent("session_idle", run.sessionID, run.agentID, "idle", sessionCompletionPayload)
-	r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_completed", "turn_status": "completed", "failure_kind": "", "completion_kind": "response"})
+	r.emitSessionStateHookOnly(bgCtx, run.sessionID, run.agentID, run.model, "idle", map[string]any{"reason": "turn_completed", "turn_id": run.turnID, "turn_status": "completed", "failure_kind": "", "completion_kind": "response"})
 }
