@@ -1450,6 +1450,47 @@ func TestCancelTurnRejectsSessionMismatch(t *testing.T) {
 	}
 }
 
+func TestLaunchConflictSteeringFallbackClearsQueuedSessionState(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_launch_conflict_state", "Test", map[string]any{"model": "bootstrap", "status": "running", "active_turn_id": "turn_launch_conflict_active"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_launch_conflict_active", "session_launch_conflict_state", "running", "active", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_launch_conflict_state", activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	engine := New(s)
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_launch_conflict_state", Prompt: "steer me", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	if result.Queued || result.Status != "running" || result.TurnID != activeTurn.ID {
+		t.Fatalf("expected steering fallback result against active turn, got %#v", result)
+	}
+	sessRec, err := s.GetSession(ctx, "session_launch_conflict_state")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] != activeTurn.ID {
+		t.Fatalf("expected steering fallback to preserve running session state, got %#v", sessRec.State)
+	}
+	if got := sessRec.State["queue_count"]; got != float64(0) && got != 0 {
+		t.Fatalf("expected steering fallback to clear queued count after deleting queued turn, got %#v", sessRec.State)
+	}
+	turns, err := s.ListTurns(ctx, "session_launch_conflict_state")
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 1 || turns[0].ID != activeTurn.ID {
+		t.Fatalf("expected only active turn after steering fallback deletes transient queued turn, got %#v", turns)
+	}
+}
+
 func TestCancelQueuedTurnPreservesRunningSessionWithActiveClaim(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
