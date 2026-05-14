@@ -82,15 +82,16 @@ func steeringMessagesFromMetadata(metadata map[string]any) []store.SteeringMessa
 }
 
 func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurnID string, in RunInput) (*SubmitResult, error) {
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if strings.TrimSpace(sessionID) != "" && strings.TrimSpace(activeTurnID) != "" {
 		sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
-		if turnRec, err := e.store.GetTurn(ctx, activeTurnID); err == nil {
+		if turnRec, err := e.store.GetTurn(opCtx, activeTurnID); err == nil {
 			if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
 				sessionState["model"] = model
 			}
 		}
-		warnStore("sync queue count on steering submit", e.store.SyncSessionQueueCount(ctx, sessionID))
-		warnStore("touch session running on steering submit", e.store.TouchSessionState(ctx, sessionID, sessionState))
+		warnStore("sync queue count on steering submit", e.store.SyncSessionQueueCount(opCtx, sessionID))
+		warnStore("touch session running on steering submit", e.store.TouchSessionState(opCtx, sessionID, sessionState))
 	}
 	payload := map[string]any{"intent": in.Intent, "model": in.Model, "kind": "steering", "active_turn_id": activeTurnID}
 	if in.ParentTurnID != "" {
@@ -102,7 +103,7 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 	media := steeringMediaFromMetadata(in.Metadata)
 	queueMode := stringValue(in.Metadata["steering_mode"], "one-at-a-time")
 	steeringRole := normalizeSteeringRole(stringValue(in.Metadata["ingress_role"], "user"))
-	if _, err := e.store.EnqueueSteering(ctx, sessionID, activeTurnID, steeringRole, in.Prompt, payload, media, queueMode); err != nil {
+	if _, err := e.store.EnqueueSteering(opCtx, sessionID, activeTurnID, steeringRole, in.Prompt, payload, media, queueMode); err != nil {
 		warnStore("append steering.rejected event", e.store.AppendTurnEvent(e.backgroundContext(), activeTurnID, sessionID, "steering.rejected", map[string]any{
 			"phase":       "steering",
 			"checkpoint":  true,
@@ -122,7 +123,7 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 		})
 		return nil, err
 	}
-	warnStore("append steering.enqueued event", e.store.AppendTurnEvent(ctx, activeTurnID, sessionID, "steering.enqueued", map[string]any{
+	warnStore("append steering.enqueued event", e.store.AppendTurnEvent(opCtx, activeTurnID, sessionID, "steering.enqueued", map[string]any{
 		"phase":       "steering",
 		"checkpoint":  true,
 		"content":     in.Prompt,

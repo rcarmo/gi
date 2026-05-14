@@ -310,6 +310,37 @@ func TestSubmitPromptSteeringNormalizesRunningSessionState(t *testing.T) {
 	}
 }
 
+func TestSubmitPromptSteeringSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_submit_steering_cancel", "Test", map[string]any{"model": "bootstrap", "status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_submit_steering_cancel", "session_submit_steering_cancel", "running", "one", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_submit_steering_cancel", activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	engine := New(s)
+	result, err := engine.submitSteeringPrompt(cancelCtx, "session_submit_steering_cancel", activeTurn.ID, RunInput{SessionID: "session_submit_steering_cancel", Prompt: "two", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit steering with canceled context: %v", err)
+	}
+	if result.Queued || result.Status != "running" || result.TurnID != activeTurn.ID {
+		t.Fatalf("expected steering result against active turn, got %#v", result)
+	}
+	if depth, err := s.SteeringQueueLength(context.Background(), "session_submit_steering_cancel"); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 1 {
+		t.Fatalf("expected steering to persist despite canceled caller context, got depth %d", depth)
+	}
+}
+
 func TestSubmitPromptSteersSecondPromptToActiveTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
