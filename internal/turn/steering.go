@@ -160,7 +160,11 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 	warnStore("append continued turn.submitted event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "turn.submitted", submittedPayload))
 	e.PublishRuntimeTurnEvent("turn_submitted", sessionID, turnID, "", "queued", "queued", submittedPayload)
 	warnStore("sync queue count after continued submit", e.store.SyncSessionQueueCount(opCtx, sessionID))
-	warnStore("touch session state after continued submit", e.store.TouchSessionState(opCtx, sessionID, map[string]any{"status": "queued", "active_turn_id": nil, "model": stringValue(metadata["model"], "")}))
+	sessionState := map[string]any{"status": "queued", "active_turn_id": nil}
+	if model := stringValue(metadata["model"], ""); strings.TrimSpace(model) != "" {
+		sessionState["model"] = model
+	}
+	warnStore("touch session state after continued submit", e.store.TouchSessionState(opCtx, sessionID, sessionState))
 	warnStore("append steering.continue_staged event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)}))
 	e.broadcast(sessionID, map[string]any{"type": "steering_continue_staged", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs)})
 	return true, turnID, nil

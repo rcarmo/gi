@@ -161,6 +161,34 @@ func TestStageQueuedSteeringContinuationMarksSessionQueued(t *testing.T) {
 	}
 }
 
+func TestStageQueuedSteeringContinuationPreservesSessionModelWhenSteeringOmitsModel(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_continue_model_preserve", "ContinueState", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_continue_model_preserve_prev", "session_continue_model_preserve", "completed", "previous", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create previous turn: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_continue_model_preserve", "turn_continue_model_preserve_prev", "user", "continue me", map[string]any{"intent": "continue"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	engine := New(s)
+	if staged, turnID, err := engine.stageQueuedSteeringContinuation(ctx, "session_continue_model_preserve"); err != nil {
+		t.Fatalf("stage queued steering continuation: %v", err)
+	} else if !staged || turnID == "" {
+		t.Fatalf("expected staged continuation turn, got staged=%v id=%q", staged, turnID)
+	}
+	sessRec, err := s.GetSession(ctx, "session_continue_model_preserve")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["model"] != "bootstrap" || sessRec.State["status"] != "queued" {
+		t.Fatalf("expected staged continuation to preserve session model, got %#v", sessRec.State)
+	}
+}
+
 func TestSubmitPromptSteersSecondPromptToActiveTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
