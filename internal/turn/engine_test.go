@@ -1066,6 +1066,46 @@ func TestConcurrentContinueSessionStartsSingleTurn(t *testing.T) {
 	}
 }
 
+func TestCleanupTurnRunNormalizesRunningStateWhenNextTurnAlreadyClaimed(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cleanup_claimed", "Test", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_cleanup_claimed_active", "session_cleanup_claimed", "completed", "active", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_cleanup_claimed_next", "session_cleanup_claimed", "running", "next", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create next turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_cleanup_claimed", activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	if err := s.TouchSessionState(ctx, "session_cleanup_claimed", map[string]any{"status": "idle", "active_turn_id": nil}); err != nil {
+		t.Fatalf("seed session state: %v", err)
+	}
+	engine := New(s)
+	engine.beforeCleanupNextWorkHook = func(ctx context.Context, sessionID string) {
+		if _, err := s.ClaimSessionActiveTurn(ctx, sessionID, queuedTurn.ID, "external", queuedTurn.ID); err != nil {
+			t.Fatalf("claim queued turn inside cleanup hook: %v", err)
+		}
+	}
+	runner := engine.runner("session_cleanup_claimed")
+	oldRunning := &runningTurn{turnID: activeTurn.ID}
+	runner.current = oldRunning
+	runner.cleanupTurnRun("session_cleanup_claimed", activeTurn.ID, oldRunning)
+	sessRec, err := s.GetSession(ctx, "session_cleanup_claimed")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] != queuedTurn.ID {
+		t.Fatalf("expected cleanup to normalize session to externally claimed running turn, got %#v", sessRec.State)
+	}
+}
+
 func TestCleanupSchedulesContinuationBeforeConcurrentSubmit(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

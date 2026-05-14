@@ -39,16 +39,35 @@ func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *run
 	launched, err := r.engine.startNextQueuedTurnLocked(ctx, r, sessionID)
 	if err != nil {
 		log.Printf("turn coordination: launch queued turn failed: %v", err)
-		return
-	}
-	if launched {
-		return
-	}
-	if _, _, err := r.store.GetSessionActiveTurn(ctx, sessionID); err == sql.ErrNoRows {
-		if _, err := r.engine.continueQueuedSteeringLocked(ctx, r, sessionID); err != nil {
-			log.Printf("steering continuation: %v", err)
+	} else if !launched {
+		if _, _, err := r.store.GetSessionActiveTurn(ctx, sessionID); err == sql.ErrNoRows {
+			if _, err := r.engine.continueQueuedSteeringLocked(ctx, r, sessionID); err != nil {
+				log.Printf("steering continuation: %v", err)
+			}
+		} else if err != nil {
+			log.Printf("turn coordination: inspect active turn after cleanup failed: %v", err)
 		}
 	}
+	queueCount, err := r.store.CountQueuedTurns(ctx, sessionID)
+	if err != nil {
+		log.Printf("turn coordination: count queued turns after cleanup failed: %v", err)
+		return
+	}
+	activeTurnID, _, err := r.store.GetSessionActiveTurn(ctx, sessionID)
+	hasActiveTurn := err == nil
+	if err != nil && err != sql.ErrNoRows {
+		log.Printf("turn coordination: inspect active turn during cleanup normalization failed: %v", err)
+		return
+	}
+	sessionStatus := "idle"
+	activeTurnValue := any(nil)
+	if hasActiveTurn {
+		sessionStatus = "running"
+		activeTurnValue = activeTurnID
+	} else if queueCount > 0 {
+		sessionStatus = "queued"
+	}
+	warnStore("touch session state after cleanup", r.store.TouchSessionState(ctx, sessionID, map[string]any{"status": sessionStatus, "active_turn_id": activeTurnValue}))
 }
 
 func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessionID, turnID string) (*preparedTurnRun, error) {
