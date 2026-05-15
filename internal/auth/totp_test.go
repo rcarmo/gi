@@ -33,6 +33,28 @@ func TestVerifyEnrollmentRemovesExpiredPendingEntry(t *testing.T) {
 	}
 }
 
+func TestStartEnrollmentPrunesExpiredPendingEntries(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.pending["stale"] = PendingEnrollment{
+		Username:  "stale",
+		Secret:    "expired-secret",
+		CreatedAt: time.Now().UTC().Add(-11 * time.Minute),
+	}
+	pending, err := m.StartEnrollment("rui")
+	if err != nil {
+		t.Fatalf("start enrollment: %v", err)
+	}
+	if pending.Username != "rui" {
+		t.Fatalf("unexpected pending enrollment: %#v", pending)
+	}
+	if _, ok := m.pending["stale"]; ok {
+		t.Fatalf("expected stale pending enrollment to be pruned, got %#v", m.pending)
+	}
+	if _, ok := m.pending["rui"]; !ok {
+		t.Fatalf("expected fresh pending enrollment to remain, got %#v", m.pending)
+	}
+}
+
 func TestManagerEnrollmentAndLogin(t *testing.T) {
 	m := NewManager(t.TempDir())
 	status, err := m.Status()

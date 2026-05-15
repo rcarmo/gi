@@ -73,6 +73,7 @@ func (m *Manager) StartEnrollment(username string) (PendingEnrollment, error) {
 	}
 	pending := PendingEnrollment{Username: username, Secret: secret, URL: TOTPURL(m.issuer, username, secret), CreatedAt: time.Now().UTC()}
 	m.mu.Lock()
+	m.pruneExpiredPendingLocked(pending.CreatedAt)
 	m.pending[username] = pending
 	m.mu.Unlock()
 	return pending, nil
@@ -88,10 +89,7 @@ func (m *Manager) VerifyEnrollment(username, code string) (State, error) {
 	}
 	if time.Since(pending.CreatedAt) > 10*time.Minute {
 		m.mu.Lock()
-		current, exists := m.pending[username]
-		if exists && current.CreatedAt.Equal(pending.CreatedAt) && current.Secret == pending.Secret {
-			delete(m.pending, username)
-		}
+		m.pruneExpiredPendingLocked(time.Now().UTC())
 		m.mu.Unlock()
 		return State{}, fmt.Errorf("pending enrollment expired")
 	}
@@ -202,6 +200,15 @@ func (m *Manager) save(state State) error {
 		return err
 	}
 	return os.WriteFile(m.path, data, 0o600)
+}
+
+func (m *Manager) pruneExpiredPendingLocked(now time.Time) {
+	cutoff := now.Add(-10 * time.Minute)
+	for username, pending := range m.pending {
+		if pending.CreatedAt.Before(cutoff) {
+			delete(m.pending, username)
+		}
+	}
 }
 
 func newToken() (string, string, error) {
