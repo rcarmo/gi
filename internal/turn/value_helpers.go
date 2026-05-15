@@ -24,6 +24,26 @@ func normalizedLowerString(v string) string {
 	return strings.ToLower(strings.TrimSpace(v))
 }
 
+func (e *Engine) normalizeRunningSessionState(ctx context.Context, sessionID, activeTurnID string, syncQueue bool, overrideModel string) {
+	if e == nil || e.store == nil || strings.TrimSpace(sessionID) == "" || strings.TrimSpace(activeTurnID) == "" {
+		return
+	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
+	sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
+	if turnRec, err := e.store.GetTurn(opCtx, activeTurnID); err == nil {
+		if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
+			sessionState["model"] = model
+		}
+	}
+	if model := strings.TrimSpace(overrideModel); model != "" {
+		sessionState["model"] = model
+	}
+	if syncQueue {
+		warnStore("sync queue count on running session normalization", e.store.SyncSessionQueueCount(opCtx, sessionID))
+	}
+	warnStore("touch running session normalization", e.store.TouchSessionState(opCtx, sessionID, sessionState))
+}
+
 func stringValue(v any, fallback string) string {
 	if s, ok := v.(string); ok && s != "" {
 		return s

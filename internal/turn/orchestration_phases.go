@@ -63,13 +63,8 @@ func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *run
 	activeTurnValue := any(nil)
 	sessionState := map[string]any{}
 	if hasActiveTurn {
-		sessionStatus = "running"
-		activeTurnValue = activeTurnID
-		if turnRec, turnErr := r.store.GetTurn(ctx, activeTurnID); turnErr == nil {
-			if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
-				sessionState["model"] = model
-			}
-		}
+		r.engine.normalizeRunningSessionState(ctx, sessionID, activeTurnID, false, "")
+		return
 	} else if queueCount > 0 {
 		sessionStatus = "queued"
 	}

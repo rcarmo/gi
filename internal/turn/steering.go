@@ -84,14 +84,7 @@ func steeringMessagesFromMetadata(metadata map[string]any) []store.SteeringMessa
 func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurnID string, in RunInput) (*SubmitResult, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if strings.TrimSpace(sessionID) != "" && strings.TrimSpace(activeTurnID) != "" {
-		sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
-		if turnRec, err := e.store.GetTurn(opCtx, activeTurnID); err == nil {
-			if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
-				sessionState["model"] = model
-			}
-		}
-		warnStore("sync queue count on steering submit", e.store.SyncSessionQueueCount(opCtx, sessionID))
-		warnStore("touch session running on steering submit", e.store.TouchSessionState(opCtx, sessionID, sessionState))
+		e.normalizeRunningSessionState(opCtx, sessionID, activeTurnID, true, "")
 	}
 	payload := map[string]any{"intent": in.Intent, "model": in.Model, "kind": "steering", "active_turn_id": activeTurnID}
 	if in.ParentTurnID != "" {
@@ -199,16 +192,9 @@ func (e *Engine) continueQueuedSteeringLocked(ctx context.Context, runner *sessi
 		e.broadcast(sessionID, map[string]any{"type": "steering_continued", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 		return true, nil
 	}
-	warnStore("sync queue count after steering continuation handoff", e.store.SyncSessionQueueCount(coordCtx, sessionID))
 	activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID)
 	if err == nil {
-		sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
-		if turnRec, turnErr := e.store.GetTurn(coordCtx, activeTurnID); turnErr == nil {
-			if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
-				sessionState["model"] = model
-			}
-		}
-		warnStore("touch session state after steering continuation handoff", e.store.TouchSessionState(coordCtx, sessionID, sessionState))
+		e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, "")
 		return true, nil
 	}
 	if err != nil && err != sql.ErrNoRows {
@@ -230,14 +216,7 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 	defer runner.mu.Unlock()
 	coordCtx := coordinationContext(ctx, e.backgroundContext())
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
-		sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
-		if turnRec, turnErr := e.store.GetTurn(coordCtx, activeTurnID); turnErr == nil {
-			if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
-				sessionState["model"] = model
-			}
-		}
-		warnStore("sync queue count on active continue", e.store.SyncSessionQueueCount(coordCtx, sessionID))
-		warnStore("touch session running on active continue", e.store.TouchSessionState(coordCtx, sessionID, sessionState))
+		e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, "")
 		return false, nil
 	} else if err != nil && err != sql.ErrNoRows {
 		return false, err
@@ -250,14 +229,7 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 		return true, nil
 	}
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
-		sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
-		if turnRec, turnErr := e.store.GetTurn(coordCtx, activeTurnID); turnErr == nil {
-			if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
-				sessionState["model"] = model
-			}
-		}
-		warnStore("sync queue count on queued continue handoff", e.store.SyncSessionQueueCount(coordCtx, sessionID))
-		warnStore("touch session running on queued continue handoff", e.store.TouchSessionState(coordCtx, sessionID, sessionState))
+		e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, "")
 		return true, nil
 	} else if err != nil && err != sql.ErrNoRows {
 		return false, err
