@@ -143,7 +143,7 @@ func authPassword(auth map[string]any) (string, error) {
 		}
 		return "", fmt.Errorf("auth env %s is not set", env)
 	}
-	if keychain := stringMapValue(auth, "password_keychain"); keychain != "" {
+	if keychain := firstNonEmpty(stringMapValue(auth, "password_keychain"), stringMapValue(auth, "keychain")); keychain != "" {
 		return "", fmt.Errorf("auth keychain references are not wired in gi yet: %s", keychain)
 	}
 	return "", fmt.Errorf("basic auth password is required")

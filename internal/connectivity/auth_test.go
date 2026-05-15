@@ -54,6 +54,16 @@ func TestAuthorizeHTTPRequestBasicRejectsWrongPassword(t *testing.T) {
 	}
 }
 
+func TestAuthorizeHTTPRequestBasicReportsGenericKeychainPlaceholder(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodPost, "http://example.test/hook", nil)
+	req.RemoteAddr = "203.0.113.10:1234"
+	req.SetBasicAuth("rui", "secret")
+	spec := RouteSpec{Auth: map[string]any{"type": "basic", "username": "rui", "keychain": "connect/basic-password"}}
+	if err := AuthorizeHTTPRequest(spec, req, nil); err == nil || err.Error() != "auth keychain references are not wired in gi yet: connect/basic-password" {
+		t.Fatalf("expected generic keychain placeholder error, got %v", err)
+	}
+}
+
 func TestAuthorizeHTTPRequestHMAC(t *testing.T) {
 	body := []byte(`{"ok":true}`)
 	mac := hmac.New(sha256.New, []byte("topsecret"))
