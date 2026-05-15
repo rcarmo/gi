@@ -42,7 +42,7 @@ type ScriptTool struct {
 	topicMu     sync.Mutex
 	topicSubs   map[string]topicSubscription
 	hookMu      sync.Mutex
-	eventHooks  []scripting.EventHookSpec
+	eventHooks  []registeredEventHook
 	ioIDCounter atomic.Int64
 	httpClient  *http.Client
 
@@ -61,6 +61,11 @@ type ScriptTool struct {
 type topicSubscription struct {
 	ch          <-chan topics.Envelope
 	unsubscribe func()
+}
+
+type registeredEventHook struct {
+	sessionID string
+	spec      scripting.EventHookSpec
 }
 
 // ScriptInput is what the agent sends to invoke the script tool.
@@ -557,7 +562,7 @@ func (t *ScriptTool) registerEventHook(_ context.Context, sessionID string, hook
 	if hook.Name == "" {
 		return fmt.Errorf("event hook name is required")
 	}
-	t.eventHooks = append(t.eventHooks, hook)
+	t.eventHooks = append(t.eventHooks, registeredEventHook{sessionID: sessionID, spec: hook})
 	log.Printf("script[%s]: registerEventHook name=%q source=%q", sessionID, hook.Name, hook.Source)
 	return nil
 }
@@ -567,10 +572,14 @@ func (t *ScriptTool) emitEvent(_ context.Context, sessionID, name string, payloa
 	defer t.hookMu.Unlock()
 	matched := 0
 	for _, hook := range t.eventHooks {
-		if hook.Name != name && hook.Name != "*" {
+		if hook.sessionID != "" && sessionID != "" && hook.sessionID != sessionID {
 			continue
 		}
-		if hook.Source != "" {
+		spec := hook.spec
+		if spec.Name != name && spec.Name != "*" {
+			continue
+		}
+		if spec.Source != "" {
 			if payload == nil {
 				continue
 			}
@@ -579,7 +588,7 @@ func (t *ScriptTool) emitEvent(_ context.Context, sessionID, name string, payloa
 				continue
 			}
 			src, ok := payloadValue.(string)
-			if !ok || src != hook.Source {
+			if !ok || src != spec.Source {
 				continue
 			}
 		}
@@ -592,7 +601,18 @@ func (t *ScriptTool) emitEvent(_ context.Context, sessionID, name string, payloa
 func (t *ScriptTool) clearEventHooks(_ context.Context, sessionID string) error {
 	t.hookMu.Lock()
 	defer t.hookMu.Unlock()
-	t.eventHooks = nil
+	if strings.TrimSpace(sessionID) == "" {
+		t.eventHooks = nil
+		log.Printf("script[%s]: clearEventHooks", sessionID)
+		return nil
+	}
+	filtered := t.eventHooks[:0]
+	for _, hook := range t.eventHooks {
+		if hook.sessionID != sessionID {
+			filtered = append(filtered, hook)
+		}
+	}
+	t.eventHooks = filtered
 	log.Printf("script[%s]: clearEventHooks", sessionID)
 	return nil
 }

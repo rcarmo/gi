@@ -297,6 +297,30 @@ func TestScriptToolJokerSupportsEventHooksAndEmit(t *testing.T) {
 	}
 }
 
+func TestScriptToolClearEventHooksOnlyRemovesCurrentSession(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
+	if err := tool.registerEventHook(context.Background(), "session_a", scripting.EventHookSpec{Name: "evt", Source: "script"}); err != nil {
+		t.Fatalf("register event hook session_a: %v", err)
+	}
+	if err := tool.registerEventHook(context.Background(), "session_b", scripting.EventHookSpec{Name: "evt", Source: "script"}); err != nil {
+		t.Fatalf("register event hook session_b: %v", err)
+	}
+	if len(tool.eventHooks) != 2 {
+		t.Fatalf("expected two session-scoped event hooks, got %d", len(tool.eventHooks))
+	}
+	if err := tool.clearEventHooks(context.Background(), "session_a"); err != nil {
+		t.Fatalf("clear event hooks: %v", err)
+	}
+	if len(tool.eventHooks) != 1 || tool.eventHooks[0].sessionID != "session_b" {
+		t.Fatalf("expected only session_b hook to remain, got %#v", tool.eventHooks)
+	}
+}
+
 func TestScriptToolJokerRawSocketsRoundTrip(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
@@ -447,6 +471,33 @@ func TestScriptToolSupportsEventHooksAndEmit(t *testing.T) {
 	}
 	if len(tool.eventHooks) != 0 {
 		t.Fatalf("expected event hooks cleared, got %d", len(tool.eventHooks))
+	}
+}
+
+func TestScriptToolEmitEventOnlyMatchesCurrentSessionHooks(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
+	if err := tool.registerEventHook(context.Background(), "session_a", scripting.EventHookSpec{Name: "evt", Source: "script"}); err != nil {
+		t.Fatalf("register event hook session_a: %v", err)
+	}
+	if err := tool.registerEventHook(context.Background(), "session_b", scripting.EventHookSpec{Name: "evt", Source: "script"}); err != nil {
+		t.Fatalf("register event hook session_b: %v", err)
+	}
+	if err := tool.emitEvent(context.Background(), "session_a", "evt", map[string]any{"source": "script"}); err != nil {
+		t.Fatalf("emit event: %v", err)
+	}
+	matched := 0
+	for _, hook := range tool.eventHooks {
+		if hook.sessionID == "session_a" {
+			matched++
+		}
+	}
+	if matched != 1 {
+		t.Fatalf("expected session_a hook to remain intact, got %#v", tool.eventHooks)
 	}
 }
 
