@@ -35,18 +35,19 @@ type ScriptTool struct {
 	joker scripting.Runner
 	js    scripting.Runner
 
-	rawSocketMu sync.Mutex
-	rawSockets  map[string]net.Conn
-	webSocketMu sync.Mutex
-	webSockets  map[string]*xwebsocket.Conn
-	topicMu     sync.Mutex
-	topicSubs   map[string]topicSubscription
-	hookMu      sync.Mutex
-	eventHooks  []registeredEventHook
-	ioIDCounter atomic.Int64
-	httpClient  *http.Client
+	rawSocketMu    sync.Mutex
+	rawSockets     map[string]net.Conn
+	webSocketMu    sync.Mutex
+	webSockets     map[string]*xwebsocket.Conn
+	topicMu        sync.Mutex
+	topicSubs      map[string]topicSubscription
+	hookMu         sync.Mutex
+	eventHooks     []registeredEventHook
+	hostHookUnsubs map[string][]func()
+	ioIDCounter    atomic.Int64
+	httpClient     *http.Client
 
-	onRegisterEventHook func(ctx context.Context, sessionID string, hook scripting.EventHookSpec) error
+	onRegisterEventHook func(ctx context.Context, sessionID string, hook scripting.EventHookSpec) (func(), error)
 	onRegisterTool      func(ctx context.Context, sessionID string, spec scripting.ToolSpec) error
 	onSetActiveTools    func(ctx context.Context, sessionID string, names []string) error
 	onGetActiveTools    func(ctx context.Context, sessionID string) ([]string, error)
@@ -84,20 +85,21 @@ type ScriptOutput struct {
 
 func NewScriptTool(s *store.Store, cfg config.RuntimeConfig) *ScriptTool {
 	return &ScriptTool{
-		store:      s,
-		cfg:        cfg,
-		joker:      scripting.NewJokerRunner(),
-		js:         scripting.NewGojaRunner(),
-		rawSockets: make(map[string]net.Conn),
-		webSockets: make(map[string]*xwebsocket.Conn),
-		topicSubs:  make(map[string]topicSubscription),
-		httpClient: &http.Client{},
+		store:          s,
+		cfg:            cfg,
+		joker:          scripting.NewJokerRunner(),
+		js:             scripting.NewGojaRunner(),
+		rawSockets:     make(map[string]net.Conn),
+		webSockets:     make(map[string]*xwebsocket.Conn),
+		topicSubs:      make(map[string]topicSubscription),
+		hostHookUnsubs: make(map[string][]func()),
+		httpClient:     &http.Client{},
 	}
 }
 
 // SetAgenticCallbacks connects script-declared tools/hooks to the host engine.
 func (t *ScriptTool) SetAgenticCallbacks(
-	registerHook func(context.Context, string, scripting.EventHookSpec) error,
+	registerHook func(context.Context, string, scripting.EventHookSpec) (func(), error),
 	registerTool func(context.Context, string, scripting.ToolSpec) error,
 	setActiveTools func(context.Context, string, []string) error,
 	getActiveTools func(context.Context, string) ([]string, error),
@@ -433,7 +435,16 @@ func (t *ScriptTool) buildBridge(sessionID string) *scripting.Bridge {
 		},
 		RegisterEventHook: func(ctx context.Context, hook scripting.EventHookSpec) error {
 			if t.onRegisterEventHook != nil {
-				return t.onRegisterEventHook(ctx, sessionID, hook)
+				unsub, err := t.onRegisterEventHook(ctx, sessionID, hook)
+				if err != nil {
+					return err
+				}
+				if unsub != nil {
+					t.hookMu.Lock()
+					t.hostHookUnsubs[sessionID] = append(t.hostHookUnsubs[sessionID], unsub)
+					t.hookMu.Unlock()
+				}
+				return nil
 			}
 			return t.registerEventHook(ctx, sessionID, hook)
 		},
@@ -600,9 +611,19 @@ func (t *ScriptTool) emitEvent(_ context.Context, sessionID, name string, payloa
 
 func (t *ScriptTool) clearEventHooks(_ context.Context, sessionID string) error {
 	t.hookMu.Lock()
-	defer t.hookMu.Unlock()
+	var unsubs []func()
 	if strings.TrimSpace(sessionID) == "" {
 		t.eventHooks = nil
+		for key, entries := range t.hostHookUnsubs {
+			unsubs = append(unsubs, entries...)
+			delete(t.hostHookUnsubs, key)
+		}
+		t.hookMu.Unlock()
+		for _, unsub := range unsubs {
+			if unsub != nil {
+				unsub()
+			}
+		}
 		log.Printf("script[%s]: clearEventHooks", sessionID)
 		return nil
 	}
@@ -613,6 +634,14 @@ func (t *ScriptTool) clearEventHooks(_ context.Context, sessionID string) error 
 		}
 	}
 	t.eventHooks = filtered
+	unsubs = append(unsubs, t.hostHookUnsubs[sessionID]...)
+	delete(t.hostHookUnsubs, sessionID)
+	t.hookMu.Unlock()
+	for _, unsub := range unsubs {
+		if unsub != nil {
+			unsub()
+		}
+	}
 	log.Printf("script[%s]: clearEventHooks", sessionID)
 	return nil
 }

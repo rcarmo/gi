@@ -474,6 +474,50 @@ func TestScriptToolSupportsEventHooksAndEmit(t *testing.T) {
 	}
 }
 
+func TestScriptToolClearEventHooksAlsoClearsHostRegisteredHooks(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
+	clearedA := 0
+	clearedB := 0
+	tool.SetAgenticCallbacks(
+		func(ctx context.Context, sessionID string, hook scripting.EventHookSpec) (func(), error) {
+			switch sessionID {
+			case "session_a":
+				return func() { clearedA++ }, nil
+			case "session_b":
+				return func() { clearedB++ }, nil
+			default:
+				return nil, nil
+			}
+		},
+		nil, nil, nil,
+	)
+	bridgeA := tool.buildBridge("session_a")
+	if err := bridgeA.Funcs.RegisterEventHook(context.Background(), scripting.EventHookSpec{Name: "evt"}); err != nil {
+		t.Fatalf("register host hook session_a: %v", err)
+	}
+	bridgeB := tool.buildBridge("session_b")
+	if err := bridgeB.Funcs.RegisterEventHook(context.Background(), scripting.EventHookSpec{Name: "evt"}); err != nil {
+		t.Fatalf("register host hook session_b: %v", err)
+	}
+	if err := bridgeA.Funcs.ClearEventHooks(context.Background()); err != nil {
+		t.Fatalf("clear event hooks session_a: %v", err)
+	}
+	if clearedA != 1 || clearedB != 0 {
+		t.Fatalf("expected only session_a host hook to be cleared, got clearedA=%d clearedB=%d", clearedA, clearedB)
+	}
+	if err := bridgeB.Funcs.ClearEventHooks(context.Background()); err != nil {
+		t.Fatalf("clear event hooks session_b: %v", err)
+	}
+	if clearedA != 1 || clearedB != 1 {
+		t.Fatalf("expected both host hooks cleared by their own sessions, got clearedA=%d clearedB=%d", clearedA, clearedB)
+	}
+}
+
 func TestScriptToolEmitEventOnlyMatchesCurrentSessionHooks(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

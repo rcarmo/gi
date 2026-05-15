@@ -96,12 +96,11 @@ func (e *Engine) registerDefaultTools() {
 		},
 	)
 	scriptTool.SetAgenticCallbacks(
-		func(ctx context.Context, sessionID string, hook scripting.EventHookSpec) error {
+		func(ctx context.Context, sessionID string, hook scripting.EventHookSpec) (func(), error) {
 			if isProcessHookSpec(hook) {
-				_, err := e.RegisterHook(hook.Name, firstNonEmpty(hook.Source, "process"), newProcessHookHandler(e.runtimeCfg.WorkspaceRoot, hook))
-				return err
+				return e.RegisterHook(hook.Name, firstNonEmpty(hook.Source, "process"), newProcessHookHandler(e.runtimeCfg.WorkspaceRoot, hook))
 			}
-			_, err := e.RegisterHook(hook.Name, firstNonEmpty(hook.Source, "script"), func(ctx context.Context, req HookRequest) (HookResponse, error) {
+			return e.RegisterHook(hook.Name, firstNonEmpty(hook.Source, "script"), func(ctx context.Context, req HookRequest) (HookResponse, error) {
 				payload := hookScriptPayload(req)
 				input := tools.ScriptInput{Engine: hook.Engine, Path: hook.Path, SessionID: req.SessionID, Script: scriptWithPayload(hook.Engine, "hook", payload, hook.Script)}
 				out := scriptTool.Execute(ctx, input)
@@ -110,7 +109,6 @@ func (e *Engine) registerDefaultTools() {
 				}
 				return hookResponseFromScript(out.Result)
 			})
-			return err
 		},
 		func(ctx context.Context, sessionID string, spec scripting.ToolSpec) error {
 			params := spec.Parameters
