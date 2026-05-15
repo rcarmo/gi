@@ -628,11 +628,20 @@ func (t *ScriptTool) readTopicSubscription(_ context.Context, id string, limit i
 	if !ok {
 		return nil, fmt.Errorf("read topic subscription: unknown id %q", id)
 	}
+	clearClosed := func() {
+		t.topicMu.Lock()
+		current, exists := t.topicSubs[id]
+		if exists && current.ch == sub.ch {
+			delete(t.topicSubs, id)
+		}
+		t.topicMu.Unlock()
+	}
 	out := make([]map[string]any, 0, limit)
 	for len(out) < limit {
 		select {
 		case env, ok := <-sub.ch:
 			if !ok {
+				clearClosed()
 				return out, nil
 			}
 			out = append(out, map[string]any{
@@ -659,7 +668,7 @@ func (t *ScriptTool) unsubscribeTopic(_ context.Context, id string) error {
 	}
 	t.topicMu.Unlock()
 	if !ok {
-		return fmt.Errorf("unsubscribe topic: unknown id %q", id)
+		return nil
 	}
 	if sub.unsubscribe != nil {
 		sub.unsubscribe()

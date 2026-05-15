@@ -210,6 +210,38 @@ func TestScriptToolJSCanPublishTopics(t *testing.T) {
 	}
 }
 
+func TestScriptToolReadTopicSubscriptionRemovesClosedHandle(t *testing.T) {
+	s, err := store.Open(":memory:")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	session, err := s.CreateSession(context.Background(), "session_topic_closed", "ClosedTopic", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir(), DefaultModel: "test-model", DefaultProvider: "test", DefaultThinkingLevel: "low"})
+	tool.SetConnectivityCallbacks(nil, nil, nil, nil, nil, func(ctx context.Context, sessionID string, pattern string, opts scripting.TopicSubscribeOptions) (<-chan topics.Envelope, func(), error) {
+		ch := make(chan topics.Envelope, 1)
+		close(ch)
+		return ch, func() {}, nil
+	})
+	id, err := tool.subscribeTopic(context.Background(), session.ID, "runtime.test", scripting.TopicSubscribeOptions{})
+	if err != nil {
+		t.Fatalf("subscribe topic: %v", err)
+	}
+	messages, err := tool.readTopicSubscription(context.Background(), id, 10)
+	if err != nil {
+		t.Fatalf("read topic subscription: %v", err)
+	}
+	if len(messages) != 0 {
+		t.Fatalf("expected no messages from closed subscription, got %#v", messages)
+	}
+	if _, err := tool.readTopicSubscription(context.Background(), id, 10); err == nil {
+		t.Fatal("expected closed subscription handle to be removed after read")
+	}
+}
+
 func TestScriptToolJSCanSubscribeReadAndUnsubscribeTopics(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
