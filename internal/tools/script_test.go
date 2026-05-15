@@ -231,14 +231,14 @@ func TestScriptToolReadTopicSubscriptionRemovesClosedHandle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("subscribe topic: %v", err)
 	}
-	messages, err := tool.readTopicSubscription(context.Background(), id, 10)
+	messages, err := tool.readTopicSubscription(context.Background(), session.ID, id, 10)
 	if err != nil {
 		t.Fatalf("read topic subscription: %v", err)
 	}
 	if len(messages) != 0 {
 		t.Fatalf("expected no messages from closed subscription, got %#v", messages)
 	}
-	if _, err := tool.readTopicSubscription(context.Background(), id, 10); err == nil {
+	if _, err := tool.readTopicSubscription(context.Background(), session.ID, id, 10); err == nil {
 		t.Fatal("expected closed subscription handle to be removed after read")
 	}
 }
@@ -545,6 +545,25 @@ func TestScriptToolEmitEventOnlyMatchesCurrentSessionHooks(t *testing.T) {
 	}
 }
 
+func TestScriptToolTopicSubscriptionRejectsCrossSessionReadAndUnsubscribe(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
+	ch := make(chan topics.Envelope, 1)
+	tool.topicSubs["topic_1"] = topicSubscription{sessionID: "session_a", ch: ch, unsubscribe: func() {}}
+
+	if _, err := tool.readTopicSubscription(context.Background(), "session_b", "topic_1", 1); err == nil || !strings.Contains(err.Error(), "does not belong to session") {
+		t.Fatalf("expected cross-session topic read rejection, got %v", err)
+	}
+	if err := tool.unsubscribeTopic(context.Background(), "session_b", "topic_1"); err == nil || !strings.Contains(err.Error(), "does not belong to session") {
+		t.Fatalf("expected cross-session topic unsubscribe rejection, got %v", err)
+	}
+}
+
 func TestScriptToolCloseRawSocketIsIdempotent(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
@@ -566,7 +585,7 @@ func TestScriptToolCloseRawSocketIsIdempotent(t *testing.T) {
 	}()
 
 	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
-	socketID, err := tool.openRawSocket(context.Background(), scripting.RawSocketSpec{Protocol: "tcp", Address: ln.Addr().String()})
+	socketID, err := tool.openRawSocket("session_a", context.Background(), scripting.RawSocketSpec{Protocol: "tcp", Address: ln.Addr().String()})
 	if err != nil {
 		t.Fatalf("open raw socket: %v", err)
 	}
@@ -576,11 +595,35 @@ func TestScriptToolCloseRawSocketIsIdempotent(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for raw socket accept")
 	}
-	if err := tool.closeRawSocket(context.Background(), socketID); err != nil {
+	if err := tool.closeRawSocket("session_a", context.Background(), socketID); err != nil {
 		t.Fatalf("first close raw socket: %v", err)
 	}
-	if err := tool.closeRawSocket(context.Background(), socketID); err != nil {
+	if err := tool.closeRawSocket("session_a", context.Background(), socketID); err != nil {
 		t.Fatalf("second close raw socket should be idempotent: %v", err)
+	}
+}
+
+func TestScriptToolRawSocketRejectsCrossSessionAccess(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
+	serverConn, clientConn := net.Pipe()
+	defer serverConn.Close()
+	defer clientConn.Close()
+	tool.rawSockets["raw_1"] = ownedRawSocket{sessionID: "session_a", conn: clientConn}
+
+	if _, err := tool.writeRawSocket("session_b", context.Background(), scripting.RawSocketPayload{SocketID: "raw_1", Data: "ping"}); err == nil || !strings.Contains(err.Error(), "does not belong to session") {
+		t.Fatalf("expected cross-session raw socket write rejection, got %v", err)
+	}
+	if _, err := tool.readRawSocket("session_b", context.Background(), scripting.RawSocketPayload{SocketID: "raw_1", MaxBytes: 4}); err == nil || !strings.Contains(err.Error(), "does not belong to session") {
+		t.Fatalf("expected cross-session raw socket read rejection, got %v", err)
+	}
+	if err := tool.closeRawSocket("session_b", context.Background(), "raw_1"); err == nil || !strings.Contains(err.Error(), "does not belong to session") {
+		t.Fatalf("expected cross-session raw socket close rejection, got %v", err)
 	}
 }
 
@@ -626,6 +669,27 @@ func TestScriptToolRawSocketsRoundTrip(t *testing.T) {
 	}
 }
 
+func TestScriptToolWebSocketRejectsCrossSessionAccess(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
+	tool.webSockets["ws_1"] = ownedWebSocket{sessionID: "session_a", conn: &xwebsocket.Conn{}}
+
+	if err := tool.writeWebSocket("session_b", context.Background(), "ws_1", "hi"); err == nil || !strings.Contains(err.Error(), "does not belong to session") {
+		t.Fatalf("expected cross-session websocket write rejection, got %v", err)
+	}
+	if _, err := tool.readWebSocket("session_b", context.Background(), "ws_1", 1); err == nil || !strings.Contains(err.Error(), "does not belong to session") {
+		t.Fatalf("expected cross-session websocket read rejection, got %v", err)
+	}
+	if err := tool.closeWebSocket("session_b", context.Background(), "ws_1"); err == nil || !strings.Contains(err.Error(), "does not belong to session") {
+		t.Fatalf("expected cross-session websocket close rejection, got %v", err)
+	}
+}
+
 func TestScriptToolCloseWebSocketIsIdempotent(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
@@ -642,14 +706,14 @@ func TestScriptToolCloseWebSocketIsIdempotent(t *testing.T) {
 	wsURL := "ws://" + strings.TrimPrefix(server.URL, "http://") + "/"
 
 	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
-	socketID, err := tool.openWebSocket(context.Background(), scripting.WebSocketSpec{URL: wsURL, TimeoutMS: 5000})
+	socketID, err := tool.openWebSocket("session_a", context.Background(), scripting.WebSocketSpec{URL: wsURL, TimeoutMS: 5000})
 	if err != nil {
 		t.Fatalf("open websocket: %v", err)
 	}
-	if err := tool.closeWebSocket(context.Background(), socketID); err != nil {
+	if err := tool.closeWebSocket("session_a", context.Background(), socketID); err != nil {
 		t.Fatalf("first close websocket: %v", err)
 	}
-	if err := tool.closeWebSocket(context.Background(), socketID); err != nil {
+	if err := tool.closeWebSocket("session_a", context.Background(), socketID); err != nil {
 		t.Fatalf("second close websocket should be idempotent: %v", err)
 	}
 }

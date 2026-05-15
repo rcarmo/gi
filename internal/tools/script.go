@@ -36,9 +36,9 @@ type ScriptTool struct {
 	js    scripting.Runner
 
 	rawSocketMu    sync.Mutex
-	rawSockets     map[string]net.Conn
+	rawSockets     map[string]ownedRawSocket
 	webSocketMu    sync.Mutex
-	webSockets     map[string]*xwebsocket.Conn
+	webSockets     map[string]ownedWebSocket
 	topicMu        sync.Mutex
 	topicSubs      map[string]topicSubscription
 	hookMu         sync.Mutex
@@ -60,6 +60,7 @@ type ScriptTool struct {
 }
 
 type topicSubscription struct {
+	sessionID   string
 	ch          <-chan topics.Envelope
 	unsubscribe func()
 }
@@ -67,6 +68,16 @@ type topicSubscription struct {
 type registeredEventHook struct {
 	sessionID string
 	spec      scripting.EventHookSpec
+}
+
+type ownedRawSocket struct {
+	sessionID string
+	conn      net.Conn
+}
+
+type ownedWebSocket struct {
+	sessionID string
+	conn      *xwebsocket.Conn
 }
 
 // ScriptInput is what the agent sends to invoke the script tool.
@@ -89,8 +100,8 @@ func NewScriptTool(s *store.Store, cfg config.RuntimeConfig) *ScriptTool {
 		cfg:            cfg,
 		joker:          scripting.NewJokerRunner(),
 		js:             scripting.NewGojaRunner(),
-		rawSockets:     make(map[string]net.Conn),
-		webSockets:     make(map[string]*xwebsocket.Conn),
+		rawSockets:     make(map[string]ownedRawSocket),
+		webSockets:     make(map[string]ownedWebSocket),
 		topicSubs:      make(map[string]topicSubscription),
 		hostHookUnsubs: make(map[string][]func()),
 		httpClient:     &http.Client{},
@@ -505,10 +516,10 @@ func (t *ScriptTool) buildBridge(sessionID string) *scripting.Bridge {
 			return t.subscribeTopic(ctx, sessionID, pattern, opts)
 		},
 		ReadTopicSubscription: func(ctx context.Context, id string, limit int) ([]map[string]any, error) {
-			return t.readTopicSubscription(ctx, id, limit)
+			return t.readTopicSubscription(ctx, sessionID, id, limit)
 		},
 		UnsubscribeTopic: func(ctx context.Context, id string) error {
-			return t.unsubscribeTopic(ctx, id)
+			return t.unsubscribeTopic(ctx, sessionID, id)
 		},
 		RegisterConnectivityRoute: func(ctx context.Context, route connectivity.RouteSpec) (connectivity.RouteInfo, error) {
 			if t.onRegisterRoute == nil {
@@ -535,28 +546,28 @@ func (t *ScriptTool) buildBridge(sessionID string) *scripting.Bridge {
 			return t.onEmitConnectEvent(ctx, sessionID, topic, payload)
 		},
 		OpenRawSocket: func(ctx context.Context, spec scripting.RawSocketSpec) (string, error) {
-			return t.openRawSocket(ctx, spec)
+			return t.openRawSocket(sessionID, ctx, spec)
 		},
 		WriteRawSocket: func(ctx context.Context, payload scripting.RawSocketPayload) (int, error) {
-			return t.writeRawSocket(ctx, payload)
+			return t.writeRawSocket(sessionID, ctx, payload)
 		},
 		ReadRawSocket: func(ctx context.Context, payload scripting.RawSocketPayload) (string, error) {
-			return t.readRawSocket(ctx, payload)
+			return t.readRawSocket(sessionID, ctx, payload)
 		},
 		CloseRawSocket: func(ctx context.Context, socketID string) error {
-			return t.closeRawSocket(ctx, socketID)
+			return t.closeRawSocket(sessionID, ctx, socketID)
 		},
 		OpenWebSocket: func(ctx context.Context, spec scripting.WebSocketSpec) (string, error) {
-			return t.openWebSocket(ctx, spec)
+			return t.openWebSocket(sessionID, ctx, spec)
 		},
 		WriteWebSocket: func(ctx context.Context, socketID string, payload string) error {
-			return t.writeWebSocket(ctx, socketID, payload)
+			return t.writeWebSocket(sessionID, ctx, socketID, payload)
 		},
 		ReadWebSocket: func(ctx context.Context, socketID string, timeoutMS int) (string, error) {
-			return t.readWebSocket(ctx, socketID, timeoutMS)
+			return t.readWebSocket(sessionID, ctx, socketID, timeoutMS)
 		},
 		CloseWebSocket: func(ctx context.Context, socketID string) error {
-			return t.closeWebSocket(ctx, socketID)
+			return t.closeWebSocket(sessionID, ctx, socketID)
 		},
 		DoHTTPRequest: func(ctx context.Context, req scripting.HTTPCallSpec) (scripting.HTTPResponse, error) {
 			return t.doHTTPRequest(ctx, req)
@@ -662,12 +673,12 @@ func (t *ScriptTool) subscribeTopic(ctx context.Context, sessionID, pattern stri
 	}
 	id := t.socketID("topic")
 	t.topicMu.Lock()
-	t.topicSubs[id] = topicSubscription{ch: ch, unsubscribe: unsubscribe}
+	t.topicSubs[id] = topicSubscription{sessionID: sessionID, ch: ch, unsubscribe: unsubscribe}
 	t.topicMu.Unlock()
 	return id, nil
 }
 
-func (t *ScriptTool) readTopicSubscription(_ context.Context, id string, limit int) ([]map[string]any, error) {
+func (t *ScriptTool) readTopicSubscription(_ context.Context, sessionID, id string, limit int) ([]map[string]any, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -676,6 +687,9 @@ func (t *ScriptTool) readTopicSubscription(_ context.Context, id string, limit i
 	t.topicMu.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("read topic subscription: unknown id %q", id)
+	}
+	if sub.sessionID != "" && sessionID != "" && sub.sessionID != sessionID {
+		return nil, fmt.Errorf("read topic subscription: handle %q does not belong to session %q", id, sessionID)
 	}
 	clearClosed := func() {
 		t.topicMu.Lock()
@@ -709,10 +723,14 @@ func (t *ScriptTool) readTopicSubscription(_ context.Context, id string, limit i
 	return out, nil
 }
 
-func (t *ScriptTool) unsubscribeTopic(_ context.Context, id string) error {
+func (t *ScriptTool) unsubscribeTopic(_ context.Context, sessionID, id string) error {
 	t.topicMu.Lock()
 	sub, ok := t.topicSubs[id]
 	if ok {
+		if sub.sessionID != "" && sessionID != "" && sub.sessionID != sessionID {
+			t.topicMu.Unlock()
+			return fmt.Errorf("unsubscribe topic: handle %q does not belong to session %q", id, sessionID)
+		}
 		delete(t.topicSubs, id)
 	}
 	t.topicMu.Unlock()
@@ -729,7 +747,7 @@ func (t *ScriptTool) socketID(prefix string) string {
 	return fmt.Sprintf("%s_%d", prefix, t.ioIDCounter.Add(1))
 }
 
-func (t *ScriptTool) openRawSocket(ctx context.Context, spec scripting.RawSocketSpec) (string, error) {
+func (t *ScriptTool) openRawSocket(sessionID string, ctx context.Context, spec scripting.RawSocketSpec) (string, error) {
 	proto := strings.ToLower(strings.TrimSpace(spec.Protocol))
 	if proto == "" {
 		proto = "tcp"
@@ -774,26 +792,29 @@ func (t *ScriptTool) openRawSocket(ctx context.Context, spec scripting.RawSocket
 	}
 	id := t.socketID("raw")
 	t.rawSocketMu.Lock()
-	t.rawSockets[id] = conn
+	t.rawSockets[id] = ownedRawSocket{sessionID: sessionID, conn: conn}
 	t.rawSocketMu.Unlock()
 	return id, nil
 }
 
-func (t *ScriptTool) getRawSocket(socketID string) (net.Conn, error) {
+func (t *ScriptTool) getRawSocket(sessionID, socketID string) (net.Conn, error) {
 	t.rawSocketMu.Lock()
 	defer t.rawSocketMu.Unlock()
-	conn, ok := t.rawSockets[socketID]
+	entry, ok := t.rawSockets[socketID]
 	if !ok {
 		return nil, fmt.Errorf("socket not found")
 	}
-	return conn, nil
+	if entry.sessionID != "" && sessionID != "" && entry.sessionID != sessionID {
+		return nil, fmt.Errorf("socket does not belong to session %q", sessionID)
+	}
+	return entry.conn, nil
 }
 
-func (t *ScriptTool) writeRawSocket(_ context.Context, payload scripting.RawSocketPayload) (int, error) {
+func (t *ScriptTool) writeRawSocket(sessionID string, _ context.Context, payload scripting.RawSocketPayload) (int, error) {
 	if strings.TrimSpace(payload.SocketID) == "" {
 		return 0, fmt.Errorf("socket_id is required")
 	}
-	conn, err := t.getRawSocket(payload.SocketID)
+	conn, err := t.getRawSocket(sessionID, payload.SocketID)
 	if err != nil {
 		return 0, err
 	}
@@ -810,11 +831,11 @@ func (t *ScriptTool) writeRawSocket(_ context.Context, payload scripting.RawSock
 	return n, nil
 }
 
-func (t *ScriptTool) readRawSocket(_ context.Context, payload scripting.RawSocketPayload) (string, error) {
+func (t *ScriptTool) readRawSocket(sessionID string, _ context.Context, payload scripting.RawSocketPayload) (string, error) {
 	if strings.TrimSpace(payload.SocketID) == "" {
 		return "", fmt.Errorf("socket_id is required")
 	}
-	conn, err := t.getRawSocket(payload.SocketID)
+	conn, err := t.getRawSocket(sessionID, payload.SocketID)
 	if err != nil {
 		return "", err
 	}
@@ -839,23 +860,27 @@ func (t *ScriptTool) readRawSocket(_ context.Context, payload scripting.RawSocke
 	return "", nil
 }
 
-func (t *ScriptTool) closeRawSocket(_ context.Context, socketID string) error {
+func (t *ScriptTool) closeRawSocket(sessionID string, _ context.Context, socketID string) error {
 	if strings.TrimSpace(socketID) == "" {
 		return fmt.Errorf("socket_id is required")
 	}
 	t.rawSocketMu.Lock()
-	conn, ok := t.rawSockets[socketID]
+	entry, ok := t.rawSockets[socketID]
 	if ok {
+		if entry.sessionID != "" && sessionID != "" && entry.sessionID != sessionID {
+			t.rawSocketMu.Unlock()
+			return fmt.Errorf("socket does not belong to session %q", sessionID)
+		}
 		delete(t.rawSockets, socketID)
 	}
 	t.rawSocketMu.Unlock()
 	if !ok {
 		return nil
 	}
-	return conn.Close()
+	return entry.conn.Close()
 }
 
-func (t *ScriptTool) openWebSocket(ctx context.Context, spec scripting.WebSocketSpec) (string, error) {
+func (t *ScriptTool) openWebSocket(sessionID string, ctx context.Context, spec scripting.WebSocketSpec) (string, error) {
 	wsURL := strings.TrimSpace(spec.URL)
 	if wsURL == "" {
 		return "", fmt.Errorf("url is required")
@@ -893,26 +918,29 @@ func (t *ScriptTool) openWebSocket(ctx context.Context, spec scripting.WebSocket
 	}
 	id := t.socketID("ws")
 	t.webSocketMu.Lock()
-	t.webSockets[id] = conn
+	t.webSockets[id] = ownedWebSocket{sessionID: sessionID, conn: conn}
 	t.webSocketMu.Unlock()
 	return id, nil
 }
 
-func (t *ScriptTool) getWebSocket(socketID string) (*xwebsocket.Conn, error) {
+func (t *ScriptTool) getWebSocket(sessionID, socketID string) (*xwebsocket.Conn, error) {
 	t.webSocketMu.Lock()
 	defer t.webSocketMu.Unlock()
-	conn, ok := t.webSockets[socketID]
+	entry, ok := t.webSockets[socketID]
 	if !ok {
 		return nil, fmt.Errorf("websocket not found")
 	}
-	return conn, nil
+	if entry.sessionID != "" && sessionID != "" && entry.sessionID != sessionID {
+		return nil, fmt.Errorf("websocket does not belong to session %q", sessionID)
+	}
+	return entry.conn, nil
 }
 
-func (t *ScriptTool) writeWebSocket(_ context.Context, socketID string, payload string) error {
+func (t *ScriptTool) writeWebSocket(sessionID string, _ context.Context, socketID string, payload string) error {
 	if strings.TrimSpace(socketID) == "" {
 		return fmt.Errorf("socket_id is required")
 	}
-	conn, err := t.getWebSocket(socketID)
+	conn, err := t.getWebSocket(sessionID, socketID)
 	if err != nil {
 		return err
 	}
@@ -923,11 +951,11 @@ func (t *ScriptTool) writeWebSocket(_ context.Context, socketID string, payload 
 	return nil
 }
 
-func (t *ScriptTool) readWebSocket(ctx context.Context, socketID string, timeoutMS int) (string, error) {
+func (t *ScriptTool) readWebSocket(sessionID string, ctx context.Context, socketID string, timeoutMS int) (string, error) {
 	if strings.TrimSpace(socketID) == "" {
 		return "", fmt.Errorf("socket_id is required")
 	}
-	conn, err := t.getWebSocket(socketID)
+	conn, err := t.getWebSocket(sessionID, socketID)
 	if err != nil {
 		return "", err
 	}
@@ -952,20 +980,24 @@ func (t *ScriptTool) readWebSocket(ctx context.Context, socketID string, timeout
 	return "", nil
 }
 
-func (t *ScriptTool) closeWebSocket(_ context.Context, socketID string) error {
+func (t *ScriptTool) closeWebSocket(sessionID string, _ context.Context, socketID string) error {
 	if strings.TrimSpace(socketID) == "" {
 		return fmt.Errorf("socket_id is required")
 	}
 	t.webSocketMu.Lock()
-	conn, ok := t.webSockets[socketID]
+	entry, ok := t.webSockets[socketID]
 	if ok {
+		if entry.sessionID != "" && sessionID != "" && entry.sessionID != sessionID {
+			t.webSocketMu.Unlock()
+			return fmt.Errorf("websocket does not belong to session %q", sessionID)
+		}
 		delete(t.webSockets, socketID)
 	}
 	t.webSocketMu.Unlock()
 	if !ok {
 		return nil
 	}
-	return conn.Close()
+	return entry.conn.Close()
 }
 
 func (t *ScriptTool) doHTTPRequest(ctx context.Context, req scripting.HTTPCallSpec) (scripting.HTTPResponse, error) {
