@@ -36,14 +36,16 @@ func (s *Server) handleSystemMetrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *metricsCollector) sample() map[string]any {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	cpu := c.readCPU()
+	cpuIdle, cpuTotal, cpuOK := readCPUTotals()
 	ram := readRAM()
 	swap := readSwap()
 	rss := readRSS()
 
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+
+	c.mu.Lock()
+	cpu := c.readCPUFromTotals(cpuIdle, cpuTotal, cpuOK)
 	c.cpuSeries = pushSample(c.cpuSeries, cpu, c.maxSamples)
 	c.ramSeries = pushSample(c.ramSeries, ram.percent, c.maxSamples)
 	if swap.percent >= 0 {
@@ -51,22 +53,25 @@ func (c *metricsCollector) sample() map[string]any {
 	}
 	c.rssSeries = pushSample(c.rssSeries, float64(rss), c.maxSamples)
 	c.lastSample = time.Now()
-
-	var memStats runtime.MemStats
-	runtime.ReadMemStats(&memStats)
+	cpuSeries := append([]float64(nil), c.cpuSeries...)
+	ramSeries := append([]float64(nil), c.ramSeries...)
+	swapSeries := append([]float64(nil), c.swapSeries...)
+	rssSeries := append([]float64(nil), c.rssSeries...)
+	sampleIntervalMS := int(c.sampleInterval.Milliseconds())
+	c.mu.Unlock()
 
 	return map[string]any{
 		"cpu_percent":                    cpu,
 		"ram_percent":                    ram.percent,
 		"swap_percent":                   nilIfNeg(swap.percent),
-		"cpu_series":                     c.cpuSeries,
-		"ram_series":                     c.ramSeries,
-		"swap_series":                    c.swapSeries,
-		"process_rss_series_bytes":       c.rssSeries,
+		"cpu_series":                     cpuSeries,
+		"ram_series":                     ramSeries,
+		"swap_series":                    swapSeries,
+		"process_rss_series_bytes":       rssSeries,
 		"process_heap_used_series_bytes": []float64{float64(memStats.HeapAlloc)},
 		"swap_total_bytes":               swap.totalBytes,
 		"swap_used_bytes":                swap.usedBytes,
-		"sample_interval_ms":             int(c.sampleInterval.Milliseconds()),
+		"sample_interval_ms":             sampleIntervalMS,
 		"platform":                       runtime.GOOS,
 		"process_memory": map[string]any{
 			"rss_bytes":        rss,
@@ -76,23 +81,29 @@ func (c *metricsCollector) sample() map[string]any {
 	}
 }
 
-func (c *metricsCollector) readCPU() float64 {
+func readCPUTotals() (idle uint64, total uint64, ok bool) {
 	data, err := os.ReadFile("/proc/stat")
 	if err != nil {
-		return c.cpuPercent
+		return 0, 0, false
 	}
 	line := strings.SplitN(string(data), "\n", 2)[0]
 	fields := strings.Fields(line)
 	if len(fields) < 5 || fields[0] != "cpu" {
-		return c.cpuPercent
+		return 0, 0, false
 	}
-	var idle, total uint64
 	for i, f := range fields[1:] {
 		v, _ := strconv.ParseUint(f, 10, 64)
 		total += v
 		if i == 3 {
 			idle = v
 		}
+	}
+	return idle, total, true
+}
+
+func (c *metricsCollector) readCPUFromTotals(idle, total uint64, ok bool) float64 {
+	if !ok {
+		return c.cpuPercent
 	}
 	if c.prevTotalTime > 0 {
 		deltaTotal := total - c.prevTotalTime
