@@ -198,6 +198,7 @@ func (e *Engine) backgroundContext() context.Context {
 }
 
 func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, error) {
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if in.Intent == "" {
 		in.Intent = "prompt"
 	}
@@ -217,7 +218,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	runner := e.runner(in.SessionID)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
-	if activeTurnID, _, err := e.store.GetSessionActiveTurn(ctx, in.SessionID); err == nil {
+	if activeTurnID, _, err := e.store.GetSessionActiveTurn(opCtx, in.SessionID); err == nil {
 		return e.submitSteeringPrompt(ctx, in.SessionID, activeTurnID, in)
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err

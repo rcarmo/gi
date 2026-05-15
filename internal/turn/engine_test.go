@@ -402,9 +402,9 @@ func TestSubmitPromptSteeringSurvivesCanceledCallerContext(t *testing.T) {
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
 	engine := New(s)
-	result, err := engine.submitSteeringPrompt(cancelCtx, "session_submit_steering_cancel", activeTurn.ID, RunInput{SessionID: "session_submit_steering_cancel", Prompt: "two", Model: "bootstrap"})
+	result, err := engine.SubmitPrompt(cancelCtx, RunInput{SessionID: "session_submit_steering_cancel", Prompt: "two", Model: "bootstrap"})
 	if err != nil {
-		t.Fatalf("submit steering with canceled context: %v", err)
+		t.Fatalf("submit prompt with canceled context: %v", err)
 	}
 	if result.Queued || result.Status != "running" || result.TurnID != activeTurn.ID {
 		t.Fatalf("expected steering result against active turn, got %#v", result)
