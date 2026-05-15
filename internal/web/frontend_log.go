@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 )
@@ -24,11 +25,19 @@ func (s *Server) handleFrontendLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, entry := range req.Entries {
-		payload, _ := json.Marshal(entry.Detail)
+		payload := marshalFrontendLogDetail(entry.Detail)
 		if entry.Level == "" {
 			entry.Level = "info"
 		}
-		log.Printf("frontend[%s] %s detail=%s ts=%s", entry.Level, entry.Message, string(payload), entry.TS)
+		log.Printf("frontend[%s] %s detail=%s ts=%s", entry.Level, entry.Message, payload, entry.TS)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func marshalFrontendLogDetail(detail any) string {
+	payload, err := json.Marshal(detail)
+	if err == nil {
+		return string(payload)
+	}
+	return fmt.Sprintf(`{"marshal_error":%q,"detail_type":%q}`, err.Error(), fmt.Sprintf("%T", detail))
 }
