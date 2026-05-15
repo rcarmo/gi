@@ -87,6 +87,12 @@ func (m *Manager) VerifyEnrollment(username, code string) (State, error) {
 		return State{}, fmt.Errorf("no pending enrollment for user")
 	}
 	if time.Since(pending.CreatedAt) > 10*time.Minute {
+		m.mu.Lock()
+		current, exists := m.pending[username]
+		if exists && current.CreatedAt.Equal(pending.CreatedAt) && current.Secret == pending.Secret {
+			delete(m.pending, username)
+		}
+		m.mu.Unlock()
 		return State{}, fmt.Errorf("pending enrollment expired")
 	}
 	if !VerifyTOTP(pending.Secret, code, time.Now().UTC(), 1) {

@@ -18,6 +18,21 @@ func TestTOTPVerifyCurrentCode(t *testing.T) {
 	}
 }
 
+func TestVerifyEnrollmentRemovesExpiredPendingEntry(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.pending["rui"] = PendingEnrollment{
+		Username:  "rui",
+		Secret:    "expired-secret",
+		CreatedAt: time.Now().UTC().Add(-11 * time.Minute),
+	}
+	if _, err := m.VerifyEnrollment("rui", "000000"); err == nil || err.Error() != "pending enrollment expired" {
+		t.Fatalf("expected expired enrollment error, got %v", err)
+	}
+	if _, ok := m.pending["rui"]; ok {
+		t.Fatalf("expected expired pending enrollment to be removed, got %#v", m.pending)
+	}
+}
+
 func TestManagerEnrollmentAndLogin(t *testing.T) {
 	m := NewManager(t.TempDir())
 	status, err := m.Status()
