@@ -218,7 +218,7 @@ gi.http.registerRoute({
   name: "webhook",
   method: "POST",
   path: "/webhook/:source",
-  auth: { type: "bearer", keychain: "webhook/token" },
+  auth: { type: "bearer", token_env: "WEBHOOK_TOKEN" },
   mode: "turn",
   script: `
     "Webhook " + gi.event.params.source + ": " + JSON.stringify(gi.event.body)
@@ -438,7 +438,8 @@ Connectivity hooks are more dangerous than ordinary tool hooks because they can 
 2. **Explicit config to bind non-loopback**.
 3. **Route auth required** for non-loopback HTTP/WS/SSE.
 4. **Secret references only** for credentials:
-   - `keychain: "mqtt/home"`
+   - current implemented path: environment-backed references such as `token_env`, `secret_env`, `password_env`
+   - planned follow-up: keychain-backed connectivity auth/config references
    - not literal passwords in scripts.
 5. **Per-route rate limits**.
 6. **Max body/message size**.
@@ -456,10 +457,12 @@ Connectivity hooks are more dangerous than ordinary tool hooks because they can 
 {
   "type": "hmac",
   "header": "x-signature",
-  "keychain": "github/webhook-secret",
+  "secret_env": "GITHUB_WEBHOOK_SECRET",
   "algorithm": "sha256"
 }
 ```
+
+In the current `gi` runtime, connectivity auth keychain references are still placeholder-only and return an explicit "not wired" error rather than resolving through the host keychain path. Use env-backed secret references for live connectivity auth today.
 
 ---
 
