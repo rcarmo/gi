@@ -127,11 +127,10 @@ func main() {
 			Email:      *acmeEmail,
 		}
 		if *acmeHTTPListen != "" {
+			acmeSrv := &http.Server{Addr: *acmeHTTPListen, Handler: manager.HTTPHandler(nil)}
 			go func() {
 				log.Printf("Gi ACME HTTP-01/redirect listener on %s for %s", *acmeHTTPListen, strings.Join(domains, ","))
-				if err := http.ListenAndServe(*acmeHTTPListen, manager.HTTPHandler(nil)); err != nil {
-					log.Printf("acme http listener: %v", err)
-				}
+				runHTTPServer(acmeSrv, func() error { return acmeSrv.ListenAndServe() }, "acme-http")
 			}()
 		}
 		log.Printf("Gi HTTPS listening on %s using ACME domains=%s db=%s cache=%s", effectiveListen, strings.Join(domains, ","), *dbPath, cacheLabel)
