@@ -26,8 +26,11 @@ func (s *Server) configureScriptConnectivity() {
 	}
 	s.scriptTool.SetConnectivityCallbacks(
 		func(ctx context.Context, sessionID string, spec connectivity.RouteSpec) (connectivity.RouteInfo, error) {
-			if spec.SessionID == "" {
+			specSessionID := strings.TrimSpace(spec.SessionID)
+			if specSessionID == "" {
 				spec.SessionID = sessionID
+			} else if strings.TrimSpace(sessionID) != "" && specSessionID != sessionID {
+				return connectivity.RouteInfo{}, fmt.Errorf("register route: session %q does not match current session %q", specSessionID, sessionID)
 			}
 			return s.turns.Connectivity().Register(ctx, spec, func(ctx context.Context, event connectivity.EventEnvelope) (connectivity.RouteResponse, error) {
 				payload := map[string]any{"event": event, "route": spec, "payload": event.Payload}

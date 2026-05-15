@@ -33,6 +33,11 @@ func TestScriptConnectivityBridgeScopesListAndUnregisterToSession(t *testing.T) 
 		t.Fatalf("create session B: %v", err)
 	}
 
+	crossRegister := srv.scriptTool.Execute(context.Background(), tools.ScriptInput{SessionID: sessionA.ID, Script: `var r = gi.connect.registerRoute({name:"route-x", transport:"event", session_id:"` + sessionB.ID + `"}); r.id;`})
+	if crossRegister.Error == "" || !strings.Contains(crossRegister.Error, "does not match current session") {
+		t.Fatalf("expected cross-session register rejection, got result=%q err=%q", crossRegister.Result, crossRegister.Error)
+	}
+
 	outA := srv.scriptTool.Execute(context.Background(), tools.ScriptInput{SessionID: sessionA.ID, Script: `var r = gi.connect.registerRoute({name:"route-a", transport:"event"}); r.id;`})
 	if outA.Error != "" {
 		t.Fatalf("register route A: %v", outA.Error)
