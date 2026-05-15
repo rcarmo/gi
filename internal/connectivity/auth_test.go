@@ -24,6 +24,18 @@ func TestAuthorizeHTTPRequestRequiresAuthForExternal(t *testing.T) {
 	}
 }
 
+func TestAuthorizeHTTPRequestAllowsConfiguredExternalBypassEvenWhenAuthExists(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodPost, "http://example.test/hook", nil)
+	req.RemoteAddr = "203.0.113.10:1234"
+	spec := RouteSpec{
+		Auth:    map[string]any{"type": "bearer", "token": "secret"},
+		Options: map[string]any{"allow_unauthenticated_external": true},
+	}
+	if err := AuthorizeHTTPRequest(spec, req, nil); err != nil {
+		t.Fatalf("expected allow_unauthenticated_external to bypass auth, got %v", err)
+	}
+}
+
 func TestAuthorizeHTTPRequestBearer(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, "http://example.test/hook", nil)
 	req.RemoteAddr = "203.0.113.10:1234"

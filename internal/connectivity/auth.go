@@ -17,11 +17,14 @@ import (
 // callers must satisfy an auth block unless the route explicitly sets
 // options.allow_unauthenticated_external=true.
 func AuthorizeHTTPRequest(spec RouteSpec, r *http.Request, body []byte) error {
-	if isLoopbackRemote(r.RemoteAddr) || boolOption(spec.Options, "allow_unauthenticated_external") {
+	if isLoopbackRemote(r.RemoteAddr) {
 		if len(spec.Auth) == 0 {
 			return nil
 		}
 		return checkHTTPRequestAuth(spec.Auth, r, body)
+	}
+	if boolOption(spec.Options, "allow_unauthenticated_external") {
+		return nil
 	}
 	if len(spec.Auth) == 0 {
 		return fmt.Errorf("external request requires route auth")
