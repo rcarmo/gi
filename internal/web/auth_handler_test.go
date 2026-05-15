@@ -13,6 +13,29 @@ import (
 	"github.com/rcarmo/gi/internal/turn"
 )
 
+func TestAuthTOTPVerifyReturnsInternalServerErrorForCorruptState(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".gi"), 0o755); err != nil {
+		t.Fatalf("create .gi dir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".gi", "auth.json"), []byte("{not-json"), 0o600); err != nil {
+		t.Fatalf("write corrupt auth file: %v", err)
+	}
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{WorkspaceRoot: root})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/totp/verify", bytes.NewBufferString(`{"username":"rui","code":"000000"}`))
+	res := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(res, req)
+	if res.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 for corrupt auth state, got %d body=%s", res.Code, res.Body.String())
+	}
+}
+
 func TestAuthEnrollStartReturnsInternalServerErrorForCorruptState(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, ".gi"), 0o755); err != nil {

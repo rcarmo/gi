@@ -116,7 +116,12 @@ func (s *Server) handleAuthTOTPVerify(w http.ResponseWriter, r *http.Request) {
 	}
 	token, expires, err := s.auth.VerifyLogin(req.Username, req.Code)
 	if err != nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": err.Error()})
+		status := http.StatusInternalServerError
+		switch err.Error() {
+		case "invalid user", "TOTP is not enrolled", "invalid TOTP code":
+			status = http.StatusUnauthorized
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "token": token, "token_type": "bearer", "expires_at": expires})
