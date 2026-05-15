@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 )
 
@@ -47,6 +48,9 @@ func (s *Store) DeleteTurn(ctx context.Context, turnID string) error {
 	var sessionID string
 	row := s.db.QueryRowContext(ctx, `select session_id from turns where id = ?`, turnID)
 	if err := row.Scan(&sessionID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil
+		}
 		return fmt.Errorf("delete turn lookup: %w", err)
 	}
 	if _, err := s.db.ExecContext(ctx, `delete from turns where id = ?`, turnID); err != nil {

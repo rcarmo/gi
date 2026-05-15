@@ -1445,6 +1445,18 @@ func TestStageSteeringContinuationReturnsQueuedTurnWithoutReload(t *testing.T) {
 	}
 }
 
+func TestDeleteTurnIsIdempotentWhenMissing(t *testing.T) {
+	s, err := Open(":memory:")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if err := s.DeleteTurn(ctx, "turn_missing"); err != nil {
+		t.Fatalf("delete missing turn should be idempotent: %v", err)
+	}
+}
+
 func TestStoreInboundDispatcherLeaseSingleOwner(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
