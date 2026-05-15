@@ -3,14 +3,18 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	"golang.org/x/crypto/acme/autocert"
 
@@ -83,11 +87,27 @@ func main() {
 	if *model != "" {
 		runtimeCfg.DefaultModel = *model
 	}
+	processCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 	engine := turn.NewWithRuntimeConfig(s, runtimeCfg, runtimeCfg.SystemPrompt)
+	defer engine.Close()
 	server := giweb.New(s, engine, runtimeCfg)
-	server.StartInboundWorkDispatcher(context.Background())
+	server.StartInboundWorkDispatcher(processCtx)
 
 	handler := server.Handler()
+	runHTTPServer := func(srv *http.Server, serve func() error, label string) {
+		go func() {
+			<-processCtx.Done()
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := srv.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Printf("shutdown %s: %v", label, err)
+			}
+		}()
+		if err := serve(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("listen %s: %v", label, err)
+		}
+	}
 	if *acmeDomains != "" {
 		domains := splitCSV(*acmeDomains)
 		if len(domains) == 0 {
@@ -116,9 +136,7 @@ func main() {
 		}
 		log.Printf("Gi HTTPS listening on %s using ACME domains=%s db=%s cache=%s", effectiveListen, strings.Join(domains, ","), *dbPath, cacheLabel)
 		srv := &http.Server{Addr: effectiveListen, Handler: handler, TLSConfig: manager.TLSConfig()}
-		if err := srv.ListenAndServeTLS("", ""); err != nil {
-			log.Fatalf("listen https/acme: %v", err)
-		}
+		runHTTPServer(srv, func() error { return srv.ListenAndServeTLS("", "") }, "https/acme")
 		return
 	}
 	if *certFile != "" || *keyFile != "" {
@@ -127,15 +145,12 @@ func main() {
 		}
 		log.Printf("Gi HTTPS listening on %s using %s", effectiveListen, *dbPath)
 		srv := &http.Server{Addr: effectiveListen, Handler: handler, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12}}
-		if err := srv.ListenAndServeTLS(*certFile, *keyFile); err != nil {
-			log.Fatalf("listen https: %v", err)
-		}
+		runHTTPServer(srv, func() error { return srv.ListenAndServeTLS(*certFile, *keyFile) }, "https")
 		return
 	}
 	log.Printf("Gi HTTP listening on %s using %s", effectiveListen, *dbPath)
-	if err := http.ListenAndServe(effectiveListen, handler); err != nil {
-		log.Fatalf("listen: %v", err)
-	}
+	srv := &http.Server{Addr: effectiveListen, Handler: handler}
+	runHTTPServer(srv, func() error { return srv.ListenAndServe() }, "http")
 }
 
 func acmeCacheFor(value string, s *store.Store) (autocert.Cache, string, error) {
