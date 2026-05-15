@@ -4,10 +4,12 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/tools"
+	"github.com/rcarmo/gi/internal/topics"
 	"github.com/rcarmo/gi/internal/turn"
 )
 
@@ -71,5 +73,31 @@ func TestScriptConnectivityBridgeScopesListAndUnregisterToSession(t *testing.T) 
 	}
 	if _, ok := engine.Connectivity().Get(routeB); !ok {
 		t.Fatal("expected session B route to remain after rejected cross-session unregister")
+	}
+
+	topicCh, unsubscribe := engine.Topics().Subscribe(context.Background(), "runtime.test", topics.SubscribeOptions{SessionID: sessionA.ID, Buffer: 1})
+	defer unsubscribe()
+
+	publishOK := srv.scriptTool.Execute(context.Background(), tools.ScriptInput{SessionID: sessionA.ID, Script: `gi.topics.publish({topic:"runtime.test", payload:{ok:true}}); "ok";`})
+	if publishOK.Error != "" {
+		t.Fatalf("publish topic A: %v", publishOK.Error)
+	}
+	select {
+	case env := <-topicCh:
+		if env.SessionID != sessionA.ID {
+			t.Fatalf("expected published topic session %q, got %q", sessionA.ID, env.SessionID)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for published topic")
+	}
+
+	crossPublish := srv.scriptTool.Execute(context.Background(), tools.ScriptInput{SessionID: sessionA.ID, Script: `gi.topics.publish({topic:"runtime.test", session_id:"` + sessionB.ID + `", payload:{ok:true}}); "ok";`})
+	if crossPublish.Error == "" || !strings.Contains(crossPublish.Error, "does not match current session") {
+		t.Fatalf("expected cross-session topic publish rejection, got result=%q err=%q", crossPublish.Result, crossPublish.Error)
+	}
+
+	crossSubscribe := srv.scriptTool.Execute(context.Background(), tools.ScriptInput{SessionID: sessionA.ID, Script: `gi.topics.subscribe("runtime.*", {session_id:"` + sessionB.ID + `"});`})
+	if crossSubscribe.Error == "" || !strings.Contains(crossSubscribe.Error, "does not match current session") {
+		t.Fatalf("expected cross-session topic subscribe rejection, got result=%q err=%q", crossSubscribe.Result, crossSubscribe.Error)
 	}
 }

@@ -98,8 +98,11 @@ func (s *Server) configureScriptConnectivity() {
 			}
 			typ, _ := envelope["type"].(string)
 			sessionValue, _ := envelope["session_id"].(string)
-			if strings.TrimSpace(sessionValue) == "" {
+			sessionValue = strings.TrimSpace(sessionValue)
+			if sessionValue == "" {
 				sessionValue = sessionID
+			} else if strings.TrimSpace(sessionID) != "" && sessionValue != sessionID {
+				return fmt.Errorf("publish topic: session %q does not match current session %q", sessionValue, sessionID)
 			}
 			s.turns.PublishTopicEvent(topics.Envelope{Topic: topicName, SessionID: sessionValue, AgentID: strings.TrimSpace(agentID), Source: source, Type: strings.TrimSpace(typ), Payload: payload})
 			return nil
@@ -108,10 +111,13 @@ func (s *Server) configureScriptConnectivity() {
 			if s.turns == nil || s.turns.Topics() == nil {
 				return nil, nil, fmt.Errorf("subscribe topic: topic bus not available")
 			}
-			subOpts := topics.SubscribeOptions{Buffer: opts.Buffer, SessionID: strings.TrimSpace(opts.SessionID), AgentID: strings.TrimSpace(opts.AgentID)}
-			if subOpts.SessionID == "" {
-				subOpts.SessionID = sessionID
+			subSessionID := strings.TrimSpace(opts.SessionID)
+			if subSessionID == "" {
+				subSessionID = sessionID
+			} else if strings.TrimSpace(sessionID) != "" && subSessionID != sessionID {
+				return nil, nil, fmt.Errorf("subscribe topic: session %q does not match current session %q", subSessionID, sessionID)
 			}
+			subOpts := topics.SubscribeOptions{Buffer: opts.Buffer, SessionID: subSessionID, AgentID: strings.TrimSpace(opts.AgentID)}
 			ch, unsubscribe := s.turns.Topics().Subscribe(ctx, pattern, subOpts)
 			return ch, unsubscribe, nil
 		},
