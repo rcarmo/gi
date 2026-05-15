@@ -180,8 +180,6 @@ func (m *Manager) Enrolled() (bool, error) {
 }
 
 func (m *Manager) load() (State, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	var state State
 	data, err := os.ReadFile(m.path)
 	if err != nil {
@@ -194,8 +192,6 @@ func (m *Manager) load() (State, error) {
 }
 
 func (m *Manager) save(state State) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	if err := os.MkdirAll(filepath.Dir(m.path), 0o700); err != nil {
 		return err
 	}

@@ -72,6 +72,33 @@ func TestStartEnrollmentReturnsLoadErrorForCorruptState(t *testing.T) {
 	}
 }
 
+func TestManagerSaveLoadRoundTrip(t *testing.T) {
+	m := NewManager(t.TempDir())
+	now := time.Now().UTC().Truncate(time.Second)
+	state := State{
+		Username:    "rui",
+		TOTPSecret:  "secret",
+		TOTPEnabled: true,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		Sessions: []Session{{
+			TokenHash: "hash",
+			CreatedAt: now,
+			ExpiresAt: now.Add(time.Hour),
+		}},
+	}
+	if err := m.save(state); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	loaded, err := m.load()
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if loaded.Username != state.Username || loaded.TOTPSecret != state.TOTPSecret || !loaded.TOTPEnabled || len(loaded.Sessions) != 1 || loaded.Sessions[0].TokenHash != "hash" {
+		t.Fatalf("unexpected loaded state: %#v", loaded)
+	}
+}
+
 func TestManagerEnrollmentAndLogin(t *testing.T) {
 	m := NewManager(t.TempDir())
 	status, err := m.Status()
