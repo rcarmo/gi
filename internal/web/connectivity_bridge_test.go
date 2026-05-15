@@ -13,6 +13,38 @@ import (
 	"github.com/rcarmo/gi/internal/turn"
 )
 
+func TestNormalizeSessionRouteFilterDoesNotMutateCallerMap(t *testing.T) {
+	original := map[string]any{"name": "demo"}
+	normalized, err := normalizeSessionRouteFilter("session_a", original)
+	if err != nil {
+		t.Fatalf("normalize route filter: %v", err)
+	}
+	if got, _ := normalized["session_id"].(string); got != "session_a" {
+		t.Fatalf("expected normalized session id, got %#v", normalized)
+	}
+	if _, ok := original["session_id"]; ok {
+		t.Fatalf("expected original filter not to be mutated, got %#v", original)
+	}
+}
+
+func TestNormalizeSessionRouteFilterRejectsCrossSessionOverride(t *testing.T) {
+	_, err := normalizeSessionRouteFilter("session_a", map[string]any{"session_id": "session_b"})
+	if err == nil || !strings.Contains(err.Error(), "does not match current session") {
+		t.Fatalf("expected cross-session filter rejection, got %v", err)
+	}
+}
+
+func TestWithSessionIDDoesNotMutateCallerPayload(t *testing.T) {
+	original := map[string]any{"ok": true}
+	normalized := withSessionID(original, "session_a")
+	if got, _ := normalized["session_id"].(string); got != "session_a" {
+		t.Fatalf("expected normalized payload session id, got %#v", normalized)
+	}
+	if _, ok := original["session_id"]; ok {
+		t.Fatalf("expected original payload not to be mutated, got %#v", original)
+	}
+}
+
 func TestScriptConnectivityBridgeScopesListAndUnregisterToSession(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

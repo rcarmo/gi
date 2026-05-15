@@ -64,22 +64,14 @@ func (s *Server) configureScriptConnectivity() {
 			return s.turns.Connectivity().Unregister(ctx, id)
 		},
 		func(ctx context.Context, sessionID string, filter map[string]any) ([]connectivity.RouteInfo, error) {
-			if filter == nil {
-				filter = map[string]any{}
+			normalizedFilter, err := normalizeSessionRouteFilter(sessionID, filter)
+			if err != nil {
+				return nil, err
 			}
-			if filterSessionID, _ := filter["session_id"].(string); strings.TrimSpace(filterSessionID) == "" {
-				filter["session_id"] = sessionID
-			} else if strings.TrimSpace(sessionID) != "" && filterSessionID != sessionID {
-				return nil, fmt.Errorf("list routes: session filter %q does not match current session %q", filterSessionID, sessionID)
-			}
-			return s.turns.Connectivity().List(ctx, filter)
+			return s.turns.Connectivity().List(ctx, normalizedFilter)
 		},
 		func(ctx context.Context, sessionID, topic string, payload map[string]any) error {
-			if payload == nil {
-				payload = map[string]any{}
-			}
-			payload["session_id"] = sessionID
-			return s.turns.Connectivity().Emit(ctx, topic, payload)
+			return s.turns.Connectivity().Emit(ctx, topic, withSessionID(payload, sessionID))
 		},
 		func(ctx context.Context, sessionID string, envelope map[string]any) error {
 			if s.turns == nil || s.turns.Topics() == nil {
@@ -125,6 +117,33 @@ func (s *Server) configureScriptConnectivity() {
 			return ch, unsubscribe, nil
 		},
 	)
+}
+
+func cloneStringAnyMap(in map[string]any) map[string]any {
+	if in == nil {
+		return map[string]any{}
+	}
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
+func normalizeSessionRouteFilter(sessionID string, filter map[string]any) (map[string]any, error) {
+	normalized := cloneStringAnyMap(filter)
+	if filterSessionID, _ := normalized["session_id"].(string); strings.TrimSpace(filterSessionID) == "" {
+		normalized["session_id"] = sessionID
+	} else if strings.TrimSpace(sessionID) != "" && filterSessionID != sessionID {
+		return nil, fmt.Errorf("list routes: session filter %q does not match current session %q", filterSessionID, sessionID)
+	}
+	return normalized, nil
+}
+
+func withSessionID(payload map[string]any, sessionID string) map[string]any {
+	normalized := cloneStringAnyMap(payload)
+	normalized["session_id"] = sessionID
+	return normalized
 }
 
 func scriptWithPayload(engine, name string, payload map[string]any, script string) string {
