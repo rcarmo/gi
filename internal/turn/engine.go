@@ -224,7 +224,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		return nil, err
 	}
 	queued := false
-	count, err := e.store.CountQueuedTurns(ctx, in.SessionID)
+	count, err := e.store.CountQueuedTurns(opCtx, in.SessionID)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +298,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if in.ParentTurnID != "" {
 		metadata["subturn_tools_restricted"] = subTurnToolsRestricted
 	}
-	if _, err := e.store.CreateTurnWithStatus(ctx, turnID, in.SessionID, "queued", in.Prompt, metadata); err != nil {
+	if _, err := e.store.CreateTurnWithStatus(opCtx, turnID, in.SessionID, "queued", in.Prompt, metadata); err != nil {
 		return nil, err
 	}
 	durableCtx := e.backgroundContext()

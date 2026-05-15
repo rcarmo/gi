@@ -119,6 +119,46 @@ func TestSubmitPromptPreservesSessionModelWhenInputModelIsEmpty(t *testing.T) {
 	}
 }
 
+func TestSubmitPromptQueuedSubmitSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	sess, err := s.CreateSession(ctx, "session_submit_queued_cancel", "Test", map[string]any{"model": "bootstrap", "status": "queued", "queue_count": 1})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_submit_queued_cancel_existing", sess.ID, "queued", "existing", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create existing queued turn: %v", err)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	engine := New(s)
+	result, err := engine.SubmitPrompt(cancelCtx, RunInput{SessionID: sess.ID, Prompt: "later", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit queued prompt with canceled context: %v", err)
+	}
+	if !result.Queued || result.Status != "queued" {
+		t.Fatalf("expected queued submit result, got %#v", result)
+	}
+	turns, err := s.ListTurns(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("list turns: %v", err)
+	}
+	if len(turns) != 2 {
+		t.Fatalf("expected existing queued turn plus new queued turn, got %#v", turns)
+	}
+	sessRec, err := s.GetSession(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "queued" || sessRec.State["active_turn_id"] != nil || sessRec.State["model"] != "bootstrap" {
+		t.Fatalf("expected queued submit state to persist despite canceled caller context, got %#v", sessRec.State)
+	}
+	if got := sessRec.State["queue_count"]; got != float64(2) && got != 2 {
+		t.Fatalf("expected queue_count 2 after canceled queued submit, got %#v", sessRec.State)
+	}
+}
+
 func TestSubmitPromptPublishesQueuedTurnSubmittedTopic(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
