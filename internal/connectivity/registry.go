@@ -72,7 +72,7 @@ func (r *Registry) Unregister(_ context.Context, id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.routes[id]; !ok {
-		return fmt.Errorf("route not found: %s", id)
+		return nil
 	}
 	delete(r.routes, id)
 	return nil
