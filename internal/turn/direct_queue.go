@@ -63,12 +63,13 @@ const (
 )
 
 func (e *Engine) EnqueueDirectInbound(ctx context.Context, in DirectInput) (*store.InboundWorkItem, error) {
+	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if e.store == nil {
 		return nil, fmt.Errorf("direct inbound queue requires store")
 	}
 	sourceKind := normalizeDirectSourceKind(in.Origin.SourceKind)
 	envelope := directEnvelopeFromInput(in)
-	item, err := e.store.EnqueueInboundWork(ctx, sourceKind, strings.TrimSpace(in.SessionID), strings.TrimSpace(in.SessionKey), envelope)
+	item, err := e.store.EnqueueInboundWork(opCtx, sourceKind, strings.TrimSpace(in.SessionID), strings.TrimSpace(in.SessionKey), envelope)
 	if err != nil {
 		return nil, err
 	}

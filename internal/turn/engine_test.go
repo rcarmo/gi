@@ -3856,6 +3856,34 @@ func TestSubmitPromptRoutedRejectsDirectedPromptWithoutBody(t *testing.T) {
 	}
 }
 
+func TestEnqueueDirectInboundSurvivesCanceledCallerContext(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_inbound_cancel")
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_inbound_cancel", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	cancelCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	queued, err := engine.EnqueueDirectInbound(cancelCtx, DirectInput{Kind: DirectKindPrompt, SessionID: sess.ID, Prompt: "hello from canceled enqueue", Model: "bootstrap", Origin: DirectOrigin{SourceKind: DirectSourceKindIPC, SourceID: "ipc:canceled"}})
+	if err != nil {
+		t.Fatalf("enqueue direct inbound with canceled context: %v", err)
+	}
+	if queued.Status != "queued" || queued.ID <= 0 {
+		t.Fatalf("expected queued inbound item, got %#v", queued)
+	}
+	item, err := s.GetInboundWork(ctx, queued.ID)
+	if err != nil {
+		t.Fatalf("get inbound work: %v", err)
+	}
+	if item.Status != "queued" || item.SourceKind != DirectSourceKindIPC || item.SessionID != sess.ID {
+		t.Fatalf("expected persisted queued inbound item, got %#v", item)
+	}
+}
+
 func TestProcessQueuedInboundWorkDrainsMultipleItemsInOrder(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
