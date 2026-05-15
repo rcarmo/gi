@@ -66,7 +66,11 @@ func (s *Server) handleAuthEnrollStart(w http.ResponseWriter, r *http.Request) {
 	}
 	pending, err := s.auth.StartEnrollment(req.Username)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		status := http.StatusInternalServerError
+		if err.Error() == "enrollment is already complete" {
+			status = http.StatusBadRequest
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"username": pending.Username, "secret": pending.Secret, "otpauth_url": pending.URL, "expires_in_seconds": 600})
