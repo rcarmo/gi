@@ -51,9 +51,24 @@ func (s *Server) configureScriptConnectivity() {
 			})
 		},
 		func(ctx context.Context, sessionID, id string) error {
+			_, info, ok := s.turns.Connectivity().GetSpec(id)
+			if !ok {
+				return nil
+			}
+			if strings.TrimSpace(info.SessionID) != "" && strings.TrimSpace(sessionID) != "" && info.SessionID != sessionID {
+				return fmt.Errorf("unregister route: route %q does not belong to session %q", id, sessionID)
+			}
 			return s.turns.Connectivity().Unregister(ctx, id)
 		},
 		func(ctx context.Context, sessionID string, filter map[string]any) ([]connectivity.RouteInfo, error) {
+			if filter == nil {
+				filter = map[string]any{}
+			}
+			if filterSessionID, _ := filter["session_id"].(string); strings.TrimSpace(filterSessionID) == "" {
+				filter["session_id"] = sessionID
+			} else if strings.TrimSpace(sessionID) != "" && filterSessionID != sessionID {
+				return nil, fmt.Errorf("list routes: session filter %q does not match current session %q", filterSessionID, sessionID)
+			}
 			return s.turns.Connectivity().List(ctx, filter)
 		},
 		func(ctx context.Context, sessionID, topic string, payload map[string]any) error {

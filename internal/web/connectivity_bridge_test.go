@@ -1,0 +1,75 @@
+package web
+
+import (
+	"context"
+	"strings"
+	"testing"
+
+	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/tools"
+	"github.com/rcarmo/gi/internal/turn"
+)
+
+func TestScriptConnectivityBridgeScopesListAndUnregisterToSession(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+
+	engine := turn.New(s)
+	defer engine.Close()
+	srv := New(s, engine, config.RuntimeConfig{WorkspaceRoot: t.TempDir(), DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "low"})
+
+	sessionA, err := s.CreateSession(context.Background(), store.NowID("session"), "A", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session A: %v", err)
+	}
+	sessionB, err := s.CreateSession(context.Background(), store.NowID("session"), "B", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session B: %v", err)
+	}
+
+	outA := srv.scriptTool.Execute(context.Background(), tools.ScriptInput{SessionID: sessionA.ID, Script: `var r = gi.connect.registerRoute({name:"route-a", transport:"event"}); r.id;`})
+	if outA.Error != "" {
+		t.Fatalf("register route A: %v", outA.Error)
+	}
+	routeA := strings.TrimSpace(outA.Result)
+	if routeA == "" {
+		t.Fatal("expected route id for session A")
+	}
+
+	outB := srv.scriptTool.Execute(context.Background(), tools.ScriptInput{SessionID: sessionB.ID, Script: `var r = gi.connect.registerRoute({name:"route-b", transport:"event"}); r.id;`})
+	if outB.Error != "" {
+		t.Fatalf("register route B: %v", outB.Error)
+	}
+	routeB := strings.TrimSpace(outB.Result)
+	if routeB == "" {
+		t.Fatal("expected route id for session B")
+	}
+
+	listA := srv.scriptTool.Execute(context.Background(), tools.ScriptInput{SessionID: sessionA.ID, Script: `JSON.stringify(gi.connect.listRoutes())`})
+	if listA.Error != "" {
+		t.Fatalf("list routes A: %v", listA.Error)
+	}
+	if !strings.Contains(listA.Result, routeA) {
+		t.Fatalf("expected session A to see own route, got %q", listA.Result)
+	}
+	if strings.Contains(listA.Result, routeB) {
+		t.Fatalf("expected session A list to exclude session B route, got %q", listA.Result)
+	}
+
+	crossList := srv.scriptTool.Execute(context.Background(), tools.ScriptInput{SessionID: sessionA.ID, Script: `JSON.stringify(gi.connect.listRoutes({session_id:"` + sessionB.ID + `"}))`})
+	if crossList.Error == "" || !strings.Contains(crossList.Error, "does not match current session") {
+		t.Fatalf("expected cross-session list rejection, got result=%q err=%q", crossList.Result, crossList.Error)
+	}
+
+	crossUnregister := srv.scriptTool.Execute(context.Background(), tools.ScriptInput{SessionID: sessionA.ID, Script: `gi.connect.unregisterRoute("` + routeB + `"); "ok";`})
+	if crossUnregister.Error == "" || !strings.Contains(crossUnregister.Error, "does not belong to session") {
+		t.Fatalf("expected cross-session unregister rejection, got result=%q err=%q", crossUnregister.Result, crossUnregister.Error)
+	}
+	if _, ok := engine.Connectivity().Get(routeB); !ok {
+		t.Fatal("expected session B route to remain after rejected cross-session unregister")
+	}
+}
