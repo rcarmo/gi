@@ -61,13 +61,21 @@ func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *run
 	}
 	sessionStatus := "idle"
 	activeTurnValue := any(nil)
+	sessionState := map[string]any{}
 	if hasActiveTurn {
 		sessionStatus = "running"
 		activeTurnValue = activeTurnID
+		if turnRec, turnErr := r.store.GetTurn(ctx, activeTurnID); turnErr == nil {
+			if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
+				sessionState["model"] = model
+			}
+		}
 	} else if queueCount > 0 {
 		sessionStatus = "queued"
 	}
-	warnStore("touch session state after cleanup", r.store.TouchSessionState(ctx, sessionID, map[string]any{"status": sessionStatus, "active_turn_id": activeTurnValue}))
+	sessionState["status"] = sessionStatus
+	sessionState["active_turn_id"] = activeTurnValue
+	warnStore("touch session state after cleanup", r.store.TouchSessionState(ctx, sessionID, sessionState))
 }
 
 func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessionID, turnID string) (*preparedTurnRun, error) {

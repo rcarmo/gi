@@ -1475,7 +1475,7 @@ func TestCleanupTurnRunNormalizesRunningStateWhenNextTurnAlreadyClaimed(t *testi
 	if err != nil {
 		t.Fatalf("get session: %v", err)
 	}
-	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] != queuedTurn.ID {
+	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] != queuedTurn.ID || sessRec.State["model"] != "bootstrap" {
 		t.Fatalf("expected cleanup to normalize session to externally claimed running turn, got %#v", sessRec.State)
 	}
 }
