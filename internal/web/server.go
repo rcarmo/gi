@@ -52,6 +52,9 @@ func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 func (s *Server) Handler() http.Handler { return s.mux }
 
 func (s *Server) StartInboundWorkDispatcher(ctx context.Context) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	releaseCtx := context.WithoutCancel(ctx)
 	if !s.cfg.InboundWork.Enabled {
 		return
