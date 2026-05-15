@@ -801,7 +801,7 @@ func (t *ScriptTool) closeRawSocket(_ context.Context, socketID string) error {
 	}
 	t.rawSocketMu.Unlock()
 	if !ok {
-		return fmt.Errorf("socket not found")
+		return nil
 	}
 	return conn.Close()
 }
@@ -914,7 +914,7 @@ func (t *ScriptTool) closeWebSocket(_ context.Context, socketID string) error {
 	}
 	t.webSocketMu.Unlock()
 	if !ok {
-		return fmt.Errorf("websocket not found")
+		return nil
 	}
 	return conn.Close()
 }

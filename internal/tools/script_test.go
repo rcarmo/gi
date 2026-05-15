@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/scripting"
@@ -449,6 +450,45 @@ func TestScriptToolSupportsEventHooksAndEmit(t *testing.T) {
 	}
 }
 
+func TestScriptToolCloseRawSocketIsIdempotent(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		conn, err := ln.Accept()
+		if err == nil {
+			accepted <- conn
+		}
+	}()
+
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
+	socketID, err := tool.openRawSocket(context.Background(), scripting.RawSocketSpec{Protocol: "tcp", Address: ln.Addr().String()})
+	if err != nil {
+		t.Fatalf("open raw socket: %v", err)
+	}
+	select {
+	case conn := <-accepted:
+		defer conn.Close()
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for raw socket accept")
+	}
+	if err := tool.closeRawSocket(context.Background(), socketID); err != nil {
+		t.Fatalf("first close raw socket: %v", err)
+	}
+	if err := tool.closeRawSocket(context.Background(), socketID); err != nil {
+		t.Fatalf("second close raw socket should be idempotent: %v", err)
+	}
+}
+
 func TestScriptToolRawSocketsRoundTrip(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
@@ -488,6 +528,34 @@ func TestScriptToolRawSocketsRoundTrip(t *testing.T) {
 	}
 	if out.Result != "ping" {
 		t.Fatalf("expected ping, got %q", out.Result)
+	}
+}
+
+func TestScriptToolCloseWebSocketIsIdempotent(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		xwebsocket.Handler(func(c *xwebsocket.Conn) {
+			select {}
+		}).ServeHTTP(w, r)
+	}))
+	defer server.Close()
+	wsURL := "ws://" + strings.TrimPrefix(server.URL, "http://") + "/"
+
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
+	socketID, err := tool.openWebSocket(context.Background(), scripting.WebSocketSpec{URL: wsURL, TimeoutMS: 5000})
+	if err != nil {
+		t.Fatalf("open websocket: %v", err)
+	}
+	if err := tool.closeWebSocket(context.Background(), socketID); err != nil {
+		t.Fatalf("first close websocket: %v", err)
+	}
+	if err := tool.closeWebSocket(context.Background(), socketID); err != nil {
+		t.Fatalf("second close websocket should be idempotent: %v", err)
 	}
 }
 
