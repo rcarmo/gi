@@ -48,7 +48,7 @@ func (r *Registry) Register(ctx context.Context, spec RouteSpec, handler RouteHa
 		spec.Direction = "inbound"
 	}
 	if spec.Lifetime == "" {
-		spec.Lifetime = "session"
+		spec.Lifetime = "process"
 	}
 	if spec.Mode == "" {
 		spec.Mode = "respond"

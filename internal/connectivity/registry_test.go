@@ -5,6 +5,17 @@ import (
 	"testing"
 )
 
+func TestRegistryDefaultsRouteLifetimeToProcess(t *testing.T) {
+	r := NewRegistry()
+	info, err := r.Register(context.Background(), RouteSpec{Name: "demo", Transport: "http"}, nil)
+	if err != nil {
+		t.Fatalf("register route: %v", err)
+	}
+	if info.Lifetime != "process" {
+		t.Fatalf("expected default lifetime process, got %q", info.Lifetime)
+	}
+}
+
 func TestRegistryUnregisterIsIdempotentWhenMissing(t *testing.T) {
 	r := NewRegistry()
 	if err := r.Unregister(context.Background(), "route_missing"); err != nil {

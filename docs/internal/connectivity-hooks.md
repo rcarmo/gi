@@ -470,11 +470,11 @@ Routes need explicit lifetimes:
 | Lifetime | Meaning |
 |----------|---------|
 | `turn` | Automatically removed when current turn finishes. |
-| `session` | Removed on session shutdown/reload. |
+| `session` | Intended to be removed on session shutdown/reload; full cleanup wiring is not implemented yet. |
 | `workspace` | Persisted in workspace config. |
 | `process` | Lives until process exit/reload, not persisted. |
 
-Default should be `session` for script registrations.
+Current implementation defaults new in-memory/script registrations to `process` until session-lifetime cleanup is actually wired; explicit `session` remains accepted as metadata but should be treated as aspirational rather than enforced today.
 
 ```json
 {
