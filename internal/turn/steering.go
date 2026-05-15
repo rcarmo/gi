@@ -202,7 +202,13 @@ func (e *Engine) continueQueuedSteeringLocked(ctx context.Context, runner *sessi
 	warnStore("sync queue count after steering continuation handoff", e.store.SyncSessionQueueCount(coordCtx, sessionID))
 	activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID)
 	if err == nil {
-		warnStore("touch session state after steering continuation handoff", e.store.TouchSessionState(coordCtx, sessionID, map[string]any{"status": "running", "active_turn_id": activeTurnID}))
+		sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
+		if turnRec, turnErr := e.store.GetTurn(coordCtx, activeTurnID); turnErr == nil {
+			if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
+				sessionState["model"] = model
+			}
+		}
+		warnStore("touch session state after steering continuation handoff", e.store.TouchSessionState(coordCtx, sessionID, sessionState))
 		return true, nil
 	}
 	if err != nil && err != sql.ErrNoRows {
