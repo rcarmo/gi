@@ -838,6 +838,38 @@ func TestRuntimeInboundWorkDiscardRejectsCompletedItem(t *testing.T) {
 	}
 }
 
+func TestRuntimeInboundWorkDispatcherStartsOnlyOncePerServer(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	engine := turn.New(s)
+	cfg := config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium", InboundWork: config.InboundWorkSettings{Enabled: true, IntervalMS: 1000, BatchSize: 1, WorkerID: "web-test-dispatcher-once", LeaseTTLMS: 500}}
+	srv := New(s, engine, cfg)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.dispatcher", topics.SubscribeOptions{Buffer: 16})
+	defer unsub()
+	srv.StartInboundWorkDispatcher(ctx)
+	srv.StartInboundWorkDispatcher(ctx)
+	acquires := 0
+	deadline := time.Now().Add(300 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		select {
+		case env := <-ch:
+			if env.Payload["type"] == "dispatcher_lease_acquired" {
+				acquires++
+			}
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	if acquires != 1 {
+		t.Fatalf("expected a single dispatcher startup acquisition, got %d", acquires)
+	}
+}
+
 func TestRuntimeInboundWorkDispatcherAcceptsNilContext(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

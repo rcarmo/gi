@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	giauth "github.com/rcarmo/gi/internal/auth"
@@ -25,13 +26,14 @@ import (
 var staticFS embed.FS
 
 type Server struct {
-	store      *store.Store
-	turns      *turn.Engine
-	cfg        config.RuntimeConfig
-	mux        *http.ServeMux
-	version    string
-	scriptTool *tools.ScriptTool
-	auth       *giauth.Manager
+	store                 *store.Store
+	turns                 *turn.Engine
+	cfg                   config.RuntimeConfig
+	mux                   *http.ServeMux
+	version               string
+	scriptTool            *tools.ScriptTool
+	auth                  *giauth.Manager
+	inboundDispatcherOnce sync.Once
 }
 
 func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
@@ -52,82 +54,84 @@ func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 func (s *Server) Handler() http.Handler { return s.mux }
 
 func (s *Server) StartInboundWorkDispatcher(ctx context.Context) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	releaseCtx := context.WithoutCancel(ctx)
 	if !s.cfg.InboundWork.Enabled {
 		return
 	}
-	interval := time.Duration(s.cfg.InboundWork.IntervalMS) * time.Millisecond
-	if interval <= 0 {
-		interval = 500 * time.Millisecond
-	}
-	batchSize := s.cfg.InboundWork.BatchSize
-	if batchSize <= 0 {
-		batchSize = 8
-	}
-	workerID := strings.TrimSpace(s.cfg.InboundWork.WorkerID)
-	if workerID == "" {
-		workerID = "web-runtime"
-	}
-	leaseOwner := workerID + ":" + s.version
-	leaseTTL := time.Duration(s.cfg.InboundWork.LeaseTTLMS) * time.Millisecond
-	if leaseTTL <= 0 {
-		leaseTTL = 2 * time.Second
-	}
-	drain := func() {
-		acquired, err := s.store.AcquireInboundDispatcherLease(ctx, leaseOwner, leaseTTL)
-		if err != nil {
-			log.Printf("runtime inbound dispatcher lease: %v", err)
-			return
+	s.inboundDispatcherOnce.Do(func() {
+		if ctx == nil {
+			ctx = context.Background()
 		}
-		if !acquired {
-			s.turns.PublishRuntimeDispatcherEvent("dispatcher_lease_skipped", map[string]any{"worker_id": workerID, "lease_owner": leaseOwner})
-			return
+		releaseCtx := context.WithoutCancel(ctx)
+		interval := time.Duration(s.cfg.InboundWork.IntervalMS) * time.Millisecond
+		if interval <= 0 {
+			interval = 500 * time.Millisecond
 		}
-		s.turns.PublishRuntimeDispatcherEvent("dispatcher_lease_acquired", map[string]any{"worker_id": workerID, "lease_owner": leaseOwner, "lease_ttl_ms": s.cfg.InboundWork.LeaseTTLMS})
-		processed := 0
-		for i := 0; i < batchSize; i++ {
-			item, _, ok, err := s.turns.ProcessNextInboundWorkIfQueued(ctx, workerID)
-			if !ok {
-				break
-			}
-			processed++
+		batchSize := s.cfg.InboundWork.BatchSize
+		if batchSize <= 0 {
+			batchSize = 8
+		}
+		workerID := strings.TrimSpace(s.cfg.InboundWork.WorkerID)
+		if workerID == "" {
+			workerID = "web-runtime"
+		}
+		leaseOwner := workerID + ":" + s.version
+		leaseTTL := time.Duration(s.cfg.InboundWork.LeaseTTLMS) * time.Millisecond
+		if leaseTTL <= 0 {
+			leaseTTL = 2 * time.Second
+		}
+		drain := func() {
+			acquired, err := s.store.AcquireInboundDispatcherLease(ctx, leaseOwner, leaseTTL)
 			if err != nil {
-				if item != nil {
-					log.Printf("runtime inbound dispatcher item %d -> %s: %v", item.ID, item.Status, err)
-				} else {
-					log.Printf("runtime inbound dispatcher drain: %v", err)
+				log.Printf("runtime inbound dispatcher lease: %v", err)
+				return
+			}
+			if !acquired {
+				s.turns.PublishRuntimeDispatcherEvent("dispatcher_lease_skipped", map[string]any{"worker_id": workerID, "lease_owner": leaseOwner})
+				return
+			}
+			s.turns.PublishRuntimeDispatcherEvent("dispatcher_lease_acquired", map[string]any{"worker_id": workerID, "lease_owner": leaseOwner, "lease_ttl_ms": s.cfg.InboundWork.LeaseTTLMS})
+			processed := 0
+			for i := 0; i < batchSize; i++ {
+				item, _, ok, err := s.turns.ProcessNextInboundWorkIfQueued(ctx, workerID)
+				if !ok {
+					break
 				}
-				continue
+				processed++
+				if err != nil {
+					if item != nil {
+						log.Printf("runtime inbound dispatcher item %d -> %s: %v", item.ID, item.Status, err)
+					} else {
+						log.Printf("runtime inbound dispatcher drain: %v", err)
+					}
+					continue
+				}
+			}
+			if processed > 0 {
+				log.Printf("runtime inbound dispatcher processed %d queued item(s)", processed)
+				s.turns.PublishRuntimeDispatcherEvent("dispatcher_drain_processed", map[string]any{"worker_id": workerID, "lease_owner": leaseOwner, "processed": processed})
 			}
 		}
-		if processed > 0 {
-			log.Printf("runtime inbound dispatcher processed %d queued item(s)", processed)
-			s.turns.PublishRuntimeDispatcherEvent("dispatcher_drain_processed", map[string]any{"worker_id": workerID, "lease_owner": leaseOwner, "processed": processed})
-		}
-	}
-	go func() {
-		defer func() {
-			if err := s.store.ReleaseInboundDispatcherLease(releaseCtx, leaseOwner); err != nil {
-				log.Printf("runtime inbound dispatcher release lease: %v", err)
-				return
+		go func() {
+			defer func() {
+				if err := s.store.ReleaseInboundDispatcherLease(releaseCtx, leaseOwner); err != nil {
+					log.Printf("runtime inbound dispatcher release lease: %v", err)
+					return
+				}
+				s.turns.PublishRuntimeDispatcherEvent("dispatcher_lease_released", map[string]any{"worker_id": workerID, "lease_owner": leaseOwner})
+			}()
+			drain()
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					drain()
+				}
 			}
-			s.turns.PublishRuntimeDispatcherEvent("dispatcher_lease_released", map[string]any{"worker_id": workerID, "lease_owner": leaseOwner})
 		}()
-		drain()
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				drain()
-			}
-		}
-	}()
+	})
 }
 
 func (s *Server) routes() {
