@@ -838,6 +838,43 @@ func TestRuntimeInboundWorkDiscardRejectsCompletedItem(t *testing.T) {
 	}
 }
 
+func TestRuntimeInboundWorkDispatcherReleasesLeaseAfterContextCancel(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	engine := turn.New(s)
+	cfg := config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium", InboundWork: config.InboundWorkSettings{Enabled: true, IntervalMS: 25, BatchSize: 1, WorkerID: "web-test-dispatcher-release", LeaseTTLMS: 500}}
+	srv := New(s, engine, cfg)
+	ctx, cancel := context.WithCancel(t.Context())
+	srv.StartInboundWorkDispatcher(ctx)
+	var owner string
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		row := s.DB().QueryRowContext(context.Background(), `select value from kv_store where namespace = ? and key = ?`, "runtime_leases", "inbound_dispatcher")
+		owner = ""
+		if err := row.Scan(&owner); err == nil && owner != "" {
+			break
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	if owner == "" {
+		t.Fatal("expected dispatcher lease owner before cancel")
+	}
+	cancel()
+	deadline = time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		row := s.DB().QueryRowContext(context.Background(), `select value from kv_store where namespace = ? and key = ?`, "runtime_leases", "inbound_dispatcher")
+		owner = ""
+		if err := row.Scan(&owner); err != nil || owner == "" {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	t.Fatal("expected dispatcher lease release after cancel")
+}
+
 func TestRuntimeInboundWorkDispatcherUsesSingleLeaseHolder(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

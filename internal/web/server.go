@@ -52,6 +52,7 @@ func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 func (s *Server) Handler() http.Handler { return s.mux }
 
 func (s *Server) StartInboundWorkDispatcher(ctx context.Context) {
+	releaseCtx := context.WithoutCancel(ctx)
 	if !s.cfg.InboundWork.Enabled {
 		return
 	}
@@ -106,7 +107,7 @@ func (s *Server) StartInboundWorkDispatcher(ctx context.Context) {
 	}
 	go func() {
 		defer func() {
-			if err := s.store.ReleaseInboundDispatcherLease(context.Background(), leaseOwner); err != nil {
+			if err := s.store.ReleaseInboundDispatcherLease(releaseCtx, leaseOwner); err != nil {
 				log.Printf("runtime inbound dispatcher release lease: %v", err)
 				return
 			}
