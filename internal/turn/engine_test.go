@@ -248,6 +248,44 @@ func TestContinueSessionNormalizesRunningStateWhenContinuationTurnIsExternallyCl
 	}
 }
 
+func TestStartNextQueuedTurnLockedNormalizesClaimedRunningSession(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_startnext_claimed_model", "Test", map[string]any{"model": "stale-model", "status": "queued", "active_turn_id": nil, "queue_count": 2}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_startnext_claimed_active", "session_startnext_claimed_model", "running", "active", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_startnext_claimed_queued", "session_startnext_claimed_model", "queued", "queued", map[string]any{"intent": "prompt", "model": "queued-model"}); err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_startnext_claimed_model", activeTurn.ID, "external", activeTurn.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	engine := New(s)
+	runner := engine.runner("session_startnext_claimed_model")
+	launched, err := engine.startNextQueuedTurnLocked(ctx, runner, "session_startnext_claimed_model")
+	if err != nil {
+		t.Fatalf("start next queued turn locked: %v", err)
+	}
+	if launched {
+		t.Fatal("expected no local launch when another worker already owns the session")
+	}
+	sessRec, err := s.GetSession(ctx, "session_startnext_claimed_model")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "running" || sessRec.State["active_turn_id"] != activeTurn.ID || sessRec.State["model"] != "bootstrap" {
+		t.Fatalf("expected claimed running session normalization, got %#v", sessRec.State)
+	}
+	if got := sessRec.State["queue_count"]; got != float64(1) && got != 1 {
+		t.Fatalf("expected queue_count to normalize to remaining queued work, got %#v", sessRec.State)
+	}
+}
+
 func TestContinueQueuedSteeringHandoffPreservesSessionModel(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/rcarmo/gi/internal/store"
@@ -135,7 +136,18 @@ func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionR
 		return false, nil
 	}
 	coordCtx := coordinationContext(ctx, e.backgroundContext())
-	if _, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
+	normalizeClaimedRunningSession := func(activeTurnID string) {
+		sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
+		if turnRec, turnErr := e.store.GetTurn(coordCtx, activeTurnID); turnErr == nil {
+			if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
+				sessionState["model"] = model
+			}
+		}
+		warnStore("sync queue count on queued-turn handoff", e.store.SyncSessionQueueCount(coordCtx, sessionID))
+		warnStore("touch session running on queued-turn handoff", e.store.TouchSessionState(coordCtx, sessionID, sessionState))
+	}
+	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
+		normalizeClaimedRunningSession(activeTurnID)
 		return false, nil
 	} else if err != sql.ErrNoRows {
 		return false, err
@@ -147,7 +159,8 @@ func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionR
 	if err != nil {
 		return false, err
 	}
-	if _, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
+	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
+		normalizeClaimedRunningSession(activeTurnID)
 		return false, nil
 	} else if err != sql.ErrNoRows {
 		return false, err
