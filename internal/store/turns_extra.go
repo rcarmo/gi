@@ -134,6 +134,14 @@ func (s *Store) MarkTurnClaimed(ctx context.Context, turnID, claimedBy string) e
 	return nil
 }
 
+func (s *Store) ResetTurnClaim(ctx context.Context, turnID string) error {
+	_, err := s.db.ExecContext(ctx, `update turns set claimed_by = null, claimed_at = null, started_at = null, updated_at = `+defaultNow+` where id = ?`, turnID)
+	if err != nil {
+		return fmt.Errorf("reset turn claim: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) MarkTurnFinished(ctx context.Context, turnID string) error {
 	_, err := s.db.ExecContext(ctx, `update turns set finished_at = coalesce(finished_at, `+defaultNow+`), updated_at = `+defaultNow+` where id = ?`, turnID)
 	if err != nil {

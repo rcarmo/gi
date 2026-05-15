@@ -19,28 +19,29 @@ import (
 )
 
 type Engine struct {
-	store                        *store.Store
-	systemPrompt                 string
-	routeResolver                *routing.RouteResolver
-	modelRouter                  *routing.Router
-	runtimeCfg                   config.RuntimeConfig
-	hooks                        *HookRegistry
-	tools                        *ToolRegistry
-	connectivity                 *connectivity.Registry
-	topics                       *topics.Bus
-	peering                      *peering.Manager
-	bgCtx                        context.Context
-	bgCancel                     context.CancelFunc
-	extensions                   []ExtensionInfo
-	extensionsMu                 sync.RWMutex
-	sessions                     sync.Map // sessionID -> *sessionRunner
-	subs                         map[string]map[chan map[string]any]bool
-	subsMu                       sync.Mutex
-	beforeSetupHook              func(context.Context, string, string)
-	beforeSetupErrorHook         func(context.Context, string, string) error
-	beforeCreateSubTurnErrorHook func(context.Context, string, string) error
-	beforeLaunchClaimHook        func(context.Context, string, string)
-	beforeCleanupNextWorkHook    func(context.Context, string)
+	store                             *store.Store
+	systemPrompt                      string
+	routeResolver                     *routing.RouteResolver
+	modelRouter                       *routing.Router
+	runtimeCfg                        config.RuntimeConfig
+	hooks                             *HookRegistry
+	tools                             *ToolRegistry
+	connectivity                      *connectivity.Registry
+	topics                            *topics.Bus
+	peering                           *peering.Manager
+	bgCtx                             context.Context
+	bgCancel                          context.CancelFunc
+	extensions                        []ExtensionInfo
+	extensionsMu                      sync.RWMutex
+	sessions                          sync.Map // sessionID -> *sessionRunner
+	subs                              map[string]map[chan map[string]any]bool
+	subsMu                            sync.Mutex
+	beforeSetupHook                   func(context.Context, string, string)
+	beforeSetupErrorHook              func(context.Context, string, string) error
+	beforeCreateSubTurnErrorHook      func(context.Context, string, string) error
+	beforeLaunchClaimHook             func(context.Context, string, string)
+	beforeLaunchSessionStateErrorHook func(context.Context, string, string) error
+	beforeCleanupNextWorkHook         func(context.Context, string)
 }
 
 type sharedSessionCoord struct {
@@ -545,7 +546,16 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 	runCtx, cancel := context.WithCancel(e.backgroundContext())
 	active := &runningTurn{turnID: turnID, cancel: cancel}
 	runner.current = active
-	releaseClaim := func() {
+	claimedTurn := false
+	releaseClaim := func(restoreQueued bool) {
+		if restoreQueued {
+			warnStore("rollback turn status to queued", e.store.UpdateTurnStatusAndPhase(e.backgroundContext(), turnID, "queued", "queued"))
+			if claimedTurn {
+				warnStore("reset turn claim after launch failure", e.store.ResetTurnClaim(e.backgroundContext(), turnID))
+			}
+			warnStore("sync queue count after launch rollback", e.store.SyncSessionQueueCount(e.backgroundContext(), sessionID))
+			warnStore("touch session queued after launch rollback", e.store.TouchSessionState(e.backgroundContext(), sessionID, map[string]any{"status": "queued", "active_turn_id": nil}))
+		}
 		warnStore("release active claim after launch failure", e.store.ReleaseSessionActiveTurn(e.backgroundContext(), sessionID, claimToken))
 		if runner.current == active {
 			runner.current = nil
@@ -553,12 +563,19 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 		cancel()
 	}
 	if err := e.store.MarkTurnClaimed(opCtx, turnID, "runner"); err != nil {
-		releaseClaim()
+		releaseClaim(false)
 		return false, err
 	}
+	claimedTurn = true
 	if err := e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "running", "setup"); err != nil {
-		releaseClaim()
+		releaseClaim(true)
 		return false, err
+	}
+	if hook := e.beforeLaunchSessionStateErrorHook; hook != nil {
+		if err := hook(opCtx, sessionID, turnID); err != nil {
+			releaseClaim(true)
+			return false, err
+		}
 	}
 	sessionState := map[string]any{"active_turn_id": turnID, "status": "running"}
 	if turnRec, turnErr := e.store.GetTurn(opCtx, turnID); turnErr == nil {
@@ -567,8 +584,7 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 		}
 	}
 	if err := e.store.TouchSessionState(opCtx, sessionID, sessionState); err != nil {
-		warnStore("rollback turn status to queued", e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "queued", "queued"))
-		releaseClaim()
+		releaseClaim(true)
 		return false, err
 	}
 	warnStore("sync queue count after launch", e.store.SyncSessionQueueCount(opCtx, sessionID))

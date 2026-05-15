@@ -1859,6 +1859,54 @@ func TestLaunchConflictSteeringFallbackPreservesSessionModelWhenInputModelIsEmpt
 	}
 }
 
+func TestLaunchTurnLockedRollsBackClaimAndQueuedStateOnPreRunFailure(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_launch_rollback", "Test", map[string]any{"model": "bootstrap", "status": "queued", "queue_count": 1}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_launch_rollback", "session_launch_rollback", "queued", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	engine := New(s)
+	engine.beforeLaunchSessionStateErrorHook = func(ctx context.Context, sessionID, turnID string) error {
+		if sessionID == "session_launch_rollback" && turnID == queuedTurn.ID {
+			return fmt.Errorf("boom")
+		}
+		return nil
+	}
+	runner := engine.runner("session_launch_rollback")
+	launched, err := engine.launchTurnLocked(ctx, runner, "session_launch_rollback", queuedTurn.ID)
+	if err == nil || !strings.Contains(err.Error(), "boom") {
+		t.Fatalf("expected injected launch failure, got launched=%v err=%v", launched, err)
+	}
+	if launched {
+		t.Fatal("expected launch to fail")
+	}
+	turnRec, err := s.GetTurn(ctx, queuedTurn.ID)
+	if err != nil {
+		t.Fatalf("get queued turn: %v", err)
+	}
+	if turnRec.Status != "queued" || turnRec.Phase != "queued" || strings.TrimSpace(turnRec.ClaimedBy) != "" || strings.TrimSpace(turnRec.ClaimedAt) != "" || strings.TrimSpace(turnRec.StartedAt) != "" {
+		t.Fatalf("expected launch rollback to restore queued turn bookkeeping, got %#v", turnRec)
+	}
+	if _, _, err := s.GetSessionActiveTurn(ctx, "session_launch_rollback"); err == nil {
+		t.Fatal("expected active claim released after launch rollback")
+	}
+	sessRec, err := s.GetSession(ctx, "session_launch_rollback")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "queued" || sessRec.State["active_turn_id"] != nil {
+		t.Fatalf("expected launch rollback to restore queued session state, got %#v", sessRec.State)
+	}
+	if got := sessRec.State["queue_count"]; got != float64(1) && got != 1 {
+		t.Fatalf("expected launch rollback to keep queue_count 1, got %#v", sessRec.State)
+	}
+}
+
 func TestCancelQueuedTurnPreservesRunningSessionWithActiveClaim(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
