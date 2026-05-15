@@ -2,6 +2,8 @@ package auth
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -52,6 +54,21 @@ func TestStartEnrollmentPrunesExpiredPendingEntries(t *testing.T) {
 	}
 	if _, ok := m.pending["rui"]; !ok {
 		t.Fatalf("expected fresh pending enrollment to remain, got %#v", m.pending)
+	}
+}
+
+func TestStartEnrollmentReturnsLoadErrorForCorruptState(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, ".gi", "auth.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("mkdir auth dir: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("{not-json"), 0o600); err != nil {
+		t.Fatalf("write corrupt auth file: %v", err)
+	}
+	m := NewManager(root)
+	if _, err := m.StartEnrollment("rui"); err == nil {
+		t.Fatal("expected start enrollment to return corrupt state load error")
 	}
 }
 

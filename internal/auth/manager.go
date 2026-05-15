@@ -64,7 +64,11 @@ func (m *Manager) StartEnrollment(username string) (PendingEnrollment, error) {
 	if username == "" {
 		username = "admin"
 	}
-	if enrolled, _ := m.Enrolled(); enrolled {
+	enrolled, err := m.Enrolled()
+	if err != nil {
+		return PendingEnrollment{}, err
+	}
+	if enrolled {
 		return PendingEnrollment{}, fmt.Errorf("enrollment is already complete")
 	}
 	secret, err := GenerateTOTPSecret()
