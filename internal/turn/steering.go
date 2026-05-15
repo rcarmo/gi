@@ -163,12 +163,7 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 	submittedPayload := map[string]any{"phase": "queue", "intent": stringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true}
 	warnStore("append continued turn.submitted event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "turn.submitted", submittedPayload))
 	e.PublishRuntimeTurnEvent("turn_submitted", sessionID, turnID, "", "queued", "queued", submittedPayload)
-	warnStore("sync queue count after continued submit", e.store.SyncSessionQueueCount(opCtx, sessionID))
-	sessionState := map[string]any{"status": "queued", "active_turn_id": nil}
-	if model := stringValue(metadata["model"], ""); strings.TrimSpace(model) != "" {
-		sessionState["model"] = model
-	}
-	warnStore("touch session state after continued submit", e.store.TouchSessionState(opCtx, sessionID, sessionState))
+	e.normalizeInactiveSessionState(opCtx, sessionID, "queued", stringValue(metadata["model"], ""), true)
 	warnStore("append steering.continue_staged event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)}))
 	e.broadcast(sessionID, map[string]any{"type": "steering_continue_staged", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs)})
 	return true, turnID, nil
@@ -241,8 +236,7 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 	if continued {
 		return true, nil
 	}
-	warnStore("sync queue count after idle continue", e.store.SyncSessionQueueCount(coordCtx, sessionID))
-	warnStore("touch session idle after idle continue", e.store.TouchSessionState(coordCtx, sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
+	e.normalizeInactiveSessionState(coordCtx, sessionID, "idle", "", true)
 	return false, nil
 }
 

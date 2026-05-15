@@ -44,6 +44,21 @@ func (e *Engine) normalizeRunningSessionState(ctx context.Context, sessionID, ac
 	warnStore("touch running session normalization", e.store.TouchSessionState(opCtx, sessionID, sessionState))
 }
 
+func (e *Engine) normalizeInactiveSessionState(ctx context.Context, sessionID, status, model string, syncQueue bool) {
+	if e == nil || e.store == nil || strings.TrimSpace(sessionID) == "" {
+		return
+	}
+	opCtx := coordinationContext(ctx, e.backgroundContext())
+	sessionState := map[string]any{"status": status, "active_turn_id": nil}
+	if model = strings.TrimSpace(model); model != "" {
+		sessionState["model"] = model
+	}
+	if syncQueue {
+		warnStore("sync queue count on inactive session normalization", e.store.SyncSessionQueueCount(opCtx, sessionID))
+	}
+	warnStore("touch inactive session normalization", e.store.TouchSessionState(opCtx, sessionID, sessionState))
+}
+
 func stringValue(v any, fallback string) string {
 	if s, ok := v.(string); ok && s != "" {
 		return s

@@ -59,18 +59,15 @@ func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *run
 		log.Printf("turn coordination: inspect active turn during cleanup normalization failed: %v", err)
 		return
 	}
-	sessionStatus := "idle"
-	activeTurnValue := any(nil)
-	sessionState := map[string]any{}
 	if hasActiveTurn {
 		r.engine.normalizeRunningSessionState(ctx, sessionID, activeTurnID, false, "")
 		return
-	} else if queueCount > 0 {
-		sessionStatus = "queued"
 	}
-	sessionState["status"] = sessionStatus
-	sessionState["active_turn_id"] = activeTurnValue
-	warnStore("touch session state after cleanup", r.store.TouchSessionState(ctx, sessionID, sessionState))
+	if queueCount > 0 {
+		r.engine.normalizeInactiveSessionState(ctx, sessionID, "queued", "", false)
+		return
+	}
+	r.engine.normalizeInactiveSessionState(ctx, sessionID, "idle", "", false)
 }
 
 func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessionID, turnID string) (*preparedTurnRun, error) {
