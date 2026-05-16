@@ -481,6 +481,11 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 				return err
 			}
 		}
+		if sessionStatus == "idle" {
+			if err := e.store.AppendTurnEvent(opCtx, turnID, turnSessionID, "turn.cleanup_handoff", map[string]any{"phase": "cancel", "checkpoint": true, "reason": "queued_cancel", "handoff": "idle_session"}); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 	return fmt.Errorf("turn not cancellable")
