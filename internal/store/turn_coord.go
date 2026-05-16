@@ -72,9 +72,16 @@ func (s *Store) GetSessionActiveTurn(ctx context.Context, sessionID string) (tur
 }
 
 func (s *Store) TouchSessionActiveTurn(ctx context.Context, sessionID, claimToken string) error {
-	_, err := s.db.ExecContext(ctx, `update session_active_turns set updated_at = `+defaultNow+` where session_id = ? and claim_token = ?`, sessionID, claimToken)
+	res, err := s.db.ExecContext(ctx, `update session_active_turns set updated_at = `+defaultNow+` where session_id = ? and claim_token = ?`, sessionID, claimToken)
 	if err != nil {
 		return fmt.Errorf("touch session active turn: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("touch session active turn rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("touch session active turn: %w", sql.ErrNoRows)
 	}
 	return nil
 }

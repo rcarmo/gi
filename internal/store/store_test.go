@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -806,6 +807,18 @@ func TestStoreClaimsActiveTurnOncePerSession(t *testing.T) {
 	}
 	if _, _, err := s.GetSessionActiveTurn(ctx, sess.ID); err == nil || err != sql.ErrNoRows {
 		t.Fatalf("expected no active turn after release, got %v", err)
+	}
+}
+
+func TestTouchSessionActiveTurnRejectsMissingClaim(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if err := s.TouchSessionActiveTurn(ctx, "missing-session", "missing-claim"); err == nil || !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("expected missing active turn touch to return sql.ErrNoRows, got %v", err)
 	}
 }
 
