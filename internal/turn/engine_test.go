@@ -1283,6 +1283,110 @@ func TestRecoverInterruptedTurnsReturnsErrorWhenHoldMarkerPersistenceFails(t *te
 	}
 }
 
+func TestRecoverInterruptedTurnsEmitsSessionScanFailureSummaryForMixedOutcomes(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	started := make(chan struct{}, 1)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "queued done"}}}}, nil
+	})
+	engine := New(s)
+
+	goodSess, err := s.CreateSession(ctx, "session_recover_mixed_good", "Recover", map[string]any{"status": "running"})
+	if err != nil {
+		t.Fatalf("create good session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_recover_mixed_good_terminal", goodSess.ID, "cancelled", "terminal", map[string]any{"intent": "prompt", "model": "mock-recover"}); err != nil {
+		t.Fatalf("create good terminal turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_recover_mixed_good_queued", goodSess.ID, "queued", "queued after recovery", map[string]any{"intent": "prompt", "model": "mock-recover"}); err != nil {
+		t.Fatalf("create good queued turn: %v", err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, goodSess.ID, "turn_recover_mixed_good_terminal", "worker-test", "claim-recover-mixed-good"); err != nil {
+		t.Fatalf("claim good active turn: %v", err)
+	} else if !ok {
+		t.Fatal("expected good active turn claim")
+	}
+	staleTime := time.Now().Add(-(interruptedTurnStaleAfter + 5*time.Second)).UTC().Format(time.RFC3339Nano)
+	if err := s.TouchSessionState(ctx, goodSess.ID, map[string]any{"active_turn_id": "turn_recover_mixed_good_terminal", "status": "running"}); err != nil {
+		t.Fatalf("touch good session state: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_active_turns set updated_at = ? where session_id = ?`, staleTime, goodSess.ID); err != nil {
+		t.Fatalf("age good active turn claim: %v", err)
+	}
+
+	badSess, err := s.CreateSession(ctx, "session_recover_mixed_bad", "Recover", map[string]any{"status": "running", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create bad session: %v", err)
+	}
+	badTurn, err := s.CreateTurnWithStatus(ctx, "turn_recover_mixed_bad", badSess.ID, "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create bad turn: %v", err)
+	}
+	if err := s.UpdateTurnStatusAndPhase(ctx, badTurn.ID, "running", "waiting_on_tools"); err != nil {
+		t.Fatalf("set bad waiting_on_tools phase: %v", err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, badSess.ID, badTurn.ID, "runner", badTurn.ID); err != nil {
+		t.Fatalf("claim bad active turn: %v", err)
+	} else if !ok {
+		t.Fatal("expected bad active turn claim")
+	}
+	if err := s.TouchSessionState(ctx, badSess.ID, map[string]any{"active_turn_id": badTurn.ID, "status": "running"}); err != nil {
+		t.Fatalf("touch bad session state: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_active_turns set updated_at = ? where session_id = ?`, staleTime, badSess.ID); err != nil {
+		t.Fatalf("age bad active turn claim: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `
+		create trigger fail_recovery_hold_marker_mixed
+		before insert on turn_failures
+		for each row when new.turn_id = 'turn_recover_mixed_bad'
+		begin
+			select raise(fail, 'mixed hold marker blocked for test');
+		end;
+	`); err != nil {
+		t.Fatalf("create mixed hold-marker trigger: %v", err)
+	}
+	sessionTopicCh, unsubSession := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 16, SessionID: badSess.ID})
+	defer unsubSession()
+
+	recovered, err := engine.recoverInterruptedTurns(ctx, "")
+	if !recovered {
+		t.Fatal("expected mixed recovery scan to report at least one recovered claim")
+	}
+	if err == nil || !strings.Contains(err.Error(), "mixed hold marker blocked for test") {
+		t.Fatalf("expected mixed recovery scan to surface failing claim, got %v", err)
+	}
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected recovered session queued work to start despite mixed outcomes")
+	}
+	foundSummary := false
+	deadline := time.After(time.Second)
+	for !foundSummary {
+		select {
+		case env := <-sessionTopicCh:
+			if env.Payload["type"] == "session_state" && env.Payload["reason"] == "recovery_scan_failed" {
+				if env.Payload["failed_claim_count"] != 1 && env.Payload["failed_claim_count"] != float64(1) {
+					t.Fatalf("expected failed_claim_count 1, got %#v", env)
+				}
+				if env.Payload["recovered_claim_count"] != 0 && env.Payload["recovered_claim_count"] != float64(0) {
+					t.Fatalf("expected recovered_claim_count 0 for failed session, got %#v", env)
+				}
+				foundSummary = true
+			}
+		case <-deadline:
+			t.Fatal("expected session-level mixed recovery failure summary")
+		}
+	}
+}
+
 func TestStageQueuedSteeringContinuationCreatesQueuedTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

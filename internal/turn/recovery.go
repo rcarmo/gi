@@ -55,18 +55,30 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 	if err != nil {
 		return false, err
 	}
+	type recoveryScanCounts struct {
+		recovered int
+		failed    int
+	}
 	recovered := false
 	var firstErr error
 	sessionsToRestart := map[string]bool{}
+	sessionCounts := map[string]*recoveryScanCounts{}
 	for _, claim := range claims {
+		counts := sessionCounts[claim.SessionID]
+		if counts == nil {
+			counts = &recoveryScanCounts{}
+			sessionCounts[claim.SessionID] = counts
+		}
 		if err := e.recoverInterruptedTurn(opCtx, claim); err != nil {
 			log.Printf("turn recovery: recover %s/%s failed: %v", claim.SessionID, claim.TurnID, err)
 			e.appendRecoveryFailureEvent(opCtx, claim, err)
+			counts.failed++
 			if firstErr == nil {
 				firstErr = err
 			}
 			continue
 		}
+		counts.recovered++
 		recovered = true
 		queueCount, err := e.store.CountQueuedTurns(opCtx, claim.SessionID)
 		if err != nil {
@@ -74,6 +86,11 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 		}
 		if queueCount > 0 {
 			sessionsToRestart[claim.SessionID] = true
+		}
+	}
+	for failedSessionID, counts := range sessionCounts {
+		if counts.failed > 0 {
+			e.emitRecoveryScanFailureSessionState(opCtx, failedSessionID, counts.recovered, counts.failed)
 		}
 	}
 	for recoveredSessionID := range sessionsToRestart {
@@ -85,6 +102,45 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 		return recovered, firstErr
 	}
 	return recovered, nil
+}
+
+func (e *Engine) emitRecoveryScanFailureSessionState(ctx context.Context, sessionID string, recoveredCount, failedCount int) {
+	if e == nil || e.store == nil || strings.TrimSpace(sessionID) == "" || failedCount == 0 {
+		return
+	}
+	runner := e.runner(sessionID)
+	agentID, model := "", ""
+	activeTurnID, _, activeErr := e.store.GetSessionActiveTurn(ctx, sessionID)
+	if activeErr != nil && activeErr != sql.ErrNoRows {
+		return
+	}
+	queueCount, err := e.store.CountQueuedTurns(ctx, sessionID)
+	if err != nil {
+		return
+	}
+	status := "idle"
+	activeTurnValue := any(nil)
+	if activeErr == nil {
+		status = "running"
+		activeTurnValue = activeTurnID
+		if turnRec, turnErr := e.store.GetTurn(ctx, activeTurnID); turnErr == nil {
+			agentID, model = runner.resolveTurnAgentAndModel(ctx, e.store, turnRec, sessionID, turnRec.Prompt)
+		}
+	} else if queueCount > 0 {
+		status = "queued"
+	}
+	if model == "" {
+		if sessRec, sessErr := e.store.GetSession(ctx, sessionID); sessErr == nil {
+			model = stringValue(sessRec.State["model"], "")
+		}
+	}
+	runner.emitSessionStateHook(ctx, sessionID, agentID, model, status, map[string]any{
+		"reason":                "recovery_scan_failed",
+		"active_turn_id":        activeTurnValue,
+		"queue_count":           queueCount,
+		"recovered_claim_count": recoveredCount,
+		"failed_claim_count":    failedCount,
+	})
 }
 
 func recoveryDispositionForClaim(claim store.ActiveTurnClaim) string {
