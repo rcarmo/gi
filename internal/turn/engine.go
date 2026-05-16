@@ -503,6 +503,7 @@ func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID str
 	res, err := e.submitSteeringPrompt(opCtx, in.SessionID, activeTurnID, in)
 	if err != nil {
 		// Keep the already-persisted queued turn as a fallback rather than dropping the prompt.
+		warnStore("append launch-conflict fallback preserved event", e.store.AppendTurnEvent(opCtx, turnID, in.SessionID, "turn.cleanup_handoff", map[string]any{"phase": "launch", "checkpoint": true, "reason": "launch_claim_conflict", "handoff": "queued_fallback_preserved", "active_turn_id": activeTurnID}))
 		return nil, false, nil
 	}
 	warnStore("append launch-conflict steering handoff event", e.store.AppendTurnEvent(opCtx, activeTurnID, in.SessionID, "turn.cleanup_handoff", map[string]any{"phase": "launch", "checkpoint": true, "reason": "launch_claim_conflict", "handoff": "active_turn_steering", "replaced_turn_id": turnID}))

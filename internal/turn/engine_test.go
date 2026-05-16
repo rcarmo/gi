@@ -1077,6 +1077,54 @@ func TestCleanupTurnRunDoesNotClearNewerRunningTurn(t *testing.T) {
 	}
 }
 
+func TestLaunchConflictSteeringFallbackPreservesQueuedTurnWithAuditEvent(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_claim_conflict_preserved", "Test", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_existing_active_preserved", "session_claim_conflict_preserved", "running", "already running", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create existing active turn: %v", err)
+	}
+	for i := 0; i < 10; i++ {
+		if _, err := s.EnqueueSteering(ctx, "session_claim_conflict_preserved", activeTurn.ID, "user", fmt.Sprintf("queued-%d", i), map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+			t.Fatalf("enqueue steering %d: %v", i, err)
+		}
+	}
+	engine := New(s)
+	engine.beforeLaunchClaimHook = func(ctx context.Context, sessionID, turnID string) {
+		engine.beforeLaunchClaimHook = nil
+		if _, err := s.ClaimSessionActiveTurn(ctx, sessionID, activeTurn.ID, "runner", activeTurn.ID); err != nil {
+			t.Fatalf("claim existing active turn: %v", err)
+		}
+		if err := s.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": activeTurn.ID, "status": "running"}); err != nil {
+			t.Fatalf("touch session state: %v", err)
+		}
+	}
+	res, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_claim_conflict_preserved", Prompt: "preserve me", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	if !res.Queued || res.Status != "queued" {
+		t.Fatalf("expected queued fallback when steering is full, got %#v", res)
+	}
+	events, err := s.ListTurnEvents(ctx, res.TurnID)
+	if err != nil {
+		t.Fatalf("list preserved fallback turn events: %v", err)
+	}
+	found := false
+	for _, event := range events {
+		if event.Type == "turn.cleanup_handoff" && event.Payload["handoff"] == "queued_fallback_preserved" && event.Payload["reason"] == "launch_claim_conflict" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected preserved queued fallback audit event, got %#v", events)
+	}
+}
+
 func TestClaimConflictFallsBackToQueuedTurnWhenSteeringIsFull(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
