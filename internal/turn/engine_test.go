@@ -865,6 +865,49 @@ func TestConvertLaunchConflictToSteeringPreservesSuccessWhenTransientTurnCleanup
 	}
 }
 
+func TestLaunchConflictSteeringFallbackAppendsCleanupHandoffEvent(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_claim_conflict_handoff", "Test", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_existing_active_handoff", "session_claim_conflict_handoff", "running", "already running", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create existing active turn: %v", err)
+	}
+	engine := New(s)
+	engine.beforeLaunchClaimHook = func(ctx context.Context, sessionID, turnID string) {
+		engine.beforeLaunchClaimHook = nil
+		if _, err := s.ClaimSessionActiveTurn(ctx, sessionID, activeTurn.ID, "runner", activeTurn.ID); err != nil {
+			t.Fatalf("claim existing active turn: %v", err)
+		}
+		if err := s.TouchSessionState(ctx, sessionID, map[string]any{"active_turn_id": activeTurn.ID, "status": "running"}); err != nil {
+			t.Fatalf("touch session state: %v", err)
+		}
+	}
+	res, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_claim_conflict_handoff", Prompt: "steer me", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	if res.Queued || res.Status != "running" || res.TurnID != activeTurn.ID {
+		t.Fatalf("expected claim-conflict submit to steer to existing active turn, got %#v", res)
+	}
+	events, err := s.ListTurnEvents(ctx, activeTurn.ID)
+	if err != nil {
+		t.Fatalf("list active turn events: %v", err)
+	}
+	found := false
+	for _, event := range events {
+		if event.Type == "turn.cleanup_handoff" && event.Payload["reason"] == "launch_claim_conflict" && event.Payload["handoff"] == "active_turn_steering" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected launch-conflict steering handoff event, got %#v", events)
+	}
+}
+
 func TestSubmitPromptClaimConflictConvertsFreshTurnToSteering(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

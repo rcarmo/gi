@@ -505,6 +505,7 @@ func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID str
 		// Keep the already-persisted queued turn as a fallback rather than dropping the prompt.
 		return nil, false, nil
 	}
+	warnStore("append launch-conflict steering handoff event", e.store.AppendTurnEvent(opCtx, activeTurnID, in.SessionID, "turn.cleanup_handoff", map[string]any{"phase": "launch", "checkpoint": true, "reason": "launch_claim_conflict", "handoff": "active_turn_steering", "replaced_turn_id": turnID}))
 	if err := e.store.DeleteTurn(opCtx, turnID); err != nil {
 		log.Printf("turn coordination: delete transient queued turn after steering fallback failed: %v", err)
 	}
