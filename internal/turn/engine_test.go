@@ -1428,6 +1428,22 @@ func TestRecoverInterruptedTurnsEmitsSessionScanFailureSummaryForMixedOutcomes(t
 			t.Fatal("expected session-level mixed recovery failure summary")
 		}
 	}
+	events, err := s.ListTurnEvents(ctx, badTurn.ID)
+	if err != nil {
+		t.Fatalf("list mixed recovery failure events: %v", err)
+	}
+	foundEvent := false
+	for _, event := range events {
+		if event.Type == "turn.recovery_scan_failed" && event.Payload["failed_claim_count"] == float64(1) && event.Payload["recovered_claim_count"] == float64(0) {
+			foundEvent = true
+		}
+		if event.Type == "turn.recovery_scan_failed" && event.Payload["failed_claim_count"] == 1 && event.Payload["recovered_claim_count"] == 0 {
+			foundEvent = true
+		}
+	}
+	if !foundEvent {
+		t.Fatalf("expected per-turn recovery scan summary event, got %#v", events)
+	}
 }
 
 func TestStageQueuedSteeringContinuationCreatesQueuedTurn(t *testing.T) {

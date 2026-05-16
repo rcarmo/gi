@@ -63,6 +63,7 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 	var firstErr error
 	sessionsToRestart := map[string]bool{}
 	sessionCounts := map[string]*recoveryScanCounts{}
+	failedClaimsBySession := map[string][]store.ActiveTurnClaim{}
 	for _, claim := range claims {
 		counts := sessionCounts[claim.SessionID]
 		if counts == nil {
@@ -72,6 +73,7 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 		if err := e.recoverInterruptedTurn(opCtx, claim); err != nil {
 			log.Printf("turn recovery: recover %s/%s failed: %v", claim.SessionID, claim.TurnID, err)
 			e.appendRecoveryFailureEvent(opCtx, claim, err)
+			failedClaimsBySession[claim.SessionID] = append(failedClaimsBySession[claim.SessionID], claim)
 			counts.failed++
 			if firstErr == nil {
 				firstErr = err
@@ -91,6 +93,16 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 	for failedSessionID, counts := range sessionCounts {
 		if counts.failed > 0 {
 			e.emitRecoveryScanFailureSessionState(opCtx, failedSessionID, counts.recovered, counts.failed)
+			for _, claim := range failedClaimsBySession[failedSessionID] {
+				warnStore("append recovery scan summary event", e.store.AppendTurnEvent(opCtx, claim.TurnID, failedSessionID, "turn.recovery_scan_failed", map[string]any{
+					"phase":                 "recovery",
+					"checkpoint":            true,
+					"reason":                "recovery_scan_failed",
+					"recovery_disposition":  recoveryDispositionForClaim(claim),
+					"recovered_claim_count": counts.recovered,
+					"failed_claim_count":    counts.failed,
+				}))
+			}
 		}
 	}
 	for recoveredSessionID := range sessionsToRestart {
