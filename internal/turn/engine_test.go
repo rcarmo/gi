@@ -1006,6 +1006,52 @@ func TestCleanupTurnRunStopsAfterActiveClaimReleaseFailure(t *testing.T) {
 	}
 }
 
+func TestCleanupTurnRunAppendsHandoffEventWhenNextQueuedTurnLaunches(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	started := make(chan struct{}, 1)
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
+	})
+	if _, err := s.CreateSession(ctx, "session_cleanup_handoff_success", "Test", map[string]any{"model": "bootstrap", "status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	finishedTurn, err := s.CreateTurnWithStatus(ctx, "turn_cleanup_handoff_success_finished", "session_cleanup_handoff_success", "completed", "done", map[string]any{"intent": "prompt", "model": "mock-cleanup"})
+	if err != nil {
+		t.Fatalf("create finished turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_cleanup_handoff_success_next", "session_cleanup_handoff_success", "queued", "next", map[string]any{"intent": "prompt", "model": "mock-cleanup"}); err != nil {
+		t.Fatalf("create next queued turn: %v", err)
+	}
+	engine := New(s)
+	runner := engine.runner("session_cleanup_handoff_success")
+	active := &runningTurn{turnID: finishedTurn.ID}
+	runner.current = active
+	runner.cleanupTurnRun("session_cleanup_handoff_success", finishedTurn.ID, active)
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected next queued turn launch after cleanup handoff")
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		events, err := s.ListTurnEvents(ctx, finishedTurn.ID)
+		if err != nil {
+			return false
+		}
+		for _, event := range events {
+			if event.Type == "turn.cleanup_handoff" && event.Payload["handoff"] == "next_queued_turn" {
+				return true
+			}
+		}
+		return false
+	}, "cleanup handoff success event")
+}
+
 func TestCleanupTurnRunStopsAfterQueueSyncFailure(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

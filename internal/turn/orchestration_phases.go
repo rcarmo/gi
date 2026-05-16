@@ -62,7 +62,11 @@ func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *run
 	launched, err := r.engine.startNextQueuedTurnLocked(ctx, r, sessionID)
 	if err != nil {
 		log.Printf("turn coordination: launch queued turn failed: %v", err)
-	} else if !launched {
+	} else if launched {
+		if strings.TrimSpace(claimToken) != "" {
+			warnStore("append cleanup handoff event", r.store.AppendTurnEvent(ctx, claimToken, sessionID, "turn.cleanup_handoff", map[string]any{"phase": "cleanup", "checkpoint": true, "handoff": "next_queued_turn"}))
+		}
+	} else {
 		if _, _, err := r.store.GetSessionActiveTurn(ctx, sessionID); err == sql.ErrNoRows {
 			if _, err := r.engine.continueQueuedSteeringLocked(ctx, r, sessionID); err != nil {
 				log.Printf("steering continuation: %v", err)
