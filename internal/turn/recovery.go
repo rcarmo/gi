@@ -174,12 +174,18 @@ func (e *Engine) emitRecoveryRestartFailureSessionState(ctx context.Context, ses
 			model = stringValue(sessRec.State["model"], "")
 		}
 	}
-	runner.emitSessionStateHook(ctx, sessionID, agentID, model, status, map[string]any{
+	payload := map[string]any{
+		"phase":          "recovery",
+		"checkpoint":     true,
 		"reason":         "recovery_restart_failed",
 		"error":          err.Error(),
 		"active_turn_id": activeTurnValue,
 		"queue_count":    queueCount,
-	})
+	}
+	if queuedTurn, queuedErr := e.store.GetNextQueuedTurn(ctx, sessionID); queuedErr == nil {
+		warnStore("append recovery restart failure event", e.store.AppendTurnEvent(ctx, queuedTurn.ID, sessionID, "turn.recovery_restart_failed", cloneMap(payload)))
+	}
+	runner.emitSessionStateHook(ctx, sessionID, agentID, model, status, payload)
 }
 
 func recoveryDispositionForClaim(claim store.ActiveTurnClaim) string {

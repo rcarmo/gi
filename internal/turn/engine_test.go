@@ -3419,6 +3419,19 @@ func TestRecoverInterruptedTurnsEmitsSessionRestartFailureSummary(t *testing.T) 
 			t.Fatal("expected session restart failure summary")
 		}
 	}
+	events, err := s.ListTurnEvents(ctx, queuedTurn.ID)
+	if err != nil {
+		t.Fatalf("list queued turn recovery restart failure events: %v", err)
+	}
+	foundEvent := false
+	for _, event := range events {
+		if event.Type == "turn.recovery_restart_failed" && event.Payload["reason"] == "recovery_restart_failed" {
+			foundEvent = true
+		}
+	}
+	if !foundEvent {
+		t.Fatalf("expected queued turn recovery restart failure event, got %#v", events)
+	}
 }
 
 func TestRecoverInterruptedTurnPublishesRuntimeStateTopics(t *testing.T) {
