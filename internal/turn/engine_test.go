@@ -1233,6 +1233,10 @@ func TestRecoverInterruptedTurnsReturnsErrorWhenHoldMarkerPersistenceFails(t *te
 		t.Fatalf("create hold-marker trigger: %v", err)
 	}
 	engine := New(s)
+	turnTopicCh, unsubTurn := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 8, SessionID: sess.ID})
+	defer unsubTurn()
+	sessionTopicCh, unsubSession := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 8, SessionID: sess.ID})
+	defer unsubSession()
 	recovered, err := engine.recoverInterruptedTurns(ctx, sess.ID)
 	if recovered {
 		t.Fatal("expected failed recovery not to report success")
@@ -1259,6 +1263,23 @@ func TestRecoverInterruptedTurnsReturnsErrorWhenHoldMarkerPersistenceFails(t *te
 	}
 	if !found {
 		t.Fatalf("expected recovery failure audit event, got %#v", events)
+	}
+	foundTurnFailed := false
+	foundSessionFailed := false
+	deadline := time.After(time.Second)
+	for !(foundTurnFailed && foundSessionFailed) {
+		select {
+		case env := <-turnTopicCh:
+			if env.Payload["type"] == "turn_recovery_failed" && env.Payload["turn_id"] == turnRec.ID && env.Payload["recovery_disposition"] == "hold_for_retry_or_skip_after_tool_checkpoint" {
+				foundTurnFailed = true
+			}
+		case env := <-sessionTopicCh:
+			if env.Payload["type"] == "session_state" && env.Payload["reason"] == "recovery_failed" && env.Payload["turn_id"] == turnRec.ID && env.Payload["recovery_disposition"] == "hold_for_retry_or_skip_after_tool_checkpoint" {
+				foundSessionFailed = true
+			}
+		case <-deadline:
+			t.Fatalf("expected runtime recovery failure notices, got turn=%v session=%v", foundTurnFailed, foundSessionFailed)
+		}
 	}
 }
 

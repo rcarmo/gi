@@ -19,7 +19,7 @@ func (e *Engine) appendRecoveryFailureEvent(ctx context.Context, claim store.Act
 	if e == nil || e.store == nil || err == nil || strings.TrimSpace(claim.SessionID) == "" || strings.TrimSpace(claim.TurnID) == "" {
 		return
 	}
-	warnStore("append recovery failure event", e.store.AppendTurnEvent(ctx, claim.TurnID, claim.SessionID, "turn.recovery_failed", map[string]any{
+	payload := map[string]any{
 		"phase":                "recovery",
 		"checkpoint":           true,
 		"reason":               "recovery_failed",
@@ -28,7 +28,25 @@ func (e *Engine) appendRecoveryFailureEvent(ctx context.Context, claim store.Act
 		"previous_phase":       claim.Phase,
 		"recovery_disposition": recoveryDispositionForClaim(claim),
 		"stale_claim":          true,
-	}))
+	}
+	warnStore("append recovery failure event", e.store.AppendTurnEvent(ctx, claim.TurnID, claim.SessionID, "turn.recovery_failed", payload))
+	runner := e.runner(claim.SessionID)
+	agentID, model := "", ""
+	if turnRec, turnErr := e.store.GetTurn(ctx, claim.TurnID); turnErr == nil {
+		agentID, model = runner.resolveTurnAgentAndModel(ctx, e.store, turnRec, claim.SessionID, turnRec.Prompt)
+	}
+	e.PublishRuntimeTurnEvent("turn_recovery_failed", claim.SessionID, claim.TurnID, agentID, claim.Status, claim.Phase, cloneMap(payload))
+	runner.emitTurnStateHook(ctx, claim.SessionID, claim.TurnID, agentID, model, claim.Status, claim.Phase, cloneMap(payload))
+	runner.emitSessionStateHook(ctx, claim.SessionID, agentID, model, "running", map[string]any{
+		"reason":               "recovery_failed",
+		"error":                err.Error(),
+		"recovery_disposition": recoveryDispositionForClaim(claim),
+		"stale_claim":          true,
+		"active_turn_id":       claim.TurnID,
+		"turn_id":              claim.TurnID,
+		"turn_status":          claim.Status,
+		"turn_phase":           claim.Phase,
+	})
 }
 
 func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) (bool, error) {
