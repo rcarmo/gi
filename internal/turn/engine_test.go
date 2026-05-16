@@ -1052,6 +1052,50 @@ func TestCleanupTurnRunAppendsHandoffEventWhenNextQueuedTurnLaunches(t *testing.
 	}, "cleanup handoff success event")
 }
 
+func TestCleanupTurnRunAppendsFailureWhenSteeringContinuationFails(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cleanup_steering_fail", "Test", map[string]any{"model": "bootstrap", "status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	finishedTurn, err := s.CreateTurnWithStatus(ctx, "turn_cleanup_steering_fail_finished", "session_cleanup_steering_fail", "completed", "done", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create finished turn: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_cleanup_steering_fail", finishedTurn.ID, "user", "continue", map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `
+		create trigger fail_cleanup_steering_session_update
+		before update on sessions
+		for each row when old.id = 'session_cleanup_steering_fail' and json_extract(new.state_json, '$.status') = 'queued'
+		begin
+			select raise(fail, 'steering continuation blocked for test');
+		end;
+	`); err != nil {
+		t.Fatalf("create steering-continuation failure trigger: %v", err)
+	}
+	engine := New(s)
+	runner := engine.runner("session_cleanup_steering_fail")
+	active := &runningTurn{turnID: finishedTurn.ID}
+	runner.current = active
+	runner.cleanupTurnRun("session_cleanup_steering_fail", finishedTurn.ID, active)
+	events, err := s.ListTurnEvents(ctx, finishedTurn.ID)
+	if err != nil {
+		t.Fatalf("list cleanup steering failure events: %v", err)
+	}
+	found := false
+	for _, event := range events {
+		if event.Type == "turn.cleanup_handoff_failed" && event.Payload["stage"] == "continue_queued_steering" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected cleanup handoff failure event for steering continuation failure, got %#v", events)
+	}
+}
+
 func TestCleanupTurnRunStopsAfterQueueSyncFailure(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

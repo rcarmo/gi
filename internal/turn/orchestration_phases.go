@@ -70,6 +70,7 @@ func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *run
 		if _, _, err := r.store.GetSessionActiveTurn(ctx, sessionID); err == sql.ErrNoRows {
 			if _, err := r.engine.continueQueuedSteeringLocked(ctx, r, sessionID); err != nil {
 				log.Printf("steering continuation: %v", err)
+				r.appendCleanupHandoffFailure(ctx, sessionID, claimToken, "continue_queued_steering", err)
 			}
 		} else if err != nil {
 			log.Printf("turn coordination: inspect active turn after cleanup failed: %v", err)
