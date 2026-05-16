@@ -907,6 +907,49 @@ func TestSubmitPromptClaimConflictConvertsFreshTurnToSteering(t *testing.T) {
 	}
 }
 
+func TestCleanupTurnRunStopsAfterActiveClaimReleaseFailure(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cleanup_release_fail", "Test", map[string]any{"model": "bootstrap", "status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_cleanup_release_fail", "session_cleanup_release_fail", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	engine := New(s)
+	hookCalled := false
+	engine.beforeCleanupNextWorkHook = func(ctx context.Context, sessionID string) {
+		hookCalled = true
+	}
+	runner := engine.runner("session_cleanup_release_fail")
+	active := &runningTurn{turnID: "turn_cleanup_release_fail"}
+	runner.current = active
+	if _, err := s.DB().ExecContext(ctx, `
+		create trigger fail_release_session_active_turn_cleanup
+		before delete on session_active_turns
+		for each row when old.session_id = 'session_cleanup_release_fail'
+		begin
+			select raise(fail, 'release blocked for test');
+		end;
+	`); err != nil {
+		t.Fatalf("create release-failure trigger: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_cleanup_release_fail", "turn_cleanup_release_fail", "runner", "turn_cleanup_release_fail"); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	runner.cleanupTurnRun("session_cleanup_release_fail", "turn_cleanup_release_fail", active)
+	if hookCalled {
+		t.Fatal("expected cleanup coordination to stop before next-work hook when claim release fails")
+	}
+	if runner.current != nil {
+		t.Fatalf("expected cleanup to still clear current running turn, got %#v", runner.current)
+	}
+	if _, _, err := s.GetSessionActiveTurn(ctx, "session_cleanup_release_fail"); err != nil {
+		t.Fatalf("expected active claim to remain when release is blocked, got %v", err)
+	}
+}
+
 func TestCleanupTurnRunStopsAfterQueueSyncFailure(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

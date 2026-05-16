@@ -30,6 +30,10 @@ func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *run
 	defer r.mu.Unlock()
 	if err := r.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken); err != nil {
 		log.Printf("turn coordination: release session active turn failed: %v", err)
+		if r.current == active {
+			r.current = nil
+		}
+		return
 	}
 	if r.current == active {
 		r.current = nil
