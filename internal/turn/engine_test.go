@@ -2568,6 +2568,39 @@ func TestCancelQueuedTurnStartsNextQueuedWorkWhenSessionRemainsQueued(t *testing
 	}, "next queued turn start after queued cancel")
 }
 
+func TestCancelQueuedTurnAppendsCleanupHandoffEvent(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_queued_cancel_handoff", "Test", map[string]any{"model": "bootstrap", "status": "queued", "queue_count": 2}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	cancelledTurn, err := s.CreateTurnWithStatus(ctx, "turn_queued_cancel_handoff_cancelled", "session_queued_cancel_handoff", "queued", "cancel me", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create cancelled turn: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_queued_cancel_handoff_next", "session_queued_cancel_handoff", "queued", "next", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create next queued turn: %v", err)
+	}
+	engine := New(s)
+	if err := engine.CancelTurn(ctx, "session_queued_cancel_handoff", cancelledTurn.ID); err != nil {
+		t.Fatalf("cancel queued turn: %v", err)
+	}
+	events, err := s.ListTurnEvents(ctx, cancelledTurn.ID)
+	if err != nil {
+		t.Fatalf("list cancelled turn events: %v", err)
+	}
+	found := false
+	for _, event := range events {
+		if event.Type == "turn.cleanup_handoff" && event.Payload["handoff"] == "next_queued_turn" && event.Payload["reason"] == "queued_cancel" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected queued cancel handoff event, got %#v", events)
+	}
+}
+
 func TestCancelQueuedTurnRestartPublishesSetupTopics(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

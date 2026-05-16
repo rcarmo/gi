@@ -469,6 +469,9 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 			return err
 		}
 		if sessionStatus == "queued" {
+			if err := e.store.AppendTurnEvent(opCtx, turnID, turnSessionID, "turn.cleanup_handoff", map[string]any{"phase": "cancel", "checkpoint": true, "reason": "queued_cancel", "handoff": "next_queued_turn"}); err != nil {
+				return err
+			}
 			if _, err := e.startNextQueuedTurnLocked(opCtx, runner, turnSessionID); err != nil {
 				return err
 			}
