@@ -262,7 +262,7 @@ func (s *Server) handleConnectivitySSE(w http.ResponseWriter, r *http.Request) {
 			b, err := json.Marshal(ev)
 			if err != nil {
 				log.Printf("connectivity sse marshal event: %v", err)
-				continue
+				return
 			}
 			if _, err := fmt.Fprintf(w, "id: %s\nevent: %s\ndata: %s\n\n", ev.ID, ev.Topic, string(b)); err != nil {
 				return
