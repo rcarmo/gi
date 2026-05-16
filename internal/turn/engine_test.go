@@ -1486,6 +1486,49 @@ func TestContinueSessionRejectsMissingSessionNormalization(t *testing.T) {
 	}
 }
 
+func TestContinueSessionAppendsSteeringContinuedEvent(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_continue_event", "Test", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_continue_event_prev", "session_continue_event", "completed", "previous", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create previous turn: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_continue_event", "turn_continue_event_prev", "user", "continue please", map[string]any{"intent": "prompt", "model": "bootstrap"}, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	engine := New(s)
+	continued, err := engine.ContinueSession(ctx, "session_continue_event")
+	if err != nil {
+		t.Fatalf("continue session: %v", err)
+	}
+	if !continued {
+		t.Fatal("expected ContinueSession to continue queued steering")
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turns, err := s.ListTurns(ctx, "session_continue_event")
+		if err != nil {
+			return false
+		}
+		for _, turn := range turns {
+			if turn.ID != "turn_continue_event_prev" {
+				events, err := s.ListTurnEvents(ctx, turn.ID)
+				if err != nil {
+					return false
+				}
+				for _, event := range events {
+					if event.Type == "steering.continued" {
+						return true
+					}
+				}
+			}
+		}
+		return false
+	}, "steering continued audit event")
+}
+
 func TestContinueSessionClearsQueueCountAfterLaunchingContinuation(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

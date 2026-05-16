@@ -188,6 +188,7 @@ func (e *Engine) continueQueuedSteeringLocked(ctx context.Context, runner *sessi
 		if err := e.store.SyncSessionQueueCount(coordCtx, sessionID); err != nil {
 			return false, err
 		}
+		warnStore("append steering.continued event", e.store.AppendTurnEvent(coordCtx, turnID, sessionID, "steering.continued", map[string]any{"phase": "steering", "checkpoint": true, "handoff": "launched"}))
 		e.broadcast(sessionID, map[string]any{"type": "steering_continued", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 		return true, nil
 	}
@@ -196,6 +197,7 @@ func (e *Engine) continueQueuedSteeringLocked(ctx context.Context, runner *sessi
 		if err := e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, ""); err != nil {
 			return false, err
 		}
+		warnStore("append steering.continued event", e.store.AppendTurnEvent(coordCtx, turnID, sessionID, "steering.continued", map[string]any{"phase": "steering", "checkpoint": true, "handoff": "active_claim"}))
 		return true, nil
 	}
 	if err != nil && err != sql.ErrNoRows {
