@@ -28,10 +28,15 @@ func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *run
 	ctx := r.engine.backgroundContext()
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	warnStore("release session active turn", r.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken))
-	warnStore("sync session queue count", r.store.SyncSessionQueueCount(ctx, sessionID))
+	if err := r.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken); err != nil {
+		log.Printf("turn coordination: release session active turn failed: %v", err)
+	}
 	if r.current == active {
 		r.current = nil
+	}
+	if err := r.store.SyncSessionQueueCount(ctx, sessionID); err != nil {
+		log.Printf("turn coordination: sync session queue count failed: %v", err)
+		return
 	}
 	if hook := r.engine.beforeCleanupNextWorkHook; hook != nil {
 		hook(ctx, sessionID)

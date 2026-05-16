@@ -866,6 +866,39 @@ func TestSubmitPromptClaimConflictConvertsFreshTurnToSteering(t *testing.T) {
 	}
 }
 
+func TestCleanupTurnRunStopsAfterQueueSyncFailure(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_cleanup_sync_fail", "Test", map[string]any{"model": "bootstrap", "status": "running"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_cleanup_sync_fail", "session_cleanup_sync_fail", "running", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_cleanup_sync_fail", "turn_cleanup_sync_fail", "runner", "turn_cleanup_sync_fail"); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	engine := New(s)
+	hookCalled := false
+	engine.beforeCleanupNextWorkHook = func(ctx context.Context, sessionID string) {
+		hookCalled = true
+	}
+	runner := engine.runner("session_cleanup_sync_fail")
+	active := &runningTurn{turnID: "turn_cleanup_sync_fail"}
+	runner.current = active
+	if _, err := s.DB().ExecContext(ctx, `delete from sessions where id = ?`, "session_cleanup_sync_fail"); err != nil {
+		t.Fatalf("delete session before cleanup: %v", err)
+	}
+	runner.cleanupTurnRun("session_cleanup_sync_fail", "turn_cleanup_sync_fail", active)
+	if hookCalled {
+		t.Fatal("expected cleanup coordination to stop before next-work hook when queue sync fails")
+	}
+	if runner.current != nil {
+		t.Fatalf("expected cleanup to still clear current running turn, got %#v", runner.current)
+	}
+}
+
 func TestCleanupTurnRunDoesNotClearNewerRunningTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
