@@ -2488,6 +2488,43 @@ func TestCancelQueuedTurnPreservesRunningSessionWithActiveClaim(t *testing.T) {
 	}
 }
 
+func TestCancelQueuedTurnAppendsCleanupHandoffToActiveTurn(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	sess, _ := s.CreateSession(ctx, "session_queued_cancel_active_handoff", "Test", map[string]any{"model": "bootstrap", "status": "running", "active_turn_id": "turn_active_running_handoff"})
+	engine := New(s)
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_active_running_handoff", sess.ID, "running", "one", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, sess.ID, activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	} else if !ok {
+		t.Fatal("expected active turn claim")
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_queued_cancel_active_handoff", sess.ID, "queued", "two", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	if err := engine.CancelTurn(ctx, sess.ID, queuedTurn.ID); err != nil {
+		t.Fatalf("cancel queued turn: %v", err)
+	}
+	events, err := s.ListTurnEvents(ctx, queuedTurn.ID)
+	if err != nil {
+		t.Fatalf("list queued cancel events: %v", err)
+	}
+	found := false
+	for _, event := range events {
+		if event.Type == "turn.cleanup_handoff" && event.Payload["handoff"] == "active_turn" && event.Payload["active_turn_id"] == activeTurn.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected queued cancel handoff-to-active-turn event, got %#v", events)
+	}
+}
+
 func TestCancelQueuedTurnSurvivesCanceledCallerContext(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
