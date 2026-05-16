@@ -136,7 +136,9 @@ func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionR
 	}
 	coordCtx := coordinationContext(ctx, e.backgroundContext())
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
-		e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, "")
+		if err := e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, ""); err != nil {
+			return false, err
+		}
 		return false, nil
 	} else if err != sql.ErrNoRows {
 		return false, err
@@ -149,7 +151,9 @@ func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionR
 		return false, err
 	}
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
-		e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, "")
+		if err := e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, ""); err != nil {
+			return false, err
+		}
 		return false, nil
 	} else if err != sql.ErrNoRows {
 		return false, err

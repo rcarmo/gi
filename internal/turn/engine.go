@@ -495,7 +495,9 @@ func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID str
 	if err := e.store.DeleteTurn(opCtx, turnID); err != nil {
 		return nil, false, err
 	}
-	e.normalizeRunningSessionState(opCtx, in.SessionID, activeTurnID, true, in.Model)
+	if err := e.normalizeRunningSessionState(opCtx, in.SessionID, activeTurnID, true, in.Model); err != nil {
+		return nil, false, err
+	}
 	return res, true, nil
 }
 

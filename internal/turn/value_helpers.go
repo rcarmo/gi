@@ -24,9 +24,9 @@ func normalizedLowerString(v string) string {
 	return strings.ToLower(strings.TrimSpace(v))
 }
 
-func (e *Engine) normalizeRunningSessionState(ctx context.Context, sessionID, activeTurnID string, syncQueue bool, overrideModel string) {
+func (e *Engine) normalizeRunningSessionState(ctx context.Context, sessionID, activeTurnID string, syncQueue bool, overrideModel string) error {
 	if e == nil || e.store == nil || strings.TrimSpace(sessionID) == "" || strings.TrimSpace(activeTurnID) == "" {
-		return
+		return nil
 	}
 	opCtx := coordinationContext(ctx, e.backgroundContext())
 	sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
@@ -39,14 +39,19 @@ func (e *Engine) normalizeRunningSessionState(ctx context.Context, sessionID, ac
 		sessionState["model"] = model
 	}
 	if syncQueue {
-		warnStore("sync queue count on running session normalization", e.store.SyncSessionQueueCount(opCtx, sessionID))
+		if err := e.store.SyncSessionQueueCount(opCtx, sessionID); err != nil {
+			return fmt.Errorf("sync queue count on running session normalization: %w", err)
+		}
 	}
-	warnStore("touch running session normalization", e.store.TouchSessionState(opCtx, sessionID, sessionState))
+	if err := e.store.TouchSessionState(opCtx, sessionID, sessionState); err != nil {
+		return fmt.Errorf("touch running session normalization: %w", err)
+	}
+	return nil
 }
 
-func (e *Engine) normalizeInactiveSessionState(ctx context.Context, sessionID, status, model string, syncQueue bool) {
+func (e *Engine) normalizeInactiveSessionState(ctx context.Context, sessionID, status, model string, syncQueue bool) error {
 	if e == nil || e.store == nil || strings.TrimSpace(sessionID) == "" {
-		return
+		return nil
 	}
 	opCtx := coordinationContext(ctx, e.backgroundContext())
 	sessionState := map[string]any{"status": status, "active_turn_id": nil}
@@ -54,9 +59,14 @@ func (e *Engine) normalizeInactiveSessionState(ctx context.Context, sessionID, s
 		sessionState["model"] = model
 	}
 	if syncQueue {
-		warnStore("sync queue count on inactive session normalization", e.store.SyncSessionQueueCount(opCtx, sessionID))
+		if err := e.store.SyncSessionQueueCount(opCtx, sessionID); err != nil {
+			return fmt.Errorf("sync queue count on inactive session normalization: %w", err)
+		}
 	}
-	warnStore("touch inactive session normalization", e.store.TouchSessionState(opCtx, sessionID, sessionState))
+	if err := e.store.TouchSessionState(opCtx, sessionID, sessionState); err != nil {
+		return fmt.Errorf("touch inactive session normalization: %w", err)
+	}
+	return nil
 }
 
 func stringValue(v any, fallback string) string {

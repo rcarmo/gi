@@ -1136,6 +1136,20 @@ func TestStageQueuedSteeringContinuationDoesNotDrainWhenQueuedTurnAlreadyExists(
 	}
 }
 
+func TestContinueSessionRejectsMissingSessionNormalization(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+	continued, err := engine.ContinueSession(ctx, "missing-session")
+	if continued {
+		t.Fatal("expected missing-session continue to report no progress")
+	}
+	if err == nil || !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("expected missing-session continue to surface sql.ErrNoRows, got %v", err)
+	}
+}
+
 func TestContinueSessionClearsQueueCountAfterLaunchingContinuation(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

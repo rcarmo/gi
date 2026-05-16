@@ -163,7 +163,9 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 	submittedPayload := map[string]any{"phase": "queue", "intent": stringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true}
 	warnStore("append continued turn.submitted event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "turn.submitted", submittedPayload))
 	e.PublishRuntimeTurnEvent("turn_submitted", sessionID, turnID, "", "queued", "queued", submittedPayload)
-	e.normalizeInactiveSessionState(opCtx, sessionID, "queued", stringValue(metadata["model"], ""), true)
+	if err := e.normalizeInactiveSessionState(opCtx, sessionID, "queued", stringValue(metadata["model"], ""), true); err != nil {
+		return false, "", err
+	}
 	warnStore("append steering.continue_staged event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)}))
 	e.broadcast(sessionID, map[string]any{"type": "steering_continue_staged", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs)})
 	return true, turnID, nil
@@ -183,13 +185,17 @@ func (e *Engine) continueQueuedSteeringLocked(ctx context.Context, runner *sessi
 		return false, err
 	}
 	if launched {
-		warnStore("sync queue count after steering continuation launch", e.store.SyncSessionQueueCount(coordCtx, sessionID))
+		if err := e.store.SyncSessionQueueCount(coordCtx, sessionID); err != nil {
+			return false, err
+		}
 		e.broadcast(sessionID, map[string]any{"type": "steering_continued", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 		return true, nil
 	}
 	activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID)
 	if err == nil {
-		e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, "")
+		if err := e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, ""); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 	if err != nil && err != sql.ErrNoRows {
@@ -211,7 +217,9 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 	defer runner.mu.Unlock()
 	coordCtx := coordinationContext(ctx, e.backgroundContext())
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
-		e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, "")
+		if err := e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, ""); err != nil {
+			return false, err
+		}
 		return false, nil
 	} else if err != nil && err != sql.ErrNoRows {
 		return false, err
@@ -224,7 +232,9 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 		return true, nil
 	}
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
-		e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, "")
+		if err := e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, ""); err != nil {
+			return false, err
+		}
 		return true, nil
 	} else if err != nil && err != sql.ErrNoRows {
 		return false, err
@@ -236,7 +246,9 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 	if continued {
 		return true, nil
 	}
-	e.normalizeInactiveSessionState(coordCtx, sessionID, "idle", "", true)
+	if err := e.normalizeInactiveSessionState(coordCtx, sessionID, "idle", "", true); err != nil {
+		return false, err
+	}
 	return false, nil
 }
 

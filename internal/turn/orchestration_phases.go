@@ -60,14 +60,20 @@ func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *run
 		return
 	}
 	if hasActiveTurn {
-		r.engine.normalizeRunningSessionState(ctx, sessionID, activeTurnID, false, "")
+		if err := r.engine.normalizeRunningSessionState(ctx, sessionID, activeTurnID, false, ""); err != nil {
+			log.Printf("turn coordination: normalize running session state after cleanup failed: %v", err)
+		}
 		return
 	}
 	if queueCount > 0 {
-		r.engine.normalizeInactiveSessionState(ctx, sessionID, "queued", "", false)
+		if err := r.engine.normalizeInactiveSessionState(ctx, sessionID, "queued", "", false); err != nil {
+			log.Printf("turn coordination: normalize queued session state after cleanup failed: %v", err)
+		}
 		return
 	}
-	r.engine.normalizeInactiveSessionState(ctx, sessionID, "idle", "", false)
+	if err := r.engine.normalizeInactiveSessionState(ctx, sessionID, "idle", "", false); err != nil {
+		log.Printf("turn coordination: normalize idle session state after cleanup failed: %v", err)
+	}
 }
 
 func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessionID, turnID string) (*preparedTurnRun, error) {
