@@ -3,6 +3,7 @@ package turn
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"os/exec"
@@ -538,33 +539,51 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 	active := &runningTurn{turnID: turnID, cancel: cancel}
 	runner.current = active
 	claimedTurn := false
-	releaseClaim := func(restoreQueued bool) {
+	releaseClaim := func(restoreQueued bool) error {
+		var cleanupErrs []error
 		if restoreQueued {
-			warnStore("rollback turn status to queued", e.store.UpdateTurnStatusAndPhase(e.backgroundContext(), turnID, "queued", "queued"))
-			if claimedTurn {
-				warnStore("reset turn claim after launch failure", e.store.ResetTurnClaim(e.backgroundContext(), turnID))
+			if err := e.store.UpdateTurnStatusAndPhase(e.backgroundContext(), turnID, "queued", "queued"); err != nil {
+				cleanupErrs = append(cleanupErrs, fmt.Errorf("rollback turn status to queued: %w", err))
 			}
-			warnStore("sync queue count after launch rollback", e.store.SyncSessionQueueCount(e.backgroundContext(), sessionID))
-			warnStore("touch session queued after launch rollback", e.store.TouchSessionState(e.backgroundContext(), sessionID, map[string]any{"status": "queued", "active_turn_id": nil}))
+			if claimedTurn {
+				if err := e.store.ResetTurnClaim(e.backgroundContext(), turnID); err != nil {
+					cleanupErrs = append(cleanupErrs, fmt.Errorf("reset turn claim after launch failure: %w", err))
+				}
+			}
+			if err := e.store.SyncSessionQueueCount(e.backgroundContext(), sessionID); err != nil {
+				cleanupErrs = append(cleanupErrs, fmt.Errorf("sync queue count after launch rollback: %w", err))
+			}
+			if err := e.store.TouchSessionState(e.backgroundContext(), sessionID, map[string]any{"status": "queued", "active_turn_id": nil}); err != nil {
+				cleanupErrs = append(cleanupErrs, fmt.Errorf("touch session queued after launch rollback: %w", err))
+			}
 		}
-		warnStore("release active claim after launch failure", e.store.ReleaseSessionActiveTurn(e.backgroundContext(), sessionID, claimToken))
+		if err := e.store.ReleaseSessionActiveTurn(e.backgroundContext(), sessionID, claimToken); err != nil {
+			cleanupErrs = append(cleanupErrs, fmt.Errorf("release active claim after launch failure: %w", err))
+		}
 		if runner.current == active {
 			runner.current = nil
 		}
 		cancel()
+		return errors.Join(cleanupErrs...)
 	}
 	if err := e.store.MarkTurnClaimed(opCtx, turnID, "runner"); err != nil {
-		releaseClaim(false)
+		if cleanupErr := releaseClaim(false); cleanupErr != nil {
+			return false, errors.Join(err, cleanupErr)
+		}
 		return false, err
 	}
 	claimedTurn = true
 	if err := e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "running", "setup"); err != nil {
-		releaseClaim(true)
+		if cleanupErr := releaseClaim(true); cleanupErr != nil {
+			return false, errors.Join(err, cleanupErr)
+		}
 		return false, err
 	}
 	if hook := e.beforeLaunchSessionStateErrorHook; hook != nil {
 		if err := hook(opCtx, sessionID, turnID); err != nil {
-			releaseClaim(true)
+			if cleanupErr := releaseClaim(true); cleanupErr != nil {
+				return false, errors.Join(err, cleanupErr)
+			}
 			return false, err
 		}
 	}
@@ -575,7 +594,9 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 		}
 	}
 	if err := e.store.TouchSessionState(opCtx, sessionID, sessionState); err != nil {
-		releaseClaim(true)
+		if cleanupErr := releaseClaim(true); cleanupErr != nil {
+			return false, errors.Join(err, cleanupErr)
+		}
 		return false, err
 	}
 	warnStore("sync queue count after launch", e.store.SyncSessionQueueCount(opCtx, sessionID))

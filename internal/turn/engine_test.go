@@ -3,6 +3,7 @@ package turn
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -2019,6 +2020,47 @@ func TestLaunchTurnLockedRollsBackClaimAndQueuedStateOnPreRunFailure(t *testing.
 	}
 	if got := sessRec.State["queue_count"]; got != float64(1) && got != 1 {
 		t.Fatalf("expected launch rollback to keep queue_count 1, got %#v", sessRec.State)
+	}
+}
+
+func TestLaunchTurnRollbackSurfacesCleanupFailure(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_launch_rollback_cleanup", "Test", map[string]any{"model": "bootstrap", "status": "queued", "queue_count": 1}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_launch_rollback_cleanup", "session_launch_rollback_cleanup", "queued", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	engine := New(s)
+	engine.beforeLaunchSessionStateErrorHook = func(ctx context.Context, sessionID, turnID string) error {
+		if sessionID == "session_launch_rollback_cleanup" && turnID == queuedTurn.ID {
+			if err := s.DeleteTurn(ctx, turnID); err != nil {
+				t.Fatalf("delete queued turn during rollback hook: %v", err)
+			}
+			return fmt.Errorf("boom")
+		}
+		return nil
+	}
+	runner := engine.runner("session_launch_rollback_cleanup")
+	launched, err := engine.launchTurnLocked(ctx, runner, "session_launch_rollback_cleanup", queuedTurn.ID)
+	if launched {
+		t.Fatal("expected launch to fail")
+	}
+	if err == nil || !strings.Contains(err.Error(), "boom") || !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("expected launch rollback error to include setup failure and cleanup sql.ErrNoRows, got %v", err)
+	}
+	if _, _, err := s.GetSessionActiveTurn(ctx, "session_launch_rollback_cleanup"); err != sql.ErrNoRows {
+		t.Fatalf("expected active claim released after rollback cleanup failure, got %v", err)
+	}
+	sessRec, err := s.GetSession(ctx, "session_launch_rollback_cleanup")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "queued" || sessRec.State["active_turn_id"] != nil {
+		t.Fatalf("expected session state restored despite missing-turn rollback failure, got %#v", sessRec.State)
 	}
 }
 
