@@ -95,7 +95,12 @@ func (s *Server) handleAuthEnrollVerify(w http.ResponseWriter, r *http.Request) 
 	}
 	state, err := s.auth.VerifyEnrollment(req.Username, req.Code)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+		status := http.StatusInternalServerError
+		switch err.Error() {
+		case "no pending enrollment for user", "pending enrollment expired", "invalid TOTP code":
+			status = http.StatusBadRequest
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "username": state.Username, "totp_enabled": state.TOTPEnabled})
