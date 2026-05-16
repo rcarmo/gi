@@ -140,6 +140,11 @@ func (m *Manager) VerifyLogin(username, code string) (string, time.Time, error) 
 }
 
 func (m *Manager) ValidateBearerRequest(r *http.Request) bool {
+	ok, _ := m.ValidateBearerRequestWithError(r)
+	return ok
+}
+
+func (m *Manager) ValidateBearerRequestWithError(r *http.Request) (bool, error) {
 	token := strings.TrimSpace(r.Header.Get("Authorization"))
 	if strings.HasPrefix(strings.ToLower(token), "bearer ") {
 		token = strings.TrimSpace(token[len("bearer "):])
@@ -147,25 +152,30 @@ func (m *Manager) ValidateBearerRequest(r *http.Request) bool {
 	if token == "" {
 		token = r.URL.Query().Get("auth_token")
 	}
-	return m.ValidateToken(token)
+	return m.ValidateTokenWithError(token)
 }
 
 func (m *Manager) ValidateToken(token string) bool {
+	ok, _ := m.ValidateTokenWithError(token)
+	return ok
+}
+
+func (m *Manager) ValidateTokenWithError(token string) (bool, error) {
 	if strings.TrimSpace(token) == "" {
-		return false
+		return false, nil
 	}
 	state, err := m.load()
 	if err != nil {
-		return false
+		return false, err
 	}
 	hash := hashToken(token)
 	now := time.Now().UTC()
 	for _, sess := range state.Sessions {
 		if sess.ExpiresAt.After(now) && constantTimeString(sess.TokenHash, hash) {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 func (m *Manager) Enrolled() (bool, error) {

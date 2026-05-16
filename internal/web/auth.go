@@ -19,7 +19,12 @@ func (s *Server) requireAuthenticatedRequest(w http.ResponseWriter, r *http.Requ
 	if !enrolled {
 		return true
 	}
-	if s.auth.ValidateBearerRequest(r) {
+	ok, err := s.auth.ValidateBearerRequestWithError(r)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+		return false
+	}
+	if ok {
 		return true
 	}
 	writeJSON(w, http.StatusUnauthorized, map[string]any{"error": "authentication required"})

@@ -40,7 +40,11 @@ func (s *Server) authorizeConnectivityRequest(spec connectivity.RouteSpec, r *ht
 	if s.auth == nil {
 		return fmt.Errorf("TOTP auth is not available")
 	}
-	if s.auth.ValidateBearerRequest(r) {
+	ok, err := s.auth.ValidateBearerRequestWithError(r)
+	if err != nil {
+		return err
+	}
+	if ok {
 		return nil
 	}
 	return fmt.Errorf("invalid or missing TOTP bearer token")
