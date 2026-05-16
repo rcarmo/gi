@@ -21,10 +21,14 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 		return false, err
 	}
 	recovered := false
+	var firstErr error
 	sessionsToRestart := map[string]bool{}
 	for _, claim := range claims {
 		if err := e.recoverInterruptedTurn(opCtx, claim); err != nil {
 			log.Printf("turn recovery: recover %s/%s failed: %v", claim.SessionID, claim.TurnID, err)
+			if firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
 		recovered = true
@@ -40,6 +44,9 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 		if err := e.startNextQueuedTurn(opCtx, recoveredSessionID); err != nil {
 			return recovered, err
 		}
+	}
+	if firstErr != nil {
+		return recovered, firstErr
 	}
 	return recovered, nil
 }
@@ -89,7 +96,9 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 
 	if disposition != "release_terminal" {
 		if disposition == "hold_for_retry_or_skip_after_tool_checkpoint" {
-			markTurnFailureWithHold(e.backgroundContext(), e.store, claim.TurnID, claim.SessionID, "recovery_interrupted_tool_phase", "review", "Recovered stale turn that was interrupted while waiting on tool results")
+			if err := markTurnFailureWithFallbackErr(e.backgroundContext(), nil, e.store, claim.TurnID, claim.SessionID, "recovery_interrupted_tool_phase", "review", "Recovered stale turn that was interrupted while waiting on tool results"); err != nil {
+				return err
+			}
 		}
 		if err := e.store.UpdateTurnStatusAndPhase(opCtx, claim.TurnID, status, phase); err != nil {
 			return err

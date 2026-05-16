@@ -1125,6 +1125,54 @@ func TestStartupRecoveryHoldsToolPhaseTurnForReview(t *testing.T) {
 	}
 }
 
+func TestRecoverInterruptedTurnsReturnsErrorWhenHoldMarkerPersistenceFails(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	sess, err := s.CreateSession(ctx, "session_recover_tool_marker_fail", "Test", map[string]any{"model": "bootstrap", "status": "running"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	turnRec, err := s.CreateTurnWithStatus(ctx, "turn_recover_tool_marker_fail", sess.ID, "running", "hello", map[string]any{"intent": "prompt"})
+	if err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if err := s.UpdateTurnStatusAndPhase(ctx, turnRec.ID, "running", "waiting_on_tools"); err != nil {
+		t.Fatalf("set waiting_on_tools phase: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, sess.ID, turnRec.ID, "runner", turnRec.ID); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_active_turns set updated_at = '2000-01-01T00:00:00Z' where session_id = ?`, sess.ID); err != nil {
+		t.Fatalf("age active turn claim: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `
+		create trigger fail_recovery_hold_marker
+		before insert on turn_failures
+		for each row when new.turn_id = 'turn_recover_tool_marker_fail'
+		begin
+			select raise(fail, 'hold marker blocked for test');
+		end;
+	`); err != nil {
+		t.Fatalf("create hold-marker trigger: %v", err)
+	}
+	engine := New(s)
+	recovered, err := engine.recoverInterruptedTurns(ctx, sess.ID)
+	if recovered {
+		t.Fatal("expected failed recovery not to report success")
+	}
+	if err == nil || !strings.Contains(err.Error(), "hold marker blocked for test") {
+		t.Fatalf("expected recovery to surface hold-marker failure, got %v", err)
+	}
+	current, err := s.GetTurn(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("get turn after failed recovery: %v", err)
+	}
+	if current.Status != "running" || current.Phase != "waiting_on_tools" {
+		t.Fatalf("expected turn state unchanged after failed recovery marker write, got %#v", current)
+	}
+}
+
 func TestStageQueuedSteeringContinuationCreatesQueuedTurn(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

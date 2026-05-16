@@ -8,18 +8,22 @@ import (
 )
 
 func markTurnFailure(ctx context.Context, s *store.Store, turnID, sessionID, failureKind, summary string) {
-	markTurnFailureWithFallback(ctx, nil, s, turnID, sessionID, failureKind, summary)
+	warnStore("turn failure mark", markTurnFailureWithFallbackErr(ctx, nil, s, turnID, sessionID, failureKind, "none", summary))
 }
 
 func markTurnFailureWithFallback(ctx, fallback context.Context, s *store.Store, turnID, sessionID, failureKind, summary string) {
-	markTurnFailureWithHoldAndFallback(ctx, fallback, s, turnID, sessionID, failureKind, "none", summary)
+	warnStore("turn failure mark", markTurnFailureWithFallbackErr(ctx, fallback, s, turnID, sessionID, failureKind, "none", summary))
 }
 
 func markTurnFailureWithHold(ctx context.Context, s *store.Store, turnID, sessionID, failureKind, holdState, summary string) {
-	markTurnFailureWithHoldAndFallback(ctx, nil, s, turnID, sessionID, failureKind, holdState, summary)
+	warnStore("turn failure mark", markTurnFailureWithFallbackErr(ctx, nil, s, turnID, sessionID, failureKind, holdState, summary))
 }
 
 func markTurnFailureWithHoldAndFallback(ctx, fallback context.Context, s *store.Store, turnID, sessionID, failureKind, holdState, summary string) {
+	warnStore("turn failure mark", markTurnFailureWithFallbackErr(ctx, fallback, s, turnID, sessionID, failureKind, holdState, summary))
+}
+
+func markTurnFailureWithFallbackErr(ctx, fallback context.Context, s *store.Store, turnID, sessionID, failureKind, holdState, summary string) error {
 	failureKind = strings.TrimSpace(failureKind)
 	if failureKind == "" {
 		failureKind = "unknown"
@@ -34,14 +38,19 @@ func markTurnFailureWithHoldAndFallback(ctx, fallback context.Context, s *store.
 	}
 	opCtx := coordinationContext(ctx, fallback)
 	if opCtx == nil {
-		return
+		return nil
 	}
-	warnStore("turn failure upsert", s.UpsertTurnFailure(opCtx, turnID, sessionID, failureKind, holdState, summary))
-	warnStore("turn failure event append", s.AppendTurnEvent(opCtx, turnID, sessionID, "turn.failure_marked", map[string]any{
+	if err := s.UpsertTurnFailure(opCtx, turnID, sessionID, failureKind, holdState, summary); err != nil {
+		return err
+	}
+	if err := s.AppendTurnEvent(opCtx, turnID, sessionID, "turn.failure_marked", map[string]any{
 		"phase":        "recovery",
 		"checkpoint":   true,
 		"failure_kind": failureKind,
 		"hold_state":   holdState,
 		"summary":      summary,
-	}))
+	}); err != nil {
+		return err
+	}
+	return nil
 }
