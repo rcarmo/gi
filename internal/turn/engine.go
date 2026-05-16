@@ -601,7 +601,7 @@ func (r *sessionRunner) runTurn(s *store.Store, sessionID, turnID string, ctx co
 		return
 	}
 	sessionID = run.sessionID
-	go r.heartbeatActiveTurn(ctx, sessionID, claimToken)
+	go r.heartbeatActiveTurn(ctx, sessionID, claimToken, cancel)
 	r.runPreparedTurn(ctx, s, run)
 }
 

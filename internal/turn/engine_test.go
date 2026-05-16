@@ -2297,6 +2297,64 @@ func TestCancelQueuedTurnRejectsWrongCallerSessionID(t *testing.T) {
 	}
 }
 
+func TestHeartbeatCancelsTurnWhenActiveClaimDisappears(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_heartbeat_claim_lost", "Streaming", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	started := make(chan struct{})
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		select {
+		case <-started:
+		default:
+			close(started)
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
+	prevHeartbeatInterval := activeTurnHeartbeatInterval
+	activeTurnHeartbeatInterval = 20 * time.Millisecond
+	defer func() {
+		activeTurnHeartbeatInterval = prevHeartbeatInterval
+	}()
+	engine := New(s)
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_heartbeat_claim_lost", Prompt: "stream please", Model: "mock-stream"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		select {
+		case <-started:
+			return true
+		default:
+			return false
+		}
+	}, "streaming turn start")
+	if err := s.ReleaseSessionActiveTurn(ctx, "session_heartbeat_claim_lost", result.TurnID); err != nil {
+		t.Fatalf("release active claim externally: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && turnRec.Status == "cancelled"
+	}, "heartbeat-driven turn cancellation")
+	turnRec, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatalf("get cancelled turn: %v", err)
+	}
+	if turnRec.Phase != "aborted" {
+		t.Fatalf("expected lost-claim cancellation to end aborted, got %#v", turnRec)
+	}
+	sessRec, err := s.GetSession(ctx, "session_heartbeat_claim_lost")
+	if err != nil {
+		t.Fatalf("get session: %v", err)
+	}
+	if sessRec.State["status"] != "idle" || sessRec.State["active_turn_id"] != nil {
+		t.Fatalf("expected session idle after lost active claim cancellation, got %#v", sessRec.State)
+	}
+}
+
 func TestCancelActiveStreamingTurnMarksCancelled(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

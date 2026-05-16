@@ -3,16 +3,16 @@ package turn
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"time"
 
 	"github.com/rcarmo/gi/internal/store"
 )
 
-const (
-	activeTurnHeartbeatInterval = 5 * time.Second
-	interruptedTurnStaleAfter   = 30 * time.Second
-)
+var activeTurnHeartbeatInterval = 5 * time.Second
+
+const interruptedTurnStaleAfter = 30 * time.Second
 
 func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) (bool, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
@@ -172,7 +172,7 @@ func (e *Engine) startNextQueuedTurn(ctx context.Context, sessionID string) erro
 	return err
 }
 
-func (r *sessionRunner) heartbeatActiveTurn(ctx context.Context, sessionID, claimToken string) {
+func (r *sessionRunner) heartbeatActiveTurn(ctx context.Context, sessionID, claimToken string, cancel context.CancelFunc) {
 	bgCtx := r.engine.backgroundContext()
 	ticker := time.NewTicker(activeTurnHeartbeatInterval)
 	defer ticker.Stop()
@@ -183,6 +183,10 @@ func (r *sessionRunner) heartbeatActiveTurn(ctx context.Context, sessionID, clai
 		case <-ticker.C:
 			if err := r.store.TouchSessionActiveTurn(bgCtx, sessionID, claimToken); err != nil {
 				log.Printf("turn heartbeat: %v", err)
+				if errors.Is(err, sql.ErrNoRows) {
+					cancel()
+					return
+				}
 			}
 		}
 	}
