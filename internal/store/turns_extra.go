@@ -179,7 +179,7 @@ func (s *Store) TouchSessionState(ctx context.Context, sessionID string, patch m
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `
+	res, err := s.db.ExecContext(ctx, `
 		update sessions
 		set state_json = json_patch(coalesce(nullif(state_json, ''), '{}'), json(?)),
 		    updated_at = `+defaultNow+`
@@ -187,6 +187,13 @@ func (s *Store) TouchSessionState(ctx context.Context, sessionID string, patch m
 	`, patchJSON, sessionID)
 	if err != nil {
 		return fmt.Errorf("touch session state: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("touch session state rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("touch session state: %w", sql.ErrNoRows)
 	}
 	return nil
 }

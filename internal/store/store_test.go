@@ -822,6 +822,18 @@ func TestTouchSessionActiveTurnRejectsMissingClaim(t *testing.T) {
 	}
 }
 
+func TestTouchSessionStateRejectsMissingSession(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if err := s.TouchSessionState(ctx, "missing-session", map[string]any{"status": "running"}); err == nil || !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("expected missing session touch to return sql.ErrNoRows, got %v", err)
+	}
+}
+
 func TestTurnFailureMarkersClearOnRequeueAndCompletion(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
