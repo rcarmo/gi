@@ -493,7 +493,7 @@ func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID str
 		return nil, false, nil
 	}
 	if err := e.store.DeleteTurn(opCtx, turnID); err != nil {
-		return nil, false, err
+		log.Printf("turn coordination: delete transient queued turn after steering fallback failed: %v", err)
 	}
 	if err := e.normalizeRunningSessionState(opCtx, in.SessionID, activeTurnID, true, in.Model); err != nil {
 		return nil, false, err

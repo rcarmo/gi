@@ -824,6 +824,47 @@ func TestConvertLaunchConflictToSteeringSurvivesCanceledCallerContext(t *testing
 	}
 }
 
+func TestConvertLaunchConflictToSteeringPreservesSuccessWhenTransientTurnCleanupFails(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_claim_conflict_cleanup", "Test", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	activeTurn, err := s.CreateTurnWithStatus(ctx, "turn_existing_active_cleanup", "session_claim_conflict_cleanup", "running", "already running", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create existing active turn: %v", err)
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_transient_cleanup", "session_claim_conflict_cleanup", "queued", "steer me", map[string]any{"intent": "prompt", "model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create transient queued turn: %v", err)
+	}
+	if _, err := s.ClaimSessionActiveTurn(ctx, "session_claim_conflict_cleanup", activeTurn.ID, "runner", activeTurn.ID); err != nil {
+		t.Fatalf("claim existing active turn: %v", err)
+	}
+	if err := s.TouchSessionState(ctx, "session_claim_conflict_cleanup", map[string]any{"active_turn_id": activeTurn.ID, "status": "running"}); err != nil {
+		t.Fatalf("touch session state: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `
+		create trigger fail_delete_transient_turn_cleanup
+		before delete on turns
+		for each row when old.id = 'turn_transient_cleanup'
+		begin
+			select raise(fail, 'delete blocked for test');
+		end;
+	`); err != nil {
+		t.Fatalf("create delete-failure trigger: %v", err)
+	}
+	engine := New(s)
+	res, steered, err := engine.convertLaunchConflictToSteering(ctx, queuedTurn.ID, RunInput{SessionID: "session_claim_conflict_cleanup", Prompt: "steer me", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("expected steering fallback success despite transient cleanup failure, got %v", err)
+	}
+	if !steered || res == nil || res.TurnID != activeTurn.ID || res.Status != "running" {
+		t.Fatalf("expected steering fallback to existing active turn, got steered=%v res=%#v", steered, res)
+	}
+}
+
 func TestSubmitPromptClaimConflictConvertsFreshTurnToSteering(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
