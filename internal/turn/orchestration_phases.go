@@ -24,12 +24,25 @@ type preparedTurnRun struct {
 	initialSteering []store.SteeringMessage
 }
 
+func (r *sessionRunner) appendCleanupHandoffFailure(ctx context.Context, sessionID, turnID, stage string, err error) {
+	if strings.TrimSpace(sessionID) == "" || strings.TrimSpace(turnID) == "" || err == nil {
+		return
+	}
+	warnStore("append cleanup handoff failure event", r.store.AppendTurnEvent(ctx, turnID, sessionID, "turn.cleanup_handoff_failed", map[string]any{
+		"phase":      "cleanup",
+		"checkpoint": true,
+		"stage":      stage,
+		"error":      err.Error(),
+	}))
+}
+
 func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *runningTurn) {
 	ctx := r.engine.backgroundContext()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if err := r.store.ReleaseSessionActiveTurn(ctx, sessionID, claimToken); err != nil {
 		log.Printf("turn coordination: release session active turn failed: %v", err)
+		r.appendCleanupHandoffFailure(ctx, sessionID, claimToken, "release_active_claim", err)
 		if r.current == active {
 			r.current = nil
 		}
@@ -40,6 +53,7 @@ func (r *sessionRunner) cleanupTurnRun(sessionID, claimToken string, active *run
 	}
 	if err := r.store.SyncSessionQueueCount(ctx, sessionID); err != nil {
 		log.Printf("turn coordination: sync session queue count failed: %v", err)
+		r.appendCleanupHandoffFailure(ctx, sessionID, claimToken, "sync_queue_count", err)
 		return
 	}
 	if hook := r.engine.beforeCleanupNextWorkHook; hook != nil {

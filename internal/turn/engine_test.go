@@ -948,6 +948,19 @@ func TestCleanupTurnRunStopsAfterActiveClaimReleaseFailure(t *testing.T) {
 	if _, _, err := s.GetSessionActiveTurn(ctx, "session_cleanup_release_fail"); err != nil {
 		t.Fatalf("expected active claim to remain when release is blocked, got %v", err)
 	}
+	events, err := s.ListTurnEvents(ctx, "turn_cleanup_release_fail")
+	if err != nil {
+		t.Fatalf("list cleanup failure events: %v", err)
+	}
+	found := false
+	for _, event := range events {
+		if event.Type == "turn.cleanup_handoff_failed" && event.Payload["stage"] == "release_active_claim" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected cleanup handoff failure event for release failure, got %#v", events)
+	}
 }
 
 func TestCleanupTurnRunStopsAfterQueueSyncFailure(t *testing.T) {
@@ -971,8 +984,15 @@ func TestCleanupTurnRunStopsAfterQueueSyncFailure(t *testing.T) {
 	runner := engine.runner("session_cleanup_sync_fail")
 	active := &runningTurn{turnID: "turn_cleanup_sync_fail"}
 	runner.current = active
-	if _, err := s.DB().ExecContext(ctx, `delete from sessions where id = ?`, "session_cleanup_sync_fail"); err != nil {
-		t.Fatalf("delete session before cleanup: %v", err)
+	if _, err := s.DB().ExecContext(ctx, `
+		create trigger fail_cleanup_sync_session_update
+		before update on sessions
+		for each row when old.id = 'session_cleanup_sync_fail'
+		begin
+			select raise(fail, 'queue sync blocked for test');
+		end;
+	`); err != nil {
+		t.Fatalf("create queue-sync-failure trigger: %v", err)
 	}
 	runner.cleanupTurnRun("session_cleanup_sync_fail", "turn_cleanup_sync_fail", active)
 	if hookCalled {
@@ -980,6 +1000,19 @@ func TestCleanupTurnRunStopsAfterQueueSyncFailure(t *testing.T) {
 	}
 	if runner.current != nil {
 		t.Fatalf("expected cleanup to still clear current running turn, got %#v", runner.current)
+	}
+	events, err := s.ListTurnEvents(ctx, "turn_cleanup_sync_fail")
+	if err != nil {
+		t.Fatalf("list cleanup failure events: %v", err)
+	}
+	found := false
+	for _, event := range events {
+		if event.Type == "turn.cleanup_handoff_failed" && event.Payload["stage"] == "sync_queue_count" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected cleanup handoff failure event for queue sync failure, got %#v", events)
 	}
 }
 
