@@ -268,6 +268,30 @@ func TestToolExecuteRejectsInvalidVFSWritePath(t *testing.T) {
 	}
 }
 
+func TestToolExecuteScriptPreservesInputSessionIDWhenOuterFieldMissing(t *testing.T) {
+	root := t.TempDir()
+	srv, storeDB := newTestWebServer(t, root)
+	ctx := context.Background()
+	session, err := storeDB.CreateSession(ctx, "session_tool_script", "Script", map[string]any{"model": "bootstrap"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+
+	resp := callToolExecute(t, srv, toolReq{
+		Tool: "script",
+		Input: map[string]any{
+			"session_id": session.ID,
+			"script":     `gi.getSessionInfo().session.id;`,
+		},
+	})
+	if resp.Error != "" {
+		t.Fatalf("script error: %v", resp.Error)
+	}
+	if strings.TrimSpace(resp.Result) != session.ID {
+		t.Fatalf("expected script session id %q, got %q", session.ID, resp.Result)
+	}
+}
+
 func TestToolExecuteShellTool(t *testing.T) {
 	root := t.TempDir()
 	srv, _ := newTestWebServer(t, root)

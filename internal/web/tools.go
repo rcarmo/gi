@@ -85,7 +85,9 @@ func (s *Server) handleToolExecute(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 			return
 		}
-		input.SessionID = req.SessionID
+		if strings.TrimSpace(req.SessionID) != "" {
+			input.SessionID = req.SessionID
+		}
 		output := s.scriptTool.Execute(r.Context(), input)
 		writeJSON(w, http.StatusOK, output)
 
