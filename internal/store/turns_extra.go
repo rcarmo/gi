@@ -109,9 +109,16 @@ func (s *Store) GetNextQueuedTurn(ctx context.Context, sessionID string) (*Turn,
 }
 
 func (s *Store) UpdateTurnStatusAndPhase(ctx context.Context, turnID, status, phase string) error {
-	_, err := s.db.ExecContext(ctx, `update turns set status = ?, phase = ?, updated_at = `+defaultNow+` where id = ?`, status, phase, turnID)
+	res, err := s.db.ExecContext(ctx, `update turns set status = ?, phase = ?, updated_at = `+defaultNow+` where id = ?`, status, phase, turnID)
 	if err != nil {
 		return fmt.Errorf("update turn status and phase: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update turn status and phase rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("update turn status and phase: %w", sql.ErrNoRows)
 	}
 	turnRec, err := s.GetTurn(ctx, turnID)
 	if err == nil {
@@ -131,25 +138,46 @@ func (s *Store) UpdateTurnStatusAndPhase(ctx context.Context, turnID, status, ph
 }
 
 func (s *Store) MarkTurnClaimed(ctx context.Context, turnID, claimedBy string) error {
-	_, err := s.db.ExecContext(ctx, `update turns set claimed_by = ?, claimed_at = coalesce(claimed_at, `+defaultNow+`), started_at = coalesce(started_at, `+defaultNow+`), updated_at = `+defaultNow+` where id = ?`, nilIfEmpty(claimedBy), turnID)
+	res, err := s.db.ExecContext(ctx, `update turns set claimed_by = ?, claimed_at = coalesce(claimed_at, `+defaultNow+`), started_at = coalesce(started_at, `+defaultNow+`), updated_at = `+defaultNow+` where id = ?`, nilIfEmpty(claimedBy), turnID)
 	if err != nil {
 		return fmt.Errorf("mark turn claimed: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("mark turn claimed rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("mark turn claimed: %w", sql.ErrNoRows)
 	}
 	return nil
 }
 
 func (s *Store) ResetTurnClaim(ctx context.Context, turnID string) error {
-	_, err := s.db.ExecContext(ctx, `update turns set claimed_by = null, claimed_at = null, started_at = null, updated_at = `+defaultNow+` where id = ?`, turnID)
+	res, err := s.db.ExecContext(ctx, `update turns set claimed_by = null, claimed_at = null, started_at = null, updated_at = `+defaultNow+` where id = ?`, turnID)
 	if err != nil {
 		return fmt.Errorf("reset turn claim: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("reset turn claim rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("reset turn claim: %w", sql.ErrNoRows)
 	}
 	return nil
 }
 
 func (s *Store) MarkTurnFinished(ctx context.Context, turnID string) error {
-	_, err := s.db.ExecContext(ctx, `update turns set finished_at = coalesce(finished_at, `+defaultNow+`), updated_at = `+defaultNow+` where id = ?`, turnID)
+	res, err := s.db.ExecContext(ctx, `update turns set finished_at = coalesce(finished_at, `+defaultNow+`), updated_at = `+defaultNow+` where id = ?`, turnID)
 	if err != nil {
 		return fmt.Errorf("mark turn finished: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("mark turn finished rows: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("mark turn finished: %w", sql.ErrNoRows)
 	}
 	return nil
 }

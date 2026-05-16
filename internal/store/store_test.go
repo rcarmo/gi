@@ -834,6 +834,29 @@ func TestTouchSessionStateRejectsMissingSession(t *testing.T) {
 	}
 }
 
+func TestTurnLifecycleWritersRejectMissingTurn(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	checks := []struct {
+		name string
+		run  func() error
+	}{
+		{name: "update turn status and phase", run: func() error { return s.UpdateTurnStatusAndPhase(ctx, "missing-turn", "running", "setup") }},
+		{name: "mark turn claimed", run: func() error { return s.MarkTurnClaimed(ctx, "missing-turn", "runner") }},
+		{name: "reset turn claim", run: func() error { return s.ResetTurnClaim(ctx, "missing-turn") }},
+		{name: "mark turn finished", run: func() error { return s.MarkTurnFinished(ctx, "missing-turn") }},
+	}
+	for _, check := range checks {
+		if err := check.run(); err == nil || !errors.Is(err, sql.ErrNoRows) {
+			t.Fatalf("expected %s to return sql.ErrNoRows, got %v", check.name, err)
+		}
+	}
+}
+
 func TestTurnFailureMarkersClearOnRequeueAndCompletion(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
