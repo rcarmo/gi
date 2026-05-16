@@ -191,7 +191,7 @@ func (s *Server) handleConnectivityRoutes(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err := s.authorizeConnectivityRequest(spec, r, body); err != nil {
-		writeJSON(w, http.StatusUnauthorized, map[string]any{"error": err.Error()})
+		writeJSON(w, connectivityAuthHTTPStatus(err), map[string]any{"error": err.Error()})
 		return
 	}
 	payload := map[string]any{

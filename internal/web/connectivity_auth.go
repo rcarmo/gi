@@ -24,6 +24,27 @@ func allowUnauthenticatedExternal(options map[string]any) bool {
 	}
 }
 
+func connectivityAuthHTTPStatus(err error) int {
+	if err == nil {
+		return http.StatusOK
+	}
+	switch err.Error() {
+	case "external request requires route auth",
+		"invalid bearer token",
+		"basic auth username is required",
+		"missing basic auth",
+		"invalid basic auth",
+		"header auth requires header",
+		"invalid header auth",
+		"invalid query auth",
+		"invalid hmac signature",
+		"invalid or missing TOTP bearer token":
+		return http.StatusUnauthorized
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
 func (s *Server) authorizeConnectivityRequest(spec connectivity.RouteSpec, r *http.Request, body []byte) error {
 	typ := ""
 	if spec.Auth != nil {
