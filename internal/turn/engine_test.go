@@ -3360,6 +3360,67 @@ func TestRecoverInterruptedTurnsStartsQueuedWorkAfterReleasingTerminalClaim(t *t
 	}, "queued turn completion after recovery")
 }
 
+func TestRecoverInterruptedTurnsEmitsSessionRestartFailureSummary(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	engine := New(s)
+
+	sess, err := s.CreateSession(ctx, "session_recover_restart_fail", "Recover", map[string]any{"status": "running", "model": "mock-recover"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_recover_restart_fail_terminal", sess.ID, "cancelled", "terminal", map[string]any{"intent": "prompt", "model": "mock-recover"}); err != nil {
+		t.Fatalf("create terminal turn: %v", err)
+	}
+	queuedTurn, err := s.CreateTurnWithStatus(ctx, "turn_recover_restart_fail_queued", sess.ID, "queued", "queued after recovery", map[string]any{"intent": "prompt", "model": "mock-recover"})
+	if err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, sess.ID, "turn_recover_restart_fail_terminal", "worker-test", "claim-recover-restart-fail"); err != nil {
+		t.Fatalf("claim active turn: %v", err)
+	} else if !ok {
+		t.Fatal("expected active turn claim")
+	}
+	staleTime := time.Now().Add(-(interruptedTurnStaleAfter + 5*time.Second)).UTC().Format(time.RFC3339Nano)
+	if err := s.TouchSessionState(ctx, sess.ID, map[string]any{"active_turn_id": "turn_recover_restart_fail_terminal", "status": "running"}); err != nil {
+		t.Fatalf("touch session state: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_active_turns set updated_at = ? where session_id = ?`, staleTime, sess.ID); err != nil {
+		t.Fatalf("age active turn claim: %v", err)
+	}
+	engine.beforeLaunchSessionStateErrorHook = func(ctx context.Context, sessionID, turnID string) error {
+		if sessionID == sess.ID && turnID == queuedTurn.ID {
+			return fmt.Errorf("restart boom")
+		}
+		return nil
+	}
+	sessionTopicCh, unsubSession := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 16, SessionID: sess.ID})
+	defer unsubSession()
+	recovered, err := engine.recoverInterruptedTurns(ctx, sess.ID)
+	if !recovered {
+		t.Fatal("expected recovery pass to report released stale claim before restart failure")
+	}
+	if err == nil || !strings.Contains(err.Error(), "restart boom") {
+		t.Fatalf("expected restart failure to surface, got %v", err)
+	}
+	found := false
+	deadline := time.After(time.Second)
+	for !found {
+		select {
+		case env := <-sessionTopicCh:
+			if env.Payload["type"] == "session_state" && env.Payload["reason"] == "recovery_restart_failed" {
+				if env.Payload["queue_count"] != 1 && env.Payload["queue_count"] != float64(1) {
+					t.Fatalf("expected queue_count 1 in restart failure summary, got %#v", env)
+				}
+				found = true
+			}
+		case <-deadline:
+			t.Fatal("expected session restart failure summary")
+		}
+	}
+}
+
 func TestRecoverInterruptedTurnPublishesRuntimeStateTopics(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

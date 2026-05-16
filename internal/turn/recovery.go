@@ -95,6 +95,7 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 	}
 	for recoveredSessionID := range sessionsToRestart {
 		if err := e.startNextQueuedTurn(opCtx, recoveredSessionID); err != nil {
+			e.emitRecoveryRestartFailureSessionState(opCtx, recoveredSessionID, err)
 			return recovered, err
 		}
 	}
@@ -140,6 +141,44 @@ func (e *Engine) emitRecoveryScanFailureSessionState(ctx context.Context, sessio
 		"queue_count":           queueCount,
 		"recovered_claim_count": recoveredCount,
 		"failed_claim_count":    failedCount,
+	})
+}
+
+func (e *Engine) emitRecoveryRestartFailureSessionState(ctx context.Context, sessionID string, err error) {
+	if e == nil || e.store == nil || strings.TrimSpace(sessionID) == "" || err == nil {
+		return
+	}
+	runner := e.runner(sessionID)
+	agentID, model := "", ""
+	activeTurnID, _, activeErr := e.store.GetSessionActiveTurn(ctx, sessionID)
+	if activeErr != nil && activeErr != sql.ErrNoRows {
+		return
+	}
+	queueCount, countErr := e.store.CountQueuedTurns(ctx, sessionID)
+	if countErr != nil {
+		return
+	}
+	status := "idle"
+	activeTurnValue := any(nil)
+	if activeErr == nil {
+		status = "running"
+		activeTurnValue = activeTurnID
+		if turnRec, turnErr := e.store.GetTurn(ctx, activeTurnID); turnErr == nil {
+			agentID, model = runner.resolveTurnAgentAndModel(ctx, e.store, turnRec, sessionID, turnRec.Prompt)
+		}
+	} else if queueCount > 0 {
+		status = "queued"
+	}
+	if model == "" {
+		if sessRec, sessErr := e.store.GetSession(ctx, sessionID); sessErr == nil {
+			model = stringValue(sessRec.State["model"], "")
+		}
+	}
+	runner.emitSessionStateHook(ctx, sessionID, agentID, model, status, map[string]any{
+		"reason":         "recovery_restart_failed",
+		"error":          err.Error(),
+		"active_turn_id": activeTurnValue,
+		"queue_count":    queueCount,
 	})
 }
 
