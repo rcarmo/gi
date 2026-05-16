@@ -1247,6 +1247,19 @@ func TestRecoverInterruptedTurnsReturnsErrorWhenHoldMarkerPersistenceFails(t *te
 	if current.Status != "running" || current.Phase != "waiting_on_tools" {
 		t.Fatalf("expected turn state unchanged after failed recovery marker write, got %#v", current)
 	}
+	events, err := s.ListTurnEvents(ctx, turnRec.ID)
+	if err != nil {
+		t.Fatalf("list recovery failure events: %v", err)
+	}
+	found := false
+	for _, event := range events {
+		if event.Type == "turn.recovery_failed" && event.Payload["recovery_disposition"] == "hold_for_retry_or_skip_after_tool_checkpoint" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected recovery failure audit event, got %#v", events)
+	}
 }
 
 func TestStageQueuedSteeringContinuationCreatesQueuedTurn(t *testing.T) {

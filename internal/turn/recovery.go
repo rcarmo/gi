@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/rcarmo/gi/internal/store"
@@ -13,6 +14,22 @@ import (
 var activeTurnHeartbeatInterval = 5 * time.Second
 
 const interruptedTurnStaleAfter = 30 * time.Second
+
+func (e *Engine) appendRecoveryFailureEvent(ctx context.Context, claim store.ActiveTurnClaim, err error) {
+	if e == nil || e.store == nil || err == nil || strings.TrimSpace(claim.SessionID) == "" || strings.TrimSpace(claim.TurnID) == "" {
+		return
+	}
+	warnStore("append recovery failure event", e.store.AppendTurnEvent(ctx, claim.TurnID, claim.SessionID, "turn.recovery_failed", map[string]any{
+		"phase":                "recovery",
+		"checkpoint":           true,
+		"reason":               "recovery_failed",
+		"error":                err.Error(),
+		"previous_status":      claim.Status,
+		"previous_phase":       claim.Phase,
+		"recovery_disposition": recoveryDispositionForClaim(claim),
+		"stale_claim":          true,
+	}))
+}
 
 func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) (bool, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
@@ -26,6 +43,7 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 	for _, claim := range claims {
 		if err := e.recoverInterruptedTurn(opCtx, claim); err != nil {
 			log.Printf("turn recovery: recover %s/%s failed: %v", claim.SessionID, claim.TurnID, err)
+			e.appendRecoveryFailureEvent(opCtx, claim, err)
 			if firstErr == nil {
 				firstErr = err
 			}
@@ -51,32 +69,41 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 	return recovered, nil
 }
 
+func recoveryDispositionForClaim(claim store.ActiveTurnClaim) string {
+	switch claim.Phase {
+	case "waiting_on_tools":
+		return "hold_for_retry_or_skip_after_tool_checkpoint"
+	case "cancelling":
+		return "abort_cancelling"
+	case "completed", "failed", "aborted", "cancelled":
+		return "release_terminal"
+	default:
+		if claim.Phase == "compacting" {
+			return "requeue_after_compaction_checkpoint"
+		}
+		return "requeue_interrupted_turn"
+	}
+}
+
 func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveTurnClaim) error {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	disposition := "release_terminal"
+	disposition := recoveryDispositionForClaim(claim)
 	status := claim.Status
 	phase := claim.Phase
 	markFinished := false
 
 	switch claim.Phase {
 	case "waiting_on_tools":
-		disposition = "hold_for_retry_or_skip_after_tool_checkpoint"
 		status = "failed"
 		phase = "held_for_retry_or_skip"
 		markFinished = true
 	case "cancelling":
-		disposition = "abort_cancelling"
 		status = "aborted"
 		phase = "aborted"
 		markFinished = true
 	case "completed", "failed", "aborted", "cancelled":
 		// Terminal turn with a stale claim: just release the claim.
 	default:
-		if claim.Phase == "compacting" {
-			disposition = "requeue_after_compaction_checkpoint"
-		} else {
-			disposition = "requeue_interrupted_turn"
-		}
 		status = "queued"
 		phase = "queued"
 	}
