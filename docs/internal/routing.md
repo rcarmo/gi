@@ -29,7 +29,7 @@ The routing path now also depends on store-backed session identity/allocation se
 Two guardrails matter here:
 
 - route-context construction and local routing metadata now use fallback-aware canonical identity reads, so if a caller context is already canceled the engine still derives channel/account/source-agent/scoped chat context from relational identity rows instead of quietly falling back to stale `sessions.scope_json` snapshots
-- alias matches are only accepted when the persisted session scope still matches the requested routed allocation, so broad compat aliases cannot accidentally collapse distinct routed sessions
+- alias matches are only accepted when the persisted canonical identity signature still matches the requested routed allocation, so broad compat aliases cannot accidentally collapse distinct routed sessions even if `sessions.scope_json` has drifted
 - channel-binding reuse is agent-safe: a binding only qualifies if the bound session identity still belongs to the same agent as the incoming allocation
 
 ## Mechanism overview
