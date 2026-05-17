@@ -5412,6 +5412,38 @@ func TestRunShellReportsCancellation(t *testing.T) {
 	}
 }
 
+func TestInboundContextFromSessionUsesStoredIdentityInsteadOfSessionScopeJSON(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", SpaceType: "room", SpaceID: "eng", ChatType: "group", ChatID: "thread-7", TopicID: "builds", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"space", "chat", "topic", "sender"}},
+	})
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_inbound_identity_truth", "", "@support", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"email","account":"legacy","dimensions":["chat"],"values":{"chat":"direct:legacy-chat"}}`, sess.ID); err != nil {
+		t.Fatalf("mutate legacy scope json: %v", err)
+	}
+	staleSess, err := s.GetSession(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("reload session: %v", err)
+	}
+	if staleSess.Scope == nil || staleSess.Scope.Channel != "email" {
+		t.Fatalf("expected stale session scope fixture, got %#v", staleSess.Scope)
+	}
+	inbound := inboundContextFromSession(ctx, s, staleSess)
+	if inbound.Channel != "slack" || inbound.Account != "workspace" {
+		t.Fatalf("expected identity-backed channel/account, got %#v", inbound)
+	}
+	if inbound.SpaceType != "room" || inbound.SpaceID != "eng" || inbound.ChatType != "group" || inbound.ChatID != "thread-7" || inbound.TopicID != "builds" {
+		t.Fatalf("expected identity-backed scoped inbound context, got %#v", inbound)
+	}
+}
+
 func TestCloneRouteSessionSurvivesCanceledCallerContext(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

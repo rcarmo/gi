@@ -30,6 +30,9 @@ func sessionAgentIDWithStoreFallback(ctx, fallback context.Context, s *store.Sto
 	if identity := lookupSessionIdentityWithFallback(ctx, fallback, s, sess); identity != nil && strings.TrimSpace(identity.Scope.AgentID) != "" {
 		return identity.Scope.AgentID
 	}
+	if s != nil && sess != nil && strings.TrimSpace(sess.ID) != "" {
+		return "agent"
+	}
 	return sessionAgentID(sess)
 }
 
@@ -41,6 +44,9 @@ func sessionChannelWithStoreFallback(ctx, fallback context.Context, s *store.Sto
 	if identity := lookupSessionIdentityWithFallback(ctx, fallback, s, sess); identity != nil && strings.TrimSpace(identity.Scope.Channel) != "" {
 		return identity.Scope.Channel
 	}
+	if s != nil && sess != nil && strings.TrimSpace(sess.ID) != "" {
+		return "gi"
+	}
 	return sessionChannel(sess)
 }
 
@@ -51,6 +57,9 @@ func sessionChannelWithStore(ctx context.Context, s *store.Store, sess *store.Se
 func sessionAccountWithStoreFallback(ctx, fallback context.Context, s *store.Store, sess *store.Session) string {
 	if identity := lookupSessionIdentityWithFallback(ctx, fallback, s, sess); identity != nil && strings.TrimSpace(identity.Scope.Account) != "" {
 		return identity.Scope.Account
+	}
+	if s != nil && sess != nil && strings.TrimSpace(sess.ID) != "" {
+		return "default"
 	}
 	return sessionAccount(sess)
 }

@@ -111,6 +111,41 @@ func TestStoreResolvesSessionByOpaqueKeyAndAlias(t *testing.T) {
 	}
 }
 
+func TestStoreFindSessionByAllocationUsesSessionIdentityInsteadOfSessionScopeJSON(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_route_identity_truth", "", "@support", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"wrong","account":"wrong","dimensions":["chat"],"values":{"chat":"direct:wrong"}}`, sess.ID); err != nil {
+		t.Fatalf("mutate legacy scope json: %v", err)
+	}
+	byAlloc, err := s.FindSessionByAllocation(ctx, alloc)
+	if err != nil {
+		t.Fatalf("find session by allocation after stale scope mutation: %v", err)
+	}
+	if byAlloc.ID != sess.ID {
+		t.Fatalf("unexpected allocation resolution after stale scope mutation: %#v", byAlloc)
+	}
+	loaded, err := s.GetSession(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("reload session: %v", err)
+	}
+	if loaded.Scope == nil || loaded.Scope.AgentID != "wrong" {
+		t.Fatalf("expected reloaded session scope json to be stale test fixture, got %#v", loaded.Scope)
+	}
+}
+
 func TestStoreResolveSessionByKeyOrAlias(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

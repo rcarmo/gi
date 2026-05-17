@@ -182,7 +182,7 @@ func inboundContextFromSessionWithFallback(ctx, fallback context.Context, s *sto
 	var scope *gisession.SessionScope
 	if identity != nil {
 		scope = &identity.Scope
-	} else if sess != nil {
+	} else if s == nil && sess != nil {
 		scope = sess.Scope
 	}
 	if sess == nil || scope == nil || scope.Values == nil {
