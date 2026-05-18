@@ -5444,6 +5444,70 @@ func TestInboundContextFromSessionUsesStoredIdentityInsteadOfSessionScopeJSON(t 
 	}
 }
 
+func TestRecordRouteDecisionUsesStoredIdentityInsteadOfSessionScopeJSON(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("support", "slack", "workspace", "session_route_decision_identity")
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_route_decision_identity", "", "@support", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"email","account":"legacy","dimensions":["chat"],"values":{"chat":"direct:legacy"}}`, sess.ID); err != nil {
+		t.Fatalf("mutate legacy scope json: %v", err)
+	}
+	targetAlloc := gisession.AllocateDefaultSession("agent1", "slack", "workspace", "session_target_identity")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_target_identity", "", "@agent1", map[string]any{"status": "idle"}, &targetAlloc.Scope, targetAlloc.SessionAliases); err != nil {
+		t.Fatalf("create target session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_route_decision_identity", sess.ID, "completed", "hello", map[string]any{"intent": "prompt", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create source turn: %v", err)
+	}
+	engine := New(s)
+	if err := engine.recordRouteDecision(ctx, sess.ID, "turn_route_decision_identity", map[string]any{
+		"target_agent_id":   "agent1",
+		"target_session_id": "session_target_identity",
+		"route_mode":        "prompt",
+		"routing_enabled":   true,
+	}); err != nil {
+		t.Fatalf("record route decision: %v", err)
+	}
+	events, err := s.ListRouteEvents(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("list route events: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected one route event, got %#v", events)
+	}
+	if events[0].SourceAgentID != "support" {
+		t.Fatalf("expected identity-backed source agent, got %#v", events[0])
+	}
+}
+
+func TestResolveTurnAgentAndModelUsesStoredIdentityInsteadOfSessionScopeJSON(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("support", "slack", "workspace", "session_turn_agent_identity")
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_turn_agent_identity", "", "@support", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"email","account":"legacy","dimensions":["chat"],"values":{"chat":"direct:legacy"}}`, sess.ID); err != nil {
+		t.Fatalf("mutate legacy scope json: %v", err)
+	}
+	engine := New(s)
+	runner := engine.runner(sess.ID)
+	turnRec := &store.Turn{ID: "turn_turn_agent_identity", SessionID: sess.ID, Metadata: map[string]any{"model": "support-model"}}
+	agentID, model := runner.resolveTurnAgentAndModel(ctx, s, turnRec, sess.ID, "hello")
+	if agentID != "support" {
+		t.Fatalf("expected identity-backed agent id, got %q", agentID)
+	}
+	if model != "support-model" {
+		t.Fatalf("expected explicit model to be preserved, got %q", model)
+	}
+}
+
 func TestCloneRouteSessionSurvivesCanceledCallerContext(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()

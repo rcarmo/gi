@@ -7,19 +7,30 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 )
 
-func lookupSessionIdentityWithFallback(ctx, fallback context.Context, s *store.Store, sess *store.Session) *store.SessionIdentity {
-	if s == nil || sess == nil || strings.TrimSpace(sess.ID) == "" {
+func lookupSessionIdentityByIDWithFallback(ctx, fallback context.Context, s *store.Store, sessionID string) *store.SessionIdentity {
+	if s == nil || strings.TrimSpace(sessionID) == "" {
 		return nil
 	}
 	opCtx := coordinationContext(ctx, fallback)
 	if opCtx == nil {
 		return nil
 	}
-	identity, err := s.GetSessionIdentity(opCtx, sess.ID)
+	identity, err := s.GetSessionIdentity(opCtx, sessionID)
 	if err != nil {
 		return nil
 	}
 	return identity
+}
+
+func lookupSessionIdentityByID(ctx context.Context, s *store.Store, sessionID string) *store.SessionIdentity {
+	return lookupSessionIdentityByIDWithFallback(ctx, nil, s, sessionID)
+}
+
+func lookupSessionIdentityWithFallback(ctx, fallback context.Context, s *store.Store, sess *store.Session) *store.SessionIdentity {
+	if sess == nil {
+		return nil
+	}
+	return lookupSessionIdentityByIDWithFallback(ctx, fallback, s, sess.ID)
 }
 
 func lookupSessionIdentity(ctx context.Context, s *store.Store, sess *store.Session) *store.SessionIdentity {
@@ -38,6 +49,20 @@ func sessionAgentIDWithStoreFallback(ctx, fallback context.Context, s *store.Sto
 
 func sessionAgentIDWithStore(ctx context.Context, s *store.Store, sess *store.Session) string {
 	return sessionAgentIDWithStoreFallback(ctx, nil, s, sess)
+}
+
+func sessionAgentIDForSessionIDWithFallback(ctx, fallback context.Context, s *store.Store, sessionID string) string {
+	if identity := lookupSessionIdentityByIDWithFallback(ctx, fallback, s, sessionID); identity != nil && strings.TrimSpace(identity.Scope.AgentID) != "" {
+		return identity.Scope.AgentID
+	}
+	if s != nil && strings.TrimSpace(sessionID) != "" {
+		return "agent"
+	}
+	return "agent"
+}
+
+func sessionAgentIDForSessionID(ctx context.Context, s *store.Store, sessionID string) string {
+	return sessionAgentIDForSessionIDWithFallback(ctx, nil, s, sessionID)
 }
 
 func sessionChannelWithStoreFallback(ctx, fallback context.Context, s *store.Store, sess *store.Session) string {
