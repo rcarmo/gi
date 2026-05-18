@@ -89,7 +89,17 @@ func (e *Engine) cloneRouteSession(ctx context.Context, sourceSessionID string, 
 	if !created {
 		return cloned, false, nil
 	}
-	e.copyRouteSessionHistory(opCtx, sourceSessionID, cloned.ID)
+	messages, err := e.store.ListMessages(opCtx, sourceSessionID)
+	if err == nil {
+		for _, msg := range messages {
+			payload := map[string]any{}
+			for k, v := range msg.Payload {
+				payload[k] = v
+			}
+			payload["forked_from_message_id"] = msg.ID
+			warnStore("copy message to cloned session", e.store.AddMessage(opCtx, store.NowID("msg"), cloned.ID, msg.Role, msg.Content, payload))
+		}
+	}
 	sourceAgentID := e.store.SessionAgentID(opCtx, sourceSessionID)
 	warnStore("add forked-from message", e.store.AddMessage(opCtx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sourceAgentID), map[string]any{"kind": "fork", "source_session_id": sourceSessionID, "source_agent_id": sourceAgentID, "route_matched_by": route.MatchedBy, "clipped": true}))
 	return cloned, true, nil
@@ -158,19 +168,4 @@ func splitScopedValue(raw, fallbackType string) (string, string, bool) {
 		return "", normalizedLowerString(raw), true
 	}
 	return normalizedLowerString(fallbackType), normalizedLowerString(raw), true
-}
-
-func (e *Engine) copyRouteSessionHistory(ctx context.Context, sourceSessionID, targetSessionID string) {
-	messages, err := e.store.ListMessages(ctx, sourceSessionID)
-	if err != nil {
-		return
-	}
-	for _, msg := range messages {
-		payload := map[string]any{}
-		for k, v := range msg.Payload {
-			payload[k] = v
-		}
-		payload["forked_from_message_id"] = msg.ID
-		warnStore("copy message to cloned session", e.store.AddMessage(ctx, store.NowID("msg"), targetSessionID, msg.Role, msg.Content, payload))
-	}
 }
