@@ -16,7 +16,6 @@ import (
 
 	giauth "github.com/rcarmo/gi/internal/auth"
 	"github.com/rcarmo/gi/internal/config"
-	"github.com/rcarmo/gi/internal/routing/audit"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/tools"
@@ -351,13 +350,13 @@ func (s *Server) handleSessionRouteEvents(w http.ResponseWriter, r *http.Request
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	events, err := audit.ListEvents(r.Context(), s.store, sessionID)
+	events, err := s.store.ListRouteEvents(r.Context(), sessionID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
 	if events == nil {
-		events = []audit.Event{}
+		events = []store.RouteEvent{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"route_events": events})
 }
@@ -375,7 +374,7 @@ func (s *Server) sessionInfo(ctx context.Context, sessionID string) (map[string]
 	if err != nil {
 		return nil, err
 	}
-	routeEvents, err := audit.ListEvents(ctx, s.store, sessionID)
+	routeEvents, err := s.store.ListRouteEvents(ctx, sessionID)
 	if err != nil {
 		// Non-fatal introspection path; keep core payloads readable.
 		routeEvents = nil

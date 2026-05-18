@@ -4494,7 +4494,7 @@ func TestRecordRouteDecisionSurvivesCanceledCallerContext(t *testing.T) {
 	if err := audit.RecordDecision(engine.backgroundContext(), s, sess.ID, "turn_route_ctx", metadata, audit.Options{PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
 		t.Fatalf("record route decision with canceled caller context: %v", err)
 	}
-	events, err := audit.ListEvents(ctx, s, sess.ID)
+	events, err := s.ListRouteEvents(ctx, sess.ID)
 	if err != nil {
 		t.Fatalf("list route events: %v", err)
 	}
@@ -5507,7 +5507,7 @@ func TestRecordRouteDecisionUsesStoredIdentityInsteadOfSessionScopeJSON(t *testi
 	}, audit.Options{PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
 		t.Fatalf("record route decision: %v", err)
 	}
-	events, err := audit.ListEvents(ctx, s, sess.ID)
+	events, err := s.ListRouteEvents(ctx, sess.ID)
 	if err != nil {
 		t.Fatalf("list route events: %v", err)
 	}

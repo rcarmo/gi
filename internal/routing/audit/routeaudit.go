@@ -6,6 +6,8 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 )
 
+type Event = store.RouteEvent
+
 type Options struct {
 	PublishRuntimeRoutingEvent func(string, Event)
 	Broadcast                  func(string, map[string]any)
@@ -36,7 +38,7 @@ func RecordDecision(ctx context.Context, st *store.Store, sourceSessionID, turnI
 	if !boolValueOr(metadata["routing_enabled"], true) {
 		return nil
 	}
-	routeEventID, err := RecordEvent(ctx, st, decision)
+	routeEventID, err := st.RecordRouteEvent(ctx, decision)
 	if err != nil {
 		return err
 	}
