@@ -53,25 +53,6 @@ func (e *Engine) preparePeerRouteResolution(ctx context.Context, sourceSessionID
 	return route, inbound, nil
 }
 
-func (e *Engine) applyLocalRouteMetadata(ctx context.Context, in *RunInput, sourceSessionID, targetSessionID string, route routing.ResolvedRoute, created bool) {
-	ctx = coordinationContext(ctx, e.backgroundContext())
-	if in.Metadata == nil {
-		in.Metadata = map[string]any{}
-	}
-	in.Metadata["route_mode"] = "prompt"
-	in.Metadata["route_matched_by"] = route.MatchedBy
-	in.Metadata["target_agent_id"] = route.AgentID
-	in.Metadata["target_session_id"] = targetSessionID
-	in.Metadata["source_agent_id"] = e.store.SessionAgentID(coordinationContext(ctx, e.backgroundContext()), sourceSessionID)
-	if route.MatchedBy != "" {
-		in.Metadata["routing_policy"] = route.MatchedBy
-	}
-	in.Metadata["requested_agent_id"] = route.AgentID
-	in.Metadata["source_session_id"] = sourceSessionID
-	in.Metadata["route_created_session"] = created
-	in.Metadata["routing_enabled"] = true
-}
-
 func (e *Engine) resolveExistingRouteSession(ctx context.Context, sourceSessionID string, route routing.ResolvedRoute, allocation gisession.Allocation) (*store.Session, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if sessionID, err := e.store.FindSessionByAllocation(opCtx, allocation); err == nil {

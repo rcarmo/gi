@@ -23,9 +23,24 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 	if targetSessionID != in.SessionID {
 		return e.submitPeerRoutedPrompt(opCtx, in.SessionID, targetSessionID, route, promptBody, in.Intent, in.Model, created, directed, in.ParentTurnID, in.Metadata)
 	}
+	sourceSessionID := in.SessionID
 	in.SessionID = targetSessionID
 	in.Prompt = promptBody
-	e.applyLocalRouteMetadata(opCtx, &in, in.SessionID, targetSessionID, route, created)
+	if in.Metadata == nil {
+		in.Metadata = map[string]any{}
+	}
+	in.Metadata["route_mode"] = "prompt"
+	in.Metadata["route_matched_by"] = route.MatchedBy
+	in.Metadata["target_agent_id"] = route.AgentID
+	in.Metadata["target_session_id"] = targetSessionID
+	in.Metadata["source_agent_id"] = e.store.SessionAgentID(opCtx, sourceSessionID)
+	if route.MatchedBy != "" {
+		in.Metadata["routing_policy"] = route.MatchedBy
+	}
+	in.Metadata["requested_agent_id"] = route.AgentID
+	in.Metadata["source_session_id"] = sourceSessionID
+	in.Metadata["route_created_session"] = created
+	in.Metadata["routing_enabled"] = true
 	return e.SubmitPrompt(opCtx, in)
 }
 
