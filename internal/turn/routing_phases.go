@@ -38,21 +38,6 @@ func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) 
 	return route, inbound, promptBody, directed, nil
 }
 
-func (e *Engine) preparePeerRouteResolution(ctx context.Context, sourceSessionID, targetAgentID, content, matchedBy string) (routing.ResolvedRoute, routing.InboundContext, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
-	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
-		return routing.ResolvedRoute{}, routing.InboundContext{}, err
-	}
-	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.backgroundContext(), e.store, sourceSessionID)
-	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
-	inbound.Mentioned = true
-	inbound.Prompt = content
-	route := e.routeResolver.ResolveRoute(inbound)
-	route.AgentID = routing.NormalizeAgentID(targetAgentID)
-	route.MatchedBy = matchedBy
-	return route, inbound, nil
-}
-
 func (e *Engine) resolveExistingRouteSession(ctx context.Context, sourceSessionID string, route routing.ResolvedRoute, allocation gisession.Allocation) (*store.Session, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if sessionID, err := e.store.FindSessionByAllocation(opCtx, allocation); err == nil {

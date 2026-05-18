@@ -50,10 +50,16 @@ func (e *Engine) SubmitPeerMessage(ctx context.Context, sourceSessionID, targetA
 
 func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessionID, targetAgentID, content, intent, model, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	route, inbound, err := e.preparePeerRouteResolution(opCtx, sourceSessionID, targetAgentID, content, "peer-message")
-	if err != nil {
+	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
 		return nil, err
 	}
+	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.backgroundContext(), e.store, sourceSessionID)
+	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
+	inbound.Mentioned = true
+	inbound.Prompt = content
+	route := e.routeResolver.ResolveRoute(inbound)
+	route.AgentID = routing.NormalizeAgentID(targetAgentID)
+	route.MatchedBy = "peer-message"
 	targetSessionID, created, err := e.ResolveOrCreateRouteSession(opCtx, sourceSessionID, route, inbound)
 	if err != nil {
 		return nil, err
@@ -63,10 +69,15 @@ func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessio
 
 func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSessionID, targetAgentID string) (string, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	route, inbound, err := e.preparePeerRouteResolution(opCtx, sourceSessionID, targetAgentID, "", "peer-session")
-	if err != nil {
+	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
 		return "", err
 	}
+	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.backgroundContext(), e.store, sourceSessionID)
+	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
+	inbound.Mentioned = true
+	route := e.routeResolver.ResolveRoute(inbound)
+	route.AgentID = routing.NormalizeAgentID(targetAgentID)
+	route.MatchedBy = "peer-session"
 	targetSessionID, _, err := e.ResolveOrCreateRouteSession(opCtx, sourceSessionID, route, inbound)
 	if err != nil {
 		return "", err
