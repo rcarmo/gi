@@ -131,8 +131,8 @@ func (e *Engine) prepareRouteSessionPlan(sourceSessionID string, route routing.R
 
 func (e *Engine) resolveExistingRouteSession(ctx context.Context, plan *routeSessionPlan) (*store.Session, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	if existing, err := e.store.ResolveSessionByAllocation(opCtx, plan.allocation); err == nil {
-		return existing, nil
+	if sessionID, err := e.store.FindSessionByAllocation(opCtx, plan.allocation); err == nil {
+		return e.store.GetSession(opCtx, sessionID)
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}

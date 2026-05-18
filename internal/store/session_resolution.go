@@ -9,10 +9,6 @@ import (
 	gisession "github.com/rcarmo/gi/internal/session"
 )
 
-func (s *Store) ResolveSessionByAllocation(ctx context.Context, alloc gisession.Allocation) (*Session, error) {
-	return s.FindSessionByAllocation(ctx, gisession.NormalizeAllocationIdentityLinks(alloc))
-}
-
 func (s *Store) ResolveOrCreateSessionFromAllocation(ctx context.Context, in ResolveOrCreateSessionFromAllocationInput) (*Session, bool, error) {
 	in.Allocation = gisession.NormalizeAllocationIdentityLinks(in.Allocation)
 	if continueSessionID := strings.TrimSpace(in.ContinueSessionID); continueSessionID != "" {
@@ -30,7 +26,7 @@ func (s *Store) ResolveOrCreateSessionFromAllocation(ctx context.Context, in Res
 		}
 		return resolved, false, nil
 	}
-	if sessionID, err := s.findSessionIDByAllocation(ctx, in.Allocation); err == nil {
+	if sessionID, err := s.FindSessionByAllocation(ctx, in.Allocation); err == nil {
 		resolved, err := s.GetSession(ctx, sessionID)
 		if err != nil {
 			return nil, false, err
@@ -43,7 +39,7 @@ func (s *Store) ResolveOrCreateSessionFromAllocation(ctx context.Context, in Res
 	if err == nil {
 		return created, true, nil
 	}
-	if sessionID, resolveErr := s.findSessionIDByAllocation(ctx, in.Allocation); resolveErr == nil {
+	if sessionID, resolveErr := s.FindSessionByAllocation(ctx, in.Allocation); resolveErr == nil {
 		resolved, err := s.GetSession(ctx, sessionID)
 		if err != nil {
 			return nil, false, err
@@ -105,10 +101,6 @@ func (s *Store) findSessionIDByAllocation(ctx context.Context, alloc gisession.A
 	return "", sql.ErrNoRows
 }
 
-func (s *Store) FindSessionByAllocation(ctx context.Context, alloc gisession.Allocation) (*Session, error) {
-	sessionID, err := s.findSessionIDByAllocation(ctx, alloc)
-	if err != nil {
-		return nil, err
-	}
-	return s.GetSession(ctx, sessionID)
+func (s *Store) FindSessionByAllocation(ctx context.Context, alloc gisession.Allocation) (string, error) {
+	return s.findSessionIDByAllocation(ctx, gisession.NormalizeAllocationIdentityLinks(alloc))
 }

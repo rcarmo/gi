@@ -102,12 +102,12 @@ func TestStoreResolvesSessionByOpaqueKeyAndAlias(t *testing.T) {
 		t.Fatalf("unexpected session id by alias: %q", byAliasID)
 	}
 
-	byAlloc, err := s.FindSessionByAllocation(ctx, alloc)
+	byAllocID, err := s.FindSessionByAllocation(ctx, alloc)
 	if err != nil {
 		t.Fatalf("find session by allocation: %v", err)
 	}
-	if byAlloc.ID != sess.ID {
-		t.Fatalf("unexpected allocation resolution: %#v", byAlloc)
+	if byAllocID != sess.ID {
+		t.Fatalf("unexpected allocation id resolution: %q", byAllocID)
 	}
 }
 
@@ -130,12 +130,12 @@ func TestStoreFindSessionByAllocationUsesSessionIdentityInsteadOfSessionScopeJSO
 	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"wrong","account":"wrong","dimensions":["chat"],"values":{"chat":"direct:wrong"}}`, sess.ID); err != nil {
 		t.Fatalf("mutate legacy scope json: %v", err)
 	}
-	byAlloc, err := s.FindSessionByAllocation(ctx, alloc)
+	byAllocID, err := s.FindSessionByAllocation(ctx, alloc)
 	if err != nil {
 		t.Fatalf("find session by allocation after stale scope mutation: %v", err)
 	}
-	if byAlloc.ID != sess.ID {
-		t.Fatalf("unexpected allocation resolution after stale scope mutation: %#v", byAlloc)
+	if byAllocID != sess.ID {
+		t.Fatalf("unexpected allocation id resolution after stale scope mutation: %q", byAllocID)
 	}
 	loaded, err := s.GetSession(ctx, sess.ID)
 	if err != nil {
@@ -573,12 +573,12 @@ func TestStoreResolveSessionByAllocationCollapsesIdentityLinksAtStoreBoundary(t 
 		SessionAliases: []string{"agent:support:slack:chat:group:thread-7:sender:slack:ruicarmo", "slack:group:thread-7"},
 		IdentityLinks:  map[string][]string{"rui": {"slack:ruicarmo", "ruicarmo"}},
 	}
-	resolved, err := s.ResolveSessionByAllocation(ctx, staleAlloc)
+	resolvedID, err := s.FindSessionByAllocation(ctx, staleAlloc)
 	if err != nil {
-		t.Fatalf("resolve allocation with store-boundary identity-link collapse: %v", err)
+		t.Fatalf("resolve allocation id with store-boundary identity-link collapse: %v", err)
 	}
-	if resolved.ID != sess.ID {
-		t.Fatalf("expected identity-link allocation collapse to reuse canonical session, got %#v", resolved)
+	if resolvedID != sess.ID {
+		t.Fatalf("expected identity-link allocation collapse to reuse canonical session, got %q", resolvedID)
 	}
 }
 
@@ -832,12 +832,12 @@ func TestStoreResolveOrCreateSessionFromAllocationContinuesSessionAcrossChannels
 	if len(bindings) < 2 {
 		t.Fatalf("expected alternate channel binding to be attached, got %#v", bindings)
 	}
-	resolved, err := s.ResolveSessionByAllocation(ctx, altAlloc)
+	resolvedID, err := s.FindSessionByAllocation(ctx, altAlloc)
 	if err != nil {
-		t.Fatalf("resolve alternate allocation after continuation: %v", err)
+		t.Fatalf("resolve alternate allocation id after continuation: %v", err)
 	}
-	if resolved.ID != sess.ID {
-		t.Fatalf("expected alternate allocation to reuse continued session, got %#v", resolved)
+	if resolvedID != sess.ID {
+		t.Fatalf("expected alternate allocation to reuse continued session, got %q", resolvedID)
 	}
 }
 
@@ -865,12 +865,12 @@ func TestStoreResolveSessionByAllocationUsesAlternateChannelBinding(t *testing.T
 		Context:       routing.InboundContext{Channel: "discord", Account: "guild", ChatType: "direct", ChatID: "user-42", SenderID: "rui"},
 		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
 	})
-	resolved, err := s.ResolveSessionByAllocation(ctx, altAlloc)
+	resolvedID, err := s.FindSessionByAllocation(ctx, altAlloc)
 	if err != nil {
-		t.Fatalf("resolve allocation by alternate channel binding: %v", err)
+		t.Fatalf("resolve allocation id by alternate channel binding: %v", err)
 	}
-	if resolved.ID != sess.ID {
-		t.Fatalf("expected alternate channel binding to reuse same session, got %#v", resolved)
+	if resolvedID != sess.ID {
+		t.Fatalf("expected alternate channel binding to reuse same session, got %q", resolvedID)
 	}
 }
 
@@ -965,12 +965,12 @@ func TestStoreFindSessionByAllocationFallsBackToCanonicalSignature(t *testing.T)
 	if _, err := s.DB().ExecContext(ctx, `delete from session_aliases where session_id = ?`, sess.ID); err != nil {
 		t.Fatalf("delete aliases: %v", err)
 	}
-	found, err := s.FindSessionByAllocation(ctx, alloc)
+	foundID, err := s.FindSessionByAllocation(ctx, alloc)
 	if err != nil {
-		t.Fatalf("find session by allocation with signature fallback: %v", err)
+		t.Fatalf("find session id by allocation with signature fallback: %v", err)
 	}
-	if found.ID != sess.ID {
-		t.Fatalf("unexpected signature fallback session: %#v", found)
+	if foundID != sess.ID {
+		t.Fatalf("unexpected signature fallback session id: %q", foundID)
 	}
 }
 
