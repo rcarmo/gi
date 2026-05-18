@@ -146,6 +146,31 @@ func TestStoreFindSessionByAllocationUsesSessionIdentityInsteadOfSessionScopeJSO
 	}
 }
 
+func TestStoreResolveSessionIDByChannelBinding(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_binding_id_lookup", Title: "@support", State: map[string]any{"status": "idle"}, Allocation: alloc})
+	if err != nil {
+		t.Fatalf("resolve or create main session: %v", err)
+	}
+	resolvedID, err := s.ResolveSessionIDByChannelBinding(ctx, "slack", "workspace", "group:thread-7")
+	if err != nil {
+		t.Fatalf("resolve session id by channel binding: %v", err)
+	}
+	if resolvedID != sess.ID {
+		t.Fatalf("unexpected channel-binding id resolution: %q", resolvedID)
+	}
+}
+
 func TestStoreResolveSessionIDHelpers(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

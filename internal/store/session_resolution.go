@@ -54,11 +54,11 @@ func (s *Store) FindSessionByAllocation(ctx context.Context, alloc gisession.All
 		return nil, err
 	}
 	if binding, ok := channelBindingFromAllocation(alloc); ok {
-		sess, err := s.ResolveSessionByChannelBinding(ctx, binding.Channel, binding.Account, binding.RemoteIdentity)
+		sessionID, err := s.ResolveSessionIDByChannelBinding(ctx, binding.Channel, binding.Account, binding.RemoteIdentity)
 		if err == nil {
-			identity, identityErr := s.GetSessionIdentity(ctx, sess.ID)
+			identity, identityErr := s.GetSessionIdentity(ctx, sessionID)
 			if identityErr == nil && strings.EqualFold(strings.TrimSpace(identity.Scope.AgentID), strings.TrimSpace(alloc.Scope.AgentID)) {
-				return sess, nil
+				return s.GetSession(ctx, sessionID)
 			}
 		} else if !errors.Is(err, sql.ErrNoRows) {
 			return nil, err

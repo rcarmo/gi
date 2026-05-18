@@ -100,12 +100,12 @@ func (s *Store) UpsertSessionChannelBinding(ctx context.Context, binding Session
 	return nil
 }
 
-func (s *Store) ResolveSessionByChannelBinding(ctx context.Context, channel, account, remoteIdentity string) (*Session, error) {
+func (s *Store) ResolveSessionIDByChannelBinding(ctx context.Context, channel, account, remoteIdentity string) (string, error) {
 	channel = normalizeChannelBindingValue(channel)
 	account = normalizeIdentityTupleValue(account, "default")
 	remoteIdentity = normalizeChannelBindingValue(remoteIdentity)
 	if channel == "" || account == "" || remoteIdentity == "" {
-		return nil, sql.ErrNoRows
+		return "", sql.ErrNoRows
 	}
 	row := s.db.QueryRowContext(ctx, `
 		select session_id
@@ -114,6 +114,14 @@ func (s *Store) ResolveSessionByChannelBinding(ctx context.Context, channel, acc
 	`, channel, account, remoteIdentity)
 	var sessionID string
 	if err := row.Scan(&sessionID); err != nil {
+		return "", err
+	}
+	return sessionID, nil
+}
+
+func (s *Store) ResolveSessionByChannelBinding(ctx context.Context, channel, account, remoteIdentity string) (*Session, error) {
+	sessionID, err := s.ResolveSessionIDByChannelBinding(ctx, channel, account, remoteIdentity)
+	if err != nil {
 		return nil, err
 	}
 	return s.GetSession(ctx, sessionID)
