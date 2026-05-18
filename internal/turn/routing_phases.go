@@ -21,13 +21,6 @@ type routedPromptResolution struct {
 	created         bool
 }
 
-type routeSessionPlan struct {
-	sourceSessionID string
-	route           routing.ResolvedRoute
-	inbound         routing.InboundContext
-	allocation      gisession.Allocation
-}
-
 func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) (*routedPromptResolution, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if err := e.store.RequireSession(opCtx, in.SessionID); err != nil {
@@ -111,35 +104,19 @@ func (e *Engine) applyLocalRouteMetadata(ctx context.Context, in *RunInput, reso
 	in.Metadata["routing_enabled"] = true
 }
 
-func (e *Engine) prepareRouteSessionPlan(sourceSessionID string, route routing.ResolvedRoute, inbound routing.InboundContext) (*routeSessionPlan, error) {
-	if strings.TrimSpace(sourceSessionID) == "" {
-		return nil, fmt.Errorf("missing source session")
-	}
-	return &routeSessionPlan{
-		sourceSessionID: sourceSessionID,
-		route:           route,
-		inbound:         inbound,
-		allocation: gisession.AllocateRouteSession(gisession.AllocationInput{
-			AgentID:       route.AgentID,
-			Context:       inbound,
-			SessionPolicy: route.SessionPolicy,
-		}),
-	}, nil
-}
-
-func (e *Engine) resolveExistingRouteSession(ctx context.Context, plan *routeSessionPlan) (*store.Session, error) {
+func (e *Engine) resolveExistingRouteSession(ctx context.Context, sourceSessionID string, route routing.ResolvedRoute, allocation gisession.Allocation) (*store.Session, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	if sessionID, err := e.store.FindSessionByAllocation(opCtx, plan.allocation); err == nil {
+	if sessionID, err := e.store.FindSessionByAllocation(opCtx, allocation); err == nil {
 		return e.store.GetSession(opCtx, sessionID)
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	if sessionID, err := e.store.FindChildSessionIDByParentAndAgent(opCtx, plan.sourceSessionID, plan.route.AgentID); err == nil {
+	if sessionID, err := e.store.FindChildSessionIDByParentAndAgent(opCtx, sourceSessionID, route.AgentID); err == nil {
 		return e.store.GetSession(opCtx, sessionID)
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	if sessionID, err := e.store.FindSiblingChildSessionIDByParentAndAgent(opCtx, plan.sourceSessionID, plan.route.AgentID); err == nil {
+	if sessionID, err := e.store.FindSiblingChildSessionIDByParentAndAgent(opCtx, sourceSessionID, route.AgentID); err == nil {
 		return e.store.GetSession(opCtx, sessionID)
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
@@ -147,15 +124,15 @@ func (e *Engine) resolveExistingRouteSession(ctx context.Context, plan *routeSes
 	return nil, nil
 }
 
-func (e *Engine) cloneRouteSession(ctx context.Context, plan *routeSessionPlan) (*store.Session, bool, error) {
+func (e *Engine) cloneRouteSession(ctx context.Context, sourceSessionID string, route routing.ResolvedRoute, allocation gisession.Allocation) (*store.Session, bool, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	state := map[string]any{"status": "idle", "queue_count": 0, "model": e.modelForAgent(plan.route.AgentID), "provider": e.runtimeCfg.DefaultProvider, "thinking_level": e.runtimeCfg.DefaultThinkingLevel}
+	state := map[string]any{"status": "idle", "queue_count": 0, "model": e.modelForAgent(route.AgentID), "provider": e.runtimeCfg.DefaultProvider, "thinking_level": e.runtimeCfg.DefaultThinkingLevel}
 	cloned, created, err := e.store.ResolveOrCreateSessionFromAllocation(opCtx, store.ResolveOrCreateSessionFromAllocationInput{
 		ID:              store.NowID("session"),
-		ParentSessionID: plan.sourceSessionID,
-		Title:           "@" + plan.route.AgentID,
+		ParentSessionID: sourceSessionID,
+		Title:           "@" + route.AgentID,
 		State:           state,
-		Allocation:      plan.allocation,
+		Allocation:      allocation,
 	})
 	if err != nil {
 		return nil, false, err
@@ -163,9 +140,9 @@ func (e *Engine) cloneRouteSession(ctx context.Context, plan *routeSessionPlan) 
 	if !created {
 		return cloned, false, nil
 	}
-	e.copyRouteSessionHistory(opCtx, plan.sourceSessionID, cloned.ID)
-	sourceAgentID := e.store.SessionAgentID(opCtx, plan.sourceSessionID)
-	warnStore("add forked-from message", e.store.AddMessage(opCtx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sourceAgentID), map[string]any{"kind": "fork", "source_session_id": plan.sourceSessionID, "source_agent_id": sourceAgentID, "route_matched_by": plan.route.MatchedBy, "clipped": true}))
+	e.copyRouteSessionHistory(opCtx, sourceSessionID, cloned.ID)
+	sourceAgentID := e.store.SessionAgentID(opCtx, sourceSessionID)
+	warnStore("add forked-from message", e.store.AddMessage(opCtx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sourceAgentID), map[string]any{"kind": "fork", "source_session_id": sourceSessionID, "source_agent_id": sourceAgentID, "route_matched_by": route.MatchedBy, "clipped": true}))
 	return cloned, true, nil
 }
 

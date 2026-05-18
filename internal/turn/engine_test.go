@@ -5407,11 +5407,13 @@ func TestResolveExistingRouteSessionUsesSiblingLookupWithoutSourceParentField(t 
 	}
 	staleSource.ParentSessionID = ""
 	engine := New(s)
-	plan, err := engine.prepareRouteSessionPlan(staleSource.ID, routing.ResolvedRoute{AgentID: "agentB", MatchedBy: "mention"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
-	if err != nil {
-		t.Fatalf("prepare route session plan: %v", err)
-	}
-	resolved, err := engine.resolveExistingRouteSession(ctx, plan)
+	route := routing.ResolvedRoute{AgentID: "agentB", MatchedBy: "mention"}
+	allocation := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       route.AgentID,
+		Context:       routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID},
+		SessionPolicy: route.SessionPolicy,
+	})
+	resolved, err := engine.resolveExistingRouteSession(ctx, staleSource.ID, route, allocation)
 	if err != nil {
 		t.Fatalf("resolve existing route session: %v", err)
 	}
@@ -5563,13 +5565,15 @@ func TestCloneRouteSessionSurvivesCanceledCallerContext(t *testing.T) {
 		t.Fatalf("create source: %v", err)
 	}
 	engine := New(s)
-	plan, err := engine.prepareRouteSessionPlan(source.ID, routing.ResolvedRoute{AgentID: "agent1", MatchedBy: "mention"}, inboundContextFromSessionID(ctx, s, source.ID))
-	if err != nil {
-		t.Fatalf("prepare route session plan: %v", err)
-	}
+	route := routing.ResolvedRoute{AgentID: "agent1", MatchedBy: "mention"}
+	allocation := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       route.AgentID,
+		Context:       inboundContextFromSessionID(ctx, s, source.ID),
+		SessionPolicy: route.SessionPolicy,
+	})
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
-	cloned, created, err := engine.cloneRouteSession(cancelCtx, plan)
+	cloned, created, err := engine.cloneRouteSession(cancelCtx, source.ID, route, allocation)
 	if err != nil {
 		t.Fatalf("clone route session with canceled caller context: %v", err)
 	}

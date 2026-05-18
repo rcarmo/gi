@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/rcarmo/gi/internal/routing"
+	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
 )
 
@@ -63,18 +64,19 @@ func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, sourceSessionI
 	if routing.NormalizeAgentID(e.store.SessionAgentID(opCtx, sourceSessionID)) == routing.NormalizeAgentID(route.AgentID) {
 		return sourceSessionID, false, nil
 	}
-	plan, err := e.prepareRouteSessionPlan(sourceSessionID, route, inbound)
-	if err != nil {
-		return "", false, err
-	}
-	existing, err := e.resolveExistingRouteSession(opCtx, plan)
+	allocation := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       route.AgentID,
+		Context:       inbound,
+		SessionPolicy: route.SessionPolicy,
+	})
+	existing, err := e.resolveExistingRouteSession(opCtx, sourceSessionID, route, allocation)
 	if err != nil {
 		return "", false, err
 	}
 	if existing != nil {
 		return existing.ID, false, nil
 	}
-	cloned, created, err := e.cloneRouteSession(opCtx, plan)
+	cloned, created, err := e.cloneRouteSession(opCtx, sourceSessionID, route, allocation)
 	if err != nil {
 		return "", false, err
 	}
