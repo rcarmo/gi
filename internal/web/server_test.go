@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/rcarmo/gi/internal/config"
-	"github.com/rcarmo/gi/internal/routing/audit"
+	"github.com/rcarmo/gi/internal/routing"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
@@ -357,7 +357,7 @@ func TestSessionRouteEventsEndpoint(t *testing.T) {
 		t.Fatalf("route-events status: %d body=%s", eventsRes.Code, eventsRes.Body.String())
 	}
 	var payload struct {
-		RouteEvents []audit.Event `json:"route_events"`
+		RouteEvents []routing.Event `json:"route_events"`
 	}
 	if err := json.Unmarshal(eventsRes.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("decode route-events: %v", err)

@@ -3,7 +3,7 @@ package turn
 import (
 	"strings"
 
-	"github.com/rcarmo/gi/internal/routing/audit"
+	"github.com/rcarmo/gi/internal/routing"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
 )
@@ -192,7 +192,7 @@ func (e *Engine) PublishRuntimeToolEvent(eventType, sessionID, turnID, agentID, 
 	e.publishRuntimeTopicEvent("runtime.tool", sessionID, agentID, envelopeType, eventType, body)
 }
 
-func (e *Engine) PublishRuntimeRoutingEvent(eventType string, decision audit.Event) {
+func (e *Engine) PublishRuntimeRoutingEvent(eventType string, decision routing.Event) {
 	body := cloneMap(decision.Metadata)
 	if body == nil {
 		body = map[string]any{}

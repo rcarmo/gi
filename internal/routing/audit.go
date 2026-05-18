@@ -1,19 +1,30 @@
-package audit
+package routing
 
-import (
-	"context"
+import "context"
 
-	"github.com/rcarmo/gi/internal/store"
-)
-
-type Event = store.RouteEvent
+type Event struct {
+	ID             int64          `json:"id"`
+	TurnID         string         `json:"turn_id,omitempty"`
+	SourceSession  string         `json:"source_session_id"`
+	TargetSession  string         `json:"target_session_id,omitempty"`
+	SourceAgentID  string         `json:"source_agent_id,omitempty"`
+	TargetAgentID  string         `json:"target_agent_id"`
+	Mode           string         `json:"mode"`
+	MatchedBy      string         `json:"matched_by,omitempty"`
+	RoutingPolicy  string         `json:"routing_policy,omitempty"`
+	RequestedAgent string         `json:"requested_agent_id,omitempty"`
+	Metadata       map[string]any `json:"metadata"`
+	CreatedAt      string         `json:"created_at"`
+}
 
 type Options struct {
+	SessionAgentID             func(context.Context, string) string
+	RecordRouteEvent           func(context.Context, Event) (int64, error)
 	PublishRuntimeRoutingEvent func(string, Event)
 	Broadcast                  func(string, map[string]any)
 }
 
-func RecordDecision(ctx context.Context, st *store.Store, sourceSessionID, turnID string, metadata map[string]any, opts Options) error {
+func RecordDecision(ctx context.Context, sourceSessionID, turnID string, metadata map[string]any, opts Options) error {
 	sourceSession := stringValue(metadata["source_session_id"], sourceSessionID)
 	targetSession := stringValue(metadata["target_session_id"], "")
 	targetAgentID := stringValue(metadata["target_agent_id"], "")
@@ -22,8 +33,8 @@ func RecordDecision(ctx context.Context, st *store.Store, sourceSessionID, turnI
 	}
 	routeMode := stringValue(metadata["route_mode"], stringValue(metadata["mode"], "prompt"))
 	sourceAgent := stringValue(metadata["source_agent_id"], "")
-	if sourceAgent == "" {
-		sourceAgent = st.SessionAgentID(ctx, sourceSession)
+	if sourceAgent == "" && opts.SessionAgentID != nil {
+		sourceAgent = opts.SessionAgentID(ctx, sourceSession)
 	}
 	routingPolicy := stringValue(metadata["routing_policy"], "")
 	matchedBy := stringValue(metadata["route_matched_by"], "")
@@ -38,7 +49,10 @@ func RecordDecision(ctx context.Context, st *store.Store, sourceSessionID, turnI
 	if !boolValueOr(metadata["routing_enabled"], true) {
 		return nil
 	}
-	routeEventID, err := st.RecordRouteEvent(ctx, decision)
+	if opts.RecordRouteEvent == nil {
+		return nil
+	}
+	routeEventID, err := opts.RecordRouteEvent(ctx, decision)
 	if err != nil {
 		return err
 	}
