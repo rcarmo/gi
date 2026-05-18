@@ -244,19 +244,19 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if in.ParentTurnID != "" {
 		metadata["parent_turn_id"] = in.ParentTurnID
 		if v, ok := in.Metadata["subturn_max_depth"]; ok {
-			subTurnMaxDepth = intValueOr(v, defaultSubTurnMaxDepth)
+			subTurnMaxDepth = store.IntValueOr(v, defaultSubTurnMaxDepth)
 		}
 		if v, ok := in.Metadata["subturn_max_concurrency"]; ok {
-			subTurnMaxConcurrency = intValueOr(v, defaultSubTurnMaxConcurrency)
+			subTurnMaxConcurrency = store.IntValueOr(v, defaultSubTurnMaxConcurrency)
 		}
 		if modeRaw, ok := in.Metadata["subturn_delivery_mode"]; ok {
-			mode, err := normalizeSubTurnDeliveryMode(stringValue(modeRaw, "sync"))
+			mode, err := normalizeSubTurnDeliveryMode(store.StringValue(modeRaw, "sync"))
 			if err != nil {
 				return nil, err
 			}
 			subTurnDeliveryMode = mode
 		}
-		subTurnCritical = boolValueOr(in.Metadata["subturn_critical"], boolValue(in.Metadata["critical"]))
+		subTurnCritical = store.BoolValueOr(in.Metadata["subturn_critical"], store.BoolValue(in.Metadata["critical"]))
 		if subTurnMaxDepth <= 0 {
 			subTurnMaxDepth = defaultSubTurnMaxDepth
 		}
@@ -268,7 +268,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 			return nil, fmt.Errorf("resolve parent turn: %w", err)
 		}
 		parentSessionID = parentTurn.SessionID
-		subTurnDepth = intValueOr(parentTurn.Metadata["subturn_depth"], 0) + 1
+		subTurnDepth = store.IntValueOr(parentTurn.Metadata["subturn_depth"], 0) + 1
 		if subTurnDepth > subTurnMaxDepth {
 			return nil, fmt.Errorf("subturn depth limit exceeded: depth=%d max=%d", subTurnDepth, subTurnMaxDepth)
 		}
@@ -610,7 +610,7 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 	}
 	sessionState := map[string]any{"active_turn_id": turnID, "status": "running"}
 	if turnRec, turnErr := e.store.GetTurn(opCtx, turnID); turnErr == nil {
-		if model := strings.TrimSpace(stringValue(turnRec.Metadata["model"], "")); model != "" {
+		if model := strings.TrimSpace(store.StringValue(turnRec.Metadata["model"], "")); model != "" {
 			sessionState["model"] = model
 		}
 	}

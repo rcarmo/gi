@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/rcarmo/gi/internal/store"
 	goai "github.com/rcarmo/go-ai"
 )
 
@@ -37,7 +38,7 @@ func hookResponseFromScript(result string) (HookResponse, error) {
 	}
 	resp.Action = strings.ToLower(strings.TrimSpace(resp.Action))
 	if resp.Action == "" {
-		if action := stringValue(raw["action"], ""); strings.TrimSpace(action) != "" {
+		if action := store.StringValue(raw["action"], ""); strings.TrimSpace(action) != "" {
 			resp.Action = strings.ToLower(strings.TrimSpace(action))
 		}
 	}
@@ -49,10 +50,10 @@ func hookResponseFromScript(result string) (HookResponse, error) {
 	case "respond":
 		resp.Handled = true
 		if strings.TrimSpace(resp.Message) == "" {
-			if response := stringValue(raw["response"], ""); strings.TrimSpace(response) != "" {
+			if response := store.StringValue(raw["response"], ""); strings.TrimSpace(response) != "" {
 				resp.Message = response
 			} else if payload, ok := raw["payload"].(map[string]any); ok {
-				resp.Message = stringValue(payload["response"], "")
+				resp.Message = store.StringValue(payload["response"], "")
 			}
 		}
 	case "deny":

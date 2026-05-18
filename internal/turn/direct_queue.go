@@ -33,14 +33,14 @@ func directEnvelopeFromInput(in DirectInput) map[string]any {
 
 func directInputFromEnvelope(envelope map[string]any) DirectInput {
 	in := DirectInput{
-		Kind:          stringValue(envelope["kind"], ""),
-		SessionID:     stringValue(envelope["session_id"], ""),
-		SessionKey:    stringValue(envelope["session_key"], ""),
-		TargetAgentID: stringValue(envelope["target_agent_id"], ""),
-		Prompt:        stringValue(envelope["prompt"], ""),
-		Intent:        stringValue(envelope["intent"], ""),
-		Model:         stringValue(envelope["model"], ""),
-		ParentTurnID:  stringValue(envelope["parent_turn_id"], ""),
+		Kind:          store.StringValue(envelope["kind"], ""),
+		SessionID:     store.StringValue(envelope["session_id"], ""),
+		SessionKey:    store.StringValue(envelope["session_key"], ""),
+		TargetAgentID: store.StringValue(envelope["target_agent_id"], ""),
+		Prompt:        store.StringValue(envelope["prompt"], ""),
+		Intent:        store.StringValue(envelope["intent"], ""),
+		Model:         store.StringValue(envelope["model"], ""),
+		ParentTurnID:  store.StringValue(envelope["parent_turn_id"], ""),
 		Metadata:      map[string]any{},
 	}
 	if metadata, ok := envelope["metadata"].(map[string]any); ok && metadata != nil {
@@ -48,10 +48,10 @@ func directInputFromEnvelope(envelope map[string]any) DirectInput {
 	}
 	if origin, ok := envelope["origin"].(map[string]any); ok && origin != nil {
 		in.Origin = DirectOrigin{
-			SourceKind: stringValue(origin["source_kind"], ""),
-			SourceID:   stringValue(origin["source_id"], ""),
-			Role:       stringValue(origin["role"], ""),
-			Label:      stringValue(origin["label"], ""),
+			SourceKind: store.StringValue(origin["source_kind"], ""),
+			SourceID:   store.StringValue(origin["source_id"], ""),
+			Role:       store.StringValue(origin["role"], ""),
+			Label:      store.StringValue(origin["label"], ""),
 		}
 	}
 	return in

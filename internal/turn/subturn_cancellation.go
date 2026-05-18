@@ -39,7 +39,7 @@ func isTimeoutFailureKind(failureKind string) bool {
 }
 
 func isCriticalSubTurn(sub store.SubTurn) bool {
-	return boolValue(sub.Metadata["subturn_critical"]) || boolValue(sub.Metadata["critical"])
+	return store.BoolValue(sub.Metadata["subturn_critical"]) || store.BoolValue(sub.Metadata["critical"])
 }
 
 func isCancellableSubTurnStatus(status string) bool {

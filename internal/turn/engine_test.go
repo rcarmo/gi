@@ -4827,7 +4827,7 @@ func TestProcessNextInboundWorkProcessesQueuedDirectPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if stringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:queue" || stringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
+	if store.StringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:queue" || store.StringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
 		t.Fatalf("expected ingress metadata on queued direct turn, got %#v", turnRec.Metadata)
 	}
 }
@@ -4930,7 +4930,7 @@ func TestProcessDirectPromptResolvesExplicitSessionKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if stringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
+	if store.StringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
 		t.Fatalf("expected ingress session key metadata, got %#v", turnRec.Metadata)
 	}
 	msgs, err := s.ListMessages(ctx, sess.ID)
@@ -4939,7 +4939,7 @@ func TestProcessDirectPromptResolvesExplicitSessionKey(t *testing.T) {
 	}
 	foundUserIngress := false
 	for _, msg := range msgs {
-		if msg.Role == "user" && msg.Content == "hello from key" && stringValue(msg.Payload["ingress_session_key"], "") == alloc.SessionKey {
+		if msg.Role == "user" && msg.Content == "hello from key" && store.StringValue(msg.Payload["ingress_session_key"], "") == alloc.SessionKey {
 			foundUserIngress = true
 		}
 	}
@@ -4952,7 +4952,7 @@ func TestProcessDirectPromptResolvesExplicitSessionKey(t *testing.T) {
 	}
 	foundStartedIngress := false
 	for _, event := range events {
-		if event.Type == "turn.started" && stringValue(event.Payload["ingress_session_key"], "") == alloc.SessionKey {
+		if event.Type == "turn.started" && store.StringValue(event.Payload["ingress_session_key"], "") == alloc.SessionKey {
 			foundStartedIngress = true
 		}
 	}
@@ -4988,7 +4988,7 @@ func TestProcessDirectPromptBySessionKeySurvivesCanceledCallerContext(t *testing
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if turnRec.SessionID != sess.ID || stringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
+	if turnRec.SessionID != sess.ID || store.StringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
 		t.Fatalf("expected canceled-caller direct prompt to resolve session key and persist turn, got %#v", turnRec)
 	}
 }
@@ -5021,7 +5021,7 @@ func TestProcessDirectRoutedPromptPreservesIngressMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get routed turn: %v", err)
 	}
-	if stringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindIPC || stringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:routed" || stringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
+	if store.StringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindIPC || store.StringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:routed" || store.StringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
 		t.Fatalf("expected ingress metadata on routed direct turn, got %#v", turnRec.Metadata)
 	}
 }
@@ -5070,14 +5070,14 @@ func TestProcessDirectPromptUsesNormalSubmitPathAndIngressMetadata(t *testing.T)
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if stringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || stringValue(turnRec.Metadata["ingress_source_kind"], "") != "ipc" || stringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:test" {
+	if store.StringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || store.StringValue(turnRec.Metadata["ingress_source_kind"], "") != "ipc" || store.StringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:test" {
 		t.Fatalf("expected direct ingress metadata on turn, got %#v", turnRec.Metadata)
 	}
 	msgs, err := s.ListMessages(ctx, result.SessionID)
 	if err != nil {
 		t.Fatalf("list messages: %v", err)
 	}
-	if len(msgs) == 0 || stringValue(msgs[0].Payload["ingress_source_kind"], "") != "ipc" || stringValue(msgs[0].Payload["ingress_source_id"], "") != "ipc:test" {
+	if len(msgs) == 0 || store.StringValue(msgs[0].Payload["ingress_source_kind"], "") != "ipc" || store.StringValue(msgs[0].Payload["ingress_source_id"], "") != "ipc:test" {
 		t.Fatalf("expected direct ingress metadata on persisted user message, got %#v", msgs)
 	}
 	events, err := s.ListTurnEvents(ctx, result.TurnID)
@@ -5088,7 +5088,7 @@ func TestProcessDirectPromptUsesNormalSubmitPathAndIngressMetadata(t *testing.T)
 	for _, event := range events {
 		if event.Type == "turn.started" {
 			foundStarted = true
-			if stringValue(event.Payload["ingress_source_kind"], "") != "ipc" || stringValue(event.Payload["ingress_source_id"], "") != "ipc:test" {
+			if store.StringValue(event.Payload["ingress_source_kind"], "") != "ipc" || store.StringValue(event.Payload["ingress_source_id"], "") != "ipc:test" {
 				t.Fatalf("expected ingress metadata on turn.started event, got %#v", event)
 			}
 		}
@@ -5132,7 +5132,7 @@ func TestProcessDirectSteersSameSessionWhileActive(t *testing.T) {
 		t.Fatalf("expected queued steering not to persist a second chat message before injection, got %#v", msgs)
 	}
 	for _, msg := range msgs {
-		if stringValue(msg.Payload["ingress_source_id"], "") == "ipc:active" {
+		if store.StringValue(msg.Payload["ingress_source_id"], "") == "ipc:active" {
 			t.Fatalf("expected queued steering not to persist direct-ingress message before injection, got %#v", msgs)
 		}
 	}
@@ -5199,7 +5199,7 @@ func TestProcessSystemDirectWhileActiveSteersSameSession(t *testing.T) {
 	if msgs[0].Role != "system" {
 		t.Fatalf("expected system steering role, got %#v", msgs[0])
 	}
-	if stringValue(msgs[0].Payload["ingress_source_kind"], "") != DirectSourceKindSystem || stringValue(msgs[0].Payload["ingress_source_id"], "") != "scheduler:active" || stringValue(msgs[0].Payload["ingress_role"], "") != "system" {
+	if store.StringValue(msgs[0].Payload["ingress_source_kind"], "") != DirectSourceKindSystem || store.StringValue(msgs[0].Payload["ingress_source_id"], "") != "scheduler:active" || store.StringValue(msgs[0].Payload["ingress_role"], "") != "system" {
 		t.Fatalf("expected system ingress metadata on queued steering payload, got %#v", msgs[0])
 	}
 }
@@ -5227,7 +5227,7 @@ func TestPersistSteeringMessagesStoresSystemRoleAsUserChatHistory(t *testing.T) 
 	if len(msgs) != 1 || msgs[0].Role != "user" {
 		t.Fatalf("expected system steering to persist as user chat message, got %#v", msgs)
 	}
-	if stringValue(msgs[0].Payload["steering_role"], "") != "system" || stringValue(msgs[0].Payload["ingress_role"], "") != "system" {
+	if store.StringValue(msgs[0].Payload["steering_role"], "") != "system" || store.StringValue(msgs[0].Payload["ingress_role"], "") != "system" {
 		t.Fatalf("expected steering role audit metadata to be preserved, got %#v", msgs[0])
 	}
 }
@@ -5257,14 +5257,14 @@ func TestProcessSystemDirectDefaultsSystemOriginMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if stringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindSystem || stringValue(turnRec.Metadata["ingress_role"], "") != "system" || stringValue(turnRec.Metadata["ingress_source_id"], "") != "scheduler:system" {
+	if store.StringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindSystem || store.StringValue(turnRec.Metadata["ingress_role"], "") != "system" || store.StringValue(turnRec.Metadata["ingress_source_id"], "") != "scheduler:system" {
 		t.Fatalf("expected system ingress metadata on turn, got %#v", turnRec.Metadata)
 	}
 	msgs, err := s.ListMessages(ctx, result.SessionID)
 	if err != nil {
 		t.Fatalf("list messages: %v", err)
 	}
-	if len(msgs) == 0 || stringValue(msgs[0].Payload["ingress_source_kind"], "") != DirectSourceKindSystem || stringValue(msgs[0].Payload["ingress_role"], "") != "system" {
+	if len(msgs) == 0 || store.StringValue(msgs[0].Payload["ingress_source_kind"], "") != DirectSourceKindSystem || store.StringValue(msgs[0].Payload["ingress_role"], "") != "system" {
 		t.Fatalf("expected system ingress metadata on persisted user message, got %#v", msgs)
 	}
 }
@@ -5294,7 +5294,7 @@ func TestProcessInternalDirectDefaultsInternalOriginMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if stringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindInternal || stringValue(turnRec.Metadata["ingress_role"], "") != "system" || stringValue(turnRec.Metadata["ingress_source_id"], "") != "engine:internal" {
+	if store.StringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindInternal || store.StringValue(turnRec.Metadata["ingress_role"], "") != "system" || store.StringValue(turnRec.Metadata["ingress_source_id"], "") != "engine:internal" {
 		t.Fatalf("expected internal ingress metadata on turn, got %#v", turnRec.Metadata)
 	}
 }
@@ -5327,7 +5327,7 @@ func TestProcessDirectPeerMessageCarriesIngressMetadataIntoTargetTurn(t *testing
 	if err != nil {
 		t.Fatalf("get routed turn: %v", err)
 	}
-	if stringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || stringValue(turnRec.Metadata["ingress_source_kind"], "") != "system" || stringValue(turnRec.Metadata["ingress_source_id"], "") != "scheduler:1" {
+	if store.StringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || store.StringValue(turnRec.Metadata["ingress_source_kind"], "") != "system" || store.StringValue(turnRec.Metadata["ingress_source_id"], "") != "scheduler:1" {
 		t.Fatalf("expected direct ingress metadata on routed turn, got %#v", turnRec.Metadata)
 	}
 	events, err := s.ListTurnEvents(ctx, result.TurnID)
@@ -5338,7 +5338,7 @@ func TestProcessDirectPeerMessageCarriesIngressMetadataIntoTargetTurn(t *testing
 	for _, event := range events {
 		if event.Type == "turn.started" {
 			foundStarted = true
-			if stringValue(event.Payload["ingress_source_kind"], "") != "system" || stringValue(event.Payload["ingress_source_id"], "") != "scheduler:1" {
+			if store.StringValue(event.Payload["ingress_source_kind"], "") != "system" || store.StringValue(event.Payload["ingress_source_id"], "") != "scheduler:1" {
 				t.Fatalf("expected ingress metadata on routed turn.started event, got %#v", event)
 			}
 		}

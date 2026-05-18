@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/rcarmo/gi/internal/store"
 )
 
 const (
@@ -18,7 +20,7 @@ const (
 )
 
 func normalizeDirectKind(kind string) string {
-	kind = normalizedLowerString(kind)
+	kind = store.NormalizedLowerString(kind)
 	switch kind {
 	case "", DirectKindPrompt:
 		return DirectKindPrompt
@@ -32,7 +34,7 @@ func normalizeDirectKind(kind string) string {
 }
 
 func normalizeDirectSourceKind(kind string) string {
-	kind = normalizedLowerString(kind)
+	kind = store.NormalizedLowerString(kind)
 	switch kind {
 	case "", DirectSourceKindDirect:
 		return DirectSourceKindDirect

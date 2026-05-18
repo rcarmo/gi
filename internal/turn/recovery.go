@@ -145,7 +145,7 @@ func (e *Engine) emitRecoveryScanFailureSessionState(ctx context.Context, sessio
 	}
 	if model == "" {
 		if sessRec, sessErr := e.store.GetSession(ctx, sessionID); sessErr == nil {
-			model = stringValue(sessRec.State["model"], "")
+			model = store.StringValue(sessRec.State["model"], "")
 		}
 	}
 	runner.emitSessionStateHook(ctx, sessionID, agentID, model, status, map[string]any{
@@ -184,7 +184,7 @@ func (e *Engine) emitRecoveryRestartFailureSessionState(ctx context.Context, ses
 	}
 	if model == "" {
 		if sessRec, sessErr := e.store.GetSession(ctx, sessionID); sessErr == nil {
-			model = stringValue(sessRec.State["model"], "")
+			model = store.StringValue(sessRec.State["model"], "")
 		}
 	}
 	payload := map[string]any{

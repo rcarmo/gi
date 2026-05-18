@@ -51,7 +51,7 @@ func hookAbortFromResponse(resp HookResponse, fallback string) error {
 	if reason == "" {
 		reason = fallback
 	}
-	return hookAbortError{reason: reason, hard: boolValue(resp.Payload["hard_abort"])}
+	return hookAbortError{reason: reason, hard: store.BoolValue(resp.Payload["hard_abort"])}
 }
 
 func directToolResultFromHook(resp HookResponse) (string, bool) {
@@ -316,7 +316,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				continue
 			}
 			if resp.Block {
-				reason := stringValue(resp.Reason, "tool call blocked")
+				reason := store.StringValue(resp.Reason, "tool call blocked")
 				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "reason": reason})
 				logutil.WarnIfErr("append hook-denied tool.skipped event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
 					"phase":        "tool",
@@ -345,7 +345,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				return outcome
 			}
 			if resp.Block {
-				reason := stringValue(resp.Reason, "tool not approved")
+				reason := store.StringValue(resp.Reason, "tool not approved")
 				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": reason})
 				logutil.WarnIfErr("append approve-denied tool.skipped event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
 					"phase":        "tool",

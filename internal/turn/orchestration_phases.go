@@ -122,7 +122,7 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 	if strings.TrimSpace(prompt) == "" && len(initialSteering) > 0 {
 		prompt = steeringPromptForShell(initialSteering)
 	}
-	intent := stringValue(turnRec.Metadata["intent"], "prompt")
+	intent := store.StringValue(turnRec.Metadata["intent"], "prompt")
 	agentID, model := r.resolveTurnAgentAndModel(ctx, s, turnRec, sessionID, prompt)
 	if hook := r.engine.beforeSetupHook; hook != nil {
 		hook(ctx, sessionID, turnID)
@@ -170,7 +170,7 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 
 func (r *sessionRunner) resolveTurnAgentAndModel(ctx context.Context, s *store.Store, turnRec *store.Turn, sessionID, prompt string) (string, string) {
 	opCtx := coordinationContext(ctx, r.engine.backgroundContext())
-	model := stringValue(turnRec.Metadata["model"], "bootstrap")
+	model := store.StringValue(turnRec.Metadata["model"], "bootstrap")
 	agentID := s.SessionAgentID(opCtx, sessionID)
 	agentModel := r.engine.modelForAgent(agentID)
 	if strings.TrimSpace(model) == "" {

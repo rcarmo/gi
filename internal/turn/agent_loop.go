@@ -460,7 +460,7 @@ func (r *sessionRunner) subTurnResultSummary(ctx context.Context, childSessionID
 		if msg.Role != "assistant" {
 			continue
 		}
-		msgTurnID := stringValue(msg.Payload["turn_id"], "")
+		msgTurnID := store.StringValue(msg.Payload["turn_id"], "")
 		if msgTurnID != "" && msgTurnID != childTurnID {
 			continue
 		}

@@ -15,6 +15,7 @@ import (
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/scripting"
+	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
 	goai "github.com/rcarmo/go-ai"
 )
@@ -506,7 +507,7 @@ func TestBeforeProviderRequestMessagePrependIsRequestLocal(t *testing.T) {
 		t.Fatalf("create turn: %v", err)
 	}
 	if _, err := e.RegisterHook(HookBeforeProviderRequest, "prepend-message", func(ctx context.Context, req HookRequest) (HookResponse, error) {
-		if stringValue(req.Payload["stage"], "") != "context" {
+		if store.StringValue(req.Payload["stage"], "") != "context" {
 			return HookResponse{}, nil
 		}
 		return HookResponse{Action: "modify", Message: "temporary prepend"}, nil
@@ -544,7 +545,7 @@ func TestBeforeProviderRequestCanReplaceRawProviderPayload(t *testing.T) {
 	}
 	stageCalls := 0
 	if _, err := e.RegisterHook(HookBeforeProviderRequest, "replace-payload", func(ctx context.Context, req HookRequest) (HookResponse, error) {
-		if stringValue(req.Payload["stage"], "") != "payload" {
+		if store.StringValue(req.Payload["stage"], "") != "payload" {
 			return HookResponse{}, nil
 		}
 		stageCalls++
@@ -564,7 +565,7 @@ func TestBeforeProviderRequestCanReplaceRawProviderPayload(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected replacement payload map, got %#v", payload)
 		}
-		if stringValue(payloadMap["model"], "") != "replaced-model" {
+		if store.StringValue(payloadMap["model"], "") != "replaced-model" {
 			t.Fatalf("expected replaced model payload, got %#v", payloadMap)
 		}
 		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
@@ -629,13 +630,13 @@ func TestAfterProviderResponseReceivesObservedStatusAndHeaders(t *testing.T) {
 		}
 		headers = map[string]string{}
 		for k, v := range generic {
-			headers[k] = stringValue(v, "")
+			headers[k] = store.StringValue(v, "")
 		}
 	}
 	if headers["x-test-header"] != "ok" {
 		t.Fatalf("expected response header payload, got %#v", headers)
 	}
-	if stringValue(capturedPayload["provider"], "") != "test-provider" {
+	if store.StringValue(capturedPayload["provider"], "") != "test-provider" {
 		t.Fatalf("expected provider metadata, got %#v", capturedPayload)
 	}
 }
@@ -653,7 +654,7 @@ func TestToolCallHookCanMutateArgumentsDuringExecution(t *testing.T) {
 	}
 	executedValue := ""
 	if err := e.RegisterTool(tools.RegisteredTool{Name: "echo_test", Description: "Echo", Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
-		executedValue = stringValue(call.Arguments["value"], "")
+		executedValue = store.StringValue(call.Arguments["value"], "")
 		return "exec:" + executedValue, nil
 	}}); err != nil {
 		t.Fatalf("register tool: %v", err)
@@ -888,7 +889,7 @@ done
 	if err != nil {
 		t.Fatalf("emit process hook: %v", err)
 	}
-	if resp.ToolCall == nil || resp.ToolCall.Name != "read" || stringValue(resp.ToolCall.Arguments["path"], "") != "process.md" {
+	if resp.ToolCall == nil || resp.ToolCall.Name != "read" || store.StringValue(resp.ToolCall.Arguments["path"], "") != "process.md" {
 		t.Fatalf("expected process hook mutation, got %#v", resp)
 	}
 	items, err := s.ListHookInvocationsByTurn(ctx, "turn_process_hook")
@@ -931,7 +932,7 @@ done
 		if err != nil {
 			t.Fatalf("invoke mounted process hook %d: %v", i, err)
 		}
-		if resp.ToolCall == nil || stringValue(resp.ToolCall.Arguments["path"], "") != "mounted.md" {
+		if resp.ToolCall == nil || store.StringValue(resp.ToolCall.Arguments["path"], "") != "mounted.md" {
 			t.Fatalf("expected mounted process hook mutation, got %#v", resp)
 		}
 	}

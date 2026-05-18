@@ -72,11 +72,11 @@ func steeringMessagesFromMetadata(metadata map[string]any) []store.SteeringMessa
 			}
 		}
 		out = append(out, store.SteeringMessage{
-			Role:      normalizeSteeringRole(stringValue(m["role"], "user")),
-			Content:   stringValue(m["content"], ""),
+			Role:      normalizeSteeringRole(store.StringValue(m["role"], "user")),
+			Content:   store.StringValue(m["content"], ""),
 			Payload:   payload,
 			Media:     media,
-			QueueMode: stringValue(m["queue_mode"], "one-at-a-time"),
+			QueueMode: store.StringValue(m["queue_mode"], "one-at-a-time"),
 		})
 	}
 	return out
@@ -95,8 +95,8 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 		payload[k] = v
 	}
 	media := steeringMediaFromMetadata(in.Metadata)
-	queueMode := stringValue(in.Metadata["steering_mode"], "one-at-a-time")
-	steeringRole := normalizeSteeringRole(stringValue(in.Metadata["ingress_role"], "user"))
+	queueMode := store.StringValue(in.Metadata["steering_mode"], "one-at-a-time")
+	steeringRole := normalizeSteeringRole(store.StringValue(in.Metadata["ingress_role"], "user"))
 	if _, err := e.store.EnqueueSteering(opCtx, sessionID, activeTurnID, steeringRole, in.Prompt, payload, media, queueMode); err != nil {
 		logutil.WarnIfErr("append steering.rejected event", e.store.AppendTurnEvent(e.backgroundContext(), activeTurnID, sessionID, "steering.rejected", map[string]any{
 			"phase":       "steering",
@@ -161,10 +161,10 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 		return false, "", err
 	}
 	metadata := turnRec.Metadata
-	submittedPayload := map[string]any{"phase": "queue", "intent": stringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true}
+	submittedPayload := map[string]any{"phase": "queue", "intent": store.StringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true}
 	logutil.WarnIfErr("append continued turn.submitted event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "turn.submitted", submittedPayload))
 	e.PublishRuntimeTurnEvent("turn_submitted", sessionID, turnID, "", "queued", "queued", submittedPayload)
-	if err := e.normalizeInactiveSessionState(opCtx, sessionID, "queued", stringValue(metadata["model"], ""), true); err != nil {
+	if err := e.normalizeInactiveSessionState(opCtx, sessionID, "queued", store.StringValue(metadata["model"], ""), true); err != nil {
 		return false, "", err
 	}
 	logutil.WarnIfErr("append steering.continue_staged event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)}))
@@ -276,7 +276,7 @@ func (r *sessionRunner) persistSteeringMessages(ctx context.Context, sessionID, 
 	totalContentLen := 0
 	for _, msg := range msgs {
 		role := persistedSteeringChatRole(msg.Role)
-		payload := map[string]any{"kind": "chat", "intent": stringValue(msg.Payload["intent"], "prompt"), "turn_id": turnID, "steering": true, "steering_role": normalizeSteeringRole(msg.Role)}
+		payload := map[string]any{"kind": "chat", "intent": store.StringValue(msg.Payload["intent"], "prompt"), "turn_id": turnID, "steering": true, "steering_role": normalizeSteeringRole(msg.Role)}
 		for k, v := range msg.Payload {
 			payload[k] = v
 		}

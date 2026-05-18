@@ -3,8 +3,10 @@ package turn
 import (
 	"context"
 	"fmt"
-	"github.com/rcarmo/gi/internal/logutil"
 	"strings"
+
+	"github.com/rcarmo/gi/internal/logutil"
+	"github.com/rcarmo/gi/internal/store"
 )
 
 func normalizeHoldResolutionSummary(summary string) string {
@@ -12,7 +14,7 @@ func normalizeHoldResolutionSummary(summary string) string {
 }
 
 func normalizedHoldStateForEvent(holdState string) string {
-	holdState = normalizedLowerString(holdState)
+	holdState = store.NormalizedLowerString(holdState)
 	if holdState == "" {
 		return "none"
 	}
@@ -78,9 +80,9 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 	result, err := e.SubmitPrompt(opCtx, RunInput{
 		SessionID:    turnRec.SessionID,
 		Prompt:       turnRec.Prompt,
-		Intent:       stringValue(turnRec.Metadata["intent"], "prompt"),
-		Model:        stringValue(turnRec.Metadata["model"], ""),
-		ParentTurnID: stringValue(turnRec.Metadata["parent_turn_id"], ""),
+		Intent:       store.StringValue(turnRec.Metadata["intent"], "prompt"),
+		Model:        store.StringValue(turnRec.Metadata["model"], ""),
+		ParentTurnID: store.StringValue(turnRec.Metadata["parent_turn_id"], ""),
 		Metadata:     metadata,
 	})
 	if err != nil {
