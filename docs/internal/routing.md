@@ -29,6 +29,8 @@ The routing path now also depends on store-backed session identity/allocation se
 Two guardrails matter here:
 
 - route-context construction and local routing metadata now use fallback-aware canonical identity reads, so if a caller context is already canceled the engine still derives channel/account/source-agent/scoped chat context from relational identity rows instead of quietly falling back to stale `sessions.scope_json` snapshots
+- route-event recording no longer reloads a full source session row merely to infer `source_agent_id`; it now resolves the source agent directly from `session_identities`, which keeps routing audit rows aligned with canonical identity even when legacy session JSON drifts
+- sibling child-session reuse no longer depends on the caller's loaded source row carrying a trustworthy `parent_session_id`; route resolution now asks the store to resolve sibling-child reuse directly from persisted session linkage plus identity tables, and routed local metadata/fork notices likewise derive `source_agent_id` directly from persisted identity by session id
 - alias matches are only accepted when the persisted canonical identity signature still matches the requested routed allocation, so broad compat aliases cannot accidentally collapse distinct routed sessions even if `sessions.scope_json` has drifted
 - channel-binding reuse is agent-safe: a binding only qualifies if the bound session identity still belongs to the same agent as the incoming allocation
 

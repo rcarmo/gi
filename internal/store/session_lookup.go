@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strings"
 )
 
@@ -29,12 +28,23 @@ func (s *Store) FindChildSessionByParentAndAgent(ctx context.Context, parentSess
 }
 
 func (s *Store) FindSiblingChildSessionByParentAndAgent(ctx context.Context, siblingSessionID, agentID string) (*Session, error) {
-	parent, err := s.GetSession(ctx, siblingSessionID)
-	if err != nil {
-		return nil, fmt.Errorf("find sibling child session: %w", err)
-	}
-	if strings.TrimSpace(parent.ParentSessionID) == "" {
+	siblingSessionID = strings.TrimSpace(siblingSessionID)
+	agentID = strings.TrimSpace(strings.ToLower(agentID))
+	if siblingSessionID == "" || agentID == "" {
 		return nil, sql.ErrNoRows
 	}
-	return s.FindChildSessionByParentAndAgent(ctx, parent.ParentSessionID, agentID)
+	row := s.db.QueryRowContext(ctx, `
+		select child.id
+		from sessions sibling
+		join sessions child on child.parent_session_id = sibling.parent_session_id
+		join session_identities si on si.session_id = child.id
+		where sibling.id = ? and sibling.parent_session_id <> '' and lower(si.agent_id) = ?
+		order by child.updated_at desc, child.created_at desc
+		limit 1
+	`, siblingSessionID, agentID)
+	var sessionID string
+	if err := row.Scan(&sessionID); err != nil {
+		return nil, err
+	}
+	return s.GetSession(ctx, sessionID)
 }

@@ -5374,6 +5374,43 @@ func TestResolveOrCreateRouteSessionReturnsSourceForSameAgent(t *testing.T) {
 	}
 }
 
+func TestResolveExistingRouteSessionUsesSiblingLookupWithoutSourceParentField(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	root, err := s.CreateSession(ctx, "session_route_parent_root", "@agent", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create root session: %v", err)
+	}
+	sourceAlloc := gisession.AllocateDefaultSession("agentA", "gi", "default", "session_route_source_child")
+	source, err := s.CreateSessionWithMetadata(ctx, "session_route_source_child", root.ID, "@agentA", map[string]any{"status": "idle"}, &sourceAlloc.Scope, sourceAlloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create source child: %v", err)
+	}
+	targetAlloc := gisession.AllocateDefaultSession("agentB", "gi", "default", "session_route_target_child")
+	target, err := s.CreateSessionWithMetadata(ctx, "session_route_target_child", root.ID, "@agentB", map[string]any{"status": "idle"}, &targetAlloc.Scope, targetAlloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create target child: %v", err)
+	}
+	staleSource, err := s.GetSession(ctx, source.ID)
+	if err != nil {
+		t.Fatalf("reload source child: %v", err)
+	}
+	staleSource.ParentSessionID = ""
+	engine := New(s)
+	plan, err := engine.prepareRouteSessionPlan(staleSource, routing.ResolvedRoute{AgentID: "agentB", MatchedBy: "mention"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
+	if err != nil {
+		t.Fatalf("prepare route session plan: %v", err)
+	}
+	resolved, err := engine.resolveExistingRouteSession(ctx, plan)
+	if err != nil {
+		t.Fatalf("resolve existing route session: %v", err)
+	}
+	if resolved == nil || resolved.ID != target.ID {
+		t.Fatalf("expected sibling child target reuse, got %#v", resolved)
+	}
+}
+
 func TestRunShellStreamsDraftChunks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()

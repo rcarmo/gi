@@ -103,7 +103,7 @@ func (e *Engine) applyLocalRouteMetadata(ctx context.Context, in *RunInput, reso
 	in.Metadata["route_matched_by"] = resolution.route.MatchedBy
 	in.Metadata["target_agent_id"] = resolution.route.AgentID
 	in.Metadata["target_session_id"] = resolution.target.ID
-	in.Metadata["source_agent_id"] = sessionAgentIDWithStoreFallback(ctx, e.backgroundContext(), e.store, resolution.source)
+	in.Metadata["source_agent_id"] = sessionAgentIDForSessionIDWithFallback(ctx, e.backgroundContext(), e.store, resolution.source.ID)
 	if resolution.route.MatchedBy != "" {
 		in.Metadata["routing_policy"] = resolution.route.MatchedBy
 	}
@@ -141,12 +141,10 @@ func (e *Engine) resolveExistingRouteSession(ctx context.Context, plan *routeSes
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	if strings.TrimSpace(plan.source.ParentSessionID) != "" {
-		if existing, err := e.store.FindChildSessionByParentAndAgent(opCtx, plan.source.ParentSessionID, plan.route.AgentID); err == nil {
-			return existing, nil
-		} else if err != nil && err != sql.ErrNoRows {
-			return nil, err
-		}
+	if existing, err := e.store.FindSiblingChildSessionByParentAndAgent(opCtx, plan.source.ID, plan.route.AgentID); err == nil {
+		return existing, nil
+	} else if err != nil && err != sql.ErrNoRows {
+		return nil, err
 	}
 	return nil, nil
 }
@@ -168,7 +166,7 @@ func (e *Engine) cloneRouteSession(ctx context.Context, plan *routeSessionPlan) 
 		return cloned, false, nil
 	}
 	e.copyRouteSessionHistory(opCtx, plan.source.ID, cloned.ID)
-	sourceAgentID := sessionAgentIDWithStore(opCtx, e.store, plan.source)
+	sourceAgentID := sessionAgentIDForSessionID(opCtx, e.store, plan.source.ID)
 	warnStore("add forked-from message", e.store.AddMessage(opCtx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sourceAgentID), map[string]any{"kind": "fork", "source_session_id": plan.source.ID, "source_agent_id": sourceAgentID, "route_matched_by": plan.route.MatchedBy, "clipped": true}))
 	return cloned, true, nil
 }
