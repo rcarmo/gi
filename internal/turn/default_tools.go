@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/rcarmo/gi/internal/compaction"
 	"github.com/rcarmo/gi/internal/connectivity"
 	"github.com/rcarmo/gi/internal/rtk"
 	"github.com/rcarmo/gi/internal/scripting"
@@ -279,8 +280,8 @@ func (e *Engine) registerDefaultTools() {
 				}
 			}
 			settings := rt.Engine.runtimeCfg.Compaction
-			tokens := estimateMessagesTokens(aiMsgs)
-			prep := prepareCompaction(aiMsgs, tokens, settings.KeepRecentTokens, settings.ReserveTokens, settings.ThresholdTokens, settings.Strategy)
+			tokens := compaction.EstimateMessagesTokens(aiMsgs)
+			prep := compaction.Prepare(aiMsgs, tokens, settings.KeepRecentTokens, settings.ReserveTokens, settings.ThresholdTokens, settings.Strategy)
 			b, _ := json.MarshalIndent(map[string]any{"enabled": settings.Enabled, "context_tokens": tokens, "threshold_tokens": settings.ThresholdTokens, "should_compact": settings.Enabled && tokens > settings.ThresholdTokens, "preparation": prep}, "", "  ")
 			return string(b), nil
 		},

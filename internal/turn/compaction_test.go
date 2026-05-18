@@ -2,6 +2,7 @@ package turn
 
 import (
 	"context"
+	"github.com/rcarmo/gi/internal/compaction"
 	"strings"
 	"testing"
 
@@ -18,7 +19,7 @@ func TestPrepareCompactionKeepsRecentMessages(t *testing.T) {
 		goai.UserMessage(strings.Repeat("c", 400)),
 		goai.UserMessage(strings.Repeat("d", 400)),
 	}
-	prep := prepareCompaction(messages, estimateMessagesTokens(messages), 120, 20, 100, "default")
+	prep := compaction.Prepare(messages, compaction.EstimateMessagesTokens(messages), 120, 20, 100, "default")
 	if prep.MessagesToSummarize == 0 || prep.RecentMessages == 0 {
 		t.Fatalf("bad preparation: %#v", prep)
 	}
