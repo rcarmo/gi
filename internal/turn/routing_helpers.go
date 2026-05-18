@@ -35,7 +35,7 @@ func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnI
 	routeMode := stringValue(metadata["route_mode"], stringValue(metadata["mode"], "prompt"))
 	sourceAgent := stringValue(metadata["source_agent_id"], "")
 	if sourceAgent == "" {
-		sourceAgent = sessionAgentIDForSessionID(opCtx, e.store, sourceSession)
+		sourceAgent = e.store.SessionAgentID(opCtx, sourceSession)
 	}
 	routingPolicy := stringValue(metadata["routing_policy"], "")
 	matchedBy := stringValue(metadata["route_matched_by"], "")
@@ -83,6 +83,10 @@ func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnI
 		})
 	}
 	return nil
+}
+
+func normalizeAgentID(v string) string {
+	return strings.TrimSpace(strings.TrimPrefix(normalizedLowerString(v), "@"))
 }
 
 func routeDecisionFromMetadata(sourceSession, targetSession, sourceAgent, targetAgentID, turnID, routeMode, matchedBy, routingPolicy, requestedAgent string, metadata map[string]any) store.RouteEvent {

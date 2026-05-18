@@ -190,9 +190,11 @@ Likely tasks:
   - `session_main.go`
   - `session_resolution.go`
   - `session_channel_bindings.go`
-- `internal/turn` helper drift was reduced by moving session-identity and routing-helper logic out of `engine.go` into dedicated files:
-  - `session_identity_helpers.go`
+- `internal/turn` helper drift was reduced by moving routing-helper logic out of `engine.go` into a dedicated file:
   - `routing_helpers.go`
+- follow-up structural cleanup then moved session-identity projection back out of `internal/turn` and into store ownership:
+  - `internal/store/session_identity_runtime.go`
+  - removed `internal/turn/session_identity_helpers.go`
 - `internal/turn` routing-facing engine methods were split out of `engine.go` into:
   - `routing_runtime.go`
 - `internal/turn` generic coercion/sorting helpers and bootstrap shell runtime were split out of `engine.go` into:
