@@ -146,6 +146,31 @@ func TestStoreFindSessionByAllocationUsesSessionIdentityInsteadOfSessionScopeJSO
 	}
 }
 
+func TestStoreResolveSessionIDHelpers(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_id_helpers")
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_id_helpers", "", "@agent", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if sessionID, err := s.ResolveSessionIDByOpaqueKey(ctx, alloc.SessionKey); err != nil || sessionID != sess.ID {
+		t.Fatalf("resolve session id by opaque key: id=%q err=%v", sessionID, err)
+	}
+	if sessionID, err := s.ResolveSessionIDByAlias(ctx, strings.ToUpper(alloc.SessionAliases[0])); err != nil || sessionID != sess.ID {
+		t.Fatalf("resolve session id by alias: id=%q err=%v", sessionID, err)
+	}
+	if signature := gisession.CanonicalScopeSignature(alloc.Scope); true {
+		if sessionID, err := s.ResolveSessionIDByCanonicalScopeSignature(ctx, signature); err != nil || sessionID != sess.ID {
+			t.Fatalf("resolve session id by canonical signature: id=%q err=%v", sessionID, err)
+		}
+	}
+}
+
 func TestStoreResolveSessionIDByKeyOrAlias(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

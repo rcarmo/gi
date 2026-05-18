@@ -48,8 +48,8 @@ func sessionMatchesAllocationScope(identity *SessionIdentity, scope gisession.Se
 }
 
 func (s *Store) FindSessionByAllocation(ctx context.Context, alloc gisession.Allocation) (*Session, error) {
-	if sess, err := s.GetSessionByOpaqueKey(ctx, alloc.SessionKey); err == nil {
-		return sess, nil
+	if sessionID, err := s.ResolveSessionIDByOpaqueKey(ctx, alloc.SessionKey); err == nil {
+		return s.GetSession(ctx, sessionID)
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
@@ -65,11 +65,11 @@ func (s *Store) FindSessionByAllocation(ctx context.Context, alloc gisession.All
 		}
 	}
 	for _, alias := range alloc.SessionAliases {
-		sess, err := s.GetSessionByAlias(ctx, alias)
+		sessionID, err := s.ResolveSessionIDByAlias(ctx, alias)
 		if err == nil {
-			identity, identityErr := s.GetSessionIdentity(ctx, sess.ID)
+			identity, identityErr := s.GetSessionIdentity(ctx, sessionID)
 			if identityErr == nil && sessionMatchesAllocationScope(identity, alloc.Scope) {
-				return sess, nil
+				return s.GetSession(ctx, sessionID)
 			}
 			if identityErr != nil && !errors.Is(identityErr, sql.ErrNoRows) {
 				return nil, identityErr
@@ -81,9 +81,9 @@ func (s *Store) FindSessionByAllocation(ctx context.Context, alloc gisession.All
 		}
 	}
 	if signature := gisession.CanonicalScopeSignature(alloc.Scope); strings.TrimSpace(signature) != "" {
-		sess, err := s.GetSessionByCanonicalScopeSignature(ctx, signature)
+		sessionID, err := s.ResolveSessionIDByCanonicalScopeSignature(ctx, signature)
 		if err == nil {
-			return sess, nil
+			return s.GetSession(ctx, sessionID)
 		}
 		if !errors.Is(err, sql.ErrNoRows) {
 			return nil, err

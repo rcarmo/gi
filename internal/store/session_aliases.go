@@ -124,40 +124,64 @@ func (s *Store) UpdateSessionAliases(ctx context.Context, sessionID string, alia
 	return nil
 }
 
-func (s *Store) GetSessionByOpaqueKey(ctx context.Context, opaqueKey string) (*Session, error) {
+func (s *Store) ResolveSessionIDByOpaqueKey(ctx context.Context, opaqueKey string) (string, error) {
 	opaqueKey = strings.TrimSpace(strings.ToLower(opaqueKey))
 	if opaqueKey == "" {
-		return nil, sql.ErrNoRows
+		return "", sql.ErrNoRows
 	}
 	row := s.db.QueryRowContext(ctx, `select session_id from session_identities where opaque_session_key = ?`, opaqueKey)
 	var sessionID string
 	if err := row.Scan(&sessionID); err != nil {
+		return "", err
+	}
+	return sessionID, nil
+}
+
+func (s *Store) GetSessionByOpaqueKey(ctx context.Context, opaqueKey string) (*Session, error) {
+	sessionID, err := s.ResolveSessionIDByOpaqueKey(ctx, opaqueKey)
+	if err != nil {
 		return nil, err
 	}
 	return s.GetSession(ctx, sessionID)
 }
 
-func (s *Store) GetSessionByCanonicalScopeSignature(ctx context.Context, signature string) (*Session, error) {
+func (s *Store) ResolveSessionIDByCanonicalScopeSignature(ctx context.Context, signature string) (string, error) {
 	signature = strings.TrimSpace(strings.ToLower(signature))
 	if signature == "" {
-		return nil, sql.ErrNoRows
+		return "", sql.ErrNoRows
 	}
 	row := s.db.QueryRowContext(ctx, `select session_id from session_identities where canonical_scope_signature = ?`, signature)
 	var sessionID string
 	if err := row.Scan(&sessionID); err != nil {
+		return "", err
+	}
+	return sessionID, nil
+}
+
+func (s *Store) GetSessionByCanonicalScopeSignature(ctx context.Context, signature string) (*Session, error) {
+	sessionID, err := s.ResolveSessionIDByCanonicalScopeSignature(ctx, signature)
+	if err != nil {
 		return nil, err
 	}
 	return s.GetSession(ctx, sessionID)
 }
 
-func (s *Store) GetSessionByAlias(ctx context.Context, alias string) (*Session, error) {
+func (s *Store) ResolveSessionIDByAlias(ctx context.Context, alias string) (string, error) {
 	alias = strings.TrimSpace(strings.ToLower(alias))
 	if alias == "" {
-		return nil, sql.ErrNoRows
+		return "", sql.ErrNoRows
 	}
 	row := s.db.QueryRowContext(ctx, `select session_id from session_aliases where alias = ?`, alias)
 	var sessionID string
 	if err := row.Scan(&sessionID); err != nil {
+		return "", err
+	}
+	return sessionID, nil
+}
+
+func (s *Store) GetSessionByAlias(ctx context.Context, alias string) (*Session, error) {
+	sessionID, err := s.ResolveSessionIDByAlias(ctx, alias)
+	if err != nil {
 		return nil, err
 	}
 	return s.GetSession(ctx, sessionID)
@@ -173,13 +197,13 @@ func (s *Store) ResolveSessionIDByKeyOrAlias(ctx context.Context, key string) (s
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return "", err
 	}
-	if sess, err := s.ResolveSessionByCanonicalKey(ctx, key); err == nil {
-		return sess.ID, nil
+	if sessionID, err := s.ResolveSessionIDByOpaqueKey(ctx, key); err == nil {
+		return sessionID, nil
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return "", err
 	}
-	if sess, err := s.ResolveSessionByAlias(ctx, key); err == nil {
-		return sess.ID, nil
+	if sessionID, err := s.ResolveSessionIDByAlias(ctx, key); err == nil {
+		return sessionID, nil
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return "", err
 	}
