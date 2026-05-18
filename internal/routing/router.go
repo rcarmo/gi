@@ -1,13 +1,15 @@
 package routing
 
+import "github.com/rcarmo/gi/internal/config"
+
 const defaultThreshold = 0.35
 
 type Router struct {
-	cfg        ModelRoutingConfig
+	cfg        config.ModelRoutingConfig
 	classifier Classifier
 }
 
-func NewRouter(cfg ModelRoutingConfig) *Router {
+func NewRouter(cfg config.ModelRoutingConfig) *Router {
 	if cfg.Threshold <= 0 {
 		cfg.Threshold = defaultThreshold
 	}

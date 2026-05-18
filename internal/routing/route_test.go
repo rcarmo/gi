@@ -1,19 +1,23 @@
 package routing
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/rcarmo/gi/internal/config"
+)
 
 func TestResolveRouteUsesDispatchRule(t *testing.T) {
 	mentioned := true
 	resolver := NewRouteResolver(
-		AgentsConfig{
-			List: []AgentConfig{{ID: "main", Default: true}, {ID: "support"}},
-			Dispatch: &DispatchConfig{Rules: []DispatchRule{{
+		config.AgentsConfig{
+			List: []config.AgentConfig{{ID: "main", Default: true}, {ID: "support"}},
+			Dispatch: &config.DispatchConfig{Rules: []config.DispatchRule{{
 				Name:  "mentions-support",
 				Agent: "support",
-				When:  DispatchSelector{Channel: "gi", Mentioned: &mentioned},
+				When:  config.DispatchSelector{Channel: "gi", Mentioned: &mentioned},
 			}}},
 		},
-		SessionConfig{Dimensions: []string{"chat"}},
+		config.SessionConfig{Dimensions: []string{"chat"}},
 	)
 	resolved := resolver.ResolveRoute(InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: "chat-1", Mentioned: true})
 	if resolved.AgentID != "support" {
@@ -25,7 +29,7 @@ func TestResolveRouteUsesDispatchRule(t *testing.T) {
 }
 
 func TestResolveRouteFallsBackToDefaultAgent(t *testing.T) {
-	resolver := NewRouteResolver(AgentsConfig{List: []AgentConfig{{ID: "main", Default: true}, {ID: "support"}}}, SessionConfig{Dimensions: []string{"chat"}})
+	resolver := NewRouteResolver(config.AgentsConfig{List: []config.AgentConfig{{ID: "main", Default: true}, {ID: "support"}}}, config.SessionConfig{Dimensions: []string{"chat"}})
 	resolved := resolver.ResolveRoute(InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: "chat-1"})
 	if resolved.AgentID != "main" || resolved.MatchedBy != "default" {
 		t.Fatalf("unexpected route: %#v", resolved)

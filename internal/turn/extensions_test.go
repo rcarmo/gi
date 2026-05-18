@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/rcarmo/gi/internal/config"
-	"github.com/rcarmo/gi/internal/routing"
 	"github.com/rcarmo/gi/internal/store"
 	goai "github.com/rcarmo/go-ai"
 )
@@ -43,7 +42,7 @@ func TestJokerSmartCompactionExtension(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	cfg := config.RuntimeConfig{WorkspaceRoot: root, DefaultModel: "bootstrap", MaxIterations: 64, Compaction: config.CompactionSettings{Enabled: true, ContextWindow: 1000, ThresholdTokens: 50, KeepRecentTokens: 20, ReserveTokens: 10}, Agents: routing.AgentsConfig{List: []routing.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}}}
+	cfg := config.RuntimeConfig{WorkspaceRoot: root, DefaultModel: "bootstrap", MaxIterations: 64, Compaction: config.CompactionSettings{Enabled: true, ContextWindow: 1000, ThresholdTokens: 50, KeepRecentTokens: 20, ReserveTokens: 10}, Agents: config.AgentsConfig{List: []config.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}}}
 	e := NewWithRuntimeConfig(s, cfg, "")
 	r := &sessionRunner{store: s, engine: e}
 	conv := &goai.Context{Messages: []goai.Message{

@@ -13,7 +13,6 @@ import (
 
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/inference"
-	"github.com/rcarmo/gi/internal/routing"
 	"github.com/rcarmo/gi/internal/scripting"
 	"github.com/rcarmo/gi/internal/topics"
 	goai "github.com/rcarmo/go-ai"
@@ -872,7 +871,7 @@ done
 	}
 	s := openTestStore(t)
 	defer s.Close()
-	e := NewWithRuntimeConfig(s, config.RuntimeConfig{WorkspaceRoot: root, DefaultModel: "bootstrap", Agents: routing.AgentsConfig{List: []routing.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}}}, "")
+	e := NewWithRuntimeConfig(s, config.RuntimeConfig{WorkspaceRoot: root, DefaultModel: "bootstrap", Agents: config.AgentsConfig{List: []config.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}}}, "")
 	ctx := context.Background()
 	if _, err := s.CreateSession(ctx, "session_process_hook", "ProcessHook", map[string]any{"model": "bootstrap"}); err != nil {
 		t.Fatalf("create session: %v", err)

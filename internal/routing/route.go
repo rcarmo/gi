@@ -3,14 +3,16 @@ package routing
 import (
 	"fmt"
 	"strings"
+
+	"github.com/rcarmo/gi/internal/config"
 )
 
 type RouteResolver struct {
-	agents  AgentsConfig
-	session SessionConfig
+	agents  config.AgentsConfig
+	session config.SessionConfig
 }
 
-func NewRouteResolver(agents AgentsConfig, session SessionConfig) *RouteResolver {
+func NewRouteResolver(agents config.AgentsConfig, session config.SessionConfig) *RouteResolver {
 	return &RouteResolver{agents: agents, session: session}
 }
 
@@ -70,7 +72,7 @@ func (r *RouteResolver) resolveDefaultAgentID() string {
 	return DefaultAgentID
 }
 
-func (r *RouteResolver) sessionPolicy(rule *DispatchRule) SessionPolicy {
+func (r *RouteResolver) sessionPolicy(rule *config.DispatchRule) SessionPolicy {
 	dimensions := r.session.Dimensions
 	if rule != nil && len(rule.SessionDimensions) > 0 {
 		dimensions = rule.SessionDimensions
@@ -126,7 +128,7 @@ type dispatchView struct {
 	Mentioned bool
 }
 
-func (r *RouteResolver) matchDispatchRule(view dispatchView) *DispatchRule {
+func (r *RouteResolver) matchDispatchRule(view dispatchView) *config.DispatchRule {
 	if r == nil || r.agents.Dispatch == nil || len(r.agents.Dispatch.Rules) == 0 {
 		return nil
 	}
@@ -142,7 +144,7 @@ func (r *RouteResolver) matchDispatchRule(view dispatchView) *DispatchRule {
 	return nil
 }
 
-func ruleMatchesView(rule DispatchRule, view dispatchView) bool {
+func ruleMatchesView(rule config.DispatchRule, view dispatchView) bool {
 	when := normalizeDispatchSelector(rule.When)
 	if when.Channel != "" && when.Channel != view.Channel {
 		return false
@@ -168,7 +170,7 @@ func ruleMatchesView(rule DispatchRule, view dispatchView) bool {
 	return true
 }
 
-func matchedByForRule(rule *DispatchRule) string {
+func matchedByForRule(rule *config.DispatchRule) string {
 	if rule == nil {
 		return "default"
 	}
@@ -202,7 +204,7 @@ func buildDispatchView(inbound InboundContext, identityLinks map[string][]string
 	return view
 }
 
-func normalizeDispatchSelector(selector DispatchSelector) DispatchSelector {
+func normalizeDispatchSelector(selector config.DispatchSelector) config.DispatchSelector {
 	selector.Channel = strings.ToLower(strings.TrimSpace(selector.Channel))
 	selector.Account = NormalizeAccountID(selector.Account)
 	selector.Space = strings.ToLower(strings.TrimSpace(selector.Space))
@@ -212,7 +214,7 @@ func normalizeDispatchSelector(selector DispatchSelector) DispatchSelector {
 	return selector
 }
 
-func selectorHasAnyConstraint(selector DispatchSelector) bool {
+func selectorHasAnyConstraint(selector config.DispatchSelector) bool {
 	return strings.TrimSpace(selector.Channel) != "" || strings.TrimSpace(selector.Account) != "" || strings.TrimSpace(selector.Space) != "" || strings.TrimSpace(selector.Chat) != "" || strings.TrimSpace(selector.Topic) != "" || strings.TrimSpace(selector.Sender) != "" || selector.Mentioned != nil
 }
 

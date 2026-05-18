@@ -3,10 +3,12 @@ package routing
 import (
 	"strings"
 	"testing"
+
+	"github.com/rcarmo/gi/internal/config"
 )
 
 func TestRouterSelectsLightModelForSimplePrompt(t *testing.T) {
-	router := NewRouter(ModelRoutingConfig{Enabled: true, LightModel: "flash", Threshold: 0.35})
+	router := NewRouter(config.ModelRoutingConfig{Enabled: true, LightModel: "flash", Threshold: 0.35})
 	model, usedLight, score := router.SelectModel("hello", nil, "heavy")
 	if model != "flash" || !usedLight || score >= 0.35 {
 		t.Fatalf("unexpected selection: model=%s light=%v score=%f", model, usedLight, score)
@@ -14,7 +16,7 @@ func TestRouterSelectsLightModelForSimplePrompt(t *testing.T) {
 }
 
 func TestRouterSelectsPrimaryModelForCodePrompt(t *testing.T) {
-	router := NewRouter(ModelRoutingConfig{Enabled: true, LightModel: "flash", Threshold: 0.35})
+	router := NewRouter(config.ModelRoutingConfig{Enabled: true, LightModel: "flash", Threshold: 0.35})
 	prompt := "please fix this\n```go\nfmt.Println(\"hi\")\n```"
 	model, usedLight, score := router.SelectModel(prompt, nil, "heavy")
 	if model != "heavy" || usedLight || score < 0.35 {

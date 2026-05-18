@@ -3,6 +3,8 @@ package routing
 import (
 	"fmt"
 	"strings"
+
+	"github.com/rcarmo/gi/internal/config"
 )
 
 func PreparePromptRoutedInput(prompt string, inbound InboundContext, resolver *RouteResolver) (ResolvedRoute, string, bool, error) {
@@ -54,7 +56,7 @@ func ApplyPromptRouteMetadata(metadata map[string]any, sourceSessionID, targetSe
 	return metadata
 }
 
-func ModelForAgent(agentID string, agents AgentsConfig, defaultModel string) string {
+func ModelForAgent(agentID string, agents config.AgentsConfig, defaultModel string) string {
 	agentID = NormalizeAgentID(agentID)
 	for _, agent := range agents.List {
 		if NormalizeAgentID(agent.ID) == agentID {

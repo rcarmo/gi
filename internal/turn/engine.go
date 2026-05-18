@@ -126,8 +126,8 @@ const (
 func New(s *store.Store) *Engine {
 	cfg := config.RuntimeConfig{
 		DefaultModel: "bootstrap",
-		Agents:       routing.AgentsConfig{List: []routing.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}},
-		Session:      routing.SessionConfig{Dimensions: []string{"chat"}},
+		Agents:       config.AgentsConfig{List: []config.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}},
+		Session:      config.SessionConfig{Dimensions: []string{"chat"}},
 	}
 	return NewWithRuntimeConfig(s, cfg, "")
 }
@@ -135,8 +135,8 @@ func New(s *store.Store) *Engine {
 func NewWithSystemPrompt(s *store.Store, systemPrompt string) *Engine {
 	cfg := config.RuntimeConfig{
 		DefaultModel: "bootstrap",
-		Agents:       routing.AgentsConfig{List: []routing.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}},
-		Session:      routing.SessionConfig{Dimensions: []string{"chat"}},
+		Agents:       config.AgentsConfig{List: []config.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}},
+		Session:      config.SessionConfig{Dimensions: []string{"chat"}},
 	}
 	return NewWithRuntimeConfig(s, cfg, systemPrompt)
 }
@@ -146,7 +146,7 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 		cfg.DefaultModel = "bootstrap"
 	}
 	if len(cfg.Agents.List) == 0 {
-		cfg.Agents.List = []routing.AgentConfig{{ID: "agent", Default: true, Model: cfg.DefaultModel}}
+		cfg.Agents.List = []config.AgentConfig{{ID: "agent", Default: true, Model: cfg.DefaultModel}}
 	}
 	if len(cfg.Session.Dimensions) == 0 {
 		cfg.Session.Dimensions = []string{"chat"}

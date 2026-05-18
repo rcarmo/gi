@@ -8,32 +8,31 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rcarmo/gi/internal/routing"
 	"github.com/rcarmo/gi/internal/skills"
 )
 
 type RuntimeConfig struct {
-	WorkspaceRoot        string                     `json:"workspace_root"`
-	AssistantName        string                     `json:"assistant_name"`
-	AssistantAvatar      string                     `json:"assistant_avatar"`
-	UserName             string                     `json:"user_name"`
-	UserAvatar           string                     `json:"user_avatar"`
-	UserAvatarBackground string                     `json:"user_avatar_background"`
-	DefaultProvider      string                     `json:"default_provider"`
-	DefaultModel         string                     `json:"default_model"`
-	DefaultThinkingLevel string                     `json:"default_thinking_level"`
-	EnabledModels        []string                   `json:"enabled_models"`
-	Agents               routing.AgentsConfig       `json:"agents"`
-	Session              routing.SessionConfig      `json:"session"`
-	Routing              routing.ModelRoutingConfig `json:"routing"`
-	MaxIterations        int                        `json:"max_iterations"`
-	ScrollbackLimit      int                        `json:"scrollback_limit"`
-	Compaction           CompactionSettings         `json:"compaction"`
-	Hooks                HookSettings               `json:"hooks"`
-	Peering              PeeringSettings            `json:"peering"`
-	InboundWork          InboundWorkSettings        `json:"inbound_work"`
-	SystemPrompt         string                     `json:"-"`
-	Discovery            skills.Discovery           `json:"-"`
+	WorkspaceRoot        string              `json:"workspace_root"`
+	AssistantName        string              `json:"assistant_name"`
+	AssistantAvatar      string              `json:"assistant_avatar"`
+	UserName             string              `json:"user_name"`
+	UserAvatar           string              `json:"user_avatar"`
+	UserAvatarBackground string              `json:"user_avatar_background"`
+	DefaultProvider      string              `json:"default_provider"`
+	DefaultModel         string              `json:"default_model"`
+	DefaultThinkingLevel string              `json:"default_thinking_level"`
+	EnabledModels        []string            `json:"enabled_models"`
+	Agents               AgentsConfig        `json:"agents"`
+	Session              SessionConfig       `json:"session"`
+	Routing              ModelRoutingConfig  `json:"routing"`
+	MaxIterations        int                 `json:"max_iterations"`
+	ScrollbackLimit      int                 `json:"scrollback_limit"`
+	Compaction           CompactionSettings  `json:"compaction"`
+	Hooks                HookSettings        `json:"hooks"`
+	Peering              PeeringSettings     `json:"peering"`
+	InboundWork          InboundWorkSettings `json:"inbound_work"`
+	SystemPrompt         string              `json:"-"`
+	Discovery            skills.Discovery    `json:"-"`
 }
 
 type piclawConfig struct {
@@ -80,19 +79,19 @@ type InboundWorkSettings struct {
 }
 
 type piSettings struct {
-	DefaultProvider      string                     `json:"defaultProvider"`
-	DefaultModel         string                     `json:"defaultModel"`
-	DefaultThinkingLevel string                     `json:"defaultThinkingLevel"`
-	EnabledModels        []string                   `json:"enabledModels"`
-	MaxIterations        int                        `json:"maxIterations"`
-	TUIScrollbackLimit   int                        `json:"tuiScrollbackLimit"`
-	Compaction           CompactionSettings         `json:"compaction"`
-	Hooks                HookSettings               `json:"hooks"`
-	Peering              PeeringSettings            `json:"peering"`
-	InboundWork          *InboundWorkSettings       `json:"inboundWork"`
-	Agents               routing.AgentsConfig       `json:"agents"`
-	Session              routing.SessionConfig      `json:"session"`
-	Routing              routing.ModelRoutingConfig `json:"routing"`
+	DefaultProvider      string               `json:"defaultProvider"`
+	DefaultModel         string               `json:"defaultModel"`
+	DefaultThinkingLevel string               `json:"defaultThinkingLevel"`
+	EnabledModels        []string             `json:"enabledModels"`
+	MaxIterations        int                  `json:"maxIterations"`
+	TUIScrollbackLimit   int                  `json:"tuiScrollbackLimit"`
+	Compaction           CompactionSettings   `json:"compaction"`
+	Hooks                HookSettings         `json:"hooks"`
+	Peering              PeeringSettings      `json:"peering"`
+	InboundWork          *InboundWorkSettings `json:"inboundWork"`
+	Agents               AgentsConfig         `json:"agents"`
+	Session              SessionConfig        `json:"session"`
+	Routing              ModelRoutingConfig   `json:"routing"`
 }
 
 func Load(workspaceRoot string) RuntimeConfig {
@@ -157,7 +156,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 	applyHookDefaults(&cfg.Hooks)
 	applyInboundWorkDefaults(&cfg.InboundWork)
 	if len(cfg.Agents.List) == 0 {
-		cfg.Agents.List = []routing.AgentConfig{{ID: "agent", Name: cfg.AssistantName, Default: true, Model: cfg.DefaultModel}}
+		cfg.Agents.List = []AgentConfig{{ID: "agent", Name: cfg.AssistantName, Default: true, Model: cfg.DefaultModel}}
 	}
 	// Load workspace instructions from AGENTS.md and wrap them in gi's runtime prompt.
 	workspaceInstructions := ""
