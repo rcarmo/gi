@@ -109,10 +109,6 @@ func inboundContextFromSessionIDWithFallback(ctx, fallback context.Context, s *s
 	return inbound
 }
 
-func inboundContextFromSessionID(ctx context.Context, s *store.Store, sessionID string) routing.InboundContext {
-	return inboundContextFromSessionIDWithFallback(ctx, nil, s, sessionID)
-}
-
 func splitScopedValue(raw, fallbackType string) (string, string, bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
