@@ -136,13 +136,13 @@ func (e *Engine) resolveExistingRouteSession(ctx context.Context, plan *routeSes
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	if existing, err := e.store.FindChildSessionByParentAndAgent(opCtx, plan.sourceSessionID, plan.route.AgentID); err == nil {
-		return existing, nil
+	if sessionID, err := e.store.FindChildSessionIDByParentAndAgent(opCtx, plan.sourceSessionID, plan.route.AgentID); err == nil {
+		return e.store.GetSession(opCtx, sessionID)
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	if existing, err := e.store.FindSiblingChildSessionByParentAndAgent(opCtx, plan.sourceSessionID, plan.route.AgentID); err == nil {
-		return existing, nil
+	if sessionID, err := e.store.FindSiblingChildSessionIDByParentAndAgent(opCtx, plan.sourceSessionID, plan.route.AgentID); err == nil {
+		return e.store.GetSession(opCtx, sessionID)
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}

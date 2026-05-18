@@ -625,6 +625,32 @@ func TestStoreSetAndResolveMainSession(t *testing.T) {
 	}
 }
 
+func TestStoreFindChildSessionIDByParentAndAgent(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	rootAlloc := gisession.AllocateDefaultSession("agent", "gi", "default", "root_child_id_lookup")
+	root, err := s.CreateSessionWithMetadata(ctx, "root_child_id_lookup", "", "@agent", map[string]any{"status": "idle"}, &rootAlloc.Scope, rootAlloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create root: %v", err)
+	}
+	childAlloc := gisession.AllocateDefaultSession("agentA", "gi", "default", "child_id_lookup")
+	child, err := s.CreateSessionWithMetadata(ctx, "child_id_lookup", root.ID, "@agentA", map[string]any{"status": "idle"}, &childAlloc.Scope, childAlloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create child: %v", err)
+	}
+	resolvedID, err := s.FindChildSessionIDByParentAndAgent(ctx, root.ID, "agentA")
+	if err != nil {
+		t.Fatalf("find child session id by parent and agent: %v", err)
+	}
+	if resolvedID != child.ID {
+		t.Fatalf("unexpected child session id resolution: %q", resolvedID)
+	}
+}
+
 func TestStoreFindSiblingChildSessionByParentAndAgentUsesDirectLookup(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
@@ -647,12 +673,12 @@ func TestStoreFindSiblingChildSessionByParentAndAgentUsesDirectLookup(t *testing
 	if err != nil {
 		t.Fatalf("create child b: %v", err)
 	}
-	resolved, err := s.FindSiblingChildSessionByParentAndAgent(ctx, childB.ID, "agentA")
+	resolvedID, err := s.FindSiblingChildSessionIDByParentAndAgent(ctx, childB.ID, "agentA")
 	if err != nil {
-		t.Fatalf("find sibling child by parent and agent: %v", err)
+		t.Fatalf("find sibling child id by parent and agent: %v", err)
 	}
-	if resolved.ID != childA.ID {
-		t.Fatalf("expected agentA sibling child, got %#v", resolved)
+	if resolvedID != childA.ID {
+		t.Fatalf("expected agentA sibling child id, got %q", resolvedID)
 	}
 }
 

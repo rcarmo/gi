@@ -6,11 +6,11 @@ import (
 	"strings"
 )
 
-func (s *Store) FindChildSessionByParentAndAgent(ctx context.Context, parentSessionID, agentID string) (*Session, error) {
+func (s *Store) FindChildSessionIDByParentAndAgent(ctx context.Context, parentSessionID, agentID string) (string, error) {
 	parentSessionID = strings.TrimSpace(parentSessionID)
 	agentID = strings.TrimSpace(strings.ToLower(agentID))
 	if parentSessionID == "" || agentID == "" {
-		return nil, sql.ErrNoRows
+		return "", sql.ErrNoRows
 	}
 	row := s.db.QueryRowContext(ctx, `
 		select s.id
@@ -22,16 +22,24 @@ func (s *Store) FindChildSessionByParentAndAgent(ctx context.Context, parentSess
 	`, parentSessionID, agentID)
 	var sessionID string
 	if err := row.Scan(&sessionID); err != nil {
+		return "", err
+	}
+	return sessionID, nil
+}
+
+func (s *Store) FindChildSessionByParentAndAgent(ctx context.Context, parentSessionID, agentID string) (*Session, error) {
+	sessionID, err := s.FindChildSessionIDByParentAndAgent(ctx, parentSessionID, agentID)
+	if err != nil {
 		return nil, err
 	}
 	return s.GetSession(ctx, sessionID)
 }
 
-func (s *Store) FindSiblingChildSessionByParentAndAgent(ctx context.Context, siblingSessionID, agentID string) (*Session, error) {
+func (s *Store) FindSiblingChildSessionIDByParentAndAgent(ctx context.Context, siblingSessionID, agentID string) (string, error) {
 	siblingSessionID = strings.TrimSpace(siblingSessionID)
 	agentID = strings.TrimSpace(strings.ToLower(agentID))
 	if siblingSessionID == "" || agentID == "" {
-		return nil, sql.ErrNoRows
+		return "", sql.ErrNoRows
 	}
 	row := s.db.QueryRowContext(ctx, `
 		select child.id
@@ -44,6 +52,14 @@ func (s *Store) FindSiblingChildSessionByParentAndAgent(ctx context.Context, sib
 	`, siblingSessionID, agentID)
 	var sessionID string
 	if err := row.Scan(&sessionID); err != nil {
+		return "", err
+	}
+	return sessionID, nil
+}
+
+func (s *Store) FindSiblingChildSessionByParentAndAgent(ctx context.Context, siblingSessionID, agentID string) (*Session, error) {
+	sessionID, err := s.FindSiblingChildSessionIDByParentAndAgent(ctx, siblingSessionID, agentID)
+	if err != nil {
 		return nil, err
 	}
 	return s.GetSession(ctx, sessionID)
