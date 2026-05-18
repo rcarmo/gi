@@ -133,12 +133,12 @@ func TestCreateSessionMarksMainSession(t *testing.T) {
 	if err := json.Unmarshal(createResA.Body.Bytes(), &createdA); err != nil {
 		t.Fatalf("decode first create response: %v", err)
 	}
-	mainSess, err := s.ResolveMainSession(t.Context(), "agent", "gi", "default")
+	mainSessionID, err := s.ResolveMainSessionID(t.Context(), "agent", "gi", "default")
 	if err != nil {
-		t.Fatalf("resolve main session after first create: %v", err)
+		t.Fatalf("resolve main session id after first create: %v", err)
 	}
-	if mainSess.ID != createdA.ID {
-		t.Fatalf("expected first created session to be main, got %#v", mainSess)
+	if mainSessionID != createdA.ID {
+		t.Fatalf("expected first created session to be main, got %q", mainSessionID)
 	}
 
 	createReqB := httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewBufferString(`{"title":"@agent","agent_id":"agent"}`))
@@ -154,12 +154,12 @@ func TestCreateSessionMarksMainSession(t *testing.T) {
 	if err := json.Unmarshal(createResB.Body.Bytes(), &createdB); err != nil {
 		t.Fatalf("decode second create response: %v", err)
 	}
-	mainSess, err = s.ResolveMainSession(t.Context(), "agent", "gi", "default")
+	mainSessionID, err = s.ResolveMainSessionID(t.Context(), "agent", "gi", "default")
 	if err != nil {
-		t.Fatalf("resolve main session after second create: %v", err)
+		t.Fatalf("resolve main session id after second create: %v", err)
 	}
-	if mainSess.ID != createdB.ID {
-		t.Fatalf("expected second created session to become main, got %#v", mainSess)
+	if mainSessionID != createdB.ID {
+		t.Fatalf("expected second created session to become main, got %q", mainSessionID)
 	}
 }
 

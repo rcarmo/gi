@@ -119,14 +119,6 @@ func (s *Store) ResolveSessionIDByChannelBinding(ctx context.Context, channel, a
 	return sessionID, nil
 }
 
-func (s *Store) ResolveSessionByChannelBinding(ctx context.Context, channel, account, remoteIdentity string) (*Session, error) {
-	sessionID, err := s.ResolveSessionIDByChannelBinding(ctx, channel, account, remoteIdentity)
-	if err != nil {
-		return nil, err
-	}
-	return s.GetSession(ctx, sessionID)
-}
-
 func (s *Store) ListSessionChannelBindings(ctx context.Context, sessionID string) ([]SessionChannelBinding, error) {
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {

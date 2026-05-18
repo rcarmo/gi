@@ -86,20 +86,20 @@ func TestStoreResolvesSessionByOpaqueKeyAndAlias(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 
-	byKey, err := s.GetSessionByOpaqueKey(ctx, alloc.SessionKey)
+	byKeyID, err := s.ResolveSessionIDByOpaqueKey(ctx, alloc.SessionKey)
 	if err != nil {
-		t.Fatalf("get session by opaque key: %v", err)
+		t.Fatalf("resolve session id by opaque key: %v", err)
 	}
-	if byKey.ID != sess.ID {
-		t.Fatalf("unexpected session by key: %#v", byKey)
+	if byKeyID != sess.ID {
+		t.Fatalf("unexpected session id by key: %q", byKeyID)
 	}
 
-	byAlias, err := s.GetSessionByAlias(ctx, alloc.SessionAliases[0])
+	byAliasID, err := s.ResolveSessionIDByAlias(ctx, alloc.SessionAliases[0])
 	if err != nil {
-		t.Fatalf("get session by alias: %v", err)
+		t.Fatalf("resolve session id by alias: %v", err)
 	}
-	if byAlias.ID != sess.ID {
-		t.Fatalf("unexpected session by alias: %#v", byAlias)
+	if byAliasID != sess.ID {
+		t.Fatalf("unexpected session id by alias: %q", byAliasID)
 	}
 
 	byAlloc, err := s.FindSessionByAllocation(ctx, alloc)
@@ -278,12 +278,12 @@ func TestStoreResolveSessionByKeyOrAlias(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 	for _, key := range []string{sess.ID, alloc.SessionKey, strings.ToUpper(alloc.SessionAliases[0])} {
-		resolved, err := s.ResolveSessionByKeyOrAlias(ctx, key)
+		resolvedID, err := s.ResolveSessionIDByKeyOrAlias(ctx, key)
 		if err != nil {
-			t.Fatalf("resolve session by key or alias %q: %v", key, err)
+			t.Fatalf("resolve session id by key or alias %q: %v", key, err)
 		}
-		if resolved.ID != sess.ID {
-			t.Fatalf("unexpected resolution for %q: %#v", key, resolved)
+		if resolvedID != sess.ID {
+			t.Fatalf("unexpected id resolution for %q: %q", key, resolvedID)
 		}
 	}
 }
@@ -376,12 +376,12 @@ func TestStoreAliasManagementAPIs(t *testing.T) {
 	if len(aliases) != len(alloc.SessionAliases) {
 		t.Fatalf("unexpected initial aliases: %#v", aliases)
 	}
-	resolved, err := s.ResolveSessionByAlias(ctx, aliases[0])
+	resolvedID, err := s.ResolveSessionIDByAlias(ctx, aliases[0])
 	if err != nil {
-		t.Fatalf("resolve session by alias: %v", err)
+		t.Fatalf("resolve session id by alias: %v", err)
 	}
-	if resolved.ID != sess.ID {
-		t.Fatalf("unexpected alias resolution: %#v", resolved)
+	if resolvedID != sess.ID {
+		t.Fatalf("unexpected alias id resolution: %q", resolvedID)
 	}
 	updatedAliases := []string{"agent:agent:gi:chat:direct:session_alias_api", "custom:Team-Alpha", "custom:team-alpha"}
 	if err := s.UpdateSessionAliases(ctx, sess.ID, updatedAliases); err != nil {
@@ -394,12 +394,12 @@ func TestStoreAliasManagementAPIs(t *testing.T) {
 	if len(aliases) != 2 || aliases[0] != "agent:agent:gi:chat:direct:session_alias_api" || aliases[1] != "custom:team-alpha" {
 		t.Fatalf("unexpected updated aliases: %#v", aliases)
 	}
-	resolved, err = s.ResolveSessionByAlias(ctx, "custom:TEAM-alpha")
+	resolvedID, err = s.ResolveSessionIDByAlias(ctx, "custom:TEAM-alpha")
 	if err != nil {
-		t.Fatalf("resolve updated alias: %v", err)
+		t.Fatalf("resolve updated alias id: %v", err)
 	}
-	if resolved.ID != sess.ID {
-		t.Fatalf("unexpected updated alias resolution: %#v", resolved)
+	if resolvedID != sess.ID {
+		t.Fatalf("unexpected updated alias id resolution: %q", resolvedID)
 	}
 	reloaded, err := s.GetSession(ctx, sess.ID)
 	if err != nil {
@@ -448,12 +448,12 @@ func TestStoreResolveOrCreateSessionFromAllocationPreservesExplicitSessionKey(t 
 	if identity.OpaqueSessionKey != explicitKey {
 		t.Fatalf("expected explicit opaque key %q, got %#v", explicitKey, identity)
 	}
-	resolved, err := s.ResolveSessionByCanonicalKey(ctx, explicitKey)
+	resolvedID, err := s.ResolveSessionIDByOpaqueKey(ctx, explicitKey)
 	if err != nil {
-		t.Fatalf("resolve session by explicit canonical key: %v", err)
+		t.Fatalf("resolve session id by explicit canonical key: %v", err)
 	}
-	if resolved.ID != sess.ID {
-		t.Fatalf("unexpected explicit-key resolution: %#v", resolved)
+	if resolvedID != sess.ID {
+		t.Fatalf("unexpected explicit-key id resolution: %q", resolvedID)
 	}
 	reused, created, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_alloc_explicit_other", Title: "@support2", State: map[string]any{"status": "other"}, Allocation: alloc})
 	if err != nil {
@@ -641,22 +641,22 @@ func TestStoreSetAndResolveMainSession(t *testing.T) {
 	if err := s.SetMainSession(ctx, sessA.ID); err != nil {
 		t.Fatalf("set main session a: %v", err)
 	}
-	mainSess, err := s.ResolveMainSession(ctx, "agent", "gi", "default")
+	mainSessionID, err := s.ResolveMainSessionID(ctx, "agent", "gi", "default")
 	if err != nil {
-		t.Fatalf("resolve main session a: %v", err)
+		t.Fatalf("resolve main session id a: %v", err)
 	}
-	if mainSess.ID != sessA.ID {
-		t.Fatalf("expected session a as main, got %#v", mainSess)
+	if mainSessionID != sessA.ID {
+		t.Fatalf("expected session a as main, got %q", mainSessionID)
 	}
 	if err := s.SetMainSession(ctx, sessB.ID); err != nil {
 		t.Fatalf("set main session b: %v", err)
 	}
-	mainSess, err = s.ResolveMainSession(ctx, "agent", "gi", "default")
+	mainSessionID, err = s.ResolveMainSessionID(ctx, "agent", "gi", "default")
 	if err != nil {
-		t.Fatalf("resolve main session b: %v", err)
+		t.Fatalf("resolve main session id b: %v", err)
 	}
-	if mainSess.ID != sessB.ID {
-		t.Fatalf("expected session b as main, got %#v", mainSess)
+	if mainSessionID != sessB.ID {
+		t.Fatalf("expected session b as main, got %q", mainSessionID)
 	}
 	identityA, err := s.GetSessionIdentity(ctx, sessA.ID)
 	if err != nil {
@@ -743,12 +743,12 @@ func TestStoreResolveOrCreateMainSessionFromAllocation(t *testing.T) {
 	if !created {
 		t.Fatalf("expected session creation for main session")
 	}
-	mainSess, err := s.ResolveMainSession(ctx, "agent", "gi", "default")
+	mainSessionID, err := s.ResolveMainSessionID(ctx, "agent", "gi", "default")
 	if err != nil {
-		t.Fatalf("resolve main session: %v", err)
+		t.Fatalf("resolve main session id: %v", err)
 	}
-	if mainSess.ID != sess.ID {
-		t.Fatalf("expected created session to be main, got %#v", mainSess)
+	if mainSessionID != sess.ID {
+		t.Fatalf("expected created session to be main, got %q", mainSessionID)
 	}
 	identity, err := s.GetSessionIdentity(ctx, sess.ID)
 	if err != nil {
@@ -788,12 +788,12 @@ func TestStoreResolveOrCreateMainSessionRegistersPrimaryChannelBinding(t *testin
 	if bindings[0].Channel != "slack" || bindings[0].Account != "workspace" || bindings[0].BindingType != "chat" || bindings[0].RemoteIdentity != "group:thread-7" {
 		t.Fatalf("unexpected primary channel binding: %#v", bindings[0])
 	}
-	resolved, err := s.ResolveSessionByChannelBinding(ctx, "slack", "workspace", "group:thread-7")
+	resolvedID, err := s.ResolveSessionIDByChannelBinding(ctx, "slack", "workspace", "group:thread-7")
 	if err != nil {
-		t.Fatalf("resolve session by primary channel binding: %v", err)
+		t.Fatalf("resolve session id by primary channel binding: %v", err)
 	}
-	if resolved.ID != sess.ID {
-		t.Fatalf("unexpected binding resolution: %#v", resolved)
+	if resolvedID != sess.ID {
+		t.Fatalf("unexpected binding id resolution: %q", resolvedID)
 	}
 }
 

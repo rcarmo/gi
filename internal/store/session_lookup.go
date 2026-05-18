@@ -27,14 +27,6 @@ func (s *Store) FindChildSessionIDByParentAndAgent(ctx context.Context, parentSe
 	return sessionID, nil
 }
 
-func (s *Store) FindChildSessionByParentAndAgent(ctx context.Context, parentSessionID, agentID string) (*Session, error) {
-	sessionID, err := s.FindChildSessionIDByParentAndAgent(ctx, parentSessionID, agentID)
-	if err != nil {
-		return nil, err
-	}
-	return s.GetSession(ctx, sessionID)
-}
-
 func (s *Store) FindSiblingChildSessionIDByParentAndAgent(ctx context.Context, siblingSessionID, agentID string) (string, error) {
 	siblingSessionID = strings.TrimSpace(siblingSessionID)
 	agentID = strings.TrimSpace(strings.ToLower(agentID))
@@ -55,12 +47,4 @@ func (s *Store) FindSiblingChildSessionIDByParentAndAgent(ctx context.Context, s
 		return "", err
 	}
 	return sessionID, nil
-}
-
-func (s *Store) FindSiblingChildSessionByParentAndAgent(ctx context.Context, siblingSessionID, agentID string) (*Session, error) {
-	sessionID, err := s.FindSiblingChildSessionIDByParentAndAgent(ctx, siblingSessionID, agentID)
-	if err != nil {
-		return nil, err
-	}
-	return s.GetSession(ctx, sessionID)
 }

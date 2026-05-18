@@ -50,14 +50,6 @@ func upsertSessionAliasesTx(ctx context.Context, tx *sql.Tx, sessionID string, a
 	return nil
 }
 
-func (s *Store) ResolveSessionByCanonicalKey(ctx context.Context, opaqueKey string) (*Session, error) {
-	return s.GetSessionByOpaqueKey(ctx, opaqueKey)
-}
-
-func (s *Store) ResolveSessionByAlias(ctx context.Context, alias string) (*Session, error) {
-	return s.GetSessionByAlias(ctx, alias)
-}
-
 func (s *Store) ListSessionAliases(ctx context.Context, sessionID string) ([]string, error) {
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
@@ -137,14 +129,6 @@ func (s *Store) ResolveSessionIDByOpaqueKey(ctx context.Context, opaqueKey strin
 	return sessionID, nil
 }
 
-func (s *Store) GetSessionByOpaqueKey(ctx context.Context, opaqueKey string) (*Session, error) {
-	sessionID, err := s.ResolveSessionIDByOpaqueKey(ctx, opaqueKey)
-	if err != nil {
-		return nil, err
-	}
-	return s.GetSession(ctx, sessionID)
-}
-
 func (s *Store) ResolveSessionIDByCanonicalScopeSignature(ctx context.Context, signature string) (string, error) {
 	signature = strings.TrimSpace(strings.ToLower(signature))
 	if signature == "" {
@@ -158,14 +142,6 @@ func (s *Store) ResolveSessionIDByCanonicalScopeSignature(ctx context.Context, s
 	return sessionID, nil
 }
 
-func (s *Store) GetSessionByCanonicalScopeSignature(ctx context.Context, signature string) (*Session, error) {
-	sessionID, err := s.ResolveSessionIDByCanonicalScopeSignature(ctx, signature)
-	if err != nil {
-		return nil, err
-	}
-	return s.GetSession(ctx, sessionID)
-}
-
 func (s *Store) ResolveSessionIDByAlias(ctx context.Context, alias string) (string, error) {
 	alias = strings.TrimSpace(strings.ToLower(alias))
 	if alias == "" {
@@ -177,14 +153,6 @@ func (s *Store) ResolveSessionIDByAlias(ctx context.Context, alias string) (stri
 		return "", err
 	}
 	return sessionID, nil
-}
-
-func (s *Store) GetSessionByAlias(ctx context.Context, alias string) (*Session, error) {
-	sessionID, err := s.ResolveSessionIDByAlias(ctx, alias)
-	if err != nil {
-		return nil, err
-	}
-	return s.GetSession(ctx, sessionID)
 }
 
 func (s *Store) ResolveSessionIDByKeyOrAlias(ctx context.Context, key string) (string, error) {
@@ -208,12 +176,4 @@ func (s *Store) ResolveSessionIDByKeyOrAlias(ctx context.Context, key string) (s
 		return "", err
 	}
 	return "", sql.ErrNoRows
-}
-
-func (s *Store) ResolveSessionByKeyOrAlias(ctx context.Context, key string) (*Session, error) {
-	sessionID, err := s.ResolveSessionIDByKeyOrAlias(ctx, key)
-	if err != nil {
-		return nil, err
-	}
-	return s.GetSession(ctx, sessionID)
 }

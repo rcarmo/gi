@@ -195,6 +195,7 @@ Likely tasks:
 - follow-up structural cleanup then moved session-identity projection back out of `internal/turn` and into store ownership:
   - `internal/store/session_identity_runtime.go`
   - removed `internal/turn/session_identity_helpers.go`
+- later consolidation removed now-redundant row-returning convenience wrappers from `internal/store` (main-session, key/alias, channel-binding, child/sibling-child lookups) and updated original callers/tests directly to the ID-first APIs instead of keeping forwarding shims beside the new ownership model
 - `internal/turn` routing-facing engine methods were split out of `engine.go` into:
   - `routing_runtime.go`
 - `internal/turn` generic coercion/sorting helpers and bootstrap shell runtime were split out of `engine.go` into:

@@ -25,14 +25,6 @@ func (s *Store) ResolveMainSessionID(ctx context.Context, agentID, channel, acco
 	return sessionID, nil
 }
 
-func (s *Store) ResolveMainSession(ctx context.Context, agentID, channel, account string) (*Session, error) {
-	sessionID, err := s.ResolveMainSessionID(ctx, agentID, channel, account)
-	if err != nil {
-		return nil, err
-	}
-	return s.GetSession(ctx, sessionID)
-}
-
 func (s *Store) SetMainSession(ctx context.Context, sessionID string) error {
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
