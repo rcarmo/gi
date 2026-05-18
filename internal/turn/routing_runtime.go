@@ -15,24 +15,11 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 	if err := e.store.RequireSession(opCtx, in.SessionID); err != nil {
 		return nil, err
 	}
-	targetAgentID, body, directed := routing.ParseDirectedPrompt(in.Prompt)
-	promptBody := in.Prompt
-	mentioned := false
-	if directed {
-		if body == "" {
-			return nil, fmt.Errorf("directed prompt requires content after @%s", targetAgentID)
-		}
-		promptBody = body
-		mentioned = true
-	}
 	inbound := routedsession.InboundContextFromSession(opCtx, e.store, in.SessionID)
 	inbound.SenderID = "user"
-	inbound.Mentioned = mentioned
-	inbound.Prompt = promptBody
-	route := e.routeResolver.ResolveRoute(inbound)
-	if directed && targetAgentID != "" {
-		route.AgentID = routing.NormalizeAgentID(targetAgentID)
-		route.MatchedBy = "mention"
+	route, promptBody, directed, err := routing.PreparePromptRoutedInput(in.Prompt, inbound, e.routeResolver)
+	if err != nil {
+		return nil, err
 	}
 	targetSessionID, created, err := routedsession.ResolveOrCreate(opCtx, e.store, in.SessionID, route, inbound, routedsession.ResolveOptions{ModelForAgent: e.modelForAgent, DefaultProvider: e.runtimeCfg.DefaultProvider, DefaultThinking: e.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
@@ -44,21 +31,7 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 	sourceSessionID := in.SessionID
 	in.SessionID = targetSessionID
 	in.Prompt = promptBody
-	if in.Metadata == nil {
-		in.Metadata = map[string]any{}
-	}
-	in.Metadata["route_mode"] = "prompt"
-	in.Metadata["route_matched_by"] = route.MatchedBy
-	in.Metadata["target_agent_id"] = route.AgentID
-	in.Metadata["target_session_id"] = targetSessionID
-	in.Metadata["source_agent_id"] = e.store.SessionAgentID(opCtx, sourceSessionID)
-	if route.MatchedBy != "" {
-		in.Metadata["routing_policy"] = route.MatchedBy
-	}
-	in.Metadata["requested_agent_id"] = route.AgentID
-	in.Metadata["source_session_id"] = sourceSessionID
-	in.Metadata["route_created_session"] = created
-	in.Metadata["routing_enabled"] = true
+	in.Metadata = routing.ApplyPromptRouteMetadata(in.Metadata, sourceSessionID, targetSessionID, e.store.SessionAgentID(opCtx, sourceSessionID), route, created)
 	return e.SubmitPrompt(opCtx, in)
 }
 
@@ -73,11 +46,7 @@ func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessio
 	}
 	inbound := routedsession.InboundContextFromSession(opCtx, e.store, sourceSessionID)
 	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
-	inbound.Mentioned = true
-	inbound.Prompt = content
-	route := e.routeResolver.ResolveRoute(inbound)
-	route.AgentID = routing.NormalizeAgentID(targetAgentID)
-	route.MatchedBy = "peer-message"
+	route := routing.PreparePeerRoutedInput(targetAgentID, "peer-message", content, inbound, e.routeResolver)
 	targetSessionID, created, err := routedsession.ResolveOrCreate(opCtx, e.store, sourceSessionID, route, inbound, routedsession.ResolveOptions{ModelForAgent: e.modelForAgent, DefaultProvider: e.runtimeCfg.DefaultProvider, DefaultThinking: e.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
 		return nil, err
@@ -92,10 +61,7 @@ func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSession
 	}
 	inbound := routedsession.InboundContextFromSession(opCtx, e.store, sourceSessionID)
 	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
-	inbound.Mentioned = true
-	route := e.routeResolver.ResolveRoute(inbound)
-	route.AgentID = routing.NormalizeAgentID(targetAgentID)
-	route.MatchedBy = "peer-session"
+	route := routing.PreparePeerRoutedInput(targetAgentID, "peer-session", "", inbound, e.routeResolver)
 	targetSessionID, _, err := routedsession.ResolveOrCreate(opCtx, e.store, sourceSessionID, route, inbound, routedsession.ResolveOptions{ModelForAgent: e.modelForAgent, DefaultProvider: e.runtimeCfg.DefaultProvider, DefaultThinking: e.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
 		return "", err
@@ -140,16 +106,5 @@ func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, sourceSessionID, ta
 }
 
 func (e *Engine) modelForAgent(agentID string) string {
-	agentID = routing.NormalizeAgentID(agentID)
-	for _, agent := range e.runtimeCfg.Agents.List {
-		if routing.NormalizeAgentID(agent.ID) == agentID {
-			if strings.TrimSpace(agent.Model) != "" {
-				return agent.Model
-			}
-		}
-	}
-	if strings.TrimSpace(e.runtimeCfg.DefaultModel) != "" {
-		return e.runtimeCfg.DefaultModel
-	}
-	return "bootstrap"
+	return routing.ModelForAgent(agentID, e.runtimeCfg.Agents, e.runtimeCfg.DefaultModel)
 }
