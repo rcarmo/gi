@@ -18,10 +18,10 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 	if err := e.resolveRoutedPromptTarget(opCtx, resolution); err != nil {
 		return nil, err
 	}
-	if resolution.target.ID != resolution.source.ID {
-		return e.submitPeerRoutedPrompt(opCtx, resolution.source, resolution.target, resolution.route, resolution.promptBody, in.Intent, in.Model, resolution.created, resolution.directed, in.ParentTurnID, in.Metadata)
+	if resolution.targetSessionID != resolution.sourceSessionID {
+		return e.submitPeerRoutedPrompt(opCtx, resolution.sourceSessionID, resolution.targetSessionID, resolution.route, resolution.promptBody, in.Intent, in.Model, resolution.created, resolution.directed, in.ParentTurnID, in.Metadata)
 	}
-	in.SessionID = resolution.target.ID
+	in.SessionID = resolution.targetSessionID
 	in.Prompt = resolution.promptBody
 	e.applyLocalRouteMetadata(opCtx, &in, resolution)
 	return e.SubmitPrompt(opCtx, in)
@@ -40,7 +40,7 @@ func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessio
 	if err := e.resolveRoutedPromptTarget(opCtx, resolution); err != nil {
 		return nil, err
 	}
-	return e.submitPeerRoutedPrompt(opCtx, resolution.source, resolution.target, resolution.route, content, intent, model, resolution.created, resolution.directed, parentTurnID, extraMetadata)
+	return e.submitPeerRoutedPrompt(opCtx, resolution.sourceSessionID, resolution.targetSessionID, resolution.route, content, intent, model, resolution.created, resolution.directed, parentTurnID, extraMetadata)
 }
 
 func (e *Engine) ResolveOrCreatePeerSession(ctx context.Context, sourceSessionID, targetAgentID string) (*store.Session, bool, error) {
@@ -52,45 +52,49 @@ func (e *Engine) ResolveOrCreatePeerSession(ctx context.Context, sourceSessionID
 	if err := e.resolveRoutedPromptTarget(opCtx, resolution); err != nil {
 		return nil, false, err
 	}
-	return resolution.target, resolution.created, nil
-}
-
-func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.Session, route routing.ResolvedRoute, inbound routing.InboundContext) (*store.Session, bool, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
-	if source == nil {
-		return nil, false, fmt.Errorf("missing source session")
-	}
-	if normalizeAgentID(e.store.SessionAgentID(opCtx, source.ID)) == normalizeAgentID(route.AgentID) {
-		return source, false, nil
-	}
-	plan, err := e.prepareRouteSessionPlan(source.ID, route, inbound)
+	target, err := e.store.GetSession(opCtx, resolution.targetSessionID)
 	if err != nil {
 		return nil, false, err
+	}
+	return target, resolution.created, nil
+}
+
+func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, sourceSessionID string, route routing.ResolvedRoute, inbound routing.InboundContext) (string, bool, error) {
+	opCtx := coordinationContext(ctx, e.backgroundContext())
+	if strings.TrimSpace(sourceSessionID) == "" {
+		return "", false, fmt.Errorf("missing source session")
+	}
+	if normalizeAgentID(e.store.SessionAgentID(opCtx, sourceSessionID)) == normalizeAgentID(route.AgentID) {
+		return sourceSessionID, false, nil
+	}
+	plan, err := e.prepareRouteSessionPlan(sourceSessionID, route, inbound)
+	if err != nil {
+		return "", false, err
 	}
 	existing, err := e.resolveExistingRouteSession(opCtx, plan)
 	if err != nil {
-		return nil, false, err
+		return "", false, err
 	}
 	if existing != nil {
-		return existing, false, nil
+		return existing.ID, false, nil
 	}
 	cloned, created, err := e.cloneRouteSession(opCtx, plan)
 	if err != nil {
-		return nil, false, err
+		return "", false, err
 	}
-	return cloned, created, nil
+	return cloned.ID, created, nil
 }
 
-func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, source, target *store.Session, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
+func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, sourceSessionID, targetSessionID string, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	sourceAgentID := e.store.SessionAgentID(opCtx, source.ID)
+	sourceAgentID := e.store.SessionAgentID(opCtx, sourceSessionID)
 	routingContent := fmt.Sprintf("↪ routed to @%s: %s", route.AgentID, content)
-	routingPayload := map[string]any{"kind": "routing", "target_agent_id": route.AgentID, "target_session_id": target.ID, "source_agent_id": sourceAgentID, "source_session_id": source.ID, "route_matched_by": route.MatchedBy, "clipped": true}
-	warnStore("add routing message to source session", e.store.AddMessage(opCtx, store.NowID("msg"), source.ID, "system", routingContent, routingPayload))
+	routingPayload := map[string]any{"kind": "routing", "target_agent_id": route.AgentID, "target_session_id": targetSessionID, "source_agent_id": sourceAgentID, "source_session_id": sourceSessionID, "route_matched_by": route.MatchedBy, "clipped": true}
+	warnStore("add routing message to source session", e.store.AddMessage(opCtx, store.NowID("msg"), sourceSessionID, "system", routingContent, routingPayload))
 	metadata := map[string]any{
-		"source_session_id":     source.ID,
+		"source_session_id":     sourceSessionID,
 		"source_agent_id":       sourceAgentID,
-		"target_session_id":     target.ID,
+		"target_session_id":     targetSessionID,
 		"target_agent_id":       route.AgentID,
 		"requested_agent_id":    route.AgentID,
 		"routing_policy":        route.MatchedBy,
@@ -106,11 +110,11 @@ func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, source, target *sto
 	for k, v := range extraMetadata {
 		metadata[k] = v
 	}
-	result, err := e.SubmitPrompt(opCtx, RunInput{SessionID: target.ID, Prompt: content, Intent: intent, Model: model, ParentTurnID: parentTurnID, Metadata: metadata})
+	result, err := e.SubmitPrompt(opCtx, RunInput{SessionID: targetSessionID, Prompt: content, Intent: intent, Model: model, ParentTurnID: parentTurnID, Metadata: metadata})
 	if err != nil {
 		return nil, err
 	}
-	result.SourceSessionID = source.ID
+	result.SourceSessionID = sourceSessionID
 	result.TargetAgentID = route.AgentID
 	result.Routed = true
 	result.CreatedSession = created

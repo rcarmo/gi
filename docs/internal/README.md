@@ -51,8 +51,8 @@ The `search/` subtree is the canonical reference for the current hybrid workspac
 `repo-structure-refactor.md` is the working note for the interim structure-tidying phase that reassesses package/file grouping before deeper runtime changes continue.
 
 Current interim structure status:
-- `internal/store` session identity/allocation code has been regrouped by responsibility (`session_identity.go`, `session_identity_runtime.go`, `session_aliases.go`, `session_main.go`, `session_resolution.go`, `session_channel_bindings.go`) and the older row-returning convenience wrappers were removed in favor of direct ID-first call-site updates
-- `internal/turn` routing/helper/shell/value logic has been split out of `engine.go`, and the former turn-local session-identity projection helpers were moved back into `internal/store`
+- `internal/store` session identity/allocation code has been regrouped by responsibility (`session_identity.go`, `session_identity_runtime.go`, `session_aliases.go`, `session_main.go`, `session_resolution.go`, `session_channel_bindings.go`) and the older row-returning convenience wrappers were removed in favor of direct ID-first call-site updates, including the former row-returning allocation-resolution APIs
+- `internal/turn` routing/helper/shell/value logic has been split out of `engine.go`, the former turn-local session-identity projection helpers were moved back into `internal/store`, and routed resolution/signature handling now prefers session-id transport over carrying full `*store.Session` objects after route context preparation
 - `internal/tui` session-reference helpers have been split out of `chat.go`
 - follow-up audit fixes tightened identity-read query scope and removed repeated transcript DB reloads from the TUI render path
 - routed/default session allocation now prefers relational identity state over `sessions.scope_json`, including main-session preference, store-boundary `identity_links` normalization, first-pass multi-channel binding reuse / explicit continuation semantics, and fallback-aware route-context/source-agent derivation so canceled callers do not silently regress route preparation to stale scope snapshots

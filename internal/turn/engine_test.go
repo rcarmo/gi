@@ -4694,12 +4694,12 @@ func TestResolveOrCreateRouteSessionUsesIdentityForSameAgentFastPath(t *testing.
 		t.Fatalf("reload source session: %v", err)
 	}
 	engine := New(s)
-	target, created, err := engine.ResolveOrCreateRouteSession(ctx, source, routing.ResolvedRoute{AgentID: "agent"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
+	targetSessionID, created, err := engine.ResolveOrCreateRouteSession(ctx, source.ID, routing.ResolvedRoute{AgentID: "agent"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
 	if err != nil {
 		t.Fatalf("resolve route session: %v", err)
 	}
-	if created || target.ID != source.ID {
-		t.Fatalf("expected canonical same-agent fast path reuse, got target=%#v created=%v", target, created)
+	if created || targetSessionID != source.ID {
+		t.Fatalf("expected canonical same-agent fast path reuse, got target=%q created=%v", targetSessionID, created)
 	}
 }
 
@@ -5371,15 +5371,15 @@ func TestResolveOrCreateRouteSessionReturnsSourceForSameAgent(t *testing.T) {
 		t.Fatalf("reload source session: %v", err)
 	}
 	engine := New(s)
-	target, created, err := engine.ResolveOrCreateRouteSession(ctx, staleSource, routing.ResolvedRoute{AgentID: "agent"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
+	targetSessionID, created, err := engine.ResolveOrCreateRouteSession(ctx, staleSource.ID, routing.ResolvedRoute{AgentID: "agent"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
 	if err != nil {
 		t.Fatalf("resolve route session: %v", err)
 	}
 	if created {
 		t.Fatalf("expected same-agent route to reuse source, got created=%v", created)
 	}
-	if target.ID != source.ID {
-		t.Fatalf("expected source session reuse, got target=%#v source=%#v", target, source)
+	if targetSessionID != source.ID {
+		t.Fatalf("expected source session reuse, got target=%q source=%#v", targetSessionID, source)
 	}
 }
 
@@ -5606,7 +5606,7 @@ func TestSubmitPeerRoutedPromptSurvivesCanceledCallerContext(t *testing.T) {
 	engine := New(s)
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
-	result, err := engine.submitPeerRoutedPrompt(cancelCtx, source, target, routing.ResolvedRoute{AgentID: "agent1", MatchedBy: "peer-message"}, "hello from peer", "prompt", "bootstrap", false, true, "", nil)
+	result, err := engine.submitPeerRoutedPrompt(cancelCtx, source.ID, target.ID, routing.ResolvedRoute{AgentID: "agent1", MatchedBy: "peer-message"}, "hello from peer", "prompt", "bootstrap", false, true, "", nil)
 	if err != nil {
 		t.Fatalf("submit peer routed prompt with canceled caller context: %v", err)
 	}
