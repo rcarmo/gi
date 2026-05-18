@@ -91,16 +91,33 @@ func inboundContextFromSessionIDWithFallback(ctx, fallback context.Context, s *s
 		}
 		return inbound
 	}
-	if spaceType, spaceID, ok := splitScopedValue(scope.Values["space"], "space"); ok {
-		inbound.SpaceType = spaceType
-		inbound.SpaceID = spaceID
+	if raw := strings.TrimSpace(scope.Values["space"]); raw != "" {
+		parts := strings.SplitN(raw, ":", 2)
+		if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
+			inbound.SpaceType = normalizedLowerString(parts[0])
+			inbound.SpaceID = normalizedLowerString(parts[1])
+		} else {
+			inbound.SpaceType = "space"
+			inbound.SpaceID = normalizedLowerString(raw)
+		}
 	}
-	if chatType, chatID, ok := splitScopedValue(scope.Values["chat"], "direct"); ok {
-		inbound.ChatType = chatType
-		inbound.ChatID = chatID
+	if raw := strings.TrimSpace(scope.Values["chat"]); raw != "" {
+		parts := strings.SplitN(raw, ":", 2)
+		if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
+			inbound.ChatType = normalizedLowerString(parts[0])
+			inbound.ChatID = normalizedLowerString(parts[1])
+		} else {
+			inbound.ChatType = "direct"
+			inbound.ChatID = normalizedLowerString(raw)
+		}
 	}
-	if _, topicID, ok := splitScopedValue(scope.Values["topic"], "topic"); ok {
-		inbound.TopicID = topicID
+	if raw := strings.TrimSpace(scope.Values["topic"]); raw != "" {
+		parts := strings.SplitN(raw, ":", 2)
+		if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
+			inbound.TopicID = normalizedLowerString(parts[1])
+		} else {
+			inbound.TopicID = normalizedLowerString(raw)
+		}
 	}
 	if inbound.ChatID == "" && strings.TrimSpace(sessionID) != "" {
 		inbound.ChatType = "direct"
@@ -109,17 +126,3 @@ func inboundContextFromSessionIDWithFallback(ctx, fallback context.Context, s *s
 	return inbound
 }
 
-func splitScopedValue(raw, fallbackType string) (string, string, bool) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return "", "", false
-	}
-	parts := strings.SplitN(raw, ":", 2)
-	if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
-		return normalizedLowerString(parts[0]), normalizedLowerString(parts[1]), true
-	}
-	if strings.TrimSpace(fallbackType) == "" {
-		return "", normalizedLowerString(raw), true
-	}
-	return normalizedLowerString(fallbackType), normalizedLowerString(raw), true
-}

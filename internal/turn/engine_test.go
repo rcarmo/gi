@@ -665,12 +665,6 @@ func TestParsingHelpersNormalizeAsExpected(t *testing.T) {
 	if target, body, ok := routing.ParseDirectedPrompt("  @Agent-One: hello there  "); !ok || target != "agent-one" || body != "hello there" {
 		t.Fatalf("expected directed prompt parse, got target=%q body=%q ok=%v", target, body, ok)
 	}
-	if typ, id, ok := splitScopedValue(" Room:Eng ", "space"); !ok || typ != "room" || id != "eng" {
-		t.Fatalf("expected scoped value parse, got type=%q id=%q ok=%v", typ, id, ok)
-	}
-	if typ, id, ok := splitScopedValue("Thread-7", "group"); !ok || typ != "group" || id != "thread-7" {
-		t.Fatalf("expected fallback scoped value parse, got type=%q id=%q ok=%v", typ, id, ok)
-	}
 }
 
 func TestCoordinationContextPrefersActiveCallerAndFallsBackWhenNeeded(t *testing.T) {
