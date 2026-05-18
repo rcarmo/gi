@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"github.com/rcarmo/gi/internal/connectivity"
 	"github.com/rcarmo/gi/internal/rtk"
 	"github.com/rcarmo/gi/internal/scripting"
+	giskills "github.com/rcarmo/gi/internal/skills"
 	"github.com/rcarmo/gi/internal/tools"
 	"github.com/rcarmo/gi/internal/topics"
 	goai "github.com/rcarmo/go-ai"
@@ -130,6 +132,30 @@ func (e *Engine) registerDefaultTools() {
 		func(ctx context.Context, sessionID string) ([]string, error) { return e.ActiveTools(), nil },
 	)
 	e.loadWorkspaceExtensions(scriptTool)
+	registerDiscoveredTools := func() {
+		giskills.RegisterDiscoveredTools(e.runtimeCfg.Discovery.Tools, func(tool giskills.ToolManifest, params json.RawMessage) error {
+			return e.RegisterTool(RegisteredTool{
+				Name:        tool.Name,
+				Description: tool.Description,
+				Parameters:  params,
+				Source:      "workspace-manifest",
+				Kind:        "mixed",
+				Weight:      "standard",
+				Activation:  "on-demand",
+				Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+					payload := map[string]any{"tool_call_id": call.ID, "name": call.Name, "arguments": call.Arguments, "session_id": rt.SessionID}
+					input := tools.ScriptInput{Engine: tool.Engine, Path: tool.Path, SessionID: rt.SessionID, Script: scriptWithPayload(tool.Engine, "tool", payload, tool.Script)}
+					out := scriptTool.Execute(ctx, input)
+					if out.Error != "" {
+						return out.Result, errors.New(out.Error)
+					}
+					return out.Result, nil
+				},
+			})
+		}, func(name string, err error) {
+			log.Printf("register discovered tool %q: %v", name, err)
+		})
+	}
 	must := func(t RegisteredTool) {
 		if err := e.RegisterTool(t); err != nil {
 			panic(err)
@@ -156,10 +182,10 @@ func (e *Engine) registerDefaultTools() {
 		Weight:      "lightweight",
 		Activation:  "default",
 		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
-			return executeSkillsTool(rt.WorkspaceRoot, call.Arguments)
+			return giskills.ExecuteTool(rt.WorkspaceRoot, call.Arguments)
 		},
 	})
-	registerDiscoveredTools(e, scriptTool)
+	registerDiscoveredTools()
 	must(RegisteredTool{
 		Name:        "read",
 		Description: "Read text content from a workspace file. Supports workspace-relative paths and vfs:// paths.",

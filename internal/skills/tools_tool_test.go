@@ -1,4 +1,4 @@
-package turn
+package skills
 
 import (
 	"os"
@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestExecuteSkillsToolListsAndReads(t *testing.T) {
+func TestExecuteToolListsAndReads(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, ".gi", "skills", "demo")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -17,14 +17,14 @@ func TestExecuteSkillsToolListsAndReads(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	list, err := executeSkillsTool(root, map[string]any{})
+	list, err := ExecuteTool(root, map[string]any{})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
 	if !strings.Contains(list, "demo") || !strings.Contains(list, "Demo skill") {
 		t.Fatalf("list=%s", list)
 	}
-	read, err := executeSkillsTool(root, map[string]any{"name": "demo"})
+	read, err := ExecuteTool(root, map[string]any{"name": "demo"})
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}

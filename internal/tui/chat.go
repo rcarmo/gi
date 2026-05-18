@@ -12,6 +12,7 @@ import (
 	gotui "github.com/grindlemire/go-tui"
 	"github.com/rcarmo/gi/internal/config"
 	gisession "github.com/rcarmo/gi/internal/session"
+	"github.com/rcarmo/gi/internal/skills"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
 	"github.com/rcarmo/gi/internal/turn"
@@ -1159,7 +1160,7 @@ func (c *chatTUI) skillLines(query string) []string {
 	if strings.TrimSpace(query) != "" {
 		args["query"] = strings.TrimSpace(query)
 	}
-	out, err := turn.ExecuteSkillsMeta(c.cfg.WorkspaceRoot, args)
+	out, err := skills.ExecuteMeta(c.cfg.WorkspaceRoot, args)
 	if err != nil {
 		return []string{fmt.Sprintf("error: %v", err)}
 	}
