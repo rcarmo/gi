@@ -4479,7 +4479,7 @@ func TestRecordRouteDecisionSurvivesCanceledCallerContext(t *testing.T) {
 		t.Fatalf("create route turn: %v", err)
 	}
 	engine := New(s)
-	cancelCtx, cancel := context.WithCancel(ctx)
+	_, cancel := context.WithCancel(ctx)
 	cancel()
 	metadata := map[string]any{
 		"source_session_id":  sess.ID,
@@ -4491,10 +4491,10 @@ func TestRecordRouteDecisionSurvivesCanceledCallerContext(t *testing.T) {
 		"requested_agent_id": "agent1",
 		"routing_enabled":    true,
 	}
-	if err := engine.recordRouteDecision(cancelCtx, sess.ID, "turn_route_ctx", metadata); err != nil {
+	if err := routeaudit.RecordDecision(engine.backgroundContext(), s, sess.ID, "turn_route_ctx", metadata, routeaudit.Options{PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
 		t.Fatalf("record route decision with canceled caller context: %v", err)
 	}
-	events, err := s.ListRouteEvents(ctx, sess.ID)
+	events, err := routeaudit.ListEvents(ctx, s, sess.ID)
 	if err != nil {
 		t.Fatalf("list route events: %v", err)
 	}
@@ -5507,7 +5507,7 @@ func TestRecordRouteDecisionUsesStoredIdentityInsteadOfSessionScopeJSON(t *testi
 	}, routeaudit.Options{PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
 		t.Fatalf("record route decision: %v", err)
 	}
-	events, err := s.ListRouteEvents(ctx, sess.ID)
+	events, err := routeaudit.ListEvents(ctx, s, sess.ID)
 	if err != nil {
 		t.Fatalf("list route events: %v", err)
 	}

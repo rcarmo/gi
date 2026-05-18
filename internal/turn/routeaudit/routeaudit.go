@@ -7,7 +7,7 @@ import (
 )
 
 type Options struct {
-	PublishRuntimeRoutingEvent func(string, store.RouteEvent)
+	PublishRuntimeRoutingEvent func(string, Event)
 	Broadcast                  func(string, map[string]any)
 }
 
@@ -36,7 +36,7 @@ func RecordDecision(ctx context.Context, st *store.Store, sourceSessionID, turnI
 	if !boolValueOr(metadata["routing_enabled"], true) {
 		return nil
 	}
-	routeEventID, err := st.RecordRouteEvent(ctx, decision)
+	routeEventID, err := RecordEvent(ctx, st, decision)
 	if err != nil {
 		return err
 	}
@@ -78,8 +78,8 @@ func RecordDecision(ctx context.Context, st *store.Store, sourceSessionID, turnI
 	return nil
 }
 
-func decisionFromMetadata(sourceSession, targetSession, sourceAgent, targetAgentID, turnID, routeMode, matchedBy, routingPolicy, requestedAgent string, metadata map[string]any) store.RouteEvent {
-	decision := store.RouteEvent{
+func decisionFromMetadata(sourceSession, targetSession, sourceAgent, targetAgentID, turnID, routeMode, matchedBy, routingPolicy, requestedAgent string, metadata map[string]any) Event {
+	decision := Event{
 		TurnID:         turnID,
 		SourceSession:  sourceSession,
 		TargetSession:  targetSession,

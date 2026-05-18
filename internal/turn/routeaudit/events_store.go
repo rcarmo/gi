@@ -1,13 +1,16 @@
-package store
+package routeaudit
 
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/rcarmo/gi/internal/store"
 )
 
-type RouteEvent struct {
+type Event struct {
 	ID             int64          `json:"id"`
 	TurnID         string         `json:"turn_id,omitempty"`
 	SourceSession  string         `json:"source_session_id"`
@@ -22,21 +25,19 @@ type RouteEvent struct {
 	CreatedAt      string         `json:"created_at"`
 }
 
-func (s *Store) RecordRouteEvent(ctx context.Context, event RouteEvent) (int64, error) {
+func RecordEvent(ctx context.Context, st *store.Store, event Event) (int64, error) {
 	if event.SourceSession == "" {
 		return 0, fmt.Errorf("record route event: missing source_session_id")
 	}
 	if event.TargetAgentID == "" {
 		return 0, fmt.Errorf("record route event: missing target_agent_id")
 	}
-	payloadJSON, err := marshalJSON(event.Metadata)
+	payloadJSON, err := json.Marshal(event.Metadata)
 	if err != nil {
 		return 0, err
 	}
-	var id int64
-	req := `insert into routing_events (turn_id, source_session_id, target_session_id, source_agent_id, target_agent_id, mode, matched_by, routing_policy, requested_agent_id, metadata_json, created_at)
-		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ` + defaultNow + `)`
-	_, err = s.db.ExecContext(ctx, req,
+	if _, err := st.DB().ExecContext(ctx, `insert into routing_events (turn_id, source_session_id, target_session_id, source_agent_id, target_agent_id, mode, matched_by, routing_policy, requested_agent_id, metadata_json, created_at)
+		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
 		nilIfEmpty(event.TurnID),
 		event.SourceSession,
 		nilIfEmpty(event.TargetSession),
@@ -46,30 +47,29 @@ func (s *Store) RecordRouteEvent(ctx context.Context, event RouteEvent) (int64, 
 		nilIfEmpty(event.MatchedBy),
 		nilIfEmpty(event.RoutingPolicy),
 		nilIfEmpty(event.RequestedAgent),
-		payloadJSON,
-	)
-	if err != nil {
+		string(payloadJSON),
+	); err != nil {
 		return 0, fmt.Errorf("record route event: %w", err)
 	}
-	row := s.db.QueryRowContext(ctx, `select last_insert_rowid()`)
-	if err := row.Scan(&id); err != nil {
+	var id int64
+	if err := st.DB().QueryRowContext(ctx, `select last_insert_rowid()`).Scan(&id); err != nil {
 		return 0, fmt.Errorf("record route event id: %w", err)
 	}
 	if event.SourceSession != "" {
-		if _, err := s.db.ExecContext(ctx, `update sessions set updated_at = `+defaultNow+` where id = ?`, event.SourceSession); err != nil {
+		if _, err := st.DB().ExecContext(ctx, `update sessions set updated_at = CURRENT_TIMESTAMP where id = ?`, event.SourceSession); err != nil {
 			return 0, fmt.Errorf("record route event source touch: %w", err)
 		}
 	}
 	if event.TargetSession != "" {
-		if _, err := s.db.ExecContext(ctx, `update sessions set updated_at = `+defaultNow+` where id = ?`, event.TargetSession); err != nil {
+		if _, err := st.DB().ExecContext(ctx, `update sessions set updated_at = CURRENT_TIMESTAMP where id = ?`, event.TargetSession); err != nil {
 			return 0, fmt.Errorf("record route event target touch: %w", err)
 		}
 	}
 	return id, nil
 }
 
-func (s *Store) ListRouteEvents(ctx context.Context, sessionID string) ([]RouteEvent, error) {
-	rows, err := s.db.QueryContext(ctx, `
+func ListEvents(ctx context.Context, st *store.Store, sessionID string) ([]Event, error) {
+	rows, err := st.DB().QueryContext(ctx, `
 		select id, turn_id, source_session_id, target_session_id, source_agent_id, target_agent_id, mode, matched_by, routing_policy, requested_agent_id, metadata_json, created_at
 		from routing_events
 		where source_session_id = ? or target_session_id = ?
@@ -79,10 +79,9 @@ func (s *Store) ListRouteEvents(ctx context.Context, sessionID string) ([]RouteE
 		return nil, fmt.Errorf("list route events: %w", err)
 	}
 	defer rows.Close()
-
-	var out []RouteEvent
+	var out []Event
 	for rows.Next() {
-		var item RouteEvent
+		var item Event
 		var payloadJSON string
 		var mode, matchedBy, policy, reqAgent sql.NullString
 		if err := rows.Scan(&item.ID, &item.TurnID, &item.SourceSession, &item.TargetSession, &item.SourceAgentID, &item.TargetAgentID, &mode, &matchedBy, &policy, &reqAgent, &payloadJSON, &item.CreatedAt); err != nil {
@@ -92,37 +91,17 @@ func (s *Store) ListRouteEvents(ctx context.Context, sessionID string) ([]RouteE
 		item.MatchedBy = matchedBy.String
 		item.RoutingPolicy = policy.String
 		item.RequestedAgent = reqAgent.String
-		item.Metadata, err = unmarshalJSONMap(payloadJSON)
-		if err != nil {
-			return nil, err
+		if payloadJSON != "" {
+			if err := json.Unmarshal([]byte(payloadJSON), &item.Metadata); err != nil {
+				return nil, err
+			}
+		}
+		if item.Metadata == nil {
+			item.Metadata = map[string]any{}
 		}
 		out = append(out, item)
 	}
 	return out, rows.Err()
-}
-
-func (s *Store) GetRouteEvent(ctx context.Context, id int64) (*RouteEvent, error) {
-	row := s.db.QueryRowContext(ctx, `
-		select id, turn_id, source_session_id, target_session_id, source_agent_id, target_agent_id, mode, matched_by, routing_policy, requested_agent_id, metadata_json, created_at
-		from routing_events
-		where id = ?
-	`, id)
-	var item RouteEvent
-	var payloadJSON string
-	var mode, matchedBy, policy, reqAgent sql.NullString
-	if err := row.Scan(&item.ID, &item.TurnID, &item.SourceSession, &item.TargetSession, &item.SourceAgentID, &item.TargetAgentID, &mode, &matchedBy, &policy, &reqAgent, &payloadJSON, &item.CreatedAt); err != nil {
-		return nil, err
-	}
-	item.Mode = mode.String
-	item.MatchedBy = matchedBy.String
-	item.RoutingPolicy = policy.String
-	item.RequestedAgent = reqAgent.String
-	var err error
-	item.Metadata, err = unmarshalJSONMap(payloadJSON)
-	if err != nil {
-		return nil, err
-	}
-	return &item, nil
 }
 
 func nilIfEmpty(v string) any {

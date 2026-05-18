@@ -18,6 +18,7 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
 	"github.com/rcarmo/gi/internal/turn"
+	"github.com/rcarmo/gi/internal/turn/routeaudit"
 )
 
 func TestServerSessionPromptTurnsFlow(t *testing.T) {
@@ -356,7 +357,7 @@ func TestSessionRouteEventsEndpoint(t *testing.T) {
 		t.Fatalf("route-events status: %d body=%s", eventsRes.Code, eventsRes.Body.String())
 	}
 	var payload struct {
-		RouteEvents []store.RouteEvent `json:"route_events"`
+		RouteEvents []routeaudit.Event `json:"route_events"`
 	}
 	if err := json.Unmarshal(eventsRes.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("decode route-events: %v", err)

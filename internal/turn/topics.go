@@ -5,6 +5,7 @@ import (
 
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
+	"github.com/rcarmo/gi/internal/turn/routeaudit"
 )
 
 // Topics returns the engine-wide normalized topic bus.
@@ -191,7 +192,7 @@ func (e *Engine) PublishRuntimeToolEvent(eventType, sessionID, turnID, agentID, 
 	e.publishRuntimeTopicEvent("runtime.tool", sessionID, agentID, envelopeType, eventType, body)
 }
 
-func (e *Engine) PublishRuntimeRoutingEvent(eventType string, decision store.RouteEvent) {
+func (e *Engine) PublishRuntimeRoutingEvent(eventType string, decision routeaudit.Event) {
 	body := cloneMap(decision.Metadata)
 	if body == nil {
 		body = map[string]any{}

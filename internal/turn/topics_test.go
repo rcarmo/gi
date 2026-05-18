@@ -7,6 +7,7 @@ import (
 
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
+	"github.com/rcarmo/gi/internal/turn/routeaudit"
 	goai "github.com/rcarmo/go-ai"
 )
 
@@ -759,7 +760,7 @@ func TestPublishRuntimeRoutingEventUsesExpectedSessionScope(t *testing.T) {
 	defer unsubDecision()
 	incomingCh, unsubIncoming := engine.Topics().Subscribe(ctx, "runtime.routing", topics.SubscribeOptions{Buffer: 8, SessionID: "session_route_target"})
 	defer unsubIncoming()
-	decision := store.RouteEvent{
+	decision := routeaudit.Event{
 		ID:             42,
 		TurnID:         "turn_route_topic",
 		SourceSession:  "session_route_source",
@@ -804,7 +805,7 @@ func TestPublishRuntimeRoutingEventPreservesCanonicalFields(t *testing.T) {
 	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.routing", topics.SubscribeOptions{Buffer: 8, SessionID: "session_route_source"})
 	defer unsub()
 
-	decision := store.RouteEvent{
+	decision := routeaudit.Event{
 		ID:             42,
 		TurnID:         "turn_route_topic",
 		SourceSession:  "session_route_source",
