@@ -4608,21 +4608,21 @@ func TestPreparePromptRouteResolutionUsesSourceSessionScopeContext(t *testing.T)
 		t.Fatalf("create source session: %v", err)
 	}
 	engine := New(s)
-	resolution, err := engine.preparePromptRouteResolution(ctx, RunInput{SessionID: source.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
+	_, inbound, _, _, err := engine.preparePromptRouteResolution(ctx, RunInput{SessionID: source.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
 	if err != nil {
 		t.Fatalf("prepare prompt route resolution: %v", err)
 	}
-	if resolution.inbound.Channel != "slack" || resolution.inbound.Account != "workspace" {
-		t.Fatalf("expected inbound channel/account from scope, got %#v", resolution.inbound)
+	if inbound.Channel != "slack" || inbound.Account != "workspace" {
+		t.Fatalf("expected inbound channel/account from scope, got %#v", inbound)
 	}
-	if resolution.inbound.ChatType != "group" || resolution.inbound.ChatID != "thread-7" {
-		t.Fatalf("expected scoped chat identity, got %#v", resolution.inbound)
+	if inbound.ChatType != "group" || inbound.ChatID != "thread-7" {
+		t.Fatalf("expected scoped chat identity, got %#v", inbound)
 	}
-	if resolution.inbound.SpaceType != "room" || resolution.inbound.SpaceID != "eng" {
-		t.Fatalf("expected scoped space identity, got %#v", resolution.inbound)
+	if inbound.SpaceType != "room" || inbound.SpaceID != "eng" {
+		t.Fatalf("expected scoped space identity, got %#v", inbound)
 	}
-	if resolution.inbound.TopicID != "builds" {
-		t.Fatalf("expected scoped topic identity, got %#v", resolution.inbound)
+	if inbound.TopicID != "builds" {
+		t.Fatalf("expected scoped topic identity, got %#v", inbound)
 	}
 }
 
@@ -4639,15 +4639,15 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityOverScopeSnapshot(t *
 		t.Fatalf("mutate scope snapshot: %v", err)
 	}
 	engine := New(s)
-	resolution, err := engine.preparePromptRouteResolution(ctx, RunInput{SessionID: source.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
+	_, inbound, _, _, err := engine.preparePromptRouteResolution(ctx, RunInput{SessionID: source.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
 	if err != nil {
 		t.Fatalf("prepare prompt route resolution: %v", err)
 	}
-	if resolution.inbound.Channel != "slack" || resolution.inbound.Account != "workspace" {
-		t.Fatalf("expected canonical inbound channel/account, got %#v", resolution.inbound)
+	if inbound.Channel != "slack" || inbound.Account != "workspace" {
+		t.Fatalf("expected canonical inbound channel/account, got %#v", inbound)
 	}
-	if resolution.inbound.ChatType != "group" || resolution.inbound.ChatID != "thread-7" || resolution.inbound.SpaceType != "room" || resolution.inbound.SpaceID != "eng" || resolution.inbound.TopicID != "builds" {
-		t.Fatalf("expected canonical scoped inbound context, got %#v", resolution.inbound)
+	if inbound.ChatType != "group" || inbound.ChatID != "thread-7" || inbound.SpaceType != "room" || inbound.SpaceID != "eng" || inbound.TopicID != "builds" {
+		t.Fatalf("expected canonical scoped inbound context, got %#v", inbound)
 	}
 }
 
@@ -4666,15 +4666,15 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityUnderCanceledCallerCo
 	engine := New(s)
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
-	resolution, err := engine.preparePromptRouteResolution(cancelCtx, RunInput{SessionID: source.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
+	_, inbound, _, _, err := engine.preparePromptRouteResolution(cancelCtx, RunInput{SessionID: source.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
 	if err != nil {
 		t.Fatalf("prepare prompt route resolution under canceled caller context: %v", err)
 	}
-	if resolution.inbound.Channel != "slack" || resolution.inbound.Account != "workspace" {
-		t.Fatalf("expected canonical inbound channel/account under canceled caller context, got %#v", resolution.inbound)
+	if inbound.Channel != "slack" || inbound.Account != "workspace" {
+		t.Fatalf("expected canonical inbound channel/account under canceled caller context, got %#v", inbound)
 	}
-	if resolution.inbound.ChatType != "group" || resolution.inbound.ChatID != "thread-7" || resolution.inbound.SpaceType != "room" || resolution.inbound.SpaceID != "eng" || resolution.inbound.TopicID != "builds" {
-		t.Fatalf("expected canonical scoped inbound context under canceled caller context, got %#v", resolution.inbound)
+	if inbound.ChatType != "group" || inbound.ChatID != "thread-7" || inbound.SpaceType != "room" || inbound.SpaceID != "eng" || inbound.TopicID != "builds" {
+		t.Fatalf("expected canonical scoped inbound context under canceled caller context, got %#v", inbound)
 	}
 }
 

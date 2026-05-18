@@ -12,19 +12,20 @@ import (
 
 func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitResult, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	resolution, err := e.preparePromptRouteResolution(opCtx, in)
+	route, inbound, promptBody, directed, err := e.preparePromptRouteResolution(opCtx, in)
 	if err != nil {
 		return nil, err
 	}
-	if err := e.resolveRoutedPromptTarget(opCtx, resolution); err != nil {
+	targetSessionID, created, err := e.resolveRoutedPromptTarget(opCtx, in.SessionID, route, inbound)
+	if err != nil {
 		return nil, err
 	}
-	if resolution.targetSessionID != resolution.sourceSessionID {
-		return e.submitPeerRoutedPrompt(opCtx, resolution.sourceSessionID, resolution.targetSessionID, resolution.route, resolution.promptBody, in.Intent, in.Model, resolution.created, resolution.directed, in.ParentTurnID, in.Metadata)
+	if targetSessionID != in.SessionID {
+		return e.submitPeerRoutedPrompt(opCtx, in.SessionID, targetSessionID, route, promptBody, in.Intent, in.Model, created, directed, in.ParentTurnID, in.Metadata)
 	}
-	in.SessionID = resolution.targetSessionID
-	in.Prompt = resolution.promptBody
-	e.applyLocalRouteMetadata(opCtx, &in, resolution)
+	in.SessionID = targetSessionID
+	in.Prompt = promptBody
+	e.applyLocalRouteMetadata(opCtx, &in, in.SessionID, targetSessionID, route, created)
 	return e.SubmitPrompt(opCtx, in)
 }
 
@@ -34,26 +35,28 @@ func (e *Engine) SubmitPeerMessage(ctx context.Context, sourceSessionID, targetA
 
 func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessionID, targetAgentID, content, intent, model, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	resolution, err := e.preparePeerRouteResolution(opCtx, sourceSessionID, targetAgentID, content, "peer-message")
+	route, inbound, err := e.preparePeerRouteResolution(opCtx, sourceSessionID, targetAgentID, content, "peer-message")
 	if err != nil {
 		return nil, err
 	}
-	if err := e.resolveRoutedPromptTarget(opCtx, resolution); err != nil {
+	targetSessionID, created, err := e.resolveRoutedPromptTarget(opCtx, sourceSessionID, route, inbound)
+	if err != nil {
 		return nil, err
 	}
-	return e.submitPeerRoutedPrompt(opCtx, resolution.sourceSessionID, resolution.targetSessionID, resolution.route, content, intent, model, resolution.created, resolution.directed, parentTurnID, extraMetadata)
+	return e.submitPeerRoutedPrompt(opCtx, sourceSessionID, targetSessionID, route, content, intent, model, created, true, parentTurnID, extraMetadata)
 }
 
 func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSessionID, targetAgentID string) (string, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	resolution, err := e.preparePeerRouteResolution(opCtx, sourceSessionID, targetAgentID, "", "peer-session")
+	route, inbound, err := e.preparePeerRouteResolution(opCtx, sourceSessionID, targetAgentID, "", "peer-session")
 	if err != nil {
 		return "", err
 	}
-	if err := e.resolveRoutedPromptTarget(opCtx, resolution); err != nil {
+	targetSessionID, _, err := e.resolveRoutedPromptTarget(opCtx, sourceSessionID, route, inbound)
+	if err != nil {
 		return "", err
 	}
-	return resolution.targetSessionID, nil
+	return targetSessionID, nil
 }
 
 func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, sourceSessionID string, route routing.ResolvedRoute, inbound routing.InboundContext) (string, bool, error) {

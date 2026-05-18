@@ -11,27 +11,17 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 )
 
-type routedPromptResolution struct {
-	sourceSessionID string
-	targetSessionID string
-	route           routing.ResolvedRoute
-	inbound         routing.InboundContext
-	promptBody      string
-	directed        bool
-	created         bool
-}
-
-func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) (*routedPromptResolution, error) {
+func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) (routing.ResolvedRoute, routing.InboundContext, string, bool, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if err := e.store.RequireSession(opCtx, in.SessionID); err != nil {
-		return nil, err
+		return routing.ResolvedRoute{}, routing.InboundContext{}, "", false, err
 	}
 	targetAgentID, body, directed := routing.ParseDirectedPrompt(in.Prompt)
 	promptBody := in.Prompt
 	mentioned := false
 	if directed {
 		if body == "" {
-			return nil, fmt.Errorf("directed prompt requires content after @%s", targetAgentID)
+			return routing.ResolvedRoute{}, routing.InboundContext{}, "", false, fmt.Errorf("directed prompt requires content after @%s", targetAgentID)
 		}
 		promptBody = body
 		mentioned = true
@@ -45,19 +35,13 @@ func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) 
 		route.AgentID = routing.NormalizeAgentID(targetAgentID)
 		route.MatchedBy = "mention"
 	}
-	return &routedPromptResolution{
-		sourceSessionID: in.SessionID,
-		route:           route,
-		inbound:         inbound,
-		promptBody:      promptBody,
-		directed:        directed,
-	}, nil
+	return route, inbound, promptBody, directed, nil
 }
 
-func (e *Engine) preparePeerRouteResolution(ctx context.Context, sourceSessionID, targetAgentID, content, matchedBy string) (*routedPromptResolution, error) {
+func (e *Engine) preparePeerRouteResolution(ctx context.Context, sourceSessionID, targetAgentID, content, matchedBy string) (routing.ResolvedRoute, routing.InboundContext, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
-		return nil, err
+		return routing.ResolvedRoute{}, routing.InboundContext{}, err
 	}
 	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.backgroundContext(), e.store, sourceSessionID)
 	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
@@ -66,41 +50,29 @@ func (e *Engine) preparePeerRouteResolution(ctx context.Context, sourceSessionID
 	route := e.routeResolver.ResolveRoute(inbound)
 	route.AgentID = routing.NormalizeAgentID(targetAgentID)
 	route.MatchedBy = matchedBy
-	return &routedPromptResolution{
-		sourceSessionID: sourceSessionID,
-		route:           route,
-		inbound:         inbound,
-		promptBody:      content,
-		directed:        true,
-	}, nil
+	return route, inbound, nil
 }
 
-func (e *Engine) resolveRoutedPromptTarget(ctx context.Context, resolution *routedPromptResolution) error {
-	targetSessionID, created, err := e.ResolveOrCreateRouteSession(ctx, resolution.sourceSessionID, resolution.route, resolution.inbound)
-	if err != nil {
-		return err
-	}
-	resolution.targetSessionID = targetSessionID
-	resolution.created = created
-	return nil
+func (e *Engine) resolveRoutedPromptTarget(ctx context.Context, sourceSessionID string, route routing.ResolvedRoute, inbound routing.InboundContext) (string, bool, error) {
+	return e.ResolveOrCreateRouteSession(ctx, sourceSessionID, route, inbound)
 }
 
-func (e *Engine) applyLocalRouteMetadata(ctx context.Context, in *RunInput, resolution *routedPromptResolution) {
+func (e *Engine) applyLocalRouteMetadata(ctx context.Context, in *RunInput, sourceSessionID, targetSessionID string, route routing.ResolvedRoute, created bool) {
 	ctx = coordinationContext(ctx, e.backgroundContext())
 	if in.Metadata == nil {
 		in.Metadata = map[string]any{}
 	}
 	in.Metadata["route_mode"] = "prompt"
-	in.Metadata["route_matched_by"] = resolution.route.MatchedBy
-	in.Metadata["target_agent_id"] = resolution.route.AgentID
-	in.Metadata["target_session_id"] = resolution.targetSessionID
-	in.Metadata["source_agent_id"] = e.store.SessionAgentID(coordinationContext(ctx, e.backgroundContext()), resolution.sourceSessionID)
-	if resolution.route.MatchedBy != "" {
-		in.Metadata["routing_policy"] = resolution.route.MatchedBy
+	in.Metadata["route_matched_by"] = route.MatchedBy
+	in.Metadata["target_agent_id"] = route.AgentID
+	in.Metadata["target_session_id"] = targetSessionID
+	in.Metadata["source_agent_id"] = e.store.SessionAgentID(coordinationContext(ctx, e.backgroundContext()), sourceSessionID)
+	if route.MatchedBy != "" {
+		in.Metadata["routing_policy"] = route.MatchedBy
 	}
-	in.Metadata["requested_agent_id"] = resolution.route.AgentID
-	in.Metadata["source_session_id"] = resolution.sourceSessionID
-	in.Metadata["route_created_session"] = resolution.created
+	in.Metadata["requested_agent_id"] = route.AgentID
+	in.Metadata["source_session_id"] = sourceSessionID
+	in.Metadata["route_created_session"] = created
 	in.Metadata["routing_enabled"] = true
 }
 
