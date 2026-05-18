@@ -127,7 +127,15 @@ func (e *Engine) registerDefaultTools() {
 		func(ctx context.Context, sessionID string, names []string) error { return e.SetActiveTools(names) },
 		func(ctx context.Context, sessionID string) ([]string, error) { return e.ActiveTools(), nil },
 	)
-	e.loadWorkspaceExtensions(scriptTool)
+	for _, ext := range tools.LoadWorkspaceExtensions(e.backgroundContext(), e.runtimeCfg.WorkspaceRoot, scriptTool) {
+		if ext.Error != "" {
+			log.Printf("extension load failed path=%s engine=%s: %s", ext.Path, ext.Engine, ext.Error)
+			e.recordExtension(ExtensionInfo{Engine: ext.Engine, Path: ext.Path, Status: "failed", Error: ext.Error})
+			continue
+		}
+		e.recordExtension(ExtensionInfo{Engine: ext.Engine, Path: ext.Path, Status: "loaded"})
+		log.Printf("extension loaded path=%s engine=%s", ext.Path, ext.Engine)
+	}
 	registerDiscoveredTools := func() {
 		giskills.RegisterDiscoveredTools(e.runtimeCfg.Discovery.Tools, func(tool giskills.ToolManifest, params json.RawMessage) error {
 			return e.RegisterTool(tools.RegisteredTool{

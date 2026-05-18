@@ -1,20 +1,24 @@
-package turn
+package tools
 
 import (
-	"log"
+	"context"
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/rcarmo/gi/internal/tools"
 )
 
-type extensionScript struct {
+type ExtensionScript struct {
 	Engine string
 	Path   string
 }
 
-func discoverExtensionScripts(workspaceRoot string) []extensionScript {
+type ExtensionLoadResult struct {
+	Engine string
+	Path   string
+	Error  string
+}
+
+func DiscoverExtensionScripts(workspaceRoot string) []ExtensionScript {
 	if strings.TrimSpace(workspaceRoot) == "" {
 		return nil
 	}
@@ -28,7 +32,7 @@ func discoverExtensionScripts(workspaceRoot string) []extensionScript {
 		{filepath.Join(workspaceRoot, ".pi", "extensions"), "js", "*.js"},
 		{filepath.Join(workspaceRoot, ".pi", "extensions"), "joker", "*.joke"},
 	}
-	var out []extensionScript
+	var out []ExtensionScript
 	seen := map[string]bool{}
 	for _, pattern := range patterns {
 		matches, err := filepath.Glob(filepath.Join(pattern.root, pattern.glob))
@@ -45,22 +49,21 @@ func discoverExtensionScripts(workspaceRoot string) []extensionScript {
 			if rel, err := filepath.Rel(workspaceRoot, match); err == nil && !strings.HasPrefix(rel, "..") {
 				extPath = rel
 			}
-			out = append(out, extensionScript{Engine: pattern.engine, Path: extPath})
+			out = append(out, ExtensionScript{Engine: pattern.engine, Path: extPath})
 		}
 	}
 	return out
 }
 
-func (e *Engine) loadWorkspaceExtensions(scriptTool *tools.ScriptTool) {
-	bgCtx := e.backgroundContext()
-	for _, ext := range discoverExtensionScripts(e.runtimeCfg.WorkspaceRoot) {
-		out := scriptTool.Execute(bgCtx, tools.ScriptInput{Engine: ext.Engine, Path: ext.Path})
-		if out.Error != "" {
-			log.Printf("extension load failed path=%s engine=%s: %s", ext.Path, ext.Engine, out.Error)
-			e.recordExtension(ExtensionInfo{Engine: ext.Engine, Path: ext.Path, Status: "failed", Error: out.Error})
-			continue
+func LoadWorkspaceExtensions(ctx context.Context, workspaceRoot string, scriptTool *ScriptTool) []ExtensionLoadResult {
+	var out []ExtensionLoadResult
+	for _, ext := range DiscoverExtensionScripts(workspaceRoot) {
+		res := ExtensionLoadResult{Engine: ext.Engine, Path: ext.Path}
+		r := scriptTool.Execute(ctx, ScriptInput{Engine: ext.Engine, Path: ext.Path})
+		if r.Error != "" {
+			res.Error = r.Error
 		}
-		e.recordExtension(ExtensionInfo{Engine: ext.Engine, Path: ext.Path, Status: "loaded"})
-		log.Printf("extension loaded path=%s engine=%s", ext.Path, ext.Engine)
+		out = append(out, res)
 	}
+	return out
 }
