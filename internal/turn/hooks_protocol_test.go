@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/rcarmo/gi/internal/tools"
 	"os"
 	"path/filepath"
 	"strings"
@@ -651,7 +652,7 @@ func TestToolCallHookCanMutateArgumentsDuringExecution(t *testing.T) {
 		t.Fatalf("create turn: %v", err)
 	}
 	executedValue := ""
-	if err := e.RegisterTool(RegisteredTool{Name: "echo_test", Description: "Echo", Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+	if err := e.RegisterTool(tools.RegisteredTool{Name: "echo_test", Description: "Echo", Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 		executedValue = stringValue(call.Arguments["value"], "")
 		return "exec:" + executedValue, nil
 	}}); err != nil {
@@ -760,7 +761,7 @@ func TestApproveToolHookCanDenyExecution(t *testing.T) {
 		t.Fatalf("create turn: %v", err)
 	}
 	executions := 0
-	if err := e.RegisterTool(RegisteredTool{Name: "deny_test", Description: "Deny", Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+	if err := e.RegisterTool(tools.RegisteredTool{Name: "deny_test", Description: "Deny", Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 		executions++
 		return "should not run", nil
 	}}); err != nil {

@@ -114,7 +114,7 @@ func (e *Engine) registerDefaultTools() {
 			if len(params) == 0 {
 				params = json.RawMessage(`{"type":"object","properties":{}}`)
 			}
-			return e.RegisterTool(RegisteredTool{Name: spec.Name, Description: spec.Description, Parameters: params, Source: tools.FirstNonEmpty(spec.Source, "script"), Kind: "mixed", Weight: "standard", Activation: "on-demand", Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+			return e.RegisterTool(tools.RegisteredTool{Name: spec.Name, Description: spec.Description, Parameters: params, Source: tools.FirstNonEmpty(spec.Source, "script"), Kind: "mixed", Weight: "standard", Activation: "on-demand", Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 				payload := map[string]any{"tool_call_id": call.ID, "name": call.Name, "arguments": call.Arguments, "session_id": rt.SessionID}
 				input := tools.ScriptInput{Engine: spec.Engine, Path: spec.Path, SessionID: rt.SessionID, Script: tools.ScriptWithPayload(spec.Engine, "tool", payload, spec.Script)}
 				out := scriptTool.Execute(ctx, input)
@@ -130,7 +130,7 @@ func (e *Engine) registerDefaultTools() {
 	e.loadWorkspaceExtensions(scriptTool)
 	registerDiscoveredTools := func() {
 		giskills.RegisterDiscoveredTools(e.runtimeCfg.Discovery.Tools, func(tool giskills.ToolManifest, params json.RawMessage) error {
-			return e.RegisterTool(RegisteredTool{
+			return e.RegisterTool(tools.RegisteredTool{
 				Name:        tool.Name,
 				Description: tool.Description,
 				Parameters:  params,
@@ -138,7 +138,7 @@ func (e *Engine) registerDefaultTools() {
 				Kind:        "mixed",
 				Weight:      "standard",
 				Activation:  "on-demand",
-				Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+				Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 					payload := map[string]any{"tool_call_id": call.ID, "name": call.Name, "arguments": call.Arguments, "session_id": rt.SessionID}
 					input := tools.ScriptInput{Engine: tool.Engine, Path: tool.Path, SessionID: rt.SessionID, Script: tools.ScriptWithPayload(tool.Engine, "tool", payload, tool.Script)}
 					out := scriptTool.Execute(ctx, input)
@@ -152,12 +152,12 @@ func (e *Engine) registerDefaultTools() {
 			log.Printf("register discovered tool %q: %v", name, err)
 		})
 	}
-	must := func(t RegisteredTool) {
+	must := func(t tools.RegisteredTool) {
 		if err := e.RegisterTool(t); err != nil {
 			panic(err)
 		}
 	}
-	must(RegisteredTool{
+	must(tools.RegisteredTool{
 		Name:        "tools",
 		Description: "List available tools or get details about a specific tool. Use with no arguments to list all tools (names + short descriptions). Pass a tool name via the `name` argument to get its full schema and usage. Use `query` to filter tools by keyword.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"name":{"type":"string","description":"Exact tool name to get full details for"},"query":{"type":"string","description":"Filter tools by keyword in name/description/metadata"},"intent":{"type":"string","description":"Natural-language goal for staged discovery"},"include_parameters":{"type":"boolean","description":"Include parameter schemas in list results"},"include_inactive":{"type":"boolean","description":"Include inactive tools in discovery results"},"activate":{"type":"array","items":{"type":"string"},"description":"Set active tools by name; tools remains active"},"reset_active":{"type":"boolean","description":"Reset active tools to all default registry tools"}}}`),
@@ -165,11 +165,11 @@ func (e *Engine) registerDefaultTools() {
 		Kind:        "read-only",
 		Weight:      "lightweight",
 		Activation:  "default",
-		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
-			return rt.Engine.executeToolsTool(call.Arguments)
+		Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
+			return e.executeToolsTool(call.Arguments)
 		},
 	})
-	must(RegisteredTool{
+	must(tools.RegisteredTool{
 		Name:        "skills",
 		Description: "List workspace-discovered skills or read a skill's SKILL.md. Skills are discovered from .gi/skills and .pi/skills.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"name":{"type":"string","description":"Exact skill name to read; omit to list skills"},"query":{"type":"string","description":"Filter listed skills by name or description"}}}`),
@@ -177,12 +177,12 @@ func (e *Engine) registerDefaultTools() {
 		Kind:        "read-only",
 		Weight:      "lightweight",
 		Activation:  "default",
-		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+		Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 			return giskills.ExecuteTool(rt.WorkspaceRoot, call.Arguments)
 		},
 	})
 	registerDiscoveredTools()
-	must(RegisteredTool{
+	must(tools.RegisteredTool{
 		Name:        "read",
 		Description: "Read text content from a workspace file. Supports workspace-relative paths and vfs:// paths.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative path or vfs://namespace/path"}},"required":["path"]}`),
@@ -190,11 +190,11 @@ func (e *Engine) registerDefaultTools() {
 		Kind:        "read-only",
 		Weight:      "lightweight",
 		Activation:  "default",
-		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+		Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 			return tools.ExecuteRead(ctx, rt.WorkspaceRoot, rt.Store, call)
 		},
 	})
-	must(RegisteredTool{
+	must(tools.RegisteredTool{
 		Name:        "write",
 		Description: "Write text content to a workspace file. Creates parent directories for workspace paths.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative path or vfs://namespace/path"},"content":{"type":"string","description":"File content to write"}},"required":["path","content"]}`),
@@ -202,13 +202,13 @@ func (e *Engine) registerDefaultTools() {
 		Kind:        "mutating",
 		Weight:      "lightweight",
 		Activation:  "default",
-		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+		Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 			return tools.ExecuteWrite(ctx, rt.WorkspaceRoot, rt.Store, call)
 		},
 	})
 	if def := scriptTool.Definition(); def != nil {
 		params, _ := json.Marshal(def["parameters"])
-		must(RegisteredTool{
+		must(tools.RegisteredTool{
 			Name:        "script",
 			Description: fmt.Sprint(def["description"]),
 			Parameters:  params,
@@ -216,7 +216,7 @@ func (e *Engine) registerDefaultTools() {
 			Kind:        "mixed",
 			Weight:      "standard",
 			Activation:  "default",
-			Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+			Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 				input := tools.ScriptInput{SessionID: rt.SessionID}
 				b, _ := json.Marshal(call.Arguments)
 				if err := json.Unmarshal(b, &input); err != nil {
@@ -230,7 +230,7 @@ func (e *Engine) registerDefaultTools() {
 			},
 		})
 	}
-	must(RegisteredTool{
+	must(tools.RegisteredTool{
 		Name:        "compact",
 		Description: "Inspect compaction thresholds or estimate whether the current session should compact. Supports smart compaction plugins via session_before_compact hooks.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"session_id":{"type":"string","description":"Session to inspect; defaults to current session"},"dry_run":{"type":"boolean","description":"Return estimate/preparation without changing context"}}}`),
@@ -238,7 +238,7 @@ func (e *Engine) registerDefaultTools() {
 		Kind:        "read-only",
 		Weight:      "standard",
 		Activation:  "on-demand",
-		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+		Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 			sessionID, _ := call.Arguments["session_id"].(string)
 			if sessionID == "" {
 				sessionID = rt.SessionID
@@ -256,14 +256,14 @@ func (e *Engine) registerDefaultTools() {
 					aiMsgs = append(aiMsgs, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: m.Content}}})
 				}
 			}
-			settings := rt.Engine.runtimeCfg.Compaction
+			settings := e.runtimeCfg.Compaction
 			tokens := compaction.EstimateMessagesTokens(aiMsgs)
 			prep := compaction.Prepare(aiMsgs, tokens, settings.KeepRecentTokens, settings.ReserveTokens, settings.ThresholdTokens, settings.Strategy)
 			b, _ := json.MarshalIndent(map[string]any{"enabled": settings.Enabled, "context_tokens": tokens, "threshold_tokens": settings.ThresholdTokens, "should_compact": settings.Enabled && tokens > settings.ThresholdTokens, "preparation": prep}, "", "  ")
 			return string(b), nil
 		},
 	})
-	must(RegisteredTool{
+	must(tools.RegisteredTool{
 		Name:        "peering",
 		Description: "Inspect gi peer-discovery status. The backend is tsnet/Tailscale and is disabled by default until configured.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"action":{"type":"string","description":"status (default); future: start/stop/discover"}}}`),
@@ -271,12 +271,12 @@ func (e *Engine) registerDefaultTools() {
 		Kind:        "read-only",
 		Weight:      "lightweight",
 		Activation:  "on-demand",
-		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
-			b, _ := json.MarshalIndent(rt.Engine.PeeringStatus(), "", "  ")
+		Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
+			b, _ := json.MarshalIndent(e.PeeringStatus(), "", "  ")
 			return string(b), nil
 		},
 	})
-	must(RegisteredTool{
+	must(tools.RegisteredTool{
 		Name:        "rtk",
 		Description: "Run a shell command and return RTK-style compact output using gi's native Go filters for git/search/listing/test output.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"command":{"type":"string","description":"Shell command to execute and compact"},"filter_only":{"type":"boolean","description":"Filter the supplied output instead of executing"},"output":{"type":"string","description":"Raw output to filter when filter_only is true"}},"required":["command"]}`),
@@ -284,11 +284,11 @@ func (e *Engine) registerDefaultTools() {
 		Kind:        "mixed",
 		Weight:      "standard",
 		Activation:  "on-demand",
-		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+		Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 			return tools.ExecuteRTK(ctx, rt.WorkspaceRoot, call)
 		},
 	})
-	must(RegisteredTool{
+	must(tools.RegisteredTool{
 		Name:        "shell",
 		Description: "Execute a shell command and return stdout/stderr. Use for running tests, installing packages, searching files, etc.",
 		Parameters:  json.RawMessage(`{"type":"object","properties":{"command":{"type":"string","description":"Shell command to execute"}},"required":["command"]}`),
@@ -296,7 +296,7 @@ func (e *Engine) registerDefaultTools() {
 		Kind:        "mixed",
 		Weight:      "heavy",
 		Activation:  "default",
-		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+		Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 			return tools.ExecuteShell(ctx, rt.WorkspaceRoot, call)
 		},
 	})

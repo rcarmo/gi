@@ -1,10 +1,9 @@
-package turn
+package tools
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"sort"
 	"strings"
 	"sync"
@@ -13,7 +12,6 @@ import (
 	goai "github.com/rcarmo/go-ai"
 )
 
-// toolEntry is a compact representation of a tool for the registry.
 type toolEntry struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -25,28 +23,23 @@ type toolEntry struct {
 	Active      bool   `json:"active"`
 }
 
-// ToolRuntime is supplied to registered tools at execution time.
 type ToolRuntime struct {
-	Engine        *Engine
-	Runner        *sessionRunner
 	Store         *store.Store
 	SessionID     string
 	TurnID        string
 	WorkspaceRoot string
 }
 
-// ToolExecutor executes a model tool call and returns the text sent back to the LLM.
 type ToolExecutor func(context.Context, ToolRuntime, goai.ToolCall) (string, error)
 
-// RegisteredTool combines model-visible metadata with the executor.
 type RegisteredTool struct {
 	Name        string
 	Description string
 	Parameters  json.RawMessage
 	Source      string
-	Kind        string // read-only, mutating, mixed
-	Weight      string // lightweight, standard, heavy
-	Activation  string // default, on-demand
+	Kind        string
+	Weight      string
+	Activation  string
 	Executor    ToolExecutor
 }
 
@@ -57,13 +50,11 @@ func (t RegisteredTool) Definition() goai.Tool {
 type ToolRegistry struct {
 	mu     sync.RWMutex
 	tools  map[string]RegisteredTool
-	active map[string]bool // nil/empty means all tools active
+	active map[string]bool
 	order  []string
 }
 
-func NewToolRegistry() *ToolRegistry {
-	return &ToolRegistry{tools: make(map[string]RegisteredTool)}
-}
+func NewToolRegistry() *ToolRegistry { return &ToolRegistry{tools: make(map[string]RegisteredTool)} }
 
 func (r *ToolRegistry) Register(tool RegisteredTool) error {
 	if strings.TrimSpace(tool.Name) == "" {
@@ -125,15 +116,8 @@ func (r *ToolRegistry) Definitions() []goai.Tool {
 	}
 	return defs
 }
-
-func (r *ToolRegistry) Entries() []RegisteredTool {
-	return r.entries(false)
-}
-
-func (r *ToolRegistry) AllEntries() []RegisteredTool {
-	return r.entries(true)
-}
-
+func (r *ToolRegistry) Entries() []RegisteredTool    { return r.entries(false) }
+func (r *ToolRegistry) AllEntries() []RegisteredTool { return r.entries(true) }
 func (r *ToolRegistry) entries(includeInactive bool) []RegisteredTool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -146,7 +130,6 @@ func (r *ToolRegistry) entries(includeInactive bool) []RegisteredTool {
 	}
 	return entries
 }
-
 func (r *ToolRegistry) SetActive(names []string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -165,14 +148,12 @@ func (r *ToolRegistry) SetActive(names []string) error {
 		}
 		active[name] = true
 	}
-	// Keep the registry exploration tool available; otherwise models can strand themselves.
 	if _, ok := r.tools["tools"]; ok {
 		active["tools"] = true
 	}
 	r.active = active
 	return nil
 }
-
 func (r *ToolRegistry) ActiveNames() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -184,37 +165,9 @@ func (r *ToolRegistry) ActiveNames() []string {
 	}
 	return names
 }
+func (r *ToolRegistry) isActiveLocked(name string) bool { return len(r.active) == 0 || r.active[name] }
 
-func (r *ToolRegistry) isActiveLocked(name string) bool {
-	return len(r.active) == 0 || r.active[name]
-}
-
-func (e *Engine) RegisterTool(tool RegisteredTool) error { return e.tools.Register(tool) }
-func (e *Engine) SetActiveTools(names []string) error    { return e.tools.SetActive(names) }
-func (e *Engine) ActiveTools() []string                  { return e.tools.ActiveNames() }
-func (e *Engine) ResetActiveTools() {
-	if err := e.tools.SetActive(nil); err != nil {
-		log.Printf("reset active tools: %v", err)
-	}
-}
-func (e *Engine) ToolEntries() []RegisteredTool { return e.tools.AllEntries() }
-
-func (e *Engine) toolDefs() []goai.Tool { return e.tools.Definitions() }
-
-func (e *Engine) ExecuteToolsMeta(args map[string]any) (string, error) {
-	return e.executeToolsTool(args)
-}
-
-func (e *Engine) ExecuteToolByName(ctx context.Context, name, sessionID string, args map[string]any) (string, error) {
-	tool, ok := e.tools.Get(name)
-	if !ok {
-		return "", fmt.Errorf("unknown tool: %s", name)
-	}
-	return tool.Executor(ctx, ToolRuntime{Engine: e, Store: e.store, SessionID: sessionID, WorkspaceRoot: e.runtimeCfg.WorkspaceRoot}, goai.ToolCall{Name: name, Arguments: args})
-}
-
-// executeToolsTool handles the "tools" meta-tool: list, search, and inspect.
-func (e *Engine) executeToolsTool(args map[string]any) (string, error) {
+func ExecuteToolsTool(reg *ToolRegistry, args map[string]any, setActive func([]string) error, activeNames func() []string, reset func()) (string, error) {
 	name, _ := args["name"].(string)
 	query, _ := args["query"].(string)
 	intent, _ := args["intent"].(string)
@@ -227,24 +180,23 @@ func (e *Engine) executeToolsTool(args map[string]any) (string, error) {
 				names = append(names, strings.TrimSpace(s))
 			}
 		}
-		if err := e.SetActiveTools(names); err != nil {
+		if err := setActive(names); err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("Activated tools: %s", strings.Join(e.ActiveTools(), ", ")), nil
+		return fmt.Sprintf("Activated tools: %s", strings.Join(activeNames(), ", ")), nil
 	}
-	if reset, _ := args["reset_active"].(bool); reset {
-		e.ResetActiveTools()
+	if resetActive, _ := args["reset_active"].(bool); resetActive {
+		reset()
 		return "Reset active tools to default registry set.", nil
 	}
-	entries := e.tools.Entries()
+	entries := reg.Entries()
 	if includeInactive {
-		entries = e.tools.AllEntries()
+		entries = reg.AllEntries()
 	}
 	active := map[string]bool{}
-	for _, n := range e.ActiveTools() {
+	for _, n := range activeNames() {
 		active[n] = true
 	}
-
 	if name != "" {
 		for _, t := range entries {
 			if t.Name == name {
@@ -262,10 +214,9 @@ func (e *Engine) executeToolsTool(args map[string]any) (string, error) {
 		}
 		return "", fmt.Errorf("tool not found: %s", name)
 	}
-
 	var rows []toolEntry
+	needle := strings.ToLower(strings.TrimSpace(FirstNonEmpty(query, intent)))
 	for _, t := range entries {
-		needle := strings.ToLower(strings.TrimSpace(firstNonEmpty(query, intent)))
 		if needle != "" {
 			body := strings.ToLower(strings.Join([]string{t.Name, t.Description, t.Source, t.Kind, t.Weight, t.Activation}, " "))
 			if !strings.Contains(body, needle) {

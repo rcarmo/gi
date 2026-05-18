@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/rcarmo/gi/internal/logutil"
+	"github.com/rcarmo/gi/internal/tools"
 	"log"
 	"os/exec"
 	"strings"
@@ -27,7 +28,7 @@ type Engine struct {
 	modelRouter                       *routing.Router
 	runtimeCfg                        config.RuntimeConfig
 	hooks                             *HookRegistry
-	tools                             *ToolRegistry
+	tools                             *tools.ToolRegistry
 	connectivity                      *connectivity.Registry
 	topics                            *topics.Bus
 	peering                           *peering.Manager
@@ -161,7 +162,7 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 		modelRouter:   routing.NewRouter(cfg.Routing),
 		runtimeCfg:    cfg,
 		hooks:         NewHookRegistry(),
-		tools:         NewToolRegistry(),
+		tools:         tools.NewToolRegistry(),
 		connectivity:  connectivity.NewRegistry(),
 		topics:        topics.NewBus(),
 		peering:       peering.NewManager(cfg.Peering, cfg.WorkspaceRoot),

@@ -3279,7 +3279,7 @@ func TestCancelTurnDuringToolExecutionMarksCancelled(t *testing.T) {
 		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonToolUse, Content: []goai.ContentBlock{{Type: "toolCall", ID: "tc_cancel", Name: "block", Arguments: map[string]any{}}}}}, nil
 	})
 	engine := New(s)
-	if err := engine.RegisterTool(RegisteredTool{Name: "block", Description: "blocks until cancelled", Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+	if err := engine.RegisterTool(tools.RegisteredTool{Name: "block", Description: "blocks until cancelled", Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
 		select {
 		case <-toolStarted:
 		default:
@@ -6323,7 +6323,7 @@ func TestSubmitPromptWithParentTurnInheritsEffectiveTools(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get child turn: %v", err)
 	}
-	got := toolNamesFromValue(turnRec.Metadata["effective_tools"])
+	got := tools.ToolNamesFromValue(turnRec.Metadata["effective_tools"])
 	if strings.Join(got, ",") != "read,shell" {
 		t.Fatalf("expected inherited effective tools read,shell, got %#v", turnRec.Metadata)
 	}
@@ -6352,7 +6352,7 @@ func TestSubmitPromptWithParentTurnRestrictsToolsToSubset(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get child turn: %v", err)
 	}
-	got := toolNamesFromValue(turnRec.Metadata["effective_tools"])
+	got := tools.ToolNamesFromValue(turnRec.Metadata["effective_tools"])
 	if strings.Join(got, ",") != "read,write" {
 		t.Fatalf("expected restricted effective tools read,write, got %#v", turnRec.Metadata)
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/rcarmo/gi/internal/logutil"
+	"github.com/rcarmo/gi/internal/tools"
 	"log"
 	"sort"
 	"strings"
@@ -195,9 +196,7 @@ func (r *sessionRunner) executeTool(ctx context.Context, call goai.ToolCall, ses
 	if !ok {
 		return "", fmt.Errorf("unknown tool: %s", call.Name)
 	}
-	return tool.Executor(ctx, ToolRuntime{
-		Engine:        r.engine,
-		Runner:        r,
+	return tool.Executor(ctx, tools.ToolRuntime{
 		Store:         r.store,
 		SessionID:     sessionID,
 		TurnID:        turnID,

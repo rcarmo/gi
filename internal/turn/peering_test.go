@@ -2,6 +2,7 @@ package turn
 
 import (
 	"context"
+	"github.com/rcarmo/gi/internal/tools"
 	"strings"
 	"testing"
 
@@ -20,7 +21,7 @@ func TestPeeringToolStatus(t *testing.T) {
 	if !ok {
 		t.Fatal("missing peering tool")
 	}
-	out, err := tool.Executor(context.Background(), ToolRuntime{Engine: e, Store: s, WorkspaceRoot: t.TempDir()}, goai.ToolCall{Name: "peering", Arguments: map[string]any{}})
+	out, err := tool.Executor(context.Background(), tools.ToolRuntime{Store: s, WorkspaceRoot: t.TempDir()}, goai.ToolCall{Name: "peering", Arguments: map[string]any{}})
 	if err != nil {
 		t.Fatal(err)
 	}
