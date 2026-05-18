@@ -63,8 +63,11 @@ func (e *Engine) cloneRouteSession(ctx context.Context, sourceSessionID string, 
 	return cloned, true, nil
 }
 
-func inboundContextFromSessionIDWithFallback(ctx, fallback context.Context, s *store.Store, sessionID string) routing.InboundContext {
-	opCtx := coordinationContext(ctx, fallback)
+func inboundContextFromSessionIDWithFallback(ctx context.Context, s *store.Store, sessionID string) routing.InboundContext {
+	opCtx := ctx
+	if opCtx == nil {
+		opCtx = context.Background()
+	}
 	inbound := routing.InboundContext{}
 	if s != nil {
 		inbound.Channel = s.SessionChannel(opCtx, sessionID)
@@ -125,4 +128,3 @@ func inboundContextFromSessionIDWithFallback(ctx, fallback context.Context, s *s
 	}
 	return inbound
 }
-

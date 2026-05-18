@@ -25,7 +25,7 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 		promptBody = body
 		mentioned = true
 	}
-	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.backgroundContext(), e.store, in.SessionID)
+	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.store, in.SessionID)
 	inbound.SenderID = "user"
 	inbound.Mentioned = mentioned
 	inbound.Prompt = promptBody
@@ -71,7 +71,7 @@ func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessio
 	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
 		return nil, err
 	}
-	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.backgroundContext(), e.store, sourceSessionID)
+	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.store, sourceSessionID)
 	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
 	inbound.Mentioned = true
 	inbound.Prompt = content
@@ -90,7 +90,7 @@ func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSession
 	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
 		return "", err
 	}
-	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.backgroundContext(), e.store, sourceSessionID)
+	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.store, sourceSessionID)
 	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
 	inbound.Mentioned = true
 	route := e.routeResolver.ResolveRoute(inbound)

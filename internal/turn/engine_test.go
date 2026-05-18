@@ -4601,11 +4601,10 @@ func TestPreparePromptRouteResolutionUsesSourceSessionScopeContext(t *testing.T)
 	if err != nil {
 		t.Fatalf("create source session: %v", err)
 	}
-	engine := New(s)
 	if err := s.RequireSession(ctx, source.ID); err != nil {
 		t.Fatalf("require session: %v", err)
 	}
-	inbound := inboundContextFromSessionIDWithFallback(ctx, engine.backgroundContext(), s, source.ID)
+	inbound := inboundContextFromSessionIDWithFallback(ctx, s, source.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected inbound channel/account from scope, got %#v", inbound)
 	}
@@ -4632,11 +4631,10 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityOverScopeSnapshot(t *
 	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:wrong"}}`, source.ID); err != nil {
 		t.Fatalf("mutate scope snapshot: %v", err)
 	}
-	engine := New(s)
 	if err := s.RequireSession(ctx, source.ID); err != nil {
 		t.Fatalf("require session: %v", err)
 	}
-	inbound := inboundContextFromSessionIDWithFallback(ctx, engine.backgroundContext(), s, source.ID)
+	inbound := inboundContextFromSessionIDWithFallback(ctx, s, source.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected canonical inbound channel/account, got %#v", inbound)
 	}
@@ -4660,7 +4658,8 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityUnderCanceledCallerCo
 	engine := New(s)
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
-	inbound := inboundContextFromSessionIDWithFallback(cancelCtx, engine.backgroundContext(), s, source.ID)
+	_ = cancelCtx
+	inbound := inboundContextFromSessionIDWithFallback(engine.backgroundContext(), s, source.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected canonical inbound channel/account under canceled caller context, got %#v", inbound)
 	}
@@ -5474,7 +5473,7 @@ func TestInboundContextFromSessionUsesStoredIdentityInsteadOfSessionScopeJSON(t 
 	if staleSess.Scope == nil || staleSess.Scope.Channel != "email" {
 		t.Fatalf("expected stale session scope fixture, got %#v", staleSess.Scope)
 	}
-	inbound := inboundContextFromSessionIDWithFallback(ctx, nil, s, staleSess.ID)
+	inbound := inboundContextFromSessionIDWithFallback(ctx, s, staleSess.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected identity-backed channel/account, got %#v", inbound)
 	}
@@ -5559,7 +5558,7 @@ func TestCloneRouteSessionSurvivesCanceledCallerContext(t *testing.T) {
 	route := routing.ResolvedRoute{AgentID: "agent1", MatchedBy: "mention"}
 	allocation := gisession.AllocateRouteSession(gisession.AllocationInput{
 		AgentID:       route.AgentID,
-		Context:       inboundContextFromSessionIDWithFallback(ctx, nil, s, source.ID),
+		Context:       inboundContextFromSessionIDWithFallback(ctx, s, source.ID),
 		SessionPolicy: route.SessionPolicy,
 	})
 	cancelCtx, cancel := context.WithCancel(ctx)
