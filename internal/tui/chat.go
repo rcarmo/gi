@@ -18,8 +18,8 @@ import (
 )
 
 func initialSessionID(ctx context.Context, s *store.Store) (string, error) {
-	if sess, err := s.ResolveMainSession(ctx, "agent", "gi", "default"); err == nil {
-		return sess.ID, nil
+	if sessionID, err := s.ResolveMainSessionID(ctx, "agent", "gi", "default"); err == nil {
+		return sessionID, nil
 	}
 	sessions, err := s.ListSessions(ctx)
 	if err != nil {

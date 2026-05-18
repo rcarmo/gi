@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func (s *Store) ResolveMainSession(ctx context.Context, agentID, channel, account string) (*Session, error) {
+func (s *Store) ResolveMainSessionID(ctx context.Context, agentID, channel, account string) (string, error) {
 	agentID = normalizeIdentityTupleValue(agentID, "gi")
 	channel = normalizeIdentityTupleValue(channel, "gi")
 	account = normalizeIdentityTupleValue(account, "default")
@@ -20,6 +20,14 @@ func (s *Store) ResolveMainSession(ctx context.Context, agentID, channel, accoun
 	`, agentID, channel, account)
 	var sessionID string
 	if err := row.Scan(&sessionID); err != nil {
+		return "", err
+	}
+	return sessionID, nil
+}
+
+func (s *Store) ResolveMainSession(ctx context.Context, agentID, channel, account string) (*Session, error) {
+	sessionID, err := s.ResolveMainSessionID(ctx, agentID, channel, account)
+	if err != nil {
 		return nil, err
 	}
 	return s.GetSession(ctx, sessionID)

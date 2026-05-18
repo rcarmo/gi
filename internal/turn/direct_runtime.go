@@ -71,14 +71,14 @@ func (e *Engine) resolveDirectSessionID(ctx context.Context, in DirectInput) (st
 		if e.store == nil {
 			return "", fmt.Errorf("direct processing requires store-backed session resolution")
 		}
-		sess, err := e.store.ResolveSessionByKeyOrAlias(opCtx, sessionKey)
+		resolvedSessionID, err := e.store.ResolveSessionIDByKeyOrAlias(opCtx, sessionKey)
 		if err != nil {
 			return "", err
 		}
-		if sessionID != "" && sessionID != sess.ID {
+		if sessionID != "" && sessionID != resolvedSessionID {
 			return "", fmt.Errorf("direct processing session id %q does not match session key %q", sessionID, sessionKey)
 		}
-		return sess.ID, nil
+		return resolvedSessionID, nil
 	}
 	if sessionID != "" {
 		return sessionID, nil

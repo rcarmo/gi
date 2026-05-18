@@ -146,6 +146,29 @@ func TestStoreFindSessionByAllocationUsesSessionIdentityInsteadOfSessionScopeJSO
 	}
 }
 
+func TestStoreResolveSessionIDByKeyOrAlias(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_key_alias_id")
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_key_alias_id", "", "@agent", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	for _, key := range []string{sess.ID, alloc.SessionKey, strings.ToUpper(alloc.SessionAliases[0])} {
+		resolvedID, err := s.ResolveSessionIDByKeyOrAlias(ctx, key)
+		if err != nil {
+			t.Fatalf("resolve session id by key or alias %q: %v", key, err)
+		}
+		if resolvedID != sess.ID {
+			t.Fatalf("unexpected id resolution for %q: %q", key, resolvedID)
+		}
+	}
+}
+
 func TestStoreResolveSessionByKeyOrAlias(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
@@ -460,6 +483,45 @@ func TestStoreResolveSessionByAllocationCollapsesIdentityLinksAtStoreBoundary(t 
 	}
 	if resolved.ID != sess.ID {
 		t.Fatalf("expected identity-link allocation collapse to reuse canonical session, got %#v", resolved)
+	}
+}
+
+func TestStoreResolveMainSessionID(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	allocA := gisession.AllocateDefaultSession("agent", "gi", "default", "session_main_id_a")
+	sessA, err := s.CreateSessionWithMetadata(ctx, "session_main_id_a", "", "@agent", map[string]any{"status": "idle"}, &allocA.Scope, allocA.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session a: %v", err)
+	}
+	allocB := gisession.AllocateDefaultSession("agent", "gi", "default", "session_main_id_b")
+	sessB, err := s.CreateSessionWithMetadata(ctx, "session_main_id_b", "", "@agent", map[string]any{"status": "idle"}, &allocB.Scope, allocB.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session b: %v", err)
+	}
+	if err := s.SetMainSession(ctx, sessA.ID); err != nil {
+		t.Fatalf("set main session a: %v", err)
+	}
+	mainSessionID, err := s.ResolveMainSessionID(ctx, "agent", "gi", "default")
+	if err != nil {
+		t.Fatalf("resolve main session id a: %v", err)
+	}
+	if mainSessionID != sessA.ID {
+		t.Fatalf("expected session a id as main, got %q", mainSessionID)
+	}
+	if err := s.SetMainSession(ctx, sessB.ID); err != nil {
+		t.Fatalf("set main session b: %v", err)
+	}
+	mainSessionID, err = s.ResolveMainSessionID(ctx, "agent", "gi", "default")
+	if err != nil {
+		t.Fatalf("resolve main session id b: %v", err)
+	}
+	if mainSessionID != sessB.ID {
+		t.Fatalf("expected session b id as main, got %q", mainSessionID)
 	}
 }
 

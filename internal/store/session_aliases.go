@@ -163,20 +163,33 @@ func (s *Store) GetSessionByAlias(ctx context.Context, alias string) (*Session, 
 	return s.GetSession(ctx, sessionID)
 }
 
-func (s *Store) ResolveSessionByKeyOrAlias(ctx context.Context, key string) (*Session, error) {
+func (s *Store) ResolveSessionIDByKeyOrAlias(ctx context.Context, key string) (string, error) {
 	key = strings.TrimSpace(key)
 	if key == "" {
-		return nil, sql.ErrNoRows
+		return "", sql.ErrNoRows
 	}
-	if sess, err := s.GetSession(ctx, key); err == nil {
-		return sess, nil
+	if _, err := s.GetSession(ctx, key); err == nil {
+		return key, nil
 	} else if !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
+		return "", err
 	}
 	if sess, err := s.ResolveSessionByCanonicalKey(ctx, key); err == nil {
-		return sess, nil
+		return sess.ID, nil
 	} else if !errors.Is(err, sql.ErrNoRows) {
+		return "", err
+	}
+	if sess, err := s.ResolveSessionByAlias(ctx, key); err == nil {
+		return sess.ID, nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return "", err
+	}
+	return "", sql.ErrNoRows
+}
+
+func (s *Store) ResolveSessionByKeyOrAlias(ctx context.Context, key string) (*Session, error) {
+	sessionID, err := s.ResolveSessionIDByKeyOrAlias(ctx, key)
+	if err != nil {
 		return nil, err
 	}
-	return s.ResolveSessionByAlias(ctx, key)
+	return s.GetSession(ctx, sessionID)
 }
