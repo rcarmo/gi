@@ -192,9 +192,9 @@ func (s *Store) ResolveSessionIDByKeyOrAlias(ctx context.Context, key string) (s
 	if key == "" {
 		return "", sql.ErrNoRows
 	}
-	if _, err := s.GetSession(ctx, key); err == nil {
+	if exists, err := s.SessionExists(ctx, key); err == nil && exists {
 		return key, nil
-	} else if !errors.Is(err, sql.ErrNoRows) {
+	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return "", err
 	}
 	if sessionID, err := s.ResolveSessionIDByOpaqueKey(ctx, key); err == nil {

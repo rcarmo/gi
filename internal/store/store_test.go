@@ -221,6 +221,27 @@ func TestStoreResolveSessionIDHelpers(t *testing.T) {
 	}
 }
 
+func TestStoreSessionExists(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_exists")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_exists", "", "@agent", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	exists, err := s.SessionExists(ctx, "session_exists")
+	if err != nil || !exists {
+		t.Fatalf("expected existing session, got exists=%v err=%v", exists, err)
+	}
+	exists, err = s.SessionExists(ctx, "missing_session")
+	if err != sql.ErrNoRows || exists {
+		t.Fatalf("expected missing session err, got exists=%v err=%v", exists, err)
+	}
+}
+
 func TestStoreResolveSessionIDByKeyOrAlias(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
