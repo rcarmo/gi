@@ -16,7 +16,7 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 	if err != nil {
 		return nil, err
 	}
-	targetSessionID, created, err := e.resolveRoutedPromptTarget(opCtx, in.SessionID, route, inbound)
+	targetSessionID, created, err := e.ResolveOrCreateRouteSession(opCtx, in.SessionID, route, inbound)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessio
 	if err != nil {
 		return nil, err
 	}
-	targetSessionID, created, err := e.resolveRoutedPromptTarget(opCtx, sourceSessionID, route, inbound)
+	targetSessionID, created, err := e.ResolveOrCreateRouteSession(opCtx, sourceSessionID, route, inbound)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSession
 	if err != nil {
 		return "", err
 	}
-	targetSessionID, _, err := e.resolveRoutedPromptTarget(opCtx, sourceSessionID, route, inbound)
+	targetSessionID, _, err := e.ResolveOrCreateRouteSession(opCtx, sourceSessionID, route, inbound)
 	if err != nil {
 		return "", err
 	}

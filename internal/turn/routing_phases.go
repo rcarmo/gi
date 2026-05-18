@@ -53,10 +53,6 @@ func (e *Engine) preparePeerRouteResolution(ctx context.Context, sourceSessionID
 	return route, inbound, nil
 }
 
-func (e *Engine) resolveRoutedPromptTarget(ctx context.Context, sourceSessionID string, route routing.ResolvedRoute, inbound routing.InboundContext) (string, bool, error) {
-	return e.ResolveOrCreateRouteSession(ctx, sourceSessionID, route, inbound)
-}
-
 func (e *Engine) applyLocalRouteMetadata(ctx context.Context, in *RunInput, sourceSessionID, targetSessionID string, route routing.ResolvedRoute, created bool) {
 	ctx = coordinationContext(ctx, e.backgroundContext())
 	if in.Metadata == nil {
