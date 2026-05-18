@@ -3,6 +3,7 @@ package turn
 import (
 	"context"
 	"fmt"
+	"github.com/rcarmo/gi/internal/logutil"
 	"strings"
 
 	"github.com/rcarmo/gi/internal/routing"
@@ -74,7 +75,7 @@ func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, sourceSessionID, ta
 	sourceAgentID := e.store.SessionAgentID(opCtx, sourceSessionID)
 	routingContent := fmt.Sprintf("↪ routed to @%s: %s", route.AgentID, content)
 	routingPayload := map[string]any{"kind": "routing", "target_agent_id": route.AgentID, "target_session_id": targetSessionID, "source_agent_id": sourceAgentID, "source_session_id": sourceSessionID, "route_matched_by": route.MatchedBy, "clipped": true}
-	warnStore("add routing message to source session", e.store.AddMessage(opCtx, store.NowID("msg"), sourceSessionID, "system", routingContent, routingPayload))
+	logutil.WarnIfErr("add routing message to source session", e.store.AddMessage(opCtx, store.NowID("msg"), sourceSessionID, "system", routingContent, routingPayload))
 	metadata := map[string]any{
 		"source_session_id":     sourceSessionID,
 		"source_agent_id":       sourceAgentID,

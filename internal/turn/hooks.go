@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rcarmo/gi/internal/logutil"
 	"log"
 	"sort"
 	"strings"
@@ -366,7 +367,7 @@ func (e *Engine) recordHookInvocation(ctx context.Context, req HookRequest, item
 		return
 	}
 	_, recordErr := e.store.RecordHookInvocation(ctx, req.TurnID, req.SessionID, req.Name, req.Name, item.source, action, req, response, hookInvocationErrorText(err), durationMS)
-	warnStore("record hook invocation", recordErr)
+	logutil.WarnIfErr("record hook invocation", recordErr)
 }
 
 func (e *Engine) emitHook(ctx context.Context, req HookRequest) (HookResponse, error) {

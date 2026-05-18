@@ -3,6 +3,7 @@ package turn
 import (
 	"context"
 	"fmt"
+	"github.com/rcarmo/gi/internal/logutil"
 	"strings"
 )
 
@@ -100,7 +101,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 		"resolution_summary": summary,
 		"resolved_turn_id":   result.TurnID,
 	}
-	warnStore("append turn.failure_resolved event", e.store.AppendTurnEvent(opCtx, turnID, turnRec.SessionID, "turn.failure_resolved", payload))
+	logutil.WarnIfErr("append turn.failure_resolved event", e.store.AppendTurnEvent(opCtx, turnID, turnRec.SessionID, "turn.failure_resolved", payload))
 	e.PublishRuntimeTurnEvent("turn_failure_resolved", turnRec.SessionID, turnID, "", turnRec.Status, phase, payload)
 	return result, nil
 }

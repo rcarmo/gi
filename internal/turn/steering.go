@@ -3,6 +3,7 @@ package turn
 import (
 	"context"
 	"database/sql"
+	"github.com/rcarmo/gi/internal/logutil"
 	"strings"
 
 	"github.com/rcarmo/gi/internal/store"
@@ -97,7 +98,7 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 	queueMode := stringValue(in.Metadata["steering_mode"], "one-at-a-time")
 	steeringRole := normalizeSteeringRole(stringValue(in.Metadata["ingress_role"], "user"))
 	if _, err := e.store.EnqueueSteering(opCtx, sessionID, activeTurnID, steeringRole, in.Prompt, payload, media, queueMode); err != nil {
-		warnStore("append steering.rejected event", e.store.AppendTurnEvent(e.backgroundContext(), activeTurnID, sessionID, "steering.rejected", map[string]any{
+		logutil.WarnIfErr("append steering.rejected event", e.store.AppendTurnEvent(e.backgroundContext(), activeTurnID, sessionID, "steering.rejected", map[string]any{
 			"phase":       "steering",
 			"checkpoint":  true,
 			"reason":      err.Error(),
@@ -116,7 +117,7 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 		})
 		return nil, err
 	}
-	warnStore("append steering.enqueued event", e.store.AppendTurnEvent(opCtx, activeTurnID, sessionID, "steering.enqueued", map[string]any{
+	logutil.WarnIfErr("append steering.enqueued event", e.store.AppendTurnEvent(opCtx, activeTurnID, sessionID, "steering.enqueued", map[string]any{
 		"phase":       "steering",
 		"checkpoint":  true,
 		"content":     in.Prompt,
@@ -161,12 +162,12 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 	}
 	metadata := turnRec.Metadata
 	submittedPayload := map[string]any{"phase": "queue", "intent": stringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true}
-	warnStore("append continued turn.submitted event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "turn.submitted", submittedPayload))
+	logutil.WarnIfErr("append continued turn.submitted event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "turn.submitted", submittedPayload))
 	e.PublishRuntimeTurnEvent("turn_submitted", sessionID, turnID, "", "queued", "queued", submittedPayload)
 	if err := e.normalizeInactiveSessionState(opCtx, sessionID, "queued", stringValue(metadata["model"], ""), true); err != nil {
 		return false, "", err
 	}
-	warnStore("append steering.continue_staged event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)}))
+	logutil.WarnIfErr("append steering.continue_staged event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)}))
 	e.broadcast(sessionID, map[string]any{"type": "steering_continue_staged", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs)})
 	return true, turnID, nil
 }
@@ -188,7 +189,7 @@ func (e *Engine) continueQueuedSteeringLocked(ctx context.Context, runner *sessi
 		if err := e.store.SyncSessionQueueCount(coordCtx, sessionID); err != nil {
 			return false, err
 		}
-		warnStore("append steering.continued event", e.store.AppendTurnEvent(coordCtx, turnID, sessionID, "steering.continued", map[string]any{"phase": "steering", "checkpoint": true, "handoff": "launched"}))
+		logutil.WarnIfErr("append steering.continued event", e.store.AppendTurnEvent(coordCtx, turnID, sessionID, "steering.continued", map[string]any{"phase": "steering", "checkpoint": true, "handoff": "launched"}))
 		e.broadcast(sessionID, map[string]any{"type": "steering_continued", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 		return true, nil
 	}
@@ -197,7 +198,7 @@ func (e *Engine) continueQueuedSteeringLocked(ctx context.Context, runner *sessi
 		if err := e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, ""); err != nil {
 			return false, err
 		}
-		warnStore("append steering.continued event", e.store.AppendTurnEvent(coordCtx, turnID, sessionID, "steering.continued", map[string]any{"phase": "steering", "checkpoint": true, "handoff": "active_claim"}))
+		logutil.WarnIfErr("append steering.continued event", e.store.AppendTurnEvent(coordCtx, turnID, sessionID, "steering.continued", map[string]any{"phase": "steering", "checkpoint": true, "handoff": "active_claim"}))
 		return true, nil
 	}
 	if err != nil && err != sql.ErrNoRows {
@@ -282,10 +283,10 @@ func (r *sessionRunner) persistSteeringMessages(ctx context.Context, sessionID, 
 		if len(msg.Media) > 0 {
 			payload["media"] = append([]string(nil), msg.Media...)
 		}
-		warnStore("add steering message", r.store.AddMessage(ctx, store.NowID("msg"), sessionID, role, msg.Content, payload))
+		logutil.WarnIfErr("add steering message", r.store.AddMessage(ctx, store.NowID("msg"), sessionID, role, msg.Content, payload))
 		totalContentLen += len(msg.Content)
 	}
-	warnStore("append steering.injected event", r.store.AppendTurnEvent(ctx, turnID, sessionID, "steering.injected", map[string]any{
+	logutil.WarnIfErr("append steering.injected event", r.store.AppendTurnEvent(ctx, turnID, sessionID, "steering.injected", map[string]any{
 		"phase":             "steering",
 		"checkpoint":        true,
 		"count":             len(msgs),
@@ -323,14 +324,14 @@ func (r *sessionRunner) skipRemainingToolCalls(ctx context.Context, sessionID, t
 	for i := start; i < len(toolCalls); i++ {
 		call := toolCalls[i]
 		goai.AppendToolResult(convCtx, call.ID, call.Name, skippedDueToQueuedUserMessage, true)
-		warnStore("append tool.skipped event", r.store.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
+		logutil.WarnIfErr("append tool.skipped event", r.store.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
 			"phase":        "tool",
 			"checkpoint":   true,
 			"tool":         call.Name,
 			"tool_call_id": call.ID,
 			"reason":       "queued user steering message",
 		}))
-		warnStore("add skipped tool_result message", r.store.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", skippedDueToQueuedUserMessage, map[string]any{
+		logutil.WarnIfErr("add skipped tool_result message", r.store.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", skippedDueToQueuedUserMessage, map[string]any{
 			"kind":         "tool_result",
 			"tool_call_id": call.ID,
 			"tool_name":    call.Name,

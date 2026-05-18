@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/rcarmo/gi/internal/logutil"
 	"io"
 	"os/exec"
 	"sync"
@@ -51,7 +52,7 @@ func runShell(ctx context.Context, prompt string, onStart func(*exec.Cmd), onDel
 	go func() {
 		defer readWG.Done()
 		if _, err := io.Copy(&stderr, stderrPipe); err != nil {
-			warnStore("copy shell stderr", err)
+			logutil.WarnIfErr("copy shell stderr", err)
 		}
 	}()
 	waitCh := make(chan error, 1)
@@ -60,7 +61,7 @@ func runShell(ctx context.Context, prompt string, onStart func(*exec.Cmd), onDel
 	case <-ctx.Done():
 		if cmd.Process != nil {
 			if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil {
-				warnStore("kill timed out shell process group", err)
+				logutil.WarnIfErr("kill timed out shell process group", err)
 			}
 		}
 		<-waitCh

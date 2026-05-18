@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/rcarmo/gi/internal/logutil"
 	"log"
 	"strings"
 	"time"
@@ -29,7 +30,7 @@ func (e *Engine) appendRecoveryFailureEvent(ctx context.Context, claim store.Act
 		"recovery_disposition": recoveryDispositionForClaim(claim),
 		"stale_claim":          true,
 	}
-	warnStore("append recovery failure event", e.store.AppendTurnEvent(ctx, claim.TurnID, claim.SessionID, "turn.recovery_failed", payload))
+	logutil.WarnIfErr("append recovery failure event", e.store.AppendTurnEvent(ctx, claim.TurnID, claim.SessionID, "turn.recovery_failed", payload))
 	runner := e.runner(claim.SessionID)
 	agentID, model := "", ""
 	if turnRec, turnErr := e.store.GetTurn(ctx, claim.TurnID); turnErr == nil {
@@ -94,7 +95,7 @@ func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) 
 		if counts.failed > 0 {
 			e.emitRecoveryScanFailureSessionState(opCtx, failedSessionID, counts.recovered, counts.failed)
 			for _, claim := range failedClaimsBySession[failedSessionID] {
-				warnStore("append recovery scan summary event", e.store.AppendTurnEvent(opCtx, claim.TurnID, failedSessionID, "turn.recovery_scan_failed", map[string]any{
+				logutil.WarnIfErr("append recovery scan summary event", e.store.AppendTurnEvent(opCtx, claim.TurnID, failedSessionID, "turn.recovery_scan_failed", map[string]any{
 					"phase":                 "recovery",
 					"checkpoint":            true,
 					"reason":                "recovery_scan_failed",
@@ -195,7 +196,7 @@ func (e *Engine) emitRecoveryRestartFailureSessionState(ctx context.Context, ses
 		"queue_count":    queueCount,
 	}
 	if queuedTurn, queuedErr := e.store.GetNextQueuedTurn(ctx, sessionID); queuedErr == nil {
-		warnStore("append recovery restart failure event", e.store.AppendTurnEvent(ctx, queuedTurn.ID, sessionID, "turn.recovery_restart_failed", cloneMap(payload)))
+		logutil.WarnIfErr("append recovery restart failure event", e.store.AppendTurnEvent(ctx, queuedTurn.ID, sessionID, "turn.recovery_restart_failed", cloneMap(payload)))
 	}
 	runner.emitSessionStateHook(ctx, sessionID, agentID, model, status, payload)
 }
@@ -267,7 +268,7 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 			}
 		}
 	}
-	warnStore("turn recovered event append", e.store.AppendTurnEvent(opCtx, claim.TurnID, claim.SessionID, "turn.recovered", payload))
+	logutil.WarnIfErr("turn recovered event append", e.store.AppendTurnEvent(opCtx, claim.TurnID, claim.SessionID, "turn.recovered", payload))
 	if err := e.store.ReleaseSessionActiveTurn(opCtx, claim.SessionID, claim.ClaimToken); err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package turn
 
 import (
 	"context"
+	"github.com/rcarmo/gi/internal/logutil"
 	"strings"
 	"time"
 
@@ -64,7 +65,7 @@ func (r *sessionRunner) propagateChildSubTurnCancellation(ctx context.Context, p
 	walk = func(turnID string) {
 		subs, err := r.store.ListSubTurnsByParent(ctx, turnID)
 		if err != nil {
-			warnStore("list child subturns", err)
+			logutil.WarnIfErr("list child subturns", err)
 			return
 		}
 		for _, sub := range subs {
@@ -79,7 +80,7 @@ func (r *sessionRunner) propagateChildSubTurnCancellation(ctx context.Context, p
 			if isCriticalSubTurn(sub) && !directive.cancelCritical {
 				continue
 			}
-			warnStore("update child subturn cancellation metadata", r.store.UpdateSubTurnMetadataByChild(ctx, sub.ChildTurnID, map[string]any{
+			logutil.WarnIfErr("update child subturn cancellation metadata", r.store.UpdateSubTurnMetadataByChild(ctx, sub.ChildTurnID, map[string]any{
 				"cancel_requested_by_parent":     true,
 				"cancel_requested_at":            time.Now().UTC().Format(time.RFC3339Nano),
 				"cancel_requested_parent_turn":   turnID,
@@ -88,7 +89,7 @@ func (r *sessionRunner) propagateChildSubTurnCancellation(ctx context.Context, p
 				"cancel_reason":                  directive.reason,
 			}))
 			if err := r.engine.CancelTurn(ctx, sub.ChildSessionID, sub.ChildTurnID); err != nil {
-				warnStore("cancel child subturn", err)
+				logutil.WarnIfErr("cancel child subturn", err)
 				continue
 			}
 			r.engine.broadcast(sub.ParentSessionID, map[string]any{

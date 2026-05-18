@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/rcarmo/gi/internal/logutil"
 	"log"
 	"os/exec"
 	"strings"
@@ -307,12 +308,12 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth, "max_depth": subTurnMaxDepth, "max_concurrency": subTurnMaxConcurrency, "delivery_mode": subTurnDeliveryMode, "subturn_critical": subTurnCritical, "effective_tools": effectiveTools, "subturn_tools_restricted": subTurnToolsRestricted}
 		if hook := e.beforeCreateSubTurnErrorHook; hook != nil {
 			if err := hook(durableCtx, in.ParentTurnID, turnID); err != nil {
-				warnStore("rollback turn after create subturn hook failure", e.store.DeleteTurn(durableCtx, turnID))
+				logutil.WarnIfErr("rollback turn after create subturn hook failure", e.store.DeleteTurn(durableCtx, turnID))
 				return nil, err
 			}
 		}
 		if _, err := e.store.CreateSubTurn(durableCtx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, subTurnDeliveryMode, subTurnDepth, subturnMetadata); err != nil {
-			warnStore("rollback turn after create subturn failure", e.store.DeleteTurn(durableCtx, turnID))
+			logutil.WarnIfErr("rollback turn after create subturn failure", e.store.DeleteTurn(durableCtx, turnID))
 			return nil, err
 		}
 		e.broadcast(parentSessionID, map[string]any{
@@ -373,7 +374,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 				queuePayload[key] = value
 			}
 		}
-		warnStore("add queued prompt system message", e.store.AddMessage(durableCtx, store.NowID("msg"), in.SessionID, "system", fmt.Sprintf("Queued prompt: %s", in.Prompt), queuePayload))
+		logutil.WarnIfErr("add queued prompt system message", e.store.AddMessage(durableCtx, store.NowID("msg"), in.SessionID, "system", fmt.Sprintf("Queued prompt: %s", in.Prompt), queuePayload))
 	}
 	submittedPayload := map[string]any{"phase": "queue", "intent": in.Intent, "queued": queued, "checkpoint": true}
 	for _, key := range []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt"} {
@@ -384,9 +385,9 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if routeMatchedBy := metadata["route_matched_by"]; routeMatchedBy != nil {
 		submittedPayload["route_matched_by"] = routeMatchedBy
 	}
-	warnStore("append turn.submitted event", e.store.AppendTurnEvent(durableCtx, turnID, in.SessionID, "turn.submitted", submittedPayload))
+	logutil.WarnIfErr("append turn.submitted event", e.store.AppendTurnEvent(durableCtx, turnID, in.SessionID, "turn.submitted", submittedPayload))
 	e.PublishRuntimeTurnEvent("turn_submitted", in.SessionID, turnID, "", firstNonEmpty(status, "queued"), firstNonEmpty(status, "queued"), submittedPayload)
-	warnStore("sync queue count after submit", e.store.SyncSessionQueueCount(durableCtx, in.SessionID))
+	logutil.WarnIfErr("sync queue count after submit", e.store.SyncSessionQueueCount(durableCtx, in.SessionID))
 	sessionStateUpdate := map[string]any{}
 	if model := strings.TrimSpace(in.Model); model != "" {
 		sessionStateUpdate["model"] = model
@@ -396,7 +397,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		sessionStateUpdate["active_turn_id"] = nil
 	}
 	if len(sessionStateUpdate) > 0 {
-		warnStore("touch session state after submit", e.store.TouchSessionState(durableCtx, in.SessionID, sessionStateUpdate))
+		logutil.WarnIfErr("touch session state after submit", e.store.TouchSessionState(durableCtx, in.SessionID, sessionStateUpdate))
 	}
 	return &SubmitResult{TurnID: turnID, SessionID: in.SessionID, Status: status, Queued: queued}, nil
 }
@@ -429,7 +430,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		runner.current.cmdMu.Lock()
 		if runner.current.cmd != nil && runner.current.cmd.Process != nil {
 			if err := syscall.Kill(-runner.current.cmd.Process.Pid, syscall.SIGKILL); err != nil {
-				warnStore("kill running command process group", err)
+				logutil.WarnIfErr("kill running command process group", err)
 			}
 		}
 		runner.current.cmdMu.Unlock()
@@ -444,7 +445,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		}
 		runner.emitTurnStateHook(opCtx, turnSessionID, turnID, agentID, model, "cancelled", "aborted", map[string]any{"reason": "queued_cancel"})
 		e.PublishRuntimeTurnEvent("turn_terminal", turnSessionID, turnID, agentID, "cancelled", "aborted", map[string]any{"reason": "queued_cancel", "failure_kind": ""})
-		warnStore("sync queue count after queued cancel", e.store.SyncSessionQueueCount(opCtx, turnSessionID))
+		logutil.WarnIfErr("sync queue count after queued cancel", e.store.SyncSessionQueueCount(opCtx, turnSessionID))
 		queueCount, err := e.store.CountQueuedTurns(opCtx, turnSessionID)
 		if err != nil {
 			return err
@@ -462,7 +463,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		} else if queueCount > 0 {
 			sessionStatus = "queued"
 		}
-		warnStore("touch session state after queued cancel", e.store.TouchSessionState(opCtx, turnSessionID, map[string]any{"status": sessionStatus, "active_turn_id": activeTurnValue}))
+		logutil.WarnIfErr("touch session state after queued cancel", e.store.TouchSessionState(opCtx, turnSessionID, map[string]any{"status": sessionStatus, "active_turn_id": activeTurnValue}))
 		runner.emitSessionStateHook(opCtx, turnSessionID, agentID, model, sessionStatus, map[string]any{"reason": "queued_cancel", "failure_kind": "", "turn_id": turnID, "turn_status": "cancelled", "turn_phase": "aborted", "active_turn_id": activeTurnValue})
 		if sessionStatus == "idle" {
 			e.PublishRuntimeSessionEvent("session_idle", turnSessionID, agentID, "idle", map[string]any{"reason": "turn_terminal", "active_turn_id": nil, "failure_kind": "", "turn_id": turnID, "turn_status": "cancelled", "turn_phase": "aborted", "model": model})
@@ -505,10 +506,10 @@ func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID str
 	res, err := e.submitSteeringPrompt(opCtx, in.SessionID, activeTurnID, in)
 	if err != nil {
 		// Keep the already-persisted queued turn as a fallback rather than dropping the prompt.
-		warnStore("append launch-conflict fallback preserved event", e.store.AppendTurnEvent(opCtx, turnID, in.SessionID, "turn.cleanup_handoff", map[string]any{"phase": "launch", "checkpoint": true, "reason": "launch_claim_conflict", "handoff": "queued_fallback_preserved", "active_turn_id": activeTurnID}))
+		logutil.WarnIfErr("append launch-conflict fallback preserved event", e.store.AppendTurnEvent(opCtx, turnID, in.SessionID, "turn.cleanup_handoff", map[string]any{"phase": "launch", "checkpoint": true, "reason": "launch_claim_conflict", "handoff": "queued_fallback_preserved", "active_turn_id": activeTurnID}))
 		return nil, false, nil
 	}
-	warnStore("append launch-conflict steering handoff event", e.store.AppendTurnEvent(opCtx, activeTurnID, in.SessionID, "turn.cleanup_handoff", map[string]any{"phase": "launch", "checkpoint": true, "reason": "launch_claim_conflict", "handoff": "active_turn_steering", "replaced_turn_id": turnID}))
+	logutil.WarnIfErr("append launch-conflict steering handoff event", e.store.AppendTurnEvent(opCtx, activeTurnID, in.SessionID, "turn.cleanup_handoff", map[string]any{"phase": "launch", "checkpoint": true, "reason": "launch_claim_conflict", "handoff": "active_turn_steering", "replaced_turn_id": turnID}))
 	if err := e.store.DeleteTurn(opCtx, turnID); err != nil {
 		log.Printf("turn coordination: delete transient queued turn after steering fallback failed: %v", err)
 	}
@@ -618,7 +619,7 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 		}
 		return false, err
 	}
-	warnStore("sync queue count after launch", e.store.SyncSessionQueueCount(opCtx, sessionID))
+	logutil.WarnIfErr("sync queue count after launch", e.store.SyncSessionQueueCount(opCtx, sessionID))
 	go runner.runTurn(e.store, sessionID, turnID, runCtx, cancel, active)
 	return true, nil
 }

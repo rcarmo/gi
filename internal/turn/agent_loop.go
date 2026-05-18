@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rcarmo/gi/internal/logutil"
 	"log"
 	"sort"
 	"strings"
@@ -82,13 +83,13 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			}
 			var abortErr hookAbortError
 			if errors.As(inferErr, &abortErr) {
-				warnStore("append inference.aborted event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.aborted", map[string]any{"phase": "inference", "checkpoint": true, "error": abortErr.Error(), "iteration": iter, "hard_abort": abortErr.hard}))
+				logutil.WarnIfErr("append inference.aborted event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.aborted", map[string]any{"phase": "inference", "checkpoint": true, "error": abortErr.Error(), "iteration": iter, "hard_abort": abortErr.hard}))
 				agentEndReason = "aborted"
 				r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
 				return
 			}
 			log.Printf("inference [%s] error: %v", iterLabel, inferErr)
-			warnStore("append inference.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error(), "iteration": iter}))
+			logutil.WarnIfErr("append inference.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.failed", map[string]any{"phase": "inference", "checkpoint": true, "error": inferErr.Error(), "iteration": iter}))
 			agentEndReason = "failed"
 			r.finishTurn(s, turnID, sessionID, agentID, model, "failed", fmt.Sprintf("Inference error: %v", inferErr), "provider_error")
 			return
@@ -135,7 +136,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			r.persistUsage(s, turnID, sessionID, &totalUsage, iter)
 
 			msgID := store.NowID("msg")
-			warnStore("add assistant inference message", s.AddMessage(ctx, msgID, sessionID, "assistant", textContent, map[string]any{
+			logutil.WarnIfErr("add assistant inference message", s.AddMessage(ctx, msgID, sessionID, "assistant", textContent, map[string]any{
 				"kind": "chat", "source": "inference", "model": model,
 				"turn_id": turnID, "agent_id": agentID, "iterations": iter,
 			}))
@@ -155,7 +156,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			}
 			toolCallSummary += fmt.Sprintf("[tool_call: %s]", tc.Name)
 		}
-		warnStore("add assistant tool_calls summary", s.AddMessage(ctx, store.NowID("msg"), sessionID, "assistant", toolCallSummary, map[string]any{
+		logutil.WarnIfErr("add assistant tool_calls summary", s.AddMessage(ctx, store.NowID("msg"), sessionID, "assistant", toolCallSummary, map[string]any{
 			"kind": "tool_calls", "source": "inference", "model": model,
 			"turn_id": turnID, "agent_id": agentID,
 		}))
@@ -215,7 +216,7 @@ func (r *sessionRunner) persistUsage(s *store.Store, turnID, sessionID string, u
 		"cost_total": usage.Cost.Total,
 		"iterations": iterations,
 	}
-	warnStore("append inference.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "inference.finished", map[string]any{
+	logutil.WarnIfErr("append inference.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "inference.finished", map[string]any{
 		"phase": "inference", "checkpoint": true, "usage": usageMap, "iterations": iterations,
 	}))
 	log.Printf("inference: usage input=%d output=%d total=%d cost=%.6f iterations=%d",
@@ -266,7 +267,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	r.appendFinalSteeringCheckpoint(s, turnID, sessionID)
 	if systemMsg != "" {
 		msgID := store.NowID("msg")
-		warnStore("add terminal system message", s.AddMessage(bgCtx, msgID, sessionID, "system", systemMsg, map[string]any{
+		logutil.WarnIfErr("add terminal system message", s.AddMessage(bgCtx, msgID, sessionID, "system", systemMsg, map[string]any{
 			"kind": "chat", "source": "system", "turn_id": turnID, "agent_id": agentID,
 		}))
 		r.broadcastSystemPost(sessionID, turnID, msgID, systemMsg)
@@ -283,10 +284,10 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	finishedPayload["status"] = status
 	finishedPayload["reason"] = firstNonEmpty(failureKind, status)
 	finishedPayload["failure_kind"] = failureKind
-	warnStore("append turn.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "turn.finished", finishedPayload))
+	logutil.WarnIfErr("append turn.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "turn.finished", finishedPayload))
 	phase := terminalPhaseForStatus(status)
-	warnStore("update turn status and phase terminal", s.UpdateTurnStatusAndPhase(bgCtx, turnID, status, phase))
-	warnStore("mark turn finished", s.MarkTurnFinished(bgCtx, turnID))
+	logutil.WarnIfErr("update turn status and phase terminal", s.UpdateTurnStatusAndPhase(bgCtx, turnID, status, phase))
+	logutil.WarnIfErr("mark turn finished", s.MarkTurnFinished(bgCtx, turnID))
 	turnEventType := "turn_terminal"
 	sessionIdleReason := "turn_terminal"
 	if status == "completed" && failureKind == "" {
@@ -309,7 +310,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	r.emitTurnStateHookOnly(bgCtx, sessionID, turnID, agentID, model, status, phase, hookPayload)
 	r.propagateChildSubTurnCancellation(bgCtx, turnID, status, failureKind)
 	r.publishSubTurnLifecycle(bgCtx, turnID, status)
-	warnStore("touch session idle", s.TouchSessionState(bgCtx, sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
+	logutil.WarnIfErr("touch session idle", s.TouchSessionState(bgCtx, sessionID, map[string]any{"status": "idle", "active_turn_id": nil}))
 	sessionPayload := cloneMap(payload)
 	if sessionPayload == nil {
 		sessionPayload = map[string]any{}
@@ -374,7 +375,7 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 		eventType := "subturn_result_ready"
 		if orphaned {
 			eventType = "subturn_orphaned"
-			warnStore("update async subturn orphan metadata", r.store.UpdateSubTurnMetadataByChild(opCtx, sub.ChildTurnID, map[string]any{
+			logutil.WarnIfErr("update async subturn orphan metadata", r.store.UpdateSubTurnMetadataByChild(opCtx, sub.ChildTurnID, map[string]any{
 				"orphaned":      true,
 				"orphaned_at":   time.Now().UTC().Format(time.RFC3339Nano),
 				"orphan_reason": "parent_turn_completed_before_async_result_consumption",
@@ -384,7 +385,7 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 				if strings.TrimSpace(summary) != "" {
 					content += "\n\n" + summary
 				}
-				warnStore("add async orphan result message", r.store.AddMessage(opCtx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
+				logutil.WarnIfErr("add async orphan result message", r.store.AddMessage(opCtx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
 					"kind":             "subturn_orphan_result",
 					"parent_turn_id":   sub.ParentTurnID,
 					"child_turn_id":    sub.ChildTurnID,
@@ -415,7 +416,7 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 		if strings.TrimSpace(summary) != "" {
 			content += "\n\n" + summary
 		}
-		warnStore("add sync subturn result message", r.store.AddMessage(opCtx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
+		logutil.WarnIfErr("add sync subturn result message", r.store.AddMessage(opCtx, store.NowID("msg"), sub.ParentSessionID, "system", content, map[string]any{
 			"kind":             "subturn_result",
 			"parent_turn_id":   sub.ParentTurnID,
 			"child_turn_id":    sub.ChildTurnID,

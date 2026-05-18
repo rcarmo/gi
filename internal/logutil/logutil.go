@@ -1,8 +1,8 @@
-package turn
+package logutil
 
 import "log"
 
-func warnStore(op string, err error) {
+func WarnIfErr(op string, err error) {
 	if err != nil {
 		log.Printf("%s: %v", op, err)
 	}

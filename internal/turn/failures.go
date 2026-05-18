@@ -2,25 +2,26 @@ package turn
 
 import (
 	"context"
+	"github.com/rcarmo/gi/internal/logutil"
 	"strings"
 
 	"github.com/rcarmo/gi/internal/store"
 )
 
 func markTurnFailure(ctx context.Context, s *store.Store, turnID, sessionID, failureKind, summary string) {
-	warnStore("turn failure mark", markTurnFailureWithFallbackErr(ctx, nil, s, turnID, sessionID, failureKind, "none", summary))
+	logutil.WarnIfErr("turn failure mark", markTurnFailureWithFallbackErr(ctx, nil, s, turnID, sessionID, failureKind, "none", summary))
 }
 
 func markTurnFailureWithFallback(ctx, fallback context.Context, s *store.Store, turnID, sessionID, failureKind, summary string) {
-	warnStore("turn failure mark", markTurnFailureWithFallbackErr(ctx, fallback, s, turnID, sessionID, failureKind, "none", summary))
+	logutil.WarnIfErr("turn failure mark", markTurnFailureWithFallbackErr(ctx, fallback, s, turnID, sessionID, failureKind, "none", summary))
 }
 
 func markTurnFailureWithHold(ctx context.Context, s *store.Store, turnID, sessionID, failureKind, holdState, summary string) {
-	warnStore("turn failure mark", markTurnFailureWithFallbackErr(ctx, nil, s, turnID, sessionID, failureKind, holdState, summary))
+	logutil.WarnIfErr("turn failure mark", markTurnFailureWithFallbackErr(ctx, nil, s, turnID, sessionID, failureKind, holdState, summary))
 }
 
 func markTurnFailureWithHoldAndFallback(ctx, fallback context.Context, s *store.Store, turnID, sessionID, failureKind, holdState, summary string) {
-	warnStore("turn failure mark", markTurnFailureWithFallbackErr(ctx, fallback, s, turnID, sessionID, failureKind, holdState, summary))
+	logutil.WarnIfErr("turn failure mark", markTurnFailureWithFallbackErr(ctx, fallback, s, turnID, sessionID, failureKind, holdState, summary))
 }
 
 func markTurnFailureWithFallbackErr(ctx, fallback context.Context, s *store.Store, turnID, sessionID, failureKind, holdState, summary string) error {
