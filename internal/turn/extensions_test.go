@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rcarmo/gi/internal/compaction"
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/store"
 	goai "github.com/rcarmo/go-ai"
@@ -44,7 +45,6 @@ func TestJokerSmartCompactionExtension(t *testing.T) {
 	defer s.Close()
 	cfg := config.RuntimeConfig{WorkspaceRoot: root, DefaultModel: "bootstrap", MaxIterations: 64, Compaction: config.CompactionSettings{Enabled: true, ContextWindow: 1000, ThresholdTokens: 50, KeepRecentTokens: 20, ReserveTokens: 10}, Agents: config.AgentsConfig{List: []config.AgentConfig{{ID: "agent", Default: true, Model: "bootstrap"}}}}
 	e := NewWithRuntimeConfig(s, cfg, "")
-	r := &sessionRunner{store: s, engine: e}
 	conv := &goai.Context{Messages: []goai.Message{
 		goai.UserMessage(strings.Repeat("older1 ", 80)),
 		goai.UserMessage(strings.Repeat("older2 ", 80)),
@@ -53,7 +53,10 @@ func TestJokerSmartCompactionExtension(t *testing.T) {
 		goai.UserMessage("recent question"),
 		goai.UserMessage("recent answer"),
 	}}
-	r.maybeCompactContext(context.Background(), "missing-session", "turn_ext", "agent", "bootstrap", conv)
+	compaction.MaybeCompactContext(context.Background(), compaction.RuntimeRequest{SessionID: "missing-session", TurnID: "turn_ext", AgentID: "agent", Model: "bootstrap", Settings: e.runtimeCfg.Compaction}, conv, compaction.RuntimeOps{BackgroundContext: e.backgroundContext, BeforeCompact: func(ctx context.Context, payload map[string]any, messages []goai.Message) (compaction.HookDecision, error) {
+		resp, err := e.emitHook(ctx, HookRequest{Name: HookSessionBeforeCompact, SessionID: "missing-session", TurnID: "turn_ext", AgentID: "agent", Model: "bootstrap", Payload: payload, Messages: messages})
+		return compaction.HookDecision{Cancel: resp.Cancel, Block: resp.Block, Payload: resp.Payload}, err
+	}})
 	got := goai.GetTextContent(&conv.Messages[0])
 	if !strings.Contains(got, "joker smart summary:") {
 		t.Fatalf("missing joker smart summary: %q", got)

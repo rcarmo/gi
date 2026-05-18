@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/rcarmo/gi/internal/compaction"
 	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/store"
 	goai "github.com/rcarmo/go-ai"
@@ -142,7 +143,12 @@ func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, tu
 			convCtx.Tools = resp.Tools
 		}
 	}
-	r.maybeCompactContext(ctx, sessionID, turnID, agentID, model, convCtx)
+	compaction.MaybeCompactContext(ctx, compaction.RuntimeRequest{SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Settings: r.engine.runtimeCfg.Compaction}, convCtx, compaction.RuntimeOps{BackgroundContext: r.engine.backgroundContext, BeforeCompact: func(ctx context.Context, payload map[string]any, messages []goai.Message) (compaction.HookDecision, error) {
+		resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookSessionBeforeCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload, Messages: messages})
+		return compaction.HookDecision{Cancel: resp.Cancel, Block: resp.Block, Payload: resp.Payload}, err
+	}, AfterCompact: func(ctx context.Context, payload map[string]any) {
+		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookSessionCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload})
+	}, UpdateTurnStatusAndPhase: r.store.UpdateTurnStatusAndPhase, AppendTurnEvent: r.store.AppendTurnEvent, TouchSessionActiveTurn: r.store.TouchSessionActiveTurn, AddMessage: r.store.AddMessage, Broadcast: r.engine.broadcast, Warn: warnStore})
 	return pendingSteering
 }
 
