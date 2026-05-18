@@ -17,6 +17,7 @@ import (
 	"github.com/rcarmo/gi/internal/routing"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
+	"github.com/rcarmo/gi/internal/turn/routeaudit"
 )
 
 type Engine struct {
@@ -344,7 +345,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 			})
 		}
 	}
-	if err := e.recordRouteDecision(durableCtx, in.SessionID, turnID, metadata); err != nil {
+	if err := routeaudit.RecordDecision(durableCtx, e.store, in.SessionID, turnID, metadata, routeaudit.Options{PublishRuntimeRoutingEvent: e.PublishRuntimeRoutingEvent, Broadcast: e.broadcast}); err != nil {
 		// Non-fatal: routing decisions are an orchestration artifact.
 		log.Printf("orchestration: route decision persist failed: %v", err)
 	}

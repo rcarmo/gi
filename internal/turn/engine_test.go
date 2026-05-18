@@ -17,6 +17,8 @@ import (
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
+	"github.com/rcarmo/gi/internal/turn/routeaudit"
+	"github.com/rcarmo/gi/internal/turn/routedsession"
 	goai "github.com/rcarmo/go-ai"
 )
 
@@ -4604,7 +4606,7 @@ func TestPreparePromptRouteResolutionUsesSourceSessionScopeContext(t *testing.T)
 	if err := s.RequireSession(ctx, source.ID); err != nil {
 		t.Fatalf("require session: %v", err)
 	}
-	inbound := inboundContextFromSessionIDWithFallback(ctx, s, source.ID)
+	inbound := routedsession.InboundContextFromSession(ctx, s, source.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected inbound channel/account from scope, got %#v", inbound)
 	}
@@ -4634,7 +4636,7 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityOverScopeSnapshot(t *
 	if err := s.RequireSession(ctx, source.ID); err != nil {
 		t.Fatalf("require session: %v", err)
 	}
-	inbound := inboundContextFromSessionIDWithFallback(ctx, s, source.ID)
+	inbound := routedsession.InboundContextFromSession(ctx, s, source.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected canonical inbound channel/account, got %#v", inbound)
 	}
@@ -4659,7 +4661,7 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityUnderCanceledCallerCo
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
 	_ = cancelCtx
-	inbound := inboundContextFromSessionIDWithFallback(engine.backgroundContext(), s, source.ID)
+	inbound := routedsession.InboundContextFromSession(engine.backgroundContext(), s, source.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected canonical inbound channel/account under canceled caller context, got %#v", inbound)
 	}
@@ -4684,7 +4686,7 @@ func TestResolveOrCreateRouteSessionUsesIdentityForSameAgentFastPath(t *testing.
 		t.Fatalf("reload source session: %v", err)
 	}
 	engine := New(s)
-	targetSessionID, created, err := engine.ResolveOrCreateRouteSession(ctx, source.ID, routing.ResolvedRoute{AgentID: "agent"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
+	targetSessionID, created, err := routedsession.ResolveOrCreate(ctx, s, source.ID, routing.ResolvedRoute{AgentID: "agent"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID}, routedsession.ResolveOptions{ModelForAgent: engine.modelForAgent, DefaultProvider: engine.runtimeCfg.DefaultProvider, DefaultThinking: engine.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
 		t.Fatalf("resolve route session: %v", err)
 	}
@@ -5361,7 +5363,7 @@ func TestResolveOrCreateRouteSessionReturnsSourceForSameAgent(t *testing.T) {
 		t.Fatalf("reload source session: %v", err)
 	}
 	engine := New(s)
-	targetSessionID, created, err := engine.ResolveOrCreateRouteSession(ctx, staleSource.ID, routing.ResolvedRoute{AgentID: "agent"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
+	targetSessionID, created, err := routedsession.ResolveOrCreate(ctx, s, staleSource.ID, routing.ResolvedRoute{AgentID: "agent"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID}, routedsession.ResolveOptions{ModelForAgent: engine.modelForAgent, DefaultProvider: engine.runtimeCfg.DefaultProvider, DefaultThinking: engine.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
 		t.Fatalf("resolve route session: %v", err)
 	}
@@ -5398,17 +5400,12 @@ func TestResolveExistingRouteSessionUsesSiblingLookupWithoutSourceParentField(t 
 	staleSource.ParentSessionID = ""
 	engine := New(s)
 	route := routing.ResolvedRoute{AgentID: "agentB", MatchedBy: "mention"}
-	allocation := gisession.AllocateRouteSession(gisession.AllocationInput{
-		AgentID:       route.AgentID,
-		Context:       routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID},
-		SessionPolicy: route.SessionPolicy,
-	})
-	resolved, err := engine.resolveExistingRouteSession(ctx, staleSource.ID, route, allocation)
+	resolvedID, created, err := routedsession.ResolveOrCreate(ctx, s, staleSource.ID, route, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID}, routedsession.ResolveOptions{ModelForAgent: engine.modelForAgent, DefaultProvider: engine.runtimeCfg.DefaultProvider, DefaultThinking: engine.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
 		t.Fatalf("resolve existing route session: %v", err)
 	}
-	if resolved == nil || resolved.ID != target.ID {
-		t.Fatalf("expected sibling child target reuse, got %#v", resolved)
+	if created || resolvedID != target.ID {
+		t.Fatalf("expected sibling child target reuse, got id=%q created=%v", resolvedID, created)
 	}
 }
 
@@ -5473,7 +5470,7 @@ func TestInboundContextFromSessionUsesStoredIdentityInsteadOfSessionScopeJSON(t 
 	if staleSess.Scope == nil || staleSess.Scope.Channel != "email" {
 		t.Fatalf("expected stale session scope fixture, got %#v", staleSess.Scope)
 	}
-	inbound := inboundContextFromSessionIDWithFallback(ctx, s, staleSess.ID)
+	inbound := routedsession.InboundContextFromSession(ctx, s, staleSess.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected identity-backed channel/account, got %#v", inbound)
 	}
@@ -5502,12 +5499,12 @@ func TestRecordRouteDecisionUsesStoredIdentityInsteadOfSessionScopeJSON(t *testi
 		t.Fatalf("create source turn: %v", err)
 	}
 	engine := New(s)
-	if err := engine.recordRouteDecision(ctx, sess.ID, "turn_route_decision_identity", map[string]any{
+	if err := routeaudit.RecordDecision(ctx, s, sess.ID, "turn_route_decision_identity", map[string]any{
 		"target_agent_id":   "agent1",
 		"target_session_id": "session_target_identity",
 		"route_mode":        "prompt",
 		"routing_enabled":   true,
-	}); err != nil {
+	}, routeaudit.Options{PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
 		t.Fatalf("record route decision: %v", err)
 	}
 	events, err := s.ListRouteEvents(ctx, sess.ID)
@@ -5556,21 +5553,17 @@ func TestCloneRouteSessionSurvivesCanceledCallerContext(t *testing.T) {
 	}
 	engine := New(s)
 	route := routing.ResolvedRoute{AgentID: "agent1", MatchedBy: "mention"}
-	allocation := gisession.AllocateRouteSession(gisession.AllocationInput{
-		AgentID:       route.AgentID,
-		Context:       inboundContextFromSessionIDWithFallback(ctx, s, source.ID),
-		SessionPolicy: route.SessionPolicy,
-	})
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
-	cloned, created, err := engine.cloneRouteSession(cancelCtx, source.ID, route, allocation)
+	_ = cancelCtx
+	clonedID, created, err := routedsession.ResolveOrCreate(engine.backgroundContext(), s, source.ID, route, routedsession.InboundContextFromSession(ctx, s, source.ID), routedsession.ResolveOptions{ModelForAgent: engine.modelForAgent, DefaultProvider: engine.runtimeCfg.DefaultProvider, DefaultThinking: engine.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
 		t.Fatalf("clone route session with canceled caller context: %v", err)
 	}
-	if !created || cloned == nil {
-		t.Fatalf("expected cloned route session, got created=%v cloned=%#v", created, cloned)
+	if !created || clonedID == "" {
+		t.Fatalf("expected cloned route session, got created=%v id=%q", created, clonedID)
 	}
-	msgs, err := s.ListMessages(ctx, cloned.ID)
+	msgs, err := s.ListMessages(ctx, clonedID)
 	if err != nil {
 		t.Fatalf("list cloned session messages: %v", err)
 	}

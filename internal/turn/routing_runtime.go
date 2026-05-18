@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/rcarmo/gi/internal/routing"
-	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/turn/routedsession"
 )
 
 func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitResult, error) {
@@ -25,7 +25,7 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 		promptBody = body
 		mentioned = true
 	}
-	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.store, in.SessionID)
+	inbound := routedsession.InboundContextFromSession(opCtx, e.store, in.SessionID)
 	inbound.SenderID = "user"
 	inbound.Mentioned = mentioned
 	inbound.Prompt = promptBody
@@ -34,7 +34,7 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 		route.AgentID = routing.NormalizeAgentID(targetAgentID)
 		route.MatchedBy = "mention"
 	}
-	targetSessionID, created, err := e.ResolveOrCreateRouteSession(opCtx, in.SessionID, route, inbound)
+	targetSessionID, created, err := routedsession.ResolveOrCreate(opCtx, e.store, in.SessionID, route, inbound, routedsession.ResolveOptions{ModelForAgent: e.modelForAgent, DefaultProvider: e.runtimeCfg.DefaultProvider, DefaultThinking: e.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
 		return nil, err
 	}
@@ -71,14 +71,14 @@ func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessio
 	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
 		return nil, err
 	}
-	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.store, sourceSessionID)
+	inbound := routedsession.InboundContextFromSession(opCtx, e.store, sourceSessionID)
 	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
 	inbound.Mentioned = true
 	inbound.Prompt = content
 	route := e.routeResolver.ResolveRoute(inbound)
 	route.AgentID = routing.NormalizeAgentID(targetAgentID)
 	route.MatchedBy = "peer-message"
-	targetSessionID, created, err := e.ResolveOrCreateRouteSession(opCtx, sourceSessionID, route, inbound)
+	targetSessionID, created, err := routedsession.ResolveOrCreate(opCtx, e.store, sourceSessionID, route, inbound, routedsession.ResolveOptions{ModelForAgent: e.modelForAgent, DefaultProvider: e.runtimeCfg.DefaultProvider, DefaultThinking: e.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
 		return nil, err
 	}
@@ -90,44 +90,17 @@ func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSession
 	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
 		return "", err
 	}
-	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.store, sourceSessionID)
+	inbound := routedsession.InboundContextFromSession(opCtx, e.store, sourceSessionID)
 	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
 	inbound.Mentioned = true
 	route := e.routeResolver.ResolveRoute(inbound)
 	route.AgentID = routing.NormalizeAgentID(targetAgentID)
 	route.MatchedBy = "peer-session"
-	targetSessionID, _, err := e.ResolveOrCreateRouteSession(opCtx, sourceSessionID, route, inbound)
+	targetSessionID, _, err := routedsession.ResolveOrCreate(opCtx, e.store, sourceSessionID, route, inbound, routedsession.ResolveOptions{ModelForAgent: e.modelForAgent, DefaultProvider: e.runtimeCfg.DefaultProvider, DefaultThinking: e.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
 		return "", err
 	}
 	return targetSessionID, nil
-}
-
-func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, sourceSessionID string, route routing.ResolvedRoute, inbound routing.InboundContext) (string, bool, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
-	if strings.TrimSpace(sourceSessionID) == "" {
-		return "", false, fmt.Errorf("missing source session")
-	}
-	if routing.NormalizeAgentID(e.store.SessionAgentID(opCtx, sourceSessionID)) == routing.NormalizeAgentID(route.AgentID) {
-		return sourceSessionID, false, nil
-	}
-	allocation := gisession.AllocateRouteSession(gisession.AllocationInput{
-		AgentID:       route.AgentID,
-		Context:       inbound,
-		SessionPolicy: route.SessionPolicy,
-	})
-	existing, err := e.resolveExistingRouteSession(opCtx, sourceSessionID, route, allocation)
-	if err != nil {
-		return "", false, err
-	}
-	if existing != nil {
-		return existing.ID, false, nil
-	}
-	cloned, created, err := e.cloneRouteSession(opCtx, sourceSessionID, route, allocation)
-	if err != nil {
-		return "", false, err
-	}
-	return cloned.ID, created, nil
 }
 
 func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, sourceSessionID, targetSessionID string, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
