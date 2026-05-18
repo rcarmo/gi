@@ -64,7 +64,7 @@ func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, sourceSessionI
 	if strings.TrimSpace(sourceSessionID) == "" {
 		return "", false, fmt.Errorf("missing source session")
 	}
-	if normalizeAgentID(e.store.SessionAgentID(opCtx, sourceSessionID)) == normalizeAgentID(route.AgentID) {
+	if routing.NormalizeAgentID(e.store.SessionAgentID(opCtx, sourceSessionID)) == routing.NormalizeAgentID(route.AgentID) {
 		return sourceSessionID, false, nil
 	}
 	plan, err := e.prepareRouteSessionPlan(sourceSessionID, route, inbound)

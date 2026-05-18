@@ -30,11 +30,10 @@ type routeSessionPlan struct {
 
 func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) (*routedPromptResolution, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	source, err := e.store.GetSession(opCtx, in.SessionID)
-	if err != nil {
+	if err := e.store.RequireSession(opCtx, in.SessionID); err != nil {
 		return nil, err
 	}
-	targetAgentID, body, directed := parseDirectedPrompt(in.Prompt)
+	targetAgentID, body, directed := routing.ParseDirectedPrompt(in.Prompt)
 	promptBody := in.Prompt
 	mentioned := false
 	if directed {
@@ -44,7 +43,7 @@ func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) 
 		promptBody = body
 		mentioned = true
 	}
-	inbound := inboundContextFromSessionWithFallback(opCtx, e.backgroundContext(), e.store, source)
+	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.backgroundContext(), e.store, in.SessionID)
 	inbound.SenderID = "user"
 	inbound.Mentioned = mentioned
 	inbound.Prompt = promptBody
@@ -54,7 +53,7 @@ func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) 
 		route.MatchedBy = "mention"
 	}
 	return &routedPromptResolution{
-		sourceSessionID: source.ID,
+		sourceSessionID: in.SessionID,
 		route:           route,
 		inbound:         inbound,
 		promptBody:      promptBody,
@@ -64,19 +63,18 @@ func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) 
 
 func (e *Engine) preparePeerRouteResolution(ctx context.Context, sourceSessionID, targetAgentID, content, matchedBy string) (*routedPromptResolution, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	source, err := e.store.GetSession(opCtx, sourceSessionID)
-	if err != nil {
+	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
 		return nil, err
 	}
-	inbound := inboundContextFromSessionWithFallback(opCtx, e.backgroundContext(), e.store, source)
-	inbound.SenderID = e.store.SessionAgentID(opCtx, source.ID)
+	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.backgroundContext(), e.store, sourceSessionID)
+	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
 	inbound.Mentioned = true
 	inbound.Prompt = content
 	route := e.routeResolver.ResolveRoute(inbound)
 	route.AgentID = routing.NormalizeAgentID(targetAgentID)
 	route.MatchedBy = matchedBy
 	return &routedPromptResolution{
-		sourceSessionID: source.ID,
+		sourceSessionID: sourceSessionID,
 		route:           route,
 		inbound:         inbound,
 		promptBody:      content,
@@ -171,22 +169,20 @@ func (e *Engine) cloneRouteSession(ctx context.Context, plan *routeSessionPlan) 
 	return cloned, true, nil
 }
 
-func inboundContextFromSessionWithFallback(ctx, fallback context.Context, s *store.Store, sess *store.Session) routing.InboundContext {
+func inboundContextFromSessionIDWithFallback(ctx, fallback context.Context, s *store.Store, sessionID string) routing.InboundContext {
 	opCtx := coordinationContext(ctx, fallback)
 	inbound := routing.InboundContext{}
-	if s != nil && sess != nil {
-		inbound.Channel = s.SessionChannel(opCtx, sess.ID)
-		inbound.Account = s.SessionAccount(opCtx, sess.ID)
+	if s != nil {
+		inbound.Channel = s.SessionChannel(opCtx, sessionID)
+		inbound.Account = s.SessionAccount(opCtx, sessionID)
 	}
 	identity := (*store.SessionIdentity)(nil)
-	if s != nil && sess != nil {
-		identity = s.SessionIdentityOrNil(opCtx, sess.ID)
+	if s != nil {
+		identity = s.SessionIdentityOrNil(opCtx, sessionID)
 	}
 	var scope *gisession.SessionScope
 	if identity != nil {
 		scope = &identity.Scope
-	} else if s == nil && sess != nil {
-		scope = sess.Scope
 	}
 	if inbound.Channel == "" {
 		inbound.Channel = "gi"
@@ -194,10 +190,10 @@ func inboundContextFromSessionWithFallback(ctx, fallback context.Context, s *sto
 	if inbound.Account == "" {
 		inbound.Account = "default"
 	}
-	if sess == nil || scope == nil || scope.Values == nil {
-		if sess != nil {
+	if strings.TrimSpace(sessionID) == "" || scope == nil || scope.Values == nil {
+		if strings.TrimSpace(sessionID) != "" {
 			inbound.ChatType = "direct"
-			inbound.ChatID = sess.ID
+			inbound.ChatID = sessionID
 		}
 		return inbound
 	}
@@ -212,15 +208,15 @@ func inboundContextFromSessionWithFallback(ctx, fallback context.Context, s *sto
 	if _, topicID, ok := splitScopedValue(scope.Values["topic"], "topic"); ok {
 		inbound.TopicID = topicID
 	}
-	if inbound.ChatID == "" && sess != nil {
+	if inbound.ChatID == "" && strings.TrimSpace(sessionID) != "" {
 		inbound.ChatType = "direct"
-		inbound.ChatID = sess.ID
+		inbound.ChatID = sessionID
 	}
 	return inbound
 }
 
-func inboundContextFromSession(ctx context.Context, s *store.Store, sess *store.Session) routing.InboundContext {
-	return inboundContextFromSessionWithFallback(ctx, nil, s, sess)
+func inboundContextFromSessionID(ctx context.Context, s *store.Store, sessionID string) routing.InboundContext {
+	return inboundContextFromSessionIDWithFallback(ctx, nil, s, sessionID)
 }
 
 func splitScopedValue(raw, fallbackType string) (string, string, bool) {

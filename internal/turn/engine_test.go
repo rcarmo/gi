@@ -653,7 +653,7 @@ func TestConcurrentSubmitAcrossEnginesCompletesWithoutConflict(t *testing.T) {
 }
 
 func TestParsingHelpersNormalizeAsExpected(t *testing.T) {
-	if got := normalizeAgentID(" @Agent-One "); got != "agent-one" {
+	if got := routing.NormalizeAgentID(" @Agent-One "); got != "agent-one" {
 		t.Fatalf("expected normalized agent id, got %q", got)
 	}
 	if got := normalizeDirectKind("  PEER-message "); got != DirectKindPeerMessage {
@@ -662,7 +662,7 @@ func TestParsingHelpersNormalizeAsExpected(t *testing.T) {
 	if got := normalizeDirectSourceKind("  SYSTEM "); got != DirectSourceKindSystem {
 		t.Fatalf("expected normalized direct source kind, got %q", got)
 	}
-	if target, body, ok := parseDirectedPrompt("  @Agent-One: hello there  "); !ok || target != "agent-one" || body != "hello there" {
+	if target, body, ok := routing.ParseDirectedPrompt("  @Agent-One: hello there  "); !ok || target != "agent-one" || body != "hello there" {
 		t.Fatalf("expected directed prompt parse, got target=%q body=%q ok=%v", target, body, ok)
 	}
 	if typ, id, ok := splitScopedValue(" Room:Eng ", "space"); !ok || typ != "room" || id != "eng" {
@@ -5481,7 +5481,7 @@ func TestInboundContextFromSessionUsesStoredIdentityInsteadOfSessionScopeJSON(t 
 	if staleSess.Scope == nil || staleSess.Scope.Channel != "email" {
 		t.Fatalf("expected stale session scope fixture, got %#v", staleSess.Scope)
 	}
-	inbound := inboundContextFromSession(ctx, s, staleSess)
+	inbound := inboundContextFromSessionID(ctx, s, staleSess.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected identity-backed channel/account, got %#v", inbound)
 	}
@@ -5563,7 +5563,7 @@ func TestCloneRouteSessionSurvivesCanceledCallerContext(t *testing.T) {
 		t.Fatalf("create source: %v", err)
 	}
 	engine := New(s)
-	plan, err := engine.prepareRouteSessionPlan(source.ID, routing.ResolvedRoute{AgentID: "agent1", MatchedBy: "mention"}, inboundContextFromSession(ctx, s, source))
+	plan, err := engine.prepareRouteSessionPlan(source.ID, routing.ResolvedRoute{AgentID: "agent1", MatchedBy: "mention"}, inboundContextFromSessionID(ctx, s, source.ID))
 	if err != nil {
 		t.Fatalf("prepare route session plan: %v", err)
 	}

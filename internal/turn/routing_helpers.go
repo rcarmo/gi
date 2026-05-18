@@ -2,27 +2,9 @@ package turn
 
 import (
 	"context"
-	"strings"
 
 	"github.com/rcarmo/gi/internal/store"
 )
-
-func parseDirectedPrompt(prompt string) (string, string, bool) {
-	trimmed := strings.TrimSpace(prompt)
-	if !strings.HasPrefix(trimmed, "@") {
-		return "", prompt, false
-	}
-	rest := trimmed[1:]
-	end := strings.IndexAny(rest, " \t\r\n:")
-	if end < 0 {
-		return normalizeAgentID(rest), "", true
-	}
-	target := normalizeAgentID(rest[:end])
-	body := strings.TrimSpace(rest[end:])
-	body = strings.TrimPrefix(body, ":")
-	body = strings.TrimSpace(body)
-	return target, body, target != ""
-}
 
 func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnID string, metadata map[string]any) error {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
@@ -83,10 +65,6 @@ func (e *Engine) recordRouteDecision(ctx context.Context, sourceSessionID, turnI
 		})
 	}
 	return nil
-}
-
-func normalizeAgentID(v string) string {
-	return strings.TrimSpace(strings.TrimPrefix(normalizedLowerString(v), "@"))
 }
 
 func routeDecisionFromMetadata(sourceSession, targetSession, sourceAgent, targetAgentID, turnID, routeMode, matchedBy, routingPolicy, requestedAgent string, metadata map[string]any) store.RouteEvent {
