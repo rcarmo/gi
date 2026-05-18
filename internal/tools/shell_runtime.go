@@ -1,17 +1,18 @@
-package turn
+package tools
 
 import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/rcarmo/gi/internal/logutil"
 	"io"
 	"os/exec"
 	"sync"
 	"syscall"
+
+	"github.com/rcarmo/gi/internal/logutil"
 )
 
-func runShell(ctx context.Context, prompt string, onStart func(*exec.Cmd), onDelta func(string)) (string, error, bool) {
+func RunShellPrompt(ctx context.Context, prompt string, onStart func(*exec.Cmd), onDelta func(string)) (string, error, bool) {
 	cmd := exec.Command("sh", "-lc", "printf 'Gi received: %s' \"$GI_PROMPT\"")
 	cmd.Env = append(cmd.Environ(), "GI_PROMPT="+prompt)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

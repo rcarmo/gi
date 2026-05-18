@@ -16,6 +16,7 @@ import (
 	"github.com/rcarmo/gi/internal/routing"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/tools"
 	"github.com/rcarmo/gi/internal/topics"
 	"github.com/rcarmo/gi/internal/turn/routedsession"
 	goai "github.com/rcarmo/go-ai"
@@ -5414,7 +5415,7 @@ func TestRunShellStreamsDraftChunks(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	var chunks []string
-	out, err, cancelled := runShell(ctx, "hello", nil, func(delta string) {
+	out, err, cancelled := tools.RunShellPrompt(ctx, "hello", nil, func(delta string) {
 		chunks = append(chunks, delta)
 	})
 	if cancelled || err != nil {
@@ -5434,7 +5435,7 @@ func TestRunShellStreamsDraftChunks(t *testing.T) {
 func TestRunShellReportsCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	started := make(chan struct{})
-	out, err, cancelled := runShell(ctx, "hello", func(cmd *exec.Cmd) {
+	out, err, cancelled := tools.RunShellPrompt(ctx, "hello", func(cmd *exec.Cmd) {
 		close(started)
 		cancel()
 	}, nil)
