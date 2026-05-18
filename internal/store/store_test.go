@@ -171,6 +171,31 @@ func TestStoreResolveSessionIDByChannelBinding(t *testing.T) {
 	}
 }
 
+func TestStoreFindSessionIDByAllocation(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_find_alloc_id", "", "@support", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	resolvedID, err := s.findSessionIDByAllocation(ctx, alloc)
+	if err != nil {
+		t.Fatalf("find session id by allocation: %v", err)
+	}
+	if resolvedID != sess.ID {
+		t.Fatalf("unexpected allocation id resolution: %q", resolvedID)
+	}
+}
+
 func TestStoreResolveSessionIDHelpers(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

@@ -81,11 +81,11 @@ func (s *Store) ResolveOrCreateMainSessionFromAllocation(ctx context.Context, in
 	if err := s.SetMainSession(ctx, sess.ID); err != nil {
 		return nil, false, err
 	}
-	reloaded, err := s.GetSession(ctx, sess.ID)
-	if err != nil {
+	if err := s.AttachChannelBindingForAllocation(ctx, sess.ID, in.Allocation); err != nil {
 		return nil, false, err
 	}
-	if err := s.AttachChannelBindingForAllocation(ctx, reloaded.ID, in.Allocation); err != nil {
+	reloaded, err := s.GetSession(ctx, sess.ID)
+	if err != nil {
 		return nil, false, err
 	}
 	return reloaded, created, nil
