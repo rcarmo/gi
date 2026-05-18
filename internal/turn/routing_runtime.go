@@ -12,9 +12,27 @@ import (
 
 func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitResult, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	route, inbound, promptBody, directed, err := e.preparePromptRouteResolution(opCtx, in)
-	if err != nil {
+	if err := e.store.RequireSession(opCtx, in.SessionID); err != nil {
 		return nil, err
+	}
+	targetAgentID, body, directed := routing.ParseDirectedPrompt(in.Prompt)
+	promptBody := in.Prompt
+	mentioned := false
+	if directed {
+		if body == "" {
+			return nil, fmt.Errorf("directed prompt requires content after @%s", targetAgentID)
+		}
+		promptBody = body
+		mentioned = true
+	}
+	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.backgroundContext(), e.store, in.SessionID)
+	inbound.SenderID = "user"
+	inbound.Mentioned = mentioned
+	inbound.Prompt = promptBody
+	route := e.routeResolver.ResolveRoute(inbound)
+	if directed && targetAgentID != "" {
+		route.AgentID = routing.NormalizeAgentID(targetAgentID)
+		route.MatchedBy = "mention"
 	}
 	targetSessionID, created, err := e.ResolveOrCreateRouteSession(opCtx, in.SessionID, route, inbound)
 	if err != nil {

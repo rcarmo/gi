@@ -4608,10 +4608,10 @@ func TestPreparePromptRouteResolutionUsesSourceSessionScopeContext(t *testing.T)
 		t.Fatalf("create source session: %v", err)
 	}
 	engine := New(s)
-	_, inbound, _, _, err := engine.preparePromptRouteResolution(ctx, RunInput{SessionID: source.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
-	if err != nil {
-		t.Fatalf("prepare prompt route resolution: %v", err)
+	if err := s.RequireSession(ctx, source.ID); err != nil {
+		t.Fatalf("require session: %v", err)
 	}
+	inbound := inboundContextFromSessionIDWithFallback(ctx, engine.backgroundContext(), s, source.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected inbound channel/account from scope, got %#v", inbound)
 	}
@@ -4639,10 +4639,10 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityOverScopeSnapshot(t *
 		t.Fatalf("mutate scope snapshot: %v", err)
 	}
 	engine := New(s)
-	_, inbound, _, _, err := engine.preparePromptRouteResolution(ctx, RunInput{SessionID: source.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
-	if err != nil {
-		t.Fatalf("prepare prompt route resolution: %v", err)
+	if err := s.RequireSession(ctx, source.ID); err != nil {
+		t.Fatalf("require session: %v", err)
 	}
+	inbound := inboundContextFromSessionIDWithFallback(ctx, engine.backgroundContext(), s, source.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected canonical inbound channel/account, got %#v", inbound)
 	}
@@ -4666,10 +4666,7 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityUnderCanceledCallerCo
 	engine := New(s)
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
-	_, inbound, _, _, err := engine.preparePromptRouteResolution(cancelCtx, RunInput{SessionID: source.ID, Prompt: "@agent1 hello there", Model: "bootstrap"})
-	if err != nil {
-		t.Fatalf("prepare prompt route resolution under canceled caller context: %v", err)
-	}
+	inbound := inboundContextFromSessionIDWithFallback(cancelCtx, engine.backgroundContext(), s, source.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected canonical inbound channel/account under canceled caller context, got %#v", inbound)
 	}

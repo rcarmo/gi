@@ -11,33 +11,6 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 )
 
-func (e *Engine) preparePromptRouteResolution(ctx context.Context, in RunInput) (routing.ResolvedRoute, routing.InboundContext, string, bool, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
-	if err := e.store.RequireSession(opCtx, in.SessionID); err != nil {
-		return routing.ResolvedRoute{}, routing.InboundContext{}, "", false, err
-	}
-	targetAgentID, body, directed := routing.ParseDirectedPrompt(in.Prompt)
-	promptBody := in.Prompt
-	mentioned := false
-	if directed {
-		if body == "" {
-			return routing.ResolvedRoute{}, routing.InboundContext{}, "", false, fmt.Errorf("directed prompt requires content after @%s", targetAgentID)
-		}
-		promptBody = body
-		mentioned = true
-	}
-	inbound := inboundContextFromSessionIDWithFallback(opCtx, e.backgroundContext(), e.store, in.SessionID)
-	inbound.SenderID = "user"
-	inbound.Mentioned = mentioned
-	inbound.Prompt = promptBody
-	route := e.routeResolver.ResolveRoute(inbound)
-	if directed && targetAgentID != "" {
-		route.AgentID = routing.NormalizeAgentID(targetAgentID)
-		route.MatchedBy = "mention"
-	}
-	return route, inbound, promptBody, directed, nil
-}
-
 func (e *Engine) resolveExistingRouteSession(ctx context.Context, sourceSessionID string, route routing.ResolvedRoute, allocation gisession.Allocation) (*store.Session, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if sessionID, err := e.store.FindSessionByAllocation(opCtx, allocation); err == nil {
