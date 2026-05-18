@@ -60,10 +60,10 @@ func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.
 	if source == nil {
 		return nil, false, fmt.Errorf("missing source session")
 	}
-	if normalizeAgentID(sessionAgentIDWithStore(opCtx, e.store, source)) == normalizeAgentID(route.AgentID) {
+	if normalizeAgentID(sessionAgentIDForSessionID(opCtx, e.store, source.ID)) == normalizeAgentID(route.AgentID) {
 		return source, false, nil
 	}
-	plan, err := e.prepareRouteSessionPlan(source, route, inbound)
+	plan, err := e.prepareRouteSessionPlan(source.ID, route, inbound)
 	if err != nil {
 		return nil, false, err
 	}
@@ -83,7 +83,7 @@ func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, source *store.
 
 func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, source, target *store.Session, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
-	sourceAgentID := sessionAgentIDWithStore(opCtx, e.store, source)
+	sourceAgentID := sessionAgentIDForSessionID(opCtx, e.store, source.ID)
 	routingContent := fmt.Sprintf("↪ routed to @%s: %s", route.AgentID, content)
 	routingPayload := map[string]any{"kind": "routing", "target_agent_id": route.AgentID, "target_session_id": target.ID, "source_agent_id": sourceAgentID, "source_session_id": source.ID, "route_matched_by": route.MatchedBy, "clipped": true}
 	warnStore("add routing message to source session", e.store.AddMessage(opCtx, store.NowID("msg"), source.ID, "system", routingContent, routingPayload))

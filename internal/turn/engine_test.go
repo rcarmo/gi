@@ -5357,12 +5357,20 @@ func TestResolveOrCreateRouteSessionReturnsSourceForSameAgent(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
 	ctx := context.Background()
-	source, err := s.CreateSession(ctx, "session_same_agent_route", "@agent", map[string]any{"model": "bootstrap", "status": "idle"})
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_same_agent_route")
+	source, err := s.CreateSessionWithMetadata(ctx, "session_same_agent_route", "", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}, &alloc.Scope, alloc.SessionAliases)
 	if err != nil {
 		t.Fatalf("create source session: %v", err)
 	}
+	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"email","account":"legacy","dimensions":["chat"],"values":{"chat":"direct:legacy"}}`, source.ID); err != nil {
+		t.Fatalf("mutate legacy scope json: %v", err)
+	}
+	staleSource, err := s.GetSession(ctx, source.ID)
+	if err != nil {
+		t.Fatalf("reload source session: %v", err)
+	}
 	engine := New(s)
-	target, created, err := engine.ResolveOrCreateRouteSession(ctx, source, routing.ResolvedRoute{AgentID: normalizeAgentID(sessionAgentID(source))}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
+	target, created, err := engine.ResolveOrCreateRouteSession(ctx, staleSource, routing.ResolvedRoute{AgentID: "agent"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
 	if err != nil {
 		t.Fatalf("resolve route session: %v", err)
 	}
@@ -5398,7 +5406,7 @@ func TestResolveExistingRouteSessionUsesSiblingLookupWithoutSourceParentField(t 
 	}
 	staleSource.ParentSessionID = ""
 	engine := New(s)
-	plan, err := engine.prepareRouteSessionPlan(staleSource, routing.ResolvedRoute{AgentID: "agentB", MatchedBy: "mention"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
+	plan, err := engine.prepareRouteSessionPlan(staleSource.ID, routing.ResolvedRoute{AgentID: "agentB", MatchedBy: "mention"}, routing.InboundContext{Channel: "gi", Account: "default", ChatType: "direct", ChatID: source.ID})
 	if err != nil {
 		t.Fatalf("prepare route session plan: %v", err)
 	}
@@ -5554,7 +5562,7 @@ func TestCloneRouteSessionSurvivesCanceledCallerContext(t *testing.T) {
 		t.Fatalf("create source: %v", err)
 	}
 	engine := New(s)
-	plan, err := engine.prepareRouteSessionPlan(source, routing.ResolvedRoute{AgentID: "agent1", MatchedBy: "mention"}, inboundContextFromSession(ctx, s, source))
+	plan, err := engine.prepareRouteSessionPlan(source.ID, routing.ResolvedRoute{AgentID: "agent1", MatchedBy: "mention"}, inboundContextFromSession(ctx, s, source))
 	if err != nil {
 		t.Fatalf("prepare route session plan: %v", err)
 	}
