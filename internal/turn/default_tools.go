@@ -6,14 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/rcarmo/gi/internal/compaction"
 	"github.com/rcarmo/gi/internal/connectivity"
-	"github.com/rcarmo/gi/internal/rtk"
 	"github.com/rcarmo/gi/internal/scripting"
 	giskills "github.com/rcarmo/gi/internal/skills"
 	"github.com/rcarmo/gi/internal/tools"
@@ -30,7 +26,7 @@ func (e *Engine) registerDefaultTools() {
 			}
 			return e.connectivity.Register(ctx, spec, func(ctx context.Context, event connectivity.EventEnvelope) (connectivity.RouteResponse, error) {
 				payload := map[string]any{"event": event, "route": spec, "payload": event.Payload}
-				input := tools.ScriptInput{Engine: spec.Engine, Path: spec.Path, SessionID: event.SessionID, Script: scriptWithPayload(spec.Engine, "event", payload, spec.Script)}
+				input := tools.ScriptInput{Engine: spec.Engine, Path: spec.Path, SessionID: event.SessionID, Script: tools.ScriptWithPayload(spec.Engine, "event", payload, spec.Script)}
 				out := scriptTool.Execute(ctx, input)
 				if out.Error != "" {
 					return connectivity.RouteResponse{Status: 500, Body: out.Result}, errors.New(out.Error)
@@ -101,11 +97,11 @@ func (e *Engine) registerDefaultTools() {
 	scriptTool.SetAgenticCallbacks(
 		func(ctx context.Context, sessionID string, hook scripting.EventHookSpec) (func(), error) {
 			if isProcessHookSpec(hook) {
-				return e.RegisterHook(hook.Name, firstNonEmpty(hook.Source, "process"), newProcessHookHandler(e.runtimeCfg.WorkspaceRoot, hook))
+				return e.RegisterHook(hook.Name, tools.FirstNonEmpty(hook.Source, "process"), newProcessHookHandler(e.runtimeCfg.WorkspaceRoot, hook))
 			}
-			return e.RegisterHook(hook.Name, firstNonEmpty(hook.Source, "script"), func(ctx context.Context, req HookRequest) (HookResponse, error) {
+			return e.RegisterHook(hook.Name, tools.FirstNonEmpty(hook.Source, "script"), func(ctx context.Context, req HookRequest) (HookResponse, error) {
 				payload := hookScriptPayload(req)
-				input := tools.ScriptInput{Engine: hook.Engine, Path: hook.Path, SessionID: req.SessionID, Script: scriptWithPayload(hook.Engine, "hook", payload, hook.Script)}
+				input := tools.ScriptInput{Engine: hook.Engine, Path: hook.Path, SessionID: req.SessionID, Script: tools.ScriptWithPayload(hook.Engine, "hook", payload, hook.Script)}
 				out := scriptTool.Execute(ctx, input)
 				if out.Error != "" {
 					return HookResponse{}, errors.New(out.Error)
@@ -118,9 +114,9 @@ func (e *Engine) registerDefaultTools() {
 			if len(params) == 0 {
 				params = json.RawMessage(`{"type":"object","properties":{}}`)
 			}
-			return e.RegisterTool(RegisteredTool{Name: spec.Name, Description: spec.Description, Parameters: params, Source: firstNonEmpty(spec.Source, "script"), Kind: "mixed", Weight: "standard", Activation: "on-demand", Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
+			return e.RegisterTool(RegisteredTool{Name: spec.Name, Description: spec.Description, Parameters: params, Source: tools.FirstNonEmpty(spec.Source, "script"), Kind: "mixed", Weight: "standard", Activation: "on-demand", Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
 				payload := map[string]any{"tool_call_id": call.ID, "name": call.Name, "arguments": call.Arguments, "session_id": rt.SessionID}
-				input := tools.ScriptInput{Engine: spec.Engine, Path: spec.Path, SessionID: rt.SessionID, Script: scriptWithPayload(spec.Engine, "tool", payload, spec.Script)}
+				input := tools.ScriptInput{Engine: spec.Engine, Path: spec.Path, SessionID: rt.SessionID, Script: tools.ScriptWithPayload(spec.Engine, "tool", payload, spec.Script)}
 				out := scriptTool.Execute(ctx, input)
 				if out.Error != "" {
 					return out.Result, errors.New(out.Error)
@@ -144,7 +140,7 @@ func (e *Engine) registerDefaultTools() {
 				Activation:  "on-demand",
 				Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
 					payload := map[string]any{"tool_call_id": call.ID, "name": call.Name, "arguments": call.Arguments, "session_id": rt.SessionID}
-					input := tools.ScriptInput{Engine: tool.Engine, Path: tool.Path, SessionID: rt.SessionID, Script: scriptWithPayload(tool.Engine, "tool", payload, tool.Script)}
+					input := tools.ScriptInput{Engine: tool.Engine, Path: tool.Path, SessionID: rt.SessionID, Script: tools.ScriptWithPayload(tool.Engine, "tool", payload, tool.Script)}
 					out := scriptTool.Execute(ctx, input)
 					if out.Error != "" {
 						return out.Result, errors.New(out.Error)
@@ -195,29 +191,7 @@ func (e *Engine) registerDefaultTools() {
 		Weight:      "lightweight",
 		Activation:  "default",
 		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
-			path, _ := call.Arguments["path"].(string)
-			if path == "" {
-				return "", fmt.Errorf("read: path is required")
-			}
-			resolved, err := tools.ResolveToolPath(rt.WorkspaceRoot, path, false)
-			if err != nil {
-				return "", err
-			}
-			if resolved.IsVFS() {
-				if resolved.VFSNamespace == "fts" {
-					return tools.ReadFTSQuery(ctx, rt.WorkspaceRoot, rt.Store, resolved.VFSPath)
-				}
-				_, raw, err := rt.Store.GetVFSFileContent(ctx, resolved.VFSNamespace, resolved.VFSPath)
-				if err != nil {
-					return "", err
-				}
-				return string(raw), nil
-			}
-			content, err := os.ReadFile(resolved.WorkspacePath)
-			if err != nil {
-				return "", err
-			}
-			return string(content), nil
+			return tools.ExecuteRead(ctx, rt.WorkspaceRoot, rt.Store, call)
 		},
 	})
 	must(RegisteredTool{
@@ -229,30 +203,7 @@ func (e *Engine) registerDefaultTools() {
 		Weight:      "lightweight",
 		Activation:  "default",
 		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
-			path, _ := call.Arguments["path"].(string)
-			content, _ := call.Arguments["content"].(string)
-			if path == "" {
-				return "", fmt.Errorf("write: path is required")
-			}
-			resolved, err := tools.ResolveToolPath(rt.WorkspaceRoot, path, true)
-			if err != nil {
-				return "", err
-			}
-			if resolved.IsVFS() {
-				_, err := rt.Store.SaveVFSFile(ctx, resolved.VFSNamespace, resolved.VFSPath, "text/plain", []byte(content), map[string]any{})
-				if err != nil {
-					return "", err
-				}
-				return "written", nil
-			}
-			dir := filepath.Dir(resolved.WorkspacePath)
-			if err := os.MkdirAll(dir, 0o755); err != nil {
-				return "", err
-			}
-			if err := os.WriteFile(resolved.WorkspacePath, []byte(content), 0o644); err != nil {
-				return "", err
-			}
-			return "written", nil
+			return tools.ExecuteWrite(ctx, rt.WorkspaceRoot, rt.Store, call)
 		},
 	})
 	if def := scriptTool.Definition(); def != nil {
@@ -334,26 +285,7 @@ func (e *Engine) registerDefaultTools() {
 		Weight:      "standard",
 		Activation:  "on-demand",
 		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
-			command, _ := call.Arguments["command"].(string)
-			if command == "" {
-				return "", fmt.Errorf("rtk: command is required")
-			}
-			filterOnly, _ := call.Arguments["filter_only"].(bool)
-			output, _ := call.Arguments["output"].(string)
-			var err error
-			if !filterOnly {
-				cmd := exec.CommandContext(ctx, "sh", "-lc", command)
-				cmd.Dir = rt.WorkspaceRoot
-				out, runErr := cmd.CombinedOutput()
-				output = string(out)
-				err = runErr
-			}
-			res := rtk.Filter(command, output)
-			b, _ := json.MarshalIndent(res, "", "  ")
-			if err != nil {
-				return string(b), fmt.Errorf("exit: %w", err)
-			}
-			return string(b), nil
+			return tools.ExecuteRTK(ctx, rt.WorkspaceRoot, call)
 		},
 	})
 	must(RegisteredTool{
@@ -365,38 +297,7 @@ func (e *Engine) registerDefaultTools() {
 		Weight:      "heavy",
 		Activation:  "default",
 		Executor: func(ctx context.Context, rt ToolRuntime, call goai.ToolCall) (string, error) {
-			command, _ := call.Arguments["command"].(string)
-			if command == "" {
-				return "", fmt.Errorf("shell: command is required")
-			}
-			cmd := exec.CommandContext(ctx, "sh", "-lc", command)
-			cmd.Dir = rt.WorkspaceRoot
-			out, err := cmd.CombinedOutput()
-			output := string(out)
-			if err != nil {
-				return output, fmt.Errorf("exit: %w", err)
-			}
-			return output, nil
+			return tools.ExecuteShell(ctx, rt.WorkspaceRoot, call)
 		},
 	})
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
-}
-
-func scriptWithPayload(engine, name string, payload map[string]any, script string) string {
-	if strings.TrimSpace(script) == "" {
-		return script
-	}
-	b, _ := json.Marshal(payload)
-	if engine == "joker" || engine == "" && strings.HasPrefix(strings.TrimSpace(script), "(") {
-		return fmt.Sprintf("(def *gi-%s* (walk/keywordize-keys (json/read-string %q)))\n%s", name, string(b), script)
-	}
-	return fmt.Sprintf("gi.%s = %s; gi.%sPayload = gi.%s; gi.toolArgs = (gi.tool && gi.tool.arguments) || {};\n%s", name, string(b), name, name, script)
 }
