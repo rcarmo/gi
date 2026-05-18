@@ -14,10 +14,10 @@ import (
 
 	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/routing"
+	"github.com/rcarmo/gi/internal/routing/audit"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
-	"github.com/rcarmo/gi/internal/turn/routeaudit"
 	"github.com/rcarmo/gi/internal/turn/routedsession"
 	goai "github.com/rcarmo/go-ai"
 )
@@ -4491,10 +4491,10 @@ func TestRecordRouteDecisionSurvivesCanceledCallerContext(t *testing.T) {
 		"requested_agent_id": "agent1",
 		"routing_enabled":    true,
 	}
-	if err := routeaudit.RecordDecision(engine.backgroundContext(), s, sess.ID, "turn_route_ctx", metadata, routeaudit.Options{PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
+	if err := audit.RecordDecision(engine.backgroundContext(), s, sess.ID, "turn_route_ctx", metadata, audit.Options{PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
 		t.Fatalf("record route decision with canceled caller context: %v", err)
 	}
-	events, err := routeaudit.ListEvents(ctx, s, sess.ID)
+	events, err := audit.ListEvents(ctx, s, sess.ID)
 	if err != nil {
 		t.Fatalf("list route events: %v", err)
 	}
@@ -5499,15 +5499,15 @@ func TestRecordRouteDecisionUsesStoredIdentityInsteadOfSessionScopeJSON(t *testi
 		t.Fatalf("create source turn: %v", err)
 	}
 	engine := New(s)
-	if err := routeaudit.RecordDecision(ctx, s, sess.ID, "turn_route_decision_identity", map[string]any{
+	if err := audit.RecordDecision(ctx, s, sess.ID, "turn_route_decision_identity", map[string]any{
 		"target_agent_id":   "agent1",
 		"target_session_id": "session_target_identity",
 		"route_mode":        "prompt",
 		"routing_enabled":   true,
-	}, routeaudit.Options{PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
+	}, audit.Options{PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
 		t.Fatalf("record route decision: %v", err)
 	}
-	events, err := routeaudit.ListEvents(ctx, s, sess.ID)
+	events, err := audit.ListEvents(ctx, s, sess.ID)
 	if err != nil {
 		t.Fatalf("list route events: %v", err)
 	}

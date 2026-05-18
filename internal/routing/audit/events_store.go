@@ -1,4 +1,4 @@
-package routeaudit
+package audit
 
 import (
 	"context"

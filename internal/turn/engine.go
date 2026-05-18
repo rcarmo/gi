@@ -15,9 +15,9 @@ import (
 	"github.com/rcarmo/gi/internal/connectivity"
 	"github.com/rcarmo/gi/internal/peering"
 	"github.com/rcarmo/gi/internal/routing"
+	"github.com/rcarmo/gi/internal/routing/audit"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/topics"
-	"github.com/rcarmo/gi/internal/turn/routeaudit"
 )
 
 type Engine struct {
@@ -345,7 +345,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 			})
 		}
 	}
-	if err := routeaudit.RecordDecision(durableCtx, e.store, in.SessionID, turnID, metadata, routeaudit.Options{PublishRuntimeRoutingEvent: e.PublishRuntimeRoutingEvent, Broadcast: e.broadcast}); err != nil {
+	if err := audit.RecordDecision(durableCtx, e.store, in.SessionID, turnID, metadata, audit.Options{PublishRuntimeRoutingEvent: e.PublishRuntimeRoutingEvent, Broadcast: e.broadcast}); err != nil {
 		// Non-fatal: routing decisions are an orchestration artifact.
 		log.Printf("orchestration: route decision persist failed: %v", err)
 	}
