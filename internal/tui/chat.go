@@ -882,13 +882,13 @@ func (c *chatTUI) handleCommand(text string) {
 		if target == "" {
 			target = c.nextForkAgentID()
 		}
-		child, _, err := c.engine.ResolveOrCreatePeerSession(context.Background(), c.sessionID, target)
+		targetSessionID, err := c.engine.ResolveOrCreatePeerSessionID(context.Background(), c.sessionID, target)
 		if err != nil {
 			c.transcript = append(c.transcript, fmt.Sprintf("error: %v", err))
 			break
 		}
-		c.switchSession(child.ID)
-		c.transcript = append(c.transcript, fmt.Sprintf("sys: switched to @%s (%s)", target, child.ID))
+		c.switchSession(targetSessionID)
+		c.transcript = append(c.transcript, fmt.Sprintf("sys: switched to @%s (%s)", target, targetSessionID))
 	case "/switch":
 		if len(fields) < 2 {
 			c.transcript = append(c.transcript, "sys: usage /switch @agent|session_id")

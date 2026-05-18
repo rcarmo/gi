@@ -43,20 +43,16 @@ func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessio
 	return e.submitPeerRoutedPrompt(opCtx, resolution.sourceSessionID, resolution.targetSessionID, resolution.route, content, intent, model, resolution.created, resolution.directed, parentTurnID, extraMetadata)
 }
 
-func (e *Engine) ResolveOrCreatePeerSession(ctx context.Context, sourceSessionID, targetAgentID string) (*store.Session, bool, error) {
+func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSessionID, targetAgentID string) (string, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
 	resolution, err := e.preparePeerRouteResolution(opCtx, sourceSessionID, targetAgentID, "", "peer-session")
 	if err != nil {
-		return nil, false, err
+		return "", err
 	}
 	if err := e.resolveRoutedPromptTarget(opCtx, resolution); err != nil {
-		return nil, false, err
+		return "", err
 	}
-	target, err := e.store.GetSession(opCtx, resolution.targetSessionID)
-	if err != nil {
-		return nil, false, err
-	}
-	return target, resolution.created, nil
+	return resolution.targetSessionID, nil
 }
 
 func (e *Engine) ResolveOrCreateRouteSession(ctx context.Context, sourceSessionID string, route routing.ResolvedRoute, inbound routing.InboundContext) (string, bool, error) {
