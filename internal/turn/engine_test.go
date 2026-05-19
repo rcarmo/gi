@@ -3614,7 +3614,9 @@ func TestMarkTurnFailureSurvivesCanceledCallerContext(t *testing.T) {
 	}
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
-	markTurnFailureWithHoldAndFallback(cancelCtx, ctx, s, "turn_failure_ctx", "session_failure_ctx", "provider_error", "review", "failed under canceled ctx")
+	if err := s.MarkTurnFailureWithFallbackErr(cancelCtx, ctx, "turn_failure_ctx", "session_failure_ctx", "provider_error", "review", "failed under canceled ctx"); err != nil {
+		t.Fatalf("mark turn failure with fallback: %v", err)
+	}
 	failureRec, err := s.GetTurnFailure(ctx, "turn_failure_ctx")
 	if err != nil {
 		t.Fatalf("get turn failure: %v", err)

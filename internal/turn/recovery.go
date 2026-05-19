@@ -255,7 +255,7 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 
 	if disposition != "release_terminal" {
 		if disposition == "hold_for_retry_or_skip_after_tool_checkpoint" {
-			if err := markTurnFailureWithFallbackErr(e.backgroundContext(), nil, e.store, claim.TurnID, claim.SessionID, "recovery_interrupted_tool_phase", "review", "Recovered stale turn that was interrupted while waiting on tool results"); err != nil {
+			if err := e.store.MarkTurnFailureWithFallbackErr(e.backgroundContext(), nil, claim.TurnID, claim.SessionID, "recovery_interrupted_tool_phase", "review", "Recovered stale turn that was interrupted while waiting on tool results"); err != nil {
 				return err
 			}
 		}

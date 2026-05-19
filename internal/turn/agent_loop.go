@@ -289,7 +289,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 		r.broadcastSystemPost(sessionID, turnID, msgID, systemMsg)
 	}
 	if failureKind != "" {
-		markTurnFailure(r.engine.backgroundContext(), s, turnID, sessionID, failureKind, systemMsg)
+		logutil.WarnIfErr("turn failure mark", s.MarkTurnFailureWithFallbackErr(r.engine.backgroundContext(), nil, turnID, sessionID, failureKind, "none", systemMsg))
 	}
 	finishedPayload := cloneMap(payload)
 	if finishedPayload == nil {
