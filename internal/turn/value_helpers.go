@@ -3,7 +3,6 @@ package turn
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/rcarmo/gi/internal/store"
@@ -62,40 +61,4 @@ func (e *Engine) normalizeInactiveSessionState(ctx context.Context, sessionID, s
 		return fmt.Errorf("touch inactive session normalization: %w", err)
 	}
 	return nil
-}
-
-func runtimeTurnPhaseForStatus(status string) string {
-	switch status {
-	case "queued":
-		return "queued"
-	case "running":
-		return "setup"
-	case "cancelling":
-		return "cancelling"
-	case "completed":
-		return "completed"
-	case "failed":
-		return "failed"
-	case "aborted", "cancelled":
-		return "aborted"
-	default:
-		return status
-	}
-}
-
-func normalizeSubTurnDeliveryMode(mode string) (string, error) {
-	mode = strings.ToLower(strings.TrimSpace(mode))
-	if mode == "" {
-		return "sync", nil
-	}
-	switch mode {
-	case "sync", "async":
-		return mode, nil
-	default:
-		return "", fmt.Errorf("invalid subturn delivery mode: %s", mode)
-	}
-}
-
-func SortQueuedTurns(turns []store.Turn) {
-	sort.SliceStable(turns, func(i, j int) bool { return turns[i].CreatedAt < turns[j].CreatedAt })
 }

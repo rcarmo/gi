@@ -93,7 +93,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 	}
 	phase := turnRec.Phase
 	if phase == "held_for_retry_or_skip" {
-		phase = runtimeTurnPhaseForStatus(turnRec.Status)
+		phase = store.RuntimeTurnPhaseForStatus(turnRec.Status)
 	}
 	payload := map[string]any{
 		"phase":              "recovery",
@@ -127,7 +127,7 @@ func (e *Engine) SkipHeldTurn(ctx context.Context, turnID, summary string) error
 	}
 	phase := turnRec.Phase
 	if phase == "held_for_retry_or_skip" {
-		phase = runtimeTurnPhaseForStatus(turnRec.Status)
+		phase = store.RuntimeTurnPhaseForStatus(turnRec.Status)
 	}
 	payload := map[string]any{
 		"phase":              "recovery",

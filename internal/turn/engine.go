@@ -261,7 +261,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 			subTurnMaxConcurrency = store.IntValueOr(v, defaultSubTurnMaxConcurrency)
 		}
 		if modeRaw, ok := in.Metadata["subturn_delivery_mode"]; ok {
-			mode, err := normalizeSubTurnDeliveryMode(store.StringValue(modeRaw, "sync"))
+			mode, err := store.NormalizeSubTurnDeliveryMode(store.StringValue(modeRaw, "sync"))
 			if err != nil {
 				return nil, err
 			}
