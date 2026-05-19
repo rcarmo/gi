@@ -281,7 +281,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	finishedPayload["phase"] = "turn"
 	finishedPayload["checkpoint"] = true
 	finishedPayload["status"] = status
-	finishedPayload["reason"] = firstNonEmpty(failureKind, status)
+	finishedPayload["reason"] = tools.FirstNonEmpty(failureKind, status)
 	finishedPayload["failure_kind"] = failureKind
 	logutil.WarnIfErr("append turn.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "turn.finished", finishedPayload))
 	phase := terminalPhaseForStatus(status)
@@ -297,14 +297,14 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	if turnPayload == nil {
 		turnPayload = map[string]any{}
 	}
-	turnPayload["reason"] = firstNonEmpty(failureKind, status)
+	turnPayload["reason"] = tools.FirstNonEmpty(failureKind, status)
 	turnPayload["failure_kind"] = failureKind
 	r.engine.PublishRuntimeTurnEvent(turnEventType, sessionID, turnID, agentID, status, phase, turnPayload)
 	hookPayload := cloneMap(payload)
 	if hookPayload == nil {
 		hookPayload = map[string]any{}
 	}
-	hookPayload["reason"] = firstNonEmpty(failureKind, status)
+	hookPayload["reason"] = tools.FirstNonEmpty(failureKind, status)
 	hookPayload["failure_kind"] = failureKind
 	r.emitTurnStateHookOnly(bgCtx, sessionID, turnID, agentID, model, status, phase, hookPayload)
 	r.propagateChildSubTurnCancellation(bgCtx, turnID, status, failureKind)

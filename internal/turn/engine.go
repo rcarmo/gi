@@ -387,7 +387,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		submittedPayload["route_matched_by"] = routeMatchedBy
 	}
 	logutil.WarnIfErr("append turn.submitted event", e.store.AppendTurnEvent(durableCtx, turnID, in.SessionID, "turn.submitted", submittedPayload))
-	e.PublishRuntimeTurnEvent("turn_submitted", in.SessionID, turnID, "", firstNonEmpty(status, "queued"), firstNonEmpty(status, "queued"), submittedPayload)
+	e.PublishRuntimeTurnEvent("turn_submitted", in.SessionID, turnID, "", tools.FirstNonEmpty(status, "queued"), tools.FirstNonEmpty(status, "queued"), submittedPayload)
 	logutil.WarnIfErr("sync queue count after submit", e.store.SyncSessionQueueCount(durableCtx, in.SessionID))
 	sessionStateUpdate := map[string]any{}
 	if model := strings.TrimSpace(in.Model); model != "" {

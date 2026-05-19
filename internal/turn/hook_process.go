@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/rcarmo/gi/internal/tools"
 	"io"
 	"os"
 	"os/exec"
@@ -185,7 +186,7 @@ func (m *mountedProcessHook) ensureStartedLocked(ctx context.Context, req HookRe
 		ID:      1,
 		Method:  "hook.hello",
 		Params: map[string]any{
-			"name":     firstNonEmpty(strings.TrimSpace(m.spec.Source), strings.TrimSpace(m.spec.Name), filepath.Base(command)),
+			"name":     tools.FirstNonEmpty(strings.TrimSpace(m.spec.Source), strings.TrimSpace(m.spec.Name), filepath.Base(command)),
 			"version":  1,
 			"modes":    processHookModes(req.Name),
 			"protocol": processHookProtocol,

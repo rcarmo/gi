@@ -1,6 +1,7 @@
 package turn
 
 import (
+	"github.com/rcarmo/gi/internal/tools"
 	"strings"
 
 	"github.com/rcarmo/gi/internal/routing"
@@ -29,7 +30,7 @@ func (e *Engine) startTopicBridge() {
 				Topic:     topic,
 				SessionID: ev.SessionID,
 				AgentID:   ev.AgentID,
-				Source:    firstNonEmpty(ev.Source, "connectivity"),
+				Source:    tools.FirstNonEmpty(ev.Source, "connectivity"),
 				Type:      "event",
 				Payload: map[string]any{
 					"id":        ev.ID,
@@ -249,7 +250,7 @@ func (e *Engine) publishRuntimeTopicEvent(topic, sessionID, agentID, envelopeTyp
 		SessionID: strings.TrimSpace(sessionID),
 		AgentID:   strings.TrimSpace(agentID),
 		Source:    "runtime",
-		Type:      strings.TrimSpace(firstNonEmpty(envelopeType, "notice")),
+		Type:      strings.TrimSpace(tools.FirstNonEmpty(envelopeType, "notice")),
 		Payload:   body,
 	})
 }
