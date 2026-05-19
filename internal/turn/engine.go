@@ -200,6 +200,17 @@ func (e *Engine) backgroundContext() context.Context {
 	return context.Background()
 }
 
+// Connectivity returns the engine-wide connectivity registry. Routes are
+// transport-neutral; web/socket adapters dispatch through this registry.
+func (e *Engine) Connectivity() *connectivity.Registry { return e.connectivity }
+
+func (e *Engine) PeeringStatus() peering.Status {
+	if e.peering == nil {
+		return peering.Status{Backend: "tsnet", State: "unavailable"}
+	}
+	return e.peering.Status()
+}
+
 func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, error) {
 	opCtx := coordinationContext(ctx, e.backgroundContext())
 	if in.Intent == "" {
