@@ -18,7 +18,7 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/tools"
 	"github.com/rcarmo/gi/internal/topics"
-	"github.com/rcarmo/gi/internal/turn/routedsession"
+	"github.com/rcarmo/gi/internal/routing/routedsession"
 	goai "github.com/rcarmo/go-ai"
 )
 

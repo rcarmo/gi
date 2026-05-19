@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/rcarmo/gi/internal/routing"
+	"github.com/rcarmo/gi/internal/routing/routedsession"
 	"github.com/rcarmo/gi/internal/store"
-	"github.com/rcarmo/gi/internal/turn/routedsession"
 )
 
 func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitResult, error) {
