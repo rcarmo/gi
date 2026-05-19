@@ -242,6 +242,23 @@ func (r *sessionRunner) broadcastSystemPost(sessionID, turnID, msgID, content st
 	})
 }
 
+func terminalPhaseForStatus(status string) string {
+	switch status {
+	case "completed":
+		return "completed"
+	case "failed":
+		return "failed"
+	case "aborted", "cancelled":
+		return "aborted"
+	case "cancelling":
+		return "cancelling"
+	case "queued":
+		return "queued"
+	default:
+		return "running"
+	}
+}
+
 // finishTurnOK marks a turn as successfully completed.
 func (r *sessionRunner) finishTurnOK(s *store.Store, turnID, sessionID, agentID, model string, iterations int) {
 	r.finishTurnWithPayload(s, turnID, sessionID, agentID, model, "completed", "", "", map[string]any{"iterations": iterations, "completion_kind": "response"})
