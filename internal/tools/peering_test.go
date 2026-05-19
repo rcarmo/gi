@@ -1,13 +1,12 @@
-package turn
+package tools_test
 
 import (
 	"context"
-	"github.com/rcarmo/gi/internal/tools"
 	"strings"
 	"testing"
 
 	"github.com/rcarmo/gi/internal/store"
-	goai "github.com/rcarmo/go-ai"
+	"github.com/rcarmo/gi/internal/turn"
 )
 
 func TestPeeringToolStatus(t *testing.T) {
@@ -16,12 +15,8 @@ func TestPeeringToolStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	e := New(s)
-	tool, ok := e.tools.Get("peering")
-	if !ok {
-		t.Fatal("missing peering tool")
-	}
-	out, err := tool.Executor(context.Background(), tools.ToolRuntime{Store: s, WorkspaceRoot: t.TempDir()}, goai.ToolCall{Name: "peering", Arguments: map[string]any{}})
+	e := turn.New(s)
+	out, err := e.ExecuteToolByName(context.Background(), "peering", "", map[string]any{})
 	if err != nil {
 		t.Fatal(err)
 	}
