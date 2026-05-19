@@ -83,7 +83,7 @@ func steeringMessagesFromMetadata(metadata map[string]any) []store.SteeringMessa
 }
 
 func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurnID string, in RunInput) (*SubmitResult, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if strings.TrimSpace(sessionID) != "" && strings.TrimSpace(activeTurnID) != "" {
 		e.normalizeRunningSessionState(opCtx, sessionID, activeTurnID, true, "")
 	}
@@ -151,7 +151,7 @@ func steeringMetadataFromMessages(msgs []store.SteeringMessage) map[string]any {
 }
 
 func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID string) (bool, string, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	turnID := store.NowID("turn")
 	turnRec, msgs, err := e.store.StageSteeringContinuation(opCtx, sessionID, turnID)
 	if err == sql.ErrNoRows {
@@ -180,7 +180,7 @@ func (e *Engine) continueQueuedSteeringLocked(ctx context.Context, runner *sessi
 	if !staged {
 		return false, nil
 	}
-	coordCtx := coordinationContext(ctx, e.backgroundContext())
+	coordCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	launched, err := e.startNextQueuedTurnLocked(coordCtx, runner, sessionID)
 	if err != nil {
 		return false, err
@@ -218,7 +218,7 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 	runner := e.runner(sessionID)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
-	coordCtx := coordinationContext(ctx, e.backgroundContext())
+	coordCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
 		if err := e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, ""); err != nil {
 			return false, err

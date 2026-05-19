@@ -30,7 +30,7 @@ func holdSummaryForEvent(turnID, holdState, summary string) string {
 }
 
 func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary string) error {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	turnRec, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
 		return err
@@ -56,7 +56,7 @@ func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary
 }
 
 func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*SubmitResult, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	summary = normalizeHoldResolutionSummary(summary)
 	turnRec, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
@@ -109,7 +109,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 }
 
 func (e *Engine) SkipHeldTurn(ctx context.Context, turnID, summary string) error {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	summary = normalizeHoldResolutionSummary(summary)
 	turnRec, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {

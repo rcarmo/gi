@@ -12,7 +12,7 @@ import (
 )
 
 func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitResult, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if err := e.store.RequireSession(opCtx, in.SessionID); err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (e *Engine) SubmitPeerMessage(ctx context.Context, sourceSessionID, targetA
 }
 
 func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessionID, targetAgentID, content, intent, model, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessio
 }
 
 func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSessionID, targetAgentID string) (string, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
 		return "", err
 	}
@@ -71,7 +71,7 @@ func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSession
 }
 
 func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, sourceSessionID, targetSessionID string, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	sourceAgentID := e.store.SessionAgentID(opCtx, sourceSessionID)
 	routingContent := fmt.Sprintf("↪ routed to @%s: %s", route.AgentID, content)
 	routingPayload := map[string]any{"kind": "routing", "target_agent_id": route.AgentID, "target_session_id": targetSessionID, "source_agent_id": sourceAgentID, "source_session_id": sourceSessionID, "route_matched_by": route.MatchedBy, "clipped": true}

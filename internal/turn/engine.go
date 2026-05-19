@@ -212,7 +212,7 @@ func (e *Engine) PeeringStatus() peering.Status {
 }
 
 func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if in.Intent == "" {
 		in.Intent = "prompt"
 	}
@@ -415,7 +415,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 }
 
 func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	turn, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
 		return err
@@ -507,7 +507,7 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 }
 
 func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID string, in RunInput) (*SubmitResult, bool, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	activeTurnID, _, err := e.store.GetSessionActiveTurn(opCtx, in.SessionID)
 	if err == sql.ErrNoRows {
 		return nil, false, nil
@@ -532,7 +532,7 @@ func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID str
 }
 
 func (r *sessionRunner) resolveTurnIdentityForFinalize(ctx context.Context, s *store.Store, sessionID, turnID string) (string, string) {
-	opCtx := coordinationContext(ctx, r.engine.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, r.engine.backgroundContext())
 	turnRec, err := s.GetTurn(opCtx, turnID)
 	if err != nil {
 		return "", ""
@@ -555,7 +555,7 @@ func (e *Engine) runner(sessionID string) *sessionRunner {
 }
 
 func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, sessionID, turnID string) (bool, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if hook := e.beforeLaunchClaimHook; hook != nil {
 		hook(opCtx, sessionID, turnID)
 	}

@@ -63,7 +63,7 @@ const (
 )
 
 func (e *Engine) EnqueueDirectInbound(ctx context.Context, in DirectInput) (*store.InboundWorkItem, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if e.store == nil {
 		return nil, fmt.Errorf("direct inbound queue requires store")
 	}
@@ -100,7 +100,7 @@ func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (
 }
 
 func (e *Engine) finalizeInboundWorkAttempt(ctx context.Context, item *store.InboundWorkItem, result *SubmitResult, processErr error) (*store.InboundWorkItem, *SubmitResult, error) {
-	postCtx := coordinationContext(ctx, e.backgroundContext())
+	postCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if processErr != nil {
 		attemptCount := item.AttemptCount + 1
 		var updateErr error

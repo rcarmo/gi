@@ -8,21 +8,11 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 )
 
-func coordinationContext(ctx context.Context, fallback context.Context) context.Context {
-	if ctx != nil && ctx.Err() == nil {
-		return ctx
-	}
-	if fallback != nil && fallback.Err() == nil {
-		return fallback
-	}
-	return nil
-}
-
 func (e *Engine) normalizeRunningSessionState(ctx context.Context, sessionID, activeTurnID string, syncQueue bool, overrideModel string) error {
 	if e == nil || e.store == nil || strings.TrimSpace(sessionID) == "" || strings.TrimSpace(activeTurnID) == "" {
 		return nil
 	}
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
 	if turnRec, err := e.store.GetTurn(opCtx, activeTurnID); err == nil {
 		if model := strings.TrimSpace(store.StringValue(turnRec.Metadata["model"], "")); model != "" {
@@ -47,7 +37,7 @@ func (e *Engine) normalizeInactiveSessionState(ctx context.Context, sessionID, s
 	if e == nil || e.store == nil || strings.TrimSpace(sessionID) == "" {
 		return nil
 	}
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	sessionState := map[string]any{"status": status, "active_turn_id": nil}
 	if model = strings.TrimSpace(model); model != "" {
 		sessionState["model"] = model

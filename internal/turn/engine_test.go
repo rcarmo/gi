@@ -672,20 +672,20 @@ func TestParsingHelpersNormalizeAsExpected(t *testing.T) {
 func TestCoordinationContextPrefersActiveCallerAndFallsBackWhenNeeded(t *testing.T) {
 	activeCtx := context.Background()
 	fallbackCtx := context.Background()
-	if got := coordinationContext(activeCtx, fallbackCtx); got != activeCtx {
+	if got := store.CoordinationContext(activeCtx, fallbackCtx); got != activeCtx {
 		t.Fatal("expected active caller context to win")
 	}
 	cancelCtx, cancel := context.WithCancel(activeCtx)
 	cancel()
-	if got := coordinationContext(cancelCtx, fallbackCtx); got != fallbackCtx {
+	if got := store.CoordinationContext(cancelCtx, fallbackCtx); got != fallbackCtx {
 		t.Fatal("expected canceled caller context to fall back")
 	}
-	if got := coordinationContext(nil, fallbackCtx); got != fallbackCtx {
+	if got := store.CoordinationContext(nil, fallbackCtx); got != fallbackCtx {
 		t.Fatal("expected nil caller context to fall back")
 	}
 	cancelFallback, cancelFallbackFn := context.WithCancel(activeCtx)
 	cancelFallbackFn()
-	if got := coordinationContext(cancelCtx, cancelFallback); got != nil {
+	if got := store.CoordinationContext(cancelCtx, cancelFallback); got != nil {
 		t.Fatalf("expected nil when both caller and fallback contexts are unusable, got %#v", got)
 	}
 }
@@ -701,7 +701,7 @@ func TestSessionIdentityHelpersSurviveCanceledCallerContext(t *testing.T) {
 	}
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
-	opCtx := coordinationContext(cancelCtx, ctx)
+	opCtx := store.CoordinationContext(cancelCtx, ctx)
 	if got := s.SessionAgentID(opCtx, sess.ID); got != "agentx" {
 		t.Fatalf("expected canonical agent id under canceled caller context, got %q", got)
 	}

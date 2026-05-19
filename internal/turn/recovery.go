@@ -51,7 +51,7 @@ func (e *Engine) appendRecoveryFailureEvent(ctx context.Context, claim store.Act
 }
 
 func (e *Engine) recoverInterruptedTurns(ctx context.Context, sessionID string) (bool, error) {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	claims, err := e.store.ListStaleActiveTurnClaims(opCtx, time.Now().Add(-interruptedTurnStaleAfter), sessionID)
 	if err != nil {
 		return false, err
@@ -218,7 +218,7 @@ func recoveryDispositionForClaim(claim store.ActiveTurnClaim) string {
 }
 
 func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveTurnClaim) error {
-	opCtx := coordinationContext(ctx, e.backgroundContext())
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	disposition := recoveryDispositionForClaim(claim)
 	status := claim.Status
 	phase := claim.Phase
@@ -302,7 +302,7 @@ func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionR
 	if sessionID == "" {
 		return false, nil
 	}
-	coordCtx := coordinationContext(ctx, e.backgroundContext())
+	coordCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
 		if err := e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, ""); err != nil {
 			return false, err
