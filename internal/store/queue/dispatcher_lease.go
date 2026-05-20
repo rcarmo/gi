@@ -9,11 +9,6 @@ import (
 	"time"
 )
 
-const (
-	inboundDispatcherLeaseNamespace = "runtime_leases"
-	inboundDispatcherLeaseKey       = "inbound_dispatcher"
-)
-
 type inboundDispatcherLeaseRecord struct {
 	Owner     string `json:"owner"`
 	ExpiresAt string `json:"expires_at"`
