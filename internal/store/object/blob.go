@@ -1,4 +1,4 @@
-package store
+package object
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 
 const minCompressionBytes = 1024
 
-func maybeCompressBlob(raw []byte) ([]byte, bool, error) {
+func MaybeCompressBlob(raw []byte) ([]byte, bool, error) {
 	if len(raw) < minCompressionBytes {
 		return raw, false, nil
 	}
@@ -33,7 +33,7 @@ func maybeCompressBlob(raw []byte) ([]byte, bool, error) {
 	return compressed, true, nil
 }
 
-func maybeDecompressBlob(raw []byte, compressed bool) ([]byte, error) {
+func MaybeDecompressBlob(raw []byte, compressed bool) ([]byte, error) {
 	if !compressed {
 		return raw, nil
 	}

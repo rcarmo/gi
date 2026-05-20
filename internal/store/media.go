@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	storeobject "github.com/rcarmo/gi/internal/store/object"
 )
 
 type Media struct {
@@ -53,7 +55,7 @@ func (s *Store) CreateMedia(ctx context.Context, sessionID, filename, contentTyp
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
-	compressedBlob, compressed, err := maybeCompressBlob(raw)
+	compressedBlob, compressed, err := storeobject.MaybeCompressBlob(raw)
 	if err != nil {
 		return nil, fmt.Errorf("create media: compress: %w", err)
 	}
@@ -131,7 +133,7 @@ func (s *Store) GetMediaContent(ctx context.Context, id int64) (*Media, []byte, 
 	if item.Metadata == nil {
 		item.Metadata = map[string]any{}
 	}
-	raw, err := maybeDecompressBlob(storedBlob, item.Compressed)
+	raw, err := storeobject.MaybeDecompressBlob(storedBlob, item.Compressed)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get media content: decompress: %w", err)
 	}
@@ -195,7 +197,7 @@ func (s *Store) SaveVFSFile(ctx context.Context, namespace, filePath, contentTyp
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
-	compressedBlob, compressed, err := maybeCompressBlob(raw)
+	compressedBlob, compressed, err := storeobject.MaybeCompressBlob(raw)
 	if err != nil {
 		return nil, fmt.Errorf("save vfs file: compress: %w", err)
 	}
@@ -305,7 +307,7 @@ func (s *Store) GetVFSFileContent(ctx context.Context, namespace, filePath strin
 	if item.Metadata == nil {
 		item.Metadata = map[string]any{}
 	}
-	raw, err := maybeDecompressBlob(storedBlob, item.Compressed)
+	raw, err := storeobject.MaybeDecompressBlob(storedBlob, item.Compressed)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get vfs file content: decompress: %w", err)
 	}
