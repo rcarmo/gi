@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rcarmo/gi/internal/store"
+	storevfs "github.com/rcarmo/gi/internal/store/vfs"
 )
 
 // ToolPath represents a resolved tool input path after validation.
@@ -37,7 +37,7 @@ func resolveToolPath(root, raw string, writable bool) (resolvedPath, error) {
 		return resolvedPath{workspacePath: "", vfsNamespace: "fts", vfsPath: locator, isVFS: true}, nil
 	}
 	if strings.HasPrefix(trimmed, "vfs://") {
-		ns, vpath, err := store.ParseVFSPath(trimmed)
+		ns, vpath, err := storevfs.ParsePath(trimmed)
 		if err != nil {
 			return resolvedPath{}, err
 		}

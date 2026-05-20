@@ -3,12 +3,12 @@ package store
 import (
 	"context"
 	"fmt"
-	"path"
 	"sort"
 	"strconv"
 	"strings"
 
 	storeobject "github.com/rcarmo/gi/internal/store/object"
+	storevfs "github.com/rcarmo/gi/internal/store/vfs"
 )
 
 type Media struct {
@@ -143,42 +143,6 @@ func (s *Store) GetMediaContent(ctx context.Context, id int64) (*Media, []byte, 
 	return &item, raw, nil
 }
 
-func ParseVFSPath(raw string) (namespace, pathPart string, err error) {
-	trimmed := strings.TrimSpace(raw)
-	if !strings.HasPrefix(trimmed, "vfs://") {
-		return "", "", fmt.Errorf("invalid vfs path: must start with vfs://")
-	}
-	trimmed = strings.TrimPrefix(trimmed, "vfs://")
-	trimmed = strings.TrimLeft(trimmed, "/")
-	if trimmed == "" {
-		return "", "", fmt.Errorf("invalid vfs path: missing namespace")
-	}
-	parts := strings.SplitN(trimmed, "/", 2)
-	namespace = strings.TrimSpace(parts[0])
-	if namespace == "" {
-		return "", "", fmt.Errorf("invalid vfs path: missing namespace")
-	}
-	if len(parts) == 1 {
-		return namespace, "", nil
-	}
-	normalizedPath, err := normalizeVFSPath(parts[1])
-	if err != nil {
-		return "", "", err
-	}
-	return namespace, normalizedPath, nil
-}
-
-func normalizeVFSPath(rawPath string) (string, error) {
-	clean := path.Clean(strings.TrimLeft(strings.TrimSpace(rawPath), "/"))
-	if clean == "." {
-		return "", nil
-	}
-	if strings.HasPrefix(clean, "../") || clean == ".." {
-		return "", fmt.Errorf("invalid vfs path: traversal outside namespace")
-	}
-	return clean, nil
-}
-
 func (s *Store) SaveVFSFile(ctx context.Context, namespace, filePath, contentType string, raw []byte, metadata map[string]any) (*VFSFile, error) {
 	namespace = strings.TrimSpace(namespace)
 	if namespace == "" {
@@ -187,7 +151,7 @@ func (s *Store) SaveVFSFile(ctx context.Context, namespace, filePath, contentTyp
 	if isReadOnlyVFSNamespace(namespace) {
 		return nil, fmt.Errorf("save vfs file: namespace is read-only: %s", namespace)
 	}
-	normalizedPath, err := normalizeVFSPath(filePath)
+	normalizedPath, err := storevfs.NormalizePath(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("save vfs file: path: %w", err)
 	}
@@ -234,7 +198,7 @@ func (s *Store) SaveVFSFile(ctx context.Context, namespace, filePath, contentTyp
 }
 
 func (s *Store) GetVFSFile(ctx context.Context, namespace, filePath string) (*VFSFile, error) {
-	normalizedPath, err := normalizeVFSPath(filePath)
+	normalizedPath, err := storevfs.NormalizePath(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("get vfs file: path: %w", err)
 	}
@@ -274,7 +238,7 @@ func (s *Store) GetVFSFile(ctx context.Context, namespace, filePath string) (*VF
 }
 
 func (s *Store) GetVFSFileContent(ctx context.Context, namespace, filePath string) (*VFSFile, []byte, error) {
-	normalizedPath, err := normalizeVFSPath(filePath)
+	normalizedPath, err := storevfs.NormalizePath(filePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get vfs file content: path: %w", err)
 	}
@@ -322,7 +286,7 @@ func (s *Store) ListVFSChildren(ctx context.Context, namespace, dir string) ([]V
 	if ns == "" {
 		return nil, fmt.Errorf("list vfs children: missing namespace")
 	}
-	normalizedDir, err := normalizeVFSPath(dir)
+	normalizedDir, err := storevfs.NormalizePath(dir)
 	if err != nil {
 		return nil, fmt.Errorf("list vfs children: path: %w", err)
 	}
@@ -421,7 +385,7 @@ func (s *Store) DeleteVFSFile(ctx context.Context, namespace, filePath string) e
 	if isReadOnlyVFSNamespace(namespace) {
 		return fmt.Errorf("delete vfs file: namespace is read-only: %s", namespace)
 	}
-	normalizedPath, err := normalizeVFSPath(filePath)
+	normalizedPath, err := storevfs.NormalizePath(filePath)
 	if err != nil {
 		return fmt.Errorf("delete vfs file: path: %w", err)
 	}
