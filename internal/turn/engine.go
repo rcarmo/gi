@@ -1,3 +1,4 @@
+// Package turn implements Gi's append-only turn engine.
 package turn
 
 import (
