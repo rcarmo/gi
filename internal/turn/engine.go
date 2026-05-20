@@ -33,6 +33,7 @@ import (
 	"github.com/rcarmo/gi/internal/scripting"
 	"github.com/rcarmo/gi/internal/store"
 	storeaudit "github.com/rcarmo/gi/internal/store/audit"
+	"github.com/rcarmo/gi/internal/store/internalx"
 	"github.com/rcarmo/gi/internal/store/queue"
 	"github.com/rcarmo/gi/internal/topics"
 	goai "github.com/rcarmo/go-ai"
@@ -319,7 +320,7 @@ func (e *Engine) normalizeRunningSessionState(ctx context.Context, sessionID, ac
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	sessionState := map[string]any{"status": "running", "active_turn_id": activeTurnID}
 	if turnRec, err := e.store.GetTurn(opCtx, activeTurnID); err == nil {
-		if model := strings.TrimSpace(store.StringValue(turnRec.Metadata["model"], "")); model != "" {
+		if model := strings.TrimSpace(internalx.StringValue(turnRec.Metadata["model"], "")); model != "" {
 			sessionState["model"] = model
 		}
 	}
@@ -412,19 +413,19 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if in.ParentTurnID != "" {
 		metadata["parent_turn_id"] = in.ParentTurnID
 		if v, ok := in.Metadata["subturn_max_depth"]; ok {
-			subTurnMaxDepth = store.IntValueOr(v, defaultSubTurnMaxDepth)
+			subTurnMaxDepth = internalx.IntValueOr(v, defaultSubTurnMaxDepth)
 		}
 		if v, ok := in.Metadata["subturn_max_concurrency"]; ok {
-			subTurnMaxConcurrency = store.IntValueOr(v, defaultSubTurnMaxConcurrency)
+			subTurnMaxConcurrency = internalx.IntValueOr(v, defaultSubTurnMaxConcurrency)
 		}
 		if modeRaw, ok := in.Metadata["subturn_delivery_mode"]; ok {
-			mode, err := store.NormalizeSubTurnDeliveryMode(store.StringValue(modeRaw, "sync"))
+			mode, err := store.NormalizeSubTurnDeliveryMode(internalx.StringValue(modeRaw, "sync"))
 			if err != nil {
 				return nil, err
 			}
 			subTurnDeliveryMode = mode
 		}
-		subTurnCritical = store.BoolValueOr(in.Metadata["subturn_critical"], store.BoolValue(in.Metadata["critical"]))
+		subTurnCritical = internalx.BoolValueOr(in.Metadata["subturn_critical"], internalx.BoolValue(in.Metadata["critical"]))
 		if subTurnMaxDepth <= 0 {
 			subTurnMaxDepth = defaultSubTurnMaxDepth
 		}
@@ -436,7 +437,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 			return nil, fmt.Errorf("resolve parent turn: %w", err)
 		}
 		parentSessionID = parentTurn.SessionID
-		subTurnDepth = store.IntValueOr(parentTurn.Metadata["subturn_depth"], 0) + 1
+		subTurnDepth = internalx.IntValueOr(parentTurn.Metadata["subturn_depth"], 0) + 1
 		if subTurnDepth > subTurnMaxDepth {
 			return nil, fmt.Errorf("subturn depth limit exceeded: depth=%d max=%d", subTurnDepth, subTurnMaxDepth)
 		}
@@ -778,7 +779,7 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 	}
 	sessionState := map[string]any{"active_turn_id": turnID, "status": "running"}
 	if turnRec, turnErr := e.store.GetTurn(opCtx, turnID); turnErr == nil {
-		if model := strings.TrimSpace(store.StringValue(turnRec.Metadata["model"], "")); model != "" {
+		if model := strings.TrimSpace(internalx.StringValue(turnRec.Metadata["model"], "")); model != "" {
 			sessionState["model"] = model
 		}
 	}
@@ -988,7 +989,7 @@ func normalizeHoldResolutionSummary(summary string) string {
 }
 
 func normalizedHoldStateForEvent(holdState string) string {
-	holdState = store.NormalizedLowerString(holdState)
+	holdState = internalx.NormalizedLowerString(holdState)
 	if holdState == "" {
 		return "none"
 	}
@@ -1054,9 +1055,9 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 	result, err := e.SubmitPrompt(opCtx, RunInput{
 		SessionID:    turnRec.SessionID,
 		Prompt:       turnRec.Prompt,
-		Intent:       store.StringValue(turnRec.Metadata["intent"], "prompt"),
-		Model:        store.StringValue(turnRec.Metadata["model"], ""),
-		ParentTurnID: store.StringValue(turnRec.Metadata["parent_turn_id"], ""),
+		Intent:       internalx.StringValue(turnRec.Metadata["intent"], "prompt"),
+		Model:        internalx.StringValue(turnRec.Metadata["model"], ""),
+		ParentTurnID: internalx.StringValue(turnRec.Metadata["parent_turn_id"], ""),
 		Metadata:     metadata,
 	})
 	if err != nil {
@@ -1129,7 +1130,7 @@ const (
 )
 
 func normalizeDirectKind(kind string) string {
-	kind = store.NormalizedLowerString(kind)
+	kind = internalx.NormalizedLowerString(kind)
 	switch kind {
 	case "", DirectKindPrompt:
 		return DirectKindPrompt
@@ -1143,7 +1144,7 @@ func normalizeDirectKind(kind string) string {
 }
 
 func normalizeDirectSourceKind(kind string) string {
-	kind = store.NormalizedLowerString(kind)
+	kind = internalx.NormalizedLowerString(kind)
 	switch kind {
 	case "", DirectSourceKindDirect:
 		return DirectSourceKindDirect
@@ -1264,14 +1265,14 @@ func directEnvelopeFromInput(in DirectInput) map[string]any {
 
 func directInputFromEnvelope(envelope map[string]any) DirectInput {
 	in := DirectInput{
-		Kind:          store.StringValue(envelope["kind"], ""),
-		SessionID:     store.StringValue(envelope["session_id"], ""),
-		SessionKey:    store.StringValue(envelope["session_key"], ""),
-		TargetAgentID: store.StringValue(envelope["target_agent_id"], ""),
-		Prompt:        store.StringValue(envelope["prompt"], ""),
-		Intent:        store.StringValue(envelope["intent"], ""),
-		Model:         store.StringValue(envelope["model"], ""),
-		ParentTurnID:  store.StringValue(envelope["parent_turn_id"], ""),
+		Kind:          internalx.StringValue(envelope["kind"], ""),
+		SessionID:     internalx.StringValue(envelope["session_id"], ""),
+		SessionKey:    internalx.StringValue(envelope["session_key"], ""),
+		TargetAgentID: internalx.StringValue(envelope["target_agent_id"], ""),
+		Prompt:        internalx.StringValue(envelope["prompt"], ""),
+		Intent:        internalx.StringValue(envelope["intent"], ""),
+		Model:         internalx.StringValue(envelope["model"], ""),
+		ParentTurnID:  internalx.StringValue(envelope["parent_turn_id"], ""),
 		Metadata:      map[string]any{},
 	}
 	if metadata, ok := envelope["metadata"].(map[string]any); ok && metadata != nil {
@@ -1279,10 +1280,10 @@ func directInputFromEnvelope(envelope map[string]any) DirectInput {
 	}
 	if origin, ok := envelope["origin"].(map[string]any); ok && origin != nil {
 		in.Origin = DirectOrigin{
-			SourceKind: store.StringValue(origin["source_kind"], ""),
-			SourceID:   store.StringValue(origin["source_id"], ""),
-			Role:       store.StringValue(origin["role"], ""),
-			Label:      store.StringValue(origin["label"], ""),
+			SourceKind: internalx.StringValue(origin["source_kind"], ""),
+			SourceID:   internalx.StringValue(origin["source_id"], ""),
+			Role:       internalx.StringValue(origin["role"], ""),
+			Label:      internalx.StringValue(origin["label"], ""),
 		}
 	}
 	return in
@@ -1783,7 +1784,7 @@ func (e *Engine) emitRecoveryScanFailureSessionState(ctx context.Context, sessio
 	}
 	if model == "" {
 		if sessRec, sessErr := e.store.GetSession(ctx, sessionID); sessErr == nil {
-			model = store.StringValue(sessRec.State["model"], "")
+			model = internalx.StringValue(sessRec.State["model"], "")
 		}
 	}
 	runner.emitSessionStateHook(ctx, sessionID, agentID, model, status, map[string]any{
@@ -1822,7 +1823,7 @@ func (e *Engine) emitRecoveryRestartFailureSessionState(ctx context.Context, ses
 	}
 	if model == "" {
 		if sessRec, sessErr := e.store.GetSession(ctx, sessionID); sessErr == nil {
-			model = store.StringValue(sessRec.State["model"], "")
+			model = internalx.StringValue(sessRec.State["model"], "")
 		}
 	}
 	payload := map[string]any{
@@ -2072,11 +2073,11 @@ func steeringMessagesFromMetadata(metadata map[string]any) []store.SteeringMessa
 			}
 		}
 		out = append(out, store.SteeringMessage{
-			Role:      normalizeSteeringRole(store.StringValue(m["role"], "user")),
-			Content:   store.StringValue(m["content"], ""),
+			Role:      normalizeSteeringRole(internalx.StringValue(m["role"], "user")),
+			Content:   internalx.StringValue(m["content"], ""),
 			Payload:   payload,
 			Media:     media,
-			QueueMode: store.StringValue(m["queue_mode"], "one-at-a-time"),
+			QueueMode: internalx.StringValue(m["queue_mode"], "one-at-a-time"),
 		})
 	}
 	return out
@@ -2095,8 +2096,8 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 		payload[k] = v
 	}
 	media := steeringMediaFromMetadata(in.Metadata)
-	queueMode := store.StringValue(in.Metadata["steering_mode"], "one-at-a-time")
-	steeringRole := normalizeSteeringRole(store.StringValue(in.Metadata["ingress_role"], "user"))
+	queueMode := internalx.StringValue(in.Metadata["steering_mode"], "one-at-a-time")
+	steeringRole := normalizeSteeringRole(internalx.StringValue(in.Metadata["ingress_role"], "user"))
 	if _, err := e.store.EnqueueSteering(opCtx, sessionID, activeTurnID, steeringRole, in.Prompt, payload, media, queueMode); err != nil {
 		logutil.WarnIfErr("append steering.rejected event", e.store.AppendTurnEvent(e.backgroundContext(), activeTurnID, sessionID, "steering.rejected", map[string]any{
 			"phase":       "steering",
@@ -2161,10 +2162,10 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 		return false, "", err
 	}
 	metadata := turnRec.Metadata
-	submittedPayload := map[string]any{"phase": "queue", "intent": store.StringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true}
+	submittedPayload := map[string]any{"phase": "queue", "intent": internalx.StringValue(metadata["intent"], "continue"), "queued": true, "checkpoint": true, "continue": true}
 	logutil.WarnIfErr("append continued turn.submitted event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "turn.submitted", submittedPayload))
 	e.PublishRuntimeTurnEvent("turn_submitted", sessionID, turnID, "", "queued", "queued", submittedPayload)
-	if err := e.normalizeInactiveSessionState(opCtx, sessionID, "queued", store.StringValue(metadata["model"], ""), true); err != nil {
+	if err := e.normalizeInactiveSessionState(opCtx, sessionID, "queued", internalx.StringValue(metadata["model"], ""), true); err != nil {
 		return false, "", err
 	}
 	logutil.WarnIfErr("append steering.continue_staged event", e.store.AppendTurnEvent(opCtx, turnID, sessionID, "steering.continue_staged", map[string]any{"phase": "steering", "checkpoint": true, "count": len(msgs)}))
@@ -2276,7 +2277,7 @@ func (r *sessionRunner) persistSteeringMessages(ctx context.Context, sessionID, 
 	totalContentLen := 0
 	for _, msg := range msgs {
 		role := persistedSteeringChatRole(msg.Role)
-		payload := map[string]any{"kind": "chat", "intent": store.StringValue(msg.Payload["intent"], "prompt"), "turn_id": turnID, "steering": true, "steering_role": normalizeSteeringRole(msg.Role)}
+		payload := map[string]any{"kind": "chat", "intent": internalx.StringValue(msg.Payload["intent"], "prompt"), "turn_id": turnID, "steering": true, "steering_role": normalizeSteeringRole(msg.Role)}
 		for k, v := range msg.Payload {
 			payload[k] = v
 		}
@@ -2845,7 +2846,7 @@ func hookResponseFromScript(result string) (HookResponse, error) {
 	}
 	resp.Action = strings.ToLower(strings.TrimSpace(resp.Action))
 	if resp.Action == "" {
-		if action := store.StringValue(raw["action"], ""); strings.TrimSpace(action) != "" {
+		if action := internalx.StringValue(raw["action"], ""); strings.TrimSpace(action) != "" {
 			resp.Action = strings.ToLower(strings.TrimSpace(action))
 		}
 	}
@@ -2855,10 +2856,10 @@ func hookResponseFromScript(result string) (HookResponse, error) {
 	case "respond":
 		resp.Handled = true
 		if strings.TrimSpace(resp.Message) == "" {
-			if response := store.StringValue(raw["response"], ""); strings.TrimSpace(response) != "" {
+			if response := internalx.StringValue(raw["response"], ""); strings.TrimSpace(response) != "" {
 				resp.Message = response
 			} else if payload, ok := raw["payload"].(map[string]any); ok {
-				resp.Message = store.StringValue(payload["response"], "")
+				resp.Message = internalx.StringValue(payload["response"], "")
 			}
 		}
 	case "deny":
@@ -4098,7 +4099,7 @@ func (r *sessionRunner) subTurnResultSummary(ctx context.Context, childSessionID
 		if msg.Role != "assistant" {
 			continue
 		}
-		msgTurnID := store.StringValue(msg.Payload["turn_id"], "")
+		msgTurnID := internalx.StringValue(msg.Payload["turn_id"], "")
 		if msgTurnID != "" && msgTurnID != childTurnID {
 			continue
 		}
@@ -4144,7 +4145,7 @@ func isTimeoutFailureKind(failureKind string) bool {
 }
 
 func isCriticalSubTurn(sub store.SubTurn) bool {
-	return store.BoolValue(sub.Metadata["subturn_critical"]) || store.BoolValue(sub.Metadata["critical"])
+	return internalx.BoolValue(sub.Metadata["subturn_critical"]) || internalx.BoolValue(sub.Metadata["critical"])
 }
 
 func isCancellableSubTurnStatus(status string) bool {
@@ -4250,7 +4251,7 @@ func hookAbortFromResponse(resp HookResponse, fallback string) error {
 	if reason == "" {
 		reason = fallback
 	}
-	return hookAbortError{reason: reason, hard: store.BoolValue(resp.Payload["hard_abort"])}
+	return hookAbortError{reason: reason, hard: internalx.BoolValue(resp.Payload["hard_abort"])}
 }
 
 func directToolResultFromHook(resp HookResponse) (string, bool) {
@@ -4515,7 +4516,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				continue
 			}
 			if resp.Block {
-				reason := store.StringValue(resp.Reason, "tool call blocked")
+				reason := internalx.StringValue(resp.Reason, "tool call blocked")
 				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookToolCall, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_call", "reason": reason})
 				logutil.WarnIfErr("append hook-denied tool.skipped event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
 					"phase":        "tool",
@@ -4544,7 +4545,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				return outcome
 			}
 			if resp.Block {
-				reason := store.StringValue(resp.Reason, "tool not approved")
+				reason := internalx.StringValue(resp.Reason, "tool not approved")
 				r.engine.PublishRuntimeHookDecisionEvent("hook_deny", HookRequest{Name: HookApproveTool, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "approve_tool", "reason": reason})
 				logutil.WarnIfErr("append approve-denied tool.skipped event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.skipped", map[string]any{
 					"phase":        "tool",
@@ -4771,7 +4772,7 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 	if strings.TrimSpace(prompt) == "" && len(initialSteering) > 0 {
 		prompt = steeringPromptForShell(initialSteering)
 	}
-	intent := store.StringValue(turnRec.Metadata["intent"], "prompt")
+	intent := internalx.StringValue(turnRec.Metadata["intent"], "prompt")
 	agentID, model := r.resolveTurnAgentAndModel(ctx, s, turnRec, sessionID, prompt)
 	if hook := r.engine.beforeSetupHook; hook != nil {
 		hook(ctx, sessionID, turnID)
@@ -4819,7 +4820,7 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 
 func (r *sessionRunner) resolveTurnAgentAndModel(ctx context.Context, s *store.Store, turnRec *store.Turn, sessionID, prompt string) (string, string) {
 	opCtx := store.CoordinationContext(ctx, r.engine.backgroundContext())
-	model := store.StringValue(turnRec.Metadata["model"], "bootstrap")
+	model := internalx.StringValue(turnRec.Metadata["model"], "bootstrap")
 	agentID := s.SessionAgentID(opCtx, sessionID)
 	agentModel := r.engine.modelForAgent(agentID)
 	if strings.TrimSpace(model) == "" {

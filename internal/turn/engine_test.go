@@ -23,6 +23,7 @@ import (
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
 	storeaudit "github.com/rcarmo/gi/internal/store/audit"
+	"github.com/rcarmo/gi/internal/store/internalx"
 	"github.com/rcarmo/gi/internal/store/queue"
 	"github.com/rcarmo/gi/internal/tools"
 	"github.com/rcarmo/gi/internal/topics"
@@ -4836,7 +4837,7 @@ func TestProcessNextInboundWorkProcessesQueuedDirectPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if store.StringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:queue" || store.StringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
+	if internalx.StringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:queue" || internalx.StringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
 		t.Fatalf("expected ingress metadata on queued direct turn, got %#v", turnRec.Metadata)
 	}
 }
@@ -4939,7 +4940,7 @@ func TestProcessDirectPromptResolvesExplicitSessionKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if store.StringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
+	if internalx.StringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
 		t.Fatalf("expected ingress session key metadata, got %#v", turnRec.Metadata)
 	}
 	msgs, err := s.ListMessages(ctx, sess.ID)
@@ -4948,7 +4949,7 @@ func TestProcessDirectPromptResolvesExplicitSessionKey(t *testing.T) {
 	}
 	foundUserIngress := false
 	for _, msg := range msgs {
-		if msg.Role == "user" && msg.Content == "hello from key" && store.StringValue(msg.Payload["ingress_session_key"], "") == alloc.SessionKey {
+		if msg.Role == "user" && msg.Content == "hello from key" && internalx.StringValue(msg.Payload["ingress_session_key"], "") == alloc.SessionKey {
 			foundUserIngress = true
 		}
 	}
@@ -4961,7 +4962,7 @@ func TestProcessDirectPromptResolvesExplicitSessionKey(t *testing.T) {
 	}
 	foundStartedIngress := false
 	for _, event := range events {
-		if event.Type == "turn.started" && store.StringValue(event.Payload["ingress_session_key"], "") == alloc.SessionKey {
+		if event.Type == "turn.started" && internalx.StringValue(event.Payload["ingress_session_key"], "") == alloc.SessionKey {
 			foundStartedIngress = true
 		}
 	}
@@ -4997,7 +4998,7 @@ func TestProcessDirectPromptBySessionKeySurvivesCanceledCallerContext(t *testing
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if turnRec.SessionID != sess.ID || store.StringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
+	if turnRec.SessionID != sess.ID || internalx.StringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
 		t.Fatalf("expected canceled-caller direct prompt to resolve session key and persist turn, got %#v", turnRec)
 	}
 }
@@ -5030,7 +5031,7 @@ func TestProcessDirectRoutedPromptPreservesIngressMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get routed turn: %v", err)
 	}
-	if store.StringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindIPC || store.StringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:routed" || store.StringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
+	if internalx.StringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindIPC || internalx.StringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:routed" || internalx.StringValue(turnRec.Metadata["ingress_session_key"], "") != alloc.SessionKey {
 		t.Fatalf("expected ingress metadata on routed direct turn, got %#v", turnRec.Metadata)
 	}
 }
@@ -5079,14 +5080,14 @@ func TestProcessDirectPromptUsesNormalSubmitPathAndIngressMetadata(t *testing.T)
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if store.StringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || store.StringValue(turnRec.Metadata["ingress_source_kind"], "") != "ipc" || store.StringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:test" {
+	if internalx.StringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || internalx.StringValue(turnRec.Metadata["ingress_source_kind"], "") != "ipc" || internalx.StringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:test" {
 		t.Fatalf("expected direct ingress metadata on turn, got %#v", turnRec.Metadata)
 	}
 	msgs, err := s.ListMessages(ctx, result.SessionID)
 	if err != nil {
 		t.Fatalf("list messages: %v", err)
 	}
-	if len(msgs) == 0 || store.StringValue(msgs[0].Payload["ingress_source_kind"], "") != "ipc" || store.StringValue(msgs[0].Payload["ingress_source_id"], "") != "ipc:test" {
+	if len(msgs) == 0 || internalx.StringValue(msgs[0].Payload["ingress_source_kind"], "") != "ipc" || internalx.StringValue(msgs[0].Payload["ingress_source_id"], "") != "ipc:test" {
 		t.Fatalf("expected direct ingress metadata on persisted user message, got %#v", msgs)
 	}
 	events, err := s.ListTurnEvents(ctx, result.TurnID)
@@ -5097,7 +5098,7 @@ func TestProcessDirectPromptUsesNormalSubmitPathAndIngressMetadata(t *testing.T)
 	for _, event := range events {
 		if event.Type == "turn.started" {
 			foundStarted = true
-			if store.StringValue(event.Payload["ingress_source_kind"], "") != "ipc" || store.StringValue(event.Payload["ingress_source_id"], "") != "ipc:test" {
+			if internalx.StringValue(event.Payload["ingress_source_kind"], "") != "ipc" || internalx.StringValue(event.Payload["ingress_source_id"], "") != "ipc:test" {
 				t.Fatalf("expected ingress metadata on turn.started event, got %#v", event)
 			}
 		}
@@ -5141,7 +5142,7 @@ func TestProcessDirectSteersSameSessionWhileActive(t *testing.T) {
 		t.Fatalf("expected queued steering not to persist a second chat message before injection, got %#v", msgs)
 	}
 	for _, msg := range msgs {
-		if store.StringValue(msg.Payload["ingress_source_id"], "") == "ipc:active" {
+		if internalx.StringValue(msg.Payload["ingress_source_id"], "") == "ipc:active" {
 			t.Fatalf("expected queued steering not to persist direct-ingress message before injection, got %#v", msgs)
 		}
 	}
@@ -5208,7 +5209,7 @@ func TestProcessSystemDirectWhileActiveSteersSameSession(t *testing.T) {
 	if msgs[0].Role != "system" {
 		t.Fatalf("expected system steering role, got %#v", msgs[0])
 	}
-	if store.StringValue(msgs[0].Payload["ingress_source_kind"], "") != DirectSourceKindSystem || store.StringValue(msgs[0].Payload["ingress_source_id"], "") != "scheduler:active" || store.StringValue(msgs[0].Payload["ingress_role"], "") != "system" {
+	if internalx.StringValue(msgs[0].Payload["ingress_source_kind"], "") != DirectSourceKindSystem || internalx.StringValue(msgs[0].Payload["ingress_source_id"], "") != "scheduler:active" || internalx.StringValue(msgs[0].Payload["ingress_role"], "") != "system" {
 		t.Fatalf("expected system ingress metadata on queued steering payload, got %#v", msgs[0])
 	}
 }
@@ -5236,7 +5237,7 @@ func TestPersistSteeringMessagesStoresSystemRoleAsUserChatHistory(t *testing.T) 
 	if len(msgs) != 1 || msgs[0].Role != "user" {
 		t.Fatalf("expected system steering to persist as user chat message, got %#v", msgs)
 	}
-	if store.StringValue(msgs[0].Payload["steering_role"], "") != "system" || store.StringValue(msgs[0].Payload["ingress_role"], "") != "system" {
+	if internalx.StringValue(msgs[0].Payload["steering_role"], "") != "system" || internalx.StringValue(msgs[0].Payload["ingress_role"], "") != "system" {
 		t.Fatalf("expected steering role audit metadata to be preserved, got %#v", msgs[0])
 	}
 }
@@ -5266,14 +5267,14 @@ func TestProcessSystemDirectDefaultsSystemOriginMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if store.StringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindSystem || store.StringValue(turnRec.Metadata["ingress_role"], "") != "system" || store.StringValue(turnRec.Metadata["ingress_source_id"], "") != "scheduler:system" {
+	if internalx.StringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindSystem || internalx.StringValue(turnRec.Metadata["ingress_role"], "") != "system" || internalx.StringValue(turnRec.Metadata["ingress_source_id"], "") != "scheduler:system" {
 		t.Fatalf("expected system ingress metadata on turn, got %#v", turnRec.Metadata)
 	}
 	msgs, err := s.ListMessages(ctx, result.SessionID)
 	if err != nil {
 		t.Fatalf("list messages: %v", err)
 	}
-	if len(msgs) == 0 || store.StringValue(msgs[0].Payload["ingress_source_kind"], "") != DirectSourceKindSystem || store.StringValue(msgs[0].Payload["ingress_role"], "") != "system" {
+	if len(msgs) == 0 || internalx.StringValue(msgs[0].Payload["ingress_source_kind"], "") != DirectSourceKindSystem || internalx.StringValue(msgs[0].Payload["ingress_role"], "") != "system" {
 		t.Fatalf("expected system ingress metadata on persisted user message, got %#v", msgs)
 	}
 }
@@ -5303,7 +5304,7 @@ func TestProcessInternalDirectDefaultsInternalOriginMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if store.StringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindInternal || store.StringValue(turnRec.Metadata["ingress_role"], "") != "system" || store.StringValue(turnRec.Metadata["ingress_source_id"], "") != "engine:internal" {
+	if internalx.StringValue(turnRec.Metadata["ingress_source_kind"], "") != DirectSourceKindInternal || internalx.StringValue(turnRec.Metadata["ingress_role"], "") != "system" || internalx.StringValue(turnRec.Metadata["ingress_source_id"], "") != "engine:internal" {
 		t.Fatalf("expected internal ingress metadata on turn, got %#v", turnRec.Metadata)
 	}
 }
@@ -5336,7 +5337,7 @@ func TestProcessDirectPeerMessageCarriesIngressMetadataIntoTargetTurn(t *testing
 	if err != nil {
 		t.Fatalf("get routed turn: %v", err)
 	}
-	if store.StringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || store.StringValue(turnRec.Metadata["ingress_source_kind"], "") != "system" || store.StringValue(turnRec.Metadata["ingress_source_id"], "") != "scheduler:1" {
+	if internalx.StringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || internalx.StringValue(turnRec.Metadata["ingress_source_kind"], "") != "system" || internalx.StringValue(turnRec.Metadata["ingress_source_id"], "") != "scheduler:1" {
 		t.Fatalf("expected direct ingress metadata on routed turn, got %#v", turnRec.Metadata)
 	}
 	events, err := s.ListTurnEvents(ctx, result.TurnID)
@@ -5347,7 +5348,7 @@ func TestProcessDirectPeerMessageCarriesIngressMetadataIntoTargetTurn(t *testing
 	for _, event := range events {
 		if event.Type == "turn.started" {
 			foundStarted = true
-			if store.StringValue(event.Payload["ingress_source_kind"], "") != "system" || store.StringValue(event.Payload["ingress_source_id"], "") != "scheduler:1" {
+			if internalx.StringValue(event.Payload["ingress_source_kind"], "") != "system" || internalx.StringValue(event.Payload["ingress_source_id"], "") != "scheduler:1" {
 				t.Fatalf("expected ingress metadata on routed turn.started event, got %#v", event)
 			}
 		}
@@ -6926,7 +6927,7 @@ func TestBeforeProviderRequestMessagePrependIsRequestLocal(t *testing.T) {
 		t.Fatalf("create turn: %v", err)
 	}
 	if _, err := e.RegisterHook(HookBeforeProviderRequest, "prepend-message", func(ctx context.Context, req HookRequest) (HookResponse, error) {
-		if store.StringValue(req.Payload["stage"], "") != "context" {
+		if internalx.StringValue(req.Payload["stage"], "") != "context" {
 			return HookResponse{}, nil
 		}
 		return HookResponse{Action: "modify", Message: "temporary prepend"}, nil
@@ -6964,7 +6965,7 @@ func TestBeforeProviderRequestCanReplaceRawProviderPayload(t *testing.T) {
 	}
 	stageCalls := 0
 	if _, err := e.RegisterHook(HookBeforeProviderRequest, "replace-payload", func(ctx context.Context, req HookRequest) (HookResponse, error) {
-		if store.StringValue(req.Payload["stage"], "") != "payload" {
+		if internalx.StringValue(req.Payload["stage"], "") != "payload" {
 			return HookResponse{}, nil
 		}
 		stageCalls++
@@ -6984,7 +6985,7 @@ func TestBeforeProviderRequestCanReplaceRawProviderPayload(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected replacement payload map, got %#v", payload)
 		}
-		if store.StringValue(payloadMap["model"], "") != "replaced-model" {
+		if internalx.StringValue(payloadMap["model"], "") != "replaced-model" {
 			t.Fatalf("expected replaced model payload, got %#v", payloadMap)
 		}
 		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
@@ -7049,13 +7050,13 @@ func TestAfterProviderResponseReceivesObservedStatusAndHeaders(t *testing.T) {
 		}
 		headers = map[string]string{}
 		for k, v := range generic {
-			headers[k] = store.StringValue(v, "")
+			headers[k] = internalx.StringValue(v, "")
 		}
 	}
 	if headers["x-test-header"] != "ok" {
 		t.Fatalf("expected response header payload, got %#v", headers)
 	}
-	if store.StringValue(capturedPayload["provider"], "") != "test-provider" {
+	if internalx.StringValue(capturedPayload["provider"], "") != "test-provider" {
 		t.Fatalf("expected provider metadata, got %#v", capturedPayload)
 	}
 }
@@ -7073,7 +7074,7 @@ func TestToolCallHookCanMutateArgumentsDuringExecution(t *testing.T) {
 	}
 	executedValue := ""
 	if err := e.RegisterTool(tools.RegisteredTool{Name: "echo_test", Description: "Echo", Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
-		executedValue = store.StringValue(call.Arguments["value"], "")
+		executedValue = internalx.StringValue(call.Arguments["value"], "")
 		return "exec:" + executedValue, nil
 	}}); err != nil {
 		t.Fatalf("register tool: %v", err)
@@ -7308,7 +7309,7 @@ done
 	if err != nil {
 		t.Fatalf("emit process hook: %v", err)
 	}
-	if resp.ToolCall == nil || resp.ToolCall.Name != "read" || store.StringValue(resp.ToolCall.Arguments["path"], "") != "process.md" {
+	if resp.ToolCall == nil || resp.ToolCall.Name != "read" || internalx.StringValue(resp.ToolCall.Arguments["path"], "") != "process.md" {
 		t.Fatalf("expected process hook mutation, got %#v", resp)
 	}
 	items, err := storeaudit.ListHookInvocationsByTurn(ctx, s.DB(), "turn_process_hook")
@@ -7351,7 +7352,7 @@ done
 		if err != nil {
 			t.Fatalf("invoke mounted process hook %d: %v", i, err)
 		}
-		if resp.ToolCall == nil || store.StringValue(resp.ToolCall.Arguments["path"], "") != "mounted.md" {
+		if resp.ToolCall == nil || internalx.StringValue(resp.ToolCall.Arguments["path"], "") != "mounted.md" {
 			t.Fatalf("expected mounted process hook mutation, got %#v", resp)
 		}
 	}
