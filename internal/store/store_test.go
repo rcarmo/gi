@@ -12,6 +12,7 @@ import (
 
 	"github.com/rcarmo/gi/internal/routing"
 	gisession "github.com/rcarmo/gi/internal/session"
+	storeaudit "github.com/rcarmo/gi/internal/store/audit"
 	"github.com/rcarmo/gi/internal/store/queue"
 )
 
@@ -1043,11 +1044,11 @@ func TestStoreRecordsHookInvocations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create turn: %v", err)
 	}
-	id, err := s.RecordHookInvocation(ctx, turn.ID, session.ID, "tool_call", "tool_call", "test-hook", "modify", map[string]any{"trace": map[string]any{"id": "hook_1"}}, map[string]any{"action": "modify"}, "", 17)
+	id, err := storeaudit.RecordHookInvocation(ctx, s.DB(), turn.ID, session.ID, "tool_call", "tool_call", "test-hook", "modify", map[string]any{"trace": map[string]any{"id": "hook_1"}}, map[string]any{"action": "modify"}, "", 17)
 	if err != nil {
 		t.Fatalf("record hook invocation: %v", err)
 	}
-	got, err := s.GetHookInvocation(ctx, id)
+	got, err := storeaudit.GetHookInvocation(ctx, s.DB(), id)
 	if err != nil {
 		t.Fatalf("get hook invocation: %v", err)
 	}
@@ -1057,14 +1058,14 @@ func TestStoreRecordsHookInvocations(t *testing.T) {
 	if got.Request["trace"].(map[string]any)["id"] != "hook_1" {
 		t.Fatalf("expected request trace in hook invocation: %#v", got)
 	}
-	items, err := s.ListHookInvocationsByTurn(ctx, turn.ID)
+	items, err := storeaudit.ListHookInvocationsByTurn(ctx, s.DB(), turn.ID)
 	if err != nil {
 		t.Fatalf("list hook invocations by turn: %v", err)
 	}
 	if len(items) != 1 || items[0].ID != id {
 		t.Fatalf("unexpected turn hook invocations: %#v", items)
 	}
-	sessionItems, err := s.ListHookInvocationsBySession(ctx, session.ID)
+	sessionItems, err := storeaudit.ListHookInvocationsBySession(ctx, s.DB(), session.ID)
 	if err != nil {
 		t.Fatalf("list hook invocations by session: %v", err)
 	}

@@ -1,9 +1,11 @@
-package store
+package audit
 
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type HookInvocation struct {
@@ -21,7 +23,7 @@ type HookInvocation struct {
 	CreatedAt  string         `json:"created_at"`
 }
 
-func (s *Store) RecordHookInvocation(ctx context.Context, turnID, sessionID, hookName, hookPhase, hookSource, action string, request any, response any, errorText string, durationMS int) (int64, error) {
+func RecordHookInvocation(ctx context.Context, db *sql.DB, turnID, sessionID, hookName, hookPhase, hookSource, action string, request any, response any, errorText string, durationMS int) (int64, error) {
 	if hookName == "" {
 		return 0, fmt.Errorf("record hook invocation: missing hook_name")
 	}
@@ -39,23 +41,23 @@ func (s *Store) RecordHookInvocation(ctx context.Context, turnID, sessionID, hoo
 	if err != nil {
 		return 0, err
 	}
-	_, err = s.db.ExecContext(ctx, `
+	_, err = db.ExecContext(ctx, `
 		insert into hook_invocations (turn_id, session_id, hook_name, hook_phase, hook_source, action, request_json, response_json, error_text, duration_ms, created_at)
-		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, `+defaultNow+`)
-	`, nilIfEmpty(turnID), nilIfEmpty(sessionID), hookName, hookPhase, nilIfEmpty(hookSource), action, requestJSON, responseJSON, errorText, durationMS)
+		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+	`, nilIfEmptyHook(turnID), nilIfEmptyHook(sessionID), hookName, hookPhase, nilIfEmptyHook(hookSource), action, requestJSON, responseJSON, errorText, durationMS)
 	if err != nil {
 		return 0, fmt.Errorf("record hook invocation: %w", err)
 	}
 	var id int64
-	row := s.db.QueryRowContext(ctx, `select last_insert_rowid()`)
+	row := db.QueryRowContext(ctx, `select last_insert_rowid()`)
 	if err := row.Scan(&id); err != nil {
 		return 0, fmt.Errorf("record hook invocation id: %w", err)
 	}
 	return id, nil
 }
 
-func (s *Store) ListHookInvocationsByTurn(ctx context.Context, turnID string) ([]HookInvocation, error) {
-	rows, err := s.db.QueryContext(ctx, `
+func ListHookInvocationsByTurn(ctx context.Context, db *sql.DB, turnID string) ([]HookInvocation, error) {
+	rows, err := db.QueryContext(ctx, `
 		select id, coalesce(turn_id,''), coalesce(session_id,''), hook_name, hook_phase, coalesce(hook_source,''), action, request_json, response_json, error_text, duration_ms, created_at
 		from hook_invocations
 		where turn_id = ?
@@ -85,8 +87,8 @@ func (s *Store) ListHookInvocationsByTurn(ctx context.Context, turnID string) ([
 	return out, rows.Err()
 }
 
-func (s *Store) ListHookInvocationsBySession(ctx context.Context, sessionID string) ([]HookInvocation, error) {
-	rows, err := s.db.QueryContext(ctx, `
+func ListHookInvocationsBySession(ctx context.Context, db *sql.DB, sessionID string) ([]HookInvocation, error) {
+	rows, err := db.QueryContext(ctx, `
 		select id, coalesce(turn_id,''), coalesce(session_id,''), hook_name, hook_phase, coalesce(hook_source,''), action, request_json, response_json, error_text, duration_ms, created_at
 		from hook_invocations
 		where session_id = ?
@@ -116,8 +118,8 @@ func (s *Store) ListHookInvocationsBySession(ctx context.Context, sessionID stri
 	return out, rows.Err()
 }
 
-func (s *Store) GetHookInvocation(ctx context.Context, id int64) (*HookInvocation, error) {
-	row := s.db.QueryRowContext(ctx, `
+func GetHookInvocation(ctx context.Context, db *sql.DB, id int64) (*HookInvocation, error) {
+	row := db.QueryRowContext(ctx, `
 		select id, coalesce(turn_id,''), coalesce(session_id,''), hook_name, hook_phase, coalesce(hook_source,''), action, request_json, response_json, error_text, duration_ms, created_at
 		from hook_invocations
 		where id = ?
@@ -139,4 +141,36 @@ func (s *Store) GetHookInvocation(ctx context.Context, id int64) (*HookInvocatio
 	return &item, nil
 }
 
-func isNotFoundRow(err error) bool { return err == sql.ErrNoRows }
+func marshalJSON(v any) (string, error) {
+	if v == nil {
+		return "{}", nil
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func unmarshalJSONMap(v string) (map[string]any, error) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return map[string]any{}, nil
+	}
+	var out map[string]any
+	if err := json.Unmarshal([]byte(v), &out); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = map[string]any{}
+	}
+	return out, nil
+}
+
+func nilIfEmptyHook(v string) any {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return nil
+	}
+	return v
+}

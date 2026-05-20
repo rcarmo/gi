@@ -2745,7 +2745,7 @@ func (e *Engine) recordHookInvocation(ctx context.Context, req HookRequest, item
 	if e.store == nil {
 		return
 	}
-	_, recordErr := e.store.RecordHookInvocation(ctx, req.TurnID, req.SessionID, req.Name, req.Name, item.source, action, req, response, hookInvocationErrorText(err), durationMS)
+	_, recordErr := storeaudit.RecordHookInvocation(ctx, e.store.DB(), req.TurnID, req.SessionID, req.Name, req.Name, item.source, action, req, response, hookInvocationErrorText(err), durationMS)
 	logutil.WarnIfErr("record hook invocation", recordErr)
 }
 

@@ -6815,7 +6815,7 @@ func TestEmitHookPersistsHookInvocationAudit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("emit hook: %v", err)
 	}
-	items, err := s.ListHookInvocationsByTurn(ctx, "turn_audit")
+	items, err := storeaudit.ListHookInvocationsByTurn(ctx, s.DB(), "turn_audit")
 	if err != nil {
 		t.Fatalf("list persisted hook invocations: %v", err)
 	}
@@ -6855,7 +6855,7 @@ func TestHookInvocationAuditPersistsAfterRequestContextCancellation(t *testing.T
 	if _, err := e.emitHook(reqCtx, HookRequest{Name: HookToolCall, SessionID: "session_audit_cancel", TurnID: "turn_audit_cancel", ToolCall: &goai.ToolCall{Type: "toolCall", ID: "tc_cancel", Name: "read", Arguments: map[string]any{"path": "README.md"}}}); err != nil {
 		t.Fatalf("emit hook with canceled context under continue policy: %v", err)
 	}
-	items, err := s.ListHookInvocationsByTurn(ctx, "turn_audit_cancel")
+	items, err := storeaudit.ListHookInvocationsByTurn(ctx, s.DB(), "turn_audit_cancel")
 	if err != nil {
 		t.Fatalf("list persisted hook invocations: %v", err)
 	}
@@ -7311,7 +7311,7 @@ done
 	if resp.ToolCall == nil || resp.ToolCall.Name != "read" || store.StringValue(resp.ToolCall.Arguments["path"], "") != "process.md" {
 		t.Fatalf("expected process hook mutation, got %#v", resp)
 	}
-	items, err := s.ListHookInvocationsByTurn(ctx, "turn_process_hook")
+	items, err := storeaudit.ListHookInvocationsByTurn(ctx, s.DB(), "turn_process_hook")
 	if err != nil {
 		t.Fatalf("list hook invocations: %v", err)
 	}
