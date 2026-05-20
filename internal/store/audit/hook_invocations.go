@@ -3,9 +3,7 @@ package audit
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
-	"strings"
 )
 
 type HookInvocation struct {
@@ -44,7 +42,7 @@ func RecordHookInvocation(ctx context.Context, db *sql.DB, turnID, sessionID, ho
 	_, err = db.ExecContext(ctx, `
 		insert into hook_invocations (turn_id, session_id, hook_name, hook_phase, hook_source, action, request_json, response_json, error_text, duration_ms, created_at)
 		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-	`, nilIfEmptyHook(turnID), nilIfEmptyHook(sessionID), hookName, hookPhase, nilIfEmptyHook(hookSource), action, requestJSON, responseJSON, errorText, durationMS)
+	`, nilIfEmpty(turnID), nilIfEmpty(sessionID), hookName, hookPhase, nilIfEmpty(hookSource), action, requestJSON, responseJSON, errorText, durationMS)
 	if err != nil {
 		return 0, fmt.Errorf("record hook invocation: %w", err)
 	}
@@ -141,36 +139,3 @@ func GetHookInvocation(ctx context.Context, db *sql.DB, id int64) (*HookInvocati
 	return &item, nil
 }
 
-func marshalJSON(v any) (string, error) {
-	if v == nil {
-		return "{}", nil
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
-}
-
-func unmarshalJSONMap(v string) (map[string]any, error) {
-	v = strings.TrimSpace(v)
-	if v == "" {
-		return map[string]any{}, nil
-	}
-	var out map[string]any
-	if err := json.Unmarshal([]byte(v), &out); err != nil {
-		return nil, err
-	}
-	if out == nil {
-		out = map[string]any{}
-	}
-	return out, nil
-}
-
-func nilIfEmptyHook(v string) any {
-	v = strings.TrimSpace(v)
-	if v == "" {
-		return nil
-	}
-	return v
-}

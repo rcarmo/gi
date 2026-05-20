@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"strings"
 )
 
 type RouteEvent struct {
@@ -102,9 +101,3 @@ func ListRouteEvents(ctx context.Context, db *sql.DB, sessionID string) ([]Route
 	return out, rows.Err()
 }
 
-func nilIfEmpty(v string) any {
-	if strings.TrimSpace(v) == "" {
-		return nil
-	}
-	return v
-}
