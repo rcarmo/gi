@@ -175,7 +175,7 @@ async execute(toolCallId, params, signal, onUpdate, ctx): Promise<{
 
 ## 3. Gi's current agentic loop — state of play
 
-Gi's loop lives in `internal/turn/agent_loop.go`. It is simpler and has **zero hook surface** today.
+Gi's loop is now centralized in `internal/turn/engine.go` and has a broad hook surface.
 
 ### 3.1 Current loop structure
 
@@ -346,17 +346,14 @@ Before any scripting hook surface can be wired:
 
 The initial implementation now exists in the turn engine:
 
-- `internal/turn/hooks.go` — typed hook registry and pi-compatible non-UX hook constants.
-- `internal/turn/tool_registry.go` — runtime tool registry, active-tool set, metadata-enriched entries (`kind`, `weight`, `activation`, `source`, `active`), staged discovery, activation/reset, and registry-backed `tools` meta-tool.
-- `internal/turn/default_tools.go` — built-in tools registered through the runtime registry (`tools`, `skills`, `compact`, `rtk`, `read`, `write`, `script`, `shell`).
-- `internal/skills/discovery.go` — Pi-style workspace discovery for `.gi/skills/*/SKILL.md`, `.pi/skills/*/SKILL.md`, `.gi/tools/*.json`, and `.pi/tools/*.json`.
-- `internal/turn/skills_tools.go` — `skills` meta-tool and auto-registration of manifest-declared script tools into the same runtime registry as built-ins and script-registered tools.
-- `internal/turn/compaction.go` — Piclaw/Pi-style compaction thresholds, token estimation, `session_before_compact` override hook, `session_compact` notification hook, and default summary wrapping for compacted context.
-- `internal/turn/extensions.go` — startup loading for `.gi/extensions/*.js`, `.gi/extensions/*.joke`, `.pi/extensions/*.js`, and `.pi/extensions/*.joke`; this enables a Joker smart-compaction plugin to register `session_before_compact` without manual script execution.
-- `examples/joker-smart-compaction.joke` — runnable Joker extension example that returns a custom compaction summary from the hook payload.
-- `internal/rtk` — native Go RTK-inspired filters for git status/log, search, listings, test output, and generic truncation; exposed through the `rtk` tool for compact command execution without requiring the Rust binary.
-- `examples/rtk-tool-filter.joke` — RTK-inspired Joker `tool_call` filter that rewrites token-heavy `shell` commands through external `rtk` with fallback and rewrites workspace `read` calls to `rtk read`/`cat` shell calls while preserving VFS reads.
-- `internal/turn/agent_loop.go` — hook call sites wired through the agent loop:
+- `internal/turn/engine.go` — centralized turn runtime: hook registry/constants, loop call sites, routing/steering/recovery/direct ingress, and runtime topic publication.
+- `internal/tools/registry.go` + `internal/tools/scope.go` — runtime tool registry, active-tool set, metadata-enriched entries (`kind`, `weight`, `activation`, `source`, `active`), staged discovery, activation/reset, and registry-backed `tools` meta-tool.
+- `internal/tools/extensions.go` — startup loading for `.gi/extensions/*.js`, `.gi/extensions/*.joke`, `.pi/extensions/*.js`, and `.pi/extensions/*.joke`.
+- `internal/skills/discovery.go` + `internal/skills/tools_tool.go` — workspace skill/tool discovery and the `skills` meta-tool.
+- `internal/compaction` — compaction thresholds, token estimation, `session_before_compact` override hook, `session_compact` notification hook, and summary wrapping.
+- `internal/rtk` — native Go RTK-inspired filters for git status/log, search, listings, test output, and generic truncation; exposed through the `rtk` tool.
+- `examples/joker-smart-compaction.joke` and `examples/rtk-tool-filter.joke` — runnable extension examples.
+- Hook call sites wired through the centralized engine runtime:
   - `before_agent_start`
   - `agent_start` / `agent_end`
   - `turn_start` / `turn_end`

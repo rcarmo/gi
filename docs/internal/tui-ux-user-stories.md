@@ -31,7 +31,7 @@ Covers:
 
 - Evidence:
   - `internal/tui/chat.go` `agent_draft_delta` + `new_post` handling
-  - `internal/turn/agent_loop.go`
+  - `internal/turn/engine.go`
   - `internal/turn/engine.go` bootstrap streaming fallback
   - `internal/tui/chat_test.go`
 

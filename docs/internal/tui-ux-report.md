@@ -78,7 +78,7 @@ Draft deltas are surfaced during generation and finalized into transcript entrie
 Evidence:
 
 - `internal/tui/chat.go`
-- `internal/turn/agent_loop.go`
+- `internal/turn/engine.go`
 - `internal/turn/engine.go`
 - `internal/tui/chat_test.go`
 
