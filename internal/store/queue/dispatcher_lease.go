@@ -1,4 +1,4 @@
-package store
+package queue
 
 import (
 	"context"
@@ -19,7 +19,7 @@ type inboundDispatcherLeaseRecord struct {
 	ExpiresAt string `json:"expires_at"`
 }
 
-func (s *Store) AcquireInboundDispatcherLease(ctx context.Context, owner string, ttl time.Duration) (bool, error) {
+func AcquireInboundDispatcherLease(ctx context.Context, db *sql.DB, owner string, ttl time.Duration) (bool, error) {
 	owner = strings.TrimSpace(owner)
 	if owner == "" {
 		return false, fmt.Errorf("acquire inbound dispatcher lease: owner is required")
@@ -29,7 +29,7 @@ func (s *Store) AcquireInboundDispatcherLease(ctx context.Context, owner string,
 	}
 	now := time.Now().UTC()
 	expiresAt := now.Add(ttl).Format(time.RFC3339Nano)
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return false, fmt.Errorf("acquire inbound dispatcher lease begin tx: %w", err)
 	}
@@ -59,7 +59,7 @@ func (s *Store) AcquireInboundDispatcherLease(ctx context.Context, owner string,
 	}
 	if _, err := tx.ExecContext(ctx, `
 		insert into kv_store (namespace, key, value, created_at, updated_at)
-		values (?, ?, ?, `+defaultNow+`, `+defaultNow+`)
+		values (?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 		on conflict(namespace, key) do update set
 			value = excluded.value,
 			updated_at = excluded.updated_at
@@ -72,12 +72,12 @@ func (s *Store) AcquireInboundDispatcherLease(ctx context.Context, owner string,
 	return true, nil
 }
 
-func (s *Store) ReleaseInboundDispatcherLease(ctx context.Context, owner string) error {
+func ReleaseInboundDispatcherLease(ctx context.Context, db *sql.DB, owner string) error {
 	owner = strings.TrimSpace(owner)
 	if owner == "" {
 		return fmt.Errorf("release inbound dispatcher lease: owner is required")
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("release inbound dispatcher lease begin tx: %w", err)
 	}

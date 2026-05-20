@@ -1816,14 +1816,14 @@ func TestStoreInboundDispatcherLeaseSingleOwner(t *testing.T) {
 	}
 	defer s.Close()
 	ctx := context.Background()
-	acquired, err := s.AcquireInboundDispatcherLease(ctx, "owner-a", 100*time.Millisecond)
+	acquired, err := queue.AcquireInboundDispatcherLease(ctx, s.DB(), "owner-a", 100*time.Millisecond)
 	if err != nil {
 		t.Fatalf("acquire first lease: %v", err)
 	}
 	if !acquired {
 		t.Fatal("expected first lease acquisition to succeed")
 	}
-	acquired, err = s.AcquireInboundDispatcherLease(ctx, "owner-b", 100*time.Millisecond)
+	acquired, err = queue.AcquireInboundDispatcherLease(ctx, s.DB(), "owner-b", 100*time.Millisecond)
 	if err != nil {
 		t.Fatalf("acquire competing lease: %v", err)
 	}
@@ -1831,7 +1831,7 @@ func TestStoreInboundDispatcherLeaseSingleOwner(t *testing.T) {
 		t.Fatal("expected competing lease acquisition to fail while current lease is live")
 	}
 	time.Sleep(120 * time.Millisecond)
-	acquired, err = s.AcquireInboundDispatcherLease(ctx, "owner-b", 100*time.Millisecond)
+	acquired, err = queue.AcquireInboundDispatcherLease(ctx, s.DB(), "owner-b", 100*time.Millisecond)
 	if err != nil {
 		t.Fatalf("acquire expired lease: %v", err)
 	}

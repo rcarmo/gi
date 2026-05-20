@@ -81,7 +81,7 @@ func (s *Server) StartInboundWorkDispatcher(ctx context.Context) {
 			leaseTTL = 2 * time.Second
 		}
 		drain := func() {
-			acquired, err := s.store.AcquireInboundDispatcherLease(ctx, leaseOwner, leaseTTL)
+			acquired, err := queue.AcquireInboundDispatcherLease(ctx, s.store.DB(), leaseOwner, leaseTTL)
 			if err != nil {
 				log.Printf("runtime inbound dispatcher lease: %v", err)
 				return
@@ -114,7 +114,7 @@ func (s *Server) StartInboundWorkDispatcher(ctx context.Context) {
 		}
 		go func() {
 			defer func() {
-				if err := s.store.ReleaseInboundDispatcherLease(releaseCtx, leaseOwner); err != nil {
+				if err := queue.ReleaseInboundDispatcherLease(releaseCtx, s.store.DB(), leaseOwner); err != nil {
 					log.Printf("runtime inbound dispatcher release lease: %v", err)
 					return
 				}
