@@ -4,7 +4,7 @@ import "strings"
 
 func IsVirtualNamespace(namespace string) bool {
 	switch strings.TrimSpace(namespace) {
-	case "chat":
+	case NamespaceChat:
 		return true
 	default:
 		return false
@@ -13,7 +13,7 @@ func IsVirtualNamespace(namespace string) bool {
 
 func IsReadOnlyNamespace(namespace string) bool {
 	ns := strings.TrimSpace(namespace)
-	if ns == "reference" {
+	if ns == NamespaceReference {
 		return true
 	}
 	return IsVirtualNamespace(ns)
