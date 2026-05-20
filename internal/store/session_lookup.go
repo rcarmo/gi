@@ -38,7 +38,7 @@ func (s *Store) FindSiblingChildSessionIDByParentAndAgent(ctx context.Context, s
 		from sessions sibling
 		join sessions child on child.parent_session_id = sibling.parent_session_id
 		join session_identities si on si.session_id = child.id
-		where sibling.id = ? and sibling.parent_session_id <> '' and lower(si.agent_id) = ?
+		where sibling.id = ? and sibling.parent_session_id <> '' and child.id <> sibling.id and lower(si.agent_id) = ?
 		order by child.updated_at desc, child.created_at desc
 		limit 1
 	`, siblingSessionID, agentID)
