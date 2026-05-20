@@ -34,7 +34,7 @@ func RecordRouteEvent(ctx context.Context, db *sql.DB, event RouteEvent) (int64,
 		return 0, err
 	}
 	if _, err := db.ExecContext(ctx, `insert into routing_events (turn_id, source_session_id, target_session_id, source_agent_id, target_agent_id, mode, matched_by, routing_policy, requested_agent_id, metadata_json, created_at)
-		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, `+defaultNow+`)`,
 		nilIfEmpty(event.TurnID),
 		event.SourceSession,
 		nilIfEmpty(event.TargetSession),
@@ -53,12 +53,12 @@ func RecordRouteEvent(ctx context.Context, db *sql.DB, event RouteEvent) (int64,
 		return 0, fmt.Errorf("record route event id: %w", err)
 	}
 	if event.SourceSession != "" {
-		if _, err := db.ExecContext(ctx, `update sessions set updated_at = CURRENT_TIMESTAMP where id = ?`, event.SourceSession); err != nil {
+		if _, err := db.ExecContext(ctx, `update sessions set updated_at = `+defaultNow+` where id = ?`, event.SourceSession); err != nil {
 			return 0, fmt.Errorf("record route event source touch: %w", err)
 		}
 	}
 	if event.TargetSession != "" {
-		if _, err := db.ExecContext(ctx, `update sessions set updated_at = CURRENT_TIMESTAMP where id = ?`, event.TargetSession); err != nil {
+		if _, err := db.ExecContext(ctx, `update sessions set updated_at = `+defaultNow+` where id = ?`, event.TargetSession); err != nil {
 			return 0, fmt.Errorf("record route event target touch: %w", err)
 		}
 	}
