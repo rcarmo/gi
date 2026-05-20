@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-const defaultNow = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
-
 type InboundWorkItem struct {
 	ID                 int64          `json:"id"`
 	SourceKind         string         `json:"source_kind"`

@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const defaultNow = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+
 func marshalJSON(v any) (string, error) {
 	if v == nil {
 		return "{}", nil

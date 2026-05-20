@@ -59,7 +59,7 @@ func AcquireInboundDispatcherLease(ctx context.Context, db *sql.DB, owner string
 	}
 	if _, err := tx.ExecContext(ctx, `
 		insert into kv_store (namespace, key, value, created_at, updated_at)
-		values (?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+		values (?, ?, ?, `+defaultNow+`, `+defaultNow+`)
 		on conflict(namespace, key) do update set
 			value = excluded.value,
 			updated_at = excluded.updated_at
