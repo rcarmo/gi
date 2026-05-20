@@ -3,11 +3,12 @@ package store
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
+
+	storevfs "github.com/rcarmo/gi/internal/store/vfs"
 )
 
 func (s *Store) getVirtualVFSFileContent(ctx context.Context, namespace, filePath string) (*VFSFile, []byte, error) {
@@ -49,7 +50,7 @@ func (s *Store) listChatVFSChildren(ctx context.Context, dir string) ([]VFSListE
 		})
 		return entries, nil
 	}
-	parts := splitVirtualPath(dir)
+	parts := storevfs.SplitVirtualPath(dir)
 	if len(parts) >= 2 && parts[0] == "sessions" {
 		sessionID := parts[1]
 		if _, err := s.GetSession(ctx, sessionID); err != nil {
@@ -125,7 +126,7 @@ All files contain markdown with JSON-compatible frontmatter so models can inspec
 		return newVirtualVFSFile("chat", filePath, "chat_sessions_index", body, "", ""), []byte(body), nil
 	}
 
-	parts := splitVirtualPath(filePath)
+	parts := storevfs.SplitVirtualPath(filePath)
 	if len(parts) < 2 || parts[0] != "sessions" {
 		return nil, nil, sql.ErrNoRows
 	}
@@ -148,7 +149,7 @@ All files contain markdown with JSON-compatible frontmatter so models can inspec
 			"state":             session.State,
 		}
 		body := fmt.Sprintf("# Session %s\n\nTitle: %s\n", session.ID, session.Title)
-		raw := renderFrontmatterMarkdown(meta, body)
+		raw := storevfs.RenderFrontmatterMarkdown(meta, body)
 		return newVirtualVFSFile("chat", filePath, "chat_session", string(raw), session.CreatedAt, session.UpdatedAt), raw, nil
 	}
 
@@ -184,7 +185,7 @@ All files contain markdown with JSON-compatible frontmatter so models can inspec
 			"payload":    msg.Payload,
 		}
 		body := msg.Content + "\n"
-		raw := renderFrontmatterMarkdown(meta, body)
+		raw := storevfs.RenderFrontmatterMarkdown(meta, body)
 		return newVirtualVFSFile("chat", filePath, "chat_message", string(raw), msg.CreatedAt, msg.CreatedAt), raw, nil
 	}
 
@@ -226,7 +227,7 @@ All files contain markdown with JSON-compatible frontmatter so models can inspec
 			"metadata":    tr.Metadata,
 		}
 		body := fmt.Sprintf("# Turn %s\n\n## Prompt\n\n%s\n", tr.ID, tr.Prompt)
-		raw := renderFrontmatterMarkdown(meta, body)
+		raw := storevfs.RenderFrontmatterMarkdown(meta, body)
 		return newVirtualVFSFile("chat", filePath, "chat_turn", string(raw), tr.CreatedAt, tr.UpdatedAt), raw, nil
 	}
 
@@ -253,40 +254,6 @@ func newVirtualVFSFile(namespace, filePath, kind, body, createdAt, updatedAt str
 		CreatedAt:      createdAt,
 		UpdatedAt:      updatedAt,
 	}
-}
-
-func renderFrontmatterMarkdown(meta map[string]any, body string) []byte {
-	if meta == nil {
-		meta = map[string]any{}
-	}
-	keys := make([]string, 0, len(meta))
-	for k := range meta {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	var sb strings.Builder
-	sb.WriteString("---\n")
-	for _, k := range keys {
-		raw, _ := json.Marshal(meta[k])
-		sb.WriteString(k)
-		sb.WriteString(": ")
-		sb.Write(raw)
-		sb.WriteString("\n")
-	}
-	sb.WriteString("---\n\n")
-	sb.WriteString(body)
-	if !strings.HasSuffix(body, "\n") {
-		sb.WriteString("\n")
-	}
-	return []byte(sb.String())
-}
-
-func splitVirtualPath(p string) []string {
-	trimmed := strings.Trim(strings.TrimSpace(p), "/")
-	if trimmed == "" {
-		return nil
-	}
-	return strings.Split(trimmed, "/")
 }
 
 func (s *Store) getMessageByID(ctx context.Context, id string) (*Message, error) {
