@@ -1,19 +1,21 @@
-package store
+package store_test
 
 import (
 	"context"
 	"testing"
 
+	"github.com/rcarmo/gi/internal/store"
+	storecache "github.com/rcarmo/gi/internal/store/cache"
 	"golang.org/x/crypto/acme/autocert"
 )
 
 func TestACMEKVCache(t *testing.T) {
-	s, err := Open("file::memory:?cache=shared")
+	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
 	defer s.Close()
-	cache := NewACMESQLiteCache(s)
+	cache := storecache.NewSQLiteCache(s)
 	ctx := context.Background()
 	if _, err := cache.Get(ctx, "missing"); err != autocert.ErrCacheMiss {
 		t.Fatalf("missing error = %v, want ErrCacheMiss", err)
@@ -37,12 +39,12 @@ func TestACMEKVCache(t *testing.T) {
 }
 
 func TestACMEVFSCache(t *testing.T) {
-	s, err := Open("file::memory:?cache=shared")
+	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
 	defer s.Close()
-	cache := NewACMEVFSCache(s)
+	cache := storecache.NewVFSCache(s)
 	ctx := context.Background()
 	if _, err := cache.Get(ctx, "missing"); err != autocert.ErrCacheMiss {
 		t.Fatalf("missing error = %v, want ErrCacheMiss", err)
