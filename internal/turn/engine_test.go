@@ -22,6 +22,7 @@ import (
 	"github.com/rcarmo/gi/internal/scripting"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
+	storeaudit "github.com/rcarmo/gi/internal/store/audit"
 	"github.com/rcarmo/gi/internal/store/queue"
 	"github.com/rcarmo/gi/internal/tools"
 	"github.com/rcarmo/gi/internal/topics"
@@ -4500,11 +4501,11 @@ func TestRecordRouteDecisionSurvivesCanceledCallerContext(t *testing.T) {
 		"routing_enabled":    true,
 	}
 	if err := routing.RecordDecision(engine.backgroundContext(), sess.ID, "turn_route_ctx", metadata, routing.Options{SessionAgentID: s.SessionAgentID, RecordRouteEvent: func(ctx context.Context, event routing.Event) (int64, error) {
-		return s.RecordRouteEvent(ctx, store.RouteEvent(event))
+		return storeaudit.RecordRouteEvent(ctx, s.DB(), storeaudit.RouteEvent(event))
 	}, PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
 		t.Fatalf("record route decision with canceled caller context: %v", err)
 	}
-	events, err := s.ListRouteEvents(ctx, sess.ID)
+	events, err := storeaudit.ListRouteEvents(ctx, s.DB(), sess.ID)
 	if err != nil {
 		t.Fatalf("list route events: %v", err)
 	}
@@ -5515,11 +5516,11 @@ func TestRecordRouteDecisionUsesStoredIdentityInsteadOfSessionScopeJSON(t *testi
 		"route_mode":        "prompt",
 		"routing_enabled":   true,
 	}, routing.Options{SessionAgentID: s.SessionAgentID, RecordRouteEvent: func(ctx context.Context, event routing.Event) (int64, error) {
-		return s.RecordRouteEvent(ctx, store.RouteEvent(event))
+		return storeaudit.RecordRouteEvent(ctx, s.DB(), storeaudit.RouteEvent(event))
 	}, PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
 		t.Fatalf("record route decision: %v", err)
 	}
-	events, err := s.ListRouteEvents(ctx, sess.ID)
+	events, err := storeaudit.ListRouteEvents(ctx, s.DB(), sess.ID)
 	if err != nil {
 		t.Fatalf("list route events: %v", err)
 	}

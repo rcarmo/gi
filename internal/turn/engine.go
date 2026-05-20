@@ -32,6 +32,7 @@ import (
 	"github.com/rcarmo/gi/internal/routing/routedsession"
 	"github.com/rcarmo/gi/internal/scripting"
 	"github.com/rcarmo/gi/internal/store"
+	storeaudit "github.com/rcarmo/gi/internal/store/audit"
 	"github.com/rcarmo/gi/internal/store/queue"
 	"github.com/rcarmo/gi/internal/topics"
 	goai "github.com/rcarmo/go-ai"
@@ -514,7 +515,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		}
 	}
 	if err := routing.RecordDecision(durableCtx, in.SessionID, turnID, metadata, routing.Options{SessionAgentID: e.store.SessionAgentID, RecordRouteEvent: func(ctx context.Context, event routing.Event) (int64, error) {
-		return e.store.RecordRouteEvent(ctx, store.RouteEvent(event))
+		return storeaudit.RecordRouteEvent(ctx, e.store.DB(), storeaudit.RouteEvent(event))
 	}, PublishRuntimeRoutingEvent: e.PublishRuntimeRoutingEvent, Broadcast: e.broadcast}); err != nil {
 		// Non-fatal: routing decisions are an orchestration artifact.
 		log.Printf("orchestration: route decision persist failed: %v", err)

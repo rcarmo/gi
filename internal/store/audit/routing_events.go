@@ -1,4 +1,4 @@
-package store
+package audit
 
 import (
 	"context"
@@ -23,7 +23,7 @@ type RouteEvent struct {
 	CreatedAt      string         `json:"created_at"`
 }
 
-func (s *Store) RecordRouteEvent(ctx context.Context, event RouteEvent) (int64, error) {
+func RecordRouteEvent(ctx context.Context, db *sql.DB, event RouteEvent) (int64, error) {
 	if event.SourceSession == "" {
 		return 0, fmt.Errorf("record route event: missing source_session_id")
 	}
@@ -34,40 +34,40 @@ func (s *Store) RecordRouteEvent(ctx context.Context, event RouteEvent) (int64, 
 	if err != nil {
 		return 0, err
 	}
-	if _, err := s.DB().ExecContext(ctx, `insert into routing_events (turn_id, source_session_id, target_session_id, source_agent_id, target_agent_id, mode, matched_by, routing_policy, requested_agent_id, metadata_json, created_at)
+	if _, err := db.ExecContext(ctx, `insert into routing_events (turn_id, source_session_id, target_session_id, source_agent_id, target_agent_id, mode, matched_by, routing_policy, requested_agent_id, metadata_json, created_at)
 		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-		nilIfEmptyRoute(event.TurnID),
+		nilIfEmpty(event.TurnID),
 		event.SourceSession,
-		nilIfEmptyRoute(event.TargetSession),
-		nilIfEmptyRoute(event.SourceAgentID),
+		nilIfEmpty(event.TargetSession),
+		nilIfEmpty(event.SourceAgentID),
 		event.TargetAgentID,
-		nilIfEmptyRoute(event.Mode),
-		nilIfEmptyRoute(event.MatchedBy),
-		nilIfEmptyRoute(event.RoutingPolicy),
-		nilIfEmptyRoute(event.RequestedAgent),
+		nilIfEmpty(event.Mode),
+		nilIfEmpty(event.MatchedBy),
+		nilIfEmpty(event.RoutingPolicy),
+		nilIfEmpty(event.RequestedAgent),
 		string(payloadJSON),
 	); err != nil {
 		return 0, fmt.Errorf("record route event: %w", err)
 	}
 	var id int64
-	if err := s.DB().QueryRowContext(ctx, `select last_insert_rowid()`).Scan(&id); err != nil {
+	if err := db.QueryRowContext(ctx, `select last_insert_rowid()`).Scan(&id); err != nil {
 		return 0, fmt.Errorf("record route event id: %w", err)
 	}
 	if event.SourceSession != "" {
-		if _, err := s.DB().ExecContext(ctx, `update sessions set updated_at = CURRENT_TIMESTAMP where id = ?`, event.SourceSession); err != nil {
+		if _, err := db.ExecContext(ctx, `update sessions set updated_at = CURRENT_TIMESTAMP where id = ?`, event.SourceSession); err != nil {
 			return 0, fmt.Errorf("record route event source touch: %w", err)
 		}
 	}
 	if event.TargetSession != "" {
-		if _, err := s.DB().ExecContext(ctx, `update sessions set updated_at = CURRENT_TIMESTAMP where id = ?`, event.TargetSession); err != nil {
+		if _, err := db.ExecContext(ctx, `update sessions set updated_at = CURRENT_TIMESTAMP where id = ?`, event.TargetSession); err != nil {
 			return 0, fmt.Errorf("record route event target touch: %w", err)
 		}
 	}
 	return id, nil
 }
 
-func (s *Store) ListRouteEvents(ctx context.Context, sessionID string) ([]RouteEvent, error) {
-	rows, err := s.DB().QueryContext(ctx, `
+func ListRouteEvents(ctx context.Context, db *sql.DB, sessionID string) ([]RouteEvent, error) {
+	rows, err := db.QueryContext(ctx, `
 		select id, turn_id, source_session_id, target_session_id, source_agent_id, target_agent_id, mode, matched_by, routing_policy, requested_agent_id, metadata_json, created_at
 		from routing_events
 		where source_session_id = ? or target_session_id = ?
@@ -102,7 +102,7 @@ func (s *Store) ListRouteEvents(ctx context.Context, sessionID string) ([]RouteE
 	return out, rows.Err()
 }
 
-func nilIfEmptyRoute(v string) any {
+func nilIfEmpty(v string) any {
 	if strings.TrimSpace(v) == "" {
 		return nil
 	}
