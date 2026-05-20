@@ -163,7 +163,7 @@ func CountEligibleInboundWork(ctx context.Context, db *sql.DB) (int, error) {
 func ClaimNextInboundWork(ctx context.Context, db *sql.DB, claimedBy string) (*InboundWorkItem, error) {
 	claimedBy = strings.TrimSpace(claimedBy)
 	if claimedBy == "" {
-		claimedBy = "worker"
+		claimedBy = defaultClaimedByWorker
 	}
 	row := db.QueryRowContext(ctx, `
 		update inbound_work_queue
