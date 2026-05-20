@@ -18,6 +18,7 @@ import (
 	"github.com/rcarmo/gi/internal/config"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/store/queue"
 	"github.com/rcarmo/gi/internal/tools"
 	"github.com/rcarmo/gi/internal/turn"
 )
@@ -611,23 +612,23 @@ func (s *Server) handleRuntimeInboundWork(w http.ResponseWriter, r *http.Request
 			}
 			eligible = &parsed
 		}
-		items, err := s.store.ListInboundWorkFiltered(r.Context(), status, limit, eligible)
+		items, err := queue.ListInboundWorkFiltered(r.Context(), s.store.DB(), status, limit, eligible)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 			return
 		}
-		counts, err := s.store.CountInboundWorkByStatus(r.Context())
+		counts, err := queue.CountInboundWorkByStatus(r.Context(), s.store.DB())
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 			return
 		}
-		eligibleCount, err := s.store.CountEligibleInboundWork(r.Context())
+		eligibleCount, err := queue.CountEligibleInboundWork(r.Context(), s.store.DB())
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 			return
 		}
 		if items == nil {
-			items = []store.InboundWorkItem{}
+			items = []queue.InboundWorkItem{}
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"inbound_work": items, "counts": counts, "eligible_count": eligibleCount})
 	case http.MethodPost:
@@ -671,7 +672,7 @@ func (s *Server) handleRuntimeInboundWorkDrain(w http.ResponseWriter, r *http.Re
 		return
 	}
 	if items == nil {
-		items = []*store.InboundWorkItem{}
+		items = []*queue.InboundWorkItem{}
 	}
 	if results == nil {
 		results = []*turn.SubmitResult{}
@@ -696,7 +697,7 @@ func (s *Server) handleRuntimeInboundWorkRequeue(w http.ResponseWriter, r *http.
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "id is required"})
 		return
 	}
-	item, err := s.store.RequeueInboundWork(r.Context(), req.ID, req.ResetAttempts)
+	item, err := queue.RequeueInboundWork(r.Context(), s.store.DB(), req.ID, req.ResetAttempts)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
@@ -721,7 +722,7 @@ func (s *Server) handleRuntimeInboundWorkDiscard(w http.ResponseWriter, r *http.
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "id is required"})
 		return
 	}
-	item, err := s.store.DiscardInboundWork(r.Context(), req.ID)
+	item, err := queue.DiscardInboundWork(r.Context(), s.store.DB(), req.ID)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return

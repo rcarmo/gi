@@ -1,12 +1,15 @@
-package store
+package queue
 
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 )
+
+const defaultNow = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
 
 type InboundWorkItem struct {
 	ID                 int64          `json:"id"`
@@ -24,7 +27,7 @@ type InboundWorkItem struct {
 	UpdatedAt          string         `json:"updated_at"`
 }
 
-func (s *Store) EnqueueInboundWork(ctx context.Context, sourceKind, sessionID, explicitSessionKey string, envelope map[string]any) (*InboundWorkItem, error) {
+func EnqueueInboundWork(ctx context.Context, db *sql.DB, sourceKind, sessionID, explicitSessionKey string, envelope map[string]any) (*InboundWorkItem, error) {
 	sourceKind = strings.TrimSpace(strings.ToLower(sourceKind))
 	sessionID = strings.TrimSpace(sessionID)
 	explicitSessionKey = strings.TrimSpace(strings.ToLower(explicitSessionKey))
@@ -35,7 +38,7 @@ func (s *Store) EnqueueInboundWork(ctx context.Context, sourceKind, sessionID, e
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.db.ExecContext(ctx, `
+	res, err := db.ExecContext(ctx, `
 		insert into inbound_work_queue (source_kind, session_id, explicit_session_key, envelope_json, status, created_at, updated_at)
 		values (?, ?, ?, ?, 'queued', `+defaultNow+`, `+defaultNow+`)
 	`, sourceKind, nilIfEmpty(sessionID), explicitSessionKey, envelopeJSON)
@@ -46,11 +49,11 @@ func (s *Store) EnqueueInboundWork(ctx context.Context, sourceKind, sessionID, e
 	if err != nil {
 		return nil, fmt.Errorf("enqueue inbound work id: %w", err)
 	}
-	return s.GetInboundWork(ctx, id)
+	return GetInboundWork(ctx, db, id)
 }
 
-func (s *Store) GetInboundWork(ctx context.Context, id int64) (*InboundWorkItem, error) {
-	row := s.db.QueryRowContext(ctx, `
+func GetInboundWork(ctx context.Context, db *sql.DB, id int64) (*InboundWorkItem, error) {
+	row := db.QueryRowContext(ctx, `
 		select id, source_kind, coalesce(session_id,''), explicit_session_key, envelope_json, status, attempt_count, last_error, coalesce(next_attempt_at,''), coalesce(claimed_by,''), coalesce(claimed_at,''), created_at, updated_at
 		from inbound_work_queue
 		where id = ?
@@ -68,11 +71,11 @@ func (s *Store) GetInboundWork(ctx context.Context, id int64) (*InboundWorkItem,
 	return &item, nil
 }
 
-func (s *Store) ListInboundWork(ctx context.Context, status string, limit int) ([]InboundWorkItem, error) {
-	return s.ListInboundWorkFiltered(ctx, status, limit, nil)
+func ListInboundWork(ctx context.Context, db *sql.DB, status string, limit int) ([]InboundWorkItem, error) {
+	return ListInboundWorkFiltered(ctx, db, status, limit, nil)
 }
 
-func (s *Store) ListInboundWorkFiltered(ctx context.Context, status string, limit int, eligible *bool) ([]InboundWorkItem, error) {
+func ListInboundWorkFiltered(ctx context.Context, db *sql.DB, status string, limit int, eligible *bool) ([]InboundWorkItem, error) {
 	status = strings.TrimSpace(strings.ToLower(status))
 	if limit <= 0 {
 		limit = 100
@@ -100,7 +103,7 @@ func (s *Store) ListInboundWorkFiltered(ctx context.Context, status string, limi
 	}
 	query += ` order by id asc limit ?`
 	args = append(args, limit)
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list inbound work: %w", err)
 	}
@@ -125,8 +128,8 @@ func (s *Store) ListInboundWorkFiltered(ctx context.Context, status string, limi
 	return out, nil
 }
 
-func (s *Store) CountInboundWorkByStatus(ctx context.Context) (map[string]int, error) {
-	rows, err := s.db.QueryContext(ctx, `select status, count(*) from inbound_work_queue group by status`)
+func CountInboundWorkByStatus(ctx context.Context, db *sql.DB) (map[string]int, error) {
+	rows, err := db.QueryContext(ctx, `select status, count(*) from inbound_work_queue group by status`)
 	if err != nil {
 		return nil, fmt.Errorf("count inbound work by status: %w", err)
 	}
@@ -146,8 +149,8 @@ func (s *Store) CountInboundWorkByStatus(ctx context.Context) (map[string]int, e
 	return counts, nil
 }
 
-func (s *Store) CountEligibleInboundWork(ctx context.Context) (int, error) {
-	row := s.db.QueryRowContext(ctx, `
+func CountEligibleInboundWork(ctx context.Context, db *sql.DB) (int, error) {
+	row := db.QueryRowContext(ctx, `
 		select count(*)
 		from inbound_work_queue
 		where status = 'queued'
@@ -160,12 +163,12 @@ func (s *Store) CountEligibleInboundWork(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-func (s *Store) ClaimNextInboundWork(ctx context.Context, claimedBy string) (*InboundWorkItem, error) {
+func ClaimNextInboundWork(ctx context.Context, db *sql.DB, claimedBy string) (*InboundWorkItem, error) {
 	claimedBy = strings.TrimSpace(claimedBy)
 	if claimedBy == "" {
 		claimedBy = "worker"
 	}
-	row := s.db.QueryRowContext(ctx, `
+	row := db.QueryRowContext(ctx, `
 		update inbound_work_queue
 		set status = 'claimed', claimed_by = ?, claimed_at = `+defaultNow+`, updated_at = `+defaultNow+`
 		where id = (
@@ -186,15 +189,15 @@ func (s *Store) ClaimNextInboundWork(ctx context.Context, claimedBy string) (*In
 		}
 		return nil, fmt.Errorf("claim inbound work: %w", err)
 	}
-	return s.GetInboundWork(ctx, id)
+	return GetInboundWork(ctx, db, id)
 }
 
-func (s *Store) UpdateInboundWorkStatus(ctx context.Context, id int64, status string) error {
+func UpdateInboundWorkStatus(ctx context.Context, db *sql.DB, id int64, status string) error {
 	status = strings.TrimSpace(strings.ToLower(status))
 	if status == "" {
 		return fmt.Errorf("update inbound work status: status is required")
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := db.ExecContext(ctx, `
 		update inbound_work_queue
 		set status = ?,
 			last_error = case when ? = 'completed' then '' else last_error end,
@@ -210,12 +213,12 @@ func (s *Store) UpdateInboundWorkStatus(ctx context.Context, id int64, status st
 	return nil
 }
 
-func (s *Store) RecordInboundWorkRetry(ctx context.Context, id int64, attemptCount int, errText string, delay time.Duration) error {
+func RecordInboundWorkRetry(ctx context.Context, db *sql.DB, id int64, attemptCount int, errText string, delay time.Duration) error {
 	errText = strings.TrimSpace(errText)
 	if delay < 0 {
 		delay = 0
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := db.ExecContext(ctx, `
 		update inbound_work_queue
 		set status = 'retry',
 			attempt_count = ?,
@@ -232,9 +235,9 @@ func (s *Store) RecordInboundWorkRetry(ctx context.Context, id int64, attemptCou
 	return nil
 }
 
-func (s *Store) RecordInboundWorkFailure(ctx context.Context, id int64, attemptCount int, errText string) error {
+func RecordInboundWorkFailure(ctx context.Context, db *sql.DB, id int64, attemptCount int, errText string) error {
 	errText = strings.TrimSpace(errText)
-	_, err := s.db.ExecContext(ctx, `
+	_, err := db.ExecContext(ctx, `
 		update inbound_work_queue
 		set status = 'failed',
 			attempt_count = ?,
@@ -251,12 +254,12 @@ func (s *Store) RecordInboundWorkFailure(ctx context.Context, id int64, attemptC
 	return nil
 }
 
-func (s *Store) RequeueInboundWork(ctx context.Context, id int64, resetAttempts bool) (*InboundWorkItem, error) {
+func RequeueInboundWork(ctx context.Context, db *sql.DB, id int64, resetAttempts bool) (*InboundWorkItem, error) {
 	attemptExpr := `attempt_count`
 	if resetAttempts {
 		attemptExpr = `0`
 	}
-	res, err := s.db.ExecContext(ctx, `
+	res, err := db.ExecContext(ctx, `
 		update inbound_work_queue
 		set status = 'queued',
 			attempt_count = `+attemptExpr+`,
@@ -275,17 +278,17 @@ func (s *Store) RequeueInboundWork(ctx context.Context, id int64, resetAttempts 
 		return nil, fmt.Errorf("requeue inbound work rows: %w", err)
 	}
 	if rows == 0 {
-		item, getErr := s.GetInboundWork(ctx, id)
+		item, getErr := GetInboundWork(ctx, db, id)
 		if getErr != nil {
 			return nil, fmt.Errorf("requeue inbound work: %w", getErr)
 		}
 		return nil, fmt.Errorf("requeue inbound work: item %d is not requeueable from status %q", id, item.Status)
 	}
-	return s.GetInboundWork(ctx, id)
+	return GetInboundWork(ctx, db, id)
 }
 
-func (s *Store) DiscardInboundWork(ctx context.Context, id int64) (*InboundWorkItem, error) {
-	res, err := s.db.ExecContext(ctx, `
+func DiscardInboundWork(ctx context.Context, db *sql.DB, id int64) (*InboundWorkItem, error) {
+	res, err := db.ExecContext(ctx, `
 		update inbound_work_queue
 		set status = 'discarded',
 			next_attempt_at = null,
@@ -302,11 +305,45 @@ func (s *Store) DiscardInboundWork(ctx context.Context, id int64) (*InboundWorkI
 		return nil, fmt.Errorf("discard inbound work rows: %w", err)
 	}
 	if rows == 0 {
-		item, getErr := s.GetInboundWork(ctx, id)
+		item, getErr := GetInboundWork(ctx, db, id)
 		if getErr != nil {
 			return nil, fmt.Errorf("discard inbound work: %w", getErr)
 		}
 		return nil, fmt.Errorf("discard inbound work: item %d is not discardable from status %q", id, item.Status)
 	}
-	return s.GetInboundWork(ctx, id)
+	return GetInboundWork(ctx, db, id)
+}
+
+func marshalJSON(v any) (string, error) {
+	if v == nil {
+		return "{}", nil
+	}
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func unmarshalJSONMap(v string) (map[string]any, error) {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return map[string]any{}, nil
+	}
+	var out map[string]any
+	if err := json.Unmarshal([]byte(v), &out); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = map[string]any{}
+	}
+	return out, nil
+}
+
+func nilIfEmpty(v string) any {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return nil
+	}
+	return v
 }

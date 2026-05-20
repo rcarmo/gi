@@ -17,6 +17,7 @@ import (
 	"github.com/rcarmo/gi/internal/routing"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/store/queue"
 	"github.com/rcarmo/gi/internal/topics"
 	"github.com/rcarmo/gi/internal/turn"
 )
@@ -419,7 +420,7 @@ func TestRuntimeInboundWorkPublishesTopicLifecycleEvents(t *testing.T) {
 		t.Fatalf("unexpected enqueue status: %d body=%s", enqueueRes.Code, enqueueRes.Body.String())
 	}
 	var enqueuePayload struct {
-		Item store.InboundWorkItem `json:"item"`
+		Item queue.InboundWorkItem `json:"item"`
 	}
 	if err := json.Unmarshal(enqueueRes.Body.Bytes(), &enqueuePayload); err != nil {
 		t.Fatalf("decode enqueue response: %v", err)
@@ -431,7 +432,7 @@ func TestRuntimeInboundWorkPublishesTopicLifecycleEvents(t *testing.T) {
 	if requeueRes.Code != http.StatusBadRequest {
 		t.Fatalf("expected queued item requeue rejection, got %d body=%s", requeueRes.Code, requeueRes.Body.String())
 	}
-	if err := s.RecordInboundWorkFailure(t.Context(), enqueuePayload.Item.ID, 1, "bad"); err != nil {
+	if err := queue.RecordInboundWorkFailure(t.Context(), s.DB(), enqueuePayload.Item.ID, 1, "bad"); err != nil {
 		t.Fatalf("mark inbound work failed: %v", err)
 	}
 	requeueReq = httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work/requeue", bytes.NewBufferString(fmt.Sprintf(`{"id":%d}`, enqueuePayload.Item.ID)))
@@ -525,7 +526,7 @@ func TestTopicSSEStreamsRuntimeTopicEvents(t *testing.T) {
 		srv.Handler().ServeHTTP(res, req)
 	}()
 	time.Sleep(25 * time.Millisecond)
-	engine.PublishRuntimeInboundWorkEvent("inbound_work_test", &store.InboundWorkItem{ID: 1, Status: "queued", SessionID: "session_topic_sse", SourceKind: "ipc"}, nil)
+	engine.PublishRuntimeInboundWorkEvent("inbound_work_test", &queue.InboundWorkItem{ID: 1, Status: "queued", SessionID: "session_topic_sse", SourceKind: "ipc"}, nil)
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		body := res.Body.String()
@@ -637,7 +638,7 @@ func TestRuntimeInboundWorkDispatcherProcessesQueuedItems(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			items, listErr := s.ListInboundWork(t.Context(), "", 10)
+			items, listErr := queue.ListInboundWork(t.Context(), s.DB(), "", 10)
 			if listErr != nil {
 				t.Fatalf("timed out waiting for dispatcher; list inbound work: %v", listErr)
 			}
@@ -683,7 +684,7 @@ func TestRuntimeInboundWorkDispatcherContinuesPastRetryingItem(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			items, listErr := s.ListInboundWork(t.Context(), "", 10)
+			items, listErr := queue.ListInboundWork(t.Context(), s.DB(), "", 10)
 			if listErr != nil {
 				t.Fatalf("timed out waiting for dispatcher after retry item; list inbound work: %v", listErr)
 			}
@@ -691,7 +692,7 @@ func TestRuntimeInboundWorkDispatcherContinuesPastRetryingItem(t *testing.T) {
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
-	items, err := s.ListInboundWork(t.Context(), "", 10)
+	items, err := queue.ListInboundWork(t.Context(), s.DB(), "", 10)
 	if err != nil {
 		t.Fatalf("list inbound work: %v", err)
 	}
@@ -707,21 +708,21 @@ func TestRuntimeInboundWorkEligibleFilterAndCounts(t *testing.T) {
 	}
 	defer s.Close()
 	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
-	if _, err := s.EnqueueInboundWork(t.Context(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "ready now"}); err != nil {
+	if _, err := queue.EnqueueInboundWork(t.Context(), s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "ready now"}); err != nil {
 		t.Fatalf("enqueue queued item: %v", err)
 	}
-	retrying, err := s.EnqueueInboundWork(t.Context(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "retry later"})
+	retrying, err := queue.EnqueueInboundWork(t.Context(), s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "retry later"})
 	if err != nil {
 		t.Fatalf("enqueue retry item: %v", err)
 	}
-	if err := s.RecordInboundWorkRetry(t.Context(), retrying.ID, 1, "temporary failure", time.Minute); err != nil {
+	if err := queue.RecordInboundWorkRetry(t.Context(), s.DB(), retrying.ID, 1, "temporary failure", time.Minute); err != nil {
 		t.Fatalf("mark retry item: %v", err)
 	}
-	failed, err := s.EnqueueInboundWork(t.Context(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "failed"})
+	failed, err := queue.EnqueueInboundWork(t.Context(), s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "failed"})
 	if err != nil {
 		t.Fatalf("enqueue failed item: %v", err)
 	}
-	if err := s.RecordInboundWorkFailure(t.Context(), failed.ID, 3, "permanent failure"); err != nil {
+	if err := queue.RecordInboundWorkFailure(t.Context(), s.DB(), failed.ID, 3, "permanent failure"); err != nil {
 		t.Fatalf("mark failed item: %v", err)
 	}
 	readyReq := httptest.NewRequest(http.MethodGet, "/api/runtime/inbound-work?eligible=true&limit=10", nil)
@@ -754,11 +755,11 @@ func TestRuntimeInboundWorkRequeueEndpoint(t *testing.T) {
 	}
 	defer s.Close()
 	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
-	item, err := s.EnqueueInboundWork(t.Context(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "manual requeue"})
+	item, err := queue.EnqueueInboundWork(t.Context(), s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "manual requeue"})
 	if err != nil {
 		t.Fatalf("enqueue inbound work: %v", err)
 	}
-	if err := s.RecordInboundWorkFailure(t.Context(), item.ID, 3, "boom"); err != nil {
+	if err := queue.RecordInboundWorkFailure(t.Context(), s.DB(), item.ID, 3, "boom"); err != nil {
 		t.Fatalf("record failure: %v", err)
 	}
 	req := httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work/requeue", bytes.NewBufferString(fmt.Sprintf(`{"id":%d,"reset_attempts":true}`, item.ID)))
@@ -780,7 +781,7 @@ func TestRuntimeInboundWorkRequeueRejectsQueuedItem(t *testing.T) {
 	}
 	defer s.Close()
 	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
-	item, err := s.EnqueueInboundWork(t.Context(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "still queued"})
+	item, err := queue.EnqueueInboundWork(t.Context(), s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "still queued"})
 	if err != nil {
 		t.Fatalf("enqueue inbound work: %v", err)
 	}
@@ -800,7 +801,7 @@ func TestRuntimeInboundWorkDiscardEndpoint(t *testing.T) {
 	}
 	defer s.Close()
 	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
-	item, err := s.EnqueueInboundWork(t.Context(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "discard me"})
+	item, err := queue.EnqueueInboundWork(t.Context(), s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "discard me"})
 	if err != nil {
 		t.Fatalf("enqueue inbound work: %v", err)
 	}
@@ -823,11 +824,11 @@ func TestRuntimeInboundWorkDiscardRejectsCompletedItem(t *testing.T) {
 	}
 	defer s.Close()
 	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
-	item, err := s.EnqueueInboundWork(t.Context(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "complete then discard"})
+	item, err := queue.EnqueueInboundWork(t.Context(), s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "complete then discard"})
 	if err != nil {
 		t.Fatalf("enqueue inbound work: %v", err)
 	}
-	if err := s.UpdateInboundWorkStatus(t.Context(), item.ID, "completed"); err != nil {
+	if err := queue.UpdateInboundWorkStatus(t.Context(), s.DB(), item.ID, "completed"); err != nil {
 		t.Fatalf("mark inbound work completed: %v", err)
 	}
 	req := httptest.NewRequest(http.MethodPost, "/api/runtime/inbound-work/discard", bytes.NewBufferString(fmt.Sprintf(`{"id":%d}`, item.ID)))
@@ -966,7 +967,7 @@ func TestRuntimeInboundWorkDispatcherUsesSingleLeaseHolder(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			items, listErr := s.ListInboundWork(t.Context(), "", 10)
+			items, listErr := queue.ListInboundWork(t.Context(), s.DB(), "", 10)
 			if listErr != nil {
 				t.Fatalf("timed out waiting for leased dispatcher; list inbound work: %v", listErr)
 			}
@@ -974,7 +975,7 @@ func TestRuntimeInboundWorkDispatcherUsesSingleLeaseHolder(t *testing.T) {
 		}
 		time.Sleep(25 * time.Millisecond)
 	}
-	items, err := s.ListInboundWork(t.Context(), "completed", 10)
+	items, err := queue.ListInboundWork(t.Context(), s.DB(), "completed", 10)
 	if err != nil {
 		t.Fatalf("list completed inbound work: %v", err)
 	}

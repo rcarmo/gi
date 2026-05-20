@@ -22,6 +22,7 @@ import (
 	"github.com/rcarmo/gi/internal/scripting"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/store/queue"
 	"github.com/rcarmo/gi/internal/tools"
 	"github.com/rcarmo/gi/internal/topics"
 	goai "github.com/rcarmo/go-ai"
@@ -4741,7 +4742,7 @@ func TestEnqueueDirectInboundSurvivesCanceledCallerContext(t *testing.T) {
 	if queued.Status != "queued" || queued.ID <= 0 {
 		t.Fatalf("expected queued inbound item, got %#v", queued)
 	}
-	item, err := s.GetInboundWork(ctx, queued.ID)
+	item, err := queue.GetInboundWork(ctx, s.DB(), queued.ID)
 	if err != nil {
 		t.Fatalf("get inbound work: %v", err)
 	}
@@ -4844,11 +4845,11 @@ func TestFinalizeInboundWorkAttemptSurvivesCanceledCallerContextAfterClaim(t *te
 	defer s.Close()
 	ctx := context.Background()
 	engine := New(s)
-	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "missing target session"})
+	queued, err := queue.EnqueueInboundWork(ctx, s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "missing target session"})
 	if err != nil {
 		t.Fatalf("enqueue bad inbound work: %v", err)
 	}
-	claimed, err := s.ClaimNextInboundWork(ctx, "queue-worker")
+	claimed, err := queue.ClaimNextInboundWork(ctx, s.DB(), "queue-worker")
 	if err != nil {
 		t.Fatalf("claim inbound work: %v", err)
 	}
@@ -4861,7 +4862,7 @@ func TestFinalizeInboundWorkAttemptSurvivesCanceledCallerContextAfterClaim(t *te
 	if item == nil || item.ID != queued.ID || item.Status != "retry" || item.AttemptCount != 1 || item.LastError == "" || item.ClaimedBy != "" || item.ClaimedAt != "" {
 		t.Fatalf("expected retry-marked inbound work with cleared claim state after canceled processing context, got queued=%#v item=%#v err=%v", queued, item, err)
 	}
-	stored, getErr := s.GetInboundWork(ctx, queued.ID)
+	stored, getErr := queue.GetInboundWork(ctx, s.DB(), queued.ID)
 	if getErr != nil {
 		t.Fatalf("get inbound work after canceled processing: %v", getErr)
 	}
@@ -4875,7 +4876,7 @@ func TestProcessNextInboundWorkMarksRetryOnFirstFailure(t *testing.T) {
 	defer s.Close()
 	ctx := context.Background()
 	engine := New(s)
-	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "missing target session"})
+	queued, err := queue.EnqueueInboundWork(ctx, s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "missing target session"})
 	if err != nil {
 		t.Fatalf("enqueue bad inbound work: %v", err)
 	}
@@ -4893,11 +4894,11 @@ func TestProcessNextInboundWorkEventuallyMarksFailedAfterRetryBudget(t *testing.
 	defer s.Close()
 	ctx := context.Background()
 	engine := New(s)
-	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "missing target session"})
+	queued, err := queue.EnqueueInboundWork(ctx, s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "missing target session"})
 	if err != nil {
 		t.Fatalf("enqueue bad inbound work: %v", err)
 	}
-	if err := s.RecordInboundWorkRetry(ctx, queued.ID, inboundWorkMaxAttempts-1, "previous failure", 0); err != nil {
+	if err := queue.RecordInboundWorkRetry(ctx, s.DB(), queued.ID, inboundWorkMaxAttempts-1, "previous failure", 0); err != nil {
 		t.Fatalf("seed retry attempt count: %v", err)
 	}
 	item, result, err := engine.ProcessNextInboundWork(ctx, "queue-worker")
@@ -7728,7 +7729,7 @@ func TestPublishRuntimeInboundWorkEventPreservesCanonicalFields(t *testing.T) {
 	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.inbound_work", topics.SubscribeOptions{Buffer: 8, SessionID: "session_inbound_topic"})
 	defer unsub()
 
-	item := &store.InboundWorkItem{ID: 17, Status: "retry", SourceKind: "direct", SessionID: "session_inbound_topic", ExplicitSessionKey: "session-key", AttemptCount: 2, LastError: "boom", NextAttemptAt: "2026-05-12T18:00:00Z", ClaimedBy: "worker-1", ClaimedAt: "2026-05-12T17:59:00Z", CreatedAt: "2026-05-12T17:58:00Z", UpdatedAt: "2026-05-12T17:59:30Z"}
+	item := &queue.InboundWorkItem{ID: 17, Status: "retry", SourceKind: "direct", SessionID: "session_inbound_topic", ExplicitSessionKey: "session-key", AttemptCount: 2, LastError: "boom", NextAttemptAt: "2026-05-12T18:00:00Z", ClaimedBy: "worker-1", ClaimedAt: "2026-05-12T17:59:00Z", CreatedAt: "2026-05-12T17:58:00Z", UpdatedAt: "2026-05-12T17:59:30Z"}
 	engine.PublishRuntimeInboundWorkEvent("inbound_work_retry_scheduled", item, map[string]any{"type": "oops", "id": 999, "status": "completed", "session_id": "wrong", "attempt_count": 0, "note": "keep me"})
 
 	select {

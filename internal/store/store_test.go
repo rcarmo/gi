@@ -12,6 +12,7 @@ import (
 
 	"github.com/rcarmo/gi/internal/routing"
 	gisession "github.com/rcarmo/gi/internal/session"
+	"github.com/rcarmo/gi/internal/store/queue"
 )
 
 func TestStoreSessionTurnMessageFlow(t *testing.T) {
@@ -1597,7 +1598,7 @@ func TestStoreInboundWorkQueueConcurrentClaimSingleWinner(t *testing.T) {
 	}
 	defer s.Close()
 	ctx := context.Background()
-	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "hello"})
+	queued, err := queue.EnqueueInboundWork(ctx, s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "hello"})
 	if err != nil {
 		t.Fatalf("enqueue inbound work: %v", err)
 	}
@@ -1609,7 +1610,7 @@ func TestStoreInboundWorkQueueConcurrentClaimSingleWinner(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			item, err := s.ClaimNextInboundWork(ctx, fmt.Sprintf("worker-%d", i))
+			item, err := queue.ClaimNextInboundWork(ctx, s.DB(), fmt.Sprintf("worker-%d", i))
 			if err == sql.ErrNoRows {
 				return
 			}
@@ -1635,7 +1636,7 @@ func TestStoreInboundWorkQueueConcurrentClaimSingleWinner(t *testing.T) {
 	if len(claims) != 1 || claims[0] != queued.ID {
 		t.Fatalf("expected exactly one successful claim for %d, got %#v", queued.ID, claims)
 	}
-	item, err := s.GetInboundWork(ctx, queued.ID)
+	item, err := queue.GetInboundWork(ctx, s.DB(), queued.ID)
 	if err != nil {
 		t.Fatalf("get claimed inbound work: %v", err)
 	}
@@ -1651,25 +1652,25 @@ func TestStoreInboundWorkRetryScheduling(t *testing.T) {
 	}
 	defer s.Close()
 	ctx := context.Background()
-	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "retry me"})
+	queued, err := queue.EnqueueInboundWork(ctx, s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "retry me"})
 	if err != nil {
 		t.Fatalf("enqueue inbound work: %v", err)
 	}
-	if err := s.RecordInboundWorkRetry(ctx, queued.ID, 1, "temporary failure", 30*time.Millisecond); err != nil {
+	if err := queue.RecordInboundWorkRetry(ctx, s.DB(), queued.ID, 1, "temporary failure", 30*time.Millisecond); err != nil {
 		t.Fatalf("record inbound work retry: %v", err)
 	}
-	retried, err := s.GetInboundWork(ctx, queued.ID)
+	retried, err := queue.GetInboundWork(ctx, s.DB(), queued.ID)
 	if err != nil {
 		t.Fatalf("get retried inbound work: %v", err)
 	}
 	if retried.Status != "retry" || retried.AttemptCount != 1 || retried.LastError != "temporary failure" || retried.NextAttemptAt == "" || retried.ClaimedBy != "" || retried.ClaimedAt != "" {
 		t.Fatalf("unexpected retried inbound work: %#v", retried)
 	}
-	if _, err := s.ClaimNextInboundWork(ctx, "worker-too-early"); err != sql.ErrNoRows {
+	if _, err := queue.ClaimNextInboundWork(ctx, s.DB(), "worker-too-early"); err != sql.ErrNoRows {
 		t.Fatalf("expected no eligible retry claim before backoff expires, got %v", err)
 	}
 	time.Sleep(40 * time.Millisecond)
-	claimed, err := s.ClaimNextInboundWork(ctx, "worker-after-backoff")
+	claimed, err := queue.ClaimNextInboundWork(ctx, s.DB(), "worker-after-backoff")
 	if err != nil {
 		t.Fatalf("claim inbound work after backoff: %v", err)
 	}
@@ -1685,35 +1686,35 @@ func TestStoreRequeueInboundWork(t *testing.T) {
 	}
 	defer s.Close()
 	ctx := context.Background()
-	queuedA, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "requeue me"})
+	queuedA, err := queue.EnqueueInboundWork(ctx, s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "requeue me"})
 	if err != nil {
 		t.Fatalf("enqueue inbound work a: %v", err)
 	}
-	if err := s.RecordInboundWorkFailure(ctx, queuedA.ID, 3, "bad input"); err != nil {
+	if err := queue.RecordInboundWorkFailure(ctx, s.DB(), queuedA.ID, 3, "bad input"); err != nil {
 		t.Fatalf("record failure a: %v", err)
 	}
-	requeued, err := s.RequeueInboundWork(ctx, queuedA.ID, false)
+	requeued, err := queue.RequeueInboundWork(ctx, s.DB(), queuedA.ID, false)
 	if err != nil {
 		t.Fatalf("requeue inbound work: %v", err)
 	}
 	if requeued.Status != "queued" || requeued.AttemptCount != 3 || requeued.LastError != "" || requeued.NextAttemptAt != "" || requeued.ClaimedBy != "" || requeued.ClaimedAt != "" {
 		t.Fatalf("unexpected requeued inbound work: %#v", requeued)
 	}
-	queuedB, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "requeue and reset"})
+	queuedB, err := queue.EnqueueInboundWork(ctx, s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "requeue and reset"})
 	if err != nil {
 		t.Fatalf("enqueue inbound work b: %v", err)
 	}
-	if err := s.RecordInboundWorkFailure(ctx, queuedB.ID, 2, "bad input again"); err != nil {
+	if err := queue.RecordInboundWorkFailure(ctx, s.DB(), queuedB.ID, 2, "bad input again"); err != nil {
 		t.Fatalf("record failure b: %v", err)
 	}
-	reset, err := s.RequeueInboundWork(ctx, queuedB.ID, true)
+	reset, err := queue.RequeueInboundWork(ctx, s.DB(), queuedB.ID, true)
 	if err != nil {
 		t.Fatalf("requeue inbound work with reset: %v", err)
 	}
 	if reset.AttemptCount != 0 || reset.Status != "queued" {
 		t.Fatalf("expected attempt count reset on requeue, got %#v", reset)
 	}
-	claimed, err := s.ClaimNextInboundWork(ctx, "worker")
+	claimed, err := queue.ClaimNextInboundWork(ctx, s.DB(), "worker")
 	if err != nil {
 		t.Fatalf("claim requeued work: %v", err)
 	}
@@ -1729,25 +1730,25 @@ func TestStoreDiscardInboundWork(t *testing.T) {
 	}
 	defer s.Close()
 	ctx := context.Background()
-	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "discard queued"})
+	queued, err := queue.EnqueueInboundWork(ctx, s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "discard queued"})
 	if err != nil {
 		t.Fatalf("enqueue queued inbound work: %v", err)
 	}
-	discardedQueued, err := s.DiscardInboundWork(ctx, queued.ID)
+	discardedQueued, err := queue.DiscardInboundWork(ctx, s.DB(), queued.ID)
 	if err != nil {
 		t.Fatalf("discard queued inbound work: %v", err)
 	}
 	if discardedQueued.Status != "discarded" || discardedQueued.NextAttemptAt != "" || discardedQueued.ClaimedBy != "" || discardedQueued.ClaimedAt != "" {
 		t.Fatalf("unexpected discarded queued item: %#v", discardedQueued)
 	}
-	failed, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "discard failed"})
+	failed, err := queue.EnqueueInboundWork(ctx, s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "discard failed"})
 	if err != nil {
 		t.Fatalf("enqueue failed inbound work: %v", err)
 	}
-	if err := s.RecordInboundWorkFailure(ctx, failed.ID, 3, "bad input"); err != nil {
+	if err := queue.RecordInboundWorkFailure(ctx, s.DB(), failed.ID, 3, "bad input"); err != nil {
 		t.Fatalf("record failure: %v", err)
 	}
-	discardedFailed, err := s.DiscardInboundWork(ctx, failed.ID)
+	discardedFailed, err := queue.DiscardInboundWork(ctx, s.DB(), failed.ID)
 	if err != nil {
 		t.Fatalf("discard failed inbound work: %v", err)
 	}
@@ -1846,14 +1847,14 @@ func TestStoreDiscardInboundWorkRejectsNonDiscardableState(t *testing.T) {
 	}
 	defer s.Close()
 	ctx := context.Background()
-	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "complete me"})
+	queued, err := queue.EnqueueInboundWork(ctx, s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "complete me"})
 	if err != nil {
 		t.Fatalf("enqueue inbound work: %v", err)
 	}
-	if err := s.UpdateInboundWorkStatus(ctx, queued.ID, "completed"); err != nil {
+	if err := queue.UpdateInboundWorkStatus(ctx, s.DB(), queued.ID, "completed"); err != nil {
 		t.Fatalf("mark inbound work completed: %v", err)
 	}
-	if _, err := s.DiscardInboundWork(ctx, queued.ID); err == nil {
+	if _, err := queue.DiscardInboundWork(ctx, s.DB(), queued.ID); err == nil {
 		t.Fatal("expected discard of completed item to fail")
 	}
 }
@@ -1865,11 +1866,11 @@ func TestStoreRequeueInboundWorkRejectsNonRequeueableState(t *testing.T) {
 	}
 	defer s.Close()
 	ctx := context.Background()
-	queued, err := s.EnqueueInboundWork(ctx, "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "still queued"})
+	queued, err := queue.EnqueueInboundWork(ctx, s.DB(), "ipc", "", "", map[string]any{"kind": "prompt", "prompt": "still queued"})
 	if err != nil {
 		t.Fatalf("enqueue inbound work: %v", err)
 	}
-	if _, err := s.RequeueInboundWork(ctx, queued.ID, false); err == nil {
+	if _, err := queue.RequeueInboundWork(ctx, s.DB(), queued.ID, false); err == nil {
 		t.Fatal("expected requeue of queued item to fail")
 	}
 }
@@ -1885,39 +1886,39 @@ func TestStoreInboundWorkQueueLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	queuedA, err := s.EnqueueInboundWork(ctx, "ipc", sess.ID, "", map[string]any{"kind": "prompt", "prompt": "hello"})
+	queuedA, err := queue.EnqueueInboundWork(ctx, s.DB(), "ipc", sess.ID, "", map[string]any{"kind": "prompt", "prompt": "hello"})
 	if err != nil {
 		t.Fatalf("enqueue inbound work a: %v", err)
 	}
-	queuedB, err := s.EnqueueInboundWork(ctx, "system", "", "opaque-session-key", map[string]any{"kind": "continue"})
+	queuedB, err := queue.EnqueueInboundWork(ctx, s.DB(), "system", "", "opaque-session-key", map[string]any{"kind": "continue"})
 	if err != nil {
 		t.Fatalf("enqueue inbound work b: %v", err)
 	}
-	items, err := s.ListInboundWork(ctx, "queued", 10)
+	items, err := queue.ListInboundWork(ctx, s.DB(), "queued", 10)
 	if err != nil {
 		t.Fatalf("list queued inbound work: %v", err)
 	}
 	if len(items) != 2 || items[0].ID != queuedA.ID || items[1].ID != queuedB.ID {
 		t.Fatalf("unexpected queued inbound work list: %#v", items)
 	}
-	claimed, err := s.ClaimNextInboundWork(ctx, "worker-1")
+	claimed, err := queue.ClaimNextInboundWork(ctx, s.DB(), "worker-1")
 	if err != nil {
 		t.Fatalf("claim inbound work: %v", err)
 	}
 	if claimed.ID != queuedA.ID || claimed.Status != "claimed" || claimed.ClaimedBy != "worker-1" {
 		t.Fatalf("unexpected claimed inbound work: %#v", claimed)
 	}
-	if err := s.UpdateInboundWorkStatus(ctx, claimed.ID, "completed"); err != nil {
+	if err := queue.UpdateInboundWorkStatus(ctx, s.DB(), claimed.ID, "completed"); err != nil {
 		t.Fatalf("update inbound work status: %v", err)
 	}
-	completed, err := s.GetInboundWork(ctx, claimed.ID)
+	completed, err := queue.GetInboundWork(ctx, s.DB(), claimed.ID)
 	if err != nil {
 		t.Fatalf("get completed inbound work: %v", err)
 	}
 	if completed.Status != "completed" || completed.ClaimedBy != "" || completed.ClaimedAt != "" {
 		t.Fatalf("expected completed inbound work with cleared claim state, got %#v", completed)
 	}
-	remaining, err := s.ClaimNextInboundWork(ctx, "worker-2")
+	remaining, err := queue.ClaimNextInboundWork(ctx, s.DB(), "worker-2")
 	if err != nil {
 		t.Fatalf("claim second inbound work: %v", err)
 	}

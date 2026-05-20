@@ -32,6 +32,7 @@ import (
 	"github.com/rcarmo/gi/internal/routing/routedsession"
 	"github.com/rcarmo/gi/internal/scripting"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/store/queue"
 	"github.com/rcarmo/gi/internal/topics"
 	goai "github.com/rcarmo/go-ai"
 )
@@ -1291,14 +1292,14 @@ const (
 	inboundWorkRetryDelay  = 2 * time.Second
 )
 
-func (e *Engine) EnqueueDirectInbound(ctx context.Context, in DirectInput) (*store.InboundWorkItem, error) {
+func (e *Engine) EnqueueDirectInbound(ctx context.Context, in DirectInput) (*queue.InboundWorkItem, error) {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if e.store == nil {
 		return nil, fmt.Errorf("direct inbound queue requires store")
 	}
 	sourceKind := normalizeDirectSourceKind(in.Origin.SourceKind)
 	envelope := directEnvelopeFromInput(in)
-	item, err := e.store.EnqueueInboundWork(opCtx, sourceKind, strings.TrimSpace(in.SessionID), strings.TrimSpace(in.SessionKey), envelope)
+	item, err := queue.EnqueueInboundWork(opCtx, e.store.DB(), sourceKind, strings.TrimSpace(in.SessionID), strings.TrimSpace(in.SessionKey), envelope)
 	if err != nil {
 		return nil, err
 	}
@@ -1306,11 +1307,11 @@ func (e *Engine) EnqueueDirectInbound(ctx context.Context, in DirectInput) (*sto
 	return item, nil
 }
 
-func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (*store.InboundWorkItem, *SubmitResult, error) {
+func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (*queue.InboundWorkItem, *SubmitResult, error) {
 	if e.store == nil {
 		return nil, nil, fmt.Errorf("inbound work processing requires store")
 	}
-	item, err := e.store.ClaimNextInboundWork(ctx, claimedBy)
+	item, err := queue.ClaimNextInboundWork(ctx, e.store.DB(), claimedBy)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1328,31 +1329,31 @@ func (e *Engine) ProcessNextInboundWork(ctx context.Context, claimedBy string) (
 	return e.finalizeInboundWorkAttempt(ctx, item, result, processErr)
 }
 
-func (e *Engine) finalizeInboundWorkAttempt(ctx context.Context, item *store.InboundWorkItem, result *SubmitResult, processErr error) (*store.InboundWorkItem, *SubmitResult, error) {
+func (e *Engine) finalizeInboundWorkAttempt(ctx context.Context, item *queue.InboundWorkItem, result *SubmitResult, processErr error) (*queue.InboundWorkItem, *SubmitResult, error) {
 	postCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if processErr != nil {
 		attemptCount := item.AttemptCount + 1
 		var updateErr error
 		if attemptCount >= inboundWorkMaxAttempts {
-			updateErr = e.store.RecordInboundWorkFailure(postCtx, item.ID, attemptCount, processErr.Error())
+			updateErr = queue.RecordInboundWorkFailure(postCtx, e.store.DB(), item.ID, attemptCount, processErr.Error())
 		} else {
-			updateErr = e.store.RecordInboundWorkRetry(postCtx, item.ID, attemptCount, processErr.Error(), inboundWorkRetryDelay*time.Duration(attemptCount))
+			updateErr = queue.RecordInboundWorkRetry(postCtx, e.store.DB(), item.ID, attemptCount, processErr.Error(), inboundWorkRetryDelay*time.Duration(attemptCount))
 		}
 		statusEvent := map[bool]string{true: "inbound_work_failed", false: "inbound_work_retry_scheduled"}[attemptCount >= inboundWorkMaxAttempts]
 		if updateErr != nil {
 			return item, result, updateErr
 		}
-		updated, getErr := e.store.GetInboundWork(postCtx, item.ID)
+		updated, getErr := queue.GetInboundWork(postCtx, e.store.DB(), item.ID)
 		if getErr == nil {
 			item = updated
 		}
 		e.PublishRuntimeInboundWorkEvent(statusEvent, item, map[string]any{"error": processErr.Error()})
 		return item, result, processErr
 	}
-	if err := e.store.UpdateInboundWorkStatus(postCtx, item.ID, "completed"); err != nil {
+	if err := queue.UpdateInboundWorkStatus(postCtx, e.store.DB(), item.ID, "completed"); err != nil {
 		return item, result, err
 	}
-	updated, getErr := e.store.GetInboundWork(postCtx, item.ID)
+	updated, getErr := queue.GetInboundWork(postCtx, e.store.DB(), item.ID)
 	if getErr == nil {
 		item = updated
 	}
@@ -1360,7 +1361,7 @@ func (e *Engine) finalizeInboundWorkAttempt(ctx context.Context, item *store.Inb
 	return item, result, nil
 }
 
-func (e *Engine) ProcessNextInboundWorkIfQueued(ctx context.Context, claimedBy string) (*store.InboundWorkItem, *SubmitResult, bool, error) {
+func (e *Engine) ProcessNextInboundWorkIfQueued(ctx context.Context, claimedBy string) (*queue.InboundWorkItem, *SubmitResult, bool, error) {
 	item, result, err := e.ProcessNextInboundWork(ctx, claimedBy)
 	if err == sql.ErrNoRows {
 		return nil, nil, false, nil
@@ -1371,11 +1372,11 @@ func (e *Engine) ProcessNextInboundWorkIfQueued(ctx context.Context, claimedBy s
 	return item, result, true, nil
 }
 
-func (e *Engine) ProcessQueuedInboundWork(ctx context.Context, claimedBy string, limit int) ([]*store.InboundWorkItem, []*SubmitResult, error) {
+func (e *Engine) ProcessQueuedInboundWork(ctx context.Context, claimedBy string, limit int) ([]*queue.InboundWorkItem, []*SubmitResult, error) {
 	if limit <= 0 {
 		limit = 1
 	}
-	items := make([]*store.InboundWorkItem, 0, limit)
+	items := make([]*queue.InboundWorkItem, 0, limit)
 	results := make([]*SubmitResult, 0, limit)
 	for i := 0; i < limit; i++ {
 		item, result, ok, err := e.ProcessNextInboundWorkIfQueued(ctx, claimedBy)
@@ -1490,7 +1491,7 @@ func topicForBroadcastEvent(evType string) (topic string, envelopeType string) {
 	}
 }
 
-func (e *Engine) PublishRuntimeInboundWorkEvent(eventType string, item *store.InboundWorkItem, extra map[string]any) {
+func (e *Engine) PublishRuntimeInboundWorkEvent(eventType string, item *queue.InboundWorkItem, extra map[string]any) {
 	if e == nil || e.topics == nil || item == nil {
 		return
 	}
