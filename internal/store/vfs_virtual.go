@@ -11,6 +11,19 @@ import (
 	storevfs "github.com/rcarmo/gi/internal/store/vfs"
 )
 
+const (
+	kindChatReadme        = "chat_readme"
+	kindChatSessions      = "chat_sessions"
+	kindChatSessionsIndex = "chat_sessions_index"
+	kindChatSession       = "chat_session"
+	kindChatMessages      = "chat_messages"
+	kindChatMessagesIndex = "chat_messages_index"
+	kindChatMessage       = "chat_message"
+	kindChatTurns         = "chat_turns"
+	kindChatTurnsIndex    = "chat_turns_index"
+	kindChatTurn          = "chat_turn"
+)
+
 func (s *Store) getVirtualVFSFileContent(ctx context.Context, namespace, filePath string) (*VFSFile, []byte, error) {
 	switch strings.TrimSpace(namespace) {
 	case storevfs.NamespaceChat:
@@ -37,15 +50,15 @@ func (s *Store) listChatVFSChildren(ctx context.Context, dir string) ([]VFSListE
 	switch dir {
 	case "":
 		return []VFSListEntry{
-			{Name: "README.md", Path: "README.md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": "chat_readme"}},
-			{Name: "sessions", Path: "sessions", IsDir: true, Metadata: map[string]any{"virtual": true, "kind": "chat_sessions"}},
+			{Name: "README.md", Path: "README.md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": kindChatReadme}},
+			{Name: "sessions", Path: "sessions", IsDir: true, Metadata: map[string]any{"virtual": true, "kind": kindChatSessions}},
 		}, nil
 	case "sessions":
 		sessions, err := s.ListSessions(ctx)
 		if err != nil {
 			return nil, err
 		}
-		entries := []VFSListEntry{{Name: "index.md", Path: "sessions/index.md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": "chat_sessions_index"}}}
+		entries := []VFSListEntry{{Name: "index.md", Path: "sessions/index.md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": kindChatSessionsIndex}}}
 		for _, session := range sessions {
 			entries = append(entries, VFSListEntry{Name: session.ID, Path: "sessions/" + session.ID, IsDir: true, Metadata: map[string]any{"virtual": true, "title": session.Title}})
 		}
@@ -62,9 +75,9 @@ func (s *Store) listChatVFSChildren(ctx context.Context, dir string) ([]VFSListE
 		}
 		if len(parts) == 2 {
 			return []VFSListEntry{
-				{Name: "session.md", Path: "sessions/" + sessionID + "/session.md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": "chat_session"}},
-				{Name: "messages", Path: "sessions/" + sessionID + "/messages", IsDir: true, Metadata: map[string]any{"virtual": true, "kind": "chat_messages"}},
-				{Name: "turns", Path: "sessions/" + sessionID + "/turns", IsDir: true, Metadata: map[string]any{"virtual": true, "kind": "chat_turns"}},
+				{Name: "session.md", Path: "sessions/" + sessionID + "/session.md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": kindChatSession}},
+				{Name: "messages", Path: "sessions/" + sessionID + "/messages", IsDir: true, Metadata: map[string]any{"virtual": true, "kind": kindChatMessages}},
+				{Name: "turns", Path: "sessions/" + sessionID + "/turns", IsDir: true, Metadata: map[string]any{"virtual": true, "kind": kindChatTurns}},
 			}, nil
 		}
 		if len(parts) == 3 && parts[2] == "messages" {
@@ -72,9 +85,9 @@ func (s *Store) listChatVFSChildren(ctx context.Context, dir string) ([]VFSListE
 			if err != nil {
 				return nil, err
 			}
-			entries := []VFSListEntry{{Name: "index.md", Path: "sessions/" + sessionID + "/messages/index.md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": "chat_messages_index"}}}
+			entries := []VFSListEntry{{Name: "index.md", Path: "sessions/" + sessionID + "/messages/index.md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": kindChatMessagesIndex}}}
 			for _, msg := range messages {
-				entries = append(entries, VFSListEntry{Name: msg.ID + ".md", Path: "sessions/" + sessionID + "/messages/" + msg.ID + ".md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": "chat_message", "role": msg.Role}, OriginalSize: len(msg.Content)})
+				entries = append(entries, VFSListEntry{Name: msg.ID + ".md", Path: "sessions/" + sessionID + "/messages/" + msg.ID + ".md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": kindChatMessage, "role": msg.Role}, OriginalSize: len(msg.Content)})
 			}
 			return entries, nil
 		}
@@ -83,9 +96,9 @@ func (s *Store) listChatVFSChildren(ctx context.Context, dir string) ([]VFSListE
 			if err != nil {
 				return nil, err
 			}
-			entries := []VFSListEntry{{Name: "index.md", Path: "sessions/" + sessionID + "/turns/index.md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": "chat_turns_index"}}}
+			entries := []VFSListEntry{{Name: "index.md", Path: "sessions/" + sessionID + "/turns/index.md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": kindChatTurnsIndex}}}
 			for _, tr := range turns {
-				entries = append(entries, VFSListEntry{Name: tr.ID + ".md", Path: "sessions/" + sessionID + "/turns/" + tr.ID + ".md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": "chat_turn", "status": tr.Status}, OriginalSize: len(tr.Prompt)})
+				entries = append(entries, VFSListEntry{Name: tr.ID + ".md", Path: "sessions/" + sessionID + "/turns/" + tr.ID + ".md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": kindChatTurn, "status": tr.Status}, OriginalSize: len(tr.Prompt)})
 			}
 			return entries, nil
 		}
@@ -111,7 +124,7 @@ This namespace projects chat/session runtime state as read-only markdown documen
 
 All files contain markdown with JSON-compatible frontmatter so models can inspect state without SQL.
 `) + "\n"
-		return newVirtualVFSFile(storevfs.NamespaceChat, "README.md", "chat_readme", body, "", ""), []byte(body), nil
+		return newVirtualVFSFile(storevfs.NamespaceChat, "README.md", kindChatReadme, body, "", ""), []byte(body), nil
 	}
 	if filePath == "sessions/index.md" {
 		sessions, err := s.ListSessions(ctx)
@@ -127,7 +140,7 @@ All files contain markdown with JSON-compatible frontmatter so models can inspec
 			lines = append(lines, fmt.Sprintf("  - turns: `vfs://chat/sessions/%s/turns/index.md`", sess.ID))
 		}
 		body := strings.Join(lines, "\n") + "\n"
-		return newVirtualVFSFile(storevfs.NamespaceChat, filePath, "chat_sessions_index", body, "", ""), []byte(body), nil
+		return newVirtualVFSFile(storevfs.NamespaceChat, filePath, kindChatSessionsIndex, body, "", ""), []byte(body), nil
 	}
 
 	parts := storevfs.SplitVirtualPath(filePath)
@@ -154,7 +167,7 @@ All files contain markdown with JSON-compatible frontmatter so models can inspec
 		}
 		body := fmt.Sprintf("# Session %s\n\nTitle: %s\n", session.ID, session.Title)
 		raw := storevfs.RenderFrontmatterMarkdown(meta, body)
-		return newVirtualVFSFile(storevfs.NamespaceChat, filePath, "chat_session", string(raw), session.CreatedAt, session.UpdatedAt), raw, nil
+		return newVirtualVFSFile(storevfs.NamespaceChat, filePath, kindChatSession, string(raw), session.CreatedAt, session.UpdatedAt), raw, nil
 	}
 
 	if len(parts) == 4 && parts[2] == "messages" && parts[3] == "index.md" {
@@ -168,7 +181,7 @@ All files contain markdown with JSON-compatible frontmatter so models can inspec
 			lines = append(lines, fmt.Sprintf("  - `vfs://chat/sessions/%s/messages/%s.md`", sessionID, msg.ID))
 		}
 		body := strings.Join(lines, "\n") + "\n"
-		return newVirtualVFSFile(storevfs.NamespaceChat, filePath, "chat_messages_index", body, session.CreatedAt, session.UpdatedAt), []byte(body), nil
+		return newVirtualVFSFile(storevfs.NamespaceChat, filePath, kindChatMessagesIndex, body, session.CreatedAt, session.UpdatedAt), []byte(body), nil
 	}
 
 	if len(parts) == 4 && parts[2] == "messages" && strings.HasSuffix(parts[3], ".md") {
@@ -190,7 +203,7 @@ All files contain markdown with JSON-compatible frontmatter so models can inspec
 		}
 		body := msg.Content + "\n"
 		raw := storevfs.RenderFrontmatterMarkdown(meta, body)
-		return newVirtualVFSFile(storevfs.NamespaceChat, filePath, "chat_message", string(raw), msg.CreatedAt, msg.CreatedAt), raw, nil
+		return newVirtualVFSFile(storevfs.NamespaceChat, filePath, kindChatMessage, string(raw), msg.CreatedAt, msg.CreatedAt), raw, nil
 	}
 
 	if len(parts) == 4 && parts[2] == "turns" && parts[3] == "index.md" {
@@ -204,7 +217,7 @@ All files contain markdown with JSON-compatible frontmatter so models can inspec
 			lines = append(lines, fmt.Sprintf("  - `vfs://chat/sessions/%s/turns/%s.md`", sessionID, tr.ID))
 		}
 		body := strings.Join(lines, "\n") + "\n"
-		return newVirtualVFSFile(storevfs.NamespaceChat, filePath, "chat_turns_index", body, session.CreatedAt, session.UpdatedAt), []byte(body), nil
+		return newVirtualVFSFile(storevfs.NamespaceChat, filePath, kindChatTurnsIndex, body, session.CreatedAt, session.UpdatedAt), []byte(body), nil
 	}
 
 	if len(parts) == 4 && parts[2] == "turns" && strings.HasSuffix(parts[3], ".md") {
@@ -232,7 +245,7 @@ All files contain markdown with JSON-compatible frontmatter so models can inspec
 		}
 		body := fmt.Sprintf("# Turn %s\n\n## Prompt\n\n%s\n", tr.ID, tr.Prompt)
 		raw := storevfs.RenderFrontmatterMarkdown(meta, body)
-		return newVirtualVFSFile(storevfs.NamespaceChat, filePath, "chat_turn", string(raw), tr.CreatedAt, tr.UpdatedAt), raw, nil
+		return newVirtualVFSFile(storevfs.NamespaceChat, filePath, kindChatTurn, string(raw), tr.CreatedAt, tr.UpdatedAt), raw, nil
 	}
 
 	return nil, nil, sql.ErrNoRows
