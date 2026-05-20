@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/rcarmo/gi/internal/store"
+	storeobject "github.com/rcarmo/gi/internal/store/object"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -20,7 +21,7 @@ func NewSQLiteCache(s *store.Store) SQLiteCache {
 }
 
 func (c SQLiteCache) Get(ctx context.Context, key string) ([]byte, error) {
-	value, err := c.store.GetKV(ctx, acmeCacheNamespace, key)
+	value, err := storeobject.GetKV(ctx, c.store.DB(), acmeCacheNamespace, key)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, autocert.ErrCacheMiss
@@ -34,11 +35,11 @@ func (c SQLiteCache) Get(ctx context.Context, key string) ([]byte, error) {
 }
 
 func (c SQLiteCache) Put(ctx context.Context, key string, data []byte) error {
-	return c.store.PutKV(ctx, acmeCacheNamespace, key, data)
+	return storeobject.PutKV(ctx, c.store.DB(), acmeCacheNamespace, key, data)
 }
 
 func (c SQLiteCache) Delete(ctx context.Context, key string) error {
-	return c.store.DeleteKV(ctx, acmeCacheNamespace, key)
+	return storeobject.DeleteKV(ctx, c.store.DB(), acmeCacheNamespace, key)
 }
 
 var _ autocert.Cache = SQLiteCache{}

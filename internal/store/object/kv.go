@@ -1,4 +1,4 @@
-package store
+package object
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func (s *Store) PutKV(ctx context.Context, namespace, key string, value []byte) error {
+func PutKV(ctx context.Context, db *sql.DB, namespace, key string, value []byte) error {
 	namespace = strings.TrimSpace(namespace)
 	key = strings.TrimSpace(key)
 	if namespace == "" {
@@ -19,9 +19,9 @@ func (s *Store) PutKV(ctx context.Context, namespace, key string, value []byte) 
 	if value == nil {
 		value = []byte{}
 	}
-	_, err := s.db.ExecContext(ctx, `
+	_, err := db.ExecContext(ctx, `
 		insert into kv_store (namespace, key, value, created_at, updated_at)
-		values (?, ?, ?, `+defaultNow+`, `+defaultNow+`)
+		values (?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 		on conflict(namespace, key) do update set
 			value = excluded.value,
 			updated_at = excluded.updated_at
@@ -32,7 +32,7 @@ func (s *Store) PutKV(ctx context.Context, namespace, key string, value []byte) 
 	return nil
 }
 
-func (s *Store) GetKV(ctx context.Context, namespace, key string) ([]byte, error) {
+func GetKV(ctx context.Context, db *sql.DB, namespace, key string) ([]byte, error) {
 	namespace = strings.TrimSpace(namespace)
 	key = strings.TrimSpace(key)
 	if namespace == "" {
@@ -42,7 +42,7 @@ func (s *Store) GetKV(ctx context.Context, namespace, key string) ([]byte, error
 		return nil, fmt.Errorf("get kv: missing key")
 	}
 	var value []byte
-	if err := s.db.QueryRowContext(ctx, `select value from kv_store where namespace = ? and key = ?`, namespace, key).Scan(&value); err != nil {
+	if err := db.QueryRowContext(ctx, `select value from kv_store where namespace = ? and key = ?`, namespace, key).Scan(&value); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, sql.ErrNoRows
 		}
@@ -51,7 +51,7 @@ func (s *Store) GetKV(ctx context.Context, namespace, key string) ([]byte, error
 	return append([]byte(nil), value...), nil
 }
 
-func (s *Store) DeleteKV(ctx context.Context, namespace, key string) error {
+func DeleteKV(ctx context.Context, db *sql.DB, namespace, key string) error {
 	namespace = strings.TrimSpace(namespace)
 	key = strings.TrimSpace(key)
 	if namespace == "" {
@@ -60,7 +60,7 @@ func (s *Store) DeleteKV(ctx context.Context, namespace, key string) error {
 	if key == "" {
 		return fmt.Errorf("delete kv: missing key")
 	}
-	if _, err := s.db.ExecContext(ctx, `delete from kv_store where namespace = ? and key = ?`, namespace, key); err != nil {
+	if _, err := db.ExecContext(ctx, `delete from kv_store where namespace = ? and key = ?`, namespace, key); err != nil {
 		return fmt.Errorf("delete kv: %w", err)
 	}
 	return nil
