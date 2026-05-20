@@ -16,7 +16,7 @@ func (s *Store) getVirtualVFSFileContent(ctx context.Context, namespace, filePat
 	case storevfs.NamespaceChat:
 		return s.getChatVFSFileContent(ctx, filePath)
 	default:
-		return nil, nil, fmt.Errorf("virtual vfs namespace not found: %s", namespace)
+		return nil, nil, virtualNamespaceNotFoundErr(namespace)
 	}
 }
 
@@ -25,8 +25,12 @@ func (s *Store) listVirtualVFSChildren(ctx context.Context, namespace, dir strin
 	case storevfs.NamespaceChat:
 		return s.listChatVFSChildren(ctx, dir)
 	default:
-		return nil, fmt.Errorf("virtual vfs namespace not found: %s", namespace)
+		return nil, virtualNamespaceNotFoundErr(namespace)
 	}
+}
+
+func virtualNamespaceNotFoundErr(namespace string) error {
+	return fmt.Errorf("virtual vfs namespace not found: %s", namespace)
 }
 
 func (s *Store) listChatVFSChildren(ctx context.Context, dir string) ([]VFSListEntry, error) {
