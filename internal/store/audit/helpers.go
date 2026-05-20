@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const defaultNow = "strftime('%Y-%m-%dT%H:%M:%fZ','now')"
+
 func nilIfEmpty(v string) any {
 	if strings.TrimSpace(v) == "" {
 		return nil

@@ -41,7 +41,7 @@ func RecordHookInvocation(ctx context.Context, db *sql.DB, turnID, sessionID, ho
 	}
 	_, err = db.ExecContext(ctx, `
 		insert into hook_invocations (turn_id, session_id, hook_name, hook_phase, hook_source, action, request_json, response_json, error_text, duration_ms, created_at)
-		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+		values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, `+defaultNow+`)
 	`, nilIfEmpty(turnID), nilIfEmpty(sessionID), hookName, hookPhase, nilIfEmpty(hookSource), action, requestJSON, responseJSON, errorText, durationMS)
 	if err != nil {
 		return 0, fmt.Errorf("record hook invocation: %w", err)
