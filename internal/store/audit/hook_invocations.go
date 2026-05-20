@@ -29,7 +29,7 @@ func RecordHookInvocation(ctx context.Context, db *sql.DB, turnID, sessionID, ho
 		hookPhase = hookName
 	}
 	if action == "" {
-		action = "continue"
+		action = defaultHookActionContinue
 	}
 	requestJSON, err := marshalJSON(request)
 	if err != nil {
