@@ -1,8 +1,8 @@
-package store
+package internalx
 
 import "strings"
 
-func nilIfEmpty(v string) any {
+func NilIfEmpty(v string) any {
 	if strings.TrimSpace(v) == "" {
 		return nil
 	}

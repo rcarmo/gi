@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"time"
+
+	"github.com/rcarmo/gi/internal/store/internalx"
 )
 
 type ActiveTurnClaim struct {
@@ -37,7 +39,7 @@ func (s *Store) ClaimSessionActiveTurn(ctx context.Context, sessionID, turnID, w
 		insert into session_active_turns (session_id, turn_id, worker_id, claim_token, claimed_at, updated_at)
 		values (?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`)
 		on conflict(session_id) do nothing
-	`, sessionID, turnID, nilIfEmpty(workerID), claimToken)
+	`, sessionID, turnID, internalx.NilIfEmpty(workerID), claimToken)
 	if err != nil {
 		return false, fmt.Errorf("claim session active turn: %w", err)
 	}
@@ -138,7 +140,7 @@ func (s *Store) EnqueueSteering(ctx context.Context, sessionID, turnID, role, co
 		where (
 			select count(*) from steering_queue where session_id = ? and status = 'queued'
 		) < 10
-	`, sessionID, nilIfEmpty(turnID), role, content, payloadJSON, mediaJSON, queueMode, sessionID)
+	`, sessionID, internalx.NilIfEmpty(turnID), role, content, payloadJSON, mediaJSON, queueMode, sessionID)
 	if err != nil {
 		return 0, fmt.Errorf("enqueue steering: %w", err)
 	}

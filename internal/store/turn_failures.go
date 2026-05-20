@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/rcarmo/gi/internal/store/internalx"
 )
 
 type TurnFailure struct {
@@ -132,7 +134,7 @@ func (s *Store) ResolveTurnFailure(ctx context.Context, turnID, resolutionState,
 		    resolved_turn_id = ?,
 		    updated_at = `+defaultNow+`
 		where turn_id = ?
-	`, resolutionState, strings.TrimSpace(resolutionSummary), nilIfEmpty(resolvedTurnID), turnID)
+	`, resolutionState, strings.TrimSpace(resolutionSummary), internalx.NilIfEmpty(resolvedTurnID), turnID)
 	if err != nil {
 		return fmt.Errorf("resolve turn failure: %w", err)
 	}

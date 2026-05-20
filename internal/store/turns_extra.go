@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/rcarmo/gi/internal/store/internalx"
 )
 
 func turnPhaseForStatus(status string) string {
@@ -138,7 +140,7 @@ func (s *Store) UpdateTurnStatusAndPhase(ctx context.Context, turnID, status, ph
 }
 
 func (s *Store) MarkTurnClaimed(ctx context.Context, turnID, claimedBy string) error {
-	res, err := s.db.ExecContext(ctx, `update turns set claimed_by = ?, claimed_at = coalesce(claimed_at, `+defaultNow+`), started_at = coalesce(started_at, `+defaultNow+`), updated_at = `+defaultNow+` where id = ?`, nilIfEmpty(claimedBy), turnID)
+	res, err := s.db.ExecContext(ctx, `update turns set claimed_by = ?, claimed_at = coalesce(claimed_at, `+defaultNow+`), started_at = coalesce(started_at, `+defaultNow+`), updated_at = `+defaultNow+` where id = ?`, internalx.NilIfEmpty(claimedBy), turnID)
 	if err != nil {
 		return fmt.Errorf("mark turn claimed: %w", err)
 	}
