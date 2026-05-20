@@ -2,6 +2,7 @@ package turn
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/rcarmo/gi/internal/logutil"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/store"
 	goai "github.com/rcarmo/go-ai"
 )
 
@@ -434,4 +436,106 @@ func (e *Engine) emitHook(ctx context.Context, req HookRequest) (HookResponse, e
 		}
 	}
 	return merged, nil
+}
+
+func hookResponseFromScript(result string) (HookResponse, error) {
+	var resp HookResponse
+	if strings.TrimSpace(result) == "" {
+		return resp, nil
+	}
+	var raw map[string]any
+	if err := json.Unmarshal([]byte(result), &raw); err != nil {
+		return resp, nil
+	}
+	b, err := json.Marshal(raw)
+	if err != nil {
+		return resp, nil
+	}
+	if err := json.Unmarshal(b, &resp); err != nil {
+		return resp, nil
+	}
+	if tc, ok := raw["tool_call"]; ok {
+		if call := decodeToolCall(tc); call != nil {
+			resp.ToolCall = call
+		}
+	}
+	if payload, ok := raw["payload"].(map[string]any); ok {
+		if tc, ok := payload["tool_call"]; ok {
+			if call := decodeToolCall(tc); call != nil {
+				resp.ToolCall = call
+			}
+		}
+	}
+	resp.Action = strings.ToLower(strings.TrimSpace(resp.Action))
+	if resp.Action == "" {
+		if action := store.StringValue(raw["action"], ""); strings.TrimSpace(action) != "" {
+			resp.Action = strings.ToLower(strings.TrimSpace(action))
+		}
+	}
+	switch resp.Action {
+	case "continue":
+	case "modify":
+	case "respond":
+		resp.Handled = true
+		if strings.TrimSpace(resp.Message) == "" {
+			if response := store.StringValue(raw["response"], ""); strings.TrimSpace(response) != "" {
+				resp.Message = response
+			} else if payload, ok := raw["payload"].(map[string]any); ok {
+				resp.Message = store.StringValue(payload["response"], "")
+			}
+		}
+	case "deny":
+		resp.Block = true
+		if strings.TrimSpace(resp.Reason) == "" {
+			resp.Reason = "denied by hook"
+		}
+	case "abort_turn":
+		resp.Cancel = true
+		resp.Block = true
+		if strings.TrimSpace(resp.Reason) == "" {
+			resp.Reason = "aborted by hook"
+		}
+	case "hard_abort":
+		resp.Cancel = true
+		resp.Block = true
+		if resp.Payload == nil {
+			resp.Payload = map[string]any{}
+		}
+		resp.Payload["hard_abort"] = true
+		if strings.TrimSpace(resp.Reason) == "" {
+			resp.Reason = "hard aborted by hook"
+		}
+	}
+	return resp, nil
+}
+
+func decodeToolCall(raw any) *goai.ToolCall {
+	b, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var call goai.ToolCall
+	if err := json.Unmarshal(b, &call); err != nil {
+		return nil
+	}
+	if call.Name == "" {
+		var alt struct {
+			ID        string         `json:"id"`
+			Name      string         `json:"name"`
+			Arguments map[string]any `json:"arguments"`
+		}
+		if err := json.Unmarshal(b, &alt); err != nil || alt.Name == "" {
+			return nil
+		}
+		call.ID = alt.ID
+		call.Name = alt.Name
+		call.Arguments = alt.Arguments
+	}
+	if call.Arguments == nil {
+		call.Arguments = map[string]any{}
+	}
+	if call.Type == "" {
+		call.Type = "toolCall"
+	}
+	return &call
 }
