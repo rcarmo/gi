@@ -759,6 +759,28 @@ func TestStoreFindSiblingChildSessionByParentAndAgentExcludesSelf(t *testing.T) 
 	}
 }
 
+func TestStoreFindSiblingChildSessionByParentAndAgentReturnsNoRowsWithoutSibling(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	rootAlloc := gisession.AllocateDefaultSession("agent", "gi", "default", "root_parent_lookup_no_sibling")
+	root, err := s.CreateSessionWithMetadata(ctx, "root_parent_lookup_no_sibling", "", "@agent", map[string]any{"status": "idle"}, &rootAlloc.Scope, rootAlloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create root: %v", err)
+	}
+	childAlloc := gisession.AllocateDefaultSession("agentA", "gi", "default", "child_lookup_no_sibling")
+	child, err := s.CreateSessionWithMetadata(ctx, "child_lookup_no_sibling", root.ID, "@agentA", map[string]any{"status": "idle"}, &childAlloc.Scope, childAlloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create child: %v", err)
+	}
+	if _, err := s.FindSiblingChildSessionIDByParentAndAgent(ctx, child.ID, "agentA"); err != sql.ErrNoRows {
+		t.Fatalf("expected sql.ErrNoRows when no sibling exists, got %v", err)
+	}
+}
+
 func TestStoreResolveOrCreateMainSessionFromAllocation(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
