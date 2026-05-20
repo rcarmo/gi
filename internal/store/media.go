@@ -148,7 +148,7 @@ func (s *Store) SaveVFSFile(ctx context.Context, namespace, filePath, contentTyp
 	if namespace == "" {
 		return nil, fmt.Errorf("save vfs file: missing namespace")
 	}
-	if isReadOnlyVFSNamespace(namespace) {
+	if storevfs.IsReadOnlyNamespace(namespace) {
 		return nil, fmt.Errorf("save vfs file: namespace is read-only: %s", namespace)
 	}
 	normalizedPath, err := storevfs.NormalizePath(filePath)
@@ -202,7 +202,7 @@ func (s *Store) GetVFSFile(ctx context.Context, namespace, filePath string) (*VF
 	if err != nil {
 		return nil, fmt.Errorf("get vfs file: path: %w", err)
 	}
-	if isVirtualVFSNamespace(namespace) {
+	if storevfs.IsVirtualNamespace(namespace) {
 		item, _, err := s.getVirtualVFSFileContent(ctx, namespace, normalizedPath)
 		if err != nil {
 			return nil, fmt.Errorf("get vfs file: %w", err)
@@ -242,7 +242,7 @@ func (s *Store) GetVFSFileContent(ctx context.Context, namespace, filePath strin
 	if err != nil {
 		return nil, nil, fmt.Errorf("get vfs file content: path: %w", err)
 	}
-	if isVirtualVFSNamespace(namespace) {
+	if storevfs.IsVirtualNamespace(namespace) {
 		item, raw, err := s.getVirtualVFSFileContent(ctx, namespace, normalizedPath)
 		if err != nil {
 			return nil, nil, fmt.Errorf("get vfs file content: %w", err)
@@ -290,7 +290,7 @@ func (s *Store) ListVFSChildren(ctx context.Context, namespace, dir string) ([]V
 	if err != nil {
 		return nil, fmt.Errorf("list vfs children: path: %w", err)
 	}
-	if isVirtualVFSNamespace(ns) {
+	if storevfs.IsVirtualNamespace(ns) {
 		return s.listVirtualVFSChildren(ctx, ns, normalizedDir)
 	}
 	prefix := ""
@@ -382,7 +382,7 @@ func (s *Store) ListVFSChildren(ctx context.Context, namespace, dir string) ([]V
 
 func (s *Store) DeleteVFSFile(ctx context.Context, namespace, filePath string) error {
 	namespace = strings.TrimSpace(namespace)
-	if isReadOnlyVFSNamespace(namespace) {
+	if storevfs.IsReadOnlyNamespace(namespace) {
 		return fmt.Errorf("delete vfs file: namespace is read-only: %s", namespace)
 	}
 	normalizedPath, err := storevfs.NormalizePath(filePath)

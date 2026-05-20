@@ -10,23 +10,6 @@ import (
 	"time"
 )
 
-func isVirtualVFSNamespace(namespace string) bool {
-	switch strings.TrimSpace(namespace) {
-	case "chat":
-		return true
-	default:
-		return false
-	}
-}
-
-func isReadOnlyVFSNamespace(namespace string) bool {
-	ns := strings.TrimSpace(namespace)
-	if ns == "reference" {
-		return true
-	}
-	return isVirtualVFSNamespace(ns)
-}
-
 func (s *Store) getVirtualVFSFileContent(ctx context.Context, namespace, filePath string) (*VFSFile, []byte, error) {
 	switch strings.TrimSpace(namespace) {
 	case "chat":
