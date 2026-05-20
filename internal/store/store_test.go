@@ -728,6 +728,37 @@ func TestStoreFindSiblingChildSessionByParentAndAgentUsesDirectLookup(t *testing
 	}
 }
 
+func TestStoreFindSiblingChildSessionByParentAndAgentExcludesSelf(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	rootAlloc := gisession.AllocateDefaultSession("agent", "gi", "default", "root_parent_lookup_self_exclude")
+	root, err := s.CreateSessionWithMetadata(ctx, "root_parent_lookup_self_exclude", "", "@agent", map[string]any{"status": "idle"}, &rootAlloc.Scope, rootAlloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create root: %v", err)
+	}
+	childAAlloc := gisession.AllocateDefaultSession("agentA", "gi", "default", "child_lookup_self_exclude_a")
+	childA, err := s.CreateSessionWithMetadata(ctx, "child_lookup_self_exclude_a", root.ID, "@agentA", map[string]any{"status": "idle"}, &childAAlloc.Scope, childAAlloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create child a: %v", err)
+	}
+	childA2Alloc := gisession.AllocateDefaultSession("agentA", "gi", "default", "child_lookup_self_exclude_a2")
+	childA2, err := s.CreateSessionWithMetadata(ctx, "child_lookup_self_exclude_a2", root.ID, "@agentA", map[string]any{"status": "idle"}, &childA2Alloc.Scope, childA2Alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create child a2: %v", err)
+	}
+	resolvedID, err := s.FindSiblingChildSessionIDByParentAndAgent(ctx, childA2.ID, "agentA")
+	if err != nil {
+		t.Fatalf("find sibling child id by parent and agent: %v", err)
+	}
+	if resolvedID != childA.ID {
+		t.Fatalf("expected sibling child id %q, got %q", childA.ID, resolvedID)
+	}
+}
+
 func TestStoreResolveOrCreateMainSessionFromAllocation(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
