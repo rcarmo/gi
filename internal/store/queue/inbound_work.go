@@ -37,7 +37,7 @@ func EnqueueInboundWork(ctx context.Context, db *sql.DB, sourceKind, sessionID, 
 	}
 	res, err := db.ExecContext(ctx, `
 		insert into inbound_work_queue (source_kind, session_id, explicit_session_key, envelope_json, status, created_at, updated_at)
-		values (?, ?, ?, ?, 'queued', `+defaultNow+`, `+defaultNow+`)
+		values (?, ?, ?, ?, '`+statusQueued+`', `+defaultNow+`, `+defaultNow+`)
 	`, sourceKind, nilIfEmpty(sessionID), explicitSessionKey, envelopeJSON)
 	if err != nil {
 		return nil, fmt.Errorf("enqueue inbound work: %w", err)
@@ -88,7 +88,7 @@ func ListInboundWorkFiltered(ctx context.Context, db *sql.DB, status string, lim
 		args = append(args, status)
 	}
 	if eligible != nil {
-		clause := `(status = 'queued' or (status = 'retry' and (next_attempt_at is null or next_attempt_at = '' or next_attempt_at <= ` + defaultNow + `)))`
+		clause := `(status = '` + statusQueued + `' or (status = '` + statusRetry + `' and (next_attempt_at is null or next_attempt_at = '' or next_attempt_at <= ` + defaultNow + `)))`
 		if *eligible {
 			where = append(where, clause)
 		} else {
@@ -150,8 +150,8 @@ func CountEligibleInboundWork(ctx context.Context, db *sql.DB) (int, error) {
 	row := db.QueryRowContext(ctx, `
 		select count(*)
 		from inbound_work_queue
-		where status = 'queued'
-		or (status = 'retry' and (next_attempt_at is null or next_attempt_at = '' or next_attempt_at <= `+defaultNow+`))
+		where status = '`+statusQueued+`'
+		or (status = '`+statusRetry+`' and (next_attempt_at is null or next_attempt_at = '' or next_attempt_at <= `+defaultNow+`))
 	`)
 	var count int
 	if err := row.Scan(&count); err != nil {
@@ -167,16 +167,16 @@ func ClaimNextInboundWork(ctx context.Context, db *sql.DB, claimedBy string) (*I
 	}
 	row := db.QueryRowContext(ctx, `
 		update inbound_work_queue
-		set status = 'claimed', claimed_by = ?, claimed_at = `+defaultNow+`, updated_at = `+defaultNow+`
+		set status = '`+statusClaimed+`', claimed_by = ?, claimed_at = `+defaultNow+`, updated_at = `+defaultNow+`
 		where id = (
 			select id
 			from inbound_work_queue
-			where status in ('queued','retry')
+			where status in ('`+statusQueued+`','`+statusRetry+`')
 			and (next_attempt_at is null or next_attempt_at = '' or next_attempt_at <= `+defaultNow+`)
 			order by id asc
 			limit 1
 		)
-		and status in ('queued','retry')
+		and status in ('`+statusQueued+`','`+statusRetry+`')
 		returning id
 	`, claimedBy)
 	var id int64
@@ -197,10 +197,10 @@ func UpdateInboundWorkStatus(ctx context.Context, db *sql.DB, id int64, status s
 	_, err := db.ExecContext(ctx, `
 		update inbound_work_queue
 		set status = ?,
-			last_error = case when ? = 'completed' then '' else last_error end,
-			next_attempt_at = case when ? = 'completed' then null else next_attempt_at end,
-			claimed_by = case when ? = 'completed' then '' else claimed_by end,
-			claimed_at = case when ? = 'completed' then null else claimed_at end,
+			last_error = case when ? = '`+statusCompleted+`' then '' else last_error end,
+			next_attempt_at = case when ? = '`+statusCompleted+`' then null else next_attempt_at end,
+			claimed_by = case when ? = '`+statusCompleted+`' then '' else claimed_by end,
+			claimed_at = case when ? = '`+statusCompleted+`' then null else claimed_at end,
 			updated_at = `+defaultNow+`
 		where id = ?
 	`, status, status, status, status, status, id)
@@ -217,7 +217,7 @@ func RecordInboundWorkRetry(ctx context.Context, db *sql.DB, id int64, attemptCo
 	}
 	_, err := db.ExecContext(ctx, `
 		update inbound_work_queue
-		set status = 'retry',
+		set status = '`+statusRetry+`',
 			attempt_count = ?,
 			last_error = ?,
 			next_attempt_at = strftime('%Y-%m-%dT%H:%M:%fZ','now', '+' || ? || ' seconds'),
@@ -236,7 +236,7 @@ func RecordInboundWorkFailure(ctx context.Context, db *sql.DB, id int64, attempt
 	errText = strings.TrimSpace(errText)
 	_, err := db.ExecContext(ctx, `
 		update inbound_work_queue
-		set status = 'failed',
+		set status = '`+statusFailed+`',
 			attempt_count = ?,
 			last_error = ?,
 			next_attempt_at = null,
@@ -258,14 +258,14 @@ func RequeueInboundWork(ctx context.Context, db *sql.DB, id int64, resetAttempts
 	}
 	res, err := db.ExecContext(ctx, `
 		update inbound_work_queue
-		set status = 'queued',
+		set status = '`+statusQueued+`',
 			attempt_count = `+attemptExpr+`,
 			last_error = '',
 			next_attempt_at = null,
 			claimed_by = '',
 			claimed_at = null,
 			updated_at = `+defaultNow+`
-		where id = ? and status in ('failed','retry')
+		where id = ? and status in ('`+statusFailed+`','`+statusRetry+`')
 	`, id)
 	if err != nil {
 		return nil, fmt.Errorf("requeue inbound work: %w", err)
@@ -287,12 +287,12 @@ func RequeueInboundWork(ctx context.Context, db *sql.DB, id int64, resetAttempts
 func DiscardInboundWork(ctx context.Context, db *sql.DB, id int64) (*InboundWorkItem, error) {
 	res, err := db.ExecContext(ctx, `
 		update inbound_work_queue
-		set status = 'discarded',
+		set status = '`+statusDiscarded+`',
 			next_attempt_at = null,
 			claimed_by = '',
 			claimed_at = null,
 			updated_at = `+defaultNow+`
-		where id = ? and status in ('queued','retry','failed')
+		where id = ? and status in ('`+statusQueued+`','`+statusRetry+`','`+statusFailed+`')
 	`, id)
 	if err != nil {
 		return nil, fmt.Errorf("discard inbound work: %w", err)
