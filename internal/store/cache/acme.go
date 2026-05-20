@@ -10,8 +10,6 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
-const acmeCacheNamespace = "acme/autocert"
-
 type SQLiteCache struct {
 	store *store.Store
 }

@@ -10,8 +10,6 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
-const acmeVFSNamespace = "acme-autocert"
-
 type VFSCache struct {
 	store *store.Store
 }
