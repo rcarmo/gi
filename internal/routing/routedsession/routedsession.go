@@ -63,18 +63,24 @@ func ResolveOrCreate(ctx context.Context, st *store.Store, sourceSessionID strin
 		return "", false, err
 	}
 	if created {
-		if messages, err := st.ListMessages(ctx, sourceSessionID); err == nil {
-			for _, msg := range messages {
-				payload := map[string]any{}
-				for k, v := range msg.Payload {
-					payload[k] = v
-				}
-				payload["forked_from_message_id"] = msg.ID
-				_ = st.AddMessage(ctx, store.NowID("msg"), cloned.ID, msg.Role, msg.Content, payload)
+		messages, err := st.ListMessages(ctx, sourceSessionID)
+		if err != nil {
+			return "", false, err
+		}
+		for _, msg := range messages {
+			payload := map[string]any{}
+			for k, v := range msg.Payload {
+				payload[k] = v
+			}
+			payload["forked_from_message_id"] = msg.ID
+			if err := st.AddMessage(ctx, store.NowID("msg"), cloned.ID, msg.Role, msg.Content, payload); err != nil {
+				return "", false, err
 			}
 		}
 		sourceAgentID := st.SessionAgentID(ctx, sourceSessionID)
-		_ = st.AddMessage(ctx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sourceAgentID), map[string]any{"kind": "fork", "source_session_id": sourceSessionID, "source_agent_id": sourceAgentID, "route_matched_by": route.MatchedBy, "clipped": true})
+		if err := st.AddMessage(ctx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sourceAgentID), map[string]any{"kind": "fork", "source_session_id": sourceSessionID, "source_agent_id": sourceAgentID, "route_matched_by": route.MatchedBy, "clipped": true}); err != nil {
+			return "", false, err
+		}
 	}
 	return cloned.ID, created, nil
 }
