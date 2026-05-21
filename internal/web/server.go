@@ -529,7 +529,7 @@ func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request, sessi
 const defaultForkAgentID = "agent"
 const maxForkAgentIDSuffix = 1000
 
-func (s *Server) forkAgentIDForSession(sessionID string, agentBySession map[string]string) string {
+func mapForkAgentIDOrDefault(sessionID string, agentBySession map[string]string) string {
 	sessionID = strings.TrimSpace(sessionID)
 	agentID := strings.TrimSpace(agentBySession[sessionID])
 	if agentID == "" {
@@ -540,7 +540,7 @@ func (s *Server) forkAgentIDForSession(sessionID string, agentBySession map[stri
 
 func (s *Server) sourceForkAgentID(ctx context.Context, sourceSessionID string, agentBySession map[string]string) string {
 	sourceSessionID = strings.TrimSpace(sourceSessionID)
-	agentID := s.forkAgentIDForSession(sourceSessionID, agentBySession)
+	agentID := mapForkAgentIDOrDefault(sourceSessionID, agentBySession)
 	if agentID == defaultForkAgentID && sourceSessionID != "" {
 		resolved := strings.TrimSpace(s.store.SessionAgentID(ctx, sourceSessionID))
 		if resolved != "" {
@@ -561,12 +561,7 @@ func trimAgentNumericSuffix(agentID string) string {
 func buildUsedForkAgentIDs(sessionIDs []string, agentBySession map[string]string) map[string]bool {
 	used := make(map[string]bool, len(sessionIDs))
 	for _, sessionID := range sessionIDs {
-		sessionID = strings.TrimSpace(sessionID)
-		agentID := strings.TrimSpace(agentBySession[sessionID])
-		if agentID == "" {
-			agentID = defaultForkAgentID
-		}
-		used[agentID] = true
+		used[mapForkAgentIDOrDefault(sessionID, agentBySession)] = true
 	}
 	return used
 }
