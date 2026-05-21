@@ -379,6 +379,18 @@ func TestTrimAgentNumericSuffix(t *testing.T) {
 	}
 }
 
+func TestMapForkAgentIDOrDefault(t *testing.T) {
+	if got, mapped := mapForkAgentIDOrDefault(" s1 ", map[string]string{"s1": " agent-a "}); got != "agent-a" || !mapped {
+		t.Fatalf("expected trimmed mapped agent id, got %q mapped=%v", got, mapped)
+	}
+	if got, mapped := mapForkAgentIDOrDefault("missing", map[string]string{}); got != defaultForkAgentID || mapped {
+		t.Fatalf("expected default for missing key, got %q mapped=%v", got, mapped)
+	}
+	if got, mapped := mapForkAgentIDOrDefault("s2", map[string]string{"s2": "   "}); got != defaultForkAgentID || mapped {
+		t.Fatalf("expected whitespace-only value to be treated as unmapped default, got %q mapped=%v", got, mapped)
+	}
+}
+
 func TestBuildUsedForkAgentIDs(t *testing.T) {
 	used := buildUsedForkAgentIDs([]string{" s1 ", "s2", "s3"}, map[string]string{"s1": " agent-a ", "s2": ""})
 	if !used["agent-a"] {
