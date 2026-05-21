@@ -90,7 +90,7 @@ Covers:
 **As a user**, I want `/plugins` to show active extensions and registered hooks for debugging.
 
 - Evidence:
-  - `internal/turn/debug_info.go`
+  - `internal/turn/engine.go`
   - `internal/tui/chat.go`
   - `features/tui/plugins.feature`
 

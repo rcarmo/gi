@@ -153,7 +153,7 @@ The TUI exposes extension and hook visibility with `/plugins` / `/extensions`.
 
 Evidence:
 
-- `internal/turn/debug_info.go`
+- `internal/turn/engine.go`
 - `internal/tui/chat.go`
 - `features/tui/plugins.feature`
 
