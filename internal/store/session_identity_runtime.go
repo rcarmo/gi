@@ -24,6 +24,9 @@ func (s *Store) SessionIdentityOrNil(ctx context.Context, sessionID string) *Ses
 }
 
 func (s *Store) sessionIdentityTupleOrDefaults(ctx context.Context, sessionID string) (agentID, channel, account string) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	sessionID = strings.TrimSpace(sessionID)
 	if s == nil || sessionID == "" {
 		return defaultSessionAgentID, defaultSessionChannel, defaultSessionAccount

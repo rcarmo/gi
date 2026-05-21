@@ -735,6 +735,15 @@ func TestStoreSessionIdentityRuntimeTupleDefaultsAndTrim(t *testing.T) {
 	if got := s.SessionAccount(ctx, "missing_runtime_identity"); got != "default" {
 		t.Fatalf("expected default session account for missing identity, got %q", got)
 	}
+	if got := s.SessionAgentID(nil, "session_runtime_identity_trim"); got != "agent-a" {
+		t.Fatalf("expected nil-context session agent lookup to work, got %q", got)
+	}
+	if got := s.SessionChannel(nil, "session_runtime_identity_trim"); got != "slack" {
+		t.Fatalf("expected nil-context session channel lookup to work, got %q", got)
+	}
+	if got := s.SessionAccount(nil, "session_runtime_identity_trim"); got != "workspace" {
+		t.Fatalf("expected nil-context session account lookup to work, got %q", got)
+	}
 }
 
 func TestStoreListSessionIDs(t *testing.T) {
