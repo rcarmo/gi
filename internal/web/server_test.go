@@ -339,6 +339,9 @@ func TestForkAgentIDForSessionResolutionFallbackOrder(t *testing.T) {
 	if got := srv.sourceForkAgentID(ctx, "session_fork_helper", map[string]string{"session_fork_helper": defaultForkAgentID}); got != defaultForkAgentID {
 		t.Fatalf("expected mapped default agent id to win over store fallback, got %q", got)
 	}
+	if got := srv.sourceForkAgentID(ctx, "session_fork_helper", map[string]string{"session_fork_helper": "   "}); got != "agent-base" {
+		t.Fatalf("expected whitespace-only mapped source agent id to fallback to store value, got %q", got)
+	}
 	if got, mapped := mapForkAgentIDOrDefault("session_fork_helper_missing", map[string]string{}); got != defaultForkAgentID || mapped {
 		t.Fatalf("expected default fallback agent id, got %q mapped=%v", got, mapped)
 	}
