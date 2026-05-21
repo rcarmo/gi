@@ -550,6 +550,9 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 	for _, sessionID := range sessionIDs {
 		agentID := strings.TrimSpace(agentBySession[sessionID])
 		if agentID == "" {
+			agentID = strings.TrimSpace(s.store.SessionAgentID(ctx, sessionID))
+		}
+		if agentID == "" {
 			agentID = "agent"
 		}
 		used[agentID] = true
