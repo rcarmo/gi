@@ -539,8 +539,9 @@ func (s *Server) forkAgentIDForSession(sessionID string, agentBySession map[stri
 }
 
 func (s *Server) sourceForkAgentID(ctx context.Context, sourceSessionID string, agentBySession map[string]string) string {
+	sourceSessionID = strings.TrimSpace(sourceSessionID)
 	agentID := s.forkAgentIDForSession(sourceSessionID, agentBySession)
-	if agentID == defaultForkAgentID {
+	if agentID == defaultForkAgentID && sourceSessionID != "" {
 		resolved := strings.TrimSpace(s.store.SessionAgentID(ctx, sourceSessionID))
 		if resolved != "" {
 			agentID = resolved
