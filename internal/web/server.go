@@ -539,16 +539,21 @@ func (s *Server) forkAgentIDForSession(ctx context.Context, sessionID string, ag
 	return agentID
 }
 
+func trimAgentNumericSuffix(agentID string) string {
+	trimmed := strings.TrimRightFunc(agentID, func(r rune) bool { return r >= '0' && r <= '9' })
+	if trimmed == "" {
+		return agentID
+	}
+	return trimmed
+}
+
 func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (string, error) {
 	agentBySession, err := s.store.ListSessionAgentIDs(ctx)
 	if err != nil {
 		return "", err
 	}
 	sourceAgentID := s.forkAgentIDForSession(ctx, sourceSessionID, agentBySession)
-	base := strings.TrimRightFunc(sourceAgentID, func(r rune) bool { return r >= '0' && r <= '9' })
-	if base == "" {
-		base = sourceAgentID
-	}
+	base := trimAgentNumericSuffix(sourceAgentID)
 	sessionIDs, err := s.store.ListSessionIDs(ctx)
 	if err != nil {
 		return "", err

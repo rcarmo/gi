@@ -337,6 +337,23 @@ func TestForkAgentIDForSessionResolutionFallbackOrder(t *testing.T) {
 	}
 }
 
+func TestTrimAgentNumericSuffix(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{in: "agent42", want: "agent"},
+		{in: "agent", want: "agent"},
+		{in: "123", want: "123"},
+		{in: "agent007x", want: "agent007x"},
+	}
+	for _, tc := range cases {
+		if got := trimAgentNumericSuffix(tc.in); got != tc.want {
+			t.Fatalf("trim agent numeric suffix(%q): expected %q, got %q", tc.in, tc.want, got)
+		}
+	}
+}
+
 func TestSessionContinueEndpointStartsQueuedSteering(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
