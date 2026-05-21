@@ -527,7 +527,19 @@ func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request, sessi
 }
 
 func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (string, error) {
-	sourceAgentID := strings.TrimSpace(s.store.SessionAgentID(ctx, sourceSessionID))
+	identityRows, err := s.store.ListSessionIdentities(ctx)
+	if err != nil {
+		return "", err
+	}
+	agentBySession := map[string]string{}
+	for _, identity := range identityRows {
+		agentID := strings.TrimSpace(identity.Scope.AgentID)
+		if agentID == "" {
+			continue
+		}
+		agentBySession[identity.SessionID] = agentID
+	}
+	sourceAgentID := strings.TrimSpace(agentBySession[sourceSessionID])
 	if sourceAgentID == "" {
 		sourceAgentID = "agent"
 	}
@@ -541,7 +553,7 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 	}
 	used := map[string]bool{}
 	for i := range sessions {
-		agentID := strings.TrimSpace(s.store.SessionAgentID(ctx, sessions[i].ID))
+		agentID := strings.TrimSpace(agentBySession[sessions[i].ID])
 		if agentID == "" {
 			agentID = "agent"
 		}
