@@ -704,6 +704,39 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 	}
 }
 
+func TestStoreSessionIdentityRuntimeTupleDefaultsAndTrim(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_runtime_identity_trim", "", "@agent", map[string]any{"status": "idle"}, &gisession.SessionScope{Version: gisession.ScopeVersionV1, AgentID: "agent-a", Channel: "slack", Account: "workspace", Dimensions: []string{"chat"}, Values: map[string]string{"chat": "group:session_runtime_identity_trim"}}, []string{"agent:agent-a:slack:chat:group:session_runtime_identity_trim"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_identities set agent_id = ?, channel = ?, account = ? where session_id = ?`, " agent-a ", " slack ", " workspace ", "session_runtime_identity_trim"); err != nil {
+		t.Fatalf("pad session identity tuple fields: %v", err)
+	}
+	if got := s.SessionAgentID(ctx, "session_runtime_identity_trim"); got != "agent-a" {
+		t.Fatalf("expected trimmed session agent id, got %q", got)
+	}
+	if got := s.SessionChannel(ctx, "session_runtime_identity_trim"); got != "slack" {
+		t.Fatalf("expected trimmed session channel, got %q", got)
+	}
+	if got := s.SessionAccount(ctx, "session_runtime_identity_trim"); got != "workspace" {
+		t.Fatalf("expected trimmed session account, got %q", got)
+	}
+	if got := s.SessionAgentID(ctx, "missing_runtime_identity"); got != "agent" {
+		t.Fatalf("expected default session agent id for missing identity, got %q", got)
+	}
+	if got := s.SessionChannel(ctx, "missing_runtime_identity"); got != "gi" {
+		t.Fatalf("expected default session channel for missing identity, got %q", got)
+	}
+	if got := s.SessionAccount(ctx, "missing_runtime_identity"); got != "default" {
+		t.Fatalf("expected default session account for missing identity, got %q", got)
+	}
+}
+
 func TestStoreListSessionIDs(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
