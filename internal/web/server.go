@@ -526,13 +526,15 @@ func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request, sessi
 	writeJSON(w, http.StatusCreated, map[string]any{"branch": map[string]any{"chat_jid": "gi:" + cloned.ID, "label": cloned.Title, "agent_id": agentID, "source_chat_jid": "gi:" + sessionID}})
 }
 
+const defaultForkAgentID = "agent"
+
 func (s *Server) forkAgentIDForSession(ctx context.Context, sessionID string, agentBySession map[string]string) string {
 	agentID := strings.TrimSpace(agentBySession[sessionID])
 	if agentID == "" {
 		agentID = strings.TrimSpace(s.store.SessionAgentID(ctx, sessionID))
 	}
 	if agentID == "" {
-		agentID = "agent"
+		agentID = defaultForkAgentID
 	}
 	return agentID
 }
