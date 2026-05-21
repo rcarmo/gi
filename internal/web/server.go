@@ -542,7 +542,7 @@ func (s *Server) sourceForkAgentID(ctx context.Context, sourceSessionID string, 
 	sourceSessionID = strings.TrimSpace(sourceSessionID)
 	agentID, mapped := mapForkAgentIDOrDefault(sourceSessionID, agentBySession)
 	if !mapped && sourceSessionID != "" {
-		agentID = strings.TrimSpace(s.store.SessionAgentID(ctx, sourceSessionID))
+		agentID = s.store.SessionAgentID(ctx, sourceSessionID)
 	}
 	return agentID
 }
