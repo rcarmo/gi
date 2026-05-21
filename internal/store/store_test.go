@@ -702,6 +702,13 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 	if _, ok := agentBySession["session_agent_ids_blank"]; ok {
 		t.Fatalf("expected blank agent id session to be omitted, got %#v", agentBySession)
 	}
+	agentBySessionNilCtx, err := s.ListSessionAgentIDs(nil)
+	if err != nil {
+		t.Fatalf("list session agent ids (nil ctx): %v", err)
+	}
+	if agentBySessionNilCtx["session_agent_ids_a"] != "agent-a" || agentBySessionNilCtx["session_agent_ids_b"] != "agent-b" {
+		t.Fatalf("unexpected session agent id map (nil ctx): %#v", agentBySessionNilCtx)
+	}
 }
 
 func TestStoreSessionIdentityRuntimeTupleDefaultsAndTrim(t *testing.T) {
@@ -777,6 +784,13 @@ func TestStoreListSessionIDs(t *testing.T) {
 		if !seen[expected] {
 			t.Fatalf("expected %q in session ids, got %#v", expected, ids)
 		}
+	}
+	idsNilCtx, err := s.ListSessionIDs(nil)
+	if err != nil {
+		t.Fatalf("list session ids (nil ctx): %v", err)
+	}
+	if len(idsNilCtx) < 3 {
+		t.Fatalf("expected at least 3 session ids (nil ctx), got %#v", idsNilCtx)
 	}
 }
 

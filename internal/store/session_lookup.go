@@ -8,6 +8,9 @@ import (
 )
 
 func (s *Store) ListSessionAgentIDs(ctx context.Context) (map[string]string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	rows, err := s.db.QueryContext(ctx, `select session_id, agent_id from session_identities`)
 	if err != nil {
 		return nil, fmt.Errorf("list session agent ids: %w", err)
@@ -33,6 +36,9 @@ func (s *Store) ListSessionAgentIDs(ctx context.Context) (map[string]string, err
 }
 
 func (s *Store) ListSessionIDs(ctx context.Context) ([]string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	rows, err := s.db.QueryContext(ctx, `select id from sessions order by created_at asc, id asc`)
 	if err != nil {
 		return nil, fmt.Errorf("list session ids: %w", err)
