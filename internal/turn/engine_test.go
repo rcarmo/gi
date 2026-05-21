@@ -7791,7 +7791,7 @@ func TestPublishRuntimeInboundWorkEventPreservesCanonicalFields(t *testing.T) {
 	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.inbound_work", topics.SubscribeOptions{Buffer: 8, SessionID: "session_inbound_topic"})
 	defer unsub()
 
-	item := &queue.InboundWorkItem{ID: 17, Status: " retry ", SourceKind: " IPC ", SessionID: " session_inbound_topic ", ExplicitSessionKey: " session-key ", AttemptCount: 2, LastError: "boom", NextAttemptAt: "2026-05-12T18:00:00Z", ClaimedBy: "worker-1", ClaimedAt: "2026-05-12T17:59:00Z", CreatedAt: "2026-05-12T17:58:00Z", UpdatedAt: "2026-05-12T17:59:30Z"}
+	item := &queue.InboundWorkItem{ID: 17, Status: " retry ", SourceKind: " IPC ", SessionID: " session_inbound_topic ", ExplicitSessionKey: " session-key ", AttemptCount: 2, LastError: " boom ", NextAttemptAt: " 2026-05-12T18:00:00Z ", ClaimedBy: " worker-1 ", ClaimedAt: " 2026-05-12T17:59:00Z ", CreatedAt: " 2026-05-12T17:58:00Z ", UpdatedAt: " 2026-05-12T17:59:30Z "}
 	engine.PublishRuntimeInboundWorkEvent("inbound_work_retry_scheduled", item, map[string]any{"type": "oops", "id": 999, "status": "completed", "session_id": "wrong", "attempt_count": 0, "note": "keep me"})
 
 	select {
@@ -7802,7 +7802,7 @@ func TestPublishRuntimeInboundWorkEventPreservesCanonicalFields(t *testing.T) {
 		if env.SessionID != "session_inbound_topic" || env.Payload["id"] != item.ID || env.Payload["status"] != "retry" || env.Payload["session_id"] != "session_inbound_topic" || env.Payload["attempt_count"] != item.AttemptCount {
 			t.Fatalf("canonical inbound-work fields were overridden: %#v", env.Payload)
 		}
-		if env.Payload["explicit_session_key"] != "session-key" || env.Payload["source_kind"] != DirectSourceKindIPC {
+		if env.Payload["explicit_session_key"] != "session-key" || env.Payload["source_kind"] != DirectSourceKindIPC || env.Payload["last_error"] != "boom" || env.Payload["next_attempt_at"] != "2026-05-12T18:00:00Z" || env.Payload["claimed_by"] != "worker-1" || env.Payload["claimed_at"] != "2026-05-12T17:59:00Z" || env.Payload["created_at"] != "2026-05-12T17:58:00Z" || env.Payload["updated_at"] != "2026-05-12T17:59:30Z" {
 			t.Fatalf("expected normalized inbound-work payload fields, got %#v", env.Payload)
 		}
 		if env.Payload["note"] != "keep me" {

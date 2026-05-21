@@ -1514,12 +1514,12 @@ func (e *Engine) PublishRuntimeInboundWorkEvent(eventType string, item *queue.In
 	payload["session_id"] = strings.TrimSpace(item.SessionID)
 	payload["explicit_session_key"] = strings.TrimSpace(item.ExplicitSessionKey)
 	payload["attempt_count"] = item.AttemptCount
-	payload["last_error"] = item.LastError
-	payload["next_attempt_at"] = item.NextAttemptAt
-	payload["claimed_by"] = item.ClaimedBy
-	payload["claimed_at"] = item.ClaimedAt
-	payload["created_at"] = item.CreatedAt
-	payload["updated_at"] = item.UpdatedAt
+	payload["last_error"] = strings.TrimSpace(item.LastError)
+	payload["next_attempt_at"] = strings.TrimSpace(item.NextAttemptAt)
+	payload["claimed_by"] = strings.TrimSpace(item.ClaimedBy)
+	payload["claimed_at"] = strings.TrimSpace(item.ClaimedAt)
+	payload["created_at"] = strings.TrimSpace(item.CreatedAt)
+	payload["updated_at"] = strings.TrimSpace(item.UpdatedAt)
 	e.publishRuntimeTopicEvent("runtime.inbound_work", strings.TrimSpace(item.SessionID), "", "notice", eventType, payload)
 }
 
