@@ -386,6 +386,12 @@ func TestNormalizeForkSessionID(t *testing.T) {
 	}
 }
 
+func TestNormalizeForkAgentID(t *testing.T) {
+	if got := normalizeForkAgentID("  agent-a  "); got != "agent-a" {
+		t.Fatalf("expected trimmed agent id, got %q", got)
+	}
+}
+
 func TestMapForkAgentIDOrDefault(t *testing.T) {
 	if got, mapped := mapForkAgentIDOrDefault(" s1 ", map[string]string{"s1": " agent-a "}); got != "agent-a" || !mapped {
 		t.Fatalf("expected trimmed mapped agent id, got %q mapped=%v", got, mapped)

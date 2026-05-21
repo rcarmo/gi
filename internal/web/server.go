@@ -534,9 +534,13 @@ func normalizeForkSessionID(sessionID string) string {
 	return strings.TrimSpace(sessionID)
 }
 
+func normalizeForkAgentID(agentID string) string {
+	return strings.TrimSpace(agentID)
+}
+
 func mapForkAgentIDOrDefault(sessionID string, agentBySession map[string]string) (agentID string, mapped bool) {
 	sessionID = normalizeForkSessionID(sessionID)
-	agentID = strings.TrimSpace(agentBySession[sessionID])
+	agentID = normalizeForkAgentID(agentBySession[sessionID])
 	if agentID == "" {
 		return defaultForkAgentID, false
 	}
