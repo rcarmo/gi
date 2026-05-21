@@ -547,13 +547,13 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 	if base == "" {
 		base = sourceAgentID
 	}
-	sessions, err := s.store.ListSessions(ctx)
+	sessionIDs, err := s.store.ListSessionIDs(ctx)
 	if err != nil {
 		return "", err
 	}
 	used := map[string]bool{}
-	for i := range sessions {
-		agentID := strings.TrimSpace(agentBySession[sessions[i].ID])
+	for _, sessionID := range sessionIDs {
+		agentID := strings.TrimSpace(agentBySession[sessionID])
 		if agentID == "" {
 			agentID = "agent"
 		}

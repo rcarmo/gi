@@ -3,8 +3,29 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 )
+
+func (s *Store) ListSessionIDs(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx, `select id from sessions order by created_at asc, id asc`)
+	if err != nil {
+		return nil, fmt.Errorf("list session ids: %w", err)
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out = append(out, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list session ids rows: %w", err)
+	}
+	return out, nil
+}
 
 func (s *Store) FindChildSessionIDByParentAndAgent(ctx context.Context, parentSessionID, agentID string) (string, error) {
 	parentSessionID = strings.TrimSpace(parentSessionID)
