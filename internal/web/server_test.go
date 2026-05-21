@@ -393,12 +393,15 @@ func TestMapForkAgentIDOrDefault(t *testing.T) {
 }
 
 func TestBuildUsedForkAgentIDs(t *testing.T) {
-	used := buildUsedForkAgentIDs([]string{" s1 ", "s2", "s3"}, map[string]string{"s1": " agent-a ", "s2": ""})
+	used := buildUsedForkAgentIDs([]string{" s1 ", "s2", "s3", "   "}, map[string]string{"s1": " agent-a ", "s2": ""})
 	if !used["agent-a"] {
 		t.Fatalf("expected trimmed mapped agent id to be marked used: %#v", used)
 	}
 	if !used[defaultForkAgentID] {
 		t.Fatalf("expected default fork agent id to be marked used for blank/missing entries: %#v", used)
+	}
+	if len(used) != 2 {
+		t.Fatalf("expected blank session id entries to be ignored, got %#v", used)
 	}
 }
 
