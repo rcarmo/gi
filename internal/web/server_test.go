@@ -368,6 +368,7 @@ func TestTrimAgentNumericSuffix(t *testing.T) {
 		want string
 	}{
 		{in: "agent42", want: "agent"},
+		{in: " agent42 ", want: "agent"},
 		{in: "agent", want: "agent"},
 		{in: "123", want: "123"},
 		{in: "agent007x", want: "agent007x"},
