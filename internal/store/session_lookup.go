@@ -7,6 +7,31 @@ import (
 	"strings"
 )
 
+func (s *Store) ListSessionAgentIDs(ctx context.Context) (map[string]string, error) {
+	rows, err := s.db.QueryContext(ctx, `select session_id, agent_id from session_identities`)
+	if err != nil {
+		return nil, fmt.Errorf("list session agent ids: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var sessionID, agentID string
+		if err := rows.Scan(&sessionID, &agentID); err != nil {
+			return nil, err
+		}
+		sessionID = strings.TrimSpace(sessionID)
+		agentID = strings.TrimSpace(agentID)
+		if sessionID == "" || agentID == "" {
+			continue
+		}
+		out[sessionID] = agentID
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list session agent ids rows: %w", err)
+	}
+	return out, nil
+}
+
 func (s *Store) ListSessionIDs(ctx context.Context) ([]string, error) {
 	rows, err := s.db.QueryContext(ctx, `select id from sessions order by created_at asc, id asc`)
 	if err != nil {

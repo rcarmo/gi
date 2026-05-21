@@ -673,6 +673,28 @@ func TestStoreSetAndResolveMainSession(t *testing.T) {
 	}
 }
 
+func TestStoreListSessionAgentIDs(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_agent_ids_a", "", "@agent-a", map[string]any{"status": "idle"}, &gisession.SessionScope{Version: gisession.ScopeVersionV1, AgentID: "agent-a", Channel: "gi", Account: "default", Dimensions: []string{"chat"}, Values: map[string]string{"chat": "direct:session_agent_ids_a"}}, []string{"agent:agent-a:gi:chat:direct:session_agent_ids_a"}); err != nil {
+		t.Fatalf("create session a: %v", err)
+	}
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_agent_ids_b", "", "@agent-b", map[string]any{"status": "idle"}, &gisession.SessionScope{Version: gisession.ScopeVersionV1, AgentID: "agent-b", Channel: "gi", Account: "default", Dimensions: []string{"chat"}, Values: map[string]string{"chat": "direct:session_agent_ids_b"}}, []string{"agent:agent-b:gi:chat:direct:session_agent_ids_b"}); err != nil {
+		t.Fatalf("create session b: %v", err)
+	}
+	agentBySession, err := s.ListSessionAgentIDs(ctx)
+	if err != nil {
+		t.Fatalf("list session agent ids: %v", err)
+	}
+	if agentBySession["session_agent_ids_a"] != "agent-a" || agentBySession["session_agent_ids_b"] != "agent-b" {
+		t.Fatalf("unexpected session agent id map: %#v", agentBySession)
+	}
+}
+
 func TestStoreListSessionIDs(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
