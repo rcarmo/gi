@@ -314,6 +314,29 @@ func TestNextForkAgentIDDefaultsWhenUsedSessionIdentityMissingFromLookupMap(t *t
 	}
 }
 
+func TestForkAgentIDForSessionResolutionFallbackOrder(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	ctx := t.Context()
+	alloc := gisession.AllocateDefaultSession("agent-base", "gi", "default", "session_fork_helper")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_fork_helper", "", "@agent-base", map[string]any{"status": "idle", "model": "bootstrap"}, &alloc.Scope, alloc.SessionAliases); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if got := srv.forkAgentIDForSession(ctx, "session_fork_helper", map[string]string{"session_fork_helper": " agent-map "}); got != "agent-map" {
+		t.Fatalf("expected map agent id to win, got %q", got)
+	}
+	if got := srv.forkAgentIDForSession(ctx, "session_fork_helper", map[string]string{}); got != "agent-base" {
+		t.Fatalf("expected store fallback agent id, got %q", got)
+	}
+	if got := srv.forkAgentIDForSession(ctx, "session_fork_helper_missing", map[string]string{}); got != "agent" {
+		t.Fatalf("expected default fallback agent id, got %q", got)
+	}
+}
+
 func TestSessionContinueEndpointStartsQueuedSteering(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
