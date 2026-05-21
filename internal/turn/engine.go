@@ -1505,10 +1505,10 @@ func (e *Engine) PublishRuntimeInboundWorkEvent(eventType string, item *queue.In
 		payload = map[string]any{}
 	}
 	payload["id"] = item.ID
-	payload["status"] = item.Status
-	payload["source_kind"] = item.SourceKind
-	payload["session_id"] = item.SessionID
-	payload["explicit_session_key"] = item.ExplicitSessionKey
+	payload["status"] = strings.TrimSpace(item.Status)
+	payload["source_kind"] = normalizeDirectSourceKind(item.SourceKind)
+	payload["session_id"] = strings.TrimSpace(item.SessionID)
+	payload["explicit_session_key"] = strings.TrimSpace(item.ExplicitSessionKey)
 	payload["attempt_count"] = item.AttemptCount
 	payload["last_error"] = item.LastError
 	payload["next_attempt_at"] = item.NextAttemptAt
@@ -1516,7 +1516,7 @@ func (e *Engine) PublishRuntimeInboundWorkEvent(eventType string, item *queue.In
 	payload["claimed_at"] = item.ClaimedAt
 	payload["created_at"] = item.CreatedAt
 	payload["updated_at"] = item.UpdatedAt
-	e.publishRuntimeTopicEvent("runtime.inbound_work", item.SessionID, "", "notice", eventType, payload)
+	e.publishRuntimeTopicEvent("runtime.inbound_work", strings.TrimSpace(item.SessionID), "", "notice", eventType, payload)
 }
 
 func (e *Engine) PublishRuntimeDispatcherEvent(eventType string, payload map[string]any) {
