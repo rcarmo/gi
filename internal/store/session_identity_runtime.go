@@ -23,25 +23,47 @@ func (s *Store) SessionIdentityOrNil(ctx context.Context, sessionID string) *Ses
 	return identity
 }
 
-func (s *Store) SessionAgentID(ctx context.Context, sessionID string) string {
-	if identity := s.SessionIdentityOrNil(ctx, sessionID); identity != nil && strings.TrimSpace(identity.Scope.AgentID) != "" {
-		return identity.Scope.AgentID
+func (s *Store) sessionIdentityTupleOrDefaults(ctx context.Context, sessionID string) (agentID, channel, account string) {
+	sessionID = strings.TrimSpace(sessionID)
+	if s == nil || sessionID == "" {
+		return defaultSessionAgentID, defaultSessionChannel, defaultSessionAccount
 	}
-	return defaultSessionAgentID
+	row := s.db.QueryRowContext(ctx, `
+		select coalesce(agent_id,''), coalesce(channel,''), coalesce(account,'')
+		from session_identities
+		where session_id = ?
+	`, sessionID)
+	if err := row.Scan(&agentID, &channel, &account); err != nil {
+		return defaultSessionAgentID, defaultSessionChannel, defaultSessionAccount
+	}
+	agentID = strings.TrimSpace(agentID)
+	channel = strings.TrimSpace(channel)
+	account = strings.TrimSpace(account)
+	if agentID == "" {
+		agentID = defaultSessionAgentID
+	}
+	if channel == "" {
+		channel = defaultSessionChannel
+	}
+	if account == "" {
+		account = defaultSessionAccount
+	}
+	return agentID, channel, account
+}
+
+func (s *Store) SessionAgentID(ctx context.Context, sessionID string) string {
+	agentID, _, _ := s.sessionIdentityTupleOrDefaults(ctx, sessionID)
+	return agentID
 }
 
 func (s *Store) SessionChannel(ctx context.Context, sessionID string) string {
-	if identity := s.SessionIdentityOrNil(ctx, sessionID); identity != nil && strings.TrimSpace(identity.Scope.Channel) != "" {
-		return identity.Scope.Channel
-	}
-	return defaultSessionChannel
+	_, channel, _ := s.sessionIdentityTupleOrDefaults(ctx, sessionID)
+	return channel
 }
 
 func (s *Store) SessionAccount(ctx context.Context, sessionID string) string {
-	if identity := s.SessionIdentityOrNil(ctx, sessionID); identity != nil && strings.TrimSpace(identity.Scope.Account) != "" {
-		return identity.Scope.Account
-	}
-	return defaultSessionAccount
+	_, _, account := s.sessionIdentityTupleOrDefaults(ctx, sessionID)
+	return account
 }
 
 func (s *Store) RequireSession(ctx context.Context, sessionID string) error {
