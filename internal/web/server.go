@@ -565,6 +565,7 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	sourceSessionID = strings.TrimSpace(sourceSessionID)
 	agentBySession, err := s.store.ListSessionAgentIDs(ctx)
 	if err != nil {
 		return "", err
