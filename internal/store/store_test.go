@@ -673,6 +673,40 @@ func TestStoreSetAndResolveMainSession(t *testing.T) {
 	}
 }
 
+func TestStoreListSessionIDs(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_ids_a", "@agent", map[string]any{"status": "idle"}); err != nil {
+		t.Fatalf("create session a: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_ids_b", "@agent", map[string]any{"status": "idle"}); err != nil {
+		t.Fatalf("create session b: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_ids_c", "@agent", map[string]any{"status": "idle"}); err != nil {
+		t.Fatalf("create session c: %v", err)
+	}
+	ids, err := s.ListSessionIDs(ctx)
+	if err != nil {
+		t.Fatalf("list session ids: %v", err)
+	}
+	if len(ids) < 3 {
+		t.Fatalf("expected at least 3 session ids, got %#v", ids)
+	}
+	seen := map[string]bool{}
+	for _, id := range ids {
+		seen[id] = true
+	}
+	for _, expected := range []string{"session_ids_a", "session_ids_b", "session_ids_c"} {
+		if !seen[expected] {
+			t.Fatalf("expected %q in session ids, got %#v", expected, ids)
+		}
+	}
+}
+
 func TestStoreFindChildSessionIDByParentAndAgent(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
