@@ -4754,24 +4754,31 @@ func TestDirectEnvelopeFromInputNormalizesIngressFields(t *testing.T) {
 }
 
 func TestDirectInputFromEnvelopeNormalizesIngressFields(t *testing.T) {
-	in := directInputFromEnvelope(map[string]any{
+	envelope := map[string]any{
 		"kind":            "  prompt  ",
 		"session_id":      "  session_2  ",
 		"session_key":     "  sk_v1_def  ",
 		"target_agent_id": "  agent3  ",
 		"parent_turn_id":  "  turn_parent_2  ",
+		"metadata":        map[string]any{"note": "keep"},
 		"origin": map[string]any{
 			"source_kind": "  SYSTEM  ",
 			"source_id":   "  system:cron  ",
 			"role":        "  system  ",
 			"label":       "  scheduler  ",
 		},
-	})
+	}
+	in := directInputFromEnvelope(envelope)
 	if in.Kind != DirectKindPrompt || in.SessionID != "session_2" || in.SessionKey != "sk_v1_def" || in.TargetAgentID != "agent3" || in.ParentTurnID != "turn_parent_2" {
 		t.Fatalf("expected normalized direct envelope decode, got %#v", in)
 	}
 	if in.Origin.SourceKind != DirectSourceKindSystem || in.Origin.SourceID != "system:cron" || in.Origin.Role != "system" || in.Origin.Label != "scheduler" {
 		t.Fatalf("expected normalized origin decode, got %#v", in.Origin)
+	}
+	envelopeMetadata, _ := envelope["metadata"].(map[string]any)
+	envelopeMetadata["note"] = "changed"
+	if internalx.StringValue(in.Metadata["note"], "") != "keep" {
+		t.Fatalf("expected decoded metadata to be detached copy, got %#v", in.Metadata)
 	}
 }
 

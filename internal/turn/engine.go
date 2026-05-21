@@ -1255,7 +1255,7 @@ func directEnvelopeFromInput(in DirectInput) map[string]any {
 		"intent":          in.Intent,
 		"model":           in.Model,
 		"parent_turn_id":  strings.TrimSpace(in.ParentTurnID),
-		"metadata":        in.Metadata,
+		"metadata":        cloneMap(in.Metadata),
 		"origin": map[string]any{
 			"source_kind": normalizeDirectSourceKind(in.Origin.SourceKind),
 			"source_id":   strings.TrimSpace(in.Origin.SourceID),
@@ -1279,7 +1279,7 @@ func directInputFromEnvelope(envelope map[string]any) DirectInput {
 		Metadata:      map[string]any{},
 	}
 	if metadata, ok := envelope["metadata"].(map[string]any); ok && metadata != nil {
-		in.Metadata = metadata
+		in.Metadata = cloneMap(metadata)
 	}
 	if origin, ok := envelope["origin"].(map[string]any); ok && origin != nil {
 		in.Origin = DirectOrigin{
