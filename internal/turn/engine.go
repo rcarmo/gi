@@ -1654,6 +1654,17 @@ func cloneMap(in map[string]any) map[string]any {
 	return out
 }
 
+func copySelectedMetadata(dst, src map[string]any, keys []string) {
+	if dst == nil || src == nil {
+		return
+	}
+	for _, key := range keys {
+		if value, ok := src[key]; ok {
+			dst[key] = value
+		}
+	}
+}
+
 var activeTurnHeartbeatInterval = 5 * time.Second
 
 const interruptedTurnStaleAfter = 30 * time.Second
@@ -4794,20 +4805,12 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 	r.engine.PublishRuntimeTurnEvent("turn_started", sessionID, turnID, agentID, "running", "setup", map[string]any{"reason": "setup", "model": model})
 	r.emitTurnStateHookOnly(ctx, sessionID, turnID, agentID, model, "running", "setup", map[string]any{"reason": "setup"})
 	userPayload := map[string]any{"kind": "chat", "intent": intent, "turn_id": turnID}
-	for _, key := range ingressMetadataKeys {
-		if value, ok := turnRec.Metadata[key]; ok {
-			userPayload[key] = value
-		}
-	}
+	copySelectedMetadata(userPayload, turnRec.Metadata, ingressMetadataKeys)
 	if strings.TrimSpace(prompt) != "" && len(initialSteering) == 0 {
 		logutil.WarnIfErr("add user prompt message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload))
 	}
 	startedPayload := map[string]any{"phase": "turn", "prompt": prompt, "intent": intent, "model": model, "checkpoint": true}
-	for _, key := range append(turnStartedExtraMetadataKeys, ingressMetadataKeys...) {
-		if value, ok := turnRec.Metadata[key]; ok {
-			startedPayload[key] = value
-		}
-	}
+	copySelectedMetadata(startedPayload, turnRec.Metadata, append(turnStartedExtraMetadataKeys, ingressMetadataKeys...))
 	logutil.WarnIfErr("append turn.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "turn.started", startedPayload))
 	return &preparedTurnRun{
 		turn:            turnRec,
