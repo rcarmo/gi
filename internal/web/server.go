@@ -553,6 +553,10 @@ func trimAgentNumericSuffix(agentID string) string {
 }
 
 func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
+	base = strings.TrimSpace(base)
+	if base == "" {
+		base = defaultForkAgentID
+	}
 	for i := 1; i < maxForkAgentIDSuffix; i++ {
 		candidate := base + strconv.Itoa(i)
 		if !used[candidate] {
