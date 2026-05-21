@@ -38,6 +38,7 @@ Two guardrails matter here:
 - the surrounding store resolve-or-create paths now mirror that shape internally: allocation matching has a dedicated ID-first finder reused by resolve-or-create flows, continue/main-session branches defer full row reloads until after binding/main-session state changes succeed, and plain session-existence checks inside those flows now use explicit existence helpers instead of loading a whole session row just to prove the id is valid
 - alias matches are only accepted when the persisted canonical identity signature still matches the requested routed allocation, so broad compat aliases cannot accidentally collapse distinct routed sessions even if `sessions.scope_json` has drifted
 - channel-binding reuse is agent-safe: a binding only qualifies if the bound session identity still belongs to the same agent as the incoming allocation
+- web `/branch` fork-agent id allocation now follows the same relational-identity bias: used-agent occupancy comes from `session_identities` lightweight map reads (`ListSessionAgentIDs`), source-base fallback uses canonical `SessionAgentID`, and helper normalization/candidate selection is deterministic and regression-tested instead of depending on stale `sessions.scope_json` snapshots
 
 ## Mechanism overview
 
