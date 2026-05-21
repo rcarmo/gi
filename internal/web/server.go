@@ -533,6 +533,9 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 	}
 	sourceAgentID := strings.TrimSpace(agentBySession[sourceSessionID])
 	if sourceAgentID == "" {
+		sourceAgentID = strings.TrimSpace(s.store.SessionAgentID(ctx, sourceSessionID))
+	}
+	if sourceAgentID == "" {
 		sourceAgentID = "agent"
 	}
 	base := strings.TrimRightFunc(sourceAgentID, func(r rune) bool { return r >= '0' && r <= '9' })
