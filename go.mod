@@ -1,17 +1,17 @@
 module github.com/rcarmo/gi
 
-go 1.26.2
+go 1.26.3
 
 require (
 	github.com/candid82/joker v1.7.1
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
-	github.com/grindlemire/go-tui v0.13.1
+	github.com/grindlemire/go-tui v0.14.0
 	github.com/rcarmo/go-ai v0.74.0
-	github.com/yuin/goldmark v1.4.13
+	github.com/yuin/goldmark v1.8.2
 	golang.org/x/crypto v0.51.0
-	golang.org/x/net v0.53.0
-	modernc.org/sqlite v1.50.0
-	tailscale.com v1.98.1
+	golang.org/x/net v0.54.0
+	modernc.org/sqlite v1.50.1
+	tailscale.com v1.98.2
 )
 
 require (
@@ -87,7 +87,7 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gvisor.dev/gvisor v0.0.0-20260224225140-573d5e7127a8 // indirect
-	modernc.org/libc v1.72.0 // indirect
+	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
