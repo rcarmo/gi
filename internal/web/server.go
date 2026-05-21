@@ -550,10 +550,10 @@ func mapForkAgentIDOrDefault(sessionID string, agentBySession map[string]string)
 func (s *Server) sourceForkAgentID(ctx context.Context, sourceSessionID string, agentBySession map[string]string) string {
 	sourceSessionID = normalizeForkSessionID(sourceSessionID)
 	agentID, mapped := mapForkAgentIDOrDefault(sourceSessionID, agentBySession)
-	if !mapped && sourceSessionID != "" {
-		agentID = s.store.SessionAgentID(ctx, sourceSessionID)
+	if mapped || sourceSessionID == "" {
+		return agentID
 	}
-	return agentID
+	return s.store.SessionAgentID(ctx, sourceSessionID)
 }
 
 func trimAgentNumericSuffix(agentID string) string {
