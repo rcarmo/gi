@@ -530,8 +530,12 @@ const defaultForkAgentID = "agent"
 const minForkAgentIDSuffix = 1
 const maxForkAgentIDSuffixExclusive = 1000
 
+func normalizeForkSessionID(sessionID string) string {
+	return strings.TrimSpace(sessionID)
+}
+
 func mapForkAgentIDOrDefault(sessionID string, agentBySession map[string]string) (agentID string, mapped bool) {
-	sessionID = strings.TrimSpace(sessionID)
+	sessionID = normalizeForkSessionID(sessionID)
 	agentID = strings.TrimSpace(agentBySession[sessionID])
 	if agentID == "" {
 		return defaultForkAgentID, false
@@ -540,7 +544,7 @@ func mapForkAgentIDOrDefault(sessionID string, agentBySession map[string]string)
 }
 
 func (s *Server) sourceForkAgentID(ctx context.Context, sourceSessionID string, agentBySession map[string]string) string {
-	sourceSessionID = strings.TrimSpace(sourceSessionID)
+	sourceSessionID = normalizeForkSessionID(sourceSessionID)
 	agentID, mapped := mapForkAgentIDOrDefault(sourceSessionID, agentBySession)
 	if !mapped && sourceSessionID != "" {
 		agentID = s.store.SessionAgentID(ctx, sourceSessionID)
@@ -560,7 +564,7 @@ func trimAgentNumericSuffix(agentID string) string {
 func buildUsedForkAgentIDs(sessionIDs []string, agentBySession map[string]string) map[string]bool {
 	used := make(map[string]bool, len(sessionIDs))
 	for _, sessionID := range sessionIDs {
-		sessionID = strings.TrimSpace(sessionID)
+		sessionID = normalizeForkSessionID(sessionID)
 		if sessionID == "" {
 			continue
 		}

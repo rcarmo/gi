@@ -380,6 +380,12 @@ func TestTrimAgentNumericSuffix(t *testing.T) {
 	}
 }
 
+func TestNormalizeForkSessionID(t *testing.T) {
+	if got := normalizeForkSessionID("  session-a  "); got != "session-a" {
+		t.Fatalf("expected trimmed session id, got %q", got)
+	}
+}
+
 func TestMapForkAgentIDOrDefault(t *testing.T) {
 	if got, mapped := mapForkAgentIDOrDefault(" s1 ", map[string]string{"s1": " agent-a "}); got != "agent-a" || !mapped {
 		t.Fatalf("expected trimmed mapped agent id, got %q mapped=%v", got, mapped)
