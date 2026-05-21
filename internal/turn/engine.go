@@ -1244,20 +1244,20 @@ func (e *Engine) ProcessDirect(ctx context.Context, in DirectInput) (*SubmitResu
 
 func directEnvelopeFromInput(in DirectInput) map[string]any {
 	envelope := map[string]any{
-		"kind":            in.Kind,
-		"session_id":      in.SessionID,
-		"session_key":     in.SessionKey,
-		"target_agent_id": in.TargetAgentID,
+		"kind":            normalizeDirectKind(in.Kind),
+		"session_id":      strings.TrimSpace(in.SessionID),
+		"session_key":     strings.TrimSpace(in.SessionKey),
+		"target_agent_id": strings.TrimSpace(in.TargetAgentID),
 		"prompt":          in.Prompt,
 		"intent":          in.Intent,
 		"model":           in.Model,
-		"parent_turn_id":  in.ParentTurnID,
+		"parent_turn_id":  strings.TrimSpace(in.ParentTurnID),
 		"metadata":        in.Metadata,
 		"origin": map[string]any{
-			"source_kind": in.Origin.SourceKind,
-			"source_id":   in.Origin.SourceID,
-			"role":        in.Origin.Role,
-			"label":       in.Origin.Label,
+			"source_kind": normalizeDirectSourceKind(in.Origin.SourceKind),
+			"source_id":   strings.TrimSpace(in.Origin.SourceID),
+			"role":        strings.TrimSpace(in.Origin.Role),
+			"label":       strings.TrimSpace(in.Origin.Label),
 		},
 	}
 	return envelope
@@ -1265,14 +1265,14 @@ func directEnvelopeFromInput(in DirectInput) map[string]any {
 
 func directInputFromEnvelope(envelope map[string]any) DirectInput {
 	in := DirectInput{
-		Kind:          internalx.StringValue(envelope["kind"], ""),
-		SessionID:     internalx.StringValue(envelope["session_id"], ""),
-		SessionKey:    internalx.StringValue(envelope["session_key"], ""),
-		TargetAgentID: internalx.StringValue(envelope["target_agent_id"], ""),
+		Kind:          normalizeDirectKind(internalx.StringValue(envelope["kind"], "")),
+		SessionID:     strings.TrimSpace(internalx.StringValue(envelope["session_id"], "")),
+		SessionKey:    strings.TrimSpace(internalx.StringValue(envelope["session_key"], "")),
+		TargetAgentID: strings.TrimSpace(internalx.StringValue(envelope["target_agent_id"], "")),
 		Prompt:        internalx.StringValue(envelope["prompt"], ""),
 		Intent:        internalx.StringValue(envelope["intent"], ""),
 		Model:         internalx.StringValue(envelope["model"], ""),
-		ParentTurnID:  internalx.StringValue(envelope["parent_turn_id"], ""),
+		ParentTurnID:  strings.TrimSpace(internalx.StringValue(envelope["parent_turn_id"], "")),
 		Metadata:      map[string]any{},
 	}
 	if metadata, ok := envelope["metadata"].(map[string]any); ok && metadata != nil {
@@ -1280,10 +1280,10 @@ func directInputFromEnvelope(envelope map[string]any) DirectInput {
 	}
 	if origin, ok := envelope["origin"].(map[string]any); ok && origin != nil {
 		in.Origin = DirectOrigin{
-			SourceKind: internalx.StringValue(origin["source_kind"], ""),
-			SourceID:   internalx.StringValue(origin["source_id"], ""),
-			Role:       internalx.StringValue(origin["role"], ""),
-			Label:      internalx.StringValue(origin["label"], ""),
+			SourceKind: normalizeDirectSourceKind(internalx.StringValue(origin["source_kind"], "")),
+			SourceID:   strings.TrimSpace(internalx.StringValue(origin["source_id"], "")),
+			Role:       strings.TrimSpace(internalx.StringValue(origin["role"], "")),
+			Label:      strings.TrimSpace(internalx.StringValue(origin["label"], "")),
 		}
 	}
 	return in
