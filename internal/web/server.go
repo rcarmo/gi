@@ -566,11 +566,16 @@ func buildUsedForkAgentIDs(sessionIDs []string, agentBySession map[string]string
 	return used
 }
 
-func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
+func normalizeForkAgentBase(base string) string {
 	base = strings.TrimSpace(base)
 	if base == "" {
-		base = defaultForkAgentID
+		return defaultForkAgentID
 	}
+	return base
+}
+
+func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
+	base = normalizeForkAgentBase(base)
 	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
 		candidate := base + strconv.Itoa(i)
 		if !used[candidate] {
@@ -589,7 +594,7 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 		return "", err
 	}
 	sourceAgentID := s.sourceForkAgentID(ctx, sourceSessionID, agentBySession)
-	base := trimAgentNumericSuffix(sourceAgentID)
+	base := normalizeForkAgentBase(trimAgentNumericSuffix(sourceAgentID))
 	sessionIDs, err := s.store.ListSessionIDs(ctx)
 	if err != nil {
 		return "", err

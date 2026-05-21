@@ -402,6 +402,15 @@ func TestBuildUsedForkAgentIDs(t *testing.T) {
 	}
 }
 
+func TestNormalizeForkAgentBase(t *testing.T) {
+	if got := normalizeForkAgentBase("  "); got != defaultForkAgentID {
+		t.Fatalf("expected empty base to normalize to default, got %q", got)
+	}
+	if got := normalizeForkAgentBase("  agentX  "); got != "agentX" {
+		t.Fatalf("expected trimmed non-empty base, got %q", got)
+	}
+}
+
 func TestChooseNextForkAgentID(t *testing.T) {
 	used := map[string]bool{"agent1": true, "agent2": true}
 	if got, ok := chooseNextForkAgentID("agent", used); !ok || got != "agent3" {
