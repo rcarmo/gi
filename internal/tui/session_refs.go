@@ -139,10 +139,12 @@ func (c *chatTUI) nextForkAgentID() string {
 }
 
 func (c *chatTUI) sessionAgentIDIndex(sessions []store.Session) map[string]string {
-	index := map[string]string{}
-	ctx := context.Background()
+	index, err := c.store.ListSessionAgentIDs(context.Background())
+	if err != nil || index == nil {
+		index = map[string]string{}
+	}
 	for _, sess := range sessions {
-		agentID := strings.TrimSpace(c.store.SessionAgentID(ctx, sess.ID))
+		agentID := strings.TrimSpace(index[sess.ID])
 		if agentID == "" {
 			agentID = "agent"
 		}
