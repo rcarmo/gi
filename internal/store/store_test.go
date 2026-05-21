@@ -686,12 +686,21 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 	if _, err := s.CreateSessionWithMetadata(ctx, "session_agent_ids_b", "", "@agent-b", map[string]any{"status": "idle"}, &gisession.SessionScope{Version: gisession.ScopeVersionV1, AgentID: "agent-b", Channel: "gi", Account: "default", Dimensions: []string{"chat"}, Values: map[string]string{"chat": "direct:session_agent_ids_b"}}, []string{"agent:agent-b:gi:chat:direct:session_agent_ids_b"}); err != nil {
 		t.Fatalf("create session b: %v", err)
 	}
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_agent_ids_blank", "", "@blank", map[string]any{"status": "idle"}, &gisession.SessionScope{Version: gisession.ScopeVersionV1, AgentID: "", Channel: "gi", Account: "default", Dimensions: []string{"chat"}, Values: map[string]string{"chat": "direct:session_agent_ids_blank"}}, []string{"agent:blank:gi:chat:direct:session_agent_ids_blank"}); err != nil {
+		t.Fatalf("create blank-agent session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `update session_identities set agent_id = ? where session_id = ?`, " agent-b ", "session_agent_ids_b"); err != nil {
+		t.Fatalf("pad agent id b: %v", err)
+	}
 	agentBySession, err := s.ListSessionAgentIDs(ctx)
 	if err != nil {
 		t.Fatalf("list session agent ids: %v", err)
 	}
 	if agentBySession["session_agent_ids_a"] != "agent-a" || agentBySession["session_agent_ids_b"] != "agent-b" {
 		t.Fatalf("unexpected session agent id map: %#v", agentBySession)
+	}
+	if _, ok := agentBySession["session_agent_ids_blank"]; ok {
+		t.Fatalf("expected blank agent id session to be omitted, got %#v", agentBySession)
 	}
 }
 
