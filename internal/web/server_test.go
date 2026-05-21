@@ -426,6 +426,12 @@ func TestNormalizeForkAgentBase(t *testing.T) {
 	}
 }
 
+func TestForkAgentIDCandidate(t *testing.T) {
+	if got := forkAgentIDCandidate(" agent ", 3); got != "agent3" {
+		t.Fatalf("expected normalized candidate agent3, got %q", got)
+	}
+}
+
 func TestChooseNextForkAgentID(t *testing.T) {
 	used := map[string]bool{"agent1": true, "agent2": true}
 	if got, ok := chooseNextForkAgentID("agent", used); !ok || got != "agent3" {
