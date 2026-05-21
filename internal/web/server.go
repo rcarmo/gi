@@ -526,18 +526,23 @@ func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request, sessi
 	writeJSON(w, http.StatusCreated, map[string]any{"branch": map[string]any{"chat_jid": "gi:" + cloned.ID, "label": cloned.Title, "agent_id": agentID, "source_chat_jid": "gi:" + sessionID}})
 }
 
+func (s *Server) forkAgentIDForSession(ctx context.Context, sessionID string, agentBySession map[string]string) string {
+	agentID := strings.TrimSpace(agentBySession[sessionID])
+	if agentID == "" {
+		agentID = strings.TrimSpace(s.store.SessionAgentID(ctx, sessionID))
+	}
+	if agentID == "" {
+		agentID = "agent"
+	}
+	return agentID
+}
+
 func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (string, error) {
 	agentBySession, err := s.store.ListSessionAgentIDs(ctx)
 	if err != nil {
 		return "", err
 	}
-	sourceAgentID := strings.TrimSpace(agentBySession[sourceSessionID])
-	if sourceAgentID == "" {
-		sourceAgentID = strings.TrimSpace(s.store.SessionAgentID(ctx, sourceSessionID))
-	}
-	if sourceAgentID == "" {
-		sourceAgentID = "agent"
-	}
+	sourceAgentID := s.forkAgentIDForSession(ctx, sourceSessionID, agentBySession)
 	base := strings.TrimRightFunc(sourceAgentID, func(r rune) bool { return r >= '0' && r <= '9' })
 	if base == "" {
 		base = sourceAgentID
@@ -548,14 +553,7 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 	}
 	used := map[string]bool{}
 	for _, sessionID := range sessionIDs {
-		agentID := strings.TrimSpace(agentBySession[sessionID])
-		if agentID == "" {
-			agentID = strings.TrimSpace(s.store.SessionAgentID(ctx, sessionID))
-		}
-		if agentID == "" {
-			agentID = "agent"
-		}
-		used[agentID] = true
+		used[s.forkAgentIDForSession(ctx, sessionID, agentBySession)] = true
 	}
 	for i := 1; i < 1000; i++ {
 		candidate := base + strconv.Itoa(i)
