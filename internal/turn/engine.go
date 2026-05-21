@@ -1130,7 +1130,7 @@ const (
 )
 
 var ingressMetadataKeys = []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "ingress_kind", "ingress_source_kind", "ingress_source_id", "ingress_role", "ingress_label", "ingress_session_key"}
-var turnStartedExtraMetadataKeys = []string{"parent_turn_id", "route_mode", "route_matched_by"}
+var turnStartedMetadataKeys = []string{"parent_turn_id", "route_mode", "route_matched_by", "source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "ingress_kind", "ingress_source_kind", "ingress_source_id", "ingress_role", "ingress_label", "ingress_session_key"}
 
 func normalizeDirectKind(kind string) string {
 	kind = internalx.NormalizedLowerString(kind)
@@ -4814,7 +4814,7 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 		logutil.WarnIfErr("add user prompt message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload))
 	}
 	startedPayload := map[string]any{"phase": "turn", "prompt": prompt, "intent": intent, "model": model, "checkpoint": true}
-	copySelectedMetadata(startedPayload, turnRec.Metadata, append(turnStartedExtraMetadataKeys, ingressMetadataKeys...))
+	copySelectedMetadata(startedPayload, turnRec.Metadata, turnStartedMetadataKeys)
 	logutil.WarnIfErr("append turn.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "turn.started", startedPayload))
 	return &preparedTurnRun{
 		turn:            turnRec,
