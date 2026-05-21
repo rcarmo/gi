@@ -140,21 +140,13 @@ func (c *chatTUI) nextForkAgentID() string {
 
 func (c *chatTUI) sessionAgentIDIndex(sessions []store.Session) map[string]string {
 	index := map[string]string{}
-	identities, err := c.store.ListSessionIdentities(context.Background())
-	if err == nil {
-		for _, identity := range identities {
-			if strings.TrimSpace(identity.Scope.AgentID) != "" {
-				index[identity.SessionID] = identity.Scope.AgentID
-			}
-		}
-	}
+	ctx := context.Background()
 	for _, sess := range sessions {
-		if _, ok := index[sess.ID]; ok {
-			continue
+		agentID := strings.TrimSpace(c.store.SessionAgentID(ctx, sess.ID))
+		if agentID == "" {
+			agentID = "agent"
 		}
-		if agentID := strings.TrimSpace(c.store.SessionAgentID(context.Background(), sess.ID)); agentID != "" {
-			index[sess.ID] = agentID
-		}
+		index[sess.ID] = agentID
 	}
 	return index
 }
