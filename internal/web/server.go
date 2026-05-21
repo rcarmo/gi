@@ -530,6 +530,9 @@ const defaultForkAgentID = "agent"
 const maxForkAgentIDSuffix = 1000
 
 func (s *Server) forkAgentIDForSession(ctx context.Context, sessionID string, agentBySession map[string]string) string {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	agentID := strings.TrimSpace(agentBySession[sessionID])
 	if agentID == "" {
 		agentID = strings.TrimSpace(s.store.SessionAgentID(ctx, sessionID))
@@ -559,6 +562,9 @@ func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
 }
 
 func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	agentBySession, err := s.store.ListSessionAgentIDs(ctx)
 	if err != nil {
 		return "", err

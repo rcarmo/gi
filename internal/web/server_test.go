@@ -336,6 +336,9 @@ func TestForkAgentIDForSessionResolutionFallbackOrder(t *testing.T) {
 	if got := srv.forkAgentIDForSession(ctx, "session_fork_helper_missing", map[string]string{}); got != defaultForkAgentID {
 		t.Fatalf("expected default fallback agent id, got %q", got)
 	}
+	if got := srv.forkAgentIDForSession(nil, "session_fork_helper", map[string]string{}); got != "agent-base" {
+		t.Fatalf("expected nil-context store fallback agent id, got %q", got)
+	}
 }
 
 func TestTrimAgentNumericSuffix(t *testing.T) {
@@ -367,6 +370,25 @@ func TestChooseNextForkAgentID(t *testing.T) {
 	}
 	if got, ok := chooseNextForkAgentID("agent", exhausted); ok || got != "" {
 		t.Fatalf("expected exhaustion with empty candidate, got %q ok=%v", got, ok)
+	}
+}
+
+func TestNextForkAgentIDNilContext(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	ctx := t.Context()
+	rootAlloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_root_nil_ctx")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_root_nil_ctx", "", "@agent", map[string]any{"status": "idle", "model": "bootstrap"}, &rootAlloc.Scope, rootAlloc.SessionAliases); err != nil {
+		t.Fatalf("create root session: %v", err)
+	}
+	if got, err := srv.nextForkAgentID(nil, "session_root_nil_ctx"); err != nil {
+		t.Fatalf("next fork agent id (nil ctx): %v", err)
+	} else if got != "agent1" {
+		t.Fatalf("expected nil-context next fork agent id agent1, got %q", got)
 	}
 }
 
