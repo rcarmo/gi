@@ -417,6 +417,25 @@ func TestNextForkAgentIDTrimsSourceSessionID(t *testing.T) {
 	}
 }
 
+func TestNextForkAgentIDEmptySourceSessionIDUsesDefaultBase(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	ctx := t.Context()
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_existing_default_base")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_existing_default_base", "", "@agent", map[string]any{"status": "idle", "model": "bootstrap"}, &alloc.Scope, alloc.SessionAliases); err != nil {
+		t.Fatalf("create existing session: %v", err)
+	}
+	if got, err := srv.nextForkAgentID(ctx, "   "); err != nil {
+		t.Fatalf("next fork agent id (empty source): %v", err)
+	} else if got != "agent1" {
+		t.Fatalf("expected default-base next fork agent id agent1, got %q", got)
+	}
+}
+
 func TestSessionContinueEndpointStartsQueuedSteering(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
