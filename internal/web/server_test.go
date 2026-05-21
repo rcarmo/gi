@@ -399,7 +399,7 @@ func TestChooseNextForkAgentID(t *testing.T) {
 	}
 
 	exhausted := map[string]bool{}
-	for i := 1; i < maxForkAgentIDSuffix; i++ {
+	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffix; i++ {
 		exhausted["agent"+strconv.Itoa(i)] = true
 	}
 	if got, ok := chooseNextForkAgentID("agent", exhausted); ok || got != "" {
