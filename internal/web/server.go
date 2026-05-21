@@ -528,7 +528,7 @@ func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request, sessi
 
 const defaultForkAgentID = "agent"
 const minForkAgentIDSuffix = 1
-const maxForkAgentIDSuffix = 1000
+const maxForkAgentIDSuffixExclusive = 1000
 
 func mapForkAgentIDOrDefault(sessionID string, agentBySession map[string]string) (agentID string, mapped bool) {
 	sessionID = strings.TrimSpace(sessionID)
@@ -570,7 +570,7 @@ func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
 	if base == "" {
 		base = defaultForkAgentID
 	}
-	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffix; i++ {
+	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
 		candidate := base + strconv.Itoa(i)
 		if !used[candidate] {
 			return candidate, true
