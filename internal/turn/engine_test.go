@@ -4741,6 +4741,9 @@ func TestDirectEnvelopeFromInputNormalizesIngressFields(t *testing.T) {
 		},
 	}
 	envelope := directEnvelopeFromInput(in)
+	if metadata, ok := envelope["metadata"].(map[string]any); !ok || metadata == nil || len(metadata) != 0 {
+		t.Fatalf("expected non-nil empty metadata map, got %#v", envelope["metadata"])
+	}
 	if internalx.StringValue(envelope["kind"], "") != DirectKindPrompt {
 		t.Fatalf("expected normalized kind %q, got %#v", DirectKindPrompt, envelope)
 	}

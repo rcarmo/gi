@@ -1246,6 +1246,10 @@ func (e *Engine) ProcessDirect(ctx context.Context, in DirectInput) (*SubmitResu
 }
 
 func directEnvelopeFromInput(in DirectInput) map[string]any {
+	metadata := cloneMap(in.Metadata)
+	if metadata == nil {
+		metadata = map[string]any{}
+	}
 	envelope := map[string]any{
 		"kind":            normalizeDirectKind(in.Kind),
 		"session_id":      strings.TrimSpace(in.SessionID),
@@ -1255,7 +1259,7 @@ func directEnvelopeFromInput(in DirectInput) map[string]any {
 		"intent":          in.Intent,
 		"model":           in.Model,
 		"parent_turn_id":  strings.TrimSpace(in.ParentTurnID),
-		"metadata":        cloneMap(in.Metadata),
+		"metadata":        metadata,
 		"origin": map[string]any{
 			"source_kind": normalizeDirectSourceKind(in.Origin.SourceKind),
 			"source_id":   strings.TrimSpace(in.Origin.SourceID),
