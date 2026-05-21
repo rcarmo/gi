@@ -4725,6 +4725,56 @@ func TestSubmitPromptRoutedRejectsDirectedPromptWithoutBody(t *testing.T) {
 	}
 }
 
+func TestDirectEnvelopeFromInputNormalizesIngressFields(t *testing.T) {
+	in := DirectInput{
+		Kind:          "  prompt  ",
+		SessionID:     "  session_1  ",
+		SessionKey:    "  sk_v1_abc  ",
+		TargetAgentID: "  agent2  ",
+		ParentTurnID:  "  turn_parent  ",
+		Prompt:        "hello",
+		Origin: DirectOrigin{
+			SourceKind: "  IPC  ",
+			SourceID:   "  ipc:test  ",
+			Role:       "  user  ",
+			Label:      "  mobile  ",
+		},
+	}
+	envelope := directEnvelopeFromInput(in)
+	if internalx.StringValue(envelope["kind"], "") != DirectKindPrompt {
+		t.Fatalf("expected normalized kind %q, got %#v", DirectKindPrompt, envelope)
+	}
+	if internalx.StringValue(envelope["session_id"], "") != "session_1" || internalx.StringValue(envelope["session_key"], "") != "sk_v1_abc" {
+		t.Fatalf("expected trimmed session fields, got %#v", envelope)
+	}
+	origin, _ := envelope["origin"].(map[string]any)
+	if internalx.StringValue(origin["source_kind"], "") != DirectSourceKindIPC || internalx.StringValue(origin["source_id"], "") != "ipc:test" {
+		t.Fatalf("expected normalized origin fields, got %#v", origin)
+	}
+}
+
+func TestDirectInputFromEnvelopeNormalizesIngressFields(t *testing.T) {
+	in := directInputFromEnvelope(map[string]any{
+		"kind":            "  prompt  ",
+		"session_id":      "  session_2  ",
+		"session_key":     "  sk_v1_def  ",
+		"target_agent_id": "  agent3  ",
+		"parent_turn_id":  "  turn_parent_2  ",
+		"origin": map[string]any{
+			"source_kind": "  SYSTEM  ",
+			"source_id":   "  system:cron  ",
+			"role":        "  system  ",
+			"label":       "  scheduler  ",
+		},
+	})
+	if in.Kind != DirectKindPrompt || in.SessionID != "session_2" || in.SessionKey != "sk_v1_def" || in.TargetAgentID != "agent3" || in.ParentTurnID != "turn_parent_2" {
+		t.Fatalf("expected normalized direct envelope decode, got %#v", in)
+	}
+	if in.Origin.SourceKind != DirectSourceKindSystem || in.Origin.SourceID != "system:cron" || in.Origin.Role != "system" || in.Origin.Label != "scheduler" {
+		t.Fatalf("expected normalized origin decode, got %#v", in.Origin)
+	}
+}
+
 func TestEnqueueDirectInboundSurvivesCanceledCallerContext(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
