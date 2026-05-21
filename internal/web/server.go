@@ -526,23 +526,14 @@ func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request, sessi
 	writeJSON(w, http.StatusCreated, map[string]any{"branch": map[string]any{"chat_jid": "gi:" + cloned.ID, "label": cloned.Title, "agent_id": agentID, "source_chat_jid": "gi:" + sessionID}})
 }
 
-func sessionAgentID(sess *store.Session, identities map[string]string) string {
-	if sess != nil {
-		if agentID := strings.TrimSpace(identities[sess.ID]); agentID != "" {
-			return agentID
-		}
-		if sess.Scope != nil && sess.Scope.AgentID != "" {
-			return sess.Scope.AgentID
-		}
+func sessionAgentID(sessionID string, identities map[string]string) string {
+	if agentID := strings.TrimSpace(identities[sessionID]); agentID != "" {
+		return agentID
 	}
 	return "agent"
 }
 
 func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (string, error) {
-	source, err := s.store.GetSession(ctx, sourceSessionID)
-	if err != nil {
-		return "", err
-	}
 	identityRows, err := s.store.ListSessionIdentities(ctx)
 	if err != nil {
 		return "", err
@@ -553,10 +544,10 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 			identities[identity.SessionID] = identity.Scope.AgentID
 		}
 	}
-	base := sessionAgentID(source, identities)
+	base := sessionAgentID(sourceSessionID, identities)
 	base = strings.TrimRightFunc(base, func(r rune) bool { return r >= '0' && r <= '9' })
 	if base == "" {
-		base = sessionAgentID(source, identities)
+		base = sessionAgentID(sourceSessionID, identities)
 	}
 	sessions, err := s.store.ListSessions(ctx)
 	if err != nil {
@@ -564,7 +555,7 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 	}
 	used := map[string]bool{}
 	for i := range sessions {
-		used[sessionAgentID(&sessions[i], identities)] = true
+		used[sessionAgentID(sessions[i].ID, identities)] = true
 	}
 	for i := 1; i < 1000; i++ {
 		candidate := base + strconv.Itoa(i)
