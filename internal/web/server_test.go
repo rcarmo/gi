@@ -332,7 +332,7 @@ func TestForkAgentIDForSessionResolutionFallbackOrder(t *testing.T) {
 	if got := srv.forkAgentIDForSession(ctx, "session_fork_helper", map[string]string{}); got != "agent-base" {
 		t.Fatalf("expected store fallback agent id, got %q", got)
 	}
-	if got := srv.forkAgentIDForSession(ctx, "session_fork_helper_missing", map[string]string{}); got != "agent" {
+	if got := srv.forkAgentIDForSession(ctx, "session_fork_helper_missing", map[string]string{}); got != defaultForkAgentID {
 		t.Fatalf("expected default fallback agent id, got %q", got)
 	}
 }
