@@ -152,8 +152,8 @@ func (c *chatTUI) sessionAgentIDIndex(sessions []store.Session) map[string]strin
 		if _, ok := index[sess.ID]; ok {
 			continue
 		}
-		if sess.Scope != nil && sess.Scope.AgentID != "" {
-			index[sess.ID] = sess.Scope.AgentID
+		if agentID := strings.TrimSpace(c.store.SessionAgentID(context.Background(), sess.ID)); agentID != "" {
+			index[sess.ID] = agentID
 		}
 	}
 	return index
@@ -170,11 +170,8 @@ func (c *chatTUI) agentIDForSessionFromIndex(sess *store.Session, index map[stri
 
 func (c *chatTUI) agentIDForSession(sess *store.Session) string {
 	if sess != nil {
-		if identity, err := c.store.GetSessionIdentity(context.Background(), sess.ID); err == nil && strings.TrimSpace(identity.Scope.AgentID) != "" {
-			return identity.Scope.AgentID
-		}
-		if sess.Scope != nil && sess.Scope.AgentID != "" {
-			return sess.Scope.AgentID
+		if agentID := strings.TrimSpace(c.store.SessionAgentID(context.Background(), sess.ID)); agentID != "" {
+			return agentID
 		}
 	}
 	return "agent"
