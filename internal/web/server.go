@@ -557,7 +557,7 @@ func (s *Server) sourceForkAgentID(ctx context.Context, sourceSessionID string, 
 }
 
 func trimAgentNumericSuffix(agentID string) string {
-	agentID = strings.TrimSpace(agentID)
+	agentID = normalizeForkAgentID(agentID)
 	trimmed := strings.TrimRightFunc(agentID, func(r rune) bool { return r >= '0' && r <= '9' })
 	if trimmed == "" {
 		return agentID
