@@ -258,6 +258,34 @@ func TestNextForkAgentIDPrefersCanonicalIdentityOverScopeSnapshot(t *testing.T) 
 	}
 }
 
+func TestNextForkAgentIDFallsBackWhenSourceIdentityMissingFromLookupMap(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	ctx := t.Context()
+	rootAlloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_root_identity_missing")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_root_identity_missing", "", "@agent", map[string]any{"status": "idle", "model": "bootstrap"}, &rootAlloc.Scope, rootAlloc.SessionAliases); err != nil {
+		t.Fatalf("create root session: %v", err)
+	}
+	childAlloc := gisession.AllocateDefaultSession("agent1", "gi", "default", "session_child_identity_present")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_child_identity_present", "session_root_identity_missing", "@agent1", map[string]any{"status": "idle", "model": "bootstrap"}, &childAlloc.Scope, childAlloc.SessionAliases); err != nil {
+		t.Fatalf("create child session: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `delete from session_identities where session_id = ?`, "session_root_identity_missing"); err != nil {
+		t.Fatalf("delete root identity row: %v", err)
+	}
+	agentID, err := srv.nextForkAgentID(ctx, "session_root_identity_missing")
+	if err != nil {
+		t.Fatalf("next fork agent id: %v", err)
+	}
+	if agentID != "agent2" {
+		t.Fatalf("expected fallback fork agent id agent2, got %q", agentID)
+	}
+}
+
 func TestSessionContinueEndpointStartsQueuedSteering(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
