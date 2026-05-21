@@ -373,6 +373,16 @@ func TestTrimAgentNumericSuffix(t *testing.T) {
 	}
 }
 
+func TestBuildUsedForkAgentIDs(t *testing.T) {
+	used := buildUsedForkAgentIDs([]string{" s1 ", "s2", "s3"}, map[string]string{"s1": " agent-a ", "s2": ""})
+	if !used["agent-a"] {
+		t.Fatalf("expected trimmed mapped agent id to be marked used: %#v", used)
+	}
+	if !used[defaultForkAgentID] {
+		t.Fatalf("expected default fork agent id to be marked used for blank/missing entries: %#v", used)
+	}
+}
+
 func TestChooseNextForkAgentID(t *testing.T) {
 	used := map[string]bool{"agent1": true, "agent2": true}
 	if got, ok := chooseNextForkAgentID("agent", used); !ok || got != "agent3" {
