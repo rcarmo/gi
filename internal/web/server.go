@@ -548,6 +548,16 @@ func trimAgentNumericSuffix(agentID string) string {
 	return trimmed
 }
 
+func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
+	for i := 1; i < maxForkAgentIDSuffix; i++ {
+		candidate := base + strconv.Itoa(i)
+		if !used[candidate] {
+			return candidate, true
+		}
+	}
+	return "", false
+}
+
 func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (string, error) {
 	agentBySession, err := s.store.ListSessionAgentIDs(ctx)
 	if err != nil {
@@ -563,11 +573,8 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 	for _, sessionID := range sessionIDs {
 		used[s.forkAgentIDForSession(ctx, sessionID, agentBySession)] = true
 	}
-	for i := 1; i < maxForkAgentIDSuffix; i++ {
-		candidate := base + strconv.Itoa(i)
-		if !used[candidate] {
-			return candidate, nil
-		}
+	if candidate, ok := chooseNextForkAgentID(base, used); ok {
+		return candidate, nil
 	}
 	return "", fmt.Errorf("could not allocate fork agent id from %s", base)
 }

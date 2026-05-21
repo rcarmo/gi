@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -351,6 +352,21 @@ func TestTrimAgentNumericSuffix(t *testing.T) {
 		if got := trimAgentNumericSuffix(tc.in); got != tc.want {
 			t.Fatalf("trim agent numeric suffix(%q): expected %q, got %q", tc.in, tc.want, got)
 		}
+	}
+}
+
+func TestChooseNextForkAgentID(t *testing.T) {
+	used := map[string]bool{"agent1": true, "agent2": true}
+	if got, ok := chooseNextForkAgentID("agent", used); !ok || got != "agent3" {
+		t.Fatalf("expected agent3 with available suffix, got %q ok=%v", got, ok)
+	}
+
+	exhausted := map[string]bool{}
+	for i := 1; i < maxForkAgentIDSuffix; i++ {
+		exhausted["agent"+strconv.Itoa(i)] = true
+	}
+	if got, ok := chooseNextForkAgentID("agent", exhausted); ok || got != "" {
+		t.Fatalf("expected exhaustion with empty candidate, got %q ok=%v", got, ok)
 	}
 }
 
