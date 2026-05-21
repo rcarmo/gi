@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+const (
+	defaultSessionAgentID = "agent"
+	defaultSessionChannel = "gi"
+	defaultSessionAccount = "default"
+)
+
 func (s *Store) SessionIdentityOrNil(ctx context.Context, sessionID string) *SessionIdentity {
 	if s == nil || strings.TrimSpace(sessionID) == "" {
 		return nil
@@ -21,21 +27,21 @@ func (s *Store) SessionAgentID(ctx context.Context, sessionID string) string {
 	if identity := s.SessionIdentityOrNil(ctx, sessionID); identity != nil && strings.TrimSpace(identity.Scope.AgentID) != "" {
 		return identity.Scope.AgentID
 	}
-	return "agent"
+	return defaultSessionAgentID
 }
 
 func (s *Store) SessionChannel(ctx context.Context, sessionID string) string {
 	if identity := s.SessionIdentityOrNil(ctx, sessionID); identity != nil && strings.TrimSpace(identity.Scope.Channel) != "" {
 		return identity.Scope.Channel
 	}
-	return "gi"
+	return defaultSessionChannel
 }
 
 func (s *Store) SessionAccount(ctx context.Context, sessionID string) string {
 	if identity := s.SessionIdentityOrNil(ctx, sessionID); identity != nil && strings.TrimSpace(identity.Scope.Account) != "" {
 		return identity.Scope.Account
 	}
-	return "default"
+	return defaultSessionAccount
 }
 
 func (s *Store) RequireSession(ctx context.Context, sessionID string) error {
