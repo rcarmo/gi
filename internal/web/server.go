@@ -533,6 +533,7 @@ func (s *Server) forkAgentIDForSession(ctx context.Context, sessionID string, ag
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	sessionID = strings.TrimSpace(sessionID)
 	agentID := strings.TrimSpace(agentBySession[sessionID])
 	if agentID == "" {
 		agentID = strings.TrimSpace(s.store.SessionAgentID(ctx, sessionID))

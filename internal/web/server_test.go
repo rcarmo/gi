@@ -339,6 +339,9 @@ func TestForkAgentIDForSessionResolutionFallbackOrder(t *testing.T) {
 	if got := srv.forkAgentIDForSession(nil, "session_fork_helper", map[string]string{}); got != "agent-base" {
 		t.Fatalf("expected nil-context store fallback agent id, got %q", got)
 	}
+	if got := srv.forkAgentIDForSession(ctx, "  session_fork_helper  ", map[string]string{}); got != "agent-base" {
+		t.Fatalf("expected trimmed session id store fallback agent id, got %q", got)
+	}
 }
 
 func TestTrimAgentNumericSuffix(t *testing.T) {
