@@ -327,25 +327,25 @@ func TestForkAgentIDForSessionResolutionFallbackOrder(t *testing.T) {
 	if _, err := s.CreateSessionWithMetadata(ctx, "session_fork_helper", "", "@agent-base", map[string]any{"status": "idle", "model": "bootstrap"}, &alloc.Scope, alloc.SessionAliases); err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	if got := srv.forkAgentIDForSession(ctx, "session_fork_helper", map[string]string{"session_fork_helper": " agent-map "}); got != "agent-map" {
+	if got := srv.forkAgentIDForSession("session_fork_helper", map[string]string{"session_fork_helper": " agent-map "}); got != "agent-map" {
 		t.Fatalf("expected map agent id to win, got %q", got)
 	}
-	if got := srv.forkAgentIDForSession(ctx, "session_fork_helper", map[string]string{}); got != defaultForkAgentID {
+	if got := srv.forkAgentIDForSession("session_fork_helper", map[string]string{}); got != defaultForkAgentID {
 		t.Fatalf("expected default fallback agent id for non-source resolution, got %q", got)
 	}
 	if got := srv.sourceForkAgentID(ctx, "session_fork_helper", map[string]string{}); got != "agent-base" {
 		t.Fatalf("expected source store fallback agent id, got %q", got)
 	}
-	if got := srv.forkAgentIDForSession(ctx, "session_fork_helper_missing", map[string]string{}); got != defaultForkAgentID {
+	if got := srv.forkAgentIDForSession("session_fork_helper_missing", map[string]string{}); got != defaultForkAgentID {
 		t.Fatalf("expected default fallback agent id, got %q", got)
 	}
-	if got := srv.forkAgentIDForSession(nil, "session_fork_helper", map[string]string{}); got != defaultForkAgentID {
+	if got := srv.forkAgentIDForSession("session_fork_helper", map[string]string{}); got != defaultForkAgentID {
 		t.Fatalf("expected nil-context default fallback agent id, got %q", got)
 	}
 	if got := srv.sourceForkAgentID(nil, "session_fork_helper", map[string]string{}); got != "agent-base" {
 		t.Fatalf("expected nil-context source store fallback agent id, got %q", got)
 	}
-	if got := srv.forkAgentIDForSession(ctx, "  session_fork_helper  ", map[string]string{}); got != defaultForkAgentID {
+	if got := srv.forkAgentIDForSession("  session_fork_helper  ", map[string]string{}); got != defaultForkAgentID {
 		t.Fatalf("expected trimmed session id default fallback agent id, got %q", got)
 	}
 	if got := srv.sourceForkAgentID(ctx, "  session_fork_helper  ", map[string]string{}); got != "agent-base" {

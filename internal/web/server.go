@@ -529,10 +529,7 @@ func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request, sessi
 const defaultForkAgentID = "agent"
 const maxForkAgentIDSuffix = 1000
 
-func (s *Server) forkAgentIDForSession(ctx context.Context, sessionID string, agentBySession map[string]string) string {
-	if ctx == nil {
-		ctx = context.Background()
-	}
+func (s *Server) forkAgentIDForSession(sessionID string, agentBySession map[string]string) string {
 	sessionID = strings.TrimSpace(sessionID)
 	agentID := strings.TrimSpace(agentBySession[sessionID])
 	if agentID == "" {
@@ -542,7 +539,7 @@ func (s *Server) forkAgentIDForSession(ctx context.Context, sessionID string, ag
 }
 
 func (s *Server) sourceForkAgentID(ctx context.Context, sourceSessionID string, agentBySession map[string]string) string {
-	agentID := s.forkAgentIDForSession(ctx, sourceSessionID, agentBySession)
+	agentID := s.forkAgentIDForSession(sourceSessionID, agentBySession)
 	if agentID == defaultForkAgentID {
 		resolved := strings.TrimSpace(s.store.SessionAgentID(ctx, sourceSessionID))
 		if resolved != "" {
@@ -591,7 +588,7 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 	}
 	used := map[string]bool{}
 	for _, sessionID := range sessionIDs {
-		used[s.forkAgentIDForSession(ctx, sessionID, agentBySession)] = true
+		used[s.forkAgentIDForSession(sessionID, agentBySession)] = true
 	}
 	if candidate, ok := chooseNextForkAgentID(base, used); ok {
 		return candidate, nil
