@@ -536,10 +536,18 @@ func (s *Server) forkAgentIDForSession(ctx context.Context, sessionID string, ag
 	sessionID = strings.TrimSpace(sessionID)
 	agentID := strings.TrimSpace(agentBySession[sessionID])
 	if agentID == "" {
-		agentID = strings.TrimSpace(s.store.SessionAgentID(ctx, sessionID))
-	}
-	if agentID == "" {
 		agentID = defaultForkAgentID
+	}
+	return agentID
+}
+
+func (s *Server) sourceForkAgentID(ctx context.Context, sourceSessionID string, agentBySession map[string]string) string {
+	agentID := s.forkAgentIDForSession(ctx, sourceSessionID, agentBySession)
+	if agentID == defaultForkAgentID {
+		resolved := strings.TrimSpace(s.store.SessionAgentID(ctx, sourceSessionID))
+		if resolved != "" {
+			agentID = resolved
+		}
 	}
 	return agentID
 }
@@ -575,7 +583,7 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 	if err != nil {
 		return "", err
 	}
-	sourceAgentID := s.forkAgentIDForSession(ctx, sourceSessionID, agentBySession)
+	sourceAgentID := s.sourceForkAgentID(ctx, sourceSessionID, agentBySession)
 	base := trimAgentNumericSuffix(sourceAgentID)
 	sessionIDs, err := s.store.ListSessionIDs(ctx)
 	if err != nil {
