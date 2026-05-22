@@ -119,9 +119,14 @@ func unknownSessionOrAgentError(ref string) error {
 	return fmt.Errorf("unknown session or agent: %s", ref)
 }
 
+func normalizeSessionRef(ref string) string {
+	ref = strings.TrimSpace(ref)
+	return strings.TrimSpace(strings.TrimPrefix(ref, "@"))
+}
+
 func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	ctx := context.Background()
-	ref = strings.TrimSpace(strings.TrimPrefix(ref, "@"))
+	ref = normalizeSessionRef(ref)
 	if ref == "" {
 		return nil, unknownSessionOrAgentError(ref)
 	}

@@ -325,6 +325,12 @@ func TestIndexedAgentID(t *testing.T) {
 	}
 }
 
+func TestNormalizeSessionRef(t *testing.T) {
+	if got := normalizeSessionRef("  @agent1  "); got != "agent1" {
+		t.Fatalf("expected normalized session ref agent1, got %q", got)
+	}
+}
+
 func TestForkAgentIDCandidate(t *testing.T) {
 	if got := forkAgentIDCandidate(" agent ", 3); got != "agent3" {
 		t.Fatalf("expected normalized candidate agent3, got %q", got)
