@@ -8,6 +8,10 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 )
 
+const defaultForkAgentID = "agent"
+const minForkAgentIDSuffix = 1
+const maxForkAgentIDSuffixExclusive = 1000
+
 func (c *chatTUI) switchSession(sessionID string) {
 	c.bindSession(sessionID)
 	c.transcript = c.loadTranscript()
@@ -107,13 +111,21 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	return nil, fmt.Errorf("unknown session or agent: %s", ref)
 }
 
+func normalizeForkAgentBase(agentID string) string {
+	agentID = strings.TrimSpace(agentID)
+	base := strings.TrimRight(agentID, "0123456789")
+	if base == "" {
+		base = agentID
+	}
+	if base == "" {
+		base = defaultForkAgentID
+	}
+	return base
+}
+
 func (c *chatTUI) nextForkAgentID() string {
 	ctx := context.Background()
-	sourceAgentID := strings.TrimSpace(c.store.SessionAgentID(ctx, c.sessionID))
-	base := strings.TrimRight(sourceAgentID, "0123456789")
-	if base == "" {
-		base = sourceAgentID
-	}
+	base := normalizeForkAgentBase(c.store.SessionAgentID(ctx, c.sessionID))
 	sessionIDs, err := c.store.ListSessionIDs(ctx)
 	if err != nil {
 		return base + "1"
@@ -126,17 +138,17 @@ func (c *chatTUI) nextForkAgentID() string {
 	for _, sessionID := range sessionIDs {
 		agentID := strings.TrimSpace(agentIDs[sessionID])
 		if agentID == "" {
-			agentID = "agent"
+			agentID = defaultForkAgentID
 		}
 		used[agentID] = true
 	}
-	for i := 1; i < 1000; i++ {
+	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
 		candidate := fmt.Sprintf("%s%d", base, i)
 		if !used[candidate] {
 			return candidate
 		}
 	}
-	return base + "999"
+	return fmt.Sprintf("%s%d", base, maxForkAgentIDSuffixExclusive-1)
 }
 
 func (c *chatTUI) sessionAgentIDIndex(sessions []store.Session) map[string]string {
@@ -147,7 +159,7 @@ func (c *chatTUI) sessionAgentIDIndex(sessions []store.Session) map[string]strin
 	for _, sess := range sessions {
 		agentID := strings.TrimSpace(index[sess.ID])
 		if agentID == "" {
-			agentID = "agent"
+			agentID = defaultForkAgentID
 		}
 		index[sess.ID] = agentID
 	}
@@ -169,5 +181,5 @@ func (c *chatTUI) agentIDForSession(sess *store.Session) string {
 			return agentID
 		}
 	}
-	return "agent"
+	return defaultForkAgentID
 }

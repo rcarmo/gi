@@ -159,6 +159,15 @@ func TestResolveSessionRefByAgentID(t *testing.T) {
 	}
 }
 
+func TestNormalizeForkAgentBase(t *testing.T) {
+	if got := normalizeForkAgentBase(" agent42 "); got != "agent" {
+		t.Fatalf("expected normalized fork base agent, got %q", got)
+	}
+	if got := normalizeForkAgentBase("   "); got != defaultForkAgentID {
+		t.Fatalf("expected empty fork base to default to %q, got %q", defaultForkAgentID, got)
+	}
+}
+
 func TestResolveSessionRefPrefersCanonicalIdentityOverScopeSnapshot(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
