@@ -123,11 +123,7 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	} else if err != sql.ErrNoRows {
 		return nil, err
 	}
-	sessionIDs, err := c.store.ListSessionIDs(ctx)
-	if err != nil {
-		return nil, err
-	}
-	agentIDs, err := c.sessionAgentIDIndex(ctx)
+	sessionIDs, agentIDs, err := c.loadSessionIdentityIndex(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -154,11 +150,7 @@ func normalizeForkAgentBase(agentID string) string {
 func (c *chatTUI) nextForkAgentID() string {
 	ctx := context.Background()
 	base := normalizeForkAgentBase(c.store.SessionAgentID(ctx, c.sessionID))
-	sessionIDs, err := c.store.ListSessionIDs(ctx)
-	if err != nil {
-		return firstForkAgentID(base)
-	}
-	agentIDs, err := c.sessionAgentIDIndex(ctx)
+	sessionIDs, agentIDs, err := c.loadSessionIdentityIndex(ctx)
 	if err != nil {
 		return firstForkAgentID(base)
 	}
@@ -184,6 +176,18 @@ func (c *chatTUI) sessionAgentIDIndex(ctx context.Context) (map[string]string, e
 		return map[string]string{}, nil
 	}
 	return index, nil
+}
+
+func (c *chatTUI) loadSessionIdentityIndex(ctx context.Context) ([]string, map[string]string, error) {
+	sessionIDs, err := c.store.ListSessionIDs(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	agentIDs, err := c.sessionAgentIDIndex(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return sessionIDs, agentIDs, nil
 }
 
 func (c *chatTUI) agentIDForSessionFromIndex(sess *store.Session, index map[string]string) string {
