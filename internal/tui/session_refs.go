@@ -243,6 +243,9 @@ func (c *chatTUI) nextForkAgentID() string {
 }
 
 func (c *chatTUI) sessionAgentIDIndex(ctx context.Context) (map[string]string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	index, err := c.store.ListSessionAgentIDs(ctx)
 	if err != nil {
 		return nil, err
