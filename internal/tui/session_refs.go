@@ -121,7 +121,7 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 		if agentID == "" {
 			agentID = defaultForkAgentID
 		}
-		if agentID == ref {
+		if strings.EqualFold(agentID, ref) {
 			return c.store.GetSession(ctx, sessionID)
 		}
 	}

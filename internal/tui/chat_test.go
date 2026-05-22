@@ -152,6 +152,25 @@ func TestResolveSessionRefPropagatesLookupErrors(t *testing.T) {
 	}
 }
 
+func TestResolveSessionRefByAgentIDCaseInsensitive(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	root, _ := s.CreateSession(ctx, "session_root_ci", "@agent", map[string]any{"model": "bootstrap", "status": "idle"})
+	_, _ = s.CloneSession(ctx, root.ID, "session_child_ci", "@agent1", "agent1")
+	c := &chatTUI{store: s, sessionID: root.ID}
+	sess, err := c.resolveSessionRef("@AGENT1")
+	if err != nil {
+		t.Fatalf("resolve session ref case-insensitive: %v", err)
+	}
+	if sess.ID != "session_child_ci" {
+		t.Fatalf("unexpected case-insensitive session resolution: %#v", sess)
+	}
+}
+
 func TestResolveSessionRefByAgentID(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
