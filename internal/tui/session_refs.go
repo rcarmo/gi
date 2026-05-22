@@ -128,9 +128,6 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	}
 	for _, sessionID := range sessionIDs {
 		agentID := strings.TrimSpace(agentIDs[sessionID])
-		if agentID == "" {
-			agentID = defaultForkAgentID
-		}
 		if strings.EqualFold(agentID, ref) {
 			return c.store.GetSession(ctx, sessionID)
 		}
@@ -164,9 +161,6 @@ func (c *chatTUI) nextForkAgentID() string {
 	used := map[string]bool{}
 	for _, sessionID := range sessionIDs {
 		agentID := strings.TrimSpace(agentIDs[sessionID])
-		if agentID == "" {
-			agentID = defaultForkAgentID
-		}
 		used[agentID] = true
 	}
 	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
