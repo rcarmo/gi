@@ -123,6 +123,14 @@ func indexedAgentIDLower(sessionID string, index map[string]string) string {
 	return strings.ToLower(indexedAgentID(sessionID, index))
 }
 
+func indexedAgentIDOrDefault(sessionID string, index map[string]string) string {
+	agentID := indexedAgentID(sessionID, index)
+	if agentID == "" {
+		return defaultForkAgentID
+	}
+	return agentID
+}
+
 func unknownSessionOrAgentError(ref string) error {
 	return fmt.Errorf("unknown session or agent: %s", ref)
 }
@@ -173,7 +181,7 @@ func normalizeForkAgentBase(agentID string) string {
 func buildUsedForkAgentIDs(sessionIDs []string, agentIDs map[string]string) map[string]bool {
 	used := make(map[string]bool, len(sessionIDs))
 	for _, sessionID := range sessionIDs {
-		used[indexedAgentID(sessionID, agentIDs)] = true
+		used[indexedAgentIDOrDefault(sessionID, agentIDs)] = true
 	}
 	return used
 }
@@ -236,9 +244,7 @@ func (c *chatTUI) loadSessionIdentityIndex(ctx context.Context) ([]string, map[s
 
 func (c *chatTUI) agentIDForSessionFromIndex(sess *store.Session, index map[string]string) string {
 	if sess != nil {
-		if agentID := indexedAgentID(sess.ID, index); agentID != "" {
-			return agentID
-		}
+		return indexedAgentIDOrDefault(sess.ID, index)
 	}
 	return defaultForkAgentID
 }

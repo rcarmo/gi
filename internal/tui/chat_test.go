@@ -331,6 +331,15 @@ func TestIndexedAgentIDLower(t *testing.T) {
 	}
 }
 
+func TestIndexedAgentIDOrDefault(t *testing.T) {
+	if got := indexedAgentIDOrDefault("session-a", map[string]string{"session-a": " Agent-A "}); got != "Agent-A" && got != "agent-a" {
+		t.Fatalf("expected indexed agent id to be non-empty normalized value, got %q", got)
+	}
+	if got := indexedAgentIDOrDefault("missing", map[string]string{}); got != defaultForkAgentID {
+		t.Fatalf("expected missing indexed agent id to default to %q, got %q", defaultForkAgentID, got)
+	}
+}
+
 func TestNormalizeSessionRefLower(t *testing.T) {
 	if got := normalizeSessionRefLower("  @Agent1  "); got != "agent1" {
 		t.Fatalf("expected normalized lower session ref agent1, got %q", got)
