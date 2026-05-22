@@ -183,6 +183,16 @@ func findSessionIDByAgentRef(sessionIDs []string, agentIDs map[string]string, no
 	return "", false
 }
 
+func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
+	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
+		candidate := forkAgentIDCandidate(base, i)
+		if !used[candidate] {
+			return candidate, true
+		}
+	}
+	return "", false
+}
+
 func (c *chatTUI) nextForkAgentID() string {
 	ctx := context.Background()
 	base := normalizeForkAgentBase(c.store.SessionAgentID(ctx, c.sessionID))
@@ -191,11 +201,8 @@ func (c *chatTUI) nextForkAgentID() string {
 		return firstForkAgentID(base)
 	}
 	used := buildUsedForkAgentIDs(sessionIDs, agentIDs)
-	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
-		candidate := forkAgentIDCandidate(base, i)
-		if !used[candidate] {
-			return candidate
-		}
+	if candidate, ok := chooseNextForkAgentID(base, used); ok {
+		return candidate
 	}
 	return forkAgentIDCandidate(base, maxForkAgentIDSuffixExclusive-1)
 }

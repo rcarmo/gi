@@ -349,6 +349,19 @@ func TestForkAgentIDCandidate(t *testing.T) {
 	}
 }
 
+func TestChooseNextForkAgentID(t *testing.T) {
+	if candidate, ok := chooseNextForkAgentID("agent", map[string]bool{"agent1": true, "agent2": true}); !ok || candidate != "agent3" {
+		t.Fatalf("expected next fork candidate agent3, got %q ok=%v", candidate, ok)
+	}
+	exhausted := map[string]bool{}
+	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
+		exhausted[forkAgentIDCandidate("agent", i)] = true
+	}
+	if candidate, ok := chooseNextForkAgentID("agent", exhausted); ok || candidate != "" {
+		t.Fatalf("expected no candidate on exhaustion, got %q ok=%v", candidate, ok)
+	}
+}
+
 func TestFindSessionIDByAgentRef(t *testing.T) {
 	sessionID, ok := findSessionIDByAgentRef([]string{"s2", "s1"}, map[string]string{"s1": "agent-a", "s2": "Agent-B"}, "agent-b")
 	if !ok || sessionID != "s2" {
