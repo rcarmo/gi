@@ -168,17 +168,10 @@ func (c *chatTUI) nextForkAgentID() string {
 	return fmt.Sprintf("%s%d", base, maxForkAgentIDSuffixExclusive-1)
 }
 
-func (c *chatTUI) sessionAgentIDIndex(sessions []store.Session) map[string]string {
+func (c *chatTUI) sessionAgentIDIndex(_ []store.Session) map[string]string {
 	index, err := c.store.ListSessionAgentIDs(context.Background())
 	if err != nil || index == nil {
-		index = map[string]string{}
-	}
-	for _, sess := range sessions {
-		agentID := strings.TrimSpace(index[sess.ID])
-		if agentID == "" {
-			agentID = defaultForkAgentID
-		}
-		index[sess.ID] = agentID
+		return map[string]string{}
 	}
 	return index
 }
