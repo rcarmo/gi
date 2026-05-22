@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -64,6 +65,7 @@ func (s *Store) ListSessionIDs(ctx context.Context) ([]string, error) {
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("list session ids rows: %w", err)
 	}
+	sort.Strings(out)
 	return out, nil
 }
 

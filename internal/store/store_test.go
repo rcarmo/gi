@@ -806,6 +806,11 @@ func TestStoreListSessionIDs(t *testing.T) {
 	if trimmedCount != 1 {
 		t.Fatalf("expected trimmed session id to be deduped to one entry, got %#v", ids)
 	}
+	for i := 1; i < len(ids); i++ {
+		if ids[i-1] > ids[i] {
+			t.Fatalf("expected session ids to be normalized and sorted, got %#v", ids)
+		}
+	}
 	idsNilCtx, err := s.ListSessionIDs(nil)
 	if err != nil {
 		t.Fatalf("list session ids (nil ctx): %v", err)
