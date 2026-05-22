@@ -187,6 +187,9 @@ func buildUsedForkAgentIDs(sessionIDs []string, agentIDs map[string]string) map[
 	if len(sessionIDs) == 0 {
 		return map[string]bool{}
 	}
+	if agentIDs == nil {
+		agentIDs = map[string]string{}
+	}
 	used := make(map[string]bool, len(sessionIDs))
 	for _, sessionID := range sessionIDs {
 		normalizedSessionID := normalizeIndexedSessionID(sessionID)
