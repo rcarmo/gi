@@ -405,6 +405,9 @@ func TestMapForkAgentIDOrDefaultNormalized(t *testing.T) {
 	if got, mapped := mapForkAgentIDOrDefaultNormalized("s2", map[string]string{"s2": "   "}); got != defaultForkAgentID || mapped {
 		t.Fatalf("expected whitespace-only normalized value to default, got %q mapped=%v", got, mapped)
 	}
+	if got, mapped := mapForkAgentIDOrDefaultNormalized("s3", nil); got != defaultForkAgentID || mapped {
+		t.Fatalf("expected nil map to default for normalized session id, got %q mapped=%v", got, mapped)
+	}
 	if got, mapped := mapForkAgentIDOrDefaultNormalized("", map[string]string{"": "agent-blank"}); got != defaultForkAgentID || mapped {
 		t.Fatalf("expected blank normalized session id to fail closed to default, got %q mapped=%v", got, mapped)
 	}

@@ -542,6 +542,9 @@ func mapForkAgentIDOrDefaultNormalized(normalizedSessionID string, agentBySessio
 	if normalizedSessionID == "" {
 		return defaultForkAgentID, false
 	}
+	if agentBySession == nil {
+		return defaultForkAgentID, false
+	}
 	agentID = normalizeForkAgentID(agentBySession[normalizedSessionID])
 	if agentID == "" {
 		return defaultForkAgentID, false
