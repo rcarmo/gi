@@ -432,6 +432,10 @@ func TestBuildUsedForkAgentIDs(t *testing.T) {
 	if len(used) != 2 {
 		t.Fatalf("expected blank session ids to be ignored, got %#v", used)
 	}
+	usedNilIndex := buildUsedForkAgentIDs([]string{"s-default"}, nil)
+	if !usedNilIndex[defaultForkAgentID] || len(usedNilIndex) != 1 {
+		t.Fatalf("expected nil agent index to default used set to %q, got %#v", defaultForkAgentID, usedNilIndex)
+	}
 }
 
 func TestFirstForkAgentID(t *testing.T) {
