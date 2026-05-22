@@ -216,8 +216,8 @@ func findSessionIDByNormalizedAgentRef(sessionIDs []string, agentIDs map[string]
 
 func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
 	base = normalizeForkAgentBase(base)
-	if used == nil {
-		used = map[string]bool{}
+	if len(used) == 0 {
+		return forkAgentIDCandidate(base, minForkAgentIDSuffix), true
 	}
 	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
 		candidate := forkAgentIDCandidate(base, i)
