@@ -335,6 +335,9 @@ func TestIndexedAgentIDLower(t *testing.T) {
 	if got := indexedAgentIDLower("session-a", map[string]string{"session-a": " Agent-A "}); got != "agent-a" {
 		t.Fatalf("expected lower indexed agent id agent-a, got %q", got)
 	}
+	if got := indexedAgentIDLower("  session-a  ", map[string]string{"session-a": " Agent-A "}); got != "agent-a" {
+		t.Fatalf("expected lower indexed agent id with normalized key lookup, got %q", got)
+	}
 }
 
 func TestIndexedAgentIDOrDefault(t *testing.T) {
