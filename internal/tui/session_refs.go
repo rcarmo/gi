@@ -187,9 +187,7 @@ func (c *chatTUI) agentIDForSessionFromIndex(sess *store.Session, index map[stri
 
 func (c *chatTUI) agentIDForSession(sess *store.Session) string {
 	if sess != nil {
-		if agentID := strings.TrimSpace(c.store.SessionAgentID(context.Background(), sess.ID)); agentID != "" {
-			return agentID
-		}
+		return c.store.SessionAgentID(context.Background(), sess.ID)
 	}
 	return defaultForkAgentID
 }

@@ -190,6 +190,25 @@ func TestResolveSessionRefByAgentID(t *testing.T) {
 	}
 }
 
+func TestAgentIDForSessionDefaults(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_agent_default", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	c := &chatTUI{store: s}
+	if got := c.agentIDForSession(&store.Session{ID: "session_agent_default"}); got != "gi" {
+		t.Fatalf("expected canonical default agent id gi, got %q", got)
+	}
+	if got := c.agentIDForSession(nil); got != defaultForkAgentID {
+		t.Fatalf("expected nil session fallback %q, got %q", defaultForkAgentID, got)
+	}
+}
+
 func TestNormalizeForkAgentBase(t *testing.T) {
 	if got := normalizeForkAgentBase(" agent42 "); got != "agent" {
 		t.Fatalf("expected normalized fork base agent, got %q", got)
