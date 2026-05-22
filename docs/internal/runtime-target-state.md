@@ -245,6 +245,7 @@ Implemented so far:
 - queued turns are launched oldest-first via durable `created_at`/`id` ordering, and queued ordering is now covered by runtime tests rather than only implied by store queries
 - web fork-agent allocation now resolves used-agent occupancy from the lightweight `ListSessionAgentIDs` map plus deterministic defaults, while source-session base selection keeps one canonical fallback lookup via `SessionAgentID`; helper normalization for session ids, agent ids, base/suffix generation, and candidate exhaustion is now explicit and test-covered so branch-agent allocation no longer depends on `sessions.scope_json` drift or ad-hoc string handling
 - TUI fork-agent allocation now follows the same identity-first shape as web: it derives source agent/base from `SessionAgentID` and computes used occupancy from lightweight `ListSessionIDs` + `ListSessionAgentIDs` rather than loading full session rows/scopes for fork suffix selection
+- TUI session-reference resolution (`@agent` / session id) now also runs ID-first: direct id refs attempt `GetSession` once, agent refs scan lightweight `ListSessionIDs` + `ListSessionAgentIDs`, and only the winning match materializes a full session row
 
 Current recovery semantics:
 

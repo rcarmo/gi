@@ -97,15 +97,29 @@ func (c *chatTUI) treeLines() []string {
 }
 
 func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
+	ctx := context.Background()
 	ref = strings.TrimSpace(strings.TrimPrefix(ref, "@"))
-	sessions, err := c.store.ListSessions(context.Background())
+	if ref == "" {
+		return nil, fmt.Errorf("unknown session or agent: %s", ref)
+	}
+	if sess, err := c.store.GetSession(ctx, ref); err == nil {
+		return sess, nil
+	}
+	sessionIDs, err := c.store.ListSessionIDs(ctx)
 	if err != nil {
 		return nil, err
 	}
-	agentIDs := c.sessionAgentIDIndex(sessions)
-	for i := range sessions {
-		if sessions[i].ID == ref || c.agentIDForSessionFromIndex(&sessions[i], agentIDs) == ref {
-			return &sessions[i], nil
+	agentIDs, err := c.store.ListSessionAgentIDs(ctx)
+	if err != nil || agentIDs == nil {
+		agentIDs = map[string]string{}
+	}
+	for _, sessionID := range sessionIDs {
+		agentID := strings.TrimSpace(agentIDs[sessionID])
+		if agentID == "" {
+			agentID = defaultForkAgentID
+		}
+		if agentID == ref {
+			return c.store.GetSession(ctx, sessionID)
 		}
 	}
 	return nil, fmt.Errorf("unknown session or agent: %s", ref)
