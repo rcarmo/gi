@@ -187,6 +187,9 @@ func buildUsedForkAgentIDs(sessionIDs []string, agentIDs map[string]string) map[
 
 func findSessionIDByAgentRef(sessionIDs []string, agentIDs map[string]string, ref string) (string, bool) {
 	normalizedRef := normalizeSessionRefLower(ref)
+	if normalizedRef == "" {
+		return "", false
+	}
 	for _, sessionID := range sessionIDs {
 		if indexedAgentIDLower(sessionID, agentIDs) == normalizedRef {
 			return sessionID, true

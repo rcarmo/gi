@@ -391,6 +391,9 @@ func TestFindSessionIDByAgentRef(t *testing.T) {
 	if sessionID, ok := findSessionIDByAgentRef([]string{"s2"}, map[string]string{"s2": "agent-b"}, " @Agent-B "); !ok || sessionID != "s2" {
 		t.Fatalf("expected helper to normalize incoming ref before match, got id=%q ok=%v", sessionID, ok)
 	}
+	if sessionID, ok := findSessionIDByAgentRef([]string{"s2"}, map[string]string{"s2": "agent-b"}, "   "); ok || sessionID != "" {
+		t.Fatalf("expected empty ref to fail fast with no match, got id=%q ok=%v", sessionID, ok)
+	}
 }
 
 func TestBuildUsedForkAgentIDs(t *testing.T) {
