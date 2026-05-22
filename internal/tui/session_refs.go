@@ -31,7 +31,7 @@ func (c *chatTUI) listAgentLines() []string {
 	if len(sessions) == 0 {
 		return []string{"sys: no sessions"}
 	}
-	agentIDs := c.sessionAgentIDIndex(sessions)
+	agentIDs := c.sessionAgentIDIndex()
 	lines := []string{"sys: agents:"}
 	for _, sess := range sessions {
 		marker := " "
@@ -55,7 +55,7 @@ func (c *chatTUI) treeLines() []string {
 	if len(sessions) == 0 {
 		return []string{"tree: no sessions"}
 	}
-	agentIDs := c.sessionAgentIDIndex(sessions)
+	agentIDs := c.sessionAgentIDIndex()
 	children := map[string][]store.Session{}
 	roots := []store.Session{}
 	for _, sess := range sessions {
@@ -168,7 +168,7 @@ func (c *chatTUI) nextForkAgentID() string {
 	return fmt.Sprintf("%s%d", base, maxForkAgentIDSuffixExclusive-1)
 }
 
-func (c *chatTUI) sessionAgentIDIndex(_ []store.Session) map[string]string {
+func (c *chatTUI) sessionAgentIDIndex() map[string]string {
 	index, err := c.store.ListSessionAgentIDs(context.Background())
 	if err != nil || index == nil {
 		return map[string]string{}
