@@ -597,6 +597,9 @@ func forkAgentIDCandidate(base string, suffix int) string {
 
 func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
 	base = normalizeForkAgentBase(base)
+	if used == nil {
+		used = map[string]bool{}
+	}
 	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
 		candidate := forkAgentIDCandidate(base, i)
 		if !used[candidate] {
