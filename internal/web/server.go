@@ -568,7 +568,7 @@ func trimAgentNumericSuffix(agentID string) string {
 func buildUsedForkAgentIDs(agentBySession map[string]string) map[string]bool {
 	used := make(map[string]bool, len(agentBySession))
 	for sessionID, agentID := range agentBySession {
-		if strings.TrimSpace(sessionID) == "" {
+		if normalizeForkSessionID(sessionID) == "" {
 			continue
 		}
 		agentID = normalizeForkAgentID(agentID)
