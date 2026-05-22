@@ -567,14 +567,11 @@ func trimAgentNumericSuffix(agentID string) string {
 
 func buildUsedForkAgentIDs(agentBySession map[string]string) map[string]bool {
 	used := make(map[string]bool, len(agentBySession))
-	for sessionID, agentID := range agentBySession {
+	for sessionID := range agentBySession {
 		if normalizeForkSessionID(sessionID) == "" {
 			continue
 		}
-		agentID = normalizeForkAgentID(agentID)
-		if agentID == "" {
-			agentID = defaultForkAgentID
-		}
+		agentID, _ := mapForkAgentIDOrDefault(sessionID, agentBySession)
 		used[agentID] = true
 	}
 	return used
