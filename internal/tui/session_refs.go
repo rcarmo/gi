@@ -211,7 +211,7 @@ func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
 
 func (c *chatTUI) nextForkAgentID() string {
 	ctx := context.Background()
-	base := normalizeForkAgentBase(c.store.SessionAgentID(ctx, c.sessionID))
+	base := c.store.SessionAgentID(ctx, c.sessionID)
 	sessionIDs, agentIDs, err := c.loadSessionIdentityIndex(ctx)
 	if err != nil {
 		return firstForkAgentID(base)
