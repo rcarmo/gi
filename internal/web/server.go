@@ -574,7 +574,7 @@ func trimAgentNumericSuffix(agentID string) string {
 }
 
 func buildUsedForkAgentIDs(agentBySession map[string]string) map[string]bool {
-	if agentBySession == nil {
+	if len(agentBySession) == 0 {
 		return map[string]bool{}
 	}
 	used := make(map[string]bool, len(agentBySession))
