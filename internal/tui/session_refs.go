@@ -182,7 +182,7 @@ func (c *chatTUI) agentIDForSessionFromIndex(sess *store.Session, index map[stri
 			return agentID
 		}
 	}
-	return c.agentIDForSession(sess)
+	return defaultForkAgentID
 }
 
 func (c *chatTUI) agentIDForSession(sess *store.Session) string {
