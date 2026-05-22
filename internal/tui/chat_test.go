@@ -349,6 +349,13 @@ func TestForkAgentIDCandidate(t *testing.T) {
 	}
 }
 
+func TestBuildUsedForkAgentIDs(t *testing.T) {
+	used := buildUsedForkAgentIDs([]string{"s1", "s2"}, map[string]string{"s1": "agent-a", "s2": " agent-b "})
+	if !used["agent-a"] || !used["agent-b"] {
+		t.Fatalf("expected used fork agent ids to include normalized values, got %#v", used)
+	}
+}
+
 func TestFirstForkAgentID(t *testing.T) {
 	if got := firstForkAgentID(" agent "); got != "agent1" {
 		t.Fatalf("expected first fork agent id agent1, got %q", got)

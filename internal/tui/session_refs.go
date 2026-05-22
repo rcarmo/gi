@@ -168,6 +168,14 @@ func normalizeForkAgentBase(agentID string) string {
 	return base
 }
 
+func buildUsedForkAgentIDs(sessionIDs []string, agentIDs map[string]string) map[string]bool {
+	used := make(map[string]bool, len(sessionIDs))
+	for _, sessionID := range sessionIDs {
+		used[indexedAgentID(sessionID, agentIDs)] = true
+	}
+	return used
+}
+
 func (c *chatTUI) nextForkAgentID() string {
 	ctx := context.Background()
 	base := normalizeForkAgentBase(c.store.SessionAgentID(ctx, c.sessionID))
@@ -175,10 +183,7 @@ func (c *chatTUI) nextForkAgentID() string {
 	if err != nil {
 		return firstForkAgentID(base)
 	}
-	used := map[string]bool{}
-	for _, sessionID := range sessionIDs {
-		used[indexedAgentID(sessionID, agentIDs)] = true
-	}
+	used := buildUsedForkAgentIDs(sessionIDs, agentIDs)
 	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
 		candidate := forkAgentIDCandidate(base, i)
 		if !used[candidate] {
