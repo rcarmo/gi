@@ -111,11 +111,15 @@ func indexedAgentID(sessionID string, index map[string]string) string {
 	return strings.TrimSpace(index[sessionID])
 }
 
+func unknownSessionOrAgentError(ref string) error {
+	return fmt.Errorf("unknown session or agent: %s", ref)
+}
+
 func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	ctx := context.Background()
 	ref = strings.TrimSpace(strings.TrimPrefix(ref, "@"))
 	if ref == "" {
-		return nil, fmt.Errorf("unknown session or agent: %s", ref)
+		return nil, unknownSessionOrAgentError(ref)
 	}
 	normalizedRef := strings.ToLower(ref)
 	if sess, err := c.store.GetSession(ctx, ref); err == nil {
@@ -132,7 +136,7 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 			return c.store.GetSession(ctx, sessionID)
 		}
 	}
-	return nil, fmt.Errorf("unknown session or agent: %s", ref)
+	return nil, unknownSessionOrAgentError(ref)
 }
 
 func normalizeForkAgentBase(agentID string) string {
