@@ -363,6 +363,9 @@ func TestForkAgentIDForSessionResolutionFallbackOrder(t *testing.T) {
 	if got := srv.sourceForkAgentID(ctx, "   ", map[string]string{"": "agent-leak"}); got != defaultForkAgentID {
 		t.Fatalf("expected empty source session id to ignore blank-key map values, got %q", got)
 	}
+	if got := srv.sourceForkAgentID(nil, "   ", map[string]string{"": "agent-leak"}); got != defaultForkAgentID {
+		t.Fatalf("expected nil-context empty source session id to ignore blank-key map values, got %q", got)
+	}
 }
 
 func TestTrimAgentNumericSuffix(t *testing.T) {
