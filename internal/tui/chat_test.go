@@ -388,20 +388,20 @@ func TestFindSessionIDByNormalizedAgentRef(t *testing.T) {
 }
 
 func TestFindSessionIDByAgentRef(t *testing.T) {
-	sessionID, ok := findSessionIDByAgentRef([]string{"s2", "s1"}, map[string]string{"s1": "agent-a", "s2": "Agent-B"}, "agent-b")
+	sessionID, ok := findSessionIDByNormalizedAgentRef([]string{"s2", "s1"}, map[string]string{"s1": "agent-a", "s2": "Agent-B"}, normalizeSessionRefLower("agent-b"))
 	if !ok || sessionID != "s2" {
 		t.Fatalf("expected deterministic agent-ref match on s2, got id=%q ok=%v", sessionID, ok)
 	}
-	if sessionID, ok := findSessionIDByAgentRef([]string{"s1"}, map[string]string{"s1": "agent-a"}, "agent-z"); ok || sessionID != "" {
+	if sessionID, ok := findSessionIDByNormalizedAgentRef([]string{"s1"}, map[string]string{"s1": "agent-a"}, normalizeSessionRefLower("agent-z")); ok || sessionID != "" {
 		t.Fatalf("expected no match for unknown agent ref, got id=%q ok=%v", sessionID, ok)
 	}
-	if sessionID, ok := findSessionIDByAgentRef([]string{"s-default"}, map[string]string{}, strings.ToLower(defaultForkAgentID)); !ok || sessionID != "s-default" {
+	if sessionID, ok := findSessionIDByNormalizedAgentRef([]string{"s-default"}, map[string]string{}, normalizeSessionRefLower(strings.ToLower(defaultForkAgentID))); !ok || sessionID != "s-default" {
 		t.Fatalf("expected missing index entries to default-match %q, got id=%q ok=%v", defaultForkAgentID, sessionID, ok)
 	}
-	if sessionID, ok := findSessionIDByAgentRef([]string{"s2"}, map[string]string{"s2": "agent-b"}, " @Agent-B "); !ok || sessionID != "s2" {
+	if sessionID, ok := findSessionIDByNormalizedAgentRef([]string{"s2"}, map[string]string{"s2": "agent-b"}, normalizeSessionRefLower(" @Agent-B ")); !ok || sessionID != "s2" {
 		t.Fatalf("expected helper to normalize incoming ref before match, got id=%q ok=%v", sessionID, ok)
 	}
-	if sessionID, ok := findSessionIDByAgentRef([]string{"s2"}, map[string]string{"s2": "agent-b"}, "   "); ok || sessionID != "" {
+	if sessionID, ok := findSessionIDByNormalizedAgentRef([]string{"s2"}, map[string]string{"s2": "agent-b"}, normalizeSessionRefLower("   ")); ok || sessionID != "" {
 		t.Fatalf("expected empty ref to fail fast with no match, got id=%q ok=%v", sessionID, ok)
 	}
 }
