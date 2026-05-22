@@ -579,7 +579,7 @@ func buildUsedForkAgentIDs(agentBySession map[string]string) map[string]bool {
 }
 
 func normalizeForkAgentBase(base string) string {
-	base = strings.TrimSpace(base)
+	base = normalizeForkAgentID(base)
 	if base == "" {
 		return defaultForkAgentID
 	}
