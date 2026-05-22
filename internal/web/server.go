@@ -538,18 +538,21 @@ func normalizeForkAgentID(agentID string) string {
 	return strings.TrimSpace(agentID)
 }
 
-func mapForkAgentIDOrDefault(sessionID string, agentBySession map[string]string) (agentID string, mapped bool) {
-	sessionID = normalizeForkSessionID(sessionID)
-	agentID = normalizeForkAgentID(agentBySession[sessionID])
+func mapForkAgentIDOrDefaultNormalized(normalizedSessionID string, agentBySession map[string]string) (agentID string, mapped bool) {
+	agentID = normalizeForkAgentID(agentBySession[normalizedSessionID])
 	if agentID == "" {
 		return defaultForkAgentID, false
 	}
 	return agentID, true
 }
 
+func mapForkAgentIDOrDefault(sessionID string, agentBySession map[string]string) (agentID string, mapped bool) {
+	return mapForkAgentIDOrDefaultNormalized(normalizeForkSessionID(sessionID), agentBySession)
+}
+
 func (s *Server) sourceForkAgentID(ctx context.Context, sourceSessionID string, agentBySession map[string]string) string {
 	normalizedSourceSessionID := normalizeForkSessionID(sourceSessionID)
-	agentID, mapped := mapForkAgentIDOrDefault(normalizedSourceSessionID, agentBySession)
+	agentID, mapped := mapForkAgentIDOrDefaultNormalized(normalizedSourceSessionID, agentBySession)
 	if mapped || normalizedSourceSessionID == "" {
 		return agentID
 	}
@@ -572,7 +575,7 @@ func buildUsedForkAgentIDs(agentBySession map[string]string) map[string]bool {
 		if normalizedSessionID == "" {
 			continue
 		}
-		agentID, _ := mapForkAgentIDOrDefault(normalizedSessionID, agentBySession)
+		agentID, _ := mapForkAgentIDOrDefaultNormalized(normalizedSessionID, agentBySession)
 		used[agentID] = true
 	}
 	return used
