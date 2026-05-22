@@ -137,7 +137,7 @@ func unknownSessionOrAgentError(ref string) error {
 
 func normalizeSessionRef(ref string) string {
 	ref = strings.TrimSpace(ref)
-	return strings.TrimSpace(strings.TrimPrefix(ref, "@"))
+	return strings.TrimPrefix(ref, "@")
 }
 
 func normalizeSessionRefLower(ref string) string {
