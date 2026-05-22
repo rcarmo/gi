@@ -419,6 +419,9 @@ func TestFindSessionIDByAgentRef(t *testing.T) {
 	if sessionID, ok := findSessionIDByNormalizedAgentRef([]string{"s2"}, map[string]string{"s2": "agent-b"}, strings.ToLower(normalizeSessionRef(" @Agent-B "))); !ok || sessionID != "s2" {
 		t.Fatalf("expected helper to normalize incoming ref before match, got id=%q ok=%v", sessionID, ok)
 	}
+	if sessionID, ok := findSessionIDByNormalizedAgentRef([]string{"s2"}, map[string]string{"s2": "agent-b"}, "  AGENT-B  "); !ok || sessionID != "s2" {
+		t.Fatalf("expected normalized matcher to trim/lower direct input, got id=%q ok=%v", sessionID, ok)
+	}
 	if sessionID, ok := findSessionIDByNormalizedAgentRef([]string{"s2"}, map[string]string{"s2": "agent-b"}, strings.ToLower(normalizeSessionRef("   "))); ok || sessionID != "" {
 		t.Fatalf("expected empty ref to fail fast with no match, got id=%q ok=%v", sessionID, ok)
 	}

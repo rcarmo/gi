@@ -202,6 +202,7 @@ func buildUsedForkAgentIDs(sessionIDs []string, agentIDs map[string]string) map[
 }
 
 func findSessionIDByNormalizedAgentRef(sessionIDs []string, agentIDs map[string]string, normalizedRef string) (string, bool) {
+	normalizedRef = strings.TrimSpace(strings.ToLower(normalizedRef))
 	if normalizedRef == "" {
 		return "", false
 	}
