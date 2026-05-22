@@ -244,6 +244,7 @@ Implemented so far:
 - active cancellation now resolves through terminal `cancelled` state for live provider-stream, setup-phase, and live tool-execution turns instead of being misclassified as generic provider/tool failures, parent-turn cancellation propagates into running child subturns through the normal terminal path, and cancel-request bookkeeping itself now falls back to engine-owned durable context when the caller context is already canceled so `turn.cancelling` / queued `turn.cancelled` audit rows and state transitions are not dropped by the cancel request that triggered them
 - queued turns are launched oldest-first via durable `created_at`/`id` ordering, and queued ordering is now covered by runtime tests rather than only implied by store queries
 - web fork-agent allocation now resolves used-agent occupancy from the lightweight `ListSessionAgentIDs` map plus deterministic defaults, while source-session base selection keeps one canonical fallback lookup via `SessionAgentID`; helper normalization for session ids, agent ids, base/suffix generation, and candidate exhaustion is now explicit and test-covered so branch-agent allocation no longer depends on `sessions.scope_json` drift or ad-hoc string handling
+- TUI fork-agent allocation now follows the same identity-first shape as web: it derives source agent/base from `SessionAgentID` and computes used occupancy from lightweight `ListSessionIDs` + `ListSessionAgentIDs` rather than loading full session rows/scopes for fork suffix selection
 
 Current recovery semantics:
 

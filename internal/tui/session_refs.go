@@ -108,26 +108,27 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 }
 
 func (c *chatTUI) nextForkAgentID() string {
-	current, err := c.store.GetSession(context.Background(), c.sessionID)
-	if err != nil {
-		return "agent1"
+	ctx := context.Background()
+	sourceAgentID := strings.TrimSpace(c.store.SessionAgentID(ctx, c.sessionID))
+	base := strings.TrimRight(sourceAgentID, "0123456789")
+	if base == "" {
+		base = sourceAgentID
 	}
-	sessions, err := c.store.ListSessions(context.Background())
+	sessionIDs, err := c.store.ListSessionIDs(ctx)
 	if err != nil {
-		base := strings.TrimRight(c.agentIDForSession(current), "0123456789")
-		if base == "" {
-			base = c.agentIDForSession(current)
-		}
 		return base + "1"
 	}
-	agentIDs := c.sessionAgentIDIndex(sessions)
-	base := strings.TrimRight(c.agentIDForSessionFromIndex(current, agentIDs), "0123456789")
-	if base == "" {
-		base = c.agentIDForSessionFromIndex(current, agentIDs)
+	agentIDs, err := c.store.ListSessionAgentIDs(ctx)
+	if err != nil || agentIDs == nil {
+		agentIDs = map[string]string{}
 	}
 	used := map[string]bool{}
-	for _, sess := range sessions {
-		used[c.agentIDForSessionFromIndex(&sess, agentIDs)] = true
+	for _, sessionID := range sessionIDs {
+		agentID := strings.TrimSpace(agentIDs[sessionID])
+		if agentID == "" {
+			agentID = "agent"
+		}
+		used[agentID] = true
 	}
 	for i := 1; i < 1000; i++ {
 		candidate := fmt.Sprintf("%s%d", base, i)
