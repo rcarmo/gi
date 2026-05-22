@@ -159,7 +159,7 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if sessionID, ok := findSessionIDByAgentRef(sessionIDs, agentIDs, ref); ok {
+	if sessionID, ok := findSessionIDByNormalizedAgentRef(sessionIDs, agentIDs, normalizeSessionRefLower(ref)); ok {
 		return c.store.GetSession(ctx, sessionID)
 	}
 	return nil, unknownSessionOrAgentError(ref)
@@ -185,8 +185,7 @@ func buildUsedForkAgentIDs(sessionIDs []string, agentIDs map[string]string) map[
 	return used
 }
 
-func findSessionIDByAgentRef(sessionIDs []string, agentIDs map[string]string, ref string) (string, bool) {
-	normalizedRef := normalizeSessionRefLower(ref)
+func findSessionIDByNormalizedAgentRef(sessionIDs []string, agentIDs map[string]string, normalizedRef string) (string, bool) {
 	if normalizedRef == "" {
 		return "", false
 	}
@@ -196,6 +195,10 @@ func findSessionIDByAgentRef(sessionIDs []string, agentIDs map[string]string, re
 		}
 	}
 	return "", false
+}
+
+func findSessionIDByAgentRef(sessionIDs []string, agentIDs map[string]string, ref string) (string, bool) {
+	return findSessionIDByNormalizedAgentRef(sessionIDs, agentIDs, normalizeSessionRefLower(ref))
 }
 
 func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {

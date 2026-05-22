@@ -377,6 +377,16 @@ func TestChooseNextForkAgentID(t *testing.T) {
 	}
 }
 
+func TestFindSessionIDByNormalizedAgentRef(t *testing.T) {
+	sessionID, ok := findSessionIDByNormalizedAgentRef([]string{"s2", "s1"}, map[string]string{"s1": "agent-a", "s2": "Agent-B"}, "agent-b")
+	if !ok || sessionID != "s2" {
+		t.Fatalf("expected deterministic normalized agent-ref match on s2, got id=%q ok=%v", sessionID, ok)
+	}
+	if sessionID, ok := findSessionIDByNormalizedAgentRef([]string{"s1"}, map[string]string{"s1": "agent-a"}, ""); ok || sessionID != "" {
+		t.Fatalf("expected empty normalized ref to fail fast, got id=%q ok=%v", sessionID, ok)
+	}
+}
+
 func TestFindSessionIDByAgentRef(t *testing.T) {
 	sessionID, ok := findSessionIDByAgentRef([]string{"s2", "s1"}, map[string]string{"s1": "agent-a", "s2": "Agent-B"}, "agent-b")
 	if !ok || sessionID != "s2" {
