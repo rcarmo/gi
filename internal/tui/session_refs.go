@@ -203,7 +203,7 @@ func buildUsedForkAgentIDs(sessionIDs []string, agentIDs map[string]string) map[
 
 func findSessionIDByNormalizedAgentRef(sessionIDs []string, agentIDs map[string]string, normalizedRef string) (string, bool) {
 	normalizedRef = strings.TrimSpace(strings.ToLower(normalizedRef))
-	if normalizedRef == "" {
+	if normalizedRef == "" || len(sessionIDs) == 0 {
 		return "", false
 	}
 	for _, sessionID := range sessionIDs {

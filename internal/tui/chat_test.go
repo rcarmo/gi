@@ -449,6 +449,9 @@ func TestFindSessionIDByNormalizedAgentRef(t *testing.T) {
 	if sessionID, ok := findSessionIDByNormalizedAgentRef([]string{"s1"}, map[string]string{"s1": "agent-a"}, ""); ok || sessionID != "" {
 		t.Fatalf("expected empty normalized ref to fail fast, got id=%q ok=%v", sessionID, ok)
 	}
+	if sessionID, ok := findSessionIDByNormalizedAgentRef(nil, map[string]string{"s1": "agent-a"}, "agent-a"); ok || sessionID != "" {
+		t.Fatalf("expected empty session-id input to fail fast, got id=%q ok=%v", sessionID, ok)
+	}
 }
 
 func TestFindSessionIDByAgentRef(t *testing.T) {
