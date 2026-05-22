@@ -292,6 +292,12 @@ func TestAgentIDForSessionDefaults(t *testing.T) {
 	}
 }
 
+func TestFirstForkAgentID(t *testing.T) {
+	if got := firstForkAgentID(" agent "); got != "agent1" {
+		t.Fatalf("expected first fork agent id agent1, got %q", got)
+	}
+}
+
 func TestNormalizeForkAgentBase(t *testing.T) {
 	if got := normalizeForkAgentBase(" agent42 "); got != "agent" {
 		t.Fatalf("expected normalized fork base agent, got %q", got)

@@ -13,6 +13,10 @@ const defaultForkAgentID = "agent"
 const minForkAgentIDSuffix = 1
 const maxForkAgentIDSuffixExclusive = 1000
 
+func firstForkAgentID(base string) string {
+	return fmt.Sprintf("%s%d", normalizeForkAgentBase(base), minForkAgentIDSuffix)
+}
+
 func (c *chatTUI) switchSession(sessionID string) {
 	c.bindSession(sessionID)
 	c.transcript = c.loadTranscript()
@@ -151,11 +155,11 @@ func (c *chatTUI) nextForkAgentID() string {
 	base := normalizeForkAgentBase(c.store.SessionAgentID(ctx, c.sessionID))
 	sessionIDs, err := c.store.ListSessionIDs(ctx)
 	if err != nil {
-		return base + "1"
+		return firstForkAgentID(base)
 	}
 	agentIDs, err := c.sessionAgentIDIndex(ctx)
 	if err != nil {
-		return base + "1"
+		return firstForkAgentID(base)
 	}
 	used := map[string]bool{}
 	for _, sessionID := range sessionIDs {
