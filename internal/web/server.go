@@ -612,12 +612,12 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 		return "", err
 	}
 	sourceAgentID := s.sourceForkAgentID(ctx, sourceSessionID, agentBySession)
-	base := normalizeForkAgentBase(trimAgentNumericSuffix(sourceAgentID))
+	base := trimAgentNumericSuffix(sourceAgentID)
 	used := buildUsedForkAgentIDs(agentBySession)
 	if candidate, ok := chooseNextForkAgentID(base, used); ok {
 		return candidate, nil
 	}
-	return "", fmt.Errorf("could not allocate fork agent id from %s", base)
+	return "", fmt.Errorf("could not allocate fork agent id from %s", normalizeForkAgentBase(base))
 }
 
 func (s *Server) handleRuntimeConfig(w http.ResponseWriter, r *http.Request) {
