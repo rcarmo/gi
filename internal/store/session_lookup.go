@@ -50,6 +50,10 @@ func (s *Store) ListSessionIDs(ctx context.Context) ([]string, error) {
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
 		out = append(out, id)
 	}
 	if err := rows.Err(); err != nil {

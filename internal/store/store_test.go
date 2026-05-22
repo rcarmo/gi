@@ -769,28 +769,34 @@ func TestStoreListSessionIDs(t *testing.T) {
 	if _, err := s.CreateSession(ctx, "session_ids_c", "@agent", map[string]any{"status": "idle"}); err != nil {
 		t.Fatalf("create session c: %v", err)
 	}
+	if _, err := s.CreateSession(ctx, "  session_ids_trimmed  ", "@agent", map[string]any{"status": "idle"}); err != nil {
+		t.Fatalf("create session trimmed: %v", err)
+	}
 	ids, err := s.ListSessionIDs(ctx)
 	if err != nil {
 		t.Fatalf("list session ids: %v", err)
 	}
-	if len(ids) < 3 {
-		t.Fatalf("expected at least 3 session ids, got %#v", ids)
+	if len(ids) < 4 {
+		t.Fatalf("expected at least 4 session ids, got %#v", ids)
 	}
 	seen := map[string]bool{}
 	for _, id := range ids {
 		seen[id] = true
 	}
-	for _, expected := range []string{"session_ids_a", "session_ids_b", "session_ids_c"} {
+	for _, expected := range []string{"session_ids_a", "session_ids_b", "session_ids_c", "session_ids_trimmed"} {
 		if !seen[expected] {
 			t.Fatalf("expected %q in session ids, got %#v", expected, ids)
 		}
+	}
+	if seen["  session_ids_trimmed  "] {
+		t.Fatalf("expected padded session id to be normalized, got %#v", ids)
 	}
 	idsNilCtx, err := s.ListSessionIDs(nil)
 	if err != nil {
 		t.Fatalf("list session ids (nil ctx): %v", err)
 	}
-	if len(idsNilCtx) < 3 {
-		t.Fatalf("expected at least 3 session ids (nil ctx), got %#v", idsNilCtx)
+	if len(idsNilCtx) < 4 {
+		t.Fatalf("expected at least 4 session ids (nil ctx), got %#v", idsNilCtx)
 	}
 }
 
