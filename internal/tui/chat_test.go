@@ -380,6 +380,9 @@ func TestChooseNextForkAgentID(t *testing.T) {
 	if candidate, ok := chooseNextForkAgentID("agent", map[string]bool{"agent1": true, "agent2": true}); !ok || candidate != "agent3" {
 		t.Fatalf("expected next fork candidate agent3, got %q ok=%v", candidate, ok)
 	}
+	if candidate, ok := chooseNextForkAgentID("  ", nil); !ok || candidate != "agent1" {
+		t.Fatalf("expected default-base candidate agent1 for nil used set, got %q ok=%v", candidate, ok)
+	}
 	exhausted := map[string]bool{}
 	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
 		exhausted[forkAgentIDCandidate("agent", i)] = true
