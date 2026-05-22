@@ -235,6 +235,33 @@ func TestResolveSessionRefPrefersDirectSessionIDBeforeAgentLookup(t *testing.T) 
 	}
 }
 
+func TestResolveSessionRefByAgentIDDeterministicOrder(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	root, err := s.CreateSession(ctx, "session_root_order", "@agent", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create root session: %v", err)
+	}
+	if _, err := s.CloneSession(ctx, root.ID, "session_child_order_b", "@agent1", "agent1"); err != nil {
+		t.Fatalf("create child agent1 b: %v", err)
+	}
+	if _, err := s.CloneSession(ctx, root.ID, "session_child_order_a", "@agent1", "agent1"); err != nil {
+		t.Fatalf("create child agent1 a: %v", err)
+	}
+	c := &chatTUI{store: s, sessionID: root.ID}
+	sess, err := c.resolveSessionRef("@agent1")
+	if err != nil {
+		t.Fatalf("resolve session ref deterministic order: %v", err)
+	}
+	if sess.ID != "session_child_order_a" {
+		t.Fatalf("expected deterministic first sorted session id, got %#v", sess)
+	}
+}
+
 func TestResolveSessionRefByAgentIDCaseInsensitive(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
