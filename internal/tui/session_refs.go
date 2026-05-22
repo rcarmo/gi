@@ -120,7 +120,7 @@ func indexedAgentID(sessionID string, index map[string]string) string {
 }
 
 func indexedAgentIDLower(sessionID string, index map[string]string) string {
-	return strings.ToLower(indexedAgentID(sessionID, index))
+	return strings.ToLower(indexedAgentIDOrDefault(sessionID, index))
 }
 
 func indexedAgentIDOrDefault(sessionID string, index map[string]string) string {
