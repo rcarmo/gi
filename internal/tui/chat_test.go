@@ -353,8 +353,8 @@ func TestNormalizeSessionRef(t *testing.T) {
 }
 
 func TestForkAgentIDCandidate(t *testing.T) {
-	if got := forkAgentIDCandidate(" agent ", 3); got != "agent3" {
-		t.Fatalf("expected normalized candidate agent3, got %q", got)
+	if got := forkAgentIDCandidate("agent", 3); got != "agent3" {
+		t.Fatalf("expected candidate agent3, got %q", got)
 	}
 }
 

@@ -14,15 +14,15 @@ const minForkAgentIDSuffix = 1
 const maxForkAgentIDSuffixExclusive = 1000
 
 func forkAgentIDCandidate(base string, suffix int) string {
-	return fmt.Sprintf("%s%d", normalizeForkAgentBase(base), suffix)
+	return fmt.Sprintf("%s%d", base, suffix)
 }
 
 func firstForkAgentID(base string) string {
-	return forkAgentIDCandidate(base, minForkAgentIDSuffix)
+	return forkAgentIDCandidate(normalizeForkAgentBase(base), minForkAgentIDSuffix)
 }
 
 func lastForkAgentID(base string) string {
-	return forkAgentIDCandidate(base, maxForkAgentIDSuffixExclusive-1)
+	return forkAgentIDCandidate(normalizeForkAgentBase(base), maxForkAgentIDSuffixExclusive-1)
 }
 
 func (c *chatTUI) switchSession(sessionID string) {
@@ -199,6 +199,7 @@ func findSessionIDByAgentRef(sessionIDs []string, agentIDs map[string]string, re
 }
 
 func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
+	base = normalizeForkAgentBase(base)
 	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
 		candidate := forkAgentIDCandidate(base, i)
 		if !used[candidate] {
