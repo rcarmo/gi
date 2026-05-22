@@ -150,10 +150,6 @@ func normalizeSessionRef(ref string) string {
 	return strings.TrimPrefix(ref, "@")
 }
 
-func normalizeSessionRefLower(ref string) string {
-	return strings.ToLower(normalizeSessionRef(ref))
-}
-
 func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	ctx := context.Background()
 	ref = normalizeSessionRef(ref)
