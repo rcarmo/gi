@@ -124,6 +124,9 @@ func indexedAgentIDLower(sessionID string, index map[string]string) string {
 }
 
 func indexedAgentIDOrDefault(sessionID string, index map[string]string) string {
+	if strings.TrimSpace(sessionID) == "" {
+		return defaultForkAgentID
+	}
 	agentID := indexedAgentID(sessionID, index)
 	if agentID == "" {
 		return defaultForkAgentID

@@ -338,6 +338,9 @@ func TestIndexedAgentIDOrDefault(t *testing.T) {
 	if got := indexedAgentIDOrDefault("missing", map[string]string{}); got != defaultForkAgentID {
 		t.Fatalf("expected missing indexed agent id to default to %q, got %q", defaultForkAgentID, got)
 	}
+	if got := indexedAgentIDOrDefault("   ", map[string]string{"": "agent-blank"}); got != defaultForkAgentID {
+		t.Fatalf("expected blank session id to fail closed to %q, got %q", defaultForkAgentID, got)
+	}
 }
 
 func TestNormalizeSessionRefLower(t *testing.T) {
