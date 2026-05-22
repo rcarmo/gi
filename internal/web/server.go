@@ -592,6 +592,10 @@ func forkAgentIDCandidate(base string, suffix int) string {
 	return base + strconv.Itoa(suffix)
 }
 
+func lastForkAgentID(base string) string {
+	return forkAgentIDCandidate(base, maxForkAgentIDSuffixExclusive-1)
+}
+
 func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
 	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
 		candidate := forkAgentIDCandidate(base, i)

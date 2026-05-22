@@ -432,6 +432,12 @@ func TestForkAgentIDCandidate(t *testing.T) {
 	}
 }
 
+func TestLastForkAgentID(t *testing.T) {
+	if got := lastForkAgentID("agent"); got != forkAgentIDCandidate("agent", maxForkAgentIDSuffixExclusive-1) {
+		t.Fatalf("expected last fork agent id to match max suffix candidate, got %q", got)
+	}
+}
+
 func TestChooseNextForkAgentID(t *testing.T) {
 	used := map[string]bool{"agent1": true, "agent2": true}
 	if got, ok := chooseNextForkAgentID("agent", used); !ok || got != "agent3" {
