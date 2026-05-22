@@ -122,6 +122,44 @@ func TestHandleForkCommandSwitchesSession(t *testing.T) {
 	}
 }
 
+func TestListAgentLinesReportsAgentIndexErrors(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_error_agents", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	c := &chatTUI{store: s}
+	lines := c.listAgentLines()
+	if len(lines) == 0 || !strings.HasPrefix(lines[0], "error:") {
+		t.Fatalf("expected listAgentLines to surface error line, got %#v", lines)
+	}
+}
+
+func TestTreeLinesReportsAgentIndexErrors(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_error_tree", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	c := &chatTUI{store: s}
+	lines := c.treeLines()
+	if len(lines) == 0 || !strings.HasPrefix(lines[0], "error:") {
+		t.Fatalf("expected treeLines to surface error line, got %#v", lines)
+	}
+}
+
 func TestTreeLinesShowsParentChildSessions(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
