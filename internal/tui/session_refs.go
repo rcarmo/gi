@@ -142,7 +142,7 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	if ref == "" {
 		return nil, unknownSessionOrAgentError(ref)
 	}
-	normalizedRef := normalizeSessionRefLower(ref)
+	normalizedRef := strings.ToLower(ref)
 	if sess, err := c.store.GetSession(ctx, ref); err == nil {
 		return sess, nil
 	} else if err != sql.ErrNoRows {
