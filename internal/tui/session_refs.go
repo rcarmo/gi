@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -104,6 +105,8 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	}
 	if sess, err := c.store.GetSession(ctx, ref); err == nil {
 		return sess, nil
+	} else if err != sql.ErrNoRows {
+		return nil, err
 	}
 	sessionIDs, err := c.store.ListSessionIDs(ctx)
 	if err != nil {

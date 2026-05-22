@@ -140,6 +140,18 @@ func TestTreeLinesShowsParentChildSessions(t *testing.T) {
 	}
 }
 
+func TestResolveSessionRefPropagatesLookupErrors(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	_ = s.Close()
+	c := &chatTUI{store: s, sessionID: "session_root"}
+	if _, err := c.resolveSessionRef("@agent1"); err == nil {
+		t.Fatalf("expected resolve session ref to propagate store lookup errors")
+	}
+}
+
 func TestResolveSessionRefByAgentID(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
