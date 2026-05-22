@@ -117,6 +117,7 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	if ref == "" {
 		return nil, fmt.Errorf("unknown session or agent: %s", ref)
 	}
+	normalizedRef := strings.ToLower(ref)
 	if sess, err := c.store.GetSession(ctx, ref); err == nil {
 		return sess, nil
 	} else if err != sql.ErrNoRows {
@@ -131,7 +132,7 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 		return nil, err
 	}
 	for _, sessionID := range sessionIDs {
-		if strings.EqualFold(indexedAgentID(sessionID, agentIDs), ref) {
+		if strings.ToLower(indexedAgentID(sessionID, agentIDs)) == normalizedRef {
 			return c.store.GetSession(ctx, sessionID)
 		}
 	}
