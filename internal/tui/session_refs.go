@@ -128,13 +128,17 @@ func normalizeSessionRef(ref string) string {
 	return strings.TrimSpace(strings.TrimPrefix(ref, "@"))
 }
 
+func normalizeSessionRefLower(ref string) string {
+	return strings.ToLower(normalizeSessionRef(ref))
+}
+
 func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	ctx := context.Background()
 	ref = normalizeSessionRef(ref)
 	if ref == "" {
 		return nil, unknownSessionOrAgentError(ref)
 	}
-	normalizedRef := strings.ToLower(ref)
+	normalizedRef := normalizeSessionRefLower(ref)
 	if sess, err := c.store.GetSession(ctx, ref); err == nil {
 		return sess, nil
 	} else if err != sql.ErrNoRows {
