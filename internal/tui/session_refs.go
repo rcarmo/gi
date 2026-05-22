@@ -113,7 +113,10 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 		return nil, err
 	}
 	agentIDs, err := c.store.ListSessionAgentIDs(ctx)
-	if err != nil || agentIDs == nil {
+	if err != nil {
+		return nil, err
+	}
+	if agentIDs == nil {
 		agentIDs = map[string]string{}
 	}
 	for _, sessionID := range sessionIDs {
@@ -148,7 +151,10 @@ func (c *chatTUI) nextForkAgentID() string {
 		return base + "1"
 	}
 	agentIDs, err := c.store.ListSessionAgentIDs(ctx)
-	if err != nil || agentIDs == nil {
+	if err != nil {
+		return base + "1"
+	}
+	if agentIDs == nil {
 		agentIDs = map[string]string{}
 	}
 	used := map[string]bool{}

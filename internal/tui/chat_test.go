@@ -152,6 +152,24 @@ func TestResolveSessionRefPropagatesLookupErrors(t *testing.T) {
 	}
 }
 
+func TestNextForkAgentIDFallsBackWhenAgentIndexLookupFails(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_fork_error", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := s.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	c := &chatTUI{store: s, sessionID: "session_fork_error"}
+	if got := c.nextForkAgentID(); got != "agent1" {
+		t.Fatalf("expected deterministic fallback agent1 on index lookup error, got %q", got)
+	}
+}
+
 func TestResolveSessionRefPrefersDirectSessionIDBeforeAgentLookup(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
