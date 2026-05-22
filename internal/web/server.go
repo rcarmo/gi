@@ -546,10 +546,6 @@ func mapForkAgentIDOrDefaultNormalized(normalizedSessionID string, agentBySessio
 	return agentID, true
 }
 
-func mapForkAgentIDOrDefault(sessionID string, agentBySession map[string]string) (agentID string, mapped bool) {
-	return mapForkAgentIDOrDefaultNormalized(normalizeForkSessionID(sessionID), agentBySession)
-}
-
 func (s *Server) sourceForkAgentID(ctx context.Context, sourceSessionID string, agentBySession map[string]string) string {
 	normalizedSourceSessionID := normalizeForkSessionID(sourceSessionID)
 	agentID, mapped := mapForkAgentIDOrDefaultNormalized(normalizedSourceSessionID, agentBySession)

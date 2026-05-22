@@ -327,10 +327,10 @@ func TestForkAgentIDForSessionResolutionFallbackOrder(t *testing.T) {
 	if _, err := s.CreateSessionWithMetadata(ctx, "session_fork_helper", "", "@agent-base", map[string]any{"status": "idle", "model": "bootstrap"}, &alloc.Scope, alloc.SessionAliases); err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	if got, mapped := mapForkAgentIDOrDefault("session_fork_helper", map[string]string{"session_fork_helper": " agent-map "}); got != "agent-map" || !mapped {
+	if got, mapped := mapForkAgentIDOrDefaultNormalized(normalizeForkSessionID("session_fork_helper"), map[string]string{"session_fork_helper": " agent-map "}); got != "agent-map" || !mapped {
 		t.Fatalf("expected mapped agent id to win, got %q mapped=%v", got, mapped)
 	}
-	if got, mapped := mapForkAgentIDOrDefault("session_fork_helper", map[string]string{}); got != defaultForkAgentID || mapped {
+	if got, mapped := mapForkAgentIDOrDefaultNormalized(normalizeForkSessionID("session_fork_helper"), map[string]string{}); got != defaultForkAgentID || mapped {
 		t.Fatalf("expected default fallback agent id for non-source resolution, got %q mapped=%v", got, mapped)
 	}
 	if got := srv.sourceForkAgentID(ctx, "session_fork_helper", map[string]string{}); got != "agent-base" {
@@ -342,16 +342,16 @@ func TestForkAgentIDForSessionResolutionFallbackOrder(t *testing.T) {
 	if got := srv.sourceForkAgentID(ctx, "session_fork_helper", map[string]string{"session_fork_helper": "   "}); got != "agent-base" {
 		t.Fatalf("expected whitespace-only mapped source agent id to fallback to store value, got %q", got)
 	}
-	if got, mapped := mapForkAgentIDOrDefault("session_fork_helper_missing", map[string]string{}); got != defaultForkAgentID || mapped {
+	if got, mapped := mapForkAgentIDOrDefaultNormalized(normalizeForkSessionID("session_fork_helper_missing"), map[string]string{}); got != defaultForkAgentID || mapped {
 		t.Fatalf("expected default fallback agent id, got %q mapped=%v", got, mapped)
 	}
-	if got, mapped := mapForkAgentIDOrDefault("session_fork_helper", map[string]string{}); got != defaultForkAgentID || mapped {
+	if got, mapped := mapForkAgentIDOrDefaultNormalized(normalizeForkSessionID("session_fork_helper"), map[string]string{}); got != defaultForkAgentID || mapped {
 		t.Fatalf("expected nil-context default fallback agent id, got %q mapped=%v", got, mapped)
 	}
 	if got := srv.sourceForkAgentID(nil, "session_fork_helper", map[string]string{}); got != "agent-base" {
 		t.Fatalf("expected nil-context source store fallback agent id, got %q", got)
 	}
-	if got, mapped := mapForkAgentIDOrDefault("  session_fork_helper  ", map[string]string{}); got != defaultForkAgentID || mapped {
+	if got, mapped := mapForkAgentIDOrDefaultNormalized(normalizeForkSessionID("  session_fork_helper  "), map[string]string{}); got != defaultForkAgentID || mapped {
 		t.Fatalf("expected trimmed session id default fallback agent id, got %q mapped=%v", got, mapped)
 	}
 	if got := srv.sourceForkAgentID(ctx, "  session_fork_helper  ", map[string]string{}); got != "agent-base" {
@@ -401,14 +401,14 @@ func TestMapForkAgentIDOrDefaultNormalized(t *testing.T) {
 	}
 }
 
-func TestMapForkAgentIDOrDefault(t *testing.T) {
-	if got, mapped := mapForkAgentIDOrDefault(" s1 ", map[string]string{"s1": " agent-a "}); got != "agent-a" || !mapped {
+func TestMapForkAgentIDOrDefaultNormalizedFromRawSessionID(t *testing.T) {
+	if got, mapped := mapForkAgentIDOrDefaultNormalized(normalizeForkSessionID(" s1 "), map[string]string{"s1": " agent-a "}); got != "agent-a" || !mapped {
 		t.Fatalf("expected trimmed mapped agent id, got %q mapped=%v", got, mapped)
 	}
-	if got, mapped := mapForkAgentIDOrDefault("missing", map[string]string{}); got != defaultForkAgentID || mapped {
+	if got, mapped := mapForkAgentIDOrDefaultNormalized(normalizeForkSessionID("missing"), map[string]string{}); got != defaultForkAgentID || mapped {
 		t.Fatalf("expected default for missing key, got %q mapped=%v", got, mapped)
 	}
-	if got, mapped := mapForkAgentIDOrDefault("s2", map[string]string{"s2": "   "}); got != defaultForkAgentID || mapped {
+	if got, mapped := mapForkAgentIDOrDefaultNormalized(normalizeForkSessionID("s2"), map[string]string{"s2": "   "}); got != defaultForkAgentID || mapped {
 		t.Fatalf("expected whitespace-only value to be treated as unmapped default, got %q mapped=%v", got, mapped)
 	}
 }
