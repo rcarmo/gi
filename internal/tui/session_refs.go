@@ -120,6 +120,9 @@ func normalizeIndexedSessionID(sessionID string) string {
 }
 
 func indexedAgentID(sessionID string, index map[string]string) string {
+	if index == nil {
+		return ""
+	}
 	return strings.TrimSpace(index[normalizeIndexedSessionID(sessionID)])
 }
 
