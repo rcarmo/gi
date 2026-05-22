@@ -152,6 +152,33 @@ func TestResolveSessionRefPropagatesLookupErrors(t *testing.T) {
 	}
 }
 
+func TestResolveSessionRefPrefersDirectSessionIDBeforeAgentLookup(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "agent1", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create direct-id session: %v", err)
+	}
+	root, err := s.CreateSession(ctx, "session_root_ref_precedence", "@agent", map[string]any{"model": "bootstrap", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create root session: %v", err)
+	}
+	if _, err := s.CloneSession(ctx, root.ID, "session_child_ref_precedence", "@agent1", "agent1"); err != nil {
+		t.Fatalf("create child agent1 session: %v", err)
+	}
+	c := &chatTUI{store: s, sessionID: root.ID}
+	sess, err := c.resolveSessionRef("@agent1")
+	if err != nil {
+		t.Fatalf("resolve session ref precedence: %v", err)
+	}
+	if sess.ID != "agent1" {
+		t.Fatalf("expected direct-id precedence session agent1, got %#v", sess)
+	}
+}
+
 func TestResolveSessionRefByAgentIDCaseInsensitive(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
