@@ -31,7 +31,10 @@ func (c *chatTUI) listAgentLines() []string {
 	if len(sessions) == 0 {
 		return []string{"sys: no sessions"}
 	}
-	agentIDs := c.sessionAgentIDIndex()
+	agentIDs, err := c.sessionAgentIDIndex(context.Background())
+	if err != nil {
+		return []string{fmt.Sprintf("error: %v", err)}
+	}
 	lines := []string{"sys: agents:"}
 	for _, sess := range sessions {
 		marker := " "
@@ -55,7 +58,10 @@ func (c *chatTUI) treeLines() []string {
 	if len(sessions) == 0 {
 		return []string{"tree: no sessions"}
 	}
-	agentIDs := c.sessionAgentIDIndex()
+	agentIDs, err := c.sessionAgentIDIndex(context.Background())
+	if err != nil {
+		return []string{fmt.Sprintf("error: %v", err)}
+	}
 	children := map[string][]store.Session{}
 	roots := []store.Session{}
 	for _, sess := range sessions {
@@ -112,12 +118,9 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	agentIDs, err := c.store.ListSessionAgentIDs(ctx)
+	agentIDs, err := c.sessionAgentIDIndex(ctx)
 	if err != nil {
 		return nil, err
-	}
-	if agentIDs == nil {
-		agentIDs = map[string]string{}
 	}
 	for _, sessionID := range sessionIDs {
 		agentID := strings.TrimSpace(agentIDs[sessionID])
@@ -150,12 +153,9 @@ func (c *chatTUI) nextForkAgentID() string {
 	if err != nil {
 		return base + "1"
 	}
-	agentIDs, err := c.store.ListSessionAgentIDs(ctx)
+	agentIDs, err := c.sessionAgentIDIndex(ctx)
 	if err != nil {
 		return base + "1"
-	}
-	if agentIDs == nil {
-		agentIDs = map[string]string{}
 	}
 	used := map[string]bool{}
 	for _, sessionID := range sessionIDs {
@@ -174,12 +174,15 @@ func (c *chatTUI) nextForkAgentID() string {
 	return fmt.Sprintf("%s%d", base, maxForkAgentIDSuffixExclusive-1)
 }
 
-func (c *chatTUI) sessionAgentIDIndex() map[string]string {
-	index, err := c.store.ListSessionAgentIDs(context.Background())
-	if err != nil || index == nil {
-		return map[string]string{}
+func (c *chatTUI) sessionAgentIDIndex(ctx context.Context) (map[string]string, error) {
+	index, err := c.store.ListSessionAgentIDs(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return index
+	if index == nil {
+		return map[string]string{}, nil
+	}
+	return index, nil
 }
 
 func (c *chatTUI) agentIDForSessionFromIndex(sess *store.Session, index map[string]string) string {
