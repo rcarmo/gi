@@ -115,6 +115,10 @@ func indexedAgentID(sessionID string, index map[string]string) string {
 	return strings.TrimSpace(index[sessionID])
 }
 
+func indexedAgentIDLower(sessionID string, index map[string]string) string {
+	return strings.ToLower(indexedAgentID(sessionID, index))
+}
+
 func unknownSessionOrAgentError(ref string) error {
 	return fmt.Errorf("unknown session or agent: %s", ref)
 }
@@ -141,7 +145,7 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 		return nil, err
 	}
 	for _, sessionID := range sessionIDs {
-		if strings.ToLower(indexedAgentID(sessionID, agentIDs)) == normalizedRef {
+		if indexedAgentIDLower(sessionID, agentIDs) == normalizedRef {
 			return c.store.GetSession(ctx, sessionID)
 		}
 	}
