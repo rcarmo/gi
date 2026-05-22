@@ -325,6 +325,12 @@ func TestIndexedAgentID(t *testing.T) {
 	}
 }
 
+func TestForkAgentIDCandidate(t *testing.T) {
+	if got := forkAgentIDCandidate(" agent ", 3); got != "agent3" {
+		t.Fatalf("expected normalized candidate agent3, got %q", got)
+	}
+}
+
 func TestFirstForkAgentID(t *testing.T) {
 	if got := firstForkAgentID(" agent "); got != "agent1" {
 		t.Fatalf("expected first fork agent id agent1, got %q", got)
