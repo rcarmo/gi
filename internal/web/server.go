@@ -565,9 +565,9 @@ func trimAgentNumericSuffix(agentID string) string {
 	return trimmed
 }
 
-func buildUsedForkAgentIDs(sessionIDs []string, agentBySession map[string]string) map[string]bool {
-	used := make(map[string]bool, len(sessionIDs))
-	for _, sessionID := range sessionIDs {
+func buildUsedForkAgentIDs(agentBySession map[string]string) map[string]bool {
+	used := make(map[string]bool, len(agentBySession))
+	for sessionID := range agentBySession {
 		sessionID = normalizeForkSessionID(sessionID)
 		if sessionID == "" {
 			continue
@@ -611,11 +611,7 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 	}
 	sourceAgentID := s.sourceForkAgentID(ctx, sourceSessionID, agentBySession)
 	base := normalizeForkAgentBase(trimAgentNumericSuffix(sourceAgentID))
-	sessionIDs, err := s.store.ListSessionIDs(ctx)
-	if err != nil {
-		return "", err
-	}
-	used := buildUsedForkAgentIDs(sessionIDs, agentBySession)
+	used := buildUsedForkAgentIDs(agentBySession)
 	if candidate, ok := chooseNextForkAgentID(base, used); ok {
 		return candidate, nil
 	}

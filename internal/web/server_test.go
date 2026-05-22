@@ -405,7 +405,7 @@ func TestMapForkAgentIDOrDefault(t *testing.T) {
 }
 
 func TestBuildUsedForkAgentIDs(t *testing.T) {
-	used := buildUsedForkAgentIDs([]string{" s1 ", "s2", "s3", "   "}, map[string]string{"s1": " agent-a ", "s2": ""})
+	used := buildUsedForkAgentIDs(map[string]string{"s1": " agent-a ", "s2": "", "s3": "agent", "   ": "agent-z"})
 	if !used["agent-a"] {
 		t.Fatalf("expected trimmed mapped agent id to be marked used: %#v", used)
 	}
