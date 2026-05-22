@@ -21,6 +21,10 @@ func firstForkAgentID(base string) string {
 	return forkAgentIDCandidate(base, minForkAgentIDSuffix)
 }
 
+func lastForkAgentID(base string) string {
+	return forkAgentIDCandidate(base, maxForkAgentIDSuffixExclusive-1)
+}
+
 func (c *chatTUI) switchSession(sessionID string) {
 	c.bindSession(sessionID)
 	c.transcript = c.loadTranscript()
@@ -204,7 +208,7 @@ func (c *chatTUI) nextForkAgentID() string {
 	if candidate, ok := chooseNextForkAgentID(base, used); ok {
 		return candidate
 	}
-	return forkAgentIDCandidate(base, maxForkAgentIDSuffixExclusive-1)
+	return lastForkAgentID(base)
 }
 
 func (c *chatTUI) sessionAgentIDIndex(ctx context.Context) (map[string]string, error) {
