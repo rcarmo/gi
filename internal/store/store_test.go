@@ -692,6 +692,12 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 	if _, err := s.DB().ExecContext(ctx, `update session_identities set agent_id = ? where session_id = ?`, " agent-b ", "session_agent_ids_b"); err != nil {
 		t.Fatalf("pad agent id b: %v", err)
 	}
+	if _, err := s.DB().ExecContext(ctx, `
+		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
+		values (?, null, ?, '{}', '{}', '[]', `+defaultNow+`, `+defaultNow+`)
+	`, "session_agent_ids_no_identity", "@no-identity"); err != nil {
+		t.Fatalf("insert no-identity session: %v", err)
+	}
 	agentBySession, err := s.ListSessionAgentIDs(ctx)
 	if err != nil {
 		t.Fatalf("list session agent ids: %v", err)
@@ -699,8 +705,11 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 	if agentBySession["session_agent_ids_a"] != "agent-a" || agentBySession["session_agent_ids_b"] != "agent-b" {
 		t.Fatalf("unexpected session agent id map: %#v", agentBySession)
 	}
-	if _, ok := agentBySession["session_agent_ids_blank"]; ok {
-		t.Fatalf("expected blank agent id session to be omitted, got %#v", agentBySession)
+	if agentBySession["session_agent_ids_blank"] != defaultSessionAgentID {
+		t.Fatalf("expected blank agent id session to default to %q, got %#v", defaultSessionAgentID, agentBySession)
+	}
+	if agentBySession["session_agent_ids_no_identity"] != defaultSessionAgentID {
+		t.Fatalf("expected no-identity session to default to %q, got %#v", defaultSessionAgentID, agentBySession)
 	}
 	agentBySessionNilCtx, err := s.ListSessionAgentIDs(nil)
 	if err != nil {
@@ -708,6 +717,9 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 	}
 	if agentBySessionNilCtx["session_agent_ids_a"] != "agent-a" || agentBySessionNilCtx["session_agent_ids_b"] != "agent-b" {
 		t.Fatalf("unexpected session agent id map (nil ctx): %#v", agentBySessionNilCtx)
+	}
+	if agentBySessionNilCtx["session_agent_ids_blank"] != defaultSessionAgentID || agentBySessionNilCtx["session_agent_ids_no_identity"] != defaultSessionAgentID {
+		t.Fatalf("expected nil-context defaults for blank/no-identity sessions, got %#v", agentBySessionNilCtx)
 	}
 }
 

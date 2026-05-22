@@ -12,7 +12,12 @@ func (s *Store) ListSessionAgentIDs(ctx context.Context) (map[string]string, err
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	rows, err := s.db.QueryContext(ctx, `select session_id, agent_id from session_identities`)
+	rows, err := s.db.QueryContext(ctx, `
+		select s.id, coalesce(nullif(trim(si.agent_id), ''), ?)
+		from sessions s
+		left join session_identities si on si.session_id = s.id
+		order by s.created_at asc, s.id asc
+	`, defaultSessionAgentID)
 	if err != nil {
 		return nil, fmt.Errorf("list session agent ids: %w", err)
 	}
@@ -25,8 +30,11 @@ func (s *Store) ListSessionAgentIDs(ctx context.Context) (map[string]string, err
 		}
 		sessionID = strings.TrimSpace(sessionID)
 		agentID = strings.TrimSpace(agentID)
-		if sessionID == "" || agentID == "" {
+		if sessionID == "" {
 			continue
+		}
+		if agentID == "" {
+			agentID = defaultSessionAgentID
 		}
 		out[sessionID] = agentID
 	}
