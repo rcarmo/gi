@@ -392,6 +392,15 @@ func TestNormalizeForkAgentID(t *testing.T) {
 	}
 }
 
+func TestMapForkAgentIDOrDefaultNormalized(t *testing.T) {
+	if got, mapped := mapForkAgentIDOrDefaultNormalized("s1", map[string]string{"s1": " agent-a "}); got != "agent-a" || !mapped {
+		t.Fatalf("expected normalized mapped agent id to win, got %q mapped=%v", got, mapped)
+	}
+	if got, mapped := mapForkAgentIDOrDefaultNormalized("s2", map[string]string{"s2": "   "}); got != defaultForkAgentID || mapped {
+		t.Fatalf("expected whitespace-only normalized value to default, got %q mapped=%v", got, mapped)
+	}
+}
+
 func TestMapForkAgentIDOrDefault(t *testing.T) {
 	if got, mapped := mapForkAgentIDOrDefault(" s1 ", map[string]string{"s1": " agent-a "}); got != "agent-a" || !mapped {
 		t.Fatalf("expected trimmed mapped agent id, got %q mapped=%v", got, mapped)
