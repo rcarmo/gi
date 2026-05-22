@@ -169,7 +169,7 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	if sessionID, ok := findSessionIDByNormalizedAgentRef(sessionIDs, agentIDs, normalizeSessionRefLower(ref)); ok {
+	if sessionID, ok := findSessionIDByNormalizedAgentRef(sessionIDs, agentIDs, strings.ToLower(ref)); ok {
 		return c.store.GetSession(ctx, sessionID)
 	}
 	return nil, unknownSessionOrAgentError(ref)
