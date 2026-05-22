@@ -423,6 +423,9 @@ func TestMapForkAgentIDOrDefaultNormalizedFromRawSessionID(t *testing.T) {
 }
 
 func TestBuildUsedForkAgentIDs(t *testing.T) {
+	if used := buildUsedForkAgentIDs(nil); len(used) != 0 {
+		t.Fatalf("expected nil input to yield empty used set, got %#v", used)
+	}
 	used := buildUsedForkAgentIDs(map[string]string{"s1": " agent-a ", "s2": "", "s3": "agent", "s4": "   ", "   ": "agent-z"})
 	if !used["agent-a"] {
 		t.Fatalf("expected trimmed mapped agent id to be marked used: %#v", used)
