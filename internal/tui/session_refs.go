@@ -190,7 +190,11 @@ func buildUsedForkAgentIDs(sessionIDs []string, agentIDs map[string]string) map[
 	}
 	used := make(map[string]bool, len(sessionIDs))
 	for _, sessionID := range sessionIDs {
-		used[indexedAgentIDOrDefault(sessionID, agentIDs)] = true
+		normalizedSessionID := normalizeIndexedSessionID(sessionID)
+		if normalizedSessionID == "" {
+			continue
+		}
+		used[indexedAgentIDOrDefault(normalizedSessionID, agentIDs)] = true
 	}
 	return used
 }

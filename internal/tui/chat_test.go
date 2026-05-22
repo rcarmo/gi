@@ -425,9 +425,12 @@ func TestBuildUsedForkAgentIDs(t *testing.T) {
 	if used := buildUsedForkAgentIDs(nil, map[string]string{"s1": "agent-a"}); len(used) != 0 {
 		t.Fatalf("expected nil session-id input to yield empty used set, got %#v", used)
 	}
-	used := buildUsedForkAgentIDs([]string{"s1", "s2"}, map[string]string{"s1": "agent-a", "s2": " agent-b "})
+	used := buildUsedForkAgentIDs([]string{"s1", "s2", "   "}, map[string]string{"s1": "agent-a", "s2": " agent-b "})
 	if !used["agent-a"] || !used["agent-b"] {
 		t.Fatalf("expected used fork agent ids to include normalized values, got %#v", used)
+	}
+	if len(used) != 2 {
+		t.Fatalf("expected blank session ids to be ignored, got %#v", used)
 	}
 }
 
