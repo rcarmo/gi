@@ -107,6 +107,10 @@ func (c *chatTUI) treeLines() []string {
 	return lines
 }
 
+func indexedAgentID(sessionID string, index map[string]string) string {
+	return strings.TrimSpace(index[sessionID])
+}
+
 func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 	ctx := context.Background()
 	ref = strings.TrimSpace(strings.TrimPrefix(ref, "@"))
@@ -127,8 +131,7 @@ func (c *chatTUI) resolveSessionRef(ref string) (*store.Session, error) {
 		return nil, err
 	}
 	for _, sessionID := range sessionIDs {
-		agentID := strings.TrimSpace(agentIDs[sessionID])
-		if strings.EqualFold(agentID, ref) {
+		if strings.EqualFold(indexedAgentID(sessionID, agentIDs), ref) {
 			return c.store.GetSession(ctx, sessionID)
 		}
 	}
@@ -160,8 +163,7 @@ func (c *chatTUI) nextForkAgentID() string {
 	}
 	used := map[string]bool{}
 	for _, sessionID := range sessionIDs {
-		agentID := strings.TrimSpace(agentIDs[sessionID])
-		used[agentID] = true
+		used[indexedAgentID(sessionID, agentIDs)] = true
 	}
 	for i := minForkAgentIDSuffix; i < maxForkAgentIDSuffixExclusive; i++ {
 		candidate := fmt.Sprintf("%s%d", base, i)
@@ -185,7 +187,7 @@ func (c *chatTUI) sessionAgentIDIndex(ctx context.Context) (map[string]string, e
 
 func (c *chatTUI) agentIDForSessionFromIndex(sess *store.Session, index map[string]string) string {
 	if sess != nil {
-		if agentID := strings.TrimSpace(index[sess.ID]); agentID != "" {
+		if agentID := indexedAgentID(sess.ID, index); agentID != "" {
 			return agentID
 		}
 	}

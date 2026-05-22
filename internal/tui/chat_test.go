@@ -292,6 +292,12 @@ func TestAgentIDForSessionDefaults(t *testing.T) {
 	}
 }
 
+func TestIndexedAgentID(t *testing.T) {
+	if got := indexedAgentID("session-a", map[string]string{"session-a": " agent-a "}); got != "agent-a" {
+		t.Fatalf("expected trimmed indexed agent id, got %q", got)
+	}
+}
+
 func TestFirstForkAgentID(t *testing.T) {
 	if got := firstForkAgentID(" agent "); got != "agent1" {
 		t.Fatalf("expected first fork agent id agent1, got %q", got)
