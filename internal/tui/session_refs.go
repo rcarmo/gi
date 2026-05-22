@@ -185,6 +185,9 @@ func normalizeForkAgentBase(agentID string) string {
 }
 
 func buildUsedForkAgentIDs(sessionIDs []string, agentIDs map[string]string) map[string]bool {
+	if len(sessionIDs) == 0 {
+		return map[string]bool{}
+	}
 	used := make(map[string]bool, len(sessionIDs))
 	for _, sessionID := range sessionIDs {
 		used[indexedAgentIDOrDefault(sessionID, agentIDs)] = true
