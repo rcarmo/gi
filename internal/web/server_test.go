@@ -342,6 +342,9 @@ func TestForkAgentIDForSessionResolutionFallbackOrder(t *testing.T) {
 	if got := srv.sourceForkAgentID(ctx, "session_fork_helper", nil); got != "agent-base" {
 		t.Fatalf("expected nil map source fallback to canonical store agent id, got %q", got)
 	}
+	if got := srv.sourceForkAgentID(nil, "session_fork_helper", nil); got != "agent-base" {
+		t.Fatalf("expected nil context + nil map source fallback to canonical store agent id, got %q", got)
+	}
 	if got := srv.sourceForkAgentID(ctx, "session_fork_helper", map[string]string{"session_fork_helper": "   "}); got != "agent-base" {
 		t.Fatalf("expected whitespace-only mapped source agent id to fallback to store value, got %q", got)
 	}
