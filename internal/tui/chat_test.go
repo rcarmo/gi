@@ -349,6 +349,16 @@ func TestForkAgentIDCandidate(t *testing.T) {
 	}
 }
 
+func TestFindSessionIDByAgentRef(t *testing.T) {
+	sessionID, ok := findSessionIDByAgentRef([]string{"s2", "s1"}, map[string]string{"s1": "agent-a", "s2": "Agent-B"}, "agent-b")
+	if !ok || sessionID != "s2" {
+		t.Fatalf("expected deterministic agent-ref match on s2, got id=%q ok=%v", sessionID, ok)
+	}
+	if sessionID, ok := findSessionIDByAgentRef([]string{"s1"}, map[string]string{"s1": "agent-a"}, "agent-z"); ok || sessionID != "" {
+		t.Fatalf("expected no match for unknown agent ref, got id=%q ok=%v", sessionID, ok)
+	}
+}
+
 func TestBuildUsedForkAgentIDs(t *testing.T) {
 	used := buildUsedForkAgentIDs([]string{"s1", "s2"}, map[string]string{"s1": "agent-a", "s2": " agent-b "})
 	if !used["agent-a"] || !used["agent-b"] {
