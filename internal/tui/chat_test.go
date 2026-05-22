@@ -300,6 +300,22 @@ func TestResolveSessionRefByAgentID(t *testing.T) {
 	}
 }
 
+func TestLoadSessionIdentityIndexEmptyStore(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	c := &chatTUI{store: s}
+	sessionIDs, index, err := c.loadSessionIdentityIndex(context.Background())
+	if err != nil {
+		t.Fatalf("load session identity index empty store: %v", err)
+	}
+	if len(sessionIDs) != 0 || len(index) != 0 {
+		t.Fatalf("expected empty session/index slices for empty store, got ids=%#v index=%#v", sessionIDs, index)
+	}
+}
+
 func TestLoadSessionIdentityIndexNilContext(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

@@ -264,6 +264,9 @@ func (c *chatTUI) loadSessionIdentityIndex(ctx context.Context) ([]string, map[s
 	if err != nil {
 		return nil, nil, err
 	}
+	if len(sessionIDs) == 0 {
+		return []string{}, map[string]string{}, nil
+	}
 	agentIDs, err := c.sessionAgentIDIndex(ctx)
 	if err != nil {
 		return nil, nil, err
