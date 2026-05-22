@@ -115,8 +115,12 @@ func (c *chatTUI) treeLines() []string {
 	return lines
 }
 
+func normalizeIndexedSessionID(sessionID string) string {
+	return strings.TrimSpace(sessionID)
+}
+
 func indexedAgentID(sessionID string, index map[string]string) string {
-	return strings.TrimSpace(index[sessionID])
+	return strings.TrimSpace(index[normalizeIndexedSessionID(sessionID)])
 }
 
 func indexedAgentIDLower(sessionID string, index map[string]string) string {
@@ -124,7 +128,7 @@ func indexedAgentIDLower(sessionID string, index map[string]string) string {
 }
 
 func indexedAgentIDOrDefault(sessionID string, index map[string]string) string {
-	if strings.TrimSpace(sessionID) == "" {
+	if normalizeIndexedSessionID(sessionID) == "" {
 		return defaultForkAgentID
 	}
 	agentID := indexedAgentID(sessionID, index)

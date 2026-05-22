@@ -325,6 +325,12 @@ func TestIndexedAgentID(t *testing.T) {
 	}
 }
 
+func TestNormalizeIndexedSessionID(t *testing.T) {
+	if got := normalizeIndexedSessionID("  session-a  "); got != "session-a" {
+		t.Fatalf("expected normalized indexed session id session-a, got %q", got)
+	}
+}
+
 func TestIndexedAgentIDLower(t *testing.T) {
 	if got := indexedAgentIDLower("session-a", map[string]string{"session-a": " Agent-A "}); got != "agent-a" {
 		t.Fatalf("expected lower indexed agent id agent-a, got %q", got)
