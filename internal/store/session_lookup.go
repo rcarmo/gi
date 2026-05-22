@@ -45,6 +45,7 @@ func (s *Store) ListSessionIDs(ctx context.Context) ([]string, error) {
 	}
 	defer rows.Close()
 	out := []string{}
+	seen := map[string]struct{}{}
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
@@ -54,6 +55,10 @@ func (s *Store) ListSessionIDs(ctx context.Context) ([]string, error) {
 		if id == "" {
 			continue
 		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
 		out = append(out, id)
 	}
 	if err := rows.Err(); err != nil {

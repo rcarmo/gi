@@ -772,6 +772,12 @@ func TestStoreListSessionIDs(t *testing.T) {
 	if _, err := s.CreateSession(ctx, "  session_ids_trimmed  ", "@agent", map[string]any{"status": "idle"}); err != nil {
 		t.Fatalf("create session trimmed: %v", err)
 	}
+	if _, err := s.DB().ExecContext(ctx, `
+		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
+		values (?, null, ?, '{}', '{}', '[]', `+defaultNow+`, `+defaultNow+`)
+	`, "session_ids_trimmed", "@agent"); err != nil {
+		t.Fatalf("insert canonical duplicate-by-trim session: %v", err)
+	}
 	ids, err := s.ListSessionIDs(ctx)
 	if err != nil {
 		t.Fatalf("list session ids: %v", err)
@@ -790,6 +796,15 @@ func TestStoreListSessionIDs(t *testing.T) {
 	}
 	if seen["  session_ids_trimmed  "] {
 		t.Fatalf("expected padded session id to be normalized, got %#v", ids)
+	}
+	trimmedCount := 0
+	for _, id := range ids {
+		if id == "session_ids_trimmed" {
+			trimmedCount++
+		}
+	}
+	if trimmedCount != 1 {
+		t.Fatalf("expected trimmed session id to be deduped to one entry, got %#v", ids)
 	}
 	idsNilCtx, err := s.ListSessionIDs(nil)
 	if err != nil {
