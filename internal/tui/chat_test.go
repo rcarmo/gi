@@ -300,6 +300,29 @@ func TestResolveSessionRefByAgentID(t *testing.T) {
 	}
 }
 
+func TestLoadSessionIdentityIndexNilContext(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_load_index_nil_ctx", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	c := &chatTUI{store: s}
+	sessionIDs, index, err := c.loadSessionIdentityIndex(nil)
+	if err != nil {
+		t.Fatalf("load session identity index nil ctx: %v", err)
+	}
+	if len(sessionIDs) == 0 {
+		t.Fatalf("expected at least one session id in nil-ctx load")
+	}
+	if index["session_load_index_nil_ctx"] != "gi" {
+		t.Fatalf("expected canonical default agent id gi in nil-ctx load index, got %#v", index)
+	}
+}
+
 func TestSessionAgentIDIndexNilContext(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
