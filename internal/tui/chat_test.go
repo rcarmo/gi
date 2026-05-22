@@ -388,6 +388,9 @@ func TestFindSessionIDByAgentRef(t *testing.T) {
 	if sessionID, ok := findSessionIDByAgentRef([]string{"s-default"}, map[string]string{}, strings.ToLower(defaultForkAgentID)); !ok || sessionID != "s-default" {
 		t.Fatalf("expected missing index entries to default-match %q, got id=%q ok=%v", defaultForkAgentID, sessionID, ok)
 	}
+	if sessionID, ok := findSessionIDByAgentRef([]string{"s2"}, map[string]string{"s2": "agent-b"}, " @Agent-B "); !ok || sessionID != "s2" {
+		t.Fatalf("expected helper to normalize incoming ref before match, got id=%q ok=%v", sessionID, ok)
+	}
 }
 
 func TestBuildUsedForkAgentIDs(t *testing.T) {
