@@ -62,13 +62,13 @@ func (b *Bus) Publish(env Envelope) {
 	if env.Timestamp.IsZero() {
 		env.Timestamp = time.Now().UTC()
 	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	if env.Sequence == 0 {
 		env.Sequence = b.sequence.Add(1)
 	} else {
 		advanceAtomicMax(&b.sequence, env.Sequence)
 	}
-	b.mu.RLock()
-	defer b.mu.RUnlock()
 	for _, sub := range b.subs {
 		if !topicMatches(sub.pattern, env.Topic) {
 			continue

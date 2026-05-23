@@ -2,6 +2,7 @@ package topics
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 )
@@ -111,6 +112,52 @@ func TestBusAgentFilter(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected agent-scoped event")
+	}
+}
+
+func TestBusConcurrentPublishSequencesAreUniqueAndMonotonic(t *testing.T) {
+	bus := NewBus()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := bus.Subscribe(ctx, "runtime.*", SubscribeOptions{Buffer: 512})
+	defer unsub()
+
+	const publishers = 8
+	const perPublisher = 32
+	var wg sync.WaitGroup
+	for p := 0; p < publishers; p++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for i := 0; i < perPublisher; i++ {
+				bus.Publish(Envelope{Topic: "runtime.turn", Payload: map[string]any{"publisher": id, "seq": i}})
+			}
+		}(p)
+	}
+	wg.Wait()
+
+	seen := map[uint64]bool{}
+	last := uint64(0)
+	for i := 0; i < publishers*perPublisher; i++ {
+		select {
+		case env := <-ch:
+			if env.Sequence == 0 {
+				t.Fatalf("expected non-zero sequence: %#v", env)
+			}
+			if seen[env.Sequence] {
+				t.Fatalf("duplicate sequence %d", env.Sequence)
+			}
+			seen[env.Sequence] = true
+			if env.Sequence <= last {
+				t.Fatalf("expected subscriber delivery to preserve publish sequence order, got last=%d current=%d", last, env.Sequence)
+			}
+			last = env.Sequence
+		case <-time.After(2 * time.Second):
+			t.Fatalf("timed out after %d events", i)
+		}
+	}
+	if got := bus.LastSequence(); got != publishers*perPublisher {
+		t.Fatalf("expected last sequence %d, got %d", publishers*perPublisher, got)
 	}
 }
 
