@@ -348,6 +348,16 @@ func TestStoreSessionIdentityRuntime(t *testing.T) {
 	if defaults.AgentID != "agent" || defaults.Channel != "gi" || defaults.Account != "default" || defaults.CanonicalScopeSignature != "" {
 		t.Fatalf("unexpected runtime identity defaults: %#v", defaults)
 	}
+	required, err := s.RequireSessionIdentityRuntime(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("require runtime identity: %v", err)
+	}
+	if required.AgentID != "support" || required.Channel != "slack" || required.Account != "workspace" {
+		t.Fatalf("unexpected required runtime identity tuple: %#v", required)
+	}
+	if _, err := s.RequireSessionIdentityRuntime(ctx, "missing"); err == nil {
+		t.Fatalf("expected missing session runtime identity lookup to fail")
+	}
 }
 
 func TestStoreSessionIdentityDimensions(t *testing.T) {

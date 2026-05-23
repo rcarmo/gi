@@ -30,18 +30,13 @@ func (s *Store) SetMainSession(ctx context.Context, sessionID string) error {
 	if sessionID == "" {
 		return sql.ErrNoRows
 	}
-	row := s.db.QueryRowContext(ctx, `
-		select coalesce(agent_id,''), coalesce(channel,''), coalesce(account,'')
-		from session_identities
-		where session_id = ?
-	`, sessionID)
-	var agentID, channel, account string
-	if err := row.Scan(&agentID, &channel, &account); err != nil {
+	identity, err := s.RequireSessionIdentityRuntime(ctx, sessionID)
+	if err != nil {
 		return err
 	}
-	agentID = normalizeIdentityTupleValue(agentID, "gi")
-	channel = normalizeIdentityTupleValue(channel, "gi")
-	account = normalizeIdentityTupleValue(account, "default")
+	agentID := normalizeIdentityTupleValue(identity.AgentID, "gi")
+	channel := normalizeIdentityTupleValue(identity.Channel, "gi")
+	account := normalizeIdentityTupleValue(identity.Account, "default")
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("set main session begin tx: %w", err)
