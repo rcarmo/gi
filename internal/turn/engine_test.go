@@ -7796,6 +7796,8 @@ func TestPublishRuntimeToolEventPublishesRuntimeToolTopic(t *testing.T) {
 	defer cancel()
 	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.tool", topics.SubscribeOptions{Buffer: 8})
 	defer unsub()
+	aggregateCh, unsubAggregate := engine.Topics().Subscribe(ctx, "runtime", topics.SubscribeOptions{Buffer: 8, SessionID: "session_tool_topic"})
+	defer unsubAggregate()
 
 	engine.PublishRuntimeToolEvent("tool_finished", "session_tool_topic", "turn_tool_topic", "agent_tool", "grep", "call_1", 3, nil, map[string]any{"output_length": 42})
 
@@ -7812,6 +7814,14 @@ func TestPublishRuntimeToolEventPublishesRuntimeToolTopic(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected runtime.tool topic event")
+	}
+	select {
+	case env := <-aggregateCh:
+		if env.Topic != "runtime" || env.Payload["runtime_topic"] != "runtime.tool" || env.Payload["type"] != "tool_finished" || env.Payload["tool"] != "grep" || env.Payload["turn_id"] != "turn_tool_topic" {
+			t.Fatalf("unexpected aggregate runtime.tool payload: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected aggregate runtime.tool topic event")
 	}
 }
 
