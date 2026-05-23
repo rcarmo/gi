@@ -39,6 +39,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `search/` — hybrid workspace search and indexing design (including `fts://` namespace docs)
 - `routing.md` — routing policy, route resolution, and model-routing observability
 - `runtime-target-state.md` — database-backed target state for the core runtime refactor (sessions, turns, steering, hooks, events, IPC, multi-channel bindings)
+- `picoclaw-parity-status.md` — private/internal parity audit for PicoClaw-inspired runtime semantics that Gi has ported, adapted, or intentionally rejected
 - `repo-structure-refactor.md` — interim repository-structure reassessment and functional regrouping plan for the runtime refactor
 - `subturn-runtime.md` — concrete sub-turn runtime contract, limits, store APIs, and current implementation status
 
@@ -47,6 +48,8 @@ The `search/` subtree is the canonical reference for the current hybrid workspac
 `routing.md` is the canonical in-repo reference for routing decisions and route-event persistence.
 
 `runtime-target-state.md` is the canonical schema/state target for the runtime refactor.
+
+`picoclaw-parity-status.md` tracks ported/adapted/different PicoClaw runtime semantics without turning them into public compatibility promises.
 
 `hooks/lifecycle.md` is the canonical shipped hook taxonomy and lifecycle contract for runtime, script, and process hooks.
 
