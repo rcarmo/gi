@@ -7694,6 +7694,8 @@ func TestPublishRuntimeTurnEventPublishesRuntimeTurnTopic(t *testing.T) {
 	defer cancel()
 	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 8})
 	defer unsub()
+	aggregateCh, unsubAggregate := engine.Topics().Subscribe(ctx, "runtime", topics.SubscribeOptions{Buffer: 8, SessionID: "session_turn_topic"})
+	defer unsubAggregate()
 
 	engine.PublishRuntimeTurnEvent("turn_started", "session_turn_topic", "turn_topic_1", "agent_topic", "running", "setup", map[string]any{"reason": "setup"})
 
@@ -7711,6 +7713,14 @@ func TestPublishRuntimeTurnEventPublishesRuntimeTurnTopic(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("expected runtime.turn topic event")
 	}
+	select {
+	case env := <-aggregateCh:
+		if env.Topic != "runtime" || env.Payload["runtime_topic"] != "runtime.turn" || env.Payload["type"] != "turn_started" || env.Payload["turn_id"] != "turn_topic_1" {
+			t.Fatalf("unexpected aggregate runtime.turn payload: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected aggregate runtime.turn topic event")
+	}
 }
 
 func TestPublishRuntimeSessionEventPublishesRuntimeSessionTopic(t *testing.T) {
@@ -7721,6 +7731,8 @@ func TestPublishRuntimeSessionEventPublishesRuntimeSessionTopic(t *testing.T) {
 	defer cancel()
 	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.session", topics.SubscribeOptions{Buffer: 8})
 	defer unsub()
+	aggregateCh, unsubAggregate := engine.Topics().Subscribe(ctx, "runtime", topics.SubscribeOptions{Buffer: 8, SessionID: "session_state_topic"})
+	defer unsubAggregate()
 
 	engine.PublishRuntimeSessionEvent("session_idle", "session_state_topic", "agent_topic", "idle", map[string]any{"reason": "turn_completed", "turn_id": "turn_topic_1"})
 
@@ -7737,6 +7749,14 @@ func TestPublishRuntimeSessionEventPublishesRuntimeSessionTopic(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected runtime.session topic event")
+	}
+	select {
+	case env := <-aggregateCh:
+		if env.Topic != "runtime" || env.Payload["runtime_topic"] != "runtime.session" || env.Payload["type"] != "session_idle" || env.Payload["status"] != "idle" {
+			t.Fatalf("unexpected aggregate runtime.session payload: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected aggregate runtime.session topic event")
 	}
 }
 
