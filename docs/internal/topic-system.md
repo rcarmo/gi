@@ -177,6 +177,7 @@ gi.topics.publish({
 
 const sub = gi.topics.subscribe("turn.*", { session_id: gi.sessionId, buffer: 32 })
 const events = gi.topics.read(sub, 10)
+// events include: topic, session_id, agent_id, source, type, sequence, payload, timestamp
 gi.topics.unsubscribe(sub)
 ```
 
@@ -184,7 +185,7 @@ gi.topics.unsubscribe(sub)
 
 - `gi-topic-publish` — publish a canonical topic envelope
 - `gi-topic-subscribe` — open a polling subscription handle
-- `gi-topic-read` — read buffered envelopes from a subscription handle
+- `gi-topic-read` — read buffered envelopes from a subscription handle, including the bus-wide `sequence`
 - `gi-topic-unsubscribe` — close a polling subscription handle
 
 Like the JS bridge, the current Joker topic API uses polling handles instead of long-lived callbacks.
