@@ -1823,8 +1823,8 @@ func (e *Engine) emitRecoveryScanFailureSessionState(ctx context.Context, sessio
 		status = "queued"
 	}
 	if model == "" {
-		if sessRec, sessErr := e.store.GetSession(ctx, sessionID); sessErr == nil {
-			model = internalx.StringValue(sessRec.State["model"], "")
+		if stateModel, stateErr := e.store.SessionStateString(ctx, sessionID, "model"); stateErr == nil {
+			model = stateModel
 		}
 	}
 	runner.emitSessionStateHook(ctx, sessionID, agentID, model, status, map[string]any{
@@ -1862,8 +1862,8 @@ func (e *Engine) emitRecoveryRestartFailureSessionState(ctx context.Context, ses
 		status = "queued"
 	}
 	if model == "" {
-		if sessRec, sessErr := e.store.GetSession(ctx, sessionID); sessErr == nil {
-			model = internalx.StringValue(sessRec.State["model"], "")
+		if stateModel, stateErr := e.store.SessionStateString(ctx, sessionID, "model"); stateErr == nil {
+			model = stateModel
 		}
 	}
 	payload := map[string]any{

@@ -1499,6 +1499,31 @@ func TestTouchSessionActiveTurnRejectsMissingClaim(t *testing.T) {
 	}
 }
 
+func TestSessionStateString(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	sess, err := s.CreateSession(ctx, "session_state_string", "@agent", map[string]any{"model": "m1", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if got, err := s.SessionStateString(ctx, sess.ID, "model"); err != nil || got != "m1" {
+		t.Fatalf("expected model m1, got %q err=%v", got, err)
+	}
+	if got, err := s.SessionStateString(ctx, sess.ID, "missing"); err != nil || got != "" {
+		t.Fatalf("expected empty missing key, got %q err=%v", got, err)
+	}
+	if _, err := s.SessionStateString(ctx, "", "model"); err == nil {
+		t.Fatalf("expected blank session id to fail")
+	}
+	if _, err := s.SessionStateString(ctx, "missing-session", "model"); err == nil {
+		t.Fatalf("expected missing session to fail")
+	}
+}
+
 func TestTouchSessionStateRejectsMissingSession(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

@@ -397,6 +397,24 @@ func (s *Store) SetSessionState(ctx context.Context, sessionID string, state map
 	return err
 }
 
+func (s *Store) SessionStateString(ctx context.Context, sessionID, key string) (string, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	key = strings.TrimSpace(key)
+	if sessionID == "" || key == "" {
+		return "", sql.ErrNoRows
+	}
+	row := s.db.QueryRowContext(ctx, `
+		select coalesce(json_extract(coalesce(nullif(state_json, ''), '{}'), '$.' || ?), '')
+		from sessions
+		where id = ?
+	`, key, sessionID)
+	var value string
+	if err := row.Scan(&value); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(value), nil
+}
+
 func marshalJSON(v any) (string, error) {
 	if v == nil {
 		return "{}", nil
