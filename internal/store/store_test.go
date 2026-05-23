@@ -1125,6 +1125,29 @@ func TestStoreResolveOrCreateSessionFromAllocationContinuesSessionAcrossChannels
 	}
 }
 
+func TestStoreResolveOrCreateSessionFromAllocationContinueRequiresIdentityRuntime(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.DB().ExecContext(ctx, `
+		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
+		values (?, NULL, ?, '{}', '{}', '[]', datetime('now'), datetime('now'))
+	`, "session_continue_without_identity", "@legacy"); err != nil {
+		t.Fatalf("insert legacy session without identity: %v", err)
+	}
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "discord", Account: "guild", ChatType: "direct", ChatID: "user-42", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	if _, _, err := s.ResolveOrCreateSessionFromAllocation(ctx, ResolveOrCreateSessionFromAllocationInput{ID: "session_continue_without_identity_new", Title: "@support", State: map[string]any{"status": "idle"}, Allocation: alloc, ContinueSessionID: "session_continue_without_identity"}); err == nil {
+		t.Fatalf("expected continue path to fail when identity runtime row is missing")
+	}
+}
+
 func TestStoreResolveSessionByAllocationUsesAlternateChannelBinding(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
