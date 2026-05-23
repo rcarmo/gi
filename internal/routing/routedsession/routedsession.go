@@ -154,16 +154,4 @@ func RequireInboundContextFromSession(ctx context.Context, st *store.Store, sess
 	return inboundContextFromIdentitySnapshot(sessionID, snapshot), nil
 }
 
-func InboundContextFromSession(ctx context.Context, st *store.Store, sessionID string) routing.InboundContext {
-	if inbound, err := RequireInboundContextFromSession(ctx, st, sessionID); err == nil {
-		return inbound
-	}
-	fallback := routing.InboundContext{Channel: "gi", Account: "default"}
-	if strings.TrimSpace(sessionID) != "" {
-		fallback.ChatType = "direct"
-		fallback.ChatID = sessionID
-	}
-	return fallback
-}
-
 func normalize(v string) string { return strings.ToLower(strings.TrimSpace(v)) }

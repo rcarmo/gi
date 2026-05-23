@@ -4618,7 +4618,10 @@ func TestPreparePromptRouteResolutionUsesSourceSessionScopeContext(t *testing.T)
 	if _, err := s.RequireSessionIdentityRuntime(ctx, source.ID); err != nil {
 		t.Fatalf("require session identity runtime: %v", err)
 	}
-	inbound := routedsession.InboundContextFromSession(ctx, s, source.ID)
+	inbound, err := routedsession.RequireInboundContextFromSession(ctx, s, source.ID)
+	if err != nil {
+		t.Fatalf("require inbound context: %v", err)
+	}
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected inbound channel/account from scope, got %#v", inbound)
 	}
@@ -4648,7 +4651,10 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityOverScopeSnapshot(t *
 	if _, err := s.RequireSessionIdentityRuntime(ctx, source.ID); err != nil {
 		t.Fatalf("require session identity runtime: %v", err)
 	}
-	inbound := routedsession.InboundContextFromSession(ctx, s, source.ID)
+	inbound, err := routedsession.RequireInboundContextFromSession(ctx, s, source.ID)
+	if err != nil {
+		t.Fatalf("require inbound context: %v", err)
+	}
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected canonical inbound channel/account, got %#v", inbound)
 	}
@@ -4673,7 +4679,10 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityUnderCanceledCallerCo
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
 	_ = cancelCtx
-	inbound := routedsession.InboundContextFromSession(engine.backgroundContext(), s, source.ID)
+	inbound, err := routedsession.RequireInboundContextFromSession(engine.backgroundContext(), s, source.ID)
+	if err != nil {
+		t.Fatalf("require inbound context: %v", err)
+	}
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected canonical inbound channel/account under canceled caller context, got %#v", inbound)
 	}
@@ -5542,7 +5551,10 @@ func TestInboundContextFromSessionUsesStoredIdentityInsteadOfSessionScopeJSON(t 
 	if staleSess.Scope == nil || staleSess.Scope.Channel != "email" {
 		t.Fatalf("expected stale session scope fixture, got %#v", staleSess.Scope)
 	}
-	inbound := routedsession.InboundContextFromSession(ctx, s, staleSess.ID)
+	inbound, err := routedsession.RequireInboundContextFromSession(ctx, s, staleSess.ID)
+	if err != nil {
+		t.Fatalf("require inbound context: %v", err)
+	}
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
 		t.Fatalf("expected identity-backed channel/account, got %#v", inbound)
 	}
@@ -5636,7 +5648,11 @@ func TestCloneRouteSessionSurvivesCanceledCallerContext(t *testing.T) {
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
 	_ = cancelCtx
-	clonedID, created, err := routedsession.ResolveOrCreate(engine.backgroundContext(), s, source.ID, route, routedsession.InboundContextFromSession(ctx, s, source.ID), routedsession.ResolveOptions{ModelForAgent: engine.modelForAgent, DefaultProvider: engine.runtimeCfg.DefaultProvider, DefaultThinking: engine.runtimeCfg.DefaultThinkingLevel})
+	inbound, err := routedsession.RequireInboundContextFromSession(ctx, s, source.ID)
+	if err != nil {
+		t.Fatalf("require inbound context: %v", err)
+	}
+	clonedID, created, err := routedsession.ResolveOrCreate(engine.backgroundContext(), s, source.ID, route, inbound, routedsession.ResolveOptions{ModelForAgent: engine.modelForAgent, DefaultProvider: engine.runtimeCfg.DefaultProvider, DefaultThinking: engine.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
 		t.Fatalf("clone route session with canceled caller context: %v", err)
 	}
