@@ -148,6 +148,27 @@ func TestStoreFindSessionByAllocationUsesSessionIdentityInsteadOfSessionScopeJSO
 	}
 }
 
+func TestStoreResolveSessionIDByChannelBindingRequiresIdentityRuntime(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.DB().ExecContext(ctx, `
+		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
+		values (?, NULL, ?, '{}', '{}', '[]', datetime('now'), datetime('now'))
+	`, "session_binding_legacy_missing_identity", "@legacy"); err != nil {
+		t.Fatalf("insert legacy session without identity: %v", err)
+	}
+	if err := s.UpsertSessionChannelBinding(ctx, SessionChannelBinding{SessionID: "session_binding_legacy_missing_identity", Channel: "slack", Account: "workspace", BindingType: "chat", RemoteIdentity: "group:thread-legacy", Metadata: map[string]any{"agent_id": "support"}}); err != nil {
+		t.Fatalf("upsert legacy channel binding: %v", err)
+	}
+	if _, err := s.ResolveSessionIDByChannelBinding(ctx, "slack", "workspace", "group:thread-legacy"); err == nil {
+		t.Fatalf("expected channel-binding lookup to fail when identity runtime row is missing")
+	}
+}
+
 func TestStoreResolveSessionIDByChannelBinding(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

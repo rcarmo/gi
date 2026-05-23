@@ -109,6 +109,9 @@ func (s *Store) ResolveSessionIDByChannelBinding(ctx context.Context, channel, a
 	if err := row.Scan(&sessionID); err != nil {
 		return "", err
 	}
+	if _, err := s.RequireSessionIdentityRuntime(ctx, sessionID); err != nil {
+		return "", err
+	}
 	return sessionID, nil
 }
 
