@@ -52,9 +52,11 @@ func (s *Store) ListSessionRefs(ctx context.Context) ([]SessionRef, error) {
 		ctx = context.Background()
 	}
 	rows, err := s.db.QueryContext(ctx, `
-		select id, coalesce(parent_session_id, '')
-		from sessions
-		order by updated_at desc, created_at desc
+		select s.id, coalesce(s.parent_session_id, '')
+		from sessions s
+		join session_identities si on si.session_id = s.id
+		where trim(si.agent_id) <> '' and trim(si.channel) <> '' and trim(si.account) <> ''
+		order by s.updated_at desc, s.created_at desc
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("list session refs: %w", err)
@@ -85,33 +87,17 @@ func (s *Store) ListSessionRefs(ctx context.Context) ([]SessionRef, error) {
 }
 
 func (s *Store) ListSessionIDs(ctx context.Context) ([]string, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	rows, err := s.db.QueryContext(ctx, `select id from sessions order by created_at asc, id asc`)
+	refs, err := s.ListSessionRefs(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("list session ids: %w", err)
+		return nil, err
 	}
-	defer rows.Close()
-	out := []string{}
-	seen := map[string]struct{}{}
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		id = strings.TrimSpace(id)
+	out := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		id := strings.TrimSpace(ref.ID)
 		if id == "" {
 			continue
 		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
 		out = append(out, id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("list session ids rows: %w", err)
 	}
 	sort.Strings(out)
 	return out, nil

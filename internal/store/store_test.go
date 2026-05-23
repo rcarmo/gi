@@ -900,6 +900,38 @@ func TestStoreSessionIdentityRuntimeTupleDefaultsAndTrim(t *testing.T) {
 	}
 }
 
+func TestStoreListSessionRefsOmitsSessionsWithoutIdentityRuntime(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_refs_identity", "@agent", map[string]any{"status": "idle"}); err != nil {
+		t.Fatalf("create session with identity: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `
+		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
+		values (?, null, ?, '{}', '{}', '[]', `+defaultNow+`, `+defaultNow+`)
+	`, "session_refs_no_identity", "@legacy"); err != nil {
+		t.Fatalf("insert session without identity: %v", err)
+	}
+	refs, err := s.ListSessionRefs(ctx)
+	if err != nil {
+		t.Fatalf("list session refs: %v", err)
+	}
+	seen := map[string]bool{}
+	for _, ref := range refs {
+		seen[ref.ID] = true
+	}
+	if !seen["session_refs_identity"] {
+		t.Fatalf("expected identity-backed session in refs, got %#v", refs)
+	}
+	if seen["session_refs_no_identity"] {
+		t.Fatalf("expected no-identity session to be omitted from refs, got %#v", refs)
+	}
+}
+
 func TestStoreListSessionIDs(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
