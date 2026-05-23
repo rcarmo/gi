@@ -8232,8 +8232,12 @@ func TestPublishRuntimeRoutingEventUsesExpectedSessionScope(t *testing.T) {
 	defer cancel()
 	decisionCh, unsubDecision := engine.Topics().Subscribe(ctx, "runtime.routing", topics.SubscribeOptions{Buffer: 8, SessionID: "session_route_source"})
 	defer unsubDecision()
+	aggregateDecisionCh, unsubAggregateDecision := engine.Topics().Subscribe(ctx, "runtime", topics.SubscribeOptions{Buffer: 8, SessionID: "session_route_source"})
+	defer unsubAggregateDecision()
 	incomingCh, unsubIncoming := engine.Topics().Subscribe(ctx, "runtime.routing", topics.SubscribeOptions{Buffer: 8, SessionID: "session_route_target"})
 	defer unsubIncoming()
+	aggregateIncomingCh, unsubAggregateIncoming := engine.Topics().Subscribe(ctx, "runtime", topics.SubscribeOptions{Buffer: 8, SessionID: "session_route_target"})
+	defer unsubAggregateIncoming()
 	decision := routing.Event{
 		ID:             42,
 		TurnID:         "turn_route_topic",
@@ -8258,6 +8262,14 @@ func TestPublishRuntimeRoutingEventUsesExpectedSessionScope(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("expected routing_decision topic event")
 	}
+	select {
+	case env := <-aggregateDecisionCh:
+		if env.SessionID != "session_route_source" || env.Payload["type"] != "routing_decision" || env.Payload["runtime_topic"] != "runtime.routing" || env.Payload["route_event_id"] != int64(42) {
+			t.Fatalf("unexpected aggregate routing decision topic: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected aggregate routing_decision topic event")
+	}
 
 	engine.PublishRuntimeRoutingEvent("routing_incoming", decision)
 	select {
@@ -8267,6 +8279,14 @@ func TestPublishRuntimeRoutingEventUsesExpectedSessionScope(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected routing_incoming topic event")
+	}
+	select {
+	case env := <-aggregateIncomingCh:
+		if env.SessionID != "session_route_target" || env.Payload["type"] != "routing_incoming" || env.Payload["runtime_topic"] != "runtime.routing" || env.Payload["target_agent_id"] != "agent_target" {
+			t.Fatalf("unexpected aggregate routing incoming topic: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected aggregate routing_incoming topic event")
 	}
 }
 
