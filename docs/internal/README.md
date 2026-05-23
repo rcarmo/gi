@@ -44,6 +44,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `picoclaw-parity-status.md` — private/internal parity audit for PicoClaw-inspired runtime semantics that Gi has ported, adapted, or intentionally rejected
 - `repo-structure-refactor.md` — interim repository-structure reassessment and functional regrouping plan for the runtime refactor
 - `subturn-runtime.md` — concrete sub-turn runtime contract, limits, store APIs, and current implementation status
+- `tui-stack-evaluation.md` — decision record for keeping the current Gi TUI stack instead of switching to PicoClaw/Pi's launcher/TUI stack now
 
 The `search/` subtree is the canonical reference for the current hybrid workspace search direction: SQLite metadata + FTS5 + vec + local embeddings, plus the runtime-facing read-only `fts://` locator contract.
 
