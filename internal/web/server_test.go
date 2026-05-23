@@ -827,6 +827,41 @@ func TestTopicSSEStreamsRuntimeTopicEvents(t *testing.T) {
 	t.Fatalf("expected topic SSE stream body to contain runtime topic event, got %s", res.Body.String())
 }
 
+func TestTopicSSEConnectedReportsLastEventIDGap(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	engine := turn.New(s)
+	srv := New(s, engine, config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
+	engine.PublishRuntimeDispatcherEvent("before_connect_one", nil)
+	engine.PublishRuntimeDispatcherEvent("before_connect_two", nil)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	req := httptest.NewRequest(http.MethodGet, "/sse/topics?topic=runtime", nil).WithContext(ctx)
+	req.Header.Set("Last-Event-ID", "1")
+	res := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		srv.Handler().ServeHTTP(res, req)
+	}()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		body := res.Body.String()
+		if strings.Contains(body, "event: connected") && strings.Contains(body, `"last_sequence":4`) && strings.Contains(body, `"last_event_id":1`) && strings.Contains(body, `"missed_sequence_count":3`) {
+			cancel()
+			<-done
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	cancel()
+	<-done
+	t.Fatalf("expected connected event with last sequence, got %s", res.Body.String())
+}
+
 func TestTopicSSERejectsInvalidBuffer(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
