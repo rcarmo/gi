@@ -191,6 +191,8 @@ gi.topics.unsubscribe(sub)
 
 Like the JS bridge, the current Joker topic API uses polling handles instead of long-lived callbacks.
 
+Script-facing topic APIs are session-bound by the host bridge. When a script runs with a current session, omitted `session_id` values are filled with that session, and explicit `session_id` overrides must match it. Cross-session publish/subscribe attempts are rejected for both JavaScript and Joker. Topic read/unsubscribe handles are also owned by the creating session.
+
 ## TUI / SSE integration
 
 ### TUI
