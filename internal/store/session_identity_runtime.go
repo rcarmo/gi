@@ -110,10 +110,6 @@ func (s *Store) RequireSessionIdentityRuntime(ctx context.Context, sessionID str
 	return s.sessionIdentityRuntime(ctx, sessionID)
 }
 
-func (s *Store) SessionCanonicalScopeSignature(ctx context.Context, sessionID string) string {
-	return s.sessionIdentityRuntimeOrDefaults(ctx, sessionID).CanonicalScopeSignature
-}
-
 func (s *Store) RequireSession(ctx context.Context, sessionID string) error {
 	exists, err := s.SessionExists(ctx, sessionID)
 	if err != nil {
