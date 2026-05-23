@@ -6564,6 +6564,23 @@ func TestHookNameAliasesMapToCanonicalPhases(t *testing.T) {
 	}
 }
 
+func TestHookNameNormalizationCanonicalizesRuntimePhases(t *testing.T) {
+	for _, tc := range []struct {
+		input string
+		want  string
+	}{
+		{input: " TOOL_CALL ", want: HookToolCall},
+		{input: "Approve_Tool", want: HookApproveTool},
+		{input: "SESSION_STATE", want: HookSessionState},
+		{input: "after_llm", want: HookAfterProviderResponse},
+		{input: "Custom.Event", want: "Custom.Event"},
+	} {
+		if got := normalizeHookName(tc.input); got != tc.want {
+			t.Fatalf("normalizeHookName(%q) = %q, want %q", tc.input, got, tc.want)
+		}
+	}
+}
+
 func TestHookResponseFromScriptAppliesActionSemantics(t *testing.T) {
 	deny, err := hookResponseFromScript(`{"action":"deny","reason":"nope"}`)
 	if err != nil {

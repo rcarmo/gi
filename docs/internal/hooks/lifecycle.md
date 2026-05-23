@@ -8,6 +8,17 @@ Implemented runtime contract, with lifecycle-management refinements still tracke
 
 This page defines the stable hook families Gi exposes to in-process Go hooks, script hooks, and persistent process hooks. Hook requests and responses are JSON-safe so the same logical contract can cross Go, JavaScript, Joker, and JSON-RPC process boundaries.
 
+## Naming and normalization
+
+Runtime hook phase names are normalized before registration, unregistration, lookup, process-hook dispatch, and invocation. Built-in phases are canonical lowercase names even when callers use mixed case or surrounding whitespace. PicoClaw-style aliases normalize to their Gi phase names:
+
+- `before_llm` → `before_provider_request`
+- `after_llm` → `after_provider_response`
+- `before_tool` → `tool_call`
+- `after_tool` → `tool_result`
+
+Unknown hook names remain trimmed but otherwise preserve caller casing so script/event-specific observer names can continue to be used without pretending they are built-in runtime phases.
+
 ## Canonical hook families
 
 ### Session/state hooks

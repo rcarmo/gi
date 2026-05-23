@@ -2591,17 +2591,52 @@ func NewHookRegistry() *HookRegistry {
 }
 
 func normalizeHookName(name string) string {
-	switch strings.TrimSpace(strings.ToLower(name)) {
-	case "before_llm":
+	trimmed := strings.TrimSpace(name)
+	switch strings.ToLower(trimmed) {
+	case "before_llm", HookBeforeProviderRequest:
 		return HookBeforeProviderRequest
-	case "after_llm":
+	case "after_llm", HookAfterProviderResponse:
 		return HookAfterProviderResponse
-	case "before_tool":
+	case "before_tool", HookToolCall:
 		return HookToolCall
-	case "after_tool":
+	case "after_tool", HookToolResult:
 		return HookToolResult
+	case HookBeforeAgentStart:
+		return HookBeforeAgentStart
+	case HookAgentStart:
+		return HookAgentStart
+	case HookAgentEnd:
+		return HookAgentEnd
+	case HookTurnStart:
+		return HookTurnStart
+	case HookTurnEnd:
+		return HookTurnEnd
+	case HookTurnState:
+		return HookTurnState
+	case HookSessionState:
+		return HookSessionState
+	case HookContext:
+		return HookContext
+	case HookMessageStart:
+		return HookMessageStart
+	case HookMessageUpdate:
+		return HookMessageUpdate
+	case HookMessageEnd:
+		return HookMessageEnd
+	case HookToolExecutionStart:
+		return HookToolExecutionStart
+	case HookApproveTool:
+		return HookApproveTool
+	case HookToolExecutionUpdate:
+		return HookToolExecutionUpdate
+	case HookToolExecutionEnd:
+		return HookToolExecutionEnd
+	case HookModelSelect:
+		return HookModelSelect
+	case HookUserBash:
+		return HookUserBash
 	default:
-		return strings.TrimSpace(name)
+		return trimmed
 	}
 }
 
