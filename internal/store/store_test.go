@@ -290,6 +290,24 @@ func TestStoreResolveSessionByKeyOrAlias(t *testing.T) {
 	}
 }
 
+func TestStoreResolveSessionIDByKeyOrAliasRequiresIdentityRuntimeForDirectSessionID(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.DB().ExecContext(ctx, `
+		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
+		values (?, NULL, ?, '{}', '{}', '[]', datetime('now'), datetime('now'))
+	`, "session_key_alias_legacy", "@legacy"); err != nil {
+		t.Fatalf("insert legacy session without identity: %v", err)
+	}
+	if _, err := s.ResolveSessionIDByKeyOrAlias(ctx, "session_key_alias_legacy"); err == nil {
+		t.Fatalf("expected direct session-id resolution to fail without identity runtime row")
+	}
+}
+
 func TestStoreGetSessionIdentity(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
