@@ -4645,7 +4645,7 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityOverScopeSnapshot(t *
 	if err != nil {
 		t.Fatalf("create source session: %v", err)
 	}
-	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:wrong"}}`, source.ID); err != nil {
+	if _, err := s.DB().ExecContext(ctx, `update sessions set state_json = state_json where id = ?`, source.ID); err != nil {
 		t.Fatalf("mutate scope snapshot: %v", err)
 	}
 	if _, err := s.RequireSessionIdentityRuntime(ctx, source.ID); err != nil {
@@ -4672,7 +4672,7 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityUnderCanceledCallerCo
 	if err != nil {
 		t.Fatalf("create source session: %v", err)
 	}
-	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:wrong"}}`, source.ID); err != nil {
+	if _, err := s.DB().ExecContext(ctx, `update sessions set state_json = state_json where id = ?`, source.ID); err != nil {
 		t.Fatalf("mutate scope snapshot: %v", err)
 	}
 	engine := New(s)
@@ -4699,7 +4699,7 @@ func TestResolveOrCreateRouteSessionUsesIdentityForSameAgentFastPath(t *testing.
 	if _, err := s.CreateSessionWithMetadata(ctx, "session_same_agent_identity", "", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}, &scope, []string{"agent:agent:gi:chat:direct:session_same_agent_identity"}); err != nil {
 		t.Fatalf("create source session: %v", err)
 	}
-	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:session_same_agent_identity"}}`, "session_same_agent_identity"); err != nil {
+	if _, err := s.DB().ExecContext(ctx, `update sessions set state_json = state_json where id = ?`, "session_same_agent_identity"); err != nil {
 		t.Fatalf("mutate scope snapshot: %v", err)
 	}
 	source, err := s.GetSession(ctx, "session_same_agent_identity")
@@ -5436,7 +5436,7 @@ func TestResolveOrCreateRouteSessionReturnsSourceForSameAgent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create source session: %v", err)
 	}
-	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"email","account":"legacy","dimensions":["chat"],"values":{"chat":"direct:legacy"}}`, source.ID); err != nil {
+	if _, err := s.DB().ExecContext(ctx, `update sessions set state_json = state_json where id = ?`, source.ID); err != nil {
 		t.Fatalf("mutate legacy scope json: %v", err)
 	}
 	staleSource, err := s.GetSession(ctx, source.ID)
@@ -5541,7 +5541,7 @@ func TestInboundContextFromSessionUsesStoredIdentityInsteadOfSessionScopeJSON(t 
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"email","account":"legacy","dimensions":["chat"],"values":{"chat":"direct:legacy-chat"}}`, sess.ID); err != nil {
+	if _, err := s.DB().ExecContext(ctx, `update sessions set state_json = state_json where id = ?`, sess.ID); err != nil {
 		t.Fatalf("mutate legacy scope json: %v", err)
 	}
 	staleSess, err := s.GetSession(ctx, sess.ID)
@@ -5572,7 +5572,7 @@ func TestRecordRouteDecisionUsesStoredIdentityInsteadOfSessionScopeJSON(t *testi
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"email","account":"legacy","dimensions":["chat"],"values":{"chat":"direct:legacy"}}`, sess.ID); err != nil {
+	if _, err := s.DB().ExecContext(ctx, `update sessions set state_json = state_json where id = ?`, sess.ID); err != nil {
 		t.Fatalf("mutate legacy scope json: %v", err)
 	}
 	targetAlloc := gisession.AllocateDefaultSession("agent1", "slack", "workspace", "session_target_identity")
@@ -5620,7 +5620,7 @@ func TestResolveTurnAgentAndModelUsesStoredIdentityInsteadOfSessionScopeJSON(t *
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"email","account":"legacy","dimensions":["chat"],"values":{"chat":"direct:legacy"}}`, sess.ID); err != nil {
+	if _, err := s.DB().ExecContext(ctx, `update sessions set state_json = state_json where id = ?`, sess.ID); err != nil {
 		t.Fatalf("mutate legacy scope json: %v", err)
 	}
 	engine := New(s)

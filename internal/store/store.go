@@ -161,8 +161,8 @@ func (s *Store) createSessionWithMetadataAndOpaqueKey(ctx context.Context, id, p
 	}
 	defer tx.Rollback()
 	_, err = tx.ExecContext(ctx, `
-		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
-		values (?, ?, ?, ?, '{}', ?, `+defaultNow+`, `+defaultNow+`)
+		insert into sessions (id, parent_session_id, title, state_json, aliases_json, created_at, updated_at)
+		values (?, ?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`)
 	`, id, parent, title, stateJSON, aliasesJSON)
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)

@@ -129,7 +129,7 @@ func TestStoreFindSessionByAllocationUsesSessionIdentityInsteadOfSessionScopeJSO
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"wrong","account":"wrong","dimensions":["chat"],"values":{"chat":"direct:wrong"}}`, sess.ID); err != nil {
+	if _, err := s.DB().ExecContext(ctx, `update sessions set state_json = state_json where id = ?`, sess.ID); err != nil {
 		t.Fatalf("mutate legacy scope json: %v", err)
 	}
 	byAllocID, err := s.FindSessionByAllocation(ctx, alloc)
@@ -156,8 +156,8 @@ func TestStoreResolveSessionIDByChannelBindingRequiresIdentityRuntime(t *testing
 	defer s.Close()
 	ctx := context.Background()
 	if _, err := s.DB().ExecContext(ctx, `
-		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
-		values (?, NULL, ?, '{}', '{}', '[]', datetime('now'), datetime('now'))
+		insert into sessions (id, parent_session_id, title, state_json, aliases_json, created_at, updated_at)
+		values (?, NULL, ?, '{}', '[]', datetime('now'), datetime('now'))
 	`, "session_binding_legacy_missing_identity", "@legacy"); err != nil {
 		t.Fatalf("insert legacy session without identity: %v", err)
 	}
@@ -298,8 +298,8 @@ func TestStoreResolveSessionIDByAliasRequiresIdentityRuntime(t *testing.T) {
 	defer s.Close()
 	ctx := context.Background()
 	if _, err := s.DB().ExecContext(ctx, `
-		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
-		values (?, NULL, ?, '{}', '{}', '[]', datetime('now'), datetime('now'))
+		insert into sessions (id, parent_session_id, title, state_json, aliases_json, created_at, updated_at)
+		values (?, NULL, ?, '{}', '[]', datetime('now'), datetime('now'))
 	`, "session_alias_legacy", "@legacy"); err != nil {
 		t.Fatalf("insert legacy session without identity: %v", err)
 	}
@@ -319,8 +319,8 @@ func TestStoreResolveSessionIDByKeyOrAliasRequiresIdentityRuntimeForDirectSessio
 	defer s.Close()
 	ctx := context.Background()
 	if _, err := s.DB().ExecContext(ctx, `
-		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
-		values (?, NULL, ?, '{}', '{}', '[]', datetime('now'), datetime('now'))
+		insert into sessions (id, parent_session_id, title, state_json, aliases_json, created_at, updated_at)
+		values (?, NULL, ?, '{}', '[]', datetime('now'), datetime('now'))
 	`, "session_key_alias_legacy", "@legacy"); err != nil {
 		t.Fatalf("insert legacy session without identity: %v", err)
 	}
@@ -843,8 +843,8 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 		t.Fatalf("blank channel for session b: %v", err)
 	}
 	if _, err := s.DB().ExecContext(ctx, `
-		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
-		values (?, null, ?, '{}', '{}', '[]', `+defaultNow+`, `+defaultNow+`)
+		insert into sessions (id, parent_session_id, title, state_json, aliases_json, created_at, updated_at)
+		values (?, null, ?, '{}', '[]', `+defaultNow+`, `+defaultNow+`)
 	`, "session_agent_ids_no_identity", "@no-identity"); err != nil {
 		t.Fatalf("insert no-identity session: %v", err)
 	}
@@ -911,8 +911,8 @@ func TestStoreListSessionRefsOmitsSessionsWithoutIdentityRuntime(t *testing.T) {
 		t.Fatalf("create session with identity: %v", err)
 	}
 	if _, err := s.DB().ExecContext(ctx, `
-		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
-		values (?, null, ?, '{}', '{}', '[]', `+defaultNow+`, `+defaultNow+`)
+		insert into sessions (id, parent_session_id, title, state_json, aliases_json, created_at, updated_at)
+		values (?, null, ?, '{}', '[]', `+defaultNow+`, `+defaultNow+`)
 	`, "session_refs_no_identity", "@legacy"); err != nil {
 		t.Fatalf("insert session without identity: %v", err)
 	}
@@ -1127,8 +1127,8 @@ func TestStoreAttachChannelBindingForAllocationRequiresIdentityRuntime(t *testin
 	defer s.Close()
 	ctx := context.Background()
 	if _, err := s.DB().ExecContext(ctx, `
-		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
-		values (?, NULL, ?, '{}', '{}', '[]', datetime('now'), datetime('now'))
+		insert into sessions (id, parent_session_id, title, state_json, aliases_json, created_at, updated_at)
+		values (?, NULL, ?, '{}', '[]', datetime('now'), datetime('now'))
 	`, "session_binding_legacy_no_identity", "@legacy"); err != nil {
 		t.Fatalf("insert legacy session without identity: %v", err)
 	}
@@ -1232,8 +1232,8 @@ func TestStoreResolveOrCreateSessionFromAllocationContinueRequiresIdentityRuntim
 	defer s.Close()
 	ctx := context.Background()
 	if _, err := s.DB().ExecContext(ctx, `
-		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
-		values (?, NULL, ?, '{}', '{}', '[]', datetime('now'), datetime('now'))
+		insert into sessions (id, parent_session_id, title, state_json, aliases_json, created_at, updated_at)
+		values (?, NULL, ?, '{}', '[]', datetime('now'), datetime('now'))
 	`, "session_continue_without_identity", "@legacy"); err != nil {
 		t.Fatalf("insert legacy session without identity: %v", err)
 	}

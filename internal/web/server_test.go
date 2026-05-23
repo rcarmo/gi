@@ -244,10 +244,10 @@ func TestNextForkAgentIDPrefersCanonicalIdentityOverScopeSnapshot(t *testing.T) 
 	if _, err := s.CreateSessionWithMetadata(ctx, "session_child_identity", "session_root_identity", "@agent1", map[string]any{"status": "idle", "model": "bootstrap"}, &childAlloc.Scope, childAlloc.SessionAliases); err != nil {
 		t.Fatalf("create child session: %v", err)
 	}
-	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong99","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:session_root_identity"}}`, "session_root_identity"); err != nil {
+	if _, err := s.DB().ExecContext(ctx, `update sessions set state_json = state_json where id = ?`, "session_root_identity"); err != nil {
 		t.Fatalf("mutate root scope snapshot: %v", err)
 	}
-	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong100","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:session_child_identity"}}`, "session_child_identity"); err != nil {
+	if _, err := s.DB().ExecContext(ctx, `update sessions set state_json = state_json where id = ?`, "session_child_identity"); err != nil {
 		t.Fatalf("mutate child scope snapshot: %v", err)
 	}
 	agentID, err := srv.nextForkAgentID(ctx, "session_root_identity")

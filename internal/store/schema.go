@@ -2,7 +2,6 @@ package store
 
 import (
 	"database/sql"
-	"fmt"
 	"strings"
 )
 
@@ -301,7 +300,6 @@ func initSchema(db *sql.DB) error {
 		}
 	}
 	for _, alter := range []string{
-		`alter table sessions add column scope_json text not null default '{}'`,
 		`alter table sessions add column aliases_json text not null default '[]'`,
 		`alter table turns add column phase text not null default 'queued'`,
 		`alter table turns add column claimed_by text`,
@@ -328,5 +326,5 @@ func isDuplicateColumnError(err error) bool {
 		return false
 	}
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "duplicate column") || strings.Contains(msg, "already exists") || strings.Contains(msg, "duplicate") || strings.Contains(msg, fmt.Sprintf("%q", "scope_json"))
+	return strings.Contains(msg, "duplicate column") || strings.Contains(msg, "already exists") || strings.Contains(msg, "duplicate")
 }
