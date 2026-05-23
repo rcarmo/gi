@@ -58,8 +58,7 @@ Those need first-class relational tables.
 
 ### Keep
 
-- `sessions`
-- `scope_json` as a compatibility/debug snapshot
+- `sessions` for session row metadata/state only; canonical scope now lives exclusively in relational identity tables
 
 ### Add: `session_identities`
 
@@ -125,7 +124,7 @@ This gives us:
 Implemented so far:
 
 - `session_identities`, `session_identity_dimensions`, and `session_aliases` are now populated transactionally with session creation/cloning paths
-- store now exposes first-class identity APIs (`GetSessionIdentity(...)`, `ListSessionIdentities(...)`, canonical-key/alias resolution, alias list/update, resolve-or-create from allocation, and main-session resolve/promote semantics) backed by the relational identity tables instead of requiring runtime callers to infer identity from `sessions.scope_json`
+- store now exposes first-class identity APIs (`GetSessionIdentity(...)`, `ListSessionIdentities(...)`, strict runtime identity/snapshot helpers, canonical-key/alias resolution, alias list/update, resolve-or-create from allocation, and main-session resolve/promote semantics) backed by the relational identity tables; runtime session reads project `Session.Scope` from `session_identities`/`session_identity_dimensions` instead of `sessions.scope_json`
 - single-session identity reads now hydrate dimensions/aliases with targeted per-session queries instead of falling back to list-style full-table detail scans
 - `FindSessionByAllocation(...)` now resolves by opaque key, validated alias matches, and canonical scope signature fallback
 - allocation-backed store resolution/create paths now normalize `identity_links` at the store boundary, so linked sender identities collapse to the canonical session key/signature even when the incoming allocation was not already pre-canonicalized upstream
@@ -133,13 +132,12 @@ Implemented so far:
 - allocation-backed resolve-or-create now also supports explicit cross-channel continuation into an existing session via `ContinueSessionID`; when used, the new channel/account chat binding is attached to that session so future allocations on that inbound surface resolve back to the same history without another explicit handoff
 - this means the current runtime now supports both "one session, many channel identities" (via bindings) and "temporary continuation from another channel" (via explicit continuation + bound reuse), while leaving broader automatic cross-channel policy for a later slice
 - default session allocation now uses the same `direct:<chat>` chat-dimension encoding and alias format as routed allocation
-- route-preparation and same-agent fast-path checks now read canonical agent/channel/account/dimension identity from the store first, with `scope_json` only as compatibility fallback
-- web/TUI fork-agent allocation and TUI agent/session resolution now prefer canonical identity rows instead of trusting `sessions.scope_json` snapshots
+- route-preparation, inbound-context construction, same-agent fast-path checks, fork-agent allocation, and TUI agent/session resolution read canonical agent/channel/account/dimension identity from the strict runtime identity/snapshot helpers, with no runtime fallback to session scope snapshots
+- `scope_json` has been removed from the runtime schema/fixtures; session creation writes only row metadata/state plus relational identity rows
 - explicit root-session creation paths now promote the created session to the stored main session for its `(agent, channel, account)` tuple, and TUI startup prefers that stored main session over incidental recency ordering
 
 Still pending in this area:
 
-- replacing remaining runtime reads that still infer agent/channel/account from compatibility `scope_json` helpers instead of a first-class identity read path
 - main-session semantics still only cover one preferred session per `(agent, channel, account)` tuple; they do not yet express richer multi-channel binding / continuation policy
 - broader automatic cross-channel continuation policy and outbound fan-out semantics still need to be defined above the new binding table; current continuation support is explicit store-level continuation plus binding-aware reuse
 
@@ -228,7 +226,7 @@ Implemented so far:
 - the repeated engine-side "coordination context" selection rule (use caller context when still live, otherwise fall back to engine-owned background context) is now centralized in a single shared helper and reused across direct ingress, inbound-work post-claim bookkeeping, routing preparation/decision helpers, identity lookup, failure marking, hold-resolution, steering, cancel/launch/finalize helpers, subturn lifecycle lookup, and queued-turn recovery to reduce drift between equivalent cancellation-sensitive code paths
 - launch-conflict steering fallback and finalize-time turn identity recovery now also use engine-owned fallback context when needed, so same-session claim-conflict conversion and setup/finalization terminal identity/model resolution do not quietly regress when the original caller context is already canceled
 - inbound direct-work processing now treats post-claim bookkeeping as durable coordination state: once an inbound queue item is already claimed, retry/failure/completion persistence falls back to engine-owned context if the transient processing context is canceled, so claimed rows do not get stranded by mid-attempt cancellation
-- route inbound-context construction and local routing metadata now use explicit fallback-aware canonical identity reads, so canceled caller context no longer makes route preparation quietly fall back to stale `sessions.scope_json` snapshots for channel/account/source-agent derivation
+- route inbound-context construction and local routing metadata now use strict canonical identity snapshot reads, so route preparation fails closed when identity rows are missing instead of deriving channel/account/source-agent from stale session JSON
 - runner-owned active-turn cancellation handles are now installed before the run goroutine starts, and turn cleanup only clears `runner.current` when it still points at the same finishing turn so an older cleanup path cannot wipe a newer active turn's cancel handle
 - non-cancellation setup failures now finalize the turn as terminal `failed` / `setup_error` instead of leaving a turn stranded in `running` / `setup` until stale-claim recovery notices it
 - same-store engine instances now share the same in-memory session coordination lock/current-turn handle for a given session, so cross-engine submit/cancel paths coordinate on one live ownership record instead of each engine keeping a disconnected local `runner.current`
@@ -243,9 +241,9 @@ Implemented so far:
 - routed submission now uses explicit route/session-resolution helpers for prompt preparation, peer-route preparation, target-session resolution, local-route metadata application, allocation lookup/reuse, and clone-on-miss session creation
 - active cancellation now resolves through terminal `cancelled` state for live provider-stream, setup-phase, and live tool-execution turns instead of being misclassified as generic provider/tool failures, parent-turn cancellation propagates into running child subturns through the normal terminal path, and cancel-request bookkeeping itself now falls back to engine-owned durable context when the caller context is already canceled so `turn.cancelling` / queued `turn.cancelled` audit rows and state transitions are not dropped by the cancel request that triggered them
 - queued turns are launched oldest-first via durable `created_at`/`id` ordering, and queued ordering is now covered by runtime tests rather than only implied by store queries
-- web fork-agent allocation now resolves used-agent occupancy from the lightweight `ListSessionAgentIDs` map plus deterministic defaults, while source-session base selection keeps one canonical fallback lookup via `SessionAgentID`; helper normalization for session ids, agent ids, base/suffix generation, and candidate exhaustion is now explicit and test-covered so branch-agent allocation no longer depends on `sessions.scope_json` drift or ad-hoc string handling
-- TUI fork-agent allocation now follows the same identity-first shape as web: it derives source agent/base from `SessionAgentID` and computes used occupancy from lightweight `ListSessionIDs` + `ListSessionAgentIDs` rather than loading full session rows/scopes for fork suffix selection
-- TUI session-reference resolution (`@agent` / session id) now also runs ID-first: direct id refs attempt `GetSession` once, agent refs scan lightweight `ListSessionIDs` + `ListSessionAgentIDs`, and only the winning match materializes a full session row
+- web fork-agent allocation now resolves used-agent occupancy from the lightweight `ListSessionAgentIDs` map plus deterministic defaults, while source-session base selection uses strict runtime identity with an explicit UI fallback; helper normalization for session ids, agent ids, base/suffix generation, and candidate exhaustion is now explicit and test-covered so branch-agent allocation no longer depends on `sessions.scope_json` drift or ad-hoc string handling
+- TUI fork-agent allocation now follows the same identity-first shape as web: it derives source agent/base through strict runtime identity helpers and computes used occupancy from lightweight `ListSessionIDs` + `ListSessionAgentIDs` rather than loading full session rows/scopes for fork suffix selection
+- TUI session-reference resolution (`@agent` / session id) now also runs ID-first: direct id refs attempt `GetSession` once, agent refs scan lightweight identity-backed `ListSessionIDs` + `ListSessionAgentIDs`, and only the winning match materializes a full session row
 
 Current recovery semantics:
 

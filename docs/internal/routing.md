@@ -18,7 +18,7 @@ Route/session resolution now has an explicit orchestration surface inside `inter
 
 That keeps the submit path aligned with the newer explicit runtime-phase style used elsewhere in turn execution, instead of leaving route/session allocation buried inline inside `SubmitPromptRouted(...)` and `ResolveOrCreateRouteSession(...)`.
 
-The routing path now also depends on store-backed session identity/allocation semantics rather than treating `sessions.scope_json` as the source of truth. Route/session resolution prefers:
+The routing path now also depends on store-backed session identity/allocation semantics rather than treating obsolete session-row JSON snapshots as the source of truth. Route/session resolution prefers:
 
 1. canonical opaque session key lookup
 2. channel-binding reuse when a bound inbound surface already maps to the same logical session
@@ -28,7 +28,7 @@ The routing path now also depends on store-backed session identity/allocation se
 
 Two guardrails matter here:
 
-- route-context construction and local routing metadata now use fallback-aware canonical identity reads, so if a caller context is already canceled the engine still derives channel/account/source-agent/scoped chat context from relational identity rows instead of quietly falling back to stale `sessions.scope_json` snapshots
+- route-context construction and local routing metadata now use strict canonical identity/snapshot reads, so the engine derives channel/account/source-agent/scoped chat context from relational identity rows and fails closed where a canonical identity row is missing
 - route-event recording no longer reloads a full source session row merely to infer `source_agent_id`; it now resolves the source agent directly from `session_identities`, which keeps routing audit rows aligned with canonical identity even when legacy session JSON drifts
 - sibling child-session reuse no longer depends on the caller's loaded source row carrying a trustworthy `parent_session_id`; route resolution now asks the store to resolve sibling-child reuse directly from persisted session linkage plus identity tables, and routed local metadata/fork notices likewise derive `source_agent_id` directly from persisted identity by session id
 - the routed session planner itself is now source-session-id based rather than source-row based for reuse/fork decisions: same-agent short-circuiting, sibling reuse, peer-routing source metadata, and clone/fork notices all resolve canonical identity/linkage from the store instead of treating a loaded `store.Session` object as the identity carrier through the routing pipeline
@@ -36,9 +36,9 @@ Two guardrails matter here:
 - allocation matching has now joined that same pattern: opaque-key, channel-binding, alias, and canonical-signature resolution can stay in canonical session-id space until identity validation picks a winner, and only then is the final session row loaded for callers that actually need row payloads
 - routed child-session reuse now follows the same rule: child/sibling-child store lookup resolves candidate session ids first, and route resolution only materializes the final winning session row after the parent/agent reuse decision is made
 - the surrounding store resolve-or-create paths now mirror that shape internally: allocation matching has a dedicated ID-first finder reused by resolve-or-create flows, continue/main-session branches defer full row reloads until after binding/main-session state changes succeed, and plain session-existence checks inside those flows now use explicit existence helpers instead of loading a whole session row just to prove the id is valid
-- alias matches are only accepted when the persisted canonical identity signature still matches the requested routed allocation, so broad compat aliases cannot accidentally collapse distinct routed sessions even if `sessions.scope_json` has drifted
+- alias matches are only accepted when the persisted canonical identity signature still matches the requested routed allocation, so broad compat aliases cannot accidentally collapse distinct routed sessions even if obsolete obsolete session-row JSON snapshots have drifted
 - channel-binding reuse is agent-safe: a binding only qualifies if the bound session identity still belongs to the same agent as the incoming allocation
-- web `/branch` fork-agent id allocation now follows the same relational-identity bias: used-agent occupancy comes from `session_identities` lightweight map reads (`ListSessionAgentIDs`), source-base fallback uses canonical `SessionAgentID`, and helper normalization/candidate selection is deterministic and regression-tested instead of depending on stale `sessions.scope_json` snapshots
+- web `/branch` fork-agent id allocation now follows the same relational-identity bias: used-agent occupancy comes from `session_identities` lightweight map reads (`ListSessionAgentIDs`), source-base fallback uses strict canonical runtime identity with explicit UI defaulting only at presentation edges, and helper normalization/candidate selection is deterministic and regression-tested instead of depending on stale obsolete session-row JSON snapshots
 
 ## Mechanism overview
 
@@ -135,7 +135,7 @@ sequenceDiagram
   User->>UI: Sends prompt
   UI->>API: POST /api/sessions/{session}/prompt
   API->>Engine: SubmitPromptRouted(RunInput)
-  Engine->>Store: GetSession(source)
+  Engine->>Store: RequireSessionIdentitySnapshot(source)
   Engine->>Engine: parseDirectedPrompt(prompt)
   Engine->>TR: ResolveRoute(InboundContext)
   TR-->>Engine: ResolvedRoute(agent, matched_by)
@@ -204,7 +204,7 @@ sequenceDiagram
   UI->>API: POST /api/sessions/{source}/peer-message
   API->>Engine: SubmitPeerMessage(..., targetAgentID, content, intent, model, parentTurnID)
 
-  Engine->>Store: GetSession(source)
+  Engine->>Store: RequireSessionIdentitySnapshot(source)
   Engine->>TR: ResolveRoute(inbound {mentioned=true, sender=source agent})
   TR-->>Engine: route target
   Engine->>SA: ResolveOrCreateRouteSession(source, route, inbound)
