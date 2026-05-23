@@ -63,7 +63,8 @@ func (s *Store) findSessionIDByAllocation(ctx context.Context, alloc gisession.A
 	if binding, ok := channelBindingFromAllocation(alloc); ok {
 		sessionID, err := s.ResolveSessionIDByChannelBinding(ctx, binding.Channel, binding.Account, binding.RemoteIdentity)
 		if err == nil {
-			if strings.EqualFold(strings.TrimSpace(s.SessionAgentID(ctx, sessionID)), strings.TrimSpace(alloc.Scope.AgentID)) {
+			identity := s.SessionIdentityRuntime(ctx, sessionID)
+			if strings.EqualFold(strings.TrimSpace(identity.AgentID), strings.TrimSpace(alloc.Scope.AgentID)) {
 				return sessionID, nil
 			}
 		} else if !errors.Is(err, sql.ErrNoRows) {
@@ -73,7 +74,8 @@ func (s *Store) findSessionIDByAllocation(ctx context.Context, alloc gisession.A
 	for _, alias := range alloc.SessionAliases {
 		sessionID, err := s.ResolveSessionIDByAlias(ctx, alias)
 		if err == nil {
-			if sessionMatchesAllocationScope(s.SessionCanonicalScopeSignature(ctx, sessionID), alloc.Scope) {
+			identity := s.SessionIdentityRuntime(ctx, sessionID)
+			if sessionMatchesAllocationScope(identity.CanonicalScopeSignature, alloc.Scope) {
 				return sessionID, nil
 			}
 			continue

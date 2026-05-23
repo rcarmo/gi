@@ -12,6 +12,13 @@ const (
 	defaultSessionAccount = "default"
 )
 
+type SessionIdentityRuntime struct {
+	AgentID                 string
+	Channel                 string
+	Account                 string
+	CanonicalScopeSignature string
+}
+
 func (s *Store) SessionIdentityDimensions(ctx context.Context, sessionID string) map[string]string {
 	if ctx == nil {
 		ctx = context.Background()
@@ -49,22 +56,7 @@ func (s *Store) SessionIdentityDimensions(ctx context.Context, sessionID string)
 	return values
 }
 
-func (s *Store) sessionIdentityTupleOrDefaults(ctx context.Context, sessionID string) (agentID, channel, account string) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	sessionID = strings.TrimSpace(sessionID)
-	if s == nil || sessionID == "" {
-		return defaultSessionAgentID, defaultSessionChannel, defaultSessionAccount
-	}
-	row := s.db.QueryRowContext(ctx, `
-		select coalesce(agent_id,''), coalesce(channel,''), coalesce(account,'')
-		from session_identities
-		where session_id = ?
-	`, sessionID)
-	if err := row.Scan(&agentID, &channel, &account); err != nil {
-		return defaultSessionAgentID, defaultSessionChannel, defaultSessionAccount
-	}
+func normalizeRuntimeIdentityTuple(agentID, channel, account string) (string, string, string) {
 	agentID = strings.TrimSpace(agentID)
 	channel = strings.TrimSpace(channel)
 	account = strings.TrimSpace(account)
@@ -80,39 +72,48 @@ func (s *Store) sessionIdentityTupleOrDefaults(ctx context.Context, sessionID st
 	return agentID, channel, account
 }
 
-func (s *Store) SessionAgentID(ctx context.Context, sessionID string) string {
-	agentID, _, _ := s.sessionIdentityTupleOrDefaults(ctx, sessionID)
-	return agentID
-}
-
-func (s *Store) SessionCanonicalScopeSignature(ctx context.Context, sessionID string) string {
+func (s *Store) sessionIdentityRuntimeOrDefaults(ctx context.Context, sessionID string) SessionIdentityRuntime {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	sessionID = strings.TrimSpace(sessionID)
 	if s == nil || sessionID == "" {
-		return ""
+		return SessionIdentityRuntime{AgentID: defaultSessionAgentID, Channel: defaultSessionChannel, Account: defaultSessionAccount}
 	}
 	row := s.db.QueryRowContext(ctx, `
-		select coalesce(canonical_scope_signature,'')
+		select coalesce(agent_id,''), coalesce(channel,''), coalesce(account,''), coalesce(canonical_scope_signature,'')
 		from session_identities
 		where session_id = ?
 	`, sessionID)
-	var signature string
-	if err := row.Scan(&signature); err != nil {
-		return ""
+	identity := SessionIdentityRuntime{}
+	if err := row.Scan(&identity.AgentID, &identity.Channel, &identity.Account, &identity.CanonicalScopeSignature); err != nil {
+		identity.AgentID, identity.Channel, identity.Account = defaultSessionAgentID, defaultSessionChannel, defaultSessionAccount
+		identity.CanonicalScopeSignature = ""
+		return identity
 	}
-	return strings.TrimSpace(signature)
+	identity.AgentID, identity.Channel, identity.Account = normalizeRuntimeIdentityTuple(identity.AgentID, identity.Channel, identity.Account)
+	identity.CanonicalScopeSignature = strings.TrimSpace(identity.CanonicalScopeSignature)
+	return identity
+}
+
+func (s *Store) SessionIdentityRuntime(ctx context.Context, sessionID string) SessionIdentityRuntime {
+	return s.sessionIdentityRuntimeOrDefaults(ctx, sessionID)
+}
+
+func (s *Store) SessionAgentID(ctx context.Context, sessionID string) string {
+	return s.sessionIdentityRuntimeOrDefaults(ctx, sessionID).AgentID
+}
+
+func (s *Store) SessionCanonicalScopeSignature(ctx context.Context, sessionID string) string {
+	return s.sessionIdentityRuntimeOrDefaults(ctx, sessionID).CanonicalScopeSignature
 }
 
 func (s *Store) SessionChannel(ctx context.Context, sessionID string) string {
-	_, channel, _ := s.sessionIdentityTupleOrDefaults(ctx, sessionID)
-	return channel
+	return s.sessionIdentityRuntimeOrDefaults(ctx, sessionID).Channel
 }
 
 func (s *Store) SessionAccount(ctx context.Context, sessionID string) string {
-	_, _, account := s.sessionIdentityTupleOrDefaults(ctx, sessionID)
-	return account
+	return s.sessionIdentityRuntimeOrDefaults(ctx, sessionID).Account
 }
 
 func (s *Store) RequireSession(ctx context.Context, sessionID string) error {

@@ -321,6 +321,35 @@ func TestStoreGetSessionIdentity(t *testing.T) {
 	}
 }
 
+func TestStoreSessionIdentityRuntime(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_identity_runtime", "", "@support", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	identity := s.SessionIdentityRuntime(ctx, sess.ID)
+	if identity.AgentID != "support" || identity.Channel != "slack" || identity.Account != "workspace" {
+		t.Fatalf("unexpected runtime identity tuple: %#v", identity)
+	}
+	if identity.CanonicalScopeSignature == "" {
+		t.Fatalf("expected canonical scope signature in runtime identity, got %#v", identity)
+	}
+	defaults := s.SessionIdentityRuntime(ctx, "")
+	if defaults.AgentID != "agent" || defaults.Channel != "gi" || defaults.Account != "default" || defaults.CanonicalScopeSignature != "" {
+		t.Fatalf("unexpected runtime identity defaults: %#v", defaults)
+	}
+}
+
 func TestStoreSessionIdentityDimensions(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
