@@ -37,8 +37,10 @@ type subscriber struct {
 	ch      chan Envelope
 }
 
-// Bus is an in-memory bounded topic bus. Slow subscribers never block the
-// publisher; the oldest buffered event is dropped to keep the latest state.
+// Bus is an in-memory bounded topic bus. Publish serializes sequence assignment
+// and delivery so every subscriber observes monotonically ordered envelopes.
+// Slow subscribers never block the publisher indefinitely; their oldest buffered
+// event is dropped to keep the latest state.
 type Bus struct {
 	mu       sync.RWMutex
 	next     uint64

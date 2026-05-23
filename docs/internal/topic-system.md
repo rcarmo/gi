@@ -216,13 +216,10 @@ This coexists with the older chat-turn SSE feed while newer runtime families con
 ### Default
 
 - bounded buffered channels
-- non-blocking publish
-- drop oldest or drop newest on pressure (explicit policy)
-
-Recommended first policy:
-
-- **drop oldest** for high-frequency delta streams
-- keep latest state-like events available
+- publish serializes sequence assignment and delivery under the bus lock so each subscriber observes monotonically ordered envelopes
+- every envelope has a bus-wide `sequence`; explicit sequence inputs advance the watermark, automatic envelopes increment it
+- slow subscribers use **drop oldest** backpressure, keeping the newest state-like events available without unbounded memory growth
+- topic SSE exposes the envelope `sequence` as SSE `id:` and includes the current `last_sequence` in the `connected` event
 
 ### Coalescing candidates
 
@@ -234,7 +231,7 @@ Some topics can be coalesced later:
 
 ## Persistence
 
-First phase: **in-memory only**.
+First phase: **in-memory only**, with a process-local monotonic sequence watermark for reconnect/audit correlation.
 
 Optional later persistence:
 
@@ -251,8 +248,8 @@ Status: **implemented**
 
 - added `internal/topics/`
 - implemented in-memory bounded bus
-- added publish/subscribe tests
-- added topic envelope type
+- added publish/subscribe tests, including concurrent publish ordering and drop-oldest behavior
+- added topic envelope type with monotonic sequence numbers
 
 ### Phase 2 — engine + extension bridge
 
