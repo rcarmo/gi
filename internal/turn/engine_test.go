@@ -4501,7 +4501,9 @@ func TestRecordRouteDecisionSurvivesCanceledCallerContext(t *testing.T) {
 		"requested_agent_id": "agent1",
 		"routing_enabled":    true,
 	}
-	if err := routing.RecordDecision(engine.backgroundContext(), sess.ID, "turn_route_ctx", metadata, routing.Options{SessionAgentID: s.SessionAgentID, RecordRouteEvent: func(ctx context.Context, event routing.Event) (int64, error) {
+	if err := routing.RecordDecision(engine.backgroundContext(), sess.ID, "turn_route_ctx", metadata, routing.Options{ResolveSourceAgentID: func(ctx context.Context, sessionID string) string {
+		return s.SessionIdentityRuntime(ctx, sessionID).AgentID
+	}, RecordRouteEvent: func(ctx context.Context, event routing.Event) (int64, error) {
 		return storeaudit.RecordRouteEvent(ctx, s.DB(), storeaudit.RouteEvent(event))
 	}, PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
 		t.Fatalf("record route decision with canceled caller context: %v", err)
@@ -5576,7 +5578,9 @@ func TestRecordRouteDecisionUsesStoredIdentityInsteadOfSessionScopeJSON(t *testi
 		"target_session_id": "session_target_identity",
 		"route_mode":        "prompt",
 		"routing_enabled":   true,
-	}, routing.Options{SessionAgentID: s.SessionAgentID, RecordRouteEvent: func(ctx context.Context, event routing.Event) (int64, error) {
+	}, routing.Options{ResolveSourceAgentID: func(ctx context.Context, sessionID string) string {
+		return s.SessionIdentityRuntime(ctx, sessionID).AgentID
+	}, RecordRouteEvent: func(ctx context.Context, event routing.Event) (int64, error) {
 		return storeaudit.RecordRouteEvent(ctx, s.DB(), storeaudit.RouteEvent(event))
 	}, PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
 		t.Fatalf("record route decision: %v", err)

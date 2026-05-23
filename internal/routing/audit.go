@@ -18,7 +18,7 @@ type Event struct {
 }
 
 type Options struct {
-	SessionAgentID             func(context.Context, string) string
+	ResolveSourceAgentID       func(context.Context, string) string
 	RecordRouteEvent           func(context.Context, Event) (int64, error)
 	PublishRuntimeRoutingEvent func(string, Event)
 	Broadcast                  func(string, map[string]any)
@@ -33,8 +33,8 @@ func RecordDecision(ctx context.Context, sourceSessionID, turnID string, metadat
 	}
 	routeMode := stringValue(metadata["route_mode"], stringValue(metadata["mode"], "prompt"))
 	sourceAgent := stringValue(metadata["source_agent_id"], "")
-	if sourceAgent == "" && opts.SessionAgentID != nil {
-		sourceAgent = opts.SessionAgentID(ctx, sourceSession)
+	if sourceAgent == "" && opts.ResolveSourceAgentID != nil {
+		sourceAgent = opts.ResolveSourceAgentID(ctx, sourceSession)
 	}
 	routingPolicy := stringValue(metadata["routing_policy"], "")
 	matchedBy := stringValue(metadata["route_matched_by"], "")

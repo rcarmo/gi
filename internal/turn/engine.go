@@ -515,7 +515,9 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 			})
 		}
 	}
-	if err := routing.RecordDecision(durableCtx, in.SessionID, turnID, metadata, routing.Options{SessionAgentID: e.store.SessionAgentID, RecordRouteEvent: func(ctx context.Context, event routing.Event) (int64, error) {
+	if err := routing.RecordDecision(durableCtx, in.SessionID, turnID, metadata, routing.Options{ResolveSourceAgentID: func(ctx context.Context, sessionID string) string {
+		return e.store.SessionIdentityRuntime(ctx, sessionID).AgentID
+	}, RecordRouteEvent: func(ctx context.Context, event routing.Event) (int64, error) {
 		return storeaudit.RecordRouteEvent(ctx, e.store.DB(), storeaudit.RouteEvent(event))
 	}, PublishRuntimeRoutingEvent: e.PublishRuntimeRoutingEvent, Broadcast: e.broadcast}); err != nil {
 		// Non-fatal: routing decisions are an orchestration artifact.
