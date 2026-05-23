@@ -96,9 +96,10 @@ func InboundContextFromSession(ctx context.Context, st *store.Store, sessionID s
 	inbound := routing.InboundContext{}
 	dimensions := map[string]string{}
 	if st != nil {
-		identity := st.SessionIdentityRuntime(ctx, sessionID)
-		inbound.Channel = identity.Channel
-		inbound.Account = identity.Account
+		if identity, err := st.RequireSessionIdentityRuntime(ctx, sessionID); err == nil {
+			inbound.Channel = identity.Channel
+			inbound.Account = identity.Account
+		}
 		dimensions = st.SessionIdentityDimensions(ctx, sessionID)
 	}
 	if inbound.Channel == "" {
