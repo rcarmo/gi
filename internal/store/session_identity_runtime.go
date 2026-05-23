@@ -6,10 +6,6 @@ import (
 	"strings"
 )
 
-const (
-	defaultSessionAgentID = "agent"
-)
-
 type SessionIdentityRuntime struct {
 	AgentID                 string
 	Channel                 string
