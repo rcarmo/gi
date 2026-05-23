@@ -904,9 +904,10 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 		return e.submitPeerRoutedPrompt(opCtx, in.SessionID, targetSessionID, route, promptBody, in.Intent, in.Model, created, directed, in.ParentTurnID, in.Metadata)
 	}
 	sourceSessionID := in.SessionID
+	sourceIdentity := e.store.SessionIdentityRuntime(opCtx, sourceSessionID)
 	in.SessionID = targetSessionID
 	in.Prompt = promptBody
-	in.Metadata = routing.ApplyPromptRouteMetadata(in.Metadata, sourceSessionID, targetSessionID, e.store.SessionAgentID(opCtx, sourceSessionID), route, created)
+	in.Metadata = routing.ApplyPromptRouteMetadata(in.Metadata, sourceSessionID, targetSessionID, sourceIdentity.AgentID, route, created)
 	return e.SubmitPrompt(opCtx, in)
 }
 
@@ -919,8 +920,9 @@ func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessio
 	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
 		return nil, err
 	}
+	sourceIdentity := e.store.SessionIdentityRuntime(opCtx, sourceSessionID)
 	inbound := routedsession.InboundContextFromSession(opCtx, e.store, sourceSessionID)
-	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
+	inbound.SenderID = sourceIdentity.AgentID
 	route := routing.PreparePeerRoutedInput(targetAgentID, "peer-message", content, inbound, e.routeResolver)
 	targetSessionID, created, err := routedsession.ResolveOrCreate(opCtx, e.store, sourceSessionID, route, inbound, routedsession.ResolveOptions{ModelForAgent: e.modelForAgent, DefaultProvider: e.runtimeCfg.DefaultProvider, DefaultThinking: e.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
@@ -934,8 +936,9 @@ func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSession
 	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
 		return "", err
 	}
+	sourceIdentity := e.store.SessionIdentityRuntime(opCtx, sourceSessionID)
 	inbound := routedsession.InboundContextFromSession(opCtx, e.store, sourceSessionID)
-	inbound.SenderID = e.store.SessionAgentID(opCtx, sourceSessionID)
+	inbound.SenderID = sourceIdentity.AgentID
 	route := routing.PreparePeerRoutedInput(targetAgentID, "peer-session", "", inbound, e.routeResolver)
 	targetSessionID, _, err := routedsession.ResolveOrCreate(opCtx, e.store, sourceSessionID, route, inbound, routedsession.ResolveOptions{ModelForAgent: e.modelForAgent, DefaultProvider: e.runtimeCfg.DefaultProvider, DefaultThinking: e.runtimeCfg.DefaultThinkingLevel})
 	if err != nil {
@@ -946,7 +949,8 @@ func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSession
 
 func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, sourceSessionID, targetSessionID string, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
-	sourceAgentID := e.store.SessionAgentID(opCtx, sourceSessionID)
+	sourceIdentity := e.store.SessionIdentityRuntime(opCtx, sourceSessionID)
+	sourceAgentID := sourceIdentity.AgentID
 	routingContent := fmt.Sprintf("↪ routed to @%s: %s", route.AgentID, content)
 	routingPayload := map[string]any{"kind": "routing", "target_agent_id": route.AgentID, "target_session_id": targetSessionID, "source_agent_id": sourceAgentID, "source_session_id": sourceSessionID, "route_matched_by": route.MatchedBy, "clipped": true}
 	logutil.WarnIfErr("add routing message to source session", e.store.AddMessage(opCtx, store.NowID("msg"), sourceSessionID, "system", routingContent, routingPayload))

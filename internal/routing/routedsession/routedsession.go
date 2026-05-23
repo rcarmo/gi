@@ -24,7 +24,8 @@ func ResolveOrCreate(ctx context.Context, st *store.Store, sourceSessionID strin
 	if strings.TrimSpace(sourceSessionID) == "" {
 		return "", false, fmt.Errorf("missing source session")
 	}
-	if routing.NormalizeAgentID(st.SessionAgentID(ctx, sourceSessionID)) == routing.NormalizeAgentID(route.AgentID) {
+	sourceIdentity := st.SessionIdentityRuntime(ctx, sourceSessionID)
+	if routing.NormalizeAgentID(sourceIdentity.AgentID) == routing.NormalizeAgentID(route.AgentID) {
 		return sourceSessionID, false, nil
 	}
 	allocation := gisession.AllocateRouteSession(gisession.AllocationInput{
@@ -77,7 +78,7 @@ func ResolveOrCreate(ctx context.Context, st *store.Store, sourceSessionID strin
 				return "", false, err
 			}
 		}
-		sourceAgentID := st.SessionAgentID(ctx, sourceSessionID)
+		sourceAgentID := sourceIdentity.AgentID
 		if err := st.AddMessage(ctx, store.NowID("msg"), cloned.ID, "system", fmt.Sprintf("Forked from @%s", sourceAgentID), map[string]any{"kind": "fork", "source_session_id": sourceSessionID, "source_agent_id": sourceAgentID, "route_matched_by": route.MatchedBy, "clipped": true}); err != nil {
 			return "", false, err
 		}
