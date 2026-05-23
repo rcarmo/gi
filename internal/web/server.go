@@ -604,10 +604,6 @@ func forkAgentIDCandidate(base string, suffix int) string {
 	return base + strconv.Itoa(suffix)
 }
 
-func firstForkAgentID(base string) string {
-	return forkAgentIDCandidate(normalizeForkAgentBase(base), minForkAgentIDSuffix)
-}
-
 func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
 	base = normalizeForkAgentBase(base)
 	if len(used) == 0 {

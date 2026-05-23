@@ -462,15 +462,6 @@ func TestForkAgentIDCandidate(t *testing.T) {
 	}
 }
 
-func TestFirstForkAgentID(t *testing.T) {
-	if got := firstForkAgentID("agent"); got != "agent1" {
-		t.Fatalf("expected first fork agent id agent1, got %q", got)
-	}
-	if got := firstForkAgentID("   "); got != "agent1" {
-		t.Fatalf("expected first fork agent id defaulting to agent1 for blank base, got %q", got)
-	}
-}
-
 func TestChooseNextForkAgentID(t *testing.T) {
 	used := map[string]bool{"agent1": true, "agent2": true}
 	if got, ok := chooseNextForkAgentID("agent", used); !ok || got != "agent3" {

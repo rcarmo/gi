@@ -30,10 +30,18 @@ func (s *Store) SetMainSession(ctx context.Context, sessionID string) error {
 	if sessionID == "" {
 		return sql.ErrNoRows
 	}
-	identity, err := s.GetSessionIdentity(ctx, sessionID)
-	if err != nil {
+	row := s.db.QueryRowContext(ctx, `
+		select coalesce(agent_id,''), coalesce(channel,''), coalesce(account,'')
+		from session_identities
+		where session_id = ?
+	`, sessionID)
+	var agentID, channel, account string
+	if err := row.Scan(&agentID, &channel, &account); err != nil {
 		return err
 	}
+	agentID = normalizeIdentityTupleValue(agentID, "gi")
+	channel = normalizeIdentityTupleValue(channel, "gi")
+	account = normalizeIdentityTupleValue(account, "default")
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("set main session begin tx: %w", err)
@@ -43,7 +51,7 @@ func (s *Store) SetMainSession(ctx context.Context, sessionID string) error {
 		update session_identities
 		set is_main_session = 0, updated_at = `+defaultNow+`
 		where lower(agent_id) = ? and lower(channel) = ? and lower(account) = ? and session_id <> ? and is_main_session <> 0
-	`, normalizeIdentityTupleValue(identity.Scope.AgentID, "gi"), normalizeIdentityTupleValue(identity.Scope.Channel, "gi"), normalizeIdentityTupleValue(identity.Scope.Account, "default"), sessionID); err != nil {
+	`, agentID, channel, account, sessionID); err != nil {
 		return fmt.Errorf("clear prior main sessions: %w", err)
 	}
 	result, err := tx.ExecContext(ctx, `
