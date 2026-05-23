@@ -116,6 +116,17 @@ func (s *Store) UpdateSessionAliases(ctx context.Context, sessionID string, alia
 	return nil
 }
 
+func (s *Store) requireIdentityRuntimeSessionID(ctx context.Context, sessionID string) (string, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return "", sql.ErrNoRows
+	}
+	if _, err := s.RequireSessionIdentityRuntime(ctx, sessionID); err != nil {
+		return "", err
+	}
+	return sessionID, nil
+}
+
 func (s *Store) ResolveSessionIDByOpaqueKey(ctx context.Context, opaqueKey string) (string, error) {
 	opaqueKey = strings.TrimSpace(strings.ToLower(opaqueKey))
 	if opaqueKey == "" {
@@ -126,7 +137,7 @@ func (s *Store) ResolveSessionIDByOpaqueKey(ctx context.Context, opaqueKey strin
 	if err := row.Scan(&sessionID); err != nil {
 		return "", err
 	}
-	return sessionID, nil
+	return s.requireIdentityRuntimeSessionID(ctx, sessionID)
 }
 
 func (s *Store) ResolveSessionIDByCanonicalScopeSignature(ctx context.Context, signature string) (string, error) {
@@ -139,10 +150,7 @@ func (s *Store) ResolveSessionIDByCanonicalScopeSignature(ctx context.Context, s
 	if err := row.Scan(&sessionID); err != nil {
 		return "", err
 	}
-	if _, err := s.RequireSessionIdentityRuntime(ctx, sessionID); err != nil {
-		return "", err
-	}
-	return sessionID, nil
+	return s.requireIdentityRuntimeSessionID(ctx, sessionID)
 }
 
 func (s *Store) ResolveSessionIDByAlias(ctx context.Context, alias string) (string, error) {
@@ -155,10 +163,7 @@ func (s *Store) ResolveSessionIDByAlias(ctx context.Context, alias string) (stri
 	if err := row.Scan(&sessionID); err != nil {
 		return "", err
 	}
-	if _, err := s.RequireSessionIdentityRuntime(ctx, sessionID); err != nil {
-		return "", err
-	}
-	return sessionID, nil
+	return s.requireIdentityRuntimeSessionID(ctx, sessionID)
 }
 
 func (s *Store) ResolveSessionIDByKeyOrAlias(ctx context.Context, key string) (string, error) {
