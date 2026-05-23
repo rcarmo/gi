@@ -41,13 +41,13 @@ func (s *Store) listChatVFSChildren(ctx context.Context, dir string) ([]VFSListE
 			{Name: "sessions", Path: "sessions", IsDir: true, Metadata: map[string]any{"virtual": true, "kind": storevfs.KindChatSessions}},
 		}, nil
 	case "sessions":
-		sessions, err := s.ListSessions(ctx)
+		sessions, err := s.ListSessionRefs(ctx)
 		if err != nil {
 			return nil, err
 		}
 		entries := []VFSListEntry{{Name: "index.md", Path: "sessions/index.md", IsDir: false, ContentType: "text/markdown", Metadata: map[string]any{"virtual": true, "kind": storevfs.KindChatSessionsIndex}}}
 		for _, session := range sessions {
-			entries = append(entries, VFSListEntry{Name: session.ID, Path: "sessions/" + session.ID, IsDir: true, Metadata: map[string]any{"virtual": true, "title": session.Title}})
+			entries = append(entries, VFSListEntry{Name: session.ID, Path: "sessions/" + session.ID, IsDir: true, Metadata: map[string]any{"virtual": true}})
 		}
 		sort.Slice(entries, func(i, j int) bool {
 			return strings.ToLower(entries[i].Name) < strings.ToLower(entries[j].Name)
@@ -57,7 +57,7 @@ func (s *Store) listChatVFSChildren(ctx context.Context, dir string) ([]VFSListE
 	parts := storevfs.SplitVirtualPath(dir)
 	if len(parts) >= 2 && parts[0] == "sessions" {
 		sessionID := parts[1]
-		if _, err := s.GetSession(ctx, sessionID); err != nil {
+		if _, err := s.RequireSessionIdentityRuntime(ctx, sessionID); err != nil {
 			return nil, err
 		}
 		if len(parts) == 2 {
@@ -114,14 +114,14 @@ All files contain markdown with JSON-compatible frontmatter so models can inspec
 		return newVirtualVFSFile(storevfs.NamespaceChat, "README.md", storevfs.KindChatReadme, body, "", ""), []byte(body), nil
 	}
 	if filePath == "sessions/index.md" {
-		sessions, err := s.ListSessions(ctx)
+		sessions, err := s.ListSessionRefs(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
 		lines := make([]string, 0, len(sessions)+2)
 		lines = append(lines, "# Sessions", "")
 		for _, sess := range sessions {
-			lines = append(lines, fmt.Sprintf("- `%s` — %s", sess.ID, sess.Title))
+			lines = append(lines, fmt.Sprintf("- `%s`", sess.ID))
 			lines = append(lines, fmt.Sprintf("  - session: `vfs://chat/sessions/%s/session.md`", sess.ID))
 			lines = append(lines, fmt.Sprintf("  - messages: `vfs://chat/sessions/%s/messages/index.md`", sess.ID))
 			lines = append(lines, fmt.Sprintf("  - turns: `vfs://chat/sessions/%s/turns/index.md`", sess.ID))
