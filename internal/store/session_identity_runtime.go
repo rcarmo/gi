@@ -12,15 +12,41 @@ const (
 	defaultSessionAccount = "default"
 )
 
-func (s *Store) SessionIdentityOrNil(ctx context.Context, sessionID string) *SessionIdentity {
-	if s == nil || strings.TrimSpace(sessionID) == "" {
-		return nil
+func (s *Store) SessionIdentityDimensions(ctx context.Context, sessionID string) map[string]string {
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	identity, err := s.GetSessionIdentity(ctx, sessionID)
+	sessionID = strings.TrimSpace(sessionID)
+	if s == nil || sessionID == "" {
+		return map[string]string{}
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		select coalesce(dimension_name,''), coalesce(dimension_value,'')
+		from session_identity_dimensions
+		where session_id = ?
+		order by ordinal asc
+	`, sessionID)
 	if err != nil {
-		return nil
+		return map[string]string{}
 	}
-	return identity
+	defer rows.Close()
+	values := map[string]string{}
+	for rows.Next() {
+		var name, value string
+		if err := rows.Scan(&name, &value); err != nil {
+			return map[string]string{}
+		}
+		name = strings.TrimSpace(strings.ToLower(name))
+		value = strings.TrimSpace(strings.ToLower(value))
+		if name == "" || value == "" {
+			continue
+		}
+		values[name] = value
+	}
+	if err := rows.Err(); err != nil {
+		return map[string]string{}
+	}
+	return values
 }
 
 func (s *Store) sessionIdentityTupleOrDefaults(ctx context.Context, sessionID string) (agentID, channel, account string) {

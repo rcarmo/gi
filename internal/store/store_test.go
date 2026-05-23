@@ -321,6 +321,34 @@ func TestStoreGetSessionIdentity(t *testing.T) {
 	}
 }
 
+func TestStoreSessionIdentityDimensions(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SpaceType: "room", SpaceID: "eng", TopicID: "builds", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"space", "chat", "topic", "sender"}},
+	})
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_identity_dimensions", "", "@support", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	values := s.SessionIdentityDimensions(ctx, sess.ID)
+	if values["space"] != "room:eng" || values["chat"] != "group:thread-7" || values["topic"] != "topic:builds" || values["sender"] != "rui" {
+		t.Fatalf("unexpected session identity dimensions: %#v", values)
+	}
+	if values := s.SessionIdentityDimensions(nil, sess.ID); values["chat"] != "group:thread-7" {
+		t.Fatalf("expected nil-context dimension lookup to succeed, got %#v", values)
+	}
+	if values := s.SessionIdentityDimensions(ctx, " "); len(values) != 0 {
+		t.Fatalf("expected blank-session dimension lookup to fail closed, got %#v", values)
+	}
+}
+
 func TestStoreListSessionIdentities(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

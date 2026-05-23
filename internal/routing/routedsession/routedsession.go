@@ -94,13 +94,9 @@ func InboundContextFromSession(ctx context.Context, st *store.Store, sessionID s
 		inbound.Channel = st.SessionChannel(ctx, sessionID)
 		inbound.Account = st.SessionAccount(ctx, sessionID)
 	}
-	identity := (*store.SessionIdentity)(nil)
+	dimensions := map[string]string{}
 	if st != nil {
-		identity = st.SessionIdentityOrNil(ctx, sessionID)
-	}
-	var scope *gisession.SessionScope
-	if identity != nil {
-		scope = &identity.Scope
+		dimensions = st.SessionIdentityDimensions(ctx, sessionID)
 	}
 	if inbound.Channel == "" {
 		inbound.Channel = "gi"
@@ -108,14 +104,14 @@ func InboundContextFromSession(ctx context.Context, st *store.Store, sessionID s
 	if inbound.Account == "" {
 		inbound.Account = "default"
 	}
-	if strings.TrimSpace(sessionID) == "" || scope == nil || scope.Values == nil {
+	if strings.TrimSpace(sessionID) == "" || len(dimensions) == 0 {
 		if strings.TrimSpace(sessionID) != "" {
 			inbound.ChatType = "direct"
 			inbound.ChatID = sessionID
 		}
 		return inbound
 	}
-	if raw := strings.TrimSpace(scope.Values["space"]); raw != "" {
+	if raw := strings.TrimSpace(dimensions["space"]); raw != "" {
 		parts := strings.SplitN(raw, ":", 2)
 		if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
 			inbound.SpaceType = normalize(parts[0])
@@ -125,7 +121,7 @@ func InboundContextFromSession(ctx context.Context, st *store.Store, sessionID s
 			inbound.SpaceID = normalize(raw)
 		}
 	}
-	if raw := strings.TrimSpace(scope.Values["chat"]); raw != "" {
+	if raw := strings.TrimSpace(dimensions["chat"]); raw != "" {
 		parts := strings.SplitN(raw, ":", 2)
 		if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
 			inbound.ChatType = normalize(parts[0])
@@ -135,7 +131,7 @@ func InboundContextFromSession(ctx context.Context, st *store.Store, sessionID s
 			inbound.ChatID = normalize(raw)
 		}
 	}
-	if raw := strings.TrimSpace(scope.Values["topic"]); raw != "" {
+	if raw := strings.TrimSpace(dimensions["topic"]); raw != "" {
 		parts := strings.SplitN(raw, ":", 2)
 		if len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
 			inbound.TopicID = normalize(parts[1])
