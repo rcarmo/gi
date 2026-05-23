@@ -266,19 +266,21 @@ Status: **implemented**
 
 ### Phase 2 — engine + extension bridge
 
-Status: **partially implemented**
+Status: **implemented for the current canonical slices**
 
-- turn/session broadcast events are now published into the topic bus
+- turn/session broadcast events are published into the topic bus
 - steering lifecycle notices are published under `session.steering`
 - subturn lifecycle notices are published under `turn.subturn`
-- extension lifecycle events are now published into the topic bus
-- existing engine broadcasts remain intact
-- script bridge APIs for publish/subscribe are still pending
+- extension lifecycle events are published into the topic bus
+- script bridge APIs for publish/subscribe/read/unsubscribe are live in both JavaScript and Joker, with session-bound handles and `after_sequence` support
+- existing engine broadcasts remain intact as compatibility/fallback paths where consumers still depend on them
 
 ### Phase 3 — SSE/TUI adapters
 
-- add topic-stream SSE endpoint
-- let TUI optionally subscribe to normalized topics instead of bespoke event maps
+Status: **implemented for the first topic-native consumer set**
+
+- topic-stream SSE endpoint is live at `/sse/topics`
+- TUI subscribes to the canonical topic families for active-session runtime status/transcript updates while retaining legacy fallback paths when no live topic subscription exists
 
 ### Phase 4 — convergence with connectivity
 
