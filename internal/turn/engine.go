@@ -897,7 +897,10 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 	if err != nil {
 		return nil, err
 	}
-	inbound := routedsession.InboundContextFromSession(opCtx, e.store, in.SessionID)
+	inbound, err := routedsession.RequireInboundContextFromSession(opCtx, e.store, in.SessionID)
+	if err != nil {
+		return nil, err
+	}
 	inbound.SenderID = "user"
 	route, promptBody, directed, err := routing.PreparePromptRoutedInput(in.Prompt, inbound, e.routeResolver)
 	if err != nil {
@@ -927,7 +930,10 @@ func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessio
 	if err != nil {
 		return nil, err
 	}
-	inbound := routedsession.InboundContextFromSession(opCtx, e.store, sourceSessionID)
+	inbound, err := routedsession.RequireInboundContextFromSession(opCtx, e.store, sourceSessionID)
+	if err != nil {
+		return nil, err
+	}
 	inbound.SenderID = sourceIdentity.AgentID
 	route := routing.PreparePeerRoutedInput(targetAgentID, "peer-message", content, inbound, e.routeResolver)
 	targetSessionID, created, err := routedsession.ResolveOrCreate(opCtx, e.store, sourceSessionID, route, inbound, routedsession.ResolveOptions{ModelForAgent: e.modelForAgent, DefaultProvider: e.runtimeCfg.DefaultProvider, DefaultThinking: e.runtimeCfg.DefaultThinkingLevel})
@@ -943,7 +949,10 @@ func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSession
 	if err != nil {
 		return "", err
 	}
-	inbound := routedsession.InboundContextFromSession(opCtx, e.store, sourceSessionID)
+	inbound, err := routedsession.RequireInboundContextFromSession(opCtx, e.store, sourceSessionID)
+	if err != nil {
+		return "", err
+	}
 	inbound.SenderID = sourceIdentity.AgentID
 	route := routing.PreparePeerRoutedInput(targetAgentID, "peer-session", "", inbound, e.routeResolver)
 	targetSessionID, _, err := routedsession.ResolveOrCreate(opCtx, e.store, sourceSessionID, route, inbound, routedsession.ResolveOptions{ModelForAgent: e.modelForAgent, DefaultProvider: e.runtimeCfg.DefaultProvider, DefaultThinking: e.runtimeCfg.DefaultThinkingLevel})

@@ -89,19 +89,9 @@ func ResolveOrCreate(ctx context.Context, st *store.Store, sourceSessionID strin
 	return cloned.ID, created, nil
 }
 
-func InboundContextFromSession(ctx context.Context, st *store.Store, sessionID string) routing.InboundContext {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	inbound := routing.InboundContext{}
-	dimensions := map[string]string{}
-	if st != nil {
-		if snapshot, err := st.RequireSessionIdentitySnapshot(ctx, sessionID); err == nil {
-			inbound.Channel = snapshot.Runtime.Channel
-			inbound.Account = snapshot.Runtime.Account
-			dimensions = snapshot.Dimensions
-		}
-	}
+func inboundContextFromIdentitySnapshot(sessionID string, snapshot store.SessionIdentitySnapshot) routing.InboundContext {
+	inbound := routing.InboundContext{Channel: snapshot.Runtime.Channel, Account: snapshot.Runtime.Account}
+	dimensions := snapshot.Dimensions
 	if inbound.Channel == "" {
 		inbound.Channel = "gi"
 	}
@@ -148,6 +138,32 @@ func InboundContextFromSession(ctx context.Context, st *store.Store, sessionID s
 		inbound.ChatID = sessionID
 	}
 	return inbound
+}
+
+func RequireInboundContextFromSession(ctx context.Context, st *store.Store, sessionID string) (routing.InboundContext, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if st == nil {
+		return routing.InboundContext{}, sql.ErrNoRows
+	}
+	snapshot, err := st.RequireSessionIdentitySnapshot(ctx, sessionID)
+	if err != nil {
+		return routing.InboundContext{}, err
+	}
+	return inboundContextFromIdentitySnapshot(sessionID, snapshot), nil
+}
+
+func InboundContextFromSession(ctx context.Context, st *store.Store, sessionID string) routing.InboundContext {
+	if inbound, err := RequireInboundContextFromSession(ctx, st, sessionID); err == nil {
+		return inbound
+	}
+	fallback := routing.InboundContext{Channel: "gi", Account: "default"}
+	if strings.TrimSpace(sessionID) != "" {
+		fallback.ChatType = "direct"
+		fallback.ChatID = sessionID
+	}
+	return fallback
 }
 
 func normalize(v string) string { return strings.ToLower(strings.TrimSpace(v)) }
