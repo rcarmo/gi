@@ -144,9 +144,8 @@ func (s *Store) createSessionWithMetadataAndOpaqueKey(ctx context.Context, id, p
 	if err != nil {
 		return nil, err
 	}
-	scopeJSON, err := marshalJSON(scope)
-	if err != nil {
-		return nil, err
+	if scope == nil {
+		return nil, sql.ErrNoRows
 	}
 	aliasesJSON, err := marshalJSONArray(aliases)
 	if err != nil {
@@ -163,8 +162,8 @@ func (s *Store) createSessionWithMetadataAndOpaqueKey(ctx context.Context, id, p
 	defer tx.Rollback()
 	_, err = tx.ExecContext(ctx, `
 		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
-		values (?, ?, ?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`)
-	`, id, parent, title, stateJSON, scopeJSON, aliasesJSON)
+		values (?, ?, ?, ?, '{}', ?, `+defaultNow+`, `+defaultNow+`)
+	`, id, parent, title, stateJSON, aliasesJSON)
 	if err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
@@ -483,20 +482,6 @@ func unmarshalJSONStringArray(raw string) ([]string, error) {
 		return nil, fmt.Errorf("unmarshal json string array: %w", err)
 	}
 	return out, nil
-}
-
-func unmarshalSessionScope(raw string) (*session.SessionScope, error) {
-	if raw == "" || raw == "{}" {
-		return nil, nil
-	}
-	var out session.SessionScope
-	if err := json.Unmarshal([]byte(raw), &out); err != nil {
-		return nil, fmt.Errorf("unmarshal session scope: %w", err)
-	}
-	if out.Version == 0 {
-		return nil, nil
-	}
-	return &out, nil
 }
 
 func (s *Store) CloneSession(ctx context.Context, sourceSessionID, newID, newTitle, newAgentID string) (*Session, error) {
