@@ -24,17 +24,7 @@ type SessionIdentitySnapshot struct {
 	Dimensions map[string]string
 }
 
-func (s *Store) RequireSessionIdentityDimensions(ctx context.Context, sessionID string) (map[string]string, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	sessionID = strings.TrimSpace(sessionID)
-	if s == nil || sessionID == "" {
-		return nil, sql.ErrNoRows
-	}
-	if _, err := s.RequireSessionIdentityRuntime(ctx, sessionID); err != nil {
-		return nil, err
-	}
+func (s *Store) requireSessionIdentityDimensions(ctx context.Context, sessionID string) (map[string]string, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		select coalesce(dimension_name,''), coalesce(dimension_value,'')
 		from session_identity_dimensions
@@ -62,6 +52,20 @@ func (s *Store) RequireSessionIdentityDimensions(ctx context.Context, sessionID 
 		return nil, err
 	}
 	return values, nil
+}
+
+func (s *Store) RequireSessionIdentityDimensions(ctx context.Context, sessionID string) (map[string]string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if s == nil || sessionID == "" {
+		return nil, sql.ErrNoRows
+	}
+	if _, err := s.RequireSessionIdentityRuntime(ctx, sessionID); err != nil {
+		return nil, err
+	}
+	return s.requireSessionIdentityDimensions(ctx, sessionID)
 }
 
 func normalizeRuntimeIdentityTuple(agentID, channel, account string) (string, string, string) {
@@ -111,7 +115,7 @@ func (s *Store) RequireSessionIdentitySnapshot(ctx context.Context, sessionID st
 	if err != nil {
 		return SessionIdentitySnapshot{}, err
 	}
-	dimensions, err := s.RequireSessionIdentityDimensions(ctx, sessionID)
+	dimensions, err := s.requireSessionIdentityDimensions(ctx, strings.TrimSpace(sessionID))
 	if err != nil {
 		return SessionIdentitySnapshot{}, err
 	}
