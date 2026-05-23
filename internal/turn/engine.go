@@ -1661,10 +1661,18 @@ func (e *Engine) publishRuntimeTopicEvent(topic, sessionID, agentID, envelopeTyp
 	body["type"] = strings.TrimSpace(eventType)
 	topic = strings.TrimSpace(topic)
 	envelopeType = strings.TrimSpace(tools.FirstNonEmpty(envelopeType, "notice"))
+	sessionID = strings.TrimSpace(sessionID)
+	agentID = strings.TrimSpace(agentID)
+	if sessionID != "" {
+		body["session_id"] = sessionID
+	}
+	if agentID != "" {
+		body["agent_id"] = agentID
+	}
 	env := topics.Envelope{
 		Topic:     topic,
-		SessionID: strings.TrimSpace(sessionID),
-		AgentID:   strings.TrimSpace(agentID),
+		SessionID: sessionID,
+		AgentID:   agentID,
 		Source:    "runtime",
 		Type:      envelopeType,
 		Payload:   body,

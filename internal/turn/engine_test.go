@@ -198,11 +198,11 @@ func TestSubmitPromptPublishesQueuedTurnSubmittedTopic(t *testing.T) {
 	for !(seenTurn && seenAggregate) {
 		select {
 		case env := <-turnTopicCh:
-			if env.Payload["type"] == "turn_submitted" && env.Payload["turn_id"] == result.TurnID && env.Payload["status"] == "queued" && env.Payload["phase"] == "queued" && env.Payload["queued"] == true {
+			if env.Payload["type"] == "turn_submitted" && env.Payload["turn_id"] == result.TurnID && env.Payload["status"] == "queued" && env.Payload["phase"] == "queued" && env.Payload["queued"] == true && env.Payload["session_id"] == "session_submit_topic" {
 				seenTurn = true
 			}
 		case env := <-runtimeTopicCh:
-			if env.Payload["type"] == "turn_submitted" && env.Payload["runtime_topic"] == "runtime.turn" && env.Payload["turn_id"] == result.TurnID {
+			if env.Payload["type"] == "turn_submitted" && env.Payload["runtime_topic"] == "runtime.turn" && env.Payload["turn_id"] == result.TurnID && env.Payload["session_id"] == "session_submit_topic" {
 				seenAggregate = true
 			}
 		case <-deadline:
