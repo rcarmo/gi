@@ -24,7 +24,10 @@ func ResolveOrCreate(ctx context.Context, st *store.Store, sourceSessionID strin
 	if strings.TrimSpace(sourceSessionID) == "" {
 		return "", false, fmt.Errorf("missing source session")
 	}
-	sourceIdentity := st.SessionIdentityRuntime(ctx, sourceSessionID)
+	sourceIdentity, err := st.RequireSessionIdentityRuntime(ctx, sourceSessionID)
+	if err != nil {
+		return "", false, err
+	}
 	if routing.NormalizeAgentID(sourceIdentity.AgentID) == routing.NormalizeAgentID(route.AgentID) {
 		return sourceSessionID, false, nil
 	}

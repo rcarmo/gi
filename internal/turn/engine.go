@@ -889,7 +889,8 @@ func (e *Engine) broadcast(sessionID string, ev map[string]any) {
 
 func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitResult, error) {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
-	if err := e.store.RequireSession(opCtx, in.SessionID); err != nil {
+	sourceIdentity, err := e.store.RequireSessionIdentityRuntime(opCtx, in.SessionID)
+	if err != nil {
 		return nil, err
 	}
 	inbound := routedsession.InboundContextFromSession(opCtx, e.store, in.SessionID)
@@ -906,7 +907,6 @@ func (e *Engine) SubmitPromptRouted(ctx context.Context, in RunInput) (*SubmitRe
 		return e.submitPeerRoutedPrompt(opCtx, in.SessionID, targetSessionID, route, promptBody, in.Intent, in.Model, created, directed, in.ParentTurnID, in.Metadata)
 	}
 	sourceSessionID := in.SessionID
-	sourceIdentity := e.store.SessionIdentityRuntime(opCtx, sourceSessionID)
 	in.SessionID = targetSessionID
 	in.Prompt = promptBody
 	in.Metadata = routing.ApplyPromptRouteMetadata(in.Metadata, sourceSessionID, targetSessionID, sourceIdentity.AgentID, route, created)
@@ -919,10 +919,10 @@ func (e *Engine) SubmitPeerMessage(ctx context.Context, sourceSessionID, targetA
 
 func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessionID, targetAgentID, content, intent, model, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
-	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
+	sourceIdentity, err := e.store.RequireSessionIdentityRuntime(opCtx, sourceSessionID)
+	if err != nil {
 		return nil, err
 	}
-	sourceIdentity := e.store.SessionIdentityRuntime(opCtx, sourceSessionID)
 	inbound := routedsession.InboundContextFromSession(opCtx, e.store, sourceSessionID)
 	inbound.SenderID = sourceIdentity.AgentID
 	route := routing.PreparePeerRoutedInput(targetAgentID, "peer-message", content, inbound, e.routeResolver)
@@ -935,10 +935,10 @@ func (e *Engine) submitPeerMessageWithMetadata(ctx context.Context, sourceSessio
 
 func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSessionID, targetAgentID string) (string, error) {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
-	if err := e.store.RequireSession(opCtx, sourceSessionID); err != nil {
+	sourceIdentity, err := e.store.RequireSessionIdentityRuntime(opCtx, sourceSessionID)
+	if err != nil {
 		return "", err
 	}
-	sourceIdentity := e.store.SessionIdentityRuntime(opCtx, sourceSessionID)
 	inbound := routedsession.InboundContextFromSession(opCtx, e.store, sourceSessionID)
 	inbound.SenderID = sourceIdentity.AgentID
 	route := routing.PreparePeerRoutedInput(targetAgentID, "peer-session", "", inbound, e.routeResolver)
