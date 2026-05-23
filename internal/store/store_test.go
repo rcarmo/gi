@@ -355,6 +355,40 @@ func TestStoreSessionIdentityRuntime(t *testing.T) {
 	}
 }
 
+func TestStoreRequireSessionIdentitySnapshot(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SpaceType: "room", SpaceID: "eng", TopicID: "builds", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"space", "chat", "topic", "sender"}},
+	})
+	sess, err := s.CreateSessionWithMetadata(ctx, "session_identity_snapshot", "", "@support", map[string]any{"status": "idle"}, &alloc.Scope, alloc.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	snapshot, err := s.RequireSessionIdentitySnapshot(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("require session identity snapshot: %v", err)
+	}
+	if snapshot.Runtime.AgentID != "support" || snapshot.Runtime.Channel != "slack" || snapshot.Runtime.Account != "workspace" {
+		t.Fatalf("unexpected session identity runtime tuple: %#v", snapshot.Runtime)
+	}
+	if snapshot.Dimensions["space"] != "room:eng" || snapshot.Dimensions["chat"] != "group:thread-7" || snapshot.Dimensions["topic"] != "topic:builds" || snapshot.Dimensions["sender"] != "rui" {
+		t.Fatalf("unexpected session identity snapshot dimensions: %#v", snapshot.Dimensions)
+	}
+	if _, err := s.RequireSessionIdentitySnapshot(ctx, " "); err == nil {
+		t.Fatalf("expected blank-session snapshot lookup to fail")
+	}
+	if _, err := s.RequireSessionIdentitySnapshot(ctx, "missing"); err == nil {
+		t.Fatalf("expected missing-session snapshot lookup to fail")
+	}
+}
+
 func TestStoreRequireSessionIdentityDimensions(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

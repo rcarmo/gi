@@ -19,6 +19,11 @@ type SessionIdentityRuntime struct {
 	CanonicalScopeSignature string
 }
 
+type SessionIdentitySnapshot struct {
+	Runtime    SessionIdentityRuntime
+	Dimensions map[string]string
+}
+
 func (s *Store) RequireSessionIdentityDimensions(ctx context.Context, sessionID string) (map[string]string, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -96,5 +101,17 @@ func (s *Store) sessionIdentityRuntime(ctx context.Context, sessionID string) (S
 
 func (s *Store) RequireSessionIdentityRuntime(ctx context.Context, sessionID string) (SessionIdentityRuntime, error) {
 	return s.sessionIdentityRuntime(ctx, sessionID)
+}
+
+func (s *Store) RequireSessionIdentitySnapshot(ctx context.Context, sessionID string) (SessionIdentitySnapshot, error) {
+	runtime, err := s.RequireSessionIdentityRuntime(ctx, sessionID)
+	if err != nil {
+		return SessionIdentitySnapshot{}, err
+	}
+	dimensions, err := s.RequireSessionIdentityDimensions(ctx, sessionID)
+	if err != nil {
+		return SessionIdentitySnapshot{}, err
+	}
+	return SessionIdentitySnapshot{Runtime: runtime, Dimensions: dimensions}, nil
 }
 
