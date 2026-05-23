@@ -22,9 +22,9 @@ Implemented so far:
 
 Still pending:
 
-- fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices; `runtime.turn` / `runtime.session` now include shared state-hook notices plus explicit setup/queue/hold/terminal checkpoints, with non-duplicated publication semantics and consistent completed-vs-terminal naming, but still do not mirror every stored event row; `runtime.tool` currently covers only started/finished/failed/skipped rather than every approval/hook sub-phase; `runtime.hook` now includes invocation rows plus high-level tool-related decisions but not every hook family-specific semantic summary yet; and `runtime.routing` currently covers persisted decision/incoming notices rather than every route-resolution branch before persistence
+- fuller publication coverage for turn/tool/hook/routing/session lifecycle families beyond the currently bridged/runtime-critical slices; `runtime.turn` / `runtime.session` now include shared state-hook notices plus explicit setup/queue/hold/terminal checkpoints, with non-duplicated publication semantics and consistent completed-vs-terminal naming, but still do not mirror every stored event row; `runtime.tool` currently covers started/finished/failed/skipped rather than every approval/hook sub-phase; `runtime.hook` includes invocation rows plus high-level tool-related decisions but not every hook family-specific semantic summary yet; and `runtime.routing` covers persisted decision/incoming notices rather than every route-resolution branch before persistence
 - broader TUI/topic-native coverage beyond the first adopted runtime/session/steering/subturn families and status paths
-- deeper convergence between connectivity and topics
+- replacing the connectivity registry with the generic topic bus is deferred; the current bridge is engine-lifetime-scoped and preserves event scope/payload shape
 
 ## Goal
 
