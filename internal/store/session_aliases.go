@@ -36,15 +36,19 @@ func upsertSessionAliasesTx(ctx context.Context, tx *sql.Tx, sessionID string, a
 		return fmt.Errorf("clear session aliases: %w", err)
 	}
 	for _, alias := range normalizeSessionAliases(aliases) {
-		if _, err := tx.ExecContext(ctx, `
+		result, err := tx.ExecContext(ctx, `
 			insert into session_aliases (alias, session_id, alias_kind, created_at, updated_at)
 			values (?, ?, 'compat', `+defaultNow+`, `+defaultNow+`)
 			on conflict(alias) do update set
-				session_id = excluded.session_id,
 				alias_kind = excluded.alias_kind,
 				updated_at = `+defaultNow+`
-		`, alias, sessionID); err != nil {
+			where session_aliases.session_id = excluded.session_id
+		`, alias, sessionID)
+		if err != nil {
 			return fmt.Errorf("upsert session alias: %w", err)
+		}
+		if _, err := result.RowsAffected(); err != nil {
+			return fmt.Errorf("upsert session alias rows affected: %w", err)
 		}
 	}
 	return nil
@@ -85,6 +89,16 @@ func (s *Store) UpdateSessionAliases(ctx context.Context, sessionID string, alia
 		return sql.ErrNoRows
 	}
 	aliases = normalizeSessionAliases(aliases)
+	for _, alias := range aliases {
+		var ownerID string
+		err := s.db.QueryRowContext(ctx, `select session_id from session_aliases where alias = ?`, alias).Scan(&ownerID)
+		if err == nil && ownerID != sessionID {
+			return fmt.Errorf("session alias %q already belongs to another session", alias)
+		}
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("check session alias owner: %w", err)
+		}
+	}
 	aliasesJSON, err := marshalJSONArray(aliases)
 	if err != nil {
 		return err

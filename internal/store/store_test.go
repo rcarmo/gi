@@ -568,6 +568,34 @@ func TestStoreAliasManagementAPIs(t *testing.T) {
 	}
 }
 
+func TestStoreAliasManagementRejectsCrossSessionAliasSteal(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	allocA := gisession.AllocateDefaultSession("agent", "gi", "default", "session_alias_owner_a")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_alias_owner_a", "", "@agent", map[string]any{"status": "idle"}, &allocA.Scope, allocA.SessionAliases); err != nil {
+		t.Fatalf("create session a: %v", err)
+	}
+	allocB := gisession.AllocateDefaultSession("agent", "gi", "default", "session_alias_owner_b")
+	sessB, err := s.CreateSessionWithMetadata(ctx, "session_alias_owner_b", "", "@agent", map[string]any{"status": "idle"}, &allocB.Scope, allocB.SessionAliases)
+	if err != nil {
+		t.Fatalf("create session b: %v", err)
+	}
+	if err := s.UpdateSessionAliases(ctx, sessB.ID, append(allocB.SessionAliases, strings.ToUpper(allocA.SessionAliases[0]))); err == nil {
+		t.Fatalf("expected updating session b with session a alias to fail")
+	}
+	resolvedID, err := s.ResolveSessionIDByAlias(ctx, allocA.SessionAliases[0])
+	if err != nil {
+		t.Fatalf("resolve original owner alias: %v", err)
+	}
+	if resolvedID != "session_alias_owner_a" {
+		t.Fatalf("alias owner changed to %q", resolvedID)
+	}
+}
+
 func TestStoreResolveOrCreateSessionFromAllocationPreservesExplicitSessionKey(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
