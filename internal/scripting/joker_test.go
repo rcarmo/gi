@@ -97,6 +97,59 @@ func TestExecuteEmbeddedJokerSupportsSessionStateAndMetadata(t *testing.T) {
 	}
 }
 
+func TestExecuteEmbeddedJokerExposesGiNamespaces(t *testing.T) {
+	state := map[string]any{"initialized": true}
+	var published map[string]any
+	bridge := NewBridge("joker-session", BridgeFuncs{
+		GetSessionState: func(ctx context.Context) (map[string]any, error) {
+			return state, nil
+		},
+		SetSessionState: func(ctx context.Context, patch map[string]any) error {
+			for k, v := range patch {
+				state[k] = v
+			}
+			return nil
+		},
+		GetSessionInfo: func(ctx context.Context) (map[string]any, error) {
+			return map[string]any{"session": map[string]any{"id": "joker-session"}}, nil
+		},
+		GetConfig: func(ctx context.Context) (map[string]any, error) {
+			return map[string]any{"default_model": "joker-model"}, nil
+		},
+		ListMessages: func(ctx context.Context, limit int) ([]map[string]any, error) {
+			return []map[string]any{{"id": "m1"}}, nil
+		},
+		ListTurns: func(ctx context.Context, limit int) ([]map[string]any, error) {
+			return []map[string]any{{"id": "t1"}}, nil
+		},
+		PublishTopic: func(ctx context.Context, envelope map[string]any) error {
+			published = envelope
+			return nil
+		},
+	})
+	out, err := ExecuteEmbeddedJoker(context.Background(), `
+		(do
+			(gi.state/set! {:namespace_ready true})
+			(gi.topics/publish {:topic "runtime.namespace" :payload {:ok true} :type "notice" :source "script"})
+			(str (:namespace_ready (gi.state/session-state)) ":"
+				(:id (:session (gi.state/info))) ":"
+				(:default_model (gi.state/config)) ":"
+				(count (gi.state/messages)) ":"
+				(count (gi.state/turns))))`, bridge)
+	if err != nil {
+		t.Fatalf("joker execute returned error: %v", err)
+	}
+	if out != "true:joker-session:joker-model:1:1" {
+		t.Fatalf("unexpected output: %q", out)
+	}
+	if state["namespace_ready"] != true {
+		t.Fatalf("expected namespace_ready=true, got %#v", state["namespace_ready"])
+	}
+	if published["topic"] != "runtime.namespace" {
+		t.Fatalf("unexpected published envelope: %#v", published)
+	}
+}
+
 func TestExecuteEmbeddedJokerSupportsListMessages(t *testing.T) {
 	bridge := NewBridge("joker-session", BridgeFuncs{
 		ListMessages: func(ctx context.Context, limit int) ([]map[string]any, error) {
