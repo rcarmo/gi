@@ -379,6 +379,13 @@ The current routing/session allocation stack assumes:
 - default/main-session flows can prefer a stored main session for the `(agent, channel, account)` tuple instead of relying only on recency
 - explicit cross-channel continuation can reuse an existing session via `ContinueSessionID`, after which future allocations on that bound inbound surface may resolve back through `session_channel_bindings`
 
+Current explicit-vs-automatic linking policy:
+
+- **explicit linking** means a caller supplies an existing `ContinueSessionID` or a store-backed binding already exists for the inbound channel/account/chat identity; the runtime may then attach/reuse that binding for the same logical session.
+- **automatic linking** means the runtime would decide that an unrelated channel/account/chat identity should join an existing session without an explicit continuation or existing binding. That is intentionally not implemented.
+- `identity_links` only canonicalize identities inside a routed allocation scope; they do not authorize cross-channel merges by themselves.
+- outbound selection remains source-channel/default-surface oriented. The runtime must not automatically fan out a response to every bound channel until a separate outbound policy exists.
+
 What routing does **not** assume yet:
 
 - automatic cross-channel linking between unrelated inbound identities
