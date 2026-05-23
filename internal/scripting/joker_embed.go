@@ -36,7 +36,13 @@ import (
 	"github.com/rcarmo/gi/internal/connectivity"
 )
 
-var embeddedJokerMu sync.Mutex
+var (
+	embeddedJokerMu         sync.Mutex
+	embeddedJokerProgramMu sync.Mutex
+	embeddedJokerPrograms  = make(map[string][]core.Expr)
+)
+
+const maxEmbeddedJokerPrograms = 128
 
 // ExecuteEmbeddedJoker runs a Joker script in-process and applies any
 // controlled session-state mutations back through the live bridge.
@@ -59,9 +65,8 @@ func ExecuteEmbeddedJoker(ctx context.Context, script string, bridge *Bridge) (s
 	installJokerBridgeProcedures(ctx, bridge)
 
 	fullScript := buildEmbeddedPreamble(bridgeJSON) + "\n(println (json/write-string {\"result\" (do\n" + script + "\n) \"session_state\" @*gi-session-state*}))"
-	r := core.NewReader(bufio.NewReader(strings.NewReader(fullScript)), "<gi-joker>")
 
-	if err := runEmbeddedJokerReader(r); err != nil {
+	if err := runEmbeddedJokerScript(fullScript); err != nil {
 		if stderr.Len() > 0 {
 			return "", fmt.Errorf("joker: %s", strings.TrimSpace(stderr.String()))
 		}
@@ -92,7 +97,7 @@ func ExecuteEmbeddedJoker(ctx context.Context, script string, bridge *Bridge) (s
 	return stringifyScriptResult(payload.Result), nil
 }
 
-func runEmbeddedJokerReader(reader *core.Reader) (err error) {
+func runEmbeddedJokerScript(script string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch v := r.(type) {
@@ -104,11 +109,29 @@ func runEmbeddedJokerReader(reader *core.Reader) (err error) {
 		}
 	}()
 
+	embeddedJokerProgramMu.Lock()
+	cached := embeddedJokerPrograms[script]
+	embeddedJokerProgramMu.Unlock()
+	if cached != nil {
+		for _, expr := range cached {
+			if _, evalErr := core.TryEval(expr); evalErr != nil {
+				return evalErr
+			}
+		}
+		return nil
+	}
+	return runAndCacheEmbeddedJokerProgram(script)
+}
+
+func runAndCacheEmbeddedJokerProgram(script string) error {
+	reader := core.NewReader(bufio.NewReader(strings.NewReader(script)), "<gi-joker>")
 	parseContext := &core.ParseContext{GlobalEnv: core.GLOBAL_ENV}
+	exprs := make([]core.Expr, 0, 8)
 	for {
 		obj, readErr := core.TryRead(reader)
 		if readErr != nil {
 			if readErr == io.EOF {
+				cacheEmbeddedJokerProgram(script, exprs)
 				return nil
 			}
 			return readErr
@@ -117,10 +140,23 @@ func runEmbeddedJokerReader(reader *core.Reader) (err error) {
 		if parseErr != nil {
 			return parseErr
 		}
+		exprs = append(exprs, expr)
 		if _, evalErr := core.TryEval(expr); evalErr != nil {
 			return evalErr
 		}
 	}
+}
+
+func cacheEmbeddedJokerProgram(script string, exprs []core.Expr) {
+	embeddedJokerProgramMu.Lock()
+	defer embeddedJokerProgramMu.Unlock()
+	if len(embeddedJokerPrograms) >= maxEmbeddedJokerPrograms {
+		for key := range embeddedJokerPrograms {
+			delete(embeddedJokerPrograms, key)
+			break
+		}
+	}
+	embeddedJokerPrograms[script] = exprs
 }
 
 func diffMap(before, after map[string]any) map[string]any {

@@ -3,6 +3,8 @@ package scripting
 import (
 	"context"
 	"testing"
+
+	core "github.com/candid82/joker/core"
 )
 
 func TestExecuteEmbeddedJoker(t *testing.T) {
@@ -13,6 +15,28 @@ func TestExecuteEmbeddedJoker(t *testing.T) {
 	}
 	if out != "42" {
 		t.Fatalf("expected 42, got %q", out)
+	}
+}
+
+func TestExecuteEmbeddedJokerCachesParsedProgram(t *testing.T) {
+	embeddedJokerProgramMu.Lock()
+	embeddedJokerPrograms = make(map[string][]core.Expr)
+	embeddedJokerProgramMu.Unlock()
+	bridge := NewBridge("cache-session", BridgeFuncs{})
+	for i := 0; i < 2; i++ {
+		out, err := ExecuteEmbeddedJoker(context.Background(), `(+ 1 2)`, bridge)
+		if err != nil {
+			t.Fatalf("ExecuteEmbeddedJoker run %d returned error: %v", i, err)
+		}
+		if out != "3" {
+			t.Fatalf("run %d expected 3, got %q", i, out)
+		}
+	}
+	embeddedJokerProgramMu.Lock()
+	cacheSize := len(embeddedJokerPrograms)
+	embeddedJokerProgramMu.Unlock()
+	if cacheSize != 1 {
+		t.Fatalf("expected one cached parsed program, got %d", cacheSize)
 	}
 }
 
