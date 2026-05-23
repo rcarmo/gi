@@ -7879,6 +7879,37 @@ func TestPublishRuntimeToolEventPreservesCanonicalFields(t *testing.T) {
 	}
 }
 
+func TestPublishRuntimeDispatcherEventPublishesRuntimeAndAggregateTopics(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	engine := New(s)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.dispatcher", topics.SubscribeOptions{Buffer: 8})
+	defer unsub()
+	aggregateCh, unsubAggregate := engine.Topics().Subscribe(ctx, "runtime", topics.SubscribeOptions{Buffer: 8})
+	defer unsubAggregate()
+
+	engine.PublishRuntimeDispatcherEvent("dispatcher_lease_acquired", map[string]any{"worker_id": "worker-1"})
+
+	select {
+	case env := <-ch:
+		if env.Topic != "runtime.dispatcher" || env.Payload["type"] != "dispatcher_lease_acquired" || env.Payload["worker_id"] != "worker-1" {
+			t.Fatalf("unexpected runtime.dispatcher topic: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected runtime.dispatcher topic event")
+	}
+	select {
+	case env := <-aggregateCh:
+		if env.Topic != "runtime" || env.Payload["runtime_topic"] != "runtime.dispatcher" || env.Payload["type"] != "dispatcher_lease_acquired" || env.Payload["worker_id"] != "worker-1" {
+			t.Fatalf("unexpected aggregate runtime.dispatcher topic: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected aggregate runtime.dispatcher topic event")
+	}
+}
+
 func TestPublishRuntimeInboundWorkEventPreservesCanonicalFields(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
