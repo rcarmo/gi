@@ -49,11 +49,9 @@ func (s *Store) ResolveOrCreateSessionFromAllocation(ctx context.Context, in Res
 	return nil, false, err
 }
 
-func sessionMatchesAllocationScope(identity *SessionIdentity, scope gisession.SessionScope) bool {
-	if identity == nil {
-		return false
-	}
-	return strings.TrimSpace(identity.CanonicalScopeSignature) != "" && identity.CanonicalScopeSignature == gisession.CanonicalScopeSignature(scope)
+func sessionMatchesAllocationScope(signature string, scope gisession.SessionScope) bool {
+	signature = strings.TrimSpace(signature)
+	return signature != "" && signature == gisession.CanonicalScopeSignature(scope)
 }
 
 func (s *Store) findSessionIDByAllocation(ctx context.Context, alloc gisession.Allocation) (string, error) {
@@ -75,12 +73,8 @@ func (s *Store) findSessionIDByAllocation(ctx context.Context, alloc gisession.A
 	for _, alias := range alloc.SessionAliases {
 		sessionID, err := s.ResolveSessionIDByAlias(ctx, alias)
 		if err == nil {
-			identity, identityErr := s.GetSessionIdentity(ctx, sessionID)
-			if identityErr == nil && sessionMatchesAllocationScope(identity, alloc.Scope) {
+			if sessionMatchesAllocationScope(s.SessionCanonicalScopeSignature(ctx, sessionID), alloc.Scope) {
 				return sessionID, nil
-			}
-			if identityErr != nil && !errors.Is(identityErr, sql.ErrNoRows) {
-				return "", identityErr
 			}
 			continue
 		}

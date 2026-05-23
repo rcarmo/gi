@@ -59,6 +59,26 @@ func (s *Store) SessionAgentID(ctx context.Context, sessionID string) string {
 	return agentID
 }
 
+func (s *Store) SessionCanonicalScopeSignature(ctx context.Context, sessionID string) string {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if s == nil || sessionID == "" {
+		return ""
+	}
+	row := s.db.QueryRowContext(ctx, `
+		select coalesce(canonical_scope_signature,'')
+		from session_identities
+		where session_id = ?
+	`, sessionID)
+	var signature string
+	if err := row.Scan(&signature); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(signature)
+}
+
 func (s *Store) SessionChannel(ctx context.Context, sessionID string) string {
 	_, channel, _ := s.sessionIdentityTupleOrDefaults(ctx, sessionID)
 	return channel
