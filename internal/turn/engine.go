@@ -1659,14 +1659,22 @@ func (e *Engine) publishRuntimeTopicEvent(topic, sessionID, agentID, envelopeTyp
 		body = map[string]any{}
 	}
 	body["type"] = strings.TrimSpace(eventType)
-	e.publishTopicEvent(topics.Envelope{
-		Topic:     strings.TrimSpace(topic),
+	topic = strings.TrimSpace(topic)
+	envelopeType = strings.TrimSpace(tools.FirstNonEmpty(envelopeType, "notice"))
+	env := topics.Envelope{
+		Topic:     topic,
 		SessionID: strings.TrimSpace(sessionID),
 		AgentID:   strings.TrimSpace(agentID),
 		Source:    "runtime",
-		Type:      strings.TrimSpace(tools.FirstNonEmpty(envelopeType, "notice")),
+		Type:      envelopeType,
 		Payload:   body,
-	})
+	}
+	e.publishTopicEvent(env)
+	if topic != "runtime" {
+		aggregatePayload := cloneMap(body)
+		aggregatePayload["runtime_topic"] = topic
+		e.publishTopicEvent(topics.Envelope{Topic: "runtime", SessionID: env.SessionID, AgentID: env.AgentID, Source: env.Source, Type: env.Type, Payload: aggregatePayload})
+	}
 }
 
 func cloneMap(in map[string]any) map[string]any {

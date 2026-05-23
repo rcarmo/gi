@@ -183,6 +183,8 @@ func TestSubmitPromptPublishesQueuedTurnSubmittedTopic(t *testing.T) {
 	}
 	turnTopicCh, unsub := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 16, SessionID: "session_submit_topic"})
 	defer unsub()
+	runtimeTopicCh, unsubRuntime := engine.Topics().Subscribe(ctx, "runtime", topics.SubscribeOptions{Buffer: 16, SessionID: "session_submit_topic"})
+	defer unsubRuntime()
 	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_submit_topic", Prompt: "second", Model: "bootstrap"})
 	if err != nil {
 		t.Fatalf("submit queued prompt: %v", err)
@@ -191,14 +193,20 @@ func TestSubmitPromptPublishesQueuedTurnSubmittedTopic(t *testing.T) {
 		t.Fatalf("expected queued submit result, got %#v", result)
 	}
 	deadline := time.After(2 * time.Second)
-	for {
+	seenTurn := false
+	seenAggregate := false
+	for !(seenTurn && seenAggregate) {
 		select {
 		case env := <-turnTopicCh:
 			if env.Payload["type"] == "turn_submitted" && env.Payload["turn_id"] == result.TurnID && env.Payload["status"] == "queued" && env.Payload["phase"] == "queued" && env.Payload["queued"] == true {
-				return
+				seenTurn = true
+			}
+		case env := <-runtimeTopicCh:
+			if env.Payload["type"] == "turn_submitted" && env.Payload["runtime_topic"] == "runtime.turn" && env.Payload["turn_id"] == result.TurnID {
+				seenAggregate = true
 			}
 		case <-deadline:
-			t.Fatal("expected queued submit to publish turn_submitted runtime topic")
+			t.Fatalf("expected queued submit to publish both runtime.turn and aggregate runtime topics, seenTurn=%v seenAggregate=%v", seenTurn, seenAggregate)
 		}
 	}
 }
