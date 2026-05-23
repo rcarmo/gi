@@ -313,6 +313,7 @@ This gives us:
 Implemented so far:
 
 - session-scoped durable steering rows in `steering_queue`
+- steering uses SQLite as the ordering-critical queue; there is no in-memory fast path for enqueue/dequeue decisions because same-session serialization, crash recovery, and continuation ordering must share one durable source of truth
 - dequeue modes `one-at-a-time` and `all`
 - same-session busy submits now steer the active turn instead of immediately creating competing queued turns
 - steering polling at loop start, after each tool, after direct LLM responses, and at a final pre-finalization checkpoint
