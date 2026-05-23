@@ -19,13 +19,13 @@ type SessionIdentityRuntime struct {
 	CanonicalScopeSignature string
 }
 
-func (s *Store) SessionIdentityDimensions(ctx context.Context, sessionID string) map[string]string {
+func (s *Store) RequireSessionIdentityDimensions(ctx context.Context, sessionID string) (map[string]string, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	sessionID = strings.TrimSpace(sessionID)
 	if s == nil || sessionID == "" {
-		return map[string]string{}
+		return nil, sql.ErrNoRows
 	}
 	rows, err := s.db.QueryContext(ctx, `
 		select coalesce(dimension_name,''), coalesce(dimension_value,'')
@@ -34,14 +34,14 @@ func (s *Store) SessionIdentityDimensions(ctx context.Context, sessionID string)
 		order by ordinal asc
 	`, sessionID)
 	if err != nil {
-		return map[string]string{}
+		return nil, err
 	}
 	defer rows.Close()
 	values := map[string]string{}
 	for rows.Next() {
 		var name, value string
 		if err := rows.Scan(&name, &value); err != nil {
-			return map[string]string{}
+			return nil, err
 		}
 		name = strings.TrimSpace(strings.ToLower(name))
 		value = strings.TrimSpace(strings.ToLower(value))
@@ -51,9 +51,9 @@ func (s *Store) SessionIdentityDimensions(ctx context.Context, sessionID string)
 		values[name] = value
 	}
 	if err := rows.Err(); err != nil {
-		return map[string]string{}
+		return nil, err
 	}
-	return values
+	return values, nil
 }
 
 func normalizeRuntimeIdentityTuple(agentID, channel, account string) (string, string, string) {

@@ -355,7 +355,7 @@ func TestStoreSessionIdentityRuntime(t *testing.T) {
 	}
 }
 
-func TestStoreSessionIdentityDimensions(t *testing.T) {
+func TestStoreRequireSessionIdentityDimensions(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("open store: %v", err)
@@ -371,15 +371,18 @@ func TestStoreSessionIdentityDimensions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	values := s.SessionIdentityDimensions(ctx, sess.ID)
+	values, err := s.RequireSessionIdentityDimensions(ctx, sess.ID)
+	if err != nil {
+		t.Fatalf("require session identity dimensions: %v", err)
+	}
 	if values["space"] != "room:eng" || values["chat"] != "group:thread-7" || values["topic"] != "topic:builds" || values["sender"] != "rui" {
 		t.Fatalf("unexpected session identity dimensions: %#v", values)
 	}
-	if values := s.SessionIdentityDimensions(nil, sess.ID); values["chat"] != "group:thread-7" {
-		t.Fatalf("expected nil-context dimension lookup to succeed, got %#v", values)
+	if values, err := s.RequireSessionIdentityDimensions(nil, sess.ID); err != nil || values["chat"] != "group:thread-7" {
+		t.Fatalf("expected nil-context dimension lookup to succeed, got %#v err=%v", values, err)
 	}
-	if values := s.SessionIdentityDimensions(ctx, " "); len(values) != 0 {
-		t.Fatalf("expected blank-session dimension lookup to fail closed, got %#v", values)
+	if _, err := s.RequireSessionIdentityDimensions(ctx, " "); err == nil {
+		t.Fatalf("expected blank-session dimension lookup to fail")
 	}
 }
 

@@ -100,7 +100,9 @@ func InboundContextFromSession(ctx context.Context, st *store.Store, sessionID s
 			inbound.Channel = identity.Channel
 			inbound.Account = identity.Account
 		}
-		dimensions = st.SessionIdentityDimensions(ctx, sessionID)
+		if values, err := st.RequireSessionIdentityDimensions(ctx, sessionID); err == nil {
+			dimensions = values
+		}
 	}
 	if inbound.Channel == "" {
 		inbound.Channel = "gi"
