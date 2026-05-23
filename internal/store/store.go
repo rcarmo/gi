@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -176,15 +177,35 @@ func (s *Store) createSessionWithMetadataAndOpaqueKey(ctx context.Context, id, p
 	return s.GetSession(ctx, id)
 }
 
+func (s *Store) scopeFromIdentitySnapshot(snapshot SessionIdentitySnapshot) *session.SessionScope {
+	dimensions := make([]string, 0, len(snapshot.Dimensions))
+	for k := range snapshot.Dimensions {
+		dimensions = append(dimensions, k)
+	}
+	sort.Strings(dimensions)
+	values := map[string]string{}
+	for _, k := range dimensions {
+		values[k] = snapshot.Dimensions[k]
+	}
+	return &session.SessionScope{
+		Version:    session.ScopeVersionV1,
+		AgentID:    snapshot.Runtime.AgentID,
+		Channel:    snapshot.Runtime.Channel,
+		Account:    snapshot.Runtime.Account,
+		Dimensions: dimensions,
+		Values:     values,
+	}
+}
+
 func (s *Store) GetSession(ctx context.Context, id string) (*Session, error) {
 	row := s.db.QueryRowContext(ctx, `
-		select id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at
+		select id, parent_session_id, title, state_json, aliases_json, created_at, updated_at
 		from sessions where id = ?
 	`, id)
 	var out Session
 	var parent sql.NullString
-	var stateJSON, scopeJSON, aliasesJSON string
-	if err := row.Scan(&out.ID, &parent, &out.Title, &stateJSON, &scopeJSON, &aliasesJSON, &out.CreatedAt, &out.UpdatedAt); err != nil {
+	var stateJSON, aliasesJSON string
+	if err := row.Scan(&out.ID, &parent, &out.Title, &stateJSON, &aliasesJSON, &out.CreatedAt, &out.UpdatedAt); err != nil {
 		return nil, err
 	}
 	if parent.Valid {
@@ -195,10 +216,11 @@ func (s *Store) GetSession(ctx context.Context, id string) (*Session, error) {
 		return nil, err
 	}
 	out.State = state
-	out.Scope, err = unmarshalSessionScope(scopeJSON)
+	snapshot, err := s.RequireSessionIdentitySnapshot(ctx, out.ID)
 	if err != nil {
 		return nil, err
 	}
+	out.Scope = s.scopeFromIdentitySnapshot(snapshot)
 	out.Aliases, err = unmarshalJSONStringArray(aliasesJSON)
 	if err != nil {
 		return nil, err
@@ -208,7 +230,7 @@ func (s *Store) GetSession(ctx context.Context, id string) (*Session, error) {
 
 func (s *Store) ListSessions(ctx context.Context) ([]Session, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		select id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at
+		select id, parent_session_id, title, state_json, aliases_json, created_at, updated_at
 		from sessions
 		order by updated_at desc, created_at desc
 	`)
@@ -220,8 +242,8 @@ func (s *Store) ListSessions(ctx context.Context) ([]Session, error) {
 	for rows.Next() {
 		var item Session
 		var parent sql.NullString
-		var stateJSON, scopeJSON, aliasesJSON string
-		if err := rows.Scan(&item.ID, &parent, &item.Title, &stateJSON, &scopeJSON, &aliasesJSON, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		var stateJSON, aliasesJSON string
+		if err := rows.Scan(&item.ID, &parent, &item.Title, &stateJSON, &aliasesJSON, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		if parent.Valid {
@@ -231,10 +253,11 @@ func (s *Store) ListSessions(ctx context.Context) ([]Session, error) {
 		if err != nil {
 			return nil, err
 		}
-		item.Scope, err = unmarshalSessionScope(scopeJSON)
+		snapshot, err := s.RequireSessionIdentitySnapshot(ctx, item.ID)
 		if err != nil {
 			return nil, err
 		}
+		item.Scope = s.scopeFromIdentitySnapshot(snapshot)
 		item.Aliases, err = unmarshalJSONStringArray(aliasesJSON)
 		if err != nil {
 			return nil, err

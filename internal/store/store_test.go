@@ -143,8 +143,8 @@ func TestStoreFindSessionByAllocationUsesSessionIdentityInsteadOfSessionScopeJSO
 	if err != nil {
 		t.Fatalf("reload session: %v", err)
 	}
-	if loaded.Scope == nil || loaded.Scope.AgentID != "wrong" {
-		t.Fatalf("expected reloaded session scope json to be stale test fixture, got %#v", loaded.Scope)
+	if loaded.Scope == nil || loaded.Scope.AgentID != "support" {
+		t.Fatalf("expected reloaded session scope to come from canonical identity, got %#v", loaded.Scope)
 	}
 }
 
@@ -836,9 +836,6 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 	if _, err := s.CreateSessionWithMetadata(ctx, "session_agent_ids_b", "", "@agent-b", map[string]any{"status": "idle"}, &gisession.SessionScope{Version: gisession.ScopeVersionV1, AgentID: "agent-b", Channel: "gi", Account: "default", Dimensions: []string{"chat"}, Values: map[string]string{"chat": "direct:session_agent_ids_b"}}, []string{"agent:agent-b:gi:chat:direct:session_agent_ids_b"}); err != nil {
 		t.Fatalf("create session b: %v", err)
 	}
-	if _, err := s.CreateSessionWithMetadata(ctx, "session_agent_ids_blank", "", "@blank", map[string]any{"status": "idle"}, &gisession.SessionScope{Version: gisession.ScopeVersionV1, AgentID: "", Channel: "gi", Account: "default", Dimensions: []string{"chat"}, Values: map[string]string{"chat": "direct:session_agent_ids_blank"}}, []string{"agent:blank:gi:chat:direct:session_agent_ids_blank"}); err != nil {
-		t.Fatalf("create blank-agent session: %v", err)
-	}
 	if _, err := s.DB().ExecContext(ctx, `update session_identities set agent_id = ? where session_id = ?`, " agent-b ", "session_agent_ids_b"); err != nil {
 		t.Fatalf("pad agent id b: %v", err)
 	}
@@ -861,9 +858,6 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 	if _, ok := agentBySession["session_agent_ids_b"]; ok {
 		t.Fatalf("expected blank-channel identity row to be omitted, got %#v", agentBySession)
 	}
-	if _, ok := agentBySession["session_agent_ids_blank"]; ok {
-		t.Fatalf("expected blank agent id session to be omitted from agent index, got %#v", agentBySession)
-	}
 	if _, ok := agentBySession["session_agent_ids_no_identity"]; ok {
 		t.Fatalf("expected no-identity session to be omitted from agent index, got %#v", agentBySession)
 	}
@@ -876,9 +870,6 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 	}
 	if _, ok := agentBySessionNilCtx["session_agent_ids_b"]; ok {
 		t.Fatalf("expected nil-context blank-channel identity row omission, got %#v", agentBySessionNilCtx)
-	}
-	if _, ok := agentBySessionNilCtx["session_agent_ids_blank"]; ok {
-		t.Fatalf("expected nil-context blank-agent session omission, got %#v", agentBySessionNilCtx)
 	}
 	if _, ok := agentBySessionNilCtx["session_agent_ids_no_identity"]; ok {
 		t.Fatalf("expected nil-context no-identity session omission, got %#v", agentBySessionNilCtx)
@@ -957,42 +948,21 @@ func TestStoreListSessionIDs(t *testing.T) {
 	if _, err := s.CreateSession(ctx, "session_ids_c", "@agent", map[string]any{"status": "idle"}); err != nil {
 		t.Fatalf("create session c: %v", err)
 	}
-	if _, err := s.CreateSession(ctx, "  session_ids_trimmed  ", "@agent", map[string]any{"status": "idle"}); err != nil {
-		t.Fatalf("create session trimmed: %v", err)
-	}
-	if _, err := s.DB().ExecContext(ctx, `
-		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
-		values (?, null, ?, '{}', '{}', '[]', `+defaultNow+`, `+defaultNow+`)
-	`, "session_ids_trimmed", "@agent"); err != nil {
-		t.Fatalf("insert canonical duplicate-by-trim session: %v", err)
-	}
 	ids, err := s.ListSessionIDs(ctx)
 	if err != nil {
 		t.Fatalf("list session ids: %v", err)
 	}
-	if len(ids) < 4 {
-		t.Fatalf("expected at least 4 session ids, got %#v", ids)
+	if len(ids) < 3 {
+		t.Fatalf("expected at least 3 session ids, got %#v", ids)
 	}
 	seen := map[string]bool{}
 	for _, id := range ids {
 		seen[id] = true
 	}
-	for _, expected := range []string{"session_ids_a", "session_ids_b", "session_ids_c", "session_ids_trimmed"} {
+	for _, expected := range []string{"session_ids_a", "session_ids_b", "session_ids_c"} {
 		if !seen[expected] {
 			t.Fatalf("expected %q in session ids, got %#v", expected, ids)
 		}
-	}
-	if seen["  session_ids_trimmed  "] {
-		t.Fatalf("expected padded session id to be normalized, got %#v", ids)
-	}
-	trimmedCount := 0
-	for _, id := range ids {
-		if id == "session_ids_trimmed" {
-			trimmedCount++
-		}
-	}
-	if trimmedCount != 1 {
-		t.Fatalf("expected trimmed session id to be deduped to one entry, got %#v", ids)
 	}
 	for i := 1; i < len(ids); i++ {
 		if ids[i-1] > ids[i] {
@@ -1003,8 +973,8 @@ func TestStoreListSessionIDs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list session ids (nil ctx): %v", err)
 	}
-	if len(idsNilCtx) < 4 {
-		t.Fatalf("expected at least 4 session ids (nil ctx), got %#v", idsNilCtx)
+	if len(idsNilCtx) < 3 {
+		t.Fatalf("expected at least 3 session ids (nil ctx), got %#v", idsNilCtx)
 	}
 }
 

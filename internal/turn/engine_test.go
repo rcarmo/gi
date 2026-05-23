@@ -5548,8 +5548,8 @@ func TestInboundContextFromSessionUsesStoredIdentityInsteadOfSessionScopeJSON(t 
 	if err != nil {
 		t.Fatalf("reload session: %v", err)
 	}
-	if staleSess.Scope == nil || staleSess.Scope.Channel != "email" {
-		t.Fatalf("expected stale session scope fixture, got %#v", staleSess.Scope)
+	if staleSess.Scope == nil || staleSess.Scope.Channel != "slack" {
+		t.Fatalf("expected canonical identity-backed session scope, got %#v", staleSess.Scope)
 	}
 	inbound, err := routedsession.RequireInboundContextFromSession(ctx, s, staleSess.ID)
 	if err != nil {
