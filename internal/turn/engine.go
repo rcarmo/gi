@@ -4835,7 +4835,7 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 func (r *sessionRunner) resolveTurnAgentAndModel(ctx context.Context, s *store.Store, turnRec *store.Turn, sessionID, prompt string) (string, string) {
 	opCtx := store.CoordinationContext(ctx, r.engine.backgroundContext())
 	model := internalx.StringValue(turnRec.Metadata["model"], "bootstrap")
-	agentID := s.SessionAgentID(opCtx, sessionID)
+	agentID := s.SessionIdentityRuntime(opCtx, sessionID).AgentID
 	agentModel := r.engine.modelForAgent(agentID)
 	if strings.TrimSpace(model) == "" {
 		model = agentModel
