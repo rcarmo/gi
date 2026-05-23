@@ -2,6 +2,7 @@ package inference
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -20,6 +21,9 @@ func TestInitRegistersOpenCodeZenModel(t *testing.T) {
 }
 
 func TestStreamWithToolsOpenCodeZenSmoke(t *testing.T) {
+	if os.Getenv("GI_RUN_LIVE_INFERENCE_SMOKE") == "" {
+		t.Skip("set GI_RUN_LIVE_INFERENCE_SMOKE=1 to run live provider smoke tests")
+	}
 	res, err := StreamWithTools(context.Background(), "opencode-zen/minimax-m2.5-free", &goai.Context{Messages: []goai.Message{goai.UserMessage("Say hello in one word.")}}, nil)
 	if err != nil {
 		t.Fatal(err)

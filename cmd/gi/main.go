@@ -20,6 +20,7 @@ import (
 
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/store"
+	storecache "github.com/rcarmo/gi/internal/store/cache"
 	gitui "github.com/rcarmo/gi/internal/tui"
 	"github.com/rcarmo/gi/internal/turn"
 	giweb "github.com/rcarmo/gi/internal/web"
@@ -155,10 +156,10 @@ func main() {
 func acmeCacheFor(value string, s *store.Store) (autocert.Cache, string, error) {
 	value = strings.TrimSpace(value)
 	if value == "" || strings.EqualFold(value, "sqlite") || strings.EqualFold(value, "kv") {
-		return store.NewACMESQLiteCache(s), "sqlite:kv_store/acme/autocert", nil
+		return storecache.NewSQLiteCache(s), "sqlite:kv_store/acme/autocert", nil
 	}
 	if strings.EqualFold(value, "vfs") {
-		return store.NewACMEVFSCache(s), "sqlite:vfs_files/acme-autocert", nil
+		return storecache.NewVFSCache(s), "sqlite:vfs_files/acme-autocert", nil
 	}
 	return autocert.DirCache(value), value, nil
 }
