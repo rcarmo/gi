@@ -176,7 +176,7 @@ gi.topics.publish({
   payload: { text: "Index refresh complete" }
 })
 
-const sub = gi.topics.subscribe("turn.*", { session_id: gi.sessionId, buffer: 32 })
+const sub = gi.topics.subscribe("turn.*", { session_id: gi.sessionId, buffer: 32, after_sequence: lastSeenSequence })
 const events = gi.topics.read(sub, 10)
 // events include: topic, session_id, agent_id, source, type, sequence, payload, timestamp
 gi.topics.unsubscribe(sub)
@@ -185,7 +185,7 @@ gi.topics.unsubscribe(sub)
 ### Joker
 
 - `gi-topic-publish` — publish a canonical topic envelope; optional `sequence` follows the same watermark rules as JS
-- `gi-topic-subscribe` — open a polling subscription handle
+- `gi-topic-subscribe` — open a polling subscription handle; options include `session_id`, `agent_id`, `buffer`, and `after_sequence`
 - `gi-topic-read` — read buffered envelopes from a subscription handle, including the bus-wide `sequence`
 - `gi-topic-unsubscribe` — close a polling subscription handle
 

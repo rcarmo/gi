@@ -156,7 +156,7 @@ func TestExecuteEmbeddedJokerSupportsTopicSubscribeReadAndUnsubscribe(t *testing
 			if pattern != "runtime.*" {
 				t.Fatalf("unexpected topic pattern: %q", pattern)
 			}
-			if opts.SessionID != "joker-session" {
+			if opts.SessionID != "joker-session" || opts.AfterSequence != 6 {
 				t.Fatalf("unexpected topic subscribe opts: %#v", opts)
 			}
 			return "sub-1", nil
@@ -177,7 +177,7 @@ func TestExecuteEmbeddedJokerSupportsTopicSubscribeReadAndUnsubscribe(t *testing
 	})
 	out, err := ExecuteEmbeddedJoker(context.Background(), `
 		(do
-			(def sub (gi-topic-subscribe "runtime.*" {:session_id "joker-session"}))
+			(def sub (gi-topic-subscribe "runtime.*" {:session_id "joker-session" :after_sequence 6}))
 			(def events (gi-topic-read sub 5))
 			(def first-event (first events))
 			(gi-topic-unsubscribe sub)
