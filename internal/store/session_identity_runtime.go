@@ -32,6 +32,9 @@ func (s *Store) RequireSessionIdentityDimensions(ctx context.Context, sessionID 
 	if s == nil || sessionID == "" {
 		return nil, sql.ErrNoRows
 	}
+	if _, err := s.RequireSessionIdentityRuntime(ctx, sessionID); err != nil {
+		return nil, err
+	}
 	rows, err := s.db.QueryContext(ctx, `
 		select coalesce(dimension_name,''), coalesce(dimension_value,'')
 		from session_identity_dimensions

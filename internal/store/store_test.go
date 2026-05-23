@@ -439,6 +439,9 @@ func TestStoreRequireSessionIdentityDimensions(t *testing.T) {
 	if _, err := s.RequireSessionIdentityDimensions(ctx, " "); err == nil {
 		t.Fatalf("expected blank-session dimension lookup to fail")
 	}
+	if _, err := s.RequireSessionIdentityDimensions(ctx, "missing"); err == nil {
+		t.Fatalf("expected missing-session dimension lookup to fail")
+	}
 }
 
 func TestStoreListSessionIdentities(t *testing.T) {
