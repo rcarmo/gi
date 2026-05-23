@@ -294,6 +294,8 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		c.renderRoutingEvent(payload["type"], payload["target_agent_id"], payload["target_session"], payload["target_session_id"], payload["source_agent_id"])
 	case "runtime.inbound_work":
 		c.renderInboundWorkEvent(payload["type"], payload["source_kind"], payload["status"], payload["attempt_count"], payload["error"])
+	case "runtime.dispatcher":
+		c.renderDispatcherEvent(payload["type"], payload["worker_id"], payload["processed_count"], payload["error"])
 	case "session.compaction":
 		c.renderCompactionEvent(payload["messages_before"], payload["messages_after"], payload["tokens_before"])
 	case "session.routing":
@@ -568,6 +570,36 @@ func (c *chatTUI) renderInboundWorkEvent(eventTypeValue, sourceKindValue, status
 	if line != "" {
 		if status != "" {
 			line += fmt.Sprintf(" [%s]", status)
+		}
+		if errText != "" {
+			line += ": " + truncate(errText, 120)
+		}
+		c.appendTranscript(line)
+	}
+}
+
+func (c *chatTUI) renderDispatcherEvent(eventTypeValue, workerIDValue, processedCountValue, errValue any) {
+	typ, _ := eventTypeValue.(string)
+	workerID, _ := workerIDValue.(string)
+	processedCount := intFromAny(processedCountValue)
+	errText, _ := errValue.(string)
+	line := ""
+	switch typ {
+	case "dispatcher_lease_acquired":
+		line = "sys: inbound dispatcher lease acquired"
+	case "dispatcher_lease_released":
+		line = "sys: inbound dispatcher lease released"
+	case "dispatcher_drain_completed":
+		line = "sys: inbound dispatcher drain completed"
+		if processedCount > 0 {
+			line += fmt.Sprintf(" (%d processed)", processedCount)
+		}
+	case "dispatcher_error":
+		line = "sys: inbound dispatcher error"
+	}
+	if line != "" {
+		if workerID != "" {
+			line += fmt.Sprintf(" [%s]", workerID)
 		}
 		if errText != "" {
 			line += ": " + truncate(errText, 120)

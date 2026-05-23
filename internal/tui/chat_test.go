@@ -698,6 +698,14 @@ func TestHandleTopicEventInboundWorkRendering(t *testing.T) {
 	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work failed (ipc) [failed]: decode failed" {
 		t.Fatalf("inbound work failed transcript = %q", got)
 	}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.dispatcher", Payload: map[string]any{"type": "dispatcher_lease_acquired", "worker_id": "worker-1"}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound dispatcher lease acquired [worker-1]" {
+		t.Fatalf("dispatcher lease transcript = %q", got)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.dispatcher", Payload: map[string]any{"type": "dispatcher_drain_completed", "worker_id": "worker-1", "processed_count": 3}})
+	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound dispatcher drain completed (3 processed) [worker-1]" {
+		t.Fatalf("dispatcher drain transcript = %q", got)
+	}
 }
 
 func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
