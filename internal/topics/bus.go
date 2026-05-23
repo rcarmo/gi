@@ -16,6 +16,7 @@ type Envelope struct {
 	AgentID   string         `json:"agent_id,omitempty"`
 	Source    string         `json:"source,omitempty"`
 	Type      string         `json:"type,omitempty"`
+	Sequence  uint64         `json:"sequence,omitempty"`
 	Payload   map[string]any `json:"payload,omitempty"`
 	Timestamp time.Time      `json:"timestamp"`
 }
@@ -38,9 +39,10 @@ type subscriber struct {
 // Bus is an in-memory bounded topic bus. Slow subscribers never block the
 // publisher; the oldest buffered event is dropped to keep the latest state.
 type Bus struct {
-	mu   sync.RWMutex
-	next uint64
-	subs map[uint64]subscriber
+	mu       sync.RWMutex
+	next     uint64
+	sequence uint64
+	subs     map[uint64]subscriber
 }
 
 func NewBus() *Bus { return &Bus{subs: make(map[uint64]subscriber)} }
@@ -52,9 +54,19 @@ func (b *Bus) Publish(env Envelope) {
 	if env.Timestamp.IsZero() {
 		env.Timestamp = time.Now().UTC()
 	}
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	b.mu.Lock()
+	if env.Sequence == 0 {
+		b.sequence++
+		env.Sequence = b.sequence
+	} else if env.Sequence > b.sequence {
+		b.sequence = env.Sequence
+	}
+	subs := make([]subscriber, 0, len(b.subs))
 	for _, sub := range b.subs {
+		subs = append(subs, sub)
+	}
+	b.mu.Unlock()
+	for _, sub := range subs {
 		if !topicMatches(sub.pattern, env.Topic) {
 			continue
 		}

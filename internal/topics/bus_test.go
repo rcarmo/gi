@@ -62,6 +62,38 @@ func TestBusDropsOldestOnPressure(t *testing.T) {
 	}
 }
 
+func TestBusAssignsMonotonicSequences(t *testing.T) {
+	bus := NewBus()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := bus.Subscribe(ctx, "runtime.*", SubscribeOptions{Buffer: 4})
+	defer unsub()
+
+	bus.Publish(Envelope{Topic: "runtime.turn"})
+	bus.Publish(Envelope{Topic: "runtime.session"})
+	first := <-ch
+	second := <-ch
+	if first.Sequence == 0 || second.Sequence == 0 || second.Sequence <= first.Sequence {
+		t.Fatalf("expected monotonic sequences, got first=%#v second=%#v", first, second)
+	}
+}
+
+func TestBusPreservesExplicitSequenceAndAdvancesNextAutoSequence(t *testing.T) {
+	bus := NewBus()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := bus.Subscribe(ctx, "runtime.*", SubscribeOptions{Buffer: 4})
+	defer unsub()
+
+	bus.Publish(Envelope{Topic: "runtime.turn", Sequence: 41})
+	bus.Publish(Envelope{Topic: "runtime.session"})
+	first := <-ch
+	second := <-ch
+	if first.Sequence != 41 || second.Sequence != 42 {
+		t.Fatalf("expected explicit sequence preserved and auto sequence advanced, got first=%#v second=%#v", first, second)
+	}
+}
+
 func TestBusAgentFilter(t *testing.T) {
 	bus := NewBus()
 	ctx, cancel := context.WithCancel(context.Background())
