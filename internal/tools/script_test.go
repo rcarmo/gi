@@ -256,15 +256,15 @@ func TestScriptToolJSCanSubscribeReadAndUnsubscribeTopics(t *testing.T) {
 	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir(), DefaultModel: "test-model", DefaultProvider: "test", DefaultThinkingLevel: "low"})
 	tool.SetConnectivityCallbacks(nil, nil, nil, nil, nil, func(ctx context.Context, sessionID string, pattern string, opts scripting.TopicSubscribeOptions) (<-chan topics.Envelope, func(), error) {
 		ch := make(chan topics.Envelope, 2)
-		ch <- topics.Envelope{Topic: "runtime.test", SessionID: sessionID, Source: "script", Type: "notice", Payload: map[string]any{"ok": true}}
+		ch <- topics.Envelope{Topic: "runtime.test", SessionID: sessionID, Source: "script", Type: "notice", Sequence: 42, Payload: map[string]any{"ok": true}}
 		close(ch)
 		return ch, func() {}, nil
 	})
-	out := tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Script: `var sub = gi.topics.subscribe("runtime.*"); var ev = gi.topics.read(sub, 5); gi.topics.unsubscribe(sub); ev[0].topic + ":" + ev[0].payload.ok;`})
+	out := tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Script: `var sub = gi.topics.subscribe("runtime.*"); var ev = gi.topics.read(sub, 5); gi.topics.unsubscribe(sub); ev[0].topic + ":" + ev[0].payload.ok + ":" + ev[0].sequence;`})
 	if out.Error != "" {
 		t.Fatalf("script error: %v", out.Error)
 	}
-	if out.Result != "runtime.test:true" {
+	if out.Result != "runtime.test:true:42" {
 		t.Fatalf("unexpected result: %q", out.Result)
 	}
 }

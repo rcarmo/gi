@@ -713,6 +713,7 @@ func (t *ScriptTool) readTopicSubscription(_ context.Context, sessionID, id stri
 				"agent_id":   env.AgentID,
 				"source":     env.Source,
 				"type":       env.Type,
+				"sequence":   env.Sequence,
 				"payload":    env.Payload,
 				"timestamp":  env.Timestamp.Format(time.RFC3339Nano),
 			})
