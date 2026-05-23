@@ -247,3 +247,51 @@ func TestBusConcurrentUnsubscribeAndPublishDoesNotPanic(t *testing.T) {
 	default:
 	}
 }
+
+func TestBusDropOldestUnderConcurrentPressureKeepsRecentOrderedEvents(t *testing.T) {
+	bus := NewBus()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := bus.Subscribe(ctx, "runtime.*", SubscribeOptions{Buffer: 8})
+	defer unsub()
+
+	const publishers = 4
+	const perPublisher = 128
+	var wg sync.WaitGroup
+	for p := 0; p < publishers; p++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for i := 0; i < perPublisher; i++ {
+				bus.Publish(Envelope{Topic: "runtime.turn", Payload: map[string]any{"publisher": id, "index": i}})
+			}
+		}(p)
+	}
+	wg.Wait()
+
+	var drained []Envelope
+	for {
+		select {
+		case env := <-ch:
+			drained = append(drained, env)
+		default:
+			if len(drained) != 8 {
+				t.Fatalf("expected buffer to retain 8 newest events, got %d: %#v", len(drained), drained)
+			}
+			last := uint64(0)
+			for _, env := range drained {
+				if env.Sequence <= last {
+					t.Fatalf("expected retained events to stay in delivery order, got last=%d current=%d drained=%#v", last, env.Sequence, drained)
+				}
+				last = env.Sequence
+			}
+			if got := bus.LastSequence(); got != publishers*perPublisher {
+				t.Fatalf("expected last sequence %d, got %d", publishers*perPublisher, got)
+			}
+			if first := drained[0].Sequence; first <= bus.LastSequence()-8 {
+				t.Fatalf("expected retained events to be recent after drop-oldest pressure, first=%d last=%d", first, bus.LastSequence())
+			}
+			return
+		}
+	}
+}
