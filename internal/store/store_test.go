@@ -1466,6 +1466,68 @@ func TestStoreClaimsActiveTurnOncePerSession(t *testing.T) {
 	}
 }
 
+func TestStoreConcurrentActiveTurnClaimSingleWinner(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+
+	if _, err := s.CreateSession(ctx, "session_claim_concurrent", "Concurrent", map[string]any{"model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	const contenders = 8
+	for i := 0; i < contenders; i++ {
+		turnID := fmt.Sprintf("turn_claim_concurrent_%d", i)
+		if _, err := s.CreateTurnWithStatus(ctx, turnID, "session_claim_concurrent", "queued", "hello", map[string]any{"intent": "prompt"}); err != nil {
+			t.Fatalf("create turn %d: %v", i, err)
+		}
+	}
+
+	var wg sync.WaitGroup
+	results := make(chan string, contenders)
+	errs := make(chan error, contenders)
+	for i := 0; i < contenders; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			turnID := fmt.Sprintf("turn_claim_concurrent_%d", i)
+			claimID := fmt.Sprintf("claim_concurrent_%d", i)
+			claimed, err := s.ClaimSessionActiveTurn(ctx, "session_claim_concurrent", turnID, "runner", claimID)
+			if err != nil {
+				errs <- err
+				return
+			}
+			if claimed {
+				results <- claimID
+			}
+		}(i)
+	}
+	wg.Wait()
+	close(results)
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent active-turn claim: %v", err)
+		}
+	}
+	var winners []string
+	for claimID := range results {
+		winners = append(winners, claimID)
+	}
+	if len(winners) != 1 {
+		t.Fatalf("expected exactly one active-turn claim winner, got %#v", winners)
+	}
+	_, claimID, err := s.GetSessionActiveTurn(ctx, "session_claim_concurrent")
+	if err != nil {
+		t.Fatalf("get active turn: %v", err)
+	}
+	if claimID != winners[0] {
+		t.Fatalf("active claim %q does not match winner %#v", claimID, winners)
+	}
+}
+
 func TestTouchSessionActiveTurnRejectsMissingClaim(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
