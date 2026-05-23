@@ -7887,6 +7887,8 @@ func TestPublishRuntimeInboundWorkEventPreservesCanonicalFields(t *testing.T) {
 	defer cancel()
 	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.inbound_work", topics.SubscribeOptions{Buffer: 8, SessionID: "session_inbound_topic"})
 	defer unsub()
+	aggregateCh, unsubAggregate := engine.Topics().Subscribe(ctx, "runtime", topics.SubscribeOptions{Buffer: 8, SessionID: "session_inbound_topic"})
+	defer unsubAggregate()
 
 	item := &queue.InboundWorkItem{ID: 17, Status: " retry ", SourceKind: " IPC ", SessionID: " session_inbound_topic ", ExplicitSessionKey: " session-key ", AttemptCount: 2, LastError: " boom ", NextAttemptAt: " 2026-05-12T18:00:00Z ", ClaimedBy: " worker-1 ", ClaimedAt: " 2026-05-12T17:59:00Z ", CreatedAt: " 2026-05-12T17:58:00Z ", UpdatedAt: " 2026-05-12T17:59:30Z "}
 	engine.PublishRuntimeInboundWorkEvent("inbound_work_retry_scheduled", item, map[string]any{"type": "oops", "id": 999, "status": "completed", "session_id": "wrong", "attempt_count": 0, "note": "keep me"})
@@ -7907,6 +7909,14 @@ func TestPublishRuntimeInboundWorkEventPreservesCanonicalFields(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected runtime.inbound_work topic event")
+	}
+	select {
+	case env := <-aggregateCh:
+		if env.Topic != "runtime" || env.Payload["runtime_topic"] != "runtime.inbound_work" || env.Payload["type"] != "inbound_work_retry_scheduled" || env.Payload["id"] != item.ID {
+			t.Fatalf("unexpected aggregate runtime.inbound_work topic: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected aggregate runtime.inbound_work topic event")
 	}
 }
 
