@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+type SessionRef struct {
+	ID              string
+	ParentSessionID string
+}
+
 func (s *Store) ListSessionAgentIDs(ctx context.Context) (map[string]string, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -38,6 +43,43 @@ func (s *Store) ListSessionAgentIDs(ctx context.Context) (map[string]string, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("list session agent ids rows: %w", err)
+	}
+	return out, nil
+}
+
+func (s *Store) ListSessionRefs(ctx context.Context) ([]SessionRef, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		select id, coalesce(parent_session_id, '')
+		from sessions
+		order by updated_at desc, created_at desc
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list session refs: %w", err)
+	}
+	defer rows.Close()
+	out := []SessionRef{}
+	seen := map[string]struct{}{}
+	for rows.Next() {
+		var id, parent string
+		if err := rows.Scan(&id, &parent); err != nil {
+			return nil, err
+		}
+		id = strings.TrimSpace(id)
+		parent = strings.TrimSpace(parent)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, SessionRef{ID: id, ParentSessionID: parent})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list session refs rows: %w", err)
 	}
 	return out, nil
 }

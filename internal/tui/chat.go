@@ -22,14 +22,14 @@ func initialSessionID(ctx context.Context, s *store.Store) (string, error) {
 	if sessionID, err := s.ResolveMainSessionID(ctx, "agent", "gi", "default"); err == nil {
 		return sessionID, nil
 	}
-	sessions, err := s.ListSessions(ctx)
+	sessionIDs, err := s.ListSessionIDs(ctx)
 	if err != nil {
-		return "", fmt.Errorf("list sessions: %w", err)
+		return "", fmt.Errorf("list session ids: %w", err)
 	}
-	if len(sessions) == 0 {
+	if len(sessionIDs) == 0 {
 		return "", nil
 	}
-	return sessions[0].ID, nil
+	return sessionIDs[0], nil
 }
 
 func Run(dbPath, workspace, model string) error {

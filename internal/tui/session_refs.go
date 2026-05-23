@@ -36,7 +36,7 @@ func (c *chatTUI) switchSession(sessionID string) {
 }
 
 func (c *chatTUI) listAgentLines() []string {
-	sessions, err := c.store.ListSessions(context.Background())
+	sessions, err := c.store.ListSessionRefs(context.Background())
 	if err != nil {
 		return []string{fmt.Sprintf("error: %v", err)}
 	}
@@ -57,13 +57,13 @@ func (c *chatTUI) listAgentLines() []string {
 		if sess.ParentSessionID != "" {
 			parent = fmt.Sprintf(" parent=%s", sess.ParentSessionID)
 		}
-		lines = append(lines, fmt.Sprintf("%s @%s %s%s", marker, c.agentIDForSessionFromIndex(&sess, agentIDs), sess.ID, parent))
+		lines = append(lines, fmt.Sprintf("%s @%s %s%s", marker, indexedAgentIDOrDefault(sess.ID, agentIDs), sess.ID, parent))
 	}
 	return lines
 }
 
 func (c *chatTUI) treeLines() []string {
-	sessions, err := c.store.ListSessions(context.Background())
+	sessions, err := c.store.ListSessionRefs(context.Background())
 	if err != nil {
 		return []string{fmt.Sprintf("error: %v", err)}
 	}
@@ -74,8 +74,8 @@ func (c *chatTUI) treeLines() []string {
 	if err != nil {
 		return []string{fmt.Sprintf("error: %v", err)}
 	}
-	children := map[string][]store.Session{}
-	roots := []store.Session{}
+	children := map[string][]store.SessionRef{}
+	roots := []store.SessionRef{}
 	for _, sess := range sessions {
 		if sess.ParentSessionID == "" {
 			roots = append(roots, sess)
@@ -85,8 +85,8 @@ func (c *chatTUI) treeLines() []string {
 	}
 	lines := []string{"tree: sessions:"}
 	seen := map[string]bool{}
-	var walk func(sess store.Session, prefix string, last bool)
-	walk = func(sess store.Session, prefix string, last bool) {
+	var walk func(sess store.SessionRef, prefix string, last bool)
+	walk = func(sess store.SessionRef, prefix string, last bool) {
 		seen[sess.ID] = true
 		branch := "├─"
 		nextPrefix := prefix + "│  "
@@ -98,7 +98,7 @@ func (c *chatTUI) treeLines() []string {
 		if sess.ID == c.sessionID {
 			marker = "*"
 		}
-		lines = append(lines, fmt.Sprintf("%s%s%s @%s %s", prefix, branch, marker, c.agentIDForSessionFromIndex(&sess, agentIDs), sess.ID))
+		lines = append(lines, fmt.Sprintf("%s%s%s @%s %s", prefix, branch, marker, indexedAgentIDOrDefault(sess.ID, agentIDs), sess.ID))
 		kids := children[sess.ID]
 		for i, child := range kids {
 			walk(child, nextPrefix, i == len(kids)-1)
@@ -109,7 +109,7 @@ func (c *chatTUI) treeLines() []string {
 	}
 	for _, sess := range sessions {
 		if !seen[sess.ID] {
-			lines = append(lines, fmt.Sprintf("? @%s %s parent=%s", c.agentIDForSessionFromIndex(&sess, agentIDs), sess.ID, sess.ParentSessionID))
+			lines = append(lines, fmt.Sprintf("? @%s %s parent=%s", indexedAgentIDOrDefault(sess.ID, agentIDs), sess.ID, sess.ParentSessionID))
 		}
 	}
 	return lines
@@ -275,13 +275,6 @@ func (c *chatTUI) loadSessionIdentityIndex(ctx context.Context) ([]string, map[s
 		return nil, nil, err
 	}
 	return sessionIDs, agentIDs, nil
-}
-
-func (c *chatTUI) agentIDForSessionFromIndex(sess *store.Session, index map[string]string) string {
-	if sess != nil {
-		return indexedAgentIDOrDefault(sess.ID, index)
-	}
-	return defaultForkAgentID
 }
 
 func (c *chatTUI) agentIDForSession(sess *store.Session) string {
