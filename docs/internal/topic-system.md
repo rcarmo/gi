@@ -208,6 +208,9 @@ This avoids hardcoding every new event type into one custom engine broadcast pat
 A reserved SSE endpoint now streams canonical topic envelopes directly:
 
 - `/sse/topics?topic=turn.*&session_id=...`
+- `/sse/topics?topic=runtime&last_event_id=<sequence>` for aggregate runtime reconnects
+
+The endpoint emits the topic envelope `sequence` as SSE `id:` and returns a `connected` event containing `last_sequence`. On reconnect, clients may send `Last-Event-ID` (or `last_event_id`) and the connected event reports `last_event_id` plus `missed_sequence_count` when the process-local watermark has advanced. This is gap detection, not replay; topic persistence/replay remains a later opt-in.
 
 This coexists with the older chat-turn SSE feed while newer runtime families converge onto the topic bus first instead of requiring bespoke SSE adapters.
 
@@ -219,7 +222,7 @@ This coexists with the older chat-turn SSE feed while newer runtime families con
 - publish serializes sequence assignment and delivery under the bus lock so each subscriber observes monotonically ordered envelopes
 - every envelope has a bus-wide `sequence`; explicit sequence inputs advance the watermark, automatic envelopes increment it
 - slow subscribers use **drop oldest** backpressure, keeping the newest state-like events available without unbounded memory growth
-- topic SSE exposes the envelope `sequence` as SSE `id:` and includes the current `last_sequence` in the `connected` event
+- topic SSE exposes the envelope `sequence` as SSE `id:` and includes the current `last_sequence`, optional `last_event_id`, and optional `missed_sequence_count` in the `connected` event
 
 ### Coalescing candidates
 
