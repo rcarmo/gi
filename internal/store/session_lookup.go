@@ -21,7 +21,7 @@ func (s *Store) ListSessionAgentIDs(ctx context.Context) (map[string]string, err
 		select s.id, trim(si.agent_id)
 		from sessions s
 		join session_identities si on si.session_id = s.id
-		where trim(si.agent_id) <> ''
+		where trim(si.agent_id) <> '' and trim(si.channel) <> '' and trim(si.account) <> ''
 		order by s.created_at asc, s.id asc
 	`)
 	if err != nil {

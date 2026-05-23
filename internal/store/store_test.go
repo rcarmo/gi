@@ -842,6 +842,9 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 	if _, err := s.DB().ExecContext(ctx, `update session_identities set agent_id = ? where session_id = ?`, " agent-b ", "session_agent_ids_b"); err != nil {
 		t.Fatalf("pad agent id b: %v", err)
 	}
+	if _, err := s.DB().ExecContext(ctx, `update session_identities set channel = '' where session_id = ?`, "session_agent_ids_b"); err != nil {
+		t.Fatalf("blank channel for session b: %v", err)
+	}
 	if _, err := s.DB().ExecContext(ctx, `
 		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
 		values (?, null, ?, '{}', '{}', '[]', `+defaultNow+`, `+defaultNow+`)
@@ -852,8 +855,11 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list session agent ids: %v", err)
 	}
-	if agentBySession["session_agent_ids_a"] != "agent-a" || agentBySession["session_agent_ids_b"] != "agent-b" {
+	if agentBySession["session_agent_ids_a"] != "agent-a" {
 		t.Fatalf("unexpected session agent id map: %#v", agentBySession)
+	}
+	if _, ok := agentBySession["session_agent_ids_b"]; ok {
+		t.Fatalf("expected blank-channel identity row to be omitted, got %#v", agentBySession)
 	}
 	if _, ok := agentBySession["session_agent_ids_blank"]; ok {
 		t.Fatalf("expected blank agent id session to be omitted from agent index, got %#v", agentBySession)
@@ -865,8 +871,11 @@ func TestStoreListSessionAgentIDs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list session agent ids (nil ctx): %v", err)
 	}
-	if agentBySessionNilCtx["session_agent_ids_a"] != "agent-a" || agentBySessionNilCtx["session_agent_ids_b"] != "agent-b" {
+	if agentBySessionNilCtx["session_agent_ids_a"] != "agent-a" {
 		t.Fatalf("unexpected session agent id map (nil ctx): %#v", agentBySessionNilCtx)
+	}
+	if _, ok := agentBySessionNilCtx["session_agent_ids_b"]; ok {
+		t.Fatalf("expected nil-context blank-channel identity row omission, got %#v", agentBySessionNilCtx)
 	}
 	if _, ok := agentBySessionNilCtx["session_agent_ids_blank"]; ok {
 		t.Fatalf("expected nil-context blank-agent session omission, got %#v", agentBySessionNilCtx)
