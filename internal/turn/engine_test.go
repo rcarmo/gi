@@ -710,8 +710,8 @@ func TestSessionIdentityHelpersSurviveCanceledCallerContext(t *testing.T) {
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
 	opCtx := store.CoordinationContext(cancelCtx, ctx)
-	if got := s.SessionIdentityRuntime(opCtx, sess.ID); got.AgentID != "agentx" || got.Channel != "web" || got.Account != "acctx" {
-		t.Fatalf("expected canonical runtime identity under canceled caller context, got %#v", got)
+	if got, err := s.RequireSessionIdentityRuntime(opCtx, sess.ID); err != nil || got.AgentID != "agentx" || got.Channel != "web" || got.Account != "acctx" {
+		t.Fatalf("expected canonical runtime identity under canceled caller context, got %#v err=%v", got, err)
 	}
 }
 
@@ -4496,7 +4496,11 @@ func TestRecordRouteDecisionSurvivesCanceledCallerContext(t *testing.T) {
 		"routing_enabled":    true,
 	}
 	if err := routing.RecordDecision(engine.backgroundContext(), sess.ID, "turn_route_ctx", metadata, routing.Options{ResolveSourceAgentID: func(ctx context.Context, sessionID string) string {
-		return s.SessionIdentityRuntime(ctx, sessionID).AgentID
+		identity, err := s.RequireSessionIdentityRuntime(ctx, sessionID)
+		if err != nil {
+			return ""
+		}
+		return identity.AgentID
 	}, RecordRouteEvent: func(ctx context.Context, event routing.Event) (int64, error) {
 		return storeaudit.RecordRouteEvent(ctx, s.DB(), storeaudit.RouteEvent(event))
 	}, PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {
@@ -5573,7 +5577,11 @@ func TestRecordRouteDecisionUsesStoredIdentityInsteadOfSessionScopeJSON(t *testi
 		"route_mode":        "prompt",
 		"routing_enabled":   true,
 	}, routing.Options{ResolveSourceAgentID: func(ctx context.Context, sessionID string) string {
-		return s.SessionIdentityRuntime(ctx, sessionID).AgentID
+		identity, err := s.RequireSessionIdentityRuntime(ctx, sessionID)
+		if err != nil {
+			return ""
+		}
+		return identity.AgentID
 	}, RecordRouteEvent: func(ctx context.Context, event routing.Event) (int64, error) {
 		return storeaudit.RecordRouteEvent(ctx, s.DB(), storeaudit.RouteEvent(event))
 	}, PublishRuntimeRoutingEvent: engine.PublishRuntimeRoutingEvent, Broadcast: engine.broadcast}); err != nil {

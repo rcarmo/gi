@@ -337,23 +337,21 @@ func TestStoreSessionIdentityRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	identity := s.SessionIdentityRuntime(ctx, sess.ID)
-	if identity.AgentID != "support" || identity.Channel != "slack" || identity.Account != "workspace" {
-		t.Fatalf("unexpected runtime identity tuple: %#v", identity)
-	}
-	if identity.CanonicalScopeSignature == "" {
-		t.Fatalf("expected canonical scope signature in runtime identity, got %#v", identity)
-	}
-	defaults := s.SessionIdentityRuntime(ctx, "")
-	if defaults.AgentID != "agent" || defaults.Channel != "gi" || defaults.Account != "default" || defaults.CanonicalScopeSignature != "" {
-		t.Fatalf("unexpected runtime identity defaults: %#v", defaults)
-	}
 	required, err := s.RequireSessionIdentityRuntime(ctx, sess.ID)
 	if err != nil {
 		t.Fatalf("require runtime identity: %v", err)
 	}
 	if required.AgentID != "support" || required.Channel != "slack" || required.Account != "workspace" {
-		t.Fatalf("unexpected required runtime identity tuple: %#v", required)
+		t.Fatalf("unexpected runtime identity tuple: %#v", required)
+	}
+	if required.CanonicalScopeSignature == "" {
+		t.Fatalf("expected canonical scope signature in runtime identity, got %#v", required)
+	}
+	if _, err := s.RequireSessionIdentityRuntime(ctx, ""); err == nil {
+		t.Fatalf("expected blank session runtime identity lookup to fail")
+	}
+	if _, err := s.RequireSessionIdentityRuntime(nil, sess.ID); err != nil {
+		t.Fatalf("expected nil-context runtime identity lookup to work: %v", err)
 	}
 	if _, err := s.RequireSessionIdentityRuntime(ctx, "missing"); err == nil {
 		t.Fatalf("expected missing session runtime identity lookup to fail")
@@ -803,14 +801,14 @@ func TestStoreSessionIdentityRuntimeTupleDefaultsAndTrim(t *testing.T) {
 	if _, err := s.DB().ExecContext(ctx, `update session_identities set agent_id = ?, channel = ?, account = ? where session_id = ?`, " agent-a ", " slack ", " workspace ", "session_runtime_identity_trim"); err != nil {
 		t.Fatalf("pad session identity tuple fields: %v", err)
 	}
-	if got := s.SessionIdentityRuntime(ctx, "session_runtime_identity_trim"); got.AgentID != "agent-a" || got.Channel != "slack" || got.Account != "workspace" {
-		t.Fatalf("expected trimmed runtime identity tuple, got %#v", got)
+	if got, err := s.RequireSessionIdentityRuntime(ctx, "session_runtime_identity_trim"); err != nil || got.AgentID != "agent-a" || got.Channel != "slack" || got.Account != "workspace" {
+		t.Fatalf("expected trimmed runtime identity tuple, got %#v err=%v", got, err)
 	}
-	if got := s.SessionIdentityRuntime(ctx, "missing_runtime_identity"); got.AgentID != "agent" || got.Channel != "gi" || got.Account != "default" {
-		t.Fatalf("expected default runtime identity tuple for missing identity, got %#v", got)
+	if _, err := s.RequireSessionIdentityRuntime(ctx, "missing_runtime_identity"); err == nil {
+		t.Fatalf("expected missing runtime identity lookup to fail")
 	}
-	if got := s.SessionIdentityRuntime(nil, "session_runtime_identity_trim"); got.AgentID != "agent-a" || got.Channel != "slack" || got.Account != "workspace" {
-		t.Fatalf("expected nil-context runtime identity lookup to work, got %#v", got)
+	if got, err := s.RequireSessionIdentityRuntime(nil, "session_runtime_identity_trim"); err != nil || got.AgentID != "agent-a" || got.Channel != "slack" || got.Account != "workspace" {
+		t.Fatalf("expected nil-context runtime identity lookup to work, got %#v err=%v", got, err)
 	}
 }
 

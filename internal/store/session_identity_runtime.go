@@ -102,10 +102,6 @@ func (s *Store) sessionIdentityRuntimeOrDefaults(ctx context.Context, sessionID 
 	return SessionIdentityRuntime{AgentID: defaultSessionAgentID, Channel: defaultSessionChannel, Account: defaultSessionAccount}
 }
 
-func (s *Store) SessionIdentityRuntime(ctx context.Context, sessionID string) SessionIdentityRuntime {
-	return s.sessionIdentityRuntimeOrDefaults(ctx, sessionID)
-}
-
 func (s *Store) RequireSessionIdentityRuntime(ctx context.Context, sessionID string) (SessionIdentityRuntime, error) {
 	return s.sessionIdentityRuntime(ctx, sessionID)
 }
