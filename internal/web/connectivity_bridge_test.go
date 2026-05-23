@@ -137,4 +137,14 @@ func TestScriptConnectivityBridgeScopesListAndUnregisterToSession(t *testing.T) 
 	if crossSubscribe.Error == "" || !strings.Contains(crossSubscribe.Error, "does not match current session") {
 		t.Fatalf("expected cross-session topic subscribe rejection, got result=%q err=%q", crossSubscribe.Result, crossSubscribe.Error)
 	}
+
+	jokerCrossPublish := srv.scriptTool.Execute(context.Background(), tools.ScriptInput{SessionID: sessionA.ID, Engine: "joker", Script: `(do (gi-topic-publish {:topic "runtime.test" :session_id "` + sessionB.ID + `" :payload {:ok true}}) "ok")`})
+	if jokerCrossPublish.Error == "" || !strings.Contains(jokerCrossPublish.Error, "does not match current session") {
+		t.Fatalf("expected joker cross-session topic publish rejection, got result=%q err=%q", jokerCrossPublish.Result, jokerCrossPublish.Error)
+	}
+
+	jokerCrossSubscribe := srv.scriptTool.Execute(context.Background(), tools.ScriptInput{SessionID: sessionA.ID, Engine: "joker", Script: `(gi-topic-subscribe "runtime.*" {:session_id "` + sessionB.ID + `"})`})
+	if jokerCrossSubscribe.Error == "" || !strings.Contains(jokerCrossSubscribe.Error, "does not match current session") {
+		t.Fatalf("expected joker cross-session topic subscribe rejection, got result=%q err=%q", jokerCrossSubscribe.Result, jokerCrossSubscribe.Error)
+	}
 }
