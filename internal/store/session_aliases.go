@@ -171,8 +171,8 @@ func (s *Store) ResolveSessionIDByKeyOrAlias(ctx context.Context, key string) (s
 	if key == "" {
 		return "", sql.ErrNoRows
 	}
-	if _, err := s.RequireSessionIdentityRuntime(ctx, key); err == nil {
-		return key, nil
+	if sessionID, err := s.requireIdentityRuntimeSessionID(ctx, key); err == nil {
+		return sessionID, nil
 	} else if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return "", err
 	}
