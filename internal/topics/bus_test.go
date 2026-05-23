@@ -115,6 +115,26 @@ func TestBusAgentFilter(t *testing.T) {
 	}
 }
 
+func TestBusSubscribeWithCanceledContextReturnsClosedChannel(t *testing.T) {
+	bus := NewBus()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	ch, unsub := bus.Subscribe(ctx, "runtime.*", SubscribeOptions{Buffer: 1})
+	defer unsub()
+	select {
+	case _, ok := <-ch:
+		if ok {
+			t.Fatal("expected canceled subscription channel to be closed")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected canceled subscription channel to close immediately")
+	}
+	bus.Publish(Envelope{Topic: "runtime.turn"})
+	if got := bus.LastSequence(); got != 1 {
+		t.Fatalf("expected publish after canceled subscribe to still advance sequence, got %d", got)
+	}
+}
+
 func TestBusConcurrentPublishSequencesAreUniqueAndMonotonic(t *testing.T) {
 	bus := NewBus()
 	ctx, cancel := context.WithCancel(context.Background())

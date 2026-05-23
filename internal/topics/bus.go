@@ -86,6 +86,9 @@ func (b *Bus) Publish(env Envelope) {
 }
 
 func (b *Bus) Subscribe(ctx context.Context, pattern string, opts SubscribeOptions) (<-chan Envelope, func()) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if strings.TrimSpace(pattern) == "" {
 		pattern = "*"
 	}
@@ -106,6 +109,10 @@ func (b *Bus) Subscribe(ctx context.Context, pattern string, opts SubscribeOptio
 			close(sub.ch)
 		}
 		b.mu.Unlock()
+	}
+	if err := ctx.Err(); err != nil {
+		unsubscribe()
+		return ch, unsubscribe
 	}
 	go func() {
 		<-ctx.Done()
