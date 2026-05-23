@@ -176,22 +176,6 @@ func (s *Store) createSessionWithMetadataAndOpaqueKey(ctx context.Context, id, p
 	return s.GetSession(ctx, id)
 }
 
-func (s *Store) SessionExists(ctx context.Context, id string) (bool, error) {
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return false, sql.ErrNoRows
-	}
-	row := s.db.QueryRowContext(ctx, `select 1 from sessions where id = ?`, id)
-	var exists int
-	if err := row.Scan(&exists); err != nil {
-		if err == sql.ErrNoRows {
-			return false, sql.ErrNoRows
-		}
-		return false, err
-	}
-	return true, nil
-}
-
 func (s *Store) GetSession(ctx context.Context, id string) (*Session, error) {
 	row := s.db.QueryRowContext(ctx, `
 		select id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at
