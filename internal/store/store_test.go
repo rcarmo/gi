@@ -1040,6 +1040,29 @@ func TestStoreResolveOrCreateMainSessionFromAllocation(t *testing.T) {
 	}
 }
 
+func TestStoreAttachChannelBindingForAllocationRequiresIdentityRuntime(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.DB().ExecContext(ctx, `
+		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
+		values (?, NULL, ?, '{}', '{}', '[]', datetime('now'), datetime('now'))
+	`, "session_binding_legacy_no_identity", "@legacy"); err != nil {
+		t.Fatalf("insert legacy session without identity: %v", err)
+	}
+	alloc := gisession.AllocateRouteSession(gisession.AllocationInput{
+		AgentID:       "support",
+		Context:       routing.InboundContext{Channel: "slack", Account: "workspace", ChatType: "group", ChatID: "thread-7", SenderID: "rui"},
+		SessionPolicy: routing.SessionPolicy{Dimensions: []string{"chat", "sender"}},
+	})
+	if err := s.AttachChannelBindingForAllocation(ctx, "session_binding_legacy_no_identity", alloc); err == nil {
+		t.Fatalf("expected attach binding to fail when runtime identity row is missing")
+	}
+}
+
 func TestStoreResolveOrCreateMainSessionRegistersPrimaryChannelBinding(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {

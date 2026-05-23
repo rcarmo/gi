@@ -50,12 +50,12 @@ func (s *Store) AttachChannelBindingForAllocation(ctx context.Context, sessionID
 	if sessionID == "" {
 		return sql.ErrNoRows
 	}
-	if err := s.RequireSession(ctx, sessionID); err != nil {
+	identity, err := s.RequireSessionIdentityRuntime(ctx, sessionID)
+	if err != nil {
 		return err
 	}
-	sessionAgentID := s.SessionAgentID(ctx, sessionID)
-	if normalizeIdentityTupleValue(sessionAgentID, "gi") != normalizeIdentityTupleValue(alloc.Scope.AgentID, "gi") {
-		return fmt.Errorf("attach channel binding: allocation agent %q does not match session agent %q", alloc.Scope.AgentID, sessionAgentID)
+	if normalizeIdentityTupleValue(identity.AgentID, "gi") != normalizeIdentityTupleValue(alloc.Scope.AgentID, "gi") {
+		return fmt.Errorf("attach channel binding: allocation agent %q does not match session agent %q", alloc.Scope.AgentID, identity.AgentID)
 	}
 	binding, ok := channelBindingFromAllocation(alloc)
 	if !ok {

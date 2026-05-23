@@ -55,6 +55,16 @@ func sessionMatchesAllocationScope(signature string, scope gisession.SessionScop
 }
 
 func (s *Store) findSessionIDByAllocation(ctx context.Context, alloc gisession.Allocation) (string, error) {
+	runtimeBySessionID := map[string]SessionIdentityRuntime{}
+	lookupRuntime := func(sessionID string) SessionIdentityRuntime {
+		sessionID = strings.TrimSpace(sessionID)
+		if cached, ok := runtimeBySessionID[sessionID]; ok {
+			return cached
+		}
+		runtime := s.SessionIdentityRuntime(ctx, sessionID)
+		runtimeBySessionID[sessionID] = runtime
+		return runtime
+	}
 	if sessionID, err := s.ResolveSessionIDByOpaqueKey(ctx, alloc.SessionKey); err == nil {
 		return sessionID, nil
 	} else if !errors.Is(err, sql.ErrNoRows) {
@@ -63,7 +73,7 @@ func (s *Store) findSessionIDByAllocation(ctx context.Context, alloc gisession.A
 	if binding, ok := channelBindingFromAllocation(alloc); ok {
 		sessionID, err := s.ResolveSessionIDByChannelBinding(ctx, binding.Channel, binding.Account, binding.RemoteIdentity)
 		if err == nil {
-			identity := s.SessionIdentityRuntime(ctx, sessionID)
+			identity := lookupRuntime(sessionID)
 			if strings.EqualFold(strings.TrimSpace(identity.AgentID), strings.TrimSpace(alloc.Scope.AgentID)) {
 				return sessionID, nil
 			}
@@ -74,7 +84,7 @@ func (s *Store) findSessionIDByAllocation(ctx context.Context, alloc gisession.A
 	for _, alias := range alloc.SessionAliases {
 		sessionID, err := s.ResolveSessionIDByAlias(ctx, alias)
 		if err == nil {
-			identity := s.SessionIdentityRuntime(ctx, sessionID)
+			identity := lookupRuntime(sessionID)
 			if sessionMatchesAllocationScope(identity.CanonicalScopeSignature, alloc.Scope) {
 				return sessionID, nil
 			}
