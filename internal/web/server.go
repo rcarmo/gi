@@ -605,7 +605,7 @@ func forkAgentIDCandidate(base string, suffix int) string {
 }
 
 func firstForkAgentID(base string) string {
-	return forkAgentIDCandidate(base, minForkAgentIDSuffix)
+	return forkAgentIDCandidate(normalizeForkAgentBase(base), minForkAgentIDSuffix)
 }
 
 func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
