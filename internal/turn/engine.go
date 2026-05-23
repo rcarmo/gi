@@ -1573,9 +1573,12 @@ func (e *Engine) PublishRuntimeTurnEvent(eventType, sessionID, turnID, agentID, 
 	if body == nil {
 		body = map[string]any{}
 	}
-	body["turn_id"] = strings.TrimSpace(turnID)
-	body["status"] = strings.TrimSpace(status)
-	body["phase"] = strings.TrimSpace(phase)
+	turnID = strings.TrimSpace(turnID)
+	status = strings.TrimSpace(status)
+	phase = strings.TrimSpace(phase)
+	body["turn_id"] = turnID
+	body["status"] = status
+	body["phase"] = phase
 	e.publishRuntimeTopicEvent("runtime.turn", sessionID, agentID, "notice", eventType, body)
 }
 
