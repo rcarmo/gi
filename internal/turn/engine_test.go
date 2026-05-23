@@ -5229,6 +5229,83 @@ func TestProcessDirectSteersSameSessionWhileActive(t *testing.T) {
 	}
 }
 
+func TestMixedSubmitSteeringHookAndCancelPublishesAlignedTopics(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_mixed_direct_hook_cancel", "Mixed", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	started := make(chan struct{})
+	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
+		select {
+		case <-started:
+		default:
+			close(started)
+		}
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
+	engine := New(s)
+	if _, err := engine.RegisterHook(HookBeforeProviderRequest, "mixed-test", func(ctx context.Context, req HookRequest) (HookResponse, error) {
+		return HookResponse{Action: "continue"}, nil
+	}); err != nil {
+		t.Fatalf("register hook: %v", err)
+	}
+	hookCh, unsubHook := engine.Topics().Subscribe(ctx, "runtime.hook", topics.SubscribeOptions{Buffer: 8, SessionID: "session_mixed_direct_hook_cancel"})
+	defer unsubHook()
+	turnCh, unsubTurn := engine.Topics().Subscribe(ctx, "runtime.turn", topics.SubscribeOptions{Buffer: 16, SessionID: "session_mixed_direct_hook_cancel"})
+	defer unsubTurn()
+	result, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_mixed_direct_hook_cancel", Prompt: "first", Model: "mock-stream"})
+	if err != nil {
+		t.Fatalf("submit prompt: %v", err)
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		select {
+		case <-started:
+			return true
+		default:
+			return false
+		}
+	}, "streaming turn start")
+	steered, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_mixed_direct_hook_cancel", Prompt: "second via same-session submit", Model: "bootstrap"})
+	if err != nil {
+		t.Fatalf("submit same-session steering prompt: %v", err)
+	}
+	if steered.TurnID != result.TurnID || steered.Queued {
+		t.Fatalf("expected same-session submit to steer active turn, got first=%#v steered=%#v", result, steered)
+	}
+	if depth, err := s.SteeringQueueLength(ctx, "session_mixed_direct_hook_cancel"); err != nil {
+		t.Fatalf("steering queue length: %v", err)
+	} else if depth != 1 {
+		t.Fatalf("expected steering queue depth 1, got %d", depth)
+	}
+	if err := engine.CancelTurn(ctx, "session_mixed_direct_hook_cancel", result.TurnID); err != nil {
+		t.Fatalf("cancel mixed active turn: %v", err)
+	}
+	seenHook := false
+	seenCancelling := false
+	deadline := time.After(2 * time.Second)
+	for !(seenHook && seenCancelling) {
+		select {
+		case env := <-hookCh:
+			if env.Payload["type"] == "hook_invocation" && env.Payload["hook"] == HookBeforeProviderRequest && env.Payload["source"] == "mixed-test" {
+				seenHook = true
+			}
+		case env := <-turnCh:
+			if env.Payload["type"] == "turn_cancelling" && env.Payload["turn_id"] == result.TurnID {
+				seenCancelling = true
+			}
+		case <-deadline:
+			t.Fatalf("expected mixed hook/cancel topics after steering, got hook=%v cancelling=%v", seenHook, seenCancelling)
+		}
+	}
+	waitForCondition(t, 2*time.Second, func() bool {
+		turnRec, err := s.GetTurn(ctx, result.TurnID)
+		return err == nil && strings.TrimSpace(turnRec.FinishedAt) != ""
+	}, "mixed turn cancellation finish")
+}
+
 func TestProcessDirectSteeringNormalizesUnexpectedIngressRole(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
