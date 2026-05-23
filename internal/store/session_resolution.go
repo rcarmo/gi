@@ -56,14 +56,17 @@ func sessionMatchesAllocationScope(signature string, scope gisession.SessionScop
 
 func (s *Store) findSessionIDByAllocation(ctx context.Context, alloc gisession.Allocation) (string, error) {
 	runtimeBySessionID := map[string]SessionIdentityRuntime{}
-	lookupRuntime := func(sessionID string) SessionIdentityRuntime {
+	lookupRuntime := func(sessionID string) (SessionIdentityRuntime, error) {
 		sessionID = strings.TrimSpace(sessionID)
 		if cached, ok := runtimeBySessionID[sessionID]; ok {
-			return cached
+			return cached, nil
 		}
-		runtime := s.SessionIdentityRuntime(ctx, sessionID)
+		runtime, err := s.RequireSessionIdentityRuntime(ctx, sessionID)
+		if err != nil {
+			return SessionIdentityRuntime{}, err
+		}
 		runtimeBySessionID[sessionID] = runtime
-		return runtime
+		return runtime, nil
 	}
 	if sessionID, err := s.ResolveSessionIDByOpaqueKey(ctx, alloc.SessionKey); err == nil {
 		return sessionID, nil
@@ -73,9 +76,12 @@ func (s *Store) findSessionIDByAllocation(ctx context.Context, alloc gisession.A
 	if binding, ok := channelBindingFromAllocation(alloc); ok {
 		sessionID, err := s.ResolveSessionIDByChannelBinding(ctx, binding.Channel, binding.Account, binding.RemoteIdentity)
 		if err == nil {
-			identity := lookupRuntime(sessionID)
-			if strings.EqualFold(strings.TrimSpace(identity.AgentID), strings.TrimSpace(alloc.Scope.AgentID)) {
+			identity, identityErr := lookupRuntime(sessionID)
+			if identityErr == nil && strings.EqualFold(strings.TrimSpace(identity.AgentID), strings.TrimSpace(alloc.Scope.AgentID)) {
 				return sessionID, nil
+			}
+			if identityErr != nil && !errors.Is(identityErr, sql.ErrNoRows) {
+				return "", identityErr
 			}
 		} else if !errors.Is(err, sql.ErrNoRows) {
 			return "", err
@@ -84,9 +90,12 @@ func (s *Store) findSessionIDByAllocation(ctx context.Context, alloc gisession.A
 	for _, alias := range alloc.SessionAliases {
 		sessionID, err := s.ResolveSessionIDByAlias(ctx, alias)
 		if err == nil {
-			identity := lookupRuntime(sessionID)
-			if sessionMatchesAllocationScope(identity.CanonicalScopeSignature, alloc.Scope) {
+			identity, identityErr := lookupRuntime(sessionID)
+			if identityErr == nil && sessionMatchesAllocationScope(identity.CanonicalScopeSignature, alloc.Scope) {
 				return sessionID, nil
+			}
+			if identityErr != nil && !errors.Is(identityErr, sql.ErrNoRows) {
+				return "", identityErr
 			}
 			continue
 		}

@@ -516,7 +516,11 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		}
 	}
 	if err := routing.RecordDecision(durableCtx, in.SessionID, turnID, metadata, routing.Options{ResolveSourceAgentID: func(ctx context.Context, sessionID string) string {
-		return e.store.SessionIdentityRuntime(ctx, sessionID).AgentID
+		identity, err := e.store.RequireSessionIdentityRuntime(ctx, sessionID)
+		if err != nil {
+			return ""
+		}
+		return identity.AgentID
 	}, RecordRouteEvent: func(ctx context.Context, event routing.Event) (int64, error) {
 		return storeaudit.RecordRouteEvent(ctx, e.store.DB(), storeaudit.RouteEvent(event))
 	}, PublishRuntimeRoutingEvent: e.PublishRuntimeRoutingEvent, Broadcast: e.broadcast}); err != nil {
@@ -951,7 +955,10 @@ func (e *Engine) ResolveOrCreatePeerSessionID(ctx context.Context, sourceSession
 
 func (e *Engine) submitPeerRoutedPrompt(ctx context.Context, sourceSessionID, targetSessionID string, route routing.ResolvedRoute, content, intent, model string, created, directed bool, parentTurnID string, extraMetadata map[string]any) (*SubmitResult, error) {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
-	sourceIdentity := e.store.SessionIdentityRuntime(opCtx, sourceSessionID)
+	sourceIdentity, err := e.store.RequireSessionIdentityRuntime(opCtx, sourceSessionID)
+	if err != nil {
+		return nil, err
+	}
 	sourceAgentID := sourceIdentity.AgentID
 	routingContent := fmt.Sprintf("↪ routed to @%s: %s", route.AgentID, content)
 	routingPayload := map[string]any{"kind": "routing", "target_agent_id": route.AgentID, "target_session_id": targetSessionID, "source_agent_id": sourceAgentID, "source_session_id": sourceSessionID, "route_matched_by": route.MatchedBy, "clipped": true}
