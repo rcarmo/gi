@@ -7660,6 +7660,8 @@ func TestPublishRuntimeHookDecisionEventPublishesRuntimeHookTopic(t *testing.T) 
 	defer cancel()
 	ch, unsub := engine.Topics().Subscribe(ctx, "runtime.hook", topics.SubscribeOptions{Buffer: 8, SessionID: "session_hook_decision"})
 	defer unsub()
+	aggregateCh, unsubAggregate := engine.Topics().Subscribe(ctx, "runtime", topics.SubscribeOptions{Buffer: 8, SessionID: "session_hook_decision"})
+	defer unsubAggregate()
 	call := goai.ToolCall{ID: "call_hook_decision", Name: "grep"}
 	req := HookRequest{Name: HookApproveTool, SessionID: "session_hook_decision", TurnID: "turn_hook_decision", AgentID: "agent", Iteration: 2, TurnStatus: "running", TurnPhase: "waiting_on_tools", SessionStatus: "running", ToolCall: &call}
 	engine.PublishRuntimeHookDecisionEvent("hook_deny", req, map[string]any{"phase": "approve_tool", "reason": "tool not approved"})
@@ -7673,6 +7675,14 @@ func TestPublishRuntimeHookDecisionEventPublishesRuntimeHookTopic(t *testing.T) 
 		}
 	case <-time.After(time.Second):
 		t.Fatal("expected runtime.hook decision topic event")
+	}
+	select {
+	case env := <-aggregateCh:
+		if env.Topic != "runtime" || env.Payload["runtime_topic"] != "runtime.hook" || env.Payload["type"] != "hook_deny" || env.Payload["hook"] != HookApproveTool {
+			t.Fatalf("unexpected aggregate runtime hook decision payload: %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected aggregate runtime hook decision topic event")
 	}
 }
 
