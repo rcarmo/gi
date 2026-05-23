@@ -3,10 +3,10 @@ module github.com/rcarmo/gi
 go 1.26.3
 
 require (
-	github.com/candid82/joker v1.7.1
+	github.com/candid82/joker v1.7.2
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/grindlemire/go-tui v0.14.0
-	github.com/rcarmo/go-ai v0.74.0
+	github.com/rcarmo/go-ai v0.75.4
 	github.com/yuin/goldmark v1.8.2
 	golang.org/x/crypto v0.51.0
 	golang.org/x/net v0.54.0

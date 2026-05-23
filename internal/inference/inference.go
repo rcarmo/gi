@@ -14,10 +14,10 @@ import (
 	"sync"
 
 	goai "github.com/rcarmo/go-ai"
-	_ "github.com/rcarmo/go-ai/provider/anthropic"
-	_ "github.com/rcarmo/go-ai/provider/openai"
-	_ "github.com/rcarmo/go-ai/provider/openaicodex"
-	_ "github.com/rcarmo/go-ai/provider/openairesponses"
+	_ "github.com/rcarmo/go-ai/inference/provider/anthropic"
+	_ "github.com/rcarmo/go-ai/inference/provider/openai"
+	_ "github.com/rcarmo/go-ai/inference/provider/openaicodex"
+	_ "github.com/rcarmo/go-ai/inference/provider/openairesponses"
 )
 
 var once sync.Once
