@@ -251,7 +251,7 @@ Status: **implemented**
 
 - added `internal/topics/`
 - implemented in-memory bounded bus
-- added publish/subscribe tests, including concurrent publish ordering and drop-oldest behavior
+- added publish/subscribe tests, including concurrent publish ordering, canceled-subscription cleanup, monotonic sequence delivery, and drop-oldest behavior
 - added topic envelope type with monotonic sequence numbers
 
 ### Phase 2 — engine + extension bridge
