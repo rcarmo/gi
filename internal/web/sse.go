@@ -104,7 +104,7 @@ func (s *Server) handleTopicSSE(w http.ResponseWriter, r *http.Request) {
 	opts := topics.SubscribeOptions{Buffer: buffer, SessionID: strings.TrimSpace(r.URL.Query().Get("session_id")), AgentID: strings.TrimSpace(r.URL.Query().Get("agent_id"))}
 	ch, unsubscribe := s.turns.Topics().Subscribe(r.Context(), pattern, opts)
 	defer unsubscribe()
-	if err := writeSSE(w, "connected", map[string]any{"topic": pattern, "session_id": opts.SessionID, "agent_id": opts.AgentID, "app_asset_version": s.version}); err != nil {
+	if err := writeSSE(w, "connected", map[string]any{"topic": pattern, "session_id": opts.SessionID, "agent_id": opts.AgentID, "app_asset_version": s.version, "last_sequence": s.turns.Topics().LastSequence()}); err != nil {
 		return
 	}
 	flusher.Flush()

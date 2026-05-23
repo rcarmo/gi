@@ -48,6 +48,13 @@ type Bus struct {
 
 func NewBus() *Bus { return &Bus{subs: make(map[uint64]subscriber)} }
 
+func (b *Bus) LastSequence() uint64 {
+	if b == nil {
+		return 0
+	}
+	return b.sequence.Load()
+}
+
 func (b *Bus) Publish(env Envelope) {
 	if strings.TrimSpace(env.Topic) == "" {
 		return
