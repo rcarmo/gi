@@ -226,9 +226,15 @@ This coexists with the older chat-turn SSE feed while newer runtime families con
 - slow subscribers use **drop oldest** backpressure, keeping the newest state-like events available without unbounded memory growth
 - topic SSE exposes the envelope `sequence` as SSE `id:` and includes the current `last_sequence`, optional `last_event_id`, and optional `missed_sequence_count` in the `connected` event
 
+### Sticky/coalesced topics decision
+
+The shipped bus is currently a bounded **firehose** with bus-wide monotonic sequences and drop-oldest backpressure. It does not retain sticky state and it does not coalesce by key inside the bus. Producers that need durable or resumable state must continue to write canonical SQLite rows first and publish topic envelopes as live notifications of that state.
+
+This keeps the bus simple and prevents topic delivery from becoming a second source of truth. Reconnects can detect sequence gaps via SSE `Last-Event-ID` / `missed_sequence_count`, but replay comes from durable store APIs, not from topic memory.
+
 ### Coalescing candidates
 
-Some topics can be coalesced later:
+Some topics may gain producer-side coalesced summary publication later, but not bus-level mutation semantics:
 
 - `turn.draft`
 - `turn.status`
