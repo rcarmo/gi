@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	gisession "github.com/rcarmo/gi/internal/session"
 	storevfs "github.com/rcarmo/gi/internal/store/vfs"
 )
 
@@ -139,18 +140,38 @@ All files contain markdown with JSON-compatible frontmatter so models can inspec
 	if err != nil {
 		return nil, nil, err
 	}
+	identitySnapshot, err := s.RequireSessionIdentitySnapshot(ctx, sessionID)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	if len(parts) == 3 && parts[2] == "session.md" {
+		identityScope := gisession.SessionScope{
+			Version:    gisession.ScopeVersionV1,
+			AgentID:    identitySnapshot.Runtime.AgentID,
+			Channel:    identitySnapshot.Runtime.Channel,
+			Account:    identitySnapshot.Runtime.Account,
+			Dimensions: make([]string, 0, len(identitySnapshot.Dimensions)),
+			Values:     map[string]string{},
+		}
+		for k := range identitySnapshot.Dimensions {
+			identityScope.Dimensions = append(identityScope.Dimensions, k)
+		}
+		sort.Strings(identityScope.Dimensions)
+		for _, k := range identityScope.Dimensions {
+			identityScope.Values[k] = identitySnapshot.Dimensions[k]
+		}
 		meta := map[string]any{
-			"kind":              "chat/session",
-			"session_id":        session.ID,
-			"title":             session.Title,
-			"parent_session_id": session.ParentSessionID,
-			"created_at":        session.CreatedAt,
-			"updated_at":        session.UpdatedAt,
-			"aliases":           session.Aliases,
-			"scope":             session.Scope,
-			"state":             session.State,
+			"kind":                      "chat/session",
+			"session_id":                session.ID,
+			"title":                     session.Title,
+			"parent_session_id":         session.ParentSessionID,
+			"created_at":                session.CreatedAt,
+			"updated_at":                session.UpdatedAt,
+			"aliases":                   session.Aliases,
+			"scope":                     identityScope,
+			"canonical_scope_signature": identitySnapshot.Runtime.CanonicalScopeSignature,
+			"state":                     session.State,
 		}
 		body := fmt.Sprintf("# Session %s\n\nTitle: %s\n", session.ID, session.Title)
 		raw := storevfs.RenderFrontmatterMarkdown(meta, body)
