@@ -113,9 +113,10 @@ type WebSocketSpec struct {
 }
 
 type TopicSubscribeOptions struct {
-	Buffer    int    `json:"buffer,omitempty"`
-	SessionID string `json:"session_id,omitempty"`
-	AgentID   string `json:"agent_id,omitempty"`
+	Buffer        int    `json:"buffer,omitempty"`
+	SessionID     string `json:"session_id,omitempty"`
+	AgentID       string `json:"agent_id,omitempty"`
+	AfterSequence uint64 `json:"after_sequence,omitempty"`
 }
 
 // BridgeFuncs defines the host functions available to scripts.

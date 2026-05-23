@@ -112,7 +112,7 @@ func (s *Server) configureScriptConnectivity() {
 			} else if strings.TrimSpace(sessionID) != "" && subSessionID != sessionID {
 				return nil, nil, fmt.Errorf("subscribe topic: session %q does not match current session %q", subSessionID, sessionID)
 			}
-			subOpts := topics.SubscribeOptions{Buffer: opts.Buffer, SessionID: subSessionID, AgentID: strings.TrimSpace(opts.AgentID)}
+			subOpts := topics.SubscribeOptions{Buffer: opts.Buffer, SessionID: subSessionID, AgentID: strings.TrimSpace(opts.AgentID), AfterSequence: opts.AfterSequence}
 			ch, unsubscribe := s.turns.Topics().Subscribe(ctx, pattern, subOpts)
 			return ch, unsubscribe, nil
 		},

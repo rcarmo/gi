@@ -3472,7 +3472,7 @@ func (e *Engine) registerDefaultTools() {
 			if e == nil || e.Topics() == nil {
 				return nil, nil, fmt.Errorf("subscribe topic: topic bus is not available")
 			}
-			subOpts := topics.SubscribeOptions{Buffer: opts.Buffer, SessionID: strings.TrimSpace(opts.SessionID), AgentID: strings.TrimSpace(opts.AgentID)}
+			subOpts := topics.SubscribeOptions{Buffer: opts.Buffer, SessionID: strings.TrimSpace(opts.SessionID), AgentID: strings.TrimSpace(opts.AgentID), AfterSequence: opts.AfterSequence}
 			if subOpts.SessionID == "" {
 				subOpts.SessionID = sessionID
 			}
