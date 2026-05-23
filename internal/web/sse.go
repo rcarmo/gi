@@ -123,7 +123,13 @@ func (s *Server) handleTopicSSE(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			if err := writeSSE(w, env.Topic, env); err != nil {
+			eventName := strings.TrimSpace(env.Topic)
+			if env.Sequence > 0 {
+				if _, err := fmt.Fprintf(w, "id: %d\n", env.Sequence); err != nil {
+					return
+				}
+			}
+			if err := writeSSE(w, eventName, env); err != nil {
 				return
 			}
 			flusher.Flush()

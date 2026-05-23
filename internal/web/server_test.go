@@ -815,7 +815,7 @@ func TestTopicSSEStreamsRuntimeTopicEvents(t *testing.T) {
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		body := res.Body.String()
-		if strings.Contains(body, "event: runtime.inbound_work") && strings.Contains(body, "inbound_work_test") {
+		if strings.Contains(body, "event: runtime.inbound_work") && strings.Contains(body, "inbound_work_test") && strings.Contains(body, "id: ") && strings.Contains(body, `"sequence":`) {
 			cancel()
 			<-done
 			return
