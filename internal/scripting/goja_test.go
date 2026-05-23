@@ -92,7 +92,7 @@ func TestGojaRunnerExecuteSupportsTopicSubscribeReadAndUnsubscribe(t *testing.T)
 			if pattern != "runtime.*" {
 				t.Fatalf("unexpected topic pattern: %q", pattern)
 			}
-			if opts.SessionID != "goja-session" {
+			if opts.SessionID != "goja-session" || opts.AfterSequence != 6 {
 				t.Fatalf("unexpected topic subscribe opts: %#v", opts)
 			}
 			return "sub-1", nil
@@ -112,7 +112,7 @@ func TestGojaRunnerExecuteSupportsTopicSubscribeReadAndUnsubscribe(t *testing.T)
 		},
 	})
 	out, err := NewGojaRunner().Execute(context.Background(), `
-		var sub = gi.topics.subscribe("runtime.*", {session_id: "goja-session"});
+		var sub = gi.topics.subscribe("runtime.*", {session_id: "goja-session", after_sequence: 6});
 		var events = gi.topics.read(sub, 5);
 		gi.topics.unsubscribe(sub);
 		events[0].topic + ":" + events[0].payload.ok + ":" + events[0].sequence;
