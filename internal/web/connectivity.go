@@ -99,7 +99,7 @@ func (s *Server) configureScriptConnectivity() {
 			} else if strings.TrimSpace(sessionID) != "" && sessionValue != sessionID {
 				return fmt.Errorf("publish topic: session %q does not match current session %q", sessionValue, sessionID)
 			}
-			s.turns.PublishTopicEvent(topics.Envelope{Topic: topicName, SessionID: sessionValue, AgentID: strings.TrimSpace(agentID), Source: source, Type: strings.TrimSpace(typ), Payload: payload})
+			s.turns.PublishTopicEvent(topics.Envelope{Topic: topicName, SessionID: sessionValue, AgentID: strings.TrimSpace(agentID), Source: source, Type: strings.TrimSpace(typ), Sequence: topics.SequenceFromValue(envelope["sequence"]), Payload: payload})
 			return nil
 		},
 		func(ctx context.Context, sessionID string, pattern string, opts scripting.TopicSubscribeOptions) (<-chan topics.Envelope, func(), error) {

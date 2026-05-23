@@ -199,14 +199,14 @@ func TestScriptToolJSCanPublishTopics(t *testing.T) {
 		}
 		return nil
 	}, nil)
-	out := tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Script: `gi.topics.publish({topic: "runtime.test", payload: {ok: true}, type: "notice"}); "ok";`})
+	out := tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Script: `gi.topics.publish({topic: "runtime.test", sequence: 42, payload: {ok: true}, type: "notice"}); "ok";`})
 	if out.Error != "" {
 		t.Fatalf("script error: %v", out.Error)
 	}
 	if out.Result != "ok" {
 		t.Fatalf("unexpected result: %q", out.Result)
 	}
-	if published["topic"] != "runtime.test" {
+	if published["topic"] != "runtime.test" || published["sequence"] != int64(42) {
 		t.Fatalf("unexpected published topic envelope: %#v", published)
 	}
 }

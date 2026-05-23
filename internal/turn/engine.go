@@ -3465,7 +3465,7 @@ func (e *Engine) registerDefaultTools() {
 			if strings.TrimSpace(sessionValue) == "" {
 				sessionValue = sessionID
 			}
-			e.PublishTopicEvent(topics.Envelope{Topic: topicName, SessionID: sessionValue, AgentID: strings.TrimSpace(agentID), Source: source, Type: strings.TrimSpace(typ), Payload: payload})
+			e.PublishTopicEvent(topics.Envelope{Topic: topicName, SessionID: sessionValue, AgentID: strings.TrimSpace(agentID), Source: source, Type: strings.TrimSpace(typ), Sequence: topics.SequenceFromValue(envelope["sequence"]), Payload: payload})
 			return nil
 		},
 		func(ctx context.Context, sessionID string, pattern string, opts scripting.TopicSubscribeOptions) (<-chan topics.Envelope, func(), error) {

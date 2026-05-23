@@ -63,6 +63,18 @@ func TestBusDropsOldestOnPressure(t *testing.T) {
 	}
 }
 
+func TestSequenceFromValue(t *testing.T) {
+	if got := SequenceFromValue("42"); got != 42 {
+		t.Fatalf("expected string sequence 42, got %d", got)
+	}
+	if got := SequenceFromValue(float64(7)); got != 7 {
+		t.Fatalf("expected float sequence 7, got %d", got)
+	}
+	if got := SequenceFromValue(-1); got != 0 {
+		t.Fatalf("expected negative sequence to normalize to zero, got %d", got)
+	}
+}
+
 func TestBusAssignsMonotonicSequences(t *testing.T) {
 	bus := NewBus()
 	ctx, cancel := context.WithCancel(context.Background())

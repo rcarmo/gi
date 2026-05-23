@@ -2,7 +2,9 @@ package topics
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -49,6 +51,36 @@ type Bus struct {
 }
 
 func NewBus() *Bus { return &Bus{subs: make(map[uint64]subscriber)} }
+
+func SequenceFromValue(v any) uint64 {
+	switch n := v.(type) {
+	case uint64:
+		return n
+	case uint:
+		return uint64(n)
+	case int:
+		if n > 0 {
+			return uint64(n)
+		}
+	case int64:
+		if n > 0 {
+			return uint64(n)
+		}
+	case float64:
+		if n > 0 {
+			return uint64(n)
+		}
+	case json.Number:
+		if parsed, err := strconv.ParseUint(n.String(), 10, 64); err == nil {
+			return parsed
+		}
+	case string:
+		if parsed, err := strconv.ParseUint(strings.TrimSpace(n), 10, 64); err == nil {
+			return parsed
+		}
+	}
+	return 0
+}
 
 func (b *Bus) LastSequence() uint64 {
 	if b == nil {
