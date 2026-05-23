@@ -296,6 +296,44 @@ func TestScriptToolJSCanSubscribeReadAndUnsubscribeTopics(t *testing.T) {
 	}
 }
 
+func TestScriptToolJokerCanSubscribeReadAndUnsubscribeTopics(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	session, err := s.CreateSession(context.Background(), store.NowID("session"), "demo", map[string]any{"model": "test-model", "status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir(), DefaultModel: "test-model", DefaultProvider: "test", DefaultThinkingLevel: "low"})
+	var gotOpts scripting.TopicSubscribeOptions
+	tool.SetConnectivityCallbacks(nil, nil, nil, nil, nil, func(ctx context.Context, sessionID string, pattern string, opts scripting.TopicSubscribeOptions) (<-chan topics.Envelope, func(), error) {
+		if sessionID != session.ID || pattern != "runtime.*" {
+			t.Fatalf("unexpected topic subscribe request: session=%q pattern=%q", sessionID, pattern)
+		}
+		gotOpts = opts
+		ch := make(chan topics.Envelope, 2)
+		ch <- topics.Envelope{Topic: "runtime.test", SessionID: sessionID, Source: "script", Type: "notice", Sequence: 42, Payload: map[string]any{"ok": true}}
+		close(ch)
+		return ch, func() {}, nil
+	})
+	out := tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Engine: "joker", Script: `(do
+		(def sub (gi-topic-subscribe "runtime.*" {:after_sequence 41}))
+		(def ev (first (gi-topic-read sub 5)))
+		(gi-topic-unsubscribe sub)
+		(str (get ev "topic") ":" (get (get ev "payload") "ok") ":" (get ev "sequence")))`})
+	if out.Error != "" {
+		t.Fatalf("script error: %v", out.Error)
+	}
+	if out.Result != "runtime.test:true:42" {
+		t.Fatalf("unexpected result: %q", out.Result)
+	}
+	if gotOpts.AfterSequence != 41 {
+		t.Fatalf("expected after_sequence 41, got %#v", gotOpts)
+	}
+}
+
 func TestScriptToolJokerSupportsEventHooksAndEmit(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
