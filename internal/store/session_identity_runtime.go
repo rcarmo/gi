@@ -106,13 +106,3 @@ func (s *Store) RequireSessionIdentityRuntime(ctx context.Context, sessionID str
 	return s.sessionIdentityRuntime(ctx, sessionID)
 }
 
-func (s *Store) RequireSession(ctx context.Context, sessionID string) error {
-	exists, err := s.SessionExists(ctx, sessionID)
-	if err != nil {
-		return err
-	}
-	if !exists {
-		return sql.ErrNoRows
-	}
-	return nil
-}

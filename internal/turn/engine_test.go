@@ -4615,8 +4615,8 @@ func TestPreparePromptRouteResolutionUsesSourceSessionScopeContext(t *testing.T)
 	if err != nil {
 		t.Fatalf("create source session: %v", err)
 	}
-	if err := s.RequireSession(ctx, source.ID); err != nil {
-		t.Fatalf("require session: %v", err)
+	if _, err := s.RequireSessionIdentityRuntime(ctx, source.ID); err != nil {
+		t.Fatalf("require session identity runtime: %v", err)
 	}
 	inbound := routedsession.InboundContextFromSession(ctx, s, source.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
@@ -4645,8 +4645,8 @@ func TestPreparePromptRouteResolutionPrefersSessionIdentityOverScopeSnapshot(t *
 	if _, err := s.DB().ExecContext(ctx, `update sessions set scope_json = ? where id = ?`, `{"version":1,"agent_id":"wrong","channel":"gi","account":"default","dimensions":["chat"],"values":{"chat":"direct:wrong"}}`, source.ID); err != nil {
 		t.Fatalf("mutate scope snapshot: %v", err)
 	}
-	if err := s.RequireSession(ctx, source.ID); err != nil {
-		t.Fatalf("require session: %v", err)
+	if _, err := s.RequireSessionIdentityRuntime(ctx, source.ID); err != nil {
+		t.Fatalf("require session identity runtime: %v", err)
 	}
 	inbound := routedsession.InboundContextFromSession(ctx, s, source.ID)
 	if inbound.Channel != "slack" || inbound.Account != "workspace" {
