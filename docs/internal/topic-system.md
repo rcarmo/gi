@@ -172,6 +172,7 @@ gi.topics.publish({
   session_id: gi.sessionId,
   source: "script",
   type: "notice",
+  // optional: sequence may be supplied by trusted bridge callers and advances the bus watermark
   payload: { text: "Index refresh complete" }
 })
 
@@ -183,7 +184,7 @@ gi.topics.unsubscribe(sub)
 
 ### Joker
 
-- `gi-topic-publish` — publish a canonical topic envelope
+- `gi-topic-publish` — publish a canonical topic envelope; optional `sequence` follows the same watermark rules as JS
 - `gi-topic-subscribe` — open a polling subscription handle
 - `gi-topic-read` — read buffered envelopes from a subscription handle, including the bus-wide `sequence`
 - `gi-topic-unsubscribe` — close a polling subscription handle
