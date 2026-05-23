@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -41,7 +42,7 @@ type subscriber struct {
 type Bus struct {
 	mu       sync.RWMutex
 	next     uint64
-	sequence uint64
+	sequence atomic.Uint64
 	subs     map[uint64]subscriber
 }
 
@@ -54,19 +55,14 @@ func (b *Bus) Publish(env Envelope) {
 	if env.Timestamp.IsZero() {
 		env.Timestamp = time.Now().UTC()
 	}
-	b.mu.Lock()
 	if env.Sequence == 0 {
-		b.sequence++
-		env.Sequence = b.sequence
-	} else if env.Sequence > b.sequence {
-		b.sequence = env.Sequence
+		env.Sequence = b.sequence.Add(1)
+	} else {
+		advanceAtomicMax(&b.sequence, env.Sequence)
 	}
-	subs := make([]subscriber, 0, len(b.subs))
+	b.mu.RLock()
+	defer b.mu.RUnlock()
 	for _, sub := range b.subs {
-		subs = append(subs, sub)
-	}
-	b.mu.Unlock()
-	for _, sub := range subs {
 		if !topicMatches(sub.pattern, env.Topic) {
 			continue
 		}
@@ -107,6 +103,18 @@ func (b *Bus) Subscribe(ctx context.Context, pattern string, opts SubscribeOptio
 		unsubscribe()
 	}()
 	return ch, unsubscribe
+}
+
+func advanceAtomicMax(v *atomic.Uint64, candidate uint64) {
+	for {
+		current := v.Load()
+		if candidate <= current {
+			return
+		}
+		if v.CompareAndSwap(current, candidate) {
+			return
+		}
+	}
 }
 
 func deliverDropOldest(ch chan Envelope, env Envelope) {
