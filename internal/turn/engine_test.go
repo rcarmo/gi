@@ -4755,6 +4755,8 @@ func TestDirectEnvelopeFromInputNormalizesIngressFields(t *testing.T) {
 			SourceID:   "  ipc:test  ",
 			Role:       "  user  ",
 			Label:      "  mobile  ",
+			Channel:    "  slack  ",
+			Account:    "  workspace  ",
 		},
 	}
 	envelope := directEnvelopeFromInput(in)
@@ -4768,7 +4770,7 @@ func TestDirectEnvelopeFromInputNormalizesIngressFields(t *testing.T) {
 		t.Fatalf("expected trimmed session fields, got %#v", envelope)
 	}
 	origin, _ := envelope["origin"].(map[string]any)
-	if internalx.StringValue(origin["source_kind"], "") != DirectSourceKindIPC || internalx.StringValue(origin["source_id"], "") != "ipc:test" {
+	if internalx.StringValue(origin["source_kind"], "") != DirectSourceKindIPC || internalx.StringValue(origin["source_id"], "") != "ipc:test" || internalx.StringValue(origin["channel"], "") != "slack" || internalx.StringValue(origin["account"], "") != "workspace" {
 		t.Fatalf("expected normalized origin fields, got %#v", origin)
 	}
 }
@@ -4786,13 +4788,15 @@ func TestDirectInputFromEnvelopeNormalizesIngressFields(t *testing.T) {
 			"source_id":   "  system:cron  ",
 			"role":        "  system  ",
 			"label":       "  scheduler  ",
+			"channel":     "  slack  ",
+			"account":     "  workspace  ",
 		},
 	}
 	in := directInputFromEnvelope(envelope)
 	if in.Kind != DirectKindPrompt || in.SessionID != "session_2" || in.SessionKey != "sk_v1_def" || in.TargetAgentID != "agent3" || in.ParentTurnID != "turn_parent_2" {
 		t.Fatalf("expected normalized direct envelope decode, got %#v", in)
 	}
-	if in.Origin.SourceKind != DirectSourceKindSystem || in.Origin.SourceID != "system:cron" || in.Origin.Role != "system" || in.Origin.Label != "scheduler" {
+	if in.Origin.SourceKind != DirectSourceKindSystem || in.Origin.SourceID != "system:cron" || in.Origin.Role != "system" || in.Origin.Label != "scheduler" || in.Origin.Channel != "slack" || in.Origin.Account != "workspace" {
 		t.Fatalf("expected normalized origin decode, got %#v", in.Origin)
 	}
 	envelopeMetadata, _ := envelope["metadata"].(map[string]any)
@@ -5142,7 +5146,7 @@ func TestProcessDirectPromptUsesNormalSubmitPathAndIngressMetadata(t *testing.T)
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	result, err := engine.ProcessDirect(ctx, DirectInput{Kind: DirectKindPrompt, SessionID: sess.ID, Prompt: "hello from direct", Model: "bootstrap", Origin: DirectOrigin{SourceKind: "ipc", SourceID: "ipc:test", Role: "system", Label: "IPC test"}})
+	result, err := engine.ProcessDirect(ctx, DirectInput{Kind: DirectKindPrompt, SessionID: sess.ID, Prompt: "hello from direct", Model: "bootstrap", Origin: DirectOrigin{SourceKind: "ipc", SourceID: "ipc:test", Role: "system", Label: "IPC test", Channel: "slack", Account: "workspace"}})
 	if err != nil {
 		t.Fatalf("process direct prompt: %v", err)
 	}
@@ -5157,14 +5161,14 @@ func TestProcessDirectPromptUsesNormalSubmitPathAndIngressMetadata(t *testing.T)
 	if err != nil {
 		t.Fatalf("get turn: %v", err)
 	}
-	if internalx.StringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || internalx.StringValue(turnRec.Metadata["ingress_source_kind"], "") != "ipc" || internalx.StringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:test" {
+	if internalx.StringValue(turnRec.Metadata["ingress_kind"], "") != "direct" || internalx.StringValue(turnRec.Metadata["ingress_source_kind"], "") != "ipc" || internalx.StringValue(turnRec.Metadata["ingress_source_id"], "") != "ipc:test" || internalx.StringValue(turnRec.Metadata["ingress_channel"], "") != "slack" || internalx.StringValue(turnRec.Metadata["ingress_account"], "") != "workspace" {
 		t.Fatalf("expected direct ingress metadata on turn, got %#v", turnRec.Metadata)
 	}
 	msgs, err := s.ListMessages(ctx, result.SessionID)
 	if err != nil {
 		t.Fatalf("list messages: %v", err)
 	}
-	if len(msgs) == 0 || internalx.StringValue(msgs[0].Payload["ingress_source_kind"], "") != "ipc" || internalx.StringValue(msgs[0].Payload["ingress_source_id"], "") != "ipc:test" {
+	if len(msgs) == 0 || internalx.StringValue(msgs[0].Payload["ingress_source_kind"], "") != "ipc" || internalx.StringValue(msgs[0].Payload["ingress_source_id"], "") != "ipc:test" || internalx.StringValue(msgs[0].Payload["ingress_channel"], "") != "slack" || internalx.StringValue(msgs[0].Payload["ingress_account"], "") != "workspace" {
 		t.Fatalf("expected direct ingress metadata on persisted user message, got %#v", msgs)
 	}
 	events, err := s.ListTurnEvents(ctx, result.TurnID)
@@ -5175,7 +5179,7 @@ func TestProcessDirectPromptUsesNormalSubmitPathAndIngressMetadata(t *testing.T)
 	for _, event := range events {
 		if event.Type == "turn.started" {
 			foundStarted = true
-			if internalx.StringValue(event.Payload["ingress_source_kind"], "") != "ipc" || internalx.StringValue(event.Payload["ingress_source_id"], "") != "ipc:test" {
+			if internalx.StringValue(event.Payload["ingress_source_kind"], "") != "ipc" || internalx.StringValue(event.Payload["ingress_source_id"], "") != "ipc:test" || internalx.StringValue(event.Payload["ingress_channel"], "") != "slack" || internalx.StringValue(event.Payload["ingress_account"], "") != "workspace" {
 				t.Fatalf("expected ingress metadata on turn.started event, got %#v", event)
 			}
 		}

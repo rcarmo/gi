@@ -130,6 +130,8 @@ type DirectOrigin struct {
 	SourceID   string `json:"source_id,omitempty"`
 	Role       string `json:"role,omitempty"`
 	Label      string `json:"label,omitempty"`
+	Channel    string `json:"channel,omitempty"`
+	Account    string `json:"account,omitempty"`
 }
 
 type SubmitResult struct {
@@ -1151,8 +1153,8 @@ const (
 	DirectSourceKindInternal = "internal"
 )
 
-var ingressMetadataKeys = []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "ingress_kind", "ingress_source_kind", "ingress_source_id", "ingress_role", "ingress_label", "ingress_session_key"}
-var turnStartedMetadataKeys = []string{"parent_turn_id", "route_mode", "route_matched_by", "source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "ingress_kind", "ingress_source_kind", "ingress_source_id", "ingress_role", "ingress_label", "ingress_session_key"}
+var ingressMetadataKeys = []string{"source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "ingress_kind", "ingress_source_kind", "ingress_source_id", "ingress_role", "ingress_label", "ingress_channel", "ingress_account", "ingress_session_key"}
+var turnStartedMetadataKeys = []string{"parent_turn_id", "route_mode", "route_matched_by", "source_session_id", "source_agent_id", "target_agent_id", "routed_from_prompt", "ingress_kind", "ingress_source_kind", "ingress_source_id", "ingress_role", "ingress_label", "ingress_channel", "ingress_account", "ingress_session_key"}
 
 func normalizeDirectKind(kind string) string {
 	kind = internalx.NormalizedLowerString(kind)
@@ -1241,6 +1243,12 @@ func (e *Engine) ProcessDirect(ctx context.Context, in DirectInput) (*SubmitResu
 	if value := strings.TrimSpace(in.Origin.Label); value != "" {
 		metadata["ingress_label"] = value
 	}
+	if value := strings.TrimSpace(in.Origin.Channel); value != "" {
+		metadata["ingress_channel"] = value
+	}
+	if value := strings.TrimSpace(in.Origin.Account); value != "" {
+		metadata["ingress_account"] = value
+	}
 	if value := strings.TrimSpace(in.SessionKey); value != "" {
 		metadata["ingress_session_key"] = value
 	}
@@ -1287,6 +1295,8 @@ func directEnvelopeFromInput(in DirectInput) map[string]any {
 			"source_id":   strings.TrimSpace(in.Origin.SourceID),
 			"role":        strings.TrimSpace(in.Origin.Role),
 			"label":       strings.TrimSpace(in.Origin.Label),
+			"channel":     strings.TrimSpace(in.Origin.Channel),
+			"account":     strings.TrimSpace(in.Origin.Account),
 		},
 	}
 	return envelope
@@ -1313,6 +1323,8 @@ func directInputFromEnvelope(envelope map[string]any) DirectInput {
 			SourceID:   strings.TrimSpace(internalx.StringValue(origin["source_id"], "")),
 			Role:       strings.TrimSpace(internalx.StringValue(origin["role"], "")),
 			Label:      strings.TrimSpace(internalx.StringValue(origin["label"], "")),
+			Channel:    strings.TrimSpace(internalx.StringValue(origin["channel"], "")),
+			Account:    strings.TrimSpace(internalx.StringValue(origin["account"], "")),
 		}
 	}
 	return in
