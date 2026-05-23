@@ -101,7 +101,7 @@ func TestGojaRunnerExecuteSupportsTopicSubscribeReadAndUnsubscribe(t *testing.T)
 			if id != "sub-1" || limit != 5 {
 				t.Fatalf("unexpected topic read request: id=%q limit=%d", id, limit)
 			}
-			return []map[string]any{{"topic": "runtime.test", "payload": map[string]any{"ok": true}}}, nil
+			return []map[string]any{{"topic": "runtime.test", "sequence": 7, "payload": map[string]any{"ok": true}}}, nil
 		},
 		UnsubscribeTopic: func(ctx context.Context, id string) error {
 			if id != "sub-1" {
@@ -115,12 +115,12 @@ func TestGojaRunnerExecuteSupportsTopicSubscribeReadAndUnsubscribe(t *testing.T)
 		var sub = gi.topics.subscribe("runtime.*", {session_id: "goja-session"});
 		var events = gi.topics.read(sub, 5);
 		gi.topics.unsubscribe(sub);
-		events[0].topic + ":" + events[0].payload.ok;
+		events[0].topic + ":" + events[0].payload.ok + ":" + events[0].sequence;
 	`, bridge)
 	if err != nil {
 		t.Fatalf("goja execute returned error: %v", err)
 	}
-	if out != "runtime.test:true" {
+	if out != "runtime.test:true:7" {
 		t.Fatalf("unexpected output: %q", out)
 	}
 	if !unsubscribed {

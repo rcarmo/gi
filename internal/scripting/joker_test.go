@@ -165,7 +165,7 @@ func TestExecuteEmbeddedJokerSupportsTopicSubscribeReadAndUnsubscribe(t *testing
 			if id != "sub-1" || limit != 5 {
 				t.Fatalf("unexpected topic read request: id=%q limit=%d", id, limit)
 			}
-			return []map[string]any{{"topic": "runtime.test", "payload": map[string]any{"ok": true}}}, nil
+			return []map[string]any{{"topic": "runtime.test", "sequence": 7, "payload": map[string]any{"ok": true}}}, nil
 		},
 		UnsubscribeTopic: func(ctx context.Context, id string) error {
 			if id != "sub-1" {
@@ -181,12 +181,12 @@ func TestExecuteEmbeddedJokerSupportsTopicSubscribeReadAndUnsubscribe(t *testing
 			(def events (gi-topic-read sub 5))
 			(def first-event (first events))
 			(gi-topic-unsubscribe sub)
-			(str (get first-event "topic") ":" (get (get first-event "payload") "ok")))
+			(str (get first-event "topic") ":" (get (get first-event "payload") "ok") ":" (get first-event "sequence")))
 	`, bridge)
 	if err != nil {
 		t.Fatalf("joker execute returned error: %v", err)
 	}
-	if out != "runtime.test:true" {
+	if out != "runtime.test:true:7" {
 		t.Fatalf("unexpected output: %q", out)
 	}
 	if !unsubscribed {
