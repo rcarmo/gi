@@ -705,13 +705,14 @@ Persist only:
 
 ## Practical reading of this target state
 
-This target state does **not** mean every table needs to land at once.
+This target state is now the direct schema/runtime cut-over note for the implemented refactor surfaces, not migration guidance for external users.
 
 It means:
 
-- the runtime semantics should move toward explicit DB-backed coordination
-- the schema should grow in the direction of first-class runtime concepts
-- JSON stays available for compatibility, but should stop being the primary home of critical coordination state
+- critical runtime coordination state is represented by first-class SQLite tables/APIs rather than session-row JSON snapshots
+- schema additions for canonical identity, channel bindings, steering, active-turn coordination, subturns, hook/routing audit, and inbound work are part of the current target state
+- JSON remains available for non-critical metadata and payload compatibility, but not as the primary home of coordination truth
+- temporary compatibility paths should be removed once the direct runtime path is covered by tests
 
 ## Relationship to the plan
 
