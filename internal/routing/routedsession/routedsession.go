@@ -92,12 +92,6 @@ func ResolveOrCreate(ctx context.Context, st *store.Store, sourceSessionID strin
 func inboundContextFromIdentitySnapshot(sessionID string, snapshot store.SessionIdentitySnapshot) routing.InboundContext {
 	inbound := routing.InboundContext{Channel: snapshot.Runtime.Channel, Account: snapshot.Runtime.Account}
 	dimensions := snapshot.Dimensions
-	if inbound.Channel == "" {
-		inbound.Channel = "gi"
-	}
-	if inbound.Account == "" {
-		inbound.Account = "default"
-	}
 	if strings.TrimSpace(sessionID) == "" || len(dimensions) == 0 {
 		if strings.TrimSpace(sessionID) != "" {
 			inbound.ChatType = "direct"
