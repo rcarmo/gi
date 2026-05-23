@@ -139,6 +139,9 @@ func (s *Store) ResolveSessionIDByCanonicalScopeSignature(ctx context.Context, s
 	if err := row.Scan(&sessionID); err != nil {
 		return "", err
 	}
+	if _, err := s.RequireSessionIdentityRuntime(ctx, sessionID); err != nil {
+		return "", err
+	}
 	return sessionID, nil
 }
 
@@ -150,6 +153,9 @@ func (s *Store) ResolveSessionIDByAlias(ctx context.Context, alias string) (stri
 	row := s.db.QueryRowContext(ctx, `select session_id from session_aliases where alias = ?`, alias)
 	var sessionID string
 	if err := row.Scan(&sessionID); err != nil {
+		return "", err
+	}
+	if _, err := s.RequireSessionIdentityRuntime(ctx, sessionID); err != nil {
 		return "", err
 	}
 	return sessionID, nil

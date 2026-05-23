@@ -290,6 +290,27 @@ func TestStoreResolveSessionByKeyOrAlias(t *testing.T) {
 	}
 }
 
+func TestStoreResolveSessionIDByAliasRequiresIdentityRuntime(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.DB().ExecContext(ctx, `
+		insert into sessions (id, parent_session_id, title, state_json, scope_json, aliases_json, created_at, updated_at)
+		values (?, NULL, ?, '{}', '{}', '[]', datetime('now'), datetime('now'))
+	`, "session_alias_legacy", "@legacy"); err != nil {
+		t.Fatalf("insert legacy session without identity: %v", err)
+	}
+	if _, err := s.DB().ExecContext(ctx, `insert into session_aliases(session_id, alias_kind, alias, created_at, updated_at) values (?, ?, ?, datetime('now'), datetime('now'))`, "session_alias_legacy", "legacy", "legacy-alias"); err != nil {
+		t.Fatalf("insert legacy alias: %v", err)
+	}
+	if _, err := s.ResolveSessionIDByAlias(ctx, "legacy-alias"); err == nil {
+		t.Fatalf("expected alias resolution to fail without identity runtime row")
+	}
+}
+
 func TestStoreResolveSessionIDByKeyOrAliasRequiresIdentityRuntimeForDirectSessionID(t *testing.T) {
 	s, err := Open("file::memory:?cache=shared")
 	if err != nil {
