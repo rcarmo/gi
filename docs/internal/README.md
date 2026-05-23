@@ -48,6 +48,8 @@ The `search/` subtree is the canonical reference for the current hybrid workspac
 
 `runtime-target-state.md` is the canonical schema/state target for the runtime refactor.
 
+`hooks/lifecycle.md` is the canonical shipped hook taxonomy and lifecycle contract for runtime, script, and process hooks.
+
 `repo-structure-refactor.md` is the working note for the interim structure-tidying phase that reassesses package/file grouping before deeper runtime changes continue.
 
 Current interim structure status:
