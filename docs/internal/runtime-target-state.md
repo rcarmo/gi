@@ -64,6 +64,17 @@ Those need first-class relational tables.
 
 Canonical routed identity, one row per logical session identity.
 
+Canonical identity tuple:
+
+- `agent_id`
+- `channel`
+- `account`
+- ordered allocation dimensions (`dimension_name`, `dimension_value`, `ordinal`)
+- `canonical_scope_signature`
+- `opaque_session_key`
+
+The session row id remains the storage primary key, but routing/allocation semantics resolve through this tuple plus aliases/channel bindings rather than scanning session state JSON.
+
 ```sql
 create table session_identities (
   session_id text primary key references sessions(id) on delete cascade,
