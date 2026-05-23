@@ -27,9 +27,10 @@ type Envelope struct {
 // SubscribeOptions narrows subscriptions to session/agent scoped events and
 // controls the buffer size for the delivered stream.
 type SubscribeOptions struct {
-	Buffer    int
-	SessionID string
-	AgentID   string
+	Buffer        int
+	SessionID     string
+	AgentID       string
+	AfterSequence uint64
 }
 
 type subscriber struct {
@@ -111,6 +112,9 @@ func (b *Bus) Publish(env Envelope) {
 			continue
 		}
 		if sub.opts.AgentID != "" && sub.opts.AgentID != env.AgentID {
+			continue
+		}
+		if sub.opts.AfterSequence > 0 && env.Sequence <= sub.opts.AfterSequence {
 			continue
 		}
 		deliverDropOldest(sub.ch, env)

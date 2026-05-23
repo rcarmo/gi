@@ -107,6 +107,32 @@ func TestBusPreservesExplicitSequenceAndAdvancesNextAutoSequence(t *testing.T) {
 	}
 }
 
+func TestBusAfterSequenceFilter(t *testing.T) {
+	bus := NewBus()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch, unsub := bus.Subscribe(ctx, "runtime.*", SubscribeOptions{Buffer: 4, AfterSequence: 2})
+	defer unsub()
+
+	bus.Publish(Envelope{Topic: "runtime.turn", Sequence: 1})
+	bus.Publish(Envelope{Topic: "runtime.turn", Sequence: 2})
+	bus.Publish(Envelope{Topic: "runtime.turn", Sequence: 3})
+
+	select {
+	case env := <-ch:
+		if env.Sequence != 3 {
+			t.Fatalf("expected first delivered event after sequence 2, got %#v", env)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected after-sequence event")
+	}
+	select {
+	case env := <-ch:
+		t.Fatalf("unexpected extra event before after-sequence boundary: %#v", env)
+	default:
+	}
+}
+
 func TestBusAgentFilter(t *testing.T) {
 	bus := NewBus()
 	ctx, cancel := context.WithCancel(context.Background())

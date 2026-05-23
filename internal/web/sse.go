@@ -101,11 +101,11 @@ func (s *Server) handleTopicSSE(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
-	opts := topics.SubscribeOptions{Buffer: buffer, SessionID: strings.TrimSpace(r.URL.Query().Get("session_id")), AgentID: strings.TrimSpace(r.URL.Query().Get("agent_id"))}
+	sinceSequence := topicSSELastEventID(r)
+	opts := topics.SubscribeOptions{Buffer: buffer, SessionID: strings.TrimSpace(r.URL.Query().Get("session_id")), AgentID: strings.TrimSpace(r.URL.Query().Get("agent_id")), AfterSequence: sinceSequence}
 	ch, unsubscribe := s.turns.Topics().Subscribe(r.Context(), pattern, opts)
 	defer unsubscribe()
 	lastSequence := s.turns.Topics().LastSequence()
-	sinceSequence := topicSSELastEventID(r)
 	connected := map[string]any{"topic": pattern, "session_id": opts.SessionID, "agent_id": opts.AgentID, "app_asset_version": s.version, "last_sequence": lastSequence}
 	if sinceSequence > 0 {
 		connected["last_event_id"] = sinceSequence
