@@ -710,14 +710,8 @@ func TestSessionIdentityHelpersSurviveCanceledCallerContext(t *testing.T) {
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
 	opCtx := store.CoordinationContext(cancelCtx, ctx)
-	if got := s.SessionAgentID(opCtx, sess.ID); got != "agentx" {
-		t.Fatalf("expected canonical agent id under canceled caller context, got %q", got)
-	}
-	if got := s.SessionChannel(opCtx, sess.ID); got != "web" {
-		t.Fatalf("expected canonical channel under canceled caller context, got %q", got)
-	}
-	if got := s.SessionAccount(opCtx, sess.ID); got != "acctx" {
-		t.Fatalf("expected canonical account under canceled caller context, got %q", got)
+	if got := s.SessionIdentityRuntime(opCtx, sess.ID); got.AgentID != "agentx" || got.Channel != "web" || got.Account != "acctx" {
+		t.Fatalf("expected canonical runtime identity under canceled caller context, got %#v", got)
 	}
 }
 

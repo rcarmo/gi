@@ -803,32 +803,14 @@ func TestStoreSessionIdentityRuntimeTupleDefaultsAndTrim(t *testing.T) {
 	if _, err := s.DB().ExecContext(ctx, `update session_identities set agent_id = ?, channel = ?, account = ? where session_id = ?`, " agent-a ", " slack ", " workspace ", "session_runtime_identity_trim"); err != nil {
 		t.Fatalf("pad session identity tuple fields: %v", err)
 	}
-	if got := s.SessionAgentID(ctx, "session_runtime_identity_trim"); got != "agent-a" {
-		t.Fatalf("expected trimmed session agent id, got %q", got)
+	if got := s.SessionIdentityRuntime(ctx, "session_runtime_identity_trim"); got.AgentID != "agent-a" || got.Channel != "slack" || got.Account != "workspace" {
+		t.Fatalf("expected trimmed runtime identity tuple, got %#v", got)
 	}
-	if got := s.SessionChannel(ctx, "session_runtime_identity_trim"); got != "slack" {
-		t.Fatalf("expected trimmed session channel, got %q", got)
+	if got := s.SessionIdentityRuntime(ctx, "missing_runtime_identity"); got.AgentID != "agent" || got.Channel != "gi" || got.Account != "default" {
+		t.Fatalf("expected default runtime identity tuple for missing identity, got %#v", got)
 	}
-	if got := s.SessionAccount(ctx, "session_runtime_identity_trim"); got != "workspace" {
-		t.Fatalf("expected trimmed session account, got %q", got)
-	}
-	if got := s.SessionAgentID(ctx, "missing_runtime_identity"); got != "agent" {
-		t.Fatalf("expected default session agent id for missing identity, got %q", got)
-	}
-	if got := s.SessionChannel(ctx, "missing_runtime_identity"); got != "gi" {
-		t.Fatalf("expected default session channel for missing identity, got %q", got)
-	}
-	if got := s.SessionAccount(ctx, "missing_runtime_identity"); got != "default" {
-		t.Fatalf("expected default session account for missing identity, got %q", got)
-	}
-	if got := s.SessionAgentID(nil, "session_runtime_identity_trim"); got != "agent-a" {
-		t.Fatalf("expected nil-context session agent lookup to work, got %q", got)
-	}
-	if got := s.SessionChannel(nil, "session_runtime_identity_trim"); got != "slack" {
-		t.Fatalf("expected nil-context session channel lookup to work, got %q", got)
-	}
-	if got := s.SessionAccount(nil, "session_runtime_identity_trim"); got != "workspace" {
-		t.Fatalf("expected nil-context session account lookup to work, got %q", got)
+	if got := s.SessionIdentityRuntime(nil, "session_runtime_identity_trim"); got.AgentID != "agent-a" || got.Channel != "slack" || got.Account != "workspace" {
+		t.Fatalf("expected nil-context runtime identity lookup to work, got %#v", got)
 	}
 }
 
