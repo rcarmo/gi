@@ -564,7 +564,11 @@ func (s *Server) sourceForkAgentID(ctx context.Context, sourceSessionID string, 
 	if mapped {
 		return agentID
 	}
-	return s.store.SessionIdentityRuntime(ctx, normalizedSourceSessionID).AgentID
+	identity, err := s.store.RequireSessionIdentityRuntime(ctx, normalizedSourceSessionID)
+	if err != nil {
+		return defaultForkAgentID
+	}
+	return identity.AgentID
 }
 
 func trimAgentNumericSuffix(agentID string) string {

@@ -230,7 +230,10 @@ func chooseNextForkAgentID(base string, used map[string]bool) (string, bool) {
 
 func (c *chatTUI) nextForkAgentID() string {
 	ctx := context.Background()
-	base := c.store.SessionIdentityRuntime(ctx, c.sessionID).AgentID
+	base := defaultForkAgentID
+	if identity, err := c.store.RequireSessionIdentityRuntime(ctx, c.sessionID); err == nil {
+		base = identity.AgentID
+	}
 	sessionIDs, agentIDs, err := c.loadSessionIdentityIndex(ctx)
 	if err != nil {
 		return firstForkAgentID(base)
@@ -283,7 +286,9 @@ func (c *chatTUI) agentIDForSessionFromIndex(sess *store.Session, index map[stri
 
 func (c *chatTUI) agentIDForSession(sess *store.Session) string {
 	if sess != nil {
-		return c.store.SessionIdentityRuntime(context.Background(), sess.ID).AgentID
+		if identity, err := c.store.RequireSessionIdentityRuntime(context.Background(), sess.ID); err == nil {
+			return identity.AgentID
+		}
 	}
 	return defaultForkAgentID
 }
