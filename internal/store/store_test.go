@@ -395,6 +395,12 @@ func TestStoreSessionIdentityRuntime(t *testing.T) {
 	if _, err := s.RequireSessionIdentityRuntime(ctx, "missing"); err == nil {
 		t.Fatalf("expected missing session runtime identity lookup to fail")
 	}
+	if _, err := s.DB().ExecContext(ctx, `update session_identities set agent_id = '', channel = '', account = '' where session_id = ?`, sess.ID); err != nil {
+		t.Fatalf("clear runtime identity tuple fields: %v", err)
+	}
+	if _, err := s.RequireSessionIdentityRuntime(ctx, sess.ID); err == nil {
+		t.Fatalf("expected runtime identity lookup to fail when tuple fields are blank")
+	}
 }
 
 func TestStoreRequireSessionIdentitySnapshot(t *testing.T) {

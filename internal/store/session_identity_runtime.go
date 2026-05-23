@@ -8,8 +8,6 @@ import (
 
 const (
 	defaultSessionAgentID = "agent"
-	defaultSessionChannel = "gi"
-	defaultSessionAccount = "default"
 )
 
 type SessionIdentityRuntime struct {
@@ -69,18 +67,9 @@ func (s *Store) RequireSessionIdentityDimensions(ctx context.Context, sessionID 
 }
 
 func normalizeRuntimeIdentityTuple(agentID, channel, account string) (string, string, string) {
-	agentID = strings.TrimSpace(agentID)
-	channel = strings.TrimSpace(channel)
-	account = strings.TrimSpace(account)
-	if agentID == "" {
-		agentID = defaultSessionAgentID
-	}
-	if channel == "" {
-		channel = defaultSessionChannel
-	}
-	if account == "" {
-		account = defaultSessionAccount
-	}
+	agentID = strings.TrimSpace(strings.ToLower(agentID))
+	channel = strings.TrimSpace(strings.ToLower(channel))
+	account = strings.TrimSpace(strings.ToLower(account))
 	return agentID, channel, account
 }
 
@@ -102,6 +91,9 @@ func (s *Store) sessionIdentityRuntime(ctx context.Context, sessionID string) (S
 		return SessionIdentityRuntime{}, err
 	}
 	identity.AgentID, identity.Channel, identity.Account = normalizeRuntimeIdentityTuple(identity.AgentID, identity.Channel, identity.Account)
+	if identity.AgentID == "" || identity.Channel == "" || identity.Account == "" {
+		return SessionIdentityRuntime{}, sql.ErrNoRows
+	}
 	identity.CanonicalScopeSignature = strings.TrimSpace(identity.CanonicalScopeSignature)
 	return identity, nil
 }
