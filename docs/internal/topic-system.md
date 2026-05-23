@@ -284,8 +284,12 @@ Status: **implemented for the first topic-native consumer set**
 
 ### Phase 4 — convergence with connectivity
 
-- bridge or merge connectivity event bus into topic bus
-- unify topic naming and subscription behavior
+Status: **bridge implemented; full merge deferred**
+
+- the connectivity event bus is bridged into the topic bus under `connectivity.*`
+- bridge lifetime is owned by the engine context and stops on `Engine.Close()`
+- bridged envelopes preserve session/agent/source scope and nest the original connectivity payload under `payload`
+- the connectivity registry still owns route dispatch semantics; replacing it with the generic topic bus is deferred until route transports no longer need the registry-specific request/response contract
 
 ## Why this closes the current plan item
 

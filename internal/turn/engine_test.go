@@ -7515,6 +7515,16 @@ func TestConnectivityBusBridgesIntoTopics(t *testing.T) {
 		if env.Topic != "connectivity.route.http.demo" {
 			t.Fatalf("unexpected connectivity topic: %#v", env)
 		}
+		if env.SessionID != "s1" || env.Source != "connectivity" || env.Type != "event" {
+			t.Fatalf("unexpected connectivity topic scope/source: %#v", env)
+		}
+		if env.Payload["topic"] != "route.http.demo" {
+			t.Fatalf("expected original connectivity topic in payload, got %#v", env.Payload)
+		}
+		payload, _ := env.Payload["payload"].(map[string]any)
+		if payload == nil || payload["ok"] != true || payload["session_id"] != "s1" {
+			t.Fatalf("expected original connectivity payload to be nested, got %#v", env.Payload)
+		}
 	case <-time.After(time.Second):
 		t.Fatal("expected bridged connectivity topic")
 	}

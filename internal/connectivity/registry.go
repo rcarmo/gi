@@ -155,7 +155,17 @@ func (r *Registry) Deliver(ctx context.Context, routeID string, event EventEnvel
 }
 
 func (r *Registry) Emit(ctx context.Context, topic string, payload map[string]any) error {
-	return r.bus.Emit(ctx, EventEnvelope{ID: newID("evt"), Topic: topic, Transport: "event", Timestamp: time.Now().UTC(), Payload: payload})
+	return r.bus.Emit(ctx, EventEnvelope{ID: newID("evt"), Topic: topic, Transport: "event", Timestamp: time.Now().UTC(), SessionID: stringPayloadValue(payload, "session_id"), AgentID: stringPayloadValue(payload, "agent_id"), Payload: payload})
+}
+
+func stringPayloadValue(payload map[string]any, key string) string {
+	if payload == nil {
+		return ""
+	}
+	if value, ok := payload[key].(string); ok {
+		return strings.TrimSpace(value)
+	}
+	return ""
 }
 
 func (rec routeRecord) info() RouteInfo {
