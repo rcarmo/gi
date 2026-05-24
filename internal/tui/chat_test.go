@@ -1359,6 +1359,27 @@ func TestModelCommandListsAndSelectsEnabledModels(t *testing.T) {
 	}
 }
 
+func TestScopedModelsCommandManagesEnabledModels(t *testing.T) {
+	root := t.TempDir()
+	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "ollama", DefaultModel: "a", DefaultThinkingLevel: "medium", EnabledModels: []string{"a"}}}
+	lines := strings.Join(c.scopedModelsCommand([]string{"/scoped-models", "add", "b"}), "\n")
+	if !strings.Contains(lines, "scoped models updated (2 enabled)") || !containsString(c.cfg.EnabledModels, "b") {
+		t.Fatalf("add scoped model failed lines=%s cfg=%#v", lines, c.cfg)
+	}
+	lines = strings.Join(c.scopedModelsCommand([]string{"/scoped-models", "remove", "1"}), "\n")
+	if c.cfg.DefaultModel != "b" || len(c.cfg.EnabledModels) != 1 || c.cfg.EnabledModels[0] != "b" {
+		t.Fatalf("remove/default update failed lines=%s cfg=%#v", lines, c.cfg)
+	}
+	c.scopedModelsCommand([]string{"/scoped-models", "set", "c", "d", "c"})
+	if got := strings.Join(c.cfg.EnabledModels, ","); got != "c,d" {
+		t.Fatalf("set/dedupe scoped models = %q", got)
+	}
+	cfg := config.Load(root)
+	if got := strings.Join(cfg.EnabledModels, ","); got != "c,d" {
+		t.Fatalf("persisted scoped models = %q", got)
+	}
+}
+
 func TestAppendTranscriptPrunesToScrollbackLimit(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{ScrollbackLimit: 3}}
 	c.appendTranscript("1", "2", "3", "4")

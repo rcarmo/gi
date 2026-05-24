@@ -958,6 +958,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.transcript = append(c.transcript, c.skillLines(query)...)
 	case "/model":
 		c.transcript = append(c.transcript, c.modelCommand(fields)...)
+	case "/scoped-models":
+		c.transcript = append(c.transcript, c.scopedModelsCommand(fields)...)
 	case "/thinking":
 		c.transcript = append(c.transcript, c.thinkingCommand(fields)...)
 	case "/compact":
@@ -1046,7 +1048,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy, /reload, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
+		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy, /reload, /tools [query|active|activate|reset], /skills [query], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1071,7 +1073,7 @@ func (c *chatTUI) helpLines() []string {
 		"- Enter send · Shift+Enter newline · Esc blur input · Tab focus input",
 		"- Up/Down history · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
 		"runtime:",
-		"- /session · /new · /name <name> · /resume [index|session_id] · /copy · /reload · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"- /session · /new · /name <name> · /resume [index|session_id] · /copy · /reload · /model [name] · /scoped-models [add|remove|set] · /thinking [level] · /compact · /cancel · /settings · /approvals",
 		"- !cmd sends a shell request to the model · !!cmd runs locally and prints output",
 		"- Tab completes paths; @path uses the same textual file-reference completion fallback",
 		"discovery:",
@@ -1392,6 +1394,93 @@ func (c *chatTUI) modelListLines() []string {
 	}
 	lines = append(lines, "- select with /model <index> or /model <provider/model>")
 	return lines
+}
+
+func (c *chatTUI) scopedModelsCommand(fields []string) []string {
+	if len(fields) == 1 || strings.EqualFold(fields[1], "list") {
+		lines := []string{"scoped-models: enabled models:"}
+		if len(c.cfg.EnabledModels) == 0 {
+			return append(lines, "- none configured", "- usage: /scoped-models add <model> | remove <model|index> | set <model> [model...]")
+		}
+		for i, model := range c.cfg.EnabledModels {
+			marker := " "
+			if model == c.cfg.DefaultModel {
+				marker = "*"
+			}
+			lines = append(lines, fmt.Sprintf("%s%d. %s", marker, i+1, model))
+		}
+		lines = append(lines, "- usage: /scoped-models add <model> | remove <model|index> | set <model> [model...]")
+		return lines
+	}
+	action := strings.ToLower(strings.TrimSpace(fields[1]))
+	args := fields[2:]
+	models := append([]string(nil), c.cfg.EnabledModels...)
+	switch action {
+	case "add":
+		if len(args) == 0 {
+			return []string{"sys: usage /scoped-models add <model> [model...]"}
+		}
+		for _, model := range args {
+			model = strings.TrimSpace(model)
+			if model != "" && !containsString(models, model) {
+				models = append(models, model)
+			}
+		}
+	case "remove", "rm":
+		if len(args) != 1 {
+			return []string{"sys: usage /scoped-models remove <model|index>"}
+		}
+		needle := strings.TrimSpace(args[0])
+		removed := false
+		if idx, err := strconv.Atoi(needle); err == nil && idx > 0 && idx <= len(models) {
+			models = append(models[:idx-1], models[idx:]...)
+			removed = true
+		} else {
+			filtered := models[:0]
+			for _, model := range models {
+				if model == needle {
+					removed = true
+					continue
+				}
+				filtered = append(filtered, model)
+			}
+			models = filtered
+		}
+		if !removed {
+			return []string{fmt.Sprintf("sys: scoped model not found: %s", needle)}
+		}
+	case "set":
+		if len(args) == 0 {
+			return []string{"sys: usage /scoped-models set <model> [model...]"}
+		}
+		models = nil
+		for _, model := range args {
+			model = strings.TrimSpace(model)
+			if model != "" && !containsString(models, model) {
+				models = append(models, model)
+			}
+		}
+	default:
+		return []string{"sys: usage /scoped-models [list|add|remove|set]"}
+	}
+	c.cfg.EnabledModels = models
+	if c.cfg.DefaultModel != "" && !containsString(models, c.cfg.DefaultModel) && len(models) > 0 {
+		c.cfg.DefaultModel = models[0]
+	}
+	lines := []string{fmt.Sprintf("sys: scoped models updated (%d enabled)", len(models))}
+	if err := config.PersistModelSelection(c.cfg.WorkspaceRoot, c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.DefaultThinkingLevel, c.cfg.EnabledModels); err != nil {
+		lines = append(lines, fmt.Sprintf("warn: failed to persist scoped models: %v", err))
+	}
+	return append(lines, c.modelListLines()...)
+}
+
+func containsString(values []string, needle string) bool {
+	for _, value := range values {
+		if value == needle {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *chatTUI) thinkingCommand(fields []string) []string {
