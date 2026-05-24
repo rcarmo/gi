@@ -1797,15 +1797,17 @@ func (c *chatTUI) visibleTranscript() []string {
 }
 
 type tuiContextSummary struct {
-	sessionTitle string
-	agentID      string
-	parent       string
-	model        string
-	provider     string
-	thinking     string
-	status       string
-	messageCount int
-	turnCount    int
+	sessionTitle  string
+	agentID       string
+	parent        string
+	model         string
+	provider      string
+	thinking      string
+	status        string
+	messageCount  int
+	turnCount     int
+	queuedTurns   int
+	steeringDepth int
 }
 
 func (c *chatTUI) contextSummaryData() tuiContextSummary {
@@ -1818,6 +1820,8 @@ func (c *chatTUI) contextSummaryData() tuiContextSummary {
 	turns, _ := c.store.ListTurns(context.Background(), c.sessionID)
 	data.messageCount = len(messages)
 	data.turnCount = len(turns)
+	data.queuedTurns, _ = c.store.CountQueuedTurns(context.Background(), c.sessionID)
+	data.steeringDepth, _ = c.store.SteeringQueueLength(context.Background(), c.sessionID)
 	data.sessionTitle = session.Title
 	data.agentID = c.agentIDForSession(session)
 	if session.ParentSessionID != "" {
@@ -1842,13 +1846,13 @@ func (c *chatTUI) contextSummaryData() tuiContextSummary {
 func (c *chatTUI) contextSummaryLines(width int) []string {
 	data := c.contextSummaryData()
 	if width >= 110 {
-		return c.wrapLines(fmt.Sprintf("Session: %s · Agent: @%s · Parent: %s · Model: %s · Provider: %s · Thinking: %s · Status: %s · Messages: %d · Turns: %d", data.sessionTitle, data.agentID, data.parent, data.model, data.provider, data.thinking, data.status, data.messageCount, data.turnCount), width)
+		return c.wrapLines(fmt.Sprintf("Session: %s · Agent: @%s · Parent: %s · Model: %s · Provider: %s · Thinking: %s · Status: %s · Messages: %d · Turns: %d · Queued: %d · Steering: %d", data.sessionTitle, data.agentID, data.parent, data.model, data.provider, data.thinking, data.status, data.messageCount, data.turnCount, data.queuedTurns, data.steeringDepth), width)
 	}
 	if width >= 80 {
 		return []string{
 			fmt.Sprintf("Session: %s · Agent: @%s · Parent: %s", data.sessionTitle, data.agentID, data.parent),
 			fmt.Sprintf("Model: %s · Provider: %s · Thinking: %s · Status: %s", data.model, data.provider, data.thinking, data.status),
-			fmt.Sprintf("Messages: %d · Turns: %d", data.messageCount, data.turnCount),
+			fmt.Sprintf("Messages: %d · Turns: %d · Queued: %d · Steering: %d", data.messageCount, data.turnCount, data.queuedTurns, data.steeringDepth),
 		}
 	}
 	return []string{
@@ -1857,6 +1861,7 @@ func (c *chatTUI) contextSummaryLines(width int) []string {
 		fmt.Sprintf("Model: %s", data.model),
 		fmt.Sprintf("Provider: %s · Thinking: %s", data.provider, data.thinking),
 		fmt.Sprintf("Status: %s · Messages: %d · Turns: %d", data.status, data.messageCount, data.turnCount),
+		fmt.Sprintf("Queued: %d · Steering: %d", data.queuedTurns, data.steeringDepth),
 	}
 }
 

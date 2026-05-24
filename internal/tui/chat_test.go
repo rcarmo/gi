@@ -1370,7 +1370,7 @@ func TestContextSummaryLinesWrapForNarrowWidth(t *testing.T) {
 		t.Fatalf("expected wrapped summary lines, got %#v", lines)
 	}
 	joined := strings.Join(lines, "\n")
-	for _, want := range []string{"Session:", "Agent:", "Model:", "Provider:", "Messages:"} {
+	for _, want := range []string{"Session:", "Agent:", "Model:", "Provider:", "Messages:", "Queued:", "Steering:"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("responsive summary missing %q:\n%s", want, joined)
 		}
