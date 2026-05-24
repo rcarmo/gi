@@ -3,6 +3,7 @@ package skills
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -46,10 +47,12 @@ func ExecuteTool(workspaceRoot string, args map[string]any) (string, error) {
 	fmt.Fprintf(&sb, "%d skill(s) available:\n", len(rows))
 	for _, skill := range rows {
 		fmt.Fprintf(&sb, "- %s: %s\n", skill.Name, skill.Description)
+		fmt.Fprintf(&sb, "  command: /skill:%s [args]\n", skill.Name)
+		fmt.Fprintf(&sb, "  source: %s\n", filepath.ToSlash(skill.Path))
 		for _, warning := range skill.Warnings {
 			fmt.Fprintf(&sb, "  warning: %s\n", warning)
 		}
 	}
-	sb.WriteString("\nUse skills({name: \"<skill>\"}) to read SKILL.md before applying it.")
+	sb.WriteString("\nUse /skill:<name> [args] in the TUI, or skills({name: \"<skill>\"}) from tools, to read SKILL.md before applying it.")
 	return sb.String(), nil
 }

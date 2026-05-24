@@ -64,7 +64,9 @@ func TestDiscoverSkillsWarnsForMissingAgentSkillFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("execute meta: %v", err)
 	}
-	if !strings.Contains(out, "warning: missing Name field") {
-		t.Fatalf("skill list missing warning:\n%s", out)
+	for _, want := range []string{"command: /skill:legacy [args]", "source:", "warning: missing Name field"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("skill list missing %q:\n%s", want, out)
+		}
 	}
 }
