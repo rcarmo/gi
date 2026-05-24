@@ -1049,6 +1049,47 @@ func TestMultilineInputExpandsForWrappedText(t *testing.T) {
 	}
 }
 
+func TestMultilineInputPlaceholderShowsFocusState(t *testing.T) {
+	inp := newMultilineInput(40, "Send a message…", nil, nil)
+	lines := inp.renderLines()
+	if len(lines) != 1 || lines[0].text != "○ Send a message…" || !lines[0].placeholder {
+		t.Fatalf("blurred placeholder lines = %#v", lines)
+	}
+	inp.Focus()
+	inp.blink = true
+	lines = inp.renderLines()
+	if len(lines) != 1 || lines[0].text != "● ▌Send a message…" || !lines[0].placeholder {
+		t.Fatalf("focused placeholder lines = %#v", lines)
+	}
+}
+
+func TestMultilineInputHelpLineFollowsFocusAndText(t *testing.T) {
+	inp := newMultilineInput(40, "Send a message…", nil, nil)
+	if got := inp.helpLine(); got != "" {
+		t.Fatalf("blurred helpLine = %q", got)
+	}
+	inp.Focus()
+	if got := inp.helpLine(); got != "Enter send · Shift+Enter newline" {
+		t.Fatalf("empty focused helpLine = %q", got)
+	}
+	inp.SetText("hello")
+	if got := inp.helpLine(); got != "Enter send · Shift+Enter newline · Esc blur" {
+		t.Fatalf("text focused helpLine = %q", got)
+	}
+}
+
+func TestMultilineInputCursorRenderingWithinText(t *testing.T) {
+	inp := newMultilineInput(40, "", nil, nil)
+	inp.SetText("abcd")
+	inp.Focus()
+	inp.blink = true
+	inp.cursorPos = 2
+	lines := inp.renderLines()
+	if len(lines) != 1 || lines[0].text != "ab▌cd" {
+		t.Fatalf("cursor render lines = %#v", lines)
+	}
+}
+
 func TestContextSummaryLinesWrapForNarrowWidth(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

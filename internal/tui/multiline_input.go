@@ -91,6 +91,10 @@ func (m *multilineInput) KeyMap() gotui.KeyMap {
 
 func (m *multilineInput) Render(app *gotui.App) *gotui.Element {
 	lines := m.renderLines()
+	help := m.helpLine()
+	if help != "" {
+		lines = append(lines, renderedLine{text: help, placeholder: true})
+	}
 	totalHeight := len(lines)
 	if totalHeight < 1 {
 		totalHeight = 1
@@ -125,7 +129,14 @@ type renderedLine struct {
 
 func (m *multilineInput) renderLines() []renderedLine {
 	if m.text == "" && !m.focused && m.placeholder != "" {
-		return []renderedLine{{text: m.placeholder, placeholder: true}}
+		return []renderedLine{{text: "○ " + m.placeholder, placeholder: true}}
+	}
+	if m.text == "" && m.focused && m.placeholder != "" {
+		prefix := "● "
+		if m.blink {
+			prefix += string(m.cursorRune)
+		}
+		return []renderedLine{{text: prefix + m.placeholder, placeholder: true}}
 	}
 	visibleWidth := m.width
 	if m.border != gotui.BorderNone {
@@ -163,6 +174,16 @@ func (m *multilineInput) renderLines() []renderedLine {
 		lines = []renderedLine{{text: ""}}
 	}
 	return lines
+}
+
+func (m *multilineInput) helpLine() string {
+	if !m.focused {
+		return ""
+	}
+	if strings.TrimSpace(m.text) == "" {
+		return "Enter send · Shift+Enter newline"
+	}
+	return "Enter send · Shift+Enter newline · Esc blur"
 }
 
 func (m *multilineInput) insertRune(ke gotui.KeyEvent) {
