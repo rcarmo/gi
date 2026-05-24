@@ -68,7 +68,7 @@ Not yet implemented or not at Pi parity:
 - delete-to-line-start / delete-to-line-end
 - undo/yank/kill-ring behavior
 - configurable keybindings
-- Alt+Enter follow-up submission
+- Alt+Enter follow-up submission (currently documented gap: `go-tui` event support and runtime follow-up-vs-steering split need a separate implementation slice)
 - Alt+Up queued-message restore
 - Ctrl+L model selector
 - model/thinking cycling shortcuts
@@ -98,7 +98,7 @@ Not yet at Pi parity:
 - resume recent sessions through `/resume`
 - clone active branch through `/clone`
 - copy/export/share session affordances
-- visible queued/steering count in header/context
+- visible queued/steering count in header/context (implemented after baseline)
 - dequeue queued messages to editor
 
 ### Current transcript/layout surface
@@ -125,7 +125,7 @@ Remaining polish:
 The plan sidebar groups gaps into these implementation tracks:
 
 1. **Command/session workflow parity** — add Pi-like session commands first because they are visible and mostly store-backed.
-2. **Message queue and steering UX parity** — expose the durable steering state that Gi already has.
+2. **Message queue and steering UX parity** — expose the durable steering state that Gi already has. Current implementation surfaces queued turn and steering depth in the context area; Pi-style Alt+Enter follow-up submission remains deferred until `go-tui` key support and a clear runtime follow-up queue split are implemented.
 3. **Editor affordance parity** — add only keybindings that `go-tui` can represent cleanly.
 4. **Model/settings parity** — improve selection/listing before attempting interactive pickers.
 5. **Skills/extensions parity** — expose existing skills/script primitives through Pi-like command surfaces.
