@@ -667,7 +667,7 @@ func TestHandleTopicEventSteeringAndSubturnRendering(t *testing.T) {
 func TestHandleTopicEventCompactionAndRoutingRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "session.compaction", Payload: map[string]any{"messages_before": 10, "messages_after": 4, "tokens_before": 1234}})
-	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys: compacted context: messages 10→4, tokens_before=1234" {
+	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys[compact]: messages 10→4 · tokens_before=1234" {
 		t.Fatalf("compaction topic status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.routing", Payload: map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session_id": "session_child"}})
@@ -886,7 +886,7 @@ func TestHandleEventStatusRendering(t *testing.T) {
 		t.Fatalf("new_post cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 	c.handleEvent(map[string]any{"type": "compaction", "messages_before": 10, "messages_after": 4, "tokens_before": 1234})
-	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys: compacted context: messages 10→4, tokens_before=1234" {
+	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys[compact]: messages 10→4 · tokens_before=1234" {
 		t.Fatalf("compaction status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleEvent(map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session": "session_child"})
@@ -1001,6 +1001,17 @@ func TestRenderMessageLinesFormatsMarkdown(t *testing.T) {
 	}
 }
 
+func TestRenderMessageLinesFormatsCodeBlocksWithLineCount(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
+	lines := c.renderMessageLines(store.Message{Role: "assistant", Content: "```go\nfmt.Println(1)\nfmt.Println(2)\n```", Payload: map[string]any{"kind": "chat"}}, 80)
+	joined := strings.Join(lines, "\n")
+	for _, want := range []string{"Neo: [code:go] 2 lines", "fmt.Println(1)", "fmt.Println(2)"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("code block render missing %q:\n%s", want, joined)
+		}
+	}
+}
+
 func TestRenderMessageLinesFormatsTableResponsively(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
 	content := "| Name | Role | Value |\n| --- | --- | --- |\n| Alice | admin | 42 |\n| Bob | user | 7 |"
@@ -1018,6 +1029,10 @@ func TestRenderMessageLineFoldsToolAndCompaction(t *testing.T) {
 	toolLine := c.renderMessageLine(store.Message{Role: "tool_result", Content: "long tool output", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": false}})
 	if toolLine != "tool[shell/ok]: long tool output" {
 		t.Fatalf("tool line = %q", toolLine)
+	}
+	multilineToolLine := c.renderMessageLine(store.Message{Role: "tool_result", Content: "first line\nsecond line\nthird line", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": true}})
+	if multilineToolLine != "tool[shell/error]: 3 lines · first line" {
+		t.Fatalf("multiline tool line = %q", multilineToolLine)
 	}
 	compactionLine := c.renderMessageLine(store.Message{Role: "assistant", Content: "summary", Payload: map[string]any{"kind": "compaction", "tokens_before": 1200}})
 	if compactionLine != "compact: summary (tokens_before=1200)" {

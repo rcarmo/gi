@@ -612,7 +612,7 @@ func (c *chatTUI) renderCompactionEvent(messagesBeforeValue, messagesAfterValue,
 	before := intFromAny(messagesBeforeValue)
 	after := intFromAny(messagesAfterValue)
 	tokens := intFromAny(tokensBeforeValue)
-	c.appendTranscript(fmt.Sprintf("sys: compacted context: messages %d→%d, tokens_before=%d", before, after, tokens))
+	c.appendTranscript(fmt.Sprintf("sys[compact]: messages %d→%d · tokens_before=%d", before, after, tokens))
 	c.status = "Compacted context"
 }
 
@@ -1487,7 +1487,7 @@ func (c *chatTUI) renderMessageLine(m store.Message) string {
 		if isErr {
 			status = "error"
 		}
-		return fmt.Sprintf("tool[%s/%s]: %s", toolName, status, truncate(m.Content, 160))
+		return fmt.Sprintf("tool[%s/%s]: %s", toolName, status, foldedContentSummary(m.Content, 160))
 	}
 	prefix := "you"
 	switch m.Role {
@@ -1497,6 +1497,27 @@ func (c *chatTUI) renderMessageLine(m store.Message) string {
 		prefix = "sys"
 	}
 	return fmt.Sprintf("%s: %s", prefix, truncate(m.Content, 200))
+}
+
+func foldedContentSummary(content string, maxLen int) string {
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		return "(empty)"
+	}
+	lines := strings.Split(trimmed, "\n")
+	first := strings.TrimSpace(lines[0])
+	for _, line := range lines {
+		if strings.TrimSpace(line) != "" {
+			first = strings.TrimSpace(line)
+			break
+		}
+	}
+	first = strings.Join(strings.Fields(first), " ")
+	if len(lines) <= 1 {
+		return truncate(first, maxLen)
+	}
+	summary := fmt.Sprintf("%d lines · %s", len(lines), first)
+	return truncate(summary, maxLen)
 }
 
 func toInt(value any, fallback int) int {

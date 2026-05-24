@@ -86,11 +86,14 @@ func (m *markdownProjector) renderBlocks(node gast.Node, depth int) []string {
 			}
 		case *gast.FencedCodeBlock:
 			lang := strings.TrimSpace(string(n.Language(m.source)))
+			label := "[code]"
 			if lang != "" {
-				lines = append(lines, "[code:"+lang+"]")
-			} else {
-				lines = append(lines, "[code]")
+				label = "[code:" + lang + "]"
 			}
+			if n.Lines().Len() > 0 {
+				label += " " + strconv.Itoa(n.Lines().Len()) + " lines"
+			}
+			lines = append(lines, label)
 			for i := 0; i < n.Lines().Len(); i++ {
 				segment := n.Lines().At(i)
 				codeLine := strings.TrimRight(string(segment.Value(m.source)), "\r\n")
@@ -102,7 +105,11 @@ func (m *markdownProjector) renderBlocks(node gast.Node, depth int) []string {
 			}
 			lines = append(lines, "")
 		case *gast.CodeBlock:
-			lines = append(lines, "[code]")
+			label := "[code]"
+			if n.Lines().Len() > 0 {
+				label += " " + strconv.Itoa(n.Lines().Len()) + " lines"
+			}
+			lines = append(lines, label)
 			for i := 0; i < n.Lines().Len(); i++ {
 				segment := n.Lines().At(i)
 				codeLine := strings.TrimRight(string(segment.Value(m.source)), "\r\n")
