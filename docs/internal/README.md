@@ -46,6 +46,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `repo-structure-refactor.md` — interim repository-structure reassessment and functional regrouping plan for the runtime refactor
 - `subturn-runtime.md` — concrete sub-turn runtime contract, limits, store APIs, and current implementation status
 - `tui-stack-evaluation.md` — decision record for keeping the current Gi TUI stack instead of switching to PicoClaw/Pi's launcher/TUI stack now
+- `tui-pi-fit-gap-roadmap.md` — baseline inventory and acceptance criteria for incremental Pi-like TUI fit/gap work
 
 The `search/` subtree is the canonical reference for the current hybrid workspace search direction: SQLite metadata + FTS5 + vec + local embeddings, plus the runtime-facing read-only `fts://` locator contract.
 
@@ -58,6 +59,8 @@ The `search/` subtree is the canonical reference for the current hybrid workspac
 `runtime-package-inventory.md` is the current ownership map for packages touched by the refactor.
 
 `runtime-surfaces.md` is the living index for the top runtime surfaces, their canonical contract docs, and their implementation owners.
+
+`tui-pi-fit-gap-roadmap.md` is the current baseline and acceptance note for Pi-like TUI parity work.
 
 `picoclaw-parity-status.md` tracks ported/adapted/different PicoClaw runtime semantics without turning them into public compatibility promises.
 
