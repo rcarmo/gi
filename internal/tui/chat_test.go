@@ -1150,7 +1150,7 @@ func TestReloadLinesRefreshesConfigOnly(t *testing.T) {
 	}
 	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "old", DefaultModel: "old-model", DefaultThinkingLevel: "low"}, input: newMultilineInput(80, "old", nil, nil)}
 	joined := strings.Join(c.reloadLines(), "\n")
-	for _, want := range []string{"reload: config refreshed", "provider=test model=model-a thinking=high", "active runtime hooks/extensions remain mounted"} {
+	for _, want := range []string{"reload: config refreshed", "provider=test model=model-a thinking=high", "discovery: skills=0 tools=0", "extensions: discovered=0 mounted=0", "reload refreshes config and skill/tool discovery safely"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("reload output missing %q:\n%s", want, joined)
 		}

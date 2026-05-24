@@ -18,6 +18,7 @@ import (
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/skills"
 	"github.com/rcarmo/gi/internal/store"
+	gitools "github.com/rcarmo/gi/internal/tools"
 	"github.com/rcarmo/gi/internal/topics"
 	"github.com/rcarmo/gi/internal/turn"
 )
@@ -1225,12 +1226,24 @@ func (c *chatTUI) reloadLines() []string {
 	if c.input != nil {
 		c.input.placeholder = "Send a message…"
 	}
-	return []string{
+	lines := []string{
 		"reload: config refreshed",
 		fmt.Sprintf("- workspace=%s", c.cfg.WorkspaceRoot),
 		fmt.Sprintf("- provider=%s model=%s thinking=%s", c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.DefaultThinkingLevel),
-		"- note: active runtime hooks/extensions remain mounted until process restart; future slices may add safe extension reload",
+		fmt.Sprintf("- discovery: skills=%d tools=%d", len(c.cfg.Discovery.Skills), len(c.cfg.Discovery.Tools)),
 	}
+	discoveredExtensions := gitools.DiscoverExtensionScripts(c.cfg.WorkspaceRoot)
+	mountedExtensions := 0
+	if c.engine != nil {
+		mountedExtensions = len(c.engine.ExtensionInfos())
+	}
+	lines = append(lines, fmt.Sprintf("- extensions: discovered=%d mounted=%d", len(discoveredExtensions), mountedExtensions))
+	if len(discoveredExtensions) != mountedExtensions {
+		lines = append(lines, "- note: extension set changed; safe handler unload/reload is deferred, restart to remount extensions")
+	} else {
+		lines = append(lines, "- note: extension handlers remain mounted; /reload refreshes config and skill/tool discovery safely")
+	}
+	return lines
 }
 
 func (c *chatTUI) copyLastAssistantLines() []string {
