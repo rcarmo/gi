@@ -1359,6 +1359,23 @@ func TestModelCommandListsAndSelectsEnabledModels(t *testing.T) {
 	}
 }
 
+func TestCycleThinkingUsesKnownLevels(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	c := &chatTUI{store: s, sessionID: "session_cycle_thinking", cfg: config.RuntimeConfig{DefaultThinkingLevel: "low"}}
+	c.cycleThinking(1)
+	if c.cfg.DefaultThinkingLevel != "medium" || !strings.Contains(strings.Join(c.transcript, "\n"), "thinking set to medium") {
+		t.Fatalf("next thinking failed cfg=%#v transcript=%#v", c.cfg, c.transcript)
+	}
+	c.cycleThinking(-1)
+	if c.cfg.DefaultThinkingLevel != "low" {
+		t.Fatalf("previous thinking failed cfg=%#v", c.cfg)
+	}
+}
+
 func TestCycleModelUsesEnabledModels(t *testing.T) {
 	root := t.TempDir()
 	s, err := store.Open("file::memory:?cache=shared")
