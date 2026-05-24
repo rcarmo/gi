@@ -895,6 +895,26 @@ func TestHandleEventStatusRendering(t *testing.T) {
 	}
 }
 
+func TestOnSubmitWhileRunningShowsQueuedFeedback(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.CreateSession(context.Background(), "session_queue_feedback", "@agent", map[string]any{"status": "running", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_queue_feedback", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, running: true, draftLineIndex: -1, transcriptRef: gotui.NewRef()}
+	c.input = newMultilineInput(80, "", c.onSubmit, nil)
+	c.onSubmit("please continue")
+	if c.status != "Queued follow-up" {
+		t.Fatalf("queued status = %q", c.status)
+	}
+	if len(c.transcript) == 0 || c.transcript[len(c.transcript)-1] != "you [queued]: please continue" {
+		t.Fatalf("queued transcript = %#v", c.transcript)
+	}
+}
+
 func TestOnSubmitRequiresModelSelectionBeforeFirstPrompt(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

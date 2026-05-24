@@ -806,6 +806,26 @@ func (c *chatTUI) onSubmit(text string) {
 		return
 	}
 	if c.running {
+		c.appendTranscript(fmt.Sprintf("you [queued]: %s", text))
+		c.status = "Queued follow-up"
+		c.stickToBottom = true
+		c.scrollTranscriptToBottom()
+		if c.app != nil {
+			c.app.MarkDirty()
+		}
+		go func() {
+			_, err := c.engine.SubmitPromptRouted(context.Background(), turn.RunInput{SessionID: c.sessionID, Prompt: text, Intent: "prompt", Model: c.cfg.DefaultModel})
+			if err != nil {
+				if c.app != nil {
+					c.app.QueueUpdate(func() {
+						c.appendTranscript(fmt.Sprintf("error: queue follow-up: %v", err))
+						c.app.MarkDirty()
+					})
+				} else {
+					c.appendTranscript(fmt.Sprintf("error: queue follow-up: %v", err))
+				}
+			}
+		}()
 		return
 	}
 	if strings.TrimSpace(c.cfg.DefaultModel) == "" {
