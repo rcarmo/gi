@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -822,6 +823,18 @@ func (c *chatTUI) onSubmit(text string) {
 		c.handleCommand(text)
 		return
 	}
+	if strings.HasPrefix(text, "!!") {
+		c.appendTranscript(c.localShellShortcutLines(strings.TrimSpace(strings.TrimPrefix(text, "!!")))...)
+		return
+	}
+	if strings.HasPrefix(text, "!") {
+		cmd := strings.TrimSpace(strings.TrimPrefix(text, "!"))
+		if cmd == "" {
+			c.appendTranscript("sys: usage: !command sends a shell request to the model; !!command runs it locally")
+			return
+		}
+		text = fmt.Sprintf("Run this shell command and summarize the result: %s", cmd)
+	}
 	if c.running {
 		c.queuedDrafts = append(c.queuedDrafts, text)
 		c.appendTranscript(fmt.Sprintf("you [queued]: %s", text))
@@ -1029,7 +1042,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy, /reload, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy, /reload, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1055,11 +1068,39 @@ func (c *chatTUI) helpLines() []string {
 		"- Up/Down history · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
 		"runtime:",
 		"- /session · /new · /name <name> · /resume [index|session_id] · /copy · /reload · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"- !cmd sends a shell request to the model · !!cmd runs locally and prints output",
 		"discovery:",
 		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
 		"sessions:",
 		"- /where · /agents · /tree · /fork [@agentN] · /clone [@agentN] · /switch @agent|session_id · /send @agent message",
 	}
+}
+
+func (c *chatTUI) localShellShortcutLines(command string) []string {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return []string{"sys: usage: !!command runs a local shell command; !command sends a shell request to the model"}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "sh", "-lc", command)
+	if root := strings.TrimSpace(c.cfg.WorkspaceRoot); root != "" {
+		cmd.Dir = root
+	}
+	out, err := cmd.CombinedOutput()
+	text := strings.TrimSpace(string(out))
+	if text == "" {
+		text = "(no output)"
+	}
+	text = truncate(text, 2000)
+	lines := []string{fmt.Sprintf("local$ %s", command)}
+	if err != nil {
+		lines = append(lines, fmt.Sprintf("error: %v", err))
+	}
+	for _, line := range strings.Split(text, "\n") {
+		lines = append(lines, "│ "+line)
+	}
+	return lines
 }
 
 func (c *chatTUI) reloadLines() []string {

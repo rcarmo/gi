@@ -929,6 +929,34 @@ func TestMultilineInputAltBindingsAreAvailable(t *testing.T) {
 	}
 }
 
+func TestLocalShellShortcutRunsLocally(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: t.TempDir()}}
+	lines := strings.Join(c.localShellShortcutLines("printf hello"), "\n")
+	for _, want := range []string{"local$ printf hello", "│ hello"} {
+		if !strings.Contains(lines, want) {
+			t.Fatalf("local shell output missing %q:\n%s", want, lines)
+		}
+	}
+}
+
+func TestOnSubmitBangShortcutSendsShellRequestToModel(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.CreateSession(context.Background(), "session_bang", "@agent", map[string]any{"status": "idle", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_bang", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, running: true, draftLineIndex: -1, transcriptRef: gotui.NewRef()}
+	c.input = newMultilineInput(80, "", c.onSubmit, nil)
+	c.onSubmit("!pwd")
+	joined := strings.Join(c.transcript, "\n")
+	if !strings.Contains(joined, "you [queued]: Run this shell command and summarize the result: pwd") {
+		t.Fatalf("bang shortcut did not transform to model request:\n%s", joined)
+	}
+}
+
 func TestOnSubmitWhileRunningShowsQueuedFeedback(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
