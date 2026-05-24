@@ -18,6 +18,7 @@ type multilineInput struct {
 	cursorRune       rune
 	autoFocus        bool
 	onSubmit         func(string)
+	onRestoreQueued  func()
 	onChange         func(string)
 	text             string
 	cursorPos        int
@@ -81,6 +82,12 @@ func (m *multilineInput) KeyMap() gotui.KeyMap {
 		gotui.OnFocused(gotui.KeyHome, func(ke gotui.KeyEvent) { m.moveHome() }),
 		gotui.OnFocused(gotui.KeyEnd, func(ke gotui.KeyEvent) { m.moveEnd() }),
 		gotui.OnFocused(gotui.KeyEnter, m.enter),
+		gotui.OnFocused(gotui.KeyEnter.Alt(), m.enter),
+		gotui.OnFocused(gotui.KeyUp.Alt(), func(ke gotui.KeyEvent) {
+			if m.onRestoreQueued != nil {
+				m.onRestoreQueued()
+			}
+		}),
 		gotui.OnFocused(gotui.KeyEscape, func(ke gotui.KeyEvent) {
 			if app := ke.App(); app != nil {
 				app.BlurFocused()
@@ -181,9 +188,9 @@ func (m *multilineInput) helpLine() string {
 		return ""
 	}
 	if strings.TrimSpace(m.text) == "" {
-		return "Enter send · Shift+Enter newline"
+		return "Enter send · Alt+Enter queue · Alt+Up restore · Shift+Enter newline"
 	}
-	return "Enter send · Shift+Enter newline · Esc blur"
+	return "Enter send · Alt+Enter queue · Alt+Up restore · Shift+Enter newline · Esc blur"
 }
 
 func (m *multilineInput) insertRune(ke gotui.KeyEvent) {

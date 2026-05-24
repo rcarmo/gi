@@ -98,6 +98,7 @@ type chatTUI struct {
 	subscribedCh     chan map[string]any
 	topicUnsubscribe func()
 	input            *multilineInput
+	queuedDrafts     []string
 	inputRegion      *gotui.Element
 	transcriptRegion *gotui.Element
 	transcriptRef    *gotui.Ref
@@ -112,6 +113,7 @@ func (c *chatTUI) ensureInput() {
 		return
 	}
 	c.input = newMultilineInput(80, "Send a message…", c.onSubmit, nil)
+	c.input.onRestoreQueued = c.restoreQueuedDraft
 }
 
 func (c *chatTUI) Init() func() {
@@ -793,6 +795,21 @@ func (c *chatTUI) focusInput() {
 	}
 }
 
+func (c *chatTUI) restoreQueuedDraft() {
+	if len(c.queuedDrafts) == 0 || c.input == nil {
+		return
+	}
+	idx := len(c.queuedDrafts) - 1
+	draft := c.queuedDrafts[idx]
+	c.queuedDrafts = c.queuedDrafts[:idx]
+	c.input.SetText(draft)
+	c.draft = draft
+	c.status = "Restored queued draft"
+	if c.app != nil {
+		c.app.MarkDirty()
+	}
+}
+
 func (c *chatTUI) onSubmit(text string) {
 	text = strings.TrimSpace(text)
 	if text == "" {
@@ -806,6 +823,7 @@ func (c *chatTUI) onSubmit(text string) {
 		return
 	}
 	if c.running {
+		c.queuedDrafts = append(c.queuedDrafts, text)
 		c.appendTranscript(fmt.Sprintf("you [queued]: %s", text))
 		c.status = "Queued follow-up"
 		c.stickToBottom = true

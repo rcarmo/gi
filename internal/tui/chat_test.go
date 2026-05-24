@@ -895,6 +895,40 @@ func TestHandleEventStatusRendering(t *testing.T) {
 	}
 }
 
+func TestRestoreQueuedDraftMovesLastQueuedTextToEditor(t *testing.T) {
+	c := &chatTUI{queuedDrafts: []string{"first", "second"}, status: "Queued follow-up"}
+	c.input = newMultilineInput(80, "", c.onSubmit, nil)
+	c.restoreQueuedDraft()
+	if got := c.input.Text(); got != "second" {
+		t.Fatalf("restored draft = %q", got)
+	}
+	if c.status != "Restored queued draft" || len(c.queuedDrafts) != 1 || c.queuedDrafts[0] != "first" {
+		t.Fatalf("unexpected restore state status=%q queued=%#v", c.status, c.queuedDrafts)
+	}
+}
+
+func TestMultilineInputAltBindingsAreAvailable(t *testing.T) {
+	restored := false
+	submitted := ""
+	inp := newMultilineInput(80, "", func(text string) { submitted = text }, nil)
+	inp.onRestoreQueued = func() { restored = true }
+	inp.SetText("queued")
+	for _, binding := range inp.KeyMap() {
+		if binding.Pattern.Key == gotui.KeyEnter && binding.Pattern.Mod == gotui.ModAlt {
+			binding.Handler(gotui.KeyEvent{Key: gotui.KeyEnter, Mod: gotui.ModAlt})
+		}
+		if binding.Pattern.Key == gotui.KeyUp && binding.Pattern.Mod == gotui.ModAlt {
+			binding.Handler(gotui.KeyEvent{Key: gotui.KeyUp, Mod: gotui.ModAlt})
+		}
+	}
+	if submitted != "queued" {
+		t.Fatalf("Alt+Enter did not submit, got %q", submitted)
+	}
+	if !restored {
+		t.Fatal("Alt+Up did not call restore callback")
+	}
+}
+
 func TestOnSubmitWhileRunningShowsQueuedFeedback(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
@@ -1353,11 +1387,11 @@ func TestMultilineInputHelpLineFollowsFocusAndText(t *testing.T) {
 		t.Fatalf("blurred helpLine = %q", got)
 	}
 	inp.Focus()
-	if got := inp.helpLine(); got != "Enter send · Shift+Enter newline" {
+	if got := inp.helpLine(); got != "Enter send · Alt+Enter queue · Alt+Up restore · Shift+Enter newline" {
 		t.Fatalf("empty focused helpLine = %q", got)
 	}
 	inp.SetText("hello")
-	if got := inp.helpLine(); got != "Enter send · Shift+Enter newline · Esc blur" {
+	if got := inp.helpLine(); got != "Enter send · Alt+Enter queue · Alt+Up restore · Shift+Enter newline · Esc blur" {
 		t.Fatalf("text focused helpLine = %q", got)
 	}
 }
