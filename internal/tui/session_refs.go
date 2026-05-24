@@ -98,7 +98,8 @@ func (c *chatTUI) treeLines() []string {
 		if sess.ID == c.sessionID {
 			marker = "*"
 		}
-		lines = append(lines, fmt.Sprintf("%s%s%s @%s %s", prefix, branch, marker, indexedAgentIDOrDefault(sess.ID, agentIDs), sess.ID))
+		meta := c.treeSessionMeta(sess.ID)
+		lines = append(lines, fmt.Sprintf("%s%s%s @%s %s · %s", prefix, branch, marker, indexedAgentIDOrDefault(sess.ID, agentIDs), sess.ID, meta))
 		kids := children[sess.ID]
 		for i, child := range kids {
 			walk(child, nextPrefix, i == len(kids)-1)
@@ -109,10 +110,28 @@ func (c *chatTUI) treeLines() []string {
 	}
 	for _, sess := range sessions {
 		if !seen[sess.ID] {
-			lines = append(lines, fmt.Sprintf("? @%s %s parent=%s", indexedAgentIDOrDefault(sess.ID, agentIDs), sess.ID, sess.ParentSessionID))
+			lines = append(lines, fmt.Sprintf("? @%s %s parent=%s · %s", indexedAgentIDOrDefault(sess.ID, agentIDs), sess.ID, sess.ParentSessionID, c.treeSessionMeta(sess.ID)))
 		}
 	}
 	return lines
+}
+
+func (c *chatTUI) treeSessionMeta(sessionID string) string {
+	sess, err := c.store.GetSession(context.Background(), sessionID)
+	if err != nil {
+		return "unavailable"
+	}
+	messages, _ := c.store.ListMessages(context.Background(), sessionID)
+	turns, _ := c.store.ListTurns(context.Background(), sessionID)
+	status, _ := sess.State["status"].(string)
+	if status == "" {
+		status = "idle"
+	}
+	title := strings.TrimSpace(sess.Title)
+	if title == "" {
+		title = sessionID
+	}
+	return fmt.Sprintf("%s · %s · messages=%d turns=%d", title, status, len(messages), len(turns))
 }
 
 func normalizeIndexedSessionID(sessionID string) string {

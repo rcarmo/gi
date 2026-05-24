@@ -171,7 +171,7 @@ func TestTreeLinesShowsParentChildSessions(t *testing.T) {
 	child, _ := s.CloneSession(ctx, root.ID, "session_child", "@agent1", "agent1")
 	c := &chatTUI{store: s, sessionID: child.ID}
 	lines := strings.Join(c.treeLines(), "\n")
-	for _, want := range []string{"tree: sessions:", "@gi session_root", "* @agent1 session_child"} {
+	for _, want := range []string{"tree: sessions:", "@gi session_root", "@agent · idle", "* @agent1 session_child", "@agent1 · idle", "messages=0 turns=0"} {
 		if !strings.Contains(lines, want) {
 			t.Fatalf("tree missing %q:\n%s", want, lines)
 		}
