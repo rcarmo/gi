@@ -37,3 +37,34 @@ func TestDiscoverSkillsAndToolManifests(t *testing.T) {
 		t.Fatalf("summary: %s", summary)
 	}
 }
+
+func TestDiscoverSkillsWarnsForMissingAgentSkillFields(t *testing.T) {
+	root := t.TempDir()
+	skillDir := filepath.Join(root, ".gi", "skills", "legacy")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# Legacy skill\n\nUse it."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	skills, err := DiscoverSkills(root)
+	if err != nil {
+		t.Fatalf("discover skills: %v", err)
+	}
+	if len(skills) != 1 || skills[0].Name != "legacy" || skills[0].Description != "Legacy skill" {
+		t.Fatalf("skills: %#v", skills)
+	}
+	joined := strings.Join(skills[0].Warnings, "\n")
+	for _, want := range []string{"missing Name field", "missing Description field"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("warnings missing %q: %#v", want, skills[0].Warnings)
+		}
+	}
+	out, err := ExecuteMeta(root, map[string]any{})
+	if err != nil {
+		t.Fatalf("execute meta: %v", err)
+	}
+	if !strings.Contains(out, "warning: missing Name field") {
+		t.Fatalf("skill list missing warning:\n%s", out)
+	}
+}

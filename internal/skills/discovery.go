@@ -11,9 +11,10 @@ import (
 )
 
 type Skill struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Path        string `json:"path"`
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	Path        string   `json:"path"`
+	Warnings    []string `json:"warnings,omitempty"`
 }
 
 type ToolManifest struct {
@@ -140,13 +141,26 @@ var mdFieldRE = regexp.MustCompile(`(?m)^([A-Za-z][A-Za-z0-9_-]*):\s*(.+)$`)
 
 func parseSkillMarkdown(fallbackName, path, body string) Skill {
 	s := Skill{Name: fallbackName, Path: path}
+	hasName := false
+	hasDescription := false
 	for _, match := range mdFieldRE.FindAllStringSubmatch(body, -1) {
 		switch strings.ToLower(match[1]) {
 		case "name":
+			hasName = true
 			s.Name = strings.TrimSpace(match[2])
 		case "description":
+			hasDescription = true
 			s.Description = strings.TrimSpace(match[2])
 		}
+	}
+	if !hasName {
+		s.Warnings = append(s.Warnings, "missing Name field; using directory name")
+	}
+	if !hasDescription {
+		s.Warnings = append(s.Warnings, "missing Description field; using first prose line when available")
+	}
+	if strings.TrimSpace(s.Name) == "" {
+		s.Warnings = append(s.Warnings, "empty Name field")
 	}
 	if s.Description == "" {
 		for _, line := range strings.Split(body, "\n") {
@@ -156,6 +170,9 @@ func parseSkillMarkdown(fallbackName, path, body string) Skill {
 				break
 			}
 		}
+	}
+	if s.Description == "" {
+		s.Warnings = append(s.Warnings, "empty Description field")
 	}
 	return s
 }
