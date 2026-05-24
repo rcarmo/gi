@@ -63,20 +63,13 @@ Implemented in `internal/tui/multiline_input.go` and `internal/tui/chat.go`:
 
 Not yet implemented or not at Pi parity:
 
-- word-left / word-right
-- delete-word-backward / delete-word-forward
-- delete-to-line-start / delete-to-line-end
-- undo/yank/kill-ring behavior
 - configurable keybindings
 - Alt+Enter follow-up submission (currently documented gap: `go-tui` event support and runtime follow-up-vs-steering split need a separate implementation slice)
 - Alt+Up queued-message restore
 - Ctrl+L model selector
 - model/thinking cycling shortcuts
 - Ctrl+O tool collapse / Ctrl+T thinking collapse parity
-- `@` file reference picker
-- Tab path completion
-- `!command` / `!!command` shell shortcuts
-- bracketed paste / clipboard image paste
+- bracketed paste / clipboard image paste (ordinary terminal paste remains unchanged; explicit bracketed paste remains deferred per `tui-paste-analysis.md`)
 
 ### Current session/runtime UX surface
 
@@ -108,6 +101,7 @@ Implemented:
 - Pi-like hierarchy: status, context, transcript, input, footer
 - compact status icon labels for idle/queued/running/tool/hook/error/compaction states
 - responsive footer hints
+- editor bindings for word movement, word deletion, line deletion, minimal undo/yank, `!`/`!!` shell shortcuts, Tab path completion, and textual `@path` completion
 - terminal-safe Markdown rendering for headings, lists, blockquotes, links, code blocks, and responsive table fallback
 - folded multi-line tool results
 - code block line counts
