@@ -1445,7 +1445,7 @@ func TestSettingsLinesExposeRuntimeState(t *testing.T) {
 	engine := turn.New(s)
 	c := &chatTUI{store: s, engine: engine, cfg: config.RuntimeConfig{WorkspaceRoot: "/tmp/ws", DefaultProvider: "test", DefaultModel: "m", DefaultThinkingLevel: "low", MaxIterations: 64}}
 	lines := strings.Join(c.settingsLines(), "\n")
-	for _, want := range []string{"settings: runtime:", "provider=test model=m thinking=low", "scrollback_limit=1000", "workspace=/tmp/ws", "tools active="} {
+	for _, want := range []string{"settings: runtime", "workspace: /tmp/ws", "settings: model", "provider: test", "model: m", "thinking: low", "settings: editor", "scrollback_limit: 1000", "settings: session", "settings: discovery", "active_tools:"} {
 		if !strings.Contains(lines, want) {
 			t.Fatalf("settings missing %q:\n%s", want, lines)
 		}

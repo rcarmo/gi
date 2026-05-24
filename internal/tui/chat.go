@@ -1594,14 +1594,41 @@ func (c *chatTUI) compactLines() []string {
 }
 
 func (c *chatTUI) settingsLines() []string {
+	activeTools := "(none)"
+	if c.engine != nil {
+		if names := c.engine.ActiveTools(); len(names) > 0 {
+			activeTools = strings.Join(names, ", ")
+		}
+	}
+	enabledModels := "(none)"
+	if len(c.cfg.EnabledModels) > 0 {
+		enabledModels = strings.Join(c.cfg.EnabledModels, ", ")
+	}
 	return []string{
-		"settings: runtime:",
-		fmt.Sprintf("- provider=%s model=%s thinking=%s max_iterations=%d", c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.DefaultThinkingLevel, c.cfg.MaxIterations),
-		fmt.Sprintf("- scrollback_limit=%d", c.currentScrollbackLimit()),
-		fmt.Sprintf("- workspace=%s", c.cfg.WorkspaceRoot),
-		fmt.Sprintf("- compaction enabled=%v threshold_tokens=%d keep_recent_tokens=%d reserve_tokens=%d", c.cfg.Compaction.Enabled, c.cfg.Compaction.ThresholdTokens, c.cfg.Compaction.KeepRecentTokens, c.cfg.Compaction.ReserveTokens),
-		fmt.Sprintf("- peering enabled=%v hostname=%s auth_key_env=%s auth_key_keychain=%s", c.cfg.Peering.Enabled, c.cfg.Peering.Hostname, c.cfg.Peering.AuthKeyEnv, c.cfg.Peering.AuthKeyKeychain),
-		fmt.Sprintf("- tools active=%s", strings.Join(c.engine.ActiveTools(), ", ")),
+		"settings: runtime",
+		fmt.Sprintf("- workspace: %s", c.cfg.WorkspaceRoot),
+		fmt.Sprintf("- max_iterations: %d", c.cfg.MaxIterations),
+		fmt.Sprintf("- active_tools: %s", activeTools),
+		"settings: model",
+		fmt.Sprintf("- provider: %s", c.cfg.DefaultProvider),
+		fmt.Sprintf("- model: %s", c.cfg.DefaultModel),
+		fmt.Sprintf("- thinking: %s", c.cfg.DefaultThinkingLevel),
+		fmt.Sprintf("- enabled_models: %s", enabledModels),
+		"settings: editor",
+		fmt.Sprintf("- scrollback_limit: %d", c.currentScrollbackLimit()),
+		"- shortcuts: Ctrl+L/Alt+L model cycle, Ctrl+T/Alt+T thinking cycle, Tab path completion, @path completion",
+		"settings: session",
+		fmt.Sprintf("- session_id: %s", c.sessionID),
+		fmt.Sprintf("- running: %v", c.running),
+		"settings: discovery",
+		fmt.Sprintf("- tools_discovery: %d", len(c.cfg.Discovery.Tools)),
+		fmt.Sprintf("- skills_discovery: %d", len(c.cfg.Discovery.Skills)),
+		"settings: compaction",
+		fmt.Sprintf("- enabled: %v", c.cfg.Compaction.Enabled),
+		fmt.Sprintf("- threshold_tokens: %d keep_recent_tokens: %d reserve_tokens: %d", c.cfg.Compaction.ThresholdTokens, c.cfg.Compaction.KeepRecentTokens, c.cfg.Compaction.ReserveTokens),
+		"settings: peering",
+		fmt.Sprintf("- enabled: %v", c.cfg.Peering.Enabled),
+		fmt.Sprintf("- hostname: %s auth_key_env: %s auth_key_keychain: %s", c.cfg.Peering.Hostname, c.cfg.Peering.AuthKeyEnv, c.cfg.Peering.AuthKeyKeychain),
 	}
 }
 
