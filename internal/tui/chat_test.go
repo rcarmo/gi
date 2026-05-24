@@ -946,6 +946,7 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 		"sessions:",
 		"/session",
 		"/new",
+		"/name <name>",
 		"/settings",
 		"/where",
 		"/tools [query|active|activate|reset]",
@@ -993,6 +994,34 @@ func TestNewSessionCommandCreatesAndSwitchesMainSession(t *testing.T) {
 	}
 	if created.State["model"] != "new-model" || created.State["provider"] != "provider" || created.State["thinking_level"] != "medium" {
 		t.Fatalf("unexpected new session state: %#v", created.State)
+	}
+}
+
+func TestNameSessionCommandRenamesCurrentSession(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_rename", "@agent", map[string]any{"status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	c := &chatTUI{store: s, sessionID: "session_rename"}
+	lines := c.nameSessionLines("/name Project Alpha", []string{"/name", "Project", "Alpha"})
+	if len(lines) != 1 || lines[0] != "sys: session renamed to Project Alpha" {
+		t.Fatalf("unexpected rename output: %#v", lines)
+	}
+	reloaded, err := s.GetSession(ctx, "session_rename")
+	if err != nil {
+		t.Fatalf("reload session: %v", err)
+	}
+	if reloaded.Title != "Project Alpha" {
+		t.Fatalf("unexpected title: %q", reloaded.Title)
+	}
+	usage := c.nameSessionLines("/name", []string{"/name"})
+	if len(usage) != 1 || usage[0] != "sys: usage /name <name>" {
+		t.Fatalf("unexpected usage output: %#v", usage)
 	}
 }
 
@@ -1221,7 +1250,7 @@ func TestStatusLineClassifiesCommonStates(t *testing.T) {
 	}
 	c.running = false
 	checks := map[string]string{
-		"Queued follow-up":  "◷ queued · Queued follow-up",
+		"Queued follow-up":   "◷ queued · Queued follow-up",
 		"Tool failed: shell": "◆ tool · Tool failed: shell",
 		"Hook denied read":   "◇ hook · Hook denied read",
 		"Compacted context":  "◌ compact · Compacted context",

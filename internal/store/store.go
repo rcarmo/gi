@@ -410,6 +410,26 @@ func (s *Store) UpdateTurnStatus(ctx context.Context, turnID, status string) err
 	return nil
 }
 
+func (s *Store) UpdateSessionTitle(ctx context.Context, sessionID, title string) error {
+	sessionID = strings.TrimSpace(sessionID)
+	title = strings.TrimSpace(title)
+	if sessionID == "" || title == "" {
+		return sql.ErrNoRows
+	}
+	res, err := s.db.ExecContext(ctx, `update sessions set title = ?, updated_at = `+defaultNow+` where id = ?`, title, sessionID)
+	if err != nil {
+		return fmt.Errorf("update session title: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update session title rows: %w", err)
+	}
+	if rows == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (s *Store) SetSessionState(ctx context.Context, sessionID string, state map[string]any) error {
 	stateJSON, err := marshalJSON(state)
 	if err != nil {

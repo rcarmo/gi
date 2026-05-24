@@ -883,6 +883,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.appendTranscript(c.sessionLines()...)
 	case "/new":
 		c.appendTranscript(c.newSessionLines()...)
+	case "/name":
+		c.appendTranscript(c.nameSessionLines(text, fields)...)
 	case "/tools":
 		c.transcript = append(c.transcript, c.toolCommand(fields)...)
 	case "/skills":
@@ -981,7 +983,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /session, /new, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1006,7 +1008,7 @@ func (c *chatTUI) helpLines() []string {
 		"- Enter send · Shift+Enter newline · Esc blur input · Tab focus input",
 		"- Up/Down history · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
 		"runtime:",
-		"- /session · /new · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"- /session · /new · /name <name> · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
 		"discovery:",
 		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
 		"sessions:",
@@ -1024,6 +1026,20 @@ func (c *chatTUI) newSessionLines() []string {
 	}
 	c.switchSession(sess.ID)
 	return []string{fmt.Sprintf("sys: new session @%s (%s)", c.agentIDForSession(sess), sess.ID)}
+}
+
+func (c *chatTUI) nameSessionLines(text string, fields []string) []string {
+	if len(fields) < 2 {
+		return []string{"sys: usage /name <name>"}
+	}
+	name := strings.TrimSpace(strings.TrimPrefix(text, fields[0]))
+	if name == "" {
+		return []string{"sys: usage /name <name>"}
+	}
+	if err := c.store.UpdateSessionTitle(context.Background(), c.sessionID, name); err != nil {
+		return []string{fmt.Sprintf("error: rename session: %v", err)}
+	}
+	return []string{fmt.Sprintf("sys: session renamed to %s", name)}
 }
 
 func (c *chatTUI) sessionLines() []string {
