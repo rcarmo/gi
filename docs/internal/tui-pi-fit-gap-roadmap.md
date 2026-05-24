@@ -15,7 +15,9 @@ Implemented commands in `internal/tui/chat.go`:
 - `/help`
 - `/tools [query|active|activate|reset]`
 - `/skills [query]`
-- `/model [name]`
+- `/skill:name [args]`
+- `/model [name|index]`
+- `/scoped-models [list|add|remove|set]`
 - `/thinking [level]`
 - `/compact`
 - `/scrollback [n]`
@@ -122,7 +124,7 @@ The plan sidebar groups gaps into these implementation tracks:
 2. **Message queue and steering UX parity** — expose the durable steering state that Gi already has. Current implementation surfaces queued turn and steering depth in the context area; Pi-style Alt+Enter follow-up submission remains deferred until `go-tui` key support and a clear runtime follow-up queue split are implemented.
 3. **Editor affordance parity** — add only keybindings that `go-tui` can represent cleanly.
 4. **Model/settings parity** — improve selection/listing before attempting interactive pickers.
-5. **Skills/extensions parity** — expose existing skills/script primitives through Pi-like command surfaces.
+5. **Skills/extensions parity** — expose existing skills/script primitives through Pi-like command surfaces. `/skill:name [args]`, richer `/skills` discovery output, skill metadata warnings, reload discovery reporting, and extension command semantics/namespace docs are now covered. Extension command dispatch remains a documented future implementation because only the contract has landed.
 6. **Clipboard/media parity** — start with `/copy` fallback; defer image paste until a media ingestion contract exists.
 7. **Interactive polish** — keep `/help`, footer hints, tmux captures, and docs aligned as behavior changes.
 
