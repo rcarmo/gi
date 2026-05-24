@@ -929,6 +929,31 @@ func TestMultilineInputAltBindingsAreAvailable(t *testing.T) {
 	}
 }
 
+func TestCompleteInputPathCompletesWorkspaceRelativePath(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "docs", "readme.md"), []byte("hi"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: root}}
+	got, cursor, ok := c.completeInputPath("open docs/re", len("open docs/re"))
+	if !ok || got != "open docs/readme.md" || cursor != len("open docs/readme.md") {
+		t.Fatalf("completion got=%q cursor=%d ok=%v", got, cursor, ok)
+	}
+}
+
+func TestMultilineInputTabCompletionCallback(t *testing.T) {
+	inp := newMultilineInput(80, "", nil, nil)
+	inp.SetText("abc")
+	inp.onComplete = func(text string, cursor int) (string, int, bool) { return text + "def", cursor + 3, true }
+	inp.complete()
+	if got := inp.Text(); got != "abcdef" || inp.cursorPos != 6 {
+		t.Fatalf("completion text=%q cursor=%d", got, inp.cursorPos)
+	}
+}
+
 func TestLocalShellShortcutRunsLocally(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: t.TempDir()}}
 	lines := strings.Join(c.localShellShortcutLines("printf hello"), "\n")

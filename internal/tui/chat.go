@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	gotui "github.com/grindlemire/go-tui"
 	"github.com/rcarmo/gi/internal/config"
@@ -115,6 +118,7 @@ func (c *chatTUI) ensureInput() {
 	}
 	c.input = newMultilineInput(80, "Send a message…", c.onSubmit, nil)
 	c.input.onRestoreQueued = c.restoreQueuedDraft
+	c.input.onComplete = c.completeInputPath
 }
 
 func (c *chatTUI) Init() func() {
@@ -1074,6 +1078,49 @@ func (c *chatTUI) helpLines() []string {
 		"sessions:",
 		"- /where · /agents · /tree · /fork [@agentN] · /clone [@agentN] · /switch @agent|session_id · /send @agent message",
 	}
+}
+
+func (c *chatTUI) completeInputPath(text string, cursor int) (string, int, bool) {
+	runes := []rune(text)
+	if cursor < 0 || cursor > len(runes) {
+		cursor = len(runes)
+	}
+	start := cursor
+	for start > 0 && !isWordSpace(runes[start-1]) {
+		start--
+	}
+	prefix := string(runes[start:cursor])
+	if prefix == "" {
+		return text, cursor, false
+	}
+	root := strings.TrimSpace(c.cfg.WorkspaceRoot)
+	if root == "" {
+		root = "."
+	}
+	pattern := prefix + "*"
+	if !filepath.IsAbs(pattern) {
+		pattern = filepath.Join(root, pattern)
+	}
+	matches, err := filepath.Glob(pattern)
+	if err != nil || len(matches) == 0 {
+		return text, cursor, false
+	}
+	sort.Strings(matches)
+	match := matches[0]
+	if info, err := os.Stat(match); err == nil && info.IsDir() {
+		match += string(os.PathSeparator)
+	}
+	insert := match
+	if !filepath.IsAbs(prefix) {
+		if rel, err := filepath.Rel(root, match); err == nil && !strings.HasPrefix(rel, "..") {
+			insert = rel
+			if strings.HasSuffix(match, string(os.PathSeparator)) && !strings.HasSuffix(insert, string(os.PathSeparator)) {
+				insert += string(os.PathSeparator)
+			}
+		}
+	}
+	out := string(runes[:start]) + insert + string(runes[cursor:])
+	return out, start + utf8.RuneCountInString(insert), true
 }
 
 func (c *chatTUI) localShellShortcutLines(command string) []string {

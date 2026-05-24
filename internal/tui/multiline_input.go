@@ -19,6 +19,7 @@ type multilineInput struct {
 	autoFocus        bool
 	onSubmit         func(string)
 	onRestoreQueued  func()
+	onComplete       func(string, int) (string, int, bool)
 	onChange         func(string)
 	text             string
 	cursorPos        int
@@ -96,6 +97,7 @@ func (m *multilineInput) KeyMap() gotui.KeyMap {
 		gotui.OnFocused(gotui.KeyDelete.Alt(), func(ke gotui.KeyEvent) { m.deleteWordForward() }),
 		gotui.OnFocused(gotui.KeyCtrlZ, func(ke gotui.KeyEvent) { m.undo() }),
 		gotui.OnFocused(gotui.KeyCtrlY, func(ke gotui.KeyEvent) { m.yank() }),
+		gotui.OnFocused(gotui.KeyTab, func(ke gotui.KeyEvent) { m.complete() }),
 		gotui.OnFocused(gotui.KeyEnter, m.enter),
 		gotui.OnFocused(gotui.KeyEnter.Alt(), m.enter),
 		gotui.OnFocused(gotui.KeyUp.Alt(), func(ke gotui.KeyEvent) {
@@ -351,6 +353,20 @@ func (m *multilineInput) deleteToLineEnd() {
 }
 
 func isWordSpace(r rune) bool { return r == ' ' || r == '\t' || r == '\n' || r == '\r' }
+
+func (m *multilineInput) complete() {
+	if m.onComplete == nil {
+		return
+	}
+	text, cursor, ok := m.onComplete(m.text, m.clampCursor())
+	if !ok {
+		return
+	}
+	m.snapshotUndo()
+	m.text = text
+	m.cursorPos = cursor
+	m.notifyChanged()
+}
 
 func (m *multilineInput) enter(ke gotui.KeyEvent) {
 	if ke.Mod&gotui.ModShift != 0 {
