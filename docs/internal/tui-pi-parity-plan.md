@@ -57,10 +57,11 @@ This gives us the same behavior-level regression style as Piclaw's UX features, 
 - Keyboard coverage for blur/focus, F2/F3 history hints, scroll, resize, and quit.
 - Gherkin/tmux features covering boot, help, tools discovery/activation, runtime controls, session workflows, prompt submission, persistence, and keyboard behavior.
 - CI-friendly tmux/Gherkin artifacts: pane captures, report markdown, per-feature SQLite dumps, session/message extracts, and failure summaries.
-- TUI status rendering for thinking deltas, tool completion/failure, generic errors, and context compaction broadcasts.
-- Richer transcript line rendering for user/assistant/system roles, folded tool results, and compaction summaries.
+- TUI status rendering for thinking deltas, tool completion/failure, generic errors, context compaction broadcasts, and compact state/icon labels for idle/queued/running/tool/hook/error/compaction states.
+- Richer transcript line rendering for user/assistant/system roles, folded multi-line tool results, code-block line counts, and compact runtime compaction summaries.
 - `/settings`/`/config` runtime view for provider/model/thinking, compaction, peering, active tools, and scrollback limit.
 - `/approvals` visibility for the current approval-gate state; today this reports that gi has no approval gates configured.
-- Expanding multiline input with simplified horizontal-rule chrome instead of a visible `Input:` label.
-- Responsive layout that wraps status/context/footer metadata and budgets transcript height from actual block sizes on narrow terminals.
+- Expanding multiline input with simplified horizontal-rule chrome instead of a visible `Input:` label, plus focus-aware placeholder markers and contextual send/newline/blur help.
+- Responsive layout that wraps status/context/footer metadata and budgets transcript height from actual block sizes on narrow terminals; footer hints compact automatically on narrow terminals.
 - Terminal-safe Markdown transcript rendering for headings, lists, blockquotes, links, code blocks, and responsive table fallbacks.
+- Grouped `/help` output covering keys, runtime controls, discovery commands, and session workflows.
