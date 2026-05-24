@@ -1257,7 +1257,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 		gotui.WithGap(0),
 	)
 
-	statusLines := c.wrapLines(fmt.Sprintf("Status: %s", c.status), contentWidth)
+	statusLines := c.wrapLines(c.statusLine(), contentWidth)
 	root.AddChild(c.renderLineBlock(statusLines, gotui.NewStyle().Bold()))
 
 	ctxLines := c.contextSummaryLines(contentWidth)
@@ -1276,7 +1276,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	if inputHeight < 1 {
 		inputHeight = 1
 	}
-	footerLines := c.wrapLines(c.footerText(), contentWidth)
+	footerLines := c.wrapLines(c.footerTextForWidth(contentWidth), contentWidth)
 	reservedHeight := (padding * 2) + len(statusLines) + len(ctxLines) + 3 + inputHeight + len(footerLines)
 	transcriptHeight := h - reservedHeight
 	if transcriptHeight < 4 {
@@ -1322,8 +1322,40 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	return root
 }
 
+func (c *chatTUI) statusLine() string {
+	state := "idle"
+	icon := "●"
+	status := strings.TrimSpace(c.status)
+	lower := strings.ToLower(status)
+	switch {
+	case c.running || strings.Contains(lower, "thinking") || strings.Contains(lower, "running"):
+		state, icon = "running", "▶"
+	case strings.Contains(lower, "queued"):
+		state, icon = "queued", "◷"
+	case strings.Contains(lower, "tool"):
+		state, icon = "tool", "◆"
+	case strings.Contains(lower, "hook"):
+		state, icon = "hook", "◇"
+	case strings.Contains(lower, "failed") || strings.Contains(lower, "error"):
+		state, icon = "error", "!"
+	case strings.Contains(lower, "compact"):
+		state, icon = "compact", "◌"
+	}
+	if status == "" {
+		status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+	}
+	return fmt.Sprintf("%s %s · %s", icon, state, status)
+}
+
+func (c *chatTUI) footerTextForWidth(width int) string {
+	if width < 72 {
+		return "Hints: /help · Enter send · Esc blur · Tab focus · PgUp/PgDn scroll · Ctrl-D quit"
+	}
+	return "Hints: /help · /tools · /skills · /model · /thinking · /compact · /settings · /cancel · /agents · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
+}
+
 func (c *chatTUI) footerText() string {
-	return "Hints: /help · /tools active|activate|reset · /skills · /model · /thinking · /compact · /scrollback · /settings · /approvals · /cancel · /agents · /tree · /plugins · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
+	return c.footerTextForWidth(c.currentContentWidth())
 }
 
 func (c *chatTUI) currentPadding() int {

@@ -1057,13 +1057,47 @@ func TestContextSummaryLinesWrapForNarrowWidth(t *testing.T) {
 	}
 }
 
+func TestStatusLineClassifiesCommonStates(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, status: "Neo · bootstrap"}
+	if got := c.statusLine(); got != "● idle · Neo · bootstrap" {
+		t.Fatalf("idle status line = %q", got)
+	}
+	c.running = true
+	c.status = "Running: read"
+	if got := c.statusLine(); got != "▶ running · Running: read" {
+		t.Fatalf("running status line = %q", got)
+	}
+	c.running = false
+	checks := map[string]string{
+		"Queued follow-up":  "◷ queued · Queued follow-up",
+		"Tool failed: shell": "◆ tool · Tool failed: shell",
+		"Hook denied read":   "◇ hook · Hook denied read",
+		"Compacted context":  "◌ compact · Compacted context",
+	}
+	for status, want := range checks {
+		c.status = status
+		if got := c.statusLine(); got != want {
+			t.Fatalf("statusLine(%q) = %q, want %q", status, got, want)
+		}
+	}
+}
+
 func TestFooterTextContainsStableHints(t *testing.T) {
 	c := &chatTUI{}
-	footer := c.footerText()
-	for _, want := range []string{"Hints:", "/help", "/tools active|activate|reset", "Tab focus", "F2/F3 history", "Ctrl-D quit"} {
+	footer := c.footerTextForWidth(100)
+	for _, want := range []string{"Hints:", "/help", "/tools", "Tab focus", "F2/F3 history", "Ctrl-D quit"} {
 		if !strings.Contains(footer, want) {
 			t.Fatalf("footer missing %q: %s", want, footer)
 		}
+	}
+	narrow := c.footerTextForWidth(60)
+	for _, want := range []string{"Hints:", "/help", "Enter send", "Ctrl-D quit"} {
+		if !strings.Contains(narrow, want) {
+			t.Fatalf("narrow footer missing %q: %s", want, narrow)
+		}
+	}
+	if strings.Contains(narrow, "/tools") || strings.Contains(narrow, "F2/F3") {
+		t.Fatalf("narrow footer should stay compact: %s", narrow)
 	}
 }
 
