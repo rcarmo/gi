@@ -945,6 +945,7 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 		"discovery:",
 		"sessions:",
 		"/session",
+		"/new",
 		"/settings",
 		"/where",
 		"/tools [query|active|activate|reset]",
@@ -954,6 +955,44 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("help missing %q:\n%s", want, joined)
 		}
+	}
+}
+
+func TestNewSessionCommandCreatesAndSwitchesMainSession(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_existing_main")
+	if _, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_existing_main", Title: "@agent", State: map[string]any{"status": "idle", "model": "old"}, Allocation: alloc}); err != nil {
+		t.Fatalf("create existing main session: %v", err)
+	}
+	engine := turn.New(s)
+	c := &chatTUI{store: s, engine: engine, sessionID: "session_existing_main", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "new-model", DefaultProvider: "provider", DefaultThinkingLevel: "medium"}, draftLineIndex: -1, transcriptRef: gotui.NewRef()}
+	c.eventCh = make(chan map[string]any, 64)
+	c.topicEventCh = make(chan topics.Envelope, 64)
+	lines := c.newSessionLines()
+	if len(lines) != 1 || !strings.HasPrefix(lines[0], "sys: new session @agent (session_") {
+		t.Fatalf("unexpected new session output: %#v", lines)
+	}
+	if c.sessionID == "" || c.sessionID == "session_existing_main" {
+		t.Fatalf("expected switched session, got %q", c.sessionID)
+	}
+	mainID, err := s.ResolveMainSessionID(ctx, "agent", "gi", "default")
+	if err != nil {
+		t.Fatalf("resolve main session: %v", err)
+	}
+	if mainID != c.sessionID {
+		t.Fatalf("expected new session to become main, got main=%q current=%q", mainID, c.sessionID)
+	}
+	created, err := s.GetSession(ctx, c.sessionID)
+	if err != nil {
+		t.Fatalf("get new session: %v", err)
+	}
+	if created.State["model"] != "new-model" || created.State["provider"] != "provider" || created.State["thinking_level"] != "medium" {
+		t.Fatalf("unexpected new session state: %#v", created.State)
 	}
 }
 

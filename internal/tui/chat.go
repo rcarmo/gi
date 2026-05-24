@@ -881,6 +881,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.transcript = append(c.transcript, c.helpLines()...)
 	case "/session":
 		c.appendTranscript(c.sessionLines()...)
+	case "/new":
+		c.appendTranscript(c.newSessionLines()...)
 	case "/tools":
 		c.transcript = append(c.transcript, c.toolCommand(fields)...)
 	case "/skills":
@@ -979,7 +981,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /session, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.appendTranscript("sys: commands: /help, /session, /new, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1004,12 +1006,24 @@ func (c *chatTUI) helpLines() []string {
 		"- Enter send · Shift+Enter newline · Esc blur input · Tab focus input",
 		"- Up/Down history · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
 		"runtime:",
-		"- /session · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"- /session · /new · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
 		"discovery:",
 		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
 		"sessions:",
 		"- /where · /agents · /tree · /fork [@agentN] · /switch @agent|session_id · /send @agent message",
 	}
+}
+
+func (c *chatTUI) newSessionLines() []string {
+	id := store.NowID("session")
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", id)
+	state := map[string]any{"status": "idle", "queue_count": 0, "model": c.cfg.DefaultModel, "provider": c.cfg.DefaultProvider, "thinking_level": c.cfg.DefaultThinkingLevel}
+	sess, _, err := c.store.ResolveOrCreateMainSessionFromAllocation(context.Background(), store.ResolveOrCreateSessionFromAllocationInput{ID: id, Title: "@agent", State: state, Allocation: alloc})
+	if err != nil {
+		return []string{fmt.Sprintf("error: create session: %v", err)}
+	}
+	c.switchSession(sess.ID)
+	return []string{fmt.Sprintf("sys: new session @%s (%s)", c.agentIDForSession(sess), sess.ID)}
 }
 
 func (c *chatTUI) sessionLines() []string {
