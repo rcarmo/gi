@@ -1000,6 +1000,29 @@ func TestNewSessionCommandCreatesAndSwitchesMainSession(t *testing.T) {
 	}
 }
 
+func TestReloadLinesRefreshesConfigOnly(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".pi"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".pi", "settings.json"), []byte(`{"defaultProvider":"test","defaultModel":"model-a","defaultThinkingLevel":"high","enabledModels":["model-a"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "old", DefaultModel: "old-model", DefaultThinkingLevel: "low"}, input: newMultilineInput(80, "old", nil, nil)}
+	joined := strings.Join(c.reloadLines(), "\n")
+	for _, want := range []string{"reload: config refreshed", "provider=test model=model-a thinking=high", "active runtime hooks/extensions remain mounted"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("reload output missing %q:\n%s", want, joined)
+		}
+	}
+	if c.cfg.DefaultProvider != "test" || c.cfg.DefaultModel != "model-a" || c.cfg.DefaultThinkingLevel != "high" {
+		t.Fatalf("config was not reloaded: %#v", c.cfg)
+	}
+	if c.input.placeholder != "Send a message…" {
+		t.Fatalf("placeholder not refreshed: %q", c.input.placeholder)
+	}
+}
+
 func TestCopyLastAssistantLinesFallsBackToTranscript(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

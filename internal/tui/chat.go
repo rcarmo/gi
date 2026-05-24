@@ -891,6 +891,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.appendTranscript(c.cloneSessionLines(fields)...)
 	case "/copy":
 		c.appendTranscript(c.copyLastAssistantLines()...)
+	case "/reload":
+		c.appendTranscript(c.reloadLines()...)
 	case "/tools":
 		c.transcript = append(c.transcript, c.toolCommand(fields)...)
 	case "/skills":
@@ -989,7 +991,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy, /reload, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1014,11 +1016,29 @@ func (c *chatTUI) helpLines() []string {
 		"- Enter send · Shift+Enter newline · Esc blur input · Tab focus input",
 		"- Up/Down history · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
 		"runtime:",
-		"- /session · /new · /name <name> · /resume [index|session_id] · /copy · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"- /session · /new · /name <name> · /resume [index|session_id] · /copy · /reload · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
 		"discovery:",
 		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
 		"sessions:",
 		"- /where · /agents · /tree · /fork [@agentN] · /clone [@agentN] · /switch @agent|session_id · /send @agent message",
+	}
+}
+
+func (c *chatTUI) reloadLines() []string {
+	workspace := c.cfg.WorkspaceRoot
+	if strings.TrimSpace(workspace) == "" {
+		workspace = "/workspace"
+	}
+	reloaded := config.Load(workspace)
+	c.cfg = reloaded
+	if c.input != nil {
+		c.input.placeholder = "Send a message…"
+	}
+	return []string{
+		"reload: config refreshed",
+		fmt.Sprintf("- workspace=%s", c.cfg.WorkspaceRoot),
+		fmt.Sprintf("- provider=%s model=%s thinking=%s", c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.DefaultThinkingLevel),
+		"- note: active runtime hooks/extensions remain mounted until process restart; future slices may add safe extension reload",
 	}
 }
 
