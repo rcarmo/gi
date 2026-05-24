@@ -948,6 +948,7 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 		"/new",
 		"/name <name>",
 		"/resume [index|session_id]",
+		"/clone [@agentN]",
 		"/settings",
 		"/where",
 		"/tools [query|active|activate|reset]",
@@ -995,6 +996,46 @@ func TestNewSessionCommandCreatesAndSwitchesMainSession(t *testing.T) {
 	}
 	if created.State["model"] != "new-model" || created.State["provider"] != "provider" || created.State["thinking_level"] != "medium" {
 		t.Fatalf("unexpected new session state: %#v", created.State)
+	}
+}
+
+func TestCloneSessionCommandClonesAndSwitches(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_clone_source")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_clone_source", "", "@agent", map[string]any{"status": "idle", "model": "bootstrap"}, &alloc.Scope, alloc.SessionAliases); err != nil {
+		t.Fatalf("create source session: %v", err)
+	}
+	if err := s.AddMessage(ctx, "msg_clone_source", "session_clone_source", "assistant", "hello", nil); err != nil {
+		t.Fatalf("add source message: %v", err)
+	}
+	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_clone_source", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, transcriptRef: gotui.NewRef(), draftLineIndex: -1}
+	c.eventCh = make(chan map[string]any, 64)
+	c.topicEventCh = make(chan topics.Envelope, 64)
+	lines := c.cloneSessionLines([]string{"/clone", "@agent7"})
+	if len(lines) != 1 || !strings.Contains(lines[0], "sys: cloned to @agent7 (session_") {
+		t.Fatalf("unexpected clone output: %#v", lines)
+	}
+	if c.sessionID == "" || c.sessionID == "session_clone_source" {
+		t.Fatalf("expected switch to cloned session, got %q", c.sessionID)
+	}
+	cloned, err := s.GetSession(ctx, c.sessionID)
+	if err != nil {
+		t.Fatalf("get cloned session: %v", err)
+	}
+	if cloned.ParentSessionID != "session_clone_source" || cloned.Title != "@agent7" || cloned.State["forked_from"] != "session_clone_source" {
+		t.Fatalf("unexpected cloned session: %#v", cloned)
+	}
+	msgs, err := s.ListMessages(ctx, cloned.ID)
+	if err != nil {
+		t.Fatalf("list cloned messages: %v", err)
+	}
+	if len(msgs) != 1 || msgs[0].Content != "hello" || msgs[0].Payload["forked_from_message_id"] != "msg_clone_source" {
+		t.Fatalf("unexpected cloned messages: %#v", msgs)
 	}
 }
 

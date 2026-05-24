@@ -887,6 +887,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.appendTranscript(c.nameSessionLines(text, fields)...)
 	case "/resume":
 		c.appendTranscript(c.resumeLines(fields)...)
+	case "/clone":
+		c.appendTranscript(c.cloneSessionLines(fields)...)
 	case "/tools":
 		c.transcript = append(c.transcript, c.toolCommand(fields)...)
 	case "/skills":
@@ -985,7 +987,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1014,8 +1016,25 @@ func (c *chatTUI) helpLines() []string {
 		"discovery:",
 		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
 		"sessions:",
-		"- /where · /agents · /tree · /fork [@agentN] · /switch @agent|session_id · /send @agent message",
+		"- /where · /agents · /tree · /fork [@agentN] · /clone [@agentN] · /switch @agent|session_id · /send @agent message",
 	}
+}
+
+func (c *chatTUI) cloneSessionLines(fields []string) []string {
+	target := ""
+	if len(fields) > 1 {
+		target = strings.TrimPrefix(strings.TrimSpace(fields[1]), "@")
+	}
+	if target == "" {
+		target = c.nextForkAgentID()
+	}
+	newID := store.NowID("session")
+	cloned, err := c.store.CloneSession(context.Background(), c.sessionID, newID, "@"+target, target)
+	if err != nil {
+		return []string{fmt.Sprintf("error: clone session: %v", err)}
+	}
+	c.switchSession(cloned.ID)
+	return []string{fmt.Sprintf("sys: cloned to @%s (%s)", c.agentIDForSession(cloned), cloned.ID)}
 }
 
 func (c *chatTUI) newSessionLines() []string {
