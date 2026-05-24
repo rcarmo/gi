@@ -935,6 +935,27 @@ func TestInitUsesConfiguredGiDefaultModelWithoutFirstUsePrompt(t *testing.T) {
 	}
 }
 
+func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
+	c := &chatTUI{}
+	joined := strings.Join(c.helpLines(), "\n")
+	for _, want := range []string{
+		"help: gi TUI",
+		"keys:",
+		"runtime:",
+		"discovery:",
+		"sessions:",
+		"/settings",
+		"/where",
+		"/tools [query|active|activate|reset]",
+		"/skills [query]",
+		"/approvals",
+	} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("help missing %q:\n%s", want, joined)
+		}
+	}
+}
+
 func TestModelCommandPersistsSelection(t *testing.T) {
 	root := t.TempDir()
 	s, err := store.Open("file::memory:?cache=shared")

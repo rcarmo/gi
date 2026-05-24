@@ -997,10 +997,16 @@ func (c *chatTUI) firstUseModelPromptLines() []string {
 
 func (c *chatTUI) helpLines() []string {
 	return []string{
-		"sys: gi TUI help",
-		"sys: keys: Enter send · Esc blur input · Ctrl-C/Ctrl-D quit · Up/Down history · PgUp/PgDn scroll · Home/End transcript",
-		"sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /where",
-		"sys: sessions: /fork [@agentN], /switch @agent|session_id, /send @agent message",
+		"help: gi TUI",
+		"keys:",
+		"- Enter send · Shift+Enter newline · Esc blur input · Tab focus input",
+		"- Up/Down history · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
+		"runtime:",
+		"- /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"discovery:",
+		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
+		"sessions:",
+		"- /where · /agents · /tree · /fork [@agentN] · /switch @agent|session_id · /send @agent message",
 	}
 }
 
