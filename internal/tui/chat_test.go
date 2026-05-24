@@ -929,6 +929,24 @@ func TestMultilineInputAltBindingsAreAvailable(t *testing.T) {
 	}
 }
 
+func TestSkillCommandLoadsDiscoveredSkill(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, ".gi", "skills", "demo")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("Name: demo\nDescription: Demo skill\n\nUse it."), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: root}}
+	lines := strings.Join(c.skillCommandLines("/skill:demo --flag"), "\n")
+	for _, want := range []string{"skill:demo loaded", "args: --flag", "Name: demo", "Use it."} {
+		if !strings.Contains(lines, want) {
+			t.Fatalf("skill command missing %q:\n%s", want, lines)
+		}
+	}
+}
+
 func TestCompleteInputPathCompletesWorkspaceRelativePath(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o755); err != nil {

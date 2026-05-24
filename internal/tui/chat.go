@@ -868,6 +868,10 @@ func (c *chatTUI) onSubmit(text string) {
 	c.history = append(c.history, text)
 	c.histIdx = -1
 	c.input.SetText("")
+	if strings.HasPrefix(text, "/skill:") {
+		c.appendTranscript(c.skillCommandLines(text)...)
+		return
+	}
 	if strings.HasPrefix(text, "/") {
 		c.handleCommand(text)
 		return
@@ -1093,7 +1097,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy, /reload, /tools [query|active|activate|reset], /skills [query], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
+		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy, /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1122,6 +1126,7 @@ func (c *chatTUI) helpLines() []string {
 		"- Ctrl+L/Alt+L cycle model · Ctrl+T/Alt+T cycle thinking",
 		"- !cmd sends a shell request to the model · !!cmd runs locally and prints output",
 		"- Tab completes paths; @path uses the same textual file-reference completion fallback",
+		"- /skill:name [args] loads discovered SKILL.md text with optional invocation args",
 		"discovery:",
 		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
 		"sessions:",
@@ -1712,6 +1717,29 @@ func (c *chatTUI) toolCommand(fields []string) []string {
 		return []string{fmt.Sprintf("error: %v", err)}
 	}
 	return prefixMultiline("tools", out)
+}
+
+func (c *chatTUI) skillCommandLines(text string) []string {
+	body := strings.TrimSpace(strings.TrimPrefix(text, "/skill:"))
+	if body == "" {
+		return []string{"sys: usage /skill:<name> [args]"}
+	}
+	name := body
+	args := ""
+	if fields := strings.Fields(body); len(fields) > 0 {
+		name = fields[0]
+		args = strings.TrimSpace(strings.TrimPrefix(body, name))
+	}
+	out, err := skills.ExecuteMeta(c.cfg.WorkspaceRoot, map[string]any{"name": name})
+	if err != nil {
+		return []string{fmt.Sprintf("error: %v", err)}
+	}
+	lines := []string{fmt.Sprintf("skill:%s loaded", name)}
+	if args != "" {
+		lines = append(lines, fmt.Sprintf("- args: %s", args))
+	}
+	lines = append(lines, prefixMultiline("skill", out)...)
+	return lines
 }
 
 func (c *chatTUI) skillLines(query string) []string {
