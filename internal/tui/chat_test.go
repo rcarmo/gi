@@ -949,6 +949,7 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 		"/name <name>",
 		"/resume [index|session_id]",
 		"/clone [@agentN]",
+		"/copy",
 		"/settings",
 		"/where",
 		"/tools [query|active|activate|reset]",
@@ -996,6 +997,39 @@ func TestNewSessionCommandCreatesAndSwitchesMainSession(t *testing.T) {
 	}
 	if created.State["model"] != "new-model" || created.State["provider"] != "provider" || created.State["thinking_level"] != "medium" {
 		t.Fatalf("unexpected new session state: %#v", created.State)
+	}
+}
+
+func TestCopyLastAssistantLinesFallsBackToTranscript(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_copy", "@agent", map[string]any{"status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := s.AddMessage(ctx, "msg_user_copy", "session_copy", "user", "question", nil); err != nil {
+		t.Fatalf("add user message: %v", err)
+	}
+	if err := s.AddMessage(ctx, "msg_assistant_copy", "session_copy", "assistant", "answer\nsecond line", nil); err != nil {
+		t.Fatalf("add assistant message: %v", err)
+	}
+	c := &chatTUI{store: s, sessionID: "session_copy"}
+	joined := strings.Join(c.copyLastAssistantLines(), "\n")
+	for _, want := range []string{"copy: clipboard unavailable; last assistant message follows", "copy: answer", "  second line"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("copy fallback missing %q:\n%s", want, joined)
+		}
+	}
+	if _, err := s.CreateSession(ctx, "session_copy_empty", "@agent", map[string]any{"status": "idle"}); err != nil {
+		t.Fatalf("create empty session: %v", err)
+	}
+	c.sessionID = "session_copy_empty"
+	lines := c.copyLastAssistantLines()
+	if len(lines) != 1 || lines[0] != "copy: no assistant message found" {
+		t.Fatalf("unexpected empty copy output: %#v", lines)
 	}
 }
 

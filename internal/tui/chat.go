@@ -889,6 +889,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.appendTranscript(c.resumeLines(fields)...)
 	case "/clone":
 		c.appendTranscript(c.cloneSessionLines(fields)...)
+	case "/copy":
+		c.appendTranscript(c.copyLastAssistantLines()...)
 	case "/tools":
 		c.transcript = append(c.transcript, c.toolCommand(fields)...)
 	case "/skills":
@@ -987,7 +989,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1012,12 +1014,29 @@ func (c *chatTUI) helpLines() []string {
 		"- Enter send · Shift+Enter newline · Esc blur input · Tab focus input",
 		"- Up/Down history · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
 		"runtime:",
-		"- /session · /new · /name <name> · /resume [index|session_id] · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"- /session · /new · /name <name> · /resume [index|session_id] · /copy · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
 		"discovery:",
 		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
 		"sessions:",
 		"- /where · /agents · /tree · /fork [@agentN] · /clone [@agentN] · /switch @agent|session_id · /send @agent message",
 	}
+}
+
+func (c *chatTUI) copyLastAssistantLines() []string {
+	messages, err := c.store.ListMessages(context.Background(), c.sessionID)
+	if err != nil {
+		return []string{fmt.Sprintf("error: copy last assistant message: %v", err)}
+	}
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role != "assistant" || strings.TrimSpace(messages[i].Content) == "" {
+			continue
+		}
+		content := strings.TrimSpace(messages[i].Content)
+		lines := []string{fmt.Sprintf("copy: clipboard unavailable; last assistant message follows (%d chars)", len(content))}
+		lines = append(lines, prefixMultiline("copy", content)...)
+		return lines
+	}
+	return []string{"copy: no assistant message found"}
 }
 
 func (c *chatTUI) cloneSessionLines(fields []string) []string {
