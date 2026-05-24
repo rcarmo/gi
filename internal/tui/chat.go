@@ -879,6 +879,8 @@ func (c *chatTUI) handleCommand(text string) {
 	switch fields[0] {
 	case "/help":
 		c.transcript = append(c.transcript, c.helpLines()...)
+	case "/session":
+		c.appendTranscript(c.sessionLines()...)
 	case "/tools":
 		c.transcript = append(c.transcript, c.toolCommand(fields)...)
 	case "/skills":
@@ -977,7 +979,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.appendTranscript("sys: commands: /help, /session, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1002,11 +1004,62 @@ func (c *chatTUI) helpLines() []string {
 		"- Enter send · Shift+Enter newline · Esc blur input · Tab focus input",
 		"- Up/Down history · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
 		"runtime:",
-		"- /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"- /session · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
 		"discovery:",
 		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
 		"sessions:",
 		"- /where · /agents · /tree · /fork [@agentN] · /switch @agent|session_id · /send @agent message",
+	}
+}
+
+func (c *chatTUI) sessionLines() []string {
+	sess, err := c.store.GetSession(context.Background(), c.sessionID)
+	if err != nil {
+		return []string{fmt.Sprintf("error: %v", err)}
+	}
+	messages, _ := c.store.ListMessages(context.Background(), c.sessionID)
+	turns, _ := c.store.ListTurns(context.Background(), c.sessionID)
+	queuedTurns, _ := c.store.CountQueuedTurns(context.Background(), c.sessionID)
+	steeringDepth, _ := c.store.SteeringQueueLength(context.Background(), c.sessionID)
+	activeTurnID, claimToken, _ := c.store.GetSessionActiveTurn(context.Background(), c.sessionID)
+	model := c.cfg.DefaultModel
+	provider := c.cfg.DefaultProvider
+	thinking := c.cfg.DefaultThinkingLevel
+	status := "idle"
+	queueCount := queuedTurns
+	if v, ok := sess.State["model"].(string); ok && v != "" {
+		model = v
+	}
+	if v, ok := sess.State["provider"].(string); ok && v != "" {
+		provider = v
+	}
+	if v, ok := sess.State["thinking_level"].(string); ok && v != "" {
+		thinking = v
+	}
+	if v, ok := sess.State["status"].(string); ok && v != "" {
+		status = v
+	}
+	if v := intFromAny(sess.State["queue_count"]); v > queueCount {
+		queueCount = v
+	}
+	parent := sess.ParentSessionID
+	if parent == "" {
+		parent = "root"
+	}
+	active := "none"
+	if activeTurnID != "" {
+		active = activeTurnID
+		if claimToken != "" {
+			active += " (claimed)"
+		}
+	}
+	return []string{
+		"session: current",
+		fmt.Sprintf("- id=%s", sess.ID),
+		fmt.Sprintf("- title=%s agent=@%s parent=%s", sess.Title, c.agentIDForSession(sess), parent),
+		fmt.Sprintf("- messages=%d turns=%d queued_turns=%d steering=%d", len(messages), len(turns), queueCount, steeringDepth),
+		fmt.Sprintf("- status=%s running=%v active_turn=%s", status, c.running, active),
+		fmt.Sprintf("- model=%s provider=%s thinking=%s", model, provider, thinking),
 	}
 }
 

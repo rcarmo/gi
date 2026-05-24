@@ -944,6 +944,7 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 		"runtime:",
 		"discovery:",
 		"sessions:",
+		"/session",
 		"/settings",
 		"/where",
 		"/tools [query|active|activate|reset]",
@@ -952,6 +953,41 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 	} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("help missing %q:\n%s", want, joined)
+		}
+	}
+}
+
+func TestSessionLinesShowCurrentSessionRuntimeSummary(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_info")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_info", "", "@agent", map[string]any{"status": "running", "model": "m1", "provider": "p1", "thinking_level": "high", "queue_count": 2}, &alloc.Scope, alloc.SessionAliases); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if err := s.AddMessage(ctx, "msg_session_info", "session_info", "user", "hello", nil); err != nil {
+		t.Fatalf("add message: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_queued", "session_info", "queued", "queued prompt", nil); err != nil {
+		t.Fatalf("create queued turn: %v", err)
+	}
+	if _, err := s.EnqueueSteering(ctx, "session_info", "", "user", "steer", nil, nil, "one-at-a-time"); err != nil {
+		t.Fatalf("enqueue steering: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_active", "session_info", "running", "active prompt", nil); err != nil {
+		t.Fatalf("create active turn: %v", err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "session_info", "turn_active", "worker", "claim"); err != nil || !ok {
+		t.Fatalf("claim active turn: ok=%v err=%v", ok, err)
+	}
+	c := &chatTUI{store: s, sessionID: "session_info", cfg: config.RuntimeConfig{DefaultModel: "fallback", DefaultProvider: "fallback", DefaultThinkingLevel: "low"}, running: true}
+	joined := strings.Join(c.sessionLines(), "\n")
+	for _, want := range []string{"session: current", "id=session_info", "title=@agent agent=@agent parent=root", "messages=1 turns=2 queued_turns=1 steering=1", "status=running running=true active_turn=turn_active (claimed)", "model=m1 provider=p1 thinking=high"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("session summary missing %q:\n%s", want, joined)
 		}
 	}
 }
