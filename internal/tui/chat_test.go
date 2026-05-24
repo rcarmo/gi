@@ -1396,6 +1396,48 @@ func TestMultilineInputHelpLineFollowsFocusAndText(t *testing.T) {
 	}
 }
 
+func TestMultilineInputWordMovementAndDeletion(t *testing.T) {
+	inp := newMultilineInput(80, "", nil, nil)
+	inp.SetText("alpha beta  gamma")
+	inp.moveEnd()
+	inp.moveWordLeft()
+	if inp.cursorPos != len([]rune("alpha beta  ")) {
+		t.Fatalf("word-left cursor=%d", inp.cursorPos)
+	}
+	inp.moveWordLeft()
+	if inp.cursorPos != len([]rune("alpha ")) {
+		t.Fatalf("second word-left cursor=%d", inp.cursorPos)
+	}
+	inp.moveWordRight()
+	if inp.cursorPos != len([]rune("alpha beta  ")) {
+		t.Fatalf("word-right cursor=%d", inp.cursorPos)
+	}
+	inp.deleteWordBackward()
+	if got := inp.Text(); got != "alpha gamma" {
+		t.Fatalf("delete word backward = %q", got)
+	}
+	inp.deleteWordForward()
+	if got := inp.Text(); got != "alpha " {
+		t.Fatalf("delete word forward = %q", got)
+	}
+}
+
+func TestMultilineInputLineDeletion(t *testing.T) {
+	inp := newMultilineInput(80, "", nil, nil)
+	inp.SetText("alpha beta gamma")
+	inp.cursorPos = len([]rune("alpha beta"))
+	inp.deleteToLineStart()
+	if got := inp.Text(); got != " gamma" || inp.cursorPos != 0 {
+		t.Fatalf("delete to line start text=%q cursor=%d", got, inp.cursorPos)
+	}
+	inp.SetText("alpha beta gamma")
+	inp.cursorPos = len([]rune("alpha beta"))
+	inp.deleteToLineEnd()
+	if got := inp.Text(); got != "alpha beta" {
+		t.Fatalf("delete to line end = %q", got)
+	}
+}
+
 func TestMultilineInputCursorRenderingWithinText(t *testing.T) {
 	inp := newMultilineInput(40, "", nil, nil)
 	inp.SetText("abcd")

@@ -78,9 +78,18 @@ func (m *multilineInput) KeyMap() gotui.KeyMap {
 		gotui.OnFocused(gotui.KeyBackspace, func(ke gotui.KeyEvent) { m.backspace() }),
 		gotui.OnFocused(gotui.KeyDelete, func(ke gotui.KeyEvent) { m.delete() }),
 		gotui.OnFocused(gotui.KeyLeft, func(ke gotui.KeyEvent) { m.moveLeft() }),
+		gotui.OnFocused(gotui.KeyLeft.Alt(), func(ke gotui.KeyEvent) { m.moveWordLeft() }),
 		gotui.OnFocused(gotui.KeyRight, func(ke gotui.KeyEvent) { m.moveRight() }),
+		gotui.OnFocused(gotui.KeyRight.Alt(), func(ke gotui.KeyEvent) { m.moveWordRight() }),
 		gotui.OnFocused(gotui.KeyHome, func(ke gotui.KeyEvent) { m.moveHome() }),
 		gotui.OnFocused(gotui.KeyEnd, func(ke gotui.KeyEvent) { m.moveEnd() }),
+		gotui.OnFocused(gotui.KeyCtrlA, func(ke gotui.KeyEvent) { m.moveHome() }),
+		gotui.OnFocused(gotui.KeyCtrlE, func(ke gotui.KeyEvent) { m.moveEnd() }),
+		gotui.OnFocused(gotui.KeyCtrlU, func(ke gotui.KeyEvent) { m.deleteToLineStart() }),
+		gotui.OnFocused(gotui.KeyCtrlK, func(ke gotui.KeyEvent) { m.deleteToLineEnd() }),
+		gotui.OnFocused(gotui.KeyCtrlW, func(ke gotui.KeyEvent) { m.deleteWordBackward() }),
+		gotui.OnFocused(gotui.KeyBackspace.Alt(), func(ke gotui.KeyEvent) { m.deleteWordBackward() }),
+		gotui.OnFocused(gotui.KeyDelete.Alt(), func(ke gotui.KeyEvent) { m.deleteWordForward() }),
 		gotui.OnFocused(gotui.KeyEnter, m.enter),
 		gotui.OnFocused(gotui.KeyEnter.Alt(), m.enter),
 		gotui.OnFocused(gotui.KeyUp.Alt(), func(ke gotui.KeyEvent) {
@@ -239,6 +248,78 @@ func (m *multilineInput) moveRight() {
 }
 func (m *multilineInput) moveHome() { m.cursorPos = 0; m.markDirty() }
 func (m *multilineInput) moveEnd()  { m.cursorPos = utf8.RuneCountInString(m.text); m.markDirty() }
+
+func (m *multilineInput) moveWordLeft() {
+	runes := []rune(m.text)
+	pos := m.clampCursor()
+	for pos > 0 && isWordSpace(runes[pos-1]) {
+		pos--
+	}
+	for pos > 0 && !isWordSpace(runes[pos-1]) {
+		pos--
+	}
+	m.cursorPos = pos
+	m.markDirty()
+}
+
+func (m *multilineInput) moveWordRight() {
+	runes := []rune(m.text)
+	pos := m.clampCursor()
+	for pos < len(runes) && !isWordSpace(runes[pos]) {
+		pos++
+	}
+	for pos < len(runes) && isWordSpace(runes[pos]) {
+		pos++
+	}
+	m.cursorPos = pos
+	m.markDirty()
+}
+
+func (m *multilineInput) deleteWordBackward() {
+	runes := []rune(m.text)
+	end := m.clampCursor()
+	start := end
+	for start > 0 && isWordSpace(runes[start-1]) {
+		start--
+	}
+	for start > 0 && !isWordSpace(runes[start-1]) {
+		start--
+	}
+	m.text = string(append(runes[:start], runes[end:]...))
+	m.cursorPos = start
+	m.notifyChanged()
+}
+
+func (m *multilineInput) deleteWordForward() {
+	runes := []rune(m.text)
+	start := m.clampCursor()
+	end := start
+	for end < len(runes) && isWordSpace(runes[end]) {
+		end++
+	}
+	for end < len(runes) && !isWordSpace(runes[end]) {
+		end++
+	}
+	m.text = string(append(runes[:start], runes[end:]...))
+	m.notifyChanged()
+}
+
+func (m *multilineInput) deleteToLineStart() {
+	runes := []rune(m.text)
+	pos := m.clampCursor()
+	m.text = string(runes[pos:])
+	m.cursorPos = 0
+	m.notifyChanged()
+}
+
+func (m *multilineInput) deleteToLineEnd() {
+	runes := []rune(m.text)
+	pos := m.clampCursor()
+	m.text = string(runes[:pos])
+	m.notifyChanged()
+}
+
+func isWordSpace(r rune) bool { return r == ' ' || r == '\t' || r == '\n' || r == '\r' }
 
 func (m *multilineInput) enter(ke gotui.KeyEvent) {
 	if ke.Mod&gotui.ModShift != 0 {
