@@ -947,6 +947,7 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 		"/session",
 		"/new",
 		"/name <name>",
+		"/resume [index|session_id]",
 		"/settings",
 		"/where",
 		"/tools [query|active|activate|reset]",
@@ -994,6 +995,46 @@ func TestNewSessionCommandCreatesAndSwitchesMainSession(t *testing.T) {
 	}
 	if created.State["model"] != "new-model" || created.State["provider"] != "provider" || created.State["thinking_level"] != "medium" {
 		t.Fatalf("unexpected new session state: %#v", created.State)
+	}
+}
+
+func TestResumeLinesListsAndSwitchesRecentSessions(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	allocA := gisession.AllocateDefaultSession("agent", "gi", "default", "session_resume_a")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_resume_a", "", "Alpha", map[string]any{"status": "idle"}, &allocA.Scope, allocA.SessionAliases); err != nil {
+		t.Fatalf("create session a: %v", err)
+	}
+	allocB := gisession.AllocateDefaultSession("agent", "gi", "default", "session_resume_b")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_resume_b", "", "Beta", map[string]any{"status": "queued"}, &allocB.Scope, allocB.SessionAliases); err != nil {
+		t.Fatalf("create session b: %v", err)
+	}
+	if err := s.AddMessage(ctx, "msg_resume_b", "session_resume_b", "user", "hello", nil); err != nil {
+		t.Fatalf("add message: %v", err)
+	}
+	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_resume_a", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, transcriptRef: gotui.NewRef(), draftLineIndex: -1}
+	c.eventCh = make(chan map[string]any, 64)
+	c.topicEventCh = make(chan topics.Envelope, 64)
+	listed := strings.Join(c.resumeLines([]string{"/resume"}), "\n")
+	for _, want := range []string{"resume: recent sessions", "Beta (session_resume_b)", "messages=1", "resume: use /resume <index|session_id>"} {
+		if !strings.Contains(listed, want) {
+			t.Fatalf("resume list missing %q:\n%s", want, listed)
+		}
+	}
+	lines := c.resumeLines([]string{"/resume", "session_resume_b"})
+	if len(lines) != 1 || !strings.Contains(lines[0], "sys: resumed @agent (session_resume_b)") {
+		t.Fatalf("unexpected resume output: %#v", lines)
+	}
+	if c.sessionID != "session_resume_b" {
+		t.Fatalf("expected switch to session_resume_b, got %q", c.sessionID)
+	}
+	lines = c.resumeLines([]string{"/resume", "session_resume_a"})
+	if len(lines) != 1 || !strings.Contains(lines[0], "session_resume_a") || c.sessionID != "session_resume_a" {
+		t.Fatalf("unexpected resume by id output=%#v session=%q", lines, c.sessionID)
 	}
 }
 

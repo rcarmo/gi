@@ -885,6 +885,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.appendTranscript(c.newSessionLines()...)
 	case "/name":
 		c.appendTranscript(c.nameSessionLines(text, fields)...)
+	case "/resume":
+		c.appendTranscript(c.resumeLines(fields)...)
 	case "/tools":
 		c.transcript = append(c.transcript, c.toolCommand(fields)...)
 	case "/skills":
@@ -983,7 +985,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
+		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /tools [query|active|activate|reset], /skills [query], /model [name], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1008,7 +1010,7 @@ func (c *chatTUI) helpLines() []string {
 		"- Enter send · Shift+Enter newline · Esc blur input · Tab focus input",
 		"- Up/Down history · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
 		"runtime:",
-		"- /session · /new · /name <name> · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"- /session · /new · /name <name> · /resume [index|session_id] · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
 		"discovery:",
 		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
 		"sessions:",
@@ -1040,6 +1042,51 @@ func (c *chatTUI) nameSessionLines(text string, fields []string) []string {
 		return []string{fmt.Sprintf("error: rename session: %v", err)}
 	}
 	return []string{fmt.Sprintf("sys: session renamed to %s", name)}
+}
+
+func (c *chatTUI) resumeLines(fields []string) []string {
+	sessions, err := c.store.ListSessions(context.Background())
+	if err != nil {
+		return []string{fmt.Sprintf("error: list sessions: %v", err)}
+	}
+	if len(fields) > 1 {
+		arg := strings.TrimSpace(fields[1])
+		var target *store.Session
+		if idx, err := strconv.Atoi(arg); err == nil {
+			if idx < 1 || idx > len(sessions) {
+				return []string{fmt.Sprintf("error: resume index out of range: %d", idx)}
+			}
+			target = &sessions[idx-1]
+		} else {
+			resolved, err := c.resolveSessionRef(arg)
+			if err != nil {
+				return []string{fmt.Sprintf("error: %v", err)}
+			}
+			target = resolved
+		}
+		c.switchSession(target.ID)
+		return []string{fmt.Sprintf("sys: resumed @%s (%s)", c.agentIDForSession(target), target.ID)}
+	}
+	if len(sessions) == 0 {
+		return []string{"resume: no sessions"}
+	}
+	limit := len(sessions)
+	if limit > 10 {
+		limit = 10
+	}
+	lines := []string{"resume: recent sessions"}
+	for i := 0; i < limit; i++ {
+		sess := sessions[i]
+		messages, _ := c.store.ListMessages(context.Background(), sess.ID)
+		turns, _ := c.store.ListTurns(context.Background(), sess.ID)
+		status, _ := sess.State["status"].(string)
+		if status == "" {
+			status = "idle"
+		}
+		lines = append(lines, fmt.Sprintf("%d. @%s %s (%s) · %s · messages=%d turns=%d", i+1, c.agentIDForSession(&sess), sess.Title, sess.ID, status, len(messages), len(turns)))
+	}
+	lines = append(lines, "resume: use /resume <index|session_id>")
+	return lines
 }
 
 func (c *chatTUI) sessionLines() []string {
