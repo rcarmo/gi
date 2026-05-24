@@ -733,6 +733,8 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 		gotui.OnPreemptStop(gotui.KeyF3, func(ke gotui.KeyEvent) { c.recallHistory(1) }),
 		gotui.OnPreemptStop(gotui.Rune('p').Ctrl(), func(ke gotui.KeyEvent) { c.recallHistory(-1) }),
 		gotui.OnPreemptStop(gotui.Rune('n').Ctrl(), func(ke gotui.KeyEvent) { c.recallHistory(1) }),
+		gotui.OnPreemptStop(gotui.KeyCtrlL, func(ke gotui.KeyEvent) { c.cycleModel(1) }),
+		gotui.OnPreemptStop(gotui.Rune('l').Alt(), func(ke gotui.KeyEvent) { c.cycleModel(-1) }),
 		gotui.OnPreemptStop(gotui.KeyUp, func(ke gotui.KeyEvent) {
 			c.recallHistory(-1)
 		}),
@@ -740,6 +742,30 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 			c.recallHistory(1)
 		}),
 	}
+}
+
+func (c *chatTUI) cycleModel(delta int) {
+	if len(c.cfg.EnabledModels) == 0 {
+		c.appendTranscript("sys: no enabled models configured; use /scoped-models add <model>")
+		return
+	}
+	idx := -1
+	for i, model := range c.cfg.EnabledModels {
+		if model == c.cfg.DefaultModel {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		idx = 0
+	} else {
+		idx = (idx + delta) % len(c.cfg.EnabledModels)
+		if idx < 0 {
+			idx += len(c.cfg.EnabledModels)
+		}
+	}
+	lines := c.modelCommand([]string{"/model", c.cfg.EnabledModels[idx]})
+	c.appendTranscript(lines...)
 }
 
 func (c *chatTUI) recallHistory(delta int) {
@@ -1074,6 +1100,7 @@ func (c *chatTUI) helpLines() []string {
 		"- Up/Down history · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
 		"runtime:",
 		"- /session · /new · /name <name> · /resume [index|session_id] · /copy · /reload · /model [name] · /scoped-models [add|remove|set] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"- Ctrl+L cycles next model · Alt+L cycles previous model",
 		"- !cmd sends a shell request to the model · !!cmd runs locally and prints output",
 		"- Tab completes paths; @path uses the same textual file-reference completion fallback",
 		"discovery:",
@@ -1805,7 +1832,7 @@ func (c *chatTUI) footerTextForWidth(width int) string {
 	if width < 72 {
 		return "Hints: /help · Enter send · Esc blur · Tab focus · PgUp/PgDn scroll · Ctrl-D quit"
 	}
-	return "Hints: /help · /tools · /skills · /model · /thinking · /compact · /settings · /cancel · /agents · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
+	return "Hints: /help · /tools · /skills · /model · Ctrl-L model · /thinking · /compact · /settings · /cancel · /agents · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
 }
 
 func (c *chatTUI) footerText() string {

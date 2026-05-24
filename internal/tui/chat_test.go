@@ -1359,6 +1359,24 @@ func TestModelCommandListsAndSelectsEnabledModels(t *testing.T) {
 	}
 }
 
+func TestCycleModelUsesEnabledModels(t *testing.T) {
+	root := t.TempDir()
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	c := &chatTUI{store: s, sessionID: "session_cycle_model", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultModel: "a", EnabledModels: []string{"a", "b", "c"}}}
+	c.cycleModel(1)
+	if c.cfg.DefaultModel != "b" || !strings.Contains(strings.Join(c.transcript, "\n"), "model set to b") {
+		t.Fatalf("next model failed cfg=%#v transcript=%#v", c.cfg, c.transcript)
+	}
+	c.cycleModel(-1)
+	if c.cfg.DefaultModel != "a" {
+		t.Fatalf("previous model failed cfg=%#v", c.cfg)
+	}
+}
+
 func TestScopedModelsCommandManagesEnabledModels(t *testing.T) {
 	root := t.TempDir()
 	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "ollama", DefaultModel: "a", DefaultThinkingLevel: "medium", EnabledModels: []string{"a"}}}
