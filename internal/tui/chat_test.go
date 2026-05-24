@@ -944,6 +944,21 @@ func TestCompleteInputPathCompletesWorkspaceRelativePath(t *testing.T) {
 	}
 }
 
+func TestCompleteInputPathCompletesAtFileReference(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "internal"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "internal", "chat.go"), []byte("package internal"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: root}}
+	got, cursor, ok := c.completeInputPath("review @internal/ch", len("review @internal/ch"))
+	if !ok || got != "review @internal/chat.go" || cursor != len("review @internal/chat.go") {
+		t.Fatalf("@ completion got=%q cursor=%d ok=%v", got, cursor, ok)
+	}
+}
+
 func TestMultilineInputTabCompletionCallback(t *testing.T) {
 	inp := newMultilineInput(80, "", nil, nil)
 	inp.SetText("abc")

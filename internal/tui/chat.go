@@ -1073,6 +1073,7 @@ func (c *chatTUI) helpLines() []string {
 		"runtime:",
 		"- /session · /new · /name <name> · /resume [index|session_id] · /copy · /reload · /model [name] · /thinking [level] · /compact · /cancel · /settings · /approvals",
 		"- !cmd sends a shell request to the model · !!cmd runs locally and prints output",
+		"- Tab completes paths; @path uses the same textual file-reference completion fallback",
 		"discovery:",
 		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
 		"sessions:",
@@ -1093,11 +1094,19 @@ func (c *chatTUI) completeInputPath(text string, cursor int) (string, int, bool)
 	if prefix == "" {
 		return text, cursor, false
 	}
+	fileRef := strings.HasPrefix(prefix, "@")
+	searchPrefix := prefix
+	if fileRef {
+		searchPrefix = strings.TrimPrefix(prefix, "@")
+		if searchPrefix == "" {
+			searchPrefix = "*"
+		}
+	}
 	root := strings.TrimSpace(c.cfg.WorkspaceRoot)
 	if root == "" {
 		root = "."
 	}
-	pattern := prefix + "*"
+	pattern := searchPrefix + "*"
 	if !filepath.IsAbs(pattern) {
 		pattern = filepath.Join(root, pattern)
 	}
@@ -1111,13 +1120,16 @@ func (c *chatTUI) completeInputPath(text string, cursor int) (string, int, bool)
 		match += string(os.PathSeparator)
 	}
 	insert := match
-	if !filepath.IsAbs(prefix) {
+	if !filepath.IsAbs(searchPrefix) {
 		if rel, err := filepath.Rel(root, match); err == nil && !strings.HasPrefix(rel, "..") {
 			insert = rel
 			if strings.HasSuffix(match, string(os.PathSeparator)) && !strings.HasSuffix(insert, string(os.PathSeparator)) {
 				insert += string(os.PathSeparator)
 			}
 		}
+	}
+	if fileRef {
+		insert = "@" + insert
 	}
 	out := string(runes[:start]) + insert + string(runes[cursor:])
 	return out, start + utf8.RuneCountInString(insert), true
