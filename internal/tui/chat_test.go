@@ -1339,6 +1339,26 @@ func TestModelCommandPersistsSelection(t *testing.T) {
 	}
 }
 
+func TestModelCommandListsAndSelectsEnabledModels(t *testing.T) {
+	root := t.TempDir()
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	c := &chatTUI{store: s, sessionID: "session_models", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "ollama", DefaultModel: "qwen3:latest", DefaultThinkingLevel: "medium", EnabledModels: []string{"qwen3:latest", "ollama/gemma4:latest"}}}
+	listed := strings.Join(c.modelCommand([]string{"/model"}), "\n")
+	for _, want := range []string{"model: current=qwen3:latest", "provider=ollama thinking=medium", "*1. qwen3:latest", "  2. ollama/gemma4:latest", "select with /model <index>"} {
+		if !strings.Contains(listed, want) {
+			t.Fatalf("model list missing %q:\n%s", want, listed)
+		}
+	}
+	lines := c.modelCommand([]string{"/model", "2"})
+	if c.cfg.DefaultModel != "ollama/gemma4:latest" || len(lines) == 0 || !strings.Contains(lines[0], "model set to ollama/gemma4:latest") {
+		t.Fatalf("index selection failed cfg=%#v lines=%#v", c.cfg, lines)
+	}
+}
+
 func TestAppendTranscriptPrunesToScrollbackLimit(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{ScrollbackLimit: 3}}
 	c.appendTranscript("1", "2", "3", "4")

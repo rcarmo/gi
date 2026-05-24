@@ -1338,14 +1338,14 @@ func (c *chatTUI) sessionLines() []string {
 
 func (c *chatTUI) modelCommand(fields []string) []string {
 	if len(fields) == 1 {
-		if strings.TrimSpace(c.cfg.DefaultModel) == "" {
-			return c.firstUseModelPromptLines()
-		}
-		return []string{fmt.Sprintf("sys: model: %s", c.cfg.DefaultModel)}
+		return c.modelListLines()
 	}
 	model := strings.TrimSpace(strings.Join(fields[1:], " "))
 	if model == "" {
-		return []string{"sys: usage /model <model>"}
+		return []string{"sys: usage /model <model|index>"}
+	}
+	if idx, err := strconv.Atoi(model); err == nil && idx > 0 && idx <= len(c.cfg.EnabledModels) {
+		model = c.cfg.EnabledModels[idx-1]
 	}
 	c.cfg.DefaultModel = model
 	if strings.Contains(model, "/") && strings.TrimSpace(c.cfg.DefaultProvider) == "" {
@@ -1358,6 +1358,39 @@ func (c *chatTUI) modelCommand(fields []string) []string {
 	if err := config.PersistModelSelection(c.cfg.WorkspaceRoot, c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.DefaultThinkingLevel, c.cfg.EnabledModels); err != nil {
 		lines = append(lines, fmt.Sprintf("warn: failed to persist model selection: %v", err))
 	}
+	return lines
+}
+
+func (c *chatTUI) modelListLines() []string {
+	current := strings.TrimSpace(c.cfg.DefaultModel)
+	if current == "" {
+		current = "(none selected)"
+	}
+	provider := strings.TrimSpace(c.cfg.DefaultProvider)
+	if provider == "" {
+		provider = "(inferred from model when possible)"
+	}
+	thinking := strings.TrimSpace(c.cfg.DefaultThinkingLevel)
+	if thinking == "" {
+		thinking = "low"
+	}
+	lines := []string{
+		fmt.Sprintf("model: current=%s", current),
+		fmt.Sprintf("- provider=%s thinking=%s", provider, thinking),
+	}
+	if len(c.cfg.EnabledModels) == 0 {
+		lines = append(lines, "- enabled models: none configured; use /model <provider/model>")
+		return lines
+	}
+	lines = append(lines, "- enabled models:")
+	for i, model := range c.cfg.EnabledModels {
+		marker := " "
+		if model == c.cfg.DefaultModel {
+			marker = "*"
+		}
+		lines = append(lines, fmt.Sprintf("  %s%d. %s", marker, i+1, model))
+	}
+	lines = append(lines, "- select with /model <index> or /model <provider/model>")
 	return lines
 }
 
