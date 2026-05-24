@@ -48,6 +48,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `tui-stack-evaluation.md` — decision record for keeping the current Gi TUI stack instead of switching to PicoClaw/Pi's launcher/TUI stack now
 - `tui-pi-fit-gap-roadmap.md` — baseline inventory and acceptance criteria for incremental Pi-like TUI fit/gap work
 - `extension-command-semantics.md` — design contract for future Joker/JS/process extension TUI command registration
+- `scripting/namespaces.md` — extension-author reference for `gi.state`, `gi.topics`, and `gi.runtime` semantics
 
 The `search/` subtree is the canonical reference for the current hybrid workspace search direction: SQLite metadata + FTS5 + vec + local embeddings, plus the runtime-facing read-only `fts://` locator contract.
 

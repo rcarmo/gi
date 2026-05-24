@@ -16,4 +16,5 @@ It should cover:
 See also:
 - `joker.md`
 - `bridge.md`
+- `namespaces.md`
 - `contract.md`
