@@ -22,6 +22,10 @@ type multilineInput struct {
 	onChange         func(string)
 	text             string
 	cursorPos        int
+	undoText         string
+	undoCursor       int
+	hasUndo          bool
+	yankText         string
 	focused          bool
 	blink            bool
 }
@@ -90,6 +94,8 @@ func (m *multilineInput) KeyMap() gotui.KeyMap {
 		gotui.OnFocused(gotui.KeyCtrlW, func(ke gotui.KeyEvent) { m.deleteWordBackward() }),
 		gotui.OnFocused(gotui.KeyBackspace.Alt(), func(ke gotui.KeyEvent) { m.deleteWordBackward() }),
 		gotui.OnFocused(gotui.KeyDelete.Alt(), func(ke gotui.KeyEvent) { m.deleteWordForward() }),
+		gotui.OnFocused(gotui.KeyCtrlZ, func(ke gotui.KeyEvent) { m.undo() }),
+		gotui.OnFocused(gotui.KeyCtrlY, func(ke gotui.KeyEvent) { m.yank() }),
 		gotui.OnFocused(gotui.KeyEnter, m.enter),
 		gotui.OnFocused(gotui.KeyEnter.Alt(), m.enter),
 		gotui.OnFocused(gotui.KeyUp.Alt(), func(ke gotui.KeyEvent) {
@@ -203,6 +209,7 @@ func (m *multilineInput) helpLine() string {
 }
 
 func (m *multilineInput) insertRune(ke gotui.KeyEvent) {
+	m.snapshotUndo()
 	runes := []rune(m.text)
 	pos := m.clampCursor()
 	runes = append(runes[:pos], append([]rune{ke.Rune}, runes[pos:]...)...)
@@ -217,6 +224,8 @@ func (m *multilineInput) backspace() {
 	if pos == 0 || len(runes) == 0 {
 		return
 	}
+	m.snapshotUndo()
+	m.yankText = string(runes[pos-1 : pos])
 	runes = append(runes[:pos-1], runes[pos:]...)
 	m.text = string(runes)
 	m.cursorPos = pos - 1
@@ -229,6 +238,8 @@ func (m *multilineInput) delete() {
 	if pos >= len(runes) {
 		return
 	}
+	m.snapshotUndo()
+	m.yankText = string(runes[pos : pos+1])
 	runes = append(runes[:pos], runes[pos+1:]...)
 	m.text = string(runes)
 	m.notifyChanged()
@@ -285,6 +296,11 @@ func (m *multilineInput) deleteWordBackward() {
 	for start > 0 && !isWordSpace(runes[start-1]) {
 		start--
 	}
+	if start == end {
+		return
+	}
+	m.snapshotUndo()
+	m.yankText = string(runes[start:end])
 	m.text = string(append(runes[:start], runes[end:]...))
 	m.cursorPos = start
 	m.notifyChanged()
@@ -300,6 +316,11 @@ func (m *multilineInput) deleteWordForward() {
 	for end < len(runes) && !isWordSpace(runes[end]) {
 		end++
 	}
+	if start == end {
+		return
+	}
+	m.snapshotUndo()
+	m.yankText = string(runes[start:end])
 	m.text = string(append(runes[:start], runes[end:]...))
 	m.notifyChanged()
 }
@@ -307,6 +328,11 @@ func (m *multilineInput) deleteWordForward() {
 func (m *multilineInput) deleteToLineStart() {
 	runes := []rune(m.text)
 	pos := m.clampCursor()
+	if pos == 0 {
+		return
+	}
+	m.snapshotUndo()
+	m.yankText = string(runes[:pos])
 	m.text = string(runes[pos:])
 	m.cursorPos = 0
 	m.notifyChanged()
@@ -315,6 +341,11 @@ func (m *multilineInput) deleteToLineStart() {
 func (m *multilineInput) deleteToLineEnd() {
 	runes := []rune(m.text)
 	pos := m.clampCursor()
+	if pos >= len(runes) {
+		return
+	}
+	m.snapshotUndo()
+	m.yankText = string(runes[pos:])
 	m.text = string(runes[:pos])
 	m.notifyChanged()
 }
@@ -332,11 +363,41 @@ func (m *multilineInput) enter(ke gotui.KeyEvent) {
 }
 
 func (m *multilineInput) insertLiteral(r rune) {
+	m.snapshotUndo()
 	runes := []rune(m.text)
 	pos := m.clampCursor()
 	runes = append(runes[:pos], append([]rune{r}, runes[pos:]...)...)
 	m.text = string(runes)
 	m.cursorPos = pos + 1
+	m.notifyChanged()
+}
+
+func (m *multilineInput) snapshotUndo() {
+	m.undoText = m.text
+	m.undoCursor = m.clampCursor()
+	m.hasUndo = true
+}
+
+func (m *multilineInput) undo() {
+	if !m.hasUndo {
+		return
+	}
+	m.text, m.undoText = m.undoText, m.text
+	m.cursorPos, m.undoCursor = m.undoCursor, m.clampCursor()
+	m.notifyChanged()
+}
+
+func (m *multilineInput) yank() {
+	if m.yankText == "" {
+		return
+	}
+	m.snapshotUndo()
+	runes := []rune(m.text)
+	pos := m.clampCursor()
+	yankRunes := []rune(m.yankText)
+	runes = append(runes[:pos], append(yankRunes, runes[pos:]...)...)
+	m.text = string(runes)
+	m.cursorPos = pos + len(yankRunes)
 	m.notifyChanged()
 }
 

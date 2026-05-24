@@ -1438,6 +1438,24 @@ func TestMultilineInputLineDeletion(t *testing.T) {
 	}
 }
 
+func TestMultilineInputUndoAndYank(t *testing.T) {
+	inp := newMultilineInput(80, "", nil, nil)
+	inp.SetText("alpha beta")
+	inp.deleteWordBackward()
+	if got := inp.Text(); got != "alpha " {
+		t.Fatalf("after delete word = %q", got)
+	}
+	inp.undo()
+	if got := inp.Text(); got != "alpha beta" {
+		t.Fatalf("after undo = %q", got)
+	}
+	inp.moveHome()
+	inp.yank()
+	if got := inp.Text(); got != "betaalpha beta" {
+		t.Fatalf("after yank = %q", got)
+	}
+}
+
 func TestMultilineInputCursorRenderingWithinText(t *testing.T) {
 	inp := newMultilineInput(40, "", nil, nil)
 	inp.SetText("abcd")
