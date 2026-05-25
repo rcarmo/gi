@@ -44,7 +44,7 @@ Native helper support is possible, but the dependency/OS surface is wider than t
 - Linux desktop: `wl-copy`, `xclip`, or `xsel` depending on Wayland/X11/session availability;
 - Windows/WSL: `clip.exe`, PowerShell `Set-Clipboard`, or WSL interop quirks.
 
-This should remain deferred unless a concrete user need justifies adding helper detection and tests.
+Decision: do **not** add native clipboard helper integration in the current plan slice. A future implementation should be opt-in, dependency-light, and covered by helper-selection tests that do not require a desktop clipboard in CI.
 
 ## Media/image ingestion boundary
 
@@ -64,5 +64,5 @@ Until that contract exists, image paste remains out of scope for the TUI.
 - OSC 52 copy: investigated, deferred by default.
 - Native clipboard helpers: investigated, deferred.
 - Ordinary text paste: unchanged terminal-rune behavior.
-- Bracketed paste: deferred pending parser/editor support.
-- Image/media paste: deferred pending media ingestion contract.
+- Bracketed paste: reassessed, deferred pending parser/editor support.
+- Image/media paste: contract defined at a boundary level, implementation deferred pending shared media ingestion.
