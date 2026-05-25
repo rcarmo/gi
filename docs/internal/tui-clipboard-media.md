@@ -74,7 +74,7 @@ Pi-style image paste is not just a keybinding. Gi still needs a media ingestion 
 - how TUI, web, and API submissions share the same payload shape;
 - what limits and cleanup policies apply.
 
-Until that contract exists, image paste remains out of scope for the TUI.
+The shared contract is now documented in [`media-ingestion-contract.md`](media-ingestion-contract.md). Until its minimal store/API primitives are implemented, image paste remains out of scope for the TUI.
 
 ## Current support summary
 

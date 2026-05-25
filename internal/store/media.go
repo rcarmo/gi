@@ -2,7 +2,10 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -61,6 +64,13 @@ func (s *Store) CreateMedia(ctx context.Context, sessionID, filename, contentTyp
 	}
 	meta := copyMetadata(metadata)
 	meta["size"] = len(raw)
+	if _, ok := meta["sha256"]; !ok {
+		sum := sha256.Sum256(raw)
+		meta["sha256"] = hex.EncodeToString(sum[:])
+	}
+	if _, ok := meta["detected_content_type"]; !ok && len(raw) > 0 {
+		meta["detected_content_type"] = http.DetectContentType(raw)
+	}
 	metadataJSON, err := marshalJSON(meta)
 	if err != nil {
 		return nil, fmt.Errorf("create media: metadata: %w", err)

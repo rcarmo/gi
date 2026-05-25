@@ -48,6 +48,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `tui-stack-evaluation.md` — decision record for keeping the current Gi TUI stack instead of switching to PicoClaw/Pi's launcher/TUI stack now
 - `tui-pi-fit-gap-roadmap.md` — baseline inventory and acceptance criteria for incremental Pi-like TUI fit/gap work
 - `tui-clipboard-media.md` — TUI clipboard/media parity decisions, including OSC 52 and image paste deferrals
+- `media-ingestion-contract.md` — shared web/TUI/API media reference, storage, limits, and provider-projection contract
 - `extension-command-semantics.md` — design contract for future Joker/JS/process extension TUI command registration
 - `scripting/namespaces.md` — extension-author reference for `gi.state`, `gi.topics`, and `gi.runtime` semantics
 
@@ -64,6 +65,8 @@ The `search/` subtree is the canonical reference for the current hybrid workspac
 `runtime-surfaces.md` is the living index for the top runtime surfaces, their canonical contract docs, and their implementation owners.
 
 `tui-pi-fit-gap-roadmap.md` is the current baseline and acceptance note for Pi-like TUI parity work.
+
+`media-ingestion-contract.md` defines the shared media ingestion boundary that web, TUI, API/direct ingress, steering, messages, turns, tools, and provider projection must use before image/media paste work proceeds.
 
 `extension-command-semantics.md` defines the planned command registration and invocation contract for Joker, JavaScript, and process extensions before the runtime dispatch slice lands.
 
