@@ -1111,7 +1111,11 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /commands [query], /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
+		if lines, handled := c.extensionCommandLines(text, fields); handled {
+			c.appendTranscript(lines...)
+		} else {
+			c.appendTranscript("sys: commands: /help, /commands [query], /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
+		}
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1127,6 +1131,45 @@ func (c *chatTUI) firstUseModelPromptLines() []string {
 		return []string{fmt.Sprintf("sys: no model selected; choose one with /model <name>. available: %s", strings.Join(c.cfg.EnabledModels, ", "))}
 	}
 	return []string{"sys: no model selected; choose one with /model <provider/model> before sending your first prompt"}
+}
+
+func (c *chatTUI) extensionCommandLines(text string, fields []string) ([]string, bool) {
+	if c.engine == nil || len(fields) == 0 {
+		return nil, false
+	}
+	name := strings.TrimPrefix(fields[0], "/")
+	rawArgs := strings.TrimSpace(strings.TrimPrefix(text, fields[0]))
+	res, handled, err := c.engine.InvokeExtensionCommand(context.Background(), name, rawArgs, c.sessionID, "")
+	if !handled {
+		return nil, false
+	}
+	if err != nil {
+		return []string{fmt.Sprintf("error: extension command /%s: %v", name, err)}, true
+	}
+	switch strings.ToLower(strings.TrimSpace(res.Type)) {
+	case "noop":
+		if strings.TrimSpace(res.Status) != "" {
+			c.status = res.Status
+		}
+		return []string{}, true
+	case "error":
+		if res.Error != "" {
+			return []string{fmt.Sprintf("error: extension command /%s: %s", name, res.Error)}, true
+		}
+		return append([]string{fmt.Sprintf("error: extension command /%s", name)}, res.Lines...), true
+	case "submit":
+		prompt := strings.TrimSpace(res.Prompt)
+		if prompt == "" {
+			return []string{fmt.Sprintf("error: extension command /%s returned empty submit prompt", name)}, true
+		}
+		c.onSubmit(prompt)
+		return []string{fmt.Sprintf("sys: extension command /%s submitted prompt", name)}, true
+	default:
+		if len(res.Lines) == 0 && strings.TrimSpace(res.Status) != "" {
+			return []string{"sys: " + res.Status}, true
+		}
+		return res.Lines, true
+	}
 }
 
 func (c *chatTUI) commandPaletteLines(query string) []string {
@@ -1168,6 +1211,20 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 			continue
 		}
 		lines = append(lines, fmt.Sprintf("- %-36s %s", cmd.name, cmd.hint))
+	}
+	if c.engine != nil {
+		for _, cmd := range c.engine.ExtensionCommandInfos() {
+			name := "/" + cmd.Name
+			hint := strings.TrimSpace(cmd.Description)
+			if hint == "" {
+				hint = "extension command"
+			}
+			text := name + " " + hint + " " + cmd.Usage
+			if q != "" && !strings.Contains(strings.ToLower(text), q) {
+				continue
+			}
+			lines = append(lines, fmt.Sprintf("- %-36s %s", name, hint))
+		}
 	}
 	if len(lines) == 1 {
 		return []string{fmt.Sprintf("commands: no matches for %q", query)}
@@ -2019,6 +2076,19 @@ func (c *chatTUI) pluginLines() []string {
 			}
 			lines = append(lines, line)
 		}
+	}
+	commands := c.engine.ExtensionCommandInfos()
+	conflicts := c.engine.ExtensionCommandConflicts()
+	lines = append(lines, fmt.Sprintf("plugins: commands: %d", len(commands)))
+	for _, cmd := range commands {
+		usage := strings.TrimSpace(cmd.Usage)
+		if usage == "" {
+			usage = "/" + cmd.Name
+		}
+		lines = append(lines, fmt.Sprintf("- /%s from %s (%s) · %s", cmd.Name, gitools.FirstNonEmpty(cmd.Source, "extension"), gitools.FirstNonEmpty(cmd.Engine, "unknown"), usage))
+	}
+	for _, cmd := range conflicts {
+		lines = append(lines, fmt.Sprintf("- conflict /%s from %s (%s)", cmd.Name, gitools.FirstNonEmpty(cmd.Source, "extension"), gitools.FirstNonEmpty(cmd.Engine, "unknown")))
 	}
 	hooks := c.engine.HookInfos()
 	lines = append(lines, fmt.Sprintf("plugins: hooks: %d", len(hooks)))

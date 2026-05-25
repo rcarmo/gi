@@ -49,6 +49,7 @@ type ScriptTool struct {
 
 	onRegisterEventHook func(ctx context.Context, sessionID string, hook scripting.EventHookSpec) (func(), error)
 	onRegisterTool      func(ctx context.Context, sessionID string, spec scripting.ToolSpec) error
+	onRegisterCommand   func(ctx context.Context, sessionID string, spec scripting.CommandSpec) error
 	onSetActiveTools    func(ctx context.Context, sessionID string, names []string) error
 	onGetActiveTools    func(ctx context.Context, sessionID string) ([]string, error)
 	onRegisterRoute     func(ctx context.Context, sessionID string, route connectivity.RouteSpec) (connectivity.RouteInfo, error)
@@ -112,11 +113,13 @@ func NewScriptTool(s *store.Store, cfg config.RuntimeConfig) *ScriptTool {
 func (t *ScriptTool) SetAgenticCallbacks(
 	registerHook func(context.Context, string, scripting.EventHookSpec) (func(), error),
 	registerTool func(context.Context, string, scripting.ToolSpec) error,
+	registerCommand func(context.Context, string, scripting.CommandSpec) error,
 	setActiveTools func(context.Context, string, []string) error,
 	getActiveTools func(context.Context, string) ([]string, error),
 ) {
 	t.onRegisterEventHook = registerHook
 	t.onRegisterTool = registerTool
+	t.onRegisterCommand = registerCommand
 	t.onSetActiveTools = setActiveTools
 	t.onGetActiveTools = getActiveTools
 }
@@ -464,6 +467,12 @@ func (t *ScriptTool) buildBridge(sessionID string) *scripting.Bridge {
 				return fmt.Errorf("register tool: host engine callback is not available")
 			}
 			return t.onRegisterTool(ctx, sessionID, spec)
+		},
+		RegisterCommand: func(ctx context.Context, spec scripting.CommandSpec) error {
+			if t.onRegisterCommand == nil {
+				return fmt.Errorf("register command: host engine callback is not available")
+			}
+			return t.onRegisterCommand(ctx, sessionID, spec)
 		},
 		SetActiveTools: func(ctx context.Context, names []string) error {
 			if t.onSetActiveTools == nil {

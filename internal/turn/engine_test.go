@@ -8521,3 +8521,52 @@ func TestSubTurnBroadcastEventsMapToTurnSubTurnTopic(t *testing.T) {
 		}
 	}
 }
+
+func TestExtensionCommandRegistryPublishesAndInvokes(t *testing.T) {
+	s := openTestStore(t)
+	defer s.Close()
+	e := New(s)
+	ch, unsub := e.Topics().Subscribe(context.Background(), "extension.command", topics.SubscribeOptions{Buffer: 8})
+	defer unsub()
+	registered, err := e.RegisterExtensionCommand(ExtensionCommandSpec{Name: "Demo", Description: "Demo command", Source: "test", Engine: "js"}, func(ctx context.Context, cmd ExtensionCommandContext) (ExtensionCommandResult, error) {
+		if cmd.Name != "demo" || cmd.Args != "hello world" || len(cmd.Argv) != 2 {
+			t.Fatalf("unexpected command context: %#v", cmd)
+		}
+		return ExtensionCommandResult{Type: "message", Lines: []string{"demo: " + cmd.Args}}, nil
+	})
+	if err != nil || !registered {
+		t.Fatalf("register command: registered=%v err=%v", registered, err)
+	}
+	registered, err = e.RegisterExtensionCommand(ExtensionCommandSpec{Name: "demo", Source: "other", Engine: "joker"}, func(context.Context, ExtensionCommandContext) (ExtensionCommandResult, error) {
+		return ExtensionCommandResult{}, nil
+	})
+	if err != nil || registered {
+		t.Fatalf("expected conflict without error, registered=%v err=%v", registered, err)
+	}
+	res, handled, err := e.InvokeExtensionCommand(context.Background(), "/demo", "hello world", "session_x", "agent")
+	if err != nil || !handled {
+		t.Fatalf("invoke command: handled=%v err=%v", handled, err)
+	}
+	if len(res.Lines) != 1 || res.Lines[0] != "demo: hello world" {
+		t.Fatalf("unexpected result: %#v", res)
+	}
+	if len(e.ExtensionCommandInfos()) != 1 || len(e.ExtensionCommandConflicts()) != 1 {
+		t.Fatalf("unexpected registry state infos=%#v conflicts=%#v", e.ExtensionCommandInfos(), e.ExtensionCommandConflicts())
+	}
+	seen := map[string]bool{}
+	for i := 0; i < 3; i++ {
+		select {
+		case ev := <-ch:
+			if typ, _ := ev.Payload["type"].(string); typ != "" {
+				seen[typ] = true
+			}
+		case <-time.After(time.Second):
+			t.Fatalf("timed out waiting for extension.command topics, seen=%#v", seen)
+		}
+	}
+	for _, want := range []string{"registered", "conflict", "invoked"} {
+		if !seen[want] {
+			t.Fatalf("missing topic type %q, seen=%#v", want, seen)
+		}
+	}
+}

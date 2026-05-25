@@ -594,7 +594,7 @@ func TestScriptToolClearEventHooksAlsoClearsHostRegisteredHooks(t *testing.T) {
 				return nil, nil
 			}
 		},
-		nil, nil, nil,
+		nil, nil, nil, nil,
 	)
 	bridgeA := tool.buildBridge("session_a")
 	if err := bridgeA.Funcs.RegisterEventHook(context.Background(), scripting.EventHookSpec{Name: "evt"}); err != nil {

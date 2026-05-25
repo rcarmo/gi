@@ -1,6 +1,6 @@
 # Extension command registration semantics
 
-Status: design contract for the next Gi TUI/runtime slices.
+Status: initial in-process implementation landed for JS/Joker extension commands; process command dispatch remains deferred.
 
 This note defines how Pi-like extension commands should work in Gi without changing the current SQLite-backed runtime contract or the existing startup extension loader.
 
@@ -54,7 +54,7 @@ Command handlers must not mutate session state by editing JSON directly. They sh
 
 ### JavaScript
 
-Future JS bridge shape:
+Implemented JS bridge shape:
 
 ```js
 gi.commands.register({
@@ -68,20 +68,21 @@ gi.commands.register({
 
 ### Joker
 
-Future Joker bridge shape:
+Implemented Joker bridge shape uses a script body in the command spec. The script receives `*gi-command*` through the same payload-injection pattern used for tools/hooks:
 
 ```clojure
 (gi-command-register
   {:name "demo"
    :description "Demo command"
-   :usage "/demo [text]"}
-  (fn [ctx]
-    {:type "message" :lines [(str "demo: " (:args ctx))]}))
+   :usage "/demo [text]"
+   :script "(json/write-string {:type \"message\" :lines [(str \"demo: \" (:args *gi-command*))]})"})
 ```
+
+The earlier callback form remains a possible future ergonomic wrapper, but the current bridge stores text scripts rather than live function objects.
 
 ### Process extensions
 
-Process extensions should use the same mounted JSON-RPC process model as process hooks. Registration is part of the process hello/capabilities response, and invocation uses a stable method name:
+Process extension command dispatch is still deferred. When implemented, it should use the same mounted JSON-RPC process model as process hooks. Registration is expected to be part of the process hello/capabilities response, and invocation should use a stable method name:
 
 - `command.invoke`
 
@@ -137,4 +138,20 @@ Registration and conflicts should publish topic notices under `extension.command
 
 ## Current implementation status
 
-Defined here only. Gi currently supports startup extension loading, tool/hook registration, topics, `/plugins`, and `/skill:name`; extension command dispatch is the next implementation slice after this contract.
+Implemented:
+
+- process-local extension command registry with case-insensitive command names;
+- first-loaded command wins, later duplicate registrations are recorded as conflicts;
+- built-in TUI commands retain precedence because extension dispatch only runs after built-in command matching;
+- unknown `/name ...` TUI commands dispatch through the extension command registry;
+- `/plugins` lists registered extension commands and conflicts;
+- `/commands [query]` includes extension commands;
+- registration, conflicts, invocation, and failures publish `extension.command` topic notices;
+- JS bridge supports `gi.commands.register(spec, handler)` and `gi.registerCommand(spec, handler)`;
+- Joker bridge supports `gi-command-register` / `gi-register-command` with a `:script` command spec.
+
+Deferred:
+
+- process extension command registration/invocation;
+- richer live extension unload/reload lifecycle;
+- callback-style Joker command handler ergonomics.

@@ -122,6 +122,16 @@ type TopicSubscribeOptions struct {
 // BridgeFuncs defines the host functions available to scripts.
 // Each function takes and returns generic types that the engine adapter
 // marshals to/from the script language's native types.
+type CommandSpec struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Usage       string `json:"usage,omitempty"`
+	Source      string `json:"source,omitempty"`
+	Engine      string `json:"engine,omitempty"`
+	Path        string `json:"path,omitempty"`
+	Script      string `json:"script,omitempty"`
+}
+
 type BridgeFuncs struct {
 	// Session state
 	GetSessionState func(ctx context.Context) (map[string]any, error)
@@ -150,6 +160,7 @@ type BridgeFuncs struct {
 	// Event hooks and agentic-loop extension points
 	RegisterEventHook     func(ctx context.Context, hook EventHookSpec) error
 	RegisterTool          func(ctx context.Context, tool ToolSpec) error
+	RegisterCommand       func(ctx context.Context, command CommandSpec) error
 	SetActiveTools        func(ctx context.Context, names []string) error
 	GetActiveTools        func(ctx context.Context) ([]string, error)
 	SetModel              func(ctx context.Context, model string) error

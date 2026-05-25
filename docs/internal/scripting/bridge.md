@@ -73,6 +73,8 @@ The Goja runtime exposes a global `gi` object with the methods listed below, inc
 - `gi.readFile(path)`
 - `gi.writeFile(path, content)`
 - `gi.listDir(path)`
+- `gi.commands.register({name, description, usage}, handler)`
+- `gi.registerCommand({name, description, usage}, handler)`
 - `gi.registerEventHook({name, source, filter, arguments})`
 - `gi.emitEvent(name, payload)`
 - `gi.clearEventHooks()`
@@ -116,6 +118,7 @@ Current helper functions:
 - `gi-topic-subscribe`
 - `gi-topic-read`
 - `gi-topic-unsubscribe`
+- `gi-command-register` / `gi-register-command` (with `:script` in the command spec)
 
 The current Joker mutation path applies session-state changes back through the live bridge after execution.
 

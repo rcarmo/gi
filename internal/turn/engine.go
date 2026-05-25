@@ -54,6 +54,7 @@ type Engine struct {
 	bgCancel                          context.CancelFunc
 	extensions                        []ExtensionInfo
 	extensionsMu                      sync.RWMutex
+	extensionCommands                 *ExtensionCommandRegistry
 	sessions                          sync.Map // sessionID -> *sessionRunner
 	subs                              map[string]map[chan map[string]any]bool
 	subsMu                            sync.Mutex
@@ -189,19 +190,20 @@ func NewWithRuntimeConfig(s *store.Store, cfg config.RuntimeConfig, systemPrompt
 	cfg.Hooks = applyHookDefaultsCompat(cfg.Hooks)
 	bgCtx, bgCancel := context.WithCancel(context.Background())
 	e := &Engine{
-		store:         s,
-		systemPrompt:  systemPrompt,
-		routeResolver: routing.NewRouteResolver(cfg.Agents, cfg.Session),
-		modelRouter:   routing.NewRouter(cfg.Routing),
-		runtimeCfg:    cfg,
-		hooks:         NewHookRegistry(),
-		tools:         tools.NewToolRegistry(),
-		connectivity:  connectivity.NewRegistry(),
-		topics:        topics.NewBus(),
-		peering:       peering.NewManager(cfg.Peering, cfg.WorkspaceRoot),
-		bgCtx:         bgCtx,
-		bgCancel:      bgCancel,
-		subs:          map[string]map[chan map[string]any]bool{},
+		store:             s,
+		systemPrompt:      systemPrompt,
+		routeResolver:     routing.NewRouteResolver(cfg.Agents, cfg.Session),
+		modelRouter:       routing.NewRouter(cfg.Routing),
+		runtimeCfg:        cfg,
+		hooks:             NewHookRegistry(),
+		tools:             tools.NewToolRegistry(),
+		connectivity:      connectivity.NewRegistry(),
+		topics:            topics.NewBus(),
+		extensionCommands: NewExtensionCommandRegistry(),
+		peering:           peering.NewManager(cfg.Peering, cfg.WorkspaceRoot),
+		bgCtx:             bgCtx,
+		bgCancel:          bgCancel,
+		subs:              map[string]map[chan map[string]any]bool{},
 	}
 	e.registerDefaultTools()
 	e.startTopicBridge()
@@ -3556,6 +3558,29 @@ func (e *Engine) registerDefaultTools() {
 				}
 				return out.Result, nil
 			}})
+		},
+		func(ctx context.Context, sessionID string, spec scripting.CommandSpec) error {
+			cmdSpec := ExtensionCommandSpec{Name: spec.Name, Description: spec.Description, Usage: spec.Usage, Source: tools.FirstNonEmpty(spec.Source, spec.Path, "script"), Engine: tools.FirstNonEmpty(spec.Engine, "js")}
+			script := spec.Script
+			if strings.TrimSpace(script) == "" {
+				return fmt.Errorf("register command %s: script handler is required", spec.Name)
+			}
+			_, err := e.RegisterExtensionCommand(cmdSpec, func(ctx context.Context, cmd ExtensionCommandContext) (ExtensionCommandResult, error) {
+				payload := map[string]any{"name": cmd.Name, "args": cmd.Args, "argv": cmd.Argv, "session_id": cmd.SessionID, "agent_id": cmd.AgentID}
+				var commandScript string
+				if cmdSpec.Engine == "joker" {
+					commandScript = tools.ScriptWithPayload("joker", "command", payload, script)
+				} else {
+					b, _ := json.Marshal(payload)
+					commandScript = fmt.Sprintf("const command = %s; const __handler = %s; JSON.stringify(__handler(command));", string(b), script)
+				}
+				out := scriptTool.Execute(ctx, tools.ScriptInput{Engine: cmdSpec.Engine, Path: spec.Path, SessionID: cmd.SessionID, Script: commandScript})
+				if out.Error != "" {
+					return ExtensionCommandResult{Type: "error", Error: out.Error}, errors.New(out.Error)
+				}
+				return extensionCommandResultFromScript(out.Result)
+			})
+			return err
 		},
 		func(ctx context.Context, sessionID string, names []string) error { return e.SetActiveTools(names) },
 		func(ctx context.Context, sessionID string) ([]string, error) { return e.ActiveTools(), nil },

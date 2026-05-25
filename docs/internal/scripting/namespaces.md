@@ -10,7 +10,7 @@ Gi exposes a small host bridge to JavaScript (Goja), Joker, and process-style ex
 | --- | --- | --- | --- |
 | `gi.state` | Session-scoped state and transcript/store reads | Current compatibility methods plus planned grouped aliases | `gi-get-session-state`, `gi-set-session-state!`, `gi-get-session-info`, etc. |
 | `gi.topics` | Process-local canonical topic bus publish/subscribe/read/unsubscribe | Implemented as `gi.topics.*` | Implemented as `gi-topic-*` helpers |
-| `gi.runtime` | Runtime configuration, active session/turn metadata, and future command/runtime helpers | Current compatibility methods plus planned grouped aliases | `gi-get-runtime-config`, turn/message helpers |
+| `gi.runtime` | Runtime configuration, active session/turn metadata, and command/runtime helpers | Current compatibility methods plus command registration aliases | `gi-get-runtime-config`, turn/message helpers, `gi-command-register` |
 
 The current JavaScript bridge still exposes several top-level compatibility methods (`gi.getSessionState()`, `gi.setSessionState()`, `gi.getRuntimeConfig()`, etc.). Extension authors should treat the grouped namespaces below as the intended documentation model even where a compatibility method is the shipped entrypoint today.
 
@@ -118,6 +118,7 @@ Current Joker helpers/data:
 Current adjacent helper families exposed through the bridge include:
 
 - file helpers: `readFile`, `writeFile`, `listDir` / workspace-relative and `vfs://` paths,
+- extension commands: JS `gi.commands.register(spec, handler)` / `gi.registerCommand(spec, handler)`, Joker `gi-command-register` / `gi-register-command`,
 - event hooks: `registerEventHook`, `emitEvent`, `clearEventHooks`,
 - networking: raw sockets, websocket, HTTP request helpers,
 - logging: `gi.log(...)` / console methods in JavaScript.
@@ -131,6 +132,8 @@ gi.runtime.registerHook(spec);
 gi.runtime.emitEvent(name, payload);
 gi.runtime.log("info", "message");
 ```
+
+Command registration is currently exposed separately as `gi.commands.register(...)` in JS and `gi-command-register` in Joker. Registered commands appear in `/plugins` and `/commands`, and invocation lifecycle notices publish under `extension.command`.
 
 Rules:
 

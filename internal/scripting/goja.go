@@ -352,6 +352,28 @@ func buildJSBridge(ctx context.Context, vm *goja.Runtime, bridge *Bridge) (*goja
 			return goja.Undefined()
 		})
 	}
+	if bridge.Funcs.RegisterCommand != nil {
+		commandsObj := vm.NewObject()
+		registerCommandFn := func(call goja.FunctionCall) goja.Value {
+			if len(call.Arguments) == 0 {
+				panic(vm.NewGoError(fmt.Errorf("commands.register requires a command spec")))
+			}
+			var spec CommandSpec
+			if err := mapToStruct(call.Arguments[0].Export(), &spec); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			if len(call.Arguments) > 1 && !goja.IsUndefined(call.Arguments[1]) && !goja.IsNull(call.Arguments[1]) {
+				spec.Script = call.Arguments[1].String()
+			}
+			if err := bridge.Funcs.RegisterCommand(ctx, spec); err != nil {
+				panic(vm.NewGoError(err))
+			}
+			return goja.Undefined()
+		}
+		commandsObj.Set("register", registerCommandFn)
+		obj.Set("commands", commandsObj)
+		obj.Set("registerCommand", registerCommandFn)
+	}
 	if bridge.Funcs.SetActiveTools != nil {
 		obj.Set("setActiveTools", func(call goja.FunctionCall) goja.Value {
 			var names []string

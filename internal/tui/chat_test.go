@@ -1850,3 +1850,30 @@ func TestPluginLinesShowsExtensionsAndHooks(t *testing.T) {
 		}
 	}
 }
+
+func TestExtensionCommandLinesDispatchesRegisteredCommand(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	e := turn.New(s)
+	if _, err := e.RegisterExtensionCommand(turn.ExtensionCommandSpec{Name: "demo", Description: "Demo", Source: "test", Engine: "js"}, func(ctx context.Context, cmd turn.ExtensionCommandContext) (turn.ExtensionCommandResult, error) {
+		return turn.ExtensionCommandResult{Type: "message", Lines: []string{"demo: " + cmd.Args}}, nil
+	}); err != nil {
+		t.Fatalf("register command: %v", err)
+	}
+	c := &chatTUI{engine: e, sessionID: "session_demo"}
+	lines, handled := c.extensionCommandLines("/demo hello", []string{"/demo", "hello"})
+	if !handled || len(lines) != 1 || lines[0] != "demo: hello" {
+		t.Fatalf("extension command lines handled=%v lines=%#v", handled, lines)
+	}
+	palette := strings.Join(c.commandPaletteLines("demo"), "\n")
+	if !strings.Contains(palette, "/demo") {
+		t.Fatalf("palette missing extension command:\n%s", palette)
+	}
+	plugins := strings.Join(c.pluginLines(), "\n")
+	if !strings.Contains(plugins, "plugins: commands: 1") || !strings.Contains(plugins, "/demo") {
+		t.Fatalf("plugins missing extension command:\n%s", plugins)
+	}
+}

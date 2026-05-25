@@ -43,7 +43,7 @@ Still intentionally absent or deferred:
 
 - `/export` and `/share` rich session export/share affordances;
 - `/hotkeys` and `/changelog` dedicated Pi-style informational commands;
-- extension command dispatch (the command-registration contract is documented, implementation is deferred);
+- process-extension command dispatch (JS/Joker extension command dispatch is now implemented);
 - richer interactive pickers/widgets beyond the textual `/commands` fallback.
 
 ## Current keyboard/editor surface
@@ -132,12 +132,12 @@ Implemented/adapted:
 - `/skill:name [args]` loads discovered `SKILL.md` text;
 - skill metadata warnings cover missing/empty `Name` and `Description` fields while retaining fallback behavior;
 - `/reload` refreshes config and discovery safely and reports extension discovered/mounted counts;
-- extension command registration semantics are documented in `extension-command-semantics.md`;
+- extension command registration and TUI dispatch are implemented for JS/Joker extensions and documented in `extension-command-semantics.md`;
 - `gi.state`, `gi.topics`, and `gi.runtime` extension-author semantics are documented in `scripting/namespaces.md`.
 
 Deferred:
 
-- actual extension command dispatch for Joker/JS/process extensions;
+- process extension command dispatch;
 - live extension handler unload/reload. `/reload` reports when restart is needed.
 
 ## Clipboard/media surface

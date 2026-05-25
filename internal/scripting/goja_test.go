@@ -2,6 +2,7 @@ package scripting
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -190,5 +191,25 @@ func TestGojaRunnerExecuteSupportsEventHooksAndHTTPRequest(t *testing.T) {
 	}
 	if request.Method != "POST" || request.URL != "https://example.invalid/ok" || len(request.Headers["x-test"]) != 1 {
 		t.Fatalf("unexpected request spec: %#v", request)
+	}
+}
+
+func TestGojaRunnerExecuteSupportsCommandRegistration(t *testing.T) {
+	var got CommandSpec
+	bridge := NewBridge("goja-session", BridgeFuncs{
+		RegisterCommand: func(ctx context.Context, spec CommandSpec) error {
+			got = spec
+			return nil
+		},
+	})
+	out, err := NewGojaRunner().Execute(context.Background(), `
+		gi.commands.register({name: "demo", description: "Demo", usage: "/demo [text]"}, function(ctx) { return {type: "message", lines: ["demo: " + ctx.args]}; });
+		"ok";
+	`, bridge)
+	if err != nil {
+		t.Fatalf("goja execute returned error: %v", err)
+	}
+	if out != "ok" || got.Name != "demo" || got.Description != "Demo" || !strings.Contains(got.Script, "demo:") {
+		t.Fatalf("unexpected command registration out=%q spec=%#v", out, got)
 	}
 }
