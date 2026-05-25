@@ -48,20 +48,30 @@ This gives us the same behavior-level regression style as Piclaw's UX features, 
 
 ## Implemented slices
 
-- `/help` command with command and keybinding reference.
+- `/help` command with command and keybinding reference, now including editor bindings and queue/restore hints.
 - `/tools [query]` command backed by the engine tool registry.
 - `/tools active`, `/tools activate ...`, and `/tools reset` for active tool visibility/control.
-- `/skills [query]` command backed by workspace skill discovery.
-- `/model`, `/thinking`, `/compact`, and `/cancel` runtime controls.
-- `/agents`, `/where`, `/tree`, `/plugins`, `/fork`, `/switch`, and `/send` session/agent workflows/debug views.
-- Keyboard coverage for blur/focus, F2/F3 history hints, scroll, resize, and quit.
+- `/skills [query]` command backed by workspace skill discovery, including command invocation hints, source paths, and metadata warnings.
+- `/skill:name [args]` command resolution that loads discovered `SKILL.md` files from the TUI.
+- `/model`, `/thinking`, `/compact`, and `/cancel` runtime controls, with richer `/model` listing and index selection.
+- `/scoped-models [list|add|remove|set]` enabled-model management backed by existing settings persistence.
+- Keyboard cycling for models (`Ctrl+L`/`Alt+L`) and thinking levels (`Ctrl+T`/`Alt+T`).
+- `/commands [query]` / `/palette [query]` textual command palette fallback.
+- `/session`, `/new`, `/name`, `/resume`, `/clone`, `/copy`, and `/reload` command/session workflow affordances.
+- `/agents`, `/where`, `/tree`, `/plugins`, `/fork`, `/switch`, and `/send` session/agent workflows/debug views, with denser narrow-terminal output for `/tree` and `/resume`.
+- Keyboard coverage for blur/focus, F2/F3 history hints, queue restore, editor word movement/deletion, line deletion, undo/yank, Tab path completion, scroll, resize, and quit.
 - Gherkin/tmux features covering boot, help, tools discovery/activation, runtime controls, session workflows, prompt submission, persistence, and keyboard behavior.
 - CI-friendly tmux/Gherkin artifacts: pane captures, report markdown, per-feature SQLite dumps, session/message extracts, and failure summaries.
 - TUI status rendering for thinking deltas, tool completion/failure, generic errors, context compaction broadcasts, and compact state/icon labels for idle/queued/running/tool/hook/error/compaction states.
 - Richer transcript line rendering for user/assistant/system roles, folded multi-line tool results, code-block line counts, and compact runtime compaction summaries.
-- `/settings`/`/config` runtime view for provider/model/thinking, compaction, peering, active tools, and scrollback limit.
+- `/settings`/`/config` grouped runtime view covering runtime, model, editor, session, discovery, compaction, and peering settings.
 - `/approvals` visibility for the current approval-gate state; today this reports that gi has no approval gates configured.
 - Expanding multiline input with simplified horizontal-rule chrome instead of a visible `Input:` label, plus focus-aware placeholder markers and contextual send/newline/blur help.
 - Responsive layout that wraps status/context/footer metadata and budgets transcript height from actual block sizes on narrow terminals; footer hints compact automatically on narrow terminals.
 - Terminal-safe Markdown transcript rendering for headings, lists, blockquotes, links, code blocks, and responsive table fallbacks.
-- Grouped `/help` output covering keys, runtime controls, discovery commands, and session workflows.
+- Grouped `/help` output covering keys, editor bindings, runtime controls, discovery commands, and session workflows.
+- Shell shortcuts: `!cmd` asks the model to run/summarize a command, while `!!cmd` runs locally and prints bounded output.
+- Textual `@path` file reference fallback and Tab path completion.
+- Queue UX: context summary shows queued/steering counts, active-turn submissions produce visible queued feedback, and `Alt+Up` restores locally queued drafts.
+- Clipboard/media boundary documented: `/copy` remains a transcript fallback, OSC 52/native clipboard helpers are deferred by default, bracketed paste remains parser/editor-dependent, and image paste waits for a shared media ingestion contract.
+- Extension author docs now cover extension command semantics plus `gi.state`, `gi.topics`, and `gi.runtime` namespace expectations.
