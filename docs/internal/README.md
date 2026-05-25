@@ -47,6 +47,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `subturn-runtime.md` — concrete sub-turn runtime contract, limits, store APIs, and current implementation status
 - `tui-stack-evaluation.md` — decision record for keeping the current Gi TUI stack instead of switching to PicoClaw/Pi's launcher/TUI stack now
 - `tui-pi-fit-gap-roadmap.md` — baseline inventory and acceptance criteria for incremental Pi-like TUI fit/gap work
+- `tui-clipboard-media.md` — TUI clipboard/media parity decisions, including OSC 52 and image paste deferrals
 - `extension-command-semantics.md` — design contract for future Joker/JS/process extension TUI command registration
 - `scripting/namespaces.md` — extension-author reference for `gi.state`, `gi.topics`, and `gi.runtime` semantics
 
