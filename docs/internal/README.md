@@ -50,6 +50,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `tui-clipboard-media.md` — TUI clipboard/media parity decisions, including OSC 52 and image paste deferrals
 - `media-ingestion-contract.md` — shared web/TUI/API media reference, storage, limits, and provider-projection contract
 - `tui-picker-collapse-widgets.md` — current Go TUI picker/collapse capability audit and textual-picker policy
+- `deferred-tui-parity-closure.md` — closure summary for the post-clipboard deferred TUI parity plan
 - `extension-command-semantics.md` — design contract for future Joker/JS/process extension TUI command registration
 - `scripting/namespaces.md` — extension-author reference for `gi.state`, `gi.topics`, and `gi.runtime` semantics
 
@@ -70,6 +71,8 @@ The `search/` subtree is the canonical reference for the current hybrid workspac
 `media-ingestion-contract.md` defines the shared media ingestion boundary that web, TUI, API/direct ingress, steering, messages, turns, tools, and provider projection must use before image/media paste work proceeds.
 
 `tui-picker-collapse-widgets.md` records the current Go TUI widget audit: numbered textual pickers remain the safe baseline for model/command selection, while modal overlays and collapse toggles stay deferred until key handling and transcript grouping can be made deterministic.
+
+`deferred-tui-parity-closure.md` closes the post-clipboard deferred parity work with implemented/adapted/deferred behavior and final validation results.
 
 `extension-command-semantics.md` defines the planned command registration and invocation contract for Joker, JavaScript, and process extensions before the runtime dispatch slice lands.
 
