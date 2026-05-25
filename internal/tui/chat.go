@@ -869,6 +869,10 @@ func (c *chatTUI) restoreQueuedDraft() {
 }
 
 func (c *chatTUI) onSubmit(text string) {
+	c.submitWithMetadata(text, nil)
+}
+
+func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return
@@ -946,6 +950,7 @@ func (c *chatTUI) onSubmit(text string) {
 			Prompt:    text,
 			Intent:    "prompt",
 			Model:     c.cfg.DefaultModel,
+			Metadata:  metadata,
 		})
 		if err != nil {
 			if c.app != nil {
@@ -1009,6 +1014,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.appendTranscript(c.cloneSessionLines(fields)...)
 	case "/copy":
 		c.appendTranscript(c.copyLastAssistantLines(fields[1:]...)...)
+	case "/attach":
+		c.appendTranscript(c.attachCommand(text, fields)...)
 	case "/reload":
 		c.appendTranscript(c.reloadLines()...)
 	case "/tools":
@@ -1114,7 +1121,7 @@ func (c *chatTUI) handleCommand(text string) {
 		if lines, handled := c.extensionCommandLines(text, fields); handled {
 			c.appendTranscript(lines...)
 		} else {
-			c.appendTranscript("sys: commands: /help, /commands [query], /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
+			c.appendTranscript("sys: commands: /help, /commands [query], /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /attach <path> [prompt], /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
 		}
 	}
 	c.running = false
@@ -1182,6 +1189,7 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 		{"/resume [index|session_id]", "list or switch recent sessions"},
 		{"/clone [@agentN]", "clone active branch/session"},
 		{"/copy [--osc52|--native|--auto|--fallback]", "copy last assistant message with opt-in target"},
+		{"/attach <path> [prompt]", "attach local media and optionally submit a prompt"},
 		{"/reload", "refresh config and discovery safely"},
 		{"/tools [query|active|activate|reset]", "inspect or change active tools"},
 		{"/skills [query]", "list discovered skills"},
@@ -1243,7 +1251,7 @@ func (c *chatTUI) helpLines() []string {
 		"- Ctrl+A/E start/end · Ctrl+U/K delete to start/end · Ctrl+Z undo · Ctrl+Y yank",
 		"- Tab completes paths; @path uses the same textual file-reference completion fallback",
 		"runtime:",
-		"- /commands [query] · /session · /new · /name <name> · /resume [index|session_id] · /copy [--osc52|--native|--auto|--fallback] · /reload · /model [name] · /scoped-models [add|remove|set] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"- /commands [query] · /session · /new · /name <name> · /resume [index|session_id] · /copy [--osc52|--native|--auto|--fallback] · /attach <path> [prompt] · /reload · /model [name] · /scoped-models [add|remove|set] · /thinking [level] · /compact · /cancel · /settings · /approvals",
 		"- Ctrl+L/Alt+L cycle model · Ctrl+T/Alt+T cycle thinking",
 		"- !cmd sends a shell request to the model · !!cmd runs locally and prints output",
 		"- /skill:name [args] loads discovered SKILL.md text with optional invocation args",

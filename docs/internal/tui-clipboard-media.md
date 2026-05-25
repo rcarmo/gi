@@ -1,6 +1,6 @@
 # TUI clipboard and media parity
 
-Status: clipboard text copy has an opt-in implementation; media/image paste remains deferred.
+Status: clipboard text copy has an opt-in implementation; direct image paste remains deferred; `/attach <path> [prompt]` is the terminal-safe media fallback.
 
 ## Current behavior
 
@@ -64,6 +64,26 @@ Helper order:
 
 Native execution uses a short timeout and returns bounded transcript errors. Tests cover helper selection without requiring a desktop clipboard in CI.
 
+## TUI media fallback
+
+Direct terminal image paste is still not available in the current `go-tui` keyboard parser: key handling is rune/key-event oriented and does not expose clipboard image payloads or bracketed-paste metadata that would safely distinguish image data from ordinary text paste.
+
+Gi therefore provides an explicit fallback command:
+
+```text
+/attach <path> [prompt]
+```
+
+Behavior:
+
+- reads a local path relative to `workspace_root` when the path is not absolute;
+- stores the file through the shared session media store with `source=tui`;
+- enforces the same 10 MiB single-file limit as the web/API media endpoint;
+- with no prompt, prints the created `media:<id>` reference without submitting a turn;
+- with a prompt, submits the prompt through the same media metadata path used by web/API submissions.
+
+Ordinary text paste remains unchanged and is still handled as terminal text input.
+
 ## Media/image ingestion boundary
 
 Pi-style image paste is not just a keybinding. Gi still needs a media ingestion contract first:
@@ -83,4 +103,5 @@ The shared contract is now documented in [`media-ingestion-contract.md`](media-i
 - Native clipboard helpers: supported opt-in via `/copy --native` or `--auto`.
 - Ordinary text paste: unchanged terminal-rune behavior.
 - Bracketed paste: reassessed, deferred pending parser/editor support.
-- Image/media paste: contract defined at a boundary level, implementation deferred pending shared media ingestion.
+- Direct image/media paste: deferred pending terminal/parser support.
+- TUI media fallback: supported via `/attach <path> [prompt]` and the shared media ingestion contract.
