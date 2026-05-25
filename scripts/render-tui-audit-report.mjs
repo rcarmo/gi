@@ -9,6 +9,7 @@ mkdirSync(outDir, { recursive: true });
 const captures = [
   { key: 'gi-wide', title: 'Gi TUI — wide layout (100x22)', path: join(root, 'gi-wide.txt') },
   { key: 'gi-narrow', title: 'Gi TUI — narrow layout (60x18)', path: join(root, 'gi-narrow.txt') },
+  { key: 'gi-desktop', title: 'Gi TUI — desktop layout (140x36)', path: join(root, 'gi-desktop.txt') },
   { key: 'gi-markdown', title: 'Gi TUI — markdown transcript rendering', path: join(root, 'gi-markdown.txt') },
   { key: 'pi-wide', title: 'Pi — wide layout reference (100x22)', path: join(root, 'pi-wide.txt') },
 ];

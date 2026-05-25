@@ -1,0 +1,22 @@
+
+ ● idle · Gi · opencode-zen/minimax-m2.5-free
+ Session: @agent · Agent: @gi · Parent: root
+ Model: opencode-zen/minimax-m2.5-free · Provider: opencode-zen · Thinking: low · Status: idle
+ Messages: 1 · Turns: 0 · Queued: 0 · Steering: 0
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ (no messages yet)
+
+
+
+
+
+
+
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ ● Send a message…
+ Enter send · Alt+Enter queue · Alt+Up restore · Shift+Enter newline
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Hints: /help · /tools · /skills · /model · Ctrl-L model · Ctrl-T thinking · Tab complete · Alt-Up
+ restore · /compact · /settings · /cancel · /agents · /fork · /switch · /send · Esc blur · F2/F3 hi
+ story · PgUp/PgDn scroll · Ctrl-D quit
+

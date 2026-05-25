@@ -1,0 +1,36 @@
+
+ [1m● idle · Gi · opencode-zen/minimax-m2.5-free[0m
+ [2mSession: @agent · Agent: @agent · Parent: root · Model: opencode-zen/minimax-m2.5-free · Provider: opencode-zen · Thinking: low · Status:[0m
+ [2midle · Messages: 0 · Turns: 0 · Queued: 0 · Steering: 0[0m
+ [2m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m
+ (no messages yet)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ [2m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m
+ [2m● Send a message…[0m
+ [2mEnter send · Alt+Enter queue · Alt+Up restore · Shift+Enter newline[0m
+ [2m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[0m
+ [2mHints: /help · /tools · /skills · /model · Ctrl-L model · Ctrl-T thinking · Tab complete · Alt-Up restore · /compact · /settings · /cancel[0m
+ [2m· /agents · /fork · /switch · /send · Esc blur · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit[0m
+

@@ -17,13 +17,13 @@ The gi TUI now covers the main interaction loop expected from a Pi-like terminal
 - transcript scrollback control
 - Markdown transcript rendering with responsive table fallback
 - tmux-backed Gherkin regression coverage for core and Pi-like workflows
-- documented clipboard/media boundaries, including opt-in OSC 52/native copy support, and extension-author namespace contracts
+- documented clipboard/media boundaries, including opt-in OSC 52/native copy support, shared media ingestion, `/attach <path> [prompt]`, and extension-author namespace contracts
 
-The biggest remaining UX gaps are now deliberately bounded:
+The remaining UX gaps are now deliberately bounded:
 
-1. **ANSI/bracketed paste and image paste parity** are deferred pending parser/editor support and a shared media ingestion contract.
-2. **Rich visual pickers/collapse widgets** remain future work unless they can be added without changing the current Go TUI stack.
-3. **Screenshot-backed layout parity audit** and optional PDF packaging remain documentation/reporting follow-ups, not blockers for the current tmux-friendly parity slice.
+1. **Direct bracketed-paste/image-paste parity** is deferred pending parser/editor support; shared media ingestion and `/attach <path> [prompt]` now cover terminal-safe media submission.
+2. **Rich visual modal pickers/collapse widgets** remain future polish unless they can be added without changing the current Go TUI stack or breaking tmux/script captures.
+3. **Screenshot-backed layout parity audit** is now recorded with tmux pane captures at 60x18, 100x22, and 140x36 in `artifacts/tui-audit-20260525/`.
 
 ## Evidence base
 
@@ -233,7 +233,8 @@ Observed state:
 - `/copy` is locked to transcript-safe fallback behavior by default;
 - OSC 52 and native clipboard helpers are available opt-in and documented in `tui-clipboard-media.md`;
 - bracketed-paste (`CSI 200~` / `CSI 201~`) still depends on parser/editor support;
-- image paste is deferred until Gi has a shared media ingestion contract.
+- direct image paste is deferred pending terminal/parser support;
+- shared media ingestion exists, and `/attach <path> [prompt]` provides a terminal-safe fallback that stores media and submits normalized refs.
 
 Conclusion:
 
@@ -250,19 +251,30 @@ Observed state:
 
 ### 3. Screenshot-backed layout parity audit
 
-Status: **optional reporting follow-up**
+Status: **captured**
 
 Observed state:
 
 - gi now has a responsive, information-dense terminal layout with tmux/Gherkin captures;
-- a screenshot-based comparison against Pi/Claude Code can still be recorded, but is not required for the accepted tmux-friendly parity slice.
+- representative pane captures were recorded under `artifacts/tui-audit-20260525/`:
+  - `gi-narrow.txt` / `gi-narrow.ansi.txt` at 60x18;
+  - `gi-wide.txt` / `gi-wide.ansi.txt` at 100x22;
+  - `gi-desktop.txt` / `gi-desktop.ansi.txt` at 140x36;
+  - `gi-markdown.txt` / `gi-markdown.ansi.txt` at 100x22 with seeded Markdown/table content;
+  - `pi-wide.ansi.txt` as a best-effort Pi reference capture from the same script.
+
+Layout notes:
+
+- the 60x18 capture keeps session/model/provider/queue state readable and preserves footer hints without truncating the input prompt;
+- the 100x22 capture matches the target Pi-like hierarchy: status, session context, transcript, input, footer hints;
+- the 140x36 capture has extra transcript breathing room without changing command semantics;
+- Pi/Claude-style pixel parity is intentionally not promised; the accepted parity target is information hierarchy plus keyboard-only, tmux-friendly operation.
 
 ## Recommended next steps
 
-1. Define a separate follow-up plan for any deferred rich picker/collapse work.
-2. If richer clipboard behavior becomes necessary, add terminal-specific guidance or UI around the existing opt-in OSC 52/native targets.
-3. If media paste becomes a hard requirement, design shared web/TUI/API media ingestion first.
-4. Optionally capture screenshot comparisons at representative sizes for reporting.
+1. Define a separate follow-up plan for any deferred rich modal/collapse work only after transcript grouping and key conflicts are solved.
+2. If direct paste becomes a hard requirement, add terminal-specific parser support around the existing shared media ingestion contract instead of bypassing `/attach`/web/API media refs.
+3. Regenerate `artifacts/tui-audit-*/` after future layout changes and optionally render a PDF when Playwright browsers are available in the build environment.
 
 ## Appendix: command inventory covered by current UX stories
 

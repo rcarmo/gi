@@ -73,7 +73,12 @@ seed_markdown_db "$GI_DB_MD"
 
 capture_session "gi-wide" 100 22 "cd '$ROOT' && ./bin/gi -tui -db '$GI_DB_BASIC' -workspace '$GI_WS_BASIC'"
 capture_session "gi-narrow" 60 18 "cd '$ROOT' && ./bin/gi -tui -db '$GI_DB_BASIC' -workspace '$GI_WS_BASIC'"
+capture_session "gi-desktop" 140 36 "cd '$ROOT' && ./bin/gi -tui -db '$GI_DB_BASIC' -workspace '$GI_WS_BASIC'"
 capture_session "gi-markdown" 100 22 "cd '$ROOT' && ./bin/gi -tui -db '$GI_DB_MD' -workspace '$GI_WS_MD'"
-capture_session "pi-wide" 100 22 "cd '$GI_WS_BASIC' && pi"
+if command -v pi >/dev/null 2>&1; then
+  capture_session "pi-wide" 100 22 "cd '$GI_WS_BASIC' && pi" || printf 'pi reference capture unavailable\n' > "$OUT_DIR/pi-wide.txt"
+else
+  printf 'pi reference capture unavailable: pi command not found\n' > "$OUT_DIR/pi-wide.txt"
+fi
 
 echo "$OUT_DIR"

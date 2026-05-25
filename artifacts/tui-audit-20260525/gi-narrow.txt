@@ -1,0 +1,18 @@
+● idle · Gi · opencode-zen/minimax-m2.5-free
+Session: @agent
+Agent: @agent · Parent: root
+Model: opencode-zen/minimax-m2.5-free
+Provider: opencode-zen · Thinking: low
+Status: idle · Messages: 0 · Turns: 0
+Queued: 0 · Steering: 0
+────────────────────────────────────────────────────────────
+(no messages yet)
+
+
+
+────────────────────────────────────────────────────────────
+● Send a message…
+Enter send · Alt+Enter queue · Alt+Up restore · Shift+Enter
+────────────────────────────────────────────────────────────
+Hints: /help · Enter send · Esc blur · Tab focus · PgUp/PgDn
+scroll · Ctrl-D quit
