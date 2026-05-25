@@ -984,6 +984,12 @@ func (c *chatTUI) handleCommand(text string) {
 	switch fields[0] {
 	case "/help":
 		c.transcript = append(c.transcript, c.helpLines()...)
+	case "/commands", "/palette":
+		query := ""
+		if len(fields) > 1 {
+			query = strings.Join(fields[1:], " ")
+		}
+		c.appendTranscript(c.commandPaletteLines(query)...)
 	case "/session":
 		c.appendTranscript(c.sessionLines()...)
 	case "/new":
@@ -1098,7 +1104,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy, /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
+		c.appendTranscript("sys: commands: /help, /commands [query], /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy, /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1116,6 +1122,52 @@ func (c *chatTUI) firstUseModelPromptLines() []string {
 	return []string{"sys: no model selected; choose one with /model <provider/model> before sending your first prompt"}
 }
 
+func (c *chatTUI) commandPaletteLines(query string) []string {
+	commands := []struct{ name, hint string }{
+		{"/help", "show grouped help"},
+		{"/commands [query]", "filter command palette textually"},
+		{"/session", "show current session details"},
+		{"/new", "create and switch to a new main session"},
+		{"/name <name>", "rename current session"},
+		{"/resume [index|session_id]", "list or switch recent sessions"},
+		{"/clone [@agentN]", "clone active branch/session"},
+		{"/copy", "print last assistant message fallback"},
+		{"/reload", "refresh config and discovery safely"},
+		{"/tools [query|active|activate|reset]", "inspect or change active tools"},
+		{"/skills [query]", "list discovered skills"},
+		{"/skill:name [args]", "load a discovered SKILL.md"},
+		{"/model [name|index]", "list or select model"},
+		{"/scoped-models [list|add|remove|set]", "manage enabled models"},
+		{"/thinking [level]", "show or set thinking level"},
+		{"/compact", "request context compaction"},
+		{"/scrollback [n]", "show or set transcript scrollback limit"},
+		{"/settings", "show grouped runtime settings"},
+		{"/cancel", "cancel latest active/queued turn"},
+		{"/agents", "list configured agents"},
+		{"/tree", "show session tree"},
+		{"/plugins", "show loaded extensions"},
+		{"/fork [@agentN]", "create peer/fork session"},
+		{"/switch @agent|session_id", "switch active session"},
+		{"/send @agent message", "send peer message"},
+		{"/where", "show context summary"},
+		{"!cmd", "ask model to run/summarize shell command"},
+		{"!!cmd", "run local shell command"},
+	}
+	q := strings.ToLower(strings.TrimSpace(query))
+	lines := []string{"commands: palette"}
+	for _, cmd := range commands {
+		text := cmd.name + " " + cmd.hint
+		if q != "" && !strings.Contains(strings.ToLower(text), q) {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("- %-36s %s", cmd.name, cmd.hint))
+	}
+	if len(lines) == 1 {
+		return []string{fmt.Sprintf("commands: no matches for %q", query)}
+	}
+	return lines
+}
+
 func (c *chatTUI) helpLines() []string {
 	return []string{
 		"help: gi TUI",
@@ -1127,7 +1179,7 @@ func (c *chatTUI) helpLines() []string {
 		"- Ctrl+A/E start/end · Ctrl+U/K delete to start/end · Ctrl+Z undo · Ctrl+Y yank",
 		"- Tab completes paths; @path uses the same textual file-reference completion fallback",
 		"runtime:",
-		"- /session · /new · /name <name> · /resume [index|session_id] · /copy · /reload · /model [name] · /scoped-models [add|remove|set] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"- /commands [query] · /session · /new · /name <name> · /resume [index|session_id] · /copy · /reload · /model [name] · /scoped-models [add|remove|set] · /thinking [level] · /compact · /cancel · /settings · /approvals",
 		"- Ctrl+L/Alt+L cycle model · Ctrl+T/Alt+T cycle thinking",
 		"- !cmd sends a shell request to the model · !!cmd runs locally and prints output",
 		"- /skill:name [args] loads discovered SKILL.md text with optional invocation args",

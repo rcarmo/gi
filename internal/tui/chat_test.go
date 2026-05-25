@@ -1075,6 +1075,20 @@ func TestInitUsesConfiguredGiDefaultModelWithoutFirstUsePrompt(t *testing.T) {
 	}
 }
 
+func TestCommandPaletteLinesFilterCommands(t *testing.T) {
+	c := &chatTUI{}
+	all := strings.Join(c.commandPaletteLines(""), "\n")
+	for _, want := range []string{"commands: palette", "/session", "/skill:name [args]", "!!cmd"} {
+		if !strings.Contains(all, want) {
+			t.Fatalf("palette missing %q:\n%s", want, all)
+		}
+	}
+	filtered := strings.Join(c.commandPaletteLines("model"), "\n")
+	if !strings.Contains(filtered, "/model [name|index]") || strings.Contains(filtered, "/session") {
+		t.Fatalf("filtered palette mismatch:\n%s", filtered)
+	}
+}
+
 func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 	c := &chatTUI{}
 	joined := strings.Join(c.helpLines(), "\n")
@@ -1085,6 +1099,7 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 		"runtime:",
 		"discovery:",
 		"sessions:",
+		"/commands [query]",
 		"/session",
 		"/new",
 		"/name <name>",
