@@ -111,6 +111,7 @@ type chatTUI struct {
 	transcriptScroll int
 	stickToBottom    bool
 	draftLineIndex   int
+	outputWidth      int
 }
 
 func (c *chatTUI) ensureInput() {
@@ -1400,7 +1401,11 @@ func (c *chatTUI) resumeLines(fields []string) []string {
 		if status == "" {
 			status = "idle"
 		}
-		lines = append(lines, fmt.Sprintf("%d. @%s %s (%s) · %s · messages=%d turns=%d", i+1, c.agentIDForSession(&sess), sess.Title, sess.ID, status, len(messages), len(turns)))
+		if c.compactOutput() {
+			lines = append(lines, fmt.Sprintf("%d. @%s %s [%s] · %s · m=%d t=%d", i+1, c.agentIDForSession(&sess), compactText(sess.Title, 18), compactID(sess.ID), status, len(messages), len(turns)))
+		} else {
+			lines = append(lines, fmt.Sprintf("%d. @%s %s (%s) · %s · messages=%d turns=%d", i+1, c.agentIDForSession(&sess), sess.Title, sess.ID, status, len(messages), len(turns)))
+		}
 	}
 	lines = append(lines, "resume: use /resume <index|session_id>")
 	return lines
@@ -1496,8 +1501,8 @@ func (c *chatTUI) modelListLines() []string {
 		thinking = "low"
 	}
 	lines := []string{
-		fmt.Sprintf("model: current=%s", current),
-		fmt.Sprintf("- provider=%s thinking=%s", provider, thinking),
+		fmt.Sprintf("model: current=%s", compactMaybe(current, c.compactOutput(), 42)),
+		fmt.Sprintf("- provider=%s thinking=%s", compactMaybe(provider, c.compactOutput(), 28), thinking),
 	}
 	if len(c.cfg.EnabledModels) == 0 {
 		lines = append(lines, "- enabled models: none configured; use /model <provider/model>")
@@ -1509,7 +1514,7 @@ func (c *chatTUI) modelListLines() []string {
 		if model == c.cfg.DefaultModel {
 			marker = "*"
 		}
-		lines = append(lines, fmt.Sprintf("  %s%d. %s", marker, i+1, model))
+		lines = append(lines, fmt.Sprintf("  %s%d. %s", marker, i+1, compactMaybe(model, c.compactOutput(), 44)))
 	}
 	lines = append(lines, "- select with /model <index> or /model <provider/model>")
 	return lines
@@ -1679,7 +1684,7 @@ func (c *chatTUI) settingsLines() []string {
 	}
 	return []string{
 		"settings: runtime",
-		fmt.Sprintf("- workspace: %s", c.cfg.WorkspaceRoot),
+		fmt.Sprintf("- workspace: %s", compactMaybe(c.cfg.WorkspaceRoot, c.compactOutput(), 48)),
 		fmt.Sprintf("- max_iterations: %d", c.cfg.MaxIterations),
 		fmt.Sprintf("- active_tools: %s", activeTools),
 		"settings: model",
@@ -1991,7 +1996,35 @@ func (c *chatTUI) currentPadding() int {
 	return 1
 }
 
+func (c *chatTUI) compactOutput() bool { return c.currentContentWidth() < 72 }
+
+func compactID(id string) string {
+	id = strings.TrimSpace(id)
+	if len(id) <= 16 {
+		return id
+	}
+	return id[:8] + "…" + id[len(id)-5:]
+}
+
+func compactText(text string, max int) string {
+	text = strings.Join(strings.Fields(strings.TrimSpace(text)), " ")
+	if text == "" {
+		return "(untitled)"
+	}
+	return truncate(text, max)
+}
+
+func compactMaybe(text string, compact bool, max int) string {
+	if !compact {
+		return text
+	}
+	return compactText(text, max)
+}
+
 func (c *chatTUI) currentContentWidth() int {
+	if c.outputWidth > 0 {
+		return c.outputWidth
+	}
 	if c.app == nil {
 		return 78
 	}

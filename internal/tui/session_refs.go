@@ -99,7 +99,11 @@ func (c *chatTUI) treeLines() []string {
 			marker = "*"
 		}
 		meta := c.treeSessionMeta(sess.ID)
-		lines = append(lines, fmt.Sprintf("%s%s%s @%s %s · %s", prefix, branch, marker, indexedAgentIDOrDefault(sess.ID, agentIDs), sess.ID, meta))
+		id := sess.ID
+		if c.compactOutput() {
+			id = compactID(sess.ID)
+		}
+		lines = append(lines, fmt.Sprintf("%s%s%s @%s %s · %s", prefix, branch, marker, indexedAgentIDOrDefault(sess.ID, agentIDs), id, meta))
 		kids := children[sess.ID]
 		for i, child := range kids {
 			walk(child, nextPrefix, i == len(kids)-1)
@@ -130,6 +134,10 @@ func (c *chatTUI) treeSessionMeta(sessionID string) string {
 	title := strings.TrimSpace(sess.Title)
 	if title == "" {
 		title = sessionID
+	}
+	if c.compactOutput() {
+		title = compactText(title, 18)
+		return fmt.Sprintf("%s · %s · m=%d t=%d", title, status, len(messages), len(turns))
 	}
 	return fmt.Sprintf("%s · %s · messages=%d turns=%d", title, status, len(messages), len(turns))
 }

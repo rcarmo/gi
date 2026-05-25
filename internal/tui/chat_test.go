@@ -1380,6 +1380,27 @@ func TestModelCommandPersistsSelection(t *testing.T) {
 	}
 }
 
+func TestCompactOutputShortensDenseModelAndResumeLines(t *testing.T) {
+	root := t.TempDir()
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.CreateSession(context.Background(), "session_very_long_identifier_for_compact_mode", "Very Long Session Title For Compact Mode", map[string]any{"status": "idle"}); err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{store: s, sessionID: "session_very_long_identifier_for_compact_mode", outputWidth: 60, cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "very-long-provider-name", DefaultModel: "provider/very-long-model-name-that-would-wrap", EnabledModels: []string{"provider/very-long-model-name-that-would-wrap"}}}
+	resume := strings.Join(c.resumeLines([]string{"/resume"}), "\n")
+	if !strings.Contains(resume, "m=0 t=0") || !strings.Contains(resume, "…_mode]") {
+		t.Fatalf("compact resume missing dense markers:\n%s", resume)
+	}
+	models := strings.Join(c.modelListLines(), "\n")
+	if !strings.Contains(models, "provider/very-long-model-name") || !strings.Contains(models, "…") {
+		t.Fatalf("compact model output unexpected:\n%s", models)
+	}
+}
+
 func TestModelCommandListsAndSelectsEnabledModels(t *testing.T) {
 	root := t.TempDir()
 	s, err := store.Open("file::memory:?cache=shared")
