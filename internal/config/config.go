@@ -27,6 +27,7 @@ type RuntimeConfig struct {
 	Routing              ModelRoutingConfig  `json:"routing"`
 	MaxIterations        int                 `json:"max_iterations"`
 	ScrollbackLimit      int                 `json:"scrollback_limit"`
+	TUIClipboardMode     string              `json:"tui_clipboard_mode"`
 	Compaction           CompactionSettings  `json:"compaction"`
 	Hooks                HookSettings        `json:"hooks"`
 	Peering              PeeringSettings     `json:"peering"`
@@ -85,6 +86,7 @@ type piSettings struct {
 	EnabledModels        []string             `json:"enabledModels"`
 	MaxIterations        int                  `json:"maxIterations"`
 	TUIScrollbackLimit   int                  `json:"tuiScrollbackLimit"`
+	TUIClipboardMode     string               `json:"tuiClipboardMode"`
 	Compaction           CompactionSettings   `json:"compaction"`
 	Hooks                HookSettings         `json:"hooks"`
 	Peering              PeeringSettings      `json:"peering"`
@@ -112,6 +114,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.EnabledModels = append([]string(nil), ps.EnabledModels...)
 		cfg.MaxIterations = ps.MaxIterations
 		cfg.ScrollbackLimit = ps.TUIScrollbackLimit
+		cfg.TUIClipboardMode = normalizeClipboardMode(ps.TUIClipboardMode)
 		cfg.Compaction = ps.Compaction
 		cfg.Hooks = ps.Hooks
 		cfg.Peering = ps.Peering
@@ -152,6 +155,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 	if cfg.ScrollbackLimit <= 0 {
 		cfg.ScrollbackLimit = 1000
 	}
+	cfg.TUIClipboardMode = normalizeClipboardMode(cfg.TUIClipboardMode)
 	applyCompactionDefaults(&cfg.Compaction)
 	applyHookDefaults(&cfg.Hooks)
 	applyInboundWorkDefaults(&cfg.InboundWork)
@@ -205,6 +209,40 @@ func PersistModelSelection(workspaceRoot, provider, model, thinking string, enab
 	}
 	blob = append(blob, '\n')
 	return os.WriteFile(settingsPath, blob, 0o644)
+}
+
+func PersistClipboardMode(workspaceRoot, mode string) error {
+	mode = normalizeClipboardMode(mode)
+	if strings.TrimSpace(workspaceRoot) == "" {
+		return errors.New("workspace root is required")
+	}
+	piDir := filepath.Join(workspaceRoot, ".pi")
+	if err := os.MkdirAll(piDir, 0o755); err != nil {
+		return err
+	}
+	settingsPath := filepath.Join(piDir, "settings.json")
+	settings := map[string]any{}
+	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
+		if err := json.Unmarshal(data, &settings); err != nil {
+			return fmt.Errorf("decode settings.json: %w", err)
+		}
+	}
+	settings["tuiClipboardMode"] = mode
+	blob, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return err
+	}
+	blob = append(blob, '\n')
+	return os.WriteFile(settingsPath, blob, 0o644)
+}
+
+func normalizeClipboardMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "osc52", "native", "auto":
+		return strings.ToLower(strings.TrimSpace(mode))
+	default:
+		return "off"
+	}
 }
 
 func PersistScrollbackLimit(workspaceRoot string, limit int) error {

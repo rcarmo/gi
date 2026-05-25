@@ -57,7 +57,7 @@ This gives us the same behavior-level regression style as Piclaw's UX features, 
 - `/scoped-models [list|add|remove|set]` enabled-model management backed by existing settings persistence.
 - Keyboard cycling for models (`Ctrl+L`/`Alt+L`) and thinking levels (`Ctrl+T`/`Alt+T`).
 - `/commands [query]` / `/palette [query]` textual command palette fallback.
-- `/session`, `/new`, `/name`, `/resume`, `/clone`, `/copy`, and `/reload` command/session workflow affordances.
+- `/session`, `/new`, `/name`, `/resume`, `/clone`, `/copy [--osc52|--native|--auto|--fallback]`, and `/reload` command/session workflow affordances.
 - `/agents`, `/where`, `/tree`, `/plugins`, `/fork`, `/switch`, and `/send` session/agent workflows/debug views, with denser narrow-terminal output for `/tree` and `/resume`.
 - Keyboard coverage for blur/focus, F2/F3 history hints, queue restore, editor word movement/deletion, line deletion, undo/yank, Tab path completion, scroll, resize, and quit.
 - Gherkin/tmux features covering boot, help, tools discovery/activation, runtime controls, session workflows, prompt submission, persistence, and keyboard behavior.
@@ -73,5 +73,5 @@ This gives us the same behavior-level regression style as Piclaw's UX features, 
 - Shell shortcuts: `!cmd` asks the model to run/summarize a command, while `!!cmd` runs locally and prints bounded output.
 - Textual `@path` file reference fallback and Tab path completion.
 - Queue UX: context summary shows queued/steering counts, active-turn submissions produce visible queued feedback, and `Alt+Up` restores locally queued drafts.
-- Clipboard/media boundary documented: `/copy` remains a transcript fallback, OSC 52/native clipboard helpers are deferred by default, bracketed paste remains parser/editor-dependent, and image paste waits for a shared media ingestion contract.
+- Clipboard/media boundary documented: `/copy` remains a transcript fallback by default, OSC 52/native clipboard helpers are opt-in, bracketed paste remains parser/editor-dependent, and image paste waits for a shared media ingestion contract.
 - Extension author docs now cover extension command semantics plus `gi.state`, `gi.topics`, and `gi.runtime` namespace expectations.

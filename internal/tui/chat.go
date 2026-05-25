@@ -2,11 +2,14 @@ package tui
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -87,31 +90,34 @@ func Run(dbPath, workspace, model string) error {
 }
 
 type chatTUI struct {
-	app              *gotui.App
-	store            *store.Store
-	engine           *turn.Engine
-	sessionID        string
-	cfg              config.RuntimeConfig
-	history          []string
-	histIdx          int
-	running          bool
-	status           string
-	draft            string
-	inputActive      bool
-	eventCh          chan map[string]any
-	topicEventCh     chan topics.Envelope
-	subscribedCh     chan map[string]any
-	topicUnsubscribe func()
-	input            *multilineInput
-	queuedDrafts     []string
-	inputRegion      *gotui.Element
-	transcriptRegion *gotui.Element
-	transcriptRef    *gotui.Ref
-	transcript       []string
-	transcriptScroll int
-	stickToBottom    bool
-	draftLineIndex   int
-	outputWidth      int
+	app               *gotui.App
+	store             *store.Store
+	engine            *turn.Engine
+	sessionID         string
+	cfg               config.RuntimeConfig
+	history           []string
+	histIdx           int
+	running           bool
+	status            string
+	draft             string
+	inputActive       bool
+	eventCh           chan map[string]any
+	topicEventCh      chan topics.Envelope
+	subscribedCh      chan map[string]any
+	topicUnsubscribe  func()
+	input             *multilineInput
+	queuedDrafts      []string
+	inputRegion       *gotui.Element
+	transcriptRegion  *gotui.Element
+	transcriptRef     *gotui.Ref
+	transcript        []string
+	transcriptScroll  int
+	stickToBottom     bool
+	draftLineIndex    int
+	outputWidth       int
+	osc52Writer       io.Writer
+	clipboardLookPath func(string) (string, error)
+	clipboardRun      func(context.Context, string, []string, string) error
 }
 
 func (c *chatTUI) ensureInput() {
@@ -1002,7 +1008,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/clone":
 		c.appendTranscript(c.cloneSessionLines(fields)...)
 	case "/copy":
-		c.appendTranscript(c.copyLastAssistantLines()...)
+		c.appendTranscript(c.copyLastAssistantLines(fields[1:]...)...)
 	case "/reload":
 		c.appendTranscript(c.reloadLines()...)
 	case "/tools":
@@ -1105,7 +1111,7 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/where":
 		c.transcript = append(c.transcript, c.contextSummary())
 	default:
-		c.appendTranscript("sys: commands: /help, /commands [query], /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy, /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
+		c.appendTranscript("sys: commands: /help, /commands [query], /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
 	}
 	c.running = false
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -1132,7 +1138,7 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 		{"/name <name>", "rename current session"},
 		{"/resume [index|session_id]", "list or switch recent sessions"},
 		{"/clone [@agentN]", "clone active branch/session"},
-		{"/copy", "print last assistant message fallback"},
+		{"/copy [--osc52|--native|--auto|--fallback]", "copy last assistant message with opt-in target"},
 		{"/reload", "refresh config and discovery safely"},
 		{"/tools [query|active|activate|reset]", "inspect or change active tools"},
 		{"/skills [query]", "list discovered skills"},
@@ -1180,7 +1186,7 @@ func (c *chatTUI) helpLines() []string {
 		"- Ctrl+A/E start/end · Ctrl+U/K delete to start/end · Ctrl+Z undo · Ctrl+Y yank",
 		"- Tab completes paths; @path uses the same textual file-reference completion fallback",
 		"runtime:",
-		"- /commands [query] · /session · /new · /name <name> · /resume [index|session_id] · /copy · /reload · /model [name] · /scoped-models [add|remove|set] · /thinking [level] · /compact · /cancel · /settings · /approvals",
+		"- /commands [query] · /session · /new · /name <name> · /resume [index|session_id] · /copy [--osc52|--native|--auto|--fallback] · /reload · /model [name] · /scoped-models [add|remove|set] · /thinking [level] · /compact · /cancel · /settings · /approvals",
 		"- Ctrl+L/Alt+L cycle model · Ctrl+T/Alt+T cycle thinking",
 		"- !cmd sends a shell request to the model · !!cmd runs locally and prints output",
 		"- /skill:name [args] loads discovered SKILL.md text with optional invocation args",
@@ -1302,7 +1308,7 @@ func (c *chatTUI) reloadLines() []string {
 	return lines
 }
 
-func (c *chatTUI) copyLastAssistantLines() []string {
+func (c *chatTUI) copyLastAssistantLines(args ...string) []string {
 	messages, err := c.store.ListMessages(context.Background(), c.sessionID)
 	if err != nil {
 		return []string{fmt.Sprintf("error: copy last assistant message: %v", err)}
@@ -1312,11 +1318,166 @@ func (c *chatTUI) copyLastAssistantLines() []string {
 			continue
 		}
 		content := strings.TrimSpace(messages[i].Content)
-		lines := []string{fmt.Sprintf("copy: clipboard unavailable; last assistant message follows (%d chars)", len(content))}
-		lines = append(lines, prefixMultiline("copy", content)...)
-		return lines
+		mode, persist, usage := c.copyModeFromArgs(args)
+		if usage != "" {
+			return []string{usage}
+		}
+		if persist {
+			if err := config.PersistClipboardMode(c.cfg.WorkspaceRoot, mode); err != nil {
+				return []string{fmt.Sprintf("warn: failed to persist clipboard mode: %v", err)}
+			}
+			c.cfg.TUIClipboardMode = mode
+		}
+		if mode == "osc52" {
+			if err := c.writeOSC52(content); err != nil {
+				return c.copyFallbackLines(content, fmt.Sprintf("OSC 52 failed: %v", err))
+			}
+			return []string{fmt.Sprintf("copy: sent %d chars using OSC 52", len(content))}
+		}
+		if mode == "native" || mode == "auto" {
+			if err := c.copyNative(content); err == nil {
+				return []string{fmt.Sprintf("copy: sent %d chars using native clipboard helper", len(content))}
+			} else if mode == "native" {
+				return c.copyFallbackLines(content, fmt.Sprintf("native clipboard failed: %v", err))
+			}
+		}
+		return c.copyFallbackLines(content, "clipboard unavailable")
 	}
 	return []string{"copy: no assistant message found"}
+}
+
+func (c *chatTUI) copyModeFromArgs(args []string) (mode string, persist bool, usage string) {
+	mode = strings.TrimSpace(c.cfg.TUIClipboardMode)
+	if mode == "" {
+		mode = "off"
+	}
+	for i := 0; i < len(args); i++ {
+		switch strings.ToLower(strings.TrimSpace(args[i])) {
+		case "--osc52":
+			mode = "osc52"
+		case "--native":
+			mode = "native"
+		case "--auto":
+			mode = "auto"
+		case "--fallback", "--off":
+			mode = "off"
+		case "--mode":
+			if i+1 >= len(args) {
+				return "", false, "copy: usage /copy [--osc52|--native|--auto|--fallback|--mode <off|osc52|native|auto>] [--persist]"
+			}
+			i++
+			mode = strings.ToLower(strings.TrimSpace(args[i]))
+		case "--persist":
+			persist = true
+		default:
+			return "", false, "copy: usage /copy [--osc52|--native|--auto|--fallback|--mode <off|osc52|native|auto>] [--persist]"
+		}
+	}
+	switch mode {
+	case "osc52", "native", "auto":
+		return mode, persist, ""
+	default:
+		return "off", persist, ""
+	}
+}
+
+func (c *chatTUI) copyFallbackLines(content, reason string) []string {
+	lines := []string{fmt.Sprintf("copy: %s; last assistant message follows (%d chars)", reason, len(content))}
+	lines = append(lines, prefixMultiline("copy", content)...)
+	return lines
+}
+
+const osc52PayloadLimit = 64 * 1024
+
+func osc52Sequence(content string) (string, error) {
+	if len(content) > osc52PayloadLimit {
+		return "", fmt.Errorf("payload too large (%d > %d bytes)", len(content), osc52PayloadLimit)
+	}
+	return "\x1b]52;c;" + base64.StdEncoding.EncodeToString([]byte(content)) + "\x07", nil
+}
+
+func (c *chatTUI) writeOSC52(content string) error {
+	seq, err := osc52Sequence(content)
+	if err != nil {
+		return err
+	}
+	w := c.osc52Writer
+	if w == nil {
+		w = os.Stdout
+	}
+	_, err = io.WriteString(w, seq)
+	return err
+}
+
+func (c *chatTUI) copyNative(content string) error {
+	helper, ok := selectNativeClipboardHelper(runtime.GOOS, os.Getenv("WAYLAND_DISPLAY") != "", os.Getenv("DISPLAY") != "", c.lookupClipboardHelper)
+	if !ok {
+		return fmt.Errorf("no native clipboard helper found")
+	}
+	runner := c.clipboardRun
+	if runner == nil {
+		runner = runClipboardHelper
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	return runner(ctx, helper.name, helper.args, content)
+}
+
+type clipboardHelper struct {
+	name string
+	args []string
+}
+
+func (c *chatTUI) lookupClipboardHelper(name string) (string, error) {
+	if c.clipboardLookPath != nil {
+		return c.clipboardLookPath(name)
+	}
+	return exec.LookPath(name)
+}
+
+func selectNativeClipboardHelper(goos string, wayland, x11 bool, lookPath func(string) (string, error)) (clipboardHelper, bool) {
+	candidates := []clipboardHelper{}
+	switch goos {
+	case "darwin":
+		candidates = append(candidates, clipboardHelper{name: "pbcopy"})
+	case "windows":
+		candidates = append(candidates, clipboardHelper{name: "clip.exe"})
+	default:
+		if wayland {
+			candidates = append(candidates, clipboardHelper{name: "wl-copy"})
+		}
+		if x11 {
+			candidates = append(candidates, clipboardHelper{name: "xclip", args: []string{"-selection", "clipboard"}}, clipboardHelper{name: "xsel", args: []string{"--clipboard", "--input"}})
+		}
+		candidates = append(candidates, clipboardHelper{name: "clip.exe"})
+	}
+	for _, candidate := range candidates {
+		if _, err := lookPath(candidate.name); err == nil {
+			return candidate, true
+		}
+	}
+	return clipboardHelper{}, false
+}
+
+func runClipboardHelper(ctx context.Context, name string, args []string, content string) error {
+	cmd := exec.CommandContext(ctx, name, args...)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return err
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	_, writeErr := io.WriteString(stdin, content)
+	closeErr := stdin.Close()
+	waitErr := cmd.Wait()
+	if writeErr != nil {
+		return writeErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	return waitErr
 }
 
 func (c *chatTUI) cloneSessionLines(fields []string) []string {
@@ -1694,6 +1855,7 @@ func (c *chatTUI) settingsLines() []string {
 		fmt.Sprintf("- enabled_models: %s", enabledModels),
 		"settings: editor",
 		fmt.Sprintf("- scrollback_limit: %d", c.currentScrollbackLimit()),
+		fmt.Sprintf("- clipboard_mode: %s", c.cfg.TUIClipboardMode),
 		"- shortcuts: Ctrl+L/Alt+L model cycle, Ctrl+T/Alt+T thinking cycle, Tab path completion, @path completion",
 		"settings: session",
 		fmt.Sprintf("- session_id: %s", c.sessionID),

@@ -17,7 +17,7 @@ The gi TUI now covers the main interaction loop expected from a Pi-like terminal
 - transcript scrollback control
 - Markdown transcript rendering with responsive table fallback
 - tmux-backed Gherkin regression coverage for core and Pi-like workflows
-- documented clipboard/media boundaries and extension-author namespace contracts
+- documented clipboard/media boundaries, including opt-in OSC 52/native copy support, and extension-author namespace contracts
 
 The biggest remaining UX gaps are now deliberately bounded:
 
@@ -230,8 +230,8 @@ Status: **deferred intentionally**
 Observed state:
 
 - ordinary text paste remains terminal-rune behavior;
-- `/copy` is locked to transcript-safe fallback behavior by tests;
-- OSC 52 and native clipboard helpers are documented as opt-in/deferred in `tui-clipboard-media.md`;
+- `/copy` is locked to transcript-safe fallback behavior by default;
+- OSC 52 and native clipboard helpers are available opt-in and documented in `tui-clipboard-media.md`;
 - bracketed-paste (`CSI 200~` / `CSI 201~`) still depends on parser/editor support;
 - image paste is deferred until Gi has a shared media ingestion contract.
 
@@ -260,7 +260,7 @@ Observed state:
 ## Recommended next steps
 
 1. Define a separate follow-up plan for any deferred rich picker/collapse work.
-2. If clipboard parity becomes a hard requirement, add opt-in OSC 52/native helper support outside transcript storage.
+2. If richer clipboard behavior becomes necessary, add terminal-specific guidance or UI around the existing opt-in OSC 52/native targets.
 3. If media paste becomes a hard requirement, design shared web/TUI/API media ingestion first.
 4. Optionally capture screenshot comparisons at representative sizes for reporting.
 
@@ -273,7 +273,7 @@ Observed state:
 - `/name`
 - `/resume`
 - `/clone`
-- `/copy`
+- `/copy [--osc52|--native|--auto|--fallback]`
 - `/reload`
 - `/tools`
 - `/skills`

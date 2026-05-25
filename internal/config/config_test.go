@@ -80,6 +80,23 @@ func TestLoadPreservesExplicitInboundWorkDisable(t *testing.T) {
 	}
 }
 
+func TestPersistClipboardModeUpdatesPiSettings(t *testing.T) {
+	root := t.TempDir()
+	if err := PersistClipboardMode(root, "osc52"); err != nil {
+		t.Fatal(err)
+	}
+	cfg := Load(root)
+	if cfg.TUIClipboardMode != "osc52" {
+		t.Fatalf("unexpected clipboard mode: %#v", cfg)
+	}
+	if err := PersistClipboardMode(root, "bogus"); err != nil {
+		t.Fatal(err)
+	}
+	if cfg := Load(root); cfg.TUIClipboardMode != "off" {
+		t.Fatalf("unexpected normalized clipboard mode: %#v", cfg)
+	}
+}
+
 func TestPersistScrollbackLimitUpdatesPiSettings(t *testing.T) {
 	root := t.TempDir()
 	if err := PersistScrollbackLimit(root, 250); err != nil {

@@ -17,7 +17,7 @@ Implemented commands in `internal/tui/chat.go`:
 - `/name <name>`
 - `/resume [index|session_id]`
 - `/clone [@agentN]`
-- `/copy`
+- `/copy [--osc52|--native|--auto|--fallback]`
 - `/reload`
 - `/tools [query|active|activate|reset]`
 - `/skills [query]`
@@ -144,9 +144,10 @@ Deferred:
 
 Implemented/adapted:
 
-- `/copy` is a transcript-safe fallback that prints the last assistant message;
-- tests lock that `/copy` does not emit OSC 52 escape sequences by default;
-- OSC 52 and native clipboard helpers are investigated and deferred as opt-in future work;
+- `/copy` is a transcript-safe fallback by default that prints the last assistant message;
+- tests lock that default `/copy` does not emit OSC 52 escape sequences;
+- OSC 52 is available opt-in via `/copy --osc52` or persisted `tuiClipboardMode=osc52`;
+- native clipboard helpers are available opt-in via `/copy --native` / `--auto` using dependency-light helper detection;
 - ordinary terminal paste remains unchanged;
 - bracketed paste remains parser/editor-dependent;
 - image paste waits for a shared media ingestion contract.

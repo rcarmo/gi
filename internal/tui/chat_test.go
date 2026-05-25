@@ -1078,7 +1078,7 @@ func TestInitUsesConfiguredGiDefaultModelWithoutFirstUsePrompt(t *testing.T) {
 func TestCommandPaletteLinesFilterCommands(t *testing.T) {
 	c := &chatTUI{}
 	all := strings.Join(c.commandPaletteLines(""), "\n")
-	for _, want := range []string{"commands: palette", "/session", "/skill:name [args]", "!!cmd"} {
+	for _, want := range []string{"commands: palette", "/session", "/skill:name [args]", "/copy [--osc52|--native|--auto|--fallback]", "!!cmd"} {
 		if !strings.Contains(all, want) {
 			t.Fatalf("palette missing %q:\n%s", want, all)
 		}
@@ -1105,7 +1105,7 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 		"/name <name>",
 		"/resume [index|session_id]",
 		"/clone [@agentN]",
-		"/copy",
+		"/copy [--osc52|--native|--auto|--fallback]",
 		"/settings",
 		"/where",
 		"/tools [query|active|activate|reset]",
@@ -1180,6 +1180,91 @@ func TestReloadLinesRefreshesConfigOnly(t *testing.T) {
 	}
 	if c.input.placeholder != "Send a message…" {
 		t.Fatalf("placeholder not refreshed: %q", c.input.placeholder)
+	}
+}
+
+func TestOSC52SequenceEncodesAndCapsPayload(t *testing.T) {
+	seq, err := osc52Sequence("hello")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if seq != "\x1b]52;c;aGVsbG8=\x07" {
+		t.Fatalf("unexpected OSC 52 sequence: %q", seq)
+	}
+	if _, err := osc52Sequence(strings.Repeat("x", osc52PayloadLimit+1)); err == nil {
+		t.Fatal("expected payload cap error")
+	}
+}
+
+func TestSelectNativeClipboardHelper(t *testing.T) {
+	available := map[string]bool{"wl-copy": true, "pbcopy": true}
+	look := func(name string) (string, error) {
+		if available[name] {
+			return "/usr/bin/" + name, nil
+		}
+		return "", os.ErrNotExist
+	}
+	if helper, ok := selectNativeClipboardHelper("linux", true, false, look); !ok || helper.name != "wl-copy" {
+		t.Fatalf("expected wl-copy, got %#v ok=%v", helper, ok)
+	}
+	if helper, ok := selectNativeClipboardHelper("darwin", false, false, look); !ok || helper.name != "pbcopy" {
+		t.Fatalf("expected pbcopy, got %#v ok=%v", helper, ok)
+	}
+	if _, ok := selectNativeClipboardHelper("linux", false, false, func(string) (string, error) { return "", os.ErrNotExist }); ok {
+		t.Fatal("expected no helper")
+	}
+}
+
+func TestCopyLastAssistantLinesOSC52OptInDoesNotStoreEscapeInTranscript(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_copy_osc", "@agent", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddMessage(ctx, "msg_copy_osc", "session_copy_osc", "assistant", "answer", nil); err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	c := &chatTUI{store: s, sessionID: "session_copy_osc", osc52Writer: &out}
+	lines := strings.Join(c.copyLastAssistantLines("--osc52"), "\n")
+	if !strings.Contains(out.String(), "\x1b]52;c;") {
+		t.Fatalf("OSC 52 sequence not written: %q", out.String())
+	}
+	if strings.Contains(lines, "\x1b]52") || !strings.Contains(lines, "copy: sent 6 chars using OSC 52") {
+		t.Fatalf("unexpected copy lines: %q", lines)
+	}
+}
+
+func TestCopyLastAssistantLinesNativeOptInUsesInjectedRunner(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_copy_native", "@agent", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddMessage(ctx, "msg_copy_native", "session_copy_native", "assistant", "answer", nil); err != nil {
+		t.Fatal(err)
+	}
+	runContent := ""
+	c := &chatTUI{store: s, sessionID: "session_copy_native", clipboardLookPath: func(name string) (string, error) {
+		if name == "clip.exe" {
+			return "/usr/bin/clip.exe", nil
+		}
+		return "", os.ErrNotExist
+	}, clipboardRun: func(ctx context.Context, name string, args []string, content string) error {
+		runContent = content
+		return nil
+	}}
+	lines := strings.Join(c.copyLastAssistantLines("--native"), "\n")
+	if runContent != "answer" || !strings.Contains(lines, "native clipboard helper") {
+		t.Fatalf("native copy failed content=%q lines=%s", runContent, lines)
 	}
 }
 
@@ -1507,7 +1592,7 @@ func TestSettingsLinesExposeRuntimeState(t *testing.T) {
 	engine := turn.New(s)
 	c := &chatTUI{store: s, engine: engine, cfg: config.RuntimeConfig{WorkspaceRoot: "/tmp/ws", DefaultProvider: "test", DefaultModel: "m", DefaultThinkingLevel: "low", MaxIterations: 64}}
 	lines := strings.Join(c.settingsLines(), "\n")
-	for _, want := range []string{"settings: runtime", "workspace: /tmp/ws", "settings: model", "provider: test", "model: m", "thinking: low", "settings: editor", "scrollback_limit: 1000", "settings: session", "settings: discovery", "active_tools:"} {
+	for _, want := range []string{"settings: runtime", "workspace: /tmp/ws", "settings: model", "provider: test", "model: m", "thinking: low", "settings: editor", "scrollback_limit: 1000", "clipboard_mode:", "settings: session", "settings: discovery", "active_tools:"} {
 		if !strings.Contains(lines, want) {
 			t.Fatalf("settings missing %q:\n%s", want, lines)
 		}
