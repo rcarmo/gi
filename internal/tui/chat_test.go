@@ -1081,6 +1081,7 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 	for _, want := range []string{
 		"help: gi TUI",
 		"keys:",
+		"editor:",
 		"runtime:",
 		"discovery:",
 		"sessions:",
@@ -1095,6 +1096,10 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 		"/tools [query|active|activate|reset]",
 		"/skills [query]",
 		"/approvals",
+		"Alt+Enter queue",
+		"Alt+Left/Right word move",
+		"Ctrl+Z undo",
+		"/skill:name [args]",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("help missing %q:\n%s", want, joined)
@@ -1684,7 +1689,7 @@ func TestStatusLineClassifiesCommonStates(t *testing.T) {
 func TestFooterTextContainsStableHints(t *testing.T) {
 	c := &chatTUI{}
 	footer := c.footerTextForWidth(100)
-	for _, want := range []string{"Hints:", "/help", "/tools", "Tab focus", "F2/F3 history", "Ctrl-D quit"} {
+	for _, want := range []string{"Hints:", "/help", "/tools", "Tab complete", "Alt-Up restore", "F2/F3 history", "Ctrl-D quit"} {
 		if !strings.Contains(footer, want) {
 			t.Fatalf("footer missing %q: %s", want, footer)
 		}

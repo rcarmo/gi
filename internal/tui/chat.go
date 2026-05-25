@@ -1120,13 +1120,16 @@ func (c *chatTUI) helpLines() []string {
 	return []string{
 		"help: gi TUI",
 		"keys:",
-		"- Enter send · Shift+Enter newline · Esc blur input · Tab focus input",
-		"- Up/Down history · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
+		"- Enter send · Alt+Enter queue · Shift+Enter newline · Esc blur input · Tab focus/input completion",
+		"- Up/Down history · Alt+Up restore queued draft · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
+		"editor:",
+		"- Alt+Left/Right word move · Ctrl+W/Alt+Backspace delete word · Alt+Delete delete next word",
+		"- Ctrl+A/E start/end · Ctrl+U/K delete to start/end · Ctrl+Z undo · Ctrl+Y yank",
+		"- Tab completes paths; @path uses the same textual file-reference completion fallback",
 		"runtime:",
 		"- /session · /new · /name <name> · /resume [index|session_id] · /copy · /reload · /model [name] · /scoped-models [add|remove|set] · /thinking [level] · /compact · /cancel · /settings · /approvals",
 		"- Ctrl+L/Alt+L cycle model · Ctrl+T/Alt+T cycle thinking",
 		"- !cmd sends a shell request to the model · !!cmd runs locally and prints output",
-		"- Tab completes paths; @path uses the same textual file-reference completion fallback",
 		"- /skill:name [args] loads discovered SKILL.md text with optional invocation args",
 		"discovery:",
 		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
@@ -1919,7 +1922,7 @@ func (c *chatTUI) footerTextForWidth(width int) string {
 	if width < 72 {
 		return "Hints: /help · Enter send · Esc blur · Tab focus · PgUp/PgDn scroll · Ctrl-D quit"
 	}
-	return "Hints: /help · /tools · /skills · /model · Ctrl-L model · Ctrl-T thinking · /compact · /settings · /cancel · /agents · /fork · /switch · /send · Esc blur · Tab focus · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
+	return "Hints: /help · /tools · /skills · /model · Ctrl-L model · Ctrl-T thinking · Tab complete · Alt-Up restore · /compact · /settings · /cancel · /agents · /fork · /switch · /send · Esc blur · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
 }
 
 func (c *chatTUI) footerText() string {
