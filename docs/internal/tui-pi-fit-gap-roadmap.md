@@ -2,17 +2,23 @@
 
 ## Status
 
-This is the working acceptance note for making `gi -tui` progressively feel closer to Pi while preserving Gi's SQLite-backed runtime architecture and current Go TUI stack.
+This is the closure/acceptance note for the Pi-like `gi -tui` iteration. The iteration made the TUI progressively feel closer to Pi while preserving Gi's SQLite-backed runtime architecture, current Go TUI stack, runtime/tool/SSE/topic contracts, and tmux-friendly rendering.
 
-It intentionally does **not** require pixel-perfect cloning. Parity means the same workflow is discoverable, test-backed, and tmux-friendly, with Gi-specific runtime semantics preserved.
+It intentionally does **not** require pixel-perfect cloning. Parity means the same workflow is discoverable, test-backed, deterministic in terminal captures, and adapted to Gi-specific runtime semantics.
 
-## Baseline inventory
-
-### Current `gi -tui` command surface
+## Current `gi -tui` command surface
 
 Implemented commands in `internal/tui/chat.go`:
 
 - `/help`
+- `/commands [query]` / `/palette [query]`
+- `/session`
+- `/new`
+- `/name <name>`
+- `/resume [index|session_id]`
+- `/clone [@agentN]`
+- `/copy`
+- `/reload`
 - `/tools [query|active|activate|reset]`
 - `/skills [query]`
 - `/skill:name [args]`
@@ -31,118 +37,144 @@ Implemented commands in `internal/tui/chat.go`:
 - `/switch @agent|session_id`
 - `/send @agent message`
 - `/where`
+- `!cmd` and `!!cmd` shell shortcuts
 
-Not yet implemented or not at Pi parity:
+Still intentionally absent or deferred:
 
-- `/session`
-- `/new`
-- `/name <name>`
-- `/resume`
-- `/clone`
-- `/copy`
-- `/reload`
-- `/scoped-models`
-- `/skill:name [args]`
-- `/export`
-- `/share`
-- `/hotkeys`
-- `/changelog`
+- `/export` and `/share` rich session export/share affordances;
+- `/hotkeys` and `/changelog` dedicated Pi-style informational commands;
+- extension command dispatch (the command-registration contract is documented, implementation is deferred);
+- richer interactive pickers/widgets beyond the textual `/commands` fallback.
 
-### Current keyboard/editor surface
+## Current keyboard/editor surface
 
 Implemented in `internal/tui/multiline_input.go` and `internal/tui/chat.go`:
 
-- Enter submits
-- Shift+Enter inserts newline
-- Escape blurs input
-- Backspace/Delete delete characters
-- Left/Right move by character
-- Home/End move to input start/end
-- Up/Down history behavior is covered in TUI tests
-- PgUp/PgDn and Home/End transcript scrolling are covered in TUI behavior/tests
-- F2/F3 history hints are documented/tested in the TUI feature set
-- Focus/blur, mouse focus, resize, and quit behavior have tests/features
+- Enter submits;
+- Alt+Enter uses the same submit path and is documented as the queue-friendly submit chord;
+- Shift+Enter inserts newline;
+- Escape blurs input;
+- Backspace/Delete delete characters;
+- Left/Right move by character;
+- Alt+Left/Alt+Right move by word;
+- Ctrl+W and Alt+Backspace delete word backward;
+- Alt+Delete deletes word forward;
+- Ctrl+A/Ctrl+E move to input start/end;
+- Ctrl+U/Ctrl+K delete to input start/end;
+- Ctrl+Z/Ctrl+Y provide minimal one-step undo/yank;
+- Tab completes workspace-relative paths;
+- textual `@path` completion uses the same Tab fallback;
+- Alt+Up restores the most recent locally queued draft;
+- Up/Down, F2/F3, Ctrl+P/Ctrl+N history paths are covered;
+- PgUp/PgDn and Home/End transcript scrolling are covered;
+- Ctrl+L/Alt+L cycle enabled models;
+- Ctrl+T/Alt+T cycle thinking levels;
+- focus/blur, mouse focus, resize, and quit behavior have tests/features.
 
-Not yet implemented or not at Pi parity:
+Deferred/adapted editor items:
 
-- configurable keybindings
-- Alt+Enter follow-up submission (currently documented gap: `go-tui` event support and runtime follow-up-vs-steering split need a separate implementation slice)
-- Alt+Up queued-message restore
-- Ctrl+L model selector
-- model/thinking cycling shortcuts
-- Ctrl+O tool collapse / Ctrl+T thinking collapse parity
-- bracketed paste / clipboard image paste (ordinary terminal paste remains unchanged; explicit bracketed paste remains deferred per `tui-paste-analysis.md`)
+- configurable keybindings are not implemented;
+- Ctrl+O tool collapse is not implemented;
+- Ctrl+T is adapted for thinking-level cycling rather than a Pi-style thinking collapse UI;
+- ordinary text paste remains terminal-rune behavior;
+- explicit bracketed paste and image paste are deferred per `tui-paste-analysis.md` and `tui-clipboard-media.md`.
 
-### Current session/runtime UX surface
-
-Implemented:
-
-- session/agent context summary through `/where`
-- session tree/debug output through `/tree`
-- peer session creation via `/fork`
-- session switching via `/switch`
-- peer message sending via `/send`
-- topic-native status rendering for runtime turn/tool/hook/routing/session/inbound/dispatcher events
-- durable same-session steering in the runtime underneath the TUI
-
-Not yet at Pi parity:
-
-- explicit `/session` detail command
-- create a fresh session through `/new`
-- rename session through `/name`
-- resume recent sessions through `/resume`
-- clone active branch through `/clone`
-- copy/export/share session affordances
-- visible queued/steering count in header/context (implemented after baseline)
-- dequeue queued messages to editor
-
-### Current transcript/layout surface
+## Current session/runtime UX surface
 
 Implemented:
 
-- Pi-like hierarchy: status, context, transcript, input, footer
-- compact status icon labels for idle/queued/running/tool/hook/error/compaction states
-- responsive footer hints
-- editor bindings for word movement, word deletion, line deletion, minimal undo/yank, `!`/`!!` shell shortcuts, Tab path completion, and textual `@path` completion
-- terminal-safe Markdown rendering for headings, lists, blockquotes, links, code blocks, and responsive table fallback
-- folded multi-line tool results
-- code block line counts
-- compact runtime compaction summaries
-- tmux/Gherkin-friendly text captures under `features/tui/`
+- session/agent context summary through `/where` and persistent context area;
+- detailed `/session` command with queue/steering counts and active turn state;
+- `/new`, `/name`, `/resume`, `/clone`, `/copy`, and `/reload` command/session workflow affordances;
+- session tree/debug output through `/tree`, with compact narrow-terminal formatting;
+- peer session creation via `/fork`;
+- session switching via `/switch`;
+- peer message sending via `/send`;
+- topic-native status rendering for runtime turn/tool/hook/routing/session/inbound/dispatcher events;
+- durable same-session steering in the runtime underneath the TUI;
+- visible queued/steering counts in the context summary;
+- visible transcript/status feedback when a message is queued during an active turn;
+- Alt+Up local queued-draft restore.
+
+Adapted/deferred:
+
+- Pi-style follow-up vs steering split is documented as an adapted gap: Gi currently routes active-session submissions through existing steering/queue semantics;
+- rich export/share UX is deferred.
+
+## Current transcript/layout surface
+
+Implemented:
+
+- Pi-like hierarchy: status, context, transcript, input, footer;
+- compact status icon labels for idle/queued/running/tool/hook/error/compaction states;
+- responsive footer hints;
+- grouped `/help` with keys, editor bindings, runtime controls, discovery commands, and session workflows;
+- textual `/commands [query]` palette fallback;
+- grouped `/settings` with runtime, model, editor, session, discovery, compaction, and peering sections;
+- denser `/tree`, `/resume`, `/settings`, and model-selection output for narrow terminals;
+- editor bindings for word movement, word deletion, line deletion, minimal undo/yank, `!`/`!!` shell shortcuts, Tab path completion, and textual `@path` completion;
+- terminal-safe Markdown rendering for headings, lists, blockquotes, links, code blocks, and responsive table fallback;
+- folded multi-line tool results;
+- code block line counts;
+- compact runtime compaction summaries;
+- tmux/Gherkin-friendly text captures under `features/tui/`.
 
 Remaining polish:
 
-- denser `/tree`, `/resume`, `/settings`, and model-selection output for narrow terminals
-- optional command palette-like flow if it can be built without replacing the stack
-- richer collapse/expand affordances for tools/thinking if key support exists
+- richer collapse/expand affordances for tools/thinking if key support exists;
+- richer visual pickers/palettes only if they can be added without replacing the current stack.
 
-## Implementation map
+## Skills/extensions surface
 
-The plan sidebar groups gaps into these implementation tracks:
+Implemented/adapted:
 
-1. **Command/session workflow parity** — add Pi-like session commands first because they are visible and mostly store-backed.
-2. **Message queue and steering UX parity** — expose the durable steering state that Gi already has. Current implementation surfaces queued turn and steering depth in the context area; Pi-style Alt+Enter follow-up submission remains deferred until `go-tui` key support and a clear runtime follow-up queue split are implemented.
-3. **Editor affordance parity** — add only keybindings that `go-tui` can represent cleanly.
-4. **Model/settings parity** — improve selection/listing before attempting interactive pickers.
-5. **Skills/extensions parity** — expose existing skills/script primitives through Pi-like command surfaces. `/skill:name [args]`, richer `/skills` discovery output, skill metadata warnings, reload discovery reporting, and extension command semantics/namespace docs are now covered. Extension command dispatch remains a documented future implementation because only the contract has landed.
-6. **Clipboard/media parity** — start with `/copy` fallback; OSC 52/native clipboard helpers are documented as opt-in/deferred in `tui-clipboard-media.md`, and image paste is deferred until a media ingestion contract exists.
-7. **Interactive polish** — keep `/help`, footer hints, tmux captures, and docs aligned as behavior changes.
+- `/skills [query]` lists discovered skills, command hints, source paths, and metadata warnings;
+- `/skill:name [args]` loads discovered `SKILL.md` text;
+- skill metadata warnings cover missing/empty `Name` and `Description` fields while retaining fallback behavior;
+- `/reload` refreshes config and discovery safely and reports extension discovered/mounted counts;
+- extension command registration semantics are documented in `extension-command-semantics.md`;
+- `gi.state`, `gi.topics`, and `gi.runtime` extension-author semantics are documented in `scripting/namespaces.md`.
 
-## Acceptance criteria
+Deferred:
 
-A slice is acceptable when:
+- actual extension command dispatch for Joker/JS/process extensions;
+- live extension handler unload/reload. `/reload` reports when restart is needed.
 
-- it preserves current runtime/store/tool/SSE/topic contracts;
-- it has focused unit tests for command output, editor behavior, or rendering helpers;
-- it passes `go test ./internal/tui ./internal/turn ./internal/web` when touching TUI/runtime boundaries;
-- it keeps transcript output deterministic enough for tmux pane captures;
-- docs are refreshed when user-visible behavior changes;
-- missing Pi behavior is documented as adapted/deferred rather than silently implied.
+## Clipboard/media surface
 
-## Current validation baseline
+Implemented/adapted:
 
-Before starting this roadmap, this command passed:
+- `/copy` is a transcript-safe fallback that prints the last assistant message;
+- tests lock that `/copy` does not emit OSC 52 escape sequences by default;
+- OSC 52 and native clipboard helpers are investigated and deferred as opt-in future work;
+- ordinary terminal paste remains unchanged;
+- bracketed paste remains parser/editor-dependent;
+- image paste waits for a shared media ingestion contract.
+
+See `tui-clipboard-media.md` for the detailed boundary.
+
+## Validation
+
+The final closure validation passed:
+
+```bash
+go test ./...
+go vet ./...
+```
+
+Targeted validation was also run throughout the slices, primarily:
 
 ```bash
 go test ./internal/tui ./internal/turn ./internal/web
+go test ./internal/skills ./internal/tui ./internal/turn ./internal/web
 ```
+
+## Acceptance criteria closure
+
+This iteration is accepted because:
+
+- current runtime/store/tool/SSE/topic contracts were preserved;
+- each implementation slice added or updated focused unit tests, docs, or Gherkin captures;
+- transcript output remains deterministic and tmux-friendly;
+- missing Pi behavior is explicitly documented as adapted/deferred rather than silently implied;
+- the current Go TUI stack remains in place, with no stack migration required.

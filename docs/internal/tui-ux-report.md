@@ -1,6 +1,7 @@
 # Gi TUI UX report (draft)
 
 Date: 2026-05-05
+Updated: 2026-05-25
 
 ## Executive summary
 
@@ -8,18 +9,21 @@ The gi TUI now covers the main interaction loop expected from a Pi-like terminal
 
 - boot with immediate status/context visibility
 - prompt submission with streaming output
-- runtime model/thinking/tool/session controls
-- responsive narrow-terminal layout
-- expanding multiline input
+- runtime model/thinking/tool/session controls, including model/thinking cycling
+- Pi-like session commands (`/session`, `/new`, `/name`, `/resume`, `/clone`, `/reload`)
+- queue/steering visibility and queued draft restore
+- responsive narrow-terminal layout with compact command output
+- expanding multiline input with word movement/deletion, line deletion, undo/yank, Tab completion, and `@path` fallback
 - transcript scrollback control
 - Markdown transcript rendering with responsive table fallback
-- tmux-backed Gherkin regression coverage for core workflows
+- tmux-backed Gherkin regression coverage for core and Pi-like workflows
+- documented clipboard/media boundaries and extension-author namespace contracts
 
-The biggest remaining UX gaps are:
+The biggest remaining UX gaps are now deliberately bounded:
 
-1. **ANSI/bracketed paste parity** with Pi
-2. **screenshot-backed layout parity audit** against Pi/Claude Code
-3. final packaging of this report as a **PDF with screenshots**
+1. **ANSI/bracketed paste and image paste parity** are deferred pending parser/editor support and a shared media ingestion contract.
+2. **Rich visual pickers/collapse widgets** remain future work unless they can be added without changing the current Go TUI stack.
+3. **Screenshot-backed layout parity audit** and optional PDF packaging remain documentation/reporting follow-ups, not blockers for the current tmux-friendly parity slice.
 
 ## Evidence base
 
@@ -31,6 +35,7 @@ The biggest remaining UX gaps are:
 - `features/tui/tool_controls.feature`
 - `features/tui/plugins.feature`
 - `features/tui/settings_and_approvals.feature`
+- `features/tui/pi_like_workflows.feature`
 
 ### Current TUI implementation files
 
@@ -50,10 +55,7 @@ The biggest remaining UX gaps are:
 
 ### Recent shipped slices
 
-- `8826864 feat(tui): default gi to opencode zen free model`
-- `c867c0b feat(tui): simplify input chrome and cap scrollback`
-- `6233992 feat(tui): make layout responsive to terminal size`
-- `5195d26 feat(tui): render markdown transcript content`
+The original report predated the Pi fit/gap implementation. The current closure status is summarized in `tui-pi-fit-gap-roadmap.md` and `tui-pi-parity-plan.md`; notable additions include session workflow commands, queue feedback, editor bindings, model/settings management, skill discovery/loading, command palette fallback, clipboard/media boundary docs, and expanded tmux/Gherkin coverage.
 
 ## Feature audit
 

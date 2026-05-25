@@ -28,6 +28,10 @@
 - `internal/skills/` — skill/package structure
 - `internal/routing.md` — runtime routing/route-event behavior and SSE observability
 - `internal/search/` — hybrid workspace search/indexing design and planned package layout
+- `internal/tui-pi-fit-gap-roadmap.md` — closure status for the Pi-like TUI parity iteration
+- `internal/tui-pi-parity-plan.md` — maintained TUI parity plan and implemented slices
+- `internal/tui-clipboard-media.md` — TUI clipboard/media support boundaries
+- `internal/extension-command-semantics.md` — planned extension command registration contract
 
 ### Checklists
 - `checklists/implementation.md` — phased implementation checklist by subsystem

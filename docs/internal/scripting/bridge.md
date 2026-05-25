@@ -58,7 +58,7 @@ Current callback families:
   - `Log`
 
 ## JavaScript bridge surface
-The Goja runtime exposes a global `gi` object with the methods listed below, including active network/event bridges.
+The Goja runtime exposes a global `gi` object with the methods listed below, including active network/event bridges. See `namespaces.md` for the extension-author view of the conceptual `gi.state`, `gi.topics`, and `gi.runtime` namespaces; several shipped APIs still exist as top-level compatibility methods.
 - `gi.sessionId`
 - `gi.config`
 - `gi.sessionState`
@@ -86,6 +86,10 @@ The Goja runtime exposes a global `gi` object with the methods listed below, inc
 - `gi.websocket.close(socketId)`
 - `gi.http.request({method, url, headers, body, timeout_ms, retry, allow_redirects, skip_tls}) -> {status_code, status, headers, body}`
 - `gi.log(level, message)`
+- `gi.topics.publish(envelope)`
+- `gi.topics.subscribe(pattern, opts)`
+- `gi.topics.read(subscriptionId, max)`
+- `gi.topics.unsubscribe(subscriptionId)`
 
 It also provides `console.log/error/warn/debug`.
 
@@ -108,6 +112,10 @@ Current helper functions:
 - `gi-get-runtime-config`
 - `gi-list-turns`
 - `gi-list-messages` (optional `:limit` map arg)
+- `gi-topic-publish`
+- `gi-topic-subscribe`
+- `gi-topic-read`
+- `gi-topic-unsubscribe`
 
 The current Joker mutation path applies session-state changes back through the live bridge after execution.
 

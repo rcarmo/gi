@@ -13,6 +13,7 @@ Covers:
 - session and branch workflows
 - debug/visibility surfaces
 - layout/resize/scroll behavior
+- Pi-like session, queue, editor, clipboard boundary, and command-palette affordances
 
 ## Core stories
 
@@ -45,19 +46,19 @@ Covers:
 
 ### 4. Change models and keep my selection
 
-**As a user**, I want `/model` to switch models and persist my choice so the next run keeps it.
+**As a user**, I want `/model`, `/scoped-models`, and keyboard model cycling to switch models and persist my choice so the next run keeps it.
 
 - Evidence:
-  - `internal/tui/chat.go` `/model`
+  - `internal/tui/chat.go` `/model`, `/scoped-models`, Ctrl+L/Alt+L cycling
   - `internal/config/config.go` model persistence
   - `internal/config/config_test.go`
 
 ### 5. Change thinking level at runtime
 
-**As a user**, I want `/thinking` to change the current/default thinking level without leaving the TUI.
+**As a user**, I want `/thinking` and keyboard thinking cycling to change the current/default thinking level without leaving the TUI.
 
 - Evidence:
-  - `internal/tui/chat.go`
+  - `internal/tui/chat.go` `/thinking`, Ctrl+T/Alt+T cycling
   - `features/tui/assistant_basics.feature`
 
 ### 6. Inspect compaction and run-time settings
@@ -125,9 +126,19 @@ Covers:
 One user story per current slash command family:
 
 - `/help` — explain keybindings and commands
+- `/commands` / `/palette` — textual command palette/filter
+- `/session` — inspect current session details
+- `/new` — create a fresh main session
+- `/name` — rename current session
+- `/resume` — list/switch recent sessions
+- `/clone` — clone active session branch
+- `/copy` — print last assistant message fallback
+- `/reload` — refresh config/discovery safely
 - `/tools` — discover, inspect, activate, reset tools
-- `/skills` — discover skills
-- `/model` — show or change model
+- `/skills` — discover skills with invocation hints/source paths
+- `/skill:name` — load a discovered skill file
+- `/model` — show or change model by name/index
+- `/scoped-models` — manage enabled models
 - `/thinking` — show or change thinking level
 - `/compact` — inspect compaction settings
 - `/scrollback` — inspect or change scrollback limit
@@ -141,6 +152,7 @@ One user story per current slash command family:
 - `/switch` — switch to another session/agent
 - `/send` — deliver a message to another agent session
 - `/where` — inspect current session summary
+- `!cmd` / `!!cmd` — model-facing shell request vs local shell execution
 
 ## Current gaps
 
