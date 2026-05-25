@@ -546,6 +546,7 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 		Model         string `json:"model"`
 		TargetAgentID string `json:"target_agent_id"`
 		ParentTurnID  string `json:"parent_turn_id"`
+		Media         []any  `json:"media"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
@@ -562,7 +563,11 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 	if req.TargetAgentID != "" && req.TargetAgentID != "default" {
 		result, err = s.turns.SubmitPeerMessage(r.Context(), sessionID, req.TargetAgentID, req.Prompt, req.Intent, model, req.ParentTurnID)
 	} else {
-		result, err = s.turns.SubmitPromptRouted(r.Context(), turn.RunInput{SessionID: sessionID, Prompt: req.Prompt, Intent: req.Intent, Model: model, ParentTurnID: req.ParentTurnID})
+		metadata := map[string]any{}
+		if len(req.Media) > 0 {
+			metadata["media"] = req.Media
+		}
+		result, err = s.turns.SubmitPromptRouted(r.Context(), turn.RunInput{SessionID: sessionID, Prompt: req.Prompt, Intent: req.Intent, Model: model, ParentTurnID: req.ParentTurnID, Metadata: metadata})
 	}
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})

@@ -142,5 +142,5 @@ TUI image paste work starts only after the minimal store/API primitives exist.
 1. Add shared normalization helpers and tests for string/object media refs.
 2. Add content hash and detected MIME metadata to `CreateMedia` without changing existing callers.
 3. Add a small authenticated media upload/list/get API under session scope. **Implemented:** `GET /api/sessions/{session_id}/media`, `POST /api/sessions/{session_id}/media`, and `GET /api/sessions/{session_id}/media/{media_id}`.
-4. Add optional `media` to prompt/direct submit paths and preserve it in turn/message metadata.
-5. Add provider-safe projection tests before enabling binary provider requests.
+4. Add optional `media` to prompt/direct submit paths and preserve it in turn/message metadata. **Partially implemented:** web prompt submissions accept `media` and persist normalized refs into turn/message metadata; direct submit aliases remain pending.
+5. Add provider-safe projection tests before enabling binary provider requests. **Implemented for history projection:** supported image media (`image/png`, `image/jpeg`, `image/webp`, `image/gif`) is loaded from the session-owned store into provider image blocks; unsupported media keeps the transcript-safe text placeholder.

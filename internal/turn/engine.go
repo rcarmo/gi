@@ -459,13 +459,22 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		metadata["subturn_delivery_mode"] = subTurnDeliveryMode
 		metadata["subturn_critical"] = subTurnCritical
 	}
+	if rawMedia, ok := in.Metadata["media"]; ok {
+		mediaRefs, err := e.resolveMediaReferences(ctx, in.SessionID, rawMedia)
+		if err != nil {
+			return nil, err
+		}
+		if len(mediaRefs) > 0 {
+			metadata["media"] = mediaRefs
+		}
+	}
 	effectiveTools, restrictedTools, err := e.resolveEffectiveToolNames(parentTurn, in.Metadata)
 	if err != nil {
 		return nil, err
 	}
 	subTurnToolsRestricted = restrictedTools
 	for k, v := range in.Metadata {
-		if k == "effective_tools" || k == "subturn_tools_restricted" {
+		if k == "effective_tools" || k == "subturn_tools_restricted" || k == "media" {
 			continue
 		}
 		metadata[k] = v
@@ -4425,7 +4434,7 @@ func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store
 	for _, m := range msgs {
 		switch m.Role {
 		case "user":
-			convCtx.Messages = append(convCtx.Messages, goai.UserMessage(m.Content))
+			convCtx.Messages = append(convCtx.Messages, r.userMessageWithProviderSafeMedia(ctx, sessionID, m.Content, m.Payload))
 		case "assistant":
 			convCtx.Messages = append(convCtx.Messages, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: m.Content}}})
 		}
@@ -4923,6 +4932,9 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 	r.emitTurnStateHookOnly(ctx, sessionID, turnID, agentID, model, "running", "setup", map[string]any{"reason": "setup"})
 	userPayload := map[string]any{"kind": "chat", "intent": intent, "turn_id": turnID}
 	copySelectedMetadata(userPayload, turnRec.Metadata, ingressMetadataKeys)
+	if rawMedia, ok := turnRec.Metadata["media"]; ok {
+		userPayload["media"] = rawMedia
+	}
 	if strings.TrimSpace(prompt) != "" && len(initialSteering) == 0 {
 		logutil.WarnIfErr("add user prompt message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload))
 	}
