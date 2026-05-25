@@ -1,4 +1,4 @@
-# Gi TUI UX report (draft)
+# Gi TUI UX report
 
 Date: 2026-05-05
 Updated: 2026-05-25
@@ -221,44 +221,65 @@ Evidence:
 - `internal/tui/chat_test.go`
 - `features/tui/keyboard_behavior.feature`
 
-## Current UX gaps
+## Bounded remaining gaps
 
-### 1. ANSI/bracketed paste support
+### 1. ANSI/bracketed paste and media paste
 
-Status: **not complete**
+Status: **deferred intentionally**
 
 Observed state:
 
-- Pi documentation references richer terminal input behavior
-- gi’s current terminal stack (`go-tui`) shows Kitty key protocol support
-- bracketed-paste (`CSI 200~` / `CSI 201~`) handling is not yet evidenced in the parser path
+- ordinary text paste remains terminal-rune behavior;
+- `/copy` is locked to transcript-safe fallback behavior by tests;
+- OSC 52 and native clipboard helpers are documented as opt-in/deferred in `tui-clipboard-media.md`;
+- bracketed-paste (`CSI 200~` / `CSI 201~`) still depends on parser/editor support;
+- image paste is deferred until Gi has a shared media ingestion contract.
 
 Conclusion:
 
-- this remains a likely upstream/runtime parser gap rather than a simple TUI widget omission
+- this is now a documented boundary rather than an open parity blocker for the current TUI iteration.
 
-### 2. Screenshot-backed layout parity audit
+### 2. Rich visual pickers/collapse widgets
 
-Status: **not complete**
+Status: **future polish**
 
 Observed state:
 
-- gi now has a responsive, information-dense terminal layout
-- a screenshot-based parity comparison against Pi/Claude Code still needs to be recorded
+- Gi now has textual fallbacks for command palette behavior, model selection, skills, and narrow-terminal session maps;
+- richer visual pickers/collapse widgets should only be added if they fit the current Go TUI stack without a migration.
+
+### 3. Screenshot-backed layout parity audit
+
+Status: **optional reporting follow-up**
+
+Observed state:
+
+- gi now has a responsive, information-dense terminal layout with tmux/Gherkin captures;
+- a screenshot-based comparison against Pi/Claude Code can still be recorded, but is not required for the accepted tmux-friendly parity slice.
 
 ## Recommended next steps
 
-1. Audit or extend `go-tui` for bracketed-paste / ANSI paste handling.
-2. Capture screenshots at representative sizes (e.g. 60x18, 100x22, wide desktop).
-3. Record Pi/Claude Code comparison notes against those screenshots.
-4. Export the final version of this report as a PDF with embedded screenshots.
+1. Define a separate follow-up plan for any deferred rich picker/collapse work.
+2. If clipboard parity becomes a hard requirement, add opt-in OSC 52/native helper support outside transcript storage.
+3. If media paste becomes a hard requirement, design shared web/TUI/API media ingestion first.
+4. Optionally capture screenshot comparisons at representative sizes for reporting.
 
 ## Appendix: command inventory covered by current UX stories
 
 - `/help`
+- `/commands` / `/palette`
+- `/session`
+- `/new`
+- `/name`
+- `/resume`
+- `/clone`
+- `/copy`
+- `/reload`
 - `/tools`
 - `/skills`
+- `/skill:name`
 - `/model`
+- `/scoped-models`
 - `/thinking`
 - `/compact`
 - `/scrollback`
@@ -267,8 +288,9 @@ Observed state:
 - `/cancel`
 - `/agents`
 - `/tree`
-- `/plugins`
+- `/plugins` / `/extensions`
 - `/fork`
 - `/switch`
 - `/send`
 - `/where`
+- `!cmd` / `!!cmd`
