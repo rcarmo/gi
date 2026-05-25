@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -82,6 +83,50 @@ func TestServerSessionPromptTurnsFlow(t *testing.T) {
 			t.Fatalf("timed out waiting for completed turn + assistant output; turns=%d %s messages=%d %s", turnsRes.Code, turnsRes.Body.String(), messagesRes.Code, messagesRes.Body.String())
 		}
 		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func TestSessionMediaEndpoints(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	srv := New(s, turn.New(s), config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "test-model", DefaultThinkingLevel: "medium"})
+	session, err := s.CreateSession(t.Context(), store.NowID("session"), "Media", map[string]any{"status": "idle"})
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	raw := []byte("hello media")
+	body := fmt.Sprintf(`{"filename":"hello.txt","content_type":"text/plain","content_base64":%q,"source":"api"}`, base64.StdEncoding.EncodeToString(raw))
+	postReq := httptest.NewRequest(http.MethodPost, "/api/sessions/"+session.ID+"/media", strings.NewReader(body))
+	postReq.Header.Set("Content-Type", "application/json")
+	postRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(postRes, postReq)
+	if postRes.Code != http.StatusCreated {
+		t.Fatalf("unexpected media create status: %d body=%s", postRes.Code, postRes.Body.String())
+	}
+	var created struct {
+		Media store.Media    `json:"media"`
+		Ref   store.MediaRef `json:"ref"`
+	}
+	if err := json.Unmarshal(postRes.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode media create response: %v", err)
+	}
+	if created.Ref.ID != store.MediaRefID(created.Media.ID) || created.Ref.SHA256 == "" || created.Ref.Source != "api" {
+		t.Fatalf("unexpected media ref: %+v media=%+v", created.Ref, created.Media)
+	}
+	listReq := httptest.NewRequest(http.MethodGet, "/api/sessions/"+session.ID+"/media", nil)
+	listRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(listRes, listReq)
+	if listRes.Code != http.StatusOK || !bytes.Contains(listRes.Body.Bytes(), []byte("hello.txt")) {
+		t.Fatalf("unexpected media list response: %d body=%s", listRes.Code, listRes.Body.String())
+	}
+	getReq := httptest.NewRequest(http.MethodGet, "/api/sessions/"+session.ID+"/media/"+created.Ref.ID, nil)
+	getRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(getRes, getReq)
+	if getRes.Code != http.StatusOK || getRes.Body.String() != string(raw) || getRes.Header().Get("Content-Type") != "text/plain" {
+		t.Fatalf("unexpected media get response: %d type=%s body=%q", getRes.Code, getRes.Header().Get("Content-Type"), getRes.Body.String())
 	}
 }
 

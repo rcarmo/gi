@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -257,6 +258,8 @@ func (s *Server) handleSessionSubroutes(w http.ResponseWriter, r *http.Request) 
 	switch parts[1] {
 	case "messages":
 		s.handleMessages(w, r, sessionID)
+	case "media":
+		s.handleMedia(w, r, sessionID, parts[2:])
 	case "prompt":
 		s.handlePrompt(w, r, sessionID)
 	case "turns":
@@ -319,6 +322,127 @@ func (s *Server) handleSession(w http.ResponseWriter, r *http.Request, sessionID
 		return
 	}
 	writeJSON(w, http.StatusOK, session)
+}
+
+func (s *Server) handleMedia(w http.ResponseWriter, r *http.Request, sessionID string, parts []string) {
+	if _, err := s.store.GetSession(r.Context(), sessionID); err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": err.Error()})
+		return
+	}
+	if len(parts) == 0 || parts[0] == "" {
+		s.handleMediaCollection(w, r, sessionID)
+		return
+	}
+	if len(parts) == 1 {
+		s.handleMediaItem(w, r, sessionID, parts[0])
+		return
+	}
+	http.NotFound(w, r)
+}
+
+func (s *Server) handleMediaCollection(w http.ResponseWriter, r *http.Request, sessionID string) {
+	switch r.Method {
+	case http.MethodGet:
+		items, err := s.store.ListMedia(r.Context(), sessionID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+			return
+		}
+		if items == nil {
+			items = []store.Media{}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"media": items})
+	case http.MethodPost:
+		media, err := s.createMediaFromRequest(r, sessionID)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"media": media, "ref": store.MediaRef{ID: store.MediaRefID(media.ID), MediaID: media.ID, SessionID: media.SessionID, Filename: media.Filename, ContentType: media.ContentType, Size: media.OriginalSize, SHA256: internalString(media.Metadata["sha256"]), Source: internalString(media.Metadata["source"]), CreatedAt: media.CreatedAt}})
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handleMediaItem(w http.ResponseWriter, r *http.Request, sessionID, rawID string) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	mediaID, ok := store.ParseMediaRefID(rawID)
+	if !ok {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid media id"})
+		return
+	}
+	media, content, err := s.store.GetMediaContent(r.Context(), mediaID)
+	if err != nil {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": err.Error()})
+		return
+	}
+	if media.SessionID != sessionID {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "media not found"})
+		return
+	}
+	w.Header().Set("Content-Type", media.ContentType)
+	w.Header().Set("Content-Disposition", "inline; filename=\""+strings.ReplaceAll(media.Filename, "\"", "")+"\"")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(content)
+}
+
+func (s *Server) createMediaFromRequest(r *http.Request, sessionID string) (*store.Media, error) {
+	contentType := r.Header.Get("Content-Type")
+	metadata := map[string]any{"source": "web"}
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			return nil, err
+		}
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+		raw, err := io.ReadAll(io.LimitReader(file, (10<<20)+1))
+		if err != nil {
+			return nil, err
+		}
+		if len(raw) > 10<<20 {
+			return nil, fmt.Errorf("media exceeds 10 MiB limit")
+		}
+		filename := header.Filename
+		partContentType := header.Header.Get("Content-Type")
+		return s.store.CreateMedia(r.Context(), sessionID, filename, partContentType, raw, metadata)
+	}
+	var req struct {
+		Filename    string         `json:"filename"`
+		ContentType string         `json:"content_type"`
+		Content     string         `json:"content_base64"`
+		Source      string         `json:"source"`
+		Metadata    map[string]any `json:"metadata"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	if req.Source != "" {
+		metadata["source"] = req.Source
+	}
+	for k, v := range req.Metadata {
+		metadata[k] = v
+	}
+	raw, err := base64.StdEncoding.DecodeString(req.Content)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > 10<<20 {
+		return nil, fmt.Errorf("media exceeds 10 MiB limit")
+	}
+	return s.store.CreateMedia(r.Context(), sessionID, req.Filename, req.ContentType, raw, metadata)
+}
+
+func internalString(v any) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
 }
 
 func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request, sessionID string) {

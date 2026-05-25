@@ -99,6 +99,37 @@ func (s *Store) CreateMedia(ctx context.Context, sessionID, filename, contentTyp
 	return media, nil
 }
 
+func (s *Store) ListMedia(ctx context.Context, sessionID string) ([]Media, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		select id, session_id, filename, content_type, metadata_json, original_size, compressed_size, compressed, created_at, updated_at
+		from media where session_id = ? order by created_at desc, id desc
+	`, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("list media: %w", err)
+	}
+	defer rows.Close()
+	var out []Media
+	for rows.Next() {
+		var item Media
+		var metadataJSON string
+		var compressedInt int
+		if err := rows.Scan(&item.ID, &item.SessionID, &item.Filename, &item.ContentType, &metadataJSON, &item.OriginalSize, &item.CompressedSize, &compressedInt, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("list media: scan: %w", err)
+		}
+		item.Compressed = compressedInt != 0
+		meta, err := unmarshalJSONMap(metadataJSON)
+		if err != nil {
+			return nil, fmt.Errorf("list media: metadata: %w", err)
+		}
+		item.Metadata = meta
+		if item.Metadata == nil {
+			item.Metadata = map[string]any{}
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) GetMedia(ctx context.Context, id int64) (*Media, error) {
 	row := s.db.QueryRowContext(ctx, `
 		select id, session_id, filename, content_type, metadata_json, original_size, compressed_size, compressed, created_at, updated_at
