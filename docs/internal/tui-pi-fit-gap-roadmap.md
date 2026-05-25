@@ -125,7 +125,7 @@ The plan sidebar groups gaps into these implementation tracks:
 3. **Editor affordance parity** — add only keybindings that `go-tui` can represent cleanly.
 4. **Model/settings parity** — improve selection/listing before attempting interactive pickers.
 5. **Skills/extensions parity** — expose existing skills/script primitives through Pi-like command surfaces. `/skill:name [args]`, richer `/skills` discovery output, skill metadata warnings, reload discovery reporting, and extension command semantics/namespace docs are now covered. Extension command dispatch remains a documented future implementation because only the contract has landed.
-6. **Clipboard/media parity** — start with `/copy` fallback; defer image paste until a media ingestion contract exists.
+6. **Clipboard/media parity** — start with `/copy` fallback; OSC 52/native clipboard helpers are documented as opt-in/deferred in `tui-clipboard-media.md`, and image paste is deferred until a media ingestion contract exists.
 7. **Interactive polish** — keep `/help`, footer hints, tmux captures, and docs aligned as behavior changes.
 
 ## Acceptance criteria

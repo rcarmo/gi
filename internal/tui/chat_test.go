@@ -1181,6 +1181,9 @@ func TestCopyLastAssistantLinesFallsBackToTranscript(t *testing.T) {
 	}
 	c := &chatTUI{store: s, sessionID: "session_copy"}
 	joined := strings.Join(c.copyLastAssistantLines(), "\n")
+	if strings.Contains(joined, "\x1b]52") {
+		t.Fatalf("copy fallback should not emit OSC 52 escape sequences: %q", joined)
+	}
 	for _, want := range []string{"copy: clipboard unavailable; last assistant message follows", "copy: answer", "  second line"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("copy fallback missing %q:\n%s", want, joined)
