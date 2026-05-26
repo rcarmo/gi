@@ -1093,28 +1093,14 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 	c := &chatTUI{}
 	joined := strings.Join(c.helpLines(), "\n")
 	for _, want := range []string{
-		"help: gi TUI",
-		"keys:",
-		"editor:",
-		"runtime:",
-		"discovery:",
-		"sessions:",
-		"/commands [query]",
+		"help",
+		"enter send",
+		"/commands",
+		"/model",
 		"/session",
-		"/new",
-		"/name <name>",
-		"/resume [index|session_id]",
-		"/clone [@agentN]",
-		"/copy [--osc52|--native|--auto|--fallback]",
-		"/settings",
 		"/where",
-		"/tools [query|active|activate|reset]",
-		"/skills [query]",
-		"/approvals",
-		"Alt+Enter queue",
-		"Alt+Left/Right word move",
-		"Ctrl+Z undo",
-		"/skill:name [args]",
+		"/attach",
+		"!cmd",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("help missing %q:\n%s", want, joined)
@@ -1456,7 +1442,7 @@ func TestModelCommandPersistsSelection(t *testing.T) {
 	defer s.Close()
 	c := &chatTUI{store: s, sessionID: "session_1", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultThinkingLevel: "medium", EnabledModels: []string{"qwen3:latest"}}}
 	lines := c.modelCommand([]string{"/model", "ollama/gemma4:latest"})
-	if len(lines) == 0 || !strings.Contains(lines[0], "model set to ollama/gemma4:latest") {
+	if len(lines) == 0 || !strings.Contains(lines[0], "model: ollama/gemma4:latest") {
 		t.Fatalf("unexpected model command output: %#v", lines)
 	}
 	cfg := config.Load(root)
@@ -1495,13 +1481,13 @@ func TestModelCommandListsAndSelectsEnabledModels(t *testing.T) {
 	defer s.Close()
 	c := &chatTUI{store: s, sessionID: "session_models", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "ollama", DefaultModel: "qwen3:latest", DefaultThinkingLevel: "medium", EnabledModels: []string{"qwen3:latest", "ollama/gemma4:latest"}}}
 	listed := strings.Join(c.modelCommand([]string{"/model"}), "\n")
-	for _, want := range []string{"model: current=qwen3:latest", "provider=ollama thinking=medium", "*1. qwen3:latest", "  2. ollama/gemma4:latest", "select with /model <index>"} {
+	for _, want := range []string{"model qwen3:latest · medium · ollama", "› 1  qwen3:latest", "  2  ollama/gemma4:latest", "/model <n> to switch"} {
 		if !strings.Contains(listed, want) {
 			t.Fatalf("model list missing %q:\n%s", want, listed)
 		}
 	}
 	lines := c.modelCommand([]string{"/model", "2"})
-	if c.cfg.DefaultModel != "ollama/gemma4:latest" || len(lines) == 0 || !strings.Contains(lines[0], "model set to ollama/gemma4:latest") {
+	if c.cfg.DefaultModel != "ollama/gemma4:latest" || len(lines) == 0 || !strings.Contains(lines[0], "model: ollama/gemma4:latest") {
 		t.Fatalf("index selection failed cfg=%#v lines=%#v", c.cfg, lines)
 	}
 }
@@ -1532,7 +1518,7 @@ func TestCycleModelUsesEnabledModels(t *testing.T) {
 	defer s.Close()
 	c := &chatTUI{store: s, sessionID: "session_cycle_model", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultModel: "a", EnabledModels: []string{"a", "b", "c"}}}
 	c.cycleModel(1)
-	if c.cfg.DefaultModel != "b" || !strings.Contains(strings.Join(c.transcript, "\n"), "model set to b") {
+	if c.cfg.DefaultModel != "b" || !strings.Contains(strings.Join(c.transcript, "\n"), "model: b") {
 		t.Fatalf("next model failed cfg=%#v transcript=%#v", c.cfg, c.transcript)
 	}
 	c.cycleModel(-1)

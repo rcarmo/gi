@@ -1242,23 +1242,14 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 
 func (c *chatTUI) helpLines() []string {
 	return []string{
-		"help: gi TUI",
-		"keys:",
-		"- Enter send · Alt+Enter queue · Shift+Enter newline · Esc blur input · Tab focus/input completion",
-		"- Up/Down history · Alt+Up restore queued draft · PgUp/PgDn scroll · Home/End transcript · Ctrl-C/Ctrl-D quit",
-		"editor:",
-		"- Alt+Left/Right word move · Ctrl+W/Alt+Backspace delete word · Alt+Delete delete next word",
-		"- Ctrl+A/E start/end · Ctrl+U/K delete to start/end · Ctrl+Z undo · Ctrl+Y yank",
-		"- Tab completes paths; @path uses the same textual file-reference completion fallback",
-		"runtime:",
-		"- /commands [query] · /session · /new · /name <name> · /resume [index|session_id] · /copy [--osc52|--native|--auto|--fallback] · /attach <path> [prompt] · /reload · /model [name] · /scoped-models [add|remove|set] · /thinking [level] · /compact · /cancel · /settings · /approvals",
-		"- Ctrl+L/Alt+L cycle model · Ctrl+T/Alt+T cycle thinking",
-		"- !cmd sends a shell request to the model · !!cmd runs locally and prints output",
-		"- /skill:name [args] loads discovered SKILL.md text with optional invocation args",
-		"discovery:",
-		"- /tools [query|active|activate|reset] · /skills [query] · /plugins",
-		"sessions:",
-		"- /where · /agents · /tree · /fork [@agentN] · /clone [@agentN] · /switch @agent|session_id · /send @agent message",
+		"help",
+		"enter send · shift-enter newline · esc blur · ctrl-d exit",
+		"/commands  all commands",
+		"/model     choose model · ctrl-l cycles",
+		"/session   details for this chat",
+		"/where     compact context",
+		"/attach    add media",
+		"!cmd       ask model about shell · !!cmd run locally",
 	}
 }
 
@@ -1700,10 +1691,10 @@ func (c *chatTUI) modelCommand(fields []string) []string {
 		model = c.cfg.EnabledModels[idx-1]
 	}
 	c.cfg.DefaultModel = model
-	if strings.Contains(model, "/") && strings.TrimSpace(c.cfg.DefaultProvider) == "" {
+	if strings.Contains(model, "/") {
 		c.cfg.DefaultProvider = strings.SplitN(model, "/", 2)[0]
 	}
-	lines := []string{fmt.Sprintf("sys: model set to %s", model)}
+	lines := []string{fmt.Sprintf("model: %s", model)}
 	if err := c.store.TouchSessionState(context.Background(), c.sessionID, map[string]any{"model": model}); err != nil {
 		lines = append(lines, fmt.Sprintf("warn: failed to persist model in session state: %v", err))
 	}
@@ -1726,23 +1717,25 @@ func (c *chatTUI) modelListLines() []string {
 	if thinking == "" {
 		thinking = "low"
 	}
-	lines := []string{
-		fmt.Sprintf("model: current=%s", compactMaybe(current, c.compactOutput(), 42)),
-		fmt.Sprintf("- provider=%s thinking=%s", compactMaybe(provider, c.compactOutput(), 28), thinking),
+	modelWidth := 52
+	if c.compactOutput() {
+		modelWidth = 34
+	}
+	lines := []string{fmt.Sprintf("model %s · %s", compactMaybe(current, c.compactOutput(), modelWidth), thinking)}
+	if provider != "" && provider != "(inferred from model when possible)" {
+		lines[0] += fmt.Sprintf(" · %s", compactMaybe(provider, c.compactOutput(), 18))
 	}
 	if len(c.cfg.EnabledModels) == 0 {
-		lines = append(lines, "- enabled models: none configured; use /model <provider/model>")
-		return lines
+		return append(lines, "no enabled models · /model <provider/model>")
 	}
-	lines = append(lines, "- enabled models:")
 	for i, model := range c.cfg.EnabledModels {
 		marker := " "
 		if model == c.cfg.DefaultModel {
-			marker = "*"
+			marker = "›"
 		}
-		lines = append(lines, fmt.Sprintf("  %s%d. %s", marker, i+1, compactMaybe(model, c.compactOutput(), 44)))
+		lines = append(lines, fmt.Sprintf("%s %d  %s", marker, i+1, compactMaybe(model, c.compactOutput(), modelWidth)))
 	}
-	lines = append(lines, "- select with /model <index> or /model <provider/model>")
+	lines = append(lines, "/model <n> to switch · ctrl-l cycles")
 	return lines
 }
 
