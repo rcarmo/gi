@@ -2121,9 +2121,6 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	statusLines := c.wrapLines(c.statusLine(), contentWidth)
 	root.AddChild(c.renderLineBlock(statusLines, gotui.NewStyle().Bold()))
 
-	ctxLines := c.contextSummaryLines(contentWidth)
-	root.AddChild(c.renderLineBlock(ctxLines, gotui.NewStyle().Dim()))
-
 	c.ensureInput()
 	c.input.width = contentWidth
 	inputHeight := c.input.Render(app).HeightForWidth(contentWidth)
@@ -2131,7 +2128,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 		inputHeight = 1
 	}
 	footerLines := c.wrapLines(c.footerTextForWidth(contentWidth), contentWidth)
-	reservedHeight := (padding * 2) + len(statusLines) + len(ctxLines) + 1 + inputHeight + len(footerLines)
+	reservedHeight := (padding * 2) + len(statusLines) + 1 + inputHeight + len(footerLines)
 	transcriptHeight := h - reservedHeight
 	if transcriptHeight < 4 {
 		transcriptHeight = 4
@@ -2164,7 +2161,9 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	c.inputRegion = inputEl
 	root.AddChild(inputEl)
 
-	root.AddChild(c.renderLineBlock(footerLines, gotui.NewStyle().Dim()))
+	if len(footerLines) > 0 {
+		root.AddChild(c.renderLineBlock(footerLines, gotui.NewStyle().Dim()))
+	}
 
 	return root
 }
@@ -2188,17 +2187,23 @@ func (c *chatTUI) statusLine() string {
 	case strings.Contains(lower, "compact"):
 		state, icon = "compact", "◌"
 	}
-	if status == "" {
-		status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+	data := c.contextSummaryData()
+	model := data.model
+	if model == "" {
+		model = c.cfg.DefaultModel
 	}
-	return fmt.Sprintf("%s %s · %s", icon, state, status)
+	base := fmt.Sprintf("%s %s · %s · %s · m%d/t%d", icon, c.cfg.AssistantName, model, data.thinking, data.messageCount, data.turnCount)
+	if data.queuedTurns > 0 || data.steeringDepth > 0 {
+		base += fmt.Sprintf(" · q%d/s%d", data.queuedTurns, data.steeringDepth)
+	}
+	if state != "idle" || (status != "" && !strings.Contains(status, c.cfg.DefaultModel)) {
+		base += fmt.Sprintf(" · %s", strings.TrimSpace(status))
+	}
+	return base
 }
 
 func (c *chatTUI) footerTextForWidth(width int) string {
-	if width < 72 {
-		return "esc blur · enter send · /help · ctrl-d exit"
-	}
-	return "enter send · shift-enter newline · / commands · ! bash · ctrl-l model · ctrl-t thinking · ctrl-d exit"
+	return ""
 }
 
 func (c *chatTUI) footerText() string {
@@ -2493,6 +2498,9 @@ type tuiContextSummary struct {
 
 func (c *chatTUI) contextSummaryData() tuiContextSummary {
 	data := tuiContextSummary{sessionTitle: c.sessionID, agentID: "agent", parent: "root", model: c.cfg.DefaultModel, provider: c.cfg.DefaultProvider, thinking: c.cfg.DefaultThinkingLevel, status: "idle"}
+	if c.store == nil || c.sessionID == "" {
+		return data
+	}
 	session, err := c.store.GetSession(context.Background(), c.sessionID)
 	if err != nil {
 		return data

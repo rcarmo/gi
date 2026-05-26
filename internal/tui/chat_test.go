@@ -1769,21 +1769,21 @@ func TestContextSummaryLinesWrapForNarrowWidth(t *testing.T) {
 }
 
 func TestStatusLineClassifiesCommonStates(t *testing.T) {
-	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, status: "Neo · bootstrap"}
-	if got := c.statusLine(); got != "● idle · Neo · bootstrap" {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap", DefaultThinkingLevel: "low"}, status: "Neo · bootstrap"}
+	if got := c.statusLine(); got != "● Neo · bootstrap · low · m0/t0" {
 		t.Fatalf("idle status line = %q", got)
 	}
 	c.running = true
 	c.status = "Running: read"
-	if got := c.statusLine(); got != "▶ running · Running: read" {
+	if got := c.statusLine(); got != "▶ Neo · bootstrap · low · m0/t0 · Running: read" {
 		t.Fatalf("running status line = %q", got)
 	}
 	c.running = false
 	checks := map[string]string{
-		"Queued follow-up":   "◷ queued · Queued follow-up",
-		"Tool failed: shell": "◆ tool · Tool failed: shell",
-		"Hook denied read":   "◇ hook · Hook denied read",
-		"Compacted context":  "◌ compact · Compacted context",
+		"Queued follow-up":   "◷ Neo · bootstrap · low · m0/t0 · Queued follow-up",
+		"Tool failed: shell": "◆ Neo · bootstrap · low · m0/t0 · Tool failed: shell",
+		"Hook denied read":   "◇ Neo · bootstrap · low · m0/t0 · Hook denied read",
+		"Compacted context":  "◌ Neo · bootstrap · low · m0/t0 · Compacted context",
 	}
 	for status, want := range checks {
 		c.status = status
@@ -1795,20 +1795,11 @@ func TestStatusLineClassifiesCommonStates(t *testing.T) {
 
 func TestFooterTextContainsStableHints(t *testing.T) {
 	c := &chatTUI{}
-	footer := c.footerTextForWidth(100)
-	for _, want := range []string{"enter send", "/ commands", "! bash", "ctrl-l model", "ctrl-d exit"} {
-		if !strings.Contains(footer, want) {
-			t.Fatalf("footer missing %q: %s", want, footer)
-		}
+	if footer := c.footerTextForWidth(100); footer != "" {
+		t.Fatalf("footer should be hidden, got %q", footer)
 	}
-	narrow := c.footerTextForWidth(60)
-	for _, want := range []string{"/help", "enter send", "ctrl-d exit"} {
-		if !strings.Contains(narrow, want) {
-			t.Fatalf("narrow footer missing %q: %s", want, narrow)
-		}
-	}
-	if strings.Contains(narrow, "/tools") || strings.Contains(narrow, "F2/F3") || strings.Contains(narrow, "Tab") {
-		t.Fatalf("narrow footer should stay compact: %s", narrow)
+	if narrow := c.footerTextForWidth(60); narrow != "" {
+		t.Fatalf("narrow footer should be hidden, got %q", narrow)
 	}
 }
 
