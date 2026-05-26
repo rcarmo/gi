@@ -1678,11 +1678,11 @@ func TestMultilineInputHelpLineFollowsFocusAndText(t *testing.T) {
 		t.Fatalf("blurred helpLine = %q", got)
 	}
 	inp.Focus()
-	if got := inp.helpLine(); got != "Enter send · Alt+Enter queue · Alt+Up restore · Shift+Enter newline" {
+	if got := inp.helpLine(); got != "" {
 		t.Fatalf("empty focused helpLine = %q", got)
 	}
 	inp.SetText("hello")
-	if got := inp.helpLine(); got != "Enter send · Alt+Enter queue · Alt+Up restore · Shift+Enter newline · Esc blur" {
+	if got := inp.helpLine(); got != "enter send · shift-enter newline" {
 		t.Fatalf("text focused helpLine = %q", got)
 	}
 }
@@ -1771,13 +1771,13 @@ func TestContextSummaryLinesWrapForNarrowWidth(t *testing.T) {
 	}
 	c := &chatTUI{store: s, sessionID: sess.ID, cfg: config.RuntimeConfig{DefaultModel: "opencode-zen/minimax-m2.5-free", DefaultProvider: "opencode-zen", DefaultThinkingLevel: "low"}}
 	lines := c.contextSummaryLines(60)
-	if len(lines) < 3 {
-		t.Fatalf("expected wrapped summary lines, got %#v", lines)
+	if len(lines) == 0 || len(lines) > 2 {
+		t.Fatalf("expected compact summary lines, got %#v", lines)
 	}
 	joined := strings.Join(lines, "\n")
-	for _, want := range []string{"Session:", "Agent:", "Model:", "Provider:", "Messages:", "Queued:", "Steering:"} {
+	for _, want := range []string{"@agent", "opencode-zen/minimax-m2.5-free", "low", "m0/t0"} {
 		if !strings.Contains(joined, want) {
-			t.Fatalf("responsive summary missing %q:\n%s", want, joined)
+			t.Fatalf("compact summary missing %q:\n%s", want, joined)
 		}
 	}
 }
@@ -1810,18 +1810,18 @@ func TestStatusLineClassifiesCommonStates(t *testing.T) {
 func TestFooterTextContainsStableHints(t *testing.T) {
 	c := &chatTUI{}
 	footer := c.footerTextForWidth(100)
-	for _, want := range []string{"Hints:", "/help", "/tools", "Tab complete", "Alt-Up restore", "F2/F3 history", "Ctrl-D quit"} {
+	for _, want := range []string{"enter send", "/ commands", "! bash", "ctrl-l model", "ctrl-d exit"} {
 		if !strings.Contains(footer, want) {
 			t.Fatalf("footer missing %q: %s", want, footer)
 		}
 	}
 	narrow := c.footerTextForWidth(60)
-	for _, want := range []string{"Hints:", "/help", "Enter send", "Ctrl-D quit"} {
+	for _, want := range []string{"/help", "enter send", "ctrl-d exit"} {
 		if !strings.Contains(narrow, want) {
 			t.Fatalf("narrow footer missing %q: %s", want, narrow)
 		}
 	}
-	if strings.Contains(narrow, "/tools") || strings.Contains(narrow, "F2/F3") {
+	if strings.Contains(narrow, "/tools") || strings.Contains(narrow, "F2/F3") || strings.Contains(narrow, "Tab") {
 		t.Fatalf("narrow footer should stay compact: %s", narrow)
 	}
 }

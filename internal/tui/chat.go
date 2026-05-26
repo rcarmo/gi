@@ -2131,13 +2131,6 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	ctxLines := c.contextSummaryLines(contentWidth)
 	root.AddChild(c.renderLineBlock(ctxLines, gotui.NewStyle().Dim()))
 
-	sep := gotui.New(
-		gotui.WithWidthPercent(100),
-		gotui.WithText(c.horizontalRule(contentWidth)),
-		gotui.WithTextStyle(gotui.NewStyle().Dim()),
-	)
-	root.AddChild(sep)
-
 	c.ensureInput()
 	c.input.width = contentWidth
 	inputHeight := c.input.Render(app).HeightForWidth(contentWidth)
@@ -2145,7 +2138,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 		inputHeight = 1
 	}
 	footerLines := c.wrapLines(c.footerTextForWidth(contentWidth), contentWidth)
-	reservedHeight := (padding * 2) + len(statusLines) + len(ctxLines) + 3 + inputHeight + len(footerLines)
+	reservedHeight := (padding * 2) + len(statusLines) + len(ctxLines) + 1 + inputHeight + len(footerLines)
 	transcriptHeight := h - reservedHeight
 	if transcriptHeight < 4 {
 		transcriptHeight = 4
@@ -2177,13 +2170,6 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	inputEl := app.MountPersistent(c, 0, func() gotui.Component { return c.input })
 	c.inputRegion = inputEl
 	root.AddChild(inputEl)
-
-	inputBottomSep := gotui.New(
-		gotui.WithWidthPercent(100),
-		gotui.WithText(c.horizontalRule(contentWidth)),
-		gotui.WithTextStyle(gotui.NewStyle().Dim()),
-	)
-	root.AddChild(inputBottomSep)
 
 	root.AddChild(c.renderLineBlock(footerLines, gotui.NewStyle().Dim()))
 
@@ -2217,9 +2203,9 @@ func (c *chatTUI) statusLine() string {
 
 func (c *chatTUI) footerTextForWidth(width int) string {
 	if width < 72 {
-		return "Hints: /help · Enter send · Esc blur · Tab focus · PgUp/PgDn scroll · Ctrl-D quit"
+		return "esc blur · enter send · /help · ctrl-d exit"
 	}
-	return "Hints: /help · /tools · /skills · /model · Ctrl-L model · Ctrl-T thinking · Tab complete · Alt-Up restore · /compact · /settings · /cancel · /agents · /fork · /switch · /send · Esc blur · F2/F3 history · PgUp/PgDn scroll · Ctrl-D quit"
+	return "enter send · shift-enter newline · / commands · ! bash · ctrl-l model · ctrl-t thinking · ctrl-d exit"
 }
 
 func (c *chatTUI) footerText() string {
@@ -2547,24 +2533,14 @@ func (c *chatTUI) contextSummaryData() tuiContextSummary {
 
 func (c *chatTUI) contextSummaryLines(width int) []string {
 	data := c.contextSummaryData()
-	if width >= 110 {
-		return c.wrapLines(fmt.Sprintf("Session: %s · Agent: @%s · Parent: %s · Model: %s · Provider: %s · Thinking: %s · Status: %s · Messages: %d · Turns: %d · Queued: %d · Steering: %d", data.sessionTitle, data.agentID, data.parent, data.model, data.provider, data.thinking, data.status, data.messageCount, data.turnCount, data.queuedTurns, data.steeringDepth), width)
+	line := fmt.Sprintf("@%s · %s · %s · m%d/t%d", data.agentID, data.model, data.thinking, data.messageCount, data.turnCount)
+	if data.queuedTurns > 0 || data.steeringDepth > 0 {
+		line += fmt.Sprintf(" · q%d/s%d", data.queuedTurns, data.steeringDepth)
 	}
-	if width >= 80 {
-		return []string{
-			fmt.Sprintf("Session: %s · Agent: @%s · Parent: %s", data.sessionTitle, data.agentID, data.parent),
-			fmt.Sprintf("Model: %s · Provider: %s · Thinking: %s · Status: %s", data.model, data.provider, data.thinking, data.status),
-			fmt.Sprintf("Messages: %d · Turns: %d · Queued: %d · Steering: %d", data.messageCount, data.turnCount, data.queuedTurns, data.steeringDepth),
-		}
+	if data.sessionTitle != "" && data.sessionTitle != "@"+data.agentID {
+		line = fmt.Sprintf("%s · %s", data.sessionTitle, line)
 	}
-	return []string{
-		fmt.Sprintf("Session: %s", data.sessionTitle),
-		fmt.Sprintf("Agent: @%s · Parent: %s", data.agentID, data.parent),
-		fmt.Sprintf("Model: %s", data.model),
-		fmt.Sprintf("Provider: %s · Thinking: %s", data.provider, data.thinking),
-		fmt.Sprintf("Status: %s · Messages: %d · Turns: %d", data.status, data.messageCount, data.turnCount),
-		fmt.Sprintf("Queued: %d · Steering: %d", data.queuedTurns, data.steeringDepth),
-	}
+	return c.wrapLines(line, width)
 }
 
 func (c *chatTUI) contextSummary() string {

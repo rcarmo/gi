@@ -7,7 +7,7 @@ Updated: 2026-05-25
 
 The gi TUI now covers the main interaction loop expected from a Pi-like terminal coding assistant:
 
-- boot with immediate status/context visibility
+- boot with compact status/context visibility and Pi-like low-clutter chrome
 - prompt submission with streaming output
 - runtime model/thinking/tool/session controls, including model/thinking cycling
 - Pi-like session commands (`/session`, `/new`, `/name`, `/resume`, `/clone`, `/reload`)
@@ -265,10 +265,10 @@ Observed state:
 
 Layout notes:
 
-- the 60x18 capture keeps session/model/provider/queue state readable and preserves footer hints without truncating the input prompt;
-- the 100x22 capture matches the target Pi-like hierarchy: status, session context, transcript, input, footer hints;
-- the 140x36 capture has extra transcript breathing room without changing command semantics;
-- Pi/Claude-style pixel parity is intentionally not promised; the accepted parity target is information hierarchy plus keyboard-only, tmux-friendly operation.
+- the decluttered 60x18 capture keeps status, agent/model/thinking, message/turn counts, input, and exit/help hints in four chrome lines plus one separator;
+- the 100x22 capture now follows Pi's lower-clutter hierarchy more closely: compact status/context, mostly blank transcript, single input divider, concise footer;
+- the 140x36 capture has extra transcript breathing room without adding extra dashboard chrome;
+- Pi/Claude-style pixel parity is intentionally not promised; the accepted parity target is low-clutter information hierarchy plus keyboard-only, tmux-friendly operation.
 
 ## Recommended next steps
 

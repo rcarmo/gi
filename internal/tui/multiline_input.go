@@ -205,9 +205,9 @@ func (m *multilineInput) helpLine() string {
 		return ""
 	}
 	if strings.TrimSpace(m.text) == "" {
-		return "Enter send · Alt+Enter queue · Alt+Up restore · Shift+Enter newline"
+		return ""
 	}
-	return "Enter send · Alt+Enter queue · Alt+Up restore · Shift+Enter newline · Esc blur"
+	return "enter send · shift-enter newline"
 }
 
 func (m *multilineInput) insertRune(ke gotui.KeyEvent) {
