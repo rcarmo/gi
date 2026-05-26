@@ -1794,12 +1794,15 @@ func TestStatusLineClassifiesCommonStates(t *testing.T) {
 }
 
 func TestFooterTextContainsStableHints(t *testing.T) {
-	c := &chatTUI{}
-	if footer := c.footerTextForWidth(100); footer != "" {
-		t.Fatalf("footer should be hidden, got %q", footer)
+	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: "/tmp/workspace-demo", DefaultModel: "provider/model", DefaultThinkingLevel: "low"}}
+	footer := c.footerTextForWidth(80)
+	for _, want := range []string{"workspace-demo", "provider/model", "low"} {
+		if !strings.Contains(footer, want) {
+			t.Fatalf("footer missing %q: %s", want, footer)
+		}
 	}
-	if narrow := c.footerTextForWidth(60); narrow != "" {
-		t.Fatalf("narrow footer should be hidden, got %q", narrow)
+	if strings.Contains(footer, "enter send") || strings.Contains(footer, "/ commands") {
+		t.Fatalf("footer should be status-only: %s", footer)
 	}
 }
 

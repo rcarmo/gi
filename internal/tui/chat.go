@@ -2118,9 +2118,6 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 		gotui.WithGap(0),
 	)
 
-	statusLines := c.wrapLines(c.statusLine(), contentWidth)
-	root.AddChild(c.renderLineBlock(statusLines, gotui.NewStyle().Bold()))
-
 	c.ensureInput()
 	c.input.width = contentWidth
 	inputHeight := c.input.Render(app).HeightForWidth(contentWidth)
@@ -2128,7 +2125,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 		inputHeight = 1
 	}
 	footerLines := c.wrapLines(c.footerTextForWidth(contentWidth), contentWidth)
-	reservedHeight := (padding * 2) + len(statusLines) + 1 + inputHeight + len(footerLines)
+	reservedHeight := (padding * 2) + 1 + inputHeight + len(footerLines)
 	transcriptHeight := h - reservedHeight
 	if transcriptHeight < 4 {
 		transcriptHeight = 4
@@ -2203,7 +2200,35 @@ func (c *chatTUI) statusLine() string {
 }
 
 func (c *chatTUI) footerTextForWidth(width int) string {
-	return ""
+	left := strings.TrimSpace(c.cfg.WorkspaceRoot)
+	if left == "" {
+		left = "."
+	} else if base := filepath.Base(left); base != "." && base != string(filepath.Separator) {
+		left = base
+	}
+	model := strings.TrimSpace(c.cfg.DefaultModel)
+	if model == "" {
+		model = "model unset"
+	}
+	thinking := strings.TrimSpace(c.cfg.DefaultThinkingLevel)
+	if thinking != "" {
+		model += " • " + thinking
+	}
+	if width <= 0 {
+		return left + "    " + model
+	}
+	if len(left)+len(model)+4 >= width {
+		leftWidth := width / 3
+		if leftWidth < 12 {
+			leftWidth = 12
+		}
+		modelWidth := width / 2
+		if modelWidth < 12 {
+			modelWidth = 12
+		}
+		return compactMaybe(left, true, leftWidth) + "  " + compactMaybe(model, true, modelWidth)
+	}
+	return left + strings.Repeat(" ", width-len(left)-len(model)) + model
 }
 
 func (c *chatTUI) footerText() string {
