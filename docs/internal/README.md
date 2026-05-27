@@ -43,6 +43,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `runtime-package-inventory.md` — package/file ownership map for runtime refactor surfaces (`turn`, `session`, `routing`, `store`, `web`, `tui`, script bridge)
 - `runtime-surfaces.md` — living index for the top runtime surfaces and their canonical docs/owners
 - `picoclaw-parity-status.md` — private/internal parity audit for PicoClaw-inspired runtime semantics that Gi has ported, adapted, or intentionally rejected
+- `piclaw-fit-gap.md` — current Gi / PiClaw fit-gap across runtime, web, TUI, media, extensions, and CI
 - `repo-structure-refactor.md` — interim repository-structure reassessment and functional regrouping plan for the runtime refactor
 - `subturn-runtime.md` — concrete sub-turn runtime contract, limits, store APIs, and current implementation status
 - `tui-stack-evaluation.md` — decision record for keeping the current Gi TUI stack instead of switching to PicoClaw/Pi's launcher/TUI stack now
