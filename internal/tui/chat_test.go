@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	gotui "github.com/grindlemire/go-tui"
 	"github.com/rcarmo/gi/internal/config"
@@ -679,32 +680,32 @@ func TestHandleTopicEventCompactionAndRoutingRendering(t *testing.T) {
 func TestHandleTopicEventInboundWorkRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_enqueued", "source_kind": "ipc", "status": "queued"}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work queued (ipc) [queued]" {
-		t.Fatalf("inbound work enqueue transcript = %q", got)
+	if c.status != "inbound work queued (ipc) [queued]" || len(c.transcript) != 0 {
+		t.Fatalf("inbound work enqueue status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_retry_scheduled", "source_kind": "ipc", "status": "retry", "attempt_count": 2}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work retry scheduled (ipc) attempt 2 [retry]" {
-		t.Fatalf("inbound work retry transcript = %q", got)
+	if c.status != "inbound work retry scheduled (ipc) attempt 2 [retry]" || len(c.transcript) != 0 {
+		t.Fatalf("inbound work retry status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_requeued", "source_kind": "ipc", "status": "queued"}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work requeued (ipc) [queued]" {
-		t.Fatalf("inbound work requeued transcript = %q", got)
+	if c.status != "inbound work requeued (ipc) [queued]" || len(c.transcript) != 0 {
+		t.Fatalf("inbound work requeued status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_discarded", "source_kind": "ipc", "status": "discarded"}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work discarded (ipc) [discarded]" {
-		t.Fatalf("inbound work discarded transcript = %q", got)
+	if c.status != "inbound work discarded (ipc) [discarded]" || len(c.transcript) != 0 {
+		t.Fatalf("inbound work discarded status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_failed", "source_kind": "ipc", "status": "failed", "error": "decode failed"}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound work failed (ipc) [failed]: decode failed" {
-		t.Fatalf("inbound work failed transcript = %q", got)
+	if c.status != "inbound work failed (ipc) [failed]: decode failed" || len(c.transcript) != 0 {
+		t.Fatalf("inbound work failed status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.dispatcher", Payload: map[string]any{"type": "dispatcher_lease_acquired", "worker_id": "worker-1"}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound dispatcher lease acquired [worker-1]" {
-		t.Fatalf("dispatcher lease transcript = %q", got)
+	if c.status != "inbound dispatcher lease acquired [worker-1]" || len(c.transcript) != 0 {
+		t.Fatalf("dispatcher lease status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.dispatcher", Payload: map[string]any{"type": "dispatcher_drain_completed", "worker_id": "worker-1", "processed_count": 3}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: inbound dispatcher drain completed (3 processed) [worker-1]" {
-		t.Fatalf("dispatcher drain transcript = %q", got)
+	if c.status != "inbound dispatcher drain completed (3 processed) [worker-1]" || len(c.transcript) != 0 {
+		t.Fatalf("dispatcher drain status/transcript = %q %#v", c.status, c.transcript)
 	}
 }
 
@@ -766,20 +767,20 @@ func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 func TestHandleTopicEventHookInvocationErrorRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_invocation", "hook": "tool_call", "tool": "grep", "error": "timed out after 1500ms"}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: hook invocation error via tool_call for grep: timed out after 1500ms" {
-		t.Fatalf("hook invocation error transcript = %q", got)
+	if c.status != "hook invocation error via tool_call for grep: timed out after 1500ms" || len(c.transcript) != 0 {
+		t.Fatalf("hook invocation status/transcript = %q %#v", c.status, c.transcript)
 	}
 }
 
 func TestHandleTopicEventHookDecisionRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_modify", "hook": "tool_call", "tool": "grep"}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: hook modified via tool_call for grep" {
-		t.Fatalf("hook modify transcript = %q", got)
+	if c.status != "hook modified via tool_call for grep" || len(c.transcript) != 0 {
+		t.Fatalf("hook modify status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_respond", "hook": "tool_call", "tool": "grep"}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: hook responded directly via tool_call for grep" {
-		t.Fatalf("hook respond transcript = %q", got)
+	if c.status != "hook responded directly via tool_call for grep" || len(c.transcript) != 0 {
+		t.Fatalf("hook respond status/transcript = %q %#v", c.status, c.transcript)
 	}
 }
 
@@ -791,12 +792,12 @@ func TestHandleTopicEventStatusRendering(t *testing.T) {
 		t.Fatalf("tool started status = running=%v status=%q", c.running, c.status)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Payload: map[string]any{"type": "tool_skipped", "tool": "shell", "reason": "queued user steering message"}})
-	if len(c.transcript) == 0 || c.transcript[len(c.transcript)-1] != "sys: tool skipped: shell: queued user steering message" {
-		t.Fatalf("tool skipped transcript = %#v", c.transcript)
+	if c.status != "Tool skipped: shell: queued user steering message" || len(c.transcript) != 0 {
+		t.Fatalf("tool skipped status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_deny", "hook": "approve_tool", "tool": "shell", "reason": "tool not approved"}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: hook hook_deny via approve_tool for shell: tool not approved" {
-		t.Fatalf("hook deny transcript = %q", got)
+	if c.status != "hook hook_deny via approve_tool for shell: tool not approved" || len(c.transcript) != 0 {
+		t.Fatalf("hook deny status/transcript = %q %#v", c.status, c.transcript)
 	}
 }
 
@@ -1803,6 +1804,14 @@ func TestFooterTextContainsStableHints(t *testing.T) {
 	}
 	if strings.Contains(statusLine, "enter send") || strings.Contains(statusLine, "/ commands") {
 		t.Fatalf("footer should be status-only: %s", statusLine)
+	}
+	c.status = "Running: read file with a very long path that must not wrap onto another physical footer row"
+	statusLine = c.footerStatusLineForWidth(48)
+	if strings.Contains(statusLine, "\n") || utf8.RuneCountInString(statusLine) > 48 {
+		t.Fatalf("status footer should stay one truncated line: len=%d %q", utf8.RuneCountInString(statusLine), statusLine)
+	}
+	if !strings.Contains(statusLine, "provider/model") && !strings.Contains(statusLine, "…") {
+		t.Fatalf("status footer should retain right-side model/truncation cue: %s", statusLine)
 	}
 }
 

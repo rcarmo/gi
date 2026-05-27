@@ -12,22 +12,22 @@
 
 - [ ] Capture current Pi reference panes at 60x18, 100x22, 140x36 for empty/startup, command, prompt, queued/error where practical
 - [ ] Capture current Gi panes for the same states
-- [ ] Write an explicit TUI layout contract doc defining row order, bottom band rows, truncation, and notification behavior
+- [x] Write an explicit TUI layout contract doc defining row order, bottom band rows, truncation, and notification behavior
 - [ ] Add deterministic capture fixtures/scripts for Gi layout regression
-- [ ] Remove any remaining non-Pi top/mid chrome in steady-state render paths
-- [ ] Ensure empty input row matches Pi visually
-- [ ] Ensure the bottom band uses exactly: separator, editor row, separator, path/branch row, single status row
-- [ ] Add/update tests for render height budgeting and bottom-band content
+- [x] Remove any remaining non-Pi top/mid chrome in steady-state render paths
+- [x] Ensure empty input row matches Pi visually
+- [x] Ensure the bottom band uses exactly: separator, editor row, separator, path/branch row, single status row
+- [x] Add/update tests for render height budgeting and bottom-band content
 
 ## Phase 2: single-line status semantics
 
-- [ ] Inventory all current status/notification writers (`status`, transcript sys lines, topic renderers)
-- [ ] Define severity/priority rules for the single status line
-- [ ] Route transient notifications into the bottom status line when they should not become transcript history
-- [ ] Keep durable/history-worthy events in transcript only when useful
-- [ ] Add m/t/q/s metrics and model/thinking right-alignment without wrapping
+- [x] Inventory all current status/notification writers (`status`, transcript sys lines, topic renderers)
+- [x] Define severity/priority rules for the single status line
+- [x] Route transient notifications into the bottom status line when they should not become transcript history
+- [x] Keep durable/history-worthy events in transcript only when useful
+- [x] Add m/t/q/s metrics and model/thinking right-alignment without wrapping
 - [ ] Add token/context/cost placeholders only if data exists; never add a second line
-- [ ] Add tests for truncation, priority, queued/running/error/tool states
+- [x] Add tests for truncation, priority, queued/running/error/tool states
 
 ## Phase 3: prompt/model interaction screenshots
 
@@ -44,7 +44,7 @@
 
 ## Validation
 
-- [ ] Run `go test ./internal/tui` after each TUI slice
+- [x] Run `go test ./internal/tui` after each TUI slice
 - [ ] Run targeted web/turn tests for status/topic changes if touched
 - [ ] Run `go test ./...` and `go vet ./...` before closing the convergence track
 - [ ] Push committed slices to `origin/main`

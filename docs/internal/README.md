@@ -52,6 +52,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `media-ingestion-contract.md` — shared web/TUI/API media reference, storage, limits, and provider-projection contract
 - `tui-picker-collapse-widgets.md` — current Go TUI picker/collapse capability audit and textual-picker policy
 - `tui-pi-layout-contract.md` — Pi-identical TUI row-order/status-line contract for the current convergence track
+- `tui-status-line-semantics.md` — single physical bottom status/notification line semantics and transcript-vs-status rules
 - `deferred-tui-parity-closure.md` — closure summary for the post-clipboard deferred TUI parity plan
 - `extension-command-semantics.md` — design contract for future Joker/JS/process extension TUI command registration
 - `scripting/namespaces.md` — extension-author reference for `gi.state`, `gi.topics`, and `gi.runtime` semantics

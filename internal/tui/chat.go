@@ -554,7 +554,7 @@ func (c *chatTUI) renderHookEvent(eventTypeValue, hookNameValue, reasonValue, to
 		} else if errText != "" {
 			line += ": " + truncate(errText, 120)
 		}
-		c.appendTranscript(line)
+		c.status = strings.TrimPrefix(line, "sys: ")
 	}
 }
 
@@ -589,7 +589,7 @@ func (c *chatTUI) renderInboundWorkEvent(eventTypeValue, sourceKindValue, status
 		if errText != "" {
 			line += ": " + truncate(errText, 120)
 		}
-		c.appendTranscript(line)
+		c.status = strings.TrimPrefix(line, "sys: ")
 	}
 }
 
@@ -619,7 +619,7 @@ func (c *chatTUI) renderDispatcherEvent(eventTypeValue, workerIDValue, processed
 		if errText != "" {
 			line += ": " + truncate(errText, 120)
 		}
-		c.appendTranscript(line)
+		c.status = strings.TrimPrefix(line, "sys: ")
 	}
 }
 
@@ -654,11 +654,11 @@ func (c *chatTUI) renderToolEvent(eventTypeValue, toolNameValue, errValue, reaso
 		c.appendTranscript(line)
 		c.status = fmt.Sprintf("Tool failed: %s", toolName)
 	case "tool_skipped":
-		line := fmt.Sprintf("sys: tool skipped: %s", toolName)
+		line := fmt.Sprintf("Tool skipped: %s", toolName)
 		if reason != "" {
 			line = fmt.Sprintf("%s: %s", line, truncate(reason, 120))
 		}
-		c.appendTranscript(line)
+		c.status = line
 	}
 }
 
@@ -2199,8 +2199,22 @@ func (c *chatTUI) footerStatusLineForWidth(width int) string {
 	if thinking != "" {
 		model += " • " + thinking
 	}
-	if width <= 0 || len(left)+len(model)+2 >= width {
+	if width <= 0 {
 		return compactMaybe(left, true, 24) + "  " + compactMaybe(model, true, 36)
+	}
+	if len(left)+len(model)+2 >= width {
+		modelWidth := 36
+		if modelWidth > width/2 {
+			modelWidth = width / 2
+		}
+		if modelWidth < 12 {
+			modelWidth = 12
+		}
+		leftWidth := width - modelWidth - 2
+		if leftWidth < 8 {
+			leftWidth = 8
+		}
+		return compactMaybe(left, true, leftWidth) + "  " + compactMaybe(model, true, modelWidth)
 	}
 	return left + strings.Repeat(" ", width-len(left)-len(model)) + model
 }
