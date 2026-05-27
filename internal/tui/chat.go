@@ -2171,40 +2171,6 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	return root
 }
 
-func (c *chatTUI) statusLine() string {
-	state := "idle"
-	icon := "●"
-	status := strings.TrimSpace(c.status)
-	lower := strings.ToLower(status)
-	switch {
-	case c.running || strings.Contains(lower, "thinking") || strings.Contains(lower, "running"):
-		state, icon = "running", "▶"
-	case strings.Contains(lower, "queued"):
-		state, icon = "queued", "◷"
-	case strings.Contains(lower, "tool"):
-		state, icon = "tool", "◆"
-	case strings.Contains(lower, "hook"):
-		state, icon = "hook", "◇"
-	case strings.Contains(lower, "failed") || strings.Contains(lower, "error"):
-		state, icon = "error", "!"
-	case strings.Contains(lower, "compact"):
-		state, icon = "compact", "◌"
-	}
-	data := c.contextSummaryData()
-	model := data.model
-	if model == "" {
-		model = c.cfg.DefaultModel
-	}
-	base := fmt.Sprintf("%s %s · %s · %s · m%d/t%d", icon, c.cfg.AssistantName, model, data.thinking, data.messageCount, data.turnCount)
-	if data.queuedTurns > 0 || data.steeringDepth > 0 {
-		base += fmt.Sprintf(" · q%d/s%d", data.queuedTurns, data.steeringDepth)
-	}
-	if state != "idle" || (status != "" && !strings.Contains(status, c.cfg.DefaultModel)) {
-		base += fmt.Sprintf(" · %s", strings.TrimSpace(status))
-	}
-	return base
-}
-
 func (c *chatTUI) footerPathLineForWidth(width int) string {
 	workspace := strings.TrimSpace(c.cfg.WorkspaceRoot)
 	if workspace == "" {
@@ -2221,14 +2187,7 @@ func (c *chatTUI) footerPathLineForWidth(width int) string {
 
 func (c *chatTUI) footerStatusLineForWidth(width int) string {
 	data := c.contextSummaryData()
-	left := fmt.Sprintf("m%d/t%d", data.messageCount, data.turnCount)
-	if data.queuedTurns > 0 || data.steeringDepth > 0 {
-		left += fmt.Sprintf(" q%d/s%d", data.queuedTurns, data.steeringDepth)
-	}
-	status := strings.TrimSpace(c.status)
-	if status != "" && !strings.Contains(status, c.cfg.DefaultModel) && !strings.Contains(status, data.model) {
-		left = compactMaybe(status, true, 42)
-	}
+	left := c.footerNotificationText(data)
 	model := strings.TrimSpace(data.model)
 	if model == "" {
 		model = strings.TrimSpace(c.cfg.DefaultModel)
@@ -2244,6 +2203,18 @@ func (c *chatTUI) footerStatusLineForWidth(width int) string {
 		return compactMaybe(left, true, 24) + "  " + compactMaybe(model, true, 36)
 	}
 	return left + strings.Repeat(" ", width-len(left)-len(model)) + model
+}
+
+func (c *chatTUI) footerNotificationText(data tuiContextSummary) string {
+	status := strings.TrimSpace(c.status)
+	if status != "" && !strings.Contains(status, c.cfg.DefaultModel) && !strings.Contains(status, data.model) {
+		return status
+	}
+	left := fmt.Sprintf("m%d/t%d", data.messageCount, data.turnCount)
+	if data.queuedTurns > 0 || data.steeringDepth > 0 {
+		left += fmt.Sprintf(" q%d/s%d", data.queuedTurns, data.steeringDepth)
+	}
+	return left
 }
 
 func (c *chatTUI) footerTextForWidth(width int) string {

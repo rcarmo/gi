@@ -1768,27 +1768,16 @@ func TestContextSummaryLinesWrapForNarrowWidth(t *testing.T) {
 	}
 }
 
-func TestStatusLineClassifiesCommonStates(t *testing.T) {
+func TestFooterNotificationTextClassifiesCommonStates(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap", DefaultThinkingLevel: "low"}, status: "Neo · bootstrap"}
-	if got := c.statusLine(); got != "● Neo · bootstrap · low · m0/t0" {
-		t.Fatalf("idle status line = %q", got)
+	data := c.contextSummaryData()
+	if got := c.footerNotificationText(data); got != "m0/t0" {
+		t.Fatalf("idle footer notification = %q", got)
 	}
-	c.running = true
-	c.status = "Running: read"
-	if got := c.statusLine(); got != "▶ Neo · bootstrap · low · m0/t0 · Running: read" {
-		t.Fatalf("running status line = %q", got)
-	}
-	c.running = false
-	checks := map[string]string{
-		"Queued follow-up":   "◷ Neo · bootstrap · low · m0/t0 · Queued follow-up",
-		"Tool failed: shell": "◆ Neo · bootstrap · low · m0/t0 · Tool failed: shell",
-		"Hook denied read":   "◇ Neo · bootstrap · low · m0/t0 · Hook denied read",
-		"Compacted context":  "◌ Neo · bootstrap · low · m0/t0 · Compacted context",
-	}
-	for status, want := range checks {
+	for _, status := range []string{"Running: read", "Queued follow-up", "Tool failed: shell", "Hook denied read", "Compacted context"} {
 		c.status = status
-		if got := c.statusLine(); got != want {
-			t.Fatalf("statusLine(%q) = %q, want %q", status, got, want)
+		if got := c.footerNotificationText(data); got != status {
+			t.Fatalf("footerNotificationText(%q) = %q", status, got)
 		}
 	}
 }
