@@ -2124,8 +2124,9 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	if inputHeight < 1 {
 		inputHeight = 1
 	}
-	footerLines := c.wrapLines(c.footerTextForWidth(contentWidth), contentWidth)
-	reservedHeight := (padding * 2) + 1 + inputHeight + len(footerLines)
+	pathLine := c.footerPathLineForWidth(contentWidth)
+	statusLine := c.footerStatusLineForWidth(contentWidth)
+	reservedHeight := (padding * 2) + 2 + inputHeight + 2
 	transcriptHeight := h - reservedHeight
 	if transcriptHeight < 4 {
 		transcriptHeight = 4
@@ -2158,9 +2159,14 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	c.inputRegion = inputEl
 	root.AddChild(inputEl)
 
-	if len(footerLines) > 0 {
-		root.AddChild(c.renderLineBlock(footerLines, gotui.NewStyle().Dim()))
-	}
+	inputBottomSep := gotui.New(
+		gotui.WithWidthPercent(100),
+		gotui.WithText(c.horizontalRule(contentWidth)),
+		gotui.WithTextStyle(gotui.NewStyle().Dim()),
+	)
+	root.AddChild(inputBottomSep)
+
+	root.AddChild(c.renderLineBlock([]string{pathLine, statusLine}, gotui.NewStyle().Dim()))
 
 	return root
 }
@@ -2199,40 +2205,73 @@ func (c *chatTUI) statusLine() string {
 	return base
 }
 
-func (c *chatTUI) footerTextForWidth(width int) string {
-	left := strings.TrimSpace(c.cfg.WorkspaceRoot)
-	if left == "" {
-		left = "."
-	} else if base := filepath.Base(left); base != "." && base != string(filepath.Separator) {
-		left = base
+func (c *chatTUI) footerPathLineForWidth(width int) string {
+	workspace := strings.TrimSpace(c.cfg.WorkspaceRoot)
+	if workspace == "" {
+		workspace = "."
 	}
-	model := strings.TrimSpace(c.cfg.DefaultModel)
+	if branch := c.gitBranchName(workspace); branch != "" {
+		workspace += " (" + branch + ")"
+	}
+	if width > 0 {
+		return compactMaybe(workspace, true, width)
+	}
+	return workspace
+}
+
+func (c *chatTUI) footerStatusLineForWidth(width int) string {
+	data := c.contextSummaryData()
+	left := fmt.Sprintf("m%d/t%d", data.messageCount, data.turnCount)
+	if data.queuedTurns > 0 || data.steeringDepth > 0 {
+		left += fmt.Sprintf(" q%d/s%d", data.queuedTurns, data.steeringDepth)
+	}
+	status := strings.TrimSpace(c.status)
+	if status != "" && !strings.Contains(status, c.cfg.DefaultModel) && !strings.Contains(status, data.model) {
+		left = compactMaybe(status, true, 42)
+	}
+	model := strings.TrimSpace(data.model)
+	if model == "" {
+		model = strings.TrimSpace(c.cfg.DefaultModel)
+	}
 	if model == "" {
 		model = "model unset"
 	}
-	thinking := strings.TrimSpace(c.cfg.DefaultThinkingLevel)
+	thinking := strings.TrimSpace(data.thinking)
 	if thinking != "" {
 		model += " • " + thinking
 	}
-	if width <= 0 {
-		return left + "    " + model
-	}
-	if len(left)+len(model)+4 >= width {
-		leftWidth := width / 3
-		if leftWidth < 12 {
-			leftWidth = 12
-		}
-		modelWidth := width / 2
-		if modelWidth < 12 {
-			modelWidth = 12
-		}
-		return compactMaybe(left, true, leftWidth) + "  " + compactMaybe(model, true, modelWidth)
+	if width <= 0 || len(left)+len(model)+2 >= width {
+		return compactMaybe(left, true, 24) + "  " + compactMaybe(model, true, 36)
 	}
 	return left + strings.Repeat(" ", width-len(left)-len(model)) + model
 }
 
+func (c *chatTUI) footerTextForWidth(width int) string {
+	return c.footerStatusLineForWidth(width)
+}
+
 func (c *chatTUI) footerText() string {
 	return c.footerTextForWidth(c.currentContentWidth())
+}
+
+func (c *chatTUI) gitBranchName(workspace string) string {
+	if workspace == "" {
+		return ""
+	}
+	headPath := filepath.Join(workspace, ".git", "HEAD")
+	raw, err := os.ReadFile(headPath)
+	if err != nil {
+		return ""
+	}
+	head := strings.TrimSpace(string(raw))
+	const prefix = "ref: refs/heads/"
+	if strings.HasPrefix(head, prefix) {
+		return strings.TrimPrefix(head, prefix)
+	}
+	if len(head) >= 7 {
+		return head[:7]
+	}
+	return head
 }
 
 func (c *chatTUI) currentPadding() int {

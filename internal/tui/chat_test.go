@@ -1794,15 +1794,26 @@ func TestStatusLineClassifiesCommonStates(t *testing.T) {
 }
 
 func TestFooterTextContainsStableHints(t *testing.T) {
-	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: "/tmp/workspace-demo", DefaultModel: "provider/model", DefaultThinkingLevel: "low"}}
-	footer := c.footerTextForWidth(80)
-	for _, want := range []string{"workspace-demo", "provider/model", "low"} {
-		if !strings.Contains(footer, want) {
-			t.Fatalf("footer missing %q: %s", want, footer)
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".git", "HEAD"), []byte("ref: refs/heads/main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultModel: "provider/model", DefaultThinkingLevel: "low"}}
+	pathLine := c.footerPathLineForWidth(80)
+	if !strings.Contains(pathLine, filepath.Base(root)) || !strings.Contains(pathLine, "(main)") {
+		t.Fatalf("path footer missing workspace/branch: %s", pathLine)
+	}
+	statusLine := c.footerStatusLineForWidth(80)
+	for _, want := range []string{"m0/t0", "provider/model", "low"} {
+		if !strings.Contains(statusLine, want) {
+			t.Fatalf("status footer missing %q: %s", want, statusLine)
 		}
 	}
-	if strings.Contains(footer, "enter send") || strings.Contains(footer, "/ commands") {
-		t.Fatalf("footer should be status-only: %s", footer)
+	if strings.Contains(statusLine, "enter send") || strings.Contains(statusLine, "/ commands") {
+		t.Fatalf("footer should be status-only: %s", statusLine)
 	}
 }
 
