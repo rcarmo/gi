@@ -1647,13 +1647,13 @@ func TestMultilineInputExpandsForWrappedText(t *testing.T) {
 func TestMultilineInputPlaceholderShowsFocusState(t *testing.T) {
 	inp := newMultilineInput(40, "Send a message…", nil, nil)
 	lines := inp.renderLines()
-	if len(lines) != 1 || lines[0].text != "○ Send a message…" || !lines[0].placeholder {
+	if len(lines) != 1 || lines[0].text != "" || !lines[0].placeholder {
 		t.Fatalf("blurred placeholder lines = %#v", lines)
 	}
 	inp.Focus()
 	inp.blink = true
 	lines = inp.renderLines()
-	if len(lines) != 1 || lines[0].text != "● ▌Send a message…" || !lines[0].placeholder {
+	if len(lines) != 1 || lines[0].text != "▌" || !lines[0].placeholder {
 		t.Fatalf("focused placeholder lines = %#v", lines)
 	}
 }

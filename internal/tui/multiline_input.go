@@ -152,15 +152,11 @@ type renderedLine struct {
 }
 
 func (m *multilineInput) renderLines() []renderedLine {
-	if m.text == "" && !m.focused && m.placeholder != "" {
-		return []renderedLine{{text: "○ " + m.placeholder, placeholder: true}}
-	}
-	if m.text == "" && m.focused && m.placeholder != "" {
-		prefix := "● "
-		if m.blink {
-			prefix += string(m.cursorRune)
+	if m.text == "" {
+		if m.focused && m.blink {
+			return []renderedLine{{text: string(m.cursorRune), placeholder: true}}
 		}
-		return []renderedLine{{text: prefix + m.placeholder, placeholder: true}}
+		return []renderedLine{{text: "", placeholder: true}}
 	}
 	visibleWidth := m.width
 	if m.border != gotui.BorderNone {
