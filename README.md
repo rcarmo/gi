@@ -50,8 +50,19 @@ If a change adds or materially changes an internal tool, scripting bridge capabi
 
 ### Targets
 
+Start with:
+
+```sh
+make bootstrap
+```
+
+That installs Go/Bun dependencies, installs Playwright Chromium, and builds `gi` on a fresh machine.
+
 | Target | Description |
 |---|---|
+| `make help` | Show the grouped target list |
+| `make bootstrap` | Install dependencies, install Playwright Chromium, and build `gi` |
+| `make deps` | Download Go modules and install Bun packages |
 | `make start` | Build and start gi detached on port 8090 |
 | `make stop` | Stop the detached process |
 | `make restart` | Restart it |
@@ -61,10 +72,12 @@ If a change adds or materially changes an internal tool, scripting bridge capabi
 | `make build` | Build the main `gi` binary (includes `build-web`) |
 | `make build-web` | Bundle web assets via Bun |
 | `make test` | Go unit tests |
-| `make test-ux` | Playwright tests against isolated instance (artifacts under `test-results/`) |
-| `make test-tui-smoke` | tmux-driven TUI smoke test (artifacts under `test-results/tui-smoke/`) |
 | `make vet` | Go vet |
 | `make bun-checks` | Hook TDZ checker |
+| `make check` | Run the standard verification suite |
+| `make test-ux` | Playwright tests against isolated instance (artifacts under `test-results/`) |
+| `make test-tui-smoke` | tmux-driven TUI smoke test (artifacts under `test-results/tui-smoke/`) |
+| `make test-tui-gherkin` | TUI gherkin harness |
 | `make clean` | Remove build/run artifacts |
 
 ### Override defaults
@@ -137,9 +150,10 @@ Auth is loaded from `~/.pi/agent/auth.json`. The system prompt is loaded from `A
 
 ```sh
 make test       # Go unit tests
-make test-ux    # 13 Playwright tests against isolated fresh instance
+make test-ux    # Playwright tests against an isolated fresh instance
 make vet        # go vet
 make bun-checks # hook TDZ checker
+make check      # standard verification suite
 ```
 
 The `test-ux` target creates a completely isolated test environment with its own database, workspace, and config — no state leaks between test runs.
