@@ -97,6 +97,10 @@ type piSettings struct {
 }
 
 func Load(workspaceRoot string) RuntimeConfig {
+	workspaceRoot = strings.TrimSpace(workspaceRoot)
+	if workspaceRoot == "" {
+		workspaceRoot = DefaultWorkspaceRoot()
+	}
 	cfg := RuntimeConfig{WorkspaceRoot: workspaceRoot, Compaction: CompactionSettings{Enabled: true}, InboundWork: InboundWorkSettings{Enabled: true}}
 	var pc piclawConfig
 	if err := readJSON(filepath.Join(workspaceRoot, ".piclaw", "config.json"), &pc); err == nil {

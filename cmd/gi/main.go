@@ -27,6 +27,18 @@ import (
 )
 
 func main() {
+	if len(os.Args) == 1 {
+		workspaceRoot := config.DefaultWorkspaceRoot()
+		dbPath := config.DefaultTUIDBPath()
+		if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+			log.Fatalf("create tui db dir: %v", err)
+		}
+		if err := gitui.Run(dbPath, workspaceRoot, ""); err != nil {
+			log.Fatalf("tui: %v", err)
+		}
+		return
+	}
+
 	listen := flag.String("listen", "", "HTTP listen address (overrides -bind/-port)")
 	bind := flag.String("bind", "127.0.0.1", "Bind address / interface host")
 	port := flag.Int("port", 8081, "HTTP port")
@@ -37,8 +49,8 @@ func main() {
 	acmeCache := flag.String("acme-cache", "sqlite", "ACME certificate cache: sqlite, vfs, or filesystem directory path")
 	acmeAcceptTOS := flag.Bool("acme-accept-tos", false, "Accept the ACME CA terms of service")
 	acmeHTTPListen := flag.String("acme-http-listen", ":http", "HTTP listen address for ACME HTTP-01 challenges and redirects; empty disables")
-	dbPath := flag.String("db", "./gi.db", "SQLite database path")
-	workspace := flag.String("workspace", "/workspace", "Workspace root")
+	dbPath := flag.String("db", config.DefaultTUIDBPath(), "SQLite database path")
+	workspace := flag.String("workspace", config.DefaultWorkspaceRoot(), "Workspace root")
 	model := flag.String("model", "", "Override default model (e.g. gemma4:latest)")
 	logFile := flag.String("log-file", "", "Optional log file path")
 	pidFile := flag.String("pid-file", "", "Optional pid file path")

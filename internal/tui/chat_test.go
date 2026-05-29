@@ -52,6 +52,35 @@ func TestHandleMouseWheelScrollsTranscript(t *testing.T) {
 	}
 }
 
+func TestHandleMouseWheelUsesTranscriptRegionScrollEvent(t *testing.T) {
+	transcript := gotui.New(
+		gotui.WithWidth(20),
+		gotui.WithHeight(3),
+		gotui.WithScrollable(gotui.ScrollVertical),
+		gotui.WithScrollOffset(0, 2),
+	)
+	for _, line := range []string{"1", "2", "3", "4", "5", "6"} {
+		transcript.AddChild(gotui.New(gotui.WithWidth(20), gotui.WithHeight(1), gotui.WithText(line)))
+	}
+	buf := gotui.NewBuffer(20, 10)
+	transcript.Render(buf, 20, 10)
+
+	c := &chatTUI{
+		transcript:       []string{"1", "2", "3", "4", "5", "6"},
+		transcriptScroll: 2,
+		transcriptRef:    gotui.NewRef(),
+		transcriptRegion: transcript,
+	}
+	c.transcriptRef.Set(transcript)
+
+	if !c.HandleMouse(gotui.MouseEvent{Button: gotui.MouseWheelUp, Action: gotui.MousePress, X: 0, Y: 0}) {
+		t.Fatal("expected transcript-region wheel event to be consumed")
+	}
+	if c.transcriptScroll != 1 {
+		t.Fatalf("expected transcript scroll to sync from standard scroll event, got %d", c.transcriptScroll)
+	}
+}
+
 func TestVisibleTranscriptDoesNotMutateDraftLineIndex(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{ScrollbackLimit: 3}, transcript: []string{"1", "2", "3", "4"}, draftLineIndex: 3}
 	_ = c.visibleTranscript()
@@ -563,12 +592,12 @@ func TestInitialSessionIDPrefersMainSession(t *testing.T) {
 	}
 	defer s.Close()
 	ctx := context.Background()
-	allocA := gisession.AllocateDefaultSession("agent", "gi", "default", "session_main_a")
-	if _, err := s.CreateSessionWithMetadata(ctx, "session_main_a", "", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}, &allocA.Scope, allocA.SessionAliases); err != nil {
+	allocA := gisession.AllocateDefaultSession(defaultTUIAgentID, "gi", "default", "session_main_a")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_main_a", "", "@"+defaultTUIAgentID, map[string]any{"model": "bootstrap", "status": "idle"}, &allocA.Scope, allocA.SessionAliases); err != nil {
 		t.Fatalf("create session a: %v", err)
 	}
-	allocB := gisession.AllocateDefaultSession("agent", "gi", "default", "session_main_b")
-	if _, err := s.CreateSessionWithMetadata(ctx, "session_main_b", "", "@agent", map[string]any{"model": "bootstrap", "status": "idle"}, &allocB.Scope, allocB.SessionAliases); err != nil {
+	allocB := gisession.AllocateDefaultSession(defaultTUIAgentID, "gi", "default", "session_main_b")
+	if _, err := s.CreateSessionWithMetadata(ctx, "session_main_b", "", "@"+defaultTUIAgentID, map[string]any{"model": "bootstrap", "status": "idle"}, &allocB.Scope, allocB.SessionAliases); err != nil {
 		t.Fatalf("create session b: %v", err)
 	}
 	if err := s.SetMainSession(ctx, "session_main_b"); err != nil {
@@ -1622,17 +1651,37 @@ func TestRenderMessageLinesFormatsTableResponsively(t *testing.T) {
 
 func TestRenderMessageLineFoldsToolAndCompaction(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
-	toolLine := c.renderMessageLine(store.Message{Role: "tool_result", Content: "long tool output", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": false}})
-	if toolLine != "tool[shell/ok]: long tool output" {
-		t.Fatalf("tool line = %q", toolLine)
+	toolLines := c.renderToolResultLines(store.Message{Role: "tool_result", Content: "long tool output", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": false}})
+	if len(toolLines) != 1 || toolLines[0] != "tool[shell/ok]: long tool output" {
+		t.Fatalf("tool lines = %#v", toolLines)
 	}
-	multilineToolLine := c.renderMessageLine(store.Message{Role: "tool_result", Content: "first line\nsecond line\nthird line", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": true}})
-	if multilineToolLine != "tool[shell/error]: 3 lines · first line" {
-		t.Fatalf("multiline tool line = %q", multilineToolLine)
+	multilineToolLines := c.renderToolResultLines(store.Message{Role: "tool_result", Content: "first line\nsecond line\nthird line", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": true}})
+	joined := strings.Join(multilineToolLines, "\n")
+	for _, want := range []string{"tool[shell/error]: 3 lines", "│ first line", "│ second line", "│ third line"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("multiline tool lines missing %q in %#v", want, multilineToolLines)
+		}
 	}
 	compactionLine := c.renderMessageLine(store.Message{Role: "assistant", Content: "summary", Payload: map[string]any{"kind": "compaction", "tokens_before": 1200}})
 	if compactionLine != "compact: summary (tokens_before=1200)" {
 		t.Fatalf("compaction line = %q", compactionLine)
+	}
+}
+
+func TestBuildTranscriptRenderableBlocksCollapsesToolBlocks(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}, transcriptExpanded: map[string]bool{}}
+	blocks := c.buildTranscriptRenderableBlocks([]string{
+		"tool[shell/ok]: 4 lines",
+		"│ first",
+		"│ second",
+		"│ third",
+		"│ fourth",
+	})
+	if len(blocks) != 1 {
+		t.Fatalf("expected one block, got %#v", blocks)
+	}
+	if !blocks[0].Expandable || blocks[0].Expanded {
+		t.Fatalf("unexpected collapsed block state: %#v", blocks[0])
 	}
 }
 

@@ -3,6 +3,7 @@ package inference
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -42,5 +43,37 @@ func TestLoadAuthAllowsOpenCodeZenWithoutSecret(t *testing.T) {
 	}
 	if apiKey != "" || baseURL != "https://opencode.ai/zen/v1" {
 		t.Fatalf("unexpected auth tuple: apiKey=%q baseURL=%q", apiKey, baseURL)
+	}
+}
+
+func TestListRuntimeOptionsIncludesAuthBackedProviderModels(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("HOME", root)
+	if err := os.MkdirAll(filepath.Join(root, ".pi", "agent"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".pi", "agent", "auth.json"), []byte(`{"github-copilot":{"type":"oauth","refresh":"token","access":"token","expires":9999999999999}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	providers, models := ListRuntimeOptions("github-copilot", "github-copilot/gpt-5-mini", nil)
+	foundProvider := false
+	for _, provider := range providers {
+		if provider.ID == "github-copilot" && provider.Authenticated {
+			foundProvider = true
+			break
+		}
+	}
+	if !foundProvider {
+		t.Fatalf("expected github-copilot provider in %#v", providers)
+	}
+	foundModel := false
+	for _, model := range models {
+		if model.Label == "github-copilot/gpt-5-mini" {
+			foundModel = true
+			break
+		}
+	}
+	if !foundModel {
+		t.Fatalf("expected github-copilot/gpt-5-mini in %#v", models)
 	}
 }

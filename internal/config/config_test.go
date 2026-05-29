@@ -108,6 +108,31 @@ func TestPersistScrollbackLimitUpdatesPiSettings(t *testing.T) {
 	}
 }
 
+func TestLoadUsesCurrentWorkingDirectoryWhenWorkspaceRootEmpty(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".pi"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".pi", "settings.json"), []byte(`{"defaultProvider":"cwd-provider","defaultModel":"cwd-model","enabledModels":["cwd-model"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(cwd) }()
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	cfg := Load("")
+	if cfg.WorkspaceRoot != root {
+		t.Fatalf("unexpected workspace root: %q", cfg.WorkspaceRoot)
+	}
+	if cfg.DefaultProvider != "cwd-provider" || cfg.DefaultModel != "cwd-model" {
+		t.Fatalf("unexpected cwd-loaded config: %#v", cfg)
+	}
+}
+
 func TestLoadWrapsAgentsInstructionsInRuntimePrompt(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("Project rule: keep APIs stable."), 0o644); err != nil {

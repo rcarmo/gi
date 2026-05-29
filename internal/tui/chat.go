@@ -26,8 +26,10 @@ import (
 	"github.com/rcarmo/gi/internal/turn"
 )
 
+const defaultTUIAgentID = "tui"
+
 func initialSessionID(ctx context.Context, s *store.Store) (string, error) {
-	if sessionID, err := s.ResolveMainSessionID(ctx, "agent", "gi", "default"); err == nil {
+	if sessionID, err := s.ResolveMainSessionID(ctx, defaultTUIAgentID, "gi", "default"); err == nil {
 		return sessionID, nil
 	}
 	sessionIDs, err := s.ListSessionIDs(ctx)
@@ -60,8 +62,8 @@ func Run(dbPath, workspace, model string) error {
 	}
 	if sessionID == "" {
 		id := store.NowID("session")
-		alloc := gisession.AllocateDefaultSession("agent", "gi", "default", id)
-		sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(context.Background(), store.ResolveOrCreateSessionFromAllocationInput{ID: id, Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": cfg.DefaultModel, "provider": cfg.DefaultProvider, "thinking_level": cfg.DefaultThinkingLevel}, Allocation: alloc})
+		alloc := gisession.AllocateDefaultSession(defaultTUIAgentID, "gi", "default", id)
+		sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(context.Background(), store.ResolveOrCreateSessionFromAllocationInput{ID: id, Title: "@" + defaultTUIAgentID, State: map[string]any{"status": "idle", "queue_count": 0, "model": cfg.DefaultModel, "provider": cfg.DefaultProvider, "thinking_level": cfg.DefaultThinkingLevel}, Allocation: alloc})
 		if err != nil {
 			return fmt.Errorf("create session: %w", err)
 		}
@@ -89,35 +91,51 @@ func Run(dbPath, workspace, model string) error {
 	return app.Run()
 }
 
+type transcriptBlockHitTarget struct {
+	Key string
+	Ref *gotui.Ref
+}
+
+type transcriptRenderableBlock struct {
+	Key        string
+	Kind       string
+	Header     string
+	Body       []string
+	Expanded   bool
+	Expandable bool
+}
+
 type chatTUI struct {
-	app               *gotui.App
-	store             *store.Store
-	engine            *turn.Engine
-	sessionID         string
-	cfg               config.RuntimeConfig
-	history           []string
-	histIdx           int
-	running           bool
-	status            string
-	draft             string
-	inputActive       bool
-	eventCh           chan map[string]any
-	topicEventCh      chan topics.Envelope
-	subscribedCh      chan map[string]any
-	topicUnsubscribe  func()
-	input             *multilineInput
-	queuedDrafts      []string
-	inputRegion       *gotui.Element
-	transcriptRegion  *gotui.Element
-	transcriptRef     *gotui.Ref
-	transcript        []string
-	transcriptScroll  int
-	stickToBottom     bool
-	draftLineIndex    int
-	outputWidth       int
-	osc52Writer       io.Writer
-	clipboardLookPath func(string) (string, error)
-	clipboardRun      func(context.Context, string, []string, string) error
+	app                 *gotui.App
+	store               *store.Store
+	engine              *turn.Engine
+	sessionID           string
+	cfg                 config.RuntimeConfig
+	history             []string
+	histIdx             int
+	running             bool
+	status              string
+	draft               string
+	inputActive         bool
+	eventCh             chan map[string]any
+	topicEventCh        chan topics.Envelope
+	subscribedCh        chan map[string]any
+	topicUnsubscribe    func()
+	input               *multilineInput
+	queuedDrafts        []string
+	inputRegion         *gotui.Element
+	transcriptRegion    *gotui.Element
+	transcriptRef       *gotui.Ref
+	transcript          []string
+	transcriptScroll    int
+	stickToBottom       bool
+	draftLineIndex      int
+	outputWidth         int
+	osc52Writer         io.Writer
+	clipboardLookPath   func(string) (string, error)
+	clipboardRun        func(context.Context, string, []string, string) error
+	transcriptBlockRefs []transcriptBlockHitTarget
+	transcriptExpanded  map[string]bool
 }
 
 func (c *chatTUI) ensureInput() {
@@ -821,16 +839,14 @@ func (c *chatTUI) recallHistory(delta int) {
 }
 
 func (c *chatTUI) HandleMouse(me gotui.MouseEvent) bool {
-	switch me.Button {
-	case gotui.MouseWheelUp:
-		c.scrollTranscript(-3)
-		return true
-	case gotui.MouseWheelDown:
-		c.scrollTranscript(3)
+	if c.handleTranscriptScrollEvent(me) {
 		return true
 	}
 	if me.Button != gotui.MouseLeft || me.Action != gotui.MousePress {
 		return false
+	}
+	if c.handleTranscriptBlockClick(me) {
+		return true
 	}
 	if c.inputRegion != nil && c.inputRegion.ContainsPoint(me.X, me.Y) {
 		c.focusInput()
@@ -840,6 +856,59 @@ func (c *chatTUI) HandleMouse(me gotui.MouseEvent) bool {
 		_, h := c.app.Size()
 		if me.Y >= h-4 {
 			c.focusInput()
+			return true
+		}
+	}
+	return false
+}
+
+func (c *chatTUI) handleTranscriptBlockClick(me gotui.MouseEvent) bool {
+	for _, target := range c.transcriptBlockRefs {
+		if target.Ref == nil || target.Ref.El() == nil || !target.Ref.El().ContainsPoint(me.X, me.Y) {
+			continue
+		}
+		if c.transcriptExpanded == nil {
+			c.transcriptExpanded = map[string]bool{}
+		}
+		c.transcriptExpanded[target.Key] = !c.transcriptExpanded[target.Key]
+		if c.app != nil {
+			c.app.MarkDirty()
+		}
+		return true
+	}
+	return false
+}
+
+func (c *chatTUI) handleTranscriptScrollEvent(me gotui.MouseEvent) bool {
+	switch me.Button {
+	case gotui.MouseWheelUp, gotui.MouseWheelDown:
+	default:
+		return false
+	}
+	if c.transcriptRegion != nil && c.transcriptRegion.ContainsPoint(me.X, me.Y) {
+		if c.transcriptRegion.HandleEvent(me) {
+			_, y := c.transcriptRegion.ScrollOffset()
+			c.transcriptScroll = y
+			lines := c.visibleTranscript()
+			maxScroll := len(lines) - c.transcriptViewportHeight()
+			if maxScroll < 0 {
+				maxScroll = 0
+			}
+			c.stickToBottom = c.transcriptScroll >= maxScroll
+			if c.app != nil {
+				c.app.MarkDirty()
+			}
+			return true
+		}
+		return false
+	}
+	if c.transcriptRegion == nil {
+		switch me.Button {
+		case gotui.MouseWheelUp:
+			c.scrollTranscript(-3)
+			return true
+		case gotui.MouseWheelDown:
+			c.scrollTranscript(3)
 			return true
 		}
 	}
@@ -1337,7 +1406,7 @@ func (c *chatTUI) localShellShortcutLines(command string) []string {
 func (c *chatTUI) reloadLines() []string {
 	workspace := c.cfg.WorkspaceRoot
 	if strings.TrimSpace(workspace) == "" {
-		workspace = "/workspace"
+		workspace = config.DefaultWorkspaceRoot()
 	}
 	reloaded := config.Load(workspace)
 	c.cfg = reloaded
@@ -2137,14 +2206,16 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 		gotui.WithScrollable(gotui.ScrollVertical),
 		gotui.WithScrollOffset(0, c.transcriptScroll),
 		gotui.WithScrollbarStyle(gotui.NewStyle().Dim()),
+		gotui.WithDirection(gotui.Column),
 	)
 	c.transcriptRef.Set(transcript)
 	c.transcriptRegion = transcript
-	for _, line := range c.visibleTranscript() {
-		transcript.AddChild(gotui.New(
-			gotui.WithWidthPercent(100),
-			gotui.WithText(line),
-		))
+	c.transcriptBlockRefs = nil
+	if c.transcriptExpanded == nil {
+		c.transcriptExpanded = map[string]bool{}
+	}
+	for _, block := range c.buildTranscriptRenderableBlocks(c.visibleTranscript()) {
+		transcript.AddChild(c.renderTranscriptBlock(block))
 	}
 	root.AddChild(transcript)
 
@@ -2359,6 +2430,136 @@ func (c *chatTUI) renderLineBlock(lines []string, style gotui.Style) *gotui.Elem
 	return block
 }
 
+func (c *chatTUI) buildTranscriptRenderableBlocks(lines []string) []transcriptRenderableBlock {
+	blocks := make([]transcriptRenderableBlock, 0, len(lines))
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		switch {
+		case strings.HasPrefix(line, "tool["):
+			body := make([]string, 0, 4)
+			j := i + 1
+			for j < len(lines) && strings.HasPrefix(lines[j], "│ ") {
+				body = append(body, strings.TrimPrefix(lines[j], "│ "))
+				j++
+			}
+			key := fmt.Sprintf("tool:%d:%s", i, line)
+			blocks = append(blocks, transcriptRenderableBlock{Key: key, Kind: "tool", Header: line, Body: body, Expandable: len(body) > 2, Expanded: c.transcriptExpanded[key]})
+			i = j - 1
+		case strings.HasPrefix(line, "local$ "):
+			body := make([]string, 0, 4)
+			j := i + 1
+			for j < len(lines) {
+				if strings.HasPrefix(lines[j], "│ ") {
+					body = append(body, strings.TrimPrefix(lines[j], "│ "))
+					j++
+					continue
+				}
+				if strings.HasPrefix(lines[j], "error:") {
+					body = append(body, lines[j])
+					j++
+					continue
+				}
+				break
+			}
+			key := fmt.Sprintf("local:%d:%s", i, line)
+			blocks = append(blocks, transcriptRenderableBlock{Key: key, Kind: "local", Header: line, Body: body, Expandable: len(body) > 2, Expanded: c.transcriptExpanded[key]})
+			i = j - 1
+		case strings.HasPrefix(line, "sys[compact]:"):
+			blocks = append(blocks, transcriptRenderableBlock{Key: fmt.Sprintf("compact:%d:%s", i, line), Kind: "compact", Header: line})
+		case strings.HasPrefix(line, "sys: tool failed:"):
+			blocks = append(blocks, transcriptRenderableBlock{Key: fmt.Sprintf("tool-error:%d:%s", i, line), Kind: "tool-error", Header: line})
+		case strings.HasPrefix(line, "error:"):
+			blocks = append(blocks, transcriptRenderableBlock{Key: fmt.Sprintf("error:%d:%s", i, line), Kind: "error", Header: line})
+		default:
+			kind := "plain"
+			switch {
+			case strings.HasPrefix(line, "sys:"):
+				kind = "system"
+			case strings.HasPrefix(line, "you"):
+				kind = "user"
+			case strings.HasPrefix(line, c.cfg.AssistantName+":"):
+				kind = "assistant"
+			}
+			blocks = append(blocks, transcriptRenderableBlock{Key: fmt.Sprintf("%s:%d:%s", kind, i, line), Kind: kind, Header: line})
+		}
+	}
+	return blocks
+}
+
+func transcriptBlockPalette(kind string) (gotui.Style, gotui.Style, gotui.Style) {
+	switch kind {
+	case "tool":
+		return gotui.NewStyle().Foreground(gotui.Cyan).Bold(), gotui.NewStyle().Foreground(gotui.Cyan), gotui.NewStyle().Foreground(gotui.Cyan)
+	case "tool-error", "error":
+		return gotui.NewStyle().Foreground(gotui.Red).Bold(), gotui.NewStyle().Foreground(gotui.Red), gotui.NewStyle().Foreground(gotui.Red)
+	case "local":
+		return gotui.NewStyle().Foreground(gotui.Magenta).Bold(), gotui.NewStyle().Foreground(gotui.Magenta), gotui.NewStyle().Foreground(gotui.Magenta)
+	case "compact":
+		return gotui.NewStyle().Foreground(gotui.Yellow).Bold(), gotui.NewStyle().Foreground(gotui.Yellow), gotui.NewStyle().Foreground(gotui.Yellow)
+	case "system":
+		return gotui.NewStyle().Dim(), gotui.NewStyle().Dim(), gotui.NewStyle().Dim()
+	case "assistant":
+		return gotui.NewStyle().Bold(), gotui.NewStyle(), gotui.NewStyle().Dim()
+	case "user":
+		return gotui.NewStyle().Bold().Foreground(gotui.Green), gotui.NewStyle().Foreground(gotui.Green), gotui.NewStyle().Dim()
+	default:
+		return gotui.NewStyle(), gotui.NewStyle(), gotui.NewStyle().Dim()
+	}
+}
+
+func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) *gotui.Element {
+	headStyle, bodyStyle, hintStyle := transcriptBlockPalette(block.Kind)
+	if len(block.Body) == 0 {
+		return gotui.New(
+			gotui.WithWidthPercent(100),
+			gotui.WithText(block.Header),
+			gotui.WithTextStyle(headStyle),
+		)
+	}
+	container := gotui.New(
+		gotui.WithDirection(gotui.Column),
+		gotui.WithWidthPercent(100),
+		gotui.WithBorder(gotui.BorderRounded),
+		gotui.WithBorderStyle(bodyStyle),
+		gotui.WithPadding(1),
+	)
+	ref := gotui.NewRef()
+	ref.Set(container)
+	c.transcriptBlockRefs = append(c.transcriptBlockRefs, transcriptBlockHitTarget{Key: block.Key, Ref: ref})
+	container.AddChild(gotui.New(
+		gotui.WithWidthPercent(100),
+		gotui.WithText(block.Header),
+		gotui.WithTextStyle(headStyle),
+	))
+	visibleBody := block.Body
+	hiddenCount := 0
+	if block.Expandable && !block.Expanded {
+		if len(visibleBody) > 2 {
+			hiddenCount = len(visibleBody) - 2
+			visibleBody = visibleBody[:2]
+		}
+	}
+	for _, line := range visibleBody {
+		container.AddChild(gotui.New(
+			gotui.WithWidthPercent(100),
+			gotui.WithText("│ "+line),
+			gotui.WithTextStyle(bodyStyle),
+		))
+	}
+	if block.Expandable {
+		hint := "click to collapse"
+		if !block.Expanded {
+			hint = fmt.Sprintf("… %d more line(s) · click to expand", hiddenCount)
+		}
+		container.AddChild(gotui.New(
+			gotui.WithWidthPercent(100),
+			gotui.WithText(hint),
+			gotui.WithTextStyle(hintStyle),
+		))
+	}
+	return container
+}
+
 func (c *chatTUI) transcriptRenderWidth() int {
 	width := c.currentContentWidth()
 	if width <= 0 {
@@ -2384,7 +2585,10 @@ func (c *chatTUI) loadTranscript() []string {
 
 func (c *chatTUI) renderMessageLines(m store.Message, width int) []string {
 	kind, _ := m.Payload["kind"].(string)
-	if kind == "compaction" || m.Role == "tool_result" || kind == "tool_result" {
+	if m.Role == "tool_result" || kind == "tool_result" {
+		return c.renderToolResultLines(m)
+	}
+	if kind == "compaction" {
 		return []string{c.renderMessageLine(m)}
 	}
 	prefix := "you: "
@@ -2398,6 +2602,31 @@ func (c *chatTUI) renderMessageLines(m store.Message, width int) []string {
 		return renderMarkdownTranscript(prefix, m.Content, width)
 	}
 	return []string{c.renderMessageLine(m)}
+}
+
+func (c *chatTUI) renderToolResultLines(m store.Message) []string {
+	toolName, _ := m.Payload["tool_name"].(string)
+	if toolName == "" {
+		toolName = "tool"
+	}
+	isErr, _ := m.Payload["is_error"].(bool)
+	status := "ok"
+	if isErr {
+		status = "error"
+	}
+	trimmed := strings.TrimSpace(m.Content)
+	if trimmed == "" {
+		return []string{fmt.Sprintf("tool[%s/%s]: (empty)", toolName, status)}
+	}
+	parts := strings.Split(trimmed, "\n")
+	if len(parts) == 1 {
+		return []string{fmt.Sprintf("tool[%s/%s]: %s", toolName, status, truncate(strings.Join(strings.Fields(parts[0]), " "), 200))}
+	}
+	lines := []string{fmt.Sprintf("tool[%s/%s]: %d lines", toolName, status, len(parts))}
+	for _, part := range parts {
+		lines = append(lines, "│ "+truncate(strings.TrimRight(part, "\r"), 200))
+	}
+	return lines
 }
 
 func (c *chatTUI) renderMessageLine(m store.Message) string {
@@ -2605,8 +2834,8 @@ func truncate(s string, max int) string {
 }
 
 func Main() {
-	dbPath := flag.String("db", ".gi-run/gi.db", "SQLite database path")
-	workspace := flag.String("workspace", "/workspace", "Workspace root")
+	dbPath := flag.String("db", config.DefaultTUIDBPath(), "SQLite database path")
+	workspace := flag.String("workspace", config.DefaultWorkspaceRoot(), "Workspace root")
 	model := flag.String("model", "", "Override default model")
 	flag.Parse()
 	if err := Run(*dbPath, *workspace, *model); err != nil {

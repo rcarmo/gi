@@ -153,7 +153,7 @@ message_occurrence_should_be() {
   exit 1
 }
 
-start_tui() {
+prepare_tui_workspace() {
   tmux kill-session -t "$SESSION" >/dev/null 2>&1 || true
   rm -rf "$TEST_DIR"
   mkdir -p "$ARTIFACT_DIR" "$WORKSPACE/.pi" "$WORKSPACE/.piclaw"
@@ -169,7 +169,16 @@ MD
   cd "$ROOT"
   mkdir -p bin
   go build -o bin/gi ./cmd/gi
+}
+
+start_tui() {
+  prepare_tui_workspace
   tmux new-session -d -x 120 -y 28 -s "$SESSION" "cd '$ROOT' && ./bin/gi -tui -db '$DB' -workspace '$WORKSPACE'"
+}
+
+start_tui_default() {
+  prepare_tui_workspace
+  tmux new-session -d -x 120 -y 28 -s "$SESSION" "cd '$TEST_DIR' && '$ROOT/bin/gi'"
 }
 
 type_and_enter() {
@@ -219,6 +228,7 @@ run_step() {
   case "$line" in
     "Given a fresh gi TUI workspace") ;;
     "When I start the gi TUI in tmux") start_tui ;;
+    "When I start gi without arguments in tmux") start_tui_default ;;
     "Then the screen should contain "*|"And the screen should contain "*)
       local text=${line#*should contain \"}; text=${text%\"}; screen_should_contain "$text" ;;
     "When I type "*" and press Enter"|"And I type "*" and press Enter")

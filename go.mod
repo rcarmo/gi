@@ -3,15 +3,15 @@ module github.com/rcarmo/gi
 go 1.26.3
 
 require (
-	github.com/candid82/joker v1.7.2
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c
 	github.com/grindlemire/go-tui v0.14.0
-	github.com/rcarmo/go-ai v0.75.4
+	github.com/rcarmo/go-ai v0.77.0
+	github.com/rcarmo/go-joker v1.8.1-0.20260529215339-bc07acfdb01c
 	github.com/yuin/goldmark v1.8.2
-	golang.org/x/crypto v0.51.0
-	golang.org/x/net v0.54.0
-	modernc.org/sqlite v1.50.1
-	tailscale.com v1.98.2
+	golang.org/x/crypto v0.52.0
+	golang.org/x/net v0.55.0
+	modernc.org/sqlite v1.51.0
+	tailscale.com v1.98.5
 )
 
 require (
@@ -30,6 +30,7 @@ require (
 	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
+	github.com/fsnotify/fsnotify v1.10.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/gaissmai/bart v0.26.1 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
@@ -43,6 +44,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20250317173921-a4b03ec1a45e // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
 	github.com/hdevalence/ed25519consensus v0.2.0 // indirect
 	github.com/huin/goupnp v1.3.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
@@ -78,7 +80,7 @@ require (
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/term v0.43.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
@@ -91,5 +93,3 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
-
-replace github.com/candid82/joker => ./third_party/joker

@@ -1,6 +1,12 @@
 Feature: TUI assistant basics
   The gi TUI should be usable like a compact Pi-style assistant from a terminal.
 
+  Scenario: Invoking gi without arguments starts the TUI
+    Given a fresh gi TUI workspace
+    When I start gi without arguments in tmux
+    Then the screen should contain "Session:"
+    And the screen should contain "Hints: /help"
+
   Scenario: Boot, discover help and tools, and submit a prompt
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
