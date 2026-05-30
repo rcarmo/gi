@@ -1540,7 +1540,7 @@ func TestModelCommandListsAndSelectsEnabledModels(t *testing.T) {
 	defer s.Close()
 	c := &chatTUI{store: s, sessionID: "session_models", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "ollama", DefaultModel: "qwen3:latest", DefaultThinkingLevel: "medium", EnabledModels: []string{"qwen3:latest", "ollama/gemma4:latest"}}}
 	listed := strings.Join(c.modelCommand([]string{"/model"}), "\n")
-	for _, want := range []string{"model qwen3:latest · medium · ollama", "› 1  qwen3:latest", "  2  ollama/gemma4:latest", "/model <n> to switch"} {
+	for _, want := range []string{"model qwen3:latest · medium · ollama", "› 1  qwen3:latest", "  2  ollama/gemma4:latest", "enabled: 2 · /scoped-models list to manage pinned models", "/model <n> to switch · ctrl-l cycles enabled models"} {
 		if !strings.Contains(listed, want) {
 			t.Fatalf("model list missing %q:\n%s", want, listed)
 		}
@@ -1565,6 +1565,31 @@ func TestCycleThinkingUsesKnownLevels(t *testing.T) {
 	c.cycleThinking(-1)
 	if c.cfg.DefaultThinkingLevel != "low" {
 		t.Fatalf("previous thinking failed cfg=%#v", c.cfg)
+	}
+}
+
+func TestModelListIncludesAuthBackedProviderModels(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(home, ".pi", "agent"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".pi", "agent", "auth.json"), []byte(`{"github-copilot":{"type":"oauth","refresh":"token","access":"token","expires":9999999999999}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	c := &chatTUI{store: s, sessionID: "session_runtime_models", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "opencode-zen", DefaultModel: "opencode-zen/minimax-m2.5-free", DefaultThinkingLevel: "low", EnabledModels: []string{"opencode-zen/minimax-m2.5-free"}}}
+	listed := strings.Join(c.modelListLines(), "\n")
+	if !strings.Contains(listed, "github-copilot/") {
+		t.Fatalf("expected auth-backed github-copilot models in list:\n%s", listed)
+	}
+	if !strings.Contains(listed, "opencode-zen/minimax-m2.5-free") {
+		t.Fatalf("expected existing enabled model in list:\n%s", listed)
 	}
 }
 
@@ -1757,7 +1782,7 @@ func TestMultilineInputPlaceholderShowsFocusState(t *testing.T) {
 		t.Fatalf("blurred placeholder lines = %#v", lines)
 	}
 	inp.Focus()
-	inp.blink = true
+	inp.blink = false
 	lines = inp.renderLines()
 	if len(lines) != 1 || lines[0].text != "▌" || !lines[0].placeholder {
 		t.Fatalf("focused placeholder lines = %#v", lines)
@@ -1843,7 +1868,7 @@ func TestMultilineInputCursorRenderingWithinText(t *testing.T) {
 	inp := newMultilineInput(40, "", nil, nil)
 	inp.SetText("abcd")
 	inp.Focus()
-	inp.blink = true
+	inp.blink = false
 	inp.cursorPos = 2
 	lines := inp.renderLines()
 	if len(lines) != 1 || lines[0].text != "ab▌cd" {

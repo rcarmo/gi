@@ -19,6 +19,7 @@ import (
 
 	gotui "github.com/grindlemire/go-tui"
 	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/inference"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/skills"
 	"github.com/rcarmo/gi/internal/store"
@@ -2131,6 +2132,57 @@ func (c *chatTUI) sessionLines() []string {
 	}
 }
 
+func splitModelRef(defaultProvider, label string) (string, string) {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return strings.TrimSpace(defaultProvider), ""
+	}
+	if slash := strings.Index(label, "/"); slash > 0 {
+		return strings.TrimSpace(label[:slash]), strings.TrimSpace(label[slash+1:])
+	}
+	return strings.TrimSpace(defaultProvider), label
+}
+
+func canonicalModelRef(defaultProvider, label string) string {
+	provider, id := splitModelRef(defaultProvider, label)
+	if id == "" {
+		return ""
+	}
+	if provider == "" {
+		return id
+	}
+	return provider + "/" + id
+}
+
+func (c *chatTUI) availableModelChoices() []string {
+	choices := make([]string, 0, len(c.cfg.EnabledModels)+8)
+	seen := map[string]bool{}
+	appendChoice := func(label string) {
+		label = strings.TrimSpace(label)
+		if label == "" {
+			return
+		}
+		key := canonicalModelRef(c.cfg.DefaultProvider, label)
+		if key == "" {
+			key = label
+		}
+		if seen[key] {
+			return
+		}
+		seen[key] = true
+		choices = append(choices, label)
+	}
+	for _, model := range c.cfg.EnabledModels {
+		appendChoice(model)
+	}
+	_, modelOptions := inference.ListRuntimeOptions(c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.EnabledModels)
+	for _, option := range modelOptions {
+		appendChoice(option.Label)
+	}
+	appendChoice(c.cfg.DefaultModel)
+	return choices
+}
+
 func (c *chatTUI) modelCommand(fields []string) []string {
 	if len(fields) == 1 {
 		return c.modelListLines()
@@ -2139,8 +2191,11 @@ func (c *chatTUI) modelCommand(fields []string) []string {
 	if model == "" {
 		return []string{"sys: usage /model <model|index>"}
 	}
-	if idx, err := strconv.Atoi(model); err == nil && idx > 0 && idx <= len(c.cfg.EnabledModels) {
-		model = c.cfg.EnabledModels[idx-1]
+	if idx, err := strconv.Atoi(model); err == nil {
+		choices := c.availableModelChoices()
+		if idx > 0 && idx <= len(choices) {
+			model = choices[idx-1]
+		}
 	}
 	c.cfg.DefaultModel = model
 	if strings.Contains(model, "/") {
@@ -2177,17 +2232,21 @@ func (c *chatTUI) modelListLines() []string {
 	if provider != "" && provider != "(inferred from model when possible)" {
 		lines[0] += fmt.Sprintf(" · %s", compactMaybe(provider, c.compactOutput(), 18))
 	}
-	if len(c.cfg.EnabledModels) == 0 {
-		return append(lines, "no enabled models · /model <provider/model>")
+	choices := c.availableModelChoices()
+	if len(choices) == 0 {
+		return append(lines, "no available models · /model <provider/model>")
 	}
-	for i, model := range c.cfg.EnabledModels {
+	for i, model := range choices {
 		marker := " "
-		if model == c.cfg.DefaultModel {
+		if canonicalModelRef(c.cfg.DefaultProvider, model) == canonicalModelRef(c.cfg.DefaultProvider, c.cfg.DefaultModel) {
 			marker = "›"
 		}
 		lines = append(lines, fmt.Sprintf("%s %d  %s", marker, i+1, compactMaybe(model, c.compactOutput(), modelWidth)))
 	}
-	lines = append(lines, "/model <n> to switch · ctrl-l cycles")
+	if len(c.cfg.EnabledModels) > 0 {
+		lines = append(lines, fmt.Sprintf("enabled: %d · /scoped-models list to manage pinned models", len(c.cfg.EnabledModels)))
+	}
+	lines = append(lines, "/model <n> to switch · ctrl-l cycles enabled models")
 	return lines
 }
 
@@ -2636,6 +2695,29 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	return root
 }
 
+func abbreviateHomePath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	home = strings.TrimSpace(home)
+	if home == "" {
+		return path
+	}
+	if path == home {
+		return "~"
+	}
+	prefix := home + string(os.PathSeparator)
+	if strings.HasPrefix(path, prefix) {
+		return "~" + string(os.PathSeparator) + strings.TrimPrefix(path, prefix)
+	}
+	return path
+}
+
 func (c *chatTUI) footerPathLineForWidth(width int) string {
 	workspace := strings.TrimSpace(c.cfg.WorkspaceRoot)
 	if workspace == "" {
@@ -2644,6 +2726,7 @@ func (c *chatTUI) footerPathLineForWidth(width int) string {
 	if branch := c.gitBranchName(workspace); branch != "" {
 		workspace += " (" + branch + ")"
 	}
+	workspace = abbreviateHomePath(workspace)
 	if width > 0 {
 		return compactMaybe(workspace, true, width)
 	}
