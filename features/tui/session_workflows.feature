@@ -4,23 +4,22 @@ Feature: TUI session and agent workflows
   Scenario: List agents, fork, switch, and send to a peer agent
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
-    Then the screen should contain "Session:"
+    Then the screen should contain "(no messages yet)"
     When I type "/agents" and press Enter
     Then the screen should contain "sys: agents:"
-    And the screen should contain "@agent"
+    And the screen should contain "@tui"
     When I type "/where" and press Enter
-    Then the screen should contain "Session:"
-    And the screen should contain "Agent: @agent"
+    Then the screen should contain "@tui · test-model · low · m0/t0"
     When I type "/fork @agent1" and press Enter
     Then the screen should contain "switched to @agent1"
-    And the screen should contain "Agent: @agent1"
+    And the screen should contain "m1/t0 test-model • low"
     When I type "/agents" and press Enter
     Then the screen should contain "@agent1"
     When I type "/tree" and press Enter
     Then the screen should contain "tree: sessions:"
     And the screen should contain "@agent1"
-    When I type "/switch @agent" and press Enter
-    Then the screen should contain "switched to @agent"
-    And the screen should contain "Agent: @agent"
+    When I type "/switch @tui" and press Enter
+    Then the screen should contain "switched to @tui"
+    And the screen should contain "@tui"
     When I type "/send @agent1 hello peer" and press Enter
     Then the screen should contain "delivered to @agent1"

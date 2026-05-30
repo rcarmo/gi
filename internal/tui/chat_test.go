@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	gotui "github.com/grindlemire/go-tui"
@@ -15,6 +16,26 @@ import (
 	"github.com/rcarmo/gi/internal/topics"
 	"github.com/rcarmo/gi/internal/turn"
 )
+
+func transcriptLastBlockMeta(t *testing.T, lines []string) transcriptBlockMeta {
+	t.Helper()
+	for i := len(lines) - 1; i >= 0; i-- {
+		if meta, ok := parseTranscriptBlockMarker(lines[i]); ok {
+			return meta
+		}
+	}
+	t.Fatalf("no transcript block marker found in %#v", lines)
+	return transcriptBlockMeta{}
+}
+
+func transcriptContainsBody(lines []string, want string) bool {
+	for _, line := range lines {
+		if strings.Contains(line, want) {
+			return true
+		}
+	}
+	return false
+}
 
 func TestFocusInputActivatesInput(t *testing.T) {
 	c := &chatTUI{}
@@ -684,56 +705,60 @@ func TestHandleTopicEventSteeringAndSubturnRendering(t *testing.T) {
 	if c.status != "Queued follow-up" {
 		t.Fatalf("steering status = %q", c.status)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "turn.subturn", Payload: map[string]any{"type": "subturn_created", "child_turn_id": "turn_child"}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: sub-turn started: turn_child" {
-		t.Fatalf("subturn created transcript = %q", got)
+	c.handleTopicEvent(topics.Envelope{Topic: "turn.subturn", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "subturn_created", "child_turn_id": "turn_child"}})
+	meta := transcriptLastBlockMeta(t, c.transcript)
+	if meta.Kind != "subturn" || meta.Title != "Sub-turn started" || !transcriptContainsBody(c.transcript, "turn=turn_child") {
+		t.Fatalf("unexpected subturn created transcript meta=%#v transcript=%#v", meta, c.transcript)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "turn.subturn", Payload: map[string]any{"type": "subturn_status", "child_turn_id": "turn_child", "status": "completed"}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: sub-turn turn_child: completed" {
-		t.Fatalf("subturn status transcript = %q", got)
+	c.handleTopicEvent(topics.Envelope{Topic: "turn.subturn", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "subturn_status", "child_turn_id": "turn_child", "status": "completed"}})
+	meta = transcriptLastBlockMeta(t, c.transcript)
+	if meta.Kind != "subturn" || meta.Title != "Sub-turn update" || !transcriptContainsBody(c.transcript, "status=completed") {
+		t.Fatalf("unexpected subturn status transcript meta=%#v transcript=%#v", meta, c.transcript)
 	}
 }
 
 func TestHandleTopicEventCompactionAndRoutingRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
-	c.handleTopicEvent(topics.Envelope{Topic: "session.compaction", Payload: map[string]any{"messages_before": 10, "messages_after": 4, "tokens_before": 1234}})
-	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys[compact]: messages 10→4 · tokens_before=1234" {
-		t.Fatalf("compaction topic status/transcript = %q %#v", c.status, c.transcript)
+	c.handleTopicEvent(topics.Envelope{Topic: "session.compaction", Timestamp: time.Now().UTC(), Payload: map[string]any{"messages_before": 10, "messages_after": 4, "tokens_before": 1234}})
+	meta := transcriptLastBlockMeta(t, c.transcript)
+	if c.status != "Compacted context" || meta.Kind != "compact" || meta.Title != "Context compacted" || !transcriptContainsBody(c.transcript, "messages=10→4") {
+		t.Fatalf("compaction topic status/transcript = %q %#v meta=%#v", c.status, c.transcript, meta)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.routing", Payload: map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session_id": "session_child"}})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: routed to @agent1 (session_child)" {
-		t.Fatalf("routing decision transcript = %q", got)
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.routing", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session_id": "session_child"}})
+	meta = transcriptLastBlockMeta(t, c.transcript)
+	if meta.Kind != "route" || meta.Title != "Route decision" || !transcriptContainsBody(c.transcript, "target=@agent1") || !transcriptContainsBody(c.transcript, "session=session_child") {
+		t.Fatalf("routing decision transcript meta=%#v transcript=%#v", meta, c.transcript)
 	}
 }
 
 func TestHandleTopicEventInboundWorkRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_enqueued", "source_kind": "ipc", "status": "queued"}})
-	if c.status != "inbound work queued (ipc) [queued]" || len(c.transcript) != 0 {
-		t.Fatalf("inbound work enqueue status/transcript = %q %#v", c.status, c.transcript)
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "inbound_work_enqueued", "source_kind": "ipc", "status": "queued"}})
+	if c.status != "inbound work queued (ipc) [queued]" {
+		t.Fatalf("inbound work enqueue status = %q transcript=%#v", c.status, c.transcript)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_retry_scheduled", "source_kind": "ipc", "status": "retry", "attempt_count": 2}})
-	if c.status != "inbound work retry scheduled (ipc) attempt 2 [retry]" || len(c.transcript) != 0 {
-		t.Fatalf("inbound work retry status/transcript = %q %#v", c.status, c.transcript)
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "inbound_work_retry_scheduled", "source_kind": "ipc", "status": "retry", "attempt_count": 2}})
+	if c.status != "inbound work retry scheduled (ipc) attempt 2 [retry]" {
+		t.Fatalf("inbound work retry status = %q transcript=%#v", c.status, c.transcript)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_requeued", "source_kind": "ipc", "status": "queued"}})
-	if c.status != "inbound work requeued (ipc) [queued]" || len(c.transcript) != 0 {
-		t.Fatalf("inbound work requeued status/transcript = %q %#v", c.status, c.transcript)
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "inbound_work_requeued", "source_kind": "ipc", "status": "queued"}})
+	if c.status != "inbound work requeued (ipc) [queued]" {
+		t.Fatalf("inbound work requeued status = %q transcript=%#v", c.status, c.transcript)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_discarded", "source_kind": "ipc", "status": "discarded"}})
-	if c.status != "inbound work discarded (ipc) [discarded]" || len(c.transcript) != 0 {
-		t.Fatalf("inbound work discarded status/transcript = %q %#v", c.status, c.transcript)
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "inbound_work_discarded", "source_kind": "ipc", "status": "discarded"}})
+	if c.status != "inbound work discarded (ipc) [discarded]" {
+		t.Fatalf("inbound work discarded status = %q transcript=%#v", c.status, c.transcript)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Payload: map[string]any{"type": "inbound_work_failed", "source_kind": "ipc", "status": "failed", "error": "decode failed"}})
-	if c.status != "inbound work failed (ipc) [failed]: decode failed" || len(c.transcript) != 0 {
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.inbound_work", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "inbound_work_failed", "source_kind": "ipc", "status": "failed", "error": "decode failed"}})
+	if c.status != "inbound work failed (ipc) [failed]: decode failed" || !transcriptContainsBody(c.transcript, "error=decode failed") {
 		t.Fatalf("inbound work failed status/transcript = %q %#v", c.status, c.transcript)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.dispatcher", Payload: map[string]any{"type": "dispatcher_lease_acquired", "worker_id": "worker-1"}})
-	if c.status != "inbound dispatcher lease acquired [worker-1]" || len(c.transcript) != 0 {
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.dispatcher", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "dispatcher_lease_acquired", "worker_id": "worker-1"}})
+	if c.status != "inbound dispatcher lease acquired [worker-1]" {
 		t.Fatalf("dispatcher lease status/transcript = %q %#v", c.status, c.transcript)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.dispatcher", Payload: map[string]any{"type": "dispatcher_drain_completed", "worker_id": "worker-1", "processed_count": 3}})
-	if c.status != "inbound dispatcher drain completed (3 processed) [worker-1]" || len(c.transcript) != 0 {
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.dispatcher", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "dispatcher_drain_completed", "worker_id": "worker-1", "processed_count": 3}})
+	if c.status != "inbound dispatcher drain completed (3 processed) [worker-1]" || !transcriptContainsBody(c.transcript, "processed=3") {
 		t.Fatalf("dispatcher drain status/transcript = %q %#v", c.status, c.transcript)
 	}
 }
@@ -795,20 +820,24 @@ func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 
 func TestHandleTopicEventHookInvocationErrorRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_invocation", "hook": "tool_call", "tool": "grep", "error": "timed out after 1500ms"}})
-	if c.status != "hook invocation error via tool_call for grep: timed out after 1500ms" || len(c.transcript) != 0 {
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "hook_invocation", "hook": "tool_call", "tool": "grep", "error": "timed out after 1500ms"}})
+	if c.status != "hook invocation error via tool_call for grep: timed out after 1500ms" {
 		t.Fatalf("hook invocation status/transcript = %q %#v", c.status, c.transcript)
+	}
+	meta := transcriptLastBlockMeta(t, c.transcript)
+	if meta.Kind != "hook" || meta.Status != "error" || !transcriptContainsBody(c.transcript, "error=timed out after 1500ms") {
+		t.Fatalf("unexpected hook block meta=%#v transcript=%#v", meta, c.transcript)
 	}
 }
 
 func TestHandleTopicEventHookDecisionRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_modify", "hook": "tool_call", "tool": "grep"}})
-	if c.status != "hook modified via tool_call for grep" || len(c.transcript) != 0 {
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "hook_modify", "hook": "tool_call", "tool": "grep"}})
+	if c.status != "hook modified via tool_call for grep" {
 		t.Fatalf("hook modify status/transcript = %q %#v", c.status, c.transcript)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_respond", "hook": "tool_call", "tool": "grep"}})
-	if c.status != "hook responded directly via tool_call for grep" || len(c.transcript) != 0 {
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "hook_respond", "hook": "tool_call", "tool": "grep"}})
+	if c.status != "hook responded directly via tool_call for grep" {
 		t.Fatalf("hook respond status/transcript = %q %#v", c.status, c.transcript)
 	}
 }
@@ -816,16 +845,16 @@ func TestHandleTopicEventHookDecisionRendering(t *testing.T) {
 func TestHandleTopicEventStatusRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.running = false
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Payload: map[string]any{"type": "tool_started", "tool": "read"}})
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "tool_started", "tool": "read", "turn_id": "turn_1", "tool_call_id": "call_1"}})
 	if !c.running || c.status != "Running: read" {
 		t.Fatalf("tool started status = running=%v status=%q", c.running, c.status)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Payload: map[string]any{"type": "tool_skipped", "tool": "shell", "reason": "queued user steering message"}})
-	if c.status != "Tool skipped: shell: queued user steering message" || len(c.transcript) != 0 {
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "tool_skipped", "tool": "shell", "reason": "queued user steering message", "turn_id": "turn_1", "tool_call_id": "call_2"}})
+	if c.status != "Tool skipped: shell: queued user steering message" || !transcriptContainsBody(c.transcript, "reason=queued user steering message") {
 		t.Fatalf("tool skipped status/transcript = %q %#v", c.status, c.transcript)
 	}
-	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Payload: map[string]any{"type": "hook_deny", "hook": "approve_tool", "tool": "shell", "reason": "tool not approved"}})
-	if c.status != "hook hook_deny via approve_tool for shell: tool not approved" || len(c.transcript) != 0 {
+	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "hook_deny", "hook": "approve_tool", "tool": "shell", "reason": "tool not approved"}})
+	if c.status != "hook denied via approve_tool for shell: tool not approved" || !transcriptContainsBody(c.transcript, "reason=tool not approved") {
 		t.Fatalf("hook deny status/transcript = %q %#v", c.status, c.transcript)
 	}
 }
@@ -899,12 +928,12 @@ func TestHandleEventStatusRendering(t *testing.T) {
 	if !c.running || c.status != "⏳ hello…" || len(c.transcript) == 0 || c.transcript[len(c.transcript)-1] != "Neo: hello" {
 		t.Fatalf("draft status = running=%v status=%q transcript=%#v", c.running, c.status, c.transcript)
 	}
-	c.handleEvent(map[string]any{"type": "tool_finished", "tool": "read"})
+	c.handleEvent(map[string]any{"type": "tool_finished", "tool": "read", "turn_id": "turn_1", "tool_call_id": "call_1"})
 	if c.status != "Tool finished: read" {
 		t.Fatalf("tool finished status = %q", c.status)
 	}
-	c.handleEvent(map[string]any{"type": "tool_failed", "tool": "shell", "error": "boom"})
-	if c.status != "Tool failed: shell" || len(c.transcript) == 0 || c.transcript[len(c.transcript)-1] != "sys: tool failed: shell: boom" {
+	c.handleEvent(map[string]any{"type": "tool_failed", "tool": "shell", "error": "boom", "turn_id": "turn_1", "tool_call_id": "call_2"})
+	if c.status != "Tool failed: shell" || !transcriptContainsBody(c.transcript, "error=boom") {
 		t.Fatalf("tool failed status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.running = true
@@ -916,12 +945,12 @@ func TestHandleEventStatusRendering(t *testing.T) {
 		t.Fatalf("new_post cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 	c.handleEvent(map[string]any{"type": "compaction", "messages_before": 10, "messages_after": 4, "tokens_before": 1234})
-	if c.status != "Compacted context" || c.transcript[len(c.transcript)-1] != "sys[compact]: messages 10→4 · tokens_before=1234" {
+	if c.status != "Compacted context" || !transcriptContainsBody(c.transcript, "messages=10→4") {
 		t.Fatalf("compaction status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleEvent(map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session": "session_child"})
-	if got := c.transcript[len(c.transcript)-1]; got != "sys: routed to @agent1 (session_child)" {
-		t.Fatalf("legacy routing decision transcript = %q", got)
+	if !transcriptContainsBody(c.transcript, "target=@agent1") {
+		t.Fatalf("legacy routing decision transcript = %#v", c.transcript)
 	}
 }
 
@@ -1651,13 +1680,17 @@ func TestRenderMessageLinesFormatsTableResponsively(t *testing.T) {
 
 func TestRenderMessageLineFoldsToolAndCompaction(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
-	toolLines := c.renderToolResultLines(store.Message{Role: "tool_result", Content: "long tool output", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": false}})
-	if len(toolLines) != 1 || toolLines[0] != "tool[shell/ok]: long tool output" {
+	toolLines := c.renderToolResultLines(store.Message{ID: "m1", Role: "tool_result", Content: "long tool output", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": false}})
+	if len(toolLines) != 2 {
 		t.Fatalf("tool lines = %#v", toolLines)
 	}
-	multilineToolLines := c.renderToolResultLines(store.Message{Role: "tool_result", Content: "first line\nsecond line\nthird line", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": true}})
+	meta, ok := parseTranscriptBlockMarker(toolLines[0])
+	if !ok || meta.Kind != "tool" || meta.Title != "shell" || meta.Status != "ok" || toolLines[1] != "│ long tool output" {
+		t.Fatalf("tool lines = %#v meta=%#v ok=%v", toolLines, meta, ok)
+	}
+	multilineToolLines := c.renderToolResultLines(store.Message{ID: "m2", Role: "tool_result", Content: "first line\nsecond line\nthird line", Payload: map[string]any{"kind": "tool_result", "tool_name": "shell", "is_error": true}})
 	joined := strings.Join(multilineToolLines, "\n")
-	for _, want := range []string{"tool[shell/error]: 3 lines", "│ first line", "│ second line", "│ third line"} {
+	for _, want := range []string{"│ first line", "│ second line", "│ third line"} {
 		if !strings.Contains(joined, want) {
 			t.Fatalf("multiline tool lines missing %q in %#v", want, multilineToolLines)
 		}
@@ -1669,19 +1702,42 @@ func TestRenderMessageLineFoldsToolAndCompaction(t *testing.T) {
 }
 
 func TestBuildTranscriptRenderableBlocksCollapsesToolBlocks(t *testing.T) {
+	startedAt := time.Now().Add(-1500 * time.Millisecond).UTC().Format(time.RFC3339Nano)
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}, transcriptExpanded: map[string]bool{}}
-	blocks := c.buildTranscriptRenderableBlocks([]string{
-		"tool[shell/ok]: 4 lines",
-		"│ first",
-		"│ second",
-		"│ third",
-		"│ fourth",
-	})
+	lines := []string{encodeTranscriptBlockMarker(transcriptBlockMeta{Key: "tool:test", Kind: "tool", Title: "shell", Status: "ok", StartedAt: startedAt, EndedAt: startedAt}), "│ first", "│ second", "│ third", "│ fourth"}
+	blocks := c.buildTranscriptRenderableBlocks(lines)
 	if len(blocks) != 1 {
 		t.Fatalf("expected one block, got %#v", blocks)
 	}
-	if !blocks[0].Expandable || blocks[0].Expanded {
+	if !blocks[0].Expandable || blocks[0].Expanded || blocks[0].Kind != "tool" || blocks[0].Subheader == "" {
 		t.Fatalf("unexpected collapsed block state: %#v", blocks[0])
+	}
+}
+
+func TestToggleSelectedTranscriptBlockExpandsBlock(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}, transcriptExpanded: map[string]bool{}, transcript: []string{
+		encodeTranscriptBlockMarker(transcriptBlockMeta{Key: "tool:test", Kind: "tool", Title: "shell", Status: "ok"}),
+		"│ first",
+		"│ second",
+		"│ third",
+	}}
+	c.reindexTranscriptBlocks()
+	c.selectedTranscriptBlock = "tool:test"
+	c.toggleSelectedTranscriptBlock()
+	blocks := c.buildTranscriptRenderableBlocks(c.transcript)
+	if len(blocks) != 1 || !blocks[0].Expanded {
+		t.Fatalf("expected selected block to expand, got %#v", blocks)
+	}
+}
+
+func TestRenderToolEventUpdatesExistingRuntimeBlock(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}}
+	startedAt := time.Now().Add(-2 * time.Second).UTC()
+	c.renderToolEvent(map[string]any{"type": "tool_started", "tool": "shell", "turn_id": "turn_1", "tool_call_id": "call_1", "iteration": 1}, startedAt)
+	c.renderToolEvent(map[string]any{"type": "tool_failed", "tool": "shell", "turn_id": "turn_1", "tool_call_id": "call_1", "iteration": 1, "error": "boom"}, startedAt.Add(1500*time.Millisecond))
+	meta := transcriptLastBlockMeta(t, c.transcript)
+	if meta.Kind != "tool" || meta.Status != "error" || !transcriptContainsBody(c.transcript, "error=boom") {
+		t.Fatalf("unexpected runtime tool block meta=%#v transcript=%#v", meta, c.transcript)
 	}
 }
 

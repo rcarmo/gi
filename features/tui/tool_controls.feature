@@ -4,14 +4,14 @@ Feature: TUI active tool controls
   Scenario: Activate and reset a focused tool set
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
-    Then the screen should contain "Session:"
+    Then the screen should contain "(no messages yet)"
     When I type "/tools active" and press Enter
     Then the screen should contain "tools: active:"
     When I type "/tools activate read shell" and press Enter
-    Then the screen should contain "Activated tools:"
+    Then the screen should contain "tools: Activated tools:"
     And the screen should contain "read"
     And the screen should contain "shell"
     When I type "/tools active" and press Enter
     Then the screen should contain "tools: active: tools, read, shell"
     When I type "/tools reset" and press Enter
-    Then the screen should contain "Reset active tools"
+    Then the screen should contain "tools: Reset active tools to default registry set."

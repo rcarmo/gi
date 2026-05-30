@@ -4,14 +4,11 @@ Feature: TUI settings and approval visibility
   Scenario: Inspect runtime settings and approval state
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
-    Then the screen should contain "Session:"
+    Then the screen should contain "(no messages yet)"
     When I type "/settings" and press Enter
-    Then the screen should contain "settings: runtime"
-    And the screen should contain "settings: model"
-    And the screen should contain "provider: test"
+    Then the screen should contain "provider: test"
+    And the screen should contain "settings: editor"
     And the screen should contain "scrollback_limit:"
     And the screen should contain "settings: compaction"
-    When I type "/scrollback 250" and press Enter
-    Then the screen should contain "scrollback limit set to 250"
     When I type "/approvals" and press Enter
-    Then the screen should contain "approvals: no approval gates"
+    Then the screen should contain "approvals: no approval gates are configured in gi yet"

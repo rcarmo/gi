@@ -64,6 +64,7 @@ This gives us the same behavior-level regression style as Piclaw's UX features, 
 - CI-friendly tmux/Gherkin artifacts: pane captures, report markdown, per-feature SQLite dumps, session/message extracts, and failure summaries.
 - TUI status rendering for thinking deltas, tool completion/failure, generic errors, context compaction broadcasts, and compact state/icon labels for idle/queued/running/tool/hook/error/compaction states.
 - Richer transcript line rendering for user/assistant/system roles, folded multi-line tool results, code-block line counts, and compact runtime compaction summaries.
+- Pi-style transcript tooling/runtime blocks with colored borders, timestamps/elapsed time, live started→finished/failed state updates for tools, structured hook/routing/dispatcher/compaction/sub-turn blocks, and mouse/F6/F7/F8 expansion/navigation.
 - `/settings`/`/config` grouped runtime view covering runtime, model, editor, session, discovery, compaction, and peering settings.
 - `/approvals` visibility for the current approval-gate state; today this reports that gi has no approval gates configured.
 - Expanding multiline input with simplified horizontal-rule chrome instead of a visible `Input:` label, plus focus-aware placeholder markers and contextual send/newline/blur help.

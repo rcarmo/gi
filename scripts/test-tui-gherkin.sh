@@ -13,6 +13,13 @@ CURRENT_FEATURE=""
 CURRENT_STEP=""
 STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
+capture_pane() {
+  if ! tmux has-session -t "$SESSION" >/dev/null 2>&1; then
+    return 1
+  fi
+  tmux capture-pane -p -t "$SESSION":0 2>/dev/null | tr -d '\r'
+}
+
 write_failure_summary() {
   local rc="$1"
   mkdir -p "$ARTIFACT_DIR"
@@ -28,9 +35,7 @@ write_failure_summary() {
     echo
     echo "## Last screen"
     echo '```'
-    if tmux has-session -t "$SESSION" >/dev/null 2>&1; then
-      tmux capture-pane -pe -t "$SESSION":0 || true
-    else
+    if ! capture_pane; then
       echo "tmux session not running"
     fi
     echo '```'
@@ -55,7 +60,7 @@ trap cleanup EXIT
 
 capture() {
   STEP=$((STEP+1))
-  tmux capture-pane -pe -t "$SESSION":0 > "$ARTIFACT_DIR/$(printf '%02d' "$STEP")-screen.txt"
+  capture_pane > "$ARTIFACT_DIR/$(printf '%02d' "$STEP")-screen.txt"
 }
 
 slugify() {
@@ -156,33 +161,49 @@ message_occurrence_should_be() {
 prepare_tui_workspace() {
   tmux kill-session -t "$SESSION" >/dev/null 2>&1 || true
   rm -rf "$TEST_DIR"
-  mkdir -p "$ARTIFACT_DIR" "$WORKSPACE/.pi" "$WORKSPACE/.piclaw"
+  mkdir -p "$ARTIFACT_DIR" "$WORKSPACE/.pi" "$WORKSPACE/.piclaw" "$TEST_DIR/.pi" "$TEST_DIR/.piclaw"
   cat > "$WORKSPACE/.pi/settings.json" <<'JSON'
 {"defaultProvider":"test","defaultModel":"test-model","defaultThinkingLevel":"low","enabledModels":["test-model"]}
 JSON
+  cp "$WORKSPACE/.pi/settings.json" "$TEST_DIR/.pi/settings.json"
   cat > "$WORKSPACE/.piclaw/config.json" <<'JSON'
 {"assistant":{"assistantName":"Gi"},"user":{"userName":"Tester"}}
 JSON
+  cp "$WORKSPACE/.piclaw/config.json" "$TEST_DIR/.piclaw/config.json"
   cat > "$WORKSPACE/AGENTS.md" <<'MD'
 You are Gi TUI Test.
 MD
+  cp "$WORKSPACE/AGENTS.md" "$TEST_DIR/AGENTS.md"
   cd "$ROOT"
-  mkdir -p bin
-  go build -o bin/gi ./cmd/gi
+}
+
+wait_for_tui_ready() {
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    sleep 0.4
+    if capture_pane | grep -Fq "m0/t0"; then
+      return 0
+    fi
+  done
+  echo "TUI did not become ready" >&2
+  capture_pane >&2 || true
+  exit 1
 }
 
 start_tui() {
   prepare_tui_workspace
   tmux new-session -d -x 120 -y 28 -s "$SESSION" "cd '$ROOT' && ./bin/gi -tui -db '$DB' -workspace '$WORKSPACE'"
+  wait_for_tui_ready
 }
 
 start_tui_default() {
   prepare_tui_workspace
   tmux new-session -d -x 120 -y 28 -s "$SESSION" "cd '$TEST_DIR' && '$ROOT/bin/gi'"
+  wait_for_tui_ready
 }
 
 type_and_enter() {
-  tmux send-keys -t "$SESSION":0 "$1" Enter
+  tmux send-keys -t "$SESSION":0 -l "$1"
+  tmux send-keys -t "$SESSION":0 C-m
   sleep 0.5
 }
 
@@ -247,8 +268,8 @@ run_step() {
       local rest=${line#And the database should contain }; local expected=${rest%% user messages*}; local text=${line#*user messages \"}; text=${text%\"}; message_occurrence_should_be "$expected" user "$text" ;;
     "Then the database should contain a user message "*)
       local text=${line#Then the database should contain a user message \"}; text=${text%\"}; db_should_contain user "$text" ;;
-    "And the database should contain an assistant message "*)
-      local text=${line#And the database should contain an assistant message \"}; text=${text%\"}; db_should_contain assistant "$text" ;;
+    "Then the database should contain an assistant message "*|"And the database should contain an assistant message "*)
+      local text=${line#*assistant message \"}; text=${text%\"}; db_should_contain assistant "$text" ;;
     Feature:*|Scenario:*|""|"The "*) ;;
     *) echo "unsupported Gherkin step: $line" >&2; exit 1 ;;
   esac

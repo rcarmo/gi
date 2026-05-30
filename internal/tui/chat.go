@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -91,51 +92,80 @@ func Run(dbPath, workspace, model string) error {
 	return app.Run()
 }
 
+const transcriptBlockMarkerPrefix = "⟦gi:block:"
+
 type transcriptBlockHitTarget struct {
 	Key string
 	Ref *gotui.Ref
 }
 
+type transcriptBlockMeta struct {
+	Key       string `json:"key"`
+	Kind      string `json:"kind"`
+	Title     string `json:"title"`
+	Status    string `json:"status,omitempty"`
+	StartedAt string `json:"started_at,omitempty"`
+	EndedAt   string `json:"ended_at,omitempty"`
+	Detail    string `json:"detail,omitempty"`
+}
+
+type transcriptBlockSpan struct {
+	HeaderIndex int
+	BodyCount   int
+}
+
 type transcriptRenderableBlock struct {
-	Key        string
-	Kind       string
-	Header     string
-	Body       []string
-	Expanded   bool
-	Expandable bool
+	Key          string
+	Kind         string
+	Header       string
+	Subheader    string
+	Body         []string
+	Expanded     bool
+	Expandable   bool
+	Status       string
+	Selected     bool
+	Border       gotui.BorderStyle
+	BorderStyle  gotui.Style
+	HeaderStyle  gotui.Style
+	BodyStyle    gotui.Style
+	HintStyle    gotui.Style
+	SelectedHint string
 }
 
 type chatTUI struct {
-	app                 *gotui.App
-	store               *store.Store
-	engine              *turn.Engine
-	sessionID           string
-	cfg                 config.RuntimeConfig
-	history             []string
-	histIdx             int
-	running             bool
-	status              string
-	draft               string
-	inputActive         bool
-	eventCh             chan map[string]any
-	topicEventCh        chan topics.Envelope
-	subscribedCh        chan map[string]any
-	topicUnsubscribe    func()
-	input               *multilineInput
-	queuedDrafts        []string
-	inputRegion         *gotui.Element
-	transcriptRegion    *gotui.Element
-	transcriptRef       *gotui.Ref
-	transcript          []string
-	transcriptScroll    int
-	stickToBottom       bool
-	draftLineIndex      int
-	outputWidth         int
-	osc52Writer         io.Writer
-	clipboardLookPath   func(string) (string, error)
-	clipboardRun        func(context.Context, string, []string, string) error
-	transcriptBlockRefs []transcriptBlockHitTarget
-	transcriptExpanded  map[string]bool
+	app                     *gotui.App
+	store                   *store.Store
+	engine                  *turn.Engine
+	sessionID               string
+	cfg                     config.RuntimeConfig
+	history                 []string
+	histIdx                 int
+	running                 bool
+	status                  string
+	draft                   string
+	inputActive             bool
+	eventCh                 chan map[string]any
+	topicEventCh            chan topics.Envelope
+	subscribedCh            chan map[string]any
+	topicUnsubscribe        func()
+	input                   *multilineInput
+	queuedDrafts            []string
+	inputRegion             *gotui.Element
+	transcriptRegion        *gotui.Element
+	transcriptRef           *gotui.Ref
+	transcript              []string
+	transcriptScroll        int
+	stickToBottom           bool
+	draftLineIndex          int
+	outputWidth             int
+	osc52Writer             io.Writer
+	clipboardLookPath       func(string) (string, error)
+	clipboardRun            func(context.Context, string, []string, string) error
+	transcriptBlockRefs     []transcriptBlockHitTarget
+	transcriptExpanded      map[string]bool
+	transcriptBlockSpans    map[string]transcriptBlockSpan
+	transcriptToolBlocks    map[string]string
+	selectedTranscriptBlock string
 }
 
 func (c *chatTUI) ensureInput() {
@@ -147,6 +177,185 @@ func (c *chatTUI) ensureInput() {
 	c.input.onComplete = c.completeInputPath
 }
 
+func encodeTranscriptBlockMarker(meta transcriptBlockMeta) string {
+	payload, err := json.Marshal(meta)
+	if err != nil {
+		return transcriptBlockMarkerPrefix + "error⟧"
+	}
+	return transcriptBlockMarkerPrefix + base64.RawURLEncoding.EncodeToString(payload) + "⟧"
+}
+
+func parseTranscriptBlockMarker(line string) (transcriptBlockMeta, bool) {
+	line = strings.TrimSpace(line)
+	if !strings.HasPrefix(line, transcriptBlockMarkerPrefix) || !strings.HasSuffix(line, "⟧") {
+		return transcriptBlockMeta{}, false
+	}
+	encoded := strings.TrimSuffix(strings.TrimPrefix(line, transcriptBlockMarkerPrefix), "⟧")
+	payload, err := base64.RawURLEncoding.DecodeString(encoded)
+	if err != nil {
+		return transcriptBlockMeta{}, false
+	}
+	var meta transcriptBlockMeta
+	if err := json.Unmarshal(payload, &meta); err != nil || strings.TrimSpace(meta.Key) == "" {
+		return transcriptBlockMeta{}, false
+	}
+	return meta, true
+}
+
+func (c *chatTUI) ensureTranscriptBlockState() {
+	if c.transcriptExpanded == nil {
+		c.transcriptExpanded = map[string]bool{}
+	}
+	if c.transcriptBlockSpans == nil {
+		c.transcriptBlockSpans = map[string]transcriptBlockSpan{}
+	}
+	if c.transcriptToolBlocks == nil {
+		c.transcriptToolBlocks = map[string]string{}
+	}
+}
+
+func (c *chatTUI) reindexTranscriptBlocks() {
+	c.ensureTranscriptBlockState()
+	spans := map[string]transcriptBlockSpan{}
+	for i := 0; i < len(c.transcript); i++ {
+		meta, ok := parseTranscriptBlockMarker(c.transcript[i])
+		if !ok {
+			continue
+		}
+		bodyCount := 0
+		for j := i + 1; j < len(c.transcript); j++ {
+			if _, isBlock := parseTranscriptBlockMarker(c.transcript[j]); isBlock {
+				break
+			}
+			if strings.HasPrefix(c.transcript[j], "│ ") {
+				bodyCount++
+				continue
+			}
+			break
+		}
+		spans[meta.Key] = transcriptBlockSpan{HeaderIndex: i, BodyCount: bodyCount}
+	}
+	c.transcriptBlockSpans = spans
+	for toolKey, blockKey := range c.transcriptToolBlocks {
+		if _, ok := spans[blockKey]; !ok {
+			delete(c.transcriptToolBlocks, toolKey)
+		}
+	}
+	if c.selectedTranscriptBlock != "" {
+		if _, ok := spans[c.selectedTranscriptBlock]; !ok {
+			c.selectedTranscriptBlock = ""
+		}
+	}
+}
+
+func (c *chatTUI) appendTranscriptBlock(meta transcriptBlockMeta, body []string) {
+	c.ensureTranscriptBlockState()
+	lines := []string{encodeTranscriptBlockMarker(meta)}
+	for _, line := range body {
+		trimmed := strings.TrimRight(line, "\r")
+		if trimmed == "" {
+			trimmed = " "
+		}
+		lines = append(lines, "│ "+trimmed)
+	}
+	c.appendTranscript(lines...)
+	c.reindexTranscriptBlocks()
+	if meta.Key != "" {
+		c.selectedTranscriptBlock = meta.Key
+	}
+}
+
+func (c *chatTUI) replaceTranscriptBlock(meta transcriptBlockMeta, body []string) {
+	c.ensureTranscriptBlockState()
+	span, ok := c.transcriptBlockSpans[meta.Key]
+	if !ok || span.HeaderIndex < 0 || span.HeaderIndex >= len(c.transcript) {
+		c.appendTranscriptBlock(meta, body)
+		return
+	}
+	prefix := append([]string(nil), c.transcript[:span.HeaderIndex]...)
+	middle := []string{encodeTranscriptBlockMarker(meta)}
+	for _, line := range body {
+		trimmed := strings.TrimRight(line, "\r")
+		if trimmed == "" {
+			trimmed = " "
+		}
+		middle = append(middle, "│ "+trimmed)
+	}
+	end := span.HeaderIndex + 1 + span.BodyCount
+	if end > len(c.transcript) {
+		end = len(c.transcript)
+	}
+	suffix := append([]string(nil), c.transcript[end:]...)
+	c.transcript = append(prefix, append(middle, suffix...)...)
+	c.applyTranscriptLimit()
+	c.reindexTranscriptBlocks()
+	if meta.Key != "" {
+		c.selectedTranscriptBlock = meta.Key
+	}
+}
+
+func (c *chatTUI) toggleTranscriptBlock(key string) bool {
+	if strings.TrimSpace(key) == "" {
+		return false
+	}
+	c.ensureTranscriptBlockState()
+	c.selectedTranscriptBlock = key
+	c.transcriptExpanded[key] = !c.transcriptExpanded[key]
+	if c.app != nil {
+		c.app.MarkDirty()
+	}
+	return true
+}
+
+func (c *chatTUI) transcriptBlockOrder() []string {
+	order := make([]string, 0, len(c.transcriptBlockSpans))
+	for _, line := range c.transcript {
+		meta, ok := parseTranscriptBlockMarker(line)
+		if ok {
+			order = append(order, meta.Key)
+		}
+	}
+	return order
+}
+
+func (c *chatTUI) selectTranscriptBlock(delta int) {
+	c.reindexTranscriptBlocks()
+	order := c.transcriptBlockOrder()
+	if len(order) == 0 {
+		return
+	}
+	idx := 0
+	if c.selectedTranscriptBlock != "" {
+		for i, key := range order {
+			if key == c.selectedTranscriptBlock {
+				idx = i
+				break
+			}
+		}
+	}
+	idx = (idx + delta) % len(order)
+	if idx < 0 {
+		idx += len(order)
+	}
+	c.selectedTranscriptBlock = order[idx]
+	if c.app != nil {
+		c.app.MarkDirty()
+	}
+}
+
+func (c *chatTUI) toggleSelectedTranscriptBlock() {
+	c.reindexTranscriptBlocks()
+	order := c.transcriptBlockOrder()
+	if len(order) == 0 {
+		return
+	}
+	key := c.selectedTranscriptBlock
+	if key == "" {
+		key = order[len(order)-1]
+	}
+	c.toggleTranscriptBlock(key)
+}
+
 func (c *chatTUI) Init() func() {
 	c.eventCh = make(chan map[string]any, 64)
 	c.bindSession(c.sessionID)
@@ -155,6 +364,7 @@ func (c *chatTUI) Init() func() {
 	c.history = []string{}
 	c.inputActive = true
 	c.transcript = c.loadTranscript()
+	c.reindexTranscriptBlocks()
 	c.draftLineIndex = -1
 	if strings.TrimSpace(c.cfg.DefaultModel) == "" {
 		c.status = "Select a model with /model <name>"
@@ -275,9 +485,9 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		c.markRunning()
 		c.status = "Thinking…"
 	case "runtime.tool":
-		c.renderToolEvent(payload["type"], payload["tool"], payload["error"], payload["reason"])
+		c.renderToolEvent(payload, env.Timestamp)
 	case "runtime.hook":
-		c.renderHookEvent(payload["type"], payload["hook"], payload["reason"], payload["tool"], payload["error"])
+		c.renderHookEvent(payload, env.Timestamp)
 	case "runtime.turn":
 		typ, _ := payload["type"].(string)
 		status, _ := payload["status"].(string)
@@ -324,22 +534,22 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		}
 	case "runtime.routing":
-		c.renderRoutingEvent(payload["type"], payload["target_agent_id"], payload["target_session"], payload["target_session_id"], payload["source_agent_id"])
+		c.renderRoutingEvent(payload, env.Timestamp)
 	case "runtime.inbound_work":
-		c.renderInboundWorkEvent(payload["type"], payload["source_kind"], payload["status"], payload["attempt_count"], payload["error"])
+		c.renderInboundWorkEvent(payload, env.Timestamp)
 	case "runtime.dispatcher":
-		c.renderDispatcherEvent(payload["type"], payload["worker_id"], payload["processed_count"], payload["error"])
+		c.renderDispatcherEvent(payload, env.Timestamp)
 	case "session.compaction":
-		c.renderCompactionEvent(payload["messages_before"], payload["messages_after"], payload["tokens_before"])
+		c.renderCompactionEvent(payload, env.Timestamp)
 	case "session.routing":
 		if c.useTopicNativeRuntimeStatus() {
 			return
 		}
-		c.renderRoutingEvent(payload["type"], payload["target_agent_id"], payload["target_session"], payload["target_session_id"], payload["source_agent_id"])
+		c.renderRoutingEvent(payload, env.Timestamp)
 	case "session.steering":
 		c.renderSteeringEvent(payload["type"])
 	case "turn.subturn":
-		c.renderSubturnEvent(payload["type"], payload["child_turn_id"], payload["status"])
+		c.renderSubturnEvent(payload, env.Timestamp)
 	}
 	if c.stickToBottom {
 		c.scrollTranscriptToBottom()
@@ -399,11 +609,13 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		if c.app != nil {
 			c.app.MarkDirty()
 		}
-	case "tool_finished", "tool_failed":
+	case "tool_started", "tool_finished", "tool_failed", "tool_skipped":
 		if c.useTopicNativeRuntimeStatus() {
 			return
 		}
-		c.renderToolEvent(evType, ev["tool"], ev["error"], ev["reason"])
+		payload := cloneAnyMap(ev)
+		payload["type"] = evType
+		c.renderToolEvent(payload, time.Time{})
 		if c.stickToBottom {
 			c.scrollTranscriptToBottom()
 		}
@@ -414,7 +626,9 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		if c.useTopicNativeRuntimeStatus() {
 			return
 		}
-		c.renderCompactionEvent(ev["messages_before"], ev["messages_after"], ev["tokens_before"])
+		payload := cloneAnyMap(ev)
+		payload["type"] = evType
+		c.renderCompactionEvent(payload, time.Time{})
 		if c.stickToBottom {
 			c.scrollTranscriptToBottom()
 		}
@@ -425,7 +639,9 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		if c.useTopicNativeRuntimeStatus() {
 			return
 		}
-		c.renderRoutingEvent(evType, ev["target_agent_id"], ev["target_session"], ev["target_session_id"], ev["source_agent_id"])
+		payload := cloneAnyMap(ev)
+		payload["type"] = evType
+		c.renderRoutingEvent(payload, time.Time{})
 		if c.stickToBottom {
 			c.scrollTranscriptToBottom()
 		}
@@ -521,191 +737,351 @@ func (c *chatTUI) renderSteeringEvent(eventTypeValue any) {
 	}
 }
 
-func (c *chatTUI) renderSubturnEvent(eventTypeValue, childTurnValue, statusValue any) {
-	typ, _ := eventTypeValue.(string)
-	childTurn, _ := childTurnValue.(string)
-	status, _ := statusValue.(string)
+func normalizeBlockTimestamp(ts time.Time) time.Time {
+	if ts.IsZero() {
+		return time.Now().UTC()
+	}
+	return ts.UTC()
+}
+
+func formatBlockClock(ts string) string {
+	if parsed, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(ts)); err == nil {
+		return parsed.Local().Format("15:04:05")
+	}
+	return ""
+}
+
+func formatBlockElapsed(startedAt, endedAt string) string {
+	start, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(startedAt))
+	if err != nil {
+		return ""
+	}
+	end := time.Now().UTC()
+	if strings.TrimSpace(endedAt) != "" {
+		if parsed, parseErr := time.Parse(time.RFC3339Nano, strings.TrimSpace(endedAt)); parseErr == nil {
+			end = parsed
+		}
+	}
+	d := end.Sub(start)
+	if d < 0 {
+		d = 0
+	}
+	if d < time.Second {
+		return fmt.Sprintf("%dms", d.Milliseconds())
+	}
+	if d < time.Minute {
+		return fmt.Sprintf("%.1fs", d.Seconds())
+	}
+	minutes := int(d / time.Minute)
+	seconds := int((d % time.Minute) / time.Second)
+	return fmt.Sprintf("%dm%02ds", minutes, seconds)
+}
+
+func (c *chatTUI) renderSubturnEvent(payload map[string]any, ts time.Time) {
+	typ, _ := payload["type"].(string)
+	childTurn, _ := payload["child_turn_id"].(string)
+	status, _ := payload["status"].(string)
+	meta := transcriptBlockMeta{Key: fmt.Sprintf("subturn:%d:%s", time.Now().UnixNano(), childTurn), Kind: "subturn", Status: strings.TrimSpace(status), StartedAt: normalizeBlockTimestamp(ts).Format(time.RFC3339Nano)}
 	switch typ {
 	case "subturn_created":
-		if childTurn != "" {
-			c.appendTranscript(fmt.Sprintf("sys: sub-turn started: %s", childTurn))
-		}
+		meta.Title = "Sub-turn started"
 	case "subturn_status":
-		if childTurn != "" && status != "" {
-			c.appendTranscript(fmt.Sprintf("sys: sub-turn %s: %s", childTurn, status))
-		}
+		meta.Title = "Sub-turn update"
 	case "subturn_result_ready", "subturn_result_delivered", "subturn_orphaned":
-		if childTurn != "" && status != "" {
-			c.appendTranscript(fmt.Sprintf("sys: sub-turn %s result: %s", childTurn, status))
-		}
+		meta.Title = "Sub-turn result"
+	default:
+		return
 	}
+	body := []string{}
+	if childTurn != "" {
+		body = append(body, "turn="+childTurn)
+	}
+	if status != "" {
+		body = append(body, "status="+status)
+	}
+	c.appendTranscriptBlock(meta, body)
 }
 
-func (c *chatTUI) renderHookEvent(eventTypeValue, hookNameValue, reasonValue, toolNameValue, errValue any) {
-	typ, _ := eventTypeValue.(string)
-	hookName, _ := hookNameValue.(string)
-	reason, _ := reasonValue.(string)
-	toolName, _ := toolNameValue.(string)
-	errText, _ := errValue.(string)
-	line := ""
+func (c *chatTUI) renderHookEvent(payload map[string]any, ts time.Time) {
+	typ, _ := payload["type"].(string)
+	hookName, _ := payload["hook"].(string)
+	reason, _ := payload["reason"].(string)
+	toolName, _ := payload["tool"].(string)
+	errText, _ := payload["error"].(string)
+	durationMS := intFromAny(payload["duration_ms"])
+	title := "Hook event"
+	status := "info"
 	switch typ {
 	case "hook_deny", "hook_abort":
-		line = fmt.Sprintf("sys: hook %s", typ)
+		title, status = "Hook denied", "error"
 	case "hook_modify":
-		line = "sys: hook modified"
+		title, status = "Hook modified", "ok"
 	case "hook_respond":
-		line = "sys: hook responded directly"
+		title, status = "Hook responded directly", "ok"
 	case "hook_invocation":
 		if errText != "" {
-			line = "sys: hook invocation error"
+			title, status = "Hook invocation error", "error"
+		} else {
+			title, status = "Hook invoked", "running"
 		}
 	}
-	if line != "" {
-		if hookName != "" {
-			line += " via " + hookName
-		}
-		if toolName != "" {
-			line += " for " + toolName
-		}
-		if reason != "" {
-			line += ": " + truncate(reason, 120)
-		} else if errText != "" {
-			line += ": " + truncate(errText, 120)
-		}
-		c.status = strings.TrimPrefix(line, "sys: ")
+	body := []string{}
+	if hookName != "" {
+		body = append(body, "hook="+hookName)
 	}
+	if toolName != "" {
+		body = append(body, "tool="+toolName)
+	}
+	if durationMS > 0 {
+		body = append(body, fmt.Sprintf("duration=%dms", durationMS))
+	}
+	if reason != "" {
+		body = append(body, "reason="+truncate(reason, 160))
+	}
+	if errText != "" {
+		body = append(body, "error="+truncate(errText, 160))
+		if durationMS > 0 && reason == "" {
+			body = append(body, fmt.Sprintf("timeout=%dms", durationMS))
+		}
+	}
+	c.appendTranscriptBlock(transcriptBlockMeta{Key: fmt.Sprintf("hook:%d:%s", time.Now().UnixNano(), hookName), Kind: "hook", Title: title, Status: status, StartedAt: normalizeBlockTimestamp(ts).Format(time.RFC3339Nano)}, body)
+	statusLine := strings.ToLower(title)
+	if hookName != "" {
+		statusLine += " via " + hookName
+	}
+	if toolName != "" {
+		statusLine += " for " + toolName
+	}
+	if reason != "" {
+		statusLine += ": " + truncate(reason, 120)
+	} else if errText != "" {
+		statusLine += ": " + truncate(errText, 120)
+	}
+	c.status = statusLine
 }
 
-func (c *chatTUI) renderInboundWorkEvent(eventTypeValue, sourceKindValue, statusValue, attemptCountValue, errValue any) {
-	typ, _ := eventTypeValue.(string)
-	sourceKind, _ := sourceKindValue.(string)
-	status, _ := statusValue.(string)
-	attemptCount := intFromAny(attemptCountValue)
-	errText, _ := errValue.(string)
-	line := ""
+func (c *chatTUI) renderInboundWorkEvent(payload map[string]any, ts time.Time) {
+	typ, _ := payload["type"].(string)
+	sourceKind, _ := payload["source_kind"].(string)
+	status, _ := payload["status"].(string)
+	attemptCount := intFromAny(payload["attempt_count"])
+	errText, _ := payload["error"].(string)
+	title := "Inbound work"
+	blockStatus := "info"
 	switch typ {
 	case "inbound_work_enqueued":
-		line = fmt.Sprintf("sys: inbound work queued (%s)", sourceKind)
+		title = "Inbound work queued"
 	case "inbound_work_retry_scheduled":
-		line = fmt.Sprintf("sys: inbound work retry scheduled (%s)", sourceKind)
-		if attemptCount > 0 {
-			line += fmt.Sprintf(" attempt %d", attemptCount)
-		}
+		title = "Inbound work retry scheduled"
 	case "inbound_work_failed":
-		line = fmt.Sprintf("sys: inbound work failed (%s)", sourceKind)
+		title, blockStatus = "Inbound work failed", "error"
 	case "inbound_work_completed":
-		line = fmt.Sprintf("sys: inbound work completed (%s)", sourceKind)
+		title, blockStatus = "Inbound work completed", "ok"
 	case "inbound_work_requeued":
-		line = fmt.Sprintf("sys: inbound work requeued (%s)", sourceKind)
+		title = "Inbound work requeued"
 	case "inbound_work_discarded":
-		line = fmt.Sprintf("sys: inbound work discarded (%s)", sourceKind)
+		title, blockStatus = "Inbound work discarded", "error"
 	}
-	if line != "" {
-		if status != "" {
-			line += fmt.Sprintf(" [%s]", status)
-		}
-		if errText != "" {
-			line += ": " + truncate(errText, 120)
-		}
-		c.status = strings.TrimPrefix(line, "sys: ")
+	body := []string{}
+	if sourceKind != "" {
+		body = append(body, "source="+sourceKind)
+	}
+	if status != "" {
+		body = append(body, "status="+status)
+	}
+	if attemptCount > 0 {
+		body = append(body, fmt.Sprintf("attempt=%d", attemptCount))
+	}
+	if errText != "" {
+		body = append(body, "error="+truncate(errText, 160))
+	}
+	c.appendTranscriptBlock(transcriptBlockMeta{Key: fmt.Sprintf("inbound:%d:%s", time.Now().UnixNano(), typ), Kind: "dispatcher", Title: title, Status: blockStatus, StartedAt: normalizeBlockTimestamp(ts).Format(time.RFC3339Nano)}, body)
+	c.status = strings.ToLower(title)
+	if sourceKind != "" {
+		c.status += fmt.Sprintf(" (%s)", sourceKind)
+	}
+	if attemptCount > 0 && typ == "inbound_work_retry_scheduled" {
+		c.status += fmt.Sprintf(" attempt %d", attemptCount)
+	}
+	if status != "" {
+		c.status += fmt.Sprintf(" [%s]", status)
+	}
+	if errText != "" {
+		c.status += ": " + truncate(errText, 120)
 	}
 }
 
-func (c *chatTUI) renderDispatcherEvent(eventTypeValue, workerIDValue, processedCountValue, errValue any) {
-	typ, _ := eventTypeValue.(string)
-	workerID, _ := workerIDValue.(string)
-	processedCount := intFromAny(processedCountValue)
-	errText, _ := errValue.(string)
-	line := ""
+func (c *chatTUI) renderDispatcherEvent(payload map[string]any, ts time.Time) {
+	typ, _ := payload["type"].(string)
+	workerID, _ := payload["worker_id"].(string)
+	processedCount := intFromAny(payload["processed_count"])
+	errText, _ := payload["error"].(string)
+	title := "Dispatcher event"
+	status := "info"
 	switch typ {
 	case "dispatcher_lease_acquired":
-		line = "sys: inbound dispatcher lease acquired"
+		title = "Inbound dispatcher lease acquired"
 	case "dispatcher_lease_released":
-		line = "sys: inbound dispatcher lease released"
+		title = "Inbound dispatcher lease released"
 	case "dispatcher_drain_completed":
-		line = "sys: inbound dispatcher drain completed"
-		if processedCount > 0 {
-			line += fmt.Sprintf(" (%d processed)", processedCount)
-		}
+		title, status = "Inbound dispatcher drain completed", "ok"
 	case "dispatcher_error":
-		line = "sys: inbound dispatcher error"
+		title, status = "Inbound dispatcher error", "error"
 	}
-	if line != "" {
-		if workerID != "" {
-			line += fmt.Sprintf(" [%s]", workerID)
-		}
-		if errText != "" {
-			line += ": " + truncate(errText, 120)
-		}
-		c.status = strings.TrimPrefix(line, "sys: ")
+	body := []string{}
+	if workerID != "" {
+		body = append(body, "worker="+workerID)
+	}
+	if processedCount > 0 {
+		body = append(body, fmt.Sprintf("processed=%d", processedCount))
+	}
+	if errText != "" {
+		body = append(body, "error="+truncate(errText, 160))
+	}
+	c.appendTranscriptBlock(transcriptBlockMeta{Key: fmt.Sprintf("dispatcher:%d:%s", time.Now().UnixNano(), typ), Kind: "dispatcher", Title: title, Status: status, StartedAt: normalizeBlockTimestamp(ts).Format(time.RFC3339Nano)}, body)
+	c.status = strings.ToLower(title)
+	if processedCount > 0 && typ == "dispatcher_drain_completed" {
+		c.status += fmt.Sprintf(" (%d processed)", processedCount)
+	}
+	if workerID != "" {
+		c.status += fmt.Sprintf(" [%s]", workerID)
+	}
+	if errText != "" {
+		c.status += ": " + truncate(errText, 120)
 	}
 }
 
-func (c *chatTUI) renderCompactionEvent(messagesBeforeValue, messagesAfterValue, tokensBeforeValue any) {
-	before := intFromAny(messagesBeforeValue)
-	after := intFromAny(messagesAfterValue)
-	tokens := intFromAny(tokensBeforeValue)
-	c.appendTranscript(fmt.Sprintf("sys[compact]: messages %d→%d · tokens_before=%d", before, after, tokens))
+func (c *chatTUI) renderCompactionEvent(payload map[string]any, ts time.Time) {
+	before := intFromAny(payload["messages_before"])
+	after := intFromAny(payload["messages_after"])
+	tokens := intFromAny(payload["tokens_before"])
+	c.appendTranscriptBlock(transcriptBlockMeta{Key: fmt.Sprintf("compact:%d", time.Now().UnixNano()), Kind: "compact", Title: "Context compacted", Status: "ok", StartedAt: normalizeBlockTimestamp(ts).Format(time.RFC3339Nano)}, []string{fmt.Sprintf("messages=%d→%d", before, after), fmt.Sprintf("tokens_before=%d", tokens)})
 	c.status = "Compacted context"
 }
 
-func (c *chatTUI) renderToolEvent(eventTypeValue, toolNameValue, errValue, reasonValue any) {
-	typ, _ := eventTypeValue.(string)
-	toolName, _ := toolNameValue.(string)
-	errText, _ := errValue.(string)
-	reason, _ := reasonValue.(string)
+func (c *chatTUI) toolRuntimeBlockKey(payload map[string]any, toolName string) string {
+	toolCallID, _ := payload["tool_call_id"].(string)
+	turnID, _ := payload["turn_id"].(string)
+	iteration := intFromAny(payload["iteration"])
+	if strings.TrimSpace(toolCallID) != "" {
+		return "toolcall:" + toolCallID
+	}
+	return fmt.Sprintf("tool:%s:%s:%d", strings.TrimSpace(turnID), strings.TrimSpace(toolName), iteration)
+}
+
+func (c *chatTUI) renderToolEvent(payload map[string]any, ts time.Time) {
+	c.ensureTranscriptBlockState()
+	typ, _ := payload["type"].(string)
+	toolName, _ := payload["tool"].(string)
+	errText, _ := payload["error"].(string)
+	reason, _ := payload["reason"].(string)
+	if strings.TrimSpace(toolName) == "" {
+		toolName = "tool"
+	}
+	startedAt := normalizeBlockTimestamp(ts)
+	toolKey := c.toolRuntimeBlockKey(payload, toolName)
+	blockKey := c.transcriptToolBlocks[toolKey]
+	meta := transcriptBlockMeta{Key: blockKey, Kind: "tool", Title: toolName}
+	body := []string{}
+	if turnID, _ := payload["turn_id"].(string); turnID != "" {
+		body = append(body, "turn="+turnID)
+	}
+	if callID, _ := payload["tool_call_id"].(string); callID != "" {
+		body = append(body, "call="+callID)
+	}
+	if iteration := intFromAny(payload["iteration"]); iteration > 0 {
+		body = append(body, fmt.Sprintf("iteration=%d", iteration))
+	}
 	switch typ {
 	case "tool_started":
 		c.markRunning()
-		if toolName != "" {
-			c.status = fmt.Sprintf("Running: %s", toolName)
+		meta.Status = "running"
+		meta.StartedAt = startedAt.Format(time.RFC3339Nano)
+		if meta.Key == "" {
+			meta.Key = fmt.Sprintf("tool:%d:%s", time.Now().UnixNano(), toolName)
+			c.transcriptToolBlocks[toolKey] = meta.Key
+			c.appendTranscriptBlock(meta, body)
+		} else {
+			oldMeta, ok := parseTranscriptBlockMarker(c.transcript[c.transcriptBlockSpans[meta.Key].HeaderIndex])
+			if ok && oldMeta.StartedAt != "" {
+				meta.StartedAt = oldMeta.StartedAt
+			}
+			c.replaceTranscriptBlock(meta, body)
 		}
-	case "tool_finished":
-		if toolName != "" {
+		c.status = fmt.Sprintf("Running: %s", toolName)
+	case "tool_finished", "tool_failed", "tool_skipped":
+		if meta.Key == "" {
+			meta.Key = fmt.Sprintf("tool:%d:%s", time.Now().UnixNano(), toolName)
+		}
+		if span, ok := c.transcriptBlockSpans[meta.Key]; ok && span.HeaderIndex < len(c.transcript) {
+			if oldMeta, ok := parseTranscriptBlockMarker(c.transcript[span.HeaderIndex]); ok && oldMeta.StartedAt != "" {
+				meta.StartedAt = oldMeta.StartedAt
+			}
+		}
+		if meta.StartedAt == "" {
+			meta.StartedAt = startedAt.Format(time.RFC3339Nano)
+		}
+		meta.EndedAt = startedAt.Format(time.RFC3339Nano)
+		switch typ {
+		case "tool_finished":
+			meta.Status = "ok"
 			c.status = fmt.Sprintf("Tool finished: %s", toolName)
+		case "tool_failed":
+			meta.Status = "error"
+			if errText != "" {
+				body = append(body, "error="+truncate(errText, 160))
+			}
+			c.status = fmt.Sprintf("Tool failed: %s", toolName)
+		case "tool_skipped":
+			meta.Status = "skipped"
+			if reason != "" {
+				body = append(body, "reason="+truncate(reason, 160))
+			}
+			line := fmt.Sprintf("Tool skipped: %s", toolName)
+			if reason != "" {
+				line += ": " + truncate(reason, 120)
+			}
+			c.status = line
 		}
-	case "tool_failed":
-		line := fmt.Sprintf("sys: tool failed: %s", toolName)
-		if errText != "" {
-			line = fmt.Sprintf("%s: %s", line, truncate(errText, 120))
+		if meta.Key == "" {
+			c.appendTranscriptBlock(meta, body)
+		} else {
+			c.replaceTranscriptBlock(meta, body)
 		}
-		c.appendTranscript(line)
-		c.status = fmt.Sprintf("Tool failed: %s", toolName)
-	case "tool_skipped":
-		line := fmt.Sprintf("Tool skipped: %s", toolName)
-		if reason != "" {
-			line = fmt.Sprintf("%s: %s", line, truncate(reason, 120))
-		}
-		c.status = line
+		c.transcriptToolBlocks[toolKey] = meta.Key
 	}
 }
 
-func (c *chatTUI) renderRoutingEvent(eventType, targetAgentValue, targetSessionValue, targetSessionIDValue, sourceAgentValue any) {
-	typ, _ := eventType.(string)
-	targetAgent, _ := targetAgentValue.(string)
-	targetSession, _ := targetSessionValue.(string)
+func (c *chatTUI) renderRoutingEvent(payload map[string]any, ts time.Time) {
+	typ, _ := payload["type"].(string)
+	targetAgent, _ := payload["target_agent_id"].(string)
+	targetSession, _ := payload["target_session"].(string)
 	if targetSession == "" {
-		targetSession, _ = targetSessionIDValue.(string)
+		targetSession, _ = payload["target_session_id"].(string)
 	}
-	sourceAgent, _ := sourceAgentValue.(string)
+	sourceAgent, _ := payload["source_agent_id"].(string)
+	meta := transcriptBlockMeta{Key: fmt.Sprintf("route:%d:%s", time.Now().UnixNano(), typ), Kind: "route", Status: "info", StartedAt: normalizeBlockTimestamp(ts).Format(time.RFC3339Nano)}
+	body := []string{}
 	switch typ {
 	case "routing_decision":
+		meta.Title = "Route decision"
 		if targetAgent != "" {
-			line := fmt.Sprintf("sys: routed to @%s", targetAgent)
-			if targetSession != "" {
-				line += fmt.Sprintf(" (%s)", targetSession)
-			}
-			c.appendTranscript(line)
+			body = append(body, "target=@"+targetAgent)
+			c.status = fmt.Sprintf("routed to @%s", targetAgent)
 		}
 	case "routing_incoming":
+		meta.Title = "Incoming route"
 		if sourceAgent != "" {
-			line := fmt.Sprintf("sys: incoming route from @%s", sourceAgent)
-			if targetSession != "" {
-				line += fmt.Sprintf(" (%s)", targetSession)
-			}
-			c.appendTranscript(line)
+			body = append(body, "source=@"+sourceAgent)
+			c.status = fmt.Sprintf("incoming route from @%s", sourceAgent)
 		}
+	default:
+		return
 	}
+	if targetSession != "" {
+		body = append(body, "session="+targetSession)
+	}
+	c.appendTranscriptBlock(meta, body)
 }
 
 func (c *chatTUI) resetRunningDraftState() {
@@ -717,6 +1093,17 @@ func (c *chatTUI) resetRunningDraftState() {
 
 func intFromEvent(ev map[string]any, key string) int {
 	return intFromAny(ev[key])
+}
+
+func cloneAnyMap(in map[string]any) map[string]any {
+	if in == nil {
+		return map[string]any{}
+	}
+	out := make(map[string]any, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }
 
 func intFromAny(v any) int {
@@ -755,6 +1142,9 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 		gotui.OnStop(gotui.KeyPageDown, func(ke gotui.KeyEvent) { c.pageTranscript(1) }),
 		gotui.OnStop(gotui.KeyHome, func(ke gotui.KeyEvent) { c.scrollTranscriptToTop() }),
 		gotui.OnStop(gotui.KeyEnd, func(ke gotui.KeyEvent) { c.scrollTranscriptToBottom() }),
+		gotui.OnPreemptStop(gotui.KeyF6, func(ke gotui.KeyEvent) { c.selectTranscriptBlock(-1) }),
+		gotui.OnPreemptStop(gotui.KeyF7, func(ke gotui.KeyEvent) { c.selectTranscriptBlock(1) }),
+		gotui.OnPreemptStop(gotui.KeyF8, func(ke gotui.KeyEvent) { c.toggleSelectedTranscriptBlock() }),
 		gotui.OnPreemptStop(gotui.KeyF2, func(ke gotui.KeyEvent) { c.recallHistory(-1) }),
 		gotui.OnPreemptStop(gotui.KeyF3, func(ke gotui.KeyEvent) { c.recallHistory(1) }),
 		gotui.OnPreemptStop(gotui.Rune('p').Ctrl(), func(ke gotui.KeyEvent) { c.recallHistory(-1) }),
@@ -867,14 +1257,7 @@ func (c *chatTUI) handleTranscriptBlockClick(me gotui.MouseEvent) bool {
 		if target.Ref == nil || target.Ref.El() == nil || !target.Ref.El().ContainsPoint(me.X, me.Y) {
 			continue
 		}
-		if c.transcriptExpanded == nil {
-			c.transcriptExpanded = map[string]bool{}
-		}
-		c.transcriptExpanded[target.Key] = !c.transcriptExpanded[target.Key]
-		if c.app != nil {
-			c.app.MarkDirty()
-		}
-		return true
+		return c.toggleTranscriptBlock(target.Key)
 	}
 	return false
 }
@@ -1312,7 +1695,7 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 func (c *chatTUI) helpLines() []string {
 	return []string{
 		"help",
-		"enter send · shift-enter newline · esc blur · ctrl-d exit",
+		"enter send · shift-enter newline · esc blur · ctrl-d exit · f6/f7 select block · f8 expand",
 		"/commands  all commands",
 		"/model     choose model · ctrl-l cycles",
 		"/session   details for this chat",
@@ -1947,6 +2330,7 @@ func (c *chatTUI) applyTranscriptLimit() {
 			c.draftLineIndex = -1
 		}
 	}
+	c.reindexTranscriptBlocks()
 }
 
 func (c *chatTUI) compactLines() []string {
@@ -1983,7 +2367,7 @@ func (c *chatTUI) settingsLines() []string {
 		"settings: editor",
 		fmt.Sprintf("- scrollback_limit: %d", c.currentScrollbackLimit()),
 		fmt.Sprintf("- clipboard_mode: %s", c.cfg.TUIClipboardMode),
-		"- shortcuts: Ctrl+L/Alt+L model cycle, Ctrl+T/Alt+T thinking cycle, Tab path completion, @path completion",
+		"- shortcuts: Ctrl+L/Alt+L model cycle, Ctrl+T/Alt+T thinking cycle, Tab path completion, @path completion, F6/F7 transcript block select, F8 expand/collapse",
 		"settings: session",
 		fmt.Sprintf("- session_id: %s", c.sessionID),
 		fmt.Sprintf("- running: %v", c.running),
@@ -2214,7 +2598,17 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	if c.transcriptExpanded == nil {
 		c.transcriptExpanded = map[string]bool{}
 	}
-	for _, block := range c.buildTranscriptRenderableBlocks(c.visibleTranscript()) {
+	blocks := c.buildTranscriptRenderableBlocks(c.visibleTranscript())
+	if c.selectedTranscriptBlock == "" {
+		for i := len(blocks) - 1; i >= 0; i-- {
+			if blocks[i].Key != "" && (len(blocks[i].Body) > 0 || blocks[i].Subheader != "") {
+				c.selectedTranscriptBlock = blocks[i].Key
+				break
+			}
+		}
+		blocks = c.buildTranscriptRenderableBlocks(c.visibleTranscript())
+	}
+	for _, block := range blocks {
 		transcript.AddChild(c.renderTranscriptBlock(block))
 	}
 	root.AddChild(transcript)
@@ -2432,19 +2826,34 @@ func (c *chatTUI) renderLineBlock(lines []string, style gotui.Style) *gotui.Elem
 
 func (c *chatTUI) buildTranscriptRenderableBlocks(lines []string) []transcriptRenderableBlock {
 	blocks := make([]transcriptRenderableBlock, 0, len(lines))
+	c.ensureTranscriptBlockState()
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
-		switch {
-		case strings.HasPrefix(line, "tool["):
+		if meta, ok := parseTranscriptBlockMarker(line); ok {
 			body := make([]string, 0, 4)
 			j := i + 1
 			for j < len(lines) && strings.HasPrefix(lines[j], "│ ") {
 				body = append(body, strings.TrimPrefix(lines[j], "│ "))
 				j++
 			}
-			key := fmt.Sprintf("tool:%d:%s", i, line)
-			blocks = append(blocks, transcriptRenderableBlock{Key: key, Kind: "tool", Header: line, Body: body, Expandable: len(body) > 2, Expanded: c.transcriptExpanded[key]})
+			expanded := c.transcriptExpanded[meta.Key]
+			headStyle, bodyStyle, hintStyle, borderStyle, border := transcriptBlockPalette(meta.Kind, meta.Status, c.selectedTranscriptBlock == meta.Key)
+			timeBits := []string{}
+			if clock := formatBlockClock(meta.StartedAt); clock != "" {
+				timeBits = append(timeBits, clock)
+			}
+			if elapsed := formatBlockElapsed(meta.StartedAt, meta.EndedAt); elapsed != "" {
+				timeBits = append(timeBits, elapsed)
+			}
+			if meta.Detail != "" {
+				timeBits = append(timeBits, meta.Detail)
+			}
+			subheader := strings.Join(timeBits, " · ")
+			blocks = append(blocks, transcriptRenderableBlock{Key: meta.Key, Kind: meta.Kind, Header: meta.Title, Subheader: subheader, Body: body, Expandable: len(body) > 2, Expanded: expanded, Status: meta.Status, Selected: c.selectedTranscriptBlock == meta.Key, Border: gotui.BorderRounded, BorderStyle: border, HeaderStyle: headStyle, BodyStyle: bodyStyle, HintStyle: hintStyle, SelectedHint: borderStyle})
 			i = j - 1
+			continue
+		}
+		switch {
 		case strings.HasPrefix(line, "local$ "):
 			body := make([]string, 0, 4)
 			j := i + 1
@@ -2462,14 +2871,12 @@ func (c *chatTUI) buildTranscriptRenderableBlocks(lines []string) []transcriptRe
 				break
 			}
 			key := fmt.Sprintf("local:%d:%s", i, line)
-			blocks = append(blocks, transcriptRenderableBlock{Key: key, Kind: "local", Header: line, Body: body, Expandable: len(body) > 2, Expanded: c.transcriptExpanded[key]})
+			headStyle, bodyStyle, hintStyle, borderStyle, border := transcriptBlockPalette("local", "info", c.selectedTranscriptBlock == key)
+			blocks = append(blocks, transcriptRenderableBlock{Key: key, Kind: "local", Header: line, Body: body, Expandable: len(body) > 2, Expanded: c.transcriptExpanded[key], Selected: c.selectedTranscriptBlock == key, Border: gotui.BorderRounded, BorderStyle: border, HeaderStyle: headStyle, BodyStyle: bodyStyle, HintStyle: hintStyle, SelectedHint: borderStyle})
 			i = j - 1
-		case strings.HasPrefix(line, "sys[compact]:"):
-			blocks = append(blocks, transcriptRenderableBlock{Key: fmt.Sprintf("compact:%d:%s", i, line), Kind: "compact", Header: line})
-		case strings.HasPrefix(line, "sys: tool failed:"):
-			blocks = append(blocks, transcriptRenderableBlock{Key: fmt.Sprintf("tool-error:%d:%s", i, line), Kind: "tool-error", Header: line})
 		case strings.HasPrefix(line, "error:"):
-			blocks = append(blocks, transcriptRenderableBlock{Key: fmt.Sprintf("error:%d:%s", i, line), Kind: "error", Header: line})
+			headStyle, bodyStyle, hintStyle, _, _ := transcriptBlockPalette("error", "error", false)
+			blocks = append(blocks, transcriptRenderableBlock{Key: fmt.Sprintf("error:%d:%s", i, line), Kind: "error", Header: line, HeaderStyle: headStyle, BodyStyle: bodyStyle, HintStyle: hintStyle})
 		default:
 			kind := "plain"
 			switch {
@@ -2480,57 +2887,92 @@ func (c *chatTUI) buildTranscriptRenderableBlocks(lines []string) []transcriptRe
 			case strings.HasPrefix(line, c.cfg.AssistantName+":"):
 				kind = "assistant"
 			}
-			blocks = append(blocks, transcriptRenderableBlock{Key: fmt.Sprintf("%s:%d:%s", kind, i, line), Kind: kind, Header: line})
+			headStyle, bodyStyle, hintStyle, _, _ := transcriptBlockPalette(kind, "", false)
+			blocks = append(blocks, transcriptRenderableBlock{Key: fmt.Sprintf("%s:%d:%s", kind, i, line), Kind: kind, Header: line, HeaderStyle: headStyle, BodyStyle: bodyStyle, HintStyle: hintStyle})
 		}
 	}
 	return blocks
 }
 
-func transcriptBlockPalette(kind string) (gotui.Style, gotui.Style, gotui.Style) {
+func transcriptBlockPalette(kind, status string, selected bool) (gotui.Style, gotui.Style, gotui.Style, string, gotui.Style) {
+	fg := gotui.White
 	switch kind {
 	case "tool":
-		return gotui.NewStyle().Foreground(gotui.Cyan).Bold(), gotui.NewStyle().Foreground(gotui.Cyan), gotui.NewStyle().Foreground(gotui.Cyan)
-	case "tool-error", "error":
-		return gotui.NewStyle().Foreground(gotui.Red).Bold(), gotui.NewStyle().Foreground(gotui.Red), gotui.NewStyle().Foreground(gotui.Red)
+		fg = gotui.Cyan
+	case "hook", "route", "dispatcher", "subturn":
+		fg = gotui.Blue
 	case "local":
-		return gotui.NewStyle().Foreground(gotui.Magenta).Bold(), gotui.NewStyle().Foreground(gotui.Magenta), gotui.NewStyle().Foreground(gotui.Magenta)
+		fg = gotui.Magenta
 	case "compact":
-		return gotui.NewStyle().Foreground(gotui.Yellow).Bold(), gotui.NewStyle().Foreground(gotui.Yellow), gotui.NewStyle().Foreground(gotui.Yellow)
-	case "system":
-		return gotui.NewStyle().Dim(), gotui.NewStyle().Dim(), gotui.NewStyle().Dim()
-	case "assistant":
-		return gotui.NewStyle().Bold(), gotui.NewStyle(), gotui.NewStyle().Dim()
+		fg = gotui.Yellow
+	case "error":
+		fg = gotui.Red
 	case "user":
-		return gotui.NewStyle().Bold().Foreground(gotui.Green), gotui.NewStyle().Foreground(gotui.Green), gotui.NewStyle().Dim()
-	default:
-		return gotui.NewStyle(), gotui.NewStyle(), gotui.NewStyle().Dim()
+		fg = gotui.Green
 	}
+	switch status {
+	case "error":
+		fg = gotui.Red
+	case "ok":
+		fg = gotui.Green
+	case "running":
+		fg = gotui.Cyan
+	case "skipped":
+		fg = gotui.Yellow
+	}
+	head := gotui.NewStyle().Foreground(fg).Bold()
+	body := gotui.NewStyle().Foreground(fg)
+	hint := gotui.NewStyle().Dim()
+	border := gotui.NewStyle().Foreground(fg)
+	selectedHint := "F6/F7 select · F8 toggle · click to expand"
+	if selected {
+		border = border.Bold()
+		head = head.Underline()
+		selectedHint = "selected · F6/F7 move · F8 toggle · click to expand"
+	}
+	if kind == "system" || kind == "plain" || kind == "assistant" {
+		head = gotui.NewStyle()
+		body = gotui.NewStyle()
+		hint = gotui.NewStyle().Dim()
+		border = gotui.NewStyle().Foreground(gotui.BrightBlack)
+		if kind == "assistant" {
+			head = gotui.NewStyle().Bold()
+		}
+		if kind == "system" {
+			head = gotui.NewStyle().Dim()
+			body = gotui.NewStyle().Dim()
+		}
+	}
+	return head, body, hint, selectedHint, border
 }
 
 func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) *gotui.Element {
-	headStyle, bodyStyle, hintStyle := transcriptBlockPalette(block.Kind)
-	if len(block.Body) == 0 {
+	if len(block.Body) == 0 && block.Subheader == "" && block.Kind != "local" {
 		return gotui.New(
 			gotui.WithWidthPercent(100),
 			gotui.WithText(block.Header),
-			gotui.WithTextStyle(headStyle),
+			gotui.WithTextStyle(block.HeaderStyle),
 		)
 	}
 	container := gotui.New(
 		gotui.WithDirection(gotui.Column),
 		gotui.WithWidthPercent(100),
-		gotui.WithBorder(gotui.BorderRounded),
-		gotui.WithBorderStyle(bodyStyle),
+		gotui.WithBorder(block.Border),
+		gotui.WithBorderStyle(block.BorderStyle),
 		gotui.WithPadding(1),
 	)
 	ref := gotui.NewRef()
 	ref.Set(container)
 	c.transcriptBlockRefs = append(c.transcriptBlockRefs, transcriptBlockHitTarget{Key: block.Key, Ref: ref})
-	container.AddChild(gotui.New(
-		gotui.WithWidthPercent(100),
-		gotui.WithText(block.Header),
-		gotui.WithTextStyle(headStyle),
-	))
+	statusLabel := strings.TrimSpace(block.Status)
+	headerText := block.Header
+	if statusLabel != "" {
+		headerText = fmt.Sprintf("%s [%s]", headerText, statusLabel)
+	}
+	container.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(headerText), gotui.WithTextStyle(block.HeaderStyle)))
+	if block.Subheader != "" {
+		container.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(block.Subheader), gotui.WithTextStyle(block.HintStyle)))
+	}
 	visibleBody := block.Body
 	hiddenCount := 0
 	if block.Expandable && !block.Expanded {
@@ -2540,22 +2982,16 @@ func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) *gotui.
 		}
 	}
 	for _, line := range visibleBody {
-		container.AddChild(gotui.New(
-			gotui.WithWidthPercent(100),
-			gotui.WithText("│ "+line),
-			gotui.WithTextStyle(bodyStyle),
-		))
+		container.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText("│ "+line), gotui.WithTextStyle(block.BodyStyle)))
 	}
 	if block.Expandable {
-		hint := "click to collapse"
+		hint := "click/F8 to collapse"
 		if !block.Expanded {
-			hint = fmt.Sprintf("… %d more line(s) · click to expand", hiddenCount)
+			hint = fmt.Sprintf("… %d more line(s) · %s", hiddenCount, block.SelectedHint)
 		}
-		container.AddChild(gotui.New(
-			gotui.WithWidthPercent(100),
-			gotui.WithText(hint),
-			gotui.WithTextStyle(hintStyle),
-		))
+		container.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(hint), gotui.WithTextStyle(block.HintStyle)))
+	} else if block.Selected {
+		container.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(block.SelectedHint), gotui.WithTextStyle(block.HintStyle)))
 	}
 	return container
 }
@@ -2589,7 +3025,7 @@ func (c *chatTUI) renderMessageLines(m store.Message, width int) []string {
 		return c.renderToolResultLines(m)
 	}
 	if kind == "compaction" {
-		return []string{c.renderMessageLine(m)}
+		return c.renderCompactionMessageLines(m)
 	}
 	prefix := "you: "
 	switch m.Role {
@@ -2615,18 +3051,25 @@ func (c *chatTUI) renderToolResultLines(m store.Message) []string {
 		status = "error"
 	}
 	trimmed := strings.TrimSpace(m.Content)
+	meta := transcriptBlockMeta{Key: "msg:" + m.ID, Kind: "tool", Title: toolName, Status: status, StartedAt: strings.TrimSpace(m.CreatedAt), EndedAt: strings.TrimSpace(m.CreatedAt)}
 	if trimmed == "" {
-		return []string{fmt.Sprintf("tool[%s/%s]: (empty)", toolName, status)}
+		return []string{encodeTranscriptBlockMarker(meta), "│ (empty)"}
 	}
 	parts := strings.Split(trimmed, "\n")
+	lines := []string{encodeTranscriptBlockMarker(meta)}
 	if len(parts) == 1 {
-		return []string{fmt.Sprintf("tool[%s/%s]: %s", toolName, status, truncate(strings.Join(strings.Fields(parts[0]), " "), 200))}
+		lines = append(lines, "│ "+truncate(strings.Join(strings.Fields(parts[0]), " "), 200))
+		return lines
 	}
-	lines := []string{fmt.Sprintf("tool[%s/%s]: %d lines", toolName, status, len(parts))}
 	for _, part := range parts {
 		lines = append(lines, "│ "+truncate(strings.TrimRight(part, "\r"), 200))
 	}
 	return lines
+}
+
+func (c *chatTUI) renderCompactionMessageLines(m store.Message) []string {
+	tokens := toInt(m.Payload["tokens_before"], 0)
+	return []string{encodeTranscriptBlockMarker(transcriptBlockMeta{Key: "msg:" + m.ID, Kind: "compact", Title: "Context compacted", Status: "ok", StartedAt: strings.TrimSpace(m.CreatedAt), EndedAt: strings.TrimSpace(m.CreatedAt)}), fmt.Sprintf("│ summary=%s", truncate(m.Content, 160)), fmt.Sprintf("│ tokens_before=%d", tokens)}
 }
 
 func (c *chatTUI) renderMessageLine(m store.Message) string {
