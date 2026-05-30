@@ -197,13 +197,7 @@ func (m *multilineInput) renderLines() []renderedLine {
 }
 
 func (m *multilineInput) helpLine() string {
-	if !m.focused {
-		return ""
-	}
-	if strings.TrimSpace(m.text) == "" {
-		return ""
-	}
-	return "enter send · shift-enter newline"
+	return ""
 }
 
 func (m *multilineInput) insertRune(ke gotui.KeyEvent) {

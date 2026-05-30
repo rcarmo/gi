@@ -167,6 +167,9 @@ type chatTUI struct {
 	transcriptBlockSpans    map[string]transcriptBlockSpan
 	transcriptToolBlocks    map[string]string
 	selectedTranscriptBlock string
+	thinkingText            string
+	thinkingBlockKey        string
+	thinkingStartedAt       string
 }
 
 func (c *chatTUI) ensureInput() {
@@ -484,6 +487,8 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		}
 	case "turn.thought":
 		c.markRunning()
+		delta, _ := payload["delta"].(string)
+		c.updateThinkingTranscript(delta, env.Timestamp)
 		c.status = "Thinking…"
 	case "runtime.tool":
 		c.renderToolEvent(payload, env.Timestamp)
@@ -606,6 +611,8 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			return
 		}
 		c.markRunning()
+		delta, _ := ev["delta"].(string)
+		c.updateThinkingTranscript(delta, time.Time{})
 		c.status = "Thinking…"
 		if c.app != nil {
 			c.app.MarkDirty()
@@ -720,6 +727,127 @@ func (c *chatTUI) clearDraftTranscriptLine() {
 	}
 	c.draft = ""
 	c.draftLineIndex = -1
+}
+
+func (c *chatTUI) thinkingBodyLines() []string {
+	trimmed := strings.TrimSpace(c.thinkingText)
+	if trimmed == "" {
+		return []string{"Thinking…"}
+	}
+	parts := strings.Split(trimmed, "\n")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimRight(part, "\r")
+		if part == "" {
+			part = " "
+		}
+		out = append(out, part)
+	}
+	return out
+}
+
+func (c *chatTUI) updateThinkingTranscript(delta string, ts time.Time) {
+	c.ensureTranscriptBlockState()
+	if strings.TrimSpace(c.thinkingBlockKey) == "" {
+		c.thinkingBlockKey = fmt.Sprintf("thought:%d", time.Now().UnixNano())
+		c.thinkingStartedAt = normalizeBlockTimestamp(ts).Format(time.RFC3339Nano)
+	}
+	c.thinkingText += delta
+	meta := transcriptBlockMeta{Key: c.thinkingBlockKey, Kind: "thought", Title: "Thinking", Status: "running", StartedAt: c.thinkingStartedAt}
+	if _, ok := c.transcriptBlockSpans[c.thinkingBlockKey]; ok {
+		c.replaceTranscriptBlock(meta, c.thinkingBodyLines())
+	} else {
+		c.appendTranscriptBlock(meta, c.thinkingBodyLines())
+	}
+}
+
+func (c *chatTUI) finishThinkingTranscript(ts time.Time) {
+	if strings.TrimSpace(c.thinkingBlockKey) == "" {
+		return
+	}
+	span, ok := c.transcriptBlockSpans[c.thinkingBlockKey]
+	if !ok || span.HeaderIndex < 0 || span.HeaderIndex >= len(c.transcript) {
+		c.thinkingText = ""
+		c.thinkingBlockKey = ""
+		c.thinkingStartedAt = ""
+		return
+	}
+	meta, ok := parseTranscriptBlockMarker(c.transcript[span.HeaderIndex])
+	if !ok {
+		c.thinkingText = ""
+		c.thinkingBlockKey = ""
+		c.thinkingStartedAt = ""
+		return
+	}
+	meta.Status = "done"
+	meta.EndedAt = normalizeBlockTimestamp(ts).Format(time.RFC3339Nano)
+	if meta.StartedAt == "" {
+		meta.StartedAt = c.thinkingStartedAt
+	}
+	c.replaceTranscriptBlock(meta, c.thinkingBodyLines())
+	c.thinkingText = ""
+	c.thinkingBlockKey = ""
+	c.thinkingStartedAt = ""
+}
+
+func (c *chatTUI) readTranscriptBlockBody(key string) []string {
+	span, ok := c.transcriptBlockSpans[key]
+	if !ok || span.HeaderIndex < 0 || span.HeaderIndex >= len(c.transcript) {
+		return nil
+	}
+	body := make([]string, 0, span.BodyCount)
+	for i := 0; i < span.BodyCount; i++ {
+		idx := span.HeaderIndex + 1 + i
+		if idx >= len(c.transcript) {
+			break
+		}
+		body = append(body, strings.TrimPrefix(c.transcript[idx], "│ "))
+	}
+	return body
+}
+
+func (c *chatTUI) latestToolResultBody(turnID, toolCallID, toolName string) []string {
+	if c.store == nil || strings.TrimSpace(c.sessionID) == "" {
+		return nil
+	}
+	messages, err := c.store.ListMessages(context.Background(), c.sessionID)
+	if err != nil {
+		return nil
+	}
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg := messages[i]
+		if msg.Role != "tool_result" {
+			continue
+		}
+		payload := msg.Payload
+		if strings.TrimSpace(toolCallID) != "" {
+			if got, _ := payload["tool_call_id"].(string); strings.TrimSpace(got) != strings.TrimSpace(toolCallID) {
+				continue
+			}
+		}
+		if strings.TrimSpace(turnID) != "" {
+			if got, _ := payload["turn_id"].(string); strings.TrimSpace(got) != strings.TrimSpace(turnID) {
+				continue
+			}
+		}
+		if strings.TrimSpace(toolName) != "" {
+			if got, _ := payload["tool_name"].(string); strings.TrimSpace(got) != strings.TrimSpace(toolName) {
+				continue
+			}
+		}
+		trimmed := strings.TrimSpace(msg.Content)
+		if trimmed == "" {
+			return []string{"output=(empty)"}
+		}
+		parts := strings.Split(trimmed, "\n")
+		out := make([]string, 0, len(parts)+1)
+		out = append(out, "output:")
+		for _, part := range parts {
+			out = append(out, strings.TrimRight(part, "\r"))
+		}
+		return out
+	}
+	return nil
 }
 
 func (c *chatTUI) markRunning() {
@@ -976,6 +1104,8 @@ func (c *chatTUI) renderToolEvent(payload map[string]any, ts time.Time) {
 	toolName, _ := payload["tool"].(string)
 	errText, _ := payload["error"].(string)
 	reason, _ := payload["reason"].(string)
+	turnID, _ := payload["turn_id"].(string)
+	toolCallID, _ := payload["tool_call_id"].(string)
 	if strings.TrimSpace(toolName) == "" {
 		toolName = "tool"
 	}
@@ -984,11 +1114,11 @@ func (c *chatTUI) renderToolEvent(payload map[string]any, ts time.Time) {
 	blockKey := c.transcriptToolBlocks[toolKey]
 	meta := transcriptBlockMeta{Key: blockKey, Kind: "tool", Title: toolName}
 	body := []string{}
-	if turnID, _ := payload["turn_id"].(string); turnID != "" {
+	if turnID != "" {
 		body = append(body, "turn="+turnID)
 	}
-	if callID, _ := payload["tool_call_id"].(string); callID != "" {
-		body = append(body, "call="+callID)
+	if toolCallID != "" {
+		body = append(body, "call="+toolCallID)
 	}
 	if iteration := intFromAny(payload["iteration"]); iteration > 0 {
 		body = append(body, fmt.Sprintf("iteration=%d", iteration))
@@ -1014,6 +1144,7 @@ func (c *chatTUI) renderToolEvent(payload map[string]any, ts time.Time) {
 		if meta.Key == "" {
 			meta.Key = fmt.Sprintf("tool:%d:%s", time.Now().UnixNano(), toolName)
 		}
+		existingBody := c.readTranscriptBlockBody(meta.Key)
 		if span, ok := c.transcriptBlockSpans[meta.Key]; ok && span.HeaderIndex < len(c.transcript) {
 			if oldMeta, ok := parseTranscriptBlockMarker(c.transcript[span.HeaderIndex]); ok && oldMeta.StartedAt != "" {
 				meta.StartedAt = oldMeta.StartedAt
@@ -1023,6 +1154,9 @@ func (c *chatTUI) renderToolEvent(payload map[string]any, ts time.Time) {
 			meta.StartedAt = startedAt.Format(time.RFC3339Nano)
 		}
 		meta.EndedAt = startedAt.Format(time.RFC3339Nano)
+		if len(existingBody) > 0 {
+			body = append([]string(nil), existingBody...)
+		}
 		switch typ {
 		case "tool_finished":
 			meta.Status = "ok"
@@ -1043,6 +1177,9 @@ func (c *chatTUI) renderToolEvent(payload map[string]any, ts time.Time) {
 				line += ": " + truncate(reason, 120)
 			}
 			c.status = line
+		}
+		if resultBody := c.latestToolResultBody(turnID, toolCallID, toolName); len(resultBody) > 0 {
+			body = append(body, resultBody...)
 		}
 		if meta.Key == "" {
 			c.appendTranscriptBlock(meta, body)
@@ -1087,6 +1224,7 @@ func (c *chatTUI) renderRoutingEvent(payload map[string]any, ts time.Time) {
 
 func (c *chatTUI) resetRunningDraftState() {
 	c.clearDraftTranscriptLine()
+	c.finishThinkingTranscript(time.Now().UTC())
 	c.running = false
 	c.draft = ""
 	c.draftLineIndex = -1
@@ -2982,6 +3120,8 @@ func transcriptBlockPalette(kind, status string, selected bool) (gotui.Style, go
 	switch kind {
 	case "tool":
 		fg = gotui.Cyan
+	case "thought":
+		fg = gotui.Magenta
 	case "hook", "route", "dispatcher", "subturn":
 		fg = gotui.Blue
 	case "local":

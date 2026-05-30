@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -26,10 +27,28 @@ import (
 	giweb "github.com/rcarmo/gi/internal/web"
 )
 
+func configureTUILogging(logFile string) {
+	logFile = strings.TrimSpace(logFile)
+	if logFile == "" {
+		logFile = filepath.Join(config.DefaultStateDir("gi"), "gi-tui.log")
+	}
+	if err := os.MkdirAll(filepath.Dir(logFile), 0o755); err != nil {
+		log.SetOutput(io.Discard)
+		return
+	}
+	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		log.SetOutput(io.Discard)
+		return
+	}
+	log.SetOutput(f)
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		workspaceRoot := config.DefaultWorkspaceRoot()
 		dbPath := config.DefaultTUIDBPath()
+		configureTUILogging("")
 		if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 			log.Fatalf("create tui db dir: %v", err)
 		}
@@ -58,6 +77,7 @@ func main() {
 	flag.Parse()
 
 	if *tuiMode {
+		configureTUILogging(*logFile)
 		if err := gitui.Run(*dbPath, *workspace, *model); err != nil {
 			log.Fatalf("tui: %v", err)
 		}

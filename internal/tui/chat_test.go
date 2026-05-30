@@ -1789,18 +1789,18 @@ func TestMultilineInputPlaceholderShowsFocusState(t *testing.T) {
 	}
 }
 
-func TestMultilineInputHelpLineFollowsFocusAndText(t *testing.T) {
+func TestMultilineInputHelpLineIsHidden(t *testing.T) {
 	inp := newMultilineInput(40, "Send a message…", nil, nil)
 	if got := inp.helpLine(); got != "" {
 		t.Fatalf("blurred helpLine = %q", got)
 	}
 	inp.Focus()
 	if got := inp.helpLine(); got != "" {
-		t.Fatalf("empty focused helpLine = %q", got)
+		t.Fatalf("focused empty helpLine = %q", got)
 	}
 	inp.SetText("hello")
-	if got := inp.helpLine(); got != "enter send · shift-enter newline" {
-		t.Fatalf("text focused helpLine = %q", got)
+	if got := inp.helpLine(); got != "" {
+		t.Fatalf("focused text helpLine = %q", got)
 	}
 }
 
