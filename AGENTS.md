@@ -109,6 +109,13 @@ make bun-checks     # Hook TDZ checker
 
 ## Makefile reference
 
+### Bootstrap
+| Target | Description |
+|---|---|
+| `make help` | Show the grouped target list |
+| `make deps` | Download Go modules and install Bun packages |
+| `make bootstrap` | Install repo dependencies, install Playwright Chromium, and build `gi` |
+
 ### Dev instance lifecycle
 | Target | Description |
 |---|---|
@@ -130,9 +137,11 @@ make bun-checks     # Hook TDZ checker
 |---|---|
 | `make test` | Go unit tests (`go test ./...`) |
 | `make vet` | Go vet |
+| `make bun-checks` | Hook TDZ checker |
+| `make check` | Standard verification suite (`test`, `vet`, `build-web`, `bun-checks`, `test-ux`) |
 | `make test-ux` | Start isolated instance → run Playwright → stop and clean up (artifacts under `test-results/`) |
 | `make test-tui-smoke` | Run the tmux-based TUI smoke harness (startup/resize artifacts under `test-results/tui-smoke/`) |
-| `make bun-checks` | Hook TDZ checker |
+| `make test-tui-gherkin` | Run the TUI gherkin harness |
 
 ### Isolated test instance
 | Target | Description |
@@ -143,7 +152,7 @@ make bun-checks     # Hook TDZ checker
 ### Cleanup
 | Target | Description |
 |---|---|
-| `make clean` | Remove `.gi-run/`, `bin/`, `.gi-test/`, `test-results/` |
+| `make clean` | Remove `.gi-run/`, `bin/`, `.gi-test/`, `.gi-tui-test/`, `test-results/` |
 
 ### Overrides
 ```sh

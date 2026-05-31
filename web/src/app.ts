@@ -68,7 +68,7 @@ import { SystemMetersHud } from './components/system-meters-hud.js';
 const DEFAULT_SESSION_TITLE = 'default';
 const SESSION_KEY = 'gi_session_id';
 const POLL_INTERVAL_MS = 1200;
-const DEFAULT_AGENT_ID = 'gi';
+const DEFAULT_AGENT_ID = 'web';
 
 function sessionToChatJid(id: string) {
     return `gi:${id}`;
@@ -83,11 +83,27 @@ async function ensureDefaultSession() {
             if (r.ok) return stored;
         } catch {}
     }
-    // Create a new default session
+
+    try {
+        const existing = await fetch('/api/sessions');
+        if (existing.ok) {
+            const payload = await existing.json();
+            const sessions = Array.isArray(payload?.sessions) ? payload.sessions : [];
+            const matching = sessions
+                .filter((session: any) => session?.scope?.agent_id === 'web' && !session?.parent_session_id)
+                .sort((a: any, b: any) => String(b?.updated_at || '').localeCompare(String(a?.updated_at || '')));
+            if (matching[0]?.id) {
+                setLocalStorageItem(SESSION_KEY, matching[0].id);
+                return matching[0].id;
+            }
+        }
+    } catch {}
+
+    // Create a new default web session
     const r = await fetch('/api/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: DEFAULT_SESSION_TITLE }),
+        body: JSON.stringify({ title: '@web', agent_id: 'web' }),
     });
     if (!r.ok) throw new Error('Failed to create default session');
     const s = await r.json();
@@ -128,9 +144,13 @@ function GiApp() {
     const [floatingWidget, setFloatingWidget] = useState<any>(null);
     const [attachmentPreview, setAttachmentPreview] = useState<any>(null);
     const [contextUsage, setContextUsage] = useState<any>(null);
+    const [activeChatAgents, setActiveChatAgents] = useState<any[]>([]);
+    const [currentChatBranches, setCurrentChatBranches] = useState<any[]>([]);
     const [activeModel, setActiveModel] = useState<string>('');
     const [agentModelsPayload, setAgentModelsPayload] = useState<any>(null);
     const [activeThinkingLevel, setActiveThinkingLevel] = useState<string>('');
+    const [supportsThinking, setSupportsThinking] = useState(false);
+    const [modelUsage, setModelUsage] = useState<any>(null);
     const [connectionStatus, setConnectionStatus] = useState<string>('connected');
     const [isAgentTurnActive, setIsAgentTurnActive] = useState(false);
     const isAgentRunningRef = useRef(false);
@@ -178,8 +198,10 @@ function GiApp() {
                     avatar_url: cfg.assistant_avatar || null,
                 },
             });
-            setActiveModel(cfg.default_model || '');
+            setActiveModel(cfg.current || cfg.default_model || '');
             setActiveThinkingLevel(cfg.default_thinking_level || '');
+            setSupportsThinking(Boolean(cfg.supports_thinking));
+            setAgentModelsPayload(cfg);
             setReady(true);
         }).catch((err) => {
             console.error('[gi] Bootstrap failed:', err);
@@ -206,6 +228,28 @@ function GiApp() {
         const el = timelineRef.current;
         if (!el) return;
         el.scrollTop = el.scrollHeight;
+    }, []);
+
+    const refreshSessionLists = useCallback(async (sid: string | null) => {
+        if (!sid) {
+            setActiveChatAgents([]);
+            setCurrentChatBranches([]);
+            return;
+        }
+        const chatJid = sessionToChatJid(sid);
+        const [agentsPayload, branchesPayload] = await Promise.all([
+            getActiveChatAgents().catch(() => ({ agents: [] })),
+            getChatBranches(chatJid).catch(() => ({ branches: [] })),
+        ]);
+        const agentsList = Array.isArray((agentsPayload as any)?.agents) ? (agentsPayload as any).agents : [];
+        const branchesList = Array.isArray((branchesPayload as any)?.branches)
+            ? (branchesPayload as any).branches
+            : (Array.isArray((branchesPayload as any)?.chats) ? (branchesPayload as any).chats : []);
+        setActiveChatAgents(agentsList.map((entry: any) => ({
+            ...entry,
+            is_active: entry?.chat_jid === chatJid,
+        })));
+        setCurrentChatBranches(branchesList);
     }, []);
 
     // ── SSE connection (replaces polling) ─────────────────────────────────────
@@ -271,18 +315,46 @@ function GiApp() {
     useEffect(() => {
         if (!ready || !sessionId) return;
         loadPosts();
+        void refreshSessionLists(sessionId);
         // Light refresh every 10s as a safety net (SSE handles real-time)
-        const id = setInterval(() => loadPosts(), 10000);
+        const id = setInterval(() => {
+            loadPosts();
+            void refreshSessionLists(sessionId);
+        }, 10000);
         return () => clearInterval(id);
-    }, [ready, sessionId]);
+    }, [ready, sessionId, loadPosts, refreshSessionLists]);
 
     // ── Send ──────────────────────────────────────────────────────────────────
 
     const handlePost = useCallback(async (response: any) => {
         // Called by ComposeBox after a successful send
         await loadPosts();
+        void refreshSessionLists(sessionId);
         scrollToBottom();
-    }, [loadPosts, scrollToBottom]);
+    }, [loadPosts, refreshSessionLists, scrollToBottom, sessionId]);
+
+    const handleSwitchChat = useCallback((chatJid: string | null) => {
+        const nextSessionId = typeof chatJid === 'string' && chatJid.startsWith('gi:') ? chatJid.slice(3) : null;
+        if (!nextSessionId || nextSessionId === sessionId) return;
+        setLocalStorageItem(SESSION_KEY, nextSessionId);
+        setSessionId(nextSessionId);
+        setPosts([]);
+    }, [sessionId]);
+
+    const handleCreateSession = useCallback(async () => {
+        const response = await fetch('/api/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: '@web', agent_id: 'web' }),
+        });
+        if (!response.ok) throw new Error('Failed to create web session');
+        const created = await response.json();
+        const nextSessionId = typeof created?.id === 'string' ? created.id : null;
+        if (!nextSessionId) throw new Error('Missing created session id');
+        setLocalStorageItem(SESSION_KEY, nextSessionId);
+        setSessionId(nextSessionId);
+        setPosts([]);
+    }, []);
 
     // ── Pane helpers ──────────────────────────────────────────────────────────
 
@@ -411,12 +483,24 @@ function GiApp() {
                     isAgentActive=${isAgentTurnActive}
                     onPost=${handlePost}
                     onFocus=${() => { if (!isIOSDevice()) scrollToBottom(); }}
+                    onModelChange=${(value: string | null) => {
+                        setActiveModel(value || '');
+                    }}
+                    onModelStateChange=${(state: any) => {
+                        if (state && typeof state === 'object') {
+                            setAgentModelsPayload((prev: any) => ({ ...(prev || {}), ...(state || {}) }));
+                            if (typeof state.model === 'string') setActiveModel(state.model);
+                            if (typeof state.thinking_level_label === 'string' && state.thinking_level_label.trim()) {
+                                setActiveThinkingLevel(state.thinking_level_label);
+                            } else if (typeof state.thinking_level === 'string' && state.thinking_level.trim()) {
+                                setActiveThinkingLevel(state.thinking_level);
+                            }
+                            if (typeof state.supports_thinking === 'boolean') setSupportsThinking(state.supports_thinking);
+                            if (state.provider_usage !== undefined) setModelUsage(state.provider_usage ?? null);
+                        }
+                    }}
                     agents=${agents}
-                    currentSessionAgent=${agents[DEFAULT_AGENT_ID] ? {
-                        ...agents[DEFAULT_AGENT_ID],
-                        chat_jid: currentChatJid,
-                        agent_name: agents[DEFAULT_AGENT_ID].name,
-                    } : null}
+                    currentSessionAgent=${activeChatAgents.find((entry: any) => entry?.chat_jid === currentChatJid) || null}
                     agentStatus=${agentStatus}
                     agentDraft=${agentDraft}
                     contextUsage=${contextUsage}
@@ -427,8 +511,10 @@ function GiApp() {
                     onRemoveMessageRef=${() => {}}
                     onClearMessageRefs=${() => setMessageRefs([])}
                     connectionStatus=${connectionStatus}
-                    activeChatAgents=${[]}
-                    currentChatBranches=${[]}
+                    activeChatAgents=${activeChatAgents}
+                    currentChatBranches=${currentChatBranches}
+                    onSwitchChat=${handleSwitchChat}
+                    onCreateSession=${handleCreateSession}
                     formatBranchPickerLabel=${(b: any) => b?.label || b?.chat_jid || ''}
                     handleBranchPickerChange=${() => {}}
                     searchOpen=${false}
@@ -439,13 +525,12 @@ function GiApp() {
                     onSearchScopeChange=${() => {}}
                     activeModel=${activeModel}
                     agentModelsPayload=${agentModelsPayload}
-                    activeModelUsage=${null}
-                    activeThinkingLevel=${activeThinkingLevel}
-                    supportsThinking=${false}
+                    modelUsage=${modelUsage}
+                    thinkingLevel=${activeThinkingLevel}
+                    supportsThinking=${supportsThinking}
                     followupQueueCount=${followupQueueItems.length}
                     notificationsEnabled=${false}
                     notificationPermission="default"
-                    onToggleNotifications=${() => {}}
                     onComposeSubmitError=${() => {}}
                     pendingRequestRef=${pendingRequestRef}
                     setPendingRequest=${setPendingRequest}

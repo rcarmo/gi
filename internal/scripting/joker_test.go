@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	core "github.com/candid82/joker/core"
+	core "github.com/rcarmo/go-joker/core"
 )
 
 func TestExecuteEmbeddedJoker(t *testing.T) {

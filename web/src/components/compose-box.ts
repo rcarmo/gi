@@ -799,12 +799,15 @@ export function ComposeBox({
     const canSend = content.trim() || mediaFiles.length > 0 || fileRefs.length > 0 || messageRefs.length > 0;
     const canShareLocation = typeof window !== 'undefined'
         && typeof navigator !== 'undefined'
-        && Boolean(navigator.geolocation)
-        && Boolean(window.isSecureContext);
+        && Boolean(window.isSecureContext)
+        && typeof navigator.geolocation?.getCurrentPosition === 'function';
     const notificationsSupported = typeof window !== 'undefined' && typeof Notification !== 'undefined';
     const notificationsSecure = typeof window !== 'undefined' ? Boolean(window.isSecureContext) : false;
     const notificationDenied = notificationPermission === 'denied';
-    const notificationsAvailable = notificationsSupported && notificationsSecure && !notificationDenied;
+    const notificationsAvailable = notificationsSupported
+        && notificationsSecure
+        && !notificationDenied
+        && typeof onToggleNotifications === 'function';
     const notificationActive = notificationPermission === 'granted' && notificationsEnabled;
     const statusNoticeIsCompaction = isCompactionStatus(statusNotice);
     const statusNoticeTitle = resolveStatusPanelTitle(statusNotice);
@@ -2319,7 +2322,6 @@ export function ComposeBox({
                             onClick=${handleLocation}
                             title="Share location"
                             type="button"
-                            disabled=${false}
                         >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10" />

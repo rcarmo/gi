@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -18,6 +19,7 @@ import (
 	_ "github.com/rcarmo/go-ai/inference/provider/openai"
 	_ "github.com/rcarmo/go-ai/inference/provider/openaicodex"
 	_ "github.com/rcarmo/go-ai/inference/provider/openairesponses"
+	"github.com/rcarmo/go-ai/oauth"
 )
 
 var once sync.Once
@@ -29,6 +31,23 @@ type authEntry struct {
 	Expires int64  `json:"expires"`
 	Token   string `json:"token"`
 	APIKey  string `json:"apiKey"`
+}
+
+type ProviderOption struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Authenticated bool   `json:"authenticated"`
+}
+
+type ModelOption struct {
+	ID            string `json:"id"`
+	Provider      string `json:"provider"`
+	Label         string `json:"label"`
+	Name          string `json:"name,omitempty"`
+	ContextWindow int    `json:"context_window,omitempty"`
+	Reasoning     bool   `json:"reasoning,omitempty"`
+	Authenticated bool   `json:"authenticated"`
+	Enabled       bool   `json:"enabled,omitempty"`
 }
 
 func Init() {
@@ -52,19 +71,213 @@ func registerCustomModels() {
 	})
 }
 
+func AuthFilePath() string {
+	home, _ := os.UserHomeDir()
+	if strings.TrimSpace(home) == "" {
+		return filepath.Join(".pi", "agent", "auth.json")
+	}
+	return filepath.Join(home, ".pi", "agent", "auth.json")
+}
+
+func loadAuthEntries() (map[string]authEntry, error) {
+	data, err := os.ReadFile(AuthFilePath())
+	if err != nil {
+		return nil, fmt.Errorf("read auth.json: %w", err)
+	}
+	var entries map[string]authEntry
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return nil, fmt.Errorf("parse auth.json: %w", err)
+	}
+	if entries == nil {
+		entries = map[string]authEntry{}
+	}
+	return entries, nil
+}
+
+func authEntryToOAuthCredentials(entry authEntry) *oauth.Credentials {
+	return &oauth.Credentials{
+		Refresh: entry.Refresh,
+		Access:  entry.Access,
+		Expires: entry.Expires,
+	}
+}
+
+func providerName(id string) string {
+	if p := oauth.GetProvider(id); p != nil {
+		return p.Name()
+	}
+	parts := strings.FieldsFunc(id, func(r rune) bool { return r == '-' || r == '_' || r == '/' })
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+		parts[i] = strings.ToUpper(part[:1]) + part[1:]
+	}
+	if len(parts) == 0 {
+		return id
+	}
+	return strings.Join(parts, " ")
+}
+
+func splitModelLabel(defaultProvider, label string) (string, string) {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return strings.TrimSpace(defaultProvider), ""
+	}
+	if slash := strings.Index(label, "/"); slash > 0 {
+		return strings.TrimSpace(label[:slash]), strings.TrimSpace(label[slash+1:])
+	}
+	return strings.TrimSpace(defaultProvider), label
+}
+
+func modelLabel(provider, id string) string {
+	provider = strings.TrimSpace(provider)
+	id = strings.TrimSpace(id)
+	if provider == "" {
+		return id
+	}
+	if strings.HasPrefix(id, provider+"/") {
+		return id
+	}
+	return provider + "/" + id
+}
+
+func ListRuntimeOptions(defaultProvider, defaultModel string, enabledModels []string) ([]ProviderOption, []ModelOption) {
+	Init()
+
+	authEntries, err := loadAuthEntries()
+	if err != nil {
+		authEntries = map[string]authEntry{}
+	}
+	authenticatedProviders := map[string]authEntry{}
+	for id, entry := range authEntries {
+		authenticatedProviders[strings.TrimSpace(id)] = entry
+	}
+
+	providerSet := map[string]bool{}
+	enabledSet := map[string]bool{}
+	modelOptions := map[string]ModelOption{}
+
+	addProvider := func(id string) {
+		id = strings.TrimSpace(id)
+		if id != "" {
+			providerSet[id] = true
+		}
+	}
+	addModel := func(provider string, model *goai.Model, enabled bool) {
+		provider = strings.TrimSpace(provider)
+		if model == nil {
+			return
+		}
+		id := strings.TrimSpace(model.ID)
+		if id == "" {
+			return
+		}
+		label := modelLabel(provider, id)
+		current := modelOptions[label]
+		current.ID = id
+		current.Provider = provider
+		current.Label = label
+		if strings.TrimSpace(model.Name) != "" {
+			current.Name = model.Name
+		}
+		if model.ContextWindow > 0 {
+			current.ContextWindow = model.ContextWindow
+		}
+		current.Reasoning = current.Reasoning || model.Reasoning
+		current.Authenticated = current.Authenticated || authenticatedProviders[provider].Type != "" || provider == "opencode-zen"
+		current.Enabled = current.Enabled || enabled
+		modelOptions[label] = current
+		addProvider(provider)
+	}
+	addSyntheticModel := func(provider, id string, enabled bool) {
+		provider = strings.TrimSpace(provider)
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return
+		}
+		label := modelLabel(provider, id)
+		current := modelOptions[label]
+		current.ID = id
+		current.Provider = provider
+		current.Label = label
+		current.Authenticated = current.Authenticated || authenticatedProviders[provider].Type != "" || provider == "opencode-zen"
+		current.Enabled = current.Enabled || enabled
+		modelOptions[label] = current
+		addProvider(provider)
+	}
+
+	addProvider(defaultProvider)
+	for _, label := range enabledModels {
+		provider, id := splitModelLabel(defaultProvider, label)
+		full := modelLabel(provider, id)
+		if full != "" {
+			enabledSet[full] = true
+		}
+		if model := goai.GetModel(goai.Provider(provider), id); model != nil {
+			addModel(provider, model, true)
+		} else {
+			addSyntheticModel(provider, id, true)
+		}
+	}
+	if provider, id := splitModelLabel(defaultProvider, defaultModel); id != "" {
+		if model := goai.GetModel(goai.Provider(provider), id); model != nil {
+			addModel(provider, model, enabledSet[modelLabel(provider, id)])
+		} else {
+			addSyntheticModel(provider, id, enabledSet[modelLabel(provider, id)])
+		}
+	}
+
+	for provider, entry := range authenticatedProviders {
+		addProvider(provider)
+		models := goai.ListModels(goai.Provider(provider))
+		if p := oauth.GetProvider(provider); p != nil {
+			models = p.ModifyModels(models, authEntryToOAuthCredentials(entry))
+		}
+		for _, model := range models {
+			addModel(provider, model, enabledSet[modelLabel(provider, model.ID)])
+		}
+	}
+
+	providers := make([]ProviderOption, 0, len(providerSet))
+	for id := range providerSet {
+		providers = append(providers, ProviderOption{
+			ID:            id,
+			Name:          providerName(id),
+			Authenticated: authenticatedProviders[id].Type != "" || id == "opencode-zen",
+		})
+	}
+	sort.Slice(providers, func(i, j int) bool {
+		if providers[i].Authenticated != providers[j].Authenticated {
+			return providers[i].Authenticated && !providers[j].Authenticated
+		}
+		return strings.ToLower(providers[i].Name) < strings.ToLower(providers[j].Name)
+	})
+
+	models := make([]ModelOption, 0, len(modelOptions))
+	for _, model := range modelOptions {
+		models = append(models, model)
+	}
+	sort.Slice(models, func(i, j int) bool {
+		if models[i].Enabled != models[j].Enabled {
+			return models[i].Enabled && !models[j].Enabled
+		}
+		if models[i].Authenticated != models[j].Authenticated {
+			return models[i].Authenticated && !models[j].Authenticated
+		}
+		return strings.ToLower(models[i].Label) < strings.ToLower(models[j].Label)
+	})
+
+	return providers, models
+}
+
 func loadAuth(provider string) (string, string, error) {
 	if provider == "opencode-zen" {
 		return "", "https://opencode.ai/zen/v1", nil
 	}
-	home, _ := os.UserHomeDir()
-	authPath := filepath.Join(home, ".pi", "agent", "auth.json")
-	data, err := os.ReadFile(authPath)
+	entries, err := loadAuthEntries()
 	if err != nil {
-		return "", "", fmt.Errorf("read auth.json: %w", err)
-	}
-	var entries map[string]authEntry
-	if err := json.Unmarshal(data, &entries); err != nil {
-		return "", "", fmt.Errorf("parse auth.json: %w", err)
+		return "", "", err
 	}
 	entry, ok := entries[provider]
 	if !ok {

@@ -25,10 +25,13 @@ test.describe('Config and session', () => {
     expect(cfg.user_name).toBe('Test User');
   });
 
-  test('runtime config loads model from .pi/settings.json', async ({ request }) => {
+  test('runtime config loads model/provider options from .pi/settings.json', async ({ request }) => {
     const cfg = await apiGet(request, '/api/runtime/config');
-    // The test instance uses -model flag override, but settings are loaded
     expect(cfg.default_provider).toBeTruthy();
+    expect(Array.isArray(cfg.provider_options)).toBeTruthy();
+    expect(Array.isArray(cfg.model_options)).toBeTruthy();
+    expect(cfg.provider_options.some((provider: any) => provider.id === 'test')).toBeTruthy();
+    expect(cfg.model_options.some((model: any) => model.label === 'test/test-model' || model.label === 'test-model')).toBeTruthy();
   });
 
   test('at least one session exists after page load', async ({ page, request }) => {

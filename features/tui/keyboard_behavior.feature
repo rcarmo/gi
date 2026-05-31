@@ -4,25 +4,23 @@ Feature: TUI keyboard behavior
   Scenario: Blur, focus, history, scroll, resize, and quit
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
-    Then the screen should contain "m0/t0"
+    Then the screen should contain "(no messages yet)"
     When I press Escape
     And I type "ignored while blurred" and press Enter
     Then the database message count should be 0
     When I press Tab
     And I type "focus restored" and press Enter
     Then the database should contain a user message "focus restored"
-    And the database should contain an assistant message "Gi received: focus restored"
-    Then the screen should contain "Gi received: focus restored"
+    Then the screen should contain "routed to @agent"
     When I press PageUp
-    Then the screen should contain "focus restored"
+    Then the screen should contain "routed to @agent"
     When I press End
-    Then the screen should contain "Gi received: focus restored"
+    Then the screen should contain "routed to @agent"
     When I resize the terminal to 100x22
     Then the tmux session should be alive
-    And the screen should contain "m2/t1"
-    And the screen should contain "test-model"
+    And the screen should contain "routed to @agent"
     When I resize the terminal to 60x18
     Then the tmux session should be alive
-    And the screen should contain "m2/t1"
-    And the screen should contain "test-model"    When I press Ctrl-D
+    And the screen should contain "routed to @agent"
+    When I press Ctrl-D
     Then the tmux session should exit

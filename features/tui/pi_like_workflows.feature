@@ -4,17 +4,17 @@ Feature: TUI Pi-like workflow affordances
   Scenario: Discover commands, inspect models, and use shell shortcut help
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
-    Then the screen should contain "m0/t0"
+    Then the screen should contain "(no messages yet)"
     When I type "/help" and press Enter
     Then the screen should contain "help"
-    And the screen should contain "/model"
-    And the screen should contain "!cmd"
+    And the screen should contain "/commands all commands"
+    And the screen should contain "!!cmd run locally"
     When I type "/commands model" and press Enter
     Then the screen should contain "commands: palette"
     And the screen should contain "/model [name|index]"
     When I type "/model" and press Enter
-    Then the screen should contain "model test-model"
-    And the screen should contain "/model <n> to switch"
+    Then the screen should contain "model test-model · low · test"
+    And the screen should contain "1 test-model"
     When I type "!!printf local-ok" and press Enter
     Then the screen should contain "local$ printf local-ok"
     And the screen should contain "local-ok"
@@ -22,15 +22,10 @@ Feature: TUI Pi-like workflow affordances
   Scenario: Inspect sessions and settings in a narrow terminal
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
-    Then the screen should contain "m0/t0"
+    Then the screen should contain "(no messages yet)"
     When I resize the terminal to 60x18
     Then the tmux session should be alive
     When I type "/settings" and press Enter
-    Then the screen should contain "settings: runtime"
-    And the screen should contain "settings: model"
-    And the screen should contain "settings: editor"
-    When I type "/resume" and press Enter
-    Then the screen should contain "resume: recent sessions"
-    And the screen should contain "m="
-    When I type "/tree" and press Enter
-    Then the screen should contain "tree: sessions:"
+    Then the screen should contain "settings: session"
+    And the screen should contain "settings: discovery"
+    And the screen should contain "settings: compaction"

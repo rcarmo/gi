@@ -167,9 +167,9 @@ Direct port of Piclaw's `/meters` functionality. On by default until slash comma
 ### Developer tooling
 - [x] Makefile with detached lifecycle management
 - [x] `-bind`, `-port`, `-model`, `-log-file`, `-pid-file` CLI flags
-- [x] `make start/stop/restart/status/logs/run/clean`
+- [x] `make help/bootstrap/deps/start/stop/restart/status/logs/run/clean`
 - [x] `make test-ux` (isolated Playwright test instance)
-- [x] `make build-web` / `make bun-checks`
+- [x] `make build-web` / `make bun-checks` / `make check`
 - [x] Bun build pipeline for vendor + app bundles
 
 ---

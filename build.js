@@ -58,7 +58,7 @@ run([
   '--target=browser',
   '--format=esm',
   '--sourcemap',
-  '--external', '#editor-vendor/codemirror',
+  '--external', '/editor-vendor/codemirror.js',
 ]);
 move(`${webSrc}/app.js`,     `${distDir}/app.bundle.js`);
 move(`${webSrc}/app.js.map`, `${distDir}/app.bundle.js.map`);

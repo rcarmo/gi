@@ -153,7 +153,7 @@ type renderedLine struct {
 
 func (m *multilineInput) renderLines() []renderedLine {
 	if m.text == "" {
-		if m.focused && m.blink {
+		if m.focused {
 			return []renderedLine{{text: string(m.cursorRune), placeholder: true}}
 		}
 		return []renderedLine{{text: "", placeholder: true}}
@@ -173,7 +173,7 @@ func (m *multilineInput) renderLines() []renderedLine {
 	if cursorPos > len(runes) {
 		cursorPos = len(runes)
 	}
-	if m.focused && m.blink {
+	if m.focused {
 		runes = append(runes[:cursorPos], append([]rune{m.cursorRune}, runes[cursorPos:]...)...)
 	}
 	segments := strings.Split(string(runes), "\n")
@@ -197,13 +197,7 @@ func (m *multilineInput) renderLines() []renderedLine {
 }
 
 func (m *multilineInput) helpLine() string {
-	if !m.focused {
-		return ""
-	}
-	if strings.TrimSpace(m.text) == "" {
-		return ""
-	}
-	return "enter send · shift-enter newline"
+	return ""
 }
 
 func (m *multilineInput) insertRune(ke gotui.KeyEvent) {

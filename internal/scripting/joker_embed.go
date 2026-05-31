@@ -11,29 +11,31 @@ import (
 	"strings"
 	"sync"
 
-	core "github.com/candid82/joker/core"
-	_ "github.com/candid82/joker/std/base64"
-	_ "github.com/candid82/joker/std/bolt"
-	_ "github.com/candid82/joker/std/crypto"
-	_ "github.com/candid82/joker/std/csv"
-	_ "github.com/candid82/joker/std/filepath"
-	_ "github.com/candid82/joker/std/git"
-	_ "github.com/candid82/joker/std/hex"
-	_ "github.com/candid82/joker/std/html"
-	_ "github.com/candid82/joker/std/http"
-	_ "github.com/candid82/joker/std/io"
-	_ "github.com/candid82/joker/std/json"
-	_ "github.com/candid82/joker/std/markdown"
-	_ "github.com/candid82/joker/std/math"
-	_ "github.com/candid82/joker/std/os"
-	_ "github.com/candid82/joker/std/runtime"
-	_ "github.com/candid82/joker/std/strconv"
-	_ "github.com/candid82/joker/std/string"
-	_ "github.com/candid82/joker/std/time"
-	_ "github.com/candid82/joker/std/url"
-	_ "github.com/candid82/joker/std/uuid"
-	_ "github.com/candid82/joker/std/yaml"
 	"github.com/rcarmo/gi/internal/connectivity"
+	core "github.com/rcarmo/go-joker/core"
+	coretypes "github.com/rcarmo/go-joker/core/types"
+	corecollections "github.com/rcarmo/go-joker/core/types/collections"
+	_ "github.com/rcarmo/go-joker/std/base64"
+	_ "github.com/rcarmo/go-joker/std/bolt"
+	_ "github.com/rcarmo/go-joker/std/crypto"
+	_ "github.com/rcarmo/go-joker/std/csv"
+	_ "github.com/rcarmo/go-joker/std/filepath"
+	_ "github.com/rcarmo/go-joker/std/git"
+	_ "github.com/rcarmo/go-joker/std/hex"
+	_ "github.com/rcarmo/go-joker/std/html"
+	_ "github.com/rcarmo/go-joker/std/http"
+	_ "github.com/rcarmo/go-joker/std/io"
+	_ "github.com/rcarmo/go-joker/std/json"
+	_ "github.com/rcarmo/go-joker/std/markdown"
+	_ "github.com/rcarmo/go-joker/std/math"
+	_ "github.com/rcarmo/go-joker/std/os"
+	_ "github.com/rcarmo/go-joker/std/runtime"
+	_ "github.com/rcarmo/go-joker/std/strconv"
+	_ "github.com/rcarmo/go-joker/std/string"
+	_ "github.com/rcarmo/go-joker/std/time"
+	_ "github.com/rcarmo/go-joker/std/url"
+	_ "github.com/rcarmo/go-joker/std/uuid"
+	_ "github.com/rcarmo/go-joker/std/yaml"
 )
 
 var (
@@ -61,7 +63,7 @@ func ExecuteEmbeddedJoker(ctx context.Context, script string, bridge *Bridge) (s
 	core.Stdin = bytes.NewBuffer(nil)
 	core.GLOBAL_ENV.InitEnv(core.Stdin, core.Stdout, core.Stderr, nil)
 	core.GLOBAL_ENV.SetClassPath("")
-	core.GLOBAL_ENV.SetCurrentNamespace(core.GLOBAL_ENV.EnsureSymbolIsNamespace(core.MakeSymbol("user")))
+	core.GLOBAL_ENV.SetCurrentNamespace(core.GLOBAL_ENV.EnsureSymbolIsNamespace(coretypes.MakeSymbol(core.STRINGS.Intern, "user")))
 	installJokerBridgeProcedures(ctx, bridge)
 
 	fullScript := buildEmbeddedPreamble(bridgeJSON) + "\n(println (json/write-string {\"result\" (do\n" + script + "\n) \"session_state\" @*gi-session-state*}))"
@@ -199,14 +201,14 @@ func stringifyScriptResult(v any) string {
 }
 
 func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
-	userNS := core.GLOBAL_ENV.EnsureSymbolIsNamespace(core.MakeSymbol("user"))
+	userNS := core.GLOBAL_ENV.EnsureSymbolIsNamespace(coretypes.MakeSymbol(core.STRINGS.Intern, "user"))
 
-	meta := core.EmptyArrayMap()
-	register := func(name string, fn func(args []core.Object) core.Object) {
+	meta := corecollections.EmptyArrayMap()
+	register := func(name string, fn func(args []coretypes.Object) coretypes.Object) {
 		userNS.InternVar(name, core.Proc{Fn: core.ProcFn(fn), Name: name, Package: "scripting"}, meta)
 	}
 
-	register("__gi-register-event-hook", func(args []core.Object) core.Object {
+	register("__gi-register-event-hook", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.RegisterEventHook == nil {
 			panic(core.RT.NewError("register event hook is not available"))
 		}
@@ -226,7 +228,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-emit-event", func(args []core.Object) core.Object {
+	register("__gi-emit-event", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.EmitEvent == nil {
 			panic(core.RT.NewError("emit event is not available"))
 		}
@@ -255,7 +257,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-clear-event-hooks", func(args []core.Object) core.Object {
+	register("__gi-clear-event-hooks", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.ClearEventHooks == nil {
 			panic(core.RT.NewError("clear event hooks is not available"))
 		}
@@ -265,7 +267,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-register-command", func(args []core.Object) core.Object {
+	register("__gi-register-command", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.RegisterCommand == nil {
 			panic(core.RT.NewError("register command is not available"))
 		}
@@ -283,7 +285,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-register-tool", func(args []core.Object) core.Object {
+	register("__gi-register-tool", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.RegisterTool == nil {
 			panic(core.RT.NewError("register tool is not available"))
 		}
@@ -301,7 +303,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-set-active-tools", func(args []core.Object) core.Object {
+	register("__gi-set-active-tools", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.SetActiveTools == nil {
 			panic(core.RT.NewError("set active tools is not available"))
 		}
@@ -319,7 +321,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-register-route", func(args []core.Object) core.Object {
+	register("__gi-register-route", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.RegisterConnectivityRoute == nil {
 			panic(core.RT.NewError("register route is not available"))
 		}
@@ -336,10 +338,10 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 			panic(core.RT.NewError(err.Error()))
 		}
 		b, _ := json.Marshal(info)
-		return core.MakeString(string(b))
+		return coretypes.MakeString(string(b))
 	})
 
-	register("__gi-unregister-route", func(args []core.Object) core.Object {
+	register("__gi-unregister-route", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.UnregisterConnectivityRoute == nil {
 			panic(core.RT.NewError("unregister route is not available"))
 		}
@@ -353,7 +355,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-list-routes", func(args []core.Object) core.Object {
+	register("__gi-list-routes", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.ListConnectivityRoutes == nil {
 			panic(core.RT.NewError("list routes is not available"))
 		}
@@ -374,10 +376,10 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 			panic(core.RT.NewError(err.Error()))
 		}
 		b, _ := json.Marshal(routes)
-		return core.MakeString(string(b))
+		return coretypes.MakeString(string(b))
 	})
 
-	register("__gi-emit-connectivity-event", func(args []core.Object) core.Object {
+	register("__gi-emit-connectivity-event", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.EmitConnectivityEvent == nil {
 			panic(core.RT.NewError("emit connectivity event is not available"))
 		}
@@ -403,7 +405,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-publish-topic", func(args []core.Object) core.Object {
+	register("__gi-publish-topic", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.PublishTopic == nil {
 			panic(core.RT.NewError("publish topic is not available"))
 		}
@@ -423,7 +425,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-subscribe-topic", func(args []core.Object) core.Object {
+	register("__gi-subscribe-topic", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.SubscribeTopic == nil {
 			panic(core.RT.NewError("subscribe topic is not available"))
 		}
@@ -447,10 +449,10 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		if err != nil {
 			panic(core.RT.NewError(err.Error()))
 		}
-		return core.MakeString(id)
+		return coretypes.MakeString(id)
 	})
 
-	register("__gi-read-topic-subscription", func(args []core.Object) core.Object {
+	register("__gi-read-topic-subscription", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.ReadTopicSubscription == nil {
 			panic(core.RT.NewError("read topic subscription is not available"))
 		}
@@ -471,10 +473,10 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 			panic(core.RT.NewError(err.Error()))
 		}
 		b, _ := json.Marshal(events)
-		return core.MakeString(string(b))
+		return coretypes.MakeString(string(b))
 	})
 
-	register("__gi-unsubscribe-topic", func(args []core.Object) core.Object {
+	register("__gi-unsubscribe-topic", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.UnsubscribeTopic == nil {
 			panic(core.RT.NewError("unsubscribe topic is not available"))
 		}
@@ -488,7 +490,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-list-messages", func(args []core.Object) core.Object {
+	register("__gi-list-messages", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.ListMessages == nil {
 			panic(core.RT.NewError("list messages is not available"))
 		}
@@ -515,10 +517,10 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 			panic(core.RT.NewError(err.Error()))
 		}
 		b, _ := json.Marshal(msgs)
-		return core.MakeString(string(b))
+		return coretypes.MakeString(string(b))
 	})
 
-	register("__gi-open-raw-socket", func(args []core.Object) core.Object {
+	register("__gi-open-raw-socket", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.OpenRawSocket == nil {
 			panic(core.RT.NewError("open raw socket is not available"))
 		}
@@ -534,10 +536,10 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		if err != nil {
 			panic(core.RT.NewError(err.Error()))
 		}
-		return core.MakeString(id)
+		return coretypes.MakeString(id)
 	})
 
-	register("__gi-write-raw-socket", func(args []core.Object) core.Object {
+	register("__gi-write-raw-socket", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.WriteRawSocket == nil {
 			panic(core.RT.NewError("write raw socket is not available"))
 		}
@@ -553,10 +555,10 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		if err != nil {
 			panic(core.RT.NewError(err.Error()))
 		}
-		return core.MakeInt(n)
+		return coretypes.MakeInt(n)
 	})
 
-	register("__gi-read-raw-socket", func(args []core.Object) core.Object {
+	register("__gi-read-raw-socket", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.ReadRawSocket == nil {
 			panic(core.RT.NewError("read raw socket is not available"))
 		}
@@ -572,10 +574,10 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		if err != nil {
 			panic(core.RT.NewError(err.Error()))
 		}
-		return core.MakeString(msg)
+		return coretypes.MakeString(msg)
 	})
 
-	register("__gi-close-raw-socket", func(args []core.Object) core.Object {
+	register("__gi-close-raw-socket", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.CloseRawSocket == nil {
 			panic(core.RT.NewError("close raw socket is not available"))
 		}
@@ -589,7 +591,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-open-websocket", func(args []core.Object) core.Object {
+	register("__gi-open-websocket", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.OpenWebSocket == nil {
 			panic(core.RT.NewError("open websocket is not available"))
 		}
@@ -605,10 +607,10 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		if err != nil {
 			panic(core.RT.NewError(err.Error()))
 		}
-		return core.MakeString(id)
+		return coretypes.MakeString(id)
 	})
 
-	register("__gi-write-websocket", func(args []core.Object) core.Object {
+	register("__gi-write-websocket", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.WriteWebSocket == nil {
 			panic(core.RT.NewError("write websocket is not available"))
 		}
@@ -626,7 +628,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-read-websocket", func(args []core.Object) core.Object {
+	register("__gi-read-websocket", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.ReadWebSocket == nil {
 			panic(core.RT.NewError("read websocket is not available"))
 		}
@@ -636,9 +638,9 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		}
 		timeoutMS := 0
 		if len(args) > 1 {
-			if timeout, ok := args[1].(core.Int); ok {
+			if timeout, ok := args[1].(coretypes.Int); ok {
 				timeoutMS = timeout.I
-			} else if timeout, ok := args[1].(core.String); ok {
+			} else if timeout, ok := args[1].(coretypes.String); ok {
 				if parsed, parseErr := strconv.Atoi(timeout.S); parseErr == nil {
 					timeoutMS = parsed
 				}
@@ -648,10 +650,10 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		if err != nil {
 			panic(core.RT.NewError(err.Error()))
 		}
-		return core.MakeString(msg)
+		return coretypes.MakeString(msg)
 	})
 
-	register("__gi-close-websocket", func(args []core.Object) core.Object {
+	register("__gi-close-websocket", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.CloseWebSocket == nil {
 			panic(core.RT.NewError("close websocket is not available"))
 		}
@@ -665,7 +667,7 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 		return core.NIL
 	})
 
-	register("__gi-http-request", func(args []core.Object) core.Object {
+	register("__gi-http-request", func(args []coretypes.Object) coretypes.Object {
 		if bridge.Funcs.DoHTTPRequest == nil {
 			panic(core.RT.NewError("http request is not available"))
 		}
@@ -685,33 +687,33 @@ func installJokerBridgeProcedures(ctx context.Context, bridge *Bridge) {
 	})
 }
 
-func readStringArg(args []core.Object, index int, fnName string) (string, error) {
+func readStringArg(args []coretypes.Object, index int, fnName string) (string, error) {
 	if len(args) <= index {
 		return "", fmt.Errorf("%s requires argument %d", fnName, index+1)
 	}
-	if s, ok := args[index].(core.String); ok {
+	if s, ok := args[index].(coretypes.String); ok {
 		return s.S, nil
 	}
 	return "", fmt.Errorf("%s argument %d must be a string", fnName, index+1)
 }
 
-func httpResponseToJokerMap(resp HTTPResponse) core.Map {
-	statusCode := core.MakeInt(resp.StatusCode)
-	status := core.MakeString(resp.Status)
-	headers := core.EmptyArrayMap()
+func httpResponseToJokerMap(resp HTTPResponse) coretypes.Map {
+	statusCode := coretypes.MakeInt(resp.StatusCode)
+	status := coretypes.MakeString(resp.Status)
+	headers := corecollections.EmptyArrayMap()
 	for key, values := range resp.Headers {
-		valueList := core.EmptyArrayVector()
+		valueList := corecollections.EmptyArrayVector()
 		for _, value := range values {
-			valueList.Append(core.MakeString(value))
+			valueList.Append(coretypes.MakeString(value))
 		}
-		headers.Set(core.MakeString(key), valueList)
+		headers.Set(coretypes.MakeString(key), valueList)
 	}
-	result := core.EmptyArrayMap()
-	result.Set(core.MakeKeyword("status_code"), statusCode)
-	result.Set(core.MakeKeyword("status"), status)
-	result.Set(core.MakeKeyword("headers"), headers)
-	result.Set(core.MakeKeyword("body"), core.MakeString(resp.Body))
-	result.Set(core.MakeKeyword("url"), core.MakeString(resp.URL))
+	result := corecollections.EmptyArrayMap()
+	result.Set(coretypes.MakeKeyword(core.STRINGS.Intern, "status_code"), statusCode)
+	result.Set(coretypes.MakeKeyword(core.STRINGS.Intern, "status"), status)
+	result.Set(coretypes.MakeKeyword(core.STRINGS.Intern, "headers"), headers)
+	result.Set(coretypes.MakeKeyword(core.STRINGS.Intern, "body"), coretypes.MakeString(resp.Body))
+	result.Set(coretypes.MakeKeyword(core.STRINGS.Intern, "url"), coretypes.MakeString(resp.URL))
 	return result
 }
 

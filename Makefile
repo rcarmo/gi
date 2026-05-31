@@ -1,14 +1,28 @@
+SHELL := /usr/bin/env bash
+.DEFAULT_GOAL := help
+
+# ── Tool commands ───────────────────────────────────────────────────────
+
+GO ?= go
+BUN ?= bun
+PLAYWRIGHT ?= bunx playwright
+
+# ── Runtime defaults ────────────────────────────────────────────────────
+
 PORT ?= 8090
 BIND ?= 0.0.0.0
+LISTEN ?=
 MODEL ?= github-copilot/gpt-5-mini
 WORKSPACE ?= /workspace
+
+# ── Local paths ─────────────────────────────────────────────────────────
+
 RUN_DIR ?= .gi-run
 BIN_DIR ?= bin
 BIN ?= $(BIN_DIR)/gi
 DB ?= $(RUN_DIR)/gi.db
 LOG ?= $(RUN_DIR)/gi.log
 PID ?= $(RUN_DIR)/gi.pid
-LISTEN ?=
 
 TEST_PORT ?= 19090
 TEST_DIR ?= .gi-test
@@ -19,26 +33,98 @@ TEST_WORKSPACE ?= $(TEST_DIR)/workspace
 TEST_RESULTS ?= test-results
 TUI_TEST_DIR ?= .gi-tui-test
 
-.PHONY: build-web build test vet bun-checks start stop restart status logs run clean test-instance-start test-instance-stop test-ux test-tui-smoke test-tui-gherkin
+# ── Derived arguments and data ──────────────────────────────────────────
+
+SERVER_LISTEN_ARGS = $(if $(LISTEN),-listen $(LISTEN),-bind $(BIND) -port $(PORT))
+SERVER_RUN_ARGS = $(SERVER_LISTEN_ARGS) -model $(MODEL) -db $(DB) -workspace $(WORKSPACE)
+SERVER_DAEMON_ARGS = $(SERVER_LISTEN_ARGS) -model $(MODEL) -db $(abspath $(DB)) -workspace $(WORKSPACE) -log-file $(abspath $(LOG)) -pid-file $(abspath $(PID))
+SERVER_STATUS_ADDR = $(if $(LISTEN),$(LISTEN),$(BIND):$(PORT))
+TEST_SERVER_ARGS = -bind 127.0.0.1 -port $(TEST_PORT) -model test-model -db $(abspath $(TEST_DB)) -workspace $(abspath $(TEST_WORKSPACE)) -log-file $(abspath $(TEST_LOG)) -pid-file $(abspath $(TEST_PID))
+TEST_PICLAW_CONFIG_JSON = {"assistant":{"assistantName":"Gi Test"},"user":{"userName":"Test User"}}
+TEST_PI_SETTINGS_JSON = {"defaultProvider":"test","defaultModel":"test-model","defaultThinkingLevel":"low","enabledModels":["test-model"]}
+
+# ── Helper macros ───────────────────────────────────────────────────────
+
+define require-command
+	@command -v $(1) >/dev/null || { echo "$(2)"; exit 1; }
+endef
+
+# ── Public targets ──────────────────────────────────────────────────────
+
+.PHONY: \
+	help bootstrap deps \
+	build-web build \
+	run start stop restart status logs \
+	test vet bun-checks check \
+	test-instance-start test-instance-stop test-ux test-tui-smoke test-tui-gherkin \
+	clean
+
+# ── Help and bootstrap ──────────────────────────────────────────────────
+
+help:
+	@printf "%s\n" \
+		"gi Make targets" \
+		"" \
+		"Bootstrap" \
+		"  make bootstrap        Install Go/Bun deps, install Playwright Chromium, build gi" \
+		"  make deps             Download Go modules and install Bun packages" \
+		"" \
+		"Build" \
+		"  make build-web        Bundle web assets with Bun" \
+		"  make build            Build web assets and the gi binary" \
+		"" \
+		"Run" \
+		"  make run              Build and run gi in the foreground" \
+		"  make start            Build and start gi detached" \
+		"  make stop             Stop the detached gi process" \
+		"  make restart          Restart the detached gi process" \
+		"  make status           Show detached process status" \
+		"  make logs             Tail the detached process log" \
+		"" \
+		"Checks and tests" \
+		"  make test             Run Go unit tests" \
+		"  make vet              Run go vet" \
+		"  make bun-checks       Run Bun/TS hook checks" \
+		"  make check            Run the standard verification suite" \
+		"  make test-ux          Run Playwright tests against an isolated instance" \
+		"  make test-tui-smoke   Run the tmux-based TUI smoke harness" \
+		"  make test-tui-gherkin Run the TUI gherkin harness" \
+		"" \
+		"Isolated test instance" \
+		"  make test-instance-start  Start the isolated test server on 127.0.0.1:$(TEST_PORT)" \
+		"  make test-instance-stop   Stop and clean up the isolated test server" \
+		"" \
+		"Cleanup" \
+		"  make clean            Remove build, run, and test artifacts" \
+		"" \
+		"Common overrides" \
+		"  PORT=$(PORT) BIND=$(BIND) MODEL=$(MODEL) WORKSPACE=$(WORKSPACE) LISTEN=$(LISTEN)"
+
+bootstrap: deps
+	$(PLAYWRIGHT) install chromium
+	$(MAKE) --no-print-directory build
+	@echo "Bootstrap complete. Run 'make start' or 'make run'."
+
+deps:
+	$(call require-command,$(GO),Go is required but not installed or not on PATH)
+	$(call require-command,$(BUN),Bun is required but not installed or not on PATH)
+	$(GO) mod download
+	$(BUN) install --frozen-lockfile
+
+# ── Build ───────────────────────────────────────────────────────────────
 
 build-web:
-	bun run build:web
+	$(BUN) run build:web
 
 build: build-web
 	mkdir -p $(BIN_DIR)
-	go build -o $(BIN) ./cmd/gi
+	$(GO) build -o $(BIN) ./cmd/gi
 
-test:
-	go test ./...
-
-vet:
-	go vet ./...
-
-bun-checks:
-	bun run check:hook-tdz
+# ── Run lifecycle ───────────────────────────────────────────────────────
 
 run: build
-	$(BIN) $(if $(LISTEN),-listen $(LISTEN),-bind $(BIND) -port $(PORT)) -model $(MODEL) -db $(DB) -workspace $(WORKSPACE)
+	mkdir -p $(RUN_DIR)
+	$(BIN) $(SERVER_RUN_ARGS)
 
 start: build
 	mkdir -p $(RUN_DIR)
@@ -46,15 +132,9 @@ start: build
 		echo "Gi already running with PID $$(cat $(PID))"; \
 		exit 0; \
 	fi
-	$(abspath $(BIN)) $(if $(LISTEN),-listen $(LISTEN),-bind $(BIND) -port $(PORT)) \
-		-model $(MODEL) \
-		-db $(abspath $(DB)) \
-		-workspace $(WORKSPACE) \
-		-log-file $(abspath $(LOG)) \
-		-pid-file $(abspath $(PID)) \
-		>/dev/null 2>&1 </dev/null &
+	$(abspath $(BIN)) $(SERVER_DAEMON_ARGS) >/dev/null 2>&1 </dev/null &
 	@sleep 2
-	@$(MAKE) --no-print-directory status BIND=$(BIND) PORT=$(PORT)
+	@$(MAKE) --no-print-directory status BIND=$(BIND) PORT=$(PORT) LISTEN=$(LISTEN)
 
 stop:
 	@if [ -f $(PID) ] && kill -0 $$(cat $(PID)) 2>/dev/null; then \
@@ -68,8 +148,19 @@ restart: stop start
 
 status:
 	@if [ -f $(PID) ] && kill -0 $$(cat $(PID)) 2>/dev/null; then \
-		echo "Gi running on $(if $(LISTEN),$(LISTEN),$(BIND):$(PORT)) with PID $$(cat $(PID))"; \
-		ss -ltnp | grep ':$(PORT)' || true; \
+		addr='$(SERVER_STATUS_ADDR)'; \
+		port='$(PORT)'; \
+		if [ -n '$(LISTEN)' ]; then \
+			case "$$addr" in \
+				*:* ) port="$${addr##*:}"; port="$${port#\[}"; port="$${port#\]}" ;; \
+			esac; \
+		fi; \
+		echo "Gi running on $$addr with PID $$(cat $(PID))"; \
+		if command -v ss >/dev/null 2>&1 && [ -n "$$port" ]; then \
+			ss -ltnp | grep -F ":$$port" || true; \
+		else \
+			echo "Listener probe unavailable (missing 'ss' or unresolved port)"; \
+		fi; \
 	else \
 		echo "Gi is not running"; \
 		exit 1; \
@@ -77,31 +168,35 @@ status:
 
 logs:
 	@mkdir -p $(RUN_DIR)
+	@touch $(LOG)
 	tail -f $(LOG)
 
-clean:
-	rm -rf $(RUN_DIR) $(BIN_DIR) $(TEST_DIR) $(TUI_TEST_DIR) $(TEST_RESULTS)/
-	rm -f gi gi-tui
+# ── Checks and tests ────────────────────────────────────────────────────
 
-# ── Isolated test instance ──────────────────────────────────────────────
+test:
+	$(GO) test ./...
+
+vet:
+	$(GO) vet ./...
+
+bun-checks:
+	$(BUN) run check:hook-tdz
+
+check: test vet build-web bun-checks test-ux
+
+# ── Isolated UX test instance ───────────────────────────────────────────
 
 test-instance-start: build
 	@mkdir -p $(TEST_DIR)
 	@rm -rf $(TEST_WORKSPACE) $(TEST_DB) $(TEST_LOG)
 	@mkdir -p $(TEST_WORKSPACE)/.piclaw $(TEST_WORKSPACE)/.pi
-	@echo '{"assistant":{"assistantName":"Gi Test"},"user":{"userName":"Test User"}}' > $(TEST_WORKSPACE)/.piclaw/config.json
-	@echo '{"defaultProvider":"test","defaultModel":"test-model","defaultThinkingLevel":"low","enabledModels":["test-model"]}' > $(TEST_WORKSPACE)/.pi/settings.json
+	@printf '%s\n' '$(TEST_PICLAW_CONFIG_JSON)' > $(TEST_WORKSPACE)/.piclaw/config.json
+	@printf '%s\n' '$(TEST_PI_SETTINGS_JSON)' > $(TEST_WORKSPACE)/.pi/settings.json
 	@if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null; then \
 		kill $$(cat $(TEST_PID)) 2>/dev/null || true; \
 		sleep 1; \
 	fi
-	$(abspath $(BIN)) -bind 127.0.0.1 -port $(TEST_PORT) \
-		-model test-model \
-		-db $(abspath $(TEST_DB)) \
-		-workspace $(abspath $(TEST_WORKSPACE)) \
-		-log-file $(abspath $(TEST_LOG)) \
-		-pid-file $(abspath $(TEST_PID)) \
-		>/dev/null 2>&1 </dev/null &
+	$(abspath $(BIN)) $(TEST_SERVER_ARGS) >/dev/null 2>&1 </dev/null &
 	@sleep 2
 	@if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null; then \
 		echo "Test instance running on 127.0.0.1:$(TEST_PORT) with PID $$(cat $(TEST_PID))"; \
@@ -117,7 +212,7 @@ test-instance-stop:
 
 test-ux: test-instance-start
 	mkdir -p $(TEST_RESULTS)
-	GI_TEST_URL=http://127.0.0.1:$(TEST_PORT) bunx playwright test tests/functional/ --reporter=line --output=$(TEST_RESULTS)/playwright; \
+	GI_TEST_URL=http://127.0.0.1:$(TEST_PORT) $(PLAYWRIGHT) test tests/functional/ --reporter=line --output=$(TEST_RESULTS)/playwright; \
 	rc=$$?; \
 	$(MAKE) --no-print-directory test-instance-stop; \
 	exit $$rc
@@ -129,3 +224,9 @@ test-tui-smoke: build
 test-tui-gherkin: build
 	chmod +x scripts/test-tui-gherkin.sh
 	ARTIFACT_DIR=$(abspath $(TEST_RESULTS))/tui-gherkin TEST_DIR=$(abspath $(TUI_TEST_DIR))-gherkin scripts/test-tui-gherkin.sh
+
+# ── Cleanup ─────────────────────────────────────────────────────────────
+
+clean:
+	rm -rf $(RUN_DIR) $(BIN_DIR) $(TEST_DIR) $(TUI_TEST_DIR) $(TEST_RESULTS)
+	rm -f gi gi-tui

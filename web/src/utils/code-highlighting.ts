@@ -22,7 +22,7 @@ import {
   shell,
   swift,
   toml,
-} from '#editor-vendor/codemirror';
+} from '/editor-vendor/codemirror.js';
 
 interface TokenSegment {
   from: number;

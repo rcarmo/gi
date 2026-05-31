@@ -216,10 +216,22 @@ export async function setAgentThoughtVisibility(_agentId: string, _visible: bool
 
 export async function getAgentModels(_chatJid: string | null = null) {
     const data = await request('/api/runtime/config').catch(() => ({}));
-    const models: any[] = (data.enabled_models || []).map((id: string) => ({
-        id, provider: data.default_provider || '', label: id,
-    }));
-    return { models, current: data.default_model || '' };
+    const modelOptions = Array.isArray(data.model_options) ? data.model_options : [];
+    const models: any[] = modelOptions.length > 0
+        ? modelOptions
+        : (data.enabled_models || []).map((id: string) => ({
+            id,
+            provider: data.default_provider || '',
+            label: id,
+        }));
+    return {
+        models,
+        model_options: modelOptions,
+        provider_options: Array.isArray(data.provider_options) ? data.provider_options : [],
+        current: data.current || data.default_model || '',
+        thinking_level: data.default_thinking_level || data.thinking_level || '',
+        supports_thinking: Boolean(data.supports_thinking),
+    };
 }
 
 export async function getAgentQueueState(_chatJid: string | null = null) {
@@ -254,9 +266,12 @@ export async function getActiveChatAgents() {
     return {
         agents: sessions.map((s: any) => ({
             chat_jid: sessionToChatJid(s.id),
-            agent_name: s.scope?.agent_id ? `@${s.scope.agent_id}` : (s.title || s.id),
+            agent_name: s.scope?.agent_id || (typeof s.title === 'string' ? s.title.replace(/^@/, '') : s.id),
             agent_id: s.scope?.agent_id || 'agent',
             parent_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : null,
+            is_active: false,
+            archived_at: null,
+            root_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : sessionToChatJid(s.id),
         })),
     };
 }

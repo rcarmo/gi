@@ -17,6 +17,7 @@ import (
 
 	giauth "github.com/rcarmo/gi/internal/auth"
 	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/inference"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
 	storeaudit "github.com/rcarmo/gi/internal/store/audit"
@@ -769,6 +770,22 @@ func (s *Server) nextForkAgentID(ctx context.Context, sourceSessionID string) (s
 }
 
 func (s *Server) handleRuntimeConfig(w http.ResponseWriter, r *http.Request) {
+	providerOptions, modelOptions := inference.ListRuntimeOptions(s.cfg.DefaultProvider, s.cfg.DefaultModel, s.cfg.EnabledModels)
+	currentModel := strings.TrimSpace(s.cfg.DefaultModel)
+	if currentModel != "" && !strings.Contains(currentModel, "/") && strings.TrimSpace(s.cfg.DefaultProvider) != "" {
+		currentModel = strings.TrimSpace(s.cfg.DefaultProvider) + "/" + currentModel
+	}
+	modelLabels := make([]string, 0, len(modelOptions))
+	supportsThinking := false
+	for _, option := range modelOptions {
+		modelLabels = append(modelLabels, option.Label)
+		if option.Label == currentModel || (option.ID == s.cfg.DefaultModel && option.Provider == s.cfg.DefaultProvider) {
+			supportsThinking = option.Reasoning
+			if currentModel == "" {
+				currentModel = option.Label
+			}
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"workspace_root":         s.cfg.WorkspaceRoot,
 		"assistant_name":         s.cfg.AssistantName,
@@ -780,6 +797,12 @@ func (s *Server) handleRuntimeConfig(w http.ResponseWriter, r *http.Request) {
 		"default_model":          s.cfg.DefaultModel,
 		"default_thinking_level": s.cfg.DefaultThinkingLevel,
 		"enabled_models":         s.cfg.EnabledModels,
+		"provider_options":       providerOptions,
+		"model_options":          modelOptions,
+		"models":                 modelLabels,
+		"current":                currentModel,
+		"thinking_level":         s.cfg.DefaultThinkingLevel,
+		"supports_thinking":      supportsThinking,
 		"version":                s.version,
 	})
 }
