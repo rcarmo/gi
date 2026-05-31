@@ -92,7 +92,7 @@ Implemented:
 - peer message sending via `/send`;
 - topic-native status rendering for runtime turn/tool/hook/routing/session/inbound/dispatcher events;
 - durable same-session steering in the runtime underneath the TUI;
-- visible queued/steering counts in the context summary;
+- visible queued/steering counts in the single bottom status line;
 - visible transcript/status feedback when a message is queued during an active turn;
 - Alt+Up local queued-draft restore.
 
@@ -105,10 +105,10 @@ Adapted/deferred:
 
 Implemented:
 
-- Pi-like hierarchy: status, context, transcript, input, footer;
-- compact status icon labels for idle/queued/running/tool/hook/error/compaction states;
-- responsive footer hints;
-- grouped `/help` with keys, editor bindings, runtime controls, discovery commands, and session workflows;
+- Pi-identical steady-state row order: transcript, separator, editor row, separator, path/branch row, single status row;
+- no top chrome or permanent context block;
+- transient runtime notices routed to the single bottom status line;
+- compact `/help` with detailed discovery delegated to `/commands`, `/session`, `/where`, and `/settings`;
 - textual `/commands [query]` palette fallback;
 - grouped `/settings` with runtime, model, editor, session, discovery, compaction, and peering sections;
 - denser `/tree`, `/resume`, `/settings`, and model-selection output for narrow terminals;

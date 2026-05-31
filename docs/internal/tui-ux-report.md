@@ -7,7 +7,7 @@ Updated: 2026-05-25
 
 The gi TUI now covers the main interaction loop expected from a Pi-like terminal coding assistant:
 
-- boot with compact status/context visibility and Pi-like low-clutter chrome
+- boot with Pi-identical steady-state layout: no top chrome, transcript first, bottom editor/status band
 - prompt submission with streaming output
 - runtime model/thinking/tool/session controls, including model/thinking cycling
 - Pi-like session commands (`/session`, `/new`, `/name`, `/resume`, `/clone`, `/reload`)
@@ -63,7 +63,7 @@ The original report predated the Pi fit/gap implementation. The current closure 
 
 Status: **implemented**
 
-The TUI surfaces status, session identity, agent, model, provider, thinking level, message/turn counts, and stable footer hints on first render.
+The TUI now follows the Pi-style steady-state layout: no top chrome, transcript first, and a bottom band containing the editor row, path/branch row, and one physical status/notification line with message/turn counters plus model/thinking state.
 
 Evidence:
 
@@ -213,7 +213,7 @@ Evidence:
 
 Status: **implemented**
 
-The layout now wraps header/footer metadata and budgets transcript space from actual block sizes.
+The layout now reserves transcript space from the exact Pi-like bottom band: separator, editor row, separator, path/branch row, and a single non-wrapping status line. There is no header/top context block.
 
 Evidence:
 
@@ -255,7 +255,7 @@ Status: **captured**
 
 Observed state:
 
-- gi now has a responsive, information-dense terminal layout with tmux/Gherkin captures;
+- gi now has a Pi-identical steady-state row contract with no top chrome, transcript-first layout, and a single bottom status line;
 - representative pane captures were recorded under `artifacts/tui-audit-20260525/`:
   - `gi-narrow.txt` / `gi-narrow.ansi.txt` at 60x18;
   - `gi-wide.txt` / `gi-wide.ansi.txt` at 100x22;
@@ -265,10 +265,9 @@ Observed state:
 
 Layout notes:
 
-- the decluttered 60x18 capture keeps status, agent/model/thinking, message/turn counts, input, and exit/help hints in four chrome lines plus one separator;
-- the 100x22 capture now follows Pi's lower-clutter hierarchy more closely: compact status/context, mostly blank transcript, single input divider, concise footer;
-- the 140x36 capture has extra transcript breathing room without adding extra dashboard chrome;
-- Pi/Claude-style pixel parity is intentionally not promised; the accepted parity target is low-clutter information hierarchy plus keyboard-only, tmux-friendly operation.
+- the current 60x18, 100x22, and 140x36 targets use the same physical bottom band as Pi: separator, editor row, separator, path/branch row, single status row;
+- the status row carries transient notifications when appropriate, otherwise compact `m/t` plus optional `q/s` counters and right-aligned model/thinking;
+- command hints and detailed session/model state are intentionally on-demand via `/help`, `/commands`, `/session`, `/where`, and `/settings`, not permanent chrome.
 
 ## Recommended next steps
 

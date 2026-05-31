@@ -4,12 +4,12 @@ Feature: TUI session and agent workflows
   Scenario: List agents, fork, switch, and send to a peer agent
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
-    Then the screen should contain "Session:"
+    Then the screen should contain "m0/t0"
     When I type "/agents" and press Enter
     Then the screen should contain "sys: agents:"
     And the screen should contain "@agent"
     When I type "/where" and press Enter
-    Then the screen should contain "Session:"
+    Then the screen should contain "m0/t0"
     And the screen should contain "Agent: @agent"
     When I type "/fork @agent1" and press Enter
     Then the screen should contain "switched to @agent1"

@@ -4,17 +4,17 @@ Feature: TUI Pi-like workflow affordances
   Scenario: Discover commands, inspect models, and use shell shortcut help
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
-    Then the screen should contain "Session:"
+    Then the screen should contain "m0/t0"
     When I type "/help" and press Enter
-    Then the screen should contain "editor:"
-    And the screen should contain "Alt+Enter queue"
-    And the screen should contain "Ctrl+Z undo"
+    Then the screen should contain "help"
+    And the screen should contain "/model"
+    And the screen should contain "!cmd"
     When I type "/commands model" and press Enter
     Then the screen should contain "commands: palette"
     And the screen should contain "/model [name|index]"
     When I type "/model" and press Enter
-    Then the screen should contain "model: current="
-    And the screen should contain "enabled models:"
+    Then the screen should contain "model test-model"
+    And the screen should contain "/model <n> to switch"
     When I type "!!printf local-ok" and press Enter
     Then the screen should contain "local$ printf local-ok"
     And the screen should contain "local-ok"
@@ -22,7 +22,7 @@ Feature: TUI Pi-like workflow affordances
   Scenario: Inspect sessions and settings in a narrow terminal
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
-    Then the screen should contain "Session:"
+    Then the screen should contain "m0/t0"
     When I resize the terminal to 60x18
     Then the tmux session should be alive
     When I type "/settings" and press Enter

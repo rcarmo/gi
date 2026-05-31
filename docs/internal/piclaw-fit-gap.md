@@ -123,24 +123,24 @@ Gaps:
 
 Status: improving fit with Pi/PiClaw terminal ergonomics.
 
-Gi has recently moved toward Pi's layout:
+Gi has recently moved to Pi's steady-state row contract:
 
 - no top chrome;
-- conversation-first transcript;
-- bottom editor band;
-- path/branch footer;
-- single bottom status/notification line;
+- transcript-first rendering;
+- bottom editor band with separator, editor row, separator;
+- path/branch row;
+- single bottom status/notification row;
 - simplified `/help` and `/model`;
 - `/attach` media fallback;
 - scrollback via PageUp/PageDown/Home/End/mouse wheel.
 
 PiClaw/Pi fit:
 
-- The structure now matches Pi's broad terminal hierarchy much more closely.
+- The steady-state physical row order now matches Pi's layout contract.
 
 Gaps:
 
-- Not yet pixel-identical across all terminal states.
+- Needs broader screenshot regression coverage across prompt/tool/queued/error/scrolled states.
 - No native image paste/drag-drop.
 - No extension-provided editor replacement/widgets/overlays.
 - No Pi-style startup resource summary with progressive disclosure (`ctrl+o more`) beyond simplified `/help`.
@@ -229,7 +229,7 @@ Why: user has explicitly asked for identical layout, not approximate.
 Work:
 
 - Keep no top chrome.
-- Preserve Pi-like bottom band exactly:
+- Preserve Pi bottom band exactly:
   - separator;
   - editor row;
   - separator;

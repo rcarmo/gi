@@ -4,20 +4,20 @@ Feature: TUI assistant basics
   Scenario: Boot, discover help and tools, and submit a prompt
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
-    Then the screen should contain "Session:"
-    And the screen should contain "Hints: /help"
+    Then the screen should contain "m0/t0"
+    And the screen should contain "test-model"
     When I type "/help" and press Enter
-    Then the screen should contain "gi TUI help"
-    And the screen should contain "commands: /help, /tools"
+    Then the screen should contain "help"
+    And the screen should contain "/commands"
     When I type "/compact" and press Enter
     Then the screen should contain "compact:"
     And the screen should contain "threshold_tokens"
     When I type "/model test-alt" and press Enter
-    Then the screen should contain "Model: test-alt"
+    Then the screen should contain "model: test-alt"
     When I type "/model test-model" and press Enter
-    Then the screen should contain "Model: test-model"
+    Then the screen should contain "model: test-model"
     When I type "/thinking high" and press Enter
-    Then the screen should contain "Thinking: high"
+    Then the screen should contain "thinking set to high"
     When I type "/cancel" and press Enter
     Then the screen should contain "no running or queued turn to cancel"
     When I type "/tools rtk" and press Enter

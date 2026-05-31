@@ -18,8 +18,8 @@ Existing media-adjacent surfaces before this contract:
 - `steering_queue.media_json` stores a JSON array of strings and `SteeringMessage.Media` exposes it as `[]string`.
 - Turn steering paths preserve `media` from metadata into queued steering and later into user-message payloads, but only as opaque strings today.
 - User-visible messages currently have no first-class relational message/media join. `messages.payload_json.media` may carry the compatibility list when steering is injected.
-- `/api/sessions/{id}/prompt` is text-only today. It must remain valid with no `media` field.
-- Provider payload construction treats media only as a placeholder note today (`[media attachments included]`) rather than loading binary parts.
+- `/api/sessions/{id}/prompt` accepts text-only submissions and an optional `media` field. Text-only calls remain valid with no `media` field.
+- Provider payload construction now projects supported session-owned image media into provider image blocks; unsupported media keeps the safe textual placeholder behavior.
 
 ## Media reference model
 

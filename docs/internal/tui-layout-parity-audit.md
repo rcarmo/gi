@@ -1,90 +1,65 @@
 # TUI layout parity audit
 
 Date: 2026-05-05
+Updated: 2026-05-31
 
 ## Goal
 
-Compare gi's current TUI layout against Pi (and, where possible, the intended Pi/Claude-style information hierarchy) using real tmux captures and screenshot artifacts.
+Compare Gi's current TUI layout against Pi using real tmux captures and keep the accepted row contract synchronized with implementation.
+
+## Current contract
+
+The current accepted target is stricter than the original May 2026 audit: Gi's **steady-state** layout must match Pi's physical row structure.
+
+From top to bottom:
+
+1. transcript starts at row 0;
+2. no top chrome, header, status block, or permanent context block;
+3. bottom separator;
+4. editor/input row;
+5. bottom separator;
+6. path/branch row;
+7. one physical status/notification row.
+
+The detailed contract is `tui-pi-layout-contract.md`; status-line semantics are in `tui-status-line-semantics.md`.
 
 ## Evidence captured
 
-Artifacts directory:
+Historical artifacts:
 
 - `artifacts/tui-audit/`
 - `artifacts/tui-audit-rendered/`
+- `artifacts/tui-compare-current-20260527/`
 
-Generated screenshots:
+These show the evolution from broad Pi-like hierarchy to the current no-top-chrome, bottom-band-first layout. Regenerate current comparison artifacts after any layout-sensitive change.
 
-- `artifacts/tui-audit-rendered/gi-wide.png`
-- `artifacts/tui-audit-rendered/gi-narrow.png`
-- `artifacts/tui-audit-rendered/gi-markdown.png`
+## Pi reference characteristics
 
-Generated PDF report:
+Observed Pi steady-state layout characteristics:
 
-- `artifacts/tui-audit-rendered/tui-feature-report.pdf`
+- transcript/content area starts at the top;
+- editor lives in a bottom band;
+- path/branch appears below the editor separator;
+- final footer/status row contains metrics/model/thinking;
+- transient state is shown in the bottom area rather than as permanent top chrome.
 
-Reference capture:
+## Gi current layout
 
-- `artifacts/tui-audit/pi-wide.txt`
+Gi now follows the same steady-state row contract:
 
-## What was compared
+- no top status/header/context lines;
+- transcript-first rendering;
+- empty editor row is blank, with only cursor when focused/blinking;
+- path row uses workspace path plus best-effort git branch;
+- final status row is single-line and non-wrapping;
+- transient hook/tool/inbound/dispatcher notices prefer the final status row when they are not durable transcript history.
 
-### Pi reference
+## Remaining differences
 
-A real `pi` session was executed in tmux at `100x22` and captured.
-
-Observed Pi layout characteristics:
-
-- strong top-of-screen status/update region
-- context line near top with workspace/model/provider information
-- large central interaction region
-- persistent footer/editor region
-- more startup chrome and warning panels than gi
-
-### Gi current layout
-
-Gi was executed in tmux at:
-
-- `100x22` (`gi-wide`)
-- `60x18` (`gi-narrow`)
-- `100x22` with seeded Markdown transcript (`gi-markdown`)
-
-Observed gi layout characteristics:
-
-- strong top status line
-- immediate context/session metadata block under status
-- large central transcript region
-- simplified horizontal-rule input chrome
-- persistent footer hint region
-- responsive wrapping of context/footer metadata on narrow widths
-
-## Parity judgement
-
-### Matches achieved
-
-Gi now matches the **broad Pi-style terminal information hierarchy**:
-
-1. **status first**
-2. **session/model/provider/context summary next**
-3. **main transcript in the center**
-4. **input/editor at the bottom**
-5. **persistent keyboard/help hints in the footer**
-
-This was the main intent behind the checklist item (“where thinking, model, sessions, etc. are”).
-
-### Remaining differences
-
-- Pi has additional startup chrome, notices, and richer built-in shell/editor affordances.
-- Pi's exact visual spacing and density are not cloned pixel-for-pixel.
-- Claude Code was not available locally for direct side-by-side terminal capture, so this audit uses Pi as the practical reference implementation.
+- Pi has cost/context-window metrics; Gi currently has message/turn and queue/steering counters plus model/thinking.
+- Pi supports richer terminal image paste/drag-drop; Gi currently uses `/attach <path> [prompt]`.
+- Pi has richer extension-provided UI surfaces; Gi currently keeps TUI widgets textual and deterministic.
 
 ## Conclusion
 
-This checklist item is satisfied at the current fidelity level because:
-
-- gi was executed in tmux
-- reference and target captures were taken
-- screenshot artifacts were generated
-- the resulting audit shows gi now places status, model/session context, transcript, and input/footer in a Pi-like arrangement suitable for terminal use
-
-The remaining delta is polish/parity tuning, not missing core layout structure.
+The old broad-hierarchy target is superseded. The active target is Pi-identical steady-state row order plus a single bottom status/notification line. Future audit work should compare against that stricter contract.

@@ -4,7 +4,7 @@ Feature: TUI plugin and hook visibility
   Scenario: Inspect plugin and hook state
     Given a fresh gi TUI workspace
     When I start the gi TUI in tmux
-    Then the screen should contain "Session:"
+    Then the screen should contain "m0/t0"
     When I type "/plugins" and press Enter
     Then the screen should contain "plugins: extensions:"
     And the screen should contain "plugins: hooks:"
