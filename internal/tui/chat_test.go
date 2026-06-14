@@ -700,7 +700,7 @@ func TestHandleTopicEventTurnDraftRendering(t *testing.T) {
 func TestHandleTopicEventTurnThoughtRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "turn.thought", Payload: map[string]any{"delta": "pondering"}})
-	if !c.running || c.status != "" || !transcriptContainsBlockKind(c.transcript, "thinking_indicator") {
+	if !c.running || c.status != "" || !transcriptContainsBlockKind(c.transcript, "thought") || !transcriptContainsBody(c.transcript, "pondering") {
 		t.Fatalf("turn.thought rendering = running=%v status=%q transcript=%#v", c.running, c.status, c.transcript)
 	}
 }
@@ -742,8 +742,8 @@ func TestHandleTopicEventTurnStatusAndResponseRendering(t *testing.T) {
 func TestHandleTopicEventSteeringAndSubturnRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "session.steering", Payload: map[string]any{"type": "steering_enqueued"}})
-	if c.status != "Queued follow-up" {
-		t.Fatalf("steering status = %q", c.status)
+	if c.status != "" {
+		t.Fatalf("steering should not update status, got %q", c.status)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "turn.subturn", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "subturn_created", "child_turn_id": "turn_child"}})
 	meta := transcriptLastBlockMeta(t, c.transcript)
@@ -1130,8 +1130,8 @@ func TestOnSubmitWhileRunningShowsQueuedFeedback(t *testing.T) {
 	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_queue_feedback", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, running: true, draftLineIndex: -1, transcriptRef: gotui.NewRef()}
 	c.input = newMultilineInput(80, "", c.onSubmit, nil)
 	c.onSubmit("please continue")
-	if c.status != "Queued follow-up" {
-		t.Fatalf("queued status = %q", c.status)
+	if c.status != "" {
+		t.Fatalf("queued follow-up should not update status, got %q", c.status)
 	}
 	if len(c.transcript) == 0 || c.transcript[len(c.transcript)-1] != "you [queued]: please continue" {
 		t.Fatalf("queued transcript = %#v", c.transcript)
@@ -1752,6 +1752,29 @@ func TestRenderMessageLinesProjectsInlineMarkdownWithoutMarkers(t *testing.T) {
 	}
 }
 
+func TestRenderMessageLinesPreservesInlineCodeLeadingSpaces(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
+	lines := c.renderMessageLines(store.Message{Role: "assistant", Content: "Run `  --flag` now", Payload: map[string]any{"kind": "chat"}}, 80)
+	joined := strings.Join(lines, "\n")
+	plain := stripMarkdownInlineStyleMarkers(joined)
+	if strings.Contains(plain, "`") {
+		t.Fatalf("inline code backticks leaked into render:\n%s", plain)
+	}
+	if !strings.Contains(plain, "  --flag") {
+		t.Fatalf("inline code leading spaces were not preserved: raw=%q plain=%q", joined, plain)
+	}
+	segments := parseTUIInlineSegments(joined)
+	found := false
+	for _, seg := range segments {
+		if seg.Code && seg.Text == "  --flag" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("inline code segment did not preserve leading spaces: %#v", segments)
+	}
+}
+
 func TestRenderMessageLinesPreservesCodeBlockSpacing(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
 	lines := c.renderMessageLines(store.Message{Role: "assistant", Content: "```\nif  x  {\n    y :=  1\n}\n```", Payload: map[string]any{"kind": "chat"}}, 80)
@@ -2166,5 +2189,46 @@ func TestStreamingDraftRendersMarkdownDynamically(t *testing.T) {
 	}
 	if c.draftLineIndex != -1 || c.draftLineCount != 0 || c.draft != "" || c.running {
 		t.Fatalf("unexpected final state: running=%v draft=%q index=%d count=%d", c.running, c.draft, c.draftLineIndex, c.draftLineCount)
+	}
+}
+
+func TestModelCommandOpensCursorNavigableMenu(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{DefaultProvider: "openai", DefaultModel: "openai/a", EnabledModels: []string{"openai/a", "openai/b", "openai/c"}}}
+	c.handleCommand("/model")
+	if !c.modelMenuOpen {
+		t.Fatal("expected /model to open model menu")
+	}
+	if c.modelMenuSelected != 0 {
+		t.Fatalf("expected current model selected, got %d", c.modelMenuSelected)
+	}
+	c.moveModelMenuSelection(1)
+	if c.modelMenuSelected != 1 {
+		t.Fatalf("expected cursor navigation to move selection, got %d", c.modelMenuSelected)
+	}
+	c.acceptModelMenuSelection()
+	if c.modelMenuOpen {
+		t.Fatal("expected model menu to close after selection")
+	}
+	if c.cfg.DefaultModel != "openai/b" {
+		t.Fatalf("expected selected model openai/b, got %q", c.cfg.DefaultModel)
+	}
+}
+
+func TestScrollbarCommandDefaultsOffAndPersists(t *testing.T) {
+	root := t.TempDir()
+	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: root}}
+	if c.cfg.TUIScrollbar {
+		t.Fatal("expected scrollbar to default off")
+	}
+	lines := c.scrollbarCommand([]string{"/scrollbar", "on"})
+	if !c.cfg.TUIScrollbar {
+		t.Fatal("expected scrollbar command to enable option")
+	}
+	if got := strings.Join(lines, "\n"); !strings.Contains(got, "scrollbar set to on") {
+		t.Fatalf("expected confirmation, got %q", got)
+	}
+	cfg := config.Load(root)
+	if !cfg.TUIScrollbar {
+		t.Fatal("expected scrollbar setting to persist")
 	}
 }

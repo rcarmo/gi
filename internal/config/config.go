@@ -29,6 +29,7 @@ type RuntimeConfig struct {
 	ScrollbackLimit      int                 `json:"scrollback_limit"`
 	TUIHistoryLimit      int                 `json:"tui_history_limit"`
 	TUIClipboardMode     string              `json:"tui_clipboard_mode"`
+	TUIScrollbar         bool                `json:"tui_scrollbar"`
 	Compaction           CompactionSettings  `json:"compaction"`
 	Hooks                HookSettings        `json:"hooks"`
 	Peering              PeeringSettings     `json:"peering"`
@@ -89,6 +90,7 @@ type piSettings struct {
 	TUIScrollbackLimit   int                  `json:"tuiScrollbackLimit"`
 	TUIHistoryLimit      int                  `json:"tuiHistoryLimit"`
 	TUIClipboardMode     string               `json:"tuiClipboardMode"`
+	TUIScrollbar         bool                 `json:"tuiScrollbar"`
 	Compaction           CompactionSettings   `json:"compaction"`
 	Hooks                HookSettings         `json:"hooks"`
 	Peering              PeeringSettings      `json:"peering"`
@@ -122,6 +124,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.ScrollbackLimit = ps.TUIScrollbackLimit
 		cfg.TUIHistoryLimit = ps.TUIHistoryLimit
 		cfg.TUIClipboardMode = normalizeClipboardMode(ps.TUIClipboardMode)
+		cfg.TUIScrollbar = ps.TUIScrollbar
 		cfg.Compaction = ps.Compaction
 		cfg.Hooks = ps.Hooks
 		cfg.Peering = ps.Peering
@@ -274,6 +277,30 @@ func PersistScrollbackLimit(workspaceRoot string, limit int) error {
 		}
 	}
 	settings["tuiScrollbackLimit"] = limit
+	blob, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return err
+	}
+	blob = append(blob, '\n')
+	return os.WriteFile(settingsPath, blob, 0o644)
+}
+
+func PersistTUIScrollbar(workspaceRoot string, enabled bool) error {
+	if strings.TrimSpace(workspaceRoot) == "" {
+		return errors.New("workspace root is required")
+	}
+	piDir := filepath.Join(workspaceRoot, ".pi")
+	if err := os.MkdirAll(piDir, 0o755); err != nil {
+		return err
+	}
+	settingsPath := filepath.Join(piDir, "settings.json")
+	settings := map[string]any{}
+	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
+		if err := json.Unmarshal(data, &settings); err != nil {
+			return fmt.Errorf("decode settings.json: %w", err)
+		}
+	}
+	settings["tuiScrollbar"] = enabled
 	blob, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return err

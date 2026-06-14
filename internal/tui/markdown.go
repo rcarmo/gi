@@ -302,7 +302,7 @@ func (m *markdownProjector) renderInline(node gast.Node) string {
 	case *gast.String:
 		return string(n.Value)
 	case *gast.CodeSpan:
-		return markdownInlineCodeStart + strings.TrimSpace(m.renderInlineChildren(n)) + markdownInlineCodeEnd
+		return markdownInlineCodeStart + m.renderInlineChildren(n) + markdownInlineCodeEnd
 	case *gast.Emphasis:
 		return m.renderInlineChildren(n)
 	case *extast.Strikethrough:

@@ -173,6 +173,10 @@ type chatTUI struct {
 	lastInputTokens         int
 	lastOutputTokens        int
 	lastContextTokens       int
+	modelMenuOpen           bool
+	modelMenuChoices        []string
+	modelMenuSelected       int
+	modelMenuScroll         int
 }
 
 func (c *chatTUI) ensureInput() {
@@ -841,21 +845,44 @@ func (c *chatTUI) clearDraftTranscriptLine() {
 }
 
 func (c *chatTUI) promoteDraftToThinking(ts time.Time) {
-	if strings.TrimSpace(c.draft) == "" {
+	text := strings.TrimSpace(c.draft)
+	if text == "" {
 		return
 	}
 	c.clearDraftTranscriptLine()
-	c.showThinkingIndicator(ts)
+	c.updateThinkingTranscript(text, ts)
 }
 
 func (c *chatTUI) updateThinkingTranscript(delta string, ts time.Time) {
-	c.showThinkingIndicator(ts)
+	if strings.TrimSpace(delta) == "" {
+		c.showThinkingIndicator(ts)
+		return
+	}
+	c.clearThinkingIndicator()
+	c.thinkingText += delta
+	if strings.TrimSpace(c.thinkingBlockKey) == "" {
+		c.thinkingBlockKey = fmt.Sprintf("thought:%d", time.Now().UnixNano())
+	}
+	if strings.TrimSpace(c.thinkingStartedAt) == "" {
+		c.thinkingStartedAt = normalizeBlockTimestamp(ts).Format(time.RFC3339Nano)
+	}
+	body := renderMarkdownTranscript("", c.thinkingText, c.transcriptRenderWidth())
+	meta := transcriptBlockMeta{Key: c.thinkingBlockKey, Kind: "thought", Title: "", Status: "running", StartedAt: c.thinkingStartedAt}
+	c.replaceTranscriptBlock(meta, body)
 }
 
 func (c *chatTUI) finishThinkingTranscript(ts time.Time) {
 	c.clearThinkingIndicator()
 	if strings.TrimSpace(c.thinkingBlockKey) != "" {
-		c.deleteTranscriptBlock(c.thinkingBlockKey)
+		span, ok := c.transcriptBlockSpans[c.thinkingBlockKey]
+		if ok && span.HeaderIndex >= 0 && span.HeaderIndex < len(c.transcript) {
+			if meta, ok := parseTranscriptBlockMarker(c.transcript[span.HeaderIndex]); ok {
+				meta.Status = "done"
+				meta.EndedAt = normalizeBlockTimestamp(ts).Format(time.RFC3339Nano)
+				body := c.readTranscriptBlockBody(c.thinkingBlockKey)
+				c.replaceTranscriptBlock(meta, body)
+			}
+		}
 	}
 	c.thinkingText = ""
 	c.thinkingBlockKey = ""
@@ -959,17 +986,7 @@ func (c *chatTUI) clearThinkingIndicator() {
 	c.thinkingIndicatorStart = ""
 }
 
-func (c *chatTUI) renderSteeringEvent(eventTypeValue any) {
-	typ, _ := eventTypeValue.(string)
-	switch typ {
-	case "steering_enqueued":
-		c.status = "Queued follow-up"
-	case "steering_injected":
-		c.status = "Injected follow-up"
-	case "steering_continued":
-		c.status = "Continuing queued follow-up"
-	}
-}
+func (c *chatTUI) renderSteeringEvent(eventTypeValue any) {}
 
 func normalizeBlockTimestamp(ts time.Time) time.Time {
 	if ts.IsZero() {
@@ -1395,6 +1412,19 @@ func intFromAny(v any) int {
 }
 
 func (c *chatTUI) KeyMap() gotui.KeyMap {
+	if c.modelMenuOpen {
+		return gotui.KeyMap{
+			gotui.OnStop(gotui.KeyCtrlC, func(ke gotui.KeyEvent) { c.app.Stop() }),
+			gotui.OnPreemptStop(gotui.KeyEscape, func(ke gotui.KeyEvent) { c.closeModelMenu() }),
+			gotui.OnPreemptStop(gotui.KeyUp, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(-1) }),
+			gotui.OnPreemptStop(gotui.KeyDown, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(1) }),
+			gotui.OnPreemptStop(gotui.KeyPageUp, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(-5) }),
+			gotui.OnPreemptStop(gotui.KeyPageDown, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(5) }),
+			gotui.OnPreemptStop(gotui.KeyHome, func(ke gotui.KeyEvent) { c.setModelMenuSelection(0) }),
+			gotui.OnPreemptStop(gotui.KeyEnd, func(ke gotui.KeyEvent) { c.setModelMenuSelection(len(c.modelMenuChoices) - 1) }),
+			gotui.OnPreemptStop(gotui.KeyEnter, func(ke gotui.KeyEvent) { c.acceptModelMenuSelection() }),
+		}
+	}
 	return gotui.KeyMap{
 		gotui.OnStop(gotui.KeyCtrlC, func(ke gotui.KeyEvent) { c.app.Stop() }),
 		gotui.OnStop(gotui.KeyCtrlD, func(ke gotui.KeyEvent) {
@@ -1432,6 +1462,165 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 			c.recallHistory(1)
 		}),
 	}
+}
+
+func (c *chatTUI) openModelMenu() {
+	choices := c.availableModelChoices()
+	if len(choices) == 0 {
+		c.appendTranscript("sys: no available models; use /model <provider/model>")
+		return
+	}
+	selected := 0
+	current := canonicalModelRef(c.cfg.DefaultProvider, c.cfg.DefaultModel)
+	for i, model := range choices {
+		if canonicalModelRef(c.cfg.DefaultProvider, model) == current {
+			selected = i
+			break
+		}
+	}
+	c.modelMenuOpen = true
+	c.modelMenuChoices = choices
+	c.modelMenuSelected = selected
+	c.modelMenuScroll = 0
+	c.ensureModelMenuSelectionVisible()
+	c.inputActive = false
+	if c.app != nil {
+		c.app.BlurFocused()
+		c.app.MarkDirty()
+	}
+}
+
+func (c *chatTUI) closeModelMenu() {
+	c.modelMenuOpen = false
+	c.modelMenuChoices = nil
+	c.modelMenuSelected = 0
+	c.modelMenuScroll = 0
+	c.focusInput()
+	if c.app != nil {
+		c.app.MarkDirty()
+	}
+}
+
+func (c *chatTUI) moveModelMenuSelection(delta int) {
+	c.setModelMenuSelection(c.modelMenuSelected + delta)
+}
+
+func (c *chatTUI) setModelMenuSelection(idx int) {
+	if len(c.modelMenuChoices) == 0 {
+		return
+	}
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(c.modelMenuChoices) {
+		idx = len(c.modelMenuChoices) - 1
+	}
+	c.modelMenuSelected = idx
+	c.ensureModelMenuSelectionVisible()
+	if c.app != nil {
+		c.app.MarkDirty()
+	}
+}
+
+func (c *chatTUI) modelMenuVisibleRows() int {
+	rows := 7
+	if c.app != nil {
+		_, h := c.app.Size()
+		if h < 24 {
+			rows = 5
+		}
+	}
+	if rows < 3 {
+		rows = 3
+	}
+	return rows
+}
+
+func (c *chatTUI) ensureModelMenuSelectionVisible() {
+	rows := c.modelMenuVisibleRows()
+	if c.modelMenuSelected < c.modelMenuScroll {
+		c.modelMenuScroll = c.modelMenuSelected
+	}
+	if c.modelMenuSelected >= c.modelMenuScroll+rows {
+		c.modelMenuScroll = c.modelMenuSelected - rows + 1
+	}
+	if c.modelMenuScroll < 0 {
+		c.modelMenuScroll = 0
+	}
+	maxScroll := len(c.modelMenuChoices) - rows
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if c.modelMenuScroll > maxScroll {
+		c.modelMenuScroll = maxScroll
+	}
+}
+
+func (c *chatTUI) acceptModelMenuSelection() {
+	if !c.modelMenuOpen || len(c.modelMenuChoices) == 0 || c.modelMenuSelected < 0 || c.modelMenuSelected >= len(c.modelMenuChoices) {
+		return
+	}
+	model := c.modelMenuChoices[c.modelMenuSelected]
+	c.modelMenuOpen = false
+	c.modelMenuChoices = nil
+	c.modelMenuScroll = 0
+	c.focusInput()
+	c.appendTranscript(c.modelCommand([]string{"/model", model})...)
+	if c.app != nil {
+		c.app.MarkDirty()
+	}
+}
+
+func (c *chatTUI) modelMenuHeight() int {
+	if !c.modelMenuOpen {
+		return 0
+	}
+	rows := c.modelMenuVisibleRows()
+	if len(c.modelMenuChoices) < rows {
+		rows = len(c.modelMenuChoices)
+	}
+	return rows + 2
+}
+
+func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
+	rows := c.modelMenuVisibleRows()
+	start := c.modelMenuScroll
+	end := start + rows
+	if end > len(c.modelMenuChoices) {
+		end = len(c.modelMenuChoices)
+	}
+	menu := gotui.New(
+		gotui.WithWidthPercent(100),
+		gotui.WithHeight(c.modelMenuHeight()),
+		gotui.WithDirection(gotui.Column),
+		gotui.WithBorder(gotui.BorderRounded),
+		gotui.WithBorderStyle(gotui.NewStyle().Foreground(gotui.Blue)),
+		gotui.WithPaddingTRBL(0, 1, 0, 1),
+	)
+	current := strings.TrimSpace(c.cfg.DefaultModel)
+	title := "Select model · ↑/↓ navigate · Enter select · Esc cancel"
+	if width < 72 {
+		title = "Select model · ↑/↓ Enter Esc"
+	}
+	if current != "" {
+		title += " · current " + compactMaybe(current, c.compactOutput(), 28)
+	}
+	menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(truncate(title, max(20, width-4))), gotui.WithTextStyle(gotui.NewStyle().Bold())))
+	for i := start; i < end; i++ {
+		model := c.modelMenuChoices[i]
+		prefix := "  "
+		style := gotui.NewStyle()
+		if i == c.modelMenuSelected {
+			prefix = "› "
+			style = style.Reverse().Bold()
+		} else if canonicalModelRef(c.cfg.DefaultProvider, model) == canonicalModelRef(c.cfg.DefaultProvider, c.cfg.DefaultModel) {
+			prefix = "* "
+			style = style.Foreground(gotui.Cyan)
+		}
+		label := fmt.Sprintf("%s%d. %s", prefix, i+1, model)
+		menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(truncate(label, max(20, width-4))), gotui.WithTextStyle(style)))
+	}
+	return menu
 }
 
 func (c *chatTUI) cycleModel(delta int) {
@@ -1697,7 +1886,6 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 	if c.running {
 		c.queuedDrafts = append(c.queuedDrafts, text)
 		c.appendTranscript(fmt.Sprintf("you [queued]: %s", text))
-		c.status = "Queued follow-up"
 		c.stickToBottom = true
 		c.scrollTranscriptToBottom()
 		if c.app != nil {
@@ -1829,7 +2017,11 @@ func (c *chatTUI) handleCommand(text string) {
 		}
 		c.transcript = append(c.transcript, c.skillLines(query)...)
 	case "/model":
-		c.transcript = append(c.transcript, c.modelCommand(fields)...)
+		if len(fields) == 1 {
+			c.openModelMenu()
+		} else {
+			c.transcript = append(c.transcript, c.modelCommand(fields)...)
+		}
 	case "/scoped-models":
 		c.transcript = append(c.transcript, c.scopedModelsCommand(fields)...)
 	case "/thinking":
@@ -1840,6 +2032,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.appendTranscript(c.scrollbackCommand(fields)...)
 	case "/history-limit":
 		c.appendTranscript(c.historyLimitCommand(fields)...)
+	case "/scrollbar":
+		c.appendTranscript(c.scrollbarCommand(fields)...)
 	case "/settings", "/config":
 		c.appendTranscript(c.settingsLines()...)
 	case "/approvals":
@@ -2555,8 +2749,10 @@ func (c *chatTUI) modelCommand(fields []string) []string {
 		c.cfg.DefaultProvider = strings.SplitN(model, "/", 2)[0]
 	}
 	lines := []string{fmt.Sprintf("model: %s", model)}
-	if err := c.store.TouchSessionState(context.Background(), c.sessionID, map[string]any{"model": model}); err != nil {
-		lines = append(lines, fmt.Sprintf("warn: failed to persist model in session state: %v", err))
+	if c.store != nil && strings.TrimSpace(c.sessionID) != "" {
+		if err := c.store.TouchSessionState(context.Background(), c.sessionID, map[string]any{"model": model}); err != nil {
+			lines = append(lines, fmt.Sprintf("warn: failed to persist model in session state: %v", err))
+		}
 	}
 	if err := config.PersistModelSelection(c.cfg.WorkspaceRoot, c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.DefaultThinkingLevel, c.cfg.EnabledModels); err != nil {
 		lines = append(lines, fmt.Sprintf("warn: failed to persist model selection: %v", err))
@@ -2782,6 +2978,7 @@ func (c *chatTUI) settingsLines() []string {
 		fmt.Sprintf("- scrollback_limit: %d", c.currentScrollbackLimit()),
 		fmt.Sprintf("- clipboard_mode: %s", c.cfg.TUIClipboardMode),
 		fmt.Sprintf("- history_limit: %d", c.currentHistoryLimit()),
+		fmt.Sprintf("- scrollbar: %v", c.cfg.TUIScrollbar),
 		"- shortcuts: Ctrl+L/Alt+L model cycle, Ctrl+T/Alt+T thinking cycle, Ctrl+R history search, Tab path completion, @path completion, F6/F7 transcript block select, F8 expand/collapse",
 		"settings: session",
 		fmt.Sprintf("- session_id: %s", c.sessionID),
@@ -2811,6 +3008,36 @@ func (c *chatTUI) scrollbackCommand(fields []string) []string {
 	lines := []string{fmt.Sprintf("sys: scrollback limit set to %d", limit)}
 	if err := config.PersistScrollbackLimit(c.cfg.WorkspaceRoot, limit); err != nil {
 		lines = append(lines, fmt.Sprintf("warn: failed to persist scrollback limit: %v", err))
+	}
+	return lines
+}
+
+func (c *chatTUI) scrollbarCommand(fields []string) []string {
+	if len(fields) == 1 {
+		state := "off"
+		if c.cfg.TUIScrollbar {
+			state = "on"
+		}
+		return []string{fmt.Sprintf("sys: scrollbar: %s", state)}
+	}
+	value := strings.ToLower(strings.TrimSpace(fields[1]))
+	enabled := false
+	switch value {
+	case "on", "true", "1", "yes", "enabled":
+		enabled = true
+	case "off", "false", "0", "no", "disabled":
+		enabled = false
+	default:
+		return []string{"sys: usage /scrollbar <on|off>"}
+	}
+	c.cfg.TUIScrollbar = enabled
+	state := "off"
+	if enabled {
+		state = "on"
+	}
+	lines := []string{fmt.Sprintf("sys: scrollbar set to %s", state)}
+	if err := config.PersistTUIScrollbar(c.cfg.WorkspaceRoot, enabled); err != nil {
+		lines = append(lines, fmt.Sprintf("warn: failed to persist scrollbar setting: %v", err))
 	}
 	return lines
 }
@@ -3011,19 +3238,23 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	}
 	pathLine := c.footerPathLineForWidth(contentWidth)
 	statusLine := c.footerStatusLineForWidth(contentWidth)
-	reservedHeight := (padding * 2) + 2 + inputHeight + 2
+	menuHeight := c.modelMenuHeight()
+	reservedHeight := (padding * 2) + 2 + inputHeight + 2 + menuHeight
 	transcriptHeight := h - reservedHeight
 	if transcriptHeight < 4 {
 		transcriptHeight = 4
 	}
-	transcript := gotui.New(
+	transcriptOptions := []gotui.Option{
 		gotui.WithWidthPercent(100),
 		gotui.WithHeight(transcriptHeight),
 		gotui.WithScrollable(gotui.ScrollVertical),
 		gotui.WithScrollOffset(0, c.transcriptScroll),
-		gotui.WithScrollbarStyle(gotui.NewStyle().Dim()),
 		gotui.WithDirection(gotui.Column),
-	)
+	}
+	if c.cfg.TUIScrollbar {
+		transcriptOptions = append(transcriptOptions, gotui.WithScrollbarStyle(gotui.NewStyle().Dim()))
+	}
+	transcript := gotui.New(transcriptOptions...)
 	c.transcriptRef.Set(transcript)
 	c.transcriptRegion = transcript
 	c.transcriptBlockRefs = nil
@@ -3044,6 +3275,9 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 		transcript.AddChild(c.renderTranscriptBlock(block))
 	}
 	root.AddChild(transcript)
+	if c.modelMenuOpen {
+		root.AddChild(c.renderModelMenu(contentWidth))
+	}
 
 	inputTopSep := gotui.New(
 		gotui.WithWidthPercent(100),
@@ -3590,6 +3824,26 @@ func brailleSpinnerFrame(t time.Time) string {
 }
 
 func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) *gotui.Element {
+	if block.Kind == "thought" {
+		container := gotui.New(
+			gotui.WithDirection(gotui.Column),
+			gotui.WithWidthPercent(100),
+			gotui.WithBorder(block.Border),
+			gotui.WithBorderStyle(block.BorderStyle),
+			gotui.WithPaddingTRBL(0, 1, 0, 1),
+		)
+		ref := gotui.NewRef()
+		ref.Set(container)
+		c.transcriptBlockRefs = append(c.transcriptBlockRefs, transcriptBlockHitTarget{Key: block.Key, Ref: ref})
+		if len(block.Body) == 0 {
+			container.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(fmt.Sprintf("%s Thinking...", brailleSpinnerFrame(time.Now()))), gotui.WithTextStyle(block.BodyStyle)))
+			return container
+		}
+		for _, line := range block.Body {
+			container.AddChild(c.renderInlineStyledLine(line, block.BodyStyle))
+		}
+		return container
+	}
 	if len(block.Body) == 0 && block.Subheader == "" && block.Kind != "local" {
 		headerText := block.Header
 		if block.Status == "running" {
@@ -3629,7 +3883,7 @@ func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) *gotui.
 		}
 	}
 	for _, line := range visibleBody {
-		container.AddChild(c.renderInlineStyledLine("│ "+line, block.BodyStyle))
+		container.AddChild(c.renderInlineStyledLine(line, block.BodyStyle))
 	}
 	if block.Expandable && !block.Expanded && hiddenCount > 0 {
 		hint := fmt.Sprintf("… %d more line(s)", hiddenCount)
