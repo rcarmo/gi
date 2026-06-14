@@ -37,6 +37,15 @@ func transcriptContainsBody(lines []string, want string) bool {
 	return false
 }
 
+func transcriptContainsBlockKind(lines []string, kind string) bool {
+	for _, line := range lines {
+		if meta, ok := parseTranscriptBlockMarker(line); ok && meta.Kind == kind {
+			return true
+		}
+	}
+	return false
+}
+
 func TestFocusInputActivatesInput(t *testing.T) {
 	c := &chatTUI{}
 	c.focusInput()
@@ -107,6 +116,18 @@ func TestVisibleTranscriptDoesNotMutateDraftLineIndex(t *testing.T) {
 	_ = c.visibleTranscript()
 	if c.draftLineIndex != 3 {
 		t.Fatalf("expected visibleTranscript to leave draftLineIndex unchanged, got %d", c.draftLineIndex)
+	}
+}
+
+func TestInputChangeScrollsTranscriptToBottom(t *testing.T) {
+	c := &chatTUI{transcript: []string{"1", "2", "3", "4", "5", "6", "7", "8"}, transcriptScroll: 0}
+	c.ensureInput()
+	c.input.SetText("hello")
+	if !c.stickToBottom {
+		t.Fatal("expected typing to restore stick-to-bottom mode")
+	}
+	if c.transcriptScroll != 4 {
+		t.Fatalf("expected typing to scroll transcript to bottom, got %d", c.transcriptScroll)
 	}
 }
 
@@ -633,10 +654,29 @@ func TestInitialSessionIDPrefersMainSession(t *testing.T) {
 	}
 }
 
+func TestInitialSessionIDCreatesAgentInsteadOfReusingUnrelatedSession(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_unrelated", "Unrelated", map[string]any{"model": "bootstrap", "status": "idle"}); err != nil {
+		t.Fatalf("create unrelated session: %v", err)
+	}
+	sessionID, err := initialSessionID(ctx, s)
+	if err != nil {
+		t.Fatalf("initial session id: %v", err)
+	}
+	if sessionID != "" {
+		t.Fatalf("expected no initial session so TUI creates @agent, got %q", sessionID)
+	}
+}
+
 func TestHandleEventStreamsDraftIntoTranscript(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleEvent(map[string]any{"type": "agent_draft_delta", "delta": "hello"})
-	if c.status != "⏳ hello…" || len(c.transcript) != 1 || c.transcript[0] != "Neo: hello" {
+	if c.status != "" || len(c.transcript) != 1 || c.transcript[0] != "Neo: hello" {
 		t.Fatalf("unexpected first draft state: status=%q transcript=%#v", c.status, c.transcript)
 	}
 	c.handleEvent(map[string]any{"type": "agent_draft_delta", "delta": " world"})
@@ -652,7 +692,7 @@ func TestHandleEventStreamsDraftIntoTranscript(t *testing.T) {
 func TestHandleTopicEventTurnDraftRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "turn.draft", Payload: map[string]any{"delta": "hello"}})
-	if !c.running || c.status != "⏳ hello…" || len(c.transcript) != 1 || c.transcript[0] != "Neo: hello" {
+	if !c.running || c.status != "" || len(c.transcript) != 1 || c.transcript[0] != "Neo: hello" {
 		t.Fatalf("turn.draft rendering = running=%v status=%q transcript=%#v", c.running, c.status, c.transcript)
 	}
 }
@@ -660,8 +700,8 @@ func TestHandleTopicEventTurnDraftRendering(t *testing.T) {
 func TestHandleTopicEventTurnThoughtRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.handleTopicEvent(topics.Envelope{Topic: "turn.thought", Payload: map[string]any{"delta": "pondering"}})
-	if !c.running || c.status != "Thinking…" {
-		t.Fatalf("turn.thought rendering = running=%v status=%q", c.running, c.status)
+	if !c.running || c.status != "" || !transcriptContainsBlockKind(c.transcript, "thinking_indicator") {
+		t.Fatalf("turn.thought rendering = running=%v status=%q transcript=%#v", c.running, c.status, c.transcript)
 	}
 }
 
@@ -677,19 +717,19 @@ func TestHandleTopicEventTurnResponseSystemMessageRendering(t *testing.T) {
 }
 
 func TestHandleTopicEventTurnStatusAndResponseRendering(t *testing.T) {
-	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1, running: true, draft: "hello"}
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.running = false
 	c.handleTopicEvent(topics.Envelope{Topic: "turn.status", Payload: map[string]any{"title": "Thinking…", "status": "running"}})
-	if !c.running || c.status != "Thinking…" {
-		t.Fatalf("turn.status rendering = running=%v status=%q", c.running, c.status)
+	if !c.running || c.status != "" || !transcriptContainsBlockKind(c.transcript, "thinking_indicator") {
+		t.Fatalf("turn.status rendering = running=%v status=%q transcript=%#v", c.running, c.status, c.transcript)
 	}
 	c.running = true
 	c.draft = "partial"
 	c.transcript = []string{"Neo: partial"}
 	c.draftLineIndex = 0
 	c.handleTopicEvent(topics.Envelope{Topic: "turn.status", Payload: map[string]any{"status": "idle"}})
-	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
-		t.Fatalf("turn.status idle cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
+	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != 0 || len(c.transcript) != 1 || c.transcript[0] != "Neo: partial" {
+		t.Fatalf("turn.status idle cleanup should preserve streamed draft = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 	c.transcript = []string{"Neo: hello"}
 	c.draftLineIndex = 0
@@ -724,10 +764,10 @@ func TestHandleTopicEventCompactionAndRoutingRendering(t *testing.T) {
 	if c.status != "Compacted context" || meta.Kind != "compact" || meta.Title != "Context compacted" || !transcriptContainsBody(c.transcript, "messages=10→4") {
 		t.Fatalf("compaction topic status/transcript = %q %#v meta=%#v", c.status, c.transcript, meta)
 	}
+	before := len(c.transcript)
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.routing", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session_id": "session_child"}})
-	meta = transcriptLastBlockMeta(t, c.transcript)
-	if meta.Kind != "route" || meta.Title != "Route decision" || !transcriptContainsBody(c.transcript, "target=@agent1") || !transcriptContainsBody(c.transcript, "session=session_child") {
-		t.Fatalf("routing decision transcript meta=%#v transcript=%#v", meta, c.transcript)
+	if c.status != "routed to @agent1" || len(c.transcript) != before {
+		t.Fatalf("routing decision should update status only, status=%q transcript=%#v", c.status, c.transcript)
 	}
 }
 
@@ -767,7 +807,7 @@ func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.running = false
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.turn", Payload: map[string]any{"type": "turn_state", "status": "running", "phase": "waiting_on_tools", "tool": "read"}})
-	if !c.running || c.status != "Running: read" {
+	if !c.running || c.status != "" {
 		t.Fatalf("turn state status = running=%v status=%q", c.running, c.status)
 	}
 	c.running = true
@@ -775,46 +815,46 @@ func TestHandleTopicEventTurnAndSessionRendering(t *testing.T) {
 	c.transcript = []string{"Neo: partial"}
 	c.draftLineIndex = 0
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.turn", Payload: map[string]any{"type": "turn_completed", "status": "completed"}})
-	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
-		t.Fatalf("turn completed cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
+	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != 0 || len(c.transcript) != 1 || c.transcript[0] != "Neo: partial" {
+		t.Fatalf("turn completed cleanup should preserve streamed draft = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 	c.running = true
 	c.draft = "partial"
 	c.transcript = []string{"Neo: partial"}
 	c.draftLineIndex = 0
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.turn", Payload: map[string]any{"type": "turn_terminal", "status": "failed"}})
-	if c.status != "Turn failed" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
-		t.Fatalf("turn terminal cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
+	if c.status != "Turn failed" || c.running || c.draft != "" || c.draftLineIndex != 0 || len(c.transcript) != 1 || c.transcript[0] != "Neo: partial" {
+		t.Fatalf("turn terminal cleanup should preserve streamed draft = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 	c.running = false
 	c.status = ""
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.session", Payload: map[string]any{"type": "session_running", "status": "running"}})
-	if !c.running || c.status != "Neo · bootstrap" {
-		t.Fatalf("session running state = running=%v status=%q", c.running, c.status)
+	if !c.running || c.status != "" || !transcriptContainsBlockKind(c.transcript, "thinking_indicator") {
+		t.Fatalf("session running state = running=%v status=%q transcript=%#v", c.running, c.status, c.transcript)
 	}
 	c.running = true
 	c.draft = "partial"
 	c.transcript = []string{"Neo: partial"}
 	c.draftLineIndex = 0
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.session", Payload: map[string]any{"type": "session_idle", "status": "idle"}})
-	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
-		t.Fatalf("session idle cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
+	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != 0 || len(c.transcript) != 1 || c.transcript[0] != "Neo: partial" {
+		t.Fatalf("session idle cleanup should preserve streamed draft = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 	c.running = true
 	c.draft = "partial"
 	c.transcript = []string{"Neo: partial"}
 	c.draftLineIndex = 0
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.session", Payload: map[string]any{"type": "session_state", "status": "queued"}})
-	if c.status != "Queued" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
-		t.Fatalf("session state queued rendering = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
+	if c.status != "Queued" || c.running || c.draft != "" || c.draftLineIndex != 0 || len(c.transcript) != 1 || c.transcript[0] != "Neo: partial" {
+		t.Fatalf("session state queued rendering should preserve streamed draft = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 	c.running = true
 	c.draft = "partial"
 	c.transcript = []string{"Neo: partial"}
 	c.draftLineIndex = 0
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.session", Payload: map[string]any{"type": "session_state", "status": "idle"}})
-	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
-		t.Fatalf("session state idle cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
+	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != 0 || len(c.transcript) != 1 || c.transcript[0] != "Neo: partial" {
+		t.Fatalf("session state idle cleanup should preserve streamed draft = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 }
 
@@ -846,11 +886,11 @@ func TestHandleTopicEventStatusRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.running = false
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "tool_started", "tool": "read", "turn_id": "turn_1", "tool_call_id": "call_1"}})
-	if !c.running || c.status != "Running: read" {
-		t.Fatalf("tool started status = running=%v status=%q", c.running, c.status)
+	if !c.running || c.status != "" || !transcriptContainsBlockKind(c.transcript, "tool") {
+		t.Fatalf("tool started status = running=%v status=%q transcript=%#v", c.running, c.status, c.transcript)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.tool", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "tool_skipped", "tool": "shell", "reason": "queued user steering message", "turn_id": "turn_1", "tool_call_id": "call_2"}})
-	if c.status != "Tool skipped: shell: queued user steering message" || !transcriptContainsBody(c.transcript, "reason=queued user steering message") {
+	if c.status != "" || !transcriptContainsBody(c.transcript, "reason=queued user steering message") {
 		t.Fatalf("tool skipped status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleTopicEvent(topics.Envelope{Topic: "runtime.hook", Timestamp: time.Now().UTC(), Payload: map[string]any{"type": "hook_deny", "hook": "approve_tool", "tool": "shell", "reason": "tool not approved"}})
@@ -873,15 +913,15 @@ func TestHandleEventErrorClearsRunningState(t *testing.T) {
 func TestHandleEventAgentStatusWithoutAppDoesNotPanic(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}}
 	c.handleEvent(map[string]any{"type": "agent_status", "title": "Thinking…"})
-	if !c.running || c.status != "Thinking…" {
-		t.Fatalf("agent_status without app = running=%v status=%q", c.running, c.status)
+	if !c.running || c.status != "" || !transcriptContainsBlockKind(c.transcript, "thinking_indicator") {
+		t.Fatalf("agent_status without app = running=%v status=%q transcript=%#v", c.running, c.status, c.transcript)
 	}
 	c.draft = "partial"
 	c.transcript = []string{"Neo: partial"}
 	c.draftLineIndex = 0
 	c.handleEvent(map[string]any{"type": "agent_status"})
-	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != -1 || len(c.transcript) != 0 {
-		t.Fatalf("agent_status idle cleanup = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
+	if c.status != "Neo · bootstrap" || c.running || c.draft != "" || c.draftLineIndex != 0 || len(c.transcript) != 1 || c.transcript[0] != "Neo: partial" {
+		t.Fatalf("agent_status idle cleanup should preserve streamed draft = status=%q running=%v draft=%q draftLineIndex=%d transcript=%#v", c.status, c.running, c.draft, c.draftLineIndex, c.transcript)
 	}
 }
 
@@ -906,13 +946,16 @@ func TestHandleEventStatusRenderingSkipsDuplicateLegacyRuntimeEventsWhenTopicNat
 	if c.status != "" || len(c.transcript) != 0 {
 		t.Fatalf("expected topic-native path to suppress duplicate legacy compaction event, got status=%q transcript=%#v", c.status, c.transcript)
 	}
+	c.handleEvent(map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session": "session_child"})
+	if c.status != "" || len(c.transcript) != 0 || c.draft != "" {
+		t.Fatalf("expected topic-native path to suppress duplicate legacy routing events, got status=%q draft=%q transcript=%#v", c.status, c.draft, c.transcript)
+	}
 	c.handleEvent(map[string]any{"type": "agent_status", "title": "Thinking…"})
 	c.handleEvent(map[string]any{"type": "agent_draft_delta", "delta": "hello"})
 	c.handleEvent(map[string]any{"type": "agent_thought_delta", "delta": "pondering"})
 	c.handleEvent(map[string]any{"type": "new_post", "data": map[string]any{"content": "hello world"}})
-	c.handleEvent(map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session": "session_child"})
-	if c.status != "" || len(c.transcript) != 0 || c.draft != "" {
-		t.Fatalf("expected topic-native path to suppress duplicate legacy turn status/response events, got status=%q draft=%q transcript=%#v", c.status, c.draft, c.transcript)
+	if c.status != "Neo · bootstrap" || c.draft != "" || !strings.Contains(strings.Join(c.transcript, "\n"), "Neo: hello world") {
+		t.Fatalf("expected legacy stream events to remain live fallback with topic-native active, got status=%q draft=%q transcript=%#v", c.status, c.draft, c.transcript)
 	}
 }
 
@@ -920,20 +963,20 @@ func TestHandleEventStatusRendering(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
 	c.running = false
 	c.handleEvent(map[string]any{"type": "agent_thought_delta"})
-	if !c.running || c.status != "Thinking…" {
-		t.Fatalf("thinking status = running=%v status=%q", c.running, c.status)
+	if !c.running || c.status != "" || !transcriptContainsBlockKind(c.transcript, "thinking_indicator") {
+		t.Fatalf("thinking status = running=%v status=%q transcript=%#v", c.running, c.status, c.transcript)
 	}
 	c.running = false
 	c.handleEvent(map[string]any{"type": "agent_draft_delta", "delta": "hello"})
-	if !c.running || c.status != "⏳ hello…" || len(c.transcript) == 0 || c.transcript[len(c.transcript)-1] != "Neo: hello" {
+	if !c.running || c.status != "" || len(c.transcript) == 0 || c.transcript[len(c.transcript)-1] != "Neo: hello" {
 		t.Fatalf("draft status = running=%v status=%q transcript=%#v", c.running, c.status, c.transcript)
 	}
 	c.handleEvent(map[string]any{"type": "tool_finished", "tool": "read", "turn_id": "turn_1", "tool_call_id": "call_1"})
-	if c.status != "Tool finished: read" {
-		t.Fatalf("tool finished status = %q", c.status)
+	if c.status != "" || !transcriptContainsBlockKind(c.transcript, "tool") {
+		t.Fatalf("tool finished status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.handleEvent(map[string]any{"type": "tool_failed", "tool": "shell", "error": "boom", "turn_id": "turn_1", "tool_call_id": "call_2"})
-	if c.status != "Tool failed: shell" || !transcriptContainsBody(c.transcript, "error=boom") {
+	if c.status != "" || !transcriptContainsBody(c.transcript, "error=boom") {
 		t.Fatalf("tool failed status/transcript = %q %#v", c.status, c.transcript)
 	}
 	c.running = true
@@ -948,9 +991,10 @@ func TestHandleEventStatusRendering(t *testing.T) {
 	if c.status != "Compacted context" || !transcriptContainsBody(c.transcript, "messages=10→4") {
 		t.Fatalf("compaction status/transcript = %q %#v", c.status, c.transcript)
 	}
+	before := len(c.transcript)
 	c.handleEvent(map[string]any{"type": "routing_decision", "target_agent_id": "agent1", "target_session": "session_child"})
-	if !transcriptContainsBody(c.transcript, "target=@agent1") {
-		t.Fatalf("legacy routing decision transcript = %#v", c.transcript)
+	if c.status != "routed to @agent1" || len(c.transcript) != before {
+		t.Fatalf("legacy routing decision should update status only, status=%q transcript=%#v", c.status, c.transcript)
 	}
 }
 
@@ -1691,6 +1735,34 @@ func TestRenderMessageLinesFormatsCodeBlocksWithLineCount(t *testing.T) {
 	}
 }
 
+func TestRenderMessageLinesProjectsInlineMarkdownWithoutMarkers(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
+	content := "This is **bold**, *emph*, `code`, ~~gone~~, and [a link](https://example.com).\n- [x] done\n- [ ] todo"
+	lines := c.renderMessageLines(store.Message{Role: "assistant", Content: content, Payload: map[string]any{"kind": "chat"}}, 80)
+	joined := strings.Join(lines, "\n")
+	for _, bad := range []string{"**bold**", "*emph*", "`code`", "~~gone~~"} {
+		if strings.Contains(joined, bad) {
+			t.Fatalf("markdown marker %q leaked into render:\n%s", bad, joined)
+		}
+	}
+	for _, want := range []string{"bold", "emph", "code", "gone", "a link (https://example.com)", "☑", "☐"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("markdown render missing %q:\n%s", want, joined)
+		}
+	}
+}
+
+func TestRenderMessageLinesPreservesCodeBlockSpacing(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
+	lines := c.renderMessageLines(store.Message{Role: "assistant", Content: "```\nif  x  {\n    y :=  1\n}\n```", Payload: map[string]any{"kind": "chat"}}, 80)
+	joined := strings.Join(lines, "\n")
+	for _, want := range []string{"if  x  {", "    y :=  1"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("code block spacing not preserved for %q:\n%s", want, joined)
+		}
+	}
+}
+
 func TestRenderMessageLinesFormatsTableResponsively(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
 	content := "| Name | Role | Value |\n| --- | --- | --- |\n| Alice | admin | 42 |\n| Bob | user | 7 |"
@@ -1734,8 +1806,32 @@ func TestBuildTranscriptRenderableBlocksCollapsesToolBlocks(t *testing.T) {
 	if len(blocks) != 1 {
 		t.Fatalf("expected one block, got %#v", blocks)
 	}
-	if !blocks[0].Expandable || blocks[0].Expanded || blocks[0].Kind != "tool" || blocks[0].Subheader == "" {
+	if !blocks[0].Expandable || blocks[0].Expanded || blocks[0].Kind != "tool" || blocks[0].Subheader != "" || !strings.Contains(blocks[0].Header, "shell ·") {
 		t.Fatalf("unexpected collapsed block state: %#v", blocks[0])
+	}
+}
+
+func TestToolOKStatusLabelIsHidden(t *testing.T) {
+	if shouldRenderTranscriptStatusLabel("tool", "ok") {
+		t.Fatalf("tool ok status should not render as an inline label")
+	}
+	if !shouldRenderTranscriptStatusLabel("tool", "error") {
+		t.Fatalf("tool error status should still render")
+	}
+}
+
+func TestErrorLinesRenderAsDedupedBlocks(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}, transcriptExpanded: map[string]bool{}}
+	blocks := c.buildTranscriptRenderableBlocks([]string{
+		"sys: inference error: max retries exceeded",
+		"max retries exceeded",
+		"Neo: after",
+	})
+	if len(blocks) != 2 {
+		t.Fatalf("expected deduped error block plus assistant line, got %#v", blocks)
+	}
+	if blocks[0].Kind != "error" || blocks[0].Header != "Error" || len(blocks[0].Body) != 1 || !strings.Contains(blocks[0].Body[0], "max retries exceeded") {
+		t.Fatalf("unexpected error block: %#v", blocks[0])
 	}
 }
 
@@ -1907,9 +2003,60 @@ func TestFooterNotificationTextClassifiesCommonStates(t *testing.T) {
 	}
 	for _, status := range []string{"Running: read", "Queued follow-up", "Tool failed: shell", "Hook denied read", "Compacted context"} {
 		c.status = status
-		if got := c.footerNotificationText(data); got != status {
-			t.Fatalf("footerNotificationText(%q) = %q", status, got)
+		want := "m0/t0 · " + status
+		if got := c.footerNotificationText(data); got != want {
+			t.Fatalf("footerNotificationText(%q) = %q, want %q", status, got, want)
 		}
+	}
+}
+
+func TestFooterContextFollowsThinkingLevel(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{DefaultModel: "provider/model", DefaultThinkingLevel: "medium", Compaction: config.CompactionSettings{ContextWindow: 20000}}, lastContextTokens: 5000}
+	line := c.footerStatusLineForWidth(120)
+	want := "provider/model • medium • ctx 5K/20K 25%"
+	if !strings.Contains(line, want) {
+		t.Fatalf("footer context should follow thinking level: got %q, want substring %q", line, want)
+	}
+	if strings.Contains(c.footerCountsText(c.contextSummaryData()), "ctx") {
+		t.Fatalf("footer counts should not include context usage: %q", c.footerCountsText(c.contextSummaryData()))
+	}
+}
+
+func TestFooterContextWindowUsesSelectedModelMetadata(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{DefaultProvider: "opencode-zen", DefaultModel: "minimax-m2.5-free", DefaultThinkingLevel: "low", Compaction: config.CompactionSettings{ContextWindow: 20000}}, lastContextTokens: 64000}
+	line := c.footerStatusLineForWidth(140)
+	want := "minimax-m2.5-free • low • ctx 64K/128K 50%"
+	if !strings.Contains(line, want) {
+		t.Fatalf("footer context should use selected model context window: got %q, want substring %q", line, want)
+	}
+}
+
+func TestFooterStatusLineRefreshesCountsFromStore(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_footer_counts", "@agent", map[string]any{"status": "idle", "model": "bootstrap"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	c := &chatTUI{store: s, sessionID: "session_footer_counts", cfg: config.RuntimeConfig{DefaultModel: "bootstrap", DefaultThinkingLevel: "low"}}
+	if got := c.footerStatusLineForWidth(80); !strings.Contains(got, "m0/t0") {
+		t.Fatalf("initial footer missing m0/t0: %q", got)
+	}
+	if err := s.AddMessage(ctx, "msg_footer_counts", "session_footer_counts", "user", "hello", nil); err != nil {
+		t.Fatalf("add message: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_footer_counts", "session_footer_counts", "completed", "hello", nil); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	if got := c.footerStatusLineForWidth(80); !strings.Contains(got, "m1/t1") {
+		t.Fatalf("updated footer missing m1/t1: %q", got)
+	}
+	c.status = "Running: shell"
+	if got := c.footerStatusLineForWidth(80); !strings.Contains(got, "m1/t1") || !strings.Contains(got, "Running: shell") {
+		t.Fatalf("status footer should include dynamic counts and activity: %q", got)
 	}
 }
 
@@ -1994,5 +2141,30 @@ func TestExtensionCommandLinesDispatchesRegisteredCommand(t *testing.T) {
 	plugins := strings.Join(c.pluginLines(), "\n")
 	if !strings.Contains(plugins, "plugins: commands: 1") || !strings.Contains(plugins, "/demo") {
 		t.Fatalf("plugins missing extension command:\n%s", plugins)
+	}
+}
+
+func TestStreamingDraftRendersMarkdownDynamically(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1}
+	c.handleTopicEvent(topics.Envelope{Topic: "turn.draft", Payload: map[string]any{"delta": "# Plan\n\n- one"}})
+	joined := strings.Join(c.transcript, "\n")
+	if !strings.Contains(joined, "Neo: PLAN") || !strings.Contains(joined, "• one") {
+		t.Fatalf("streaming markdown was not rendered dynamically:\n%s", joined)
+	}
+	if c.draftLineCount <= 1 {
+		t.Fatalf("expected multi-line streaming draft span, got %d lines: %#v", c.draftLineCount, c.transcript)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "turn.draft", Payload: map[string]any{"delta": "\n- two"}})
+	joined = strings.Join(c.transcript, "\n")
+	if strings.Count(joined, "Neo: PLAN") != 1 || !strings.Contains(joined, "• two") {
+		t.Fatalf("streaming markdown replacement should update in place:\n%s", joined)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "turn.response", Payload: map[string]any{"data": map[string]any{"content": "# Done\n\n- final"}}})
+	joined = strings.Join(c.transcript, "\n")
+	if strings.Contains(joined, "• one") || !strings.Contains(joined, "Neo: DONE") || !strings.Contains(joined, "• final") {
+		t.Fatalf("final markdown should replace entire streaming span:\n%s", joined)
+	}
+	if c.draftLineIndex != -1 || c.draftLineCount != 0 || c.draft != "" || c.running {
+		t.Fatalf("unexpected final state: running=%v draft=%q index=%d count=%d", c.running, c.draft, c.draftLineIndex, c.draftLineCount)
 	}
 }

@@ -27,6 +27,7 @@ type RuntimeConfig struct {
 	Routing              ModelRoutingConfig  `json:"routing"`
 	MaxIterations        int                 `json:"max_iterations"`
 	ScrollbackLimit      int                 `json:"scrollback_limit"`
+	TUIHistoryLimit      int                 `json:"tui_history_limit"`
 	TUIClipboardMode     string              `json:"tui_clipboard_mode"`
 	Compaction           CompactionSettings  `json:"compaction"`
 	Hooks                HookSettings        `json:"hooks"`
@@ -86,6 +87,7 @@ type piSettings struct {
 	EnabledModels        []string             `json:"enabledModels"`
 	MaxIterations        int                  `json:"maxIterations"`
 	TUIScrollbackLimit   int                  `json:"tuiScrollbackLimit"`
+	TUIHistoryLimit      int                  `json:"tuiHistoryLimit"`
 	TUIClipboardMode     string               `json:"tuiClipboardMode"`
 	Compaction           CompactionSettings   `json:"compaction"`
 	Hooks                HookSettings         `json:"hooks"`
@@ -118,6 +120,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.EnabledModels = append([]string(nil), ps.EnabledModels...)
 		cfg.MaxIterations = ps.MaxIterations
 		cfg.ScrollbackLimit = ps.TUIScrollbackLimit
+		cfg.TUIHistoryLimit = ps.TUIHistoryLimit
 		cfg.TUIClipboardMode = normalizeClipboardMode(ps.TUIClipboardMode)
 		cfg.Compaction = ps.Compaction
 		cfg.Hooks = ps.Hooks
@@ -158,6 +161,9 @@ func Load(workspaceRoot string) RuntimeConfig {
 	}
 	if cfg.ScrollbackLimit <= 0 {
 		cfg.ScrollbackLimit = 1000
+	}
+	if cfg.TUIHistoryLimit <= 0 {
+		cfg.TUIHistoryLimit = 10000
 	}
 	cfg.TUIClipboardMode = normalizeClipboardMode(cfg.TUIClipboardMode)
 	applyCompactionDefaults(&cfg.Compaction)
@@ -268,6 +274,33 @@ func PersistScrollbackLimit(workspaceRoot string, limit int) error {
 		}
 	}
 	settings["tuiScrollbackLimit"] = limit
+	blob, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return err
+	}
+	blob = append(blob, '\n')
+	return os.WriteFile(settingsPath, blob, 0o644)
+}
+
+func PersistTUIHistoryLimit(workspaceRoot string, limit int) error {
+	if strings.TrimSpace(workspaceRoot) == "" {
+		return errors.New("workspace root is required")
+	}
+	if limit <= 0 {
+		return errors.New("history limit must be > 0")
+	}
+	piDir := filepath.Join(workspaceRoot, ".pi")
+	if err := os.MkdirAll(piDir, 0o755); err != nil {
+		return err
+	}
+	settingsPath := filepath.Join(piDir, "settings.json")
+	settings := map[string]any{}
+	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
+		if err := json.Unmarshal(data, &settings); err != nil {
+			return fmt.Errorf("decode settings.json: %w", err)
+		}
+	}
+	settings["tuiHistoryLimit"] = limit
 	blob, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return err

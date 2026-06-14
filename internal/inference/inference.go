@@ -57,6 +57,20 @@ func Init() {
 	})
 }
 
+// ResolveModelContextWindow returns the registered context window for the selected
+// provider/model pair. The model argument may be either an ID or provider/id label.
+func ResolveModelContextWindow(defaultProvider, model string) int {
+	Init()
+	provider, id := splitModelLabel(defaultProvider, model)
+	if id == "" {
+		return 0
+	}
+	if m := goai.GetModel(goai.Provider(provider), id); m != nil && m.ContextWindow > 0 {
+		return m.ContextWindow
+	}
+	return 0
+}
+
 func registerCustomModels() {
 	goai.RegisterModel(&goai.Model{
 		ID:            "minimax-m2.5-free",

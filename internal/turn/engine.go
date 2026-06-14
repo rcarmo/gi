@@ -3912,6 +3912,12 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		}
 
 		log.Printf("inference [%s]: %d tool call(s)", iterLabel, len(toolCalls))
+		if strings.TrimSpace(textContent) != "" && strings.TrimSpace(result.Text) == "" {
+			r.engine.broadcast(sessionID, map[string]any{
+				"type": "agent_thought_delta", "chat_jid": "gi:" + sessionID,
+				"turn_id": turnID, "iteration": iter, "delta": textContent,
+			})
+		}
 		toolCallSummary := textContent
 		for _, tc := range toolCalls {
 			if toolCallSummary != "" {
@@ -3980,6 +3986,7 @@ func (r *sessionRunner) persistUsage(s *store.Store, turnID, sessionID string, u
 	logutil.WarnIfErr("append inference.finished event", s.AppendTurnEvent(bgCtx, turnID, sessionID, "inference.finished", map[string]any{
 		"phase": "inference", "checkpoint": true, "usage": usageMap, "iterations": iterations,
 	}))
+	r.engine.PublishRuntimeTurnEvent("turn_usage", sessionID, turnID, "", "running", "inference", map[string]any{"usage": usageMap, "iterations": iterations})
 	log.Printf("inference: usage input=%d output=%d total=%d cost=%.6f iterations=%d",
 		usage.Input, usage.Output, usage.TotalTokens, usage.Cost.Total, iterations)
 }
@@ -4667,9 +4674,9 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 					"hook_phase":   "tool_call",
 				}))
 				r.engine.broadcast(sessionID, map[string]any{"type": "tool_skipped", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "reason": reason})
-				r.engine.PublishRuntimeToolEvent("tool_skipped", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"reason": reason, "phase": "tool", "hook_phase": "tool_call"})
 				toolErr := fmt.Errorf("blocked by hook: %s", reason)
 				errText := fmt.Sprintf("Error: %v", toolErr)
+				r.engine.PublishRuntimeToolEvent("tool_skipped", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"reason": reason, "phase": "tool", "hook_phase": "tool_call", "arguments": call.Arguments, "output": errText})
 				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
 				logutil.WarnIfErr("add blocked tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID, "skipped": true, "skip_reason": reason, "hook_phase": "tool_call"}))
 				continue
@@ -4696,9 +4703,9 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 					"hook_phase":   "approve_tool",
 				}))
 				r.engine.broadcast(sessionID, map[string]any{"type": "tool_skipped", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "reason": reason})
-				r.engine.PublishRuntimeToolEvent("tool_skipped", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"reason": reason, "phase": "tool", "hook_phase": "approve_tool"})
 				toolErr := fmt.Errorf("blocked by hook: %s", reason)
 				errText := fmt.Sprintf("Error: %v", toolErr)
+				r.engine.PublishRuntimeToolEvent("tool_skipped", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"reason": reason, "phase": "tool", "hook_phase": "approve_tool", "arguments": call.Arguments, "output": errText})
 				goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
 				logutil.WarnIfErr("add denied tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID, "skipped": true, "skip_reason": reason, "hook_phase": "approve_tool"}))
 				continue
@@ -4711,7 +4718,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 
 		logutil.WarnIfErr("update turn waiting_on_tools phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "waiting_on_tools"))
 		r.emitTurnStateHook(ctx, sessionID, turnID, agentID, model, "running", "waiting_on_tools", map[string]any{"reason": "tool_execution", "tool": call.Name, "iteration": iter})
-		r.engine.PublishRuntimeToolEvent("tool_started", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool"})
+		r.engine.PublishRuntimeToolEvent("tool_started", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "arguments": call.Arguments})
 		logutil.WarnIfErr("append tool.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{
 			"phase": "tool", "tool": call.Name, "checkpoint": true,
 			"tool_call_id": call.ID, "iteration": iter,
@@ -4730,13 +4737,13 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				return outcome
 			}
 			log.Printf("tool [%s] error: %v", call.Name, toolErr)
+			errText := fmt.Sprintf("Error: %v", toolErr)
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_failed", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "error": toolErr.Error()})
-			r.engine.PublishRuntimeToolEvent("tool_failed", sessionID, turnID, agentID, call.Name, call.ID, iter, toolErr, map[string]any{"phase": "tool"})
+			r.engine.PublishRuntimeToolEvent("tool_failed", sessionID, turnID, agentID, call.Name, call.ID, iter, toolErr, map[string]any{"phase": "tool", "arguments": call.Arguments, "output": errText})
 			logutil.WarnIfErr("append tool.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.failed", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"tool_call_id": call.ID, "error": toolErr.Error(),
 			}))
-			errText := fmt.Sprintf("Error: %v", toolErr)
 			goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
 			logutil.WarnIfErr("add errored tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", errText, map[string]any{
 				"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": true, "turn_id": turnID,
@@ -4770,7 +4777,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				displayResult = displayResult[:100000] + "\n... (truncated)"
 			}
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_finished", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "tool": call.Name, "output_length": len(toolResult)})
-			r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "output_length": len(toolResult)})
+			r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "arguments": call.Arguments, "output_length": len(toolResult), "output": displayResult})
 			logutil.WarnIfErr("append tool.finished event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.finished", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
 				"tool_call_id": call.ID, "output_length": len(toolResult),

@@ -15,6 +15,11 @@ import (
 
 var tuiMarkdown = goldmark.New(goldmark.WithExtensions(extension.GFM))
 
+const (
+	markdownInlineCodeStart = "\x00gi-code-start\x00"
+	markdownInlineCodeEnd   = "\x00gi-code-end\x00"
+)
+
 func looksLikeMarkdown(text string) bool {
 	trimmed := strings.TrimSpace(text)
 	if trimmed == "" {
@@ -101,7 +106,7 @@ func (m *markdownProjector) renderBlocks(node gast.Node, depth int) []string {
 					lines = append(lines, "    ")
 					continue
 				}
-				lines = append(lines, wrapWithPrefix(codeLine, m.width, "    ")...)
+				lines = append(lines, wrapPreformattedWithPrefix(codeLine, m.width, "    ")...)
 			}
 			lines = append(lines, "")
 		case *gast.CodeBlock:
@@ -113,7 +118,7 @@ func (m *markdownProjector) renderBlocks(node gast.Node, depth int) []string {
 			for i := 0; i < n.Lines().Len(); i++ {
 				segment := n.Lines().At(i)
 				codeLine := strings.TrimRight(string(segment.Value(m.source)), "\r\n")
-				lines = append(lines, wrapWithPrefix(codeLine, m.width, "    ")...)
+				lines = append(lines, wrapPreformattedWithPrefix(codeLine, m.width, "    ")...)
 			}
 			lines = append(lines, "")
 		case *gast.Blockquote:
@@ -287,20 +292,26 @@ func (m *markdownProjector) renderInline(node gast.Node) string {
 	switch n := node.(type) {
 	case *gast.Text:
 		text := string(n.Text(m.source))
-		if n.HardLineBreak() || n.SoftLineBreak() {
+		if n.HardLineBreak() {
 			return text + "\n"
+		}
+		if n.SoftLineBreak() {
+			return text + " "
 		}
 		return text
 	case *gast.String:
 		return string(n.Value)
 	case *gast.CodeSpan:
-		return "`" + strings.TrimSpace(m.renderInlineChildren(n)) + "`"
+		return markdownInlineCodeStart + strings.TrimSpace(m.renderInlineChildren(n)) + markdownInlineCodeEnd
 	case *gast.Emphasis:
-		inner := m.renderInlineChildren(n)
-		if n.Level == 2 {
-			return "**" + inner + "**"
+		return m.renderInlineChildren(n)
+	case *extast.Strikethrough:
+		return m.renderInlineChildren(n)
+	case *extast.TaskCheckBox:
+		if n.IsChecked {
+			return "☑ "
 		}
-		return "*" + inner + "*"
+		return "☐ "
 	case *gast.Link:
 		label := strings.TrimSpace(m.renderInlineChildren(n))
 		dest := string(n.Destination)
@@ -321,30 +332,88 @@ func wrapParagraph(text string, width int) []string {
 	}
 	var lines []string
 	for _, para := range strings.Split(text, "\n") {
-		words := strings.Fields(para)
+		words := markdownParagraphTokens(para)
 		if len(words) == 0 {
 			lines = append(lines, "")
 			continue
 		}
 		current := words[0]
+		currentWidth := markdownRenderedWidth(current)
 		for _, word := range words[1:] {
-			candidate := current + " " + word
-			if utf8.RuneCountInString(candidate) <= width {
-				current = candidate
+			wordWidth := markdownRenderedWidth(word)
+			if currentWidth+1+wordWidth <= width {
+				current += " " + word
+				currentWidth += 1 + wordWidth
 				continue
 			}
 			lines = append(lines, current)
-			if utf8.RuneCountInString(word) > width {
+			if wordWidth > width && !strings.Contains(word, markdownInlineCodeStart) {
 				parts := wrapLongRunes(word, width)
 				lines = append(lines, parts[:len(parts)-1]...)
 				current = parts[len(parts)-1]
+				currentWidth = markdownRenderedWidth(current)
 			} else {
 				current = word
+				currentWidth = wordWidth
 			}
 		}
 		lines = append(lines, current)
 	}
 	return lines
+}
+
+func markdownParagraphTokens(text string) []string {
+	var tokens []string
+	for i := 0; i < len(text); {
+		for i < len(text) {
+			r, size := utf8.DecodeRuneInString(text[i:])
+			if !isMarkdownTokenSpace(r) {
+				break
+			}
+			i += size
+		}
+		if i >= len(text) {
+			break
+		}
+		if strings.HasPrefix(text[i:], markdownInlineCodeStart) {
+			end := strings.Index(text[i+len(markdownInlineCodeStart):], markdownInlineCodeEnd)
+			if end >= 0 {
+				endPos := i + len(markdownInlineCodeStart) + end + len(markdownInlineCodeEnd)
+				tokens = append(tokens, text[i:endPos])
+				i = endPos
+				continue
+			}
+		}
+		start := i
+		for i < len(text) {
+			if strings.HasPrefix(text[i:], markdownInlineCodeStart) && i > start {
+				break
+			}
+			r, size := utf8.DecodeRuneInString(text[i:])
+			if isMarkdownTokenSpace(r) {
+				break
+			}
+			i += size
+		}
+		if i > start {
+			tokens = append(tokens, text[start:i])
+		}
+	}
+	return tokens
+}
+
+func isMarkdownTokenSpace(r rune) bool {
+	return r == ' ' || r == '\t' || r == '\n' || r == '\r'
+}
+
+func markdownRenderedWidth(s string) int {
+	return utf8.RuneCountInString(stripMarkdownInlineStyleMarkers(s))
+}
+
+func stripMarkdownInlineStyleMarkers(s string) string {
+	s = strings.ReplaceAll(s, markdownInlineCodeStart, "")
+	s = strings.ReplaceAll(s, markdownInlineCodeEnd, "")
+	return s
 }
 
 func wrapWithPrefix(text string, width int, prefix string) []string {
@@ -362,6 +431,26 @@ func wrapWithPrefix(text string, width int, prefix string) []string {
 			out = append(out, strings.Repeat(" ", prefixWidth)+line)
 		}
 	}
+	return out
+}
+
+func wrapPreformattedWithPrefix(text string, width int, prefix string) []string {
+	prefixWidth := utf8.RuneCountInString(prefix)
+	contentWidth := width - prefixWidth
+	if contentWidth < 8 {
+		contentWidth = 8
+	}
+	runes := []rune(text)
+	if len(runes) == 0 {
+		return []string{prefix}
+	}
+	out := make([]string, 0, (len(runes)/contentWidth)+1)
+	for len(runes) > contentWidth {
+		out = append(out, prefix+string(runes[:contentWidth]))
+		runes = runes[contentWidth:]
+		prefix = strings.Repeat(" ", prefixWidth)
+	}
+	out = append(out, prefix+string(runes))
 	return out
 }
 
