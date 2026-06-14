@@ -3815,7 +3815,11 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		maxIter = 64
 	}
 
-	convCtx := r.assembleAgentContext(ctx, s, turnID, sessionID, model, agentID)
+	convCtx, err := r.assembleAgentContext(ctx, s, turnID, sessionID, model, agentID)
+	if err != nil {
+		r.finishTurn(s, turnID, sessionID, agentID, model, "failed", fmt.Sprintf("Turn context error: %v", err), "context_error")
+		return
+	}
 	agentEndReason := "completed"
 	defer func() {
 		_, _ = r.engine.emitHook(r.engine.backgroundContext(), HookRequest{Name: HookAgentEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: map[string]any{"reason": agentEndReason}})
@@ -4422,7 +4426,7 @@ func providerRequestReplacementFromHook(resp HookResponse) (any, bool) {
 	return replacement, true
 }
 
-func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string) *goai.Context {
+func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string) (*goai.Context, error) {
 	sysPrompt := r.engine.systemPrompt
 	if sysPrompt == "" {
 		sysPrompt = "You are a helpful coding assistant."
@@ -4433,7 +4437,10 @@ func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store
 		turnMetadata = turnRec.Metadata
 	}
 
-	msgs, _ := s.ListMessages(ctx, sessionID)
+	msgs, err := s.ListMessages(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("load session messages: %w", err)
+	}
 	convCtx := &goai.Context{
 		SystemPrompt: sysPrompt,
 		Tools:        r.engine.toolDefsForMetadata(turnMetadata),
@@ -4464,7 +4471,7 @@ func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store
 		}
 	}
 	_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookAgentStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model})
-	return convCtx
+	return convCtx, nil
 }
 
 func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, turnID, model, agentID string, iter int, convCtx *goai.Context, pendingSteering []store.SteeringMessage) []store.SteeringMessage {
@@ -4943,7 +4950,9 @@ func (r *sessionRunner) setupTurnRun(ctx context.Context, s *store.Store, sessio
 		userPayload["media"] = rawMedia
 	}
 	if strings.TrimSpace(prompt) != "" && len(initialSteering) == 0 {
-		logutil.WarnIfErr("add user prompt message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload))
+		if err := s.AddMessage(ctx, store.NowID("msg"), sessionID, "user", prompt, userPayload); err != nil {
+			return nil, fmt.Errorf("persist user prompt message: %w", err)
+		}
 	}
 	startedPayload := map[string]any{"phase": "turn", "prompt": prompt, "intent": intent, "model": model, "checkpoint": true}
 	copySelectedMetadata(startedPayload, turnRec.Metadata, turnStartedMetadataKeys)

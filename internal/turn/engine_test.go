@@ -6827,6 +6827,25 @@ func TestTurnAndSessionStateHooksObserveLifecycle(t *testing.T) {
 	}
 }
 
+func TestAssembleAgentContextFailsWhenMessagesCannotLoad(t *testing.T) {
+	s := openTestStore(t)
+	e := New(s)
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_context_load_error", "ContextLoadError", map[string]any{"model": "test-model"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := s.CreateTurnWithStatus(ctx, "turn_context_load_error", "session_context_load_error", "running", "hello", map[string]any{"intent": "prompt", "model": "test-model"}); err != nil {
+		t.Fatalf("create turn: %v", err)
+	}
+	runner := e.runner("session_context_load_error")
+	if err := s.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+	if _, err := runner.assembleAgentContext(ctx, s, "turn_context_load_error", "session_context_load_error", "test-model", "agent"); err == nil || !strings.Contains(err.Error(), "load session messages") {
+		t.Fatalf("expected load session messages error, got %v", err)
+	}
+}
+
 func TestQueuedCancelSessionStateHookCarriesResolvedModel(t *testing.T) {
 	s := openTestStore(t)
 	defer s.Close()
