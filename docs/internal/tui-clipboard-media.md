@@ -1,6 +1,19 @@
 # TUI clipboard and media parity
 
-Status: clipboard text copy has an opt-in implementation; direct image paste remains deferred; `/attach <path> [prompt]` is the terminal-safe media fallback.
+Status: clipboard text copy has an opt-in implementation; clipboard image paste is supported via `/paste-image`; `/attach <path> [prompt]` is the terminal-safe file media fallback.
+
+## Clipboard image paste
+
+`/paste-image [prompt]` (alias `/paste`) reads an image from the system clipboard, stores it in the session media store (`source=tui-paste`), and either reports the `media:<id>` reference or, with a prompt, submits the prompt with the image attached via the shared media ingestion contract.
+
+The clipboard image reader is platform-aware and best-effort:
+
+- Linux Wayland: `wl-paste --type image/png`;
+- Linux X11: `xclip -selection clipboard -t image/png -o`;
+- macOS: `pngpaste -`;
+- Windows: PowerShell `System.Windows.Forms.Clipboard.GetImage()` to PNG.
+
+If no helper is available, `/paste-image` returns a clear error. The reader is injectable for tests. Images larger than 10 MiB are rejected.
 
 ## Current behavior
 

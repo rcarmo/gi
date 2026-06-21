@@ -167,6 +167,7 @@ type chatTUI struct {
 	outputWidth              int
 	osc52Writer              io.Writer
 	clipboardLookPath        func(string) (string, error)
+	clipboardImageReader     func() ([]byte, string, error)
 	clipboardRun             func(context.Context, string, []string, string) error
 	transcriptBlockRefs      []transcriptBlockHitTarget
 	transcriptExpanded       map[string]bool
@@ -2222,6 +2223,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.appendTranscript(c.copyLastAssistantLines(fields[1:]...)...)
 	case "/attach":
 		c.appendTranscript(c.attachCommand(text, fields)...)
+	case "/paste-image", "/paste":
+		c.appendTranscript(c.pasteImageCommand(text, fields)...)
 	case "/reload":
 		c.appendTranscript(c.reloadLines()...)
 	case "/tools":
@@ -2410,6 +2413,7 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 		{"/clone [@agentN]", "clone active branch/session"},
 		{"/copy [--osc52|--native|--auto|--fallback]", "copy last assistant message with opt-in target"},
 		{"/attach <path> [prompt]", "attach local media and optionally submit a prompt"},
+		{"/paste-image [prompt]", "paste a clipboard image and optionally submit a prompt"},
 		{"/reload", "refresh config and discovery safely"},
 		{"/tools [query|active|activate|reset]", "inspect or change active tools"},
 		{"/skills [query]", "list discovered skills"},
