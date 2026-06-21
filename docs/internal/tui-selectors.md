@@ -41,11 +41,12 @@ Status: searchable model selector implemented; pattern reusable for further sele
 
 ## Reuse
 
-The same machinery (all/filtered/query + `filterModelMenuChoices`) now backs two selectors:
+The same machinery (all/filtered/query + `filterModelMenuChoices`) now backs three selectors:
 
 - **model selector** (`/model`, or `Ctrl-L` cycle fallback);
-- **session selector** (`/sessions`): a searchable resume picker that lists sessions as `@agent title (id) · status`, filters by typed query, and switches to the chosen session on Enter.
+- **session selector** (`/sessions`): a searchable resume picker that lists sessions as `@agent title (id) · status`, filters by typed query, and switches to the chosen session on Enter;
+- **thinking-level selector** (`/thinking` with no args): low/medium/high picker that sets the level on Enter.
 
-The menu carries a `kind` (`model`|`session`) and an optional label→value map, so Enter dispatches to the right action (`/model <name>` vs `switchSession(id)`). `/resume <index|session_id>` remains the textual fallback for tmux/script use, so existing scripted flows are unaffected.
+The menu carries a `kind` (`model`|`session`|`thinking`) and an optional label→value map, so Enter dispatches to the right action (`/model <name>`, `switchSession(id)`, or `/thinking <level>`). `/model <name|index>`, `/resume <index|session_id>`, and `/thinking <level>` remain textual fallbacks for tmux/script use, so existing scripted flows are unaffected.
 
 Future PiSwift-style selectors (tree/settings/theme) can reuse the same `kind`/values machinery. Each must keep a textual command fallback and live in the bottom overlay area, never as top chrome.

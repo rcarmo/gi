@@ -1738,6 +1738,8 @@ func (c *chatTUI) acceptModelMenuSelection() {
 	case "session":
 		c.switchSession(value)
 		c.appendTranscript(fmt.Sprintf("sys: resumed %s", value))
+	case "thinking":
+		c.appendTranscript(c.thinkingCommand([]string{"/thinking", value})...)
 	default:
 		c.appendTranscript(c.modelCommand([]string{"/model", value})...)
 	}
@@ -1777,12 +1779,14 @@ func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
 	noun := "model"
 	if c.modelMenuKind == "session" {
 		noun = "session"
+	} else if c.modelMenuKind == "thinking" {
+		noun = "thinking level"
 	}
 	title := "Select " + noun + " · ↑/↓ navigate · Enter select · Esc cancel"
 	if width < 72 {
 		title = "Select " + noun + " · ↑/↓ Enter Esc"
 	}
-	if c.modelMenuKind != "session" && current != "" {
+	if c.modelMenuKind != "session" && c.modelMenuKind != "thinking" && current != "" {
 		title += " · current " + compactMaybe(current, c.compactOutput(), 28)
 	}
 	menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(truncate(title, max(20, width-4))), gotui.WithTextStyle(gotui.NewStyle().Bold())))
@@ -2220,7 +2224,11 @@ func (c *chatTUI) handleCommand(text string) {
 	case "/scoped-models":
 		c.transcript = append(c.transcript, c.scopedModelsCommand(fields)...)
 	case "/thinking":
-		c.transcript = append(c.transcript, c.thinkingCommand(fields)...)
+		if len(fields) == 1 {
+			c.openThinkingMenu()
+		} else {
+			c.transcript = append(c.transcript, c.thinkingCommand(fields)...)
+		}
 	case "/compact":
 		c.appendTranscript(c.compactLines()...)
 	case "/scrollback":
@@ -3158,6 +3166,32 @@ func containsString(values []string, needle string) bool {
 		}
 	}
 	return false
+}
+
+func (c *chatTUI) openThinkingMenu() {
+	choices := []string{"low", "medium", "high"}
+	selected := 0
+	current := strings.ToLower(strings.TrimSpace(c.cfg.DefaultThinkingLevel))
+	for i, level := range choices {
+		if level == current {
+			selected = i
+			break
+		}
+	}
+	c.modelMenuOpen = true
+	c.modelMenuKind = "thinking"
+	c.modelMenuValues = nil
+	c.modelMenuAll = choices
+	c.modelMenuQuery = ""
+	c.modelMenuChoices = choices
+	c.modelMenuSelected = selected
+	c.modelMenuScroll = 0
+	c.ensureModelMenuSelectionVisible()
+	c.inputActive = false
+	if c.app != nil {
+		c.app.BlurFocused()
+		c.app.MarkDirty()
+	}
 }
 
 func (c *chatTUI) thinkingCommand(fields []string) []string {

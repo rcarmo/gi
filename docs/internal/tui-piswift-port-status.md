@@ -29,8 +29,9 @@ Reference comparison: `piswift-tui-comparison-20260621.md`.
 ### Searchable selectors (PiSwift `ModelSelectorComponent`)
 - `/model` opens a searchable model selector (type to filter, substring/multi-token, match count, navigation, current marker).
 - `/sessions` opens a searchable session resume selector reusing the same machinery (kind + label→value map).
-- textual fallbacks retained: `/model <name|index>`, `/resume <index|session_id>`.
-- Tests: fuzzy/substring filter, live typing/backspace, session open/filter/switch.
+- `/thinking` (no args) opens a low/medium/high thinking-level selector.
+- textual fallbacks retained: `/model <name|index>`, `/resume <index|session_id>`, `/thinking <level>`.
+- Tests: fuzzy/substring filter, live typing/backspace, session open/filter/switch, thinking selector sets level.
 
 ### TUI extension slots (PiSwift hook UI context)
 - `extension.status` topic → keyed footer status segments.

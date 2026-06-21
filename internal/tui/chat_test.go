@@ -2108,6 +2108,31 @@ func TestContextSummaryLinesWrapForNarrowWidth(t *testing.T) {
 	}
 }
 
+func TestThinkingSelectorSetsLevel(t *testing.T) {
+	root := t.TempDir()
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	if _, err := s.CreateSession(context.Background(), "session_think", "@agent", map[string]any{"status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	c := &chatTUI{store: s, sessionID: "session_think", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultThinkingLevel: "low"}}
+	c.openThinkingMenu()
+	if !c.modelMenuOpen || c.modelMenuKind != "thinking" || len(c.modelMenuChoices) != 3 {
+		t.Fatalf("thinking menu not opened correctly: open=%v kind=%q choices=%#v", c.modelMenuOpen, c.modelMenuKind, c.modelMenuChoices)
+	}
+	c.modelMenuSelected = 2 // high
+	c.acceptModelMenuSelection()
+	if c.modelMenuOpen {
+		t.Fatalf("menu should close after accept")
+	}
+	if c.cfg.DefaultThinkingLevel != "high" {
+		t.Fatalf("expected thinking level high, got %q", c.cfg.DefaultThinkingLevel)
+	}
+}
+
 func TestSessionSelectorOpensFiltersAndSwitches(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
