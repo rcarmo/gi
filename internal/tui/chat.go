@@ -103,6 +103,7 @@ type transcriptBlockMeta struct {
 	StartedAt string `json:"started_at,omitempty"`
 	EndedAt   string `json:"ended_at,omitempty"`
 	Detail    string `json:"detail,omitempty"`
+	Footer    string `json:"footer,omitempty"`
 }
 
 type transcriptBlockSpan struct {
@@ -118,6 +119,9 @@ type transcriptRenderableBlock struct {
 	Body         []string
 	Expanded     bool
 	Expandable   bool
+	PreviewLimit int
+	PreviewTail  bool
+	Footer       string
 	Status       string
 	Selected     bool
 	Border       gotui.BorderStyle
@@ -127,6 +131,10 @@ type transcriptRenderableBlock struct {
 	HintStyle    gotui.Style
 	SelectedHint string
 }
+
+// bashPreviewLines mirrors PiSwift's bash output preview window: when collapsed,
+// only the trailing N lines of bash output are shown with a skipped-line hint.
+const bashPreviewLines = 10
 
 type chatTUI struct {
 	app                     *gotui.App
@@ -2312,6 +2320,7 @@ func (c *chatTUI) localShellShortcutLines(command string) []string {
 	if command == "" {
 		return []string{"sys: usage: !!command runs a local shell command; !command sends a shell request to the model"}
 	}
+	startedAt := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "sh", "-lc", command)
@@ -2319,19 +2328,72 @@ func (c *chatTUI) localShellShortcutLines(command string) []string {
 		cmd.Dir = root
 	}
 	out, err := cmd.CombinedOutput()
-	text := strings.TrimSpace(string(out))
-	if text == "" {
-		text = "(no output)"
-	}
-	text = truncate(text, 2000)
-	lines := []string{fmt.Sprintf("local$ %s", command)}
+	status := "ok"
 	if err != nil {
-		lines = append(lines, fmt.Sprintf("error: %v", err))
+		status = "error"
 	}
-	for _, line := range strings.Split(text, "\n") {
+	return c.bashBlockLines(command, string(out), status, err, startedAt, time.Now())
+}
+
+// bashBlockLines builds a PiSwift-style bash execution transcript block: a
+// header with the command, the full output retained in the block body (capped),
+// and a footer pointing at a full-output file when the output is truncated.
+func (c *chatTUI) bashBlockLines(command, output, status string, runErr error, startedAt, endedAt time.Time) []string {
+	const maxBodyLines = 500
+	text := strings.ReplaceAll(output, "\r\n", "\n")
+	text = strings.ReplaceAll(text, "\r", "\n")
+	text = strings.TrimRight(text, "\n")
+	var rawLines []string
+	if strings.TrimSpace(text) == "" {
+		rawLines = []string{"(no output)"}
+	} else {
+		rawLines = strings.Split(text, "\n")
+	}
+	footer := ""
+	bodyLines := rawLines
+	if len(rawLines) > maxBodyLines {
+		if path, perr := c.writeBashFullOutput(command, output); perr == nil && path != "" {
+			footer = "output truncated · full output: " + path
+		} else {
+			footer = fmt.Sprintf("output truncated · %d lines hidden", len(rawLines)-maxBodyLines)
+		}
+		bodyLines = rawLines[len(rawLines)-maxBodyLines:]
+	}
+	if runErr != nil {
+		bodyLines = append(bodyLines, "error: "+truncate(runErr.Error(), 160))
+	}
+	meta := transcriptBlockMeta{
+		Key:       fmt.Sprintf("bash:%d", time.Now().UnixNano()),
+		Kind:      "bash",
+		Title:     "$ " + command,
+		Status:    status,
+		StartedAt: startedAt.Format(time.RFC3339Nano),
+		EndedAt:   endedAt.Format(time.RFC3339Nano),
+		Footer:    footer,
+	}
+	lines := []string{encodeTranscriptBlockMarker(meta)}
+	for _, line := range bodyLines {
 		lines = append(lines, "│ "+line)
 	}
 	return lines
+}
+
+func (c *chatTUI) writeBashFullOutput(command, output string) (string, error) {
+	dir := strings.TrimSpace(c.cfg.WorkspaceRoot)
+	if dir == "" {
+		dir = os.TempDir()
+	} else {
+		dir = filepath.Join(dir, ".gi-run", "bash-output")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, fmt.Sprintf("bash-%d.txt", time.Now().UnixNano()))
+	header := "$ " + command + "\n\n"
+	if err := os.WriteFile(path, []byte(header+output), 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func (c *chatTUI) reloadLines() []string {
@@ -3652,11 +3714,18 @@ func (c *chatTUI) buildTranscriptRenderableBlocks(lines []string) []transcriptRe
 			}
 			expandable := len(body) > 2
 			selectedHint := borderStyle
+			previewLimit := 0
+			previewTail := false
 			if meta.Kind == "thinking" || meta.Kind == "thinking_indicator" {
 				expandable = false
 				selectedHint = ""
 			}
-			blocks = append(blocks, transcriptRenderableBlock{Key: meta.Key, Kind: meta.Kind, Header: header, Subheader: subheader, Body: body, Expandable: expandable, Expanded: expanded, Status: meta.Status, Selected: c.selectedTranscriptBlock == meta.Key, Border: gotui.BorderRounded, BorderStyle: border, HeaderStyle: headStyle, BodyStyle: bodyStyle, HintStyle: hintStyle, SelectedHint: selectedHint})
+			if meta.Kind == "bash" {
+				previewLimit = bashPreviewLines
+				previewTail = true
+				expandable = len(body) > bashPreviewLines
+			}
+			blocks = append(blocks, transcriptRenderableBlock{Key: meta.Key, Kind: meta.Kind, Header: header, Subheader: subheader, Body: body, Expandable: expandable, Expanded: expanded, PreviewLimit: previewLimit, PreviewTail: previewTail, Footer: strings.TrimSpace(meta.Footer), Status: meta.Status, Selected: c.selectedTranscriptBlock == meta.Key, Border: gotui.BorderRounded, BorderStyle: border, HeaderStyle: headStyle, BodyStyle: bodyStyle, HintStyle: hintStyle, SelectedHint: selectedHint})
 			i = j - 1
 			continue
 		}
@@ -3712,7 +3781,10 @@ func shouldRenderTranscriptStatusLabel(kind, status string) bool {
 	if status == "" {
 		return false
 	}
-	return !(kind == "tool" && status == "ok")
+	if (kind == "tool" || kind == "bash") && status == "ok" {
+		return false
+	}
+	return true
 }
 
 func isTUIErrorLine(line string) bool {
@@ -3769,6 +3841,8 @@ func transcriptBlockPalette(kind, status string, selected bool) (gotui.Style, go
 		fg = gotui.Blue
 	case "local":
 		fg = gotui.Magenta
+	case "bash":
+		fg = gotui.Cyan
 	case "compact":
 		fg = gotui.Yellow
 	case "error":
@@ -3876,18 +3950,31 @@ func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) *gotui.
 	}
 	visibleBody := block.Body
 	hiddenCount := 0
+	previewLimit := 2
+	if block.PreviewLimit > 0 {
+		previewLimit = block.PreviewLimit
+	}
 	if block.Expandable && !block.Expanded {
-		if len(visibleBody) > 2 {
-			hiddenCount = len(visibleBody) - 2
-			visibleBody = visibleBody[:2]
+		if len(visibleBody) > previewLimit {
+			hiddenCount = len(visibleBody) - previewLimit
+			if block.PreviewTail {
+				visibleBody = visibleBody[len(visibleBody)-previewLimit:]
+			} else {
+				visibleBody = visibleBody[:previewLimit]
+			}
 		}
 	}
 	for _, line := range visibleBody {
 		container.AddChild(c.renderInlineStyledLine(line, block.BodyStyle))
 	}
-	if block.Expandable && !block.Expanded && hiddenCount > 0 {
-		hint := fmt.Sprintf("… %d more line(s)", hiddenCount)
+	if block.Expandable && hiddenCount > 0 {
+		hint := fmt.Sprintf("… %d more line(s) · F8 expand", hiddenCount)
 		container.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(hint), gotui.WithTextStyle(block.HintStyle)))
+	} else if block.Expandable && block.Expanded && block.PreviewTail {
+		container.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText("F8 collapse"), gotui.WithTextStyle(block.HintStyle)))
+	}
+	if strings.TrimSpace(block.Footer) != "" {
+		container.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(block.Footer), gotui.WithTextStyle(block.HintStyle)))
 	}
 	return container
 }

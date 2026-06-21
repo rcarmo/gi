@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1092,11 +1093,42 @@ func TestMultilineInputTabCompletionCallback(t *testing.T) {
 
 func TestLocalShellShortcutRunsLocally(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: t.TempDir()}}
-	lines := strings.Join(c.localShellShortcutLines("printf hello"), "\n")
-	for _, want := range []string{"local$ printf hello", "│ hello"} {
-		if !strings.Contains(lines, want) {
-			t.Fatalf("local shell output missing %q:\n%s", want, lines)
+	out := c.localShellShortcutLines("printf hello")
+	meta, ok := parseTranscriptBlockMarker(out[0])
+	if !ok || meta.Kind != "bash" || meta.Title != "$ printf hello" || meta.Status != "ok" {
+		t.Fatalf("unexpected bash block meta: %#v ok=%v", meta, ok)
+	}
+	lines := strings.Join(out, "\n")
+	if !strings.Contains(lines, "│ hello") {
+		t.Fatalf("local shell output missing body:\n%s", lines)
+	}
+}
+
+func TestBashBlockPreviewTailAndExpand(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{WorkspaceRoot: t.TempDir()}}
+	var sb strings.Builder
+	for i := 0; i < 40; i++ {
+		fmt.Fprintf(&sb, "line-%02d\n", i)
+	}
+	lines := c.bashBlockLines("seq", sb.String(), "ok", nil, time.Now(), time.Now())
+	blocks := c.buildTranscriptRenderableBlocks(lines)
+	var bash transcriptRenderableBlock
+	for _, b := range blocks {
+		if b.Kind == "bash" {
+			bash = b
 		}
+	}
+	if bash.Kind != "bash" {
+		t.Fatalf("no bash block built: %#v", blocks)
+	}
+	if !bash.Expandable || bash.PreviewLimit != bashPreviewLines || !bash.PreviewTail {
+		t.Fatalf("unexpected bash preview config: %#v", bash)
+	}
+	if len(bash.Body) != 40 {
+		t.Fatalf("expected full body retained, got %d lines", len(bash.Body))
+	}
+	if bash.Body[len(bash.Body)-1] != "line-39" {
+		t.Fatalf("unexpected tail line: %q", bash.Body[len(bash.Body)-1])
 	}
 }
 
