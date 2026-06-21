@@ -183,6 +183,8 @@ type chatTUI struct {
 	lastContextTokens       int
 	modelMenuOpen           bool
 	modelMenuChoices        []string
+	modelMenuAll            []string
+	modelMenuQuery          string
 	modelMenuSelected       int
 	modelMenuScroll         int
 	extensionStatuses       map[string]string
@@ -1437,6 +1439,8 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 			gotui.OnPreemptStop(gotui.KeyHome, func(ke gotui.KeyEvent) { c.setModelMenuSelection(0) }),
 			gotui.OnPreemptStop(gotui.KeyEnd, func(ke gotui.KeyEvent) { c.setModelMenuSelection(len(c.modelMenuChoices) - 1) }),
 			gotui.OnPreemptStop(gotui.KeyEnter, func(ke gotui.KeyEvent) { c.acceptModelMenuSelection() }),
+			gotui.OnPreemptStop(gotui.KeyBackspace, func(ke gotui.KeyEvent) { c.modelMenuBackspace() }),
+			gotui.OnFocused(gotui.AnyRune, func(ke gotui.KeyEvent) { c.modelMenuTypeRune(ke.Rune) }),
 		}
 	}
 	return gotui.KeyMap{
@@ -1493,6 +1497,8 @@ func (c *chatTUI) openModelMenu() {
 		}
 	}
 	c.modelMenuOpen = true
+	c.modelMenuAll = choices
+	c.modelMenuQuery = ""
 	c.modelMenuChoices = choices
 	c.modelMenuSelected = selected
 	c.modelMenuScroll = 0
@@ -1504,9 +1510,68 @@ func (c *chatTUI) openModelMenu() {
 	}
 }
 
+func fuzzyMatch(query, candidate string) bool {
+	query = strings.ToLower(strings.TrimSpace(query))
+	if query == "" {
+		return true
+	}
+	candidate = strings.ToLower(candidate)
+	// Each whitespace-separated token must appear as a substring; this keeps
+	// filtering intuitive ("gpt" matches only gpt models) while still allowing
+	// multi-term queries like "openai mini".
+	for _, token := range strings.Fields(query) {
+		if !strings.Contains(candidate, token) {
+			return false
+		}
+	}
+	return true
+}
+
+func filterModelMenuChoices(all []string, query string) []string {
+	if strings.TrimSpace(query) == "" {
+		return append([]string(nil), all...)
+	}
+	out := make([]string, 0, len(all))
+	for _, model := range all {
+		if fuzzyMatch(query, model) {
+			out = append(out, model)
+		}
+	}
+	return out
+}
+
+func (c *chatTUI) applyModelMenuFilter() {
+	c.modelMenuChoices = filterModelMenuChoices(c.modelMenuAll, c.modelMenuQuery)
+	c.modelMenuSelected = 0
+	c.modelMenuScroll = 0
+	c.ensureModelMenuSelectionVisible()
+	if c.app != nil {
+		c.app.MarkDirty()
+	}
+}
+
+func (c *chatTUI) modelMenuTypeRune(r rune) {
+	if r == 0 {
+		return
+	}
+	c.modelMenuQuery += string(r)
+	c.applyModelMenuFilter()
+}
+
+func (c *chatTUI) modelMenuBackspace() {
+	if c.modelMenuQuery == "" {
+		return
+	}
+	q := []rune(c.modelMenuQuery)
+	c.modelMenuQuery = string(q[:len(q)-1])
+	c.applyModelMenuFilter()
+}
+
 func (c *chatTUI) closeModelMenu() {
 	c.modelMenuOpen = false
 	c.modelMenuChoices = nil
+	c.modelMenuAll = nil
+	c.modelMenuQuery = ""
 	c.modelMenuSelected = 0
 	c.modelMenuScroll = 0
 	c.focusInput()
@@ -1577,6 +1642,8 @@ func (c *chatTUI) acceptModelMenuSelection() {
 	model := c.modelMenuChoices[c.modelMenuSelected]
 	c.modelMenuOpen = false
 	c.modelMenuChoices = nil
+	c.modelMenuAll = nil
+	c.modelMenuQuery = ""
 	c.modelMenuScroll = 0
 	c.focusInput()
 	c.appendTranscript(c.modelCommand([]string{"/model", model})...)
@@ -1593,7 +1660,8 @@ func (c *chatTUI) modelMenuHeight() int {
 	if len(c.modelMenuChoices) < rows {
 		rows = len(c.modelMenuChoices)
 	}
-	return rows + 2
+	// rows + title + search line
+	return rows + 3
 }
 
 func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
@@ -1620,6 +1688,17 @@ func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
 		title += " · current " + compactMaybe(current, c.compactOutput(), 28)
 	}
 	menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(truncate(title, max(20, width-4))), gotui.WithTextStyle(gotui.NewStyle().Bold())))
+	search := "search: " + c.modelMenuQuery + "▌"
+	if strings.TrimSpace(c.modelMenuQuery) == "" {
+		search = "search: (type to filter)"
+	} else {
+		search += fmt.Sprintf("  (%d match)", len(c.modelMenuChoices))
+	}
+	menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(truncate(search, max(20, width-4))), gotui.WithTextStyle(gotui.NewStyle().Dim())))
+	if len(c.modelMenuChoices) == 0 {
+		menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText("  no matching models"), gotui.WithTextStyle(gotui.NewStyle().Dim())))
+		return menu
+	}
 	for i := start; i < end; i++ {
 		model := c.modelMenuChoices[i]
 		prefix := "  "
@@ -2258,7 +2337,7 @@ func (c *chatTUI) helpLines() []string {
 		"help",
 		"enter send · shift-enter newline · esc blur · ctrl-d exit · f6/f7 select block · f8 expand",
 		"/commands  all commands",
-		"/model     choose model · ctrl-l cycles",
+		"/model     choose model · type to filter · ctrl-l cycles",
 		"/session   details for this chat",
 		"/where     compact context",
 		"/attach    add media",

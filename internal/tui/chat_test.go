@@ -2050,6 +2050,46 @@ func TestContextSummaryLinesWrapForNarrowWidth(t *testing.T) {
 	}
 }
 
+func TestModelMenuFuzzyFilter(t *testing.T) {
+	all := []string{"openai/gpt-5.2", "anthropic/claude-sonnet", "opencode-zen/minimax", "openai/gpt-4.1-mini"}
+	if got := filterModelMenuChoices(all, ""); len(got) != 4 {
+		t.Fatalf("empty query should return all, got %#v", got)
+	}
+	got := filterModelMenuChoices(all, "gpt")
+	if len(got) != 2 || got[0] != "openai/gpt-5.2" || got[1] != "openai/gpt-4.1-mini" {
+		t.Fatalf("gpt filter unexpected: %#v", got)
+	}
+	if got := filterModelMenuChoices(all, "clsn"); len(got) != 0 {
+		t.Fatalf("non-substring query should not match: %#v", got)
+	}
+	if got := filterModelMenuChoices(all, "claude sonnet"); len(got) != 1 || got[0] != "anthropic/claude-sonnet" {
+		t.Fatalf("multi-token filter unexpected: %#v", got)
+	}
+	if got := filterModelMenuChoices(all, "zzz"); len(got) != 0 {
+		t.Fatalf("no-match filter should be empty, got %#v", got)
+	}
+}
+
+func TestModelMenuTypeAndBackspaceFiltersChoices(t *testing.T) {
+	c := &chatTUI{modelMenuOpen: true, modelMenuAll: []string{"openai/gpt-5.2", "anthropic/claude", "openai/gpt-4.1"}}
+	c.modelMenuChoices = append([]string(nil), c.modelMenuAll...)
+	c.modelMenuTypeRune('g')
+	c.modelMenuTypeRune('p')
+	c.modelMenuTypeRune('t')
+	if len(c.modelMenuChoices) != 2 {
+		t.Fatalf("expected 2 gpt matches, got %#v", c.modelMenuChoices)
+	}
+	if c.modelMenuQuery != "gpt" || c.modelMenuSelected != 0 {
+		t.Fatalf("unexpected menu state query=%q sel=%d", c.modelMenuQuery, c.modelMenuSelected)
+	}
+	c.modelMenuBackspace()
+	c.modelMenuBackspace()
+	c.modelMenuBackspace()
+	if c.modelMenuQuery != "" || len(c.modelMenuChoices) != 3 {
+		t.Fatalf("backspace should restore all choices, got query=%q choices=%#v", c.modelMenuQuery, c.modelMenuChoices)
+	}
+}
+
 func TestExtensionStatusSlotAddsFooterRowsOnly(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap", DefaultThinkingLevel: "low", WorkspaceRoot: t.TempDir()}}
 	base := len(c.footerLines(100))
