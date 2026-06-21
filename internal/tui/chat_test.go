@@ -2050,6 +2050,33 @@ func TestContextSummaryLinesWrapForNarrowWidth(t *testing.T) {
 	}
 }
 
+func TestExtensionStatusSlotAddsFooterRowsOnly(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap", DefaultThinkingLevel: "low", WorkspaceRoot: t.TempDir()}}
+	base := len(c.footerLines(100))
+	c.setExtensionStatus("lint", "lint: 0 errors")
+	c.setExtensionStatus("build", "build ok")
+	lines := c.footerLines(100)
+	if len(lines) != base+2 {
+		t.Fatalf("expected %d footer lines, got %d: %#v", base+2, len(lines), lines)
+	}
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, "build ok") || !strings.Contains(joined, "lint: 0 errors") {
+		t.Fatalf("extension status missing from footer: %#v", lines)
+	}
+	// sorted by key: build before lint
+	if lines[base] != "build ok" {
+		t.Fatalf("expected sorted extension statuses, got %#v", lines[base:])
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "extension.status", Payload: map[string]any{"key": "lint", "text": ""}})
+	if lines := c.footerLines(100); len(lines) != base+1 {
+		t.Fatalf("clearing one status should leave %d lines, got %#v", base+1, lines)
+	}
+	// Slot output is footer-only: setting status must not add any transcript row.
+	if len(c.transcript) != 0 {
+		t.Fatalf("extension status must not write transcript rows, got %#v", c.transcript)
+	}
+}
+
 func TestFooterLinesExpandWithUsageAndNotice(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "provider/model", DefaultThinkingLevel: "low", WorkspaceRoot: t.TempDir()}, lastInputTokens: 1200, lastOutputTokens: 340, lastContextTokens: 5000}
 	lines := c.footerLines(100)

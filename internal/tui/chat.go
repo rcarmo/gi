@@ -185,6 +185,8 @@ type chatTUI struct {
 	modelMenuChoices        []string
 	modelMenuSelected       int
 	modelMenuScroll         int
+	extensionStatuses       map[string]string
+	extensionWidget         []string
 }
 
 func (c *chatTUI) ensureInput() {
@@ -632,6 +634,10 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		c.renderSteeringEvent(payload["type"])
 	case "turn.subturn":
 		c.renderSubturnEvent(payload, env.Timestamp)
+	case "extension.status":
+		key, _ := payload["key"].(string)
+		text, _ := payload["text"].(string)
+		c.setExtensionStatus(key, text)
 	}
 	if c.stickToBottom {
 		c.scrollTranscriptToBottom()
@@ -3443,7 +3449,58 @@ func (c *chatTUI) footerLines(width int) []string {
 		}
 		lines = append(lines, note)
 	}
+	for _, status := range c.extensionStatusLines() {
+		if width > 0 {
+			status = compactMaybe(status, true, width)
+		}
+		lines = append(lines, status)
+	}
 	return lines
+}
+
+// setExtensionStatus is a backend-safe TUI extension slot: extensions can set a
+// keyed status segment that renders as an extra dim footer line. It can never
+// add top chrome; cleared keys (empty text) are removed.
+func (c *chatTUI) setExtensionStatus(key, text string) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return
+	}
+	if c.extensionStatuses == nil {
+		c.extensionStatuses = map[string]string{}
+	}
+	text = strings.TrimSpace(sanitizeStatusText(text))
+	if text == "" {
+		delete(c.extensionStatuses, key)
+		return
+	}
+	c.extensionStatuses[key] = text
+}
+
+func (c *chatTUI) extensionStatusLines() []string {
+	if len(c.extensionStatuses) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(c.extensionStatuses))
+	for k := range c.extensionStatuses {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	lines := make([]string, 0, len(keys))
+	for _, k := range keys {
+		lines = append(lines, c.extensionStatuses[k])
+	}
+	return lines
+}
+
+func sanitizeStatusText(text string) string {
+	text = strings.ReplaceAll(text, "\r", " ")
+	text = strings.ReplaceAll(text, "\n", " ")
+	text = strings.ReplaceAll(text, "\t", " ")
+	for strings.Contains(text, "  ") {
+		text = strings.ReplaceAll(text, "  ", " ")
+	}
+	return strings.TrimSpace(text)
 }
 
 func (c *chatTUI) footerTransientNotice(data tuiContextSummary) string {
