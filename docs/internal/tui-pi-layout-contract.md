@@ -15,24 +15,23 @@ From top to bottom:
 3. Editor/input row. Empty editor renders as a blank line, with only a cursor when focused/blinking.
 4. Bottom separator line spans the full content width.
 5. Path/session row: current workspace path plus branch/session marker.
-6. Single status/notification row.
+6. Stats row: counts (`m/t`, optional `q/s`) plus token usage and context on the left, model/thinking on the right.
+7. Optional transient notification row, shown only while a short-lived status is active.
 
-No other permanent rows are allowed in steady state.
+The bottom band may grow to several lines (PiSwift-style footer), but it must never add top chrome and must stay below the editor.
 
-## Bottom status line
+## Bottom status band
 
-The final row is the only physical line for transient notifications/status.
+The bottom band carries path/branch, stats, and transient notifications. Updated policy (status row may expand):
 
-It must:
+- the path row is always present;
+- the stats row carries counts plus token/context usage on the left and model/thinking on the right;
+- a transient notification row appears only while a short-lived status is active;
+- each row truncates rather than wrapping;
+- queue/steering counters appear only when non-zero;
+- model/thinking are right-aligned where width allows.
 
-- remain one line;
-- never wrap;
-- left-align current transient notification or compact counters;
-- right-align model and thinking where width allows;
-- include queue/steering counters only when non-zero;
-- truncate segments rather than adding another line.
-
-Durable events can still be written to the transcript when they are part of history, but short-lived running/tool/error/queued indicators should prefer the single status row.
+Durable events can still be written to the transcript when they are part of history, but short-lived running/tool/error/queued indicators should prefer the bottom band.
 
 ## Path/session row
 

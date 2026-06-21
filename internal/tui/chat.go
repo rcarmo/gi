@@ -3298,10 +3298,9 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	if inputHeight < 1 {
 		inputHeight = 1
 	}
-	pathLine := c.footerPathLineForWidth(contentWidth)
-	statusLine := c.footerStatusLineForWidth(contentWidth)
+	footerLines := c.footerLines(contentWidth)
 	menuHeight := c.modelMenuHeight()
-	reservedHeight := (padding * 2) + 2 + inputHeight + 2 + menuHeight
+	reservedHeight := (padding * 2) + len(footerLines) + inputHeight + 2 + menuHeight
 	transcriptHeight := h - reservedHeight
 	if transcriptHeight < 4 {
 		transcriptHeight = 4
@@ -3359,7 +3358,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	)
 	root.AddChild(inputBottomSep)
 
-	root.AddChild(c.renderLineBlock([]string{pathLine, statusLine}, gotui.NewStyle().Dim()))
+	root.AddChild(c.renderLineBlock(footerLines, gotui.NewStyle().Dim()))
 
 	return root
 }
@@ -3402,6 +3401,83 @@ func (c *chatTUI) footerPathLineForWidth(width int) string {
 	return workspace
 }
 
+func (c *chatTUI) footerModelText(data tuiContextSummary) string {
+	model := strings.TrimSpace(data.model)
+	if model == "" {
+		model = strings.TrimSpace(c.cfg.DefaultModel)
+	}
+	if model == "" {
+		model = "model unset"
+	}
+	if thinking := strings.TrimSpace(data.thinking); thinking != "" {
+		model += " • " + thinking
+	}
+	return model
+}
+
+// footerLines builds a PiSwift-style multi-line footer: a path/branch line, a
+// stats line (counts + token usage on the left, model/thinking/context on the
+// right), and an optional transient notification line. The bottom band may grow
+// to several lines but never adds top chrome.
+func (c *chatTUI) footerLines(width int) []string {
+	data := c.contextSummaryData()
+	lines := []string{c.footerPathLineForWidth(width)}
+
+	statsParts := []string{c.footerCountsText(data)}
+	if data.inputTokens > 0 {
+		statsParts = append(statsParts, "↑"+formatTokenCount(data.inputTokens))
+	}
+	if data.outputTokens > 0 {
+		statsParts = append(statsParts, "↓"+formatTokenCount(data.outputTokens))
+	}
+	if data.contextTokens > 0 {
+		statsParts = append(statsParts, formatContextUsage(data.contextTokens, data.contextWindow))
+	}
+	statsLeft := strings.Join(statsParts, " · ")
+	model := c.footerModelText(data)
+	lines = append(lines, joinFooterRow(statsLeft, model, width))
+
+	if note := c.footerTransientNotice(data); note != "" {
+		if width > 0 {
+			note = compactMaybe(note, true, width)
+		}
+		lines = append(lines, note)
+	}
+	return lines
+}
+
+func (c *chatTUI) footerTransientNotice(data tuiContextSummary) string {
+	status := strings.TrimSpace(c.status)
+	if status == "" {
+		return ""
+	}
+	if strings.Contains(status, c.cfg.DefaultModel) || strings.Contains(status, data.model) {
+		return ""
+	}
+	return "» " + status
+}
+
+func joinFooterRow(left, right string, width int) string {
+	if width <= 0 {
+		return compactMaybe(left, true, 24) + "  " + compactMaybe(right, true, 36)
+	}
+	if len(left)+len(right)+2 >= width {
+		rightWidth := 36
+		if rightWidth > width/2 {
+			rightWidth = width / 2
+		}
+		if rightWidth < 12 {
+			rightWidth = 12
+		}
+		leftWidth := width - rightWidth - 2
+		if leftWidth < 8 {
+			leftWidth = 8
+		}
+		return compactMaybe(left, true, leftWidth) + "  " + compactMaybe(right, true, rightWidth)
+	}
+	return left + strings.Repeat(" ", width-len(left)-len(right)) + right
+}
+
 func (c *chatTUI) footerStatusLineForWidth(width int) string {
 	data := c.contextSummaryData()
 	left := c.footerNotificationText(data)
@@ -3419,24 +3495,7 @@ func (c *chatTUI) footerStatusLineForWidth(width int) string {
 	if data.contextTokens > 0 {
 		model += " • " + formatContextUsage(data.contextTokens, data.contextWindow)
 	}
-	if width <= 0 {
-		return compactMaybe(left, true, 24) + "  " + compactMaybe(model, true, 36)
-	}
-	if len(left)+len(model)+2 >= width {
-		modelWidth := 36
-		if modelWidth > width/2 {
-			modelWidth = width / 2
-		}
-		if modelWidth < 12 {
-			modelWidth = 12
-		}
-		leftWidth := width - modelWidth - 2
-		if leftWidth < 8 {
-			leftWidth = 8
-		}
-		return compactMaybe(left, true, leftWidth) + "  " + compactMaybe(model, true, modelWidth)
-	}
-	return left + strings.Repeat(" ", width-len(left)-len(model)) + model
+	return joinFooterRow(left, model, width)
 }
 
 func formatTokenCount(n int) string {
