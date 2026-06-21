@@ -108,6 +108,76 @@ func loadAuthEntries() (map[string]authEntry, error) {
 	return entries, nil
 }
 
+// AuthStatus describes a known OAuth/credential provider and whether the local
+// auth.json currently holds credentials for it.
+type AuthStatus struct {
+	ID            string
+	Name          string
+	Authenticated bool
+	Kind          string
+}
+
+// ListAuthStatus returns the registered OAuth providers plus any auth.json
+// entries, marking which are currently authenticated. It never performs network
+// calls.
+func ListAuthStatus() []AuthStatus {
+	Init()
+	entries, _ := loadAuthEntries()
+	seen := map[string]bool{}
+	var out []AuthStatus
+	for _, p := range oauth.ListProviders() {
+		id := p.ID()
+		seen[id] = true
+		entry, ok := entries[id]
+		kind := entry.Type
+		if kind == "" && ok {
+			kind = "oauth"
+		}
+		out = append(out, AuthStatus{ID: id, Name: p.Name(), Authenticated: ok, Kind: kind})
+	}
+	for id, entry := range entries {
+		if seen[id] {
+			continue
+		}
+		kind := entry.Type
+		if kind == "" {
+			if entry.APIKey != "" {
+				kind = "api-key"
+			} else {
+				kind = "credential"
+			}
+		}
+		out = append(out, AuthStatus{ID: id, Name: providerName(id), Authenticated: true, Kind: kind})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+// RemoveAuthEntry deletes a provider's credentials from auth.json. It returns
+// (false, nil) when there was nothing to remove.
+func RemoveAuthEntry(provider string) (bool, error) {
+	provider = strings.TrimSpace(provider)
+	if provider == "" {
+		return false, fmt.Errorf("provider is required")
+	}
+	entries, err := loadAuthEntries()
+	if err != nil {
+		return false, err
+	}
+	if _, ok := entries[provider]; !ok {
+		return false, nil
+	}
+	delete(entries, provider)
+	blob, err := json.MarshalIndent(entries, "", "  ")
+	if err != nil {
+		return false, err
+	}
+	if err := os.WriteFile(AuthFilePath(), blob, 0o600); err != nil {
+		return false, fmt.Errorf("write auth.json: %w", err)
+	}
+	return true, nil
+}
+
 func authEntryToOAuthCredentials(entry authEntry) *oauth.Credentials {
 	return &oauth.Credentials{
 		Refresh: entry.Refresh,

@@ -2601,3 +2601,32 @@ func TestScrollbarCommandDefaultsOffAndPersists(t *testing.T) {
 		t.Fatal("expected scrollbar setting to persist")
 	}
 }
+
+func TestLoginAndLogoutCommands(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("HOME", root)
+	if err := os.MkdirAll(filepath.Join(root, ".pi", "agent"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	authPath := filepath.Join(root, ".pi", "agent", "auth.json")
+	if err := os.WriteFile(authPath, []byte(`{"github-copilot":{"type":"oauth","refresh":"r","access":"a","expires":9999999999999}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
+	out := strings.Join(c.loginLines([]string{"/login"}), "\n")
+	if !strings.Contains(out, "github-copilot") || !strings.Contains(out, "authenticated") {
+		t.Fatalf("login listing missing copilot status:\n%s", out)
+	}
+	detail := strings.Join(c.loginLines([]string{"/login", "github-copilot"}), "\n")
+	if !strings.Contains(detail, "already authenticated") {
+		t.Fatalf("login detail wrong:\n%s", detail)
+	}
+	logout := strings.Join(c.logoutLines([]string{"/logout", "github-copilot"}), "\n")
+	if !strings.Contains(logout, "removed credentials for github-copilot") {
+		t.Fatalf("logout output wrong:\n%s", logout)
+	}
+	again := strings.Join(c.loginLines([]string{"/login", "github-copilot"}), "\n")
+	if !strings.Contains(again, "not authenticated") {
+		t.Fatalf("expected copilot to be deauthenticated:\n%s", again)
+	}
+}

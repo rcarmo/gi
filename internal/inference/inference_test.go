@@ -77,3 +77,44 @@ func TestListRuntimeOptionsIncludesAuthBackedProviderModels(t *testing.T) {
 		t.Fatalf("expected github-copilot/gpt-5-mini in %#v", models)
 	}
 }
+
+func TestListAuthStatusAndRemoveEntry(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("HOME", root)
+	if err := os.MkdirAll(filepath.Join(root, ".pi", "agent"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	authPath := filepath.Join(root, ".pi", "agent", "auth.json")
+	if err := os.WriteFile(authPath, []byte(`{"github-copilot":{"type":"oauth","refresh":"r","access":"a","expires":9999999999999},"custom-key":{"apiKey":"sk-x"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	statuses := ListAuthStatus()
+	var copilot, custom *AuthStatus
+	for i := range statuses {
+		switch statuses[i].ID {
+		case "github-copilot":
+			copilot = &statuses[i]
+		case "custom-key":
+			custom = &statuses[i]
+		}
+	}
+	if copilot == nil || !copilot.Authenticated || copilot.Kind != "oauth" {
+		t.Fatalf("github-copilot status wrong: %#v", copilot)
+	}
+	if custom == nil || !custom.Authenticated || custom.Kind != "api-key" {
+		t.Fatalf("custom-key status wrong: %#v", custom)
+	}
+	// Remove an entry and confirm it is gone.
+	removed, err := RemoveAuthEntry("custom-key")
+	if err != nil || !removed {
+		t.Fatalf("remove custom-key: removed=%v err=%v", removed, err)
+	}
+	if again, _ := RemoveAuthEntry("custom-key"); again {
+		t.Fatalf("expected second remove to be a no-op")
+	}
+	for _, s := range ListAuthStatus() {
+		if s.ID == "custom-key" {
+			t.Fatalf("custom-key should be gone after logout: %#v", s)
+		}
+	}
+}

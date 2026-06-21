@@ -2225,6 +2225,10 @@ func (c *chatTUI) handleCommand(text string) {
 		c.appendTranscript(c.attachCommand(text, fields)...)
 	case "/paste-image", "/paste":
 		c.appendTranscript(c.pasteImageCommand(text, fields)...)
+	case "/login":
+		c.appendTranscript(c.loginLines(fields)...)
+	case "/logout":
+		c.appendTranscript(c.logoutLines(fields)...)
 	case "/reload":
 		c.appendTranscript(c.reloadLines()...)
 	case "/tools":
@@ -2414,6 +2418,8 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 		{"/copy [--osc52|--native|--auto|--fallback]", "copy last assistant message with opt-in target"},
 		{"/attach <path> [prompt]", "attach local media and optionally submit a prompt"},
 		{"/paste-image [prompt]", "paste a clipboard image and optionally submit a prompt"},
+		{"/login [provider]", "show OAuth/credential auth status"},
+		{"/logout <provider>", "remove stored provider credentials"},
 		{"/reload", "refresh config and discovery safely"},
 		{"/tools [query|active|activate|reset]", "inspect or change active tools"},
 		{"/skills [query]", "list discovered skills"},
@@ -2478,6 +2484,63 @@ func (c *chatTUI) helpLines() []string {
 		"ctrl-r     search command history (current input is query)",
 		"!cmd       ask model about shell · !!cmd run locally",
 	}
+}
+
+// loginLines surfaces OAuth/credential auth status from auth.json. Gi does not
+// run an interactive browser OAuth flow in-TUI; it reports provider status and
+// how to authenticate, matching PiSwift's /login discovery surface.
+func (c *chatTUI) loginLines(fields []string) []string {
+	statuses := inference.ListAuthStatus()
+	if len(fields) > 1 {
+		want := strings.ToLower(strings.TrimSpace(fields[1]))
+		for _, s := range statuses {
+			if strings.ToLower(s.ID) == want {
+				if s.Authenticated {
+					return []string{fmt.Sprintf("login: %s (%s) already authenticated [%s]", s.Name, s.ID, s.Kind)}
+				}
+				return []string{
+					fmt.Sprintf("login: %s (%s) not authenticated", s.Name, s.ID),
+					fmt.Sprintf("- add credentials to %s, then /reload", inference.AuthFilePath()),
+				}
+			}
+		}
+		return []string{fmt.Sprintf("login: unknown provider %q; run /login to list providers", fields[1])}
+	}
+	lines := []string{"login: providers (auth.json)"}
+	if len(statuses) == 0 {
+		lines = append(lines, "- no OAuth providers registered")
+	}
+	for _, s := range statuses {
+		mark := " "
+		state := "not authenticated"
+		if s.Authenticated {
+			mark = "*"
+			state = "authenticated"
+		}
+		kind := s.Kind
+		if kind == "" {
+			kind = "oauth"
+		}
+		lines = append(lines, fmt.Sprintf("%s %s (%s) · %s [%s]", mark, s.Name, s.ID, state, kind))
+	}
+	lines = append(lines, fmt.Sprintf("- credentials file: %s", inference.AuthFilePath()))
+	lines = append(lines, "- /login <provider> for details · /logout <provider> to remove credentials")
+	return lines
+}
+
+func (c *chatTUI) logoutLines(fields []string) []string {
+	if len(fields) < 2 {
+		return []string{"sys: usage /logout <provider>"}
+	}
+	provider := strings.TrimSpace(fields[1])
+	removed, err := inference.RemoveAuthEntry(provider)
+	if err != nil {
+		return []string{fmt.Sprintf("error: logout: %v", err)}
+	}
+	if !removed {
+		return []string{fmt.Sprintf("logout: no stored credentials for %q", provider)}
+	}
+	return []string{fmt.Sprintf("logout: removed credentials for %s", provider)}
 }
 
 // hotkeyLines is the PiSwift-style `/hotkeys` reference, grouped by purpose.
