@@ -2108,6 +2108,61 @@ func TestContextSummaryLinesWrapForNarrowWidth(t *testing.T) {
 	}
 }
 
+func TestEditorAskSlotCapturesAnswerNotModel(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	if _, err := s.CreateSession(context.Background(), "session_ask", "@agent", map[string]any{"status": "idle"}); err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_ask", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, transcriptRef: gotui.NewRef(), draftLineIndex: -1}
+	c.eventCh = make(chan map[string]any, 64)
+	c.topicEventCh = make(chan topics.Envelope, 64)
+	c.input = newMultilineInput(80, "Send a message\u2026", c.onSubmit, nil)
+	c.handleTopicEvent(topics.Envelope{Topic: "extension.editor", Payload: map[string]any{"key": "name", "prompt": "What is your name?", "prefill": "Rui"}})
+	if !c.editorAskActive || c.editorAskKey != "name" || c.input.placeholder != "What is your name?" {
+		t.Fatalf("ask mode not entered: active=%v key=%q ph=%q", c.editorAskActive, c.editorAskKey, c.input.placeholder)
+	}
+	if c.input.Text() != "Rui" {
+		t.Fatalf("prefill not applied: %q", c.input.Text())
+	}
+	// submitting while in ask mode captures the answer as a system line, not a model turn
+	before := len(c.transcript)
+	c.onSubmit("Carmo")
+	if c.editorAskActive {
+		t.Fatalf("ask mode should exit after submit")
+	}
+	if c.input.placeholder != "Send a message\u2026" {
+		t.Fatalf("placeholder not restored: %q", c.input.placeholder)
+	}
+	joined := strings.Join(c.transcript[before:], "\n")
+	if !strings.Contains(joined, "sys: name: Carmo") {
+		t.Fatalf("answer not captured as system line: %#v", c.transcript[before:])
+	}
+	// no user prompt persisted to the session
+	msgs, _ := s.ListMessages(context.Background(), "session_ask")
+	for _, m := range msgs {
+		if m.Role == "user" && strings.Contains(m.Content, "Carmo") {
+			t.Fatalf("ask answer must not be sent to the model: %#v", m)
+		}
+	}
+}
+
+func TestEditorAskCancelRestoresEditor(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
+	c.input = newMultilineInput(80, "Send a message\u2026", nil, nil)
+	c.setEditorAsk("q", "Pick one", "")
+	if !c.editorAskActive {
+		t.Fatalf("ask not active")
+	}
+	c.cancelEditorAsk()
+	if c.editorAskActive || c.input.placeholder != "Send a message\u2026" {
+		t.Fatalf("cancel did not restore editor: active=%v ph=%q", c.editorAskActive, c.input.placeholder)
+	}
+}
+
 func TestThinkingSelectorSetsLevel(t *testing.T) {
 	root := t.TempDir()
 	s, err := store.Open("file::memory:?cache=shared")

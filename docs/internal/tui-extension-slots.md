@@ -36,7 +36,8 @@ Gi's slots mirror PiSwift's `setStatus`/`setWidget`/extension-footer behavior wh
 - `Render` draws widget lines as a block between the transcript and the editor separator, and includes their height in the reserved bottom-band budget.
 - `chatTUI.extensionToolModes map[string]string` holds per-tool render modes.
 - `setExtensionToolRender(tool, mode)` chooses how a named tool's block body renders: `full` (default), `compact` (first body line only), or `hidden` (header only). `applyToolRenderMode` is applied when building tool blocks.
-- `handleTopicEvent` handles the `extension.status` topic (`{key, text}`), the `extension.widget` topic (`{key, lines}` or `{key, text}`), and the `extension.tool_render` topic (`{tool, mode}`), so extensions can drive all slots through the topic bus.
+- Editor-replacement (ask) slot: `setEditorAsk(key, prompt, prefill)` puts the editor into a bounded ask mode — a prompt renders above the editor, the input is prefilled, and the next submit is captured as the answer (system line + `extension.editor_result` topic) instead of being sent to the model. Esc cancels and restores the editor.
+- `handleTopicEvent` handles the `extension.status` topic (`{key, text}`), the `extension.widget` topic (`{key, lines}` or `{key, text}`), the `extension.tool_render` topic (`{tool, mode}`), and the `extension.editor` topic (`{key, prompt, prefill}`), so extensions can drive all slots through the topic bus.
 
 ## Constraints proven by tests
 
@@ -54,9 +55,9 @@ Gi's slots mirror PiSwift's `setStatus`/`setWidget`/extension-footer behavior wh
 - `TestExtensionToolRenderSlotControlsToolBody`:
   - the `extension.tool_render` topic switches a tool block between full/compact/hidden body;
   - the slot only changes how an existing tool block renders, never adding chrome.
+- `TestEditorAskSlotCapturesAnswerNotModel` / `TestEditorAskCancelRestoresEditor`:
+  - the `extension.editor` topic enters ask mode with a prompt + prefill;
+  - the next submit is captured as a system line and `extension.editor_result` topic, not sent to the model;
+  - Esc cancels and restores the editor; the ask prompt renders above the editor, never as top chrome.
 
-## Next slots (deferred)
-
-- editor replacement for bounded prompts/forms.
-
-Each future slot must keep the same constraint: bottom-band/widget/transcript only, never top chrome.
+All slots are topic-driven and live only in the bottom band / widget area / transcript, never as top chrome.

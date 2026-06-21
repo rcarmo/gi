@@ -137,64 +137,68 @@ type transcriptRenderableBlock struct {
 const bashPreviewLines = 10
 
 type chatTUI struct {
-	app                     *gotui.App
-	store                   *store.Store
-	engine                  *turn.Engine
-	sessionID               string
-	cfg                     config.RuntimeConfig
-	history                 []string
-	histIdx                 int
-	historySearchQuery      string
-	historySearchIdx        int
-	running                 bool
-	status                  string
-	draft                   string
-	inputActive             bool
-	eventCh                 chan map[string]any
-	topicEventCh            chan topics.Envelope
-	subscribedCh            chan map[string]any
-	topicUnsubscribe        func()
-	input                   *multilineInput
-	queuedDrafts            []string
-	inputRegion             *gotui.Element
-	transcriptRegion        *gotui.Element
-	transcriptRef           *gotui.Ref
-	transcript              []string
-	transcriptScroll        int
-	stickToBottom           bool
-	draftLineIndex          int
-	draftLineCount          int
-	outputWidth             int
-	osc52Writer             io.Writer
-	clipboardLookPath       func(string) (string, error)
-	clipboardRun            func(context.Context, string, []string, string) error
-	transcriptBlockRefs     []transcriptBlockHitTarget
-	transcriptExpanded      map[string]bool
-	transcriptBlockSpans    map[string]transcriptBlockSpan
-	transcriptToolBlocks    map[string]string
-	selectedTranscriptBlock string
-	thinkingText            string
-	thinkingBlockKey        string
-	thinkingStartedAt       string
-	thinkingIndicatorKey    string
-	thinkingIndicatorStart  string
-	lastInputTokens         int
-	lastOutputTokens        int
-	lastContextTokens       int
-	lastCacheRead           int
-	lastCacheWrite          int
-	lastCostTotal           float64
-	modelMenuOpen           bool
-	modelMenuKind           string
-	modelMenuValues         map[string]string
-	modelMenuChoices        []string
-	modelMenuAll            []string
-	modelMenuQuery          string
-	modelMenuSelected       int
-	modelMenuScroll         int
-	extensionStatuses       map[string]string
-	extensionWidgets        map[string][]string
-	extensionToolModes      map[string]string
+	app                      *gotui.App
+	store                    *store.Store
+	engine                   *turn.Engine
+	sessionID                string
+	cfg                      config.RuntimeConfig
+	history                  []string
+	histIdx                  int
+	historySearchQuery       string
+	historySearchIdx         int
+	running                  bool
+	status                   string
+	draft                    string
+	inputActive              bool
+	eventCh                  chan map[string]any
+	topicEventCh             chan topics.Envelope
+	subscribedCh             chan map[string]any
+	topicUnsubscribe         func()
+	input                    *multilineInput
+	queuedDrafts             []string
+	inputRegion              *gotui.Element
+	transcriptRegion         *gotui.Element
+	transcriptRef            *gotui.Ref
+	transcript               []string
+	transcriptScroll         int
+	stickToBottom            bool
+	draftLineIndex           int
+	draftLineCount           int
+	outputWidth              int
+	osc52Writer              io.Writer
+	clipboardLookPath        func(string) (string, error)
+	clipboardRun             func(context.Context, string, []string, string) error
+	transcriptBlockRefs      []transcriptBlockHitTarget
+	transcriptExpanded       map[string]bool
+	transcriptBlockSpans     map[string]transcriptBlockSpan
+	transcriptToolBlocks     map[string]string
+	selectedTranscriptBlock  string
+	thinkingText             string
+	thinkingBlockKey         string
+	thinkingStartedAt        string
+	thinkingIndicatorKey     string
+	thinkingIndicatorStart   string
+	lastInputTokens          int
+	lastOutputTokens         int
+	lastContextTokens        int
+	lastCacheRead            int
+	lastCacheWrite           int
+	lastCostTotal            float64
+	modelMenuOpen            bool
+	modelMenuKind            string
+	modelMenuValues          map[string]string
+	modelMenuChoices         []string
+	modelMenuAll             []string
+	modelMenuQuery           string
+	modelMenuSelected        int
+	modelMenuScroll          int
+	extensionStatuses        map[string]string
+	extensionWidgets         map[string][]string
+	extensionToolModes       map[string]string
+	editorAskActive          bool
+	editorAskKey             string
+	editorAskPrompt          string
+	editorAskPrevPlaceholder string
 }
 
 func (c *chatTUI) ensureInput() {
@@ -653,6 +657,11 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		tool, _ := payload["tool"].(string)
 		mode, _ := payload["mode"].(string)
 		c.setExtensionToolRender(tool, mode)
+	case "extension.editor":
+		key, _ := payload["key"].(string)
+		prompt, _ := payload["prompt"].(string)
+		prefill, _ := payload["prefill"].(string)
+		c.setEditorAsk(key, prompt, prefill)
 	}
 	if c.stickToBottom {
 		c.scrollTranscriptToBottom()
@@ -1484,6 +1493,10 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 			}
 		}),
 		gotui.OnStop(gotui.KeyEscape, func(ke gotui.KeyEvent) {
+			if c.editorAskActive {
+				c.cancelEditorAsk()
+				return
+			}
 			c.inputActive = false
 			if c.app != nil {
 				c.app.BlurFocused()
@@ -2050,6 +2063,10 @@ func (c *chatTUI) onSubmit(text string) {
 func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 	text = strings.TrimSpace(text)
 	if text == "" {
+		return
+	}
+	if c.editorAskActive {
+		c.completeEditorAsk(text)
 		return
 	}
 	c.history = append(c.history, text)
@@ -3546,6 +3563,9 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	}
 	footerLines := c.footerLines(contentWidth)
 	widgetLines := c.extensionWidgetLines()
+	if c.editorAskActive {
+		widgetLines = append(widgetLines, "? "+c.editorAskPrompt+"  (Enter submit · Esc cancel)")
+	}
 	menuHeight := c.modelMenuHeight()
 	reservedHeight := (padding * 2) + len(footerLines) + len(widgetLines) + inputHeight + 2 + menuHeight
 	transcriptHeight := h - reservedHeight
@@ -3829,6 +3849,69 @@ func (c *chatTUI) applyToolRenderMode(tool string, body []string) ([]string, boo
 		return body, false
 	}
 	return body, len(body) > 2
+}
+
+// setEditorAsk is the editor-replacement extension slot (PiSwift setEditorComponent
+// / hook input). It puts the editor into a bounded ask mode: the bottom band shows
+// a prompt above the editor, the input is prefilled, and the next submit captures
+// the answer instead of sending it to the model. It never adds top chrome.
+func (c *chatTUI) setEditorAsk(key, prompt, prefill string) {
+	key = strings.TrimSpace(key)
+	prompt = sanitizeStatusText(prompt)
+	if prompt == "" {
+		c.cancelEditorAsk()
+		return
+	}
+	c.ensureInput()
+	if !c.editorAskActive {
+		c.editorAskPrevPlaceholder = c.input.placeholder
+	}
+	c.editorAskActive = true
+	c.editorAskKey = key
+	c.editorAskPrompt = prompt
+	c.input.placeholder = prompt
+	c.input.SetText(prefill)
+	c.focusInput()
+	if c.app != nil {
+		c.app.MarkDirty()
+	}
+}
+
+func (c *chatTUI) completeEditorAsk(answer string) {
+	key := c.editorAskKey
+	c.exitEditorAsk()
+	label := key
+	if label == "" {
+		label = "answer"
+	}
+	c.appendTranscript(fmt.Sprintf("sys: %s: %s", label, answer))
+	if c.engine != nil && c.engine.Topics() != nil {
+		c.engine.Topics().Publish(topics.Envelope{Topic: "extension.editor_result", SessionID: c.sessionID, Payload: map[string]any{"key": key, "answer": answer}})
+	}
+}
+
+func (c *chatTUI) cancelEditorAsk() {
+	if !c.editorAskActive {
+		return
+	}
+	c.exitEditorAsk()
+	c.appendTranscript("sys: prompt cancelled")
+}
+
+func (c *chatTUI) exitEditorAsk() {
+	c.editorAskActive = false
+	c.editorAskKey = ""
+	c.editorAskPrompt = ""
+	if c.input != nil {
+		c.input.placeholder = c.editorAskPrevPlaceholder
+		if c.input.placeholder == "" {
+			c.input.placeholder = "Send a message\u2026"
+		}
+		c.input.SetText("")
+	}
+	if c.app != nil {
+		c.app.MarkDirty()
+	}
 }
 
 func widgetPayloadLines(payload map[string]any) []string {
