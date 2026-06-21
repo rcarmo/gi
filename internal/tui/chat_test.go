@@ -2176,6 +2176,35 @@ func TestModelMenuTypeAndBackspaceFiltersChoices(t *testing.T) {
 	}
 }
 
+func TestExtensionToolRenderSlotControlsToolBody(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}, transcriptExpanded: map[string]bool{}}
+	lines := []string{
+		encodeTranscriptBlockMarker(transcriptBlockMeta{Key: "tool:1", Kind: "tool", Title: "grep", Status: "ok"}),
+		"│ match 1",
+		"│ match 2",
+		"│ match 3",
+	}
+	// default: full body, expandable
+	if blocks := c.buildTranscriptRenderableBlocks(lines); len(blocks) != 1 || len(blocks[0].Body) != 3 || !blocks[0].Expandable {
+		t.Fatalf("default tool body unexpected: %#v", blocks)
+	}
+	// compact: first body line only
+	c.handleTopicEvent(topics.Envelope{Topic: "extension.tool_render", Payload: map[string]any{"tool": "grep", "mode": "compact"}})
+	if blocks := c.buildTranscriptRenderableBlocks(lines); len(blocks[0].Body) != 1 || blocks[0].Body[0] != "match 1" || blocks[0].Expandable {
+		t.Fatalf("compact tool body unexpected: %#v", blocks[0])
+	}
+	// hidden: header only
+	c.handleTopicEvent(topics.Envelope{Topic: "extension.tool_render", Payload: map[string]any{"tool": "grep", "mode": "hidden"}})
+	if blocks := c.buildTranscriptRenderableBlocks(lines); len(blocks[0].Body) != 0 || blocks[0].Expandable {
+		t.Fatalf("hidden tool body unexpected: %#v", blocks[0])
+	}
+	// full restores
+	c.handleTopicEvent(topics.Envelope{Topic: "extension.tool_render", Payload: map[string]any{"tool": "grep", "mode": "full"}})
+	if blocks := c.buildTranscriptRenderableBlocks(lines); len(blocks[0].Body) != 3 {
+		t.Fatalf("full restore unexpected: %#v", blocks[0])
+	}
+}
+
 func TestExtensionWidgetSlotRendersAboveEditorOnly(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap", DefaultThinkingLevel: "low", WorkspaceRoot: t.TempDir()}}
 	if lines := c.extensionWidgetLines(); len(lines) != 0 {

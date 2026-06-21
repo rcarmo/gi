@@ -194,6 +194,7 @@ type chatTUI struct {
 	modelMenuScroll         int
 	extensionStatuses       map[string]string
 	extensionWidgets        map[string][]string
+	extensionToolModes      map[string]string
 }
 
 func (c *chatTUI) ensureInput() {
@@ -648,6 +649,10 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 	case "extension.widget":
 		key, _ := payload["key"].(string)
 		c.setExtensionWidget(key, widgetPayloadLines(payload))
+	case "extension.tool_render":
+		tool, _ := payload["tool"].(string)
+		mode, _ := payload["mode"].(string)
+		c.setExtensionToolRender(tool, mode)
 	}
 	if c.stickToBottom {
 		c.scrollTranscriptToBottom()
@@ -3730,6 +3735,42 @@ func (c *chatTUI) extensionWidgetLines() []string {
 	return lines
 }
 
+// setExtensionToolRender is a custom tool-renderer slot: extensions can choose
+// how a named tool's block body renders without writing top chrome. Supported
+// modes: "full" (default), "compact" (first body line), "hidden" (header only).
+func (c *chatTUI) setExtensionToolRender(tool, mode string) {
+	tool = strings.TrimSpace(tool)
+	if tool == "" {
+		return
+	}
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if c.extensionToolModes == nil {
+		c.extensionToolModes = map[string]string{}
+	}
+	switch mode {
+	case "", "full", "default":
+		delete(c.extensionToolModes, tool)
+	case "compact", "hidden":
+		c.extensionToolModes[tool] = mode
+	default:
+		delete(c.extensionToolModes, tool)
+	}
+}
+
+func (c *chatTUI) applyToolRenderMode(tool string, body []string) ([]string, bool) {
+	mode := c.extensionToolModes[strings.TrimSpace(tool)]
+	switch mode {
+	case "hidden":
+		return nil, false
+	case "compact":
+		if len(body) > 1 {
+			return body[:1], false
+		}
+		return body, false
+	}
+	return body, len(body) > 2
+}
+
 func widgetPayloadLines(payload map[string]any) []string {
 	switch v := payload["lines"].(type) {
 	case []string:
@@ -4081,6 +4122,9 @@ func (c *chatTUI) buildTranscriptRenderableBlocks(lines []string) []transcriptRe
 			if meta.Kind == "thinking" || meta.Kind == "thinking_indicator" {
 				expandable = false
 				selectedHint = ""
+			}
+			if meta.Kind == "tool" {
+				body, expandable = c.applyToolRenderMode(meta.Title, body)
 			}
 			if meta.Kind == "bash" {
 				previewLimit = bashPreviewLines

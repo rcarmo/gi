@@ -34,7 +34,8 @@ Reference comparison: `piswift-tui-comparison-20260621.md`.
 ### TUI extension slots (PiSwift hook UI context)
 - `extension.status` topic → keyed footer status segments.
 - `extension.widget` topic → keyed multi-line widget between transcript and editor.
-- Tests prove both slots add only bottom-band/widget rows and never write transcript rows, so they cannot create top chrome.
+- `extension.tool_render` topic → per-tool body render mode (full/compact/hidden).
+- Tests prove the slots add only bottom-band/widget rows or change existing tool blocks, never writing transcript rows, so they cannot create top chrome.
 
 ## Captured evidence
 
@@ -48,7 +49,7 @@ Reference comparison: `piswift-tui-comparison-20260621.md`.
 
 ## Not yet ported (deferred)
 
-- editor-replacement and custom-tool-renderer extension slots.
+- editor-replacement extension slot.
 - inline terminal image rendering / Ctrl-V image paste (Gi uses `/attach` + media store).
 - theme/OAuth/settings selector components.
 - configurable keybinding map (Gi shortcuts remain mostly fixed).

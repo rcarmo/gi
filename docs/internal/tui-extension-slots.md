@@ -34,7 +34,9 @@ Gi's slots mirror PiSwift's `setStatus`/`setWidget`/extension-footer behavior wh
 - `chatTUI.extensionWidgets map[string][]string` holds keyed multi-line widgets.
 - `setExtensionWidget(key, lines)` sets or clears a widget; `extensionWidgetLines()` returns widget lines sorted by key.
 - `Render` draws widget lines as a block between the transcript and the editor separator, and includes their height in the reserved bottom-band budget.
-- `handleTopicEvent` handles the `extension.status` topic (`{key, text}`) and the `extension.widget` topic (`{key, lines}` or `{key, text}`), so extensions can drive both slots through the topic bus.
+- `chatTUI.extensionToolModes map[string]string` holds per-tool render modes.
+- `setExtensionToolRender(tool, mode)` chooses how a named tool's block body renders: `full` (default), `compact` (first body line only), or `hidden` (header only). `applyToolRenderMode` is applied when building tool blocks.
+- `handleTopicEvent` handles the `extension.status` topic (`{key, text}`), the `extension.widget` topic (`{key, lines}` or `{key, text}`), and the `extension.tool_render` topic (`{tool, mode}`), so extensions can drive all slots through the topic bus.
 
 ## Constraints proven by tests
 
@@ -49,10 +51,12 @@ Gi's slots mirror PiSwift's `setStatus`/`setWidget`/extension-footer behavior wh
   - the `extension.widget` topic sets/clears keyed widget lines;
   - text and line-array payloads both work;
   - setting a widget writes **no** transcript rows, so it cannot create top chrome.
+- `TestExtensionToolRenderSlotControlsToolBody`:
+  - the `extension.tool_render` topic switches a tool block between full/compact/hidden body;
+  - the slot only changes how an existing tool block renders, never adding chrome.
 
 ## Next slots (deferred)
 
-- editor replacement for bounded prompts/forms;
-- custom tool result renderer.
+- editor replacement for bounded prompts/forms.
 
 Each future slot must keep the same constraint: bottom-band/widget/transcript only, never top chrome.
