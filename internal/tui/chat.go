@@ -4236,6 +4236,23 @@ func tuiErrorDedupKey(line string) string {
 	return msg
 }
 
+// diffLineStyle returns a PiSwift-style color for unified-diff lines in tool/bash
+// output: green for additions, red for removals, dim for hunk/diff headers.
+func diffLineStyle(line string) (gotui.Style, bool) {
+	trimmed := strings.TrimLeft(line, " ")
+	switch {
+	case strings.HasPrefix(trimmed, "+++") || strings.HasPrefix(trimmed, "---"):
+		return gotui.NewStyle().Dim(), true
+	case strings.HasPrefix(trimmed, "@@"):
+		return gotui.NewStyle().Foreground(gotui.Cyan), true
+	case strings.HasPrefix(trimmed, "+"):
+		return gotui.NewStyle().Foreground(gotui.Green), true
+	case strings.HasPrefix(trimmed, "-"):
+		return gotui.NewStyle().Foreground(gotui.Red), true
+	}
+	return gotui.Style{}, false
+}
+
 func transcriptBlockPalette(kind, status string, selected bool) (gotui.Style, gotui.Style, gotui.Style, string, gotui.Style) {
 	fg := gotui.White
 	switch kind {
@@ -4371,7 +4388,13 @@ func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) *gotui.
 		}
 	}
 	for _, line := range visibleBody {
-		container.AddChild(c.renderInlineStyledLine(line, block.BodyStyle))
+		style := block.BodyStyle
+		if block.Kind == "tool" || block.Kind == "bash" {
+			if s, ok := diffLineStyle(line); ok {
+				style = s
+			}
+		}
+		container.AddChild(c.renderInlineStyledLine(line, style))
 	}
 	if block.Expandable && hiddenCount > 0 {
 		hint := fmt.Sprintf("… %d more line(s) · F8 expand", hiddenCount)

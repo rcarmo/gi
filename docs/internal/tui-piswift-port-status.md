@@ -18,7 +18,8 @@ Reference comparison: `piswift-tui-comparison-20260621.md`.
 - collapsed = trailing preview (last 10 lines); expanded = full output.
 - skipped-line hint with `F8 expand`; `F8 collapse` when expanded.
 - full output written to `<workspace>/.gi-run/bash-output/bash-*.txt` with a truncation footer beyond 500 lines.
-- Tests: meta/body, tail preview window, full-body retention/expand.
+- unified-diff lines in tool/bash bodies are colorized (green add, red remove, dim/cyan headers), mirroring PiSwift `renderDiff`.
+- Tests: meta/body, tail preview window, full-body retention/expand, diff line coloring.
 
 ### Expandable bottom footer (PiSwift `FooterComponent`)
 - the bottom band can grow beyond one line.

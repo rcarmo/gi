@@ -2176,6 +2176,26 @@ func TestModelMenuTypeAndBackspaceFiltersChoices(t *testing.T) {
 	}
 }
 
+func TestDiffLineStyleColorsUnifiedDiff(t *testing.T) {
+	cases := []struct {
+		line string
+		ok   bool
+	}{
+		{"+added line", true},
+		{"-removed line", true},
+		{"@@ -1,3 +1,4 @@", true},
+		{"+++ b/file", true},
+		{"--- a/file", true},
+		{" context line", false},
+		{"key=value", false},
+	}
+	for _, tc := range cases {
+		if _, ok := diffLineStyle(tc.line); ok != tc.ok {
+			t.Fatalf("diffLineStyle(%q) ok=%v want %v", tc.line, ok, tc.ok)
+		}
+	}
+}
+
 func TestExtensionToolRenderSlotControlsToolBody(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}, transcriptExpanded: map[string]bool{}}
 	lines := []string{
