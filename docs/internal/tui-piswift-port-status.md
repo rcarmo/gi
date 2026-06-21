@@ -22,8 +22,8 @@ Reference comparison: `piswift-tui-comparison-20260621.md`.
 
 ### Expandable bottom footer (PiSwift `FooterComponent`)
 - the bottom band can grow beyond one line.
-- path/branch row; stats row (counts + token usage + context) with model/thinking right-aligned; optional transient notice row.
-- Tests: usage parts and transient notice row.
+- path/branch row; stats row (counts + token usage + cache read/write + cost + context) with model/thinking right-aligned; optional transient notice row.
+- Tests: usage parts (tokens, cache, cost) and transient notice row.
 
 ### Searchable selectors (PiSwift `ModelSelectorComponent`)
 - `/model` opens a searchable model selector (type to filter, substring/multi-token, match count, navigation, current marker).
@@ -51,7 +51,6 @@ Reference comparison: `piswift-tui-comparison-20260621.md`.
 - editor-replacement and custom-tool-renderer extension slots.
 - inline terminal image rendering / Ctrl-V image paste (Gi uses `/attach` + media store).
 - theme/OAuth/settings selector components.
-- full PiSwift footer cost/cache-write metrics (needs provider usage plumbing).
 - configurable keybinding map (Gi shortcuts remain mostly fixed).
 
 ## Constraints preserved

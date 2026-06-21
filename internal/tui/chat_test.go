@@ -2230,19 +2230,19 @@ func TestExtensionStatusSlotAddsFooterRowsOnly(t *testing.T) {
 }
 
 func TestFooterLinesExpandWithUsageAndNotice(t *testing.T) {
-	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "provider/model", DefaultThinkingLevel: "low", WorkspaceRoot: t.TempDir()}, lastInputTokens: 1200, lastOutputTokens: 340, lastContextTokens: 5000}
-	lines := c.footerLines(100)
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "provider/model", DefaultThinkingLevel: "low", WorkspaceRoot: t.TempDir()}, lastInputTokens: 1200, lastOutputTokens: 340, lastContextTokens: 5000, lastCacheRead: 2000, lastCacheWrite: 800, lastCostTotal: 0.0123}
+	lines := c.footerLines(120)
 	if len(lines) < 2 {
 		t.Fatalf("expected at least path + stats lines, got %#v", lines)
 	}
 	stats := lines[1]
-	for _, want := range []string{"m0/t0", "↑1K", "↓340", "ctx 5K", "provider/model", "low"} {
+	for _, want := range []string{"m0/t0", "↑1K", "↓340", "R2K", "W800", "$0.012", "ctx 5K", "provider/model", "low"} {
 		if !strings.Contains(stats, want) {
 			t.Fatalf("stats footer missing %q: %s", want, stats)
 		}
 	}
 	c.status = "Running: read"
-	lines = c.footerLines(100)
+	lines = c.footerLines(120)
 	if len(lines) != 3 || !strings.Contains(lines[2], "Running: read") {
 		t.Fatalf("expected transient notice line, got %#v", lines)
 	}

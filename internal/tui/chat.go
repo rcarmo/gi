@@ -181,6 +181,9 @@ type chatTUI struct {
 	lastInputTokens         int
 	lastOutputTokens        int
 	lastContextTokens       int
+	lastCacheRead           int
+	lastCacheWrite          int
+	lastCostTotal           float64
 	modelMenuOpen           bool
 	modelMenuKind           string
 	modelMenuValues         map[string]string
@@ -675,6 +678,11 @@ func (c *chatTUI) updateUsageFromPayload(payload map[string]any) {
 	c.lastContextTokens = intFromAny(usage["total"])
 	if c.lastContextTokens == 0 {
 		c.lastContextTokens = intFromAny(usage["totalTokens"])
+	}
+	c.lastCacheRead = intFromAny(usage["cache_read"])
+	c.lastCacheWrite = intFromAny(usage["cache_write"])
+	if cost := floatFromAny(usage["cost_total"]); cost > 0 {
+		c.lastCostTotal = cost
 	}
 }
 
@@ -1427,6 +1435,21 @@ func intFromAny(v any) int {
 		return int(n)
 	case float32:
 		return int(n)
+	default:
+		return 0
+	}
+}
+
+func floatFromAny(v any) float64 {
+	switch n := v.(type) {
+	case float64:
+		return n
+	case float32:
+		return float64(n)
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
 	default:
 		return 0
 	}
@@ -3593,6 +3616,15 @@ func (c *chatTUI) footerLines(width int) []string {
 	if data.outputTokens > 0 {
 		statsParts = append(statsParts, "↓"+formatTokenCount(data.outputTokens))
 	}
+	if data.cacheRead > 0 {
+		statsParts = append(statsParts, "R"+formatTokenCount(data.cacheRead))
+	}
+	if data.cacheWrite > 0 {
+		statsParts = append(statsParts, "W"+formatTokenCount(data.cacheWrite))
+	}
+	if data.costTotal > 0 {
+		statsParts = append(statsParts, fmt.Sprintf("$%.3f", data.costTotal))
+	}
 	if data.contextTokens > 0 {
 		statsParts = append(statsParts, formatContextUsage(data.contextTokens, data.contextWindow))
 	}
@@ -4539,6 +4571,9 @@ type tuiContextSummary struct {
 	contextWindow int
 	inputTokens   int
 	outputTokens  int
+	cacheRead     int
+	cacheWrite    int
+	costTotal     float64
 }
 
 func (c *chatTUI) latestUsageTokens(turns []store.Turn) (input, output, total int) {
@@ -4578,7 +4613,7 @@ func (c *chatTUI) applyModelContextWindow(data *tuiContextSummary) {
 }
 
 func (c *chatTUI) contextSummaryData() tuiContextSummary {
-	data := tuiContextSummary{sessionTitle: c.sessionID, agentID: "agent", parent: "root", model: c.cfg.DefaultModel, provider: c.cfg.DefaultProvider, thinking: c.cfg.DefaultThinkingLevel, status: "idle", contextWindow: c.cfg.Compaction.ContextWindow, contextTokens: c.lastContextTokens, inputTokens: c.lastInputTokens, outputTokens: c.lastOutputTokens}
+	data := tuiContextSummary{sessionTitle: c.sessionID, agentID: "agent", parent: "root", model: c.cfg.DefaultModel, provider: c.cfg.DefaultProvider, thinking: c.cfg.DefaultThinkingLevel, status: "idle", contextWindow: c.cfg.Compaction.ContextWindow, contextTokens: c.lastContextTokens, inputTokens: c.lastInputTokens, outputTokens: c.lastOutputTokens, cacheRead: c.lastCacheRead, cacheWrite: c.lastCacheWrite, costTotal: c.lastCostTotal}
 	c.applyModelContextWindow(&data)
 	if c.store == nil || c.sessionID == "" {
 		return data
