@@ -190,7 +190,7 @@ type chatTUI struct {
 	modelMenuSelected       int
 	modelMenuScroll         int
 	extensionStatuses       map[string]string
-	extensionWidget         []string
+	extensionWidgets        map[string][]string
 }
 
 func (c *chatTUI) ensureInput() {
@@ -642,6 +642,9 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		key, _ := payload["key"].(string)
 		text, _ := payload["text"].(string)
 		c.setExtensionStatus(key, text)
+	case "extension.widget":
+		key, _ := payload["key"].(string)
+		c.setExtensionWidget(key, widgetPayloadLines(payload))
 	}
 	if c.stickToBottom {
 		c.scrollTranscriptToBottom()
@@ -3454,8 +3457,9 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 		inputHeight = 1
 	}
 	footerLines := c.footerLines(contentWidth)
+	widgetLines := c.extensionWidgetLines()
 	menuHeight := c.modelMenuHeight()
-	reservedHeight := (padding * 2) + len(footerLines) + inputHeight + 2 + menuHeight
+	reservedHeight := (padding * 2) + len(footerLines) + len(widgetLines) + inputHeight + 2 + menuHeight
 	transcriptHeight := h - reservedHeight
 	if transcriptHeight < 4 {
 		transcriptHeight = 4
@@ -3493,6 +3497,10 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	root.AddChild(transcript)
 	if c.modelMenuOpen {
 		root.AddChild(c.renderModelMenu(contentWidth))
+	}
+
+	if len(widgetLines) > 0 {
+		root.AddChild(c.renderLineBlock(widgetLines, gotui.NewStyle().Foreground(gotui.Blue)))
 	}
 
 	inputTopSep := gotui.New(
@@ -3650,6 +3658,63 @@ func sanitizeStatusText(text string) string {
 		text = strings.ReplaceAll(text, "  ", " ")
 	}
 	return strings.TrimSpace(text)
+}
+
+// setExtensionWidget is a TUI extension slot that renders a keyed multi-line
+// widget between the transcript and the editor. It stays inside the bottom band
+// (above the editor, below the transcript) and can never add top chrome.
+func (c *chatTUI) setExtensionWidget(key string, lines []string) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return
+	}
+	if c.extensionWidgets == nil {
+		c.extensionWidgets = map[string][]string{}
+	}
+	cleaned := make([]string, 0, len(lines))
+	for _, line := range lines {
+		cleaned = append(cleaned, sanitizeStatusText(line))
+	}
+	if len(cleaned) == 0 {
+		delete(c.extensionWidgets, key)
+		return
+	}
+	c.extensionWidgets[key] = cleaned
+}
+
+func (c *chatTUI) extensionWidgetLines() []string {
+	if len(c.extensionWidgets) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(c.extensionWidgets))
+	for k := range c.extensionWidgets {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var lines []string
+	for _, k := range keys {
+		lines = append(lines, c.extensionWidgets[k]...)
+	}
+	return lines
+}
+
+func widgetPayloadLines(payload map[string]any) []string {
+	switch v := payload["lines"].(type) {
+	case []string:
+		return v
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	if text, ok := payload["text"].(string); ok && text != "" {
+		return strings.Split(text, "\n")
+	}
+	return nil
 }
 
 func (c *chatTUI) footerTransientNotice(data tuiContextSummary) string {

@@ -2128,6 +2128,32 @@ func TestModelMenuTypeAndBackspaceFiltersChoices(t *testing.T) {
 	}
 }
 
+func TestExtensionWidgetSlotRendersAboveEditorOnly(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap", DefaultThinkingLevel: "low", WorkspaceRoot: t.TempDir()}}
+	if lines := c.extensionWidgetLines(); len(lines) != 0 {
+		t.Fatalf("expected no widget lines initially, got %#v", lines)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "extension.widget", Payload: map[string]any{"key": "plan", "lines": []any{"plan: step 1", "plan: step 2"}}})
+	lines := c.extensionWidgetLines()
+	if len(lines) != 2 || lines[0] != "plan: step 1" {
+		t.Fatalf("unexpected widget lines: %#v", lines)
+	}
+	// Widget slot must not write transcript rows (cannot create top chrome).
+	if len(c.transcript) != 0 {
+		t.Fatalf("widget slot must not write transcript rows, got %#v", c.transcript)
+	}
+	c.handleTopicEvent(topics.Envelope{Topic: "extension.widget", Payload: map[string]any{"key": "plan", "lines": []any{}}})
+	if lines := c.extensionWidgetLines(); len(lines) != 0 {
+		t.Fatalf("clearing widget should remove lines, got %#v", lines)
+	}
+	// text payload fallback
+	c.setExtensionWidget("note", nil)
+	c.handleTopicEvent(topics.Envelope{Topic: "extension.widget", Payload: map[string]any{"key": "note", "text": "a\nb"}})
+	if lines := c.extensionWidgetLines(); len(lines) != 2 || lines[1] != "b" {
+		t.Fatalf("text widget payload unexpected: %#v", lines)
+	}
+}
+
 func TestExtensionStatusSlotAddsFooterRowsOnly(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap", DefaultThinkingLevel: "low", WorkspaceRoot: t.TempDir()}}
 	base := len(c.footerLines(100))
