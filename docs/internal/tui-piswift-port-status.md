@@ -49,6 +49,16 @@ Reference comparison: `piswift-tui-comparison-20260621.md`.
 - `04-model-search.txt` — searchable model selector filtered by `gpt`.
 - `05-session-selector.txt` — searchable session selector.
 
+`artifacts/tui-piswift-final-20260621/`:
+
+- `01-bash-diff.txt` — colorized unified-diff lines (`@@`, `-old`, `+new`) in a bash block, plain lines uncolored.
+- `02-hotkeys.txt` — grouped `/hotkeys` reference.
+- `03-thinking.txt` — thinking-level selector.
+
+## Validation
+
+`go test ./...` and `go vet ./...` pass on 2026-06-21 with all TUI slices in place.
+
 ## Not yet ported (deferred)
 
 - editor-replacement extension slot.
