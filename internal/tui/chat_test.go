@@ -1243,6 +1243,16 @@ func TestHelpLinesAreGroupedAndDiscoverCoreCommands(t *testing.T) {
 	}
 }
 
+func TestHotkeyLinesCoverKeyGroups(t *testing.T) {
+	c := &chatTUI{}
+	joined := strings.Join(c.hotkeyLines(), "\n")
+	for _, want := range []string{"hotkeys", "editor:", "runtime:", "transcript:", "F6/F7 select block", "F8 expand/collapse", "Ctrl+L/Alt+L cycle model", "!!cmd run locally"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("hotkeys missing %q:\n%s", want, joined)
+		}
+	}
+}
+
 func TestNewSessionCommandCreatesAndSwitchesMainSession(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

@@ -2177,6 +2177,8 @@ func (c *chatTUI) handleCommand(text string) {
 	switch fields[0] {
 	case "/help":
 		c.transcript = append(c.transcript, c.helpLines()...)
+	case "/hotkeys":
+		c.transcript = append(c.transcript, c.hotkeyLines()...)
 	case "/commands", "/palette":
 		query := ""
 		if len(fields) > 1 {
@@ -2312,7 +2314,7 @@ func (c *chatTUI) handleCommand(text string) {
 		if lines, handled := c.extensionCommandLines(text, fields); handled {
 			c.appendTranscript(lines...)
 		} else {
-			c.appendTranscript("sys: commands: /help, /commands [query], /session, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /attach <path> [prompt], /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /history-limit [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
+			c.appendTranscript("sys: commands: /help, /hotkeys, /commands [query], /session, /sessions, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /attach <path> [prompt], /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /history-limit [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
 		}
 	}
 	c.running = false
@@ -2374,6 +2376,7 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 	commands := []struct{ name, hint string }{
 		{"/help", "show grouped help"},
 		{"/commands [query]", "filter command palette textually"},
+		{"/hotkeys", "show keyboard shortcuts"},
 		{"/session", "show current session details"},
 		{"/new", "create and switch to a new main session"},
 		{"/name <name>", "rename current session"},
@@ -2438,12 +2441,35 @@ func (c *chatTUI) helpLines() []string {
 		"help",
 		"enter send · shift-enter newline · esc blur · ctrl-d exit · f6/f7 select block · f8 expand",
 		"/commands  all commands",
+		"/hotkeys   keyboard shortcuts",
 		"/model     choose model · type to filter · ctrl-l cycles",
 		"/session   details for this chat",
 		"/where     compact context",
 		"/attach    add media",
 		"ctrl-r     search command history (current input is query)",
 		"!cmd       ask model about shell · !!cmd run locally",
+	}
+}
+
+// hotkeyLines is the PiSwift-style `/hotkeys` reference, grouped by purpose.
+func (c *chatTUI) hotkeyLines() []string {
+	return []string{
+		"hotkeys",
+		"editor:",
+		"  Enter send · Shift+Enter newline · Alt+Enter queue · Alt+Up restore queued",
+		"  Tab path complete · @path file ref · Ctrl+R history search",
+		"  Alt+Left/Right word move · Ctrl+W delete word · Ctrl+U/K delete line · Ctrl+Z undo · Ctrl+Y yank",
+		"runtime:",
+		"  Ctrl+L/Alt+L cycle model · Ctrl+T/Alt+T cycle thinking",
+		"  /model selector · /sessions selector · /thinking level",
+		"transcript:",
+		"  F6/F7 select block · F8 expand/collapse · click block to toggle",
+		"  PgUp/PgDn scroll · Home/End top/bottom · mouse wheel scroll",
+		"session:",
+		"  Esc blur input · Tab focus input · F2/F3 (or Ctrl+P/Ctrl+N) history",
+		"  Ctrl+C interrupt · Ctrl+D exit (empty input)",
+		"shell:",
+		"  !cmd ask model to run · !!cmd run locally",
 	}
 }
 
