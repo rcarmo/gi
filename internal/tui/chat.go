@@ -182,6 +182,8 @@ type chatTUI struct {
 	lastOutputTokens        int
 	lastContextTokens       int
 	modelMenuOpen           bool
+	modelMenuKind           string
+	modelMenuValues         map[string]string
 	modelMenuChoices        []string
 	modelMenuAll            []string
 	modelMenuQuery          string
@@ -1497,9 +1499,53 @@ func (c *chatTUI) openModelMenu() {
 		}
 	}
 	c.modelMenuOpen = true
+	c.modelMenuKind = "model"
+	c.modelMenuValues = nil
 	c.modelMenuAll = choices
 	c.modelMenuQuery = ""
 	c.modelMenuChoices = choices
+	c.modelMenuSelected = selected
+	c.modelMenuScroll = 0
+	c.ensureModelMenuSelectionVisible()
+	c.inputActive = false
+	if c.app != nil {
+		c.app.BlurFocused()
+		c.app.MarkDirty()
+	}
+}
+
+func (c *chatTUI) openSessionMenu() {
+	sessions, err := c.store.ListSessions(context.Background())
+	if err != nil {
+		c.appendTranscript(fmt.Sprintf("error: list sessions: %v", err))
+		return
+	}
+	if len(sessions) == 0 {
+		c.appendTranscript("sys: no sessions to resume")
+		return
+	}
+	labels := make([]string, 0, len(sessions))
+	values := map[string]string{}
+	selected := 0
+	for i := range sessions {
+		sess := sessions[i]
+		status, _ := sess.State["status"].(string)
+		if status == "" {
+			status = "idle"
+		}
+		label := fmt.Sprintf("@%s %s (%s) · %s", c.agentIDForSession(&sess), strings.TrimSpace(sess.Title), compactID(sess.ID), status)
+		labels = append(labels, label)
+		values[label] = sess.ID
+		if sess.ID == c.sessionID {
+			selected = i
+		}
+	}
+	c.modelMenuOpen = true
+	c.modelMenuKind = "session"
+	c.modelMenuValues = values
+	c.modelMenuAll = labels
+	c.modelMenuQuery = ""
+	c.modelMenuChoices = labels
 	c.modelMenuSelected = selected
 	c.modelMenuScroll = 0
 	c.ensureModelMenuSelectionVisible()
@@ -1569,6 +1615,8 @@ func (c *chatTUI) modelMenuBackspace() {
 
 func (c *chatTUI) closeModelMenu() {
 	c.modelMenuOpen = false
+	c.modelMenuKind = ""
+	c.modelMenuValues = nil
 	c.modelMenuChoices = nil
 	c.modelMenuAll = nil
 	c.modelMenuQuery = ""
@@ -1639,14 +1687,29 @@ func (c *chatTUI) acceptModelMenuSelection() {
 	if !c.modelMenuOpen || len(c.modelMenuChoices) == 0 || c.modelMenuSelected < 0 || c.modelMenuSelected >= len(c.modelMenuChoices) {
 		return
 	}
-	model := c.modelMenuChoices[c.modelMenuSelected]
+	label := c.modelMenuChoices[c.modelMenuSelected]
+	kind := c.modelMenuKind
+	value := label
+	if c.modelMenuValues != nil {
+		if v, ok := c.modelMenuValues[label]; ok {
+			value = v
+		}
+	}
 	c.modelMenuOpen = false
+	c.modelMenuKind = ""
+	c.modelMenuValues = nil
 	c.modelMenuChoices = nil
 	c.modelMenuAll = nil
 	c.modelMenuQuery = ""
 	c.modelMenuScroll = 0
 	c.focusInput()
-	c.appendTranscript(c.modelCommand([]string{"/model", model})...)
+	switch kind {
+	case "session":
+		c.switchSession(value)
+		c.appendTranscript(fmt.Sprintf("sys: resumed %s", value))
+	default:
+		c.appendTranscript(c.modelCommand([]string{"/model", value})...)
+	}
 	if c.app != nil {
 		c.app.MarkDirty()
 	}
@@ -1680,11 +1743,15 @@ func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
 		gotui.WithPaddingTRBL(0, 1, 0, 1),
 	)
 	current := strings.TrimSpace(c.cfg.DefaultModel)
-	title := "Select model · ↑/↓ navigate · Enter select · Esc cancel"
-	if width < 72 {
-		title = "Select model · ↑/↓ Enter Esc"
+	noun := "model"
+	if c.modelMenuKind == "session" {
+		noun = "session"
 	}
-	if current != "" {
+	title := "Select " + noun + " · ↑/↓ navigate · Enter select · Esc cancel"
+	if width < 72 {
+		title = "Select " + noun + " · ↑/↓ Enter Esc"
+	}
+	if c.modelMenuKind != "session" && current != "" {
 		title += " · current " + compactMaybe(current, c.compactOutput(), 28)
 	}
 	menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(truncate(title, max(20, width-4))), gotui.WithTextStyle(gotui.NewStyle().Bold())))
@@ -2093,6 +2160,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.appendTranscript(c.nameSessionLines(text, fields)...)
 	case "/resume":
 		c.appendTranscript(c.resumeLines(fields)...)
+	case "/sessions":
+		c.openSessionMenu()
 	case "/clone":
 		c.appendTranscript(c.cloneSessionLines(fields)...)
 	case "/copy":
@@ -2278,6 +2347,7 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 		{"/new", "create and switch to a new main session"},
 		{"/name <name>", "rename current session"},
 		{"/resume [index|session_id]", "list or switch recent sessions"},
+		{"/sessions", "searchable session resume selector"},
 		{"/clone [@agentN]", "clone active branch/session"},
 		{"/copy [--osc52|--native|--auto|--fallback]", "copy last assistant message with opt-in target"},
 		{"/attach <path> [prompt]", "attach local media and optionally submit a prompt"},

@@ -2050,6 +2050,44 @@ func TestContextSummaryLinesWrapForNarrowWidth(t *testing.T) {
 	}
 }
 
+func TestSessionSelectorOpensFiltersAndSwitches(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err := s.CreateSession(ctx, "session_alpha", "@alpha", map[string]any{"status": "idle"}); err != nil {
+		t.Fatalf("create alpha: %v", err)
+	}
+	if _, err := s.CreateSession(ctx, "session_beta", "@beta", map[string]any{"status": "idle"}); err != nil {
+		t.Fatalf("create beta: %v", err)
+	}
+	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_alpha", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, transcriptRef: gotui.NewRef(), draftLineIndex: -1}
+	c.eventCh = make(chan map[string]any, 64)
+	c.topicEventCh = make(chan topics.Envelope, 64)
+	c.openSessionMenu()
+	if !c.modelMenuOpen || c.modelMenuKind != "session" {
+		t.Fatalf("session menu not open: open=%v kind=%q", c.modelMenuOpen, c.modelMenuKind)
+	}
+	if len(c.modelMenuChoices) != 2 {
+		t.Fatalf("expected 2 session choices, got %#v", c.modelMenuChoices)
+	}
+	c.modelMenuTypeRune('b')
+	c.modelMenuTypeRune('e')
+	c.modelMenuTypeRune('t')
+	if len(c.modelMenuChoices) != 1 || !strings.Contains(c.modelMenuChoices[0], "@beta") {
+		t.Fatalf("filter to beta failed: %#v", c.modelMenuChoices)
+	}
+	c.acceptModelMenuSelection()
+	if c.modelMenuOpen {
+		t.Fatalf("menu should close after accept")
+	}
+	if c.sessionID != "session_beta" {
+		t.Fatalf("expected switch to session_beta, got %q", c.sessionID)
+	}
+}
+
 func TestModelMenuFuzzyFilter(t *testing.T) {
 	all := []string{"openai/gpt-5.2", "anthropic/claude-sonnet", "opencode-zen/minimax", "openai/gpt-4.1-mini"}
 	if got := filterModelMenuChoices(all, ""); len(got) != 4 {
