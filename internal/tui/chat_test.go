@@ -1875,6 +1875,54 @@ func TestToolOKStatusLabelIsHidden(t *testing.T) {
 	}
 }
 
+func TestTranscriptBlockLifecycleAppendReplaceDelete(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
+	c.appendTranscriptBlock(transcriptBlockMeta{Key: "k1", Kind: "tool", Title: "first", Status: "running"}, []string{"a", "b"})
+	if span, ok := c.transcriptBlockSpans["k1"]; !ok || span.BodyCount != 2 {
+		t.Fatalf("append did not index block: %#v", c.transcriptBlockSpans)
+	}
+	// replace updates header meta and body in place (same key, no duplicate)
+	c.replaceTranscriptBlock(transcriptBlockMeta{Key: "k1", Kind: "tool", Title: "first", Status: "ok"}, []string{"a", "b", "c"})
+	if order := c.transcriptBlockOrder(); len(order) != 1 || order[0] != "k1" {
+		t.Fatalf("replace should keep a single block: %#v", order)
+	}
+	if body := c.readTranscriptBlockBody("k1"); len(body) != 3 || body[2] != "c" {
+		t.Fatalf("replace did not update body: %#v", body)
+	}
+	meta, ok := parseTranscriptBlockMarker(c.transcript[c.transcriptBlockSpans["k1"].HeaderIndex])
+	if !ok || meta.Status != "ok" {
+		t.Fatalf("replace did not update meta: %#v ok=%v", meta, ok)
+	}
+	// delete removes the block and its state
+	if !c.deleteTranscriptBlock("k1") {
+		t.Fatalf("delete should report removal")
+	}
+	if _, ok := c.transcriptBlockSpans["k1"]; ok || len(c.transcript) != 0 {
+		t.Fatalf("delete left residue: spans=%#v transcript=%#v", c.transcriptBlockSpans, c.transcript)
+	}
+}
+
+func TestSelectTranscriptBlockCyclesSelection(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}}
+	c.appendTranscriptBlock(transcriptBlockMeta{Key: "a", Kind: "tool", Title: "A"}, []string{"x"})
+	c.appendTranscriptBlock(transcriptBlockMeta{Key: "b", Kind: "tool", Title: "B"}, []string{"y"})
+	c.appendTranscriptBlock(transcriptBlockMeta{Key: "c", Kind: "tool", Title: "C"}, []string{"z"})
+	c.selectedTranscriptBlock = ""
+	c.selectTranscriptBlock(1)
+	first := c.selectedTranscriptBlock
+	if first == "" {
+		t.Fatalf("select did not pick a block")
+	}
+	c.selectTranscriptBlock(1)
+	if c.selectedTranscriptBlock == first {
+		t.Fatalf("select forward did not move selection from %q", first)
+	}
+	c.selectTranscriptBlock(-1)
+	if c.selectedTranscriptBlock != first {
+		t.Fatalf("select backward did not return to %q, got %q", first, c.selectedTranscriptBlock)
+	}
+}
+
 func TestErrorLinesRenderAsDedupedBlocks(t *testing.T) {
 	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo"}, transcriptExpanded: map[string]bool{}}
 	blocks := c.buildTranscriptRenderableBlocks([]string{
