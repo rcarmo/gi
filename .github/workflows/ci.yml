@@ -114,6 +114,7 @@ jobs:
       - name: Upload single-binary artifact
         uses: actions/upload-artifact@v4
         with:
+          retention-days: 7
           name: gi-${{ matrix.goos }}-${{ matrix.goarch }}
           path: |
             dist/*.tar.gz
