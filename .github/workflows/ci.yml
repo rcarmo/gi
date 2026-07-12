@@ -150,7 +150,6 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-
             const currentArtifacts = await github.paginate(
               github.rest.actions.listWorkflowRunArtifacts,
               { owner, repo, run_id: context.runId, per_page: 100 },
@@ -173,7 +172,6 @@ jobs:
               core.warning('A retained Release has no durable assets; skipping Release pruning.');
               return;
             }
-
             for (const release of published.slice(10)) {
               core.info(`Deleting old Release ${release.tag_name} (${release.id}).`);
               await github.rest.repos.deleteRelease({ owner, repo, release_id: release.id });
