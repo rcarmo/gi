@@ -190,7 +190,7 @@ func executeShellTool(ctx context.Context, command string) toolOutput {
 	}
 	execCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(execCtx, "sh", "-lc", command)
+	cmd := exec.CommandContext(execCtx, "sh", "-c", command)
 	out, err := cmd.CombinedOutput()
 	output := string(out)
 	if err != nil {

@@ -96,7 +96,7 @@ func ExecuteRTK(ctx context.Context, workspaceRoot string, call goai.ToolCall) (
 	output, _ := call.Arguments["output"].(string)
 	var err error
 	if !filterOnly {
-		cmd := exec.CommandContext(ctx, "sh", "-lc", command)
+		cmd := exec.CommandContext(ctx, "sh", "-c", command)
 		cmd.Dir = workspaceRoot
 		out, runErr := cmd.CombinedOutput()
 		output = string(out)
@@ -115,7 +115,7 @@ func ExecuteShell(ctx context.Context, workspaceRoot string, call goai.ToolCall)
 	if command == "" {
 		return "", fmt.Errorf("shell: command is required")
 	}
-	cmd := exec.CommandContext(ctx, "sh", "-lc", command)
+	cmd := exec.CommandContext(ctx, "sh", "-c", command)
 	cmd.Dir = workspaceRoot
 	out, err := cmd.CombinedOutput()
 	output := string(out)

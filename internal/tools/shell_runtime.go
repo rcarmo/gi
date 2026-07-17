@@ -13,7 +13,7 @@ import (
 )
 
 func RunShellPrompt(ctx context.Context, prompt string, onStart func(*exec.Cmd), onDelta func(string)) (string, error, bool) {
-	cmd := exec.Command("sh", "-lc", "printf 'Gi received: %s' \"$GI_PROMPT\"")
+	cmd := exec.Command("sh", "-c", "printf 'Gi received: %s' \"$GI_PROMPT\"")
 	cmd.Env = append(cmd.Environ(), "GI_PROMPT="+prompt)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	stdoutPipe, err := cmd.StdoutPipe()

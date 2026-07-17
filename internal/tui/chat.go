@@ -2627,7 +2627,7 @@ func (c *chatTUI) localShellShortcutLines(command string) []string {
 	startedAt := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "sh", "-lc", command)
+	cmd := exec.CommandContext(ctx, "sh", "-c", command)
 	if root := strings.TrimSpace(c.cfg.WorkspaceRoot); root != "" {
 		cmd.Dir = root
 	}

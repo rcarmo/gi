@@ -45,15 +45,21 @@
 ## Validation
 - `go build ./...` ✅
 - `go vet ./...` ✅
-- `go test ./...` — all packages green **except pre-existing environmental failures**
-  unrelated to the upgrade (verified identical on the pre-upgrade baseline via
-  `git stash`): shell-backed tests in `internal/turn` and `internal/web` fail because
-  the container's login shell sources `~/.local/share/swiftly/env.sh`, which uses
-  bash-only `[[` under `sh` and pollutes shell-tool stdout
-  (`sh: env.sh: [[: not found`). This is a workspace environment issue, not a code or
-  dependency regression.
+- `go test ./...` ✅
 
-## Follow-ups (optional)
+## Required runtime fix following validation
+
+Validation exposed that Gi executed tool commands with `sh -lc`. The `-l` made every
+shell tool source the user's login profile, which is both non-deterministic and allowed
+profile diagnostics/errors to contaminate tool output. In this workspace it sourced
+Swiftly's bash-specific `env.sh` under POSIX `sh` and emitted `[[: not found`.
+
+All Gi shell execution paths now use deterministic non-login POSIX shells (`sh -c`):
+`ExecuteShell`, `ExecuteRTK`, the shell turn runtime, local TUI shell execution, and the
+web tool executor. Runtime event command metadata was updated to match. The regression
+test `TestExecuteShellDoesNotSourceLoginProfile` proves `.profile` output is not mixed
+into tool output.
+
+## Follow-ups (optional, YAGNI)
 - Adopt `ModelRuntime.Refresh` to back live model listing/refresh in `internal/inference`.
 - Use `ProviderErrorBody/Status` to surface structured provider errors in the TUI.
-- Fix the container `swiftly/env.sh` (`[[` → `[`) to unblock shell-backed tests locally.
