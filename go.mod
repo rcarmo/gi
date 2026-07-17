@@ -3,14 +3,14 @@ module github.com/rcarmo/gi
 go 1.26.4
 
 require (
-	github.com/dop251/goja v0.0.0-20260607120635-348e6bea910d
-	github.com/grindlemire/go-tui v0.17.0
-	github.com/rcarmo/go-ai v0.79.3
+	github.com/dop251/goja v0.0.0-20260701091749-b07b74453ea9
+	github.com/grindlemire/go-tui v0.18.2
+	github.com/rcarmo/go-ai v0.80.10
 	github.com/rcarmo/go-joker v1.8.1-0.20260529215339-bc07acfdb01c
-	github.com/yuin/goldmark v1.8.2
-	golang.org/x/crypto v0.53.0
-	golang.org/x/net v0.56.0
-	modernc.org/sqlite v1.52.0
+	github.com/yuin/goldmark v1.8.4
+	golang.org/x/crypto v0.54.0
+	golang.org/x/net v0.57.0
+	modernc.org/sqlite v1.54.0
 	tailscale.com v1.100.0
 )
 
@@ -52,7 +52,7 @@ require (
 	github.com/jcburley/go-spew v1.3.0 // indirect
 	github.com/jsimonetti/rtnetlink v1.4.2 // indirect
 	github.com/kevinburke/ssh_config v1.6.0 // indirect
-	github.com/klauspost/compress v1.18.6 // indirect
+	github.com/klauspost/compress v1.19.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/mattn/go-isatty v0.0.22 // indirect
 	github.com/mattn/go-runewidth v0.0.24 // indirect
@@ -80,17 +80,17 @@ require (
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.21.0 // indirect
-	golang.org/x/sys v0.46.0 // indirect
-	golang.org/x/term v0.44.0 // indirect
-	golang.org/x/text v0.38.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
+	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/term v0.45.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
 	golang.zx2c4.com/wireguard/windows v1.0.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gvisor.dev/gvisor v0.0.0-20260224225140-573d5e7127a8 // indirect
-	modernc.org/libc v1.73.2 // indirect
+	modernc.org/libc v1.74.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
