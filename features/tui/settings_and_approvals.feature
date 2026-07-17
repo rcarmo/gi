@@ -6,7 +6,7 @@ Feature: TUI settings and approval visibility
     When I start the gi TUI in tmux
     Then the screen should contain "(no messages yet)"
     When I type "/settings" and press Enter
-    Then the screen should contain "provider: test"
+    Then the screen should contain "model: test-model"
     And the screen should contain "settings: editor"
     And the screen should contain "scrollback_limit:"
     And the screen should contain "settings: compaction"

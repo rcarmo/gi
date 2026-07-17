@@ -197,7 +197,15 @@ start_tui() {
 
 start_tui_default() {
   prepare_tui_workspace
-  tmux new-session -d -x 120 -y 28 -s "$SESSION" "cd '$TEST_DIR' && '$ROOT/bin/gi'"
+  # No-argument startup resolves workspace and state from HOME/XDG. Isolate both
+  # so this scenario cannot reopen the developer's real sessions database.
+  local home="$TEST_DIR/home"
+  local state="$TEST_DIR/state"
+  mkdir -p "$home" "$state"
+  cp -R "$TEST_DIR/.pi" "$home/.pi"
+  cp -R "$TEST_DIR/.piclaw" "$home/.piclaw"
+  cp "$TEST_DIR/AGENTS.md" "$home/AGENTS.md"
+  tmux new-session -d -x 120 -y 28 -s "$SESSION" "cd '$home' && HOME='$home' XDG_STATE_HOME='$state' '$ROOT/bin/gi'"
   wait_for_tui_ready
 }
 

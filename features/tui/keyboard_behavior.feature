@@ -11,16 +11,16 @@ Feature: TUI keyboard behavior
     When I press Tab
     And I type "focus restored" and press Enter
     Then the database should contain a user message "focus restored"
-    Then the screen should contain "routed to @agent"
+    Then the screen should contain "Gi received: focus restored"
     When I press PageUp
-    Then the screen should contain "routed to @agent"
+    Then the screen should contain "Gi received: focus restored"
     When I press End
-    Then the screen should contain "routed to @agent"
+    Then the screen should contain "Gi received: focus restored"
     When I resize the terminal to 100x22
     Then the tmux session should be alive
-    And the screen should contain "routed to @agent"
+    And the screen should contain "Gi received: focus restored"
     When I resize the terminal to 60x18
     Then the tmux session should be alive
-    And the screen should contain "routed to @agent"
+    And the screen should contain "Gi received: focus restored"
     When I press Ctrl-D
     Then the tmux session should exit

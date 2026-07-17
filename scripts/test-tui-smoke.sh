@@ -44,17 +44,17 @@ tmux new-session -d -x 100 -y 20 -s "$SESSION" "cd '$ROOT' && ./bin/gi -tui -db 
 for _ in 1 2 3 4 5; do
   sleep 1
   tmux capture-pane -pe -t "$SESSION":0 > "$ARTIFACT_DIR/01-start.txt"
-  if grep -q "Session:" "$ARTIFACT_DIR/01-start.txt"; then
+  if grep -q "m0/t0" "$ARTIFACT_DIR/01-start.txt"; then
     break
   fi
 done
 
-if ! grep -q "Session:" "$ARTIFACT_DIR/01-start.txt"; then
-  echo "TUI did not render session context info" >&2
+if ! grep -q "m0/t0" "$ARTIFACT_DIR/01-start.txt"; then
+  echo "TUI did not render bottom-band session counters" >&2
   exit 1
 fi
-if ! grep -q "Input (click to focus" "$ARTIFACT_DIR/01-start.txt"; then
-  echo "TUI did not render input help" >&2
+if ! grep -q "(no messages yet)" "$ARTIFACT_DIR/01-start.txt"; then
+  echo "TUI did not render the empty transcript" >&2
   exit 1
 fi
 if [[ ! -f "$DB" ]]; then
@@ -110,8 +110,8 @@ tmux resize-window -t "$SESSION":0 -x 120 -y 24
 sleep 1
 tmux has-session -t "$SESSION"
 tmux capture-pane -pe -t "$SESSION":0 > "$ARTIFACT_DIR/05-after-resize.txt"
-if ! grep -q 'Messages:' "$ARTIFACT_DIR/05-after-resize.txt"; then
-  echo "TUI lost context summary after resize" >&2
+if ! grep -Eq 'm[0-9]+/t[0-9]+' "$ARTIFACT_DIR/05-after-resize.txt"; then
+  echo "TUI lost bottom-band session counters after resize" >&2
   exit 1
 fi
 if ! grep -q 'Gi received: hello from tmux' "$ARTIFACT_DIR/05-after-resize.txt"; then
