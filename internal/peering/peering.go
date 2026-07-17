@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/secrets"
 	"tailscale.com/tsnet"
 )
 
@@ -24,21 +25,26 @@ type Status struct {
 }
 
 type Manager struct {
-	mu     sync.Mutex
-	cfg    config.PeeringSettings
-	server *tsnet.Server
-	state  string
-	err    string
+	mu       sync.Mutex
+	cfg      config.PeeringSettings
+	server   *tsnet.Server
+	state    string
+	err      string
+	resolver secrets.Resolver
 }
 
 func NewManager(cfg config.PeeringSettings, workspaceRoot string) *Manager {
+	return NewManagerWithResolver(cfg, workspaceRoot, secrets.EnvResolver{})
+}
+
+func NewManagerWithResolver(cfg config.PeeringSettings, workspaceRoot string, resolver secrets.Resolver) *Manager {
 	if strings.TrimSpace(cfg.Hostname) == "" {
 		cfg.Hostname = "gi"
 	}
 	if strings.TrimSpace(cfg.StateDir) == "" && strings.TrimSpace(workspaceRoot) != "" {
 		cfg.StateDir = filepath.Join(workspaceRoot, ".gi", "tsnet")
 	}
-	m := &Manager{cfg: cfg, state: "disabled"}
+	m := &Manager{cfg: cfg, state: "disabled", resolver: resolver}
 	if cfg.Enabled {
 		m.state = "configured"
 	}
@@ -55,21 +61,9 @@ func (m *Manager) Start(ctx context.Context) error {
 	if m.server != nil {
 		return nil
 	}
-	authKey := ""
-	if m.cfg.AuthKeyEnv != "" {
-		authKey = os.Getenv(m.cfg.AuthKeyEnv)
-		if authKey == "" {
-			m.state = "error"
-			m.err = fmt.Sprintf("auth key env %s is not set", m.cfg.AuthKeyEnv)
-			return fmt.Errorf("peering: %s", m.err)
-		}
-	}
-	if m.cfg.AuthKeyKeychain != "" && authKey == "" {
-		// gi does not yet have a host keychain API; keep the setting visible so a future
-		// startup bridge can resolve it without changing the peering contract.
-		m.state = "needs_keychain"
-		m.err = "auth key keychain references are not wired in gi yet: " + m.cfg.AuthKeyKeychain
-		return fmt.Errorf("peering: %s", m.err)
+	authKey, err := m.resolveAuthKey(ctx)
+	if err != nil {
+		return err
 	}
 	m.server = &tsnet.Server{Hostname: m.cfg.Hostname, Dir: m.cfg.StateDir, AuthKey: authKey, Ephemeral: true}
 	if err := m.server.Start(); err != nil {
@@ -80,6 +74,33 @@ func (m *Manager) Start(ctx context.Context) error {
 	m.state = "started"
 	m.err = ""
 	return nil
+}
+
+func (m *Manager) resolveAuthKey(ctx context.Context) (string, error) {
+	if m.cfg.AuthKeyEnv != "" {
+		authKey := os.Getenv(m.cfg.AuthKeyEnv)
+		if authKey == "" {
+			m.state = "error"
+			m.err = fmt.Sprintf("auth key env %s is not set", m.cfg.AuthKeyEnv)
+			return "", fmt.Errorf("peering: %s", m.err)
+		}
+		return authKey, nil
+	}
+	if m.cfg.AuthKeyKeychain == "" {
+		return "", nil
+	}
+	if m.resolver == nil {
+		m.state = "needs_keychain"
+		m.err = "auth key resolver is not available: " + m.cfg.AuthKeyKeychain
+		return "", fmt.Errorf("peering: %s", m.err)
+	}
+	authKey, err := m.resolver.Resolve(ctx, m.cfg.AuthKeyKeychain)
+	if err != nil {
+		m.state = "needs_keychain"
+		m.err = fmt.Sprintf("resolve auth key %s: %v", m.cfg.AuthKeyKeychain, err)
+		return "", fmt.Errorf("peering: %s", m.err)
+	}
+	return authKey, nil
 }
 
 func (m *Manager) Close() error {

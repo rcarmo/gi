@@ -438,8 +438,9 @@ Connectivity hooks are more dangerous than ordinary tool hooks because they can 
 2. **Explicit config to bind non-loopback**.
 3. **Route auth required** for non-loopback HTTP/WS/SSE.
 4. **Secret references only** for credentials:
-   - current implemented path: environment-backed references such as `token_env`, `secret_env`, `password_env`
-   - planned follow-up: keychain-backed connectivity auth/config references
+   - direct environment references: `token_env`, `secret_env`, `password_env`;
+   - keychain references: `keychain` / `password_keychain`, resolved through the host-independent `internal/secrets.Resolver` contract;
+   - the default resolver follows Piclaw injection naming (`connect/basic-password` → `CONNECT_BASIC_PASSWORD`);
    - not literal passwords in scripts.
 5. **Per-route rate limits**.
 6. **Max body/message size**.
@@ -462,7 +463,7 @@ Connectivity hooks are more dangerous than ordinary tool hooks because they can 
 }
 ```
 
-In the current `gi` runtime, connectivity auth keychain references are still placeholder-only and return an explicit "not wired" error rather than resolving through the host keychain path. Use env-backed secret references for live connectivity auth today.
+Connectivity auth keychain references are resolved through `internal/secrets.Resolver`. The default runtime adapter reads the environment variables injected for named keychain entries; native keychain backends can be injected without changing route-auth semantics.
 
 ---
 

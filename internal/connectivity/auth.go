@@ -1,6 +1,7 @@
 package connectivity
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -10,6 +11,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/rcarmo/gi/internal/secrets"
 )
 
 // AuthorizeHTTPRequest enforces route auth for HTTP/SSE/WebSocket-style
@@ -17,11 +20,15 @@ import (
 // callers must satisfy an auth block unless the route explicitly sets
 // options.allow_unauthenticated_external=true.
 func AuthorizeHTTPRequest(spec RouteSpec, r *http.Request, body []byte) error {
+	return AuthorizeHTTPRequestWithResolver(spec, r, body, secrets.EnvResolver{})
+}
+
+func AuthorizeHTTPRequestWithResolver(spec RouteSpec, r *http.Request, body []byte, resolver secrets.Resolver) error {
 	if isLoopbackRemote(r.RemoteAddr) {
 		if len(spec.Auth) == 0 {
 			return nil
 		}
-		return checkHTTPRequestAuth(spec.Auth, r, body)
+		return checkHTTPRequestAuth(spec.Auth, r, body, resolver)
 	}
 	if boolOption(spec.Options, "allow_unauthenticated_external") {
 		return nil
@@ -29,10 +36,10 @@ func AuthorizeHTTPRequest(spec RouteSpec, r *http.Request, body []byte) error {
 	if len(spec.Auth) == 0 {
 		return fmt.Errorf("external request requires route auth")
 	}
-	return checkHTTPRequestAuth(spec.Auth, r, body)
+	return checkHTTPRequestAuth(spec.Auth, r, body, resolver)
 }
 
-func checkHTTPRequestAuth(auth map[string]any, r *http.Request, body []byte) error {
+func checkHTTPRequestAuth(auth map[string]any, r *http.Request, body []byte, resolver secrets.Resolver) error {
 	typ := strings.ToLower(strings.TrimSpace(stringMapValue(auth, "type")))
 	if typ == "" {
 		typ = "bearer"
@@ -43,7 +50,7 @@ func checkHTTPRequestAuth(auth map[string]any, r *http.Request, body []byte) err
 	case "totp", "webauthn":
 		return fmt.Errorf("auth type %s requires host middleware", typ)
 	case "bearer":
-		expected, err := authSecret(auth)
+		expected, err := authSecret(r.Context(), auth, resolver)
 		if err != nil {
 			return err
 		}
@@ -60,7 +67,7 @@ func checkHTTPRequestAuth(auth map[string]any, r *http.Request, body []byte) err
 		if expectedUser == "" {
 			return fmt.Errorf("basic auth username is required")
 		}
-		expectedPassword, err := authPassword(auth)
+		expectedPassword, err := authPassword(r.Context(), auth, resolver)
 		if err != nil {
 			return err
 		}
@@ -73,7 +80,7 @@ func checkHTTPRequestAuth(auth map[string]any, r *http.Request, body []byte) err
 		}
 		return fmt.Errorf("invalid basic auth")
 	case "header":
-		expected, err := authSecret(auth)
+		expected, err := authSecret(r.Context(), auth, resolver)
 		if err != nil {
 			return err
 		}
@@ -86,7 +93,7 @@ func checkHTTPRequestAuth(auth map[string]any, r *http.Request, body []byte) err
 		}
 		return fmt.Errorf("invalid header auth")
 	case "query":
-		expected, err := authSecret(auth)
+		expected, err := authSecret(r.Context(), auth, resolver)
 		if err != nil {
 			return err
 		}
@@ -96,7 +103,7 @@ func checkHTTPRequestAuth(auth map[string]any, r *http.Request, body []byte) err
 		}
 		return fmt.Errorf("invalid query auth")
 	case "hmac":
-		secret, err := authSecret(auth)
+		secret, err := authSecret(r.Context(), auth, resolver)
 		if err != nil {
 			return err
 		}
@@ -120,7 +127,7 @@ func checkHTTPRequestAuth(auth map[string]any, r *http.Request, body []byte) err
 	}
 }
 
-func authSecret(auth map[string]any) (string, error) {
+func authSecret(ctx context.Context, auth map[string]any, resolver secrets.Resolver) (string, error) {
 	if v := firstNonEmpty(stringMapValue(auth, "token"), stringMapValue(auth, "value"), stringMapValue(auth, "secret")); v != "" {
 		return v, nil
 	}
@@ -131,12 +138,19 @@ func authSecret(auth map[string]any) (string, error) {
 		return "", fmt.Errorf("auth env %s is not set", env)
 	}
 	if keychain := stringMapValue(auth, "keychain"); keychain != "" {
-		return "", fmt.Errorf("auth keychain references are not wired in gi yet: %s", keychain)
+		if resolver == nil {
+			return "", fmt.Errorf("auth secret resolver is not available for %s", keychain)
+		}
+		value, err := resolver.Resolve(ctx, keychain)
+		if err != nil {
+			return "", fmt.Errorf("resolve auth keychain %s: %w", keychain, err)
+		}
+		return value, nil
 	}
 	return "", fmt.Errorf("auth secret is required")
 }
 
-func authPassword(auth map[string]any) (string, error) {
+func authPassword(ctx context.Context, auth map[string]any, resolver secrets.Resolver) (string, error) {
 	if v := firstNonEmpty(stringMapValue(auth, "password"), stringMapValue(auth, "pass"), stringMapValue(auth, "secret")); v != "" {
 		return v, nil
 	}
@@ -147,7 +161,14 @@ func authPassword(auth map[string]any) (string, error) {
 		return "", fmt.Errorf("auth env %s is not set", env)
 	}
 	if keychain := firstNonEmpty(stringMapValue(auth, "password_keychain"), stringMapValue(auth, "keychain")); keychain != "" {
-		return "", fmt.Errorf("auth keychain references are not wired in gi yet: %s", keychain)
+		if resolver == nil {
+			return "", fmt.Errorf("auth password resolver is not available for %s", keychain)
+		}
+		value, err := resolver.Resolve(ctx, keychain)
+		if err != nil {
+			return "", fmt.Errorf("resolve auth keychain %s: %w", keychain, err)
+		}
+		return value, nil
 	}
 	return "", fmt.Errorf("basic auth password is required")
 }

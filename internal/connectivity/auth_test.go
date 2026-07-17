@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -66,13 +67,24 @@ func TestAuthorizeHTTPRequestBasicRejectsWrongPassword(t *testing.T) {
 	}
 }
 
-func TestAuthorizeHTTPRequestBasicReportsGenericKeychainPlaceholder(t *testing.T) {
+func TestAuthorizeHTTPRequestBasicResolvesGenericKeychain(t *testing.T) {
+	t.Setenv("CONNECT_BASIC_PASSWORD", "secret")
 	req, _ := http.NewRequest(http.MethodPost, "http://example.test/hook", nil)
 	req.RemoteAddr = "203.0.113.10:1234"
 	req.SetBasicAuth("rui", "secret")
 	spec := RouteSpec{Auth: map[string]any{"type": "basic", "username": "rui", "keychain": "connect/basic-password"}}
-	if err := AuthorizeHTTPRequest(spec, req, nil); err == nil || err.Error() != "auth keychain references are not wired in gi yet: connect/basic-password" {
-		t.Fatalf("expected generic keychain placeholder error, got %v", err)
+	if err := AuthorizeHTTPRequest(spec, req, nil); err != nil {
+		t.Fatalf("expected injected keychain secret to pass: %v", err)
+	}
+}
+
+func TestAuthorizeHTTPRequestReportsUnavailableResolver(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodPost, "http://example.test/hook", nil)
+	req.RemoteAddr = "203.0.113.10:1234"
+	req.Header.Set("Authorization", "Bearer secret")
+	spec := RouteSpec{Auth: map[string]any{"type": "bearer", "keychain": "connect/bearer"}}
+	if err := AuthorizeHTTPRequestWithResolver(spec, req, nil, nil); err == nil || !strings.Contains(err.Error(), "resolver is not available") {
+		t.Fatalf("expected resolver-unavailable error, got %v", err)
 	}
 }
 
