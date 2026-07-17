@@ -227,6 +227,22 @@ func TestToolExecuteReadPathErrors(t *testing.T) {
 	}
 }
 
+func TestToolExecuteReadsShippedReference(t *testing.T) {
+	root := t.TempDir()
+	srv, _ := newTestWebServer(t, root)
+
+	resp := callToolExecute(t, srv, toolReq{
+		Tool:  "read",
+		Input: map[string]any{"path": "vfs://reference/README.md"},
+	})
+	if resp.Error != "" {
+		t.Fatalf("reference read failed: %v", resp.Error)
+	}
+	if !strings.Contains(resp.Result, "# Internal reference") {
+		t.Fatalf("unexpected reference content: %q", resp.Result)
+	}
+}
+
 func TestToolExecutePreventsReferenceWrites(t *testing.T) {
 	root := t.TempDir()
 	srv, _ := newTestWebServer(t, root)

@@ -2428,3 +2428,35 @@ func TestCloneSessionCreatesChildAgentSession(t *testing.T) {
 		t.Fatalf("unexpected cloned messages: %#v", msgs)
 	}
 }
+
+func TestReferenceVFSVirtualTreeAndDocument(t *testing.T) {
+	s, err := Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	entries, err := s.ListVFSChildren(ctx, "reference", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	foundReadme := false
+	foundTools := false
+	for _, entry := range entries {
+		foundReadme = foundReadme || (entry.Name == "README.md" && !entry.IsDir)
+		foundTools = foundTools || (entry.Name == "tools" && entry.IsDir)
+	}
+	if !foundReadme || !foundTools {
+		t.Fatalf("reference root missing expected entries: %#v", entries)
+	}
+	item, raw, err := s.GetVFSFileContent(ctx, "reference", "README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.Metadata["source"] != "docs/internal" || !strings.Contains(string(raw), "# Internal reference") {
+		t.Fatalf("unexpected reference document: item=%#v body=%q", item, string(raw))
+	}
+	if _, err := s.SaveVFSFile(ctx, "reference", "new.md", "text/markdown", []byte("no"), nil); err == nil {
+		t.Fatal("expected reference namespace write rejection")
+	}
+}

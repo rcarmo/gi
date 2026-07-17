@@ -16,6 +16,8 @@ func (s *Store) getVirtualVFSFileContent(ctx context.Context, namespace, filePat
 	switch strings.TrimSpace(namespace) {
 	case storevfs.NamespaceChat:
 		return s.getChatVFSFileContent(ctx, filePath)
+	case storevfs.NamespaceReference:
+		return s.getReferenceVFSFileContent(filePath)
 	default:
 		return nil, nil, virtualNamespaceNotFoundErr(namespace)
 	}
@@ -25,6 +27,8 @@ func (s *Store) listVirtualVFSChildren(ctx context.Context, namespace, dir strin
 	switch strings.TrimSpace(namespace) {
 	case storevfs.NamespaceChat:
 		return s.listChatVFSChildren(ctx, dir)
+	case storevfs.NamespaceReference:
+		return s.listReferenceVFSChildren(dir)
 	default:
 		return nil, virtualNamespaceNotFoundErr(namespace)
 	}
