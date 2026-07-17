@@ -59,12 +59,19 @@ Reference comparison: `piswift-tui-comparison-20260621.md`.
 
 `go test ./...` and `go vet ./...` pass on 2026-06-21 with all TUI slices in place.
 
-## Not yet ported (deferred)
+## Later additions and remaining scope
 
-- editor-replacement extension slot.
-- inline terminal image rendering / Ctrl-V image paste (Gi uses `/attach` + media store).
-- theme/OAuth/settings selector components.
-- configurable keybinding map (Gi shortcuts remain mostly fixed).
+Added after the original port closeout:
+
+- `extension.editor` bounded ask-mode editor replacement;
+- `/paste-image [prompt]` command-driven clipboard image ingestion;
+- `/login [provider]` and `/logout <provider>` auth-file status/management.
+
+Still not implemented:
+
+- raw Ctrl-V terminal image protocols or inline Kitty/iTerm/Sixel rendering;
+- interactive browser/device OAuth initiation (credentials remain `auth.json`-backed);
+- theme selector and configurable keybinding map (Gi shortcuts remain mostly fixed).
 
 ## Constraints preserved
 

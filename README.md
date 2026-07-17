@@ -12,10 +12,10 @@ The web UI uses Piclaw's TypeScript source verbatim with a gi-specific API adapt
 
 ## Goals
 
-- unified **web / TUI / CLI** experience
+- unified **web / TUI** experience from one binary, with CLI startup/configuration flags
 - boringly reliable **turn handling** via append-only event log
 - workspace-centric operation with **SQLite-backed state**
-- **Piclaw compatibility** for settings, message model, keychain, prompt templates, and UX conventions
+- **Piclaw-oriented compatibility** for settings, message model, injected keychain references, prompt templates, and UX conventions (unsupported web APIs remain explicit adapter no-ops)
 - **Clojure-first** scripting and skills via Joker
 - **go-ai** as the model/provider layer
 
@@ -36,7 +36,7 @@ The web UI uses Piclaw's TypeScript source verbatim with a gi-specific API adapt
 
 The repo includes a growing internal documentation subtree under `docs/internal/`.
 
-This is intended to become a shipped read-only reference surface for the agent itself, likely exposed later as `vfs://reference/...`.
+This is shipped in the binary as the read-only `vfs://reference/...` surface for the agent itself (for example `vfs://reference/README.md` and `vfs://reference/tools/read.md`).
 
 If a change adds or materially changes an internal tool, scripting bridge capability, hook, managed `vfs://` behavior, or skill/package contract, the same change should update `docs/internal/`.
 
@@ -94,6 +94,12 @@ make start PORT=3000 BIND=0.0.0.0 MODEL=github-copilot/gpt-5-mini WORKSPACE=/wor
 | `-bind` | `127.0.0.1` | Bind host/interface |
 | `-port` | `8081` | HTTP port |
 | `-model` | (from settings) | Override default model |
+| `-tls-cert` / `-tls-key` | (none) | TLS certificate/private-key files |
+| `-acme-domains` | (none) | Comma-separated domains for ACME HTTPS |
+| `-acme-email` | (none) | ACME registration contact |
+| `-acme-cache` | `sqlite` | ACME cache backend: sqlite, vfs, or directory |
+| `-acme-accept-tos` | `false` | Accept ACME CA terms |
+| `-acme-http-listen` | `:http` | ACME HTTP-01/redirect listener; empty disables |
 | `-tui` | `false` | Run the terminal UI instead of the web server |
 | `-db` | `./gi.db` | SQLite database path |
 | `-workspace` | `/workspace` | Workspace root |

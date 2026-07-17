@@ -107,7 +107,7 @@ Pi-style image paste is not just a keybinding. Gi still needs a media ingestion 
 - how TUI, web, and API submissions share the same payload shape;
 - what limits and cleanup policies apply.
 
-The shared contract is now documented in [`media-ingestion-contract.md`](media-ingestion-contract.md). Until its minimal store/API primitives are implemented, image paste remains out of scope for the TUI.
+The shared contract is documented in [`media-ingestion-contract.md`](media-ingestion-contract.md) and its store/API primitives are implemented. `/attach` and `/paste-image` both project media through that same contract.
 
 ## Current support summary
 
@@ -116,5 +116,6 @@ The shared contract is now documented in [`media-ingestion-contract.md`](media-i
 - Native clipboard helpers: supported opt-in via `/copy --native` or `--auto`.
 - Ordinary text paste: unchanged terminal-rune behavior.
 - Bracketed paste: reassessed, deferred pending parser/editor support.
-- Direct image/media paste: deferred pending terminal/parser support.
-- TUI media fallback: supported via `/attach <path> [prompt]` and the shared media ingestion contract.
+- Command-driven clipboard image paste: supported via `/paste-image [prompt]` (alias `/paste`).
+- Raw Ctrl-V image payloads and inline terminal image protocols: deferred pending terminal/parser support.
+- TUI file fallback: supported via `/attach <path> [prompt]` and the shared media ingestion contract.

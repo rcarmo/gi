@@ -42,9 +42,9 @@ Implemented commands in `internal/tui/chat.go`:
 Still intentionally absent or deferred:
 
 - `/export` and `/share` rich session export/share affordances;
-- `/hotkeys` and `/changelog` dedicated Pi-style informational commands;
-- process-extension command dispatch (JS/Joker extension command dispatch is now implemented);
-- richer interactive pickers/widgets beyond the textual `/commands` fallback.
+- `/changelog` dedicated informational command (`/hotkeys` is implemented);
+- process-extension command dispatch (JS/Joker extension command dispatch is implemented);
+- additional rich forms/widgets beyond the searchable model/session/thinking selectors.
 
 ## Current keyboard/editor surface
 
@@ -74,10 +74,11 @@ Implemented in `internal/tui/multiline_input.go` and `internal/tui/chat.go`:
 Deferred/adapted editor items:
 
 - configurable keybindings are not implemented;
-- Ctrl+O tool collapse is not implemented;
+- Ctrl+O tool collapse is not implemented (transcript blocks use F6/F7 selection and F8 expand/collapse);
 - Ctrl+T is adapted for thinking-level cycling rather than a Pi-style thinking collapse UI;
 - ordinary text paste remains terminal-rune behavior;
-- explicit bracketed paste and image paste are deferred per `tui-paste-analysis.md` and `tui-clipboard-media.md`.
+- `/paste-image [prompt]` provides explicit command-driven clipboard image ingestion;
+- parser-level bracketed paste, raw Ctrl-V image payloads, and inline terminal image protocols remain deferred.
 
 ## Current session/runtime UX surface
 
@@ -109,7 +110,7 @@ Implemented:
 - no top chrome or permanent context block;
 - transient runtime notices routed to the single bottom status line;
 - compact `/help` with detailed discovery delegated to `/commands`, `/session`, `/where`, and `/settings`;
-- textual `/commands [query]` palette fallback;
+- textual `/commands [query]` palette plus searchable model/session/thinking selectors;
 - grouped `/settings` with runtime, model, editor, session, discovery, compaction, and peering sections;
 - denser `/tree`, `/resume`, `/settings`, and model-selection output for narrow terminals;
 - editor bindings for word movement, word deletion, line deletion, minimal undo/yank, `!`/`!!` shell shortcuts, Tab path completion, and textual `@path` completion;
@@ -121,8 +122,8 @@ Implemented:
 
 Remaining polish:
 
-- richer collapse/expand affordances for tools/thinking if key support exists;
-- richer visual pickers/palettes only if they can be added without replacing the current stack.
+- dedicated thinking-collapse behavior beyond transcript block expansion;
+- richer form widgets only if they can be added without replacing the current stack.
 
 ## Skills/extensions surface
 
