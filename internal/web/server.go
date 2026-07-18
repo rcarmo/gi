@@ -561,14 +561,27 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 		result *turn.SubmitResult
 		err    error
 	)
-	if req.TargetAgentID != "" && req.TargetAgentID != "default" {
-		result, err = s.turns.SubmitPeerMessage(r.Context(), sessionID, req.TargetAgentID, req.Prompt, req.Intent, model, req.ParentTurnID)
+	// Prompt submission returns 202 while the turn continues asynchronously; do
+	// not let client disconnect/navigation cancel accepted runtime work.
+	submitCtx := context.WithoutCancel(r.Context())
+	targetAgentID := strings.TrimPrefix(strings.TrimSpace(req.TargetAgentID), "@")
+	currentAgentID := ""
+	if identity, identityErr := s.store.RequireSessionIdentityRuntime(submitCtx, sessionID); identityErr == nil {
+		currentAgentID = identity.AgentID
+	}
+	if targetAgentID != "" && targetAgentID != "default" && targetAgentID != currentAgentID {
+		result, err = s.turns.SubmitPeerMessage(submitCtx, sessionID, targetAgentID, req.Prompt, req.Intent, model, req.ParentTurnID)
 	} else {
 		metadata := map[string]any{}
 		if len(req.Media) > 0 {
 			metadata["media"] = req.Media
 		}
-		result, err = s.turns.SubmitPromptRouted(r.Context(), turn.RunInput{SessionID: sessionID, Prompt: req.Prompt, Intent: req.Intent, Model: model, ParentTurnID: req.ParentTurnID, Metadata: metadata})
+		input := turn.RunInput{SessionID: sessionID, Prompt: req.Prompt, Intent: req.Intent, Model: model, ParentTurnID: req.ParentTurnID, Metadata: metadata}
+		if strings.HasPrefix(strings.TrimSpace(req.Prompt), "@") {
+			result, err = s.turns.SubmitPromptRouted(submitCtx, input)
+		} else {
+			result, err = s.turns.SubmitPrompt(submitCtx, input)
+		}
 	}
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})

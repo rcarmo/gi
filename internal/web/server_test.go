@@ -24,6 +24,45 @@ import (
 	"github.com/rcarmo/gi/internal/turn"
 )
 
+func TestPromptTargetingCurrentAgentStaysInSession(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	engine := turn.New(s)
+	srv := New(s, engine, config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "test-model", DefaultThinkingLevel: "medium"})
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/sessions", bytes.NewBufferString(`{"title":"@web","agent_id":"web"}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	createRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(createRes, createReq)
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createRes.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+	promptReq := httptest.NewRequest(http.MethodPost, "/api/sessions/"+created.ID+"/prompt", bytes.NewBufferString(`{"prompt":"same agent","target_agent_id":"web"}`))
+	promptReq.Header.Set("Content-Type", "application/json")
+	promptRes := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(promptRes, promptReq)
+	if promptRes.Code != http.StatusAccepted || bytes.Contains(promptRes.Body.Bytes(), []byte(`"routed":true`)) {
+		t.Fatalf("same-agent prompt must remain local: status=%d body=%s", promptRes.Code, promptRes.Body.String())
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		messages, _ := s.ListMessages(t.Context(), created.ID)
+		for _, message := range messages {
+			if message.Role == "assistant" && message.Content == "Gi received: same agent" {
+				return
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("same-agent response was not persisted in source session")
+}
+
 func TestServerSessionPromptTurnsFlow(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {

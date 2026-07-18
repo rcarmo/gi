@@ -5,7 +5,7 @@
  * and that the frontend establishes and maintains the connection.
  */
 import { test, expect } from '@playwright/test';
-import { BASE_URL, waitForAppShell, sendMessage, apiGet } from './helpers';
+import { BASE_URL, waitForAppShell, sendMessage, apiGet, findSessionForMessage } from './helpers';
 
 test.describe('SSE and streaming', () => {
 
@@ -48,22 +48,15 @@ test.describe('SSE and streaming', () => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
     
-    // Get session ID
-    const sessions = await page.evaluate(async () => {
-      const r = await fetch('/api/sessions');
-      return r.json();
-    });
-    const sid = sessions.sessions?.[0]?.id;
-    expect(sid).toBeTruthy();
-
     await sendMessage(page, 'SSE trigger test');
     await page.waitForTimeout(5000);
+    const session = await findSessionForMessage(page.request, 'SSE trigger test');
     
     // Verify the turn completed by checking API state
     const turns = await page.evaluate(async (sessionId: string) => {
       const r = await fetch(`/api/sessions/${sessionId}/turns`);
       return r.json();
-    }, sid);
+    }, session.id);
     
     expect(turns.turns.length).toBeGreaterThan(0);
     const lastTurn = turns.turns[turns.turns.length - 1];
@@ -76,9 +69,8 @@ test.describe('SSE and streaming', () => {
     await sendMessage(page, 'turn events check');
     await page.waitForTimeout(5000);
 
-    const sessions = await apiGet(request, '/api/sessions');
-    const sid = sessions.sessions[0].id;
-    const turns = await apiGet(request, `/api/sessions/${sid}/turns`);
+    const session = await findSessionForMessage(request, 'turn events check');
+    const turns = await apiGet(request, `/api/sessions/${session.id}/turns`);
     const lastTurn = turns.turns[turns.turns.length - 1];
     
     const events = await apiGet(request, `/api/turns/${lastTurn.id}/events`);

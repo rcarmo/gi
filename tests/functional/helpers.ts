@@ -44,6 +44,16 @@ export async function waitForPostCount(page: Page, count: number, timeoutMs = 15
   );
 }
 
+/** Find the session containing a uniquely named functional-test message. */
+export async function findSessionForMessage(request: any, text: string) {
+  const sessions = await apiGet(request, '/api/sessions');
+  for (const session of sessions.sessions || []) {
+    const messages = await apiGet(request, `/api/sessions/${session.id}/messages`);
+    if ((messages.messages || []).some((message: any) => String(message.content || '').includes(text))) return session;
+  }
+  throw new Error(`No session contains message: ${text}`);
+}
+
 /** Fetch JSON from the test instance API. */
 export async function apiGet(request: any, path: string) {
   const res = await request.get(`${BASE_URL}${path}`);

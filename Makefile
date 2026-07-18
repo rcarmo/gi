@@ -5,7 +5,7 @@ SHELL := /usr/bin/env bash
 
 GO ?= go
 BUN ?= bun
-PLAYWRIGHT ?= bunx playwright
+PLAYWRIGHT ?= scripts/run-playwright.sh
 
 # ── Runtime defaults ────────────────────────────────────────────────────
 
@@ -41,7 +41,7 @@ SERVER_DAEMON_ARGS = $(SERVER_LISTEN_ARGS) -model $(MODEL) -db $(abspath $(DB)) 
 SERVER_STATUS_ADDR = $(if $(LISTEN),$(LISTEN),$(BIND):$(PORT))
 TEST_SERVER_ARGS = -bind 127.0.0.1 -port $(TEST_PORT) -model test-model -db $(abspath $(TEST_DB)) -workspace $(abspath $(TEST_WORKSPACE)) -log-file $(abspath $(TEST_LOG)) -pid-file $(abspath $(TEST_PID))
 TEST_PICLAW_CONFIG_JSON = {"assistant":{"assistantName":"Gi Test"},"user":{"userName":"Test User"}}
-TEST_PI_SETTINGS_JSON = {"defaultProvider":"test","defaultModel":"test-model","defaultThinkingLevel":"low","enabledModels":["test-model"]}
+TEST_PI_SETTINGS_JSON = {"defaultProvider":"test","defaultModel":"test-model","defaultThinkingLevel":"low","enabledModels":["test-model"],"agents":{"list":[{"id":"web","name":"Gi Test","default":true,"model":"test-model"}]}}
 
 # ── Helper macros ───────────────────────────────────────────────────────
 
@@ -188,21 +188,22 @@ check: test vet build-web bun-checks test-ux
 
 test-instance-start: build
 	@mkdir -p $(TEST_DIR)
-	@rm -rf $(TEST_WORKSPACE) $(TEST_DB) $(TEST_LOG)
-	@mkdir -p $(TEST_WORKSPACE)/.piclaw $(TEST_WORKSPACE)/.pi
-	@printf '%s\n' '$(TEST_PICLAW_CONFIG_JSON)' > $(TEST_WORKSPACE)/.piclaw/config.json
-	@printf '%s\n' '$(TEST_PI_SETTINGS_JSON)' > $(TEST_WORKSPACE)/.pi/settings.json
 	@if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null; then \
 		kill $$(cat $(TEST_PID)) 2>/dev/null || true; \
 		sleep 1; \
 	fi
+	@rm -rf $(TEST_WORKSPACE) $(TEST_DB) $(TEST_LOG) $(TEST_PID)
+	@mkdir -p $(TEST_WORKSPACE)/.piclaw $(TEST_WORKSPACE)/.pi
+	@printf '%s\n' '$(TEST_PICLAW_CONFIG_JSON)' > $(TEST_WORKSPACE)/.piclaw/config.json
+	@printf '%s\n' '$(TEST_PI_SETTINGS_JSON)' > $(TEST_WORKSPACE)/.pi/settings.json
 	$(abspath $(BIN)) $(TEST_SERVER_ARGS) >/dev/null 2>&1 </dev/null &
-	@sleep 2
-	@if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null; then \
-		echo "Test instance running on 127.0.0.1:$(TEST_PORT) with PID $$(cat $(TEST_PID))"; \
-	else \
-		echo "Test instance failed to start"; cat $(TEST_LOG) 2>/dev/null; exit 1; \
-	fi
+	@for _ in 1 2 3 4 5 6 7 8 9 10; do \
+		if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null && curl -fsS http://127.0.0.1:$(TEST_PORT)/api/sessions >/dev/null; then \
+			echo "Test instance running on 127.0.0.1:$(TEST_PORT) with PID $$(cat $(TEST_PID))"; exit 0; \
+		fi; \
+		sleep 0.5; \
+	done; \
+	echo "Test instance failed to start"; cat $(TEST_LOG) 2>/dev/null; exit 1
 
 test-instance-stop:
 	@if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null; then \

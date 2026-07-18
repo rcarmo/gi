@@ -5,7 +5,7 @@
  * transitions, event persistence, and queue management.
  */
 import { test, expect } from '@playwright/test';
-import { BASE_URL, waitForAppShell, apiGet, sendMessage } from './helpers';
+import { BASE_URL, waitForAppShell, apiGet, sendMessage, findSessionForMessage } from './helpers';
 
 test.describe('Turn lifecycle', () => {
 
@@ -51,10 +51,9 @@ test.describe('Turn lifecycle', () => {
     await sendMessage(page, 'checkpoint test');
     await page.waitForTimeout(5000);
     
-    const sessions = await apiGet(request, '/api/sessions');
-    const sid = sessions.sessions[0].id;
-    const turns = await apiGet(request, `/api/sessions/${sid}/turns`);
-    const lastTurn = turns.turns[turns.turns.length - 1];
+    const session = await findSessionForMessage(request, 'checkpoint test');
+    const turns = await apiGet(request, `/api/sessions/${session.id}/turns`);
+    const lastTurn = turns.turns.find((turn: any) => turn.prompt === 'checkpoint test');
     const events = await apiGet(request, `/api/turns/${lastTurn.id}/events`);
     
     // All key events should have checkpoint: true

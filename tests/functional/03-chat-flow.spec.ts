@@ -5,7 +5,7 @@
  * interaction, message persistence, timeline rendering, and content visibility.
  */
 import { test, expect } from '@playwright/test';
-import { BASE_URL, waitForAppShell, getComposeInput, sendMessage, waitForPostCount, apiGet } from './helpers';
+import { BASE_URL, waitForAppShell, getComposeInput, sendMessage, waitForPostCount, apiGet, findSessionForMessage } from './helpers';
 
 test.describe('Chat flow', () => {
 
@@ -60,10 +60,8 @@ test.describe('Chat flow', () => {
     await sendMessage(page, 'persistence check');
     await page.waitForTimeout(5000);
     // Fetch sessions and messages via API
-    const sessions = await apiGet(request, '/api/sessions');
-    const sid = sessions.sessions[0]?.id;
-    expect(sid).toBeTruthy();
-    const msgs = await apiGet(request, `/api/sessions/${sid}/messages`);
+    const session = await findSessionForMessage(request, 'persistence check');
+    const msgs = await apiGet(request, `/api/sessions/${session.id}/messages`);
     const contents = msgs.messages.map((m: any) => m.content);
     expect(contents.some((c: string) => c.includes('persistence check'))).toBeTruthy();
   });
