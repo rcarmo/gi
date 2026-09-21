@@ -2,11 +2,22 @@
 
 Status: Active
 Date: 2026-04-22
-Last updated: 2026-04-28
+Last updated: 2026-09-21
 
 This checklist is organized by **subsystem** and grouped by **phase**.
 
 ---
+
+## Piclaw Classic web parity — 2026-09-21
+
+- [x] Vendor the frozen Vibes/Tau Classic corpus and shared interaction contract with hash checks.
+- [x] Add a Gi matrix covering Chromium/WebKit at phone/tablet/desktop sizes; unmapped cases are not passes.
+- [x] Map `@ux-original-001` and `002`, import the upstream TimelineMenu and drawer behavior, and pass all 12 executions.
+- [ ] Map the remaining 234 frozen scenarios and the shared interaction contract.
+- [ ] Implement real web multi-session/agent/chat selection with isolated drafts, queues and late-response guards (`@ux-original-013`–`015` and related session/model/queue cases).
+- [ ] Continue component refreshes from a pinned upstream source where the suite demonstrates a gap.
+
+Evidence and commands: [`../../tests/ux/README.md`](../../tests/ux/README.md). These results cover the mapped scenarios, not full Piclaw compliance.
 
 ## Phase 1 — minimal vertical slice
 

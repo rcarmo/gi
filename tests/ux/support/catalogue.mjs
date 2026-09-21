@@ -1,0 +1,51 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { generateMessages } from '@cucumber/gherkin';
+import { IdGenerator, SourceMediaType } from '@cucumber/messages';
+
+export const uxRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+export const mappedIds = new Set(['@ux-original-001', '@ux-original-002']);
+const sha256 = data => createHash('sha256').update(data).digest('hex');
+
+export function verifySources() {
+  const lines = readFileSync(join(uxRoot, 'upstream/SHA256SUMS'), 'utf8').trim().split('\n');
+  for (const line of lines) {
+    const [, hash, source] = line.match(/^([a-f0-9]{64})\s+(.+)$/) || [];
+    if (!hash || !source.startsWith('tests/e2e/features/classic/')) throw new Error(`Invalid source manifest line: ${line}`);
+    const destination = join(uxRoot, 'features/classic', source.slice('tests/e2e/features/classic/'.length));
+    if (sha256(readFileSync(destination)) !== hash) throw new Error(`Frozen Gherkin changed: ${destination}`);
+  }
+  const sharedHash = sha256(readFileSync(join(uxRoot, 'features/shared-canonical-ux.feature')));
+  if (sharedHash !== 'a08a623880c6f327bc051edc51bb2bbff2959aed86421b5227e61d5a92fc2441') {
+    throw new Error('Shared Vibes/Tau Gherkin changed');
+  }
+}
+
+function featureFiles(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
+    const path = join(dir, entry.name);
+    return entry.isDirectory() ? featureFiles(path) : entry.name.endsWith('.feature') ? [path] : [];
+  }).sort();
+}
+
+export function loadCorpus(kind = 'classic') {
+  verifySources();
+  const paths = kind === 'classic' ? featureFiles(join(uxRoot, 'features/classic')) : [join(uxRoot, 'features/shared-canonical-ux.feature')];
+  const cases = [];
+  for (const path of paths) {
+    const uri = relative(uxRoot, path);
+    const messages = generateMessages(readFileSync(path, 'utf8'), uri, SourceMediaType.TEXT_X_CUCUMBER_GHERKIN_PLAIN, {
+      newId: IdGenerator.incrementing(), includeSource: false, includeGherkinDocument: true, includePickles: true,
+    });
+    const errors = messages.filter(message => message.parseError);
+    if (errors.length) throw new Error(JSON.stringify(errors));
+    for (const { pickle } of messages) {
+      if (!pickle) continue;
+      const id = pickle.tags.map(tag => tag.name).find(tag => /^@ux-/.test(tag)) || `@shared-${cases.length + 1}`;
+      cases.push({ id, name: pickle.name, uri, line: pickle.location.line, steps: pickle.steps.map(step => step.text), tags: pickle.tags.map(tag => tag.name) });
+    }
+  }
+  return cases;
+}

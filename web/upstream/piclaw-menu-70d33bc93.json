@@ -1,0 +1,30 @@
+{
+  "commit": "70d33bc93ab540845bbcf5f80503ca8125c71594",
+  "files": [
+    {
+      "source": "runtime/web/src/components/timeline-menu.ts",
+      "destination": "web/src/components/timeline-menu.ts",
+      "sha256": "87b15ddbf0351141e146d14866a82e178c350b166f3dc609efed42a6d0605084"
+    },
+    {
+      "source": "runtime/web/src/components/language-switcher.ts",
+      "destination": "web/src/components/language-switcher.ts",
+      "sha256": "07aa10a3cb583f7739e126c24d491411c36e11059e2b3c27b746eeaf13639f6e"
+    },
+    {
+      "source": "runtime/web/src/utils/i18n.ts",
+      "destination": "web/src/utils/i18n.ts",
+      "sha256": "e3b0b75ec9764e3f2beaa055dc1e147c1ce7f162e301b4205eb1bab71aae3e5e"
+    },
+    {
+      "source": "runtime/web/src/ui/pwa-display-scale.ts",
+      "destination": "web/src/ui/pwa-display-scale.ts",
+      "sha256": "694dd9f545383c3efde66c63f89f1ca8645496a9340d2f2423393ed6d5344d34"
+    },
+    {
+      "source": "runtime/web/src/ui/recent-files.ts",
+      "destination": "web/src/ui/recent-files.ts",
+      "sha256": "bca7d4f290737a24036325bf50149f6ebb9e61a5b6b3bd52756a12f9d0f37361"
+    }
+  ]
+}

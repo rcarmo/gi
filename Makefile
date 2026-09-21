@@ -56,7 +56,7 @@ endef
 	build-web build \
 	run start stop restart status logs \
 	test vet bun-checks check \
-	test-instance-start test-instance-stop test-ux test-tui-smoke test-tui-gherkin \
+	test-instance-start test-instance-stop test-ux test-ux-parity ux-parity-inventory test-tui-smoke test-tui-gherkin \
 	clean
 
 # ── Help and bootstrap ──────────────────────────────────────────────────
@@ -89,6 +89,8 @@ help:
 		"  make test-ux          Run Playwright tests against an isolated instance" \
 		"  make test-tui-smoke   Run the tmux-based TUI smoke harness" \
 		"  make test-tui-gherkin Run the TUI gherkin harness" \
+		"  make test-ux-parity   Run mapped frozen Piclaw scenarios in Chromium/WebKit" \
+		"  make ux-parity-inventory Verify all frozen feature hashes and list coverage" \
 		"" \
 		"Isolated test instance" \
 		"  make test-instance-start  Start the isolated test server on 127.0.0.1:$(TEST_PORT)" \
@@ -217,6 +219,22 @@ test-ux: test-instance-start
 	rc=$$?; \
 	$(MAKE) --no-print-directory test-instance-stop; \
 	exit $$rc
+
+# Frozen Vibes/Tau Piclaw Classic corpus, with a separate disposable process.
+UX_PARITY_PORT ?= 19091
+UX_PARITY_ARGS ?=
+ux-parity-inventory:
+	$(BUN) test tests/ux/support/catalogue.test.mjs
+	$(BUN) scripts/ux-parity-report.mjs
+
+test-ux-parity:
+	$(MAKE) --no-print-directory test-instance-start TEST_PORT=$(UX_PARITY_PORT) TEST_DIR=.gi-ux-parity
+	@trap '$(MAKE) --no-print-directory test-instance-stop TEST_DIR=.gi-ux-parity' EXIT; \
+		rm -f test-results/ux-parity/results.json; \
+		GI_TEST_URL=http://127.0.0.1:$(UX_PARITY_PORT) $(PLAYWRIGHT) test -c playwright.ux.config.mjs $(UX_PARITY_ARGS); \
+		rc=$$?; \
+		$(BUN) scripts/ux-parity-report.mjs test-results/ux-parity/results.json || exit 1; \
+		exit $$rc
 
 test-tui-smoke: build
 	chmod +x scripts/test-tui-smoke.sh

@@ -34,6 +34,8 @@
         "@codemirror/search": "6.7.0",
         "@codemirror/state": "6.6.0",
         "@codemirror/view": "6.43.0",
+        "@cucumber/gherkin": "^42.0.1",
+        "@cucumber/messages": "^34.2.1",
         "@lezer/highlight": "1.2.3",
         "@playwright/test": "1.60.0",
         "@replit/codemirror-indentation-markers": "6.5.3",
@@ -86,6 +88,10 @@
     "@codemirror/state": ["@codemirror/state@6.6.0", "", { "dependencies": { "@marijn/find-cluster-break": "^1.0.0" } }, "sha512-4nbvra5R5EtiCzr9BTHiTLc+MLXK2QGiAVYMyi8PkQd3SR+6ixar/Q/01Fa21TBIDOZXgeWV4WppsQolSreAPQ=="],
 
     "@codemirror/view": ["@codemirror/view@6.43.0", "", { "dependencies": { "@codemirror/state": "^6.6.0", "crelt": "^1.0.6", "style-mod": "^4.1.0", "w3c-keyname": "^2.2.4" } }, "sha512-V7ZCLQO3Jus9hzh2jVCCPW3mO4IBMr43O37PqSUYautJSnnJF41YlgLw21x0fLJTYvJ+Vkm6Gp+qKGH9pltgXA=="],
+
+    "@cucumber/gherkin": ["@cucumber/gherkin@42.0.1", "", { "dependencies": { "@cucumber/messages": ">=34.0.0 <35" } }, "sha512-Kqg0ULhWqbXp/a1c04ND4sS4KTlIL831tQ0NhZLXWdEhT6LiNsZ5LFRzy/lBy7QQpcKhroKp/i3C2WdEnRBKNg=="],
+
+    "@cucumber/messages": ["@cucumber/messages@34.2.1", "", {}, "sha512-aj2iCAG9ZOpMVcMxcgShifv5fbR96b7SMgdWcPXXh2QbFp7OEcAnQ5MC5YfWUDSDasmw7FU5NJEsOrXdTQOU1A=="],
 
     "@lezer/common": ["@lezer/common@1.5.2", "", {}, "sha512-sxQE460fPZyU3sdc8lafxiPwJHBzZRy/udNFynGQky1SePYBdhkBl1kOagA9uT3pxR8K09bOrmTUqA9wb/PjSQ=="],
 

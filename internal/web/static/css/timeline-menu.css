@@ -1,0 +1,200 @@
+/* Piclaw 70d33bc93: classic/settings.css lines 1037-1094; workspace.css lines 369-460. */
+/* Timeline menu — fixed portal, positioned by JS to track .container */
+.timeline-menu-portal {
+    position: fixed;
+    z-index: 2000;
+    pointer-events: none;
+}
+
+.timeline-menu-portal > * {
+    pointer-events: auto;
+}
+
+.timeline-menu-btn {
+    width: 28px;
+    height: 28px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm, 4px);
+    color: var(--text-secondary);
+    padding: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.timeline-menu-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--accent-color);
+}
+
+.timeline-menu-btn.active {
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.timeline-menu-btn svg {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+/* Dropdown anchor depends on position */
+.timeline-menu-portal.in-chat .timeline-menu-dropdown {
+    left: 0;
+    right: auto;
+}
+
+.timeline-menu-portal.in-workspace .timeline-menu-dropdown {
+    left: 0;
+    right: auto;
+}
+
+/* Hide the workspace explorer's own hamburger — replaced by timeline menu */
+.workspace-header-left > .workspace-menu-wrap {
+    display: none;
+}
+.timeline-menu-dropdown .workspace-menu-separator {
+    margin: 3px 0;
+}
+
+.workspace-menu-scale-control {
+    display: none; /* Only visible in Android standalone PWA mode */
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    min-height: 36px;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+    .workspace-menu-scale-control {
+        display: flex;
+    }
+}
+
+.workspace-menu-scale-input-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-secondary);
+}
+
+.workspace-menu-scale-input {
+    width: 4.6rem;
+    min-height: 30px;
+    padding: 4px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font: inherit;
+    text-align: right;
+}
+
+.workspace-menu-scale-input:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+}
+
+.workspace-menu-separator {
+    height: 1px;
+    margin: 2px 4px;
+    background: var(--border-color);
+}
+
+.workspace-menu-language {
+    padding: 6px 10px;
+}
+
+.language-switcher {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.language-switcher-label {
+    color: var(--text-secondary);
+}
+
+.language-switcher-select {
+    min-height: 30px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font: inherit;
+    cursor: pointer;
+}
+
+.language-switcher-select:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+}
+
+.timeline-menu-dropdown .workspace-menu-scale-control {
+    min-height: 30px;
+    padding: 5px 10px;
+}
+
+.timeline-menu-dropdown .workspace-menu-scale-input {
+    height: 26px;
+}
+
+/* Piclaw 70d33bc93: classic/workspace.css drawer, lines 37-39 and 130-172. */
+.workspace-drawer-backdrop {
+    display: none;
+}
+
+/* The desktop layout keeps the workspace in the flex row. On narrower or
+   portrait viewports, an explicit Show workspace action opens it as a drawer
+   instead of leaving the state open while the base display:none rule wins. */
+@media (max-width: 1023px), (orientation: portrait) {
+    .app-shell:not(.workspace-collapsed) > .workspace-sidebar {
+        display: flex;
+        position: absolute;
+        inset: 0 auto 0 0;
+        z-index: 61;
+        width: min(var(--sidebar-width, 280px), calc(100vw - 48px));
+        min-width: 0;
+        max-width: calc(100vw - 48px);
+        box-shadow: var(--shadow-lg, 0 18px 48px rgba(0, 0, 0, 0.32));
+    }
+
+    .app-shell:not(.workspace-collapsed) > .workspace-drawer-backdrop {
+        display: block;
+        position: absolute;
+        inset: 0;
+        z-index: 60;
+        border: 0;
+        padding: 0;
+        background: color-mix(in srgb, var(--bg-primary) 44%, transparent);
+        backdrop-filter: blur(2px);
+        cursor: pointer;
+    }
+
+    .app-shell:not(.workspace-collapsed) > .workspace-toggle-tab {
+        display: flex;
+        left: calc(min(var(--sidebar-width, 280px), calc(100vw - 48px)) - var(--workspace-tab-width, 20px));
+        z-index: 62;
+    }
+
+    .app-shell > .workspace-splitter {
+        display: none;
+    }
+}
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);

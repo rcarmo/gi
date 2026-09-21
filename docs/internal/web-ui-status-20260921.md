@@ -1,0 +1,50 @@
+# Gi web UI — 2026-09-21
+
+Gi has a Piclaw-derived Preact web shell backed by Go HTTP APIs, SSE and SQLite. Many copied Piclaw controls have no working Gi adapter yet. Backend capabilities and browser feature support differ substantially.
+
+## Implemented and wired
+
+- Embedded JavaScript/CSS, identity/avatar configuration, themes and system meters.
+- A default browser chat, persisted message timeline, Markdown/code rendering, compose input and prompt submission.
+- Session-scoped SSE subscription and periodic timeline refresh.
+- Backend session creation, forks, explicit peer routing, turn cancellation and event history; some of these are exposed through the browser's session controls.
+- Provider/model listing and runtime model-selection API. This is not yet proven to preserve independent models per browser session.
+- Workspace tree/file reads and file creation endpoints.
+- HTTP authentication middleware, TOTP login and TLS/ACME server options. These concern access to Gi, not provider OAuth login.
+- Model tools through `/api/tools/execute`, including read-only `vfs://reference` documentation.
+
+## First parity correction
+
+The frozen Piclaw Classic corpus used by Vibes/Tau is now at `tests/ux/features/classic/`. It contains 24 files, 236 tagged scenarios and 256 expanded cases. The separate shared Vibes/Tau contract is also copied byte-for-byte (42 expanded cases).
+
+Gi previously had only the explorer's file-actions menu. The global TimelineMenu, language selector, recent-file and display-scale helpers were imported unchanged from Piclaw `70d33bc93ab540845bbcf5f80503ca8125c71594`. Source hashes and upstream MIT licence are in `web/upstream/`. The Gi adapter now mounts that menu and the Piclaw narrow-screen workspace drawer/backdrop. CSS excerpts retain source line references.
+
+`@ux-original-001` and `002` pass in Chromium and WebKit at phone, tablet and desktop sizes: 12/12 executions. They check menu dismissal, workspace toggling, preserved draft/session and absence of accidental submission. They do not exercise every menu action. Settings, terminal/VNC, recent-file editor behaviour, other session actions and the shared contract still need their own mappings.
+
+## Incomplete browser features
+
+| Area | Current limitation |
+|---|---|
+| Multi-session/agent/chat | Backend identities, session/fork records and switch callbacks exist. The app centres on a hard-coded `web` agent and one `gi_session_id`. Creating another `@web` main session can resolve to the existing main session. Independent drafts, queues, model/context state and late-response rejection need implementation and browser evidence. |
+| Session actions | Rename/archive/restore helpers return null; other session callbacks are no-ops. A visible control does not establish persistence. |
+| Queue and steer | The queue adapter returns an empty list; reorder/steer handlers are stubs. Backend queue capabilities do not reach the browser stack. |
+| Attachments | Media storage/API endpoints exist, but `uploadMedia` returns null and send helpers ignore media IDs. Browser attachment delivery is incomplete. |
+| Workspace editor | Tab headers can open; the editor host is not connected to a working pane implementation. Rename/move/delete/upload/reindex/preview helpers are stubs. |
+| Terminal/VNC | Component sources exist; app callbacks do not open working native sessions. |
+| Timeline actions | Delete is a no-op; thread retrieval is empty; card actions and several widget callbacks are not connected. |
+| Search | Search adapter filters loaded messages, but the app disables the search control. |
+| Plan / Quick Actions | No complete native web integration or parity mappings yet. |
+| Auth/settings | Named secret references resolve from injected environment variables. No browser keychain management or interactive provider OAuth flow. |
+| Notifications/approvals | Browser push subscription and approval-response helpers are stubs. |
+
+Principal evidence: `web/src/app.ts`, `web/src/api.ts`, `internal/web/{server,sse,workspace,tools,auth,runtime}.go` and `tests/ux/README.md`.
+
+## Validation and next work
+
+- Full Go suite passed after correcting a reproduced shell stdout-drain race; regression failed before the fix with 128 of 26,013 bytes and passes afterward. Commit `49c6cac`.
+- `make vet` and `make bun-checks` passed.
+- Frozen source hash/inventory tests passed.
+- New mapped parity matrix: 12/12 passed; 2/236 scenarios mapped, 234 unmapped. No blanket retries, fallback submits or forced clicks.
+- Existing `make test-ux`: 58/70 passed, 12 failed in chat/SSE/compose/turn cases. This suite is not green. Fixing pipe ordering alone did not resolve these browser/runtime failures.
+
+Next priority: map session-picker cases `@ux-original-013`–`015`, then implement coherent multi-session state and failure-safe mutations. Queue/model/context/draft isolation and reconnect races must be checked through visible controls and native persistence. Do not infer full Piclaw compliance from the first shell cases.

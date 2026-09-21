@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests',
+  testIgnore: '**/ux/**', // Frozen parity matrix has its own config and isolated process.
   timeout: 30000,
   retries: 0,
   workers: 1, // serial — tests share the same server instance

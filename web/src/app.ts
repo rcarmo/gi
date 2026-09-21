@@ -15,6 +15,7 @@ import { useAgentState } from './ui/use-agent-state.js';
 import { useSseConnection } from './ui/use-sse-connection.js';
 import { handleAppSseEvent } from './ui/app-sse-events.js';
 import { initTheme } from './ui/theme.js';
+import { installPwaDisplayScaleSync } from './ui/pwa-display-scale.js';
 import {
     LAST_ACTIVITY_TTL_MS,
     SILENCE_FINALIZE_MS,
@@ -60,6 +61,7 @@ import { TabStrip } from './components/tab-strip.js';
 import { FloatingWidgetPane } from './components/floating-widget-pane.js';
 import { AttachmentPreviewModal } from './components/attachment-preview-modal.js';
 import { SystemMetersHud } from './components/system-meters-hud.js';
+import { TimelineMenu } from './components/timeline-menu.js';
 
 // ── Gi session bridge ──────────────────────────────────────────────────────
 // Piclaw components expect chat_jid strings. We map Gi sessions onto that
@@ -180,6 +182,7 @@ function GiApp() {
 
     useEffect(() => {
         const cleanupTheme = initTheme();
+        const cleanupDisplayScale = installPwaDisplayScaleSync();
         // Enable meters by default until /meters slash command exists
         if (getLocalStorageItem('piclaw_system_meters_enabled') === null) {
             setLocalStorageItem('piclaw_system_meters_enabled', 'true');
@@ -206,7 +209,7 @@ function GiApp() {
         }).catch((err) => {
             console.error('[gi] Bootstrap failed:', err);
         });
-        return cleanupTheme;
+        return () => { cleanupTheme?.(); cleanupDisplayScale(); };
     }, []);
 
     // ── Timeline loading ─────────────────────────────────────────────────────
@@ -390,6 +393,12 @@ function GiApp() {
     return html`
         <div class=${appShellClass}>
             <${SystemMetersHud} mode="overlay" />
+            <${TimelineMenu}
+                workspaceOpen=${workspaceOpen}
+                toggleWorkspace=${() => setWorkspaceOpen((v: boolean) => !v)}
+                chatOnlyMode=${false}
+                openEditor=${openEditor}
+            />
             <${WorkspaceExplorer}
                 onFileSelect=${(path: string) => setFileRefs((p: string[]) => [...p, path])}
                 visible=${workspaceOpen}
@@ -398,10 +407,18 @@ function GiApp() {
                 onOpenTerminalTab=${() => {}}
                 onOpenVncTab=${() => {}}
             />
+            ${workspaceOpen && html`<button
+                class="workspace-drawer-backdrop"
+                onClick=${() => setWorkspaceOpen(false)}
+                aria-label="Hide workspace"
+                title="Hide workspace"
+            ></button>`}
             <button
                 class=${`workspace-toggle-tab${workspaceOpen ? ' open' : ' closed'}`}
                 onClick=${() => setWorkspaceOpen((v: boolean) => !v)}
                 title=${workspaceOpen ? 'Hide workspace' : 'Show workspace'}
+                aria-label=${workspaceOpen ? 'Hide workspace' : 'Show workspace'}
+                aria-expanded=${workspaceOpen ? 'true' : 'false'}
             >
                 <svg class="workspace-toggle-tab-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 3 11 8 6 13" />

@@ -1,494 +1,489 @@
 // web/src/vendor/preact-htm.js
-var f;
+var q;
+var m;
+var p_;
+var I_;
+var H;
+var c_;
+var h_;
+var d_;
+var J;
 var L;
-var R0;
-var y0;
-var I;
-var X0;
-var D0;
-var F0;
-var r;
-var a;
-var _;
-var J0;
-var u;
-var o;
-var i;
-var L0;
-var x = {};
-var k = [];
-var x0 = /acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ntw|ine[ch]|zoo|^ord|itera/i;
-var s = Array.isArray;
-function U(O, E) {
-  for (var Y in E)
-    O[Y] = E[Y];
-  return O;
+var M;
+var m_;
+var Z;
+var K;
+var Q;
+var v_;
+var I = {};
+var V = [];
+var V_ = /acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ntw|ine[ch]|zoo|^ord|itera/i;
+var j = Array.isArray;
+function w(e, _) {
+  for (var t in _)
+    e[t] = _[t];
+  return e;
 }
-function n(O) {
-  O && O.parentNode && O.parentNode.removeChild(O);
+function __(e) {
+  e && e.parentNode && e.parentNode.removeChild(e);
 }
-function E0(O, E, Y) {
-  var g, V, Z, Q = {};
-  for (Z in E)
-    Z == "key" ? g = E[Z] : Z == "ref" ? V = E[Z] : Q[Z] = E[Z];
-  if (arguments.length > 2 && (Q.children = arguments.length > 3 ? f.call(arguments, 2) : Y), typeof O == "function" && O.defaultProps != null)
-    for (Z in O.defaultProps)
-      Q[Z] === undefined && (Q[Z] = O.defaultProps[Z]);
-  return y(O, Q, g, V, null);
+function e_(e, _, t) {
+  var o, i, n, u = {};
+  for (n in _)
+    n == "key" ? o = _[n] : n == "ref" ? i = _[n] : u[n] = _[n];
+  if (arguments.length > 2 && (u.children = arguments.length > 3 ? q.call(arguments, 2) : t), typeof e == "function" && e.defaultProps != null)
+    for (n in e.defaultProps)
+      u[n] === undefined && (u[n] = e.defaultProps[n]);
+  return R(e, u, o, i, null);
 }
-function y(O, E, Y, g, V) {
-  var Z = { type: O, props: E, key: Y, ref: g, __k: null, __: null, __b: 0, __e: null, __c: null, constructor: undefined, __v: V == null ? ++R0 : V, __i: -1, __u: 0 };
-  return V == null && L.vnode != null && L.vnode(Z), Z;
+function R(e, _, t, o, i) {
+  var n = { type: e, props: _, key: t, ref: o, __k: null, __: null, __b: 0, __e: null, __c: null, constructor: undefined, __v: i == null ? ++p_ : i, __i: -1, __u: 0 };
+  return i == null && m.vnode != null && m.vnode(n), n;
 }
-function e(O) {
-  return O.children;
+function O(e) {
+  return e.children;
 }
-function $(O, E) {
-  this.props = O, this.context = E;
+function A(e, _) {
+  this.props = e, this.context = _;
 }
-function H(O, E) {
-  if (E == null)
-    return O.__ ? H(O.__, O.__i + 1) : null;
-  for (var Y;E < O.__k.length; E++)
-    if ((Y = O.__k[E]) != null && Y.__e != null)
-      return Y.__e;
-  return typeof O.type == "function" ? H(O) : null;
+function N(e, _) {
+  if (_ == null)
+    return e.__ ? N(e.__, e.__i + 1) : null;
+  for (var t;_ < e.__k.length; _++)
+    if ((t = e.__k[_]) != null && t.__e != null)
+      return t.__e;
+  return typeof e.type == "function" ? N(e) : null;
 }
-function k0(O) {
-  if (O.__P && O.__d) {
-    var E = O.__v, Y = E.__e, g = [], V = [], Z = U({}, E);
-    Z.__v = E.__v + 1, L.vnode && L.vnode(Z), O0(O.__P, Z, E, O.__n, O.__P.namespaceURI, 32 & E.__u ? [Y] : null, g, Y == null ? H(E) : Y, !!(32 & E.__u), V), Z.__v = E.__v, Z.__.__k[Z.__i] = Z, C0(g, Z, V), E.__e = E.__ = null, Z.__e != Y && d0(Z);
+function $_(e) {
+  if (e.__P && e.__d) {
+    var _ = e.__v, t = _.__e, o = [], i = [], n = w({}, _);
+    n.__v = _.__v + 1, m.vnode && m.vnode(n), t_(e.__P, n, _, e.__n, e.__P.namespaceURI, 32 & _.__u ? [t] : null, o, t == null ? N(_) : t, !!(32 & _.__u), i), n.__v = _.__v, n.__.__k[n.__i] = n, k_(o, n, i), _.__e = _.__ = null, n.__e != t && y_(n);
   }
 }
-function d0(O) {
-  if ((O = O.__) != null && O.__c != null)
-    return O.__e = O.__c.base = null, O.__k.some(function(E) {
-      if (E != null && E.__e != null)
-        return O.__e = O.__c.base = E.__e;
-    }), d0(O);
+function y_(e) {
+  if ((e = e.__) != null && e.__c != null)
+    return e.__e = e.__c.base = null, e.__k.some(function(_) {
+      if (_ != null && _.__e != null)
+        return e.__e = e.__c.base = _.__e;
+    }), y_(e);
 }
-function t(O) {
-  (!O.__d && (O.__d = true) && I.push(O) && !p.__r++ || X0 != L.debounceRendering) && ((X0 = L.debounceRendering) || D0)(p);
+function X(e) {
+  (!e.__d && (e.__d = true) && H.push(e) && !B.__r++ || c_ != m.debounceRendering) && ((c_ = m.debounceRendering) || h_)(B);
 }
-function p() {
+function B() {
   try {
-    for (var O, E = 1;I.length; )
-      I.length > E && I.sort(F0), O = I.shift(), E = I.length, k0(O);
+    for (var e, _ = 1;H.length; )
+      H.length > _ && H.sort(d_), e = H.shift(), _ = H.length, $_(e);
   } finally {
-    I.length = p.__r = 0;
+    H.length = B.__r = 0;
   }
 }
-function j0(O, E, Y, g, V, Z, Q, X, b, W, R) {
-  var G, K, D, q, N, C, J, F = g && g.__k || k, B = E.length;
-  for (b = p0(Y, E, F, b, B), G = 0;G < B; G++)
-    (D = Y.__k[G]) != null && (K = D.__i != -1 && F[D.__i] || x, D.__i = G, C = O0(O, D, K, V, Z, Q, X, b, W, R), q = D.__e, D.ref && K.ref != D.ref && (K.ref && Y0(K.ref, null, D), R.push(D.ref, D.__c || q, D)), N == null && q != null && (N = q), (J = !!(4 & D.__u)) || K.__k === D.__k ? (b = q0(D, b, O, J), J && K.__e && (K.__e = null)) : typeof D.type == "function" && C !== undefined ? b = C : q && (b = q.nextSibling), D.__u &= -7);
-  return Y.__e = N, b;
+function g_(e, _, t, o, i, n, u, s, c, l, a) {
+  var r, f, p, g, k, b, d, h = o && o.__k || V, C = _.length;
+  for (c = B_(t, _, h, c, C), r = 0;r < C; r++)
+    (p = t.__k[r]) != null && (f = p.__i != -1 && h[p.__i] || I, p.__i = r, b = t_(e, p, f, i, n, u, s, c, l, a), g = p.__e, p.ref && f.ref != p.ref && (f.ref && n_(f.ref, null, p), a.push(p.ref, p.__c || g, p)), k == null && g != null && (k = g), (d = !!(4 & p.__u)) || f.__k === p.__k ? (c = b_(p, c, e, d), d && f.__e && (f.__e = null)) : typeof p.type == "function" && b !== undefined ? c = b : g && (c = g.nextSibling), p.__u &= -7);
+  return t.__e = k, c;
 }
-function p0(O, E, Y, g, V) {
-  var Z, Q, X, b, W, R = Y.length, G = R, K = 0;
-  for (O.__k = Array(V), Z = 0;Z < V; Z++)
-    (Q = E[Z]) != null && typeof Q != "boolean" && typeof Q != "function" ? (typeof Q == "string" || typeof Q == "number" || typeof Q == "bigint" || Q.constructor == String ? Q = O.__k[Z] = y(null, Q, null, null, null) : s(Q) ? Q = O.__k[Z] = y(e, { children: Q }, null, null, null) : Q.constructor === undefined && Q.__b > 0 ? Q = O.__k[Z] = y(Q.type, Q.props, Q.key, Q.ref ? Q.ref : null, Q.__v) : O.__k[Z] = Q, b = Z + K, Q.__ = O, Q.__b = O.__b + 1, X = null, (W = Q.__i = f0(Q, Y, b, G)) != -1 && (G--, (X = Y[W]) && (X.__u |= 2)), X == null || X.__v == null ? (W == -1 && (V > R ? K-- : V < R && K++), typeof Q.type != "function" && (Q.__u |= 4)) : W != b && (W == b - 1 ? K-- : W == b + 1 ? K++ : (W > b ? K-- : K++, Q.__u |= 4))) : O.__k[Z] = null;
-  if (G)
-    for (Z = 0;Z < R; Z++)
-      (X = Y[Z]) != null && (2 & X.__u) == 0 && (X.__e == g && (g = H(X)), S0(X, X));
-  return g;
+function B_(e, _, t, o, i) {
+  var n, u, s, c, l, a = t.length, r = a, f = 0;
+  for (e.__k = Array(i), n = 0;n < i; n++)
+    (u = _[n]) != null && typeof u != "boolean" && typeof u != "function" ? (typeof u == "string" || typeof u == "number" || typeof u == "bigint" || u.constructor == String ? u = e.__k[n] = R(null, u, null, null, null) : j(u) ? u = e.__k[n] = R(O, { children: u }, null, null, null) : u.constructor === undefined && u.__b > 0 ? u = e.__k[n] = R(u.type, u.props, u.key, u.ref ? u.ref : null, u.__v) : e.__k[n] = u, c = n + f, u.__ = e, u.__b = e.__b + 1, s = null, (l = u.__i = q_(u, t, c, r)) != -1 && (r--, (s = t[l]) && (s.__u |= 2)), s == null || s.__v == null ? (l == -1 && (i > a ? f-- : i < a && f++), typeof u.type != "function" && (u.__u |= 4)) : l != c && (l == c - 1 ? f-- : l == c + 1 ? f++ : (l > c ? f-- : f++, u.__u |= 4))) : e.__k[n] = null;
+  if (r)
+    for (n = 0;n < a; n++)
+      (s = t[n]) != null && (2 & s.__u) == 0 && (s.__e == o && (o = N(s)), w_(s, s));
+  return o;
 }
-function q0(O, E, Y, g) {
-  var V, Z;
-  if (typeof O.type == "function") {
-    for (V = O.__k, Z = 0;V && Z < V.length; Z++)
-      V[Z] && (V[Z].__ = O, E = q0(V[Z], E, Y, g));
-    return E;
+function b_(e, _, t, o) {
+  var i, n;
+  if (typeof e.type == "function") {
+    for (i = e.__k, n = 0;i && n < i.length; n++)
+      i[n] && (i[n].__ = e, _ = b_(i[n], _, t, o));
+    return _;
   }
-  O.__e != E && (g && (E && O.type && !E.parentNode && (E = H(O)), Y.insertBefore(O.__e, E || null)), E = O.__e);
+  e.__e != _ && (o && (_ && e.type && !_.parentNode && (_ = N(e)), t.insertBefore(e.__e, _ || null)), _ = e.__e);
   do
-    E = E && E.nextSibling;
-  while (E != null && E.nodeType == 8);
-  return E;
+    _ = _ && _.nextSibling;
+  while (_ != null && _.nodeType == 8);
+  return _;
 }
-function f0(O, E, Y, g) {
-  var V, Z, Q, X = O.key, b = O.type, W = E[Y], R = W != null && (2 & W.__u) == 0;
-  if (W === null && X == null || R && X == W.key && b == W.type)
-    return Y;
-  if (g > (R ? 1 : 0)) {
-    for (V = Y - 1, Z = Y + 1;V >= 0 || Z < E.length; )
-      if ((W = E[Q = V >= 0 ? V-- : Z++]) != null && (2 & W.__u) == 0 && X == W.key && b == W.type)
-        return Q;
+function q_(e, _, t, o) {
+  var i, n, u, { key: s, type: c } = e, l = _[t], a = l != null && (2 & l.__u) == 0;
+  if (l === null && s == null || a && s == l.key && c == l.type)
+    return t;
+  if (o > (a ? 1 : 0)) {
+    for (i = t - 1, n = t + 1;i >= 0 || n < _.length; )
+      if ((l = _[u = i >= 0 ? i-- : n++]) != null && (2 & l.__u) == 0 && s == l.key && c == l.type)
+        return u;
   }
   return -1;
 }
-function b0(O, E, Y) {
-  E[0] == "-" ? O.setProperty(E, Y == null ? "" : Y) : O[E] = Y == null ? "" : typeof Y != "number" || x0.test(E) ? Y : Y + "px";
+function f_(e, _, t) {
+  _[0] == "-" ? e.setProperty(_, t == null ? "" : t) : e[_] = t == null ? "" : typeof t != "number" || V_.test(_) ? t : t + "px";
 }
-function m(O, E, Y, g, V) {
-  var Z, Q;
-  E:
-    if (E == "style")
-      if (typeof Y == "string")
-        O.style.cssText = Y;
+function W(e, _, t, o, i) {
+  var n, u;
+  _:
+    if (_ == "style")
+      if (typeof t == "string")
+        e.style.cssText = t;
       else {
-        if (typeof g == "string" && (O.style.cssText = g = ""), g)
-          for (E in g)
-            Y && E in Y || b0(O.style, E, "");
-        if (Y)
-          for (E in Y)
-            g && Y[E] == g[E] || b0(O.style, E, Y[E]);
+        if (typeof o == "string" && (e.style.cssText = o = ""), o)
+          for (_ in o)
+            t && _ in t || f_(e.style, _, "");
+        if (t)
+          for (_ in t)
+            o && t[_] == o[_] || f_(e.style, _, t[_]);
       }
-    else if (E[0] == "o" && E[1] == "n")
-      Z = E != (E = E.replace(J0, "$1")), Q = E.toLowerCase(), E = Q in O || E == "onFocusOut" || E == "onFocusIn" ? Q.slice(2) : E.slice(2), O.l || (O.l = {}), O.l[E + Z] = Y, Y ? g ? Y[_] = g[_] : (Y[_] = u, O.addEventListener(E, Z ? i : o, Z)) : O.removeEventListener(E, Z ? i : o, Z);
+    else if (_[0] == "o" && _[1] == "n")
+      n = _ != (_ = _.replace(m_, "$1")), u = _.toLowerCase(), _ = u in e || _ == "onFocusOut" || _ == "onFocusIn" ? u.slice(2) : _.slice(2), e.l || (e.l = {}), e.l[_ + n] = t, t ? o ? t[M] = o[M] : (t[M] = Z, e.addEventListener(_, n ? Q : K, n)) : e.removeEventListener(_, n ? Q : K, n);
     else {
-      if (V == "http://www.w3.org/2000/svg")
-        E = E.replace(/xlink(H|:h)/, "h").replace(/sName$/, "s");
-      else if (E != "width" && E != "height" && E != "href" && E != "list" && E != "form" && E != "tabIndex" && E != "download" && E != "rowSpan" && E != "colSpan" && E != "role" && E != "popover" && E in O)
+      if (i == "http://www.w3.org/2000/svg")
+        _ = _.replace(/xlink(H|:h)/, "h").replace(/sName$/, "s");
+      else if (_ != "width" && _ != "height" && _ != "href" && _ != "list" && _ != "form" && _ != "tabIndex" && _ != "download" && _ != "rowSpan" && _ != "colSpan" && _ != "role" && _ != "popover" && _ in e)
         try {
-          O[E] = Y == null ? "" : Y;
-          break E;
-        } catch (X) {}
-      typeof Y == "function" || (Y == null || Y === false && E[4] != "-" ? O.removeAttribute(E) : O.setAttribute(E, E == "popover" && Y == 1 ? "" : Y));
+          e[_] = t == null ? "" : t;
+          break _;
+        } catch (s) {}
+      typeof t == "function" || (t == null || t === false && _[4] != "-" ? e.removeAttribute(_) : e.setAttribute(_, _ == "popover" && t == 1 ? "" : t));
     }
 }
-function K0(O) {
-  return function(E) {
+function a_(e) {
+  return function(_) {
     if (this.l) {
-      var Y = this.l[E.type + O];
-      if (E[a] == null)
-        E[a] = u++;
-      else if (E[a] < Y[_])
+      var t = this.l[_.type + e];
+      if (_[L] == null)
+        _[L] = Z++;
+      else if (_[L] < t[M])
         return;
-      return Y(L.event ? L.event(E) : E);
+      return t(m.event ? m.event(_) : _);
     }
   };
 }
-function O0(O, E, Y, g, V, Z, Q, X, b, W) {
-  var R, G, K, D, q, N, C, J, F, B, P, v, W0, T, h, S = E.type;
-  if (E.constructor !== undefined)
+function t_(e, _, t, o, i, n, u, s, c, l) {
+  var a, r, f, p, g, k, b, d, h, C, S, T, s_, F, G, x = _.type;
+  if (_.constructor !== undefined)
     return null;
-  128 & Y.__u && (b = !!(32 & Y.__u), Z = [X = E.__e = Y.__e]), (R = L.__b) && R(E);
-  E:
-    if (typeof S == "function")
+  128 & t.__u && (c = !!(32 & t.__u), n = [s = _.__e = t.__e]), (a = m.__b) && a(_);
+  _:
+    if (typeof x == "function")
       try {
-        if (J = E.props, F = S.prototype && S.prototype.render, B = (R = S.contextType) && g[R.__c], P = R ? B ? B.props.value : R.__ : g, Y.__c ? C = (G = E.__c = Y.__c).__ = G.__E : (F ? E.__c = G = new S(J, P) : (E.__c = G = new $(J, P), G.constructor = S, G.render = e0), B && B.sub(G), G.state || (G.state = {}), G.__n = g, K = G.__d = true, G.__h = [], G._sb = []), F && G.__s == null && (G.__s = G.state), F && S.getDerivedStateFromProps != null && (G.__s == G.state && (G.__s = U({}, G.__s)), U(G.__s, S.getDerivedStateFromProps(J, G.__s))), D = G.props, q = G.state, G.__v = E, K)
-          F && S.getDerivedStateFromProps == null && G.componentWillMount != null && G.componentWillMount(), F && G.componentDidMount != null && G.__h.push(G.componentDidMount);
+        if (d = _.props, h = x.prototype && x.prototype.render, C = (a = x.contextType) && o[a.__c], S = a ? C ? C.props.value : a.__ : o, t.__c ? b = (r = _.__c = t.__c).__ = r.__E : (h ? _.__c = r = new x(d, S) : (_.__c = r = new A(d, S), r.constructor = x, r.render = O_), C && C.sub(r), r.state || (r.state = {}), r.__n = o, f = r.__d = true, r.__h = [], r._sb = []), h && r.__s == null && (r.__s = r.state), h && x.getDerivedStateFromProps != null && (r.__s == r.state && (r.__s = w({}, r.__s)), w(r.__s, x.getDerivedStateFromProps(d, r.__s))), p = r.props, g = r.state, r.__v = _, f)
+          h && x.getDerivedStateFromProps == null && r.componentWillMount != null && r.componentWillMount(), h && r.componentDidMount != null && r.__h.push(r.componentDidMount);
         else {
-          if (F && S.getDerivedStateFromProps == null && J !== D && G.componentWillReceiveProps != null && G.componentWillReceiveProps(J, P), E.__v == Y.__v || !G.__e && G.shouldComponentUpdate != null && G.shouldComponentUpdate(J, G.__s, P) === false) {
-            E.__v != Y.__v && (G.props = J, G.state = G.__s, G.__d = false), E.__e = Y.__e, E.__k = Y.__k, E.__k.some(function(z) {
-              z && (z.__ = E);
-            }), k.push.apply(G.__h, G._sb), G._sb = [], G.__h.length && Q.push(G);
-            break E;
+          if (h && x.getDerivedStateFromProps == null && d !== p && r.componentWillReceiveProps != null && r.componentWillReceiveProps(d, S), _.__v == t.__v || !r.__e && r.shouldComponentUpdate != null && r.shouldComponentUpdate(d, r.__s, S) === false) {
+            _.__v != t.__v && (r.props = d, r.state = r.__s, r.__d = false), _.__e = t.__e, _.__k = t.__k, _.__k.some(function(U) {
+              U && (U.__ = _);
+            }), V.push.apply(r.__h, r._sb), r._sb = [], r.__h.length && u.push(r);
+            break _;
           }
-          G.componentWillUpdate != null && G.componentWillUpdate(J, G.__s, P), F && G.componentDidUpdate != null && G.__h.push(function() {
-            G.componentDidUpdate(D, q, N);
+          r.componentWillUpdate != null && r.componentWillUpdate(d, r.__s, S), h && r.componentDidUpdate != null && r.__h.push(function() {
+            r.componentDidUpdate(p, g, k);
           });
         }
-        if (G.context = P, G.props = J, G.__P = O, G.__e = false, v = L.__r, W0 = 0, F)
-          G.state = G.__s, G.__d = false, v && v(E), R = G.render(G.props, G.state, G.context), k.push.apply(G.__h, G._sb), G._sb = [];
+        if (r.context = S, r.props = d, r.__P = e, r.__e = false, T = m.__r, s_ = 0, h)
+          r.state = r.__s, r.__d = false, T && T(_), a = r.render(r.props, r.state, r.context), V.push.apply(r.__h, r._sb), r._sb = [];
         else
           do
-            G.__d = false, v && v(E), R = G.render(G.props, G.state, G.context), G.state = G.__s;
-          while (G.__d && ++W0 < 25);
-        G.state = G.__s, G.getChildContext != null && (g = U(U({}, g), G.getChildContext())), F && !K && G.getSnapshotBeforeUpdate != null && (N = G.getSnapshotBeforeUpdate(D, q)), T = R != null && R.type === e && R.key == null ? N0(R.props.children) : R, X = j0(O, s(T) ? T : [T], E, Y, g, V, Z, Q, X, b, W), G.base = E.__e, E.__u &= -161, G.__h.length && Q.push(G), C && (G.__E = G.__ = null);
-      } catch (z) {
-        if (E.__v = null, b || Z != null)
-          if (z.then) {
-            for (E.__u |= b ? 160 : 128;X && X.nodeType == 8 && X.nextSibling; )
-              X = X.nextSibling;
-            Z[Z.indexOf(X)] = null, E.__e = X;
+            r.__d = false, T && T(_), a = r.render(r.props, r.state, r.context), r.state = r.__s;
+          while (r.__d && ++s_ < 25);
+        r.state = r.__s, r.getChildContext != null && (o = w(w({}, o), r.getChildContext())), h && !f && r.getSnapshotBeforeUpdate != null && (k = r.getSnapshotBeforeUpdate(p, g)), F = a != null && a.type === O && a.key == null ? x_(a.props.children) : a, s = g_(e, j(F) ? F : [F], _, t, o, i, n, u, s, c, l), r.base = _.__e, _.__u &= -161, r.__h.length && u.push(r), b && (r.__E = r.__ = null);
+      } catch (U) {
+        if (_.__v = null, c || n != null)
+          if (U.then) {
+            for (_.__u |= c ? 160 : 128;s && s.nodeType == 8 && s.nextSibling; )
+              s = s.nextSibling;
+            n[n.indexOf(s)] = null, _.__e = s;
           } else {
-            for (h = Z.length;h--; )
-              n(Z[h]);
-            l(E);
+            for (G = n.length;G--; )
+              __(n[G]);
+            Y(_);
           }
         else
-          E.__e = Y.__e, E.__k = Y.__k, z.then || l(E);
-        L.__e(z, E, Y);
+          _.__e = t.__e, _.__k = t.__k, U.then || Y(_);
+        m.__e(U, _, t);
       }
     else
-      Z == null && E.__v == Y.__v ? (E.__k = Y.__k, E.__e = Y.__e) : X = E.__e = s0(Y.__e, E, Y, g, V, Z, Q, b, W);
-  return (R = L.diffed) && R(E), 128 & E.__u ? undefined : X;
+      n == null && _.__v == t.__v ? (_.__k = t.__k, _.__e = t.__e) : s = _.__e = j_(t.__e, _, t, o, i, n, u, c, l);
+  return (a = m.diffed) && a(_), 128 & _.__u ? undefined : s;
 }
-function l(O) {
-  O && (O.__c && (O.__c.__e = true), O.__k && O.__k.some(l));
+function Y(e) {
+  e && (e.__c && (e.__c.__e = true), e.__k && e.__k.some(Y));
 }
-function C0(O, E, Y) {
-  for (var g = 0;g < Y.length; g++)
-    Y0(Y[g], Y[++g], Y[++g]);
-  L.__c && L.__c(E, O), O.some(function(V) {
+function k_(e, _, t) {
+  for (var o = 0;o < t.length; o++)
+    n_(t[o], t[++o], t[++o]);
+  m.__c && m.__c(_, e), e.some(function(i) {
     try {
-      O = V.__h, V.__h = [], O.some(function(Z) {
-        Z.call(V);
+      e = i.__h, i.__h = [], e.some(function(n) {
+        n.call(i);
       });
-    } catch (Z) {
-      L.__e(Z, V.__v);
+    } catch (n) {
+      m.__e(n, i.__v);
     }
   });
 }
-function N0(O) {
-  return typeof O != "object" || O == null || O.__b > 0 ? O : s(O) ? O.map(N0) : O.constructor !== undefined ? null : U({}, O);
+function x_(e) {
+  return typeof e != "object" || e == null || e.__b > 0 ? e : j(e) ? e.map(x_) : e.constructor !== undefined ? null : w({}, e);
 }
-function s0(O, E, Y, g, V, Z, Q, X, b) {
-  var W, R, G, K, D, q, N, C = Y.props || x, J = E.props, F = E.type;
-  if (F == "svg" ? V = "http://www.w3.org/2000/svg" : F == "math" ? V = "http://www.w3.org/1998/Math/MathML" : V || (V = "http://www.w3.org/1999/xhtml"), Z != null) {
-    for (W = 0;W < Z.length; W++)
-      if ((D = Z[W]) && "setAttribute" in D == !!F && (F ? D.localName == F : D.nodeType == 3)) {
-        O = D, Z[W] = null;
+function j_(e, _, t, o, i, n, u, s, c) {
+  var l, a, r, f, p, g, k, b = t.props || I, { props: d, type: h } = _;
+  if (h == "svg" ? i = "http://www.w3.org/2000/svg" : h == "math" ? i = "http://www.w3.org/1998/Math/MathML" : i || (i = "http://www.w3.org/1999/xhtml"), n != null) {
+    for (l = 0;l < n.length; l++)
+      if ((p = n[l]) && "setAttribute" in p == !!h && (h ? p.localName == h : p.nodeType == 3)) {
+        e = p, n[l] = null;
         break;
       }
   }
-  if (O == null) {
-    if (F == null)
-      return document.createTextNode(J);
-    O = document.createElementNS(V, F, J.is && J), X && (L.__m && L.__m(E, Z), X = false), Z = null;
+  if (e == null) {
+    if (h == null)
+      return document.createTextNode(d);
+    e = document.createElementNS(i, h, d.is && d), s && (m.__m && m.__m(_, n), s = false), n = null;
   }
-  if (F == null)
-    C === J || X && O.data == J || (O.data = J);
+  if (h == null)
+    b === d || s && e.data == d || (e.data = d);
   else {
-    if (Z = F == "textarea" && J.defaultValue != null ? null : Z && f.call(O.childNodes), !X && Z != null)
-      for (C = {}, W = 0;W < O.attributes.length; W++)
-        C[(D = O.attributes[W]).name] = D.value;
-    for (W in C)
-      D = C[W], W == "dangerouslySetInnerHTML" ? G = D : W == "children" || (W in J) || W == "value" && ("defaultValue" in J) || W == "checked" && ("defaultChecked" in J) || m(O, W, null, D, V);
-    for (W in J)
-      D = J[W], W == "children" ? K = D : W == "dangerouslySetInnerHTML" ? R = D : W == "value" ? q = D : W == "checked" ? N = D : X && typeof D != "function" || C[W] === D || m(O, W, D, C[W], V);
-    if (R)
-      X || G && (R.__html == G.__html || R.__html == O.innerHTML) || (O.innerHTML = R.__html), E.__k = [];
-    else if (G && (O.innerHTML = ""), j0(E.type == "template" ? O.content : O, s(K) ? K : [K], E, Y, g, F == "foreignObject" ? "http://www.w3.org/1999/xhtml" : V, Z, Q, Z ? Z[0] : Y.__k && H(Y, 0), X, b), Z != null)
-      for (W = Z.length;W--; )
-        n(Z[W]);
-    X && F != "textarea" || (W = "value", F == "progress" && q == null ? O.removeAttribute("value") : q != null && (q !== O[W] || F == "progress" && !q || F == "option" && q != C[W]) && m(O, W, q, C[W], V), W = "checked", N != null && N != O[W] && m(O, W, N, C[W], V));
+    if (n = h == "textarea" && d.defaultValue != null ? null : n && q.call(e.childNodes), !s && n != null)
+      for (b = {}, l = 0;l < e.attributes.length; l++)
+        b[(p = e.attributes[l]).name] = p.value;
+    for (l in b)
+      p = b[l], l == "dangerouslySetInnerHTML" ? r = p : l == "children" || (l in d) || l == "value" && ("defaultValue" in d) || l == "checked" && ("defaultChecked" in d) || W(e, l, null, p, i);
+    for (l in d)
+      p = d[l], l == "children" ? f = p : l == "dangerouslySetInnerHTML" ? a = p : l == "value" ? g = p : l == "checked" ? k = p : s && typeof p != "function" || b[l] === p || W(e, l, p, b[l], i);
+    if (a)
+      s || r && (a.__html == r.__html || a.__html == e.innerHTML) || (e.innerHTML = a.__html), _.__k = [];
+    else if (r && (e.innerHTML = ""), g_(_.type == "template" ? e.content : e, j(f) ? f : [f], _, t, o, h == "foreignObject" ? "http://www.w3.org/1999/xhtml" : i, n, u, n ? n[0] : t.__k && N(t, 0), s, c), n != null)
+      for (l = n.length;l--; )
+        __(n[l]);
+    s && h != "textarea" || (l = "value", h == "progress" && g == null ? e.removeAttribute("value") : g != null && (g !== e[l] || h == "progress" && !g || h == "option" && g != b[l]) && W(e, l, g, b[l], i), l = "checked", k != null && k != e[l] && W(e, l, k, b[l], i));
   }
-  return O;
+  return e;
 }
-function Y0(O, E, Y) {
+function n_(e, _, t) {
   try {
-    if (typeof O == "function") {
-      var g = typeof O.__u == "function";
-      g && O.__u(), g && E == null || (O.__u = O(E));
+    if (typeof e == "function") {
+      var o = typeof e.__u == "function";
+      o && e.__u(), o && _ == null || (e.__u = e(_));
     } else
-      O.current = E;
-  } catch (V) {
-    L.__e(V, Y);
+      e.current = _;
+  } catch (i) {
+    m.__e(i, t);
   }
 }
-function S0(O, E, Y) {
-  var g, V;
-  if (L.unmount && L.unmount(O), (g = O.ref) && (g.current && g.current != O.__e || Y0(g, null, E)), (g = O.__c) != null) {
-    if (g.componentWillUnmount)
+function w_(e, _, t) {
+  var o, i;
+  if (m.unmount && m.unmount(e), (o = e.ref) && (o.current && o.current != e.__e || n_(o, null, _)), (o = e.__c) != null) {
+    if (o.componentWillUnmount)
       try {
-        g.componentWillUnmount();
-      } catch (Z) {
-        L.__e(Z, E);
+        o.componentWillUnmount();
+      } catch (n) {
+        m.__e(n, _);
       }
-    g.base = g.__P = null;
+    o.base = o.__P = null;
   }
-  if (g = O.__k)
-    for (V = 0;V < g.length; V++)
-      g[V] && S0(g[V], E, Y || typeof O.type != "function");
-  Y || n(O.__e), O.__c = O.__ = O.__e = undefined;
+  if (o = e.__k)
+    for (i = 0;i < o.length; i++)
+      o[i] && w_(o[i], _, t || typeof e.type != "function");
+  t || __(e.__e), e.__c = e.__ = e.__e = undefined;
 }
-function e0(O, E, Y) {
-  return this.constructor(O, Y);
+function O_(e, _, t) {
+  return this.constructor(e, t);
 }
-function c0(O, E, Y) {
-  var g, V, Z, Q;
-  E == document && (E = document.documentElement), L.__ && L.__(O, E), V = (g = typeof Y == "function") ? null : Y && Y.__k || E.__k, Z = [], Q = [], O0(E, O = (!g && Y || E).__k = E0(e, null, [O]), V || x, x, E.namespaceURI, !g && Y ? [Y] : V ? null : E.firstChild ? f.call(E.childNodes) : null, Z, !g && Y ? Y : V ? V.__e : E.firstChild, g, Q), C0(Z, O, Q);
+function z_(e, _, t) {
+  var o, i, n, u;
+  _ == document && (_ = document.documentElement), m.__ && m.__(e, _), i = (o = typeof t == "function") ? null : t && t.__k || _.__k, n = [], u = [], t_(_, e = (!o && t || _).__k = e_(O, null, [e]), i || I, I, _.namespaceURI, !o && t ? [t] : i ? null : _.firstChild ? q.call(_.childNodes) : null, n, !o && t ? t : i ? i.__e : _.firstChild, o, u), k_(n, e, u);
 }
-f = k.slice, L = { __e: function(O, E, Y, g) {
-  for (var V, Z, Q;E = E.__; )
-    if ((V = E.__c) && !V.__)
+q = V.slice, m = { __e: function(e, _, t, o) {
+  for (var i, n, u;_ = _.__; )
+    if ((i = _.__c) && !i.__)
       try {
-        if ((Z = V.constructor) && Z.getDerivedStateFromError != null && (V.setState(Z.getDerivedStateFromError(O)), Q = V.__d), V.componentDidCatch != null && (V.componentDidCatch(O, g || {}), Q = V.__d), Q)
-          return V.__E = V;
-      } catch (X) {
-        O = X;
+        if ((n = i.constructor) && n.getDerivedStateFromError != null && (i.setState(n.getDerivedStateFromError(e)), u = i.__d), i.componentDidCatch != null && (i.componentDidCatch(e, o || {}), u = i.__d), u)
+          return i.__E = i;
+      } catch (s) {
+        e = s;
       }
-  throw O;
-} }, R0 = 0, y0 = function(O) {
-  return O != null && O.constructor === undefined;
-}, $.prototype.setState = function(O, E) {
-  var Y;
-  Y = this.__s != null && this.__s != this.state ? this.__s : this.__s = U({}, this.state), typeof O == "function" && (O = O(U({}, Y), this.props)), O && U(Y, O), O != null && this.__v && (E && this._sb.push(E), t(this));
-}, $.prototype.forceUpdate = function(O) {
-  this.__v && (this.__e = true, O && this.__h.push(O), t(this));
-}, $.prototype.render = e, I = [], D0 = typeof Promise == "function" ? Promise.prototype.then.bind(Promise.resolve()) : setTimeout, F0 = function(O, E) {
-  return O.__v.__b - E.__v.__b;
-}, p.__r = 0, r = Math.random().toString(8), a = "__d" + r, _ = "__a" + r, J0 = /(PointerCapture)$|Capture$/i, u = 0, o = K0(false), i = K0(true), L0 = 0;
-var M;
-var d;
-var Z0;
-var U0;
-var A = 0;
-var w0 = [];
-var j = L;
-var B0 = j.__b;
-var I0 = j.__r;
-var M0 = j.diffed;
-var P0 = j.__c;
-var z0 = j.unmount;
-var H0 = j.__;
-function w(O, E) {
-  j.__h && j.__h(d, O, A || E), A = 0;
-  var Y = d.__H || (d.__H = { __: [], __h: [] });
-  return O >= Y.__.length && Y.__.push({}), Y.__[O];
+  throw e;
+} }, p_ = 0, I_ = function(e) {
+  return e != null && e.constructor === undefined;
+}, A.prototype.setState = function(e, _) {
+  var t;
+  t = this.__s != null && this.__s != this.state ? this.__s : this.__s = w({}, this.state), typeof e == "function" && (e = e(w({}, t), this.props)), e && w(t, e), e != null && this.__v && (_ && this._sb.push(_), X(this));
+}, A.prototype.forceUpdate = function(e) {
+  this.__v && (this.__e = true, e && this.__h.push(e), X(this));
+}, A.prototype.render = O, H = [], h_ = typeof Promise == "function" ? Promise.prototype.then.bind(Promise.resolve()) : setTimeout, d_ = function(e, _) {
+  return e.__v.__b - _.__v.__b;
+}, B.__r = 0, J = Math.random().toString(8), L = "__d" + J, M = "__a" + J, m_ = /(PointerCapture)$|Capture$/i, Z = 0, K = a_(false), Q = a_(true), v_ = 0;
+var P;
+var v;
+var o_;
+var C_;
+var D = 0;
+var T_ = [];
+var y = m;
+var { __b: H_, __r: P_, diffed: S_, __c: U_, unmount: N_, __: D_ } = y;
+function E(e, _) {
+  y.__h && y.__h(v, e, D || _), D = 0;
+  var t = v.__H || (v.__H = { __: [], __h: [] });
+  return e >= t.__.length && t.__.push({}), t.__[e];
 }
-function v0(O) {
-  return A = 1, _0(T0, O);
+function M_(e) {
+  return D = 1, A_(W_, e);
 }
-function _0(O, E, Y) {
-  var g = w(M++, 2);
-  if (g.t = O, !g.__c && (g.__ = [Y ? Y(E) : T0(undefined, E), function(X) {
-    var b = g.__N ? g.__N[0] : g.__[0], W = g.t(b, X);
-    b !== W && (g.__N = [W, g.__[1]], g.__c.setState({}));
-  }], g.__c = d, !d.__f)) {
-    var V = function(X, b, W) {
-      if (!g.__c.__H)
+function A_(e, _, t) {
+  var o = E(P++, 2);
+  if (o.t = e, !o.__c && (o.__ = [t ? t(_) : W_(undefined, _), function(s) {
+    var c = o.__N ? o.__N[0] : o.__[0], l = o.t(c, s);
+    c !== l && (o.__N = [l, o.__[1]], o.__c.setState({}));
+  }], o.__c = v, !v.__f)) {
+    var i = function(s, c, l) {
+      if (!o.__c.__H)
         return true;
-      var R = g.__c.__H.__.filter(function(K) {
-        return K.__c;
+      var a = o.__c.__H.__.filter(function(f) {
+        return f.__c;
       });
-      if (R.every(function(K) {
-        return !K.__N;
+      if (a.every(function(f) {
+        return !f.__N;
       }))
-        return !Z || Z.call(this, X, b, W);
-      var G = g.__c.props !== X;
-      return R.some(function(K) {
-        if (K.__N) {
-          var D = K.__[0];
-          K.__ = K.__N, K.__N = undefined, D !== K.__[0] && (G = true);
+        return !n || n.call(this, s, c, l);
+      var r = o.__c.props !== s;
+      return a.some(function(f) {
+        if (f.__N) {
+          var p = f.__[0];
+          f.__ = f.__N, f.__N = undefined, p !== f.__[0] && (r = true);
         }
-      }), Z && Z.call(this, X, b, W) || G;
+      }), n && n.call(this, s, c, l) || r;
     };
-    d.__f = true;
-    var { shouldComponentUpdate: Z, componentWillUpdate: Q } = d;
-    d.componentWillUpdate = function(X, b, W) {
+    v.__f = true;
+    var n = v.shouldComponentUpdate, u = v.componentWillUpdate;
+    v.componentWillUpdate = function(s, c, l) {
       if (this.__e) {
-        var R = Z;
-        Z = undefined, V(X, b, W), Z = R;
+        var a = n;
+        n = undefined, i(s, c, l), n = a;
       }
-      Q && Q.call(this, X, b, W);
-    }, d.shouldComponentUpdate = V;
+      u && u.call(this, s, c, l);
+    }, v.shouldComponentUpdate = i;
   }
-  return g.__N || g.__;
+  return o.__N || o.__;
 }
-function r0(O, E) {
-  var Y = w(M++, 3);
-  !j.__s && Q0(Y.__H, E) && (Y.__ = O, Y.u = E, d.__H.__h.push(Y));
+function J_(e, _) {
+  var t = E(P++, 3);
+  !y.__s && i_(t.__H, _) && (t.__ = e, t.u = _, v.__H.__h.push(t));
 }
-function $0(O, E) {
-  var Y = w(M++, 4);
-  !j.__s && Q0(Y.__H, E) && (Y.__ = O, Y.u = E, d.__h.push(Y));
+function F_(e, _) {
+  var t = E(P++, 4);
+  !y.__s && i_(t.__H, _) && (t.__ = e, t.u = _, v.__h.push(t));
 }
-function o0(O) {
-  return A = 5, G0(function() {
-    return { current: O };
+function K_(e) {
+  return D = 5, u_(function() {
+    return { current: e };
   }, []);
 }
-function G0(O, E) {
-  var Y = w(M++, 7);
-  return Q0(Y.__H, E) && (Y.__ = O(), Y.__H = E, Y.__h = O), Y.__;
+function u_(e, _) {
+  var t = E(P++, 7);
+  return i_(t.__H, _) && (t.__ = e(), t.__H = _, t.__h = e), t.__;
 }
-function t0(O, E) {
-  return A = 8, G0(function() {
-    return O;
-  }, E);
+function X_(e, _) {
+  return D = 8, u_(function() {
+    return e;
+  }, _);
 }
-function E1() {
-  for (var O;O = w0.shift(); ) {
-    var E = O.__H;
-    if (O.__P && E)
+function ee() {
+  for (var e;e = T_.shift(); ) {
+    var _ = e.__H;
+    if (e.__P && _)
       try {
-        E.__h.some(c), E.__h.some(g0), E.__h = [];
-      } catch (Y) {
-        E.__h = [], j.__e(Y, O.__v);
+        _.__h.some(z), _.__h.some(r_), _.__h = [];
+      } catch (t) {
+        _.__h = [], y.__e(t, e.__v);
       }
   }
 }
-j.__b = function(O) {
-  d = null, B0 && B0(O);
-}, j.__ = function(O, E) {
-  O && E.__k && E.__k.__m && (O.__m = E.__k.__m), H0 && H0(O, E);
-}, j.__r = function(O) {
-  I0 && I0(O), M = 0;
-  var E = (d = O.__c).__H;
-  E && (Z0 === d ? (E.__h = [], d.__h = [], E.__.some(function(Y) {
-    Y.__N && (Y.__ = Y.__N), Y.u = Y.__N = undefined;
-  })) : (E.__h.some(c), E.__h.some(g0), E.__h = [], M = 0)), Z0 = d;
-}, j.diffed = function(O) {
-  M0 && M0(O);
-  var E = O.__c;
-  E && E.__H && (E.__H.__h.length && (w0.push(E) !== 1 && U0 === j.requestAnimationFrame || ((U0 = j.requestAnimationFrame) || O1)(E1)), E.__H.__.some(function(Y) {
-    Y.u && (Y.__H = Y.u), Y.u = undefined;
-  })), Z0 = d = null;
-}, j.__c = function(O, E) {
-  E.some(function(Y) {
+y.__b = function(e) {
+  v = null, H_ && H_(e);
+}, y.__ = function(e, _) {
+  e && _.__k && _.__k.__m && (e.__m = _.__k.__m), D_ && D_(e, _);
+}, y.__r = function(e) {
+  P_ && P_(e), P = 0;
+  var _ = (v = e.__c).__H;
+  _ && (o_ === v ? (_.__h = [], v.__h = [], _.__.some(function(t) {
+    t.__N && (t.__ = t.__N), t.u = t.__N = undefined;
+  })) : (_.__h.some(z), _.__h.some(r_), _.__h = [], P = 0)), o_ = v;
+}, y.diffed = function(e) {
+  S_ && S_(e);
+  var _ = e.__c;
+  _ && _.__H && (_.__H.__h.length && (T_.push(_) !== 1 && C_ === y.requestAnimationFrame || ((C_ = y.requestAnimationFrame) || te)(ee)), _.__H.__.some(function(t) {
+    t.u && (t.__H = t.u), t.u = undefined;
+  })), o_ = v = null;
+}, y.__c = function(e, _) {
+  _.some(function(t) {
     try {
-      Y.__h.some(c), Y.__h = Y.__h.filter(function(g) {
-        return !g.__ || g0(g);
+      t.__h.some(z), t.__h = t.__h.filter(function(o) {
+        return !o.__ || r_(o);
       });
-    } catch (g) {
-      E.some(function(V) {
-        V.__h && (V.__h = []);
-      }), E = [], j.__e(g, Y.__v);
+    } catch (o) {
+      _.some(function(i) {
+        i.__h && (i.__h = []);
+      }), _ = [], y.__e(o, t.__v);
     }
-  }), P0 && P0(O, E);
-}, j.unmount = function(O) {
-  z0 && z0(O);
-  var E, Y = O.__c;
-  Y && Y.__H && (Y.__H.__.some(function(g) {
+  }), U_ && U_(e, _);
+}, y.unmount = function(e) {
+  N_ && N_(e);
+  var _, t = e.__c;
+  t && t.__H && (t.__H.__.some(function(o) {
     try {
-      c(g);
-    } catch (V) {
-      E = V;
+      z(o);
+    } catch (i) {
+      _ = i;
     }
-  }), Y.__H = undefined, E && j.__e(E, Y.__v));
+  }), t.__H = undefined, _ && y.__e(_, t.__v));
 };
-var A0 = typeof requestAnimationFrame == "function";
-function O1(O) {
-  var E, Y = function() {
-    clearTimeout(g), A0 && cancelAnimationFrame(E), setTimeout(O);
-  }, g = setTimeout(Y, 35);
-  A0 && (E = requestAnimationFrame(Y));
+var E_ = typeof requestAnimationFrame == "function";
+function te(e) {
+  var _, t = function() {
+    clearTimeout(o), E_ && cancelAnimationFrame(_), setTimeout(e);
+  }, o = setTimeout(t, 35);
+  E_ && (_ = requestAnimationFrame(t));
 }
-function c(O) {
-  var E = d, Y = O.__c;
-  typeof Y == "function" && (O.__c = undefined, Y()), d = E;
+function z(e) {
+  var _ = v, t = e.__c;
+  typeof t == "function" && (e.__c = undefined, t()), v = _;
 }
-function g0(O) {
-  var E = d;
-  O.__c = O.__(), d = E;
+function r_(e) {
+  var _ = v;
+  e.__c = e.__(), v = _;
 }
-function Q0(O, E) {
-  return !O || O.length !== E.length || E.some(function(Y, g) {
-    return Y !== O[g];
+function i_(e, _) {
+  return !e || e.length !== _.length || _.some(function(t, o) {
+    return t !== e[o];
   });
 }
-function T0(O, E) {
-  return typeof E == "function" ? E(O) : E;
+function W_(e, _) {
+  return typeof _ == "function" ? _(e) : _;
 }
-var a0 = function(O, E, Y, g) {
-  var V;
-  E[0] = 0;
-  for (var Z = 1;Z < E.length; Z++) {
-    var Q = E[Z++], X = E[Z] ? (E[0] |= Q ? 1 : 2, Y[E[Z++]]) : E[++Z];
-    Q === 3 ? g[0] = X : Q === 4 ? g[1] = Object.assign(g[1] || {}, X) : Q === 5 ? (g[1] = g[1] || {})[E[++Z]] = X : Q === 6 ? g[1][E[++Z]] += X + "" : Q ? (V = O.apply(X, a0(O, X, Y, ["", null])), g.push(V), X[0] ? E[0] |= 2 : (E[Z - 2] = 0, E[Z] = V)) : g.push(X);
+var R_ = function(e, _, t, o) {
+  var i;
+  _[0] = 0;
+  for (var n = 1;n < _.length; n++) {
+    var u = _[n++], s = _[n] ? (_[0] |= u ? 1 : 2, t[_[n++]]) : _[++n];
+    u === 3 ? o[0] = s : u === 4 ? o[1] = Object.assign(o[1] || {}, s) : u === 5 ? (o[1] = o[1] || {})[_[++n]] = s : u === 6 ? o[1][_[++n]] += s + "" : u ? (i = e.apply(s, R_(e, s, t, ["", null])), o.push(i), s[0] ? _[0] |= 2 : (_[n - 2] = 0, _[n] = i)) : o.push(s);
   }
-  return g;
+  return o;
 };
-var m0 = new Map;
-function V0(O) {
-  var E = m0.get(this);
-  return E || (E = new Map, m0.set(this, E)), (E = a0(this, E.get(O) || (E.set(O, E = function(Y) {
-    for (var g, V, Z = 1, Q = "", X = "", b = [0], W = function(K) {
-      Z === 1 && (K || (Q = Q.replace(/^\s*\n\s*|\s*\n\s*$/g, ""))) ? b.push(0, K, Q) : Z === 3 && (K || Q) ? (b.push(3, K, Q), Z = 2) : Z === 2 && Q === "..." && K ? b.push(4, K, 0) : Z === 2 && Q && !K ? b.push(5, 0, true, Q) : Z >= 5 && ((Q || !K && Z === 5) && (b.push(Z, 0, Q, V), Z = 6), K && (b.push(Z, K, 0, V), Z = 6)), Q = "";
-    }, R = 0;R < Y.length; R++) {
-      R && (Z === 1 && W(), W(R));
-      for (var G = 0;G < Y[R].length; G++)
-        g = Y[R][G], Z === 1 ? g === "<" ? (W(), b = [b], Z = 3) : Q += g : Z === 4 ? Q === "--" && g === ">" ? (Z = 1, Q = "") : Q = g + Q[0] : X ? g === X ? X = "" : Q += g : g === '"' || g === "'" ? X = g : g === ">" ? (W(), Z = 1) : Z && (g === "=" ? (Z = 5, V = Q, Q = "") : g === "/" && (Z < 5 || Y[R][G + 1] === ">") ? (W(), Z === 3 && (b = b[0]), Z = b, (b = b[0]).push(2, 0, Z), Z = 0) : g === " " || g === "\t" || g === `
-` || g === "\r" ? (W(), Z = 2) : Q += g), Z === 3 && Q === "!--" && (Z = 4, b = b[0]);
+var L_ = new Map;
+function l_(e) {
+  var _ = L_.get(this);
+  return _ || (_ = new Map, L_.set(this, _)), (_ = R_(this, _.get(e) || (_.set(e, _ = function(t) {
+    for (var o, i, n = 1, u = "", s = "", c = [0], l = function(f) {
+      n === 1 && (f || (u = u.replace(/^\s*\n\s*|\s*\n\s*$/g, ""))) ? c.push(0, f, u) : n === 3 && (f || u) ? (c.push(3, f, u), n = 2) : n === 2 && u === "..." && f ? c.push(4, f, 0) : n === 2 && u && !f ? c.push(5, 0, true, u) : n >= 5 && ((u || !f && n === 5) && (c.push(n, 0, u, i), n = 6), f && (c.push(n, f, 0, i), n = 6)), u = "";
+    }, a = 0;a < t.length; a++) {
+      a && (n === 1 && l(), l(a));
+      for (var r = 0;r < t[a].length; r++)
+        o = t[a][r], n === 1 ? o === "<" ? (l(), c = [c], n = 3) : u += o : n === 4 ? u === "--" && o === ">" ? (n = 1, u = "") : u = o + u[0] : s ? o === s ? s = "" : u += o : o === '"' || o === "'" ? s = o : o === ">" ? (l(), n = 1) : n && (o === "=" ? (n = 5, i = u, u = "") : o === "/" && (n < 5 || t[a][r + 1] === ">") ? (l(), n === 3 && (c = c[0]), n = c, (c = c[0]).push(2, 0, n), n = 0) : o === " " || o === "\t" || o === `
+` || o === "\r" ? (l(), n = 2) : u += o), n === 3 && u === "!--" && (n = 4, c = c[0]);
     }
-    return W(), b;
-  }(O)), E), arguments, [])).length > 1 ? E : E[0];
+    return l(), c;
+  }(e)), _), arguments, [])).length > 1 ? _ : _[0];
 }
-var X1 = V0.bind(E0);
+var ce = l_.bind(e_);
 
 // web/src/utils/storage.ts
 function getLocalStorageItem(key) {
@@ -547,26 +542,26 @@ function appendUniqueTimelinePost(posts, nextPost) {
 
 // web/src/ui/use-agent-state.ts
 function useAgentState() {
-  const [agentStatus, setAgentStatus] = v0(null);
-  const [agentDraft, setAgentDraft] = v0({ text: "", totalLines: 0 });
-  const [agentPlan, setAgentPlan] = v0("");
-  const [agentThought, setAgentThought] = v0({ text: "", totalLines: 0 });
-  const [pendingRequest, setPendingRequest] = v0(null);
-  const [currentTurnId, setCurrentTurnId] = v0(null);
-  const [steerQueuedTurnId, setSteerQueuedTurnId] = v0(null);
-  const lastAgentEventRef = o0(null);
-  const lastSilenceNoticeRef = o0(0);
-  const isAgentRunningRef = o0(false);
-  const draftBufferRef = o0("");
-  const thoughtBufferRef = o0("");
-  const previewResyncPendingRef = o0(false);
-  const previewResyncGenerationRef = o0(0);
-  const pendingRequestRef = o0(null);
-  const stalledPostIdRef = o0(null);
-  const currentTurnIdRef = o0(null);
-  const steerQueuedTurnIdRef = o0(null);
-  const thoughtExpandedRef = o0(false);
-  const draftExpandedRef = o0(false);
+  const [agentStatus, setAgentStatus] = M_(null);
+  const [agentDraft, setAgentDraft] = M_({ text: "", totalLines: 0 });
+  const [agentPlan, setAgentPlan] = M_("");
+  const [agentThought, setAgentThought] = M_({ text: "", totalLines: 0 });
+  const [pendingRequest, setPendingRequest] = M_(null);
+  const [currentTurnId, setCurrentTurnId] = M_(null);
+  const [steerQueuedTurnId, setSteerQueuedTurnId] = M_(null);
+  const lastAgentEventRef = K_(null);
+  const lastSilenceNoticeRef = K_(0);
+  const isAgentRunningRef = K_(false);
+  const draftBufferRef = K_("");
+  const thoughtBufferRef = K_("");
+  const previewResyncPendingRef = K_(false);
+  const previewResyncGenerationRef = K_(0);
+  const pendingRequestRef = K_(null);
+  const stalledPostIdRef = K_(null);
+  const currentTurnIdRef = K_(null);
+  const steerQueuedTurnIdRef = K_(null);
+  const thoughtExpandedRef = K_(false);
+  const draftExpandedRef = K_(false);
   return {
     agentStatus,
     setAgentStatus,
@@ -653,25 +648,25 @@ async function getTimeline(limit = 50, beforeId = null, chatJid = null) {
   const data = await request(url);
   const messages = data.messages || [];
   return {
-    posts: messages.map((m2) => ({
-      id: m2.id,
+    posts: messages.map((m) => ({
+      id: m.id,
       chat_jid: chatJid,
-      content: m2.content,
-      timestamp: m2.created_at,
-      sender: m2.role === "user" ? "user" : "agent",
-      is_from_me: m2.role === "user",
-      is_bot_message: m2.role === "assistant",
+      content: m.content,
+      timestamp: m.created_at,
+      sender: m.role === "user" ? "user" : "agent",
+      is_from_me: m.role === "user",
+      is_bot_message: m.role === "assistant",
       data: {
-        type: m2.role === "assistant" ? "agent_response" : "user_message",
-        content: m2.content,
+        type: m.role === "assistant" ? "agent_response" : "user_message",
+        content: m.content,
         thread_id: null,
-        agent_id: m2.payload?.agent_id || (m2.role === "assistant" ? "agent" : null),
-        content_blocks: m2.payload?.content_blocks || null,
+        agent_id: m.payload?.agent_id || (m.role === "assistant" ? "agent" : null),
+        content_blocks: m.payload?.content_blocks || null,
         content_meta: null,
         link_previews: null,
-        kind: m2.payload?.kind || null,
-        source: m2.payload?.source || null,
-        clipped: m2.payload?.clipped || false
+        kind: m.payload?.kind || null,
+        source: m.payload?.source || null,
+        clipped: m.payload?.clipped || false
       }
     }))
   };
@@ -700,14 +695,14 @@ async function getActiveChatAgents() {
   const data = await request("/api/sessions").catch(() => ({ sessions: [] }));
   const sessions = data.sessions || [];
   return {
-    agents: sessions.map((s2) => ({
-      chat_jid: sessionToChatJid(s2.id),
-      agent_name: s2.scope?.agent_id || (typeof s2.title === "string" ? s2.title.replace(/^@/, "") : s2.id),
-      agent_id: s2.scope?.agent_id || "agent",
-      parent_chat_jid: s2.parent_session_id ? sessionToChatJid(s2.parent_session_id) : null,
+    agents: sessions.map((s) => ({
+      chat_jid: sessionToChatJid(s.id),
+      agent_name: s.scope?.agent_id || (typeof s.title === "string" ? s.title.replace(/^@/, "") : s.id),
+      agent_id: s.scope?.agent_id || "agent",
+      parent_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : null,
       is_active: false,
       archived_at: null,
-      root_chat_jid: s2.parent_session_id ? sessionToChatJid(s2.parent_session_id) : sessionToChatJid(s2.id)
+      root_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : sessionToChatJid(s.id)
     }))
   };
 }
@@ -717,10 +712,10 @@ async function getChatBranches(rootChatJid = null, _options = {}) {
   if (rootChatJid?.startsWith("gi:")) {
     const rootId = rootChatJid.slice(3);
     const byParent = new Map;
-    for (const s2 of sessions) {
-      const key = s2.parent_session_id || "";
+    for (const s of sessions) {
+      const key = s.parent_session_id || "";
       const bucket = byParent.get(key) || [];
-      bucket.push(s2);
+      bucket.push(s);
       byParent.set(key, bucket);
     }
     const wanted = new Set([rootId]);
@@ -735,14 +730,14 @@ async function getChatBranches(rootChatJid = null, _options = {}) {
         }
       }
     }
-    sessions = sessions.filter((s2) => wanted.has(s2.id));
+    sessions = sessions.filter((s) => wanted.has(s.id));
   }
-  const mapped = sessions.map((s2) => ({
-    chat_jid: sessionToChatJid(s2.id),
-    label: s2.title || `@${s2.scope?.agent_id || s2.id}`,
-    updated_at: s2.updated_at,
-    parent_chat_jid: s2.parent_session_id ? sessionToChatJid(s2.parent_session_id) : null,
-    agent_id: s2.scope?.agent_id || "agent"
+  const mapped = sessions.map((s) => ({
+    chat_jid: sessionToChatJid(s.id),
+    label: s.title || `@${s.scope?.agent_id || s.id}`,
+    updated_at: s.updated_at,
+    parent_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : null,
+    agent_id: s.scope?.agent_id || "agent"
   }));
   return { branches: mapped, chats: mapped };
 }
@@ -860,10 +855,10 @@ class SSEClient {
     const query = this.chatJid ? `?chat_jid=${encodeURIComponent(this.chatJid)}` : "";
     this.eventSource = new EventSource(API_BASE + "/sse/stream" + query);
     const bindJsonEvent = (eventType) => {
-      this.eventSource.addEventListener(eventType, (e2) => {
+      this.eventSource.addEventListener(eventType, (e) => {
         this.resetStaleMonitor();
         try {
-          const data = JSON.parse(e2.data);
+          const data = JSON.parse(e.data);
           this.onEvent(eventType, data);
         } catch {}
       });
@@ -1039,15 +1034,15 @@ function bindSseWakeLifecycle({ sse, onWake }, runtime = {}) {
   };
 }
 function useSseConnection({ handleSseEvent, handleConnectionStatusChange, loadPosts, onWake, chatJid }) {
-  const sseEventRef = o0(handleSseEvent);
+  const sseEventRef = K_(handleSseEvent);
   sseEventRef.current = handleSseEvent;
-  const statusChangeRef = o0(handleConnectionStatusChange);
+  const statusChangeRef = K_(handleConnectionStatusChange);
   statusChangeRef.current = handleConnectionStatusChange;
-  const loadPostsRef = o0(loadPosts);
+  const loadPostsRef = K_(loadPosts);
   loadPostsRef.current = loadPosts;
-  const onWakeRef = o0(onWake);
+  const onWakeRef = K_(onWake);
   onWakeRef.current = onWake;
-  r0(() => {
+  J_(() => {
     const sse = new SSEClient((type, data) => sseEventRef.current(type, data), (status) => statusChangeRef.current(status), { chatJid });
     sse.connect();
     const disposeWakeLifecycle = bindSseWakeLifecycle({
@@ -1392,7 +1387,7 @@ function parseHexColor(input) {
   const hex = raw.startsWith("#") ? raw.slice(1) : raw;
   if (!/^[0-9a-fA-F]{3}$/.test(hex) && !/^[0-9a-fA-F]{6}$/.test(hex))
     return null;
-  const full = hex.length === 3 ? hex.split("").map((c2) => c2 + c2).join("") : hex;
+  const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
   const int = parseInt(full, 16);
   return {
     r: int >> 16 & 255,
@@ -1430,32 +1425,32 @@ function parseCssColor(input) {
   const match = computed.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
   if (!match)
     return null;
-  const r2 = parseInt(match[1], 10);
+  const r = parseInt(match[1], 10);
   const g = parseInt(match[2], 10);
   const b = parseInt(match[3], 10);
-  if (![r2, g, b].every((v) => Number.isFinite(v)))
+  if (![r, g, b].every((v) => Number.isFinite(v)))
     return null;
-  const hex = `#${[r2, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-  return { r: r2, g, b, hex };
+  const hex = `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+  return { r, g, b, hex };
 }
 function parseColor(input) {
   return parseHexColor(input) || parseCssColor(input);
 }
 function mixColors(base, overlay, ratio) {
-  const r2 = Math.round(base.r + (overlay.r - base.r) * ratio);
+  const r = Math.round(base.r + (overlay.r - base.r) * ratio);
   const g = Math.round(base.g + (overlay.g - base.g) * ratio);
   const b = Math.round(base.b + (overlay.b - base.b) * ratio);
-  return `rgb(${r2} ${g} ${b})`;
+  return `rgb(${r} ${g} ${b})`;
 }
 function rgbaColor(color, alpha) {
   return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
 }
-function relativeLuminance(c2) {
-  const rs = c2.r / 255, gs = c2.g / 255, bs = c2.b / 255;
-  const r2 = rs <= 0.03928 ? rs / 12.92 : Math.pow((rs + 0.055) / 1.055, 2.4);
+function relativeLuminance(c) {
+  const rs = c.r / 255, gs = c.g / 255, bs = c.b / 255;
+  const r = rs <= 0.03928 ? rs / 12.92 : Math.pow((rs + 0.055) / 1.055, 2.4);
   const g = gs <= 0.03928 ? gs / 12.92 : Math.pow((gs + 0.055) / 1.055, 2.4);
   const b = bs <= 0.03928 ? bs / 12.92 : Math.pow((bs + 0.055) / 1.055, 2.4);
-  return 0.2126 * r2 + 0.7152 * g + 0.0722 * b;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 function contrastTextColor(bg) {
   return relativeLuminance(bg) > 0.4 ? "#000000" : "#ffffff";
@@ -1728,6 +1723,171 @@ function getThemeMode() {
   return resolveSystemMode();
 }
 
+// web/src/ui/chat-window.ts
+function isStandaloneWebAppMode(runtime = {}) {
+  const win = runtime.window ?? (typeof window !== "undefined" ? window : null);
+  const nav = runtime.navigator ?? (typeof navigator !== "undefined" ? navigator : null);
+  if (nav && nav.standalone === true) {
+    return true;
+  }
+  if (!win || typeof win.matchMedia !== "function") {
+    return false;
+  }
+  const queries = [
+    "(display-mode: standalone)",
+    "(display-mode: minimal-ui)",
+    "(display-mode: fullscreen)"
+  ];
+  return queries.some((query) => {
+    try {
+      return Boolean(win.matchMedia(query)?.matches);
+    } catch {
+      return false;
+    }
+  });
+}
+function isMobileBrowserMode(runtime = {}) {
+  const win = runtime.window ?? (typeof window !== "undefined" ? window : null);
+  const nav = runtime.navigator ?? (typeof navigator !== "undefined" ? navigator : null);
+  if (!win && !nav)
+    return false;
+  const userAgent = String(nav?.userAgent || "");
+  const maxTouchPoints = Number(nav?.maxTouchPoints || 0);
+  const mobileUa = /Android|webOS|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(userAgent);
+  const coarsePointer = (() => {
+    if (!win || typeof win.matchMedia !== "function")
+      return false;
+    try {
+      return Boolean(win.matchMedia("(pointer: coarse)")?.matches || win.matchMedia("(any-pointer: coarse)")?.matches);
+    } catch {
+      return false;
+    }
+  })();
+  return Boolean(mobileUa || maxTouchPoints > 1 || coarsePointer);
+}
+
+// web/src/ui/pwa-display-scale.ts
+var PWA_DISPLAY_SCALE_STORAGE_KEY = "piclawPwaDisplayScalePercent";
+var PWA_DISPLAY_SCALE_EVENT = "piclaw:pwa-display-scale-changed";
+var DEFAULT_PWA_DISPLAY_SCALE_PERCENT = 100;
+var MIN_PWA_DISPLAY_SCALE_PERCENT = 20;
+var MAX_PWA_DISPLAY_SCALE_PERCENT = 115;
+var PWA_DISPLAY_SCALE_STEP_PERCENT = 5;
+var DEFAULT_VIEWPORT_CONTENT = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover";
+function getRuntimeWindow(runtime = typeof window !== "undefined" ? window : null) {
+  return runtime && typeof runtime === "object" ? runtime : null;
+}
+function getRuntimeNavigator(runtime) {
+  return runtime?.navigator || (typeof navigator !== "undefined" ? navigator : null);
+}
+function parseScalePercent(value) {
+  if (typeof value === "number")
+    return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string")
+    return null;
+  const trimmed = value.trim();
+  if (!trimmed)
+    return null;
+  const numeric = trimmed.endsWith("%") ? trimmed.slice(0, -1) : trimmed;
+  const parsed = Number(numeric);
+  if (!Number.isFinite(parsed))
+    return null;
+  return parsed > 0 && parsed <= 2 ? parsed * 100 : parsed;
+}
+function normalizePwaDisplayScalePercent(value, fallback = DEFAULT_PWA_DISPLAY_SCALE_PERCENT) {
+  const parsed = parseScalePercent(value);
+  const base = parsed ?? parseScalePercent(fallback) ?? DEFAULT_PWA_DISPLAY_SCALE_PERCENT;
+  return Math.min(MAX_PWA_DISPLAY_SCALE_PERCENT, Math.max(MIN_PWA_DISPLAY_SCALE_PERCENT, Math.round(base)));
+}
+function formatPwaDisplayScaleRatio(percent) {
+  const ratio = normalizePwaDisplayScalePercent(percent) / 100;
+  return ratio.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+function readStoredPwaDisplayScalePercent(runtime = typeof window !== "undefined" ? window : null) {
+  const runtimeWindow = getRuntimeWindow(runtime);
+  try {
+    return normalizePwaDisplayScalePercent(runtimeWindow?.localStorage?.getItem(PWA_DISPLAY_SCALE_STORAGE_KEY));
+  } catch {
+    return DEFAULT_PWA_DISPLAY_SCALE_PERCENT;
+  }
+}
+function isMobileStandalonePwa(runtime = typeof window !== "undefined" ? window : null) {
+  const runtimeWindow = getRuntimeWindow(runtime);
+  const runtimeNavigator = getRuntimeNavigator(runtimeWindow);
+  return isStandaloneWebAppMode({ window: runtimeWindow, navigator: runtimeNavigator }) && isMobileBrowserMode({ window: runtimeWindow, navigator: runtimeNavigator });
+}
+function buildPwaDisplayScaleViewportContent(percent, options = {}) {
+  const normalized = normalizePwaDisplayScalePercent(percent);
+  if (!options.applies || normalized === DEFAULT_PWA_DISPLAY_SCALE_PERCENT) {
+    return DEFAULT_VIEWPORT_CONTENT;
+  }
+  const scale = formatPwaDisplayScaleRatio(normalized);
+  return `width=device-width, initial-scale=${scale}, minimum-scale=${scale}, maximum-scale=${scale}, user-scalable=no, viewport-fit=cover`;
+}
+function applyPwaDisplayScale(runtime = typeof window !== "undefined" ? window : null) {
+  const runtimeWindow = getRuntimeWindow(runtime);
+  const percent = readStoredPwaDisplayScalePercent(runtimeWindow);
+  const applied = isMobileStandalonePwa(runtimeWindow) && percent !== DEFAULT_PWA_DISPLAY_SCALE_PERCENT;
+  const content = buildPwaDisplayScaleViewportContent(percent, { applies: applied });
+  const viewport = runtimeWindow?.document?.querySelector?.('meta[name="viewport"]');
+  viewport?.setAttribute?.("content", content);
+  return { percent, applied, content };
+}
+function persistPwaDisplayScalePercent(percent, runtime = typeof window !== "undefined" ? window : null) {
+  const runtimeWindow = getRuntimeWindow(runtime);
+  const normalized = normalizePwaDisplayScalePercent(percent);
+  try {
+    runtimeWindow?.localStorage?.setItem(PWA_DISPLAY_SCALE_STORAGE_KEY, String(normalized));
+  } catch (error) {
+    console.warn("[pwa-display-scale] Unable to persist scale preference; applying in-memory value only.", error);
+  }
+  applyPwaDisplayScale(runtimeWindow);
+  if (runtimeWindow?.dispatchEvent) {
+    const event = typeof CustomEvent === "function" ? new CustomEvent(PWA_DISPLAY_SCALE_EVENT, { detail: { percent: normalized } }) : { type: PWA_DISPLAY_SCALE_EVENT, detail: { percent: normalized } };
+    runtimeWindow.dispatchEvent(event);
+  }
+  return normalized;
+}
+function installPwaDisplayScaleSync(runtime = typeof window !== "undefined" ? window : null) {
+  const runtimeWindow = getRuntimeWindow(runtime);
+  if (!runtimeWindow?.addEventListener)
+    return;
+  const sync = () => applyPwaDisplayScale(runtimeWindow);
+  sync();
+  const onStorage = (event) => {
+    if (!event || event.key === null || event.key === PWA_DISPLAY_SCALE_STORAGE_KEY)
+      sync();
+  };
+  const onScaleChanged = () => sync();
+  runtimeWindow.addEventListener("storage", onStorage);
+  runtimeWindow.addEventListener("focus", sync);
+  runtimeWindow.addEventListener(PWA_DISPLAY_SCALE_EVENT, onScaleChanged);
+  const mediaQueries = ["standalone", "fullscreen", "minimal-ui"].map((mode) => {
+    try {
+      return runtimeWindow.matchMedia?.(`(display-mode: ${mode})`);
+    } catch {
+      return null;
+    }
+  }).filter(Boolean);
+  for (const media of mediaQueries) {
+    if (media.addEventListener)
+      media.addEventListener("change", sync);
+    else if (media.addListener)
+      media.addListener(sync);
+  }
+  return () => {
+    runtimeWindow.removeEventListener("storage", onStorage);
+    runtimeWindow.removeEventListener("focus", sync);
+    runtimeWindow.removeEventListener(PWA_DISPLAY_SCALE_EVENT, onScaleChanged);
+    for (const media of mediaQueries) {
+      if (media.removeEventListener)
+        media.removeEventListener("change", sync);
+      else if (media.removeListener)
+        media.removeListener(sync);
+    }
+  };
+}
+
 // web/src/ui/status-duration.ts
 function parseStatusStartedAt(status) {
   if (!status || typeof status !== "object")
@@ -1946,7 +2106,7 @@ function highlightCodeToHtml(code, lang) {
   }
   if (!tokens.length)
     return escapeHtml(code);
-  tokens.sort((a2, b) => a2.from - b.from || a2.to - b.to);
+  tokens.sort((a, b) => a.from - b.from || a.to - b.to);
   let cursor = 0;
   let html = "";
   for (const token of tokens) {
@@ -2180,7 +2340,7 @@ function decodeEntitiesDeep(text, maxDepth = 2) {
   if (!text)
     return text;
   let current = text;
-  for (let i2 = 0;i2 < maxDepth; i2 += 1) {
+  for (let i = 0;i < maxDepth; i += 1) {
     const next = decodeEntities(current);
     if (next === current)
       break;
@@ -2201,9 +2361,9 @@ function extractLeadingYamlFrontmatter(text) {
   const lines = normalized.split(`
 `);
   let closingIndex = -1;
-  for (let i2 = 1;i2 < lines.length; i2 += 1) {
-    if (/^(---|\.\.\.)\s*$/.test(lines[i2])) {
-      closingIndex = i2;
+  for (let i = 1;i < lines.length; i += 1) {
+    if (/^(---|\.\.\.)\s*$/.test(lines[i])) {
+      closingIndex = i;
       break;
     }
   }
@@ -2287,8 +2447,8 @@ function toBase64(value) {
 function fromBase64(value) {
   const binary = atob(String(value || ""));
   const bytes = new Uint8Array(binary.length);
-  for (let i2 = 0;i2 < binary.length; i2 += 1) {
-    bytes[i2] = binary.charCodeAt(i2);
+  for (let i = 0;i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
   }
   return new TextDecoder().decode(bytes);
 }
@@ -2429,8 +2589,8 @@ function renderMath(html_content) {
     try {
       const rendered = katex.renderToString(decodeMath(tex.trim()), { displayMode: true, throwOnError: false });
       return `${leading}${rendered}`;
-    } catch (e2) {
-      return `<span class="math-error" title="${escapeHtmlAttr(e2.message)}">${match}</span>`;
+    } catch (e) {
+      return `<span class="math-error" title="${escapeHtmlAttr(e.message)}">${match}</span>`;
     }
   });
   return restoreCodeBlocks(processed, stripped.blocks);
@@ -2544,37 +2704,37 @@ function renderThinkingMarkdown(text) {
 }
 function roundPolylineCorners(svgString, radius = 6) {
   return svgString.replace(/<polyline\b([^>]*)\bpoints="([^"]+)"([^>]*)\/?\s*>/g, (_match, before, pointsStr, after) => {
-    const pts = pointsStr.trim().split(/\s+/).map((p2) => {
-      const [x2, y2] = p2.split(",").map(Number);
-      return { x: x2, y: y2 };
+    const pts = pointsStr.trim().split(/\s+/).map((p) => {
+      const [x, y] = p.split(",").map(Number);
+      return { x, y };
     });
     if (pts.length < 3) {
       return `<polyline${before}points="${pointsStr}"${after}/>`;
     }
     const parts = [`M ${pts[0].x},${pts[0].y}`];
-    for (let i2 = 1;i2 < pts.length - 1; i2++) {
-      const prev = pts[i2 - 1];
-      const curr = pts[i2];
-      const next = pts[i2 + 1];
+    for (let i = 1;i < pts.length - 1; i++) {
+      const prev = pts[i - 1];
+      const curr = pts[i];
+      const next = pts[i + 1];
       const dxIn = curr.x - prev.x;
       const dyIn = curr.y - prev.y;
       const dxOut = next.x - curr.x;
       const dyOut = next.y - curr.y;
       const lenIn = Math.sqrt(dxIn * dxIn + dyIn * dyIn);
       const lenOut = Math.sqrt(dxOut * dxOut + dyOut * dyOut);
-      const r2 = Math.min(radius, lenIn / 2, lenOut / 2);
-      if (r2 < 0.5) {
+      const r = Math.min(radius, lenIn / 2, lenOut / 2);
+      if (r < 0.5) {
         parts.push(`L ${curr.x},${curr.y}`);
         continue;
       }
-      const ax = curr.x - dxIn / lenIn * r2;
-      const ay = curr.y - dyIn / lenIn * r2;
-      const bx = curr.x + dxOut / lenOut * r2;
-      const by = curr.y + dyOut / lenOut * r2;
+      const ax = curr.x - dxIn / lenIn * r;
+      const ay = curr.y - dyIn / lenIn * r;
+      const bx = curr.x + dxOut / lenOut * r;
+      const by = curr.y + dyOut / lenOut * r;
       const cross = dxIn * dyOut - dyIn * dxOut;
       const sweep = cross > 0 ? 1 : 0;
       parts.push(`L ${ax},${ay}`);
-      parts.push(`A ${r2},${r2} 0 0 ${sweep} ${bx},${by}`);
+      parts.push(`A ${r},${r} 0 0 ${sweep} ${bx},${by}`);
     }
     parts.push(`L ${pts[pts.length - 1].x},${pts[pts.length - 1].y}`);
     return `<path${before}d="${parts.join(" ")}"${after}/>`;
@@ -2596,11 +2756,11 @@ async function renderMermaidDiagrams(container) {
       svg = roundPolylineCorners(svg);
       el.innerHTML = svg;
       el.removeAttribute("data-mermaid");
-    } catch (e2) {
-      console.error("Mermaid render error:", e2);
+    } catch (e) {
+      console.error("Mermaid render error:", e);
       const pre = document.createElement("pre");
       pre.className = "mermaid-error";
-      pre.textContent = `Diagram error: ${e2.message}`;
+      pre.textContent = `Diagram error: ${e.message}`;
       el.innerHTML = "";
       el.appendChild(pre);
       el.removeAttribute("data-mermaid");
@@ -2892,8 +3052,8 @@ function getTurnColor(turnId) {
   ];
   const str = String(turnId);
   let hash = 0;
-  for (let i2 = 0;i2 < str.length; i2 += 1) {
-    hash = (hash * 31 + str.charCodeAt(i2)) % 2147483647;
+  for (let i = 0;i < str.length; i += 1) {
+    hash = (hash * 31 + str.charCodeAt(i)) % 2147483647;
   }
   const index = Math.abs(hash) % palette.length;
   return palette[index];
@@ -3061,12 +3221,12 @@ function parseRgbColor(input) {
   const match = raw.match(/^rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
   if (!match)
     return null;
-  const r2 = Number(match[1]);
+  const r = Number(match[1]);
   const g = Number(match[2]);
   const b = Number(match[3]);
-  if (![r2, g, b].every((value) => Number.isFinite(value)))
+  if (![r, g, b].every((value) => Number.isFinite(value)))
     return null;
-  return { r: r2, g, b };
+  return { r, g, b };
 }
 function parseColor2(input) {
   return parseHexColor2(input) || parseRgbColor(input);
@@ -3076,14 +3236,14 @@ function relativeLuminance2(color) {
     const value = channel / 255;
     return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
   };
-  const r2 = toLinear(color.r);
+  const r = toLinear(color.r);
   const g = toLinear(color.g);
   const b = toLinear(color.b);
-  return 0.2126 * r2 + 0.7152 * g + 0.0722 * b;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
-function contrastRatio(a2, b) {
-  const lighter = Math.max(relativeLuminance2(a2), relativeLuminance2(b));
-  const darker = Math.min(relativeLuminance2(a2), relativeLuminance2(b));
+function contrastRatio(a, b) {
+  const lighter = Math.max(relativeLuminance2(a), relativeLuminance2(b));
+  const darker = Math.min(relativeLuminance2(a), relativeLuminance2(b));
   return (lighter + 0.05) / (darker + 0.05);
 }
 function pickHighestContrastColor(background, candidates, fallback = "#ffffff") {
@@ -3788,8 +3948,8 @@ ${bootstrap}
 
 // web/src/components/body-portal.ts
 function BodyPortal({ children, className = "" }) {
-  const [host, setHost] = v0(null);
-  r0(() => {
+  const [host, setHost] = M_(null);
+  J_(() => {
     if (typeof document === "undefined")
       return;
     const nextHost = document.createElement("div");
@@ -3799,17 +3959,17 @@ function BodyPortal({ children, className = "" }) {
     setHost(nextHost);
     return () => {
       try {
-        c0(null, nextHost);
+        z_(null, nextHost);
       } finally {
         nextHost.remove();
         setHost((current) => current === nextHost ? null : current);
       }
     };
   }, [className]);
-  $0(() => {
+  F_(() => {
     if (!host)
       return;
-    c0(children, host);
+    z_(children, host);
     return;
   }, [children, host]);
   return null;
@@ -3817,15 +3977,15 @@ function BodyPortal({ children, className = "" }) {
 
 // web/src/components/image-modal.ts
 function ImageModal({ src, onClose }) {
-  r0(() => {
-    const handleEsc = (e2) => {
-      if (e2.key === "Escape")
+  J_(() => {
+    const handleEsc = (e) => {
+      if (e.key === "Escape")
         onClose();
     };
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
   }, [onClose]);
-  return X1`
+  return ce`
         <${BodyPortal} className="image-modal-portal-root">
             <div class="image-modal" onClick=${onClose}>
                 <img src=${src} alt="Full size" />
@@ -3847,17 +4007,17 @@ function FilePill({
   const pillClass = `${prefix}-file-pill`;
   const nameClass = `${prefix}-file-name`;
   const removeClass = `${prefix}-file-remove`;
-  const iconSvg = icon === "message" ? X1`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  const iconSvg = icon === "message" ? ce`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-      </svg>` : X1`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      </svg>` : ce`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
         <polyline points="14 2 14 8 20 8"/>
       </svg>`;
-  return X1`
+  return ce`
     <span class=${pillClass} title=${title || label} onClick=${onClick}>
       ${iconSvg}
       <span class=${nameClass}>${label}</span>
-      ${onRemove && X1`
+      ${onRemove && ce`
         <button
           class=${removeClass}
           onClick=${(event) => {
@@ -4005,8 +4165,8 @@ function resolveLinkPreviewSiteName(siteName, safeUrl) {
 
 // web/src/components/post.ts
 function FileAttachment({ mediaId, onPreview }) {
-  const [info, setInfo] = v0(null);
-  r0(() => {
+  const [info, setInfo] = M_(null);
+  J_(() => {
     getMediaInfo(mediaId).then(setInfo).catch((error) => {
       console.warn("[post] Failed to load attachment metadata for file card:", mediaId, error);
     });
@@ -4018,8 +4178,8 @@ function FileAttachment({ mediaId, onPreview }) {
   const sizeStr = size ? formatFileSize(size) : "";
   const previewKind = getAttachmentPreviewKind(info.content_type, info.filename);
   const previewLabel = previewKind === "unsupported" ? "Details" : "Preview";
-  return X1`
-        <div class="file-attachment" onClick=${(e2) => e2.stopPropagation()}>
+  return ce`
+        <div class="file-attachment" onClick=${(e) => e.stopPropagation()}>
             <a href=${getMediaUrl(mediaId)} download=${filename} class="file-attachment-main">
                 <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -4031,8 +4191,8 @@ function FileAttachment({ mediaId, onPreview }) {
                 <div class="file-info">
                     <span class="file-name">${filename}</span>
                     <span class="file-meta-row">
-                        ${sizeStr && X1`<span class="file-size">${sizeStr}</span>`}
-                        ${info.content_type && X1`<span class="file-size">${info.content_type}</span>`}
+                        ${sizeStr && ce`<span class="file-size">${sizeStr}</span>`}
+                        ${info.content_type && ce`<span class="file-size">${info.content_type}</span>`}
                     </span>
                 </div>
                 <svg class="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -4044,9 +4204,9 @@ function FileAttachment({ mediaId, onPreview }) {
             <button
                 class="file-attachment-preview"
                 type="button"
-                onClick=${(e2) => {
-    e2.preventDefault();
-    e2.stopPropagation();
+                onClick=${(e) => {
+    e.preventDefault();
+    e.stopPropagation();
     onPreview?.({ mediaId, info });
   }}
             >
@@ -4090,8 +4250,8 @@ function formatTimeoutChipTooltip(marker) {
 }
 function AttachmentPill({ attachment, onPreview }) {
   const mediaId = Number(attachment?.id);
-  const [info, setInfo] = v0(null);
-  r0(() => {
+  const [info, setInfo] = M_(null);
+  J_(() => {
     if (!Number.isFinite(mediaId))
       return;
     getMediaInfo(mediaId).then(setInfo).catch((error) => {
@@ -4103,31 +4263,31 @@ function AttachmentPill({ attachment, onPreview }) {
   const downloadHref = Number.isFinite(mediaId) ? getMediaUrl(mediaId) : null;
   const previewKind = getAttachmentPreviewKind(info?.content_type, info?.filename || attachment?.label);
   const previewLabel = previewKind === "unsupported" ? "Details" : "Preview";
-  return X1`
+  return ce`
         <span class="attachment-pill" title=${filename}>
-            ${downloadHref ? X1`
-                    <a href=${downloadHref} download=${filename} class="attachment-pill-main" onClick=${(e2) => e2.stopPropagation()}>
+            ${downloadHref ? ce`
+                    <a href=${downloadHref} download=${filename} class="attachment-pill-main" onClick=${(e) => e.stopPropagation()}>
                         <${FilePill}
                             prefix="post"
                             label=${attachment.label}
                             title=${filename}
                         />
                     </a>
-                ` : X1`
+                ` : ce`
                     <${FilePill}
                         prefix="post"
                         label=${attachment.label}
                         title=${filename}
                     />
                 `}
-            ${Number.isFinite(mediaId) && info && X1`
+            ${Number.isFinite(mediaId) && info && ce`
                 <button
                     class="attachment-pill-preview"
                     type="button"
                     title=${previewLabel}
-                    onClick=${(e2) => {
-    e2.preventDefault();
-    e2.stopPropagation();
+                    onClick=${(e) => {
+    e.preventDefault();
+    e.stopPropagation();
     onPreview?.({ mediaId, info });
   }}
                 >
@@ -4145,15 +4305,15 @@ function AnnotationsBadge({ annotations }) {
     return null;
   const { audience, priority, lastModified } = annotations;
   const formattedLastModified = lastModified ? formatTimestamp(lastModified) : null;
-  return X1`
+  return ce`
         <div class="content-annotations">
-            ${audience && audience.length > 0 && X1`
+            ${audience && audience.length > 0 && ce`
                 <span class="content-annotation">Audience: ${audience.join(", ")}</span>
             `}
-            ${typeof priority === "number" && X1`
+            ${typeof priority === "number" && ce`
                 <span class="content-annotation">Priority: ${priority}</span>
             `}
-            ${formattedLastModified && X1`
+            ${formattedLastModified && ce`
                 <span class="content-annotation">Updated: ${formattedLastModified}</span>
             `}
         </div>
@@ -4166,22 +4326,22 @@ function ResourceLinkBlock({ block }) {
   const mimeType = block.mime_type || "";
   const icon = getMimeIcon(mimeType);
   const safeUrl = sanitizeUrl(block.uri);
-  return X1`
+  return ce`
         <a
             href=${safeUrl || "#"}
             class="resource-link"
             target=${safeUrl ? "_blank" : undefined}
             rel=${safeUrl ? "noopener noreferrer" : undefined}
-            onClick=${(e2) => e2.stopPropagation()}>
+            onClick=${(e) => e.stopPropagation()}>
             <div class="resource-link-main">
                 <div class="resource-link-header">
                     <span class="resource-link-icon-inline">${icon}</span>
                     <div class="resource-link-title">${name}</div>
                 </div>
-                ${description && X1`<div class="resource-link-description">${description}</div>`}
+                ${description && ce`<div class="resource-link-description">${description}</div>`}
                 <div class="resource-link-meta">
-                    ${mimeType && X1`<span>${mimeType}</span>`}
-                    ${sizeStr && X1`<span>${sizeStr}</span>`}
+                    ${mimeType && ce`<span>${mimeType}</span>`}
+                    ${sizeStr && ce`<span>${sizeStr}</span>`}
                 </div>
             </div>
             <div class="resource-link-icon">↗</div>
@@ -4189,35 +4349,35 @@ function ResourceLinkBlock({ block }) {
     `;
 }
 function ResourceBlock({ block }) {
-  const [open, setOpen] = v0(false);
+  const [open, setOpen] = M_(false);
   const title = block.uri || "Embedded resource";
   const contentText = block.text || "";
   const hasBlob = Boolean(block.data);
   const mimeType = block.mime_type || "";
-  return X1`
+  return ce`
         <div class="resource-embed">
-            <button class="resource-embed-toggle" onClick=${(e2) => {
-    e2.preventDefault();
-    e2.stopPropagation();
+            <button class="resource-embed-toggle" onClick=${(e) => {
+    e.preventDefault();
+    e.stopPropagation();
     setOpen(!open);
   }}>
                 ${open ? "▼" : "▶"} ${title}
             </button>
-            ${open && X1`
-                ${contentText && X1`<pre class="resource-embed-content">${contentText}</pre>`}
-                ${hasBlob && X1`
+            ${open && ce`
+                ${contentText && ce`<pre class="resource-embed-content">${contentText}</pre>`}
+                ${hasBlob && ce`
                     <div class="resource-embed-blob">
                         <span class="resource-embed-blob-label">Embedded blob</span>
-                        ${mimeType && X1`<span class="resource-embed-blob-meta">${mimeType}</span>`}
-                        <button class="resource-embed-blob-btn" onClick=${(e2) => {
-    e2.preventDefault();
-    e2.stopPropagation();
-    const blob = new Blob([Uint8Array.from(atob(block.data), (c2) => c2.charCodeAt(0))], { type: mimeType || "application/octet-stream" });
+                        ${mimeType && ce`<span class="resource-embed-blob-meta">${mimeType}</span>`}
+                        <button class="resource-embed-blob-btn" onClick=${(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const blob = new Blob([Uint8Array.from(atob(block.data), (c) => c.charCodeAt(0))], { type: mimeType || "application/octet-stream" });
     const url = URL.createObjectURL(blob);
-    const a2 = document.createElement("a");
-    a2.href = url;
-    a2.download = title.split("/").pop() || "resource";
-    a2.click();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = title.split("/").pop() || "resource";
+    a.click();
     URL.revokeObjectURL(url);
   }}>Download</button>
                     </div>
@@ -4235,17 +4395,17 @@ function GeneratedWidgetLaunch({ block, post, onOpenWidget }) {
   const title = payload?.title || block.title || block.name || "Generated widget";
   const description = payload?.description || block.description || block.subtitle || "";
   const openLabel = block.open_label || "Open widget";
-  const autoOpened = o0(false);
-  const launchWidget = (e2) => {
-    if (e2) {
-      e2.preventDefault();
-      e2.stopPropagation();
+  const autoOpened = K_(false);
+  const launchWidget = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
     }
     if (!payload)
       return;
     onOpenWidget?.(payload);
   };
-  r0(() => {
+  J_(() => {
     if (!block?.auto_open || !payload || !supportsRender || autoOpened.current)
       return;
     const postTime = post?.timestamp ? new Date(post.timestamp).getTime() : 0;
@@ -4258,13 +4418,13 @@ function GeneratedWidgetLaunch({ block, post, onOpenWidget }) {
     writeSessionStorageFlagBestEffort(sessionStorage, key, "1");
     onOpenWidget?.(payload);
   }, [block?.auto_open, payload, supportsRender]);
-  return X1`
-        <div class="generated-widget-launch" onClick=${(e2) => e2.stopPropagation()}>
+  return ce`
+        <div class="generated-widget-launch" onClick=${(e) => e.stopPropagation()}>
             <div class="generated-widget-launch-header">
                 <div class="generated-widget-launch-eyebrow">Generated widget${kind ? ` • ${String(kind).toUpperCase()}` : ""}</div>
                 <div class="generated-widget-launch-title">${title}</div>
             </div>
-            ${description && X1`<div class="generated-widget-launch-description">${description}</div>`}
+            ${description && ce`<div class="generated-widget-launch-description">${description}</div>`}
             <div class="generated-widget-launch-actions">
                 <button
                     class="generated-widget-launch-btn"
@@ -4307,18 +4467,18 @@ function LinkPreview({ preview }) {
   const safeUrl = sanitizeUrl(preview.url);
   const bgStyle = buildLinkPreviewBackgroundStyle(preview.image);
   const siteName = resolveLinkPreviewSiteName(preview.site_name, safeUrl);
-  return X1`
+  return ce`
         <a
             href=${safeUrl || "#"}
             class="link-preview ${bgStyle ? "has-image" : ""}"
             target=${safeUrl ? "_blank" : undefined}
             rel=${safeUrl ? "noopener noreferrer" : undefined}
-            onClick=${(e2) => e2.stopPropagation()}
+            onClick=${(e) => e.stopPropagation()}
             style=${bgStyle}>
             <div class="link-preview-overlay">
                 <div class="link-preview-site">${siteName || ""}</div>
                 <div class="link-preview-title">${preview.title}</div>
-                ${preview.description && X1`
+                ${preview.description && ce`
                     <div class="link-preview-description">${preview.description}</div>
                 `}
             </div>
@@ -4523,9 +4683,9 @@ function extractFileRefs(content) {
   const lines = normalized.split(`
 `);
   let start = -1;
-  for (let i2 = 0;i2 < lines.length; i2 += 1) {
-    if (lines[i2].trim() === "Files:" && lines[i2 + 1] && /^\s*-\s+/.test(lines[i2 + 1])) {
-      start = i2;
+  for (let i = 0;i < lines.length; i += 1) {
+    if (lines[i].trim() === "Files:" && lines[i + 1] && /^\s*-\s+/.test(lines[i + 1])) {
+      start = i;
       break;
     }
   }
@@ -4563,9 +4723,9 @@ function extractMessageRefs(content) {
   const lines = normalized.split(`
 `);
   let start = -1;
-  for (let i2 = 0;i2 < lines.length; i2 += 1) {
-    if (lines[i2].trim() === "Referenced messages:" && lines[i2 + 1] && /^\s*-\s+/.test(lines[i2 + 1])) {
-      start = i2;
+  for (let i = 0;i < lines.length; i += 1) {
+    if (lines[i].trim() === "Referenced messages:" && lines[i + 1] && /^\s*-\s+/.test(lines[i + 1])) {
+      start = i;
       break;
     }
   }
@@ -4606,10 +4766,10 @@ function extractAttachmentRefs(content) {
   const lines = normalized.split(`
 `);
   let start = -1;
-  for (let i2 = 0;i2 < lines.length; i2 += 1) {
-    const header = lines[i2].trim();
-    if ((header === "Images:" || header === "Attachments:") && lines[i2 + 1] && /^\s*-\s+/.test(lines[i2 + 1])) {
-      start = i2;
+  for (let i = 0;i < lines.length; i += 1) {
+    const header = lines[i].trim();
+    if ((header === "Images:" || header === "Attachments:") && lines[i + 1] && /^\s*-\s+/.test(lines[i + 1])) {
+      start = i;
       break;
     }
   }
@@ -4655,7 +4815,7 @@ function highlightHtml(html, query) {
   const terms = String(query).trim().split(/\s+/).filter(Boolean);
   if (terms.length === 0)
     return html;
-  const escapedTerms = terms.map(escapeRegex).sort((a2, b) => b.length - a2.length);
+  const escapedTerms = terms.map(escapeRegex).sort((a, b) => b.length - a.length);
   const pattern = new RegExp(`(${escapedTerms.join("|")})`, "gi");
   const matcher = new RegExp(`^(${escapedTerms.join("|")})$`, "i");
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -4693,10 +4853,10 @@ function highlightHtml(html, query) {
   return doc.body.innerHTML;
 }
 function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, agentName, agentAvatarUrl, userName, userAvatarUrl, userAvatarBackground, onDelete, isThreadReply, isThreadPrev, isThreadNext, isRemoving, highlightQuery, onFileRef, onOpenWidget, onOpenAttachmentPreview }) {
-  const [zoomedImage, setZoomedImage] = v0(null);
-  const [copyState, setCopyState] = v0("idle");
-  const contentRef = o0(null);
-  const copyResetTimerRef = o0(null);
+  const [zoomedImage, setZoomedImage] = M_(null);
+  const [copyState, setCopyState] = M_("idle");
+  const contentRef = K_(null);
+  const copyResetTimerRef = K_(null);
   const data = post.data;
   const isAgent = data.type === "agent_response";
   const resolvedUserName = userName || "You";
@@ -4734,26 +4894,26 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
   const hideRenderedFallback = Boolean(singleCardFallback) && displayContent?.trim() === singleCardFallback || Boolean(singleSubmissionFallback) && displayContent?.trim() === singleSubmissionFallback;
   const shouldRenderContent = Boolean(displayContent) && !isHardTruncated && !hideRenderedFallback;
   const highlightQueryText = typeof highlightQuery === "string" ? highlightQuery.trim() : "";
-  const renderedHtml = G0(() => {
+  const renderedHtml = u_(() => {
     if (!displayContent || hideRenderedFallback)
       return "";
     const baseHtml = renderMarkdown(displayContent, onHashtagClick);
     return highlightQueryText ? highlightHtml(baseHtml, highlightQueryText) : baseHtml;
   }, [displayContent, hideRenderedFallback, highlightQueryText]);
-  const markdownCopyPayload = G0(() => buildPostMarkdownCopyPayload(post), [post]);
-  const handleImageClick = (e2, mediaId) => {
-    e2.stopPropagation();
+  const markdownCopyPayload = u_(() => buildPostMarkdownCopyPayload(post), [post]);
+  const handleImageClick = (e, mediaId) => {
+    e.stopPropagation();
     setZoomedImage(getMediaUrl(mediaId));
   };
   const handleAttachmentPreview = (attachment) => {
     onOpenAttachmentPreview?.(attachment);
   };
-  const handleDeleteClick = (e2) => {
-    e2.stopPropagation();
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
     onDelete?.(post);
   };
-  const handleCopyMarkdownClick = async (e2) => {
-    e2.stopPropagation();
+  const handleCopyMarkdownClick = async (e) => {
+    e.stopPropagation();
     const ok = await copyMessageToClipboard(markdownCopyPayload);
     setCopyState(ok ? "success" : "error");
     if (copyResetTimerRef.current)
@@ -4763,25 +4923,25 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
       setCopyState("idle");
     }, CODE_COPY_RESET_MS);
   };
-  const resolveInlineAttachments = (content, attachments2) => {
-    const usedIds2 = new Set;
-    if (!content || attachments2.length === 0) {
-      return { content, usedIds: usedIds2 };
+  const resolveInlineAttachments = (content, attachments) => {
+    const usedIds = new Set;
+    if (!content || attachments.length === 0) {
+      return { content, usedIds };
     }
     const replaced = content.replace(/attachment:([^\s)"']+)/g, (match, rawRef, offset, source) => {
       const ref = rawRef.replace(/^\/+/, "");
-      const byName = attachments2.find((entry2) => entry2.name && entry2.name.toLowerCase() === ref.toLowerCase() && !usedIds2.has(entry2.id));
-      const entry = byName || attachments2.find((item) => !usedIds2.has(item.id));
+      const byName = attachments.find((entry) => entry.name && entry.name.toLowerCase() === ref.toLowerCase() && !usedIds.has(entry.id));
+      const entry = byName || attachments.find((item) => !usedIds.has(item.id));
       if (!entry)
         return match;
-      usedIds2.add(entry.id);
+      usedIds.add(entry.id);
       const prefix = source.slice(Math.max(0, offset - 2), offset);
       if (prefix === "](") {
         return `/media/${entry.id}`;
       }
       return entry.name || "attachment";
     });
-    return { content: replaced, usedIds: usedIds2 };
+    return { content: replaced, usedIds };
   };
   const imageItems = [];
   const fileIds = [];
@@ -4850,23 +5010,23 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
     id: entry.id,
     label: entry.name || `attachment-${idx + 1}`
   }));
-  const cardBlocks = G0(() => extractCardBlocks(blocks), [blocks]);
-  const cardSubmissionBlocks = G0(() => extractAdaptiveCardSubmissionBlocks(blocks), [blocks]);
-  const cardBlocksKey = G0(() => {
+  const cardBlocks = u_(() => extractCardBlocks(blocks), [blocks]);
+  const cardSubmissionBlocks = u_(() => extractAdaptiveCardSubmissionBlocks(blocks), [blocks]);
+  const cardBlocksKey = u_(() => {
     return cardBlocks.map((b) => `${b.card_id}:${b.state}`).join("|");
   }, [cardBlocks]);
-  r0(() => {
+  J_(() => {
     if (!contentRef.current)
       return;
     renderMermaidDiagrams(contentRef.current);
     return enhanceCodeBlocks(contentRef.current);
   }, [renderedHtml]);
-  r0(() => () => {
+  J_(() => () => {
     if (copyResetTimerRef.current)
       clearTimeout(copyResetTimerRef.current);
   }, []);
-  const cardContainerRef = o0(null);
-  r0(() => {
+  const cardContainerRef = K_(null);
+  J_(() => {
     if (!cardContainerRef.current || cardBlocks.length === 0)
       return;
     const container = cardContainerRef.current;
@@ -4905,10 +5065,10 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
       });
     }
   }, [cardBlocksKey, post.id]);
-  return X1`
+  return ce`
         <div id=${`post-${post.id}`} class="post ${isAgent ? "agent-post" : ""} ${isThreadReply ? "thread-reply" : ""} ${isThreadPrev ? "thread-prev" : ""} ${isThreadNext ? "thread-next" : ""} ${isRemoving ? "removing" : ""}" onClick=${onClick}>
             <div class="post-avatar ${isAgent ? "agent-avatar" : ""} ${avatarInfo.image ? "has-image" : ""}" style=${avatarStyle}>
-                ${avatarInfo.image ? X1`<img src=${avatarInfo.image} alt=${displayName} />` : avatarInfo.letter}
+                ${avatarInfo.image ? ce`<img src=${avatarInfo.image} alt=${displayName} />` : avatarInfo.letter}
             </div>
             <div class="post-body">
                 <div class="post-actions">
@@ -4920,7 +5080,7 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                         onClick=${handleCopyMarkdownClick}
                         disabled=${!markdownCopyPayload}
                     >
-                        ${copyState === "success" ? X1`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6L9 17l-5-5"></path></svg>` : copyState === "error" ? X1`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>` : X1`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="10" height="10" rx="2"></rect><path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path></svg>`}
+                        ${copyState === "success" ? ce`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6L9 17l-5-5"></path></svg>` : copyState === "error" ? ce`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>` : ce`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="10" height="10" rx="2"></rect><path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path></svg>`}
                     </button>
                     <button
                         class="post-action-btn post-delete-btn"
@@ -4936,8 +5096,8 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                 </div>
                 <div class="post-meta">
                     <span class="post-author">${displayName}</span>
-                    ${showSearchChatAgentTag && X1`<span class="post-chat-agent-tag" title=${`Chat: ${searchChatAgentName}`}>@${searchChatAgentName}</span>`}
-                    ${recoveryMarker && X1`
+                    ${showSearchChatAgentTag && ce`<span class="post-chat-agent-tag" title=${`Chat: ${searchChatAgentName}`}>@${searchChatAgentName}</span>`}
+                    ${recoveryMarker && ce`
                         <span
                             class="post-recovery-chip"
                             title=${formatRecoveryChipTooltip(recoveryMarker)}
@@ -4945,7 +5105,7 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                             recovered
                         </span>
                     `}
-                    ${timeoutMarker && X1`
+                    ${timeoutMarker && ce`
                         <span
                             class="post-recovery-chip post-timeout-chip"
                             title=${formatTimeoutChipTooltip(timeoutMarker)}
@@ -4953,23 +5113,23 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                             timeout
                         </span>
                     `}
-                    <a class="post-time" href=${`#msg-${post.id}`} onClick=${(e2) => {
-    e2.preventDefault();
-    e2.stopPropagation();
+                    <a class="post-time" href=${`#msg-${post.id}`} onClick=${(e) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (onMessageRef)
       onMessageRef(post.id);
   }}>${formatTime(post.timestamp)}</a>
                 </div>
-                ${isHardTruncated && truncatedInfo && X1`
+                ${isHardTruncated && truncatedInfo && ce`
                     <div class="post-content truncated">
                         <div class="truncated-title">Message too large to display.</div>
                         <div class="truncated-meta">
                             Original length: ${formatCount(truncatedInfo.originalLength)} chars
-                            ${truncatedInfo.maxLength ? X1` • Display limit: ${formatCount(truncatedInfo.maxLength)} chars` : ""}
+                            ${truncatedInfo.maxLength ? ce` • Display limit: ${formatCount(truncatedInfo.maxLength)} chars` : ""}
                         </div>
                     </div>
                 `}
-                ${isPreview && truncatedInfo && X1`
+                ${isPreview && truncatedInfo && ce`
                     <div class="post-content preview">
                         <div class="truncated-title">Preview truncated.</div>
                         <div class="truncated-meta">
@@ -4977,12 +5137,12 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                         </div>
                     </div>
                 `}
-                ${(fileRefs.length > 0 || messageRefs.length > 0 || attachmentPills.length > 0) && X1`
+                ${(fileRefs.length > 0 || messageRefs.length > 0 || attachmentPills.length > 0) && ce`
                     <div class="post-file-refs">
                         ${messageRefs.map((id) => {
-    const scrollToRef = (e2) => {
-      e2.preventDefault();
-      e2.stopPropagation();
+    const scrollToRef = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (onScrollToMessage) {
         onScrollToMessage(id, post.chat_jid || null);
       } else {
@@ -4994,7 +5154,7 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
         }
       }
     };
-    return X1`
+    return ce`
                                 <a href=${`#msg-${id}`} class="post-msg-pill-link" onClick=${scrollToRef}>
                                     <${FilePill}
                                         prefix="post"
@@ -5008,7 +5168,7 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
   })}
                         ${fileRefs.map((ref) => {
     const label = ref.split("/").pop() || ref;
-    return X1`
+    return ce`
                                 <${FilePill}
                                     prefix="post"
                                     label=${label}
@@ -5017,7 +5177,7 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                                 />
                             `;
   })}
-                        ${attachmentPills.map((attachment) => X1`
+                        ${attachmentPills.map((attachment) => ce`
                             <${AttachmentPill}
                                 key=${attachment.id}
                                 attachment=${attachment}
@@ -5026,35 +5186,35 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                         `)}
                     </div>
                 `}
-                ${shouldRenderContent && X1`
+                ${shouldRenderContent && ce`
                     <div 
                         ref=${contentRef}
                         class="post-content"
                         dangerouslySetInnerHTML=${{ __html: renderedHtml }}
-                        onClick=${(e2) => {
-    if (e2.target.classList.contains("hashtag")) {
-      e2.preventDefault();
-      e2.stopPropagation();
-      const tag = e2.target.dataset.hashtag;
+                        onClick=${(e) => {
+    if (e.target.classList.contains("hashtag")) {
+      e.preventDefault();
+      e.stopPropagation();
+      const tag = e.target.dataset.hashtag;
       if (tag)
         onHashtagClick?.(tag);
-    } else if (e2.target.tagName === "IMG") {
-      e2.preventDefault();
-      e2.stopPropagation();
-      setZoomedImage(e2.target.src);
+    } else if (e.target.tagName === "IMG") {
+      e.preventDefault();
+      e.stopPropagation();
+      setZoomedImage(e.target.src);
     }
   }}
                     />
                 `}
-                ${cardBlocks.length > 0 && X1`
+                ${cardBlocks.length > 0 && ce`
                     <div ref=${cardContainerRef} class="post-adaptive-cards" />
                 `}
-                ${cardSubmissionBlocks.length > 0 && X1`
+                ${cardSubmissionBlocks.length > 0 && ce`
                     <div class="post-adaptive-card-submissions">
                         ${cardSubmissionBlocks.map((block, idx) => {
     const meta = describeAdaptiveCardSubmission(block);
     const submissionKey = `${block.card_id}-${idx}`;
-    return X1`
+    return ce`
                                 <div key=${submissionKey} class="adaptive-card-submission-receipt">
                                     <div class="adaptive-card-submission-header">
                                         <span class="adaptive-card-submission-icon" aria-hidden="true">✓</span>
@@ -5063,9 +5223,9 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                                             <span class="adaptive-card-submission-title-action">${meta.title}</span>
                                         </div>
                                     </div>
-                                    ${meta.fields.length > 0 && X1`
+                                    ${meta.fields.length > 0 && ce`
                                         <div class="adaptive-card-submission-fields">
-                                            ${meta.fields.map((field) => X1`
+                                            ${meta.fields.map((field) => ce`
                                                 <span class="adaptive-card-submission-field" title=${`${field.key}: ${field.value}`}>
                                                     <span class="adaptive-card-submission-field-key">${field.key}</span>
                                                     <span class="adaptive-card-submission-field-sep">:</span>
@@ -5082,9 +5242,9 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
   })}
                     </div>
                 `}
-                ${generatedWidgets.length > 0 && X1`
+                ${generatedWidgets.length > 0 && ce`
                     <div class="generated-widget-launches">
-                        ${generatedWidgets.map((block, idx) => X1`
+                        ${generatedWidgets.map((block, idx) => ce`
                             <${GeneratedWidgetLaunch}
                                 key=${block.widget_id || block.id || `${post.id}-widget-${idx}`}
                                 block=${block}
@@ -5094,44 +5254,44 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                         `)}
                     </div>
                 `}
-                ${textAnnotations.length > 0 && X1`
-                    ${textAnnotations.map((annotations, idx) => X1`
+                ${textAnnotations.length > 0 && ce`
+                    ${textAnnotations.map((annotations, idx) => ce`
                         <${AnnotationsBadge} key=${idx} annotations=${annotations} />
                     `)}
                 `}
-                ${filteredImageItems.length > 0 && X1`
+                ${filteredImageItems.length > 0 && ce`
                     <div class="media-preview">
                         ${filteredImageItems.map(({ id, mimeType }) => {
     const isSvg = typeof mimeType === "string" && mimeType.toLowerCase().startsWith("image/svg");
     const imageSrc = isSvg ? getMediaUrl(id) : getThumbnailUrl(id);
-    return X1`
+    return ce`
                                 <img 
                                     key=${id} 
                                     src=${imageSrc} 
                                     alt="Media" 
                                     loading="lazy"
                                     decoding="async"
-                                    onClick=${(e2) => handleImageClick(e2, id)}
+                                    onClick=${(e) => handleImageClick(e, id)}
                                 />
                             `;
   })}
                     </div>
                 `}
-                ${filteredImageItems.length > 0 && X1`
-                    ${filteredImageItems.map(({ annotations }, idx) => X1`
-                        ${annotations && X1`<${AnnotationsBadge} key=${idx} annotations=${annotations} />`}
+                ${filteredImageItems.length > 0 && ce`
+                    ${filteredImageItems.map(({ annotations }, idx) => ce`
+                        ${annotations && ce`<${AnnotationsBadge} key=${idx} annotations=${annotations} />`}
                     `)}
                 `}
-                ${filteredFileIds.length > 0 && X1`
+                ${filteredFileIds.length > 0 && ce`
                     <div class="file-attachments">
-                        ${filteredFileIds.map((id) => X1`
+                        ${filteredFileIds.map((id) => ce`
                             <${FileAttachment} key=${id} mediaId=${id} onPreview=${handleAttachmentPreview} />
                         `)}
                     </div>
                 `}
-                ${resourceLinks.length > 0 && X1`
+                ${resourceLinks.length > 0 && ce`
                     <div class="resource-links">
-                        ${resourceLinks.map((block, idx) => X1`
+                        ${resourceLinks.map((block, idx) => ce`
                             <div key=${idx}>
                                 <${ResourceLinkBlock} block=${block} />
                                 <${AnnotationsBadge} annotations=${block.annotations} />
@@ -5139,9 +5299,9 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                         `)}
                     </div>
                 `}
-                ${resources.length > 0 && X1`
+                ${resources.length > 0 && ce`
                     <div class="resource-embeds">
-                        ${resources.map((block, idx) => X1`
+                        ${resources.map((block, idx) => ce`
                             <div key=${idx}>
                                 <${ResourceBlock} block=${block} />
                                 <${AnnotationsBadge} annotations=${block.annotations} />
@@ -5149,26 +5309,26 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                         `)}
                     </div>
                 `}
-                ${data.link_previews?.length > 0 && X1`
+                ${data.link_previews?.length > 0 && ce`
                     <div class="link-previews">
-                        ${data.link_previews.map((preview, i2) => X1`
-                            <${LinkPreview} key=${i2} preview=${preview} />
+                        ${data.link_previews.map((preview, i) => ce`
+                            <${LinkPreview} key=${i} preview=${preview} />
                         `)}
                     </div>
                 `}
             </div>
         </div>
-        ${zoomedImage && X1`<${ImageModal} src=${zoomedImage} onClose=${() => setZoomedImage(null)} />`}
+        ${zoomedImage && ce`<${ImageModal} src=${zoomedImage} onClose=${() => setZoomedImage(null)} />`}
 
     `;
 }
 
 // web/src/components/timeline.ts
 function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onMessageRef, onScrollToMessage, onFileRef, onOpenWidget, onOpenAttachmentPreview, emptyMessage, timelineRef, agents, user, onDeletePost, reverse = true, removingPostIds, searchQuery }) {
-  const [loadingMore, setLoadingMore] = v0(false);
-  const sentinelRef = o0(null);
+  const [loadingMore, setLoadingMore] = M_(false);
+  const sentinelRef = K_(null);
   const hasIntersectionObserver = typeof IntersectionObserver !== "undefined";
-  const triggerLoadMore = t0(async () => {
+  const triggerLoadMore = X_(async () => {
     if (!onLoadMore || !hasMore || loadingMore)
       return;
     setLoadingMore(true);
@@ -5178,20 +5338,20 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
       setLoadingMore(false);
     }
   }, [hasMore, loadingMore, onLoadMore]);
-  const handleScroll = t0((e2) => {
-    const { scrollTop, scrollHeight, clientHeight } = e2.target;
+  const handleScroll = X_((e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
     const distanceFromTop = reverse ? scrollHeight - clientHeight - scrollTop : scrollTop;
     const prefetchThreshold = Math.max(300, clientHeight);
     if (distanceFromTop < prefetchThreshold) {
       triggerLoadMore();
     }
   }, [reverse, triggerLoadMore]);
-  r0(() => {
+  J_(() => {
     if (!hasIntersectionObserver)
       return;
-    const sentinel2 = sentinelRef.current;
+    const sentinel = sentinelRef.current;
     const root = timelineRef?.current;
-    if (!sentinel2 || !root)
+    if (!sentinel || !root)
       return;
     const prefetchThreshold = 300;
     const observer = new IntersectionObserver((entries) => {
@@ -5205,12 +5365,12 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
       rootMargin: `${prefetchThreshold}px 0px ${prefetchThreshold}px 0px`,
       threshold: 0
     });
-    observer.observe(sentinel2);
+    observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasIntersectionObserver, hasMore, onLoadMore, timelineRef, triggerLoadMore]);
-  const triggerLoadMoreRef = o0(triggerLoadMore);
+  const triggerLoadMoreRef = K_(triggerLoadMore);
   triggerLoadMoreRef.current = triggerLoadMore;
-  r0(() => {
+  J_(() => {
     if (hasIntersectionObserver)
       return;
     if (!timelineRef?.current)
@@ -5222,7 +5382,7 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
       triggerLoadMoreRef.current?.();
     }
   }, [hasIntersectionObserver, posts, hasMore, reverse, timelineRef]);
-  r0(() => {
+  J_(() => {
     if (!timelineRef?.current)
       return;
     if (!hasMore || loadingMore)
@@ -5235,10 +5395,10 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     }
   }, [posts, hasMore, loadingMore, reverse, timelineRef]);
   if (!posts) {
-    return X1`<div class="loading"><div class="spinner"></div></div>`;
+    return ce`<div class="loading"><div class="spinner"></div></div>`;
   }
   if (posts.length === 0) {
-    return X1`
+    return ce`
             <div class="timeline" ref=${timelineRef}>
                 <div class="timeline-content">
                     <div style="padding: var(--spacing-xl); text-align: center; color: var(--text-secondary)">
@@ -5248,7 +5408,7 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
             </div>
         `;
   }
-  const displayPosts = posts.slice().sort((a2, b) => a2.id - b.id);
+  const displayPosts = posts.slice().sort((a, b) => a.id - b.id);
   const resolveThreadRootId = (post) => {
     const raw = post?.data?.thread_id;
     if (raw === null || raw === undefined || raw === "")
@@ -5257,17 +5417,17 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     return Number.isFinite(threadId) ? threadId : null;
   };
   const threadGroups = new Map;
-  for (let i2 = 0;i2 < displayPosts.length; i2 += 1) {
-    const post = displayPosts[i2];
+  for (let i = 0;i < displayPosts.length; i += 1) {
+    const post = displayPosts[i];
     const postId = Number(post?.id);
     const threadRootId = resolveThreadRootId(post);
     if (threadRootId !== null) {
       const group = threadGroups.get(threadRootId) || { anchorIndex: -1, replyIndexes: [] };
-      group.replyIndexes.push(i2);
+      group.replyIndexes.push(i);
       threadGroups.set(threadRootId, group);
     } else if (Number.isFinite(postId)) {
       const group = threadGroups.get(postId) || { anchorIndex: -1, replyIndexes: [] };
-      group.anchorIndex = i2;
+      group.anchorIndex = i;
       threadGroups.set(postId, group);
     }
   }
@@ -5278,7 +5438,7 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
       ordered.add(group.anchorIndex);
     for (const index of group.replyIndexes)
       ordered.add(index);
-    threadSequences.set(threadId, Array.from(ordered).sort((a2, b) => a2 - b));
+    threadSequences.set(threadId, Array.from(ordered).sort((a, b) => a - b));
   }
   const threadInfoByIndex = displayPosts.map((post, index) => {
     const threadRootId = resolveThreadRootId(post);
@@ -5295,8 +5455,8 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
       hasThreadNext: position < sequence.length - 1
     };
   });
-  const sentinel = X1`<div class="timeline-sentinel" ref=${sentinelRef}></div>`;
-  return X1`
+  const sentinel = ce`<div class="timeline-sentinel" ref=${sentinelRef}></div>`;
+  return ce`
         <div class="timeline ${reverse ? "reverse" : "normal"}" ref=${timelineRef} onScroll=${handleScroll}>
             <div class="timeline-content">
                 ${reverse ? sentinel : null}
@@ -5304,7 +5464,7 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     const isThreadReply = Boolean(post.data?.thread_id && post.data.thread_id !== post.id);
     const isRemoving = removingPostIds?.has?.(post.id);
     const threadInfo = threadInfoByIndex[index] || {};
-    return X1`
+    return ce`
                     <${Post}
                         key=${post.id}
                         post=${post}
@@ -5374,8 +5534,8 @@ function rotatedIndices(length, startIndex) {
   const start = Number.isInteger(startIndex) ? startIndex : 0;
   const normalizedStart = (start % size + size) % size;
   const out = [];
-  for (let i2 = 0;i2 < size; i2 += 1) {
-    out.push((normalizedStart + i2) % size);
+  for (let i = 0;i < size; i += 1) {
+    out.push((normalizedStart + i) % size);
   }
   return out;
 }
@@ -5574,9 +5734,9 @@ function resolveConnectionStatusPresentation(status, options = {}) {
 }
 function useConnectionStatusPresentation(status, options = {}) {
   const delayMs = Number.isFinite(Number(options?.delayMs)) ? Math.max(0, Number(options.delayMs)) : RECONNECTING_HINT_DELAY_MS;
-  const [disconnectedAtMs, setDisconnectedAtMs] = v0(null);
-  const [displayNowMs, setDisplayNowMs] = v0(() => Date.now());
-  r0(() => {
+  const [disconnectedAtMs, setDisconnectedAtMs] = M_(null);
+  const [displayNowMs, setDisplayNowMs] = M_(() => Date.now());
+  J_(() => {
     if (status === "disconnected") {
       const startedAt = Date.now();
       setDisconnectedAtMs((previous) => previous ?? startedAt);
@@ -5586,7 +5746,7 @@ function useConnectionStatusPresentation(status, options = {}) {
     setDisconnectedAtMs(null);
     setDisplayNowMs(Date.now());
   }, [status]);
-  r0(() => {
+  J_(() => {
     if (status !== "disconnected" || disconnectedAtMs === null)
       return;
     const remainingMs = delayMs - (Date.now() - disconnectedAtMs);
@@ -5597,7 +5757,7 @@ function useConnectionStatusPresentation(status, options = {}) {
     }, remainingMs);
     return () => clearTimeout(timeoutId);
   }, [status, disconnectedAtMs, delayMs]);
-  return G0(() => resolveConnectionStatusPresentation(status, {
+  return u_(() => resolveConnectionStatusPresentation(status, {
     delayMs,
     disconnectedAtMs,
     nowMs: displayNowMs
@@ -5605,11 +5765,11 @@ function useConnectionStatusPresentation(status, options = {}) {
 }
 
 // web/src/components/compose-model-refresh.ts
-async function refreshAgentModelStateBestEffort(getAgentModels2, chatJid, emitModelState) {
-  if (typeof getAgentModels2 !== "function")
+async function refreshAgentModelStateBestEffort(getAgentModels, chatJid, emitModelState) {
+  if (typeof getAgentModels !== "function")
     return false;
   try {
-    const latest = await getAgentModels2(chatJid);
+    const latest = await getAgentModels(chatJid);
     if (!latest)
       return false;
     emitModelState(latest);
@@ -5786,28 +5946,28 @@ function ContextPie({ usage, onCompact }) {
   const compactLabel = `Compact context`;
   const label = tokens != null ? `Context: ${formatK(tokens)} / ${formatK(window2)} tokens (${pct.toFixed(0)}%)` : `Context: ${pct.toFixed(0)}%`;
   const title = `${label} — ${compactLabel}`;
-  const r2 = 9;
-  const circ = 2 * Math.PI * r2;
+  const r = 9;
+  const circ = 2 * Math.PI * r;
   const filled = pct / 100 * circ;
   const color = pct > 90 ? "var(--context-red, #ef4444)" : pct > 75 ? "var(--context-amber, #f59e0b)" : "var(--context-green, #22c55e)";
-  return X1`
+  return ce`
         <button
             class="compose-context-pie icon-btn"
             type="button"
             title=${title}
             aria-label="Compact context"
-            onClick=${(e2) => {
-    e2.preventDefault();
-    e2.stopPropagation();
+            onClick=${(e) => {
+    e.preventDefault();
+    e.stopPropagation();
     onCompact?.();
   }}
         >
             <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r=${r2}
+                <circle cx="12" cy="12" r=${r}
                     fill="none"
                     stroke="var(--context-track, rgba(128,128,128,0.2))"
                     stroke-width="2.5" />
-                <circle cx="12" cy="12" r=${r2}
+                <circle cx="12" cy="12" r=${r}
                     fill="none"
                     stroke=${color}
                     stroke-width="2.5"
@@ -5818,14 +5978,14 @@ function ContextPie({ usage, onCompact }) {
         </button>
     `;
 }
-function formatK(n2) {
-  if (n2 == null)
+function formatK(n) {
+  if (n == null)
     return "?";
-  if (n2 >= 1e6)
-    return (n2 / 1e6).toFixed(1) + "M";
-  if (n2 >= 1000)
-    return (n2 / 1000).toFixed(0) + "K";
-  return String(n2);
+  if (n >= 1e6)
+    return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1000)
+    return (n / 1000).toFixed(0) + "K";
+  return String(n);
 }
 function formatModelPickerContextWindow(contextWindow) {
   const value = Number(contextWindow);
@@ -5859,16 +6019,16 @@ function normalizeModelPickerOptions(payload) {
   const options = [];
   for (const item of rawItems) {
     if (typeof item === "string") {
-      const label2 = item.trim();
-      if (!label2)
+      const label = item.trim();
+      if (!label)
         continue;
-      const slashIndex = label2.indexOf("/");
-      const provider2 = slashIndex > 0 ? label2.slice(0, slashIndex).trim() : "";
-      const id2 = slashIndex > 0 ? label2.slice(slashIndex + 1).trim() : label2;
+      const slashIndex = label.indexOf("/");
+      const provider = slashIndex > 0 ? label.slice(0, slashIndex).trim() : "";
+      const id = slashIndex > 0 ? label.slice(slashIndex + 1).trim() : label;
       options.push({
-        label: label2,
-        provider: provider2,
-        id: id2,
+        label,
+        provider,
+        id,
         name: null,
         contextWindow: null,
         reasoning: false
@@ -5893,7 +6053,7 @@ function normalizeModelPickerOptions(payload) {
       reasoning: Boolean(item.reasoning)
     });
   }
-  options.sort((a2, b) => a2.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+  options.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
   return options;
 }
 function getModelPickerOptionSearchLabel(option) {
@@ -5984,9 +6144,9 @@ function extractQueuedFileRefs(value) {
   const lines = normalized.split(`
 `);
   let start = -1;
-  for (let i2 = 0;i2 < lines.length; i2 += 1) {
-    if (lines[i2].trim() === "Files:" && lines[i2 + 1] && /^\s*-\s+/.test(lines[i2 + 1])) {
-      start = i2;
+  for (let i = 0;i < lines.length; i += 1) {
+    if (lines[i].trim() === "Files:" && lines[i + 1] && /^\s*-\s+/.test(lines[i + 1])) {
+      start = i;
       break;
     }
   }
@@ -6023,9 +6183,9 @@ function extractQueuedMessageRefs(value) {
   const lines = normalized.split(`
 `);
   let start = -1;
-  for (let i2 = 0;i2 < lines.length; i2 += 1) {
-    if (lines[i2].trim() === "Referenced messages:" && lines[i2 + 1] && /^\s*-\s+/.test(lines[i2 + 1])) {
-      start = i2;
+  for (let i = 0;i < lines.length; i += 1) {
+    if (lines[i].trim() === "Referenced messages:" && lines[i + 1] && /^\s*-\s+/.test(lines[i + 1])) {
+      start = i;
       break;
     }
   }
@@ -6064,9 +6224,9 @@ function extractQueuedAttachmentRefs(value) {
   const lines = normalized.split(`
 `);
   let start = -1;
-  for (let i2 = 0;i2 < lines.length; i2 += 1) {
-    if (lines[i2].trim() === "Attachments:" && lines[i2 + 1] && /^\s*-\s+/.test(lines[i2 + 1])) {
-      start = i2;
+  for (let i = 0;i < lines.length; i += 1) {
+    if (lines[i].trim() === "Attachments:" && lines[i + 1] && /^\s*-\s+/.test(lines[i + 1])) {
+      start = i;
       break;
     }
   }
@@ -6123,7 +6283,7 @@ function QueuedFollowupStack({
 }) {
   if (!Array.isArray(items) || items.length === 0)
     return null;
-  return X1`
+  return ce`
         <div class="compose-queue-stack">
             ${items.map((item, index) => {
     const rowText = typeof item?.content === "string" ? item.content : "";
@@ -6132,13 +6292,13 @@ function QueuedFollowupStack({
       return null;
     const canMoveUp = index > 0;
     const canMoveDown = index < items.length - 1;
-    return X1`
+    return ce`
                     <div class="compose-queue-stack-item" role="listitem">
                         <div class="compose-queue-stack-content" title=${rowText}>
-                            ${parsed.text.trim() && X1`<div class="compose-queue-stack-text">${parsed.text}</div>`}
-                            ${(parsed.messageRefs.length > 0 || parsed.fileRefs.length > 0 || parsed.attachmentRefs.length > 0) && X1`
+                            ${parsed.text.trim() && ce`<div class="compose-queue-stack-text">${parsed.text}</div>`}
+                            ${(parsed.messageRefs.length > 0 || parsed.fileRefs.length > 0 || parsed.attachmentRefs.length > 0) && ce`
                                 <div class="compose-queue-stack-refs">
-                                    ${parsed.messageRefs.map((id) => X1`
+                                    ${parsed.messageRefs.map((id) => ce`
                                         <${FilePill}
                                             key=${"queue-msg-" + id}
                                             prefix="compose"
@@ -6149,7 +6309,7 @@ function QueuedFollowupStack({
                                     `)}
                                     ${parsed.fileRefs.map((path) => {
       const label = path.split("/").pop() || path;
-      return X1`
+      return ce`
                                             <${FilePill}
                                                 key=${"queue-file-" + path}
                                                 prefix="compose"
@@ -6159,7 +6319,7 @@ function QueuedFollowupStack({
                                             />
                                         `;
     })}
-                                    ${parsed.attachmentRefs.map((attachment) => X1`
+                                    ${parsed.attachmentRefs.map((attachment) => ce`
                                         <${FilePill}
                                             key=${"queue-attachment-" + attachment.id}
                                             prefix="compose"
@@ -6171,7 +6331,7 @@ function QueuedFollowupStack({
                             `}
                         </div>
                         <div class="compose-queue-stack-actions" role="group" aria-label="Queued follow-up controls">
-                            ${items.length > 1 && X1`
+                            ${items.length > 1 && ce`
                                 <button
                                     class="compose-queue-stack-move-btn"
                                     type="button"
@@ -6284,40 +6444,40 @@ function ComposeBox({
   extensionWorkingState = null,
   prefillRequest = null
 }) {
-  const [content, setContent] = v0("");
-  const [searchText, setSearchText] = v0("");
-  const [mediaFiles, setMediaFiles] = v0([]);
-  const [isDragActive, setIsDragActive] = v0(false);
-  const [slashMatches, setSlashMatches] = v0([]);
-  const [slashIndex, setSlashIndex] = v0(0);
-  const [showSlash, setShowSlash] = v0(false);
-  const dynamicCommandsRef = o0(null);
-  const [mentionMatches, setMentionMatches] = v0([]);
-  const [mentionIndex, setMentionIndex] = v0(0);
-  const [showMention, setShowMention] = v0(false);
-  const [switchingModel, setSwitchingModel] = v0(false);
-  const [showModelPopup, setShowModelPopup] = v0(false);
-  const [showSessionPopup, setShowSessionPopup] = v0(false);
-  const [modelOptions, setModelOptions] = v0([]);
-  const [modelPopupIndex, setModelPopupIndex] = v0(0);
-  const [sessionPopupIndex, setSessionPopupIndex] = v0(0);
-  const [loadingModels, setLoadingModels] = v0(false);
-  const [footerWidth, setFooterWidth] = v0(0);
-  const [submitError, setSubmitError] = v0(null);
-  const [submitNotice, setSubmitNotice] = v0(null);
-  const [statusNoticeNowMs, setStatusNoticeNowMs] = v0(() => Date.now());
-  const [extensionWorkingFrameIndex, setExtensionWorkingFrameIndex] = v0(0);
-  const textareaRef = o0(null);
-  const slashRef = o0(null);
-  const mentionRef = o0(null);
-  const modelPopupRef = o0(null);
-  const modelHintRef = o0(null);
-  const sessionPopupRef = o0(null);
-  const sessionTriggerRef = o0(null);
-  const footerRef = o0(null);
-  const popupTypeaheadRef = o0({ value: "", updatedAt: 0 });
-  const dragCounterRef = o0(0);
-  const renameSessionInProgressRef = o0(false);
+  const [content, setContent] = M_("");
+  const [searchText, setSearchText] = M_("");
+  const [mediaFiles, setMediaFiles] = M_([]);
+  const [isDragActive, setIsDragActive] = M_(false);
+  const [slashMatches, setSlashMatches] = M_([]);
+  const [slashIndex, setSlashIndex] = M_(0);
+  const [showSlash, setShowSlash] = M_(false);
+  const dynamicCommandsRef = K_(null);
+  const [mentionMatches, setMentionMatches] = M_([]);
+  const [mentionIndex, setMentionIndex] = M_(0);
+  const [showMention, setShowMention] = M_(false);
+  const [switchingModel, setSwitchingModel] = M_(false);
+  const [showModelPopup, setShowModelPopup] = M_(false);
+  const [showSessionPopup, setShowSessionPopup] = M_(false);
+  const [modelOptions, setModelOptions] = M_([]);
+  const [modelPopupIndex, setModelPopupIndex] = M_(0);
+  const [sessionPopupIndex, setSessionPopupIndex] = M_(0);
+  const [loadingModels, setLoadingModels] = M_(false);
+  const [footerWidth, setFooterWidth] = M_(0);
+  const [submitError, setSubmitError] = M_(null);
+  const [submitNotice, setSubmitNotice] = M_(null);
+  const [statusNoticeNowMs, setStatusNoticeNowMs] = M_(() => Date.now());
+  const [extensionWorkingFrameIndex, setExtensionWorkingFrameIndex] = M_(0);
+  const textareaRef = K_(null);
+  const slashRef = K_(null);
+  const mentionRef = K_(null);
+  const modelPopupRef = K_(null);
+  const modelHintRef = K_(null);
+  const sessionPopupRef = K_(null);
+  const sessionTriggerRef = K_(null);
+  const footerRef = K_(null);
+  const popupTypeaheadRef = K_({ value: "", updatedAt: 0 });
+  const dragCounterRef = K_(0);
+  const renameSessionInProgressRef = K_(false);
   const historyMax = 200;
   const historyStorageKey = getComposeHistoryStorageKey(currentChatJid);
   const normaliseHistory = (items) => {
@@ -6350,33 +6510,33 @@ function ComposeBox({
   const saveHistory = (history, storageKey = historyStorageKey) => {
     setLocalStorageItem(storageKey, JSON.stringify(history));
   };
-  const historyRef = o0(loadHistory(historyStorageKey));
-  const historyIndexRef = o0(-1);
-  const historyDraftRef = o0("");
-  const lastPrefillTokenRef = o0("");
-  r0(() => {
+  const historyRef = K_(loadHistory(historyStorageKey));
+  const historyIndexRef = K_(-1);
+  const historyDraftRef = K_("");
+  const lastPrefillTokenRef = K_("");
+  J_(() => {
     historyRef.current = loadHistory(historyStorageKey);
     historyIndexRef.current = -1;
     historyDraftRef.current = "";
   }, [historyStorageKey]);
-  r0(() => {
+  J_(() => {
     let cancelled = false;
     const chatJid = currentChatJid || "web:default";
-    fetch(`/agent/commands?chat_jid=${encodeURIComponent(chatJid)}`).then((r2) => r2.ok ? r2.json() : null).then((data) => {
+    fetch(`/agent/commands?chat_jid=${encodeURIComponent(chatJid)}`).then((r) => r.ok ? r.json() : null).then((data) => {
       if (cancelled || !data?.commands)
         return;
-      dynamicCommandsRef.current = data.commands.map((c2) => ({
-        name: c2.name,
-        description: c2.description || ""
+      dynamicCommandsRef.current = data.commands.map((c) => ({
+        name: c.name,
+        description: c.description || ""
       }));
-    }).catch((e2) => {
-      console.debug("[compose] failed to fetch dynamic commands", e2);
+    }).catch((e) => {
+      console.debug("[compose] failed to fetch dynamic commands", e);
     });
     return () => {
       cancelled = true;
     };
   }, [currentChatJid]);
-  r0(() => {
+  J_(() => {
     const resolved = resolveComposePrefillRequest(prefillRequest, lastPrefillTokenRef.current, searchMode);
     if (!resolved.shouldApply)
       return;
@@ -6428,7 +6588,7 @@ function ComposeBox({
     return null;
   })();
   const isCurrentRootSession = Boolean(currentSessionAgent && currentSessionAgent.chat_jid === (currentSessionAgent.root_chat_jid || currentSessionAgent.chat_jid));
-  const switchableChatAgents = G0(() => {
+  const switchableChatAgents = u_(() => {
     const seen = new Set;
     const chats = [];
     for (const chat of Array.isArray(activeChatAgents) ? activeChatAgents : []) {
@@ -6626,7 +6786,7 @@ function ComposeBox({
     const index = list.findIndex((item) => !item?.disabled);
     return index >= 0 ? index : 0;
   };
-  const sessionPopupEntries = G0(() => {
+  const sessionPopupEntries = u_(() => {
     const entries = [];
     for (const chat of switchableChatAgents) {
       const archived = Boolean(chat?.archived_at);
@@ -6924,17 +7084,17 @@ ${mediaIds.map((id, index) => {
   const handleInjectQueuedFollowup = (queuedItem) => {
     onInjectQueuedFollowup?.(queuedItem);
   };
-  const handlePopupKeyboardEvent = t0((e2) => {
-    if (searchMode || !showModelPopup && !showSessionPopup || e2?.isComposing)
+  const handlePopupKeyboardEvent = X_((e) => {
+    if (searchMode || !showModelPopup && !showSessionPopup || e?.isComposing)
       return false;
     const consume = () => {
-      e2.preventDefault?.();
-      e2.stopPropagation?.();
+      e.preventDefault?.();
+      e.stopPropagation?.();
     };
     const resetPopupTypeahead = () => {
       popupTypeaheadRef.current = { value: "", updatedAt: 0 };
     };
-    if (e2.key === "Escape") {
+    if (e.key === "Escape") {
       consume();
       resetPopupTypeahead();
       if (showModelPopup)
@@ -6944,29 +7104,29 @@ ${mediaIds.map((id, index) => {
       return true;
     }
     if (showModelPopup) {
-      if (e2.key === "ArrowDown") {
+      if (e.key === "ArrowDown") {
         consume();
         resetPopupTypeahead();
         if (modelOptions.length > 0)
           setModelPopupIndex((idx) => (idx + 1) % modelOptions.length);
         return true;
       }
-      if (e2.key === "ArrowUp") {
+      if (e.key === "ArrowUp") {
         consume();
         resetPopupTypeahead();
         if (modelOptions.length > 0)
           setModelPopupIndex((idx) => (idx - 1 + modelOptions.length) % modelOptions.length);
         return true;
       }
-      if ((e2.key === "Enter" || e2.key === "Tab") && modelOptions.length > 0) {
+      if ((e.key === "Enter" || e.key === "Tab") && modelOptions.length > 0) {
         consume();
         resetPopupTypeahead();
         handleSelectModel(modelOptions[Math.max(0, Math.min(modelPopupIndex, modelOptions.length - 1))]);
         return true;
       }
-      if (isPopupTypeaheadKey(e2) && modelOptions.length > 0) {
+      if (isPopupTypeaheadKey(e) && modelOptions.length > 0) {
         consume();
-        const nextBuffer = updatePopupTypeaheadBuffer(popupTypeaheadRef.current, e2.key);
+        const nextBuffer = updatePopupTypeaheadBuffer(popupTypeaheadRef.current, e.key);
         popupTypeaheadRef.current = nextBuffer;
         const match = resolvePopupTypeaheadMatch(modelOptions, nextBuffer.value, modelPopupIndex, (item) => getModelPickerOptionSearchLabel(item));
         if (match >= 0)
@@ -6975,29 +7135,29 @@ ${mediaIds.map((id, index) => {
       }
     }
     if (showSessionPopup) {
-      if (e2.key === "ArrowDown") {
+      if (e.key === "ArrowDown") {
         consume();
         resetPopupTypeahead();
         if (sessionPopupEntries.length > 0)
           setSessionPopupIndex((idx) => (idx + 1) % sessionPopupEntries.length);
         return true;
       }
-      if (e2.key === "ArrowUp") {
+      if (e.key === "ArrowUp") {
         consume();
         resetPopupTypeahead();
         if (sessionPopupEntries.length > 0)
           setSessionPopupIndex((idx) => (idx - 1 + sessionPopupEntries.length) % sessionPopupEntries.length);
         return true;
       }
-      if ((e2.key === "Enter" || e2.key === "Tab") && sessionPopupEntries.length > 0) {
+      if ((e.key === "Enter" || e.key === "Tab") && sessionPopupEntries.length > 0) {
         consume();
         resetPopupTypeahead();
         runSessionPopupEntry(sessionPopupEntries[Math.max(0, Math.min(sessionPopupIndex, sessionPopupEntries.length - 1))]);
         return true;
       }
-      if (isPopupTypeaheadKey(e2) && sessionPopupEntries.length > 0) {
+      if (isPopupTypeaheadKey(e) && sessionPopupEntries.length > 0) {
         consume();
-        const nextBuffer = updatePopupTypeaheadBuffer(popupTypeaheadRef.current, e2.key);
+        const nextBuffer = updatePopupTypeaheadBuffer(popupTypeaheadRef.current, e.key);
         popupTypeaheadRef.current = nextBuffer;
         const match = resolvePopupTypeaheadMatch(sessionPopupEntries, nextBuffer.value, sessionPopupIndex, (item) => item.label);
         if (match >= 0)
@@ -7016,24 +7176,24 @@ ${mediaIds.map((id, index) => {
     sessionPopupIndex,
     handleSelectModel
   ]);
-  const handleKeyDown = (e2) => {
-    if (e2.isComposing)
+  const handleKeyDown = (e) => {
+    if (e.isComposing)
       return;
-    if (searchMode && e2.key === "Escape") {
-      e2.preventDefault();
+    if (searchMode && e.key === "Escape") {
+      e.preventDefault();
       setSearchText("");
       onExitSearch?.();
       return;
     }
-    if (handlePopupKeyboardEvent(e2)) {
+    if (handlePopupKeyboardEvent(e)) {
       return;
     }
     const currentValue = textareaRef.current?.value ?? (searchMode ? searchText : content);
-    if (shouldOpenSessionSwitcherFromBlankCompose(e2, currentValue, {
+    if (shouldOpenSessionSwitcherFromBlankCompose(e, currentValue, {
       searchMode,
       showSessionSwitcherButton
     })) {
-      e2.preventDefault();
+      e.preventDefault();
       openSessionPopup();
       return;
     }
@@ -7043,23 +7203,23 @@ ${mediaIds.map((id, index) => {
         setShowMention(false);
         setMentionMatches([]);
       } else {
-        if (e2.key === "ArrowDown") {
-          e2.preventDefault();
-          setMentionIndex((i2) => (i2 + 1) % mentionMatches.length);
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setMentionIndex((i) => (i + 1) % mentionMatches.length);
           return;
         }
-        if (e2.key === "ArrowUp") {
-          e2.preventDefault();
-          setMentionIndex((i2) => (i2 - 1 + mentionMatches.length) % mentionMatches.length);
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setMentionIndex((i) => (i - 1 + mentionMatches.length) % mentionMatches.length);
           return;
         }
-        if (e2.key === "Tab" || e2.key === "Enter") {
-          e2.preventDefault();
+        if (e.key === "Tab" || e.key === "Enter") {
+          e.preventDefault();
           acceptMention(mentionMatches[mentionIndex]);
           return;
         }
-        if (e2.key === "Escape") {
-          e2.preventDefault();
+        if (e.key === "Escape") {
+          e.preventDefault();
           setShowMention(false);
           setMentionMatches([]);
           return;
@@ -7072,25 +7232,25 @@ ${mediaIds.map((id, index) => {
         setShowSlash(false);
         setSlashMatches([]);
       } else {
-        if (e2.key === "ArrowDown") {
-          e2.preventDefault();
-          setSlashIndex((i2) => (i2 + 1) % slashMatches.length);
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setSlashIndex((i) => (i + 1) % slashMatches.length);
           return;
         }
-        if (e2.key === "ArrowUp") {
-          e2.preventDefault();
-          setSlashIndex((i2) => (i2 - 1 + slashMatches.length) % slashMatches.length);
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setSlashIndex((i) => (i - 1 + slashMatches.length) % slashMatches.length);
           return;
         }
-        if (e2.key === "Tab") {
-          e2.preventDefault();
+        if (e.key === "Tab") {
+          e.preventDefault();
           acceptSlashCommand(slashMatches[slashIndex]);
           return;
         }
-        if (e2.key === "Enter" && !e2.shiftKey) {
+        if (e.key === "Enter" && !e.shiftKey) {
           const hasArgs = currentValue.includes(" ");
           if (!hasArgs) {
-            e2.preventDefault();
+            e.preventDefault();
             const cmd = slashMatches[slashIndex];
             setShowSlash(false);
             setSlashMatches([]);
@@ -7098,28 +7258,28 @@ ${mediaIds.map((id, index) => {
             return;
           }
         }
-        if (e2.key === "Escape") {
-          e2.preventDefault();
+        if (e.key === "Escape") {
+          e.preventDefault();
           setShowSlash(false);
           setSlashMatches([]);
           return;
         }
       }
     }
-    if (!searchMode && (e2.key === "ArrowUp" || e2.key === "ArrowDown") && !e2.metaKey && !e2.ctrlKey && !e2.altKey && !e2.shiftKey) {
+    if (!searchMode && (e.key === "ArrowUp" || e.key === "ArrowDown") && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
       const textarea = textareaRef.current;
       if (!textarea)
         return;
       const value = textarea.value || "";
       const atStart = textarea.selectionStart === 0 && textarea.selectionEnd === 0;
       const atEnd = textarea.selectionStart === value.length && textarea.selectionEnd === value.length;
-      if (e2.key === "ArrowUp" && atStart || e2.key === "ArrowDown" && atEnd) {
+      if (e.key === "ArrowUp" && atStart || e.key === "ArrowDown" && atEnd) {
         const history = historyRef.current;
         if (!history.length)
           return;
-        e2.preventDefault();
+        e.preventDefault();
         let idx = historyIndexRef.current;
-        if (e2.key === "ArrowUp") {
+        if (e.key === "ArrowUp") {
           if (idx === -1) {
             historyDraftRef.current = value;
             idx = history.length - 1;
@@ -7152,8 +7312,8 @@ ${mediaIds.map((id, index) => {
         return;
       }
     }
-    if (e2.key === "Enter" && !e2.shiftKey && (e2.ctrlKey || e2.metaKey)) {
-      e2.preventDefault();
+    if (e.key === "Enter" && !e.shiftKey && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
       if (searchMode) {
         if (currentValue.trim()) {
           onSearch?.(currentValue.trim(), searchScope);
@@ -7163,8 +7323,8 @@ ${mediaIds.map((id, index) => {
       }
       return;
     }
-    if (e2.key === "Enter" && !e2.shiftKey) {
-      e2.preventDefault();
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
       if (searchMode) {
         if (currentValue.trim()) {
           onSearch?.(currentValue.trim(), searchScope);
@@ -7181,49 +7341,49 @@ ${mediaIds.map((id, index) => {
     setMediaFiles((current) => [...current, ...list]);
     setSubmitError(null);
   };
-  const handleFileChange = (e2) => {
-    addMediaFiles(e2.target.files);
-    e2.target.value = "";
+  const handleFileChange = (e) => {
+    addMediaFiles(e.target.files);
+    e.target.value = "";
   };
-  const handleDragEnter = (e2) => {
+  const handleDragEnter = (e) => {
     if (searchMode)
       return;
-    e2.preventDefault();
-    e2.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     dragCounterRef.current += 1;
     setIsDragActive(true);
   };
-  const handleDragLeave = (e2) => {
+  const handleDragLeave = (e) => {
     if (searchMode)
       return;
-    e2.preventDefault();
-    e2.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     dragCounterRef.current = Math.max(0, dragCounterRef.current - 1);
     if (dragCounterRef.current === 0)
       setIsDragActive(false);
   };
-  const handleDragOver = (e2) => {
+  const handleDragOver = (e) => {
     if (searchMode)
       return;
-    e2.preventDefault();
-    e2.stopPropagation();
-    if (e2.dataTransfer)
-      e2.dataTransfer.dropEffect = "copy";
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer)
+      e.dataTransfer.dropEffect = "copy";
     setIsDragActive(true);
   };
-  const handleDrop = (e2) => {
+  const handleDrop = (e) => {
     if (searchMode)
       return;
-    e2.preventDefault();
-    e2.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     dragCounterRef.current = 0;
     setIsDragActive(false);
-    addMediaFiles(e2.dataTransfer?.files || []);
+    addMediaFiles(e.dataTransfer?.files || []);
   };
-  const handlePaste = (e2) => {
+  const handlePaste = (e) => {
     if (searchMode)
       return;
-    const items = e2.clipboardData?.items;
+    const items = e.clipboardData?.items;
     if (!items || !items.length)
       return;
     const files = [];
@@ -7235,12 +7395,12 @@ ${mediaIds.map((id, index) => {
         files.push(file);
     }
     if (files.length > 0) {
-      e2.preventDefault();
+      e.preventDefault();
       addMediaFiles(files);
     }
   };
   const removeMediaFile = (index) => {
-    setMediaFiles((current) => current.filter((_2, idx) => idx !== index));
+    setMediaFiles((current) => current.filter((_, idx) => idx !== index));
   };
   const clearAllAttachmentRefs = () => {
     setSubmitError(null);
@@ -7265,7 +7425,7 @@ ${mediaIds.map((id, index) => {
       alert(`Location error: ${message}`);
     }, { enableHighAccuracy: true, timeout: 1e4, maximumAge: 0 });
   };
-  r0(() => {
+  J_(() => {
     if (!showModelPopup)
       return;
     popupTypeaheadRef.current = { value: "", updatedAt: 0 };
@@ -7280,7 +7440,7 @@ ${mediaIds.map((id, index) => {
       setLoadingModels(false);
     });
   }, [showModelPopup, activeModel]);
-  r0(() => {
+  J_(() => {
     if (searchMode) {
       setShowModelPopup(false);
       setShowSessionPopup(false);
@@ -7290,24 +7450,24 @@ ${mediaIds.map((id, index) => {
       setMentionMatches([]);
     }
   }, [searchMode]);
-  r0(() => {
+  J_(() => {
     if (showSessionPopup && !showSessionSwitcherButton) {
       setShowSessionPopup(false);
     }
   }, [showSessionPopup, showSessionSwitcherButton]);
-  r0(() => {
+  J_(() => {
     if (!showModelPopup)
       return;
     const activeIndex = modelOptions.findIndex((model) => model?.label === activeModel);
     setModelPopupIndex(activeIndex >= 0 ? activeIndex : 0);
   }, [showModelPopup, modelOptions, activeModel]);
-  r0(() => {
+  J_(() => {
     if (!showSessionPopup)
       return;
     setSessionPopupIndex(findFirstEnabledPopupIndex(sessionPopupEntries));
     popupTypeaheadRef.current = { value: "", updatedAt: 0 };
   }, [showSessionPopup, currentChatJid]);
-  r0(() => {
+  J_(() => {
     if (!showModelPopup)
       return;
     const onPointerDown = (event) => {
@@ -7323,7 +7483,7 @@ ${mediaIds.map((id, index) => {
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [showModelPopup]);
-  r0(() => {
+  J_(() => {
     if (!showSessionPopup)
       return;
     const onPointerDown = (event) => {
@@ -7339,7 +7499,7 @@ ${mediaIds.map((id, index) => {
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [showSessionPopup]);
-  r0(() => {
+  J_(() => {
     if (searchMode || !showModelPopup && !showSessionPopup)
       return;
     const onKeyDown = (event) => {
@@ -7348,7 +7508,7 @@ ${mediaIds.map((id, index) => {
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
   }, [searchMode, showModelPopup, showSessionPopup, handlePopupKeyboardEvent]);
-  r0(() => {
+  J_(() => {
     if (!showModelPopup)
       return;
     const popup = modelPopupRef.current;
@@ -7356,7 +7516,7 @@ ${mediaIds.map((id, index) => {
     const active = popup?.querySelector?.(".compose-model-popup-item.active");
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showModelPopup, modelPopupIndex, modelOptions]);
-  r0(() => {
+  J_(() => {
     if (!showSessionPopup)
       return;
     const popup = sessionPopupRef.current;
@@ -7364,21 +7524,21 @@ ${mediaIds.map((id, index) => {
     const active = popup?.querySelector?.(".compose-model-popup-item.active");
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showSessionPopup, sessionPopupIndex, sessionPopupEntries.length]);
-  r0(() => {
+  J_(() => {
     if (!showMention || !mentionRef.current)
       return;
     const popup = mentionRef.current;
     const active = popup.querySelector?.(".slash-item.active");
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showMention, mentionIndex, mentionMatches.length]);
-  r0(() => {
+  J_(() => {
     if (!showSlash || !slashRef.current)
       return;
     const popup = slashRef.current;
     const active = popup.querySelector?.(".slash-item.active");
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showSlash, slashIndex, slashMatches.length]);
-  r0(() => {
+  J_(() => {
     const updateFooterWidth = () => {
       const width = footerRef.current?.clientWidth || 0;
       setFooterWidth((current) => current === width ? current : width);
@@ -7413,26 +7573,26 @@ ${mediaIds.map((id, index) => {
       }
     };
   }, [searchMode, activeModel, currentSessionAgent?.agent_name, showSessionSwitcherButton, contextUsage?.percent]);
-  const handleInput = (e2) => {
-    const value = e2.target.value;
+  const handleInput = (e) => {
+    const value = e.target.value;
     setSubmitError(null);
     setSubmitNotice(null);
     if (showSessionPopup)
       setShowSessionPopup(false);
-    resizeTextarea(e2.target);
+    resizeTextarea(e.target);
     updateValue(value);
   };
-  r0(() => {
+  J_(() => {
     requestAnimationFrame(() => resizeTextarea());
   }, [content, searchText, searchMode]);
-  r0(() => {
+  J_(() => {
     if (!statusNoticeIsCompaction)
       return;
     setStatusNoticeNowMs(Date.now());
     const timer = setInterval(() => setStatusNoticeNowMs(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [statusNoticeIsCompaction, statusNotice?.started_at, statusNotice?.startedAt]);
-  r0(() => {
+  J_(() => {
     setExtensionWorkingFrameIndex(0);
     if (extensionWorkingIndicator?.mode !== "custom" || !Array.isArray(extensionWorkingIndicator.frames) || extensionWorkingIndicator.frames.length <= 1) {
       return;
@@ -7443,14 +7603,14 @@ ${mediaIds.map((id, index) => {
     }, intervalMs);
     return () => clearInterval(timer);
   }, [extensionWorkingIndicator]);
-  r0(() => {
+  J_(() => {
     if (searchMode)
       return;
     updateMentionAutocomplete(content);
   }, [mentionAgents, currentChatJid, content, searchMode]);
-  return X1`
+  return ce`
         <div class="compose-box">
-            ${showQueueStack && !searchMode && X1`
+            ${showQueueStack && !searchMode && ce`
                 <${QueuedFollowupStack}
                     items=${followupQueueItems}
                     onInjectQueuedFollowup=${handleInjectQueuedFollowup}
@@ -7459,15 +7619,15 @@ ${mediaIds.map((id, index) => {
                     onOpenFilePill=${onOpenFilePill}
                 />
             `}
-            ${extensionWorkingDisplay.visible && X1`
+            ${extensionWorkingDisplay.visible && ce`
                 <div class="compose-inline-status extension-working" role="status" aria-live="polite">
                     <div class="compose-inline-status-row">
-                        ${extensionWorkingDisplay.indicatorText ? X1`<span class="compose-inline-status-glyph" aria-hidden="true">${extensionWorkingDisplay.indicatorText}</span>` : extensionWorkingDisplay.animateDot ? X1`<span class=${buildComposeStatusDotClass({ pulsing: true })} aria-hidden="true"></span>` : null}
+                        ${extensionWorkingDisplay.indicatorText ? ce`<span class="compose-inline-status-glyph" aria-hidden="true">${extensionWorkingDisplay.indicatorText}</span>` : extensionWorkingDisplay.animateDot ? ce`<span class=${buildComposeStatusDotClass({ pulsing: true })} aria-hidden="true"></span>` : null}
                         <span class="compose-inline-status-title">${extensionWorkingDisplay.title}</span>
                     </div>
                 </div>
             `}
-            ${statusNotice && X1`
+            ${statusNotice && ce`
                 <div
                     class=${`compose-inline-status${statusNoticeIsCompaction ? " compaction" : ""}`}
                     role="status"
@@ -7477,12 +7637,12 @@ ${mediaIds.map((id, index) => {
                     <div class="compose-inline-status-row">
                         <span class=${buildComposeStatusDotClass({ pulsing: statusNoticeIsCompaction })} aria-hidden="true"></span>
                         <span class="compose-inline-status-title">${statusNoticeTitle}</span>
-                        ${statusNoticeElapsedLabel && X1`<span class="compose-inline-status-elapsed">${statusNoticeElapsedLabel}</span>`}
+                        ${statusNoticeElapsedLabel && ce`<span class="compose-inline-status-elapsed">${statusNoticeElapsedLabel}</span>`}
                     </div>
-                    ${statusNoticeDetail && X1`<div class="compose-inline-status-detail">${statusNoticeDetail}</div>`}
+                    ${statusNoticeDetail && ce`<div class="compose-inline-status-detail">${statusNoticeDetail}</div>`}
                 </div>
             `}
-            ${submitNotice && X1`
+            ${submitNotice && ce`
                 <div class="compose-inline-status compose-command-notice" role="status" aria-live="polite">
                     <div class="compose-inline-status-detail compose-command-notice-text">${submitNotice}</div>
                 </div>
@@ -7495,10 +7655,10 @@ ${mediaIds.map((id, index) => {
                 onDrop=${handleDrop}
             >
                 <div class="compose-input-main">
-                    ${hasAttachments && X1`
+                    ${hasAttachments && ce`
                         <div class="compose-file-refs">
                             ${messageRefs.map((id) => {
-    return X1`
+    return ce`
                                     <${FilePill}
                                         key=${"msg-" + id}
                                         prefix="compose"
@@ -7512,7 +7672,7 @@ ${mediaIds.map((id, index) => {
   })}
                             ${fileRefs.map((path) => {
     const label = path.split("/").pop() || path;
-    return X1`
+    return ce`
                                     <${FilePill}
                                         prefix="compose"
                                         label=${label}
@@ -7525,7 +7685,7 @@ ${mediaIds.map((id, index) => {
   })}
                             ${mediaFiles.map((file, index) => {
     const label = file?.name || `attachment-${index + 1}`;
-    return X1`
+    return ce`
                                     <${FilePill}
                                         key=${label + index}
                                         prefix="compose"
@@ -7547,7 +7707,7 @@ ${mediaIds.map((id, index) => {
                             </button>
                         </div>
                     `}
-                    ${!searchMode && typeof onPopOutChat === "function" && X1`
+                    ${!searchMode && typeof onPopOutChat === "function" && ce`
                         <button
                             type="button"
                             class="compose-popout-btn"
@@ -7576,17 +7736,17 @@ ${mediaIds.map((id, index) => {
                         onClick=${onFocus}
                         rows="1"
                     />
-                    ${showMention && mentionMatches.length > 0 && X1`
+                    ${showMention && mentionMatches.length > 0 && ce`
                         <div class="slash-autocomplete" ref=${mentionRef}>
-                            ${mentionMatches.map((agent, i2) => X1`
+                            ${mentionMatches.map((agent, i) => ce`
                                 <div
                                     key=${agent.chat_jid || agent.agent_name}
-                                    class=${`slash-item${i2 === mentionIndex ? " active" : ""}`}
-                                    onMouseDown=${(e2) => {
-    e2.preventDefault();
+                                    class=${`slash-item${i === mentionIndex ? " active" : ""}`}
+                                    onMouseDown=${(e) => {
+    e.preventDefault();
     acceptMention(agent);
   }}
-                                    onMouseEnter=${() => setMentionIndex(i2)}
+                                    onMouseEnter=${() => setMentionIndex(i)}
                                 >
                                     <span class="slash-name">@${agent.agent_name}</span>
                                     <span class="slash-desc">${agent.chat_jid || "Active agent"}</span>
@@ -7594,17 +7754,17 @@ ${mediaIds.map((id, index) => {
                             `)}
                         </div>
                     `}
-                    ${showSlash && slashMatches.length > 0 && X1`
+                    ${showSlash && slashMatches.length > 0 && ce`
                         <div class="slash-autocomplete" ref=${slashRef}>
-                            ${slashMatches.map((cmd, i2) => X1`
+                            ${slashMatches.map((cmd, i) => ce`
                                 <div
                                     key=${cmd.name}
-                                    class=${`slash-item${i2 === slashIndex ? " active" : ""}`}
-                                    onMouseDown=${(e2) => {
-    e2.preventDefault();
+                                    class=${`slash-item${i === slashIndex ? " active" : ""}`}
+                                    onMouseDown=${(e) => {
+    e.preventDefault();
     acceptSlashCommand(cmd);
   }}
-                                    onMouseEnter=${() => setSlashIndex(i2)}
+                                    onMouseEnter=${() => setSlashIndex(i)}
                                 >
                                     <span class="slash-name">${cmd.name}</span>
                                     <span class="slash-desc">${cmd.description}</span>
@@ -7612,20 +7772,20 @@ ${mediaIds.map((id, index) => {
                             `)}
                         </div>
                     `}
-                    ${showModelPopup && !searchMode && X1`
+                    ${showModelPopup && !searchMode && ce`
                         <div class="compose-model-popup" ref=${modelPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
                             <div class="compose-model-popup-title">Select model</div>
                             <div class="compose-model-popup-menu" role="menu" aria-label="Model picker">
-                                ${loadingModels && X1`
+                                ${loadingModels && ce`
                                     <div class="compose-model-popup-empty">Loading models…</div>
                                 `}
-                                ${!loadingModels && modelOptions.length === 0 && X1`
+                                ${!loadingModels && modelOptions.length === 0 && ce`
                                     <div class="compose-model-popup-empty">No models available.</div>
                                 `}
                                 ${!loadingModels && modelOptions.map((modelOption, index) => {
     const modelLabel = typeof modelOption?.label === "string" ? modelOption.label : "";
     const contextWindowLabel = formatModelPickerContextWindow(modelOption?.contextWindow);
-    return X1`
+    return ce`
                                         <button
                                             key=${modelLabel}
                                             type="button"
@@ -7656,18 +7816,18 @@ ${mediaIds.map((id, index) => {
                             </div>
                         </div>
                     `}
-                    ${showSessionPopup && !searchMode && X1`
+                    ${showSessionPopup && !searchMode && ce`
                         <div class="compose-model-popup" ref=${sessionPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
                             <div class="compose-model-popup-title">Manage sessions & agents</div>
                             <div class="compose-model-popup-menu" role="menu" aria-label="Sessions and agents">
-                                ${X1`
+                                ${ce`
                                     <div class="compose-model-popup-item current" role="note" aria-live="polite">
                                         ${(() => {
     return formatCurrentBranchLabel(currentSessionAgent, currentChatJid);
   })()}
                                     </div>
                                 `}
-                                ${!hasSwitchableChatAgents && X1`
+                                ${!hasSwitchableChatAgents && ce`
                                     <div class="compose-model-popup-empty">No other sessions yet.</div>
                                 `}
                                 ${hasSwitchableChatAgents && switchableChatAgents.map((chat, listIndex) => {
@@ -7675,7 +7835,7 @@ ${mediaIds.map((id, index) => {
     const isRoot = chat.chat_jid === (chat.root_chat_jid || chat.chat_jid);
     const canPrune = !isRoot && !chat.is_active && !archived && typeof onDeleteSession === "function";
     const label = formatBranchPickerLabel(chat, { currentChatJid });
-    return X1`
+    return ce`
                                         <div key=${chat.chat_jid} class=${`compose-model-popup-item-row${archived ? " archived" : ""}`}>
                                             <button
                                                 type="button"
@@ -7693,14 +7853,14 @@ ${mediaIds.map((id, index) => {
                                             >
                                                 ${label}
                                             </button>
-                                            ${canPrune && X1`
+                                            ${canPrune && ce`
                                                 <button
                                                     type="button"
                                                     class="compose-model-popup-item-delete"
                                                     title="Delete this branch"
                                                     aria-label=${`Delete @${chat.agent_name}`}
-                                                    onClick=${(e2) => {
-      e2.stopPropagation();
+                                                    onClick=${(e) => {
+      e.stopPropagation();
       setShowSessionPopup(false);
       onDeleteSession(chat.chat_jid);
     }}
@@ -7715,9 +7875,9 @@ ${mediaIds.map((id, index) => {
                                     `;
   })}
                             </div>
-                            ${(canCreateSession || canRenameSession || canDeleteSession) && X1`
+                            ${(canCreateSession || canRenameSession || canDeleteSession) && ce`
                                 <div class="compose-model-popup-actions">
-                                    ${canCreateSession && X1`
+                                    ${canCreateSession && ce`
                                         <button
                                             type="button"
                                             class=${`compose-model-popup-btn primary${sessionPopupEntries.findIndex((entry) => entry.key === "action:new") === sessionPopupIndex ? " active" : ""}`}
@@ -7729,12 +7889,12 @@ ${mediaIds.map((id, index) => {
                                             New
                                         </button>
                                     `}
-                                    ${canRenameSession && X1`
+                                    ${canRenameSession && ce`
                                         <button
                                             type="button"
                                             class=${`compose-model-popup-btn${sessionPopupEntries.findIndex((entry) => entry.key === "action:rename") === sessionPopupIndex ? " active" : ""}`}
-                                            onClick=${(e2) => {
-    handleRenameSession(e2);
+                                            onClick=${(e) => {
+    handleRenameSession(e);
   }}
                                             title="Rename the current branch handle"
                                             disabled=${renameInProgress}
@@ -7742,7 +7902,7 @@ ${mediaIds.map((id, index) => {
                                             Rename current…
                                         </button>
                                     `}
-                                    ${canDeleteSession && X1`
+                                    ${canDeleteSession && ce`
                                         <button
                                             type="button"
                                             class=${`compose-model-popup-btn danger${sessionPopupEntries.findIndex((entry) => entry.key === "action:delete") === sessionPopupIndex ? " active" : ""}`}
@@ -7760,9 +7920,9 @@ ${mediaIds.map((id, index) => {
                     `}
                 </div>
                 <div class="compose-footer" ref=${footerRef}>
-                    ${showComposeMetaRow && X1`
+                    ${showComposeMetaRow && ce`
                     <div class="compose-meta-row">
-                        ${showModelPickerHint && X1`
+                        ${showModelPickerHint && ce`
                             <div class="compose-model-meta">
                                 <button
                                     ref=${modelHintRef}
@@ -7776,7 +7936,7 @@ ${mediaIds.map((id, index) => {
                                     ${switchingModel ? "Switching…" : modelHintLabel}
                                 </button>
                                 <div class="compose-model-meta-subline">
-                                    ${!switchingModel && modelUsageSectionLabel && X1`
+                                    ${!switchingModel && modelUsageSectionLabel && ce`
                                         <span class="compose-model-usage-hint" title=${modelHintTitle}>
                                             ${modelUsageSectionLabel}
                                         </span>
@@ -7784,18 +7944,18 @@ ${mediaIds.map((id, index) => {
                                 </div>
                             </div>
                         `}
-                        ${!searchMode && contextUsage && contextUsage.percent != null && X1`
+                        ${!searchMode && contextUsage && contextUsage.percent != null && ce`
                             <${ContextPie} usage=${contextUsage} onCompact=${handleContextCompact} />
                         `}
                     </div>
                     `}
                     <div class="compose-actions ${searchMode ? "search-mode" : ""}">
-                    ${showSessionSwitcherButton && X1`
+                    ${showSessionSwitcherButton && ce`
                         <div
                             ref=${sessionTriggerRef}
                             class="compose-session-trigger-group"
                         >
-                            ${currentSessionAgent?.agent_name && X1`
+                            ${currentSessionAgent?.agent_name && ce`
                                 <button
                                     type="button"
                                     class=${`compose-session-trigger compose-session-trigger-pill${showSessionPopup ? " active" : ""}`}
@@ -7824,13 +7984,13 @@ ${mediaIds.map((id, index) => {
                             </button>
                         </div>
                     `}
-                    ${searchMode && X1`
+                    ${searchMode && ce`
                         <label class="compose-search-scope-wrap" title="Search scope">
                             <span class="compose-search-scope-label">Scope</span>
                             <select
                                 class="compose-search-scope-select"
                                 value=${searchScope}
-                                onChange=${(e2) => onSearchScopeChange?.(e2.currentTarget.value)}
+                                onChange=${(e) => onSearchScopeChange?.(e.currentTarget.value)}
                             >
                                 <option value="current">Current</option>
                                 <option value="root">Branch family</option>
@@ -7843,18 +8003,18 @@ ${mediaIds.map((id, index) => {
                         onClick=${searchMode ? onExitSearch : onEnterSearch}
                         title=${searchMode ? "Close search" : "Search"}
                     >
-                        ${searchMode ? X1`
+                        ${searchMode ? ce`
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M18 6L6 18M6 6l12 12"/>
                             </svg>
-                        ` : X1`
+                        ` : ce`
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="11" cy="11" r="8"/>
                                 <path d="M21 21l-4.35-4.35"/>
                             </svg>
                         `}
                     </button>
-                    ${canShareLocation && !searchMode && X1`
+                    ${canShareLocation && !searchMode && ce`
                         <button
                             class="icon-btn location-btn"
                             onClick=${handleLocation}
@@ -7868,7 +8028,7 @@ ${mediaIds.map((id, index) => {
                             </svg>
                         </button>
                     `}
-                    ${notificationsAvailable && !searchMode && X1`
+                    ${notificationsAvailable && !searchMode && ce`
                         <button
                             class=${`icon-btn notification-btn${notificationActive ? " active" : ""}`}
                             onClick=${onToggleNotifications}
@@ -7881,8 +8041,8 @@ ${mediaIds.map((id, index) => {
                             </svg>
                         </button>
                     `}
-                    ${!searchMode && X1`
-                        ${activeEditorPath && onAttachEditorFile && X1`
+                    ${!searchMode && ce`
+                        ${activeEditorPath && onAttachEditorFile && ce`
                             <button
                                 class="icon-btn attach-editor-btn"
                                 onClick=${onAttachEditorFile}
@@ -7898,14 +8058,14 @@ ${mediaIds.map((id, index) => {
                             <input type="file" multiple hidden onChange=${handleFileChange} />
                         </label>
                     `}
-                    ${(connectionStatus !== "connected" || !searchMode) && X1`
+                    ${(connectionStatus !== "connected" || !searchMode) && ce`
                         <div class="compose-send-stack">
-                            ${connectionStatus !== "connected" && X1`
+                            ${connectionStatus !== "connected" && ce`
                                 <span class="compose-connection-status connection-status ${connectionStatusPresentation.statusClass}" title=${connectionStatusTitle}>
                                     ${connectionStatusLabel}
                                 </span>
                             `}
-                            ${!searchMode && X1`
+                            ${!searchMode && ce`
                                 <button 
                                     class=${submitButtonState.className}
                                     type="button"
@@ -7920,14 +8080,14 @@ ${mediaIds.map((id, index) => {
                                     title=${submitButtonState.title}
                                     aria-label=${submitButtonState.ariaLabel}
                                 >
-                                    ${submitButtonState.mode === "compacting" ? X1`
+                                    ${submitButtonState.mode === "compacting" ? ce`
                                             <span class="compose-submit-spinner" aria-hidden="true">
                                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                                                     <circle class="compose-submit-spinner-ring" cx="12" cy="12" r="10.5" stroke-width="2.25" stroke-linecap="round"></circle>
                                                     <rect class="compose-submit-spinner-stop" x="6" y="6" width="12" height="12" rx="0" fill="currentColor"></rect>
                                                 </svg>
                                             </span>
-                                        ` : submitButtonState.mode === "abort" ? X1`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2.5"/></svg>` : X1`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`}
+                                        ` : submitButtonState.mode === "abort" ? ce`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2.5"/></svg>` : ce`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`}
                                 </button>
                             `}
                         </div>
@@ -7988,13 +8148,13 @@ function extractToolContextPath(toolName, args) {
 }
 
 // web/src/components/status.ts
-var COPY_ICON_SVG2 = X1`
+var COPY_ICON_SVG2 = ce`
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <rect x="9" y="9" width="10" height="10" rx="2"></rect>
         <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
     </svg>
 `;
-var GIT_BRANCH_ICON_SVG = X1`
+var GIT_BRANCH_ICON_SVG = ce`
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
         <path d="M6 3v12"></path>
         <circle cx="18" cy="6" r="3"></circle>
@@ -8002,7 +8162,7 @@ var GIT_BRANCH_ICON_SVG = X1`
         <path d="M18 9a9 9 0 0 1-9 9"></path>
     </svg>
 `;
-var CLOCK_ICON_SVG = X1`
+var CLOCK_ICON_SVG = ce`
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
         <circle cx="12" cy="12" r="9"></circle>
         <path d="M12 7v5l3 2"></path>
@@ -8117,13 +8277,13 @@ function formatElapsed(isoString, nowMs = Date.now()) {
     return null;
   const totalSec = Math.floor(ms / 1000);
   const h = Math.floor(totalSec / 3600);
-  const m2 = Math.floor(totalSec % 3600 / 60);
-  const s2 = totalSec % 60;
+  const m = Math.floor(totalSec % 3600 / 60);
+  const s = totalSec % 60;
   if (h > 0)
-    return `${h}h ${m2}m`;
-  if (m2 > 0)
-    return `${m2}m ${s2}s`;
-  return `${s2}s`;
+    return `${h}h ${m}m`;
+  if (m > 0)
+    return `${m}m ${s}s`;
+  return `${s}s`;
 }
 function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, extensionPanels = [], pendingPanelActions = new Set, onExtensionPanelAction, turnId, steerQueued, onPanelToggle, showCorePanels = true, showExtensionPanels = true }) {
   const THOUGHT_MAX_LINES = 8;
@@ -8132,11 +8292,11 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     if (!value)
       return { text: "", totalLines: 0, fullText: "" };
     if (typeof value === "string") {
-      const text2 = value;
-      const totalLines2 = text2 ? text2.replace(/\r\n/g, `
+      const text = value;
+      const totalLines = text ? text.replace(/\r\n/g, `
 `).split(`
 `).length : 0;
-      return { text: text2, totalLines: totalLines2, fullText: text2 };
+      return { text, totalLines, fullText: text };
     }
     const text = value.text || "";
     const fullText = value.fullText || value.full_text || text;
@@ -8157,8 +8317,8 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
 `).replace(/\r/g, `
 `);
     if (!value) {
-      const totalLines2 = Number.isFinite(totalLinesOverride) ? totalLinesOverride : 0;
-      return { text: "", omitted: 0, totalLines: totalLines2, visibleLines: 0 };
+      const totalLines = Number.isFinite(totalLinesOverride) ? totalLinesOverride : 0;
+      return { text: "", omitted: 0, totalLines, visibleLines: 0 };
     }
     const lines = value.split(`
 `);
@@ -8178,9 +8338,9 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
   const hasDraft = Boolean(draftInfo.fullText?.trim() || draftInfo.text?.trim());
   const hasCorePanels = Boolean(status || hasDraft || hasPlan || hasThought || pendingRequest || intent);
   const hasExtensionPanels = Array.isArray(extensionPanels) && extensionPanels.length > 0;
-  const [expandedPanels, setExpandedPanels] = v0(new Set);
-  const [hoveredSeriesPoint, setHoveredSeriesPoint] = v0(null);
-  const [nowMs, setNowMs] = v0(() => Date.now());
+  const [expandedPanels, setExpandedPanels] = M_(new Set);
+  const [hoveredSeriesPoint, setHoveredSeriesPoint] = M_(null);
+  const [nowMs, setNowMs] = M_(() => Date.now());
   const toggleExpand = (key) => setExpandedPanels((prev) => {
     const next = new Set(prev);
     const willExpand = !next.has(key);
@@ -8193,19 +8353,19 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     }
     return next;
   });
-  r0(() => {
+  J_(() => {
     setExpandedPanels(new Set);
     setHoveredSeriesPoint(null);
   }, [turnId]);
-  r0(() => {
-    const hasExpandedTimestampPanel = Array.isArray(extensionPanels) && extensionPanels.some((p2) => expandedPanels.has(p2?.key) && (p2?.started_at || p2?.last_activity_at));
+  J_(() => {
+    const hasExpandedTimestampPanel = Array.isArray(extensionPanels) && extensionPanels.some((p) => expandedPanels.has(p?.key) && (p?.started_at || p?.last_activity_at));
     if (!hasExpandedTimestampPanel)
       return;
     const interval = setInterval(() => setNowMs(Date.now()), 1000);
     return () => clearInterval(interval);
   }, [expandedPanels, extensionPanels]);
-  const escapeCollapseKey = G0(() => resolveAgentStatusEscapeCollapseKey(expandedPanels), [expandedPanels]);
-  r0(() => {
+  const escapeCollapseKey = u_(() => resolveAgentStatusEscapeCollapseKey(expandedPanels), [expandedPanels]);
+  J_(() => {
     if (!escapeCollapseKey || typeof document === "undefined")
       return;
     const handleKeyDown = (event) => {
@@ -8240,11 +8400,11 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
   }, [escapeCollapseKey, onPanelToggle]);
   const statusIsCompaction = isCompactionStatus(status);
   const isLastActivity = Boolean(status?.last_activity || status?.lastActivity);
-  const shouldTickActivityAge = G0(() => shouldTickStatusActivityAge(status), [status]);
-  const shouldTickIntentAge = G0(() => shouldTickIntentElapsed(status), [status]);
-  const toolContextPath = G0(() => extractToolContextPath(status?.tool_name, status?.tool_args), [status?.tool_name, status?.tool_args]);
-  const [toolRepoContext, setToolRepoContext] = v0(null);
-  r0(() => {
+  const shouldTickActivityAge = u_(() => shouldTickStatusActivityAge(status), [status]);
+  const shouldTickIntentAge = u_(() => shouldTickIntentElapsed(status), [status]);
+  const toolContextPath = u_(() => extractToolContextPath(status?.tool_name, status?.tool_args), [status?.tool_name, status?.tool_args]);
+  const [toolRepoContext, setToolRepoContext] = M_(null);
+  J_(() => {
     const shouldTick = Boolean(shouldTickIntentAge || status?.retry_at || status?.retryAt || shouldTickActivityAge);
     if (!shouldTick)
       return;
@@ -8252,7 +8412,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     const timer = setInterval(() => setNowMs(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [shouldTickActivityAge, shouldTickIntentAge, status?.retry_at, status?.retryAt, status?.last_event_at, status?.lastEventAt, status?.started_at, status?.startedAt, status?.type, status?.tool_name, status?.tool_args]);
-  r0(() => {
+  J_(() => {
     const isToolStatus = status?.type === "tool_call" || status?.type === "tool_status";
     if (!isToolStatus || !toolContextPath) {
       setToolRepoContext(null);
@@ -8296,12 +8456,12 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
   const toolRepoBranch = toolRepoContext?.branch || "";
   const toolRepoLabel = toolRepoContext ? formatAgentStatusGitLabel(toolRepoRepoPath, toolRepoBranch) : "";
   const statusHints = normalizeStatusHints(status?.status_hints || status?.statusHints);
-  const orderedStatusHints = G0(() => orderAgentStatusHints(statusHints), [statusHints]);
-  const leadingStatusHints = G0(() => orderedStatusHints.filter((hint) => hint?.key === "ssh"), [orderedStatusHints]);
-  const trailingStatusHints = G0(() => orderedStatusHints.filter((hint) => hint?.key !== "ssh"), [orderedStatusHints]);
+  const orderedStatusHints = u_(() => orderAgentStatusHints(statusHints), [statusHints]);
+  const leadingStatusHints = u_(() => orderedStatusHints.filter((hint) => hint?.key === "ssh"), [orderedStatusHints]);
+  const trailingStatusHints = u_(() => orderedStatusHints.filter((hint) => hint?.key !== "ssh"), [orderedStatusHints]);
   if ((!showCorePanels || !hasCorePanels) && (!showExtensionPanels || !hasExtensionPanels))
     return null;
-  const renderThinkingPanel = ({ panelTitle: panelTitle2, text, fullText, totalLines, maxLines, titleClass, panelKey }) => {
+  const renderThinkingPanel = ({ panelTitle, text, fullText, totalLines, maxLines, titleClass, panelKey }) => {
     const isExpanded = expandedPanels.has(panelKey);
     const rawSourceText = fullText || text || "";
     const sourceText = panelKey === "thought" || panelKey === "draft" ? stripInternalTags(rawSourceText) : rawSourceText;
@@ -8312,7 +8472,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
       return null;
     const bodyClass = `agent-thinking-body${isCollapsible ? " agent-thinking-body-collapsible" : ""}`;
     const bodyStyle = isCollapsible ? `--agent-thinking-collapsed-lines: ${maxLines};` : "";
-    return X1`
+    return ce`
             <div
                 class="agent-thinking"
                 data-expanded=${isExpanded ? "true" : "false"}
@@ -8320,12 +8480,12 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                 style=${turnColor ? `--turn-color: ${turnColor};` : ""}
             >
                 <div class="agent-thinking-title ${titleClass || ""}">
-                    ${turnColor && X1`<span class=${dotClass} aria-hidden="true"></span>`}
-                    ${panelTitle2}
-                    ${showClose && X1`
+                    ${turnColor && ce`<span class=${dotClass} aria-hidden="true"></span>`}
+                    ${panelTitle}
+                    ${showClose && ce`
                         <button
                             class="agent-thinking-close"
-                            aria-label=${`Close ${panelTitle2} panel`}
+                            aria-label=${`Close ${panelTitle} panel`}
                             onClick=${() => toggleExpand(panelKey)}
                         >
                             ×
@@ -8337,12 +8497,12 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                     style=${bodyStyle}
                     dangerouslySetInnerHTML=${{ __html: renderThinkingMarkdown(sourceText) }}
                 />
-                ${!isExpanded && truncated.omitted > 0 && X1`
+                ${!isExpanded && truncated.omitted > 0 && ce`
                     <button class="agent-thinking-truncation" onClick=${() => toggleExpand(panelKey)}>
                         ▸ ${truncated.omitted} more lines
                     </button>
                 `}
-                ${isExpanded && truncated.omitted > 0 && X1`
+                ${isExpanded && truncated.omitted > 0 && ce`
                     <button class="agent-thinking-truncation" onClick=${() => toggleExpand(panelKey)}>
                         ▴ show less
                     </button>
@@ -8361,7 +8521,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
       steerQueued,
       pulsing: isCompactionStatus(payload) || Boolean(retryCountdownLabel)
     });
-    return X1`
+    return ce`
             <div
                 class="agent-thinking agent-thinking-intent"
                 aria-live="polite"
@@ -8369,11 +8529,11 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                 title=${payload?.detail || ""}
             >
                 <div class="agent-thinking-title intent">
-                    ${color && X1`<span class=${pulsingDotClass} aria-hidden="true"></span>`}
+                    ${color && ce`<span class=${pulsingDotClass} aria-hidden="true"></span>`}
                     <span class="agent-thinking-title-text">${titleText}</span>
-                    ${metaLabel && X1`<span class="agent-status-elapsed">${metaLabel}</span>`}
+                    ${metaLabel && ce`<span class="agent-status-elapsed">${metaLabel}</span>`}
                 </div>
-                ${payload.detail && X1`<div class="agent-thinking-body">${payload.detail}</div>`}
+                ${payload.detail && ce`<div class="agent-thinking-body">${payload.detail}</div>`}
             </div>
         `;
   };
@@ -8382,16 +8542,16 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     const innerWidth = Math.max(width - paddingX * 2, 1);
     const innerHeight = Math.max(height - paddingY * 2, 1);
     const runSpan = Math.max(maxRun - minRun, 1);
-    const x2 = maxRun === minRun ? width / 2 : paddingX + (point.run - minRun) / runSpan * innerWidth;
-    const y2 = paddingY + (innerHeight - (point.value - minValue) / range * innerHeight);
-    return { x: x2, y: y2 };
+    const x = maxRun === minRun ? width / 2 : paddingX + (point.run - minRun) / runSpan * innerWidth;
+    const y = paddingY + (innerHeight - (point.value - minValue) / range * innerHeight);
+    return { x, y };
   };
   const buildLinePath = (points, width, height, minValue, maxValue, minRun, maxRun, paddingX = 8, paddingY = 8) => {
     if (!Array.isArray(points) || points.length === 0)
       return "";
     return points.map((point, index) => {
-      const { x: x2, y: y2 } = projectSeriesPoint(point, width, height, minValue, maxValue, minRun, maxRun, paddingX, paddingY);
-      return `${index === 0 ? "M" : "L"} ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+      const { x, y } = projectSeriesPoint(point, width, height, minValue, maxValue, minRun, maxRun, paddingX, paddingY);
+      return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
     }).join(" ");
   };
   const formatMetricValue = (value, unit = "") => {
@@ -8447,7 +8607,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     const maxValue = Math.max(...values);
     const minRun = Math.min(...runs);
     const maxRun = Math.max(...runs);
-    return X1`
+    return ce`
             <div class="agent-series-chart agent-series-chart-combined">
                 <div class="agent-series-chart-header">
                     <span class="agent-series-chart-title">Tracked variables</span>
@@ -8458,7 +8618,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                         ${normalized.map((series) => {
       const seriesKey = series?.key || series?.label || "series";
       const lineHovered = hoveredSeriesPoint?.panelKey === panelKey && hoveredSeriesPoint?.seriesKey === seriesKey;
-      return X1`
+      return ce`
                                 <g key=${seriesKey}>
                                     <path
                                         class=${`agent-series-chart-line${lineHovered ? " is-hovered" : ""}`}
@@ -8477,7 +8637,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
       const seriesKey = series?.key || series?.label || "series";
       return series.points.map((point, pointIndex) => {
         const projected = projectSeriesPoint(point, width, height, minValue, maxValue, minRun, maxRun);
-        return X1`
+        return ce`
                                     <button
                                         key=${`${seriesKey}-point-${pointIndex}`}
                                         type="button"
@@ -8517,11 +8677,11 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
       const hoveredValue = hovered && Number.isFinite(hovered.value) ? hovered.value : latest;
       const hoveredUnit = hovered && typeof hovered.unit === "string" ? hovered.unit : unit;
       const hoveredRun = hovered && Number.isFinite(hovered.run) ? hovered.run : null;
-      return X1`
+      return ce`
                             <div key=${`${seriesKey}-legend`} class=${`agent-series-legend-item${hovered ? " is-hovered" : ""}`} style=${`--agent-series-color: ${series.color};`}>
                                 <span class="agent-series-legend-swatch" style=${`--agent-series-color: ${series.color};`}></span>
                                 <span class="agent-series-legend-label">${series?.label || "Series"}</span>
-                                ${hoveredRun !== null && X1`<span class="agent-series-legend-run">run ${hoveredRun}</span>`}
+                                ${hoveredRun !== null && ce`<span class="agent-series-legend-run">run ${hoveredRun}</span>`}
                                 <span class="agent-series-legend-value">${formatMetricValue(hoveredValue, hoveredUnit)}</span>
                             </div>
                         `;
@@ -8554,7 +8714,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     const hasDetailColumn = Boolean(detailText || tmuxCommand || experimentElapsed);
     const isExpandable = Boolean(detailText || series.length > 0 || tmuxCommand);
     const collapsedTooltip = [titleText, displayCollapsed].filter(Boolean).join(" — ");
-    return X1`
+    return ce`
             <div
                 class="agent-thinking agent-thinking-intent agent-thinking-autoresearch"
                 aria-live="polite"
@@ -8568,18 +8728,18 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                         type="button"
                         onClick=${() => isExpandable ? toggleExpand(panelKey) : null}
                     >
-                        ${color && X1`<span class=${panelDotClass} aria-hidden="true"></span>`}
+                        ${color && ce`<span class=${panelDotClass} aria-hidden="true"></span>`}
                         <span class="agent-thinking-title-text">${titleText}</span>
-                        ${displayCollapsed && X1`<span class="agent-thinking-title-meta">${displayCollapsed}</span>`}
+                        ${displayCollapsed && ce`<span class="agent-thinking-title-meta">${displayCollapsed}</span>`}
                     </button>
-                    ${(actions.length > 0 || isExpandable) && X1`
+                    ${(actions.length > 0 || isExpandable) && ce`
                         <div class="agent-thinking-tools-inline">
-                            ${actions.length > 0 && X1`
+                            ${actions.length > 0 && ce`
                                 <div class="agent-thinking-actions agent-thinking-actions-inline">
                                     ${actions.map((action) => {
       const pendingKey = `${panelKey}:${action?.key || ""}`;
       const pending = pendingPanelActions?.has?.(pendingKey);
-      return X1`
+      return ce`
                                             <button
                                                 key=${pendingKey}
                                                 class=${`agent-thinking-action-btn${action?.tone === "danger" ? " danger" : ""}`}
@@ -8592,7 +8752,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     })}
                                 </div>
                             `}
-                            ${isExpandable && X1`
+                            ${isExpandable && ce`
                                 <button
                                     class="agent-thinking-corner-toggle agent-thinking-corner-toggle-inline"
                                     type="button"
@@ -8601,30 +8761,30 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                                     onClick=${() => toggleExpand(panelKey)}
                                 >
                                     <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        ${isExpanded ? X1`<polyline points="4 6 8 10 12 6"></polyline>` : X1`<polyline points="4 10 8 6 12 10"></polyline>`}
+                                        ${isExpanded ? ce`<polyline points="4 6 8 10 12 6"></polyline>` : ce`<polyline points="4 10 8 6 12 10"></polyline>`}
                                     </svg>
                                 </button>
                             `}
                         </div>
                     `}
                 </div>
-                ${isExpanded && X1`
+                ${isExpanded && ce`
                     <div class=${`agent-thinking-autoresearch-layout${hasDetailColumn ? "" : " chart-only"}`}>
-                        ${hasDetailColumn && X1`
+                        ${hasDetailColumn && ce`
                             <div class="agent-thinking-autoresearch-meta-stack">
-                                ${experimentElapsed && X1`
+                                ${experimentElapsed && ce`
                                     <div class="agent-thinking-autoresearch-elapsed">
                                         <span title="Experiment duration">⏱ ${experimentElapsed}</span>
-                                        ${panel?.last_activity_at && panel?.state === "running" && X1`<span title="Since last activity">⟳ ${formatElapsed(panel.last_activity_at)} ago</span>`}
+                                        ${panel?.last_activity_at && panel?.state === "running" && ce`<span title="Since last activity">⟳ ${formatElapsed(panel.last_activity_at)} ago</span>`}
                                     </div>
                                 `}
-                                ${detailText && X1`
+                                ${detailText && ce`
                                     <div
                                         class="agent-thinking-body agent-thinking-autoresearch-detail"
                                         dangerouslySetInnerHTML=${{ __html: renderThinkingMarkdown(detailText) }}
                                     />
                                 `}
-                                ${tmuxCommand && X1`
+                                ${tmuxCommand && ce`
                                     <div class="agent-series-chart-command">
                                         <div class="agent-series-chart-command-header">
                                             <span>Attach to session</span>
@@ -8645,26 +8805,26 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                                 `}
                             </div>
                         `}
-                        ${series.length > 0 ? X1`
+                        ${series.length > 0 ? ce`
                                 <div class="agent-series-chart-stack">
                                     ${renderCombinedSeriesChart(series, panelKey)}
-                                    ${lastRunText && X1`<div class="agent-series-chart-note">${lastRunText}</div>`}
+                                    ${lastRunText && ce`<div class="agent-series-chart-note">${lastRunText}</div>`}
                                 </div>
-                            ` : X1`<div class="agent-thinking-body agent-thinking-autoresearch-summary">Variable history will appear after the first completed run.</div>`}
+                            ` : ce`<div class="agent-thinking-body agent-thinking-autoresearch-summary">Variable history will appear after the first completed run.</div>`}
                     </div>
                 `}
             </div>
         `;
   };
-  return X1`
+  return ce`
         <div class="agent-status-panel">
             ${showCorePanels && intent && renderIntentPanel(intent, intentColor)}
             ${showExtensionPanels && Array.isArray(extensionPanels) && extensionPanels.map((panel) => renderExtensionPanel(panel))}
             ${showCorePanels && status?.type === "intent" && renderIntentPanel(status, statusIntentColor, statusIntentElapsedLabel)}
-            ${showCorePanels && pendingRequest && X1`
+            ${showCorePanels && pendingRequest && ce`
                 <div class="agent-status agent-status-request" aria-live="polite" style=${turnColor ? `--turn-color: ${turnColor};` : ""}>
-                    ${pendingIndicatorMode === "dot" && X1`<span class=${dotClass} aria-hidden="true"></span>`}
-                    ${pendingIndicatorMode === "spinner" && X1`<div class="agent-status-spinner"></div>`}
+                    ${pendingIndicatorMode === "dot" && ce`<span class=${dotClass} aria-hidden="true"></span>`}
+                    ${pendingIndicatorMode === "spinner" && ce`<div class="agent-status-spinner"></div>`}
                     <span class="agent-status-text">${pendingMessage}</span>
                 </div>
             `}
@@ -8693,37 +8853,37 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     titleClass: "thought",
     panelKey: "draft"
   })}
-            ${showCorePanels && status && status?.type !== "intent" && X1`
+            ${showCorePanels && status && status?.type !== "intent" && ce`
                 <div class=${`agent-status${isLastActivity ? " agent-status-last-activity" : ""}${status?.type === "error" ? " agent-status-error" : ""}${toolRepoLabel || statusHints.length > 0 || statusActivityAgeLabel ? " agent-status-multiline" : ""}`} aria-live="polite" style=${turnColor ? `--turn-color: ${turnColor};` : ""}>
-                    ${turnColor && showRunningStatusDot && X1`<span class=${dotClass} aria-hidden="true"></span>`}
-                    ${status?.type === "error" ? X1`<span class="agent-status-error-icon" aria-hidden="true">⚠</span>` : runningIndicatorMode === "spinner" && X1`<div class="agent-status-spinner"></div>`}
+                    ${turnColor && showRunningStatusDot && ce`<span class=${dotClass} aria-hidden="true"></span>`}
+                    ${status?.type === "error" ? ce`<span class="agent-status-error-icon" aria-hidden="true">⚠</span>` : runningIndicatorMode === "spinner" && ce`<div class="agent-status-spinner"></div>`}
                     <div class="agent-status-copy">
                         <span class="agent-status-text">${content}</span>
-                        ${(toolRepoLabel || orderedStatusHints.length > 0 || statusActivityAgeLabel) && X1`
+                        ${(toolRepoLabel || orderedStatusHints.length > 0 || statusActivityAgeLabel) && ce`
                             <span class="agent-status-meta-row">
-                                ${leadingStatusHints.map((hint) => X1`
+                                ${leadingStatusHints.map((hint) => ce`
                                     <span key=${hint.key} class="agent-status-hint-row" title=${hint.title || hint.label}>
                                         <span class="agent-status-hint-icon" dangerouslySetInnerHTML=${{ __html: hint.iconSvg }}></span>
                                         <span class="agent-status-hint-label">${hint.label}</span>
                                     </span>
                                 `)}
-                                ${toolRepoLabel && X1`
+                                ${toolRepoLabel && ce`
                                     <span class="agent-status-git-row" title=${toolContextPath || toolRepoLabel}>
                                         <span class="agent-status-git-icon">${GIT_BRANCH_ICON_SVG}</span>
                                         <span class="agent-status-git-label">
-                                            ${toolRepoRepoPath && X1`<span class="agent-status-git-part">${toolRepoRepoPath}</span>`}
-                                            ${toolRepoRepoPath && toolRepoBranch && X1`<span class="agent-status-git-separator" aria-hidden="true">•</span>`}
-                                            ${toolRepoBranch && X1`<span class="agent-status-git-part">${toolRepoBranch}</span>`}
+                                            ${toolRepoRepoPath && ce`<span class="agent-status-git-part">${toolRepoRepoPath}</span>`}
+                                            ${toolRepoRepoPath && toolRepoBranch && ce`<span class="agent-status-git-separator" aria-hidden="true">•</span>`}
+                                            ${toolRepoBranch && ce`<span class="agent-status-git-part">${toolRepoBranch}</span>`}
                                         </span>
                                     </span>
                                 `}
-                                ${trailingStatusHints.map((hint) => X1`
+                                ${trailingStatusHints.map((hint) => ce`
                                     <span key=${hint.key} class="agent-status-hint-row" title=${hint.title || hint.label}>
                                         <span class="agent-status-hint-icon" dangerouslySetInnerHTML=${{ __html: hint.iconSvg }}></span>
                                         <span class="agent-status-hint-label">${hint.label}</span>
                                     </span>
                                 `)}
-                                ${statusActivityAgeLabel && X1`
+                                ${statusActivityAgeLabel && ce`
                                     <span class="agent-status-hint-row agent-status-activity-row" title=${`${isLastActivity ? "Recent activity" : "Last event"} ${statusActivityAgeLabel}`}>
                                         <span class="agent-status-hint-icon">${CLOCK_ICON_SVG}</span>
                                         <span class="agent-status-hint-label">${statusActivityAgeLabel}</span>
@@ -8787,1738 +8947,22 @@ class PaneRegistryImpl {
   }
 }
 var paneRegistry = new PaneRegistryImpl;
-// web/src/panes/pane-runtime-safety.ts
-function readRandomUuidBestEffort(runtime) {
-  try {
-    return typeof runtime?.crypto?.randomUUID === "function" ? runtime.crypto.randomUUID() : null;
-  } catch (_error) {
-    return null;
-  }
-}
-function removeStorageItemBestEffort(storage, key) {
-  try {
-    storage?.removeItem?.(key);
-    return true;
-  } catch (_error) {
-    return false;
-  }
-}
-
 // web/src/panes/editor-popout-transfer.ts
 var EDITOR_POPOUT_STATE_TTL_MS = 5 * 60 * 1000;
-function consumePanePopoutTransferToken(paramName, runtime = globalThis) {
-  const win = runtime?.window ?? runtime;
-  if (!win?.location?.href)
-    return null;
-  try {
-    const url = new URL(win.location.href);
-    const token = url.searchParams.get(paramName)?.trim() || "";
-    if (!token)
-      return null;
-    url.searchParams.delete(paramName);
-    win.history?.replaceState?.(win.history.state, win.document?.title || "", url.toString());
-    return token;
-  } catch {
-    return null;
-  }
-}
-
-// web/src/panes/terminal-lifecycle-runtime.ts
-function runBestEffort(run) {
-  try {
-    run();
-    return true;
-  } catch (_error) {
-    return false;
-  }
-}
-function detachTerminalHostListenersBestEffort(options) {
-  const {
-    ownerWindow,
-    themeChangeListener,
-    mediaQuery,
-    mediaQueryListener,
-    dockResizeListener,
-    windowResizeListener,
-    themeObserver,
-    resizeObserver
-  } = options;
-  runBestEffort(() => {
-    if (themeChangeListener) {
-      ownerWindow?.removeEventListener?.("piclaw-theme-change", themeChangeListener);
-    }
-  });
-  runBestEffort(() => {
-    if (mediaQuery && mediaQueryListener) {
-      if (mediaQuery.removeEventListener)
-        mediaQuery.removeEventListener("change", mediaQueryListener);
-      else if (mediaQuery.removeListener)
-        mediaQuery.removeListener(mediaQueryListener);
-    }
-  });
-  runBestEffort(() => {
-    if (dockResizeListener) {
-      ownerWindow?.removeEventListener?.("dock-resize", dockResizeListener);
-    }
-    if (windowResizeListener) {
-      ownerWindow?.removeEventListener?.("resize", windowResizeListener);
-    }
-  });
-  runBestEffort(() => {
-    themeObserver?.disconnect?.();
-  });
-  runBestEffort(() => {
-    resizeObserver?.disconnect?.();
-  });
-}
-function resizeTerminalRuntimeBestEffort(options) {
-  options.syncHostLayout();
-  runBestEffort(() => {
-    options.terminal?.renderer?.remeasureFont?.();
-  });
-  runBestEffort(() => {
-    options.fitAddon?.fit?.();
-  });
-  runBestEffort(() => {
-    options.terminal?.refresh?.();
-  });
-  options.syncHostLayout();
-  options.sendResize();
-}
-function disposeTerminalRuntimeBestEffort(options) {
-  const {
-    resizeFrame = 0,
-    cancelAnimationFrameFn = cancelAnimationFrame,
-    socket,
-    fitAddon,
-    terminal,
-    termEl
-  } = options;
-  if (resizeFrame) {
-    runBestEffort(() => {
-      cancelAnimationFrameFn(resizeFrame);
-    });
-  }
-  runBestEffort(() => {
-    socket?.close?.();
-  });
-  runBestEffort(() => {
-    fitAddon?.dispose?.();
-  });
-  runBestEffort(() => {
-    terminal?.dispose?.();
-  });
-  termEl?.remove?.();
-  return 0;
-}
-
-// web/src/panes/terminal-theme-runtime.ts
-function runBestEffort2(run) {
-  try {
-    run();
-    return true;
-  } catch (_error) {
-    return false;
-  }
-}
-function applyTerminalThemeBestEffort(options) {
-  const { termEl, bodyEl, terminal, theme, themeChanged = false, socket, resize } = options;
-  runBestEffort2(() => {
-    if (termEl?.style) {
-      termEl.style.backgroundColor = theme.background;
-    }
-    if (bodyEl?.style) {
-      bodyEl.style.backgroundColor = theme.background;
-    }
-    const host = bodyEl?.querySelector?.(".terminal-live-host");
-    if (host && typeof host === "object" && "style" in host) {
-      host.style.backgroundColor = theme.background;
-      host.style.color = theme.foreground;
-    }
-    const canvas = bodyEl?.querySelector?.("canvas");
-    if (canvas && typeof canvas === "object" && "style" in canvas) {
-      canvas.style.backgroundColor = theme.background;
-      canvas.style.color = theme.foreground;
-    }
-  });
-  runBestEffort2(() => {
-    if (terminal?.options) {
-      terminal.options.theme = theme;
-    }
-  });
-  if (themeChanged) {
-    runBestEffort2(() => {
-      terminal?.reset?.();
-    });
-  }
-  runBestEffort2(() => {
-    terminal?.renderer?.setTheme?.(theme);
-    terminal?.renderer?.clear?.();
-  });
-  runBestEffort2(() => {
-    terminal?.loadFonts?.();
-  });
-  runBestEffort2(() => {
-    terminal?.renderer?.remeasureFont?.();
-  });
-  runBestEffort2(() => {
-    if (terminal?.wasmTerm && terminal?.renderer?.render) {
-      terminal.renderer.render(terminal.wasmTerm, true, terminal.viewportY || 0, terminal);
-      terminal.renderer.render(terminal.wasmTerm, false, terminal.viewportY || 0, terminal);
-    }
-  });
-  runBestEffort2(() => {
-    resize?.();
-  });
-  runBestEffort2(() => {
-    if (themeChanged && socket?.readyState === 1) {
-      socket.send?.(JSON.stringify({ type: "input", data: "\f" }));
-    }
-  });
-  runBestEffort2(() => {
-    terminal?.refresh?.();
-  });
-}
-
-// web/src/panes/terminal-pane.ts
-var GHOSTTY_WEB_MODULE = "/static/js/vendor/ghostty-web.js";
-var GHOSTTY_WASM_MODULE = "/static/js/vendor/ghostty-vt.wasm";
-var TERMINAL_FONT_FAMILY = 'FiraCode Nerd Font Mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
-var TERMINAL_FONT_LOAD_SPEC = '400 13px "FiraCode Nerd Font Mono"';
-var TERMINAL_FONT_LOAD_SPEC_BOLD = '700 13px "FiraCode Nerd Font Mono"';
-var TERMINAL_ANON_CLIENT_HEADER = "x-piclaw-terminal-client";
-var TERMINAL_ANON_CLIENT_STORAGE_KEY = "piclaw_terminal_client";
-var LIGHT_TERMINAL_PALETTE = {
-  yellow: "#9a6700",
-  magenta: "#8250df",
-  cyan: "#1b7c83",
-  brightBlack: "#57606a",
-  brightRed: "#cf222e",
-  brightGreen: "#1a7f37",
-  brightYellow: "#bf8700",
-  brightBlue: "#0550ae",
-  brightMagenta: "#6f42c1",
-  brightCyan: "#0a7b83"
-};
-var DARK_TERMINAL_PALETTE = {
-  yellow: "#d29922",
-  magenta: "#bc8cff",
-  cyan: "#39c5cf",
-  brightBlack: "#8b949e",
-  brightRed: "#ff7b72",
-  brightGreen: "#7ee787",
-  brightYellow: "#e3b341",
-  brightBlue: "#79c0ff",
-  brightMagenta: "#d2a8ff",
-  brightCyan: "#56d4dd"
-};
-var ghosttyInitPromise = null;
-var terminalFontsReadyPromise = null;
-function shouldRewriteGhosttyWasmRequest(url) {
-  if (!url)
-    return false;
-  return url.startsWith("data:application/wasm") || /(^|\/)ghostty-vt\.wasm(?:[?#].*)?$/.test(url);
-}
-async function withGhosttyWasmFetchShim(run) {
-  const originalFetch = globalThis.fetch?.bind(globalThis);
-  if (!originalFetch) {
-    return await run();
-  }
-  const wasmUrl = new URL(GHOSTTY_WASM_MODULE, window.location.origin).href;
-  const patchedFetch = (input, init) => {
-    const requestUrl = input instanceof Request ? input.url : input instanceof URL ? input.href : String(input);
-    if (!shouldRewriteGhosttyWasmRequest(requestUrl)) {
-      return originalFetch(input, init);
-    }
-    if (input instanceof Request) {
-      return originalFetch(new Request(wasmUrl, input));
-    }
-    return originalFetch(wasmUrl, init);
-  };
-  globalThis.fetch = patchedFetch;
-  try {
-    return await run();
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-}
-async function loadGhosttyWeb() {
-  const moduleUrl = new URL(GHOSTTY_WEB_MODULE, window.location.origin).href;
-  const mod = await import(moduleUrl);
-  if (!ghosttyInitPromise) {
-    ghosttyInitPromise = withGhosttyWasmFetchShim(() => Promise.resolve(mod.init?.())).catch((error) => {
-      ghosttyInitPromise = null;
-      throw error;
-    });
-  }
-  await ghosttyInitPromise;
-  return mod;
-}
-async function ensureTerminalFontsReady() {
-  if (typeof document === "undefined" || !("fonts" in document) || !document.fonts) {
-    return;
-  }
-  if (!terminalFontsReadyPromise) {
-    terminalFontsReadyPromise = Promise.allSettled([
-      document.fonts.load(TERMINAL_FONT_LOAD_SPEC),
-      document.fonts.load(TERMINAL_FONT_LOAD_SPEC_BOLD),
-      document.fonts.ready
-    ]).then(() => {
-      return;
-    }).catch(() => {
-      return;
-    });
-  }
-  await terminalFontsReadyPromise;
-}
-function createTerminalClientToken(runtimeWindow = typeof window !== "undefined" ? window : null) {
-  try {
-    if (typeof runtimeWindow?.crypto?.randomUUID === "function") {
-      return runtimeWindow.crypto.randomUUID();
-    }
-  } catch (error) {
-    console.debug("[terminal-pane] Failed to generate crypto-backed terminal client token; falling back.", error);
-  }
-  return `terminal-client-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-function getOrCreateAnonymousTerminalClientToken(runtimeWindow = typeof window !== "undefined" ? window : null) {
-  if (!runtimeWindow)
-    return null;
-  try {
-    const storage = runtimeWindow.localStorage;
-    const existing = typeof storage?.getItem === "function" ? String(storage.getItem(TERMINAL_ANON_CLIENT_STORAGE_KEY) || "").trim() : "";
-    if (existing)
-      return existing;
-    const created = createTerminalClientToken(runtimeWindow);
-    storage?.setItem?.(TERMINAL_ANON_CLIENT_STORAGE_KEY, created);
-    return created;
-  } catch (_error) {
-    return createTerminalClientToken(runtimeWindow);
-  }
-}
-async function fetchTerminalSession(clientToken = getOrCreateAnonymousTerminalClientToken()) {
-  const response = await fetch("/terminal/session", {
-    method: "GET",
-    credentials: "same-origin",
-    headers: clientToken ? { [TERMINAL_ANON_CLIENT_HEADER]: clientToken } : undefined
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(body?.error || `HTTP ${response.status}`);
-  }
-  return body;
-}
-async function requestTerminalHandoff(clientToken = getOrCreateAnonymousTerminalClientToken()) {
-  const response = await fetch("/terminal/handoff", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: clientToken ? { [TERMINAL_ANON_CLIENT_HEADER]: clientToken } : undefined
-  });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(body?.error || `HTTP ${response.status}`);
-  }
-  return typeof body?.handoff?.token === "string" && body.handoff.token.trim() ? body.handoff.token.trim() : null;
-}
-function buildTerminalWebSocketUrl(path, handoffToken = null, clientToken = getOrCreateAnonymousTerminalClientToken()) {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const url = new URL(`${protocol}//${window.location.host}${path}`);
-  if (handoffToken) {
-    url.searchParams.set("handoff", String(handoffToken));
-  }
-  if (clientToken) {
-    url.searchParams.set("client", String(clientToken));
-  }
-  return url.toString();
-}
-function detectDarkTheme(runtimeWindow = typeof window !== "undefined" ? window : null, runtimeDocument = typeof document !== "undefined" ? document : null) {
-  if (!runtimeWindow || !runtimeDocument)
-    return false;
-  const root = runtimeDocument.documentElement;
-  const body = runtimeDocument.body;
-  const rootTheme = root?.getAttribute?.("data-theme")?.toLowerCase?.() || "";
-  if (rootTheme === "dark")
-    return true;
-  if (rootTheme === "light")
-    return false;
-  if (root?.classList?.contains("dark") || body?.classList?.contains("dark"))
-    return true;
-  if (root?.classList?.contains("light") || body?.classList?.contains("light"))
-    return false;
-  return Boolean(runtimeWindow.matchMedia?.("(prefers-color-scheme: dark)")?.matches);
-}
-function readThemeVar(name, fallback = "", runtimeDocument = typeof document !== "undefined" ? document : null) {
-  if (!runtimeDocument)
-    return fallback;
-  const value = getComputedStyle(runtimeDocument.documentElement).getPropertyValue(name)?.trim();
-  return value || fallback;
-}
-function parseThemeColor(input) {
-  const raw = String(input || "").trim();
-  if (!raw)
-    return null;
-  const hex = raw.startsWith("#") ? raw.slice(1) : raw;
-  if (/^[0-9a-fA-F]{3}$/.test(hex) || /^[0-9a-fA-F]{6}$/.test(hex)) {
-    const full = hex.length === 3 ? hex.split("").map((c2) => c2 + c2).join("") : hex;
-    const int = parseInt(full, 16);
-    return {
-      r: int >> 16 & 255,
-      g: int >> 8 & 255,
-      b: int & 255
-    };
-  }
-  const rgbMatch = raw.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
-  if (rgbMatch) {
-    return {
-      r: parseInt(rgbMatch[1], 10),
-      g: parseInt(rgbMatch[2], 10),
-      b: parseInt(rgbMatch[3], 10)
-    };
-  }
-  return null;
-}
-function relativeLuminance3(color) {
-  const toLinear = (value) => {
-    const s2 = value / 255;
-    return s2 <= 0.03928 ? s2 / 12.92 : Math.pow((s2 + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * toLinear(color.r) + 0.7152 * toLinear(color.g) + 0.0722 * toLinear(color.b);
-}
-function contrastRatio2(a2, b) {
-  const l1 = relativeLuminance3(a2);
-  const l2 = relativeLuminance3(b);
-  const lighter = Math.max(l1, l2);
-  const darker = Math.min(l1, l2);
-  return (lighter + 0.05) / (darker + 0.05);
-}
-function getHighestContrastTextColor(background) {
-  const bg = parseThemeColor(background);
-  if (!bg)
-    return "#ffffff";
-  const white = { r: 255, g: 255, b: 255 };
-  const black = { r: 0, g: 0, b: 0 };
-  return contrastRatio2(bg, white) >= contrastRatio2(bg, black) ? "#ffffff" : "#000000";
-}
-function toHexColor(color) {
-  const clamp = (value) => Math.max(0, Math.min(255, Math.round(value || 0)));
-  return `#${[color.r, color.g, color.b].map((value) => clamp(value).toString(16).padStart(2, "0")).join("")}`;
-}
-function mixThemeColors(base, target, amount) {
-  const ratio = Math.max(0, Math.min(1, Number.isFinite(amount) ? amount : 0));
-  return {
-    r: base.r + (target.r - base.r) * ratio,
-    g: base.g + (target.g - base.g) * ratio,
-    b: base.b + (target.b - base.b) * ratio
-  };
-}
-function ensureTerminalColorContrast(background, color, minimumRatio = 4.5) {
-  const bg = parseThemeColor(background);
-  const fg = parseThemeColor(color);
-  if (!bg || !fg)
-    return color;
-  if (contrastRatio2(bg, fg) >= minimumRatio)
-    return toHexColor(fg);
-  const targetColor = parseThemeColor(getHighestContrastTextColor(background));
-  if (!targetColor)
-    return toHexColor(fg);
-  let best = targetColor;
-  let bestAmount = 1;
-  let low = 0;
-  let high = 1;
-  for (let index = 0;index < 14; index += 1) {
-    const mid = (low + high) / 2;
-    const mixed = mixThemeColors(fg, targetColor, mid);
-    if (contrastRatio2(bg, mixed) >= minimumRatio) {
-      best = mixed;
-      bestAmount = mid;
-      high = mid;
-    } else {
-      low = mid;
-    }
-  }
-  let resolved = toHexColor(best);
-  let resolvedColor = parseThemeColor(resolved);
-  while (resolvedColor && contrastRatio2(bg, resolvedColor) < minimumRatio && bestAmount < 1) {
-    bestAmount = Math.min(1, bestAmount + 0.01);
-    resolved = toHexColor(mixThemeColors(fg, targetColor, bestAmount));
-    resolvedColor = parseThemeColor(resolved);
-  }
-  return resolved;
-}
-function withAlpha(hexColor, alphaHex) {
-  if (!hexColor || !hexColor.startsWith("#"))
-    return hexColor;
-  const value = hexColor.slice(1);
-  if (value.length === 3) {
-    return `#${value[0]}${value[0]}${value[1]}${value[1]}${value[2]}${value[2]}${alphaHex}`;
-  }
-  if (value.length === 6) {
-    return `#${value}${alphaHex}`;
-  }
-  return hexColor;
-}
-function buildTerminalTheme(runtimeWindow = typeof window !== "undefined" ? window : null, runtimeDocument = typeof document !== "undefined" ? document : null) {
-  const isDark = detectDarkTheme(runtimeWindow, runtimeDocument);
-  const palette = isDark ? DARK_TERMINAL_PALETTE : LIGHT_TERMINAL_PALETTE;
-  const background = readThemeVar("--bg-primary", isDark ? "#000000" : "#ffffff", runtimeDocument);
-  const foreground = ensureTerminalColorContrast(background, getHighestContrastTextColor(background), 7);
-  const accent = readThemeVar("--accent-color", "#1d9bf0", runtimeDocument);
-  const danger = readThemeVar("--danger-color", isDark ? "#ff7b72" : "#cf222e", runtimeDocument);
-  const success = readThemeVar("--success-color", isDark ? "#7ee787" : "#1a7f37", runtimeDocument);
-  const hover = readThemeVar("--bg-hover", isDark ? "#1d1f23" : "#e8ebed", runtimeDocument);
-  const selectionBackground = readThemeVar("--accent-soft-strong", withAlpha(accent, isDark ? "47" : "33"), runtimeDocument);
-  return {
-    background,
-    foreground,
-    cursor: ensureTerminalColorContrast(background, accent, 3),
-    cursorAccent: background,
-    selectionBackground,
-    selectionForeground: foreground,
-    black: ensureTerminalColorContrast(background, hover, 3),
-    red: ensureTerminalColorContrast(background, danger, 4.5),
-    green: ensureTerminalColorContrast(background, success, 4.5),
-    yellow: ensureTerminalColorContrast(background, palette.yellow, 4.5),
-    blue: ensureTerminalColorContrast(background, accent, 4.5),
-    magenta: ensureTerminalColorContrast(background, palette.magenta, 4.5),
-    cyan: ensureTerminalColorContrast(background, palette.cyan, 4.5),
-    white: foreground,
-    brightBlack: ensureTerminalColorContrast(background, palette.brightBlack, 3),
-    brightRed: ensureTerminalColorContrast(background, palette.brightRed, 4.5),
-    brightGreen: ensureTerminalColorContrast(background, palette.brightGreen, 4.5),
-    brightYellow: ensureTerminalColorContrast(background, palette.brightYellow, 4.5),
-    brightBlue: ensureTerminalColorContrast(background, palette.brightBlue, 4.5),
-    brightMagenta: ensureTerminalColorContrast(background, palette.brightMagenta, 4.5),
-    brightCyan: ensureTerminalColorContrast(background, palette.brightCyan, 4.5),
-    brightWhite: foreground
-  };
-}
-class TerminalPaneInstance {
-  container;
-  ownerDocument;
-  ownerWindow;
-  disposed = false;
-  termEl;
-  bodyEl;
-  statusEl;
-  terminal = null;
-  fitAddon = null;
-  socket = null;
-  themeObserver = null;
-  themeChangeListener = null;
-  mediaQuery = null;
-  mediaQueryListener = null;
-  resizeObserver = null;
-  dockResizeListener = null;
-  windowResizeListener = null;
-  resizeFrame = 0;
-  resizeRetryTimers = new Set;
-  lastAppliedThemeSignature = null;
-  lastResizeSignature = null;
-  pendingHandoffToken = null;
-  standbyHandoffToken = null;
-  standbyHandoffRequest = null;
-  constructor(container, context) {
-    this.container = container;
-    this.ownerDocument = container.ownerDocument || document;
-    this.ownerWindow = this.ownerDocument.defaultView || window;
-    const transferHandoffToken = typeof context?.transferState?.handoffToken === "string" && context.transferState.handoffToken.trim() ? context.transferState.handoffToken.trim() : null;
-    const popoutHandoffToken = consumePanePopoutTransferToken("terminal_handoff");
-    this.pendingHandoffToken = transferHandoffToken || popoutHandoffToken || null;
-    this.termEl = this.ownerDocument.createElement("div");
-    this.termEl.className = "terminal-pane-content";
-    this.termEl.setAttribute("tabindex", "0");
-    this.statusEl = this.ownerDocument.createElement("span");
-    this.statusEl.className = "terminal-pane-status";
-    this.statusEl.textContent = "Loading terminal…";
-    this.bodyEl = this.ownerDocument.createElement("div");
-    this.bodyEl.className = "terminal-pane-body";
-    this.bodyEl.style.display = "flex";
-    this.bodyEl.style.flex = "1 1 auto";
-    this.bodyEl.style.minHeight = "0";
-    this.bodyEl.innerHTML = '<div class="terminal-placeholder">Bootstrapping ghostty-web…</div>';
-    this.termEl.append(this.bodyEl);
-    container.appendChild(this.termEl);
-    this.bootstrapGhostty();
-  }
-  setStatus(message) {
-    this.statusEl.textContent = message;
-    this.termEl.dataset.connectionStatus = message;
-    this.termEl.setAttribute("aria-label", `Terminal ${message}`);
-  }
-  getResizeSignature() {
-    try {
-      const containerRect = this.container?.getBoundingClientRect?.();
-      const bodyRect = this.bodyEl?.getBoundingClientRect?.();
-      const cWidth = Number.isFinite(containerRect?.width) ? containerRect.width : 0;
-      const cHeight = Number.isFinite(containerRect?.height) ? containerRect.height : 0;
-      const bWidth = Number.isFinite(bodyRect?.width) ? bodyRect.width : 0;
-      const bHeight = Number.isFinite(bodyRect?.height) ? bodyRect.height : 0;
-      return `${Math.round(cWidth)}x${Math.round(cHeight)}:${Math.round(bWidth)}x${Math.round(bHeight)}`;
-    } catch {
-      return "0x0:0x0";
-    }
-  }
-  syncHostLayout() {
-    const host = this.bodyEl.querySelector(".terminal-live-host");
-    if (!(host instanceof HTMLElement))
-      return;
-    host.style.display = "flex";
-    host.style.flex = "1 1 auto";
-    host.style.width = "100%";
-    host.style.height = "100%";
-    host.style.minWidth = "0";
-    host.style.minHeight = "0";
-    host.style.overflow = "hidden";
-    const primaryChild = host.firstElementChild;
-    if (primaryChild instanceof HTMLElement) {
-      primaryChild.style.width = "100%";
-      primaryChild.style.height = "100%";
-      primaryChild.style.maxWidth = "100%";
-      primaryChild.style.minWidth = "0";
-      primaryChild.style.minHeight = "0";
-      primaryChild.style.flex = "1 1 auto";
-      primaryChild.style.display = "block";
-    }
-    const canvas = host.querySelector("canvas");
-    if (canvas instanceof HTMLElement) {
-      canvas.style.display = "block";
-      canvas.style.maxWidth = "none";
-      canvas.style.maxHeight = "none";
-    }
-  }
-  queueResizeRetries(delays = [32, 96, 180, 320, 520, 900]) {
-    if (this.disposed || !this.ownerWindow)
-      return;
-    this.clearResizeRetries();
-    for (const delay of delays) {
-      const timer = this.ownerWindow.setTimeout(() => {
-        this.resizeRetryTimers.delete(timer);
-        if (this.disposed)
-          return;
-        this.scheduleResize(true);
-      }, delay);
-      this.resizeRetryTimers.add(timer);
-    }
-  }
-  clearResizeRetries() {
-    if (!this.ownerWindow || this.resizeRetryTimers.size === 0)
-      return;
-    for (const timer of Array.from(this.resizeRetryTimers)) {
-      try {
-        this.ownerWindow.clearTimeout(timer);
-      } catch (error) {
-        console.debug("[terminal-pane] Ignoring timeout clear failure during resize retry drain.", error, { timer });
-      }
-    }
-    this.resizeRetryTimers.clear();
-  }
-  scheduleResize(force = false) {
-    if (this.disposed)
-      return;
-    const signature = this.getResizeSignature();
-    if (!force && this.lastResizeSignature === signature) {
-      return;
-    }
-    if (this.resizeFrame) {
-      cancelAnimationFrame(this.resizeFrame);
-    }
-    this.resizeFrame = requestAnimationFrame(() => {
-      this.resizeFrame = 0;
-      this.lastResizeSignature = this.getResizeSignature();
-      this.resize();
-    });
-  }
-  async bootstrapGhostty() {
-    try {
-      const mod = await loadGhosttyWeb();
-      await ensureTerminalFontsReady();
-      if (this.disposed)
-        return;
-      this.bodyEl.innerHTML = "";
-      const terminalHost = this.ownerDocument.createElement("div");
-      terminalHost.className = "terminal-live-host";
-      terminalHost.style.display = "flex";
-      terminalHost.style.flex = "1 1 auto";
-      terminalHost.style.width = "100%";
-      terminalHost.style.height = "100%";
-      terminalHost.style.minWidth = "0";
-      terminalHost.style.minHeight = "0";
-      this.bodyEl.appendChild(terminalHost);
-      const terminal = new mod.Terminal({
-        cols: 120,
-        rows: 30,
-        cursorBlink: true,
-        fontFamily: TERMINAL_FONT_FAMILY,
-        fontSize: 13,
-        theme: buildTerminalTheme(this.ownerWindow, this.ownerDocument)
-      });
-      let fitAddon = null;
-      if (typeof mod.FitAddon === "function") {
-        fitAddon = new mod.FitAddon;
-        terminal.loadAddon?.(fitAddon);
-      }
-      await terminal.open(terminalHost);
-      terminalHost.__terminal = terminal;
-      this.syncHostLayout();
-      terminal.loadFonts?.();
-      fitAddon?.observeResize?.();
-      this.terminal = terminal;
-      this.fitAddon = fitAddon;
-      this.installThemeSync();
-      this.installResizeSync();
-      this.scheduleResize(true);
-      this.queueResizeRetries([32, 96, 180, 320]);
-      await this.connectBackend();
-    } catch (error) {
-      console.error("[terminal-pane] Failed to bootstrap ghostty-web:", error);
-      if (this.disposed)
-        return;
-      this.bodyEl.innerHTML = '<div class="terminal-placeholder">Terminal failed to load. Check vendored assets and backend wiring.</div>';
-      this.setStatus("Load failed");
-    }
-  }
-  applyTheme() {
-    if (!this.terminal)
-      return;
-    const theme = buildTerminalTheme(this.ownerWindow, this.ownerDocument);
-    const themeSignature = JSON.stringify(theme);
-    const themeChanged = this.lastAppliedThemeSignature !== null && this.lastAppliedThemeSignature !== themeSignature;
-    applyTerminalThemeBestEffort({
-      termEl: this.termEl,
-      bodyEl: this.bodyEl,
-      terminal: this.terminal,
-      theme,
-      themeChanged,
-      socket: this.socket,
-      resize: () => this.resize()
-    });
-    this.lastAppliedThemeSignature = themeSignature;
-  }
-  installThemeSync() {
-    if (!this.ownerWindow || !this.ownerDocument)
-      return;
-    const syncTheme = () => requestAnimationFrame(() => this.applyTheme());
-    syncTheme();
-    const onThemeChange = () => syncTheme();
-    this.ownerWindow.addEventListener("piclaw-theme-change", onThemeChange);
-    this.themeChangeListener = onThemeChange;
-    const media = this.ownerWindow.matchMedia?.("(prefers-color-scheme: dark)");
-    const onMediaChange = () => syncTheme();
-    if (media?.addEventListener)
-      media.addEventListener("change", onMediaChange);
-    else if (media?.addListener)
-      media.addListener(onMediaChange);
-    this.mediaQuery = media;
-    this.mediaQueryListener = onMediaChange;
-    const observer = typeof MutationObserver !== "undefined" ? new MutationObserver(() => syncTheme()) : null;
-    observer?.observe(this.ownerDocument.documentElement, {
-      attributes: true,
-      attributeFilter: ["class", "data-theme", "style"]
-    });
-    if (this.ownerDocument.body) {
-      observer?.observe(this.ownerDocument.body, {
-        attributes: true,
-        attributeFilter: ["class", "data-theme"]
-      });
-    }
-    this.themeObserver = observer;
-  }
-  installResizeSync() {
-    if (!this.ownerWindow)
-      return;
-    const onDockResize = () => this.scheduleResize();
-    const onWindowResize = () => this.scheduleResize();
-    this.ownerWindow.addEventListener("dock-resize", onDockResize);
-    this.ownerWindow.addEventListener("resize", onWindowResize);
-    this.dockResizeListener = onDockResize;
-    this.windowResizeListener = onWindowResize;
-    if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(() => {
-        if (this.disposed)
-          return;
-        this.scheduleResize();
-      });
-      observer.observe(this.container);
-      observer.observe(this.termEl);
-      observer.observe(this.bodyEl);
-      this.resizeObserver = observer;
-    }
-  }
-  consumeStandbyHandoffToken() {
-    const token = this.standbyHandoffToken || null;
-    this.standbyHandoffToken = null;
-    return token;
-  }
-  async ensureStandbyHandoffToken(force = false) {
-    if (this.disposed)
-      return null;
-    if (!force && this.standbyHandoffToken) {
-      return this.standbyHandoffToken;
-    }
-    if (this.standbyHandoffRequest) {
-      return await this.standbyHandoffRequest;
-    }
-    this.standbyHandoffRequest = requestTerminalHandoff().then((token) => {
-      if (!token || this.disposed) {
-        return null;
-      }
-      this.standbyHandoffToken = token;
-      return token;
-    }).catch((error) => {
-      console.warn("[terminal-pane] Failed to prepare standby handoff token:", error);
-      return null;
-    }).finally(() => {
-      this.standbyHandoffRequest = null;
-    });
-    return await this.standbyHandoffRequest;
-  }
-  async connectBackend() {
-    const terminal = this.terminal;
-    if (!terminal)
-      return;
-    try {
-      const session = await fetchTerminalSession();
-      if (this.disposed)
-        return;
-      if (!session?.enabled) {
-        terminal.write?.(`Terminal backend unavailable: ${session?.error || "disabled"}\r
-`);
-        this.setStatus("Unavailable");
-        return;
-      }
-      const handoffToken = this.pendingHandoffToken || null;
-      const socket = new WebSocket(buildTerminalWebSocketUrl(session.ws_path || "/terminal/ws", handoffToken));
-      this.socket = socket;
-      this.setStatus(handoffToken ? "Transferring…" : "Connecting…");
-      terminal.onData?.((data) => {
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ type: "input", data }));
-        }
-      });
-      terminal.onResize?.(({ cols, rows }) => {
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ type: "resize", cols, rows }));
-        }
-      });
-      socket.addEventListener("open", () => {
-        if (this.disposed)
-          return;
-        if (handoffToken && this.pendingHandoffToken === handoffToken) {
-          this.pendingHandoffToken = null;
-        }
-        this.ensureStandbyHandoffToken(false);
-        this.setStatus("Connected");
-        this.scheduleResize(true);
-        this.queueResizeRetries([24, 72, 160, 320]);
-      });
-      socket.addEventListener("message", (event) => {
-        if (this.disposed)
-          return;
-        let payload = null;
-        try {
-          payload = JSON.parse(String(event.data));
-        } catch {
-          payload = { type: "output", data: String(event.data) };
-        }
-        if (payload?.type === "session") {
-          const sessionId = typeof payload.session_id === "string" ? payload.session_id : null;
-          terminal.__piclawSessionMeta = {
-            sessionId,
-            createdAt: typeof payload.created_at === "string" ? payload.created_at : null,
-            processPid: typeof payload.process_pid === "number" ? payload.process_pid : null
-          };
-          if (!this.standbyHandoffToken) {
-            this.ensureStandbyHandoffToken(false);
-          }
-          return;
-        }
-        if (payload?.type === "output" && typeof payload.data === "string") {
-          terminal.write?.(payload.data);
-          return;
-        }
-        if (payload?.type === "exit") {
-          terminal.write?.(`\r
-[terminal exited]\r
-`);
-          this.setStatus("Exited");
-        }
-      });
-      socket.addEventListener("close", () => {
-        if (this.disposed)
-          return;
-        this.setStatus("Disconnected");
-      });
-      socket.addEventListener("error", () => {
-        if (this.disposed)
-          return;
-        this.setStatus("Connection error");
-      });
-    } catch (error) {
-      terminal.write?.(`Terminal backend unavailable: ${error instanceof Error ? error.message : String(error)}\r
-`);
-      this.setStatus("Unavailable");
-    }
-  }
-  sendResize() {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN || !this.fitAddon?.proposeDimensions) {
-      return;
-    }
-    const dims = this.fitAddon.proposeDimensions();
-    if (!dims)
-      return;
-    this.socket.send(JSON.stringify({ type: "resize", cols: dims.cols, rows: dims.rows }));
-  }
-  detachHostListeners() {
-    detachTerminalHostListenersBestEffort({
-      ownerWindow: this.ownerWindow,
-      themeChangeListener: this.themeChangeListener,
-      mediaQuery: this.mediaQuery,
-      mediaQueryListener: this.mediaQueryListener,
-      dockResizeListener: this.dockResizeListener,
-      windowResizeListener: this.windowResizeListener,
-      themeObserver: this.themeObserver,
-      resizeObserver: this.resizeObserver
-    });
-    this.themeChangeListener = null;
-    this.mediaQuery = null;
-    this.mediaQueryListener = null;
-    this.themeObserver = null;
-    this.resizeObserver = null;
-    this.dockResizeListener = null;
-    this.windowResizeListener = null;
-  }
-  beforeDetachFromHost() {
-    this.setStatus("Moving terminal…");
-  }
-  afterAttachToHost(context) {
-    const transferHandoffToken = typeof context?.transferState?.handoffToken === "string" && context.transferState.handoffToken.trim() ? context.transferState.handoffToken.trim() : null;
-    if (transferHandoffToken) {
-      this.pendingHandoffToken = transferHandoffToken;
-    }
-    this.installThemeSync();
-    this.installResizeSync();
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.setStatus("Connected");
-    } else if (this.pendingHandoffToken) {
-      this.setStatus("Transferring…");
-    } else if (this.socket?.readyState === WebSocket.CONNECTING) {
-      this.setStatus("Connecting…");
-    }
-    this.scheduleResize(true);
-    this.queueResizeRetries([32, 96, 180, 320]);
-    requestAnimationFrame(() => this.focus());
-  }
-  moveHost(_container) {
-    return false;
-  }
-  exportHostTransferState() {
-    const handoffToken = this.standbyHandoffToken || this.pendingHandoffToken || null;
-    return handoffToken ? {
-      kind: "terminal",
-      live: false,
-      handoffToken
-    } : null;
-  }
-  async preparePopoutTransfer() {
-    let handoffToken = this.consumeStandbyHandoffToken();
-    if (!handoffToken) {
-      await this.ensureStandbyHandoffToken(true);
-      handoffToken = this.consumeStandbyHandoffToken();
-    }
-    if (!handoffToken)
-      return null;
-    this.pendingHandoffToken = handoffToken;
-    return { terminal_handoff: handoffToken };
-  }
-  getContent() {
-    return;
-  }
-  isDirty() {
-    return false;
-  }
-  focus() {
-    if (this.terminal?.focus) {
-      this.terminal.focus();
-      return;
-    }
-    this.termEl?.focus();
-  }
-  resize() {
-    resizeTerminalRuntimeBestEffort({
-      syncHostLayout: () => this.syncHostLayout(),
-      terminal: this.terminal,
-      fitAddon: this.fitAddon,
-      sendResize: () => this.sendResize()
-    });
-  }
-  dispose() {
-    if (this.disposed)
-      return;
-    this.disposed = true;
-    this.standbyHandoffToken = null;
-    this.standbyHandoffRequest = null;
-    this.clearResizeRetries();
-    this.detachHostListeners();
-    this.resizeFrame = disposeTerminalRuntimeBestEffort({
-      resizeFrame: this.resizeFrame,
-      socket: this.socket,
-      fitAddon: this.fitAddon,
-      terminal: this.terminal,
-      termEl: this.termEl
-    });
-  }
-}
-// web/src/panes/remote-display-socket.ts
-function defaultParseControlMessage(text) {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-function measureOutboundSize(value) {
-  if (typeof value === "string") {
-    return new TextEncoder().encode(value).byteLength;
-  }
-  if (value instanceof ArrayBuffer) {
-    return value.byteLength;
-  }
-  if (ArrayBuffer.isView(value)) {
-    return value.byteLength;
-  }
-  if (value instanceof Blob) {
-    return value.size;
-  }
-  return 0;
-}
-function measureInboundSize(value) {
-  if (typeof value === "string") {
-    return value.length;
-  }
-  if (value instanceof ArrayBuffer) {
-    return value.byteLength;
-  }
-  if (value instanceof Blob) {
-    return value.size;
-  }
-  return Number(value?.size || 0);
-}
-function closeWebSocketBestEffort(socket) {
-  try {
-    socket?.close?.();
-    return true;
-  } catch (_error) {
-    return false;
-  }
-}
-
-class WebSocketRemoteDisplayBoundary {
-  socket = null;
-  disposed = false;
-  options;
-  bytesIn = 0;
-  bytesOut = 0;
-  pendingOutbound = [];
-  constructor(options) {
-    this.options = options;
-  }
-  connect() {
-    if (this.disposed)
-      return;
-    closeWebSocketBestEffort(this.socket);
-    const socket = new WebSocket(this.options.url);
-    socket.binaryType = this.options.binaryType || "arraybuffer";
-    socket.addEventListener("open", () => {
-      if (this.disposed || this.socket !== socket)
-        return;
-      this.flushPendingOutbound(socket);
-      this.options.onOpen?.();
-    });
-    socket.addEventListener("message", (event) => {
-      if (this.disposed || this.socket !== socket)
-        return;
-      const size = measureInboundSize(event.data);
-      this.bytesIn += size;
-      this.emitMetrics();
-      if (typeof event.data === "string") {
-        const parser = this.options.parseControlMessage || defaultParseControlMessage;
-        this.options.onMessage?.({
-          kind: "control",
-          raw: event.data,
-          payload: parser(event.data)
-        });
-        return;
-      }
-      this.options.onMessage?.({
-        kind: "binary",
-        data: event.data,
-        size
-      });
-    });
-    socket.addEventListener("close", () => {
-      if (this.socket === socket) {
-        this.socket = null;
-      }
-      if (this.disposed)
-        return;
-      this.options.onClose?.();
-    });
-    socket.addEventListener("error", () => {
-      if (this.disposed || this.socket !== socket)
-        return;
-      this.options.onError?.();
-    });
-    this.socket = socket;
-  }
-  send(data) {
-    if (this.disposed)
-      return;
-    const socket = this.socket;
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      this.pendingOutbound.push(data);
-      return;
-    }
-    this.sendNow(socket, data);
-  }
-  sendControl(payload) {
-    this.send(JSON.stringify(payload ?? {}));
-  }
-  getMetrics() {
-    return {
-      bytesIn: this.bytesIn,
-      bytesOut: this.bytesOut
-    };
-  }
-  dispose() {
-    if (this.disposed)
-      return;
-    this.disposed = true;
-    closeWebSocketBestEffort(this.socket);
-    this.socket = null;
-  }
-  emitMetrics() {
-    this.options.onMetrics?.(this.getMetrics());
-  }
-  sendNow(socket, data) {
-    const size = measureOutboundSize(data);
-    this.bytesOut += size;
-    this.emitMetrics();
-    socket.send(data);
-  }
-  flushPendingOutbound(socket) {
-    if (this.pendingOutbound.length === 0)
-      return;
-    const pending = this.pendingOutbound.splice(0);
-    for (let index = 0;index < pending.length; index += 1) {
-      if (this.disposed || this.socket !== socket || socket.readyState !== WebSocket.OPEN) {
-        this.pendingOutbound.unshift(...pending.slice(index));
-        return;
-      }
-      this.sendNow(socket, pending[index]);
-    }
-  }
-}
-
 // node_modules/@assemblyscript/loader/index.js
-var ID_OFFSET = -8;
-var SIZE_OFFSET = -4;
-var ARRAYBUFFER_ID = 1;
-var STRING_ID = 2;
 var ARRAYBUFFERVIEW = 1 << 0;
 var ARRAY = 1 << 1;
 var STATICARRAY = 1 << 2;
-var VAL_ALIGN_OFFSET = 6;
 var VAL_SIGNED = 1 << 11;
 var VAL_FLOAT = 1 << 12;
 var VAL_MANAGED = 1 << 14;
-var ARRAYBUFFERVIEW_BUFFER_OFFSET = 0;
-var ARRAYBUFFERVIEW_DATASTART_OFFSET = 4;
-var ARRAYBUFFERVIEW_BYTELENGTH_OFFSET = 8;
-var ARRAYBUFFERVIEW_SIZE = 12;
-var ARRAY_LENGTH_OFFSET = 12;
-var ARRAY_SIZE = 16;
-var E_NO_EXPORT_TABLE = "Operation requires compiling with --exportTable";
-var E_NO_EXPORT_RUNTIME = "Operation requires compiling with --exportRuntime";
-var F_NO_EXPORT_RUNTIME = () => {
-  throw Error(E_NO_EXPORT_RUNTIME);
-};
-var BIGINT = typeof BigUint64Array !== "undefined";
 var THIS = Symbol();
-var STRING_SMALLSIZE = 192;
-var STRING_CHUNKSIZE = 1024;
 var utf16 = new TextDecoder("utf-16le", { fatal: true });
 Object.hasOwn = Object.hasOwn || function(obj, prop) {
   return Object.prototype.hasOwnProperty.call(obj, prop);
 };
-function getStringImpl(buffer, ptr) {
-  let len = new Uint32Array(buffer)[ptr + SIZE_OFFSET >>> 2] >>> 1;
-  const wtf16 = new Uint16Array(buffer, ptr, len);
-  if (len <= STRING_SMALLSIZE)
-    return String.fromCharCode(...wtf16);
-  try {
-    return utf16.decode(wtf16);
-  } catch {
-    let str = "", off = 0;
-    while (len - off > STRING_CHUNKSIZE) {
-      str += String.fromCharCode(...wtf16.subarray(off, off += STRING_CHUNKSIZE));
-    }
-    return str + String.fromCharCode(...wtf16.subarray(off));
-  }
-}
-function preInstantiate(imports) {
-  const extendedExports = {};
-  function getString(memory, ptr) {
-    if (!memory)
-      return "<yet unknown>";
-    return getStringImpl(memory.buffer, ptr);
-  }
-  const env = imports.env = imports.env || {};
-  env.abort = env.abort || function abort(msg, file, line, colm) {
-    const memory = extendedExports.memory || env.memory;
-    throw Error(`abort: ${getString(memory, msg)} at ${getString(memory, file)}:${line}:${colm}`);
-  };
-  env.trace = env.trace || function trace(msg, n2, ...args) {
-    const memory = extendedExports.memory || env.memory;
-    console.log(`trace: ${getString(memory, msg)}${n2 ? " " : ""}${args.slice(0, n2).join(", ")}`);
-  };
-  env.seed = env.seed || Date.now;
-  imports.Math = imports.Math || Math;
-  imports.Date = imports.Date || Date;
-  return extendedExports;
-}
-function postInstantiate(extendedExports, instance) {
-  const exports = instance.exports;
-  const memory = exports.memory;
-  const table = exports.table;
-  const __new = exports.__new || F_NO_EXPORT_RUNTIME;
-  const __pin = exports.__pin || F_NO_EXPORT_RUNTIME;
-  const __unpin = exports.__unpin || F_NO_EXPORT_RUNTIME;
-  const __collect = exports.__collect || F_NO_EXPORT_RUNTIME;
-  const __rtti_base = exports.__rtti_base;
-  const getTypeinfoCount = __rtti_base ? (arr) => arr[__rtti_base >>> 2] : F_NO_EXPORT_RUNTIME;
-  extendedExports.__new = __new;
-  extendedExports.__pin = __pin;
-  extendedExports.__unpin = __unpin;
-  extendedExports.__collect = __collect;
-  function getTypeinfo(id) {
-    const U32 = new Uint32Array(memory.buffer);
-    if ((id >>>= 0) >= getTypeinfoCount(U32))
-      throw Error(`invalid id: ${id}`);
-    return U32[(__rtti_base + 4 >>> 2) + id];
-  }
-  function getArrayInfo(id) {
-    const info = getTypeinfo(id);
-    if (!(info & (ARRAYBUFFERVIEW | ARRAY | STATICARRAY)))
-      throw Error(`not an array: ${id}, flags=${info}`);
-    return info;
-  }
-  function getValueAlign(info) {
-    return 31 - Math.clz32(info >>> VAL_ALIGN_OFFSET & 31);
-  }
-  function __newString(str) {
-    if (str == null)
-      return 0;
-    const length = str.length;
-    const ptr = __new(length << 1, STRING_ID);
-    const U16 = new Uint16Array(memory.buffer);
-    for (let i2 = 0, p2 = ptr >>> 1;i2 < length; ++i2)
-      U16[p2 + i2] = str.charCodeAt(i2);
-    return ptr;
-  }
-  extendedExports.__newString = __newString;
-  function __newArrayBuffer(buf) {
-    if (buf == null)
-      return 0;
-    const bufview = new Uint8Array(buf);
-    const ptr = __new(bufview.length, ARRAYBUFFER_ID);
-    const U8 = new Uint8Array(memory.buffer);
-    U8.set(bufview, ptr);
-    return ptr;
-  }
-  extendedExports.__newArrayBuffer = __newArrayBuffer;
-  function __getString(ptr) {
-    if (!ptr)
-      return null;
-    const buffer = memory.buffer;
-    const id = new Uint32Array(buffer)[ptr + ID_OFFSET >>> 2];
-    if (id !== STRING_ID)
-      throw Error(`not a string: ${ptr}`);
-    return getStringImpl(buffer, ptr);
-  }
-  extendedExports.__getString = __getString;
-  function getView(alignLog2, signed, float) {
-    const buffer = memory.buffer;
-    if (float) {
-      switch (alignLog2) {
-        case 2:
-          return new Float32Array(buffer);
-        case 3:
-          return new Float64Array(buffer);
-      }
-    } else {
-      switch (alignLog2) {
-        case 0:
-          return new (signed ? Int8Array : Uint8Array)(buffer);
-        case 1:
-          return new (signed ? Int16Array : Uint16Array)(buffer);
-        case 2:
-          return new (signed ? Int32Array : Uint32Array)(buffer);
-        case 3:
-          return new (signed ? BigInt64Array : BigUint64Array)(buffer);
-      }
-    }
-    throw Error(`unsupported align: ${alignLog2}`);
-  }
-  function __newArray(id, valuesOrCapacity = 0) {
-    const input = valuesOrCapacity;
-    const info = getArrayInfo(id);
-    const align = getValueAlign(info);
-    const isArrayLike = typeof input !== "number";
-    const length = isArrayLike ? input.length : input;
-    const buf = __new(length << align, info & STATICARRAY ? id : ARRAYBUFFER_ID);
-    let result;
-    if (info & STATICARRAY) {
-      result = buf;
-    } else {
-      __pin(buf);
-      const arr = __new(info & ARRAY ? ARRAY_SIZE : ARRAYBUFFERVIEW_SIZE, id);
-      __unpin(buf);
-      const U32 = new Uint32Array(memory.buffer);
-      U32[arr + ARRAYBUFFERVIEW_BUFFER_OFFSET >>> 2] = buf;
-      U32[arr + ARRAYBUFFERVIEW_DATASTART_OFFSET >>> 2] = buf;
-      U32[arr + ARRAYBUFFERVIEW_BYTELENGTH_OFFSET >>> 2] = length << align;
-      if (info & ARRAY)
-        U32[arr + ARRAY_LENGTH_OFFSET >>> 2] = length;
-      result = arr;
-    }
-    if (isArrayLike) {
-      const view = getView(align, info & VAL_SIGNED, info & VAL_FLOAT);
-      const start = buf >>> align;
-      if (info & VAL_MANAGED) {
-        for (let i2 = 0;i2 < length; ++i2) {
-          view[start + i2] = input[i2];
-        }
-      } else {
-        view.set(input, start);
-      }
-    }
-    return result;
-  }
-  extendedExports.__newArray = __newArray;
-  function __getArrayView(arr) {
-    const U32 = new Uint32Array(memory.buffer);
-    const id = U32[arr + ID_OFFSET >>> 2];
-    const info = getArrayInfo(id);
-    const align = getValueAlign(info);
-    let buf = info & STATICARRAY ? arr : U32[arr + ARRAYBUFFERVIEW_DATASTART_OFFSET >>> 2];
-    const length = info & ARRAY ? U32[arr + ARRAY_LENGTH_OFFSET >>> 2] : U32[buf + SIZE_OFFSET >>> 2] >>> align;
-    return getView(align, info & VAL_SIGNED, info & VAL_FLOAT).subarray(buf >>>= align, buf + length);
-  }
-  extendedExports.__getArrayView = __getArrayView;
-  function __getArray(arr) {
-    const input = __getArrayView(arr);
-    const len = input.length;
-    const out = new Array(len);
-    for (let i2 = 0;i2 < len; i2++)
-      out[i2] = input[i2];
-    return out;
-  }
-  extendedExports.__getArray = __getArray;
-  function __getArrayBuffer(ptr) {
-    const buffer = memory.buffer;
-    const length = new Uint32Array(buffer)[ptr + SIZE_OFFSET >>> 2];
-    return buffer.slice(ptr, ptr + length);
-  }
-  extendedExports.__getArrayBuffer = __getArrayBuffer;
-  function __getFunction(ptr) {
-    if (!table)
-      throw Error(E_NO_EXPORT_TABLE);
-    const index = new Uint32Array(memory.buffer)[ptr >>> 2];
-    return table.get(index);
-  }
-  extendedExports.__getFunction = __getFunction;
-  function getTypedArray(Type, alignLog2, ptr) {
-    return new Type(getTypedArrayView(Type, alignLog2, ptr));
-  }
-  function getTypedArrayView(Type, alignLog2, ptr) {
-    const buffer = memory.buffer;
-    const U32 = new Uint32Array(buffer);
-    return new Type(buffer, U32[ptr + ARRAYBUFFERVIEW_DATASTART_OFFSET >>> 2], U32[ptr + ARRAYBUFFERVIEW_BYTELENGTH_OFFSET >>> 2] >>> alignLog2);
-  }
-  function attachTypedArrayFunctions(ctor, name, align) {
-    extendedExports[`__get${name}`] = getTypedArray.bind(null, ctor, align);
-    extendedExports[`__get${name}View`] = getTypedArrayView.bind(null, ctor, align);
-  }
-  [
-    Int8Array,
-    Uint8Array,
-    Uint8ClampedArray,
-    Int16Array,
-    Uint16Array,
-    Int32Array,
-    Uint32Array,
-    Float32Array,
-    Float64Array
-  ].forEach((ctor) => {
-    attachTypedArrayFunctions(ctor, ctor.name, 31 - Math.clz32(ctor.BYTES_PER_ELEMENT));
-  });
-  if (BIGINT) {
-    [BigUint64Array, BigInt64Array].forEach((ctor) => {
-      attachTypedArrayFunctions(ctor, ctor.name.slice(3), 3);
-    });
-  }
-  extendedExports.memory = extendedExports.memory || memory;
-  extendedExports.table = extendedExports.table || table;
-  return demangle(exports, extendedExports);
-}
-function isResponse(src) {
-  return typeof Response !== "undefined" && src instanceof Response;
-}
-function isModule(src) {
-  return src instanceof WebAssembly.Module;
-}
-async function instantiate(source, imports = {}) {
-  if (isResponse(source = await source))
-    return instantiateStreaming(source, imports);
-  const module = isModule(source) ? source : await WebAssembly.compile(source);
-  const extended = preInstantiate(imports);
-  const instance = await WebAssembly.instantiate(module, imports);
-  const exports = postInstantiate(extended, instance);
-  return { module, instance, exports };
-}
-async function instantiateStreaming(source, imports = {}) {
-  if (!WebAssembly.instantiateStreaming) {
-    return instantiate(isResponse(source = await source) ? source.arrayBuffer() : source, imports);
-  }
-  const extended = preInstantiate(imports);
-  const result = await WebAssembly.instantiateStreaming(source, imports);
-  const exports = postInstantiate(extended, result.instance);
-  return { ...result, exports };
-}
-function demangle(exports, extendedExports = {}) {
-  const setArgumentsLength = exports["__argumentsLength"] ? (length) => {
-    exports["__argumentsLength"].value = length;
-  } : exports["__setArgumentsLength"] || exports["__setargc"] || (() => {});
-  for (let internalName of Object.keys(exports)) {
-    const elem = exports[internalName];
-    let parts = internalName.split(".");
-    let curr = extendedExports;
-    while (parts.length > 1) {
-      let part = parts.shift();
-      if (!Object.hasOwn(curr, part))
-        curr[part] = {};
-      curr = curr[part];
-    }
-    let name = parts[0];
-    let hash = name.indexOf("#");
-    if (hash >= 0) {
-      const className = name.substring(0, hash);
-      const classElem = curr[className];
-      if (typeof classElem === "undefined" || !classElem.prototype) {
-        const ctor = function(...args) {
-          return ctor.wrap(ctor.prototype.constructor(0, ...args));
-        };
-        ctor.prototype = {
-          valueOf() {
-            return this[THIS];
-          }
-        };
-        ctor.wrap = function(thisValue) {
-          return Object.create(ctor.prototype, { [THIS]: { value: thisValue, writable: false } });
-        };
-        if (classElem)
-          Object.getOwnPropertyNames(classElem).forEach((name2) => Object.defineProperty(ctor, name2, Object.getOwnPropertyDescriptor(classElem, name2)));
-        curr[className] = ctor;
-      }
-      name = name.substring(hash + 1);
-      curr = curr[className].prototype;
-      if (/^(get|set):/.test(name)) {
-        if (!Object.hasOwn(curr, name = name.substring(4))) {
-          let getter = exports[internalName.replace("set:", "get:")];
-          let setter = exports[internalName.replace("get:", "set:")];
-          Object.defineProperty(curr, name, {
-            get() {
-              return getter(this[THIS]);
-            },
-            set(value) {
-              setter(this[THIS], value);
-            },
-            enumerable: true
-          });
-        }
-      } else {
-        if (name === "constructor") {
-          (curr[name] = function(...args) {
-            setArgumentsLength(args.length);
-            return elem(...args);
-          }).original = elem;
-        } else {
-          (curr[name] = function(...args) {
-            setArgumentsLength(args.length);
-            return elem(this[THIS], ...args);
-          }).original = elem;
-        }
-      }
-    } else {
-      if (/^(get|set):/.test(name)) {
-        if (!Object.hasOwn(curr, name = name.substring(4))) {
-          Object.defineProperty(curr, name, {
-            get: exports[internalName.replace("set:", "get:")],
-            set: exports[internalName.replace("get:", "set:")],
-            enumerable: true
-          });
-        }
-      } else if (typeof elem === "function" && elem !== setArgumentsLength) {
-        (curr[name] = (...args) => {
-          setArgumentsLength(args.length);
-          return elem(...args);
-        }).original = elem;
-      } else {
-        curr[name] = elem;
-      }
-    }
-  }
-  return extendedExports;
-}
-
-// web/src/panes/remote-display-gc.ts
-function collectAssemblyScriptGarbageBestEffort(runtime) {
-  try {
-    runtime?.__collect?.();
-    return true;
-  } catch (_error) {
-    return false;
-  }
-}
-
-// web/src/panes/remote-display-decoder.ts
-var REMOTE_DISPLAY_DECODER_WASM_URL = "/static/js/vendor/remote-display-decoder.wasm";
-var pipelinePromise = null;
-function normalizeInput(bytes) {
-  if (bytes instanceof ArrayBuffer)
-    return bytes;
-  if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength) {
-    return bytes.buffer;
-  }
-  return bytes.slice().buffer;
-}
-async function loadRemoteDisplayWasmDecoder() {
-  if (pipelinePromise)
-    return pipelinePromise;
-  pipelinePromise = (async () => {
-    try {
-      let callProcess = function(fnName, data, x2, y2, w2, h, pf) {
-        const input = normalizeInput(data);
-        const ptr = ex.__pin(ex.__newArrayBuffer(input));
-        try {
-          return ex[fnName](ptr, x2, y2, w2, h, pf.bitsPerPixel, pf.bigEndian ? 1 : 0, pf.trueColor ? 1 : 0, pf.redMax, pf.greenMax, pf.blueMax, pf.redShift, pf.greenShift, pf.blueShift);
-        } finally {
-          ex.__unpin(ptr);
-          collectAssemblyScriptGarbageBestEffort(ex);
-        }
-      };
-      const response = await fetch(REMOTE_DISPLAY_DECODER_WASM_URL, { credentials: "same-origin" });
-      if (!response.ok)
-        throw new Error(`HTTP ${response.status}`);
-      const instantiated = typeof instantiateStreaming === "function" ? await instantiateStreaming(response, {}) : await instantiate(await response.arrayBuffer(), {});
-      const ex = instantiated.exports;
-      for (const fn of [
-        "initFramebuffer",
-        "getFramebufferPtr",
-        "getFramebufferLen",
-        "getFramebufferWidth",
-        "getFramebufferHeight",
-        "processRawRect",
-        "processCopyRect",
-        "processRreRect",
-        "processHextileRect",
-        "processZrleTileData",
-        "decodeRawRectToRgba"
-      ]) {
-        if (typeof ex[fn] !== "function")
-          throw new Error(`${fn} export is missing.`);
-      }
-      return {
-        initFramebuffer(width, height) {
-          ex.initFramebuffer(width, height);
-        },
-        getFramebuffer() {
-          const ptr = ex.getFramebufferPtr();
-          const len = ex.getFramebufferLen();
-          return new Uint8ClampedArray(new Uint8Array(ex.memory.buffer, ptr, len).slice().buffer);
-        },
-        getFramebufferWidth() {
-          return ex.getFramebufferWidth();
-        },
-        getFramebufferHeight() {
-          return ex.getFramebufferHeight();
-        },
-        processRawRect(data, x2, y2, w2, h, pf) {
-          return callProcess("processRawRect", data, x2, y2, w2, h, pf);
-        },
-        processCopyRect(dstX, dstY, w2, h, srcX, srcY) {
-          return ex.processCopyRect(dstX, dstY, w2, h, srcX, srcY);
-        },
-        processRreRect(data, x2, y2, w2, h, pf) {
-          return callProcess("processRreRect", data, x2, y2, w2, h, pf);
-        },
-        processHextileRect(data, x2, y2, w2, h, pf) {
-          return callProcess("processHextileRect", data, x2, y2, w2, h, pf);
-        },
-        processZrleTileData(decompressed, x2, y2, w2, h, pf) {
-          return callProcess("processZrleTileData", decompressed, x2, y2, w2, h, pf);
-        },
-        decodeRawRectToRgba(data, width, height, pf) {
-          const input = normalizeInput(data);
-          const inputPtr = ex.__pin(ex.__newArrayBuffer(input));
-          try {
-            const outputPtr = ex.__pin(ex.decodeRawRectToRgba(inputPtr, width, height, pf.bitsPerPixel, pf.bigEndian ? 1 : 0, pf.trueColor ? 1 : 0, pf.redMax, pf.greenMax, pf.blueMax, pf.redShift, pf.greenShift, pf.blueShift));
-            try {
-              return new Uint8ClampedArray(ex.__getArrayBuffer(outputPtr));
-            } finally {
-              ex.__unpin(outputPtr);
-            }
-          } finally {
-            ex.__unpin(inputPtr);
-            collectAssemblyScriptGarbageBestEffort(ex);
-          }
-        }
-      };
-    } catch (error) {
-      console.warn("[remote-display] Failed to load WASM pipeline, using JS fallback.", error);
-      return null;
-    }
-  })();
-  return pipelinePromise;
-}
 
 // web/src/panes/vnc-input.ts
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-function encodeVncPointerEvent(buttonMask, x2, y2) {
-  const buffer = new Uint8Array(6);
-  const safeX = clamp(Math.floor(Number(x2 || 0)), 0, 65535);
-  const safeY = clamp(Math.floor(Number(y2 || 0)), 0, 65535);
-  buffer[0] = 5;
-  buffer[1] = clamp(Math.floor(Number(buttonMask || 0)), 0, 255);
-  buffer[2] = safeX >> 8 & 255;
-  buffer[3] = safeX & 255;
-  buffer[4] = safeY >> 8 & 255;
-  buffer[5] = safeY & 255;
-  return buffer;
-}
-function vncButtonMaskForPointerButton(button) {
-  switch (Number(button)) {
-    case 0:
-      return 1;
-    case 1:
-      return 2;
-    case 2:
-      return 4;
-    default:
-      return 0;
-  }
-}
-function resolveVncPointerPressMask(event) {
-  const direct = vncButtonMaskForPointerButton(event?.button);
-  if (direct)
-    return direct;
-  const pointerType = String(event?.pointerType || "").toLowerCase();
-  if (pointerType === "touch" || pointerType === "pen") {
-    return vncButtonMaskForPointerButton(0);
-  }
-  const buttons = Number(event?.buttons || 0);
-  if (buttons & 1)
-    return vncButtonMaskForPointerButton(0);
-  if (buttons & 4)
-    return vncButtonMaskForPointerButton(1);
-  if (buttons & 2)
-    return vncButtonMaskForPointerButton(2);
-  return 0;
-}
-function shouldReleaseVncPointerContact(event) {
-  const type = String(event?.type || "").toLowerCase();
-  if (type === "pointerup" || type === "pointercancel" || type === "lostpointercapture") {
-    return true;
-  }
-  const buttons = Number(event?.buttons);
-  if (Number.isFinite(buttons) && buttons === 0 && type !== "pointerdown") {
-    return true;
-  }
-  const pointerType = String(event?.pointerType || "").toLowerCase();
-  const pressure = Number(event?.pressure);
-  if (pointerType === "touch" || pointerType === "pen") {
-    if ((type === "pointerleave" || type === "pointerout") && type !== "pointerdown") {
-      return true;
-    }
-    if (Number.isFinite(pressure) && pressure <= 0 && type !== "pointerdown") {
-      return true;
-    }
-  }
-  return false;
-}
-function shouldReleaseVncTouchContact(event) {
-  const type = String(event?.type || "").toLowerCase();
-  if (type === "touchend" || type === "touchcancel") {
-    return true;
-  }
-  if (type === "touchmove") {
-    const activeTouches = Number(event?.touches?.length || 0);
-    return activeTouches <= 0;
-  }
-  return false;
-}
-function shouldArmVncImplicitReleaseTimer(pointerType) {
-  const normalized = String(pointerType || "").toLowerCase();
-  return normalized !== "mouse";
-}
-function mapClientToFramebufferPoint(clientX, clientY, rect, framebufferWidth, framebufferHeight) {
-  const width = Math.max(1, Math.floor(Number(framebufferWidth || 0)));
-  const height = Math.max(1, Math.floor(Number(framebufferHeight || 0)));
-  const rectWidth = Math.max(1, Number(rect?.width || 0));
-  const rectHeight = Math.max(1, Number(rect?.height || 0));
-  const relX = (Number(clientX || 0) - Number(rect?.left || 0)) / rectWidth;
-  const relY = (Number(clientY || 0) - Number(rect?.top || 0)) / rectHeight;
-  return {
-    x: clamp(Math.floor(relX * width), 0, Math.max(0, width - 1)),
-    y: clamp(Math.floor(relY * height), 0, Math.max(0, height - 1))
-  };
-}
-function buildVncWheelPointerEvents(deltaY, x2, y2, baseMask = 0) {
-  const wheelBit = Number(deltaY) < 0 ? 8 : 16;
-  const pressedMask = clamp(Number(baseMask || 0) | wheelBit, 0, 255);
-  return [
-    encodeVncPointerEvent(pressedMask, x2, y2),
-    encodeVncPointerEvent(Number(baseMask || 0), x2, y2)
-  ];
-}
-function encodeVncKeyEvent(down, keysym) {
-  const buffer = new Uint8Array(8);
-  const safeKeysym = Math.max(0, Math.min(4294967295, Number(keysym || 0) >>> 0));
-  buffer[0] = 4;
-  buffer[1] = down ? 1 : 0;
-  buffer[4] = safeKeysym >>> 24 & 255;
-  buffer[5] = safeKeysym >>> 16 & 255;
-  buffer[6] = safeKeysym >>> 8 & 255;
-  buffer[7] = safeKeysym & 255;
-  return buffer;
-}
-function normalizeVncPassword(value) {
-  if (typeof value !== "string")
-    return null;
-  return value.length > 0 ? value : null;
-}
-function computeContainedRemoteDisplayScale(availableWidth, availableHeight, framebufferWidth, framebufferHeight) {
-  const safeAvailableWidth = Math.max(1, Math.floor(Number(availableWidth || 0)));
-  const safeAvailableHeight = Math.max(1, Math.floor(Number(availableHeight || 0)));
-  const safeFramebufferWidth = Math.max(1, Math.floor(Number(framebufferWidth || 0)));
-  const safeFramebufferHeight = Math.max(1, Math.floor(Number(framebufferHeight || 0)));
-  const scale = Math.min(safeAvailableWidth / safeFramebufferWidth, safeAvailableHeight / safeFramebufferHeight);
-  if (!Number.isFinite(scale) || scale <= 0)
-    return 1;
-  return Math.max(0.01, scale);
-}
 var KEYSYM_BY_KEY = {
   Backspace: 65288,
   Tab: 65289,
@@ -10558,1117 +9002,11 @@ var KEYSYM_BY_KEY = {
   Menu: 65383,
   " ": 32
 };
-for (let i2 = 1;i2 <= 12; i2 += 1) {
-  KEYSYM_BY_KEY[`F${i2}`] = 65470 + (i2 - 1);
+for (let i = 1;i <= 12; i += 1) {
+  KEYSYM_BY_KEY[`F${i}`] = 65470 + (i - 1);
 }
-function resolveVncKeysymFromKeyboardEvent(event) {
-  const candidates = [event?.key, event?.code];
-  for (const candidate of candidates) {
-    if (candidate && Object.prototype.hasOwnProperty.call(KEYSYM_BY_KEY, candidate)) {
-      return KEYSYM_BY_KEY[candidate];
-    }
-  }
-  const key = String(event?.key || "");
-  const keyCodePoint = key ? key.codePointAt(0) : null;
-  const keyUnitLength = keyCodePoint == null ? 0 : keyCodePoint > 65535 ? 2 : 1;
-  if (keyCodePoint != null && key.length === keyUnitLength) {
-    if (keyCodePoint <= 255)
-      return keyCodePoint;
-    return (16777216 | keyCodePoint) >>> 0;
-  }
-  return null;
-}
-
-// node_modules/fflate/esm/browser.js
-var u8 = Uint8Array;
-var u16 = Uint16Array;
-var i32 = Int32Array;
-var fleb = new u8([0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 0, 0, 0]);
-var fdeb = new u8([0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 0, 0]);
-var clim = new u8([16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]);
-var freb = function(eb, start) {
-  var b = new u16(31);
-  for (var i2 = 0;i2 < 31; ++i2) {
-    b[i2] = start += 1 << eb[i2 - 1];
-  }
-  var r2 = new i32(b[30]);
-  for (var i2 = 1;i2 < 30; ++i2) {
-    for (var j2 = b[i2];j2 < b[i2 + 1]; ++j2) {
-      r2[j2] = j2 - b[i2] << 5 | i2;
-    }
-  }
-  return { b, r: r2 };
-};
-var _a = freb(fleb, 2);
-var fl = _a.b;
-var revfl = _a.r;
-fl[28] = 258, revfl[258] = 28;
-var _b = freb(fdeb, 0);
-var fd = _b.b;
-var revfd = _b.r;
-var rev = new u16(32768);
-for (i2 = 0;i2 < 32768; ++i2) {
-  x2 = (i2 & 43690) >> 1 | (i2 & 21845) << 1;
-  x2 = (x2 & 52428) >> 2 | (x2 & 13107) << 2;
-  x2 = (x2 & 61680) >> 4 | (x2 & 3855) << 4;
-  rev[i2] = ((x2 & 65280) >> 8 | (x2 & 255) << 8) >> 1;
-}
-var x2;
-var i2;
-var hMap = function(cd, mb, r2) {
-  var s2 = cd.length;
-  var i3 = 0;
-  var l2 = new u16(mb);
-  for (;i3 < s2; ++i3) {
-    if (cd[i3])
-      ++l2[cd[i3] - 1];
-  }
-  var le = new u16(mb);
-  for (i3 = 1;i3 < mb; ++i3) {
-    le[i3] = le[i3 - 1] + l2[i3 - 1] << 1;
-  }
-  var co;
-  if (r2) {
-    co = new u16(1 << mb);
-    var rvb = 15 - mb;
-    for (i3 = 0;i3 < s2; ++i3) {
-      if (cd[i3]) {
-        var sv = i3 << 4 | cd[i3];
-        var r_1 = mb - cd[i3];
-        var v = le[cd[i3] - 1]++ << r_1;
-        for (var m2 = v | (1 << r_1) - 1;v <= m2; ++v) {
-          co[rev[v] >> rvb] = sv;
-        }
-      }
-    }
-  } else {
-    co = new u16(s2);
-    for (i3 = 0;i3 < s2; ++i3) {
-      if (cd[i3]) {
-        co[i3] = rev[le[cd[i3] - 1]++] >> 15 - cd[i3];
-      }
-    }
-  }
-  return co;
-};
-var flt = new u8(288);
-for (i2 = 0;i2 < 144; ++i2)
-  flt[i2] = 8;
-var i2;
-for (i2 = 144;i2 < 256; ++i2)
-  flt[i2] = 9;
-var i2;
-for (i2 = 256;i2 < 280; ++i2)
-  flt[i2] = 7;
-var i2;
-for (i2 = 280;i2 < 288; ++i2)
-  flt[i2] = 8;
-var i2;
-var fdt = new u8(32);
-for (i2 = 0;i2 < 32; ++i2)
-  fdt[i2] = 5;
-var i2;
-var flm = /* @__PURE__ */ hMap(flt, 9, 0);
-var flrm = /* @__PURE__ */ hMap(flt, 9, 1);
-var fdm = /* @__PURE__ */ hMap(fdt, 5, 0);
-var fdrm = /* @__PURE__ */ hMap(fdt, 5, 1);
-var max = function(a2) {
-  var m2 = a2[0];
-  for (var i3 = 1;i3 < a2.length; ++i3) {
-    if (a2[i3] > m2)
-      m2 = a2[i3];
-  }
-  return m2;
-};
-var bits = function(d2, p2, m2) {
-  var o2 = p2 / 8 | 0;
-  return (d2[o2] | d2[o2 + 1] << 8) >> (p2 & 7) & m2;
-};
-var bits16 = function(d2, p2) {
-  var o2 = p2 / 8 | 0;
-  return (d2[o2] | d2[o2 + 1] << 8 | d2[o2 + 2] << 16) >> (p2 & 7);
-};
-var shft = function(p2) {
-  return (p2 + 7) / 8 | 0;
-};
-var slc = function(v, s2, e2) {
-  if (s2 == null || s2 < 0)
-    s2 = 0;
-  if (e2 == null || e2 > v.length)
-    e2 = v.length;
-  return new u8(v.subarray(s2, e2));
-};
-var ec = [
-  "unexpected EOF",
-  "invalid block type",
-  "invalid length/literal",
-  "invalid distance",
-  "stream finished",
-  "no stream handler",
-  ,
-  "no callback",
-  "invalid UTF-8 data",
-  "extra field too long",
-  "date not in range 1980-2099",
-  "filename too long",
-  "stream finishing",
-  "invalid zip data"
-];
-var err = function(ind, msg, nt) {
-  var e2 = new Error(msg || ec[ind]);
-  e2.code = ind;
-  if (Error.captureStackTrace)
-    Error.captureStackTrace(e2, err);
-  if (!nt)
-    throw e2;
-  return e2;
-};
-var inflt = function(dat, st, buf, dict) {
-  var sl = dat.length, dl = dict ? dict.length : 0;
-  if (!sl || st.f && !st.l)
-    return buf || new u8(0);
-  var noBuf = !buf;
-  var resize = noBuf || st.i != 2;
-  var noSt = st.i;
-  if (noBuf)
-    buf = new u8(sl * 3);
-  var cbuf = function(l3) {
-    var bl = buf.length;
-    if (l3 > bl) {
-      var nbuf = new u8(Math.max(bl * 2, l3));
-      nbuf.set(buf);
-      buf = nbuf;
-    }
-  };
-  var final = st.f || 0, pos = st.p || 0, bt = st.b || 0, lm = st.l, dm = st.d, lbt = st.m, dbt = st.n;
-  var tbts = sl * 8;
-  do {
-    if (!lm) {
-      final = bits(dat, pos, 1);
-      var type = bits(dat, pos + 1, 3);
-      pos += 3;
-      if (!type) {
-        var s2 = shft(pos) + 4, l2 = dat[s2 - 4] | dat[s2 - 3] << 8, t2 = s2 + l2;
-        if (t2 > sl) {
-          if (noSt)
-            err(0);
-          break;
-        }
-        if (resize)
-          cbuf(bt + l2);
-        buf.set(dat.subarray(s2, t2), bt);
-        st.b = bt += l2, st.p = pos = t2 * 8, st.f = final;
-        continue;
-      } else if (type == 1)
-        lm = flrm, dm = fdrm, lbt = 9, dbt = 5;
-      else if (type == 2) {
-        var hLit = bits(dat, pos, 31) + 257, hcLen = bits(dat, pos + 10, 15) + 4;
-        var tl = hLit + bits(dat, pos + 5, 31) + 1;
-        pos += 14;
-        var ldt = new u8(tl);
-        var clt = new u8(19);
-        for (var i3 = 0;i3 < hcLen; ++i3) {
-          clt[clim[i3]] = bits(dat, pos + i3 * 3, 7);
-        }
-        pos += hcLen * 3;
-        var clb = max(clt), clbmsk = (1 << clb) - 1;
-        var clm = hMap(clt, clb, 1);
-        for (var i3 = 0;i3 < tl; ) {
-          var r2 = clm[bits(dat, pos, clbmsk)];
-          pos += r2 & 15;
-          var s2 = r2 >> 4;
-          if (s2 < 16) {
-            ldt[i3++] = s2;
-          } else {
-            var c2 = 0, n2 = 0;
-            if (s2 == 16)
-              n2 = 3 + bits(dat, pos, 3), pos += 2, c2 = ldt[i3 - 1];
-            else if (s2 == 17)
-              n2 = 3 + bits(dat, pos, 7), pos += 3;
-            else if (s2 == 18)
-              n2 = 11 + bits(dat, pos, 127), pos += 7;
-            while (n2--)
-              ldt[i3++] = c2;
-          }
-        }
-        var lt = ldt.subarray(0, hLit), dt = ldt.subarray(hLit);
-        lbt = max(lt);
-        dbt = max(dt);
-        lm = hMap(lt, lbt, 1);
-        dm = hMap(dt, dbt, 1);
-      } else
-        err(1);
-      if (pos > tbts) {
-        if (noSt)
-          err(0);
-        break;
-      }
-    }
-    if (resize)
-      cbuf(bt + 131072);
-    var lms = (1 << lbt) - 1, dms = (1 << dbt) - 1;
-    var lpos = pos;
-    for (;; lpos = pos) {
-      var c2 = lm[bits16(dat, pos) & lms], sym = c2 >> 4;
-      pos += c2 & 15;
-      if (pos > tbts) {
-        if (noSt)
-          err(0);
-        break;
-      }
-      if (!c2)
-        err(2);
-      if (sym < 256)
-        buf[bt++] = sym;
-      else if (sym == 256) {
-        lpos = pos, lm = null;
-        break;
-      } else {
-        var add = sym - 254;
-        if (sym > 264) {
-          var i3 = sym - 257, b = fleb[i3];
-          add = bits(dat, pos, (1 << b) - 1) + fl[i3];
-          pos += b;
-        }
-        var d2 = dm[bits16(dat, pos) & dms], dsym = d2 >> 4;
-        if (!d2)
-          err(3);
-        pos += d2 & 15;
-        var dt = fd[dsym];
-        if (dsym > 3) {
-          var b = fdeb[dsym];
-          dt += bits16(dat, pos) & (1 << b) - 1, pos += b;
-        }
-        if (pos > tbts) {
-          if (noSt)
-            err(0);
-          break;
-        }
-        if (resize)
-          cbuf(bt + 131072);
-        var end = bt + add;
-        if (bt < dt) {
-          var shift = dl - dt, dend = Math.min(dt, end);
-          if (shift + bt < 0)
-            err(3);
-          for (;bt < dend; ++bt)
-            buf[bt] = dict[shift + bt];
-        }
-        for (;bt < end; ++bt)
-          buf[bt] = buf[bt - dt];
-      }
-    }
-    st.l = lm, st.p = lpos, st.b = bt, st.f = final;
-    if (lm)
-      final = 1, st.m = lbt, st.d = dm, st.n = dbt;
-  } while (!final);
-  return bt != buf.length && noBuf ? slc(buf, 0, bt) : buf.subarray(0, bt);
-};
-var wbits = function(d2, p2, v) {
-  v <<= p2 & 7;
-  var o2 = p2 / 8 | 0;
-  d2[o2] |= v;
-  d2[o2 + 1] |= v >> 8;
-};
-var wbits16 = function(d2, p2, v) {
-  v <<= p2 & 7;
-  var o2 = p2 / 8 | 0;
-  d2[o2] |= v;
-  d2[o2 + 1] |= v >> 8;
-  d2[o2 + 2] |= v >> 16;
-};
-var hTree = function(d2, mb) {
-  var t2 = [];
-  for (var i3 = 0;i3 < d2.length; ++i3) {
-    if (d2[i3])
-      t2.push({ s: i3, f: d2[i3] });
-  }
-  var s2 = t2.length;
-  var t22 = t2.slice();
-  if (!s2)
-    return { t: et, l: 0 };
-  if (s2 == 1) {
-    var v = new u8(t2[0].s + 1);
-    v[t2[0].s] = 1;
-    return { t: v, l: 1 };
-  }
-  t2.sort(function(a2, b) {
-    return a2.f - b.f;
-  });
-  t2.push({ s: -1, f: 25001 });
-  var l2 = t2[0], r2 = t2[1], i0 = 0, i1 = 1, i22 = 2;
-  t2[0] = { s: -1, f: l2.f + r2.f, l: l2, r: r2 };
-  while (i1 != s2 - 1) {
-    l2 = t2[t2[i0].f < t2[i22].f ? i0++ : i22++];
-    r2 = t2[i0 != i1 && t2[i0].f < t2[i22].f ? i0++ : i22++];
-    t2[i1++] = { s: -1, f: l2.f + r2.f, l: l2, r: r2 };
-  }
-  var maxSym = t22[0].s;
-  for (var i3 = 1;i3 < s2; ++i3) {
-    if (t22[i3].s > maxSym)
-      maxSym = t22[i3].s;
-  }
-  var tr = new u16(maxSym + 1);
-  var mbt = ln(t2[i1 - 1], tr, 0);
-  if (mbt > mb) {
-    var i3 = 0, dt = 0;
-    var lft = mbt - mb, cst = 1 << lft;
-    t22.sort(function(a2, b) {
-      return tr[b.s] - tr[a2.s] || a2.f - b.f;
-    });
-    for (;i3 < s2; ++i3) {
-      var i2_1 = t22[i3].s;
-      if (tr[i2_1] > mb) {
-        dt += cst - (1 << mbt - tr[i2_1]);
-        tr[i2_1] = mb;
-      } else
-        break;
-    }
-    dt >>= lft;
-    while (dt > 0) {
-      var i2_2 = t22[i3].s;
-      if (tr[i2_2] < mb)
-        dt -= 1 << mb - tr[i2_2]++ - 1;
-      else
-        ++i3;
-    }
-    for (;i3 >= 0 && dt; --i3) {
-      var i2_3 = t22[i3].s;
-      if (tr[i2_3] == mb) {
-        --tr[i2_3];
-        ++dt;
-      }
-    }
-    mbt = mb;
-  }
-  return { t: new u8(tr), l: mbt };
-};
-var ln = function(n2, l2, d2) {
-  return n2.s == -1 ? Math.max(ln(n2.l, l2, d2 + 1), ln(n2.r, l2, d2 + 1)) : l2[n2.s] = d2;
-};
-var lc = function(c2) {
-  var s2 = c2.length;
-  while (s2 && !c2[--s2])
-    ;
-  var cl = new u16(++s2);
-  var cli = 0, cln = c2[0], cls = 1;
-  var w2 = function(v) {
-    cl[cli++] = v;
-  };
-  for (var i3 = 1;i3 <= s2; ++i3) {
-    if (c2[i3] == cln && i3 != s2)
-      ++cls;
-    else {
-      if (!cln && cls > 2) {
-        for (;cls > 138; cls -= 138)
-          w2(32754);
-        if (cls > 2) {
-          w2(cls > 10 ? cls - 11 << 5 | 28690 : cls - 3 << 5 | 12305);
-          cls = 0;
-        }
-      } else if (cls > 3) {
-        w2(cln), --cls;
-        for (;cls > 6; cls -= 6)
-          w2(8304);
-        if (cls > 2)
-          w2(cls - 3 << 5 | 8208), cls = 0;
-      }
-      while (cls--)
-        w2(cln);
-      cls = 1;
-      cln = c2[i3];
-    }
-  }
-  return { c: cl.subarray(0, cli), n: s2 };
-};
-var clen = function(cf, cl) {
-  var l2 = 0;
-  for (var i3 = 0;i3 < cl.length; ++i3)
-    l2 += cf[i3] * cl[i3];
-  return l2;
-};
-var wfblk = function(out, pos, dat) {
-  var s2 = dat.length;
-  var o2 = shft(pos + 2);
-  out[o2] = s2 & 255;
-  out[o2 + 1] = s2 >> 8;
-  out[o2 + 2] = out[o2] ^ 255;
-  out[o2 + 3] = out[o2 + 1] ^ 255;
-  for (var i3 = 0;i3 < s2; ++i3)
-    out[o2 + i3 + 4] = dat[i3];
-  return (o2 + 4 + s2) * 8;
-};
-var wblk = function(dat, out, final, syms, lf, df, eb, li, bs, bl, p2) {
-  wbits(out, p2++, final);
-  ++lf[256];
-  var _a2 = hTree(lf, 15), dlt = _a2.t, mlb = _a2.l;
-  var _b2 = hTree(df, 15), ddt = _b2.t, mdb = _b2.l;
-  var _c = lc(dlt), lclt = _c.c, nlc = _c.n;
-  var _d = lc(ddt), lcdt = _d.c, ndc = _d.n;
-  var lcfreq = new u16(19);
-  for (var i3 = 0;i3 < lclt.length; ++i3)
-    ++lcfreq[lclt[i3] & 31];
-  for (var i3 = 0;i3 < lcdt.length; ++i3)
-    ++lcfreq[lcdt[i3] & 31];
-  var _e = hTree(lcfreq, 7), lct = _e.t, mlcb = _e.l;
-  var nlcc = 19;
-  for (;nlcc > 4 && !lct[clim[nlcc - 1]]; --nlcc)
-    ;
-  var flen = bl + 5 << 3;
-  var ftlen = clen(lf, flt) + clen(df, fdt) + eb;
-  var dtlen = clen(lf, dlt) + clen(df, ddt) + eb + 14 + 3 * nlcc + clen(lcfreq, lct) + 2 * lcfreq[16] + 3 * lcfreq[17] + 7 * lcfreq[18];
-  if (bs >= 0 && flen <= ftlen && flen <= dtlen)
-    return wfblk(out, p2, dat.subarray(bs, bs + bl));
-  var lm, ll, dm, dl;
-  wbits(out, p2, 1 + (dtlen < ftlen)), p2 += 2;
-  if (dtlen < ftlen) {
-    lm = hMap(dlt, mlb, 0), ll = dlt, dm = hMap(ddt, mdb, 0), dl = ddt;
-    var llm = hMap(lct, mlcb, 0);
-    wbits(out, p2, nlc - 257);
-    wbits(out, p2 + 5, ndc - 1);
-    wbits(out, p2 + 10, nlcc - 4);
-    p2 += 14;
-    for (var i3 = 0;i3 < nlcc; ++i3)
-      wbits(out, p2 + 3 * i3, lct[clim[i3]]);
-    p2 += 3 * nlcc;
-    var lcts = [lclt, lcdt];
-    for (var it = 0;it < 2; ++it) {
-      var clct = lcts[it];
-      for (var i3 = 0;i3 < clct.length; ++i3) {
-        var len = clct[i3] & 31;
-        wbits(out, p2, llm[len]), p2 += lct[len];
-        if (len > 15)
-          wbits(out, p2, clct[i3] >> 5 & 127), p2 += clct[i3] >> 12;
-      }
-    }
-  } else {
-    lm = flm, ll = flt, dm = fdm, dl = fdt;
-  }
-  for (var i3 = 0;i3 < li; ++i3) {
-    var sym = syms[i3];
-    if (sym > 255) {
-      var len = sym >> 18 & 31;
-      wbits16(out, p2, lm[len + 257]), p2 += ll[len + 257];
-      if (len > 7)
-        wbits(out, p2, sym >> 23 & 31), p2 += fleb[len];
-      var dst = sym & 31;
-      wbits16(out, p2, dm[dst]), p2 += dl[dst];
-      if (dst > 3)
-        wbits16(out, p2, sym >> 5 & 8191), p2 += fdeb[dst];
-    } else {
-      wbits16(out, p2, lm[sym]), p2 += ll[sym];
-    }
-  }
-  wbits16(out, p2, lm[256]);
-  return p2 + ll[256];
-};
-var deo = /* @__PURE__ */ new i32([65540, 131080, 131088, 131104, 262176, 1048704, 1048832, 2114560, 2117632]);
-var et = /* @__PURE__ */ new u8(0);
-var dflt = function(dat, lvl, plvl, pre, post, st) {
-  var s2 = st.z || dat.length;
-  var o2 = new u8(pre + s2 + 5 * (1 + Math.ceil(s2 / 7000)) + post);
-  var w2 = o2.subarray(pre, o2.length - post);
-  var lst = st.l;
-  var pos = (st.r || 0) & 7;
-  if (lvl) {
-    if (pos)
-      w2[0] = st.r >> 3;
-    var opt = deo[lvl - 1];
-    var n2 = opt >> 13, c2 = opt & 8191;
-    var msk_1 = (1 << plvl) - 1;
-    var prev = st.p || new u16(32768), head = st.h || new u16(msk_1 + 1);
-    var bs1_1 = Math.ceil(plvl / 3), bs2_1 = 2 * bs1_1;
-    var hsh = function(i4) {
-      return (dat[i4] ^ dat[i4 + 1] << bs1_1 ^ dat[i4 + 2] << bs2_1) & msk_1;
-    };
-    var syms = new i32(25000);
-    var lf = new u16(288), df = new u16(32);
-    var lc_1 = 0, eb = 0, i3 = st.i || 0, li = 0, wi = st.w || 0, bs = 0;
-    for (;i3 + 2 < s2; ++i3) {
-      var hv = hsh(i3);
-      var imod = i3 & 32767, pimod = head[hv];
-      prev[imod] = pimod;
-      head[hv] = imod;
-      if (wi <= i3) {
-        var rem = s2 - i3;
-        if ((lc_1 > 7000 || li > 24576) && (rem > 423 || !lst)) {
-          pos = wblk(dat, w2, 0, syms, lf, df, eb, li, bs, i3 - bs, pos);
-          li = lc_1 = eb = 0, bs = i3;
-          for (var j2 = 0;j2 < 286; ++j2)
-            lf[j2] = 0;
-          for (var j2 = 0;j2 < 30; ++j2)
-            df[j2] = 0;
-        }
-        var l2 = 2, d2 = 0, ch_1 = c2, dif = imod - pimod & 32767;
-        if (rem > 2 && hv == hsh(i3 - dif)) {
-          var maxn = Math.min(n2, rem) - 1;
-          var maxd = Math.min(32767, i3);
-          var ml = Math.min(258, rem);
-          while (dif <= maxd && --ch_1 && imod != pimod) {
-            if (dat[i3 + l2] == dat[i3 + l2 - dif]) {
-              var nl = 0;
-              for (;nl < ml && dat[i3 + nl] == dat[i3 + nl - dif]; ++nl)
-                ;
-              if (nl > l2) {
-                l2 = nl, d2 = dif;
-                if (nl > maxn)
-                  break;
-                var mmd = Math.min(dif, nl - 2);
-                var md = 0;
-                for (var j2 = 0;j2 < mmd; ++j2) {
-                  var ti = i3 - dif + j2 & 32767;
-                  var pti = prev[ti];
-                  var cd = ti - pti & 32767;
-                  if (cd > md)
-                    md = cd, pimod = ti;
-                }
-              }
-            }
-            imod = pimod, pimod = prev[imod];
-            dif += imod - pimod & 32767;
-          }
-        }
-        if (d2) {
-          syms[li++] = 268435456 | revfl[l2] << 18 | revfd[d2];
-          var lin = revfl[l2] & 31, din = revfd[d2] & 31;
-          eb += fleb[lin] + fdeb[din];
-          ++lf[257 + lin];
-          ++df[din];
-          wi = i3 + l2;
-          ++lc_1;
-        } else {
-          syms[li++] = dat[i3];
-          ++lf[dat[i3]];
-        }
-      }
-    }
-    for (i3 = Math.max(i3, wi);i3 < s2; ++i3) {
-      syms[li++] = dat[i3];
-      ++lf[dat[i3]];
-    }
-    pos = wblk(dat, w2, lst, syms, lf, df, eb, li, bs, i3 - bs, pos);
-    if (!lst) {
-      st.r = pos & 7 | w2[pos / 8 | 0] << 3;
-      pos -= 7;
-      st.h = head, st.p = prev, st.i = i3, st.w = wi;
-    }
-  } else {
-    for (var i3 = st.w || 0;i3 < s2 + lst; i3 += 65535) {
-      var e2 = i3 + 65535;
-      if (e2 >= s2) {
-        w2[pos / 8 | 0] = lst;
-        e2 = s2;
-      }
-      pos = wfblk(w2, pos + 1, dat.subarray(i3, e2));
-    }
-    st.i = s2;
-  }
-  return slc(o2, 0, pre + shft(pos) + post);
-};
-var adler = function() {
-  var a2 = 1, b = 0;
-  return {
-    p: function(d2) {
-      var n2 = a2, m2 = b;
-      var l2 = d2.length | 0;
-      for (var i3 = 0;i3 != l2; ) {
-        var e2 = Math.min(i3 + 2655, l2);
-        for (;i3 < e2; ++i3)
-          m2 += n2 += d2[i3];
-        n2 = (n2 & 65535) + 15 * (n2 >> 16), m2 = (m2 & 65535) + 15 * (m2 >> 16);
-      }
-      a2 = n2, b = m2;
-    },
-    d: function() {
-      a2 %= 65521, b %= 65521;
-      return (a2 & 255) << 24 | (a2 & 65280) << 8 | (b & 255) << 8 | b >> 8;
-    }
-  };
-};
-var dopt = function(dat, opt, pre, post, st) {
-  if (!st) {
-    st = { l: 1 };
-    if (opt.dictionary) {
-      var dict = opt.dictionary.subarray(-32768);
-      var newDat = new u8(dict.length + dat.length);
-      newDat.set(dict);
-      newDat.set(dat, dict.length);
-      dat = newDat;
-      st.w = dict.length;
-    }
-  }
-  return dflt(dat, opt.level == null ? 6 : opt.level, opt.mem == null ? st.l ? Math.ceil(Math.max(8, Math.min(13, Math.log(dat.length))) * 1.5) : 20 : 12 + opt.mem, pre, post, st);
-};
-var wbytes = function(d2, b, v) {
-  for (;v; ++b)
-    d2[b] = v, v >>>= 8;
-};
-var zlh = function(c2, o2) {
-  var lv = o2.level, fl2 = lv == 0 ? 0 : lv < 6 ? 1 : lv == 9 ? 3 : 2;
-  c2[0] = 120, c2[1] = fl2 << 6 | (o2.dictionary && 32);
-  c2[1] |= 31 - (c2[0] << 8 | c2[1]) % 31;
-  if (o2.dictionary) {
-    var h = adler();
-    h.p(o2.dictionary);
-    wbytes(c2, 2, h.d());
-  }
-};
-var zls = function(d2, dict) {
-  if ((d2[0] & 15) != 8 || d2[0] >> 4 > 7 || (d2[0] << 8 | d2[1]) % 31)
-    err(6, "invalid zlib data");
-  if ((d2[1] >> 5 & 1) == +!dict)
-    err(6, "invalid zlib data: " + (d2[1] & 32 ? "need" : "unexpected") + " dictionary");
-  return (d2[1] >> 3 & 4) + 2;
-};
-var Inflate = /* @__PURE__ */ function() {
-  function Inflate2(opts, cb) {
-    if (typeof opts == "function")
-      cb = opts, opts = {};
-    this.ondata = cb;
-    var dict = opts && opts.dictionary && opts.dictionary.subarray(-32768);
-    this.s = { i: 0, b: dict ? dict.length : 0 };
-    this.o = new u8(32768);
-    this.p = new u8(0);
-    if (dict)
-      this.o.set(dict);
-  }
-  Inflate2.prototype.e = function(c2) {
-    if (!this.ondata)
-      err(5);
-    if (this.d)
-      err(4);
-    if (!this.p.length)
-      this.p = c2;
-    else if (c2.length) {
-      var n2 = new u8(this.p.length + c2.length);
-      n2.set(this.p), n2.set(c2, this.p.length), this.p = n2;
-    }
-  };
-  Inflate2.prototype.c = function(final) {
-    this.s.i = +(this.d = final || false);
-    var bts = this.s.b;
-    var dt = inflt(this.p, this.s, this.o);
-    this.ondata(slc(dt, bts, this.s.b), this.d);
-    this.o = slc(dt, this.s.b - 32768), this.s.b = this.o.length;
-    this.p = slc(this.p, this.s.p / 8 | 0), this.s.p &= 7;
-  };
-  Inflate2.prototype.push = function(chunk, final) {
-    this.e(chunk), this.c(final);
-  };
-  return Inflate2;
-}();
-function zlibSync(data, opts) {
-  if (!opts)
-    opts = {};
-  var a2 = adler();
-  a2.p(data);
-  var d2 = dopt(data, opts, opts.dictionary ? 6 : 2, 4);
-  return zlh(d2, opts), wbytes(d2, d2.length - 4, a2.d()), d2;
-}
-var Unzlib = /* @__PURE__ */ function() {
-  function Unzlib2(opts, cb) {
-    Inflate.call(this, opts, cb);
-    this.v = opts && opts.dictionary ? 2 : 1;
-  }
-  Unzlib2.prototype.push = function(chunk, final) {
-    Inflate.prototype.e.call(this, chunk);
-    if (this.v) {
-      if (this.p.length < 6 && !final)
-        return;
-      this.p = this.p.subarray(zls(this.p, this.v - 1)), this.v = 0;
-    }
-    if (final) {
-      if (this.p.length < 4)
-        err(6, "invalid zlib data");
-      this.p = this.p.subarray(0, -4);
-    }
-    Inflate.prototype.c.call(this, final);
-  };
-  return Unzlib2;
-}();
-var td = typeof TextDecoder != "undefined" && /* @__PURE__ */ new TextDecoder;
-var tds = 0;
-try {
-  td.decode(et, { stream: true });
-  tds = 1;
-} catch (e2) {}
 
 // web/src/panes/vnc-auth.ts
-var IP_TABLE = [
-  58,
-  50,
-  42,
-  34,
-  26,
-  18,
-  10,
-  2,
-  60,
-  52,
-  44,
-  36,
-  28,
-  20,
-  12,
-  4,
-  62,
-  54,
-  46,
-  38,
-  30,
-  22,
-  14,
-  6,
-  64,
-  56,
-  48,
-  40,
-  32,
-  24,
-  16,
-  8,
-  57,
-  49,
-  41,
-  33,
-  25,
-  17,
-  9,
-  1,
-  59,
-  51,
-  43,
-  35,
-  27,
-  19,
-  11,
-  3,
-  61,
-  53,
-  45,
-  37,
-  29,
-  21,
-  13,
-  5,
-  63,
-  55,
-  47,
-  39,
-  31,
-  23,
-  15,
-  7
-];
-var FP_TABLE = [
-  40,
-  8,
-  48,
-  16,
-  56,
-  24,
-  64,
-  32,
-  39,
-  7,
-  47,
-  15,
-  55,
-  23,
-  63,
-  31,
-  38,
-  6,
-  46,
-  14,
-  54,
-  22,
-  62,
-  30,
-  37,
-  5,
-  45,
-  13,
-  53,
-  21,
-  61,
-  29,
-  36,
-  4,
-  44,
-  12,
-  52,
-  20,
-  60,
-  28,
-  35,
-  3,
-  43,
-  11,
-  51,
-  19,
-  59,
-  27,
-  34,
-  2,
-  42,
-  10,
-  50,
-  18,
-  58,
-  26,
-  33,
-  1,
-  41,
-  9,
-  49,
-  17,
-  57,
-  25
-];
-var E_TABLE = [
-  32,
-  1,
-  2,
-  3,
-  4,
-  5,
-  4,
-  5,
-  6,
-  7,
-  8,
-  9,
-  8,
-  9,
-  10,
-  11,
-  12,
-  13,
-  12,
-  13,
-  14,
-  15,
-  16,
-  17,
-  16,
-  17,
-  18,
-  19,
-  20,
-  21,
-  20,
-  21,
-  22,
-  23,
-  24,
-  25,
-  24,
-  25,
-  26,
-  27,
-  28,
-  29,
-  28,
-  29,
-  30,
-  31,
-  32,
-  1
-];
-var P_TABLE = [
-  16,
-  7,
-  20,
-  21,
-  29,
-  12,
-  28,
-  17,
-  1,
-  15,
-  23,
-  26,
-  5,
-  18,
-  31,
-  10,
-  2,
-  8,
-  24,
-  14,
-  32,
-  27,
-  3,
-  9,
-  19,
-  13,
-  30,
-  6,
-  22,
-  11,
-  4,
-  25
-];
-var PC1_TABLE = [
-  57,
-  49,
-  41,
-  33,
-  25,
-  17,
-  9,
-  1,
-  58,
-  50,
-  42,
-  34,
-  26,
-  18,
-  10,
-  2,
-  59,
-  51,
-  43,
-  35,
-  27,
-  19,
-  11,
-  3,
-  60,
-  52,
-  44,
-  36,
-  63,
-  55,
-  47,
-  39,
-  31,
-  23,
-  15,
-  7,
-  62,
-  54,
-  46,
-  38,
-  30,
-  22,
-  14,
-  6,
-  61,
-  53,
-  45,
-  37,
-  29,
-  21,
-  13,
-  5,
-  28,
-  20,
-  12,
-  4
-];
-var PC2_TABLE = [
-  14,
-  17,
-  11,
-  24,
-  1,
-  5,
-  3,
-  28,
-  15,
-  6,
-  21,
-  10,
-  23,
-  19,
-  12,
-  4,
-  26,
-  8,
-  16,
-  7,
-  27,
-  20,
-  13,
-  2,
-  41,
-  52,
-  31,
-  37,
-  47,
-  55,
-  30,
-  40,
-  51,
-  45,
-  33,
-  48,
-  44,
-  49,
-  39,
-  56,
-  34,
-  53,
-  46,
-  42,
-  50,
-  36,
-  29,
-  32
-];
-var ROTATIONS = [1, 1, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 1];
-var S_BOXES = [
-  [
-    [14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7],
-    [0, 15, 7, 4, 14, 2, 13, 1, 10, 6, 12, 11, 9, 5, 3, 8],
-    [4, 1, 14, 8, 13, 6, 2, 11, 15, 12, 9, 7, 3, 10, 5, 0],
-    [15, 12, 8, 2, 4, 9, 1, 7, 5, 11, 3, 14, 10, 0, 6, 13]
-  ],
-  [
-    [15, 1, 8, 14, 6, 11, 3, 4, 9, 7, 2, 13, 12, 0, 5, 10],
-    [3, 13, 4, 7, 15, 2, 8, 14, 12, 0, 1, 10, 6, 9, 11, 5],
-    [0, 14, 7, 11, 10, 4, 13, 1, 5, 8, 12, 6, 9, 3, 2, 15],
-    [13, 8, 10, 1, 3, 15, 4, 2, 11, 6, 7, 12, 0, 5, 14, 9]
-  ],
-  [
-    [10, 0, 9, 14, 6, 3, 15, 5, 1, 13, 12, 7, 11, 4, 2, 8],
-    [13, 7, 0, 9, 3, 4, 6, 10, 2, 8, 5, 14, 12, 11, 15, 1],
-    [13, 6, 4, 9, 8, 15, 3, 0, 11, 1, 2, 12, 5, 10, 14, 7],
-    [1, 10, 13, 0, 6, 9, 8, 7, 4, 15, 14, 3, 11, 5, 2, 12]
-  ],
-  [
-    [7, 13, 14, 3, 0, 6, 9, 10, 1, 2, 8, 5, 11, 12, 4, 15],
-    [13, 8, 11, 5, 6, 15, 0, 3, 4, 7, 2, 12, 1, 10, 14, 9],
-    [10, 6, 9, 0, 12, 11, 7, 13, 15, 1, 3, 14, 5, 2, 8, 4],
-    [3, 15, 0, 6, 10, 1, 13, 8, 9, 4, 5, 11, 12, 7, 2, 14]
-  ],
-  [
-    [2, 12, 4, 1, 7, 10, 11, 6, 8, 5, 3, 15, 13, 0, 14, 9],
-    [14, 11, 2, 12, 4, 7, 13, 1, 5, 0, 15, 10, 3, 9, 8, 6],
-    [4, 2, 1, 11, 10, 13, 7, 8, 15, 9, 12, 5, 6, 3, 0, 14],
-    [11, 8, 12, 7, 1, 14, 2, 13, 6, 15, 0, 9, 10, 4, 5, 3]
-  ],
-  [
-    [12, 1, 10, 15, 9, 2, 6, 8, 0, 13, 3, 4, 14, 7, 5, 11],
-    [10, 15, 4, 2, 7, 12, 9, 5, 6, 1, 13, 14, 0, 11, 3, 8],
-    [9, 14, 15, 5, 2, 8, 12, 3, 7, 0, 4, 10, 1, 13, 11, 6],
-    [4, 3, 2, 12, 9, 5, 15, 10, 11, 14, 1, 7, 6, 0, 8, 13]
-  ],
-  [
-    [4, 11, 2, 14, 15, 0, 8, 13, 3, 12, 9, 7, 5, 10, 6, 1],
-    [13, 0, 11, 7, 4, 9, 1, 10, 14, 3, 5, 12, 2, 15, 8, 6],
-    [1, 4, 11, 13, 12, 3, 7, 14, 10, 15, 6, 8, 0, 5, 9, 2],
-    [6, 11, 13, 8, 1, 4, 10, 7, 9, 5, 0, 15, 14, 2, 3, 12]
-  ],
-  [
-    [13, 2, 8, 4, 6, 15, 11, 1, 10, 9, 3, 14, 5, 0, 12, 7],
-    [1, 15, 13, 8, 10, 3, 7, 4, 12, 5, 6, 11, 0, 14, 9, 2],
-    [7, 11, 4, 1, 9, 12, 14, 2, 0, 6, 10, 13, 15, 3, 5, 8],
-    [2, 1, 14, 7, 4, 10, 8, 13, 15, 12, 9, 0, 3, 5, 6, 11]
-  ]
-];
 var REVERSED_BITS = new Uint8Array(256);
 for (let value = 0;value < 256; value += 1) {
   let reversed = 0;
@@ -11676,2314 +9014,6 @@ for (let value = 0;value < 256; value += 1) {
     reversed = reversed << 1 | value >> bit & 1;
   }
   REVERSED_BITS[value] = reversed;
-}
-function toUint8Array(bytes) {
-  if (bytes instanceof Uint8Array)
-    return bytes;
-  if (bytes instanceof ArrayBuffer)
-    return new Uint8Array(bytes);
-  if (ArrayBuffer.isView(bytes))
-    return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  return new Uint8Array(0);
-}
-function bytesToBigInt(bytes) {
-  let value = 0n;
-  const source = toUint8Array(bytes);
-  for (const byte of source) {
-    value = value << 8n | BigInt(byte);
-  }
-  return value;
-}
-function bigIntToBytes(value, length) {
-  const out = new Uint8Array(length);
-  let remaining = BigInt(value);
-  for (let index = length - 1;index >= 0; index -= 1) {
-    out[index] = Number(remaining & 0xffn);
-    remaining >>= 8n;
-  }
-  return out;
-}
-function permuteBits(input, table, inputBitLength) {
-  let output = 0n;
-  for (const position of table) {
-    const bit = BigInt(input) >> BigInt(inputBitLength - position) & 1n;
-    output = output << 1n | bit;
-  }
-  return output;
-}
-function rotateLeft28(value, amount) {
-  const width = 28n;
-  const mask = (1n << width) - 1n;
-  const shift = BigInt(amount % 28);
-  return (value << shift | value >> width - shift) & mask;
-}
-function buildDesSubkeys(keyBytes) {
-  const key56 = permuteBits(bytesToBigInt(keyBytes), PC1_TABLE, 64);
-  let left = key56 >> 28n & 0x0fffffffn;
-  let right = key56 & 0x0fffffffn;
-  const subkeys = [];
-  for (const rotation of ROTATIONS) {
-    left = rotateLeft28(left, rotation);
-    right = rotateLeft28(right, rotation);
-    const combined = left << 28n | right;
-    subkeys.push(permuteBits(combined, PC2_TABLE, 56));
-  }
-  return subkeys;
-}
-function applySBoxes(value48) {
-  let output = 0n;
-  for (let index = 0;index < 8; index += 1) {
-    const shift = BigInt((7 - index) * 6);
-    const chunk = Number(value48 >> shift & 0x3fn);
-    const row = (chunk & 32) >> 4 | chunk & 1;
-    const column = chunk >> 1 & 15;
-    output = output << 4n | BigInt(S_BOXES[index][row][column]);
-  }
-  return output;
-}
-function desFeistel(right32, subkey48) {
-  const expanded = permuteBits(right32, E_TABLE, 32) ^ BigInt(subkey48);
-  const substituted = applySBoxes(expanded);
-  return permuteBits(substituted, P_TABLE, 32);
-}
-function encryptDesBlock(blockBytes, keyBytes) {
-  const subkeys = buildDesSubkeys(keyBytes);
-  const initial = permuteBits(bytesToBigInt(blockBytes), IP_TABLE, 64);
-  let left = initial >> 32n & 0xffffffffn;
-  let right = initial & 0xffffffffn;
-  for (const subkey of subkeys) {
-    const nextLeft = right;
-    const nextRight = (left ^ desFeistel(right, subkey)) & 0xffffffffn;
-    left = nextLeft;
-    right = nextRight;
-  }
-  const preoutput = right << 32n | left;
-  return bigIntToBytes(permuteBits(preoutput, FP_TABLE, 64), 8);
-}
-function buildVncPasswordKey(password) {
-  const text = String(password ?? "");
-  const key = new Uint8Array(8);
-  for (let index = 0;index < 8; index += 1) {
-    const codeUnit = index < text.length ? text.charCodeAt(index) & 255 : 0;
-    key[index] = REVERSED_BITS[codeUnit];
-  }
-  return key;
-}
-function buildVncPasswordAuthResponse(password, challenge) {
-  const challengeBytes = toUint8Array(challenge);
-  if (challengeBytes.byteLength !== 16) {
-    throw new Error(`Invalid VNC auth challenge length ${challengeBytes.byteLength}; expected 16 bytes.`);
-  }
-  const key = buildVncPasswordKey(password);
-  const response = new Uint8Array(16);
-  response.set(encryptDesBlock(challengeBytes.slice(0, 8), key), 0);
-  response.set(encryptDesBlock(challengeBytes.slice(8, 16), key), 8);
-  return response;
-}
-
-// web/src/panes/remote-display-vnc.ts
-var PROTOCOL = "vnc";
-function toEncodingValue(value) {
-  return Number(value);
-}
-function normalizeEncodings(encodings) {
-  const raw = Array.isArray(encodings) ? encodings : typeof encodings === "string" ? encodings.split(",").map((item) => item.trim()).filter((item) => item.length > 0) : [];
-  const values = [];
-  const seen = new Set;
-  for (const item of raw) {
-    const value = toEncodingValue(item);
-    if (!Number.isFinite(value))
-      continue;
-    const normalized = Number(value);
-    if (!seen.has(normalized)) {
-      values.push(normalized);
-      seen.add(normalized);
-    }
-  }
-  if (values.length > 0)
-    return values;
-  return [5, 2, 1, 0, -223];
-}
-function toUint8Array2(chunk) {
-  if (chunk instanceof Uint8Array)
-    return chunk;
-  if (chunk instanceof ArrayBuffer)
-    return new Uint8Array(chunk);
-  if (ArrayBuffer.isView(chunk))
-    return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
-  return new Uint8Array(0);
-}
-function concatBytes(a2, b) {
-  const left = toUint8Array2(a2);
-  const right = toUint8Array2(b);
-  if (!left.byteLength)
-    return new Uint8Array(right);
-  if (!right.byteLength)
-    return new Uint8Array(left);
-  const merged = new Uint8Array(left.byteLength + right.byteLength);
-  merged.set(left, 0);
-  merged.set(right, left.byteLength);
-  return merged;
-}
-function concatByteChunks(chunks) {
-  let total = 0;
-  for (const chunk of chunks || [])
-    total += chunk?.byteLength || 0;
-  const merged = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks || []) {
-    const bytes = toUint8Array2(chunk);
-    merged.set(bytes, offset);
-    offset += bytes.byteLength;
-  }
-  return merged;
-}
-function createZrleInflater() {
-  return (compressed) => {
-    const payload = toUint8Array2(compressed);
-    try {
-      const chunks = [];
-      const inflator = new Unzlib((chunk) => {
-        chunks.push(new Uint8Array(chunk));
-      });
-      inflator.push(payload, true);
-      if (inflator.err) {
-        throw new Error(inflator.msg || "zlib decompression error");
-      }
-      return concatByteChunks(chunks);
-    } catch (error) {
-      try {
-        const fallback = zlibSync(payload);
-        return fallback instanceof Uint8Array ? fallback : new Uint8Array(fallback);
-      } catch (fallbackError) {
-        const message = fallbackError instanceof Error ? fallbackError.message : "unexpected EOF";
-        throw new Error(`unexpected EOF: ${message}`);
-      }
-    }
-  };
-}
-function asciiBytes(text) {
-  return new TextEncoder().encode(String(text || ""));
-}
-function bytesToAscii(bytes) {
-  return new TextDecoder().decode(toUint8Array2(bytes));
-}
-function parseVersionString(text) {
-  const match = /^RFB (\d{3})\.(\d{3})\n$/.exec(String(text || ""));
-  if (!match)
-    return null;
-  return {
-    major: parseInt(match[1], 10),
-    minor: parseInt(match[2], 10),
-    text: match[0]
-  };
-}
-function chooseClientVersion(serverVersion) {
-  if (!serverVersion)
-    return `RFB 003.008
-`;
-  if (serverVersion.major > 3 || serverVersion.minor >= 8)
-    return `RFB 003.008
-`;
-  if (serverVersion.minor >= 7)
-    return `RFB 003.007
-`;
-  return `RFB 003.003
-`;
-}
-function parsePixelFormat(view, offset = 0) {
-  return {
-    bitsPerPixel: view.getUint8(offset),
-    depth: view.getUint8(offset + 1),
-    bigEndian: view.getUint8(offset + 2) === 1,
-    trueColor: view.getUint8(offset + 3) === 1,
-    redMax: view.getUint16(offset + 4, false),
-    greenMax: view.getUint16(offset + 6, false),
-    blueMax: view.getUint16(offset + 8, false),
-    redShift: view.getUint8(offset + 10),
-    greenShift: view.getUint8(offset + 11),
-    blueShift: view.getUint8(offset + 12)
-  };
-}
-function encodePixelFormat(format) {
-  const buffer = new ArrayBuffer(20);
-  const view = new DataView(buffer);
-  view.setUint8(0, 0);
-  view.setUint8(1, 0);
-  view.setUint8(2, 0);
-  view.setUint8(3, 0);
-  view.setUint8(4, format.bitsPerPixel);
-  view.setUint8(5, format.depth);
-  view.setUint8(6, format.bigEndian ? 1 : 0);
-  view.setUint8(7, format.trueColor ? 1 : 0);
-  view.setUint16(8, format.redMax, false);
-  view.setUint16(10, format.greenMax, false);
-  view.setUint16(12, format.blueMax, false);
-  view.setUint8(14, format.redShift);
-  view.setUint8(15, format.greenShift);
-  view.setUint8(16, format.blueShift);
-  return new Uint8Array(buffer);
-}
-function buildSetEncodings(encodings) {
-  const list = Array.isArray(encodings) ? encodings : [];
-  const buffer = new ArrayBuffer(4 + list.length * 4);
-  const view = new DataView(buffer);
-  view.setUint8(0, 2);
-  view.setUint8(1, 0);
-  view.setUint16(2, list.length, false);
-  let offset = 4;
-  for (const encoding of list) {
-    view.setInt32(offset, Number(encoding || 0), false);
-    offset += 4;
-  }
-  return new Uint8Array(buffer);
-}
-function buildFramebufferUpdateRequest(incremental, width, height, x3 = 0, y2 = 0) {
-  const buffer = new ArrayBuffer(10);
-  const view = new DataView(buffer);
-  view.setUint8(0, 3);
-  view.setUint8(1, incremental ? 1 : 0);
-  view.setUint16(2, x3, false);
-  view.setUint16(4, y2, false);
-  view.setUint16(6, Math.max(0, width || 0), false);
-  view.setUint16(8, Math.max(0, height || 0), false);
-  return new Uint8Array(buffer);
-}
-function scaleChannel(value, max2) {
-  const numericMax = Number(max2 || 0);
-  if (numericMax <= 0)
-    return 0;
-  if (numericMax === 255)
-    return value & 255;
-  return Math.max(0, Math.min(255, Math.round((value || 0) * 255 / numericMax)));
-}
-function readPixelValue(bytes, offset, bytesPerPixel, bigEndian) {
-  if (bytesPerPixel === 1)
-    return bytes[offset];
-  if (bytesPerPixel === 2) {
-    return bigEndian ? (bytes[offset] << 8 | bytes[offset + 1]) >>> 0 : (bytes[offset] | bytes[offset + 1] << 8) >>> 0;
-  }
-  if (bytesPerPixel === 3) {
-    return bigEndian ? (bytes[offset] << 16 | bytes[offset + 1] << 8 | bytes[offset + 2]) >>> 0 : (bytes[offset] | bytes[offset + 1] << 8 | bytes[offset + 2] << 16) >>> 0;
-  }
-  if (bytesPerPixel === 4) {
-    return bigEndian ? (bytes[offset] << 24 >>> 0 | bytes[offset + 1] << 16 | bytes[offset + 2] << 8 | bytes[offset + 3]) >>> 0 : (bytes[offset] | bytes[offset + 1] << 8 | bytes[offset + 2] << 16 | bytes[offset + 3] << 24 >>> 0) >>> 0;
-  }
-  return 0;
-}
-function decodeRawRectToRgba(bytes, width, height, pixelFormat) {
-  const format = pixelFormat || DEFAULT_CLIENT_PIXEL_FORMAT;
-  const src = toUint8Array2(bytes);
-  const bytesPerPixel = Math.max(1, Math.floor(Number(format.bitsPerPixel || 0) / 8));
-  const expected = Math.max(0, width || 0) * Math.max(0, height || 0) * bytesPerPixel;
-  if (src.byteLength < expected) {
-    throw new Error(`Incomplete raw rectangle payload: expected ${expected} byte(s), got ${src.byteLength}`);
-  }
-  if (!format.trueColor) {
-    throw new Error("Indexed-colour VNC framebuffers are not supported yet.");
-  }
-  const rgba = new Uint8ClampedArray(Math.max(0, width || 0) * Math.max(0, height || 0) * 4);
-  let srcOffset = 0;
-  let dstOffset = 0;
-  for (let i3 = 0;i3 < Math.max(0, width || 0) * Math.max(0, height || 0); i3 += 1) {
-    const value = readPixelValue(src, srcOffset, bytesPerPixel, format.bigEndian);
-    const red = scaleChannel(value >>> format.redShift & format.redMax, format.redMax);
-    const green = scaleChannel(value >>> format.greenShift & format.greenMax, format.greenMax);
-    const blue = scaleChannel(value >>> format.blueShift & format.blueMax, format.blueMax);
-    rgba[dstOffset] = red;
-    rgba[dstOffset + 1] = green;
-    rgba[dstOffset + 2] = blue;
-    rgba[dstOffset + 3] = 255;
-    srcOffset += bytesPerPixel;
-    dstOffset += 4;
-  }
-  return rgba;
-}
-function decodePixelToRgba(bytes, offset, pixelFormat) {
-  const format = pixelFormat || DEFAULT_CLIENT_PIXEL_FORMAT;
-  const bytesPerPixel = Math.max(1, Math.floor(Number(format.bitsPerPixel || 0) / 8));
-  if (bytes.byteLength < offset + bytesPerPixel)
-    return null;
-  const value = readPixelValue(bytes, offset, bytesPerPixel, format.bigEndian);
-  return {
-    rgba: [
-      scaleChannel(value >>> format.redShift & format.redMax, format.redMax),
-      scaleChannel(value >>> format.greenShift & format.greenMax, format.greenMax),
-      scaleChannel(value >>> format.blueShift & format.blueMax, format.blueMax),
-      255
-    ],
-    bytesPerPixel
-  };
-}
-function fillRgbaRect(surface, surfaceWidth, x3, y2, width, height, rgba) {
-  if (!rgba)
-    return;
-  for (let row = 0;row < height; row += 1) {
-    for (let col = 0;col < width; col += 1) {
-      const dst = ((y2 + row) * surfaceWidth + (x3 + col)) * 4;
-      surface[dst] = rgba[0];
-      surface[dst + 1] = rgba[1];
-      surface[dst + 2] = rgba[2];
-      surface[dst + 3] = rgba[3];
-    }
-  }
-}
-function blitRgbaTile(surface, surfaceWidth, tileX, tileY, tileWidth, tileHeight, tileRgba) {
-  for (let row = 0;row < tileHeight; row += 1) {
-    const srcStart = row * tileWidth * 4;
-    const dstStart = ((tileY + row) * surfaceWidth + tileX) * 4;
-    surface.set(tileRgba.subarray(srcStart, srcStart + tileWidth * 4), dstStart);
-  }
-}
-function parseZrleRunLength(bytes, offset) {
-  let cursor = offset;
-  let runLength = 1;
-  while (true) {
-    if (bytes.byteLength < cursor + 1)
-      return null;
-    const value = bytes[cursor++];
-    runLength += value;
-    if (value !== 255)
-      break;
-  }
-  return { consumed: cursor - offset, runLength };
-}
-function parseZrleRect(bytes, offset, width, height, pixelFormat, decodeRawRect, inflateZrle) {
-  const format = pixelFormat || DEFAULT_CLIENT_PIXEL_FORMAT;
-  const bytesPerPixel = Math.max(1, Math.floor(Number(format.bitsPerPixel || 0) / 8));
-  if (bytes.byteLength < offset + 4)
-    return null;
-  const compressedLength = new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0, false);
-  if (bytes.byteLength < offset + 4 + compressedLength)
-    return null;
-  const compressed = bytes.slice(offset + 4, offset + 4 + compressedLength);
-  let decoded;
-  try {
-    decoded = inflateZrle(compressed);
-  } catch {
-    return {
-      consumed: 4 + compressedLength,
-      skipped: true
-    };
-  }
-  let cursor = 0;
-  const rgba = new Uint8ClampedArray(Math.max(0, width || 0) * Math.max(0, height || 0) * 4);
-  for (let tileY = 0;tileY < height; tileY += 64) {
-    const tileHeight = Math.min(64, height - tileY);
-    for (let tileX = 0;tileX < width; tileX += 64) {
-      const tileWidth = Math.min(64, width - tileX);
-      if (decoded.byteLength < cursor + 1)
-        return null;
-      const subencoding = decoded[cursor++];
-      const paletteSize = subencoding & 127;
-      const runLengthEncoded = (subencoding & 128) !== 0;
-      if (!runLengthEncoded && paletteSize === 0) {
-        const rawLength = tileWidth * tileHeight * bytesPerPixel;
-        if (decoded.byteLength < cursor + rawLength)
-          return null;
-        const tileRgba = decodeRawRect(decoded.slice(cursor, cursor + rawLength), tileWidth, tileHeight, format);
-        cursor += rawLength;
-        blitRgbaTile(rgba, width, tileX, tileY, tileWidth, tileHeight, tileRgba);
-        continue;
-      }
-      if (!runLengthEncoded && paletteSize === 1) {
-        const background = decodePixelToRgba(decoded, cursor, format);
-        if (!background)
-          return null;
-        cursor += background.bytesPerPixel;
-        fillRgbaRect(rgba, width, tileX, tileY, tileWidth, tileHeight, background.rgba);
-        continue;
-      }
-      if (!runLengthEncoded && paletteSize > 1 && paletteSize <= 16) {
-        const palette = [];
-        for (let i3 = 0;i3 < paletteSize; i3 += 1) {
-          const color = decodePixelToRgba(decoded, cursor, format);
-          if (!color)
-            return null;
-          cursor += color.bytesPerPixel;
-          palette.push(color.rgba);
-        }
-        const bitsPerIndex = paletteSize <= 2 ? 1 : paletteSize <= 4 ? 2 : 4;
-        const rowBytes = Math.ceil(tileWidth * bitsPerIndex / 8);
-        const packedLength = rowBytes * tileHeight;
-        if (decoded.byteLength < cursor + packedLength)
-          return null;
-        for (let row = 0;row < tileHeight; row += 1) {
-          const rowStart = cursor + row * rowBytes;
-          for (let col = 0;col < tileWidth; col += 1) {
-            const bitIndex = col * bitsPerIndex;
-            const byteIndex = rowStart + (bitIndex >> 3);
-            const shift = 8 - bitsPerIndex - (bitIndex & 7);
-            const paletteIndex = decoded[byteIndex] >> shift & (1 << bitsPerIndex) - 1;
-            fillRgbaRect(rgba, width, tileX + col, tileY + row, 1, 1, palette[paletteIndex]);
-          }
-        }
-        cursor += packedLength;
-        continue;
-      }
-      if (runLengthEncoded && paletteSize === 0) {
-        let px = 0;
-        let py = 0;
-        while (py < tileHeight) {
-          const color = decodePixelToRgba(decoded, cursor, format);
-          if (!color)
-            return null;
-          cursor += color.bytesPerPixel;
-          const run = parseZrleRunLength(decoded, cursor);
-          if (!run)
-            return null;
-          cursor += run.consumed;
-          for (let i3 = 0;i3 < run.runLength; i3 += 1) {
-            fillRgbaRect(rgba, width, tileX + px, tileY + py, 1, 1, color.rgba);
-            px += 1;
-            if (px >= tileWidth) {
-              px = 0;
-              py += 1;
-              if (py >= tileHeight)
-                break;
-            }
-          }
-        }
-        continue;
-      }
-      if (runLengthEncoded && paletteSize > 0) {
-        const palette = [];
-        for (let i3 = 0;i3 < paletteSize; i3 += 1) {
-          const color = decodePixelToRgba(decoded, cursor, format);
-          if (!color)
-            return null;
-          cursor += color.bytesPerPixel;
-          palette.push(color.rgba);
-        }
-        let px = 0;
-        let py = 0;
-        while (py < tileHeight) {
-          if (decoded.byteLength < cursor + 1)
-            return null;
-          const indexByte = decoded[cursor++];
-          let paletteIndex = indexByte;
-          let runLength = 1;
-          if (indexByte & 128) {
-            paletteIndex = indexByte & 127;
-            const run = parseZrleRunLength(decoded, cursor);
-            if (!run)
-              return null;
-            cursor += run.consumed;
-            runLength = run.runLength;
-          }
-          const color = palette[paletteIndex];
-          if (!color)
-            return null;
-          for (let i3 = 0;i3 < runLength; i3 += 1) {
-            fillRgbaRect(rgba, width, tileX + px, tileY + py, 1, 1, color);
-            px += 1;
-            if (px >= tileWidth) {
-              px = 0;
-              py += 1;
-              if (py >= tileHeight)
-                break;
-            }
-          }
-        }
-        continue;
-      }
-      return {
-        consumed: 4 + compressedLength,
-        skipped: true
-      };
-    }
-  }
-  return {
-    consumed: 4 + compressedLength,
-    rgba,
-    decompressed: decoded
-  };
-}
-function parseRreRect(bytes, offset, width, height, pixelFormat) {
-  const format = pixelFormat || DEFAULT_CLIENT_PIXEL_FORMAT;
-  const bytesPerPixel = Math.max(1, Math.floor(Number(format.bitsPerPixel || 0) / 8));
-  if (bytes.byteLength < offset + 4 + bytesPerPixel)
-    return null;
-  const view = new DataView(bytes.buffer, bytes.byteOffset + offset, bytes.byteLength - offset);
-  const subrectCount = view.getUint32(0, false);
-  const totalSize = 4 + bytesPerPixel + subrectCount * (bytesPerPixel + 8);
-  if (bytes.byteLength < offset + totalSize)
-    return null;
-  let cursor = offset + 4;
-  const background = decodePixelToRgba(bytes, cursor, format);
-  if (!background)
-    return null;
-  cursor += background.bytesPerPixel;
-  const rgba = new Uint8ClampedArray(Math.max(0, width || 0) * Math.max(0, height || 0) * 4);
-  fillRgbaRect(rgba, width, 0, 0, width, height, background.rgba);
-  for (let i3 = 0;i3 < subrectCount; i3 += 1) {
-    const color = decodePixelToRgba(bytes, cursor, format);
-    if (!color)
-      return null;
-    cursor += color.bytesPerPixel;
-    if (bytes.byteLength < cursor + 8)
-      return null;
-    const rectView = new DataView(bytes.buffer, bytes.byteOffset + cursor, 8);
-    const x3 = rectView.getUint16(0, false);
-    const y2 = rectView.getUint16(2, false);
-    const rectWidth = rectView.getUint16(4, false);
-    const rectHeight = rectView.getUint16(6, false);
-    cursor += 8;
-    fillRgbaRect(rgba, width, x3, y2, rectWidth, rectHeight, color.rgba);
-  }
-  return {
-    consumed: cursor - offset,
-    rgba
-  };
-}
-function parseHextileRect(bytes, offset, width, height, pixelFormat, decodeRawRect) {
-  const format = pixelFormat || DEFAULT_CLIENT_PIXEL_FORMAT;
-  const bytesPerPixel = Math.max(1, Math.floor(Number(format.bitsPerPixel || 0) / 8));
-  const rgba = new Uint8ClampedArray(Math.max(0, width || 0) * Math.max(0, height || 0) * 4);
-  let cursor = offset;
-  let background = [0, 0, 0, 255];
-  let foreground = [255, 255, 255, 255];
-  for (let tileY = 0;tileY < height; tileY += 16) {
-    const tileHeight = Math.min(16, height - tileY);
-    for (let tileX = 0;tileX < width; tileX += 16) {
-      const tileWidth = Math.min(16, width - tileX);
-      if (bytes.byteLength < cursor + 1)
-        return null;
-      const subencoding = bytes[cursor++];
-      if (subencoding & 1) {
-        const rawLength = tileWidth * tileHeight * bytesPerPixel;
-        if (bytes.byteLength < cursor + rawLength)
-          return null;
-        const tileRgba = decodeRawRect(bytes.slice(cursor, cursor + rawLength), tileWidth, tileHeight, format);
-        cursor += rawLength;
-        blitRgbaTile(rgba, width, tileX, tileY, tileWidth, tileHeight, tileRgba);
-        continue;
-      }
-      if (subencoding & 2) {
-        const decoded = decodePixelToRgba(bytes, cursor, format);
-        if (!decoded)
-          return null;
-        background = decoded.rgba;
-        cursor += decoded.bytesPerPixel;
-      }
-      fillRgbaRect(rgba, width, tileX, tileY, tileWidth, tileHeight, background);
-      if (subencoding & 4) {
-        const decoded = decodePixelToRgba(bytes, cursor, format);
-        if (!decoded)
-          return null;
-        foreground = decoded.rgba;
-        cursor += decoded.bytesPerPixel;
-      }
-      if (subencoding & 8) {
-        if (bytes.byteLength < cursor + 1)
-          return null;
-        const subrectCount = bytes[cursor++];
-        for (let i3 = 0;i3 < subrectCount; i3 += 1) {
-          let color = foreground;
-          if (subencoding & 16) {
-            const decoded = decodePixelToRgba(bytes, cursor, format);
-            if (!decoded)
-              return null;
-            color = decoded.rgba;
-            cursor += decoded.bytesPerPixel;
-          }
-          if (bytes.byteLength < cursor + 2)
-            return null;
-          const xy = bytes[cursor++];
-          const wh = bytes[cursor++];
-          const subX = xy >> 4;
-          const subY = xy & 15;
-          const subWidth = (wh >> 4) + 1;
-          const subHeight = (wh & 15) + 1;
-          fillRgbaRect(rgba, width, tileX + subX, tileY + subY, subWidth, subHeight, color);
-        }
-      }
-    }
-  }
-  return {
-    consumed: cursor - offset,
-    rgba
-  };
-}
-var DEFAULT_CLIENT_PIXEL_FORMAT = {
-  bitsPerPixel: 32,
-  depth: 24,
-  bigEndian: false,
-  trueColor: true,
-  redMax: 255,
-  greenMax: 255,
-  blueMax: 255,
-  redShift: 16,
-  greenShift: 8,
-  blueShift: 0
-};
-
-class VncRemoteDisplayProtocol {
-  protocol = PROTOCOL;
-  constructor(options = {}) {
-    this.shared = options.shared !== false;
-    this.decodeRawRect = typeof options.decodeRawRect === "function" ? options.decodeRawRect : decodeRawRectToRgba;
-    this.pipeline = options.pipeline || null;
-    this.encodings = normalizeEncodings(options.encodings || null);
-    this.state = "version";
-    this.buffer = new Uint8Array(0);
-    this.serverVersion = null;
-    this.clientVersionText = null;
-    this.framebufferWidth = 0;
-    this.framebufferHeight = 0;
-    this.serverName = "";
-    this.serverPixelFormat = null;
-    this.clientPixelFormat = { ...DEFAULT_CLIENT_PIXEL_FORMAT };
-    this.password = typeof options.password === "string" && options.password.length > 0 ? options.password : null;
-    this.inflateZrle = typeof options.inflateZrle === "function" ? options.inflateZrle : createZrleInflater();
-  }
-  receive(chunk) {
-    if (chunk) {
-      this.buffer = concatBytes(this.buffer, chunk);
-    }
-    const events = [];
-    const outgoing = [];
-    let progressed = true;
-    while (progressed) {
-      progressed = false;
-      if (this.state === "version") {
-        if (this.buffer.byteLength < 12)
-          break;
-        const bytes = this.consume(12);
-        const text = bytesToAscii(bytes);
-        const version = parseVersionString(text);
-        if (!version) {
-          throw new Error(`Unsupported RFB version banner: ${text || "<empty>"}`);
-        }
-        this.serverVersion = version;
-        this.clientVersionText = chooseClientVersion(version);
-        outgoing.push(asciiBytes(this.clientVersionText));
-        events.push({ type: "protocol-version", protocol: PROTOCOL, server: version.text.trim(), client: this.clientVersionText.trim() });
-        this.state = version.minor >= 7 ? "security-types" : "security-type-33";
-        progressed = true;
-        continue;
-      }
-      if (this.state === "security-types") {
-        if (this.buffer.byteLength < 1)
-          break;
-        const count = this.buffer[0];
-        if (count === 0) {
-          if (this.buffer.byteLength < 5)
-            break;
-          const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
-          const reasonLength = view.getUint32(1, false);
-          if (this.buffer.byteLength < 5 + reasonLength)
-            break;
-          this.consume(1);
-          const reason = bytesToAscii(this.consume(4 + reasonLength).slice(4));
-          throw new Error(reason || "VNC server rejected the connection.");
-        }
-        if (this.buffer.byteLength < 1 + count)
-          break;
-        this.consume(1);
-        const types = Array.from(this.consume(count));
-        events.push({ type: "security-types", protocol: PROTOCOL, types });
-        let selectedType = null;
-        if (types.includes(2) && this.password !== null) {
-          selectedType = 2;
-        } else if (types.includes(1)) {
-          selectedType = 1;
-        } else if (types.includes(2)) {
-          throw new Error("VNC password authentication is required. Enter a password and reconnect.");
-        } else {
-          throw new Error(`Unsupported VNC security types: ${types.join(", ") || "none"}. This viewer currently supports only "None" and password-based VNC auth.`);
-        }
-        outgoing.push(Uint8Array.of(selectedType));
-        events.push({ type: "security-selected", protocol: PROTOCOL, securityType: selectedType, label: selectedType === 2 ? "VNC Authentication" : "None" });
-        this.state = selectedType === 2 ? "security-challenge" : "security-result";
-        progressed = true;
-        continue;
-      }
-      if (this.state === "security-type-33") {
-        if (this.buffer.byteLength < 4)
-          break;
-        const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
-        const securityType = view.getUint32(0, false);
-        this.consume(4);
-        if (securityType === 0) {
-          if (this.buffer.byteLength < 4)
-            break;
-          const reasonView = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
-          const reasonLength = reasonView.getUint32(0, false);
-          if (this.buffer.byteLength < 4 + reasonLength)
-            break;
-          const reason = bytesToAscii(this.consume(4 + reasonLength).slice(4));
-          throw new Error(reason || "VNC server rejected the connection.");
-        }
-        if (securityType === 2) {
-          if (this.password === null) {
-            throw new Error("VNC password authentication is required. Enter a password and reconnect.");
-          }
-          events.push({ type: "security-selected", protocol: PROTOCOL, securityType: 2, label: "VNC Authentication" });
-          this.state = "security-challenge";
-          progressed = true;
-          continue;
-        }
-        if (securityType !== 1) {
-          throw new Error(`Unsupported VNC security type ${securityType}. This viewer currently supports only "None" and password-based VNC auth.`);
-        }
-        events.push({ type: "security-selected", protocol: PROTOCOL, securityType: 1, label: "None" });
-        outgoing.push(Uint8Array.of(this.shared ? 1 : 0));
-        this.state = "server-init";
-        progressed = true;
-        continue;
-      }
-      if (this.state === "security-challenge") {
-        if (this.buffer.byteLength < 16)
-          break;
-        if (this.password === null) {
-          throw new Error("VNC password authentication is required. Enter a password and reconnect.");
-        }
-        const challenge = this.consume(16);
-        outgoing.push(buildVncPasswordAuthResponse(this.password, challenge));
-        this.state = "security-result";
-        progressed = true;
-        continue;
-      }
-      if (this.state === "security-result") {
-        if (this.buffer.byteLength < 4)
-          break;
-        const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
-        const result = view.getUint32(0, false);
-        this.consume(4);
-        if (result !== 0) {
-          if (this.buffer.byteLength >= 4) {
-            const reasonLength = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength).getUint32(0, false);
-            if (this.buffer.byteLength >= 4 + reasonLength) {
-              const reason = bytesToAscii(this.consume(4 + reasonLength).slice(4));
-              throw new Error(reason || "VNC authentication failed.");
-            }
-          }
-          throw new Error("VNC authentication failed.");
-        }
-        events.push({ type: "security-result", protocol: PROTOCOL, ok: true });
-        outgoing.push(Uint8Array.of(this.shared ? 1 : 0));
-        this.state = "server-init";
-        progressed = true;
-        continue;
-      }
-      if (this.state === "server-init") {
-        if (this.buffer.byteLength < 24)
-          break;
-        const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
-        const width = view.getUint16(0, false);
-        const height = view.getUint16(2, false);
-        const pixelFormat = parsePixelFormat(view, 4);
-        const nameLength = view.getUint32(20, false);
-        if (this.buffer.byteLength < 24 + nameLength)
-          break;
-        const fixed = this.consume(24);
-        const fixedView = new DataView(fixed.buffer, fixed.byteOffset, fixed.byteLength);
-        this.framebufferWidth = fixedView.getUint16(0, false);
-        this.framebufferHeight = fixedView.getUint16(2, false);
-        this.serverPixelFormat = parsePixelFormat(fixedView, 4);
-        this.serverName = bytesToAscii(this.consume(nameLength));
-        this.state = "connected";
-        if (this.pipeline) {
-          this.pipeline.initFramebuffer(this.framebufferWidth, this.framebufferHeight);
-        }
-        outgoing.push(encodePixelFormat(this.clientPixelFormat));
-        outgoing.push(buildSetEncodings(this.encodings));
-        outgoing.push(buildFramebufferUpdateRequest(false, this.framebufferWidth, this.framebufferHeight));
-        events.push({
-          type: "display-init",
-          protocol: PROTOCOL,
-          width,
-          height,
-          name: this.serverName,
-          pixelFormat
-        });
-        progressed = true;
-        continue;
-      }
-      if (this.state === "connected") {
-        if (this.buffer.byteLength < 1)
-          break;
-        const type = this.buffer[0];
-        if (type === 0) {
-          if (this.buffer.byteLength < 4)
-            break;
-          const headerView = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
-          const numberOfRectangles = headerView.getUint16(2, false);
-          let offset = 4;
-          const rects = [];
-          let incomplete = false;
-          const usePipeline = !!this.pipeline;
-          for (let i3 = 0;i3 < numberOfRectangles; i3 += 1) {
-            if (this.buffer.byteLength < offset + 12) {
-              incomplete = true;
-              break;
-            }
-            const rectView = new DataView(this.buffer.buffer, this.buffer.byteOffset + offset, 12);
-            const x3 = rectView.getUint16(0, false);
-            const y2 = rectView.getUint16(2, false);
-            const width = rectView.getUint16(4, false);
-            const height = rectView.getUint16(6, false);
-            const encoding = rectView.getInt32(8, false);
-            offset += 12;
-            if (encoding === 0) {
-              const bytesPerPixel = Math.max(1, Math.floor(Number(this.clientPixelFormat.bitsPerPixel || 0) / 8));
-              const dataLength = width * height * bytesPerPixel;
-              if (this.buffer.byteLength < offset + dataLength) {
-                incomplete = true;
-                break;
-              }
-              const raw = this.buffer.slice(offset, offset + dataLength);
-              offset += dataLength;
-              if (usePipeline) {
-                this.pipeline.processRawRect(raw, x3, y2, width, height, this.clientPixelFormat);
-                rects.push({ kind: "pipeline", x: x3, y: y2, width, height });
-              } else {
-                rects.push({
-                  kind: "rgba",
-                  x: x3,
-                  y: y2,
-                  width,
-                  height,
-                  rgba: this.decodeRawRect(raw, width, height, this.clientPixelFormat)
-                });
-              }
-              continue;
-            }
-            if (encoding === 2) {
-              const rre = parseRreRect(this.buffer, offset, width, height, this.clientPixelFormat);
-              if (!rre) {
-                incomplete = true;
-                break;
-              }
-              if (usePipeline) {
-                const rreData = this.buffer.slice(offset, offset + rre.consumed);
-                this.pipeline.processRreRect(rreData, x3, y2, width, height, this.clientPixelFormat);
-                rects.push({ kind: "pipeline", x: x3, y: y2, width, height });
-              } else {
-                rects.push({ kind: "rgba", x: x3, y: y2, width, height, rgba: rre.rgba });
-              }
-              offset += rre.consumed;
-              continue;
-            }
-            if (encoding === 1) {
-              if (this.buffer.byteLength < offset + 4) {
-                incomplete = true;
-                break;
-              }
-              const copyView = new DataView(this.buffer.buffer, this.buffer.byteOffset + offset, 4);
-              const srcX = copyView.getUint16(0, false);
-              const srcY = copyView.getUint16(2, false);
-              offset += 4;
-              if (usePipeline) {
-                this.pipeline.processCopyRect(x3, y2, width, height, srcX, srcY);
-                rects.push({ kind: "pipeline", x: x3, y: y2, width, height });
-              } else {
-                rects.push({ kind: "copy", x: x3, y: y2, width, height, srcX, srcY });
-              }
-              continue;
-            }
-            if (encoding === 16) {
-              const zrle = parseZrleRect(this.buffer, offset, width, height, this.clientPixelFormat, this.decodeRawRect, this.inflateZrle);
-              if (!zrle) {
-                incomplete = true;
-                break;
-              }
-              offset += zrle.consumed;
-              if (zrle.skipped)
-                continue;
-              if (usePipeline && zrle.decompressed) {
-                this.pipeline.processZrleTileData(zrle.decompressed, x3, y2, width, height, this.clientPixelFormat);
-                rects.push({ kind: "pipeline", x: x3, y: y2, width, height });
-              } else {
-                rects.push({ kind: "rgba", x: x3, y: y2, width, height, rgba: zrle.rgba });
-              }
-              continue;
-            }
-            if (encoding === 5) {
-              const hextile = parseHextileRect(this.buffer, offset, width, height, this.clientPixelFormat, this.decodeRawRect);
-              if (!hextile) {
-                incomplete = true;
-                break;
-              }
-              if (usePipeline) {
-                const hextileData = this.buffer.slice(offset, offset + hextile.consumed);
-                this.pipeline.processHextileRect(hextileData, x3, y2, width, height, this.clientPixelFormat);
-                rects.push({ kind: "pipeline", x: x3, y: y2, width, height });
-              } else {
-                rects.push({ kind: "rgba", x: x3, y: y2, width, height, rgba: hextile.rgba });
-              }
-              offset += hextile.consumed;
-              continue;
-            }
-            if (encoding === -223) {
-              this.framebufferWidth = width;
-              this.framebufferHeight = height;
-              if (usePipeline) {
-                this.pipeline.initFramebuffer(width, height);
-              }
-              rects.push({ kind: "resize", x: x3, y: y2, width, height });
-              continue;
-            }
-            throw new Error(`Unsupported VNC rectangle encoding ${encoding}. This viewer currently supports ZRLE, Hextile, RRE, CopyRect, raw rectangles, and DesktopSize only.`);
-          }
-          if (incomplete)
-            break;
-          this.consume(offset);
-          const event = {
-            type: "framebuffer-update",
-            protocol: PROTOCOL,
-            width: this.framebufferWidth,
-            height: this.framebufferHeight,
-            rects
-          };
-          if (usePipeline) {
-            event.framebuffer = this.pipeline.getFramebuffer();
-          }
-          events.push(event);
-          outgoing.push(buildFramebufferUpdateRequest(true, this.framebufferWidth, this.framebufferHeight));
-          progressed = true;
-          continue;
-        }
-        if (type === 2) {
-          this.consume(1);
-          events.push({ type: "bell", protocol: PROTOCOL });
-          progressed = true;
-          continue;
-        }
-        if (type === 3) {
-          if (this.buffer.byteLength < 8)
-            break;
-          const view = new DataView(this.buffer.buffer, this.buffer.byteOffset, this.buffer.byteLength);
-          const length = view.getUint32(4, false);
-          if (this.buffer.byteLength < 8 + length)
-            break;
-          this.consume(8);
-          const text = bytesToAscii(this.consume(length));
-          events.push({ type: "clipboard", protocol: PROTOCOL, text });
-          progressed = true;
-          continue;
-        }
-        throw new Error(`Unsupported VNC server message type ${type}.`);
-      }
-    }
-    return { events, outgoing };
-  }
-  consume(length) {
-    const chunk = this.buffer.slice(0, length);
-    this.buffer = this.buffer.slice(length);
-    return chunk;
-  }
-}
-
-// web/src/panes/vnc-pane.ts
-var VNC_TAB_PREFIX = "piclaw://vnc";
-function buildVncTabPath(targetId) {
-  const target = String(targetId || "").trim();
-  return target ? `${VNC_TAB_PREFIX}/${encodeURIComponent(target)}` : VNC_TAB_PREFIX;
-}
-var VNC_POPOUT_SECRET_PREFIX = "piclaw:vnc-popout:";
-var VNC_POPOUT_SECRET_TTL_MS = 60000;
-function getVncPopoutStorage(runtime = globalThis) {
-  try {
-    return runtime?.localStorage ?? null;
-  } catch {
-    return null;
-  }
-}
-function generateVncPopoutSecretToken(runtime = globalThis) {
-  const uuid = readRandomUuidBestEffort(runtime);
-  if (uuid) {
-    return uuid;
-  }
-  return `vnc-popout-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
-}
-function sweepExpiredVncPopoutSecrets(storage, nowMs = Date.now()) {
-  if (!storage || typeof storage.key !== "function" || !Number.isFinite(storage.length))
-    return;
-  const keys = [];
-  for (let i3 = 0;i3 < Number(storage.length || 0); i3 += 1) {
-    const key = storage.key(i3);
-    if (key && key.startsWith(VNC_POPOUT_SECRET_PREFIX))
-      keys.push(key);
-  }
-  for (const key of keys) {
-    try {
-      const raw = storage.getItem(key);
-      if (!raw) {
-        storage.removeItem(key);
-        continue;
-      }
-      const parsed = JSON.parse(raw);
-      const expiresAt = Number(parsed?.expiresAt || 0);
-      if (!Number.isFinite(expiresAt) || expiresAt <= nowMs) {
-        storage.removeItem(key);
-      }
-    } catch {
-      removeStorageItemBestEffort(storage, key);
-    }
-  }
-}
-function stashVncPopoutPassword(password, runtime = globalThis, nowMs = Date.now()) {
-  const normalized = normalizeVncPassword(password);
-  if (normalized === null)
-    return null;
-  const storage = getVncPopoutStorage(runtime);
-  if (!storage)
-    return null;
-  sweepExpiredVncPopoutSecrets(storage, nowMs);
-  const token = generateVncPopoutSecretToken(runtime);
-  try {
-    storage.setItem(`${VNC_POPOUT_SECRET_PREFIX}${token}`, JSON.stringify({
-      password: normalized,
-      expiresAt: nowMs + VNC_POPOUT_SECRET_TTL_MS
-    }));
-    return token;
-  } catch {
-    return null;
-  }
-}
-function consumeVncPopoutPassword(token, runtime = globalThis, nowMs = Date.now()) {
-  const normalizedToken = String(token || "").trim();
-  if (!normalizedToken)
-    return null;
-  const storage = getVncPopoutStorage(runtime);
-  if (!storage)
-    return null;
-  sweepExpiredVncPopoutSecrets(storage, nowMs);
-  const key = `${VNC_POPOUT_SECRET_PREFIX}${normalizedToken}`;
-  try {
-    const raw = storage.getItem(key);
-    storage.removeItem(key);
-    if (!raw)
-      return null;
-    const parsed = JSON.parse(raw);
-    const expiresAt = Number(parsed?.expiresAt || 0);
-    if (!Number.isFinite(expiresAt) || expiresAt <= nowMs)
-      return null;
-    return normalizeVncPassword(parsed?.password);
-  } catch {
-    try {
-      storage.removeItem(key);
-    } catch {}
-    return null;
-  }
-}
-function createVncPopoutTransferPayload(targetId, password, runtime = globalThis) {
-  const target = String(targetId || "").trim();
-  if (!target)
-    return null;
-  const payload = {
-    pane_path: buildVncTabPath(target)
-  };
-  const passwordToken = stashVncPopoutPassword(password, runtime);
-  if (passwordToken) {
-    payload.vnc_secret = passwordToken;
-  }
-  return payload;
-}
-function parseVncTargetFromPath(path) {
-  const raw = String(path || "");
-  if (raw === VNC_TAB_PREFIX)
-    return null;
-  if (!raw.startsWith(`${VNC_TAB_PREFIX}/`))
-    return null;
-  const suffix = raw.slice(`${VNC_TAB_PREFIX}/`.length).trim();
-  if (!suffix)
-    return null;
-  try {
-    return decodeURIComponent(suffix);
-  } catch {
-    return suffix;
-  }
-}
-function esc(value) {
-  return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-async function fetchVncSession(targetId = null) {
-  const url = targetId ? `/vnc/session?target=${encodeURIComponent(targetId)}` : "/vnc/session";
-  const response = await fetch(url, { credentials: "same-origin" });
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok)
-    throw new Error(body?.error || `HTTP ${response.status}`);
-  return body;
-}
-function isPanePopoutMode() {
-  if (typeof window === "undefined")
-    return false;
-  try {
-    const raw = new URLSearchParams(window.location.search).get("pane_popout");
-    const normalized = String(raw || "").trim().toLowerCase();
-    return normalized === "1" || normalized === "true" || normalized === "yes";
-  } catch {
-    return false;
-  }
-}
-function buildVncWebSocketUrl(targetId, handoffToken = null) {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const url = new URL(`${protocol}//${window.location.host}/vnc/ws`);
-  url.searchParams.set("target", String(targetId || ""));
-  if (handoffToken) {
-    url.searchParams.set("handoff", String(handoffToken));
-  }
-  return url.toString();
-}
-function buildDirectVncTargetReference(host, port) {
-  const rawHost = String(host || "").trim();
-  const normalizedPort = Math.floor(Number(port || 0));
-  if (!rawHost || !Number.isFinite(normalizedPort) || normalizedPort <= 0 || normalizedPort > 65535)
-    return null;
-  const normalizedHost = rawHost.includes(":") && !rawHost.startsWith("[") ? `[${rawHost}]` : rawHost;
-  return `${normalizedHost}:${normalizedPort}`;
-}
-function getVncTargetsEmptyStateCopy(options = {}) {
-  const enabled = Boolean(options?.enabled);
-  const directConnectEnabled = Boolean(options?.directConnectEnabled);
-  const targetCount = Array.isArray(options?.targets) ? options.targets.length : Number(options?.targetCount || 0);
-  if (targetCount > 0) {
-    return {
-      title: "",
-      body: ""
-    };
-  }
-  if (directConnectEnabled) {
-    return {
-      title: "No saved VNC targets yet.",
-      body: "Connect directly above."
-    };
-  }
-  if (!enabled) {
-    return {
-      title: "VNC is not configured yet.",
-      body: "No saved targets are available and direct connect is disabled on this host."
-    };
-  }
-  return {
-    title: "No saved VNC targets yet.",
-    body: "This host has no configured VNC targets, and direct connect is disabled."
-  };
-}
-function consumePanePopoutTransferToken2(paramName) {
-  if (typeof window === "undefined")
-    return null;
-  try {
-    const url = new URL(window.location.href);
-    const token = url.searchParams.get(paramName)?.trim() || "";
-    if (!token)
-      return null;
-    url.searchParams.delete(paramName);
-    window.history?.replaceState?.(window.history.state, document.title, url.toString());
-    return token;
-  } catch {
-    return null;
-  }
-}
-function shouldRetryVncPopoutWithoutHandoff(options) {
-  const handoffToken = String(options?.handoffToken || "").trim();
-  if (!handoffToken)
-    return false;
-  return Number(options?.bytesIn || 0) <= 0 && !Boolean(options?.hasRenderedFrame) && Number(options?.reconnectAttempts || 0) <= 0;
-}
-function relocateVncPaneRoot(root, container) {
-  if (!root || !container || typeof container.appendChild !== "function")
-    return false;
-  try {
-    container.innerHTML = "";
-  } catch {}
-  container.appendChild(root);
-  return true;
-}
-
-class VncPaneInstance {
-  container;
-  root;
-  statusEl;
-  bodyEl;
-  metricsEl;
-  targetSubtitleEl;
-  socketBoundary = null;
-  protocol = null;
-  disposed = false;
-  targetId = null;
-  targetLabel = null;
-  bytesIn = 0;
-  bytesOut = 0;
-  canvas = null;
-  canvasCtx = null;
-  displayPlaceholderEl = null;
-  displayInfoEl = null;
-  displayMetaEl = null;
-  displayStageEl = null;
-  chromeEl = null;
-  sessionShellEl = null;
-  resizeObserver = null;
-  displayScale = null;
-  readOnly = false;
-  pointerButtonMask = 0;
-  pointerInputAbortController = null;
-  pressedKeysyms = new Map;
-  passwordInputEl = null;
-  authPassword = null;
-  directHostInputEl = null;
-  directPortInputEl = null;
-  directPasswordInputEl = null;
-  hasRenderedFrame = false;
-  frameTimeoutId = null;
-  reconnectTimerId = null;
-  reconnectAttempts = 0;
-  rawFallbackAttempted = false;
-  protocolRecovering = false;
-  pendingHandoffToken = null;
-  constructor(container, context) {
-    this.container = container;
-    this.targetId = parseVncTargetFromPath(context?.path);
-    this.targetLabel = this.targetId || null;
-    this.pendingHandoffToken = consumePanePopoutTransferToken2("vnc_handoff");
-    const passwordToken = consumePanePopoutTransferToken2("vnc_secret");
-    const transferredPassword = consumeVncPopoutPassword(passwordToken);
-    if (transferredPassword !== null) {
-      this.authPassword = transferredPassword;
-    }
-    this.root = document.createElement("div");
-    this.root.className = "vnc-pane-shell";
-    this.root.style.cssText = "display:flex;flex-direction:column;width:100%;height:100%;background:var(--bg-primary);color:var(--text-primary);";
-    this.targetSubtitleEl = null;
-    this.statusEl = document.createElement("div");
-    this.statusEl.style.cssText = "display:none;";
-    this.statusEl.textContent = "";
-    this.bodyEl = document.createElement("div");
-    this.bodyEl.style.cssText = "flex:1;min-height:0;display:flex;align-items:stretch;justify-content:stretch;padding:12px;";
-    this.metricsEl = document.createElement("div");
-    this.metricsEl.style.cssText = "display:none;";
-    this.updateMetrics();
-    this.root.append(this.statusEl, this.bodyEl);
-    this.container.appendChild(this.root);
-    this.load();
-  }
-  setStatus(message) {
-    this.statusEl.textContent = String(message || "");
-  }
-  setSessionChromeVisible(visible) {
-    if (this.chromeEl) {
-      this.chromeEl.style.display = visible ? "grid" : "none";
-    }
-    if (this.sessionShellEl?.style) {
-      this.sessionShellEl.style.gridTemplateRows = visible ? "auto minmax(0,1fr)" : "1fr";
-    }
-    if (this.displayStageEl?.style) {
-      this.displayStageEl.style.padding = visible ? "12px" : "0";
-      this.displayStageEl.style.border = visible ? "1px solid var(--border-color)" : "none";
-      this.displayStageEl.style.borderRadius = visible ? "16px" : "0";
-      this.displayStageEl.style.background = visible ? "#0a0a0a" : "#000";
-    }
-    if (this.displayPlaceholderEl?.style) {
-      this.displayPlaceholderEl.style.display = visible && !this.hasRenderedFrame ? "block" : "none";
-    }
-  }
-  clearReconnectTimer() {
-    if (this.reconnectTimerId) {
-      clearTimeout(this.reconnectTimerId);
-      this.reconnectTimerId = null;
-    }
-  }
-  scheduleReconnect(delayOverrideMs = null) {
-    if (this.disposed || !this.targetId)
-      return;
-    this.clearReconnectTimer();
-    const computedDelayMs = Math.min(8000, 1500 + this.reconnectAttempts * 1000);
-    const delayMs = Number.isFinite(delayOverrideMs) ? Math.max(0, Number(delayOverrideMs)) : computedDelayMs;
-    this.reconnectAttempts += 1;
-    this.reconnectTimerId = setTimeout(() => {
-      this.reconnectTimerId = null;
-      if (this.disposed || !this.targetId)
-        return;
-      this.connectSocket();
-    }, delayMs);
-  }
-  updateMetrics() {
-    this.metricsEl.textContent = `Transport bytes — in: ${this.bytesIn} / out: ${this.bytesOut}`;
-  }
-  applyMetrics(metrics) {
-    this.bytesIn = Number(metrics?.bytesIn || 0);
-    this.bytesOut = Number(metrics?.bytesOut || 0);
-    this.updateMetrics();
-  }
-  openTargetTab(targetId, label) {
-    this.targetId = String(targetId || "").trim() || null;
-    this.targetLabel = String(label || targetId || "").trim() || this.targetId || "VNC";
-    if (this.targetId) {
-      this.renderTargetSession({
-        direct_connect_enabled: true,
-        target: {
-          id: this.targetId,
-          label: this.targetLabel,
-          read_only: false,
-          direct_connect: true
-        }
-      });
-      this.setStatus("Connecting…");
-      this.updateDisplayInfo("Connecting…");
-      this.updateDisplayMeta("connecting");
-    }
-    this.load();
-  }
-  requestPanePopout(path, label) {
-    this.container.dispatchEvent(new CustomEvent("pane:popout", {
-      bubbles: true,
-      detail: { path, label }
-    }));
-  }
-  resetLiveSession() {
-    this.clearReconnectTimer();
-    this.reconnectAttempts = 0;
-    this.protocol = null;
-    try {
-      this.socketBoundary?.dispose?.();
-    } catch {}
-    this.socketBoundary = null;
-    try {
-      this.resizeObserver?.disconnect?.();
-    } catch {}
-    this.resizeObserver = null;
-    try {
-      this.pointerInputAbortController?.abort?.();
-    } catch {}
-    this.pointerInputAbortController = null;
-    this.canvas = null;
-    this.canvasCtx = null;
-    this.displayPlaceholderEl = null;
-    this.displayInfoEl = null;
-    this.displayMetaEl = null;
-    this.displayStageEl = null;
-    this.displayScale = null;
-    this.passwordInputEl = null;
-    this.directHostInputEl = null;
-    this.directPortInputEl = null;
-    this.directPasswordInputEl = null;
-    this.hasRenderedFrame = false;
-    this.rawFallbackAttempted = false;
-    this.protocolRecovering = false;
-    if (this.frameTimeoutId) {
-      clearTimeout(this.frameTimeoutId);
-      this.frameTimeoutId = null;
-    }
-    this.pressedKeysyms.clear();
-  }
-  renderTargets(payload) {
-    this.resetLiveSession();
-    const targets = Array.isArray(payload?.targets) ? payload.targets : [];
-    const directConnectEnabled = Boolean(payload?.direct_connect_enabled);
-    const emptyState = getVncTargetsEmptyStateCopy({
-      enabled: payload?.enabled,
-      directConnectEnabled,
-      targets
-    });
-    this.bodyEl.innerHTML = `
-            <div style="width:100%;height:100%;min-height:0;display:grid;align-content:start;justify-items:center;gap:16px;overflow:auto;padding:24px;box-sizing:border-box;">
-                ${directConnectEnabled ? `
-                    <div style="width:min(540px,100%);padding:16px 16px 18px;border:1px solid var(--border-color);border-radius:10px;background:transparent;display:grid;gap:12px;box-shadow:none;">
-                        <div style="display:grid;gap:6px;">
-                            <div style="font-size:18px;font-weight:700;">Connect to VNC</div>
-                            <div style="font-size:12px;color:var(--text-secondary);">Enter a server target to start a direct session.</div>
-                        </div>
-                        <div style="display:grid;gap:10px;align-items:end;">
-                            <label style="display:grid;gap:6px;min-width:0;">
-                                <span style="font-size:12px;color:var(--text-secondary);">Server</span>
-                                <input type="text" data-vnc-direct-host placeholder="server" spellcheck="false" style="width:100%;padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;color:inherit;" />
-                            </label>
-                            <label style="display:grid;gap:6px;min-width:0;">
-                                <span style="font-size:12px;color:var(--text-secondary);">Port</span>
-                                <input type="number" data-vnc-direct-port min="1" max="65535" step="1" placeholder="5900" style="width:100%;padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;color:inherit;" />
-                            </label>
-                            <label style="display:grid;gap:6px;min-width:0;">
-                                <span style="font-size:12px;color:var(--text-secondary);">Password</span>
-                                <input type="password" data-vnc-direct-password placeholder="Optional" autocomplete="current-password" style="width:100%;padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;color:inherit;" />
-                            </label>
-                            <button type="button" data-direct-open-tab="1" style="padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;cursor:pointer;color:inherit;min-height:40px;font-weight:500;">Connect</button>
-                        </div>
-                    </div>
-                ` : ""}
-                ${targets.length ? `
-                    <div style="width:min(100%,900px);min-height:0;display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));align-content:start;">
-                        ${targets.map((target) => `
-                            <div style="text-align:left;padding:14px;border:1px solid var(--border-color);border-radius:10px;background:transparent;color:inherit;display:flex;flex-direction:column;gap:10px;">
-                                <div>
-                                    <div style="font-weight:600;margin-bottom:6px;">${esc(target.label || target.id)}</div>
-                                    <div style="font:12px var(--font-family-mono, monospace);color:var(--text-secondary);">${esc(target.id)}</div>
-                                    <div style="margin-top:8px;font-size:12px;color:var(--text-secondary);">${target.readOnly ? "Read-only target" : "Interactive target"}</div>
-                                </div>
-                                <div style="display:flex;flex-wrap:wrap;gap:8px;">
-                                    <button type="button" data-target-open-tab="${esc(target.id)}" data-target-label="${esc(target.label || target.id)}" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;cursor:pointer;color:inherit;">Connect</button>
-                                </div>
-                            </div>
-                        `).join("")}
-                    </div>
-                ` : `
-                    <div style="min-height:0;display:grid;place-items:center;justify-items:center;">
-                        <div style="width:min(100%,540px);text-align:center;padding:24px 20px;border:1px dashed var(--border-color);border-radius:10px;background:transparent;font-size:13px;color:var(--text-secondary);line-height:1.5;display:grid;gap:6px;">
-                            <div style="font-weight:600;color:var(--text-primary);">${esc(emptyState.title)}</div>
-                            <div>${esc(emptyState.body)}</div>
-                        </div>
-                    </div>
-                `}
-            </div>
-        `;
-    this.directHostInputEl = this.bodyEl.querySelector("[data-vnc-direct-host]");
-    this.directPortInputEl = this.bodyEl.querySelector("[data-vnc-direct-port]");
-    this.directPasswordInputEl = this.bodyEl.querySelector("[data-vnc-direct-password]");
-    const openDirectTarget = () => {
-      const targetRef = buildDirectVncTargetReference(this.directHostInputEl?.value, this.directPortInputEl?.value);
-      if (!targetRef) {
-        return;
-      }
-      this.authPassword = normalizeVncPassword(this.directPasswordInputEl ? this.directPasswordInputEl.value : this.authPassword);
-      this.openTargetTab(targetRef, targetRef);
-    };
-    this.directHostInputEl?.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter")
-        return;
-      event.preventDefault();
-      openDirectTarget();
-    });
-    this.directPortInputEl?.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter")
-        return;
-      event.preventDefault();
-      openDirectTarget();
-    });
-    this.directPasswordInputEl?.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter")
-        return;
-      event.preventDefault();
-      openDirectTarget();
-    });
-    this.bodyEl.querySelector("[data-direct-open-tab]")?.addEventListener("click", () => openDirectTarget());
-    for (const button of Array.from(this.bodyEl.querySelectorAll("[data-target-open-tab]"))) {
-      button.addEventListener("click", () => {
-        const targetId = button.getAttribute("data-target-open-tab");
-        const label = button.getAttribute("data-target-label") || targetId || "VNC";
-        if (!targetId)
-          return;
-        this.openTargetTab(targetId, label);
-      });
-    }
-  }
-  renderTargetSession(payload) {
-    this.resetLiveSession();
-    const target = payload?.target || {};
-    const targetLabel = target?.label || this.targetId || "VNC target";
-    const compactWindow = isPanePopoutMode();
-    this.targetLabel = targetLabel;
-    this.readOnly = Boolean(target.read_only);
-    this.pointerButtonMask = 0;
-    this.hasRenderedFrame = false;
-    this.pressedKeysyms.clear();
-    this.bodyEl.innerHTML = compactWindow ? `
-                <div data-vnc-session-shell style="width:100%;height:100%;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);gap:6px;">
-                    <div data-vnc-session-chrome style="padding:6px 8px;border:1px solid var(--border-color);border-radius:8px;background:transparent;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-                        <div data-display-info style="min-width:0;flex:1 1 240px;font-size:12px;color:var(--text-secondary);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Negotiating remote display…</div>
-                        <input type="password" data-vnc-password placeholder="Password" autocomplete="current-password" style="width:150px;max-width:100%;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:transparent;color:inherit;" />
-                        <button type="button" data-vnc-reconnect="1" style="padding:6px 10px;border:1px solid var(--border-color);border-radius:6px;background:transparent;cursor:pointer;color:inherit;">Reconnect</button>
-                    </div>
-                    <div data-display-stage style="min-height:0;height:100%;border:1px solid var(--border-color);border-radius:8px;background:#0a0a0a;display:flex;align-items:center;justify-content:center;padding:4px;position:relative;overflow:hidden;">
-                        <canvas data-display-canvas tabindex="0" style="display:none;max-width:100%;max-height:100%;width:auto;height:auto;image-rendering:auto;box-shadow:none;border-radius:2px;background:#000;"></canvas>
-                        <div data-display-placeholder style="max-width:520px;text-align:center;color:#d7d7d7;line-height:1.5;">
-                            <div style="font-weight:600;font-size:14px;margin-bottom:6px;">${esc(targetLabel)}</div>
-                            <div style="font-size:12px;color:#b7b7b7;">Waiting for the VNC/RFB handshake and first framebuffer update…</div>
-                        </div>
-                    </div>
-                </div>
-            ` : `
-                <div data-vnc-session-shell style="width:100%;height:100%;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);gap:12px;">
-                    <div data-vnc-session-chrome style="padding:10px 12px;border:1px solid var(--border-color);border-radius:10px;background:transparent;display:grid;gap:10px;">
-                        <div style="display:grid;gap:4px;min-width:0;">
-                            <div style="font:12px var(--font-family-mono, monospace);color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(target.id || this.targetId || "")} · ${target.read_only ? "read-only" : "interactive"} · websocket → TCP proxy</div>
-                            <div data-display-info style="font-size:13px;color:var(--text-primary);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Negotiating remote display…</div>
-                            <div data-display-meta style="font:11px var(--font-family-mono, monospace);color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-                        </div>
-                        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:end;">
-                            <label style="display:grid;gap:4px;min-width:160px;flex:1 1 180px;">
-                                <span style="font-size:11px;color:var(--text-secondary);">VNC password</span>
-                                <input type="password" data-vnc-password placeholder="Optional" autocomplete="current-password" style="width:100%;padding:8px 10px;border:1px solid var(--border-color);border-radius:8px;background:transparent;color:inherit;" />
-                            </label>
-                            <button type="button" data-vnc-reconnect="1" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;cursor:pointer;color:inherit;">Reconnect</button>
-                            <button type="button" data-open-target-picker="1" style="padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;background:transparent;cursor:pointer;color:inherit;">Target</button>
-                        </div>
-                    </div>
-                    <div data-display-stage style="min-height:0;height:100%;border:1px solid var(--border-color);border-radius:10px;background:#0a0a0a;display:flex;align-items:center;justify-content:center;padding:8px;position:relative;overflow:hidden;">
-                        <canvas data-display-canvas tabindex="0" style="display:none;max-width:100%;max-height:100%;width:auto;height:auto;image-rendering:auto;box-shadow:none;border-radius:4px;background:#000;"></canvas>
-                        <div data-display-placeholder style="max-width:520px;text-align:center;color:#d7d7d7;line-height:1.6;">
-                            <div style="font-weight:700;font-size:18px;margin-bottom:8px;">${esc(targetLabel)}</div>
-                            <div style="font-size:13px;color:#b7b7b7;">Waiting for the VNC/RFB handshake and first framebuffer update…</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-    this.sessionShellEl = this.bodyEl.querySelector("[data-vnc-session-shell]");
-    this.chromeEl = this.bodyEl.querySelector("[data-vnc-session-chrome]");
-    this.displayStageEl = this.bodyEl.querySelector("[data-display-stage]");
-    this.canvas = this.bodyEl.querySelector("[data-display-canvas]");
-    this.displayPlaceholderEl = this.bodyEl.querySelector("[data-display-placeholder]");
-    this.displayInfoEl = this.bodyEl.querySelector("[data-display-info]");
-    this.displayMetaEl = this.bodyEl.querySelector("[data-display-meta]");
-    this.canvasCtx = this.canvas?.getContext?.("2d", { alpha: false }) || null;
-    if (this.canvasCtx) {
-      this.canvasCtx.imageSmoothingEnabled = true;
-      this.canvasCtx.imageSmoothingQuality = "high";
-    }
-    this.updateDisplayInfo("Waiting for VNC protocol negotiation…");
-    this.updateDisplayMeta();
-    this.setSessionChromeVisible(true);
-    this.attachDisplayResizeObserver();
-    this.attachCanvasPointerHandlers();
-    this.attachCanvasKeyboardHandlers();
-    this.passwordInputEl = this.bodyEl.querySelector("[data-vnc-password]");
-    if (this.passwordInputEl && this.authPassword !== null) {
-      this.passwordInputEl.value = this.authPassword;
-    }
-    this.passwordInputEl?.addEventListener("input", () => {
-      this.authPassword = normalizeVncPassword(this.passwordInputEl.value);
-    });
-    this.passwordInputEl?.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter")
-        return;
-      event.preventDefault();
-      this.connectSocket();
-    });
-    const reconnectBtn = this.bodyEl.querySelector("[data-vnc-reconnect]");
-    reconnectBtn?.addEventListener("click", () => {
-      this.authPassword = normalizeVncPassword(this.passwordInputEl ? this.passwordInputEl.value : this.authPassword);
-      this.connectSocket();
-    });
-    const pickerBtn = this.bodyEl.querySelector("[data-open-target-picker]");
-    pickerBtn?.addEventListener("click", () => {
-      this.openTargetTab("", "VNC");
-    });
-  }
-  updateDisplayInfo(message) {
-    if (this.displayInfoEl) {
-      this.displayInfoEl.textContent = String(message || "");
-    }
-  }
-  updateDisplayMeta(extra = "") {
-    if (!this.displayMetaEl)
-      return;
-    const protocolState = this.protocol?.state ? `state=${this.protocol.state}` : "state=idle";
-    const size = this.protocol?.framebufferWidth && this.protocol?.framebufferHeight ? `${this.protocol.framebufferWidth}×${this.protocol.framebufferHeight}` : "pending";
-    const name = this.protocol?.serverName ? ` · name=${this.protocol.serverName}` : "";
-    const scale = this.displayScale ? ` · scale=${Math.round(this.displayScale * 100)}%` : "";
-    const suffix = extra ? ` · ${extra}` : "";
-    this.displayMetaEl.textContent = `${protocolState} · framebuffer=${size}${name}${scale}${suffix}`;
-  }
-  ensureCanvasSize(width, height, options = {}) {
-    if (!this.canvas || !this.canvasCtx || !width || !height)
-      return;
-    if (this.canvas.width !== width || this.canvas.height !== height) {
-      this.canvas.width = width;
-      this.canvas.height = height;
-    }
-    const reveal = options?.reveal === true;
-    this.canvas.style.display = reveal || this.hasRenderedFrame ? "block" : "none";
-    this.canvas.style.aspectRatio = `${width} / ${height}`;
-    if (this.displayPlaceholderEl) {
-      this.displayPlaceholderEl.style.display = reveal || this.hasRenderedFrame ? "none" : "";
-    }
-    this.updateCanvasScale();
-  }
-  attachDisplayResizeObserver() {
-    if (!this.displayStageEl || typeof ResizeObserver === "undefined")
-      return;
-    try {
-      this.resizeObserver?.disconnect?.();
-    } catch {}
-    this.resizeObserver = new ResizeObserver(() => {
-      this.updateCanvasScale();
-    });
-    this.resizeObserver.observe(this.displayStageEl);
-  }
-  updateCanvasScale() {
-    if (!this.canvas || !this.displayStageEl || !this.canvas.width || !this.canvas.height)
-      return;
-    requestAnimationFrame(() => {
-      if (!this.canvas || !this.displayStageEl)
-        return;
-      const bounds = this.displayStageEl.getBoundingClientRect?.();
-      const availableWidth = Math.max(1, Math.floor(bounds?.width || this.displayStageEl.clientWidth || 0) - 32);
-      const availableHeight = Math.max(1, Math.floor(bounds?.height || this.displayStageEl.clientHeight || 0) - 32);
-      if (!availableWidth || !availableHeight)
-        return;
-      const scale = computeContainedRemoteDisplayScale(availableWidth, availableHeight, this.canvas.width, this.canvas.height);
-      this.displayScale = scale;
-      this.canvas.style.width = `${Math.max(1, Math.round(this.canvas.width * scale))}px`;
-      this.canvas.style.height = `${Math.max(1, Math.round(this.canvas.height * scale))}px`;
-      this.updateDisplayMeta();
-    });
-  }
-  getFramebufferPointFromEvent(event) {
-    if (!this.canvas || !this.protocol?.framebufferWidth || !this.protocol?.framebufferHeight)
-      return null;
-    const rect = this.canvas.getBoundingClientRect?.();
-    if (!rect || !rect.width || !rect.height)
-      return null;
-    return mapClientToFramebufferPoint(event.clientX, event.clientY, rect, this.protocol.framebufferWidth, this.protocol.framebufferHeight);
-  }
-  sendPointerEvent(buttonMask, x3, y2) {
-    if (!this.socketBoundary || !this.protocol || this.protocol.state !== "connected")
-      return;
-    this.socketBoundary.send(encodeVncPointerEvent(buttonMask, x3, y2));
-  }
-  attachCanvasPointerHandlers() {
-    if (!this.canvas || this.readOnly)
-      return;
-    this.canvas.style.cursor = "crosshair";
-    this.canvas.style.touchAction = "none";
-    try {
-      this.pointerInputAbortController?.abort?.();
-    } catch {}
-    const abortController = new AbortController;
-    this.pointerInputAbortController = abortController;
-    const signal = abortController.signal;
-    const ownerDocument = this.canvas.ownerDocument || document;
-    const ownerWindow = ownerDocument.defaultView || window;
-    const pressedMaskByPointer = new Map;
-    const lastPointByPointer = new Map;
-    const idleReleaseTimerByPointer = new Map;
-    const resolvePoint = (event) => this.getFramebufferPointFromEvent(event) || lastPointByPointer.get(event?.pointerId) || { x: 0, y: 0 };
-    const resolveTouchPoint = (touch) => {
-      if (!touch || !this.canvas || !this.protocol?.framebufferWidth || !this.protocol?.framebufferHeight)
-        return null;
-      const rect = this.canvas.getBoundingClientRect?.();
-      if (!rect || !rect.width || !rect.height)
-        return null;
-      return mapClientToFramebufferPoint(touch.clientX, touch.clientY, rect, this.protocol.framebufferWidth, this.protocol.framebufferHeight);
-    };
-    const clearIdleReleaseTimer = (pointerId) => {
-      const handle = idleReleaseTimerByPointer.get(pointerId);
-      if (handle) {
-        ownerWindow.clearTimeout(handle);
-        idleReleaseTimerByPointer.delete(pointerId);
-      }
-    };
-    const armIdleReleaseTimer = (event, delayMs = 80) => {
-      const pointerType = String(event?.pointerType || "").toLowerCase();
-      if (!shouldArmVncImplicitReleaseTimer(pointerType))
-        return;
-      const pointerId = Number(event?.pointerId);
-      if (!Number.isFinite(pointerId))
-        return;
-      clearIdleReleaseTimer(pointerId);
-      const handle = ownerWindow.setTimeout(() => {
-        idleReleaseTimerByPointer.delete(pointerId);
-        if (!pressedMaskByPointer.has(pointerId) && !this.pointerButtonMask)
-          return;
-        releasePointer({
-          pointerId,
-          pointerType,
-          type: "pointercancel",
-          clientX: event?.clientX,
-          clientY: event?.clientY
-        }, { resetAll: true });
-      }, delayMs);
-      idleReleaseTimerByPointer.set(pointerId, handle);
-    };
-    const releaseAllPointers = (point = null) => {
-      if (!pressedMaskByPointer.size && !this.pointerButtonMask)
-        return;
-      for (const pointerId of idleReleaseTimerByPointer.keys()) {
-        clearIdleReleaseTimer(pointerId);
-      }
-      const fallbackPoint = point || lastPointByPointer.values().next().value || { x: 0, y: 0 };
-      pressedMaskByPointer.clear();
-      lastPointByPointer.clear();
-      this.pointerButtonMask = 0;
-      this.sendPointerEvent(0, fallbackPoint.x, fallbackPoint.y);
-    };
-    const releasePointer = (event, options = {}) => {
-      if (options.resetAll) {
-        const pointerId2 = Number(event?.pointerId);
-        clearIdleReleaseTimer(pointerId2);
-        releaseAllPointers(resolvePoint(event));
-        try {
-          this.canvas?.releasePointerCapture?.(pointerId2);
-        } catch {}
-        return;
-      }
-      const point = resolvePoint(event);
-      const pointerId = Number(event?.pointerId);
-      clearIdleReleaseTimer(pointerId);
-      const hadPressedMask = pressedMaskByPointer.has(pointerId);
-      const pressedBit = pressedMaskByPointer.get(pointerId) ?? resolveVncPointerPressMask(event);
-      if (!hadPressedMask && !pressedBit && !this.pointerButtonMask)
-        return;
-      pressedMaskByPointer.delete(pointerId);
-      lastPointByPointer.delete(pointerId);
-      if (pressedBit) {
-        this.pointerButtonMask &= ~pressedBit;
-      } else if (!pressedMaskByPointer.size) {
-        this.pointerButtonMask = 0;
-      }
-      this.sendPointerEvent(this.pointerButtonMask, point.x, point.y);
-      try {
-        this.canvas?.releasePointerCapture?.(pointerId);
-      } catch {}
-    };
-    this.canvas.addEventListener("contextmenu", (event) => {
-      event.preventDefault();
-    }, { signal });
-    this.canvas.addEventListener("pointermove", (event) => {
-      const point = this.getFramebufferPointFromEvent(event);
-      if (!point)
-        return;
-      lastPointByPointer.set(event.pointerId, point);
-      if (pressedMaskByPointer.has(event.pointerId) && shouldReleaseVncPointerContact(event)) {
-        releasePointer(event, { resetAll: true });
-        return;
-      }
-      if (this.pointerButtonMask && !pressedMaskByPointer.has(event.pointerId) && shouldReleaseVncPointerContact(event)) {
-        releaseAllPointers(point);
-        return;
-      }
-      if (pressedMaskByPointer.has(event.pointerId)) {
-        armIdleReleaseTimer(event);
-      }
-      this.sendPointerEvent(this.pointerButtonMask, point.x, point.y);
-    }, { signal });
-    this.canvas.addEventListener("pointerdown", (event) => {
-      const point = this.getFramebufferPointFromEvent(event);
-      if (!point)
-        return;
-      event.preventDefault();
-      this.canvas?.focus?.();
-      lastPointByPointer.set(event.pointerId, point);
-      if (String(event?.pointerType || "").toLowerCase() === "mouse") {
-        try {
-          this.canvas?.setPointerCapture?.(event.pointerId);
-        } catch {}
-      }
-      const bit = resolveVncPointerPressMask(event);
-      if (!bit)
-        return;
-      pressedMaskByPointer.set(event.pointerId, (pressedMaskByPointer.get(event.pointerId) ?? 0) | bit);
-      this.pointerButtonMask |= bit;
-      armIdleReleaseTimer(event);
-      this.sendPointerEvent(this.pointerButtonMask, point.x, point.y);
-    }, { signal, passive: false });
-    this.canvas.addEventListener("pointerup", (event) => {
-      event.preventDefault();
-      releasePointer(event);
-    }, { signal, passive: false });
-    this.canvas.addEventListener("pointercancel", (event) => {
-      event.preventDefault();
-      releasePointer(event, { resetAll: true });
-    }, { signal, passive: false });
-    this.canvas.addEventListener("pointerleave", (event) => {
-      if (!pressedMaskByPointer.has(event.pointerId))
-        return;
-      if (!shouldReleaseVncPointerContact(event))
-        return;
-      releasePointer(event, { resetAll: true });
-    }, { signal });
-    this.canvas.addEventListener("pointerout", (event) => {
-      if (!pressedMaskByPointer.has(event.pointerId))
-        return;
-      if (!shouldReleaseVncPointerContact(event))
-        return;
-      releasePointer(event, { resetAll: true });
-    }, { signal });
-    this.canvas.addEventListener("lostpointercapture", (event) => {
-      releasePointer(event, { resetAll: true });
-    }, { signal });
-    ownerWindow.addEventListener("pointermove", (event) => {
-      if (!pressedMaskByPointer.size && !this.pointerButtonMask || !shouldReleaseVncPointerContact(event))
-        return;
-      if (!pressedMaskByPointer.has(event.pointerId) && !this.pointerButtonMask)
-        return;
-      releasePointer(event, { resetAll: true });
-    }, { signal });
-    ownerWindow.addEventListener("pointerup", (event) => {
-      if (!pressedMaskByPointer.has(event.pointerId) && !this.pointerButtonMask)
-        return;
-      event.preventDefault?.();
-      releasePointer(event, { resetAll: !pressedMaskByPointer.has(event.pointerId) });
-    }, { signal, passive: false });
-    ownerWindow.addEventListener("pointercancel", (event) => {
-      if (!pressedMaskByPointer.has(event.pointerId) && !this.pointerButtonMask)
-        return;
-      event.preventDefault?.();
-      releasePointer(event, { resetAll: true });
-    }, { signal, passive: false });
-    const releaseFromTouchEvent = (event) => {
-      if (!pressedMaskByPointer.size && !this.pointerButtonMask)
-        return;
-      if (!shouldReleaseVncTouchContact(event))
-        return;
-      const changedTouch = event?.changedTouches?.[0] || event?.touches?.[0] || null;
-      const point = resolveTouchPoint(changedTouch) || lastPointByPointer.values().next().value || { x: 0, y: 0 };
-      releaseAllPointers(point);
-    };
-    const releaseFromWindowPointerEvent = (event, options = {}) => {
-      if (!pressedMaskByPointer.size && !this.pointerButtonMask)
-        return;
-      if (!shouldReleaseVncPointerContact(event))
-        return;
-      event?.preventDefault?.();
-      releasePointer(event, {
-        resetAll: options.resetAll === true || !pressedMaskByPointer.has(event?.pointerId)
-      });
-    };
-    this.canvas.addEventListener("touchend", releaseFromTouchEvent, { signal, passive: true, capture: true });
-    this.canvas.addEventListener("touchcancel", releaseFromTouchEvent, { signal, passive: true, capture: true });
-    ownerDocument.addEventListener("touchend", releaseFromTouchEvent, { signal, passive: true, capture: true });
-    ownerDocument.addEventListener("touchcancel", releaseFromTouchEvent, { signal, passive: true, capture: true });
-    ownerWindow.addEventListener("touchend", releaseFromTouchEvent, { signal, passive: true, capture: true });
-    ownerWindow.addEventListener("touchcancel", releaseFromTouchEvent, { signal, passive: true, capture: true });
-    ownerDocument.addEventListener("pointerup", (event) => {
-      releaseFromWindowPointerEvent(event);
-    }, { signal, passive: false, capture: true });
-    ownerDocument.addEventListener("pointercancel", (event) => {
-      releaseFromWindowPointerEvent(event, { resetAll: true });
-    }, { signal, passive: false, capture: true });
-    ownerWindow.addEventListener("mouseup", () => {
-      if (!pressedMaskByPointer.size && !this.pointerButtonMask)
-        return;
-      releaseAllPointers();
-    }, { signal });
-    ownerWindow.addEventListener("blur", () => {
-      if (!pressedMaskByPointer.size && !this.pointerButtonMask)
-        return;
-      releaseAllPointers();
-    }, { signal });
-    ownerDocument.addEventListener("visibilitychange", () => {
-      if (ownerDocument.visibilityState === "hidden") {
-        releaseAllPointers();
-      }
-    }, { signal });
-    this.canvas.addEventListener("wheel", (event) => {
-      const point = this.getFramebufferPointFromEvent(event);
-      if (!point)
-        return;
-      event.preventDefault();
-      for (const payload of buildVncWheelPointerEvents(event.deltaY, point.x, point.y, this.pointerButtonMask)) {
-        this.socketBoundary?.send?.(payload);
-      }
-    }, { signal, passive: false });
-  }
-  sendKeyEvent(down, keysym) {
-    if (!this.socketBoundary || !this.protocol || this.protocol.state !== "connected")
-      return;
-    this.socketBoundary.send(encodeVncKeyEvent(down, keysym));
-  }
-  releasePressedKeys() {
-    for (const keysym of this.pressedKeysyms.values()) {
-      this.sendKeyEvent(false, keysym);
-    }
-    this.pressedKeysyms.clear();
-  }
-  attachCanvasKeyboardHandlers() {
-    if (!this.canvas || this.readOnly)
-      return;
-    this.canvas.addEventListener("keydown", (event) => {
-      const keysym = resolveVncKeysymFromKeyboardEvent(event);
-      if (keysym == null)
-        return;
-      if (event.repeat && this.pressedKeysyms.has(event.code || event.key)) {
-        event.preventDefault();
-        return;
-      }
-      event.preventDefault();
-      const keyId = event.code || event.key;
-      this.pressedKeysyms.set(keyId, keysym);
-      this.sendKeyEvent(true, keysym);
-    });
-    this.canvas.addEventListener("keyup", (event) => {
-      const keyId = event.code || event.key;
-      const keysym = this.pressedKeysyms.get(keyId) ?? resolveVncKeysymFromKeyboardEvent(event);
-      if (keysym == null)
-        return;
-      event.preventDefault();
-      this.pressedKeysyms.delete(keyId);
-      this.sendKeyEvent(false, keysym);
-    });
-    this.canvas.addEventListener("blur", () => {
-      this.releasePressedKeys();
-    });
-  }
-  drawRgbaRect(rect) {
-    if (!this.canvasCtx || !this.canvas)
-      return;
-    this.ensureCanvasSize(this.canvas.width || rect.width, this.canvas.height || rect.height, { reveal: true });
-    const imageData = new ImageData(rect.rgba, rect.width, rect.height);
-    this.canvasCtx.putImageData(imageData, rect.x, rect.y);
-    this.hasRenderedFrame = true;
-  }
-  copyCanvasRect(rect) {
-    if (!this.canvasCtx || !this.canvas)
-      return;
-    this.ensureCanvasSize(this.canvas.width || rect.width, this.canvas.height || rect.height, { reveal: true });
-    const imageData = this.canvasCtx.getImageData(rect.srcX, rect.srcY, rect.width, rect.height);
-    this.canvasCtx.putImageData(imageData, rect.x, rect.y);
-    this.hasRenderedFrame = true;
-  }
-  scheduleRawFallbackTimeout() {
-    if (this.frameTimeoutId) {
-      clearTimeout(this.frameTimeoutId);
-      this.frameTimeoutId = null;
-    }
-    if (this.rawFallbackAttempted || this.protocolRecovering)
-      return;
-    this.frameTimeoutId = setTimeout(() => {
-      if (this.hasRenderedFrame || this.rawFallbackAttempted || this.protocolRecovering)
-        return;
-      if (this.protocol && this.socketBoundary) {
-        this.rawFallbackAttempted = true;
-        this.protocolRecovering = true;
-        this.setStatus("No framebuffer update yet; retrying with RAW encoding.");
-        this.updateDisplayInfo("No framebuffer update yet. Retrying with RAW encoding.");
-        this.updateDisplayMeta("reconnect-encoding-fallback");
-        this.connectWithEncodings("0");
-      }
-    }, 2200);
-  }
-  applyRemoteDisplayEvent(event) {
-    if (!event)
-      return;
-    switch (event.type) {
-      case "protocol-version":
-        this.setStatus(`Negotiated ${event.protocol.toUpperCase()} ${event.server} → ${event.client}.`);
-        this.updateDisplayInfo(`Negotiated ${event.server} → ${event.client}.`);
-        this.updateDisplayMeta();
-        return;
-      case "security-types":
-        this.setStatus(`Server offered security types: ${event.types.join(", ") || "none"}.`);
-        this.updateDisplayInfo(`Security types: ${event.types.join(", ") || "none"}.`);
-        this.updateDisplayMeta();
-        return;
-      case "security-selected":
-        this.setStatus(`Using ${event.protocol.toUpperCase()} security type ${event.label}.`);
-        this.updateDisplayInfo(`Security: ${event.label}.`);
-        this.updateDisplayMeta();
-        return;
-      case "security-result":
-        this.setStatus("Security negotiation complete. Waiting for server init…");
-        this.updateDisplayInfo("Security negotiation complete. Waiting for server init…");
-        this.updateDisplayMeta();
-        return;
-      case "display-init":
-        this.ensureCanvasSize(event.width, event.height);
-        this.setSessionChromeVisible(false);
-        this.setStatus(`Connected to ${this.targetLabel || this.targetId || "target"} — waiting for first framebuffer update (${event.width}×${event.height}).`);
-        this.updateDisplayInfo(`Connected to ${event.name || this.targetLabel || this.targetId || "remote display"}. Waiting for first framebuffer update…`);
-        this.updateDisplayMeta("awaiting-frame");
-        this.scheduleRawFallbackTimeout();
-        return;
-      case "framebuffer-update":
-        if (this.frameTimeoutId) {
-          clearTimeout(this.frameTimeoutId);
-          this.frameTimeoutId = null;
-        }
-        let painted = false;
-        const hasPipelineRects = (event.rects || []).some((r2) => r2.kind === "pipeline");
-        if (event.framebuffer && event.framebuffer.length > 0 && event.width > 0 && event.height > 0 && hasPipelineRects) {
-          this.ensureCanvasSize(event.width, event.height, { reveal: true });
-          for (const rect of event.rects || []) {
-            if (rect.kind === "resize") {
-              this.ensureCanvasSize(rect.width, rect.height);
-            }
-          }
-          const ctx = this.canvas?.getContext("2d", { alpha: false });
-          if (ctx) {
-            const img = new ImageData(new Uint8ClampedArray(event.framebuffer), event.width, event.height);
-            ctx.putImageData(img, 0, 0);
-            painted = true;
-          }
-        } else {
-          for (const rect of event.rects || []) {
-            if (rect.kind === "resize") {
-              this.ensureCanvasSize(rect.width, rect.height);
-              continue;
-            }
-            if (rect.kind === "copy") {
-              this.ensureCanvasSize(event.width, event.height, { reveal: true });
-              this.copyCanvasRect(rect);
-              painted = true;
-              continue;
-            }
-            if (rect.kind === "rgba") {
-              this.ensureCanvasSize(event.width, event.height, { reveal: true });
-              this.drawRgbaRect(rect);
-              painted = true;
-            }
-          }
-        }
-        if (painted || this.hasRenderedFrame) {
-          this.protocolRecovering = false;
-          this.setStatus(`Rendering live framebuffer — ${event.width}×${event.height}.`);
-          this.updateDisplayInfo(`Framebuffer update applied (${(event.rects || []).length} rect${(event.rects || []).length === 1 ? "" : "s"}).`);
-          this.updateDisplayMeta();
-        } else {
-          this.setStatus(`Connected to ${this.targetLabel || this.targetId || "target"} — waiting for painted framebuffer data.`);
-          this.updateDisplayInfo(`Framebuffer update received, but no paintable rects yet (${(event.rects || []).length} rect${(event.rects || []).length === 1 ? "" : "s"}).`);
-          this.updateDisplayMeta("awaiting-frame");
-          this.scheduleRawFallbackTimeout();
-        }
-        return;
-      case "clipboard":
-        this.setStatus("Remote clipboard updated.");
-        this.updateDisplayInfo(`Clipboard text received (${event.text.length} chars).`);
-        this.updateDisplayMeta();
-        return;
-      case "bell":
-        this.setStatus("Remote display bell received.");
-        this.updateDisplayInfo("Remote display bell received.");
-        this.updateDisplayMeta();
-        return;
-    }
-  }
-  async handleSocketMessage(message) {
-    if (message?.kind === "control") {
-      const payload = message.payload;
-      if (payload?.type === "vnc.error") {
-        this.setStatus(`Proxy error: ${payload.error || "Unknown error"}`);
-        this.updateDisplayInfo(`Proxy error: ${payload.error || "Unknown error"}`);
-        this.updateDisplayMeta("proxy-error");
-        return;
-      }
-      if (payload?.type === "vnc.connected") {
-        const label = payload?.target?.label || this.targetLabel || this.targetId;
-        this.setStatus(`Connected to ${label}. Waiting for VNC/RFB data…`);
-        this.updateDisplayInfo(`Connected to ${label}. Waiting for VNC handshake…`);
-        this.updateDisplayMeta();
-        return;
-      }
-      if (payload?.type === "pong") {
-        return;
-      }
-      return;
-    }
-    const protocol = this.protocol || (this.protocol = new VncRemoteDisplayProtocol);
-    try {
-      const chunk = message.data instanceof Blob ? await message.data.arrayBuffer() : message.data;
-      const result = protocol.receive(chunk);
-      for (const outgoing of result.outgoing || []) {
-        this.socketBoundary?.send?.(outgoing);
-      }
-      for (const event of result.events || []) {
-        this.applyRemoteDisplayEvent(event);
-      }
-    } catch (error) {
-      const message2 = error?.message || "Unknown error";
-      this.setSessionChromeVisible(true);
-      this.setStatus(`Display protocol error: ${message2}`);
-      this.updateDisplayInfo(`Display protocol error: ${message2}`);
-      this.updateDisplayMeta("protocol-error");
-      if (this.frameTimeoutId) {
-        clearTimeout(this.frameTimeoutId);
-        this.frameTimeoutId = null;
-      }
-      if (!this.rawFallbackAttempted && !this.protocolRecovering && /unexpected eof|zlib|decompress|protocol|buffer|undefined|not an object|reading '0'/i.test(message2)) {
-        this.rawFallbackAttempted = true;
-        this.protocolRecovering = true;
-        this.connectWithEncodings("0");
-      }
-    }
-  }
-  async connectSocket(preferredEncodings = null) {
-    if (!this.targetId || this.disposed)
-      return;
-    this.clearReconnectTimer();
-    if (this.protocolRecovering && preferredEncodings == null) {
-      this.protocolRecovering = false;
-    }
-    try {
-      this.socketBoundary?.dispose?.();
-    } catch {}
-    if (preferredEncodings == null) {
-      this.rawFallbackAttempted = false;
-      this.protocolRecovering = false;
-    }
-    const handoffToken = this.pendingHandoffToken || null;
-    const selectedEncodings = preferredEncodings == null ? null : String(preferredEncodings).trim();
-    const wasmDecoder = await loadRemoteDisplayWasmDecoder();
-    const protocolOptions = {};
-    if (wasmDecoder) {
-      protocolOptions.pipeline = wasmDecoder;
-      protocolOptions.decodeRawRect = (bytes, width, height, pixelFormat) => wasmDecoder.decodeRawRectToRgba(bytes, width, height, pixelFormat);
-    }
-    const normalizedPassword = normalizeVncPassword(this.authPassword);
-    if (normalizedPassword !== null) {
-      protocolOptions.password = normalizedPassword;
-    }
-    if (selectedEncodings) {
-      protocolOptions.encodings = selectedEncodings;
-    }
-    const preserveRenderedFrame = Boolean(this.canvas && this.hasRenderedFrame);
-    this.protocol = new VncRemoteDisplayProtocol(protocolOptions);
-    this.hasRenderedFrame = preserveRenderedFrame;
-    this.frameTimeoutId = null;
-    if (this.canvas) {
-      this.canvas.style.display = preserveRenderedFrame ? "block" : "none";
-    }
-    if (this.displayPlaceholderEl) {
-      this.displayPlaceholderEl.style.display = preserveRenderedFrame ? "none" : "";
-    }
-    this.socketBoundary = new WebSocketRemoteDisplayBoundary({
-      url: buildVncWebSocketUrl(this.targetId, handoffToken),
-      binaryType: "arraybuffer",
-      onOpen: () => {
-        if (handoffToken && this.pendingHandoffToken === handoffToken) {
-          this.pendingHandoffToken = null;
-        }
-        this.reconnectAttempts = 0;
-        this.setStatus(`Connected to proxy for ${this.targetId}. Waiting for VNC/RFB data…`);
-        this.updateDisplayInfo("WebSocket proxy connected. Waiting for handshake…");
-        this.updateDisplayMeta();
-        this.socketBoundary?.sendControl?.({ type: "ping" });
-      },
-      onMetrics: (metrics) => {
-        this.applyMetrics(metrics);
-      },
-      onMessage: (message) => {
-        this.handleSocketMessage(message);
-      },
-      onClose: () => {
-        this.setSessionChromeVisible(true);
-        if (this.frameTimeoutId) {
-          clearTimeout(this.frameTimeoutId);
-          this.frameTimeoutId = null;
-        }
-        if (this.disposed)
-          return;
-        if (shouldRetryVncPopoutWithoutHandoff({
-          handoffToken,
-          bytesIn: this.bytesIn,
-          hasRenderedFrame: this.hasRenderedFrame,
-          reconnectAttempts: this.reconnectAttempts
-        })) {
-          this.pendingHandoffToken = null;
-          this.setStatus("Transferred VNC session was not ready yet. Retrying…");
-          this.updateDisplayInfo("Transferred VNC session was not ready yet. Retrying without handoff…");
-          this.updateDisplayMeta("handoff-retrying");
-          this.scheduleReconnect(150);
-          return;
-        }
-        const shouldReconnect = this.bytesIn > 0 || this.hasRenderedFrame || this.reconnectAttempts > 0;
-        if (shouldReconnect) {
-          this.setStatus("Remote display connection lost. Reconnecting…");
-          this.updateDisplayInfo("Remote display transport closed. Attempting to reconnect…");
-          this.updateDisplayMeta("reconnecting");
-          this.scheduleReconnect();
-          return;
-        }
-        this.setStatus(this.bytesIn > 0 ? `Proxy closed after receiving ${this.bytesIn} byte(s).` : "Proxy closed.");
-        this.updateDisplayInfo(this.bytesIn > 0 ? "Remote display transport closed after receiving data." : "Remote display transport closed.");
-        this.updateDisplayMeta("closed");
-      },
-      onError: () => {
-        this.setSessionChromeVisible(true);
-        if (shouldRetryVncPopoutWithoutHandoff({
-          handoffToken,
-          bytesIn: this.bytesIn,
-          hasRenderedFrame: this.hasRenderedFrame,
-          reconnectAttempts: this.reconnectAttempts
-        })) {
-          this.pendingHandoffToken = null;
-          this.setStatus("Transferred VNC session was not ready yet. Retrying…");
-          this.updateDisplayInfo("Transferred VNC session was not ready yet. Retrying without handoff…");
-          this.updateDisplayMeta("handoff-retrying");
-          this.scheduleReconnect(150);
-          return;
-        }
-        const shouldReconnect = this.bytesIn > 0 || this.hasRenderedFrame || this.reconnectAttempts > 0;
-        if (shouldReconnect) {
-          this.setStatus("WebSocket proxy connection failed. Reconnecting…");
-          this.updateDisplayInfo("WebSocket proxy connection failed. Attempting to reconnect…");
-          this.updateDisplayMeta("socket-reconnecting");
-          this.scheduleReconnect();
-          return;
-        }
-        this.setStatus("WebSocket proxy connection failed.");
-        this.updateDisplayInfo("WebSocket proxy connection failed.");
-        this.updateDisplayMeta("socket-error");
-      }
-    });
-    this.socketBoundary.connect();
-  }
-  connectWithEncodings(encodings) {
-    return this.connectSocket(encodings);
-  }
-  async load() {
-    this.setStatus("");
-    try {
-      const payload = await fetchVncSession(this.targetId);
-      if (!payload?.enabled) {
-        this.renderTargets(payload);
-        this.setStatus("");
-        return;
-      }
-      if (!this.targetId) {
-        this.renderTargets(payload);
-        this.setStatus("");
-        return;
-      }
-      this.renderTargetSession(payload);
-      await this.connectSocket();
-    } catch (error) {
-      this.resetLiveSession();
-      this.bodyEl.innerHTML = `
-                <div style="max-width:620px;text-align:center;padding:28px;border:1px dashed var(--border-color);border-radius:14px;background:var(--bg-secondary);">
-                    <div style="font-size:32px;margin-bottom:10px;">⚠️</div>
-                    <div style="font-weight:600;margin-bottom:6px;">Failed to load VNC session</div>
-                    <div style="color:var(--text-secondary);font-size:13px;line-height:1.5;">${esc(error?.message || "Unknown error")}</div>
-                </div>
-            `;
-      this.setStatus(`Session load failed: ${error?.message || "Unknown error"}`);
-    }
-  }
-  beforeDetachFromHost() {
-    this.releasePressedKeys();
-    this.setStatus("Moving VNC session…");
-    this.updateDisplayInfo("Moving VNC session to a new window…");
-    this.updateDisplayMeta("moving");
-  }
-  afterAttachToHost() {
-    this.attachDisplayResizeObserver();
-    this.updateCanvasScale();
-    requestAnimationFrame(() => this.focus());
-  }
-  moveHost(container) {
-    if (this.disposed || !this.root)
-      return false;
-    this.releasePressedKeys();
-    this.container = container;
-    if (!relocateVncPaneRoot(this.root, container)) {
-      return false;
-    }
-    this.afterAttachToHost();
-    return true;
-  }
-  async preparePopoutTransfer() {
-    return createVncPopoutTransferPayload(this.targetId, this.authPassword);
-  }
-  getContent() {
-    return;
-  }
-  isDirty() {
-    return false;
-  }
-  focus() {
-    this.canvas?.focus?.();
-    this.root?.focus?.();
-  }
-  resize() {
-    this.updateCanvasScale();
-  }
-  dispose() {
-    if (this.disposed)
-      return;
-    this.disposed = true;
-    this.resetLiveSession();
-    this.root?.remove?.();
-  }
 }
 // web/src/panes/office-viewer-pane.ts
 var OFFICE_EXTENSIONS = new Set([
@@ -14019,8 +9049,8 @@ class TabStoreImpl {
     for (const listener of this.listeners) {
       try {
         listener(tabs, activeId);
-      } catch (err2) {
-        console.warn("[tab-store] Change listener failed:", err2);
+      } catch (err) {
+        console.warn("[tab-store] Change listener failed:", err);
       }
     }
   }
@@ -14043,7 +9073,7 @@ class TabStoreImpl {
     if (!this.tabs.has(id))
       return;
     this.activeId = id;
-    this.mruOrder = [id, ...this.mruOrder.filter((x3) => x3 !== id)];
+    this.mruOrder = [id, ...this.mruOrder.filter((x) => x !== id)];
     this.notify();
   }
   close(id) {
@@ -14051,7 +9081,7 @@ class TabStoreImpl {
     if (!tab)
       return false;
     this.tabs.delete(id);
-    this.mruOrder = this.mruOrder.filter((x3) => x3 !== id);
+    this.mruOrder = this.mruOrder.filter((x) => x !== id);
     if (this.activeId === id) {
       this.activeId = this.mruOrder[0] || null;
     }
@@ -14062,7 +9092,7 @@ class TabStoreImpl {
     for (const [id, tab] of this.tabs) {
       if (id !== keepId && !tab.pinned) {
         this.tabs.delete(id);
-        this.mruOrder = this.mruOrder.filter((x3) => x3 !== id);
+        this.mruOrder = this.mruOrder.filter((x) => x !== id);
       }
     }
     if (this.activeId && !this.tabs.has(this.activeId)) {
@@ -14074,7 +9104,7 @@ class TabStoreImpl {
     for (const [id, tab] of this.tabs) {
       if (!tab.pinned) {
         this.tabs.delete(id);
-        this.mruOrder = this.mruOrder.filter((x3) => x3 !== id);
+        this.mruOrder = this.mruOrder.filter((x) => x !== id);
       }
     }
     if (this.activeId && !this.tabs.has(this.activeId)) {
@@ -14113,7 +9143,7 @@ class TabStoreImpl {
     tab.path = newPath;
     tab.label = newLabel || newPath.split("/").pop() || newPath;
     this.tabs.set(newPath, tab);
-    this.mruOrder = this.mruOrder.map((x3) => x3 === oldId ? newPath : x3);
+    this.mruOrder = this.mruOrder.map((x) => x === oldId ? newPath : x);
     if (this.activeId === oldId)
       this.activeId = newPath;
     this.notify();
@@ -14141,13 +9171,13 @@ class TabStoreImpl {
     return false;
   }
   getDirtyTabs() {
-    return Array.from(this.tabs.values()).filter((t2) => t2.dirty);
+    return Array.from(this.tabs.values()).filter((t) => t.dirty);
   }
   nextTab() {
     const tabs = this.getTabs();
     if (tabs.length <= 1)
       return;
-    const idx = tabs.findIndex((t2) => t2.id === this.activeId);
+    const idx = tabs.findIndex((t) => t.id === this.activeId);
     const next = tabs[(idx + 1) % tabs.length];
     this.activate(next.id);
   }
@@ -14155,7 +9185,7 @@ class TabStoreImpl {
     const tabs = this.getTabs();
     if (tabs.length <= 1)
       return;
-    const idx = tabs.findIndex((t2) => t2.id === this.activeId);
+    const idx = tabs.findIndex((t) => t.id === this.activeId);
     const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
     this.activate(prev.id);
   }
@@ -14308,13 +9338,13 @@ function mergeTree(prev, next) {
   const nextKids = Array.isArray(next.children) ? next.children : null;
   if (!nextKids)
     return prev;
-  const prevMap = prevKids ? new Map(prevKids.map((c2) => [c2?.path, c2])) : new Map;
+  const prevMap = prevKids ? new Map(prevKids.map((c) => [c?.path, c])) : new Map;
   let changed = !prevKids || prevKids.length !== nextKids.length;
   const merged = nextKids.map((child) => {
-    const m2 = mergeTree(prevMap.get(child.path), child);
-    if (m2 !== prevMap.get(child.path))
+    const m = mergeTree(prevMap.get(child.path), child);
+    if (m !== prevMap.get(child.path))
       changed = true;
-    return m2;
+    return m;
   });
   return changed ? { ...next, children: merged } : prev;
 }
@@ -14375,7 +9405,7 @@ function buildFolderSizeHierarchy(node, depth = 0) {
       entries.push({ kind: "file", name: child.name, path: child.path, size: childSize });
     }
   }
-  entries.sort((a2, b) => b.size - a2.size);
+  entries.sort((a, b) => b.size - a.size);
   let trimmed = entries;
   if (entries.length > STARBURST_MAX_CHILDREN) {
     const head = entries.slice(0, STARBURST_MAX_CHILDREN - 1);
@@ -14396,7 +9426,7 @@ function buildFolderSizeHierarchy(node, depth = 0) {
   });
   return out;
 }
-function detectDarkTheme2() {
+function detectDarkTheme() {
   if (typeof window === "undefined" || typeof document === "undefined")
     return false;
   const root = document.documentElement;
@@ -14578,28 +9608,28 @@ function createFolderStarburstPayload(root, truncated = false, isDarkTheme = fal
 function FolderStarburstChart({ payload }) {
   if (!payload)
     return null;
-  const [hovered, setHovered] = v0(null);
-  const [zoomPath, setZoomPath] = v0(payload?.root?.path || ".");
-  const [zoomStack, setZoomStack] = v0(() => [payload?.root?.path || "."]);
-  const [isZooming, setIsZooming] = v0(false);
-  r0(() => {
+  const [hovered, setHovered] = M_(null);
+  const [zoomPath, setZoomPath] = M_(payload?.root?.path || ".");
+  const [zoomStack, setZoomStack] = M_(() => [payload?.root?.path || "."]);
+  const [isZooming, setIsZooming] = M_(false);
+  J_(() => {
     const rootPath = payload?.root?.path || ".";
     setZoomPath(rootPath);
     setZoomStack([rootPath]);
     setHovered(null);
   }, [payload?.root?.path, payload?.totalSize]);
-  r0(() => {
+  J_(() => {
     if (!zoomPath)
       return;
     setIsZooming(true);
     const timer = setTimeout(() => setIsZooming(false), 180);
     return () => clearTimeout(timer);
   }, [zoomPath]);
-  const zoomRoot = G0(() => {
+  const zoomRoot = u_(() => {
     return findHierarchyNode(payload.root, zoomPath) || payload.root;
   }, [payload?.root, zoomPath]);
   const baseSize = zoomRoot?.size || payload.totalSize || 0;
-  const { segments, legend } = G0(() => {
+  const { segments, legend } = u_(() => {
     const computed = buildStarburstSegments(zoomRoot, baseSize, payload.isDarkTheme);
     if (computed.segments.length > 0)
       return computed;
@@ -14608,17 +9638,17 @@ function FolderStarburstChart({ payload }) {
     const label = zoomRoot?.children?.length ? "Total" : "[files]";
     return buildFallbackStarburst(label, zoomRoot?.path || payload?.root?.path || ".", baseSize, payload.isDarkTheme);
   }, [zoomRoot, baseSize, payload.isDarkTheme, payload?.root?.path]);
-  const [animatedSegments, setAnimatedSegments] = v0(segments);
-  const prevSegmentsRef = o0(new Map);
-  const animFrameRef = o0(0);
-  r0(() => {
+  const [animatedSegments, setAnimatedSegments] = M_(segments);
+  const prevSegmentsRef = K_(new Map);
+  const animFrameRef = K_(0);
+  J_(() => {
     const prevMap = prevSegmentsRef.current;
     const nextMap = new Map(segments.map((segment) => [segment.key, segment]));
     const start = performance.now();
     const duration = 220;
     const animate = (now) => {
-      const t2 = Math.min(1, (now - start) / duration);
-      const eased = t2 * (2 - t2);
+      const t = Math.min(1, (now - start) / duration);
+      const eased = t * (2 - t);
       const interpolated = segments.map((segment) => {
         const prev = prevMap.get(segment.key);
         const from = prev || {
@@ -14627,7 +9657,7 @@ function FolderStarburstChart({ payload }) {
           innerRadius: segment.innerRadius,
           outerRadius: segment.innerRadius
         };
-        const lerp = (a2, b) => a2 + (b - a2) * eased;
+        const lerp = (a, b) => a + (b - a) * eased;
         const startAngle = lerp(from.startAngle, segment.startAngle);
         const endAngle = lerp(from.endAngle, segment.endAngle);
         const innerRadius = lerp(from.innerRadius, segment.innerRadius);
@@ -14638,7 +9668,7 @@ function FolderStarburstChart({ payload }) {
         };
       });
       setAnimatedSegments(interpolated);
-      if (t2 < 1) {
+      if (t < 1) {
         animFrameRef.current = requestAnimationFrame(animate);
       }
     };
@@ -14678,13 +9708,13 @@ function FolderStarburstChart({ payload }) {
     });
     setHovered(null);
   };
-  return X1`
+  return ce`
         <div class="workspace-folder-starburst">
             <svg viewBox="0 0 240 240" class=${`workspace-folder-starburst-svg${isZooming ? " is-zooming" : ""}`} role="img"
                 aria-label=${`Folder sizes for ${zoomRoot?.path || payload?.root?.path || "."}`}
                 data-segments=${displaySegments.length}
                 data-base-size=${baseSize}>
-                ${displaySegments.map((segment) => X1`
+                ${displaySegments.map((segment) => ce`
                     <path
                         key=${segment.key}
                         d=${segment.d}
@@ -14720,9 +9750,9 @@ function FolderStarburstChart({ payload }) {
                     <text x="120" y="130" text-anchor="middle" class="workspace-folder-starburst-total-value">${activeValue}</text>
                 </g>
             </svg>
-            ${legend.length > 0 && X1`
+            ${legend.length > 0 && ce`
                 <div class="workspace-folder-starburst-legend">
-                    ${legend.slice(0, 8).map((entry) => X1`
+                    ${legend.slice(0, 8).map((entry) => ce`
                         <div key=${entry.key} class="workspace-folder-starburst-legend-item">
                             <span class="workspace-folder-starburst-swatch" style=${`background:${entry.color}`}></span>
                             <span class="workspace-folder-starburst-name" title=${entry.name}>${entry.name}</span>
@@ -14732,7 +9762,7 @@ function FolderStarburstChart({ payload }) {
                     `)}
                 </div>
             `}
-            ${payload.truncated && X1`
+            ${payload.truncated && ce`
                 <div class="workspace-folder-starburst-note">Preview is truncated by tree depth/entry limits.</div>
             `}
         </div>
@@ -14822,102 +9852,102 @@ function WorkspaceExplorer({
   onToggleTerminal,
   terminalVisible = false
 }) {
-  const [tree, setTree] = v0(null);
-  const [expanded, setExpanded] = v0(new Set(["."]));
-  const [selectedPath, setSelectedPath] = v0(null);
-  const [renamingPath, setRenamingPath] = v0(null);
-  const [renameValue, setRenameValue] = v0("");
-  const [preview, setPreview] = v0(null);
-  const [, setDownloadId] = v0(null);
-  const [initialLoad, setInitialLoad] = v0(true);
-  const [loadingPreview, setLoadingPreview] = v0(false);
-  const [error, setError] = v0(null);
-  const [showHidden, setShowHidden] = v0(() => getLocalStorageBoolean("workspaceShowHidden", false));
-  const [dragActive, setDragActive] = v0(false);
-  const [dragMode, setDragMode] = v0(null);
-  const [dragGhost, setDragGhost] = v0(null);
-  const [dropTarget, setDropTarget] = v0(null);
-  const [uploading, setUploading] = v0(false);
-  const [uploadProgress, setUploadProgress] = v0(null);
-  const [folderChart, setFolderChart] = v0(null);
-  const [workspaceIndexStatus, setWorkspaceIndexStatus] = v0(null);
-  const [workspaceReindexing, setWorkspaceReindexing] = v0(false);
-  const [isDarkTheme, setIsDarkTheme] = v0(() => detectDarkTheme2());
-  const [explorerScale, setExplorerScale] = v0(() => resolveWorkspaceScale({
+  const [tree, setTree] = M_(null);
+  const [expanded, setExpanded] = M_(new Set(["."]));
+  const [selectedPath, setSelectedPath] = M_(null);
+  const [renamingPath, setRenamingPath] = M_(null);
+  const [renameValue, setRenameValue] = M_("");
+  const [preview, setPreview] = M_(null);
+  const [, setDownloadId] = M_(null);
+  const [initialLoad, setInitialLoad] = M_(true);
+  const [loadingPreview, setLoadingPreview] = M_(false);
+  const [error, setError] = M_(null);
+  const [showHidden, setShowHidden] = M_(() => getLocalStorageBoolean("workspaceShowHidden", false));
+  const [dragActive, setDragActive] = M_(false);
+  const [dragMode, setDragMode] = M_(null);
+  const [dragGhost, setDragGhost] = M_(null);
+  const [dropTarget, setDropTarget] = M_(null);
+  const [uploading, setUploading] = M_(false);
+  const [uploadProgress, setUploadProgress] = M_(null);
+  const [folderChart, setFolderChart] = M_(null);
+  const [workspaceIndexStatus, setWorkspaceIndexStatus] = M_(null);
+  const [workspaceReindexing, setWorkspaceReindexing] = M_(false);
+  const [isDarkTheme, setIsDarkTheme] = M_(() => detectDarkTheme());
+  const [explorerScale, setExplorerScale] = M_(() => resolveWorkspaceScale({
     stored: getLocalStorageItem(WORKSPACE_SCALE_STORAGE_KEY),
     ...readWorkspaceScaleEnvironment()
   }));
-  const [headerMenuOpen, setHeaderMenuOpen] = v0(false);
-  const expandedRef = o0(expanded);
-  const lastSigRef = o0("");
-  const pendingRootRef = o0(null);
-  const rafRef = o0(0);
-  const pendingSubtreeRef = o0(new Set);
-  const loadTreeFnRef = o0(null);
-  const loadWorkspaceIndexStatusRef = o0(null);
-  const nodeMapRef = o0(new Map);
-  const onFileSelectRef = o0(onFileSelect);
-  const onOpenEditorRef = o0(onOpenEditor);
-  const loadPreviewRef = o0(null);
-  const loadSubtreeRef = o0(null);
-  const sidebarRef = o0(null);
-  const treeListRef = o0(null);
-  const renameInputRef = o0(null);
-  const uploadInputRef = o0(null);
-  const uploadTargetRef = o0(".");
-  const uploadProgressTimerRef = o0(0);
-  const touchDragRef = o0({ path: null, dragging: false, startX: 0, startY: 0 });
-  const mouseDragRef = o0({ path: null, dragging: false, startX: 0, startY: 0 });
-  const dragExpandRef = o0({ path: null, timer: 0 });
-  const suppressClickRef = o0(false);
-  const previewHeightRef = o0(0);
-  const folderChartCacheRef = o0(new Map);
-  const folderChartPayloadRef = o0(null);
-  const folderChartPathRef = o0(null);
-  const previewPaneHostRef = o0(null);
-  const previewPaneInstanceRef = o0(null);
-  const headerMenuRef = o0(null);
-  const headerMenuButtonRef = o0(null);
-  const showHiddenRef = o0(showHidden);
-  const visibleRef = o0(visible);
-  const activeRef = o0(active ?? visible);
-  const dragDepthRef = o0(0);
-  const dropTargetRef = o0(dropTarget);
-  const dragActiveRef = o0(dragActive);
-  const dragModeRef = o0(dragMode);
-  const dragGhostRef = o0(null);
-  const dragGhostPosRef = o0({ x: 0, y: 0 });
-  const dragGhostRafRef = o0(0);
-  const moveEntryToTargetRef = o0(null);
-  const selectedPathRef = o0(selectedPath);
-  const renamingPathRef = o0(renamingPath);
-  const pendingProgrammaticFileClickRef = o0(null);
-  const previewRef = o0(preview);
+  const [headerMenuOpen, setHeaderMenuOpen] = M_(false);
+  const expandedRef = K_(expanded);
+  const lastSigRef = K_("");
+  const pendingRootRef = K_(null);
+  const rafRef = K_(0);
+  const pendingSubtreeRef = K_(new Set);
+  const loadTreeFnRef = K_(null);
+  const loadWorkspaceIndexStatusRef = K_(null);
+  const nodeMapRef = K_(new Map);
+  const onFileSelectRef = K_(onFileSelect);
+  const onOpenEditorRef = K_(onOpenEditor);
+  const loadPreviewRef = K_(null);
+  const loadSubtreeRef = K_(null);
+  const sidebarRef = K_(null);
+  const treeListRef = K_(null);
+  const renameInputRef = K_(null);
+  const uploadInputRef = K_(null);
+  const uploadTargetRef = K_(".");
+  const uploadProgressTimerRef = K_(0);
+  const touchDragRef = K_({ path: null, dragging: false, startX: 0, startY: 0 });
+  const mouseDragRef = K_({ path: null, dragging: false, startX: 0, startY: 0 });
+  const dragExpandRef = K_({ path: null, timer: 0 });
+  const suppressClickRef = K_(false);
+  const previewHeightRef = K_(0);
+  const folderChartCacheRef = K_(new Map);
+  const folderChartPayloadRef = K_(null);
+  const folderChartPathRef = K_(null);
+  const previewPaneHostRef = K_(null);
+  const previewPaneInstanceRef = K_(null);
+  const headerMenuRef = K_(null);
+  const headerMenuButtonRef = K_(null);
+  const showHiddenRef = K_(showHidden);
+  const visibleRef = K_(visible);
+  const activeRef = K_(active ?? visible);
+  const dragDepthRef = K_(0);
+  const dropTargetRef = K_(dropTarget);
+  const dragActiveRef = K_(dragActive);
+  const dragModeRef = K_(dragMode);
+  const dragGhostRef = K_(null);
+  const dragGhostPosRef = K_({ x: 0, y: 0 });
+  const dragGhostRafRef = K_(0);
+  const moveEntryToTargetRef = K_(null);
+  const selectedPathRef = K_(selectedPath);
+  const renamingPathRef = K_(renamingPath);
+  const pendingProgrammaticFileClickRef = K_(null);
+  const previewRef = K_(preview);
   onFileSelectRef.current = onFileSelect;
   onOpenEditorRef.current = onOpenEditor;
-  r0(() => {
+  J_(() => {
     expandedRef.current = expanded;
   }, [expanded]);
-  r0(() => {
+  J_(() => {
     showHiddenRef.current = showHidden;
   }, [showHidden]);
-  r0(() => {
+  J_(() => {
     visibleRef.current = visible;
   }, [visible]);
-  r0(() => {
+  J_(() => {
     activeRef.current = active ?? visible;
   }, [active, visible]);
-  r0(() => {
+  J_(() => {
     dropTargetRef.current = dropTarget;
   }, [dropTarget]);
-  const clearUploadProgressTimer = t0(() => {
+  const clearUploadProgressTimer = X_(() => {
     if (!uploadProgressTimerRef.current)
       return;
     clearTimeout(uploadProgressTimerRef.current);
     uploadProgressTimerRef.current = 0;
   }, []);
-  r0(() => () => clearUploadProgressTimer(), [clearUploadProgressTimer]);
-  r0(() => {
+  J_(() => () => clearUploadProgressTimer(), [clearUploadProgressTimer]);
+  J_(() => {
     if (typeof window === "undefined")
       return;
     const syncScale = () => {
@@ -14964,22 +9994,22 @@ function WorkspaceExplorer({
       removeMediaListener(hoverMedia, onResize);
     };
   }, []);
-  r0(() => {
-    const handleReveal = (e2) => {
-      const path = e2?.detail?.path;
+  J_(() => {
+    const handleReveal = (e) => {
+      const path = e?.detail?.path;
       if (!path)
         return;
       const parts = path.split("/");
       const parents = [];
-      for (let i3 = 1;i3 < parts.length; i3++) {
-        parents.push(parts.slice(0, i3).join("/"));
+      for (let i = 1;i < parts.length; i++) {
+        parents.push(parts.slice(0, i).join("/"));
       }
       if (parents.length) {
         setExpanded((prev) => {
           const next = new Set(prev);
           next.add(".");
-          for (const p2 of parents)
-            next.add(p2);
+          for (const p of parents)
+            next.add(p);
           return next;
         });
       }
@@ -14993,25 +10023,25 @@ function WorkspaceExplorer({
     window.addEventListener("workspace-reveal-path", handleReveal);
     return () => window.removeEventListener("workspace-reveal-path", handleReveal);
   }, []);
-  r0(() => {
+  J_(() => {
     dragActiveRef.current = dragActive;
   }, [dragActive]);
-  r0(() => {
+  J_(() => {
     dragModeRef.current = dragMode;
   }, [dragMode]);
-  r0(() => {
+  J_(() => {
     selectedPathRef.current = selectedPath;
   }, [selectedPath]);
-  r0(() => {
+  J_(() => {
     renamingPathRef.current = renamingPath;
   }, [renamingPath]);
-  r0(() => {
+  J_(() => {
     previewRef.current = preview;
   }, [preview]);
-  r0(() => {
+  J_(() => {
     if (typeof window === "undefined" || typeof document === "undefined")
       return;
-    const syncTheme = () => setIsDarkTheme(detectDarkTheme2());
+    const syncTheme = () => setIsDarkTheme(detectDarkTheme());
     syncTheme();
     const media = window.matchMedia?.("(prefers-color-scheme: dark)");
     const onMediaChange = () => syncTheme();
@@ -15038,7 +10068,7 @@ function WorkspaceExplorer({
       observer?.disconnect();
     };
   }, []);
-  r0(() => {
+  J_(() => {
     if (!renamingPath)
       return;
     const input = renameInputRef.current;
@@ -15049,7 +10079,7 @@ function WorkspaceExplorer({
     });
     return () => cancelAnimationFrame(timer);
   }, [renamingPath]);
-  r0(() => {
+  J_(() => {
     if (!headerMenuOpen)
       return;
     const handleDocPointer = (event) => {
@@ -15093,8 +10123,8 @@ function WorkspaceExplorer({
       }
       setPreview(data);
       return data;
-    } catch (err2) {
-      const failure = { error: err2.message || "Failed to load preview" };
+    } catch (err) {
+      const failure = { error: err.message || "Failed to load preview" };
       setPreview(failure);
       return failure;
     } finally {
@@ -15102,18 +10132,18 @@ function WorkspaceExplorer({
     }
   };
   loadPreviewRef.current = loadPreview;
-  const loadWorkspaceIndexStatus = t0(async () => {
+  const loadWorkspaceIndexStatus = X_(async () => {
     try {
       const status = await getWorkspaceIndexStatus("all");
       setWorkspaceIndexStatus(status);
       return status;
-    } catch (err2) {
-      console.warn("[workspace-explorer] Failed to load workspace index status:", err2);
+    } catch (err) {
+      console.warn("[workspace-explorer] Failed to load workspace index status:", err);
       return null;
     }
   }, []);
   loadWorkspaceIndexStatusRef.current = loadWorkspaceIndexStatus;
-  const refreshWorkspaceIndexStatus = t0(() => {
+  const refreshWorkspaceIndexStatus = X_(() => {
     loadWorkspaceIndexStatusRef.current?.();
   }, []);
   const loadTree = async () => {
@@ -15135,8 +10165,8 @@ function WorkspaceExplorer({
           setInitialLoad(false);
         });
       }
-    } catch (err2) {
-      setError(err2.message || "Failed to load workspace");
+    } catch (err) {
+      setError(err.message || "Failed to load workspace");
       setInitialLoad(false);
     }
   };
@@ -15149,14 +10179,14 @@ function WorkspaceExplorer({
     try {
       const data = await getWorkspaceTree(path, 1, showHiddenRef.current);
       setTree((prev) => replaceNodeAtPath(prev, path, data.root));
-    } catch (err2) {
-      setError(err2.message || "Failed to load workspace");
+    } catch (err) {
+      setError(err.message || "Failed to load workspace");
     } finally {
       pendingSubtreeRef.current.delete(path);
     }
   };
   loadSubtreeRef.current = loadSubtree;
-  const resolveDropTargetPath = t0(() => {
+  const resolveDropTargetPath = X_(() => {
     const selected = selectedPath;
     if (!selected)
       return ".";
@@ -15170,7 +10200,7 @@ function WorkspaceExplorer({
     const parent = parts.join("/");
     return parent || ".";
   }, [selectedPath]);
-  const resolveDropTargetFromElement = t0((element) => {
+  const resolveDropTargetFromElement = X_((element) => {
     const row = element?.closest?.(".workspace-row");
     if (!row)
       return null;
@@ -15187,20 +10217,20 @@ function WorkspaceExplorer({
     }
     return ".";
   }, []);
-  const resolveDropTargetFromEvent = t0((event) => {
+  const resolveDropTargetFromEvent = X_((event) => {
     return resolveDropTargetFromElement(event?.target || null);
   }, [resolveDropTargetFromElement]);
-  const updateDropTarget = t0((value) => {
+  const updateDropTarget = X_((value) => {
     dropTargetRef.current = value;
     setDropTarget(value);
   }, []);
-  const clearDragExpandTimer = t0(() => {
+  const clearDragExpandTimer = X_(() => {
     const current = dragExpandRef.current;
     if (current?.timer)
       clearTimeout(current.timer);
     dragExpandRef.current = { path: null, timer: 0 };
   }, []);
-  const scheduleDragExpand = t0((targetPath) => {
+  const scheduleDragExpand = X_((targetPath) => {
     if (!targetPath || targetPath === ".") {
       clearDragExpandTimer();
       return;
@@ -15228,8 +10258,8 @@ function WorkspaceExplorer({
     }, 600);
     dragExpandRef.current = { path: targetPath, timer };
   }, [clearDragExpandTimer]);
-  const updateDragGhostPosition = t0((x3, y2) => {
-    dragGhostPosRef.current = { x: x3, y: y2 };
+  const updateDragGhostPosition = X_((x, y) => {
+    dragGhostPosRef.current = { x, y };
     if (dragGhostRafRef.current)
       return;
     dragGhostRafRef.current = requestAnimationFrame(() => {
@@ -15241,7 +10271,7 @@ function WorkspaceExplorer({
       el.style.transform = `translate(${pos.x + 12}px, ${pos.y + 12}px)`;
     });
   }, []);
-  const startDragGhost = t0((path) => {
+  const startDragGhost = X_((path) => {
     if (!path)
       return;
     const node = nodeMapRef.current?.get(path);
@@ -15250,7 +10280,7 @@ function WorkspaceExplorer({
       return;
     setDragGhost({ path, label });
   }, []);
-  const clearDragGhost = t0(() => {
+  const clearDragGhost = X_(() => {
     setDragGhost(null);
     if (dragGhostRafRef.current) {
       cancelAnimationFrame(dragGhostRafRef.current);
@@ -15260,7 +10290,7 @@ function WorkspaceExplorer({
       dragGhostRef.current.style.transform = "translate(-9999px, -9999px)";
     }
   }, []);
-  const resolveCreateTargetPath = t0((path) => {
+  const resolveCreateTargetPath = X_((path) => {
     if (!path)
       return ".";
     const node = nodeMapRef.current?.get(path);
@@ -15273,11 +10303,11 @@ function WorkspaceExplorer({
     const parent = parts.join("/");
     return parent || ".";
   }, []);
-  const cancelRename = t0(() => {
+  const cancelRename = X_(() => {
     setRenamingPath(null);
     setRenameValue("");
   }, []);
-  const beginRename = t0((path) => {
+  const beginRename = X_((path) => {
     if (!path)
       return;
     const node = nodeMapRef.current?.get(path);
@@ -15287,7 +10317,7 @@ function WorkspaceExplorer({
     setRenamingPath(path);
     setRenameValue(base);
   }, []);
-  const commitRename = t0(async () => {
+  const commitRename = X_(async () => {
     const targetPath = renamingPathRef.current;
     if (!targetPath)
       return;
@@ -15336,16 +10366,16 @@ function WorkspaceExplorer({
       }
       loadSubtreeRef.current?.(parent);
       refreshWorkspaceIndexStatus();
-    } catch (err2) {
-      setError(err2?.message || "Failed to rename file");
+    } catch (err) {
+      setError(err?.message || "Failed to rename file");
     }
   }, [cancelRename, renameValue, refreshWorkspaceIndexStatus]);
-  const createUntitledFile = t0(async (targetPath) => {
+  const createUntitledFile = X_(async (targetPath) => {
     const base = "untitled";
     const ext = ".md";
     const folder = targetPath || ".";
-    for (let i3 = 0;i3 < 50; i3 += 1) {
-      const suffix = i3 === 0 ? "" : `-${i3}`;
+    for (let i = 0;i < 50; i += 1) {
+      const suffix = i === 0 ? "" : `-${i}`;
       const name = `${base}${suffix}${ext}`;
       try {
         const result = await createWorkspaceFile(folder, name, "");
@@ -15359,24 +10389,24 @@ function WorkspaceExplorer({
         loadPreviewRef.current?.(nextPath);
         refreshWorkspaceIndexStatus();
         return;
-      } catch (err2) {
-        if (err2?.status === 409 || err2?.code === "file_exists") {
+      } catch (err) {
+        if (err?.status === 409 || err?.code === "file_exists") {
           continue;
         }
-        setError(err2?.message || "Failed to create file");
+        setError(err?.message || "Failed to create file");
         return;
       }
     }
     setError("Failed to create file (untitled name already in use).");
   }, []);
-  const handleCreateFileClick = t0((event) => {
+  const handleCreateFileClick = X_((event) => {
     event?.stopPropagation?.();
     if (uploading)
       return;
     const target = resolveCreateTargetPath(selectedPathRef.current);
     createUntitledFile(target);
   }, [uploading, resolveCreateTargetPath, createUntitledFile]);
-  r0(() => {
+  J_(() => {
     if (typeof window === "undefined")
       return;
     const handler = (event) => {
@@ -15430,21 +10460,21 @@ function WorkspaceExplorer({
     return () => window.removeEventListener("workspace-update", handler);
   }, []);
   loadTreeFnRef.current = loadTree;
-  const updateVisibility = o0(() => {
+  const updateVisibility = K_(() => {
     if (typeof window === "undefined")
       return;
     const media = window.matchMedia("(min-width: 1024px) and (orientation: landscape)");
-    const active2 = activeRef.current ?? visibleRef.current;
-    const visible2 = document.visibilityState !== "hidden" && (active2 || media.matches && visibleRef.current);
-    setWorkspaceVisibility(visible2, showHiddenRef.current).catch((error2) => {
-      console.debug("[workspace-explorer] Workspace visibility ping failed.", error2, {
-        visible: visible2,
+    const active = activeRef.current ?? visibleRef.current;
+    const visible = document.visibilityState !== "hidden" && (active || media.matches && visibleRef.current);
+    setWorkspaceVisibility(visible, showHiddenRef.current).catch((error) => {
+      console.debug("[workspace-explorer] Workspace visibility ping failed.", error, {
+        visible,
         showHidden: showHiddenRef.current
       });
     });
   }).current;
-  const debouncedVisibilityRef = o0(0);
-  const scheduleVisibilityUpdate = o0(() => {
+  const debouncedVisibilityRef = K_(0);
+  const scheduleVisibilityUpdate = K_(() => {
     if (debouncedVisibilityRef.current) {
       clearTimeout(debouncedVisibilityRef.current);
     }
@@ -15453,14 +10483,14 @@ function WorkspaceExplorer({
       updateVisibility();
     }, 250);
   }).current;
-  r0(() => {
+  J_(() => {
     if (visibleRef.current) {
       loadTreeFnRef.current?.();
       loadWorkspaceIndexStatusRef.current?.();
     }
     scheduleVisibilityUpdate();
   }, [visible, active]);
-  r0(() => {
+  J_(() => {
     loadTreeFnRef.current();
     loadWorkspaceIndexStatusRef.current?.();
     updateVisibility();
@@ -15498,20 +10528,20 @@ function WorkspaceExplorer({
         clearTimeout(debouncedVisibilityRef.current);
         debouncedVisibilityRef.current = 0;
       }
-      setWorkspaceVisibility(false, showHiddenRef.current).catch((error2) => {
-        console.debug("[workspace-explorer] Workspace visibility teardown ping failed.", error2, {
+      setWorkspaceVisibility(false, showHiddenRef.current).catch((error) => {
+        console.debug("[workspace-explorer] Workspace visibility teardown ping failed.", error, {
           showHidden: showHiddenRef.current
         });
       });
     };
   }, []);
-  const rows = G0(() => flattenTree(tree, expanded, showHidden), [tree, expanded, showHidden]);
-  const nodeMap = G0(() => new Map(rows.map((r2) => [r2.node.path, r2.node])), [rows]);
-  const workspaceScaleMetrics = G0(() => getWorkspaceScaleMetrics(explorerScale), [explorerScale]);
+  const rows = u_(() => flattenTree(tree, expanded, showHidden), [tree, expanded, showHidden]);
+  const nodeMap = u_(() => new Map(rows.map((r) => [r.node.path, r.node])), [rows]);
+  const workspaceScaleMetrics = u_(() => getWorkspaceScaleMetrics(explorerScale), [explorerScale]);
   nodeMapRef.current = nodeMap;
   const selectedNode = selectedPath ? nodeMapRef.current.get(selectedPath) : null;
   const selectedIsDir = selectedNode?.type === "dir";
-  r0(() => {
+  J_(() => {
     if (!selectedPath || !selectedIsDir) {
       setFolderChart(null);
       folderChartPayloadRef.current = null;
@@ -15552,10 +10582,10 @@ function WorkspaceExplorer({
       folderChartPayloadRef.current = payload;
       folderChartPathRef.current = selectedPath;
       setFolderChart({ loading: false, error: null, payload });
-    }).catch((err2) => {
+    }).catch((err) => {
       if (selectedPathRef.current !== fetchPath)
         return;
-      setFolderChart({ loading: false, error: err2?.message || "Failed to load folder size chart", payload: lastPath === selectedPath ? lastPayload : null });
+      setFolderChart({ loading: false, error: err?.message || "Failed to load folder size chart", payload: lastPath === selectedPath ? lastPayload : null });
     });
   }, [selectedPath, selectedIsDir, showHidden, isDarkTheme]);
   const canEdit = Boolean(preview && preview.kind === "text" && !selectedIsDir && (!preview.size || preview.size <= 256 * 1024));
@@ -15569,16 +10599,16 @@ function WorkspaceExplorer({
   const workspaceIndexTitle = buildWorkspaceIndexTitle(workspaceIndexStatus);
   const workspaceIndexState = workspaceIndexStatus?.state || "never_indexed";
   const showWorkspaceIndexIndicator = workspaceIndexState !== "ready";
-  const closeHeaderMenu = t0(() => setHeaderMenuOpen(false), []);
-  const runMenuAction = t0(async (fn) => {
+  const closeHeaderMenu = X_(() => setHeaderMenuOpen(false), []);
+  const runMenuAction = X_(async (fn) => {
     closeHeaderMenu();
     try {
       await fn?.();
-    } catch (err2) {
-      console.warn("[workspace-explorer] Header menu action failed:", err2);
+    } catch (err) {
+      console.warn("[workspace-explorer] Header menu action failed:", err);
     }
   }, [closeHeaderMenu]);
-  const handleWorkspaceReindex = t0(async (event) => {
+  const handleWorkspaceReindex = X_(async (event) => {
     event?.stopPropagation?.();
     setWorkspaceReindexing(true);
     setWorkspaceIndexStatus((prev) => ({
@@ -15596,8 +10626,8 @@ function WorkspaceExplorer({
       setError(null);
       lastSigRef.current = "";
       loadTreeFnRef.current?.();
-    } catch (err2) {
-      const message = err2?.message || "Failed to reindex workspace";
+    } catch (err) {
+      const message = err?.message || "Failed to reindex workspace";
       setWorkspaceIndexStatus((prev) => ({
         scope: "all",
         last_indexed_at: prev?.last_indexed_at || null,
@@ -15612,7 +10642,7 @@ function WorkspaceExplorer({
       setWorkspaceReindexing(false);
     }
   }, []);
-  r0(() => {
+  J_(() => {
     const container = previewPaneHostRef.current;
     if (previewPaneInstanceRef.current) {
       previewPaneInstanceRef.current.dispose();
@@ -15660,8 +10690,8 @@ function WorkspaceExplorer({
       return true;
     return Boolean(targetEl.isContentEditable);
   };
-  const handleTreeDblClick = o0((e2) => {
-    const targetEl = getEventTargetElement(e2);
+  const handleTreeDblClick = K_((e) => {
+    const targetEl = getEventTargetElement(e);
     const rowEl = targetEl?.closest?.("[data-path]");
     if (!rowEl)
       return;
@@ -15676,12 +10706,12 @@ function WorkspaceExplorer({
       return;
     beginRename(clickedPath);
   }).current;
-  const handleTreeClick = o0((e2) => {
+  const handleTreeClick = K_((e) => {
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
       return;
     }
-    const targetEl = getEventTargetElement(e2);
+    const targetEl = getEventTargetElement(e);
     const rowEl = targetEl?.closest?.("[data-path]");
     treeListRef.current?.focus?.();
     if (!rowEl)
@@ -15727,46 +10757,46 @@ function WorkspaceExplorer({
       }
     }
   }).current;
-  const handleRefreshClick = o0(() => {
+  const handleRefreshClick = K_(() => {
     lastSigRef.current = "";
     loadTreeFnRef.current();
     loadWorkspaceIndexStatusRef.current?.();
-    const openPaths = Array.from(expandedRef.current || []).filter((p2) => p2 && p2 !== ".");
-    openPaths.forEach((p2) => loadSubtreeRef.current?.(p2));
+    const openPaths = Array.from(expandedRef.current || []).filter((p) => p && p !== ".");
+    openPaths.forEach((p) => loadSubtreeRef.current?.(p));
   }).current;
-  const clearSelection = o0(() => {
+  const clearSelection = K_(() => {
     pendingProgrammaticFileClickRef.current = null;
     setSelectedPath(null);
     setPreview(null);
     setDownloadId(null);
     setLoadingPreview(false);
   }).current;
-  const handleToggleHidden = o0(() => {
+  const handleToggleHidden = K_(() => {
     setShowHidden((prev) => {
       const next = !prev;
       if (typeof window !== "undefined") {
         setLocalStorageItem("workspaceShowHidden", String(next));
       }
       showHiddenRef.current = next;
-      setWorkspaceVisibility(true, next).catch((error2) => {
-        console.debug("[workspace-explorer] Workspace visibility refresh after toggling hidden files failed.", error2, {
+      setWorkspaceVisibility(true, next).catch((error) => {
+        console.debug("[workspace-explorer] Workspace visibility refresh after toggling hidden files failed.", error, {
           showHidden: next
         });
       });
       lastSigRef.current = "";
       loadTreeFnRef.current?.();
-      const openPaths = Array.from(expandedRef.current || []).filter((p2) => p2 && p2 !== ".");
-      openPaths.forEach((p2) => loadSubtreeRef.current?.(p2));
+      const openPaths = Array.from(expandedRef.current || []).filter((p) => p && p !== ".");
+      openPaths.forEach((p) => loadSubtreeRef.current?.(p));
       return next;
     });
   }).current;
-  const handleBackgroundClick = o0((e2) => {
-    const targetEl = getEventTargetElement(e2);
+  const handleBackgroundClick = K_((e) => {
+    const targetEl = getEventTargetElement(e);
     if (targetEl?.closest?.("[data-path]"))
       return;
     clearSelection();
   }).current;
-  const deleteFileAtPath = t0(async (path) => {
+  const deleteFileAtPath = X_(async (path) => {
     if (!path)
       return;
     const filename = path.split("/").pop() || path;
@@ -15782,27 +10812,27 @@ function WorkspaceExplorer({
       loadSubtreeRef.current?.(parent);
       setError(null);
       refreshWorkspaceIndexStatus();
-    } catch (err2) {
-      setPreview((prev) => ({ ...prev || {}, error: err2.message || "Failed to delete file" }));
+    } catch (err) {
+      setPreview((prev) => ({ ...prev || {}, error: err.message || "Failed to delete file" }));
     }
   }, [clearSelection]);
-  const scrollRowIntoView = t0((path) => {
+  const scrollRowIntoView = X_((path) => {
     const container = treeListRef.current;
     if (!container || !path || typeof CSS === "undefined" || typeof CSS.escape !== "function")
       return;
     const el = container.querySelector(`[data-path="${CSS.escape(path)}"]`);
     el?.scrollIntoView?.({ block: "nearest" });
   }, []);
-  const handleTreeKeyDown = t0((e2) => {
-    const targetEl = getEventTargetElement(e2);
+  const handleTreeKeyDown = X_((e) => {
+    const targetEl = getEventTargetElement(e);
     if (renamingPathRef.current || isEditableKeyboardTarget(targetEl))
       return;
     const currentRows = rows;
     if (!currentRows || currentRows.length === 0)
       return;
-    const currentIndex = selectedPath ? currentRows.findIndex((r2) => r2.node.path === selectedPath) : -1;
-    if (e2.key === "ArrowDown") {
-      e2.preventDefault();
+    const currentIndex = selectedPath ? currentRows.findIndex((r) => r.node.path === selectedPath) : -1;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
       const next = Math.min(currentIndex + 1, currentRows.length - 1);
       const row = currentRows[next];
       if (!row)
@@ -15819,8 +10849,8 @@ function WorkspaceExplorer({
       scrollRowIntoView(row.node.path);
       return;
     }
-    if (e2.key === "ArrowUp") {
-      e2.preventDefault();
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
       const next = currentIndex <= 0 ? 0 : currentIndex - 1;
       const row = currentRows[next];
       if (!row)
@@ -15837,19 +10867,19 @@ function WorkspaceExplorer({
       scrollRowIntoView(row.node.path);
       return;
     }
-    if (e2.key === "ArrowRight" && currentIndex >= 0) {
+    if (e.key === "ArrowRight" && currentIndex >= 0) {
       const row = currentRows[currentIndex];
       if (row?.node?.type === "dir" && !expanded.has(row.node.path)) {
-        e2.preventDefault();
+        e.preventDefault();
         loadSubtreeRef.current?.(row.node.path);
         setExpanded((prev) => new Set([...prev, row.node.path]));
       }
       return;
     }
-    if (e2.key === "ArrowLeft" && currentIndex >= 0) {
+    if (e.key === "ArrowLeft" && currentIndex >= 0) {
       const row = currentRows[currentIndex];
       if (row?.node?.type === "dir" && expanded.has(row.node.path)) {
-        e2.preventDefault();
+        e.preventDefault();
         setExpanded((prev) => {
           const next = new Set(prev);
           next.delete(row.node.path);
@@ -15858,8 +10888,8 @@ function WorkspaceExplorer({
       }
       return;
     }
-    if (e2.key === "Enter" && currentIndex >= 0) {
-      e2.preventDefault();
+    if (e.key === "Enter" && currentIndex >= 0) {
+      e.preventDefault();
       const row = currentRows[currentIndex];
       if (!row)
         return;
@@ -15885,20 +10915,20 @@ function WorkspaceExplorer({
       }
       return;
     }
-    if ((e2.key === "Delete" || e2.key === "Backspace") && currentIndex >= 0) {
+    if ((e.key === "Delete" || e.key === "Backspace") && currentIndex >= 0) {
       const row = currentRows[currentIndex];
       if (!row || row.node.type === "dir")
         return;
-      e2.preventDefault();
+      e.preventDefault();
       deleteFileAtPath(row.node.path);
       return;
     }
-    if (e2.key === "Escape") {
-      e2.preventDefault();
+    if (e.key === "Escape") {
+      e.preventDefault();
       clearSelection();
     }
   }, [clearSelection, deleteFileAtPath, expanded, rows, scrollRowIntoView, selectedPath]);
-  const handleRowTouchStart = t0((event) => {
+  const handleRowTouchStart = X_((event) => {
     const intent = getWorkspaceTouchStartIntent(event, renamingPathRef.current);
     if (!intent)
       return;
@@ -15909,7 +10939,7 @@ function WorkspaceExplorer({
       startY: intent.startY
     };
   }, []);
-  const handleRowTouchEnd = t0(() => {
+  const handleRowTouchEnd = X_(() => {
     const dragState = touchDragRef.current;
     if (dragState?.dragging && dragState.path) {
       const target = dropTargetRef.current || resolveDropTargetPath();
@@ -15925,7 +10955,7 @@ function WorkspaceExplorer({
     clearDragExpandTimer();
     clearDragGhost();
   }, [resolveDropTargetPath, clearDragGhost, updateDropTarget, clearDragExpandTimer]);
-  const handleRowTouchMove = t0((event) => {
+  const handleRowTouchMove = X_((event) => {
     const dragState = touchDragRef.current;
     const touch = event?.touches?.[0];
     if (!touch || !dragState?.path)
@@ -15949,14 +10979,14 @@ function WorkspaceExplorer({
       scheduleDragExpand(target);
     }
   }, [resolveDropTargetFromElement, resolveDropTargetPath, startDragGhost, updateDragGhostPosition, updateDropTarget, scheduleDragExpand]);
-  const handlePreviewSplitterMouseDown = o0((e2) => {
-    e2.preventDefault();
+  const handlePreviewSplitterMouseDown = K_((e) => {
+    e.preventDefault();
     const sidebar = sidebarRef.current;
     if (!sidebar)
       return;
-    const startY = e2.clientY;
+    const startY = e.clientY;
     const startH = previewHeightRef.current || 280;
-    const splitter = e2.currentTarget;
+    const splitter = e.currentTarget;
     splitter.classList.add("dragging");
     document.body.style.cursor = "row-resize";
     document.body.style.userSelect = "none";
@@ -15982,26 +11012,26 @@ function WorkspaceExplorer({
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }).current;
-  const handlePreviewSplitterTouchStart = o0((e2) => {
-    e2.preventDefault();
+  const handlePreviewSplitterTouchStart = K_((e) => {
+    e.preventDefault();
     const sidebar = sidebarRef.current;
     if (!sidebar)
       return;
-    const touch = e2.touches[0];
+    const touch = e.touches[0];
     if (!touch)
       return;
     const startY = touch.clientY;
     const startH = previewHeightRef.current || 280;
-    const splitter = e2.currentTarget;
+    const splitter = e.currentTarget;
     splitter.classList.add("dragging");
     document.body.style.userSelect = "none";
     const onMove = (te) => {
-      const t2 = te.touches[0];
-      if (!t2)
+      const t = te.touches[0];
+      if (!t)
         return;
       te.preventDefault();
       const maxH = sidebar.clientHeight - 80;
-      const h = Math.min(Math.max(startH - (t2.clientY - startY), 80), maxH);
+      const h = Math.min(Math.max(startH - (t.clientY - startY), 80), maxH);
       sidebar.style.setProperty("--preview-height", `${h}px`);
       previewHeightRef.current = h;
     };
@@ -16017,7 +11047,7 @@ function WorkspaceExplorer({
     document.addEventListener("touchend", onUp);
     document.addEventListener("touchcancel", onUp);
   }).current;
-  const handleDownload = t0((path = selectedPath) => {
+  const handleDownload = X_((path = selectedPath) => {
     if (!path)
       return;
     triggerWorkspaceDownload(getWorkspaceFileDownloadUrl(path));
@@ -16031,7 +11061,7 @@ function WorkspaceExplorer({
     const types = Array.from(event?.dataTransfer?.types || []);
     return types.includes("Files");
   };
-  const handleDragEnter = t0((event) => {
+  const handleDragEnter = X_((event) => {
     if (!isFileDrag(event))
       return;
     event.preventDefault();
@@ -16043,7 +11073,7 @@ function WorkspaceExplorer({
     updateDropTarget(target);
     scheduleDragExpand(target);
   }, [resolveDropTargetPath, resolveDropTargetFromEvent, updateDropTarget, scheduleDragExpand]);
-  const handleDragOver = t0((event) => {
+  const handleDragOver = X_((event) => {
     if (!isFileDrag(event))
       return;
     event.preventDefault();
@@ -16059,7 +11089,7 @@ function WorkspaceExplorer({
       updateDropTarget(target);
     scheduleDragExpand(target);
   }, [resolveDropTargetPath, resolveDropTargetFromEvent, updateDropTarget, scheduleDragExpand]);
-  const handleDragLeave = t0((event) => {
+  const handleDragLeave = X_((event) => {
     if (!isFileDrag(event))
       return;
     event.preventDefault();
@@ -16071,7 +11101,7 @@ function WorkspaceExplorer({
       clearDragExpandTimer();
     }
   }, [updateDropTarget, clearDragExpandTimer]);
-  const uploadFilesToTarget = t0(async (files, targetPath = ".") => {
+  const uploadFilesToTarget = X_(async (files, targetPath = ".") => {
     const list = Array.from(files || []);
     if (list.length === 0)
       return;
@@ -16082,23 +11112,23 @@ function WorkspaceExplorer({
     setUploadProgress({ current: 0, total: list.length, name: "", percent: 0, done: false, error: null });
     try {
       let lastResult = null;
-      for (let i3 = 0;i3 < list.length; i3++) {
-        const file = list[i3];
-        const name = file?.name || `file ${i3 + 1}`;
-        setUploadProgress((prev) => ({ ...prev, current: i3 + 1, name, percent: 0 }));
-        const onProgress = (p2) => setUploadProgress((prev) => ({ ...prev, percent: p2.percent }));
+      for (let i = 0;i < list.length; i++) {
+        const file = list[i];
+        const name = file?.name || `file ${i + 1}`;
+        setUploadProgress((prev) => ({ ...prev, current: i + 1, name, percent: 0 }));
+        const onProgress = (p) => setUploadProgress((prev) => ({ ...prev, percent: p.percent }));
         try {
           lastResult = await uploadWorkspaceFile(file, target, { onProgress });
-        } catch (err2) {
-          const status = err2?.status;
-          const code = err2?.code;
+        } catch (err) {
+          const status = err?.status;
+          const code = err?.code;
           if (status === 409 || code === "file_exists") {
             const confirmOverwrite = window.confirm(`"${name}" already exists in ${targetLabel}. Overwrite?`);
             if (!confirmOverwrite)
               continue;
             lastResult = await uploadWorkspaceFile(file, target, { overwrite: true, onProgress });
           } else {
-            throw err2;
+            throw err;
           }
         }
       }
@@ -16115,9 +11145,9 @@ function WorkspaceExplorer({
         uploadProgressTimerRef.current = 0;
         setUploadProgress(null);
       }, 1500);
-    } catch (err2) {
-      setError(err2.message || "Failed to upload file");
-      setUploadProgress((prev) => prev ? { ...prev, error: err2.message || "Upload failed" } : null);
+    } catch (err) {
+      setError(err.message || "Failed to upload file");
+      setUploadProgress((prev) => prev ? { ...prev, error: err.message || "Upload failed" } : null);
       clearUploadProgressTimer();
       uploadProgressTimerRef.current = window.setTimeout(() => {
         uploadProgressTimerRef.current = 0;
@@ -16127,7 +11157,7 @@ function WorkspaceExplorer({
       setUploading(false);
     }
   }, [clearUploadProgressTimer]);
-  const moveEntryToTarget = t0(async (sourcePath, targetPath) => {
+  const moveEntryToTarget = X_(async (sourcePath, targetPath) => {
     if (!sourcePath)
       return;
     const node = nodeMapRef.current?.get(sourcePath);
@@ -16166,12 +11196,12 @@ function WorkspaceExplorer({
       loadSubtreeRef.current?.(sourceParent);
       loadSubtreeRef.current?.(targetDir);
       refreshWorkspaceIndexStatus();
-    } catch (err2) {
-      setError(err2?.message || "Failed to move entry");
+    } catch (err) {
+      setError(err?.message || "Failed to move entry");
     }
   }, []);
   moveEntryToTargetRef.current = moveEntryToTarget;
-  const handleDrop = t0(async (event) => {
+  const handleDrop = X_(async (event) => {
     if (!isFileDrag(event))
       return;
     event.preventDefault();
@@ -16186,7 +11216,7 @@ function WorkspaceExplorer({
     const target = dropTargetRef.current || resolveDropTargetFromEvent(event) || resolveDropTargetPath();
     await uploadFilesToTarget(files, target);
   }, [resolveDropTargetPath, resolveDropTargetFromEvent, uploadFilesToTarget]);
-  const handleFolderUploadClick = t0((event) => {
+  const handleFolderUploadClick = X_((event) => {
     event?.stopPropagation?.();
     if (uploading)
       return;
@@ -16194,70 +11224,70 @@ function WorkspaceExplorer({
     uploadTargetRef.current = target;
     uploadInputRef.current?.click();
   }, [uploading]);
-  const handleUploadButtonClick = t0(() => {
+  const handleUploadButtonClick = X_(() => {
     if (uploading)
       return;
     const selected = selectedPathRef.current;
-    const selectedNode2 = selected ? nodeMapRef.current?.get(selected) : null;
-    uploadTargetRef.current = selectedNode2?.type === "dir" ? selectedNode2.path : ".";
+    const selectedNode = selected ? nodeMapRef.current?.get(selected) : null;
+    uploadTargetRef.current = selectedNode?.type === "dir" ? selectedNode.path : ".";
     uploadInputRef.current?.click();
   }, [uploading]);
-  const handleMenuCreateFile = t0(() => {
+  const handleMenuCreateFile = X_(() => {
     runMenuAction(() => handleCreateFileClick(null));
   }, [runMenuAction, handleCreateFileClick]);
-  const handleMenuUploadFiles = t0(() => {
+  const handleMenuUploadFiles = X_(() => {
     runMenuAction(() => handleUploadButtonClick());
   }, [runMenuAction, handleUploadButtonClick]);
-  const handleMenuRefresh = t0(() => {
+  const handleMenuRefresh = X_(() => {
     runMenuAction(() => handleRefreshClick());
   }, [runMenuAction, handleRefreshClick]);
-  const handleMenuToggleHidden = t0(() => {
+  const handleMenuToggleHidden = X_(() => {
     runMenuAction(() => handleToggleHidden());
   }, [runMenuAction, handleToggleHidden]);
-  const handleMenuOpenTab = t0(() => {
+  const handleMenuOpenTab = X_(() => {
     if (!selectedPath || !selectedHasOpenableTab)
       return;
     runMenuAction(() => onOpenEditorRef.current?.(selectedPath, preview));
   }, [runMenuAction, selectedPath, selectedHasOpenableTab, preview]);
-  const handleMenuOpenEditor = t0(() => {
+  const handleMenuOpenEditor = X_(() => {
     if (!selectedPath || !canEdit)
       return;
     runMenuAction(() => onOpenEditorRef.current?.(selectedPath, preview));
   }, [runMenuAction, selectedPath, canEdit, preview]);
-  const handleMenuRename = t0(() => {
+  const handleMenuRename = X_(() => {
     if (!selectedPath || selectedPath === ".")
       return;
     runMenuAction(() => beginRename(selectedPath));
   }, [runMenuAction, selectedPath, beginRename]);
-  const handleMenuDelete = t0(() => {
+  const handleMenuDelete = X_(() => {
     if (!selectedPath || selectedIsDir)
       return;
     runMenuAction(() => handleDeleteFile());
   }, [runMenuAction, selectedPath, selectedIsDir, handleDeleteFile]);
-  const handleMenuDownload = t0(() => {
+  const handleMenuDownload = X_(() => {
     if (!selectedPath || selectedIsDir)
       return;
     runMenuAction(() => handleDownload());
   }, [runMenuAction, selectedPath, selectedIsDir, handleDownload]);
-  const handleMenuDownloadFolder = t0(() => {
+  const handleMenuDownloadFolder = X_(() => {
     if (!selectedFolderDownloadUrl)
       return;
     closeHeaderMenu();
     triggerWorkspaceDownload(selectedFolderDownloadUrl);
   }, [closeHeaderMenu, selectedFolderDownloadUrl]);
-  const handleMenuOpenTerminalTab = t0(() => {
+  const handleMenuOpenTerminalTab = X_(() => {
     closeHeaderMenu();
     onOpenTerminalTab?.();
   }, [closeHeaderMenu, onOpenTerminalTab]);
-  const handleMenuOpenVncTab = t0(() => {
+  const handleMenuOpenVncTab = X_(() => {
     closeHeaderMenu();
     onOpenVncTab?.();
   }, [closeHeaderMenu, onOpenVncTab]);
-  const handleMenuToggleTerminal = t0(() => {
+  const handleMenuToggleTerminal = X_(() => {
     closeHeaderMenu();
     onToggleTerminal?.();
   }, [closeHeaderMenu, onToggleTerminal]);
-  const handleRowMouseDown = t0((event) => {
+  const handleRowMouseDown = X_((event) => {
     if (!event || event.button !== 0)
       return;
     const rowEl = event.currentTarget;
@@ -16333,7 +11363,7 @@ function WorkspaceExplorer({
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }, [resolveDropTargetFromElement, resolveDropTargetPath, startDragGhost, updateDragGhostPosition, clearDragGhost, updateDropTarget, scheduleDragExpand, clearDragExpandTimer]);
-  const handleUploadInputChange = t0(async (event) => {
+  const handleUploadInputChange = X_(async (event) => {
     const files = Array.from(event?.target?.files || []);
     if (files.length === 0)
       return;
@@ -16343,7 +11373,7 @@ function WorkspaceExplorer({
     if (event?.target)
       event.target.value = "";
   }, [uploadFilesToTarget]);
-  return X1`
+  return ce`
         <aside
             class=${`workspace-sidebar${dragActive ? " workspace-drop-active" : ""}`}
             data-workspace-scale=${explorerScale}
@@ -16360,8 +11390,8 @@ function WorkspaceExplorer({
                         <button
                             ref=${headerMenuButtonRef}
                             class=${`workspace-menu-button${headerMenuOpen ? " active" : ""}`}
-                            onClick=${(e2) => {
-    e2.stopPropagation();
+                            onClick=${(e) => {
+    e.stopPropagation();
     setHeaderMenuOpen((prev) => !prev);
   }}
                             title="Workspace actions"
@@ -16376,7 +11406,7 @@ function WorkspaceExplorer({
                                 <line x1="4" y1="17" x2="20" y2="17" />
                             </svg>
                         </button>
-                        ${headerMenuOpen && X1`
+                        ${headerMenuOpen && ce`
                             <div class="workspace-menu-dropdown" ref=${headerMenuRef} role="menu" aria-label="Workspace options">
                                 <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuCreateFile} disabled=${uploading}>New file</button>
                                 <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuUploadFiles} disabled=${uploading}>Upload files</button>
@@ -16388,40 +11418,40 @@ function WorkspaceExplorer({
                                     ${showHidden ? "Hide hidden files" : "Show hidden files"}
                                 </button>
 
-                                ${(onOpenTerminalTab || onOpenVncTab || onToggleTerminal) && X1`<div class="workspace-menu-separator"></div>`}
-                                ${onOpenTerminalTab && X1`
+                                ${(onOpenTerminalTab || onOpenVncTab || onToggleTerminal) && ce`<div class="workspace-menu-separator"></div>`}
+                                ${onOpenTerminalTab && ce`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuOpenTerminalTab}>
                                         Open terminal in tab
                                     </button>
                                 `}
-                                ${onOpenVncTab && X1`
+                                ${onOpenVncTab && ce`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuOpenVncTab}>
                                         Open VNC in tab
                                     </button>
                                 `}
-                                ${onToggleTerminal && X1`
+                                ${onToggleTerminal && ce`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuToggleTerminal}>
                                         ${terminalVisible ? "Hide terminal dock" : "Show terminal dock"}
                                     </button>
                                 `}
 
-                                ${selectedPath && X1`<div class="workspace-menu-separator"></div>`}
-                                ${selectedHasOpenableTab && X1`
+                                ${selectedPath && ce`<div class="workspace-menu-separator"></div>`}
+                                ${selectedHasOpenableTab && ce`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuOpenTab}>Open in tab</button>
                                 `}
-                                ${selectedPath && !selectedIsDir && X1`
+                                ${selectedPath && !selectedIsDir && ce`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuOpenEditor} disabled=${!canEdit}>Open in editor</button>
                                 `}
-                                ${selectedCanRename && X1`
+                                ${selectedCanRename && ce`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuRename}>Rename selected</button>
                                 `}
-                                ${selectedCanDownload && X1`
+                                ${selectedCanDownload && ce`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuDownload}>Download selected file</button>
                                 `}
-                                ${selectedFolderDownloadUrl && X1`
+                                ${selectedFolderDownloadUrl && ce`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuDownloadFolder}>Download selected folder (zip)</button>
                                 `}
-                                ${selectedCanDelete && X1`
+                                ${selectedCanDelete && ce`
                                     <button class="workspace-menu-item danger" role="menuitem" onClick=${handleMenuDelete}>Delete selected file</button>
                                 `}
                             </div>
@@ -16447,7 +11477,7 @@ function WorkspaceExplorer({
                     </button>
                 </div>
             </div>
-            ${showWorkspaceIndexIndicator && X1`
+            ${showWorkspaceIndexIndicator && ce`
                 <div class="workspace-index-status-row">
                     <div class=${`workspace-index-status-chip state-${workspaceIndexState}`} title=${workspaceIndexTitle}>
                         <span class="workspace-index-status-dot" aria-hidden="true"></span>
@@ -16456,21 +11486,21 @@ function WorkspaceExplorer({
                 </div>
             `}
             <div class="workspace-tree" onClick=${handleBackgroundClick}>
-                ${uploadProgress && X1`
+                ${uploadProgress && ce`
                     <div class="workspace-upload-strip">
                         <div class="workspace-upload-strip-text">
-                            ${uploadProgress.error ? X1`<span class="workspace-upload-strip-error">${uploadProgress.error}</span>` : uploadProgress.done ? X1`<span>Done</span>` : X1`<span>${uploadProgress.total > 1 ? `Uploading ${uploadProgress.current}/${uploadProgress.total}: ${uploadProgress.name}` : `Uploading ${uploadProgress.name}`}${uploadProgress.percent > 0 ? ` (${uploadProgress.percent}%)` : "…"}</span>`}
+                            ${uploadProgress.error ? ce`<span class="workspace-upload-strip-error">${uploadProgress.error}</span>` : uploadProgress.done ? ce`<span>Done</span>` : ce`<span>${uploadProgress.total > 1 ? `Uploading ${uploadProgress.current}/${uploadProgress.total}: ${uploadProgress.name}` : `Uploading ${uploadProgress.name}`}${uploadProgress.percent > 0 ? ` (${uploadProgress.percent}%)` : "…"}</span>`}
                         </div>
-                        ${!uploadProgress.done && !uploadProgress.error && X1`
+                        ${!uploadProgress.done && !uploadProgress.error && ce`
                             <div class="workspace-upload-strip-bar">
                                 <div class="workspace-upload-strip-fill" style=${`width:${uploadProgress.percent || 0}%`}></div>
                             </div>
                         `}
                     </div>
                 `}
-                ${initialLoad && X1`<div class="workspace-loading">Loading…</div>`}
-                ${error && X1`<div class="workspace-error">${error}</div>`}
-                ${tree && X1`
+                ${initialLoad && ce`<div class="workspace-loading">Loading…</div>`}
+                ${error && ce`<div class="workspace-error">${error}</div>`}
+                ${tree && ce`
                     <div
                         class="workspace-tree-list"
                         ref=${treeListRef}
@@ -16490,7 +11520,7 @@ function WorkspaceExplorer({
     const isOpen = isDir && expanded.has(node.path);
     const isDropTarget = dropTarget && node.path === dropTarget;
     const childCount = Array.isArray(node.children) && node.children.length > 0 ? node.children.length : Number(node.child_count) || 0;
-    return X1`
+    return ce`
                                 <div
                                     key=${node.path}
                                     class=${`workspace-row${isSelected ? " selected" : ""}${isDropTarget ? " drop-target" : ""}`}
@@ -16500,38 +11530,38 @@ function WorkspaceExplorer({
                                     onMouseDown=${handleRowMouseDown}
                                 >
                                     <span class="workspace-caret" aria-hidden="true">
-                                        ${isDir ? isOpen ? X1`<svg viewBox="0 0 12 12"><polygon points="1,2 11,2 6,11"/></svg>` : X1`<svg viewBox="0 0 12 12"><polygon points="2,1 11,6 2,11"/></svg>` : null}
+                                        ${isDir ? isOpen ? ce`<svg viewBox="0 0 12 12"><polygon points="1,2 11,2 6,11"/></svg>` : ce`<svg viewBox="0 0 12 12"><polygon points="2,1 11,6 2,11"/></svg>` : null}
                                     </span>
                                     <svg class=${`workspace-node-icon${isDir ? " folder" : ""}`}
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                                         aria-hidden="true">
-                                        ${isDir ? X1`<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>` : X1`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>`}
+                                        ${isDir ? ce`<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>` : ce`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>`}
                                     </svg>
-                                    ${isRenaming ? X1`
+                                    ${isRenaming ? ce`
                                             <input
                                                 class="workspace-rename-input"
                                                 ref=${renameInputRef}
                                                 value=${renameValue}
-                                                onInput=${(e2) => setRenameValue(e2?.target?.value || "")}
-                                                onKeyDown=${(e2) => {
-      e2.stopPropagation();
-      if (e2.key === "Enter") {
-        e2.preventDefault();
+                                                onInput=${(e) => setRenameValue(e?.target?.value || "")}
+                                                onKeyDown=${(e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") {
+        e.preventDefault();
         commitRename();
-      } else if (e2.key === "Escape") {
-        e2.preventDefault();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
         cancelRename();
       }
     }}
                                                 onBlur=${cancelRename}
-                                                onClick=${(e2) => e2.stopPropagation()}
+                                                onClick=${(e) => e.stopPropagation()}
                                             />
-                                        ` : X1`<span class="workspace-label"><span class="workspace-label-text">${node.name}</span></span>`}
-                                    ${isDir && !isOpen && childCount > 0 && X1`
+                                        ` : ce`<span class="workspace-label"><span class="workspace-label-text">${node.name}</span></span>`}
+                                    ${isDir && !isOpen && childCount > 0 && ce`
                                         <span class="workspace-count">${childCount}</span>
                                     `}
-                                    ${isDir && X1`
+                                    ${isDir && ce`
                                         <button
                                             class="workspace-folder-upload"
                                             data-upload-target=${node.path}
@@ -16553,7 +11583,7 @@ function WorkspaceExplorer({
                     </div>
                 `}
             </div>
-            ${selectedPath && X1`
+            ${selectedPath && ce`
                 <div class="workspace-preview-splitter-h" onMouseDown=${handlePreviewSplitterMouseDown} onTouchStart=${handlePreviewSplitterTouchStart}></div>
                 <div class="workspace-preview">
                     <div class="workspace-preview-header">
@@ -16566,7 +11596,7 @@ function WorkspaceExplorer({
                                     <line x1="5" y1="12" x2="19" y2="12" />
                                 </svg>
                             </button>
-                            ${!selectedIsDir && X1`
+                            ${!selectedIsDir && ce`
                                 <button
                                     class="workspace-download workspace-edit"
                                     onClick=${() => canEdit && onOpenEditorRef.current?.(selectedPath, preview)}
@@ -16594,7 +11624,7 @@ function WorkspaceExplorer({
                                     </svg>
                                 </button>
                             `}
-                            ${selectedIsDir ? X1`
+                            ${selectedIsDir ? ce`
                                     <button class="workspace-download" onClick=${handleUploadButtonClick}
                                         title="Upload files to this folder" disabled=${uploading}>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -16605,15 +11635,15 @@ function WorkspaceExplorer({
                                         </svg>
                                     </button>
                                     <a class="workspace-download" href=${getWorkspaceDownloadUrl(selectedPath, showHidden)} download
-                                        title="Download folder as zip" onClick=${(e2) => e2.stopPropagation()}>
+                                        title="Download folder as zip" onClick=${(e) => e.stopPropagation()}>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                                             <polyline points="7 10 12 15 17 10"/>
                                             <line x1="12" y1="15" x2="12" y2="3"/>
                                         </svg>
-                                    </a>` : X1`<a class="workspace-download" href=${getWorkspaceFileDownloadUrl(selectedPath)} download
-                                        title="Download" onClick=${(e2) => e2.stopPropagation()}>
+                                    </a>` : ce`<a class="workspace-download" href=${getWorkspaceFileDownloadUrl(selectedPath)} download
+                                        title="Download" onClick=${(e) => e.stopPropagation()}>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -16623,25 +11653,25 @@ function WorkspaceExplorer({
                                 </a>`}
                         </div>
                     </div>
-                    ${loadingPreview && X1`<div class="workspace-loading">Loading preview…</div>`}
-                    ${preview?.error && X1`<div class="workspace-error">${preview.error}</div>`}
-                    ${selectedIsDir && X1`
+                    ${loadingPreview && ce`<div class="workspace-loading">Loading preview…</div>`}
+                    ${preview?.error && ce`<div class="workspace-error">${preview.error}</div>`}
+                    ${selectedIsDir && ce`
                         <div class="workspace-preview-text">Folder selected — create file, upload files, or download as zip.</div>
-                        ${folderChart?.loading && X1`<div class="workspace-loading">Loading folder size preview…</div>`}
-                        ${folderChart?.error && X1`<div class="workspace-error">${folderChart.error}</div>`}
-                        ${folderChart?.payload && folderChart.payload.segments?.length > 0 && X1`
+                        ${folderChart?.loading && ce`<div class="workspace-loading">Loading folder size preview…</div>`}
+                        ${folderChart?.error && ce`<div class="workspace-error">${folderChart.error}</div>`}
+                        ${folderChart?.payload && folderChart.payload.segments?.length > 0 && ce`
                             <${FolderStarburstChart} payload=${folderChart.payload} />
                         `}
-                        ${folderChart?.payload && (!folderChart.payload.segments || folderChart.payload.segments.length === 0) && X1`
+                        ${folderChart?.payload && (!folderChart.payload.segments || folderChart.payload.segments.length === 0) && ce`
                             <div class="workspace-preview-text">No file size data available for this folder yet.</div>
                         `}
                     `}
-                    ${preview && !preview.error && !selectedIsDir && X1`
+                    ${preview && !preview.error && !selectedIsDir && ce`
                         <div class="workspace-preview-body" ref=${previewPaneHostRef}></div>
                     `}
                 </div>
             `}
-            ${dragGhost && X1`
+            ${dragGhost && ce`
                 <div class="workspace-drag-ghost" ref=${dragGhostRef}>${dragGhost.label}</div>
             `}
         </aside>
@@ -16705,13 +11735,13 @@ function getStandaloneTabUrl(path, { hasPopOutTab = false } = {}) {
   return null;
 }
 function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseAll, onTogglePin, onTogglePreview, onToggleDiff, onEditSource, previewTabs, diffTabs, paneOverrides, detachedTabs, onReattachTab, onToggleDock, dockVisible, onToggleZen, zenMode, onPopOutTab }) {
-  const [contextMenu, setContextMenu] = v0(null);
-  const stripRef = o0(null);
-  r0(() => {
+  const [contextMenu, setContextMenu] = M_(null);
+  const stripRef = K_(null);
+  J_(() => {
     if (!contextMenu)
       return;
-    const dismiss = (e2) => {
-      if (e2.type === "keydown" && e2.key !== "Escape")
+    const dismiss = (e) => {
+      if (e.type === "keydown" && e.key !== "Escape")
         return;
       setContextMenu(null);
     };
@@ -16722,14 +11752,14 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
       document.removeEventListener("keydown", dismiss);
     };
   }, [contextMenu]);
-  r0(() => {
-    const onKeyDown = (e2) => {
-      if (e2.ctrlKey && e2.key === "Tab") {
-        e2.preventDefault();
+  J_(() => {
+    const onKeyDown = (e) => {
+      if (e.ctrlKey && e.key === "Tab") {
+        e.preventDefault();
         if (!tabs.length)
           return;
-        const idx = tabs.findIndex((t2) => t2.id === activeId);
-        if (e2.shiftKey) {
+        const idx = tabs.findIndex((t) => t.id === activeId);
+        if (e.shiftKey) {
           const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
           onActivate?.(prev.id);
         } else {
@@ -16738,10 +11768,10 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
         }
         return;
       }
-      if ((e2.ctrlKey || e2.metaKey) && e2.key === "w") {
+      if ((e.ctrlKey || e.metaKey) && e.key === "w") {
         const editorPane = document.querySelector(".editor-pane");
         if (editorPane && editorPane.contains(document.activeElement)) {
-          e2.preventDefault();
+          e.preventDefault();
           if (activeId)
             onClose?.(activeId);
         }
@@ -16750,33 +11780,33 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [tabs, activeId, onActivate, onClose]);
-  const handleTabMouseDown = t0((e2, id) => {
-    if (e2.button === 1) {
-      e2.preventDefault();
+  const handleTabMouseDown = X_((e, id) => {
+    if (e.button === 1) {
+      e.preventDefault();
       onClose?.(id);
     }
   }, [onClose]);
-  const handleTabClick = t0((e2, id) => {
-    if (e2.defaultPrevented)
+  const handleTabClick = X_((e, id) => {
+    if (e.defaultPrevented)
       return;
-    if (e2.button === 0) {
+    if (e.button === 0) {
       onActivate?.(id);
     }
   }, [onActivate]);
-  const handleContextMenu = t0((e2, id) => {
-    e2.preventDefault();
-    setContextMenu({ id, x: e2.clientX, y: e2.clientY });
+  const handleContextMenu = X_((e, id) => {
+    e.preventDefault();
+    setContextMenu({ id, x: e.clientX, y: e.clientY });
   }, []);
-  const handleClosePointerDown = t0((e2) => {
-    e2.preventDefault();
-    e2.stopPropagation();
+  const handleClosePointerDown = X_((e) => {
+    e.preventDefault();
+    e.stopPropagation();
   }, []);
-  const handleCloseClick = t0((e2, id) => {
-    e2.preventDefault();
-    e2.stopPropagation();
+  const handleCloseClick = X_((e, id) => {
+    e.preventDefault();
+    e.stopPropagation();
     onClose?.(id);
   }, [onClose]);
-  r0(() => {
+  J_(() => {
     if (!activeId || !stripRef.current)
       return;
     const activeEl = stripRef.current.querySelector(".tab-item.active");
@@ -16784,37 +11814,37 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
       activeEl.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
     }
   }, [activeId]);
-  const getPaneOverride = t0((id) => {
+  const getPaneOverride = X_((id) => {
     if (!(paneOverrides instanceof Map))
       return null;
     return paneOverrides.get(id) || null;
   }, [paneOverrides]);
-  const contextMenuTab = G0(() => tabs.find((tab) => tab.id === contextMenu?.id) || null, [contextMenu?.id, tabs]);
-  const contextMenuCanEditSource = G0(() => {
+  const contextMenuTab = u_(() => tabs.find((tab) => tab.id === contextMenu?.id) || null, [contextMenu?.id, tabs]);
+  const contextMenuCanEditSource = u_(() => {
     const tabId = contextMenu?.id;
     if (!tabId)
       return false;
     return canTabEditSource(tabId, getPaneOverride(tabId), (context) => paneRegistry.resolve(context));
   }, [contextMenu?.id, getPaneOverride]);
-  const contextMenuEditSourceLabel = G0(() => {
+  const contextMenuEditSourceLabel = u_(() => {
     const tabId = contextMenu?.id;
     if (!tabId)
       return "Edit Source";
     return getTabEditSourceLabel(tabId, getPaneOverride(tabId), (context) => paneRegistry.resolve(context));
   }, [contextMenu?.id, getPaneOverride]);
-  const isContextMenuTabDetached = G0(() => {
+  const isContextMenuTabDetached = u_(() => {
     const tabId = contextMenu?.id;
     if (!tabId || !(detachedTabs instanceof Map))
       return false;
     return detachedTabs.has(tabId);
   }, [contextMenu?.id, detachedTabs]);
-  const contextMenuDiffOpen = G0(() => {
+  const contextMenuDiffOpen = u_(() => {
     const tabId = contextMenu?.id;
     if (!tabId || !(diffTabs instanceof Set))
       return false;
     return diffTabs.has(tabId);
   }, [contextMenu?.id, diffTabs]);
-  const contextMenuCanCompareToSaved = G0(() => {
+  const contextMenuCanCompareToSaved = u_(() => {
     const tabId = contextMenu?.id;
     if (!tabId)
       return false;
@@ -16826,20 +11856,20 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
   }, [contextMenu?.id, contextMenuDiffOpen, getPaneOverride, tabs]);
   if (!tabs.length)
     return null;
-  return X1`
+  return ce`
         <div class="tab-strip" ref=${stripRef} role="tablist">
-            ${tabs.map((tab) => X1`
+            ${tabs.map((tab) => ce`
                 <div
                     key=${tab.id}
                     class=${`tab-item${tab.id === activeId ? " active" : ""}${tab.dirty ? " dirty" : ""}${tab.pinned ? " pinned" : ""}`}
                     role="tab"
                     aria-selected=${tab.id === activeId}
                     title=${tab.path}
-                    onMouseDown=${(e2) => handleTabMouseDown(e2, tab.id)}
-                    onClick=${(e2) => handleTabClick(e2, tab.id)}
-                    onContextMenu=${(e2) => handleContextMenu(e2, tab.id)}
+                    onMouseDown=${(e) => handleTabMouseDown(e, tab.id)}
+                    onClick=${(e) => handleTabClick(e, tab.id)}
+                    onContextMenu=${(e) => handleContextMenu(e, tab.id)}
                 >
-                    ${tab.pinned && X1`
+                    ${tab.pinned && ce`
                         <span class="tab-pin-icon" aria-label="Pinned">
                             <svg viewBox="0 0 16 16" width="10" height="10" fill="currentColor">
                                 <path d="M4.456.734a1.75 1.75 0 0 1 2.826.504l.613 1.327a3.1 3.1 0 0 0 2.084 1.707l2.454.584c1.332.317 1.8 1.972.832 2.94L11.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06L10 11.06l-2.204 2.205c-.968.968-2.623.5-2.94-.832l-.584-2.454a3.1 3.1 0 0 0-1.707-2.084l-1.327-.613a1.75 1.75 0 0 1-.504-2.826z"/>
@@ -16847,7 +11877,7 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
                         </span>
                     `}
                     <span class="tab-label">${tab.label}</span>
-                    ${detachedTabs instanceof Map && detachedTabs.has(tab.id) && X1`
+                    ${detachedTabs instanceof Map && detachedTabs.has(tab.id) && ce`
                         <span class="tab-detached-badge" aria-label="Detached" title="Open in separate window">↗</span>
                     `}
                     <button
@@ -16855,18 +11885,18 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
                         class="tab-close"
                         onPointerDown=${handleClosePointerDown}
                         onMouseDown=${handleClosePointerDown}
-                        onClick=${(e2) => handleCloseClick(e2, tab.id)}
+                        onClick=${(e) => handleCloseClick(e, tab.id)}
                         title=${tab.dirty ? "Unsaved changes" : "Close"}
                         aria-label=${tab.dirty ? "Unsaved changes" : `Close ${tab.label}`}
                     >
-                        ${tab.dirty ? X1`<span class="tab-dirty-dot" aria-hidden="true"></span>` : X1`<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" focusable="false" style=${{ pointerEvents: "none" }}>
+                        ${tab.dirty ? ce`<span class="tab-dirty-dot" aria-hidden="true"></span>` : ce`<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" focusable="false" style=${{ pointerEvents: "none" }}>
                                 <line x1="4" y1="4" x2="12" y2="12" style=${{ pointerEvents: "none" }}/>
                                 <line x1="12" y1="4" x2="4" y2="12" style=${{ pointerEvents: "none" }}/>
                             </svg>`}
                     </button>
                 </div>
             `)}
-            ${onToggleDock && X1`
+            ${onToggleDock && ce`
                 <div class="tab-strip-spacer"></div>
                 <button
                     class=${`tab-strip-dock-toggle${dockVisible ? " active" : ""}`}
@@ -16882,7 +11912,7 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
                     </svg>
                 </button>
             `}
-            ${onToggleZen && X1`
+            ${onToggleZen && ce`
                 <button
                     class=${`tab-strip-zen-toggle${zenMode ? " active" : ""}`}
                     onClick=${onToggleZen}
@@ -16891,12 +11921,12 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
                     aria-pressed=${zenMode ? "true" : "false"}
                 >
                     <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        ${zenMode ? X1`<polyline points="4 8 1.5 8 1.5 1.5 14.5 1.5 14.5 8 12 8"/><polyline points="4 8 1.5 8 1.5 14.5 14.5 14.5 14.5 8 12 8"/>` : X1`<polyline points="5.5 1.5 1.5 1.5 1.5 5.5"/><polyline points="10.5 1.5 14.5 1.5 14.5 5.5"/><polyline points="5.5 14.5 1.5 14.5 1.5 10.5"/><polyline points="10.5 14.5 14.5 14.5 14.5 10.5"/>`}
+                        ${zenMode ? ce`<polyline points="4 8 1.5 8 1.5 1.5 14.5 1.5 14.5 8 12 8"/><polyline points="4 8 1.5 8 1.5 14.5 14.5 14.5 14.5 8 12 8"/>` : ce`<polyline points="5.5 1.5 1.5 1.5 1.5 5.5"/><polyline points="10.5 1.5 14.5 1.5 14.5 5.5"/><polyline points="5.5 14.5 1.5 14.5 1.5 10.5"/><polyline points="10.5 14.5 14.5 14.5 14.5 10.5"/>`}
                     </svg>
                 </button>
             `}
         </div>
-        ${contextMenu && X1`
+        ${contextMenu && ce`
             <div class="tab-context-menu" style=${{ left: contextMenu.x + "px", top: contextMenu.y + "px" }}>
                 <button onClick=${() => {
     onClose?.(contextMenu.id);
@@ -16917,26 +11947,26 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
   }}>
                     ${contextMenuTab?.pinned ? "Unpin" : "Pin"}
                 </button>
-                ${contextMenuCanEditSource && onEditSource && X1`
+                ${contextMenuCanEditSource && onEditSource && ce`
                     <button onClick=${() => {
     onEditSource(contextMenu.id);
     setContextMenu(null);
   }}>${contextMenuEditSourceLabel}</button>
                 `}
-                ${isContextMenuTabDetached && onReattachTab && X1`
+                ${isContextMenuTabDetached && onReattachTab && ce`
                     <button onClick=${() => {
     onReattachTab(contextMenu.id);
     setContextMenu(null);
   }}>Reattach</button>
                 `}
-                ${onPopOutTab && !isContextMenuTabDetached && X1`
+                ${onPopOutTab && !isContextMenuTabDetached && ce`
                     <button onClick=${() => {
-    const tab = tabs.find((t2) => t2.id === contextMenu.id);
+    const tab = tabs.find((t) => t.id === contextMenu.id);
     onPopOutTab(contextMenu.id, tab?.label);
     setContextMenu(null);
   }}>Open in Window</button>
                 `}
-                ${contextMenuCanCompareToSaved && onToggleDiff && X1`
+                ${contextMenuCanCompareToSaved && onToggleDiff && ce`
                     <hr />
                     <button onClick=${() => {
     onActivate?.(contextMenu.id);
@@ -16944,7 +11974,7 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
     setContextMenu(null);
   }}>${contextMenuDiffOpen ? "Hide Diff" : "Compare to Saved"}</button>
                 `}
-                ${onTogglePreview && /\.(md|mdx|markdown)$/i.test(contextMenu.id) && X1`
+                ${onTogglePreview && /\.(md|mdx|markdown)$/i.test(contextMenu.id) && ce`
                     <hr />
                     <button onClick=${() => {
     onTogglePreview(contextMenu.id);
@@ -16959,7 +11989,7 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
     });
     if (!standaloneUrl)
       return null;
-    return X1`
+    return ce`
                         <hr />
                         <button onClick=${() => {
       window.open(standaloneUrl, "_blank", "noopener");
@@ -17027,18 +12057,18 @@ function buildTreeFromFlat(flatNodes) {
       gc.parentId = node.id;
     folded.add(child.id);
   }
-  const filteredRoots = roots.filter((r2) => !folded.has(r2.id));
+  const filteredRoots = roots.filter((r) => !folded.has(r.id));
   const stack = [];
-  for (let i3 = filteredRoots.length - 1;i3 >= 0; i3--) {
-    filteredRoots[i3].depth = 0;
-    stack.push(filteredRoots[i3]);
+  for (let i = filteredRoots.length - 1;i >= 0; i--) {
+    filteredRoots[i].depth = 0;
+    stack.push(filteredRoots[i]);
   }
   while (stack.length > 0) {
     const node = stack.pop();
     const isBranch = node.children.length > 1;
-    for (let i3 = node.children.length - 1;i3 >= 0; i3--) {
-      node.children[i3].depth = isBranch ? node.depth + 1 : node.depth;
-      stack.push(node.children[i3]);
+    for (let i = node.children.length - 1;i >= 0; i--) {
+      node.children[i].depth = isBranch ? node.depth + 1 : node.depth;
+      stack.push(node.children[i]);
     }
   }
   return filteredRoots;
@@ -17046,13 +12076,13 @@ function buildTreeFromFlat(flatNodes) {
 function flattenTree2(roots) {
   const result = [];
   const stack = [];
-  for (let i3 = roots.length - 1;i3 >= 0; i3--)
-    stack.push(roots[i3]);
+  for (let i = roots.length - 1;i >= 0; i--)
+    stack.push(roots[i]);
   while (stack.length > 0) {
     const node = stack.pop();
     result.push(node);
-    for (let i3 = node.children.length - 1;i3 >= 0; i3--)
-      stack.push(node.children[i3]);
+    for (let i = node.children.length - 1;i >= 0; i--)
+      stack.push(node.children[i]);
   }
   return result;
 }
@@ -17149,8 +12179,8 @@ function parseTreeNavigationCommand(text) {
     return null;
   let targetId = null;
   let summarize = false;
-  for (let i3 = 1;i3 < parts.length; i3++) {
-    const part = parts[i3];
+  for (let i = 1;i < parts.length; i++) {
+    const part = parts[i];
     if (part === "--summarize") {
       summarize = true;
       continue;
@@ -17221,14 +12251,14 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
   const chatJid = typeof widget?.originChatJid === "string" && widget.originChatJid.trim() ? widget.originChatJid.trim() : null;
   const runtimeState = widget?.runtimeState && typeof widget.runtimeState === "object" ? widget.runtimeState : null;
   const hostUpdate = runtimeState?.lastHostUpdate && typeof runtimeState.lastHostUpdate === "object" ? runtimeState.lastHostUpdate : null;
-  const [state, setState] = v0(() => ({ loading: !initialTree, error: null, data: initialTree }));
-  const [selectedId, setSelectedId] = v0(() => initialTree?.leafId || null);
-  const [searchFilter, setSearchFilter] = v0("");
-  const searchInputRef = o0(null);
-  const activeRowRef = o0(null);
-  const preferredSelectionRef = o0(initialTree?.leafId || null);
-  const loadTreeRef = o0(null);
-  const scheduledRefreshKeyRef = o0("");
+  const [state, setState] = M_(() => ({ loading: !initialTree, error: null, data: initialTree }));
+  const [selectedId, setSelectedId] = M_(() => initialTree?.leafId || null);
+  const [searchFilter, setSearchFilter] = M_("");
+  const searchInputRef = K_(null);
+  const activeRowRef = K_(null);
+  const preferredSelectionRef = K_(initialTree?.leafId || null);
+  const loadTreeRef = K_(null);
+  const scheduledRefreshKeyRef = K_("");
   const loadTree = async () => {
     setState((current) => ({ ...current, loading: true, error: null }));
     try {
@@ -17243,16 +12273,16 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
     }
   };
   loadTreeRef.current = loadTree;
-  r0(() => {
+  J_(() => {
     loadTree();
   }, [chatJid]);
-  const flatRows = G0(() => {
+  const flatRows = u_(() => {
     const data = state.data;
     if (!data || !Array.isArray(data.nodes) || data.nodes.length === 0)
       return [];
     return flattenTree2(data.flat ? buildTreeFromFlat(data.nodes) : data.nodes);
   }, [state.data]);
-  r0(() => {
+  J_(() => {
     const nextSelectedId = resolveTreeSelectionId(flatRows, selectedId, preferredSelectionRef.current, state.data?.leafId || null);
     if (nextSelectedId !== selectedId) {
       setSelectedId(nextSelectedId);
@@ -17261,7 +12291,7 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
       preferredSelectionRef.current = null;
     }
   }, [flatRows, selectedId, state.data?.leafId]);
-  const filteredRows = G0(() => {
+  const filteredRows = u_(() => {
     const q = (searchFilter || "").trim().toLowerCase();
     if (!q)
       return flatRows;
@@ -17278,21 +12308,21 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
         node.type,
         node.label
       ];
-      return fields.some((f2) => typeof f2 === "string" && f2.toLowerCase().includes(q));
+      return fields.some((f) => typeof f === "string" && f.toLowerCase().includes(q));
     });
   }, [flatRows, searchFilter]);
-  const selectedNode = G0(() => filteredRows.find((n2) => n2.id === selectedId) || null, [filteredRows, selectedId]);
-  const hostUpdateSummary = G0(() => describeSessionTreeHostUpdate(hostUpdate), [
+  const selectedNode = u_(() => filteredRows.find((n) => n.id === selectedId) || null, [filteredRows, selectedId]);
+  const hostUpdateSummary = u_(() => describeSessionTreeHostUpdate(hostUpdate), [
     hostUpdate?.type,
     hostUpdate?.preview,
     hostUpdate?.error,
     hostUpdate?.submittedAt
   ]);
-  r0(() => {
+  J_(() => {
     if (activeRowRef.current)
       activeRowRef.current.scrollIntoView({ block: "center", behavior: "auto" });
   }, [selectedId, state.data?.leafId, filteredRows.length]);
-  r0(() => {
+  J_(() => {
     const parsed = parseTreeNavigationCommand(hostUpdate?.preview);
     if (parsed?.targetId) {
       preferredSelectionRef.current = parsed.targetId;
@@ -17316,7 +12346,7 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
     onWidgetEvent?.({ kind: "widget.submit", payload }, widget);
   };
   const hostUpdateTone = hostUpdateSummary?.tone || "info";
-  return X1`
+  return ce`
         <div class="session-tree-widget">
             <div class="session-tree-toolbar">
                 <div class="session-tree-toolbar-left">
@@ -17324,54 +12354,54 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
                     <input ref=${searchInputRef}
                         class="st-search-input" type="text" placeholder="Filter\u2026"
                         value=${searchFilter}
-                        onInput=${(e2) => setSearchFilter(e2.currentTarget.value)}
-                        onKeyDown=${(e2) => {
-    if (e2.key === "Escape") {
+                        onInput=${(e) => setSearchFilter(e.currentTarget.value)}
+                        onKeyDown=${(e) => {
+    if (e.key === "Escape") {
       setSearchFilter("");
-      e2.currentTarget.blur();
+      e.currentTarget.blur();
     }
   }}
                     />
-                    ${searchFilter && X1`<span class="session-tree-meta">${filteredRows.length} match${filteredRows.length !== 1 ? "es" : ""}</span>`}
-                    ${state.error && X1`<span class="session-tree-error-inline">${state.error}</span>`}
+                    ${searchFilter && ce`<span class="session-tree-meta">${filteredRows.length} match${filteredRows.length !== 1 ? "es" : ""}</span>`}
+                    ${state.error && ce`<span class="session-tree-error-inline">${state.error}</span>`}
                 </div>
                 <div class="session-tree-toolbar-right">
-                    ${hostUpdateSummary?.text && X1`<span class=${`session-tree-host-update ${hostUpdateTone}`}>${hostUpdateSummary.text}</span>`}
-                    ${state.data?.capped && X1`<span class="session-tree-meta">Showing ${state.data?.nodes?.length || 0} of ${state.data?.total || 0}</span>`}
-                    ${chatJid && X1`<span class="session-tree-meta">${chatJid}</span>`}
+                    ${hostUpdateSummary?.text && ce`<span class=${`session-tree-host-update ${hostUpdateTone}`}>${hostUpdateSummary.text}</span>`}
+                    ${state.data?.capped && ce`<span class="session-tree-meta">Showing ${state.data?.nodes?.length || 0} of ${state.data?.total || 0}</span>`}
+                    ${chatJid && ce`<span class="session-tree-meta">${chatJid}</span>`}
                 </div>
             </div>
 
             <div class="session-tree-content">
                 <div class="session-tree-list" role="tree" aria-label="Session tree">
-                    ${state.loading && filteredRows.length === 0 && !searchFilter && X1`<div class="session-tree-empty">Loading session tree\u2026</div>`}
-                    ${!state.loading && filteredRows.length === 0 && !searchFilter && X1`<div class="session-tree-empty">Session tree is empty.</div>`}
-                    ${!state.loading && filteredRows.length === 0 && searchFilter && X1`<div class="session-tree-empty">No entries match \u201c${searchFilter}\u201d</div>`}
+                    ${state.loading && filteredRows.length === 0 && !searchFilter && ce`<div class="session-tree-empty">Loading session tree\u2026</div>`}
+                    ${!state.loading && filteredRows.length === 0 && !searchFilter && ce`<div class="session-tree-empty">Session tree is empty.</div>`}
+                    ${!state.loading && filteredRows.length === 0 && searchFilter && ce`<div class="session-tree-empty">No entries match \u201c${searchFilter}\u201d</div>`}
                     ${filteredRows.map((node) => {
     const sel = selectedId === node.id;
     const rowClass = `st-row${node.active ? " active" : ""}${sel ? " selected" : ""}`;
     const hasBranch = (node.children || []).length > 1;
-    const d2 = getRowDisplay(node);
-    return X1`
+    const d = getRowDisplay(node);
+    return ce`
                             <button key=${node.id} ref=${node.active || sel ? activeRowRef : null}
                                 class=${rowClass} type="button" role="treeitem" aria-selected=${sel}
                                 onClick=${() => setSelectedId(node.id)}>
                                 <span class="st-indent" style=${`width:${(node.depth || 0) * 16 + 6}px`}></span>
                                 <span class=${`st-dot${node.active ? " active" : hasBranch ? " branch" : ""}`}></span>
-                                <span class=${`st-tag ${d2.tagClass}`}>${d2.tag}</span>
-                                <span class="st-text">${d2.text}</span>
-                                ${node.merged && node.resultLength > 0 && X1`<span class="st-size">${formatSize(node.resultLength)}</span>`}
-                                ${!node.merged && node.contentLength > 3000 && X1`<span class="st-size">${formatSize(node.contentLength)}</span>`}
-                                ${node.hasThinking && X1`<span class="st-badge thinking">\u{1F4AD}</span>`}
-                                ${node.label && X1`<span class="st-label">${node.label}</span>`}
-                                ${node.active && X1`<span class="st-active">\u25C0</span>`}
+                                <span class=${`st-tag ${d.tagClass}`}>${d.tag}</span>
+                                <span class="st-text">${d.text}</span>
+                                ${node.merged && node.resultLength > 0 && ce`<span class="st-size">${formatSize(node.resultLength)}</span>`}
+                                ${!node.merged && node.contentLength > 3000 && ce`<span class="st-size">${formatSize(node.contentLength)}</span>`}
+                                ${node.hasThinking && ce`<span class="st-badge thinking">\u{1F4AD}</span>`}
+                                ${node.label && ce`<span class="st-label">${node.label}</span>`}
+                                ${node.active && ce`<span class="st-active">\u25C0</span>`}
                             </button>
                         `;
   })}
                 </div>
 
                 <aside class="session-tree-sidebar">
-                    ${selectedNode ? X1`
+                    ${selectedNode ? ce`
                         <div class="st-side-section">
                             <div class="st-side-label">Entry</div>
                             <div class="st-side-mono">${selectedNode.id}${selectedNode.resultId ? ` → ${selectedNode.resultId}` : ""}</div>
@@ -17380,43 +12410,43 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
                             <div class="st-side-label">Type</div>
                             <div class="st-side-value">${selectedNode.role || selectedNode.type || "entry"}${selectedNode.toolName ? ` → ${selectedNode.toolName}` : ""}${selectedNode.merged ? " (merged)" : ""}</div>
                         </div>
-                        ${selectedNode.toolInputFull && X1`
+                        ${selectedNode.toolInputFull && ce`
                             <div class="st-side-section">
                                 <div class="st-side-label">${selectedNode.toolName === "bash" ? "Command" : "Input"}</div>
                                 <pre class="st-side-code">${selectedNode.toolInputFull}</pre>
                             </div>
                         `}
-                        ${selectedNode.resultDetail && X1`
+                        ${selectedNode.resultDetail && ce`
                             <div class="st-side-section">
                                 <div class="st-side-label">Result${selectedNode.resultLength ? ` (${formatSizeLong(selectedNode.resultLength)})` : ""}</div>
                                 <pre class="st-side-code">${selectedNode.resultDetail}</pre>
                             </div>
                         `}
-                        ${selectedNode.detail && !selectedNode.toolInput && X1`
+                        ${selectedNode.detail && !selectedNode.toolInput && ce`
                             <div class="st-side-section">
                                 <div class="st-side-label">${selectedNode.role === "toolResult" ? "Output" : "Content"}${selectedNode.contentLength ? ` (${formatSizeLong(selectedNode.contentLength)})` : ""}</div>
                                 <pre class="st-side-code">${selectedNode.detail}</pre>
                             </div>
                         `}
-                        ${selectedNode.rawDetail && X1`
+                        ${selectedNode.rawDetail && ce`
                             <div class="st-side-section">
                                 <div class="st-side-label">Raw prompt${selectedNode.rawContentLength ? ` (${formatSizeLong(selectedNode.rawContentLength)})` : ""}</div>
                                 <pre class="st-side-code">${selectedNode.rawDetail}</pre>
                             </div>
                         `}
-                        ${selectedNode.timestamp && X1`
+                        ${selectedNode.timestamp && ce`
                             <div class="st-side-section">
                                 <div class="st-side-label">Time</div>
                                 <div class="st-side-value">${new Date(selectedNode.timestamp).toLocaleString()}</div>
                             </div>
                         `}
-                        ${(selectedNode.contentLength > 0 || selectedNode.hasThinking) && X1`
+                        ${(selectedNode.contentLength > 0 || selectedNode.hasThinking) && ce`
                             <div class="st-side-section">
                                 <div class="st-side-label">Size</div>
                                 <div class="st-side-badges">
-                                    ${selectedNode.contentLength > 0 && X1`<span class="st-pill">${formatSizeLong(selectedNode.contentLength)} content</span>`}
-                                    ${selectedNode.hasThinking && X1`<span class="st-pill thinking">${formatSizeLong(selectedNode.thinkingLength)} thinking</span>`}
-                                    ${selectedNode.merged && selectedNode.resultLength > 0 && X1`<span class="st-pill">${formatSizeLong(selectedNode.resultLength)} result</span>`}
+                                    ${selectedNode.contentLength > 0 && ce`<span class="st-pill">${formatSizeLong(selectedNode.contentLength)} content</span>`}
+                                    ${selectedNode.hasThinking && ce`<span class="st-pill thinking">${formatSizeLong(selectedNode.thinkingLength)} thinking</span>`}
+                                    ${selectedNode.merged && selectedNode.resultLength > 0 && ce`<span class="st-pill">${formatSizeLong(selectedNode.resultLength)} result</span>`}
                                 </div>
                             </div>
                         `}
@@ -17424,7 +12454,7 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
                             <button class="session-tree-btn primary" type="button" onClick=${() => submitNavigation(false)}>Navigate here</button>
                             <button class="session-tree-btn" type="button" onClick=${() => submitNavigation(true)}>Navigate + summarize</button>
                         </div>
-                    ` : X1`<div class="session-tree-empty side">Select an entry to inspect.</div>`}
+                    ` : ce`<div class="session-tree-empty side">Select an entry to inspect.</div>`}
                 </aside>
             </div>
         </div>
@@ -17433,9 +12463,9 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
 
 // web/src/components/floating-widget-pane.ts
 function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
-  const frameRef = o0(null);
-  const frameLoadedRef = o0(false);
-  const srcDoc = G0(() => buildWidgetSrcDoc(widget), [
+  const frameRef = K_(null);
+  const frameLoadedRef = K_(false);
+  const srcDoc = u_(() => buildWidgetSrcDoc(widget), [
     widget?.artifact?.kind,
     widget?.artifact?.html,
     widget?.artifact?.svg,
@@ -17444,20 +12474,20 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
     widget?.turnId,
     widget?.title
   ]);
-  r0(() => {
+  J_(() => {
     if (!widget)
       return;
-    const handleEsc = (e2) => {
-      if (e2.key === "Escape")
+    const handleEsc = (e) => {
+      if (e.key === "Escape")
         onClose?.();
     };
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
   }, [widget, onClose]);
-  r0(() => {
+  J_(() => {
     frameLoadedRef.current = false;
   }, [srcDoc]);
-  r0(() => {
+  J_(() => {
     if (!widget)
       return;
     const iframe = frameRef.current;
@@ -17492,7 +12522,7 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
       retryTimers.forEach((timer) => clearTimeout(timer));
     };
   }, [srcDoc, widget?.widgetId, widget?.toolCallId, widget?.turnId]);
-  r0(() => {
+  J_(() => {
     if (!widget)
       return;
     const iframe = frameRef.current;
@@ -17522,7 +12552,7 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
     widget?.height,
     widget?.runtimeState
   ]);
-  r0(() => {
+  J_(() => {
     if (!widget)
       return;
     const handleMessage = (event) => {
@@ -17557,18 +12587,18 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
   const emptyState = !srcDoc;
   const emptyMessage = getGeneratedWidgetEmptyStateMessage(widget);
   const sandbox = getGeneratedWidgetIframeSandbox(widget);
-  return X1`
+  return ce`
         <div class="floating-widget-backdrop" onClick=${() => onClose?.()}>
             <section
                 class="floating-widget-pane"
                 aria-label=${title}
-                onClick=${(e2) => e2.stopPropagation()}
+                onClick=${(e) => e.stopPropagation()}
             >
                 <div class="floating-widget-header">
                     <div class="floating-widget-heading">
                         <div class="floating-widget-eyebrow">${originLabel} • ${kind.toUpperCase()}</div>
                         <div class="floating-widget-title">${title}</div>
-                        ${(subtitle || description) && X1`
+                        ${(subtitle || description) && ce`
                             <div class="floating-widget-subtitle">${subtitle || description}</div>
                         `}
                     </div>
@@ -17583,7 +12613,7 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
                     </button>
                 </div>
                 <div class="floating-widget-body">
-                    ${kind === "session_tree" ? X1`<${SessionTreeWidget} widget=${widget} onWidgetEvent=${onWidgetEvent} />` : emptyState ? X1`<div class="floating-widget-empty">${emptyMessage}</div>` : X1`
+                    ${kind === "session_tree" ? ce`<${SessionTreeWidget} widget=${widget} onWidgetEvent=${onWidgetEvent} />` : emptyState ? ce`<div class="floating-widget-empty">${emptyMessage}</div>` : ce`
                                 <iframe
                                     ref=${frameRef}
                                     class="floating-widget-frame"
@@ -17882,43 +12912,43 @@ function buildFrameUrl(mediaId, filename, previewKind) {
 }
 function AttachmentPreviewModal({ mediaId, info, onClose }) {
   const filename = info?.filename || `attachment-${mediaId}`;
-  const previewKind = G0(() => getAttachmentPreviewKind(info?.content_type, filename), [info?.content_type, filename]);
+  const previewKind = u_(() => getAttachmentPreviewKind(info?.content_type, filename), [info?.content_type, filename]);
   const previewLabel = getAttachmentPreviewLabel(previewKind);
-  const isMarkdown = G0(() => isMarkdownAttachmentPreview(info?.content_type), [info?.content_type]);
-  const [loading, setLoading] = v0(previewKind === "text" || previewKind === "html" || previewKind === "archive");
-  const [textContent, setTextContent] = v0("");
-  const [archivePreview, setArchivePreview] = v0(null);
-  const [error, setError] = v0(null);
-  const markdownContainerRef = o0(null);
-  const previewLanguage = G0(() => previewLanguageFromAttachment(info, filename), [info, filename]);
-  const previewLanguageLabel = G0(() => previewLanguage ? normalizeCodeLanguageLabel(previewLanguage) : null, [previewLanguage]);
-  const metadata = G0(() => buildMetadata(info, !isMarkdown ? previewLanguageLabel : null, archivePreview), [info, isMarkdown, previewLanguageLabel, archivePreview]);
-  const frameUrl = G0(() => buildFrameUrl(mediaId, filename, previewKind), [mediaId, filename, previewKind]);
-  const renderedMarkdown = G0(() => {
+  const isMarkdown = u_(() => isMarkdownAttachmentPreview(info?.content_type), [info?.content_type]);
+  const [loading, setLoading] = M_(previewKind === "text" || previewKind === "html" || previewKind === "archive");
+  const [textContent, setTextContent] = M_("");
+  const [archivePreview, setArchivePreview] = M_(null);
+  const [error, setError] = M_(null);
+  const markdownContainerRef = K_(null);
+  const previewLanguage = u_(() => previewLanguageFromAttachment(info, filename), [info, filename]);
+  const previewLanguageLabel = u_(() => previewLanguage ? normalizeCodeLanguageLabel(previewLanguage) : null, [previewLanguage]);
+  const metadata = u_(() => buildMetadata(info, !isMarkdown ? previewLanguageLabel : null, archivePreview), [info, isMarkdown, previewLanguageLabel, archivePreview]);
+  const frameUrl = u_(() => buildFrameUrl(mediaId, filename, previewKind), [mediaId, filename, previewKind]);
+  const renderedMarkdown = u_(() => {
     if (!isMarkdown || !textContent)
       return "";
     return renderMarkdown(textContent);
   }, [isMarkdown, textContent]);
-  const highlightedText = G0(() => {
+  const highlightedText = u_(() => {
     if (isMarkdown || !textContent || !previewLanguage)
       return "";
     return highlightCodeToHtml(textContent, previewLanguage);
   }, [isMarkdown, textContent, previewLanguage]);
-  r0(() => {
-    const handleEsc = (e2) => {
-      if (e2.key === "Escape")
+  J_(() => {
+    const handleEsc = (e) => {
+      if (e.key === "Escape")
         onClose();
     };
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
   }, [onClose]);
-  r0(() => {
+  J_(() => {
     if (!markdownContainerRef.current || !renderedMarkdown)
       return;
     renderMermaidDiagrams(markdownContainerRef.current);
     return;
   }, [renderedMarkdown]);
-  r0(() => {
+  J_(() => {
     let cancelled = false;
     async function loadPreview() {
       if (previewKind !== "text" && previewKind !== "html" && previewKind !== "archive") {
@@ -17962,11 +12992,11 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
       cancelled = true;
     };
   }, [mediaId, previewKind]);
-  return X1`
+  return ce`
         <${BodyPortal} className="attachment-preview-portal-root">
             <div class="image-modal attachment-preview-modal" onClick=${onClose}>
-                <div class="attachment-preview-shell" onClick=${(e2) => {
-    e2.stopPropagation();
+                <div class="attachment-preview-shell" onClick=${(e) => {
+    e.stopPropagation();
   }}>
                     <div class="attachment-preview-header">
                         <div class="attachment-preview-heading">
@@ -17974,13 +13004,13 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
                             <div class="attachment-preview-subtitle">${previewLabel}</div>
                         </div>
                         <div class="attachment-preview-header-actions">
-                            ${frameUrl && X1`
+                            ${frameUrl && ce`
                                 <a
                                     href=${frameUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     class="attachment-preview-download"
-                                    onClick=${(e2) => e2.stopPropagation()}
+                                    onClick=${(e) => e.stopPropagation()}
                                 >
                                     Open in Tab
                                 </a>
@@ -17989,7 +13019,7 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
                                 href=${getMediaUrl(mediaId)}
                                 download=${filename}
                                 class="attachment-preview-download"
-                                onClick=${(e2) => e2.stopPropagation()}
+                                onClick=${(e) => e.stopPropagation()}
                             >
                                 Download
                             </a>
@@ -17997,24 +13027,24 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
                         </div>
                     </div>
                     <div class="attachment-preview-body">
-                        ${loading && X1`<div class="attachment-preview-state">Loading preview…</div>`}
-                        ${!loading && error && X1`<div class="attachment-preview-state">${error}</div>`}
-                        ${!loading && !error && previewKind === "image" && X1`
+                        ${loading && ce`<div class="attachment-preview-state">Loading preview…</div>`}
+                        ${!loading && error && ce`<div class="attachment-preview-state">${error}</div>`}
+                        ${!loading && !error && previewKind === "image" && ce`
                             <img class="attachment-preview-image" src=${getMediaUrl(mediaId)} alt=${filename} />
                         `}
-                        ${!loading && !error && previewKind === "video" && X1`
+                        ${!loading && !error && previewKind === "video" && ce`
                             <video class="attachment-preview-video" src=${getMediaUrl(mediaId)} controls autoplay style="max-width:100%;max-height:100%;" />
                         `}
-                        ${!loading && !error && previewKind === "html" && X1`
+                        ${!loading && !error && previewKind === "html" && ce`
                             <iframe class="attachment-preview-frame" srcdoc=${textContent || ""} sandbox=${HTML_ATTACHMENT_PREVIEW_SANDBOX} title=${filename}></iframe>
                         `}
-                        ${!loading && !error && (previewKind === "pdf" || previewKind === "office" || previewKind === "drawio") && frameUrl && X1`
+                        ${!loading && !error && (previewKind === "pdf" || previewKind === "office" || previewKind === "drawio") && frameUrl && ce`
                             <iframe class="attachment-preview-frame" src=${frameUrl} title=${filename}></iframe>
                         `}
-                        ${!loading && !error && previewKind === "drawio" && X1`
+                        ${!loading && !error && previewKind === "drawio" && ce`
                             <div class="attachment-preview-readonly-note">Draw.io preview is read-only. Editing tools are disabled in this preview.</div>
                         `}
-                        ${!loading && !error && previewKind === "archive" && archivePreview && X1`
+                        ${!loading && !error && previewKind === "archive" && archivePreview && ce`
                             <div class="attachment-preview-archive">
                                 <div class="attachment-preview-archive-summary">
                                     <div class="attachment-preview-archive-card">
@@ -18046,7 +13076,7 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            ${archivePreview.entries.map((entry) => X1`
+                                            ${archivePreview.entries.map((entry) => ce`
                                                 <tr key=${entry.path}>
                                                     <td class="attachment-preview-archive-name">${entry.path}</td>
                                                     <td>${entry.isDirectory ? "Folder" : "File"}</td>
@@ -18060,27 +13090,27 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
                                 </div>
                             </div>
                         `}
-                        ${!loading && !error && previewKind === "text" && isMarkdown && X1`
+                        ${!loading && !error && previewKind === "text" && isMarkdown && ce`
                             <div
                                 ref=${markdownContainerRef}
                                 class="attachment-preview-markdown post-content"
                                 dangerouslySetInnerHTML=${{ __html: renderedMarkdown }}
                             />
                         `}
-                        ${!loading && !error && previewKind === "text" && !isMarkdown && highlightedText && X1`
+                        ${!loading && !error && previewKind === "text" && !isMarkdown && highlightedText && ce`
                             <pre class="attachment-preview-text attachment-preview-code"><code dangerouslySetInnerHTML=${{ __html: highlightedText }} /></pre>
                         `}
-                        ${!loading && !error && previewKind === "text" && !isMarkdown && !highlightedText && X1`
+                        ${!loading && !error && previewKind === "text" && !isMarkdown && !highlightedText && ce`
                             <pre class="attachment-preview-text">${textContent}</pre>
                         `}
-                        ${!loading && !error && previewKind === "unsupported" && X1`
+                        ${!loading && !error && previewKind === "unsupported" && ce`
                             <div class="attachment-preview-state">
                                 Preview is not available for this file type yet. You can still download it directly.
                             </div>
                         `}
                     </div>
                     <div class="attachment-preview-meta">
-                        ${metadata.map((entry) => X1`
+                        ${metadata.map((entry) => ce`
                             <div class="attachment-preview-meta-item" key=${entry.label}>
                                 <span class="attachment-preview-meta-label">${entry.label}</span>
                                 <span class="attachment-preview-meta-value">${entry.value}</span>
@@ -18140,19 +13170,19 @@ function buildSparklinePath(series, width = 56, height = 16, options = {}) {
   const minValue = Number.isFinite(options.min) ? Number(options.min) : Math.min(...points);
   const maxValue = Number.isFinite(options.max) ? Number(options.max) : Math.max(...points);
   if (!(maxValue > minValue)) {
-    const y2 = (height / 2).toFixed(2);
-    return `M 0 ${y2} L ${width} ${y2}`;
+    const y = (height / 2).toFixed(2);
+    return `M 0 ${y} L ${width} ${y}`;
   }
   if (points.length === 1) {
     const normalized = (points[0] - minValue) / (maxValue - minValue);
-    const y2 = (height - normalized * height).toFixed(2);
-    return `M 0 ${y2} L ${width} ${y2}`;
+    const y = (height - normalized * height).toFixed(2);
+    return `M 0 ${y} L ${width} ${y}`;
   }
   return points.map((value, index) => {
-    const x3 = index / (points.length - 1 || 1) * width;
+    const x = index / (points.length - 1 || 1) * width;
     const normalized = (value - minValue) / (maxValue - minValue);
-    const y2 = height - normalized * height;
-    return `${index === 0 ? "M" : "L"} ${x3.toFixed(2)} ${y2.toFixed(2)}`;
+    const y = height - normalized * height;
+    return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
   }).join(" ");
 }
 function formatPercent(value) {
@@ -18194,10 +13224,10 @@ function readIsNarrowLayout() {
   return window.matchMedia("(max-width: 900px)").matches;
 }
 function SystemMetersHud({ mode = "overlay" }) {
-  const [enabled, setEnabled] = v0(() => readStoredMetersEnabled(false));
-  const [collapsed, setCollapsed] = v0(() => readStoredMetersCollapsed(false));
-  const [isNarrowLayout, setIsNarrowLayout] = v0(() => readIsNarrowLayout());
-  const [metrics, setMetrics] = v0({
+  const [enabled, setEnabled] = M_(() => readStoredMetersEnabled(false));
+  const [collapsed, setCollapsed] = M_(() => readStoredMetersCollapsed(false));
+  const [isNarrowLayout, setIsNarrowLayout] = M_(() => readIsNarrowLayout());
+  const [metrics, setMetrics] = M_({
     cpu_percent: 0,
     ram_percent: 0,
     swap_percent: null,
@@ -18214,8 +13244,8 @@ function SystemMetersHud({ mode = "overlay" }) {
     sample_interval_ms: 2000,
     platform: ""
   });
-  const [loading, setLoading] = v0(false);
-  r0(() => {
+  const [loading, setLoading] = M_(false);
+  J_(() => {
     const onMetersChange = (event) => {
       setEnabled(Boolean(event?.detail?.enabled));
     };
@@ -18229,7 +13259,7 @@ function SystemMetersHud({ mode = "overlay" }) {
       window.removeEventListener(METERS_COLLAPSED_EVENT_NAME, onMetersCollapsedChange);
     };
   }, []);
-  r0(() => {
+  J_(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function")
       return;
     const mediaQuery = window.matchMedia("(max-width: 900px)");
@@ -18244,7 +13274,7 @@ function SystemMetersHud({ mode = "overlay" }) {
   }, []);
   const activeMode = "overlay";
   const isActiveInstance = mode === activeMode;
-  r0(() => {
+  J_(() => {
     if (!enabled || !isActiveInstance)
       return;
     let cancelled = false;
@@ -18292,14 +13322,14 @@ function SystemMetersHud({ mode = "overlay" }) {
         window.clearInterval(timer);
     };
   }, [enabled, isActiveInstance]);
-  const cpuPath = G0(() => buildSparklinePath(metrics.cpu_series, 56, 16, { min: 0, max: 100 }), [metrics.cpu_series]);
-  const ramPath = G0(() => buildSparklinePath(metrics.ram_series, 56, 16, { min: 0, max: 100 }), [metrics.ram_series]);
-  const swapPath = G0(() => buildSparklinePath(metrics.swap_series, 56, 16, { min: 0, max: 100 }), [metrics.swap_series]);
-  const rssPath = G0(() => buildSparklinePath(metrics.process_rss_series_bytes), [metrics.process_rss_series_bytes]);
+  const cpuPath = u_(() => buildSparklinePath(metrics.cpu_series, 56, 16, { min: 0, max: 100 }), [metrics.cpu_series]);
+  const ramPath = u_(() => buildSparklinePath(metrics.ram_series, 56, 16, { min: 0, max: 100 }), [metrics.ram_series]);
+  const swapPath = u_(() => buildSparklinePath(metrics.swap_series, 56, 16, { min: 0, max: 100 }), [metrics.swap_series]);
+  const rssPath = u_(() => buildSparklinePath(metrics.process_rss_series_bytes), [metrics.process_rss_series_bytes]);
   const showSwap = Number.isFinite(Number(metrics.swap_percent)) && metrics.swap_total_bytes > 0;
   const currentRssBytes = resolveCurrentRssBytes(metrics);
   const showRss = shouldShowRss(metrics);
-  const compactSummary = G0(() => buildCompactMetersSummary(metrics), [metrics]);
+  const compactSummary = u_(() => buildCompactMetersSummary(metrics), [metrics]);
   if (!enabled || !isActiveInstance)
     return null;
   const title = collapsed ? "Show system meters" : loading ? "Updating system meters… Click to collapse." : "System meters — click to collapse.";
@@ -18307,7 +13337,7 @@ function SystemMetersHud({ mode = "overlay" }) {
     event?.stopPropagation?.();
     toggleMetersCollapsed();
   };
-  return X1`
+  return ce`
         <div class=${`system-meters-hud system-meters-hud-${mode}${collapsed ? " is-collapsed" : ""}`} aria-live="polite">
             <button
                 class="system-meters-card"
@@ -18317,7 +13347,7 @@ function SystemMetersHud({ mode = "overlay" }) {
                 aria-expanded=${collapsed ? "false" : "true"}
                 onClick=${handleToggleCollapsed}
             >
-                ${collapsed ? X1`<span class="system-meters-collapse-tab" aria-hidden="true">◂</span>` : isNarrowLayout ? X1`<span class="system-meters-compact-summary">${compactSummary}</span>` : X1`
+                ${collapsed ? ce`<span class="system-meters-collapse-tab" aria-hidden="true">◂</span>` : isNarrowLayout ? ce`<span class="system-meters-compact-summary">${compactSummary}</span>` : ce`
                             <div class="system-meters-row cpu">
                                 <span class="system-meters-label">CPU</span>
                                 <svg class="system-meters-spark" viewBox="0 0 56 16" preserveAspectRatio="none" aria-hidden="true">
@@ -18332,7 +13362,7 @@ function SystemMetersHud({ mode = "overlay" }) {
                                 </svg>
                                 <span class="system-meters-value">${formatPercent(metrics.ram_percent)}</span>
                             </div>
-                            ${showRss && X1`
+                            ${showRss && ce`
                                 <div class="system-meters-row rss">
                                     <span class="system-meters-label">RSS</span>
                                     <svg class="system-meters-spark" viewBox="0 0 56 16" preserveAspectRatio="none" aria-hidden="true">
@@ -18341,7 +13371,7 @@ function SystemMetersHud({ mode = "overlay" }) {
                                     <span class="system-meters-value">${formatBytesCompact(currentRssBytes)}</span>
                                 </div>
                             `}
-                            ${showSwap && X1`
+                            ${showSwap && ce`
                                 <div class="system-meters-row swap">
                                     <span class="system-meters-label">SWP</span>
                                     <svg class="system-meters-spark" viewBox="0 0 56 16" preserveAspectRatio="none" aria-hidden="true">
@@ -18356,6 +13386,2382 @@ function SystemMetersHud({ mode = "overlay" }) {
     `;
 }
 
+// web/src/ui/recent-files.ts
+var RECENT_FILES_KEY = "piclaw_recent_files";
+var MAX_RECENT_FILES = 5;
+function isIgnoredPath(path) {
+  const normalizedPath = path.trim();
+  const legacyPath = normalizedPath.replace(/^\/+/, "");
+  return legacyPath.startsWith("__terminal") || legacyPath.startsWith("__vnc") || normalizedPath.startsWith("piclaw://terminal") || normalizedPath.startsWith("piclaw://vnc");
+}
+function normalizeRecentFiles(value) {
+  if (!Array.isArray(value))
+    return [];
+  const files = [];
+  const seen = new Set;
+  for (const entry of value) {
+    if (typeof entry !== "string")
+      continue;
+    const path = entry.trim();
+    if (!path || isIgnoredPath(path) || seen.has(path))
+      continue;
+    seen.add(path);
+    files.push(path);
+    if (files.length >= MAX_RECENT_FILES)
+      break;
+  }
+  return files;
+}
+function getRecentFiles() {
+  try {
+    if (typeof localStorage === "undefined")
+      return [];
+    const raw = localStorage.getItem(RECENT_FILES_KEY);
+    if (!raw)
+      return [];
+    return normalizeRecentFiles(JSON.parse(raw));
+  } catch (error) {
+    console.warn("[recent-files] Failed to read recent files from localStorage.", error);
+    return [];
+  }
+}
+
+// web/src/utils/i18n.ts
+var DEFAULT_LOCALE = "en";
+var SUPPORTED_LOCALES = ["en", "zh-CN", "ja"];
+var LOCALE_LABELS = {
+  en: "English",
+  "zh-CN": "简体中文",
+  ja: "日本語"
+};
+var LOCALE_STORAGE_KEY = "piclaw_locale";
+var LOCALE_CHANGE_EVENT = "piclaw-locale-change";
+var EN = {
+  "compose.placeholder": "Message (Enter to send, Shift+Enter for newline)...",
+  "compose.send": "Send",
+  "compose.stop": "Stop",
+  "compose.searchPlaceholder": "Search (Enter to run)...",
+  "compose.clearAll": "Clear all",
+  "compose.clearAllTitle": "Clear all attachments and references",
+  "compose.scope": "Scope",
+  "compose.searchScope": "Search scope",
+  "compose.scopeCurrent": "Current",
+  "compose.scopeBranchFamily": "Branch family",
+  "compose.scopeAll": "All chats",
+  "compose.filterImages": "Images",
+  "compose.filterAttachments": "Attachments",
+  "compose.search": "Search",
+  "compose.closeSearch": "Close search",
+  "compose.shareLocation": "Share location",
+  "compose.attachFile": "Attach file",
+  "compose.queueControls": "Queued follow-up controls",
+  "compose.moveUp": "Move up",
+  "compose.moveUpQueue": "Move up in queue",
+  "compose.moveDown": "Move down",
+  "compose.moveDownQueue": "Move down in queue",
+  "compose.editInCompose": "Edit in compose",
+  "compose.returnToEditor": "Return queued message to editor",
+  "compose.injectSteer": "Inject queued follow-up as steer",
+  "compose.steer": "Steer",
+  "compose.cancelQueued": "Cancel queued message",
+  "compose.resizeInput": "Resize message input",
+  "compose.resizeInputHint": "Drag to resize message input",
+  "compose.modelPicker": "Model picker",
+  "compose.sessionsAndAgents": "Sessions and agents",
+  "compose.openModelPicker": "Open model picker",
+  "compose.newBranchTitle": "Create a new branch from this chat",
+  "compose.newRootTitle": "Create a clean root session such as web:ops",
+  "compose.renameSessionTitle": "Rename the current session",
+  "compose.pruneSessionTitle": "Delete (prune) current agent/session branch",
+  "compose.filterImagesTitle": "Only show messages with images",
+  "compose.filterAttachmentsTitle": "Only show messages with attachments",
+  "compose.selectModel": "Select model",
+  "compose.loadingModels": "Loading models…",
+  "compose.noModels": "No models available.",
+  "compose.nextModel": "Next model",
+  "compose.manageSessions": "Manage sessions & agents",
+  "compose.noSessions": "No other sessions yet.",
+  "compose.newBranch": "New branch",
+  "compose.newRoot": "New root…",
+  "compose.mergeCurrent": "Merge current w/ parent",
+  "compose.renameCurrent": "Rename current…",
+  "compose.deleteCurrent": "Delete current…",
+  "compose.mergeInto": "Merge this branch into {target}",
+  "compose.mergeBlocked": "This branch cannot be merged while active or while it has children",
+  "workspace.title": "Workspace",
+  "workspace.moveConfirm": 'Move {entry} "{name}" from {source} to {target}?',
+  "workspace.root": "the workspace root",
+  "workspace.file": "file",
+  "workspace.folder": "folder",
+  "workspace.newFile": "New file",
+  "workspace.refresh": "Refresh",
+  "workspace.actions": "Workspace actions",
+  "workspace.uploadFiles": "Upload files",
+  "workspace.reindexing": "Reindexing workspace…",
+  "workspace.deleteFile": "Delete file",
+  "workspace.download": "Download",
+  "workspace.uploadToFolder": "Upload files to this folder",
+  "workspace.addFolderHint": "Add folder hint to compose",
+  "workspace.downloadZip": "Download folder as zip",
+  "workspace.openInTab": "Open in tab",
+  "workspace.openInEditor": "Open in editor",
+  "workspace.renameSelected": "Rename selected",
+  "workspace.downloadSelectedFile": "Download selected file",
+  "workspace.downloadSelectedFolder": "Download selected folder (zip)",
+  "workspace.deleteSelectedFile": "Delete selected file",
+  "shell.settings": "Settings",
+  "shell.newChat": "New chat",
+  "shell.connecting": "Connecting…",
+  "shell.connected": "Connected",
+  "language.label": "Language",
+  "settings.title": "Settings",
+  "settings.close": "Close (Esc)",
+  "settings.filter": "Filter…",
+  "settings.loading": "Loading settings…",
+  "settings.section.general": "General",
+  "settings.section.sessions": "Sessions",
+  "settings.section.recordings": "Recordings",
+  "settings.section.compaction": "Compaction",
+  "settings.section.budget": "Budget",
+  "settings.section.keyboard": "Keyboard",
+  "settings.section.workspace": "Workspace",
+  "settings.section.environment": "Environment",
+  "settings.section.providers": "Providers",
+  "settings.section.models": "Models",
+  "settings.section.theme": "Appearance",
+  "settings.section.scheduled-tasks": "Scheduled Tasks",
+  "settings.section.quick-actions": "Quick Actions",
+  "settings.section.keychain": "Keychain",
+  "settings.section.tools": "Tools",
+  "settings.section.addons": "Add-ons",
+  "settings.placeholder.recordings": "Filter recordings…",
+  "settings.placeholder.keyboard": "Filter shortcuts…",
+  "settings.placeholder.environment": "Filter environment…",
+  "settings.placeholder.models": "Filter models…",
+  "settings.placeholder.scheduled-tasks": "Filter scheduled tasks…",
+  "settings.placeholder.quick-actions": "Filter quick actions…",
+  "settings.placeholder.keychain": "Filter entries…",
+  "settings.placeholder.tools": "Filter tools…",
+  "settings.placeholder.addons": "Filter add-ons…",
+  "preview.close": "Close",
+  "preview.loading": "Loading preview…",
+  "preview.files": "Files",
+  "preview.folders": "Folders",
+  "preview.compressed": "Compressed",
+  "preview.uncompressed": "Uncompressed",
+  "preview.name": "Name",
+  "preview.type": "Type",
+  "preview.method": "Method",
+  "preview.size": "Size",
+  "post.deleteMessage": "Delete message",
+  "post.tooLarge": "Message too large to display.",
+  "post.previewTruncated": "Preview truncated.",
+  "post.submitted": "Submitted",
+  "post.discard": "Discard",
+  "post.save": "Save",
+  "post.cancel": "Cancel",
+  "post.addNote": "Add note",
+  "post.addNotePlaceholder": "Add a note…",
+  "post.restartNotice": "Restarting now — Reason: {reason}",
+  "post.restartCompleted": "Restart completed.",
+  "post.agentSelfResume": "Agent self-resume",
+  "tab.close": "Close",
+  "tab.closeOthers": "Close Others",
+  "tab.closeAll": "Close All",
+  "tab.reattach": "Reattach",
+  "tab.openInWindow": "Open in Window",
+  "tab.openInNewTab": "Open in New Tab",
+  "tab.pinned": "Pinned",
+  "tab.detached": "Detached",
+  "tab.openSeparateWindow": "Open in separate window",
+  "status.trackedVariables": "Tracked variables",
+  "status.attachToSession": "Attach to session",
+  "status.files": "Files",
+  "status.proposedDiff": "Proposed diff",
+  "status.copyTmux": "Copy tmux command",
+  "status.experimentDuration": "Experiment duration",
+  "status.sinceLastActivity": "Since last activity",
+  "annotator.title": "Annotate image",
+  "annotator.typeLabel": "Type label…",
+  "annotator.undo": "Undo",
+  "annotator.resetZoom": "Reset zoom",
+  "tree.filter": "Filter…",
+  "tree.sessionTree": "Session tree",
+  "btw.label": "BTW side conversation",
+  "btw.close": "Close BTW",
+  "btw.thinking": "Thinking",
+  "mdpreview.close": "Close preview",
+  "mdpreview.unavailable": "Preview unavailable",
+  "widget.close": "Close widget",
+  "oobe.gettingStarted": "Getting started",
+  "oobe.needsSetupTitle": "Instance needs setup",
+  "oobe.configuredTitle": "Instance is configured",
+  "oobe.needsSetupBody": "This instance is not yet configured. Open Settings and set up AI providers/models to start sending requests.",
+  "oobe.configuredBody": "This instance looks configured. Review or update provider and model settings in Settings.",
+  "oobe.openSettings": "Open Settings",
+  "oobe.dismiss": "Dismiss",
+  "oobe.done": "Done",
+  "palette.placeholder": "Type to jump to an agent, workspace action, or slash command…",
+  "palette.hideWorkspace": "Hide workspace",
+  "palette.showWorkspace": "Show workspace",
+  "palette.hideWorkspaceDesc": "Hide the workspace sidebar.",
+  "palette.showWorkspaceDesc": "Show the workspace sidebar.",
+  "palette.exitChatOnly": "Exit chat-only mode",
+  "palette.chatOnly": "Chat-only mode",
+  "palette.exitChatOnlyDesc": "Return to the split workspace layout.",
+  "palette.chatOnlyDesc": "Switch to the chat-only layout.",
+  "palette.groupAgents": "Agents",
+  "palette.groupWorkspace": "Workspace",
+  "palette.groupSlash": "Slash commands",
+  "palette.hintMove": "Move",
+  "palette.hintSelect": "Select",
+  "palette.hintPopOut": "Pop out",
+  "palette.hintClose": "Close",
+  "settings.appliedNotice": "Settings applied. Changes take effect on the next turn.",
+  "settings.sessions.lifecycle": "Session Lifecycle",
+  "settings.sessions.autoRotate": "Auto-rotate sessions",
+  "settings.sessions.maxSize": "Max session size (MB)",
+  "settings.sessions.maxSizeAria": "max session size",
+  "settings.sessions.agentBehaviour": "Agent Behaviour",
+  "settings.sessions.toolBudget": "Tool use budget",
+  "settings.sessions.toolBudgetAria": "tool use budget",
+  "settings.sessions.toolBudgetHint": "max completed tool executions per turn",
+  "settings.sessions.isolation": "Session isolation",
+  "settings.sessions.isolationNone": "None — full cross-session visibility",
+  "settings.sessions.isolationSummary": "Summary — tools visible, no arguments",
+  "settings.sessions.isolationFull": "Full — sessions cannot see each other",
+  "settings.editor.heading": "Editor",
+  "settings.editor.vimMode": "Vim mode",
+  "settings.editor.showWhitespace": "Show whitespace",
+  "settings.editor.livePreview": "Markdown live preview",
+  "settings.editor.fontSize": "Font size (px)",
+  "settings.editor.fontSizeAria": "editor font size",
+  "settings.editor.fontFamily": "Font family",
+  "settings.editor.fontFamilyPlaceholder": "monospace (default)",
+  "settings.editor.localOnlyHint": "This browser only. Editor changes are stored in local browser storage and take effect when you next open or reload a file tab.",
+  "settings.appearance.syncing": "Syncing appearance…",
+  "settings.appearance.default": "Default",
+  "settings.appearance.autoLightDark": "auto (light/dark)",
+  "settings.appearance.tint": "Tint:",
+  "settings.appearance.clearTint": "Clear tint",
+  "settings.appearance.none": "none",
+  "settings.appearance.outputPadding": "Output padding",
+  "settings.appearance.outputPaddingHint": "Extra space around messages and thinking panels.",
+  "settings.keyboard.heading": "Keyboard",
+  "settings.keyboard.hint1": "Customize app-wide shortcuts as comma-separated bindings. Changes apply immediately.",
+  "settings.keyboard.hint1b": "is reserved for dismiss/abort and cannot be rebound.",
+  "settings.keyboard.hint2mid": "and typing",
+  "settings.keyboard.hint2end": "outside the compose box open this pane.",
+  "settings.keyboard.resetAll": "Reset all to defaults",
+  "settings.keyboard.defaultColon": "Default:",
+  "settings.keyboard.save": "Save",
+  "settings.keyboard.defaultBtn": "Default",
+  "settings.keyboard.noMatch": "No shortcuts match this filter.",
+  "settings.keyboard.invalidShortcut": "Invalid shortcut: {token}. Escape is reserved and cannot be rebound.",
+  "settings.keyboard.saved": "Keyboard shortcuts saved.",
+  "settings.keyboard.resetOne": "Keyboard shortcut reset to default.",
+  "settings.keyboard.resetAllDone": "Keyboard shortcuts reset to defaults.",
+  "settings.workspace.serverApplied": "Workspace settings applied. Server-side limits affect new workspace requests immediately.",
+  "settings.workspace.browserApplied": "Browser workspace settings applied immediately in this tab.",
+  "settings.workspace.access": "Access",
+  "settings.workspace.enableTerminal": "Enable web terminal",
+  "settings.workspace.allowVnc": "Allow direct VNC targets",
+  "settings.workspace.accessHint": "Terminal access updates immediately. Direct VNC target policy applies to new VNC requests.",
+  "settings.workspace.guardrails": "Server scan guardrails",
+  "settings.workspace.maxDepth": "Max tree depth",
+  "settings.workspace.maxDepthAria": "workspace tree max depth",
+  "settings.workspace.maxDepthHintPre": "caps all",
+  "settings.workspace.maxDepthHintPost": "requests",
+  "settings.workspace.maxEntries": "Max entries per scan",
+  "settings.workspace.maxEntriesAria": "workspace tree max entries",
+  "settings.workspace.maxEntriesHint": "truncate oversized tree walks earlier",
+  "settings.workspace.thisBrowser": "This browser",
+  "settings.workspace.refreshInterval": "Refresh interval (seconds)",
+  "settings.workspace.refreshIntervalAria": "workspace refresh interval",
+  "settings.workspace.folderDepth": "Folder preview scan depth",
+  "settings.workspace.folderDepthAria": "folder preview scan depth",
+  "settings.workspace.folderDepthHintPre": "set to",
+  "settings.workspace.folderDepthHintPost": "to disable folder size preview scans",
+  "settings.workspace.footerHint": "Root and folder-expansion tree loads remain shallow; the folder size preview is the deepest workspace scan in the UI.",
+  "settings.models.thinkingLevel": "Thinking level",
+  "settings.models.noThinking": "Current model does not support thinking.",
+  "settings.models.thinkingLevelLabel": "Thinking level:",
+  "settings.models.loading": "Loading models…",
+  "settings.models.summary": "Model and provider names may wrap in narrow panes to avoid clipping.",
+  "settings.models.scopedOnly": "Scoped models only",
+  "settings.models.scopedCheckboxPre": "Use Pi",
+  "settings.models.scopedCheckboxPost": "for Piclaw model lists",
+  "settings.models.scopedHintPre": "Filters this picker and the",
+  "settings.models.scopedHintPost": "tool. TUI model selection remains unchanged.",
+  "settings.models.colModel": "Model",
+  "settings.models.colProvider": "Provider",
+  "settings.models.colContext": "Context",
+  "settings.models.colReasoning": "Reasoning",
+  "settings.models.noMatch": 'No models match "{filter}"',
+  "settings.tools.unavailable": "Tool data not available.",
+  "settings.tools.search": "Search",
+  "settings.tools.matchMode": "Match mode",
+  "settings.tools.orMode": "Any keyword (OR) — results match at least one search term",
+  "settings.tools.andMode": "All keywords (AND) — results must match every search term",
+  "settings.tools.colEnabled": "Enabled",
+  "settings.tools.colTool": "Tool",
+  "settings.tools.colCompact": "Result compaction",
+  "settings.tools.colKind": "Kind",
+  "settings.tools.colSummary": "Summary",
+  "settings.tools.colSource": "Source",
+  "settings.tools.disableCompaction": "Disable tool-result compaction for this tool",
+  "settings.tools.enableCompaction": "Enable tool-result compaction for this tool",
+  "settings.tools.noMatch": 'No tools match "{filter}"',
+  "settings.tools.footer": "Tool activation is managed by the agent runtime. Group checkboxes collapse/expand; the “Compact” column controls tool-result compaction eligibility.",
+  "settings.environment.heading": "Environment",
+  "settings.environment.introPre": "Showing non-keychain environment variables only. Overrides are stored in extension KV and applied to",
+  "settings.environment.introPost": ", so subsequent tool calls inherit them.",
+  "settings.environment.refresh": "Refresh",
+  "settings.environment.addOverride": "Add override",
+  "settings.environment.valuePlaceholder": "value",
+  "settings.environment.save": "Save",
+  "settings.environment.countLine": "{count} variables visible • {overrides} overrides active • {keychain} keychain-injected variables hidden",
+  "settings.environment.overridden": "Overridden in KV",
+  "settings.environment.inherited": "Inherited from process environment",
+  "settings.environment.kindOverride": "override",
+  "settings.environment.kindProcess": "process",
+  "settings.environment.clear": "Clear",
+  "settings.environment.noMatch": 'No environment variables match "{filter}".',
+  "settings.environment.refreshedToast": "Environment refreshed.",
+  "settings.environment.savedToast": "Saved environment override for {name}.",
+  "settings.environment.clearedToast": "Cleared environment override for {name}.",
+  "settings.quickActions.loading": "Loading…",
+  "settings.quickActions.heading": "Timeline Quick Actions",
+  "settings.quickActions.intro": "Choose which actions appear in the timeline typeahead. Agents are always pinned first, then workspace commands, then slash commands.",
+  "settings.quickActions.enableAll": "Enable all",
+  "settings.quickActions.saving": "Saving…",
+  "settings.quickActions.saveApply": "Save & apply",
+  "settings.quickActions.workspaceCommands": "Workspace commands",
+  "settings.quickActions.noWorkspaceMatch": "No workspace commands match this filter.",
+  "settings.quickActions.slashCommands": "Slash commands",
+  "settings.quickActions.slashFallback": "slash command",
+  "settings.quickActions.noSlashMatch": "No slash commands match this filter.",
+  "settings.quickActions.savingToast": "Saving quick actions…",
+  "settings.quickActions.savedToast": "Quick Actions saved.",
+  "settings.providers.authApiKey": "API key",
+  "settings.providers.authConfigured": "Configured",
+  "settings.providers.heading": "Providers",
+  "settings.providers.tagCustom": "Custom",
+  "settings.providers.logout": "Logout",
+  "settings.providers.reconfigure": "Reconfigure",
+  "settings.providers.setUp": "Set up",
+  "settings.providers.setupHint": "Sign-in flows open in the browser. In narrow panes the setup form stacks vertically to avoid clipping.",
+  "settings.providers.starting": "Starting…",
+  "settings.providers.signInOAuth": "Sign in with OAuth",
+  "settings.providers.apiKeyLabel": "API Key",
+  "settings.providers.apiKeyPlaceholder": "Enter API key",
+  "settings.providers.save": "Save",
+  "settings.providers.configuring": "Configuring…",
+  "settings.providers.saveConfig": "Save configuration",
+  "settings.providers.apiKeyEmpty": "API key cannot be empty.",
+  "settings.providers.configuringToast": "Configuring {provider}…",
+  "settings.providers.configured": "{provider} configured.",
+  "settings.providers.startingOAuth": "Starting OAuth for {provider}…",
+  "settings.providers.oauthOpened": "OAuth window opened. Complete the sign-in flow, then close this message.",
+  "settings.providers.oauthStarted": "OAuth flow started for {provider}. Check the chat.",
+  "settings.providers.loggingOut": "Logging out {provider}…",
+  "settings.providers.loggedOut": "Logged out {provider}. Restart may be needed.",
+  "settings.general.identity": "Identity",
+  "settings.general.userLabel": "User",
+  "settings.general.yourName": "Your name",
+  "settings.general.agentLabel": "Agent",
+  "settings.general.agentName": "Agent name",
+  "settings.general.notifications": "Notifications",
+  "settings.general.browserNotifications": "Browser notifications",
+  "settings.general.notifSecureHint": "Use the \uD83D\uDD14 bell button in the compose bar to enable/disable notifications. Web Push requires HTTPS or localhost.",
+  "settings.general.notifInsecureHint": "⚠ Not available — requires a secure context (HTTPS or localhost). Access via SSH tunnel or reverse proxy with TLS to enable.",
+  "settings.general.display": "Display",
+  "settings.general.systemMeters": "System meters",
+  "settings.general.systemMetersHint": "CPU/memory/network meters in the status bar. This browser only.",
+  "settings.general.instanceConfig": "Instance Configuration",
+  "settings.general.composeUpload": "Compose upload (MB)",
+  "settings.general.composeUploadAria": "compose upload limit",
+  "settings.general.composeUploadHint": "chat/media attachments",
+  "settings.general.workspaceUpload": "Workspace upload (MB)",
+  "settings.general.workspaceUploadAria": "workspace upload limit",
+  "settings.general.workspaceUploadHint": "defaults to 256 MB; chunked uploads allow up to 1 GB",
+  "settings.general.agentRecovery": "Advanced · Agent recovery",
+  "settings.general.automaticRecovery": "Automatic recovery",
+  "settings.general.automaticRecoveryHint": "Retry recoverable failed turns automatically.",
+  "settings.general.recoveryMaxAttempts": "Maximum attempts",
+  "settings.general.recoveryMaxAttemptsAria": "automatic recovery maximum attempts",
+  "settings.general.recoveryMaxAttemptsHint": "0 inherits the normal retry limit.",
+  "settings.general.recoveryTotalBudget": "Total budget (ms)",
+  "settings.general.recoveryTotalBudgetAria": "automatic recovery total budget in milliseconds",
+  "settings.general.recoveryTotalBudgetHint": "0 derives one-third of the turn timeout, bounded to 6–60 minutes. Positive values are explicit caps.",
+  "settings.general.recoveryEffectiveBudget": "Effective for the default turn timeout: {budget} ms.",
+  "settings.general.authentication": "Authentication",
+  "settings.general.widgetToken": "Widget bearer token",
+  "settings.general.token": "Token",
+  "settings.general.hideToken": "Hide token",
+  "settings.general.revealToken": "Reveal token",
+  "settings.general.copyToken": "Copy token",
+  "settings.general.copied": "Copied",
+  "settings.general.regenerating": "Regenerating…",
+  "settings.general.regenerate": "Regenerate",
+  "settings.general.tokenHintPre": "Read-only token for",
+  "settings.general.tokenHintMid": "and",
+  "settings.general.tokenHintPost": ". Use as",
+  "settings.general.tokenHintEnd": ".",
+  "settings.general.copyFailed": "Could not copy widget token. Select the token field and copy manually.",
+  "settings.general.regenConfirm": "Regenerate the widget token? Existing macOS widgets using the old token will stop updating.",
+  "settings.general.totpTitle": "TOTP setup QR",
+  "settings.general.totpConfiguredHint": "Current web-login authenticator secret. Scan this QR to add another authenticator device.",
+  "settings.general.totpUnconfiguredHint": "TOTP is not configured for this instance yet, so no setup QR is available.",
+  "settings.general.issuer": "Issuer",
+  "settings.general.label": "Label",
+  "settings.general.secret": "Secret",
+  "settings.general.avatarUpload": "Click to upload",
+  "settings.developer.heading": "Developer",
+  "settings.developer.devMode": "Developer mode",
+  "settings.developer.localHint": "This browser only. Developer-mode toggles and add-on catalog overrides are stored in local browser storage.",
+  "settings.developer.addonSources": "Add-on Sources",
+  "settings.developer.catalogUrl": "Catalog URL",
+  "settings.developer.catalogHint": "Primary add-on catalog URL. Leave empty to use the default",
+  "settings.developer.additionalCatalogs": "Additional catalog URLs",
+  "settings.developer.additionalHint": "Fetched in addition to the primary/default catalog. One URL per line.",
+  "settings.developer.repoUrl": "Repo URL",
+  "settings.developer.repoHintPre": "Override the git repo used for",
+  "settings.developer.repoHintPost": "installs. Leave empty for default.",
+  "settings.developer.debug": "Debug",
+  "settings.developer.logSse": "Log SSE events",
+  "settings.developer.logToolCalls": "Log tool calls",
+  "settings.developer.debugHint": "Debug flags take effect on next page reload.",
+  "settings.addons.installing": "Installing {slug}…",
+  "settings.addons.removing": "Removing {slug}…",
+  "settings.addons.installedToast": "Add-on installed.",
+  "settings.addons.removedToast": "Add-on removed.",
+  "settings.addons.restarting": "Restarting piclaw…",
+  "settings.addons.restartComplete": "Restart complete — add-ons refreshed.",
+  "settings.addons.restartTimeout": "Backend did not return in time. Reload the page manually.",
+  "settings.addons.fetching": "Fetching add-ons…",
+  "settings.addons.loadFailed": "Could not load add-ons.",
+  "settings.addons.catalogFromPre": "Catalog from",
+  "settings.addons.catalogMerged": "{count} catalog sources merged.",
+  "settings.addons.installNote": "Package-first install via Bun; restart required after install/uninstall.",
+  "settings.addons.failedFetchSingular": "Failed to fetch {count} catalog source:",
+  "settings.addons.failedFetchPlural": "Failed to fetch {count} catalog sources:",
+  "settings.addons.activeSources": "Active catalog sources ({count})",
+  "settings.addons.windowsWarning": "Native Windows add-on installs are higher risk: Bun package installs, symlink cleanup, locked files, and restart timing can all be less predictable than in Linux/WSL. Prefer WSL or a container when possible.",
+  "settings.addons.typeExtSkill": "extension + skill",
+  "settings.addons.typeSkill": "skill",
+  "settings.addons.typeExt": "extension",
+  "settings.addons.update": "Update",
+  "settings.addons.remove": "Remove",
+  "settings.addons.install": "Install",
+  "settings.addons.noMatch": 'No add-ons match "{filter}"',
+  "settings.addons.restartNotice": "Extension changes are installed but inactive until piclaw restarts.",
+  "settings.addons.restartNow": "Restart Now",
+  "settings.recordings.modeFull": "full / trusted",
+  "settings.recordings.modeMetadata": "metadata only",
+  "settings.recordings.modeRedacted": "redacted",
+  "settings.recordings.selectPrompt": "Select a recording to inspect, replay, export, or delete it.",
+  "settings.recordings.playback": "Playback",
+  "settings.recordings.refresh": "Refresh",
+  "settings.recordings.delete": "Delete",
+  "settings.recordings.status": "Status",
+  "settings.recordings.mode": "Mode",
+  "settings.recordings.chat": "Chat",
+  "settings.recordings.started": "Started",
+  "settings.recordings.ended": "Ended",
+  "settings.recordings.events": "Events",
+  "settings.recordings.redactions": "Redactions",
+  "settings.recordings.exportJson": "Export JSON",
+  "settings.recordings.exportJsonl": "Export JSONL",
+  "settings.recordings.exportHtml": "Export standalone HTML",
+  "settings.recordings.eventSummary": "Event summary",
+  "settings.recordings.inspectHint": "Open or refresh details to inspect trace events.",
+  "settings.recordings.firstEvents": "First events",
+  "settings.recordings.heading": "Session Recording",
+  "settings.recordings.intro": "Opt-in trace capture for deterministic playback and screen-recording exports. Playback never calls live agent or tool endpoints.",
+  "settings.recordings.chatJid": "Chat JID",
+  "settings.recordings.title": "Title",
+  "settings.recordings.titlePlaceholder": "Demo recording",
+  "settings.recordings.modeLabelField": "Mode",
+  "settings.recordings.optRedacted": "Redacted",
+  "settings.recordings.optMetadata": "Metadata only",
+  "settings.recordings.optFull": "Full / trusted local",
+  "settings.recordings.includeSnapshot": "Include timeline snapshot",
+  "settings.recordings.extraKeys": "Extra redacted keys",
+  "settings.recordings.extraPatterns": "Extra regex patterns",
+  "settings.recordings.stopCurrent": "Stop current chat recording",
+  "settings.recordings.start": "Start recording",
+  "settings.recordings.redactionPreview": "Redaction preview",
+  "settings.recordings.previewRedaction": "Preview redaction",
+  "settings.recordings.loading": "Loading recordings…",
+  "settings.recordings.noneYet": "No recordings yet.",
+  "settings.recordings.noneYetHint": "Start a recording above, then use playback/export for deterministic screen capture.",
+  "settings.recordings.listLabel": "Session recordings",
+  "settings.recordings.eventsCount": "{count} events",
+  "settings.recordings.noMatch": "No recordings match “{filter}”.",
+  "settings.recordings.startedToast": "Recording started for {chat}.",
+  "settings.recordings.startFailed": "Failed to start recording.",
+  "settings.recordings.stoppedToast": "Recording stopped for {chat}.",
+  "settings.recordings.stopFailed": "Failed to stop recording.",
+  "settings.recordings.deleteConfirm": "Delete recording {id}?",
+  "settings.recordings.deletedToast": "Recording deleted.",
+  "settings.recordings.deleteFailed": "Failed to delete recording.",
+  "settings.recordings.loadOneFailed": "Failed to load recording.",
+  "settings.recordings.loadFailed": "Failed to load recordings.",
+  "settings.recordings.previewFailed": "Preview failed.",
+  "settings.keychain.loadFailed": "Failed to load keychain.",
+  "settings.keychain.addFailed": "Failed to add entry.",
+  "settings.keychain.deleteFailed": "Failed to delete entry.",
+  "settings.keychain.saveNotesFailed": "Failed to save notes.",
+  "settings.keychain.revealFailed": "Failed to reveal.",
+  "settings.keychain.loading": "Loading keychain…",
+  "settings.keychain.entryCountSingular": "{count} entry",
+  "settings.keychain.entryCountPlural": "{count} entries",
+  "settings.keychain.matchingFilter": ' matching "{filter}"',
+  "settings.keychain.encryptedSuffix": ", encrypted at rest.",
+  "settings.keychain.clickPrefix": "Click",
+  "settings.keychain.revealSuffix": "to reveal.",
+  "settings.keychain.cancel": "Cancel",
+  "settings.keychain.addEntry": "+ Add entry",
+  "settings.keychain.namePlaceholder": "Entry name (e.g. github/my-token)",
+  "settings.keychain.secretPlaceholder": "Secret value",
+  "settings.keychain.usernamePlaceholder": "Username (optional)",
+  "settings.keychain.saving": "Saving…",
+  "settings.keychain.save": "Save",
+  "settings.keychain.userNotePlaceholder": "User note (visible in this UI only)",
+  "settings.keychain.agentNotePlaceholder": "Agent note (safe to expose to agents)",
+  "settings.keychain.noMatchFilter": "No entries match the filter.",
+  "settings.keychain.noEntries": "No keychain entries.",
+  "settings.keychain.hideSecret": "Hide secret",
+  "settings.keychain.revealSecret": "Reveal secret",
+  "settings.keychain.deleteQ": "Delete?",
+  "settings.keychain.yes": "Yes",
+  "settings.keychain.no": "No",
+  "settings.keychain.deleteTitle": "Delete",
+  "settings.keychain.userNote": "User note",
+  "settings.keychain.agentNote": "Agent-readable note",
+  "settings.keychain.userNoteHint": "Human/UI note only",
+  "settings.keychain.agentNoteHint": "Safe guidance for agents",
+  "settings.keychain.saveNotes": "Save notes",
+  "settings.keychain.masterPassword": "Master password:",
+  "settings.keychain.masterPasswordPlaceholder": "Enter keychain master password",
+  "settings.keychain.unlock": "Unlock",
+  "settings.keychain.totpCode": "TOTP code:",
+  "settings.keychain.verify": "Verify",
+  "settings.keychain.username": "Username",
+  "settings.keychain.copyUsername": "Copy username",
+  "settings.keychain.secret": "Secret",
+  "settings.keychain.copySecret": "Copy secret",
+  "settings.tasks.internalProtected": "internal/protected",
+  "settings.tasks.noRunLogs": "No run logs recorded yet.",
+  "settings.tasks.noSummary": "No summary",
+  "settings.tasks.selectPrompt": "Select a task to inspect schedule, status, and run history.",
+  "settings.tasks.pause": "Pause",
+  "settings.tasks.resume": "Resume",
+  "settings.tasks.delete": "Delete",
+  "settings.tasks.status": "Status",
+  "settings.tasks.kind": "Kind",
+  "settings.tasks.schedule": "Schedule",
+  "settings.tasks.nextRun": "Next run",
+  "settings.tasks.lastRun": "Last run",
+  "settings.tasks.lastResult": "Last result",
+  "settings.tasks.chat": "Chat",
+  "settings.tasks.model": "Model",
+  "settings.tasks.cwd": "CWD",
+  "settings.tasks.timeout": "Timeout",
+  "settings.tasks.protection": "Protection",
+  "settings.tasks.protectionHint": "Internal task actions require explicit confirmation.",
+  "settings.tasks.command": "Command",
+  "settings.tasks.prompt": "Prompt",
+  "settings.tasks.recentRuns": "Recent runs",
+  "settings.tasks.activeLabel": "Active",
+  "settings.tasks.pausedLabel": "Paused",
+  "settings.tasks.completedLabel": "Completed",
+  "settings.tasks.allStatuses": "All statuses",
+  "settings.tasks.filterChatPlaceholder": "Filter chat JID…",
+  "settings.tasks.refresh": "Refresh",
+  "settings.tasks.loading": "Loading scheduled tasks…",
+  "settings.tasks.noneFound": "No scheduled tasks found.",
+  "settings.tasks.noneFoundHint": "Tasks created with reminders, `/tasks`, or the scheduler tool will appear here.",
+  "settings.tasks.listLabel": "Scheduled tasks",
+  "settings.tasks.next": "Next",
+  "settings.tasks.last": "Last",
+  "settings.tasks.noMatch": "No tasks match “{filter}”.",
+  "settings.tasks.confirmDelete": "Delete scheduled task {id}?",
+  "settings.tasks.confirmPause": "Pause scheduled task {id}?",
+  "settings.tasks.confirmResume": "Resume scheduled task {id}?",
+  "settings.tasks.confirmProtected": "Task {id} is internal/protected. Continue with {action}?",
+  "settings.tasks.deleting": "Deleting {id}…",
+  "settings.tasks.pausing": "Pausing {id}…",
+  "settings.tasks.resuming": "Resuming {id}…",
+  "settings.tasks.deletedToast": "Scheduled task {id} deleted.",
+  "settings.tasks.pausedToast": "Scheduled task {id} paused.",
+  "settings.tasks.resumedToast": "Scheduled task {id} resumed.",
+  "settings.tasks.actionFailed": "Failed to {action} task.",
+  "settings.tasks.loadFailed": "Failed to load scheduled tasks.",
+  "settings.compaction.appliedNotice": "Compaction settings applied. Existing turns keep their current timers; new turns use the updated values.",
+  "settings.compaction.saving": "Saving compaction settings…",
+  "settings.compaction.saveFailed": "Failed to save compaction settings.",
+  "settings.compaction.saved": "Compaction settings saved.",
+  "settings.compaction.clearing": "Clearing compaction suppression for {chat}…",
+  "settings.compaction.clearFailed": "Failed to clear compaction suppression.",
+  "settings.compaction.cleared": "Cleared compaction suppression for {chat}.",
+  "settings.compaction.autoHeading": "Automatic compaction",
+  "settings.compaction.enableAutomatic": "Enable automatic compaction",
+  "settings.compaction.enableAutomaticHint": "Piclaw-managed pre-prompt/idle compaction. The upstream agent auto-compactor stays suppressed internally.",
+  "settings.compaction.processingMethod": "Processing method",
+  "settings.compaction.model": "Compaction model",
+  "settings.compaction.modelHint": "Strict local smart-compaction model. If configured but unavailable, compaction stops and preserves the session instead of falling back.",
+  "settings.compaction.modelPlaceholder": "provider/model (empty uses active model)",
+  "settings.compaction.methodSelective": "Selective",
+  "settings.compaction.methodSelectiveHint": "Extract high-value continuity excerpts, using complete progressive coverage whenever a bounded prompt cannot represent every discarded source event.",
+  "settings.compaction.methodPipelined": "Pipelined",
+  "settings.compaction.methodPipelinedHint": "Canonicalize and classify every discarded source event with an auditable coverage ledger before summarizing.",
+  "settings.compaction.remoteNative": "Provider-native compaction",
+  "settings.compaction.remoteNativeHint": "Opt-in for explicitly supported providers only ({providers}). Any failure falls back atomically to the selected local method.",
+  "settings.compaction.remoteTimeout": "Provider-native timeout (sec)",
+  "settings.compaction.remoteTimeoutAria": "provider-native compaction timeout",
+  "settings.compaction.remoteTimeoutHint": "Deadline for the remote pre-pass before local fallback.",
+  "settings.compaction.enableToolResult": "Enable tool-result compaction",
+  "settings.compaction.enableToolResultHint": "When disabled, large tool results stay inline and are not externalized into searchable tool-output handles.",
+  "settings.compaction.semanticSummaries": "Semantic summaries for compacted tool results",
+  "settings.compaction.semanticSummariesHint": "When enabled, compacted outputs include a semantic summary generated with the active model (preview fallback on failure).",
+  "settings.compaction.inputLimit": "Semantic summary input limit (chars)",
+  "settings.compaction.inputLimitAria": "semantic summary input limit",
+  "settings.compaction.inputLimitHint": "Maximum characters sampled from full tool output for semantic summarization.",
+  "settings.compaction.maxTokens": "Semantic summary output max tokens",
+  "settings.compaction.maxTokensAria": "semantic summary max tokens",
+  "settings.compaction.maxTokensHint": "Upper bound for generated summary length.",
+  "settings.compaction.summaryTimeout": "Semantic summary timeout (sec)",
+  "settings.compaction.summaryTimeoutAria": "semantic summary timeout",
+  "settings.compaction.summaryTimeoutHint": "Abort semantic summary generation after this timeout and fall back to preview compaction.",
+  "settings.compaction.threshold": "Compaction threshold (%)",
+  "settings.compaction.thresholdAria": "compaction threshold",
+  "settings.compaction.thresholdHint": "auto-compact when context exceeds this % of window",
+  "settings.compaction.timeout": "Compaction timeout (sec)",
+  "settings.compaction.timeoutAria": "compaction timeout",
+  "settings.compaction.timeoutHint": "Single wall-clock deadline for deterministic preparation, provider prefill/streaming, and settlement. Local provider requests inherit the remaining time.",
+  "settings.compaction.backoffBase": "Failure backoff base (min)",
+  "settings.compaction.backoffBaseAria": "compaction backoff base",
+  "settings.compaction.backoffBaseHint": "First suppression window after a compaction failure.",
+  "settings.compaction.backoffMax": "Failure backoff max (min)",
+  "settings.compaction.backoffMaxAria": "compaction backoff max",
+  "settings.compaction.backoffMaxHint": "Upper bound for exponential suppression after repeated failures.",
+  "settings.compaction.decayFactor": "Backoff decay factor",
+  "settings.compaction.decayFactorAria": "backoff decay factor",
+  "settings.compaction.decayFactorHint": "% — halves backoff after each successful compaction",
+  "settings.compaction.watchdogHeading": "Stall watchdog",
+  "settings.compaction.enableWatchdog": "Enable watchdog",
+  "settings.compaction.enableWatchdogHint": "Disabled by default. When enabled, a helper process terminates the runtime if an active phase stops heartbeating.",
+  "settings.compaction.watchdogTimeout": "Watchdog timeout (sec)",
+  "settings.compaction.watchdogTimeoutAria": "watchdog timeout",
+  "settings.compaction.watchdogTimeoutHint": "How long an active phase can go without a heartbeat before the watchdog kills the runtime.",
+  "settings.compaction.suppressionsHeading": "Active compaction suppressions",
+  "settings.compaction.noBackoff": "No chats are currently under compaction backoff.",
+  "settings.compaction.clear": "Clear",
+  "settings.compaction.phasesHeading": "Live watchdog phases",
+  "settings.compaction.noPhases": "No active tracked phases right now.",
+  "menu.title": "Menu",
+  "menu.showWorkspace": "Show workspace",
+  "menu.hideWorkspace": "Hide workspace",
+  "menu.openExplorer": "Open explorer",
+  "menu.chatOnly": "Chat-only mode",
+  "menu.exitChatOnly": "Exit chat-only mode",
+  "menu.openTerminal": "Open terminal in tab",
+  "menu.openVnc": "Open VNC in tab",
+  "menu.newFile": "New file",
+  "menu.openRecent": "Open Recent",
+  "menu.refreshTree": "Refresh tree",
+  "menu.reindex": "Reindex workspace",
+  "menu.showHidden": "Show hidden files",
+  "menu.hideHidden": "Hide hidden files",
+  "menu.scale": "Scale",
+  "menu.settings": "Settings"
+};
+var ZH_CN = {
+  "compose.placeholder": "输入消息（回车发送，Shift+回车换行）...",
+  "compose.send": "发送",
+  "compose.stop": "停止",
+  "compose.searchPlaceholder": "搜索（回车运行）...",
+  "compose.clearAll": "清除全部",
+  "compose.clearAllTitle": "清除所有附件和引用",
+  "compose.scope": "范围",
+  "compose.searchScope": "搜索范围",
+  "compose.scopeCurrent": "当前",
+  "compose.scopeBranchFamily": "分支系列",
+  "compose.scopeAll": "所有聊天",
+  "compose.filterImages": "图片",
+  "compose.filterAttachments": "附件",
+  "compose.search": "搜索",
+  "compose.closeSearch": "关闭搜索",
+  "compose.shareLocation": "分享位置",
+  "compose.attachFile": "附加文件",
+  "compose.queueControls": "排队后续消息控制",
+  "compose.moveUp": "上移",
+  "compose.moveUpQueue": "在队列中上移",
+  "compose.moveDown": "下移",
+  "compose.moveDownQueue": "在队列中下移",
+  "compose.editInCompose": "在输入框中编辑",
+  "compose.returnToEditor": "将排队消息返回编辑器",
+  "compose.injectSteer": "作为引导插入排队的后续消息",
+  "compose.steer": "引导",
+  "compose.cancelQueued": "取消排队消息",
+  "compose.resizeInput": "调整消息输入框大小",
+  "compose.resizeInputHint": "拖动以调整消息输入框大小",
+  "compose.modelPicker": "模型选择器",
+  "compose.sessionsAndAgents": "会话与代理",
+  "compose.openModelPicker": "打开模型选择器",
+  "compose.newBranchTitle": "从此聊天创建新分支",
+  "compose.newRootTitle": "创建一个干净的根会话，例如 web:ops",
+  "compose.renameSessionTitle": "重命名当前会话",
+  "compose.pruneSessionTitle": "删除（修剪）当前代理/会话分支",
+  "compose.filterImagesTitle": "仅显示含图片的消息",
+  "compose.filterAttachmentsTitle": "仅显示含附件的消息",
+  "compose.selectModel": "选择模型",
+  "compose.loadingModels": "正在加载模型…",
+  "compose.noModels": "没有可用的模型。",
+  "compose.nextModel": "下一个模型",
+  "compose.manageSessions": "管理会话与代理",
+  "compose.noSessions": "暂无其他会话。",
+  "compose.newBranch": "新建分支",
+  "compose.newRoot": "新建根会话…",
+  "compose.mergeCurrent": "将当前合并到父级",
+  "compose.renameCurrent": "重命名当前…",
+  "compose.deleteCurrent": "删除当前…",
+  "compose.mergeInto": "将此分支合并到 {target}",
+  "compose.mergeBlocked": "当此分支处于活动状态或有子分支时无法合并",
+  "workspace.title": "工作区",
+  "workspace.moveConfirm": "将{entry}“{name}”从{source}移动到{target}？",
+  "workspace.root": "工作区根目录",
+  "workspace.file": "文件",
+  "workspace.folder": "文件夹",
+  "workspace.newFile": "新建文件",
+  "workspace.refresh": "刷新",
+  "workspace.actions": "工作区操作",
+  "workspace.uploadFiles": "上传文件",
+  "workspace.reindexing": "正在重建索引…",
+  "workspace.deleteFile": "删除文件",
+  "workspace.download": "下载",
+  "workspace.uploadToFolder": "上传文件到此文件夹",
+  "workspace.addFolderHint": "将文件夹提示添加到输入框",
+  "workspace.downloadZip": "将文件夹下载为 zip",
+  "workspace.openInTab": "在标签页打开",
+  "workspace.openInEditor": "在编辑器打开",
+  "workspace.renameSelected": "重命名所选",
+  "workspace.downloadSelectedFile": "下载所选文件",
+  "workspace.downloadSelectedFolder": "下载所选文件夹（zip）",
+  "workspace.deleteSelectedFile": "删除所选文件",
+  "shell.settings": "设置",
+  "shell.newChat": "新建对话",
+  "shell.connecting": "连接中…",
+  "shell.connected": "已连接",
+  "language.label": "语言",
+  "settings.title": "设置",
+  "settings.close": "关闭（Esc）",
+  "settings.filter": "筛选…",
+  "settings.loading": "加载设置中…",
+  "settings.section.general": "常规",
+  "settings.section.sessions": "会话",
+  "settings.section.recordings": "录制",
+  "settings.section.compaction": "压缩",
+  "settings.section.budget": "预算",
+  "settings.section.keyboard": "键盘",
+  "settings.section.workspace": "工作区",
+  "settings.section.environment": "环境",
+  "settings.section.providers": "提供商",
+  "settings.section.models": "模型",
+  "settings.section.theme": "外观",
+  "settings.section.scheduled-tasks": "计划任务",
+  "settings.section.quick-actions": "快捷操作",
+  "settings.section.keychain": "密钥串",
+  "settings.section.tools": "工具",
+  "settings.section.addons": "插件",
+  "settings.placeholder.recordings": "筛选录制…",
+  "settings.placeholder.keyboard": "筛选快捷键…",
+  "settings.placeholder.environment": "筛选环境…",
+  "settings.placeholder.models": "筛选模型…",
+  "settings.placeholder.scheduled-tasks": "筛选计划任务…",
+  "settings.placeholder.quick-actions": "筛选快捷操作…",
+  "settings.placeholder.keychain": "筛选条目…",
+  "settings.placeholder.tools": "筛选工具…",
+  "settings.placeholder.addons": "筛选插件…",
+  "preview.close": "关闭",
+  "preview.loading": "正在加载预览…",
+  "preview.files": "文件",
+  "preview.folders": "文件夹",
+  "preview.compressed": "压缩后",
+  "preview.uncompressed": "未压缩",
+  "preview.name": "名称",
+  "preview.type": "类型",
+  "preview.method": "方法",
+  "preview.size": "大小",
+  "post.deleteMessage": "删除消息",
+  "post.tooLarge": "消息过大，无法显示。",
+  "post.previewTruncated": "预览已截断。",
+  "post.submitted": "已提交",
+  "post.discard": "丢弃",
+  "post.save": "保存",
+  "post.cancel": "取消",
+  "post.addNote": "添加备注",
+  "post.addNotePlaceholder": "添加备注…",
+  "post.restartNotice": "正在重启 — 原因：{reason}",
+  "post.restartCompleted": "重启完成。",
+  "post.agentSelfResume": "代理自行恢复",
+  "tab.close": "关闭",
+  "tab.closeOthers": "关闭其他",
+  "tab.closeAll": "全部关闭",
+  "tab.reattach": "重新附加",
+  "tab.openInWindow": "在窗口中打开",
+  "tab.openInNewTab": "在新标签页打开",
+  "tab.pinned": "已固定",
+  "tab.detached": "已分离",
+  "tab.openSeparateWindow": "在独立窗口中打开",
+  "status.trackedVariables": "跟踪的变量",
+  "status.attachToSession": "附加到会话",
+  "status.files": "文件",
+  "status.proposedDiff": "建议的差异",
+  "status.copyTmux": "复制 tmux 命令",
+  "status.experimentDuration": "实验时长",
+  "status.sinceLastActivity": "自上次活动以来",
+  "annotator.title": "标注图片",
+  "annotator.typeLabel": "输入标签…",
+  "annotator.undo": "撤销",
+  "annotator.resetZoom": "重置缩放",
+  "tree.filter": "筛选…",
+  "tree.sessionTree": "会话树",
+  "btw.label": "BTW 附加对话",
+  "btw.close": "关闭 BTW",
+  "btw.thinking": "思考中",
+  "mdpreview.close": "关闭预览",
+  "mdpreview.unavailable": "预览不可用",
+  "widget.close": "关闭小部件",
+  "oobe.gettingStarted": "入门指南",
+  "oobe.needsSetupTitle": "实例需要设置",
+  "oobe.configuredTitle": "实例已配置",
+  "oobe.needsSetupBody": "此实例尚未配置。请打开“设置”并设置 AI 提供商/模型以开始发送请求。",
+  "oobe.configuredBody": "此实例看起来已配置。请在“设置”中查看或更新提供商和模型设置。",
+  "oobe.openSettings": "打开设置",
+  "oobe.dismiss": "忽略",
+  "oobe.done": "完成",
+  "palette.placeholder": "输入以跳转到代理、工作区操作或斜杠命令…",
+  "palette.hideWorkspace": "隐藏工作区",
+  "palette.showWorkspace": "显示工作区",
+  "palette.hideWorkspaceDesc": "隐藏工作区侧边栏。",
+  "palette.showWorkspaceDesc": "显示工作区侧边栏。",
+  "palette.exitChatOnly": "退出仅聊天模式",
+  "palette.chatOnly": "仅聊天模式",
+  "palette.exitChatOnlyDesc": "返回分屏工作区布局。",
+  "palette.chatOnlyDesc": "切换到仅聊天布局。",
+  "palette.groupAgents": "代理",
+  "palette.groupWorkspace": "工作区",
+  "palette.groupSlash": "斜杠命令",
+  "palette.hintMove": "移动",
+  "palette.hintSelect": "选择",
+  "palette.hintPopOut": "弹出",
+  "palette.hintClose": "关闭",
+  "settings.appliedNotice": "设置已应用。更改将在下一回合生效。",
+  "settings.sessions.lifecycle": "会话生命周期",
+  "settings.sessions.autoRotate": "自动轮换会话",
+  "settings.sessions.maxSize": "最大会话大小（MB）",
+  "settings.sessions.maxSizeAria": "最大会话大小",
+  "settings.sessions.agentBehaviour": "代理行为",
+  "settings.sessions.toolBudget": "工具使用预算",
+  "settings.sessions.toolBudgetAria": "工具使用预算",
+  "settings.sessions.toolBudgetHint": "每回合最大已完成工具执行次数",
+  "settings.sessions.isolation": "会话隔离",
+  "settings.sessions.isolationNone": "无 — 完全跨会话可见",
+  "settings.sessions.isolationSummary": "摘要 — 工具可见，无参数",
+  "settings.sessions.isolationFull": "完全 — 会话之间不可见",
+  "settings.editor.heading": "编辑器",
+  "settings.editor.vimMode": "Vim 模式",
+  "settings.editor.showWhitespace": "显示空白字符",
+  "settings.editor.livePreview": "Markdown 实时预览",
+  "settings.editor.fontSize": "字号（px）",
+  "settings.editor.fontSizeAria": "编辑器字号",
+  "settings.editor.fontFamily": "字体",
+  "settings.editor.fontFamilyPlaceholder": "monospace（默认）",
+  "settings.editor.localOnlyHint": "仅限此浏览器。编辑器更改存储在本地浏览器中，并在下次打开或重新加载文件标签页时生效。",
+  "settings.appearance.syncing": "正在同步外观…",
+  "settings.appearance.default": "默认",
+  "settings.appearance.autoLightDark": "自动（浅色/深色）",
+  "settings.appearance.tint": "色调：",
+  "settings.appearance.clearTint": "清除色调",
+  "settings.appearance.none": "无",
+  "settings.appearance.outputPadding": "输出内边距",
+  "settings.appearance.outputPaddingHint": "消息和思考面板周围的额外空间。",
+  "settings.keyboard.heading": "键盘",
+  "settings.keyboard.hint1": "将应用级快捷键自定义为逗号分隔的绑定。更改立即生效。",
+  "settings.keyboard.hint1b": "已保留用于关闭/中止，无法重新绑定。",
+  "settings.keyboard.hint2mid": "以及键入",
+  "settings.keyboard.hint2end": "（在输入框外）可打开此面板。",
+  "settings.keyboard.resetAll": "全部重置为默认",
+  "settings.keyboard.defaultColon": "默认：",
+  "settings.keyboard.save": "保存",
+  "settings.keyboard.defaultBtn": "默认",
+  "settings.keyboard.noMatch": "没有匹配此筛选的快捷键。",
+  "settings.keyboard.invalidShortcut": "无效快捷键：{token}。Escape 已保留，无法重新绑定。",
+  "settings.keyboard.saved": "快捷键已保存。",
+  "settings.keyboard.resetOne": "快捷键已重置为默认。",
+  "settings.keyboard.resetAllDone": "快捷键已全部重置为默认。",
+  "settings.workspace.serverApplied": "工作区设置已应用。服务器端限制立即影响新的工作区请求。",
+  "settings.workspace.browserApplied": "浏览器工作区设置已在此标签页立即应用。",
+  "settings.workspace.access": "访问",
+  "settings.workspace.enableTerminal": "启用 Web 终端",
+  "settings.workspace.allowVnc": "允许直接 VNC 目标",
+  "settings.workspace.accessHint": "终端访问立即更新。直接 VNC 目标策略适用于新的 VNC 请求。",
+  "settings.workspace.guardrails": "服务器扫描防护",
+  "settings.workspace.maxDepth": "最大树深度",
+  "settings.workspace.maxDepthAria": "工作区树最大深度",
+  "settings.workspace.maxDepthHintPre": "限制所有",
+  "settings.workspace.maxDepthHintPost": "请求",
+  "settings.workspace.maxEntries": "每次扫描最大条目数",
+  "settings.workspace.maxEntriesAria": "工作区树最大条目数",
+  "settings.workspace.maxEntriesHint": "更早截断超大的树遍历",
+  "settings.workspace.thisBrowser": "此浏览器",
+  "settings.workspace.refreshInterval": "刷新间隔（秒）",
+  "settings.workspace.refreshIntervalAria": "工作区刷新间隔",
+  "settings.workspace.folderDepth": "文件夹预览扫描深度",
+  "settings.workspace.folderDepthAria": "文件夹预览扫描深度",
+  "settings.workspace.folderDepthHintPre": "设为",
+  "settings.workspace.folderDepthHintPost": "以禁用文件夹大小预览扫描",
+  "settings.workspace.footerHint": "根目录和文件夹展开的树加载保持较浅；文件夹大小预览是 UI 中最深的工作区扫描。",
+  "settings.models.thinkingLevel": "思考级别",
+  "settings.models.noThinking": "当前模型不支持思考。",
+  "settings.models.thinkingLevelLabel": "思考级别：",
+  "settings.models.loading": "正在加载模型…",
+  "settings.models.summary": "在狭窄面板中，模型和提供商名称可能换行以避免裁切。",
+  "settings.models.scopedOnly": "仅限范围内模型",
+  "settings.models.scopedCheckboxPre": "使用 Pi 的",
+  "settings.models.scopedCheckboxPost": "作为 Piclaw 模型列表",
+  "settings.models.scopedHintPre": "筛选此选择器和",
+  "settings.models.scopedHintPost": "工具。TUI 模型选择保持不变。",
+  "settings.models.colModel": "模型",
+  "settings.models.colProvider": "提供商",
+  "settings.models.colContext": "上下文",
+  "settings.models.colReasoning": "推理",
+  "settings.models.noMatch": "没有匹配 “{filter}” 的模型",
+  "settings.tools.unavailable": "工具数据不可用。",
+  "settings.tools.search": "搜索",
+  "settings.tools.matchMode": "匹配模式",
+  "settings.tools.orMode": "任意关键词（OR）— 结果至少匹配一个搜索词",
+  "settings.tools.andMode": "所有关键词（AND）— 结果必须匹配每个搜索词",
+  "settings.tools.colEnabled": "已启用",
+  "settings.tools.colTool": "工具",
+  "settings.tools.colCompact": "结果压缩",
+  "settings.tools.colKind": "类型",
+  "settings.tools.colSummary": "摘要",
+  "settings.tools.colSource": "来源",
+  "settings.tools.disableCompaction": "为此工具禁用工具结果压缩",
+  "settings.tools.enableCompaction": "为此工具启用工具结果压缩",
+  "settings.tools.noMatch": "没有匹配 “{filter}” 的工具",
+  "settings.tools.footer": "工具激活由代理运行时管理。组复选框可折叠/展开；“压缩”列控制工具结果压缩资格。",
+  "settings.environment.heading": "环境",
+  "settings.environment.introPre": "仅显示非 keychain 环境变量。覆盖项存储在扩展 KV 中并应用于",
+  "settings.environment.introPost": "，因此后续工具调用会继承它们。",
+  "settings.environment.refresh": "刷新",
+  "settings.environment.addOverride": "添加覆盖",
+  "settings.environment.valuePlaceholder": "值",
+  "settings.environment.save": "保存",
+  "settings.environment.countLine": "{count} 个变量可见 • {overrides} 个覆盖生效 • {keychain} 个 keychain 注入变量已隐藏",
+  "settings.environment.overridden": "在 KV 中覆盖",
+  "settings.environment.inherited": "继承自进程环境",
+  "settings.environment.kindOverride": "覆盖",
+  "settings.environment.kindProcess": "进程",
+  "settings.environment.clear": "清除",
+  "settings.environment.noMatch": "没有匹配 “{filter}” 的环境变量。",
+  "settings.environment.refreshedToast": "环境已刷新。",
+  "settings.environment.savedToast": "已保存 {name} 的环境覆盖。",
+  "settings.environment.clearedToast": "已清除 {name} 的环境覆盖。",
+  "settings.quickActions.loading": "加载中…",
+  "settings.quickActions.heading": "时间线快捷操作",
+  "settings.quickActions.intro": "选择哪些操作出现在时间线预输入中。代理始终优先固定，然后是工作区命令，再是斜杠命令。",
+  "settings.quickActions.enableAll": "全部启用",
+  "settings.quickActions.saving": "保存中…",
+  "settings.quickActions.saveApply": "保存并应用",
+  "settings.quickActions.workspaceCommands": "工作区命令",
+  "settings.quickActions.noWorkspaceMatch": "没有匹配此筛选的工作区命令。",
+  "settings.quickActions.slashCommands": "斜杠命令",
+  "settings.quickActions.slashFallback": "斜杠命令",
+  "settings.quickActions.noSlashMatch": "没有匹配此筛选的斜杠命令。",
+  "settings.quickActions.savingToast": "正在保存快捷操作…",
+  "settings.quickActions.savedToast": "快捷操作已保存。",
+  "settings.providers.authApiKey": "API 密钥",
+  "settings.providers.authConfigured": "已配置",
+  "settings.providers.heading": "提供商",
+  "settings.providers.tagCustom": "自定义",
+  "settings.providers.logout": "注销",
+  "settings.providers.reconfigure": "重新配置",
+  "settings.providers.setUp": "设置",
+  "settings.providers.setupHint": "登录流程在浏览器中打开。在狭窄面板中，设置表单会垂直堆叠以避免裁切。",
+  "settings.providers.starting": "启动中…",
+  "settings.providers.signInOAuth": "使用 OAuth 登录",
+  "settings.providers.apiKeyLabel": "API 密钥",
+  "settings.providers.apiKeyPlaceholder": "输入 API 密钥",
+  "settings.providers.save": "保存",
+  "settings.providers.configuring": "配置中…",
+  "settings.providers.saveConfig": "保存配置",
+  "settings.providers.apiKeyEmpty": "API 密钥不能为空。",
+  "settings.providers.configuringToast": "正在配置 {provider}…",
+  "settings.providers.configured": "{provider} 已配置。",
+  "settings.providers.startingOAuth": "正在为 {provider} 启动 OAuth…",
+  "settings.providers.oauthOpened": "OAuth 窗口已打开。完成登录流程，然后关闭此消息。",
+  "settings.providers.oauthStarted": "已为 {provider} 启动 OAuth 流程。请查看聊天。",
+  "settings.providers.loggingOut": "正在注销 {provider}…",
+  "settings.providers.loggedOut": "已注销 {provider}。可能需要重启。",
+  "settings.general.identity": "身份",
+  "settings.general.userLabel": "用户",
+  "settings.general.yourName": "你的名字",
+  "settings.general.agentLabel": "代理",
+  "settings.general.agentName": "代理名称",
+  "settings.general.notifications": "通知",
+  "settings.general.browserNotifications": "浏览器通知",
+  "settings.general.notifSecureHint": "使用输入栏中的 \uD83D\uDD14 铃铛按钮来启用/禁用通知。Web Push 需要 HTTPS 或 localhost。",
+  "settings.general.notifInsecureHint": "⚠ 不可用 — 需要安全上下文（HTTPS 或 localhost）。通过 SSH 隐道或带 TLS 的反向代理访问以启用。",
+  "settings.general.display": "显示",
+  "settings.general.systemMeters": "系统仪表",
+  "settings.general.systemMetersHint": "状态栏中的 CPU/内存/网络仪表。仅限此浏览器。",
+  "settings.general.instanceConfig": "实例配置",
+  "settings.general.composeUpload": "撰写上传（MB）",
+  "settings.general.composeUploadAria": "撰写上传限制",
+  "settings.general.composeUploadHint": "聊天/媒体附件",
+  "settings.general.workspaceUpload": "工作区上传（MB）",
+  "settings.general.workspaceUploadAria": "工作区上传限制",
+  "settings.general.workspaceUploadHint": "默认为 256 MB；分块上传最多允许 1 GB",
+  "settings.general.agentRecovery": "高级 · 代理恢复",
+  "settings.general.automaticRecovery": "自动恢复",
+  "settings.general.automaticRecoveryHint": "自动重试可恢复的失败回合。",
+  "settings.general.recoveryMaxAttempts": "最大尝试次数",
+  "settings.general.recoveryMaxAttemptsAria": "自动恢复最大尝试次数",
+  "settings.general.recoveryMaxAttemptsHint": "0 表示继承常规重试限制。",
+  "settings.general.recoveryTotalBudget": "总预算（毫秒）",
+  "settings.general.recoveryTotalBudgetAria": "自动恢复总预算（毫秒）",
+  "settings.general.recoveryTotalBudgetHint": "0 表示取回合超时的三分之一，并限制在 6–60 分钟；正数为明确上限。",
+  "settings.general.recoveryEffectiveBudget": "默认回合超时的有效预算：{budget} 毫秒。",
+  "settings.general.authentication": "身份验证",
+  "settings.general.widgetToken": "小部件 bearer 令牌",
+  "settings.general.token": "令牌",
+  "settings.general.hideToken": "隐藏令牌",
+  "settings.general.revealToken": "显示令牌",
+  "settings.general.copyToken": "复制令牌",
+  "settings.general.copied": "已复制",
+  "settings.general.regenerating": "正在重新生成…",
+  "settings.general.regenerate": "重新生成",
+  "settings.general.tokenHintPre": "只读令牌，用于",
+  "settings.general.tokenHintMid": "和",
+  "settings.general.tokenHintPost": "。用作",
+  "settings.general.tokenHintEnd": "。",
+  "settings.general.copyFailed": "无法复制小部件令牌。请选择令牌字段并手动复制。",
+  "settings.general.regenConfirm": "重新生成小部件令牌？使用旧令牌的现有 macOS 小部件将停止更新。",
+  "settings.general.totpTitle": "TOTP 设置二维码",
+  "settings.general.totpConfiguredHint": "当前 Web 登录验证器密钥。扫描此二维码以添加另一个验证器设备。",
+  "settings.general.totpUnconfiguredHint": "此实例尚未配置 TOTP，因此没有可用的设置二维码。",
+  "settings.general.issuer": "颁发者",
+  "settings.general.label": "标签",
+  "settings.general.secret": "密钥",
+  "settings.general.avatarUpload": "点击上传",
+  "settings.developer.heading": "开发者",
+  "settings.developer.devMode": "开发者模式",
+  "settings.developer.localHint": "仅限此浏览器。开发者模式开关和插件目录覆盖存储在本地浏览器存储中。",
+  "settings.developer.addonSources": "插件来源",
+  "settings.developer.catalogUrl": "目录 URL",
+  "settings.developer.catalogHint": "主插件目录 URL。留空以使用默认值",
+  "settings.developer.additionalCatalogs": "其他目录 URL",
+  "settings.developer.additionalHint": "在主/默认目录之外额外获取。每行一个 URL。",
+  "settings.developer.repoUrl": "仓库 URL",
+  "settings.developer.repoHintPre": "覆盖用于",
+  "settings.developer.repoHintPost": "安装的 git 仓库。留空以使用默认值。",
+  "settings.developer.debug": "调试",
+  "settings.developer.logSse": "记录 SSE 事件",
+  "settings.developer.logToolCalls": "记录工具调用",
+  "settings.developer.debugHint": "调试标志在下次页面重新加载时生效。",
+  "settings.addons.installing": "正在安装 {slug}…",
+  "settings.addons.removing": "正在移除 {slug}…",
+  "settings.addons.installedToast": "插件已安装。",
+  "settings.addons.removedToast": "插件已移除。",
+  "settings.addons.restarting": "正在重启 piclaw…",
+  "settings.addons.restartComplete": "重启完成 — 插件已刷新。",
+  "settings.addons.restartTimeout": "后端未能及时返回。请手动重新加载页面。",
+  "settings.addons.fetching": "正在获取插件…",
+  "settings.addons.loadFailed": "无法加载插件。",
+  "settings.addons.catalogFromPre": "目录来自",
+  "settings.addons.catalogMerged": "已合并 {count} 个目录来源。",
+  "settings.addons.installNote": "通过 Bun 优先安装包；安装/卸载后需要重启。",
+  "settings.addons.failedFetchSingular": "获取 {count} 个目录来源失败：",
+  "settings.addons.failedFetchPlural": "获取 {count} 个目录来源失败：",
+  "settings.addons.activeSources": "活动目录来源（{count}）",
+  "settings.addons.windowsWarning": "原生 Windows 插件安装风险更高：Bun 包安装、符号链接清理、锁定文件和重启时机都可能不如 Linux/WSL 可预测。如果可能，请优先使用 WSL 或容器。",
+  "settings.addons.typeExtSkill": "扩展 + 技能",
+  "settings.addons.typeSkill": "技能",
+  "settings.addons.typeExt": "扩展",
+  "settings.addons.update": "更新",
+  "settings.addons.remove": "移除",
+  "settings.addons.install": "安装",
+  "settings.addons.noMatch": "没有匹配 “{filter}” 的插件",
+  "settings.addons.restartNotice": "扩展更改已安装，但在 piclaw 重启之前处于非活动状态。",
+  "settings.addons.restartNow": "立即重启",
+  "settings.recordings.modeFull": "完整 / 受信任",
+  "settings.recordings.modeMetadata": "仅元数据",
+  "settings.recordings.modeRedacted": "已脱敏",
+  "settings.recordings.selectPrompt": "选择一个录制以检查、回放、导出或删除。",
+  "settings.recordings.playback": "回放",
+  "settings.recordings.refresh": "刷新",
+  "settings.recordings.delete": "删除",
+  "settings.recordings.status": "状态",
+  "settings.recordings.mode": "模式",
+  "settings.recordings.chat": "聊天",
+  "settings.recordings.started": "开始",
+  "settings.recordings.ended": "结束",
+  "settings.recordings.events": "事件",
+  "settings.recordings.redactions": "脱敏",
+  "settings.recordings.exportJson": "导出 JSON",
+  "settings.recordings.exportJsonl": "导出 JSONL",
+  "settings.recordings.exportHtml": "导出独立 HTML",
+  "settings.recordings.eventSummary": "事件摘要",
+  "settings.recordings.inspectHint": "打开或刷新详情以检查跟踪事件。",
+  "settings.recordings.firstEvents": "首批事件",
+  "settings.recordings.heading": "会话录制",
+  "settings.recordings.intro": "选择性加入的跟踪捕获，用于确定性回放和屏幕录制导出。回放绝不会调用实时代理或工具端点。",
+  "settings.recordings.chatJid": "聊天 JID",
+  "settings.recordings.title": "标题",
+  "settings.recordings.titlePlaceholder": "演示录制",
+  "settings.recordings.modeLabelField": "模式",
+  "settings.recordings.optRedacted": "已脱敏",
+  "settings.recordings.optMetadata": "仅元数据",
+  "settings.recordings.optFull": "完整 / 受信任本地",
+  "settings.recordings.includeSnapshot": "包含时间线快照",
+  "settings.recordings.extraKeys": "额外脱敏键",
+  "settings.recordings.extraPatterns": "额外正则模式",
+  "settings.recordings.stopCurrent": "停止当前聊天录制",
+  "settings.recordings.start": "开始录制",
+  "settings.recordings.redactionPreview": "脱敏预览",
+  "settings.recordings.previewRedaction": "预览脱敏",
+  "settings.recordings.loading": "正在加载录制…",
+  "settings.recordings.noneYet": "还没有录制。",
+  "settings.recordings.noneYetHint": "在上方开始录制，然后使用回放/导出进行确定性屏幕捕获。",
+  "settings.recordings.listLabel": "会话录制",
+  "settings.recordings.eventsCount": "{count} 个事件",
+  "settings.recordings.noMatch": "没有匹配 “{filter}” 的录制。",
+  "settings.recordings.startedToast": "已为 {chat} 开始录制。",
+  "settings.recordings.startFailed": "开始录制失败。",
+  "settings.recordings.stoppedToast": "已为 {chat} 停止录制。",
+  "settings.recordings.stopFailed": "停止录制失败。",
+  "settings.recordings.deleteConfirm": "删除录制 {id}？",
+  "settings.recordings.deletedToast": "录制已删除。",
+  "settings.recordings.deleteFailed": "删除录制失败。",
+  "settings.recordings.loadOneFailed": "加载录制失败。",
+  "settings.recordings.loadFailed": "加载录制失败。",
+  "settings.recordings.previewFailed": "预览失败。",
+  "settings.keychain.loadFailed": "加载密钥链失败。",
+  "settings.keychain.addFailed": "添加条目失败。",
+  "settings.keychain.deleteFailed": "删除条目失败。",
+  "settings.keychain.saveNotesFailed": "保存备注失败。",
+  "settings.keychain.revealFailed": "显示失败。",
+  "settings.keychain.loading": "正在加载密钥链…",
+  "settings.keychain.entryCountSingular": "{count} 个条目",
+  "settings.keychain.entryCountPlural": "{count} 个条目",
+  "settings.keychain.matchingFilter": ' 匹配 "{filter}"',
+  "settings.keychain.encryptedSuffix": "，静态加密。",
+  "settings.keychain.clickPrefix": "点击",
+  "settings.keychain.revealSuffix": "以显示。",
+  "settings.keychain.cancel": "取消",
+  "settings.keychain.addEntry": "+ 添加条目",
+  "settings.keychain.namePlaceholder": "条目名称（例如 github/my-token）",
+  "settings.keychain.secretPlaceholder": "密钥值",
+  "settings.keychain.usernamePlaceholder": "用户名（可选）",
+  "settings.keychain.saving": "正在保存…",
+  "settings.keychain.save": "保存",
+  "settings.keychain.userNotePlaceholder": "用户备注（仅在此界面可见）",
+  "settings.keychain.agentNotePlaceholder": "代理备注（可安全暴露给代理）",
+  "settings.keychain.noMatchFilter": "没有条目匹配筛选条件。",
+  "settings.keychain.noEntries": "没有密钥链条目。",
+  "settings.keychain.hideSecret": "隐藏密钥",
+  "settings.keychain.revealSecret": "显示密钥",
+  "settings.keychain.deleteQ": "删除？",
+  "settings.keychain.yes": "是",
+  "settings.keychain.no": "否",
+  "settings.keychain.deleteTitle": "删除",
+  "settings.keychain.userNote": "用户备注",
+  "settings.keychain.agentNote": "代理可读备注",
+  "settings.keychain.userNoteHint": "仅限人工/界面备注",
+  "settings.keychain.agentNoteHint": "给代理的安全指引",
+  "settings.keychain.saveNotes": "保存备注",
+  "settings.keychain.masterPassword": "主密码：",
+  "settings.keychain.masterPasswordPlaceholder": "输入密钥链主密码",
+  "settings.keychain.unlock": "解锁",
+  "settings.keychain.totpCode": "TOTP 代码：",
+  "settings.keychain.verify": "验证",
+  "settings.keychain.username": "用户名",
+  "settings.keychain.copyUsername": "复制用户名",
+  "settings.keychain.secret": "密钥",
+  "settings.keychain.copySecret": "复制密钥",
+  "settings.tasks.internalProtected": "内部/受保护",
+  "settings.tasks.noRunLogs": "尚未记录运行日志。",
+  "settings.tasks.noSummary": "无摘要",
+  "settings.tasks.selectPrompt": "选择一个任务以查看计划、状态和运行历史。",
+  "settings.tasks.pause": "暂停",
+  "settings.tasks.resume": "恢复",
+  "settings.tasks.delete": "删除",
+  "settings.tasks.status": "状态",
+  "settings.tasks.kind": "类型",
+  "settings.tasks.schedule": "计划",
+  "settings.tasks.nextRun": "下次运行",
+  "settings.tasks.lastRun": "上次运行",
+  "settings.tasks.lastResult": "上次结果",
+  "settings.tasks.chat": "聊天",
+  "settings.tasks.model": "模型",
+  "settings.tasks.cwd": "工作目录",
+  "settings.tasks.timeout": "超时",
+  "settings.tasks.protection": "保护",
+  "settings.tasks.protectionHint": "内部任务操作需要明确确认。",
+  "settings.tasks.command": "命令",
+  "settings.tasks.prompt": "提示",
+  "settings.tasks.recentRuns": "最近运行",
+  "settings.tasks.activeLabel": "活动",
+  "settings.tasks.pausedLabel": "已暂停",
+  "settings.tasks.completedLabel": "已完成",
+  "settings.tasks.allStatuses": "所有状态",
+  "settings.tasks.filterChatPlaceholder": "筛选聊天 JID…",
+  "settings.tasks.refresh": "刷新",
+  "settings.tasks.loading": "正在加载计划任务…",
+  "settings.tasks.noneFound": "未找到计划任务。",
+  "settings.tasks.noneFoundHint": "通过提醒、`/tasks` 或调度工具创建的任务将显示在此处。",
+  "settings.tasks.listLabel": "计划任务",
+  "settings.tasks.next": "下次",
+  "settings.tasks.last": "上次",
+  "settings.tasks.noMatch": "没有任务匹配 “{filter}”。",
+  "settings.tasks.confirmDelete": "删除计划任务 {id}？",
+  "settings.tasks.confirmPause": "暂停计划任务 {id}？",
+  "settings.tasks.confirmResume": "恢复计划任务 {id}？",
+  "settings.tasks.confirmProtected": "任务 {id} 是内部/受保护的。继续执行 {action}？",
+  "settings.tasks.deleting": "正在删除 {id}…",
+  "settings.tasks.pausing": "正在暂停 {id}…",
+  "settings.tasks.resuming": "正在恢复 {id}…",
+  "settings.tasks.deletedToast": "计划任务 {id} 已删除。",
+  "settings.tasks.pausedToast": "计划任务 {id} 已暂停。",
+  "settings.tasks.resumedToast": "计划任务 {id} 已恢复。",
+  "settings.tasks.actionFailed": "执行 {action} 任务失败。",
+  "settings.tasks.loadFailed": "加载计划任务失败。",
+  "settings.compaction.appliedNotice": "压缩设置已应用。现有回合保留其当前计时器；新回合使用更新后的值。",
+  "settings.compaction.saving": "正在保存压缩设置…",
+  "settings.compaction.saveFailed": "保存压缩设置失败。",
+  "settings.compaction.saved": "压缩设置已保存。",
+  "settings.compaction.clearing": "正在清除 {chat} 的压缩抑制…",
+  "settings.compaction.clearFailed": "清除压缩抑制失败。",
+  "settings.compaction.cleared": "已清除 {chat} 的压缩抑制。",
+  "settings.compaction.autoHeading": "自动压缩",
+  "settings.compaction.enableAutomatic": "启用自动压缩",
+  "settings.compaction.enableAutomaticHint": "由 Piclaw 管理的提示前/空闲压缩。上游代理自动压缩器会继续在内部保持禁用。",
+  "settings.compaction.processingMethod": "处理方法",
+  "settings.compaction.model": "压缩模型",
+  "settings.compaction.modelHint": "用于本地智能压缩的严格模型。若已配置但不可用，压缩会停止并保留会话，不会回退。",
+  "settings.compaction.modelPlaceholder": "提供商/模型（留空则使用当前模型）",
+  "settings.compaction.methodSelective": "选择性",
+  "settings.compaction.methodSelectiveHint": "提取高价值的连续性片段；当有界提示无法表示所有被丢弃的源事件时，使用完整的渐进式覆盖。",
+  "settings.compaction.methodPipelined": "流水线",
+  "settings.compaction.methodPipelinedHint": "在摘要前，对每个被丢弃的源事件进行规范化和分类，并生成可审计的覆盖账本。",
+  "settings.compaction.remoteNative": "提供商原生压缩",
+  "settings.compaction.remoteNativeHint": "仅对明确支持的提供商启用（{providers}）。任何失败都会自动回退到所选的本地方法。",
+  "settings.compaction.remoteTimeout": "提供商原生超时（秒）",
+  "settings.compaction.remoteTimeoutAria": "提供商原生压缩超时",
+  "settings.compaction.remoteTimeoutHint": "远程预处理在回退到本地方法之前的截止时间。",
+  "settings.compaction.enableToolResult": "启用工具结果压缩",
+  "settings.compaction.enableToolResultHint": "禁用时，大型工具结果保持内联，不会外部化为可搜索的工具输出句柄。",
+  "settings.compaction.semanticSummaries": "压缩工具结果的语义摘要",
+  "settings.compaction.semanticSummariesHint": "启用时，压缩输出包含使用活动模型生成的语义摘要（失败时回退到预览）。",
+  "settings.compaction.inputLimit": "语义摘要输入限制（字符）",
+  "settings.compaction.inputLimitAria": "语义摘要输入限制",
+  "settings.compaction.inputLimitHint": "用于语义摘要的完整工具输出采样的最大字符数。",
+  "settings.compaction.maxTokens": "语义摘要输出最大令牌数",
+  "settings.compaction.maxTokensAria": "语义摘要最大令牌数",
+  "settings.compaction.maxTokensHint": "生成摘要长度的上限。",
+  "settings.compaction.summaryTimeout": "语义摘要超时（秒）",
+  "settings.compaction.summaryTimeoutAria": "语义摘要超时",
+  "settings.compaction.summaryTimeoutHint": "在此超时后中止语义摘要生成并回退到预览压缩。",
+  "settings.compaction.threshold": "压缩阈值（%）",
+  "settings.compaction.thresholdAria": "压缩阈值",
+  "settings.compaction.thresholdHint": "当上下文超过窗口的此百分比时自动压缩",
+  "settings.compaction.timeout": "压缩超时（秒）",
+  "settings.compaction.timeoutAria": "压缩超时",
+  "settings.compaction.timeoutHint": "中止卡住的预提示/手动压缩，而不是永远挂起。",
+  "settings.compaction.backoffBase": "失败退避基数（分钟）",
+  "settings.compaction.backoffBaseAria": "压缩退避基数",
+  "settings.compaction.backoffBaseHint": "压缩失败后的首个抑制窗口。",
+  "settings.compaction.backoffMax": "失败退避最大值（分钟）",
+  "settings.compaction.backoffMaxAria": "压缩退避最大值",
+  "settings.compaction.backoffMaxHint": "重复失败后指数抑制的上限。",
+  "settings.compaction.decayFactor": "退避衰减系数",
+  "settings.compaction.decayFactorAria": "退避衰减系数",
+  "settings.compaction.decayFactorHint": "% — 每次成功压缩后退避减半",
+  "settings.compaction.watchdogHeading": "停滞监视器",
+  "settings.compaction.enableWatchdog": "启用监视器",
+  "settings.compaction.enableWatchdogHint": "默认禁用。启用时，如果活动阶段停止心跳，辅助进程将终止运行时。",
+  "settings.compaction.watchdogTimeout": "监视器超时（秒）",
+  "settings.compaction.watchdogTimeoutAria": "监视器超时",
+  "settings.compaction.watchdogTimeoutHint": "活动阶段在监视器终止运行时之前可以无心跳持续多长时间。",
+  "settings.compaction.suppressionsHeading": "活动压缩抑制",
+  "settings.compaction.noBackoff": "当前没有聊天处于压缩退避状态。",
+  "settings.compaction.clear": "清除",
+  "settings.compaction.phasesHeading": "实时监视器阶段",
+  "settings.compaction.noPhases": "目前没有活动的跟踪阶段。",
+  "menu.title": "菜单",
+  "menu.showWorkspace": "显示工作区",
+  "menu.hideWorkspace": "隐藏工作区",
+  "menu.openExplorer": "打开资源管理器",
+  "menu.chatOnly": "仅聊天模式",
+  "menu.exitChatOnly": "退出仅聊天模式",
+  "menu.openTerminal": "在标签页中打开终端",
+  "menu.openVnc": "在标签页中打开 VNC",
+  "menu.newFile": "新建文件",
+  "menu.openRecent": "打开最近文件",
+  "menu.refreshTree": "刷新目录树",
+  "menu.reindex": "重建工作区索引",
+  "menu.showHidden": "显示隐藏文件",
+  "menu.hideHidden": "隐藏隐藏文件",
+  "menu.scale": "缩放",
+  "menu.settings": "设置"
+};
+var JA = {
+  "compose.placeholder": "メッセージ（Enterで送信、Shift+Enterで改行）...",
+  "compose.send": "送信",
+  "compose.stop": "停止",
+  "compose.searchPlaceholder": "検索（Enterで実行）...",
+  "compose.clearAll": "すべてクリア",
+  "compose.clearAllTitle": "すべての添付と参照をクリア",
+  "compose.scope": "範囲",
+  "compose.searchScope": "検索範囲",
+  "compose.scopeCurrent": "現在",
+  "compose.scopeBranchFamily": "ブランチファミリー",
+  "compose.scopeAll": "すべてのチャット",
+  "compose.filterImages": "画像",
+  "compose.filterAttachments": "添付",
+  "compose.search": "検索",
+  "compose.closeSearch": "検索を閉じる",
+  "compose.shareLocation": "位置を共有",
+  "compose.attachFile": "ファイルを添付",
+  "compose.queueControls": "キュー済みフォローアップの操作",
+  "compose.moveUp": "上に移動",
+  "compose.moveUpQueue": "キュー内で上に移動",
+  "compose.moveDown": "下に移動",
+  "compose.moveDownQueue": "キュー内で下に移動",
+  "compose.editInCompose": "入力欄で編集",
+  "compose.returnToEditor": "キュー済みメッセージを入力欄に戻す",
+  "compose.injectSteer": "キュー済みフォローアップをステアとして挿入",
+  "compose.steer": "ステア",
+  "compose.cancelQueued": "キュー済みメッセージをキャンセル",
+  "compose.resizeInput": "メッセージ入力欄のサイズ変更",
+  "compose.resizeInputHint": "ドラッグしてメッセージ入力欄のサイズを変更",
+  "compose.modelPicker": "モデルピッカー",
+  "compose.sessionsAndAgents": "セッションとエージェント",
+  "compose.openModelPicker": "モデルピッカーを開く",
+  "compose.newBranchTitle": "このチャットから新しいブランチを作成",
+  "compose.newRootTitle": "web:ops のようなクリーンなルートセッションを作成",
+  "compose.renameSessionTitle": "現在のセッションの名前を変更",
+  "compose.pruneSessionTitle": "現在のエージェント/セッションブランチを削除（プルーン）",
+  "compose.filterImagesTitle": "画像付きメッセージのみ表示",
+  "compose.filterAttachmentsTitle": "添付付きメッセージのみ表示",
+  "compose.selectModel": "モデルを選択",
+  "compose.loadingModels": "モデルを読み込み中…",
+  "compose.noModels": "利用可能なモデルがありません。",
+  "compose.nextModel": "次のモデル",
+  "compose.manageSessions": "セッションとエージェントを管理",
+  "compose.noSessions": "他のセッションはまだありません。",
+  "compose.newBranch": "新しいブランチ",
+  "compose.newRoot": "新しいルート…",
+  "compose.mergeCurrent": "現在を親にマージ",
+  "compose.renameCurrent": "現在の名前を変更…",
+  "compose.deleteCurrent": "現在を削除…",
+  "compose.mergeInto": "このブランチを {target} にマージ",
+  "compose.mergeBlocked": "このブランチはアクティブな間または子がある間はマージできません",
+  "workspace.title": "ワークスペース",
+  "workspace.moveConfirm": "{entry}「{name}」を{source}から{target}へ移動しますか？",
+  "workspace.root": "ワークスペースのルート",
+  "workspace.file": "ファイル",
+  "workspace.folder": "フォルダー",
+  "workspace.newFile": "新規ファイル",
+  "workspace.refresh": "更新",
+  "workspace.actions": "ワークスペース操作",
+  "workspace.uploadFiles": "ファイルをアップロード",
+  "workspace.reindexing": "ワークスペースを再インデックス中…",
+  "workspace.deleteFile": "ファイルを削除",
+  "workspace.download": "ダウンロード",
+  "workspace.uploadToFolder": "このフォルダにファイルをアップロード",
+  "workspace.addFolderHint": "フォルダのヒントを入力欄に追加",
+  "workspace.downloadZip": "フォルダをzipでダウンロード",
+  "workspace.openInTab": "タブで開く",
+  "workspace.openInEditor": "エディタで開く",
+  "workspace.renameSelected": "選択項目の名前を変更",
+  "workspace.downloadSelectedFile": "選択したファイルをダウンロード",
+  "workspace.downloadSelectedFolder": "選択したフォルダをダウンロード（zip）",
+  "workspace.deleteSelectedFile": "選択したファイルを削除",
+  "shell.settings": "設定",
+  "shell.newChat": "新規チャット",
+  "shell.connecting": "接続中…",
+  "shell.connected": "接続済み",
+  "language.label": "言語",
+  "settings.title": "設定",
+  "settings.close": "閉じる（Esc）",
+  "settings.filter": "フィルター…",
+  "settings.loading": "設定を読み込み中…",
+  "settings.section.general": "一般",
+  "settings.section.sessions": "セッション",
+  "settings.section.recordings": "録画",
+  "settings.section.compaction": "圧縮",
+  "settings.section.budget": "予算",
+  "settings.section.keyboard": "キーボード",
+  "settings.section.workspace": "ワークスペース",
+  "settings.section.environment": "環境",
+  "settings.section.providers": "プロバイダー",
+  "settings.section.models": "モデル",
+  "settings.section.theme": "外観",
+  "settings.section.scheduled-tasks": "スケジュールタスク",
+  "settings.section.quick-actions": "クイックアクション",
+  "settings.section.keychain": "キーチェーン",
+  "settings.section.tools": "ツール",
+  "settings.section.addons": "アドオン",
+  "settings.placeholder.recordings": "録画をフィルター…",
+  "settings.placeholder.keyboard": "ショートカットをフィルター…",
+  "settings.placeholder.environment": "環境をフィルター…",
+  "settings.placeholder.models": "モデルをフィルター…",
+  "settings.placeholder.scheduled-tasks": "スケジュールタスクをフィルター…",
+  "settings.placeholder.quick-actions": "クイックアクションをフィルター…",
+  "settings.placeholder.keychain": "エントリをフィルター…",
+  "settings.placeholder.tools": "ツールをフィルター…",
+  "settings.placeholder.addons": "アドオンをフィルター…",
+  "preview.close": "閉じる",
+  "preview.loading": "プレビューを読み込み中…",
+  "preview.files": "ファイル",
+  "preview.folders": "フォルダ",
+  "preview.compressed": "圧縮後",
+  "preview.uncompressed": "非圧縮",
+  "preview.name": "名前",
+  "preview.type": "種類",
+  "preview.method": "方式",
+  "preview.size": "サイズ",
+  "post.deleteMessage": "メッセージを削除",
+  "post.tooLarge": "メッセージが大きすぎて表示できません。",
+  "post.previewTruncated": "プレビューは切り詰められました。",
+  "post.submitted": "送信済み",
+  "post.discard": "破棄",
+  "post.save": "保存",
+  "post.cancel": "キャンセル",
+  "post.addNote": "メモを追加",
+  "post.addNotePlaceholder": "メモを追加…",
+  "post.restartNotice": "再起動中 — 理由：{reason}",
+  "post.restartCompleted": "再起動が完了しました。",
+  "post.agentSelfResume": "エージェントの自己再開",
+  "tab.close": "閉じる",
+  "tab.closeOthers": "他を閉じる",
+  "tab.closeAll": "すべて閉じる",
+  "tab.reattach": "再アタッチ",
+  "tab.openInWindow": "ウィンドウで開く",
+  "tab.openInNewTab": "新しいタブで開く",
+  "tab.pinned": "ピン留め済み",
+  "tab.detached": "分離済み",
+  "tab.openSeparateWindow": "別ウィンドウで開く",
+  "status.trackedVariables": "追跡中の変数",
+  "status.attachToSession": "セッションにアタッチ",
+  "status.files": "ファイル",
+  "status.proposedDiff": "提案された差分",
+  "status.copyTmux": "tmuxコマンドをコピー",
+  "status.experimentDuration": "実験の経過時間",
+  "status.sinceLastActivity": "最後のアクティビティから",
+  "annotator.title": "画像に注釈",
+  "annotator.typeLabel": "ラベルを入力…",
+  "annotator.undo": "元に戻す",
+  "annotator.resetZoom": "ズームをリセット",
+  "tree.filter": "フィルター…",
+  "tree.sessionTree": "セッションツリー",
+  "btw.label": "BTW サイド会話",
+  "btw.close": "BTW を閉じる",
+  "btw.thinking": "思考中",
+  "mdpreview.close": "プレビューを閉じる",
+  "mdpreview.unavailable": "プレビューを利用できません",
+  "widget.close": "ウィジェットを閉じる",
+  "oobe.gettingStarted": "はじめに",
+  "oobe.needsSetupTitle": "インスタンスのセットアップが必要",
+  "oobe.configuredTitle": "インスタンスは設定済み",
+  "oobe.needsSetupBody": "このインスタンスはまだ設定されていません。設定を開き、AIプロバイダー/モデルを設定してリクエストの送信を開始してください。",
+  "oobe.configuredBody": "このインスタンスは設定済みのようです。設定でプロバイダーとモデルの設定を確認または更新してください。",
+  "oobe.openSettings": "設定を開く",
+  "oobe.dismiss": "閉じる",
+  "oobe.done": "完了",
+  "palette.placeholder": "入力してエージェント、ワークスペース操作、またはスラッシュコマンドにジャンプ…",
+  "palette.hideWorkspace": "ワークスペースを非表示",
+  "palette.showWorkspace": "ワークスペースを表示",
+  "palette.hideWorkspaceDesc": "ワークスペースサイドバーを非表示にします。",
+  "palette.showWorkspaceDesc": "ワークスペースサイドバーを表示します。",
+  "palette.exitChatOnly": "チャットのみモードを終了",
+  "palette.chatOnly": "チャットのみモード",
+  "palette.exitChatOnlyDesc": "分割ワークスペースレイアウトに戻ります。",
+  "palette.chatOnlyDesc": "チャットのみのレイアウトに切り替えます。",
+  "palette.groupAgents": "エージェント",
+  "palette.groupWorkspace": "ワークスペース",
+  "palette.groupSlash": "スラッシュコマンド",
+  "palette.hintMove": "移動",
+  "palette.hintSelect": "選択",
+  "palette.hintPopOut": "ポップアウト",
+  "palette.hintClose": "閉じる",
+  "settings.appliedNotice": "設定を適用しました。変更は次のターンから有効になります。",
+  "settings.sessions.lifecycle": "セッションのライフサイクル",
+  "settings.sessions.autoRotate": "セッションを自動ローテーション",
+  "settings.sessions.maxSize": "最大セッションサイズ（MB）",
+  "settings.sessions.maxSizeAria": "最大セッションサイズ",
+  "settings.sessions.agentBehaviour": "エージェントの動作",
+  "settings.sessions.toolBudget": "ツール使用予算",
+  "settings.sessions.toolBudgetAria": "ツール使用予算",
+  "settings.sessions.toolBudgetHint": "1ターンあたりの完了済みツール実行回数の上限",
+  "settings.sessions.isolation": "セッションの分離",
+  "settings.sessions.isolationNone": "なし — セッション間で完全に可視",
+  "settings.sessions.isolationSummary": "概要 — ツールは可視、引数は非表示",
+  "settings.sessions.isolationFull": "完全 — セッション同士は互いに見えない",
+  "settings.editor.heading": "エディター",
+  "settings.editor.vimMode": "Vim モード",
+  "settings.editor.showWhitespace": "空白文字を表示",
+  "settings.editor.livePreview": "Markdown ライブプレビュー",
+  "settings.editor.fontSize": "フォントサイズ（px）",
+  "settings.editor.fontSizeAria": "エディターのフォントサイズ",
+  "settings.editor.fontFamily": "フォントファミリー",
+  "settings.editor.fontFamilyPlaceholder": "monospace（デフォルト）",
+  "settings.editor.localOnlyHint": "このブラウザーのみ。エディターの変更はローカルブラウザーストレージに保存され、次にファイルタブを開くか再読み込みしたときに有効になります。",
+  "settings.appearance.syncing": "外観を同期中…",
+  "settings.appearance.default": "デフォルト",
+  "settings.appearance.autoLightDark": "自動（ライト/ダーク）",
+  "settings.appearance.tint": "色調：",
+  "settings.appearance.clearTint": "色調をクリア",
+  "settings.appearance.none": "なし",
+  "settings.appearance.outputPadding": "出力の余白",
+  "settings.appearance.outputPaddingHint": "メッセージと思考パネルの周囲に追加する余白です。",
+  "settings.keyboard.heading": "キーボード",
+  "settings.keyboard.hint1": "アプリ全体のショートカットをカンマ区切りのバインディングとしてカスタマイズします。変更はすぐに反映されます。",
+  "settings.keyboard.hint1b": "は閉じる/中止用に予約されており、再割り当てできません。",
+  "settings.keyboard.hint2mid": "と入力",
+  "settings.keyboard.hint2end": "を入力欄の外で押すとこのペインが開きます。",
+  "settings.keyboard.resetAll": "すべてデフォルトにリセット",
+  "settings.keyboard.defaultColon": "デフォルト：",
+  "settings.keyboard.save": "保存",
+  "settings.keyboard.defaultBtn": "デフォルト",
+  "settings.keyboard.noMatch": "このフィルターに一致するショートカットはありません。",
+  "settings.keyboard.invalidShortcut": "無効なショートカット：{token}。Escape は予約されており、再割り当てできません。",
+  "settings.keyboard.saved": "キーボードショートカットを保存しました。",
+  "settings.keyboard.resetOne": "キーボードショートカットをデフォルトにリセットしました。",
+  "settings.keyboard.resetAllDone": "キーボードショートカットをすべてデフォルトにリセットしました。",
+  "settings.workspace.serverApplied": "ワークスペース設定を適用しました。サーバー側の制限は新しいワークスペースリクエストに直ちに反映されます。",
+  "settings.workspace.browserApplied": "ブラウザーのワークスペース設定はこのタブで直ちに適用されました。",
+  "settings.workspace.access": "アクセス",
+  "settings.workspace.enableTerminal": "Web ターミナルを有効化",
+  "settings.workspace.allowVnc": "直接 VNC ターゲットを許可",
+  "settings.workspace.accessHint": "ターミナルアクセスは直ちに更新されます。直接 VNC ターゲットポリシーは新しい VNC リクエストに適用されます。",
+  "settings.workspace.guardrails": "サーバースキャンのガードレール",
+  "settings.workspace.maxDepth": "最大ツリー深度",
+  "settings.workspace.maxDepthAria": "ワークスペースツリーの最大深度",
+  "settings.workspace.maxDepthHintPre": "すべての",
+  "settings.workspace.maxDepthHintPost": "リクエストを制限します",
+  "settings.workspace.maxEntries": "スキャンあたりの最大エントリ数",
+  "settings.workspace.maxEntriesAria": "ワークスペースツリーの最大エントリ数",
+  "settings.workspace.maxEntriesHint": "大きすぎるツリー走査を早めに打ち切ります",
+  "settings.workspace.thisBrowser": "このブラウザー",
+  "settings.workspace.refreshInterval": "更新間隔（秒）",
+  "settings.workspace.refreshIntervalAria": "ワークスペース更新間隔",
+  "settings.workspace.folderDepth": "フォルダプレビューのスキャン深度",
+  "settings.workspace.folderDepthAria": "フォルダプレビューのスキャン深度",
+  "settings.workspace.folderDepthHintPre": "",
+  "settings.workspace.folderDepthHintPost": "に設定するとフォルダサイズのプレビュースキャンを無効化します",
+  "settings.workspace.footerHint": "ルートおよびフォルダ展開のツリー読み込みは浅いままです。フォルダサイズのプレビューは UI で最も深いワークスペーススキャンです。",
+  "settings.models.thinkingLevel": "思考レベル",
+  "settings.models.noThinking": "現在のモデルは思考をサポートしていません。",
+  "settings.models.thinkingLevelLabel": "思考レベル：",
+  "settings.models.loading": "モデルを読み込み中…",
+  "settings.models.summary": "狭いペインでは、クリッピングを避けるためにモデル名とプロバイダー名が折り返される場合があります。",
+  "settings.models.scopedOnly": "スコープ付きモデルのみ",
+  "settings.models.scopedCheckboxPre": "Piclaw のモデル一覧に Pi の",
+  "settings.models.scopedCheckboxPost": "を使用",
+  "settings.models.scopedHintPre": "このピッカーと",
+  "settings.models.scopedHintPost": "ツールをフィルタリングします。TUI のモデル選択は変更されません。",
+  "settings.models.colModel": "モデル",
+  "settings.models.colProvider": "プロバイダー",
+  "settings.models.colContext": "コンテキスト",
+  "settings.models.colReasoning": "推論",
+  "settings.models.noMatch": "「{filter}」に一致するモデルはありません",
+  "settings.tools.unavailable": "ツールデータを利用できません。",
+  "settings.tools.search": "検索",
+  "settings.tools.matchMode": "マッチモード",
+  "settings.tools.orMode": "いずれかのキーワード（OR）— 少なくとも1つの検索語に一致",
+  "settings.tools.andMode": "すべてのキーワード（AND）— すべての検索語に一致",
+  "settings.tools.colEnabled": "有効",
+  "settings.tools.colTool": "ツール",
+  "settings.tools.colCompact": "結果圧縮",
+  "settings.tools.colKind": "種類",
+  "settings.tools.colSummary": "概要",
+  "settings.tools.colSource": "ソース",
+  "settings.tools.disableCompaction": "このツールのツール結果コンパクションを無効化",
+  "settings.tools.enableCompaction": "このツールのツール結果コンパクションを有効化",
+  "settings.tools.noMatch": "「{filter}」に一致するツールはありません",
+  "settings.tools.footer": "ツールのアクティベーションはエージェントランタイムが管理します。グループのチェックボックスで折りたたみ/展開でき、「コンパクト」列はツール結果コンパクションの対象可否を制御します。",
+  "settings.environment.heading": "環境",
+  "settings.environment.introPre": "キーチェーン以外の環境変数のみを表示しています。オーバーライドは拡張機能の KV に保存され、",
+  "settings.environment.introPost": "に適用されるため、以降のツール呼び出しに継承されます。",
+  "settings.environment.refresh": "更新",
+  "settings.environment.addOverride": "オーバーライドを追加",
+  "settings.environment.valuePlaceholder": "値",
+  "settings.environment.save": "保存",
+  "settings.environment.countLine": "{count} 個の変数を表示 • {overrides} 個のオーバーライドが有効 • {keychain} 個のキーチェーン注入変数を非表示",
+  "settings.environment.overridden": "KV でオーバーライド",
+  "settings.environment.inherited": "プロセス環境から継承",
+  "settings.environment.kindOverride": "オーバーライド",
+  "settings.environment.kindProcess": "プロセス",
+  "settings.environment.clear": "クリア",
+  "settings.environment.noMatch": "「{filter}」に一致する環境変数はありません。",
+  "settings.environment.refreshedToast": "環境を更新しました。",
+  "settings.environment.savedToast": "{name} の環境オーバーライドを保存しました。",
+  "settings.environment.clearedToast": "{name} の環境オーバーライドをクリアしました。",
+  "settings.quickActions.loading": "読み込み中…",
+  "settings.quickActions.heading": "タイムラインクイックアクション",
+  "settings.quickActions.intro": "タイムラインのタイプアヘッドに表示するアクションを選択します。エージェントは常に最初に固定され、次にワークスペースコマンド、その次にスラッシュコマンドが表示されます。",
+  "settings.quickActions.enableAll": "すべて有効化",
+  "settings.quickActions.saving": "保存中…",
+  "settings.quickActions.saveApply": "保存して適用",
+  "settings.quickActions.workspaceCommands": "ワークスペースコマンド",
+  "settings.quickActions.noWorkspaceMatch": "このフィルターに一致するワークスペースコマンドはありません。",
+  "settings.quickActions.slashCommands": "スラッシュコマンド",
+  "settings.quickActions.slashFallback": "スラッシュコマンド",
+  "settings.quickActions.noSlashMatch": "このフィルターに一致するスラッシュコマンドはありません。",
+  "settings.quickActions.savingToast": "クイックアクションを保存中…",
+  "settings.quickActions.savedToast": "クイックアクションを保存しました。",
+  "settings.providers.authApiKey": "API キー",
+  "settings.providers.authConfigured": "設定済み",
+  "settings.providers.heading": "プロバイダー",
+  "settings.providers.tagCustom": "カスタム",
+  "settings.providers.logout": "ログアウト",
+  "settings.providers.reconfigure": "再設定",
+  "settings.providers.setUp": "セットアップ",
+  "settings.providers.setupHint": "サインインフローはブラウザーで開きます。狭いペインではセットアップフォームが縦に積み重なってクリッピングを防ぎます。",
+  "settings.providers.starting": "開始中…",
+  "settings.providers.signInOAuth": "OAuth でサインイン",
+  "settings.providers.apiKeyLabel": "API キー",
+  "settings.providers.apiKeyPlaceholder": "API キーを入力",
+  "settings.providers.save": "保存",
+  "settings.providers.configuring": "設定中…",
+  "settings.providers.saveConfig": "設定を保存",
+  "settings.providers.apiKeyEmpty": "API キーを空にすることはできません。",
+  "settings.providers.configuringToast": "{provider} を設定中…",
+  "settings.providers.configured": "{provider} を設定しました。",
+  "settings.providers.startingOAuth": "{provider} の OAuth を開始中…",
+  "settings.providers.oauthOpened": "OAuth ウィンドウを開きました。サインインフローを完了してから、このメッセージを閉じてください。",
+  "settings.providers.oauthStarted": "{provider} の OAuth フローを開始しました。チャットを確認してください。",
+  "settings.providers.loggingOut": "{provider} をログアウト中…",
+  "settings.providers.loggedOut": "{provider} をログアウトしました。再起動が必要な場合があります。",
+  "settings.general.identity": "アイデンティティ",
+  "settings.general.userLabel": "ユーザー",
+  "settings.general.yourName": "あなたの名前",
+  "settings.general.agentLabel": "エージェント",
+  "settings.general.agentName": "エージェント名",
+  "settings.general.notifications": "通知",
+  "settings.general.browserNotifications": "ブラウザ通知",
+  "settings.general.notifSecureHint": "入力バーの \uD83D\uDD14 ベルボタンで通知を有効/無効にします。Web Push には HTTPS または localhost が必要です。",
+  "settings.general.notifInsecureHint": "⚠ 利用不可 — セキュアコンテキスト（HTTPS または localhost）が必要です。SSH トンネルまたは TLS 付きリバースプロキシ経由でアクセスして有効化してください。",
+  "settings.general.display": "表示",
+  "settings.general.systemMeters": "システムメーター",
+  "settings.general.systemMetersHint": "ステータスバーの CPU/メモリ/ネットワークメーター。このブラウザのみ。",
+  "settings.general.instanceConfig": "インスタンス設定",
+  "settings.general.composeUpload": "作成アップロード（MB）",
+  "settings.general.composeUploadAria": "作成アップロード上限",
+  "settings.general.composeUploadHint": "チャット/メディア添付",
+  "settings.general.workspaceUpload": "ワークスペースアップロード（MB）",
+  "settings.general.workspaceUploadAria": "ワークスペースアップロード上限",
+  "settings.general.workspaceUploadHint": "デフォルトは 256 MB。チャンクアップロードは最大 1 GB まで許可",
+  "settings.general.agentRecovery": "詳細 · エージェント復旧",
+  "settings.general.automaticRecovery": "自動復旧",
+  "settings.general.automaticRecoveryHint": "復旧可能な失敗ターンを自動的に再試行します。",
+  "settings.general.recoveryMaxAttempts": "最大試行回数",
+  "settings.general.recoveryMaxAttemptsAria": "自動復旧の最大試行回数",
+  "settings.general.recoveryMaxAttemptsHint": "0 は通常の再試行上限を継承します。",
+  "settings.general.recoveryTotalBudget": "合計予算（ミリ秒）",
+  "settings.general.recoveryTotalBudgetAria": "自動復旧の合計予算（ミリ秒）",
+  "settings.general.recoveryTotalBudgetHint": "0 はターンのタイムアウトの 3 分の 1（6〜60 分に制限）を使用し、正の値は明示的な上限です。",
+  "settings.general.recoveryEffectiveBudget": "既定のターンタイムアウトでの有効予算：{budget} ミリ秒。",
+  "settings.general.authentication": "認証",
+  "settings.general.widgetToken": "ウィジェット bearer トークン",
+  "settings.general.token": "トークン",
+  "settings.general.hideToken": "トークンを隠す",
+  "settings.general.revealToken": "トークンを表示",
+  "settings.general.copyToken": "トークンをコピー",
+  "settings.general.copied": "コピーしました",
+  "settings.general.regenerating": "再生成中…",
+  "settings.general.regenerate": "再生成",
+  "settings.general.tokenHintPre": "次の読み取り専用トークン：",
+  "settings.general.tokenHintMid": "および",
+  "settings.general.tokenHintPost": "。次として使用：",
+  "settings.general.tokenHintEnd": "。",
+  "settings.general.copyFailed": "ウィジェットトークンをコピーできませんでした。トークンフィールドを選択して手動でコピーしてください。",
+  "settings.general.regenConfirm": "ウィジェットトークンを再生成しますか？古いトークンを使用している既存の macOS ウィジェットは更新されなくなります。",
+  "settings.general.totpTitle": "TOTP セットアップ QR",
+  "settings.general.totpConfiguredHint": "現在の Web ログイン認証システムのシークレット。この QR をスキャンして別の認証デバイスを追加します。",
+  "settings.general.totpUnconfiguredHint": "このインスタンスにはまだ TOTP が設定されていないため、セットアップ QR は利用できません。",
+  "settings.general.issuer": "発行者",
+  "settings.general.label": "ラベル",
+  "settings.general.secret": "シークレット",
+  "settings.general.avatarUpload": "クリックしてアップロード",
+  "settings.developer.heading": "開発者",
+  "settings.developer.devMode": "開発者モード",
+  "settings.developer.localHint": "このブラウザのみ。開発者モードの切り替えとアドオンカタログのオーバーライドはローカルブラウザストレージに保存されます。",
+  "settings.developer.addonSources": "アドオンソース",
+  "settings.developer.catalogUrl": "カタログ URL",
+  "settings.developer.catalogHint": "プライマリアドオンカタログ URL。空のままにするとデフォルトを使用します",
+  "settings.developer.additionalCatalogs": "追加カタログ URL",
+  "settings.developer.additionalHint": "プライマリ/デフォルトカタログに加えて取得されます。1 行に 1 つの URL。",
+  "settings.developer.repoUrl": "リポジトリ URL",
+  "settings.developer.repoHintPre": "git リポジトリを上書き（",
+  "settings.developer.repoHintPost": "インストール用）。空のままでデフォルト。",
+  "settings.developer.debug": "デバッグ",
+  "settings.developer.logSse": "SSE イベントをログ記録",
+  "settings.developer.logToolCalls": "ツール呼び出しをログ記録",
+  "settings.developer.debugHint": "デバッグフラグは次回のページ再読み込み時に有効になります。",
+  "settings.addons.installing": "{slug} をインストール中…",
+  "settings.addons.removing": "{slug} を削除中…",
+  "settings.addons.installedToast": "アドオンをインストールしました。",
+  "settings.addons.removedToast": "アドオンを削除しました。",
+  "settings.addons.restarting": "piclaw を再起動中…",
+  "settings.addons.restartComplete": "再起動完了 — アドオンを更新しました。",
+  "settings.addons.restartTimeout": "バックエンドが時間内に応答しませんでした。ページを手動で再読み込みしてください。",
+  "settings.addons.fetching": "アドオンを取得中…",
+  "settings.addons.loadFailed": "アドオンを読み込めませんでした。",
+  "settings.addons.catalogFromPre": "カタログの取得元：",
+  "settings.addons.catalogMerged": "{count} 個のカタログソースをマージしました。",
+  "settings.addons.installNote": "Bun によるパッケージ優先インストール。インストール/アンインストール後に再起動が必要です。",
+  "settings.addons.failedFetchSingular": "{count} 個のカタログソースの取得に失敗しました：",
+  "settings.addons.failedFetchPlural": "{count} 個のカタログソースの取得に失敗しました：",
+  "settings.addons.activeSources": "アクティブなカタログソース（{count}）",
+  "settings.addons.windowsWarning": "ネイティブ Windows のアドオンインストールはリスクが高くなります：Bun パッケージのインストール、シンボリックリンクのクリーンアップ、ロックされたファイル、再起動のタイミングは、Linux/WSL よりも予測しにくい場合があります。可能であれば WSL またはコンテナを優先してください。",
+  "settings.addons.typeExtSkill": "拡張機能 + スキル",
+  "settings.addons.typeSkill": "スキル",
+  "settings.addons.typeExt": "拡張機能",
+  "settings.addons.update": "更新",
+  "settings.addons.remove": "削除",
+  "settings.addons.install": "インストール",
+  "settings.addons.noMatch": "「{filter}」に一致するアドオンはありません",
+  "settings.addons.restartNotice": "拡張機能の変更はインストールされましたが、piclaw が再起動するまで非アクティブです。",
+  "settings.addons.restartNow": "今すぐ再起動",
+  "settings.recordings.modeFull": "完全 / 信頼済み",
+  "settings.recordings.modeMetadata": "メタデータのみ",
+  "settings.recordings.modeRedacted": "編集済み",
+  "settings.recordings.selectPrompt": "録画を選択して検査、再生、エクスポート、または削除します。",
+  "settings.recordings.playback": "再生",
+  "settings.recordings.refresh": "更新",
+  "settings.recordings.delete": "削除",
+  "settings.recordings.status": "ステータス",
+  "settings.recordings.mode": "モード",
+  "settings.recordings.chat": "チャット",
+  "settings.recordings.started": "開始",
+  "settings.recordings.ended": "終了",
+  "settings.recordings.events": "イベント",
+  "settings.recordings.redactions": "編集",
+  "settings.recordings.exportJson": "JSON をエクスポート",
+  "settings.recordings.exportJsonl": "JSONL をエクスポート",
+  "settings.recordings.exportHtml": "スタンドアロン HTML をエクスポート",
+  "settings.recordings.eventSummary": "イベント概要",
+  "settings.recordings.inspectHint": "詳細を開くか更新してトレースイベントを検査します。",
+  "settings.recordings.firstEvents": "最初のイベント",
+  "settings.recordings.heading": "セッション録画",
+  "settings.recordings.intro": "決定論的な再生と画面録画エクスポートのためのオプトイントレースキャプチャ。再生でライブエージェントやツールのエンドポイントを呼び出すことはありません。",
+  "settings.recordings.chatJid": "チャット JID",
+  "settings.recordings.title": "タイトル",
+  "settings.recordings.titlePlaceholder": "デモ録画",
+  "settings.recordings.modeLabelField": "モード",
+  "settings.recordings.optRedacted": "編集済み",
+  "settings.recordings.optMetadata": "メタデータのみ",
+  "settings.recordings.optFull": "完全 / 信頼済みローカル",
+  "settings.recordings.includeSnapshot": "タイムラインスナップショットを含める",
+  "settings.recordings.extraKeys": "追加の編集キー",
+  "settings.recordings.extraPatterns": "追加の正規表現パターン",
+  "settings.recordings.stopCurrent": "現在のチャット録画を停止",
+  "settings.recordings.start": "録画を開始",
+  "settings.recordings.redactionPreview": "編集プレビュー",
+  "settings.recordings.previewRedaction": "編集をプレビュー",
+  "settings.recordings.loading": "録画を読み込み中…",
+  "settings.recordings.noneYet": "まだ録画がありません。",
+  "settings.recordings.noneYetHint": "上で録画を開始し、再生/エクスポートを使用して決定論的な画面キャプチャを行います。",
+  "settings.recordings.listLabel": "セッション録画",
+  "settings.recordings.eventsCount": "{count} 件のイベント",
+  "settings.recordings.noMatch": "「{filter}」に一致する録画はありません。",
+  "settings.recordings.startedToast": "{chat} の録画を開始しました。",
+  "settings.recordings.startFailed": "録画の開始に失敗しました。",
+  "settings.recordings.stoppedToast": "{chat} の録画を停止しました。",
+  "settings.recordings.stopFailed": "録画の停止に失敗しました。",
+  "settings.recordings.deleteConfirm": "録画 {id} を削除しますか？",
+  "settings.recordings.deletedToast": "録画を削除しました。",
+  "settings.recordings.deleteFailed": "録画の削除に失敗しました。",
+  "settings.recordings.loadOneFailed": "録画の読み込みに失敗しました。",
+  "settings.recordings.loadFailed": "録画の読み込みに失敗しました。",
+  "settings.recordings.previewFailed": "プレビューに失敗しました。",
+  "settings.keychain.loadFailed": "キーチェーンの読み込みに失敗しました。",
+  "settings.keychain.addFailed": "エントリの追加に失敗しました。",
+  "settings.keychain.deleteFailed": "エントリの削除に失敗しました。",
+  "settings.keychain.saveNotesFailed": "メモの保存に失敗しました。",
+  "settings.keychain.revealFailed": "表示に失敗しました。",
+  "settings.keychain.loading": "キーチェーンを読み込み中…",
+  "settings.keychain.entryCountSingular": "{count} 件のエントリ",
+  "settings.keychain.entryCountPlural": "{count} 件のエントリ",
+  "settings.keychain.matchingFilter": " 「{filter}」に一致",
+  "settings.keychain.encryptedSuffix": "、保存時に暗号化。",
+  "settings.keychain.clickPrefix": "クリック",
+  "settings.keychain.revealSuffix": "で表示。",
+  "settings.keychain.cancel": "キャンセル",
+  "settings.keychain.addEntry": "+ エントリを追加",
+  "settings.keychain.namePlaceholder": "エントリ名（例：github/my-token）",
+  "settings.keychain.secretPlaceholder": "シークレット値",
+  "settings.keychain.usernamePlaceholder": "ユーザー名（任意）",
+  "settings.keychain.saving": "保存中…",
+  "settings.keychain.save": "保存",
+  "settings.keychain.userNotePlaceholder": "ユーザーメモ（この UI でのみ表示）",
+  "settings.keychain.agentNotePlaceholder": "エージェントメモ（エージェントに公開しても安全）",
+  "settings.keychain.noMatchFilter": "フィルターに一致するエントリはありません。",
+  "settings.keychain.noEntries": "キーチェーンエントリがありません。",
+  "settings.keychain.hideSecret": "シークレットを非表示",
+  "settings.keychain.revealSecret": "シークレットを表示",
+  "settings.keychain.deleteQ": "削除しますか？",
+  "settings.keychain.yes": "はい",
+  "settings.keychain.no": "いいえ",
+  "settings.keychain.deleteTitle": "削除",
+  "settings.keychain.userNote": "ユーザーメモ",
+  "settings.keychain.agentNote": "エージェント読み取り可能メモ",
+  "settings.keychain.userNoteHint": "人間/UI メモのみ",
+  "settings.keychain.agentNoteHint": "エージェント向けの安全なガイダンス",
+  "settings.keychain.saveNotes": "メモを保存",
+  "settings.keychain.masterPassword": "マスターパスワード：",
+  "settings.keychain.masterPasswordPlaceholder": "キーチェーンのマスターパスワードを入力",
+  "settings.keychain.unlock": "ロック解除",
+  "settings.keychain.totpCode": "TOTP コード：",
+  "settings.keychain.verify": "検証",
+  "settings.keychain.username": "ユーザー名",
+  "settings.keychain.copyUsername": "ユーザー名をコピー",
+  "settings.keychain.secret": "シークレット",
+  "settings.keychain.copySecret": "シークレットをコピー",
+  "settings.tasks.internalProtected": "内部/保護済み",
+  "settings.tasks.noRunLogs": "まだ実行ログが記録されていません。",
+  "settings.tasks.noSummary": "概要なし",
+  "settings.tasks.selectPrompt": "タスクを選択してスケジュール、ステータス、実行履歴を確認します。",
+  "settings.tasks.pause": "一時停止",
+  "settings.tasks.resume": "再開",
+  "settings.tasks.delete": "削除",
+  "settings.tasks.status": "ステータス",
+  "settings.tasks.kind": "種類",
+  "settings.tasks.schedule": "スケジュール",
+  "settings.tasks.nextRun": "次回実行",
+  "settings.tasks.lastRun": "前回実行",
+  "settings.tasks.lastResult": "前回の結果",
+  "settings.tasks.chat": "チャット",
+  "settings.tasks.model": "モデル",
+  "settings.tasks.cwd": "作業ディレクトリ",
+  "settings.tasks.timeout": "タイムアウト",
+  "settings.tasks.protection": "保護",
+  "settings.tasks.protectionHint": "内部タスクの操作には明示的な確認が必要です。",
+  "settings.tasks.command": "コマンド",
+  "settings.tasks.prompt": "プロンプト",
+  "settings.tasks.recentRuns": "最近の実行",
+  "settings.tasks.activeLabel": "アクティブ",
+  "settings.tasks.pausedLabel": "一時停止",
+  "settings.tasks.completedLabel": "完了",
+  "settings.tasks.allStatuses": "すべてのステータス",
+  "settings.tasks.filterChatPlaceholder": "チャット JID をフィルター…",
+  "settings.tasks.refresh": "更新",
+  "settings.tasks.loading": "スケジュールタスクを読み込み中…",
+  "settings.tasks.noneFound": "スケジュールされたタスクが見つかりません。",
+  "settings.tasks.noneFoundHint": "リマインダー、`/tasks`、またはスケジューラツールで作成されたタスクがここに表示されます。",
+  "settings.tasks.listLabel": "スケジュールされたタスク",
+  "settings.tasks.next": "次回",
+  "settings.tasks.last": "前回",
+  "settings.tasks.noMatch": "「{filter}」に一致するタスクはありません。",
+  "settings.tasks.confirmDelete": "スケジュールタスク {id} を削除しますか？",
+  "settings.tasks.confirmPause": "スケジュールタスク {id} を一時停止しますか？",
+  "settings.tasks.confirmResume": "スケジュールタスク {id} を再開しますか？",
+  "settings.tasks.confirmProtected": "タスク {id} は内部/保護済みです。{action} を続行しますか？",
+  "settings.tasks.deleting": "{id} を削除中…",
+  "settings.tasks.pausing": "{id} を一時停止中…",
+  "settings.tasks.resuming": "{id} を再開中…",
+  "settings.tasks.deletedToast": "スケジュールタスク {id} を削除しました。",
+  "settings.tasks.pausedToast": "スケジュールタスク {id} を一時停止しました。",
+  "settings.tasks.resumedToast": "スケジュールタスク {id} を再開しました。",
+  "settings.tasks.actionFailed": "{action} タスクに失敗しました。",
+  "settings.tasks.loadFailed": "スケジュールタスクの読み込みに失敗しました。",
+  "settings.compaction.appliedNotice": "圧縮設定が適用されました。既存のターンは現在のタイマーを保持し、新しいターンは更新された値を使用します。",
+  "settings.compaction.saving": "圧縮設定を保存中…",
+  "settings.compaction.saveFailed": "圧縮設定の保存に失敗しました。",
+  "settings.compaction.saved": "圧縮設定を保存しました。",
+  "settings.compaction.clearing": "{chat} の圧縮抑制をクリア中…",
+  "settings.compaction.clearFailed": "圧縮抑制のクリアに失敗しました。",
+  "settings.compaction.cleared": "{chat} の圧縮抑制をクリアしました。",
+  "settings.compaction.autoHeading": "自動圧縮",
+  "settings.compaction.enableAutomatic": "自動圧縮を有効化",
+  "settings.compaction.enableAutomaticHint": "Piclaw が管理するプロンプト前/アイドル時の圧縮です。上流エージェントの自動圧縮は内部的に抑制されたままです。",
+  "settings.compaction.processingMethod": "処理方式",
+  "settings.compaction.model": "圧縮モデル",
+  "settings.compaction.modelHint": "ローカルスマート圧縮専用の厳密なモデルです。設定済みで利用できない場合は、フォールバックせずセッションを保持して停止します。",
+  "settings.compaction.modelPlaceholder": "provider/model（空欄は現在のモデル）",
+  "settings.compaction.methodSelective": "選択型",
+  "settings.compaction.methodSelectiveHint": "重要な継続情報を抽出し、制限付きプロンプトですべての破棄対象イベントを表現できない場合は完全な段階的カバレッジを使用します。",
+  "settings.compaction.methodPipelined": "パイプライン",
+  "settings.compaction.methodPipelinedHint": "要約前に、破棄対象の各ソースイベントを正規化・分類し、監査可能なカバレッジ台帳を作成します。",
+  "settings.compaction.remoteNative": "プロバイダー・ネイティブ圧縮",
+  "settings.compaction.remoteNativeHint": "明示的に対応しているプロバイダー（{providers}）のみオプトインできます。失敗時は選択したローカル方式へアトミックにフォールバックします。",
+  "settings.compaction.remoteTimeout": "プロバイダー・ネイティブのタイムアウト（秒）",
+  "settings.compaction.remoteTimeoutAria": "プロバイダー・ネイティブ圧縮のタイムアウト",
+  "settings.compaction.remoteTimeoutHint": "ローカル方式へフォールバックする前のリモート処理期限です。",
+  "settings.compaction.enableToolResult": "ツール結果の圧縮を有効化",
+  "settings.compaction.enableToolResultHint": "無効にすると、大きなツール結果はインラインのまま残り、検索可能なツール出力ハンドルに外部化されません。",
+  "settings.compaction.semanticSummaries": "圧縮されたツール結果のセマンティック要約",
+  "settings.compaction.semanticSummariesHint": "有効にすると、圧縮された出力にアクティブモデルで生成されたセマンティック要約が含まれます（失敗時はプレビューにフォールバック）。",
+  "settings.compaction.inputLimit": "セマンティック要約の入力上限（文字）",
+  "settings.compaction.inputLimitAria": "セマンティック要約の入力上限",
+  "settings.compaction.inputLimitHint": "セマンティック要約のために完全なツール出力からサンプリングする最大文字数。",
+  "settings.compaction.maxTokens": "セマンティック要約の出力最大トークン数",
+  "settings.compaction.maxTokensAria": "セマンティック要約の最大トークン数",
+  "settings.compaction.maxTokensHint": "生成される要約の長さの上限。",
+  "settings.compaction.summaryTimeout": "セマンティック要約のタイムアウト（秒）",
+  "settings.compaction.summaryTimeoutAria": "セマンティック要約のタイムアウト",
+  "settings.compaction.summaryTimeoutHint": "このタイムアウト後にセマンティック要約の生成を中止し、プレビュー圧縮にフォールバックします。",
+  "settings.compaction.threshold": "圧縮しきい値（%）",
+  "settings.compaction.thresholdAria": "圧縮しきい値",
+  "settings.compaction.thresholdHint": "コンテキストがウィンドウのこの％を超えたら自動圧縮",
+  "settings.compaction.timeout": "圧縮タイムアウト（秒）",
+  "settings.compaction.timeoutAria": "圧縮タイムアウト",
+  "settings.compaction.timeoutHint": "スタックした事前プロンプト/手動圧縮を中止し、永久にハングしないようにします。",
+  "settings.compaction.backoffBase": "失敗バックオフ基準（分）",
+  "settings.compaction.backoffBaseAria": "圧縮バックオフ基準",
+  "settings.compaction.backoffBaseHint": "圧縮失敗後の最初の抑制ウィンドウ。",
+  "settings.compaction.backoffMax": "失敗バックオフ最大（分）",
+  "settings.compaction.backoffMaxAria": "圧縮バックオフ最大",
+  "settings.compaction.backoffMaxHint": "繰り返し失敗した後の指数的抑制の上限。",
+  "settings.compaction.decayFactor": "バックオフ減衰係数",
+  "settings.compaction.decayFactorAria": "バックオフ減衰係数",
+  "settings.compaction.decayFactorHint": "% — 圧縮が成功するたびにバックオフを半減",
+  "settings.compaction.watchdogHeading": "ストール監視",
+  "settings.compaction.enableWatchdog": "監視を有効化",
+  "settings.compaction.enableWatchdogHint": "デフォルトで無効。有効にすると、アクティブフェーズがハートビートを停止した場合、ヘルパープロセスがランタイムを終了します。",
+  "settings.compaction.watchdogTimeout": "監視タイムアウト（秒）",
+  "settings.compaction.watchdogTimeoutAria": "監視タイムアウト",
+  "settings.compaction.watchdogTimeoutHint": "監視がランタイムを強制終了するまでに、アクティブフェーズがハートビートなしで継続できる時間。",
+  "settings.compaction.suppressionsHeading": "アクティブな圧縮抑制",
+  "settings.compaction.noBackoff": "現在、圧縮バックオフ中のチャットはありません。",
+  "settings.compaction.clear": "クリア",
+  "settings.compaction.phasesHeading": "ライブ監視フェーズ",
+  "settings.compaction.noPhases": "現在、追跡中のアクティブなフェーズはありません。",
+  "menu.title": "メニュー",
+  "menu.showWorkspace": "ワークスペースを表示",
+  "menu.hideWorkspace": "ワークスペースを非表示",
+  "menu.openExplorer": "エクスプローラーを開く",
+  "menu.chatOnly": "チャットのみモード",
+  "menu.exitChatOnly": "チャットのみモードを終了",
+  "menu.openTerminal": "ターミナルをタブで開く",
+  "menu.openVnc": "VNC をタブで開く",
+  "menu.newFile": "新規ファイル",
+  "menu.openRecent": "最近のファイルを開く",
+  "menu.refreshTree": "ツリーを更新",
+  "menu.reindex": "ワークスペースを再インデックス",
+  "menu.showHidden": "隠しファイルを表示",
+  "menu.hideHidden": "隠しファイルを非表示",
+  "menu.scale": "拡大縮小",
+  "menu.settings": "設定"
+};
+var TRANSLATIONS = {
+  en: EN,
+  "zh-CN": ZH_CN,
+  ja: JA
+};
+var currentLocale = DEFAULT_LOCALE;
+var initialized = false;
+function normalizeLocale(value) {
+  const raw = String(value ?? "").trim().toLowerCase().replace(/_/g, "-");
+  if (!raw)
+    return DEFAULT_LOCALE;
+  if (raw === "zh-cn" || raw === "zh" || raw === "zh-hans" || raw.startsWith("zh-hans")) {
+    return "zh-CN";
+  }
+  if (raw === "ja" || raw.startsWith("ja-"))
+    return "ja";
+  if (raw === "en" || raw.startsWith("en-"))
+    return "en";
+  return DEFAULT_LOCALE;
+}
+function detectBrowserLocale() {
+  if (typeof navigator === "undefined")
+    return DEFAULT_LOCALE;
+  const candidates = [
+    ...Array.isArray(navigator.languages) ? navigator.languages : [],
+    navigator.language
+  ].filter((c) => typeof c === "string" && c.length > 0);
+  for (const candidate of candidates) {
+    const normalized = normalizeLocale(candidate);
+    if (normalized !== DEFAULT_LOCALE)
+      return normalized;
+  }
+  return DEFAULT_LOCALE;
+}
+function resolveInitialLocale() {
+  const stored = getLocalStorageItem(LOCALE_STORAGE_KEY);
+  if (stored)
+    return normalizeLocale(stored);
+  return detectBrowserLocale();
+}
+function emitLocaleChange(locale) {
+  if (typeof window === "undefined")
+    return;
+  window.dispatchEvent(new CustomEvent(LOCALE_CHANGE_EVENT, { detail: { locale } }));
+}
+function getLocale() {
+  if (!initialized)
+    initLocale();
+  return currentLocale;
+}
+function initLocale() {
+  currentLocale = resolveInitialLocale();
+  initialized = true;
+  return currentLocale;
+}
+function setLocale(value, options = {}) {
+  const next = normalizeLocale(value);
+  initialized = true;
+  if (next === currentLocale && options.persist === false)
+    return currentLocale;
+  currentLocale = next;
+  if (options.persist !== false)
+    setLocalStorageItem(LOCALE_STORAGE_KEY, next);
+  emitLocaleChange(next);
+  return currentLocale;
+}
+function interpolate(template, vars) {
+  if (!vars)
+    return template;
+  return template.replace(/\{(\w+)\}/g, (match, name) => {
+    const replacement = vars[name];
+    return replacement === undefined || replacement === null ? match : String(replacement);
+  });
+}
+function translate(key, vars, locale = getLocale()) {
+  const fromLocale = TRANSLATIONS[locale]?.[key];
+  const template = fromLocale ?? EN[key] ?? key;
+  return interpolate(template, vars);
+}
+function useLocale() {
+  const [locale, setLocaleState] = M_(getLocale());
+  J_(() => {
+    if (typeof window === "undefined" || typeof window.addEventListener !== "function")
+      return;
+    const handler = (event) => {
+      const detail = event.detail;
+      const next = normalizeLocale(detail?.locale ?? getLocale());
+      setLocaleState(next);
+    };
+    window.addEventListener(LOCALE_CHANGE_EVENT, handler);
+    setLocaleState(getLocale());
+    return () => window.removeEventListener(LOCALE_CHANGE_EVENT, handler);
+  }, []);
+  return [locale, (value) => setLocale(value)];
+}
+function useTranslation() {
+  const [locale, setLocaleValue] = useLocale();
+  return {
+    locale,
+    setLocale: setLocaleValue,
+    t: (key, vars) => translate(key, vars, locale)
+  };
+}
+
+// web/src/components/language-switcher.ts
+function buildLanguageOptions(activeLocale) {
+  return SUPPORTED_LOCALES.map((value) => ({
+    value,
+    label: LOCALE_LABELS[value],
+    active: value === activeLocale
+  }));
+}
+function LanguageSwitcher({
+  variant = "inline",
+  onChange
+} = {}) {
+  const { locale, setLocale, t } = useTranslation();
+  const options = buildLanguageOptions(locale);
+  const handleChange = (event) => {
+    const next = event?.currentTarget?.value;
+    setLocale(next);
+    onChange?.(next);
+  };
+  return ce`
+    <div class=${`language-switcher language-switcher-${variant}`} role="none">
+      <label class="language-switcher-label" for="language-switcher-select">${t("language.label")}</label>
+      <select
+        id="language-switcher-select"
+        class="language-switcher-select"
+        value=${locale}
+        aria-label=${t("language.label")}
+        onClick=${(event) => event.stopPropagation()}
+        onChange=${handleChange}
+      >
+        ${options.map((option) => ce`
+          <option key=${option.value} value=${option.value}>${option.label}</option>
+        `)}
+      </select>
+    </div>
+  `;
+}
+
+// web/src/components/timeline-menu.ts
+function TimelineMenu({
+  workspaceOpen,
+  toggleWorkspace,
+  chatOnlyMode,
+  openEditor,
+  onOpenTerminalTab,
+  onOpenVncTab
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = M_(false);
+  const [pwaDisplayScalePercent, setPwaDisplayScalePercent] = M_(() => readStoredPwaDisplayScalePercent());
+  const [pwaDisplayScaleDraft, setPwaDisplayScaleDraft] = M_(() => String(readStoredPwaDisplayScalePercent()));
+  const [showHidden, setShowHidden] = M_(() => {
+    try {
+      return localStorage.getItem("workspaceShowHidden") === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [pos, setPos] = M_({ top: 8, left: 8 });
+  const getSafeAreaTop = () => {
+    if (typeof document === "undefined")
+      return 0;
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none";
+    document.body.appendChild(probe);
+    const h = probe.offsetHeight;
+    probe.remove();
+    return h;
+  };
+  const menuRef = K_(null);
+  const btnRef = K_(null);
+  const portalRef = K_(null);
+  J_(() => {
+    if (typeof document === "undefined")
+      return;
+    const host = document.createElement("div");
+    host.className = "timeline-menu-portal in-chat";
+    document.body.appendChild(host);
+    portalRef.current = host;
+    return () => {
+      host.remove();
+      portalRef.current = null;
+    };
+  }, []);
+  J_(() => {
+    const update = () => {
+      const safeTop = getSafeAreaTop();
+      const topOffset = safeTop > 0 ? safeTop + 4 : 8;
+      if (workspaceOpen) {
+        const sidebar = document.querySelector(".workspace-sidebar");
+        if (sidebar) {
+          const r = sidebar.getBoundingClientRect();
+          setPos({ top: r.top + topOffset, left: r.left + 8 });
+        }
+      } else {
+        setPos({ top: topOffset, left: 8 });
+      }
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    const sidebar = document.querySelector(".workspace-sidebar");
+    if (sidebar)
+      observer.observe(sidebar);
+    window.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [workspaceOpen]);
+  J_(() => {
+    if (portalRef.current)
+      portalRef.current.className = `timeline-menu-portal ${workspaceOpen ? "in-workspace" : "in-chat"}`;
+  }, [workspaceOpen]);
+  J_(() => {
+    if (!portalRef.current)
+      return;
+    const s = portalRef.current.style;
+    s.top = `${pos.top}px`;
+    s.left = `${pos.left}px`;
+    s.right = "auto";
+  }, [pos]);
+  J_(() => {
+    if (!open)
+      return;
+    const onClick = (e) => {
+      if (menuRef.current?.contains(e.target))
+        return;
+      if (btnRef.current?.contains(e.target))
+        return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick, true);
+    return () => document.removeEventListener("mousedown", onClick, true);
+  }, [open]);
+  J_(() => {
+    if (!open)
+      return;
+    const onKey = (e) => {
+      if (e.key === "Escape")
+        setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+  J_(() => {
+    setOpen(false);
+  }, [workspaceOpen]);
+  J_(() => {
+    const syncPwaDisplayScale = () => {
+      const next = readStoredPwaDisplayScalePercent();
+      setPwaDisplayScalePercent(next);
+      setPwaDisplayScaleDraft(String(next));
+    };
+    const onStorage = (event) => {
+      if (!event || event.key === null || event.key === PWA_DISPLAY_SCALE_STORAGE_KEY)
+        syncPwaDisplayScale();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", syncPwaDisplayScale);
+    window.addEventListener(PWA_DISPLAY_SCALE_EVENT, syncPwaDisplayScale);
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", syncPwaDisplayScale);
+      window.removeEventListener(PWA_DISPLAY_SCALE_EVENT, syncPwaDisplayScale);
+    };
+  }, []);
+  const handlePwaDisplayScaleInput = X_((event) => {
+    setPwaDisplayScaleDraft(String(event?.currentTarget?.value ?? ""));
+  }, []);
+  const commitPwaDisplayScale = X_((value) => {
+    const next = persistPwaDisplayScalePercent(value);
+    setPwaDisplayScalePercent(next);
+    setPwaDisplayScaleDraft(String(next));
+  }, []);
+  const handlePwaDisplayScaleCommit = X_((event) => {
+    commitPwaDisplayScale(event?.currentTarget?.value);
+  }, [commitPwaDisplayScale]);
+  const handlePwaDisplayScaleKeyDown = X_((event) => {
+    if (event?.key === "Enter") {
+      commitPwaDisplayScale(event?.currentTarget?.value);
+      event?.currentTarget?.blur?.();
+    }
+  }, [commitPwaDisplayScale]);
+  const run = X_((fn) => {
+    setOpen(false);
+    fn?.();
+  }, []);
+  const toggleChatOnly = X_(() => {
+    const url = new URL(window.location.href);
+    if (chatOnlyMode) {
+      url.searchParams.delete("chat_only");
+    } else {
+      url.searchParams.set("chat_only", "1");
+    }
+    window.location.href = url.toString();
+  }, [chatOnlyMode]);
+  const content = ce`
+        <button ref=${btnRef} class=${`timeline-menu-btn${open ? " active" : ""}`} data-testid="hamburger"
+            onClick=${() => setOpen((v) => !v)} title=${t("menu.title")} aria-label=${t("menu.title")}
+            aria-haspopup="menu" aria-expanded=${open ? "true" : "false"}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="4" y1="7" x2="20" y2="7" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+        </button>
+        ${open && ce`
+            <div class="workspace-menu-dropdown timeline-menu-dropdown" ref=${menuRef} role="menu">
+                <button class="workspace-menu-item" role="menuitem" onClick=${() => run(toggleWorkspace)}>
+                    ${workspaceOpen ? t("menu.hideWorkspace") : t("menu.showWorkspace")}
+                </button>
+                ${!workspaceOpen && !chatOnlyMode && ce`
+                    <button class="workspace-menu-item" role="menuitem" onClick=${() => run(() => {
+    toggleWorkspace();
+  })}>
+                        ${t("menu.openExplorer")}
+                    </button>
+                `}
+                <button class=${`workspace-menu-item${chatOnlyMode ? " active" : ""}`} role="menuitem" onClick=${() => run(toggleChatOnly)}>
+                    ${chatOnlyMode ? t("menu.exitChatOnly") : t("menu.chatOnly")}
+                </button>
+
+                ${(onOpenTerminalTab || onOpenVncTab) && ce`<div class="workspace-menu-separator"></div>`}
+                ${onOpenTerminalTab && ce`<button class="workspace-menu-item" role="menuitem" onClick=${() => run(onOpenTerminalTab)}>${t("menu.openTerminal")}</button>`}
+                ${onOpenVncTab && ce`<button class="workspace-menu-item" role="menuitem" onClick=${() => run(onOpenVncTab)}>${t("menu.openVnc")}</button>`}
+
+                <div class="workspace-menu-separator"></div>
+                <button class="workspace-menu-item" role="menuitem" disabled=${!workspaceOpen} onClick=${() => run(() => window.dispatchEvent(new CustomEvent("piclaw:workspace-action", { detail: { action: "new-file" } })))}>${t("menu.newFile")}</button>
+                ${(() => {
+    const recent = getRecentFiles();
+    if (recent.length === 0)
+      return null;
+    return ce`
+                        <div class="workspace-menu-separator"></div>
+                        <div class="workspace-menu-submenu-label">${t("menu.openRecent")}</div>
+                        ${recent.map((path) => {
+      const label = path.split("/").pop() || path;
+      return ce`
+                                <button class="workspace-menu-item workspace-menu-recent-item" role="menuitem" title=${path} onClick=${() => run(() => openEditor?.(path))}>${label}</button>
+                            `;
+    })}
+                    `;
+  })()}
+                <div class="workspace-menu-separator"></div>
+                <button class="workspace-menu-item" role="menuitem" disabled=${!workspaceOpen} onClick=${() => run(() => window.dispatchEvent(new CustomEvent("piclaw:workspace-action", { detail: { action: "refresh" } })))}>${t("menu.refreshTree")}</button>
+                <button class="workspace-menu-item" role="menuitem" disabled=${!workspaceOpen} onClick=${() => run(() => window.dispatchEvent(new CustomEvent("piclaw:workspace-action", { detail: { action: "reindex" } })))}>${t("menu.reindex")}</button>
+                <button class=${`workspace-menu-item${showHidden ? " active" : ""}`} role="menuitem" disabled=${!workspaceOpen} onClick=${() => run(() => {
+    const next = !showHidden;
+    setShowHidden(next);
+    try {
+      localStorage.setItem("workspaceShowHidden", String(next));
+    } catch {
+      setShowHidden(next);
+    }
+    window.dispatchEvent(new CustomEvent("piclaw:toggle-hidden-files", { detail: { showHidden: next } }));
+  })}>
+                    ${showHidden ? t("menu.hideHidden") : t("menu.showHidden")}
+                </button>
+                <div class="workspace-menu-scale-control" role="none">
+                    <label for="timeline-pwa-display-scale">${t("menu.scale")}</label>
+                    <div class="workspace-menu-scale-input-wrap">
+                        <input
+                            id="timeline-pwa-display-scale"
+                            class="workspace-menu-scale-input"
+                            type="number"
+                            inputmode="numeric"
+                            min=${MIN_PWA_DISPLAY_SCALE_PERCENT}
+                            max=${MAX_PWA_DISPLAY_SCALE_PERCENT}
+                            step=${PWA_DISPLAY_SCALE_STEP_PERCENT}
+                            value=${pwaDisplayScaleDraft}
+                            aria-label=${`PWA display scale percentage, currently ${pwaDisplayScalePercent}%`}
+                            onClick=${(event) => event.stopPropagation()}
+                            onInput=${handlePwaDisplayScaleInput}
+                            onChange=${handlePwaDisplayScaleCommit}
+                            onBlur=${handlePwaDisplayScaleCommit}
+                            onKeyDown=${handlePwaDisplayScaleKeyDown}
+                        />
+                        <span aria-hidden="true">%</span>
+                    </div>
+                </div>
+                <button class="workspace-menu-item" role="menuitem" onClick=${() => run(() => window.dispatchEvent(new CustomEvent("piclaw:open-settings")))}>${t("menu.settings")}</button>
+                <div class="workspace-menu-separator"></div>
+                <div class="workspace-menu-language" role="none">
+                    <${LanguageSwitcher} variant="menu" />
+                </div>
+            </div>
+        `}
+    `;
+  F_(() => {
+    if (portalRef.current)
+      z_(content, portalRef.current);
+  });
+  return null;
+}
+
 // web/src/app.ts
 var SESSION_KEY = "gi_session_id";
 var DEFAULT_AGENT_ID = "web";
@@ -18366,8 +15772,8 @@ async function ensureDefaultSession() {
   const stored = getLocalStorageItem(SESSION_KEY);
   if (stored) {
     try {
-      const r3 = await fetch(`/api/sessions/${encodeURIComponent(stored)}`);
-      if (r3.ok)
+      const r = await fetch(`/api/sessions/${encodeURIComponent(stored)}`);
+      if (r.ok)
         return stored;
     } catch {}
   }
@@ -18376,59 +15782,59 @@ async function ensureDefaultSession() {
     if (existing.ok) {
       const payload = await existing.json();
       const sessions = Array.isArray(payload?.sessions) ? payload.sessions : [];
-      const matching = sessions.filter((session) => session?.scope?.agent_id === "web" && !session?.parent_session_id).sort((a2, b) => String(b?.updated_at || "").localeCompare(String(a2?.updated_at || "")));
+      const matching = sessions.filter((session) => session?.scope?.agent_id === "web" && !session?.parent_session_id).sort((a, b) => String(b?.updated_at || "").localeCompare(String(a?.updated_at || "")));
       if (matching[0]?.id) {
         setLocalStorageItem(SESSION_KEY, matching[0].id);
         return matching[0].id;
       }
     }
   } catch {}
-  const r2 = await fetch("/api/sessions", {
+  const r = await fetch("/api/sessions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title: "@web", agent_id: "web" })
   });
-  if (!r2.ok)
+  if (!r.ok)
     throw new Error("Failed to create default session");
-  const s2 = await r2.json();
-  setLocalStorageItem(SESSION_KEY, s2.id);
-  return s2.id;
+  const s = await r.json();
+  setLocalStorageItem(SESSION_KEY, s.id);
+  return s.id;
 }
 async function getRuntimeConfig() {
-  const r2 = await fetch("/api/runtime/config");
-  if (!r2.ok)
+  const r = await fetch("/api/runtime/config");
+  if (!r.ok)
     return {};
-  return r2.json();
+  return r.json();
 }
 function GiApp() {
-  const [ready, setReady] = v0(false);
-  const [sessionId, setSessionId] = v0(null);
-  const [runtimeConfig, setRuntimeConfig] = v0({});
-  const [agents, setAgents] = v0({});
-  const [userProfile, setUserProfile] = v0(null);
-  const [workspaceOpen, setWorkspaceOpen] = v0(false);
-  const [tabs, setTabs] = v0([]);
-  const [activeTabId, setActiveTabId] = v0(null);
+  const [ready, setReady] = M_(false);
+  const [sessionId, setSessionId] = M_(null);
+  const [runtimeConfig, setRuntimeConfig] = M_({});
+  const [agents, setAgents] = M_({});
+  const [userProfile, setUserProfile] = M_(null);
+  const [workspaceOpen, setWorkspaceOpen] = M_(false);
+  const [tabs, setTabs] = M_([]);
+  const [activeTabId, setActiveTabId] = M_(null);
   const editorOpen = tabs.length > 0;
-  const [posts, setPosts] = v0([]);
-  const [hasMore, setHasMore] = v0(false);
-  const timelineRef = o0(null);
-  const [fileRefs, setFileRefs] = v0([]);
-  const [messageRefs, setMessageRefs] = v0([]);
-  const [followupQueueItems, setFollowupQueueItems] = v0([]);
-  const [floatingWidget, setFloatingWidget] = v0(null);
-  const [attachmentPreview, setAttachmentPreview] = v0(null);
-  const [contextUsage, setContextUsage] = v0(null);
-  const [activeChatAgents, setActiveChatAgents] = v0([]);
-  const [currentChatBranches, setCurrentChatBranches] = v0([]);
-  const [activeModel, setActiveModel] = v0("");
-  const [agentModelsPayload, setAgentModelsPayload] = v0(null);
-  const [activeThinkingLevel, setActiveThinkingLevel] = v0("");
-  const [supportsThinking, setSupportsThinking] = v0(false);
-  const [modelUsage, setModelUsage] = v0(null);
-  const [connectionStatus, setConnectionStatus] = v0("connected");
-  const [isAgentTurnActive, setIsAgentTurnActive] = v0(false);
-  const isAgentRunningRef = o0(false);
+  const [posts, setPosts] = M_([]);
+  const [hasMore, setHasMore] = M_(false);
+  const timelineRef = K_(null);
+  const [fileRefs, setFileRefs] = M_([]);
+  const [messageRefs, setMessageRefs] = M_([]);
+  const [followupQueueItems, setFollowupQueueItems] = M_([]);
+  const [floatingWidget, setFloatingWidget] = M_(null);
+  const [attachmentPreview, setAttachmentPreview] = M_(null);
+  const [contextUsage, setContextUsage] = M_(null);
+  const [activeChatAgents, setActiveChatAgents] = M_([]);
+  const [currentChatBranches, setCurrentChatBranches] = M_([]);
+  const [activeModel, setActiveModel] = M_("");
+  const [agentModelsPayload, setAgentModelsPayload] = M_(null);
+  const [activeThinkingLevel, setActiveThinkingLevel] = M_("");
+  const [supportsThinking, setSupportsThinking] = M_(false);
+  const [modelUsage, setModelUsage] = M_(null);
+  const [connectionStatus, setConnectionStatus] = M_("connected");
+  const [isAgentTurnActive, setIsAgentTurnActive] = M_(false);
+  const isAgentRunningRef = K_(false);
   const {
     agentStatus,
     setAgentStatus,
@@ -18453,9 +15859,10 @@ function GiApp() {
     thoughtExpandedRef,
     draftExpandedRef
   } = useAgentState();
-  const currentChatJid = G0(() => sessionId ? sessionToChatJid2(sessionId) : "", [sessionId]);
-  r0(() => {
+  const currentChatJid = u_(() => sessionId ? sessionToChatJid2(sessionId) : "", [sessionId]);
+  J_(() => {
     const cleanupTheme = initTheme();
+    const cleanupDisplayScale = installPwaDisplayScaleSync();
     if (getLocalStorageItem("piclaw_system_meters_enabled") === null) {
       setLocalStorageItem("piclaw_system_meters_enabled", "true");
     }
@@ -18478,12 +15885,15 @@ function GiApp() {
       setSupportsThinking(Boolean(cfg.supports_thinking));
       setAgentModelsPayload(cfg);
       setReady(true);
-    }).catch((err2) => {
-      console.error("[gi] Bootstrap failed:", err2);
+    }).catch((err) => {
+      console.error("[gi] Bootstrap failed:", err);
     });
-    return cleanupTheme;
+    return () => {
+      cleanupTheme?.();
+      cleanupDisplayScale();
+    };
   }, []);
-  const loadPosts = t0(async (opts = {}) => {
+  const loadPosts = X_(async (opts = {}) => {
     if (!sessionId)
       return;
     const chatJid = sessionToChatJid2(sessionId);
@@ -18496,13 +15906,13 @@ function GiApp() {
     }
     setHasMore(incoming.length >= 50);
   }, [sessionId]);
-  const scrollToBottom = t0(() => {
+  const scrollToBottom = X_(() => {
     const el = timelineRef.current;
     if (!el)
       return;
     el.scrollTop = el.scrollHeight;
   }, []);
-  const refreshSessionLists = t0(async (sid) => {
+  const refreshSessionLists = X_(async (sid) => {
     if (!sid) {
       setActiveChatAgents([]);
       setCurrentChatBranches([]);
@@ -18521,7 +15931,7 @@ function GiApp() {
     })));
     setCurrentChatBranches(branchesList);
   }, []);
-  const handleSseEvent = t0((eventType, data) => {
+  const handleSseEvent = X_((eventType, data) => {
     if (eventType === "new_post" || eventType === "agent_response") {
       if (data && data.id) {
         setPosts((prev) => appendUniqueTimelinePost(prev, data));
@@ -18555,7 +15965,7 @@ function GiApp() {
       setAgentThought(null);
     }
   }, [scrollToBottom]);
-  const handleConnectionStatusChange = t0((status) => {
+  const handleConnectionStatusChange = X_((status) => {
     setConnectionStatus(status);
   }, []);
   useSseConnection({
@@ -18567,7 +15977,7 @@ function GiApp() {
     },
     chatJid: currentChatJid
   });
-  r0(() => {
+  J_(() => {
     if (!ready || !sessionId)
       return;
     loadPosts();
@@ -18578,12 +15988,12 @@ function GiApp() {
     }, 1e4);
     return () => clearInterval(id);
   }, [ready, sessionId, loadPosts, refreshSessionLists]);
-  const handlePost = t0(async (response) => {
+  const handlePost = X_(async (response) => {
     await loadPosts();
     refreshSessionLists(sessionId);
     scrollToBottom();
   }, [loadPosts, refreshSessionLists, scrollToBottom, sessionId]);
-  const handleSwitchChat = t0((chatJid) => {
+  const handleSwitchChat = X_((chatJid) => {
     const nextSessionId = typeof chatJid === "string" && chatJid.startsWith("gi:") ? chatJid.slice(3) : null;
     if (!nextSessionId || nextSessionId === sessionId)
       return;
@@ -18591,7 +16001,7 @@ function GiApp() {
     setSessionId(nextSessionId);
     setPosts([]);
   }, [sessionId]);
-  const handleCreateSession = t0(async () => {
+  const handleCreateSession = X_(async () => {
     const response = await fetch("/api/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -18607,8 +16017,8 @@ function GiApp() {
     setSessionId(nextSessionId);
     setPosts([]);
   }, []);
-  const openEditor = t0((path) => {
-    const existing = tabs.find((t2) => t2.id === path || t2.path === path);
+  const openEditor = X_((path) => {
+    const existing = tabs.find((t) => t.id === path || t.path === path);
     if (existing) {
       setActiveTabId(existing.id);
       return;
@@ -18616,9 +16026,9 @@ function GiApp() {
     setTabs((prev) => [...prev, { id: path, path, label: path.split("/").pop() || path, dirty: false, pinned: false }]);
     setActiveTabId(path);
   }, [tabs]);
-  const handleTabClose = t0((id) => {
+  const handleTabClose = X_((id) => {
     setTabs((prev) => {
-      const next = prev.filter((t2) => t2.id !== id);
+      const next = prev.filter((t) => t.id !== id);
       if (activeTabId === id)
         setActiveTabId(next[next.length - 1]?.id || null);
       return next;
@@ -18630,37 +16040,51 @@ function GiApp() {
     editorOpen ? "editor-open" : ""
   ].filter(Boolean).join(" ");
   if (!ready) {
-    return X1`<div id="app"><div style="padding:20px;text-align:center;color:var(--text-secondary,#888)">Loading…</div></div>`;
+    return ce`<div id="app"><div style="padding:20px;text-align:center;color:var(--text-secondary,#888)">Loading…</div></div>`;
   }
-  return X1`
+  return ce`
         <div class=${appShellClass}>
             <${SystemMetersHud} mode="overlay" />
+            <${TimelineMenu}
+                workspaceOpen=${workspaceOpen}
+                toggleWorkspace=${() => setWorkspaceOpen((v) => !v)}
+                chatOnlyMode=${false}
+                openEditor=${openEditor}
+            />
             <${WorkspaceExplorer}
-                onFileSelect=${(path) => setFileRefs((p2) => [...p2, path])}
+                onFileSelect=${(path) => setFileRefs((p) => [...p, path])}
                 visible=${workspaceOpen}
                 active=${workspaceOpen || editorOpen}
                 onOpenEditor=${openEditor}
                 onOpenTerminalTab=${() => {}}
                 onOpenVncTab=${() => {}}
             />
+            ${workspaceOpen && ce`<button
+                class="workspace-drawer-backdrop"
+                onClick=${() => setWorkspaceOpen(false)}
+                aria-label="Hide workspace"
+                title="Hide workspace"
+            ></button>`}
             <button
                 class=${`workspace-toggle-tab${workspaceOpen ? " open" : " closed"}`}
                 onClick=${() => setWorkspaceOpen((v) => !v)}
                 title=${workspaceOpen ? "Hide workspace" : "Show workspace"}
+                aria-label=${workspaceOpen ? "Hide workspace" : "Show workspace"}
+                aria-expanded=${workspaceOpen ? "true" : "false"}
             >
                 <svg class="workspace-toggle-tab-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="6 3 11 8 6 13" />
                 </svg>
             </button>
             <div class="workspace-splitter"></div>
-            ${editorOpen && X1`
+            ${editorOpen && ce`
                 <div class="editor-pane-container">
                     <${TabStrip}
                         tabs=${tabs}
                         activeId=${activeTabId}
                         onActivate=${(id) => setActiveTabId(id)}
                         onClose=${handleTabClose}
-                        onCloseOthers=${(id) => setTabs((p2) => p2.filter((t2) => t2.id === id))}
+                        onCloseOthers=${(id) => setTabs((p) => p.filter((t) => t.id === id))}
                         onCloseAll=${() => {
     setTabs([]);
     setActiveTabId(null);
@@ -18687,7 +16111,7 @@ function GiApp() {
                     onFileRef=${openEditor}
                     onPostClick=${undefined}
                     onDeletePost=${() => {}}
-                    onOpenWidget=${(w2) => setFloatingWidget(w2)}
+                    onOpenWidget=${(w) => setFloatingWidget(w)}
                     onOpenAttachmentPreview=${setAttachmentPreview}
                     emptyMessage="Send a message to get started."
                     agents=${agents}
@@ -18713,7 +16137,7 @@ function GiApp() {
                     onClose=${() => setFloatingWidget(null)}
                     onWidgetEvent=${() => {}}
                 />
-                ${attachmentPreview && X1`
+                ${attachmentPreview && ce`
                     <${AttachmentPreviewModal}
                         mediaId=${attachmentPreview.mediaId}
                         info=${attachmentPreview.info}
@@ -18761,7 +16185,7 @@ function GiApp() {
                     contextUsage=${contextUsage}
                     fileRefs=${fileRefs}
                     messageRefs=${messageRefs}
-                    onRemoveFileRef=${(p2) => setFileRefs((prev) => prev.filter((x3) => x3 !== p2))}
+                    onRemoveFileRef=${(p) => setFileRefs((prev) => prev.filter((x) => x !== p))}
                     onClearFileRefs=${() => setFileRefs([])}
                     onRemoveMessageRef=${() => {}}
                     onClearMessageRefs=${() => setMessageRefs([])}
@@ -18794,7 +16218,7 @@ function GiApp() {
         </div>
     `;
 }
-c0(X1`<${GiApp} />`, document.getElementById("app"));
+z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=C7EB0D564898E6D064756E2164756E21
+//# debugId=E38FB5CC6B1C448664756E2164756E21
 //# sourceMappingURL=app.js.map
