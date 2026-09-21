@@ -189,6 +189,131 @@ test('@ux-original-014 Select another session through the picker', async ({ page
   await info.attach('checkpoint', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
+test('@ux-original-015 Use the session actions actually supplied by the client', async ({ page, request }, info) => {
+  const scenario = loadCorpus().find(row => row.id === '@ux-original-015');
+  await info.attach('gherkin', { body: scenario.steps.join('\n'), contentType: 'text/plain' });
+  const agent = `mutations-${info.project.name}`;
+  const main = await (await request.post('/api/sessions', { data: { title: `@${agent}`, agent_id: agent } })).json();
+  const fork = await (await request.post(`/api/sessions/${main.id}/fork`, { data: { title: `${agent}-child`, agent_id: `${agent}-child` } })).json();
+  const child = fork.branch.chat_jid.slice(3);
+  await page.addInitScript(id => localStorage.setItem('gi_session_id', id), main.id);
+  await page.goto('/');
+  const compose = page.getByRole('textbox', { name: inputName, exact: true });
+  await compose.fill('Mutation must not submit or lose this draft');
+  const trigger = page.getByRole('button', { name: /Manage sessions for/ }).last();
+  await trigger.click();
+  const row = id => page.locator(`[data-session-jid="gi:${id}"]`);
+  const childRow = row(child), rootRow = row(main.id);
+  await expect(childRow).toBeVisible();
+  await expect(rootRow.getByRole('button', { name: /^Archive / })).toHaveCount(0);
+  await expect(childRow.getByRole('button', { name: /^Restore / })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Delete current/ })).toHaveCount(0);
+  const stored = async () => (await request.get(`/api/sessions/${child}`)).json();
+
+  await childRow.getByRole('button', { name: /^Pin / }).click();
+  await expect(page.getByRole('group', { name: 'Pinned', exact: true }).locator(`[data-session-jid="gi:${child}"]`)).toBeVisible();
+  await expect.poll(async () => (await stored()).state.pinned).toBe(true);
+  await childRow.getByRole('button', { name: /^Rename / }).click();
+  const name = page.getByRole('textbox', { name: 'Session name', exact: true });
+  await expect(name).toBeFocused();
+  await name.fill('   ');
+  await page.getByRole('button', { name: 'Save name', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('title must be');
+  await expect.poll(async () => (await stored()).title).toBe(`${agent}-child`);
+  await expect(page.getByRole('status').filter({ hasText: 'Renamed session.' })).toHaveCount(0);
+  const renamed = `${agent}-renamed`;
+  await name.fill(renamed);
+  await page.getByRole('button', { name: 'Save name', exact: true }).click();
+  await expect(childRow.getByRole('menuitem')).toContainText(renamed);
+  await expect.poll(async () => (await stored()).title).toBe(renamed);
+  await childRow.getByRole('button', { name: /^Archive / }).click();
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect.poll(async () => (await stored()).state.archived_at || null).toBe(null);
+  await childRow.getByRole('button', { name: /^Archive / }).click();
+  await page.getByRole('button', { name: 'Confirm archive', exact: true }).click();
+  await expect(page.getByRole('group', { name: 'Archived', exact: true }).locator(`[data-session-jid="gi:${child}"]`)).toBeVisible();
+  await expect(childRow.getByRole('button', { name: /^Rename / })).toHaveCount(0);
+  await expect(childRow.getByRole('button', { name: /^(Pin|Unpin) / })).toHaveCount(0);
+  await expect.poll(async () => Boolean((await stored()).state.archived_at)).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(compose).toHaveValue('Mutation must not submit or lose this draft');
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('gi_session_id'))).toBe(main.id);
+
+  await page.reload(); // Persistent pin/archive metadata, not page-local state.
+  await trigger.click();
+  await expect(page.getByRole('group', { name: 'Archived', exact: true }).locator(`[data-session-jid="gi:${child}"]`)).toBeVisible();
+  await childRow.getByRole('button', { name: /^Restore / }).click();
+  await expect(page.getByRole('group', { name: 'Pinned', exact: true }).locator(`[data-session-jid="gi:${child}"]`)).toBeVisible();
+  await expect.poll(async () => (await stored()).state.archived_at || null).toBe(null);
+  await childRow.getByRole('button', { name: /^Unpin / }).click();
+  await expect.poll(async () => (await stored()).state.pinned).toBe(false);
+  await expect(page.getByRole('group', { name: 'This session tree', exact: true }).locator(`[data-session-jid="gi:${child}"]`)).toBeVisible();
+  await page.keyboard.press('Escape');
+  // A display-name change must not rewrite the native @agent routing handle.
+  await compose.fill(`@${agent}-chi`);
+  const mention = page.locator('.slash-item').filter({ hasText: `gi:${child}` });
+  await expect(mention).toBeVisible();
+  await expect(mention.locator('.slash-name')).toHaveText(`@${agent}-child`);
+  await mention.click();
+  await expect(compose).toHaveValue(`@${agent}-child `);
+  await trigger.click();
+  await childRow.getByRole('menuitem').click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('gi_session_id'))).toBe(child);
+  const after = await stored();
+  expect(after.scope.agent_id).toBe(`${agent}-child`);
+  expect(after.parent_session_id).toBe(main.id);
+  expect(after.title).toBe(renamed);
+  const messages = await (await request.get(`/api/sessions/${main.id}/messages`)).json();
+  expect(messages.messages || []).toEqual([]);
+});
+
+test('Gi delayed mutation failure stays with its originating picker', async ({ page, request }, info) => {
+  const agent = `mutation-race-${info.project.name}`;
+  const main = await (await request.post('/api/sessions', { data: { title: `@${agent}`, agent_id: agent } })).json();
+  const fork = await (await request.post(`/api/sessions/${main.id}/fork`, { data: { title: `${agent}-child`, agent_id: `${agent}-child` } })).json();
+  const child = fork.branch.chat_jid.slice(3);
+  await page.addInitScript(id => localStorage.setItem('gi_session_id', id), main.id);
+  await page.goto('/');
+  const trigger = page.getByRole('button', { name: /Manage sessions for/ }).last();
+  await trigger.click();
+  await page.locator(`[data-session-jid="gi:${child}"]`).getByRole('button', { name: /^Rename / }).click();
+  await page.getByRole('textbox', { name: 'Session name', exact: true }).fill('   ');
+  let release, delivered;
+  const gate = new Promise(resolve => { release = resolve; });
+  const delivery = new Promise(resolve => { delivered = resolve; });
+  let held = false;
+  await page.route(`**/api/sessions/${child}`, async route => {
+    if (route.request().method() !== 'PATCH') return route.continue();
+    const response = await route.fetch();
+    expect(response.status()).toBe(400); // Real validation error, not a fake payload.
+    held = true;
+    await gate;
+    await route.fulfill({ response });
+    delivered();
+  });
+  try {
+    await page.getByRole('button', { name: 'Save name', exact: true }).click();
+    await expect.poll(() => held).toBe(true);
+    await page.keyboard.press('Escape'); // Cancel edit, not the network operation.
+    await page.keyboard.press('Escape'); // Dismiss the originating picker.
+    const compose = page.getByRole('textbox', { name: inputName, exact: true });
+    await compose.fill('Keep my focus and draft');
+    release();
+    await delivery;
+    await page.unroute(`**/api/sessions/${child}`);
+    await trigger.click();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    await expect(page.getByRole('status').filter({ hasText: 'Renamed session.' })).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(compose).toHaveValue('Keep my focus and draft');
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('gi_session_id'))).toBe(main.id);
+    const after = await (await request.get(`/api/sessions/${child}`)).json();
+    expect(after.title).toBe(`${agent}-child`);
+  } finally {
+    release();
+  }
+});
+
 test('Gi new-session action allocates a distinct child chat', async ({ page, request }) => {
   const response = await request.post('/api/sessions', { data: { title: '@web', agent_id: 'web' } });
   const main = await response.json();

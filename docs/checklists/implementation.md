@@ -17,8 +17,9 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Fix pooled SQLite configuration exposed by the session matrix; existing functional web suite passes 70/70.
 - [x] Map searchable picker/focus (`013`) and native keyboard navigation; combined matrix 36/36 with pinned helper provenance.
 - [x] Prevent runner startup before submission-event persistence; reproduced regression and full 70/70 functional suite.
-- [ ] Map the remaining 232 frozen scenarios and all 42 shared interaction cases; full scope in `docs/internal/full-web-tui-parity-plan.md`.
-- [ ] Complete mutations, durable drafts and queue/model/reconnect ownership (`015` and related cases).
+- [ ] Map the remaining 231 frozen scenarios and all 42 shared interaction cases; full scope in `docs/internal/full-web-tui-parity-plan.md`.
+- [x] Complete capability-gated rename, pin, archive and restore with persisted native metadata and failure-safe picker actions (`015`); 48/48 matrix, 70/70 functional, Go/race/Bun checks.
+- [ ] Complete durable drafts and queue/model/reconnect ownership (separate acceptance evidence).
 - [ ] Implement the bounded terminal adaptations and acceptance checks in `docs/internal/web-session-parity.md` (design written; no terminal implementation credit yet).
 - [ ] Continue component refreshes from a pinned upstream source where the suite demonstrates a gap.
 

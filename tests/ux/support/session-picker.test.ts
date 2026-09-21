@@ -43,6 +43,18 @@ test('search is case-insensitive and all-term, preserves ancestors, and highligh
   expect(filterSessionPickerChats(chats, '   ')).toEqual(chats);
 });
 
+test('native mutation capabilities and activity never depend on selected chat identity', () => {
+  const [main, busy, archived] = sessionPickerAgents([
+    { id: 'main', state: { status: 'idle', pinned: true } },
+    { id: 'busy', parent_session_id: 'main', state: { status: 'queued', queue_count: 1 } },
+    { id: 'archived', parent_session_id: 'main', state: { archived_at: '2026-09-21', pinned: true } },
+  ]);
+  expect(main).toMatchObject({ is_active: false, pinned: true, capabilities: { archive: false, pin: true, rename: true, restore: false } });
+  expect(busy.is_active).toBe(true);
+  expect(archived.capabilities).toEqual({ archive: false, pin: false, rename: false, restore: true });
+  expect(groupSessionPickerChats([main, busy, archived], 'gi:main', ['gi:archived']).map(group => group.key)).toEqual(['current', 'active', 'archived']);
+});
+
 test('picker navigation wraps arrows and bounds page movement and empty lists', () => {
   expect(moveSessionPickerIndex(0, 3, 'ArrowUp')).toBe(2);
   expect(moveSessionPickerIndex(2, 3, 'ArrowDown')).toBe(0);

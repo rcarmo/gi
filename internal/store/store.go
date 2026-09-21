@@ -533,6 +533,9 @@ func (s *Store) CloneSession(ctx context.Context, sourceSessionID, newID, newTit
 	state["forked_from"] = sourceSessionID
 	state["status"] = "idle"
 	state["active_turn_id"] = nil
+	state["queue_count"] = 0
+	delete(state, "archived_at")
+	delete(state, "pinned")
 	logicalChatID := newID
 	alloc := session.AllocateDefaultSession(newAgentID, "gi", "default", logicalChatID)
 	cloned, err := s.CreateSessionWithMetadata(ctx, newID, sourceSessionID, newTitle, state, &alloc.Scope, alloc.SessionAliases)

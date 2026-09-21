@@ -2,9 +2,11 @@ package web
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -317,6 +319,37 @@ func (s *Server) handleTurnSubroutes(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSession(w http.ResponseWriter, r *http.Request, sessionID string) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPatch {
+		w.Header().Set("Allow", "GET, PATCH")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if r.Method == http.MethodPatch {
+		var mutation store.SessionMutation
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&mutation); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid session mutation"})
+			return
+		}
+		if err := decoder.Decode(new(any)); err != io.EOF {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Expected one session mutation"})
+			return
+		}
+		if err := s.store.MutateSession(r.Context(), sessionID, mutation); err != nil {
+			status := http.StatusInternalServerError
+			switch {
+			case errors.Is(err, sql.ErrNoRows):
+				status = http.StatusNotFound
+			case errors.Is(err, store.ErrSessionMutationInvalid):
+				status = http.StatusBadRequest
+			case errors.Is(err, store.ErrSessionMutationConflict):
+				status = http.StatusConflict
+			}
+			writeJSON(w, status, map[string]any{"error": err.Error()})
+			return
+		}
+	}
 	session, err := s.store.GetSession(r.Context(), sessionID)
 	if err != nil {
 		writeJSON(w, http.StatusNotFound, map[string]any{"error": err.Error()})

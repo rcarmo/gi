@@ -271,7 +271,7 @@ export async function dismissAutoresearch(_chatJid: string | null = null) {
 }
 
 export async function getActiveChatAgents() {
-    const data = await request('/api/sessions').catch(() => ({ sessions: [] }));
+    const data = await request('/api/sessions');
     const sessions: any[] = data.sessions || [];
     return {
         agents: sessionPickerAgents(sessions),
@@ -323,16 +323,27 @@ export async function forkChatBranch(sourceChatJid: string, options: any = {}) {
     });
 }
 
-export async function renameChatBranch(_chatJid: string, _options: any = {}) {
-    return null;
+async function mutateChatSession(chatJid: string, mutation: any) {
+    if (!chatJid?.startsWith('gi:') || !chatJid.slice(3)) throw new Error('Invalid session identifier');
+    return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}`, {
+        method: 'PATCH', body: JSON.stringify(mutation),
+    });
 }
 
-export async function pruneChatBranch(_chatJid: string) {
-    return null;
+export async function renameChatBranch(chatJid: string, options: any = {}) {
+    return mutateChatSession(chatJid, { action: 'rename', title: options.title });
 }
 
-export async function restoreChatBranch(_chatJid: string, _options: any = {}) {
-    return null;
+export async function pinChatSession(chatJid: string, pinned: boolean) {
+    return mutateChatSession(chatJid, { action: 'pin', pinned });
+}
+
+export async function pruneChatBranch(chatJid: string) {
+    return mutateChatSession(chatJid, { action: 'archive' });
+}
+
+export async function restoreChatBranch(chatJid: string, _options: any = {}) {
+    return mutateChatSession(chatJid, { action: 'restore' });
 }
 
 export async function renameChatJid(_oldJid: string, _newJid: string) {

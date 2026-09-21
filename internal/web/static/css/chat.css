@@ -893,6 +893,48 @@
     outline: 1px solid var(--accent-color);
 }
 
+.compose-session-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    padding: 2px 8px 5px;
+}
+
+.compose-session-popup .compose-model-popup-item-row {
+    flex-wrap: wrap;
+}
+
+.compose-session-popup .compose-session-row-actions {
+    flex-basis: 100%;
+}
+
+.compose-session-edit {
+    padding: 6px;
+    margin-bottom: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+}
+
+.compose-session-edit input {
+    box-sizing: border-box;
+    width: 100%;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    font-size: 16px;
+    margin: 4px 0;
+}
+
+.compose-session-mutation-error, .compose-session-mutation-notice {
+    padding: 6px;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.compose-session-mutation-error {
+    color: var(--error-color, #e57373);
+}
+
 .compose-session-section-label {
     padding: 6px 8px 2px;
     color: var(--text-secondary);

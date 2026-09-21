@@ -612,8 +612,15 @@ function sessionPickerAgents(sessions) {
       parent_chat_jid: session.parent_session_id ? `gi:${session.parent_session_id}` : null,
       root_chat_jid: `gi:${root.id}`,
       model: session.state?.model || "",
-      is_active: false,
-      archived_at: null
+      is_active: session.state?.status === "running" || session.state?.status === "queued" || Number(session.state?.queue_count || 0) > 0,
+      archived_at: session.state?.archived_at || null,
+      pinned: session.state?.pinned === true,
+      capabilities: {
+        rename: !session.state?.archived_at,
+        pin: !session.state?.archived_at,
+        archive: Boolean(session.parent_session_id) && !session.state?.archived_at,
+        restore: Boolean(session.state?.archived_at)
+      }
     };
   });
 }
@@ -769,7 +776,7 @@ async function getAgentQueueState(chatJid = null) {
   })) };
 }
 async function getActiveChatAgents() {
-  const data = await request("/api/sessions").catch(() => ({ sessions: [] }));
+  const data = await request("/api/sessions");
   const sessions = data.sessions || [];
   return {
     agents: sessionPickerAgents(sessions)
@@ -818,6 +825,26 @@ async function forkChatBranch(sourceChatJid, options = {}) {
     method: "POST",
     body: JSON.stringify({ title: options?.title || null, agent_id: options?.agent_id || null })
   });
+}
+async function mutateChatSession(chatJid, mutation) {
+  if (!chatJid?.startsWith("gi:") || !chatJid.slice(3))
+    throw new Error("Invalid session identifier");
+  return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}`, {
+    method: "PATCH",
+    body: JSON.stringify(mutation)
+  });
+}
+async function renameChatBranch(chatJid, options = {}) {
+  return mutateChatSession(chatJid, { action: "rename", title: options.title });
+}
+async function pinChatSession(chatJid, pinned) {
+  return mutateChatSession(chatJid, { action: "pin", pinned });
+}
+async function pruneChatBranch(chatJid) {
+  return mutateChatSession(chatJid, { action: "archive" });
+}
+async function restoreChatBranch(chatJid, _options = {}) {
+  return mutateChatSession(chatJid, { action: "restore" });
 }
 async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = [], mode = null, chatJid = null, options = {}) {
   const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
@@ -6637,6 +6664,8 @@ function ComposeBox({
   onCreateSession,
   onDeleteSession,
   onRestoreSession,
+  onPinSession,
+  onArchiveSession,
   showQueueStack = true,
   statusNotice = null,
   extensionWorkingState = null,
@@ -6664,6 +6693,13 @@ function ComposeBox({
   const [modelPopupIndex, setModelPopupIndex] = M_(0);
   const [sessionPopupIndex, setSessionPopupIndex] = M_(0);
   const [sessionPopupQuery, setSessionPopupQuery] = M_("");
+  const [sessionMutationPending, setSessionMutationPending] = M_("");
+  const [sessionMutationError, setSessionMutationError] = M_("");
+  const [sessionMutationNotice, setSessionMutationNotice] = M_("");
+  const [sessionEdit, setSessionEdit] = M_(null);
+  const sessionMutationLock = K_(false);
+  const sessionPopupEpoch = K_(0);
+  const sessionEditRef = K_(null);
   const [loadingModels, setLoadingModels] = M_(false);
   const [footerWidth, setFooterWidth] = M_(0);
   const [submitError, setSubmitError] = M_(null);
@@ -6789,7 +6825,7 @@ function ComposeBox({
   const connectionStatusLabel = connectionStatusPresentation.label;
   const connectionStatusTitle = connectionStatusPresentation.title;
   const submitButtonState = resolveComposeSubmitButtonState(isAgentActive, canSend, statusNoticeIsCompaction);
-  const mentionAgents = (Array.isArray(activeChatAgents) ? activeChatAgents : []).filter((chat) => !chat?.archived_at);
+  const mentionAgents = (Array.isArray(activeChatAgents) ? activeChatAgents : []).filter((chat) => !chat?.archived_at).map((chat) => ({ ...chat, agent_name: chat.agent_id || chat.agent_name }));
   const currentSessionAgent = (() => {
     for (const chat of Array.isArray(activeChatAgents) ? activeChatAgents : []) {
       const chatJid = typeof chat?.chat_jid === "string" ? chat.chat_jid.trim() : "";
@@ -6816,14 +6852,14 @@ function ComposeBox({
   }, [activeChatAgents, currentChatJid]);
   const sessionPopupGroups = u_(() => {
     const matches = new Set(filterSessionPickerChats(switchableChatAgents, sessionPopupQuery).map((chat) => chat.chat_jid));
-    return groupSessionPickerChats(switchableChatAgents, currentChatJid).map((group) => ({ ...group, items: group.items.filter((chat) => matches.has(chat.chat_jid)) })).filter((group) => group.items.length > 0);
+    return groupSessionPickerChats(switchableChatAgents, currentChatJid, switchableChatAgents.filter((chat) => chat.pinned).map((chat) => chat.chat_jid)).map((group) => ({ ...group, items: group.items.filter((chat) => matches.has(chat.chat_jid)) })).filter((group) => group.items.length > 0);
   }, [switchableChatAgents, currentChatJid, sessionPopupQuery]);
   const orderedSessionChats = u_(() => sessionPopupGroups.flatMap((group) => group.items), [sessionPopupGroups]);
   const hasSwitchableChatAgents = switchableChatAgents.some((chat) => chat.chat_jid !== currentChatJid);
   const canSwitchSession = hasSwitchableChatAgents && typeof onSwitchChat === "function";
   const canRestoreSession = hasSwitchableChatAgents && typeof onRestoreSession === "function";
   const renameInProgress = Boolean(isRenameSessionInProgress || renameSessionInProgressRef.current);
-  const canRenameSession = !searchMode && typeof onRenameSession === "function" && !renameInProgress;
+  const canRenameSession = !searchMode && typeof onRenameSession === "function" && !renameInProgress && currentSessionAgent?.capabilities?.rename !== false;
   const canCreateSession = !searchMode && typeof onCreateSession === "function";
   const canDeleteSession = !searchMode && typeof onDeleteSession === "function" && !isCurrentRootSession;
   const showSessionSwitcherButton = !searchMode && (canSwitchSession || canRestoreSession || canRenameSession || canCreateSession || canDeleteSession);
@@ -6972,6 +7008,9 @@ function ComposeBox({
     setMentionMatches([]);
     sessionReturnFocusRef.current = trigger || sessionTriggerRef.current?.querySelector("button");
     setSessionPopupQuery("");
+    setSessionMutationError("");
+    setSessionMutationNotice("");
+    setSessionEdit(null);
     setSessionPopupIndex(0);
     setShowSessionPopup(true);
     return true;
@@ -6997,19 +7036,45 @@ function ComposeBox({
     }
     onSwitchChat?.(nextChatJid);
   };
-  const handleRestoreSession = async (chatJid) => {
-    const nextChatJid = typeof chatJid === "string" ? chatJid.trim() : "";
-    setShowSessionPopup(false);
-    if (!nextChatJid || typeof onRestoreSession !== "function") {
-      requestAnimationFrame(() => textareaRef.current?.focus());
+  const runSessionMutation = async (chat, action, value = undefined) => {
+    if (!chat?.chat_jid || sessionMutationLock.current)
       return;
-    }
+    const callback = { rename: onRenameSession, pin: onPinSession, archive: onArchiveSession, restore: onRestoreSession }[action];
+    if (typeof callback !== "function")
+      return;
+    sessionMutationLock.current = true;
+    const epoch = sessionPopupEpoch.current;
+    setSessionMutationPending(`${action}:${chat.chat_jid}`);
+    setSessionMutationError("");
+    setSessionMutationNotice("");
     try {
-      await onRestoreSession(nextChatJid);
+      await callback(chat.chat_jid, value);
+      if (epoch !== sessionPopupEpoch.current)
+        return;
+      setSessionEdit(null);
+      setSessionMutationNotice(`${{ rename: "Renamed", pin: value ? "Pinned" : "Unpinned", archive: "Archived", restore: "Restored" }[action]} session.`);
+      requestAnimationFrame(() => {
+        if (epoch === sessionPopupEpoch.current)
+          sessionSearchRef.current?.focus();
+      });
     } catch (error) {
-      console.warn("Failed to restore session:", error);
-      requestAnimationFrame(() => textareaRef.current?.focus());
+      if (epoch === sessionPopupEpoch.current)
+        setSessionMutationError(error?.message || `Failed to ${action} session`);
+    } finally {
+      sessionMutationLock.current = false;
+      setSessionMutationPending("");
     }
+  };
+  const handleRestoreSession = async (chatJid) => {
+    const chat = switchableChatAgents.find((chat) => chat.chat_jid === chatJid);
+    await runSessionMutation(chat, "restore");
+  };
+  const beginSessionEdit = (chat, action) => {
+    if (sessionMutationLock.current)
+      return;
+    setSessionMutationError("");
+    setSessionMutationNotice("");
+    setSessionEdit({ chat, action, title: chat.agent_name || "" });
   };
   const findFirstEnabledPopupIndex = (items) => {
     const list = Array.isArray(items) ? items : [];
@@ -7050,16 +7115,7 @@ function ComposeBox({
       event.stopPropagation();
     if (typeof onRenameSession !== "function" || isRenameSessionInProgress || renameSessionInProgressRef.current)
       return;
-    renameSessionInProgressRef.current = true;
-    setShowSessionPopup(false);
-    try {
-      await onRenameSession();
-    } catch (error) {
-      console.warn("Failed to rename session:", error);
-    } finally {
-      renameSessionInProgressRef.current = false;
-    }
-    requestAnimationFrame(() => textareaRef.current?.focus());
+    beginSessionEdit(currentSessionAgent, "rename");
   };
   const handleCreateSession = async () => {
     if (typeof onCreateSession !== "function")
@@ -7326,6 +7382,11 @@ ${mediaIds.map((id, index) => {
     };
     if (e.key === "Escape") {
       consume();
+      if (showSessionPopup && sessionEdit) {
+        setSessionEdit(null);
+        sessionSearchRef.current?.focus();
+        return true;
+      }
       resetPopupTypeahead();
       if (showModelPopup)
         setShowModelPopup(false);
@@ -7364,7 +7425,7 @@ ${mediaIds.map((id, index) => {
         return true;
       }
     }
-    if (showSessionPopup && sessionPopupRef.current?.contains(e.target)) {
+    if (showSessionPopup && !sessionEdit && !sessionMutationPending && sessionPopupRef.current?.contains(e.target)) {
       const inSearch = e.target === sessionSearchRef.current;
       const navigation = ["ArrowDown", "ArrowUp", "PageDown", "PageUp"].includes(e.key) || !inSearch && ["Home", "End"].includes(e.key);
       if (navigation && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -7394,6 +7455,8 @@ ${mediaIds.map((id, index) => {
     modelPopupIndex,
     sessionPopupEntries,
     sessionPopupIndex,
+    sessionEdit,
+    sessionMutationPending,
     handleSelectModel
   ]);
   const handleKeyDown = (e) => {
@@ -7740,9 +7803,17 @@ ${mediaIds.map((id, index) => {
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showModelPopup, modelPopupIndex, modelOptions]);
   F_(() => {
+    ++sessionPopupEpoch.current;
     if (showSessionPopup)
       sessionSearchRef.current?.focus();
+    return () => {
+      ++sessionPopupEpoch.current;
+    };
   }, [showSessionPopup]);
+  F_(() => {
+    if (sessionEdit)
+      sessionEditRef.current?.focus();
+  }, [sessionEdit?.chat.chat_jid, sessionEdit?.action]);
   J_(() => {
     if (!showSessionPopup)
       return;
@@ -8044,6 +8115,29 @@ ${mediaIds.map((id, index) => {
                     ${showSessionPopup && !searchMode && ce`
                         <div class="compose-model-popup compose-session-popup" ref=${sessionPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
                             <div class="compose-model-popup-title">Manage sessions & agents</div>
+                            ${sessionMutationError && ce`<div role="alert" class="compose-session-mutation-error">${sessionMutationError}</div>`}
+                            ${sessionMutationNotice && ce`<div role="status" class="compose-session-mutation-notice">${sessionMutationNotice}</div>`}
+                            ${sessionMutationPending && ce`<div role="status">Saving session…</div>`}
+                            ${sessionEdit && ce`
+                                <form class="compose-session-edit" onSubmit=${(event) => {
+    event.preventDefault();
+    runSessionMutation(sessionEdit.chat, sessionEdit.action, sessionEdit.title);
+  }}>
+                                    ${sessionEdit.action === "rename" ? ce`
+                                        <label>Session name
+                                            <input ref=${sessionEditRef} aria-label="Session name" value=${sessionEdit.title} maxLength="160"
+                                                disabled=${Boolean(sessionMutationPending)}
+                                                onInput=${(event) => setSessionEdit({ ...sessionEdit, title: event.currentTarget.value })} />
+                                        </label>
+                                    ` : ce`<p>Archive @${sessionEdit.chat.agent_name}? History and drafts are retained. Restore it from Archived.</p>`}
+                                    <button ref=${sessionEdit.action === "archive" ? sessionEditRef : undefined} type="submit" class="compose-model-popup-btn"
+                                        disabled=${Boolean(sessionMutationPending)}>${sessionEdit.action === "rename" ? "Save name" : "Confirm archive"}</button>
+                                    <button type="button" class="compose-model-popup-btn" disabled=${Boolean(sessionMutationPending)} onClick=${() => {
+    setSessionEdit(null);
+    sessionSearchRef.current?.focus();
+  }}>Cancel</button>
+                                </form>
+                            `}
                             <input
                                 ref=${sessionSearchRef}
                                 type="search"
@@ -8052,6 +8146,7 @@ ${mediaIds.map((id, index) => {
                                 aria-controls="compose-session-results"
                                 placeholder="Handle, JID, state, or model"
                                 value=${sessionPopupQuery}
+                                disabled=${Boolean(sessionMutationPending)}
                                 onInput=${(event) => setSessionPopupQuery(event.currentTarget.value)}
                             />
                             <div id="compose-session-results" class="compose-model-popup-menu" role="menu" aria-label="Sessions and agents">
@@ -8068,7 +8163,7 @@ ${mediaIds.map((id, index) => {
     const canPrune = !isRoot && !chat.is_active && !archived && typeof onDeleteSession === "function";
     const label = formatBranchPickerLabel(chat, { currentChatJid });
     return ce`
-                                        <div key=${chat.chat_jid} class=${`compose-model-popup-item-row${archived ? " archived" : ""}`}>
+                                        <div key=${chat.chat_jid} data-session-jid=${chat.chat_jid} class=${`compose-model-popup-item-row${archived ? " archived" : ""}`}>
                                             <button
                                                 type="button"
                                                 role="menuitem"
@@ -8082,11 +8177,34 @@ ${mediaIds.map((id, index) => {
       }
       handleSessionSwitch(chat.chat_jid);
     }}
-                                                disabled=${archived ? !canRestoreSession : !canSwitchSession}
+                                                disabled=${Boolean(sessionMutationPending) || (archived ? !canRestoreSession || chat.capabilities?.restore === false : !canSwitchSession)}
                                                 title=${archived ? `Restore archived ${`@${chat.agent_name}`}` : `Switch to ${`@${chat.agent_name}`}`}
                                             >
                                                 ${label}
                                             </button>
+                                            <div class="compose-session-row-actions">
+                                                ${!archived && chat.capabilities?.pin !== false && typeof onPinSession === "function" && ce`
+                                                    <button type="button" class="compose-model-popup-btn" disabled=${Boolean(sessionMutationPending)}
+                                                        aria-label=${`${chat.pinned ? "Unpin" : "Pin"} @${chat.agent_name}`}
+                                                        onClick=${() => {
+      runSessionMutation(chat, "pin", !chat.pinned);
+    }}>${chat.pinned ? "Unpin" : "Pin"}</button>
+                                                `}
+                                                ${!archived && chat.capabilities?.rename !== false && typeof onRenameSession === "function" && ce`
+                                                    <button type="button" class="compose-model-popup-btn" disabled=${Boolean(sessionMutationPending)}
+                                                        aria-label=${`Rename @${chat.agent_name}`} onClick=${() => beginSessionEdit(chat, "rename")}>Rename</button>
+                                                `}
+                                                ${!archived && !isRoot && !chat.is_active && chat.capabilities?.archive !== false && typeof onArchiveSession === "function" && ce`
+                                                    <button type="button" class="compose-model-popup-btn" disabled=${Boolean(sessionMutationPending)}
+                                                        aria-label=${`Archive @${chat.agent_name}`} onClick=${() => beginSessionEdit(chat, "archive")}>Archive</button>
+                                                `}
+                                                ${archived && chat.capabilities?.restore !== false && typeof onRestoreSession === "function" && ce`
+                                                    <button type="button" class="compose-model-popup-btn" disabled=${Boolean(sessionMutationPending)}
+                                                        aria-label=${`Restore @${chat.agent_name}`} onClick=${() => {
+      runSessionMutation(chat, "restore");
+    }}>Restore</button>
+                                                `}
+                                            </div>
                                             ${canPrune && ce`
                                                 <button
                                                     type="button"
@@ -16073,6 +16191,7 @@ function GiApp() {
   const [attachmentPreview, setAttachmentPreview] = M_(null);
   const [contextUsage, setContextUsage] = M_(null);
   const [activeChatAgents, setActiveChatAgents] = M_([]);
+  const sessionListRevision = K_(0);
   const [currentChatBranches, setCurrentChatBranches] = M_([]);
   const [activeModel, setActiveModel] = M_("");
   const [agentModelsPayload, setAgentModelsPayload] = M_(null);
@@ -16176,11 +16295,12 @@ function GiApp() {
     if (scope.sessionId !== sid)
       return;
     const chatJid = sessionToChatJid2(sid);
+    const revision = ++sessionListRevision.current;
     const [agentsPayload, branchesPayload] = await Promise.all([
       getActiveChatAgents().catch(() => ({ agents: [] })),
       getChatBranches(chatJid).catch(() => ({ branches: [] }))
     ]);
-    if (!selection.isCurrent(scope))
+    if (!selection.isCurrent(scope) || revision !== sessionListRevision.current)
       return;
     const agentsList = Array.isArray(agentsPayload?.agents) ? agentsPayload.agents : [];
     setAgents(Object.fromEntries(agentsList.map((entry) => [entry.agent_id, {
@@ -16189,10 +16309,7 @@ function GiApp() {
       avatar_url: null
     }])));
     const branchesList = Array.isArray(branchesPayload?.branches) ? branchesPayload.branches : Array.isArray(branchesPayload?.chats) ? branchesPayload.chats : [];
-    setActiveChatAgents(agentsList.map((entry) => ({
-      ...entry,
-      is_active: entry?.chat_jid === chatJid
-    })));
+    setActiveChatAgents(agentsList);
     setCurrentChatBranches(branchesList);
   }, []);
   const handleSseEvent = X_((eventType, data) => {
@@ -16346,6 +16463,23 @@ function GiApp() {
         setSessionError(error.message || "Failed to create session");
     }
   }, [sessionId, handleSwitchChat]);
+  const handleSessionMutation = async (chatJid, action, value) => {
+    ++sessionListRevision.current;
+    if (action === "rename")
+      await renameChatBranch(chatJid, { title: value });
+    else if (action === "pin")
+      await pinChatSession(chatJid, value);
+    else if (action === "archive")
+      await pruneChatBranch(chatJid);
+    else if (action === "restore")
+      await restoreChatBranch(chatJid);
+    else
+      throw new Error("Unsupported session action");
+    const revision = ++sessionListRevision.current;
+    const data = await getActiveChatAgents();
+    if (revision === sessionListRevision.current)
+      setActiveChatAgents(data.agents || []);
+  };
   const openEditor = X_((path) => {
     const existing = tabs.find((t) => t.id === path || t.path === path);
     if (existing) {
@@ -16555,6 +16689,10 @@ function GiApp() {
                     currentChatBranches=${currentChatBranches}
                     onSwitchChat=${handleSwitchChat}
                     onCreateSession=${handleCreateSession}
+                    onRenameSession=${(chatJid, title) => handleSessionMutation(chatJid, "rename", title)}
+                    onPinSession=${(chatJid, pinned) => handleSessionMutation(chatJid, "pin", pinned)}
+                    onArchiveSession=${(chatJid) => handleSessionMutation(chatJid, "archive")}
+                    onRestoreSession=${(chatJid) => handleSessionMutation(chatJid, "restore")}
                     formatBranchPickerLabel=${(b) => b?.label || b?.chat_jid || ""}
                     handleBranchPickerChange=${() => {}}
                     searchOpen=${false}
@@ -16581,5 +16719,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=83862C4C1F41949564756E2164756E21
+//# debugId=F80C2CE661411A0464756E2164756E21
 //# sourceMappingURL=app.js.map

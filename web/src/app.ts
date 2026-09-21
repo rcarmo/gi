@@ -42,6 +42,7 @@ import {
     getActiveChatAgents,
     getChatBranches,
     renameChatBranch,
+    pinChatSession,
     pruneChatBranch,
     restoreChatBranch,
     getAgentQueueState,
@@ -155,6 +156,7 @@ function GiApp() {
     const [attachmentPreview, setAttachmentPreview] = useState<any>(null);
     const [contextUsage, setContextUsage] = useState<any>(null);
     const [activeChatAgents, setActiveChatAgents] = useState<any[]>([]);
+    const sessionListRevision = useRef(0);
     const [currentChatBranches, setCurrentChatBranches] = useState<any[]>([]);
     const [activeModel, setActiveModel] = useState<string>('');
     const [agentModelsPayload, setAgentModelsPayload] = useState<any>(null);
@@ -255,11 +257,12 @@ function GiApp() {
         const scope = selection.capture();
         if (scope.sessionId !== sid) return;
         const chatJid = sessionToChatJid(sid);
+        const revision = ++sessionListRevision.current;
         const [agentsPayload, branchesPayload] = await Promise.all([
             getActiveChatAgents().catch(() => ({ agents: [] })),
             getChatBranches(chatJid).catch(() => ({ branches: [] })),
         ]);
-        if (!selection.isCurrent(scope)) return;
+        if (!selection.isCurrent(scope) || revision !== sessionListRevision.current) return;
         const agentsList = Array.isArray((agentsPayload as any)?.agents) ? (agentsPayload as any).agents : [];
         setAgents(Object.fromEntries(agentsList.map((entry: any) => [entry.agent_id, {
             id: entry.agent_id, name: entry.agent_name, avatar_url: null,
@@ -267,10 +270,7 @@ function GiApp() {
         const branchesList = Array.isArray((branchesPayload as any)?.branches)
             ? (branchesPayload as any).branches
             : (Array.isArray((branchesPayload as any)?.chats) ? (branchesPayload as any).chats : []);
-        setActiveChatAgents(agentsList.map((entry: any) => ({
-            ...entry,
-            is_active: entry?.chat_jid === chatJid,
-        })));
+        setActiveChatAgents(agentsList);
         setCurrentChatBranches(branchesList);
     }, []);
 
@@ -419,6 +419,19 @@ function GiApp() {
             if (selection.isCurrent(scope)) setSessionError(error.message || 'Failed to create session');
         }
     }, [sessionId, handleSwitchChat]);
+
+    const handleSessionMutation = async (chatJid: string, action: string, value?: any) => {
+        // Row-owned mutations: never change selection/drafts optimistically.
+        ++sessionListRevision.current;
+        if (action === 'rename') await renameChatBranch(chatJid, { title: value });
+        else if (action === 'pin') await pinChatSession(chatJid, value);
+        else if (action === 'archive') await pruneChatBranch(chatJid);
+        else if (action === 'restore') await restoreChatBranch(chatJid);
+        else throw new Error('Unsupported session action');
+        const revision = ++sessionListRevision.current;
+        const data = await getActiveChatAgents();
+        if (revision === sessionListRevision.current) setActiveChatAgents(data.agents || []);
+    };
 
     // ── Pane helpers ──────────────────────────────────────────────────────────
 
@@ -615,6 +628,10 @@ function GiApp() {
                     currentChatBranches=${currentChatBranches}
                     onSwitchChat=${handleSwitchChat}
                     onCreateSession=${handleCreateSession}
+                    onRenameSession=${(chatJid, title) => handleSessionMutation(chatJid, 'rename', title)}
+                    onPinSession=${(chatJid, pinned) => handleSessionMutation(chatJid, 'pin', pinned)}
+                    onArchiveSession=${chatJid => handleSessionMutation(chatJid, 'archive')}
+                    onRestoreSession=${chatJid => handleSessionMutation(chatJid, 'restore')}
                     formatBranchPickerLabel=${(b: any) => b?.label || b?.chat_jid || ''}
                     handleBranchPickerChange=${() => {}}
                     searchOpen=${false}

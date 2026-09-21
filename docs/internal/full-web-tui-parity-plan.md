@@ -10,7 +10,7 @@ Scope confirmed 2026-09-21: finish the whole imported corpus, not just the curre
 - Terminal: implement suitable functional equivalents separately, preserving transcript/editor/footer and zero new idle rows. Browser-only properties (touch, PWA installation, CSS layering) need a documented terminal disposition, not a fictitious terminal pass.
 - Delivery: small tested commits, source provenance, truthful capability/error paths and current evidence reports. Full completion requires no unexplained unmapped cases.
 
-Current evidence: four Classic IDs (`001`, `002`, `013`, `014`), 36/36 browser executions including two Gi-only regressions, 70/70 functional tests. The other 232 Classic IDs and all 42 shared cases remain open. The terminal proposals below are not implementation credit.
+Current evidence: five Classic IDs (`001`, `002`, `013`, `014`, `015`), 48/48 browser executions including three Gi-only regressions, 70/70 functional tests. Native metadata mutations now persist and report failures; archive is reversible, not permanent deletion or agent shutdown. The other 231 Classic IDs and all 42 shared cases remain open. The terminal proposals below are not implementation credit.
 
 ## Delivery order and dependencies
 
@@ -39,4 +39,4 @@ Commands: `make test`, `make vet`, `make bun-checks`, `bun test tests/ux/support
 
 ## Immediate next slice
 
-Session mutations (`015`): audit the existing native API before exposing actions, remove misleading no-op success paths, preserve selection/drafts on failure, and verify rename/archive/restore/pin persistence with the frozen capability rules. In parallel with subsequent web slices, implement the already documented terminal session draft/event isolation and bounded selector tests; see [web-session-parity.md](web-session-parity.md).
+The session mutation slice (`015`) is verified; see [ADR-0009](../adr/0009-session-picker-mutations.md). Next, implement terminal session draft/event isolation and bounded selector tests without changing the idle footprint, then durable browser drafts and queue/model/reconnect ownership. Remaining lifecycle cases still need their own evidence; see [web-session-parity.md](web-session-parity.md).

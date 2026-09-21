@@ -17,7 +17,11 @@
         "Preserve native Tab and text Home/End; Enter on a focused action activates that action rather than the highlighted search index.",
         "Rebind capture keyboard handler in layout effect; functional index updates prevent stale rapid-key navigation.",
         "Keep existing menu/menuitem roles and add labelled search/group elements; do not claim upstream listbox semantics.",
-        "Gi-local responsive search CSS in internal/web/static/css/chat.css; no pin/archive/mutation support added by this slice."
+        "Gi-local responsive search/action CSS in internal/web/static/css/chat.css.",
+        "Gi host callbacks persist pin/rename/archive/restore through PATCH /api/sessions/{id}; pinning is database-backed, not upstream browser-local preferences.",
+        "Row capability controls, inline name form and archive confirmation retain selection/drafts on failure. No permanent delete is supplied.",
+        "Native state determines activity; picker feedback uses open/mount epochs to suppress late results after dismissal.",
+        "Mention autocomplete uses native agent_id, not mutable session display names; browser acceptance protects routing after rename."
       ],
       "source": "runtime/web/src/components/compose-box.ts",
       "destination": "web/src/components/compose-box.ts"

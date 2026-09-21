@@ -17,9 +17,15 @@ export function sessionPickerAgents(sessions: any[]) {
             parent_chat_jid: session.parent_session_id ? `gi:${session.parent_session_id}` : null,
             root_chat_jid: `gi:${root.id}`,
             model: session.state?.model || '',
-            // This endpoint does not expose archive/activity metadata yet.
-            is_active: false,
-            archived_at: null,
+            is_active: session.state?.status === 'running' || session.state?.status === 'queued' || Number(session.state?.queue_count || 0) > 0,
+            archived_at: session.state?.archived_at || null,
+            pinned: session.state?.pinned === true,
+            capabilities: {
+                rename: !session.state?.archived_at,
+                pin: !session.state?.archived_at,
+                archive: Boolean(session.parent_session_id) && !session.state?.archived_at,
+                restore: Boolean(session.state?.archived_at),
+            },
         };
     });
 }

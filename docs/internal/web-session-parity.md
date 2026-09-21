@@ -22,7 +22,7 @@ The New action uses the existing native fork endpoint. Reposting a main session 
 - Selection-scope unit test covers A → B → A response invalidation.
 - Existing functional web suite: 70/70 after fixing the SQLite connection pool configuration.
 
-Mutations (`015`), persistent drafts, late failed-send recovery into an unmounted origin, model mutation, queue actions and reconnect ownership still require dedicated acceptance cases.
+Persistent drafts, late failed-send recovery into an unmounted origin, model mutation, queue actions and reconnect ownership still require dedicated acceptance cases. The later mutation slice below covers `015`.
 
 ## Searchable picker slice (`013`)
 
@@ -37,6 +37,18 @@ Validation: 36/36 matrix executions (four frozen IDs plus two Gi regressions), 7
 The functional suite also exposed a real admission race: the runner goroutine could emit `turn.started` before the submitting caller appended `turn.submitted`. Launch now waits for the caller to release the session coordination mutex before running. `TestLaunchedTurnWaitsForSubmissionEvent` failed before the fix and passed ten runs afterwards. Event rows remain append-only and sequence-ordered. The browser event-order test now selects its own submitted prompt and polls for completion instead of relying on the most recently updated session.
 
 The broader delivery scope is [full-web-tui-parity-plan.md](full-web-tui-parity-plan.md); passing this slice does not complete that scope.
+
+## Native session mutations (`015`)
+
+The picker now calls native `PATCH /api/sessions/{id}` paths for display-name changes, database-backed pins, reversible archive and restore. Controls depend on row state and supplied callbacks. An inline name form and archive confirmation replace no-op success paths. Main sessions cannot be archived; queued/running turns or an active turn claim also block archive. Renaming changes display text, never agent identity or routing scope; browser acceptance also verifies mention autocomplete still inserts the native `@agent_id` after a rename. Archive retains history and is a picker classification, not agent shutdown or a routing prohibition. No permanent deletion is offered.
+
+Failed requests show the server error without changing the selected chat or draft. Successful metadata changes also leave selection unchanged. A picker-open epoch prevents late feedback from appearing after dismissal/reopening; session-list revisions reject pre-mutation list responses. Native runtime status now determines activity rather than treating the selected chat as running. Forks reset archive/pin metadata and queue count.
+
+Evidence: `@ux-original-015` exercises native pin, rename, validation failure, archive confirmation/cancellation, persistence after reload, restore and unpin in all six browser/viewport projects. A separate test delays a real failed PATCH response until the originating picker has closed. `TestSessionMetadataMutations` covers invalid payloads, missing sessions, root/busy conflicts, identity/model preservation, idempotence and fork reset against file-backed SQLite; it also passes under the race detector.
+
+Current totals: **48/48 browser executions**, **5/236 frozen IDs passing**, 231 unmapped; **42 shared-contract cases still unmapped**. The existing functional web suite passes 70/70; Go tests/vet, nine Bun source/helper tests and hook checks pass. See [ADR-0009](../adr/0009-session-picker-mutations.md) for API and lifecycle limits.
+
+Terminal mutation adaptation: add an on-demand row-action submenu to the bounded session selector. Use a temporary one-line rename input and explicit archive confirmation; Escape restores the previous selector/editor and draft. Archived rows live in a requested group/filter. Do not add a permanent action bar, badge row, sidebar or header. These terminal changes remain unimplemented.
 
 ## TUI adaptation: design, not implementation credit
 

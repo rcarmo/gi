@@ -6,6 +6,8 @@ Later on 2026-09-21, the session slice added guarded selection, page-local per-s
 
 The subsequent searchable-picker slice (`013`) passed 36/36 matrix executions, bringing mapped coverage to 4/236 frozen IDs (232 unmapped). The full web suite passed 70/70 after fixing a reproduced submission-event ordering race. Scope is now explicitly the entire Classic corpus plus all 42 shared-contract cases; see [full-web-tui-parity-plan.md](full-web-tui-parity-plan.md). Terminal designs still need separate implementation evidence.
 
+The native mutation slice (`015`) then added persisted rename/pin/archive/restore and failure-safe controls: 48/48 matrix runs, 5/236 frozen IDs mapped, 231 unmapped, and 70/70 functional web tests. Archive is reversible picker metadata, not deletion or an agent shutdown. [ADR-0009](../adr/0009-session-picker-mutations.md) records the native API and limits.
+
 ## Implemented and wired
 
 - Embedded JavaScript/CSS, identity/avatar configuration, themes and system meters.
