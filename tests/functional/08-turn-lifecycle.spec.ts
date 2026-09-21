@@ -24,17 +24,17 @@ test.describe('Turn lifecycle', () => {
   test('completed turn has expected event sequence', async ({ page, request }) => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
-    await sendMessage(page, 'event sequence test');
-    await page.waitForTimeout(5000);
-    
-    const sessions = await apiGet(request, '/api/sessions');
-    const sid = sessions.sessions[0].id;
-    const turns = await apiGet(request, `/api/sessions/${sid}/turns`);
-    const completed = turns.turns.filter((t: any) => t.status === 'completed');
-    expect(completed.length).toBeGreaterThan(0);
-    
-    const lastCompleted = completed[completed.length - 1];
-    const events = await apiGet(request, `/api/turns/${lastCompleted.id}/events`);
+    const prompt = `event sequence test ${Date.now()}`;
+    await sendMessage(page, prompt);
+    let submitted: any;
+    await expect.poll(async () => {
+      const session = await findSessionForMessage(request, prompt);
+      if (!session) return null;
+      const turns = await apiGet(request, `/api/sessions/${session.id}/turns`);
+      submitted = turns.turns.find((turn: any) => turn.prompt === prompt);
+      return submitted?.status;
+    }, { timeout: 10000 }).toBe('completed');
+    const events = await apiGet(request, `/api/turns/${submitted.id}/events`);
     const types = events.events.map((e: any) => e.type);
     
     expect(types).toContain('turn.submitted');

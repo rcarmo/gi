@@ -809,7 +809,14 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 		return false, err
 	}
 	logutil.WarnIfErr("sync queue count after launch", e.store.SyncSessionQueueCount(opCtx, sessionID))
-	go runner.runTurn(e.store, sessionID, turnID, runCtx, cancel, active)
+	go func() {
+		// Submission and queued launch callers hold runner.mu until their
+		// durable admission events are written. Do not emit turn.started (or
+		// run tools) before turn.submitted has a sequence number.
+		runner.mu.Lock()
+		runner.mu.Unlock()
+		runner.runTurn(e.store, sessionID, turnID, runCtx, cancel, active)
+	}()
 	return true, nil
 }
 
