@@ -56,7 +56,7 @@ endef
 	build-web build \
 	run start stop restart status logs \
 	test vet bun-checks check \
-	test-instance-start test-instance-stop test-ux test-ux-parity ux-parity-inventory test-tui-smoke test-tui-gherkin \
+	test-instance-start test-instance-stop test-ux test-ux-parity ux-parity-inventory test-tui-smoke test-tui-gherkin test-tui-sessions \
 	clean
 
 # ── Help and bootstrap ──────────────────────────────────────────────────
@@ -89,6 +89,7 @@ help:
 		"  make test-ux          Run Playwright tests against an isolated instance" \
 		"  make test-tui-smoke   Run the tmux-based TUI smoke harness" \
 		"  make test-tui-gherkin Run the TUI gherkin harness" \
+		"  make test-tui-sessions Verify draft isolation and compact picker sizes" \
 		"  make test-ux-parity   Run mapped frozen Piclaw scenarios in Chromium/WebKit" \
 		"  make ux-parity-inventory Verify all frozen feature hashes and list coverage" \
 		"" \
@@ -235,6 +236,9 @@ test-ux-parity:
 		rc=$$?; \
 		$(BUN) scripts/ux-parity-report.mjs test-results/ux-parity/results.json || exit 1; \
 		exit $$rc
+
+test-tui-sessions: build
+	$(BUN) scripts/test-tui-sessions.mjs
 
 test-tui-smoke: build
 	chmod +x scripts/test-tui-smoke.sh

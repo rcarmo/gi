@@ -25,14 +25,55 @@ func lastForkAgentID(base string) string {
 	return forkAgentIDCandidate(normalizeForkAgentBase(base), maxForkAgentIDSuffixExclusive-1)
 }
 
-func (c *chatTUI) switchSession(sessionID string) {
+func (c *chatTUI) switchSession(sessionID string) bool {
+	if sessionID == c.sessionID {
+		return true
+	}
+	// Validate before touching the current draft or subscription.
+	session, err := c.store.GetSession(context.Background(), sessionID)
+	if err != nil {
+		c.appendTranscript(fmt.Sprintf("error: switch session: %v", err))
+		return false
+	}
+	if c.editorAskActive {
+		// Extension questions belong to their origin, never to the new chat.
+		c.cancelEditorAsk()
+	}
+	c.saveSessionEditor()
 	c.bindSession(sessionID)
 	c.transcript = c.loadTranscript()
-	c.draft = ""
-	c.draftLineIndex = -1
-	c.running = false
+	c.transcriptExpanded = nil
+	c.transcriptBlockSpans = nil
+	c.transcriptToolBlocks = nil
+	c.transcriptBlockRefs = nil
+	c.selectedTranscriptBlock = ""
+	c.reindexTranscriptBlocks()
+	c.draft, c.thinkingText, c.thinkingBlockKey, c.thinkingStartedAt = "", "", "", ""
+	c.thinkingIndicatorKey, c.thinkingIndicatorStart = "", ""
+	c.draftLineIndex, c.draftLineCount = -1, 0
+	c.extensionStatuses, c.extensionWidgets, c.extensionToolModes = nil, nil, nil
+	c.lastInputTokens, c.lastOutputTokens, c.lastContextTokens = 0, 0, 0
+	c.lastCacheRead, c.lastCacheWrite, c.lastCostTotal = 0, 0, 0
+	if defaults := c.sessionModelDefaults; defaults != nil {
+		c.cfg.DefaultModel, c.cfg.DefaultProvider, c.cfg.DefaultThinkingLevel = defaults[0], defaults[1], defaults[2]
+	}
+	if model, _ := session.State["model"].(string); model != "" {
+		c.cfg.DefaultModel = model
+	}
+	if provider, ok := session.State["provider"].(string); ok {
+		c.cfg.DefaultProvider = provider
+	}
+	if thinking, ok := session.State["thinking_level"].(string); ok {
+		c.cfg.DefaultThinkingLevel = thinking
+	}
+	status, _ := session.State["status"].(string)
+	c.running = status == "running" || status == "queued"
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+	c.restoreSessionEditor()
+	c.stickToBottom = true
 	c.scrollTranscriptToBottom()
+	c.focusInput()
+	return true
 }
 
 func (c *chatTUI) listAgentLines() []string {

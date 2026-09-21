@@ -39,6 +39,8 @@ Gi's slots mirror PiSwift's `setStatus`/`setWidget`/extension-footer behavior wh
 - Editor-replacement (ask) slot: `setEditorAsk(key, prompt, prefill)` puts the editor into a bounded ask mode — a prompt renders above the editor, the input is prefilled, and the next submit is captured as the answer (system line + `extension.editor_result` topic) instead of being sent to the model. Esc cancels and restores the editor.
 - `handleTopicEvent` handles the `extension.status` topic (`{key, text}`), the `extension.widget` topic (`{key, lines}` or `{key, text}`), the `extension.tool_render` topic (`{tool, mode}`), and the `extension.editor` topic (`{key, prompt, prefill}`), so extensions can drive all slots through the topic bus.
 
+Slots are session-owned: selection changes clear them and cancel active questions. The pre-question editor draft/cursor is restored before saving the outgoing session. Subscription generations reject old buffered extension events even after returning to that session. `TestSessionSwitchCancelsExtensionQuestionWithoutLosingDraft` and the event-isolation tests in `session_state_test.go` cover this boundary.
+
 ## Constraints proven by tests
 
 `internal/tui/chat_test.go`:

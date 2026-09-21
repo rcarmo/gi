@@ -20,7 +20,9 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [ ] Map the remaining 231 frozen scenarios and all 42 shared interaction cases; full scope in `docs/internal/full-web-tui-parity-plan.md`.
 - [x] Complete capability-gated rename, pin, archive and restore with persisted native metadata and failure-safe picker actions (`015`); 48/48 matrix, 70/70 functional, Go/race/Bun checks.
 - [ ] Complete durable drafts and queue/model/reconnect ownership (separate acceptance evidence).
-- [ ] Implement the bounded terminal adaptations and acceptance checks in `docs/internal/web-session-parity.md` (design written; no terminal implementation credit yet).
+- [x] Implement per-session terminal editor/history state, generation-owned event/submit delivery and cancel-safe forwarding; unit/race coverage.
+- [x] Bound the temporary terminal session selector to six results; live tmux verifies cancel/resize/zero added idle rows at 60×18, 100×22 and 140×36 (`make test-tui-sessions`).
+- [ ] Complete remaining terminal adaptations in `docs/internal/web-session-parity.md` (mutation submenus/media/queue acceptance still separate).
 - [ ] Continue component refreshes from a pinned upstream source where the suite demonstrates a gap.
 
 Evidence and commands: [`../../tests/ux/README.md`](../../tests/ux/README.md). These results cover the mapped scenarios, not full Piclaw compliance.

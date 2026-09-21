@@ -150,8 +150,12 @@ type chatTUI struct {
 	status                   string
 	draft                    string
 	inputActive              bool
-	eventCh                  chan map[string]any
-	topicEventCh             chan topics.Envelope
+	eventCh                  chan sessionEvent
+	topicEventCh             chan sessionTopicEvent
+	sessionGeneration        uint64
+	subscriptionCancel       context.CancelFunc
+	sessionEditors           map[string]sessionEditorState
+	sessionModelDefaults     *[3]string
 	subscribedCh             chan map[string]any
 	topicUnsubscribe         func()
 	input                    *multilineInput
@@ -165,6 +169,7 @@ type chatTUI struct {
 	draftLineIndex           int
 	draftLineCount           int
 	outputWidth              int
+	outputHeight             int
 	osc52Writer              io.Writer
 	clipboardLookPath        func(string) (string, error)
 	clipboardImageReader     func() ([]byte, string, error)
@@ -200,6 +205,8 @@ type chatTUI struct {
 	editorAskKey             string
 	editorAskPrompt          string
 	editorAskPrevPlaceholder string
+	editorAskPrevText        string
+	editorAskPrevCursor      int
 }
 
 func (c *chatTUI) ensureInput() {
@@ -425,7 +432,7 @@ func (c *chatTUI) toggleSelectedTranscriptBlock() {
 }
 
 func (c *chatTUI) Init() func() {
-	c.eventCh = make(chan map[string]any, 64)
+	c.eventCh = make(chan sessionEvent, 64)
 	c.bindSession(c.sessionID)
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 	c.histIdx = -1
@@ -448,60 +455,41 @@ func (c *chatTUI) Init() func() {
 		})
 	}
 
-	return func() {
-		if c.subscribedCh != nil {
-			c.engine.Unsubscribe(c.sessionID, c.subscribedCh)
-		}
-		if c.topicUnsubscribe != nil {
-			c.topicUnsubscribe()
-			c.topicUnsubscribe = nil
-		}
-	}
+	return c.stopSessionSubscription
 }
 
 func (c *chatTUI) bindSession(sessionID string) {
+	if c.sessionModelDefaults == nil {
+		c.sessionModelDefaults = &[3]string{c.cfg.DefaultModel, c.cfg.DefaultProvider, c.cfg.DefaultThinkingLevel}
+	}
 	if c.eventCh == nil {
-		c.eventCh = make(chan map[string]any, 64)
+		c.eventCh = make(chan sessionEvent, 64)
 	}
 	if c.topicEventCh == nil {
-		c.topicEventCh = make(chan topics.Envelope, 64)
+		c.topicEventCh = make(chan sessionTopicEvent, 64)
 	}
-	if c.subscribedCh != nil {
-		c.engine.Unsubscribe(c.sessionID, c.subscribedCh)
-		c.subscribedCh = nil
-	}
-	if c.topicUnsubscribe != nil {
-		c.topicUnsubscribe()
-		c.topicUnsubscribe = nil
-	}
+	c.stopSessionSubscription()
+	c.sessionGeneration++
 	c.sessionID = sessionID
+	if c.engine == nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	c.subscriptionCancel = cancel
+	scope := c.selectionScope()
 	c.subscribedCh = c.engine.Subscribe(sessionID)
 	if c.engine.Topics() != nil {
-		ch, unsubscribe := c.engine.Topics().Subscribe(context.Background(), "*", topics.SubscribeOptions{Buffer: 64, SessionID: sessionID})
+		ch, unsubscribe := c.engine.Topics().Subscribe(ctx, "*", topics.SubscribeOptions{Buffer: 64, SessionID: sessionID})
 		c.topicUnsubscribe = unsubscribe
-		go func(ch <-chan topics.Envelope, target chan topics.Envelope) {
-			for env := range ch {
-				if target == nil {
-					return
-				}
-				target <- env
-			}
-		}(ch, c.topicEventCh)
+		go forwardSessionTopics(ctx, ch, c.topicEventCh, scope)
 	}
-	go func(ch chan map[string]any) {
-		for ev := range ch {
-			if c.eventCh == nil {
-				return
-			}
-			c.eventCh <- ev
-		}
-	}(c.subscribedCh)
+	go forwardSessionEvents(ctx, c.subscribedCh, c.eventCh, scope)
 }
 
 func (c *chatTUI) Watchers() []gotui.Watcher {
-	watchers := []gotui.Watcher{gotui.NewChannelWatcher(c.eventCh, c.handleEvent)}
+	watchers := []gotui.Watcher{gotui.NewChannelWatcher(c.eventCh, c.handleSessionEvent)}
 	if c.topicEventCh != nil {
-		watchers = append(watchers, gotui.NewChannelWatcher(c.topicEventCh, c.handleTopicEvent))
+		watchers = append(watchers, gotui.NewChannelWatcher(c.topicEventCh, c.handleSessionTopicEvent))
 	}
 	watchers = append(watchers, gotui.OnTimer(120*time.Millisecond, func() {
 		if c.hasRunningTranscriptBlock() && c.app != nil {
@@ -527,6 +515,9 @@ func (c *chatTUI) hasRunningTranscriptBlock() bool {
 }
 
 func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
+	if env.SessionID != "" && env.SessionID != c.sessionID {
+		return
+	}
 	payload := env.Payload
 	switch env.Topic {
 	case "turn.status":
@@ -706,6 +697,9 @@ func (c *chatTUI) useTopicNativeRuntimeStatus() bool {
 }
 
 func (c *chatTUI) handleEvent(ev map[string]any) {
+	if !sessionEventMatchesID(ev, c.sessionID) {
+		return
+	}
 	evType, _ := ev["type"].(string)
 	switch evType {
 	case "agent_draft_delta":
@@ -1519,6 +1513,7 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 		gotui.OnPreemptStop(gotui.Rune('l').Alt(), func(ke gotui.KeyEvent) { c.cycleModel(-1) }),
 		gotui.OnPreemptStop(gotui.KeyCtrlT, func(ke gotui.KeyEvent) { c.cycleThinking(1) }),
 		gotui.OnPreemptStop(gotui.KeyCtrlR, func(ke gotui.KeyEvent) { c.searchHistoryBackward() }),
+		gotui.OnPreemptStop(gotui.Rune('s').Alt(), func(ke gotui.KeyEvent) { c.openSessionMenu() }),
 		gotui.OnPreemptStop(gotui.Rune('t').Alt(), func(ke gotui.KeyEvent) { c.cycleThinking(-1) }),
 		gotui.OnPreemptStop(gotui.KeyUp, func(ke gotui.KeyEvent) {
 			c.recallHistory(-1)
@@ -1578,7 +1573,10 @@ func (c *chatTUI) openSessionMenu() {
 		if status == "" {
 			status = "idle"
 		}
-		label := fmt.Sprintf("@%s %s (%s) · %s", c.agentIDForSession(&sess), strings.TrimSpace(sess.Title), compactID(sess.ID), status)
+		if archived, _ := sess.State["archived_at"].(string); archived != "" {
+			status = "archived"
+		}
+		label := fmt.Sprintf("@%s %s (%s) · %s", c.agentIDForSession(&sess), strings.TrimSpace(sess.Title), sess.ID, status)
 		labels = append(labels, label)
 		values[label] = sess.ID
 		if sess.ID == c.sessionID {
@@ -1674,7 +1672,11 @@ func (c *chatTUI) closeModelMenu() {
 }
 
 func (c *chatTUI) moveModelMenuSelection(delta int) {
-	c.setModelMenuSelection(c.modelMenuSelected + delta)
+	index := c.modelMenuSelected + delta
+	if len(c.modelMenuChoices) > 0 && (delta == 1 || delta == -1) {
+		index = (index + len(c.modelMenuChoices)) % len(c.modelMenuChoices)
+	}
+	c.setModelMenuSelection(index)
 }
 
 func (c *chatTUI) setModelMenuSelection(idx int) {
@@ -1695,17 +1697,29 @@ func (c *chatTUI) setModelMenuSelection(idx int) {
 }
 
 func (c *chatTUI) modelMenuVisibleRows() int {
-	rows := 7
+	height, width := c.outputHeight, c.outputWidth
 	if c.app != nil {
-		_, h := c.app.Size()
-		if h < 24 {
-			rows = 5
-		}
+		width, height = c.app.Size()
 	}
-	if rows < 3 {
-		rows = 3
+	if height == 0 {
+		height = 24
 	}
-	return rows
+	if width == 0 {
+		width = 80
+	}
+	padding := 2
+	if width < 80 || height < 20 {
+		padding = 0
+	}
+	inputRows := 1
+	if c.input != nil {
+		input := *c.input
+		input.width = max(1, width-padding)
+		inputRows = max(1, len(input.renderLines()))
+	}
+	// Leave transcript, editor/separators and the existing footer intact.
+	available := height - padding - len(c.footerLines(width)) - len(c.extensionWidgetLines()) - inputRows - 2 - 4 - 2
+	return min(6, max(1, available))
 }
 
 func (c *chatTUI) ensureModelMenuSelectionVisible() {
@@ -1751,7 +1765,6 @@ func (c *chatTUI) acceptModelMenuSelection() {
 	switch kind {
 	case "session":
 		c.switchSession(value)
-		c.appendTranscript(fmt.Sprintf("sys: resumed %s", value))
 	case "thinking":
 		c.appendTranscript(c.thinkingCommand([]string{"/thinking", value})...)
 	default:
@@ -1770,11 +1783,12 @@ func (c *chatTUI) modelMenuHeight() int {
 	if len(c.modelMenuChoices) < rows {
 		rows = len(c.modelMenuChoices)
 	}
-	// rows + title + search line
-	return rows + 3
+	// Title + search + at least one result/empty-state row; no box border.
+	return max(1, rows) + 2
 }
 
 func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
+	c.ensureModelMenuSelectionVisible()
 	rows := c.modelMenuVisibleRows()
 	start := c.modelMenuScroll
 	end := start + rows
@@ -1785,9 +1799,7 @@ func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
 		gotui.WithWidthPercent(100),
 		gotui.WithHeight(c.modelMenuHeight()),
 		gotui.WithDirection(gotui.Column),
-		gotui.WithBorder(gotui.BorderRounded),
-		gotui.WithBorderStyle(gotui.NewStyle().Foreground(gotui.Blue)),
-		gotui.WithPaddingTRBL(0, 1, 0, 1),
+		gotui.WithPaddingTRBL(0, 0, 0, 0),
 	)
 	current := strings.TrimSpace(c.cfg.DefaultModel)
 	noun := "model"
@@ -1803,16 +1815,16 @@ func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
 	if c.modelMenuKind != "session" && c.modelMenuKind != "thinking" && current != "" {
 		title += " · current " + compactMaybe(current, c.compactOutput(), 28)
 	}
-	menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(truncate(title, max(20, width-4))), gotui.WithTextStyle(gotui.NewStyle().Bold())))
+	menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(selectorText(title, width)), gotui.WithTextStyle(gotui.NewStyle().Bold())))
 	search := "search: " + c.modelMenuQuery + "▌"
 	if strings.TrimSpace(c.modelMenuQuery) == "" {
 		search = "search: (type to filter)"
 	} else {
 		search += fmt.Sprintf("  (%d match)", len(c.modelMenuChoices))
 	}
-	menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(truncate(search, max(20, width-4))), gotui.WithTextStyle(gotui.NewStyle().Dim())))
+	menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(selectorText(search, width)), gotui.WithTextStyle(gotui.NewStyle().Dim())))
 	if len(c.modelMenuChoices) == 0 {
-		menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText("  no matching models"), gotui.WithTextStyle(gotui.NewStyle().Dim())))
+		menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(selectorText("  no matching "+noun+"s", width)), gotui.WithTextStyle(gotui.NewStyle().Dim())))
 		return menu
 	}
 	for i := start; i < end; i++ {
@@ -1821,13 +1833,13 @@ func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
 		style := gotui.NewStyle()
 		if i == c.modelMenuSelected {
 			prefix = "› "
-			style = style.Reverse().Bold()
+			style = style.Foreground(gotui.Cyan).Bold()
 		} else if canonicalModelRef(c.cfg.DefaultProvider, model) == canonicalModelRef(c.cfg.DefaultProvider, c.cfg.DefaultModel) {
 			prefix = "* "
 			style = style.Foreground(gotui.Cyan)
 		}
 		label := fmt.Sprintf("%s%d. %s", prefix, i+1, model)
-		menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(truncate(label, max(20, width-4))), gotui.WithTextStyle(style)))
+		menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(selectorText(label, width)), gotui.WithTextStyle(style)))
 	}
 	return menu
 }
@@ -2050,7 +2062,6 @@ func (c *chatTUI) restoreQueuedDraft() {
 	draft := c.queuedDrafts[idx]
 	c.queuedDrafts = c.queuedDrafts[:idx]
 	c.input.SetText(draft)
-	c.draft = draft
 	c.status = "Restored queued draft"
 	if c.app != nil {
 		c.app.MarkDirty()
@@ -2096,6 +2107,8 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 		}
 		text = fmt.Sprintf("Run this shell command and summarize the result: %s", cmd)
 	}
+	scope := c.selectionScope()
+	input := turn.RunInput{SessionID: scope.id, Prompt: text, Intent: "prompt", Model: c.cfg.DefaultModel, Metadata: metadata}
 	if c.running {
 		c.queuedDrafts = append(c.queuedDrafts, text)
 		c.appendTranscript(fmt.Sprintf("you [queued]: %s", text))
@@ -2105,16 +2118,9 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 			c.app.MarkDirty()
 		}
 		go func() {
-			_, err := c.engine.SubmitPromptRouted(context.Background(), turn.RunInput{SessionID: c.sessionID, Prompt: text, Intent: "prompt", Model: c.cfg.DefaultModel})
+			_, err := c.engine.SubmitPromptRouted(context.Background(), input)
 			if err != nil {
-				if c.app != nil {
-					c.app.QueueUpdate(func() {
-						c.appendTranscript(fmt.Sprintf("error: queue follow-up: %v", err))
-						c.app.MarkDirty()
-					})
-				} else {
-					c.appendTranscript(fmt.Sprintf("error: queue follow-up: %v", err))
-				}
+				c.applySessionCompletion(scope, func() { c.appendTranscript(fmt.Sprintf("error: queue follow-up: %v", err)) })
 			}
 		}()
 		return
@@ -2142,31 +2148,17 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 	}
 
 	go func() {
-		result, err := c.engine.SubmitPromptRouted(context.Background(), turn.RunInput{
-			SessionID: c.sessionID,
-			Prompt:    text,
-			Intent:    "prompt",
-			Model:     c.cfg.DefaultModel,
-			Metadata:  metadata,
-		})
+		result, err := c.engine.SubmitPromptRouted(context.Background(), input)
 		if err != nil {
-			if c.app != nil {
-				c.app.QueueUpdate(func() {
-					c.clearDraftTranscriptLine()
-					c.appendTranscript(fmt.Sprintf("error: %v", err))
-					c.running = false
-					c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
-					c.app.MarkDirty()
-				})
-			} else {
+			c.applySessionCompletion(scope, func() {
 				c.clearDraftTranscriptLine()
 				c.appendTranscript(fmt.Sprintf("error: %v", err))
 				c.running = false
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
-			}
+			})
 			return
 		}
-		if result != nil && strings.TrimSpace(result.SessionID) != "" && result.SessionID != c.sessionID {
+		if result != nil && strings.TrimSpace(result.SessionID) != "" && result.SessionID != scope.id {
 			apply := func() {
 				c.switchSession(result.SessionID)
 				c.running = result.Status == "running" || result.Status == "queued"
@@ -2179,14 +2171,7 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 				c.stickToBottom = true
 				c.scrollTranscriptToBottom()
 			}
-			if c.app != nil {
-				c.app.QueueUpdate(func() {
-					apply()
-					c.app.MarkDirty()
-				})
-			} else {
-				apply()
-			}
+			c.applySessionCompletion(scope, apply)
 		}
 	}()
 }
@@ -2309,35 +2294,18 @@ func (c *chatTUI) handleCommand(text string) {
 		body := strings.TrimSpace(strings.TrimPrefix(text, fields[0]+" "+fields[1]))
 		c.transcript = append(c.transcript, fmt.Sprintf("you → @%s: %s", target, body))
 		c.running = true
+		scope, model := c.selectionScope(), c.cfg.DefaultModel
 		go func() {
-			result, err := c.engine.SubmitPeerMessage(context.Background(), c.sessionID, target, body, "prompt", c.cfg.DefaultModel, "")
-			if err != nil {
-				if c.app != nil {
-					c.app.QueueUpdate(func() {
-						c.transcript = append(c.transcript, fmt.Sprintf("error: %v", err))
-						c.running = false
-						c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
-						c.app.MarkDirty()
-					})
+			result, err := c.engine.SubmitPeerMessage(context.Background(), scope.id, target, body, "prompt", model, "")
+			c.applySessionCompletion(scope, func() {
+				if err != nil {
+					c.appendTranscript(fmt.Sprintf("error: %v", err))
 				} else {
-					c.transcript = append(c.transcript, fmt.Sprintf("error: %v", err))
-					c.running = false
-					c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
+					c.appendTranscript(fmt.Sprintf("sys: delivered to @%s (%s)", target, result.SessionID))
 				}
-				return
-			}
-			if c.app != nil {
-				c.app.QueueUpdate(func() {
-					c.transcript = append(c.transcript, fmt.Sprintf("sys: delivered to @%s (%s)", target, result.SessionID))
-					c.running = false
-					c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
-					c.app.MarkDirty()
-				})
-			} else {
-				c.transcript = append(c.transcript, fmt.Sprintf("sys: delivered to @%s (%s)", target, result.SessionID))
 				c.running = false
 				c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
-			}
+			})
 		}()
 		return
 	case "/where":
@@ -2478,6 +2446,7 @@ func (c *chatTUI) helpLines() []string {
 		"/commands  all commands",
 		"/hotkeys   keyboard shortcuts",
 		"/model     choose model · type to filter · ctrl-l cycles",
+		"alt-s      session picker · keeps unsent drafts · esc cancels",
 		"/session   details for this chat",
 		"/where     compact context",
 		"/attach    add media",
@@ -3932,6 +3901,8 @@ func (c *chatTUI) setEditorAsk(key, prompt, prefill string) {
 	c.ensureInput()
 	if !c.editorAskActive {
 		c.editorAskPrevPlaceholder = c.input.placeholder
+		c.editorAskPrevText = c.input.Text()
+		c.editorAskPrevCursor = c.input.cursorPos
 	}
 	c.editorAskActive = true
 	c.editorAskKey = key
@@ -3974,7 +3945,9 @@ func (c *chatTUI) exitEditorAsk() {
 		if c.input.placeholder == "" {
 			c.input.placeholder = "Send a message\u2026"
 		}
-		c.input.SetText("")
+		c.input.SetText(c.editorAskPrevText)
+		c.input.cursorPos = min(c.editorAskPrevCursor, utf8.RuneCountInString(c.input.Text()))
+		c.editorAskPrevText, c.editorAskPrevCursor = "", 0
 	}
 	if c.app != nil {
 		c.app.MarkDirty()

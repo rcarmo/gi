@@ -50,7 +50,17 @@ Current totals: **48/48 browser executions**, **5/236 frozen IDs passing**, 231 
 
 Terminal mutation adaptation: add an on-demand row-action submenu to the bounded session selector. Use a temporary one-line rename input and explicit archive confirmation; Escape restores the previous selector/editor and draft. Archived rows live in a requested group/filter. Do not add a permanent action bar, badge row, sidebar or header. These terminal changes remain unimplemented.
 
-## TUI adaptation: design, not implementation credit
+## Terminal session slice: implemented and separately tested
+
+`Alt-S` opens the existing session selector without replacing unsent input. It uses at most six results plus two temporary title/search rows, no box border, and no added idle rows. Filtering keeps full session IDs; display truncation is UTF-8-safe and terminal-cell bounded. Up/Down wrap, Enter selects and Escape restores the editor. Resizing keeps the selected row visible.
+
+Session switches preserve editor text, rune cursor, undo/yank, history/search position and the existing local queued-draft list. The target is validated before origin state changes. Streamed assistant text, extension slots, transient blocks and usage values are cleared or reloaded separately. Captured session/generation wrappers reject buffered events, including an A→B→A revisit. Prompt/peer completions validate ownership at UI application time; old forwarders stop even when their downstream channel is full.
+
+Evidence: `make test-tui-sessions` passed native tmux interactions at 60×18, 100×22 and 140×36, including exact before/after cancellation screenshots, both session drafts, zero submitted turns and open-picker resizing. Unit/race tests cover buffered topic events, event types, failed switches, model fallback and extension-question cancellation. Existing TUI smoke and seven-file Gherkin harnesses passed. Artifacts: `test-results/tui-sessions/`; design: [ADR-0010](../adr/0010-terminal-session-selection.md).
+
+These caches are process-local. Pending media refs, durable queue mutation/retry semantics and terminal session-mutation submenus are not implemented. Browser coverage remains 5/236 Classic IDs with 231 unmapped, plus 42 unmapped shared cases.
+
+## Remaining TUI adaptation design
 
 The terminal keeps the current transcript → separator → editor → separator → path/footer layout. Every additional control is temporary or folded. No session sidebar, permanent toolbar, top banner or second transcript is added.
 
@@ -70,10 +80,7 @@ Reference reviewed: the installed pi-coding-agent `docs/tui.md`, especially Sele
 
 ### Terminal acceptance still to implement
 
-- Switch A → B → A with distinct unsent multiline drafts and media refs; prove no model submission and no lost draft.
-- Deliver buffered A tool/draft/status events after B is selected; prove B stays unchanged.
-- Cancel selectors and resize at 60×18, 100×22 and 140×36; bound every row, preserve focus and draft.
-- Idle layout adds zero rows compared with the existing contract; only nonzero counts occupy footer segments.
-- Queue failures leave the durable item and editor consistent; no duplicate dispatch after retries.
-
-The existing terminal selectors provide a starting point, but browser success does not mark these terminal checks complete.
+- Add a pending-media draft collection and verify per-session media refs. Existing `/attach`/`/paste-image` commands store or submit media immediately; they do not stage composer attachments.
+- Prove durable queue failure/retry consistency and no duplicate dispatch. Preserved local queued-draft text alone does not satisfy this contract.
+- Add capability-gated terminal mutation submenus and archive/restore filtering with the same bounded footprint.
+- Complete wider feature-family terminal adaptations with separate evidence; the verified session slice does not close them.

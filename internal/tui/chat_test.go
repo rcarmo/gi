@@ -181,7 +181,7 @@ func TestHandleForkCommandSwitchesSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	c := &chatTUI{store: s, engine: turn.New(s), sessionID: root.ID, cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, eventCh: make(chan map[string]any, 64)}
+	c := &chatTUI{store: s, engine: turn.New(s), sessionID: root.ID, cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, eventCh: make(chan sessionEvent, 64)}
 	c.handleCommand("/fork @agent1")
 	if c.sessionID == root.ID {
 		t.Fatalf("expected fork command to switch session")
@@ -927,7 +927,7 @@ func TestHandleEventAgentStatusWithoutAppDoesNotPanic(t *testing.T) {
 }
 
 func TestUseTopicNativeRuntimeStatusRequiresLiveSubscription(t *testing.T) {
-	c := &chatTUI{topicEventCh: make(chan topics.Envelope, 1)}
+	c := &chatTUI{topicEventCh: make(chan sessionTopicEvent, 1)}
 	if c.useTopicNativeRuntimeStatus() {
 		t.Fatal("expected topic-native runtime status to remain disabled without a live topic subscription")
 	}
@@ -938,7 +938,7 @@ func TestUseTopicNativeRuntimeStatusRequiresLiveSubscription(t *testing.T) {
 }
 
 func TestHandleEventStatusRenderingSkipsDuplicateLegacyRuntimeEventsWhenTopicNativeActive(t *testing.T) {
-	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1, topicEventCh: make(chan topics.Envelope, 1), topicUnsubscribe: func() {}}
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, stickToBottom: true, draftLineIndex: -1, topicEventCh: make(chan sessionTopicEvent, 1), topicUnsubscribe: func() {}}
 	c.handleEvent(map[string]any{"type": "tool_failed", "tool": "shell", "error": "boom"})
 	if c.status != "" || len(c.transcript) != 0 {
 		t.Fatalf("expected topic-native path to suppress duplicate legacy tool event, got status=%q transcript=%#v", c.status, c.transcript)
@@ -1266,8 +1266,8 @@ func TestNewSessionCommandCreatesAndSwitchesMainSession(t *testing.T) {
 	}
 	engine := turn.New(s)
 	c := &chatTUI{store: s, engine: engine, sessionID: "session_existing_main", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "new-model", DefaultProvider: "provider", DefaultThinkingLevel: "medium"}, draftLineIndex: -1, transcriptRef: gotui.NewRef()}
-	c.eventCh = make(chan map[string]any, 64)
-	c.topicEventCh = make(chan topics.Envelope, 64)
+	c.eventCh = make(chan sessionEvent, 64)
+	c.topicEventCh = make(chan sessionTopicEvent, 64)
 	lines := c.newSessionLines()
 	if len(lines) != 1 || !strings.HasPrefix(lines[0], "sys: new session @agent (session_") {
 		t.Fatalf("unexpected new session output: %#v", lines)
@@ -1450,8 +1450,8 @@ func TestCloneSessionCommandClonesAndSwitches(t *testing.T) {
 		t.Fatalf("add source message: %v", err)
 	}
 	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_clone_source", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, transcriptRef: gotui.NewRef(), draftLineIndex: -1}
-	c.eventCh = make(chan map[string]any, 64)
-	c.topicEventCh = make(chan topics.Envelope, 64)
+	c.eventCh = make(chan sessionEvent, 64)
+	c.topicEventCh = make(chan sessionTopicEvent, 64)
 	lines := c.cloneSessionLines([]string{"/clone", "@agent7"})
 	if len(lines) != 1 || !strings.Contains(lines[0], "sys: cloned to @agent7 (session_") {
 		t.Fatalf("unexpected clone output: %#v", lines)
@@ -1494,8 +1494,8 @@ func TestResumeLinesListsAndSwitchesRecentSessions(t *testing.T) {
 		t.Fatalf("add message: %v", err)
 	}
 	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_resume_a", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, transcriptRef: gotui.NewRef(), draftLineIndex: -1}
-	c.eventCh = make(chan map[string]any, 64)
-	c.topicEventCh = make(chan topics.Envelope, 64)
+	c.eventCh = make(chan sessionEvent, 64)
+	c.topicEventCh = make(chan sessionTopicEvent, 64)
 	listed := strings.Join(c.resumeLines([]string{"/resume"}), "\n")
 	for _, want := range []string{"resume: recent sessions", "Beta (session_resume_b)", "messages=1", "resume: use /resume <index|session_id>"} {
 		if !strings.Contains(listed, want) {
@@ -2118,8 +2118,8 @@ func TestEditorAskSlotCapturesAnswerNotModel(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_ask", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, transcriptRef: gotui.NewRef(), draftLineIndex: -1}
-	c.eventCh = make(chan map[string]any, 64)
-	c.topicEventCh = make(chan topics.Envelope, 64)
+	c.eventCh = make(chan sessionEvent, 64)
+	c.topicEventCh = make(chan sessionTopicEvent, 64)
 	c.input = newMultilineInput(80, "Send a message\u2026", c.onSubmit, nil)
 	c.handleTopicEvent(topics.Envelope{Topic: "extension.editor", Payload: map[string]any{"key": "name", "prompt": "What is your name?", "prefill": "Rui"}})
 	if !c.editorAskActive || c.editorAskKey != "name" || c.input.placeholder != "What is your name?" {
@@ -2202,8 +2202,8 @@ func TestSessionSelectorOpensFiltersAndSwitches(t *testing.T) {
 		t.Fatalf("create beta: %v", err)
 	}
 	c := &chatTUI{store: s, engine: turn.New(s), sessionID: "session_alpha", cfg: config.RuntimeConfig{AssistantName: "Neo", DefaultModel: "bootstrap"}, transcriptRef: gotui.NewRef(), draftLineIndex: -1}
-	c.eventCh = make(chan map[string]any, 64)
-	c.topicEventCh = make(chan topics.Envelope, 64)
+	c.eventCh = make(chan sessionEvent, 64)
+	c.topicEventCh = make(chan sessionTopicEvent, 64)
 	c.openSessionMenu()
 	if !c.modelMenuOpen || c.modelMenuKind != "session" {
 		t.Fatalf("session menu not open: open=%v kind=%q", c.modelMenuOpen, c.modelMenuKind)
