@@ -77,8 +77,11 @@ holding four `database/sql` connections found the second lacked the required set
 
 `store.Open` now supplies connection-local busy timeout, foreign-key, synchronous
 and temp-store settings through modernc's `_pragma` DSN options. `_txlock=immediate`
-reserves the writer before read-then-write coordination transactions, avoiding WAL
-snapshot-upgrade failures. WAL and the existing append-only event contract are unchanged.
+reserves the writer before read-then-write coordination transactions in file-backed
+WAL databases, avoiding snapshot-upgrade failures. Shared memory databases retain
+deferred transactions: their table-locking path raises `SQLITE_LOCKED` without the
+busy handler on competing immediate BEGINs. WAL and the append-only event contract
+are unchanged.
 The full Go suite and 24-case browser parity matrix passed after this correction.
 
 ## Follow-ups (optional, YAGNI)

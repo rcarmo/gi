@@ -90,9 +90,12 @@ func Open(path string) (*Store, error) {
 	for _, pragma := range []string{"busy_timeout(5000)", "foreign_keys(ON)", "synchronous(NORMAL)", "temp_store(MEMORY)"} {
 		options.Add("_pragma", pragma)
 	}
-	// Read-then-write coordination transactions acquire the writer reservation
-	// up front rather than failing a WAL snapshot upgrade with SQLITE_BUSY.
-	options.Set("_txlock", "immediate")
+	// File-backed WAL transactions reserve the writer before reading. Shared
+	// memory databases use SQLite's table-locking path (no WAL), where immediate
+	// BEGIN can raise SQLITE_LOCKED without invoking the busy handler.
+	if path != ":memory:" && !strings.Contains(path, "mode=memory") && !strings.HasPrefix(path, "file::memory:") {
+		options.Set("_txlock", "immediate")
+	}
 	separator := "?"
 	if strings.Contains(path, "?") {
 		separator = "&"
