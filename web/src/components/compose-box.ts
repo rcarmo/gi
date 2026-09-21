@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { html, useRef, useState, useEffect, useCallback, useMemo } from '../vendor/preact-htm.js';
+import { html, useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo } from '../vendor/preact-htm.js';
 import { findPopupTypeaheadMatch, isPopupTypeaheadKey, resolvePopupTypeaheadMatch, updatePopupTypeaheadBuffer } from '../ui/popup-typeahead.js';
 import { getAgentModels, sendAgentMessage, uploadMedia } from '../api.js';
 import { getLocalStorageItem, setLocalStorageItem } from '../utils/storage.js';
@@ -681,10 +681,16 @@ export function ComposeBox({
     statusNotice = null,
     extensionWorkingState = null,
     prefillRequest = null,
+    // Gi host bridge: preserve unsent drafts when a keyed chat unmounts.
+    // Text draftValue/onContentChange follow Piclaw 70d33bc93's host contract.
+    draftValue = '',
+    draftMediaFiles = [],
+    onContentChange,
+    onDraftMediaChange,
 }) {
-    const [content, setContent] = useState('');
+    const [content, setContent] = useState(draftValue);
     const [searchText, setSearchText] = useState('');
-    const [mediaFiles, setMediaFiles] = useState([]);
+    const [mediaFiles, setMediaFiles] = useState(draftMediaFiles);
     const [isDragActive, setIsDragActive] = useState(false);
     const [slashMatches, setSlashMatches] = useState([]);
     const [slashIndex, setSlashIndex] = useState(0);
@@ -796,6 +802,9 @@ export function ComposeBox({
             textarea.setSelectionRange?.(end, end);
         });
     }, [prefillRequest, searchMode]);
+    useLayoutEffect(() => { onContentChange?.(content); }, [content, onContentChange]);
+    useLayoutEffect(() => { onDraftMediaChange?.(mediaFiles); }, [mediaFiles, onDraftMediaChange]);
+
     const canSend = content.trim() || mediaFiles.length > 0 || fileRefs.length > 0 || messageRefs.length > 0;
     const canShareLocation = typeof window !== 'undefined'
         && typeof navigator !== 'undefined'

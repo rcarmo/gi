@@ -13,8 +13,11 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Vendor the frozen Vibes/Tau Classic corpus and shared interaction contract with hash checks.
 - [x] Add a Gi matrix covering Chromium/WebKit at phone/tablet/desktop sizes; unmapped cases are not passes.
 - [x] Map `@ux-original-001` and `002`, import the upstream TimelineMenu and drawer behavior, and pass all 12 executions.
-- [ ] Map the remaining 234 frozen scenarios and the shared interaction contract.
-- [ ] Implement real web multi-session/agent/chat selection with isolated drafts, queues and late-response guards (`@ux-original-013`–`015` and related session/model/queue cases).
+- [x] Map `@ux-original-014` with real delayed-response/draft-switch checks and test New creating a distinct child (24/24 combined browser runs).
+- [x] Fix pooled SQLite configuration exposed by the session matrix; existing functional web suite passes 70/70.
+- [ ] Map the remaining 233 frozen scenarios and the shared interaction contract.
+- [ ] Complete searchable session picker, mutations, durable drafts and queue/model/reconnect ownership (`@ux-original-013`, `015` and related cases).
+- [ ] Implement the bounded terminal adaptations and acceptance checks in `docs/internal/web-session-parity.md` (design written; no terminal implementation credit yet).
 - [ ] Continue component refreshes from a pinned upstream source where the suite demonstrates a gap.
 
 Evidence and commands: [`../../tests/ux/README.md`](../../tests/ux/README.md). These results cover the mapped scenarios, not full Piclaw compliance.

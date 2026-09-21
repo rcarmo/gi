@@ -214,8 +214,11 @@ export async function setAgentThoughtVisibility(_agentId: string, _visible: bool
     return null;
 }
 
-export async function getAgentModels(_chatJid: string | null = null) {
-    const data = await request('/api/runtime/config').catch(() => ({}));
+export async function getAgentModels(chatJid: string | null = null) {
+    const data = await request('/api/runtime/config');
+    const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
+    const session = sessionId ? await request(`/api/sessions/${encodeURIComponent(sessionId)}`) : null;
+    const state = session?.state || {};
     const modelOptions = Array.isArray(data.model_options) ? data.model_options : [];
     const models: any[] = modelOptions.length > 0
         ? modelOptions
@@ -228,14 +231,20 @@ export async function getAgentModels(_chatJid: string | null = null) {
         models,
         model_options: modelOptions,
         provider_options: Array.isArray(data.provider_options) ? data.provider_options : [],
-        current: data.current || data.default_model || '',
-        thinking_level: data.default_thinking_level || data.thinking_level || '',
-        supports_thinking: Boolean(data.supports_thinking),
+        current: state.model || data.current || data.default_model || '',
+        thinking_level: state.thinking_level || data.default_thinking_level || data.thinking_level || '',
+        supports_thinking: Boolean(models.find((model: any) => model.label === state.model || model.id === state.model)?.reasoning),
     };
 }
 
-export async function getAgentQueueState(_chatJid: string | null = null) {
-    return { items: [] };
+export async function getAgentQueueState(chatJid: string | null = null) {
+    const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
+    if (!sessionId) return { items: [] };
+    const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/turns`);
+    return { items: (data.turns || []).filter((turn: any) => turn.status === 'queued').map((turn: any) => ({
+        id: turn.id, text: turn.prompt, content: turn.prompt, chat_jid: chatJid,
+        created_at: turn.created_at,
+    })) };
 }
 
 export async function steerAgentQueueItem(_itemId: string, _chatJid: string | null = null) {
@@ -266,7 +275,7 @@ export async function getActiveChatAgents() {
     return {
         agents: sessions.map((s: any) => ({
             chat_jid: sessionToChatJid(s.id),
-            agent_name: s.scope?.agent_id || (typeof s.title === 'string' ? s.title.replace(/^@/, '') : s.id),
+            agent_name: (typeof s.title === 'string' && s.title ? s.title.replace(/^@/, '') : s.scope?.agent_id) || s.id,
             agent_id: s.scope?.agent_id || 'agent',
             parent_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : null,
             is_active: false,

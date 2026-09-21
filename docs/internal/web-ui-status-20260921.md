@@ -2,6 +2,8 @@
 
 Gi has a Piclaw-derived Preact web shell backed by Go HTTP APIs, SSE and SQLite. Many copied Piclaw controls have no working Gi adapter yet. Backend capabilities and browser feature support differ substantially.
 
+Later on 2026-09-21, the session slice added guarded selection, page-local per-session drafts and real child-chat creation. Its combined parity matrix passed 24/24 runs (3 frozen IDs plus a child-creation regression). A reproduced pooled-SQLite configuration defect was fixed in `bd30518`; the existing web suite then passed 70/70. The initial-run counts below are historical. See [web-session-parity.md](web-session-parity.md) for current limits and proposed terminal adaptations.
+
 ## Implemented and wired
 
 - Embedded JavaScript/CSS, identity/avatar configuration, themes and system meters.

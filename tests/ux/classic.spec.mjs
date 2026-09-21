@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { loadCorpus, mappedIds } from './support/catalogue.mjs';
+import { loadCorpus } from './support/catalogue.mjs';
 
-const cases = loadCorpus().filter(scenario => mappedIds.has(scenario.id));
+const cases = loadCorpus().filter(scenario => ['@ux-original-001', '@ux-original-002'].includes(scenario.id));
 
 for (const scenario of cases) {
   test(`${scenario.id} ${scenario.name}`, async ({ page, request }, testInfo) => {

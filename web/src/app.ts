@@ -62,6 +62,7 @@ import { FloatingWidgetPane } from './components/floating-widget-pane.js';
 import { AttachmentPreviewModal } from './components/attachment-preview-modal.js';
 import { SystemMetersHud } from './components/system-meters-hud.js';
 import { TimelineMenu } from './components/timeline-menu.js';
+import { createSelectionScope } from './gi-session-state.js';
 
 // ── Gi session bridge ──────────────────────────────────────────────────────
 // Piclaw components expect chat_jid strings. We map Gi sessions onto that
@@ -124,6 +125,13 @@ async function getRuntimeConfig() {
 function GiApp() {
     const [ready, setReady] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
+    const selection = useRef(createSelectionScope()).current;
+    const drafts = useRef(new Map<string, any>()).current;
+    const [sessionError, setSessionError] = useState<string | null>(null);
+    const getDraft = (sid: string) => {
+        if (!drafts.has(sid)) drafts.set(sid, { text: '', media: [], fileRefs: [], messageRefs: [] });
+        return drafts.get(sid);
+    };
     const [runtimeConfig, setRuntimeConfig] = useState<any>({});
     const [agents, setAgents] = useState<any>({});
     const [userProfile, setUserProfile] = useState<any>(null);
@@ -177,6 +185,7 @@ function GiApp() {
     } = useAgentState();
 
     const currentChatJid = useMemo(() => sessionId ? sessionToChatJid(sessionId) : '', [sessionId]);
+    const renderedSelection = selection.capture();
 
     // ── Bootstrap ────────────────────────────────────────────────────────────
 
@@ -191,6 +200,7 @@ function GiApp() {
             ensureDefaultSession(),
             getRuntimeConfig(),
         ]).then(([sid, cfg]) => {
+            selection.select(sid);
             setSessionId(sid);
             setRuntimeConfig(cfg);
             setUserProfile({ name: cfg.user_name, avatarUrl: cfg.user_avatar, avatarBackground: cfg.user_avatar_background });
@@ -216,8 +226,11 @@ function GiApp() {
 
     const loadPosts = useCallback(async (opts: any = {}) => {
         if (!sessionId) return;
+        const scope = selection.capture();
+        if (scope.sessionId !== sessionId) return;
         const chatJid = sessionToChatJid(sessionId);
         const data = await getTimeline(50, opts.beforeId || null, chatJid);
+        if (!selection.isCurrent(scope)) return;
         const incoming: any[] = data.posts || [];
         if (opts.beforeId) {
             setPosts((prev: any[]) => dedupePosts([...incoming, ...prev]));
@@ -239,12 +252,18 @@ function GiApp() {
             setCurrentChatBranches([]);
             return;
         }
+        const scope = selection.capture();
+        if (scope.sessionId !== sid) return;
         const chatJid = sessionToChatJid(sid);
         const [agentsPayload, branchesPayload] = await Promise.all([
             getActiveChatAgents().catch(() => ({ agents: [] })),
             getChatBranches(chatJid).catch(() => ({ branches: [] })),
         ]);
+        if (!selection.isCurrent(scope)) return;
         const agentsList = Array.isArray((agentsPayload as any)?.agents) ? (agentsPayload as any).agents : [];
+        setAgents(Object.fromEntries(agentsList.map((entry: any) => [entry.agent_id, {
+            id: entry.agent_id, name: entry.agent_name, avatar_url: null,
+        }])));
         const branchesList = Array.isArray((branchesPayload as any)?.branches)
             ? (branchesPayload as any).branches
             : (Array.isArray((branchesPayload as any)?.chats) ? (branchesPayload as any).chats : []);
@@ -258,6 +277,7 @@ function GiApp() {
     // ── SSE connection (replaces polling) ─────────────────────────────────────
 
     const handleSseEvent = useCallback((eventType: string, data: any) => {
+        if (!selection.current() || data?.chat_jid !== sessionToChatJid(selection.current()!)) return;
         // Handle new_post events directly for immediate timeline updates
         if (eventType === 'new_post' || eventType === 'agent_response') {
             if (data && data.id) {
@@ -313,51 +333,92 @@ function GiApp() {
         chatJid: currentChatJid,
     });
 
+    const refreshSelectedState = useCallback(async () => {
+        const scope = selection.capture();
+        if (!sessionId || scope.sessionId !== sessionId) return;
+        const chat = sessionToChatJid(sessionId);
+        try {
+            const [models, queue, status] = await Promise.all([
+                getAgentModels(chat), getAgentQueueState(chat), getAgentStatus('', chat),
+            ]);
+            if (!selection.isCurrent(scope)) return;
+            setAgentModelsPayload(models);
+            setActiveModel(models.current);
+            setActiveThinkingLevel(models.thinking_level);
+            setSupportsThinking(models.supports_thinking);
+            setFollowupQueueItems(queue.items || []);
+            setAgentStatus(status);
+            const running = status?.status === 'running' || status?.status === 'cancelling';
+            setIsAgentTurnActive(running);
+            isAgentRunningRef.current = running;
+            setSessionError(null);
+        } catch (error) {
+            if (selection.isCurrent(scope)) setSessionError(error.message || 'Unable to refresh session');
+        }
+    }, [sessionId]);
+
     // ── Initial load + light periodic refresh ─────────────────────────────────
 
     useEffect(() => {
         if (!ready || !sessionId) return;
         loadPosts();
         void refreshSessionLists(sessionId);
+        void refreshSelectedState();
         // Light refresh every 10s as a safety net (SSE handles real-time)
         const id = setInterval(() => {
             loadPosts();
             void refreshSessionLists(sessionId);
+            void refreshSelectedState();
         }, 10000);
         return () => clearInterval(id);
-    }, [ready, sessionId, loadPosts, refreshSessionLists]);
+    }, [ready, sessionId, loadPosts, refreshSessionLists, refreshSelectedState]);
 
     // ── Send ──────────────────────────────────────────────────────────────────
 
     const handlePost = useCallback(async (response: any) => {
-        // Called by ComposeBox after a successful send
+        // A pending send remains owned by its origin even after selection changes.
+        if (!selection.isCurrent(renderedSelection)) return;
         await loadPosts();
+        if (!selection.isCurrent(renderedSelection)) return;
+        void refreshSelectedState();
         void refreshSessionLists(sessionId);
         scrollToBottom();
-    }, [loadPosts, refreshSessionLists, scrollToBottom, sessionId]);
+    }, [loadPosts, refreshSessionLists, refreshSelectedState, scrollToBottom, sessionId]);
 
     const handleSwitchChat = useCallback((chatJid: string | null) => {
         const nextSessionId = typeof chatJid === 'string' && chatJid.startsWith('gi:') ? chatJid.slice(3) : null;
         if (!nextSessionId || nextSessionId === sessionId) return;
+        if (sessionId) Object.assign(getDraft(sessionId), { fileRefs, messageRefs });
+        // Advance synchronously, before rendering, to invalidate already pending work.
+        selection.select(nextSessionId);
         setLocalStorageItem(SESSION_KEY, nextSessionId);
         setSessionId(nextSessionId);
-        setPosts([]);
-    }, [sessionId]);
+        setPosts([]); setHasMore(false); setFollowupQueueItems([]); setCurrentChatBranches([]);
+        setFileRefs(getDraft(nextSessionId).fileRefs);
+        setMessageRefs(getDraft(nextSessionId).messageRefs);
+        setAgentStatus(null); setAgentDraft(null); setAgentThought(null); setAgentPlan(null);
+        setPendingRequest(null); setCurrentTurnId(null); setSteerQueuedTurnId(null);
+        draftBufferRef.current = ''; thoughtBufferRef.current = '';
+        currentTurnIdRef.current = null; steerQueuedTurnIdRef.current = null;
+        setIsAgentTurnActive(false); isAgentRunningRef.current = false;
+        setActiveModel(''); setActiveThinkingLevel(''); setSupportsThinking(false);
+        setAgentModelsPayload(null); setContextUsage(null); setModelUsage(null);
+        setSessionError(null);
+    }, [sessionId, fileRefs, messageRefs]);
 
     const handleCreateSession = useCallback(async () => {
-        const response = await fetch('/api/sessions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: '@web', agent_id: 'web' }),
-        });
-        if (!response.ok) throw new Error('Failed to create web session');
-        const created = await response.json();
-        const nextSessionId = typeof created?.id === 'string' ? created.id : null;
-        if (!nextSessionId) throw new Error('Missing created session id');
-        setLocalStorageItem(SESSION_KEY, nextSessionId);
-        setSessionId(nextSessionId);
-        setPosts([]);
-    }, []);
+        if (!sessionId) return;
+        const scope = selection.capture();
+        try {
+            // A second main-session POST reuses the agent's existing main session.
+            const created = await forkChatBranch(sessionToChatJid(sessionId));
+            if (!selection.isCurrent(scope)) return;
+            if (!created?.branch?.chat_jid) throw new Error('Missing created chat identifier');
+            handleSwitchChat(created.branch.chat_jid);
+        } catch (error) {
+            if (selection.isCurrent(scope)) setSessionError(error.message || 'Failed to create session');
+        }
+    }, [sessionId, handleSwitchChat]);
 
     // ── Pane helpers ──────────────────────────────────────────────────────────
 
@@ -495,15 +556,23 @@ function GiApp() {
                     onMoveQueuedFollowup=${() => {}}
                     onOpenFilePill=${openEditor}
                 />
+                ${sessionError && html`<div role="alert">${sessionError}</div>`}
                 <${ComposeBox}
+                    key=${sessionId}
+                    draftValue=${getDraft(sessionId).text}
+                    draftMediaFiles=${getDraft(sessionId).media}
+                    onContentChange=${(text: string) => { getDraft(sessionId).text = text; }}
+                    onDraftMediaChange=${(media: File[]) => { getDraft(sessionId).media = media; }}
                     currentChatJid=${currentChatJid}
                     isAgentActive=${isAgentTurnActive}
                     onPost=${handlePost}
                     onFocus=${() => { if (!isIOSDevice()) scrollToBottom(); }}
                     onModelChange=${(value: string | null) => {
+                        if (!selection.isCurrent(renderedSelection)) return;
                         setActiveModel(value || '');
                     }}
                     onModelStateChange=${(state: any) => {
+                        if (!selection.isCurrent(renderedSelection)) return;
                         if (state && typeof state === 'object') {
                             setAgentModelsPayload((prev: any) => ({ ...(prev || {}), ...(state || {}) }));
                             if (typeof state.model === 'string') setActiveModel(state.model);
@@ -524,9 +593,23 @@ function GiApp() {
                     fileRefs=${fileRefs}
                     messageRefs=${messageRefs}
                     onRemoveFileRef=${(p: string) => setFileRefs((prev: string[]) => prev.filter(x => x !== p))}
-                    onClearFileRefs=${() => setFileRefs([])}
+                    onClearFileRefs=${() => {
+                        getDraft(sessionId).fileRefs = [];
+                        if (selection.current() === sessionId) setFileRefs([]);
+                    }}
+                    onSetFileRefs=${(refs: string[]) => {
+                        getDraft(sessionId).fileRefs = refs;
+                        if (selection.current() === sessionId) setFileRefs(refs);
+                    }}
                     onRemoveMessageRef=${() => {}}
-                    onClearMessageRefs=${() => setMessageRefs([])}
+                    onClearMessageRefs=${() => {
+                        getDraft(sessionId).messageRefs = [];
+                        if (selection.current() === sessionId) setMessageRefs([]);
+                    }}
+                    onSetMessageRefs=${(refs: any[]) => {
+                        getDraft(sessionId).messageRefs = refs;
+                        if (selection.current() === sessionId) setMessageRefs(refs);
+                    }}
                     connectionStatus=${connectionStatus}
                     activeChatAgents=${activeChatAgents}
                     currentChatBranches=${currentChatBranches}

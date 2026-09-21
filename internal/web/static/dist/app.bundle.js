@@ -674,8 +674,26 @@ async function getTimeline(limit = 50, beforeId = null, chatJid = null) {
 async function getSystemMetrics() {
   return request("/api/system-metrics").catch(() => null);
 }
-async function getAgentModels(_chatJid = null) {
-  const data = await request("/api/runtime/config").catch(() => ({}));
+async function getAgentStatus(agentId, chatJid = null) {
+  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
+  if (!sessionId)
+    return null;
+  const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/turns`).catch(() => ({ turns: [] }));
+  const turns = data.turns || [];
+  const active = turns.find((t) => t.status === "running" || t.status === "cancelling") || turns.find((t) => t.status === "queued");
+  if (!active)
+    return null;
+  return {
+    type: active.status === "running" ? "tool_call" : "intent",
+    title: active.status === "cancelling" ? "Cancelling…" : active.status === "queued" ? "Queued" : active.prompt,
+    status: active.status
+  };
+}
+async function getAgentModels(chatJid = null) {
+  const data = await request("/api/runtime/config");
+  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
+  const session = sessionId ? await request(`/api/sessions/${encodeURIComponent(sessionId)}`) : null;
+  const state = session?.state || {};
   const modelOptions = Array.isArray(data.model_options) ? data.model_options : [];
   const models = modelOptions.length > 0 ? modelOptions : (data.enabled_models || []).map((id) => ({
     id,
@@ -686,10 +704,23 @@ async function getAgentModels(_chatJid = null) {
     models,
     model_options: modelOptions,
     provider_options: Array.isArray(data.provider_options) ? data.provider_options : [],
-    current: data.current || data.default_model || "",
-    thinking_level: data.default_thinking_level || data.thinking_level || "",
-    supports_thinking: Boolean(data.supports_thinking)
+    current: state.model || data.current || data.default_model || "",
+    thinking_level: state.thinking_level || data.default_thinking_level || data.thinking_level || "",
+    supports_thinking: Boolean(models.find((model) => model.label === state.model || model.id === state.model)?.reasoning)
   };
+}
+async function getAgentQueueState(chatJid = null) {
+  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
+  if (!sessionId)
+    return { items: [] };
+  const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/turns`);
+  return { items: (data.turns || []).filter((turn) => turn.status === "queued").map((turn) => ({
+    id: turn.id,
+    text: turn.prompt,
+    content: turn.prompt,
+    chat_jid: chatJid,
+    created_at: turn.created_at
+  })) };
 }
 async function getActiveChatAgents() {
   const data = await request("/api/sessions").catch(() => ({ sessions: [] }));
@@ -697,7 +728,7 @@ async function getActiveChatAgents() {
   return {
     agents: sessions.map((s) => ({
       chat_jid: sessionToChatJid(s.id),
-      agent_name: s.scope?.agent_id || (typeof s.title === "string" ? s.title.replace(/^@/, "") : s.id),
+      agent_name: (typeof s.title === "string" && s.title ? s.title.replace(/^@/, "") : s.scope?.agent_id) || s.id,
       agent_id: s.scope?.agent_id || "agent",
       parent_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : null,
       is_active: false,
@@ -740,6 +771,15 @@ async function getChatBranches(rootChatJid = null, _options = {}) {
     agent_id: s.scope?.agent_id || "agent"
   }));
   return { branches: mapped, chats: mapped };
+}
+async function forkChatBranch(sourceChatJid, options = {}) {
+  const sessionId = sourceChatJid?.startsWith("gi:") ? sourceChatJid.slice(3) : null;
+  if (!sessionId)
+    throw new Error("No source session to fork");
+  return request(`/api/sessions/${encodeURIComponent(sessionId)}/fork`, {
+    method: "POST",
+    body: JSON.stringify({ title: options?.title || null, agent_id: options?.agent_id || null })
+  });
 }
 async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = [], mode = null, chatJid = null, options = {}) {
   const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
@@ -6442,11 +6482,15 @@ function ComposeBox({
   showQueueStack = true,
   statusNotice = null,
   extensionWorkingState = null,
-  prefillRequest = null
+  prefillRequest = null,
+  draftValue = "",
+  draftMediaFiles = [],
+  onContentChange,
+  onDraftMediaChange
 }) {
-  const [content, setContent] = M_("");
+  const [content, setContent] = M_(draftValue);
   const [searchText, setSearchText] = M_("");
-  const [mediaFiles, setMediaFiles] = M_([]);
+  const [mediaFiles, setMediaFiles] = M_(draftMediaFiles);
   const [isDragActive, setIsDragActive] = M_(false);
   const [slashMatches, setSlashMatches] = M_([]);
   const [slashIndex, setSlashIndex] = M_(0);
@@ -6559,6 +6603,12 @@ function ComposeBox({
       textarea.setSelectionRange?.(end, end);
     });
   }, [prefillRequest, searchMode]);
+  F_(() => {
+    onContentChange?.(content);
+  }, [content, onContentChange]);
+  F_(() => {
+    onDraftMediaChange?.(mediaFiles);
+  }, [mediaFiles, onDraftMediaChange]);
   const canSend = content.trim() || mediaFiles.length > 0 || fileRefs.length > 0 || messageRefs.length > 0;
   const canShareLocation = typeof window !== "undefined" && typeof navigator !== "undefined" && Boolean(window.isSecureContext) && typeof navigator.geolocation?.getCurrentPosition === "function";
   const notificationsSupported = typeof window !== "undefined" && typeof Notification !== "undefined";
@@ -15762,6 +15812,29 @@ function TimelineMenu({
   return null;
 }
 
+// web/src/gi-session-state.ts
+function createSelectionScope() {
+  let sessionId = null;
+  let generation = 0;
+  return {
+    select(next) {
+      if (next !== sessionId) {
+        sessionId = next;
+        generation++;
+      }
+    },
+    capture() {
+      return { sessionId, generation };
+    },
+    isCurrent(captured) {
+      return captured.sessionId === sessionId && captured.generation === generation;
+    },
+    current() {
+      return sessionId;
+    }
+  };
+}
+
 // web/src/app.ts
 var SESSION_KEY = "gi_session_id";
 var DEFAULT_AGENT_ID = "web";
@@ -15809,6 +15882,14 @@ async function getRuntimeConfig() {
 function GiApp() {
   const [ready, setReady] = M_(false);
   const [sessionId, setSessionId] = M_(null);
+  const selection = K_(createSelectionScope()).current;
+  const drafts = K_(new Map).current;
+  const [sessionError, setSessionError] = M_(null);
+  const getDraft = (sid) => {
+    if (!drafts.has(sid))
+      drafts.set(sid, { text: "", media: [], fileRefs: [], messageRefs: [] });
+    return drafts.get(sid);
+  };
   const [runtimeConfig, setRuntimeConfig] = M_({});
   const [agents, setAgents] = M_({});
   const [userProfile, setUserProfile] = M_(null);
@@ -15860,6 +15941,7 @@ function GiApp() {
     draftExpandedRef
   } = useAgentState();
   const currentChatJid = u_(() => sessionId ? sessionToChatJid2(sessionId) : "", [sessionId]);
+  const renderedSelection = selection.capture();
   J_(() => {
     const cleanupTheme = initTheme();
     const cleanupDisplayScale = installPwaDisplayScaleSync();
@@ -15870,6 +15952,7 @@ function GiApp() {
       ensureDefaultSession(),
       getRuntimeConfig()
     ]).then(([sid, cfg]) => {
+      selection.select(sid);
       setSessionId(sid);
       setRuntimeConfig(cfg);
       setUserProfile({ name: cfg.user_name, avatarUrl: cfg.user_avatar, avatarBackground: cfg.user_avatar_background });
@@ -15896,8 +15979,13 @@ function GiApp() {
   const loadPosts = X_(async (opts = {}) => {
     if (!sessionId)
       return;
+    const scope = selection.capture();
+    if (scope.sessionId !== sessionId)
+      return;
     const chatJid = sessionToChatJid2(sessionId);
     const data = await getTimeline(50, opts.beforeId || null, chatJid);
+    if (!selection.isCurrent(scope))
+      return;
     const incoming = data.posts || [];
     if (opts.beforeId) {
       setPosts((prev) => dedupePosts([...incoming, ...prev]));
@@ -15918,12 +16006,22 @@ function GiApp() {
       setCurrentChatBranches([]);
       return;
     }
+    const scope = selection.capture();
+    if (scope.sessionId !== sid)
+      return;
     const chatJid = sessionToChatJid2(sid);
     const [agentsPayload, branchesPayload] = await Promise.all([
       getActiveChatAgents().catch(() => ({ agents: [] })),
       getChatBranches(chatJid).catch(() => ({ branches: [] }))
     ]);
+    if (!selection.isCurrent(scope))
+      return;
     const agentsList = Array.isArray(agentsPayload?.agents) ? agentsPayload.agents : [];
+    setAgents(Object.fromEntries(agentsList.map((entry) => [entry.agent_id, {
+      id: entry.agent_id,
+      name: entry.agent_name,
+      avatar_url: null
+    }])));
     const branchesList = Array.isArray(branchesPayload?.branches) ? branchesPayload.branches : Array.isArray(branchesPayload?.chats) ? branchesPayload.chats : [];
     setActiveChatAgents(agentsList.map((entry) => ({
       ...entry,
@@ -15932,6 +16030,8 @@ function GiApp() {
     setCurrentChatBranches(branchesList);
   }, []);
   const handleSseEvent = X_((eventType, data) => {
+    if (!selection.current() || data?.chat_jid !== sessionToChatJid2(selection.current()))
+      return;
     if (eventType === "new_post" || eventType === "agent_response") {
       if (data && data.id) {
         setPosts((prev) => appendUniqueTimelinePost(prev, data));
@@ -15977,46 +16077,109 @@ function GiApp() {
     },
     chatJid: currentChatJid
   });
+  const refreshSelectedState = X_(async () => {
+    const scope = selection.capture();
+    if (!sessionId || scope.sessionId !== sessionId)
+      return;
+    const chat = sessionToChatJid2(sessionId);
+    try {
+      const [models, queue, status] = await Promise.all([
+        getAgentModels(chat),
+        getAgentQueueState(chat),
+        getAgentStatus("", chat)
+      ]);
+      if (!selection.isCurrent(scope))
+        return;
+      setAgentModelsPayload(models);
+      setActiveModel(models.current);
+      setActiveThinkingLevel(models.thinking_level);
+      setSupportsThinking(models.supports_thinking);
+      setFollowupQueueItems(queue.items || []);
+      setAgentStatus(status);
+      const running = status?.status === "running" || status?.status === "cancelling";
+      setIsAgentTurnActive(running);
+      isAgentRunningRef.current = running;
+      setSessionError(null);
+    } catch (error) {
+      if (selection.isCurrent(scope))
+        setSessionError(error.message || "Unable to refresh session");
+    }
+  }, [sessionId]);
   J_(() => {
     if (!ready || !sessionId)
       return;
     loadPosts();
     refreshSessionLists(sessionId);
+    refreshSelectedState();
     const id = setInterval(() => {
       loadPosts();
       refreshSessionLists(sessionId);
+      refreshSelectedState();
     }, 1e4);
     return () => clearInterval(id);
-  }, [ready, sessionId, loadPosts, refreshSessionLists]);
+  }, [ready, sessionId, loadPosts, refreshSessionLists, refreshSelectedState]);
   const handlePost = X_(async (response) => {
+    if (!selection.isCurrent(renderedSelection))
+      return;
     await loadPosts();
+    if (!selection.isCurrent(renderedSelection))
+      return;
+    refreshSelectedState();
     refreshSessionLists(sessionId);
     scrollToBottom();
-  }, [loadPosts, refreshSessionLists, scrollToBottom, sessionId]);
+  }, [loadPosts, refreshSessionLists, refreshSelectedState, scrollToBottom, sessionId]);
   const handleSwitchChat = X_((chatJid) => {
     const nextSessionId = typeof chatJid === "string" && chatJid.startsWith("gi:") ? chatJid.slice(3) : null;
     if (!nextSessionId || nextSessionId === sessionId)
       return;
+    if (sessionId)
+      Object.assign(getDraft(sessionId), { fileRefs, messageRefs });
+    selection.select(nextSessionId);
     setLocalStorageItem(SESSION_KEY, nextSessionId);
     setSessionId(nextSessionId);
     setPosts([]);
-  }, [sessionId]);
+    setHasMore(false);
+    setFollowupQueueItems([]);
+    setCurrentChatBranches([]);
+    setFileRefs(getDraft(nextSessionId).fileRefs);
+    setMessageRefs(getDraft(nextSessionId).messageRefs);
+    setAgentStatus(null);
+    setAgentDraft(null);
+    setAgentThought(null);
+    setAgentPlan(null);
+    setPendingRequest(null);
+    setCurrentTurnId(null);
+    setSteerQueuedTurnId(null);
+    draftBufferRef.current = "";
+    thoughtBufferRef.current = "";
+    currentTurnIdRef.current = null;
+    steerQueuedTurnIdRef.current = null;
+    setIsAgentTurnActive(false);
+    isAgentRunningRef.current = false;
+    setActiveModel("");
+    setActiveThinkingLevel("");
+    setSupportsThinking(false);
+    setAgentModelsPayload(null);
+    setContextUsage(null);
+    setModelUsage(null);
+    setSessionError(null);
+  }, [sessionId, fileRefs, messageRefs]);
   const handleCreateSession = X_(async () => {
-    const response = await fetch("/api/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: "@web", agent_id: "web" })
-    });
-    if (!response.ok)
-      throw new Error("Failed to create web session");
-    const created = await response.json();
-    const nextSessionId = typeof created?.id === "string" ? created.id : null;
-    if (!nextSessionId)
-      throw new Error("Missing created session id");
-    setLocalStorageItem(SESSION_KEY, nextSessionId);
-    setSessionId(nextSessionId);
-    setPosts([]);
-  }, []);
+    if (!sessionId)
+      return;
+    const scope = selection.capture();
+    try {
+      const created = await forkChatBranch(sessionToChatJid2(sessionId));
+      if (!selection.isCurrent(scope))
+        return;
+      if (!created?.branch?.chat_jid)
+        throw new Error("Missing created chat identifier");
+      handleSwitchChat(created.branch.chat_jid);
+    } catch (error) {
+      if (selection.isCurrent(scope))
+        setSessionError(error.message || "Failed to create session");
+    }
+  }, [sessionId, handleSwitchChat]);
   const openEditor = X_((path) => {
     const existing = tabs.find((t) => t.id === path || t.path === path);
     if (existing) {
@@ -16151,7 +16314,17 @@ function GiApp() {
                     onMoveQueuedFollowup=${() => {}}
                     onOpenFilePill=${openEditor}
                 />
+                ${sessionError && ce`<div role="alert">${sessionError}</div>`}
                 <${ComposeBox}
+                    key=${sessionId}
+                    draftValue=${getDraft(sessionId).text}
+                    draftMediaFiles=${getDraft(sessionId).media}
+                    onContentChange=${(text) => {
+    getDraft(sessionId).text = text;
+  }}
+                    onDraftMediaChange=${(media) => {
+    getDraft(sessionId).media = media;
+  }}
                     currentChatJid=${currentChatJid}
                     isAgentActive=${isAgentTurnActive}
                     onPost=${handlePost}
@@ -16160,9 +16333,13 @@ function GiApp() {
       scrollToBottom();
   }}
                     onModelChange=${(value) => {
+    if (!selection.isCurrent(renderedSelection))
+      return;
     setActiveModel(value || "");
   }}
                     onModelStateChange=${(state) => {
+    if (!selection.isCurrent(renderedSelection))
+      return;
     if (state && typeof state === "object") {
       setAgentModelsPayload((prev) => ({ ...prev || {}, ...state || {} }));
       if (typeof state.model === "string")
@@ -16186,9 +16363,27 @@ function GiApp() {
                     fileRefs=${fileRefs}
                     messageRefs=${messageRefs}
                     onRemoveFileRef=${(p) => setFileRefs((prev) => prev.filter((x) => x !== p))}
-                    onClearFileRefs=${() => setFileRefs([])}
+                    onClearFileRefs=${() => {
+    getDraft(sessionId).fileRefs = [];
+    if (selection.current() === sessionId)
+      setFileRefs([]);
+  }}
+                    onSetFileRefs=${(refs) => {
+    getDraft(sessionId).fileRefs = refs;
+    if (selection.current() === sessionId)
+      setFileRefs(refs);
+  }}
                     onRemoveMessageRef=${() => {}}
-                    onClearMessageRefs=${() => setMessageRefs([])}
+                    onClearMessageRefs=${() => {
+    getDraft(sessionId).messageRefs = [];
+    if (selection.current() === sessionId)
+      setMessageRefs([]);
+  }}
+                    onSetMessageRefs=${(refs) => {
+    getDraft(sessionId).messageRefs = refs;
+    if (selection.current() === sessionId)
+      setMessageRefs(refs);
+  }}
                     connectionStatus=${connectionStatus}
                     activeChatAgents=${activeChatAgents}
                     currentChatBranches=${currentChatBranches}
@@ -16220,5 +16415,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=E38FB5CC6B1C448664756E2164756E21
+//# debugId=33945302C48705CF64756E2164756E21
 //# sourceMappingURL=app.js.map

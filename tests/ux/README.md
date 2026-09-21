@@ -33,4 +33,10 @@ The parity target uses `.gi-ux-parity/` and loopback port 19091, seeds determini
 
 Results live in `test-results/ux-parity/{results.json,matrix.json,matrix.md,artifacts/}`. Keep matrices tied to their run; inventory-only output contains no browser pass evidence.
 
-Next: real multi-session/agent/chat wiring for `@ux-original-013`–`015` and associated session/queue/model race cases. Backend records alone do not establish browser parity.
+## Session slice: 2026-09-21
+
+`@ux-original-014` now covers native session selection, preserved page-local drafts and rejection of a delayed real response from the previous selection. A separate Gi regression checks New allocates a distinct child session. Combined matrix: 24/24 executions, 3/236 frozen IDs passing, 233 unmapped. The extra child test does not inflate the frozen scenario count.
+
+The full existing web suite also passed 70/70 after the pooled-SQLite correction. See [`../../docs/internal/web-session-parity.md`](../../docs/internal/web-session-parity.md) for implementation limits and minimal-footprint TUI adaptations.
+
+Next: searchable picker/focus (`013`), real session mutations (`015`), durable drafts and associated queue/model/reconnect race cases. Backend records alone do not establish browser parity.

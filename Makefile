@@ -198,7 +198,7 @@ test-instance-start: build
 	@mkdir -p $(TEST_WORKSPACE)/.piclaw $(TEST_WORKSPACE)/.pi
 	@printf '%s\n' '$(TEST_PICLAW_CONFIG_JSON)' > $(TEST_WORKSPACE)/.piclaw/config.json
 	@printf '%s\n' '$(TEST_PI_SETTINGS_JSON)' > $(TEST_WORKSPACE)/.pi/settings.json
-	$(abspath $(BIN)) $(TEST_SERVER_ARGS) >/dev/null 2>&1 </dev/null &
+	$(abspath $(BIN)) $(TEST_SERVER_ARGS) >$(TEST_DIR)/process.log 2>&1 </dev/null &
 	@for _ in 1 2 3 4 5 6 7 8 9 10; do \
 		if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null && curl -fsS http://127.0.0.1:$(TEST_PORT)/api/sessions >/dev/null; then \
 			echo "Test instance running on 127.0.0.1:$(TEST_PORT) with PID $$(cat $(TEST_PID))"; exit 0; \
@@ -224,7 +224,7 @@ test-ux: test-instance-start
 UX_PARITY_PORT ?= 19091
 UX_PARITY_ARGS ?=
 ux-parity-inventory:
-	$(BUN) test tests/ux/support/catalogue.test.mjs
+	$(BUN) test tests/ux/support/
 	$(BUN) scripts/ux-parity-report.mjs
 
 test-ux-parity:
