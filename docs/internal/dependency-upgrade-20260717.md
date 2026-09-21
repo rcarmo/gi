@@ -60,6 +60,14 @@ web tool executor. Runtime event command metadata was updated to match. The regr
 test `TestExecuteShellDoesNotSourceLoginProfile` proves `.profile` output is not mixed
 into tool output.
 
+## Shell output drain correction — 2026-09-21
+
+The web parity run reproduced empty output from the shell responder. `cmd.Wait()`
+closed its stdout/stderr pipes before the readers drained buffered bytes. The runner
+now waits for both readers before reaping the child; context cancellation still kills
+the process group to unblock reads. A slow-reader regression test failed with 128 of
+26,013 bytes before the fix and preserves the entire response afterward.
+
 ## Follow-ups (optional, YAGNI)
 - Adopt `ModelRuntime.Refresh` to back live model listing/refresh in `internal/inference`.
 - Use `ProviderErrorBody/Status` to surface structured provider errors in the TUI.

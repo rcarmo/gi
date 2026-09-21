@@ -57,7 +57,13 @@ func RunShellPrompt(ctx context.Context, prompt string, onStart func(*exec.Cmd),
 		}
 	}()
 	waitCh := make(chan error, 1)
-	go func() { waitCh <- cmd.Wait() }()
+	go func() {
+		// StdoutPipe/StderrPipe must be drained before Wait: Wait closes their
+		// descriptors once the child exits and can otherwise discard buffered data.
+		// Cancellation below still kills the process group to unblock both readers.
+		readWG.Wait()
+		waitCh <- cmd.Wait()
+	}()
 	select {
 	case <-ctx.Done():
 		if cmd.Process != nil {
