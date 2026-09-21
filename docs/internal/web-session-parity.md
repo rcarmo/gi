@@ -22,7 +22,21 @@ The New action uses the existing native fork endpoint. Reposting a main session 
 - Selection-scope unit test covers A → B → A response invalidation.
 - Existing functional web suite: 70/70 after fixing the SQLite connection pool configuration.
 
-Picker search/focus (`013`), mutations (`015`), persistent drafts, late failed-send recovery into an unmounted origin, model mutation, queue actions and reconnect ownership still require dedicated acceptance cases. They are not included in the three passing frozen IDs.
+Mutations (`015`), persistent drafts, late failed-send recovery into an unmounted origin, model mutation, queue actions and reconnect ownership still require dedicated acceptance cases.
+
+## Searchable picker slice (`013`)
+
+The picker now focuses its search input on mount, groups native sessions using the pinned Piclaw helper, preserves matching descendants' ancestors, and restores the exact opening trigger on Escape. Empty-compose `@` opens it without inserting text; cancelling returns focus to the session pill. Search uses case-insensitive terms over handles, JIDs, state and available model metadata. The Gi adapter resolves nested ancestry to the actual root before grouping.
+
+Native Tab moves focus without switching chats. Home/End edit the search input; arrows/page keys navigate enabled entries. Enter in search selects the highlighted result, while Enter on a focused button activates that button. Empty-result Enter does nothing. A layout-effect keyboard binding and functional index updates avoid stale handlers on rapid key presses.
+
+Provenance: `web/upstream/piclaw-session-picker-70d33bc93.json` records the unchanged helper hash, pinned upstream composer hash and local deviations. Live pin/archive/activity metadata and mutation paths are not delivered here. Helper-only grouping tests for those states are not browser mutation evidence.
+
+Validation: 36/36 matrix executions (four frozen IDs plus two Gi regressions), 70/70 existing functional web tests, Go tests/vet, Bun hook checks and eight source/helper tests. Coverage is **4/236 frozen IDs**, with 232 unmapped; the 42-case shared contract remains unmapped.
+
+The functional suite also exposed a real admission race: the runner goroutine could emit `turn.started` before the submitting caller appended `turn.submitted`. Launch now waits for the caller to release the session coordination mutex before running. `TestLaunchedTurnWaitsForSubmissionEvent` failed before the fix and passed ten runs afterwards. Event rows remain append-only and sequence-ordered. The browser event-order test now selects its own submitted prompt and polls for completion instead of relying on the most recently updated session.
+
+The broader delivery scope is [full-web-tui-parity-plan.md](full-web-tui-parity-plan.md); passing this slice does not complete that scope.
 
 ## TUI adaptation: design, not implementation credit
 

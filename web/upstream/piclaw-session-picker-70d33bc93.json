@@ -1,0 +1,26 @@
+{
+  "commit": "70d33bc93ab540845bbcf5f80503ca8125c71594",
+  "files": [
+    {
+      "sha256": "2bccb9a846617ba02e7902227bc77165cbb00d1e5712276279e2cc6f7055fe95",
+      "source": "runtime/web/src/ui/compose-session-switcher.ts",
+      "destination": "web/src/ui/compose-session-switcher.ts"
+    }
+  ],
+  "adapted": [
+    {
+      "upstreamSha256": "6a73d53b8cf684a3e8115a7a9063b4597dd95f33020c76a588b57e58bb0769d6",
+      "deviations": [
+        "Port only picker search, grouping and focus; retain existing Gi composer integrations.",
+        "Group full ancestry before filtering, preserving current-tree identity when the current session is filtered out.",
+        "Restore the exact pointer/keyboard trigger on Escape; blank-compose @ returns to the session pill.",
+        "Preserve native Tab and text Home/End; Enter on a focused action activates that action rather than the highlighted search index.",
+        "Rebind capture keyboard handler in layout effect; functional index updates prevent stale rapid-key navigation.",
+        "Keep existing menu/menuitem roles and add labelled search/group elements; do not claim upstream listbox semantics.",
+        "Gi-local responsive search CSS in internal/web/static/css/chat.css; no pin/archive/mutation support added by this slice."
+      ],
+      "source": "runtime/web/src/components/compose-box.ts",
+      "destination": "web/src/components/compose-box.ts"
+    }
+  ]
+}

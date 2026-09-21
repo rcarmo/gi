@@ -15,8 +15,10 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Map `@ux-original-001` and `002`, import the upstream TimelineMenu and drawer behavior, and pass all 12 executions.
 - [x] Map `@ux-original-014` with real delayed-response/draft-switch checks and test New creating a distinct child (24/24 combined browser runs).
 - [x] Fix pooled SQLite configuration exposed by the session matrix; existing functional web suite passes 70/70.
-- [ ] Map the remaining 233 frozen scenarios and the shared interaction contract.
-- [ ] Complete searchable session picker, mutations, durable drafts and queue/model/reconnect ownership (`@ux-original-013`, `015` and related cases).
+- [x] Map searchable picker/focus (`013`) and native keyboard navigation; combined matrix 36/36 with pinned helper provenance.
+- [x] Prevent runner startup before submission-event persistence; reproduced regression and full 70/70 functional suite.
+- [ ] Map the remaining 232 frozen scenarios and all 42 shared interaction cases; full scope in `docs/internal/full-web-tui-parity-plan.md`.
+- [ ] Complete mutations, durable drafts and queue/model/reconnect ownership (`015` and related cases).
 - [ ] Implement the bounded terminal adaptations and acceptance checks in `docs/internal/web-session-parity.md` (design written; no terminal implementation credit yet).
 - [ ] Continue component refreshes from a pinned upstream source where the suite demonstrates a gap.
 

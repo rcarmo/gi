@@ -11,6 +11,7 @@
  */
 
 import { recordAppPerfRequest } from './ui/app-perf-tracing.js';
+import { sessionPickerAgents } from './gi-session-state.js';
 
 const API_BASE = '';
 
@@ -273,15 +274,7 @@ export async function getActiveChatAgents() {
     const data = await request('/api/sessions').catch(() => ({ sessions: [] }));
     const sessions: any[] = data.sessions || [];
     return {
-        agents: sessions.map((s: any) => ({
-            chat_jid: sessionToChatJid(s.id),
-            agent_name: (typeof s.title === 'string' && s.title ? s.title.replace(/^@/, '') : s.scope?.agent_id) || s.id,
-            agent_id: s.scope?.agent_id || 'agent',
-            parent_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : null,
-            is_active: false,
-            archived_at: null,
-            root_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : sessionToChatJid(s.id),
-        })),
+        agents: sessionPickerAgents(sessions),
     };
 }
 

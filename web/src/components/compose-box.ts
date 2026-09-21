@@ -4,7 +4,7 @@ import { findPopupTypeaheadMatch, isPopupTypeaheadKey, resolvePopupTypeaheadMatc
 import { getAgentModels, sendAgentMessage, uploadMedia } from '../api.js';
 import { getLocalStorageItem, setLocalStorageItem } from '../utils/storage.js';
 import { buildMentionValue, filterMentionAgents, parseMentionAutocompleteQuery } from '../ui/agent-mentions.js';
-import { shouldOpenSessionSwitcherFromBlankCompose } from '../ui/compose-session-switcher.js';
+import { shouldOpenSessionSwitcherFromBlankCompose, filterSessionPickerChats, groupSessionPickerChats, moveSessionPickerIndex, resolveSessionPickerSearchInitialIndex } from '../ui/compose-session-switcher.js';
 import { formatBranchPickerLabel, formatCurrentBranchLabel } from '../ui/branch-lifecycle.js';
 import { buildComposeStatusDotClass } from '../ui/status-dot.js';
 import { getStatusElapsedLabel, isCompactionStatus, resolveStatusPanelTitle } from '../ui/status-duration.js';
@@ -705,6 +705,7 @@ export function ComposeBox({
     const [modelOptions, setModelOptions] = useState([]);
     const [modelPopupIndex, setModelPopupIndex] = useState(0);
     const [sessionPopupIndex, setSessionPopupIndex] = useState(0);
+    const [sessionPopupQuery, setSessionPopupQuery] = useState('');
     const [loadingModels, setLoadingModels] = useState(false);
     const [footerWidth, setFooterWidth] = useState(0);
     const [submitError, setSubmitError] = useState(null);
@@ -718,6 +719,8 @@ export function ComposeBox({
     const modelHintRef = useRef(null);
     const sessionPopupRef = useRef(null);
     const sessionTriggerRef = useRef(null);
+    const sessionSearchRef = useRef(null);
+    const sessionReturnFocusRef = useRef(null);
     const footerRef = useRef(null);
     const popupTypeaheadRef = useRef({ value: '', updatedAt: 0 });
     const dragCounterRef = useRef(0);
@@ -855,7 +858,7 @@ export function ComposeBox({
         const chats = [];
         for (const chat of Array.isArray(activeChatAgents) ? activeChatAgents : []) {
             const chatJid = typeof chat?.chat_jid === 'string' ? chat.chat_jid.trim() : '';
-            if (!chatJid || chatJid === currentChatJid || seen.has(chatJid)) continue;
+            if (!chatJid || seen.has(chatJid)) continue;
             const agentName = typeof chat?.agent_name === 'string' ? chat.agent_name.trim() : '';
             if (!agentName) continue;
             seen.add(chatJid);
@@ -863,7 +866,16 @@ export function ComposeBox({
         }
         return chats;
     }, [activeChatAgents, currentChatJid]);
-    const hasSwitchableChatAgents = switchableChatAgents.length > 0;
+    // Group before filtering so a filtered-out current chat still establishes
+    // the correct tree (including when the current chat is a nested child).
+    const sessionPopupGroups = useMemo(() => {
+        const matches = new Set(filterSessionPickerChats(switchableChatAgents, sessionPopupQuery).map(chat => chat.chat_jid));
+        return groupSessionPickerChats(switchableChatAgents, currentChatJid)
+            .map(group => ({ ...group, items: group.items.filter(chat => matches.has(chat.chat_jid)) }))
+            .filter(group => group.items.length > 0);
+    }, [switchableChatAgents, currentChatJid, sessionPopupQuery]);
+    const orderedSessionChats = useMemo(() => sessionPopupGroups.flatMap(group => group.items), [sessionPopupGroups]);
+    const hasSwitchableChatAgents = switchableChatAgents.some(chat => chat.chat_jid !== currentChatJid);
     const canSwitchSession = hasSwitchableChatAgents && typeof onSwitchChat === 'function';
     const canRestoreSession = hasSwitchableChatAgents && typeof onRestoreSession === 'function';
     const renameInProgress = Boolean(isRenameSessionInProgress || renameSessionInProgressRef.current);
@@ -1007,7 +1019,16 @@ export function ComposeBox({
         });
     };
 
-    const openSessionPopup = () => {
+    const closeSessionPopup = (restoreFocus = false) => {
+        setShowSessionPopup(false);
+        if (restoreFocus) requestAnimationFrame(() => {
+            const target = sessionReturnFocusRef.current;
+            if (target?.isConnected) target.focus();
+            else sessionTriggerRef.current?.querySelector('button')?.focus();
+        });
+    };
+
+    const openSessionPopup = (trigger = null) => {
         if (searchMode || (!canSwitchSession && !canRestoreSession && !canRenameSession && !canCreateSession && !canDeleteSession)) return false;
 
         popupTypeaheadRef.current = { value: '', updatedAt: 0 };
@@ -1016,6 +1037,9 @@ export function ComposeBox({
         setSlashMatches([]);
         setShowMention(false);
         setMentionMatches([]);
+        sessionReturnFocusRef.current = trigger || sessionTriggerRef.current?.querySelector('button');
+        setSessionPopupQuery('');
+        setSessionPopupIndex(0);
         setShowSessionPopup(true);
         return true;
     };
@@ -1029,7 +1053,7 @@ export function ComposeBox({
             setShowSessionPopup(false);
             return;
         }
-        openSessionPopup();
+        openSessionPopup(event?.currentTarget);
     };
 
     const handleSessionSwitch = (chatJid) => {
@@ -1065,7 +1089,7 @@ export function ComposeBox({
 
     const sessionPopupEntries = useMemo(() => {
         const entries = [];
-        for (const chat of switchableChatAgents) {
+        for (const chat of orderedSessionChats) {
             const archived = Boolean(chat?.archived_at);
             const agentName = typeof chat?.agent_name === 'string' ? chat.agent_name.trim() : '';
             const chatJid = typeof chat?.chat_jid === 'string' ? chat.chat_jid.trim() : '';
@@ -1078,17 +1102,17 @@ export function ComposeBox({
                 disabled: archived ? !canRestoreSession : !canSwitchSession,
             });
         }
-        if (canCreateSession) {
+        if (!sessionPopupQuery.trim() && canCreateSession) {
             entries.push({ type: 'action', key: 'action:new', label: 'New session', action: 'new', disabled: false });
         }
-        if (canRenameSession) {
+        if (!sessionPopupQuery.trim() && canRenameSession) {
             entries.push({ type: 'action', key: 'action:rename', label: 'Rename current session', action: 'rename', disabled: renameInProgress });
         }
-        if (canDeleteSession) {
+        if (!sessionPopupQuery.trim() && canDeleteSession) {
             entries.push({ type: 'action', key: 'action:delete', label: 'Delete current session', action: 'delete', disabled: false });
         }
         return entries;
-    }, [switchableChatAgents, canRestoreSession, canSwitchSession, canCreateSession, canRenameSession, canDeleteSession, renameInProgress]);
+    }, [orderedSessionChats, sessionPopupQuery, canRestoreSession, canSwitchSession, canCreateSession, canRenameSession, canDeleteSession, renameInProgress]);
 
     const handleRenameSession = async (event) => {
         if (event?.preventDefault) event.preventDefault();
@@ -1402,7 +1426,7 @@ export function ComposeBox({
             consume();
             resetPopupTypeahead();
             if (showModelPopup) setShowModelPopup(false);
-            if (showSessionPopup) setShowSessionPopup(false);
+            if (showSessionPopup) closeSessionPopup(true);
             return true;
         }
         if (showModelPopup) {
@@ -1433,31 +1457,27 @@ export function ComposeBox({
                 return true;
             }
         }
-        if (showSessionPopup) {
-            if (e.key === 'ArrowDown') {
+        if (showSessionPopup && sessionPopupRef.current?.contains(e.target)) {
+            const inSearch = e.target === sessionSearchRef.current;
+            // Keep native text editing and Tab traversal. In particular, Enter
+            // on a tab-focused button must activate that button, not a stale index.
+            const navigation = ['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp'].includes(e.key)
+                || (!inSearch && ['Home', 'End'].includes(e.key));
+            if (navigation && !e.ctrlKey && !e.metaKey && !e.altKey) {
                 consume();
-                resetPopupTypeahead();
-                if (sessionPopupEntries.length > 0) setSessionPopupIndex((idx) => (idx + 1) % sessionPopupEntries.length);
+                const enabled = sessionPopupEntries.map((entry, index) => ({ entry, index })).filter(({ entry }) => !entry.disabled);
+                const focusedKey = e.target?.closest?.('[data-session-entry-key]')?.dataset.sessionEntryKey;
+                setSessionPopupIndex(current => {
+                    const index = focusedKey ? sessionPopupEntries.findIndex(entry => entry.key === focusedKey) : current;
+                    const selected = enabled.findIndex(item => item.index === index);
+                    return enabled[moveSessionPickerIndex(selected, enabled.length, e.key)]?.index ?? 0;
+                });
+                sessionSearchRef.current?.focus();
                 return true;
             }
-            if (e.key === 'ArrowUp') {
+            if (inSearch && e.key === 'Enter') {
                 consume();
-                resetPopupTypeahead();
-                if (sessionPopupEntries.length > 0) setSessionPopupIndex((idx) => (idx - 1 + sessionPopupEntries.length) % sessionPopupEntries.length);
-                return true;
-            }
-            if ((e.key === 'Enter' || e.key === 'Tab') && sessionPopupEntries.length > 0) {
-                consume();
-                resetPopupTypeahead();
-                runSessionPopupEntry(sessionPopupEntries[Math.max(0, Math.min(sessionPopupIndex, sessionPopupEntries.length - 1))]);
-                return true;
-            }
-            if (isPopupTypeaheadKey(e) && sessionPopupEntries.length > 0) {
-                consume();
-                const nextBuffer = updatePopupTypeaheadBuffer(popupTypeaheadRef.current, e.key);
-                popupTypeaheadRef.current = nextBuffer;
-                const match = resolvePopupTypeaheadMatch(sessionPopupEntries, nextBuffer.value, sessionPopupIndex, (item) => item.label);
-                if (match >= 0) setSessionPopupIndex(match);
+                runSessionPopupEntry(sessionPopupEntries[sessionPopupIndex]);
                 return true;
             }
         }
@@ -1773,9 +1793,13 @@ export function ComposeBox({
 
     useEffect(() => {
         if (!showSessionPopup) return;
-        setSessionPopupIndex(findFirstEnabledPopupIndex(sessionPopupEntries));
-        popupTypeaheadRef.current = { value: '', updatedAt: 0 };
-    }, [showSessionPopup, currentChatJid]);
+        const preferred = resolveSessionPickerSearchInitialIndex(orderedSessionChats, sessionPopupQuery);
+        setSessionPopupIndex(sessionPopupEntries[preferred]?.disabled ? findFirstEnabledPopupIndex(sessionPopupEntries) : preferred);
+    }, [showSessionPopup, currentChatJid, sessionPopupQuery]);
+
+    useEffect(() => {
+        setSessionPopupIndex(index => Math.max(0, Math.min(index, sessionPopupEntries.length - 1)));
+    }, [sessionPopupEntries.length]);
 
     useEffect(() => {
         if (!showModelPopup) return;
@@ -1809,7 +1833,7 @@ export function ComposeBox({
         return () => document.removeEventListener('pointerdown', onPointerDown);
     }, [showSessionPopup]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (searchMode || (!showModelPopup && !showSessionPopup)) return;
         const onKeyDown = (event) => {
             handlePopupKeyboardEvent(event);
@@ -1826,11 +1850,13 @@ export function ComposeBox({
         active?.scrollIntoView?.({ block: 'nearest' });
     }, [showModelPopup, modelPopupIndex, modelOptions]);
 
+    useLayoutEffect(() => {
+        if (showSessionPopup) sessionSearchRef.current?.focus();
+    }, [showSessionPopup]);
+
     useEffect(() => {
         if (!showSessionPopup) return;
-        const popup = sessionPopupRef.current;
-        popup?.focus?.();
-        const active = popup?.querySelector?.('.compose-model-popup-item.active');
+        const active = sessionPopupRef.current?.querySelector('[data-session-entry-key].active');
         active?.scrollIntoView?.({ block: 'nearest' });
     }, [showSessionPopup, sessionPopupIndex, sessionPopupEntries.length]);
 
@@ -2132,20 +2158,27 @@ export function ComposeBox({
                         </div>
                     `}
                     ${showSessionPopup && !searchMode && html`
-                        <div class="compose-model-popup" ref=${sessionPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
+                        <div class="compose-model-popup compose-session-popup" ref=${sessionPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
                             <div class="compose-model-popup-title">Manage sessions & agents</div>
-                            <div class="compose-model-popup-menu" role="menu" aria-label="Sessions and agents">
-                                ${html`
-                                    <div class="compose-model-popup-item current" role="note" aria-live="polite">
-                                        ${(() => {
-                                            return formatCurrentBranchLabel(currentSessionAgent, currentChatJid);
-                                        })()}
-                                    </div>
+                            <input
+                                ref=${sessionSearchRef}
+                                type="search"
+                                class="compose-session-search"
+                                aria-label="Search sessions"
+                                aria-controls="compose-session-results"
+                                placeholder="Handle, JID, state, or model"
+                                value=${sessionPopupQuery}
+                                onInput=${event => setSessionPopupQuery(event.currentTarget.value)}
+                            />
+                            <div id="compose-session-results" class="compose-model-popup-menu" role="menu" aria-label="Sessions and agents">
+                                ${orderedSessionChats.length === 0 && html`
+                                    <div class="compose-model-popup-empty" role="status">No sessions match your search.</div>
                                 `}
-                                ${!hasSwitchableChatAgents && html`
-                                    <div class="compose-model-popup-empty">No other sessions yet.</div>
-                                `}
-                                ${hasSwitchableChatAgents && switchableChatAgents.map((chat, listIndex) => {
+                                ${sessionPopupGroups.map(group => html`
+                                <div role="group" aria-label=${group.label}>
+                                <div class="compose-session-section-label">${group.label}</div>
+                                ${group.items.map((chat) => {
+                                    const listIndex = sessionPopupEntries.findIndex(entry => entry.key === `session:${chat.chat_jid}`);
                                     const archived = Boolean(chat.archived_at);
                                     const isRoot = chat.chat_jid === (chat.root_chat_jid || chat.chat_jid);
                                     const canPrune = !isRoot && !chat.is_active && !archived && typeof onDeleteSession === 'function';
@@ -2156,6 +2189,8 @@ export function ComposeBox({
                                                 type="button"
                                                 role="menuitem"
                                                 class=${`compose-model-popup-item${archived ? ' archived' : ''}${sessionPopupIndex === listIndex ? ' active' : ''}`}
+                                                data-session-entry-key=${`session:${chat.chat_jid}`}
+                                                aria-current=${chat.chat_jid === currentChatJid ? 'true' : undefined}
                                                 onClick=${() => {
                                                     if (archived) {
                                                         void handleRestoreSession(chat.chat_jid);
@@ -2189,14 +2224,17 @@ export function ComposeBox({
                                         </div>
                                     `;
                                 })}
+                                </div>
+                                `)}
                             </div>
-                            ${(canCreateSession || canRenameSession || canDeleteSession) && html`
+                            ${!sessionPopupQuery.trim() && (canCreateSession || canRenameSession || canDeleteSession) && html`
                                 <div class="compose-model-popup-actions">
                                     ${canCreateSession && html`
                                         <button
                                             type="button"
                                             class=${`compose-model-popup-btn primary${sessionPopupEntries.findIndex((entry) => entry.key === 'action:new') === sessionPopupIndex ? ' active' : ''}`}
                                             onClick=${() => { void handleCreateSession(); }}
+                                            data-session-entry-key="action:new"
                                             title="Create a new agent/session branch from this chat"
                                         >
                                             New
@@ -2207,6 +2245,7 @@ export function ComposeBox({
                                             type="button"
                                             class=${`compose-model-popup-btn${sessionPopupEntries.findIndex((entry) => entry.key === 'action:rename') === sessionPopupIndex ? ' active' : ''}`}
                                             onClick=${(e) => { void handleRenameSession(e); }}
+                                            data-session-entry-key="action:rename"
                                             title="Rename the current branch handle"
                                             disabled=${renameInProgress}
                                         >
@@ -2218,6 +2257,7 @@ export function ComposeBox({
                                             type="button"
                                             class=${`compose-model-popup-btn danger${sessionPopupEntries.findIndex((entry) => entry.key === 'action:delete') === sessionPopupIndex ? ' active' : ''}`}
                                             onClick=${() => { void handleDeleteSession(); }}
+                                            data-session-entry-key="action:delete"
                                             title="Delete (prune) current agent/session branch"
                                         >
                                             Delete current…

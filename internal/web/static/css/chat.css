@@ -867,6 +867,39 @@
     gap: var(--spacing-xs);
 }
 
+/* Gi session picker: pinned Piclaw search/group behaviour with local sizing. */
+.compose-session-popup {
+    width: min(440px, calc(100vw - 32px));
+    min-width: 0;
+    max-width: calc(100vw - 32px);
+}
+
+.compose-session-search {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    margin: 0 0 6px;
+    padding: 6px 8px;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: 16px; /* Avoid input zoom on mobile WebKit. */
+}
+
+.compose-session-search:focus {
+    outline: 1px solid var(--accent-color);
+}
+
+.compose-session-section-label {
+    padding: 6px 8px 2px;
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 600;
+}
+
 .compose-model-popup-title {
     font-size: var(--font-size-sm);
     color: var(--text-secondary);

@@ -1,0 +1,42 @@
+# Full web parity and compact terminal adaptations
+
+Scope confirmed 2026-09-21: finish the whole imported corpus, not just the currently mapped session flows. Frozen acceptance criteria are unchanged.
+
+## Completion gates
+
+- Classic: 236 scenario IDs / 256 expanded cases from 24 pinned files. Every applicable browser case must pass Chromium and WebKit at phone, tablet and desktop sizes. Unsupported features remain gaps; do not mark them passed or silently omit them.
+- Shared contract: 42 cases, inventoried and evidenced separately. Similar Classic tests do not automatically satisfy the shared contract.
+- Native behaviour: browser interaction drives actions; APIs seed real records or verify persistence. Keep real shell execution/cancellation, late real-response tests, SQLite/WAL, append-only event sequences and one main session per agent.
+- Terminal: implement suitable functional equivalents separately, preserving transcript/editor/footer and zero new idle rows. Browser-only properties (touch, PWA installation, CSS layering) need a documented terminal disposition, not a fictitious terminal pass.
+- Delivery: small tested commits, source provenance, truthful capability/error paths and current evidence reports. Full completion requires no unexplained unmapped cases.
+
+Current evidence: four Classic IDs (`001`, `002`, `013`, `014`), 36/36 browser executions including two Gi-only regressions, 70/70 functional tests. The other 232 Classic IDs and all 42 shared cases remain open. The terminal proposals below are not implementation credit.
+
+## Delivery order and dependencies
+
+| Workstream | Frozen sources (under `tests/ux/features/classic/`) | Dependency / implementation work | Compact terminal equivalent |
+|---|---|---|---|
+| Session/agent lifecycle | `canonical/canonical-ux.feature`, `sessions/session-switching.feature` | Complete capability-gated rename/pin/archive/restore/delete, directed selection and failure paths. Persist drafts and scope model/queue/late errors/reconnect data to the origin. Native session identity, ancestry and mutation APIs come before UI success states. | Existing session selector with bounded search/results; per-session editor state; no sidebar or top header. |
+| Composer, model and queue | `compose/compose-stability.feature`, `compose/compaction-model-switch.feature`, `compose/context-meter-tooltip.feature`, `compose/instant-visibility.feature`, remaining canonical cases | Real model mutations, queue actions, draft recovery and authoritative usage/compaction state. Preserve interrupted text, attachment ownership and IME/input semantics. | On-demand model/queue selectors, existing footer segments, transient notices. Unknown measurements remain unavailable. |
+| Streaming/recovery and thoughts | `compose/sse-reconnection.feature`, `compose/thoughts-panel.feature`, `canonical/core-interactions.feature` | Cursor/replay ownership, delayed response guards, retry consistency and stream lifecycle. Folded tools/thoughts must use real event state. | Origin-owned buffered events, folded transcript blocks and explicit expansion; no permanent activity panel. |
+| Workspace/files/editor | `canonical/workspace-flows.feature`, `editor/editor-stability.feature` | Real VFS/file/editor operations, save/conflict/failure paths, attachment references and focus. Keep preview/read-only capabilities explicit. | Path completion, bounded file selector and external editor round-trip; no file sidebar. |
+| Timeline/media | `timeline/rendering.feature`, `timeline/message-deletion.feature`, `timeline/annotation-highlights.feature`, `timeline/lightbox-dismissal.feature` | Native persisted messages/media, stable streaming render, deletion/annotation semantics and viewer dismissal. Preserve the 10 MiB media limit. | Folded transcript actions and explicit media/file opening; avoid image-like terminal chrome or unbounded metadata. |
+| Settings/capabilities | `canonical/core-settings.feature`, `settings/settings-dialog.feature`, `settings/settings-layering.feature`, `compose/theme-tint.feature` | Replace empty/no-op adapters with native settings persistence and truthful capabilities; test save errors, layering and changed runtime effects. | Temporary settings lists/submenus; theme-derived colours; cancel returns editor focus. |
+| Authentication and operations | `canonical/core-auth.feature`, `panes/terminal.feature` | Authentication/session lifecycle, actual operational endpoints, process I/O and cancellation. No simulated terminal pane or placeholder OAuth success. | Existing shell/command paths, bounded interactive prompts and explicit login flow; separate terminal evidence. |
+| Responsive/PWA/navigation | `compose/hamburger-layout-scale.feature`, `mobile/pwa-manifest.feature`, `mobile/swipe-independence.feature`, remaining canonical navigation cases | Actual responsive controls, manifest/offline/install semantics and independent touch areas. Browser-specific tests remain necessary. | Resize-safe selectors at 60×18, 100×22 and 140×36; document browser-only properties as such. |
+| Shared contract | `../shared-canonical-ux.feature` | Give every expanded case a stable mapping and its own report. Includes Quick actions, Plan and session/queue/model/workspace interactions beyond the first Classic mappings. | Map user intent to existing commands, temporary selectors or requested transcript output; no permanent Plan/Quick actions panel. |
+
+## Evidence workflow
+
+1. Select a bounded feature family and inspect every frozen assertion before implementation.
+2. Identify the native API/state contract and missing capabilities. Refresh pinned Piclaw components when authorised; keep Gi behaviour in adapters where possible and record component deviations.
+3. Add real-state fixtures, native pointer/keyboard actions, failure tests and delayed-response tests where ownership matters. No forced clicks, retries, fabricated timeline data or alternative submission fallbacks.
+4. Run the six-project parity matrix plus existing functional tests. Record scenario IDs separately from browser execution counts; preserve failing evidence until diagnosed.
+5. Derive terminal acceptance cases from verified user flows. Test draft retention, event isolation, cancellation/focus, long Unicode text and resizing against the existing layout contract.
+6. Update the catalogue, implementation checklist and this scope report after each tested commit. Do not mark the full goal complete at a feature-family milestone.
+
+Commands: `make test`, `make vet`, `make bun-checks`, `bun test tests/ux/support/`, `make test-ux`, `make test-ux-parity`. Corpus reports live in `test-results/ux-parity/`; pinned sources and checksums live under `tests/ux/upstream/` and `web/upstream/`.
+
+## Immediate next slice
+
+Session mutations (`015`): audit the existing native API before exposing actions, remove misleading no-op success paths, preserve selection/drafts on failure, and verify rename/archive/restore/pin persistence with the frozen capability rules. In parallel with subsequent web slices, implement the already documented terminal session draft/event isolation and bounded selector tests; see [web-session-parity.md](web-session-parity.md).

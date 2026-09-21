@@ -6,7 +6,7 @@ import { generateMessages } from '@cucumber/gherkin';
 import { IdGenerator, SourceMediaType } from '@cucumber/messages';
 
 export const uxRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-export const mappedIds = new Set(['@ux-original-001', '@ux-original-002', '@ux-original-014']);
+export const mappedIds = new Set(['@ux-original-001', '@ux-original-002', '@ux-original-013', '@ux-original-014']);
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 
 export function verifySources() {

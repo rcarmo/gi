@@ -10,10 +10,12 @@ test('frozen Piclaw sources and shared Vibes/Tau contract retain their exact has
 
 test('imported Piclaw component sources retain their upstream hashes', () => {
   const root = resolve(uxRoot, '../..');
-  const manifest = JSON.parse(readFileSync(resolve(root, 'web/upstream/piclaw-menu-70d33bc93.json'), 'utf8'));
-  for (const file of manifest.files) {
-    const hash = createHash('sha256').update(readFileSync(resolve(root, file.destination))).digest('hex');
-    expect(hash).toBe(file.sha256);
+  for (const name of ['piclaw-menu-70d33bc93.json', 'piclaw-session-picker-70d33bc93.json']) {
+    const manifest = JSON.parse(readFileSync(resolve(root, 'web/upstream', name), 'utf8'));
+    for (const file of manifest.files) {
+      const hash = createHash('sha256').update(readFileSync(resolve(root, file.destination))).digest('hex');
+      expect(hash).toBe(file.sha256);
+    }
   }
 });
 

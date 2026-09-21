@@ -4,6 +4,8 @@ Gi has a Piclaw-derived Preact web shell backed by Go HTTP APIs, SSE and SQLite.
 
 Later on 2026-09-21, the session slice added guarded selection, page-local per-session drafts and real child-chat creation. Its combined parity matrix passed 24/24 runs (3 frozen IDs plus a child-creation regression). A reproduced pooled-SQLite configuration defect was fixed in `bd30518`; the existing web suite then passed 70/70. The initial-run counts below are historical. See [web-session-parity.md](web-session-parity.md) for current limits and proposed terminal adaptations.
 
+The subsequent searchable-picker slice (`013`) passed 36/36 matrix executions, bringing mapped coverage to 4/236 frozen IDs (232 unmapped). The full web suite passed 70/70 after fixing a reproduced submission-event ordering race. Scope is now explicitly the entire Classic corpus plus all 42 shared-contract cases; see [full-web-tui-parity-plan.md](full-web-tui-parity-plan.md). Terminal designs still need separate implementation evidence.
+
 ## Implemented and wired
 
 - Embedded JavaScript/CSS, identity/avatar configuration, themes and system meters.

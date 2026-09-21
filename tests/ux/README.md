@@ -39,4 +39,8 @@ Results live in `test-results/ux-parity/{results.json,matrix.json,matrix.md,arti
 
 The full existing web suite also passed 70/70 after the pooled-SQLite correction. See [`../../docs/internal/web-session-parity.md`](../../docs/internal/web-session-parity.md) for implementation limits and minimal-footprint TUI adaptations.
 
-Next: searchable picker/focus (`013`), real session mutations (`015`), durable drafts and associated queue/model/reconnect race cases. Backend records alone do not establish browser parity.
+## Searchable picker slice: 2026-09-21
+
+`@ux-original-013` adds pointer and keyboard opening, mounted search focus, native ancestry grouping, handle/JID filtering, empty results and Escape restoring the exact trigger without changing the session or draft. A separate regression covers native Tab/text editing and keyboard selection. Combined matrix: 36/36 executions, **4/236 frozen IDs passing**, 232 unmapped. Source and helper tests preserve pinned hashes and exercise grouping precedence separately from live browser evidence.
+
+Scope is full parity, not a picker-only milestone. See [`../../docs/internal/full-web-tui-parity-plan.md`](../../docs/internal/full-web-tui-parity-plan.md) for every feature family and terminal adaptation constraints. Next: real session mutations (`015`), durable drafts and associated queue/model/reconnect race cases. Backend records alone do not establish browser parity.

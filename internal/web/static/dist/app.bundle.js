@@ -593,6 +593,52 @@ function useAgentState() {
   };
 }
 
+// web/src/gi-session-state.ts
+function sessionPickerAgents(sessions) {
+  const byId = new Map(sessions.map((session) => [session.id, session]));
+  return sessions.map((session) => {
+    let root = session;
+    const visited = new Set([root.id]);
+    while (root.parent_session_id && byId.has(root.parent_session_id) && !visited.has(root.parent_session_id)) {
+      root = byId.get(root.parent_session_id);
+      visited.add(root.id);
+    }
+    return {
+      chat_jid: `gi:${session.id}`,
+      agent_name: (typeof session.title === "string" && session.title ? session.title.replace(/^@/, "") : session.scope?.agent_id) || session.id,
+      agent_id: session.scope?.agent_id || "agent",
+      branch_id: session.id,
+      parent_branch_id: session.parent_session_id || null,
+      parent_chat_jid: session.parent_session_id ? `gi:${session.parent_session_id}` : null,
+      root_chat_jid: `gi:${root.id}`,
+      model: session.state?.model || "",
+      is_active: false,
+      archived_at: null
+    };
+  });
+}
+function createSelectionScope() {
+  let sessionId = null;
+  let generation = 0;
+  return {
+    select(next) {
+      if (next !== sessionId) {
+        sessionId = next;
+        generation++;
+      }
+    },
+    capture() {
+      return { sessionId, generation };
+    },
+    isCurrent(captured) {
+      return captured.sessionId === sessionId && captured.generation === generation;
+    },
+    current() {
+      return sessionId;
+    }
+  };
+}
+
 // web/src/api.ts
 var API_BASE = "";
 async function request(url, options = {}) {
@@ -726,15 +772,7 @@ async function getActiveChatAgents() {
   const data = await request("/api/sessions").catch(() => ({ sessions: [] }));
   const sessions = data.sessions || [];
   return {
-    agents: sessions.map((s) => ({
-      chat_jid: sessionToChatJid(s.id),
-      agent_name: (typeof s.title === "string" && s.title ? s.title.replace(/^@/, "") : s.scope?.agent_id) || s.id,
-      agent_id: s.scope?.agent_id || "agent",
-      parent_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : null,
-      is_active: false,
-      archived_at: null,
-      root_chat_jid: s.parent_session_id ? sessionToChatJid(s.parent_session_id) : sessionToChatJid(s.id)
-    }))
+    agents: sessionPickerAgents(sessions)
   };
 }
 async function getChatBranches(rootChatJid = null, _options = {}) {
@@ -5647,12 +5685,137 @@ function buildMentionValue(agentName) {
 }
 
 // web/src/ui/compose-session-switcher.ts
+var SECTION_LABELS = {
+  current: "Current",
+  pinned: "Pinned",
+  active: "Active",
+  tree: "This session tree",
+  other: "Other sessions",
+  archived: "Archived"
+};
+function clean(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+function buildSessionPickerSearchDocument(chat) {
+  const archived = Boolean(chat?.archived_at);
+  const active = Boolean(chat?.is_active) && !archived;
+  return [
+    clean(chat?.agent_name) ? `@${clean(chat.agent_name)}` : "",
+    clean(chat?.agent_name),
+    clean(chat?.chat_jid),
+    clean(chat?.root_chat_jid),
+    clean(chat?.model),
+    clean(chat?.model_label),
+    clean(chat?.provider),
+    archived ? "archived" : active ? "active" : "idle",
+    clean(chat?.parent_branch_id),
+    clean(chat?.branch_id)
+  ].filter(Boolean).join(" ").toLocaleLowerCase();
+}
+function matchesSessionPickerSearch(chat, query) {
+  const terms = clean(query).toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0)
+    return true;
+  const document2 = buildSessionPickerSearchDocument(chat);
+  return terms.every((term) => document2.includes(term));
+}
+function getSessionPickerHandleMatchRank(chat, query) {
+  if (!matchesSessionPickerSearch(chat, query))
+    return 4;
+  const handle = clean(chat?.agent_name).toLocaleLowerCase();
+  const terms = clean(query).toLocaleLowerCase().split(/\s+/).map((term) => term.replace(/^@/, "")).filter(Boolean);
+  if (!handle || terms.length === 0)
+    return 3;
+  if (terms.some((term) => handle === term))
+    return 0;
+  if (terms.some((term) => handle.startsWith(term)))
+    return 1;
+  if (terms.some((term) => handle.includes(term)))
+    return 2;
+  return 3;
+}
+function resolveSessionPickerSearchInitialIndex(chats, query) {
+  let bestIndex = 0;
+  let bestRank = Number.POSITIVE_INFINITY;
+  for (let index = 0;index < chats.length; index += 1) {
+    const rank = getSessionPickerHandleMatchRank(chats[index], query);
+    if (rank >= bestRank)
+      continue;
+    bestIndex = index;
+    bestRank = rank;
+    if (rank === 0)
+      break;
+  }
+  return bestIndex;
+}
+function filterSessionPickerChats(chats, query) {
+  const normalized = clean(query).toLocaleLowerCase();
+  if (!normalized)
+    return chats;
+  const matches = new Set(chats.filter((chat) => matchesSessionPickerSearch(chat, normalized)).map((chat) => clean(chat.chat_jid)));
+  const byBranchId = new Map(chats.map((chat) => [clean(chat.branch_id), chat]).filter(([id]) => Boolean(id)));
+  for (const chat of chats) {
+    if (!matches.has(clean(chat.chat_jid)))
+      continue;
+    let parentId = clean(chat.parent_branch_id);
+    while (parentId) {
+      const parent = byBranchId.get(parentId);
+      if (!parent)
+        break;
+      matches.add(clean(parent.chat_jid));
+      parentId = clean(parent.parent_branch_id);
+    }
+  }
+  return chats.filter((chat) => matches.has(clean(chat.chat_jid)));
+}
+function groupSessionPickerChats(chats, currentChatJid, pinnedChatJids = []) {
+  const current = clean(currentChatJid);
+  const currentChat = chats.find((chat) => clean(chat.chat_jid) === current);
+  const currentRoot = clean(currentChat?.root_chat_jid) || current;
+  const pinned = new Set(Array.from(pinnedChatJids, clean).filter(Boolean));
+  const buckets = new Map([
+    ["current", []],
+    ["pinned", []],
+    ["active", []],
+    ["tree", []],
+    ["other", []],
+    ["archived", []]
+  ]);
+  for (const chat of chats) {
+    const jid = clean(chat.chat_jid);
+    const archived = Boolean(chat.archived_at);
+    const section = archived ? "archived" : jid === current ? "current" : pinned.has(jid) ? "pinned" : Boolean(chat.is_active) ? "active" : (clean(chat.root_chat_jid) || jid) === currentRoot ? "tree" : "other";
+    buckets.get(section).push(chat);
+  }
+  return ["current", "pinned", "active", "tree", "other", "archived"].map((key) => ({ key, label: SECTION_LABELS[key], items: buckets.get(key) })).filter((section) => section.items.length > 0);
+}
+function moveSessionPickerIndex(current, length, key, pageSize = 8) {
+  if (length <= 0)
+    return 0;
+  const index = Math.max(0, Math.min(current, length - 1));
+  if (key === "Home")
+    return 0;
+  if (key === "End")
+    return length - 1;
+  if (key === "ArrowDown")
+    return (index + 1) % length;
+  if (key === "ArrowUp")
+    return (index - 1 + length) % length;
+  if (key === "PageDown")
+    return Math.min(length - 1, index + pageSize);
+  if (key === "PageUp")
+    return Math.max(0, index - pageSize);
+  return index;
+}
+function canUseComposeSessionSwitcher(options = {}) {
+  if (options.searchMode)
+    return false;
+  return Boolean(options.showSessionSwitcherButton);
+}
 function shouldOpenSessionSwitcherFromBlankCompose(event, value, options = {}) {
   if (!event || event.isComposing)
     return false;
-  if (options.searchMode)
-    return false;
-  if (!options.showSessionSwitcherButton)
+  if (!canUseComposeSessionSwitcher(options))
     return false;
   if (event.ctrlKey || event.metaKey || event.altKey)
     return false;
@@ -5668,11 +5831,6 @@ function normalizeHandle(value) {
 }
 function normalizeHandleName(value) {
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").replace(/-{2,}/g, "-");
-}
-function formatCurrentBranchLabel(currentSessionAgent, currentChatJid) {
-  const currentHandle = typeof currentSessionAgent?.agent_name === "string" && currentSessionAgent.agent_name.trim() ? normalizeHandle(currentSessionAgent.agent_name) : String(currentChatJid || "").trim();
-  const currentId = typeof currentSessionAgent?.chat_jid === "string" && currentSessionAgent.chat_jid.trim() ? currentSessionAgent.chat_jid.trim() : String(currentChatJid || "").trim();
-  return `${currentHandle} — ${currentId} • current branch`;
 }
 function getBranchLifecycleBadges(chat, options = {}) {
   const badges = [];
@@ -6505,6 +6663,7 @@ function ComposeBox({
   const [modelOptions, setModelOptions] = M_([]);
   const [modelPopupIndex, setModelPopupIndex] = M_(0);
   const [sessionPopupIndex, setSessionPopupIndex] = M_(0);
+  const [sessionPopupQuery, setSessionPopupQuery] = M_("");
   const [loadingModels, setLoadingModels] = M_(false);
   const [footerWidth, setFooterWidth] = M_(0);
   const [submitError, setSubmitError] = M_(null);
@@ -6518,6 +6677,8 @@ function ComposeBox({
   const modelHintRef = K_(null);
   const sessionPopupRef = K_(null);
   const sessionTriggerRef = K_(null);
+  const sessionSearchRef = K_(null);
+  const sessionReturnFocusRef = K_(null);
   const footerRef = K_(null);
   const popupTypeaheadRef = K_({ value: "", updatedAt: 0 });
   const dragCounterRef = K_(0);
@@ -6643,7 +6804,7 @@ function ComposeBox({
     const chats = [];
     for (const chat of Array.isArray(activeChatAgents) ? activeChatAgents : []) {
       const chatJid = typeof chat?.chat_jid === "string" ? chat.chat_jid.trim() : "";
-      if (!chatJid || chatJid === currentChatJid || seen.has(chatJid))
+      if (!chatJid || seen.has(chatJid))
         continue;
       const agentName = typeof chat?.agent_name === "string" ? chat.agent_name.trim() : "";
       if (!agentName)
@@ -6653,7 +6814,12 @@ function ComposeBox({
     }
     return chats;
   }, [activeChatAgents, currentChatJid]);
-  const hasSwitchableChatAgents = switchableChatAgents.length > 0;
+  const sessionPopupGroups = u_(() => {
+    const matches = new Set(filterSessionPickerChats(switchableChatAgents, sessionPopupQuery).map((chat) => chat.chat_jid));
+    return groupSessionPickerChats(switchableChatAgents, currentChatJid).map((group) => ({ ...group, items: group.items.filter((chat) => matches.has(chat.chat_jid)) })).filter((group) => group.items.length > 0);
+  }, [switchableChatAgents, currentChatJid, sessionPopupQuery]);
+  const orderedSessionChats = u_(() => sessionPopupGroups.flatMap((group) => group.items), [sessionPopupGroups]);
+  const hasSwitchableChatAgents = switchableChatAgents.some((chat) => chat.chat_jid !== currentChatJid);
   const canSwitchSession = hasSwitchableChatAgents && typeof onSwitchChat === "function";
   const canRestoreSession = hasSwitchableChatAgents && typeof onRestoreSession === "function";
   const renameInProgress = Boolean(isRenameSessionInProgress || renameSessionInProgressRef.current);
@@ -6784,7 +6950,18 @@ function ComposeBox({
       textarea.focus();
     });
   };
-  const openSessionPopup = () => {
+  const closeSessionPopup = (restoreFocus = false) => {
+    setShowSessionPopup(false);
+    if (restoreFocus)
+      requestAnimationFrame(() => {
+        const target = sessionReturnFocusRef.current;
+        if (target?.isConnected)
+          target.focus();
+        else
+          sessionTriggerRef.current?.querySelector("button")?.focus();
+      });
+  };
+  const openSessionPopup = (trigger = null) => {
     if (searchMode || !canSwitchSession && !canRestoreSession && !canRenameSession && !canCreateSession && !canDeleteSession)
       return false;
     popupTypeaheadRef.current = { value: "", updatedAt: 0 };
@@ -6793,6 +6970,9 @@ function ComposeBox({
     setSlashMatches([]);
     setShowMention(false);
     setMentionMatches([]);
+    sessionReturnFocusRef.current = trigger || sessionTriggerRef.current?.querySelector("button");
+    setSessionPopupQuery("");
+    setSessionPopupIndex(0);
     setShowSessionPopup(true);
     return true;
   };
@@ -6806,7 +6986,7 @@ function ComposeBox({
       setShowSessionPopup(false);
       return;
     }
-    openSessionPopup();
+    openSessionPopup(event?.currentTarget);
   };
   const handleSessionSwitch = (chatJid) => {
     const nextChatJid = typeof chatJid === "string" ? chatJid.trim() : "";
@@ -6838,7 +7018,7 @@ function ComposeBox({
   };
   const sessionPopupEntries = u_(() => {
     const entries = [];
-    for (const chat of switchableChatAgents) {
+    for (const chat of orderedSessionChats) {
       const archived = Boolean(chat?.archived_at);
       const agentName = typeof chat?.agent_name === "string" ? chat.agent_name.trim() : "";
       const chatJid = typeof chat?.chat_jid === "string" ? chat.chat_jid.trim() : "";
@@ -6852,17 +7032,17 @@ function ComposeBox({
         disabled: archived ? !canRestoreSession : !canSwitchSession
       });
     }
-    if (canCreateSession) {
+    if (!sessionPopupQuery.trim() && canCreateSession) {
       entries.push({ type: "action", key: "action:new", label: "New session", action: "new", disabled: false });
     }
-    if (canRenameSession) {
+    if (!sessionPopupQuery.trim() && canRenameSession) {
       entries.push({ type: "action", key: "action:rename", label: "Rename current session", action: "rename", disabled: renameInProgress });
     }
-    if (canDeleteSession) {
+    if (!sessionPopupQuery.trim() && canDeleteSession) {
       entries.push({ type: "action", key: "action:delete", label: "Delete current session", action: "delete", disabled: false });
     }
     return entries;
-  }, [switchableChatAgents, canRestoreSession, canSwitchSession, canCreateSession, canRenameSession, canDeleteSession, renameInProgress]);
+  }, [orderedSessionChats, sessionPopupQuery, canRestoreSession, canSwitchSession, canCreateSession, canRenameSession, canDeleteSession, renameInProgress]);
   const handleRenameSession = async (event) => {
     if (event?.preventDefault)
       event.preventDefault();
@@ -7150,7 +7330,7 @@ ${mediaIds.map((id, index) => {
       if (showModelPopup)
         setShowModelPopup(false);
       if (showSessionPopup)
-        setShowSessionPopup(false);
+        closeSessionPopup(true);
       return true;
     }
     if (showModelPopup) {
@@ -7184,34 +7364,24 @@ ${mediaIds.map((id, index) => {
         return true;
       }
     }
-    if (showSessionPopup) {
-      if (e.key === "ArrowDown") {
+    if (showSessionPopup && sessionPopupRef.current?.contains(e.target)) {
+      const inSearch = e.target === sessionSearchRef.current;
+      const navigation = ["ArrowDown", "ArrowUp", "PageDown", "PageUp"].includes(e.key) || !inSearch && ["Home", "End"].includes(e.key);
+      if (navigation && !e.ctrlKey && !e.metaKey && !e.altKey) {
         consume();
-        resetPopupTypeahead();
-        if (sessionPopupEntries.length > 0)
-          setSessionPopupIndex((idx) => (idx + 1) % sessionPopupEntries.length);
+        const enabled = sessionPopupEntries.map((entry, index) => ({ entry, index })).filter(({ entry }) => !entry.disabled);
+        const focusedKey = e.target?.closest?.("[data-session-entry-key]")?.dataset.sessionEntryKey;
+        setSessionPopupIndex((current) => {
+          const index = focusedKey ? sessionPopupEntries.findIndex((entry) => entry.key === focusedKey) : current;
+          const selected = enabled.findIndex((item) => item.index === index);
+          return enabled[moveSessionPickerIndex(selected, enabled.length, e.key)]?.index ?? 0;
+        });
+        sessionSearchRef.current?.focus();
         return true;
       }
-      if (e.key === "ArrowUp") {
+      if (inSearch && e.key === "Enter") {
         consume();
-        resetPopupTypeahead();
-        if (sessionPopupEntries.length > 0)
-          setSessionPopupIndex((idx) => (idx - 1 + sessionPopupEntries.length) % sessionPopupEntries.length);
-        return true;
-      }
-      if ((e.key === "Enter" || e.key === "Tab") && sessionPopupEntries.length > 0) {
-        consume();
-        resetPopupTypeahead();
-        runSessionPopupEntry(sessionPopupEntries[Math.max(0, Math.min(sessionPopupIndex, sessionPopupEntries.length - 1))]);
-        return true;
-      }
-      if (isPopupTypeaheadKey(e) && sessionPopupEntries.length > 0) {
-        consume();
-        const nextBuffer = updatePopupTypeaheadBuffer(popupTypeaheadRef.current, e.key);
-        popupTypeaheadRef.current = nextBuffer;
-        const match = resolvePopupTypeaheadMatch(sessionPopupEntries, nextBuffer.value, sessionPopupIndex, (item) => item.label);
-        if (match >= 0)
-          setSessionPopupIndex(match);
+        runSessionPopupEntry(sessionPopupEntries[sessionPopupIndex]);
         return true;
       }
     }
@@ -7514,9 +7684,12 @@ ${mediaIds.map((id, index) => {
   J_(() => {
     if (!showSessionPopup)
       return;
-    setSessionPopupIndex(findFirstEnabledPopupIndex(sessionPopupEntries));
-    popupTypeaheadRef.current = { value: "", updatedAt: 0 };
-  }, [showSessionPopup, currentChatJid]);
+    const preferred = resolveSessionPickerSearchInitialIndex(orderedSessionChats, sessionPopupQuery);
+    setSessionPopupIndex(sessionPopupEntries[preferred]?.disabled ? findFirstEnabledPopupIndex(sessionPopupEntries) : preferred);
+  }, [showSessionPopup, currentChatJid, sessionPopupQuery]);
+  J_(() => {
+    setSessionPopupIndex((index) => Math.max(0, Math.min(index, sessionPopupEntries.length - 1)));
+  }, [sessionPopupEntries.length]);
   J_(() => {
     if (!showModelPopup)
       return;
@@ -7549,7 +7722,7 @@ ${mediaIds.map((id, index) => {
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [showSessionPopup]);
-  J_(() => {
+  F_(() => {
     if (searchMode || !showModelPopup && !showSessionPopup)
       return;
     const onKeyDown = (event) => {
@@ -7566,12 +7739,14 @@ ${mediaIds.map((id, index) => {
     const active = popup?.querySelector?.(".compose-model-popup-item.active");
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showModelPopup, modelPopupIndex, modelOptions]);
+  F_(() => {
+    if (showSessionPopup)
+      sessionSearchRef.current?.focus();
+  }, [showSessionPopup]);
   J_(() => {
     if (!showSessionPopup)
       return;
-    const popup = sessionPopupRef.current;
-    popup?.focus?.();
-    const active = popup?.querySelector?.(".compose-model-popup-item.active");
+    const active = sessionPopupRef.current?.querySelector("[data-session-entry-key].active");
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showSessionPopup, sessionPopupIndex, sessionPopupEntries.length]);
   J_(() => {
@@ -7867,20 +8042,27 @@ ${mediaIds.map((id, index) => {
                         </div>
                     `}
                     ${showSessionPopup && !searchMode && ce`
-                        <div class="compose-model-popup" ref=${sessionPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
+                        <div class="compose-model-popup compose-session-popup" ref=${sessionPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
                             <div class="compose-model-popup-title">Manage sessions & agents</div>
-                            <div class="compose-model-popup-menu" role="menu" aria-label="Sessions and agents">
-                                ${ce`
-                                    <div class="compose-model-popup-item current" role="note" aria-live="polite">
-                                        ${(() => {
-    return formatCurrentBranchLabel(currentSessionAgent, currentChatJid);
-  })()}
-                                    </div>
+                            <input
+                                ref=${sessionSearchRef}
+                                type="search"
+                                class="compose-session-search"
+                                aria-label="Search sessions"
+                                aria-controls="compose-session-results"
+                                placeholder="Handle, JID, state, or model"
+                                value=${sessionPopupQuery}
+                                onInput=${(event) => setSessionPopupQuery(event.currentTarget.value)}
+                            />
+                            <div id="compose-session-results" class="compose-model-popup-menu" role="menu" aria-label="Sessions and agents">
+                                ${orderedSessionChats.length === 0 && ce`
+                                    <div class="compose-model-popup-empty" role="status">No sessions match your search.</div>
                                 `}
-                                ${!hasSwitchableChatAgents && ce`
-                                    <div class="compose-model-popup-empty">No other sessions yet.</div>
-                                `}
-                                ${hasSwitchableChatAgents && switchableChatAgents.map((chat, listIndex) => {
+                                ${sessionPopupGroups.map((group) => ce`
+                                <div role="group" aria-label=${group.label}>
+                                <div class="compose-session-section-label">${group.label}</div>
+                                ${group.items.map((chat) => {
+    const listIndex = sessionPopupEntries.findIndex((entry) => entry.key === `session:${chat.chat_jid}`);
     const archived = Boolean(chat.archived_at);
     const isRoot = chat.chat_jid === (chat.root_chat_jid || chat.chat_jid);
     const canPrune = !isRoot && !chat.is_active && !archived && typeof onDeleteSession === "function";
@@ -7891,6 +8073,8 @@ ${mediaIds.map((id, index) => {
                                                 type="button"
                                                 role="menuitem"
                                                 class=${`compose-model-popup-item${archived ? " archived" : ""}${sessionPopupIndex === listIndex ? " active" : ""}`}
+                                                data-session-entry-key=${`session:${chat.chat_jid}`}
+                                                aria-current=${chat.chat_jid === currentChatJid ? "true" : undefined}
                                                 onClick=${() => {
       if (archived) {
         handleRestoreSession(chat.chat_jid);
@@ -7924,8 +8108,10 @@ ${mediaIds.map((id, index) => {
                                         </div>
                                     `;
   })}
+                                </div>
+                                `)}
                             </div>
-                            ${(canCreateSession || canRenameSession || canDeleteSession) && ce`
+                            ${!sessionPopupQuery.trim() && (canCreateSession || canRenameSession || canDeleteSession) && ce`
                                 <div class="compose-model-popup-actions">
                                     ${canCreateSession && ce`
                                         <button
@@ -7934,6 +8120,7 @@ ${mediaIds.map((id, index) => {
                                             onClick=${() => {
     handleCreateSession();
   }}
+                                            data-session-entry-key="action:new"
                                             title="Create a new agent/session branch from this chat"
                                         >
                                             New
@@ -7946,6 +8133,7 @@ ${mediaIds.map((id, index) => {
                                             onClick=${(e) => {
     handleRenameSession(e);
   }}
+                                            data-session-entry-key="action:rename"
                                             title="Rename the current branch handle"
                                             disabled=${renameInProgress}
                                         >
@@ -7959,6 +8147,7 @@ ${mediaIds.map((id, index) => {
                                             onClick=${() => {
     handleDeleteSession();
   }}
+                                            data-session-entry-key="action:delete"
                                             title="Delete (prune) current agent/session branch"
                                         >
                                             Delete current…
@@ -15812,29 +16001,6 @@ function TimelineMenu({
   return null;
 }
 
-// web/src/gi-session-state.ts
-function createSelectionScope() {
-  let sessionId = null;
-  let generation = 0;
-  return {
-    select(next) {
-      if (next !== sessionId) {
-        sessionId = next;
-        generation++;
-      }
-    },
-    capture() {
-      return { sessionId, generation };
-    },
-    isCurrent(captured) {
-      return captured.sessionId === sessionId && captured.generation === generation;
-    },
-    current() {
-      return sessionId;
-    }
-  };
-}
-
 // web/src/app.ts
 var SESSION_KEY = "gi_session_id";
 var DEFAULT_AGENT_ID = "web";
@@ -16415,5 +16581,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=33945302C48705CF64756E2164756E21
+//# debugId=83862C4C1F41949564756E2164756E21
 //# sourceMappingURL=app.js.map
