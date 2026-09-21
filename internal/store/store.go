@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -83,7 +84,20 @@ type SubTurn struct {
 
 func Open(path string) (*Store, error) {
 	path = normalizeSQLitePath(path)
-	db, err := sql.Open("sqlite", path)
+	// database/sql opens additional connections lazily. These pragmas and the
+	// transaction mode must apply to every connection, not just the first Exec.
+	options := url.Values{}
+	for _, pragma := range []string{"busy_timeout(5000)", "foreign_keys(ON)", "synchronous(NORMAL)", "temp_store(MEMORY)"} {
+		options.Add("_pragma", pragma)
+	}
+	// Read-then-write coordination transactions acquire the writer reservation
+	// up front rather than failing a WAL snapshot upgrade with SQLITE_BUSY.
+	options.Set("_txlock", "immediate")
+	separator := "?"
+	if strings.Contains(path, "?") {
+		separator = "&"
+	}
+	db, err := sql.Open("sqlite", path+separator+options.Encode())
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}

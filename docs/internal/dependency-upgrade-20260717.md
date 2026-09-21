@@ -68,6 +68,19 @@ now waits for both readers before reaping the child; context cancellation still 
 the process group to unblock reads. A slow-reader regression test failed with 128 of
 26,013 bytes before the fix and preserves the entire response afterward.
 
+## Pooled SQLite connection correction — 2026-09-21
+
+The multi-session browser matrix reproduced `SQLITE_BUSY` while setting up a turn
+and recording its terminal failure, leaving accepted rows marked `running/setup`.
+The startup `PRAGMA` calls configured only one physical connection. A regression
+holding four `database/sql` connections found the second lacked the required settings.
+
+`store.Open` now supplies connection-local busy timeout, foreign-key, synchronous
+and temp-store settings through modernc's `_pragma` DSN options. `_txlock=immediate`
+reserves the writer before read-then-write coordination transactions, avoiding WAL
+snapshot-upgrade failures. WAL and the existing append-only event contract are unchanged.
+The full Go suite and 24-case browser parity matrix passed after this correction.
+
 ## Follow-ups (optional, YAGNI)
 - Adopt `ModelRuntime.Refresh` to back live model listing/refresh in `internal/inference`.
 - Use `ProviderErrorBody/Status` to surface structured provider errors in the TUI.
