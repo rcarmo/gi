@@ -93,3 +93,33 @@ test.describe('App shell', () => {
     expect(html).toMatch(/favicon\.ico\?v=/);
   });
 });
+
+test('KaTeX renderer uses matching local CSS and fonts', async ({ page, request }) => {
+  await page.goto('/');
+  await waitForAppShell(page);
+  await expect(page.locator('link[rel="stylesheet"][href^="/css/katex.min.css"]')).toHaveCount(1);
+  const css = await request.get('/css/katex.min.css');
+  expect(css.ok()).toBe(true);
+  const urls = [...new Set([...((await css.text()).matchAll(/url\(([^)]+)\)/g))].map(match => match[1]))];
+  expect(urls.length).toBeGreaterThan(0);
+  for (const url of urls) {
+    expect(url).toMatch(/^\/fonts\/katex\//);
+    const font = await request.get(url);
+    expect(font.ok()).toBe(true);
+    expect((await font.body()).length).toBeGreaterThan(100);
+  }
+  const result = await page.evaluate(async () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    (window as any).katex.render('E = mc^2', el);
+    await document.fonts.ready;
+    const math = el.querySelector('.katex')!;
+    const fonts = await document.fonts.load('16px KaTeX_Main');
+    const result = {version:(window as any).katex.version, family:getComputedStyle(math).fontFamily, fonts:fonts.length};
+    el.remove();
+    return result;
+  });
+  expect(result.version).toBe('0.18.7');
+  expect(result.family).toContain('KaTeX_Main');
+  expect(result.fonts).toBeGreaterThan(0);
+});

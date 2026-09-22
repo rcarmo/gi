@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -877,6 +878,21 @@ func TestRuntimeDispatcherPublishesLeaseTopicEvents(t *testing.T) {
 	}
 }
 
+func readTopicSSEBlock(t *testing.T, reader *bufio.Reader) string {
+	t.Helper()
+	var body strings.Builder
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read SSE event: %v (partial: %s)", err, body.String())
+		}
+		body.WriteString(line)
+		if line == "\n" {
+			return body.String()
+		}
+	}
+}
+
 func TestTopicSSEStreamsRuntimeTopicEvents(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
@@ -885,30 +901,32 @@ func TestTopicSSEStreamsRuntimeTopicEvents(t *testing.T) {
 	defer s.Close()
 	engine := turn.New(s)
 	srv := New(s, engine, config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
-	ctx, cancel := context.WithCancel(t.Context())
+
+	server := httptest.NewServer(srv.Handler())
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
-	req := httptest.NewRequest(http.MethodGet, "/sse/topics?topic=runtime.inbound_work&session_id=session_topic_sse", nil).WithContext(ctx)
-	res := httptest.NewRecorder()
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		srv.Handler().ServeHTTP(res, req)
-	}()
-	time.Sleep(25 * time.Millisecond)
-	engine.PublishRuntimeInboundWorkEvent("inbound_work_test", &queue.InboundWorkItem{ID: 1, Status: "queued", SessionID: "session_topic_sse", SourceKind: "ipc"}, nil)
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		body := res.Body.String()
-		if strings.Contains(body, "event: connected") && strings.Contains(body, `"last_sequence"`) && strings.Contains(body, "event: runtime.inbound_work") && strings.Contains(body, "inbound_work_test") && strings.Contains(body, "id: ") && strings.Contains(body, `"sequence":`) {
-			cancel()
-			<-done
-			return
-		}
-		time.Sleep(25 * time.Millisecond)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/sse/topics?topic=runtime.inbound_work&session_id=session_topic_sse", nil)
+	if err != nil {
+		t.Fatal(err)
 	}
-	cancel()
-	<-done
-	t.Fatalf("expected topic SSE stream body to contain runtime topic event, got %s", res.Body.String())
+	res, err := server.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	reader := bufio.NewReader(res.Body)
+	connected := readTopicSSEBlock(t, reader)
+	if !strings.Contains(connected, "event: connected") || !strings.Contains(connected, `"last_sequence"`) {
+		t.Fatalf("missing readiness: %s", connected)
+	}
+	engine.PublishRuntimeInboundWorkEvent("inbound_work_test", &queue.InboundWorkItem{ID: 1, Status: "queued", SessionID: "session_topic_sse", SourceKind: "ipc"}, nil)
+	body := readTopicSSEBlock(t, reader)
+	for _, want := range []string{"event: runtime.inbound_work", "inbound_work_test", "id: ", `"sequence"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("missing %q in %s", want, body)
+		}
+	}
 }
 
 func TestTopicSSEConnectedReportsLastEventIDGap(t *testing.T) {
@@ -921,29 +939,27 @@ func TestTopicSSEConnectedReportsLastEventIDGap(t *testing.T) {
 	srv := New(s, engine, config.RuntimeConfig{AssistantName: "Neo", UserName: "Rui", DefaultProvider: "test", DefaultModel: "bootstrap", DefaultThinkingLevel: "medium"})
 	engine.PublishRuntimeDispatcherEvent("before_connect_one", nil)
 	engine.PublishRuntimeDispatcherEvent("before_connect_two", nil)
-	ctx, cancel := context.WithCancel(t.Context())
+
+	server := httptest.NewServer(srv.Handler())
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
-	req := httptest.NewRequest(http.MethodGet, "/sse/topics?topic=runtime", nil).WithContext(ctx)
-	req.Header.Set("Last-Event-ID", "1")
-	res := httptest.NewRecorder()
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		srv.Handler().ServeHTTP(res, req)
-	}()
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		body := res.Body.String()
-		if strings.Contains(body, "event: connected") && strings.Contains(body, `"last_sequence":4`) && strings.Contains(body, `"last_event_id":1`) && strings.Contains(body, `"missed_sequence_count":3`) {
-			cancel()
-			<-done
-			return
-		}
-		time.Sleep(25 * time.Millisecond)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/sse/topics?topic=runtime", nil)
+	if err != nil {
+		t.Fatal(err)
 	}
-	cancel()
-	<-done
-	t.Fatalf("expected connected event with last sequence, got %s", res.Body.String())
+	req.Header.Set("Last-Event-ID", "1")
+	res, err := server.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	body := readTopicSSEBlock(t, bufio.NewReader(res.Body))
+	for _, want := range []string{"event: connected", `"last_sequence":4`, `"last_event_id":1`, `"missed_sequence_count":3`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("missing %q in %s", want, body)
+		}
+	}
 }
 
 func TestTopicSSERejectsInvalidBuffer(t *testing.T) {
@@ -1368,7 +1384,13 @@ func TestRuntimeInboundWorkDispatcherUsesSingleLeaseHolder(t *testing.T) {
 	for {
 		msgs, err := s.ListMessages(t.Context(), session.ID)
 		if err == nil && bytes.Contains([]byte(fmt.Sprintf("%v", msgs)), []byte("lease holder only")) {
-			break
+			completed, listErr := queue.ListInboundWork(t.Context(), s.DB(), "completed", 10)
+			if listErr != nil {
+				t.Fatal(listErr)
+			}
+			if len(completed) == 1 {
+				break
+			}
 		}
 		if time.Now().After(deadline) {
 			items, listErr := queue.ListInboundWork(t.Context(), s.DB(), "", 10)

@@ -2,6 +2,10 @@
 
 Status: active layout contract for the Pi/PiClaw UX convergence track.
 
+## Dependency gate (2026-09-22)
+
+Retain go-tui 0.18.2. Attempts with 0.22.1 and 0.19.0 erase a completed native-scrollback response after resize; the existing regular acceptance catches this at 60×18. All three-size suites pass after restoring 0.18.2 with upgraded go-ai/Go dependencies. [Upgrade evidence](dependency-upgrade-20260922.md). Do not exchange history integrity for a newer dependency or weaken the history assertions.
+
 ## Pending media and upload failure (2026-09-22; design)
 
 Keep file selection and uploaded IDs in session-owned draft state. Use an explicit attach action with a temporary bounded chooser, preserving editor text/cursor on dismissal. Show transient upload progress/errors in existing status space; add no permanent rows or panels and retain Pi transcript padding. Capture destination/files before asynchronous work; require valid IDs for the entire batch before sending. Failed upload restores/merges only the originating draft and requires explicit retry, including after reload/reopen.

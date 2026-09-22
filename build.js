@@ -1,5 +1,5 @@
 import { resolve, dirname } from 'path';
-import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync, rmSync, copyFileSync } from 'fs';
+import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync, rmSync, copyFileSync, cpSync } from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -48,6 +48,12 @@ function buildVendor(entryFile, finalDir, finalName) {
 buildVendor('preact-htm-entry.ts', vendorDir, 'preact-htm.js');
 buildVendor('marked-entry.ts',     jsDir,      'marked.min.js');
 buildVendor('katex-entry.ts',      vendorDir,  'katex.min.js');
+// Keep the renderer CSS/fonts on the same version as its JavaScript bundle.
+mkdirSync('internal/web/static/fonts/katex', { recursive: true });
+cpSync('node_modules/katex/dist/fonts', 'internal/web/static/fonts/katex', { recursive: true });
+copyFileSync('node_modules/katex/LICENSE', 'internal/web/static/fonts/katex/LICENSE');
+const katexCSS = readFileSync('node_modules/katex/dist/katex.min.css', 'utf8');
+writeFileSync('internal/web/static/css/katex.min.css', katexCSS.replaceAll('url(fonts/', 'url(/fonts/katex/'));
 buildVendor('mermaid-entry.ts',    vendorDir,  'beautiful-mermaid.js');
 buildVendor('codemirror-entry.ts', editorVendorDir, 'codemirror.js');
 

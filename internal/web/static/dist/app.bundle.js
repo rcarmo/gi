@@ -1,25 +1,25 @@
 // web/src/vendor/preact-htm.js
 var q;
-var m;
+var d;
 var p_;
-var I_;
+var V_;
 var H;
 var c_;
 var h_;
 var d_;
-var J;
-var L;
-var M;
+var K;
+var R;
+var F;
 var m_;
 var Z;
-var K;
 var Q;
+var X;
 var v_;
-var I = {};
-var V = [];
-var V_ = /acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ntw|ine[ch]|zoo|^ord|itera/i;
-var j = Array.isArray;
-function w(e, _) {
+var V = {};
+var B = [];
+var B_ = /acit|ex(?:s|g|n|p|$)|rph|grid|ows|mnc|ntw|ine[ch]|zoo|^ord|itera/i;
+var O = Array.isArray;
+function C(e, _) {
   for (var t in _)
     e[t] = _[t];
   return e;
@@ -34,30 +34,30 @@ function e_(e, _, t) {
   if (arguments.length > 2 && (u.children = arguments.length > 3 ? q.call(arguments, 2) : t), typeof e == "function" && e.defaultProps != null)
     for (n in e.defaultProps)
       u[n] === undefined && (u[n] = e.defaultProps[n]);
-  return R(e, u, o, i, null);
+  return I(e, u, o, i, null);
 }
-function R(e, _, t, o, i) {
+function I(e, _, t, o, i) {
   var n = { type: e, props: _, key: t, ref: o, __k: null, __: null, __b: 0, __e: null, __c: null, constructor: undefined, __v: i == null ? ++p_ : i, __i: -1, __u: 0 };
-  return i == null && m.vnode != null && m.vnode(n), n;
+  return i == null && d.vnode != null && d.vnode(n), n;
 }
-function O(e) {
+function z(e) {
   return e.children;
 }
 function A(e, _) {
   this.props = e, this.context = _;
 }
-function N(e, _) {
+function U(e, _) {
   if (_ == null)
-    return e.__ ? N(e.__, e.__i + 1) : null;
+    return e.__ ? U(e.__, e.__i + 1) : null;
   for (var t;_ < e.__k.length; _++)
     if ((t = e.__k[_]) != null && t.__e != null)
       return t.__e;
-  return typeof e.type == "function" ? N(e) : null;
+  return typeof e.type == "function" ? U(e) : null;
 }
 function $_(e) {
   if (e.__P && e.__d) {
-    var _ = e.__v, t = _.__e, o = [], i = [], n = w({}, _);
-    n.__v = _.__v + 1, m.vnode && m.vnode(n), t_(e.__P, n, _, e.__n, e.__P.namespaceURI, 32 & _.__u ? [t] : null, o, t == null ? N(_) : t, !!(32 & _.__u), i), n.__v = _.__v, n.__.__k[n.__i] = n, k_(o, n, i), _.__e = _.__ = null, n.__e != t && y_(n);
+    var _ = e.__v, t = _.__e, o = [], i = [], n = C({}, _);
+    n.__v = _.__v + 1, d.vnode && d.vnode(n), t_(e.__P, n, _, e.__n, e.__P.namespaceURI, 32 & _.__u ? [t] : null, o, t == null ? U(_) : t, !!(32 & _.__u), i), n.__v = _.__v, n.__.__k[n.__i] = n, x_(o, n, i), _.__e = _.__ = null, n.__e != t && y_(n);
   }
 }
 function y_(e) {
@@ -67,50 +67,50 @@ function y_(e) {
         return e.__e = e.__c.base = _.__e;
     }), y_(e);
 }
-function X(e) {
-  (!e.__d && (e.__d = true) && H.push(e) && !B.__r++ || c_ != m.debounceRendering) && ((c_ = m.debounceRendering) || h_)(B);
+function Y(e) {
+  (!e.__d && (e.__d = true) && H.push(e) && !j.__r++ || c_ != d.debounceRendering) && ((c_ = d.debounceRendering) || h_)(j);
 }
-function B() {
+function j() {
   try {
     for (var e, _ = 1;H.length; )
       H.length > _ && H.sort(d_), e = H.shift(), _ = H.length, $_(e);
   } finally {
-    H.length = B.__r = 0;
+    H.length = j.__r = 0;
   }
 }
-function g_(e, _, t, o, i, n, u, s, c, l, a) {
-  var r, f, p, g, k, b, d, h = o && o.__k || V, C = _.length;
-  for (c = B_(t, _, h, c, C), r = 0;r < C; r++)
-    (p = t.__k[r]) != null && (f = p.__i != -1 && h[p.__i] || I, p.__i = r, b = t_(e, p, f, i, n, u, s, c, l, a), g = p.__e, p.ref && f.ref != p.ref && (f.ref && n_(f.ref, null, p), a.push(p.ref, p.__c || g, p)), k == null && g != null && (k = g), (d = !!(4 & p.__u)) || f.__k === p.__k ? (c = b_(p, c, e, d), d && f.__e && (f.__e = null)) : typeof p.type == "function" && b !== undefined ? c = b : g && (c = g.nextSibling), p.__u &= -7);
+function g_(e, _, t, o, i, n, u, s, c, l, f) {
+  var h, r, a, y, k, b, g = o && o.__k || B, p = _.length;
+  for (c = j_(t, _, g, c, p), h = 0;h < p; h++)
+    (a = t.__k[h]) != null && (r = a.__i != -1 && g[a.__i] || V, a.__i = h, b = t_(e, a, r, i, n, u, s, c, l, f), y = a.__e, a.ref && r.ref != a.ref && (r.ref && n_(r.ref, null, a), f.push(a.ref, a.__c || y, a)), k == null && y != null && (k = y), 4 & a.__u ? (c = b_(a, c, e), r.__e && (r.__e = null)) : typeof a.type == "function" && b !== undefined ? c = b : y && (c = y.nextSibling), a.__u &= -7);
   return t.__e = k, c;
 }
-function B_(e, _, t, o, i) {
-  var n, u, s, c, l, a = t.length, r = a, f = 0;
+function j_(e, _, t, o, i) {
+  var n, u, s, c, l, f = t.length, h = f, r = 0;
   for (e.__k = Array(i), n = 0;n < i; n++)
-    (u = _[n]) != null && typeof u != "boolean" && typeof u != "function" ? (typeof u == "string" || typeof u == "number" || typeof u == "bigint" || u.constructor == String ? u = e.__k[n] = R(null, u, null, null, null) : j(u) ? u = e.__k[n] = R(O, { children: u }, null, null, null) : u.constructor === undefined && u.__b > 0 ? u = e.__k[n] = R(u.type, u.props, u.key, u.ref ? u.ref : null, u.__v) : e.__k[n] = u, c = n + f, u.__ = e, u.__b = e.__b + 1, s = null, (l = u.__i = q_(u, t, c, r)) != -1 && (r--, (s = t[l]) && (s.__u |= 2)), s == null || s.__v == null ? (l == -1 && (i > a ? f-- : i < a && f++), typeof u.type != "function" && (u.__u |= 4)) : l != c && (l == c - 1 ? f-- : l == c + 1 ? f++ : (l > c ? f-- : f++, u.__u |= 4))) : e.__k[n] = null;
-  if (r)
-    for (n = 0;n < a; n++)
-      (s = t[n]) != null && (2 & s.__u) == 0 && (s.__e == o && (o = N(s)), w_(s, s));
+    (u = _[n]) != null && typeof u != "boolean" && typeof u != "function" ? (typeof u == "string" || typeof u == "number" || typeof u == "bigint" || u.constructor == String ? u = e.__k[n] = I(null, u, null, null, null) : O(u) ? u = e.__k[n] = I(z, { children: u }, null, null, null) : u.constructor === undefined && u.__b > 0 ? u = e.__k[n] = I(u.type, u.props, u.key, u.ref ? u.ref : null, u.__v) : e.__k[n] = u, c = n + r, u.__ = e, u.__b = e.__b + 1, s = null, (l = u.__i = q_(u, t, c, h)) != -1 && (h--, (s = t[l]) && (s.__u |= 2)), s == null || s.__v == null ? (l == -1 && (i > f ? r-- : i < f && r++), typeof u.type != "function" && (u.__u |= 4)) : l != c && (l == c - 1 ? r-- : l == c + 1 ? r++ : (l > c ? r-- : r++, u.__u |= 4))) : e.__k[n] = null;
+  if (h)
+    for (n = 0;n < f; n++)
+      (s = t[n]) != null && (2 & s.__u) == 0 && (s.__e == o && (o = U(s)), C_(s, s));
   return o;
 }
-function b_(e, _, t, o) {
-  var i, n;
+function b_(e, _, t) {
+  var o, i;
   if (typeof e.type == "function") {
-    for (i = e.__k, n = 0;i && n < i.length; n++)
-      i[n] && (i[n].__ = e, _ = b_(i[n], _, t, o));
+    for (o = e.__k, i = 0;o && i < o.length; i++)
+      o[i] && (o[i].__ = e, _ = b_(o[i], _, t));
     return _;
   }
-  e.__e != _ && (o && (_ && e.type && !_.parentNode && (_ = N(e)), t.insertBefore(e.__e, _ || null)), _ = e.__e);
+  e.__e != _ && (_ && e.type && !_.parentNode && (_ = U(e)), _ = t.insertBefore(e.__e, _ || null));
   do
     _ = _ && _.nextSibling;
   while (_ != null && _.nodeType == 8);
   return _;
 }
 function q_(e, _, t, o) {
-  var i, n, u, { key: s, type: c } = e, l = _[t], a = l != null && (2 & l.__u) == 0;
-  if (l === null && s == null || a && s == l.key && c == l.type)
+  var i, n, u, { key: s, type: c } = e, l = _[t], f = l != null && (2 & l.__u) == 0;
+  if (l === null && s == null || f && s == l.key && c == l.type)
     return t;
-  if (o > (a ? 1 : 0)) {
+  if (o > (f ? 1 : 0)) {
     for (i = t - 1, n = t + 1;i >= 0 || n < _.length; )
       if ((l = _[u = i >= 0 ? i-- : n++]) != null && (2 & l.__u) == 0 && s == l.key && c == l.type)
         return u;
@@ -118,9 +118,9 @@ function q_(e, _, t, o) {
   return -1;
 }
 function f_(e, _, t) {
-  _[0] == "-" ? e.setProperty(_, t == null ? "" : t) : e[_] = t == null ? "" : typeof t != "number" || V_.test(_) ? t : t + "px";
+  _[0] == "-" ? e.setProperty(_, t == null ? "" : t) : e[_] = t == null ? "" : typeof t != "number" || B_.test(_) ? t : t + "px";
 }
-function W(e, _, t, o, i) {
+function L(e, _, t, o, i) {
   var n, u;
   _:
     if (_ == "style")
@@ -135,7 +135,7 @@ function W(e, _, t, o, i) {
             o && t[_] == o[_] || f_(e.style, _, t[_]);
       }
     else if (_[0] == "o" && _[1] == "n")
-      n = _ != (_ = _.replace(m_, "$1")), u = _.toLowerCase(), _ = u in e || _ == "onFocusOut" || _ == "onFocusIn" ? u.slice(2) : _.slice(2), e.l || (e.l = {}), e.l[_ + n] = t, t ? o ? t[M] = o[M] : (t[M] = Z, e.addEventListener(_, n ? Q : K, n)) : e.removeEventListener(_, n ? Q : K, n);
+      n = _ != (_ = _.replace(m_, "$1")), u = _.toLowerCase(), _ = u in e || _ == "onFocusOut" || _ == "onFocusIn" ? u.slice(2) : _.slice(2), e.l || (e.l = {}), e.l[_ + n] = t, t ? o ? t[F] = o[F] : (t[F] = Z, e.addEventListener(_, n ? X : Q, n)) : e.removeEventListener(_, n ? X : Q, n);
     else {
       if (i == "http://www.w3.org/2000/svg")
         _ = _.replace(/xlink(H|:h)/, "h").replace(/sName$/, "s");
@@ -151,110 +151,109 @@ function a_(e) {
   return function(_) {
     if (this.l) {
       var t = this.l[_.type + e];
-      if (_[L] == null)
-        _[L] = Z++;
-      else if (_[L] < t[M])
+      if (_[R] == null)
+        _[R] = Z++;
+      else if (_[R] < t[F])
         return;
-      return t(m.event ? m.event(_) : _);
+      return t(d.event ? d.event(_) : _);
     }
   };
 }
 function t_(e, _, t, o, i, n, u, s, c, l) {
-  var a, r, f, p, g, k, b, d, h, C, S, T, s_, F, G, x = _.type;
+  var f, h, r, a, y, k, b, g, p, x, T, S, M, s_, W, J, w = _.type;
   if (_.constructor !== undefined)
     return null;
-  128 & t.__u && (c = !!(32 & t.__u), n = [s = _.__e = t.__e]), (a = m.__b) && a(_);
+  128 & t.__u && (c = !!(32 & t.__u), n = [s = _.__e = t.__e]), (f = d.__b) && f(_);
   _:
-    if (typeof x == "function")
+    if (typeof w == "function") {
+      h = u.length;
       try {
-        if (d = _.props, h = x.prototype && x.prototype.render, C = (a = x.contextType) && o[a.__c], S = a ? C ? C.props.value : a.__ : o, t.__c ? b = (r = _.__c = t.__c).__ = r.__E : (h ? _.__c = r = new x(d, S) : (_.__c = r = new A(d, S), r.constructor = x, r.render = O_), C && C.sub(r), r.state || (r.state = {}), r.__n = o, f = r.__d = true, r.__h = [], r._sb = []), h && r.__s == null && (r.__s = r.state), h && x.getDerivedStateFromProps != null && (r.__s == r.state && (r.__s = w({}, r.__s)), w(r.__s, x.getDerivedStateFromProps(d, r.__s))), p = r.props, g = r.state, r.__v = _, f)
-          h && x.getDerivedStateFromProps == null && r.componentWillMount != null && r.componentWillMount(), h && r.componentDidMount != null && r.__h.push(r.componentDidMount);
+        if (p = _.props, x = w.prototype && w.prototype.render, T = (f = w.contextType) && o[f.__c], S = f ? T ? T.props.value : f.__ : o, t.__c ? g = (r = _.__c = t.__c).__ = r.__E : (x ? _.__c = r = new w(p, S) : (_.__c = r = new A(p, S), r.constructor = w, r.render = z_), T && T.sub(r), r.state || (r.state = {}), r.__n = o, a = r.__d = true, r.__h = [], r._sb = []), x && r.__s == null && (r.__s = r.state), x && w.getDerivedStateFromProps != null && (r.__s == r.state && (r.__s = C({}, r.__s)), C(r.__s, w.getDerivedStateFromProps(p, r.__s))), y = r.props, k = r.state, r.__v = _, a)
+          x && w.getDerivedStateFromProps == null && r.componentWillMount != null && r.componentWillMount(), x && r.componentDidMount != null && r.__h.push(r.componentDidMount);
         else {
-          if (h && x.getDerivedStateFromProps == null && d !== p && r.componentWillReceiveProps != null && r.componentWillReceiveProps(d, S), _.__v == t.__v || !r.__e && r.shouldComponentUpdate != null && r.shouldComponentUpdate(d, r.__s, S) === false) {
-            _.__v != t.__v && (r.props = d, r.state = r.__s, r.__d = false), _.__e = t.__e, _.__k = t.__k, _.__k.some(function(U) {
-              U && (U.__ = _);
-            }), V.push.apply(r.__h, r._sb), r._sb = [], r.__h.length && u.push(r);
+          if (x && w.getDerivedStateFromProps == null && p !== y && r.componentWillReceiveProps != null && r.componentWillReceiveProps(p, S), _.__v == t.__v || !r.__e && r.shouldComponentUpdate != null && r.shouldComponentUpdate(p, r.__s, S) === false) {
+            _.__v != t.__v && (r.props = p, r.state = r.__s, r.__d = false), _.__e = t.__e, _.__k = t.__k, _.__k.some(function(D) {
+              D && (D.__ = _);
+            }), B.push.apply(r.__h, r._sb), r._sb = [], r.__h.length && u.push(r), s = U(t);
             break _;
           }
-          r.componentWillUpdate != null && r.componentWillUpdate(d, r.__s, S), h && r.componentDidUpdate != null && r.__h.push(function() {
-            r.componentDidUpdate(p, g, k);
+          r.componentWillUpdate != null && r.componentWillUpdate(p, r.__s, S), x && r.componentDidUpdate != null && r.__h.push(function() {
+            r.componentDidUpdate(y, k, b);
           });
         }
-        if (r.context = S, r.props = d, r.__P = e, r.__e = false, T = m.__r, s_ = 0, h)
-          r.state = r.__s, r.__d = false, T && T(_), a = r.render(r.props, r.state, r.context), V.push.apply(r.__h, r._sb), r._sb = [];
+        if (r.context = S, r.props = p, r.__P = e, r.__e = false, M = d.__r, s_ = 0, x)
+          r.state = r.__s, r.__d = false, M && M(_), f = r.render(r.props, r.state, r.context), B.push.apply(r.__h, r._sb), r._sb = [];
         else
           do
-            r.__d = false, T && T(_), a = r.render(r.props, r.state, r.context), r.state = r.__s;
+            r.__d = false, M && M(_), f = r.render(r.props, r.state, r.context), r.state = r.__s;
           while (r.__d && ++s_ < 25);
-        r.state = r.__s, r.getChildContext != null && (o = w(w({}, o), r.getChildContext())), h && !f && r.getSnapshotBeforeUpdate != null && (k = r.getSnapshotBeforeUpdate(p, g)), F = a != null && a.type === O && a.key == null ? x_(a.props.children) : a, s = g_(e, j(F) ? F : [F], _, t, o, i, n, u, s, c, l), r.base = _.__e, _.__u &= -161, r.__h.length && u.push(r), b && (r.__E = r.__ = null);
-      } catch (U) {
-        if (_.__v = null, c || n != null)
-          if (U.then) {
+        r.state = r.__s, r.getChildContext != null && (o = C(C({}, o), r.getChildContext())), x && !a && r.getSnapshotBeforeUpdate != null && (b = r.getSnapshotBeforeUpdate(y, k)), W = f != null && f.type === z && f.key == null ? w_(f.props.children) : f, s = g_(e, O(W) ? W : [W], _, t, o, i, n, u, s, c, l), r.base = _.__e, _.__u &= -161, r.__h.length && u.push(r), g && (r.__E = r.__ = null);
+      } catch (D) {
+        if (u.length = h, _.__v = null, c || n != null) {
+          if (D.then) {
             for (_.__u |= c ? 160 : 128;s && s.nodeType == 8 && s.nextSibling; )
               s = s.nextSibling;
-            n[n.indexOf(s)] = null, _.__e = s;
-          } else {
-            for (G = n.length;G--; )
-              __(n[G]);
-            Y(_);
-          }
-        else
-          _.__e = t.__e, _.__k = t.__k, U.then || Y(_);
-        m.__e(U, _, t);
+            n != null && (n[n.indexOf(s)] = null), _.__e = s;
+          } else if (n != null)
+            for (J = n.length;J--; )
+              __(n[J]);
+        } else
+          _.__e = t.__e;
+        _.__k == null && (_.__k = t.__k || []), D.then || k_(_), d.__e(D, _, t);
       }
-    else
-      n == null && _.__v == t.__v ? (_.__k = t.__k, _.__e = t.__e) : s = _.__e = j_(t.__e, _, t, o, i, n, u, c, l);
-  return (a = m.diffed) && a(_), 128 & _.__u ? undefined : s;
+    } else
+      n == null && _.__v == t.__v ? (_.__k = t.__k, _.__e = t.__e) : s = _.__e = O_(t.__e, _, t, o, i, n, u, c, l);
+  return (f = d.diffed) && f(_), 128 & _.__u ? undefined : s;
 }
-function Y(e) {
-  e && (e.__c && (e.__c.__e = true), e.__k && e.__k.some(Y));
+function k_(e) {
+  e && (e.__c && (e.__c.__e = true), e.__k && e.__k.some(k_));
 }
-function k_(e, _, t) {
+function x_(e, _, t) {
   for (var o = 0;o < t.length; o++)
     n_(t[o], t[++o], t[++o]);
-  m.__c && m.__c(_, e), e.some(function(i) {
+  d.__c && d.__c(_, e), e.some(function(i) {
     try {
       e = i.__h, i.__h = [], e.some(function(n) {
         n.call(i);
       });
     } catch (n) {
-      m.__e(n, i.__v);
+      d.__e(n, i.__v);
     }
   });
 }
-function x_(e) {
-  return typeof e != "object" || e == null || e.__b > 0 ? e : j(e) ? e.map(x_) : e.constructor !== undefined ? null : w({}, e);
+function w_(e) {
+  return typeof e != "object" || e == null || e.__b > 0 ? e : O(e) ? e.map(w_) : e.constructor !== undefined ? null : C({}, e);
 }
-function j_(e, _, t, o, i, n, u, s, c) {
-  var l, a, r, f, p, g, k, b = t.props || I, { props: d, type: h } = _;
-  if (h == "svg" ? i = "http://www.w3.org/2000/svg" : h == "math" ? i = "http://www.w3.org/1998/Math/MathML" : i || (i = "http://www.w3.org/1999/xhtml"), n != null) {
+function O_(e, _, t, o, i, n, u, s, c) {
+  var l, f, h, r, a, y, k, b = t.props || V, { props: g, type: p } = _;
+  if (p == "svg" ? i = "http://www.w3.org/2000/svg" : p == "math" ? i = "http://www.w3.org/1998/Math/MathML" : i || (i = "http://www.w3.org/1999/xhtml"), n != null) {
     for (l = 0;l < n.length; l++)
-      if ((p = n[l]) && "setAttribute" in p == !!h && (h ? p.localName == h : p.nodeType == 3)) {
-        e = p, n[l] = null;
+      if ((a = n[l]) && "setAttribute" in a == !!p && (p ? a.localName == p : a.nodeType == 3)) {
+        e = a, n[l] = null;
         break;
       }
   }
   if (e == null) {
-    if (h == null)
-      return document.createTextNode(d);
-    e = document.createElementNS(i, h, d.is && d), s && (m.__m && m.__m(_, n), s = false), n = null;
+    if (p == null)
+      return document.createTextNode(g);
+    e = document.createElementNS(i, p, g.is && g), s && (d.__m && d.__m(_, n), s = false), n = null;
   }
-  if (h == null)
-    b === d || s && e.data == d || (e.data = d);
+  if (p == null)
+    b === g || s && e.data == g || (e.data = g);
   else {
-    if (n = h == "textarea" && d.defaultValue != null ? null : n && q.call(e.childNodes), !s && n != null)
+    if (n = p == "textarea" && g.defaultValue != null ? null : n && q.call(e.childNodes), !s && n != null)
       for (b = {}, l = 0;l < e.attributes.length; l++)
-        b[(p = e.attributes[l]).name] = p.value;
+        b[(a = e.attributes[l]).name] = a.value;
     for (l in b)
-      p = b[l], l == "dangerouslySetInnerHTML" ? r = p : l == "children" || (l in d) || l == "value" && ("defaultValue" in d) || l == "checked" && ("defaultChecked" in d) || W(e, l, null, p, i);
-    for (l in d)
-      p = d[l], l == "children" ? f = p : l == "dangerouslySetInnerHTML" ? a = p : l == "value" ? g = p : l == "checked" ? k = p : s && typeof p != "function" || b[l] === p || W(e, l, p, b[l], i);
-    if (a)
-      s || r && (a.__html == r.__html || a.__html == e.innerHTML) || (e.innerHTML = a.__html), _.__k = [];
-    else if (r && (e.innerHTML = ""), g_(_.type == "template" ? e.content : e, j(f) ? f : [f], _, t, o, h == "foreignObject" ? "http://www.w3.org/1999/xhtml" : i, n, u, n ? n[0] : t.__k && N(t, 0), s, c), n != null)
+      a = b[l], l == "dangerouslySetInnerHTML" ? h = a : l == "children" || (l in g) || l == "value" && ("defaultValue" in g) || l == "checked" && ("defaultChecked" in g) || L(e, l, null, a, i);
+    for (l in g)
+      a = g[l], l == "children" ? r = a : l == "dangerouslySetInnerHTML" ? f = a : l == "value" ? y = a : l == "checked" ? k = a : s && typeof a != "function" || b[l] === a || L(e, l, a, b[l], i);
+    if (f)
+      s || h && (f.__html == h.__html || f.__html == e.innerHTML) || (e.innerHTML = f.__html), _.__k = [];
+    else if (h && (e.innerHTML = ""), g_(_.type == "template" ? e.content : e, O(r) ? r : [r], _, t, o, p == "foreignObject" ? "http://www.w3.org/1999/xhtml" : i, n, u, n ? n[0] : t.__k && U(t, 0), s, c), n != null)
       for (l = n.length;l--; )
         __(n[l]);
-    s && h != "textarea" || (l = "value", h == "progress" && g == null ? e.removeAttribute("value") : g != null && (g !== e[l] || h == "progress" && !g || h == "option" && g != b[l]) && W(e, l, g, b[l], i), l = "checked", k != null && k != e[l] && W(e, l, k, b[l], i));
+    s && p != "textarea" || (l = "value", p == "progress" && y == null ? e.removeAttribute("value") : y != null && (y !== e[l] || p == "progress" && !y || p == "option" && y != b[l]) && L(e, l, y, b[l], i), l = "checked", k != null && k != e[l] && L(e, l, k, b[l], i));
   }
   return e;
 }
@@ -266,33 +265,33 @@ function n_(e, _, t) {
     } else
       e.current = _;
   } catch (i) {
-    m.__e(i, t);
+    d.__e(i, t);
   }
 }
-function w_(e, _, t) {
+function C_(e, _, t) {
   var o, i;
-  if (m.unmount && m.unmount(e), (o = e.ref) && (o.current && o.current != e.__e || n_(o, null, _)), (o = e.__c) != null) {
+  if (d.unmount && d.unmount(e), (o = e.ref) && (o.current && o.current != e.__e || n_(o, null, _)), (o = e.__c) != null) {
     if (o.componentWillUnmount)
       try {
         o.componentWillUnmount();
       } catch (n) {
-        m.__e(n, _);
+        d.__e(n, _);
       }
-    o.base = o.__P = null;
+    o.base = o.__P = o.__n = null;
   }
   if (o = e.__k)
     for (i = 0;i < o.length; i++)
-      o[i] && w_(o[i], _, t || typeof e.type != "function");
+      o[i] && C_(o[i], _, t || typeof e.type != "function");
   t || __(e.__e), e.__c = e.__ = e.__e = undefined;
 }
-function O_(e, _, t) {
+function z_(e, _, t) {
   return this.constructor(e, t);
 }
-function z_(e, _, t) {
+function G_(e, _, t) {
   var o, i, n, u;
-  _ == document && (_ = document.documentElement), m.__ && m.__(e, _), i = (o = typeof t == "function") ? null : t && t.__k || _.__k, n = [], u = [], t_(_, e = (!o && t || _).__k = e_(O, null, [e]), i || I, I, _.namespaceURI, !o && t ? [t] : i ? null : _.firstChild ? q.call(_.childNodes) : null, n, !o && t ? t : i ? i.__e : _.firstChild, o, u), k_(n, e, u);
+  _ == document && (_ = document.documentElement), d.__ && d.__(e, _), i = (o = typeof t == "function") ? null : t && t.__k || _.__k, n = [], u = [], t_(_, e = (!o && t || _).__k = e_(z, null, [e]), i || V, V, _.namespaceURI, !o && t ? [t] : i ? null : _.firstChild ? q.call(_.childNodes) : null, n, !o && t ? t : i ? i.__e : _.firstChild, o, u), x_(n, e, u), e.props.children = null;
 }
-q = V.slice, m = { __e: function(e, _, t, o) {
+q = B.slice, d = { __e: function(e, _, t, o) {
   for (var i, n, u;_ = _.__; )
     if ((i = _.__c) && !i.__)
       try {
@@ -302,188 +301,186 @@ q = V.slice, m = { __e: function(e, _, t, o) {
         e = s;
       }
   throw e;
-} }, p_ = 0, I_ = function(e) {
+} }, p_ = 0, V_ = function(e) {
   return e != null && e.constructor === undefined;
 }, A.prototype.setState = function(e, _) {
   var t;
-  t = this.__s != null && this.__s != this.state ? this.__s : this.__s = w({}, this.state), typeof e == "function" && (e = e(w({}, t), this.props)), e && w(t, e), e != null && this.__v && (_ && this._sb.push(_), X(this));
+  t = this.__s != null && this.__s != this.state ? this.__s : this.__s = C({}, this.state), typeof e == "function" && (e = e(C({}, t), this.props)), e && C(t, e), e != null && this.__v && (_ && this._sb.push(_), Y(this));
 }, A.prototype.forceUpdate = function(e) {
-  this.__v && (this.__e = true, e && this.__h.push(e), X(this));
-}, A.prototype.render = O, H = [], h_ = typeof Promise == "function" ? Promise.prototype.then.bind(Promise.resolve()) : setTimeout, d_ = function(e, _) {
+  this.__v && (this.__e = true, e && this.__h.push(e), Y(this));
+}, A.prototype.render = z, H = [], h_ = typeof Promise == "function" ? Promise.prototype.then.bind(Promise.resolve()) : setTimeout, d_ = function(e, _) {
   return e.__v.__b - _.__v.__b;
-}, B.__r = 0, J = Math.random().toString(8), L = "__d" + J, M = "__a" + J, m_ = /(PointerCapture)$|Capture$/i, Z = 0, K = a_(false), Q = a_(true), v_ = 0;
+}, j.__r = 0, K = Math.random().toString(8), R = "__d" + K, F = "__a" + K, m_ = /(PointerCapture)$|Capture$/i, Z = 0, Q = a_(false), X = a_(true), v_ = 0;
 var P;
-var v;
+var m;
 var o_;
-var C_;
-var D = 0;
-var T_ = [];
-var y = m;
-var { __b: H_, __r: P_, diffed: S_, __c: U_, unmount: N_, __: D_ } = y;
-function E(e, _) {
-  y.__h && y.__h(v, e, D || _), D = 0;
-  var t = v.__H || (v.__H = { __: [], __h: [] });
+var H_;
+var E = 0;
+var M_ = [];
+var v = d;
+var { __b: P_, __r: S_, diffed: U_, __c: D_, unmount: E_, __: N_ } = v;
+function N(e, _) {
+  v.__h && v.__h(m, e, E || _), E = 0;
+  var t = m.__H || (m.__H = { __: [], __h: [] });
   return e >= t.__.length && t.__.push({}), t.__[e];
 }
-function M_(e) {
-  return D = 1, A_(W_, e);
+function F_(e) {
+  return E = 1, A_(L_, e);
 }
 function A_(e, _, t) {
-  var o = E(P++, 2);
-  if (o.t = e, !o.__c && (o.__ = [t ? t(_) : W_(undefined, _), function(s) {
+  var o = N(P++, 2);
+  if (o.t = e, !o.__c && (o.__ = [t ? t(_) : L_(undefined, _), function(s) {
     var c = o.__N ? o.__N[0] : o.__[0], l = o.t(c, s);
     c !== l && (o.__N = [l, o.__[1]], o.__c.setState({}));
-  }], o.__c = v, !v.__f)) {
+  }], o.__c = m, !m.__f)) {
     var i = function(s, c, l) {
       if (!o.__c.__H)
         return true;
-      var a = o.__c.__H.__.filter(function(f) {
-        return f.__c;
-      });
-      if (a.every(function(f) {
-        return !f.__N;
-      }))
-        return !n || n.call(this, s, c, l);
-      var r = o.__c.props !== s;
-      return a.some(function(f) {
-        if (f.__N) {
-          var p = f.__[0];
-          f.__ = f.__N, f.__N = undefined, p !== f.__[0] && (r = true);
+      var f = false, h = o.__c.props !== s;
+      if (o.__c.__H.__.some(function(a) {
+        if (a.__N) {
+          f = true;
+          var y = a.__[0];
+          a.__ = a.__N, a.__N = undefined, y !== a.__[0] && (h = true);
         }
-      }), n && n.call(this, s, c, l) || r;
+      }), n) {
+        var r = n.call(this, s, c, l);
+        return f ? r || h : r;
+      }
+      return !f || h;
     };
-    v.__f = true;
-    var n = v.shouldComponentUpdate, u = v.componentWillUpdate;
-    v.componentWillUpdate = function(s, c, l) {
+    m.__f = true;
+    var n = m.shouldComponentUpdate, u = m.componentWillUpdate;
+    m.componentWillUpdate = function(s, c, l) {
       if (this.__e) {
-        var a = n;
-        n = undefined, i(s, c, l), n = a;
+        var f = n;
+        n = undefined, i(s, c, l), n = f;
       }
       u && u.call(this, s, c, l);
-    }, v.shouldComponentUpdate = i;
+    }, m.shouldComponentUpdate = i;
   }
   return o.__N || o.__;
 }
-function J_(e, _) {
-  var t = E(P++, 3);
-  !y.__s && i_(t.__H, _) && (t.__ = e, t.u = _, v.__H.__h.push(t));
+function K_(e, _) {
+  var t = N(P++, 3);
+  !v.__s && i_(t.__H, _) && (t.__ = e, t.u = _, m.__H.__h.push(t));
 }
-function F_(e, _) {
-  var t = E(P++, 4);
-  !y.__s && i_(t.__H, _) && (t.__ = e, t.u = _, v.__h.push(t));
+function W_(e, _) {
+  var t = N(P++, 4);
+  !v.__s && i_(t.__H, _) && (t.__ = e, t.u = _, m.__h.push(t));
 }
-function K_(e) {
-  return D = 5, u_(function() {
+function Q_(e) {
+  return E = 5, u_(function() {
     return { current: e };
   }, []);
 }
 function u_(e, _) {
-  var t = E(P++, 7);
+  var t = N(P++, 7);
   return i_(t.__H, _) && (t.__ = e(), t.__H = _, t.__h = e), t.__;
 }
-function X_(e, _) {
-  return D = 8, u_(function() {
+function Y_(e, _) {
+  return E = 8, u_(function() {
     return e;
   }, _);
 }
-function ee() {
-  for (var e;e = T_.shift(); ) {
+function te() {
+  for (var e;e = M_.shift(); ) {
     var _ = e.__H;
     if (e.__P && _)
       try {
-        _.__h.some(z), _.__h.some(r_), _.__h = [];
+        _.__h.some(G), _.__h.some(r_), _.__h = [];
       } catch (t) {
-        _.__h = [], y.__e(t, e.__v);
+        _.__h = [], v.__e(t, e.__v);
       }
   }
 }
-y.__b = function(e) {
-  v = null, H_ && H_(e);
-}, y.__ = function(e, _) {
-  e && _.__k && _.__k.__m && (e.__m = _.__k.__m), D_ && D_(e, _);
-}, y.__r = function(e) {
-  P_ && P_(e), P = 0;
-  var _ = (v = e.__c).__H;
-  _ && (o_ === v ? (_.__h = [], v.__h = [], _.__.some(function(t) {
+v.__b = function(e) {
+  m = null, P_ && P_(e);
+}, v.__ = function(e, _) {
+  e && _.__k && _.__k.__m && (e.__m = _.__k.__m), N_ && N_(e, _);
+}, v.__r = function(e) {
+  S_ && S_(e), P = 0;
+  var _ = (m = e.__c).__H;
+  _ && (o_ === m ? (_.__h = [], m.__h = [], _.__.some(function(t) {
     t.__N && (t.__ = t.__N), t.u = t.__N = undefined;
-  })) : (_.__h.some(z), _.__h.some(r_), _.__h = [], P = 0)), o_ = v;
-}, y.diffed = function(e) {
-  S_ && S_(e);
+  })) : (_.__h.some(G), _.__h.some(r_), _.__h = [], P = 0)), o_ = m;
+}, v.diffed = function(e) {
+  U_ && U_(e);
   var _ = e.__c;
-  _ && _.__H && (_.__H.__h.length && (T_.push(_) !== 1 && C_ === y.requestAnimationFrame || ((C_ = y.requestAnimationFrame) || te)(ee)), _.__H.__.some(function(t) {
-    t.u && (t.__H = t.u), t.u = undefined;
-  })), o_ = v = null;
-}, y.__c = function(e, _) {
+  _ && _.__H && (_.__H.__h.length && (M_.push(_) !== 1 && H_ === v.requestAnimationFrame || ((H_ = v.requestAnimationFrame) || ne)(te)), _.__H.__.some(function(t) {
+    t.u && (t.__H = t.u, t.u = undefined);
+  })), o_ = m = null;
+}, v.__c = function(e, _) {
   _.some(function(t) {
     try {
-      t.__h.some(z), t.__h = t.__h.filter(function(o) {
+      t.__h.some(G), t.__h = t.__h.filter(function(o) {
         return !o.__ || r_(o);
       });
     } catch (o) {
       _.some(function(i) {
         i.__h && (i.__h = []);
-      }), _ = [], y.__e(o, t.__v);
+      }), _ = [], v.__e(o, t.__v);
     }
-  }), U_ && U_(e, _);
-}, y.unmount = function(e) {
-  N_ && N_(e);
+  }), D_ && D_(e, _);
+}, v.unmount = function(e) {
+  E_ && E_(e);
   var _, t = e.__c;
   t && t.__H && (t.__H.__.some(function(o) {
     try {
-      z(o);
+      G(o);
     } catch (i) {
       _ = i;
     }
-  }), t.__H = undefined, _ && y.__e(_, t.__v));
+  }), t.__H = undefined, _ && v.__e(_, t.__v));
 };
-var E_ = typeof requestAnimationFrame == "function";
-function te(e) {
+var T_ = typeof requestAnimationFrame == "function";
+function ne(e) {
   var _, t = function() {
-    clearTimeout(o), E_ && cancelAnimationFrame(_), setTimeout(e);
+    clearTimeout(o), T_ && cancelAnimationFrame(_), setTimeout(e);
   }, o = setTimeout(t, 35);
-  E_ && (_ = requestAnimationFrame(t));
+  T_ && (_ = requestAnimationFrame(t));
 }
-function z(e) {
-  var _ = v, t = e.__c;
-  typeof t == "function" && (e.__c = undefined, t()), v = _;
+function G(e) {
+  var _ = m, t = e.__c;
+  typeof t == "function" && (e.__c = undefined, t()), m = _;
 }
 function r_(e) {
-  var _ = v;
-  e.__c = e.__(), v = _;
+  var _ = m;
+  e.__c = e.__(), m = _;
 }
 function i_(e, _) {
   return !e || e.length !== _.length || _.some(function(t, o) {
     return t !== e[o];
   });
 }
-function W_(e, _) {
+function L_(e, _) {
   return typeof _ == "function" ? _(e) : _;
 }
-var R_ = function(e, _, t, o) {
+var I_ = function(e, _, t, o) {
   var i;
   _[0] = 0;
   for (var n = 1;n < _.length; n++) {
     var u = _[n++], s = _[n] ? (_[0] |= u ? 1 : 2, t[_[n++]]) : _[++n];
-    u === 3 ? o[0] = s : u === 4 ? o[1] = Object.assign(o[1] || {}, s) : u === 5 ? (o[1] = o[1] || {})[_[++n]] = s : u === 6 ? o[1][_[++n]] += s + "" : u ? (i = e.apply(s, R_(e, s, t, ["", null])), o.push(i), s[0] ? _[0] |= 2 : (_[n - 2] = 0, _[n] = i)) : o.push(s);
+    u === 3 ? o[0] = s : u === 4 ? o[1] = Object.assign(o[1] || {}, s) : u === 5 ? (o[1] = o[1] || {})[_[++n]] = s : u === 6 ? o[1][_[++n]] += s + "" : u ? (i = e.apply(s, I_(e, s, t, ["", null])), o.push(i), s[0] ? _[0] |= 2 : (_[n - 2] = 0, _[n] = i)) : o.push(s);
   }
   return o;
 };
-var L_ = new Map;
+var R_ = new Map;
 function l_(e) {
-  var _ = L_.get(this);
-  return _ || (_ = new Map, L_.set(this, _)), (_ = R_(this, _.get(e) || (_.set(e, _ = function(t) {
-    for (var o, i, n = 1, u = "", s = "", c = [0], l = function(f) {
-      n === 1 && (f || (u = u.replace(/^\s*\n\s*|\s*\n\s*$/g, ""))) ? c.push(0, f, u) : n === 3 && (f || u) ? (c.push(3, f, u), n = 2) : n === 2 && u === "..." && f ? c.push(4, f, 0) : n === 2 && u && !f ? c.push(5, 0, true, u) : n >= 5 && ((u || !f && n === 5) && (c.push(n, 0, u, i), n = 6), f && (c.push(n, f, 0, i), n = 6)), u = "";
-    }, a = 0;a < t.length; a++) {
-      a && (n === 1 && l(), l(a));
-      for (var r = 0;r < t[a].length; r++)
-        o = t[a][r], n === 1 ? o === "<" ? (l(), c = [c], n = 3) : u += o : n === 4 ? u === "--" && o === ">" ? (n = 1, u = "") : u = o + u[0] : s ? o === s ? s = "" : u += o : o === '"' || o === "'" ? s = o : o === ">" ? (l(), n = 1) : n && (o === "=" ? (n = 5, i = u, u = "") : o === "/" && (n < 5 || t[a][r + 1] === ">") ? (l(), n === 3 && (c = c[0]), n = c, (c = c[0]).push(2, 0, n), n = 0) : o === " " || o === "\t" || o === `
+  var _ = R_.get(this);
+  return _ || (_ = new Map, R_.set(this, _)), (_ = I_(this, _.get(e) || (_.set(e, _ = function(t) {
+    for (var o, i, n = 1, u = "", s = "", c = [0], l = function(r) {
+      n === 1 && (r || (u = u.replace(/^\s*\n\s*|\s*\n\s*$/g, ""))) ? c.push(0, r, u) : n === 3 && (r || u) ? (c.push(3, r, u), n = 2) : n === 2 && u === "..." && r ? c.push(4, r, 0) : n === 2 && u && !r ? c.push(5, 0, true, u) : n >= 5 && ((u || !r && n === 5) && (c.push(n, 0, u, i), n = 6), r && (c.push(n, r, 0, i), n = 6)), u = "";
+    }, f = 0;f < t.length; f++) {
+      f && (n === 1 && l(), l(f));
+      for (var h = 0;h < t[f].length; h++)
+        o = t[f][h], n === 1 ? o === "<" ? (l(), c = [c], n = 3) : u += o : n === 4 ? u === "--" && o === ">" ? (n = 1, u = "") : u = o + u[0] : s ? o === s ? s = "" : u += o : o === '"' || o === "'" ? s = o : o === ">" ? (l(), n = 1) : n && (o === "=" ? (n = 5, i = u, u = "") : o === "/" && (n < 5 || t[f][h + 1] === ">") ? (l(), n === 3 && (c = c[0]), n = c, (c = c[0]).push(2, 0, n), n = 0) : o === " " || o === "\t" || o === `
 ` || o === "\r" ? (l(), n = 2) : u += o), n === 3 && u === "!--" && (n = 4, c = c[0]);
     }
     return l(), c;
   }(e)), _), arguments, [])).length > 1 ? _ : _[0];
 }
-var ce = l_.bind(e_);
+var fe = l_.bind(e_);
 
 // web/src/utils/storage.ts
 function getLocalStorageItem(key) {
@@ -531,26 +528,26 @@ var dedupePosts = (items) => {
 
 // web/src/ui/use-agent-state.ts
 function useAgentState() {
-  const [agentStatus, setAgentStatus] = M_(null);
-  const [agentDraft, setAgentDraft] = M_({ text: "", totalLines: 0 });
-  const [agentPlan, setAgentPlan] = M_("");
-  const [agentThought, setAgentThought] = M_({ text: "", totalLines: 0 });
-  const [pendingRequest, setPendingRequest] = M_(null);
-  const [currentTurnId, setCurrentTurnId] = M_(null);
-  const [steerQueuedTurnId, setSteerQueuedTurnId] = M_(null);
-  const lastAgentEventRef = K_(null);
-  const lastSilenceNoticeRef = K_(0);
-  const isAgentRunningRef = K_(false);
-  const draftBufferRef = K_("");
-  const thoughtBufferRef = K_("");
-  const previewResyncPendingRef = K_(false);
-  const previewResyncGenerationRef = K_(0);
-  const pendingRequestRef = K_(null);
-  const stalledPostIdRef = K_(null);
-  const currentTurnIdRef = K_(null);
-  const steerQueuedTurnIdRef = K_(null);
-  const thoughtExpandedRef = K_(false);
-  const draftExpandedRef = K_(false);
+  const [agentStatus, setAgentStatus] = F_(null);
+  const [agentDraft, setAgentDraft] = F_({ text: "", totalLines: 0 });
+  const [agentPlan, setAgentPlan] = F_("");
+  const [agentThought, setAgentThought] = F_({ text: "", totalLines: 0 });
+  const [pendingRequest, setPendingRequest] = F_(null);
+  const [currentTurnId, setCurrentTurnId] = F_(null);
+  const [steerQueuedTurnId, setSteerQueuedTurnId] = F_(null);
+  const lastAgentEventRef = Q_(null);
+  const lastSilenceNoticeRef = Q_(0);
+  const isAgentRunningRef = Q_(false);
+  const draftBufferRef = Q_("");
+  const thoughtBufferRef = Q_("");
+  const previewResyncPendingRef = Q_(false);
+  const previewResyncGenerationRef = Q_(0);
+  const pendingRequestRef = Q_(null);
+  const stalledPostIdRef = Q_(null);
+  const currentTurnIdRef = Q_(null);
+  const steerQueuedTurnIdRef = Q_(null);
+  const thoughtExpandedRef = Q_(false);
+  const draftExpandedRef = Q_(false);
   return {
     agentStatus,
     setAgentStatus,
@@ -1246,17 +1243,17 @@ function bindSseWakeLifecycle({ sse, onWake }, runtime = {}) {
   };
 }
 function useSseConnection({ handleSseEvent, handleConnectionStatusChange, loadPosts, onWake, chatJid, selectionKey = chatJid }) {
-  const selectionRef = K_(selectionKey);
+  const selectionRef = Q_(selectionKey);
   selectionRef.current = selectionKey;
-  const sseEventRef = K_(handleSseEvent);
+  const sseEventRef = Q_(handleSseEvent);
   sseEventRef.current = handleSseEvent;
-  const statusChangeRef = K_(handleConnectionStatusChange);
+  const statusChangeRef = Q_(handleConnectionStatusChange);
   statusChangeRef.current = handleConnectionStatusChange;
-  const loadPostsRef = K_(loadPosts);
+  const loadPostsRef = Q_(loadPosts);
   loadPostsRef.current = loadPosts;
-  const onWakeRef = K_(onWake);
+  const onWakeRef = Q_(onWake);
   onWakeRef.current = onWake;
-  J_(() => {
+  K_(() => {
     let active = true;
     const sse = new SSEClient((type, data) => {
       if (active && selectionRef.current === selectionKey)
@@ -4170,8 +4167,8 @@ ${bootstrap}
 
 // web/src/components/body-portal.ts
 function BodyPortal({ children, className = "" }) {
-  const [host, setHost] = M_(null);
-  J_(() => {
+  const [host, setHost] = F_(null);
+  K_(() => {
     if (typeof document === "undefined")
       return;
     const nextHost = document.createElement("div");
@@ -4181,17 +4178,17 @@ function BodyPortal({ children, className = "" }) {
     setHost(nextHost);
     return () => {
       try {
-        z_(null, nextHost);
+        G_(null, nextHost);
       } finally {
         nextHost.remove();
         setHost((current) => current === nextHost ? null : current);
       }
     };
   }, [className]);
-  F_(() => {
+  W_(() => {
     if (!host)
       return;
-    z_(children, host);
+    G_(children, host);
     return;
   }, [children, host]);
   return null;
@@ -4199,7 +4196,7 @@ function BodyPortal({ children, className = "" }) {
 
 // web/src/components/image-modal.ts
 function ImageModal({ src, onClose }) {
-  J_(() => {
+  K_(() => {
     const handleEsc = (e) => {
       if (e.key === "Escape")
         onClose();
@@ -4207,7 +4204,7 @@ function ImageModal({ src, onClose }) {
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
   }, [onClose]);
-  return ce`
+  return fe`
         <${BodyPortal} className="image-modal-portal-root">
             <div class="image-modal" onClick=${onClose}>
                 <img src=${src} alt="Full size" />
@@ -4229,17 +4226,17 @@ function FilePill({
   const pillClass = `${prefix}-file-pill`;
   const nameClass = `${prefix}-file-name`;
   const removeClass = `${prefix}-file-remove`;
-  const iconSvg = icon === "message" ? ce`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  const iconSvg = icon === "message" ? fe`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-      </svg>` : ce`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      </svg>` : fe`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
         <polyline points="14 2 14 8 20 8"/>
       </svg>`;
-  return ce`
+  return fe`
     <span class=${pillClass} title=${title || label} onClick=${onClick}>
       ${iconSvg}
       <span class=${nameClass}>${label}</span>
-      ${onRemove && ce`
+      ${onRemove && fe`
         <button
           class=${removeClass}
           onClick=${(event) => {
@@ -4387,8 +4384,8 @@ function resolveLinkPreviewSiteName(siteName, safeUrl) {
 
 // web/src/components/post.ts
 function FileAttachment({ mediaId, onPreview }) {
-  const [info, setInfo] = M_(null);
-  J_(() => {
+  const [info, setInfo] = F_(null);
+  K_(() => {
     getMediaInfo(mediaId).then(setInfo).catch((error) => {
       console.warn("[post] Failed to load attachment metadata for file card:", mediaId, error);
     });
@@ -4400,7 +4397,7 @@ function FileAttachment({ mediaId, onPreview }) {
   const sizeStr = size ? formatFileSize(size) : "";
   const previewKind = getAttachmentPreviewKind(info.content_type, info.filename);
   const previewLabel = previewKind === "unsupported" ? "Details" : "Preview";
-  return ce`
+  return fe`
         <div class="file-attachment" onClick=${(e) => e.stopPropagation()}>
             <a href=${getMediaUrl(mediaId)} download=${filename} class="file-attachment-main">
                 <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -4413,8 +4410,8 @@ function FileAttachment({ mediaId, onPreview }) {
                 <div class="file-info">
                     <span class="file-name">${filename}</span>
                     <span class="file-meta-row">
-                        ${sizeStr && ce`<span class="file-size">${sizeStr}</span>`}
-                        ${info.content_type && ce`<span class="file-size">${info.content_type}</span>`}
+                        ${sizeStr && fe`<span class="file-size">${sizeStr}</span>`}
+                        ${info.content_type && fe`<span class="file-size">${info.content_type}</span>`}
                     </span>
                 </div>
                 <svg class="download-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -4472,8 +4469,8 @@ function formatTimeoutChipTooltip(marker) {
 }
 function AttachmentPill({ attachment, onPreview }) {
   const mediaId = Number(attachment?.id);
-  const [info, setInfo] = M_(null);
-  J_(() => {
+  const [info, setInfo] = F_(null);
+  K_(() => {
     if (!Number.isFinite(mediaId))
       return;
     getMediaInfo(mediaId).then(setInfo).catch((error) => {
@@ -4485,9 +4482,9 @@ function AttachmentPill({ attachment, onPreview }) {
   const downloadHref = Number.isFinite(mediaId) ? getMediaUrl(mediaId) : null;
   const previewKind = getAttachmentPreviewKind(info?.content_type, info?.filename || attachment?.label);
   const previewLabel = previewKind === "unsupported" ? "Details" : "Preview";
-  return ce`
+  return fe`
         <span class="attachment-pill" title=${filename}>
-            ${downloadHref ? ce`
+            ${downloadHref ? fe`
                     <a href=${downloadHref} download=${filename} class="attachment-pill-main" onClick=${(e) => e.stopPropagation()}>
                         <${FilePill}
                             prefix="post"
@@ -4495,14 +4492,14 @@ function AttachmentPill({ attachment, onPreview }) {
                             title=${filename}
                         />
                     </a>
-                ` : ce`
+                ` : fe`
                     <${FilePill}
                         prefix="post"
                         label=${attachment.label}
                         title=${filename}
                     />
                 `}
-            ${Number.isFinite(mediaId) && info && ce`
+            ${Number.isFinite(mediaId) && info && fe`
                 <button
                     class="attachment-pill-preview"
                     type="button"
@@ -4527,15 +4524,15 @@ function AnnotationsBadge({ annotations }) {
     return null;
   const { audience, priority, lastModified } = annotations;
   const formattedLastModified = lastModified ? formatTimestamp(lastModified) : null;
-  return ce`
+  return fe`
         <div class="content-annotations">
-            ${audience && audience.length > 0 && ce`
+            ${audience && audience.length > 0 && fe`
                 <span class="content-annotation">Audience: ${audience.join(", ")}</span>
             `}
-            ${typeof priority === "number" && ce`
+            ${typeof priority === "number" && fe`
                 <span class="content-annotation">Priority: ${priority}</span>
             `}
-            ${formattedLastModified && ce`
+            ${formattedLastModified && fe`
                 <span class="content-annotation">Updated: ${formattedLastModified}</span>
             `}
         </div>
@@ -4548,7 +4545,7 @@ function ResourceLinkBlock({ block }) {
   const mimeType = block.mime_type || "";
   const icon = getMimeIcon(mimeType);
   const safeUrl = sanitizeUrl(block.uri);
-  return ce`
+  return fe`
         <a
             href=${safeUrl || "#"}
             class="resource-link"
@@ -4560,10 +4557,10 @@ function ResourceLinkBlock({ block }) {
                     <span class="resource-link-icon-inline">${icon}</span>
                     <div class="resource-link-title">${name}</div>
                 </div>
-                ${description && ce`<div class="resource-link-description">${description}</div>`}
+                ${description && fe`<div class="resource-link-description">${description}</div>`}
                 <div class="resource-link-meta">
-                    ${mimeType && ce`<span>${mimeType}</span>`}
-                    ${sizeStr && ce`<span>${sizeStr}</span>`}
+                    ${mimeType && fe`<span>${mimeType}</span>`}
+                    ${sizeStr && fe`<span>${sizeStr}</span>`}
                 </div>
             </div>
             <div class="resource-link-icon">↗</div>
@@ -4571,12 +4568,12 @@ function ResourceLinkBlock({ block }) {
     `;
 }
 function ResourceBlock({ block }) {
-  const [open, setOpen] = M_(false);
+  const [open, setOpen] = F_(false);
   const title = block.uri || "Embedded resource";
   const contentText = block.text || "";
   const hasBlob = Boolean(block.data);
   const mimeType = block.mime_type || "";
-  return ce`
+  return fe`
         <div class="resource-embed">
             <button class="resource-embed-toggle" onClick=${(e) => {
     e.preventDefault();
@@ -4585,12 +4582,12 @@ function ResourceBlock({ block }) {
   }}>
                 ${open ? "▼" : "▶"} ${title}
             </button>
-            ${open && ce`
-                ${contentText && ce`<pre class="resource-embed-content">${contentText}</pre>`}
-                ${hasBlob && ce`
+            ${open && fe`
+                ${contentText && fe`<pre class="resource-embed-content">${contentText}</pre>`}
+                ${hasBlob && fe`
                     <div class="resource-embed-blob">
                         <span class="resource-embed-blob-label">Embedded blob</span>
-                        ${mimeType && ce`<span class="resource-embed-blob-meta">${mimeType}</span>`}
+                        ${mimeType && fe`<span class="resource-embed-blob-meta">${mimeType}</span>`}
                         <button class="resource-embed-blob-btn" onClick=${(e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -4617,7 +4614,7 @@ function GeneratedWidgetLaunch({ block, post, onOpenWidget }) {
   const title = payload?.title || block.title || block.name || "Generated widget";
   const description = payload?.description || block.description || block.subtitle || "";
   const openLabel = block.open_label || "Open widget";
-  const autoOpened = K_(false);
+  const autoOpened = Q_(false);
   const launchWidget = (e) => {
     if (e) {
       e.preventDefault();
@@ -4627,7 +4624,7 @@ function GeneratedWidgetLaunch({ block, post, onOpenWidget }) {
       return;
     onOpenWidget?.(payload);
   };
-  J_(() => {
+  K_(() => {
     if (!block?.auto_open || !payload || !supportsRender || autoOpened.current)
       return;
     const postTime = post?.timestamp ? new Date(post.timestamp).getTime() : 0;
@@ -4640,13 +4637,13 @@ function GeneratedWidgetLaunch({ block, post, onOpenWidget }) {
     writeSessionStorageFlagBestEffort(sessionStorage, key, "1");
     onOpenWidget?.(payload);
   }, [block?.auto_open, payload, supportsRender]);
-  return ce`
+  return fe`
         <div class="generated-widget-launch" onClick=${(e) => e.stopPropagation()}>
             <div class="generated-widget-launch-header">
                 <div class="generated-widget-launch-eyebrow">Generated widget${kind ? ` • ${String(kind).toUpperCase()}` : ""}</div>
                 <div class="generated-widget-launch-title">${title}</div>
             </div>
-            ${description && ce`<div class="generated-widget-launch-description">${description}</div>`}
+            ${description && fe`<div class="generated-widget-launch-description">${description}</div>`}
             <div class="generated-widget-launch-actions">
                 <button
                     class="generated-widget-launch-btn"
@@ -4689,7 +4686,7 @@ function LinkPreview({ preview }) {
   const safeUrl = sanitizeUrl(preview.url);
   const bgStyle = buildLinkPreviewBackgroundStyle(preview.image);
   const siteName = resolveLinkPreviewSiteName(preview.site_name, safeUrl);
-  return ce`
+  return fe`
         <a
             href=${safeUrl || "#"}
             class="link-preview ${bgStyle ? "has-image" : ""}"
@@ -4700,7 +4697,7 @@ function LinkPreview({ preview }) {
             <div class="link-preview-overlay">
                 <div class="link-preview-site">${siteName || ""}</div>
                 <div class="link-preview-title">${preview.title}</div>
-                ${preview.description && ce`
+                ${preview.description && fe`
                     <div class="link-preview-description">${preview.description}</div>
                 `}
             </div>
@@ -5075,10 +5072,10 @@ function highlightHtml(html, query) {
   return doc.body.innerHTML;
 }
 function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, agentName, agentAvatarUrl, userName, userAvatarUrl, userAvatarBackground, onDelete, isThreadReply, isThreadPrev, isThreadNext, isRemoving, highlightQuery, onFileRef, onOpenWidget, onOpenAttachmentPreview }) {
-  const [zoomedImage, setZoomedImage] = M_(null);
-  const [copyState, setCopyState] = M_("idle");
-  const contentRef = K_(null);
-  const copyResetTimerRef = K_(null);
+  const [zoomedImage, setZoomedImage] = F_(null);
+  const [copyState, setCopyState] = F_("idle");
+  const contentRef = Q_(null);
+  const copyResetTimerRef = Q_(null);
   const data = post.data;
   const isAgent = data.type === "agent_response";
   const resolvedUserName = userName || "You";
@@ -5237,18 +5234,18 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
   const cardBlocksKey = u_(() => {
     return cardBlocks.map((b) => `${b.card_id}:${b.state}`).join("|");
   }, [cardBlocks]);
-  J_(() => {
+  K_(() => {
     if (!contentRef.current)
       return;
     renderMermaidDiagrams(contentRef.current);
     return enhanceCodeBlocks(contentRef.current);
   }, [renderedHtml]);
-  J_(() => () => {
+  K_(() => () => {
     if (copyResetTimerRef.current)
       clearTimeout(copyResetTimerRef.current);
   }, []);
-  const cardContainerRef = K_(null);
-  J_(() => {
+  const cardContainerRef = Q_(null);
+  K_(() => {
     if (!cardContainerRef.current || cardBlocks.length === 0)
       return;
     const container = cardContainerRef.current;
@@ -5287,10 +5284,10 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
       });
     }
   }, [cardBlocksKey, post.id]);
-  return ce`
+  return fe`
         <div id=${`post-${post.id}`} class="post ${isAgent ? "agent-post" : ""} ${isThreadReply ? "thread-reply" : ""} ${isThreadPrev ? "thread-prev" : ""} ${isThreadNext ? "thread-next" : ""} ${isRemoving ? "removing" : ""}" onClick=${onClick}>
             <div class="post-avatar ${isAgent ? "agent-avatar" : ""} ${avatarInfo.image ? "has-image" : ""}" style=${avatarStyle}>
-                ${avatarInfo.image ? ce`<img src=${avatarInfo.image} alt=${displayName} />` : avatarInfo.letter}
+                ${avatarInfo.image ? fe`<img src=${avatarInfo.image} alt=${displayName} />` : avatarInfo.letter}
             </div>
             <div class="post-body">
                 <div class="post-actions">
@@ -5302,7 +5299,7 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                         onClick=${handleCopyMarkdownClick}
                         disabled=${!markdownCopyPayload}
                     >
-                        ${copyState === "success" ? ce`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6L9 17l-5-5"></path></svg>` : copyState === "error" ? ce`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>` : ce`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="10" height="10" rx="2"></rect><path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path></svg>`}
+                        ${copyState === "success" ? fe`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 6L9 17l-5-5"></path></svg>` : copyState === "error" ? fe`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>` : fe`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="9" width="10" height="10" rx="2"></rect><path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path></svg>`}
                     </button>
                     <button
                         class="post-action-btn post-delete-btn"
@@ -5318,8 +5315,8 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                 </div>
                 <div class="post-meta">
                     <span class="post-author">${displayName}</span>
-                    ${showSearchChatAgentTag && ce`<span class="post-chat-agent-tag" title=${`Chat: ${searchChatAgentName}`}>@${searchChatAgentName}</span>`}
-                    ${recoveryMarker && ce`
+                    ${showSearchChatAgentTag && fe`<span class="post-chat-agent-tag" title=${`Chat: ${searchChatAgentName}`}>@${searchChatAgentName}</span>`}
+                    ${recoveryMarker && fe`
                         <span
                             class="post-recovery-chip"
                             title=${formatRecoveryChipTooltip(recoveryMarker)}
@@ -5327,7 +5324,7 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                             recovered
                         </span>
                     `}
-                    ${timeoutMarker && ce`
+                    ${timeoutMarker && fe`
                         <span
                             class="post-recovery-chip post-timeout-chip"
                             title=${formatTimeoutChipTooltip(timeoutMarker)}
@@ -5342,16 +5339,16 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
       onMessageRef(post.id);
   }}>${formatTime(post.timestamp)}</a>
                 </div>
-                ${isHardTruncated && truncatedInfo && ce`
+                ${isHardTruncated && truncatedInfo && fe`
                     <div class="post-content truncated">
                         <div class="truncated-title">Message too large to display.</div>
                         <div class="truncated-meta">
                             Original length: ${formatCount(truncatedInfo.originalLength)} chars
-                            ${truncatedInfo.maxLength ? ce` • Display limit: ${formatCount(truncatedInfo.maxLength)} chars` : ""}
+                            ${truncatedInfo.maxLength ? fe` • Display limit: ${formatCount(truncatedInfo.maxLength)} chars` : ""}
                         </div>
                     </div>
                 `}
-                ${isPreview && truncatedInfo && ce`
+                ${isPreview && truncatedInfo && fe`
                     <div class="post-content preview">
                         <div class="truncated-title">Preview truncated.</div>
                         <div class="truncated-meta">
@@ -5359,7 +5356,7 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                         </div>
                     </div>
                 `}
-                ${(fileRefs.length > 0 || messageRefs.length > 0 || attachmentPills.length > 0) && ce`
+                ${(fileRefs.length > 0 || messageRefs.length > 0 || attachmentPills.length > 0) && fe`
                     <div class="post-file-refs">
                         ${messageRefs.map((id) => {
     const scrollToRef = (e) => {
@@ -5376,7 +5373,7 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
         }
       }
     };
-    return ce`
+    return fe`
                                 <a href=${`#msg-${id}`} class="post-msg-pill-link" onClick=${scrollToRef}>
                                     <${FilePill}
                                         prefix="post"
@@ -5390,7 +5387,7 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
   })}
                         ${fileRefs.map((ref) => {
     const label = ref.split("/").pop() || ref;
-    return ce`
+    return fe`
                                 <${FilePill}
                                     prefix="post"
                                     label=${label}
@@ -5399,7 +5396,7 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                                 />
                             `;
   })}
-                        ${attachmentPills.map((attachment) => ce`
+                        ${attachmentPills.map((attachment) => fe`
                             <${AttachmentPill}
                                 key=${attachment.id}
                                 attachment=${attachment}
@@ -5408,7 +5405,7 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                         `)}
                     </div>
                 `}
-                ${shouldRenderContent && ce`
+                ${shouldRenderContent && fe`
                     <div 
                         ref=${contentRef}
                         class="post-content"
@@ -5428,15 +5425,15 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
   }}
                     />
                 `}
-                ${cardBlocks.length > 0 && ce`
+                ${cardBlocks.length > 0 && fe`
                     <div ref=${cardContainerRef} class="post-adaptive-cards" />
                 `}
-                ${cardSubmissionBlocks.length > 0 && ce`
+                ${cardSubmissionBlocks.length > 0 && fe`
                     <div class="post-adaptive-card-submissions">
                         ${cardSubmissionBlocks.map((block, idx) => {
     const meta = describeAdaptiveCardSubmission(block);
     const submissionKey = `${block.card_id}-${idx}`;
-    return ce`
+    return fe`
                                 <div key=${submissionKey} class="adaptive-card-submission-receipt">
                                     <div class="adaptive-card-submission-header">
                                         <span class="adaptive-card-submission-icon" aria-hidden="true">✓</span>
@@ -5445,9 +5442,9 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                                             <span class="adaptive-card-submission-title-action">${meta.title}</span>
                                         </div>
                                     </div>
-                                    ${meta.fields.length > 0 && ce`
+                                    ${meta.fields.length > 0 && fe`
                                         <div class="adaptive-card-submission-fields">
-                                            ${meta.fields.map((field) => ce`
+                                            ${meta.fields.map((field) => fe`
                                                 <span class="adaptive-card-submission-field" title=${`${field.key}: ${field.value}`}>
                                                     <span class="adaptive-card-submission-field-key">${field.key}</span>
                                                     <span class="adaptive-card-submission-field-sep">:</span>
@@ -5464,9 +5461,9 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
   })}
                     </div>
                 `}
-                ${generatedWidgets.length > 0 && ce`
+                ${generatedWidgets.length > 0 && fe`
                     <div class="generated-widget-launches">
-                        ${generatedWidgets.map((block, idx) => ce`
+                        ${generatedWidgets.map((block, idx) => fe`
                             <${GeneratedWidgetLaunch}
                                 key=${block.widget_id || block.id || `${post.id}-widget-${idx}`}
                                 block=${block}
@@ -5476,17 +5473,17 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                         `)}
                     </div>
                 `}
-                ${textAnnotations.length > 0 && ce`
-                    ${textAnnotations.map((annotations, idx) => ce`
+                ${textAnnotations.length > 0 && fe`
+                    ${textAnnotations.map((annotations, idx) => fe`
                         <${AnnotationsBadge} key=${idx} annotations=${annotations} />
                     `)}
                 `}
-                ${filteredImageItems.length > 0 && ce`
+                ${filteredImageItems.length > 0 && fe`
                     <div class="media-preview">
                         ${filteredImageItems.map(({ id, mimeType }) => {
     const isSvg = typeof mimeType === "string" && mimeType.toLowerCase().startsWith("image/svg");
     const imageSrc = isSvg ? getMediaUrl(id) : getThumbnailUrl(id);
-    return ce`
+    return fe`
                                 <img 
                                     key=${id} 
                                     src=${imageSrc} 
@@ -5499,21 +5496,21 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
   })}
                     </div>
                 `}
-                ${filteredImageItems.length > 0 && ce`
-                    ${filteredImageItems.map(({ annotations }, idx) => ce`
-                        ${annotations && ce`<${AnnotationsBadge} key=${idx} annotations=${annotations} />`}
+                ${filteredImageItems.length > 0 && fe`
+                    ${filteredImageItems.map(({ annotations }, idx) => fe`
+                        ${annotations && fe`<${AnnotationsBadge} key=${idx} annotations=${annotations} />`}
                     `)}
                 `}
-                ${filteredFileIds.length > 0 && ce`
+                ${filteredFileIds.length > 0 && fe`
                     <div class="file-attachments">
-                        ${filteredFileIds.map((id) => ce`
+                        ${filteredFileIds.map((id) => fe`
                             <${FileAttachment} key=${id} mediaId=${id} onPreview=${handleAttachmentPreview} />
                         `)}
                     </div>
                 `}
-                ${resourceLinks.length > 0 && ce`
+                ${resourceLinks.length > 0 && fe`
                     <div class="resource-links">
-                        ${resourceLinks.map((block, idx) => ce`
+                        ${resourceLinks.map((block, idx) => fe`
                             <div key=${idx}>
                                 <${ResourceLinkBlock} block=${block} />
                                 <${AnnotationsBadge} annotations=${block.annotations} />
@@ -5521,9 +5518,9 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                         `)}
                     </div>
                 `}
-                ${resources.length > 0 && ce`
+                ${resources.length > 0 && fe`
                     <div class="resource-embeds">
-                        ${resources.map((block, idx) => ce`
+                        ${resources.map((block, idx) => fe`
                             <div key=${idx}>
                                 <${ResourceBlock} block=${block} />
                                 <${AnnotationsBadge} annotations=${block.annotations} />
@@ -5531,26 +5528,26 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                         `)}
                     </div>
                 `}
-                ${data.link_previews?.length > 0 && ce`
+                ${data.link_previews?.length > 0 && fe`
                     <div class="link-previews">
-                        ${data.link_previews.map((preview, i) => ce`
+                        ${data.link_previews.map((preview, i) => fe`
                             <${LinkPreview} key=${i} preview=${preview} />
                         `)}
                     </div>
                 `}
             </div>
         </div>
-        ${zoomedImage && ce`<${ImageModal} src=${zoomedImage} onClose=${() => setZoomedImage(null)} />`}
+        ${zoomedImage && fe`<${ImageModal} src=${zoomedImage} onClose=${() => setZoomedImage(null)} />`}
 
     `;
 }
 
 // web/src/components/timeline.ts
 function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onMessageRef, onScrollToMessage, onFileRef, onOpenWidget, onOpenAttachmentPreview, emptyMessage, timelineRef, agents, user, onDeletePost, reverse = true, removingPostIds, searchQuery }) {
-  const [loadingMore, setLoadingMore] = M_(false);
-  const sentinelRef = K_(null);
+  const [loadingMore, setLoadingMore] = F_(false);
+  const sentinelRef = Q_(null);
   const hasIntersectionObserver = typeof IntersectionObserver !== "undefined";
-  const triggerLoadMore = X_(async () => {
+  const triggerLoadMore = Y_(async () => {
     if (!onLoadMore || !hasMore || loadingMore)
       return;
     setLoadingMore(true);
@@ -5560,7 +5557,7 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
       setLoadingMore(false);
     }
   }, [hasMore, loadingMore, onLoadMore]);
-  const handleScroll = X_((e) => {
+  const handleScroll = Y_((e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
     const distanceFromTop = reverse ? scrollHeight - clientHeight - scrollTop : scrollTop;
     const prefetchThreshold = Math.max(300, clientHeight);
@@ -5568,7 +5565,7 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
       triggerLoadMore();
     }
   }, [reverse, triggerLoadMore]);
-  J_(() => {
+  K_(() => {
     if (!hasIntersectionObserver)
       return;
     const sentinel = sentinelRef.current;
@@ -5590,9 +5587,9 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasIntersectionObserver, hasMore, onLoadMore, timelineRef, triggerLoadMore]);
-  const triggerLoadMoreRef = K_(triggerLoadMore);
+  const triggerLoadMoreRef = Q_(triggerLoadMore);
   triggerLoadMoreRef.current = triggerLoadMore;
-  J_(() => {
+  K_(() => {
     if (hasIntersectionObserver)
       return;
     if (!timelineRef?.current)
@@ -5604,7 +5601,7 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
       triggerLoadMoreRef.current?.();
     }
   }, [hasIntersectionObserver, posts, hasMore, reverse, timelineRef]);
-  J_(() => {
+  K_(() => {
     if (!timelineRef?.current)
       return;
     if (!hasMore || loadingMore)
@@ -5617,10 +5614,10 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     }
   }, [posts, hasMore, loadingMore, reverse, timelineRef]);
   if (!posts) {
-    return ce`<div class="loading"><div class="spinner"></div></div>`;
+    return fe`<div class="loading"><div class="spinner"></div></div>`;
   }
   if (posts.length === 0) {
-    return ce`
+    return fe`
             <div class="timeline" ref=${timelineRef}>
                 <div class="timeline-content">
                     <div style="padding: var(--spacing-xl); text-align: center; color: var(--text-secondary)">
@@ -5677,8 +5674,8 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
       hasThreadNext: position < sequence.length - 1
     };
   });
-  const sentinel = ce`<div class="timeline-sentinel" ref=${sentinelRef}></div>`;
-  return ce`
+  const sentinel = fe`<div class="timeline-sentinel" ref=${sentinelRef}></div>`;
+  return fe`
         <div class="timeline ${reverse ? "reverse" : "normal"}" ref=${timelineRef} onScroll=${handleScroll}>
             <div class="timeline-content">
                 ${reverse ? sentinel : null}
@@ -5686,7 +5683,7 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     const isThreadReply = Boolean(post.data?.thread_id && post.data.thread_id !== post.id);
     const isRemoving = removingPostIds?.has?.(post.id);
     const threadInfo = threadInfoByIndex[index] || {};
-    return ce`
+    return fe`
                     <${Post}
                         key=${post.id}
                         post=${post}
@@ -6278,9 +6275,9 @@ function resolveConnectionStatusPresentation(status, options = {}) {
 }
 function useConnectionStatusPresentation(status, options = {}) {
   const delayMs = Number.isFinite(Number(options?.delayMs)) ? Math.max(0, Number(options.delayMs)) : RECONNECTING_HINT_DELAY_MS;
-  const [disconnectedAtMs, setDisconnectedAtMs] = M_(null);
-  const [displayNowMs, setDisplayNowMs] = M_(() => Date.now());
-  J_(() => {
+  const [disconnectedAtMs, setDisconnectedAtMs] = F_(null);
+  const [displayNowMs, setDisplayNowMs] = F_(() => Date.now());
+  K_(() => {
     if (status === "disconnected") {
       const startedAt = Date.now();
       setDisconnectedAtMs((previous) => previous ?? startedAt);
@@ -6290,7 +6287,7 @@ function useConnectionStatusPresentation(status, options = {}) {
     setDisconnectedAtMs(null);
     setDisplayNowMs(Date.now());
   }, [status]);
-  J_(() => {
+  K_(() => {
     if (status !== "disconnected" || disconnectedAtMs === null)
       return;
     const remainingMs = delayMs - (Date.now() - disconnectedAtMs);
@@ -6488,7 +6485,7 @@ function ContextPie({ usage, onCompact }) {
   const r = 9;
   const circ = 2 * Math.PI * r;
   const filled = pct / 100 * circ;
-  return ce`
+  return fe`
         <button
             class="compose-context-pie icon-btn"
             type="button"
@@ -6824,7 +6821,7 @@ function QueuedFollowupStack({
 }) {
   if (!Array.isArray(items) || items.length === 0)
     return null;
-  return ce`
+  return fe`
         <div class="compose-queue-stack">
             ${items.map((item, index) => {
     const rowText = typeof item?.content === "string" ? item.content : "";
@@ -6833,13 +6830,13 @@ function QueuedFollowupStack({
       return null;
     const canMoveUp = index > 0;
     const canMoveDown = index < items.length - 1;
-    return ce`
+    return fe`
                     <div class="compose-queue-stack-item" role="listitem" data-queue-id=${item.id} aria-busy=${item.pending ? "true" : "false"}>
                         <div class="compose-queue-stack-content" title=${rowText}>
-                            ${parsed.text.trim() && ce`<div class="compose-queue-stack-text">${parsed.text}</div>`}
-                            ${(parsed.messageRefs.length > 0 || parsed.fileRefs.length > 0 || parsed.attachmentRefs.length > 0) && ce`
+                            ${parsed.text.trim() && fe`<div class="compose-queue-stack-text">${parsed.text}</div>`}
+                            ${(parsed.messageRefs.length > 0 || parsed.fileRefs.length > 0 || parsed.attachmentRefs.length > 0) && fe`
                                 <div class="compose-queue-stack-refs">
-                                    ${parsed.messageRefs.map((id) => ce`
+                                    ${parsed.messageRefs.map((id) => fe`
                                         <${FilePill}
                                             key=${"queue-msg-" + id}
                                             prefix="compose"
@@ -6850,7 +6847,7 @@ function QueuedFollowupStack({
                                     `)}
                                     ${parsed.fileRefs.map((path) => {
       const label = path.split("/").pop() || path;
-      return ce`
+      return fe`
                                             <${FilePill}
                                                 key=${"queue-file-" + path}
                                                 prefix="compose"
@@ -6860,7 +6857,7 @@ function QueuedFollowupStack({
                                             />
                                         `;
     })}
-                                    ${parsed.attachmentRefs.map((attachment) => ce`
+                                    ${parsed.attachmentRefs.map((attachment) => fe`
                                         <${FilePill}
                                             key=${"queue-attachment-" + attachment.id}
                                             prefix="compose"
@@ -6872,7 +6869,7 @@ function QueuedFollowupStack({
                             `}
                         </div>
                         <div class="compose-queue-stack-actions" role="group" aria-label="Queued follow-up controls">
-                            ${items.length > 1 && ce`
+                            ${items.length > 1 && fe`
                                 <button
                                     class="compose-queue-stack-move-btn"
                                     type="button"
@@ -6898,12 +6895,12 @@ function QueuedFollowupStack({
                                     </svg>
                                 </button>
                             `}
-                            ${typeof onReturnQueuedFollowup === "function" && ce`
+                            ${typeof onReturnQueuedFollowup === "function" && fe`
                                 <button type="button" class="compose-queue-stack-move-btn"
                                     title="Return to editor" aria-label="Return queued message to editor"
                                     disabled=${busy || item.pending} onClick=${() => onReturnQueuedFollowup(item)}>Return</button>
                             `}
-                            ${typeof onInjectQueuedFollowup === "function" && ce`<button
+                            ${typeof onInjectQueuedFollowup === "function" && fe`<button
                                 class="compose-queue-stack-steer-btn"
                                 type="button"
                                 title="Inject queued follow-up as steer"
@@ -7006,54 +7003,54 @@ function ComposeBox({
   onDraftStorageError,
   focusRestoredDraft = false
 }) {
-  const [content, setContent] = M_(draftValue);
-  const mountedRef = K_(true);
-  F_(() => () => {
+  const [content, setContent] = F_(draftValue);
+  const mountedRef = Q_(true);
+  W_(() => () => {
     mountedRef.current = false;
   }, []);
-  const [searchText, setSearchText] = M_("");
-  const [mediaFiles, setMediaFiles] = M_(draftMediaFiles);
-  const [isDragActive, setIsDragActive] = M_(false);
-  const [slashMatches, setSlashMatches] = M_([]);
-  const [slashIndex, setSlashIndex] = M_(0);
-  const [showSlash, setShowSlash] = M_(false);
-  const dynamicCommandsRef = K_(null);
-  const [mentionMatches, setMentionMatches] = M_([]);
-  const [mentionIndex, setMentionIndex] = M_(0);
-  const [showMention, setShowMention] = M_(false);
-  const [switchingModel, setSwitchingModel] = M_(false);
-  const [showModelPopup, setShowModelPopup] = M_(false);
-  const [showSessionPopup, setShowSessionPopup] = M_(false);
-  const [modelOptions, setModelOptions] = M_([]);
-  const [modelPopupIndex, setModelPopupIndex] = M_(0);
-  const [sessionPopupIndex, setSessionPopupIndex] = M_(0);
-  const [sessionPopupQuery, setSessionPopupQuery] = M_("");
-  const [sessionMutationPending, setSessionMutationPending] = M_("");
-  const [sessionMutationError, setSessionMutationError] = M_("");
-  const [sessionMutationNotice, setSessionMutationNotice] = M_("");
-  const [sessionEdit, setSessionEdit] = M_(null);
-  const sessionMutationLock = K_(false);
-  const sessionPopupEpoch = K_(0);
-  const sessionEditRef = K_(null);
-  const [loadingModels, setLoadingModels] = M_(false);
-  const [footerWidth, setFooterWidth] = M_(0);
-  const [submitError, setSubmitError] = M_(null);
-  const [submitNotice, setSubmitNotice] = M_(null);
-  const [statusNoticeNowMs, setStatusNoticeNowMs] = M_(() => Date.now());
-  const [extensionWorkingFrameIndex, setExtensionWorkingFrameIndex] = M_(0);
-  const textareaRef = K_(null);
-  const slashRef = K_(null);
-  const mentionRef = K_(null);
-  const modelPopupRef = K_(null);
-  const modelHintRef = K_(null);
-  const sessionPopupRef = K_(null);
-  const sessionTriggerRef = K_(null);
-  const sessionSearchRef = K_(null);
-  const sessionReturnFocusRef = K_(null);
-  const footerRef = K_(null);
-  const popupTypeaheadRef = K_({ value: "", updatedAt: 0 });
-  const dragCounterRef = K_(0);
-  const renameSessionInProgressRef = K_(false);
+  const [searchText, setSearchText] = F_("");
+  const [mediaFiles, setMediaFiles] = F_(draftMediaFiles);
+  const [isDragActive, setIsDragActive] = F_(false);
+  const [slashMatches, setSlashMatches] = F_([]);
+  const [slashIndex, setSlashIndex] = F_(0);
+  const [showSlash, setShowSlash] = F_(false);
+  const dynamicCommandsRef = Q_(null);
+  const [mentionMatches, setMentionMatches] = F_([]);
+  const [mentionIndex, setMentionIndex] = F_(0);
+  const [showMention, setShowMention] = F_(false);
+  const [switchingModel, setSwitchingModel] = F_(false);
+  const [showModelPopup, setShowModelPopup] = F_(false);
+  const [showSessionPopup, setShowSessionPopup] = F_(false);
+  const [modelOptions, setModelOptions] = F_([]);
+  const [modelPopupIndex, setModelPopupIndex] = F_(0);
+  const [sessionPopupIndex, setSessionPopupIndex] = F_(0);
+  const [sessionPopupQuery, setSessionPopupQuery] = F_("");
+  const [sessionMutationPending, setSessionMutationPending] = F_("");
+  const [sessionMutationError, setSessionMutationError] = F_("");
+  const [sessionMutationNotice, setSessionMutationNotice] = F_("");
+  const [sessionEdit, setSessionEdit] = F_(null);
+  const sessionMutationLock = Q_(false);
+  const sessionPopupEpoch = Q_(0);
+  const sessionEditRef = Q_(null);
+  const [loadingModels, setLoadingModels] = F_(false);
+  const [footerWidth, setFooterWidth] = F_(0);
+  const [submitError, setSubmitError] = F_(null);
+  const [submitNotice, setSubmitNotice] = F_(null);
+  const [statusNoticeNowMs, setStatusNoticeNowMs] = F_(() => Date.now());
+  const [extensionWorkingFrameIndex, setExtensionWorkingFrameIndex] = F_(0);
+  const textareaRef = Q_(null);
+  const slashRef = Q_(null);
+  const mentionRef = Q_(null);
+  const modelPopupRef = Q_(null);
+  const modelHintRef = Q_(null);
+  const sessionPopupRef = Q_(null);
+  const sessionTriggerRef = Q_(null);
+  const sessionSearchRef = Q_(null);
+  const sessionReturnFocusRef = Q_(null);
+  const footerRef = Q_(null);
+  const popupTypeaheadRef = Q_({ value: "", updatedAt: 0 });
+  const dragCounterRef = Q_(0);
+  const renameSessionInProgressRef = Q_(false);
   const historyMax = 200;
   const historyStorageKey = getComposeHistoryStorageKey(currentChatJid);
   const normaliseHistory = (items) => {
@@ -7086,16 +7083,16 @@ function ComposeBox({
   const saveHistory = (history, storageKey = historyStorageKey) => {
     setLocalStorageItem(storageKey, JSON.stringify(history));
   };
-  const historyRef = K_(loadHistory(historyStorageKey));
-  const historyIndexRef = K_(-1);
-  const historyDraftRef = K_("");
-  const lastPrefillTokenRef = K_("");
-  J_(() => {
+  const historyRef = Q_(loadHistory(historyStorageKey));
+  const historyIndexRef = Q_(-1);
+  const historyDraftRef = Q_("");
+  const lastPrefillTokenRef = Q_("");
+  K_(() => {
     historyRef.current = loadHistory(historyStorageKey);
     historyIndexRef.current = -1;
     historyDraftRef.current = "";
   }, [historyStorageKey]);
-  J_(() => {
+  K_(() => {
     let cancelled = false;
     const chatJid = currentChatJid || "web:default";
     fetch(`/agent/commands?chat_jid=${encodeURIComponent(chatJid)}`).then((r) => r.ok ? r.json() : null).then((data) => {
@@ -7112,7 +7109,7 @@ function ComposeBox({
       cancelled = true;
     };
   }, [currentChatJid]);
-  J_(() => {
+  K_(() => {
     const resolved = resolveComposePrefillRequest(prefillRequest, lastPrefillTokenRef.current, searchMode);
     if (!resolved.shouldApply)
       return;
@@ -7135,17 +7132,17 @@ function ComposeBox({
       textarea.setSelectionRange?.(end, end);
     });
   }, [prefillRequest, searchMode]);
-  F_(() => {
+  W_(() => {
     onContentChange?.(content);
   }, [content]);
-  F_(() => {
+  W_(() => {
     onDraftMediaChange?.(mediaFiles);
   }, [mediaFiles]);
-  F_(() => {
+  W_(() => {
     if (focusRestoredDraft)
       textareaRef.current?.focus();
   }, []);
-  const latestDraftRef = K_(null);
+  const latestDraftRef = Q_(null);
   latestDraftRef.current = { text: content, media: mediaFiles, fileRefs, messageRefs };
   const canSend = content.trim() || mediaFiles.length > 0 || fileRefs.length > 0 || messageRefs.length > 0;
   const canShareLocation = typeof window !== "undefined" && typeof navigator !== "undefined" && Boolean(window.isSecureContext) && typeof navigator.geolocation?.getCurrentPosition === "function";
@@ -7514,8 +7511,8 @@ function ComposeBox({
         setSubmitError(`Model catalogue failed: ${error.message}`);
     }
   };
-  const modelMutationRef = K_(false);
-  const modelRevisionRef = K_(0);
+  const modelMutationRef = Q_(false);
+  const modelRevisionRef = Q_(0);
   const handleSelectModel = async (modelOption) => {
     const modelLabel = typeof modelOption === "string" ? modelOption : modelOption?.label;
     if (!modelLabel || modelMutationRef.current)
@@ -7754,7 +7751,7 @@ ${mediaIds.map((id, index) => {
   const handleInjectQueuedFollowup = (queuedItem) => {
     onInjectQueuedFollowup?.(queuedItem);
   };
-  const handlePopupKeyboardEvent = X_((e) => {
+  const handlePopupKeyboardEvent = Y_((e) => {
     if (searchMode || !showModelPopup && !showSessionPopup || e?.isComposing)
       return false;
     const consume = () => {
@@ -8103,7 +8100,7 @@ ${mediaIds.map((id, index) => {
       alert(`Location error: ${message}`);
     }, { enableHighAccuracy: true, timeout: 1e4, maximumAge: 0 });
   };
-  J_(() => {
+  K_(() => {
     if (!showModelPopup)
       return;
     popupTypeaheadRef.current = { value: "", updatedAt: 0 };
@@ -8128,7 +8125,7 @@ ${mediaIds.map((id, index) => {
       active = false;
     };
   }, [showModelPopup, activeModel]);
-  J_(() => {
+  K_(() => {
     if (searchMode) {
       setShowModelPopup(false);
       setShowSessionPopup(false);
@@ -8138,27 +8135,27 @@ ${mediaIds.map((id, index) => {
       setMentionMatches([]);
     }
   }, [searchMode]);
-  J_(() => {
+  K_(() => {
     if (showSessionPopup && !showSessionSwitcherButton) {
       setShowSessionPopup(false);
     }
   }, [showSessionPopup, showSessionSwitcherButton]);
-  J_(() => {
+  K_(() => {
     if (!showModelPopup)
       return;
     const activeIndex = modelOptions.findIndex((model) => model?.label === activeModel);
     setModelPopupIndex(activeIndex >= 0 ? activeIndex : 0);
   }, [showModelPopup, modelOptions, activeModel]);
-  J_(() => {
+  K_(() => {
     if (!showSessionPopup)
       return;
     const preferred = resolveSessionPickerSearchInitialIndex(orderedSessionChats, sessionPopupQuery);
     setSessionPopupIndex(sessionPopupEntries[preferred]?.disabled ? findFirstEnabledPopupIndex(sessionPopupEntries) : preferred);
   }, [showSessionPopup, currentChatJid, sessionPopupQuery]);
-  J_(() => {
+  K_(() => {
     setSessionPopupIndex((index) => Math.max(0, Math.min(index, sessionPopupEntries.length - 1)));
   }, [sessionPopupEntries.length]);
-  J_(() => {
+  K_(() => {
     if (!showModelPopup)
       return;
     const onPointerDown = (event) => {
@@ -8174,7 +8171,7 @@ ${mediaIds.map((id, index) => {
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [showModelPopup]);
-  J_(() => {
+  K_(() => {
     if (!showSessionPopup)
       return;
     const onPointerDown = (event) => {
@@ -8190,7 +8187,7 @@ ${mediaIds.map((id, index) => {
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [showSessionPopup]);
-  F_(() => {
+  W_(() => {
     if (searchMode || !showModelPopup && !showSessionPopup)
       return;
     const onKeyDown = (event) => {
@@ -8199,18 +8196,18 @@ ${mediaIds.map((id, index) => {
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
   }, [searchMode, showModelPopup, showSessionPopup, handlePopupKeyboardEvent]);
-  F_(() => {
+  W_(() => {
     if (showModelPopup)
       modelPopupRef.current?.focus();
   }, [showModelPopup]);
-  J_(() => {
+  K_(() => {
     if (!showModelPopup)
       return;
     const popup = modelPopupRef.current;
     const active = popup?.querySelector?.(".compose-model-popup-item.active");
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showModelPopup, modelPopupIndex, modelOptions]);
-  F_(() => {
+  W_(() => {
     ++sessionPopupEpoch.current;
     if (showSessionPopup)
       sessionSearchRef.current?.focus();
@@ -8218,31 +8215,31 @@ ${mediaIds.map((id, index) => {
       ++sessionPopupEpoch.current;
     };
   }, [showSessionPopup]);
-  F_(() => {
+  W_(() => {
     if (sessionEdit)
       sessionEditRef.current?.focus();
   }, [sessionEdit?.chat.chat_jid, sessionEdit?.action]);
-  J_(() => {
+  K_(() => {
     if (!showSessionPopup)
       return;
     const active = sessionPopupRef.current?.querySelector("[data-session-entry-key].active");
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showSessionPopup, sessionPopupIndex, sessionPopupEntries.length]);
-  J_(() => {
+  K_(() => {
     if (!showMention || !mentionRef.current)
       return;
     const popup = mentionRef.current;
     const active = popup.querySelector?.(".slash-item.active");
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showMention, mentionIndex, mentionMatches.length]);
-  J_(() => {
+  K_(() => {
     if (!showSlash || !slashRef.current)
       return;
     const popup = slashRef.current;
     const active = popup.querySelector?.(".slash-item.active");
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showSlash, slashIndex, slashMatches.length]);
-  J_(() => {
+  K_(() => {
     const updateFooterWidth = () => {
       const width = footerRef.current?.clientWidth || 0;
       setFooterWidth((current) => current === width ? current : width);
@@ -8286,17 +8283,17 @@ ${mediaIds.map((id, index) => {
     resizeTextarea(e.target);
     updateValue(value);
   };
-  J_(() => {
+  K_(() => {
     requestAnimationFrame(() => resizeTextarea());
   }, [content, searchText, searchMode]);
-  J_(() => {
+  K_(() => {
     if (!statusNoticeIsCompaction)
       return;
     setStatusNoticeNowMs(Date.now());
     const timer = setInterval(() => setStatusNoticeNowMs(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [statusNoticeIsCompaction, statusNotice?.started_at, statusNotice?.startedAt]);
-  J_(() => {
+  K_(() => {
     setExtensionWorkingFrameIndex(0);
     if (extensionWorkingIndicator?.mode !== "custom" || !Array.isArray(extensionWorkingIndicator.frames) || extensionWorkingIndicator.frames.length <= 1) {
       return;
@@ -8307,14 +8304,14 @@ ${mediaIds.map((id, index) => {
     }, intervalMs);
     return () => clearInterval(timer);
   }, [extensionWorkingIndicator]);
-  J_(() => {
+  K_(() => {
     if (searchMode)
       return;
     updateMentionAutocomplete(content);
   }, [mentionAgents, currentChatJid, content, searchMode]);
-  return ce`
+  return fe`
         <div class="compose-box">
-            ${showQueueStack && !searchMode && ce`
+            ${showQueueStack && !searchMode && fe`
                 <${QueuedFollowupStack}
                     items=${followupQueueItems}
                     onInjectQueuedFollowup=${handleInjectQueuedFollowup}
@@ -8323,15 +8320,15 @@ ${mediaIds.map((id, index) => {
                     onOpenFilePill=${onOpenFilePill}
                 />
             `}
-            ${extensionWorkingDisplay.visible && ce`
+            ${extensionWorkingDisplay.visible && fe`
                 <div class="compose-inline-status extension-working" role="status" aria-live="polite">
                     <div class="compose-inline-status-row">
-                        ${extensionWorkingDisplay.indicatorText ? ce`<span class="compose-inline-status-glyph" aria-hidden="true">${extensionWorkingDisplay.indicatorText}</span>` : extensionWorkingDisplay.animateDot ? ce`<span class=${buildComposeStatusDotClass({ pulsing: true })} aria-hidden="true"></span>` : null}
+                        ${extensionWorkingDisplay.indicatorText ? fe`<span class="compose-inline-status-glyph" aria-hidden="true">${extensionWorkingDisplay.indicatorText}</span>` : extensionWorkingDisplay.animateDot ? fe`<span class=${buildComposeStatusDotClass({ pulsing: true })} aria-hidden="true"></span>` : null}
                         <span class="compose-inline-status-title">${extensionWorkingDisplay.title}</span>
                     </div>
                 </div>
             `}
-            ${statusNotice && ce`
+            ${statusNotice && fe`
                 <div
                     class=${`compose-inline-status${statusNoticeIsCompaction ? " compaction" : ""}`}
                     role="status"
@@ -8341,13 +8338,13 @@ ${mediaIds.map((id, index) => {
                     <div class="compose-inline-status-row">
                         <span class=${buildComposeStatusDotClass({ pulsing: statusNoticeIsCompaction })} aria-hidden="true"></span>
                         <span class="compose-inline-status-title">${statusNoticeTitle}</span>
-                        ${statusNoticeElapsedLabel && ce`<span class="compose-inline-status-elapsed">${statusNoticeElapsedLabel}</span>`}
+                        ${statusNoticeElapsedLabel && fe`<span class="compose-inline-status-elapsed">${statusNoticeElapsedLabel}</span>`}
                     </div>
-                    ${statusNoticeDetail && ce`<div class="compose-inline-status-detail">${statusNoticeDetail}</div>`}
+                    ${statusNoticeDetail && fe`<div class="compose-inline-status-detail">${statusNoticeDetail}</div>`}
                 </div>
             `}
-            ${submitError && ce`<div class="compose-submit-error" role="alert">${submitError}</div>`}
-            ${submitNotice && ce`
+            ${submitError && fe`<div class="compose-submit-error" role="alert">${submitError}</div>`}
+            ${submitNotice && fe`
                 <div class="compose-inline-status compose-command-notice" role="status" aria-live="polite">
                     <div class="compose-inline-status-detail compose-command-notice-text">${submitNotice}</div>
                 </div>
@@ -8360,10 +8357,10 @@ ${mediaIds.map((id, index) => {
                 onDrop=${handleDrop}
             >
                 <div class="compose-input-main">
-                    ${hasAttachments && ce`
+                    ${hasAttachments && fe`
                         <div class="compose-file-refs">
                             ${messageRefs.map((id) => {
-    return ce`
+    return fe`
                                     <${FilePill}
                                         key=${"msg-" + id}
                                         prefix="compose"
@@ -8377,7 +8374,7 @@ ${mediaIds.map((id, index) => {
   })}
                             ${fileRefs.map((path) => {
     const label = path.split("/").pop() || path;
-    return ce`
+    return fe`
                                     <${FilePill}
                                         prefix="compose"
                                         label=${label}
@@ -8390,7 +8387,7 @@ ${mediaIds.map((id, index) => {
   })}
                             ${mediaFiles.map((file, index) => {
     const label = file?.name || `attachment-${index + 1}`;
-    return ce`
+    return fe`
                                     <${FilePill}
                                         key=${label + index}
                                         prefix="compose"
@@ -8412,7 +8409,7 @@ ${mediaIds.map((id, index) => {
                             </button>
                         </div>
                     `}
-                    ${!searchMode && typeof onPopOutChat === "function" && ce`
+                    ${!searchMode && typeof onPopOutChat === "function" && fe`
                         <button
                             type="button"
                             class="compose-popout-btn"
@@ -8441,9 +8438,9 @@ ${mediaIds.map((id, index) => {
                         onClick=${onFocus}
                         rows="1"
                     />
-                    ${showMention && mentionMatches.length > 0 && ce`
+                    ${showMention && mentionMatches.length > 0 && fe`
                         <div class="slash-autocomplete" ref=${mentionRef}>
-                            ${mentionMatches.map((agent, i) => ce`
+                            ${mentionMatches.map((agent, i) => fe`
                                 <div
                                     key=${agent.chat_jid || agent.agent_name}
                                     class=${`slash-item${i === mentionIndex ? " active" : ""}`}
@@ -8459,9 +8456,9 @@ ${mediaIds.map((id, index) => {
                             `)}
                         </div>
                     `}
-                    ${showSlash && slashMatches.length > 0 && ce`
+                    ${showSlash && slashMatches.length > 0 && fe`
                         <div class="slash-autocomplete" ref=${slashRef}>
-                            ${slashMatches.map((cmd, i) => ce`
+                            ${slashMatches.map((cmd, i) => fe`
                                 <div
                                     key=${cmd.name}
                                     class=${`slash-item${i === slashIndex ? " active" : ""}`}
@@ -8477,21 +8474,21 @@ ${mediaIds.map((id, index) => {
                             `)}
                         </div>
                     `}
-                    ${showModelPopup && !searchMode && ce`
+                    ${showModelPopup && !searchMode && fe`
                         <div class="compose-model-popup" ref=${modelPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
                             <div class="compose-model-popup-title">Select model</div>
                             <div class="compose-model-popup-menu" role="menu" aria-label="Model picker">
-                                ${loadingModels && ce`
+                                ${loadingModels && fe`
                                     <div class="compose-model-popup-empty">Loading models…</div>
                                 `}
-                                ${!loadingModels && modelOptions.length === 0 && ce`
+                                ${!loadingModels && modelOptions.length === 0 && fe`
                                     <div class="compose-model-popup-empty">No models available.</div>
                                 `}
                                 ${!loadingModels && modelOptions.map((modelOption, index) => {
     const modelLabel = typeof modelOption?.label === "string" ? modelOption.label : "";
     const contextWindowLabel = formatModelPickerContextWindow(modelOption?.contextWindow);
     const blocked = modelContextBlocked(modelOption, contextUsage);
-    return ce`
+    return fe`
                                         <button
                                             key=${modelLabel}
                                             type="button"
@@ -8522,24 +8519,24 @@ ${mediaIds.map((id, index) => {
                             </div>
                         </div>
                     `}
-                    ${showSessionPopup && !searchMode && ce`
+                    ${showSessionPopup && !searchMode && fe`
                         <div class="compose-model-popup compose-session-popup" ref=${sessionPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
                             <div class="compose-model-popup-title">Manage sessions & agents</div>
-                            ${sessionMutationError && ce`<div role="alert" class="compose-session-mutation-error">${sessionMutationError}</div>`}
-                            ${sessionMutationNotice && ce`<div role="status" class="compose-session-mutation-notice">${sessionMutationNotice}</div>`}
-                            ${sessionMutationPending && ce`<div role="status">Saving session…</div>`}
-                            ${sessionEdit && ce`
+                            ${sessionMutationError && fe`<div role="alert" class="compose-session-mutation-error">${sessionMutationError}</div>`}
+                            ${sessionMutationNotice && fe`<div role="status" class="compose-session-mutation-notice">${sessionMutationNotice}</div>`}
+                            ${sessionMutationPending && fe`<div role="status">Saving session…</div>`}
+                            ${sessionEdit && fe`
                                 <form class="compose-session-edit" onSubmit=${(event) => {
     event.preventDefault();
     runSessionMutation(sessionEdit.chat, sessionEdit.action, sessionEdit.title);
   }}>
-                                    ${sessionEdit.action === "rename" ? ce`
+                                    ${sessionEdit.action === "rename" ? fe`
                                         <label>Session name
                                             <input ref=${sessionEditRef} aria-label="Session name" value=${sessionEdit.title} maxLength="160"
                                                 disabled=${Boolean(sessionMutationPending)}
                                                 onInput=${(event) => setSessionEdit({ ...sessionEdit, title: event.currentTarget.value })} />
                                         </label>
-                                    ` : ce`<p>Archive @${sessionEdit.chat.agent_name}? History and drafts are retained. Restore it from Archived.</p>`}
+                                    ` : fe`<p>Archive @${sessionEdit.chat.agent_name}? History and drafts are retained. Restore it from Archived.</p>`}
                                     <button ref=${sessionEdit.action === "archive" ? sessionEditRef : undefined} type="submit" class="compose-model-popup-btn"
                                         disabled=${Boolean(sessionMutationPending)}>${sessionEdit.action === "rename" ? "Save name" : "Confirm archive"}</button>
                                     <button type="button" class="compose-model-popup-btn" disabled=${Boolean(sessionMutationPending)} onClick=${() => {
@@ -8560,10 +8557,10 @@ ${mediaIds.map((id, index) => {
                                 onInput=${(event) => setSessionPopupQuery(event.currentTarget.value)}
                             />
                             <div id="compose-session-results" class="compose-model-popup-menu" role="menu" aria-label="Sessions and agents">
-                                ${orderedSessionChats.length === 0 && ce`
+                                ${orderedSessionChats.length === 0 && fe`
                                     <div class="compose-model-popup-empty" role="status">No sessions match your search.</div>
                                 `}
-                                ${sessionPopupGroups.map((group) => ce`
+                                ${sessionPopupGroups.map((group) => fe`
                                 <div role="group" aria-label=${group.label}>
                                 <div class="compose-session-section-label">${group.label}</div>
                                 ${group.items.map((chat) => {
@@ -8572,7 +8569,7 @@ ${mediaIds.map((id, index) => {
     const isRoot = chat.chat_jid === (chat.root_chat_jid || chat.chat_jid);
     const canPrune = !isRoot && !chat.is_active && !archived && typeof onDeleteSession === "function";
     const label = formatBranchPickerLabel(chat, { currentChatJid });
-    return ce`
+    return fe`
                                         <div key=${chat.chat_jid} data-session-jid=${chat.chat_jid} class=${`compose-model-popup-item-row${archived ? " archived" : ""}`}>
                                             <button
                                                 type="button"
@@ -8593,29 +8590,29 @@ ${mediaIds.map((id, index) => {
                                                 ${label}
                                             </button>
                                             <div class="compose-session-row-actions">
-                                                ${!archived && chat.capabilities?.pin !== false && typeof onPinSession === "function" && ce`
+                                                ${!archived && chat.capabilities?.pin !== false && typeof onPinSession === "function" && fe`
                                                     <button type="button" class="compose-model-popup-btn" disabled=${Boolean(sessionMutationPending)}
                                                         aria-label=${`${chat.pinned ? "Unpin" : "Pin"} @${chat.agent_name}`}
                                                         onClick=${() => {
       runSessionMutation(chat, "pin", !chat.pinned);
     }}>${chat.pinned ? "Unpin" : "Pin"}</button>
                                                 `}
-                                                ${!archived && chat.capabilities?.rename !== false && typeof onRenameSession === "function" && ce`
+                                                ${!archived && chat.capabilities?.rename !== false && typeof onRenameSession === "function" && fe`
                                                     <button type="button" class="compose-model-popup-btn" disabled=${Boolean(sessionMutationPending)}
                                                         aria-label=${`Rename @${chat.agent_name}`} onClick=${() => beginSessionEdit(chat, "rename")}>Rename</button>
                                                 `}
-                                                ${!archived && !isRoot && !chat.is_active && chat.capabilities?.archive !== false && typeof onArchiveSession === "function" && ce`
+                                                ${!archived && !isRoot && !chat.is_active && chat.capabilities?.archive !== false && typeof onArchiveSession === "function" && fe`
                                                     <button type="button" class="compose-model-popup-btn" disabled=${Boolean(sessionMutationPending)}
                                                         aria-label=${`Archive @${chat.agent_name}`} onClick=${() => beginSessionEdit(chat, "archive")}>Archive</button>
                                                 `}
-                                                ${archived && chat.capabilities?.restore !== false && typeof onRestoreSession === "function" && ce`
+                                                ${archived && chat.capabilities?.restore !== false && typeof onRestoreSession === "function" && fe`
                                                     <button type="button" class="compose-model-popup-btn" disabled=${Boolean(sessionMutationPending)}
                                                         aria-label=${`Restore @${chat.agent_name}`} onClick=${() => {
       runSessionMutation(chat, "restore");
     }}>Restore</button>
                                                 `}
                                             </div>
-                                            ${canPrune && ce`
+                                            ${canPrune && fe`
                                                 <button
                                                     type="button"
                                                     class="compose-model-popup-item-delete"
@@ -8639,9 +8636,9 @@ ${mediaIds.map((id, index) => {
                                 </div>
                                 `)}
                             </div>
-                            ${!sessionPopupQuery.trim() && (canCreateSession || canRenameSession || canDeleteSession) && ce`
+                            ${!sessionPopupQuery.trim() && (canCreateSession || canRenameSession || canDeleteSession) && fe`
                                 <div class="compose-model-popup-actions">
-                                    ${canCreateSession && ce`
+                                    ${canCreateSession && fe`
                                         <button
                                             type="button"
                                             class=${`compose-model-popup-btn primary${sessionPopupEntries.findIndex((entry) => entry.key === "action:new") === sessionPopupIndex ? " active" : ""}`}
@@ -8654,7 +8651,7 @@ ${mediaIds.map((id, index) => {
                                             New
                                         </button>
                                     `}
-                                    ${canRenameSession && ce`
+                                    ${canRenameSession && fe`
                                         <button
                                             type="button"
                                             class=${`compose-model-popup-btn${sessionPopupEntries.findIndex((entry) => entry.key === "action:rename") === sessionPopupIndex ? " active" : ""}`}
@@ -8668,7 +8665,7 @@ ${mediaIds.map((id, index) => {
                                             Rename current…
                                         </button>
                                     `}
-                                    ${canDeleteSession && ce`
+                                    ${canDeleteSession && fe`
                                         <button
                                             type="button"
                                             class=${`compose-model-popup-btn danger${sessionPopupEntries.findIndex((entry) => entry.key === "action:delete") === sessionPopupIndex ? " active" : ""}`}
@@ -8687,9 +8684,9 @@ ${mediaIds.map((id, index) => {
                     `}
                 </div>
                 <div class="compose-footer" ref=${footerRef}>
-                    ${showComposeMetaRow && ce`
+                    ${showComposeMetaRow && fe`
                     <div class="compose-meta-row">
-                        ${showModelPickerHint && ce`
+                        ${showModelPickerHint && fe`
                             <div class="compose-model-meta">
                                 <button
                                     ref=${modelHintRef}
@@ -8703,7 +8700,7 @@ ${mediaIds.map((id, index) => {
                                     ${switchingModel ? "Switching…" : modelHintLabel}
                                 </button>
                                 <div class="compose-model-meta-subline">
-                                    ${!switchingModel && modelUsageSectionLabel && ce`
+                                    ${!switchingModel && modelUsageSectionLabel && fe`
                                         <span class="compose-model-usage-hint" title=${modelHintTitle}>
                                             ${modelUsageSectionLabel}
                                         </span>
@@ -8711,18 +8708,18 @@ ${mediaIds.map((id, index) => {
                                 </div>
                             </div>
                         `}
-                        ${!searchMode && contextUsage && ce`
+                        ${!searchMode && contextUsage && fe`
                             <${ContextPie} usage=${contextUsage} onCompact=${typeof onContextCompact === "function" ? handleContextCompact : undefined} />
                         `}
                     </div>
                     `}
                     <div class="compose-actions ${searchMode ? "search-mode" : ""}">
-                    ${showSessionSwitcherButton && ce`
+                    ${showSessionSwitcherButton && fe`
                         <div
                             ref=${sessionTriggerRef}
                             class="compose-session-trigger-group"
                         >
-                            ${currentSessionAgent?.agent_name && ce`
+                            ${currentSessionAgent?.agent_name && fe`
                                 <button
                                     type="button"
                                     class=${`compose-session-trigger compose-session-trigger-pill${showSessionPopup ? " active" : ""}`}
@@ -8751,7 +8748,7 @@ ${mediaIds.map((id, index) => {
                             </button>
                         </div>
                     `}
-                    ${searchMode && ce`
+                    ${searchMode && fe`
                         <label class="compose-search-scope-wrap" title="Search scope">
                             <span class="compose-search-scope-label">Scope</span>
                             <select
@@ -8770,18 +8767,18 @@ ${mediaIds.map((id, index) => {
                         onClick=${searchMode ? onExitSearch : onEnterSearch}
                         title=${searchMode ? "Close search" : "Search"}
                     >
-                        ${searchMode ? ce`
+                        ${searchMode ? fe`
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M18 6L6 18M6 6l12 12"/>
                             </svg>
-                        ` : ce`
+                        ` : fe`
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="11" cy="11" r="8"/>
                                 <path d="M21 21l-4.35-4.35"/>
                             </svg>
                         `}
                     </button>
-                    ${canShareLocation && !searchMode && ce`
+                    ${canShareLocation && !searchMode && fe`
                         <button
                             class="icon-btn location-btn"
                             onClick=${handleLocation}
@@ -8795,7 +8792,7 @@ ${mediaIds.map((id, index) => {
                             </svg>
                         </button>
                     `}
-                    ${notificationsAvailable && !searchMode && ce`
+                    ${notificationsAvailable && !searchMode && fe`
                         <button
                             class=${`icon-btn notification-btn${notificationActive ? " active" : ""}`}
                             onClick=${onToggleNotifications}
@@ -8808,8 +8805,8 @@ ${mediaIds.map((id, index) => {
                             </svg>
                         </button>
                     `}
-                    ${!searchMode && ce`
-                        ${activeEditorPath && onAttachEditorFile && ce`
+                    ${!searchMode && fe`
+                        ${activeEditorPath && onAttachEditorFile && fe`
                             <button
                                 class="icon-btn attach-editor-btn"
                                 onClick=${onAttachEditorFile}
@@ -8825,14 +8822,14 @@ ${mediaIds.map((id, index) => {
                             <input type="file" multiple hidden onChange=${handleFileChange} />
                         </label>
                     `}
-                    ${(connectionStatus !== "connected" || !searchMode) && ce`
+                    ${(connectionStatus !== "connected" || !searchMode) && fe`
                         <div class="compose-send-stack">
-                            ${connectionStatus !== "connected" && ce`
+                            ${connectionStatus !== "connected" && fe`
                                 <span class="compose-connection-status connection-status ${connectionStatusPresentation.statusClass}" title=${connectionStatusTitle}>
                                     ${connectionStatusLabel}
                                 </span>
                             `}
-                            ${!searchMode && ce`
+                            ${!searchMode && fe`
                                 <button 
                                     class=${submitButtonState.className}
                                     type="button"
@@ -8847,14 +8844,14 @@ ${mediaIds.map((id, index) => {
                                     title=${submitButtonState.title}
                                     aria-label=${submitButtonState.ariaLabel}
                                 >
-                                    ${submitButtonState.mode === "compacting" ? ce`
+                                    ${submitButtonState.mode === "compacting" ? fe`
                                             <span class="compose-submit-spinner" aria-hidden="true">
                                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                                                     <circle class="compose-submit-spinner-ring" cx="12" cy="12" r="10.5" stroke-width="2.25" stroke-linecap="round"></circle>
                                                     <rect class="compose-submit-spinner-stop" x="6" y="6" width="12" height="12" rx="0" fill="currentColor"></rect>
                                                 </svg>
                                             </span>
-                                        ` : submitButtonState.mode === "abort" ? ce`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2.5"/></svg>` : ce`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`}
+                                        ` : submitButtonState.mode === "abort" ? fe`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2.5"/></svg>` : fe`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>`}
                                 </button>
                             `}
                         </div>
@@ -8915,13 +8912,13 @@ function extractToolContextPath(toolName, args) {
 }
 
 // web/src/components/status.ts
-var COPY_ICON_SVG2 = ce`
+var COPY_ICON_SVG2 = fe`
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <rect x="9" y="9" width="10" height="10" rx="2"></rect>
         <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"></path>
     </svg>
 `;
-var GIT_BRANCH_ICON_SVG = ce`
+var GIT_BRANCH_ICON_SVG = fe`
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
         <path d="M6 3v12"></path>
         <circle cx="18" cy="6" r="3"></circle>
@@ -8929,7 +8926,7 @@ var GIT_BRANCH_ICON_SVG = ce`
         <path d="M18 9a9 9 0 0 1-9 9"></path>
     </svg>
 `;
-var CLOCK_ICON_SVG = ce`
+var CLOCK_ICON_SVG = fe`
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
         <circle cx="12" cy="12" r="9"></circle>
         <path d="M12 7v5l3 2"></path>
@@ -9105,9 +9102,9 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
   const hasDraft = Boolean(draftInfo.fullText?.trim() || draftInfo.text?.trim());
   const hasCorePanels = Boolean(status || hasDraft || hasPlan || hasThought || pendingRequest || intent);
   const hasExtensionPanels = Array.isArray(extensionPanels) && extensionPanels.length > 0;
-  const [expandedPanels, setExpandedPanels] = M_(new Set);
-  const [hoveredSeriesPoint, setHoveredSeriesPoint] = M_(null);
-  const [nowMs, setNowMs] = M_(() => Date.now());
+  const [expandedPanels, setExpandedPanels] = F_(new Set);
+  const [hoveredSeriesPoint, setHoveredSeriesPoint] = F_(null);
+  const [nowMs, setNowMs] = F_(() => Date.now());
   const toggleExpand = (key) => setExpandedPanels((prev) => {
     const next = new Set(prev);
     const willExpand = !next.has(key);
@@ -9120,11 +9117,11 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     }
     return next;
   });
-  J_(() => {
+  K_(() => {
     setExpandedPanels(new Set);
     setHoveredSeriesPoint(null);
   }, [turnId]);
-  J_(() => {
+  K_(() => {
     const hasExpandedTimestampPanel = Array.isArray(extensionPanels) && extensionPanels.some((p) => expandedPanels.has(p?.key) && (p?.started_at || p?.last_activity_at));
     if (!hasExpandedTimestampPanel)
       return;
@@ -9132,7 +9129,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     return () => clearInterval(interval);
   }, [expandedPanels, extensionPanels]);
   const escapeCollapseKey = u_(() => resolveAgentStatusEscapeCollapseKey(expandedPanels), [expandedPanels]);
-  J_(() => {
+  K_(() => {
     if (!escapeCollapseKey || typeof document === "undefined")
       return;
     const handleKeyDown = (event) => {
@@ -9170,8 +9167,8 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
   const shouldTickActivityAge = u_(() => shouldTickStatusActivityAge(status), [status]);
   const shouldTickIntentAge = u_(() => shouldTickIntentElapsed(status), [status]);
   const toolContextPath = u_(() => extractToolContextPath(status?.tool_name, status?.tool_args), [status?.tool_name, status?.tool_args]);
-  const [toolRepoContext, setToolRepoContext] = M_(null);
-  J_(() => {
+  const [toolRepoContext, setToolRepoContext] = F_(null);
+  K_(() => {
     const shouldTick = Boolean(shouldTickIntentAge || status?.retry_at || status?.retryAt || shouldTickActivityAge);
     if (!shouldTick)
       return;
@@ -9179,7 +9176,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     const timer = setInterval(() => setNowMs(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [shouldTickActivityAge, shouldTickIntentAge, status?.retry_at, status?.retryAt, status?.last_event_at, status?.lastEventAt, status?.started_at, status?.startedAt, status?.type, status?.tool_name, status?.tool_args]);
-  J_(() => {
+  K_(() => {
     const isToolStatus = status?.type === "tool_call" || status?.type === "tool_status";
     if (!isToolStatus || !toolContextPath) {
       setToolRepoContext(null);
@@ -9239,7 +9236,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
       return null;
     const bodyClass = `agent-thinking-body${isCollapsible ? " agent-thinking-body-collapsible" : ""}`;
     const bodyStyle = isCollapsible ? `--agent-thinking-collapsed-lines: ${maxLines};` : "";
-    return ce`
+    return fe`
             <div
                 class="agent-thinking"
                 data-expanded=${isExpanded ? "true" : "false"}
@@ -9247,9 +9244,9 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                 style=${turnColor ? `--turn-color: ${turnColor};` : ""}
             >
                 <div class="agent-thinking-title ${titleClass || ""}">
-                    ${turnColor && ce`<span class=${dotClass} aria-hidden="true"></span>`}
+                    ${turnColor && fe`<span class=${dotClass} aria-hidden="true"></span>`}
                     ${panelTitle}
-                    ${showClose && ce`
+                    ${showClose && fe`
                         <button
                             class="agent-thinking-close"
                             aria-label=${`Close ${panelTitle} panel`}
@@ -9264,12 +9261,12 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                     style=${bodyStyle}
                     dangerouslySetInnerHTML=${{ __html: renderThinkingMarkdown(sourceText) }}
                 />
-                ${!isExpanded && truncated.omitted > 0 && ce`
+                ${!isExpanded && truncated.omitted > 0 && fe`
                     <button class="agent-thinking-truncation" onClick=${() => toggleExpand(panelKey)}>
                         ▸ ${truncated.omitted} more lines
                     </button>
                 `}
-                ${isExpanded && truncated.omitted > 0 && ce`
+                ${isExpanded && truncated.omitted > 0 && fe`
                     <button class="agent-thinking-truncation" onClick=${() => toggleExpand(panelKey)}>
                         ▴ show less
                     </button>
@@ -9288,7 +9285,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
       steerQueued,
       pulsing: isCompactionStatus(payload) || Boolean(retryCountdownLabel)
     });
-    return ce`
+    return fe`
             <div
                 class="agent-thinking agent-thinking-intent"
                 aria-live="polite"
@@ -9296,11 +9293,11 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                 title=${payload?.detail || ""}
             >
                 <div class="agent-thinking-title intent">
-                    ${color && ce`<span class=${pulsingDotClass} aria-hidden="true"></span>`}
+                    ${color && fe`<span class=${pulsingDotClass} aria-hidden="true"></span>`}
                     <span class="agent-thinking-title-text">${titleText}</span>
-                    ${metaLabel && ce`<span class="agent-status-elapsed">${metaLabel}</span>`}
+                    ${metaLabel && fe`<span class="agent-status-elapsed">${metaLabel}</span>`}
                 </div>
-                ${payload.detail && ce`<div class="agent-thinking-body">${payload.detail}</div>`}
+                ${payload.detail && fe`<div class="agent-thinking-body">${payload.detail}</div>`}
             </div>
         `;
   };
@@ -9374,7 +9371,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     const maxValue = Math.max(...values);
     const minRun = Math.min(...runs);
     const maxRun = Math.max(...runs);
-    return ce`
+    return fe`
             <div class="agent-series-chart agent-series-chart-combined">
                 <div class="agent-series-chart-header">
                     <span class="agent-series-chart-title">Tracked variables</span>
@@ -9385,7 +9382,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                         ${normalized.map((series) => {
       const seriesKey = series?.key || series?.label || "series";
       const lineHovered = hoveredSeriesPoint?.panelKey === panelKey && hoveredSeriesPoint?.seriesKey === seriesKey;
-      return ce`
+      return fe`
                                 <g key=${seriesKey}>
                                     <path
                                         class=${`agent-series-chart-line${lineHovered ? " is-hovered" : ""}`}
@@ -9404,7 +9401,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
       const seriesKey = series?.key || series?.label || "series";
       return series.points.map((point, pointIndex) => {
         const projected = projectSeriesPoint(point, width, height, minValue, maxValue, minRun, maxRun);
-        return ce`
+        return fe`
                                     <button
                                         key=${`${seriesKey}-point-${pointIndex}`}
                                         type="button"
@@ -9444,11 +9441,11 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
       const hoveredValue = hovered && Number.isFinite(hovered.value) ? hovered.value : latest;
       const hoveredUnit = hovered && typeof hovered.unit === "string" ? hovered.unit : unit;
       const hoveredRun = hovered && Number.isFinite(hovered.run) ? hovered.run : null;
-      return ce`
+      return fe`
                             <div key=${`${seriesKey}-legend`} class=${`agent-series-legend-item${hovered ? " is-hovered" : ""}`} style=${`--agent-series-color: ${series.color};`}>
                                 <span class="agent-series-legend-swatch" style=${`--agent-series-color: ${series.color};`}></span>
                                 <span class="agent-series-legend-label">${series?.label || "Series"}</span>
-                                ${hoveredRun !== null && ce`<span class="agent-series-legend-run">run ${hoveredRun}</span>`}
+                                ${hoveredRun !== null && fe`<span class="agent-series-legend-run">run ${hoveredRun}</span>`}
                                 <span class="agent-series-legend-value">${formatMetricValue(hoveredValue, hoveredUnit)}</span>
                             </div>
                         `;
@@ -9481,7 +9478,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     const hasDetailColumn = Boolean(detailText || tmuxCommand || experimentElapsed);
     const isExpandable = Boolean(detailText || series.length > 0 || tmuxCommand);
     const collapsedTooltip = [titleText, displayCollapsed].filter(Boolean).join(" — ");
-    return ce`
+    return fe`
             <div
                 class="agent-thinking agent-thinking-intent agent-thinking-autoresearch"
                 aria-live="polite"
@@ -9495,18 +9492,18 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                         type="button"
                         onClick=${() => isExpandable ? toggleExpand(panelKey) : null}
                     >
-                        ${color && ce`<span class=${panelDotClass} aria-hidden="true"></span>`}
+                        ${color && fe`<span class=${panelDotClass} aria-hidden="true"></span>`}
                         <span class="agent-thinking-title-text">${titleText}</span>
-                        ${displayCollapsed && ce`<span class="agent-thinking-title-meta">${displayCollapsed}</span>`}
+                        ${displayCollapsed && fe`<span class="agent-thinking-title-meta">${displayCollapsed}</span>`}
                     </button>
-                    ${(actions.length > 0 || isExpandable) && ce`
+                    ${(actions.length > 0 || isExpandable) && fe`
                         <div class="agent-thinking-tools-inline">
-                            ${actions.length > 0 && ce`
+                            ${actions.length > 0 && fe`
                                 <div class="agent-thinking-actions agent-thinking-actions-inline">
                                     ${actions.map((action) => {
       const pendingKey = `${panelKey}:${action?.key || ""}`;
       const pending = pendingPanelActions?.has?.(pendingKey);
-      return ce`
+      return fe`
                                             <button
                                                 key=${pendingKey}
                                                 class=${`agent-thinking-action-btn${action?.tone === "danger" ? " danger" : ""}`}
@@ -9519,7 +9516,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     })}
                                 </div>
                             `}
-                            ${isExpandable && ce`
+                            ${isExpandable && fe`
                                 <button
                                     class="agent-thinking-corner-toggle agent-thinking-corner-toggle-inline"
                                     type="button"
@@ -9528,30 +9525,30 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                                     onClick=${() => toggleExpand(panelKey)}
                                 >
                                     <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                        ${isExpanded ? ce`<polyline points="4 6 8 10 12 6"></polyline>` : ce`<polyline points="4 10 8 6 12 10"></polyline>`}
+                                        ${isExpanded ? fe`<polyline points="4 6 8 10 12 6"></polyline>` : fe`<polyline points="4 10 8 6 12 10"></polyline>`}
                                     </svg>
                                 </button>
                             `}
                         </div>
                     `}
                 </div>
-                ${isExpanded && ce`
+                ${isExpanded && fe`
                     <div class=${`agent-thinking-autoresearch-layout${hasDetailColumn ? "" : " chart-only"}`}>
-                        ${hasDetailColumn && ce`
+                        ${hasDetailColumn && fe`
                             <div class="agent-thinking-autoresearch-meta-stack">
-                                ${experimentElapsed && ce`
+                                ${experimentElapsed && fe`
                                     <div class="agent-thinking-autoresearch-elapsed">
                                         <span title="Experiment duration">⏱ ${experimentElapsed}</span>
-                                        ${panel?.last_activity_at && panel?.state === "running" && ce`<span title="Since last activity">⟳ ${formatElapsed(panel.last_activity_at)} ago</span>`}
+                                        ${panel?.last_activity_at && panel?.state === "running" && fe`<span title="Since last activity">⟳ ${formatElapsed(panel.last_activity_at)} ago</span>`}
                                     </div>
                                 `}
-                                ${detailText && ce`
+                                ${detailText && fe`
                                     <div
                                         class="agent-thinking-body agent-thinking-autoresearch-detail"
                                         dangerouslySetInnerHTML=${{ __html: renderThinkingMarkdown(detailText) }}
                                     />
                                 `}
-                                ${tmuxCommand && ce`
+                                ${tmuxCommand && fe`
                                     <div class="agent-series-chart-command">
                                         <div class="agent-series-chart-command-header">
                                             <span>Attach to session</span>
@@ -9572,26 +9569,26 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                                 `}
                             </div>
                         `}
-                        ${series.length > 0 ? ce`
+                        ${series.length > 0 ? fe`
                                 <div class="agent-series-chart-stack">
                                     ${renderCombinedSeriesChart(series, panelKey)}
-                                    ${lastRunText && ce`<div class="agent-series-chart-note">${lastRunText}</div>`}
+                                    ${lastRunText && fe`<div class="agent-series-chart-note">${lastRunText}</div>`}
                                 </div>
-                            ` : ce`<div class="agent-thinking-body agent-thinking-autoresearch-summary">Variable history will appear after the first completed run.</div>`}
+                            ` : fe`<div class="agent-thinking-body agent-thinking-autoresearch-summary">Variable history will appear after the first completed run.</div>`}
                     </div>
                 `}
             </div>
         `;
   };
-  return ce`
+  return fe`
         <div class="agent-status-panel">
             ${showCorePanels && intent && renderIntentPanel(intent, intentColor)}
             ${showExtensionPanels && Array.isArray(extensionPanels) && extensionPanels.map((panel) => renderExtensionPanel(panel))}
             ${showCorePanels && status?.type === "intent" && renderIntentPanel(status, statusIntentColor, statusIntentElapsedLabel)}
-            ${showCorePanels && pendingRequest && ce`
+            ${showCorePanels && pendingRequest && fe`
                 <div class="agent-status agent-status-request" aria-live="polite" style=${turnColor ? `--turn-color: ${turnColor};` : ""}>
-                    ${pendingIndicatorMode === "dot" && ce`<span class=${dotClass} aria-hidden="true"></span>`}
-                    ${pendingIndicatorMode === "spinner" && ce`<div class="agent-status-spinner"></div>`}
+                    ${pendingIndicatorMode === "dot" && fe`<span class=${dotClass} aria-hidden="true"></span>`}
+                    ${pendingIndicatorMode === "spinner" && fe`<div class="agent-status-spinner"></div>`}
                     <span class="agent-status-text">${pendingMessage}</span>
                 </div>
             `}
@@ -9620,37 +9617,37 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     titleClass: "thought",
     panelKey: "draft"
   })}
-            ${showCorePanels && status && status?.type !== "intent" && ce`
+            ${showCorePanels && status && status?.type !== "intent" && fe`
                 <div class=${`agent-status${isLastActivity ? " agent-status-last-activity" : ""}${status?.type === "error" ? " agent-status-error" : ""}${toolRepoLabel || statusHints.length > 0 || statusActivityAgeLabel ? " agent-status-multiline" : ""}`} aria-live="polite" style=${turnColor ? `--turn-color: ${turnColor};` : ""}>
-                    ${turnColor && showRunningStatusDot && ce`<span class=${dotClass} aria-hidden="true"></span>`}
-                    ${status?.type === "error" ? ce`<span class="agent-status-error-icon" aria-hidden="true">⚠</span>` : runningIndicatorMode === "spinner" && ce`<div class="agent-status-spinner"></div>`}
+                    ${turnColor && showRunningStatusDot && fe`<span class=${dotClass} aria-hidden="true"></span>`}
+                    ${status?.type === "error" ? fe`<span class="agent-status-error-icon" aria-hidden="true">⚠</span>` : runningIndicatorMode === "spinner" && fe`<div class="agent-status-spinner"></div>`}
                     <div class="agent-status-copy">
                         <span class="agent-status-text">${content}</span>
-                        ${(toolRepoLabel || orderedStatusHints.length > 0 || statusActivityAgeLabel) && ce`
+                        ${(toolRepoLabel || orderedStatusHints.length > 0 || statusActivityAgeLabel) && fe`
                             <span class="agent-status-meta-row">
-                                ${leadingStatusHints.map((hint) => ce`
+                                ${leadingStatusHints.map((hint) => fe`
                                     <span key=${hint.key} class="agent-status-hint-row" title=${hint.title || hint.label}>
                                         <span class="agent-status-hint-icon" dangerouslySetInnerHTML=${{ __html: hint.iconSvg }}></span>
                                         <span class="agent-status-hint-label">${hint.label}</span>
                                     </span>
                                 `)}
-                                ${toolRepoLabel && ce`
+                                ${toolRepoLabel && fe`
                                     <span class="agent-status-git-row" title=${toolContextPath || toolRepoLabel}>
                                         <span class="agent-status-git-icon">${GIT_BRANCH_ICON_SVG}</span>
                                         <span class="agent-status-git-label">
-                                            ${toolRepoRepoPath && ce`<span class="agent-status-git-part">${toolRepoRepoPath}</span>`}
-                                            ${toolRepoRepoPath && toolRepoBranch && ce`<span class="agent-status-git-separator" aria-hidden="true">•</span>`}
-                                            ${toolRepoBranch && ce`<span class="agent-status-git-part">${toolRepoBranch}</span>`}
+                                            ${toolRepoRepoPath && fe`<span class="agent-status-git-part">${toolRepoRepoPath}</span>`}
+                                            ${toolRepoRepoPath && toolRepoBranch && fe`<span class="agent-status-git-separator" aria-hidden="true">•</span>`}
+                                            ${toolRepoBranch && fe`<span class="agent-status-git-part">${toolRepoBranch}</span>`}
                                         </span>
                                     </span>
                                 `}
-                                ${trailingStatusHints.map((hint) => ce`
+                                ${trailingStatusHints.map((hint) => fe`
                                     <span key=${hint.key} class="agent-status-hint-row" title=${hint.title || hint.label}>
                                         <span class="agent-status-hint-icon" dangerouslySetInnerHTML=${{ __html: hint.iconSvg }}></span>
                                         <span class="agent-status-hint-label">${hint.label}</span>
                                     </span>
                                 `)}
-                                ${statusActivityAgeLabel && ce`
+                                ${statusActivityAgeLabel && fe`
                                     <span class="agent-status-hint-row agent-status-activity-row" title=${`${isLastActivity ? "Recent activity" : "Last event"} ${statusActivityAgeLabel}`}>
                                         <span class="agent-status-hint-icon">${CLOCK_ICON_SVG}</span>
                                         <span class="agent-status-hint-label">${statusActivityAgeLabel}</span>
@@ -10375,17 +10372,17 @@ function createFolderStarburstPayload(root, truncated = false, isDarkTheme = fal
 function FolderStarburstChart({ payload }) {
   if (!payload)
     return null;
-  const [hovered, setHovered] = M_(null);
-  const [zoomPath, setZoomPath] = M_(payload?.root?.path || ".");
-  const [zoomStack, setZoomStack] = M_(() => [payload?.root?.path || "."]);
-  const [isZooming, setIsZooming] = M_(false);
-  J_(() => {
+  const [hovered, setHovered] = F_(null);
+  const [zoomPath, setZoomPath] = F_(payload?.root?.path || ".");
+  const [zoomStack, setZoomStack] = F_(() => [payload?.root?.path || "."]);
+  const [isZooming, setIsZooming] = F_(false);
+  K_(() => {
     const rootPath = payload?.root?.path || ".";
     setZoomPath(rootPath);
     setZoomStack([rootPath]);
     setHovered(null);
   }, [payload?.root?.path, payload?.totalSize]);
-  J_(() => {
+  K_(() => {
     if (!zoomPath)
       return;
     setIsZooming(true);
@@ -10405,10 +10402,10 @@ function FolderStarburstChart({ payload }) {
     const label = zoomRoot?.children?.length ? "Total" : "[files]";
     return buildFallbackStarburst(label, zoomRoot?.path || payload?.root?.path || ".", baseSize, payload.isDarkTheme);
   }, [zoomRoot, baseSize, payload.isDarkTheme, payload?.root?.path]);
-  const [animatedSegments, setAnimatedSegments] = M_(segments);
-  const prevSegmentsRef = K_(new Map);
-  const animFrameRef = K_(0);
-  J_(() => {
+  const [animatedSegments, setAnimatedSegments] = F_(segments);
+  const prevSegmentsRef = Q_(new Map);
+  const animFrameRef = Q_(0);
+  K_(() => {
     const prevMap = prevSegmentsRef.current;
     const nextMap = new Map(segments.map((segment) => [segment.key, segment]));
     const start = performance.now();
@@ -10475,13 +10472,13 @@ function FolderStarburstChart({ payload }) {
     });
     setHovered(null);
   };
-  return ce`
+  return fe`
         <div class="workspace-folder-starburst">
             <svg viewBox="0 0 240 240" class=${`workspace-folder-starburst-svg${isZooming ? " is-zooming" : ""}`} role="img"
                 aria-label=${`Folder sizes for ${zoomRoot?.path || payload?.root?.path || "."}`}
                 data-segments=${displaySegments.length}
                 data-base-size=${baseSize}>
-                ${displaySegments.map((segment) => ce`
+                ${displaySegments.map((segment) => fe`
                     <path
                         key=${segment.key}
                         d=${segment.d}
@@ -10517,9 +10514,9 @@ function FolderStarburstChart({ payload }) {
                     <text x="120" y="130" text-anchor="middle" class="workspace-folder-starburst-total-value">${activeValue}</text>
                 </g>
             </svg>
-            ${legend.length > 0 && ce`
+            ${legend.length > 0 && fe`
                 <div class="workspace-folder-starburst-legend">
-                    ${legend.slice(0, 8).map((entry) => ce`
+                    ${legend.slice(0, 8).map((entry) => fe`
                         <div key=${entry.key} class="workspace-folder-starburst-legend-item">
                             <span class="workspace-folder-starburst-swatch" style=${`background:${entry.color}`}></span>
                             <span class="workspace-folder-starburst-name" title=${entry.name}>${entry.name}</span>
@@ -10529,7 +10526,7 @@ function FolderStarburstChart({ payload }) {
                     `)}
                 </div>
             `}
-            ${payload.truncated && ce`
+            ${payload.truncated && fe`
                 <div class="workspace-folder-starburst-note">Preview is truncated by tree depth/entry limits.</div>
             `}
         </div>
@@ -10619,102 +10616,102 @@ function WorkspaceExplorer({
   onToggleTerminal,
   terminalVisible = false
 }) {
-  const [tree, setTree] = M_(null);
-  const [expanded, setExpanded] = M_(new Set(["."]));
-  const [selectedPath, setSelectedPath] = M_(null);
-  const [renamingPath, setRenamingPath] = M_(null);
-  const [renameValue, setRenameValue] = M_("");
-  const [preview, setPreview] = M_(null);
-  const [, setDownloadId] = M_(null);
-  const [initialLoad, setInitialLoad] = M_(true);
-  const [loadingPreview, setLoadingPreview] = M_(false);
-  const [error, setError] = M_(null);
-  const [showHidden, setShowHidden] = M_(() => getLocalStorageBoolean("workspaceShowHidden", false));
-  const [dragActive, setDragActive] = M_(false);
-  const [dragMode, setDragMode] = M_(null);
-  const [dragGhost, setDragGhost] = M_(null);
-  const [dropTarget, setDropTarget] = M_(null);
-  const [uploading, setUploading] = M_(false);
-  const [uploadProgress, setUploadProgress] = M_(null);
-  const [folderChart, setFolderChart] = M_(null);
-  const [workspaceIndexStatus, setWorkspaceIndexStatus] = M_(null);
-  const [workspaceReindexing, setWorkspaceReindexing] = M_(false);
-  const [isDarkTheme, setIsDarkTheme] = M_(() => detectDarkTheme());
-  const [explorerScale, setExplorerScale] = M_(() => resolveWorkspaceScale({
+  const [tree, setTree] = F_(null);
+  const [expanded, setExpanded] = F_(new Set(["."]));
+  const [selectedPath, setSelectedPath] = F_(null);
+  const [renamingPath, setRenamingPath] = F_(null);
+  const [renameValue, setRenameValue] = F_("");
+  const [preview, setPreview] = F_(null);
+  const [, setDownloadId] = F_(null);
+  const [initialLoad, setInitialLoad] = F_(true);
+  const [loadingPreview, setLoadingPreview] = F_(false);
+  const [error, setError] = F_(null);
+  const [showHidden, setShowHidden] = F_(() => getLocalStorageBoolean("workspaceShowHidden", false));
+  const [dragActive, setDragActive] = F_(false);
+  const [dragMode, setDragMode] = F_(null);
+  const [dragGhost, setDragGhost] = F_(null);
+  const [dropTarget, setDropTarget] = F_(null);
+  const [uploading, setUploading] = F_(false);
+  const [uploadProgress, setUploadProgress] = F_(null);
+  const [folderChart, setFolderChart] = F_(null);
+  const [workspaceIndexStatus, setWorkspaceIndexStatus] = F_(null);
+  const [workspaceReindexing, setWorkspaceReindexing] = F_(false);
+  const [isDarkTheme, setIsDarkTheme] = F_(() => detectDarkTheme());
+  const [explorerScale, setExplorerScale] = F_(() => resolveWorkspaceScale({
     stored: getLocalStorageItem(WORKSPACE_SCALE_STORAGE_KEY),
     ...readWorkspaceScaleEnvironment()
   }));
-  const [headerMenuOpen, setHeaderMenuOpen] = M_(false);
-  const expandedRef = K_(expanded);
-  const lastSigRef = K_("");
-  const pendingRootRef = K_(null);
-  const rafRef = K_(0);
-  const pendingSubtreeRef = K_(new Set);
-  const loadTreeFnRef = K_(null);
-  const loadWorkspaceIndexStatusRef = K_(null);
-  const nodeMapRef = K_(new Map);
-  const onFileSelectRef = K_(onFileSelect);
-  const onOpenEditorRef = K_(onOpenEditor);
-  const loadPreviewRef = K_(null);
-  const loadSubtreeRef = K_(null);
-  const sidebarRef = K_(null);
-  const treeListRef = K_(null);
-  const renameInputRef = K_(null);
-  const uploadInputRef = K_(null);
-  const uploadTargetRef = K_(".");
-  const uploadProgressTimerRef = K_(0);
-  const touchDragRef = K_({ path: null, dragging: false, startX: 0, startY: 0 });
-  const mouseDragRef = K_({ path: null, dragging: false, startX: 0, startY: 0 });
-  const dragExpandRef = K_({ path: null, timer: 0 });
-  const suppressClickRef = K_(false);
-  const previewHeightRef = K_(0);
-  const folderChartCacheRef = K_(new Map);
-  const folderChartPayloadRef = K_(null);
-  const folderChartPathRef = K_(null);
-  const previewPaneHostRef = K_(null);
-  const previewPaneInstanceRef = K_(null);
-  const headerMenuRef = K_(null);
-  const headerMenuButtonRef = K_(null);
-  const showHiddenRef = K_(showHidden);
-  const visibleRef = K_(visible);
-  const activeRef = K_(active ?? visible);
-  const dragDepthRef = K_(0);
-  const dropTargetRef = K_(dropTarget);
-  const dragActiveRef = K_(dragActive);
-  const dragModeRef = K_(dragMode);
-  const dragGhostRef = K_(null);
-  const dragGhostPosRef = K_({ x: 0, y: 0 });
-  const dragGhostRafRef = K_(0);
-  const moveEntryToTargetRef = K_(null);
-  const selectedPathRef = K_(selectedPath);
-  const renamingPathRef = K_(renamingPath);
-  const pendingProgrammaticFileClickRef = K_(null);
-  const previewRef = K_(preview);
+  const [headerMenuOpen, setHeaderMenuOpen] = F_(false);
+  const expandedRef = Q_(expanded);
+  const lastSigRef = Q_("");
+  const pendingRootRef = Q_(null);
+  const rafRef = Q_(0);
+  const pendingSubtreeRef = Q_(new Set);
+  const loadTreeFnRef = Q_(null);
+  const loadWorkspaceIndexStatusRef = Q_(null);
+  const nodeMapRef = Q_(new Map);
+  const onFileSelectRef = Q_(onFileSelect);
+  const onOpenEditorRef = Q_(onOpenEditor);
+  const loadPreviewRef = Q_(null);
+  const loadSubtreeRef = Q_(null);
+  const sidebarRef = Q_(null);
+  const treeListRef = Q_(null);
+  const renameInputRef = Q_(null);
+  const uploadInputRef = Q_(null);
+  const uploadTargetRef = Q_(".");
+  const uploadProgressTimerRef = Q_(0);
+  const touchDragRef = Q_({ path: null, dragging: false, startX: 0, startY: 0 });
+  const mouseDragRef = Q_({ path: null, dragging: false, startX: 0, startY: 0 });
+  const dragExpandRef = Q_({ path: null, timer: 0 });
+  const suppressClickRef = Q_(false);
+  const previewHeightRef = Q_(0);
+  const folderChartCacheRef = Q_(new Map);
+  const folderChartPayloadRef = Q_(null);
+  const folderChartPathRef = Q_(null);
+  const previewPaneHostRef = Q_(null);
+  const previewPaneInstanceRef = Q_(null);
+  const headerMenuRef = Q_(null);
+  const headerMenuButtonRef = Q_(null);
+  const showHiddenRef = Q_(showHidden);
+  const visibleRef = Q_(visible);
+  const activeRef = Q_(active ?? visible);
+  const dragDepthRef = Q_(0);
+  const dropTargetRef = Q_(dropTarget);
+  const dragActiveRef = Q_(dragActive);
+  const dragModeRef = Q_(dragMode);
+  const dragGhostRef = Q_(null);
+  const dragGhostPosRef = Q_({ x: 0, y: 0 });
+  const dragGhostRafRef = Q_(0);
+  const moveEntryToTargetRef = Q_(null);
+  const selectedPathRef = Q_(selectedPath);
+  const renamingPathRef = Q_(renamingPath);
+  const pendingProgrammaticFileClickRef = Q_(null);
+  const previewRef = Q_(preview);
   onFileSelectRef.current = onFileSelect;
   onOpenEditorRef.current = onOpenEditor;
-  J_(() => {
+  K_(() => {
     expandedRef.current = expanded;
   }, [expanded]);
-  J_(() => {
+  K_(() => {
     showHiddenRef.current = showHidden;
   }, [showHidden]);
-  J_(() => {
+  K_(() => {
     visibleRef.current = visible;
   }, [visible]);
-  J_(() => {
+  K_(() => {
     activeRef.current = active ?? visible;
   }, [active, visible]);
-  J_(() => {
+  K_(() => {
     dropTargetRef.current = dropTarget;
   }, [dropTarget]);
-  const clearUploadProgressTimer = X_(() => {
+  const clearUploadProgressTimer = Y_(() => {
     if (!uploadProgressTimerRef.current)
       return;
     clearTimeout(uploadProgressTimerRef.current);
     uploadProgressTimerRef.current = 0;
   }, []);
-  J_(() => () => clearUploadProgressTimer(), [clearUploadProgressTimer]);
-  J_(() => {
+  K_(() => () => clearUploadProgressTimer(), [clearUploadProgressTimer]);
+  K_(() => {
     if (typeof window === "undefined")
       return;
     const syncScale = () => {
@@ -10761,7 +10758,7 @@ function WorkspaceExplorer({
       removeMediaListener(hoverMedia, onResize);
     };
   }, []);
-  J_(() => {
+  K_(() => {
     const handleReveal = (e) => {
       const path = e?.detail?.path;
       if (!path)
@@ -10790,22 +10787,22 @@ function WorkspaceExplorer({
     window.addEventListener("workspace-reveal-path", handleReveal);
     return () => window.removeEventListener("workspace-reveal-path", handleReveal);
   }, []);
-  J_(() => {
+  K_(() => {
     dragActiveRef.current = dragActive;
   }, [dragActive]);
-  J_(() => {
+  K_(() => {
     dragModeRef.current = dragMode;
   }, [dragMode]);
-  J_(() => {
+  K_(() => {
     selectedPathRef.current = selectedPath;
   }, [selectedPath]);
-  J_(() => {
+  K_(() => {
     renamingPathRef.current = renamingPath;
   }, [renamingPath]);
-  J_(() => {
+  K_(() => {
     previewRef.current = preview;
   }, [preview]);
-  J_(() => {
+  K_(() => {
     if (typeof window === "undefined" || typeof document === "undefined")
       return;
     const syncTheme = () => setIsDarkTheme(detectDarkTheme());
@@ -10835,7 +10832,7 @@ function WorkspaceExplorer({
       observer?.disconnect();
     };
   }, []);
-  J_(() => {
+  K_(() => {
     if (!renamingPath)
       return;
     const input = renameInputRef.current;
@@ -10846,7 +10843,7 @@ function WorkspaceExplorer({
     });
     return () => cancelAnimationFrame(timer);
   }, [renamingPath]);
-  J_(() => {
+  K_(() => {
     if (!headerMenuOpen)
       return;
     const handleDocPointer = (event) => {
@@ -10899,7 +10896,7 @@ function WorkspaceExplorer({
     }
   };
   loadPreviewRef.current = loadPreview;
-  const loadWorkspaceIndexStatus = X_(async () => {
+  const loadWorkspaceIndexStatus = Y_(async () => {
     try {
       const status = await getWorkspaceIndexStatus("all");
       setWorkspaceIndexStatus(status);
@@ -10910,7 +10907,7 @@ function WorkspaceExplorer({
     }
   }, []);
   loadWorkspaceIndexStatusRef.current = loadWorkspaceIndexStatus;
-  const refreshWorkspaceIndexStatus = X_(() => {
+  const refreshWorkspaceIndexStatus = Y_(() => {
     loadWorkspaceIndexStatusRef.current?.();
   }, []);
   const loadTree = async () => {
@@ -10953,7 +10950,7 @@ function WorkspaceExplorer({
     }
   };
   loadSubtreeRef.current = loadSubtree;
-  const resolveDropTargetPath = X_(() => {
+  const resolveDropTargetPath = Y_(() => {
     const selected = selectedPath;
     if (!selected)
       return ".";
@@ -10967,7 +10964,7 @@ function WorkspaceExplorer({
     const parent = parts.join("/");
     return parent || ".";
   }, [selectedPath]);
-  const resolveDropTargetFromElement = X_((element) => {
+  const resolveDropTargetFromElement = Y_((element) => {
     const row = element?.closest?.(".workspace-row");
     if (!row)
       return null;
@@ -10984,20 +10981,20 @@ function WorkspaceExplorer({
     }
     return ".";
   }, []);
-  const resolveDropTargetFromEvent = X_((event) => {
+  const resolveDropTargetFromEvent = Y_((event) => {
     return resolveDropTargetFromElement(event?.target || null);
   }, [resolveDropTargetFromElement]);
-  const updateDropTarget = X_((value) => {
+  const updateDropTarget = Y_((value) => {
     dropTargetRef.current = value;
     setDropTarget(value);
   }, []);
-  const clearDragExpandTimer = X_(() => {
+  const clearDragExpandTimer = Y_(() => {
     const current = dragExpandRef.current;
     if (current?.timer)
       clearTimeout(current.timer);
     dragExpandRef.current = { path: null, timer: 0 };
   }, []);
-  const scheduleDragExpand = X_((targetPath) => {
+  const scheduleDragExpand = Y_((targetPath) => {
     if (!targetPath || targetPath === ".") {
       clearDragExpandTimer();
       return;
@@ -11025,7 +11022,7 @@ function WorkspaceExplorer({
     }, 600);
     dragExpandRef.current = { path: targetPath, timer };
   }, [clearDragExpandTimer]);
-  const updateDragGhostPosition = X_((x, y) => {
+  const updateDragGhostPosition = Y_((x, y) => {
     dragGhostPosRef.current = { x, y };
     if (dragGhostRafRef.current)
       return;
@@ -11038,7 +11035,7 @@ function WorkspaceExplorer({
       el.style.transform = `translate(${pos.x + 12}px, ${pos.y + 12}px)`;
     });
   }, []);
-  const startDragGhost = X_((path) => {
+  const startDragGhost = Y_((path) => {
     if (!path)
       return;
     const node = nodeMapRef.current?.get(path);
@@ -11047,7 +11044,7 @@ function WorkspaceExplorer({
       return;
     setDragGhost({ path, label });
   }, []);
-  const clearDragGhost = X_(() => {
+  const clearDragGhost = Y_(() => {
     setDragGhost(null);
     if (dragGhostRafRef.current) {
       cancelAnimationFrame(dragGhostRafRef.current);
@@ -11057,7 +11054,7 @@ function WorkspaceExplorer({
       dragGhostRef.current.style.transform = "translate(-9999px, -9999px)";
     }
   }, []);
-  const resolveCreateTargetPath = X_((path) => {
+  const resolveCreateTargetPath = Y_((path) => {
     if (!path)
       return ".";
     const node = nodeMapRef.current?.get(path);
@@ -11070,11 +11067,11 @@ function WorkspaceExplorer({
     const parent = parts.join("/");
     return parent || ".";
   }, []);
-  const cancelRename = X_(() => {
+  const cancelRename = Y_(() => {
     setRenamingPath(null);
     setRenameValue("");
   }, []);
-  const beginRename = X_((path) => {
+  const beginRename = Y_((path) => {
     if (!path)
       return;
     const node = nodeMapRef.current?.get(path);
@@ -11084,7 +11081,7 @@ function WorkspaceExplorer({
     setRenamingPath(path);
     setRenameValue(base);
   }, []);
-  const commitRename = X_(async () => {
+  const commitRename = Y_(async () => {
     const targetPath = renamingPathRef.current;
     if (!targetPath)
       return;
@@ -11137,7 +11134,7 @@ function WorkspaceExplorer({
       setError(err?.message || "Failed to rename file");
     }
   }, [cancelRename, renameValue, refreshWorkspaceIndexStatus]);
-  const createUntitledFile = X_(async (targetPath) => {
+  const createUntitledFile = Y_(async (targetPath) => {
     const base = "untitled";
     const ext = ".md";
     const folder = targetPath || ".";
@@ -11166,14 +11163,14 @@ function WorkspaceExplorer({
     }
     setError("Failed to create file (untitled name already in use).");
   }, []);
-  const handleCreateFileClick = X_((event) => {
+  const handleCreateFileClick = Y_((event) => {
     event?.stopPropagation?.();
     if (uploading)
       return;
     const target = resolveCreateTargetPath(selectedPathRef.current);
     createUntitledFile(target);
   }, [uploading, resolveCreateTargetPath, createUntitledFile]);
-  J_(() => {
+  K_(() => {
     if (typeof window === "undefined")
       return;
     const handler = (event) => {
@@ -11227,7 +11224,7 @@ function WorkspaceExplorer({
     return () => window.removeEventListener("workspace-update", handler);
   }, []);
   loadTreeFnRef.current = loadTree;
-  const updateVisibility = K_(() => {
+  const updateVisibility = Q_(() => {
     if (typeof window === "undefined")
       return;
     const media = window.matchMedia("(min-width: 1024px) and (orientation: landscape)");
@@ -11240,8 +11237,8 @@ function WorkspaceExplorer({
       });
     });
   }).current;
-  const debouncedVisibilityRef = K_(0);
-  const scheduleVisibilityUpdate = K_(() => {
+  const debouncedVisibilityRef = Q_(0);
+  const scheduleVisibilityUpdate = Q_(() => {
     if (debouncedVisibilityRef.current) {
       clearTimeout(debouncedVisibilityRef.current);
     }
@@ -11250,14 +11247,14 @@ function WorkspaceExplorer({
       updateVisibility();
     }, 250);
   }).current;
-  J_(() => {
+  K_(() => {
     if (visibleRef.current) {
       loadTreeFnRef.current?.();
       loadWorkspaceIndexStatusRef.current?.();
     }
     scheduleVisibilityUpdate();
   }, [visible, active]);
-  J_(() => {
+  K_(() => {
     loadTreeFnRef.current();
     loadWorkspaceIndexStatusRef.current?.();
     updateVisibility();
@@ -11308,7 +11305,7 @@ function WorkspaceExplorer({
   nodeMapRef.current = nodeMap;
   const selectedNode = selectedPath ? nodeMapRef.current.get(selectedPath) : null;
   const selectedIsDir = selectedNode?.type === "dir";
-  J_(() => {
+  K_(() => {
     if (!selectedPath || !selectedIsDir) {
       setFolderChart(null);
       folderChartPayloadRef.current = null;
@@ -11366,8 +11363,8 @@ function WorkspaceExplorer({
   const workspaceIndexTitle = buildWorkspaceIndexTitle(workspaceIndexStatus);
   const workspaceIndexState = workspaceIndexStatus?.state || "never_indexed";
   const showWorkspaceIndexIndicator = workspaceIndexState !== "ready";
-  const closeHeaderMenu = X_(() => setHeaderMenuOpen(false), []);
-  const runMenuAction = X_(async (fn) => {
+  const closeHeaderMenu = Y_(() => setHeaderMenuOpen(false), []);
+  const runMenuAction = Y_(async (fn) => {
     closeHeaderMenu();
     try {
       await fn?.();
@@ -11375,7 +11372,7 @@ function WorkspaceExplorer({
       console.warn("[workspace-explorer] Header menu action failed:", err);
     }
   }, [closeHeaderMenu]);
-  const handleWorkspaceReindex = X_(async (event) => {
+  const handleWorkspaceReindex = Y_(async (event) => {
     event?.stopPropagation?.();
     setWorkspaceReindexing(true);
     setWorkspaceIndexStatus((prev) => ({
@@ -11409,7 +11406,7 @@ function WorkspaceExplorer({
       setWorkspaceReindexing(false);
     }
   }, []);
-  J_(() => {
+  K_(() => {
     const container = previewPaneHostRef.current;
     if (previewPaneInstanceRef.current) {
       previewPaneInstanceRef.current.dispose();
@@ -11457,7 +11454,7 @@ function WorkspaceExplorer({
       return true;
     return Boolean(targetEl.isContentEditable);
   };
-  const handleTreeDblClick = K_((e) => {
+  const handleTreeDblClick = Q_((e) => {
     const targetEl = getEventTargetElement(e);
     const rowEl = targetEl?.closest?.("[data-path]");
     if (!rowEl)
@@ -11473,7 +11470,7 @@ function WorkspaceExplorer({
       return;
     beginRename(clickedPath);
   }).current;
-  const handleTreeClick = K_((e) => {
+  const handleTreeClick = Q_((e) => {
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
       return;
@@ -11524,21 +11521,21 @@ function WorkspaceExplorer({
       }
     }
   }).current;
-  const handleRefreshClick = K_(() => {
+  const handleRefreshClick = Q_(() => {
     lastSigRef.current = "";
     loadTreeFnRef.current();
     loadWorkspaceIndexStatusRef.current?.();
     const openPaths = Array.from(expandedRef.current || []).filter((p) => p && p !== ".");
     openPaths.forEach((p) => loadSubtreeRef.current?.(p));
   }).current;
-  const clearSelection = K_(() => {
+  const clearSelection = Q_(() => {
     pendingProgrammaticFileClickRef.current = null;
     setSelectedPath(null);
     setPreview(null);
     setDownloadId(null);
     setLoadingPreview(false);
   }).current;
-  const handleToggleHidden = K_(() => {
+  const handleToggleHidden = Q_(() => {
     setShowHidden((prev) => {
       const next = !prev;
       if (typeof window !== "undefined") {
@@ -11557,13 +11554,13 @@ function WorkspaceExplorer({
       return next;
     });
   }).current;
-  const handleBackgroundClick = K_((e) => {
+  const handleBackgroundClick = Q_((e) => {
     const targetEl = getEventTargetElement(e);
     if (targetEl?.closest?.("[data-path]"))
       return;
     clearSelection();
   }).current;
-  const deleteFileAtPath = X_(async (path) => {
+  const deleteFileAtPath = Y_(async (path) => {
     if (!path)
       return;
     const filename = path.split("/").pop() || path;
@@ -11583,14 +11580,14 @@ function WorkspaceExplorer({
       setPreview((prev) => ({ ...prev || {}, error: err.message || "Failed to delete file" }));
     }
   }, [clearSelection]);
-  const scrollRowIntoView = X_((path) => {
+  const scrollRowIntoView = Y_((path) => {
     const container = treeListRef.current;
     if (!container || !path || typeof CSS === "undefined" || typeof CSS.escape !== "function")
       return;
     const el = container.querySelector(`[data-path="${CSS.escape(path)}"]`);
     el?.scrollIntoView?.({ block: "nearest" });
   }, []);
-  const handleTreeKeyDown = X_((e) => {
+  const handleTreeKeyDown = Y_((e) => {
     const targetEl = getEventTargetElement(e);
     if (renamingPathRef.current || isEditableKeyboardTarget(targetEl))
       return;
@@ -11695,7 +11692,7 @@ function WorkspaceExplorer({
       clearSelection();
     }
   }, [clearSelection, deleteFileAtPath, expanded, rows, scrollRowIntoView, selectedPath]);
-  const handleRowTouchStart = X_((event) => {
+  const handleRowTouchStart = Y_((event) => {
     const intent = getWorkspaceTouchStartIntent(event, renamingPathRef.current);
     if (!intent)
       return;
@@ -11706,7 +11703,7 @@ function WorkspaceExplorer({
       startY: intent.startY
     };
   }, []);
-  const handleRowTouchEnd = X_(() => {
+  const handleRowTouchEnd = Y_(() => {
     const dragState = touchDragRef.current;
     if (dragState?.dragging && dragState.path) {
       const target = dropTargetRef.current || resolveDropTargetPath();
@@ -11722,7 +11719,7 @@ function WorkspaceExplorer({
     clearDragExpandTimer();
     clearDragGhost();
   }, [resolveDropTargetPath, clearDragGhost, updateDropTarget, clearDragExpandTimer]);
-  const handleRowTouchMove = X_((event) => {
+  const handleRowTouchMove = Y_((event) => {
     const dragState = touchDragRef.current;
     const touch = event?.touches?.[0];
     if (!touch || !dragState?.path)
@@ -11746,7 +11743,7 @@ function WorkspaceExplorer({
       scheduleDragExpand(target);
     }
   }, [resolveDropTargetFromElement, resolveDropTargetPath, startDragGhost, updateDragGhostPosition, updateDropTarget, scheduleDragExpand]);
-  const handlePreviewSplitterMouseDown = K_((e) => {
+  const handlePreviewSplitterMouseDown = Q_((e) => {
     e.preventDefault();
     const sidebar = sidebarRef.current;
     if (!sidebar)
@@ -11779,7 +11776,7 @@ function WorkspaceExplorer({
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }).current;
-  const handlePreviewSplitterTouchStart = K_((e) => {
+  const handlePreviewSplitterTouchStart = Q_((e) => {
     e.preventDefault();
     const sidebar = sidebarRef.current;
     if (!sidebar)
@@ -11814,7 +11811,7 @@ function WorkspaceExplorer({
     document.addEventListener("touchend", onUp);
     document.addEventListener("touchcancel", onUp);
   }).current;
-  const handleDownload = X_((path = selectedPath) => {
+  const handleDownload = Y_((path = selectedPath) => {
     if (!path)
       return;
     triggerWorkspaceDownload(getWorkspaceFileDownloadUrl(path));
@@ -11828,7 +11825,7 @@ function WorkspaceExplorer({
     const types = Array.from(event?.dataTransfer?.types || []);
     return types.includes("Files");
   };
-  const handleDragEnter = X_((event) => {
+  const handleDragEnter = Y_((event) => {
     if (!isFileDrag(event))
       return;
     event.preventDefault();
@@ -11840,7 +11837,7 @@ function WorkspaceExplorer({
     updateDropTarget(target);
     scheduleDragExpand(target);
   }, [resolveDropTargetPath, resolveDropTargetFromEvent, updateDropTarget, scheduleDragExpand]);
-  const handleDragOver = X_((event) => {
+  const handleDragOver = Y_((event) => {
     if (!isFileDrag(event))
       return;
     event.preventDefault();
@@ -11856,7 +11853,7 @@ function WorkspaceExplorer({
       updateDropTarget(target);
     scheduleDragExpand(target);
   }, [resolveDropTargetPath, resolveDropTargetFromEvent, updateDropTarget, scheduleDragExpand]);
-  const handleDragLeave = X_((event) => {
+  const handleDragLeave = Y_((event) => {
     if (!isFileDrag(event))
       return;
     event.preventDefault();
@@ -11868,7 +11865,7 @@ function WorkspaceExplorer({
       clearDragExpandTimer();
     }
   }, [updateDropTarget, clearDragExpandTimer]);
-  const uploadFilesToTarget = X_(async (files, targetPath = ".") => {
+  const uploadFilesToTarget = Y_(async (files, targetPath = ".") => {
     const list = Array.from(files || []);
     if (list.length === 0)
       return;
@@ -11924,7 +11921,7 @@ function WorkspaceExplorer({
       setUploading(false);
     }
   }, [clearUploadProgressTimer]);
-  const moveEntryToTarget = X_(async (sourcePath, targetPath) => {
+  const moveEntryToTarget = Y_(async (sourcePath, targetPath) => {
     if (!sourcePath)
       return;
     const node = nodeMapRef.current?.get(sourcePath);
@@ -11968,7 +11965,7 @@ function WorkspaceExplorer({
     }
   }, []);
   moveEntryToTargetRef.current = moveEntryToTarget;
-  const handleDrop = X_(async (event) => {
+  const handleDrop = Y_(async (event) => {
     if (!isFileDrag(event))
       return;
     event.preventDefault();
@@ -11983,7 +11980,7 @@ function WorkspaceExplorer({
     const target = dropTargetRef.current || resolveDropTargetFromEvent(event) || resolveDropTargetPath();
     await uploadFilesToTarget(files, target);
   }, [resolveDropTargetPath, resolveDropTargetFromEvent, uploadFilesToTarget]);
-  const handleFolderUploadClick = X_((event) => {
+  const handleFolderUploadClick = Y_((event) => {
     event?.stopPropagation?.();
     if (uploading)
       return;
@@ -11991,7 +11988,7 @@ function WorkspaceExplorer({
     uploadTargetRef.current = target;
     uploadInputRef.current?.click();
   }, [uploading]);
-  const handleUploadButtonClick = X_(() => {
+  const handleUploadButtonClick = Y_(() => {
     if (uploading)
       return;
     const selected = selectedPathRef.current;
@@ -11999,62 +11996,62 @@ function WorkspaceExplorer({
     uploadTargetRef.current = selectedNode?.type === "dir" ? selectedNode.path : ".";
     uploadInputRef.current?.click();
   }, [uploading]);
-  const handleMenuCreateFile = X_(() => {
+  const handleMenuCreateFile = Y_(() => {
     runMenuAction(() => handleCreateFileClick(null));
   }, [runMenuAction, handleCreateFileClick]);
-  const handleMenuUploadFiles = X_(() => {
+  const handleMenuUploadFiles = Y_(() => {
     runMenuAction(() => handleUploadButtonClick());
   }, [runMenuAction, handleUploadButtonClick]);
-  const handleMenuRefresh = X_(() => {
+  const handleMenuRefresh = Y_(() => {
     runMenuAction(() => handleRefreshClick());
   }, [runMenuAction, handleRefreshClick]);
-  const handleMenuToggleHidden = X_(() => {
+  const handleMenuToggleHidden = Y_(() => {
     runMenuAction(() => handleToggleHidden());
   }, [runMenuAction, handleToggleHidden]);
-  const handleMenuOpenTab = X_(() => {
+  const handleMenuOpenTab = Y_(() => {
     if (!selectedPath || !selectedHasOpenableTab)
       return;
     runMenuAction(() => onOpenEditorRef.current?.(selectedPath, preview));
   }, [runMenuAction, selectedPath, selectedHasOpenableTab, preview]);
-  const handleMenuOpenEditor = X_(() => {
+  const handleMenuOpenEditor = Y_(() => {
     if (!selectedPath || !canEdit)
       return;
     runMenuAction(() => onOpenEditorRef.current?.(selectedPath, preview));
   }, [runMenuAction, selectedPath, canEdit, preview]);
-  const handleMenuRename = X_(() => {
+  const handleMenuRename = Y_(() => {
     if (!selectedPath || selectedPath === ".")
       return;
     runMenuAction(() => beginRename(selectedPath));
   }, [runMenuAction, selectedPath, beginRename]);
-  const handleMenuDelete = X_(() => {
+  const handleMenuDelete = Y_(() => {
     if (!selectedPath || selectedIsDir)
       return;
     runMenuAction(() => handleDeleteFile());
   }, [runMenuAction, selectedPath, selectedIsDir, handleDeleteFile]);
-  const handleMenuDownload = X_(() => {
+  const handleMenuDownload = Y_(() => {
     if (!selectedPath || selectedIsDir)
       return;
     runMenuAction(() => handleDownload());
   }, [runMenuAction, selectedPath, selectedIsDir, handleDownload]);
-  const handleMenuDownloadFolder = X_(() => {
+  const handleMenuDownloadFolder = Y_(() => {
     if (!selectedFolderDownloadUrl)
       return;
     closeHeaderMenu();
     triggerWorkspaceDownload(selectedFolderDownloadUrl);
   }, [closeHeaderMenu, selectedFolderDownloadUrl]);
-  const handleMenuOpenTerminalTab = X_(() => {
+  const handleMenuOpenTerminalTab = Y_(() => {
     closeHeaderMenu();
     onOpenTerminalTab?.();
   }, [closeHeaderMenu, onOpenTerminalTab]);
-  const handleMenuOpenVncTab = X_(() => {
+  const handleMenuOpenVncTab = Y_(() => {
     closeHeaderMenu();
     onOpenVncTab?.();
   }, [closeHeaderMenu, onOpenVncTab]);
-  const handleMenuToggleTerminal = X_(() => {
+  const handleMenuToggleTerminal = Y_(() => {
     closeHeaderMenu();
     onToggleTerminal?.();
   }, [closeHeaderMenu, onToggleTerminal]);
-  const handleRowMouseDown = X_((event) => {
+  const handleRowMouseDown = Y_((event) => {
     if (!event || event.button !== 0)
       return;
     const rowEl = event.currentTarget;
@@ -12130,7 +12127,7 @@ function WorkspaceExplorer({
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
   }, [resolveDropTargetFromElement, resolveDropTargetPath, startDragGhost, updateDragGhostPosition, clearDragGhost, updateDropTarget, scheduleDragExpand, clearDragExpandTimer]);
-  const handleUploadInputChange = X_(async (event) => {
+  const handleUploadInputChange = Y_(async (event) => {
     const files = Array.from(event?.target?.files || []);
     if (files.length === 0)
       return;
@@ -12140,7 +12137,7 @@ function WorkspaceExplorer({
     if (event?.target)
       event.target.value = "";
   }, [uploadFilesToTarget]);
-  return ce`
+  return fe`
         <aside
             class=${`workspace-sidebar${dragActive ? " workspace-drop-active" : ""}`}
             data-workspace-scale=${explorerScale}
@@ -12173,7 +12170,7 @@ function WorkspaceExplorer({
                                 <line x1="4" y1="17" x2="20" y2="17" />
                             </svg>
                         </button>
-                        ${headerMenuOpen && ce`
+                        ${headerMenuOpen && fe`
                             <div class="workspace-menu-dropdown" ref=${headerMenuRef} role="menu" aria-label="Workspace options">
                                 <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuCreateFile} disabled=${uploading}>New file</button>
                                 <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuUploadFiles} disabled=${uploading}>Upload files</button>
@@ -12185,40 +12182,40 @@ function WorkspaceExplorer({
                                     ${showHidden ? "Hide hidden files" : "Show hidden files"}
                                 </button>
 
-                                ${(onOpenTerminalTab || onOpenVncTab || onToggleTerminal) && ce`<div class="workspace-menu-separator"></div>`}
-                                ${onOpenTerminalTab && ce`
+                                ${(onOpenTerminalTab || onOpenVncTab || onToggleTerminal) && fe`<div class="workspace-menu-separator"></div>`}
+                                ${onOpenTerminalTab && fe`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuOpenTerminalTab}>
                                         Open terminal in tab
                                     </button>
                                 `}
-                                ${onOpenVncTab && ce`
+                                ${onOpenVncTab && fe`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuOpenVncTab}>
                                         Open VNC in tab
                                     </button>
                                 `}
-                                ${onToggleTerminal && ce`
+                                ${onToggleTerminal && fe`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuToggleTerminal}>
                                         ${terminalVisible ? "Hide terminal dock" : "Show terminal dock"}
                                     </button>
                                 `}
 
-                                ${selectedPath && ce`<div class="workspace-menu-separator"></div>`}
-                                ${selectedHasOpenableTab && ce`
+                                ${selectedPath && fe`<div class="workspace-menu-separator"></div>`}
+                                ${selectedHasOpenableTab && fe`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuOpenTab}>Open in tab</button>
                                 `}
-                                ${selectedPath && !selectedIsDir && ce`
+                                ${selectedPath && !selectedIsDir && fe`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuOpenEditor} disabled=${!canEdit}>Open in editor</button>
                                 `}
-                                ${selectedCanRename && ce`
+                                ${selectedCanRename && fe`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuRename}>Rename selected</button>
                                 `}
-                                ${selectedCanDownload && ce`
+                                ${selectedCanDownload && fe`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuDownload}>Download selected file</button>
                                 `}
-                                ${selectedFolderDownloadUrl && ce`
+                                ${selectedFolderDownloadUrl && fe`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuDownloadFolder}>Download selected folder (zip)</button>
                                 `}
-                                ${selectedCanDelete && ce`
+                                ${selectedCanDelete && fe`
                                     <button class="workspace-menu-item danger" role="menuitem" onClick=${handleMenuDelete}>Delete selected file</button>
                                 `}
                             </div>
@@ -12244,7 +12241,7 @@ function WorkspaceExplorer({
                     </button>
                 </div>
             </div>
-            ${showWorkspaceIndexIndicator && ce`
+            ${showWorkspaceIndexIndicator && fe`
                 <div class="workspace-index-status-row">
                     <div class=${`workspace-index-status-chip state-${workspaceIndexState}`} title=${workspaceIndexTitle}>
                         <span class="workspace-index-status-dot" aria-hidden="true"></span>
@@ -12253,21 +12250,21 @@ function WorkspaceExplorer({
                 </div>
             `}
             <div class="workspace-tree" onClick=${handleBackgroundClick}>
-                ${uploadProgress && ce`
+                ${uploadProgress && fe`
                     <div class="workspace-upload-strip">
                         <div class="workspace-upload-strip-text">
-                            ${uploadProgress.error ? ce`<span class="workspace-upload-strip-error">${uploadProgress.error}</span>` : uploadProgress.done ? ce`<span>Done</span>` : ce`<span>${uploadProgress.total > 1 ? `Uploading ${uploadProgress.current}/${uploadProgress.total}: ${uploadProgress.name}` : `Uploading ${uploadProgress.name}`}${uploadProgress.percent > 0 ? ` (${uploadProgress.percent}%)` : "…"}</span>`}
+                            ${uploadProgress.error ? fe`<span class="workspace-upload-strip-error">${uploadProgress.error}</span>` : uploadProgress.done ? fe`<span>Done</span>` : fe`<span>${uploadProgress.total > 1 ? `Uploading ${uploadProgress.current}/${uploadProgress.total}: ${uploadProgress.name}` : `Uploading ${uploadProgress.name}`}${uploadProgress.percent > 0 ? ` (${uploadProgress.percent}%)` : "…"}</span>`}
                         </div>
-                        ${!uploadProgress.done && !uploadProgress.error && ce`
+                        ${!uploadProgress.done && !uploadProgress.error && fe`
                             <div class="workspace-upload-strip-bar">
                                 <div class="workspace-upload-strip-fill" style=${`width:${uploadProgress.percent || 0}%`}></div>
                             </div>
                         `}
                     </div>
                 `}
-                ${initialLoad && ce`<div class="workspace-loading">Loading…</div>`}
-                ${error && ce`<div class="workspace-error">${error}</div>`}
-                ${tree && ce`
+                ${initialLoad && fe`<div class="workspace-loading">Loading…</div>`}
+                ${error && fe`<div class="workspace-error">${error}</div>`}
+                ${tree && fe`
                     <div
                         class="workspace-tree-list"
                         ref=${treeListRef}
@@ -12287,7 +12284,7 @@ function WorkspaceExplorer({
     const isOpen = isDir && expanded.has(node.path);
     const isDropTarget = dropTarget && node.path === dropTarget;
     const childCount = Array.isArray(node.children) && node.children.length > 0 ? node.children.length : Number(node.child_count) || 0;
-    return ce`
+    return fe`
                                 <div
                                     key=${node.path}
                                     class=${`workspace-row${isSelected ? " selected" : ""}${isDropTarget ? " drop-target" : ""}`}
@@ -12297,15 +12294,15 @@ function WorkspaceExplorer({
                                     onMouseDown=${handleRowMouseDown}
                                 >
                                     <span class="workspace-caret" aria-hidden="true">
-                                        ${isDir ? isOpen ? ce`<svg viewBox="0 0 12 12"><polygon points="1,2 11,2 6,11"/></svg>` : ce`<svg viewBox="0 0 12 12"><polygon points="2,1 11,6 2,11"/></svg>` : null}
+                                        ${isDir ? isOpen ? fe`<svg viewBox="0 0 12 12"><polygon points="1,2 11,2 6,11"/></svg>` : fe`<svg viewBox="0 0 12 12"><polygon points="2,1 11,6 2,11"/></svg>` : null}
                                     </span>
                                     <svg class=${`workspace-node-icon${isDir ? " folder" : ""}`}
                                         viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                                         aria-hidden="true">
-                                        ${isDir ? ce`<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>` : ce`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>`}
+                                        ${isDir ? fe`<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>` : fe`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>`}
                                     </svg>
-                                    ${isRenaming ? ce`
+                                    ${isRenaming ? fe`
                                             <input
                                                 class="workspace-rename-input"
                                                 ref=${renameInputRef}
@@ -12324,11 +12321,11 @@ function WorkspaceExplorer({
                                                 onBlur=${cancelRename}
                                                 onClick=${(e) => e.stopPropagation()}
                                             />
-                                        ` : ce`<span class="workspace-label"><span class="workspace-label-text">${node.name}</span></span>`}
-                                    ${isDir && !isOpen && childCount > 0 && ce`
+                                        ` : fe`<span class="workspace-label"><span class="workspace-label-text">${node.name}</span></span>`}
+                                    ${isDir && !isOpen && childCount > 0 && fe`
                                         <span class="workspace-count">${childCount}</span>
                                     `}
-                                    ${isDir && ce`
+                                    ${isDir && fe`
                                         <button
                                             class="workspace-folder-upload"
                                             data-upload-target=${node.path}
@@ -12350,7 +12347,7 @@ function WorkspaceExplorer({
                     </div>
                 `}
             </div>
-            ${selectedPath && ce`
+            ${selectedPath && fe`
                 <div class="workspace-preview-splitter-h" onMouseDown=${handlePreviewSplitterMouseDown} onTouchStart=${handlePreviewSplitterTouchStart}></div>
                 <div class="workspace-preview">
                     <div class="workspace-preview-header">
@@ -12363,7 +12360,7 @@ function WorkspaceExplorer({
                                     <line x1="5" y1="12" x2="19" y2="12" />
                                 </svg>
                             </button>
-                            ${!selectedIsDir && ce`
+                            ${!selectedIsDir && fe`
                                 <button
                                     class="workspace-download workspace-edit"
                                     onClick=${() => canEdit && onOpenEditorRef.current?.(selectedPath, preview)}
@@ -12391,7 +12388,7 @@ function WorkspaceExplorer({
                                     </svg>
                                 </button>
                             `}
-                            ${selectedIsDir ? ce`
+                            ${selectedIsDir ? fe`
                                     <button class="workspace-download" onClick=${handleUploadButtonClick}
                                         title="Upload files to this folder" disabled=${uploading}>
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -12409,7 +12406,7 @@ function WorkspaceExplorer({
                                             <polyline points="7 10 12 15 17 10"/>
                                             <line x1="12" y1="15" x2="12" y2="3"/>
                                         </svg>
-                                    </a>` : ce`<a class="workspace-download" href=${getWorkspaceFileDownloadUrl(selectedPath)} download
+                                    </a>` : fe`<a class="workspace-download" href=${getWorkspaceFileDownloadUrl(selectedPath)} download
                                         title="Download" onClick=${(e) => e.stopPropagation()}>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -12420,25 +12417,25 @@ function WorkspaceExplorer({
                                 </a>`}
                         </div>
                     </div>
-                    ${loadingPreview && ce`<div class="workspace-loading">Loading preview…</div>`}
-                    ${preview?.error && ce`<div class="workspace-error">${preview.error}</div>`}
-                    ${selectedIsDir && ce`
+                    ${loadingPreview && fe`<div class="workspace-loading">Loading preview…</div>`}
+                    ${preview?.error && fe`<div class="workspace-error">${preview.error}</div>`}
+                    ${selectedIsDir && fe`
                         <div class="workspace-preview-text">Folder selected — create file, upload files, or download as zip.</div>
-                        ${folderChart?.loading && ce`<div class="workspace-loading">Loading folder size preview…</div>`}
-                        ${folderChart?.error && ce`<div class="workspace-error">${folderChart.error}</div>`}
-                        ${folderChart?.payload && folderChart.payload.segments?.length > 0 && ce`
+                        ${folderChart?.loading && fe`<div class="workspace-loading">Loading folder size preview…</div>`}
+                        ${folderChart?.error && fe`<div class="workspace-error">${folderChart.error}</div>`}
+                        ${folderChart?.payload && folderChart.payload.segments?.length > 0 && fe`
                             <${FolderStarburstChart} payload=${folderChart.payload} />
                         `}
-                        ${folderChart?.payload && (!folderChart.payload.segments || folderChart.payload.segments.length === 0) && ce`
+                        ${folderChart?.payload && (!folderChart.payload.segments || folderChart.payload.segments.length === 0) && fe`
                             <div class="workspace-preview-text">No file size data available for this folder yet.</div>
                         `}
                     `}
-                    ${preview && !preview.error && !selectedIsDir && ce`
+                    ${preview && !preview.error && !selectedIsDir && fe`
                         <div class="workspace-preview-body" ref=${previewPaneHostRef}></div>
                     `}
                 </div>
             `}
-            ${dragGhost && ce`
+            ${dragGhost && fe`
                 <div class="workspace-drag-ghost" ref=${dragGhostRef}>${dragGhost.label}</div>
             `}
         </aside>
@@ -12502,9 +12499,9 @@ function getStandaloneTabUrl(path, { hasPopOutTab = false } = {}) {
   return null;
 }
 function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseAll, onTogglePin, onTogglePreview, onToggleDiff, onEditSource, previewTabs, diffTabs, paneOverrides, detachedTabs, onReattachTab, onToggleDock, dockVisible, onToggleZen, zenMode, onPopOutTab }) {
-  const [contextMenu, setContextMenu] = M_(null);
-  const stripRef = K_(null);
-  J_(() => {
+  const [contextMenu, setContextMenu] = F_(null);
+  const stripRef = Q_(null);
+  K_(() => {
     if (!contextMenu)
       return;
     const dismiss = (e) => {
@@ -12519,7 +12516,7 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
       document.removeEventListener("keydown", dismiss);
     };
   }, [contextMenu]);
-  J_(() => {
+  K_(() => {
     const onKeyDown = (e) => {
       if (e.ctrlKey && e.key === "Tab") {
         e.preventDefault();
@@ -12547,33 +12544,33 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [tabs, activeId, onActivate, onClose]);
-  const handleTabMouseDown = X_((e, id) => {
+  const handleTabMouseDown = Y_((e, id) => {
     if (e.button === 1) {
       e.preventDefault();
       onClose?.(id);
     }
   }, [onClose]);
-  const handleTabClick = X_((e, id) => {
+  const handleTabClick = Y_((e, id) => {
     if (e.defaultPrevented)
       return;
     if (e.button === 0) {
       onActivate?.(id);
     }
   }, [onActivate]);
-  const handleContextMenu = X_((e, id) => {
+  const handleContextMenu = Y_((e, id) => {
     e.preventDefault();
     setContextMenu({ id, x: e.clientX, y: e.clientY });
   }, []);
-  const handleClosePointerDown = X_((e) => {
+  const handleClosePointerDown = Y_((e) => {
     e.preventDefault();
     e.stopPropagation();
   }, []);
-  const handleCloseClick = X_((e, id) => {
+  const handleCloseClick = Y_((e, id) => {
     e.preventDefault();
     e.stopPropagation();
     onClose?.(id);
   }, [onClose]);
-  J_(() => {
+  K_(() => {
     if (!activeId || !stripRef.current)
       return;
     const activeEl = stripRef.current.querySelector(".tab-item.active");
@@ -12581,7 +12578,7 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
       activeEl.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
     }
   }, [activeId]);
-  const getPaneOverride = X_((id) => {
+  const getPaneOverride = Y_((id) => {
     if (!(paneOverrides instanceof Map))
       return null;
     return paneOverrides.get(id) || null;
@@ -12623,9 +12620,9 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
   }, [contextMenu?.id, contextMenuDiffOpen, getPaneOverride, tabs]);
   if (!tabs.length)
     return null;
-  return ce`
+  return fe`
         <div class="tab-strip" ref=${stripRef} role="tablist">
-            ${tabs.map((tab) => ce`
+            ${tabs.map((tab) => fe`
                 <div
                     key=${tab.id}
                     class=${`tab-item${tab.id === activeId ? " active" : ""}${tab.dirty ? " dirty" : ""}${tab.pinned ? " pinned" : ""}`}
@@ -12636,7 +12633,7 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
                     onClick=${(e) => handleTabClick(e, tab.id)}
                     onContextMenu=${(e) => handleContextMenu(e, tab.id)}
                 >
-                    ${tab.pinned && ce`
+                    ${tab.pinned && fe`
                         <span class="tab-pin-icon" aria-label="Pinned">
                             <svg viewBox="0 0 16 16" width="10" height="10" fill="currentColor">
                                 <path d="M4.456.734a1.75 1.75 0 0 1 2.826.504l.613 1.327a3.1 3.1 0 0 0 2.084 1.707l2.454.584c1.332.317 1.8 1.972.832 2.94L11.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06L10 11.06l-2.204 2.205c-.968.968-2.623.5-2.94-.832l-.584-2.454a3.1 3.1 0 0 0-1.707-2.084l-1.327-.613a1.75 1.75 0 0 1-.504-2.826z"/>
@@ -12644,7 +12641,7 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
                         </span>
                     `}
                     <span class="tab-label">${tab.label}</span>
-                    ${detachedTabs instanceof Map && detachedTabs.has(tab.id) && ce`
+                    ${detachedTabs instanceof Map && detachedTabs.has(tab.id) && fe`
                         <span class="tab-detached-badge" aria-label="Detached" title="Open in separate window">↗</span>
                     `}
                     <button
@@ -12656,14 +12653,14 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
                         title=${tab.dirty ? "Unsaved changes" : "Close"}
                         aria-label=${tab.dirty ? "Unsaved changes" : `Close ${tab.label}`}
                     >
-                        ${tab.dirty ? ce`<span class="tab-dirty-dot" aria-hidden="true"></span>` : ce`<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" focusable="false" style=${{ pointerEvents: "none" }}>
+                        ${tab.dirty ? fe`<span class="tab-dirty-dot" aria-hidden="true"></span>` : fe`<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" focusable="false" style=${{ pointerEvents: "none" }}>
                                 <line x1="4" y1="4" x2="12" y2="12" style=${{ pointerEvents: "none" }}/>
                                 <line x1="12" y1="4" x2="4" y2="12" style=${{ pointerEvents: "none" }}/>
                             </svg>`}
                     </button>
                 </div>
             `)}
-            ${onToggleDock && ce`
+            ${onToggleDock && fe`
                 <div class="tab-strip-spacer"></div>
                 <button
                     class=${`tab-strip-dock-toggle${dockVisible ? " active" : ""}`}
@@ -12679,7 +12676,7 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
                     </svg>
                 </button>
             `}
-            ${onToggleZen && ce`
+            ${onToggleZen && fe`
                 <button
                     class=${`tab-strip-zen-toggle${zenMode ? " active" : ""}`}
                     onClick=${onToggleZen}
@@ -12688,12 +12685,12 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
                     aria-pressed=${zenMode ? "true" : "false"}
                 >
                     <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        ${zenMode ? ce`<polyline points="4 8 1.5 8 1.5 1.5 14.5 1.5 14.5 8 12 8"/><polyline points="4 8 1.5 8 1.5 14.5 14.5 14.5 14.5 8 12 8"/>` : ce`<polyline points="5.5 1.5 1.5 1.5 1.5 5.5"/><polyline points="10.5 1.5 14.5 1.5 14.5 5.5"/><polyline points="5.5 14.5 1.5 14.5 1.5 10.5"/><polyline points="10.5 14.5 14.5 14.5 14.5 10.5"/>`}
+                        ${zenMode ? fe`<polyline points="4 8 1.5 8 1.5 1.5 14.5 1.5 14.5 8 12 8"/><polyline points="4 8 1.5 8 1.5 14.5 14.5 14.5 14.5 8 12 8"/>` : fe`<polyline points="5.5 1.5 1.5 1.5 1.5 5.5"/><polyline points="10.5 1.5 14.5 1.5 14.5 5.5"/><polyline points="5.5 14.5 1.5 14.5 1.5 10.5"/><polyline points="10.5 14.5 14.5 14.5 14.5 10.5"/>`}
                     </svg>
                 </button>
             `}
         </div>
-        ${contextMenu && ce`
+        ${contextMenu && fe`
             <div class="tab-context-menu" style=${{ left: contextMenu.x + "px", top: contextMenu.y + "px" }}>
                 <button onClick=${() => {
     onClose?.(contextMenu.id);
@@ -12714,26 +12711,26 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
   }}>
                     ${contextMenuTab?.pinned ? "Unpin" : "Pin"}
                 </button>
-                ${contextMenuCanEditSource && onEditSource && ce`
+                ${contextMenuCanEditSource && onEditSource && fe`
                     <button onClick=${() => {
     onEditSource(contextMenu.id);
     setContextMenu(null);
   }}>${contextMenuEditSourceLabel}</button>
                 `}
-                ${isContextMenuTabDetached && onReattachTab && ce`
+                ${isContextMenuTabDetached && onReattachTab && fe`
                     <button onClick=${() => {
     onReattachTab(contextMenu.id);
     setContextMenu(null);
   }}>Reattach</button>
                 `}
-                ${onPopOutTab && !isContextMenuTabDetached && ce`
+                ${onPopOutTab && !isContextMenuTabDetached && fe`
                     <button onClick=${() => {
     const tab = tabs.find((t) => t.id === contextMenu.id);
     onPopOutTab(contextMenu.id, tab?.label);
     setContextMenu(null);
   }}>Open in Window</button>
                 `}
-                ${contextMenuCanCompareToSaved && onToggleDiff && ce`
+                ${contextMenuCanCompareToSaved && onToggleDiff && fe`
                     <hr />
                     <button onClick=${() => {
     onActivate?.(contextMenu.id);
@@ -12741,7 +12738,7 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
     setContextMenu(null);
   }}>${contextMenuDiffOpen ? "Hide Diff" : "Compare to Saved"}</button>
                 `}
-                ${onTogglePreview && /\.(md|mdx|markdown)$/i.test(contextMenu.id) && ce`
+                ${onTogglePreview && /\.(md|mdx|markdown)$/i.test(contextMenu.id) && fe`
                     <hr />
                     <button onClick=${() => {
     onTogglePreview(contextMenu.id);
@@ -12756,7 +12753,7 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
     });
     if (!standaloneUrl)
       return null;
-    return ce`
+    return fe`
                         <hr />
                         <button onClick=${() => {
       window.open(standaloneUrl, "_blank", "noopener");
@@ -13018,14 +13015,14 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
   const chatJid = typeof widget?.originChatJid === "string" && widget.originChatJid.trim() ? widget.originChatJid.trim() : null;
   const runtimeState = widget?.runtimeState && typeof widget.runtimeState === "object" ? widget.runtimeState : null;
   const hostUpdate = runtimeState?.lastHostUpdate && typeof runtimeState.lastHostUpdate === "object" ? runtimeState.lastHostUpdate : null;
-  const [state, setState] = M_(() => ({ loading: !initialTree, error: null, data: initialTree }));
-  const [selectedId, setSelectedId] = M_(() => initialTree?.leafId || null);
-  const [searchFilter, setSearchFilter] = M_("");
-  const searchInputRef = K_(null);
-  const activeRowRef = K_(null);
-  const preferredSelectionRef = K_(initialTree?.leafId || null);
-  const loadTreeRef = K_(null);
-  const scheduledRefreshKeyRef = K_("");
+  const [state, setState] = F_(() => ({ loading: !initialTree, error: null, data: initialTree }));
+  const [selectedId, setSelectedId] = F_(() => initialTree?.leafId || null);
+  const [searchFilter, setSearchFilter] = F_("");
+  const searchInputRef = Q_(null);
+  const activeRowRef = Q_(null);
+  const preferredSelectionRef = Q_(initialTree?.leafId || null);
+  const loadTreeRef = Q_(null);
+  const scheduledRefreshKeyRef = Q_("");
   const loadTree = async () => {
     setState((current) => ({ ...current, loading: true, error: null }));
     try {
@@ -13040,7 +13037,7 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
     }
   };
   loadTreeRef.current = loadTree;
-  J_(() => {
+  K_(() => {
     loadTree();
   }, [chatJid]);
   const flatRows = u_(() => {
@@ -13049,7 +13046,7 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
       return [];
     return flattenTree2(data.flat ? buildTreeFromFlat(data.nodes) : data.nodes);
   }, [state.data]);
-  J_(() => {
+  K_(() => {
     const nextSelectedId = resolveTreeSelectionId(flatRows, selectedId, preferredSelectionRef.current, state.data?.leafId || null);
     if (nextSelectedId !== selectedId) {
       setSelectedId(nextSelectedId);
@@ -13085,11 +13082,11 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
     hostUpdate?.error,
     hostUpdate?.submittedAt
   ]);
-  J_(() => {
+  K_(() => {
     if (activeRowRef.current)
       activeRowRef.current.scrollIntoView({ block: "center", behavior: "auto" });
   }, [selectedId, state.data?.leafId, filteredRows.length]);
-  J_(() => {
+  K_(() => {
     const parsed = parseTreeNavigationCommand(hostUpdate?.preview);
     if (parsed?.targetId) {
       preferredSelectionRef.current = parsed.targetId;
@@ -13113,7 +13110,7 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
     onWidgetEvent?.({ kind: "widget.submit", payload }, widget);
   };
   const hostUpdateTone = hostUpdateSummary?.tone || "info";
-  return ce`
+  return fe`
         <div class="session-tree-widget">
             <div class="session-tree-toolbar">
                 <div class="session-tree-toolbar-left">
@@ -13129,27 +13126,27 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
     }
   }}
                     />
-                    ${searchFilter && ce`<span class="session-tree-meta">${filteredRows.length} match${filteredRows.length !== 1 ? "es" : ""}</span>`}
-                    ${state.error && ce`<span class="session-tree-error-inline">${state.error}</span>`}
+                    ${searchFilter && fe`<span class="session-tree-meta">${filteredRows.length} match${filteredRows.length !== 1 ? "es" : ""}</span>`}
+                    ${state.error && fe`<span class="session-tree-error-inline">${state.error}</span>`}
                 </div>
                 <div class="session-tree-toolbar-right">
-                    ${hostUpdateSummary?.text && ce`<span class=${`session-tree-host-update ${hostUpdateTone}`}>${hostUpdateSummary.text}</span>`}
-                    ${state.data?.capped && ce`<span class="session-tree-meta">Showing ${state.data?.nodes?.length || 0} of ${state.data?.total || 0}</span>`}
-                    ${chatJid && ce`<span class="session-tree-meta">${chatJid}</span>`}
+                    ${hostUpdateSummary?.text && fe`<span class=${`session-tree-host-update ${hostUpdateTone}`}>${hostUpdateSummary.text}</span>`}
+                    ${state.data?.capped && fe`<span class="session-tree-meta">Showing ${state.data?.nodes?.length || 0} of ${state.data?.total || 0}</span>`}
+                    ${chatJid && fe`<span class="session-tree-meta">${chatJid}</span>`}
                 </div>
             </div>
 
             <div class="session-tree-content">
                 <div class="session-tree-list" role="tree" aria-label="Session tree">
-                    ${state.loading && filteredRows.length === 0 && !searchFilter && ce`<div class="session-tree-empty">Loading session tree\u2026</div>`}
-                    ${!state.loading && filteredRows.length === 0 && !searchFilter && ce`<div class="session-tree-empty">Session tree is empty.</div>`}
-                    ${!state.loading && filteredRows.length === 0 && searchFilter && ce`<div class="session-tree-empty">No entries match \u201c${searchFilter}\u201d</div>`}
+                    ${state.loading && filteredRows.length === 0 && !searchFilter && fe`<div class="session-tree-empty">Loading session tree\u2026</div>`}
+                    ${!state.loading && filteredRows.length === 0 && !searchFilter && fe`<div class="session-tree-empty">Session tree is empty.</div>`}
+                    ${!state.loading && filteredRows.length === 0 && searchFilter && fe`<div class="session-tree-empty">No entries match \u201c${searchFilter}\u201d</div>`}
                     ${filteredRows.map((node) => {
     const sel = selectedId === node.id;
     const rowClass = `st-row${node.active ? " active" : ""}${sel ? " selected" : ""}`;
     const hasBranch = (node.children || []).length > 1;
     const d = getRowDisplay(node);
-    return ce`
+    return fe`
                             <button key=${node.id} ref=${node.active || sel ? activeRowRef : null}
                                 class=${rowClass} type="button" role="treeitem" aria-selected=${sel}
                                 onClick=${() => setSelectedId(node.id)}>
@@ -13157,18 +13154,18 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
                                 <span class=${`st-dot${node.active ? " active" : hasBranch ? " branch" : ""}`}></span>
                                 <span class=${`st-tag ${d.tagClass}`}>${d.tag}</span>
                                 <span class="st-text">${d.text}</span>
-                                ${node.merged && node.resultLength > 0 && ce`<span class="st-size">${formatSize(node.resultLength)}</span>`}
-                                ${!node.merged && node.contentLength > 3000 && ce`<span class="st-size">${formatSize(node.contentLength)}</span>`}
-                                ${node.hasThinking && ce`<span class="st-badge thinking">\u{1F4AD}</span>`}
-                                ${node.label && ce`<span class="st-label">${node.label}</span>`}
-                                ${node.active && ce`<span class="st-active">\u25C0</span>`}
+                                ${node.merged && node.resultLength > 0 && fe`<span class="st-size">${formatSize(node.resultLength)}</span>`}
+                                ${!node.merged && node.contentLength > 3000 && fe`<span class="st-size">${formatSize(node.contentLength)}</span>`}
+                                ${node.hasThinking && fe`<span class="st-badge thinking">\u{1F4AD}</span>`}
+                                ${node.label && fe`<span class="st-label">${node.label}</span>`}
+                                ${node.active && fe`<span class="st-active">\u25C0</span>`}
                             </button>
                         `;
   })}
                 </div>
 
                 <aside class="session-tree-sidebar">
-                    ${selectedNode ? ce`
+                    ${selectedNode ? fe`
                         <div class="st-side-section">
                             <div class="st-side-label">Entry</div>
                             <div class="st-side-mono">${selectedNode.id}${selectedNode.resultId ? ` → ${selectedNode.resultId}` : ""}</div>
@@ -13177,43 +13174,43 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
                             <div class="st-side-label">Type</div>
                             <div class="st-side-value">${selectedNode.role || selectedNode.type || "entry"}${selectedNode.toolName ? ` → ${selectedNode.toolName}` : ""}${selectedNode.merged ? " (merged)" : ""}</div>
                         </div>
-                        ${selectedNode.toolInputFull && ce`
+                        ${selectedNode.toolInputFull && fe`
                             <div class="st-side-section">
                                 <div class="st-side-label">${selectedNode.toolName === "bash" ? "Command" : "Input"}</div>
                                 <pre class="st-side-code">${selectedNode.toolInputFull}</pre>
                             </div>
                         `}
-                        ${selectedNode.resultDetail && ce`
+                        ${selectedNode.resultDetail && fe`
                             <div class="st-side-section">
                                 <div class="st-side-label">Result${selectedNode.resultLength ? ` (${formatSizeLong(selectedNode.resultLength)})` : ""}</div>
                                 <pre class="st-side-code">${selectedNode.resultDetail}</pre>
                             </div>
                         `}
-                        ${selectedNode.detail && !selectedNode.toolInput && ce`
+                        ${selectedNode.detail && !selectedNode.toolInput && fe`
                             <div class="st-side-section">
                                 <div class="st-side-label">${selectedNode.role === "toolResult" ? "Output" : "Content"}${selectedNode.contentLength ? ` (${formatSizeLong(selectedNode.contentLength)})` : ""}</div>
                                 <pre class="st-side-code">${selectedNode.detail}</pre>
                             </div>
                         `}
-                        ${selectedNode.rawDetail && ce`
+                        ${selectedNode.rawDetail && fe`
                             <div class="st-side-section">
                                 <div class="st-side-label">Raw prompt${selectedNode.rawContentLength ? ` (${formatSizeLong(selectedNode.rawContentLength)})` : ""}</div>
                                 <pre class="st-side-code">${selectedNode.rawDetail}</pre>
                             </div>
                         `}
-                        ${selectedNode.timestamp && ce`
+                        ${selectedNode.timestamp && fe`
                             <div class="st-side-section">
                                 <div class="st-side-label">Time</div>
                                 <div class="st-side-value">${new Date(selectedNode.timestamp).toLocaleString()}</div>
                             </div>
                         `}
-                        ${(selectedNode.contentLength > 0 || selectedNode.hasThinking) && ce`
+                        ${(selectedNode.contentLength > 0 || selectedNode.hasThinking) && fe`
                             <div class="st-side-section">
                                 <div class="st-side-label">Size</div>
                                 <div class="st-side-badges">
-                                    ${selectedNode.contentLength > 0 && ce`<span class="st-pill">${formatSizeLong(selectedNode.contentLength)} content</span>`}
-                                    ${selectedNode.hasThinking && ce`<span class="st-pill thinking">${formatSizeLong(selectedNode.thinkingLength)} thinking</span>`}
-                                    ${selectedNode.merged && selectedNode.resultLength > 0 && ce`<span class="st-pill">${formatSizeLong(selectedNode.resultLength)} result</span>`}
+                                    ${selectedNode.contentLength > 0 && fe`<span class="st-pill">${formatSizeLong(selectedNode.contentLength)} content</span>`}
+                                    ${selectedNode.hasThinking && fe`<span class="st-pill thinking">${formatSizeLong(selectedNode.thinkingLength)} thinking</span>`}
+                                    ${selectedNode.merged && selectedNode.resultLength > 0 && fe`<span class="st-pill">${formatSizeLong(selectedNode.resultLength)} result</span>`}
                                 </div>
                             </div>
                         `}
@@ -13221,7 +13218,7 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
                             <button class="session-tree-btn primary" type="button" onClick=${() => submitNavigation(false)}>Navigate here</button>
                             <button class="session-tree-btn" type="button" onClick=${() => submitNavigation(true)}>Navigate + summarize</button>
                         </div>
-                    ` : ce`<div class="session-tree-empty side">Select an entry to inspect.</div>`}
+                    ` : fe`<div class="session-tree-empty side">Select an entry to inspect.</div>`}
                 </aside>
             </div>
         </div>
@@ -13230,8 +13227,8 @@ function SessionTreeWidget({ widget, onWidgetEvent }) {
 
 // web/src/components/floating-widget-pane.ts
 function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
-  const frameRef = K_(null);
-  const frameLoadedRef = K_(false);
+  const frameRef = Q_(null);
+  const frameLoadedRef = Q_(false);
   const srcDoc = u_(() => buildWidgetSrcDoc(widget), [
     widget?.artifact?.kind,
     widget?.artifact?.html,
@@ -13241,7 +13238,7 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
     widget?.turnId,
     widget?.title
   ]);
-  J_(() => {
+  K_(() => {
     if (!widget)
       return;
     const handleEsc = (e) => {
@@ -13251,10 +13248,10 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
   }, [widget, onClose]);
-  J_(() => {
+  K_(() => {
     frameLoadedRef.current = false;
   }, [srcDoc]);
-  J_(() => {
+  K_(() => {
     if (!widget)
       return;
     const iframe = frameRef.current;
@@ -13289,7 +13286,7 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
       retryTimers.forEach((timer) => clearTimeout(timer));
     };
   }, [srcDoc, widget?.widgetId, widget?.toolCallId, widget?.turnId]);
-  J_(() => {
+  K_(() => {
     if (!widget)
       return;
     const iframe = frameRef.current;
@@ -13319,7 +13316,7 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
     widget?.height,
     widget?.runtimeState
   ]);
-  J_(() => {
+  K_(() => {
     if (!widget)
       return;
     const handleMessage = (event) => {
@@ -13354,7 +13351,7 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
   const emptyState = !srcDoc;
   const emptyMessage = getGeneratedWidgetEmptyStateMessage(widget);
   const sandbox = getGeneratedWidgetIframeSandbox(widget);
-  return ce`
+  return fe`
         <div class="floating-widget-backdrop" onClick=${() => onClose?.()}>
             <section
                 class="floating-widget-pane"
@@ -13365,7 +13362,7 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
                     <div class="floating-widget-heading">
                         <div class="floating-widget-eyebrow">${originLabel} • ${kind.toUpperCase()}</div>
                         <div class="floating-widget-title">${title}</div>
-                        ${(subtitle || description) && ce`
+                        ${(subtitle || description) && fe`
                             <div class="floating-widget-subtitle">${subtitle || description}</div>
                         `}
                     </div>
@@ -13380,7 +13377,7 @@ function FloatingWidgetPane({ widget, onClose, onWidgetEvent }) {
                     </button>
                 </div>
                 <div class="floating-widget-body">
-                    ${kind === "session_tree" ? ce`<${SessionTreeWidget} widget=${widget} onWidgetEvent=${onWidgetEvent} />` : emptyState ? ce`<div class="floating-widget-empty">${emptyMessage}</div>` : ce`
+                    ${kind === "session_tree" ? fe`<${SessionTreeWidget} widget=${widget} onWidgetEvent=${onWidgetEvent} />` : emptyState ? fe`<div class="floating-widget-empty">${emptyMessage}</div>` : fe`
                                 <iframe
                                     ref=${frameRef}
                                     class="floating-widget-frame"
@@ -13682,11 +13679,11 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
   const previewKind = u_(() => getAttachmentPreviewKind(info?.content_type, filename), [info?.content_type, filename]);
   const previewLabel = getAttachmentPreviewLabel(previewKind);
   const isMarkdown = u_(() => isMarkdownAttachmentPreview(info?.content_type), [info?.content_type]);
-  const [loading, setLoading] = M_(previewKind === "text" || previewKind === "html" || previewKind === "archive");
-  const [textContent, setTextContent] = M_("");
-  const [archivePreview, setArchivePreview] = M_(null);
-  const [error, setError] = M_(null);
-  const markdownContainerRef = K_(null);
+  const [loading, setLoading] = F_(previewKind === "text" || previewKind === "html" || previewKind === "archive");
+  const [textContent, setTextContent] = F_("");
+  const [archivePreview, setArchivePreview] = F_(null);
+  const [error, setError] = F_(null);
+  const markdownContainerRef = Q_(null);
   const previewLanguage = u_(() => previewLanguageFromAttachment(info, filename), [info, filename]);
   const previewLanguageLabel = u_(() => previewLanguage ? normalizeCodeLanguageLabel(previewLanguage) : null, [previewLanguage]);
   const metadata = u_(() => buildMetadata(info, !isMarkdown ? previewLanguageLabel : null, archivePreview), [info, isMarkdown, previewLanguageLabel, archivePreview]);
@@ -13701,7 +13698,7 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
       return "";
     return highlightCodeToHtml(textContent, previewLanguage);
   }, [isMarkdown, textContent, previewLanguage]);
-  J_(() => {
+  K_(() => {
     const handleEsc = (e) => {
       if (e.key === "Escape")
         onClose();
@@ -13709,13 +13706,13 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
     document.addEventListener("keydown", handleEsc);
     return () => document.removeEventListener("keydown", handleEsc);
   }, [onClose]);
-  J_(() => {
+  K_(() => {
     if (!markdownContainerRef.current || !renderedMarkdown)
       return;
     renderMermaidDiagrams(markdownContainerRef.current);
     return;
   }, [renderedMarkdown]);
-  J_(() => {
+  K_(() => {
     let cancelled = false;
     async function loadPreview() {
       if (previewKind !== "text" && previewKind !== "html" && previewKind !== "archive") {
@@ -13759,7 +13756,7 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
       cancelled = true;
     };
   }, [mediaId, previewKind]);
-  return ce`
+  return fe`
         <${BodyPortal} className="attachment-preview-portal-root">
             <div class="image-modal attachment-preview-modal" onClick=${onClose}>
                 <div class="attachment-preview-shell" onClick=${(e) => {
@@ -13771,7 +13768,7 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
                             <div class="attachment-preview-subtitle">${previewLabel}</div>
                         </div>
                         <div class="attachment-preview-header-actions">
-                            ${frameUrl && ce`
+                            ${frameUrl && fe`
                                 <a
                                     href=${frameUrl}
                                     target="_blank"
@@ -13794,24 +13791,24 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
                         </div>
                     </div>
                     <div class="attachment-preview-body">
-                        ${loading && ce`<div class="attachment-preview-state">Loading preview…</div>`}
-                        ${!loading && error && ce`<div class="attachment-preview-state">${error}</div>`}
-                        ${!loading && !error && previewKind === "image" && ce`
+                        ${loading && fe`<div class="attachment-preview-state">Loading preview…</div>`}
+                        ${!loading && error && fe`<div class="attachment-preview-state">${error}</div>`}
+                        ${!loading && !error && previewKind === "image" && fe`
                             <img class="attachment-preview-image" src=${getMediaUrl(mediaId)} alt=${filename} />
                         `}
-                        ${!loading && !error && previewKind === "video" && ce`
+                        ${!loading && !error && previewKind === "video" && fe`
                             <video class="attachment-preview-video" src=${getMediaUrl(mediaId)} controls autoplay style="max-width:100%;max-height:100%;" />
                         `}
-                        ${!loading && !error && previewKind === "html" && ce`
+                        ${!loading && !error && previewKind === "html" && fe`
                             <iframe class="attachment-preview-frame" srcdoc=${textContent || ""} sandbox=${HTML_ATTACHMENT_PREVIEW_SANDBOX} title=${filename}></iframe>
                         `}
-                        ${!loading && !error && (previewKind === "pdf" || previewKind === "office" || previewKind === "drawio") && frameUrl && ce`
+                        ${!loading && !error && (previewKind === "pdf" || previewKind === "office" || previewKind === "drawio") && frameUrl && fe`
                             <iframe class="attachment-preview-frame" src=${frameUrl} title=${filename}></iframe>
                         `}
-                        ${!loading && !error && previewKind === "drawio" && ce`
+                        ${!loading && !error && previewKind === "drawio" && fe`
                             <div class="attachment-preview-readonly-note">Draw.io preview is read-only. Editing tools are disabled in this preview.</div>
                         `}
-                        ${!loading && !error && previewKind === "archive" && archivePreview && ce`
+                        ${!loading && !error && previewKind === "archive" && archivePreview && fe`
                             <div class="attachment-preview-archive">
                                 <div class="attachment-preview-archive-summary">
                                     <div class="attachment-preview-archive-card">
@@ -13843,7 +13840,7 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            ${archivePreview.entries.map((entry) => ce`
+                                            ${archivePreview.entries.map((entry) => fe`
                                                 <tr key=${entry.path}>
                                                     <td class="attachment-preview-archive-name">${entry.path}</td>
                                                     <td>${entry.isDirectory ? "Folder" : "File"}</td>
@@ -13857,27 +13854,27 @@ function AttachmentPreviewModal({ mediaId, info, onClose }) {
                                 </div>
                             </div>
                         `}
-                        ${!loading && !error && previewKind === "text" && isMarkdown && ce`
+                        ${!loading && !error && previewKind === "text" && isMarkdown && fe`
                             <div
                                 ref=${markdownContainerRef}
                                 class="attachment-preview-markdown post-content"
                                 dangerouslySetInnerHTML=${{ __html: renderedMarkdown }}
                             />
                         `}
-                        ${!loading && !error && previewKind === "text" && !isMarkdown && highlightedText && ce`
+                        ${!loading && !error && previewKind === "text" && !isMarkdown && highlightedText && fe`
                             <pre class="attachment-preview-text attachment-preview-code"><code dangerouslySetInnerHTML=${{ __html: highlightedText }} /></pre>
                         `}
-                        ${!loading && !error && previewKind === "text" && !isMarkdown && !highlightedText && ce`
+                        ${!loading && !error && previewKind === "text" && !isMarkdown && !highlightedText && fe`
                             <pre class="attachment-preview-text">${textContent}</pre>
                         `}
-                        ${!loading && !error && previewKind === "unsupported" && ce`
+                        ${!loading && !error && previewKind === "unsupported" && fe`
                             <div class="attachment-preview-state">
                                 Preview is not available for this file type yet. You can still download it directly.
                             </div>
                         `}
                     </div>
                     <div class="attachment-preview-meta">
-                        ${metadata.map((entry) => ce`
+                        ${metadata.map((entry) => fe`
                             <div class="attachment-preview-meta-item" key=${entry.label}>
                                 <span class="attachment-preview-meta-label">${entry.label}</span>
                                 <span class="attachment-preview-meta-value">${entry.value}</span>
@@ -13991,10 +13988,10 @@ function readIsNarrowLayout() {
   return window.matchMedia("(max-width: 900px)").matches;
 }
 function SystemMetersHud({ mode = "overlay" }) {
-  const [enabled, setEnabled] = M_(() => readStoredMetersEnabled(false));
-  const [collapsed, setCollapsed] = M_(() => readStoredMetersCollapsed(false));
-  const [isNarrowLayout, setIsNarrowLayout] = M_(() => readIsNarrowLayout());
-  const [metrics, setMetrics] = M_({
+  const [enabled, setEnabled] = F_(() => readStoredMetersEnabled(false));
+  const [collapsed, setCollapsed] = F_(() => readStoredMetersCollapsed(false));
+  const [isNarrowLayout, setIsNarrowLayout] = F_(() => readIsNarrowLayout());
+  const [metrics, setMetrics] = F_({
     cpu_percent: 0,
     ram_percent: 0,
     swap_percent: null,
@@ -14011,8 +14008,8 @@ function SystemMetersHud({ mode = "overlay" }) {
     sample_interval_ms: 2000,
     platform: ""
   });
-  const [loading, setLoading] = M_(false);
-  J_(() => {
+  const [loading, setLoading] = F_(false);
+  K_(() => {
     const onMetersChange = (event) => {
       setEnabled(Boolean(event?.detail?.enabled));
     };
@@ -14026,7 +14023,7 @@ function SystemMetersHud({ mode = "overlay" }) {
       window.removeEventListener(METERS_COLLAPSED_EVENT_NAME, onMetersCollapsedChange);
     };
   }, []);
-  J_(() => {
+  K_(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function")
       return;
     const mediaQuery = window.matchMedia("(max-width: 900px)");
@@ -14041,7 +14038,7 @@ function SystemMetersHud({ mode = "overlay" }) {
   }, []);
   const activeMode = "overlay";
   const isActiveInstance = mode === activeMode;
-  J_(() => {
+  K_(() => {
     if (!enabled || !isActiveInstance)
       return;
     let cancelled = false;
@@ -14104,7 +14101,7 @@ function SystemMetersHud({ mode = "overlay" }) {
     event?.stopPropagation?.();
     toggleMetersCollapsed();
   };
-  return ce`
+  return fe`
         <div class=${`system-meters-hud system-meters-hud-${mode}${collapsed ? " is-collapsed" : ""}`} aria-live="polite">
             <button
                 class="system-meters-card"
@@ -14114,7 +14111,7 @@ function SystemMetersHud({ mode = "overlay" }) {
                 aria-expanded=${collapsed ? "false" : "true"}
                 onClick=${handleToggleCollapsed}
             >
-                ${collapsed ? ce`<span class="system-meters-collapse-tab" aria-hidden="true">◂</span>` : isNarrowLayout ? ce`<span class="system-meters-compact-summary">${compactSummary}</span>` : ce`
+                ${collapsed ? fe`<span class="system-meters-collapse-tab" aria-hidden="true">◂</span>` : isNarrowLayout ? fe`<span class="system-meters-compact-summary">${compactSummary}</span>` : fe`
                             <div class="system-meters-row cpu">
                                 <span class="system-meters-label">CPU</span>
                                 <svg class="system-meters-spark" viewBox="0 0 56 16" preserveAspectRatio="none" aria-hidden="true">
@@ -14129,7 +14126,7 @@ function SystemMetersHud({ mode = "overlay" }) {
                                 </svg>
                                 <span class="system-meters-value">${formatPercent(metrics.ram_percent)}</span>
                             </div>
-                            ${showRss && ce`
+                            ${showRss && fe`
                                 <div class="system-meters-row rss">
                                     <span class="system-meters-label">RSS</span>
                                     <svg class="system-meters-spark" viewBox="0 0 56 16" preserveAspectRatio="none" aria-hidden="true">
@@ -14138,7 +14135,7 @@ function SystemMetersHud({ mode = "overlay" }) {
                                     <span class="system-meters-value">${formatBytesCompact(currentRssBytes)}</span>
                                 </div>
                             `}
-                            ${showSwap && ce`
+                            ${showSwap && fe`
                                 <div class="system-meters-row swap">
                                     <span class="system-meters-label">SWP</span>
                                     <svg class="system-meters-spark" viewBox="0 0 56 16" preserveAspectRatio="none" aria-hidden="true">
@@ -16209,8 +16206,8 @@ function translate(key, vars, locale = getLocale()) {
   return interpolate(template, vars);
 }
 function useLocale() {
-  const [locale, setLocaleState] = M_(getLocale());
-  J_(() => {
+  const [locale, setLocaleState] = F_(getLocale());
+  K_(() => {
     if (typeof window === "undefined" || typeof window.addEventListener !== "function")
       return;
     const handler = (event) => {
@@ -16252,7 +16249,7 @@ function LanguageSwitcher({
     setLocale(next);
     onChange?.(next);
   };
-  return ce`
+  return fe`
     <div class=${`language-switcher language-switcher-${variant}`} role="none">
       <label class="language-switcher-label" for="language-switcher-select">${t("language.label")}</label>
       <select
@@ -16263,7 +16260,7 @@ function LanguageSwitcher({
         onClick=${(event) => event.stopPropagation()}
         onChange=${handleChange}
       >
-        ${options.map((option) => ce`
+        ${options.map((option) => fe`
           <option key=${option.value} value=${option.value}>${option.label}</option>
         `)}
       </select>
@@ -16281,17 +16278,17 @@ function TimelineMenu({
   onOpenVncTab
 }) {
   const { t } = useTranslation();
-  const [open, setOpen] = M_(false);
-  const [pwaDisplayScalePercent, setPwaDisplayScalePercent] = M_(() => readStoredPwaDisplayScalePercent());
-  const [pwaDisplayScaleDraft, setPwaDisplayScaleDraft] = M_(() => String(readStoredPwaDisplayScalePercent()));
-  const [showHidden, setShowHidden] = M_(() => {
+  const [open, setOpen] = F_(false);
+  const [pwaDisplayScalePercent, setPwaDisplayScalePercent] = F_(() => readStoredPwaDisplayScalePercent());
+  const [pwaDisplayScaleDraft, setPwaDisplayScaleDraft] = F_(() => String(readStoredPwaDisplayScalePercent()));
+  const [showHidden, setShowHidden] = F_(() => {
     try {
       return localStorage.getItem("workspaceShowHidden") === "true";
     } catch {
       return false;
     }
   });
-  const [pos, setPos] = M_({ top: 8, left: 8 });
+  const [pos, setPos] = F_({ top: 8, left: 8 });
   const getSafeAreaTop = () => {
     if (typeof document === "undefined")
       return 0;
@@ -16302,10 +16299,10 @@ function TimelineMenu({
     probe.remove();
     return h;
   };
-  const menuRef = K_(null);
-  const btnRef = K_(null);
-  const portalRef = K_(null);
-  J_(() => {
+  const menuRef = Q_(null);
+  const btnRef = Q_(null);
+  const portalRef = Q_(null);
+  K_(() => {
     if (typeof document === "undefined")
       return;
     const host = document.createElement("div");
@@ -16317,7 +16314,7 @@ function TimelineMenu({
       portalRef.current = null;
     };
   }, []);
-  J_(() => {
+  K_(() => {
     const update = () => {
       const safeTop = getSafeAreaTop();
       const topOffset = safeTop > 0 ? safeTop + 4 : 8;
@@ -16342,11 +16339,11 @@ function TimelineMenu({
       window.removeEventListener("resize", update);
     };
   }, [workspaceOpen]);
-  J_(() => {
+  K_(() => {
     if (portalRef.current)
       portalRef.current.className = `timeline-menu-portal ${workspaceOpen ? "in-workspace" : "in-chat"}`;
   }, [workspaceOpen]);
-  J_(() => {
+  K_(() => {
     if (!portalRef.current)
       return;
     const s = portalRef.current.style;
@@ -16354,7 +16351,7 @@ function TimelineMenu({
     s.left = `${pos.left}px`;
     s.right = "auto";
   }, [pos]);
-  J_(() => {
+  K_(() => {
     if (!open)
       return;
     const onClick = (e) => {
@@ -16367,7 +16364,7 @@ function TimelineMenu({
     document.addEventListener("mousedown", onClick, true);
     return () => document.removeEventListener("mousedown", onClick, true);
   }, [open]);
-  J_(() => {
+  K_(() => {
     if (!open)
       return;
     const onKey = (e) => {
@@ -16377,10 +16374,10 @@ function TimelineMenu({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
-  J_(() => {
+  K_(() => {
     setOpen(false);
   }, [workspaceOpen]);
-  J_(() => {
+  K_(() => {
     const syncPwaDisplayScale = () => {
       const next = readStoredPwaDisplayScalePercent();
       setPwaDisplayScalePercent(next);
@@ -16399,28 +16396,28 @@ function TimelineMenu({
       window.removeEventListener(PWA_DISPLAY_SCALE_EVENT, syncPwaDisplayScale);
     };
   }, []);
-  const handlePwaDisplayScaleInput = X_((event) => {
+  const handlePwaDisplayScaleInput = Y_((event) => {
     setPwaDisplayScaleDraft(String(event?.currentTarget?.value ?? ""));
   }, []);
-  const commitPwaDisplayScale = X_((value) => {
+  const commitPwaDisplayScale = Y_((value) => {
     const next = persistPwaDisplayScalePercent(value);
     setPwaDisplayScalePercent(next);
     setPwaDisplayScaleDraft(String(next));
   }, []);
-  const handlePwaDisplayScaleCommit = X_((event) => {
+  const handlePwaDisplayScaleCommit = Y_((event) => {
     commitPwaDisplayScale(event?.currentTarget?.value);
   }, [commitPwaDisplayScale]);
-  const handlePwaDisplayScaleKeyDown = X_((event) => {
+  const handlePwaDisplayScaleKeyDown = Y_((event) => {
     if (event?.key === "Enter") {
       commitPwaDisplayScale(event?.currentTarget?.value);
       event?.currentTarget?.blur?.();
     }
   }, [commitPwaDisplayScale]);
-  const run = X_((fn) => {
+  const run = Y_((fn) => {
     setOpen(false);
     fn?.();
   }, []);
-  const toggleChatOnly = X_(() => {
+  const toggleChatOnly = Y_(() => {
     const url = new URL(window.location.href);
     if (chatOnlyMode) {
       url.searchParams.delete("chat_only");
@@ -16429,7 +16426,7 @@ function TimelineMenu({
     }
     window.location.href = url.toString();
   }, [chatOnlyMode]);
-  const content = ce`
+  const content = fe`
         <button ref=${btnRef} class=${`timeline-menu-btn${open ? " active" : ""}`} data-testid="hamburger"
             onClick=${() => setOpen((v) => !v)} title=${t("menu.title")} aria-label=${t("menu.title")}
             aria-haspopup="menu" aria-expanded=${open ? "true" : "false"}>
@@ -16440,12 +16437,12 @@ function TimelineMenu({
                 <line x1="4" y1="17" x2="20" y2="17" />
             </svg>
         </button>
-        ${open && ce`
+        ${open && fe`
             <div class="workspace-menu-dropdown timeline-menu-dropdown" ref=${menuRef} role="menu">
                 <button class="workspace-menu-item" role="menuitem" onClick=${() => run(toggleWorkspace)}>
                     ${workspaceOpen ? t("menu.hideWorkspace") : t("menu.showWorkspace")}
                 </button>
-                ${!workspaceOpen && !chatOnlyMode && ce`
+                ${!workspaceOpen && !chatOnlyMode && fe`
                     <button class="workspace-menu-item" role="menuitem" onClick=${() => run(() => {
     toggleWorkspace();
   })}>
@@ -16456,9 +16453,9 @@ function TimelineMenu({
                     ${chatOnlyMode ? t("menu.exitChatOnly") : t("menu.chatOnly")}
                 </button>
 
-                ${(onOpenTerminalTab || onOpenVncTab) && ce`<div class="workspace-menu-separator"></div>`}
-                ${onOpenTerminalTab && ce`<button class="workspace-menu-item" role="menuitem" onClick=${() => run(onOpenTerminalTab)}>${t("menu.openTerminal")}</button>`}
-                ${onOpenVncTab && ce`<button class="workspace-menu-item" role="menuitem" onClick=${() => run(onOpenVncTab)}>${t("menu.openVnc")}</button>`}
+                ${(onOpenTerminalTab || onOpenVncTab) && fe`<div class="workspace-menu-separator"></div>`}
+                ${onOpenTerminalTab && fe`<button class="workspace-menu-item" role="menuitem" onClick=${() => run(onOpenTerminalTab)}>${t("menu.openTerminal")}</button>`}
+                ${onOpenVncTab && fe`<button class="workspace-menu-item" role="menuitem" onClick=${() => run(onOpenVncTab)}>${t("menu.openVnc")}</button>`}
 
                 <div class="workspace-menu-separator"></div>
                 <button class="workspace-menu-item" role="menuitem" disabled=${!workspaceOpen} onClick=${() => run(() => window.dispatchEvent(new CustomEvent("piclaw:workspace-action", { detail: { action: "new-file" } })))}>${t("menu.newFile")}</button>
@@ -16466,12 +16463,12 @@ function TimelineMenu({
     const recent = getRecentFiles();
     if (recent.length === 0)
       return null;
-    return ce`
+    return fe`
                         <div class="workspace-menu-separator"></div>
                         <div class="workspace-menu-submenu-label">${t("menu.openRecent")}</div>
                         ${recent.map((path) => {
       const label = path.split("/").pop() || path;
-      return ce`
+      return fe`
                                 <button class="workspace-menu-item workspace-menu-recent-item" role="menuitem" title=${path} onClick=${() => run(() => openEditor?.(path))}>${label}</button>
                             `;
     })}
@@ -16522,9 +16519,9 @@ function TimelineMenu({
             </div>
         `}
     `;
-  F_(() => {
+  W_(() => {
     if (portalRef.current)
-      z_(content, portalRef.current);
+      G_(content, portalRef.current);
   });
   return null;
 }
@@ -16740,20 +16737,20 @@ function restoreTimelineAnchor(anchor) {
 var SESSION_KEY = "gi_session_id";
 var DEFAULT_AGENT_ID = "web";
 function RunBoundQueueStack({ steerEnabled, ...props }) {
-  const root = K_(null);
-  F_(() => {
+  const root = Q_(null);
+  W_(() => {
     const pending = new Set(props.items.filter((item) => item.pending).map((item) => String(item.id)));
     root.current?.querySelectorAll(".compose-queue-stack-steer-btn").forEach((button) => {
       button.disabled = !steerEnabled || props.busy || pending.has(button.closest("[data-queue-id]")?.dataset.queueId);
     });
   });
-  return ce`<div ref=${root} style="display:contents"><${QueuedFollowupStack} ...${props} /></div>`;
+  return fe`<div ref=${root} style="display:contents"><${QueuedFollowupStack} ...${props} /></div>`;
 }
 function useWorkspaceFolderReference(visible, sessionId, fileRefs, attach) {
-  const latest = K_({ fileRefs, attach });
+  const latest = Q_({ fileRefs, attach });
   latest.current = { fileRefs, attach };
-  const syncRef = K_(null);
-  F_(() => {
+  const syncRef = Q_(null);
+  W_(() => {
     if (!visible)
       return;
     const sidebar = document.querySelector(".workspace-sidebar");
@@ -16793,12 +16790,12 @@ function useWorkspaceFolderReference(visible, sessionId, fileRefs, attach) {
       syncRef.current = null;
     };
   }, [visible, sessionId]);
-  F_(() => {
+  W_(() => {
     syncRef.current?.();
   }, [fileRefs]);
 }
 function useContextTooltip(root, usage, notice, now, canStop, stop, compact) {
-  F_(() => {
+  W_(() => {
     const compose = root.current?.querySelector(".compose-box");
     if (!compose)
       return;
@@ -16902,69 +16899,69 @@ async function getRuntimeConfig() {
   return r.json();
 }
 function GiApp() {
-  const containerRef = K_(null);
-  const [ready, setReady] = M_(false);
-  const [sessionId, setSessionId] = M_(null);
-  const selection = K_(createSelectionScope()).current;
-  const [sessionError, setSessionError] = M_(null);
-  const [draftStorageError, setDraftStorageError] = M_("");
-  const [draftRestore, setDraftRestore] = M_(null);
-  const draftsRef = K_(null);
+  const containerRef = Q_(null);
+  const [ready, setReady] = F_(false);
+  const [sessionId, setSessionId] = F_(null);
+  const selection = Q_(createSelectionScope()).current;
+  const [sessionError, setSessionError] = F_(null);
+  const [draftStorageError, setDraftStorageError] = F_("");
+  const [draftRestore, setDraftRestore] = F_(null);
+  const draftsRef = Q_(null);
   if (!draftsRef.current)
     draftsRef.current = createDraftRepository(indexedDraftStorage(), (error) => setDraftStorageError(`Draft not saved: ${error.message}`));
   const drafts = draftsRef.current;
   const getDraft = (sid) => drafts.get(sid);
-  const [runtimeConfig, setRuntimeConfig] = M_({});
-  const [agents, setAgents] = M_({});
-  const [userProfile, setUserProfile] = M_(null);
-  const [workspaceOpen, setWorkspaceOpen] = M_(false);
-  const [tabs, setTabs] = M_([]);
-  const [activeTabId, setActiveTabId] = M_(null);
+  const [runtimeConfig, setRuntimeConfig] = F_({});
+  const [agents, setAgents] = F_({});
+  const [userProfile, setUserProfile] = F_(null);
+  const [workspaceOpen, setWorkspaceOpen] = F_(false);
+  const [tabs, setTabs] = F_([]);
+  const [activeTabId, setActiveTabId] = F_(null);
   const editorOpen = tabs.length > 0;
-  const [posts, setPosts] = M_([]);
-  const [hasMore, setHasMore] = M_(false);
-  const messageWindow = K_(newMessageWindow());
-  const pageRequest = K_(null);
-  const pageRefreshPending = K_(false);
-  const scrollRestore = K_(null);
-  const readingAnchor = K_(null);
-  const searchView = K_(createSearchView()).current;
-  const [searchState, setSearchState] = M_(searchView.capture());
-  const [searchError, setSearchError] = M_("");
-  const timelineRevision = K_(createTimelineRevision()).current;
-  const versionGuard = K_(createAssetVersionGuard(loadedAssetVersion(document))).current;
-  const [newUIVersion, setNewUIVersion] = M_("");
-  const timelineRef = K_(null);
-  const [fileRefs, setFileRefs] = M_([]);
-  const [messageRefs, setMessageRefs] = M_([]);
-  const [followupQueueItems, setFollowupQueueItems] = M_([]);
-  const [queueError, setQueueError] = M_("");
-  const [queueBusy, setQueueBusy] = M_(false);
-  const queueMutation = K_(null);
-  const queueRevision = K_(0);
-  const [queueActiveTurnId, setQueueActiveTurnId] = M_(null);
-  const modelRevision = K_(0);
-  const modelMutation = K_(null);
-  const connectionRevision = K_(0);
-  const streamDisconnected = K_(true);
-  const activationRefresh = K_(createActivationRefreshGate()).current;
-  const refreshAfterConnection = K_(() => {});
-  const refreshTimer = K_(null);
-  const [optimisticQueue, setOptimisticQueue] = M_([]);
-  const [floatingWidget, setFloatingWidget] = M_(null);
-  const [attachmentPreview, setAttachmentPreview] = M_(null);
-  const [contextUsage, setContextUsage] = M_(null);
-  const [activity, setActivity] = M_(null);
-  const activityRevision = K_(createActivityRevision()).current;
-  const [activityNow, setActivityNow] = M_(Date.now());
-  const [stopPending, setStopPending] = M_(false);
-  const [stopError, setStopError] = M_("");
-  const [activityFresh, setActivityFresh] = M_(false);
-  const stopToken = K_(null);
-  const [compactState, setCompactState] = M_(null);
-  const [compactPending, setCompactPending] = M_(false);
-  const [compactError, setCompactError] = M_("");
-  const compactToken = K_(null);
+  const [posts, setPosts] = F_([]);
+  const [hasMore, setHasMore] = F_(false);
+  const messageWindow = Q_(newMessageWindow());
+  const pageRequest = Q_(null);
+  const pageRefreshPending = Q_(false);
+  const scrollRestore = Q_(null);
+  const readingAnchor = Q_(null);
+  const searchView = Q_(createSearchView()).current;
+  const [searchState, setSearchState] = F_(searchView.capture());
+  const [searchError, setSearchError] = F_("");
+  const timelineRevision = Q_(createTimelineRevision()).current;
+  const versionGuard = Q_(createAssetVersionGuard(loadedAssetVersion(document))).current;
+  const [newUIVersion, setNewUIVersion] = F_("");
+  const timelineRef = Q_(null);
+  const [fileRefs, setFileRefs] = F_([]);
+  const [messageRefs, setMessageRefs] = F_([]);
+  const [followupQueueItems, setFollowupQueueItems] = F_([]);
+  const [queueError, setQueueError] = F_("");
+  const [queueBusy, setQueueBusy] = F_(false);
+  const queueMutation = Q_(null);
+  const queueRevision = Q_(0);
+  const [queueActiveTurnId, setQueueActiveTurnId] = F_(null);
+  const modelRevision = Q_(0);
+  const modelMutation = Q_(null);
+  const connectionRevision = Q_(0);
+  const streamDisconnected = Q_(true);
+  const activationRefresh = Q_(createActivationRefreshGate()).current;
+  const refreshAfterConnection = Q_(() => {});
+  const refreshTimer = Q_(null);
+  const [optimisticQueue, setOptimisticQueue] = F_([]);
+  const [floatingWidget, setFloatingWidget] = F_(null);
+  const [attachmentPreview, setAttachmentPreview] = F_(null);
+  const [contextUsage, setContextUsage] = F_(null);
+  const [activity, setActivity] = F_(null);
+  const activityRevision = Q_(createActivityRevision()).current;
+  const [activityNow, setActivityNow] = F_(Date.now());
+  const [stopPending, setStopPending] = F_(false);
+  const [stopError, setStopError] = F_("");
+  const [activityFresh, setActivityFresh] = F_(false);
+  const stopToken = Q_(null);
+  const [compactState, setCompactState] = F_(null);
+  const [compactPending, setCompactPending] = F_(false);
+  const [compactError, setCompactError] = F_("");
+  const compactToken = Q_(null);
   const manualCompact = activityFresh && activity?.status === "idle" && compactState?.available && !compactPending ? async () => {
     if (compactToken.current || streamDisconnected.current)
       return;
@@ -16992,7 +16989,7 @@ function GiApp() {
     }
   } : null;
   const notice = compactionNotice(activity, activityNow);
-  J_(() => {
+  K_(() => {
     if (!activity?.compaction)
       return;
     const timer = setInterval(() => setActivityNow(Date.now()), 1000);
@@ -17024,17 +17021,17 @@ function GiApp() {
       }
     }
   }, manualCompact);
-  const [activeChatAgents, setActiveChatAgents] = M_([]);
-  const sessionListRevision = K_(0);
-  const [currentChatBranches, setCurrentChatBranches] = M_([]);
-  const [activeModel, setActiveModel] = M_("");
-  const [agentModelsPayload, setAgentModelsPayload] = M_(null);
-  const [activeThinkingLevel, setActiveThinkingLevel] = M_("");
-  const [supportsThinking, setSupportsThinking] = M_(false);
-  const [modelUsage, setModelUsage] = M_(null);
-  const [connectionStatus, setConnectionStatus] = M_("connected");
-  const [isAgentTurnActive, setIsAgentTurnActive] = M_(false);
-  const isAgentRunningRef = K_(false);
+  const [activeChatAgents, setActiveChatAgents] = F_([]);
+  const sessionListRevision = Q_(0);
+  const [currentChatBranches, setCurrentChatBranches] = F_([]);
+  const [activeModel, setActiveModel] = F_("");
+  const [agentModelsPayload, setAgentModelsPayload] = F_(null);
+  const [activeThinkingLevel, setActiveThinkingLevel] = F_("");
+  const [supportsThinking, setSupportsThinking] = F_(false);
+  const [modelUsage, setModelUsage] = F_(null);
+  const [connectionStatus, setConnectionStatus] = F_("connected");
+  const [isAgentTurnActive, setIsAgentTurnActive] = F_(false);
+  const isAgentRunningRef = Q_(false);
   const {
     agentStatus,
     setAgentStatus,
@@ -17061,7 +17058,7 @@ function GiApp() {
   } = useAgentState();
   const currentChatJid = u_(() => sessionId ? sessionToChatJid2(sessionId) : "", [sessionId]);
   const renderedSelection = selection.capture();
-  J_(() => {
+  K_(() => {
     const cleanupTheme = initTheme();
     const cleanupDisplayScale = installPwaDisplayScaleSync();
     if (getLocalStorageItem("piclaw_system_meters_enabled") === null) {
@@ -17098,7 +17095,7 @@ function GiApp() {
       cleanupDisplayScale();
     };
   }, []);
-  F_(() => {
+  W_(() => {
     const pending = scrollRestore.current;
     scrollRestore.current = null;
     if (!pending || !selection.isCurrent(pending.scope) || !searchView.isCurrent(pending.view) || pending.connection !== connectionRevision.current)
@@ -17111,7 +17108,7 @@ function GiApp() {
       readingAnchor.current = pending.anchor;
     }
   }, [posts]);
-  const loadPosts = X_(async (opts = {}) => {
+  const loadPosts = Y_(async (opts = {}) => {
     if (!sessionId || !activationRefresh.ready(selection.capture().generation))
       return;
     const scope = selection.capture(), view = searchView.capture(), connection = connectionRevision.current;
@@ -17169,7 +17166,7 @@ function GiApp() {
     })();
     return token.promise;
   }, [sessionId]);
-  J_(() => {
+  K_(() => {
     const root = timelineRef.current;
     if (!root || searchState.active)
       return;
@@ -17243,14 +17240,14 @@ function GiApp() {
     setSearchError("");
     loadPosts();
   };
-  const scrollToBottom = X_(() => {
+  const scrollToBottom = Y_(() => {
     const el = timelineRef.current;
     if (!el)
       return;
     if (Math.abs(el.scrollTop) < 80)
       el.scrollTop = 0;
   }, []);
-  const refreshSessionLists = X_(async (sid) => {
+  const refreshSessionLists = Y_(async (sid) => {
     if (!sid) {
       setActiveChatAgents([]);
       setCurrentChatBranches([]);
@@ -17277,7 +17274,7 @@ function GiApp() {
     setActiveChatAgents(agentsList);
     setCurrentChatBranches(branchesList);
   }, []);
-  const handleSseEvent = X_((eventType, data) => {
+  const handleSseEvent = Y_((eventType, data) => {
     if (!selection.current() || data?.chat_jid !== sessionToChatJid2(selection.current()))
       return;
     if (eventType === "connected" && versionGuard.observe(data?.app_asset_version))
@@ -17329,7 +17326,7 @@ function GiApp() {
       setAgentThought(null);
     }
   }, [scrollToBottom]);
-  const handleConnectionStatusChange = X_((status) => {
+  const handleConnectionStatusChange = Y_((status) => {
     const shouldRefresh = activationRefresh.status(selection.capture().generation, status);
     ++connectionRevision.current;
     timelineRevision.invalidate();
@@ -17378,7 +17375,7 @@ function GiApp() {
     chatJid: currentChatJid,
     selectionKey: renderedSelection.generation
   });
-  const refreshSelectedState = X_(async () => {
+  const refreshSelectedState = Y_(async () => {
     const scope = selection.capture();
     if (!sessionId || scope.sessionId !== sessionId || !activationRefresh.ready(scope.generation))
       return;
@@ -17434,11 +17431,11 @@ function GiApp() {
       loadPosts();
     refreshSelectedState();
   };
-  J_(() => () => {
+  K_(() => () => {
     if (refreshTimer.current)
       clearTimeout(refreshTimer.current);
   }, []);
-  J_(() => {
+  K_(() => {
     if (!ready || !sessionId)
       return;
     if (activationRefresh.activate(selection.capture().generation))
@@ -17450,13 +17447,13 @@ function GiApp() {
     }, 1e4);
     return () => clearInterval(id);
   }, [ready, sessionId, loadPosts, refreshSessionLists, refreshSelectedState]);
-  const handlePost = X_((_response) => {
+  const handlePost = Y_((_response) => {
     if (!selection.isCurrent(renderedSelection))
       return;
     refreshAfterConnection.current();
     refreshSessionLists(sessionId);
   }, [refreshSessionLists, sessionId]);
-  const handleSwitchChat = X_((chatJid) => {
+  const handleSwitchChat = Y_((chatJid) => {
     const nextSessionId = typeof chatJid === "string" && chatJid.startsWith("gi:") ? chatJid.slice(3) : null;
     if (!nextSessionId || nextSessionId === sessionId)
       return;
@@ -17521,7 +17518,7 @@ function GiApp() {
     setModelUsage(null);
     setSessionError(null);
   }, [sessionId, fileRefs, messageRefs]);
-  const handleCreateSession = X_(async () => {
+  const handleCreateSession = Y_(async () => {
     if (!sessionId)
       return;
     const scope = selection.capture();
@@ -17632,7 +17629,7 @@ function GiApp() {
       }
     }
   };
-  const openEditor = X_((path) => {
+  const openEditor = Y_((path) => {
     const existing = tabs.find((t) => t.id === path || t.path === path);
     if (existing) {
       setActiveTabId(existing.id);
@@ -17641,7 +17638,7 @@ function GiApp() {
     setTabs((prev) => [...prev, { id: path, path, label: path.split("/").pop() || path, dirty: false, pinned: false }]);
     setActiveTabId(path);
   }, [tabs]);
-  const handleTabClose = X_((id) => {
+  const handleTabClose = Y_((id) => {
     setTabs((prev) => {
       const next = prev.filter((t) => t.id !== id);
       if (activeTabId === id)
@@ -17662,9 +17659,9 @@ function GiApp() {
     setFileRefs(refs);
   });
   if (!ready) {
-    return ce`<div id="app"><div style="padding:20px;text-align:center;color:var(--text-secondary,#888)">Loading…</div></div>`;
+    return fe`<div id="app"><div style="padding:20px;text-align:center;color:var(--text-secondary,#888)">Loading…</div></div>`;
   }
-  return ce`
+  return fe`
         <div class=${appShellClass}>
             <style>${`.app-shell .post-content:has(table) { overflow-x: auto; } .app-shell .post-content table { display: table; width: 100%; table-layout: auto; }`}</style>
             <${SystemMetersHud} mode="overlay" />
@@ -17686,7 +17683,7 @@ function GiApp() {
                 onOpenTerminalTab=${() => {}}
                 onOpenVncTab=${() => {}}
             />
-            ${workspaceOpen && ce`<button
+            ${workspaceOpen && fe`<button
                 class="workspace-drawer-backdrop"
                 onClick=${() => setWorkspaceOpen(false)}
                 aria-label="Hide workspace"
@@ -17704,7 +17701,7 @@ function GiApp() {
                 </svg>
             </button>
             <div class="workspace-splitter"></div>
-            ${editorOpen && ce`
+            ${editorOpen && fe`
                 <div class="editor-pane-container">
                     <${TabStrip}
                         tabs=${tabs}
@@ -17764,7 +17761,7 @@ function GiApp() {
                     onClose=${() => setFloatingWidget(null)}
                     onWidgetEvent=${() => {}}
                 />
-                ${attachmentPreview && ce`
+                ${attachmentPreview && fe`
                     <${AttachmentPreviewModal}
                         mediaId=${attachmentPreview.mediaId}
                         info=${attachmentPreview.info}
@@ -17781,16 +17778,16 @@ function GiApp() {
                     onMoveQueuedFollowup=${(from, to) => mutateQueue("move", from, to)}
                     onOpenFilePill=${openEditor}
                 />
-                ${followupQueueItems.some((item) => item.phase === "steer_returned") && ce`<div role="alert">Steer was not consumed by its target run. The item remains queued and will not auto-send; return it to the editor, remove it, or Steer a new active run.</div>`}
-                ${queueError && ce`<div role="alert">${queueError}</div>`}
-                ${newUIVersion && ce`<div role="status" class="gi-version-warning">New UI available. Reload manually when ready; unsaved editor work may be lost.</div>`}
-                ${sessionError && ce`<div role="alert">${sessionError}</div>`}
-                ${searchError && ce`<div role="alert">${searchError}</div>`}
-                ${searchState.active && ce`<div role="status">Search${searchState.query ? `: ${searchState.query}` : ""} · ${searchState.scope} · up to 50 results</div>`}
-                ${stopError && ce`<div role="alert">${stopError}</div>`}
-                ${compactError && ce`<div role="alert">${compactError}</div>`}
-                ${draftStorageError && ce`<div role="alert">${draftStorageError}</div>`}
-                ${drafts.error(sessionId) && ce`<div role="alert">${drafts.error(sessionId)}</div>`}
+                ${followupQueueItems.some((item) => item.phase === "steer_returned") && fe`<div role="alert">Steer was not consumed by its target run. The item remains queued and will not auto-send; return it to the editor, remove it, or Steer a new active run.</div>`}
+                ${queueError && fe`<div role="alert">${queueError}</div>`}
+                ${newUIVersion && fe`<div role="status" class="gi-version-warning">New UI available. Reload manually when ready; unsaved editor work may be lost.</div>`}
+                ${sessionError && fe`<div role="alert">${sessionError}</div>`}
+                ${searchError && fe`<div role="alert">${searchError}</div>`}
+                ${searchState.active && fe`<div role="status">Search${searchState.query ? `: ${searchState.query}` : ""} · ${searchState.scope} · up to 50 results</div>`}
+                ${stopError && fe`<div role="alert">${stopError}</div>`}
+                ${compactError && fe`<div role="alert">${compactError}</div>`}
+                ${draftStorageError && fe`<div role="alert">${draftStorageError}</div>`}
+                ${drafts.error(sessionId) && fe`<div role="alert">${drafts.error(sessionId)}</div>`}
                 <${ComposeBox}
                     statusNotice=${notice}
                     showQueueStack=${false}
@@ -17944,7 +17941,7 @@ function GiApp() {
         </div>
     `;
 }
-z_(ce`<${GiApp} />`, document.getElementById("app"));
+G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=F7A172820842CE2364756E2164756E21
+//# debugId=420C774A5DF586AD64756E2164756E21
 //# sourceMappingURL=app.js.map
