@@ -75,6 +75,18 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Automatic compaction lifecycle: 2026-09-22
+
+`make test-ux-compaction` maps `compaction-001–005` and `context-004`: a native hook gate pauses real automatic compaction after history created by provider turns. The suite verifies elapsed/style/title state, persisted completion, Stop retaining draft/media, suppression detail and refreshed usage (including increased reported tokens). Extra regressions cover reload and delayed activity after switching sessions, failed Stop, and cancellation arriving after completion. No synthetic events, SQL history seeds, forced clicks, retries or paid providers.
+
+Latest: **48/48 compaction + 228/228 existing browser executions**, **70/70 functional**, **24 helpers**, Go/vet/hook and targeted race checks. **25/236 Classic**, **2/42 shared** passes, 211/40 unmapped. Manual Compact/context `003` and durable history replacement remain unavailable. See [ADR-0020](../../docs/adr/0020-automatic-compaction-web-status.md).
+
+```sh
+make test-ux-compaction
+# After also running the base, steer, context-fit and context-meter targets:
+bun scripts/ux-parity-report.mjs test-results/ux-parity/results.json test-results/ux-parity/steer-results.json test-results/ux-parity/context-fit-results.json test-results/ux-parity/context-meter-results.json test-results/ux-parity/compaction-results.json
+```
+
 ## Context-meter formatting and colours: 2026-09-22
 
 `make test-ux-context-meter` maps `@ux-context-001/005`. Its local provider supplies explicit usage through the native stream parser and persistence; tests use fixed expected strings/arc lengths, not the production formatter. Covered: K/M labels, percentage rounding, title/tooltip-data/accessibility, 125% overflow with full arc, zero input with nonzero output, exact 75/90 warning thresholds, reload/session ownership. The context-fit suite also checks tooltip refresh after a model switch.

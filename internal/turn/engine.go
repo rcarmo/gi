@@ -600,14 +600,19 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 }
 
 func (e *Engine) CancelQueuedTurn(ctx context.Context, sessionID, turnID string) error {
-	return e.cancelTurn(ctx, sessionID, turnID, true)
+	return e.cancelTurn(ctx, sessionID, turnID, true, false)
 }
 
 func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error {
-	return e.cancelTurn(ctx, sessionID, turnID, false)
+	return e.cancelTurn(ctx, sessionID, turnID, false, false)
 }
 
-func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queuedOnly bool) error {
+// CancelActiveTurn never falls back to queued cancellation after a run ends.
+func (e *Engine) CancelActiveTurn(ctx context.Context, sessionID, turnID string) error {
+	return e.cancelTurn(ctx, sessionID, turnID, false, true)
+}
+
+func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queuedOnly, activeOnly bool) error {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	turn, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
@@ -621,6 +626,16 @@ func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queue
 	agentID, model := runner.resolveTurnAgentAndModel(opCtx, e.store, turn, turnSessionID, turn.Prompt)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
+	if activeOnly {
+		turn, err = e.store.GetTurn(opCtx, turnID)
+		if err != nil {
+			return err
+		}
+		activeID, _, claimErr := e.store.GetSessionActiveTurn(opCtx, turnSessionID)
+		if claimErr != nil || activeID != turnID || runner.current == nil || runner.current.turnID != turnID || (turn.Status != "running" && turn.Status != "cancelling") {
+			return store.ErrQueueConflict
+		}
+	}
 	if queuedOnly {
 		turn, err = e.store.GetTurn(opCtx, turnID)
 		if err != nil {

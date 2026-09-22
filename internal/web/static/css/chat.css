@@ -1183,6 +1183,9 @@
     transition: opacity 0.15s;
     flex-shrink: 0;
 }
+.compose-context-pie.is-compacting { opacity: 1; color: var(--accent); }
+.gi-compaction-elapsed { font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
 .compose-context-pie:hover {
     opacity: 1;
 }

@@ -97,10 +97,13 @@ func main() {
 				}
 			}
 		}
+		if os.Getenv("GI_UX_COMPACTION") != "" {
+			time.Sleep(50 * time.Millisecond)
+		}
 		// Meter scenarios select their fixture measurement in the latest user
 		// request. Usage still crosses the real provider/parser/persistence path.
 		tokens := 100
-		if os.Getenv("GI_UX_METER") != "" && len(users) > 0 {
+		if (os.Getenv("GI_UX_METER") != "" || os.Getenv("GI_UX_COMPACTION") != "") && len(users) > 0 {
 			marker := regexp.MustCompile(`UX meter tokens:(\d+)`).FindStringSubmatch(users[len(users)-1])
 			if len(marker) > 1 {
 				if n, err := strconv.Atoi(marker[1]); err == nil && n >= 0 && n <= 4_000_000 {
@@ -139,8 +142,43 @@ func main() {
 		log.Fatal(err)
 	}
 	defer s.Close()
+	if os.Getenv("GI_UX_COMPACTION") != "" {
+		cfg.Compaction = config.CompactionSettings{Enabled: true, ThresholdTokens: 30, KeepRecentTokens: 10}
+		cfg.Hooks.TimeoutMS = 55000
+	}
 	engine := turn.NewWithRuntimeConfig(s, cfg, cfg.SystemPrompt)
 	defer engine.Close()
+	if os.Getenv("GI_UX_COMPACTION") != "" {
+		_, err = engine.RegisterHook(turn.HookSessionBeforeCompact, "ux-compaction-gate", func(ctx context.Context, req turn.HookRequest) (turn.HookResponse, error) {
+			// Real hook gate; no synthetic lifecycle events or database seeding.
+			last := ""
+			if len(req.Messages) > 0 {
+				last = goai.GetTextContent(&req.Messages[len(req.Messages)-1])
+			}
+			m := regexp.MustCompile(`UX compact (complete|suppress):([a-zA-Z0-9_-]+)`).FindStringSubmatch(last)
+			if len(m) > 2 {
+				tick := time.NewTicker(20 * time.Millisecond)
+				defer tick.Stop()
+				for {
+					if _, err := os.Stat(filepath.Join(gates, m[2])); err == nil {
+						break
+					}
+					select {
+					case <-ctx.Done():
+						return turn.HookResponse{}, ctx.Err()
+					case <-tick.C:
+					}
+				}
+				if m[1] == "suppress" {
+					return turn.HookResponse{Block: true}, nil
+				}
+			}
+			return turn.HookResponse{Payload: map[string]any{"summary": "Preserve user requirements and pending work."}}, nil
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 	server := web.New(s, engine, cfg)
 	httpServer := &http.Server{Addr: "127.0.0.1:19092", Handler: server.Handler()}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)

@@ -718,6 +718,8 @@ class SSEClient {
     bindJsonEvent("agent_followup_consumed");
     bindJsonEvent("agent_followup_removed");
     bindJsonEvent("queue_changed");
+    for (const event of ["compaction_started", "compaction_completed", "compaction_cancelled", "compaction_suppressed", "compaction_failed"])
+      bindJsonEvent(event);
     bindJsonEvent("workspace_update");
     bindJsonEvent("agent_draft");
     bindJsonEvent("agent_draft_delta");
@@ -826,7 +828,7 @@ async function request(url, options = {}) {
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(err.error || `HTTP ${response.status}`);
+    throw Object.assign(new Error(err.error || `HTTP ${response.status}`), { status: response.status });
   }
   return response.json();
 }
@@ -874,16 +876,17 @@ async function getAgentStatus(agentId, chatJid = null) {
   const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
   if (!sessionId)
     return null;
-  const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/turns`).catch(() => ({ turns: [] }));
-  const turns = data.turns || [];
-  const active = turns.find((t) => t.status === "running" || t.status === "cancelling") || turns.find((t) => t.status === "queued");
-  if (!active)
-    return null;
+  const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/activity`);
   return {
-    type: active.status === "running" ? "tool_call" : "intent",
-    title: active.status === "cancelling" ? "Cancelling…" : active.status === "queued" ? "Queued" : active.prompt,
-    status: active.status
+    ...data,
+    type: data.status === "running" ? "tool_call" : "intent",
+    title: data.status === "cancelling" ? "Cancelling…" : data.status === "running" ? "Working…" : ""
   };
+}
+async function cancelSessionRun(chatJid, turnId) {
+  if (!chatJid?.startsWith("gi:") || !turnId)
+    throw new Error("No active run to stop");
+  return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/activity`, { method: "POST", body: JSON.stringify({ turn_id: turnId }) });
 }
 async function getAgentModels(chatJid = null) {
   if (chatJid?.startsWith("gi:"))
@@ -16536,6 +16539,38 @@ async function recoverQueueDraft(item, parsed, fetcher = fetch) {
   return { ...emptyDraft(), text: parsed.text || "", fileRefs: parsed.fileRefs || [], messageRefs: parsed.messageRefs || [], media };
 }
 
+// web/src/gi-compaction-state.ts
+function createActivityRevision() {
+  let revision = 0;
+  return { capture: () => revision, invalidate: () => ++revision, accepts: (value) => value === revision };
+}
+function compactionNotice(activity, now = Date.now()) {
+  const c = activity?.compaction;
+  if (!c || c.turn_id !== activity.turn_id)
+    return null;
+  if (c.active && ["running", "cancelling"].includes(activity.status))
+    return {
+      type: "intent",
+      intent_key: "compaction",
+      title: activity.status === "cancelling" ? "Cancelling compaction" : "Compacting context",
+      started_at: c.timestamp,
+      turn_id: activity.turn_id,
+      started_seq: c.seq
+    };
+  const age = now - Date.parse(c.timestamp);
+  if (!Number.isFinite(age) || age < 0 || age > 1e4)
+    return null;
+  if (c.event_type === "compaction.suppressed")
+    return { type: "notice", title: "Compaction temporarily suppressed", detail: c.detail || "Before-compact hook suppressed this attempt", turn_id: activity.turn_id };
+  if (c.event_type === "compaction.failed")
+    return { type: "notice", title: "Compaction failed", detail: c.detail || "Context retained", turn_id: activity.turn_id };
+  return null;
+}
+function compactionElapsed(notice, now = Date.now()) {
+  const elapsed = Math.max(0, Math.floor((now - Date.parse(notice?.started_at)) / 1000));
+  return Number.isFinite(elapsed) ? `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}` : "0:00";
+}
+
 // web/src/app.ts
 var SESSION_KEY = "gi_session_id";
 var DEFAULT_AGENT_ID = "web";
@@ -16549,24 +16584,58 @@ function RunBoundQueueStack({ steerEnabled, ...props }) {
   });
   return ce`<div ref=${root} style="display:contents"><${QueuedFollowupStack} ...${props} /></div>`;
 }
-function useContextTooltip(root) {
+function useContextTooltip(root, usage, notice, now, canStop, stop) {
   F_(() => {
     const compose = root.current?.querySelector(".compose-box");
     if (!compose)
       return;
     const sync = () => {
+      compose.querySelectorAll(".send-btn.abort-mode").forEach((button) => {
+        if (button.disabled === canStop)
+          button.disabled = !canStop;
+      });
       compose.querySelectorAll(".compose-context-pie").forEach((button) => {
-        const title = button.getAttribute("title");
-        if (!title)
-          button.removeAttribute("data-tooltip");
-        else if (button.getAttribute("data-tooltip") !== title)
+        const active = notice?.intent_key === "compaction";
+        const normal = contextPresentation(usage);
+        const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}` : normal.title;
+        const label = active ? `${notice.title} — ${normal.label}` : normal.label;
+        if (button.getAttribute("title") !== title)
+          button.setAttribute("title", title);
+        if (button.getAttribute("aria-label") !== label)
+          button.setAttribute("aria-label", label);
+        if (button.getAttribute("data-tooltip") !== title)
           button.setAttribute("data-tooltip", title);
+        if (button.classList.contains("is-compacting") !== active)
+          button.classList.toggle("is-compacting", active);
+        let elapsed = compose.querySelector(".gi-compaction-elapsed");
+        if (active) {
+          if (!elapsed) {
+            elapsed = document.createElement("span");
+            elapsed.className = "gi-compaction-elapsed";
+            button.after(elapsed);
+          }
+          const text = compactionElapsed(notice, now);
+          if (elapsed.textContent !== text)
+            elapsed.textContent = text;
+        } else
+          elapsed?.remove();
       });
     };
     sync();
     const observer = new MutationObserver(sync);
-    observer.observe(compose, { subtree: true, childList: true, attributes: true, attributeFilter: ["title"] });
-    return () => observer.disconnect();
+    observer.observe(compose, { subtree: true, childList: true, attributes: true, attributeFilter: ["title", "disabled", "class"] });
+    const onClick = (event) => {
+      if (event.target.closest?.(".send-btn.abort-mode")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        stop();
+      }
+    };
+    compose.addEventListener("click", onClick, true);
+    return () => {
+      observer.disconnect();
+      compose.removeEventListener("click", onClick, true);
+    };
   });
 }
 function sessionToChatJid2(id) {
@@ -16612,7 +16681,6 @@ async function getRuntimeConfig() {
 }
 function GiApp() {
   const containerRef = K_(null);
-  useContextTooltip(containerRef);
   const [ready, setReady] = M_(false);
   const [sessionId, setSessionId] = M_(null);
   const selection = K_(createSelectionScope()).current;
@@ -16652,6 +16720,46 @@ function GiApp() {
   const [floatingWidget, setFloatingWidget] = M_(null);
   const [attachmentPreview, setAttachmentPreview] = M_(null);
   const [contextUsage, setContextUsage] = M_(null);
+  const [activity, setActivity] = M_(null);
+  const activityRevision = K_(createActivityRevision()).current;
+  const [activityNow, setActivityNow] = M_(Date.now());
+  const [stopPending, setStopPending] = M_(false);
+  const [stopError, setStopError] = M_("");
+  const [activityFresh, setActivityFresh] = M_(false);
+  const stopToken = K_(null);
+  const notice = compactionNotice(activity, activityNow);
+  J_(() => {
+    if (!activity?.compaction)
+      return;
+    const timer = setInterval(() => setActivityNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [activity]);
+  useContextTooltip(containerRef, contextUsage, notice, activityNow, activityFresh && !stopPending && !!activity?.turn_id && ["running", "cancelling"].includes(activity?.status), async () => {
+    if (stopToken.current || !activityFresh || !activity?.turn_id || streamDisconnected.current)
+      return;
+    const scope = selection.capture();
+    const run = activity.turn_id;
+    const token = {};
+    stopToken.current = token;
+    setStopPending(true);
+    setStopError("");
+    try {
+      await cancelSessionRun(sessionToChatJid2(scope.sessionId), run);
+    } catch (error) {
+      if (selection.isCurrent(scope) && error.status !== 409)
+        setStopError(`Stop failed: ${error.message}`);
+    } finally {
+      if (stopToken.current === token) {
+        stopToken.current = null;
+        setStopPending(false);
+      }
+      if (selection.isCurrent(scope)) {
+        activityRevision.invalidate();
+        setActivityFresh(false);
+        refreshAfterConnection.current();
+      }
+    }
+  });
   const [activeChatAgents, setActiveChatAgents] = M_([]);
   const sessionListRevision = K_(0);
   const [currentChatBranches, setCurrentChatBranches] = M_([]);
@@ -16780,7 +16888,11 @@ function GiApp() {
   const handleSseEvent = X_((eventType, data) => {
     if (!selection.current() || data?.chat_jid !== sessionToChatJid2(selection.current()))
       return;
-    if (["queue_changed", "agent_followup_queued", "agent_followup_consumed", "agent_followup_removed"].includes(eventType)) {
+    if (eventType === "agent_status" || eventType.startsWith("compaction_") || ["queue_changed", "agent_response"].includes(eventType)) {
+      activityRevision.invalidate();
+      setActivityFresh(false);
+    }
+    if (eventType.startsWith("compaction_") || ["agent_status", "agent_response", "queue_changed", "agent_followup_queued", "agent_followup_consumed", "agent_followup_removed"].includes(eventType)) {
       ++queueRevision.current;
       if (!refreshTimer.current)
         refreshTimer.current = setTimeout(() => {
@@ -16823,6 +16935,9 @@ function GiApp() {
   }, [scrollToBottom]);
   const handleConnectionStatusChange = X_((status) => {
     ++connectionRevision.current;
+    activityRevision.invalidate();
+    setActivity(null);
+    setActivityFresh(false);
     ++queueRevision.current;
     setQueueActiveTurnId(null);
     setConnectionStatus(status);
@@ -16863,6 +16978,7 @@ function GiApp() {
     const revision = ++queueRevision.current;
     const connection = connectionRevision.current;
     const modelVersion = modelRevision.current;
+    const activityVersion = activityRevision.capture();
     try {
       const [models, queue, status] = await Promise.all([
         getAgentModels(chat),
@@ -16871,6 +16987,11 @@ function GiApp() {
       ]);
       if (!selection.isCurrent(scope) || connection !== connectionRevision.current || streamDisconnected.current)
         return;
+      if (!activityRevision.accepts(activityVersion))
+        return;
+      setActivity(status);
+      setActivityFresh(true);
+      setActivityNow(Date.now());
       if (modelVersion === modelRevision.current && !modelMutation.current) {
         setAgentModelsPayload(models);
         setActiveModel(models.current);
@@ -16932,6 +17053,12 @@ function GiApp() {
     if (sessionId)
       drafts.update(sessionId, { fileRefs, messageRefs });
     selection.select(nextSessionId);
+    stopToken.current = null;
+    setStopPending(false);
+    setStopError("");
+    activityRevision.invalidate();
+    setActivity(null);
+    setActivityFresh(false);
     setLocalStorageItem(SESSION_KEY, nextSessionId);
     setSessionId(nextSessionId);
     setPosts([]);
@@ -17228,9 +17355,11 @@ function GiApp() {
                 ${followupQueueItems.some((item) => item.phase === "steer_returned") && ce`<div role="alert">Steer was not consumed by its target run. The item remains queued and will not auto-send; return it to the editor, remove it, or Steer a new active run.</div>`}
                 ${queueError && ce`<div role="alert">${queueError}</div>`}
                 ${sessionError && ce`<div role="alert">${sessionError}</div>`}
+                ${stopError && ce`<div role="alert">${stopError}</div>`}
                 ${draftStorageError && ce`<div role="alert">${draftStorageError}</div>`}
                 ${drafts.error(sessionId) && ce`<div role="alert">${drafts.error(sessionId)}</div>`}
                 <${ComposeBox}
+                    statusNotice=${notice}
                     showQueueStack=${false}
                     key=${`${sessionId}:${draftRestore?.sessionId === sessionId ? draftRestore.token : ""}`}
                     draftValue=${getDraft(sessionId).text}
@@ -17384,5 +17513,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=045B3A093A29996764756E2164756E21
+//# debugId=B1C25C643CAEC8DD64756E2164756E21
 //# sourceMappingURL=app.js.map

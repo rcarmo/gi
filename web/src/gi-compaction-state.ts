@@ -1,0 +1,23 @@
+// Native events invalidate a snapshot; no unguarded payload can invent active
+// compaction. Selection/connection generations stay in the host app.
+export function createActivityRevision() {
+ let revision=0;
+ return {capture:()=>revision, invalidate:()=>++revision, accepts:(value:number)=>value===revision};
+}
+export function compactionNotice(activity:any, now=Date.now()) {
+ const c=activity?.compaction;
+ if (!c || c.turn_id!==activity.turn_id) return null;
+ if (c.active && ['running','cancelling'].includes(activity.status)) return {
+  type:'intent',intent_key:'compaction',title:activity.status==='cancelling'?'Cancelling compaction':'Compacting context',
+  started_at:c.timestamp,turn_id:activity.turn_id,started_seq:c.seq,
+ };
+ const age=now-Date.parse(c.timestamp);
+ if (!Number.isFinite(age)||age<0||age>10000) return null;
+ if (c.event_type==='compaction.suppressed') return {type:'notice',title:'Compaction temporarily suppressed',detail:c.detail||'Before-compact hook suppressed this attempt',turn_id:activity.turn_id};
+ if (c.event_type==='compaction.failed') return {type:'notice',title:'Compaction failed',detail:c.detail||'Context retained',turn_id:activity.turn_id};
+ return null;
+}
+export function compactionElapsed(notice:any, now=Date.now()) {
+ const elapsed=Math.max(0,Math.floor((now-Date.parse(notice?.started_at))/1000));
+ return Number.isFinite(elapsed)?`${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,'0')}`:'0:00';
+}

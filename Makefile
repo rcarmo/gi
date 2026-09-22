@@ -229,6 +229,9 @@ UX_PARITY_ARGS ?=
 # Real local inference checkpoints (no paid provider).
 UX_LOCAL_ENV ?= GI_UX_STEER=1
 UX_LOCAL_SPEC ?= tests/ux/queue-steer.spec.mjs
+test-ux-compaction:
+	$(MAKE) --no-print-directory test-ux-steer UX_LOCAL_ENV=GI_UX_COMPACTION=1 UX_LOCAL_SPEC=tests/ux/compaction.spec.mjs
+
 test-ux-context-meter:
 	$(MAKE) --no-print-directory test-ux-steer UX_LOCAL_ENV=GI_UX_METER=1 UX_LOCAL_SPEC=tests/ux/context-meter.spec.mjs
 

@@ -51,7 +51,7 @@ async function request(url: string, options: RequestInit = {}) {
     });
     if (!response.ok) {
         const err = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(err.error || `HTTP ${response.status}`);
+        throw Object.assign(new Error(err.error || `HTTP ${response.status}`), {status:response.status});
     }
     return response.json();
 }
@@ -191,16 +191,14 @@ export async function getAgents() {
 export async function getAgentStatus(agentId: string, chatJid: string | null = null) {
     const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
     if (!sessionId) return null;
-    const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/turns`).catch(() => ({ turns: [] }));
-    const turns: any[] = data.turns || [];
-    const active = turns.find((t: any) => t.status === 'running' || t.status === 'cancelling')
-        || turns.find((t: any) => t.status === 'queued');
-    if (!active) return null;
-    return {
-        type: active.status === 'running' ? 'tool_call' : 'intent',
-        title: active.status === 'cancelling' ? 'Cancelling…' : active.status === 'queued' ? 'Queued' : active.prompt,
-        status: active.status,
-    };
+    const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/activity`);
+    return { ...data, type: data.status === 'running' ? 'tool_call' : 'intent',
+        title: data.status === 'cancelling' ? 'Cancelling…' : data.status === 'running' ? 'Working…' : '' };
+}
+
+export async function cancelSessionRun(chatJid: string, turnId: string) {
+    if (!chatJid?.startsWith('gi:') || !turnId) throw new Error('No active run to stop');
+    return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/activity`, {method:'POST', body:JSON.stringify({turn_id:turnId})});
 }
 
 export async function getAgentContext(_agentId: string, chatJid: string | null = null) {

@@ -1,5 +1,13 @@
 # Web session selection and compact TUI adaptation
 
+## Latest browser evidence: automatic compaction (2026-09-22)
+
+Automatic compaction now renders elapsed/style/title state from a native activity snapshot. Stop targets the captured session/run without clearing text or attachments, is disabled while activity is unknown/stale/pending, and reconciles a completion race without cancelling new work. Suppression shows native detail; completion refreshes measured usage without requiring a reduction. See [ADR-0020](../adr/0020-automatic-compaction-web-status.md).
+
+Verified: **48/48 new browser executions**, **276/276 combined**, **70/70 functional**, **24/24 helpers**, Go/vet/hook checks and targeted races ×3. Mappings: compaction `001–005` and context `004`; coverage **Classic 25/236** (211 unmapped), **shared 2/42** (40 unmapped). Native hook/provider tests include completion, stop, suppression, reload, delayed activity after switching sessions, failed Stop and completion-conflict reconciliation. No supplied component/UI/pane edits.
+
+Manual Compact/context `003`, persisted history boundaries and broader reconnect/crash acceptance remain open. Terminal lifecycle adaptation is documented as a transient update within the existing footer/status and cancellation controls, with zero new idle rows; no terminal implementation or live evidence is added here.
+
 ## Native compaction prerequisite (2026-09-22)
 
 Automatic compaction now commits an occurrence-keyed start and terminal outcome, summary and conditional phase restoration before publishing success. Cancellation cannot be overwritten by a running-status restore, stale completions cannot finish a later occurrence, and failed persistence prevents the next provider call. See [ADR-0019](../adr/0019-compaction-lifecycle-safety.md).
