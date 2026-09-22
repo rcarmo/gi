@@ -395,12 +395,19 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
 	activeQueue := false
+	admissionConflict := false
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(opCtx, in.SessionID); err == nil {
-		if active, getErr := e.store.GetTurn(opCtx, activeTurnID); getErr == nil && active.Metadata["operation"] == "manual_compaction" {
+		if active, getErr := e.store.GetTurn(opCtx, activeTurnID); getErr == nil && (active.Status == "running" || active.Status == "cancelling") && active.Metadata["operation"] == "manual_compaction" {
 			return nil, store.ErrQueueConflict
 		}
 		if in.Intent != "queue" {
-			return e.submitSteeringPrompt(ctx, in.SessionID, activeTurnID, in)
+			result, err := e.submitSteeringPrompt(ctx, in.SessionID, activeTurnID, in)
+			if !errors.Is(err, store.ErrQueueConflict) {
+				return result, err
+			}
+			admissionConflict = true
+			// Completion can precede claim release. Keep that claim owned by
+			// cleanup, but persist this prompt as a distinct queued turn.
 		}
 		activeQueue = true
 	} else if err != nil && err != sql.ErrNoRows {
@@ -599,6 +606,16 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if len(sessionStateUpdate) > 0 {
 		logutil.WarnIfErr("touch session state after submit", e.store.TouchSessionState(durableCtx, in.SessionID, sessionStateUpdate))
 	}
+	// Another Store/engine can finish cleanup before our fallback row exists.
+	// If its claim is already gone, launch queued work after admission events
+	// are durable; otherwise the claim owner's cleanup remains responsible.
+	if queued && admissionConflict {
+		if _, _, claimErr := e.store.GetSessionActiveTurn(durableCtx, in.SessionID); claimErr == sql.ErrNoRows {
+			if _, launchErr := e.startNextQueuedTurnLocked(durableCtx, runner, in.SessionID); launchErr != nil {
+				return nil, launchErr
+			}
+		}
+	}
 	return &SubmitResult{TurnID: turnID, SessionID: in.SessionID, Status: status, Queued: queued}, nil
 }
 
@@ -752,9 +769,7 @@ func (e *Engine) convertLaunchConflictToSteering(ctx context.Context, turnID str
 	if err := e.store.DeleteTurn(opCtx, turnID); err != nil {
 		log.Printf("turn coordination: delete transient queued turn after steering fallback failed: %v", err)
 	}
-	if err := e.normalizeRunningSessionState(opCtx, in.SessionID, activeTurnID, true, in.Model); err != nil {
-		return nil, false, err
-	}
+	// Running-state normalization was committed with steering admission.
 	return res, true, nil
 }
 
@@ -2239,9 +2254,6 @@ func steeringMessagesFromMetadata(metadata map[string]any) []store.SteeringMessa
 
 func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurnID string, in RunInput) (*SubmitResult, error) {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
-	if strings.TrimSpace(sessionID) != "" && strings.TrimSpace(activeTurnID) != "" {
-		e.normalizeRunningSessionState(opCtx, sessionID, activeTurnID, true, "")
-	}
 	payload := map[string]any{"intent": in.Intent, "model": in.Model, "kind": "steering", "active_turn_id": activeTurnID}
 	if in.ParentTurnID != "" {
 		payload["parent_turn_id"] = in.ParentTurnID
@@ -2252,7 +2264,10 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 	media := steeringMediaFromMetadata(in.Metadata)
 	queueMode := internalx.StringValue(in.Metadata["steering_mode"], "one-at-a-time")
 	steeringRole := normalizeSteeringRole(internalx.StringValue(in.Metadata["ingress_role"], "user"))
-	if _, err := e.store.EnqueueSteering(opCtx, sessionID, activeTurnID, steeringRole, in.Prompt, payload, media, queueMode); err != nil {
+	if _, err := e.store.EnqueueActiveSteering(opCtx, sessionID, activeTurnID, steeringRole, in.Prompt, payload, media, queueMode); err != nil {
+		if errors.Is(err, store.ErrQueueConflict) {
+			return nil, err
+		}
 		logutil.WarnIfErr("append steering.rejected event", e.store.AppendTurnEvent(e.backgroundContext(), activeTurnID, sessionID, "steering.rejected", map[string]any{
 			"phase":       "steering",
 			"checkpoint":  true,

@@ -150,8 +150,51 @@ func main() {
 		cfg.Compaction = config.CompactionSettings{Enabled: true, ThresholdTokens: 30, KeepRecentTokens: 10}
 		cfg.Hooks.TimeoutMS = 55000
 	}
+	cfg.Hooks.TimeoutMS = 55000
 	engine := turn.NewWithRuntimeConfig(s, cfg, cfg.SystemPrompt)
 	defer engine.Close()
+	// Hold a real terminal-state hook before claim cleanup. Admission/SSE/store
+	// remain production paths; the file gate controls only hook completion.
+	var heldCompletion sync.Map
+	_, err = engine.RegisterHook(turn.HookSessionState, "ux-completion-admission", func(ctx context.Context, req turn.HookRequest) (turn.HookResponse, error) {
+		if req.SessionStatus != "idle" {
+			return turn.HookResponse{}, nil
+		}
+		id, _, claimErr := s.GetSessionActiveTurn(ctx, req.SessionID)
+		if claimErr != nil {
+			return turn.HookResponse{}, nil
+		}
+		record, getErr := s.GetTurn(ctx, id)
+		if getErr != nil || record.Status != "completed" || !strings.HasPrefix(record.Prompt, "UX completed claim:") {
+			return turn.HookResponse{}, nil
+		}
+		if _, loaded := heldCompletion.LoadOrStore(id, true); loaded {
+			return turn.HookResponse{}, nil
+		}
+		token := strings.TrimSpace(strings.TrimPrefix(record.Prompt, "UX completed claim:"))
+		if !regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString(token) {
+			return turn.HookResponse{}, fmt.Errorf("invalid completion token")
+		}
+		path := filepath.Join(gates, token)
+		if err := os.WriteFile(path+".held", []byte(id), 0600); err != nil {
+			return turn.HookResponse{}, err
+		}
+		tick := time.NewTicker(20 * time.Millisecond)
+		defer tick.Stop()
+		for {
+			if _, err := os.Stat(path); err == nil {
+				return turn.HookResponse{}, nil
+			}
+			select {
+			case <-ctx.Done():
+				return turn.HookResponse{}, ctx.Err()
+			case <-tick.C:
+			}
+		}
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	if os.Getenv("GI_UX_COMPACTION") != "" {
 		_, err = engine.RegisterHook(turn.HookSessionBeforeCompact, "ux-compaction-gate", func(ctx context.Context, req turn.HookRequest) (turn.HookResponse, error) {
 			// Real hook gate; no synthetic lifecycle events or database seeding.

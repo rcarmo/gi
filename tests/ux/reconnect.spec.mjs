@@ -212,15 +212,20 @@ test('Gi bounded timeline pages preserve viewport and catch up after outage',asy
   // Stop at a readable middle position, then verify tail refresh doesn't move it.
   await page.mouse.wheel(0,1200);await page.waitForTimeout(350); // let the supplied 240ms entry animation settle
   const anchor=await timeline.evaluate(root=>{const bounds=root.getBoundingClientRect();const node=[...root.querySelectorAll('.post')].find(el=>{const b=el.getBoundingClientRect();return b.top>=bounds.top&&b.bottom<bounds.bottom});return node?{id:node.id,y:node.getBoundingClientRect().top}:null;});expect(anchor).not.toBeNull();
-  const countBefore=(await ids()).length;await create(61);
-  await expect.poll(async()=> (await ids()).length).toBe(countBefore+2);
+  const oldestVisible=(await ids())[0];await create(61);
+  const livePersisted=(await api(`/api/sessions/${main.id}/messages`)).messages;
+  const liveOldest=livePersisted.findIndex(m=>m.id===oldestVisible);expect(liveOldest).toBeGreaterThanOrEqual(0);
+  await expect.poll(()=>ids()).toEqual(livePersisted.slice(liveOldest).map(m=>m.id));
   await expect.poll(async()=>Math.abs(await page.locator(`[id="${anchor.id}"]`).evaluate(el=>el.getBoundingClientRect().top)-anchor.y)).toBeLessThanOrEqual(1);
   const visibleBefore=new Set(await ids());await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});
   // More than one forward page while disconnected; reconnect must not skip it.
   for(let i=62;i<89;i++)await create(i);
-  env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});await expect.poll(async()=> (await ids()).length,{timeout:15000}).toBe(countBefore+56);
+  // Completion/cleanup admission may add legitimate queue-status messages.
+  // Verify the exact persisted suffix instead of assuming two rows per turn.
+  const persisted=(await api(`/api/sessions/${main.id}/messages`)).messages;
+  const oldest=persisted.findIndex(m=>m.id===oldestVisible);expect(oldest).toBeGreaterThanOrEqual(0);
+  env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});await expect.poll(()=>ids(),{timeout:15000}).toEqual(persisted.slice(oldest).map(m=>m.id));
   const after=await ids();for(const id of visibleBefore)expect(after).toContain(id);expect(new Set(after).size).toBe(after.length);
-  const persisted=(await api(`/api/sessions/${main.id}/messages`)).messages;expect(after).toEqual(persisted.slice(-after.length).map(m=>m.id));
   await expect.poll(async()=>Math.abs(await page.locator(`[id="${anchor.id}"]`).evaluate(el=>el.getBoundingClientRect().top)-anchor.y)).toBeLessThanOrEqual(1);
   await expect(input).toHaveValue('paging draft retained');
   // Hold a real older page across search entry. It must not merge into search.

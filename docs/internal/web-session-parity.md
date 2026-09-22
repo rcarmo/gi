@@ -1,6 +1,12 @@
 # Web session selection and compact TUI adaptation
 
-## Latest browser evidence: explicit folder references (2026-09-22)
+## Latest native/browser evidence: completed-claim admission (2026-09-22)
+
+Prompt admission now atomically requires a matching running claim for live steering. A terminal predecessor still in cleanup causes a distinct durable queued turn; cleanup retains claim ownership and drains FIFO. Strict queue Steer remains unchanged. A held native completion hook reproduces the old exhausted-turn response and verifies separate HTTP admission, exactly one stored user message per tested prompt and newer draft/reload preservation. [ADR-0036](../adr/0036-completed-claim-admission.md).
+
+Verified: **408/408 browser**, **70/70 functional**, **29 helpers**, full Go/vet, store/turn races ×3 and all existing TUI suites at the three required sizes. Paging now checks exact persisted ID windows, including legitimate queue-status rows. No UI rows/components or frozen mappings added: **35/236 Classic**, **2/42 shared**, **201/40 unmapped**. The earlier display-idle/admission warning is resolved by safe queuing; crash/replay and broader parity remain open.
+
+## Earlier browser evidence: explicit folder references (2026-09-22)
 
 The host adds an explicit selected-folder reference action in the existing workspace header, preserving navigation and supplied components. compose-008 verifies exact multiline/file/folder/message-reference serialisation and references-only submission. Native tests also cover keyboard activation, duplicate controls, durable drafts, session isolation and failed-send recovery. [ADR-0035](../adr/0035-explicit-folder-references.md).
 

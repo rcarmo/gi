@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {mkdirSync,writeFileSync} from 'node:fs';
+import {mkdirSync,writeFileSync,existsSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {loadCorpus} from './support/catalogue.mjs';
 import {createServer, request as httpRequest} from 'node:http';
@@ -103,4 +103,31 @@ test('Gi stale Steer reply after session switch cannot change target draft',asyn
   await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${main.id}"]`).getByRole('menuitem').click();await expect(input).toHaveValue('origin draft');await expect(row).toHaveCount(0);
   expect((await turns()).find(t=>t.id===active.id).status).toBe('completed');
  }finally{unblock();release();}
+});
+
+test('Gi display-idle admission queues a distinct prompt until the completed claim cleans up',async({page,request},info)=>{
+ const token=`completed-${info.project.name}-${Date.now()}`,gate=resolve('test-results/ux-parity/queue-gates',token);
+ mkdirSync(resolve(gate,'..'),{recursive:true});
+ const session=await(await request.post('/api/sessions',{data:{agent_id:token,title:token}})).json();
+ await request.patch(`/api/sessions/${session.id}/model`,{data:{model:'test-model'}});
+ const first=await(await request.post(`/api/sessions/${session.id}/prompt`,{data:{prompt:`UX completed claim:${token}`,model:'test-model'}})).json();
+ try {
+  await expect.poll(()=>existsSync(gate+'.held')).toBe(true);
+  const activity=await(await request.get(`/api/sessions/${session.id}/activity`)).json();expect(activity.status).toBe('idle');expect(activity.turn_id).toBe(first.turn_id);
+  await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),session.id);await page.goto('/');
+  const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();
+  const accepted=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${session.id}/prompt`)&&r.request().method()==='POST');
+  await input.fill('independent post-completion prompt');await input.press('Enter');const response=await accepted;expect(response.status()).toBe(202);
+  const second=await response.json();expect(second.turn_id).not.toBe(first.turn_id);expect(second.queued).toBe(true);expect(second.status).toBe('queued');
+  await input.fill('newer draft retained');
+  const before=(await(await request.get(`/api/sessions/${session.id}/turns`)).json()).turns;expect(before).toHaveLength(2);
+  expect(before.find(t=>t.id===first.turn_id).status).toBe('completed');expect(before.find(t=>t.id===second.turn_id).status).toBe('queued');
+  const state=await(await request.get(`/api/sessions/${session.id}/activity`)).json();expect(state.status).toBe('idle');expect(state.turn_id).toBe(first.turn_id);
+  writeFileSync(gate,'release');
+  await expect.poll(async()=>((await(await request.get(`/api/sessions/${session.id}/turns`)).json()).turns.find(t=>t.id===second.turn_id)?.status)).toBe('completed');
+  const stored=(await(await request.get(`/api/sessions/${session.id}/messages`)).json()).messages;
+  expect(stored.filter(m=>m.role==='user').map(m=>m.content)).toEqual([`UX completed claim:${token}`,'independent post-completion prompt']);
+  const post=stored.find(m=>m.role==='user'&&m.content==='independent post-completion prompt');await expect(page.locator(`#post-${post.id}`)).toHaveCount(1);
+  await expect(input).toHaveValue('newer draft retained');await page.reload();await expect(input).toHaveValue('newer draft retained');await expect(page.locator(`#post-${post.id}`)).toHaveCount(1);
+ } finally {writeFileSync(gate,'release');}
 });

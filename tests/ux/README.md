@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Completed-claim admission: 2026-09-22
+
+`queue-steer.spec.mjs` adds a Gi-only native completion-hook gate: the first turn is terminal/display-idle while its claim remains owned by cleanup. A composer prompt must receive its own queued ID, drain after release, preserve newer typing and appear once after reload. Existing strict run-bound Steer assertions are unchanged. Paging compares the exact persisted ID window, including native queue-status messages. [ADR-0036](../../docs/adr/0036-completed-claim-admission.md).
+
+Latest: **408/408 browser** (246 main + 162 specialised), **70/70 functional**, **29 helpers**, Go/vet/race ×3 and all TUI suites. The main Chromium/WebKit batches each passed 123 cases; existing six result files/targets still apply. Frozen mapping stays **35/236 Classic**, **2/42 shared**, **201/40 unmapped**. No synthetic SSE or backend lifecycle seeding for the new browser regression.
+
 ## Explicit folder references: 2026-09-22
 
 `drafts.spec.mjs` now maps compose-008 through native file/folder/message selection, exact multiline serialisation and references-only submission. Separate cases verify persistence, isolation, deduplication/cleanup and failure recovery. The host action leaves supplied component files and directory navigation unchanged. [ADR-0035](../../docs/adr/0035-explicit-folder-references.md).
