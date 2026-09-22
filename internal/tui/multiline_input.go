@@ -116,6 +116,8 @@ func (m *multilineInput) KeyMap() gotui.KeyMap {
 		gotui.OnFocused(gotui.KeyCtrlY, func(ke gotui.KeyEvent) { m.yank() }),
 		gotui.OnFocused(gotui.KeyTab, func(ke gotui.KeyEvent) { m.complete() }),
 		gotui.OnFocused(gotui.KeyEnter, m.enter),
+		gotui.OnFocused(gotui.KeyEnter.Shift(), m.enter),
+		gotui.OnFocused(gotui.KeyCtrlJ, func(ke gotui.KeyEvent) { m.insertLiteral('\n') }),
 		gotui.OnFocused(gotui.KeyEnter.Alt(), m.enter),
 		gotui.OnFocused(gotui.KeyUp.Alt(), func(ke gotui.KeyEvent) {
 			if m.onRestoreQueued != nil {
@@ -147,7 +149,7 @@ func (m *multilineInput) Render(app *gotui.App) *gotui.Element {
 		totalHeight += 2
 	}
 	root := gotui.New(
-		gotui.WithDirection(gotui.Row),
+		gotui.WithDirection(gotui.Column),
 		gotui.WithWidth(m.width),
 		gotui.WithHeight(totalHeight),
 		gotui.WithFocusable(true),

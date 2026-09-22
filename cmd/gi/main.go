@@ -74,11 +74,12 @@ func main() {
 	logFile := flag.String("log-file", "", "Optional log file path")
 	pidFile := flag.String("pid-file", "", "Optional pid file path")
 	tuiMode := flag.Bool("tui", false, "Run the terminal UI instead of the web server")
+	tuiLayout := flag.String("tui-mode", "fullscreen", "Terminal rendering: fullscreen or regular (native scrollback)")
 	flag.Parse()
 
 	if *tuiMode {
 		configureTUILogging(*logFile)
-		if err := gitui.Run(*dbPath, *workspace, *model); err != nil {
+		if err := gitui.RunMode(*dbPath, *workspace, *model, *tuiLayout); err != nil {
 			log.Fatalf("tui: %v", err)
 		}
 		return

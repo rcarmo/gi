@@ -38,6 +38,13 @@ func initialSessionID(ctx context.Context, s *store.Store) (string, error) {
 }
 
 func Run(dbPath, workspace, model string) error {
+	return RunMode(dbPath, workspace, model, "fullscreen")
+}
+
+func RunMode(dbPath, workspace, model, mode string) error {
+	if mode != "regular" && mode != "fullscreen" {
+		return fmt.Errorf("invalid tui mode %q: use regular or fullscreen", mode)
+	}
 	cfg := config.Load(workspace)
 	if model != "" {
 		cfg.DefaultModel = model
@@ -51,11 +58,15 @@ func Run(dbPath, workspace, model string) error {
 
 	engine := turn.NewWithRuntimeConfig(s, cfg, cfg.SystemPrompt)
 	defer engine.Close()
-	return runWithEngine(s, engine, cfg)
+	return runWithEngineMode(s, engine, cfg, mode == "regular")
 }
 
 // Fixtures can install native hooks while reusing the production terminal loop.
 func runWithEngine(s *store.Store, engine *turn.Engine, cfg config.RuntimeConfig) error {
+	return runWithEngineMode(s, engine, cfg, false)
+}
+
+func runWithEngineMode(s *store.Store, engine *turn.Engine, cfg config.RuntimeConfig, regular bool) error {
 	sessionID, err := initialSessionID(context.Background(), s)
 	if err != nil {
 		return err
@@ -77,12 +88,16 @@ func runWithEngine(s *store.Store, engine *turn.Engine, cfg config.RuntimeConfig
 		cfg:           cfg,
 		transcriptRef: gotui.NewRef(),
 		stickToBottom: true,
+		regularMode:   regular,
 	}
 
-	app, err := gotui.NewApp(
-		gotui.WithMouse(),
-		gotui.WithLegacyKeyboard(),
-	)
+	options := []gotui.AppOption{gotui.WithLegacyKeyboard()}
+	if regular {
+		options = append(options, gotui.WithInlineHeight(5), gotui.WithPostRenderHook(chat.flushRegularTranscript))
+	} else {
+		options = append(options, gotui.WithMouse())
+	}
+	app, err := gotui.NewApp(options...)
 	if err != nil {
 		return fmt.Errorf("create app: %w", err)
 	}
@@ -142,78 +157,82 @@ type transcriptRenderableBlock struct {
 const bashPreviewLines = 10
 
 type chatTUI struct {
-	app                      *gotui.App
-	store                    *store.Store
-	engine                   *turn.Engine
-	sessionID                string
-	cfg                      config.RuntimeConfig
-	history                  []string
-	histIdx                  int
-	historySearchQuery       string
-	historySearchIdx         int
-	running                  bool
-	status                   string
-	compaction               terminalCompaction
-	draft                    string
-	inputActive              bool
-	eventCh                  chan sessionEvent
-	topicEventCh             chan sessionTopicEvent
-	sessionGeneration        uint64
-	subscriptionCancel       context.CancelFunc
-	sessionEditors           map[string]sessionEditorState
-	sessionModelDefaults     *[3]string
-	subscribedCh             chan map[string]any
-	topicUnsubscribe         func()
-	input                    *multilineInput
-	queuedDrafts             []string
-	inputRegion              *gotui.Element
-	transcriptRegion         *gotui.Element
-	transcriptRef            *gotui.Ref
-	transcript               []string
-	transcriptScroll         int
-	stickToBottom            bool
-	draftLineIndex           int
-	draftLineCount           int
-	outputWidth              int
-	outputHeight             int
-	osc52Writer              io.Writer
-	clipboardLookPath        func(string) (string, error)
-	clipboardImageReader     func() ([]byte, string, error)
-	clipboardRun             func(context.Context, string, []string, string) error
-	transcriptBlockRefs      []transcriptBlockHitTarget
-	transcriptExpanded       map[string]bool
-	transcriptBlockSpans     map[string]transcriptBlockSpan
-	transcriptToolBlocks     map[string]string
-	selectedTranscriptBlock  string
-	thinkingText             string
-	thinkingBlockKey         string
-	thinkingStartedAt        string
-	thinkingIndicatorKey     string
-	thinkingIndicatorStart   string
-	lastInputTokens          int
-	lastOutputTokens         int
-	lastContextTokens        int
-	lastCacheRead            int
-	lastCacheWrite           int
-	lastCostTotal            float64
-	modelMenuOpen            bool
-	modelMenuKind            string
-	modelMenuValues          map[string]string
-	modelMenuChoices         []string
-	modelMenuAll             []string
-	modelMenuQuery           string
-	modelMenuError           string
-	modelMenuSelected        int
-	modelMenuScroll          int
-	extensionStatuses        map[string]string
-	extensionWidgets         map[string][]string
-	extensionToolModes       map[string]string
-	editorAskActive          bool
-	editorAskKey             string
-	editorAskPrompt          string
-	editorAskPrevPlaceholder string
-	editorAskPrevText        string
-	editorAskPrevCursor      int
+	app                         *gotui.App
+	store                       *store.Store
+	engine                      *turn.Engine
+	sessionID                   string
+	cfg                         config.RuntimeConfig
+	history                     []string
+	histIdx                     int
+	historySearchQuery          string
+	historySearchIdx            int
+	running                     bool
+	status                      string
+	compaction                  terminalCompaction
+	draft                       string
+	inputActive                 bool
+	eventCh                     chan sessionEvent
+	topicEventCh                chan sessionTopicEvent
+	sessionGeneration           uint64
+	subscriptionCancel          context.CancelFunc
+	sessionEditors              map[string]sessionEditorState
+	sessionModelDefaults        *[3]string
+	subscribedCh                chan map[string]any
+	topicUnsubscribe            func()
+	input                       *multilineInput
+	queuedDrafts                []string
+	inputRegion                 *gotui.Element
+	transcriptRegion            *gotui.Element
+	transcriptRef               *gotui.Ref
+	transcript                  []string
+	regularMode                 bool
+	regularPrinted              int
+	regularSessionPending       bool
+	regularWidth, regularHeight int
+	transcriptScroll            int
+	stickToBottom               bool
+	draftLineIndex              int
+	draftLineCount              int
+	outputWidth                 int
+	outputHeight                int
+	osc52Writer                 io.Writer
+	clipboardLookPath           func(string) (string, error)
+	clipboardImageReader        func() ([]byte, string, error)
+	clipboardRun                func(context.Context, string, []string, string) error
+	transcriptBlockRefs         []transcriptBlockHitTarget
+	transcriptExpanded          map[string]bool
+	transcriptBlockSpans        map[string]transcriptBlockSpan
+	transcriptToolBlocks        map[string]string
+	selectedTranscriptBlock     string
+	thinkingText                string
+	thinkingBlockKey            string
+	thinkingStartedAt           string
+	thinkingIndicatorKey        string
+	thinkingIndicatorStart      string
+	lastInputTokens             int
+	lastOutputTokens            int
+	lastContextTokens           int
+	lastCacheRead               int
+	lastCacheWrite              int
+	lastCostTotal               float64
+	modelMenuOpen               bool
+	modelMenuKind               string
+	modelMenuValues             map[string]string
+	modelMenuChoices            []string
+	modelMenuAll                []string
+	modelMenuQuery              string
+	modelMenuError              string
+	modelMenuSelected           int
+	modelMenuScroll             int
+	extensionStatuses           map[string]string
+	extensionWidgets            map[string][]string
+	extensionToolModes          map[string]string
+	editorAskActive             bool
+	editorAskKey                string
+	editorAskPrompt             string
+	editorAskPrevPlaceholder    string
+	editorAskPrevText           string
+	editorAskPrevCursor         int
 }
 
 func (c *chatTUI) ensureInput() {
@@ -222,14 +241,14 @@ func (c *chatTUI) ensureInput() {
 			c.input.onChange = c.onInputChanged
 		}
 		c.input.onEscape = c.handleCompactionEscape
-		c.input.onTranscriptTop, c.input.onTranscriptEnd = c.scrollTranscriptToTop, c.scrollTranscriptToBottom
+		c.bindTranscriptNavigation()
 		return
 	}
 	c.input = newMultilineInput(80, "Send a message…", c.onSubmit, c.onInputChanged)
 	c.input.onRestoreQueued = c.restoreQueuedDraft
 	c.input.onComplete = c.completeInputPath
 	c.input.onEscape = c.handleCompactionEscape
-	c.input.onTranscriptTop, c.input.onTranscriptEnd = c.scrollTranscriptToTop, c.scrollTranscriptToBottom
+	c.bindTranscriptNavigation()
 }
 
 func (c *chatTUI) onInputChanged(string) {
@@ -484,6 +503,8 @@ func (c *chatTUI) bindSession(sessionID string) {
 	c.sessionGeneration++
 	c.compaction = terminalCompaction{}
 	c.sessionID = sessionID
+	c.regularPrinted = 0
+	c.regularSessionPending = true
 	if c.store != nil {
 		if session, err := c.store.GetSession(context.Background(), sessionID); err == nil {
 			c.restoreSessionModel(session.State)
@@ -1511,7 +1532,7 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 			gotui.OnFocused(gotui.AnyRune, func(ke gotui.KeyEvent) { c.modelMenuTypeRune(ke.Rune) }),
 		}
 	}
-	return gotui.KeyMap{
+	bindings := gotui.KeyMap{
 		gotui.OnStop(gotui.KeyCtrlC, func(ke gotui.KeyEvent) { c.app.Stop() }),
 		gotui.OnStop(gotui.KeyCtrlD, func(ke gotui.KeyEvent) {
 			if c.input.Text() == "" {
@@ -1560,6 +1581,10 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 			c.recallHistory(1)
 		}),
 	}
+	if c.regularMode {
+		return regularKeyMap(bindings)
+	}
+	return bindings
 }
 
 func (c *chatTUI) openModelMenu() {
@@ -2579,6 +2604,9 @@ func (c *chatTUI) logoutLines(fields []string) []string {
 
 // hotkeyLines is the PiSwift-style `/hotkeys` reference, grouped by purpose.
 func (c *chatTUI) hotkeyLines() []string {
+	if c.regularMode {
+		return []string{"hotkeys · regular mode", "Terminal wheel/selection/copy owns printed history; Home/End edit the draft", "Enter send · Shift+Enter newline · Alt-S sessions · Alt-M models · Alt-C compact", "Printed output is immutable; use -tui-mode fullscreen for in-app paging and tool toggles"}
+	}
 	return []string{
 		"hotkeys",
 		"editor:",
@@ -3342,6 +3370,7 @@ func (c *chatTUI) applyTranscriptLimit() {
 	}
 	drop := len(c.transcript) - limit
 	c.transcript = append([]string(nil), c.transcript[drop:]...)
+	c.regularPrinted = max(0, c.regularPrinted-drop)
 	if c.draftLineIndex >= 0 {
 		oldIndex := c.draftLineIndex
 		c.draftLineIndex -= drop
@@ -3626,6 +3655,9 @@ func (c *chatTUI) pluginLines() []string {
 }
 
 func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
+	if c.regularMode {
+		return c.renderRegular(app)
+	}
 	w, h := app.Size()
 	padding := 1
 	if w < 80 || h < 20 {
@@ -5004,8 +5036,9 @@ func Main() {
 	dbPath := flag.String("db", config.DefaultTUIDBPath(), "SQLite database path")
 	workspace := flag.String("workspace", config.DefaultWorkspaceRoot(), "Workspace root")
 	model := flag.String("model", "", "Override default model")
+	mode := flag.String("tui-mode", "fullscreen", "Terminal rendering: fullscreen or regular (native scrollback)")
 	flag.Parse()
-	if err := Run(*dbPath, *workspace, *model); err != nil {
+	if err := RunMode(*dbPath, *workspace, *model, *mode); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}

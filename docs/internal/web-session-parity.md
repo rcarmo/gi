@@ -1,6 +1,10 @@
 # Web session selection and compact TUI adaptation
 
-## Latest terminal evidence: Pi bands and fullscreen navigation (2026-09-22)
+## Latest terminal evidence: opt-in native scrollback (2026-09-22)
+
+`-tui-mode regular` prints completed expanded output into native terminal history, with no alternate screen or mouse capture, a five-row idle dock and bounded active preview. **60×18, 100×22 and 140×36** PTYs verify ordered/deduplicated history, native selection/copy during completion, multiline draft/cursor, resize, selectors, session isolation, exit and reopen. All existing TUI suites, Go/vet/race ×3, 29 helpers and 70/70 functional tests pass. [ADR-0031](../adr/0031-regular-terminal-scrollback.md) records the resize-marker workaround and remaining retention/layout limits. Fullscreen search/prompt jumps/selection and light theme remain open. Browser mapping unchanged.
+
+## Earlier terminal evidence: Pi bands and fullscreen navigation (2026-09-22)
 
 Pi dark user/pending/success/error backgrounds now fill flat output bands. Rendered-height paging/bottom, focused Home/End, Ctrl-Home/End editor movement, Ctrl-O expansion and dock-wheel fallback are verified at **60×18, 100×22 and 140×36**. Native ANSI snapshots, rendered-cell checks, all TUI suites, Go/vet/race ×3, 29 helpers and 70/70 functional tests pass. See [ADR-0030](../adr/0030-terminal-outcome-bands.md). Pi regular-mode native scrollback and fullscreen search/prompt jumps/selection remain open; dark-theme styling and internal navigation alone do not complete that request. No new browser mapping; folder-reference WIP remains separate.
 

@@ -2,11 +2,15 @@
 
 Status: active layout contract for the Pi/PiClaw UX convergence track.
 
+## Regular-mode native scrollback (2026-09-22; verified)
+
+`gi -tui -tui-mode regular` is opt-in; fullscreen remains the default. Completed retained output prints once, expanded and outcome-colored, into terminal-owned scrollback. No alternate screen or mouse capture. Five idle dock rows hold the existing editor/separators/footer; active preview is temporary and at most three rows. Terminal/multiplexer wheel, selection and copy remain native. Home/End edit the draft. Three-size ordered-history/selection/draft/cursor/multiline/resize/selector/session/exit/reopen tests pass. Resize history markers re-establish go-tui geometry before dock growth. See [ADR-0031](../adr/0031-regular-terminal-scrollback.md) for exact bounds and retention limits.
+
 ## Pi outcome bands and fullscreen navigation (2026-09-22; verified)
 
 User messages use Pi's neutral `#343541` band; pending/success/error tools use `#282832`/`#283228`/`#3c2828`, with neutral output text and explicit error labels. Flat bands replace tool box rows. PgUp/PgDn and Home/End navigate rendered transcript rows even while editing; Ctrl-Home/End retain editor movement, Ctrl-O expands/collapses tool output, and wheel input over the fixed dock falls back to the transcript. Three-size native PTY and rendered-cell tests pass without extra idle rows. See [ADR-0030](../adr/0030-terminal-outcome-bands.md).
 
-Pi regular-mode native scrollback, fullscreen transcript search, prompt jumps, text selection/copy/edge-autoscroll, light theme and reflow/eviction anchoring remain open. Internal fullscreen scrolling does not provide native terminal scrollback.
+Fullscreen transcript search, prompt jumps, application text selection/copy/edge-autoscroll, light theme and reflow/eviction anchoring remain open. Regular mode above provides terminal-owned history separately from fullscreen navigation.
 
 ## Terminal reading position (2026-09-22; verified)
 

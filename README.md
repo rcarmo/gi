@@ -32,6 +32,10 @@ The web UI uses Piclaw's TypeScript source verbatim with a gi-specific API adapt
 - `scripts/` — build/check scripts (hook TDZ checker)
 - `tests/` — Playwright base UX tests
 
+## Terminal rendering
+
+`gi -tui -tui-mode regular` keeps completed output in native terminal scrollback with a five-row idle editor/footer; the terminal owns wheel, selection and copy. `fullscreen` remains the default and supports in-app paging and tool-output folding. Regular mode prints retained output fully expanded after native completion and uses a temporary three-row preview while active. See [ADR-0031](docs/adr/0031-regular-terminal-scrollback.md) for retention and resize limits.
+
 ## Internal reference
 
 The repo includes a growing internal documentation subtree under `docs/internal/`.
@@ -78,6 +82,7 @@ That installs Go/Bun dependencies, installs Playwright Chromium, and builds `gi`
 | `make test-ux` | Playwright tests against isolated instance (artifacts under `test-results/`) |
 | `make test-tui-smoke` | tmux-driven TUI smoke test (artifacts under `test-results/tui-smoke/`) |
 | `make test-tui-gherkin` | TUI gherkin harness |
+| `make test-tui-regular` | Three-size native scrollback, selection/copy, draft/resize/session/exit/reopen checks |
 | `make clean` | Remove build/run artifacts |
 
 ### Override defaults
