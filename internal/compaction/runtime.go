@@ -21,6 +21,7 @@ type RuntimeRequest struct {
 	AgentID   string
 	Model     string
 	Settings  config.CompactionSettings
+	Force     bool
 }
 
 type RuntimeOps struct {
@@ -37,18 +38,22 @@ func MaybeCompactContext(ctx context.Context, req RuntimeRequest, convCtx *goai.
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if !settings.Enabled || len(convCtx.Messages) < 6 {
+	if (!req.Force && !settings.Enabled) || len(convCtx.Messages) < 2 || (!req.Force && len(convCtx.Messages) < 6) {
 		return nil
 	}
 	tokens := EstimateMessagesTokens(convCtx.Messages)
-	if tokens <= settings.ThresholdTokens {
+	if !req.Force && tokens <= settings.ThresholdTokens {
 		return nil
 	}
 	prep := Prepare(convCtx.Messages, tokens, settings.KeepRecentTokens, settings.ReserveTokens, settings.ThresholdTokens, settings.Strategy)
 	if prep.MessagesToSummarize <= 0 {
 		return nil
 	}
-	payload := map[string]any{"phase": "compacting", "checkpoint": true, "reason": "threshold", "tokens_before": tokens, "messages_before": prep.MessagesBefore, "tokens_source": "estimate"}
+	reason := "threshold"
+	if req.Force {
+		reason = "manual"
+	}
+	payload := map[string]any{"phase": "compacting", "checkpoint": true, "reason": reason, "tokens_before": tokens, "messages_before": prep.MessagesBefore, "tokens_source": "estimate"}
 	startedSeq := 0
 	if ops.Begin != nil {
 		var err error
@@ -94,7 +99,7 @@ func MaybeCompactContext(ctx context.Context, req RuntimeRequest, convCtx *goai.
 		publish(accepted, published)
 		return accepted, nil
 	}
-	hookPayload := map[string]any{"reason": "threshold", "preparation": prep, "settings": map[string]any{"enabled": settings.Enabled, "context_window": settings.ContextWindow, "reserve_tokens": settings.ReserveTokens, "keep_recent_tokens": settings.KeepRecentTokens, "threshold_tokens": settings.ThresholdTokens, "strategy": settings.Strategy}}
+	hookPayload := map[string]any{"reason": reason, "preparation": prep, "settings": map[string]any{"enabled": settings.Enabled, "context_window": settings.ContextWindow, "reserve_tokens": settings.ReserveTokens, "keep_recent_tokens": settings.KeepRecentTokens, "threshold_tokens": settings.ThresholdTokens, "strategy": settings.Strategy}}
 	decision := HookDecision{}
 	var hookErr error
 	if ops.BeforeCompact != nil {

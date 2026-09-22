@@ -196,6 +196,15 @@ export async function getAgentStatus(agentId: string, chatJid: string | null = n
         title: data.status === 'cancelling' ? 'Cancelling…' : data.status === 'running' ? 'Working…' : '' };
 }
 
+export async function getSessionCompaction(chatJid: string) {
+    if (!chatJid?.startsWith('gi:')) return {available:false};
+    return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/compaction`);
+}
+export async function compactSession(chatJid: string, token: string) {
+    if (!chatJid?.startsWith('gi:') || !token) throw new Error('No compaction snapshot');
+    return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/compaction`, {method:'POST',body:JSON.stringify({token})});
+}
+
 export async function cancelSessionRun(chatJid: string, turnId: string) {
     if (!chatJid?.startsWith('gi:') || !turnId) throw new Error('No active run to stop');
     return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/activity`, {method:'POST', body:JSON.stringify({turn_id:turnId})});

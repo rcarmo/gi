@@ -35,6 +35,14 @@ type contextQuerier interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
+// ContextToken includes checkpoint version and all provider-visible history.
+// It is a conflict token, not a credential or an exactly-once delivery receipt.
+func ContextToken(snapshot ContextSnapshot) string {
+	raw, _ := json.Marshal([]any{snapshot.Version, snapshot.Expected})
+	hash := sha256.Sum256(raw)
+	return hex.EncodeToString(hash[:])
+}
+
 func fingerprintMessage(m Message) (ContextFingerprint, error) {
 	// Provider projection depends on role, content and media payload. Include all
 	// payload metadata conservatively, so edits cannot leave a stale summary live.

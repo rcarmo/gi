@@ -34,6 +34,7 @@ import {
     setAgentThoughtVisibility,
     getAgentStatus,
     cancelSessionRun,
+    getSessionCompaction, compactSession,
     getAgentContext,
     getAutoresearchStatus,
     stopAutoresearch,
@@ -96,7 +97,7 @@ function RunBoundQueueStack({ steerEnabled, ...props }: any) {
 
 // Keep the supplied component untouched. Its native title also supplies the
 // tooltip-data contract; observe child-owned updates (e.g. model selection).
-function useContextTooltip(root: any, usage: any, notice: any, now: number, canStop: boolean, stop: any) {
+function useContextTooltip(root: any, usage: any, notice: any, now: number, canStop: boolean, stop: any, compact: any) {
     useLayoutEffect(() => {
         const compose = root.current?.querySelector('.compose-box');
         if (!compose) return;
@@ -104,8 +105,10 @@ function useContextTooltip(root: any, usage: any, notice: any, now: number, canS
             compose.querySelectorAll('.send-btn.abort-mode').forEach(button => { if (button.disabled === canStop) button.disabled = !canStop; });
             compose.querySelectorAll('.compose-context-pie').forEach(button => {
                 const active = notice?.intent_key === 'compaction';
-                const normal = contextPresentation(usage);
-                const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}` : normal.title;
+                const normal = contextPresentation(usage, typeof compact === 'function');
+                const canCompact = typeof compact === 'function' && !active;
+                if (button.disabled === canCompact) button.disabled = !canCompact;
+                const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}` : normal.title + (canCompact ? '' : ' — Context usage');
                 const label = active ? `${notice.title} — ${normal.label}` : normal.label;
                 if (button.getAttribute('title') !== title) button.setAttribute('title', title);
                 if (button.getAttribute('aria-label') !== label) button.setAttribute('aria-label', label);
@@ -124,6 +127,9 @@ function useContextTooltip(root: any, usage: any, notice: any, now: number, canS
         observer.observe(compose, {subtree: true, childList: true, attributes: true, attributeFilter: ['title', 'disabled', 'class']});
         // Capture before the component's /abort handler clears its draft.
         const onClick = (event: any) => {
+            if (event.target.closest?.('.compose-context-pie')) {
+                event.preventDefault(); event.stopImmediatePropagation(); compact?.(); return;
+            }
             if (event.target.closest?.('.send-btn.abort-mode')) {
                 event.preventDefault(); event.stopImmediatePropagation(); stop();
             }
@@ -235,6 +241,21 @@ function GiApp() {
     const [stopError, setStopError] = useState('');
     const [activityFresh, setActivityFresh] = useState(false);
     const stopToken = useRef(null);
+    const [compactState, setCompactState] = useState<any>(null);
+    const [compactPending, setCompactPending] = useState(false);
+    const [compactError, setCompactError] = useState('');
+    const compactToken = useRef(null);
+    const manualCompact = activityFresh && activity?.status === 'idle' && compactState?.available && !compactPending ? async () => {
+        if (compactToken.current || streamDisconnected.current) return;
+        const scope = selection.capture(); const expected = compactState.token; const token = {};
+        compactToken.current=token; setCompactPending(true); setCompactError('');
+        try { await compactSession(sessionToChatJid(scope.sessionId),expected); }
+        catch (error) { if (selection.isCurrent(scope)) setCompactError(`Compact failed: ${error.message}`); }
+        finally {
+            if (compactToken.current===token) { compactToken.current=null; setCompactPending(false); }
+            if (selection.isCurrent(scope)) {activityRevision.invalidate();setActivityFresh(false);refreshAfterConnection.current();}
+        }
+    } : null;
     const notice = compactionNotice(activity, activityNow);
     useEffect(() => {
         if (!activity?.compaction) return;
@@ -251,7 +272,7 @@ function GiApp() {
             if (stopToken.current === token) { stopToken.current = null; setStopPending(false); }
             if (selection.isCurrent(scope)) { activityRevision.invalidate(); setActivityFresh(false); refreshAfterConnection.current(); }
         }
-    });
+    }, manualCompact);
     const [activeChatAgents, setActiveChatAgents] = useState<any[]>([]);
     const sessionListRevision = useRef(0);
     const [currentChatBranches, setCurrentChatBranches] = useState<any[]>([]);
@@ -463,12 +484,12 @@ function GiApp() {
         const modelVersion = modelRevision.current;
         const activityVersion = activityRevision.capture();
         try {
-            const [models, queue, status] = await Promise.all([
-                getAgentModels(chat), getAgentQueueState(chat), getAgentStatus('', chat),
+            const [models, queue, status, compact] = await Promise.all([
+                getAgentModels(chat), getAgentQueueState(chat), getAgentStatus('', chat), getSessionCompaction(chat),
             ]);
             if (!selection.isCurrent(scope) || connection !== connectionRevision.current || streamDisconnected.current) return;
             if (!activityRevision.accepts(activityVersion)) return;
-            setActivity(status); setActivityFresh(true); setActivityNow(Date.now());
+            setActivity(status); setCompactState(compact); setActivityFresh(true); setActivityNow(Date.now());
             if (modelVersion === modelRevision.current && !modelMutation.current) {
                 setAgentModelsPayload(models);
                 setActiveModel(models.current);
@@ -532,6 +553,7 @@ function GiApp() {
         // Advance synchronously, before rendering, to invalidate already pending work.
         selection.select(nextSessionId);
         stopToken.current = null; setStopPending(false); setStopError('');
+        compactToken.current=null; setCompactPending(false); setCompactError(''); setCompactState(null);
         activityRevision.invalidate(); setActivity(null); setActivityFresh(false);
         setLocalStorageItem(SESSION_KEY, nextSessionId);
         setSessionId(nextSessionId);
@@ -789,6 +811,7 @@ function GiApp() {
                 ${queueError && html`<div role="alert">${queueError}</div>`}
                 ${sessionError && html`<div role="alert">${sessionError}</div>`}
                 ${stopError && html`<div role="alert">${stopError}</div>`}
+                ${compactError && html`<div role="alert">${compactError}</div>`}
                 ${draftStorageError && html`<div role="alert">${draftStorageError}</div>`}
                 ${drafts.error(sessionId) && html`<div role="alert">${drafts.error(sessionId)}</div>`}
                 <${ComposeBox}

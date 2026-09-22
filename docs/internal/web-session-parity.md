@@ -1,6 +1,14 @@
 # Web session selection and compact TUI adaptation
 
-## Latest evidence: durable context checkpoints (2026-09-22)
+## Latest evidence: manual Compact (2026-09-22)
+
+The meter now offers manual Compact only for a fresh eligible idle-session snapshot. Native admission atomically creates an empty-prompt maintenance turn, claim and submission event; it rejects stale/busy/repeated requests. Execution forces the existing checkpoint path without an inference call. Stop/cancellation and failed delivery preserve the original draft/media and checkpoint. Provider usage stays historical until another real request. See [ADR-0022](../adr/0022-manual-compaction.md).
+
+Verified: **66/66 compaction browser**, **294/294 combined**, **70/70 functional**, **24 helpers**, Go/vet/hook checks and targeted race ×3. `context-003` adds one mapping: **Classic 26/236** (210 unmapped), **shared 2/42** (40 unmapped). Tests cover callback availability, success/reload, stale token/no turn, duplicate activation, failed delivery, cancellation/no user prompt, atomic admission and interrupted-operation recovery without replay. No supplied component/UI/pane changes.
+
+The terminal `/compact` still displays information. Its command adaptation is specified, not implemented: call the shared native method, reuse transient status/cancel keys, preserve editor/cursor and add no idle rows. Broader reconnect/crash, summary quality and general hook/tool/media checkpointing remain open. Earlier sections record prior scope and capability limits.
+
+## Earlier evidence: durable context checkpoints (2026-09-22)
 
 Eligible automatic compaction now persists a session-local summary and covered message IDs/fingerprints atomically with its completion. Later turns/reopen project that checkpoint plus uncovered messages. The full timeline stays intact; edits/deletes to covered history invalidate the projection. Exact native-context/version/prefix guards reject races and avoid hiding hook/tool/media context that the text summary cannot safely cover. See [ADR-0021](../adr/0021-durable-context-checkpoints.md).
 

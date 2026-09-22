@@ -115,3 +115,48 @@ test('Gi durable compaction changes the next provider context without deleting t
   await page.reload();await expect(page.getByText('history 0 preserve requirements and pending changes',{exact:true})).toBeVisible();await expect(input).toHaveValue('preserved draft during compaction');
  }finally{release();}
 });
+
+test('@ux-context-003 Manual Compact capability, callback and preserved draft',async({page,request},info)=>{
+ await source(info,'@ux-context-003');
+ const token=`manual-${info.project.name}-${Date.now()}`;const main=await(await request.post('/api/sessions',{data:{agent_id:token,title:token}})).json();
+ const turns=async()=>(await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns||[];
+ await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main.id);await page.goto('/');
+ const input=page.getByRole('textbox',{name:inputName,exact:true}),pie=page.locator('.compose-context-pie');
+ await expect(pie).toBeDisabled();await expect(pie).toHaveAttribute('data-tooltip',/Context usage/);
+ for(let i=0;i<2;i++){const res=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:`manual history ${i}`,model:'ux-local/gate'}})).json();await expect.poll(async()=> (await turns()).find(t=>t.id===res.turn_id).status).toBe('completed');}
+ await expect(pie).toBeEnabled({timeout:15000});await expect(pie).toHaveAttribute('data-tooltip',/Compact context/);
+ await input.fill('unsent manual draft');await page.locator('.compose-box input[type=file]').setInputFiles({name:'manual.txt',mimeType:'text/plain',buffer:Buffer.from('keep')});
+ const beforeUsage=(await(await request.get(`/api/sessions/${main.id}/model`)).json()).context_usage;
+ const beforeMessages=(await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages;
+ const sent=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main.id}/compaction`)&&r.request().method()==='POST');
+ await pie.click();const response=await sent;expect(response.status()).toBe(202);const manual=await response.json();
+ const gate=resolve('test-results/ux-parity/queue-gates',`manual-${main.id}`);mkdirSync(resolve(gate,'..'),{recursive:true});
+ try{
+  await expect(pie).toHaveClass(/is-compacting/);await expect(input).toHaveValue('unsent manual draft');await expect(page.locator('.compose-file-pill[title="manual.txt"]')).toBeVisible();
+  const repeat=await request.post(`/api/sessions/${main.id}/compaction`,{data:response.request().postDataJSON()});expect(repeat.status()).toBe(409);
+  writeFileSync(gate,'go');await expect.poll(async()=> (await turns()).find(t=>t.id===manual.turn_id).status).toBe('completed');
+  await expect(pie).not.toHaveClass(/is-compacting/);await expect(input).toHaveValue('unsent manual draft');
+  const after=(await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages;for(const m of beforeMessages)expect(after.find(x=>x.id===m.id)).toEqual(m);
+  expect(after.filter(m=>m.payload?.turn_id===manual.turn_id&&m.role==='user')).toHaveLength(0);expect(after.some(m=>m.payload?.turn_id===manual.turn_id&&m.payload?.durable_context)).toBe(true);
+  expect((await(await request.get(`/api/sessions/${main.id}/model`)).json()).context_usage).toEqual(beforeUsage);
+  expect(await turns()).toHaveLength(3);await page.reload();await expect(input).toHaveValue('unsent manual draft');await expect(page.locator('.compose-file-pill[title="manual.txt"]')).toBeVisible();
+ }finally{writeFileSync(gate,'go');}
+});
+
+test('Gi manual Compact failure, stale token and cancellation never submit the draft',async({page,request},info)=>{
+ const token=`manual-cancel-${info.project.name}-${Date.now()}`;const main=await(await request.post('/api/sessions',{data:{agent_id:token,title:token}})).json();
+ const turns=async()=>(await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns||[];
+ for(let i=0;i<2;i++){const r=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:`retain native history ${i}`,model:'ux-local/gate'}})).json();await expect.poll(async()=> (await turns()).find(t=>t.id===r.turn_id).status).toBe('completed');}
+ await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main.id);await page.goto('/');const input=page.getByRole('textbox',{name:inputName,exact:true}),pie=page.locator('.compose-context-pie');await expect(pie).toBeEnabled();
+ await input.fill('never submit me');await page.locator('.compose-box input[type=file]').setInputFiles({name:'retain.txt',mimeType:'text/plain',buffer:Buffer.from('bytes')});
+ expect((await request.post(`/api/sessions/${main.id}/compaction`,{data:{token:'stale'}})).status()).toBe(409);expect(await turns()).toHaveLength(2);
+ const url=`**/api/sessions/${main.id}/compaction`;let fail=true;
+ await page.route(url,async route=>{if(route.request().method()==='POST'&&fail){fail=false;await route.abort('failed');return;}await route.continue();});
+ await pie.click();await expect(page.getByRole('alert').filter({hasText:'Compact failed:'})).toBeVisible();await expect(input).toHaveValue('never submit me');await expect(pie).toBeEnabled();expect(await turns()).toHaveLength(2);
+ const sent=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main.id}/compaction`)&&r.request().method()==='POST');await pie.click();const manual=await(await sent).json();
+ const gate=resolve('test-results/ux-parity/queue-gates',`manual-${main.id}`);mkdirSync(resolve(gate,'..'),{recursive:true});
+ try{
+  await expect(pie).toHaveClass(/is-compacting/);await page.getByRole('button',{name:'Compacting context — Stop response',exact:true}).click();await expect.poll(async()=> (await turns()).find(t=>t.id===manual.turn_id).status).toBe('cancelled');await expect(pie).toBeEnabled();await expect(input).toHaveValue('never submit me');await expect(page.locator('.compose-file-pill[title="retain.txt"]')).toBeVisible();
+  const messages=(await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages;expect(messages.some(m=>m.content==='never submit me')).toBe(false);expect(messages.filter(m=>m.payload?.turn_id===manual.turn_id&&m.payload?.kind==='compaction')).toHaveLength(0);
+ }finally{writeFileSync(gate,'go');}
+});

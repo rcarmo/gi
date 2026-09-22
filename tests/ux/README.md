@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Manual Compact: 2026-09-22
+
+`make test-ux-compaction` now includes `context-003` and failed-delivery/stale/cancel regressions for native manual compaction. Availability and expected context tokens come from the server; native turns build history. The meter action preserves draft text/media and creates no chat prompt or inference request. Usage stays unchanged until another real provider request.
+
+Latest totals: **66/66 compaction + 228/228 other browser = 294/294**, **70/70 functional**, **24 helpers**, Go/vet/hook and native race ×3. Classic **26/236**, shared **2/42** (210/40 unmapped). Same five matrix targets/result files below. No forced controls, retries, synthetic lifecycle messages or SQL-seeded history. See [ADR-0022](../../docs/adr/0022-manual-compaction.md).
+
 ## Durable context checkpoints: 2026-09-22
 
 The Gi-only compaction regression now checks the next real provider request after compaction/reload: it contains the persisted summary and new request, not covered old history. All existing timeline records remain byte/ID-identical. Native store/engine tests cover reopening, repeated checkpoints, edit/delete fallback, history/version races, prefix validation and hook/tool/media eligibility limits.

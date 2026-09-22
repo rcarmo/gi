@@ -1,5 +1,7 @@
 # Gi web UI — 2026-09-21
 
+Latest slice (2026-09-22): manual Compact/context-003 is available through a native idle-only snapshot-token operation, preserving drafts/media and making no provider call. **294/294 browser**, **70/70 functional**, **24 helpers**, Go/vet/race. Coverage **26/236 Classic**, **2/42 shared**, 210/40 unmapped. Terminal command and broader reconnect/crash acceptance remain open. See [ADR-0022](../adr/0022-manual-compaction.md). Earlier evidence follows.
+
 Latest slice (2026-09-22): durable eligible-context checkpoints preserve the timeline while changing later provider context. **282/282 browser**, **70/70 functional**, **24 helpers**, Go/vet/race and three-size TUI regression pass. Mappings unchanged: **25/236 Classic**, **2/42 shared**, 211/40 unmapped. Manual Compact and general tool/multimodal checkpointing remain open. See [ADR-0021](../adr/0021-durable-context-checkpoints.md). Earlier evidence follows.
 
 Latest slice (2026-09-22): automatic compaction lifecycle/Stop/suppression and usage refresh pass six projects (`compaction-001–005`, `context-004`). **276/276 browser**, **70/70 functional**, **24 helpers**, Go/vet/hook/race checks. Coverage: **25/236 Classic**, **2/42 shared**, 211/40 unmapped. Manual Compact remains disabled; persisted history boundaries and broader reconnect acceptance are open. See [ADR-0020](../adr/0020-automatic-compaction-web-status.md). Older evidence follows.

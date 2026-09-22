@@ -151,6 +151,21 @@ func main() {
 	if os.Getenv("GI_UX_COMPACTION") != "" {
 		_, err = engine.RegisterHook(turn.HookSessionBeforeCompact, "ux-compaction-gate", func(ctx context.Context, req turn.HookRequest) (turn.HookResponse, error) {
 			// Real hook gate; no synthetic lifecycle events or database seeding.
+			if req.Payload["reason"] == "manual" {
+				tick := time.NewTicker(20 * time.Millisecond)
+				defer tick.Stop()
+				for {
+					if _, err := os.Stat(filepath.Join(gates, "manual-"+req.SessionID)); err == nil {
+						break
+					}
+					select {
+					case <-ctx.Done():
+						return turn.HookResponse{}, ctx.Err()
+					case <-tick.C:
+					}
+				}
+				return turn.HookResponse{Payload: map[string]any{"summary": "Manual summary of decisions and pending work."}}, nil
+			}
 			last := ""
 			if len(req.Messages) > 0 {
 				last = goai.GetTextContent(&req.Messages[len(req.Messages)-1])

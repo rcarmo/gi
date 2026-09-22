@@ -27,15 +27,15 @@ test('parity report keeps shared evidence separate and requires every project',(
   const fit=join(dir,'fit.json');writeFileSync(fit,JSON.stringify({suites:[{specs:[spec('@ux-compaction-006',6),spec('@ux-compaction-007',6)]}]}));
   execFileSync(process.execPath,[script,input,steer,fit],{cwd:dir});
   const all=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
-  expect(all.counts.pass).toBe(2);expect(all.counts.unmapped).toBe(211);expect(all.sharedCounts.pass).toBe(2);
+  expect(all.counts.pass).toBe(2);expect(all.counts.unmapped).toBe(210);expect(all.sharedCounts.pass).toBe(2);
   const meter=join(dir,'meter.json');writeFileSync(meter,JSON.stringify({suites:[{specs:[spec('@ux-context-001',6),spec('@ux-context-005',6)]}]}));
   execFileSync(process.execPath,[script,input,steer,fit,meter],{cwd:dir});
   const withMeter=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
-  expect(withMeter.counts.pass).toBe(4);expect(withMeter.counts.unmapped).toBe(211);expect(withMeter.sharedCounts.pass).toBe(2);
+  expect(withMeter.counts.pass).toBe(4);expect(withMeter.counts.unmapped).toBe(210);expect(withMeter.sharedCounts.pass).toBe(2);
   const compact=join(dir,'compact.json');writeFileSync(compact,JSON.stringify({suites:[{specs:['@ux-compaction-001','@ux-compaction-002','@ux-compaction-003','@ux-compaction-004','@ux-compaction-005','@ux-context-004'].map(id=>spec(id,6))}]}));
   execFileSync(process.execPath,[script,input,steer,fit,meter,compact],{cwd:dir});
   const withCompact=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
-  expect(withCompact.counts.pass).toBe(10);expect(withCompact.counts.unmapped).toBe(211);
+  expect(withCompact.counts.pass).toBe(10);expect(withCompact.counts.unmapped).toBe(210);
   execFileSync(process.execPath,[script,steer,steer],{cwd:dir});
   const repeated=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
   expect(repeated.sharedRows.find((row:any)=>row.id==='@shared-30').status).toBe('partial-matrix');

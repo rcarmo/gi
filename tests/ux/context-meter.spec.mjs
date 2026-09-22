@@ -16,8 +16,10 @@ async function fixture(page,request,info){
   await expect.poll(async()=> (await state()).context_usage.measurement?.turn_id).toBe(turn.turn_id);
   const usage=(await state()).context_usage;expect(usage).toMatchObject({tokens,contextWindow:2_000_000,percent:tokens/20000,source:'provider_request'});
   await expect(pie).toHaveAttribute('aria-label',label,{timeout:15000});
-  await expect(pie).toHaveAttribute('title',label+' — latest measured provider request');
-  await expect(pie).toHaveAttribute('data-tooltip',label+' — latest measured provider request');
+  const cap=(await(await request.get(`/api/sessions/${main.id}/compaction`)).json());
+  const title=label+' — latest measured provider request'+(cap.available?' — Compact context':' — Context usage');
+  await expect(pie).toHaveAttribute('title',title);
+  await expect(pie).toHaveAttribute('data-tooltip',title);
   const values=(await arc.getAttribute('stroke-dasharray')).split(' ').map(Number);
   expect(values[0]).toBeCloseTo(circumference*fill/100,8);expect(values[1]).toBeCloseTo(circumference,8);
   await expect(page.getByRole('button',{name:'Send message',exact:true})).toBeVisible();
@@ -34,10 +36,10 @@ test('@ux-context-001 Show supplied usage in the context tooltip',async({page,re
  await measure(85000,'Context: 85K / 2.0M tokens (4%)',4.25);
  await measure(1500000,'Context: 1.5M / 2.0M tokens (75%)',75);
  await measure(2500000,'Context: 2.5M / 2.0M tokens (125%)',100);
- await expect(pie).toBeDisabled();await input.fill('preserved over reload');
- await page.reload();await expect(pie).toHaveAttribute('data-tooltip','Context: 2.5M / 2.0M tokens (125%) — latest measured provider request');await expect(input).toHaveValue('preserved over reload');
- await switchTo(child);expect((await state(child)).context_usage.tokens).toBeNull();await expect(pie).toHaveAttribute('aria-label','Context: ? / 2.0M tokens (?%)');await expect(pie).toHaveAttribute('data-tooltip','Context: ? / 2.0M tokens (?%) — usage unavailable');
- await switchTo(main.id);await expect(pie).toHaveAttribute('data-tooltip','Context: 2.5M / 2.0M tokens (125%) — latest measured provider request');await expect(input).toHaveValue('preserved over reload');
+ await expect(pie).toBeEnabled();await input.fill('preserved over reload');
+ await page.reload();await expect(pie).toHaveAttribute('data-tooltip','Context: 2.5M / 2.0M tokens (125%) — latest measured provider request — Compact context');await expect(input).toHaveValue('preserved over reload');
+ await switchTo(child);expect((await state(child)).context_usage.tokens).toBeNull();await expect(pie).toHaveAttribute('aria-label','Context: ? / 2.0M tokens (?%)');await expect(pie).toHaveAttribute('data-tooltip','Context: ? / 2.0M tokens (?%) — usage unavailable — Context usage');
+ await switchTo(main.id);await expect(pie).toHaveAttribute('data-tooltip','Context: 2.5M / 2.0M tokens (125%) — latest measured provider request — Compact context');await expect(input).toHaveValue('preserved over reload');
  await measure(0,'Context: 0 / 2.0M tokens (0%)',0);
  // Local providers may explicitly report zero input alongside nonzero output.
  expect((await state()).context_usage.tokens).toBe(0);await expect(arc).toHaveAttribute('stroke','var(--context-green, #22c55e)');

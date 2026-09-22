@@ -28,6 +28,7 @@ test('all frozen scenarios and outline examples are inventoried, not just mapped
   expect(cases.find(row => row.id === '@ux-compaction-007')?.name).toBe('Refresh model information after an accepted switch');
   expect(cases.find(row => row.id === '@ux-context-001')?.name).toBe('Show supplied usage in the context tooltip');
   expect(cases.find(row => row.id === '@ux-context-005')?.name).toBe('Apply the coded usage warning colours');
+  expect(cases.find(row => row.id === '@ux-context-003')?.name).toBe('Offer compaction only when a callback exists');
   const shared = loadCorpus('shared');
   expect(shared).toHaveLength(42);
   for (const id of sharedMappedIds) expect(shared.some(item => item.id === id)).toBe(true);

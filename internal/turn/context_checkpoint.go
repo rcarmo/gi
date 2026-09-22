@@ -51,3 +51,29 @@ func (r *sessionRunner) compactionBoundary(ctx context.Context, sessionID string
 	}
 	return store.PrepareContextBoundary(snapshot, count)
 }
+
+func (r *sessionRunner) compactSnapshot(ctx context.Context, sessionID, turnID, model, agentID string, convCtx *goai.Context, snapshot store.ContextSnapshot, force bool) error {
+	return compaction.MaybeCompactContext(ctx, compaction.RuntimeRequest{SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Settings: r.engine.runtimeCfg.Compaction, Force: force}, convCtx, compaction.RuntimeOps{BackgroundContext: r.engine.backgroundContext, BeforeCompact: func(ctx context.Context, payload map[string]any, messages []goai.Message) (compaction.HookDecision, error) {
+		resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookSessionBeforeCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload, Messages: messages})
+		return compaction.HookDecision{Cancel: resp.Cancel, Block: resp.Block, Payload: resp.Payload}, err
+	}, AfterCompact: func(ctx context.Context, payload map[string]any) {
+		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookSessionCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload})
+	}, Begin: r.store.BeginCompaction, Finish: func(finishCtx context.Context, sid, tid string, seq int, outcome, summary string, payload map[string]any) (string, error) {
+		var boundary *store.ContextBoundary
+		if outcome == "completed" {
+			var err error
+			boundary, err = r.compactionBoundary(finishCtx, sid, convCtx, snapshot, payload)
+			if err != nil {
+				return "", err
+			}
+		}
+		if force && outcome == "completed" && boundary == nil {
+			return "", store.ErrContextChanged
+		}
+		accepted, err := r.store.FinishCompactionWithBoundary(finishCtx, sid, tid, seq, outcome, summary, payload, boundary)
+		if err == nil {
+			payload["durable_context"] = accepted == "completed" && boundary != nil
+		}
+		return accepted, err
+	}, Broadcast: r.engine.broadcast})
+}

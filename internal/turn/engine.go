@@ -396,6 +396,9 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	defer runner.mu.Unlock()
 	activeQueue := false
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(opCtx, in.SessionID); err == nil {
+		if active, getErr := e.store.GetTurn(opCtx, activeTurnID); getErr == nil && active.Metadata["operation"] == "manual_compaction" {
+			return nil, store.ErrQueueConflict
+		}
 		if in.Intent != "queue" {
 			return e.submitSteeringPrompt(ctx, in.SessionID, activeTurnID, in)
 		}
@@ -479,7 +482,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	}
 	subTurnToolsRestricted = restrictedTools
 	for k, v := range in.Metadata {
-		if k == "effective_tools" || k == "subturn_tools_restricted" || k == "media" {
+		if k == "effective_tools" || k == "subturn_tools_restricted" || k == "media" || k == "operation" || k == "context_token" {
 			continue
 		}
 		metadata[k] = v
@@ -2009,8 +2012,12 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 	status := claim.Status
 	phase := claim.Phase
 	markFinished := false
-
-	switch claim.Phase {
+	recoveryPhase := claim.Phase
+	if record, getErr := e.store.GetTurn(opCtx, claim.TurnID); getErr == nil && record.Metadata["operation"] == "manual_compaction" && status != "completed" && status != "failed" && status != "cancelled" && status != "aborted" {
+		recoveryPhase = "cancelling"
+		disposition = "abort_interrupted_manual_compaction"
+	}
+	switch recoveryPhase {
 	case "waiting_on_tools":
 		status = "failed"
 		phase = "held_for_retry_or_skip"
@@ -4611,26 +4618,7 @@ func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, tu
 	if snapshotErr != nil {
 		return pendingSteering, snapshotErr
 	}
-	err := compaction.MaybeCompactContext(ctx, compaction.RuntimeRequest{SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Settings: r.engine.runtimeCfg.Compaction}, convCtx, compaction.RuntimeOps{BackgroundContext: r.engine.backgroundContext, BeforeCompact: func(ctx context.Context, payload map[string]any, messages []goai.Message) (compaction.HookDecision, error) {
-		resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookSessionBeforeCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload, Messages: messages})
-		return compaction.HookDecision{Cancel: resp.Cancel, Block: resp.Block, Payload: resp.Payload}, err
-	}, AfterCompact: func(ctx context.Context, payload map[string]any) {
-		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookSessionCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload})
-	}, Begin: r.store.BeginCompaction, Finish: func(finishCtx context.Context, sid, tid string, seq int, outcome, summary string, payload map[string]any) (string, error) {
-		var boundary *store.ContextBoundary
-		if outcome == "completed" {
-			var err error
-			boundary, err = r.compactionBoundary(finishCtx, sid, convCtx, snapshot, payload)
-			if err != nil {
-				return "", err
-			}
-		}
-		accepted, err := r.store.FinishCompactionWithBoundary(finishCtx, sid, tid, seq, outcome, summary, payload, boundary)
-		if err == nil {
-			payload["durable_context"] = accepted == "completed" && boundary != nil
-		}
-		return accepted, err
-	}, Broadcast: r.engine.broadcast})
+	err := r.compactSnapshot(ctx, sessionID, turnID, model, agentID, convCtx, snapshot, false)
 	return pendingSteering, err
 }
 
@@ -5131,6 +5119,10 @@ func (r *sessionRunner) resolveTurnAgentAndModel(ctx context.Context, s *store.S
 }
 
 func (r *sessionRunner) runPreparedTurn(ctx context.Context, s *store.Store, run *preparedTurnRun) {
+	if run.turn.Metadata["operation"] == "manual_compaction" {
+		r.runManualCompaction(ctx, run)
+		return
+	}
 	if run.model != "bootstrap" && run.model != "test-model" && run.model != "" {
 		r.runAgentLoop(ctx, s, run.turnID, run.sessionID, run.model, run.agentID, run.initialSteering)
 		return

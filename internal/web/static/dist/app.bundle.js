@@ -883,6 +883,16 @@ async function getAgentStatus(agentId, chatJid = null) {
     title: data.status === "cancelling" ? "Cancelling…" : data.status === "running" ? "Working…" : ""
   };
 }
+async function getSessionCompaction(chatJid) {
+  if (!chatJid?.startsWith("gi:"))
+    return { available: false };
+  return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/compaction`);
+}
+async function compactSession(chatJid, token) {
+  if (!chatJid?.startsWith("gi:") || !token)
+    throw new Error("No compaction snapshot");
+  return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/compaction`, { method: "POST", body: JSON.stringify({ token }) });
+}
 async function cancelSessionRun(chatJid, turnId) {
   if (!chatJid?.startsWith("gi:") || !turnId)
     throw new Error("No active run to stop");
@@ -16584,7 +16594,7 @@ function RunBoundQueueStack({ steerEnabled, ...props }) {
   });
   return ce`<div ref=${root} style="display:contents"><${QueuedFollowupStack} ...${props} /></div>`;
 }
-function useContextTooltip(root, usage, notice, now, canStop, stop) {
+function useContextTooltip(root, usage, notice, now, canStop, stop, compact) {
   F_(() => {
     const compose = root.current?.querySelector(".compose-box");
     if (!compose)
@@ -16596,8 +16606,11 @@ function useContextTooltip(root, usage, notice, now, canStop, stop) {
       });
       compose.querySelectorAll(".compose-context-pie").forEach((button) => {
         const active = notice?.intent_key === "compaction";
-        const normal = contextPresentation(usage);
-        const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}` : normal.title;
+        const normal = contextPresentation(usage, typeof compact === "function");
+        const canCompact = typeof compact === "function" && !active;
+        if (button.disabled === canCompact)
+          button.disabled = !canCompact;
+        const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}` : normal.title + (canCompact ? "" : " — Context usage");
         const label = active ? `${notice.title} — ${normal.label}` : normal.label;
         if (button.getAttribute("title") !== title)
           button.setAttribute("title", title);
@@ -16625,6 +16638,12 @@ function useContextTooltip(root, usage, notice, now, canStop, stop) {
     const observer = new MutationObserver(sync);
     observer.observe(compose, { subtree: true, childList: true, attributes: true, attributeFilter: ["title", "disabled", "class"] });
     const onClick = (event) => {
+      if (event.target.closest?.(".compose-context-pie")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        compact?.();
+        return;
+      }
       if (event.target.closest?.(".send-btn.abort-mode")) {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -16727,6 +16746,36 @@ function GiApp() {
   const [stopError, setStopError] = M_("");
   const [activityFresh, setActivityFresh] = M_(false);
   const stopToken = K_(null);
+  const [compactState, setCompactState] = M_(null);
+  const [compactPending, setCompactPending] = M_(false);
+  const [compactError, setCompactError] = M_("");
+  const compactToken = K_(null);
+  const manualCompact = activityFresh && activity?.status === "idle" && compactState?.available && !compactPending ? async () => {
+    if (compactToken.current || streamDisconnected.current)
+      return;
+    const scope = selection.capture();
+    const expected = compactState.token;
+    const token = {};
+    compactToken.current = token;
+    setCompactPending(true);
+    setCompactError("");
+    try {
+      await compactSession(sessionToChatJid2(scope.sessionId), expected);
+    } catch (error) {
+      if (selection.isCurrent(scope))
+        setCompactError(`Compact failed: ${error.message}`);
+    } finally {
+      if (compactToken.current === token) {
+        compactToken.current = null;
+        setCompactPending(false);
+      }
+      if (selection.isCurrent(scope)) {
+        activityRevision.invalidate();
+        setActivityFresh(false);
+        refreshAfterConnection.current();
+      }
+    }
+  } : null;
   const notice = compactionNotice(activity, activityNow);
   J_(() => {
     if (!activity?.compaction)
@@ -16759,7 +16808,7 @@ function GiApp() {
         refreshAfterConnection.current();
       }
     }
-  });
+  }, manualCompact);
   const [activeChatAgents, setActiveChatAgents] = M_([]);
   const sessionListRevision = K_(0);
   const [currentChatBranches, setCurrentChatBranches] = M_([]);
@@ -16980,16 +17029,18 @@ function GiApp() {
     const modelVersion = modelRevision.current;
     const activityVersion = activityRevision.capture();
     try {
-      const [models, queue, status] = await Promise.all([
+      const [models, queue, status, compact] = await Promise.all([
         getAgentModels(chat),
         getAgentQueueState(chat),
-        getAgentStatus("", chat)
+        getAgentStatus("", chat),
+        getSessionCompaction(chat)
       ]);
       if (!selection.isCurrent(scope) || connection !== connectionRevision.current || streamDisconnected.current)
         return;
       if (!activityRevision.accepts(activityVersion))
         return;
       setActivity(status);
+      setCompactState(compact);
       setActivityFresh(true);
       setActivityNow(Date.now());
       if (modelVersion === modelRevision.current && !modelMutation.current) {
@@ -17056,6 +17107,10 @@ function GiApp() {
     stopToken.current = null;
     setStopPending(false);
     setStopError("");
+    compactToken.current = null;
+    setCompactPending(false);
+    setCompactError("");
+    setCompactState(null);
     activityRevision.invalidate();
     setActivity(null);
     setActivityFresh(false);
@@ -17356,6 +17411,7 @@ function GiApp() {
                 ${queueError && ce`<div role="alert">${queueError}</div>`}
                 ${sessionError && ce`<div role="alert">${sessionError}</div>`}
                 ${stopError && ce`<div role="alert">${stopError}</div>`}
+                ${compactError && ce`<div role="alert">${compactError}</div>`}
                 ${draftStorageError && ce`<div role="alert">${draftStorageError}</div>`}
                 ${drafts.error(sessionId) && ce`<div role="alert">${drafts.error(sessionId)}</div>`}
                 <${ComposeBox}
@@ -17513,5 +17569,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=B1C25C643CAEC8DD64756E2164756E21
+//# debugId=D3346B1F37D75F5764756E2164756E21
 //# sourceMappingURL=app.js.map
