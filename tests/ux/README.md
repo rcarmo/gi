@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Native search view: 2026-09-22
+
+`make test-ux-reconnect` now also maps `reconnect-003` through the active-search alternative. Tests open the supplied search field, use native current/family/all queries, hold real old replies and sever real SSE sockets. Reconnect reruns search/activity/queue/context with zero main-timeline requests, preserving draft/media. Additional tests cover literal `%/_`, scope isolation, stale-query rejection, failed search recovery and no prompt submissions.
+
+Latest: **36/36 reconnect/search + 294/294 existing = 330/330 browser**, **70/70 functional**, **27 helpers**, Go/vet/hook and native search race ×3. Classic **29/236**, shared **2/42**, 207/40 unmapped. The same six explicit result files below apply. Hashtag navigation and pagination receive no new credit. See [ADR-0025](../../docs/adr/0025-native-search-view.md).
+
 ## Reconnect and version drift: 2026-09-22
 
 `make test-ux-reconnect` maps `reconnect-002/004` and tests late-error isolation. Each case owns a real loopback Go instance; a byte-for-byte proxy severs SSE sockets, and restart reuses the native database while changing the server's advertised asset version. No fabricated lifecycle data or offline-emulation evidence.

@@ -1,5 +1,7 @@
 # Gi web UI — 2026-09-21
 
+Latest slice (2026-09-22): native bounded search/current-family-all scopes and active-search reconnect protection (`reconnect-003`). **330/330 browser**, **70/70 functional**, **27 helpers**, Go/vet/race; **29/236 Classic**, **2/42 shared**, 207/40 unmapped. Draft/media and query ownership verified; no supplied component edits or terminal UI additions. Hashtags/paging/terminal search remain open. See [ADR-0025](../adr/0025-native-search-view.md). Earlier evidence follows.
+
 Latest slice (2026-09-22): reconnect `002/004` verify native state refresh, stale-response/error rejection and a manual-only version warning after real restart. **312/312 browser**, **70/70 functional**, **26 helpers**, Go/vet/hook checks; **28/236 Classic**, **2/42 shared**, 208/40 unmapped. No terminal UI added; search reconnect and active-turn crash acceptance remain open. See [ADR-0024](../adr/0024-reconnect-refresh-and-version-drift.md). Earlier evidence follows.
 
 Latest slice (2026-09-22): manual Compact/context-003 is available through a native idle-only snapshot-token operation, preserving drafts/media and making no provider call. **294/294 browser**, **70/70 functional**, **24 helpers**, Go/vet/race. Coverage **26/236 Classic**, **2/42 shared**, 210/40 unmapped. Terminal command and broader reconnect/crash acceptance remain open. See [ADR-0022](../adr/0022-manual-compaction.md). Earlier evidence follows.

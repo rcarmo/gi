@@ -92,3 +92,58 @@ test('Gi pre-disconnect activity failure cannot overwrite healthy reconnect stat
   await expect(page.getByRole('alert')).toHaveCount(0);await expect(input).toHaveValue('keep through late error');env.release(token);
  }finally{unblock();await env.close();}
 });
+
+test('@ux-reconnect-003 Search survives reconnect without a main-timeline refresh',async({page},info)=>{
+ await source(info,'@ux-reconnect-003');const env=await environment(page,info);const{main,input,api}=env;
+ let releaseOld;const oldGate=new Promise(r=>releaseOld=r);let held=false,delivered;const oldDone=new Promise(r=>delivered=r);
+ try{
+  const initial=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:'needle original',model:'ux-local/gate'});await expect.poll(async()=> (await api(`/api/sessions/${main.id}/turns`)).turns.find(t=>t.id===initial.turn_id).status).toBe('completed');
+  await input.fill('preserved search draft');await page.locator('.compose-box input[type=file]').setInputFiles({name:'search.txt',mimeType:'text/plain',buffer:Buffer.from('keep')});
+  await page.route(`**/api/sessions/${main.id}/messages?*`,async route=>{const response=await route.fetch();if(!held){held=true;await oldGate;await route.fulfill({response});delivered();}else await route.fulfill({response});});
+  const token=`search-${Date.now()}`;const active=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:`UX steer gate:${token}`,model:'ux-local/gate'});await expect.poll(()=>held).toBe(true);
+  await page.getByRole('button',{name:'Search',exact:true}).click();const search=page.getByRole('textbox',{name:'Search (Enter to run)...',exact:true});await search.fill('needle');await search.press('Enter');
+  await expect(page.getByText('needle original',{exact:true})).toBeVisible();
+  const oldResponse=page.waitForResponse(r=>r.url().includes(`/api/sessions/${main.id}/messages?`));releaseOld();await oldDone;await(await oldResponse).finished();await page.unrouteAll({behavior:'wait'});
+  await expect(page.getByText(`UX steer gate:${token}`,{exact:true})).toHaveCount(0);
+  let timelines=0;page.on('request',r=>{if(r.url().includes(`/api/sessions/${main.id}/messages?`))timelines++;});
+  env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});
+  const queued=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:'needle offline queue',intent:'queue',model:'ux-local/gate'});env.release(token);
+  await expect.poll(async()=> (await api(`/api/sessions/${main.id}/turns`)).turns.find(t=>t.id===queued.turn_id).status).toBe('completed');
+  const nextToken=`search-next-${Date.now()}`;await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:`UX steer gate:${nextToken}`,model:'ux-local/gate'});
+  const nextQueue=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:'queue after search outage',intent:'queue',model:'ux-local/gate'});
+  const fresh=new Set();page.on('request',r=>{for(const suffix of ['/activity','/queue','/model'])if(r.url().endsWith(`/api/sessions/${main.id}${suffix}`))fresh.add(suffix);});
+  env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});await expect(search).toHaveValue('needle');await expect(page.getByText('needle offline queue',{exact:true})).toBeVisible();expect(timelines).toBe(0);
+  await expect.poll(()=>fresh.size).toBe(3);await expect(page.locator(`[data-queue-id="${nextQueue.turn_id}"]`)).toBeVisible();
+  await expect(page.getByText(`UX steer gate:${nextToken}`,{exact:true})).toHaveCount(0);
+  await search.press('Escape');await expect(input).toHaveValue('preserved search draft');await expect(page.locator('.compose-file-pill[title="search.txt"]')).toBeVisible();await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label','Context: 100 / 32K tokens (0%)');await expect(page.getByText(`UX steer gate:${nextToken}`,{exact:true})).toBeVisible();
+  env.release(nextToken);
+ }finally{releaseOld();await env.close();}
+});
+
+test('Gi search scopes, literal query, stale responses and no prompt submission',async({page},info)=>{
+ const env=await environment(page,info);const{main,input,api}=env;let unblock,held=false,delivered;const gate=new Promise(r=>unblock=r),done=new Promise(r=>delivered=r);
+ try{
+  const child=(await api(`/api/sessions/${main.id}/fork`,'POST',{agent_id:'search-child',title:'child'})).branch.chat_jid.slice(3);
+  const other=await api('/api/sessions','POST',{agent_id:'search-outside',title:'outside'});
+  for(const [id,prompt]of [[main.id,'needle main 100%_'],[child,'needle child'],[other.id,'needle outside']]){const t=await api(`/api/sessions/${id}/prompt`,'POST',{prompt,model:'ux-local/gate'});await expect.poll(async()=> (await api(`/api/sessions/${id}/turns`)).turns.find(x=>x.id===t.turn_id).status).toBe('completed');}
+  await input.fill('scope draft');await page.getByRole('button',{name:'Search',exact:true}).click();const search=page.getByRole('textbox',{name:'Search (Enter to run)...',exact:true});await search.fill('needle');await search.press('Enter');
+  await expect(page.getByText('needle main 100%_',{exact:true})).toBeVisible();await expect(page.getByText('needle child',{exact:true})).toHaveCount(0);
+  await page.locator('.compose-search-scope-select').selectOption('root');await expect(page.getByText('needle child',{exact:true})).toBeVisible();await expect(page.getByText('needle outside',{exact:true})).toHaveCount(0);
+  await page.locator('.compose-search-scope-select').selectOption('all');await expect(page.getByText('needle outside',{exact:true})).toBeVisible();
+  await search.fill('100%_');await search.press('Enter');await expect(page.getByText('needle main 100%_',{exact:true})).toBeVisible();await expect(page.getByText('needle child',{exact:true})).toHaveCount(0);
+  await page.route(`**/api/sessions/${main.id}/search?*`,async route=>{const response=await route.fetch();if(!held&&new URL(route.request().url()).searchParams.get('q')==='100%_'){held=true;await gate;await route.fulfill({response});delivered();}else await route.fulfill({response});});
+  await search.fill('100%_');await search.press('Enter');await expect.poll(()=>held).toBe(true);await search.fill('no such message');await search.press('Enter');await expect(page.getByText('No matching messages.',{exact:true})).toBeVisible();unblock();await done;await page.unrouteAll({behavior:'wait'});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await expect(page.getByText('needle main 100%_',{exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Close search',exact:true}).click();await expect(input).toHaveValue('scope draft');expect((await api(`/api/sessions/${main.id}/turns`)).turns).toHaveLength(1);
+ }finally{unblock();await env.close();}
+});
+
+test('Gi failed search remains scoped and reconnect does not erase its query',async({page},info)=>{
+ const env=await environment(page,info);const{main,input}=env;
+ try{
+  await input.fill('draft before search error');await page.getByRole('button',{name:'Search',exact:true}).click();const search=page.getByRole('textbox',{name:'Search (Enter to run)...',exact:true});
+  const pattern=`**/api/sessions/${main.id}/search?*`;await page.route(pattern,route=>route.abort('failed'));
+  await search.fill('unavailable query');await search.press('Enter');await expect(page.getByRole('alert').filter({hasText:'Search failed:'})).toBeVisible();await expect(search).toHaveValue('unavailable query');
+  await page.unroute(pattern);env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.getByText('No matching messages.',{exact:true})).toBeVisible();await expect(search).toHaveValue('unavailable query');await expect(page.getByRole('alert')).toHaveCount(0);
+  await search.press('Escape');await expect(input).toHaveValue('draft before search error');
+ }finally{await env.close();}
+});

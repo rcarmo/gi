@@ -872,6 +872,24 @@ async function getTimeline(limit = 50, beforeId = null, chatJid = null) {
     }))
   };
 }
+async function searchPosts(query, limit = 50, offset = 0, chatJid = null, scope = "current", _rootChatJid = null) {
+  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
+  if (!sessionId)
+    return { posts: [] };
+  const params = new URLSearchParams({ q: query, scope, limit: String(limit), offset: String(offset) });
+  const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/search?${params}`);
+  const messages = data.messages || [];
+  return { posts: messages.map((m) => ({
+    id: m.id,
+    chat_jid: sessionToChatJid(m.session_id),
+    content: m.content,
+    timestamp: m.created_at,
+    sender: m.role === "user" ? "user" : "agent",
+    is_from_me: m.role === "user",
+    is_bot_message: m.role === "assistant",
+    data: { type: m.role === "assistant" ? "agent_response" : "user_message", content: m.content, thread_id: null, agent_id: m.payload?.agent_id || (m.role === "assistant" ? "agent" : null) }
+  })) };
+}
 async function getSystemMetrics() {
   return request("/api/system-metrics").catch(() => null);
 }
@@ -16618,6 +16636,33 @@ function loadedAssetVersion(doc) {
   }
 }
 
+// web/src/gi-search-state.ts
+function createSearchView() {
+  let view = { active: false, query: "", scope: "current", generation: 0 };
+  return {
+    capture: () => ({ ...view }),
+    isCurrent: (value) => value.generation === view.generation,
+    enter() {
+      view = { ...view, active: true, generation: view.generation + 1 };
+      return { ...view };
+    },
+    close() {
+      view = { active: false, query: "", scope: "current", generation: view.generation + 1 };
+      return { ...view };
+    },
+    query(query) {
+      view = { ...view, query: query.trim(), generation: view.generation + 1 };
+      return { ...view };
+    },
+    scope(scope) {
+      if (!["current", "root", "all"].includes(scope))
+        return { ...view };
+      view = { ...view, scope, generation: view.generation + 1 };
+      return { ...view };
+    }
+  };
+}
+
 // web/src/app.ts
 var SESSION_KEY = "gi_session_id";
 var DEFAULT_AGENT_ID = "web";
@@ -16757,6 +16802,9 @@ function GiApp() {
   const editorOpen = tabs.length > 0;
   const [posts, setPosts] = M_([]);
   const [hasMore, setHasMore] = M_(false);
+  const searchView = K_(createSearchView()).current;
+  const [searchState, setSearchState] = M_(searchView.capture());
+  const [searchError, setSearchError] = M_("");
   const timelineRevision = K_(createTimelineRevision()).current;
   const versionGuard = K_(createAssetVersionGuard(loadedAssetVersion(document))).current;
   const [newUIVersion, setNewUIVersion] = M_("");
@@ -16929,6 +16977,9 @@ function GiApp() {
     const scope = selection.capture();
     if (scope.sessionId !== sessionId)
       return;
+    const view = searchView.capture();
+    if (view.active)
+      return;
     const chatJid = sessionToChatJid2(sessionId);
     const connection = connectionRevision.current;
     const request = timelineRevision.begin();
@@ -16936,11 +16987,11 @@ function GiApp() {
     try {
       data = await getTimeline(50, opts.beforeId || null, chatJid);
     } catch (error) {
-      if (selection.isCurrent(scope) && connection === connectionRevision.current && timelineRevision.accepts(request) && !streamDisconnected.current)
+      if (selection.isCurrent(scope) && searchView.isCurrent(view) && connection === connectionRevision.current && timelineRevision.accepts(request) && !streamDisconnected.current)
         setSessionError(`Timeline refresh failed: ${error.message}`);
       return;
     }
-    if (!selection.isCurrent(scope) || connection !== connectionRevision.current || !timelineRevision.accepts(request) || streamDisconnected.current)
+    if (!selection.isCurrent(scope) || !searchView.isCurrent(view) || connection !== connectionRevision.current || !timelineRevision.accepts(request) || streamDisconnected.current)
       return;
     const incoming = data.posts || [];
     if (opts.beforeId) {
@@ -16950,6 +17001,45 @@ function GiApp() {
     }
     setHasMore(incoming.length >= 50);
   }, [sessionId]);
+  const runSearch = async (query, scopeValue) => {
+    if (query !== undefined)
+      setSearchState(searchView.query(query));
+    if (scopeValue !== undefined)
+      setSearchState(searchView.scope(scopeValue));
+    const view = searchView.capture(), owner = selection.capture();
+    if (!view.active || !owner.sessionId)
+      return;
+    const request = timelineRevision.begin(), connection = connectionRevision.current;
+    setSearchError("");
+    if (!view.query) {
+      setPosts([]);
+      setHasMore(false);
+      return;
+    }
+    try {
+      const result = await searchPosts(view.query, 50, 0, sessionToChatJid2(owner.sessionId), view.scope);
+      if (!selection.isCurrent(owner) || !searchView.isCurrent(view) || !timelineRevision.accepts(request) || connection !== connectionRevision.current || streamDisconnected.current)
+        return;
+      setPosts(dedupePosts(result.posts || []));
+      setHasMore(false);
+    } catch (error) {
+      if (selection.isCurrent(owner) && searchView.isCurrent(view) && timelineRevision.accepts(request) && connection === connectionRevision.current && !streamDisconnected.current)
+        setSearchError(`Search failed: ${error.message}`);
+    }
+  };
+  const enterSearch = () => {
+    timelineRevision.invalidate();
+    setSearchState(searchView.enter());
+    setPosts([]);
+    setHasMore(false);
+    setSearchError("");
+  };
+  const exitSearch = () => {
+    timelineRevision.invalidate();
+    setSearchState(searchView.close());
+    setSearchError("");
+    loadPosts();
+  };
   const scrollToBottom = X_(() => {
     const el = timelineRef.current;
     if (!el)
@@ -16992,7 +17082,7 @@ function GiApp() {
       activityRevision.invalidate();
       setActivityFresh(false);
     }
-    if (eventType.startsWith("compaction_") || ["agent_status", "agent_response", "queue_changed", "agent_followup_queued", "agent_followup_consumed", "agent_followup_removed"].includes(eventType)) {
+    if (eventType.startsWith("compaction_") || ["new_post", "agent_status", "agent_response", "queue_changed", "agent_followup_queued", "agent_followup_consumed", "agent_followup_removed"].includes(eventType)) {
       ++queueRevision.current;
       if (!refreshTimer.current)
         refreshTimer.current = setTimeout(() => {
@@ -17001,7 +17091,7 @@ function GiApp() {
         }, 0);
     }
     if (eventType === "new_post" || eventType === "agent_response") {
-      if (data && data.id) {
+      if (data && data.id && !searchView.capture().active) {
         timelineRevision.invalidate();
         setPosts((prev) => appendUniqueTimelinePost(prev, data));
         scrollToBottom();
@@ -17120,7 +17210,10 @@ function GiApp() {
     }
   }, [sessionId]);
   refreshAfterConnection.current = () => {
-    loadPosts();
+    if (searchView.capture().active)
+      runSearch();
+    else
+      loadPosts();
     refreshSelectedState();
   };
   J_(() => () => {
@@ -17134,9 +17227,8 @@ function GiApp() {
     refreshSessionLists(sessionId);
     refreshSelectedState();
     const id = setInterval(() => {
-      loadPosts();
+      refreshAfterConnection.current();
       refreshSessionLists(sessionId);
-      refreshSelectedState();
     }, 1e4);
     return () => clearInterval(id);
   }, [ready, sessionId, loadPosts, refreshSessionLists, refreshSelectedState]);
@@ -17157,6 +17249,8 @@ function GiApp() {
     if (sessionId)
       drafts.update(sessionId, { fileRefs, messageRefs });
     selection.select(nextSessionId);
+    setSearchState(searchView.close());
+    setSearchError("");
     timelineRevision.invalidate();
     stopToken.current = null;
     setStopPending(false);
@@ -17420,12 +17514,12 @@ function GiApp() {
                     onDeletePost=${() => {}}
                     onOpenWidget=${(w) => setFloatingWidget(w)}
                     onOpenAttachmentPreview=${setAttachmentPreview}
-                    emptyMessage="Send a message to get started."
+                    emptyMessage=${searchState.active ? searchState.query ? "No matching messages." : "Enter a search query." : "Send a message to get started."}
                     agents=${agents}
                     user=${userProfile}
                     reverse=${true}
                     removingPostIds=${new Set}
-                    searchQuery=""
+                    searchQuery=${searchState.active ? searchState.query : ""}
                 />
                 <${AgentStatus}
                     status=${isCompactionStatus(agentStatus) ? null : agentStatus}
@@ -17465,6 +17559,8 @@ function GiApp() {
                 ${queueError && ce`<div role="alert">${queueError}</div>`}
                 ${newUIVersion && ce`<div role="status" class="gi-version-warning">New UI available. Reload manually when ready; unsaved editor work may be lost.</div>`}
                 ${sessionError && ce`<div role="alert">${sessionError}</div>`}
+                ${searchError && ce`<div role="alert">${searchError}</div>`}
+                ${searchState.active && ce`<div role="status">Search${searchState.query ? `: ${searchState.query}` : ""} · ${searchState.scope} · up to 50 results</div>`}
                 ${stopError && ce`<div role="alert">${stopError}</div>`}
                 ${compactError && ce`<div role="alert">${compactError}</div>`}
                 ${draftStorageError && ce`<div role="alert">${draftStorageError}</div>`}
@@ -17600,12 +17696,12 @@ function GiApp() {
                     onRestoreSession=${(chatJid) => handleSessionMutation(chatJid, "restore")}
                     formatBranchPickerLabel=${(b) => b?.label || b?.chat_jid || ""}
                     handleBranchPickerChange=${() => {}}
-                    searchOpen=${false}
-                    onEnterSearch=${() => {}}
-                    onExitSearch=${() => {}}
-                    onSearch=${() => {}}
-                    searchScope="current"
-                    onSearchScopeChange=${() => {}}
+                    searchMode=${searchState.active}
+                    onEnterSearch=${enterSearch}
+                    onExitSearch=${exitSearch}
+                    onSearch=${(query) => runSearch(query)}
+                    searchScope=${searchState.scope}
+                    onSearchScopeChange=${(scope) => runSearch(undefined, scope)}
                     activeModel=${activeModel}
                     agentModelsPayload=${agentModelsPayload}
                     modelUsage=${modelUsage}
@@ -17624,5 +17720,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=DE71AEA296D5E1AE64756E2164756E21
+//# debugId=CF9A4EC9B2FA3F7464756E2164756E21
 //# sourceMappingURL=app.js.map

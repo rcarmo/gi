@@ -1,6 +1,14 @@
 # Web session selection and compact TUI adaptation
 
-## Latest browser evidence: reconnect and version drift (2026-09-22)
+## Latest browser evidence: native search view (2026-09-22)
+
+Search now uses a bounded native current/family/all-chat query and the supplied composer's independent search field. Query/session/connection generations protect results; active search blocks normal timeline HTTP refresh and unfiltered SSE appends. Reconnect refreshes search plus activity/queue/context while preserving draft/media. Escape restores the normal timeline and composer. See [ADR-0025](../adr/0025-native-search-view.md).
+
+Verified: **36/36 reconnect/search**, **330/330 combined browser**, **70/70 functional**, **27 helpers**, Go/vet/hook checks and native search races ×3. `reconnect-003` adds one mapping: **29/236 Classic** (207 unmapped), **2/42 shared** (40 unmapped). Scope/literal-input/error/stale-query tests also pass. Native search is trimmed ASCII-case-insensitive substring matching; the UI caps results at 50. All chats means the existing authenticated workspace scope, not a new per-session ACL.
+
+Hashtag navigation, paging, Unicode folding and terminal search remain open. Terminal design is an on-demand six-result selector using existing picker navigation/styles, with editor/cursor restoration and no added idle row; it has no implementation credit yet. Earlier sections retain historical evidence.
+
+## Earlier browser evidence: reconnect and version drift (2026-09-22)
 
 Reconnect `002/004` now pass across all six projects. Native activity/queue/context/timeline reload after real SSE loss; session/connection/request guards reject old timeline replies and late errors. The loaded script version is compared with the native connected envelope; real server restart produces one `New UI available` manual-reload notice without automatic navigation, even with a clean draft. See [ADR-0024](../adr/0024-reconnect-refresh-and-version-drift.md).
 

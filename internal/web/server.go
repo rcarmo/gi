@@ -259,6 +259,8 @@ func (s *Server) handleSessionSubroutes(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	switch parts[1] {
+	case "search":
+		s.handleSessionSearch(w, r, sessionID)
 	case "messages":
 		s.handleMessages(w, r, sessionID)
 	case "media":

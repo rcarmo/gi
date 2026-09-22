@@ -141,15 +141,14 @@ export async function getPostsByHashtag(_hashtag: string, _limit = 50, _offset =
     return { posts: [] };
 }
 
-export async function searchPosts(query: string, limit = 50, offset = 0, chatJid: string | null = null, _scope = 'current', _rootChatJid: string | null = null) {
+export async function searchPosts(query: string, limit = 50, offset = 0, chatJid: string | null = null, scope = 'current', _rootChatJid: string | null = null) {
     const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
     if (!sessionId) return { posts: [] };
-    const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/messages`);
-    const messages: any[] = (data.messages || []).filter((m: any) =>
-        m.content?.toLowerCase().includes(query.toLowerCase())
-    );
-    return { posts: messages.slice(offset, offset + limit).map((m: any) => ({
-        id: m.id, chat_jid: chatJid, content: m.content, timestamp: m.created_at,
+    const params=new URLSearchParams({q:query,scope,limit:String(limit),offset:String(offset)});
+    const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/search?${params}`);
+    const messages: any[] = data.messages || [];
+    return { posts: messages.map((m: any) => ({
+        id: m.id, chat_jid: sessionToChatJid(m.session_id), content: m.content, timestamp: m.created_at,
         sender: m.role === 'user' ? 'user' : 'agent',
         is_from_me: m.role === 'user', is_bot_message: m.role === 'assistant',
         data: { type: m.role === 'assistant' ? 'agent_response' : 'user_message', content: m.content, thread_id: null, agent_id: m.payload?.agent_id || (m.role === 'assistant' ? 'agent' : null) },

@@ -31,6 +31,7 @@ test('all frozen scenarios and outline examples are inventoried, not just mapped
   expect(cases.find(row => row.id === '@ux-context-003')?.name).toBe('Offer compaction only when a callback exists');
   expect(cases.find(row => row.id === '@ux-reconnect-002')?.name).toBe('Refresh authoritative chat state after reconnect');
   expect(cases.find(row => row.id === '@ux-reconnect-004')?.name).toBe('Show version drift without automatically reloading');
+  expect(cases.find(row => row.id === '@ux-reconnect-003')?.name).toBe('Avoid replacing an active search with main-timeline refresh');
   const shared = loadCorpus('shared');
   expect(shared).toHaveLength(42);
   for (const id of sharedMappedIds) expect(shared.some(item => item.id === id)).toBe(true);

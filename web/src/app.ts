@@ -77,6 +77,7 @@ import { recoverQueueDraft } from './gi-queue-return.js';
 import { createActivityRevision, compactionNotice, compactionElapsed } from './gi-compaction-state.js';
 import { contextPresentation } from './gi-context-usage.js';
 import {createTimelineRevision,createAssetVersionGuard,loadedAssetVersion} from './gi-refresh-guards.js';
+import {createSearchView} from './gi-search-state.js';
 
 const DEFAULT_SESSION_TITLE = 'default';
 const SESSION_KEY = 'gi_session_id';
@@ -214,6 +215,9 @@ function GiApp() {
     // Timeline
     const [posts, setPosts] = useState<any[]>([]);
     const [hasMore, setHasMore] = useState(false);
+    const searchView=useRef(createSearchView()).current;
+    const [searchState,setSearchState]=useState(searchView.capture());
+    const [searchError,setSearchError]=useState('');
     const timelineRevision=useRef(createTimelineRevision()).current;
     const versionGuard=useRef(createAssetVersionGuard(loadedAssetVersion(document))).current;
     const [newUIVersion,setNewUIVersion]=useState('');
@@ -355,16 +359,18 @@ function GiApp() {
         if (!sessionId) return;
         const scope = selection.capture();
         if (scope.sessionId !== sessionId) return;
+        const view=searchView.capture();
+        if(view.active)return;
         const chatJid = sessionToChatJid(sessionId);
         const connection=connectionRevision.current;
         const request=timelineRevision.begin();
         let data;
         try { data=await getTimeline(50,opts.beforeId||null,chatJid); }
         catch(error){
-            if(selection.isCurrent(scope)&&connection===connectionRevision.current&&timelineRevision.accepts(request)&&!streamDisconnected.current) setSessionError(`Timeline refresh failed: ${error.message}`);
+            if(selection.isCurrent(scope)&&searchView.isCurrent(view)&&connection===connectionRevision.current&&timelineRevision.accepts(request)&&!streamDisconnected.current) setSessionError(`Timeline refresh failed: ${error.message}`);
             return;
         }
-        if (!selection.isCurrent(scope)||connection!==connectionRevision.current||!timelineRevision.accepts(request)||streamDisconnected.current) return;
+        if (!selection.isCurrent(scope)||!searchView.isCurrent(view)||connection!==connectionRevision.current||!timelineRevision.accepts(request)||streamDisconnected.current) return;
         const incoming: any[] = data.posts || [];
         if (opts.beforeId) {
             setPosts((prev: any[]) => dedupePosts([...incoming, ...prev]));
@@ -373,6 +379,23 @@ function GiApp() {
         }
         setHasMore(incoming.length >= 50);
     }, [sessionId]);
+
+    const runSearch = async (query?:string,scopeValue?:string) => {
+        if(query!==undefined)setSearchState(searchView.query(query));
+        if(scopeValue!==undefined)setSearchState(searchView.scope(scopeValue));
+        const view=searchView.capture(),owner=selection.capture();
+        if(!view.active||!owner.sessionId)return;
+        const request=timelineRevision.begin(),connection=connectionRevision.current;
+        setSearchError('');
+        if(!view.query){setPosts([]);setHasMore(false);return;}
+        try{
+            const result=await searchPosts(view.query,50,0,sessionToChatJid(owner.sessionId),view.scope);
+            if(!selection.isCurrent(owner)||!searchView.isCurrent(view)||!timelineRevision.accepts(request)||connection!==connectionRevision.current||streamDisconnected.current)return;
+            setPosts(dedupePosts(result.posts||[]));setHasMore(false);
+        }catch(error){if(selection.isCurrent(owner)&&searchView.isCurrent(view)&&timelineRevision.accepts(request)&&connection===connectionRevision.current&&!streamDisconnected.current)setSearchError(`Search failed: ${error.message}`);}
+    };
+    const enterSearch = () => {timelineRevision.invalidate();setSearchState(searchView.enter());setPosts([]);setHasMore(false);setSearchError('');};
+    const exitSearch = () => {timelineRevision.invalidate();setSearchState(searchView.close());setSearchError('');void loadPosts();};
 
     const scrollToBottom = useCallback(() => {
         const el = timelineRef.current;
@@ -412,7 +435,7 @@ function GiApp() {
         if (!selection.current() || data?.chat_jid !== sessionToChatJid(selection.current()!)) return;
         if(eventType==='connected'&&versionGuard.observe(data?.app_asset_version))setNewUIVersion(data.app_asset_version);
         if (eventType === 'agent_status' || eventType.startsWith('compaction_') || ['queue_changed', 'agent_response'].includes(eventType)) { activityRevision.invalidate(); setActivityFresh(false); }
-        if (eventType.startsWith('compaction_') || ['agent_status', 'agent_response', 'queue_changed', 'agent_followup_queued', 'agent_followup_consumed', 'agent_followup_removed'].includes(eventType)) {
+        if (eventType.startsWith('compaction_') || ['new_post', 'agent_status', 'agent_response', 'queue_changed', 'agent_followup_queued', 'agent_followup_consumed', 'agent_followup_removed'].includes(eventType)) {
             ++queueRevision.current;
             if (!refreshTimer.current) refreshTimer.current = setTimeout(() => {
                 refreshTimer.current = null;
@@ -421,7 +444,7 @@ function GiApp() {
         }
         // Handle new_post events directly for immediate timeline updates
         if (eventType === 'new_post' || eventType === 'agent_response') {
-            if (data && data.id) {
+            if (data && data.id && !searchView.capture().active) {
                 timelineRevision.invalidate();
                 setPosts((prev: any[]) => appendUniqueTimelinePost(prev, data));
                 scrollToBottom();
@@ -528,7 +551,8 @@ function GiApp() {
     }, [sessionId]);
 
     refreshAfterConnection.current = () => {
-        void loadPosts(); void refreshSelectedState();
+        if(searchView.capture().active)void runSearch();else void loadPosts();
+        void refreshSelectedState();
     };
     useEffect(() => () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); }, []);
 
@@ -541,9 +565,8 @@ function GiApp() {
         void refreshSelectedState();
         // Light refresh every 10s as a safety net (SSE handles real-time)
         const id = setInterval(() => {
-            loadPosts();
+            refreshAfterConnection.current();
             void refreshSessionLists(sessionId);
-            void refreshSelectedState();
         }, 10000);
         return () => clearInterval(id);
     }, [ready, sessionId, loadPosts, refreshSessionLists, refreshSelectedState]);
@@ -566,6 +589,7 @@ function GiApp() {
         if (sessionId) drafts.update(sessionId, { fileRefs, messageRefs });
         // Advance synchronously, before rendering, to invalidate already pending work.
         selection.select(nextSessionId);
+        setSearchState(searchView.close());setSearchError('');
         timelineRevision.invalidate();
         stopToken.current = null; setStopPending(false); setStopError('');
         compactToken.current=null; setCompactPending(false); setCompactError(''); setCompactState(null);
@@ -781,12 +805,12 @@ function GiApp() {
                     onDeletePost=${() => {}}
                     onOpenWidget=${(w: any) => setFloatingWidget(w)}
                     onOpenAttachmentPreview=${setAttachmentPreview}
-                    emptyMessage="Send a message to get started."
+                    emptyMessage=${searchState.active ? (searchState.query ? 'No matching messages.' : 'Enter a search query.') : 'Send a message to get started.'}
                     agents=${agents}
                     user=${userProfile}
                     reverse=${true}
                     removingPostIds=${new Set()}
-                    searchQuery=""
+                    searchQuery=${searchState.active ? searchState.query : ''}
                 />
                 <${AgentStatus}
                     status=${isCompactionStatus(agentStatus) ? null : agentStatus}
@@ -826,6 +850,8 @@ function GiApp() {
                 ${queueError && html`<div role="alert">${queueError}</div>`}
                 ${newUIVersion && html`<div role="status" class="gi-version-warning">New UI available. Reload manually when ready; unsaved editor work may be lost.</div>`}
                 ${sessionError && html`<div role="alert">${sessionError}</div>`}
+                ${searchError && html`<div role="alert">${searchError}</div>`}
+                ${searchState.active && html`<div role="status">Search${searchState.query ? `: ${searchState.query}` : ''} · ${searchState.scope} · up to 50 results</div>`}
                 ${stopError && html`<div role="alert">${stopError}</div>`}
                 ${compactError && html`<div role="alert">${compactError}</div>`}
                 ${draftStorageError && html`<div role="alert">${draftStorageError}</div>`}
@@ -935,12 +961,12 @@ function GiApp() {
                     onRestoreSession=${chatJid => handleSessionMutation(chatJid, 'restore')}
                     formatBranchPickerLabel=${(b: any) => b?.label || b?.chat_jid || ''}
                     handleBranchPickerChange=${() => {}}
-                    searchOpen=${false}
-                    onEnterSearch=${() => {}}
-                    onExitSearch=${() => {}}
-                    onSearch=${() => {}}
-                    searchScope="current"
-                    onSearchScopeChange=${() => {}}
+                    searchMode=${searchState.active}
+                    onEnterSearch=${enterSearch}
+                    onExitSearch=${exitSearch}
+                    onSearch=${(query:string) => runSearch(query)}
+                    searchScope=${searchState.scope}
+                    onSearchScopeChange=${(scope:string) => runSearch(undefined,scope)}
                     activeModel=${activeModel}
                     agentModelsPayload=${agentModelsPayload}
                     modelUsage=${modelUsage}
