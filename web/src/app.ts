@@ -10,7 +10,6 @@
 import { html, render, useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef } from './vendor/preact-htm.js';
 import { getLocalStorageItem, setLocalStorageItem } from './utils/storage.js';
 import { dedupePosts } from './ui/timeline-utils.js';
-import { appendUniqueTimelinePost } from './ui/app-realtime-timeline.js';
 import { useAgentState } from './ui/use-agent-state.js';
 import { useSseConnection } from './ui/use-sse-connection.js';
 import { handleAppSseEvent } from './ui/app-sse-events.js';
@@ -78,6 +77,7 @@ import { createActivityRevision, compactionNotice, compactionElapsed } from './g
 import { contextPresentation } from './gi-context-usage.js';
 import {createActivationRefreshGate,createTimelineRevision,createAssetVersionGuard,loadedAssetVersion} from './gi-refresh-guards.js';
 import {createSearchView} from './gi-search-state.js';
+import {newMessageWindow,mergeMessagePages,captureTimelineAnchor,restoreTimelineAnchor} from './gi-message-pages.js';
 
 const DEFAULT_SESSION_TITLE = 'default';
 const SESSION_KEY = 'gi_session_id';
@@ -215,6 +215,11 @@ function GiApp() {
     // Timeline
     const [posts, setPosts] = useState<any[]>([]);
     const [hasMore, setHasMore] = useState(false);
+    const messageWindow=useRef(newMessageWindow());
+    const pageRequest=useRef<any>(null);
+    const pageRefreshPending=useRef(false);
+    const scrollRestore=useRef<any>(null);
+    const readingAnchor=useRef<any>(null);
     const searchView=useRef(createSearchView()).current;
     const [searchState,setSearchState]=useState(searchView.capture());
     const [searchError,setSearchError]=useState('');
@@ -356,30 +361,65 @@ function GiApp() {
 
     // ── Timeline loading ─────────────────────────────────────────────────────
 
+    useLayoutEffect(() => {
+        const pending=scrollRestore.current;scrollRestore.current=null;
+        if(!pending||!selection.isCurrent(pending.scope)||!searchView.isCurrent(pending.view)||pending.connection!==connectionRevision.current)return;
+        if(pending.bottom&&timelineRef.current){timelineRef.current.scrollTop=0;readingAnchor.current=null;}
+        else {restoreTimelineAnchor(pending.anchor);readingAnchor.current=pending.anchor;}
+    },[posts]);
+
     const loadPosts = useCallback(async (opts: any = {}) => {
         if (!sessionId || !activationRefresh.ready(selection.capture().generation)) return;
-        const scope = selection.capture();
-        if (scope.sessionId !== sessionId) return;
-        const view=searchView.capture();
-        if(view.active)return;
-        const chatJid = sessionToChatJid(sessionId);
-        const connection=connectionRevision.current;
+        const scope=selection.capture(),view=searchView.capture(),connection=connectionRevision.current;
+        if(scope.sessionId!==sessionId||view.active)return;
+        const older=opts.older===true;
+        if(pageRequest.current?.connection===connection&&pageRequest.current?.generation===scope.generation){
+            if(!older)pageRefreshPending.current=true;
+            return pageRequest.current.promise;
+        }
+        if(older&&(!messageWindow.current.loaded||!messageWindow.current.hasMore))return;
+        const token:any={connection,generation:scope.generation};pageRequest.current=token;
         const request=timelineRevision.begin();
-        let data;
-        try { data=await getTimeline(50,opts.beforeId||null,chatJid); }
-        catch(error){
-            if(selection.isCurrent(scope)&&searchView.isCurrent(view)&&connection===connectionRevision.current&&timelineRevision.accepts(request)&&!streamDisconnected.current) setSessionError(`Timeline refresh failed: ${error.message}`);
-            return;
-        }
-        if (!selection.isCurrent(scope)||!searchView.isCurrent(view)||connection!==connectionRevision.current||!timelineRevision.accepts(request)||streamDisconnected.current) return;
-        const incoming: any[] = data.posts || [];
-        if (opts.beforeId) {
-            setPosts((prev: any[]) => dedupePosts([...incoming, ...prev]));
-        } else {
-            setPosts(dedupePosts(incoming));
-        }
-        setHasMore(incoming.length >= 50);
-    }, [sessionId]);
+        const valid=()=>selection.isCurrent(scope)&&searchView.isCurrent(view)&&connection===connectionRevision.current&&timelineRevision.accepts(request)&&!streamDisconnected.current;
+        token.promise=(async()=>{
+            try {
+                const initial=!messageWindow.current.loaded||!messageWindow.current.after;
+                let cursor=older?messageWindow.current.before:messageWindow.current.after;
+                do {
+                    const data=await getTimeline(50,older?cursor:null,sessionToChatJid(scope.sessionId),!older&&!initial?cursor:null);
+                    if(!valid())return;
+                    const root=timelineRef.current;
+                    scrollRestore.current={scope,view,connection,anchor:captureTimelineAnchor(root,readingAnchor.current),bottom:!older&&(initial||!root||Math.abs(root.scrollTop)<80)};
+                    const incoming=data.posts||[];
+                    setPosts(prev=>mergeMessagePages(prev,incoming));
+                    if(initial){messageWindow.current={loaded:true,before:data.before,after:data.after,hasMore:data.hasMore};}
+                    else if(older){messageWindow.current.before=data.before||cursor;messageWindow.current.hasMore=data.hasMore;}
+                    else {messageWindow.current.after=data.after||cursor;}
+                    setHasMore(messageWindow.current.hasMore);
+                    // Reconnect catch-up can span many bounded pages; never jump
+                    // straight to newest and silently lose the intervening rows.
+                    if(older||initial||!data.hasMore||!data.after||data.after===cursor)break;
+                    cursor=data.after;
+                } while(valid());
+            } catch(error){if(valid())setSessionError(`Timeline refresh failed: ${error.message}`);}
+            finally {
+                if(pageRequest.current===token){pageRequest.current=null;if(pageRefreshPending.current){pageRefreshPending.current=false;refreshAfterConnection.current();}}
+            }
+        })();
+        return token.promise;
+    },[sessionId]);
+
+    // The supplied reverse timeline's prefetch math assumes positive scrolling.
+    // Own native negative-scroll paging at the existing host without editing it.
+    useEffect(() => {
+        const root=timelineRef.current;if(!root||searchState.active)return;
+        const onScroll=()=>{const distance=root.scrollHeight-root.clientHeight+root.scrollTop;
+            if(messageWindow.current.hasMore&&distance<200)void loadPosts({older:true});};
+        const userScroll=()=>{readingAnchor.current=null;};
+        root.addEventListener('scroll',onScroll,{passive:true});
+        root.addEventListener('wheel',userScroll,{passive:true});root.addEventListener('touchstart',userScroll,{passive:true});root.addEventListener('pointerdown',userScroll);root.addEventListener('keydown',userScroll);window.addEventListener('resize',userScroll);
+        return ()=>{root.removeEventListener('scroll',onScroll);root.removeEventListener('wheel',userScroll);root.removeEventListener('touchstart',userScroll);root.removeEventListener('pointerdown',userScroll);root.removeEventListener('keydown',userScroll);window.removeEventListener('resize',userScroll);};
+    },[posts,searchState.active,loadPosts]);
 
     const runSearch = async (query?:string,scopeValue?:string) => {
         if(query!==undefined)setSearchState(searchView.query(query));
@@ -395,13 +435,13 @@ function GiApp() {
             setPosts(dedupePosts(result.posts||[]));setHasMore(false);
         }catch(error){if(selection.isCurrent(owner)&&searchView.isCurrent(view)&&timelineRevision.accepts(request)&&connection===connectionRevision.current&&!streamDisconnected.current)setSearchError(`Search failed: ${error.message}`);}
     };
-    const enterSearch = () => {timelineRevision.invalidate();setSearchState(searchView.enter());setPosts([]);setHasMore(false);setSearchError('');};
-    const exitSearch = () => {timelineRevision.invalidate();setSearchState(searchView.close());setSearchError('');void loadPosts();};
+    const enterSearch = () => {timelineRevision.invalidate();readingAnchor.current=null;pageRequest.current=null;pageRefreshPending.current=false;scrollRestore.current=null;setSearchState(searchView.enter());setPosts([]);setHasMore(false);setSearchError('');};
+    const exitSearch = () => {timelineRevision.invalidate();setPosts([]);messageWindow.current=newMessageWindow();pageRequest.current=null;pageRefreshPending.current=false;setSearchState(searchView.close());setSearchError('');void loadPosts();};
 
     const scrollToBottom = useCallback(() => {
         const el = timelineRef.current;
         if (!el) return;
-        el.scrollTop = el.scrollHeight;
+        if(Math.abs(el.scrollTop)<80)el.scrollTop=0;
     }, []);
 
     const refreshSessionLists = useCallback(async (sid: string | null) => {
@@ -445,9 +485,10 @@ function GiApp() {
         }
         // Handle new_post events directly for immediate timeline updates
         if (eventType === 'new_post' || eventType === 'agent_response') {
-            if (data && data.id && !searchView.capture().active) {
-                timelineRevision.invalidate();
-                setPosts((prev: any[]) => appendUniqueTimelinePost(prev, data));
+            if (data?.id && data?.data && !searchView.capture().active) {
+                const root=timelineRef.current;
+                scrollRestore.current={scope:selection.capture(),view:searchView.capture(),connection:connectionRevision.current,anchor:captureTimelineAnchor(root,readingAnchor.current),bottom:!root||Math.abs(root.scrollTop)<80};
+                setPosts((prev: any[]) => mergeMessagePages(prev,[data]));
                 scrollToBottom();
             }
         }
@@ -491,6 +532,7 @@ function GiApp() {
         const shouldRefresh=activationRefresh.status(selection.capture().generation,status);
         ++connectionRevision.current;
         timelineRevision.invalidate();
+        pageRequest.current=null;pageRefreshPending.current=false;scrollRestore.current=null;
         activityRevision.invalidate(); setActivity(null); setActivityFresh(false);
         ++queueRevision.current;
         setQueueActiveTurnId(null);
@@ -593,6 +635,7 @@ function GiApp() {
         selection.select(nextSessionId);
         activationRefresh.select(selection.capture().generation);streamDisconnected.current=true;
         setSearchState(searchView.close());setSearchError('');
+        messageWindow.current=newMessageWindow();readingAnchor.current=null;pageRequest.current=null;pageRefreshPending.current=false;scrollRestore.current=null;
         timelineRevision.invalidate();
         stopToken.current = null; setStopPending(false); setStopError('');
         compactToken.current=null; setCompactPending(false); setCompactError(''); setCompactState(null);
@@ -791,11 +834,8 @@ function GiApp() {
             <div class="container" ref=${containerRef}>
                 <${Timeline}
                     posts=${posts}
-                    hasMore=${hasMore}
-                    onLoadMore=${({ preserveScroll }: any) => {
-                        const oldest = posts[0];
-                        if (oldest) loadPosts({ beforeId: oldest.id });
-                    }}
+                    hasMore=${false}
+                    onLoadMore=${() => loadPosts({older:true})}
                     timelineRef=${timelineRef}
                     onHashtagClick=${() => {}}
                     onMessageRef=${(id: any) => {

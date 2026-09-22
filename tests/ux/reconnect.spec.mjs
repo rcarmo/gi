@@ -35,8 +35,8 @@ async function environment(page,info,options={}){
  await page.addInitScript(id=>{if(!localStorage.getItem('gi_session_id'))localStorage.setItem('gi_session_id',id);},main.id);
  await page.goto(origin);const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();
  await expect(page.locator('.compose-connection-status')).toHaveCount(0);
- return {origin,main,input,api,ready:()=>releaseInitial(),release:token=>writeFileSync(join(dir,token),'go'),drop(){blocked=true;for(const res of connections)res.destroy();},resume(){blocked=false;},stop,start,
-  async close(){releaseInitial();for(const res of connections)res.destroy();await new Promise(r=>proxy.close(r));await stop();log.end();rmSync(dir,{recursive:true,force:true});}};
+ return {origin,main,input,api,ready:()=>releaseInitial(),release:token=>writeFileSync(join(dir,token),'go'),async drop(){await expect.poll(()=>connections.size).toBeGreaterThan(0);blocked=true;for(const res of connections)res.destroy();},resume(){blocked=false;},stop,start,
+  async close(){await page.close();releaseInitial();for(const res of connections)res.destroy();await new Promise(r=>proxy.close(r));await stop();log.end();rmSync(dir,{recursive:true,force:true});}};
 }
 async function source(info,id){const scenario=loadCorpus().find(x=>x.id===id);await info.attach('gherkin',{body:scenario.steps.join('\n'),contentType:'text/plain'});}
 
@@ -51,7 +51,7 @@ test('@ux-reconnect-002 Refresh authoritative chat state after reconnect',async(
   await page.route(`**/api/sessions/${main.id}/messages?*`,async route=>{const response=await route.fetch();const isHeld=!held;if(isHeld){held=true;await gate;}await route.fulfill({response});if(isHeld)delivered();});
   // Native mutation schedules a timeline refresh; hold its real old snapshot.
   const extra=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:'trigger old refresh',intent:'queue',model:'ux-local/gate'});await expect.poll(()=>held).toBe(true);
-  env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});await expect(page.getByRole('button',{name:'Stop response',exact:true})).toHaveCount(0);
+  await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});await expect(page.getByRole('button',{name:'Stop response',exact:true})).toHaveCount(0);
   await api(`/api/sessions/${main.id}/queue/${oldQ.turn_id}`,'DELETE');await api(`/api/sessions/${main.id}/queue/${extra.turn_id}`,'DELETE');env.release(oldToken);
   await expect.poll(async()=> (await api(`/api/sessions/${main.id}/turns`)).turns.find(t=>t.id===active.turn_id).status).toBe('completed');
   const newToken=`new-${Date.now()}`;const next=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:`UX steer gate:${newToken}`,model:'ux-local/gate'});
@@ -77,7 +77,7 @@ test('@ux-reconnect-004 Show version drift without automatically reloading',asyn
   await env.stop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});await env.start();
   const warning=page.getByRole('status').filter({hasText:'New UI available'});await expect(warning).toHaveCount(1,{timeout:15000});await expect(warning).toContainText('Reload manually');expect(navigations).toBe(0);await expect(input).toHaveValue('unsaved editor draft');
   expect(await page.locator('script[src*="/dist/app.bundle.js"]').getAttribute('src')).toBe(old);
-  await input.fill('');env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});await expect(warning).toHaveCount(1);expect(navigations).toBe(0);
+  await input.fill('');await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});await expect(warning).toHaveCount(1);expect(navigations).toBe(0);
   await page.reload();await expect(warning).toHaveCount(0);expect(await page.locator('script[src*="/dist/app.bundle.js"]').getAttribute('src')).not.toBe(old);
  }finally{await env.close();}
 });
@@ -90,7 +90,7 @@ test('Gi pre-disconnect activity failure cannot overwrite healthy reconnect stat
   await input.fill('keep through late error');
   await page.route(`**/api/sessions/${main.id}/activity`,async route=>{if(route.request().method()==='GET'&&!held){held=true;await gate;await route.abort('failed');done();return;}await route.continue();});
   await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:'queue update',intent:'queue',model:'ux-local/gate'});await expect.poll(()=>held).toBe(true);
-  env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});await expect(page.getByRole('button',{name:'Stop response',exact:true})).toBeEnabled();
+  await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});await expect(page.getByRole('button',{name:'Stop response',exact:true})).toBeEnabled();
   const failed=page.waitForEvent('requestfailed',r=>r.url().endsWith(`/api/sessions/${main.id}/activity`));unblock();await delivery;await failed;await page.unrouteAll({behavior:'wait'});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
   await expect(page.getByRole('alert')).toHaveCount(0);await expect(input).toHaveValue('keep through late error');env.release(token);
  }finally{unblock();await env.close();}
@@ -109,7 +109,7 @@ test('@ux-reconnect-003 Search survives reconnect without a main-timeline refres
   const oldResponse=page.waitForResponse(r=>r.url().includes(`/api/sessions/${main.id}/messages?`));releaseOld();await oldDone;await(await oldResponse).finished();await page.unrouteAll({behavior:'wait'});
   await expect(page.getByText(`UX steer gate:${token}`,{exact:true})).toHaveCount(0);
   let timelines=0;page.on('request',r=>{if(r.url().includes(`/api/sessions/${main.id}/messages?`))timelines++;});
-  env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});
+  await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});
   const queued=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:'needle offline queue',intent:'queue',model:'ux-local/gate'});env.release(token);
   await expect.poll(async()=> (await api(`/api/sessions/${main.id}/turns`)).turns.find(t=>t.id===queued.turn_id).status).toBe('completed');
   const nextToken=`search-next-${Date.now()}`;await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:`UX steer gate:${nextToken}`,model:'ux-local/gate'});
@@ -146,7 +146,7 @@ test('Gi failed search remains scoped and reconnect does not erase its query',as
   await input.fill('draft before search error');await page.getByRole('button',{name:'Search',exact:true}).click();const search=page.getByRole('textbox',{name:'Search (Enter to run)...',exact:true});
   const pattern=`**/api/sessions/${main.id}/search?*`;await page.route(pattern,route=>route.abort('failed'));
   await search.fill('unavailable query');await search.press('Enter');await expect(page.getByRole('alert').filter({hasText:'Search failed:'})).toBeVisible();await expect(search).toHaveValue('unavailable query');
-  await page.unroute(pattern);env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.getByText('No matching messages.',{exact:true})).toBeVisible();await expect(search).toHaveValue('unavailable query');await expect(page.getByRole('alert')).toHaveCount(0);
+  await page.unroute(pattern);await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.getByText('No matching messages.',{exact:true})).toBeVisible();await expect(search).toHaveValue('unavailable query');await expect(page.getByRole('alert')).toHaveCount(0);
   await search.press('Escape');await expect(input).toHaveValue('draft before search error');
  }finally{await env.close();}
 });
@@ -176,7 +176,7 @@ test('@ux-reconnect-005 Initial activation and SSE readiness do not duplicate re
   for(const name of requests.paths)expect(requests.count(other,name)).toBe(1);
   await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${main.id}"]`).getByRole('menuitem').click();
   await expect.poll(()=>requests.count(main.id,'activity')).toBe(baseline+1);await expect(input).toHaveValue('draft before first subscription');
-  const before=Object.fromEntries(requests.paths.map(name=>[name,requests.count(main.id,name)]));env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});
+  const before=Object.fromEntries(requests.paths.map(name=>[name,requests.count(main.id,name)]));await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});
   for(const name of requests.paths)await expect.poll(()=>requests.count(main.id,name)).toBe(before[name]+1);
  }finally{await env.close();}
 });
@@ -186,6 +186,51 @@ test('Gi failed initial state refresh remains retryable on real reconnect',async
  try{
   const pattern=`**/api/sessions/${main.id}/activity`;await page.route(pattern,route=>route.abort('failed'));
   await input.fill('draft survives first failure');env.ready();await expect(page.getByRole('alert')).toBeVisible();
-  await page.unroute(pattern);env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.getByRole('alert')).toHaveCount(0,{timeout:15000});await expect(page.locator('.compose-context-pie')).toBeVisible();await expect(input).toHaveValue('draft survives first failure');
+  await page.unroute(pattern);await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.getByRole('alert')).toHaveCount(0,{timeout:15000});await expect(page.locator('.compose-context-pie')).toBeVisible();await expect(input).toHaveValue('draft survives first failure');
+ }finally{await env.close();}
+});
+
+test('Gi bounded timeline pages preserve viewport and catch up after outage',async({page},info)=>{
+ test.setTimeout(90000);
+ const env=await environment(page,info);const{main,input,api}=env;
+ const turns=async()=>(await api(`/api/sessions/${main.id}/turns`)).turns;
+ const create=async i=>{const sent=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:`page marker ${i} ${'native history line '.repeat(25)}`,model:'test-model'});await expect.poll(async()=> (await turns()).find(t=>t.id===sent.turn_id).status).toBe('completed');};
+ const ids=()=>page.locator('.timeline .post').evaluateAll(nodes=>nodes.map(n=>n.id.slice(5)));
+ try{
+  // Build durable history through native shell turns, not SQL/DOM fixture rows.
+  for(let i=0;i<61;i++)await create(i);
+  let responses=[];page.on('response',async response=>{if(response.url().includes(`/api/sessions/${main.id}/messages?`)){const data=await response.json().catch(()=>null);if(data)responses.push(data)}});
+  await page.reload();await expect.poll(async()=> (await ids()).length).toBe(50);
+  const all=(await api(`/api/sessions/${main.id}/messages`)).messages;
+  expect(await ids()).toEqual(all.slice(-50).map(m=>m.id));expect(responses.every(r=>r.messages.length<=50)).toBe(true);
+  await input.fill('paging draft retained');
+  const timeline=page.locator('.timeline');await timeline.hover();await page.mouse.wheel(0,-100000);await expect.poll(async()=> (await ids()).length).toBeGreaterThan(50);
+  // Stop at a readable middle position, then verify tail refresh doesn't move it.
+  await page.mouse.wheel(0,1200);await page.waitForTimeout(350); // let the supplied 240ms entry animation settle
+  const anchor=await timeline.evaluate(root=>{const bounds=root.getBoundingClientRect();const node=[...root.querySelectorAll('.post')].find(el=>{const b=el.getBoundingClientRect();return b.top>=bounds.top&&b.bottom<bounds.bottom});return node?{id:node.id,y:node.getBoundingClientRect().top}:null;});expect(anchor).not.toBeNull();
+  const countBefore=(await ids()).length;await create(61);
+  await expect.poll(async()=> (await ids()).length).toBe(countBefore+2);
+  await expect.poll(async()=>Math.abs(await page.locator(`[id="${anchor.id}"]`).evaluate(el=>el.getBoundingClientRect().top)-anchor.y)).toBeLessThanOrEqual(1);
+  const visibleBefore=new Set(await ids());await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});
+  // More than one forward page while disconnected; reconnect must not skip it.
+  for(let i=62;i<89;i++)await create(i);
+  env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});await expect.poll(async()=> (await ids()).length,{timeout:15000}).toBe(countBefore+56);
+  const after=await ids();for(const id of visibleBefore)expect(after).toContain(id);expect(new Set(after).size).toBe(after.length);
+  const persisted=(await api(`/api/sessions/${main.id}/messages`)).messages;expect(after).toEqual(persisted.slice(-after.length).map(m=>m.id));
+  await expect.poll(async()=>Math.abs(await page.locator(`[id="${anchor.id}"]`).evaluate(el=>el.getBoundingClientRect().top)-anchor.y)).toBeLessThanOrEqual(1);
+  await expect(input).toHaveValue('paging draft retained');
+  // Hold a real older page across search entry. It must not merge into search.
+  let unblock,held=false,done;const gate=new Promise(r=>unblock=r),delivered=new Promise(r=>done=r);
+  const pattern=`**/api/sessions/${main.id}/messages?*`;
+  await page.route(pattern,async route=>{const response=await route.fetch();if(new URL(route.request().url()).searchParams.has('before')&&!held){held=true;await gate;await route.fulfill({response});done();}else await route.fulfill({response});});
+  try{
+   await timeline.hover();await page.mouse.wheel(0,-100000);await expect.poll(()=>held).toBe(true);
+   await page.getByRole('button',{name:'Search',exact:true}).click();const search=page.getByRole('textbox',{name:'Search (Enter to run)...',exact:true});await search.fill('absent-paging-query');await search.press('Enter');await expect(page.getByText('No matching messages.',{exact:true})).toBeVisible();
+   unblock();await delivered;await page.unrouteAll({behavior:'wait'});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await expect(page.locator('.timeline .post')).toHaveCount(0);
+   await search.press('Escape');await expect.poll(async()=> (await ids()).length).toBe(50);await expect(input).toHaveValue('paging draft retained');
+  }finally{unblock();}
+  // Exhaust older pages through native wheel input; no repeated full-history loop.
+  for(let i=0;i<8&&(await ids()).length<persisted.length;i++){await timeline.hover();await page.mouse.wheel(0,-100000);await page.waitForTimeout(250);}
+  await expect.poll(()=>ids()).toEqual(persisted.map(m=>m.id));expect(responses.every(r=>r.messages.length<=50)).toBe(true);
  }finally{await env.close();}
 });

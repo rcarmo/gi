@@ -105,14 +105,16 @@ function sessionToChatJid(sessionId: string | null) {
 
 // ── Timeline / posts ──────────────────────────────────────────────────────
 
-export async function getTimeline(limit = 50, beforeId: number | null = null, chatJid: string | null = null) {
+export async function getTimeline(limit = 50, beforeId: string | null = null, chatJid: string | null = null, after: string | null = null) {
     const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
     if (!sessionId) return { posts: [] };
     let url = `/api/sessions/${encodeURIComponent(sessionId)}/messages?limit=${limit}`;
-    if (beforeId) url += `&before=${beforeId}`;
+    if (beforeId) url += `&before=${encodeURIComponent(beforeId)}`;
+    if (after) url += `&after=${encodeURIComponent(after)}`;
     const data = await request(url);
     const messages: any[] = data.messages || [];
     return {
+        hasMore: data.has_more === true, before: data.before || null, after: data.after || null,
         posts: messages.map((m: any) => ({
             id: m.id,
             chat_jid: chatJid,

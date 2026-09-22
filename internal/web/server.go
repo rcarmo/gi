@@ -494,6 +494,33 @@ func (s *Server) handleMessages(w http.ResponseWriter, r *http.Request, sessionI
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	if r.URL.Query().Has("limit") || r.URL.Query().Has("before") || r.URL.Query().Has("after") {
+		if _, err := s.store.GetSession(r.Context(), sessionID); err != nil {
+			writeJSON(w, 404, map[string]any{"error": "Session not found"})
+			return
+		}
+		limit := 50
+		if raw := r.URL.Query().Get("limit"); raw != "" {
+			value, err := strconv.Atoi(raw)
+			if err != nil {
+				writeJSON(w, 400, map[string]any{"error": "Invalid limit"})
+				return
+			}
+			limit = value
+		}
+		page, err := s.store.PageMessages(r.Context(), sessionID, r.URL.Query().Get("before"), r.URL.Query().Get("after"), limit)
+		if err != nil {
+			code := 500
+			if errors.Is(err, store.ErrMessageCursor) {
+				code = 400
+			}
+			writeJSON(w, code, map[string]any{"error": "Unable to read message page"})
+			return
+		}
+		writeJSON(w, 200, page)
+		return
+	}
+	// Preserve the unpaged export API for existing consumers.
 	msgs, err := s.store.ListMessages(r.Context(), sessionID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})

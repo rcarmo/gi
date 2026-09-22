@@ -1,6 +1,14 @@
 # Web session selection and compact TUI adaptation
 
-## Latest browser evidence: initial refresh ownership (2026-09-22)
+## Latest browser evidence: bounded native timeline pages (2026-09-22)
+
+Timeline now loads a native latest-50 page and older/forward pages using session-scoped timestamp/ID cursors. The host serialises page loads, preserves the loaded history window, drains reconnect catch-up without gaps and rejects stale pages after search/session changes. Actual visible-message anchors preserve reading position across older/live/offline arrivals, with at most one CSS pixel of rounding. ID-only completion events cannot replace full posts. Supplied components are unchanged. See [ADR-0027](../adr/0027-bounded-timeline-pages.md).
+
+Verified: **54/54 reconnect/paging**, **348/348 combined browser**, **70/70 functional**, **29 helpers**, Go/vet/hook checks and native paging race ×3. Native tests cover ties, deleted/foreign/malformed cursors and bounds; the browser uses native turns/wheel input, real socket loss, multi-page catch-up and held-page/search isolation. No new frozen mapping: **30/236 Classic**, **2/42 shared**, 206/40 unmapped.
+
+Unpaged export remains compatible. Backdated inserts, out-of-window edits/deletes and browser loaded-window eviction are not fully reconciled. Terminal paging adaptation is bounded on-demand loading through existing scroll controls, with no extra idle chrome; no terminal code or credit in this slice. Earlier evidence follows.
+
+## Earlier browser evidence: initial refresh ownership (2026-09-22)
 
 Initial activation and native SSE readiness now share one authoritative refresh owner per selection/connection epoch. No timeline/search/activity read is trusted before subscription readiness. Real reconnect, failed initial reads and A→B→A remain refreshable; rendered-selection wrappers also reject old callbacks before the hook rerenders. See [ADR-0026](../adr/0026-initial-refresh-ownership.md).
 

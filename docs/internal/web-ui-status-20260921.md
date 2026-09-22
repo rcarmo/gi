@@ -1,5 +1,7 @@
 # Gi web UI — 2026-09-21
 
+Latest slice (2026-09-22): bounded native timeline paging, visible-message anchors and multi-page reconnect catch-up. **348/348 browser**, **70/70 functional**, **29 helpers**, Go/vet/race. Coverage unchanged: **30/236 Classic**, **2/42 shared**, 206/40 unmapped. Supplied components/TUI untouched; out-of-window mutations and loaded-window limits remain open. See [ADR-0027](../adr/0027-bounded-timeline-pages.md). Earlier evidence follows.
+
 Latest slice (2026-09-22): initial refresh ownership (`reconnect-005`), with delayed native subscription, A→B→A, real reconnect and failed-initial-read recovery. **342/342 browser**, **70/70 functional**, **28 helpers**, Go/vet/hook checks; **30/236 Classic**, **2/42 shared**, 206/40 unmapped. All frozen reconnect IDs mapped; full parity, crash/hashtag/paging and terminal adaptations remain open. No terminal chrome added. See [ADR-0026](../adr/0026-initial-refresh-ownership.md). Earlier evidence follows.
 
 Latest slice (2026-09-22): native bounded search/current-family-all scopes and active-search reconnect protection (`reconnect-003`). **330/330 browser**, **70/70 functional**, **27 helpers**, Go/vet/race; **29/236 Classic**, **2/42 shared**, 207/40 unmapped. Draft/media and query ownership verified; no supplied component edits or terminal UI additions. Hashtags/paging/terminal search remain open. See [ADR-0025](../adr/0025-native-search-view.md). Earlier evidence follows.

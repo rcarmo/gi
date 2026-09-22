@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Bounded native timeline paging: 2026-09-22
+
+The Gi-only paging regression in `make test-ux-reconnect` creates history through native turns and checks latest-50 loading, wheel-driven older pages, actual visible-message anchors, more than one forward page while offline, retained drafts and late older-page/search isolation. Responses stay bounded and IDs remain ordered/deduplicated. Subpixel anchor tolerance is one CSS pixel after the supplied entry animation settles.
+
+Latest: **54/54 reconnect/paging + 294/294 existing = 348/348 browser**, **70/70 functional**, **29 helpers**, Go/vet/hook and native paging race ×3. No new frozen mapping: Classic **30/236**, shared **2/42** (206/40 unmapped). Same six result files/targets below. No forced clicks, fake SSE or SQL-seeded browser timeline. See [ADR-0027](../../docs/adr/0027-bounded-timeline-pages.md).
+
 ## Initial refresh ownership: 2026-09-22
 
 `make test-ux-reconnect` now includes `reconnect-005`: hold the real native SSE readiness, verify activation does not issue authoritative reads before readiness and no duplicate initial set follows, then test A→B→A and real reconnect. A separate case verifies retry after initial activity failure without draft loss.

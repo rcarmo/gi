@@ -529,17 +529,6 @@ var dedupePosts = (items) => {
   });
 };
 
-// web/src/ui/app-realtime-timeline.ts
-function appendUniqueTimelinePost(posts, nextPost) {
-  if (!Array.isArray(posts) || posts.length === 0) {
-    return [nextPost];
-  }
-  if (posts.some((post) => post?.id === nextPost?.id)) {
-    return posts;
-  }
-  return [...posts, nextPost];
-}
-
 // web/src/ui/use-agent-state.ts
 function useAgentState() {
   const [agentStatus, setAgentStatus] = M_(null);
@@ -839,16 +828,21 @@ var DEFAULT_CHAT_JID = "web:default";
 function sessionToChatJid(sessionId) {
   return sessionId ? `gi:${sessionId}` : DEFAULT_CHAT_JID;
 }
-async function getTimeline(limit = 50, beforeId = null, chatJid = null) {
+async function getTimeline(limit = 50, beforeId = null, chatJid = null, after = null) {
   const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
   if (!sessionId)
     return { posts: [] };
   let url = `/api/sessions/${encodeURIComponent(sessionId)}/messages?limit=${limit}`;
   if (beforeId)
-    url += `&before=${beforeId}`;
+    url += `&before=${encodeURIComponent(beforeId)}`;
+  if (after)
+    url += `&after=${encodeURIComponent(after)}`;
   const data = await request(url);
   const messages = data.messages || [];
   return {
+    hasMore: data.has_more === true,
+    before: data.before || null,
+    after: data.after || null,
     posts: messages.map((m) => ({
       id: m.id,
       chat_jid: chatJid,
@@ -16699,6 +16693,49 @@ function createSearchView() {
   };
 }
 
+// web/src/gi-message-pages.ts
+function mergeMessagePages(current, incoming) {
+  const rows = new Map(current.map((p) => [String(p.id), p]));
+  for (const post of incoming)
+    rows.set(String(post.id), post);
+  const compare = (a, b) => String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0;
+  return [...rows.values()].sort((a, b) => compare(a.timestamp, b.timestamp) || compare(a.id, b.id));
+}
+function newMessageWindow() {
+  return { before: null, after: null, hasMore: false, loaded: false };
+}
+function layoutTop(node) {
+  const transform = getComputedStyle(node).transform;
+  let y = 0;
+  if (transform && transform !== "none") {
+    try {
+      y = new DOMMatrixReadOnly(transform).m42;
+    } catch {}
+  }
+  return node.getBoundingClientRect().top - y;
+}
+function captureTimelineAnchor(root, previous) {
+  if (!root)
+    return null;
+  if (previous?.root === root && previous.id && document.getElementById(previous.id))
+    return previous;
+  const box = root.getBoundingClientRect();
+  const node = [...root.querySelectorAll(".post[id]")].find((el) => {
+    const r = el.getBoundingClientRect();
+    return r.bottom > box.top && r.top < box.bottom;
+  });
+  return { root, id: node?.id || "", top: node ? layoutTop(node) : 0, scroll: root.scrollTop, height: root.clientHeight };
+}
+function restoreTimelineAnchor(anchor) {
+  if (!anchor?.id || !anchor.root.isConnected)
+    return;
+  const node = anchor.root.querySelector(`[id="${CSS.escape(anchor.id)}"]`);
+  if (node) {
+    anchor.root.scrollTop += layoutTop(node) - anchor.top;
+    anchor.scroll = anchor.root.scrollTop;
+  }
+}
+
 // web/src/app.ts
 var SESSION_KEY = "gi_session_id";
 var DEFAULT_AGENT_ID = "web";
@@ -16838,6 +16875,11 @@ function GiApp() {
   const editorOpen = tabs.length > 0;
   const [posts, setPosts] = M_([]);
   const [hasMore, setHasMore] = M_(false);
+  const messageWindow = K_(newMessageWindow());
+  const pageRequest = K_(null);
+  const pageRefreshPending = K_(false);
+  const scrollRestore = K_(null);
+  const readingAnchor = K_(null);
   const searchView = K_(createSearchView()).current;
   const [searchState, setSearchState] = M_(searchView.capture());
   const [searchError, setSearchError] = M_("");
@@ -17008,36 +17050,104 @@ function GiApp() {
       cleanupDisplayScale();
     };
   }, []);
+  F_(() => {
+    const pending = scrollRestore.current;
+    scrollRestore.current = null;
+    if (!pending || !selection.isCurrent(pending.scope) || !searchView.isCurrent(pending.view) || pending.connection !== connectionRevision.current)
+      return;
+    if (pending.bottom && timelineRef.current) {
+      timelineRef.current.scrollTop = 0;
+      readingAnchor.current = null;
+    } else {
+      restoreTimelineAnchor(pending.anchor);
+      readingAnchor.current = pending.anchor;
+    }
+  }, [posts]);
   const loadPosts = X_(async (opts = {}) => {
     if (!sessionId || !activationRefresh.ready(selection.capture().generation))
       return;
-    const scope = selection.capture();
-    if (scope.sessionId !== sessionId)
+    const scope = selection.capture(), view = searchView.capture(), connection = connectionRevision.current;
+    if (scope.sessionId !== sessionId || view.active)
       return;
-    const view = searchView.capture();
-    if (view.active)
+    const older = opts.older === true;
+    if (pageRequest.current?.connection === connection && pageRequest.current?.generation === scope.generation) {
+      if (!older)
+        pageRefreshPending.current = true;
+      return pageRequest.current.promise;
+    }
+    if (older && (!messageWindow.current.loaded || !messageWindow.current.hasMore))
       return;
-    const chatJid = sessionToChatJid2(sessionId);
-    const connection = connectionRevision.current;
+    const token = { connection, generation: scope.generation };
+    pageRequest.current = token;
     const request = timelineRevision.begin();
-    let data;
-    try {
-      data = await getTimeline(50, opts.beforeId || null, chatJid);
-    } catch (error) {
-      if (selection.isCurrent(scope) && searchView.isCurrent(view) && connection === connectionRevision.current && timelineRevision.accepts(request) && !streamDisconnected.current)
-        setSessionError(`Timeline refresh failed: ${error.message}`);
-      return;
-    }
-    if (!selection.isCurrent(scope) || !searchView.isCurrent(view) || connection !== connectionRevision.current || !timelineRevision.accepts(request) || streamDisconnected.current)
-      return;
-    const incoming = data.posts || [];
-    if (opts.beforeId) {
-      setPosts((prev) => dedupePosts([...incoming, ...prev]));
-    } else {
-      setPosts(dedupePosts(incoming));
-    }
-    setHasMore(incoming.length >= 50);
+    const valid = () => selection.isCurrent(scope) && searchView.isCurrent(view) && connection === connectionRevision.current && timelineRevision.accepts(request) && !streamDisconnected.current;
+    token.promise = (async () => {
+      try {
+        const initial = !messageWindow.current.loaded || !messageWindow.current.after;
+        let cursor = older ? messageWindow.current.before : messageWindow.current.after;
+        do {
+          const data = await getTimeline(50, older ? cursor : null, sessionToChatJid2(scope.sessionId), !older && !initial ? cursor : null);
+          if (!valid())
+            return;
+          const root = timelineRef.current;
+          scrollRestore.current = { scope, view, connection, anchor: captureTimelineAnchor(root, readingAnchor.current), bottom: !older && (initial || !root || Math.abs(root.scrollTop) < 80) };
+          const incoming = data.posts || [];
+          setPosts((prev) => mergeMessagePages(prev, incoming));
+          if (initial) {
+            messageWindow.current = { loaded: true, before: data.before, after: data.after, hasMore: data.hasMore };
+          } else if (older) {
+            messageWindow.current.before = data.before || cursor;
+            messageWindow.current.hasMore = data.hasMore;
+          } else {
+            messageWindow.current.after = data.after || cursor;
+          }
+          setHasMore(messageWindow.current.hasMore);
+          if (older || initial || !data.hasMore || !data.after || data.after === cursor)
+            break;
+          cursor = data.after;
+        } while (valid());
+      } catch (error) {
+        if (valid())
+          setSessionError(`Timeline refresh failed: ${error.message}`);
+      } finally {
+        if (pageRequest.current === token) {
+          pageRequest.current = null;
+          if (pageRefreshPending.current) {
+            pageRefreshPending.current = false;
+            refreshAfterConnection.current();
+          }
+        }
+      }
+    })();
+    return token.promise;
   }, [sessionId]);
+  J_(() => {
+    const root = timelineRef.current;
+    if (!root || searchState.active)
+      return;
+    const onScroll = () => {
+      const distance = root.scrollHeight - root.clientHeight + root.scrollTop;
+      if (messageWindow.current.hasMore && distance < 200)
+        loadPosts({ older: true });
+    };
+    const userScroll = () => {
+      readingAnchor.current = null;
+    };
+    root.addEventListener("scroll", onScroll, { passive: true });
+    root.addEventListener("wheel", userScroll, { passive: true });
+    root.addEventListener("touchstart", userScroll, { passive: true });
+    root.addEventListener("pointerdown", userScroll);
+    root.addEventListener("keydown", userScroll);
+    window.addEventListener("resize", userScroll);
+    return () => {
+      root.removeEventListener("scroll", onScroll);
+      root.removeEventListener("wheel", userScroll);
+      root.removeEventListener("touchstart", userScroll);
+      root.removeEventListener("pointerdown", userScroll);
+      root.removeEventListener("keydown", userScroll);
+      window.removeEventListener("resize", userScroll);
+    };
+  }, [posts, searchState.active, loadPosts]);
   const runSearch = async (query, scopeValue) => {
     if (query !== undefined)
       setSearchState(searchView.query(query));
@@ -17066,6 +17176,10 @@ function GiApp() {
   };
   const enterSearch = () => {
     timelineRevision.invalidate();
+    readingAnchor.current = null;
+    pageRequest.current = null;
+    pageRefreshPending.current = false;
+    scrollRestore.current = null;
     setSearchState(searchView.enter());
     setPosts([]);
     setHasMore(false);
@@ -17073,6 +17187,10 @@ function GiApp() {
   };
   const exitSearch = () => {
     timelineRevision.invalidate();
+    setPosts([]);
+    messageWindow.current = newMessageWindow();
+    pageRequest.current = null;
+    pageRefreshPending.current = false;
     setSearchState(searchView.close());
     setSearchError("");
     loadPosts();
@@ -17081,7 +17199,8 @@ function GiApp() {
     const el = timelineRef.current;
     if (!el)
       return;
-    el.scrollTop = el.scrollHeight;
+    if (Math.abs(el.scrollTop) < 80)
+      el.scrollTop = 0;
   }, []);
   const refreshSessionLists = X_(async (sid) => {
     if (!sid) {
@@ -17128,9 +17247,10 @@ function GiApp() {
         }, 0);
     }
     if (eventType === "new_post" || eventType === "agent_response") {
-      if (data && data.id && !searchView.capture().active) {
-        timelineRevision.invalidate();
-        setPosts((prev) => appendUniqueTimelinePost(prev, data));
+      if (data?.id && data?.data && !searchView.capture().active) {
+        const root = timelineRef.current;
+        scrollRestore.current = { scope: selection.capture(), view: searchView.capture(), connection: connectionRevision.current, anchor: captureTimelineAnchor(root, readingAnchor.current), bottom: !root || Math.abs(root.scrollTop) < 80 };
+        setPosts((prev) => mergeMessagePages(prev, [data]));
         scrollToBottom();
       }
     }
@@ -17165,6 +17285,9 @@ function GiApp() {
     const shouldRefresh = activationRefresh.status(selection.capture().generation, status);
     ++connectionRevision.current;
     timelineRevision.invalidate();
+    pageRequest.current = null;
+    pageRefreshPending.current = false;
+    scrollRestore.current = null;
     activityRevision.invalidate();
     setActivity(null);
     setActivityFresh(false);
@@ -17300,6 +17423,11 @@ function GiApp() {
     streamDisconnected.current = true;
     setSearchState(searchView.close());
     setSearchError("");
+    messageWindow.current = newMessageWindow();
+    readingAnchor.current = null;
+    pageRequest.current = null;
+    pageRefreshPending.current = false;
+    scrollRestore.current = null;
     timelineRevision.invalidate();
     stopToken.current = null;
     setStopPending(false);
@@ -17544,12 +17672,8 @@ function GiApp() {
             <div class="container" ref=${containerRef}>
                 <${Timeline}
                     posts=${posts}
-                    hasMore=${hasMore}
-                    onLoadMore=${({ preserveScroll }) => {
-    const oldest = posts[0];
-    if (oldest)
-      loadPosts({ beforeId: oldest.id });
-  }}
+                    hasMore=${false}
+                    onLoadMore=${() => loadPosts({ older: true })}
                     timelineRef=${timelineRef}
                     onHashtagClick=${() => {}}
                     onMessageRef=${(id) => {
@@ -17769,5 +17893,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=FD8ECF741014AD6A64756E2164756E21
+//# debugId=D543C8A917D1347964756E2164756E21
 //# sourceMappingURL=app.js.map
