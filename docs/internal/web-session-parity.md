@@ -1,6 +1,12 @@
 # Web session selection and compact TUI adaptation
 
-## Latest evidence: context-meter rendering (2026-09-22)
+## Native compaction prerequisite (2026-09-22)
+
+Automatic compaction now commits an occurrence-keyed start and terminal outcome, summary and conditional phase restoration before publishing success. Cancellation cannot be overwritten by a running-status restore, stale completions cannot finish a later occurrence, and failed persistence prevents the next provider call. See [ADR-0019](../adr/0019-compaction-lifecycle-safety.md).
+
+Full Go/vet, hook checks, targeted races repeated three times and 70/70 functional tests pass. Browser mapping totals are unchanged: **19/236 Classic**, **2/42 shared** (217/40 unmapped). The earlier **228/228** browser matrix remains the meter slice's evidence, not a new compaction matrix. No manual callback or compaction browser status is enabled; stored summaries still accompany original history on future turns. TUI layout is unchanged. A follow-up review delegate timed out and supplied no evidence.
+
+## Latest browser evidence: context-meter rendering (2026-09-22)
 
 Classic `@ux-context-001/005` pass all six projects using explicit usage returned by the local provider through native inference. Assertions cover K/M formatting, rounded percentages, title/tooltip-data/accessibility values, a full arc at 125% without hiding the percentage, zero input, 75/75.01/90/90.01 colour boundaries, reload, session-local unknown usage and model-change tooltip refresh.
 

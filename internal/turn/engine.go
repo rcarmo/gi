@@ -1581,7 +1581,7 @@ func topicForBroadcastEvent(evType string) (topic string, envelopeType string) {
 		return "session.steering", "notice"
 	case "subturn_created", "subturn_status", "subturn_result_ready", "subturn_result_delivered", "subturn_orphaned", "subturn_cancel_requested":
 		return "turn.subturn", "notice"
-	case "compaction":
+	case "compaction", "compaction_started", "compaction_completed", "compaction_cancelled", "compaction_failed", "compaction_suppressed":
 		return "session.compaction", "notice"
 	case "routing_decision", "routing_incoming":
 		return "session.routing", "notice"
@@ -3908,7 +3908,18 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			return
 		}
 
-		pendingSteering = r.prepareAgentIteration(ctx, sessionID, turnID, model, agentID, iter, convCtx, pendingSteering)
+		var prepareErr error
+		pendingSteering, prepareErr = r.prepareAgentIteration(ctx, sessionID, turnID, model, agentID, iter, convCtx, pendingSteering)
+		if prepareErr != nil {
+			if ctx.Err() != nil || isCancellationError(prepareErr) || errors.Is(prepareErr, store.ErrCompactionInactive) {
+				agentEndReason = "cancelled"
+				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled", "")
+			} else {
+				agentEndReason = "failed"
+				r.finishTurn(s, turnID, sessionID, agentID, model, "failed", fmt.Sprintf("Context preparation error: %v", prepareErr), "compaction_error")
+			}
+			return
+		}
 		result, inferErr := r.runProviderIteration(ctx, s, turnID, sessionID, model, agentID, iter, maxIter, convCtx)
 		iterLabel := fmt.Sprintf("iter=%d/%d", iter, maxIter)
 		if inferErr != nil {
@@ -4562,7 +4573,7 @@ func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store
 	return convCtx, nil
 }
 
-func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, turnID, model, agentID string, iter int, convCtx *goai.Context, pendingSteering []store.SteeringMessage) []store.SteeringMessage {
+func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, turnID, model, agentID string, iter int, convCtx *goai.Context, pendingSteering []store.SteeringMessage) ([]store.SteeringMessage, error) {
 	if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID, turnID); err != nil {
 		log.Printf("steering dequeue error: %v", err)
 	} else if len(steerMsgs) > 0 {
@@ -4586,13 +4597,13 @@ func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, tu
 			convCtx.Tools = resp.Tools
 		}
 	}
-	compaction.MaybeCompactContext(ctx, compaction.RuntimeRequest{SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Settings: r.engine.runtimeCfg.Compaction}, convCtx, compaction.RuntimeOps{BackgroundContext: r.engine.backgroundContext, BeforeCompact: func(ctx context.Context, payload map[string]any, messages []goai.Message) (compaction.HookDecision, error) {
+	err := compaction.MaybeCompactContext(ctx, compaction.RuntimeRequest{SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Settings: r.engine.runtimeCfg.Compaction}, convCtx, compaction.RuntimeOps{BackgroundContext: r.engine.backgroundContext, BeforeCompact: func(ctx context.Context, payload map[string]any, messages []goai.Message) (compaction.HookDecision, error) {
 		resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookSessionBeforeCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload, Messages: messages})
 		return compaction.HookDecision{Cancel: resp.Cancel, Block: resp.Block, Payload: resp.Payload}, err
 	}, AfterCompact: func(ctx context.Context, payload map[string]any) {
 		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookSessionCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload})
-	}, UpdateTurnStatusAndPhase: r.store.UpdateTurnStatusAndPhase, AppendTurnEvent: r.store.AppendTurnEvent, TouchSessionActiveTurn: r.store.TouchSessionActiveTurn, AddMessage: r.store.AddMessage, Broadcast: r.engine.broadcast, Warn: logutil.WarnIfErr})
-	return pendingSteering
+	}, Begin: r.store.BeginCompaction, Finish: r.store.FinishCompaction, Broadcast: r.engine.broadcast})
+	return pendingSteering, err
 }
 
 func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store, turnID, sessionID, model, agentID string, iter, maxIter int, convCtx *goai.Context) (*inference.StreamResult, error) {
@@ -4619,7 +4630,13 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 			requestCtx.Messages = append([]goai.Message{goai.UserMessage(resp.Message)}, requestCtx.Messages...)
 		}
 	}
-	logutil.WarnIfErr("update turn running phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "running"))
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	// Phase-only conditional transition cannot overwrite concurrent cancelling.
+	if err := s.SetClaimedRunningPhase(ctx, sessionID, turnID, "running"); err != nil {
+		return nil, err
+	}
 	r.emitTurnStateHook(ctx, sessionID, turnID, agentID, model, "running", "running", map[string]any{"reason": "provider_iteration", "iteration": iter})
 	logutil.WarnIfErr("append inference.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "inference.started", map[string]any{"phase": "inference", "model": model, "iteration": iter, "checkpoint": true}))
 	iterLabel := fmt.Sprintf("iter=%d/%d", iter, maxIter)

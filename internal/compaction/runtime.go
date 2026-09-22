@@ -2,6 +2,7 @@ package compaction
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/rcarmo/gi/internal/config"
@@ -23,107 +24,154 @@ type RuntimeRequest struct {
 }
 
 type RuntimeOps struct {
-	BackgroundContext        func() context.Context
-	BeforeCompact            func(context.Context, map[string]any, []goai.Message) (HookDecision, error)
-	AfterCompact             func(context.Context, map[string]any)
-	UpdateTurnStatusAndPhase func(context.Context, string, string, string) error
-	AppendTurnEvent          func(context.Context, string, string, string, map[string]any) error
-	TouchSessionActiveTurn   func(context.Context, string, string) error
-	AddMessage               func(context.Context, string, string, string, string, map[string]any) error
-	Broadcast                func(string, map[string]any)
-	Warn                     func(string, error)
+	BackgroundContext func() context.Context
+	BeforeCompact     func(context.Context, map[string]any, []goai.Message) (HookDecision, error)
+	AfterCompact      func(context.Context, map[string]any)
+	Begin             func(context.Context, string, string, map[string]any) (int, error)
+	Finish            func(context.Context, string, string, int, string, string, map[string]any) (string, error)
+	Broadcast         func(string, map[string]any)
 }
 
-func MaybeCompactContext(ctx context.Context, req RuntimeRequest, convCtx *goai.Context, ops RuntimeOps) {
+func MaybeCompactContext(ctx context.Context, req RuntimeRequest, convCtx *goai.Context, ops RuntimeOps) error {
 	settings := req.Settings
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if !settings.Enabled || len(convCtx.Messages) < 6 {
-		return
+		return nil
 	}
 	tokens := EstimateMessagesTokens(convCtx.Messages)
 	if tokens <= settings.ThresholdTokens {
-		return
+		return nil
 	}
 	prep := Prepare(convCtx.Messages, tokens, settings.KeepRecentTokens, settings.ReserveTokens, settings.ThresholdTokens, settings.Strategy)
 	if prep.MessagesToSummarize <= 0 {
-		return
+		return nil
 	}
-	payload := map[string]any{
-		"reason":      "threshold",
-		"preparation": prep,
-		"settings":    map[string]any{"enabled": settings.Enabled, "context_window": settings.ContextWindow, "reserve_tokens": settings.ReserveTokens, "keep_recent_tokens": settings.KeepRecentTokens, "threshold_tokens": settings.ThresholdTokens, "strategy": settings.Strategy},
+	payload := map[string]any{"phase": "compacting", "checkpoint": true, "reason": "threshold", "tokens_before": tokens, "messages_before": prep.MessagesBefore, "tokens_source": "estimate"}
+	startedSeq := 0
+	if ops.Begin != nil {
+		var err error
+		startedSeq, err = ops.Begin(ctx, req.SessionID, req.TurnID, payload)
+		if err != nil {
+			return err
+		}
 	}
-	warn(ops, "update turn phase compacting", maybeCallUpdate(ops.UpdateTurnStatusAndPhase, ctx, req.TurnID, "running", "compacting"))
-	warn(ops, "append compaction.started event", maybeCallAppend(ops.AppendTurnEvent, ctx, req.TurnID, req.SessionID, "compaction.started", map[string]any{"phase": "compacting", "checkpoint": true, "reason": "threshold", "tokens_before": tokens, "messages_before": prep.MessagesBefore}))
-	bgCtx := ctx
+	payload["started_seq"] = startedSeq
+	publish := func(outcome string, fields map[string]any) {
+		if ops.Broadcast == nil {
+			return
+		}
+		ev := map[string]any{"type": "compaction_" + outcome, "chat_jid": "gi:" + req.SessionID, "turn_id": req.TurnID, "outcome": outcome}
+		for k, v := range fields {
+			ev[k] = v
+		}
+		ops.Broadcast(req.SessionID, ev)
+	}
+	publish("started", payload)
+	durableCtx := ctx
 	if ops.BackgroundContext != nil {
-		bgCtx = ops.BackgroundContext()
+		durableCtx = ops.BackgroundContext()
 	}
-	defer func() {
-		warn(ops, "touch active turn during compaction restore", maybeCallTouch(ops.TouchSessionActiveTurn, bgCtx, req.SessionID, req.TurnID))
-		warn(ops, "restore running phase after compaction", maybeCallUpdate(ops.UpdateTurnStatusAndPhase, bgCtx, req.TurnID, "running", "running"))
-	}()
+	finish := func(outcome, summary string, fields map[string]any) (string, error) {
+		accepted := outcome
+		var err error
+		if ops.Finish != nil {
+			accepted, err = ops.Finish(durableCtx, req.SessionID, req.TurnID, startedSeq, outcome, summary, fields)
+		}
+		if err != nil {
+			return "", err
+		}
+		published := map[string]any{}
+		for k, v := range fields {
+			published[k] = v
+		}
+		published["started_seq"] = startedSeq
+		if accepted != "completed" {
+			delete(published, "messages_after")
+			delete(published, "from_hook")
+		}
+		publish(accepted, published)
+		return accepted, nil
+	}
+	hookPayload := map[string]any{"reason": "threshold", "preparation": prep, "settings": map[string]any{"enabled": settings.Enabled, "context_window": settings.ContextWindow, "reserve_tokens": settings.ReserveTokens, "keep_recent_tokens": settings.KeepRecentTokens, "threshold_tokens": settings.ThresholdTokens, "strategy": settings.Strategy}}
 	decision := HookDecision{}
-	var err error
+	var hookErr error
 	if ops.BeforeCompact != nil {
-		decision, err = ops.BeforeCompact(ctx, payload, convCtx.Messages)
+		decision, hookErr = ops.BeforeCompact(ctx, hookPayload, convCtx.Messages)
 	}
-	if err != nil || decision.Cancel || decision.Block {
-		return
+	outcome := "completed"
+	if ctx.Err() != nil {
+		outcome = "cancelled"
+		payload["detail"] = "Turn cancellation requested"
+	} else if hookErr != nil {
+		outcome = "failed"
+		payload["detail"] = hookErr.Error()
+	} else if decision.Cancel || decision.Block {
+		outcome = "suppressed"
+		payload["detail"] = "Compaction temporarily suppressed by before-compact hook"
+	}
+	if outcome != "completed" {
+		if _, err := finish(outcome, "", payload); err != nil {
+			return err
+		}
+		return ctx.Err()
+	}
+	if err := ctx.Err(); err != nil {
+		_, finishErr := finish("cancelled", "", payload)
+		if finishErr != nil {
+			return finishErr
+		}
+		return err
 	}
 	summary := ""
 	if decision.Payload != nil {
-		if v, ok := decision.Payload["summary"].(string); ok {
-			summary = strings.TrimSpace(v)
-		}
+		summary, _ = decision.Payload["summary"].(string)
+		summary = strings.TrimSpace(summary)
 	}
 	if summary == "" {
 		summary = DefaultSummary(prep)
 	}
 	if strings.TrimSpace(summary) == "" {
-		return
+		payload["detail"] = "Compaction produced an empty summary"
+		_, err := finish("failed", "", payload)
+		return err
 	}
-	wrapped := SummaryPrefix + summary + SummarySuffix
-	compacted := []goai.Message{goai.UserMessage(wrapped)}
-	compacted = append(compacted, convCtx.Messages[len(convCtx.Messages)-prep.RecentMessages:]...)
-	convCtx.Messages = compacted
-	compactPayload := map[string]any{"reason": "threshold", "summary": summary, "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(compacted)}
+	candidate := []goai.Message{goai.UserMessage(SummaryPrefix + summary + SummarySuffix)}
+	candidate = append(candidate, convCtx.Messages[len(convCtx.Messages)-prep.RecentMessages:]...)
+	payload["messages_after"] = len(candidate)
+	payload["from_hook"] = decision.Payload != nil && decision.Payload["summary"] != nil
+	if err := ctx.Err(); err != nil {
+		_, finishErr := finish("cancelled", "", payload)
+		if finishErr != nil {
+			return finishErr
+		}
+		return err
+	}
+	accepted, err := finish("completed", summary, payload)
+	if err != nil {
+		// The completion transaction rolled back. Best-effort terminal failure
+		// restores our phase, but the caller must not proceed to inference.
+		failed := map[string]any{"phase": "compacting", "checkpoint": true, "reason": "persistence", "detail": err.Error()}
+		_, _ = finish("failed", "", failed)
+		return fmt.Errorf("persist compaction: %w", err)
+	}
+	if accepted != "completed" {
+		return context.Canceled
+	}
+	convCtx.Messages = candidate
 	if ops.Broadcast != nil {
-		ops.Broadcast(req.SessionID, map[string]any{"type": "compaction", "chat_jid": "gi:" + req.SessionID, "turn_id": req.TurnID, "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(compacted)})
+		// Retain the existing completion notice for TUI/legacy subscribers, only
+		// after durable summary and terminal event are committed.
+		ops.Broadcast(req.SessionID, map[string]any{"type": "compaction", "chat_jid": "gi:" + req.SessionID, "turn_id": req.TurnID, "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(candidate), "tokens_source": "estimate"})
 	}
 	if ops.AfterCompact != nil {
-		ops.AfterCompact(ctx, compactPayload)
+		after := map[string]any{}
+		for k, v := range payload {
+			after[k] = v
+		}
+		after["summary"] = summary
+		ops.AfterCompact(ctx, after)
 	}
-	warn(ops, "append compaction.completed event", maybeCallAppend(ops.AppendTurnEvent, ctx, req.TurnID, req.SessionID, "compaction.completed", map[string]any{"phase": "compacting", "checkpoint": true, "reason": "threshold", "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(compacted)}))
-	fromHook := decision.Payload != nil && decision.Payload["summary"] != nil
-	warn(ops, "add compaction summary message", maybeCallAdd(ops.AddMessage, ctx, "msg_"+req.TurnID+"_compaction", req.SessionID, "assistant", summary, map[string]any{"kind": "compaction", "turn_id": req.TurnID, "tokens_before": tokens, "messages_before": prep.MessagesBefore, "messages_after": len(compacted), "from_hook": fromHook}))
-}
-
-func warn(ops RuntimeOps, label string, err error) {
-	if ops.Warn != nil && err != nil {
-		ops.Warn(label, err)
-	}
-}
-func maybeCallUpdate(fn func(context.Context, string, string, string) error, ctx context.Context, turnID, status, phase string) error {
-	if fn == nil {
-		return nil
-	}
-	return fn(ctx, turnID, status, phase)
-}
-func maybeCallAppend(fn func(context.Context, string, string, string, map[string]any) error, ctx context.Context, turnID, sessionID, typ string, payload map[string]any) error {
-	if fn == nil {
-		return nil
-	}
-	return fn(ctx, turnID, sessionID, typ, payload)
-}
-func maybeCallTouch(fn func(context.Context, string, string) error, ctx context.Context, sessionID, turnID string) error {
-	if fn == nil {
-		return nil
-	}
-	return fn(ctx, sessionID, turnID)
-}
-func maybeCallAdd(fn func(context.Context, string, string, string, string, map[string]any) error, ctx context.Context, id, sessionID, role, content string, payload map[string]any) error {
-	if fn == nil {
-		return nil
-	}
-	return fn(ctx, id, sessionID, role, content, payload)
+	return nil
 }

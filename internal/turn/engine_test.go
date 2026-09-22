@@ -3085,6 +3085,11 @@ func TestHeartbeatCancelsTurnWhenActiveClaimDisappears(t *testing.T) {
 	if turnRec.Phase != "aborted" {
 		t.Fatalf("expected lost-claim cancellation to end aborted, got %#v", turnRec)
 	}
+	// Terminal status precedes asynchronous claim release/session cleanup.
+	waitForCondition(t, 2*time.Second, func() bool {
+		session, err := s.GetSession(ctx, "session_heartbeat_claim_lost")
+		return err == nil && session.State["status"] == "idle" && session.State["active_turn_id"] == nil
+	}, "lost-claim session cleanup")
 	sessRec, err := s.GetSession(ctx, "session_heartbeat_claim_lost")
 	if err != nil {
 		t.Fatalf("get session: %v", err)
@@ -7102,6 +7107,9 @@ func TestBeforeProviderRequestCanMutateProviderContext(t *testing.T) {
 		capturedTools = append([]goai.Tool(nil), convCtx.Tools...)
 		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
 	})
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "session_before_llm", "turn_before_llm", "runner", "turn_before_llm"); err != nil || !ok {
+		t.Fatal(ok, err)
+	}
 	runner := e.runner("session_before_llm")
 	convCtx := &goai.Context{
 		SystemPrompt: "original system prompt",
@@ -7146,6 +7154,9 @@ func TestBeforeProviderRequestMessagePrependIsRequestLocal(t *testing.T) {
 		capturedMessages = append([]goai.Message(nil), convCtx.Messages...)
 		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
 	})
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "session_before_llm_message_only", "turn_before_llm_message_only", "runner", "turn_before_llm_message_only"); err != nil || !ok {
+		t.Fatal(ok, err)
+	}
 	runner := e.runner("session_before_llm_message_only")
 	convCtx := &goai.Context{SystemPrompt: "original system prompt", Messages: []goai.Message{goai.UserMessage("original message")}}
 	if _, err := runner.runProviderIteration(ctx, s, "turn_before_llm_message_only", "session_before_llm_message_only", "bootstrap", "agent", 1, 4, convCtx); err != nil {
@@ -7197,6 +7208,9 @@ func TestBeforeProviderRequestCanReplaceRawProviderPayload(t *testing.T) {
 		}
 		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
 	})
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "session_before_llm_payload", "turn_before_llm_payload", "runner", "turn_before_llm_payload"); err != nil || !ok {
+		t.Fatal(ok, err)
+	}
 	runner := e.runner("session_before_llm_payload")
 	convCtx := &goai.Context{SystemPrompt: "original", Messages: []goai.Message{goai.UserMessage("hello")}}
 	if _, err := runner.runProviderIteration(ctx, s, "turn_before_llm_payload", "session_before_llm_payload", "bootstrap", "agent", 1, 4, convCtx); err != nil {
@@ -7232,6 +7246,9 @@ func TestAfterProviderResponseReceivesObservedStatusAndHeaders(t *testing.T) {
 		hooks.OnResponse(202, map[string]string{"x-test-header": "ok"}, &goai.Model{ID: model, Provider: goai.Provider("test-provider"), Api: goai.ApiOpenAICompletions})
 		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "done"}}}}, nil
 	})
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "session_after_llm", "turn_after_llm", "runner", "turn_after_llm"); err != nil || !ok {
+		t.Fatal(ok, err)
+	}
 	runner := e.runner("session_after_llm")
 	convCtx := &goai.Context{SystemPrompt: "original", Messages: []goai.Message{goai.UserMessage("hello")}}
 	if _, err := runner.runProviderIteration(ctx, s, "turn_after_llm", "session_after_llm", "bootstrap", "agent", 1, 4, convCtx); err != nil {
