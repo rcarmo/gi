@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Scoped refresh storage APIs (2026-09-22)
+
+[ADR-0043](../adr/0043-scoped-index-refresh-transactions.md) adds deterministic scope configuration, fenced lease/failure/recovery and atomic complete-snapshot publication with unchanged identity preservation and overlapping membership cleanup. Go/vet/build/hook, 74 functional, 32 helpers and store race ×3 pass. Scanner/workers and web query/status/reindex are not connected; terminal controls remain design work. No new frozen credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**.
+
 ## Workspace-index storage prerequisite (2026-09-22)
 
 [ADR-0042](../adr/0042-versioned-workspace-index-schema.md) installs the scoped schema through a versioned atomic startup migration, preserving legacy search and runtime data. A copied dev database retained all 19 existing tables with clean integrity. Go/vet/build/hook, 74 functional, 32 helpers, store race ×3, focused 12-case workspace browser and all three-size TUI suites pass. There is no scanner, background worker or native status/reindex API yet; frozen coverage remains **45/236 Classic**, **2/42 shared**, **191/40 unmapped**.
