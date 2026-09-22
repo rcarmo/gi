@@ -27,7 +27,7 @@ async function storedDraft(page, id) {
     });
     return new Promise((resolve,reject) => {
       const tx = db.transaction('drafts','readonly'); const req = tx.objectStore('drafts').get(id);
-      tx.oncomplete = () => { db.close(); resolve(req.result ? { text:req.result.draft.text, media:req.result.draft.media.map(f=>f.name), refs:req.result.draft.messageRefs, pending:req.result.pending.length } : null); };
+      tx.oncomplete = () => { db.close(); resolve(req.result ? { text:req.result.draft.text, media:req.result.draft.media.map(f=>f.name), refs:req.result.draft.messageRefs, fileRefs:req.result.draft.fileRefs, pending:req.result.pending.length } : null); };
       tx.onerror = () => reject(tx.error);
     });
   }, id);
@@ -261,8 +261,8 @@ async function completedPrompt(request, session, prompt) {
     const { turns } = await (await request.get(`/api/sessions/${session}/turns`)).json();
     return turns?.find(turn => turn.prompt === prompt)?.status;
   }).toBe('completed');
-  // The completed row precedes release of the engine's active claim. A new
-  // prompt sent before idle is steering, not a fresh history-building turn.
+  // Wait for display-idle too. This does not establish active-claim release:
+  // rapid history setup must use explicit queue intent to avoid steering.
   await expect.poll(async () => (await (await request.get(`/api/sessions/${session}/activity`)).json()).status).toBe('idle');
 }
 async function messages(request, session) {
@@ -351,16 +351,21 @@ test('@ux-compose-011 Native posts reconcile once and respect current history-re
   const {main,input} = await fixture(page,request,info);
   for(let i=0;i<16;i++) {
     const prompt = `Reader history ${i}\n` + Array.from({length:8},(_,n)=>`Historical line ${n}`).join('\n');
-    expect((await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt,model:'test-model'}})).status()).toBe(202);
+    // Explicit queue admission remains a distinct turn during the tiny gap
+    // between completed status and release of the prior native active claim.
+    expect((await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt,model:'test-model',intent:'queue'}})).status()).toBe(202);
     await completedPrompt(request,main.id,prompt);
   }
+  // Queue admission can add a native status message. Assert the actual
+  // persisted baseline rather than assuming exactly two rows per turn.
+  const baseline=(await messages(request,main.id)).length;
   await page.reload(); const timeline = page.locator('.timeline');
-  await expect(page.locator('.timeline .post')).toHaveCount(32);
+  await expect(page.locator('.timeline .post')).toHaveCount(baseline);
   const ack = await holdAcknowledgement(page,main.id);
   try {
     await input.fill('send before reading history'); await input.press('Enter');
     await expect.poll(ack.held).toBe(true); await completedPrompt(request,main.id,'send before reading history');
-    await expect(page.locator('.timeline .post')).toHaveCount(34);
+    await expect(page.locator('.timeline .post')).toHaveCount(baseline+2);
     await input.fill('next unsent reader draft');
     await timeline.hover(); await page.mouse.wheel(0,-700);
     await expect.poll(()=>timeline.evaluate(el=>el.scrollTop)).toBeLessThan(-100);
@@ -377,14 +382,14 @@ test('@ux-compose-011 Native posts reconcile once and respect current history-re
     // Real later arrivals follow the same policy, not a separate response-only path.
     expect((await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:'later native arrival',model:'test-model'}})).status()).toBe(202);
     await completedPrompt(request,main.id,'later native arrival');
-    await expect(page.locator('.timeline .post')).toHaveCount(36);
+    await expect(page.locator('.timeline .post')).toHaveCount(baseline+4);
     await expect.poll(async()=>Math.abs(await position()-anchor.top)).toBeLessThanOrEqual(1);
     await expect(input).toHaveValue('next unsent reader draft');
     await timeline.hover(); await page.mouse.wheel(0,100000);
     await expect.poll(()=>timeline.evaluate(el=>Math.abs(el.scrollTop))).toBeLessThanOrEqual(1);
     await input.fill('near-bottom submission'); await input.press('Enter');
     await completedPrompt(request,main.id,'near-bottom submission');
-    await expect(page.locator('.timeline .post')).toHaveCount(38);
+    await expect(page.locator('.timeline .post')).toHaveCount(baseline+6);
     await expect.poll(()=>timeline.evaluate(el=>Math.abs(el.scrollTop))).toBeLessThanOrEqual(1);
     const native = await messages(request,main.id);
     const ids = await page.locator('.timeline .post').evaluateAll(nodes=>nodes.map(n=>n.id.slice(5)));
@@ -430,4 +435,104 @@ test('Gi accepted origin response cannot refresh a newly selected chat', async (
     await expect(page.locator(`#post-${stored.id}`)).toContainText('accepted in origin');
     await expect(page.locator(`#post-${stored.id}`)).toHaveCount(1);
   } finally { await ack.close(); }
+});
+
+async function showWorkspace(page) {
+  await page.getByTestId('hamburger').click();
+  await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
+}
+async function hideWorkspace(page) {
+  await page.getByTestId('hamburger').click();
+  await page.getByRole('menuitem',{name:'Hide workspace',exact:true}).click();
+}
+async function createReferenceFolder(request) {
+  const response=await request.post('/api/tools/execute',{data:{tool:'write',input:{path:'reference-folder/child.txt',content:'Folder reference fixture'}}});
+  expect(response.ok()).toBe(true);
+}
+
+test('@ux-compose-008 Serialize text, file, folder and message references and send references alone',async({page,request},info)=>{
+  await evidence(info,'@ux-compose-008');
+  const {main,input}=await fixture(page,request,info);
+  await createReferenceFolder(request);await history(request,main.id);await page.reload();
+  const message=page.locator('.timeline .post').first();const messageId=(await message.getAttribute('id')).slice(5);
+  await message.locator('.post-time').click();
+  await attachWorkspaceFile(page,request);
+  await showWorkspace(page);
+  const folder=page.locator('.workspace-row[data-path="reference-folder"]');
+  await folder.click();
+  // Navigation alone does not attach directories or silently submit anything.
+  await expect(page.locator('.compose-file-pill[title="reference-folder"]')).toHaveCount(0);
+  const reference=page.getByRole('button',{name:'Reference selected folder',exact:true});
+  await expect(reference).toBeEnabled();await expect(reference).toHaveAttribute('title','Reference folder: reference-folder');
+  await reference.press('Enter');await expect(reference).toBeDisabled();
+  await hideWorkspace(page);
+  await expect(page.locator('.compose-file-pill[title="reference-folder"]')).toBeVisible();
+  await input.fill('  multiline draft\n第二行  ');
+  const sent=page.waitForRequest(req=>req.method()==='POST'&&req.url().endsWith(`/api/sessions/${main.id}/prompt`));
+  await input.press('Enter');const body=(await sent).postDataJSON();
+  const expected=`multiline draft\n第二行\n\nFiles:\n- draft-reference.txt\n- reference-folder\n\nReferenced messages:\n- message:${messageId}`;
+  expect(body.prompt).toBe(expected);expect(body.media).toEqual([]);
+  await completedPrompt(request,main.id,expected);
+  expect((await messages(request,main.id)).filter(m=>m.role==='user').map(m=>m.content)).toContain(expected);
+  await expect.poll(()=>storedDraft(page,main.id)).toMatchObject({text:'',pending:0});
+  await expect(page.locator('.compose-file-pill')).toHaveCount(0);
+  // Select all three reference types again, with no text or media at all.
+  await page.locator(`#post-${messageId} .post-time`).click();await attachWorkspaceFile(page,request);
+  await showWorkspace(page);await folder.click();await reference.click();await hideWorkspace(page);
+  await expect(input).toHaveValue('');
+  const only=page.waitForRequest(req=>req.method()==='POST'&&req.url().endsWith(`/api/sessions/${main.id}/prompt`));
+  await input.press('Enter');const referencesOnly=(await only).postDataJSON();
+  expect(referencesOnly.prompt).toBe(expected.slice(expected.indexOf('Files:')));
+  await completedPrompt(request,main.id,referencesOnly.prompt);
+  await expect.poll(()=>storedDraft(page,main.id)).toMatchObject({text:'',pending:0});
+  const stored=await messages(request,main.id);expect(stored.filter(m=>m.role==='user')).toHaveLength(3);
+  expect(stored.filter(m=>m.role==='user').at(-1).content).toBe(referencesOnly.prompt);
+});
+
+test('Gi explicit folder references follow selection and remain durable and session-local',async({page,request},info)=>{
+  const {main,child,input,switchTo}=await fixture(page,request,info);
+  await createReferenceFolder(request);await page.reload();await showWorkspace(page);
+  const reference=page.getByRole('button',{name:'Reference selected folder',exact:true});
+  const folder=page.locator('.workspace-row[data-path="reference-folder"]');
+  await folder.click();await reference.click();await expect(reference).toBeDisabled();
+  await hideWorkspace(page);await input.fill('A folder draft');
+  await expect.poll(()=>storedDraft(page,main.id)).toMatchObject({text:'A folder draft'});
+  await page.reload();await expect(page.locator('.compose-file-pill[title="reference-folder"]')).toBeVisible();
+  await showWorkspace(page);await folder.click();await expect(reference).toBeDisabled();
+  // A file selection must remove the folder action, leaving existing file attach behaviour.
+  await page.locator('.workspace-row[data-path="reference-folder/child.txt"]').click();
+  await expect(reference).toBeHidden();await hideWorkspace(page);
+  await switchTo(child);await expect(page.locator('.compose-file-pill')).toHaveCount(0);
+  await input.fill('B draft');await showWorkspace(page);await folder.click();await expect(reference).toBeEnabled();
+  await reference.click();await expect(reference).toBeDisabled();await hideWorkspace(page);
+  await expect(page.locator('.compose-file-pill[title="reference-folder"]')).toHaveCount(1);
+  // Removal re-enables the action, and repeated open/close does not install duplicates.
+  await page.locator('.compose-file-pill[title="reference-folder"] button').click();
+  await showWorkspace(page);await expect(reference).toHaveCount(1);await expect(reference).toBeEnabled();
+  await hideWorkspace(page);await showWorkspace(page);await expect(reference).toHaveCount(1);await hideWorkspace(page);
+  await switchTo(main.id);await expect(input).toHaveValue('A folder draft');
+  await expect(page.locator('.compose-file-pill[title="reference-folder"]')).toHaveCount(1);
+  await expect(page.locator('.compose-file-pill[title="reference-folder/child.txt"]')).toHaveCount(1);
+  expect(await messages(request,main.id)).toEqual([]);expect(await messages(request,child)).toEqual([]);
+});
+
+test('Gi failed folder-reference send restores its origin without altering another session',async({page,request},info)=>{
+  const {main,child,input,switchTo}=await fixture(page,request,info);
+  await createReferenceFolder(request);await page.reload();await showWorkspace(page);
+  await page.locator('.workspace-row[data-path="reference-folder"]').click();
+  await page.getByRole('button',{name:'Reference selected folder',exact:true}).click();await hideWorkspace(page);
+  await input.fill('captured folder draft');
+  await expect.poll(()=>storedDraft(page,main.id)).toMatchObject({fileRefs:['reference-folder']});
+  let release,held=false;const gate=new Promise(resolve=>{release=resolve});
+  await page.route(`**/api/sessions/${main.id}/prompt`,async route=>{held=true;await gate;await route.abort('failed');});
+  try {
+    await input.press('Enter');await expect.poll(()=>held).toBe(true);await expect(page.locator('.compose-file-pill')).toHaveCount(0);
+    await input.fill('newer origin typing');await switchTo(child);await input.fill('child stays untouched');release();
+    await expect.poll(()=>storedDraft(page,main.id)).toMatchObject({text:'captured folder draft\n\nnewer origin typing',fileRefs:['reference-folder'],pending:0});
+    await expect(input).toHaveValue('child stays untouched');await expect(page.locator('.compose-file-pill')).toHaveCount(0);
+    await switchTo(main.id);await expect(page.locator('.compose-file-pill[title="reference-folder"]')).toHaveCount(1);
+    await page.reload();await expect(input).toHaveValue('captured folder draft\n\nnewer origin typing');
+    await expect(page.locator('.compose-file-pill[title="reference-folder"]')).toHaveCount(1);
+    expect(await messages(request,main.id)).toEqual([]);expect(await messages(request,child)).toEqual([]);
+  }finally{release();await page.unrouteAll({behavior:'wait'});}
 });

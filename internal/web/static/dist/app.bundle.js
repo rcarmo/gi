@@ -16749,6 +16749,54 @@ function RunBoundQueueStack({ steerEnabled, ...props }) {
   });
   return ce`<div ref=${root} style="display:contents"><${QueuedFollowupStack} ...${props} /></div>`;
 }
+function useWorkspaceFolderReference(visible, sessionId, fileRefs, attach) {
+  const latest = K_({ fileRefs, attach });
+  latest.current = { fileRefs, attach };
+  const syncRef = K_(null);
+  F_(() => {
+    if (!visible)
+      return;
+    const sidebar = document.querySelector(".workspace-sidebar");
+    const actions = sidebar?.querySelector(".workspace-header-actions");
+    if (!sidebar || !actions)
+      return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "menu-action-btn";
+    button.textContent = "+ folder";
+    button.setAttribute("aria-label", "Reference selected folder");
+    const selected = () => sidebar.querySelector('.workspace-row.selected[data-type="dir"]')?.dataset.path || "";
+    const sync = () => {
+      const path = selected();
+      button.hidden = !path;
+      button.disabled = !path || latest.current.fileRefs.includes(path);
+      button.title = path ? `Reference folder: ${path}` : "Reference selected folder";
+    };
+    const click = () => {
+      const path = selected();
+      if (path && !latest.current.fileRefs.includes(path))
+        latest.current.attach(path);
+    };
+    button.addEventListener("click", click);
+    actions.prepend(button);
+    sync();
+    syncRef.current = sync;
+    const observer = new MutationObserver((records) => {
+      if (records.some((record) => !button.contains(record.target)))
+        sync();
+    });
+    observer.observe(sidebar, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "data-path", "data-type"] });
+    return () => {
+      observer.disconnect();
+      button.removeEventListener("click", click);
+      button.remove();
+      syncRef.current = null;
+    };
+  }, [visible, sessionId]);
+  F_(() => {
+    syncRef.current?.();
+  }, [fileRefs]);
+}
 function useContextTooltip(root, usage, notice, now, canStop, stop, compact) {
   F_(() => {
     const compose = root.current?.querySelector(".compose-box");
@@ -17417,6 +17465,7 @@ function GiApp() {
     selection.select(nextSessionId);
     activationRefresh.select(selection.capture().generation);
     streamDisconnected.current = true;
+    setConnectionStatus("disconnected");
     setSearchState(searchView.close());
     setSearchError("");
     messageWindow.current = newMessageWindow();
@@ -17605,6 +17654,13 @@ function GiApp() {
     workspaceOpen ? "" : "workspace-collapsed",
     editorOpen ? "editor-open" : ""
   ].filter(Boolean).join(" ");
+  useWorkspaceFolderReference(ready && workspaceOpen, sessionId, fileRefs, (path) => {
+    if (!selection.isCurrent(renderedSelection))
+      return;
+    const refs = [...new Set([...getDraft(sessionId).fileRefs, path])];
+    drafts.update(sessionId, { fileRefs: refs });
+    setFileRefs(refs);
+  });
   if (!ready) {
     return ce`<div id="app"><div style="padding:20px;text-align:center;color:var(--text-secondary,#888)">Loading…</div></div>`;
   }
@@ -17889,5 +17945,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=5D20AD239BABCBC964756E2164756E21
+//# debugId=46D45F56E882055F64756E2164756E21
 //# sourceMappingURL=app.js.map

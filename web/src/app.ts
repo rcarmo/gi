@@ -97,6 +97,36 @@ function RunBoundQueueStack({ steerEnabled, ...props }: any) {
     return html`<div ref=${root} style="display:contents"><${QueuedFollowupStack} ...${props} /></div>`;
 }
 
+// Folder clicks remain navigation. This host-owned action uses the existing
+// workspace header without editing the supplied explorer or composer.
+function useWorkspaceFolderReference(visible:boolean, sessionId:string, fileRefs:string[], attach:(path:string)=>void) {
+    const latest=useRef({fileRefs,attach});latest.current={fileRefs,attach};
+    const syncRef=useRef<(()=>void)|null>(null);
+    useLayoutEffect(()=>{
+        if(!visible)return;
+        const sidebar=document.querySelector('.workspace-sidebar');
+        const actions=sidebar?.querySelector('.workspace-header-actions');
+        if(!sidebar||!actions)return;
+        const button=document.createElement('button');
+        button.type='button';button.className='menu-action-btn';button.textContent='+ folder';
+        button.setAttribute('aria-label','Reference selected folder');
+        const selected=()=>sidebar.querySelector<HTMLElement>('.workspace-row.selected[data-type="dir"]')?.dataset.path||'';
+        const sync=()=>{
+            const path=selected();
+            button.hidden=!path;
+            button.disabled=!path||latest.current.fileRefs.includes(path);
+            button.title=path?`Reference folder: ${path}`:'Reference selected folder';
+        };
+        const click=()=>{const path=selected();if(path&&!latest.current.fileRefs.includes(path))latest.current.attach(path);};
+        button.addEventListener('click',click);actions.prepend(button);sync();syncRef.current=sync;
+        // Ignore the button's own attributes to avoid observer feedback.
+        const observer=new MutationObserver(records=>{if(records.some(record=>!button.contains(record.target as Node)))sync();});
+        observer.observe(sidebar,{subtree:true,childList:true,attributes:true,attributeFilter:['class','data-path','data-type']});
+        return()=>{observer.disconnect();button.removeEventListener('click',click);button.remove();syncRef.current=null;};
+    },[visible,sessionId]);
+    useLayoutEffect(()=>{syncRef.current?.();},[fileRefs]);
+}
+
 // Keep the supplied component untouched. Its native title also supplies the
 // tooltip-data contract; observe child-owned updates (e.g. model selection).
 function useContextTooltip(root: any, usage: any, notice: any, now: number, canStop: boolean, stop: any, compact: any) {
@@ -631,7 +661,7 @@ function GiApp() {
         if (sessionId) drafts.update(sessionId, { fileRefs, messageRefs });
         // Advance synchronously, before rendering, to invalidate already pending work.
         selection.select(nextSessionId);
-        activationRefresh.select(selection.capture().generation);streamDisconnected.current=true;
+        activationRefresh.select(selection.capture().generation);streamDisconnected.current=true;setConnectionStatus('disconnected');
         setSearchState(searchView.close());setSearchError('');
         messageWindow.current=newMessageWindow();readingAnchor.current=null;pageRequest.current=null;pageRefreshPending.current=false;scrollRestore.current=null;
         timelineRevision.invalidate();
@@ -769,6 +799,12 @@ function GiApp() {
         workspaceOpen ? '' : 'workspace-collapsed',
         editorOpen ? 'editor-open' : '',
     ].filter(Boolean).join(' ');
+
+    useWorkspaceFolderReference(ready && workspaceOpen, sessionId, fileRefs, (path:string)=>{
+        if (!selection.isCurrent(renderedSelection)) return;
+        const refs=[...new Set([...getDraft(sessionId).fileRefs,path])];
+        drafts.update(sessionId,{fileRefs:refs});setFileRefs(refs);
+    });
 
     // ── Render ────────────────────────────────────────────────────────────────
 

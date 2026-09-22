@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Explicit folder references: 2026-09-22
+
+`drafts.spec.mjs` now maps compose-008 through native file/folder/message selection, exact multiline serialisation and references-only submission. Separate cases verify persistence, isolation, deduplication/cleanup and failure recovery. The host action leaves supplied component files and directory navigation unchanged. [ADR-0035](../../docs/adr/0035-explicit-folder-references.md).
+
+Latest: **402/402 browser** (246 main + 156 specialised), **70/70 functional**, **29 helpers**, Go/vet/hook. Main Chromium/WebKit batches each passed 123 cases, combined in `results.json`; existing six result files/targets apply. Coverage **35/236 Classic**, **2/42 shared**, **201/40 unmapped**. Initial-readiness setup observes real `connected` events; no synthetic SSE. Fast history setup uses queue intent and persisted post counts because completed/display-idle can precede admission-claim release. Earlier failures and this unresolved backend boundary are recorded in ADR-0035.
+
 ## Accepted-message refresh: 2026-09-22
 
 `drafts.spec.mjs` holds real native acknowledgements while SSE and execution continue. Six cases verify acceptance-driven refresh/deduplication, upload ID/name/byte pairing, newer draft/cursor preservation, history anchors and near-bottom following, search ownership and origin-session isolation. Upload responses are observed without multipart interception; history setup awaits native idle after completion. The search test rejects the previous callback. See [ADR-0028](../../docs/adr/0028-accepted-message-refresh.md).

@@ -2,6 +2,10 @@
 
 Status: active layout contract for the Pi/PiClaw UX convergence track.
 
+## Structured references (2026-09-22; design)
+
+Keep file/folder/message references in the existing editor and explicit commands; add no permanent attachment panel. Existing `@` path completion preserves the prefix and appends `/` to directories, but structured `Files:`/message-reference capture and durable failed-send recovery need separate three-size terminal acceptance. Browser compose-008 is now verified; it earns no terminal credit. See [ADR-0035](../adr/0035-explicit-folder-references.md).
+
 ## Fullscreen selection/copy (2026-09-22; verified)
 
 Drag selects rendered cells; held edges scroll after movement; release/Ctrl-C/Ctrl-X copy via the existing clipboard setting. Escape clears selection. A plain tool click retains expansion behavior. Feedback replaces the upper editor separator, adding no idle rows. Clipboard-off, padded wide/combining text, layout/output/session invalidation and late clipboard replies are guarded. Three-size native SGR/OSC52 PTYs and unit/race tests pass; [ADR-0034](../adr/0034-fullscreen-transcript-selection.md). Copies retain visual-row newlines. Link precedence, word/rectangular selection and mutation-stable selection anchors are not implemented.

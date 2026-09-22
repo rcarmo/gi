@@ -1,5 +1,11 @@
 # Web session selection and compact TUI adaptation
 
+## Latest browser evidence: explicit folder references (2026-09-22)
+
+The host adds an explicit selected-folder reference action in the existing workspace header, preserving navigation and supplied components. compose-008 verifies exact multiline/file/folder/message-reference serialisation and references-only submission. Native tests also cover keyboard activation, duplicate controls, durable drafts, session isolation and failed-send recovery. [ADR-0035](../adr/0035-explicit-folder-references.md).
+
+Verified: **402/402 browser**, **70/70 functional**, **29/29 helpers**, Go tests/vet and hook checks. Coverage: **35/236 Classic**, **2/42 shared**, **201/40 unmapped**. Reconnect fixture waits now observe the selected chat's native subscription; selection clears stale connected status. History setup uses explicit queue intent; display-idle can still precede active-claim release and needs separate follow-up. No terminal code or new terminal credit in this slice.
+
 ## Latest terminal evidence: fullscreen selection/copy (2026-09-22)
 
 Padded-cell drag selection, clipboard-governed release/Ctrl-C/X copy and held-edge scrolling pass native SGR/OSC52 PTY tests at **60×18, 100×22 and 140×36**. Stationary tool clicks still expand; output/layout/search/session changes invalidate stale selections; notices use the existing separator. All TUI suites, Go/vet/race ×3, 29 helpers and 70/70 functional browser tests pass. [ADR-0034](../adr/0034-fullscreen-transcript-selection.md). This resolves the saved selection WIP; pointer link precedence, mutation-stable anchors and broader parity remain open. No frozen browser mapping change.

@@ -28,7 +28,7 @@ async function environment(page,info,options={}){
   upstream.on('error',()=>res.destroy());res.on('close',()=>upstream.destroy());upstream.end();
  });
  await new Promise(r=>proxy.listen(0,'127.0.0.1',r));
- await page.addInitScript(origin=>{const Native=window.EventSource;window.EventSource=class extends Native{constructor(url,options){const u=new URL(url,location.href);super(u.pathname==='/sse/stream'?origin+u.pathname+u.search:url,options);}};},`http://127.0.0.1:${proxy.address().port}`);
+ await page.addInitScript(origin=>{const Native=window.EventSource;window.__giNativeConnections=[];window.EventSource=class extends Native{constructor(url,options){const u=new URL(url,location.href);super(u.pathname==='/sse/stream'?origin+u.pathname+u.search:url,options);this.addEventListener('connected',()=>window.__giNativeConnections.push(u.searchParams.get('chat_jid')));}};},`http://127.0.0.1:${proxy.address().port}`);
  await start();
  const api=async(path,method='GET',body)=>{const res=await fetch(origin+path,{method,headers:{'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});expect(res.ok).toBe(true);return res.json();};
  const main=await api('/api/sessions','POST',{agent_id:`reconnect-${Date.now()}`,title:'main'});
@@ -170,11 +170,15 @@ test('@ux-reconnect-005 Initial activation and SSE readiness do not duplicate re
   const other=(await api(`/api/sessions/${main.id}/fork`,'POST',{agent_id:'initial-child',title:'child'})).branch.chat_jid.slice(3);
   // Refresh the picker through the normal native fork invalidation/periodic path.
   await page.reload();await expect(input).toHaveValue('draft before first subscription');
+  const subscribed=async id=>expect.poll(()=>page.evaluate(id=>window.__giNativeConnections.includes('gi:'+id),id)).toBe(true);
+  await subscribed(main.id);await expect(page.locator('.compose-connection-status')).toHaveCount(0);
   const baseline=requests.count(main.id,'activity');
   await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${other}"]`).getByRole('menuitem').click();
+  await subscribed(other);await expect(page.locator('.compose-connection-status')).toHaveCount(0);
   await expect.poll(()=>requests.count(other,'activity')).toBe(1);await expect(page.locator('.compose-context-pie')).toBeVisible();
   for(const name of requests.paths)expect(requests.count(other,name)).toBe(1);
   await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${main.id}"]`).getByRole('menuitem').click();
+  await expect.poll(()=>page.evaluate(id=>window.__giNativeConnections.filter(jid=>jid==='gi:'+id).length,main.id)).toBe(2);await expect(page.locator('.compose-connection-status')).toHaveCount(0);
   await expect.poll(()=>requests.count(main.id,'activity')).toBe(baseline+1);await expect(input).toHaveValue('draft before first subscription');
   const before=Object.fromEntries(requests.paths.map(name=>[name,requests.count(main.id,name)]));await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});
   for(const name of requests.paths)await expect.poll(()=>requests.count(main.id,name)).toBe(before[name]+1);
