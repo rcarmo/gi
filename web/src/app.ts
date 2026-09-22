@@ -76,6 +76,7 @@ import { recoverQueueDraft } from './gi-queue-return.js';
 
 import { createActivityRevision, compactionNotice, compactionElapsed } from './gi-compaction-state.js';
 import { contextPresentation } from './gi-context-usage.js';
+import {createTimelineRevision,createAssetVersionGuard,loadedAssetVersion} from './gi-refresh-guards.js';
 
 const DEFAULT_SESSION_TITLE = 'default';
 const SESSION_KEY = 'gi_session_id';
@@ -213,6 +214,9 @@ function GiApp() {
     // Timeline
     const [posts, setPosts] = useState<any[]>([]);
     const [hasMore, setHasMore] = useState(false);
+    const timelineRevision=useRef(createTimelineRevision()).current;
+    const versionGuard=useRef(createAssetVersionGuard(loadedAssetVersion(document))).current;
+    const [newUIVersion,setNewUIVersion]=useState('');
     const timelineRef = useRef<any>(null);
 
     // Compose
@@ -352,8 +356,15 @@ function GiApp() {
         const scope = selection.capture();
         if (scope.sessionId !== sessionId) return;
         const chatJid = sessionToChatJid(sessionId);
-        const data = await getTimeline(50, opts.beforeId || null, chatJid);
-        if (!selection.isCurrent(scope)) return;
+        const connection=connectionRevision.current;
+        const request=timelineRevision.begin();
+        let data;
+        try { data=await getTimeline(50,opts.beforeId||null,chatJid); }
+        catch(error){
+            if(selection.isCurrent(scope)&&connection===connectionRevision.current&&timelineRevision.accepts(request)&&!streamDisconnected.current) setSessionError(`Timeline refresh failed: ${error.message}`);
+            return;
+        }
+        if (!selection.isCurrent(scope)||connection!==connectionRevision.current||!timelineRevision.accepts(request)||streamDisconnected.current) return;
         const incoming: any[] = data.posts || [];
         if (opts.beforeId) {
             setPosts((prev: any[]) => dedupePosts([...incoming, ...prev]));
@@ -399,6 +410,7 @@ function GiApp() {
 
     const handleSseEvent = useCallback((eventType: string, data: any) => {
         if (!selection.current() || data?.chat_jid !== sessionToChatJid(selection.current()!)) return;
+        if(eventType==='connected'&&versionGuard.observe(data?.app_asset_version))setNewUIVersion(data.app_asset_version);
         if (eventType === 'agent_status' || eventType.startsWith('compaction_') || ['queue_changed', 'agent_response'].includes(eventType)) { activityRevision.invalidate(); setActivityFresh(false); }
         if (eventType.startsWith('compaction_') || ['agent_status', 'agent_response', 'queue_changed', 'agent_followup_queued', 'agent_followup_consumed', 'agent_followup_removed'].includes(eventType)) {
             ++queueRevision.current;
@@ -410,6 +422,7 @@ function GiApp() {
         // Handle new_post events directly for immediate timeline updates
         if (eventType === 'new_post' || eventType === 'agent_response') {
             if (data && data.id) {
+                timelineRevision.invalidate();
                 setPosts((prev: any[]) => appendUniqueTimelinePost(prev, data));
                 scrollToBottom();
             }
@@ -452,6 +465,7 @@ function GiApp() {
 
     const handleConnectionStatusChange = useCallback((status: string) => {
         ++connectionRevision.current;
+        timelineRevision.invalidate();
         activityRevision.invalidate(); setActivity(null); setActivityFresh(false);
         ++queueRevision.current;
         setQueueActiveTurnId(null);
@@ -509,7 +523,7 @@ function GiApp() {
             isAgentRunningRef.current = running;
             setSessionError(null);
         } catch (error) {
-            if (selection.isCurrent(scope)) setSessionError(error.message || 'Unable to refresh session');
+            if (selection.isCurrent(scope)&&connection===connectionRevision.current&&activityRevision.accepts(activityVersion)&&!streamDisconnected.current) setSessionError(error.message || 'Unable to refresh session');
         }
     }, [sessionId]);
 
@@ -552,6 +566,7 @@ function GiApp() {
         if (sessionId) drafts.update(sessionId, { fileRefs, messageRefs });
         // Advance synchronously, before rendering, to invalidate already pending work.
         selection.select(nextSessionId);
+        timelineRevision.invalidate();
         stopToken.current = null; setStopPending(false); setStopError('');
         compactToken.current=null; setCompactPending(false); setCompactError(''); setCompactState(null);
         activityRevision.invalidate(); setActivity(null); setActivityFresh(false);
@@ -809,6 +824,7 @@ function GiApp() {
                 />
                 ${followupQueueItems.some(item => item.phase === 'steer_returned') && html`<div role="alert">Steer was not consumed by its target run. The item remains queued and will not auto-send; return it to the editor, remove it, or Steer a new active run.</div>`}
                 ${queueError && html`<div role="alert">${queueError}</div>`}
+                ${newUIVersion && html`<div role="status" class="gi-version-warning">New UI available. Reload manually when ready; unsaved editor work may be lost.</div>`}
                 ${sessionError && html`<div role="alert">${sessionError}</div>`}
                 ${stopError && html`<div role="alert">${stopError}</div>`}
                 ${compactError && html`<div role="alert">${compactError}</div>`}

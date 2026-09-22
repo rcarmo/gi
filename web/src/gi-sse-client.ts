@@ -46,12 +46,13 @@ export class SSEClient {
             });
         };
 
-        source.addEventListener('connected', () => {
+        source.addEventListener('connected', (event: any) => {
             if (!current()) return;
             this.connecting = false;
             this.reconnectDelay = 1000;
             this.setStatus('connected');
             this.resetStaleMonitor();
+            try { this.onEvent('connected', JSON.parse(event.data)); } catch {}
         });
 
         source.addEventListener('heartbeat', () => {

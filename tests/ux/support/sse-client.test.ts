@@ -25,9 +25,9 @@ test('closed and superseded SSE sources cannot deliver status/data or create rec
     first.emit('connected'); first.emit('agent_draft_delta'); first.onerror?.();
     expect(events).toEqual([]); expect(statuses).toEqual([]); expect(client.reconnectTimeout).toBeNull();
     second.emit('connected'); second.emit('queue_changed');
-    expect(events).toEqual(['queue_changed']); expect(statuses).toEqual(['connected']);
+    expect(events).toEqual(['connected', 'queue_changed']); expect(statuses).toEqual(['connected']);
     second.onerror?.(); expect(second.closed).toBe(true); expect(client.status).toBe('disconnected');
-    second.emit('agent_draft_delta'); expect(events).toEqual(['queue_changed']);
+    second.emit('agent_draft_delta'); expect(events).toEqual(['connected', 'queue_changed']);
     client.disconnect(); expect(client.reconnectTimeout).toBeNull();
     second.onerror?.(); expect(client.reconnectTimeout).toBeNull();
   } finally { client.disconnect(); globalThis.EventSource = old; }

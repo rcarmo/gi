@@ -75,6 +75,18 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Reconnect and version drift: 2026-09-22
+
+`make test-ux-reconnect` maps `reconnect-002/004` and tests late-error isolation. Each case owns a real loopback Go instance; a byte-for-byte proxy severs SSE sockets, and restart reuses the native database while changing the server's advertised asset version. No fabricated lifecycle data or offline-emulation evidence.
+
+Latest: **18/18 reconnect + 294/294 existing browser = 312/312**, **70/70 functional**, **26 helpers**, Go/vet/hook checks. Classic **28/236**, shared **2/42** (208/40 unmapped). Search-specific reconnect and active-turn crash recovery remain unverified. See [ADR-0024](../../docs/adr/0024-reconnect-refresh-and-version-drift.md).
+
+```sh
+make test-ux-reconnect
+# After running the other five matrix targets:
+bun scripts/ux-parity-report.mjs test-results/ux-parity/results.json test-results/ux-parity/steer-results.json test-results/ux-parity/context-fit-results.json test-results/ux-parity/context-meter-results.json test-results/ux-parity/compaction-results.json test-results/ux-parity/reconnect-results.json
+```
+
 ## Manual Compact: 2026-09-22
 
 `make test-ux-compaction` now includes `context-003` and failed-delivery/stale/cancel regressions for native manual compaction. Availability and expected context tokens come from the server; native turns build history. The meter action preserves draft text/media and creates no chat prompt or inference request. Usage stays unchanged until another real provider request.

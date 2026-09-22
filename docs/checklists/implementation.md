@@ -19,7 +19,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Fix pooled SQLite configuration exposed by the session matrix; existing functional web suite passes 70/70.
 - [x] Map searchable picker/focus (`013`) and native keyboard navigation; combined matrix 36/36 with pinned helper provenance.
 - [x] Prevent runner startup before submission-event persistence; reproduced regression and full 70/70 functional suite.
-- [ ] Map the remaining 210 frozen scenarios and 40 shared interaction cases; full scope in `docs/internal/full-web-tui-parity-plan.md`.
+- [ ] Map the remaining 208 frozen scenarios and 40 shared interaction cases; full scope in `docs/internal/full-web-tui-parity-plan.md`.
 - [x] Complete capability-gated rename, pin, archive and restore with persisted native metadata and failure-safe picker actions (`015`); 48/48 matrix, 70/70 functional, Go/race/Bun checks.
 - [x] Persist per-session browser text/media/reference drafts and unacknowledged submissions; recover on reload without automatic resend (browser-local IndexedDB).
 - [x] Capture background-send ownership, merge failed submissions with newer origin drafts and report storage failures (`ux-compose-001`, `002`, `003`, `006`); 102/102 matrix, 70/70 functional.
@@ -42,6 +42,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Persist ID/fingerprint-owned eligible context checkpoints without deleting timeline; exact native projection/snapshot/prefix guards, atomic summary commit, cancellation/failure preservation and edit/delete fallback. 54/54 compaction, 282/282 combined browser, 70/70 functional, Go/vet/race, 24 helpers and three-size TUI regression; ADR-0021. No new frozen mapping.
 - [x] Implement explicit idle-only manual Compact with atomic snapshot-token/claim admission, cancellable maintenance turn/no provider request and host callback preserving drafts/media; context-003, 66/66 compaction, 294/294 combined browser, 70/70 functional, Go/vet/race and 24 helpers. ADR-0022; terminal command remains informational.
 - [x] Wire terminal /compact and draft-preserving Alt-C to shared maintenance admission; native scoped lifecycle/Stop, focused Escape fix, /compact info diagnostics. Live 60×18/100×22/140×36 gate/cancel/resize/reopen/zero-idle-row checks, unit/race, existing TUI suites and 70/70 functional pass; ADR-0023.
+- [x] Verify reconnect refresh of native timeline/status/queue/context (002), fence pre-disconnect HTTP responses/errors, and surface real server asset-version drift without reload (004); 18/18 reconnect, 312/312 combined browser, 70/70 functional, Go/vet and 26 helpers. ADR-0024; search/pagination/full crash criteria stay open.
 - [ ] Complete remaining reconnect ownership and full browser compaction acceptance.
 - [x] Implement per-session terminal editor/history state, generation-owned event/submit delivery and cancel-safe forwarding; unit/race coverage.
 - [x] Bound the temporary terminal session selector to six results; live tmux verifies cancel/resize/zero added idle rows at 60×18, 100×22 and 140×36 (`make test-tui-sessions`).

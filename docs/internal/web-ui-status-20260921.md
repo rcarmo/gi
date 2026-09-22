@@ -1,5 +1,7 @@
 # Gi web UI — 2026-09-21
 
+Latest slice (2026-09-22): reconnect `002/004` verify native state refresh, stale-response/error rejection and a manual-only version warning after real restart. **312/312 browser**, **70/70 functional**, **26 helpers**, Go/vet/hook checks; **28/236 Classic**, **2/42 shared**, 208/40 unmapped. No terminal UI added; search reconnect and active-turn crash acceptance remain open. See [ADR-0024](../adr/0024-reconnect-refresh-and-version-drift.md). Earlier evidence follows.
+
 Latest slice (2026-09-22): manual Compact/context-003 is available through a native idle-only snapshot-token operation, preserving drafts/media and making no provider call. **294/294 browser**, **70/70 functional**, **24 helpers**, Go/vet/race. Coverage **26/236 Classic**, **2/42 shared**, 210/40 unmapped. Terminal command and broader reconnect/crash acceptance remain open. See [ADR-0022](../adr/0022-manual-compaction.md). Earlier evidence follows.
 
 Latest slice (2026-09-22): durable eligible-context checkpoints preserve the timeline while changing later provider context. **282/282 browser**, **70/70 functional**, **24 helpers**, Go/vet/race and three-size TUI regression pass. Mappings unchanged: **25/236 Classic**, **2/42 shared**, 211/40 unmapped. Manual Compact and general tool/multimodal checkpointing remain open. See [ADR-0021](../adr/0021-durable-context-checkpoints.md). Earlier evidence follows.

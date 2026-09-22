@@ -694,13 +694,16 @@ class SSEClient {
         } catch {}
       });
     };
-    source.addEventListener("connected", () => {
+    source.addEventListener("connected", (event) => {
       if (!current())
         return;
       this.connecting = false;
       this.reconnectDelay = 1000;
       this.setStatus("connected");
       this.resetStaleMonitor();
+      try {
+        this.onEvent("connected", JSON.parse(event.data));
+      } catch {}
     });
     source.addEventListener("heartbeat", () => {
       if (!current())
@@ -16581,6 +16584,40 @@ function compactionElapsed(notice, now = Date.now()) {
   return Number.isFinite(elapsed) ? `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}` : "0:00";
 }
 
+// web/src/gi-refresh-guards.ts
+function createTimelineRevision() {
+  let generation = 0;
+  return { begin: () => ++generation, invalidate: () => ++generation, accepts: (value) => value === generation };
+}
+function createAssetVersionGuard(initial) {
+  let baseline = initial?.trim() || "";
+  const seen = new Set;
+  return { observe(value) {
+    if (typeof value !== "string" || !value.trim())
+      return false;
+    const version = value.trim();
+    if (!baseline) {
+      baseline = version;
+      return false;
+    }
+    if (version === baseline || seen.has(version))
+      return false;
+    seen.add(version);
+    return true;
+  } };
+}
+function loadedAssetVersion(doc) {
+  const script = doc.querySelector('script[src*="/dist/app.bundle.js"]');
+  const src = script?.getAttribute("src");
+  if (!src)
+    return null;
+  try {
+    return new URL(src, doc.baseURI).searchParams.get("v");
+  } catch {
+    return null;
+  }
+}
+
 // web/src/app.ts
 var SESSION_KEY = "gi_session_id";
 var DEFAULT_AGENT_ID = "web";
@@ -16720,6 +16757,9 @@ function GiApp() {
   const editorOpen = tabs.length > 0;
   const [posts, setPosts] = M_([]);
   const [hasMore, setHasMore] = M_(false);
+  const timelineRevision = K_(createTimelineRevision()).current;
+  const versionGuard = K_(createAssetVersionGuard(loadedAssetVersion(document))).current;
+  const [newUIVersion, setNewUIVersion] = M_("");
   const timelineRef = K_(null);
   const [fileRefs, setFileRefs] = M_([]);
   const [messageRefs, setMessageRefs] = M_([]);
@@ -16890,8 +16930,17 @@ function GiApp() {
     if (scope.sessionId !== sessionId)
       return;
     const chatJid = sessionToChatJid2(sessionId);
-    const data = await getTimeline(50, opts.beforeId || null, chatJid);
-    if (!selection.isCurrent(scope))
+    const connection = connectionRevision.current;
+    const request = timelineRevision.begin();
+    let data;
+    try {
+      data = await getTimeline(50, opts.beforeId || null, chatJid);
+    } catch (error) {
+      if (selection.isCurrent(scope) && connection === connectionRevision.current && timelineRevision.accepts(request) && !streamDisconnected.current)
+        setSessionError(`Timeline refresh failed: ${error.message}`);
+      return;
+    }
+    if (!selection.isCurrent(scope) || connection !== connectionRevision.current || !timelineRevision.accepts(request) || streamDisconnected.current)
       return;
     const incoming = data.posts || [];
     if (opts.beforeId) {
@@ -16937,6 +16986,8 @@ function GiApp() {
   const handleSseEvent = X_((eventType, data) => {
     if (!selection.current() || data?.chat_jid !== sessionToChatJid2(selection.current()))
       return;
+    if (eventType === "connected" && versionGuard.observe(data?.app_asset_version))
+      setNewUIVersion(data.app_asset_version);
     if (eventType === "agent_status" || eventType.startsWith("compaction_") || ["queue_changed", "agent_response"].includes(eventType)) {
       activityRevision.invalidate();
       setActivityFresh(false);
@@ -16951,6 +17002,7 @@ function GiApp() {
     }
     if (eventType === "new_post" || eventType === "agent_response") {
       if (data && data.id) {
+        timelineRevision.invalidate();
         setPosts((prev) => appendUniqueTimelinePost(prev, data));
         scrollToBottom();
       }
@@ -16984,6 +17036,7 @@ function GiApp() {
   }, [scrollToBottom]);
   const handleConnectionStatusChange = X_((status) => {
     ++connectionRevision.current;
+    timelineRevision.invalidate();
     activityRevision.invalidate();
     setActivity(null);
     setActivityFresh(false);
@@ -17062,7 +17115,7 @@ function GiApp() {
       isAgentRunningRef.current = running;
       setSessionError(null);
     } catch (error) {
-      if (selection.isCurrent(scope))
+      if (selection.isCurrent(scope) && connection === connectionRevision.current && activityRevision.accepts(activityVersion) && !streamDisconnected.current)
         setSessionError(error.message || "Unable to refresh session");
     }
   }, [sessionId]);
@@ -17104,6 +17157,7 @@ function GiApp() {
     if (sessionId)
       drafts.update(sessionId, { fileRefs, messageRefs });
     selection.select(nextSessionId);
+    timelineRevision.invalidate();
     stopToken.current = null;
     setStopPending(false);
     setStopError("");
@@ -17409,6 +17463,7 @@ function GiApp() {
                 />
                 ${followupQueueItems.some((item) => item.phase === "steer_returned") && ce`<div role="alert">Steer was not consumed by its target run. The item remains queued and will not auto-send; return it to the editor, remove it, or Steer a new active run.</div>`}
                 ${queueError && ce`<div role="alert">${queueError}</div>`}
+                ${newUIVersion && ce`<div role="status" class="gi-version-warning">New UI available. Reload manually when ready; unsaved editor work may be lost.</div>`}
                 ${sessionError && ce`<div role="alert">${sessionError}</div>`}
                 ${stopError && ce`<div role="alert">${stopError}</div>`}
                 ${compactError && ce`<div role="alert">${compactError}</div>`}
@@ -17569,5 +17624,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=D3346B1F37D75F5764756E2164756E21
+//# debugId=DE71AEA296D5E1AE64756E2164756E21
 //# sourceMappingURL=app.js.map

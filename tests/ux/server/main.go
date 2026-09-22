@@ -28,11 +28,15 @@ import (
 )
 
 func main() {
-	dir, err := os.MkdirTemp("", "gi-steer-ux-")
-	if err != nil {
-		log.Fatal(err)
+	dir := os.Getenv("GI_UX_STATE_DIR")
+	var err error
+	if dir == "" {
+		dir, err = os.MkdirTemp("", "gi-steer-ux-")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer os.RemoveAll(dir)
 	}
-	defer os.RemoveAll(dir)
 	// Never read or write operator credentials.
 	os.Setenv("HOME", dir)
 	os.MkdirAll(filepath.Join(dir, ".pi", "agent"), 0700)
@@ -195,7 +199,11 @@ func main() {
 		}
 	}
 	server := web.New(s, engine, cfg)
-	httpServer := &http.Server{Addr: "127.0.0.1:19092", Handler: server.Handler()}
+	addr := os.Getenv("GI_UX_LISTEN")
+	if addr == "" {
+		addr = "127.0.0.1:19092"
+	}
+	httpServer := &http.Server{Addr: addr, Handler: server.Handler()}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
 	go func() { <-ctx.Done(); httpServer.Close() }()

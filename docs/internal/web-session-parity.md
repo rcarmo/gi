@@ -1,6 +1,14 @@
 # Web session selection and compact TUI adaptation
 
-## Latest terminal evidence: compact maintenance controls (2026-09-22)
+## Latest browser evidence: reconnect and version drift (2026-09-22)
+
+Reconnect `002/004` now pass across all six projects. Native activity/queue/context/timeline reload after real SSE loss; session/connection/request guards reject old timeline replies and late errors. The loaded script version is compared with the native connected envelope; real server restart produces one `New UI available` manual-reload notice without automatic navigation, even with a clean draft. See [ADR-0024](../adr/0024-reconnect-refresh-and-version-drift.md).
+
+Verified: **18/18 reconnect**, **312/312 combined browser**, **70/70 functional**, **26 helpers**, full Go/vet/hook checks. Coverage: **28/236 Classic** (208 unmapped), **2/42 shared** (40 unmapped). Tests preserve drafts/media, reconcile new native work and reject delayed pre-disconnect responses. Search-specific reconnect, initial-refresh deduplication, full pagination and active-turn crash recovery remain open.
+
+Terminal disposition: local Go TUI has no browser-version or SSE transport counterpart. No persistent terminal banner or idle row is added; session generation/reopen evidence remains separately documented below. Earlier sections retain historical evidence and limits.
+
+## Earlier terminal evidence: compact maintenance controls (2026-09-22)
 
 Terminal `/compact` and draft-preserving Alt-C now call the verified shared operation. `/compact info` retains diagnostics. Active elapsed status occupies the existing stats row; native outcome/error notices expire after four seconds. Focused Escape requests run-bound cancellation without clearing editor state. Lifecycle/suppression/failure events no longer render false success or generic compaction hook blocks. See [ADR-0023](../adr/0023-terminal-compaction.md).
 
