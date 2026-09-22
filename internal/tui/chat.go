@@ -50,7 +50,12 @@ func Run(dbPath, workspace, model string) error {
 	defer s.Close()
 
 	engine := turn.NewWithRuntimeConfig(s, cfg, cfg.SystemPrompt)
+	defer engine.Close()
+	return runWithEngine(s, engine, cfg)
+}
 
+// Fixtures can install native hooks while reusing the production terminal loop.
+func runWithEngine(s *store.Store, engine *turn.Engine, cfg config.RuntimeConfig) error {
 	sessionID, err := initialSessionID(context.Background(), s)
 	if err != nil {
 		return err
@@ -148,6 +153,7 @@ type chatTUI struct {
 	historySearchIdx         int
 	running                  bool
 	status                   string
+	compaction               terminalCompaction
 	draft                    string
 	inputActive              bool
 	eventCh                  chan sessionEvent
@@ -215,11 +221,13 @@ func (c *chatTUI) ensureInput() {
 		if c.input.onChange == nil {
 			c.input.onChange = c.onInputChanged
 		}
+		c.input.onEscape = c.handleCompactionEscape
 		return
 	}
 	c.input = newMultilineInput(80, "Send a message…", c.onSubmit, c.onInputChanged)
 	c.input.onRestoreQueued = c.restoreQueuedDraft
 	c.input.onComplete = c.completeInputPath
+	c.input.onEscape = c.handleCompactionEscape
 }
 
 func (c *chatTUI) onInputChanged(string) {
@@ -469,6 +477,7 @@ func (c *chatTUI) bindSession(sessionID string) {
 	}
 	c.stopSessionSubscription()
 	c.sessionGeneration++
+	c.compaction = terminalCompaction{}
 	c.sessionID = sessionID
 	if c.store != nil {
 		if session, err := c.store.GetSession(context.Background(), sessionID); err == nil {
@@ -478,6 +487,7 @@ func (c *chatTUI) bindSession(sessionID string) {
 	if c.engine == nil {
 		return
 	}
+	c.syncCompactionActivity()
 	ctx, cancel := context.WithCancel(context.Background())
 	c.subscriptionCancel = cancel
 	scope := c.selectionScope()
@@ -501,6 +511,9 @@ func (c *chatTUI) Watchers() []gotui.Watcher {
 		}
 	}))
 	watchers = append(watchers, gotui.OnTimer(time.Second, func() {
+		if c.compaction.active {
+			c.syncCompactionActivity()
+		}
 		if c.app != nil {
 			c.app.MarkDirty()
 		}
@@ -582,7 +595,11 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 	case "runtime.tool":
 		c.renderToolEvent(payload, env.Timestamp)
 	case "runtime.hook":
-		c.renderHookEvent(payload, env.Timestamp)
+		if hook, _ := payload["hook"].(string); hook == turn.HookSessionBeforeCompact || hook == turn.HookSessionCompact {
+			c.syncCompactionActivity()
+		} else {
+			c.renderHookEvent(payload, env.Timestamp)
+		}
 	case "runtime.turn":
 		typ, _ := payload["type"].(string)
 		status, _ := payload["status"].(string)
@@ -632,7 +649,11 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 	case "runtime.dispatcher":
 		c.renderDispatcherEvent(payload, env.Timestamp)
 	case "session.compaction":
-		c.renderCompactionEvent(payload, env.Timestamp)
+		if c.store != nil {
+			c.syncCompactionActivity()
+		} else {
+			c.renderCompactionEvent(payload, env.Timestamp)
+		}
 	case "session.routing":
 		if c.useTopicNativeRuntimeStatus() {
 			return
@@ -1243,6 +1264,9 @@ func (c *chatTUI) renderDispatcherEvent(payload map[string]any, ts time.Time) {
 }
 
 func (c *chatTUI) renderCompactionEvent(payload map[string]any, ts time.Time) {
+	if kind, _ := payload["type"].(string); kind != "" && kind != "compaction" {
+		return
+	}
 	before := intFromAny(payload["messages_before"])
 	after := intFromAny(payload["messages_after"])
 	tokens := intFromAny(payload["tokens_before"])
@@ -1489,7 +1513,11 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 				c.app.Stop()
 			}
 		}),
-		gotui.OnStop(gotui.KeyEscape, func(ke gotui.KeyEvent) {
+		gotui.OnPreemptStop(gotui.KeyEscape, func(ke gotui.KeyEvent) {
+			if c.compaction.active {
+				c.stopCompaction()
+				return
+			}
 			if c.editorAskActive {
 				c.cancelEditorAsk()
 				return
@@ -1516,6 +1544,7 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 		gotui.OnPreemptStop(gotui.KeyCtrlT, func(ke gotui.KeyEvent) { c.cycleThinking(1) }),
 		gotui.OnPreemptStop(gotui.KeyCtrlR, func(ke gotui.KeyEvent) { c.searchHistoryBackward() }),
 		gotui.OnPreemptStop(gotui.Rune('s').Alt(), func(ke gotui.KeyEvent) { c.openSessionMenu() }),
+		gotui.OnPreemptStop(gotui.Rune('c').Alt(), func(ke gotui.KeyEvent) { c.startCompaction() }),
 		gotui.OnPreemptStop(gotui.Rune('m').Alt(), func(ke gotui.KeyEvent) { c.openModelMenu() }),
 		gotui.OnPreemptStop(gotui.Rune('t').Alt(), func(ke gotui.KeyEvent) { c.cycleThinking(-1) }),
 		gotui.OnPreemptStop(gotui.KeyUp, func(ke gotui.KeyEvent) {
@@ -2260,7 +2289,14 @@ func (c *chatTUI) handleCommand(text string) {
 			c.transcript = append(c.transcript, c.thinkingCommand(fields)...)
 		}
 	case "/compact":
-		c.appendTranscript(c.compactLines()...)
+		if len(fields) == 2 && fields[1] == "info" {
+			c.appendTranscript(c.compactLines()...)
+		} else if len(fields) == 1 {
+			c.startCompaction()
+			return
+		} else {
+			c.compactionFeedback("Usage: /compact [info]")
+		}
 	case "/scrollback":
 		c.appendTranscript(c.scrollbackCommand(fields)...)
 	case "/history-limit":
@@ -2468,6 +2504,7 @@ func (c *chatTUI) helpLines() []string {
 		"/hotkeys   keyboard shortcuts",
 		"/model     choose model · type to filter · ctrl-l cycles",
 		"alt-s      session picker · keeps unsent drafts · esc cancels",
+		"alt-c      compact context · keeps draft · esc requests stop",
 		"alt-m      model picker · session-local · keeps unsent drafts",
 		"/session   details for this chat",
 		"/where     compact context",
@@ -3315,7 +3352,7 @@ func (c *chatTUI) compactLines() []string {
 	settings := c.cfg.Compaction
 	return []string{
 		fmt.Sprintf("compact: enabled=%v threshold_tokens=%d keep_recent_tokens=%d reserve_tokens=%d strategy=%s", settings.Enabled, settings.ThresholdTokens, settings.KeepRecentTokens, settings.ReserveTokens, settings.Strategy),
-		fmt.Sprintf("compact: messages=%d turns=%d; use the agent `compact` tool for full JSON preparation", len(messages), len(turns)),
+		fmt.Sprintf("compact: messages=%d turns=%d; /compact runs maintenance, Alt-C preserves draft, Escape stops", len(messages), len(turns)),
 	}
 }
 
@@ -3426,6 +3463,10 @@ func (c *chatTUI) historyLimitCommand(fields []string) []string {
 }
 
 func (c *chatTUI) cancelCommand() string {
+	if c.compaction.active {
+		c.stopCompaction()
+		return "sys: compaction cancellation requested"
+	}
 	turns, err := c.store.ListTurns(context.Background(), c.sessionID)
 	if err != nil {
 		return fmt.Sprintf("error: %v", err)
@@ -3736,6 +3777,9 @@ func (c *chatTUI) footerLines(width int) []string {
 	lines := []string{c.footerPathLineForWidth(width)}
 
 	statsParts := []string{c.footerCountsText(data)}
+	if compact := c.compactionInline(); compact != "" {
+		statsParts = append(statsParts, compact)
+	}
 	if data.inputTokens > 0 {
 		statsParts = append(statsParts, "↑"+formatTokenCount(data.inputTokens))
 	}
@@ -3979,6 +4023,12 @@ func widgetPayloadLines(payload map[string]any) []string {
 }
 
 func (c *chatTUI) footerTransientNotice(data tuiContextSummary) string {
+	if time.Now().Before(c.compaction.noticeUntil) {
+		return "» " + sanitizeStatusText(c.compaction.notice)
+	}
+	if c.compaction.active {
+		return ""
+	}
 	status := strings.TrimSpace(c.status)
 	if status == "" {
 		return ""

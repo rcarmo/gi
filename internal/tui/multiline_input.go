@@ -19,6 +19,7 @@ type multilineInput struct {
 	autoFocus        bool
 	onSubmit         func(string)
 	onRestoreQueued  func()
+	onEscape         func() bool
 	onComplete       func(string, int) (string, int, bool)
 	onChange         func(string)
 	text             string
@@ -106,6 +107,9 @@ func (m *multilineInput) KeyMap() gotui.KeyMap {
 			}
 		}),
 		gotui.OnFocused(gotui.KeyEscape, func(ke gotui.KeyEvent) {
+			if m.onEscape != nil && m.onEscape() {
+				return
+			}
 			if app := ke.App(); app != nil {
 				app.BlurFocused()
 			}

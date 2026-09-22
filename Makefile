@@ -261,6 +261,11 @@ test-ux-parity:
 		$(BUN) scripts/ux-parity-report.mjs test-results/ux-parity/results.json || exit 1; \
 		exit $$rc
 
+test-tui-compaction:
+	@mkdir -p bin
+	$(GO) test -c -o bin/gi-tui-compaction-test ./internal/tui
+	$(BUN) scripts/test-tui-compaction.mjs
+
 test-tui-sessions: build
 	$(BUN) scripts/test-tui-sessions.mjs
 

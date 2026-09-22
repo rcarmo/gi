@@ -1,6 +1,14 @@
 # Web session selection and compact TUI adaptation
 
-## Latest evidence: manual Compact (2026-09-22)
+## Latest terminal evidence: compact maintenance controls (2026-09-22)
+
+Terminal `/compact` and draft-preserving Alt-C now call the verified shared operation. `/compact info` retains diagnostics. Active elapsed status occupies the existing stats row; native outcome/error notices expire after four seconds. Focused Escape requests run-bound cancellation without clearing editor state. Lifecycle/suppression/failure events no longer render false success or generic compaction hook blocks. See [ADR-0023](../adr/0023-terminal-compaction.md).
+
+Live **60×18, 100×22 and 140×36** native-hook PTY tests pass: empty/busy rejection, active/cancel/success, exact draft/cursor preservation, resize, command/info and checkpoint reopen, with **zero additional idle rows**. Full Go/vet, TUI races ×3, existing session/model PTY, seven-file Gherkin, smoke, hook checks and **70/70 web functional tests** pass.
+
+Browser coverage is unchanged: **26/236 Classic**, **2/42 shared**, 210/40 unmapped. The earlier **294/294** browser matrix was not rerun for this terminal-only slice. Terminal pending-media/queue recovery, broader reconnect/crash and pathological storage-contention responsiveness remain open. Earlier sections record previous limitations.
+
+## Earlier evidence: manual Compact (2026-09-22)
 
 The meter now offers manual Compact only for a fresh eligible idle-session snapshot. Native admission atomically creates an empty-prompt maintenance turn, claim and submission event; it rejects stale/busy/repeated requests. Execution forces the existing checkpoint path without an inference call. Stop/cancellation and failed delivery preserve the original draft/media and checkpoint. Provider usage stays historical until another real request. See [ADR-0022](../adr/0022-manual-compaction.md).
 

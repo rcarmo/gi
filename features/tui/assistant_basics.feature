@@ -15,7 +15,7 @@ Feature: TUI assistant basics
     When I type "/help" and press Enter
     Then the screen should contain "help"
     And the screen should contain "/commands all commands"
-    When I type "/compact" and press Enter
+    When I type "/compact info" and press Enter
     Then the screen should contain "compact:"
     And the screen should contain "threshold_tokens"
     When I type "/model test-model" and press Enter

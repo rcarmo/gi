@@ -2,6 +2,10 @@
 
 Status: active layout contract for the Pi/PiClaw UX convergence track.
 
+## Manual compaction (2026-09-22)
+
+`/compact` runs native maintenance; `/compact info` shows diagnostics. Alt-C preserves editor/cursor and invokes the same operation. Escape stops active compaction through the focused editor callback. Progress uses the existing stats row (`Compacting m:ss`), with four-second outcomes in the existing optional notice row. No idle row or permanent widget is added. `make test-tui-compaction` verifies 60×18, 100×22 and 140×36 using native hook gates; see [ADR-0023](../adr/0023-terminal-compaction.md).
+
 ## Goal
 
 Gi's steady-state terminal layout must match Pi's row structure, not merely approximate it. Gi may display Gi-specific values, but the physical layout and chrome budget should be identical.
