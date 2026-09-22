@@ -8,6 +8,8 @@ The subsequent searchable-picker slice (`013`) passed 36/36 matrix executions, b
 
 The native mutation slice (`015`) then added persisted rename/pin/archive/restore and failure-safe controls: 48/48 matrix runs, 5/236 frozen IDs mapped, 231 unmapped, and 70/70 functional web tests. Archive is reversible picker metadata, not deletion or an agent shutdown. [ADR-0009](../adr/0009-session-picker-mutations.md) records the native API and limits.
 
+On 2026-09-22, browser-local IndexedDB drafts and captured-send recovery added four compose mappings: 102/102 matrix executions, 9/236 frozen IDs mapped, 227 unmapped, and 70/70 functional tests. Real uploaded bytes and file/message references survive reload. [ADR-0011](../adr/0011-browser-draft-recovery.md) records storage, cross-tab and uncertain-delivery limits. Terminal session isolation has separate evidence in [ADR-0010](../adr/0010-terminal-session-selection.md).
+
 ## Implemented and wired
 
 - Embedded JavaScript/CSS, identity/avatar configuration, themes and system meters.

@@ -244,6 +244,12 @@
     position: relative;
 }
 
+/* Keep timestamp reference links reachable when copy/delete controls appear. */
+.post-meta {
+    padding-right: 56px;
+    flex-wrap: wrap;
+}
+
 .post-actions {
     position: absolute;
     top: 0;

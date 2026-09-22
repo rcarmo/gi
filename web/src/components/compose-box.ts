@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { html, useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo } from '../vendor/preact-htm.js';
+import { mergeDrafts } from '../gi-drafts.js';
 import { findPopupTypeaheadMatch, isPopupTypeaheadKey, resolvePopupTypeaheadMatch, updatePopupTypeaheadBuffer } from '../ui/popup-typeahead.js';
 import { getAgentModels, sendAgentMessage, uploadMedia } from '../api.js';
 import { getLocalStorageItem, setLocalStorageItem } from '../utils/storage.js';
@@ -689,8 +690,15 @@ export function ComposeBox({
     draftMediaFiles = [],
     onContentChange,
     onDraftMediaChange,
+    onCaptureDraft,
+    onDraftAccepted,
+    onDraftFailed,
+    onDraftStorageError,
+    focusRestoredDraft = false,
 }) {
     const [content, setContent] = useState(draftValue);
+    const mountedRef = useRef(true);
+    useLayoutEffect(() => () => { mountedRef.current = false; }, []);
     const [searchText, setSearchText] = useState('');
     const [mediaFiles, setMediaFiles] = useState(draftMediaFiles);
     const [isDragActive, setIsDragActive] = useState(false);
@@ -814,8 +822,11 @@ export function ComposeBox({
             textarea.setSelectionRange?.(end, end);
         });
     }, [prefillRequest, searchMode]);
-    useLayoutEffect(() => { onContentChange?.(content); }, [content, onContentChange]);
-    useLayoutEffect(() => { onDraftMediaChange?.(mediaFiles); }, [mediaFiles, onDraftMediaChange]);
+    useLayoutEffect(() => { onContentChange?.(content); }, [content]);
+    useLayoutEffect(() => { onDraftMediaChange?.(mediaFiles); }, [mediaFiles]);
+    useLayoutEffect(() => { if (focusRestoredDraft) textareaRef.current?.focus(); }, []);
+    const latestDraftRef = useRef(null);
+    latestDraftRef.current = { text: content, media: mediaFiles, fileRefs, messageRefs };
 
     const canSend = content.trim() || mediaFiles.length > 0 || fileRefs.length > 0 || messageRefs.length > 0;
     const canShareLocation = typeof window !== 'undefined'
@@ -1033,6 +1044,10 @@ export function ComposeBox({
     const closeSessionPopup = (restoreFocus = false) => {
         setShowSessionPopup(false);
         if (restoreFocus) requestAnimationFrame(() => {
+            // A user may already be typing elsewhere before this frame runs.
+            // Restore only while focus is still stranded in the dismissed UI.
+            const active = document.activeElement;
+            if (active && active !== document.body && active.isConnected && !sessionPopupRef.current?.contains(active)) return;
             const target = sessionReturnFocusRef.current;
             if (target?.isConnected) target.focus();
             else sessionTriggerRef.current?.querySelector('button')?.focus();
@@ -1340,6 +1355,10 @@ export function ComposeBox({
         const capturedFileRefs = includeFileRefs ? [...fileRefs] : [];
         const capturedMessageRefs = includeMessageRefs ? [...messageRefs] : [];
         const baseContent = currentContent.trim();
+        const capturedDraft = { text: baseContent, media: capturedMediaFiles, fileRefs: capturedFileRefs, messageRefs: capturedMessageRefs };
+        const capturedChatJid = currentChatJid;
+        const mode = resolveSubmitMode(submitMode);
+        const capture = clearAfterSubmit ? onCaptureDraft?.(capturedDraft) : null;
 
         // Record history synchronously
         if (recordHistory && baseContent) {
@@ -1355,12 +1374,23 @@ export function ComposeBox({
             historyDraftRef.current = '';
         }
 
-        const restoreDraft = () => {
-            if (includeMedia) setMediaFiles([...capturedMediaFiles]);
-            if (includeFileRefs) onSetFileRefs?.(capturedFileRefs);
-            if (includeMessageRefs) onSetMessageRefs?.(capturedMessageRefs);
-            setContent(baseContent);
+        const restoreDraft = (message) => {
+            if (capture && onDraftFailed) {
+                onDraftFailed(capture.token, message);
+                return;
+            }
+            if (!mountedRef.current) return;
+            const restored = mergeDrafts(capturedDraft, latestDraftRef.current);
+            if (includeMedia) setMediaFiles(restored.media);
+            if (includeFileRefs) onSetFileRefs?.(restored.fileRefs);
+            if (includeMessageRefs) onSetMessageRefs?.(restored.messageRefs);
+            setContent(restored.text);
             requestAnimationFrame(() => resizeTextarea());
+        };
+        const acknowledge = async () => {
+            if (!capture) return;
+            try { await onDraftAccepted?.(capture.token); }
+            catch (error) { onDraftStorageError?.(error); } // Delivery succeeded: never restore/resend automatically.
         };
 
         // Clear compose box immediately so user can keep typing
@@ -1372,8 +1402,11 @@ export function ComposeBox({
         }
 
         // Fire-and-forget: send in background, never block the compose box
+        let requestDispatched = false;
+        let requestAcknowledged = false;
         (async () => {
             try {
+                await capture?.ready; // Persist captured recovery data before any network operation.
                 const intercepted = await onSubmitIntercept?.({
                     content: baseContent,
                     submitMode,
@@ -1382,6 +1415,8 @@ export function ComposeBox({
                     mediaFiles: capturedMediaFiles,
                 });
                 if (intercepted) {
+                    requestAcknowledged = true;
+                    await acknowledge();
                     onPost?.(intercepted);
                     return;
                 }
@@ -1389,7 +1424,7 @@ export function ComposeBox({
                 // Upload media files first
                 const mediaIds = [];
                 for (const file of capturedMediaFiles) {
-                    const result = await uploadMedia(file);
+                    const result = await uploadMedia(file, capturedChatJid);
                     mediaIds.push(result.id);
                 }
 
@@ -1407,7 +1442,11 @@ export function ComposeBox({
                     }).join('\n')}`
                     : '';
                 const message = [baseContent, fileBlock, messageRefBlock, mediaBlock].filter(Boolean).join('\n\n');
-                const response = await sendAgentMessage('default', message, null, mediaIds, resolveSubmitMode(submitMode), currentChatJid);
+                requestDispatched = true;
+                const response = await sendAgentMessage('default', message, null, mediaIds, mode, capturedChatJid);
+                requestAcknowledged = true;
+                await acknowledge();
+                if (!mountedRef.current) return;
                 onMessageResponse?.(response);
 
                 if (response?.command) {
@@ -1423,11 +1462,18 @@ export function ComposeBox({
                 setSubmitNotice(resolveUiOnlyCommandNotice(baseContent, response));
                 onPost?.(response);
             } catch (error) {
-                if (clearAfterSubmit) {
-                    restoreDraft();
+                const detail = error?.message || 'Failed to send message.';
+                if (requestAcknowledged) {
+                    if (mountedRef.current) setSubmitError(`Send acknowledged, but refresh failed: ${detail}`);
+                    return;
                 }
-                const message = error?.message || 'Failed to send message.';
-                setSubmitError(message);
+                const uncertain = requestDispatched && ['TypeError', 'AbortError'].includes(error?.name);
+                const message = uncertain ? `Delivery is unknown; check the timeline before resending. ${detail}` : detail;
+                if (clearAfterSubmit) {
+                    restoreDraft(message);
+                }
+                if (!mountedRef.current) return;
+                if (!clearAfterSubmit || !onDraftFailed) setSubmitError(message);
                 onSubmitError?.(message);
                 console.error('Failed to post:', error);
             }
@@ -1693,6 +1739,10 @@ export function ComposeBox({
     const addMediaFiles = (files) => {
         const list = Array.from(files || []).filter((file) => file instanceof File && !String(file.name || '').startsWith('.DS_Store'));
         if (!list.length) return;
+        if (list.some(file => file.size > 10 * 1024 * 1024)) {
+            setSubmitError('Media exceeds 10 MiB limit');
+            return;
+        }
         setMediaFiles((current) => [...current, ...list]);
         setSubmitError(null);
     };
@@ -2035,6 +2085,7 @@ export function ComposeBox({
                     ${statusNoticeDetail && html`<div class="compose-inline-status-detail">${statusNoticeDetail}</div>`}
                 </div>
             `}
+            ${submitError && html`<div class="compose-submit-error" role="alert">${submitError}</div>`}
             ${submitNotice && html`
                 <div class="compose-inline-status compose-command-notice" role="status" aria-live="polite">
                     <div class="compose-inline-status-detail compose-command-notice-text">${submitNotice}</div>

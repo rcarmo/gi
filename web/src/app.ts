@@ -64,6 +64,7 @@ import { AttachmentPreviewModal } from './components/attachment-preview-modal.js
 import { SystemMetersHud } from './components/system-meters-hud.js';
 import { TimelineMenu } from './components/timeline-menu.js';
 import { createSelectionScope } from './gi-session-state.js';
+import { createDraftRepository, indexedDraftStorage } from './gi-drafts.js';
 
 // ── Gi session bridge ──────────────────────────────────────────────────────
 // Piclaw components expect chat_jid strings. We map Gi sessions onto that
@@ -127,12 +128,13 @@ function GiApp() {
     const [ready, setReady] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const selection = useRef(createSelectionScope()).current;
-    const drafts = useRef(new Map<string, any>()).current;
     const [sessionError, setSessionError] = useState<string | null>(null);
-    const getDraft = (sid: string) => {
-        if (!drafts.has(sid)) drafts.set(sid, { text: '', media: [], fileRefs: [], messageRefs: [] });
-        return drafts.get(sid);
-    };
+    const [draftStorageError, setDraftStorageError] = useState('');
+    const [draftRestore, setDraftRestore] = useState<any>(null);
+    const draftsRef = useRef<any>(null);
+    if (!draftsRef.current) draftsRef.current = createDraftRepository(indexedDraftStorage(), error => setDraftStorageError(`Draft not saved: ${error.message}`));
+    const drafts = draftsRef.current;
+    const getDraft = (sid: string) => drafts.get(sid);
     const [runtimeConfig, setRuntimeConfig] = useState<any>({});
     const [agents, setAgents] = useState<any>({});
     const [userProfile, setUserProfile] = useState<any>(null);
@@ -201,9 +203,12 @@ function GiApp() {
         Promise.all([
             ensureDefaultSession(),
             getRuntimeConfig(),
+            drafts.load().catch(error => setDraftStorageError(`Draft recovery unavailable: ${error.message}`)),
         ]).then(([sid, cfg]) => {
             selection.select(sid);
             setSessionId(sid);
+            setFileRefs(getDraft(sid).fileRefs);
+            setMessageRefs(getDraft(sid).messageRefs);
             setRuntimeConfig(cfg);
             setUserProfile({ name: cfg.user_name, avatarUrl: cfg.user_avatar, avatarBackground: cfg.user_avatar_background });
             setAgents({
@@ -388,7 +393,7 @@ function GiApp() {
     const handleSwitchChat = useCallback((chatJid: string | null) => {
         const nextSessionId = typeof chatJid === 'string' && chatJid.startsWith('gi:') ? chatJid.slice(3) : null;
         if (!nextSessionId || nextSessionId === sessionId) return;
-        if (sessionId) Object.assign(getDraft(sessionId), { fileRefs, messageRefs });
+        if (sessionId) drafts.update(sessionId, { fileRefs, messageRefs });
         // Advance synchronously, before rendering, to invalidate already pending work.
         selection.select(nextSessionId);
         setLocalStorageItem(SESSION_KEY, nextSessionId);
@@ -474,7 +479,10 @@ function GiApp() {
                 openEditor=${openEditor}
             />
             <${WorkspaceExplorer}
-                onFileSelect=${(path: string) => setFileRefs((p: string[]) => [...p, path])}
+                onFileSelect=${(path: string) => {
+                    const refs = [...new Set([...getDraft(sessionId).fileRefs, path])];
+                    drafts.update(sessionId, { fileRefs: refs }); setFileRefs(refs);
+                }}
                 visible=${workspaceOpen}
                 active=${workspaceOpen || editorOpen}
                 onOpenEditor=${openEditor}
@@ -524,7 +532,10 @@ function GiApp() {
                     }}
                     timelineRef=${timelineRef}
                     onHashtagClick=${() => {}}
-                    onMessageRef=${() => {}}
+                    onMessageRef=${(id: any) => {
+                        const refs = [...new Set([...getDraft(sessionId).messageRefs, id])];
+                        drafts.update(sessionId, { messageRefs: refs }); setMessageRefs(refs);
+                    }}
                     onScrollToMessage=${() => {}}
                     onFileRef=${openEditor}
                     onPostClick=${undefined}
@@ -570,12 +581,25 @@ function GiApp() {
                     onOpenFilePill=${openEditor}
                 />
                 ${sessionError && html`<div role="alert">${sessionError}</div>`}
+                ${draftStorageError && html`<div role="alert">${draftStorageError}</div>`}
+                ${drafts.error(sessionId) && html`<div role="alert">${drafts.error(sessionId)}</div>`}
                 <${ComposeBox}
-                    key=${sessionId}
+                    key=${`${sessionId}:${draftRestore?.sessionId === sessionId ? draftRestore.token : ''}`}
                     draftValue=${getDraft(sessionId).text}
                     draftMediaFiles=${getDraft(sessionId).media}
-                    onContentChange=${(text: string) => { getDraft(sessionId).text = text; }}
-                    onDraftMediaChange=${(media: File[]) => { getDraft(sessionId).media = media; }}
+                    onContentChange=${(text: string) => drafts.update(sessionId, { text })}
+                    onDraftMediaChange=${(media: File[]) => drafts.update(sessionId, { media })}
+                    focusRestoredDraft=${draftRestore?.sessionId === sessionId}
+                    onCaptureDraft=${(draft: any) => drafts.begin(sessionId, draft)}
+                    onDraftAccepted=${(token: string) => drafts.accepted(sessionId, token)}
+                    onDraftFailed=${(token: string, error: string) => {
+                        const draft = drafts.failed(sessionId, token, error);
+                        if (selection.current() === sessionId) {
+                            setFileRefs(draft.fileRefs); setMessageRefs(draft.messageRefs);
+                            setDraftRestore({ sessionId, ...draft, token: crypto.randomUUID() });
+                        }
+                    }}
+                    onDraftStorageError=${(error: any) => setDraftStorageError(`Send acknowledged, but draft cleanup failed: ${error.message}. Reload recovery may contain already-delivered text.`)}
                     currentChatJid=${currentChatJid}
                     isAgentActive=${isAgentTurnActive}
                     onPost=${handlePost}
@@ -603,24 +627,36 @@ function GiApp() {
                     agentStatus=${agentStatus}
                     agentDraft=${agentDraft}
                     contextUsage=${contextUsage}
+                    activeEditorPath=${activeTabId}
+                    onAttachEditorFile=${() => {
+                        if (!activeTabId) return;
+                        const refs = [...new Set([...getDraft(sessionId).fileRefs, activeTabId])];
+                        drafts.update(sessionId, { fileRefs: refs }); setFileRefs(refs);
+                    }}
                     fileRefs=${fileRefs}
                     messageRefs=${messageRefs}
-                    onRemoveFileRef=${(p: string) => setFileRefs((prev: string[]) => prev.filter(x => x !== p))}
+                    onRemoveFileRef=${(p: string) => {
+                        const refs = getDraft(sessionId).fileRefs.filter((x: string) => x !== p);
+                        drafts.update(sessionId, { fileRefs: refs }); setFileRefs(refs);
+                    }}
                     onClearFileRefs=${() => {
-                        getDraft(sessionId).fileRefs = [];
+                        drafts.update(sessionId, { fileRefs: [] });
                         if (selection.current() === sessionId) setFileRefs([]);
                     }}
                     onSetFileRefs=${(refs: string[]) => {
-                        getDraft(sessionId).fileRefs = refs;
+                        drafts.update(sessionId, { fileRefs: refs });
                         if (selection.current() === sessionId) setFileRefs(refs);
                     }}
-                    onRemoveMessageRef=${() => {}}
+                    onRemoveMessageRef=${(id: any) => {
+                        const refs = getDraft(sessionId).messageRefs.filter((x: any) => x !== id);
+                        drafts.update(sessionId, { messageRefs: refs }); setMessageRefs(refs);
+                    }}
                     onClearMessageRefs=${() => {
-                        getDraft(sessionId).messageRefs = [];
+                        drafts.update(sessionId, { messageRefs: [] });
                         if (selection.current() === sessionId) setMessageRefs([]);
                     }}
                     onSetMessageRefs=${(refs: any[]) => {
-                        getDraft(sessionId).messageRefs = refs;
+                        drafts.update(sessionId, { messageRefs: refs });
                         if (selection.current() === sessionId) setMessageRefs(refs);
                     }}
                     connectionStatus=${connectionStatus}

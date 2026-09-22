@@ -22,7 +22,7 @@ The New action uses the existing native fork endpoint. Reposting a main session 
 - Selection-scope unit test covers A → B → A response invalidation.
 - Existing functional web suite: 70/70 after fixing the SQLite connection pool configuration.
 
-Persistent drafts, late failed-send recovery into an unmounted origin, model mutation, queue actions and reconnect ownership still require dedicated acceptance cases. The later mutation slice below covers `015`.
+The later slices below cover `015` mutations and persistent draft/failed-send recovery. Model mutation, durable queue actions and reconnect ownership still require dedicated acceptance cases.
 
 ## Searchable picker slice (`013`)
 
@@ -50,6 +50,18 @@ Current totals: **48/48 browser executions**, **5/236 frozen IDs passing**, 231 
 
 Terminal mutation adaptation: add an on-demand row-action submenu to the bounded session selector. Use a temporary one-line rename input and explicit archive confirmation; Escape restores the previous selector/editor and draft. Archived rows live in a requested group/filter. Do not add a permanent action bar, badge row, sidebar or header. These terminal changes remain unimplemented.
 
+## Browser-local durable drafts and captured sends
+
+IndexedDB now retains session text, media bytes, file references and message references across reload. Captured sends are journalled before network I/O; storage failure prevents an unprotected send and retains the draft. Media upload and prompt submission use the captured session ID. Failed sends merge into the origin session's newer draft, including after A→B→A; another selected chat is unchanged.
+
+A pending send recovered after reload shows unknown delivery and is never automatically retried. Acknowledgement removes only its capture. Cleanup-storage failure warns that recovery may contain already-delivered text. Browser-profile-local persistence has no cross-tab merge or cross-device synchronisation. Writes are asynchronous; an abrupt process crash can lose edits that have not committed. See [ADR-0011](../adr/0011-browser-draft-recovery.md).
+
+WebKit required explicit attachment byte/metadata records instead of stored File objects. Native file selection also needed the Gi tree adapter's `{root}` response wrapper. Post timestamp reference links now reserve space for copy/delete controls. These changes support real draft-reference tests; full workspace/editor and upload-progress parity remain open.
+
+Verified `@ux-compose-001`, `002`, `003` and `006`, plus reload, storage failure, A→B→A and acknowledgement-cleanup regressions. Current result: **102/102 browser executions**, **9/236 Classic IDs passing**, 227 unmapped; all 42 shared-contract cases remain unmapped. Existing functional tests pass 70/70; Go tests/vet, Bun checks and 14 source/helper tests pass.
+
+Terminal follow-up: persist origin-owned drafts/recovery in a native local store, stage media refs explicitly, and persist queue recovery before backend deletion. Use existing footer notices and bounded on-demand controls. The current terminal draft cache is process-local; this browser slice adds no terminal rows or terminal implementation credit.
+
 ## Terminal session slice: implemented and separately tested
 
 `Alt-S` opens the existing session selector without replacing unsent input. It uses at most six results plus two temporary title/search rows, no box border, and no added idle rows. Filtering keeps full session IDs; display truncation is UTF-8-safe and terminal-cell bounded. Up/Down wrap, Enter selects and Escape restores the editor. Resizing keeps the selected row visible.
@@ -58,7 +70,7 @@ Session switches preserve editor text, rune cursor, undo/yank, history/search po
 
 Evidence: `make test-tui-sessions` passed native tmux interactions at 60×18, 100×22 and 140×36, including exact before/after cancellation screenshots, both session drafts, zero submitted turns and open-picker resizing. Unit/race tests cover buffered topic events, event types, failed switches, model fallback and extension-question cancellation. Existing TUI smoke and seven-file Gherkin harnesses passed. Artifacts: `test-results/tui-sessions/`; design: [ADR-0010](../adr/0010-terminal-session-selection.md).
 
-These caches are process-local. Pending media refs, durable queue mutation/retry semantics and terminal session-mutation submenus are not implemented. Browser coverage remains 5/236 Classic IDs with 231 unmapped, plus 42 unmapped shared cases.
+These caches are process-local. Pending media refs, durable queue mutation/retry semantics and terminal session-mutation submenus are not implemented. The terminal slice did not change browser coverage. The later browser draft slice brings coverage to 9/236 Classic IDs with 227 unmapped, plus 42 unmapped shared cases.
 
 ## Remaining TUI adaptation design
 

@@ -855,7 +855,8 @@ async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = 
   const payload = {
     prompt: content,
     intent,
-    target_agent_id: targetAgentId
+    target_agent_id: targetAgentId,
+    media: _mediaIds.map((media_id) => ({ media_id, session_id: sessionId }))
   };
   if (options?.parent_turn_id) {
     payload.parent_turn_id = options.parent_turn_id;
@@ -865,8 +866,21 @@ async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = 
     body: JSON.stringify(payload)
   });
 }
-async function uploadMedia(_file, _chatJid = null) {
-  return null;
+async function uploadMedia(file, chatJid = null) {
+  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
+  if (!sessionId)
+    throw new Error("No attachment destination session");
+  if (file.size > 10 * 1024 * 1024)
+    throw new Error("Media exceeds 10 MiB limit");
+  const form = new FormData;
+  form.append("file", file, file.name);
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/media`, { method: "POST", body: form });
+  const data = await response.json();
+  if (!response.ok)
+    throw new Error(data.error || `Upload failed: HTTP ${response.status}`);
+  if (!data.media?.id)
+    throw new Error("Upload returned no media identifier");
+  return { ...data.media, id: data.media.id };
 }
 async function getMediaInfo(mediaId) {
   return request(`/api/media/${mediaId}`).catch(() => null);
@@ -880,8 +894,24 @@ function getThumbnailUrl(mediaId) {
 async function submitAdaptiveCardAction(_payload) {
   return null;
 }
-async function getWorkspaceTree(_chatJid = null) {
-  return request("/api/workspace/tree");
+async function getWorkspaceTree(path = "", _depth = 1, _showHidden = false) {
+  const root = await request("/api/workspace/tree");
+  if (!root.path)
+    root.path = ".";
+  const find = (node) => {
+    if (!path || path === "." || node.path === path)
+      return node;
+    for (const child of node.children || []) {
+      const match = find(child);
+      if (match)
+        return match;
+    }
+    return null;
+  };
+  const node = find(root);
+  if (!node)
+    throw new Error(`Workspace path unavailable: ${path}`);
+  return { root: node };
 }
 async function getWorkspaceFile(path, _chatJid = null) {
   return request(`/api/workspace/file?path=${encodeURIComponent(path)}`);
@@ -5600,6 +5630,143 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     `;
 }
 
+// web/src/gi-drafts.ts
+var emptyDraft = () => ({ text: "", media: [], fileRefs: [], messageRefs: [] });
+var copy = (d) => ({ text: d.text, media: [...d.media], fileRefs: [...d.fileRefs], messageRefs: [...d.messageRefs] });
+var key = (value) => typeof value === "object" ? JSON.stringify(value) : String(value);
+var unique = (values, identity = key) => [...new Map(values.map((value) => [identity(value), value])).values()];
+function mergeDrafts(captured, current) {
+  const text = !captured.text || current.text === captured.text || current.text.startsWith(captured.text + `
+`) ? current.text : [captured.text, current.text].filter(Boolean).join(`
+
+`);
+  return {
+    text,
+    media: unique([...captured.media, ...current.media], (f) => `${f.name}:${f.size}:${f.type}:${f.lastModified}`),
+    fileRefs: unique([...captured.fileRefs, ...current.fileRefs]),
+    messageRefs: unique([...captured.messageRefs, ...current.messageRefs])
+  };
+}
+function indexedDraftStorage(factory = indexedDB) {
+  const encodedFiles = new WeakMap;
+  const encodeFile = (file) => {
+    if (!encodedFiles.has(file))
+      encodedFiles.set(file, file.arrayBuffer().then((bytes) => ({ name: file.name, type: file.type, lastModified: file.lastModified, bytes })));
+    return encodedFiles.get(file);
+  };
+  const database = new Promise((resolve, reject) => {
+    const request = factory.open("gi-session-drafts", 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains("drafts"))
+        request.result.createObjectStore("drafts", { keyPath: "sessionId" });
+    };
+    request.onsuccess = () => {
+      request.result.onversionchange = () => request.result.close();
+      resolve(request.result);
+    };
+    request.onerror = () => reject(request.error || new Error("Draft database unavailable"));
+    request.onblocked = () => reject(new Error("Draft database upgrade blocked by another tab"));
+  });
+  return {
+    async load() {
+      const db = await database;
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("drafts", "readonly");
+        const request = tx.objectStore("drafts").getAll();
+        tx.oncomplete = () => {
+          const decode = (draft) => ({ ...draft, media: draft.media.map((file) => file instanceof File ? file : new File([file.bytes], file.name, { type: file.type, lastModified: file.lastModified })) });
+          resolve(request.result.map((row) => ({ ...row, draft: decode(row.draft), pending: row.pending.map((p) => ({ ...p, draft: decode(p.draft) })) })));
+        };
+        tx.onabort = tx.onerror = () => reject(tx.error || new Error("Could not load drafts"));
+      });
+    },
+    async put(record) {
+      const db = await database;
+      const encode = async (draft) => ({ ...draft, media: await Promise.all(draft.media.map(encodeFile)) });
+      const stored = { ...record, draft: await encode(record.draft), pending: await Promise.all(record.pending.map(async (pending) => ({ ...pending, draft: await encode(pending.draft) }))) };
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("drafts", "readwrite");
+        tx.objectStore("drafts").put(stored);
+        tx.oncomplete = () => resolve();
+        tx.onabort = tx.onerror = () => reject(tx.error || new Error("Could not save draft"));
+      });
+    }
+  };
+}
+function createDraftRepository(storage, onError = () => {}) {
+  const records = new Map;
+  let tail = Promise.resolve();
+  const record = (id) => {
+    if (!records.has(id))
+      records.set(id, { sessionId: id, draft: emptyDraft(), pending: [] });
+    return records.get(id);
+  };
+  const persist = (id) => {
+    const source = record(id);
+    const snapshot = { ...source, draft: copy(source.draft), pending: source.pending.map((p) => ({ id: p.id, draft: copy(p.draft) })) };
+    const write = tail.catch(() => {}).then(() => storage.put(snapshot));
+    tail = write;
+    write.catch((error) => onError(error));
+    return write;
+  };
+  return {
+    async load() {
+      const rows = await storage.load();
+      for (const row of rows)
+        records.set(row.sessionId, row);
+      for (const row of rows) {
+        records.set(row.sessionId, row);
+        if (row.pending.length) {
+          for (const pending of [...row.pending].reverse())
+            row.draft = mergeDrafts(pending.draft, row.draft);
+          row.pending = [];
+          row.error = "Recovered an unacknowledged send. Delivery is unknown; check the timeline before resending.";
+          await persist(row.sessionId);
+        }
+      }
+    },
+    get(id) {
+      return record(id).draft;
+    },
+    error(id) {
+      return record(id).error || "";
+    },
+    update(id, patch) {
+      const draft = record(id).draft;
+      if (Object.entries(patch).every(([field, value]) => draft[field] === value))
+        return;
+      Object.assign(draft, patch);
+      persist(id).catch(() => {});
+    },
+    begin(id, draft) {
+      const token = crypto.randomUUID();
+      const row = record(id);
+      row.pending.push({ id: token, draft: copy(draft) });
+      row.draft = emptyDraft();
+      row.error = "";
+      return { token, ready: persist(id) };
+    },
+    async accepted(id, token) {
+      const row = record(id);
+      row.pending = row.pending.filter((p) => p.id !== token);
+      await persist(id);
+    },
+    failed(id, token, error) {
+      const row = record(id);
+      const pending = row.pending.find((p) => p.id === token);
+      if (pending)
+        row.draft = mergeDrafts(pending.draft, row.draft);
+      row.pending = row.pending.filter((p) => p.id !== token);
+      row.error = error;
+      persist(id).catch(() => {});
+      return copy(row.draft);
+    },
+    flush() {
+      return tail;
+    }
+  };
+}
+
 // web/src/ui/popup-typeahead.ts
 var POPUP_TYPEAHEAD_RESET_MS = 700;
 function normalize2(value) {
@@ -6673,9 +6840,18 @@ function ComposeBox({
   draftValue = "",
   draftMediaFiles = [],
   onContentChange,
-  onDraftMediaChange
+  onDraftMediaChange,
+  onCaptureDraft,
+  onDraftAccepted,
+  onDraftFailed,
+  onDraftStorageError,
+  focusRestoredDraft = false
 }) {
   const [content, setContent] = M_(draftValue);
+  const mountedRef = K_(true);
+  F_(() => () => {
+    mountedRef.current = false;
+  }, []);
   const [searchText, setSearchText] = M_("");
   const [mediaFiles, setMediaFiles] = M_(draftMediaFiles);
   const [isDragActive, setIsDragActive] = M_(false);
@@ -6802,10 +6978,16 @@ function ComposeBox({
   }, [prefillRequest, searchMode]);
   F_(() => {
     onContentChange?.(content);
-  }, [content, onContentChange]);
+  }, [content]);
   F_(() => {
     onDraftMediaChange?.(mediaFiles);
-  }, [mediaFiles, onDraftMediaChange]);
+  }, [mediaFiles]);
+  F_(() => {
+    if (focusRestoredDraft)
+      textareaRef.current?.focus();
+  }, []);
+  const latestDraftRef = K_(null);
+  latestDraftRef.current = { text: content, media: mediaFiles, fileRefs, messageRefs };
   const canSend = content.trim() || mediaFiles.length > 0 || fileRefs.length > 0 || messageRefs.length > 0;
   const canShareLocation = typeof window !== "undefined" && typeof navigator !== "undefined" && Boolean(window.isSecureContext) && typeof navigator.geolocation?.getCurrentPosition === "function";
   const notificationsSupported = typeof window !== "undefined" && typeof Notification !== "undefined";
@@ -6990,6 +7172,9 @@ function ComposeBox({
     setShowSessionPopup(false);
     if (restoreFocus)
       requestAnimationFrame(() => {
+        const active = document.activeElement;
+        if (active && active !== document.body && active.isConnected && !sessionPopupRef.current?.contains(active))
+          return;
         const target = sessionReturnFocusRef.current;
         if (target?.isConnected)
           target.focus();
@@ -7281,6 +7466,10 @@ function ComposeBox({
     const capturedFileRefs = includeFileRefs ? [...fileRefs] : [];
     const capturedMessageRefs = includeMessageRefs ? [...messageRefs] : [];
     const baseContent = currentContent.trim();
+    const capturedDraft = { text: baseContent, media: capturedMediaFiles, fileRefs: capturedFileRefs, messageRefs: capturedMessageRefs };
+    const capturedChatJid = currentChatJid;
+    const mode = resolveSubmitMode(submitMode);
+    const capture = clearAfterSubmit ? onCaptureDraft?.(capturedDraft) : null;
     if (recordHistory && baseContent) {
       const current = historyRef.current;
       const deduped = normaliseHistory(current.filter((item) => item !== baseContent));
@@ -7293,15 +7482,31 @@ function ComposeBox({
       historyIndexRef.current = -1;
       historyDraftRef.current = "";
     }
-    const restoreDraft = () => {
+    const restoreDraft = (message) => {
+      if (capture && onDraftFailed) {
+        onDraftFailed(capture.token, message);
+        return;
+      }
+      if (!mountedRef.current)
+        return;
+      const restored = mergeDrafts(capturedDraft, latestDraftRef.current);
       if (includeMedia)
-        setMediaFiles([...capturedMediaFiles]);
+        setMediaFiles(restored.media);
       if (includeFileRefs)
-        onSetFileRefs?.(capturedFileRefs);
+        onSetFileRefs?.(restored.fileRefs);
       if (includeMessageRefs)
-        onSetMessageRefs?.(capturedMessageRefs);
-      setContent(baseContent);
+        onSetMessageRefs?.(restored.messageRefs);
+      setContent(restored.text);
       requestAnimationFrame(() => resizeTextarea());
+    };
+    const acknowledge = async () => {
+      if (!capture)
+        return;
+      try {
+        await onDraftAccepted?.(capture.token);
+      } catch (error) {
+        onDraftStorageError?.(error);
+      }
     };
     if (clearAfterSubmit) {
       setContent("");
@@ -7309,8 +7514,11 @@ function ComposeBox({
       onClearFileRefs?.();
       onClearMessageRefs?.();
     }
+    let requestDispatched = false;
+    let requestAcknowledged = false;
     (async () => {
       try {
+        await capture?.ready;
         const intercepted = await onSubmitIntercept?.({
           content: baseContent,
           submitMode,
@@ -7319,12 +7527,14 @@ function ComposeBox({
           mediaFiles: capturedMediaFiles
         });
         if (intercepted) {
+          requestAcknowledged = true;
+          await acknowledge();
           onPost?.(intercepted);
           return;
         }
         const mediaIds = [];
         for (const file of capturedMediaFiles) {
-          const result = await uploadMedia(file);
+          const result = await uploadMedia(file, capturedChatJid);
           mediaIds.push(result.id);
         }
         const fileBlock = capturedFileRefs.length ? `Files:
@@ -7343,7 +7553,12 @@ ${mediaIds.map((id, index) => {
         const message = [baseContent, fileBlock, messageRefBlock, mediaBlock].filter(Boolean).join(`
 
 `);
-        const response = await sendAgentMessage("default", message, null, mediaIds, resolveSubmitMode(submitMode), currentChatJid);
+        requestDispatched = true;
+        const response = await sendAgentMessage("default", message, null, mediaIds, mode, capturedChatJid);
+        requestAcknowledged = true;
+        await acknowledge();
+        if (!mountedRef.current)
+          return;
         onMessageResponse?.(response);
         if (response?.command) {
           emitModelState({
@@ -7357,11 +7572,21 @@ ${mediaIds.map((id, index) => {
         setSubmitNotice(resolveUiOnlyCommandNotice(baseContent, response));
         onPost?.(response);
       } catch (error) {
-        if (clearAfterSubmit) {
-          restoreDraft();
+        const detail = error?.message || "Failed to send message.";
+        if (requestAcknowledged) {
+          if (mountedRef.current)
+            setSubmitError(`Send acknowledged, but refresh failed: ${detail}`);
+          return;
         }
-        const message = error?.message || "Failed to send message.";
-        setSubmitError(message);
+        const uncertain = requestDispatched && ["TypeError", "AbortError"].includes(error?.name);
+        const message = uncertain ? `Delivery is unknown; check the timeline before resending. ${detail}` : detail;
+        if (clearAfterSubmit) {
+          restoreDraft(message);
+        }
+        if (!mountedRef.current)
+          return;
+        if (!clearAfterSubmit || !onDraftFailed)
+          setSubmitError(message);
         onSubmitError?.(message);
         console.error("Failed to post:", error);
       }
@@ -7621,6 +7846,10 @@ ${mediaIds.map((id, index) => {
     const list = Array.from(files || []).filter((file) => file instanceof File && !String(file.name || "").startsWith(".DS_Store"));
     if (!list.length)
       return;
+    if (list.some((file) => file.size > 10 * 1024 * 1024)) {
+      setSubmitError("Media exceeds 10 MiB limit");
+      return;
+    }
     setMediaFiles((current) => [...current, ...list]);
     setSubmitError(null);
   };
@@ -7938,6 +8167,7 @@ ${mediaIds.map((id, index) => {
                     ${statusNoticeDetail && ce`<div class="compose-inline-status-detail">${statusNoticeDetail}</div>`}
                 </div>
             `}
+            ${submitError && ce`<div class="compose-submit-error" role="alert">${submitError}</div>`}
             ${submitNotice && ce`
                 <div class="compose-inline-status compose-command-notice" role="status" aria-live="polite">
                     <div class="compose-inline-status-detail compose-command-notice-text">${submitNotice}</div>
@@ -16167,13 +16397,14 @@ function GiApp() {
   const [ready, setReady] = M_(false);
   const [sessionId, setSessionId] = M_(null);
   const selection = K_(createSelectionScope()).current;
-  const drafts = K_(new Map).current;
   const [sessionError, setSessionError] = M_(null);
-  const getDraft = (sid) => {
-    if (!drafts.has(sid))
-      drafts.set(sid, { text: "", media: [], fileRefs: [], messageRefs: [] });
-    return drafts.get(sid);
-  };
+  const [draftStorageError, setDraftStorageError] = M_("");
+  const [draftRestore, setDraftRestore] = M_(null);
+  const draftsRef = K_(null);
+  if (!draftsRef.current)
+    draftsRef.current = createDraftRepository(indexedDraftStorage(), (error) => setDraftStorageError(`Draft not saved: ${error.message}`));
+  const drafts = draftsRef.current;
+  const getDraft = (sid) => drafts.get(sid);
   const [runtimeConfig, setRuntimeConfig] = M_({});
   const [agents, setAgents] = M_({});
   const [userProfile, setUserProfile] = M_(null);
@@ -16235,10 +16466,13 @@ function GiApp() {
     }
     Promise.all([
       ensureDefaultSession(),
-      getRuntimeConfig()
+      getRuntimeConfig(),
+      drafts.load().catch((error) => setDraftStorageError(`Draft recovery unavailable: ${error.message}`))
     ]).then(([sid, cfg]) => {
       selection.select(sid);
       setSessionId(sid);
+      setFileRefs(getDraft(sid).fileRefs);
+      setMessageRefs(getDraft(sid).messageRefs);
       setRuntimeConfig(cfg);
       setUserProfile({ name: cfg.user_name, avatarUrl: cfg.user_avatar, avatarBackground: cfg.user_avatar_background });
       setAgents({
@@ -16416,7 +16650,7 @@ function GiApp() {
     if (!nextSessionId || nextSessionId === sessionId)
       return;
     if (sessionId)
-      Object.assign(getDraft(sessionId), { fileRefs, messageRefs });
+      drafts.update(sessionId, { fileRefs, messageRefs });
     selection.select(nextSessionId);
     setLocalStorageItem(SESSION_KEY, nextSessionId);
     setSessionId(nextSessionId);
@@ -16515,7 +16749,11 @@ function GiApp() {
                 openEditor=${openEditor}
             />
             <${WorkspaceExplorer}
-                onFileSelect=${(path) => setFileRefs((p) => [...p, path])}
+                onFileSelect=${(path) => {
+    const refs = [...new Set([...getDraft(sessionId).fileRefs, path])];
+    drafts.update(sessionId, { fileRefs: refs });
+    setFileRefs(refs);
+  }}
                 visible=${workspaceOpen}
                 active=${workspaceOpen || editorOpen}
                 onOpenEditor=${openEditor}
@@ -16569,7 +16807,11 @@ function GiApp() {
   }}
                     timelineRef=${timelineRef}
                     onHashtagClick=${() => {}}
-                    onMessageRef=${() => {}}
+                    onMessageRef=${(id) => {
+    const refs = [...new Set([...getDraft(sessionId).messageRefs, id])];
+    drafts.update(sessionId, { messageRefs: refs });
+    setMessageRefs(refs);
+  }}
                     onScrollToMessage=${() => {}}
                     onFileRef=${openEditor}
                     onPostClick=${undefined}
@@ -16615,16 +16857,26 @@ function GiApp() {
                     onOpenFilePill=${openEditor}
                 />
                 ${sessionError && ce`<div role="alert">${sessionError}</div>`}
+                ${draftStorageError && ce`<div role="alert">${draftStorageError}</div>`}
+                ${drafts.error(sessionId) && ce`<div role="alert">${drafts.error(sessionId)}</div>`}
                 <${ComposeBox}
-                    key=${sessionId}
+                    key=${`${sessionId}:${draftRestore?.sessionId === sessionId ? draftRestore.token : ""}`}
                     draftValue=${getDraft(sessionId).text}
                     draftMediaFiles=${getDraft(sessionId).media}
-                    onContentChange=${(text) => {
-    getDraft(sessionId).text = text;
+                    onContentChange=${(text) => drafts.update(sessionId, { text })}
+                    onDraftMediaChange=${(media) => drafts.update(sessionId, { media })}
+                    focusRestoredDraft=${draftRestore?.sessionId === sessionId}
+                    onCaptureDraft=${(draft) => drafts.begin(sessionId, draft)}
+                    onDraftAccepted=${(token) => drafts.accepted(sessionId, token)}
+                    onDraftFailed=${(token, error) => {
+    const draft = drafts.failed(sessionId, token, error);
+    if (selection.current() === sessionId) {
+      setFileRefs(draft.fileRefs);
+      setMessageRefs(draft.messageRefs);
+      setDraftRestore({ sessionId, ...draft, token: crypto.randomUUID() });
+    }
   }}
-                    onDraftMediaChange=${(media) => {
-    getDraft(sessionId).media = media;
-  }}
+                    onDraftStorageError=${(error) => setDraftStorageError(`Send acknowledged, but draft cleanup failed: ${error.message}. Reload recovery may contain already-delivered text.`)}
                     currentChatJid=${currentChatJid}
                     isAgentActive=${isAgentTurnActive}
                     onPost=${handlePost}
@@ -16660,27 +16912,43 @@ function GiApp() {
                     agentStatus=${agentStatus}
                     agentDraft=${agentDraft}
                     contextUsage=${contextUsage}
+                    activeEditorPath=${activeTabId}
+                    onAttachEditorFile=${() => {
+    if (!activeTabId)
+      return;
+    const refs = [...new Set([...getDraft(sessionId).fileRefs, activeTabId])];
+    drafts.update(sessionId, { fileRefs: refs });
+    setFileRefs(refs);
+  }}
                     fileRefs=${fileRefs}
                     messageRefs=${messageRefs}
-                    onRemoveFileRef=${(p) => setFileRefs((prev) => prev.filter((x) => x !== p))}
+                    onRemoveFileRef=${(p) => {
+    const refs = getDraft(sessionId).fileRefs.filter((x) => x !== p);
+    drafts.update(sessionId, { fileRefs: refs });
+    setFileRefs(refs);
+  }}
                     onClearFileRefs=${() => {
-    getDraft(sessionId).fileRefs = [];
+    drafts.update(sessionId, { fileRefs: [] });
     if (selection.current() === sessionId)
       setFileRefs([]);
   }}
                     onSetFileRefs=${(refs) => {
-    getDraft(sessionId).fileRefs = refs;
+    drafts.update(sessionId, { fileRefs: refs });
     if (selection.current() === sessionId)
       setFileRefs(refs);
   }}
-                    onRemoveMessageRef=${() => {}}
+                    onRemoveMessageRef=${(id) => {
+    const refs = getDraft(sessionId).messageRefs.filter((x) => x !== id);
+    drafts.update(sessionId, { messageRefs: refs });
+    setMessageRefs(refs);
+  }}
                     onClearMessageRefs=${() => {
-    getDraft(sessionId).messageRefs = [];
+    drafts.update(sessionId, { messageRefs: [] });
     if (selection.current() === sessionId)
       setMessageRefs([]);
   }}
                     onSetMessageRefs=${(refs) => {
-    getDraft(sessionId).messageRefs = refs;
+    drafts.update(sessionId, { messageRefs: refs });
     if (selection.current() === sessionId)
       setMessageRefs(refs);
   }}
@@ -16719,5 +16987,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=F80C2CE661411A0464756E2164756E21
+//# debugId=3B893E94E5B7D7D164756E2164756E21
 //# sourceMappingURL=app.js.map

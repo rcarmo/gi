@@ -21,7 +21,10 @@
         "Gi host callbacks persist pin/rename/archive/restore through PATCH /api/sessions/{id}; pinning is database-backed, not upstream browser-local preferences.",
         "Row capability controls, inline name form and archive confirmation retain selection/drafts on failure. No permanent delete is supplied.",
         "Native state determines activity; picker feedback uses open/mount epochs to suppress late results after dismissal.",
-        "Mention autocomplete uses native agent_id, not mutable session display names; browser acceptance protects routing after rename."
+        "Mention autocomplete uses native agent_id, not mutable session display names; browser acceptance protects routing after rename.",
+        "Gi draft callbacks journal captured sends in browser-local IndexedDB before network I/O; host-owned recovery merges newer text/media/refs across unmount/revisit.",
+        "Upload receives captured chat JID; native prompt carries media references; preserve 10 MiB cap and show actual submission/storage errors.",
+        "Acknowledged sends never restore on later UI refresh failure; deferred picker Escape focus does not steal focus from newly focused composer."
       ],
       "source": "runtime/web/src/components/compose-box.ts",
       "destination": "web/src/components/compose-box.ts"

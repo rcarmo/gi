@@ -401,6 +401,7 @@ export async function sendAgentMessage(agentId: string, content: string, _thread
         prompt: content,
         intent,
         target_agent_id: targetAgentId,
+        media: _mediaIds.map(media_id => ({ media_id, session_id: sessionId })),
     };
     if (options?.parent_turn_id) {
         payload.parent_turn_id = options.parent_turn_id;
@@ -417,8 +418,17 @@ export async function streamSidePrompt(content: string, chatJid: string | null =
 
 // ── Media ─────────────────────────────────────────────────────────────────
 
-export async function uploadMedia(_file: File, _chatJid: string | null = null) {
-    return null;
+export async function uploadMedia(file: File, chatJid: string | null = null) {
+    const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
+    if (!sessionId) throw new Error('No attachment destination session');
+    if (file.size > 10 * 1024 * 1024) throw new Error('Media exceeds 10 MiB limit');
+    const form = new FormData();
+    form.append('file', file, file.name);
+    const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/media`, { method: 'POST', body: form });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `Upload failed: HTTP ${response.status}`);
+    if (!data.media?.id) throw new Error('Upload returned no media identifier');
+    return { ...data.media, id: data.media.id };
 }
 
 export async function getMediaInfo(mediaId: number) {
@@ -445,8 +455,18 @@ export async function getSessionRouteEvents(chatJid: string | null = null) {
     return request(`/api/sessions/${encodeURIComponent(sessionId)}/route-events`);
 }
 
-export async function getWorkspaceTree(_chatJid: string | null = null) {
-    return request('/api/workspace/tree');
+export async function getWorkspaceTree(path = '', _depth = 1, _showHidden = false) {
+    const root = await request('/api/workspace/tree');
+    // Native root path is empty; Piclaw expands '.' by default.
+    if (!root.path) root.path = '.';
+    const find = (node: any): any => {
+        if (!path || path === '.' || node.path === path) return node;
+        for (const child of node.children || []) { const match = find(child); if (match) return match; }
+        return null;
+    };
+    const node = find(root);
+    if (!node) throw new Error(`Workspace path unavailable: ${path}`);
+    return { root: node };
 }
 
 export async function getWorkspaceFile(path: string, _chatJid: string | null = null) {

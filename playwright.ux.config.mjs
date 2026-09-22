@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 const sizes = { phone: { width: 390, height: 844 }, tablet: { width: 820, height: 1180 }, desktop: { width: 1440, height: 900 } };
 export default defineConfig({
-  testDir: './tests/ux', testMatch: ['classic.spec.mjs', 'session.spec.mjs'], timeout: 30000,
+  testDir: './tests/ux', testMatch: ['classic.spec.mjs', 'session.spec.mjs', 'drafts.spec.mjs'], timeout: 30000,
   expect: { timeout: 4000 }, retries: 0, workers: 1,
   outputDir: 'test-results/ux-parity/artifacts',
   reporter: [['line'], ['json', { outputFile: 'test-results/ux-parity/results.json' }]],
