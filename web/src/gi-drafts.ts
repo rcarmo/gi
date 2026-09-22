@@ -2,7 +2,8 @@
 // serialise attachment bytes to localStorage or silently drop failed writes.
 export type Draft = { text: string; media: File[]; fileRefs: string[]; messageRefs: any[] };
 type Pending = { id: string; draft: Draft };
-type Record = { sessionId: string; draft: Draft; pending: Pending[]; error?: string };
+type QueueReturn = { state: 'prepared' | 'removed'; recoveredAt: number };
+type Record = { sessionId: string; draft: Draft; pending: Pending[]; error?: string; queueReturns?: { [id: string]: QueueReturn } };
 export const emptyDraft = (): Draft => ({ text: '', media: [], fileRefs: [], messageRefs: [] });
 const copy = (d: Draft): Draft => ({ text: d.text, media: [...d.media], fileRefs: [...d.fileRefs], messageRefs: [...d.messageRefs] });
 const key = (value: any) => typeof value === 'object' ? JSON.stringify(value) : String(value);
@@ -70,7 +71,7 @@ export function createDraftRepository(storage: DraftStorage, onError: (error: Er
     };
     const persist = (id: string) => {
         const source = record(id);
-        const snapshot = { ...source, draft: copy(source.draft), pending: source.pending.map(p => ({ id: p.id, draft: copy(p.draft) })) };
+        const snapshot = { ...source, queueReturns: Object.fromEntries(Object.entries(source.queueReturns || {}).map(([id, entry]) => [id, { ...entry }])), draft: copy(source.draft), pending: source.pending.map(p => ({ id: p.id, draft: copy(p.draft) })) };
         const write = tail.catch(() => {}).then(() => storage.put(snapshot));
         tail = write;
         void write.catch(error => onError(error));
@@ -120,6 +121,38 @@ export function createDraftRepository(storage: DraftStorage, onError: (error: Er
             row.error = error;
             void persist(id).catch(() => {});
             return copy(row.draft);
+        },
+        hasQueueReturn(id: string, queueId: string) { return Boolean(record(id).queueReturns?.[queueId]); },
+        prepareQueueReturn(id: string, queueId: string, captured: Draft) {
+            const row = record(id);
+            row.queueReturns ||= {};
+            if (!row.queueReturns[queueId]) {
+                const current = row.draft;
+                row.draft = mergeDrafts(captured, current);
+                // Distinct durable IDs may intentionally contain identical text.
+                // Only the recovery key, not a text prefix, makes return idempotent.
+                row.draft.text = [captured.text, current.text].filter(Boolean).join('\n\n');
+                row.queueReturns[queueId] = { state: 'prepared', recoveredAt: Date.now() };
+            }
+            // Retry persists the existing merge; it must not prepend it again.
+            return { draft: copy(row.draft), ready: persist(id) };
+        },
+        queueReturnFailed(id: string, queueId: string, message: string) {
+            const row = record(id);
+            if (row.queueReturns?.[queueId]) {
+                row.error = `Queue return incomplete: ${message}. Recovered content is retained; check whether the original turn ran before sending it again.`;
+                void persist(id).catch(() => {});
+            }
+        },
+        async completeQueueReturn(id: string, queueId: string) {
+            const entry = record(id).queueReturns?.[queueId];
+            if (entry) entry.state = 'removed';
+            if (record(id).error?.startsWith('Queue return incomplete:')) record(id).error = '';
+            await persist(id);
+        },
+        async flushStable() {
+            let pending: Promise<void>;
+            do { pending = tail; await pending; } while (pending !== tail);
         },
         flush() { return tail; },
     };

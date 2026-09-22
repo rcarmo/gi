@@ -58,6 +58,33 @@ test('capture persistence failure rejects readiness; recovery remains in memory 
   expect(errors.length).toBeGreaterThan(0);
 });
 
+test('queue return persistence gates deletion and retry never merges the durable ID twice', async () => {
+  const disk=storage();let fail=true;const writes:any[]=[];
+  const repo=createDraftRepository({load:disk.load,put:async row=>{writes.push(structuredClone(row));if(fail)throw Error('quota');await disk.put(row);}});
+  repo.update('A',{text:'latest',fileRefs:['new']});
+  const capture={...emptyDraft(),text:'queued',fileRefs:['old'],media:[new File(['bytes'],'queued.txt')]};
+  const first=repo.prepareQueueReturn('A','turn1',capture);
+  await expect(first.ready).rejects.toThrow('quota');
+  expect(repo.get('A').text).toBe('queued\n\nlatest');
+  repo.update('A',{text:'queued\n\nlatest\nconcurrent'});
+  fail=false;await repo.prepareQueueReturn('A','turn1',capture).ready;await repo.flushStable();
+  expect(repo.get('A').text).toBe('queued\n\nlatest\nconcurrent');
+  expect(disk.rows.get('A').queueReturns.turn1.state).toBe('prepared');
+  const loaded=createDraftRepository(disk);await loaded.load();
+  await loaded.prepareQueueReturn('A','turn1',capture).ready;
+  expect(loaded.get('A').media).toHaveLength(1);expect(loaded.get('A').fileRefs).toEqual(['old','new']);
+  await loaded.completeQueueReturn('A','turn1');expect(disk.rows.get('A').queueReturns.turn1.state).toBe('removed');
+  expect(repo.get('B').text).toBe('');
+});
+
+test('distinct queue IDs with identical text remain distinct; retry keys do not duplicate', async()=>{
+ const repo=createDraftRepository(storage());
+ await repo.prepareQueueReturn('A','one',{...emptyDraft(),text:'same'}).ready;
+ await repo.prepareQueueReturn('A','two',{...emptyDraft(),text:'same'}).ready;
+ await repo.prepareQueueReturn('A','two',{...emptyDraft(),text:'same'}).ready;
+ expect(repo.get('A').text).toBe('same\n\nsame');
+});
+
 test('merge recognises already-restored prefix without losing current references', () => {
   expect(mergeDrafts({ ...emptyDraft(), text: 'hello', fileRefs: ['a'] }, { ...emptyDraft(), text: 'hello\n\nnewer', fileRefs: ['b'] }))
     .toMatchObject({ text: 'hello\n\nnewer', fileRefs: ['a','b'] });

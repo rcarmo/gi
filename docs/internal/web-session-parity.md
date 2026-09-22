@@ -104,6 +104,16 @@ The web labels the value as the latest measured provider request, keeps unknown 
 
 Current evidence: **174/174 browser executions**, **15/236 Classic IDs**, 221 unmapped, all 42 shared cases unmapped, **70/70** functional tests, Go/vet/race checks and 18 source/helper tests. The three-size terminal harness, smoke and seven-file Gherkin suite pass.
 
+## Durable queue return (shared contract)
+
+Return now recovers the queued row's text, media bytes and file/folder/message references into the latest origin-session draft. It persists the merged draft and a durable-ID recovery record before queued-only DELETE. Storage failure prevents deletion; failed removal/reload/retry reuses the recovery record without duplicating the returned content. A consumption race keeps the recovered draft and warns that the original turn may already have run. Another selected chat keeps its draft/focus.
+
+Shared `@shared-28` is verified in all six projects, including pre-DELETE inspection of committed IndexedDB state, concurrent edits, quota failure, real failed removal, reload, retry and cursor restoration. Separate regressions cover consumption and session-switch races. Classic `017` and compose `004` explicitly require replacement/media clearing and remain unmapped. Sources are unchanged; the reporter now lists shared results separately. See [ADR-0017](../adr/0017-durable-queue-return.md).
+
+Current totals: **192/192 browser executions**, Classic **15/236** (221 unmapped), shared **1/42** (41 unmapped), **70/70** existing functional tests, Go/vet, hook checks and 23 source/helper tests. No terminal implementation credit is added here.
+
+Terminal adaptation needs native recovery storage, pending-media refs and queued-ID idempotency before removal, using the existing editor and bounded queue view. Incomplete returns use existing notices; no idle rows or permanent recovery panel. Browser multi-tab merging, recovery-marker retention and duplicate-upload avoidance on later send remain open.
+
 ## Terminal session slice: implemented and separately tested
 
 `Alt-S` opens the existing session selector without replacing unsent input. It uses at most six results plus two temporary title/search rows, no box border, and no added idle rows. Filtering keeps full session IDs; display truncation is UTF-8-safe and terminal-cell bounded. Up/Down wrap, Enter selects and Escape restores the editor. Resizing keeps the selected row visible.

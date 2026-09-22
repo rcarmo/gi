@@ -2,7 +2,7 @@ import { test, expect } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
-import { loadCorpus, verifySources, mappedIds, uxRoot } from './catalogue.mjs';
+import { loadCorpus, verifySources, mappedIds, sharedMappedIds, uxRoot } from './catalogue.mjs';
 
 test('frozen Piclaw sources and shared Vibes/Tau contract retain their exact hashes', () => {
   expect(() => verifySources()).not.toThrow();
@@ -24,5 +24,8 @@ test('all frozen scenarios and outline examples are inventoried, not just mapped
   expect(cases).toHaveLength(256);
   expect(new Set(cases.map(item => item.id)).size).toBe(236);
   for (const id of mappedIds) expect(cases.some(item => item.id === id)).toBe(true);
-  expect(loadCorpus('shared')).toHaveLength(42);
+  const shared = loadCorpus('shared');
+  expect(shared).toHaveLength(42);
+  for (const id of sharedMappedIds) expect(shared.some(item => item.id === id)).toBe(true);
+  expect(shared.find(row => row.id === '@shared-28')?.name).toBe('Return a queued item to the latest editor draft');
 });

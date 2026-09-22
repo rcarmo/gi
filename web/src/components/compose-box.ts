@@ -505,6 +505,7 @@ export function parseQueuedContent(value) {
 export function QueuedFollowupStack({
     items = [],
     busy = false,
+    onReturnQueuedFollowup,
     onInjectQueuedFollowup,
     onRemoveQueuedFollowup,
     onMoveQueuedFollowup,
@@ -583,6 +584,11 @@ export function QueuedFollowupStack({
                                         <polyline points="6 9 12 15 18 9"></polyline>
                                     </svg>
                                 </button>
+                            `}
+                            ${typeof onReturnQueuedFollowup === 'function' && html`
+                                <button type="button" class="compose-queue-stack-move-btn"
+                                    title="Return to editor" aria-label="Return queued message to editor"
+                                    disabled=${busy || item.pending} onClick=${() => onReturnQueuedFollowup(item)}>Return</button>
                             `}
                             ${typeof onInjectQueuedFollowup === 'function' && html`<button
                                 class="compose-queue-stack-steer-btn"

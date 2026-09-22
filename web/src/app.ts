@@ -56,7 +56,7 @@ import {
     getThread,
 } from './api.js';
 import { Timeline } from './components/timeline.js';
-import { ComposeBox, QueuedFollowupStack } from './components/compose-box.js';
+import { ComposeBox, QueuedFollowupStack, parseQueuedContent } from './components/compose-box.js';
 import { AgentStatus, AgentRequestModal } from './components/status.js';
 import { WorkspaceExplorer } from './components/workspace-explorer.js';
 import { TabStrip } from './components/tab-strip.js';
@@ -65,7 +65,8 @@ import { AttachmentPreviewModal } from './components/attachment-preview-modal.js
 import { SystemMetersHud } from './components/system-meters-hud.js';
 import { TimelineMenu } from './components/timeline-menu.js';
 import { createSelectionScope } from './gi-session-state.js';
-import { createDraftRepository, indexedDraftStorage } from './gi-drafts.js';
+import { createDraftRepository, indexedDraftStorage, emptyDraft } from './gi-drafts.js';
+import { recoverQueueDraft } from './gi-queue-return.js';
 
 // ── Gi session bridge ──────────────────────────────────────────────────────
 // Piclaw components expect chat_jid strings. We map Gi sessions onto that
@@ -486,7 +487,7 @@ function GiApp() {
         if (revision === sessionListRevision.current) setActiveChatAgents(data.agents || []);
     };
 
-    const mutateQueue = async (action: 'remove' | 'move', itemOrIndex: any, toIndex?: number) => {
+    const mutateQueue = async (action: 'remove' | 'move' | 'return', itemOrIndex: any, toIndex?: number) => {
         if (queueMutation.current) return;
         const scope = selection.capture();
         if (!scope.sessionId) return;
@@ -495,7 +496,23 @@ function GiApp() {
         const before = [...followupQueueItems];
         const chat = sessionToChatJid(scope.sessionId);
         try {
-            if (action === 'remove') {
+            if (action === 'return') {
+                const item = itemOrIndex;
+                if (item.chat_jid !== chat || item.pending) throw new Error('Queued item belongs to another session or has no durable ID');
+                const recovered = drafts.hasQueueReturn(scope.sessionId, item.id)
+                    ? emptyDraft() : await recoverQueueDraft(item, parseQueuedContent(item.content));
+                const prepared = drafts.prepareQueueReturn(scope.sessionId, item.id, recovered);
+                // Publish the merge immediately; typing while persistence is in
+                // flight then writes on top of it instead of replacing it.
+                if (selection.current() === scope.sessionId) {
+                    setFileRefs(prepared.draft.fileRefs); setMessageRefs(prepared.draft.messageRefs);
+                    setDraftRestore({sessionId: scope.sessionId, ...prepared.draft, token: crypto.randomUUID()});
+                }
+                await prepared.ready;
+                await drafts.flushStable();
+                await removeAgentQueueItem(item.id, chat);
+                await drafts.completeQueueReturn(scope.sessionId, item.id);
+            } else if (action === 'remove') {
                 if (itemOrIndex.chat_jid !== chat) throw new Error('Queued item belongs to another session');
                 setFollowupQueueItems(before.filter(item => item.id !== itemOrIndex.id));
                 await removeAgentQueueItem(itemOrIndex.id, chat);
@@ -507,6 +524,7 @@ function GiApp() {
                 await reorderAgentQueueItem({chatJid: chat, expected: before.map(item => item.id), order: after.map(item => item.id)});
             }
         } catch (error) {
+            if (action === 'return') drafts.queueReturnFailed(scope.sessionId, itemOrIndex.id, error.message);
             if (selection.isCurrent(scope)) { setFollowupQueueItems(before); setQueueError(`Queue action failed: ${error.message}`); }
         } finally {
             try {
@@ -660,6 +678,7 @@ function GiApp() {
                 <${QueuedFollowupStack}
                     items=${[...followupQueueItems, ...optimisticQueue.filter(item => item.chat_jid === currentChatJid && !followupQueueItems.some(stored => stored.id === item.id || stored.metadata?.client_request_id === item.id))]}
                     busy=${queueBusy}
+                    onReturnQueuedFollowup=${(item: any) => mutateQueue('return', item)}
                     onRemoveQueuedFollowup=${(item: any) => mutateQueue('remove', item)}
                     onMoveQueuedFollowup=${(from: number, to: number) => mutateQueue('move', from, to)}
                     onOpenFilePill=${openEditor}

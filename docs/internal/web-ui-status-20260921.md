@@ -18,6 +18,8 @@ Authoritative session-local model selection and native `/model` commands (`021`,
 
 Latest provider-request context is now stored separately from cumulative turn usage and exposed as nullable session-scoped metadata. Unknown-value browser acceptance (`context 002`) passes: 174/174 matrix executions, 15/236 Classic IDs, 221 unmapped, 70/70 functional tests. Full measured browser fit/compaction remains open; see [ADR-0016](../adr/0016-measured-request-context.md).
 
+Shared durable queue return now passes independently (`shared-28`): 192/192 browser executions; Classic 15/236 and shared 1/42 passing, with 221 Classic and 41 shared cases unmapped. Existing functional suite: 70/70. Recovery persists before queued-only DELETE and retains concurrent text/media/refs; incompatible Classic replacement semantics remain unmapped. See [ADR-0017](../adr/0017-durable-queue-return.md).
+
 ## Implemented and wired
 
 - Embedded JavaScript/CSS, identity/avatar configuration, themes and system meters.

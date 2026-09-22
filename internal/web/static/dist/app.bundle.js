@@ -5753,7 +5753,7 @@ function createDraftRepository(storage, onError = () => {}) {
   };
   const persist = (id) => {
     const source = record(id);
-    const snapshot = { ...source, draft: copy(source.draft), pending: source.pending.map((p) => ({ id: p.id, draft: copy(p.draft) })) };
+    const snapshot = { ...source, queueReturns: Object.fromEntries(Object.entries(source.queueReturns || {}).map(([id, entry]) => [id, { ...entry }])), draft: copy(source.draft), pending: source.pending.map((p) => ({ id: p.id, draft: copy(p.draft) })) };
     const write = tail.catch(() => {}).then(() => storage.put(snapshot));
     tail = write;
     write.catch((error) => onError(error));
@@ -5810,6 +5810,44 @@ function createDraftRepository(storage, onError = () => {}) {
       row.error = error;
       persist(id).catch(() => {});
       return copy(row.draft);
+    },
+    hasQueueReturn(id, queueId) {
+      return Boolean(record(id).queueReturns?.[queueId]);
+    },
+    prepareQueueReturn(id, queueId, captured) {
+      const row = record(id);
+      row.queueReturns ||= {};
+      if (!row.queueReturns[queueId]) {
+        const current = row.draft;
+        row.draft = mergeDrafts(captured, current);
+        row.draft.text = [captured.text, current.text].filter(Boolean).join(`
+
+`);
+        row.queueReturns[queueId] = { state: "prepared", recoveredAt: Date.now() };
+      }
+      return { draft: copy(row.draft), ready: persist(id) };
+    },
+    queueReturnFailed(id, queueId, message) {
+      const row = record(id);
+      if (row.queueReturns?.[queueId]) {
+        row.error = `Queue return incomplete: ${message}. Recovered content is retained; check whether the original turn ran before sending it again.`;
+        persist(id).catch(() => {});
+      }
+    },
+    async completeQueueReturn(id, queueId) {
+      const entry = record(id).queueReturns?.[queueId];
+      if (entry)
+        entry.state = "removed";
+      if (record(id).error?.startsWith("Queue return incomplete:"))
+        record(id).error = "";
+      await persist(id);
+    },
+    async flushStable() {
+      let pending;
+      do {
+        pending = tail;
+        await pending;
+      } while (pending !== tail);
     },
     flush() {
       return tail;
@@ -6741,6 +6779,7 @@ function parseQueuedContent(value) {
 function QueuedFollowupStack({
   items = [],
   busy = false,
+  onReturnQueuedFollowup,
   onInjectQueuedFollowup,
   onRemoveQueuedFollowup,
   onMoveQueuedFollowup,
@@ -6821,6 +6860,11 @@ function QueuedFollowupStack({
                                         <polyline points="6 9 12 15 18 9"></polyline>
                                     </svg>
                                 </button>
+                            `}
+                            ${typeof onReturnQueuedFollowup === "function" && ce`
+                                <button type="button" class="compose-queue-stack-move-btn"
+                                    title="Return to editor" aria-label="Return queued message to editor"
+                                    disabled=${busy || item.pending} onClick=${() => onReturnQueuedFollowup(item)}>Return</button>
                             `}
                             ${typeof onInjectQueuedFollowup === "function" && ce`<button
                                 class="compose-queue-stack-steer-btn"
@@ -16448,6 +16492,41 @@ function TimelineMenu({
   return null;
 }
 
+// web/src/gi-queue-return.ts
+async function recoverQueueDraft(item, parsed, fetcher = fetch) {
+  if (!item?.chat_jid?.startsWith("gi:") || !item?.id)
+    throw new Error("Missing queue origin");
+  const session = item.chat_jid.slice(3);
+  const attachments = new Map;
+  for (const media of item.metadata?.media || []) {
+    if (media.session_id && media.session_id !== session)
+      throw new Error("Attachment belongs to another session");
+    const id = media.media_id || String(media.id || "").replace(/^media:/, "");
+    if (id)
+      attachments.set(String(id), { ...media, id });
+  }
+  for (const ref of parsed.attachmentRefs || []) {
+    if (!attachments.has(String(ref.id)))
+      attachments.set(String(ref.id), ref);
+  }
+  const media = [];
+  for (const ref of attachments.values()) {
+    if (!/^\d+$/.test(String(ref.id)))
+      throw new Error("Invalid queued attachment identifier");
+    const response = await fetcher(`/api/sessions/${encodeURIComponent(session)}/media/${ref.id}`);
+    if (!response.ok)
+      throw new Error(`Cannot restore queued attachment: HTTP ${response.status}`);
+    const blob = await response.blob();
+    if (blob.size > 10 * 1024 * 1024)
+      throw new Error("Queued attachment exceeds 10 MiB limit");
+    media.push(new File([blob], ref.filename || ref.label || `attachment-${ref.id}`, {
+      type: ref.content_type || blob.type,
+      lastModified: Date.parse(ref.created_at || "") || 0
+    }));
+  }
+  return { ...emptyDraft(), text: parsed.text || "", fileRefs: parsed.fileRefs || [], messageRefs: parsed.messageRefs || [], media };
+}
+
 // web/src/app.ts
 var SESSION_KEY = "gi_session_id";
 var DEFAULT_AGENT_ID = "web";
@@ -16892,7 +16971,22 @@ function GiApp() {
     const before = [...followupQueueItems];
     const chat = sessionToChatJid2(scope.sessionId);
     try {
-      if (action === "remove") {
+      if (action === "return") {
+        const item = itemOrIndex;
+        if (item.chat_jid !== chat || item.pending)
+          throw new Error("Queued item belongs to another session or has no durable ID");
+        const recovered = drafts.hasQueueReturn(scope.sessionId, item.id) ? emptyDraft() : await recoverQueueDraft(item, parseQueuedContent(item.content));
+        const prepared = drafts.prepareQueueReturn(scope.sessionId, item.id, recovered);
+        if (selection.current() === scope.sessionId) {
+          setFileRefs(prepared.draft.fileRefs);
+          setMessageRefs(prepared.draft.messageRefs);
+          setDraftRestore({ sessionId: scope.sessionId, ...prepared.draft, token: crypto.randomUUID() });
+        }
+        await prepared.ready;
+        await drafts.flushStable();
+        await removeAgentQueueItem(item.id, chat);
+        await drafts.completeQueueReturn(scope.sessionId, item.id);
+      } else if (action === "remove") {
         if (itemOrIndex.chat_jid !== chat)
           throw new Error("Queued item belongs to another session");
         setFollowupQueueItems(before.filter((item) => item.id !== itemOrIndex.id));
@@ -16907,6 +17001,8 @@ function GiApp() {
         await reorderAgentQueueItem({ chatJid: chat, expected: before.map((item) => item.id), order: after.map((item) => item.id) });
       }
     } catch (error) {
+      if (action === "return")
+        drafts.queueReturnFailed(scope.sessionId, itemOrIndex.id, error.message);
       if (selection.isCurrent(scope)) {
         setFollowupQueueItems(before);
         setQueueError(`Queue action failed: ${error.message}`);
@@ -17065,6 +17161,7 @@ function GiApp() {
                 <${QueuedFollowupStack}
                     items=${[...followupQueueItems, ...optimisticQueue.filter((item) => item.chat_jid === currentChatJid && !followupQueueItems.some((stored) => stored.id === item.id || stored.metadata?.client_request_id === item.id))]}
                     busy=${queueBusy}
+                    onReturnQueuedFollowup=${(item) => mutateQueue("return", item)}
                     onRemoveQueuedFollowup=${(item) => mutateQueue("remove", item)}
                     onMoveQueuedFollowup=${(from, to) => mutateQueue("move", from, to)}
                     onOpenFilePill=${openEditor}
@@ -17227,5 +17324,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=585D2BDEA8DF277A64756E2164756E21
+//# debugId=10241B2EBC1E2F5664756E2164756E21
 //# sourceMappingURL=app.js.map

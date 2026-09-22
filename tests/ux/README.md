@@ -74,3 +74,9 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 `context.spec.mjs` maps `ux-context-002`: native shell sessions have no provider token measurement and display unknown markers before/after a turn, reload and model change. Unsupported compaction is disabled. Matrix: **174/174**, **15/236 Classic IDs**, 221 unmapped; shared cases remain unmapped.
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
+
+## Shared durable queue return: 2026-09-22
+
+`queue-return.spec.mjs` maps `@shared-28` (the immutable shared corpus's ordinal ID), with a name assertion preventing mapping drift. Return merges the latest origin draft/media/refs and persists recovery before DELETE. Tests hold real media responses, inspect committed state at DELETE, inject quota/transport failures, reload/retry and verify no duplicate recovery. Separate regressions cover already-consumed items and session switches.
+
+The report now includes separate shared rows/counts. Full matrix: **192/192** executions; Classic **15/236** passing (221 unmapped), shared **1/42** passing (41 unmapped). Classic `017` and compose `004` prescribe replacement/media clearing and remain unmapped; their frozen assertions were not weakened. See [ADR-0017](../../docs/adr/0017-durable-queue-return.md).

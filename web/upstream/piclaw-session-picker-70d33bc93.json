@@ -28,7 +28,8 @@
         "QueuedFollowupStack uses durable row IDs, disables overlapping mutations and omits Steer without a callback; Gi host supplies optimistic reorder/remove with authoritative refresh and origin/revision guards.",
         "Queued composer submissions expose origin-owned optimistic lifecycle callbacks and carry client_request_id correlation metadata; pending queue controls remain disabled until durable.",
         "Model selection/cycle use authoritative session PATCH with inline errors and host/component revision guards. Native Tab/focused-button Enter preserved; catalogue updates no longer reclaim popup focus.",
-        "ContextPie uses gi-context-usage presentation with explicit unknown markers and measured-request qualifier; compaction disabled without host callback. Supplied-value context-fit predicate blocks known overflow; native selection independently validates latest measurement."
+        "ContextPie uses gi-context-usage presentation with explicit unknown markers and measured-request qualifier; compaction disabled without host callback. Supplied-value context-fit predicate blocks known overflow; native selection independently validates latest measurement.",
+        "Queue Return is a host-supplied durable-ID callback: shared contract merges latest draft/media/refs and persists before DELETE. This intentionally does not implement frozen Classic replacement/clear-media semantics (017/compose004 stay unmapped)."
       ],
       "source": "runtime/web/src/components/compose-box.ts",
       "destination": "web/src/components/compose-box.ts"
