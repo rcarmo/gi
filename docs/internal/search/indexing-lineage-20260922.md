@@ -2,7 +2,7 @@
 
 Piclaw supplies the closest working workspace-index lifecycle. Tau and Vibes supply useful database consistency patterns for conversation search. Gi must keep these domains distinct when adapting their schemas and acceptance criteria.
 
-The provisional Gi full-workspace lexical rebuild is **stashed and not deployed**. It was tested locally, but its single global status row, whole-index replacement and exclusion of all dot directories do not implement Piclaw's roots/scopes or skills indexing. The running application remains at `6aff14c`; runtime reindex remains a gap. The candidate SQL and derived Gherkin below are design/test artifacts, not migrated tables or runtime parity evidence.
+The provisional Gi full-workspace lexical rebuild is **stashed and not deployed**. It was tested locally, but its single global status row, whole-index replacement and exclusion of all dot directories do not implement Piclaw's roots/scopes or skills indexing. Runtime reindex remains a gap. The comparison below records the design at `80ab58c`. [ADR-0042](../../adr/0042-versioned-workspace-index-schema.md) subsequently promotes the scoped candidate into a versioned, additive startup migration; no worker/query/status implementation is enabled and the derived scenarios remain proposals.
 
 ## Pinned sources
 
@@ -53,7 +53,7 @@ Its workspace Gherkin covers file CRUD/traversal. No native workspace reindex li
 
 ## Gi schema candidate
 
-[`workspace-index-candidate.sql`](workspace-index-candidate.sql) executes on Gi's existing pure-Go SQLite driver in `TestCandidateWorkspaceSchemaFTSAndMembership`. It is **not** loaded by application initialisation. It uses new table names to avoid silently reinterpreting the old scaffold:
+[`workspace-index-candidate.sql`](workspace-index-candidate.sql) executes on Gi's existing pure-Go SQLite driver in `TestCandidateWorkspaceSchemaFTSAndMembership`. The historical SQL file is not loaded directly by application initialisation; its versioned copy now is, through ADR-0042. The semantics test runs the production migration. It uses new table names to avoid silently reinterpreting the old scaffold:
 
 - workspace identity separates databases reopened against different roots;
 - scope status includes configuration hash, roots, committed generation and last-success fields;
@@ -78,7 +78,7 @@ Workspace-005 remains unmapped: its visible creation/upload controls and menu co
 ## Implementation and migration sequence
 
 1. Agree resolved root/scope configuration, supported extensions and limits; capture a configuration fingerprint. Preserve Piclaw's skills-root eligibility. No duplicate overlapping-root scans.
-2. Add an explicit versioned SQLite migration, including existing-table detection. The old scaffold lacks stable FTS/chunk linkage and workspace identity; rebuild its **derived** index safely instead of guessing ownership. Preserve chat/session/media tables and test rollback/reopen against representative databases.
+2. **Schema installed by ADR-0042:** explicit versioned SQLite migration with collision/version/object checks, preserving chat/session/media and old scaffold rows. New scoped tables start empty; the forthcoming explicit refresh must rebuild derived content rather than guess old ownership. Rollback/reopen/history preservation is tested.
 3. Use canonical chunk IDs and transactional FTS maintenance; build scope candidates without deleting committed content. Commit membership cleanup only after a complete successful scan. Failed/incomplete work preserves the committed generation.
 4. Add a per-workspace fenced lease and restart recovery; verify token/expiry in the commit transaction. Mark interrupted work stale rather than leaving durable `indexing` forever. Two stores/processes must not both commit.
 5. Adapt Piclaw's incremental metadata fast path, with explicit full/hash verification for metadata-collision cases. Wire watcher/mutation invalidation and bounded background refresh to the shared native service.

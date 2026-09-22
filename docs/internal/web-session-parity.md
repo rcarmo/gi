@@ -1,6 +1,10 @@
 # Web session selection and compact TUI adaptation
 
-## Indexing design gate (2026-09-22)
+## Workspace-index storage prerequisite (2026-09-22)
+
+[ADR-0042](../adr/0042-versioned-workspace-index-schema.md) installs the scoped schema through a versioned atomic startup migration, preserving legacy search and runtime data. A copied dev database retained all 19 existing tables with clean integrity. Go/vet/build/hook, 74 functional, 32 helpers, store race ×3, focused 12-case workspace browser and all three-size TUI suites pass. There is no scanner, background worker or native status/reindex API yet; frozen coverage remains **45/236 Classic**, **2/42 shared**, **191/40 unmapped**.
+
+## Earlier indexing design gate (2026-09-22)
 
 The provisional whole-workspace rebuild is shelved pending adaptation of Piclaw's configured roots/scopes and incremental/background lifecycle. [Pinned Piclaw/Tau/Vibes comparison](search/indexing-lineage-20260922.md) separates workspace indexing from conversation FTS, adds 15 proposed non-frozen Gherkin scenarios, and tests a candidate SQLite schema. Go/vet, candidate race ×3 and 32 helpers pass; these are design/schema checks, not browser or runtime indexing acceptance. Coverage stays **45/236 Classic**, **2/42 shared**, **191/40 unmapped**. Workspace-005 remains open.
 

@@ -2,14 +2,14 @@ package store
 
 import (
 	"database/sql"
-	"os"
 	"path/filepath"
 	"testing"
 
 	_ "modernc.org/sqlite"
 )
 
-// Executable schema design evidence, not runtime migration/feature acceptance.
+// Exercise FTS/membership semantics through the production migration. This is
+// schema evidence, not scanner/query API or complete feature acceptance.
 func TestCandidateWorkspaceSchemaFTSAndMembership(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "candidate.db")
 	open := func() *sql.DB {
@@ -23,11 +23,7 @@ func TestCandidateWorkspaceSchemaFTSAndMembership(t *testing.T) {
 	}
 	db := open()
 	defer func() { db.Close() }()
-	schema, err := os.ReadFile("../../../docs/internal/search/workspace-index-candidate.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.Exec(string(schema)); err != nil {
+	if err := applyMigration(db); err != nil {
 		t.Fatal(err)
 	}
 	exec := func(query string) {

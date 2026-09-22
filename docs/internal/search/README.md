@@ -14,7 +14,7 @@ This enables model-friendly retrieval paths and source linking without requiring
 
 ## Source-backed indexing design
 
-[Piclaw/Tau/Vibes comparison and implementation gate](indexing-lineage-20260922.md) pins the inspected revisions and derives 15 non-frozen Gherkin scenarios. [Candidate SQL](workspace-index-candidate.sql) has executable SQLite tests for scope membership and chunk/FTS consistency but is not migrated or used by Gi. The provisional whole-workspace rebuild is stashed; runtime workspace status/reindex remains unimplemented. Piclaw supplies the workspace lifecycle, Tau supplies transactional entity identity, and Vibes supplies trigger-maintained external-content FTS. ADR-0008 remains the hybrid target; lexical prototype work does not establish vector support.
+[Piclaw/Tau/Vibes comparison and implementation gate](indexing-lineage-20260922.md) pins the inspected revisions and derives 15 non-frozen Gherkin scenarios. [Candidate SQL](workspace-index-candidate.sql) is the historical design. Its scoped tables are now installed by the versioned [startup migration](../../adr/0042-versioned-workspace-index-schema.md), with migration/rollback/preservation and chunk/FTS tests. No indexing worker or query/status API uses them yet. The provisional whole-workspace rebuild is stashed; runtime workspace status/reindex remains unimplemented. Piclaw supplies the workspace lifecycle, Tau supplies transactional entity identity, and Vibes supplies trigger-maintained external-content FTS. ADR-0008 remains the hybrid target; lexical prototype work does not establish vector support.
 
 ## Current implementation status
 
@@ -22,13 +22,13 @@ Implemented now:
 
 - ADR and internal design docs
 - `internal/search/` package scaffold
-- schema definitions for workspace search tables
+- versioned scoped workspace schema in the main database, preserving old unscoped scaffold tables
 - query classification and hybrid rank helper scaffolding
 - chunking/embed/vector/indexer interfaces
 
 Still pending:
 
-- wiring the search schema into the main DB initialization path
+- configured root/scope resolution, incremental workers, fenced ownership and native query/status/reindex
 - real `gte-go` embedding implementation
 - real `sqlite-vec` backend implementation
 - real chunk persistence / FTS updates / hybrid query execution against the database

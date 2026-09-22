@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+
+	searchstore "github.com/rcarmo/gi/internal/search/store"
 )
 
 func initSchema(db *sql.DB) error {
@@ -354,6 +356,9 @@ func initSchema(db *sql.DB) error {
 		if _, err := tx.Exec(stmt); err != nil {
 			return fmt.Errorf("create schema index: %w", err)
 		}
+	}
+	if err := searchstore.Migrate(tx); err != nil {
+		return fmt.Errorf("migrate workspace index: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit schema upgrade: %w", err)
