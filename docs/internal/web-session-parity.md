@@ -1,6 +1,12 @@
 # Web session selection and compact TUI adaptation
 
-## Latest browser evidence: native Markdown rendering (2026-09-22)
+## Latest browser evidence: native upload recovery (2026-09-22)
+
+Original-026 passes native upload-ID and error acceptance, including a partially uploaded batch, newer draft merging, session isolation, reload and explicit retry. Tests remove a multipart boundary header to obtain a real parser rejection without rewriting file bytes or fabricating a response. Persistent IDs, filenames and bytes are checked through the actual API. Application/supplied components unchanged. [ADR-0038](../adr/0038-native-upload-failure-recovery.md).
+
+Verified: **444/444 browser**, **70/70 functional**, **29 helpers**, full Go/vet/hook. Coverage **39/236 Classic**, **2/42 shared**, **197/40 unmapped**. Compose-005 lacks separate upload progress; terminal pending media remains design work without new idle chrome. The terminal matrix was not rerun for this test-only change.
+
+## Earlier browser evidence: native Markdown rendering (2026-09-22)
 
 Timeline tables now retain full-width automatic table layout through a host-scoped override; overflowing columns remain reachable by native horizontal scrolling. Stored assistant posts verify code-copy placement/trusted plain-text payloads and SVG fences staying literal source. Mapped: **timeline-023/024, original-029**. Supplied components/stylesheets unchanged. [ADR-0037](../adr/0037-native-markdown-rendering.md).
 

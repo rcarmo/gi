@@ -1,6 +1,8 @@
 # Gi web UI — 2026-09-21
 
-Latest browser slice (2026-09-22): native table/code/SVG-source acceptance, with a scoped full-width table/overflow override. timeline-023/024 and original-029 map; **432/432 browser**, **70/70 functional**, **29 helpers**, Go/vet/hook. Coverage **38/236 Classic**, **2/42 shared**, **198/40 unmapped**. Compound copy/delete/speech/link-preview and terminal source-whitespace cases remain open. [ADR-0037](../adr/0037-native-markdown-rendering.md). Earlier evidence follows.
+Latest upload slice (2026-09-22): original-026 native IDs, upload errors/no submission, partial-batch recovery and explicit retry. **444/444 browser**, **70/70 functional**, **29 helpers**, Go/vet/hook. Coverage **39/236 Classic**, **2/42 shared**, **197/40 unmapped**. Application unchanged; compose-005 progress and terminal pending media remain gaps. [ADR-0038](../adr/0038-native-upload-failure-recovery.md).
+
+Earlier browser slice (2026-09-22): native table/code/SVG-source acceptance, with a scoped full-width table/overflow override. timeline-023/024 and original-029 map; **432/432 browser**, **70/70 functional**, **29 helpers**, Go/vet/hook. Coverage **38/236 Classic**, **2/42 shared**, **198/40 unmapped**. Compound copy/delete/speech/link-preview and terminal source-whitespace cases remain open. [ADR-0037](../adr/0037-native-markdown-rendering.md). Earlier evidence follows.
 
 Latest native/browser slice (2026-09-22): a prompt after completion gets a distinct durable queued turn until predecessor cleanup releases its claim. Atomic live-steering admission prevents steering terminal runs; strict queue Steer unchanged. **408/408 browser**, **70/70 functional**, **29 helpers**, Go/vet/race ×3 and all TUI suites pass. No new UI footprint or frozen mapping: **35/236 Classic**, **2/42 shared**, **201/40 unmapped**. [ADR-0036](../adr/0036-completed-claim-admission.md) supersedes the earlier admission-boundary warning. Earlier evidence follows.
 

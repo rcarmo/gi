@@ -21,7 +21,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Prevent runner startup before submission-event persistence; reproduced regression and full 70/70 functional suite.
 - [x] Verify native timeline table layout, trusted code-copy payloads and source-only SVG fences (timeline-023/024, original-029); host-only table/overflow override; 432/432 browser, 70/70 functional, Go/vet/hook and 29 helpers; ADR-0037. Compound link-preview/copy-delete/speech remain gaps.
 - [ ] Stabilise context-meter capability snapshot timing across native completion/cleanup; one run sampled unavailable before UI reported available, unchanged rerun passed.
-- [ ] Map the remaining 198 frozen scenarios and 40 shared interaction cases; full scope in `docs/internal/full-web-tui-parity-plan.md`.
+- [x] Verify original-026 native upload IDs, parser rejection/no submission, origin-owned merged recovery and explicit retry after partial success; 444/444 browser, 70/70 functional, Go/vet/hook/29 helpers; ADR-0038. No application changes. Compose-005 upload progress and terminal media remain gaps.
+- [ ] Map the remaining 197 frozen scenarios and 40 shared interaction cases; full scope in `docs/internal/full-web-tui-parity-plan.md`.
 - [x] Complete capability-gated rename, pin, archive and restore with persisted native metadata and failure-safe picker actions (`015`); 48/48 matrix, 70/70 functional, Go/race/Bun checks.
 - [x] Persist per-session browser text/media/reference drafts and unacknowledged submissions; recover on reload without automatic resend (browser-local IndexedDB).
 - [x] Capture background-send ownership, merge failed submissions with newer origin drafts and report storage failures (`ux-compose-001`, `002`, `003`, `006`); 102/102 matrix, 70/70 functional.

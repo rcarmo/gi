@@ -2,6 +2,12 @@
 
 Status: active layout contract for the Pi/PiClaw UX convergence track.
 
+## Pending media and upload failure (2026-09-22; design)
+
+Keep file selection and uploaded IDs in session-owned draft state. Use an explicit attach action with a temporary bounded chooser, preserving editor text/cursor on dismissal. Show transient upload progress/errors in existing status space; add no permanent rows or panels and retain Pi transcript padding. Capture destination/files before asynchronous work; require valid IDs for the entire batch before sending. Failed upload restores/merges only the originating draft and requires explicit retry, including after reload/reopen.
+
+Independent three-size acceptance must cover first-file/partial-batch failure, newer text/cursor, switched-session isolation, persisted media pairing and retry without automatic sends. Browser original-026 is verified by [ADR-0038](../adr/0038-native-upload-failure-recovery.md). Terminal implementation remains open; compose-005 separate browser progress is also unverified.
+
 ## Table/code/source-copy adaptation (2026-09-22; design)
 
 Use existing width-bounded table projection and literal fenced code; SVG fences remain source text. Existing selection/copy/native scrollback should expose retained output without permanent copy buttons or table panes. Verify exact source whitespace and wrapping independently at the three sizes before terminal credit. Browser timeline-023/024 and original-029 are verified in [ADR-0037](../adr/0037-native-markdown-rendering.md); those browser results do not establish terminal source-copy fidelity.

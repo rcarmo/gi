@@ -536,3 +536,106 @@ test('Gi failed folder-reference send restores its origin without altering anoth
     expect(await messages(request,main.id)).toEqual([]);expect(await messages(request,child)).toEqual([]);
   }finally{release();await page.unrouteAll({behavior:'wait'});}
 });
+
+for (const successfulPrefix of [0, 1]) {
+  test(successfulPrefix === 0
+    ? '@ux-original-026 Native upload failure prevents submission; retry supplies durable media IDs'
+    : 'Gi partial upload failure preserves successful bytes and recovers the whole batch in its origin', async ({page,request},info) => {
+    if (!successfulPrefix) await evidence(info,'@ux-original-026');
+    const {main,child,input,switchTo} = await fixture(page,request,info);
+    const files = [attachment('upload α.txt'), attachment('upload β.txt')];
+    const newer = attachment('newer unsent.txt');
+    const mediaPath = `/api/sessions/${main.id}/media`;
+    const uploads = []; let submissions = 0, attempts = 0, held = false, release;
+    page.on('response', response => {
+      if (response.request().method() === 'POST' && new URL(response.url()).pathname === mediaPath)
+        uploads.push(response.json().then(body => ({status:response.status(),body})));
+    });
+    page.on('request', req => {
+      if (req.method() === 'POST' && /\/(prompt|queue|steer)$/.test(new URL(req.url()).pathname)) submissions++;
+    });
+    const gate = new Promise(resolve => { release = resolve; });
+    const routePattern = `**${mediaPath}`;
+    await page.route(routePattern, async route => {
+      if (route.request().method() !== 'POST') return route.continue();
+      if (attempts++ !== successfulPrefix) return route.continue();
+      held = true; await gate;
+      // Preserve the real multipart bytes. Only omit its boundary so the native
+      // parser rejects the request; do not fabricate an HTTP error response.
+      await route.continue({headers:{...route.request().headers(),'content-type':'multipart/form-data'}});
+    });
+    try {
+      await input.fill('captured upload draft');
+      await page.locator('.compose-box input[type=file]').setInputFiles(files);
+      await input.press('Enter'); await expect.poll(() => held).toBe(true);
+      await expect(input).toHaveValue('');
+      expect(submissions).toBe(0);
+      const before = (await (await request.get(mediaPath)).json()).media;
+      expect(before).toHaveLength(successfulPrefix);
+      for (const media of before) {
+        expect(media.filename).toBe(files[0].name);
+        expect(await (await request.get(`${mediaPath}/${media.id}`)).body()).toEqual(files[0].buffer);
+      }
+      await input.fill('newer draft');
+      await page.locator('.compose-box input[type=file]').setInputFiles(newer);
+      if (successfulPrefix) { await switchTo(child); await input.fill('independent B draft'); }
+      release();
+      await expect.poll(() => uploads.length).toBe(successfulPrefix + 1);
+      const failed = (await Promise.all(uploads)).at(-1);
+      expect(failed.status).toBe(400);
+      expect(failed.body.error).toContain('no multipart boundary');
+      await expect.poll(() => storedDraft(page,main.id)).toMatchObject({
+        text:'captured upload draft\n\nnewer draft', media:[...files,newer].map(f=>f.name), pending:0,
+      });
+      if (successfulPrefix) {
+        await expect(input).toHaveValue('independent B draft');
+        await expect(page.getByRole('alert')).toHaveCount(0);
+        await switchTo(main.id);
+      }
+      await expect(page.getByRole('alert').filter({hasText:failed.body.error})).toBeVisible();
+      await expect(input).toHaveValue('captured upload draft\n\nnewer draft');
+      expect(submissions).toBe(0);
+      expect(await messages(request,main.id)).toEqual([]);
+      expect((await (await request.get(`/api/sessions/${main.id}/turns`)).json()).turns ?? []).toEqual([]);
+      expect((await (await request.get(mediaPath)).json()).media).toHaveLength(successfulPrefix);
+      await page.screenshot({path:info.outputPath('native-upload-error.png')});
+      await info.attach('native-upload-error',{path:info.outputPath('native-upload-error.png'),contentType:'image/png'});
+      await page.unroute(routePattern);
+      await page.reload(); await expect(input).toHaveValue('captured upload draft\n\nnewer draft');
+      for (const file of [...files,newer]) await expect(page.locator('.compose-file-pill').filter({hasText:file.name})).toBeVisible();
+      expect(submissions).toBe(0); // Reload must never automatically retry the send.
+      const sent = page.waitForRequest(req => req.method() === 'POST' && req.url().endsWith(`/api/sessions/${main.id}/prompt`));
+      await input.press('Enter'); const body = (await sent).postDataJSON();
+      const results = (await Promise.all(uploads)).slice(successfulPrefix + 1);
+      expect(results.map(r=>r.status)).toEqual([201,201,201]);
+      const ids = results.map(r=>r.body.media.id);
+      expect(ids.every(id=>Number.isSafeInteger(id) && id > 0)).toBe(true);
+      expect(new Set(ids).size).toBe(3);
+      expect(body.media).toEqual(ids.map(media_id=>({media_id,session_id:main.id})));
+      expect(body.prompt).toBe('captured upload draft\n\nnewer draft\n\nAttachments:\n'+ids.map((id,i)=>`- attachment:${id} (${[...files,newer][i].name})`).join('\n'));
+      await completedPrompt(request,main.id,body.prompt);
+      const userMessages = (await messages(request,main.id)).filter(m=>m.role==='user');
+      expect(userMessages).toHaveLength(1); expect(userMessages[0].content).toBe(body.prompt);
+      const turns = (await (await request.get(`/api/sessions/${main.id}/turns`)).json()).turns;
+      expect(turns).toHaveLength(1);
+      expect(turns[0].metadata.media.map(({media_id,session_id})=>({media_id,session_id}))).toEqual(body.media);
+      expect(turns[0].metadata.media.map(({filename})=>filename)).toEqual([...files,newer].map(f=>f.name));
+      expect(submissions).toBe(1);
+      const persisted = (await (await request.get(mediaPath)).json()).media;
+      // A pre-failure successful upload is retained, not attached by the retry.
+      // Garbage collection/deduplication is a separate, currently absent contract.
+      expect(persisted).toHaveLength(successfulPrefix + 3);
+      for (let i=0;i<ids.length;i++) {
+        expect(persisted.find(m=>m.id===ids[i]).filename).toBe([...files,newer][i].name);
+        expect(await (await request.get(`${mediaPath}/${ids[i]}`)).body()).toEqual([...files,newer][i].buffer);
+      }
+      expect(ids).not.toContain(before[0]?.id);
+      await expect.poll(() => storedDraft(page,main.id)).toMatchObject({text:'',media:[],pending:0});
+      if (successfulPrefix) {
+        await switchTo(child); await expect(input).toHaveValue('independent B draft');
+        expect(await messages(request,child)).toEqual([]);
+        expect((await (await request.get(`/api/sessions/${child}/media`)).json()).media).toEqual([]);
+      }
+    } finally { release(); await page.unroute(routePattern); }
+  });
+}

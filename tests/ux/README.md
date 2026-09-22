@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Native upload failure recovery: 2026-09-22
+
+`drafts.spec.mjs` maps original-026: native IDs on successful uploads, native multipart parser errors and no submission on rejection. An additional partial-batch case checks stored successful bytes, newer draft merging, session isolation, reload and explicit retry. The fixture changes only the boundary header, never the multipart bytes or HTTP response. Persisted turns retain the retry IDs/filenames and exactly one user message. [ADR-0038](../../docs/adr/0038-native-upload-failure-recovery.md).
+
+Latest: **444/444 browser** (282 main + 162 specialised), **70/70 functional**, **29 helpers**, Go/vet/hook. Main browser-family batches each pass 141 cases; a separate 12-case screenshot run also passes. Coverage **39/236 Classic**, **2/42 shared**, **197/40 unmapped**. Compose-005 progress-state and terminal pending media stay open. No application changes or new terminal evidence.
+
 ## Native Markdown rendering: 2026-09-22
 
 `rendering.spec.mjs` maps timeline-023/024 and original-029 through stored assistant posts: full-width automatic tables, visible top-right code-copy controls with trusted plain-text copy events, and source-only SVG fences. A Gi-only case checks native horizontal wheel reachability for a wide table and draft/reload preservation. No clipboard stubs or fabricated posts. [ADR-0037](../../docs/adr/0037-native-markdown-rendering.md).
