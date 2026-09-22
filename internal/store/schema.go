@@ -303,6 +303,7 @@ func initSchema(db *sql.DB) error {
 		`alter table sessions add column aliases_json text not null default '[]'`,
 		`alter table turns add column phase text not null default 'queued'`,
 		`alter table turns add column queue_position integer not null default 0`,
+		`alter table steering_queue add column source_queue_id text references turns(id) on delete cascade`,
 		`alter table turns add column claimed_by text`,
 		`alter table turns add column claimed_at text`,
 		`alter table turns add column started_at text`,

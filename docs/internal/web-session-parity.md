@@ -1,5 +1,17 @@
 # Web session selection and compact TUI adaptation
 
+## Latest verified slice: run-bound queue Steer (2026-09-22)
+
+Queue Steer requires a captured matching active run. Atomic native admission consumes each queued ID at most once; idle, stale, cancelling and foreign targets reject without immediate-send fallback. Unknown/idle browser controls are disabled. Unconsumed entries return as held queue rows, survive reload and can be explicitly retried into a new run. They never auto-send. See [ADR-0018](../adr/0018-run-bound-queue-steer.md) for transaction/recovery semantics and limits.
+
+Current evidence: **204/204 browser executions** (192 existing shell-fixture executions plus 12 local-provider Steer executions), **70/70 functional tests**, **23/23 helpers**, Go tests/vet and targeted race tests repeated three times. Coverage: **Classic 15/236** passing, 221 unmapped; **shared 2/42** passing, 40 unmapped. Classic idle-Steer/send and replacement-return conflicts remain separate and unmapped. No frozen features or supplied component/UI/pane files changed in this slice.
+
+The browser tests verify actual provider-request delivery, duplicate keyboard activation, failed admission, idle recovery/reload/retry, socket-disconnect disabling, stale/foreign API rejection and session-switch feedback isolation. Native image projection and failed-checkpoint recovery have Go tests. An independent review delegate timed out and contributed no evidence.
+
+Terminal adaptation: use the shared engine from a temporary queue selector capped at six rows, with existing muted/accent styling and arrow/Enter/Escape interaction. Capture run/session/generation; preserve editor/cursor and use existing transient notices. Add no top chrome or idle rows. Verify 60×18, 100×22 and 140×36 before claiming implementation. Terminal queue controls and durable media recovery are still unimplemented.
+
+The following sections retain the evidence recorded for earlier slices.
+
 ## Implemented browser slice
 
 Session selection now advances a generation token before rendering. Timeline, session-list and model/queue/status fetches capture that token and reject superseded responses, including a switch away and back to the same ID. SSE events must name the selected chat before they can update its timeline or status.

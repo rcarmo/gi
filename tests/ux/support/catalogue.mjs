@@ -7,7 +7,7 @@ import { IdGenerator, SourceMediaType } from '@cucumber/messages';
 
 export const uxRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const mappedIds = new Set(['@ux-original-001', '@ux-original-002', '@ux-original-013', '@ux-original-014', '@ux-original-015', '@ux-original-016', '@ux-original-018', '@ux-original-021', '@ux-compaction-008', '@ux-context-002', '@ux-reconnect-001', '@ux-compose-001', '@ux-compose-002', '@ux-compose-003', '@ux-compose-006']);
-export const sharedMappedIds = new Set(['@shared-28']);
+export const sharedMappedIds = new Set(['@shared-28', '@shared-30']);
 const sha256 = data => createHash('sha256').update(data).digest('hex');
 
 export function verifySources() {

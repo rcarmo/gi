@@ -403,12 +403,13 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	queued := false
-	count, err := e.store.CountQueuedTurns(opCtx, in.SessionID)
-	if err != nil {
+	// Held, unconsumed queue Steer rows are visible but must neither auto-send
+	// nor prevent a new explicit user submission from starting.
+	next, err := e.store.GetNextQueuedTurn(opCtx, in.SessionID)
+	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
-	queued = activeQueue || count > 0
+	queued := activeQueue || next != nil
 	metadata := map[string]any{"intent": in.Intent, "model": in.Model}
 	parentSessionID := ""
 	var parentTurn *store.Turn
@@ -808,7 +809,7 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 	}
 	// A queued-only cancellation may have committed before this claim.
 	claimedRecord, getErr := e.store.GetTurn(opCtx, turnID)
-	if getErr != nil || claimedRecord.Status != "queued" {
+	if getErr != nil || claimedRecord.Status != "queued" || claimedRecord.Phase == "steer_returned" {
 		if cleanupErr := releaseClaim(false); cleanupErr != nil {
 			return false, cleanupErr
 		}
@@ -2387,8 +2388,8 @@ func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, e
 	return false, nil
 }
 
-func (r *sessionRunner) dequeueSteeringMessages(ctx context.Context, sessionID string) ([]store.SteeringMessage, error) {
-	msgs, err := r.store.DequeueSteering(ctx, sessionID)
+func (r *sessionRunner) dequeueSteeringMessages(ctx context.Context, sessionID, turnID string) ([]store.SteeringMessage, error) {
+	msgs, err := r.store.DequeueSteeringForTurn(ctx, sessionID, turnID)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -2406,6 +2407,7 @@ func (r *sessionRunner) persistSteeringMessages(ctx context.Context, sessionID, 
 		return 0
 	}
 	totalContentLen := 0
+	persisted := 0
 	for _, msg := range msgs {
 		role := persistedSteeringChatRole(msg.Role)
 		payload := map[string]any{"kind": "chat", "intent": internalx.StringValue(msg.Payload["intent"], "prompt"), "turn_id": turnID, "steering": true, "steering_role": normalizeSteeringRole(msg.Role)}
@@ -2415,24 +2417,42 @@ func (r *sessionRunner) persistSteeringMessages(ctx context.Context, sessionID, 
 		if len(msg.Media) > 0 {
 			payload["media"] = append([]string(nil), msg.Media...)
 		}
-		logutil.WarnIfErr("add steering message", r.store.AddMessage(ctx, store.NowID("msg"), sessionID, role, msg.Content, payload))
+		// Identity comes from the consuming checkpoint, never queued metadata.
+		payload["turn_id"] = turnID
+		if msg.SourceQueueID != "" {
+			if err := r.store.PersistBoundSteering(ctx, sessionID, turnID, msg, payload); err != nil {
+				log.Printf("persist bound steering: %v", err)
+				continue
+			}
+		} else {
+			logutil.WarnIfErr("add steering message", r.store.AddMessage(ctx, store.NowID("msg"), sessionID, role, msg.Content, payload))
+		}
+		persisted++
 		totalContentLen += len(msg.Content)
+	}
+	if persisted == 0 {
+		return 0
 	}
 	logutil.WarnIfErr("append steering.injected event", r.store.AppendTurnEvent(ctx, turnID, sessionID, "steering.injected", map[string]any{
 		"phase":             "steering",
 		"checkpoint":        true,
-		"count":             len(msgs),
+		"count":             persisted,
 		"total_content_len": totalContentLen,
 	}))
-	r.engine.broadcast(sessionID, map[string]any{"type": "steering_injected", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": len(msgs), "media_count": steeringMediaCount(msgs)})
-	return len(msgs)
+	r.engine.broadcast(sessionID, map[string]any{"type": "steering_injected", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "count": persisted, "media_count": steeringMediaCount(msgs)})
+	return persisted
 }
 
 func (r *sessionRunner) injectSteeringMessages(ctx context.Context, sessionID, turnID string, convCtx *goai.Context, msgs []store.SteeringMessage) int {
 	if len(msgs) == 0 {
 		return 0
 	}
+	injected := 0
 	for _, msg := range msgs {
+		if r.persistSteeringMessages(ctx, sessionID, turnID, []store.SteeringMessage{msg}) != 1 {
+			continue
+		}
+		injected++
 		role := normalizeSteeringRole(msg.Role)
 		content := msg.Content
 		if len(msg.Media) > 0 {
@@ -2446,10 +2466,10 @@ func (r *sessionRunner) injectSteeringMessages(ctx context.Context, sessionID, t
 		case "assistant":
 			convCtx.Messages = append(convCtx.Messages, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: content}}})
 		default:
-			convCtx.Messages = append(convCtx.Messages, goai.UserMessage(content))
+			convCtx.Messages = append(convCtx.Messages, r.userMessageWithProviderSafeMedia(ctx, sessionID, content, msg.Payload))
 		}
 	}
-	return r.persistSteeringMessages(ctx, sessionID, turnID, msgs)
+	return injected
 }
 
 func (r *sessionRunner) skipRemainingToolCalls(ctx context.Context, sessionID, turnID string, convCtx *goai.Context, toolCalls []goai.ToolCall, start int) {
@@ -3942,7 +3962,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 
 		needsToolExecution := goai.NeedsToolExecution(assistantMsg) || len(toolCalls) > 0
 		if !needsToolExecution {
-			if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID); err != nil {
+			if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID, turnID); err != nil {
 				log.Printf("steering dequeue error after direct response: %v", err)
 			} else if len(steerMsgs) > 0 {
 				pendingSteering = append(pendingSteering, steerMsgs...)
@@ -4543,7 +4563,7 @@ func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store
 }
 
 func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, turnID, model, agentID string, iter int, convCtx *goai.Context, pendingSteering []store.SteeringMessage) []store.SteeringMessage {
-	if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID); err != nil {
+	if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID, turnID); err != nil {
 		log.Printf("steering dequeue error: %v", err)
 	} else if len(steerMsgs) > 0 {
 		pendingSteering = append(pendingSteering, steerMsgs...)
@@ -4723,7 +4743,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				logutil.WarnIfErr("add injected tool_result message", s.AddMessage(ctx, store.NowID("msg"), sessionID, "tool_result", displayResult, map[string]any{"kind": "tool_result", "tool_call_id": call.ID, "tool_name": call.Name, "is_error": false, "turn_id": turnID, "source": "hook", "hook_phase": "tool_call"}))
 				outcome.lastToolFailureSig = ""
 				outcome.repeatedToolFailureCount = 0
-				if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID); err != nil {
+				if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID, turnID); err != nil {
 					log.Printf("steering dequeue error after hook tool response: %v", err)
 				} else if len(steerMsgs) > 0 {
 					outcome.pendingSteering = append(outcome.pendingSteering, steerMsgs...)
@@ -4864,7 +4884,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			outcome.lastToolFailureSig = ""
 			outcome.repeatedToolFailureCount = 0
 		}
-		if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID); err != nil {
+		if steerMsgs, err := r.dequeueSteeringMessages(ctx, sessionID, turnID); err != nil {
 			log.Printf("steering dequeue error after tool: %v", err)
 		} else if len(steerMsgs) > 0 {
 			outcome.pendingSteering = append(outcome.pendingSteering, steerMsgs...)

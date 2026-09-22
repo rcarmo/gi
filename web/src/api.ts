@@ -246,14 +246,17 @@ export async function getAgentQueueState(chatJid: string | null = null) {
     const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
     if (!sessionId) return { items: [] };
     const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/queue`);
-    return { items: (data.items || []).map((turn: any) => ({
+    return { activeTurnId: data.active_turn_id || null, items: (data.items || []).map((turn: any) => ({
         id: turn.id, text: turn.prompt, content: turn.prompt, chat_jid: chatJid,
-        metadata: turn.metadata, created_at: turn.created_at,
+        metadata: turn.metadata, created_at: turn.created_at, phase: turn.phase,
     })) };
 }
 
-export async function steerAgentQueueItem(_itemId: string, _chatJid: string | null = null) {
-    return null;
+export async function steerAgentQueueItem(itemId: string, chatJid: string, activeTurnId: string) {
+    if (!chatJid?.startsWith('gi:') || !activeTurnId) throw new Error('Steer requires a matching active run');
+    return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/queue/${encodeURIComponent(itemId)}/steer`, {
+        method: 'POST', body: JSON.stringify({ active_turn_id: activeTurnId }),
+    });
 }
 
 export async function removeAgentQueueItem(turnId: string, chatJid: string | null = null) {

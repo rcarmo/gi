@@ -1,5 +1,7 @@
 # Gi web UI — 2026-09-21
 
+Latest slice (2026-09-22): **204/204 browser executions**, **70/70 functional**, **23/23 helpers**, Go/vet and targeted race checks. Coverage: Classic **15/236** (221 unmapped), shared **2/42** (40 unmapped). Shared queue Steer is run-bound, atomic and idle-disabled; unconsumed rows are held for explicit recovery/retry. Classic idle-send stays unmapped. See [ADR-0018](../adr/0018-run-bound-queue-steer.md). The counts below record earlier slices.
+
 Gi has a Piclaw-derived Preact web shell backed by Go HTTP APIs, SSE and SQLite. Many copied Piclaw controls have no working Gi adapter yet. Backend capabilities and browser feature support differ substantially.
 
 Later on 2026-09-21, the session slice added guarded selection, page-local per-session drafts and real child-chat creation. Its combined parity matrix passed 24/24 runs (3 frozen IDs plus a child-creation regression). A reproduced pooled-SQLite configuration defect was fixed in `bd30518`; the existing web suite then passed 70/70. The initial-run counts below are historical. See [web-session-parity.md](web-session-parity.md) for current limits and proposed terminal adaptations.

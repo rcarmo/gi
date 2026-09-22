@@ -10,8 +10,8 @@ for (const item of classic) {
   rows.get(item.id).expandedCases++;
 }
 const sharedRows = new Map(shared.map(item => [item.id, { id: item.id, name: item.name, source: `${item.uri}:${item.line}`, expandedCases: 1, status: 'unmapped', results: [] }]));
-const resultPath = process.argv[2];
-if (resultPath) {
+// Explicit result paths only: do not silently reuse a stale fixture run.
+for (const resultPath of process.argv.slice(2)) {
   const result = JSON.parse(readFileSync(resultPath, 'utf8'));
   function walk(suites) {
     for (const suite of suites || []) {

@@ -28,4 +28,5 @@ test('all frozen scenarios and outline examples are inventoried, not just mapped
   expect(shared).toHaveLength(42);
   for (const id of sharedMappedIds) expect(shared.some(item => item.id === id)).toBe(true);
   expect(shared.find(row => row.id === '@shared-28')?.name).toBe('Return a queued item to the latest editor draft');
+  expect(shared.find(row => row.id === '@shared-30')?.name).toBe('Steer only a matching active run');
 });

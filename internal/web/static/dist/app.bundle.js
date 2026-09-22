@@ -914,14 +914,23 @@ async function getAgentQueueState(chatJid = null) {
   if (!sessionId)
     return { items: [] };
   const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/queue`);
-  return { items: (data.items || []).map((turn) => ({
+  return { activeTurnId: data.active_turn_id || null, items: (data.items || []).map((turn) => ({
     id: turn.id,
     text: turn.prompt,
     content: turn.prompt,
     chat_jid: chatJid,
     metadata: turn.metadata,
-    created_at: turn.created_at
+    created_at: turn.created_at,
+    phase: turn.phase
   })) };
+}
+async function steerAgentQueueItem(itemId, chatJid, activeTurnId) {
+  if (!chatJid?.startsWith("gi:") || !activeTurnId)
+    throw new Error("Steer requires a matching active run");
+  return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/queue/${encodeURIComponent(itemId)}/steer`, {
+    method: "POST",
+    body: JSON.stringify({ active_turn_id: activeTurnId })
+  });
 }
 async function removeAgentQueueItem(turnId, chatJid = null) {
   const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
@@ -16530,6 +16539,16 @@ async function recoverQueueDraft(item, parsed, fetcher = fetch) {
 // web/src/app.ts
 var SESSION_KEY = "gi_session_id";
 var DEFAULT_AGENT_ID = "web";
+function RunBoundQueueStack({ steerEnabled, ...props }) {
+  const root = K_(null);
+  F_(() => {
+    const pending = new Set(props.items.filter((item) => item.pending).map((item) => String(item.id)));
+    root.current?.querySelectorAll(".compose-queue-stack-steer-btn").forEach((button) => {
+      button.disabled = !steerEnabled || props.busy || pending.has(button.closest("[data-queue-id]")?.dataset.queueId);
+    });
+  });
+  return ce`<div ref=${root} style="display:contents"><${QueuedFollowupStack} ...${props} /></div>`;
+}
 function sessionToChatJid2(id) {
   return `gi:${id}`;
 }
@@ -16600,6 +16619,7 @@ function GiApp() {
   const [queueBusy, setQueueBusy] = M_(false);
   const queueMutation = K_(null);
   const queueRevision = K_(0);
+  const [queueActiveTurnId, setQueueActiveTurnId] = M_(null);
   const modelRevision = K_(0);
   const modelMutation = K_(null);
   const connectionRevision = K_(0);
@@ -16782,6 +16802,7 @@ function GiApp() {
   const handleConnectionStatusChange = X_((status) => {
     ++connectionRevision.current;
     ++queueRevision.current;
+    setQueueActiveTurnId(null);
     setConnectionStatus(status);
     streamDisconnected.current = status !== "connected";
     if (status !== "connected") {
@@ -16836,6 +16857,7 @@ function GiApp() {
         setContextUsage(models.context_usage || null);
       }
       if (revision === queueRevision.current && !queueMutation.current) {
+        setQueueActiveTurnId(queue.activeTurnId || null);
         setFollowupQueueItems(queue.items || []);
         const admitted = new Set((queue.items || []).map((item) => item.metadata?.client_request_id).filter(Boolean));
         setOptimisticQueue((items) => items.filter((item) => !admitted.has(item.id)));
@@ -16893,6 +16915,7 @@ function GiApp() {
     setPosts([]);
     setHasMore(false);
     setFollowupQueueItems([]);
+    setQueueActiveTurnId(null);
     setCurrentChatBranches([]);
     queueMutation.current = null;
     ++queueRevision.current;
@@ -16960,6 +16983,9 @@ function GiApp() {
   const mutateQueue = async (action, itemOrIndex, toIndex) => {
     if (queueMutation.current)
       return;
+    if (action === "steer" && (streamDisconnected.current || !isAgentTurnActive || !queueActiveTurnId || itemOrIndex.pending))
+      return;
+    const expectedActiveTurnId = queueActiveTurnId;
     const scope = selection.capture();
     if (!scope.sessionId)
       return;
@@ -16971,7 +16997,13 @@ function GiApp() {
     const before = [...followupQueueItems];
     const chat = sessionToChatJid2(scope.sessionId);
     try {
-      if (action === "return") {
+      if (action === "steer") {
+        if (itemOrIndex.chat_jid !== chat)
+          throw new Error("Queued item belongs to another session");
+        await steerAgentQueueItem(itemOrIndex.id, chat, expectedActiveTurnId);
+        if (selection.isCurrent(scope))
+          setFollowupQueueItems((items) => items.filter((item) => item.id !== itemOrIndex.id));
+      } else if (action === "return") {
         const item = itemOrIndex;
         if (item.chat_jid !== chat || item.pending)
           throw new Error("Queued item belongs to another session or has no durable ID");
@@ -17010,8 +17042,11 @@ function GiApp() {
     } finally {
       try {
         const fresh = await getAgentQueueState(chat);
-        if (selection.isCurrent(scope))
+        if (selection.isCurrent(scope)) {
           setFollowupQueueItems(fresh.items || []);
+          if (!streamDisconnected.current)
+            setQueueActiveTurnId(fresh.activeTurnId || null);
+        }
       } catch (error) {
         if (selection.isCurrent(scope))
           setQueueError(`Queue refresh failed: ${error.message}`);
@@ -17158,7 +17193,9 @@ function GiApp() {
                         onClose=${() => setAttachmentPreview(null)}
                     />
                 `}
-                <${QueuedFollowupStack}
+                <${RunBoundQueueStack}
+                    steerEnabled=${connectionStatus === "connected" && isAgentTurnActive && !!queueActiveTurnId}
+                    onInjectQueuedFollowup=${(item) => mutateQueue("steer", item)}
                     items=${[...followupQueueItems, ...optimisticQueue.filter((item) => item.chat_jid === currentChatJid && !followupQueueItems.some((stored) => stored.id === item.id || stored.metadata?.client_request_id === item.id))]}
                     busy=${queueBusy}
                     onReturnQueuedFollowup=${(item) => mutateQueue("return", item)}
@@ -17166,6 +17203,7 @@ function GiApp() {
                     onMoveQueuedFollowup=${(from, to) => mutateQueue("move", from, to)}
                     onOpenFilePill=${openEditor}
                 />
+                ${followupQueueItems.some((item) => item.phase === "steer_returned") && ce`<div role="alert">Steer was not consumed by its target run. The item remains queued and will not auto-send; return it to the editor, remove it, or Steer a new active run.</div>`}
                 ${queueError && ce`<div role="alert">${queueError}</div>`}
                 ${sessionError && ce`<div role="alert">${sessionError}</div>`}
                 ${draftStorageError && ce`<div role="alert">${draftStorageError}</div>`}
@@ -17324,5 +17362,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=10241B2EBC1E2F5664756E2164756E21
+//# debugId=9F9D69FA119EA9B164756E2164756E21
 //# sourceMappingURL=app.js.map

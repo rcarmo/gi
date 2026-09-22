@@ -75,6 +75,22 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Shared run-bound queue Steer: 2026-09-22
+
+`queue-steer.spec.mjs` maps `@shared-30`; the catalogue test pins its title. Run `make test-ux-steer` for the isolated Go server and local streaming provider. Native API/SSE, SQLite and inference checkpoints are unchanged. The fixture uses temporary credentials/workspace, binds to loopback and closes on exit. No paid provider, forced clicks, retries or fabricated timeline events are used.
+
+The six-project suite verifies idle/unknown disabled controls (real SSE disconnection), run/session ownership, failed admission, duplicate activation, actual second-request delivery, held recovery/reload, retry into a new run and stale replies after switching sessions. Native Go tests cover atomic rollback, media projection, persistence failure and at-most-once acknowledgement.
+
+Current validation: **12/12 Steer + 192/192 existing browser executions**, **70/70 functional**, **23/23 helper tests**, Go/vet and targeted race tests repeated three times. Combine explicitly:
+
+```sh
+make test-ux-parity
+make test-ux-steer
+bun scripts/ux-parity-report.mjs test-results/ux-parity/results.json test-results/ux-parity/steer-results.json
+```
+
+The combined report has **15/236 Classic** and **2/42 shared** passes (221 and 40 unmapped). Individual runs report the other mapping as not-run. Classic idle-Steer/immediate-send (`019`) stays unmapped. See [ADR-0018](../../docs/adr/0018-run-bound-queue-steer.md).
+
 ## Shared durable queue return: 2026-09-22
 
 `queue-return.spec.mjs` maps `@shared-28` (the immutable shared corpus's ordinal ID), with a name assertion preventing mapping drift. Return merges the latest origin draft/media/refs and persists recovery before DELETE. Tests hold real media responses, inspect committed state at DELETE, inject quota/transport failures, reload/retry and verify no duplicate recovery. Separate regressions cover already-consumed items and session switches.

@@ -21,17 +21,18 @@ type ActiveTurnClaim struct {
 }
 
 type SteeringMessage struct {
-	ID        int64          `json:"id"`
-	SessionID string         `json:"session_id"`
-	TurnID    string         `json:"turn_id,omitempty"`
-	Role      string         `json:"role"`
-	Content   string         `json:"content"`
-	Payload   map[string]any `json:"payload,omitempty"`
-	Media     []string       `json:"media,omitempty"`
-	QueueMode string         `json:"queue_mode"`
-	Status    string         `json:"status"`
-	CreatedAt string         `json:"created_at"`
-	UpdatedAt string         `json:"updated_at"`
+	ID            int64          `json:"id"`
+	SourceQueueID string         `json:"source_queue_id,omitempty"`
+	SessionID     string         `json:"session_id"`
+	TurnID        string         `json:"turn_id,omitempty"`
+	Role          string         `json:"role"`
+	Content       string         `json:"content"`
+	Payload       map[string]any `json:"payload,omitempty"`
+	Media         []string       `json:"media,omitempty"`
+	QueueMode     string         `json:"queue_mode"`
+	Status        string         `json:"status"`
+	CreatedAt     string         `json:"created_at"`
+	UpdatedAt     string         `json:"updated_at"`
 }
 
 func (s *Store) ClaimSessionActiveTurn(ctx context.Context, sessionID, turnID, workerID, claimToken string) (bool, error) {
@@ -51,18 +52,18 @@ func (s *Store) ClaimSessionActiveTurn(ctx context.Context, sessionID, turnID, w
 }
 
 func (s *Store) ReleaseSessionActiveTurn(ctx context.Context, sessionID, claimToken string) error {
-	if claimToken == "" {
-		_, err := s.db.ExecContext(ctx, `delete from session_active_turns where session_id = ?`, sessionID)
-		if err != nil {
-			return fmt.Errorf("release session active turn: %w", err)
-		}
-		return nil
-	}
-	_, err := s.db.ExecContext(ctx, `delete from session_active_turns where session_id = ? and claim_token = ?`, sessionID, claimToken)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("release session active turn: %w", err)
+		return err
 	}
-	return nil
+	defer tx.Rollback()
+	if err := restoreBoundSteeringTx(ctx, tx, sessionID, claimToken); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `delete from session_active_turns where session_id = ? and (? = '' or claim_token = ?)`, sessionID, claimToken, claimToken); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Store) GetSessionActiveTurn(ctx context.Context, sessionID string) (turnID string, claimToken string, err error) {
@@ -167,14 +168,17 @@ func (s *Store) SteeringQueueLength(ctx context.Context, sessionID string) (int,
 	return count, nil
 }
 
-func dequeueSteeringTx(ctx context.Context, tx *sql.Tx, sessionID string) ([]SteeringMessage, error) {
+func dequeueSteeringTx(ctx context.Context, tx *sql.Tx, sessionID, activeTurnID string) ([]SteeringMessage, error) {
 	row := tx.QueryRowContext(ctx, `
 		select id, queue_mode
 		from steering_queue
 		where session_id = ? and status = 'queued'
+ and (source_queue_id is null or (turn_id = ? and exists (
+ select 1 from session_active_turns a join turns t on t.id = a.turn_id
+ where a.session_id = steering_queue.session_id and a.turn_id = steering_queue.turn_id and t.status = 'running')))
 		order by id asc
 		limit 1
-	`, sessionID)
+	`, sessionID, activeTurnID)
 	var firstID int64
 	var queueMode string
 	if err := row.Scan(&firstID, &queueMode); err != nil {
@@ -188,12 +192,15 @@ func dequeueSteeringTx(ctx context.Context, tx *sql.Tx, sessionID string) ([]Ste
 		limit = 1000
 	}
 	rows, err := tx.QueryContext(ctx, `
-		select id, session_id, coalesce(turn_id,''), role, content, payload_json, media_json, queue_mode, status, created_at, updated_at
+		select id, session_id, coalesce(turn_id,''), role, content, payload_json, media_json, queue_mode, status, created_at, updated_at, coalesce(source_queue_id,'')
 		from steering_queue
 		where session_id = ? and status = 'queued'
+ and (source_queue_id is null or (turn_id = ? and exists (
+ select 1 from session_active_turns a join turns t on t.id = a.turn_id
+ where a.session_id = steering_queue.session_id and a.turn_id = steering_queue.turn_id and t.status = 'running')))
 		order by id asc
 		limit ?
-	`, sessionID, limit)
+	`, sessionID, activeTurnID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("dequeue steering rows: %w", err)
 	}
@@ -203,7 +210,7 @@ func dequeueSteeringTx(ctx context.Context, tx *sql.Tx, sessionID string) ([]Ste
 	for rows.Next() {
 		var item SteeringMessage
 		var payloadJSON, mediaJSON string
-		if err := rows.Scan(&item.ID, &item.SessionID, &item.TurnID, &item.Role, &item.Content, &payloadJSON, &mediaJSON, &item.QueueMode, &item.Status, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.SessionID, &item.TurnID, &item.Role, &item.Content, &payloadJSON, &mediaJSON, &item.QueueMode, &item.Status, &item.CreatedAt, &item.UpdatedAt, &item.SourceQueueID); err != nil {
 			return nil, fmt.Errorf("scan steering row: %w", err)
 		}
 		payload, err := unmarshalJSONMap(payloadJSON)
@@ -223,7 +230,7 @@ func dequeueSteeringTx(ctx context.Context, tx *sql.Tx, sessionID string) ([]Ste
 		return nil, fmt.Errorf("iterate steering rows: %w", err)
 	}
 	for _, id := range ids {
-		if _, err := tx.ExecContext(ctx, `update steering_queue set status = 'dequeued', updated_at = `+defaultNow+` where id = ?`, id); err != nil {
+		if _, err := tx.ExecContext(ctx, `update steering_queue set status = case when source_queue_id is null then 'dequeued' else 'claimed' end, updated_at = `+defaultNow+` where id = ?`, id); err != nil {
 			return nil, fmt.Errorf("mark steering dequeued: %w", err)
 		}
 	}
@@ -259,7 +266,7 @@ func (s *Store) StageSteeringContinuation(ctx context.Context, sessionID, turnID
 		return nil, nil, fmt.Errorf("stage steering continuation begin tx: %w", err)
 	}
 	defer tx.Rollback()
-	row := tx.QueryRowContext(ctx, `select count(*) from turns where session_id = ? and status = 'queued'`, sessionID)
+	row := tx.QueryRowContext(ctx, `select count(*) from turns where session_id = ? and status = 'queued' and phase != 'steer_returned'`, sessionID)
 	var queuedCount int
 	if err := row.Scan(&queuedCount); err != nil {
 		return nil, nil, fmt.Errorf("stage steering continuation queued count: %w", err)
@@ -267,7 +274,7 @@ func (s *Store) StageSteeringContinuation(ctx context.Context, sessionID, turnID
 	if queuedCount > 0 {
 		return nil, nil, sql.ErrNoRows
 	}
-	msgs, err := dequeueSteeringTx(ctx, tx, sessionID)
+	msgs, err := dequeueSteeringTx(ctx, tx, sessionID, "")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -280,9 +287,9 @@ func (s *Store) StageSteeringContinuation(ctx context.Context, sessionID, turnID
 		return nil, nil, err
 	}
 	if _, err := tx.ExecContext(ctx, `
-		insert into turns (id, session_id, status, phase, prompt, metadata_json, created_at, updated_at)
-		values (?, ?, 'queued', 'queued', '', ?, `+defaultNow+`, `+defaultNow+`)
-	`, turnID, sessionID, metadataJSON); err != nil {
+		insert into turns (id, session_id, status, phase, prompt, metadata_json, created_at, updated_at, queue_position)
+		values (?, ?, 'queued', 'queued', '', ?, `+defaultNow+`, `+defaultNow+`, (select coalesce(max(queue_position),0)+1 from turns where session_id = ?))
+	`, turnID, sessionID, metadataJSON, sessionID); err != nil {
 		return nil, nil, fmt.Errorf("stage steering continuation create turn: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -305,12 +312,15 @@ func (s *Store) StageSteeringContinuation(ctx context.Context, sessionID, turnID
 }
 
 func (s *Store) DequeueSteering(ctx context.Context, sessionID string) ([]SteeringMessage, error) {
+	return s.DequeueSteeringForTurn(ctx, sessionID, "")
+}
+func (s *Store) DequeueSteeringForTurn(ctx context.Context, sessionID, activeTurnID string) ([]SteeringMessage, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("dequeue steering begin tx: %w", err)
 	}
 	defer tx.Rollback()
-	out, err := dequeueSteeringTx(ctx, tx, sessionID)
+	out, err := dequeueSteeringTx(ctx, tx, sessionID, activeTurnID)
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,126 @@
+// Isolated acceptance server. Only the provider is deterministic; HTTP, SSE,
+// queue admission, inference checkpoints and SQLite are the production paths.
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/inference"
+	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/turn"
+	"github.com/rcarmo/gi/internal/web"
+	goai "github.com/rcarmo/go-ai"
+)
+
+func main() {
+	dir, err := os.MkdirTemp("", "gi-steer-ux-")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	// Never read or write operator credentials.
+	os.Setenv("HOME", dir)
+	os.MkdirAll(filepath.Join(dir, ".pi", "agent"), 0700)
+	if err = os.WriteFile(filepath.Join(dir, ".pi", "agent", "auth.json"), []byte(`{"ux-local":{"type":"api_key","key":"fixture-only","apiKey":"fixture-only"}}`), 0600); err != nil {
+		log.Fatal(err)
+	}
+	gates := os.Getenv("GI_UX_QUEUE_GATES")
+	if gates == "" {
+		log.Fatal("GI_UX_QUEUE_GATES required")
+	}
+	var mu sync.Mutex
+	seen := map[string]bool{}
+	gatePattern := regexp.MustCompile(`UX steer gate:([a-zA-Z0-9_-]+)`)
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, err.Error(), 400)
+			return
+		}
+		raw, _ := json.Marshal(body)
+		matches := gatePattern.FindAllStringSubmatch(string(raw), -1)
+		var match []string
+		if len(matches) > 0 {
+			match = matches[len(matches)-1]
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		emit := func(v any) { b, _ := json.Marshal(v); fmt.Fprintf(w, "data: %s\n\n", b); w.(http.Flusher).Flush() }
+		emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"role": "assistant", "content": "provider checkpoint"}, "finish_reason": nil}}})
+		if len(match) > 1 {
+			token := match[1]
+			mu.Lock()
+			first := !seen[token]
+			seen[token] = true
+			mu.Unlock()
+			if first {
+				deadline := time.After(55 * time.Second)
+				tick := time.NewTicker(20 * time.Millisecond)
+				defer tick.Stop()
+			wait:
+				for {
+					select {
+					case <-r.Context().Done():
+						return
+					case <-deadline:
+						break wait
+					case <-tick.C:
+						if _, err := os.Stat(filepath.Join(gates, token)); err == nil {
+							break wait
+						}
+					}
+				}
+			}
+		}
+		// Reflect only user messages as proof of actual second-request delivery.
+		var users []string
+		if messages, ok := body["messages"].([]any); ok {
+			for _, entry := range messages {
+				m, _ := entry.(map[string]any)
+				if m["role"] == "user" {
+					b, _ := json.Marshal(m["content"])
+					users = append(users, string(b))
+				}
+			}
+		}
+		emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"content": "\nreceived:" + strings.Join(users, "|")}, "finish_reason": "stop"}}, "usage": map[string]any{"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}})
+		fmt.Fprint(w, "data: [DONE]\n\n")
+	}))
+	defer provider.Close()
+	inference.Init()
+	goai.RegisterModel(&goai.Model{ID: "gate", Name: "Local UX Gate", Provider: goai.Provider("ux-local"), Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, Input: []string{"text"}, ContextWindow: 32000, MaxTokens: 1024})
+	cfg := config.Load(dir)
+	cfg.DefaultModel = "ux-local/gate"
+	cfg.EnabledModels = []string{"ux-local/gate", "test-model", "bootstrap"}
+	cfg.DefaultProvider = "ux-local"
+	cfg.SystemPrompt = "Local acceptance fixture. Answer user messages."
+	cfg.WorkspaceRoot = dir
+	s, err := store.Open(filepath.Join(dir, "gi.db"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer s.Close()
+	engine := turn.NewWithRuntimeConfig(s, cfg, cfg.SystemPrompt)
+	defer engine.Close()
+	server := web.New(s, engine, cfg)
+	httpServer := &http.Server{Addr: "127.0.0.1:19092", Handler: server.Handler()}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
+	defer stop()
+	go func() { <-ctx.Done(); httpServer.Close() }()
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Print(err)
+	}
+}
