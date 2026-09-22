@@ -2,6 +2,10 @@
 
 Status: active layout contract for the Pi/PiClaw UX convergence track.
 
+## Fullscreen rendered search and prompt jumps (2026-09-22; verified)
+
+Ctrl-Shift-F temporarily replaces the editor with an independent query input; the existing separator shows counts/hints. Enter/Shift-Enter (or Ctrl-G/Ctrl-Shift-G) navigate matching rows; Escape restores editor text/cursor/undo/yank and reading mode. Ctrl-Shift-Up/Down jump between rendered user prompts. Three-size live search/highlight/Unicode/tool-expansion/resize/reopen/native-arrival checks add no idle rows. This is literal case-insensitive per-rendered-row search with whole-row highlighting; cross-wrap matching, individual-occurrence highlighting and clickable controls are not implemented. [ADR-0032](../adr/0032-fullscreen-transcript-search.md).
+
 ## Regular-mode native scrollback (2026-09-22; verified)
 
 `gi -tui -tui-mode regular` is opt-in; fullscreen remains the default. Completed retained output prints once, expanded and outcome-colored, into terminal-owned scrollback. No alternate screen or mouse capture. Five idle dock rows hold the existing editor/separators/footer; active preview is temporary and at most three rows. Terminal/multiplexer wheel, selection and copy remain native. Home/End edit the draft. Three-size ordered-history/selection/draft/cursor/multiline/resize/selector/session/exit/reopen tests pass. Resize history markers re-establish go-tui geometry before dock growth. See [ADR-0031](../adr/0031-regular-terminal-scrollback.md) for exact bounds and retention limits.
@@ -10,7 +14,7 @@ Status: active layout contract for the Pi/PiClaw UX convergence track.
 
 User messages use Pi's neutral `#343541` band; pending/success/error tools use `#282832`/`#283228`/`#3c2828`, with neutral output text and explicit error labels. Flat bands replace tool box rows. PgUp/PgDn and Home/End navigate rendered transcript rows even while editing; Ctrl-Home/End retain editor movement, Ctrl-O expands/collapses tool output, and wheel input over the fixed dock falls back to the transcript. Three-size native PTY and rendered-cell tests pass without extra idle rows. See [ADR-0030](../adr/0030-terminal-outcome-bands.md).
 
-Fullscreen transcript search, prompt jumps, application text selection/copy/edge-autoscroll, light theme and reflow/eviction anchoring remain open. Regular mode above provides terminal-owned history separately from fullscreen navigation.
+Fullscreen application text selection/copy/edge-autoscroll, light theme and stronger reflow/eviction anchoring remain open; search and prompt jumps are implemented above with explicit limits. Regular mode above provides terminal-owned history separately from fullscreen navigation.
 
 ## Terminal reading position (2026-09-22; verified)
 

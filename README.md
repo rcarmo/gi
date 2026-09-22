@@ -36,6 +36,8 @@ The web UI uses Piclaw's TypeScript source verbatim with a gi-specific API adapt
 
 `gi -tui -tui-mode regular` keeps completed output in native terminal scrollback with a five-row idle editor/footer; the terminal owns wheel, selection and copy. `fullscreen` remains the default and supports in-app paging and tool-output folding. Regular mode prints retained output fully expanded after native completion and uses a temporary three-row preview while active. See [ADR-0031](docs/adr/0031-regular-terminal-scrollback.md) for retention and resize limits.
 
+Fullscreen `Ctrl+Shift+F` searches rendered transcript rows without submitting a prompt. Enter/Shift+Enter move between matches; Escape restores the draft and reading position. `Ctrl+Shift+Up/Down` jump between user prompts. See [ADR-0032](docs/adr/0032-fullscreen-transcript-search.md) for rendered-row and retention limits.
+
 ## Internal reference
 
 The repo includes a growing internal documentation subtree under `docs/internal/`.
@@ -83,6 +85,7 @@ That installs Go/Bun dependencies, installs Playwright Chromium, and builds `gi`
 | `make test-tui-smoke` | tmux-driven TUI smoke test (artifacts under `test-results/tui-smoke/`) |
 | `make test-tui-gherkin` | TUI gherkin harness |
 | `make test-tui-regular` | Three-size native scrollback, selection/copy, draft/resize/session/exit/reopen checks |
+| `make test-tui-search` | Three-size fullscreen search, prompt-jump, draft/cursor and live-output checks |
 | `make clean` | Remove build/run artifacts |
 
 ### Override defaults

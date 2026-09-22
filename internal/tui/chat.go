@@ -180,6 +180,7 @@ type chatTUI struct {
 	subscribedCh                chan map[string]any
 	topicUnsubscribe            func()
 	input                       *multilineInput
+	search                      transcriptSearch
 	queuedDrafts                []string
 	inputRegion                 *gotui.Element
 	transcriptRegion            *gotui.Element
@@ -1517,6 +1518,9 @@ func floatFromAny(v any) float64 {
 }
 
 func (c *chatTUI) KeyMap() gotui.KeyMap {
+	if c.search.active {
+		return c.transcriptSearchKeys()
+	}
 	if c.modelMenuOpen {
 		return gotui.KeyMap{
 			gotui.OnStop(gotui.KeyCtrlC, func(ke gotui.KeyEvent) { c.app.Stop() }),
@@ -1554,6 +1558,9 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 			}
 		}),
 		gotui.OnStop(gotui.KeyTab, func(ke gotui.KeyEvent) { c.focusInput() }),
+		gotui.OnPreemptStop(gotui.Rune('f').Ctrl().Shift(), func(ke gotui.KeyEvent) { c.toggleTranscriptSearch() }),
+		gotui.OnPreemptStop(gotui.KeyUp.Ctrl().Shift(), func(ke gotui.KeyEvent) { c.jumpTranscriptPrompt(-1) }),
+		gotui.OnPreemptStop(gotui.KeyDown.Ctrl().Shift(), func(ke gotui.KeyEvent) { c.jumpTranscriptPrompt(1) }),
 		gotui.OnPreemptStop(gotui.KeyPageUp, func(ke gotui.KeyEvent) { c.pageTranscript(-1) }),
 		gotui.OnPreemptStop(gotui.KeyPageDown, func(ke gotui.KeyEvent) { c.pageTranscript(1) }),
 		gotui.OnPreemptStop(gotui.KeyHome, func(ke gotui.KeyEvent) { c.scrollTranscriptToTop() }),
@@ -2620,6 +2627,8 @@ func (c *chatTUI) hotkeyLines() []string {
 		"transcript:",
 		"  Ctrl+O expand/collapse tool output · F6/F7 select block · F8 expand/collapse · click toggle",
 		"  PgUp/PgDn transcript page · Home/End top/bottom (also while editing) · mouse wheel",
+		"  Ctrl+Shift+F rendered search · Enter/Shift+Enter next/previous · Esc restores editor",
+		"  Ctrl+Shift+Up/Down jump to previous/next user prompt",
 		"session:",
 		"  Esc blur input · Tab focus input · F2/F3 (or Ctrl+P/Ctrl+N) history",
 		"  Ctrl+C interrupt · Ctrl+D exit (empty input)",
@@ -3678,7 +3687,15 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 
 	c.ensureInput()
 	c.input.width = contentWidth
-	inputHeight := c.input.Render(app).HeightForWidth(contentWidth)
+	activeInput := c.input
+	inputSlot := 0
+	if c.search.active {
+		c.refreshTranscriptSearch(contentWidth)
+		activeInput = c.search.input
+		activeInput.width = contentWidth
+		inputSlot = 1
+	}
+	inputHeight := activeInput.Render(app).HeightForWidth(contentWidth)
 	if inputHeight < 1 {
 		inputHeight = 1
 	}
@@ -3720,8 +3737,12 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 		}
 		blocks = c.buildTranscriptRenderableBlocks(c.visibleTranscript())
 	}
-	for _, block := range blocks {
-		transcript.AddChild(c.renderTranscriptBlock(block))
+	if c.search.active {
+		c.renderTranscriptSearchRows(transcript)
+	} else {
+		for _, block := range blocks {
+			transcript.AddChild(c.renderTranscriptBlock(block))
+		}
 	}
 	if c.stickToBottom {
 		// Resolve the bottom after layout, when wrapping/expansion is known.
@@ -3736,14 +3757,18 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 		root.AddChild(c.renderLineBlock(widgetLines, gotui.NewStyle().Foreground(gotui.Blue)))
 	}
 
+	separatorText := c.horizontalRule(contentWidth)
+	if c.search.active {
+		separatorText = c.transcriptSearchLabel(contentWidth)
+	}
 	inputTopSep := gotui.New(
 		gotui.WithWidthPercent(100),
-		gotui.WithText(c.horizontalRule(contentWidth)),
+		gotui.WithText(separatorText),
 		gotui.WithTextStyle(gotui.NewStyle().Dim()),
 	)
 	root.AddChild(inputTopSep)
 
-	inputEl := app.MountPersistent(c, 0, func() gotui.Component { return c.input })
+	inputEl := app.MountPersistent(c, inputSlot, func() gotui.Component { return activeInput })
 	c.inputRegion = inputEl
 	root.AddChild(inputEl)
 
@@ -4451,7 +4476,7 @@ func (c *chatTUI) buildTranscriptRenderableBlocks(lines []string) []transcriptRe
 			switch {
 			case strings.HasPrefix(line, "sys:"):
 				kind = "system"
-			case strings.HasPrefix(line, "you"):
+			case strings.HasPrefix(line, "you: ") || strings.HasPrefix(line, "you [queued]: "):
 				kind = "user"
 			case strings.HasPrefix(line, c.cfg.AssistantName+":"):
 				kind = "assistant"
@@ -4888,7 +4913,7 @@ func (c *chatTUI) pageTranscript(delta int) {
 }
 
 func (c *chatTUI) scrollTranscriptToTop() {
-	c.transcriptScroll = 0
+	c.setTranscriptPosition(0)
 	c.stickToBottom = false
 	if c.app != nil {
 		c.app.MarkDirty()
@@ -4896,7 +4921,7 @@ func (c *chatTUI) scrollTranscriptToTop() {
 }
 
 func (c *chatTUI) scrollTranscriptToBottom() {
-	c.transcriptScroll = c.transcriptMaxScroll()
+	c.setTranscriptPosition(c.transcriptMaxScroll())
 	c.stickToBottom = true
 	if c.app != nil {
 		c.app.MarkDirty()

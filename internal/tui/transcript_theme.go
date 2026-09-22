@@ -67,3 +67,10 @@ func (c *chatTUI) toggleToolOutput() {
 		c.app.MarkDirty()
 	}
 }
+
+func (c *chatTUI) setTranscriptPosition(row int) {
+	c.transcriptScroll = max(0, row)
+	if c.transcriptRef != nil && c.transcriptRef.El() != nil {
+		c.transcriptRef.El().ScrollTo(0, c.transcriptScroll)
+	}
+}

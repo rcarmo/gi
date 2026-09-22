@@ -18,6 +18,8 @@ type multilineInput struct {
 	cursorRune       rune
 	autoFocus        bool
 	onSubmit         func(string)
+	onShiftEnter     func()
+	onNewline        func()
 	onRestoreQueued  func()
 	onEscape         func() bool
 	onTranscriptTop  func()
@@ -117,7 +119,13 @@ func (m *multilineInput) KeyMap() gotui.KeyMap {
 		gotui.OnFocused(gotui.KeyTab, func(ke gotui.KeyEvent) { m.complete() }),
 		gotui.OnFocused(gotui.KeyEnter, m.enter),
 		gotui.OnFocused(gotui.KeyEnter.Shift(), m.enter),
-		gotui.OnFocused(gotui.KeyCtrlJ, func(ke gotui.KeyEvent) { m.insertLiteral('\n') }),
+		gotui.OnFocused(gotui.KeyCtrlJ, func(ke gotui.KeyEvent) {
+			if m.onNewline != nil {
+				m.onNewline()
+			} else {
+				m.insertLiteral('\n')
+			}
+		}),
 		gotui.OnFocused(gotui.KeyEnter.Alt(), m.enter),
 		gotui.OnFocused(gotui.KeyUp.Alt(), func(ke gotui.KeyEvent) {
 			if m.onRestoreQueued != nil {
@@ -382,6 +390,10 @@ func (m *multilineInput) complete() {
 
 func (m *multilineInput) enter(ke gotui.KeyEvent) {
 	if ke.Mod&gotui.ModShift != 0 {
+		if m.onShiftEnter != nil {
+			m.onShiftEnter()
+			return
+		}
 		m.insertLiteral('\n')
 		return
 	}

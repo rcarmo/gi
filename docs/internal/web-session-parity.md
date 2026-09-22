@@ -1,6 +1,10 @@
 # Web session selection and compact TUI adaptation
 
-## Latest terminal evidence: opt-in native scrollback (2026-09-22)
+## Latest terminal evidence: rendered search/prompt jumps (2026-09-22)
+
+Fullscreen Ctrl-Shift-F temporarily replaces the editor with a query; matching rendered rows are highlighted, Enter/Shift-Enter navigate and Escape restores draft/cursor/reader state. Ctrl-Shift-Up/Down jump between user prompts. **60×18, 100×22 and 140×36** native PTYs verify Unicode, tool visibility, live arrivals, resize/reopen and no idle-row growth. All TUI suites, Go/vet/race ×3, 29 helpers and 70/70 functional browser tests pass. [ADR-0032](../adr/0032-fullscreen-transcript-search.md) records per-row/retention limits. Fullscreen pointer selection/copy and stronger reflow/eviction anchors remain open. No browser mapping changes.
+
+## Earlier terminal evidence: opt-in native scrollback (2026-09-22)
 
 `-tui-mode regular` prints completed expanded output into native terminal history, with no alternate screen or mouse capture, a five-row idle dock and bounded active preview. **60×18, 100×22 and 140×36** PTYs verify ordered/deduplicated history, native selection/copy during completion, multiline draft/cursor, resize, selectors, session isolation, exit and reopen. All existing TUI suites, Go/vet/race ×3, 29 helpers and 70/70 functional tests pass. [ADR-0031](../adr/0031-regular-terminal-scrollback.md) records the resize-marker workaround and remaining retention/layout limits. Fullscreen search/prompt jumps/selection and light theme remain open. Browser mapping unchanged.
 
