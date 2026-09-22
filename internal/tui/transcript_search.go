@@ -68,7 +68,7 @@ func (c *chatTUI) transcriptRowsAtWidth(width int) []transcriptSearchRow {
 				text.WriteString(value)
 				spans = append(spans, gotui.TextSpan{Text: value, Style: cell.Style})
 			}
-			rows = append(rows, transcriptSearchRow{text: strings.TrimRight(text.String(), " "), spans: spans, prompt: block.Kind == "user" && y == 0})
+			rows = append(rows, transcriptSearchRow{text: strings.TrimRight(text.String(), " "), spans: spans, prompt: block.Kind == "user" && y == 1})
 		}
 	}
 	return rows

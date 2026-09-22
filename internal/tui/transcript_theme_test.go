@@ -30,13 +30,28 @@ func TestPiTranscriptOutcomeBands(t *testing.T) {
 				root := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidth(size[0]), gotui.WithHeight(size[1]))
 				root.AddChild(el)
 				root.Render(buf, size[0], size[1])
-				if el.Rect().Height > 2 {
-					t.Fatal("tool band added box rows", el.Rect())
+				wantHeight, separator := 5, 1 // external blank + top/bottom pad + title/body
+				if tc.kind == "user" {
+					wantHeight, separator = 3, 0
+				}
+				if el.Rect().Height != wantHeight {
+					t.Fatalf("message padding height %d != %d", el.Rect().Height, wantHeight)
 				}
 				for y := 0; y < el.Rect().Height; y++ {
 					for _, x := range []int{0, size[0] / 2, size[0] - 1} {
-						if got := buf.Cell(x, y).Style.Bg; got != tc.bg {
-							t.Fatalf("band missing at %d,%d: %v", x, y, got)
+						want := tc.bg
+						if y < separator {
+							want = gotui.Color{}
+						}
+						if got := buf.Cell(x, y).Style.Bg; got != want {
+							t.Fatalf("band/separator mismatch at %d,%d: %v", x, y, got)
+						}
+					}
+					if y <= separator || y == wantHeight-1 {
+						for x := 0; x < size[0]; x++ {
+							if cell := buf.Cell(x, y); cell.Rune != ' ' && cell.Rune != 0 {
+								t.Fatalf("padding contains border/text at %d,%d: %c", x, y, cell.Rune)
+							}
 						}
 					}
 				}
@@ -117,5 +132,41 @@ func TestPiFullscreenWheelOverEditorScrollsTranscript(t *testing.T) {
 	c.modelMenuOpen = true
 	if c.handleTranscriptScrollEvent(gotui.MouseEvent{Button: gotui.MouseWheelUp, X: 5, Y: 15}) {
 		t.Fatal("wheel stole selector input")
+	}
+}
+
+func TestPiMessageSpacingGroupsMarkdownContinuationRows(t *testing.T) {
+	for _, width := range []int{60, 100, 140} {
+		c := &chatTUI{}
+		c.cfg.AssistantName = "Gi"
+		lines := renderMarkdownTranscript("you: ", "First paragraph\n\n- list one\n- list two\n\n```go\nfmt.Println(\"hello\")\n```", width-2)
+		lines = append(lines, renderMarkdownTranscript("Gi: ", "Answer paragraph\n\nSecond paragraph\n\n- detail", width-2)...)
+		lines = append(lines, "you: another message", "sys: independent notice")
+		blocks := c.buildTranscriptRenderableBlocks(lines)
+		if len(blocks) != 4 || blocks[0].Kind != "user" || blocks[1].Kind != "assistant" || len(blocks[0].Body) < 4 || len(blocks[1].Body) < 3 {
+			t.Fatalf("%d: continuation rows escaped parent message: %+v", width, blocks)
+		}
+		for _, block := range blocks[:2] {
+			el := c.renderTranscriptBlock(block)
+			height := el.HeightForWidth(width)
+			root := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidth(width), gotui.WithHeight(height))
+			root.AddChild(el)
+			buf := gotui.NewBuffer(width, height)
+			root.Render(buf, width, height)
+			text := buf.StringTrimmed()
+			if block.Kind == "user" && !strings.Contains(text, "list two") {
+				t.Fatal("lost user body", text)
+			}
+			if block.Kind == "assistant" && !strings.Contains(text, "Second paragraph") {
+				t.Fatal("lost assistant body", text)
+			}
+			if block.Expandable {
+				t.Fatal("ordinary multiline message collapsed")
+			}
+			first := strings.TrimSpace(strings.Split(text, "\n")[0])
+			if first != "" {
+				t.Fatalf("missing message top blank: %q", first)
+			}
+		}
 	}
 }

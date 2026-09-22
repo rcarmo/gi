@@ -32,6 +32,16 @@ for(const [width,height] of [[60,18],[100,22],[140,36]]){
   type('preserved draft');keys('Left','Left','Left');
   writeFileSync(join(dir,'outcomes'),'go');await wait(()=>idle()&&sql("select count(*) from turns where status='completed';")==='1','completion');
   await wait(()=>color('40;50;40'),'success band');shot('success');
+  keys('Home');await wait(()=>capture().includes('you: UX queue gate:outcomes'),'top for spacing');
+  const spaced=shot('message-spacing'),rows=spaced.split('\n').map(line=>line.replace(/[│█]\s*$/,'').trim());
+  const user=rows.findIndex(line=>line==='you: UX queue gate:outcomes');
+  const tool=rows.findIndex(line=>/^shell ·/.test(line));
+  const assistant=rows.findIndex(line=>line.startsWith('Gi:'));
+  assert(user>=1&&rows[user-1]===''&&rows[user+1]==='','user top/bottom padding missing');
+  assert(tool>=user+4&&rows[tool-2]===''&&rows[tool-1]===''&&rows[tool+1]==='','tool separator/top/bottom padding missing');
+  assert(assistant>=tool+3&&rows[assistant-1]==='','assistant leading separator missing');
+  assert(JSON.stringify(bars(spaced))===JSON.stringify(idleBars),'message spacing changed editor/footer rows');
+  keys('End');await sleep(100);
   keys('C-a','C-k');type('!!printf "failure-output\\n"; exit 7');keys('Enter');await wait(()=>capture().includes('failure-output')&&color('60;40;40'),'error band');shot('error');
   for(let i=0;i<8;i++){type(`!!printf 'block-${i}\\n'`);keys('Enter');await sleep(85);}
   type("!!for i in $(seq 1 60); do printf 'ROW-%02d long output for wrapped scrollback verification abcdefghijklmnopqrstuvwxyz\\n' $i; done");keys('Enter');await wait(()=>capture().includes('ROW-60'),'long collapsed output');

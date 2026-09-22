@@ -4482,7 +4482,22 @@ func (c *chatTUI) buildTranscriptRenderableBlocks(lines []string) []transcriptRe
 				kind = "assistant"
 			}
 			headStyle, bodyStyle, hintStyle, _, _ := transcriptBlockPalette(kind, "", false)
-			blocks = append(blocks, transcriptRenderableBlock{Key: fmt.Sprintf("%s:%d:%s", kind, i, line), Kind: kind, Header: line, HeaderStyle: headStyle, BodyStyle: bodyStyle, HintStyle: hintStyle})
+			var body []string
+			start := i
+			if kind == "user" || kind == "assistant" {
+				// Markdown projection indents continuation rows by its speaker
+				// prefix. Keep one message band, not padding around every row.
+				prefix := "you: "
+				if kind == "assistant" {
+					prefix = c.cfg.AssistantName + ": "
+				}
+				indent := strings.Repeat(" ", utf8.RuneCountInString(prefix))
+				for i+1 < len(lines) && strings.HasPrefix(lines[i+1], indent) {
+					i++
+					body = append(body, lines[i])
+				}
+			}
+			blocks = append(blocks, transcriptRenderableBlock{Key: fmt.Sprintf("%s:%d:%s", kind, start, line), Kind: kind, Header: line, Body: body, HeaderStyle: headStyle, BodyStyle: bodyStyle, HintStyle: hintStyle})
 		}
 	}
 	return blocks
@@ -4636,8 +4651,19 @@ func brailleSpinnerFrame(t time.Time) string {
 	return frames[idx]
 }
 
-func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) (element *gotui.Element) {
-	defer func() { applyTranscriptBand(element, block) }()
+func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) *gotui.Element {
+	return padTranscriptBlock(c.renderTranscriptBlockContent(block), block)
+}
+
+func (c *chatTUI) renderTranscriptBlockContent(block transcriptRenderableBlock) *gotui.Element {
+	if block.Kind == "user" || block.Kind == "assistant" {
+		message := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidthPercent(100))
+		message.AddChild(c.renderInlineStyledLine(block.Header, block.HeaderStyle))
+		for _, line := range block.Body {
+			message.AddChild(c.renderInlineStyledLine(line, block.BodyStyle))
+		}
+		return message
+	}
 	if block.Kind == "thought" {
 		container := gotui.New(
 			gotui.WithDirection(gotui.Column),
@@ -4670,12 +4696,12 @@ func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) (elemen
 	container := gotui.New(
 		gotui.WithDirection(gotui.Column),
 		gotui.WithWidthPercent(100),
-		gotui.WithPaddingTRBL(0, 1, 0, 1),
 	)
-	// Flat Pi outcome bands do not add box rows.
+	// Outcome bands get their padding from the outer message wrapper.
 	if _, banded := transcriptBand(block.Kind, block.Status); !banded {
 		container.SetBorder(block.Border)
 		container.SetBorderStyle(block.BorderStyle)
+		gotui.WithPaddingTRBL(0, 1, 0, 1)(container)
 	}
 	ref := gotui.NewRef()
 	ref.Set(container)

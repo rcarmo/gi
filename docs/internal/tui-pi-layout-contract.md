@@ -2,6 +2,10 @@
 
 Status: active layout contract for the Pi/PiClaw UX convergence track.
 
+## Transcript spacing (2026-09-22; corrected and verified)
+
+Match Pi's message-level blank rows: user bands have one top/bottom padded row; assistant messages have a leading uncolored separator; tool output has a leading uncolored separator plus top/bottom padding inside its outcome band. Horizontal padding is one column. Group Markdown continuation rows before padding; keep tool blocks borderless. Minimal footprint restricts permanent chrome, not these readable message boundaries. The editor/footer rows remain unchanged. Three-size buffer/PTY/search/scrollback tests and screenshots verify the correction; see [ADR-0033](../adr/0033-pi-transcript-spacing.md).
+
 ## Fullscreen rendered search and prompt jumps (2026-09-22; verified)
 
 Ctrl-Shift-F temporarily replaces the editor with an independent query input; the existing separator shows counts/hints. Enter/Shift-Enter (or Ctrl-G/Ctrl-Shift-G) navigate matching rows; Escape restores editor text/cursor/undo/yank and reading mode. Ctrl-Shift-Up/Down jump between rendered user prompts. Three-size live search/highlight/Unicode/tool-expansion/resize/reopen/native-arrival checks add no idle rows. This is literal case-insensitive per-rendered-row search with whole-row highlighting; cross-wrap matching, individual-occurrence highlighting and clickable controls are not implemented. [ADR-0032](../adr/0032-fullscreen-transcript-search.md).

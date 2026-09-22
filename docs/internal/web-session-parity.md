@@ -1,6 +1,10 @@
 # Web session selection and compact TUI adaptation
 
-## Latest terminal evidence: rendered search/prompt jumps (2026-09-22)
+## Latest terminal evidence: Pi message spacing correction (2026-09-22)
+
+User bands now have top/bottom blank padding; tools have an external blank separator and colored padding; assistant messages have a leading blank separator. Markdown continuation rows remain in one message. Exact rendered-cell and real terminal checks pass at **60×18, 100×22 and 140×36**, with unchanged editor/footer rows. All TUI suites, Go/vet/race ×3, 29 helpers and 70/70 functional browser tests pass. [ADR-0033](../adr/0033-pi-transcript-spacing.md). Three fresh screenshots are attached. Fullscreen selection WIP remains separate and unshipped; frozen browser mapping stays 34/236 Classic, 2/42 shared.
+
+## Earlier terminal evidence: rendered search/prompt jumps (2026-09-22)
 
 Fullscreen Ctrl-Shift-F temporarily replaces the editor with a query; matching rendered rows are highlighted, Enter/Shift-Enter navigate and Escape restores draft/cursor/reader state. Ctrl-Shift-Up/Down jump between user prompts. **60×18, 100×22 and 140×36** native PTYs verify Unicode, tool visibility, live arrivals, resize/reopen and no idle-row growth. All TUI suites, Go/vet/race ×3, 29 helpers and 70/70 functional browser tests pass. [ADR-0032](../adr/0032-fullscreen-transcript-search.md) records per-row/retention limits. Fullscreen pointer selection/copy and stronger reflow/eviction anchors remain open. No browser mapping changes.
 

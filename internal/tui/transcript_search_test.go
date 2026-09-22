@@ -152,7 +152,7 @@ func TestTranscriptSearchRowsMatchActualScrollLayout(t *testing.T) {
 		c.outputWidth = width
 		c.setTranscriptPosition(promptRows[1])
 		c.jumpTranscriptPrompt(-1)
-		if c.transcriptScroll != 0 {
+		if c.transcriptScroll != promptRows[0] {
 			t.Fatal("prompt position not synchronized")
 		}
 	}

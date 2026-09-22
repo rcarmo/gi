@@ -74,3 +74,36 @@ func (c *chatTUI) setTranscriptPosition(row int) {
 		c.transcriptRef.El().ScrollTo(0, c.transcriptScroll)
 	}
 }
+
+// Match Pi's message-level spacing: user Box(outputPad,1); assistant
+// Spacer(1)+Markdown(outputPad,0); default tools Spacer(1)+Box(1,1).
+// The external spacer is deliberately not part of the outcome background.
+func transcriptSpacing(kind string) (separator, vertical, horizontal int) {
+	switch kind {
+	case "user":
+		return 0, 1, 1
+	case "assistant":
+		return 1, 0, 1
+	case "tool", "bash", "local", "error":
+		return 1, 1, 1
+	default:
+		return 0, 0, 0
+	}
+}
+
+func padTranscriptBlock(content *gotui.Element, block transcriptRenderableBlock) *gotui.Element {
+	separator, vertical, horizontal := transcriptSpacing(block.Kind)
+	if separator == 0 && vertical == 0 && horizontal == 0 {
+		return content
+	}
+	band := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidthPercent(100), gotui.WithPaddingTRBL(vertical, horizontal, vertical, horizontal))
+	band.AddChild(content)
+	applyTranscriptBand(band, block)
+	if separator == 0 {
+		return band
+	}
+	wrapper := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidthPercent(100))
+	wrapper.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithHeight(separator)))
+	wrapper.AddChild(band)
+	return wrapper
+}
