@@ -19,7 +19,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Fix pooled SQLite configuration exposed by the session matrix; existing functional web suite passes 70/70.
 - [x] Map searchable picker/focus (`013`) and native keyboard navigation; combined matrix 36/36 with pinned helper provenance.
 - [x] Prevent runner startup before submission-event persistence; reproduced regression and full 70/70 functional suite.
-- [ ] Map the remaining 219 frozen scenarios and 40 shared interaction cases; full scope in `docs/internal/full-web-tui-parity-plan.md`.
+- [ ] Map the remaining 217 frozen scenarios and 40 shared interaction cases; full scope in `docs/internal/full-web-tui-parity-plan.md`.
 - [x] Complete capability-gated rename, pin, archive and restore with persisted native metadata and failure-safe picker actions (`015`); 48/48 matrix, 70/70 functional, Go/race/Bun checks.
 - [x] Persist per-session browser text/media/reference drafts and unacknowledged submissions; recover on reload without automatic resend (browser-local IndexedDB).
 - [x] Capture background-send ownership, merge failed submissions with newer origin drafts and report storage failures (`ux-compose-001`, `002`, `003`, `006`); 102/102 matrix, 70/70 functional.
@@ -36,6 +36,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Add separately reported shared-contract browser mappings; shared-28 passes six projects (192/192 executions overall), with incompatible Classic return cases still unmapped.
 - [x] Complete run-bound atomic queue Steer (shared-30), disabled idle/unknown actions, at-most-once consumption and held recovery; 12/12 local-provider matrix, 192/192 existing matrix, 70/70 functional, Go/vet/race and 23 helper tests. See ADR-0018; Classic idle-send remains unmapped.
 - [x] Verify measured context-fit rejection/accepted switch (compaction 006/007) through local-provider browser matrix, preserving drafts, native rejection and per-session usage; 12/12 context-fit, 216/216 combined browser, 70/70 functional, Go/vet and 23 helpers.
+- [x] Verify context-meter formatting, tooltip data, clamped fill and boundary colours (context 001/005) through native local-provider measurements; 228/228 combined browser, 70/70 functional, Go/vet and 23 helpers. Three-size terminal footer/live regressions pass without UI changes; unsupported compaction cases stay unmapped.
 - [ ] Complete remaining reconnect ownership and full browser compaction acceptance.
 - [x] Implement per-session terminal editor/history state, generation-owned event/submit delivery and cancel-safe forwarding; unit/race coverage.
 - [x] Bound the temporary terminal session selector to six results; live tmux verifies cancel/resize/zero added idle rows at 60×18, 100×22 and 140×36 (`make test-tui-sessions`).

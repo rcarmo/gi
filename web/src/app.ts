@@ -90,6 +90,26 @@ function RunBoundQueueStack({ steerEnabled, ...props }: any) {
     return html`<div ref=${root} style="display:contents"><${QueuedFollowupStack} ...${props} /></div>`;
 }
 
+// Keep the supplied component untouched. Its native title also supplies the
+// tooltip-data contract; observe child-owned updates (e.g. model selection).
+function useContextTooltip(root: any) {
+    useLayoutEffect(() => {
+        const compose = root.current?.querySelector('.compose-box');
+        if (!compose) return;
+        const sync = () => {
+            compose.querySelectorAll('.compose-context-pie').forEach(button => {
+                const title = button.getAttribute('title');
+                if (!title) button.removeAttribute('data-tooltip');
+                else if (button.getAttribute('data-tooltip') !== title) button.setAttribute('data-tooltip', title);
+            });
+        };
+        sync();
+        const observer = new MutationObserver(sync);
+        observer.observe(compose, {subtree: true, childList: true, attributes: true, attributeFilter: ['title']});
+        return () => observer.disconnect();
+    });
+}
+
 function sessionToChatJid(id: string) {
     return `gi:${id}`;
 }
@@ -140,6 +160,8 @@ async function getRuntimeConfig() {
 // ── App ────────────────────────────────────────────────────────────────────
 
 function GiApp() {
+    const containerRef = useRef(null);
+    useContextTooltip(containerRef);
     const [ready, setReady] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const selection = useRef(createSelectionScope()).current;
@@ -649,7 +671,7 @@ function GiApp() {
                 </div>
                 <div class="editor-splitter"></div>
             `}
-            <div class="container">
+            <div class="container" ref=${containerRef}>
                 <${Timeline}
                     posts=${posts}
                     hasMore=${hasMore}

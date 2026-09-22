@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -96,7 +97,18 @@ func main() {
 				}
 			}
 		}
-		emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"content": "\nreceived:" + strings.Join(users, "|")}, "finish_reason": "stop"}}, "usage": map[string]any{"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}})
+		// Meter scenarios select their fixture measurement in the latest user
+		// request. Usage still crosses the real provider/parser/persistence path.
+		tokens := 100
+		if os.Getenv("GI_UX_METER") != "" && len(users) > 0 {
+			marker := regexp.MustCompile(`UX meter tokens:(\d+)`).FindStringSubmatch(users[len(users)-1])
+			if len(marker) > 1 {
+				if n, err := strconv.Atoi(marker[1]); err == nil && n >= 0 && n <= 4_000_000 {
+					tokens = n
+				}
+			}
+		}
+		emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"content": "\nreceived:" + strings.Join(users, "|")}, "finish_reason": "stop"}}, "usage": map[string]any{"prompt_tokens": tokens, "completion_tokens": 20, "total_tokens": tokens + 20}})
 		fmt.Fprint(w, "data: [DONE]\n\n")
 	}))
 	defer provider.Close()
@@ -113,6 +125,11 @@ func main() {
 			goai.RegisterModel(&goai.Model{ID: entry.id, Name: entry.id, Provider: goai.Provider("ux-local"), Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, Input: []string{"text"}, ContextWindow: entry.window, MaxTokens: 32})
 			cfg.EnabledModels = append(cfg.EnabledModels, "ux-local/"+entry.id)
 		}
+	}
+	if os.Getenv("GI_UX_METER") != "" {
+		goai.RegisterModel(&goai.Model{ID: "meter", Name: "Meter", Provider: goai.Provider("ux-local"), Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, Input: []string{"text"}, ContextWindow: 2_000_000, MaxTokens: 32})
+		cfg.EnabledModels = append(cfg.EnabledModels, "ux-local/meter")
+		cfg.DefaultModel = "ux-local/meter"
 	}
 	cfg.DefaultProvider = "ux-local"
 	cfg.SystemPrompt = "Local acceptance fixture. Answer user messages."

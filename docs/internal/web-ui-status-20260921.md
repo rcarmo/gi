@@ -1,5 +1,7 @@
 # Gi web UI — 2026-09-21
 
+Latest slice (2026-09-22): meter `context-001/005` passes all six projects. **228/228 browser executions**, **70/70 functional**, Go/vet/hook checks and **23/23 helpers**; **19/236 Classic**, **2/42 shared** passes, 217/40 unmapped. App-level tooltip data now follows the native meter title without editing supplied components or adding a wrapper. Formatting, colour boundaries and overflow are verified from local-provider measurements. Three-size terminal regressions pass with zero added idle rows. Full compaction remains open; earlier counts follow below.
+
 Latest evidence (2026-09-22): measured model context fit (`compaction-006/007`) passes all six projects. **216/216 browser executions**, **70/70 functional**, Go tests/vet/hook checks, **23/23 helpers**. Coverage: **Classic 17/236**, **shared 2/42**, with 219 and 40 unmapped. Legacy dev startup is repaired in `1c1111b`, history preserved and port 8090 running. See [ADR-0016 follow-up](../adr/0016-measured-request-context.md). Full compaction is unverified.
 
 Latest slice (2026-09-22): **204/204 browser executions**, **70/70 functional**, **23/23 helpers**, Go/vet and targeted race checks. Coverage: Classic **15/236** (221 unmapped), shared **2/42** (40 unmapped). Shared queue Steer is run-bound, atomic and idle-disabled; unconsumed rows are held for explicit recovery/retry. Classic idle-send stays unmapped. See [ADR-0018](../adr/0018-run-bound-queue-steer.md). The counts below record earlier slices.

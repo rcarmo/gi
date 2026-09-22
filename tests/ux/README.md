@@ -75,6 +75,20 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Context-meter formatting and colours: 2026-09-22
+
+`make test-ux-context-meter` maps `@ux-context-001/005`. Its local provider supplies explicit usage through the native stream parser and persistence; tests use fixed expected strings/arc lengths, not the production formatter. Covered: K/M labels, percentage rounding, title/tooltip-data/accessibility, 125% overflow with full arc, zero input with nonzero output, exact 75/90 warning thresholds, reload/session ownership. The context-fit suite also checks tooltip refresh after a model switch.
+
+```sh
+make test-ux-parity
+make test-ux-steer
+make test-ux-context-fit
+make test-ux-context-meter
+bun scripts/ux-parity-report.mjs test-results/ux-parity/results.json test-results/ux-parity/steer-results.json test-results/ux-parity/context-fit-results.json test-results/ux-parity/context-meter-results.json
+```
+
+Latest totals: **228/228 browser executions** (192 + 12 + 12 + 12), **70/70 functional**, **23/23 helpers**, Go/vet/hook checks. Classic **19/236** and shared **2/42** passing, 217/40 unmapped. No forced interactions, retries, paid providers, SQL usage seeds or synthetic agent events. Compaction `context-003/004` stays unmapped. See [ADR-0016](../../docs/adr/0016-measured-request-context.md).
+
 ## Measured model context fit: 2026-09-22
 
 `make test-ux-context-fit` maps `@ux-compaction-006/007` using the existing local-provider fixture with opt-in registry capacities 80/100/200. A real streamed result reports 100 prompt tokens; production inference persists the measurement. Tests verify blocked pointer activation sends no mutation, direct PATCH rejects the undersized model, accepted switches refresh capacity/percentage, equal capacity is permitted, and reload/session switches retain model/text/media ownership. Unknown usage stays unknown in another session.

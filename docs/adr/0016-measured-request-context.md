@@ -22,6 +22,16 @@ The model picker blocks a known smaller context window before mutation. Shared n
 
 The TUI keeps cumulative input/output/cost statistics but takes its context segment from the separate measurement. It adds no row, panel or persistent notice. Unknown measurements omit the context segment; the existing footer layout stays intact.
 
+## Browser context-meter follow-up (2026-09-22)
+
+`make test-ux-context-meter` now covers frozen `@ux-context-001/005` in all six projects. The local provider supplies explicit request usage through the production parser/persistence/API/SSE path. Browser assertions use fixed expected strings and arc lengths, independently of the production formatter: 85K and 1.5M formatting, fractional percentage rounding, a 125% label with a full arc, explicit zero input with nonzero output, 75/75.01/90/90.01 colour boundaries, reload and session-local unknown state.
+
+The app copies the supplied meter's native title into `data-tooltip`, the missing contract attribute. It uses the existing container ref and a composer-scoped observer for child-owned title updates; observer cleanup follows renders/unmount. A missing title removes the attribute. No wrapper, CSS, component, UI utility or pane change is needed. The context-fit suite additionally checks tooltip refresh after model mutation. A focused delegate review identified the discarded wrapper's ancestry risk and empty-attribute handling before the final matrix.
+
+Validation: 228/228 browser executions (192 base + 12 Steer + 12 context-fit + 12 meter), 70/70 functional, Go tests/vet, hook checks and 23 helpers. Classic 19/236 passing (217 unmapped); shared 2/42 passing (40 unmapped). Compaction callback/active-label cases `context-003/004` remain unmapped because their full behaviour is unavailable.
+
+Terminal adaptation retains the existing inline `ctx used/window percent` footer segment and on-demand `/context` detail. Browser hover text and pie colours do not require a permanent terminal widget. Unit tests now cover measured/zero/overflow usage at widths 60, 100 and 140, preserving row count and cell width; percentages above 100 stay visible. The live session/model harness also passes at 60×18, 100×22 and 140×36. Unknown and explicit zero still share the terminal's omitted inline segment, so this is no claim of full web/terminal meter equivalence. No terminal UI changed.
+
 ## Browser context-fit follow-up (2026-09-22)
 
 `make test-ux-context-fit` now covers frozen `@ux-compaction-006` and `007` across all six browser/viewport projects. The isolated provider reports 100 input tokens through its real streaming response; production inference persists the measurement. Registry entries have capacities 80, 100 and 200. The picker blocks the 80-token entry without a request, and a direct native PATCH rejects it with 400 while retaining the model. Equal/larger entries follow normal selection, update context capacity/percentage and survive reload. Text and attachment drafts stay intact. A different session with unknown usage can select the smaller entry.

@@ -16549,6 +16549,26 @@ function RunBoundQueueStack({ steerEnabled, ...props }) {
   });
   return ce`<div ref=${root} style="display:contents"><${QueuedFollowupStack} ...${props} /></div>`;
 }
+function useContextTooltip(root) {
+  F_(() => {
+    const compose = root.current?.querySelector(".compose-box");
+    if (!compose)
+      return;
+    const sync = () => {
+      compose.querySelectorAll(".compose-context-pie").forEach((button) => {
+        const title = button.getAttribute("title");
+        if (!title)
+          button.removeAttribute("data-tooltip");
+        else if (button.getAttribute("data-tooltip") !== title)
+          button.setAttribute("data-tooltip", title);
+      });
+    };
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(compose, { subtree: true, childList: true, attributes: true, attributeFilter: ["title"] });
+    return () => observer.disconnect();
+  });
+}
 function sessionToChatJid2(id) {
   return `gi:${id}`;
 }
@@ -16591,6 +16611,8 @@ async function getRuntimeConfig() {
   return r.json();
 }
 function GiApp() {
+  const containerRef = K_(null);
+  useContextTooltip(containerRef);
   const [ready, setReady] = M_(false);
   const [sessionId, setSessionId] = M_(null);
   const selection = K_(createSelectionScope()).current;
@@ -17140,7 +17162,7 @@ function GiApp() {
                 </div>
                 <div class="editor-splitter"></div>
             `}
-            <div class="container">
+            <div class="container" ref=${containerRef}>
                 <${Timeline}
                     posts=${posts}
                     hasMore=${hasMore}
@@ -17362,5 +17384,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=9F9D69FA119EA9B164756E2164756E21
+//# debugId=045B3A093A29996764756E2164756E21
 //# sourceMappingURL=app.js.map

@@ -1,6 +1,16 @@
 # Web session selection and compact TUI adaptation
 
-## Latest evidence: measured model context fit (2026-09-22)
+## Latest evidence: context-meter rendering (2026-09-22)
+
+Classic `@ux-context-001/005` pass all six projects using explicit usage returned by the local provider through native inference. Assertions cover K/M formatting, rounded percentages, title/tooltip-data/accessibility values, a full arc at 125% without hiding the percentage, zero input, 75/75.01/90/90.01 colour boundaries, reload, session-local unknown usage and model-change tooltip refresh.
+
+The only production change is an app-level tooltip-data adapter using the existing container ref. The native title remains the source; a scoped observer catches child updates and cleans up with the render lifecycle. No added DOM parent, CSS or supplied component/UI/pane change. Details and review findings: [ADR-0016](../adr/0016-measured-request-context.md).
+
+Current totals: **228/228 browser executions**, **70/70 functional**, **23/23 helper tests**, Go tests/vet and hook checks. Coverage: **Classic 19/236** passing (217 unmapped), **shared 2/42** passing (40 unmapped). `context-003/004` and full compaction remain unmapped.
+
+Terminal adaptation uses the existing inline context segment and on-demand `/context` details. Unit tests verify zero/overflow measurements at widths 60/100/140 with no added or wrapped rows. The live session/model harness passes at **60×18, 100×22 and 140×36**. No terminal UI changed; unknown versus explicit zero remains an intentional current limitation, not web parity credit.
+
+## Earlier evidence: measured model context fit (2026-09-22)
 
 Classic `@ux-compaction-006/007` now pass all six projects using real local-provider usage through the native inference loop. A measured 100-token request blocks an 80-token model in the picker and API, permits 100/200-token models, and updates displayed capacity/percentage without changing the measurement or submitting a turn. Model selection and text/attachment drafts survive reload; unknown usage in another session stays independent. See [ADR-0016 follow-up](../adr/0016-measured-request-context.md).
 

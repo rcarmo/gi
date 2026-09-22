@@ -50,6 +50,7 @@ test('@ux-compaction-007 Refresh model information after an accepted switch',asy
  let selected=await state();expect(selected.current).toBe('ux-local/equal');expect(selected.context_usage).toMatchObject({tokens:100,contextWindow:100,percent:100,source:'provider_request'});
  await modelButton.click();await option('ux-local/large').click();await expect(modelButton).toHaveText('ux-local/large');await expect(menu).toHaveCount(0);
  await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label','Context: 100 / 200 tokens (50%)');
+ await expect(page.locator('.compose-context-pie')).toHaveAttribute('data-tooltip','Context: 100 / 200 tokens (50%) — latest measured provider request');
  selected=await state();expect(selected.context_usage.measurement.turn_id).toBe(turn.turn_id);expect(selected.context_usage.tokens).toBe(100);
  expect((await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns).toHaveLength(1);
  await page.reload();await expect(modelButton).toHaveText('ux-local/large');await expect(input).toHaveValue('retained after accepted switch');await expect(page.locator('.compose-file-pill[title="draft.txt"]')).toHaveCount(1);

@@ -27,7 +27,11 @@ test('parity report keeps shared evidence separate and requires every project',(
   const fit=join(dir,'fit.json');writeFileSync(fit,JSON.stringify({suites:[{specs:[spec('@ux-compaction-006',6),spec('@ux-compaction-007',6)]}]}));
   execFileSync(process.execPath,[script,input,steer,fit],{cwd:dir});
   const all=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
-  expect(all.counts.pass).toBe(2);expect(all.counts.unmapped).toBe(219);expect(all.sharedCounts.pass).toBe(2);
+  expect(all.counts.pass).toBe(2);expect(all.counts.unmapped).toBe(217);expect(all.sharedCounts.pass).toBe(2);
+  const meter=join(dir,'meter.json');writeFileSync(meter,JSON.stringify({suites:[{specs:[spec('@ux-context-001',6),spec('@ux-context-005',6)]}]}));
+  execFileSync(process.execPath,[script,input,steer,fit,meter],{cwd:dir});
+  const withMeter=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
+  expect(withMeter.counts.pass).toBe(4);expect(withMeter.counts.unmapped).toBe(217);expect(withMeter.sharedCounts.pass).toBe(2);
   execFileSync(process.execPath,[script,steer,steer],{cwd:dir});
   const repeated=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
   expect(repeated.sharedRows.find((row:any)=>row.id==='@shared-30').status).toBe('partial-matrix');
