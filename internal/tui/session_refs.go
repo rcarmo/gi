@@ -54,18 +54,7 @@ func (c *chatTUI) switchSession(sessionID string) bool {
 	c.extensionStatuses, c.extensionWidgets, c.extensionToolModes = nil, nil, nil
 	c.lastInputTokens, c.lastOutputTokens, c.lastContextTokens = 0, 0, 0
 	c.lastCacheRead, c.lastCacheWrite, c.lastCostTotal = 0, 0, 0
-	if defaults := c.sessionModelDefaults; defaults != nil {
-		c.cfg.DefaultModel, c.cfg.DefaultProvider, c.cfg.DefaultThinkingLevel = defaults[0], defaults[1], defaults[2]
-	}
-	if model, _ := session.State["model"].(string); model != "" {
-		c.cfg.DefaultModel = model
-	}
-	if provider, ok := session.State["provider"].(string); ok {
-		c.cfg.DefaultProvider = provider
-	}
-	if thinking, ok := session.State["thinking_level"].(string); ok {
-		c.cfg.DefaultThinkingLevel = thinking
-	}
+	c.restoreSessionModel(session.State)
 	status, _ := session.State["status"].(string)
 	c.running = status == "running" || status == "queued"
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)

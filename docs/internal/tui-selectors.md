@@ -27,7 +27,7 @@ Status: searchable model selector implemented; pattern reusable for further sele
 
 ## Keys
 
-- `/model` opens the searchable selector.
+- `Alt-M` opens the searchable model selector without replacing the unsent draft; `/model` is the command fallback.
 - type to filter; Backspace edits the query.
 - Up/Down/PageUp/PageDown/Home/End navigate.
 - Enter selects; Esc cancels.
@@ -45,12 +45,16 @@ Status: searchable model selector implemented; pattern reusable for further sele
 
 The same machinery (all/filtered/query + `filterModelMenuChoices`) now backs three selectors:
 
-- **model selector** (`/model`, or `Ctrl-L` cycle fallback);
+- **model selector** (`Alt-M` / `/model`, or `Ctrl-L` / `Alt-L` cycle fallback);
 - **session selector** (`Alt-S` or `/sessions`): a searchable resume picker that lists sessions as `@agent title (id) · status`, filters using full IDs, and switches on Enter. Alt-S preserves the unsent draft while opening. Escape restores the editor without changing its text, cursor or session;
 - **thinking-level selector** (`/thinking` with no args): low/medium/high picker that sets the level on Enter.
 
 The menu carries a `kind` (`model`|`session`|`thinking`) and an optional label→value map, so Enter dispatches to the right action (`/model <name>`, `switchSession(id)`, or `/thinking <level>`). `/model <name|index>`, `/resume <index|session_id>`, and `/thinking <level>` remain textual fallbacks for tmux/script use, so existing scripted flows are unaffected.
 
 Session state and buffered events are isolated by session and selection generation. Per-session caches preserve editor text/cursor, undo/yank and history state. `make test-tui-sessions` verifies live draft round trips, exact cancellation footprint and resize behaviour at 60×18, 100×22 and 140×36. See [ADR-0010](../adr/0010-terminal-session-selection.md) for limits and tests.
+
+Model choices use the shared native validator in `internal/inference/session_model.go`. Selection persists only the addressed session; `/model` and cycle keys no longer write workspace defaults. Invalid/unavailable choices keep the old model and show an error in the existing search line. Successful picker selection preserves the editor, adds no transcript message and updates only the existing footer. Startup, switch and footer reads prefer explicit selection over runtime model fields. `/scoped-models` remains a workspace configuration command.
+
+The live tmux harness also verifies model selection/error/cancel at all three sizes, byte-identical settings, clean-restart restoration and the next real turn's model. See [ADR-0015](../adr/0015-terminal-session-model-selection.md).
 
 Future PiSwift-style selectors (tree/settings/theme) can reuse the same `kind`/values machinery. Each must keep a textual command fallback and live in the bottom overlay area, never as top chrome.

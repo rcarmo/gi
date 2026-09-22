@@ -2,7 +2,6 @@ package web
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -11,44 +10,14 @@ import (
 	"github.com/rcarmo/gi/internal/store"
 )
 
-func modelLabel(provider, model string) string {
-	if strings.Contains(model, "/") || provider == "" {
-		return model
-	}
-	return provider + "/" + model
-}
-
 func (s *Server) modelCatalogue() []inference.ModelOption {
 	_, options := inference.ListRuntimeOptions(s.cfg.DefaultProvider, s.cfg.DefaultModel, s.cfg.EnabledModels)
 	return options
 }
 
-// Reject synthetic catalogue placeholders and missing credentials. Selection is
-// local metadata only: no provider request, no agent turn, no global config write.
-func usableSessionModel(option inference.ModelOption) bool {
-	if option.Provider == "test" && (option.ID == "test-model" || option.ID == "bootstrap") {
-		return option.Enabled
-	}
-	return (option.Enabled || option.Authenticated) && option.Authenticated && inference.ResolveModelContextWindow(option.Provider, option.ID) > 0
-}
-
 func (s *Server) sessionModelPayload(session *store.Session) map[string]any {
-	current, _ := session.State["selected_model"].(string)
-	if current == "" {
-		current, _ = session.State["model"].(string)
-	}
-	if current == "" {
-		current = s.cfg.DefaultModel
-	}
-	provider, _ := session.State["selected_provider"].(string)
-	if provider == "" {
-		provider, _ = session.State["provider"].(string)
-	}
-	if provider == "" {
-		provider = s.cfg.DefaultProvider
-	}
-	current = modelLabel(provider, current)
-	thinking, _ := session.State["thinking_level"].(string)
+	choice := inference.SessionModel(session.State, inference.SessionModelChoice{Model: s.cfg.DefaultModel, Provider: s.cfg.DefaultProvider})
+	current, thinking := choice.Label(), choice.Thinking
 	options := s.modelCatalogue()
 	var selected inference.ModelOption
 	for _, option := range options {
@@ -61,38 +30,7 @@ func (s *Server) sessionModelPayload(session *store.Session) map[string]any {
 }
 
 func (s *Server) selectSessionModel(r *http.Request, sessionID, requested string) (map[string]any, error) {
-	requested = strings.TrimSpace(requested)
-	var match *inference.ModelOption
-	for _, option := range s.modelCatalogue() {
-		if option.Label == requested || option.ID == requested {
-			if match != nil && match.Label != option.Label {
-				return nil, fmt.Errorf("ambiguous model; use provider/model")
-			}
-			value := option
-			match = &value
-		}
-	}
-	if len(requested) > 256 {
-		return nil, fmt.Errorf("model selection too long")
-	}
-	if match == nil {
-		return nil, fmt.Errorf("unknown model %q", requested)
-	}
-	if !usableSessionModel(*match) {
-		return nil, fmt.Errorf("model %q is unavailable or lacks credentials", requested)
-	}
-	state := map[string]any{"model": match.Label, "provider": match.Provider, "selected_model": match.Label, "selected_provider": match.Provider}
-	if match.Provider == "test" {
-		state["model"] = match.ID
-		state["selected_model"] = match.ID
-	} // Native deterministic shell models retain their sentinel IDs.
-	if !match.Reasoning {
-		state["thinking_level"] = ""
-	}
-	if err := s.store.TouchSessionState(r.Context(), sessionID, state); err != nil {
-		return nil, err
-	}
-	session, err := s.store.GetSession(r.Context(), sessionID)
+	session, err := inference.SelectSessionModel(r.Context(), s.store, sessionID, s.modelCatalogue(), requested)
 	if err != nil {
 		return nil, err
 	}

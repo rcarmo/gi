@@ -92,7 +92,7 @@ Host model revisions and component mount guards reject late polls/catalogues/mut
 
 `021` and compaction `008` are verified, with additional pointer/keyboard/reload/failure tests. Current totals: **168/168 matrix executions**, **14/236 Classic IDs**, 222 unmapped, all 42 shared cases still unmapped, and **70/70** existing functional tests. Native API/command tests and focused three-run race checks pass. See [ADR-0014](../adr/0014-session-model-selection.md).
 
-Measured context usage, context-fit blocking and richer picker contracts remain open, so `020` and compaction `006/007` are not counted. Terminal adaptation should reuse its bounded model selector and existing footer, with session-local persistence and shared validation. The current terminal model command still writes global defaults; that gap is not fixed here.
+Measured context usage, context-fit blocking and richer picker contracts remain open, so `020` and compaction `006/007` are not counted. Terminal adaptation should reuse its bounded model selector and existing footer, with session-local persistence and shared validation. The later terminal model slice below closes the global-write gap.
 
 ## Terminal session slice: implemented and separately tested
 
@@ -103,6 +103,14 @@ Session switches preserve editor text, rune cursor, undo/yank, history/search po
 Evidence: `make test-tui-sessions` passed native tmux interactions at 60×18, 100×22 and 140×36, including exact before/after cancellation screenshots, both session drafts, zero submitted turns and open-picker resizing. Unit/race tests cover buffered topic events, event types, failed switches, model fallback and extension-question cancellation. Existing TUI smoke and seven-file Gherkin harnesses passed. Artifacts: `test-results/tui-sessions/`; design: [ADR-0010](../adr/0010-terminal-session-selection.md).
 
 These caches are process-local. Pending media refs, durable queue mutation/retry semantics and terminal session-mutation submenus are not implemented. The terminal slice did not change browser coverage. The later browser draft slice brings coverage to 9/236 Classic IDs with 227 unmapped, plus 42 unmapped shared cases.
+
+## Terminal session-local model slice
+
+Web and terminal now share catalogue validation and session persistence through `internal/inference/session_model.go`. `/model <name|index>`, Alt-M and cycle keys update only the selected session. Startup/switch/footer resolution prefers explicit selection over runtime model metadata. Invalid models or failed storage retain the previous selection; no prompt turn is created by model actions. `/scoped-models` keeps its separate workspace configuration role.
+
+The existing temporary model selector remains bounded to six results. Alt-M preserves the unsent editor; errors reuse its search/help line; successful selection closes it without transcript noise or a new idle footer row. The live tmux harness passes 60×18, 100×22 and 140×36, exact cancel/row-position checks, model/draft A→B→A restoration, settings-byte comparisons, clean restart and actual next-turn model verification. Unit/race, existing TUI smoke/Gherkin, Go/vet and browser regression suites pass. See [ADR-0015](../adr/0015-terminal-session-model-selection.md).
+
+Browser coverage is unchanged: 168/168 executions, 14/236 Classic IDs, 222 unmapped and all 42 shared cases unmapped. Pending terminal media, queue recovery and measured model context remain separate gaps.
 
 ## Remaining TUI adaptation design
 

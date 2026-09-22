@@ -1585,14 +1585,23 @@ func TestModelCommandPersistsSelection(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	c := &chatTUI{store: s, sessionID: "session_1", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultThinkingLevel: "medium", EnabledModels: []string{"qwen3:latest"}}}
-	lines := c.modelCommand([]string{"/model", "ollama/gemma4:latest"})
-	if len(lines) == 0 || !strings.Contains(lines[0], "model: ollama/gemma4:latest") {
+	if _, err := s.CreateSession(context.Background(), "session_1", "Model", nil); err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{store: s, sessionID: "session_1", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "test", DefaultModel: "test-model", DefaultThinkingLevel: "medium", EnabledModels: []string{"test-model", "bootstrap"}}}
+	lines := c.modelCommand([]string{"/model", "test/bootstrap"})
+	if len(lines) == 0 || !strings.Contains(lines[0], "model: test/bootstrap") {
 		t.Fatalf("unexpected model command output: %#v", lines)
 	}
-	cfg := config.Load(root)
-	if cfg.DefaultProvider != "ollama" || cfg.DefaultModel != "ollama/gemma4:latest" {
-		t.Fatalf("unexpected persisted model config: %#v", cfg)
+	session, err := s.GetSession(context.Background(), "session_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if session.State["selected_model"] != "bootstrap" || session.State["selected_provider"] != "test" {
+		t.Fatalf("selection not persisted: %+v", session.State)
+	}
+	if _, err := os.Stat(filepath.Join(root, ".pi", "settings.json")); !os.IsNotExist(err) {
+		t.Fatal("session model command wrote global settings")
 	}
 }
 
@@ -1624,15 +1633,18 @@ func TestModelCommandListsAndSelectsEnabledModels(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	c := &chatTUI{store: s, sessionID: "session_models", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "ollama", DefaultModel: "qwen3:latest", DefaultThinkingLevel: "medium", EnabledModels: []string{"qwen3:latest", "ollama/gemma4:latest"}}}
+	if _, err := s.CreateSession(context.Background(), "session_models", "Models", nil); err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{store: s, sessionID: "session_models", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "test", DefaultModel: "test-model", DefaultThinkingLevel: "medium", EnabledModels: []string{"test-model", "test/bootstrap"}}}
 	listed := strings.Join(c.modelCommand([]string{"/model"}), "\n")
-	for _, want := range []string{"model qwen3:latest · medium · ollama", "› 1  qwen3:latest", "  2  ollama/gemma4:latest", "enabled: 2 · /scoped-models list to manage pinned models", "/model <n> to switch · ctrl-l cycles enabled models"} {
+	for _, want := range []string{"model test-model · medium · test", "› 1  test/test-model", "  2  test/bootstrap", "enabled: 2 · /scoped-models list to manage pinned models", "/model <n> to switch · ctrl-l cycles enabled models"} {
 		if !strings.Contains(listed, want) {
 			t.Fatalf("model list missing %q:\n%s", want, listed)
 		}
 	}
 	lines := c.modelCommand([]string{"/model", "2"})
-	if c.cfg.DefaultModel != "ollama/gemma4:latest" || len(lines) == 0 || !strings.Contains(lines[0], "model: ollama/gemma4:latest") {
+	if c.cfg.DefaultModel != "bootstrap" || len(lines) == 0 || !strings.Contains(lines[0], "model: test/bootstrap") {
 		t.Fatalf("index selection failed cfg=%#v lines=%#v", c.cfg, lines)
 	}
 }
@@ -1686,13 +1698,16 @@ func TestCycleModelUsesEnabledModels(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	c := &chatTUI{store: s, sessionID: "session_cycle_model", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultModel: "a", EnabledModels: []string{"a", "b", "c"}}}
+	if _, err := s.CreateSession(context.Background(), "session_cycle_model", "Models", nil); err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{store: s, sessionID: "session_cycle_model", cfg: config.RuntimeConfig{WorkspaceRoot: root, DefaultProvider: "test", DefaultModel: "test-model", EnabledModels: []string{"test/test-model", "test/bootstrap"}}}
 	c.cycleModel(1)
-	if c.cfg.DefaultModel != "b" || !strings.Contains(strings.Join(c.transcript, "\n"), "model: b") {
+	if c.cfg.DefaultModel != "bootstrap" || !strings.Contains(strings.Join(c.transcript, "\n"), "model: test/bootstrap") {
 		t.Fatalf("next model failed cfg=%#v transcript=%#v", c.cfg, c.transcript)
 	}
 	c.cycleModel(-1)
-	if c.cfg.DefaultModel != "a" {
+	if c.cfg.DefaultModel != "test-model" {
 		t.Fatalf("previous model failed cfg=%#v", c.cfg)
 	}
 }
@@ -2562,7 +2577,15 @@ func TestStreamingDraftRendersMarkdownDynamically(t *testing.T) {
 }
 
 func TestModelCommandOpensCursorNavigableMenu(t *testing.T) {
-	c := &chatTUI{cfg: config.RuntimeConfig{DefaultProvider: "openai", DefaultModel: "openai/a", EnabledModels: []string{"openai/a", "openai/b", "openai/c"}}}
+	s, err := store.Open(filepath.Join(t.TempDir(), "model.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err := s.CreateSession(context.Background(), "picker", "Picker", nil); err != nil {
+		t.Fatal(err)
+	}
+	c := &chatTUI{store: s, sessionID: "picker", cfg: config.RuntimeConfig{DefaultProvider: "test", DefaultModel: "test-model", EnabledModels: []string{"test-model", "test/bootstrap"}}}
 	c.handleCommand("/model")
 	if !c.modelMenuOpen {
 		t.Fatal("expected /model to open model menu")
@@ -2578,8 +2601,8 @@ func TestModelCommandOpensCursorNavigableMenu(t *testing.T) {
 	if c.modelMenuOpen {
 		t.Fatal("expected model menu to close after selection")
 	}
-	if c.cfg.DefaultModel != "openai/b" {
-		t.Fatalf("expected selected model openai/b, got %q", c.cfg.DefaultModel)
+	if c.cfg.DefaultModel != "bootstrap" {
+		t.Fatalf("expected selected model bootstrap, got %q", c.cfg.DefaultModel)
 	}
 }
 

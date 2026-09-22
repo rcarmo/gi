@@ -18,10 +18,8 @@ Feature: TUI assistant basics
     When I type "/compact" and press Enter
     Then the screen should contain "compact:"
     And the screen should contain "threshold_tokens"
-    When I type "/model test-alt" and press Enter
-    Then the screen should contain "model: test-alt"
     When I type "/model test-model" and press Enter
-    Then the screen should contain "model: test-model"
+    Then the screen should contain "model: test/test-model"
     When I type "/thinking high" and press Enter
     Then the screen should contain "thinking set to high"
     When I type "/cancel" and press Enter
@@ -32,3 +30,12 @@ Feature: TUI assistant basics
     When I type "hello from gherkin" and press Enter
     Then the database should contain an assistant message "Gi received: hello from gherkin"
     And the screen should contain "you: hello from gherkin"
+
+  Scenario: Reject an unconfigured model without submitting work
+    Given a fresh gi TUI workspace
+    When I start the gi TUI in tmux
+    When I type "/model test-alt" and press Enter
+    Then the screen should contain "unknown model"
+    Then the database message count should be 0
+    When I type "/model test-model" and press Enter
+    Then the screen should contain "model: test/test-model"

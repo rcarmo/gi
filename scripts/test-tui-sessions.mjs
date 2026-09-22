@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /** Real tmux acceptance: draft switching and bounded temporary selector. */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 
@@ -11,7 +11,7 @@ const temp = mkdtempSync(join(tmpdir(), 'gi-tui-sessions-'));
 const db = join(temp, 'gi.db');
 const session = `gi-session-parity-${process.pid}`;
 const target = `${session}:0`;
-const tmux = (...args) => execFileSync('tmux', args, { encoding: 'utf8' });
+const tmux = (...args) => execFileSync('tmux', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 const sql = query => execFileSync('sqlite3', [db, query], { encoding: 'utf8' }).trim();
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const capture = () => tmux('capture-pane', '-p', '-t', target);
@@ -38,9 +38,11 @@ function separators(screen) { return screen.split('\n').map((line,index)=>({line
 function withoutCursor(screen) { return screen.replaceAll('▌',' ').split('\n').map(line=>line.trimEnd()).join('\n'); }
 
 try {
+  rmSync(artifacts,{recursive:true,force:true});
   mkdirSync(artifacts,{recursive:true});
   mkdirSync(join(temp,'.pi'));
-  writeFileSync(join(temp,'.pi/settings.json'),JSON.stringify({defaultProvider:'test',defaultModel:'test-model',defaultThinkingLevel:'low',enabledModels:['test-model']}));
+  const settings=JSON.stringify({defaultProvider:'test',defaultModel:'test-model',defaultThinkingLevel:'low',enabledModels:['test/test-model','test/bootstrap','test/unavailable'],untouched:{flag:true}});
+  writeFileSync(join(temp,'.pi/settings.json'),settings);
   const quote = text => `'${text.replaceAll("'", "'\\''")}'`;
   tmux('new-session','-d','-x','100','-y','22','-s',session,`cd ${quote(root)} && ${quote(join(root,'bin/gi'))} -tui -db ${quote(db)} -workspace ${quote(temp)}`);
   await waitFor(()=>capture().includes('m0/t0'),'startup');
@@ -99,6 +101,58 @@ try {
     assert(selectorRows(screen).length<=6 && screen.includes('›'), 'resize lost visible selection');
   }
   keys('Escape');
+  const mainID=sql("select id from sessions where parent_session_id is null limit 1;");
+  const selected=()=>sql(`select coalesce(json_extract(state_json,'$.selected_model'),json_extract(state_json,'$.model')) from sessions where id='${mainID}';`);
+  const pickModel=async query=>{
+    keys('M-m');await waitFor(()=>capture().includes('Select model'),'Alt-M model picker');
+    type(query);await waitFor(()=>selectorRows(capture()).length===1,`model filter ${query}`);keys('Enter');
+  };
+  for(const [width,height] of [[60,18],[100,22],[140,36]]) {
+    const label=`${width}x${height}`;
+    tmux('resize-window','-t',target,'-x',String(width),'-y',String(height));await sleep(250);
+    await command('/model test/test-model');
+    await waitFor(()=>selected()==='test-model','reset selected model');
+    type(`model draft ${label}`);
+    const before=await snapshot(`${label}-model-before`);
+    keys('M-m');await waitFor(()=>capture().includes('Select model'),'open model selector');
+    const open=await snapshot(`${label}-model-open`);
+    assert(selectorRows(open).length>0&&selectorRows(open).length<=6,`${label}: model rows exceed bound`);
+    assert(separators(open).length===2,`${label}: model picker adds borders`);
+    keys('Escape');await waitFor(()=>!capture().includes('Select model'),'cancel model selector');
+    const cancelled=await snapshot(`${label}-model-cancel`);
+    assert(withoutCursor(before)===withoutCursor(cancelled),`${label}: model cancel changed idle screen`);
+    await pickModel('test/unavailable');await waitFor(()=>capture().includes('error:'),'unavailable model feedback');
+    assert(selected()==='test-model',`${label}: invalid model persisted`);
+    const rejected=await snapshot(`${label}-model-rejected`);
+    assert(rejected.includes(`model draft ${label}`)&&selectorRows(rejected).length===1,`${label}: rejection lost draft/menu`);
+    keys('Escape');await waitFor(()=>!capture().includes('Select model'),'cancel rejection');
+    await pickModel('test/bootstrap');await waitFor(()=>selected()==='bootstrap'&&!capture().includes('Select model'),'accepted model');
+    const accepted=await snapshot(`${label}-model-accepted`);
+    assert(accepted.includes(`model draft ${label}`),`${label}: model selection consumed draft`);
+    assert(JSON.stringify(separators(before))===JSON.stringify(separators(accepted)),`${label}: idle rows moved`);
+    assert(withoutCursor(before.split('\n').slice(0,separators(before)[0]).join('\n'))===withoutCursor(accepted.split('\n').slice(0,separators(accepted)[0]).join('\n')),`${label}: picker wrote transcript noise`);
+    keys('M-s');await waitFor(()=>capture().includes('Select session'),'switch for model isolation');type('@other');await waitFor(()=>selectorRows(capture()).length===1,'other only');keys('Enter');
+    await waitFor(()=>!capture().includes('Select session')&&capture().includes('test-model'),'other keeps its model');
+    keys('M-s');await waitFor(()=>capture().includes('Select session'),'return to model origin');type('@agent');await waitFor(()=>selectorRows(capture()).length===1,'main only');keys('Enter');
+    await waitFor(()=>capture().includes(`model draft ${label}`)&&capture().includes('bootstrap'),'model and draft restored');keys('C-u');
+    assert(readFileSync(join(temp,'.pi/settings.json'),'utf8')===settings,`${label}: global model config changed`);
+    assert(sql('select count(*) from turns;')==='0',`${label}: model picker submitted turn`);
+    summaries.push(`${label}: model pointer-free selection, error/cancel/draft preservation, unchanged settings and zero extra idle rows`);
+  }
+  // Clean restart restores the selected model of the native main session.
+  keys('C-d');await waitFor(()=>{try{tmux('has-session','-t',session);return false;}catch{return true;}},'clean exit');
+  tmux('new-session','-d','-x','100','-y','22','-s',session,`cd ${quote(root)} && ${quote(join(root,'bin/gi'))} -tui -db ${quote(db)} -workspace ${quote(temp)}`);
+  await waitFor(()=>capture().includes('bootstrap')&&capture().includes('m0/t0'),'restart restores selected model');
+  await snapshot('model-after-restart');
+  assert(readFileSync(join(temp,'.pi/settings.json'),'utf8')===settings,'restart altered global config');
+  await command('/model not-a-model');
+  await waitFor(()=>capture().includes('unknown model'),'unknown model command reports error');
+  assert(selected()==='bootstrap'&&sql('select count(*) from turns;')==='0','invalid command changed model or created work');
+  await command('terminal selected model verification');
+  await waitFor(()=>sql("select count(*) from turns where status='completed' and json_extract(metadata_json,'$.model')='bootstrap';")==='1','next native turn uses selection');
+  assert(readFileSync(join(temp,'.pi/settings.json'),'utf8')===settings,'model command/send altered settings');
+  await snapshot('model-native-turn');
+  summaries.push('Process restart: selected model restored, invalid command rejected, next native turn uses bootstrap; global settings byte-identical.');
   writeFileSync(join(artifacts,'summary.txt'),summaries.join('\n')+'\nLive resize: selected row remains visible at all sizes.\n');
   console.log(summaries.join('\n'));
 } catch(error) {

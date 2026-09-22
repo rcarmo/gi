@@ -14,7 +14,7 @@ Feature: TUI Pi-like workflow affordances
     And the screen should contain "/model [name|index]"
     When I type "/model" and press Enter
     Then the screen should contain "Select model"
-    And the screen should contain "1. test-model"
+    And the screen should contain "1. test/test-model"
     When I press Escape
     And I type "!!printf local-ok" and press Enter
     Then the screen should contain "$ printf local-ok"

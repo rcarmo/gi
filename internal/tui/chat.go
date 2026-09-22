@@ -196,6 +196,7 @@ type chatTUI struct {
 	modelMenuChoices         []string
 	modelMenuAll             []string
 	modelMenuQuery           string
+	modelMenuError           string
 	modelMenuSelected        int
 	modelMenuScroll          int
 	extensionStatuses        map[string]string
@@ -459,9 +460,7 @@ func (c *chatTUI) Init() func() {
 }
 
 func (c *chatTUI) bindSession(sessionID string) {
-	if c.sessionModelDefaults == nil {
-		c.sessionModelDefaults = &[3]string{c.cfg.DefaultModel, c.cfg.DefaultProvider, c.cfg.DefaultThinkingLevel}
-	}
+	c.modelDefaults()
 	if c.eventCh == nil {
 		c.eventCh = make(chan sessionEvent, 64)
 	}
@@ -471,6 +470,11 @@ func (c *chatTUI) bindSession(sessionID string) {
 	c.stopSessionSubscription()
 	c.sessionGeneration++
 	c.sessionID = sessionID
+	if c.store != nil {
+		if session, err := c.store.GetSession(context.Background(), sessionID); err == nil {
+			c.restoreSessionModel(session.State)
+		}
+	}
 	if c.engine == nil {
 		return
 	}
@@ -1514,6 +1518,7 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 		gotui.OnPreemptStop(gotui.KeyCtrlT, func(ke gotui.KeyEvent) { c.cycleThinking(1) }),
 		gotui.OnPreemptStop(gotui.KeyCtrlR, func(ke gotui.KeyEvent) { c.searchHistoryBackward() }),
 		gotui.OnPreemptStop(gotui.Rune('s').Alt(), func(ke gotui.KeyEvent) { c.openSessionMenu() }),
+		gotui.OnPreemptStop(gotui.Rune('m').Alt(), func(ke gotui.KeyEvent) { c.openModelMenu() }),
 		gotui.OnPreemptStop(gotui.Rune('t').Alt(), func(ke gotui.KeyEvent) { c.cycleThinking(-1) }),
 		gotui.OnPreemptStop(gotui.KeyUp, func(ke gotui.KeyEvent) {
 			c.recallHistory(-1)
@@ -1538,6 +1543,7 @@ func (c *chatTUI) openModelMenu() {
 			break
 		}
 	}
+	c.modelMenuError = ""
 	c.modelMenuOpen = true
 	c.modelMenuKind = "model"
 	c.modelMenuValues = nil
@@ -1643,6 +1649,7 @@ func (c *chatTUI) modelMenuTypeRune(r rune) {
 	if r == 0 {
 		return
 	}
+	c.modelMenuError = ""
 	c.modelMenuQuery += string(r)
 	c.applyModelMenuFilter()
 }
@@ -1651,12 +1658,14 @@ func (c *chatTUI) modelMenuBackspace() {
 	if c.modelMenuQuery == "" {
 		return
 	}
+	c.modelMenuError = ""
 	q := []rune(c.modelMenuQuery)
 	c.modelMenuQuery = string(q[:len(q)-1])
 	c.applyModelMenuFilter()
 }
 
 func (c *chatTUI) closeModelMenu() {
+	c.modelMenuError = ""
 	c.modelMenuOpen = false
 	c.modelMenuKind = ""
 	c.modelMenuValues = nil
@@ -1754,6 +1763,17 @@ func (c *chatTUI) acceptModelMenuSelection() {
 			value = v
 		}
 	}
+	if kind == "model" {
+		if err := c.chooseSessionModel(value); err != nil {
+			c.modelMenuError = err.Error()
+			if c.app != nil {
+				c.app.MarkDirty()
+			}
+			return
+		}
+		c.closeModelMenu()
+		return
+	}
 	c.modelMenuOpen = false
 	c.modelMenuKind = ""
 	c.modelMenuValues = nil
@@ -1822,6 +1842,9 @@ func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
 	} else {
 		search += fmt.Sprintf("  (%d match)", len(c.modelMenuChoices))
 	}
+	if c.modelMenuError != "" {
+		search = "error: " + c.modelMenuError
+	}
 	menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(selectorText(search, width)), gotui.WithTextStyle(gotui.NewStyle().Dim())))
 	if len(c.modelMenuChoices) == 0 {
 		menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(selectorText("  no matching "+noun+"s", width)), gotui.WithTextStyle(gotui.NewStyle().Dim())))
@@ -1851,7 +1874,7 @@ func (c *chatTUI) cycleModel(delta int) {
 	}
 	idx := -1
 	for i, model := range c.cfg.EnabledModels {
-		if model == c.cfg.DefaultModel {
+		if canonicalModelRef(c.modelDefaults().Provider, model) == canonicalModelRef(c.cfg.DefaultProvider, c.cfg.DefaultModel) {
 			idx = i
 			break
 		}
@@ -2447,6 +2470,7 @@ func (c *chatTUI) helpLines() []string {
 		"/hotkeys   keyboard shortcuts",
 		"/model     choose model · type to filter · ctrl-l cycles",
 		"alt-s      session picker · keeps unsent drafts · esc cancels",
+		"alt-m      model picker · session-local · keeps unsent drafts",
 		"/session   details for this chat",
 		"/where     compact context",
 		"/attach    add media",
@@ -2978,15 +3002,8 @@ func (c *chatTUI) sessionLines() []string {
 	thinking := c.cfg.DefaultThinkingLevel
 	status := "idle"
 	queueCount := queuedTurns
-	if v, ok := sess.State["model"].(string); ok && v != "" {
-		model = v
-	}
-	if v, ok := sess.State["provider"].(string); ok && v != "" {
-		provider = v
-	}
-	if v, ok := sess.State["thinking_level"].(string); ok && v != "" {
-		thinking = v
-	}
+	choice := inference.SessionModel(sess.State, inference.SessionModelChoice{Model: model, Provider: provider, Thinking: thinking})
+	model, provider, thinking = choice.Model, choice.Provider, choice.Thinking
 	if v, ok := sess.State["status"].(string); ok && v != "" {
 		status = v
 	}
@@ -3044,7 +3061,7 @@ func (c *chatTUI) availableModelChoices() []string {
 		if label == "" {
 			return
 		}
-		key := canonicalModelRef(c.cfg.DefaultProvider, label)
+		key := canonicalModelRef(c.modelDefaults().Provider, label)
 		if key == "" {
 			key = label
 		}
@@ -3052,12 +3069,12 @@ func (c *chatTUI) availableModelChoices() []string {
 			return
 		}
 		seen[key] = true
-		choices = append(choices, label)
+		choices = append(choices, key)
 	}
 	for _, model := range c.cfg.EnabledModels {
 		appendChoice(model)
 	}
-	_, modelOptions := inference.ListRuntimeOptions(c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.EnabledModels)
+	modelOptions := c.sessionModelCatalogue()
 	for _, option := range modelOptions {
 		appendChoice(option.Label)
 	}
@@ -3079,20 +3096,10 @@ func (c *chatTUI) modelCommand(fields []string) []string {
 			model = choices[idx-1]
 		}
 	}
-	c.cfg.DefaultModel = model
-	if strings.Contains(model, "/") {
-		c.cfg.DefaultProvider = strings.SplitN(model, "/", 2)[0]
+	if err := c.chooseSessionModel(model); err != nil {
+		return []string{fmt.Sprintf("error: select model: %v", err)}
 	}
-	lines := []string{fmt.Sprintf("model: %s", model)}
-	if c.store != nil && strings.TrimSpace(c.sessionID) != "" {
-		if err := c.store.TouchSessionState(context.Background(), c.sessionID, map[string]any{"model": model}); err != nil {
-			lines = append(lines, fmt.Sprintf("warn: failed to persist model in session state: %v", err))
-		}
-	}
-	if err := config.PersistModelSelection(c.cfg.WorkspaceRoot, c.cfg.DefaultProvider, c.cfg.DefaultModel, c.cfg.DefaultThinkingLevel, c.cfg.EnabledModels); err != nil {
-		lines = append(lines, fmt.Sprintf("warn: failed to persist model selection: %v", err))
-	}
-	return lines
+	return []string{fmt.Sprintf("model: %s", c.sessionModelLabel())}
 }
 
 func (c *chatTUI) modelListLines() []string {
@@ -4887,15 +4894,8 @@ func (c *chatTUI) contextSummaryData() tuiContextSummary {
 		data.parent = session.ParentSessionID
 	}
 	state := session.State
-	if v, ok := state["model"].(string); ok && v != "" {
-		data.model = v
-	}
-	if v, ok := state["provider"].(string); ok && v != "" {
-		data.provider = v
-	}
-	if v, ok := state["thinking_level"].(string); ok && v != "" {
-		data.thinking = v
-	}
+	choice := inference.SessionModel(state, inference.SessionModelChoice{Model: data.model, Provider: data.provider, Thinking: data.thinking})
+	data.model, data.provider, data.thinking = choice.Model, choice.Provider, choice.Thinking
 	if v, ok := state["status"].(string); ok && v != "" {
 		data.status = v
 	}
