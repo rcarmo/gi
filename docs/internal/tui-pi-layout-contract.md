@@ -6,6 +6,10 @@ Status: active layout contract for the Pi/PiClaw UX convergence track.
 
 Retain go-tui 0.18.2. Attempts with 0.22.1 and 0.19.0 erase a completed native-scrollback response after resize; the existing regular acceptance catches this at 60×18. All three-size suites pass after restoring 0.18.2 with upgraded go-ai/Go dependencies. [Upgrade evidence](dependency-upgrade-20260922.md). Do not exchange history integrity for a newer dependency or weaken the history assertions.
 
+## Hidden files in a temporary chooser (2026-09-22; design)
+
+A height-bounded chooser may toggle hidden files through its own key hints. Keep visibility local, reload only its current directory, preserve the highlighted path when possible and restore editor/cursor/reader on Escape. No permanent sidebar, hidden badge or additional idle rows; retain transcript padding. Verify hidden-only/empty folders, inaccessible paths, nested selection, resize and dismiss at all three sizes before terminal credit. [ADR-0041](../adr/0041-workspace-hidden-subtrees.md) verifies browser workspace-004 only.
+
 ## Read-only workspace preview (2026-09-22; design)
 
 Use an explicit temporary, height-bounded read-only viewer with filename/type/size. Keep literal text and existing Markdown projection; binary/images show metadata and an explicit capability-gated open/download action. Escape restores draft/cursor/reader; navigation never submits or silently attaches files. No permanent sidebar/image area or extra idle rows; Pi transcript padding remains intact. Verify Unicode/long text, failure, resize and dismissal at all three sizes before terminal credit. [ADR-0040](../adr/0040-read-only-workspace-previews.md) verifies browser workspace-008 only.

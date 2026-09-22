@@ -1,6 +1,12 @@
 # Web session selection and compact TUI adaptation
 
-## Latest feature evidence: read-only workspace previews (2026-09-22)
+## Latest feature evidence: hidden files and subtrees (2026-09-22)
+
+Workspace-004 passes native root/expanded-subtree reloads with persisted hidden visibility and retained text/files. The host bridges the global menu event to the pinned explorer's existing control; the API honours bounded depth/path/hidden queries. Legacy no-argument trees remain compatible. [ADR-0041](../adr/0041-workspace-hidden-subtrees.md).
+
+Verified **486/486 browser**, **74/74 functional**, **31 helpers**, full Go/vet/build/hook and web race ×3. Coverage **45/236 Classic**, **2/42 shared**, **191/40 unmapped**. Supplied sources are unchanged; reindexing, mutations and terminal file navigation remain unverified. Three-size browser screenshots attached.
+
+## Earlier feature evidence: read-only workspace previews (2026-09-22)
 
 Workspace-008 passes native Markdown/text/image/binary rendering and metadata acceptance. The host registers the supplied preview panes; native bounded text and rooted raw retrieval use existing authentication and active-content safety headers. Supplied UI sources are unchanged. [ADR-0040](../adr/0040-read-only-workspace-previews.md).
 

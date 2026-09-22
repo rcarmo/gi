@@ -83,6 +83,8 @@ import {createActivationRefreshGate,createTimelineRevision,createAssetVersionGua
 import {createSearchView} from './gi-search-state.js';
 import {newMessageWindow,mergeMessagePages,captureTimelineAnchor,restoreTimelineAnchor} from './gi-message-pages.js';
 
+import {bindWorkspaceVisibility} from './gi-workspace-visibility.js';
+
 const DEFAULT_SESSION_TITLE = 'default';
 const SESSION_KEY = 'gi_session_id';
 const POLL_INTERVAL_MS = 1200;
@@ -803,6 +805,12 @@ function GiApp() {
         workspaceOpen ? '' : 'workspace-collapsed',
         editorOpen ? 'editor-open' : '',
     ].filter(Boolean).join(' ');
+
+    useLayoutEffect(()=>{
+        if(!ready || !workspaceOpen)return;
+        const sidebar=document.querySelector<HTMLElement>('.workspace-sidebar');
+        if(sidebar)return bindWorkspaceVisibility(sidebar);
+    },[ready,workspaceOpen]);
 
     useWorkspaceFolderReference(ready && workspaceOpen, sessionId, fileRefs, (path:string)=>{
         if (!selection.isCurrent(renderedSelection)) return;

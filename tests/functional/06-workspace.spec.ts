@@ -57,3 +57,18 @@ test('workspace preview exposes bounded metadata and safe raw downloads',async({
  await page.goto(BASE_URL);await waitForAppShell(page);await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
  await page.locator(`.workspace-row[data-path="${path}"] .workspace-label-text`).click();await expect(page.locator('.workspace-preview-body h1')).toHaveText('Native preview');
 });
+
+test('workspace subtree queries honour depth and hidden files through the visible menu',async({page,request})=>{
+ const folder='functional-hidden-tree';
+ for(const path of [`${folder}/nested/deep/leaf.txt`,`${folder}/.hidden.txt`]){
+  const r=await request.post(`${BASE_URL}/api/tools/execute`,{data:{tool:'write',input:{path,content:path}}});expect((await r.json()).error).toBeFalsy();
+ }
+ const query=async(hidden:boolean)=>(await request.get(`${BASE_URL}/api/workspace/tree?path=${folder}&depth=1&show_hidden=${hidden}`)).json();
+ expect((await query(false)).children.map((n:any)=>n.name)).toEqual(['nested']);
+ expect((await query(true)).children.map((n:any)=>n.name)).toEqual(['nested','.hidden.txt']);
+ const deep=await (await request.get(`${BASE_URL}/api/workspace/tree?path=${folder}/nested/deep&depth=1&show_hidden=false`)).json();expect(deep.children[0].name).toBe('leaf.txt');
+ await page.goto(BASE_URL);await waitForAppShell(page);await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
+ await page.locator(`.workspace-row[data-path="${folder}"] .workspace-caret`).click();
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show hidden files',exact:true}).click();
+ await expect(page.locator(`.workspace-row[data-path="${folder}/.hidden.txt"]`)).toBeVisible();
+});

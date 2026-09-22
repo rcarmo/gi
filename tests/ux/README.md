@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Hidden files and native subtrees: 2026-09-22
+
+`workspace-preview.spec.mjs` maps workspace-004 with native nested files, on/off/on toggle through the visible global menu, observed root/all-expanded requests, reload persistence and retained text/files. A production host bridge invokes the supplied explorer's own stateful toggle; tests use normal user clicks and real responses. [ADR-0041](../../docs/adr/0041-workspace-hidden-subtrees.md).
+
+Latest **486/486 browser** (324 main + 162 specialised), **74/74 functional**, **31 helpers**, Go/vet/build/hook/web race ×3. Coverage **45/236 Classic**, **2/42 shared**, **191/40 unmapped**. Reindexing, CRUD and terminal chooser tests remain open. Native tree tests cover bounds, empty/stub snapshots, legacy policy, confinement and auth.
+
 ## Read-only workspace previews: 2026-09-22
 
 `workspace-preview.spec.mjs` maps workspace-008 through files created with native tools: Markdown, escaped text, decoded PNG, binary download message and kind/extension/type/size/mtime/path. SVG script source remains text; large previews truncate at the requested limit, and composer text survives selections/reload. The fixture shell explicitly changes to the runtime workspace. No mocked preview responses. [ADR-0040](../../docs/adr/0040-read-only-workspace-previews.md).

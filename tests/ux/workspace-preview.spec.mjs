@@ -34,3 +34,34 @@ test('@ux-workspace-008 Native previews render Markdown, escaped text, images, b
  await page.screenshot({path:info.outputPath('workspace-text-preview.png')});
  await page.reload();await expect(f.input).toHaveValue('preview draft retained');
 });
+
+test('@ux-workspace-004 Hidden toggle persists and reloads root plus every expanded subtree',async({page,request},info)=>{
+ await info.attach('gherkin',{body:loadCorpus().find(s=>s.id==='@ux-workspace-004').steps.join('\n'),contentType:'text/plain'});
+ const folder=`tree-${info.project.name}`,deep=`${folder}/nested/deep`;
+ const paths=[`${folder}/visible.txt`,`${folder}/.hidden.txt`,`${folder}/nested/visible.txt`,`${folder}/nested/.nested-hidden.txt`,`${deep}/leaf.txt`,`${deep}/.deep-hidden.txt`,`.root-${info.project.name}.txt`];
+ for(const path of paths){const r=await request.post('/api/tools/execute',{data:{tool:'write',input:{path,content:`stored ${path}`}}});expect((await r.json()).error).toBeFalsy();}
+ const session=await (await request.post('/api/sessions',{data:{title:folder,agent_id:folder}})).json();
+ await page.addInitScript(id=>{localStorage.setItem('gi_session_id',id);},session.id);await page.goto('/');
+ const input=page.getByRole('textbox',{name:inputName,exact:true});await input.fill('tree draft preserved');
+ await page.locator('.compose-box input[type=file]').setInputFiles({name:'tree-draft.txt',mimeType:'text/plain',buffer:Buffer.from('unsent')});
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
+ const row=path=>page.locator(`.workspace-row[data-path="${path}"]`);
+ for(const path of [folder,`${folder}/nested`,deep]){await row(path).locator('.workspace-caret').click();}
+ await expect(row(`${deep}/leaf.txt`)).toBeVisible();
+ for(const path of paths.filter(p=>p.split('/').at(-1).startsWith('.')))await expect(row(path)).toHaveCount(0);
+ const calls=[];page.on('request',r=>{const u=new URL(r.url());if(u.pathname==='/api/workspace/tree')calls.push({path:u.searchParams.get('path'),hidden:u.searchParams.get('show_hidden'),depth:u.searchParams.get('depth')});});
+ const toggle=async(show)=>{
+  calls.length=0;await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:show?'Show hidden files':'Hide hidden files',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('workspaceShowHidden'))).toBe(String(show));
+  for(const path of ['.',folder,`${folder}/nested`,deep])await expect.poll(()=>calls.some(r=>r.path===path&&r.hidden===String(show)&&r.depth==='1')).toBe(true);
+ };
+ await toggle(true);
+ for(const path of paths)await expect(row(path)).toBeVisible();
+ await page.screenshot({path:info.outputPath('workspace-hidden-visible.png')});
+ await toggle(false);for(const path of paths.filter(p=>p.split('/').at(-1).startsWith('.')))await expect(row(path)).toHaveCount(0);await expect(row(`${deep}/leaf.txt`)).toBeVisible();
+ await toggle(true);await expect(row(`${deep}/.deep-hidden.txt`)).toBeVisible();
+ await page.reload();await expect(input).toHaveValue('tree draft preserved');await expect(page.locator('.compose-file-pill').filter({hasText:'tree-draft.txt'})).toBeVisible();
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
+ await expect(row(`.root-${info.project.name}.txt`)).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('workspaceShowHidden'))).toBe('true');
+ expect((await (await request.get(`/api/sessions/${session.id}/messages`)).json()).messages ?? []).toEqual([]);
+});

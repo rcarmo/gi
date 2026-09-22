@@ -1,6 +1,8 @@
 # Gi web UI — 2026-09-21
 
-Latest workspace preview slice (2026-09-22): workspace-008 native metadata and bounded Markdown/text/image/binary preview with rooted raw retrieval. **480/480 browser**, **73/73 functional**, **31 helpers**, Go/vet/build/hook/web race ×3. Coverage **44/236 Classic**, **2/42 shared**, **192/40 unmapped**. [ADR-0040](../adr/0040-read-only-workspace-previews.md). Supplied UI sources unchanged; editor/CRUD and terminal preview remain gaps.
+Latest hidden/subtree slice (2026-09-22): workspace-004 native bounded subtree queries, global-menu host bridge, expanded reload/persistence/draft checks. **486/486 browser**, **74/74 functional**, **31 helpers**, Go/vet/build/hook/web race ×3. Coverage **45/236 Classic**, **2/42 shared**, **191/40 unmapped**. [ADR-0041](../adr/0041-workspace-hidden-subtrees.md). Reindex/CRUD and terminal navigation remain gaps.
+
+Earlier workspace preview slice (2026-09-22): workspace-008 native metadata and bounded Markdown/text/image/binary preview with rooted raw retrieval. **480/480 browser**, **73/73 functional**, **31 helpers**, Go/vet/build/hook/web race ×3. Coverage **44/236 Classic**, **2/42 shared**, **192/40 unmapped**. [ADR-0040](../adr/0040-read-only-workspace-previews.md). Supplied UI sources unchanged; editor/CRUD and terminal preview remain gaps.
 
 Earlier lightbox slice (2026-09-22): native stored-image projection/retrieval; timeline-013–016 keyboard/pointer/trusted-touch dismissal, with session/search/reload/404 draft guards. **474/474 browser**, **72/72 functional**, **31 helpers**, Go/vet/build/hook/web race ×3. Coverage **43/236 Classic**, **2/42 shared**, **193/40 unmapped**. [ADR-0039](../adr/0039-native-media-lightbox.md). Supplied components unchanged; terminal actions and annotation/drawing remain gaps.
 

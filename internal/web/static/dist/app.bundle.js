@@ -1100,24 +1100,9 @@ function getThumbnailUrl(mediaId) {
 async function submitAdaptiveCardAction(_payload) {
   return null;
 }
-async function getWorkspaceTree(path = "", _depth = 1, _showHidden = false) {
-  const root = await request("/api/workspace/tree");
-  if (!root.path)
-    root.path = ".";
-  const find = (node) => {
-    if (!path || path === "." || node.path === path)
-      return node;
-    for (const child of node.children || []) {
-      const match = find(child);
-      if (match)
-        return match;
-    }
-    return null;
-  };
-  const node = find(root);
-  if (!node)
-    throw new Error(`Workspace path unavailable: ${path}`);
-  return { root: node };
+async function getWorkspaceTree(path = "", depth = 1, showHidden = false) {
+  const query = new URLSearchParams({ path: path || ".", depth: String(depth), show_hidden: String(showHidden) });
+  return { root: await request(`/api/workspace/tree?${query}`) };
 }
 async function getWorkspaceFile(path, maxBytes = 20000) {
   return request(`/api/workspace/file?path=${encodeURIComponent(path)}&max_bytes=${maxBytes}`);
@@ -1143,8 +1128,8 @@ async function deleteWorkspaceFile(_path, _chatJid = null) {
 async function uploadWorkspaceFile(_path, _file, _chatJid = null) {
   return null;
 }
-async function setWorkspaceVisibility(_path, _hidden, _chatJid = null) {
-  return null;
+async function setWorkspaceVisibility(visible, showHidden) {
+  return { visible, show_hidden: showHidden };
 }
 function getWorkspaceDownloadUrl(path) {
   return `/api/workspace/file?path=${encodeURIComponent(path)}`;
@@ -16935,6 +16920,55 @@ function restoreTimelineAnchor(anchor) {
   }
 }
 
+// web/src/gi-workspace-visibility.ts
+function bindWorkspaceVisibility(sidebar) {
+  let desired = null;
+  let scheduled = false;
+  let disposed = false;
+  const sync = () => {
+    scheduled = false;
+    if (disposed || desired === null)
+      return;
+    const menuButton = sidebar.querySelector(".workspace-menu-button");
+    if (!menuButton)
+      return;
+    const toggle = Array.from(sidebar.querySelectorAll(".workspace-menu-dropdown .workspace-menu-item")).find((button) => ["Show hidden files", "Hide hidden files"].includes(button.textContent?.trim() || ""));
+    if (!toggle) {
+      if (menuButton.getAttribute("aria-expanded") !== "true")
+        menuButton.click();
+      return;
+    }
+    const current = toggle.textContent?.trim() === "Hide hidden files";
+    const next = desired;
+    desired = null;
+    if (current !== next)
+      toggle.click();
+    else
+      menuButton.click();
+  };
+  const schedule = () => {
+    if (!scheduled && !disposed) {
+      scheduled = true;
+      queueMicrotask(sync);
+    }
+  };
+  const observer = new MutationObserver(schedule);
+  observer.observe(sidebar, { subtree: true, childList: true });
+  const onToggle = (event) => {
+    const value = event.detail?.showHidden;
+    if (typeof value !== "boolean")
+      return;
+    desired = value;
+    schedule();
+  };
+  window.addEventListener("piclaw:toggle-hidden-files", onToggle);
+  return () => {
+    disposed = true;
+    observer.disconnect();
+    window.removeEventListener("piclaw:toggle-hidden-files", onToggle);
+  };
+}
+
 // web/src/app.ts
 paneRegistry.register(workspacePreviewPaneExtension);
 paneRegistry.register(workspaceMarkdownPreviewPaneExtension);
@@ -17855,6 +17889,13 @@ function GiApp() {
     workspaceOpen ? "" : "workspace-collapsed",
     editorOpen ? "editor-open" : ""
   ].filter(Boolean).join(" ");
+  W_(() => {
+    if (!ready || !workspaceOpen)
+      return;
+    const sidebar = document.querySelector(".workspace-sidebar");
+    if (sidebar)
+      return bindWorkspaceVisibility(sidebar);
+  }, [ready, workspaceOpen]);
   useWorkspaceFolderReference(ready && workspaceOpen, sessionId, fileRefs, (path) => {
     if (!selection.isCurrent(renderedSelection))
       return;
@@ -18147,5 +18188,5 @@ function GiApp() {
 }
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=86B4D6538086D1CE64756E2164756E21
+//# debugId=23DC00043BC9EBEB64756E2164756E21
 //# sourceMappingURL=app.js.map

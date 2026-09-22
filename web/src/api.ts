@@ -473,18 +473,9 @@ export async function getSessionRouteEvents(chatJid: string | null = null) {
     return request(`/api/sessions/${encodeURIComponent(sessionId)}/route-events`);
 }
 
-export async function getWorkspaceTree(path = '', _depth = 1, _showHidden = false) {
-    const root = await request('/api/workspace/tree');
-    // Native root path is empty; Piclaw expands '.' by default.
-    if (!root.path) root.path = '.';
-    const find = (node: any): any => {
-        if (!path || path === '.' || node.path === path) return node;
-        for (const child of node.children || []) { const match = find(child); if (match) return match; }
-        return null;
-    };
-    const node = find(root);
-    if (!node) throw new Error(`Workspace path unavailable: ${path}`);
-    return { root: node };
+export async function getWorkspaceTree(path = '', depth = 1, showHidden = false) {
+    const query = new URLSearchParams({path: path || '.', depth: String(depth), show_hidden: String(showHidden)});
+    return { root: await request(`/api/workspace/tree?${query}`) };
 }
 
 export async function getWorkspaceFile(path: string, maxBytes = 20000) {
@@ -519,8 +510,10 @@ export async function uploadWorkspaceFile(_path: string, _file: File, _chatJid: 
     return null;
 }
 
-export async function setWorkspaceVisibility(_path: string, _hidden: boolean, _chatJid: string | null = null) {
-    return null;
+export async function setWorkspaceVisibility(visible: boolean, showHidden: boolean) {
+    // Gi has no workspace push subscription to reconfigure. The explorer owns
+    // local persistence and supplies this flag on every subsequent tree pull.
+    return { visible, show_hidden: showHidden };
 }
 
 export function getWorkspaceDownloadUrl(path: string) {
