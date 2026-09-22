@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/rcarmo/gi/internal/store"
+	"github.com/rcarmo/gi/internal/topics"
 	"io"
 	"net/http"
 )
@@ -50,6 +51,9 @@ func (s *Server) handleSessionQueue(w http.ResponseWriter, r *http.Request, sess
 		}
 		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
+	}
+	if r.Method != http.MethodGet && s.turns.Topics() != nil {
+		s.turns.Topics().Publish(topics.Envelope{Topic: "session.queue", SessionID: sessionID, Type: "notice", Payload: map[string]any{"type": "queue_changed"}})
 	}
 	items, err := s.store.ListQueuedTurns(r.Context(), sessionID)
 	if err != nil {

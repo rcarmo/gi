@@ -49,7 +49,6 @@ import {
     removeAgentQueueItem,
     reorderAgentQueueItem,
     steerAgentQueueItem,
-    removeAgentQueueItem,
     streamSidePrompt,
     getWorkspaceFile,
     sendAgentMessage,
@@ -160,6 +159,11 @@ function GiApp() {
     const [queueBusy, setQueueBusy] = useState(false);
     const queueMutation = useRef<any>(null);
     const queueRevision = useRef(0);
+    const connectionRevision = useRef(0);
+    const streamDisconnected = useRef(false);
+    const refreshAfterConnection = useRef<() => void>(() => {});
+    const refreshTimer = useRef<any>(null);
+    const [optimisticQueue, setOptimisticQueue] = useState<any[]>([]);
     const [floatingWidget, setFloatingWidget] = useState<any>(null);
     const [attachmentPreview, setAttachmentPreview] = useState<any>(null);
     const [contextUsage, setContextUsage] = useState<any>(null);
@@ -289,6 +293,13 @@ function GiApp() {
 
     const handleSseEvent = useCallback((eventType: string, data: any) => {
         if (!selection.current() || data?.chat_jid !== sessionToChatJid(selection.current()!)) return;
+        if (['queue_changed', 'agent_followup_queued', 'agent_followup_consumed', 'agent_followup_removed'].includes(eventType)) {
+            ++queueRevision.current;
+            if (!refreshTimer.current) refreshTimer.current = setTimeout(() => {
+                refreshTimer.current = null;
+                refreshAfterConnection.current();
+            }, 0);
+        }
         // Handle new_post events directly for immediate timeline updates
         if (eventType === 'new_post' || eventType === 'agent_response') {
             if (data && data.id) {
@@ -333,15 +344,26 @@ function GiApp() {
     }, [scrollToBottom]);
 
     const handleConnectionStatusChange = useCallback((status: string) => {
+        ++connectionRevision.current;
+        ++queueRevision.current;
         setConnectionStatus(status);
+        streamDisconnected.current = status !== 'connected';
+        if (status !== 'connected') {
+            setAgentStatus(null); setAgentDraft(null); setAgentPlan(null); setAgentThought(null);
+            setPendingRequest(null); setCurrentTurnId(null); setSteerQueuedTurnId(null);
+            draftBufferRef.current = ''; thoughtBufferRef.current = '';
+            pendingRequestRef.current = null; currentTurnIdRef.current = null; steerQueuedTurnIdRef.current = null;
+            setIsAgentTurnActive(false); isAgentRunningRef.current = false;
+        } else refreshAfterConnection.current();
     }, []);
 
     useSseConnection({
         handleSseEvent,
         handleConnectionStatusChange,
         loadPosts,
-        onWake: () => { loadPosts(); },
+        onWake: () => { refreshAfterConnection.current(); },
         chatJid: currentChatJid,
+        selectionKey: renderedSelection.generation,
     });
 
     const refreshSelectedState = useCallback(async () => {
@@ -349,16 +371,21 @@ function GiApp() {
         if (!sessionId || scope.sessionId !== sessionId) return;
         const chat = sessionToChatJid(sessionId);
         const revision = ++queueRevision.current;
+        const connection = connectionRevision.current;
         try {
             const [models, queue, status] = await Promise.all([
                 getAgentModels(chat), getAgentQueueState(chat), getAgentStatus('', chat),
             ]);
-            if (!selection.isCurrent(scope)) return;
+            if (!selection.isCurrent(scope) || connection !== connectionRevision.current || streamDisconnected.current) return;
             setAgentModelsPayload(models);
             setActiveModel(models.current);
             setActiveThinkingLevel(models.thinking_level);
             setSupportsThinking(models.supports_thinking);
-            if (revision === queueRevision.current && !queueMutation.current) setFollowupQueueItems(queue.items || []);
+            if (revision === queueRevision.current && !queueMutation.current) {
+                setFollowupQueueItems(queue.items || []);
+                const admitted = new Set((queue.items || []).map(item => item.metadata?.client_request_id).filter(Boolean));
+                setOptimisticQueue(items => items.filter(item => !admitted.has(item.id)));
+            }
             setAgentStatus(status);
             const running = status?.status === 'running' || status?.status === 'cancelling';
             setIsAgentTurnActive(running);
@@ -368,6 +395,11 @@ function GiApp() {
             if (selection.isCurrent(scope)) setSessionError(error.message || 'Unable to refresh session');
         }
     }, [sessionId]);
+
+    refreshAfterConnection.current = () => {
+        void loadPosts(); void refreshSelectedState();
+    };
+    useEffect(() => () => { if (refreshTimer.current) clearTimeout(refreshTimer.current); }, []);
 
     // ── Initial load + light periodic refresh ─────────────────────────────────
 
@@ -407,6 +439,7 @@ function GiApp() {
         setSessionId(nextSessionId);
         setPosts([]); setHasMore(false); setFollowupQueueItems([]); setCurrentChatBranches([]);
         queueMutation.current = null; ++queueRevision.current; setQueueBusy(false); setQueueError('');
+        setOptimisticQueue([]);
         setFileRefs(getDraft(nextSessionId).fileRefs);
         setMessageRefs(getDraft(nextSessionId).messageRefs);
         setAgentStatus(null); setAgentDraft(null); setAgentThought(null); setAgentPlan(null);
@@ -618,7 +651,7 @@ function GiApp() {
                     />
                 `}
                 <${QueuedFollowupStack}
-                    items=${followupQueueItems}
+                    items=${[...followupQueueItems, ...optimisticQueue.filter(item => item.chat_jid === currentChatJid && !followupQueueItems.some(stored => stored.id === item.id || stored.metadata?.client_request_id === item.id))]}
                     busy=${queueBusy}
                     onRemoveQueuedFollowup=${(item: any) => mutateQueue('remove', item)}
                     onMoveQueuedFollowup=${(from: number, to: number) => mutateQueue('move', from, to)}
@@ -637,6 +670,15 @@ function GiApp() {
                     onDraftMediaChange=${(media: File[]) => drafts.update(sessionId, { media })}
                     focusRestoredDraft=${draftRestore?.sessionId === sessionId}
                     onCaptureDraft=${(draft: any) => drafts.begin(sessionId, draft)}
+                    onQueuedSubmissionStart=${(token: string, text: string) => {
+                        if (!selection.isCurrent(renderedSelection)) return;
+                        setOptimisticQueue(items => [...items, {id: token, content: text, chat_jid: currentChatJid, pending: true}]);
+                    }}
+                    onQueuedSubmissionEnd=${(token: string) => {
+                        if (!selection.isCurrent(renderedSelection)) return;
+                        setOptimisticQueue(items => items.filter(item => item.id !== token));
+                        void refreshSelectedState();
+                    }}
                     onDraftAccepted=${(token: string) => drafts.accepted(sessionId, token)}
                     onDraftFailed=${(token: string, error: string) => {
                         const draft = drafts.failed(sessionId, token, error);

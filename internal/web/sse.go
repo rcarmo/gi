@@ -27,13 +27,6 @@ func (s *Server) handleSSEStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	// Send connected event
-	writeSSE(w, "connected", map[string]any{
-		"app_asset_version": s.version,
-		"chat_jid":          chatJid,
-	})
-	flusher.Flush()
-
 	// Extract session ID from chat_jid (gi:session_xxx -> session_xxx)
 	sessionID := ""
 	if len(chatJid) > 3 && chatJid[:3] == "gi:" {
@@ -50,6 +43,15 @@ func (s *Server) handleSSEStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+	var lifecycle <-chan topics.Envelope
+	if sessionID != "" && s.turns.Topics() != nil {
+		channel, unsubscribe := s.turns.Topics().Subscribe(ctx, "*", topics.SubscribeOptions{SessionID: sessionID, Buffer: 64})
+		lifecycle = channel
+		defer unsubscribe()
+	}
+	// Subscriptions precede readiness so no admitted change falls into a gap.
+	writeSSE(w, "connected", map[string]any{"app_asset_version": s.version, "chat_jid": chatJid})
+	flusher.Flush()
 	heartbeat := time.NewTicker(15 * time.Second)
 	defer heartbeat.Stop()
 
@@ -60,6 +62,18 @@ func (s *Server) handleSSEStream(w http.ResponseWriter, r *http.Request) {
 		case <-heartbeat.C:
 			writeSSE(w, "heartbeat", map[string]any{"ts": time.Now().UnixMilli()})
 			flusher.Flush()
+		case event, ok := <-lifecycle:
+			if !ok {
+				lifecycle = nil
+				continue
+			}
+			if event.SessionID != sessionID {
+				continue
+			}
+			if event.Topic == "runtime.turn" || event.Topic == "runtime.session" || event.Topic == "session.queue" {
+				writeSSE(w, "queue_changed", map[string]any{"chat_jid": chatJid, "sequence": event.Sequence})
+				flusher.Flush()
+			}
 		case ev, ok := <-ch:
 			if !ok {
 				return

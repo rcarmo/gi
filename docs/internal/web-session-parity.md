@@ -72,6 +72,18 @@ The web updates order/removal optimistically, refreshes after success/failure an
 
 `016` SSE/local optimistic reconciliation, return-to-editor recovery and atomic Steer remain open. Terminal adaptation is an on-demand bounded queue list operating on durable IDs, with existing nonzero footer counts and error notices. It adds no idle rows; terminal queue mutations are not yet implemented.
 
+## Queue SSE reconciliation and disconnect cleanup
+
+The stream now carries selected-session queue invalidations from the native topic bus, with subscriptions installed before the connected notification. Reconnect and wake refresh persisted queue/status/timeline data. Local queued placeholders correlate with durable records through `client_request_id`; reconciliation removes the placeholder once the server row is observed. Identical prompt text remains distinct. Failure removes the placeholder while recovering the origin draft.
+
+Disconnect clears transient assistant status/draft/plan/thought and pending/run refs without changing the user's draft. Connection revisions reject pre-disconnect reads. Source-instance and selection-generation checks suppress callbacks from replaced EventSources; explicit disconnect clears reconnect timers and connecting state.
+
+`016` and `ux-reconnect-001` pass native browser acceptance. A held real acknowledgement tests SSE-first reconciliation; a byte-for-byte proxy closes actual SSE sockets, verifies removal of a real streamed stdout preview and restores queue state changed by an independent API client during the outage. No synthetic SSE/timeline data is injected.
+
+Current totals: **138/138 matrix executions**, **12/236 Classic IDs**, 224 unmapped; all 42 shared cases remain unmapped. Existing functional suite: 70/70. Go/vet, focused three-run SSE race tests, Bun hooks and 15 source/helper tests pass. [ADR-0013](../adr/0013-queue-sse-reconciliation.md) records the contract and limits.
+
+Other reconnect cases, context/search/version-drift behaviour and queue return/Steer remain open. Terminal adaptation uses topic invalidations to refresh a bounded on-demand queue list; the existing footer handles nonzero counts and transient warnings. No additional idle rows are needed, and this slice adds no terminal implementation credit.
+
 ## Terminal session slice: implemented and separately tested
 
 `Alt-S` opens the existing session selector without replacing unsent input. It uses at most six results plus two temporary title/search rows, no box border, and no added idle rows. Filtering keeps full session IDs; display truncation is UTF-8-safe and terminal-cell bounded. Up/Down wrap, Enter selects and Escape restores the editor. Resizing keeps the selected row visible.

@@ -646,13 +646,156 @@ function createSelectionScope() {
   };
 }
 
-// web/src/api.ts
+// web/src/gi-sse-client.ts
 var API_BASE = "";
+
+class SSEClient {
+  onEvent;
+  onStatusChange;
+  chatJid;
+  eventSource;
+  reconnectTimeout;
+  reconnectDelay;
+  status;
+  connecting;
+  staleMonitor;
+  constructor(onEvent, onStatusChange, options = {}) {
+    this.onEvent = onEvent;
+    this.onStatusChange = onStatusChange;
+    this.chatJid = typeof options?.chatJid === "string" && options.chatJid.trim() ? options.chatJid.trim() : null;
+    this.eventSource = null;
+    this.reconnectTimeout = null;
+    this.reconnectDelay = 1000;
+    this.status = "disconnected";
+    this.connecting = false;
+    this.staleMonitor = null;
+  }
+  connect() {
+    if (this.connecting)
+      return;
+    if (this.eventSource && this.status === "connected")
+      return;
+    this.connecting = true;
+    if (this.eventSource)
+      this.eventSource.close();
+    this.clearStaleMonitor();
+    const query = this.chatJid ? `?chat_jid=${encodeURIComponent(this.chatJid)}` : "";
+    const source = new EventSource(API_BASE + "/sse/stream" + query);
+    this.eventSource = source;
+    const current = () => this.eventSource === source;
+    const bindJsonEvent = (eventType) => {
+      source.addEventListener(eventType, (e) => {
+        if (!current())
+          return;
+        this.resetStaleMonitor();
+        try {
+          const data = JSON.parse(e.data);
+          this.onEvent(eventType, data);
+        } catch {}
+      });
+    };
+    source.addEventListener("connected", () => {
+      if (!current())
+        return;
+      this.connecting = false;
+      this.reconnectDelay = 1000;
+      this.setStatus("connected");
+      this.resetStaleMonitor();
+    });
+    source.addEventListener("heartbeat", () => {
+      if (!current())
+        return;
+      this.resetStaleMonitor();
+    });
+    bindJsonEvent("new_post");
+    bindJsonEvent("new_reply");
+    bindJsonEvent("agent_response");
+    bindJsonEvent("interaction_updated");
+    bindJsonEvent("interaction_deleted");
+    bindJsonEvent("agent_status");
+    bindJsonEvent("agent_steer_queued");
+    bindJsonEvent("agent_followup_queued");
+    bindJsonEvent("agent_followup_consumed");
+    bindJsonEvent("agent_followup_removed");
+    bindJsonEvent("queue_changed");
+    bindJsonEvent("workspace_update");
+    bindJsonEvent("agent_draft");
+    bindJsonEvent("agent_draft_delta");
+    bindJsonEvent("agent_thought");
+    bindJsonEvent("agent_thought_delta");
+    bindJsonEvent("routing_decision");
+    bindJsonEvent("routing_incoming");
+    bindJsonEvent("model_changed");
+    bindJsonEvent("ui_theme");
+    bindJsonEvent("ui_meters");
+    source.onerror = () => {
+      if (!current())
+        return;
+      this.eventSource = null;
+      source.close();
+      this.clearStaleMonitor();
+      this.connecting = false;
+      this.setStatus("disconnected");
+      this.scheduleReconnect();
+    };
+  }
+  disconnect() {
+    this.connecting = false;
+    this.clearStaleMonitor();
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    const source = this.eventSource;
+    this.eventSource = null;
+    source?.close();
+    this.setStatus("disconnected");
+  }
+  reconnectIfNeeded() {
+    if (this.status !== "connected")
+      this.connect();
+  }
+  forceReconnect() {
+    this.disconnect();
+    this.connect();
+  }
+  setStatus(status) {
+    if (this.status === status)
+      return;
+    this.status = status;
+    this.onStatusChange?.(status);
+  }
+  scheduleReconnect() {
+    if (this.reconnectTimeout)
+      return;
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null;
+      this.reconnectDelay = Math.min(this.reconnectDelay * 1.5, 30000);
+      this.connect();
+    }, this.reconnectDelay);
+  }
+  resetStaleMonitor() {
+    this.clearStaleMonitor();
+    this.staleMonitor = setTimeout(() => {
+      this.setStatus("stale");
+      this.forceReconnect();
+    }, 60000);
+  }
+  clearStaleMonitor() {
+    if (this.staleMonitor) {
+      clearTimeout(this.staleMonitor);
+      this.staleMonitor = null;
+    }
+  }
+}
+
+// web/src/api.ts
+var API_BASE2 = "";
 async function request(url, options = {}) {
   const startedAt = typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now();
   let response;
   try {
-    response = await fetch(API_BASE + url, {
+    response = await fetch(API_BASE2 + url, {
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -863,7 +1006,8 @@ async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = 
     prompt: content,
     intent,
     target_agent_id: targetAgentId,
-    media: _mediaIds.map((media_id) => ({ media_id, session_id: sessionId }))
+    media: _mediaIds.map((media_id) => ({ media_id, session_id: sessionId })),
+    client_request_id: options?.client_request_id || undefined
   };
   if (options?.parent_turn_id) {
     payload.parent_turn_id = options.parent_turn_id;
@@ -968,132 +1112,6 @@ function getWorkspaceFileDownloadUrl(path) {
   return getWorkspaceRawUrl(path, { download: true });
 }
 async function recordAppPerfRequest(_payload) {}
-
-class SSEClient {
-  onEvent;
-  onStatusChange;
-  chatJid;
-  eventSource;
-  reconnectTimeout;
-  reconnectDelay;
-  status;
-  connecting;
-  staleMonitor;
-  constructor(onEvent, onStatusChange, options = {}) {
-    this.onEvent = onEvent;
-    this.onStatusChange = onStatusChange;
-    this.chatJid = typeof options?.chatJid === "string" && options.chatJid.trim() ? options.chatJid.trim() : null;
-    this.eventSource = null;
-    this.reconnectTimeout = null;
-    this.reconnectDelay = 1000;
-    this.status = "disconnected";
-    this.connecting = false;
-    this.staleMonitor = null;
-  }
-  connect() {
-    if (this.connecting)
-      return;
-    if (this.eventSource && this.status === "connected")
-      return;
-    this.connecting = true;
-    if (this.eventSource)
-      this.eventSource.close();
-    this.clearStaleMonitor();
-    const query = this.chatJid ? `?chat_jid=${encodeURIComponent(this.chatJid)}` : "";
-    this.eventSource = new EventSource(API_BASE + "/sse/stream" + query);
-    const bindJsonEvent = (eventType) => {
-      this.eventSource.addEventListener(eventType, (e) => {
-        this.resetStaleMonitor();
-        try {
-          const data = JSON.parse(e.data);
-          this.onEvent(eventType, data);
-        } catch {}
-      });
-    };
-    this.eventSource.addEventListener("connected", () => {
-      this.connecting = false;
-      this.reconnectDelay = 1000;
-      this.setStatus("connected");
-      this.resetStaleMonitor();
-    });
-    this.eventSource.addEventListener("heartbeat", () => {
-      this.resetStaleMonitor();
-    });
-    bindJsonEvent("new_post");
-    bindJsonEvent("new_reply");
-    bindJsonEvent("agent_response");
-    bindJsonEvent("interaction_updated");
-    bindJsonEvent("interaction_deleted");
-    bindJsonEvent("agent_status");
-    bindJsonEvent("agent_steer_queued");
-    bindJsonEvent("agent_followup_queued");
-    bindJsonEvent("agent_followup_consumed");
-    bindJsonEvent("agent_followup_removed");
-    bindJsonEvent("workspace_update");
-    bindJsonEvent("agent_draft");
-    bindJsonEvent("agent_draft_delta");
-    bindJsonEvent("agent_thought");
-    bindJsonEvent("agent_thought_delta");
-    bindJsonEvent("routing_decision");
-    bindJsonEvent("routing_incoming");
-    bindJsonEvent("model_changed");
-    bindJsonEvent("ui_theme");
-    bindJsonEvent("ui_meters");
-    this.eventSource.onerror = () => {
-      this.connecting = false;
-      this.setStatus("disconnected");
-      this.scheduleReconnect();
-    };
-  }
-  disconnect() {
-    this.clearStaleMonitor();
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-      this.reconnectTimeout = null;
-    }
-    if (this.eventSource) {
-      this.eventSource.close();
-      this.eventSource = null;
-    }
-    this.setStatus("disconnected");
-  }
-  reconnectIfNeeded() {
-    if (this.status !== "connected")
-      this.connect();
-  }
-  forceReconnect() {
-    this.disconnect();
-    this.connect();
-  }
-  setStatus(status) {
-    if (this.status === status)
-      return;
-    this.status = status;
-    this.onStatusChange?.(status);
-  }
-  scheduleReconnect() {
-    if (this.reconnectTimeout)
-      return;
-    this.reconnectTimeout = setTimeout(() => {
-      this.reconnectTimeout = null;
-      this.reconnectDelay = Math.min(this.reconnectDelay * 1.5, 30000);
-      this.connect();
-    }, this.reconnectDelay);
-  }
-  resetStaleMonitor() {
-    this.clearStaleMonitor();
-    this.staleMonitor = setTimeout(() => {
-      this.setStatus("stale");
-      this.forceReconnect();
-    }, 60000);
-  }
-  clearStaleMonitor() {
-    if (this.staleMonitor) {
-      clearTimeout(this.staleMonitor);
-      this.staleMonitor = null;
-    }
-  }
-}
 async function getMediaBlob(..._args) {
   return null;
 }
@@ -1180,7 +1198,9 @@ function bindSseWakeLifecycle({ sse, onWake }, runtime = {}) {
     doc.removeEventListener("visibilitychange", handleVisibilityChange);
   };
 }
-function useSseConnection({ handleSseEvent, handleConnectionStatusChange, loadPosts, onWake, chatJid }) {
+function useSseConnection({ handleSseEvent, handleConnectionStatusChange, loadPosts, onWake, chatJid, selectionKey = chatJid }) {
+  const selectionRef = K_(selectionKey);
+  selectionRef.current = selectionKey;
   const sseEventRef = K_(handleSseEvent);
   sseEventRef.current = handleSseEvent;
   const statusChangeRef = K_(handleConnectionStatusChange);
@@ -1190,17 +1210,25 @@ function useSseConnection({ handleSseEvent, handleConnectionStatusChange, loadPo
   const onWakeRef = K_(onWake);
   onWakeRef.current = onWake;
   J_(() => {
-    const sse = new SSEClient((type, data) => sseEventRef.current(type, data), (status) => statusChangeRef.current(status), { chatJid });
+    let active = true;
+    const sse = new SSEClient((type, data) => {
+      if (active && selectionRef.current === selectionKey)
+        sseEventRef.current(type, data);
+    }, (status) => {
+      if (active && selectionRef.current === selectionKey)
+        statusChangeRef.current(status);
+    }, { chatJid });
     sse.connect();
     const disposeWakeLifecycle = bindSseWakeLifecycle({
       sse,
       onWake: () => onWakeRef.current?.()
     });
     return () => {
+      active = false;
       disposeWakeLifecycle();
       sse.disconnect();
     };
-  }, [chatJid]);
+  }, [chatJid, selectionKey]);
 }
 
 // web/src/ui/theme.ts
@@ -6698,7 +6726,7 @@ function QueuedFollowupStack({
     const canMoveUp = index > 0;
     const canMoveDown = index < items.length - 1;
     return ce`
-                    <div class="compose-queue-stack-item" role="listitem" data-queue-id=${item.id}>
+                    <div class="compose-queue-stack-item" role="listitem" data-queue-id=${item.id} aria-busy=${item.pending ? "true" : "false"}>
                         <div class="compose-queue-stack-content" title=${rowText}>
                             ${parsed.text.trim() && ce`<div class="compose-queue-stack-text">${parsed.text}</div>`}
                             ${(parsed.messageRefs.length > 0 || parsed.fileRefs.length > 0 || parsed.attachmentRefs.length > 0) && ce`
@@ -6742,7 +6770,7 @@ function QueuedFollowupStack({
                                     type="button"
                                     title="Move up"
                                     aria-label="Move up in queue"
-                                    disabled=${busy || !canMoveUp}
+                                    disabled=${busy || item.pending || items.some((entry) => entry.pending) || !canMoveUp}
                                     onClick=${() => canMoveUp && onMoveQueuedFollowup?.(index, index - 1)}
                                 >
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -6754,7 +6782,7 @@ function QueuedFollowupStack({
                                     type="button"
                                     title="Move down"
                                     aria-label="Move down in queue"
-                                    disabled=${busy || !canMoveDown}
+                                    disabled=${busy || item.pending || items.some((entry) => entry.pending) || !canMoveDown}
                                     onClick=${() => canMoveDown && onMoveQueuedFollowup?.(index, index + 1)}
                                 >
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -6780,7 +6808,7 @@ function QueuedFollowupStack({
                                 type="button"
                                 title="Cancel queued message"
                                 aria-label="Cancel queued message"
-                                disabled=${busy}
+                                disabled=${busy || item.pending}
                                 onClick=${() => onRemoveQueuedFollowup?.(item)}
                             >
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -6856,6 +6884,8 @@ function ComposeBox({
   onContentChange,
   onDraftMediaChange,
   onCaptureDraft,
+  onQueuedSubmissionStart,
+  onQueuedSubmissionEnd,
   onDraftAccepted,
   onDraftFailed,
   onDraftStorageError,
@@ -7484,6 +7514,9 @@ function ComposeBox({
     const capturedChatJid = currentChatJid;
     const mode = resolveSubmitMode(submitMode);
     const capture = clearAfterSubmit ? onCaptureDraft?.(capturedDraft) : null;
+    const queueToken = mode === "queue" ? capture?.token || crypto.randomUUID() : null;
+    if (queueToken)
+      onQueuedSubmissionStart?.(queueToken, baseContent || "[attachments]");
     if (recordHistory && baseContent) {
       const current = historyRef.current;
       const deduped = normaliseHistory(current.filter((item) => item !== baseContent));
@@ -7568,7 +7601,7 @@ ${mediaIds.map((id, index) => {
 
 `);
         requestDispatched = true;
-        const response = await sendAgentMessage("default", message, null, mediaIds, mode, capturedChatJid);
+        const response = await sendAgentMessage("default", message, null, mediaIds, mode, capturedChatJid, { client_request_id: queueToken });
         requestAcknowledged = true;
         await acknowledge();
         if (!mountedRef.current)
@@ -7603,6 +7636,9 @@ ${mediaIds.map((id, index) => {
           setSubmitError(message);
         onSubmitError?.(message);
         console.error("Failed to post:", error);
+      } finally {
+        if (queueToken)
+          onQueuedSubmissionEnd?.(queueToken);
       }
     })();
   };
@@ -16436,6 +16472,11 @@ function GiApp() {
   const [queueBusy, setQueueBusy] = M_(false);
   const queueMutation = K_(null);
   const queueRevision = K_(0);
+  const connectionRevision = K_(0);
+  const streamDisconnected = K_(false);
+  const refreshAfterConnection = K_(() => {});
+  const refreshTimer = K_(null);
+  const [optimisticQueue, setOptimisticQueue] = M_([]);
   const [floatingWidget, setFloatingWidget] = M_(null);
   const [attachmentPreview, setAttachmentPreview] = M_(null);
   const [contextUsage, setContextUsage] = M_(null);
@@ -16567,6 +16608,14 @@ function GiApp() {
   const handleSseEvent = X_((eventType, data) => {
     if (!selection.current() || data?.chat_jid !== sessionToChatJid2(selection.current()))
       return;
+    if (["queue_changed", "agent_followup_queued", "agent_followup_consumed", "agent_followup_removed"].includes(eventType)) {
+      ++queueRevision.current;
+      if (!refreshTimer.current)
+        refreshTimer.current = setTimeout(() => {
+          refreshTimer.current = null;
+          refreshAfterConnection.current();
+        }, 0);
+    }
     if (eventType === "new_post" || eventType === "agent_response") {
       if (data && data.id) {
         setPosts((prev) => appendUniqueTimelinePost(prev, data));
@@ -16601,16 +16650,37 @@ function GiApp() {
     }
   }, [scrollToBottom]);
   const handleConnectionStatusChange = X_((status) => {
+    ++connectionRevision.current;
+    ++queueRevision.current;
     setConnectionStatus(status);
+    streamDisconnected.current = status !== "connected";
+    if (status !== "connected") {
+      setAgentStatus(null);
+      setAgentDraft(null);
+      setAgentPlan(null);
+      setAgentThought(null);
+      setPendingRequest(null);
+      setCurrentTurnId(null);
+      setSteerQueuedTurnId(null);
+      draftBufferRef.current = "";
+      thoughtBufferRef.current = "";
+      pendingRequestRef.current = null;
+      currentTurnIdRef.current = null;
+      steerQueuedTurnIdRef.current = null;
+      setIsAgentTurnActive(false);
+      isAgentRunningRef.current = false;
+    } else
+      refreshAfterConnection.current();
   }, []);
   useSseConnection({
     handleSseEvent,
     handleConnectionStatusChange,
     loadPosts,
     onWake: () => {
-      loadPosts();
+      refreshAfterConnection.current();
     },
-    chatJid: currentChatJid
+    chatJid: currentChatJid,
+    selectionKey: renderedSelection.generation
   });
   const refreshSelectedState = X_(async () => {
     const scope = selection.capture();
@@ -16618,20 +16688,24 @@ function GiApp() {
       return;
     const chat = sessionToChatJid2(sessionId);
     const revision = ++queueRevision.current;
+    const connection = connectionRevision.current;
     try {
       const [models, queue, status] = await Promise.all([
         getAgentModels(chat),
         getAgentQueueState(chat),
         getAgentStatus("", chat)
       ]);
-      if (!selection.isCurrent(scope))
+      if (!selection.isCurrent(scope) || connection !== connectionRevision.current || streamDisconnected.current)
         return;
       setAgentModelsPayload(models);
       setActiveModel(models.current);
       setActiveThinkingLevel(models.thinking_level);
       setSupportsThinking(models.supports_thinking);
-      if (revision === queueRevision.current && !queueMutation.current)
+      if (revision === queueRevision.current && !queueMutation.current) {
         setFollowupQueueItems(queue.items || []);
+        const admitted = new Set((queue.items || []).map((item) => item.metadata?.client_request_id).filter(Boolean));
+        setOptimisticQueue((items) => items.filter((item) => !admitted.has(item.id)));
+      }
       setAgentStatus(status);
       const running = status?.status === "running" || status?.status === "cancelling";
       setIsAgentTurnActive(running);
@@ -16642,6 +16716,14 @@ function GiApp() {
         setSessionError(error.message || "Unable to refresh session");
     }
   }, [sessionId]);
+  refreshAfterConnection.current = () => {
+    loadPosts();
+    refreshSelectedState();
+  };
+  J_(() => () => {
+    if (refreshTimer.current)
+      clearTimeout(refreshTimer.current);
+  }, []);
   J_(() => {
     if (!ready || !sessionId)
       return;
@@ -16682,6 +16764,7 @@ function GiApp() {
     ++queueRevision.current;
     setQueueBusy(false);
     setQueueError("");
+    setOptimisticQueue([]);
     setFileRefs(getDraft(nextSessionId).fileRefs);
     setMessageRefs(getDraft(nextSessionId).messageRefs);
     setAgentStatus(null);
@@ -16923,7 +17006,7 @@ function GiApp() {
                     />
                 `}
                 <${QueuedFollowupStack}
-                    items=${followupQueueItems}
+                    items=${[...followupQueueItems, ...optimisticQueue.filter((item) => item.chat_jid === currentChatJid && !followupQueueItems.some((stored) => stored.id === item.id || stored.metadata?.client_request_id === item.id))]}
                     busy=${queueBusy}
                     onRemoveQueuedFollowup=${(item) => mutateQueue("remove", item)}
                     onMoveQueuedFollowup=${(from, to) => mutateQueue("move", from, to)}
@@ -16942,6 +17025,17 @@ function GiApp() {
                     onDraftMediaChange=${(media) => drafts.update(sessionId, { media })}
                     focusRestoredDraft=${draftRestore?.sessionId === sessionId}
                     onCaptureDraft=${(draft) => drafts.begin(sessionId, draft)}
+                    onQueuedSubmissionStart=${(token, text) => {
+    if (!selection.isCurrent(renderedSelection))
+      return;
+    setOptimisticQueue((items) => [...items, { id: token, content: text, chat_jid: currentChatJid, pending: true }]);
+  }}
+                    onQueuedSubmissionEnd=${(token) => {
+    if (!selection.isCurrent(renderedSelection))
+      return;
+    setOptimisticQueue((items) => items.filter((item) => item.id !== token));
+    refreshSelectedState();
+  }}
                     onDraftAccepted=${(token) => drafts.accepted(sessionId, token)}
                     onDraftFailed=${(token, error) => {
     const draft = drafts.failed(sessionId, token, error);
@@ -17062,5 +17156,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=027F56E8E3A6A67264756E2164756E21
+//# debugId=F950D32386CE54E764756E2164756E21
 //# sourceMappingURL=app.js.map

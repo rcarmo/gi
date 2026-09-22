@@ -12,6 +12,8 @@ On 2026-09-22, browser-local IndexedDB drafts and captured-send recovery added f
 
 The following queue slice added explicit queued follow-ups, persistent reorder and queued-only cancellation (`018`): 120/120 matrix executions, 10/236 frozen IDs mapped, 226 unmapped, and 70/70 functional tests. Queue return/Steer and shared queue cases remain open. [ADR-0012](../adr/0012-queued-followup-order.md) records API and race handling.
 
+Queue SSE reconciliation and disconnect cleanup (`016`, reconnect `001`) then passed 138/138 matrix executions: 12/236 Classic IDs mapped, 224 unmapped, and 70/70 functional tests. [ADR-0013](../adr/0013-queue-sse-reconciliation.md) covers connection/source generations, real-stream tests and remaining reconnect limits.
+
 ## Implemented and wired
 
 - Embedded JavaScript/CSS, identity/avatar configuration, themes and system meters.

@@ -529,7 +529,7 @@ export function QueuedFollowupStack({
                 const canMoveUp = index > 0;
                 const canMoveDown = index < items.length - 1;
                 return html`
-                    <div class="compose-queue-stack-item" role="listitem" data-queue-id=${item.id}>
+                    <div class="compose-queue-stack-item" role="listitem" data-queue-id=${item.id} aria-busy=${item.pending ? 'true' : 'false'}>
                         <div class="compose-queue-stack-content" title=${rowText}>
                             ${parsed.text.trim() && html`<div class="compose-queue-stack-text">${parsed.text}</div>`}
                             ${(parsed.messageRefs.length > 0 || parsed.fileRefs.length > 0 || parsed.attachmentRefs.length > 0) && html`
@@ -573,7 +573,7 @@ export function QueuedFollowupStack({
                                     type="button"
                                     title="Move up"
                                     aria-label="Move up in queue"
-                                    disabled=${busy || !canMoveUp}
+                                    disabled=${busy || item.pending || items.some(entry => entry.pending) || !canMoveUp}
                                     onClick=${() => canMoveUp && onMoveQueuedFollowup?.(index, index - 1)}
                                 >
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -585,7 +585,7 @@ export function QueuedFollowupStack({
                                     type="button"
                                     title="Move down"
                                     aria-label="Move down in queue"
-                                    disabled=${busy || !canMoveDown}
+                                    disabled=${busy || item.pending || items.some(entry => entry.pending) || !canMoveDown}
                                     onClick=${() => canMoveDown && onMoveQueuedFollowup?.(index, index + 1)}
                                 >
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -611,7 +611,7 @@ export function QueuedFollowupStack({
                                 type="button"
                                 title="Cancel queued message"
                                 aria-label="Cancel queued message"
-                                disabled=${busy}
+                                disabled=${busy || item.pending}
                                 onClick=${() => onRemoveQueuedFollowup?.(item)}
                             >
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -693,6 +693,8 @@ export function ComposeBox({
     onContentChange,
     onDraftMediaChange,
     onCaptureDraft,
+    onQueuedSubmissionStart,
+    onQueuedSubmissionEnd,
     onDraftAccepted,
     onDraftFailed,
     onDraftStorageError,
@@ -1361,6 +1363,8 @@ export function ComposeBox({
         const capturedChatJid = currentChatJid;
         const mode = resolveSubmitMode(submitMode);
         const capture = clearAfterSubmit ? onCaptureDraft?.(capturedDraft) : null;
+        const queueToken = mode === 'queue' ? (capture?.token || crypto.randomUUID()) : null;
+        if (queueToken) onQueuedSubmissionStart?.(queueToken, baseContent || '[attachments]');
 
         // Record history synchronously
         if (recordHistory && baseContent) {
@@ -1445,7 +1449,7 @@ export function ComposeBox({
                     : '';
                 const message = [baseContent, fileBlock, messageRefBlock, mediaBlock].filter(Boolean).join('\n\n');
                 requestDispatched = true;
-                const response = await sendAgentMessage('default', message, null, mediaIds, mode, capturedChatJid);
+                const response = await sendAgentMessage('default', message, null, mediaIds, mode, capturedChatJid, { client_request_id: queueToken });
                 requestAcknowledged = true;
                 await acknowledge();
                 if (!mountedRef.current) return;
@@ -1478,6 +1482,8 @@ export function ComposeBox({
                 if (!clearAfterSubmit || !onDraftFailed) setSubmitError(message);
                 onSubmitError?.(message);
                 console.error('Failed to post:', error);
+            } finally {
+                if (queueToken) onQueuedSubmissionEnd?.(queueToken);
             }
         })();
     };

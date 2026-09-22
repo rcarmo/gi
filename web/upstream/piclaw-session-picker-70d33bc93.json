@@ -25,10 +25,19 @@
         "Gi draft callbacks journal captured sends in browser-local IndexedDB before network I/O; host-owned recovery merges newer text/media/refs across unmount/revisit.",
         "Upload receives captured chat JID; native prompt carries media references; preserve 10 MiB cap and show actual submission/storage errors.",
         "Acknowledged sends never restore on later UI refresh failure; deferred picker Escape focus does not steal focus from newly focused composer.",
-        "QueuedFollowupStack uses durable row IDs, disables overlapping mutations and omits Steer without a callback; Gi host supplies optimistic reorder/remove with authoritative refresh and origin/revision guards."
+        "QueuedFollowupStack uses durable row IDs, disables overlapping mutations and omits Steer without a callback; Gi host supplies optimistic reorder/remove with authoritative refresh and origin/revision guards.",
+        "Queued composer submissions expose origin-owned optimistic lifecycle callbacks and carry client_request_id correlation metadata; pending queue controls remain disabled until durable."
       ],
       "source": "runtime/web/src/components/compose-box.ts",
       "destination": "web/src/components/compose-box.ts"
+    },
+    {
+      "source": "runtime/web/src/ui/use-sse-connection.ts",
+      "destination": "web/src/ui/use-sse-connection.ts",
+      "deviations": [
+        "Gi extends the chat-keyed hook with a selection-generation key and active-effect guard so replaced transports cannot call current handlers before/after cleanup. Native transport moved to gi-sse-client.ts with source-instance guards."
+      ],
+      "upstreamSha256": "90f7bde6c0409651cf1110a1486761bf1658a7609baa3634c6e4dcf07bebc332"
     }
   ]
 }

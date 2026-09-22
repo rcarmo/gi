@@ -6,6 +6,8 @@ case "${GI_PROMPT-}" in
     token=${GI_PROMPT#UX queue gate:}
     case "$token" in ''|*[!a-zA-Z0-9_-]*) exec /bin/sh "$@";; esac
     if [ -n "${GI_UX_QUEUE_GATES-}" ]; then
+      # Actual stdout preview lets disconnect acceptance observe stream clearing.
+      printf 'Queue gate streaming preview\n'
       count=0
       while [ ! -f "$GI_UX_QUEUE_GATES/$token" ] && [ "$count" -lt 600 ]; do
         /bin/sleep 0.1

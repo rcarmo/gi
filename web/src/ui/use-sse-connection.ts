@@ -78,7 +78,9 @@ export function bindSseWakeLifecycle({ sse, onWake }, runtime = {}) {
  * component.  This breaks the re-render cascade that previously caused an
  * infinite SSE reconnect loop when queue/filter state changed.
  */
-export function useSseConnection({ handleSseEvent, handleConnectionStatusChange, loadPosts, onWake, chatJid }) {
+export function useSseConnection({ handleSseEvent, handleConnectionStatusChange, loadPosts, onWake, chatJid, selectionKey = chatJid }) {
+  const selectionRef = useRef(selectionKey);
+  selectionRef.current = selectionKey;
   const sseEventRef = useRef(handleSseEvent);
   sseEventRef.current = handleSseEvent;
 
@@ -92,9 +94,10 @@ export function useSseConnection({ handleSseEvent, handleConnectionStatusChange,
   onWakeRef.current = onWake;
 
   useEffect(() => {
+    let active = true;
     const sse = new SSEClient(
-      (type, data) => sseEventRef.current(type, data),
-      (status) => statusChangeRef.current(status),
+      (type, data) => { if (active && selectionRef.current === selectionKey) sseEventRef.current(type, data); },
+      (status) => { if (active && selectionRef.current === selectionKey) statusChangeRef.current(status); },
       { chatJid },
     );
     sse.connect();
@@ -105,8 +108,9 @@ export function useSseConnection({ handleSseEvent, handleConnectionStatusChange,
     });
 
     return () => {
+      active = false;
       disposeWakeLifecycle();
       sse.disconnect();
     };
-  }, [chatJid]);
+  }, [chatJid, selectionKey]);
 }

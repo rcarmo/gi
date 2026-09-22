@@ -577,12 +577,13 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 		return
 	}
 	var req struct {
-		Prompt        string `json:"prompt"`
-		Intent        string `json:"intent"`
-		Model         string `json:"model"`
-		TargetAgentID string `json:"target_agent_id"`
-		ParentTurnID  string `json:"parent_turn_id"`
-		Media         []any  `json:"media"`
+		Prompt          string `json:"prompt"`
+		Intent          string `json:"intent"`
+		Model           string `json:"model"`
+		TargetAgentID   string `json:"target_agent_id"`
+		ParentTurnID    string `json:"parent_turn_id"`
+		Media           []any  `json:"media"`
+		ClientRequestID string `json:"client_request_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
@@ -608,6 +609,13 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 		result, err = s.turns.SubmitPeerMessage(submitCtx, sessionID, targetAgentID, req.Prompt, req.Intent, model, req.ParentTurnID)
 	} else {
 		metadata := map[string]any{}
+		if len(req.ClientRequestID) > 128 {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "client_request_id too long"})
+			return
+		}
+		if req.ClientRequestID != "" {
+			metadata["client_request_id"] = req.ClientRequestID
+		}
 		if len(req.Media) > 0 {
 			metadata["media"] = req.Media
 		}

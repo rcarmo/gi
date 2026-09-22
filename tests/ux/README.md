@@ -55,4 +55,10 @@ See [ADR-0011](../../docs/adr/0011-browser-draft-recovery.md) for browser-local 
 
 `queue.spec.mjs` maps `@ux-original-018`: native explicit queue admission during a busy turn, optimistic reorder/removal, durable reload order, real stale-snapshot conflict, removal-error recovery and execution in the chosen order. Additional tests hold old polls and mutation replies across session switches. Full matrix: **120/120**, **10/236 Classic IDs**, 226 unmapped; the shared contract remains unmapped.
 
-The isolated parity server uses `tests/ux/shell/sh` to gate only `UX queue gate:<token>` test prompts until a release file exists, then runs the normal shell responder. Gates time out after 60 seconds; test cleanup releases them. No production delay hook or fabricated queue records are used. See [ADR-0012](../../docs/adr/0012-queued-followup-order.md). `016`, `017`, `019`, compose `004` and shared queue contracts still need their own evidence.
+The isolated parity server uses `tests/ux/shell/sh` to gate only `UX queue gate:<token>` test prompts until a release file exists, then runs the normal shell responder. Gates time out after 60 seconds; test cleanup releases them. No production delay hook or fabricated queue records are used. See [ADR-0012](../../docs/adr/0012-queued-followup-order.md). `017`, `019`, compose `004` and shared queue contracts still need their own evidence.
+
+## Queue SSE and reconnect: 2026-09-22
+
+`016` and `ux-reconnect-001` now have six-project browser evidence: an actual acknowledgement is held while SSE reconciliation arrives; same-text prompts retain distinct durable IDs; external queue mutations refresh promptly. A local byte-for-byte SSE proxy severs real sockets and blocks reconnection, allowing assertions against a real stdout preview, running state and preserved user draft. Independent API queue changes are reconciled on reconnect. A rejected-send regression checks placeholder removal and draft recovery.
+
+Full matrix: **138/138**, **12/236 Classic IDs**, 224 unmapped, with all shared cases unmapped. See [ADR-0013](../../docs/adr/0013-queue-sse-reconciliation.md). Context usage, search preservation and version-drift reconnect criteria remain open; these tests do not map them.

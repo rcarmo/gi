@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { createServer, request as httpRequest } from 'node:http';
 import { loadCorpus } from './support/catalogue.mjs';
 
 const inputName='Message (Enter to send, Shift+Enter for newline)...';
@@ -38,6 +39,89 @@ async function setup(page,request,info){
 }
 const row=(page,id)=>page.locator(`[data-queue-id="${id}"]`);
 const ids=page=>page.locator('[data-queue-id]').evaluateAll(elements=>elements.map(el=>el.dataset.queueId));
+
+test('@ux-original-016 Display queued follow-ups during a busy turn',async({page,request},info)=>{
+ const scenario=loadCorpus().find(row=>row.id==='@ux-original-016');await info.attach('gherkin',{body:scenario.steps.join('\n'),contentType:'text/plain'});
+ const {main,input,queue,release}=await setup(page,request,info);
+ let deliver,held=false;const gate=new Promise(resolve=>{deliver=resolve;});let accepted;
+ let delivered;const delivery=new Promise(resolve=>{delivered=resolve;});
+ try {
+  await page.route(`**/api/sessions/${main.id}/prompt`,async route=>{
+   const response=await route.fetch();accepted=await response.json();held=true;await gate;await route.fulfill({response});delivered();
+  });
+  await input.fill('same queued text');await input.press('Enter');
+  await expect(page.locator('.compose-queue-stack-text').filter({hasText:'same queued text'})).toHaveCount(1);
+  await expect.poll(()=>held).toBe(true);
+  // SSE refresh arrives while the HTTP acknowledgement is held. Correlate by
+  // client token, not text (another identical prompt may be legitimate).
+  await expect.poll(()=>ids(page)).toEqual([accepted.turn_id]);
+  await expect(page.locator('.compose-queue-stack-text').filter({hasText:'same queued text'})).toHaveCount(1);
+  deliver();await delivery;await page.unroute(`**/api/sessions/${main.id}/prompt`);
+  await expect(row(page,accepted.turn_id).getByRole('button',{name:'Cancel queued message'})).toBeEnabled();
+  const external=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:'same queued text',intent:'queue',model:'test-model'}})).json();
+  await expect(row(page,external.turn_id)).toBeVisible({timeout:4000});
+  await expect(page.locator('.compose-queue-stack-text').filter({hasText:'same queued text'})).toHaveCount(2);
+  const deletion=await request.delete(`/api/sessions/${main.id}/queue/${accepted.turn_id}`);expect(deletion.status()).toBe(200);
+  await expect.poll(()=>ids(page),{timeout:4000}).toEqual([external.turn_id]);
+  expect((await queue()).map(item=>item.id)).toEqual([external.turn_id]);
+ } finally {deliver();release();}
+});
+
+test('Gi rejected queued send removes its placeholder and restores only its origin draft',async({page,request},info)=>{
+ const {main,input,release}=await setup(page,request,info);
+ let unblock;const gate=new Promise(resolve=>{unblock=resolve;});let held=false;
+ try {
+  await page.route(`**/api/sessions/${main.id}/prompt`,async route=>{held=true;await gate;await route.abort('failed');});
+  await input.fill('rejected queue text');await input.press('Enter');await expect.poll(()=>held).toBe(true);
+  await expect(page.locator('[data-queue-id][aria-busy="true"]')).toHaveCount(1);
+  await input.fill('new draft');unblock();
+  await expect(input).toHaveValue('rejected queue text\n\nnew draft');
+  await expect(page.locator('[data-queue-id]')).toHaveCount(0);
+  await expect(page.getByRole('alert')).toContainText('Delivery is unknown');
+ } finally {unblock();release();}
+});
+
+test('@ux-reconnect-001 Clear transient streaming state when the connection drops',async({page,request},info)=>{
+ // Byte-for-byte transport proxy: sever real SSE sockets without injecting
+ // timeline events. Browser offline emulation does not close established SSE.
+ let blocked=false;const connections=new Set();
+ const proxy=createServer((req,res)=>{
+  res.setHeader('Access-Control-Allow-Origin','*');
+  if(blocked){res.writeHead(503);res.end();return;}
+  connections.add(res);res.on('close',()=>connections.delete(res));
+  const upstream=httpRequest(new URL(req.url,process.env.GI_TEST_URL||'http://127.0.0.1:19091'),source=>{
+   res.writeHead(source.statusCode,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Access-Control-Allow-Origin':'*'});
+   source.pipe(res);
+  });
+  upstream.on('error',()=>res.destroy());res.on('close',()=>upstream.destroy());upstream.end();
+ });
+ await new Promise(resolve=>proxy.listen(0,'127.0.0.1',resolve));
+ const proxyURL=`http://127.0.0.1:${proxy.address().port}`;
+ await page.addInitScript(origin=>{
+  const Native=window.EventSource;
+  window.EventSource=class extends Native{constructor(url,options){const path=new URL(url,location.href);super(path.pathname==='/sse/stream'?origin+path.pathname+path.search:url,options);}};
+ },proxyURL);
+ const scenario=loadCorpus().find(row=>row.id==='@ux-reconnect-001');await info.attach('gherkin',{body:scenario.steps.join('\n'),contentType:'text/plain'});
+ const {main,input,enqueue,release}=await setup(page,request,info);
+ try {
+  const queued=await enqueue('surviving queue');
+  await expect(page.locator('.agent-thinking').filter({hasText:'Queue gate streaming preview'})).toBeVisible();
+  await input.fill('offline unsent draft');
+  blocked=true;for(const response of connections)response.destroy();
+  await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});
+  await expect(page.getByRole('button',{name:'Stop response',exact:true})).toHaveCount(0);
+  await expect(page.locator('.agent-thinking, .agent-status')).toHaveCount(0);
+  await expect(input).toHaveValue('offline unsent draft');
+  // The independent API actor changes persisted state during the SSE outage.
+  await request.delete(`/api/sessions/${main.id}/queue/${queued}`);
+  const replacement=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:'offline queue update',intent:'queue',model:'test-model'}})).json();
+  blocked=false;
+  await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});
+  await expect.poll(()=>ids(page)).toEqual([replacement.turn_id]);
+  await expect(page.getByRole('button',{name:'Stop response',exact:true})).toBeVisible();
+  await expect(input).toHaveValue('offline unsent draft');
+ } finally {blocked=false;release();for(const response of connections)response.destroy();await new Promise(resolve=>proxy.close(resolve));}
+});
 
 test('@ux-original-018 Reorder and remove queued items with failure reconciliation',async({page,request},info)=>{
  const scenario=loadCorpus().find(row=>row.id==='@ux-original-018');await info.attach('gherkin',{body:scenario.steps.join('\n'),contentType:'text/plain'});
