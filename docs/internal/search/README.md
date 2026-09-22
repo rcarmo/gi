@@ -12,6 +12,10 @@ See:
 
 This enables model-friendly retrieval paths and source linking without requiring SQL queries in prompts/tool calls.
 
+## Source-backed indexing design
+
+[Piclaw/Tau/Vibes comparison and implementation gate](indexing-lineage-20260922.md) pins the inspected revisions and derives 15 non-frozen Gherkin scenarios. [Candidate SQL](workspace-index-candidate.sql) has executable SQLite tests for scope membership and chunk/FTS consistency but is not migrated or used by Gi. The provisional whole-workspace rebuild is stashed; runtime workspace status/reindex remains unimplemented. Piclaw supplies the workspace lifecycle, Tau supplies transactional entity identity, and Vibes supplies trigger-maintained external-content FTS. ADR-0008 remains the hybrid target; lexical prototype work does not establish vector support.
+
 ## Current implementation status
 
 Implemented now:

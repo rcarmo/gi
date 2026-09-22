@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Indexing design gate (2026-09-22)
+
+The provisional whole-workspace rebuild is shelved pending adaptation of Piclaw's configured roots/scopes and incremental/background lifecycle. [Pinned Piclaw/Tau/Vibes comparison](search/indexing-lineage-20260922.md) separates workspace indexing from conversation FTS, adds 15 proposed non-frozen Gherkin scenarios, and tests a candidate SQLite schema. Go/vet, candidate race ×3 and 32 helpers pass; these are design/schema checks, not browser or runtime indexing acceptance. Coverage stays **45/236 Classic**, **2/42 shared**, **191/40 unmapped**. Workspace-005 remains open.
+
 ## Latest feature evidence: hidden files and subtrees (2026-09-22)
 
 Workspace-004 passes native root/expanded-subtree reloads with persisted hidden visibility and retained text/files. The host bridges the global menu event to the pinned explorer's existing control; the API honours bounded depth/path/hidden queries. Legacy no-argument trees remain compatible. [ADR-0041](../adr/0041-workspace-hidden-subtrees.md).
