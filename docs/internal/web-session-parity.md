@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Rooted scanner/chunker prerequisite (2026-09-22)
+
+[ADR-0044](../adr/0044-rooted-index-scanning.md) implements internal bounded inventory scanning and lossless UTF-8 line chunks, including skills roots, rehash/change detection, required-root failure and native scan→commit preservation. Go/vet/build/hook, 74 functional, 32 helpers, scanner/chunker/store race ×3, 2.38M chunk fuzz executions and Linux/macOS cross-builds pass. No worker, native search/status/reindex or terminal control is connected. Coverage remains **45/236 Classic**, **2/42 shared**, **191/40 unmapped**.
+
 ## Scoped refresh storage APIs (2026-09-22)
 
 [ADR-0043](../adr/0043-scoped-index-refresh-transactions.md) adds deterministic scope configuration, fenced lease/failure/recovery and atomic complete-snapshot publication with unchanged identity preservation and overlapping membership cleanup. Go/vet/build/hook, 74 functional, 32 helpers and store race ×3 pass. Scanner/workers and web query/status/reindex are not connected; terminal controls remain design work. No new frozen credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**.

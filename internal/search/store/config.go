@@ -127,7 +127,11 @@ func (c ScopeConfig) eligible(p string) bool {
 	}
 	return false
 }
-func (c ScopeConfig) Roots() []string     { return slices.Clone(c.roots) }
-func (c ScopeConfig) Fingerprint() string { return c.fingerprint }
-func (c ScopeConfig) Workspace() string   { return c.workspace }
-func (c ScopeConfig) Scope() string       { return c.scope }
+func (c ScopeConfig) Roots() []string        { return slices.Clone(c.roots) }
+func (c ScopeConfig) Fingerprint() string    { return c.fingerprint }
+func (c ScopeConfig) Workspace() string      { return c.workspace }
+func (c ScopeConfig) Scope() string          { return c.scope }
+func (c ScopeConfig) ChunkerVersion() string { return c.chunker }
+
+// Eligible reports configured path/type membership, not filesystem permission.
+func (c ScopeConfig) Eligible(p string) bool { return c.eligible(p) }
