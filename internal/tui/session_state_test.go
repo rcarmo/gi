@@ -116,6 +116,36 @@ func TestSessionEventsRejectSupersededGenerationAndSession(t *testing.T) {
 	}
 }
 
+func TestCurrentSessionProgressPreservesReaderAndNewerEditor(t *testing.T) {
+	c := sessionTestChat(t)
+	for i := 0; i < 30; i++ {
+		c.appendTranscript(fmt.Sprintf("history %02d", i))
+	}
+	c.transcriptScroll, c.stickToBottom = 5, false
+	c.input.SetText("newer draft\n中文🙂")
+	c.input.cursorPos = 3
+	beforeFooter := len(c.footerLines(100))
+	scope := c.selectionScope()
+	c.handleSessionEvent(sessionEvent{scope, map[string]any{"type": "agent_draft_delta", "delta": "native stream"}})
+	c.handleSessionTopicEvent(sessionTopicEvent{scope, topics.Envelope{SessionID: "A", Topic: "runtime.turn", Payload: map[string]any{"type": "turn_completed", "status": "completed"}}})
+	c.applySessionCompletion(scope, func() { c.appendTranscript("accepted in origin") })
+	if c.stickToBottom || c.transcriptScroll != 5 || c.transcript[5] != "history 05" {
+		t.Fatal("progress or acceptance moved history reader")
+	}
+	if c.input.Text() != "newer draft\n中文🙂" || c.input.cursorPos != 3 {
+		t.Fatal("progress or acceptance reset newer editor")
+	}
+	if len(c.footerLines(100)) != beforeFooter {
+		t.Fatal("acceptance added idle rows")
+	}
+	c.scrollTranscriptToBottom()
+	before := c.transcriptScroll
+	c.handleSessionEvent(sessionEvent{scope, map[string]any{"type": "agent_draft_delta", "delta": "next stream"}})
+	if !c.stickToBottom || c.transcriptScroll < before {
+		t.Fatal("explicit newest-edge navigation did not resume following")
+	}
+}
+
 func TestSessionForwardersCancelWhenTargetIsFull(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	legacy := make(chan map[string]any, 1)

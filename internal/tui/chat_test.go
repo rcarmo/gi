@@ -120,15 +120,17 @@ func TestVisibleTranscriptDoesNotMutateDraftLineIndex(t *testing.T) {
 	}
 }
 
-func TestInputChangeScrollsTranscriptToBottom(t *testing.T) {
-	c := &chatTUI{transcript: []string{"1", "2", "3", "4", "5", "6", "7", "8"}, transcriptScroll: 0}
+func TestInputChangeRespectsTranscriptFollowing(t *testing.T) {
+	c := &chatTUI{transcript: []string{"1", "2", "3", "4", "5", "6", "7", "8"}, transcriptScroll: 1}
 	c.ensureInput()
 	c.input.SetText("hello")
-	if !c.stickToBottom {
-		t.Fatal("expected typing to restore stick-to-bottom mode")
+	if c.stickToBottom || c.transcriptScroll != 1 {
+		t.Fatal("typing moved a history reader")
 	}
-	if c.transcriptScroll != 4 {
-		t.Fatalf("expected typing to scroll transcript to bottom, got %d", c.transcriptScroll)
+	c.scrollTranscriptToBottom()
+	c.input.SetText("newer\ndraft")
+	if !c.stickToBottom || c.transcriptScroll != 4 {
+		t.Fatalf("newest-edge following lost: %d", c.transcriptScroll)
 	}
 }
 

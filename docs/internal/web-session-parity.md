@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Latest terminal evidence: reading position (2026-09-22)
+
+Typing and ordinary submission preserve existing transcript follow mode. Native delayed-provider completion, newer draft/cursor, same-row history anchors, resize round trips and explicit newest-edge navigation pass at **60×18, 100×22 and 140×36**, with **zero additional idle rows**. Full Go/vet, terminal races ×3, session/model/compaction/smoke/Gherkin tests, 29 helpers and 70/70 functional browser tests pass. See [ADR-0029](../adr/0029-terminal-reading-position.md). Delayed routed acceptance/recovery, reflow/eviction anchoring and durable transcript-ID reconciliation remain open. Frozen browser counts stay **34/236 Classic**, **2/42 shared**, **202/40 unmapped**; the complete 384/384 matrix below was run for `4071c01`.
+
 ## Latest browser evidence: accepted-message refresh (2026-09-22)
 
 Acknowledgements refresh the selected timeline or search through the existing connection/view dispatcher. Native tests verify stored-message visibility/deduplication, three-file ID/name/byte association, newer draft/cursor preservation, near-bottom following, history-anchor retention and origin-session isolation. Supplied components remain unchanged. See [ADR-0028](../adr/0028-accepted-message-refresh.md).

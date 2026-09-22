@@ -231,8 +231,11 @@ func (c *chatTUI) ensureInput() {
 }
 
 func (c *chatTUI) onInputChanged(string) {
-	c.stickToBottom = true
-	c.scrollTranscriptToBottom()
+	// Editing is independent of transcript navigation. Only readers already
+	// following the newest edge should move when the editor changes height.
+	if c.stickToBottom {
+		c.scrollTranscriptToBottom()
+	}
 }
 
 func encodeTranscriptBlockMarker(meta transcriptBlockMeta) string {
@@ -2162,8 +2165,9 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 	if c.running {
 		c.queuedDrafts = append(c.queuedDrafts, text)
 		c.appendTranscript(fmt.Sprintf("you [queued]: %s", text))
-		c.stickToBottom = true
-		c.scrollTranscriptToBottom()
+		if c.stickToBottom {
+			c.scrollTranscriptToBottom()
+		}
 		if c.app != nil {
 			c.app.MarkDirty()
 		}
@@ -2191,8 +2195,9 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 	c.draftLineCount = 0
 	c.appendTranscript(fmt.Sprintf("you: %s", text))
 	c.showThinkingIndicator(time.Now())
-	c.stickToBottom = true
-	c.scrollTranscriptToBottom()
+	if c.stickToBottom {
+		c.scrollTranscriptToBottom()
+	}
 	if c.app != nil {
 		c.app.MarkDirty()
 	}

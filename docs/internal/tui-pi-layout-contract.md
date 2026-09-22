@@ -2,7 +2,11 @@
 
 Status: active layout contract for the Pi/PiClaw UX convergence track.
 
-## Accepted-message adaptation (2026-09-22; design)
+## Terminal reading position (2026-09-22; verified)
+
+Editing and ordinary running/idle submission preserve the existing transcript follow mode. PageUp or mouse history navigation stays in place; explicit navigation back to the newest edge resumes following. Native delayed-provider completion, newer text/cursor, same-row history anchors, resize round trips and zero additional idle rows pass at 60×18, 100×22 and 140×36 (`make test-tui-reading`). [ADR-0029](../adr/0029-terminal-reading-position.md) records evidence and limits. Routed acceptance, recovery, reflow and scrollback eviction still need separate work.
+
+## Accepted-message adaptation (2026-09-22; broader design)
 
 Acceptance should reconcile durable IDs in the existing transcript, clear only the captured editor draft, preserve newer text/cursor and retain history-reading position unless already following the newest edge. Add zero idle rows and no permanent delivery controls. Use the existing bounded error/notice surface for failure; preserve recovery data and never automatically resend uncertain delivery. Verify delayed acceptance, A→B→A, resize and history anchors at 60×18, 100×22 and 140×36 before terminal credit. Current submit callbacks are session-scoped but still request scrolling after accepted routing; media/reference recovery also needs implementation. Browser evidence and the open terminal checks are recorded in [ADR-0028](../adr/0028-accepted-message-refresh.md).
 
