@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Explicit index worker prerequisite (2026-09-22)
+
+[ADR-0045](../adr/0045-index-refresh-worker.md) connects lease acquisition/renewal to native scan/commit/failure cleanup, without automatic scheduling. Tests cover cancellation, write/renewal failures, two-store takeover and killed-process expiry/recovery. Go/vet/build/hook, 74 functional, 32 helpers and worker/store race ×3 pass. No application index controls or terminal UI are connected, and coverage remains **45/236 Classic**, **2/42 shared**, **191/40 unmapped**.
+
 ## Rooted scanner/chunker prerequisite (2026-09-22)
 
 [ADR-0044](../adr/0044-rooted-index-scanning.md) implements internal bounded inventory scanning and lossless UTF-8 line chunks, including skills roots, rehash/change detection, required-root failure and native scan→commit preservation. Go/vet/build/hook, 74 functional, 32 helpers, scanner/chunker/store race ×3, 2.38M chunk fuzz executions and Linux/macOS cross-builds pass. No worker, native search/status/reindex or terminal control is connected. Coverage remains **45/236 Classic**, **2/42 shared**, **191/40 unmapped**.

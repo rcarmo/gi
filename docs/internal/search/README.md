@@ -14,7 +14,7 @@ This enables model-friendly retrieval paths and source linking without requiring
 
 ## Source-backed indexing design
 
-[Piclaw/Tau/Vibes comparison and implementation gate](indexing-lineage-20260922.md) pins the inspected revisions and derives 15 non-frozen Gherkin scenarios. [Candidate SQL](workspace-index-candidate.sql) is the historical design. Its scoped tables are now installed by the versioned [startup migration](../../adr/0042-versioned-workspace-index-schema.md), with migration/rollback/preservation and chunk/FTS tests. [Scoped refresh storage APIs](../../adr/0043-scoped-index-refresh-transactions.md) now use them for deterministic configuration, fenced ownership and atomic complete-snapshot commits. The [rooted scanner and line chunker](../../adr/0044-rooted-index-scanning.md) now produce validated complete snapshots internally. No worker or native query/status API is connected yet. The provisional whole-workspace rebuild is stashed; runtime workspace status/reindex remains unimplemented. Piclaw supplies the workspace lifecycle, Tau supplies transactional entity identity, and Vibes supplies trigger-maintained external-content FTS. ADR-0008 remains the hybrid target; lexical prototype work does not establish vector support.
+[Piclaw/Tau/Vibes comparison and implementation gate](indexing-lineage-20260922.md) pins the inspected revisions and derives 15 non-frozen Gherkin scenarios. [Candidate SQL](workspace-index-candidate.sql) is the historical design. Its scoped tables are now installed by the versioned [startup migration](../../adr/0042-versioned-workspace-index-schema.md), with migration/rollback/preservation and chunk/FTS tests. [Scoped refresh storage APIs](../../adr/0043-scoped-index-refresh-transactions.md) now use them for deterministic configuration, fenced ownership and atomic complete-snapshot commits. The [rooted scanner and line chunker](../../adr/0044-rooted-index-scanning.md) now produce validated complete snapshots internally. An [explicit lease-renewing worker](../../adr/0045-index-refresh-worker.md) now connects the scanner to fenced commits internally. No application scheduling or native query/status API is connected yet. The provisional whole-workspace rebuild is stashed; runtime workspace status/reindex remains unimplemented. Piclaw supplies the workspace lifecycle, Tau supplies transactional entity identity, and Vibes supplies trigger-maintained external-content FTS. ADR-0008 remains the hybrid target; lexical prototype work does not establish vector support.
 
 ## Current implementation status
 
@@ -26,11 +26,12 @@ Implemented now:
 - internal scoped configuration, lease/failure/recovery and incremental snapshot transactions with stable document/chunk identities and FTS maintenance
 - query classification and hybrid rank helper scaffolding
 - deterministic UTF-8 line chunker and bounded rooted scanner with change detection and scan→commit tests
+- explicit lease-renewing worker with cancellation, failure cleanup, takeover and killed-process recovery tests
 - embed/vector/indexer interfaces
 
 Still pending:
 
-- settings/environment and optional-root policy, lease-renewing workers, invalidation/background refresh and native query/status/reindex
+- settings/environment and optional-root policy, application scheduling/invalidation/background refresh and native query/status/reindex
 - heading/symbol-aware chunking beyond the implemented literal line chunks
 - real `gte-go` embedding implementation
 - real `sqlite-vec` backend implementation
