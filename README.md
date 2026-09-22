@@ -38,6 +38,8 @@ The web UI uses Piclaw's TypeScript source verbatim with a gi-specific API adapt
 
 Fullscreen `Ctrl+Shift+F` searches rendered transcript rows without submitting a prompt. Enter/Shift+Enter move between matches; Escape restores the draft and reading position. `Ctrl+Shift+Up/Down` jump between user prompts. See [ADR-0032](docs/adr/0032-fullscreen-transcript-search.md) for rendered-row and retention limits.
 
+In fullscreen mode, drag to select transcript text and hold at a viewport edge to scroll. Release or Ctrl-C/Ctrl-X copies through `tuiClipboardMode`; Escape clears selection. Clipboard-off is respected. Feedback occupies the existing separator row. See [ADR-0034](docs/adr/0034-fullscreen-transcript-selection.md).
+
 ## Internal reference
 
 The repo includes a growing internal documentation subtree under `docs/internal/`.
@@ -86,6 +88,7 @@ That installs Go/Bun dependencies, installs Playwright Chromium, and builds `gi`
 | `make test-tui-gherkin` | TUI gherkin harness |
 | `make test-tui-regular` | Three-size native scrollback, selection/copy, draft/resize/session/exit/reopen checks |
 | `make test-tui-search` | Three-size fullscreen search, prompt-jump, draft/cursor and live-output checks |
+| `make test-tui-selection` | Three-size native drag/copy/edge-scroll/clipboard-policy and stale-selection checks |
 | `make clean` | Remove build/run artifacts |
 
 ### Override defaults

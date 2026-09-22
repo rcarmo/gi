@@ -39,6 +39,7 @@ func (c *chatTUI) switchSession(sessionID string) bool {
 		// Extension questions belong to their origin, never to the new chat.
 		c.cancelEditorAsk()
 	}
+	c.clearTranscriptSelection()
 	c.closeTranscriptSearch()
 	c.saveSessionEditor()
 	c.bindSession(sessionID)

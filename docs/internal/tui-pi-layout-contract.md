@@ -2,6 +2,10 @@
 
 Status: active layout contract for the Pi/PiClaw UX convergence track.
 
+## Fullscreen selection/copy (2026-09-22; verified)
+
+Drag selects rendered cells; held edges scroll after movement; release/Ctrl-C/Ctrl-X copy via the existing clipboard setting. Escape clears selection. A plain tool click retains expansion behavior. Feedback replaces the upper editor separator, adding no idle rows. Clipboard-off, padded wide/combining text, layout/output/session invalidation and late clipboard replies are guarded. Three-size native SGR/OSC52 PTYs and unit/race tests pass; [ADR-0034](../adr/0034-fullscreen-transcript-selection.md). Copies retain visual-row newlines. Link precedence, word/rectangular selection and mutation-stable selection anchors are not implemented.
+
 ## Transcript spacing (2026-09-22; corrected and verified)
 
 Match Pi's message-level blank rows: user bands have one top/bottom padded row; assistant messages have a leading uncolored separator; tool output has a leading uncolored separator plus top/bottom padding inside its outcome band. Horizontal padding is one column. Group Markdown continuation rows before padding; keep tool blocks borderless. Minimal footprint restricts permanent chrome, not these readable message boundaries. The editor/footer rows remain unchanged. Three-size buffer/PTY/search/scrollback tests and screenshots verify the correction; see [ADR-0033](../adr/0033-pi-transcript-spacing.md).
@@ -18,7 +22,7 @@ Ctrl-Shift-F temporarily replaces the editor with an independent query input; th
 
 User messages use Pi's neutral `#343541` band; pending/success/error tools use `#282832`/`#283228`/`#3c2828`, with neutral output text and explicit error labels. Flat bands replace tool box rows. PgUp/PgDn and Home/End navigate rendered transcript rows even while editing; Ctrl-Home/End retain editor movement, Ctrl-O expands/collapses tool output, and wheel input over the fixed dock falls back to the transcript. Three-size native PTY and rendered-cell tests pass without extra idle rows. See [ADR-0030](../adr/0030-terminal-outcome-bands.md).
 
-Fullscreen application text selection/copy/edge-autoscroll, light theme and stronger reflow/eviction anchoring remain open; search and prompt jumps are implemented above with explicit limits. Regular mode above provides terminal-owned history separately from fullscreen navigation.
+Light theme and stronger reflow/eviction anchoring remain open; search, prompt jumps and fullscreen selection/copy/edge scrolling are implemented above with explicit limits. Regular mode above provides terminal-owned history separately from fullscreen navigation.
 
 ## Terminal reading position (2026-09-22; verified)
 

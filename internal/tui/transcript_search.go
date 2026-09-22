@@ -9,9 +9,10 @@ import (
 )
 
 type transcriptSearchRow struct {
-	text   string
-	spans  []gotui.TextSpan
-	prompt bool
+	text     string
+	spans    []gotui.TextSpan
+	prompt   bool
+	blockKey string // pointer hit identity for tool rows, including their padding
 }
 
 type transcriptSearch struct {
@@ -68,7 +69,12 @@ func (c *chatTUI) transcriptRowsAtWidth(width int) []transcriptSearchRow {
 				text.WriteString(value)
 				spans = append(spans, gotui.TextSpan{Text: value, Style: cell.Style})
 			}
-			rows = append(rows, transcriptSearchRow{text: strings.TrimRight(text.String(), " "), spans: spans, prompt: block.Kind == "user" && y == 1})
+			key := ""
+			separator, _, _ := transcriptSpacing(block.Kind)
+			if y >= separator && (len(block.Body) > 0 || block.Subheader != "") && block.Kind != "user" && block.Kind != "assistant" {
+				key = block.Key
+			}
+			rows = append(rows, transcriptSearchRow{text: strings.TrimRight(text.String(), " "), spans: spans, prompt: block.Kind == "user" && y == 1, blockKey: key})
 		}
 	}
 	return rows
@@ -85,6 +91,7 @@ func (c *chatTUI) toggleTranscriptSearch() {
 	if c.modelMenuOpen || c.editorAskActive {
 		return
 	}
+	c.clearTranscriptSelection()
 	c.ensureInput()
 	offset := c.transcriptScroll
 	if c.transcriptRef != nil && c.transcriptRef.El() != nil {
@@ -96,7 +103,14 @@ func (c *chatTUI) toggleTranscriptSearch() {
 		c.search.input = newMultilineInput(c.currentContentWidth(), "", func(string) { c.moveTranscriptSearch(1) }, func(query string) { c.updateTranscriptSearchQuery(query) })
 	}
 	c.search.input.SetText("")
-	c.search.input.onEscape = func() bool { c.closeTranscriptSearch(); return true }
+	c.search.input.onEscape = func() bool {
+		if c.textSelection.active {
+			c.clearTranscriptSelection()
+		} else {
+			c.closeTranscriptSearch()
+		}
+		return true
+	}
 	c.search.input.onShiftEnter = func() { c.moveTranscriptSearch(-1) }
 	c.search.input.onNewline = func() { c.moveTranscriptSearch(1) }
 	c.stickToBottom = false
@@ -113,6 +127,7 @@ func (c *chatTUI) closeTranscriptSearch() {
 	if !c.search.active {
 		return
 	}
+	c.clearTranscriptSelection()
 	c.transcriptScroll, c.stickToBottom = c.search.savedScroll, c.search.savedFollow
 	c.search = transcriptSearch{input: c.search.input}
 	c.input.Focus()
@@ -247,8 +262,21 @@ func (c *chatTUI) jumpTranscriptPrompt(direction int) {
 func (c *chatTUI) transcriptSearchKeys() gotui.KeyMap {
 	return gotui.KeyMap{
 		gotui.OnPreemptStop(gotui.Rune('f').Ctrl().Shift(), func(gotui.KeyEvent) { c.closeTranscriptSearch() }),
-		gotui.OnPreemptStop(gotui.KeyEscape, func(gotui.KeyEvent) { c.closeTranscriptSearch() }),
-		gotui.OnPreemptStop(gotui.KeyCtrlC, func(gotui.KeyEvent) { c.closeTranscriptSearch() }),
+		gotui.OnPreemptStop(gotui.KeyEscape, func(gotui.KeyEvent) {
+			if c.textSelection.active {
+				c.clearTranscriptSelection()
+			} else {
+				c.closeTranscriptSearch()
+			}
+		}),
+		gotui.OnPreemptStop(gotui.KeyCtrlC, func(gotui.KeyEvent) {
+			if c.textSelection.active {
+				c.copyTranscriptSelection()
+			} else {
+				c.closeTranscriptSearch()
+			}
+		}),
+		gotui.OnPreemptStop(gotui.Rune('x').Ctrl(), func(gotui.KeyEvent) { c.copyTranscriptSelection() }),
 		gotui.OnPreemptStop(gotui.Rune('g').Ctrl(), func(gotui.KeyEvent) { c.moveTranscriptSearch(1) }),
 		gotui.OnPreemptStop(gotui.Rune('g').Ctrl().Shift(), func(gotui.KeyEvent) { c.moveTranscriptSearch(-1) }),
 	}

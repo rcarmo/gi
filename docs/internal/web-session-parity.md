@@ -1,6 +1,10 @@
 # Web session selection and compact TUI adaptation
 
-## Latest terminal evidence: Pi message spacing correction (2026-09-22)
+## Latest terminal evidence: fullscreen selection/copy (2026-09-22)
+
+Padded-cell drag selection, clipboard-governed release/Ctrl-C/X copy and held-edge scrolling pass native SGR/OSC52 PTY tests at **60×18, 100×22 and 140×36**. Stationary tool clicks still expand; output/layout/search/session changes invalidate stale selections; notices use the existing separator. All TUI suites, Go/vet/race ×3, 29 helpers and 70/70 functional browser tests pass. [ADR-0034](../adr/0034-fullscreen-transcript-selection.md). This resolves the saved selection WIP; pointer link precedence, mutation-stable anchors and broader parity remain open. No frozen browser mapping change.
+
+## Earlier terminal evidence: Pi message spacing correction (2026-09-22)
 
 User bands now have top/bottom blank padding; tools have an external blank separator and colored padding; assistant messages have a leading blank separator. Markdown continuation rows remain in one message. Exact rendered-cell and real terminal checks pass at **60×18, 100×22 and 140×36**, with unchanged editor/footer rows. All TUI suites, Go/vet/race ×3, 29 helpers and 70/70 functional browser tests pass. [ADR-0033](../adr/0033-pi-transcript-spacing.md). Three fresh screenshots are attached. Fullscreen selection WIP remains separate and unshipped; frozen browser mapping stays 34/236 Classic, 2/42 shared.
 

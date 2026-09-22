@@ -181,6 +181,8 @@ type chatTUI struct {
 	topicUnsubscribe            func()
 	input                       *multilineInput
 	search                      transcriptSearch
+	textSelection               transcriptSelection
+	nativeSelectionCopyPending  bool
 	queuedDrafts                []string
 	inputRegion                 *gotui.Element
 	transcriptRegion            *gotui.Element
@@ -241,14 +243,14 @@ func (c *chatTUI) ensureInput() {
 		if c.input.onChange == nil {
 			c.input.onChange = c.onInputChanged
 		}
-		c.input.onEscape = c.handleCompactionEscape
+		c.input.onEscape = c.handleTranscriptEscape
 		c.bindTranscriptNavigation()
 		return
 	}
 	c.input = newMultilineInput(80, "Send a message…", c.onSubmit, c.onInputChanged)
 	c.input.onRestoreQueued = c.restoreQueuedDraft
 	c.input.onComplete = c.completeInputPath
-	c.input.onEscape = c.handleCompactionEscape
+	c.input.onEscape = c.handleTranscriptEscape
 	c.bindTranscriptNavigation()
 }
 
@@ -532,6 +534,7 @@ func (c *chatTUI) Watchers() []gotui.Watcher {
 	if c.topicEventCh != nil {
 		watchers = append(watchers, gotui.NewChannelWatcher(c.topicEventCh, c.handleSessionTopicEvent))
 	}
+	watchers = append(watchers, gotui.OnTimer(80*time.Millisecond, c.tickTranscriptSelection))
 	watchers = append(watchers, gotui.OnTimer(120*time.Millisecond, func() {
 		if c.hasRunningTranscriptBlock() && c.app != nil {
 			c.app.MarkDirty()
@@ -1537,13 +1540,28 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 		}
 	}
 	bindings := gotui.KeyMap{
-		gotui.OnStop(gotui.KeyCtrlC, func(ke gotui.KeyEvent) { c.app.Stop() }),
+		gotui.OnPreemptStop(gotui.KeyCtrlC, func(ke gotui.KeyEvent) {
+			if c.textSelection.active {
+				c.copyTranscriptSelection()
+			} else {
+				c.app.Stop()
+			}
+		}),
+		gotui.OnPreemptStop(gotui.Rune('x').Ctrl(), func(ke gotui.KeyEvent) {
+			if c.textSelection.active {
+				c.copyTranscriptSelection()
+			}
+		}),
 		gotui.OnStop(gotui.KeyCtrlD, func(ke gotui.KeyEvent) {
 			if c.input.Text() == "" {
 				c.app.Stop()
 			}
 		}),
 		gotui.OnPreemptStop(gotui.KeyEscape, func(ke gotui.KeyEvent) {
+			if c.textSelection.active {
+				c.clearTranscriptSelection()
+				return
+			}
 			if c.compaction.active {
 				c.stopCompaction()
 				return
@@ -2066,6 +2084,9 @@ func (c *chatTUI) recallHistory(delta int) {
 }
 
 func (c *chatTUI) HandleMouse(me gotui.MouseEvent) bool {
+	if c.handleTranscriptSelection(me) {
+		return true
+	}
 	if c.handleTranscriptScrollEvent(me) {
 		return true
 	}
@@ -2629,6 +2650,7 @@ func (c *chatTUI) hotkeyLines() []string {
 		"  PgUp/PgDn transcript page · Home/End top/bottom (also while editing) · mouse wheel",
 		"  Ctrl+Shift+F rendered search · Enter/Shift+Enter next/previous · Esc restores editor",
 		"  Ctrl+Shift+Up/Down jump to previous/next user prompt",
+		"  Drag select · hold edges to scroll · release/Ctrl+C/X copy (clipboard setting) · Esc clear",
 		"session:",
 		"  Esc blur input · Tab focus input · F2/F3 (or Ctrl+P/Ctrl+N) history",
 		"  Ctrl+C interrupt · Ctrl+D exit (empty input)",
@@ -3720,6 +3742,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	if c.cfg.TUIScrollbar {
 		transcriptOptions = append(transcriptOptions, gotui.WithScrollbarStyle(gotui.NewStyle().Dim()))
 	}
+	c.validateTranscriptSelection(contentWidth, transcriptHeight)
 	transcript := gotui.New(transcriptOptions...)
 	c.transcriptRef.Set(transcript)
 	c.transcriptRegion = transcript
@@ -3737,7 +3760,9 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 		}
 		blocks = c.buildTranscriptRenderableBlocks(c.visibleTranscript())
 	}
-	if c.search.active {
+	if c.textSelection.active {
+		c.renderTranscriptSelectionRows(transcript)
+	} else if c.search.active {
 		c.renderTranscriptSearchRows(transcript)
 	} else {
 		for _, block := range blocks {
@@ -3760,6 +3785,9 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	separatorText := c.horizontalRule(contentWidth)
 	if c.search.active {
 		separatorText = c.transcriptSearchLabel(contentWidth)
+	}
+	if c.textSelection.active {
+		separatorText = c.selectionSeparator(contentWidth)
 	}
 	inputTopSep := gotui.New(
 		gotui.WithWidthPercent(100),
