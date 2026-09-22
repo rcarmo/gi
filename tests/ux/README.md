@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Accepted-message refresh: 2026-09-22
+
+`drafts.spec.mjs` holds real native acknowledgements while SSE and execution continue. Six cases verify acceptance-driven refresh/deduplication, upload ID/name/byte pairing, newer draft/cursor preservation, history anchors and near-bottom following, search ownership and origin-session isolation. Upload responses are observed without multipart interception; history setup awaits native idle after completion. The search test rejects the previous callback. See [ADR-0028](../../docs/adr/0028-accepted-message-refresh.md).
+
+Latest: **384/384 browser** (228 main + 156 specialised), **70/70 functional**, **29 helpers**, Go/vet/hook checks. Main Chromium/WebKit batches each passed 114 cases, with their successful suites combined in `results.json`. Existing six result files/targets below still apply. Coverage: **34/236 Classic**, **2/42 shared**, **202/40 unmapped**. Compose-007/009/010/011 map; compose-008 still lacks a verified folder-reference path. No terminal credit in this slice.
+
 ## Bounded native timeline paging: 2026-09-22
 
 The Gi-only paging regression in `make test-ux-reconnect` creates history through native turns and checks latest-50 loading, wheel-driven older pages, actual visible-message anchors, more than one forward page while offline, retained drafts and late older-page/search isolation. Responses stay bounded and IDs remain ordered/deduplicated. Subpixel anchor tolerance is one CSS pixel after the supplied entry animation settles.

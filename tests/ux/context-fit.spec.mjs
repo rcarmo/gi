@@ -37,7 +37,7 @@ test('@ux-compaction-006 Check model context compatibility before switching',asy
  await page.reload();await expect(input).toHaveValue('unsent retained');await expect(page.locator('.compose-file-pill[title="draft.txt"]')).toHaveCount(1);
  // Known capacity with unknown usage must not inherit another session's gate.
  await switchTo(child);expect((await state(child)).context_usage.tokens).toBeNull();await modelButton.click();await expect(option('ux-local/small')).toBeEnabled();await option('ux-local/small').click();
- expect((await state(child)).current).toBe('ux-local/small');expect((await state()).current).toBe('ux-local/equal');
+ await expect.poll(async()=>(await state(child)).current).toBe('ux-local/small');expect((await state()).current).toBe('ux-local/equal');
  await switchTo(main.id);await expect(input).toHaveValue('unsent retained');await expect(page.locator('.compose-file-pill[title="draft.txt"]')).toHaveCount(1);
 });
 

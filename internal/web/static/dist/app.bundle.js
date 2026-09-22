@@ -17402,16 +17402,12 @@ function GiApp() {
     }, 1e4);
     return () => clearInterval(id);
   }, [ready, sessionId, loadPosts, refreshSessionLists, refreshSelectedState]);
-  const handlePost = X_(async (response) => {
+  const handlePost = X_((_response) => {
     if (!selection.isCurrent(renderedSelection))
       return;
-    await loadPosts();
-    if (!selection.isCurrent(renderedSelection))
-      return;
-    refreshSelectedState();
+    refreshAfterConnection.current();
     refreshSessionLists(sessionId);
-    scrollToBottom();
-  }, [loadPosts, refreshSessionLists, refreshSelectedState, scrollToBottom, sessionId]);
+  }, [refreshSessionLists, sessionId]);
   const handleSwitchChat = X_((chatJid) => {
     const nextSessionId = typeof chatJid === "string" && chatJid.startsWith("gi:") ? chatJid.slice(3) : null;
     if (!nextSessionId || nextSessionId === sessionId)
@@ -17893,5 +17889,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=D543C8A917D1347964756E2164756E21
+//# debugId=5D20AD239BABCBC964756E2164756E21
 //# sourceMappingURL=app.js.map

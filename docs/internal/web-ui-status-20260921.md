@@ -1,5 +1,7 @@
 # Gi web UI — 2026-09-21
 
+Latest slice (2026-09-22): accepted-message current-view refresh, native upload ID/name/byte pairing, newer draft/cursor and history-anchor preservation. **384/384 browser**, **70/70 functional**, **29 helpers**, Go/vet/hook. Coverage: **34/236 Classic**, **2/42 shared**, **202/40 unmapped**. Compose-008 lacks a verified folder-reference path; TUI acceptance needs separate implementation/tests with no idle-row growth. See [ADR-0028](../adr/0028-accepted-message-refresh.md). Earlier evidence follows.
+
 Latest slice (2026-09-22): bounded native timeline paging, visible-message anchors and multi-page reconnect catch-up. **348/348 browser**, **70/70 functional**, **29 helpers**, Go/vet/race. Coverage unchanged: **30/236 Classic**, **2/42 shared**, 206/40 unmapped. Supplied components/TUI untouched; out-of-window mutations and loaded-window limits remain open. See [ADR-0027](../adr/0027-bounded-timeline-pages.md). Earlier evidence follows.
 
 Latest slice (2026-09-22): initial refresh ownership (`reconnect-005`), with delayed native subscription, A→B→A, real reconnect and failed-initial-read recovery. **342/342 browser**, **70/70 functional**, **28 helpers**, Go/vet/hook checks; **30/236 Classic**, **2/42 shared**, 206/40 unmapped. All frozen reconnect IDs mapped; full parity, crash/hashtag/paging and terminal adaptations remain open. No terminal chrome added. See [ADR-0026](../adr/0026-initial-refresh-ownership.md). Earlier evidence follows.

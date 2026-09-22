@@ -1,6 +1,12 @@
 # Web session selection and compact TUI adaptation
 
-## Latest browser evidence: bounded native timeline pages (2026-09-22)
+## Latest browser evidence: accepted-message refresh (2026-09-22)
+
+Acknowledgements refresh the selected timeline or search through the existing connection/view dispatcher. Native tests verify stored-message visibility/deduplication, three-file ID/name/byte association, newer draft/cursor preservation, near-bottom following, history-anchor retention and origin-session isolation. Supplied components remain unchanged. See [ADR-0028](../adr/0028-accepted-message-refresh.md).
+
+Verified: **384/384 browser** (228 main + 156 specialised), **70/70 functional**, **29/29 helpers**, Go tests/vet and hook checks. The search regression rejects the old callback. Four new mappings: **compose-007/009/010/011**. Coverage: **34/236 Classic**, **2/42 shared**, **202/40 unmapped**. Compose-008 has no verified folder-reference selection path and stays unmapped. The compact terminal adaptation uses existing transcript/editor/notice surfaces with zero extra idle rows; terminal implementation and acceptance are separate work.
+
+## Earlier browser evidence: bounded native timeline pages (2026-09-22)
 
 Timeline now loads a native latest-50 page and older/forward pages using session-scoped timestamp/ID cursors. The host serialises page loads, preserves the loaded history window, drains reconnect catch-up without gaps and rejects stale pages after search/session changes. Actual visible-message anchors preserve reading position across older/live/offline arrivals, with at most one CSS pixel of rounding. ID-only completion events cannot replace full posts. Supplied components are unchanged. See [ADR-0027](../adr/0027-bounded-timeline-pages.md).
 

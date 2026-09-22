@@ -2,6 +2,10 @@
 
 Status: active layout contract for the Pi/PiClaw UX convergence track.
 
+## Accepted-message adaptation (2026-09-22; design)
+
+Acceptance should reconcile durable IDs in the existing transcript, clear only the captured editor draft, preserve newer text/cursor and retain history-reading position unless already following the newest edge. Add zero idle rows and no permanent delivery controls. Use the existing bounded error/notice surface for failure; preserve recovery data and never automatically resend uncertain delivery. Verify delayed acceptance, A→B→A, resize and history anchors at 60×18, 100×22 and 140×36 before terminal credit. Current submit callbacks are session-scoped but still request scrolling after accepted routing; media/reference recovery also needs implementation. Browser evidence and the open terminal checks are recorded in [ADR-0028](../adr/0028-accepted-message-refresh.md).
+
 ## Manual compaction (2026-09-22)
 
 `/compact` runs native maintenance; `/compact info` shows diagnostics. Alt-C preserves editor/cursor and invokes the same operation. Escape stops active compaction through the focused editor callback. Progress uses the existing stats row (`Compacting m:ss`), with four-second outcomes in the existing optional notice row. No idle row or permanent widget is added. `make test-tui-compaction` verifies 60×18, 100×22 and 140×36 using native hook gates; see [ADR-0023](../adr/0023-terminal-compaction.md).

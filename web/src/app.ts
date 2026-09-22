@@ -617,15 +617,13 @@ function GiApp() {
 
     // ── Send ──────────────────────────────────────────────────────────────────
 
-    const handlePost = useCallback(async (response: any) => {
-        // A pending send remains owned by its origin even after selection changes.
+    const handlePost = useCallback((_response: any) => {
+        // Acknowledgement belongs to the captured session, but refresh belongs
+        // to the current view. Paging/SSE own near-bottom and reading anchors.
         if (!selection.isCurrent(renderedSelection)) return;
-        await loadPosts();
-        if (!selection.isCurrent(renderedSelection)) return;
-        void refreshSelectedState();
+        refreshAfterConnection.current();
         void refreshSessionLists(sessionId);
-        scrollToBottom();
-    }, [loadPosts, refreshSessionLists, refreshSelectedState, scrollToBottom, sessionId]);
+    }, [refreshSessionLists, sessionId]);
 
     const handleSwitchChat = useCallback((chatJid: string | null) => {
         const nextSessionId = typeof chatJid === 'string' && chatJid.startsWith('gi:') ? chatJid.slice(3) : null;
