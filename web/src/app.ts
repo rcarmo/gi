@@ -23,7 +23,11 @@ import {
     isIOSDevice,
 } from './ui/app-helpers.js';
 import { isCompactionStatus } from './ui/status-duration.js';
-import { paneRegistry, tabStore } from './panes/index.js';
+import { paneRegistry, tabStore, workspacePreviewPaneExtension, workspaceMarkdownPreviewPaneExtension } from './panes/index.js';
+
+// Register only read-only previews; editor/specialised tab lifecycle is separate.
+paneRegistry.register(workspacePreviewPaneExtension);
+paneRegistry.register(workspaceMarkdownPreviewPaneExtension);
 import {
     getTimeline,
     searchPosts,

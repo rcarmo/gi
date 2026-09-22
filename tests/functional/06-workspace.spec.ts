@@ -47,3 +47,13 @@ test.describe('Workspace', () => {
     await expect(toggle).toBeVisible({ timeout: 5000 });
   });
 });
+
+test('workspace preview exposes bounded metadata and safe raw downloads',async({page,request})=>{
+ const path='functional-preview.md';
+ const written=await request.post(`${BASE_URL}/api/tools/execute`,{data:{tool:'write',input:{path,content:'# Native preview\n\n**verified**'}}});expect((await written.json()).error).toBeFalsy();
+ const response=await request.get(`${BASE_URL}/api/workspace/file?path=${path}&max_bytes=8`);expect(response.ok()).toBe(true);
+ const preview=await response.json();expect(preview).toMatchObject({path,kind:'text',content_type:'text/markdown',text:'# Native',truncated:true});expect(preview.mtime).toBeTruthy();expect(preview.size).toBeGreaterThan(8);
+ const raw=await request.get(`${BASE_URL}/api/workspace/raw?path=${path}`);expect(await raw.text()).toBe('# Native preview\n\n**verified**');expect(raw.headers()['content-disposition']).toContain('attachment;');expect(raw.headers()['content-security-policy']).toContain('sandbox');
+ await page.goto(BASE_URL);await waitForAppShell(page);await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
+ await page.locator(`.workspace-row[data-path="${path}"] .workspace-label-text`).click();await expect(page.locator('.workspace-preview-body h1')).toHaveText('Native preview');
+});

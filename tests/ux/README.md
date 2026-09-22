@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Read-only workspace previews: 2026-09-22
+
+`workspace-preview.spec.mjs` maps workspace-008 through files created with native tools: Markdown, escaped text, decoded PNG, binary download message and kind/extension/type/size/mtime/path. SVG script source remains text; large previews truncate at the requested limit, and composer text survives selections/reload. The fixture shell explicitly changes to the runtime workspace. No mocked preview responses. [ADR-0040](../../docs/adr/0040-read-only-workspace-previews.md).
+
+Latest **480/480 browser** (318 main + 162 specialised), **73/73 functional**, **31 helpers**, Go/vet/build/hook/web race ×3. Coverage **44/236 Classic**, **2/42 shared**, **192/40 unmapped**. Editor, mutations, unsupported format and terminal viewer cases remain open.
+
 ## Native image lightbox: 2026-09-22
 
 `lightbox.spec.mjs` maps timeline-013/014/015/016 with a real composer-uploaded PNG: Escape closes, other keys retain the modal, image/backdrop clicks close, and touch-enabled contexts deliver trusted taps. Additional session/search/reload/native-404 recovery preserves unsent text/files. [ADR-0039](../../docs/adr/0039-native-media-lightbox.md). No fabricated media/post responses or navigator overrides; touch evidence asserts the delivered events because Linux WebKit reports zero maxTouchPoints.

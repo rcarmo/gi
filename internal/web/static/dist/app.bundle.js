@@ -1119,8 +1119,8 @@ async function getWorkspaceTree(path = "", _depth = 1, _showHidden = false) {
     throw new Error(`Workspace path unavailable: ${path}`);
   return { root: node };
 }
-async function getWorkspaceFile(path, _chatJid = null) {
-  return request(`/api/workspace/file?path=${encodeURIComponent(path)}`);
+async function getWorkspaceFile(path, maxBytes = 20000) {
+  return request(`/api/workspace/file?path=${encodeURIComponent(path)}&max_bytes=${maxBytes}`);
 }
 async function getWorkspaceIndexStatus(_chatJid = null) {
   return { status: "ready", indexed_at: null };
@@ -2195,6 +2195,123 @@ function getStatusRetryCountdownLabel(status, nowMs = Date.now()) {
   return `retry in ${formatElapsedDuration(remainingMs)}`;
 }
 
+// web/src/panes/pane-registry.ts
+class PaneRegistryImpl {
+  extensions = new Map;
+  register(ext) {
+    this.extensions.set(ext.id, ext);
+  }
+  unregister(id) {
+    this.extensions.delete(id);
+  }
+  resolve(context) {
+    let best;
+    let bestPriority = -Infinity;
+    for (const ext of this.extensions.values()) {
+      if (ext.placement !== "tabs")
+        continue;
+      if (!ext.canHandle)
+        continue;
+      try {
+        const result = ext.canHandle(context);
+        if (result === false || result === 0)
+          continue;
+        const priority = result === true ? 0 : typeof result === "number" ? result : 0;
+        if (priority > bestPriority) {
+          bestPriority = priority;
+          best = ext;
+        }
+      } catch (err) {
+        console.warn(`[PaneRegistry] canHandle() error for "${ext.id}":`, err);
+      }
+    }
+    return best;
+  }
+  list() {
+    return Array.from(this.extensions.values());
+  }
+  getDockPanes() {
+    return Array.from(this.extensions.values()).filter((ext) => ext.placement === "dock");
+  }
+  getTabPanes() {
+    return Array.from(this.extensions.values()).filter((ext) => ext.placement === "tabs");
+  }
+  get(id) {
+    return this.extensions.get(id);
+  }
+  get size() {
+    return this.extensions.size;
+  }
+}
+var paneRegistry = new PaneRegistryImpl;
+// web/src/panes/editor-popout-transfer.ts
+var EDITOR_POPOUT_STATE_TTL_MS = 5 * 60 * 1000;
+// node_modules/@assemblyscript/loader/index.js
+var ARRAYBUFFERVIEW = 1 << 0;
+var ARRAY = 1 << 1;
+var STATICARRAY = 1 << 2;
+var VAL_SIGNED = 1 << 11;
+var VAL_FLOAT = 1 << 12;
+var VAL_MANAGED = 1 << 14;
+var THIS = Symbol();
+var utf16 = new TextDecoder("utf-16le", { fatal: true });
+Object.hasOwn = Object.hasOwn || function(obj, prop) {
+  return Object.prototype.hasOwnProperty.call(obj, prop);
+};
+
+// web/src/panes/vnc-input.ts
+var KEYSYM_BY_KEY = {
+  Backspace: 65288,
+  Tab: 65289,
+  Enter: 65293,
+  Escape: 65307,
+  Insert: 65379,
+  Delete: 65535,
+  Home: 65360,
+  End: 65367,
+  PageUp: 65365,
+  PageDown: 65366,
+  ArrowLeft: 65361,
+  ArrowUp: 65362,
+  ArrowRight: 65363,
+  ArrowDown: 65364,
+  Shift: 65505,
+  ShiftLeft: 65505,
+  ShiftRight: 65506,
+  Control: 65507,
+  ControlLeft: 65507,
+  ControlRight: 65508,
+  Alt: 65513,
+  AltLeft: 65513,
+  AltRight: 65514,
+  Meta: 65515,
+  MetaLeft: 65515,
+  MetaRight: 65516,
+  Super: 65515,
+  Super_L: 65515,
+  Super_R: 65516,
+  CapsLock: 65509,
+  NumLock: 65407,
+  ScrollLock: 65300,
+  Pause: 65299,
+  PrintScreen: 65377,
+  ContextMenu: 65383,
+  Menu: 65383,
+  " ": 32
+};
+for (let i = 1;i <= 12; i += 1) {
+  KEYSYM_BY_KEY[`F${i}`] = 65470 + (i - 1);
+}
+
+// web/src/panes/vnc-auth.ts
+var REVERSED_BITS = new Uint8Array(256);
+for (let value = 0;value < 256; value += 1) {
+  let reversed = 0;
+  for (let bit = 0;bit < 8; bit += 1) {
+    reversed = reversed << 1 | value >> bit & 1;
+  }
+  REVERSED_BITS[value] = reversed;
+}
 // web/src/utils/code-highlighting.ts
 import {
   classHighlighter,
@@ -3048,6 +3165,372 @@ function formatTimestamp(value) {
   return date.toLocaleString();
 }
 
+// web/src/panes/workspace-preview-pane.ts
+function escapeHtml2(value) {
+  return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function rewriteMarkdownImagePath(src, markdownPath) {
+  const raw = String(src || "").trim();
+  if (!raw)
+    return raw;
+  if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(raw) || raw.startsWith("#") || raw.startsWith("data:") || raw.startsWith("blob:")) {
+    return raw;
+  }
+  const match = raw.match(/^([^?#]*)(\?[^#]*)?(#.*)?$/);
+  const relPath = match?.[1] || raw;
+  const query = match?.[2] || "";
+  const hash = match?.[3] || "";
+  const baseDir = String(markdownPath || "").split("/").slice(0, -1).join("/");
+  const isAbsolute = relPath.startsWith("/");
+  const combined = isAbsolute ? relPath : `${baseDir ? `${baseDir}/` : ""}${relPath}`;
+  const normalized = [];
+  for (const segment of combined.split("/")) {
+    if (!segment || segment === ".")
+      continue;
+    if (segment === "..") {
+      if (normalized.length > 0)
+        normalized.pop();
+      continue;
+    }
+    normalized.push(segment);
+  }
+  const workspacePath = normalized.join("/");
+  return `${getWorkspaceRawUrl(workspacePath)}${query}${hash}`;
+}
+function getPreview(context) {
+  return context?.preview || null;
+}
+function fileExtensionFromPath(filePath) {
+  const value = String(filePath || "");
+  const lastSlash = Math.max(value.lastIndexOf("/"), value.lastIndexOf("\\"));
+  const base = lastSlash >= 0 ? value.slice(lastSlash + 1) : value;
+  const lastDot = base.lastIndexOf(".");
+  if (lastDot <= 0 || lastDot === base.length - 1)
+    return "none";
+  return base.slice(lastDot + 1);
+}
+function previewKindLabel(preview) {
+  if (!preview)
+    return "unknown";
+  if (preview.kind === "image")
+    return "image";
+  if (preview.kind === "text")
+    return preview.content_type === "text/markdown" ? "markdown" : "text";
+  if (preview.kind === "binary")
+    return "binary";
+  return String(preview.kind || "unknown");
+}
+function renderPreviewMetadata(context, preview) {
+  const filePath = preview?.path || context?.path || "";
+  const parts = [];
+  if (preview?.content_type) {
+    parts.push(`<span><strong>type:</strong> ${escapeHtml2(preview.content_type)}</span>`);
+  }
+  if (typeof preview?.size === "number") {
+    parts.push(`<span><strong>size:</strong> ${escapeHtml2(formatFileSize(preview.size))}</span>`);
+  }
+  if (preview?.mtime) {
+    parts.push(`<span><strong>modified:</strong> ${escapeHtml2(formatTimestamp(preview.mtime))}</span>`);
+  }
+  parts.push(`<span><strong>kind:</strong> ${escapeHtml2(previewKindLabel(preview))}</span>`);
+  parts.push(`<span><strong>extension:</strong> ${escapeHtml2(fileExtensionFromPath(filePath))}</span>`);
+  if (filePath) {
+    parts.push(`<span><strong>path:</strong> ${escapeHtml2(filePath)}</span>`);
+  }
+  if (preview?.truncated) {
+    parts.push("<span><strong>content:</strong> truncated</span>");
+  }
+  return `<div class="workspace-preview-meta workspace-preview-meta-inline">${parts.join("")}</div>`;
+}
+function renderWorkspacePreviewMarkup(context) {
+  const preview = getPreview(context);
+  if (!preview) {
+    return '<div class="workspace-preview-text">No preview available.</div>';
+  }
+  const metadata = renderPreviewMetadata(context, preview);
+  if (preview.kind === "image") {
+    const src = preview.url || (preview.path ? getWorkspaceRawUrl(preview.path) : "");
+    return `${metadata}
+            <div class="workspace-preview-image">
+                <img src="${escapeHtml2(src)}" alt="preview" />
+            </div>
+        `;
+  }
+  if (preview.kind === "text") {
+    if (preview.content_type === "text/markdown") {
+      const rendered = renderMarkdown(preview.text || "", null, {
+        rewriteImageSrc: (src) => rewriteMarkdownImagePath(src, preview.path || context?.path)
+      });
+      return `${metadata}<div class="workspace-preview-text">${rendered}</div>`;
+    }
+    return `${metadata}<pre class="workspace-preview-text"><code>${escapeHtml2(preview.text || "")}</code></pre>`;
+  }
+  if (preview.kind === "binary") {
+    return `${metadata}<div class="workspace-preview-text">Binary file — download to view.</div>`;
+  }
+  return `${metadata}<div class="workspace-preview-text">No preview available.</div>`;
+}
+
+class WorkspacePreviewInstance {
+  constructor(container, context) {
+    this.container = container;
+    this.context = context;
+    this.disposed = false;
+    this.host = document.createElement("div");
+    this.host.className = "workspace-preview-render-host";
+    this.host.tabIndex = 0;
+    this.container.appendChild(this.host);
+    this.render();
+  }
+  render() {
+    if (this.disposed)
+      return;
+    this.host.innerHTML = renderWorkspacePreviewMarkup(this.context);
+  }
+  getContent() {
+    const preview = getPreview(this.context);
+    return typeof preview?.text === "string" ? preview.text : undefined;
+  }
+  isDirty() {
+    return false;
+  }
+  setContent(content, mtime) {
+    const preview = getPreview(this.context);
+    if (preview && preview.kind === "text") {
+      preview.text = content;
+      if (mtime !== undefined)
+        preview.mtime = mtime;
+    }
+    this.context.content = content;
+    if (mtime !== undefined)
+      this.context.mtime = mtime;
+    this.render();
+  }
+  focus() {
+    this.host?.focus?.();
+  }
+  dispose() {
+    if (this.disposed)
+      return;
+    this.disposed = true;
+    this.host?.remove();
+    this.container.innerHTML = "";
+  }
+}
+var workspaceMarkdownPreviewPaneExtension = {
+  id: "workspace-markdown-preview",
+  label: "Workspace Markdown Preview",
+  icon: "preview",
+  capabilities: ["preview", "readonly"],
+  placement: "tabs",
+  canHandle(context) {
+    const preview = getPreview(context);
+    if (context?.mode !== "view")
+      return false;
+    if (!preview || preview.kind !== "text")
+      return false;
+    return preview.content_type === "text/markdown" ? 20 : false;
+  },
+  mount(container, context) {
+    return new WorkspacePreviewInstance(container, context);
+  }
+};
+var workspacePreviewPaneExtension = {
+  id: "workspace-preview-default",
+  label: "Workspace Preview",
+  icon: "preview",
+  capabilities: ["preview", "readonly"],
+  placement: "tabs",
+  canHandle(context) {
+    if (context?.mode !== "view")
+      return false;
+    return getPreview(context) || context?.path ? 1 : false;
+  },
+  mount(container, context) {
+    return new WorkspacePreviewInstance(container, context);
+  }
+};
+// web/src/panes/office-viewer-pane.ts
+var OFFICE_EXTENSIONS = new Set([
+  ".docx",
+  ".doc",
+  ".odt",
+  ".rtf",
+  ".xlsx",
+  ".xls",
+  ".ods",
+  ".csv",
+  ".pptx",
+  ".ppt",
+  ".odp"
+]);
+// web/src/panes/mindmap-pane.ts
+var VENDOR_CACHE_BUST = String(Date.now());
+// web/src/panes/kanban-pane.ts
+var VENDOR_CACHE_BUST2 = String(Date.now());
+// web/src/panes/tab-store.ts
+class TabStoreImpl {
+  tabs = new Map;
+  activeId = null;
+  mruOrder = [];
+  listeners = new Set;
+  onChange(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+  notify() {
+    const tabs = this.getTabs();
+    const activeId = this.activeId;
+    for (const listener of this.listeners) {
+      try {
+        listener(tabs, activeId);
+      } catch (err) {
+        console.warn("[tab-store] Change listener failed:", err);
+      }
+    }
+  }
+  open(path, label) {
+    let tab = this.tabs.get(path);
+    if (!tab) {
+      tab = {
+        id: path,
+        label: label || path.split("/").pop() || path,
+        path,
+        dirty: false,
+        pinned: false
+      };
+      this.tabs.set(path, tab);
+    }
+    this.activate(path);
+    return tab;
+  }
+  activate(id) {
+    if (!this.tabs.has(id))
+      return;
+    this.activeId = id;
+    this.mruOrder = [id, ...this.mruOrder.filter((x) => x !== id)];
+    this.notify();
+  }
+  close(id) {
+    const tab = this.tabs.get(id);
+    if (!tab)
+      return false;
+    this.tabs.delete(id);
+    this.mruOrder = this.mruOrder.filter((x) => x !== id);
+    if (this.activeId === id) {
+      this.activeId = this.mruOrder[0] || null;
+    }
+    this.notify();
+    return true;
+  }
+  closeOthers(keepId) {
+    for (const [id, tab] of this.tabs) {
+      if (id !== keepId && !tab.pinned) {
+        this.tabs.delete(id);
+        this.mruOrder = this.mruOrder.filter((x) => x !== id);
+      }
+    }
+    if (this.activeId && !this.tabs.has(this.activeId)) {
+      this.activeId = keepId;
+    }
+    this.notify();
+  }
+  closeAll() {
+    for (const [id, tab] of this.tabs) {
+      if (!tab.pinned) {
+        this.tabs.delete(id);
+        this.mruOrder = this.mruOrder.filter((x) => x !== id);
+      }
+    }
+    if (this.activeId && !this.tabs.has(this.activeId)) {
+      this.activeId = this.mruOrder[0] || null;
+    }
+    this.notify();
+  }
+  setDirty(id, dirty) {
+    const tab = this.tabs.get(id);
+    if (!tab || tab.dirty === dirty)
+      return;
+    tab.dirty = dirty;
+    this.notify();
+  }
+  togglePin(id) {
+    const tab = this.tabs.get(id);
+    if (!tab)
+      return;
+    tab.pinned = !tab.pinned;
+    this.notify();
+  }
+  saveViewState(id, viewState) {
+    const tab = this.tabs.get(id);
+    if (tab)
+      tab.viewState = viewState;
+  }
+  getViewState(id) {
+    return this.tabs.get(id)?.viewState;
+  }
+  rename(oldId, newPath, newLabel) {
+    const tab = this.tabs.get(oldId);
+    if (!tab)
+      return;
+    this.tabs.delete(oldId);
+    tab.id = newPath;
+    tab.path = newPath;
+    tab.label = newLabel || newPath.split("/").pop() || newPath;
+    this.tabs.set(newPath, tab);
+    this.mruOrder = this.mruOrder.map((x) => x === oldId ? newPath : x);
+    if (this.activeId === oldId)
+      this.activeId = newPath;
+    this.notify();
+  }
+  getTabs() {
+    return Array.from(this.tabs.values());
+  }
+  getActiveId() {
+    return this.activeId;
+  }
+  getActive() {
+    return this.activeId ? this.tabs.get(this.activeId) || null : null;
+  }
+  get(id) {
+    return this.tabs.get(id);
+  }
+  get size() {
+    return this.tabs.size;
+  }
+  hasUnsaved() {
+    for (const tab of this.tabs.values()) {
+      if (tab.dirty)
+        return true;
+    }
+    return false;
+  }
+  getDirtyTabs() {
+    return Array.from(this.tabs.values()).filter((t) => t.dirty);
+  }
+  nextTab() {
+    const tabs = this.getTabs();
+    if (tabs.length <= 1)
+      return;
+    const idx = tabs.findIndex((t) => t.id === this.activeId);
+    const next = tabs[(idx + 1) % tabs.length];
+    this.activate(next.id);
+  }
+  prevTab() {
+    const tabs = this.getTabs();
+    if (tabs.length <= 1)
+      return;
+    const idx = tabs.findIndex((t) => t.id === this.activeId);
+    const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
+    this.activate(prev.id);
+  }
+  mruSwitch() {
+    if (this.mruOrder.length > 1) {
+      this.activate(this.mruOrder[1]);
+    }
+  }
+}
+var tabStore = new TabStoreImpl;
 // web/src/ui/adaptive-card-submission.ts
 function formatSubmissionValue(value) {
   if (value == null)
@@ -9679,304 +10162,6 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     `;
 }
 
-// web/src/panes/pane-registry.ts
-class PaneRegistryImpl {
-  extensions = new Map;
-  register(ext) {
-    this.extensions.set(ext.id, ext);
-  }
-  unregister(id) {
-    this.extensions.delete(id);
-  }
-  resolve(context) {
-    let best;
-    let bestPriority = -Infinity;
-    for (const ext of this.extensions.values()) {
-      if (ext.placement !== "tabs")
-        continue;
-      if (!ext.canHandle)
-        continue;
-      try {
-        const result = ext.canHandle(context);
-        if (result === false || result === 0)
-          continue;
-        const priority = result === true ? 0 : typeof result === "number" ? result : 0;
-        if (priority > bestPriority) {
-          bestPriority = priority;
-          best = ext;
-        }
-      } catch (err) {
-        console.warn(`[PaneRegistry] canHandle() error for "${ext.id}":`, err);
-      }
-    }
-    return best;
-  }
-  list() {
-    return Array.from(this.extensions.values());
-  }
-  getDockPanes() {
-    return Array.from(this.extensions.values()).filter((ext) => ext.placement === "dock");
-  }
-  getTabPanes() {
-    return Array.from(this.extensions.values()).filter((ext) => ext.placement === "tabs");
-  }
-  get(id) {
-    return this.extensions.get(id);
-  }
-  get size() {
-    return this.extensions.size;
-  }
-}
-var paneRegistry = new PaneRegistryImpl;
-// web/src/panes/editor-popout-transfer.ts
-var EDITOR_POPOUT_STATE_TTL_MS = 5 * 60 * 1000;
-// node_modules/@assemblyscript/loader/index.js
-var ARRAYBUFFERVIEW = 1 << 0;
-var ARRAY = 1 << 1;
-var STATICARRAY = 1 << 2;
-var VAL_SIGNED = 1 << 11;
-var VAL_FLOAT = 1 << 12;
-var VAL_MANAGED = 1 << 14;
-var THIS = Symbol();
-var utf16 = new TextDecoder("utf-16le", { fatal: true });
-Object.hasOwn = Object.hasOwn || function(obj, prop) {
-  return Object.prototype.hasOwnProperty.call(obj, prop);
-};
-
-// web/src/panes/vnc-input.ts
-var KEYSYM_BY_KEY = {
-  Backspace: 65288,
-  Tab: 65289,
-  Enter: 65293,
-  Escape: 65307,
-  Insert: 65379,
-  Delete: 65535,
-  Home: 65360,
-  End: 65367,
-  PageUp: 65365,
-  PageDown: 65366,
-  ArrowLeft: 65361,
-  ArrowUp: 65362,
-  ArrowRight: 65363,
-  ArrowDown: 65364,
-  Shift: 65505,
-  ShiftLeft: 65505,
-  ShiftRight: 65506,
-  Control: 65507,
-  ControlLeft: 65507,
-  ControlRight: 65508,
-  Alt: 65513,
-  AltLeft: 65513,
-  AltRight: 65514,
-  Meta: 65515,
-  MetaLeft: 65515,
-  MetaRight: 65516,
-  Super: 65515,
-  Super_L: 65515,
-  Super_R: 65516,
-  CapsLock: 65509,
-  NumLock: 65407,
-  ScrollLock: 65300,
-  Pause: 65299,
-  PrintScreen: 65377,
-  ContextMenu: 65383,
-  Menu: 65383,
-  " ": 32
-};
-for (let i = 1;i <= 12; i += 1) {
-  KEYSYM_BY_KEY[`F${i}`] = 65470 + (i - 1);
-}
-
-// web/src/panes/vnc-auth.ts
-var REVERSED_BITS = new Uint8Array(256);
-for (let value = 0;value < 256; value += 1) {
-  let reversed = 0;
-  for (let bit = 0;bit < 8; bit += 1) {
-    reversed = reversed << 1 | value >> bit & 1;
-  }
-  REVERSED_BITS[value] = reversed;
-}
-// web/src/panes/office-viewer-pane.ts
-var OFFICE_EXTENSIONS = new Set([
-  ".docx",
-  ".doc",
-  ".odt",
-  ".rtf",
-  ".xlsx",
-  ".xls",
-  ".ods",
-  ".csv",
-  ".pptx",
-  ".ppt",
-  ".odp"
-]);
-// web/src/panes/mindmap-pane.ts
-var VENDOR_CACHE_BUST = String(Date.now());
-// web/src/panes/kanban-pane.ts
-var VENDOR_CACHE_BUST2 = String(Date.now());
-// web/src/panes/tab-store.ts
-class TabStoreImpl {
-  tabs = new Map;
-  activeId = null;
-  mruOrder = [];
-  listeners = new Set;
-  onChange(listener) {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-  notify() {
-    const tabs = this.getTabs();
-    const activeId = this.activeId;
-    for (const listener of this.listeners) {
-      try {
-        listener(tabs, activeId);
-      } catch (err) {
-        console.warn("[tab-store] Change listener failed:", err);
-      }
-    }
-  }
-  open(path, label) {
-    let tab = this.tabs.get(path);
-    if (!tab) {
-      tab = {
-        id: path,
-        label: label || path.split("/").pop() || path,
-        path,
-        dirty: false,
-        pinned: false
-      };
-      this.tabs.set(path, tab);
-    }
-    this.activate(path);
-    return tab;
-  }
-  activate(id) {
-    if (!this.tabs.has(id))
-      return;
-    this.activeId = id;
-    this.mruOrder = [id, ...this.mruOrder.filter((x) => x !== id)];
-    this.notify();
-  }
-  close(id) {
-    const tab = this.tabs.get(id);
-    if (!tab)
-      return false;
-    this.tabs.delete(id);
-    this.mruOrder = this.mruOrder.filter((x) => x !== id);
-    if (this.activeId === id) {
-      this.activeId = this.mruOrder[0] || null;
-    }
-    this.notify();
-    return true;
-  }
-  closeOthers(keepId) {
-    for (const [id, tab] of this.tabs) {
-      if (id !== keepId && !tab.pinned) {
-        this.tabs.delete(id);
-        this.mruOrder = this.mruOrder.filter((x) => x !== id);
-      }
-    }
-    if (this.activeId && !this.tabs.has(this.activeId)) {
-      this.activeId = keepId;
-    }
-    this.notify();
-  }
-  closeAll() {
-    for (const [id, tab] of this.tabs) {
-      if (!tab.pinned) {
-        this.tabs.delete(id);
-        this.mruOrder = this.mruOrder.filter((x) => x !== id);
-      }
-    }
-    if (this.activeId && !this.tabs.has(this.activeId)) {
-      this.activeId = this.mruOrder[0] || null;
-    }
-    this.notify();
-  }
-  setDirty(id, dirty) {
-    const tab = this.tabs.get(id);
-    if (!tab || tab.dirty === dirty)
-      return;
-    tab.dirty = dirty;
-    this.notify();
-  }
-  togglePin(id) {
-    const tab = this.tabs.get(id);
-    if (!tab)
-      return;
-    tab.pinned = !tab.pinned;
-    this.notify();
-  }
-  saveViewState(id, viewState) {
-    const tab = this.tabs.get(id);
-    if (tab)
-      tab.viewState = viewState;
-  }
-  getViewState(id) {
-    return this.tabs.get(id)?.viewState;
-  }
-  rename(oldId, newPath, newLabel) {
-    const tab = this.tabs.get(oldId);
-    if (!tab)
-      return;
-    this.tabs.delete(oldId);
-    tab.id = newPath;
-    tab.path = newPath;
-    tab.label = newLabel || newPath.split("/").pop() || newPath;
-    this.tabs.set(newPath, tab);
-    this.mruOrder = this.mruOrder.map((x) => x === oldId ? newPath : x);
-    if (this.activeId === oldId)
-      this.activeId = newPath;
-    this.notify();
-  }
-  getTabs() {
-    return Array.from(this.tabs.values());
-  }
-  getActiveId() {
-    return this.activeId;
-  }
-  getActive() {
-    return this.activeId ? this.tabs.get(this.activeId) || null : null;
-  }
-  get(id) {
-    return this.tabs.get(id);
-  }
-  get size() {
-    return this.tabs.size;
-  }
-  hasUnsaved() {
-    for (const tab of this.tabs.values()) {
-      if (tab.dirty)
-        return true;
-    }
-    return false;
-  }
-  getDirtyTabs() {
-    return Array.from(this.tabs.values()).filter((t) => t.dirty);
-  }
-  nextTab() {
-    const tabs = this.getTabs();
-    if (tabs.length <= 1)
-      return;
-    const idx = tabs.findIndex((t) => t.id === this.activeId);
-    const next = tabs[(idx + 1) % tabs.length];
-    this.activate(next.id);
-  }
-  prevTab() {
-    const tabs = this.getTabs();
-    if (tabs.length <= 1)
-      return;
-    const idx = tabs.findIndex((t) => t.id === this.activeId);
-    const prev = tabs[(idx - 1 + tabs.length) % tabs.length];
-    this.activate(prev.id);
-  }
-  mruSwitch() {
-    if (this.mruOrder.length > 1) {
-      this.activate(this.mruOrder[1]);
-    }
-  }
-}
-var tabStore = new TabStoreImpl;
 // web/src/components/input-focus-safety.ts
 function focusAndSelectBestEffort(input) {
   try {
@@ -16751,6 +16936,8 @@ function restoreTimelineAnchor(anchor) {
 }
 
 // web/src/app.ts
+paneRegistry.register(workspacePreviewPaneExtension);
+paneRegistry.register(workspaceMarkdownPreviewPaneExtension);
 var SESSION_KEY = "gi_session_id";
 var DEFAULT_AGENT_ID = "web";
 function RunBoundQueueStack({ steerEnabled, ...props }) {
@@ -17960,5 +18147,5 @@ function GiApp() {
 }
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=880468D9D0DB31AA64756E2164756E21
+//# debugId=86B4D6538086D1CE64756E2164756E21
 //# sourceMappingURL=app.js.map

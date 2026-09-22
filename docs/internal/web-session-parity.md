@@ -1,6 +1,12 @@
 # Web session selection and compact TUI adaptation
 
-## Latest feature evidence: stored images and lightbox (2026-09-22)
+## Latest feature evidence: read-only workspace previews (2026-09-22)
+
+Workspace-008 passes native Markdown/text/image/binary rendering and metadata acceptance. The host registers the supplied preview panes; native bounded text and rooted raw retrieval use existing authentication and active-content safety headers. Supplied UI sources are unchanged. [ADR-0040](../adr/0040-read-only-workspace-previews.md).
+
+Verified **480/480 browser**, **73/73 functional**, **31 helpers**, full Go/vet/build/hook and web race ×3. Coverage **44/236 Classic**, **2/42 shared**, **192/40 unmapped**. Editor/CRUD, expanded format support and compact terminal viewer acceptance remain gaps. Screenshots attached at desktop/tablet/phone sizes.
+
+## Earlier feature evidence: stored images and lightbox (2026-09-22)
 
 Native media IDs/typed blocks now reach timeline and search. Guarded metadata/raw endpoints supply stored bytes to the unchanged image modal. **timeline-013/014/015/016** pass keyboard, pointer and trusted-touch dismissal; additional session/search/reload/404 checks retain drafts and files. [ADR-0039](../adr/0039-native-media-lightbox.md).
 

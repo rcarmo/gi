@@ -1,6 +1,8 @@
 # Gi web UI — 2026-09-21
 
-Latest lightbox slice (2026-09-22): native stored-image projection/retrieval; timeline-013–016 keyboard/pointer/trusted-touch dismissal, with session/search/reload/404 draft guards. **474/474 browser**, **72/72 functional**, **31 helpers**, Go/vet/build/hook/web race ×3. Coverage **43/236 Classic**, **2/42 shared**, **193/40 unmapped**. [ADR-0039](../adr/0039-native-media-lightbox.md). Supplied components unchanged; terminal actions and annotation/drawing remain gaps.
+Latest workspace preview slice (2026-09-22): workspace-008 native metadata and bounded Markdown/text/image/binary preview with rooted raw retrieval. **480/480 browser**, **73/73 functional**, **31 helpers**, Go/vet/build/hook/web race ×3. Coverage **44/236 Classic**, **2/42 shared**, **192/40 unmapped**. [ADR-0040](../adr/0040-read-only-workspace-previews.md). Supplied UI sources unchanged; editor/CRUD and terminal preview remain gaps.
+
+Earlier lightbox slice (2026-09-22): native stored-image projection/retrieval; timeline-013–016 keyboard/pointer/trusted-touch dismissal, with session/search/reload/404 draft guards. **474/474 browser**, **72/72 functional**, **31 helpers**, Go/vet/build/hook/web race ×3. Coverage **43/236 Classic**, **2/42 shared**, **193/40 unmapped**. [ADR-0039](../adr/0039-native-media-lightbox.md). Supplied components unchanged; terminal actions and annotation/drawing remain gaps.
 
 Earlier upload slice (2026-09-22): original-026 native IDs, upload errors/no submission, partial-batch recovery and explicit retry. **444/444 browser**, **70/70 functional**, **29 helpers**, Go/vet/hook. Coverage **39/236 Classic**, **2/42 shared**, **197/40 unmapped**. Application unchanged; compose-005 progress and terminal pending media remain gaps. [ADR-0038](../adr/0038-native-upload-failure-recovery.md).
 

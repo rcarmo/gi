@@ -487,8 +487,8 @@ export async function getWorkspaceTree(path = '', _depth = 1, _showHidden = fals
     return { root: node };
 }
 
-export async function getWorkspaceFile(path: string, _chatJid: string | null = null) {
-    return request(`/api/workspace/file?path=${encodeURIComponent(path)}`);
+export async function getWorkspaceFile(path: string, maxBytes = 20000) {
+    return request(`/api/workspace/file?path=${encodeURIComponent(path)}&max_bytes=${maxBytes}`);
 }
 
 export async function getWorkspaceIndexStatus(_chatJid: string | null = null) {

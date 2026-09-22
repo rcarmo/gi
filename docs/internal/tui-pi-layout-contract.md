@@ -6,6 +6,10 @@ Status: active layout contract for the Pi/PiClaw UX convergence track.
 
 Retain go-tui 0.18.2. Attempts with 0.22.1 and 0.19.0 erase a completed native-scrollback response after resize; the existing regular acceptance catches this at 60×18. All three-size suites pass after restoring 0.18.2 with upgraded go-ai/Go dependencies. [Upgrade evidence](dependency-upgrade-20260922.md). Do not exchange history integrity for a newer dependency or weaken the history assertions.
 
+## Read-only workspace preview (2026-09-22; design)
+
+Use an explicit temporary, height-bounded read-only viewer with filename/type/size. Keep literal text and existing Markdown projection; binary/images show metadata and an explicit capability-gated open/download action. Escape restores draft/cursor/reader; navigation never submits or silently attaches files. No permanent sidebar/image area or extra idle rows; Pi transcript padding remains intact. Verify Unicode/long text, failure, resize and dismissal at all three sizes before terminal credit. [ADR-0040](../adr/0040-read-only-workspace-previews.md) verifies browser workspace-008 only.
+
 ## Image inspection (2026-09-22; design)
 
 Use an explicit attachment action and temporary bounded filename/type/size selector. Escape restores the draft, cursor and reader; unrelated keys never submit. External open/download must be explicit and capability-gated. Add no persistent image panel or idle rows; retain transcript padding. Inline graphics and browser backdrop/touch gestures have no mandatory terminal equivalent. Verify dismiss, selection, lookup failure and explicit opening at all three sizes before terminal credit. Browser timeline-013–016 is verified in [ADR-0039](../adr/0039-native-media-lightbox.md); no terminal implementation changed.
