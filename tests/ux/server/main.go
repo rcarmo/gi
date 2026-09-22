@@ -105,6 +105,15 @@ func main() {
 	cfg := config.Load(dir)
 	cfg.DefaultModel = "ux-local/gate"
 	cfg.EnabledModels = []string{"ux-local/gate", "test-model", "bootstrap"}
+	if os.Getenv("GI_UX_CONTEXT") != "" {
+		for _, entry := range []struct {
+			id     string
+			window int
+		}{{"small", 80}, {"equal", 100}, {"large", 200}} {
+			goai.RegisterModel(&goai.Model{ID: entry.id, Name: entry.id, Provider: goai.Provider("ux-local"), Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, Input: []string{"text"}, ContextWindow: entry.window, MaxTokens: 32})
+			cfg.EnabledModels = append(cfg.EnabledModels, "ux-local/"+entry.id)
+		}
+	}
 	cfg.DefaultProvider = "ux-local"
 	cfg.SystemPrompt = "Local acceptance fixture. Answer user messages."
 	cfg.WorkspaceRoot = dir

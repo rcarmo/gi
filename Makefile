@@ -226,15 +226,21 @@ test-ux: test-instance-start
 UX_PARITY_PORT ?= 19091
 UX_PARITY_ARGS ?=
 
-# Real local inference checkpoints for queue-Steer acceptance (no paid provider).
+# Real local inference checkpoints (no paid provider).
+UX_LOCAL_ENV ?= GI_UX_STEER=1
+UX_LOCAL_SPEC ?= tests/ux/queue-steer.spec.mjs
+test-ux-context-fit:
+	$(MAKE) --no-print-directory test-ux-steer UX_LOCAL_ENV=GI_UX_CONTEXT=1 UX_LOCAL_SPEC=tests/ux/context-fit.spec.mjs
+
 test-ux-steer: build-web
 	@mkdir -p bin test-results/ux-parity/queue-gates
 	$(GO) build -o bin/gi-ux-steer ./tests/ux/server
 	@set -e; \
-	PATH=$(abspath tests/ux/shell):$$PATH GI_UX_QUEUE_GATES=$(abspath test-results/ux-parity/queue-gates) bin/gi-ux-steer >test-results/ux-parity/steer-server.log 2>&1 & pid=$$!; \
+	PATH=$(abspath tests/ux/shell):$$PATH $(UX_LOCAL_ENV) GI_UX_QUEUE_GATES=$(abspath test-results/ux-parity/queue-gates) bin/gi-ux-steer >test-results/ux-parity/steer-server.log 2>&1 & pid=$$!; \
 	trap 'kill $$pid 2>/dev/null || true; wait $$pid 2>/dev/null || true' EXIT; \
-	for i in $$(seq 1 100); do if curl -fsS http://127.0.0.1:19092/health >/dev/null 2>&1; then break; fi; sleep .1; done; \
-	GI_UX_STEER=1 GI_TEST_URL=http://127.0.0.1:19092 $(PLAYWRIGHT) test --config=playwright.ux.config.mjs tests/ux/queue-steer.spec.mjs $(UX_PARITY_ARGS)
+	ready=0; for i in $$(seq 1 100); do kill -0 $$pid || exit 1; if curl -fsS http://127.0.0.1:19092/api/runtime/config >/dev/null 2>&1; then ready=1; break; fi; sleep .1; done; \
+	test $$ready -eq 1; \
+	$(UX_LOCAL_ENV) GI_TEST_URL=http://127.0.0.1:19092 $(PLAYWRIGHT) test --config=playwright.ux.config.mjs $(UX_LOCAL_SPEC) $(UX_PARITY_ARGS)
 ux-parity-inventory:
 	$(BUN) test tests/ux/support/
 	$(BUN) scripts/ux-parity-report.mjs

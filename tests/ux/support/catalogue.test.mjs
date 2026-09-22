@@ -24,6 +24,8 @@ test('all frozen scenarios and outline examples are inventoried, not just mapped
   expect(cases).toHaveLength(256);
   expect(new Set(cases.map(item => item.id)).size).toBe(236);
   for (const id of mappedIds) expect(cases.some(item => item.id === id)).toBe(true);
+  expect(cases.find(row => row.id === '@ux-compaction-006')?.name).toBe('Check model context compatibility before switching');
+  expect(cases.find(row => row.id === '@ux-compaction-007')?.name).toBe('Refresh model information after an accepted switch');
   const shared = loadCorpus('shared');
   expect(shared).toHaveLength(42);
   for (const id of sharedMappedIds) expect(shared.some(item => item.id === id)).toBe(true);

@@ -1,5 +1,7 @@
 # Gi web UI — 2026-09-21
 
+Latest evidence (2026-09-22): measured model context fit (`compaction-006/007`) passes all six projects. **216/216 browser executions**, **70/70 functional**, Go tests/vet/hook checks, **23/23 helpers**. Coverage: **Classic 17/236**, **shared 2/42**, with 219 and 40 unmapped. Legacy dev startup is repaired in `1c1111b`, history preserved and port 8090 running. See [ADR-0016 follow-up](../adr/0016-measured-request-context.md). Full compaction is unverified.
+
 Latest slice (2026-09-22): **204/204 browser executions**, **70/70 functional**, **23/23 helpers**, Go/vet and targeted race checks. Coverage: Classic **15/236** (221 unmapped), shared **2/42** (40 unmapped). Shared queue Steer is run-bound, atomic and idle-disabled; unconsumed rows are held for explicit recovery/retry. Classic idle-send stays unmapped. See [ADR-0018](../adr/0018-run-bound-queue-steer.md). The counts below record earlier slices.
 
 Gi has a Piclaw-derived Preact web shell backed by Go HTTP APIs, SSE and SQLite. Many copied Piclaw controls have no working Gi adapter yet. Backend capabilities and browser feature support differ substantially.

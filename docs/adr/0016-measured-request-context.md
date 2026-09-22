@@ -22,7 +22,17 @@ The model picker blocks a known smaller context window before mutation. Shared n
 
 The TUI keeps cumulative input/output/cost statistics but takes its context segment from the separate measurement. It adds no row, panel or persistent notice. Unknown measurements omit the context segment; the existing footer layout stays intact.
 
-## Evidence
+## Browser context-fit follow-up (2026-09-22)
+
+`make test-ux-context-fit` now covers frozen `@ux-compaction-006` and `007` across all six browser/viewport projects. The isolated provider reports 100 input tokens through its real streaming response; production inference persists the measurement. Registry entries have capacities 80, 100 and 200. The picker blocks the 80-token entry without a request, and a direct native PATCH rejects it with 400 while retaining the model. Equal/larger entries follow normal selection, update context capacity/percentage and survive reload. Text and attachment drafts stay intact. A different session with unknown usage can select the smaller entry.
+
+The test verifies the measurement's original turn/model/iteration, unchanged request token count after model selection and no extra submitted turn. No SQL usage seed, synthetic SSE, paid-provider call or component change is used. The local fixture is deterministic; this is not a live-tokenizer or paid-provider accuracy test.
+
+Validation: 12/12 context-fit executions, 12/12 Steer, 192/192 existing matrix, 70/70 functional, Go tests/vet, hook checks and 23 helper tests. Combined coverage: Classic 17/236 passing (219 unmapped), shared 2/42 passing (40 unmapped). Full compaction, suppression/cancellation and non-fit context feature IDs still need their own evidence.
+
+Terminal model selection already calls the same native fit check. Keep rejections in the existing transient notice and leave editor state/model unchanged; no idle rows or wider footer. This browser evidence adds no new live terminal acceptance credit.
+
+## Original measurement evidence
 
 - Provider-loop test uses a deterministic inference result stub to verify the real loop records input/cache usage. A separate multiple-iteration test proves the latest request wins over cumulative totals and excludes output. No live paid provider was called.
 - Store/inference tests cover append/reopen persistence, session isolation, missing measurement/capacity and shared model-fit rejection.

@@ -75,6 +75,21 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Measured model context fit: 2026-09-22
+
+`make test-ux-context-fit` maps `@ux-compaction-006/007` using the existing local-provider fixture with opt-in registry capacities 80/100/200. A real streamed result reports 100 prompt tokens; production inference persists the measurement. Tests verify blocked pointer activation sends no mutation, direct PATCH rejects the undersized model, accepted switches refresh capacity/percentage, equal capacity is permitted, and reload/session switches retain model/text/media ownership. Unknown usage stays unknown in another session.
+
+Run all three matrices explicitly before combining evidence:
+
+```sh
+make test-ux-parity
+make test-ux-steer
+make test-ux-context-fit
+bun scripts/ux-parity-report.mjs test-results/ux-parity/results.json test-results/ux-parity/steer-results.json test-results/ux-parity/context-fit-results.json
+```
+
+Latest: **216/216 browser executions** (192 + 12 + 12), **70/70 functional**, **23/23 helpers**, Go tests/vet and hook checks. Classic **17/236** and shared **2/42** passing; 219/40 unmapped. Individual reports mark absent fixture mappings not-run. No provider costs, SQL-seeded usage, synthetic agent events, forced clicks or retries. Full compaction and other context-meter IDs are unverified. See [ADR-0016](../../docs/adr/0016-measured-request-context.md).
+
 ## Shared run-bound queue Steer: 2026-09-22
 
 `queue-steer.spec.mjs` maps `@shared-30`; the catalogue test pins its title. Run `make test-ux-steer` for the isolated Go server and local streaming provider. Native API/SSE, SQLite and inference checkpoints are unchanged. The fixture uses temporary credentials/workspace, binds to loopback and closes on exit. No paid provider, forced clicks, retries or fabricated timeline events are used.

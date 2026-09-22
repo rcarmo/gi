@@ -1,5 +1,13 @@
 # Web session selection and compact TUI adaptation
 
+## Latest evidence: measured model context fit (2026-09-22)
+
+Classic `@ux-compaction-006/007` now pass all six projects using real local-provider usage through the native inference loop. A measured 100-token request blocks an 80-token model in the picker and API, permits 100/200-token models, and updates displayed capacity/percentage without changing the measurement or submitting a turn. Model selection and text/attachment drafts survive reload; unknown usage in another session stays independent. See [ADR-0016 follow-up](../adr/0016-measured-request-context.md).
+
+Current totals: **216/216 browser executions**, **70/70 functional**, **23/23 helper tests**, Go tests/vet and hook checks. Coverage: **Classic 17/236** passing (219 unmapped), **shared 2/42** passing (40 unmapped). Full compaction and the other context-meter scenarios have no added credit. The local provider is deterministic, not a paid-provider or tokenizer-accuracy test. Supplied components/UI/panes and production runtime code are unchanged by this evidence slice.
+
+Terminal context-fit rejection already uses the same validation. Keep the existing transient notice and editor/model state; add no idle rows. No new terminal acceptance is claimed by these browser tests.
+
 ## Legacy dev startup repair (2026-09-22)
 
 The dev database predates `turns.phase`. Schema initialisation now runs table creation, additive columns/backfill and index creation in one transaction, in that order. New phases derive from existing turn status; later opens leave them unchanged. Unrelated ALTER failures are not treated as duplicate-column success. A late index error rolls back all schema changes.
