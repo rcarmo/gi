@@ -2,6 +2,10 @@
 
 Status: active layout contract for the Pi/PiClaw UX convergence track.
 
+## Table/code/source-copy adaptation (2026-09-22; design)
+
+Use existing width-bounded table projection and literal fenced code; SVG fences remain source text. Existing selection/copy/native scrollback should expose retained output without permanent copy buttons or table panes. Verify exact source whitespace and wrapping independently at the three sizes before terminal credit. Browser timeline-023/024 and original-029 are verified in [ADR-0037](../adr/0037-native-markdown-rendering.md); those browser results do not establish terminal source-copy fidelity.
+
 ## Structured references (2026-09-22; design)
 
 Keep file/folder/message references in the existing editor and explicit commands; add no permanent attachment panel. Existing `@` path completion preserves the prefix and appends `/` to directories, but structured `Files:`/message-reference capture and durable failed-send recovery need separate three-size terminal acceptance. Browser compose-008 is now verified; it earns no terminal credit. See [ADR-0035](../adr/0035-explicit-folder-references.md).

@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Native Markdown rendering: 2026-09-22
+
+`rendering.spec.mjs` maps timeline-023/024 and original-029 through stored assistant posts: full-width automatic tables, visible top-right code-copy controls with trusted plain-text copy events, and source-only SVG fences. A Gi-only case checks native horizontal wheel reachability for a wide table and draft/reload preservation. No clipboard stubs or fabricated posts. [ADR-0037](../../docs/adr/0037-native-markdown-rendering.md).
+
+Latest: **432/432 browser** (270 main + 162 specialised), **70/70 functional**, **29 helpers**, Go/vet/hook. Main browser-family batches each pass 135 cases. Existing six result files apply. Coverage **38/236 Classic**, **2/42 shared**, **198/40 unmapped**. Clipboard-event payload observation does not prove every OS paste target; combined deletion/speech/link-preview contracts stay unmapped. Meter capability snapshot timing failed once and passed unchanged on rerun.
+
 ## Completed-claim admission: 2026-09-22
 
 `queue-steer.spec.mjs` adds a Gi-only native completion-hook gate: the first turn is terminal/display-idle while its claim remains owned by cleanup. A composer prompt must receive its own queued ID, drain after release, preserve newer typing and appear once after reload. Existing strict run-bound Steer assertions are unchanged. Paging compares the exact persisted ID window, including native queue-status messages. [ADR-0036](../../docs/adr/0036-completed-claim-admission.md).

@@ -17666,6 +17666,7 @@ function GiApp() {
   }
   return ce`
         <div class=${appShellClass}>
+            <style>${`.app-shell .post-content:has(table) { overflow-x: auto; } .app-shell .post-content table { display: table; width: 100%; table-layout: auto; }`}</style>
             <${SystemMetersHud} mode="overlay" />
             <${TimelineMenu}
                 workspaceOpen=${workspaceOpen}
@@ -17945,5 +17946,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=46D45F56E882055F64756E2164756E21
+//# debugId=F7A172820842CE2364756E2164756E21
 //# sourceMappingURL=app.js.map

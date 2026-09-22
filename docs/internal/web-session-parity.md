@@ -1,6 +1,12 @@
 # Web session selection and compact TUI adaptation
 
-## Latest native/browser evidence: completed-claim admission (2026-09-22)
+## Latest browser evidence: native Markdown rendering (2026-09-22)
+
+Timeline tables now retain full-width automatic table layout through a host-scoped override; overflowing columns remain reachable by native horizontal scrolling. Stored assistant posts verify code-copy placement/trusted plain-text payloads and SVG fences staying literal source. Mapped: **timeline-023/024, original-029**. Supplied components/stylesheets unchanged. [ADR-0037](../adr/0037-native-markdown-rendering.md).
+
+Verified: **432/432 browser**, **70/70 functional**, **29 helpers**, full Go/vet/hook. Coverage **38/236 Classic**, **2/42 shared**, **198/40 unmapped**. One capability-timing meter failure passed unchanged on rerun and is documented separately. Compound link-preview/copy-delete/speech contracts and terminal source-copy adaptation remain unverified; no terminal code or new idle UI in this slice.
+
+## Earlier native/browser evidence: completed-claim admission (2026-09-22)
 
 Prompt admission now atomically requires a matching running claim for live steering. A terminal predecessor still in cleanup causes a distinct durable queued turn; cleanup retains claim ownership and drains FIFO. Strict queue Steer remains unchanged. A held native completion hook reproduces the old exhausted-turn response and verifies separate HTTP admission, exactly one stored user message per tested prompt and newer draft/reload preservation. [ADR-0036](../adr/0036-completed-claim-admission.md).
 

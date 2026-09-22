@@ -814,6 +814,7 @@ function GiApp() {
 
     return html`
         <div class=${appShellClass}>
+            <style>${`.app-shell .post-content:has(table) { overflow-x: auto; } .app-shell .post-content table { display: table; width: 100%; table-layout: auto; }`}</style>
             <${SystemMetersHud} mode="overlay" />
             <${TimelineMenu}
                 workspaceOpen=${workspaceOpen}
