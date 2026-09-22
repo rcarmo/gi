@@ -270,7 +270,10 @@ test-tui-compaction:
 	$(GO) test -c -o bin/gi-tui-compaction-test ./internal/tui
 	$(BUN) scripts/test-tui-compaction.mjs
 
-.PHONY: test-tui-reading
+.PHONY: test-tui-reading test-tui-outcomes
+test-tui-outcomes: build
+	$(BUN) scripts/test-tui-outcomes.mjs
+
 test-tui-reading: build
 	$(BUN) scripts/test-tui-reading.mjs
 

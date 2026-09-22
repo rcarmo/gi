@@ -50,6 +50,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [ ] Establish file/folder/message reference selection and references-only submission for compose-008; folder selection currently only expands the supplied explorer. Routed terminal acceptance/recovery still needs independent tests.
 - [x] Preserve terminal follow mode during editing and ordinary running/idle submission; native delayed-provider completion/newer cursor/same-row anchor/resize/explicit-follow tests at 60×18, 100×22 and 140×36 add zero idle rows. Go/vet, terminal race ×3, all existing TUI suites, 29 helpers and 70/70 functional tests; ADR-0029.
 - [ ] Complete terminal routed acceptance/recovery, durable transcript-ID reconciliation and block anchors across wrapped reflow/scrollback eviction.
+- [x] Adopt Pi dark user/pending/success/error bands without tool box rows; rendered-height fullscreen paging/bottom, focused Home/End with Ctrl variants for editor, Ctrl-O expansion and dock-wheel fallback. Three-size native ANSI/buffer tests, all TUI suites, Go/vet/race ×3, 29 helpers and 70/70 functional; ADR-0030.
+- [ ] Match Pi regular-mode terminal-owned scrollback and remaining fullscreen search, prompt jumps, selection/copy/edge autoscroll; light theme and retained-output/reflow limits also need evidence.
 - [ ] Complete remaining reconnect ownership and full browser compaction acceptance.
 - [x] Implement per-session terminal editor/history state, generation-owned event/submit delivery and cancel-safe forwarding; unit/race coverage.
 - [x] Bound the temporary terminal session selector to six results; live tmux verifies cancel/resize/zero added idle rows at 60×18, 100×22 and 140×36 (`make test-tui-sessions`).

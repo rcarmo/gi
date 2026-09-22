@@ -2,6 +2,12 @@
 
 Status: active layout contract for the Pi/PiClaw UX convergence track.
 
+## Pi outcome bands and fullscreen navigation (2026-09-22; verified)
+
+User messages use Pi's neutral `#343541` band; pending/success/error tools use `#282832`/`#283228`/`#3c2828`, with neutral output text and explicit error labels. Flat bands replace tool box rows. PgUp/PgDn and Home/End navigate rendered transcript rows even while editing; Ctrl-Home/End retain editor movement, Ctrl-O expands/collapses tool output, and wheel input over the fixed dock falls back to the transcript. Three-size native PTY and rendered-cell tests pass without extra idle rows. See [ADR-0030](../adr/0030-terminal-outcome-bands.md).
+
+Pi regular-mode native scrollback, fullscreen transcript search, prompt jumps, text selection/copy/edge-autoscroll, light theme and reflow/eviction anchoring remain open. Internal fullscreen scrolling does not provide native terminal scrollback.
+
 ## Terminal reading position (2026-09-22; verified)
 
 Editing and ordinary running/idle submission preserve the existing transcript follow mode. PageUp or mouse history navigation stays in place; explicit navigation back to the newest edge resumes following. Native delayed-provider completion, newer text/cursor, same-row history anchors, resize round trips and zero additional idle rows pass at 60×18, 100×22 and 140×36 (`make test-tui-reading`). [ADR-0029](../adr/0029-terminal-reading-position.md) records evidence and limits. Routed acceptance, recovery, reflow and scrollback eviction still need separate work.

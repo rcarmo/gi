@@ -1,6 +1,10 @@
 # Web session selection and compact TUI adaptation
 
-## Latest terminal evidence: reading position (2026-09-22)
+## Latest terminal evidence: Pi bands and fullscreen navigation (2026-09-22)
+
+Pi dark user/pending/success/error backgrounds now fill flat output bands. Rendered-height paging/bottom, focused Home/End, Ctrl-Home/End editor movement, Ctrl-O expansion and dock-wheel fallback are verified at **60×18, 100×22 and 140×36**. Native ANSI snapshots, rendered-cell checks, all TUI suites, Go/vet/race ×3, 29 helpers and 70/70 functional tests pass. See [ADR-0030](../adr/0030-terminal-outcome-bands.md). Pi regular-mode native scrollback and fullscreen search/prompt jumps/selection remain open; dark-theme styling and internal navigation alone do not complete that request. No new browser mapping; folder-reference WIP remains separate.
+
+## Earlier terminal evidence: reading position (2026-09-22)
 
 Typing and ordinary submission preserve existing transcript follow mode. Native delayed-provider completion, newer draft/cursor, same-row history anchors, resize round trips and explicit newest-edge navigation pass at **60×18, 100×22 and 140×36**, with **zero additional idle rows**. Full Go/vet, terminal races ×3, session/model/compaction/smoke/Gherkin tests, 29 helpers and 70/70 functional browser tests pass. See [ADR-0029](../adr/0029-terminal-reading-position.md). Delayed routed acceptance/recovery, reflow/eviction anchoring and durable transcript-ID reconciliation remain open. Frozen browser counts stay **34/236 Classic**, **2/42 shared**, **202/40 unmapped**; the complete 384/384 matrix below was run for `4071c01`.
 

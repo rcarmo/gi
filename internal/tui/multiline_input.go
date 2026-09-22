@@ -20,6 +20,8 @@ type multilineInput struct {
 	onSubmit         func(string)
 	onRestoreQueued  func()
 	onEscape         func() bool
+	onTranscriptTop  func()
+	onTranscriptEnd  func()
 	onComplete       func(string, int) (string, int, bool)
 	onChange         func(string)
 	text             string
@@ -87,8 +89,22 @@ func (m *multilineInput) KeyMap() gotui.KeyMap {
 		gotui.OnFocused(gotui.KeyLeft.Alt(), func(ke gotui.KeyEvent) { m.moveWordLeft() }),
 		gotui.OnFocused(gotui.KeyRight, func(ke gotui.KeyEvent) { m.moveRight() }),
 		gotui.OnFocused(gotui.KeyRight.Alt(), func(ke gotui.KeyEvent) { m.moveWordRight() }),
-		gotui.OnFocused(gotui.KeyHome, func(ke gotui.KeyEvent) { m.moveHome() }),
-		gotui.OnFocused(gotui.KeyEnd, func(ke gotui.KeyEvent) { m.moveEnd() }),
+		gotui.OnFocused(gotui.KeyHome, func(ke gotui.KeyEvent) {
+			if m.onTranscriptTop != nil {
+				m.onTranscriptTop()
+			} else {
+				m.moveHome()
+			}
+		}),
+		gotui.OnFocused(gotui.KeyEnd, func(ke gotui.KeyEvent) {
+			if m.onTranscriptEnd != nil {
+				m.onTranscriptEnd()
+			} else {
+				m.moveEnd()
+			}
+		}),
+		gotui.OnFocused(gotui.KeyHome.Ctrl(), func(ke gotui.KeyEvent) { m.moveHome() }),
+		gotui.OnFocused(gotui.KeyEnd.Ctrl(), func(ke gotui.KeyEvent) { m.moveEnd() }),
 		gotui.OnFocused(gotui.KeyCtrlA, func(ke gotui.KeyEvent) { m.moveHome() }),
 		gotui.OnFocused(gotui.KeyCtrlE, func(ke gotui.KeyEvent) { m.moveEnd() }),
 		gotui.OnFocused(gotui.KeyCtrlU, func(ke gotui.KeyEvent) { m.deleteToLineStart() }),

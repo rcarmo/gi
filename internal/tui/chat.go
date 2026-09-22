@@ -222,12 +222,14 @@ func (c *chatTUI) ensureInput() {
 			c.input.onChange = c.onInputChanged
 		}
 		c.input.onEscape = c.handleCompactionEscape
+		c.input.onTranscriptTop, c.input.onTranscriptEnd = c.scrollTranscriptToTop, c.scrollTranscriptToBottom
 		return
 	}
 	c.input = newMultilineInput(80, "Send a message…", c.onSubmit, c.onInputChanged)
 	c.input.onRestoreQueued = c.restoreQueuedDraft
 	c.input.onComplete = c.completeInputPath
 	c.input.onEscape = c.handleCompactionEscape
+	c.input.onTranscriptTop, c.input.onTranscriptEnd = c.scrollTranscriptToTop, c.scrollTranscriptToBottom
 }
 
 func (c *chatTUI) onInputChanged(string) {
@@ -1531,10 +1533,11 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 			}
 		}),
 		gotui.OnStop(gotui.KeyTab, func(ke gotui.KeyEvent) { c.focusInput() }),
-		gotui.OnStop(gotui.KeyPageUp, func(ke gotui.KeyEvent) { c.pageTranscript(-1) }),
-		gotui.OnStop(gotui.KeyPageDown, func(ke gotui.KeyEvent) { c.pageTranscript(1) }),
-		gotui.OnStop(gotui.KeyHome, func(ke gotui.KeyEvent) { c.scrollTranscriptToTop() }),
-		gotui.OnStop(gotui.KeyEnd, func(ke gotui.KeyEvent) { c.scrollTranscriptToBottom() }),
+		gotui.OnPreemptStop(gotui.KeyPageUp, func(ke gotui.KeyEvent) { c.pageTranscript(-1) }),
+		gotui.OnPreemptStop(gotui.KeyPageDown, func(ke gotui.KeyEvent) { c.pageTranscript(1) }),
+		gotui.OnPreemptStop(gotui.KeyHome, func(ke gotui.KeyEvent) { c.scrollTranscriptToTop() }),
+		gotui.OnPreemptStop(gotui.KeyEnd, func(ke gotui.KeyEvent) { c.scrollTranscriptToBottom() }),
+		gotui.OnPreemptStop(gotui.Rune('o').Ctrl(), func(ke gotui.KeyEvent) { c.toggleToolOutput() }),
 		gotui.OnPreemptStop(gotui.KeyF6, func(ke gotui.KeyEvent) { c.selectTranscriptBlock(-1) }),
 		gotui.OnPreemptStop(gotui.KeyF7, func(ke gotui.KeyEvent) { c.selectTranscriptBlock(1) }),
 		gotui.OnPreemptStop(gotui.KeyF8, func(ke gotui.KeyEvent) { c.toggleSelectedTranscriptBlock() }),
@@ -2074,11 +2077,7 @@ func (c *chatTUI) handleTranscriptScrollEvent(me gotui.MouseEvent) bool {
 		if c.transcriptRegion.HandleEvent(me) {
 			_, y := c.transcriptRegion.ScrollOffset()
 			c.transcriptScroll = y
-			lines := c.visibleTranscript()
-			maxScroll := len(lines) - c.transcriptViewportHeight()
-			if maxScroll < 0 {
-				maxScroll = 0
-			}
+			maxScroll := c.transcriptMaxScroll()
 			c.stickToBottom = c.transcriptScroll >= maxScroll
 			if c.app != nil {
 				c.app.MarkDirty()
@@ -2087,7 +2086,9 @@ func (c *chatTUI) handleTranscriptScrollEvent(me gotui.MouseEvent) bool {
 		}
 		return false
 	}
-	if c.transcriptRegion == nil {
+	// Pi fullscreen forwards wheel input over the editor/footer to the main
+	// transcript. Selectors retain their own input ownership.
+	if c.transcriptRegion == nil || (!c.modelMenuOpen && me.Y >= c.transcriptRegion.Rect().Y+c.transcriptRegion.Rect().Height) {
 		switch me.Button {
 		case gotui.MouseWheelUp:
 			c.scrollTranscript(-3)
@@ -2583,13 +2584,14 @@ func (c *chatTUI) hotkeyLines() []string {
 		"editor:",
 		"  Enter send · Shift+Enter newline · Alt+Enter queue · Alt+Up restore queued",
 		"  Tab path complete · @path file ref · Ctrl+R history search",
+		"  Ctrl+Home/End or Ctrl+A/E editor line start/end",
 		"  Alt+Left/Right word move · Ctrl+W delete word · Ctrl+U/K delete line · Ctrl+Z undo · Ctrl+Y yank",
 		"runtime:",
 		"  Ctrl+L/Alt+L cycle model · Ctrl+T/Alt+T cycle thinking",
 		"  /model selector · /sessions selector · /thinking level",
 		"transcript:",
-		"  F6/F7 select block · F8 expand/collapse · click block to toggle",
-		"  PgUp/PgDn scroll · Home/End top/bottom · mouse wheel scroll",
+		"  Ctrl+O expand/collapse tool output · F6/F7 select block · F8 expand/collapse · click toggle",
+		"  PgUp/PgDn transcript page · Home/End top/bottom (also while editing) · mouse wheel",
 		"session:",
 		"  Esc blur input · Tab focus input · F2/F3 (or Ctrl+P/Ctrl+N) history",
 		"  Ctrl+C interrupt · Ctrl+D exit (empty input)",
@@ -3689,6 +3691,10 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	for _, block := range blocks {
 		transcript.AddChild(c.renderTranscriptBlock(block))
 	}
+	if c.stickToBottom {
+		// Resolve the bottom after layout, when wrapping/expansion is known.
+		transcript.ScrollToBottom()
+	}
 	root.AddChild(transcript)
 	if c.modelMenuOpen {
 		root.AddChild(c.renderModelMenu(contentWidth))
@@ -4291,7 +4297,6 @@ func (c *chatTUI) renderInlineStyledLine(line string, style gotui.Style) *gotui.
 	if len(segments) == 1 && !segments[0].Code {
 		return gotui.New(
 			gotui.WithWidthPercent(100),
-			gotui.WithHeight(1),
 			gotui.WithText(segments[0].Text),
 			gotui.WithTextStyle(style),
 		)
@@ -4548,6 +4553,17 @@ func transcriptBlockPalette(kind, status string, selected bool) (gotui.Style, go
 			body = gotui.NewStyle().Dim()
 		}
 	}
+	if _, banded := transcriptBand(kind, status); banded {
+		// Pi keeps tool text neutral; the full-width band carries the outcome.
+		head = gotui.NewStyle().Foreground(piText).Bold()
+		body = gotui.NewStyle().Foreground(piText)
+		if kind == "error" || status == "error" || status == "failed" {
+			head = head.Foreground(piError)
+		}
+		if kind == "user" {
+			head = gotui.NewStyle().Foreground(piText)
+		}
+	}
 	return head, body, hint, selectedHint, border
 }
 
@@ -4563,7 +4579,8 @@ func brailleSpinnerFrame(t time.Time) string {
 	return frames[idx]
 }
 
-func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) *gotui.Element {
+func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) (element *gotui.Element) {
+	defer func() { applyTranscriptBand(element, block) }()
 	if block.Kind == "thought" {
 		container := gotui.New(
 			gotui.WithDirection(gotui.Column),
@@ -4596,10 +4613,13 @@ func (c *chatTUI) renderTranscriptBlock(block transcriptRenderableBlock) *gotui.
 	container := gotui.New(
 		gotui.WithDirection(gotui.Column),
 		gotui.WithWidthPercent(100),
-		gotui.WithBorder(block.Border),
-		gotui.WithBorderStyle(block.BorderStyle),
 		gotui.WithPaddingTRBL(0, 1, 0, 1),
 	)
+	// Flat Pi outcome bands do not add box rows.
+	if _, banded := transcriptBand(block.Kind, block.Status); !banded {
+		container.SetBorder(block.Border)
+		container.SetBorderStyle(block.BorderStyle)
+	}
 	ref := gotui.NewRef()
 	ref.Set(container)
 	c.transcriptBlockRefs = append(c.transcriptBlockRefs, transcriptBlockHitTarget{Key: block.Key, Ref: ref})
@@ -4810,10 +4830,9 @@ func (c *chatTUI) transcriptViewportHeight() int {
 }
 
 func (c *chatTUI) scrollTranscript(delta int) {
-	lines := c.visibleTranscript()
-	maxScroll := len(lines) - c.transcriptViewportHeight()
-	if maxScroll < 0 {
-		maxScroll = 0
+	maxScroll := c.transcriptMaxScroll()
+	if c.transcriptRef != nil && c.transcriptRef.El() != nil {
+		_, c.transcriptScroll = c.transcriptRef.El().ScrollOffset()
 	}
 	c.transcriptScroll += delta
 	if c.transcriptScroll < 0 {
@@ -4845,12 +4864,7 @@ func (c *chatTUI) scrollTranscriptToTop() {
 }
 
 func (c *chatTUI) scrollTranscriptToBottom() {
-	lines := c.visibleTranscript()
-	maxScroll := len(lines) - c.transcriptViewportHeight()
-	if maxScroll < 0 {
-		maxScroll = 0
-	}
-	c.transcriptScroll = maxScroll
+	c.transcriptScroll = c.transcriptMaxScroll()
 	c.stickToBottom = true
 	if c.app != nil {
 		c.app.MarkDirty()
