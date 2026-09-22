@@ -6,7 +6,7 @@ import {resolve,join} from 'node:path';
 import {createServer,request as httpRequest} from 'node:http';
 import {loadCorpus} from './support/catalogue.mjs';
 const inputName='Message (Enter to send, Shift+Enter for newline)...';
-async function environment(page,info){
+async function environment(page,info,options={}){
  const dir=mkdtempSync(join(tmpdir(),'gi-reconnect-'));
  const reserve=createServer();await new Promise(r=>reserve.listen(0,'127.0.0.1',r));const port=reserve.address().port;await new Promise(r=>reserve.close(r));
  const origin=`http://127.0.0.1:${port}`;let child;
@@ -18,7 +18,10 @@ async function environment(page,info){
  };
  const stop=async()=>{if(!child||child.exitCode!==null)return;const done=new Promise(r=>child.once('exit',r));child.kill('SIGTERM');await done;};
  let blocked=false;const connections=new Set();
- const proxy=createServer((req,res)=>{
+ let releaseInitial;const initialReady=new Promise(r=>releaseInitial=r);
+ if(!options.holdInitial)releaseInitial();
+ const proxy=createServer(async(req,res)=>{
+  await initialReady;if(res.destroyed)return;
   res.setHeader('Access-Control-Allow-Origin','*');if(blocked){res.writeHead(503);res.end();return;}
   connections.add(res);res.on('close',()=>connections.delete(res));
   const upstream=httpRequest(new URL(req.url,origin),source=>{res.writeHead(source.statusCode,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Access-Control-Allow-Origin':'*'});source.on('aborted',()=>res.destroy());source.on('error',()=>res.destroy());source.pipe(res);});
@@ -32,8 +35,8 @@ async function environment(page,info){
  await page.addInitScript(id=>{if(!localStorage.getItem('gi_session_id'))localStorage.setItem('gi_session_id',id);},main.id);
  await page.goto(origin);const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();
  await expect(page.locator('.compose-connection-status')).toHaveCount(0);
- return {origin,main,input,api,release:token=>writeFileSync(join(dir,token),'go'),drop(){blocked=true;for(const res of connections)res.destroy();},resume(){blocked=false;},stop,start,
-  async close(){for(const res of connections)res.destroy();await new Promise(r=>proxy.close(r));await stop();log.end();rmSync(dir,{recursive:true,force:true});}};
+ return {origin,main,input,api,ready:()=>releaseInitial(),release:token=>writeFileSync(join(dir,token),'go'),drop(){blocked=true;for(const res of connections)res.destroy();},resume(){blocked=false;},stop,start,
+  async close(){releaseInitial();for(const res of connections)res.destroy();await new Promise(r=>proxy.close(r));await stop();log.end();rmSync(dir,{recursive:true,force:true});}};
 }
 async function source(info,id){const scenario=loadCorpus().find(x=>x.id===id);await info.attach('gherkin',{body:scenario.steps.join('\n'),contentType:'text/plain'});}
 
@@ -145,5 +148,44 @@ test('Gi failed search remains scoped and reconnect does not erase its query',as
   await search.fill('unavailable query');await search.press('Enter');await expect(page.getByRole('alert').filter({hasText:'Search failed:'})).toBeVisible();await expect(search).toHaveValue('unavailable query');
   await page.unroute(pattern);env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.getByText('No matching messages.',{exact:true})).toBeVisible();await expect(search).toHaveValue('unavailable query');await expect(page.getByRole('alert')).toHaveCount(0);
   await search.press('Escape');await expect(input).toHaveValue('draft before search error');
+ }finally{await env.close();}
+});
+
+function observeRefreshes(page){
+ const paths=['messages','activity','queue','model','compaction'];const counts=new Map();
+ page.on('request',r=>{const m=new URL(r.url()).pathname.match(/^\/api\/sessions\/([^/]+)\/([^/]+)$/);if(r.method()==='GET'&&m&&paths.includes(m[2])){const key=m[1]+'/'+m[2];counts.set(key,(counts.get(key)||0)+1);}});
+ return {count:(id,name)=>counts.get(id+'/'+name)||0,paths};
+}
+test('@ux-reconnect-005 Initial activation and SSE readiness do not duplicate refresh',async({page},info)=>{
+ await source(info,'@ux-reconnect-005');const requests=observeRefreshes(page);const env=await environment(page,info,{holdInitial:true});const{main,input,api}=env;
+ try{
+  // Shell is already rendered but the native subscription is deliberately held.
+  await input.fill('draft before first subscription');
+  for(const name of requests.paths)expect(requests.count(main.id,name)).toBe(0);
+  env.ready();await expect.poll(()=>requests.count(main.id,'compaction')).toBe(1);
+  await expect(page.locator('.compose-context-pie')).toBeVisible();
+  for(const name of requests.paths)expect(requests.count(main.id,name)).toBe(1);
+  await expect(input).toHaveValue('draft before first subscription');
+  // Each selection (including A -> B -> A) is a new activation, not a cache hit.
+  const other=(await api(`/api/sessions/${main.id}/fork`,'POST',{agent_id:'initial-child',title:'child'})).branch.chat_jid.slice(3);
+  // Refresh the picker through the normal native fork invalidation/periodic path.
+  await page.reload();await expect(input).toHaveValue('draft before first subscription');
+  const baseline=requests.count(main.id,'activity');
+  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${other}"]`).getByRole('menuitem').click();
+  await expect.poll(()=>requests.count(other,'activity')).toBe(1);await expect(page.locator('.compose-context-pie')).toBeVisible();
+  for(const name of requests.paths)expect(requests.count(other,name)).toBe(1);
+  await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${main.id}"]`).getByRole('menuitem').click();
+  await expect.poll(()=>requests.count(main.id,'activity')).toBe(baseline+1);await expect(input).toHaveValue('draft before first subscription');
+  const before=Object.fromEntries(requests.paths.map(name=>[name,requests.count(main.id,name)]));env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});
+  for(const name of requests.paths)await expect.poll(()=>requests.count(main.id,name)).toBe(before[name]+1);
+ }finally{await env.close();}
+});
+
+test('Gi failed initial state refresh remains retryable on real reconnect',async({page},info)=>{
+ const env=await environment(page,info,{holdInitial:true});const{main,input}=env;
+ try{
+  const pattern=`**/api/sessions/${main.id}/activity`;await page.route(pattern,route=>route.abort('failed'));
+  await input.fill('draft survives first failure');env.ready();await expect(page.getByRole('alert')).toBeVisible();
+  await page.unroute(pattern);env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});env.resume();await expect(page.getByRole('alert')).toHaveCount(0,{timeout:15000});await expect(page.locator('.compose-context-pie')).toBeVisible();await expect(input).toHaveValue('draft survives first failure');
  }finally{await env.close();}
 });

@@ -76,7 +76,7 @@ import { recoverQueueDraft } from './gi-queue-return.js';
 
 import { createActivityRevision, compactionNotice, compactionElapsed } from './gi-compaction-state.js';
 import { contextPresentation } from './gi-context-usage.js';
-import {createTimelineRevision,createAssetVersionGuard,loadedAssetVersion} from './gi-refresh-guards.js';
+import {createActivationRefreshGate,createTimelineRevision,createAssetVersionGuard,loadedAssetVersion} from './gi-refresh-guards.js';
 import {createSearchView} from './gi-search-state.js';
 
 const DEFAULT_SESSION_TITLE = 'default';
@@ -235,7 +235,8 @@ function GiApp() {
     const modelRevision = useRef(0);
     const modelMutation = useRef<any>(null);
     const connectionRevision = useRef(0);
-    const streamDisconnected = useRef(false);
+    const streamDisconnected = useRef(true);
+    const activationRefresh=useRef(createActivationRefreshGate()).current;
     const refreshAfterConnection = useRef<() => void>(() => {});
     const refreshTimer = useRef<any>(null);
     const [optimisticQueue, setOptimisticQueue] = useState<any[]>([]);
@@ -356,7 +357,7 @@ function GiApp() {
     // ── Timeline loading ─────────────────────────────────────────────────────
 
     const loadPosts = useCallback(async (opts: any = {}) => {
-        if (!sessionId) return;
+        if (!sessionId || !activationRefresh.ready(selection.capture().generation)) return;
         const scope = selection.capture();
         if (scope.sessionId !== sessionId) return;
         const view=searchView.capture();
@@ -384,7 +385,7 @@ function GiApp() {
         if(query!==undefined)setSearchState(searchView.query(query));
         if(scopeValue!==undefined)setSearchState(searchView.scope(scopeValue));
         const view=searchView.capture(),owner=selection.capture();
-        if(!view.active||!owner.sessionId)return;
+        if(!view.active||!owner.sessionId||!activationRefresh.ready(owner.generation))return;
         const request=timelineRevision.begin(),connection=connectionRevision.current;
         setSearchError('');
         if(!view.query){setPosts([]);setHasMore(false);return;}
@@ -487,6 +488,7 @@ function GiApp() {
     }, [scrollToBottom]);
 
     const handleConnectionStatusChange = useCallback((status: string) => {
+        const shouldRefresh=activationRefresh.status(selection.capture().generation,status);
         ++connectionRevision.current;
         timelineRevision.invalidate();
         activityRevision.invalidate(); setActivity(null); setActivityFresh(false);
@@ -500,21 +502,21 @@ function GiApp() {
             draftBufferRef.current = ''; thoughtBufferRef.current = '';
             pendingRequestRef.current = null; currentTurnIdRef.current = null; steerQueuedTurnIdRef.current = null;
             setIsAgentTurnActive(false); isAgentRunningRef.current = false;
-        } else refreshAfterConnection.current();
+        } else if(shouldRefresh) refreshAfterConnection.current();
     }, []);
 
     useSseConnection({
-        handleSseEvent,
-        handleConnectionStatusChange,
+        handleSseEvent: (type:string,data:any) => { if(selection.isCurrent(renderedSelection))handleSseEvent(type,data); },
+        handleConnectionStatusChange: (status:string) => { if(selection.isCurrent(renderedSelection))handleConnectionStatusChange(status); },
         loadPosts,
-        onWake: () => { refreshAfterConnection.current(); },
+        onWake: () => { if(selection.isCurrent(renderedSelection))refreshAfterConnection.current(); },
         chatJid: currentChatJid,
         selectionKey: renderedSelection.generation,
     });
 
     const refreshSelectedState = useCallback(async () => {
         const scope = selection.capture();
-        if (!sessionId || scope.sessionId !== sessionId) return;
+        if (!sessionId || scope.sessionId !== sessionId || !activationRefresh.ready(scope.generation)) return;
         const chat = sessionToChatJid(sessionId);
         const revision = ++queueRevision.current;
         const connection = connectionRevision.current;
@@ -551,6 +553,7 @@ function GiApp() {
     }, [sessionId]);
 
     refreshAfterConnection.current = () => {
+        if(!activationRefresh.ready(selection.capture().generation))return;
         if(searchView.capture().active)void runSearch();else void loadPosts();
         void refreshSelectedState();
     };
@@ -560,9 +563,8 @@ function GiApp() {
 
     useEffect(() => {
         if (!ready || !sessionId) return;
-        loadPosts();
+        if(activationRefresh.activate(selection.capture().generation))refreshAfterConnection.current();
         void refreshSessionLists(sessionId);
-        void refreshSelectedState();
         // Light refresh every 10s as a safety net (SSE handles real-time)
         const id = setInterval(() => {
             refreshAfterConnection.current();
@@ -589,6 +591,7 @@ function GiApp() {
         if (sessionId) drafts.update(sessionId, { fileRefs, messageRefs });
         // Advance synchronously, before rendering, to invalidate already pending work.
         selection.select(nextSessionId);
+        activationRefresh.select(selection.capture().generation);streamDisconnected.current=true;
         setSearchState(searchView.close());setSearchError('');
         timelineRevision.invalidate();
         stopToken.current = null; setStopPending(false); setStopError('');

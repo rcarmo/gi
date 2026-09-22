@@ -16603,6 +16603,42 @@ function compactionElapsed(notice, now = Date.now()) {
 }
 
 // web/src/gi-refresh-guards.ts
+function createActivationRefreshGate() {
+  let selection = null, connected = false, claimed = false;
+  const select = (key) => {
+    if (key !== selection) {
+      selection = key;
+      connected = false;
+      claimed = false;
+    }
+  };
+  const claim = () => {
+    if (!connected || claimed)
+      return false;
+    claimed = true;
+    return true;
+  };
+  return {
+    select,
+    activate(key) {
+      select(key);
+      return claim();
+    },
+    status(key, status) {
+      select(key);
+      if (status !== "connected") {
+        connected = false;
+        claimed = false;
+        return false;
+      }
+      connected = true;
+      return claim();
+    },
+    ready(key) {
+      return key === selection && connected;
+    }
+  };
+}
 function createTimelineRevision() {
   let generation = 0;
   return { begin: () => ++generation, invalidate: () => ++generation, accepts: (value) => value === generation };
@@ -16820,7 +16856,8 @@ function GiApp() {
   const modelRevision = K_(0);
   const modelMutation = K_(null);
   const connectionRevision = K_(0);
-  const streamDisconnected = K_(false);
+  const streamDisconnected = K_(true);
+  const activationRefresh = K_(createActivationRefreshGate()).current;
   const refreshAfterConnection = K_(() => {});
   const refreshTimer = K_(null);
   const [optimisticQueue, setOptimisticQueue] = M_([]);
@@ -16972,7 +17009,7 @@ function GiApp() {
     };
   }, []);
   const loadPosts = X_(async (opts = {}) => {
-    if (!sessionId)
+    if (!sessionId || !activationRefresh.ready(selection.capture().generation))
       return;
     const scope = selection.capture();
     if (scope.sessionId !== sessionId)
@@ -17007,7 +17044,7 @@ function GiApp() {
     if (scopeValue !== undefined)
       setSearchState(searchView.scope(scopeValue));
     const view = searchView.capture(), owner = selection.capture();
-    if (!view.active || !owner.sessionId)
+    if (!view.active || !owner.sessionId || !activationRefresh.ready(owner.generation))
       return;
     const request = timelineRevision.begin(), connection = connectionRevision.current;
     setSearchError("");
@@ -17125,6 +17162,7 @@ function GiApp() {
     }
   }, [scrollToBottom]);
   const handleConnectionStatusChange = X_((status) => {
+    const shouldRefresh = activationRefresh.status(selection.capture().generation, status);
     ++connectionRevision.current;
     timelineRevision.invalidate();
     activityRevision.invalidate();
@@ -17149,22 +17187,29 @@ function GiApp() {
       steerQueuedTurnIdRef.current = null;
       setIsAgentTurnActive(false);
       isAgentRunningRef.current = false;
-    } else
+    } else if (shouldRefresh)
       refreshAfterConnection.current();
   }, []);
   useSseConnection({
-    handleSseEvent,
-    handleConnectionStatusChange,
+    handleSseEvent: (type, data) => {
+      if (selection.isCurrent(renderedSelection))
+        handleSseEvent(type, data);
+    },
+    handleConnectionStatusChange: (status) => {
+      if (selection.isCurrent(renderedSelection))
+        handleConnectionStatusChange(status);
+    },
     loadPosts,
     onWake: () => {
-      refreshAfterConnection.current();
+      if (selection.isCurrent(renderedSelection))
+        refreshAfterConnection.current();
     },
     chatJid: currentChatJid,
     selectionKey: renderedSelection.generation
   });
   const refreshSelectedState = X_(async () => {
     const scope = selection.capture();
-    if (!sessionId || scope.sessionId !== sessionId)
+    if (!sessionId || scope.sessionId !== sessionId || !activationRefresh.ready(scope.generation))
       return;
     const chat = sessionToChatJid2(sessionId);
     const revision = ++queueRevision.current;
@@ -17210,6 +17255,8 @@ function GiApp() {
     }
   }, [sessionId]);
   refreshAfterConnection.current = () => {
+    if (!activationRefresh.ready(selection.capture().generation))
+      return;
     if (searchView.capture().active)
       runSearch();
     else
@@ -17223,9 +17270,9 @@ function GiApp() {
   J_(() => {
     if (!ready || !sessionId)
       return;
-    loadPosts();
+    if (activationRefresh.activate(selection.capture().generation))
+      refreshAfterConnection.current();
     refreshSessionLists(sessionId);
-    refreshSelectedState();
     const id = setInterval(() => {
       refreshAfterConnection.current();
       refreshSessionLists(sessionId);
@@ -17249,6 +17296,8 @@ function GiApp() {
     if (sessionId)
       drafts.update(sessionId, { fileRefs, messageRefs });
     selection.select(nextSessionId);
+    activationRefresh.select(selection.capture().generation);
+    streamDisconnected.current = true;
     setSearchState(searchView.close());
     setSearchError("");
     timelineRevision.invalidate();
@@ -17720,5 +17769,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=CF9A4EC9B2FA3F7464756E2164756E21
+//# debugId=FD8ECF741014AD6A64756E2164756E21
 //# sourceMappingURL=app.js.map

@@ -1,3 +1,18 @@
+// Activation and transport readiness may occur in either order. Exactly one
+// owns their initial refresh; a real disconnect opens a new readiness epoch.
+// No response fetched before native SSE subscription is reused as fresh state.
+export function createActivationRefreshGate() {
+ let selection:unknown=null,connected=false,claimed=false;
+ const select=(key:unknown)=>{if(key!==selection){selection=key;connected=false;claimed=false;}};
+ const claim=()=>{if(!connected||claimed)return false;claimed=true;return true;};
+ return {
+  select,
+  activate(key:unknown){select(key);return claim();},
+  status(key:unknown,status:string){select(key);if(status!=='connected'){connected=false;claimed=false;return false;}connected=true;return claim();},
+  ready(key:unknown){return key===selection&&connected;},
+ };
+}
+
 // HTTP responses have their own generation in addition to session/SSE scope.
 export function createTimelineRevision() {
  let generation=0;

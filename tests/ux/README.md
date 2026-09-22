@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Initial refresh ownership: 2026-09-22
+
+`make test-ux-reconnect` now includes `reconnect-005`: hold the real native SSE readiness, verify activation does not issue authoritative reads before readiness and no duplicate initial set follows, then test A→B→A and real reconnect. A separate case verifies retry after initial activity failure without draft loss.
+
+Latest totals: **48/48 reconnect/search + 294/294 existing = 342/342 browser**, **70/70 functional**, **28 helpers**, Go/vet/hook checks. Classic **30/236**, shared **2/42** (206/40 unmapped); all reconnect IDs mapped. Exact idle-fixture request counts do not promise exactly-once event delivery. Same six explicit matrix result files apply. See [ADR-0026](../../docs/adr/0026-initial-refresh-ownership.md).
+
 ## Native search view: 2026-09-22
 
 `make test-ux-reconnect` now also maps `reconnect-003` through the active-search alternative. Tests open the supplied search field, use native current/family/all queries, hold real old replies and sever real SSE sockets. Reconnect reruns search/activity/queue/context with zero main-timeline requests, preserving draft/media. Additional tests cover literal `%/_`, scope isolation, stale-query rejection, failed search recovery and no prompt submissions.

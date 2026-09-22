@@ -1,6 +1,14 @@
 # Web session selection and compact TUI adaptation
 
-## Latest browser evidence: native search view (2026-09-22)
+## Latest browser evidence: initial refresh ownership (2026-09-22)
+
+Initial activation and native SSE readiness now share one authoritative refresh owner per selection/connection epoch. No timeline/search/activity read is trusted before subscription readiness. Real reconnect, failed initial reads and A→B→A remain refreshable; rendered-selection wrappers also reject old callbacks before the hook rerenders. See [ADR-0026](../adr/0026-initial-refresh-ownership.md).
+
+Verified: **48/48 reconnect/search**, **342/342 combined browser**, **70/70 functional**, **28 helpers**, Go/vet/hook checks. `reconnect-005` adds one mapping: **30/236 Classic** (206 unmapped), **2/42 shared** (40 unmapped). All five frozen reconnect IDs are mapped; this is not active-turn crash or hashtag/pagination acceptance. Exact request counts apply to the idle native test fixture only.
+
+No terminal control or idle row is added. Local terminal subscription/reopen evidence remains separate. Earlier evidence follows.
+
+## Earlier browser evidence: native search view (2026-09-22)
 
 Search now uses a bounded native current/family/all-chat query and the supplied composer's independent search field. Query/session/connection generations protect results; active search blocks normal timeline HTTP refresh and unfiltered SSE appends. Reconnect refreshes search plus activity/queue/context while preserving draft/media. Escape restores the normal timeline and composer. See [ADR-0025](../adr/0025-native-search-view.md).
 
