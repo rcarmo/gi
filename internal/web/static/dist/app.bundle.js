@@ -5817,6 +5817,33 @@ function createDraftRepository(storage, onError = () => {}) {
   };
 }
 
+// web/src/gi-context-usage.ts
+var known = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0;
+function formatContextCount(value) {
+  if (!known(value))
+    return "?";
+  if (value >= 1e6)
+    return `${(value / 1e6).toFixed(1)}M`;
+  if (value >= 1000)
+    return `${(value / 1000).toFixed(0)}K`;
+  return String(value);
+}
+function contextPresentation(usage, canCompact = false) {
+  const percent = known(usage?.percent) ? usage.percent : null;
+  const fill = percent == null ? 0 : Math.min(100, percent);
+  const label = `Context: ${formatContextCount(usage?.tokens)} / ${formatContextCount(usage?.contextWindow)} tokens (${percent == null ? "?" : percent.toFixed(0)}%)`;
+  const qualifier = usage?.source === "provider_request" ? " — latest measured provider request" : " — usage unavailable";
+  return {
+    fill,
+    label,
+    title: label + qualifier + (canCompact ? " — Compact context" : ""),
+    color: percent == null ? "var(--text-secondary)" : percent > 90 ? "var(--context-red, #ef4444)" : percent > 75 ? "var(--context-amber, #f59e0b)" : "var(--context-green, #22c55e)"
+  };
+}
+function modelContextBlocked(option, usage) {
+  return known(usage?.tokens) && known(option?.contextWindow) && option.contextWindow > 0 && usage.tokens > option.contextWindow;
+}
+
 // web/src/ui/popup-typeahead.ts
 var POPUP_TYPEAHEAD_RESET_MS = 700;
 function normalize2(value) {
@@ -6382,22 +6409,17 @@ function resolveComposeExtensionWorkingDisplay(workingState, frameIndex = 0) {
   };
 }
 function ContextPie({ usage, onCompact }) {
-  const pct = Math.min(100, Math.max(0, usage.percent || 0));
-  const tokens = usage.tokens;
-  const window2 = usage.contextWindow;
-  const compactLabel = `Compact context`;
-  const label = tokens != null ? `Context: ${formatK(tokens)} / ${formatK(window2)} tokens (${pct.toFixed(0)}%)` : `Context: ${pct.toFixed(0)}%`;
-  const title = `${label} — ${compactLabel}`;
+  const { fill: pct, label, title, color } = contextPresentation(usage, typeof onCompact === "function");
   const r = 9;
   const circ = 2 * Math.PI * r;
   const filled = pct / 100 * circ;
-  const color = pct > 90 ? "var(--context-red, #ef4444)" : pct > 75 ? "var(--context-amber, #f59e0b)" : "var(--context-green, #22c55e)";
   return ce`
         <button
             class="compose-context-pie icon-btn"
             type="button"
             title=${title}
-            aria-label="Compact context"
+            aria-label=${label}
+            disabled=${typeof onCompact !== "function"}
             onClick=${(e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -7119,7 +7141,7 @@ function ComposeBox({
     modelUsage?.secondary?.reset_description || null
   ].filter(Boolean);
   const modelHintTitle = switchingModel ? "Switching model…" : modelUsageTitleParts.join(" • ") || (showModelPickerHint ? "Select a model (tap to open model picker)" : `Current model: ${modelHintLabel}${modelHintSuffix} (tap to open model picker)`);
-  const showComposeMetaRow = !searchMode && (showModelPickerHint || contextUsage && contextUsage.percent != null);
+  const showComposeMetaRow = !searchMode && (showModelPickerHint || contextUsage);
   const emitModelState = (payload) => {
     if (!payload || typeof payload !== "object")
       return;
@@ -7130,7 +7152,8 @@ function ComposeBox({
         thinking_level: payload.thinking_level ?? null,
         thinking_level_label: payload.thinking_level_label ?? null,
         supports_thinking: payload.supports_thinking,
-        provider_usage: payload.provider_usage ?? null
+        provider_usage: payload.provider_usage ?? null,
+        context_usage: payload.context_usage
       });
     }
     if (modelLabel && typeof onModelChange === "function") {
@@ -7416,6 +7439,10 @@ function ComposeBox({
     const modelLabel = typeof modelOption === "string" ? modelOption : modelOption?.label;
     if (!modelLabel || modelMutationRef.current)
       return;
+    if (modelContextBlocked(modelOption, contextUsage)) {
+      setSubmitError("Model context window is smaller than the latest measured request.");
+      return;
+    }
     modelMutationRef.current = true;
     ++modelRevisionRef.current;
     const mutation = onModelMutationStart?.();
@@ -8382,6 +8409,7 @@ ${mediaIds.map((id, index) => {
                                 ${!loadingModels && modelOptions.map((modelOption, index) => {
     const modelLabel = typeof modelOption?.label === "string" ? modelOption.label : "";
     const contextWindowLabel = formatModelPickerContextWindow(modelOption?.contextWindow);
+    const blocked = modelContextBlocked(modelOption, contextUsage);
     return ce`
                                         <button
                                             key=${modelLabel}
@@ -8391,8 +8419,8 @@ ${mediaIds.map((id, index) => {
                                             onClick=${() => {
       handleSelectModel(modelOption);
     }}
-                                            disabled=${switchingModel}
-                                            title=${[modelLabel, contextWindowLabel].filter(Boolean).join(" • ")}
+                                            disabled=${switchingModel || blocked}
+                                            title=${blocked ? `Blocked: ${modelLabel} context window is smaller than latest measured request` : [modelLabel, contextWindowLabel].filter(Boolean).join(" • ")}
                                         >
                                             <span class="compose-model-popup-model-label">${formatModelPickerDisplayLabel(modelLabel, modelOption?.contextWindow)}</span>
                                         </button>
@@ -8602,8 +8630,8 @@ ${mediaIds.map((id, index) => {
                                 </div>
                             </div>
                         `}
-                        ${!searchMode && contextUsage && contextUsage.percent != null && ce`
-                            <${ContextPie} usage=${contextUsage} onCompact=${handleContextCompact} />
+                        ${!searchMode && contextUsage && ce`
+                            <${ContextPie} usage=${contextUsage} onCompact=${typeof onContextCompact === "function" ? handleContextCompact : undefined} />
                         `}
                     </div>
                     `}
@@ -16726,6 +16754,7 @@ function GiApp() {
         setActiveModel(models.current);
         setActiveThinkingLevel(models.thinking_level);
         setSupportsThinking(models.supports_thinking);
+        setContextUsage(models.context_usage || null);
       }
       if (revision === queueRevision.current && !queueMutation.current) {
         setFollowupQueueItems(queue.items || []);
@@ -17114,6 +17143,8 @@ function GiApp() {
         setSupportsThinking(state.supports_thinking);
       if (state.provider_usage !== undefined)
         setModelUsage(state.provider_usage ?? null);
+      if (state.context_usage !== undefined)
+        setContextUsage(state.context_usage);
     }
   }}
                     agents=${agents}
@@ -17196,5 +17227,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=3BEB0DF796E0363A64756E2164756E21
+//# debugId=585D2BDEA8DF277A64756E2164756E21
 //# sourceMappingURL=app.js.map

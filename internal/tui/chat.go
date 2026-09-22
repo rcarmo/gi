@@ -685,10 +685,8 @@ func (c *chatTUI) updateUsageFromPayload(payload map[string]any) {
 	}
 	c.lastInputTokens = intFromAny(usage["input"])
 	c.lastOutputTokens = intFromAny(usage["output"])
-	c.lastContextTokens = intFromAny(usage["total"])
-	if c.lastContextTokens == 0 {
-		c.lastContextTokens = intFromAny(usage["totalTokens"])
-	}
+	// Billing totals are cumulative over iterations, not context occupancy.
+	// The explicit context.measured record supplies the context footer below.
 	c.lastCacheRead = intFromAny(usage["cache_read"])
 	c.lastCacheWrite = intFromAny(usage["cache_write"])
 	if cost := floatFromAny(usage["cost_total"]); cost > 0 {
@@ -4885,8 +4883,12 @@ func (c *chatTUI) contextSummaryData() tuiContextSummary {
 	data.turnCount = len(turns)
 	data.queuedTurns, _ = c.store.CountQueuedTurns(context.Background(), c.sessionID)
 	data.steeringDepth, _ = c.store.SteeringQueueLength(context.Background(), c.sessionID)
-	if data.contextTokens == 0 {
-		data.inputTokens, data.outputTokens, data.contextTokens = c.latestUsageTokens(turns)
+	if data.inputTokens == 0 && data.outputTokens == 0 {
+		data.inputTokens, data.outputTokens, _ = c.latestUsageTokens(turns)
+	}
+	data.contextTokens = 0
+	if measured, err := c.store.LatestContextMeasurement(context.Background(), c.sessionID); err == nil && measured != nil {
+		data.contextTokens = measured.Tokens
 	}
 	data.sessionTitle = session.Title
 	data.agentID = c.agentIDForSession(session)

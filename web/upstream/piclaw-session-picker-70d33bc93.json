@@ -27,7 +27,8 @@
         "Acknowledged sends never restore on later UI refresh failure; deferred picker Escape focus does not steal focus from newly focused composer.",
         "QueuedFollowupStack uses durable row IDs, disables overlapping mutations and omits Steer without a callback; Gi host supplies optimistic reorder/remove with authoritative refresh and origin/revision guards.",
         "Queued composer submissions expose origin-owned optimistic lifecycle callbacks and carry client_request_id correlation metadata; pending queue controls remain disabled until durable.",
-        "Model selection/cycle use authoritative session PATCH with inline errors and host/component revision guards. Native Tab/focused-button Enter preserved; catalogue updates no longer reclaim popup focus."
+        "Model selection/cycle use authoritative session PATCH with inline errors and host/component revision guards. Native Tab/focused-button Enter preserved; catalogue updates no longer reclaim popup focus.",
+        "ContextPie uses gi-context-usage presentation with explicit unknown markers and measured-request qualifier; compaction disabled without host callback. Supplied-value context-fit predicate blocks known overflow; native selection independently validates latest measurement."
       ],
       "source": "runtime/web/src/components/compose-box.ts",
       "destination": "web/src/components/compose-box.ts"

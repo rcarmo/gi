@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { html, useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo } from '../vendor/preact-htm.js';
 import { mergeDrafts } from '../gi-drafts.js';
+import { contextPresentation, modelContextBlocked } from '../gi-context-usage.js';
 import { findPopupTypeaheadMatch, isPopupTypeaheadKey, resolvePopupTypeaheadMatch, updatePopupTypeaheadBuffer } from '../ui/popup-typeahead.js';
 import { getAgentModels, selectAgentModel, sendAgentMessage, uploadMedia } from '../api.js';
 import { getLocalStorageItem, setLocalStorageItem } from '../utils/storage.js';
@@ -199,14 +200,7 @@ export function resolveComposeExtensionWorkingDisplay(workingState, frameIndex =
  * Green when <75%, amber 75–90%, red >90%. Tooltip shows exact numbers.
  */
 function ContextPie({ usage, onCompact }) {
-    const pct = Math.min(100, Math.max(0, usage.percent || 0));
-    const tokens = usage.tokens;
-    const window = usage.contextWindow;
-    const compactLabel = `Compact context`;
-    const label = tokens != null
-        ? `Context: ${formatK(tokens)} / ${formatK(window)} tokens (${pct.toFixed(0)}%)`
-        : `Context: ${pct.toFixed(0)}%`;
-    const title = `${label} — ${compactLabel}`;
+    const { fill: pct, label, title, color } = contextPresentation(usage, typeof onCompact === 'function');
 
     // Pie arc: SVG circle with stroke-dasharray trick.
     // Circle circumference = 2πr = 2π×9 ≈ 56.55
@@ -214,16 +208,13 @@ function ContextPie({ usage, onCompact }) {
     const circ = 2 * Math.PI * r;
     const filled = (pct / 100) * circ;
 
-    const color = pct > 90 ? 'var(--context-red, #ef4444)'
-                : pct > 75 ? 'var(--context-amber, #f59e0b)'
-                : 'var(--context-green, #22c55e)';
-
     return html`
         <button
             class="compose-context-pie icon-btn"
             type="button"
             title=${title}
-            aria-label="Compact context"
+            aria-label=${label}
+            disabled=${typeof onCompact !== 'function'}
             onClick=${(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -933,7 +924,7 @@ export function ComposeBox({
         : (modelUsageTitleParts.join(' • ') || (showModelPickerHint
             ? 'Select a model (tap to open model picker)'
             : `Current model: ${modelHintLabel}${modelHintSuffix} (tap to open model picker)`));
-    const showComposeMetaRow = !searchMode && (showModelPickerHint || (contextUsage && contextUsage.percent != null));
+    const showComposeMetaRow = !searchMode && (showModelPickerHint || contextUsage);
 
     const emitModelState = (payload) => {
         if (!payload || typeof payload !== 'object') return;
@@ -945,6 +936,7 @@ export function ComposeBox({
                 thinking_level_label: payload.thinking_level_label ?? null,
                 supports_thinking: payload.supports_thinking,
                 provider_usage: payload.provider_usage ?? null,
+                context_usage: payload.context_usage,
             });
         }
         if (modelLabel && typeof onModelChange === 'function') {
@@ -1237,6 +1229,10 @@ export function ComposeBox({
     const handleSelectModel = async (modelOption) => {
         const modelLabel = typeof modelOption === 'string' ? modelOption : modelOption?.label;
         if (!modelLabel || modelMutationRef.current) return;
+        if (modelContextBlocked(modelOption, contextUsage)) {
+            setSubmitError('Model context window is smaller than the latest measured request.');
+            return;
+        }
         modelMutationRef.current = true;
         ++modelRevisionRef.current;
         const mutation = onModelMutationStart?.();
@@ -2225,6 +2221,7 @@ export function ComposeBox({
                                 ${!loadingModels && modelOptions.map((modelOption, index) => {
                                     const modelLabel = typeof modelOption?.label === 'string' ? modelOption.label : '';
                                     const contextWindowLabel = formatModelPickerContextWindow(modelOption?.contextWindow);
+                                    const blocked = modelContextBlocked(modelOption, contextUsage);
                                     return html`
                                         <button
                                             key=${modelLabel}
@@ -2232,8 +2229,8 @@ export function ComposeBox({
                                             role="menuitem"
                                             class=${`compose-model-popup-item compose-model-popup-model-item${modelPopupIndex === index ? ' active' : ''}${activeModel === modelLabel ? ' current-model' : ''}`}
                                             onClick=${() => { void handleSelectModel(modelOption); }}
-                                            disabled=${switchingModel}
-                                            title=${[modelLabel, contextWindowLabel].filter(Boolean).join(' • ')}
+                                            disabled=${switchingModel || blocked}
+                                            title=${blocked ? `Blocked: ${modelLabel} context window is smaller than latest measured request` : [modelLabel, contextWindowLabel].filter(Boolean).join(' • ')}
                                         >
                                             <span class="compose-model-popup-model-label">${formatModelPickerDisplayLabel(modelLabel, modelOption?.contextWindow)}</span>
                                         </button>
@@ -2430,8 +2427,8 @@ export function ComposeBox({
                                 </div>
                             </div>
                         `}
-                        ${!searchMode && contextUsage && contextUsage.percent != null && html`
-                            <${ContextPie} usage=${contextUsage} onCompact=${handleContextCompact} />
+                        ${!searchMode && contextUsage && html`
+                            <${ContextPie} usage=${contextUsage} onCompact=${typeof onContextCompact === 'function' ? handleContextCompact : undefined} />
                         `}
                     </div>
                     `}

@@ -68,3 +68,9 @@ Full matrix: **138/138**, **12/236 Classic IDs**, 224 unmapped, with all shared 
 `models.spec.mjs` maps `021` and compaction `008`: late model responses stay with their origin, and `/model` resolves through native validation without creating a prompt turn. Additional tests verify pointer/keyboard mutation, reload persistence, unchanged draft/media, rejected choices and A→B→A catalogue isolation. The parity test catalogue includes the native `test-model`/`bootstrap` shell models plus an unusable entry; production provider configuration is untouched.
 
 Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases remain unmapped. Native model selection has no measured context usage, so `020`, compaction `006/007` and shared model/context criteria remain open. [ADR-0014](../../docs/adr/0014-session-model-selection.md) records selection/runtime metadata separation and terminal gaps.
+
+## Latest provider-request context: 2026-09-22
+
+`context.spec.mjs` maps `ux-context-002`: native shell sessions have no provider token measurement and display unknown markers before/after a turn, reload and model change. Unsupported compaction is disabled. Matrix: **174/174**, **15/236 Classic IDs**, 221 unmapped; shared cases remain unmapped.
+
+Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.

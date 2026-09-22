@@ -94,6 +94,16 @@ Host model revisions and component mount guards reject late polls/catalogues/mut
 
 Measured context usage, context-fit blocking and richer picker contracts remain open, so `020` and compaction `006/007` are not counted. Terminal adaptation should reuse its bounded model selector and existing footer, with session-local persistence and shared validation. The later terminal model slice below closes the global-write gap.
 
+## Latest measured provider-request context
+
+The provider loop now appends `context.measured` events separately from cumulative billing totals. Context input includes uncached input plus cache-read/write tokens and excludes output. Session model responses expose only measured values and catalogue capacity; unknown fields remain null. The shell responder has no measurement and therefore shows `?`, including after reload and model changes.
+
+The web labels the value as the latest measured provider request, keeps unknown usage neutral and disables compaction without a supplied callback. Model-fit helpers and shared native selection reject known overflow. The terminal uses the measurement in its existing footer context segment instead of cumulative billing totals, with no additional rows.
+
+`ux-context-002` now passes all six projects. Native/provider-loop tests and supplied-value helper tests cover measurement separation, persistence, scope, formatting/thresholds and model-fit predicates. Those tests do not establish provider-backed browser fit/compaction parity; related IDs remain unmapped. [ADR-0016](../adr/0016-measured-request-context.md) records measurement age, tokenisation and reserved-output limits.
+
+Current evidence: **174/174 browser executions**, **15/236 Classic IDs**, 221 unmapped, all 42 shared cases unmapped, **70/70** functional tests, Go/vet/race checks and 18 source/helper tests. The three-size terminal harness, smoke and seven-file Gherkin suite pass.
+
 ## Terminal session slice: implemented and separately tested
 
 `Alt-S` opens the existing session selector without replacing unsent input. It uses at most six results plus two temporary title/search rows, no box border, and no added idle rows. Filtering keeps full session IDs; display truncation is UTF-8-safe and terminal-cell bounded. Up/Down wrap, Enter selects and Escape restores the editor. Resizing keeps the selected row visible.

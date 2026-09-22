@@ -3923,6 +3923,7 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 		}
 
 		if result.Usage != nil {
+			r.persistContextMeasurement(s, turnID, sessionID, model, result.Usage, iter)
 			totalUsage.Input += result.Usage.Input
 			totalUsage.Output += result.Usage.Output
 			totalUsage.TotalTokens += result.Usage.TotalTokens
@@ -4026,6 +4027,24 @@ func (r *sessionRunner) executeTool(ctx context.Context, call goai.ToolCall, ses
 }
 
 // persistUsage records cumulative usage for the turn.
+// go-ai reports uncached input and cache components separately. Keep the
+// latest provider request independent of the cumulative turn billing counters.
+func (r *sessionRunner) persistContextMeasurement(s *store.Store, turnID, sessionID, model string, usage *goai.Usage, iteration int) {
+	if usage == nil || usage.Input < 0 || usage.CacheRead < 0 || usage.CacheWrite < 0 {
+		return
+	}
+	// Some providers return an allocated, empty Usage when no counters arrived.
+	if usage.Input == 0 && usage.CacheRead == 0 && usage.CacheWrite == 0 && usage.Output == 0 && usage.TotalTokens == 0 {
+		return
+	}
+	payload := map[string]any{"tokens": usage.Input + usage.CacheRead + usage.CacheWrite, "input": usage.Input, "cache_read": usage.CacheRead, "cache_write": usage.CacheWrite, "model": model, "iteration": iteration, "phase": "inference"}
+	if err := s.AppendTurnEvent(r.engine.backgroundContext(), turnID, sessionID, "context.measured", payload); err != nil {
+		logutil.WarnIfErr("persist provider context measurement", err)
+		return
+	}
+	r.engine.PublishRuntimeTurnEvent("context_measured", sessionID, turnID, "", "running", "inference", payload)
+}
+
 func (r *sessionRunner) persistUsage(s *store.Store, turnID, sessionID string, usage *goai.Usage, iterations int) {
 	bgCtx := r.engine.backgroundContext()
 	usageMap := map[string]any{

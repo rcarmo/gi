@@ -385,6 +385,7 @@ function GiApp() {
                 setActiveModel(models.current);
                 setActiveThinkingLevel(models.thinking_level);
                 setSupportsThinking(models.supports_thinking);
+                setContextUsage(models.context_usage || null);
             }
             if (revision === queueRevision.current && !queueMutation.current) {
                 setFollowupQueueItems(queue.items || []);
@@ -720,6 +721,7 @@ function GiApp() {
                             }
                             if (typeof state.supports_thinking === 'boolean') setSupportsThinking(state.supports_thinking);
                             if (state.provider_usage !== undefined) setModelUsage(state.provider_usage ?? null);
+                            if (state.context_usage !== undefined) setContextUsage(state.context_usage);
                         }
                     }}
                     agents=${agents}

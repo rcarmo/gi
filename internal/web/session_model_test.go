@@ -44,7 +44,7 @@ func TestSessionModelCommandsAreValidatedLocalAndDoNotCreateTurns(t *testing.T) 
 		return value
 	}
 	state := call("PATCH", "/api/sessions/A/model", `{"model":"test/bootstrap"}`, 200)
-	if state["current"] != "test/bootstrap" || state["context_usage"] != nil {
+	if state["current"] != "test/bootstrap" || state["context_usage"].(map[string]any)["tokens"] != nil || state["context_usage"].(map[string]any)["percent"] != nil {
 		t.Fatalf("incorrect authoritative state %+v", state)
 	}
 	for _, name := range []string{"unknown", "test/unavailable-model"} {

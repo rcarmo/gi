@@ -16,6 +16,8 @@ Queue SSE reconciliation and disconnect cleanup (`016`, reconnect `001`) then pa
 
 Authoritative session-local model selection and native `/model` commands (`021`, compaction `008`) passed 168/168 matrix executions: 14/236 Classic IDs, 222 unmapped, 70/70 functional tests. Measured context compatibility and shared model criteria remain open. See [ADR-0014](../adr/0014-session-model-selection.md).
 
+Latest provider-request context is now stored separately from cumulative turn usage and exposed as nullable session-scoped metadata. Unknown-value browser acceptance (`context 002`) passes: 174/174 matrix executions, 15/236 Classic IDs, 221 unmapped, 70/70 functional tests. Full measured browser fit/compaction remains open; see [ADR-0016](../adr/0016-measured-request-context.md).
+
 ## Implemented and wired
 
 - Embedded JavaScript/CSS, identity/avatar configuration, themes and system meters.

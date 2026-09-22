@@ -76,6 +76,9 @@ func SelectSessionModel(ctx context.Context, s *store.Store, sessionID string, o
 	if err != nil {
 		return nil, err
 	}
+	if err := CheckSessionModelContext(ctx, s, sessionID, match); err != nil {
+		return nil, err
+	}
 	model := match.Label
 	if match.Provider == "test" {
 		model = match.ID

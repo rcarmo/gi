@@ -203,8 +203,9 @@ export async function getAgentStatus(agentId: string, chatJid: string | null = n
     };
 }
 
-export async function getAgentContext(_agentId: string, _chatJid: string | null = null) {
-    return null;
+export async function getAgentContext(_agentId: string, chatJid: string | null = null) {
+    if (!chatJid?.startsWith('gi:')) return null;
+    return (await getAgentModels(chatJid)).context_usage || null;
 }
 
 export async function getAgentThought(_agentId: string, _chatJid: string | null = null) {
