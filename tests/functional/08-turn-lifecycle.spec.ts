@@ -25,12 +25,11 @@ test.describe('Turn lifecycle', () => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
     const prompt = `event sequence test ${Date.now()}`;
+    const sid = await page.evaluate(() => localStorage.getItem('gi_session_id'));
     await sendMessage(page, prompt);
     let submitted: any;
     await expect.poll(async () => {
-      const session = await findSessionForMessage(request, prompt);
-      if (!session) return null;
-      const turns = await apiGet(request, `/api/sessions/${session.id}/turns`);
+      const turns = await apiGet(request, `/api/sessions/${sid}/turns`);
       submitted = turns.turns.find((turn: any) => turn.prompt === prompt);
       return submitted?.status;
     }, { timeout: 10000 }).toBe('completed');

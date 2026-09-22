@@ -62,6 +62,16 @@ Verified `@ux-compose-001`, `002`, `003` and `006`, plus reload, storage failure
 
 Terminal follow-up: persist origin-owned drafts/recovery in a native local store, stage media refs explicitly, and persist queue recovery before backend deletion. Use existing footer notices and bounded on-demand controls. The current terminal draft cache is process-local; this browser slice adds no terminal rows or terminal implementation credit.
 
+## Durable queue reorder and cancellation (`018`)
+
+Explicit queue intent now creates a durable follow-up behind the active turn rather than steering that turn. A persisted queue position controls FIFO execution and reorder without changing admission timestamps or append-only events. Session-scoped queue APIs reject stale snapshots and foreign/claimed/running IDs; queued-only cancellation cannot stop a turn that has already started.
+
+The web updates order/removal optimistically, refreshes after success/failure and reports errors. Queue revisions reject old polling responses; selection generations reject responses from superseded visits. Duplicate/no-op queue rendering was removed. Steer has no supplied callback and is hidden until implemented.
+
+`@ux-original-018` passes all six projects using real queued prompts and a parity-only gated shell responder. Tests verify reload order, actual reordered execution, concurrent-append conflict, removal failure and stale/cross-session responses. Go/store/API tests and three-run focused race tests pass. Current totals: **120/120 matrix executions**, **10/236 Classic IDs**, 226 unmapped, and all 42 shared cases still unmapped. Existing functional web suite: 70/70. See [ADR-0012](../adr/0012-queued-followup-order.md).
+
+`016` SSE/local optimistic reconciliation, return-to-editor recovery and atomic Steer remain open. Terminal adaptation is an on-demand bounded queue list operating on durable IDs, with existing nonzero footer counts and error notices. It adds no idle rows; terminal queue mutations are not yet implemented.
+
 ## Terminal session slice: implemented and separately tested
 
 `Alt-S` opens the existing session selector without replacing unsent input. It uses at most six results plus two temporary title/search rows, no box border, and no added idle rows. Filtering keeps full session IDs; display truncation is UTF-8-safe and terminal-cell bounded. Up/Down wrap, Enter selects and Escape restores the editor. Resizing keeps the selected row visible.

@@ -302,6 +302,7 @@ func initSchema(db *sql.DB) error {
 	for _, alter := range []string{
 		`alter table sessions add column aliases_json text not null default '[]'`,
 		`alter table turns add column phase text not null default 'queued'`,
+		`alter table turns add column queue_position integer not null default 0`,
 		`alter table turns add column claimed_by text`,
 		`alter table turns add column claimed_at text`,
 		`alter table turns add column started_at text`,

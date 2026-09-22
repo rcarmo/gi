@@ -267,6 +267,8 @@ func (s *Server) handleSessionSubroutes(w http.ResponseWriter, r *http.Request) 
 		s.handlePrompt(w, r, sessionID)
 	case "turns":
 		s.handleTurns(w, r, sessionID)
+	case "queue":
+		s.handleSessionQueue(w, r, sessionID, parts[2:])
 	case "route-events":
 		s.handleSessionRouteEvents(w, r, sessionID)
 	case "introspect":

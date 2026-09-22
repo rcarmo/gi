@@ -10,6 +10,8 @@ The native mutation slice (`015`) then added persisted rename/pin/archive/restor
 
 On 2026-09-22, browser-local IndexedDB drafts and captured-send recovery added four compose mappings: 102/102 matrix executions, 9/236 frozen IDs mapped, 227 unmapped, and 70/70 functional tests. Real uploaded bytes and file/message references survive reload. [ADR-0011](../adr/0011-browser-draft-recovery.md) records storage, cross-tab and uncertain-delivery limits. Terminal session isolation has separate evidence in [ADR-0010](../adr/0010-terminal-session-selection.md).
 
+The following queue slice added explicit queued follow-ups, persistent reorder and queued-only cancellation (`018`): 120/120 matrix executions, 10/236 frozen IDs mapped, 226 unmapped, and 70/70 functional tests. Queue return/Steer and shared queue cases remain open. [ADR-0012](../adr/0012-queued-followup-order.md) records API and race handling.
+
 ## Implemented and wired
 
 - Embedded JavaScript/CSS, identity/avatar configuration, themes and system meters.

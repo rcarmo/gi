@@ -513,6 +513,7 @@ export function parseQueuedContent(value) {
 
 export function QueuedFollowupStack({
     items = [],
+    busy = false,
     onInjectQueuedFollowup,
     onRemoveQueuedFollowup,
     onMoveQueuedFollowup,
@@ -528,7 +529,7 @@ export function QueuedFollowupStack({
                 const canMoveUp = index > 0;
                 const canMoveDown = index < items.length - 1;
                 return html`
-                    <div class="compose-queue-stack-item" role="listitem">
+                    <div class="compose-queue-stack-item" role="listitem" data-queue-id=${item.id}>
                         <div class="compose-queue-stack-content" title=${rowText}>
                             ${parsed.text.trim() && html`<div class="compose-queue-stack-text">${parsed.text}</div>`}
                             ${(parsed.messageRefs.length > 0 || parsed.fileRefs.length > 0 || parsed.attachmentRefs.length > 0) && html`
@@ -572,7 +573,7 @@ export function QueuedFollowupStack({
                                     type="button"
                                     title="Move up"
                                     aria-label="Move up in queue"
-                                    disabled=${!canMoveUp}
+                                    disabled=${busy || !canMoveUp}
                                     onClick=${() => canMoveUp && onMoveQueuedFollowup?.(index, index - 1)}
                                 >
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -584,7 +585,7 @@ export function QueuedFollowupStack({
                                     type="button"
                                     title="Move down"
                                     aria-label="Move down in queue"
-                                    disabled=${!canMoveDown}
+                                    disabled=${busy || !canMoveDown}
                                     onClick=${() => canMoveDown && onMoveQueuedFollowup?.(index, index + 1)}
                                 >
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -592,7 +593,7 @@ export function QueuedFollowupStack({
                                     </svg>
                                 </button>
                             `}
-                            <button
+                            ${typeof onInjectQueuedFollowup === 'function' && html`<button
                                 class="compose-queue-stack-steer-btn"
                                 type="button"
                                 title="Inject queued follow-up as steer"
@@ -604,12 +605,13 @@ export function QueuedFollowupStack({
                                     <polyline points="14 12 18 8 22 12" />
                                 </svg>
                                 <span>Steer</span>
-                            </button>
+                            </button>`}
                             <button
                                 class="compose-queue-stack-close-btn"
                                 type="button"
                                 title="Cancel queued message"
                                 aria-label="Cancel queued message"
+                                disabled=${busy}
                                 onClick=${() => onRemoveQueuedFollowup?.(item)}
                             >
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

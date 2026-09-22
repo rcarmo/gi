@@ -49,4 +49,10 @@ Scope is full parity, not a picker-only milestone. See [`../../docs/internal/ful
 
 `drafts.spec.mjs` maps compose `001`, `002`, `003` and `006`: capture-and-clear, failure merging, empty-send rejection and captured destination after delayed upload. Gi regressions cover reload byte/reference persistence, A→B→A recovery, unacknowledged sends, quota failures and acknowledgement cleanup. The full matrix passes **102/102**, covering **9/236 Classic IDs**, with 227 unmapped. Shared cases remain unmapped. Tests use native controls and real records/responses; route aborts and IndexedDB quota faults exercise failure paths without fabricated timeline data.
 
-See [ADR-0011](../../docs/adr/0011-browser-draft-recovery.md) for browser-local scope, uncertain delivery, asynchronous-write and cross-tab limits. Queue DELETE/retry and upload progress contracts remain separate.
+See [ADR-0011](../../docs/adr/0011-browser-draft-recovery.md) for browser-local scope, uncertain delivery, asynchronous-write and cross-tab limits. Queue return/DELETE recovery and upload progress contracts remain separate.
+
+## Durable queue controls: 2026-09-22
+
+`queue.spec.mjs` maps `@ux-original-018`: native explicit queue admission during a busy turn, optimistic reorder/removal, durable reload order, real stale-snapshot conflict, removal-error recovery and execution in the chosen order. Additional tests hold old polls and mutation replies across session switches. Full matrix: **120/120**, **10/236 Classic IDs**, 226 unmapped; the shared contract remains unmapped.
+
+The isolated parity server uses `tests/ux/shell/sh` to gate only `UX queue gate:<token>` test prompts until a release file exists, then runs the normal shell responder. Gates time out after 60 seconds; test cleanup releases them. No production delay hook or fabricated queue records are used. See [ADR-0012](../../docs/adr/0012-queued-followup-order.md). `016`, `017`, `019`, compose `004` and shared queue contracts still need their own evidence.

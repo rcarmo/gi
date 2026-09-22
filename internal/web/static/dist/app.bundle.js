@@ -766,14 +766,21 @@ async function getAgentQueueState(chatJid = null) {
   const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
   if (!sessionId)
     return { items: [] };
-  const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/turns`);
-  return { items: (data.turns || []).filter((turn) => turn.status === "queued").map((turn) => ({
+  const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/queue`);
+  return { items: (data.items || []).map((turn) => ({
     id: turn.id,
     text: turn.prompt,
     content: turn.prompt,
     chat_jid: chatJid,
+    metadata: turn.metadata,
     created_at: turn.created_at
   })) };
+}
+async function removeAgentQueueItem(turnId, chatJid = null) {
+  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
+  if (!sessionId)
+    throw new Error("No queue session");
+  return request(`/api/sessions/${encodeURIComponent(sessionId)}/queue/${encodeURIComponent(turnId)}`, { method: "DELETE" });
 }
 async function getActiveChatAgents() {
   const data = await request("/api/sessions");
@@ -945,6 +952,11 @@ function getWorkspaceDownloadUrl(path) {
 }
 async function getWorkspaceBranch(_chatJid = null) {
   return null;
+}
+async function reorderAgentQueueItem(payload) {
+  if (!payload.chatJid?.startsWith("gi:"))
+    throw new Error("No queue session");
+  return request(`/api/sessions/${encodeURIComponent(payload.chatJid.slice(3))}/queue`, { method: "PATCH", body: JSON.stringify({ expected: payload.expected, order: payload.order }) });
 }
 function getWorkspaceRawUrl(path, options = {}) {
   const q = new URLSearchParams({ path: String(path || "") });
@@ -6668,6 +6680,7 @@ function parseQueuedContent(value) {
 }
 function QueuedFollowupStack({
   items = [],
+  busy = false,
   onInjectQueuedFollowup,
   onRemoveQueuedFollowup,
   onMoveQueuedFollowup,
@@ -6685,7 +6698,7 @@ function QueuedFollowupStack({
     const canMoveUp = index > 0;
     const canMoveDown = index < items.length - 1;
     return ce`
-                    <div class="compose-queue-stack-item" role="listitem">
+                    <div class="compose-queue-stack-item" role="listitem" data-queue-id=${item.id}>
                         <div class="compose-queue-stack-content" title=${rowText}>
                             ${parsed.text.trim() && ce`<div class="compose-queue-stack-text">${parsed.text}</div>`}
                             ${(parsed.messageRefs.length > 0 || parsed.fileRefs.length > 0 || parsed.attachmentRefs.length > 0) && ce`
@@ -6729,7 +6742,7 @@ function QueuedFollowupStack({
                                     type="button"
                                     title="Move up"
                                     aria-label="Move up in queue"
-                                    disabled=${!canMoveUp}
+                                    disabled=${busy || !canMoveUp}
                                     onClick=${() => canMoveUp && onMoveQueuedFollowup?.(index, index - 1)}
                                 >
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -6741,7 +6754,7 @@ function QueuedFollowupStack({
                                     type="button"
                                     title="Move down"
                                     aria-label="Move down in queue"
-                                    disabled=${!canMoveDown}
+                                    disabled=${busy || !canMoveDown}
                                     onClick=${() => canMoveDown && onMoveQueuedFollowup?.(index, index + 1)}
                                 >
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -6749,7 +6762,7 @@ function QueuedFollowupStack({
                                     </svg>
                                 </button>
                             `}
-                            <button
+                            ${typeof onInjectQueuedFollowup === "function" && ce`<button
                                 class="compose-queue-stack-steer-btn"
                                 type="button"
                                 title="Inject queued follow-up as steer"
@@ -6761,12 +6774,13 @@ function QueuedFollowupStack({
                                     <polyline points="14 12 18 8 22 12" />
                                 </svg>
                                 <span>Steer</span>
-                            </button>
+                            </button>`}
                             <button
                                 class="compose-queue-stack-close-btn"
                                 type="button"
                                 title="Cancel queued message"
                                 aria-label="Cancel queued message"
+                                disabled=${busy}
                                 onClick=${() => onRemoveQueuedFollowup?.(item)}
                             >
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -16418,6 +16432,10 @@ function GiApp() {
   const [fileRefs, setFileRefs] = M_([]);
   const [messageRefs, setMessageRefs] = M_([]);
   const [followupQueueItems, setFollowupQueueItems] = M_([]);
+  const [queueError, setQueueError] = M_("");
+  const [queueBusy, setQueueBusy] = M_(false);
+  const queueMutation = K_(null);
+  const queueRevision = K_(0);
   const [floatingWidget, setFloatingWidget] = M_(null);
   const [attachmentPreview, setAttachmentPreview] = M_(null);
   const [contextUsage, setContextUsage] = M_(null);
@@ -16599,6 +16617,7 @@ function GiApp() {
     if (!sessionId || scope.sessionId !== sessionId)
       return;
     const chat = sessionToChatJid2(sessionId);
+    const revision = ++queueRevision.current;
     try {
       const [models, queue, status] = await Promise.all([
         getAgentModels(chat),
@@ -16611,7 +16630,8 @@ function GiApp() {
       setActiveModel(models.current);
       setActiveThinkingLevel(models.thinking_level);
       setSupportsThinking(models.supports_thinking);
-      setFollowupQueueItems(queue.items || []);
+      if (revision === queueRevision.current && !queueMutation.current)
+        setFollowupQueueItems(queue.items || []);
       setAgentStatus(status);
       const running = status?.status === "running" || status?.status === "cancelling";
       setIsAgentTurnActive(running);
@@ -16658,6 +16678,10 @@ function GiApp() {
     setHasMore(false);
     setFollowupQueueItems([]);
     setCurrentChatBranches([]);
+    queueMutation.current = null;
+    ++queueRevision.current;
+    setQueueBusy(false);
+    setQueueError("");
     setFileRefs(getDraft(nextSessionId).fileRefs);
     setMessageRefs(getDraft(nextSessionId).messageRefs);
     setAgentStatus(null);
@@ -16713,6 +16737,55 @@ function GiApp() {
     const data = await getActiveChatAgents();
     if (revision === sessionListRevision.current)
       setActiveChatAgents(data.agents || []);
+  };
+  const mutateQueue = async (action, itemOrIndex, toIndex) => {
+    if (queueMutation.current)
+      return;
+    const scope = selection.capture();
+    if (!scope.sessionId)
+      return;
+    const token = {};
+    queueMutation.current = token;
+    ++queueRevision.current;
+    setQueueBusy(true);
+    setQueueError("");
+    const before = [...followupQueueItems];
+    const chat = sessionToChatJid2(scope.sessionId);
+    try {
+      if (action === "remove") {
+        if (itemOrIndex.chat_jid !== chat)
+          throw new Error("Queued item belongs to another session");
+        setFollowupQueueItems(before.filter((item) => item.id !== itemOrIndex.id));
+        await removeAgentQueueItem(itemOrIndex.id, chat);
+      } else {
+        const after = [...before];
+        if (!after[itemOrIndex] || toIndex < 0 || toIndex >= after.length)
+          throw new Error("Invalid queue position");
+        const [moved] = after.splice(itemOrIndex, 1);
+        after.splice(toIndex, 0, moved);
+        setFollowupQueueItems(after);
+        await reorderAgentQueueItem({ chatJid: chat, expected: before.map((item) => item.id), order: after.map((item) => item.id) });
+      }
+    } catch (error) {
+      if (selection.isCurrent(scope)) {
+        setFollowupQueueItems(before);
+        setQueueError(`Queue action failed: ${error.message}`);
+      }
+    } finally {
+      try {
+        const fresh = await getAgentQueueState(chat);
+        if (selection.isCurrent(scope))
+          setFollowupQueueItems(fresh.items || []);
+      } catch (error) {
+        if (selection.isCurrent(scope))
+          setQueueError(`Queue refresh failed: ${error.message}`);
+      }
+      if (queueMutation.current === token) {
+        ++queueRevision.current;
+        queueMutation.current = null;
+        setQueueBusy(false);
+      }
+    }
   };
   const openEditor = X_((path) => {
     const existing = tabs.find((t) => t.id === path || t.path === path);
@@ -16851,15 +16924,17 @@ function GiApp() {
                 `}
                 <${QueuedFollowupStack}
                     items=${followupQueueItems}
-                    onInjectQueuedFollowup=${() => {}}
-                    onRemoveQueuedFollowup=${() => {}}
-                    onMoveQueuedFollowup=${() => {}}
+                    busy=${queueBusy}
+                    onRemoveQueuedFollowup=${(item) => mutateQueue("remove", item)}
+                    onMoveQueuedFollowup=${(from, to) => mutateQueue("move", from, to)}
                     onOpenFilePill=${openEditor}
                 />
+                ${queueError && ce`<div role="alert">${queueError}</div>`}
                 ${sessionError && ce`<div role="alert">${sessionError}</div>`}
                 ${draftStorageError && ce`<div role="alert">${draftStorageError}</div>`}
                 ${drafts.error(sessionId) && ce`<div role="alert">${drafts.error(sessionId)}</div>`}
                 <${ComposeBox}
+                    showQueueStack=${false}
                     key=${`${sessionId}:${draftRestore?.sessionId === sessionId ? draftRestore.token : ""}`}
                     draftValue=${getDraft(sessionId).text}
                     draftMediaFiles=${getDraft(sessionId).media}
@@ -16987,5 +17062,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=3B893E94E5B7D7D164756E2164756E21
+//# debugId=027F56E8E3A6A67264756E2164756E21
 //# sourceMappingURL=app.js.map

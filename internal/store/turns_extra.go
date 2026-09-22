@@ -34,9 +34,9 @@ func (s *Store) CreateTurnWithStatus(ctx context.Context, id, sessionID, status,
 	}
 	phase := turnPhaseForStatus(status)
 	_, err = s.db.ExecContext(ctx, `
-		insert into turns (id, session_id, status, phase, prompt, metadata_json, created_at, updated_at)
-		values (?, ?, ?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`)
-	`, id, sessionID, status, phase, prompt, metadataJSON)
+		insert into turns (id, session_id, status, phase, prompt, metadata_json, created_at, updated_at, queue_position)
+		values (?, ?, ?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`, (select coalesce(max(queue_position), 0)+1 from turns where session_id = ?))
+	`, id, sessionID, status, phase, prompt, metadataJSON, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("create turn with status: %w", err)
 	}
@@ -94,7 +94,7 @@ func (s *Store) GetNextQueuedTurn(ctx context.Context, sessionID string) (*Turn,
 	row := s.db.QueryRowContext(ctx, `
 		select id, session_id, status, phase, prompt, metadata_json, coalesce(claimed_by,''), coalesce(claimed_at,''), coalesce(started_at,''), coalesce(finished_at,''), created_at, updated_at
 		from turns where session_id = ? and status = 'queued'
-		order by created_at asc, id asc
+		order by queue_position asc, created_at asc, id asc
 		limit 1
 	`, sessionID)
 	var item Turn

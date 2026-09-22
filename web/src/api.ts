@@ -241,10 +241,10 @@ export async function getAgentModels(chatJid: string | null = null) {
 export async function getAgentQueueState(chatJid: string | null = null) {
     const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
     if (!sessionId) return { items: [] };
-    const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/turns`);
-    return { items: (data.turns || []).filter((turn: any) => turn.status === 'queued').map((turn: any) => ({
+    const data = await request(`/api/sessions/${encodeURIComponent(sessionId)}/queue`);
+    return { items: (data.items || []).map((turn: any) => ({
         id: turn.id, text: turn.prompt, content: turn.prompt, chat_jid: chatJid,
-        created_at: turn.created_at,
+        metadata: turn.metadata, created_at: turn.created_at,
     })) };
 }
 
@@ -254,8 +254,8 @@ export async function steerAgentQueueItem(_itemId: string, _chatJid: string | nu
 
 export async function removeAgentQueueItem(turnId: string, chatJid: string | null = null) {
     const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
-    if (!sessionId) return null;
-    return request(`/api/turns/${encodeURIComponent(turnId)}/cancel`, { method: 'POST' }).catch(() => null);
+    if (!sessionId) throw new Error('No queue session');
+    return request(`/api/sessions/${encodeURIComponent(sessionId)}/queue/${encodeURIComponent(turnId)}`, { method: 'DELETE' });
 }
 
 export async function getAutoresearchStatus(_chatJid: string | null = null) {
@@ -534,7 +534,10 @@ export async function respondToAgentRequest(_requestId: string, _allow: boolean,
 
 // ── Additional exports required by Piclaw components ─────────────────────
 
-export async function reorderAgentQueueItem(_fromIndex: number, _toIndex: number, _chatJid: string | null = null) { return null; }
+export async function reorderAgentQueueItem(payload: { chatJid: string; expected: string[]; order: string[] }) {
+    if (!payload.chatJid?.startsWith('gi:')) throw new Error('No queue session');
+    return request(`/api/sessions/${encodeURIComponent(payload.chatJid.slice(3))}/queue`, { method: 'PATCH', body: JSON.stringify({ expected: payload.expected, order: payload.order }) });
+}
 
 export function getWorkspaceRawUrl(path: string, options: any = {}) {
     const q = new URLSearchParams({ path: String(path || '') });

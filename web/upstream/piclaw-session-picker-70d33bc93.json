@@ -24,7 +24,8 @@
         "Mention autocomplete uses native agent_id, not mutable session display names; browser acceptance protects routing after rename.",
         "Gi draft callbacks journal captured sends in browser-local IndexedDB before network I/O; host-owned recovery merges newer text/media/refs across unmount/revisit.",
         "Upload receives captured chat JID; native prompt carries media references; preserve 10 MiB cap and show actual submission/storage errors.",
-        "Acknowledged sends never restore on later UI refresh failure; deferred picker Escape focus does not steal focus from newly focused composer."
+        "Acknowledged sends never restore on later UI refresh failure; deferred picker Escape focus does not steal focus from newly focused composer.",
+        "QueuedFollowupStack uses durable row IDs, disables overlapping mutations and omits Steer without a callback; Gi host supplies optimistic reorder/remove with authoritative refresh and origin/revision guards."
       ],
       "source": "runtime/web/src/components/compose-box.ts",
       "destination": "web/src/components/compose-box.ts"

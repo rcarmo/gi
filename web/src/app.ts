@@ -46,6 +46,8 @@ import {
     pruneChatBranch,
     restoreChatBranch,
     getAgentQueueState,
+    removeAgentQueueItem,
+    reorderAgentQueueItem,
     steerAgentQueueItem,
     removeAgentQueueItem,
     streamSidePrompt,
@@ -154,6 +156,10 @@ function GiApp() {
     const [fileRefs, setFileRefs] = useState<string[]>([]);
     const [messageRefs, setMessageRefs] = useState<any[]>([]);
     const [followupQueueItems, setFollowupQueueItems] = useState<any[]>([]);
+    const [queueError, setQueueError] = useState('');
+    const [queueBusy, setQueueBusy] = useState(false);
+    const queueMutation = useRef<any>(null);
+    const queueRevision = useRef(0);
     const [floatingWidget, setFloatingWidget] = useState<any>(null);
     const [attachmentPreview, setAttachmentPreview] = useState<any>(null);
     const [contextUsage, setContextUsage] = useState<any>(null);
@@ -342,6 +348,7 @@ function GiApp() {
         const scope = selection.capture();
         if (!sessionId || scope.sessionId !== sessionId) return;
         const chat = sessionToChatJid(sessionId);
+        const revision = ++queueRevision.current;
         try {
             const [models, queue, status] = await Promise.all([
                 getAgentModels(chat), getAgentQueueState(chat), getAgentStatus('', chat),
@@ -351,7 +358,7 @@ function GiApp() {
             setActiveModel(models.current);
             setActiveThinkingLevel(models.thinking_level);
             setSupportsThinking(models.supports_thinking);
-            setFollowupQueueItems(queue.items || []);
+            if (revision === queueRevision.current && !queueMutation.current) setFollowupQueueItems(queue.items || []);
             setAgentStatus(status);
             const running = status?.status === 'running' || status?.status === 'cancelling';
             setIsAgentTurnActive(running);
@@ -399,6 +406,7 @@ function GiApp() {
         setLocalStorageItem(SESSION_KEY, nextSessionId);
         setSessionId(nextSessionId);
         setPosts([]); setHasMore(false); setFollowupQueueItems([]); setCurrentChatBranches([]);
+        queueMutation.current = null; ++queueRevision.current; setQueueBusy(false); setQueueError('');
         setFileRefs(getDraft(nextSessionId).fileRefs);
         setMessageRefs(getDraft(nextSessionId).messageRefs);
         setAgentStatus(null); setAgentDraft(null); setAgentThought(null); setAgentPlan(null);
@@ -436,6 +444,42 @@ function GiApp() {
         const revision = ++sessionListRevision.current;
         const data = await getActiveChatAgents();
         if (revision === sessionListRevision.current) setActiveChatAgents(data.agents || []);
+    };
+
+    const mutateQueue = async (action: 'remove' | 'move', itemOrIndex: any, toIndex?: number) => {
+        if (queueMutation.current) return;
+        const scope = selection.capture();
+        if (!scope.sessionId) return;
+        const token = {}; queueMutation.current = token; ++queueRevision.current;
+        setQueueBusy(true); setQueueError('');
+        const before = [...followupQueueItems];
+        const chat = sessionToChatJid(scope.sessionId);
+        try {
+            if (action === 'remove') {
+                if (itemOrIndex.chat_jid !== chat) throw new Error('Queued item belongs to another session');
+                setFollowupQueueItems(before.filter(item => item.id !== itemOrIndex.id));
+                await removeAgentQueueItem(itemOrIndex.id, chat);
+            } else {
+                const after = [...before];
+                if (!after[itemOrIndex] || toIndex! < 0 || toIndex! >= after.length) throw new Error('Invalid queue position');
+                const [moved] = after.splice(itemOrIndex, 1); after.splice(toIndex!, 0, moved);
+                setFollowupQueueItems(after);
+                await reorderAgentQueueItem({chatJid: chat, expected: before.map(item => item.id), order: after.map(item => item.id)});
+            }
+        } catch (error) {
+            if (selection.isCurrent(scope)) { setFollowupQueueItems(before); setQueueError(`Queue action failed: ${error.message}`); }
+        } finally {
+            try {
+                const fresh = await getAgentQueueState(chat);
+                if (selection.isCurrent(scope)) setFollowupQueueItems(fresh.items || []);
+            } catch (error) {
+                if (selection.isCurrent(scope)) setQueueError(`Queue refresh failed: ${error.message}`);
+            }
+            if (queueMutation.current === token) {
+                ++queueRevision.current; // Invalidate polls captured during the mutation too.
+                queueMutation.current = null; setQueueBusy(false);
+            }
+        }
     };
 
     // ── Pane helpers ──────────────────────────────────────────────────────────
@@ -575,15 +619,17 @@ function GiApp() {
                 `}
                 <${QueuedFollowupStack}
                     items=${followupQueueItems}
-                    onInjectQueuedFollowup=${() => {}}
-                    onRemoveQueuedFollowup=${() => {}}
-                    onMoveQueuedFollowup=${() => {}}
+                    busy=${queueBusy}
+                    onRemoveQueuedFollowup=${(item: any) => mutateQueue('remove', item)}
+                    onMoveQueuedFollowup=${(from: number, to: number) => mutateQueue('move', from, to)}
                     onOpenFilePill=${openEditor}
                 />
+                ${queueError && html`<div role="alert">${queueError}</div>`}
                 ${sessionError && html`<div role="alert">${sessionError}</div>`}
                 ${draftStorageError && html`<div role="alert">${draftStorageError}</div>`}
                 ${drafts.error(sessionId) && html`<div role="alert">${drafts.error(sessionId)}</div>`}
                 <${ComposeBox}
+                    showQueueStack=${false}
                     key=${`${sessionId}:${draftRestore?.sessionId === sessionId ? draftRestore.token : ''}`}
                     draftValue=${getDraft(sessionId).text}
                     draftMediaFiles=${getDraft(sessionId).media}

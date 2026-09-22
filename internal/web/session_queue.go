@@ -1,0 +1,60 @@
+package web
+
+import (
+	"encoding/json"
+	"errors"
+	"github.com/rcarmo/gi/internal/store"
+	"io"
+	"net/http"
+)
+
+func (s *Server) handleSessionQueue(w http.ResponseWriter, r *http.Request, sessionID string, parts []string) {
+	if _, err := s.store.GetSession(r.Context(), sessionID); err != nil {
+		writeJSON(w, 404, map[string]any{"error": err.Error()})
+		return
+	}
+	var err error
+	switch {
+	case len(parts) == 0 && r.Method == http.MethodGet:
+	case len(parts) == 0 && r.Method == http.MethodPatch:
+		var req struct {
+			Expected []string `json:"expected"`
+			Order    []string `json:"order"`
+		}
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 65536))
+		decoder.DisallowUnknownFields()
+		if decodeErr := decoder.Decode(&req); decodeErr != nil {
+			writeJSON(w, 400, map[string]any{"error": decodeErr.Error()})
+			return
+		}
+		if decodeErr := decoder.Decode(new(any)); decodeErr != io.EOF {
+			writeJSON(w, 400, map[string]any{"error": "Expected one queue mutation"})
+			return
+		}
+		err = s.store.ReorderQueuedTurns(r.Context(), sessionID, req.Expected, req.Order)
+	case len(parts) == 1 && r.Method == http.MethodDelete:
+		turn, getErr := s.store.GetTurn(r.Context(), parts[0])
+		if getErr != nil || turn.SessionID != sessionID {
+			writeJSON(w, 404, map[string]any{"error": "Queued turn not found in this session"})
+			return
+		}
+		err = s.turns.CancelQueuedTurn(r.Context(), sessionID, parts[0])
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, store.ErrQueueConflict) {
+			status = http.StatusConflict
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
+		return
+	}
+	items, err := s.store.ListQueuedTurns(r.Context(), sessionID)
+	if err != nil {
+		writeJSON(w, 500, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, 200, map[string]any{"items": items})
+}

@@ -169,7 +169,7 @@ test('@ux-original-014 Select another session through the picker', async ({ page
   await expect(input).toHaveValue('');
   await input.fill('Research unsent draft');
   await expect.poll(() => paths.includes(`/api/sessions/${research.id}/messages`)).toBe(true);
-  await expect.poll(() => paths.includes(`/api/sessions/${research.id}/turns`)).toBe(true);
+  await expect.poll(() => paths.includes(`/api/sessions/${research.id}/queue`)).toBe(true);
   await expect(page.locator('.post-content').filter({ hasText: researchText }).first()).toBeVisible();
   release();
   await deliveredResponse;

@@ -229,7 +229,8 @@ ux-parity-inventory:
 	$(BUN) scripts/ux-parity-report.mjs
 
 test-ux-parity:
-	$(MAKE) --no-print-directory test-instance-start TEST_PORT=$(UX_PARITY_PORT) TEST_DIR=.gi-ux-parity
+	@mkdir -p test-results/ux-parity/queue-gates
+	PATH="$(abspath tests/ux/shell):$$PATH" GI_UX_QUEUE_GATES="$(abspath test-results/ux-parity/queue-gates)" $(MAKE) --no-print-directory test-instance-start TEST_PORT=$(UX_PARITY_PORT) TEST_DIR=.gi-ux-parity
 	@trap '$(MAKE) --no-print-directory test-instance-stop TEST_DIR=.gi-ux-parity' EXIT; \
 		rm -f test-results/ux-parity/results.json; \
 		GI_TEST_URL=http://127.0.0.1:$(UX_PARITY_PORT) $(PLAYWRIGHT) test -c playwright.ux.config.mjs $(UX_PARITY_ARGS); \

@@ -394,8 +394,12 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	runner := e.runner(in.SessionID)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
+	activeQueue := false
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(opCtx, in.SessionID); err == nil {
-		return e.submitSteeringPrompt(ctx, in.SessionID, activeTurnID, in)
+		if in.Intent != "queue" {
+			return e.submitSteeringPrompt(ctx, in.SessionID, activeTurnID, in)
+		}
+		activeQueue = true
 	} else if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
@@ -404,7 +408,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if err != nil {
 		return nil, err
 	}
-	queued = count > 0
+	queued = activeQueue || count > 0
 	metadata := map[string]any{"intent": in.Intent, "model": in.Model}
 	parentSessionID := ""
 	var parentTurn *store.Turn
@@ -545,7 +549,7 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		if err != nil {
 			return nil, err
 		}
-		if !launched {
+		if !launched && in.Intent != "queue" {
 			if steeringResult, steered, err := e.convertLaunchConflictToSteering(durableCtx, turnID, in); err != nil {
 				return nil, err
 			} else if steered {
@@ -582,8 +586,11 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 		sessionStateUpdate["model"] = model
 	}
 	if queued {
-		sessionStateUpdate["status"] = "queued"
-		sessionStateUpdate["active_turn_id"] = nil
+		// A follow-up must not make its still-running origin look idle.
+		if _, _, claimErr := e.store.GetSessionActiveTurn(durableCtx, in.SessionID); claimErr == sql.ErrNoRows {
+			sessionStateUpdate["status"] = "queued"
+			sessionStateUpdate["active_turn_id"] = nil
+		}
 	}
 	if len(sessionStateUpdate) > 0 {
 		logutil.WarnIfErr("touch session state after submit", e.store.TouchSessionState(durableCtx, in.SessionID, sessionStateUpdate))
@@ -591,7 +598,15 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	return &SubmitResult{TurnID: turnID, SessionID: in.SessionID, Status: status, Queued: queued}, nil
 }
 
+func (e *Engine) CancelQueuedTurn(ctx context.Context, sessionID, turnID string) error {
+	return e.cancelTurn(ctx, sessionID, turnID, true)
+}
+
 func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error {
+	return e.cancelTurn(ctx, sessionID, turnID, false)
+}
+
+func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queuedOnly bool) error {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	turn, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
@@ -605,6 +620,18 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 	agentID, model := runner.resolveTurnAgentAndModel(opCtx, e.store, turn, turnSessionID, turn.Prompt)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
+	if queuedOnly {
+		turn, err = e.store.GetTurn(opCtx, turnID)
+		if err != nil {
+			return err
+		}
+		if turn.Status == "cancelled" {
+			return nil
+		}
+		if turn.Status != "queued" || (runner.current != nil && runner.current.turnID == turnID) {
+			return store.ErrQueueConflict
+		}
+	}
 	if runner.current != nil && runner.current.turnID == turnID {
 		if err := e.store.AppendTurnEvent(opCtx, turnID, turnSessionID, "turn.cancelling", map[string]any{"phase": "cancel", "checkpoint": true, "reason": "cancel_requested", "status": "cancelling", "turn_phase": "cancelling", "failure_kind": ""}); err != nil {
 			return err
@@ -626,7 +653,11 @@ func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error
 		return nil
 	}
 	if turn.Status == "queued" {
-		if err := e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "cancelled", "aborted"); err != nil {
+		if queuedOnly {
+			if err := e.store.CancelQueuedTurn(opCtx, turnSessionID, turnID); err != nil {
+				return err
+			}
+		} else if err := e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "cancelled", "aborted"); err != nil {
 			return err
 		}
 		if err := e.store.MarkTurnFinished(opCtx, turnID); err != nil {
@@ -774,6 +805,17 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 		}
 		cancel()
 		return errors.Join(cleanupErrs...)
+	}
+	// A queued-only cancellation may have committed before this claim.
+	claimedRecord, getErr := e.store.GetTurn(opCtx, turnID)
+	if getErr != nil || claimedRecord.Status != "queued" {
+		if cleanupErr := releaseClaim(false); cleanupErr != nil {
+			return false, cleanupErr
+		}
+		if getErr != nil {
+			return false, getErr
+		}
+		return false, store.ErrQueueConflict
 	}
 	if err := e.store.MarkTurnClaimed(opCtx, turnID, "runner"); err != nil {
 		if cleanupErr := releaseClaim(false); cleanupErr != nil {
