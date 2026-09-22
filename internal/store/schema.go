@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 )
 
@@ -294,9 +295,21 @@ func initSchema(db *sql.DB) error {
 		`create index if not exists idx_hook_invocations_phase on hook_invocations(hook_phase, created_at);`,
 		`create index if not exists idx_hook_invocations_session on hook_invocations(session_id, created_at);`,
 	}
+	// Existing tables may lack columns used by today's indexes. Keep the
+	// additive upgrade atomic and create indexes only after the ALTERs.
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin schema upgrade: %w", err)
+	}
+	defer tx.Rollback()
+	var indexes []string
 	for _, stmt := range stmts {
-		if _, err := db.Exec(stmt); err != nil {
-			return err
+		if strings.HasPrefix(strings.TrimSpace(stmt), "create index ") {
+			indexes = append(indexes, stmt)
+			continue
+		}
+		if _, err := tx.Exec(stmt); err != nil {
+			return fmt.Errorf("create schema table: %w", err)
 		}
 	}
 	for _, alter := range []string{
@@ -316,9 +329,26 @@ func initSchema(db *sql.DB) error {
 		`alter table inbound_work_queue add column last_error text not null default ''`,
 		`alter table inbound_work_queue add column next_attempt_at text`,
 	} {
-		if _, err := db.Exec(alter); err != nil && !isDuplicateColumnError(err) {
-			return err
+		if _, err := tx.Exec(alter); err != nil {
+			if !isDuplicateColumnError(err) {
+				return fmt.Errorf("upgrade schema (%s): %w", alter, err)
+			}
+			continue
 		}
+		if alter == `alter table turns add column phase text not null default 'queued'` {
+			// Derive only newly introduced phase data; never reset phases on reopen.
+			if _, err := tx.Exec(`update turns set phase = case status when 'running' then 'setup' when 'cancelled' then 'aborted' else status end`); err != nil {
+				return fmt.Errorf("backfill legacy turn phase: %w", err)
+			}
+		}
+	}
+	for _, stmt := range indexes {
+		if _, err := tx.Exec(stmt); err != nil {
+			return fmt.Errorf("create schema index: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit schema upgrade: %w", err)
 	}
 	return nil
 }
@@ -328,5 +358,5 @@ func isDuplicateColumnError(err error) bool {
 		return false
 	}
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "duplicate column") || strings.Contains(msg, "already exists") || strings.Contains(msg, "duplicate")
+	return strings.Contains(msg, "duplicate column name:")
 }

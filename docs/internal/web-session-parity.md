@@ -1,5 +1,11 @@
 # Web session selection and compact TUI adaptation
 
+## Legacy dev startup repair (2026-09-22)
+
+The dev database predates `turns.phase`. Schema initialisation now runs table creation, additive columns/backfill and index creation in one transaction, in that order. New phases derive from existing turn status; later opens leave them unchanged. Unrelated ALTER failures are not treated as duplicate-column success. A late index error rolls back all schema changes.
+
+Validation: synthetic legacy/reopen/rollback tests, the real database copied before migration, Go tests/vet, three repeated migration race runs and 70/70 functional tests. The dev instance now serves the app and `/api/runtime/config` on port 8090. Two-way comparisons against the restricted backup at `/workspace/tmp/gi-legacy-migration/pre-upgrade.db` find no changes to existing session fields, 51 turns, 146 messages or 317 events; integrity/foreign-key checks pass. No parity mapping changes. The attempted review delegate failed its workspace-path check and supplied no evidence.
+
 ## Latest verified slice: run-bound queue Steer (2026-09-22)
 
 Queue Steer requires a captured matching active run. Atomic native admission consumes each queued ID at most once; idle, stale, cancelling and foreign targets reject without immediate-send fallback. Unknown/idle browser controls are disabled. Unconsumed entries return as held queue rows, survive reload and can be explicitly retried into a new run. They never auto-send. See [ADR-0018](../adr/0018-run-bound-queue-steer.md) for transaction/recovery semantics and limits.
