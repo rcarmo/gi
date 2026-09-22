@@ -632,6 +632,23 @@ function createSelectionScope() {
   };
 }
 
+// web/src/gi-message-media.ts
+function projectMessageMedia(payload, sessionId) {
+  const blocks = Array.isArray(payload?.content_blocks) ? payload.content_blocks : [];
+  const refs = Array.isArray(payload?.media) ? payload.media.filter((ref) => Number.isSafeInteger(ref?.media_id) && ref.media_id > 0 && (!ref.session_id || ref.session_id === sessionId)) : [];
+  if (!refs.length)
+    return { media_ids: [], content_blocks: blocks.length ? blocks : null };
+  const mediaBlocks = refs.map((ref) => ({
+    type: /^image\/(png|jpeg|gif|webp|avif|bmp|svg\+xml)$/i.test(ref.content_type || "") ? "image" : "file",
+    name: ref.filename || `attachment-${ref.media_id}`,
+    mime_type: ref.content_type || "application/octet-stream"
+  }));
+  return {
+    media_ids: refs.map((ref) => ref.media_id),
+    content_blocks: [...blocks.filter((block) => block?.type !== "image" && block?.type !== "file"), ...mediaBlocks]
+  };
+}
+
 // web/src/gi-sse-client.ts
 var API_BASE = "";
 
@@ -853,7 +870,7 @@ async function getTimeline(limit = 50, beforeId = null, chatJid = null, after = 
         content: m.content,
         thread_id: null,
         agent_id: m.payload?.agent_id || (m.role === "assistant" ? "agent" : null),
-        content_blocks: m.payload?.content_blocks || null,
+        ...projectMessageMedia(m.payload, sessionId),
         content_meta: null,
         link_previews: null,
         kind: m.payload?.kind || null,
@@ -878,7 +895,7 @@ async function searchPosts(query, limit = 50, offset = 0, chatJid = null, scope 
     sender: m.role === "user" ? "user" : "agent",
     is_from_me: m.role === "user",
     is_bot_message: m.role === "assistant",
-    data: { type: m.role === "assistant" ? "agent_response" : "user_message", content: m.content, thread_id: null, agent_id: m.payload?.agent_id || (m.role === "assistant" ? "agent" : null) }
+    data: { type: m.role === "assistant" ? "agent_response" : "user_message", content: m.content, thread_id: null, agent_id: m.payload?.agent_id || (m.role === "assistant" ? "agent" : null), ...projectMessageMedia(m.payload, m.session_id) }
   })) };
 }
 async function getSystemMetrics() {
@@ -1078,7 +1095,7 @@ function getMediaUrl(mediaId) {
   return `/api/media/${mediaId}/raw`;
 }
 function getThumbnailUrl(mediaId) {
-  return `/api/media/${mediaId}/thumbnail`;
+  return getMediaUrl(mediaId);
 }
 async function submitAdaptiveCardAction(_payload) {
   return null;
@@ -17943,5 +17960,5 @@ function GiApp() {
 }
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=420C774A5DF586AD64756E2164756E21
+//# debugId=880468D9D0DB31AA64756E2164756E21
 //# sourceMappingURL=app.js.map

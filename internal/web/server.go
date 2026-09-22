@@ -177,6 +177,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc(connectivitySSEPrefix, guard(s.handleConnectivitySSE))
 	s.mux.HandleFunc("/api/sessions", guard(s.handleSessions))
 	s.mux.HandleFunc("/api/sessions/", guard(s.handleSessionSubroutes))
+	s.mux.HandleFunc("/api/media/", guard(s.handleMediaLookup))
 	s.mux.HandleFunc("/api/turns/", guard(s.handleTurnSubroutes))
 }
 

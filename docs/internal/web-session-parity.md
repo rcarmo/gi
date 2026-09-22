@@ -1,10 +1,16 @@
 # Web session selection and compact TUI adaptation
 
+## Latest feature evidence: stored images and lightbox (2026-09-22)
+
+Native media IDs/typed blocks now reach timeline and search. Guarded metadata/raw endpoints supply stored bytes to the unchanged image modal. **timeline-013/014/015/016** pass keyboard, pointer and trusted-touch dismissal; additional session/search/reload/404 checks retain drafts and files. [ADR-0039](../adr/0039-native-media-lightbox.md).
+
+Verified **474/474 browser**, **72/72 functional**, **31 helpers**, full Go/vet/build/hook and web race ×3. Coverage **43/236 Classic**, **2/42 shared**, **193/40 unmapped**. No terminal implementation; explicit bounded attachment actions are design work. Raster browser proof uses PNG; annotation, iPad drawing, thumbnail generation and richer preview contracts remain gaps.
+
 ## Dependency regression (2026-09-22)
 
 Upgraded go-ai to `upstream-v0.87.0`, Go to 1.26.8, and compatible Go/web dependencies. KaTeX now bundles matching CSS/fonts. **444/444 browser**, **71/71 functional**, **29 helpers**, Go/vet/race ×3 and all three-size TUI suites pass. go-tui stays at 0.18.2 because newer releases lose regular-mode history on resize; gVisor stays at Tailscale's required version. [Upgrade evidence](dependency-upgrade-20260922.md). Coverage remains **39/236 Classic**, **2/42 shared**, **197/40 unmapped**. Lightbox work is separate and unverified.
 
-## Latest feature evidence: native upload recovery (2026-09-22)
+## Earlier feature evidence: native upload recovery (2026-09-22)
 
 Original-026 passes native upload-ID and error acceptance, including a partially uploaded batch, newer draft merging, session isolation, reload and explicit retry. Tests remove a multipart boundary header to obtain a real parser rejection without rewriting file bytes or fabricating a response. Persistent IDs, filenames and bytes are checked through the actual API. Application/supplied components unchanged. [ADR-0038](../adr/0038-native-upload-failure-recovery.md).
 

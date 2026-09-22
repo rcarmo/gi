@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Native image lightbox: 2026-09-22
+
+`lightbox.spec.mjs` maps timeline-013/014/015/016 with a real composer-uploaded PNG: Escape closes, other keys retain the modal, image/backdrop clicks close, and touch-enabled contexts deliver trusted taps. Additional session/search/reload/native-404 recovery preserves unsent text/files. [ADR-0039](../../docs/adr/0039-native-media-lightbox.md). No fabricated media/post responses or navigator overrides; touch evidence asserts the delivered events because Linux WebKit reports zero maxTouchPoints.
+
+Latest **474/474 browser** (312 main + 162 specialised), **72/72 functional**, **31 helpers**, Go/vet/build/hook/web race ×3. Coverage **43/236 Classic**, **2/42 shared**, **193/40 unmapped**. PNG acceptance earns no annotation/iPad drawing/all-format/terminal credit. Screenshots attached from native touch cases at desktop/tablet/phone sizes.
+
 ## Native upload failure recovery: 2026-09-22
 
 `drafts.spec.mjs` maps original-026: native IDs on successful uploads, native multipart parser errors and no submission on rejection. An additional partial-batch case checks stored successful bytes, newer draft merging, session isolation, reload and explicit retry. The fixture changes only the boundary header, never the multipart bytes or HTTP response. Persisted turns retain the retry IDs/filenames and exactly one user message. [ADR-0038](../../docs/adr/0038-native-upload-failure-recovery.md).

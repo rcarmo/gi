@@ -12,6 +12,7 @@
 
 import { recordAppPerfRequest } from './ui/app-perf-tracing.js';
 import { sessionPickerAgents } from './gi-session-state.js';
+import { projectMessageMedia } from './gi-message-media.js';
 
 const API_BASE = '';
 
@@ -128,7 +129,7 @@ export async function getTimeline(limit = 50, beforeId: string | null = null, ch
                 content: m.content,
                 thread_id: null,
                 agent_id: m.payload?.agent_id || (m.role === 'assistant' ? 'agent' : null),
-                content_blocks: m.payload?.content_blocks || null,
+                ...projectMessageMedia(m.payload, sessionId),
                 content_meta: null,
                 link_previews: null,
                 kind: m.payload?.kind || null,
@@ -153,7 +154,7 @@ export async function searchPosts(query: string, limit = 50, offset = 0, chatJid
         id: m.id, chat_jid: sessionToChatJid(m.session_id), content: m.content, timestamp: m.created_at,
         sender: m.role === 'user' ? 'user' : 'agent',
         is_from_me: m.role === 'user', is_bot_message: m.role === 'assistant',
-        data: { type: m.role === 'assistant' ? 'agent_response' : 'user_message', content: m.content, thread_id: null, agent_id: m.payload?.agent_id || (m.role === 'assistant' ? 'agent' : null) },
+        data: { type: m.role === 'assistant' ? 'agent_response' : 'user_message', content: m.content, thread_id: null, agent_id: m.payload?.agent_id || (m.role === 'assistant' ? 'agent' : null), ...projectMessageMedia(m.payload, m.session_id) },
     })) };
 }
 
@@ -456,7 +457,8 @@ export function getMediaUrl(mediaId: number) {
 }
 
 export function getThumbnailUrl(mediaId: number) {
-    return `/api/media/${mediaId}/thumbnail`;
+    // Native storage has no derived thumbnails; keep the original image bytes.
+    return getMediaUrl(mediaId);
 }
 
 export async function submitAdaptiveCardAction(_payload: unknown) {
