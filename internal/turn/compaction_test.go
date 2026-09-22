@@ -122,6 +122,23 @@ func TestAutomaticCompactionNativeLifecycle(t *testing.T) {
 			if summaries != expected {
 				t.Fatal(summaries)
 			}
+			if kind == "complete" {
+				snapshot, err := s.ContextSnapshot(ctx, "A")
+				if err != nil || snapshot.Summary != "retained decisions" || len(snapshot.Covered) != 5 {
+					t.Fatal(snapshot, err)
+				}
+				// The second real turn must project the persisted boundary. It has
+				// fewer than six messages, so no new compaction hook runs.
+				next, err := e.SubmitPrompt(ctx, RunInput{SessionID: "A", Prompt: "after boundary", Model: "mock-stream"})
+				if err != nil {
+					t.Fatal(err)
+				}
+				waitForCondition(t, 3*time.Second, func() bool { rec, err := s.GetTurn(ctx, next.TurnID); return err == nil && rec.Status == "completed" }, "post-checkpoint provider request")
+				waitForCondition(t, 3*time.Second, func() bool { r := e.runner("A"); r.mu.Lock(); defer r.mu.Unlock(); return r.current == nil }, "second runner cleanup")
+				if calls.Load() != 2 {
+					t.Fatal(calls.Load())
+				}
+			}
 			if (kind == "cancel" || kind == "persistence") && calls.Load() != 0 {
 				t.Fatal("provider called after cancellation/persistence failure", calls.Load())
 			}

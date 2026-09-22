@@ -95,3 +95,23 @@ test('Gi Stop failure and delayed completion conflict retain composer data',asyn
   await expect(page.getByRole('button',{name:'Send message',exact:true})).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);await expect(input).toHaveValue('preserved draft during compaction');await expect(page.locator('.compose-file-pill[title="keep.txt"]')).toBeVisible();expect(await turns()).toHaveLength(4);
  }finally{unblock();release();}
 });
+
+test('Gi durable compaction changes the next provider context without deleting timeline',async({page,request},info)=>{
+ const{main,turn,input,turns,release}=await fixture(page,request,info);
+ try{
+  release();await expect.poll(async()=> (await turns()).find(t=>t.id===turn.turn_id).status).toBe('completed');
+  const messages=async()=>(await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages;
+  const before=await messages();const summary=before.find(m=>m.payload?.kind==='compaction'&&m.payload?.turn_id===turn.turn_id);expect(summary.payload.durable_context).toBe(true);
+  await page.reload();await expect(input).toHaveValue('preserved draft during compaction');
+  const next=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:'new request after durable boundary',model:'ux-local/gate'}})).json();
+  await expect.poll(async()=> (await turns()).find(t=>t.id===next.turn_id).status).toBe('completed');
+  const after=await messages();
+  for(const message of before)expect(after.find(m=>m.id===message.id)).toEqual(message);
+  // Fixture echoes actual provider user messages, not a fabricated result.
+  const answer=after.find(m=>m.role==='assistant'&&m.payload?.turn_id===next.turn_id&&m.payload?.kind==='chat');
+  expect(answer.content).toContain('Preserve user requirements and pending work.');expect(answer.content).toContain('new request after durable boundary');
+  expect(answer.content).not.toContain('history 0 preserve requirements');
+  expect(after.filter(m=>m.payload?.kind==='compaction')).toHaveLength(1);
+  await page.reload();await expect(page.getByText('history 0 preserve requirements and pending changes',{exact:true})).toBeVisible();await expect(input).toHaveValue('preserved draft during compaction');
+ }finally{release();}
+});

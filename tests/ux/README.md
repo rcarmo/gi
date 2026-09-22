@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Durable context checkpoints: 2026-09-22
+
+The Gi-only compaction regression now checks the next real provider request after compaction/reload: it contains the persisted summary and new request, not covered old history. All existing timeline records remain byte/ID-identical. Native store/engine tests cover reopening, repeated checkpoints, edit/delete fallback, history/version races, prefix validation and hook/tool/media eligibility limits.
+
+Latest: **54/54 compaction + 228/228 existing browser executions = 282/282**, **70/70 functional**, **24 helpers**, Go/vet/race, plus the three-size terminal session/model regression. No additional frozen mapping: Classic **25/236**, shared **2/42**, 211/40 unmapped. Same five explicit result files/targets below. See [ADR-0021](../../docs/adr/0021-durable-context-checkpoints.md).
+
 ## Automatic compaction lifecycle: 2026-09-22
 
 `make test-ux-compaction` maps `compaction-001–005` and `context-004`: a native hook gate pauses real automatic compaction after history created by provider turns. The suite verifies elapsed/style/title state, persisted completion, Stop retaining draft/media, suppression detail and refreshed usage (including increased reported tokens). Extra regressions cover reload and delayed activity after switching sessions, failed Stop, and cancellation arriving after completion. No synthetic events, SQL history seeds, forced clicks, retries or paid providers.

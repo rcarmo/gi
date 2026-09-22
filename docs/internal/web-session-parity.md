@@ -1,6 +1,14 @@
 # Web session selection and compact TUI adaptation
 
-## Latest browser evidence: automatic compaction (2026-09-22)
+## Latest evidence: durable context checkpoints (2026-09-22)
+
+Eligible automatic compaction now persists a session-local summary and covered message IDs/fingerprints atomically with its completion. Later turns/reopen project that checkpoint plus uncovered messages. The full timeline stays intact; edits/deletes to covered history invalidate the projection. Exact native-context/version/prefix guards reject races and avoid hiding hook/tool/media context that the text summary cannot safely cover. See [ADR-0021](../adr/0021-durable-context-checkpoints.md).
+
+Verified: **54/54 compaction browser executions**, **282/282 combined**, **70/70 functional**, **24 helpers**, Go/vet/hook checks and targeted race ×3. A new native-provider browser regression checks next-request context and unchanged timeline records after reload. Three-size live terminal session/model regressions pass with zero added idle rows; no terminal UI changed. Native checkpoint reopen has store coverage, not live terminal checkpoint acceptance.
+
+Mappings remain **25/236 Classic**, **2/42 shared** (211/40 unmapped). Manual Compact, general tool/multimodal checkpointing, large-history performance and full crash acceptance remain open. Historical usage is not rewritten to claim a reduction. Earlier evidence below records previous implementation limits.
+
+## Earlier browser evidence: automatic compaction (2026-09-22)
 
 Automatic compaction now renders elapsed/style/title state from a native activity snapshot. Stop targets the captured session/run without clearing text or attachments, is disabled while activity is unknown/stale/pending, and reconciles a completion race without cancelling new work. Suppression shows native detail; completion refreshes measured usage without requiring a reduction. See [ADR-0020](../adr/0020-automatic-compaction-web-status.md).
 

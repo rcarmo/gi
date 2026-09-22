@@ -41,6 +41,10 @@ func (s *Store) BeginCompaction(ctx context.Context, sessionID, turnID string, p
 // FinishCompaction persists outcome, optional summary and phase restoration in
 // one transaction. It returns the committed outcome (possibly cancelled).
 func (s *Store) FinishCompaction(ctx context.Context, sessionID, turnID string, startedSeq int, outcome, summary string, payload map[string]any) (string, error) {
+	return s.FinishCompactionWithBoundary(ctx, sessionID, turnID, startedSeq, outcome, summary, payload, nil)
+}
+
+func (s *Store) FinishCompactionWithBoundary(ctx context.Context, sessionID, turnID string, startedSeq int, outcome, summary string, payload map[string]any, boundary *ContextBoundary) (string, error) {
 	switch outcome {
 	case "completed", "cancelled", "suppressed", "failed":
 	default:
@@ -72,6 +76,13 @@ func (s *Store) FinishCompaction(ctx context.Context, sessionID, turnID string, 
 	copyPayload := map[string]any{}
 	for k, v := range payload {
 		copyPayload[k] = v
+	}
+	copyPayload["durable_context"] = false
+	if outcome == "completed" && boundary != nil {
+		if err = commitContextBoundary(ctx, tx, sessionID, summary, boundary); err != nil {
+			return "", err
+		}
+		copyPayload["durable_context"] = true
 	}
 	copyPayload["outcome"] = outcome
 	copyPayload["started_seq"] = startedSeq

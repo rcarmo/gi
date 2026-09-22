@@ -4551,21 +4551,14 @@ func (r *sessionRunner) assembleAgentContext(ctx context.Context, s *store.Store
 		turnMetadata = turnRec.Metadata
 	}
 
-	msgs, err := s.ListMessages(ctx, sessionID)
+	snapshot, err := s.ContextSnapshot(ctx, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("load session messages: %w", err)
 	}
 	convCtx := &goai.Context{
 		SystemPrompt: sysPrompt,
 		Tools:        r.engine.toolDefsForMetadata(turnMetadata),
-	}
-	for _, m := range msgs {
-		switch m.Role {
-		case "user":
-			convCtx.Messages = append(convCtx.Messages, r.userMessageWithProviderSafeMedia(ctx, sessionID, m.Content, m.Payload))
-		case "assistant":
-			convCtx.Messages = append(convCtx.Messages, goai.Message{Role: goai.RoleAssistant, Content: []goai.ContentBlock{{Type: "text", Text: m.Content}}})
-		}
+		Messages:     r.projectContextSnapshot(ctx, sessionID, snapshot),
 	}
 
 	if resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookBeforeAgentStart, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, SystemPrompt: convCtx.SystemPrompt, Messages: convCtx.Messages, Tools: convCtx.Tools}); err != nil {
@@ -4612,12 +4605,32 @@ func (r *sessionRunner) prepareAgentIteration(ctx context.Context, sessionID, tu
 			convCtx.Tools = resp.Tools
 		}
 	}
+	// Snapshot before the asynchronous before-compact hook; completion compares
+	// the exact history and checkpoint version inside its write transaction.
+	snapshot, snapshotErr := r.store.ContextSnapshot(ctx, sessionID)
+	if snapshotErr != nil {
+		return pendingSteering, snapshotErr
+	}
 	err := compaction.MaybeCompactContext(ctx, compaction.RuntimeRequest{SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Settings: r.engine.runtimeCfg.Compaction}, convCtx, compaction.RuntimeOps{BackgroundContext: r.engine.backgroundContext, BeforeCompact: func(ctx context.Context, payload map[string]any, messages []goai.Message) (compaction.HookDecision, error) {
 		resp, err := r.engine.emitHook(ctx, HookRequest{Name: HookSessionBeforeCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload, Messages: messages})
 		return compaction.HookDecision{Cancel: resp.Cancel, Block: resp.Block, Payload: resp.Payload}, err
 	}, AfterCompact: func(ctx context.Context, payload map[string]any) {
 		_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookSessionCompact, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Payload: payload})
-	}, Begin: r.store.BeginCompaction, Finish: r.store.FinishCompaction, Broadcast: r.engine.broadcast})
+	}, Begin: r.store.BeginCompaction, Finish: func(finishCtx context.Context, sid, tid string, seq int, outcome, summary string, payload map[string]any) (string, error) {
+		var boundary *store.ContextBoundary
+		if outcome == "completed" {
+			var err error
+			boundary, err = r.compactionBoundary(finishCtx, sid, convCtx, snapshot, payload)
+			if err != nil {
+				return "", err
+			}
+		}
+		accepted, err := r.store.FinishCompactionWithBoundary(finishCtx, sid, tid, seq, outcome, summary, payload, boundary)
+		if err == nil {
+			payload["durable_context"] = accepted == "completed" && boundary != nil
+		}
+		return accepted, err
+	}, Broadcast: r.engine.broadcast})
 	return pendingSteering, err
 }
 

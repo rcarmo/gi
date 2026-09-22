@@ -1,5 +1,7 @@
 # Gi web UI — 2026-09-21
 
+Latest slice (2026-09-22): durable eligible-context checkpoints preserve the timeline while changing later provider context. **282/282 browser**, **70/70 functional**, **24 helpers**, Go/vet/race and three-size TUI regression pass. Mappings unchanged: **25/236 Classic**, **2/42 shared**, 211/40 unmapped. Manual Compact and general tool/multimodal checkpointing remain open. See [ADR-0021](../adr/0021-durable-context-checkpoints.md). Earlier evidence follows.
+
 Latest slice (2026-09-22): automatic compaction lifecycle/Stop/suppression and usage refresh pass six projects (`compaction-001–005`, `context-004`). **276/276 browser**, **70/70 functional**, **24 helpers**, Go/vet/hook/race checks. Coverage: **25/236 Classic**, **2/42 shared**, 211/40 unmapped. Manual Compact remains disabled; persisted history boundaries and broader reconnect acceptance are open. See [ADR-0020](../adr/0020-automatic-compaction-web-status.md). Older evidence follows.
 
 Latest slice (2026-09-22): meter `context-001/005` passes all six projects. **228/228 browser executions**, **70/70 functional**, Go/vet/hook checks and **23/23 helpers**; **19/236 Classic**, **2/42 shared** passes, 217/40 unmapped. App-level tooltip data now follows the native meter title without editing supplied components or adding a wrapper. Formatting, colour boundaries and overflow are verified from local-provider measurements. Three-size terminal regressions pass with zero added idle rows. Full compaction remains open; earlier counts follow below.

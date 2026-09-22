@@ -140,6 +140,7 @@ func MaybeCompactContext(ctx context.Context, req RuntimeRequest, convCtx *goai.
 	candidate := []goai.Message{goai.UserMessage(SummaryPrefix + summary + SummarySuffix)}
 	candidate = append(candidate, convCtx.Messages[len(convCtx.Messages)-prep.RecentMessages:]...)
 	payload["messages_after"] = len(candidate)
+	payload["messages_to_summarize"] = prep.MessagesToSummarize
 	payload["from_hook"] = decision.Payload != nil && decision.Payload["summary"] != nil
 	if err := ctx.Err(); err != nil {
 		_, finishErr := finish("cancelled", "", payload)

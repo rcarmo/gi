@@ -87,6 +87,14 @@ func initSchema(db *sql.DB) error {
 		`create index if not exists idx_messages_payload_kind on messages(json_extract(payload_json, '$.kind'));`,
 		`create index if not exists idx_messages_payload_intent on messages(json_extract(payload_json, '$.intent'));`,
 
+		`create table if not exists context_checkpoints (
+			session_id text primary key references sessions(id) on delete cascade,
+			version integer not null,
+			summary text not null,
+			covered_json text not null,
+			created_at text not null
+		);`,
+
 		`create table if not exists turns (
 			id text primary key,
 			session_id text not null,
