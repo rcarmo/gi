@@ -2,7 +2,7 @@
 import { html, useRef, useState, useEffect, useLayoutEffect, useCallback, useMemo } from '../vendor/preact-htm.js';
 import { mergeDrafts } from '../gi-drafts.js';
 import { findPopupTypeaheadMatch, isPopupTypeaheadKey, resolvePopupTypeaheadMatch, updatePopupTypeaheadBuffer } from '../ui/popup-typeahead.js';
-import { getAgentModels, sendAgentMessage, uploadMedia } from '../api.js';
+import { getAgentModels, selectAgentModel, sendAgentMessage, uploadMedia } from '../api.js';
 import { getLocalStorageItem, setLocalStorageItem } from '../utils/storage.js';
 import { buildMentionValue, filterMentionAgents, parseMentionAutocompleteQuery } from '../ui/agent-mentions.js';
 import { shouldOpenSessionSwitcherFromBlankCompose, filterSessionPickerChats, groupSessionPickerChats, moveSessionPickerIndex, resolveSessionPickerSearchInitialIndex } from '../ui/compose-session-switcher.js';
@@ -657,6 +657,8 @@ export function ComposeBox({
     onToggleNotifications,
     onModelChange,
     onModelStateChange,
+    onModelMutationStart,
+    onModelMutationEnd,
     activeEditorPath = null,
     onAttachEditorFile,
     onOpenFilePill,
@@ -1219,56 +1221,38 @@ export function ComposeBox({
         updateValue(next);
     };
 
-    const extractCurrentModel = (response) => {
-        const fromLabel = response?.command?.model_label;
-        if (fromLabel) return fromLabel;
-        const message = response?.command?.message;
-        if (typeof message === 'string') {
-            const currentMatch = message.match(/•\s+([^\n]+?)\s+\(current\)/);
-            if (currentMatch?.[1]) return currentMatch[1].trim();
-        }
-        return null;
-    };
-
-    const runModelCommand = async (commandText) => {
-        if (searchMode || switchingModel) return;
-
-        setSubmitError(null);
-        setSubmitNotice(null);
-        setSwitchingModel(true);
-        try {
-            const response = await sendAgentMessage('default', commandText, null, [], null, currentChatJid);
-            const nextModel = extractCurrentModel(response);
-            emitModelState({
-                model: nextModel ?? activeModel ?? null,
-                thinking_level: response?.command?.thinking_level,
-                thinking_level_label: response?.command?.thinking_level_label,
-                supports_thinking: response?.command?.supports_thinking,
-            });
-            await refreshAgentModelStateBestEffort(getAgentModels, currentChatJid, emitModelState);
-            setSubmitNotice(resolveUiOnlyCommandNotice(commandText, response));
-            onPost?.(response);
-            return true;
-        } catch (error) {
-            console.error('Failed to switch model:', error);
-            alert('Failed to switch model: ' + error.message);
-            return false;
-        } finally {
-            setSwitchingModel(false);
-        }
-    };
-
     const handleCycleModel = async () => {
-        await runModelCommand('/cycle-model');
+        try {
+            const available = normalizeModelPickerOptions(await getAgentModels(currentChatJid));
+            if (!mountedRef.current || !available.length) return;
+            const index = available.findIndex(option => option.label === activeModel);
+            await handleSelectModel(available[(index + 1) % available.length]);
+        } catch (error) {
+            if (mountedRef.current) setSubmitError(`Model catalogue failed: ${error.message}`);
+        }
     };
 
+    const modelMutationRef = useRef(false);
+    const modelRevisionRef = useRef(0);
     const handleSelectModel = async (modelOption) => {
-        const modelLabel = typeof modelOption === 'string'
-            ? modelOption
-            : (typeof modelOption?.label === 'string' ? modelOption.label : '');
-        if (!modelLabel || switchingModel) return;
-        const ok = await runModelCommand(`/model ${modelLabel}`);
-        if (ok) setShowModelPopup(false);
+        const modelLabel = typeof modelOption === 'string' ? modelOption : modelOption?.label;
+        if (!modelLabel || modelMutationRef.current) return;
+        modelMutationRef.current = true;
+        ++modelRevisionRef.current;
+        const mutation = onModelMutationStart?.();
+        setSwitchingModel(true); setSubmitError(null);
+        try {
+            const state = await selectAgentModel(currentChatJid, modelLabel);
+            if (!mountedRef.current) return;
+            emitModelState(state);
+            setShowModelPopup(false);
+        } catch (error) {
+            if (mountedRef.current) setSubmitError(`Model selection failed: ${error.message}`);
+        } finally {
+            modelMutationRef.current = false;
+            onModelMutationEnd?.(mutation);
+            if (mountedRef.current) setSwitchingModel(false);
+        }
     };
 
     const runSessionPopupEntry = (entry) => {
@@ -1513,7 +1497,10 @@ export function ComposeBox({
                 return true;
             }
             resetPopupTypeahead();
-            if (showModelPopup) setShowModelPopup(false);
+            if (showModelPopup) {
+                setShowModelPopup(false);
+                requestAnimationFrame(() => { if (document.activeElement === document.body) modelHintRef.current?.focus(); });
+            }
             if (showSessionPopup) closeSessionPopup(true);
             return true;
         }
@@ -1530,7 +1517,8 @@ export function ComposeBox({
                 if (modelOptions.length > 0) setModelPopupIndex((idx) => (idx - 1 + modelOptions.length) % modelOptions.length);
                 return true;
             }
-            if ((e.key === 'Enter' || e.key === 'Tab') && modelOptions.length > 0) {
+            if (e.key === 'Tab' || (e.key === 'Enter' && e.target?.closest?.('button'))) return false;
+            if (e.key === 'Enter' && modelOptions.length > 0) {
                 consume();
                 resetPopupTypeahead();
                 void handleSelectModel(modelOptions[Math.max(0, Math.min(modelPopupIndex, modelOptions.length - 1))]);
@@ -1848,18 +1836,21 @@ export function ComposeBox({
 
         popupTypeaheadRef.current = { value: '', updatedAt: 0 };
         setLoadingModels(true);
+        const revision = modelRevisionRef.current;
+        let active = true;
         getAgentModels(currentChatJid)
             .then((payload) => {
+                if (!active || !mountedRef.current || revision !== modelRevisionRef.current) return;
                 setModelOptions(normalizeModelPickerOptions(payload));
                 emitModelState(payload);
             })
             .catch((error) => {
-                console.warn('Failed to load model list:', error);
+                if (!active || !mountedRef.current) return;
+                setSubmitError(`Model catalogue failed: ${error.message}`);
                 setModelOptions([]);
             })
-            .finally(() => {
-                setLoadingModels(false);
-            });
+            .finally(() => { if (active && mountedRef.current) setLoadingModels(false); });
+        return () => { active = false; };
     }, [showModelPopup, activeModel]);
 
     useEffect(() => {
@@ -1936,10 +1927,13 @@ export function ComposeBox({
         return () => document.removeEventListener('keydown', onKeyDown, true);
     }, [searchMode, showModelPopup, showSessionPopup, handlePopupKeyboardEvent]);
 
+    useLayoutEffect(() => {
+        if (showModelPopup) modelPopupRef.current?.focus();
+    }, [showModelPopup]);
+
     useEffect(() => {
         if (!showModelPopup) return;
         const popup = modelPopupRef.current;
-        popup?.focus?.();
         const active = popup?.querySelector?.('.compose-model-popup-item.active');
         active?.scrollIntoView?.({ block: 'nearest' });
     }, [showModelPopup, modelPopupIndex, modelOptions]);

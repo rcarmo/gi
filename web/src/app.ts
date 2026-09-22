@@ -159,6 +159,8 @@ function GiApp() {
     const [queueBusy, setQueueBusy] = useState(false);
     const queueMutation = useRef<any>(null);
     const queueRevision = useRef(0);
+    const modelRevision = useRef(0);
+    const modelMutation = useRef<any>(null);
     const connectionRevision = useRef(0);
     const streamDisconnected = useRef(false);
     const refreshAfterConnection = useRef<() => void>(() => {});
@@ -372,15 +374,18 @@ function GiApp() {
         const chat = sessionToChatJid(sessionId);
         const revision = ++queueRevision.current;
         const connection = connectionRevision.current;
+        const modelVersion = modelRevision.current;
         try {
             const [models, queue, status] = await Promise.all([
                 getAgentModels(chat), getAgentQueueState(chat), getAgentStatus('', chat),
             ]);
             if (!selection.isCurrent(scope) || connection !== connectionRevision.current || streamDisconnected.current) return;
-            setAgentModelsPayload(models);
-            setActiveModel(models.current);
-            setActiveThinkingLevel(models.thinking_level);
-            setSupportsThinking(models.supports_thinking);
+            if (modelVersion === modelRevision.current && !modelMutation.current) {
+                setAgentModelsPayload(models);
+                setActiveModel(models.current);
+                setActiveThinkingLevel(models.thinking_level);
+                setSupportsThinking(models.supports_thinking);
+            }
             if (revision === queueRevision.current && !queueMutation.current) {
                 setFollowupQueueItems(queue.items || []);
                 const admitted = new Set((queue.items || []).map(item => item.metadata?.client_request_id).filter(Boolean));
@@ -440,6 +445,7 @@ function GiApp() {
         setPosts([]); setHasMore(false); setFollowupQueueItems([]); setCurrentChatBranches([]);
         queueMutation.current = null; ++queueRevision.current; setQueueBusy(false); setQueueError('');
         setOptimisticQueue([]);
+        ++modelRevision.current; modelMutation.current = null;
         setFileRefs(getDraft(nextSessionId).fileRefs);
         setMessageRefs(getDraft(nextSessionId).messageRefs);
         setAgentStatus(null); setAgentDraft(null); setAgentThought(null); setAgentPlan(null);
@@ -692,6 +698,12 @@ function GiApp() {
                     isAgentActive=${isAgentTurnActive}
                     onPost=${handlePost}
                     onFocus=${() => { if (!isIOSDevice()) scrollToBottom(); }}
+                    onModelMutationStart=${() => {
+                        const token = {}; ++modelRevision.current; modelMutation.current = token; return token;
+                    }}
+                    onModelMutationEnd=${(token: any) => {
+                        if (modelMutation.current === token) { ++modelRevision.current; modelMutation.current = null; }
+                    }}
                     onModelChange=${(value: string | null) => {
                         if (!selection.isCurrent(renderedSelection)) return;
                         setActiveModel(value || '');

@@ -269,6 +269,8 @@ func (s *Server) handleSessionSubroutes(w http.ResponseWriter, r *http.Request) 
 		s.handleTurns(w, r, sessionID)
 	case "queue":
 		s.handleSessionQueue(w, r, sessionID, parts[2:])
+	case "model":
+		s.handleSessionModel(w, r, sessionID)
 	case "route-events":
 		s.handleSessionRouteEvents(w, r, sessionID)
 	case "introspect":
@@ -589,9 +591,20 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
+	if s.handleModelCommand(w, r, sessionID, req.Prompt) {
+		return
+	}
 	model := req.Model
 	if model == "" {
-		model = s.cfg.DefaultModel
+		if session, err := s.store.GetSession(r.Context(), sessionID); err == nil {
+			model, _ = session.State["selected_model"].(string)
+			if model == "" {
+				model, _ = session.State["model"].(string)
+			}
+		}
+		if model == "" {
+			model = s.cfg.DefaultModel
+		}
 	}
 	var (
 		result *turn.SubmitResult

@@ -611,7 +611,7 @@ function sessionPickerAgents(sessions) {
       parent_branch_id: session.parent_session_id || null,
       parent_chat_jid: session.parent_session_id ? `gi:${session.parent_session_id}` : null,
       root_chat_jid: `gi:${root.id}`,
-      model: session.state?.model || "",
+      model: session.state?.selected_model || session.state?.model || "",
       is_active: session.state?.status === "running" || session.state?.status === "queued" || Number(session.state?.queue_count || 0) > 0,
       archived_at: session.state?.archived_at || null,
       pinned: session.state?.pinned === true,
@@ -886,10 +886,9 @@ async function getAgentStatus(agentId, chatJid = null) {
   };
 }
 async function getAgentModels(chatJid = null) {
+  if (chatJid?.startsWith("gi:"))
+    return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/model`);
   const data = await request("/api/runtime/config");
-  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
-  const session = sessionId ? await request(`/api/sessions/${encodeURIComponent(sessionId)}`) : null;
-  const state = session?.state || {};
   const modelOptions = Array.isArray(data.model_options) ? data.model_options : [];
   const models = modelOptions.length > 0 ? modelOptions : (data.enabled_models || []).map((id) => ({
     id,
@@ -900,10 +899,15 @@ async function getAgentModels(chatJid = null) {
     models,
     model_options: modelOptions,
     provider_options: Array.isArray(data.provider_options) ? data.provider_options : [],
-    current: state.model || data.current || data.default_model || "",
-    thinking_level: state.thinking_level || data.default_thinking_level || data.thinking_level || "",
-    supports_thinking: Boolean(models.find((model) => model.label === state.model || model.id === state.model)?.reasoning)
+    current: data.current || data.default_model || "",
+    thinking_level: data.default_thinking_level || data.thinking_level || "",
+    supports_thinking: Boolean(data.supports_thinking)
   };
+}
+async function selectAgentModel(chatJid, model) {
+  if (!chatJid?.startsWith("gi:"))
+    throw new Error("No model destination session");
+  return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/model`, { method: "PATCH", body: JSON.stringify({ model }) });
 }
 async function getAgentQueueState(chatJid = null) {
   const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
@@ -1186,15 +1190,21 @@ function bindSseWakeLifecycle({ sse, onWake }, runtime = {}) {
   const handlePageShow = () => {
     handleVisibleReturn();
   };
+  const handlePageHide = () => {
+    pendingWake = true;
+    sse.disconnect?.();
+  };
   const handleVisibilityChange = () => {
     handleVisibleReturn();
   };
   win.addEventListener("focus", handleWindowFocus);
   win.addEventListener("pageshow", handlePageShow);
+  win.addEventListener("pagehide", handlePageHide);
   doc.addEventListener("visibilitychange", handleVisibilityChange);
   return () => {
     win.removeEventListener("focus", handleWindowFocus);
     win.removeEventListener("pageshow", handlePageShow);
+    win.removeEventListener("pagehide", handlePageHide);
     doc.removeEventListener("visibilitychange", handleVisibilityChange);
   };
 }
@@ -6850,6 +6860,8 @@ function ComposeBox({
   onToggleNotifications,
   onModelChange,
   onModelStateChange,
+  onModelMutationStart,
+  onModelMutationEnd,
   activeEditorPath = null,
   onAttachEditorFile,
   onOpenFilePill,
@@ -7386,55 +7398,44 @@ function ComposeBox({
     const next = `${current}${prefix}${snippet}`.trimStart();
     updateValue(next);
   };
-  const extractCurrentModel = (response) => {
-    const fromLabel = response?.command?.model_label;
-    if (fromLabel)
-      return fromLabel;
-    const message = response?.command?.message;
-    if (typeof message === "string") {
-      const currentMatch = message.match(/•\s+([^\n]+?)\s+\(current\)/);
-      if (currentMatch?.[1])
-        return currentMatch[1].trim();
-    }
-    return null;
-  };
-  const runModelCommand = async (commandText) => {
-    if (searchMode || switchingModel)
-      return;
-    setSubmitError(null);
-    setSubmitNotice(null);
-    setSwitchingModel(true);
-    try {
-      const response = await sendAgentMessage("default", commandText, null, [], null, currentChatJid);
-      const nextModel = extractCurrentModel(response);
-      emitModelState({
-        model: nextModel ?? activeModel ?? null,
-        thinking_level: response?.command?.thinking_level,
-        thinking_level_label: response?.command?.thinking_level_label,
-        supports_thinking: response?.command?.supports_thinking
-      });
-      await refreshAgentModelStateBestEffort(getAgentModels, currentChatJid, emitModelState);
-      setSubmitNotice(resolveUiOnlyCommandNotice(commandText, response));
-      onPost?.(response);
-      return true;
-    } catch (error) {
-      console.error("Failed to switch model:", error);
-      alert("Failed to switch model: " + error.message);
-      return false;
-    } finally {
-      setSwitchingModel(false);
-    }
-  };
   const handleCycleModel = async () => {
-    await runModelCommand("/cycle-model");
+    try {
+      const available = normalizeModelPickerOptions(await getAgentModels(currentChatJid));
+      if (!mountedRef.current || !available.length)
+        return;
+      const index = available.findIndex((option) => option.label === activeModel);
+      await handleSelectModel(available[(index + 1) % available.length]);
+    } catch (error) {
+      if (mountedRef.current)
+        setSubmitError(`Model catalogue failed: ${error.message}`);
+    }
   };
+  const modelMutationRef = K_(false);
+  const modelRevisionRef = K_(0);
   const handleSelectModel = async (modelOption) => {
-    const modelLabel = typeof modelOption === "string" ? modelOption : typeof modelOption?.label === "string" ? modelOption.label : "";
-    if (!modelLabel || switchingModel)
+    const modelLabel = typeof modelOption === "string" ? modelOption : modelOption?.label;
+    if (!modelLabel || modelMutationRef.current)
       return;
-    const ok = await runModelCommand(`/model ${modelLabel}`);
-    if (ok)
+    modelMutationRef.current = true;
+    ++modelRevisionRef.current;
+    const mutation = onModelMutationStart?.();
+    setSwitchingModel(true);
+    setSubmitError(null);
+    try {
+      const state = await selectAgentModel(currentChatJid, modelLabel);
+      if (!mountedRef.current)
+        return;
+      emitModelState(state);
       setShowModelPopup(false);
+    } catch (error) {
+      if (mountedRef.current)
+        setSubmitError(`Model selection failed: ${error.message}`);
+    } finally {
+      modelMutationRef.current = false;
+      onModelMutationEnd?.(mutation);
+      if (mountedRef.current)
+        setSwitchingModel(false);
+    }
   };
   const runSessionPopupEntry = (entry) => {
     if (!entry || entry.disabled)
@@ -7663,8 +7664,13 @@ ${mediaIds.map((id, index) => {
         return true;
       }
       resetPopupTypeahead();
-      if (showModelPopup)
+      if (showModelPopup) {
         setShowModelPopup(false);
+        requestAnimationFrame(() => {
+          if (document.activeElement === document.body)
+            modelHintRef.current?.focus();
+        });
+      }
       if (showSessionPopup)
         closeSessionPopup(true);
       return true;
@@ -7684,7 +7690,9 @@ ${mediaIds.map((id, index) => {
           setModelPopupIndex((idx) => (idx - 1 + modelOptions.length) % modelOptions.length);
         return true;
       }
-      if ((e.key === "Enter" || e.key === "Tab") && modelOptions.length > 0) {
+      if (e.key === "Tab" || e.key === "Enter" && e.target?.closest?.("button"))
+        return false;
+      if (e.key === "Enter" && modelOptions.length > 0) {
         consume();
         resetPopupTypeahead();
         handleSelectModel(modelOptions[Math.max(0, Math.min(modelPopupIndex, modelOptions.length - 1))]);
@@ -7992,15 +8000,25 @@ ${mediaIds.map((id, index) => {
       return;
     popupTypeaheadRef.current = { value: "", updatedAt: 0 };
     setLoadingModels(true);
+    const revision = modelRevisionRef.current;
+    let active = true;
     getAgentModels(currentChatJid).then((payload) => {
+      if (!active || !mountedRef.current || revision !== modelRevisionRef.current)
+        return;
       setModelOptions(normalizeModelPickerOptions(payload));
       emitModelState(payload);
     }).catch((error) => {
-      console.warn("Failed to load model list:", error);
+      if (!active || !mountedRef.current)
+        return;
+      setSubmitError(`Model catalogue failed: ${error.message}`);
       setModelOptions([]);
     }).finally(() => {
-      setLoadingModels(false);
+      if (active && mountedRef.current)
+        setLoadingModels(false);
     });
+    return () => {
+      active = false;
+    };
   }, [showModelPopup, activeModel]);
   J_(() => {
     if (searchMode) {
@@ -8073,11 +8091,14 @@ ${mediaIds.map((id, index) => {
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
   }, [searchMode, showModelPopup, showSessionPopup, handlePopupKeyboardEvent]);
+  F_(() => {
+    if (showModelPopup)
+      modelPopupRef.current?.focus();
+  }, [showModelPopup]);
   J_(() => {
     if (!showModelPopup)
       return;
     const popup = modelPopupRef.current;
-    popup?.focus?.();
     const active = popup?.querySelector?.(".compose-model-popup-item.active");
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showModelPopup, modelPopupIndex, modelOptions]);
@@ -16472,6 +16493,8 @@ function GiApp() {
   const [queueBusy, setQueueBusy] = M_(false);
   const queueMutation = K_(null);
   const queueRevision = K_(0);
+  const modelRevision = K_(0);
+  const modelMutation = K_(null);
   const connectionRevision = K_(0);
   const streamDisconnected = K_(false);
   const refreshAfterConnection = K_(() => {});
@@ -16689,6 +16712,7 @@ function GiApp() {
     const chat = sessionToChatJid2(sessionId);
     const revision = ++queueRevision.current;
     const connection = connectionRevision.current;
+    const modelVersion = modelRevision.current;
     try {
       const [models, queue, status] = await Promise.all([
         getAgentModels(chat),
@@ -16697,10 +16721,12 @@ function GiApp() {
       ]);
       if (!selection.isCurrent(scope) || connection !== connectionRevision.current || streamDisconnected.current)
         return;
-      setAgentModelsPayload(models);
-      setActiveModel(models.current);
-      setActiveThinkingLevel(models.thinking_level);
-      setSupportsThinking(models.supports_thinking);
+      if (modelVersion === modelRevision.current && !modelMutation.current) {
+        setAgentModelsPayload(models);
+        setActiveModel(models.current);
+        setActiveThinkingLevel(models.thinking_level);
+        setSupportsThinking(models.supports_thinking);
+      }
       if (revision === queueRevision.current && !queueMutation.current) {
         setFollowupQueueItems(queue.items || []);
         const admitted = new Set((queue.items || []).map((item) => item.metadata?.client_request_id).filter(Boolean));
@@ -16765,6 +16791,8 @@ function GiApp() {
     setQueueBusy(false);
     setQueueError("");
     setOptimisticQueue([]);
+    ++modelRevision.current;
+    modelMutation.current = null;
     setFileRefs(getDraft(nextSessionId).fileRefs);
     setMessageRefs(getDraft(nextSessionId).messageRefs);
     setAgentStatus(null);
@@ -17053,6 +17081,18 @@ function GiApp() {
     if (!isIOSDevice())
       scrollToBottom();
   }}
+                    onModelMutationStart=${() => {
+    const token = {};
+    ++modelRevision.current;
+    modelMutation.current = token;
+    return token;
+  }}
+                    onModelMutationEnd=${(token) => {
+    if (modelMutation.current === token) {
+      ++modelRevision.current;
+      modelMutation.current = null;
+    }
+  }}
                     onModelChange=${(value) => {
     if (!selection.isCurrent(renderedSelection))
       return;
@@ -17156,5 +17196,5 @@ function GiApp() {
 }
 z_(ce`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=F950D32386CE54E764756E2164756E21
+//# debugId=3BEB0DF796E0363A64756E2164756E21
 //# sourceMappingURL=app.js.map

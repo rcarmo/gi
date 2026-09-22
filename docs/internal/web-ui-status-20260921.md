@@ -14,6 +14,8 @@ The following queue slice added explicit queued follow-ups, persistent reorder a
 
 Queue SSE reconciliation and disconnect cleanup (`016`, reconnect `001`) then passed 138/138 matrix executions: 12/236 Classic IDs mapped, 224 unmapped, and 70/70 functional tests. [ADR-0013](../adr/0013-queue-sse-reconciliation.md) covers connection/source generations, real-stream tests and remaining reconnect limits.
 
+Authoritative session-local model selection and native `/model` commands (`021`, compaction `008`) passed 168/168 matrix executions: 14/236 Classic IDs, 222 unmapped, 70/70 functional tests. Measured context compatibility and shared model criteria remain open. See [ADR-0014](../adr/0014-session-model-selection.md).
+
 ## Implemented and wired
 
 - Embedded JavaScript/CSS, identity/avatar configuration, themes and system meters.

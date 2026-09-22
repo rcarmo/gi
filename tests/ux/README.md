@@ -62,3 +62,9 @@ The isolated parity server uses `tests/ux/shell/sh` to gate only `UX queue gate:
 `016` and `ux-reconnect-001` now have six-project browser evidence: an actual acknowledgement is held while SSE reconciliation arrives; same-text prompts retain distinct durable IDs; external queue mutations refresh promptly. A local byte-for-byte SSE proxy severs real sockets and blocks reconnection, allowing assertions against a real stdout preview, running state and preserved user draft. Independent API queue changes are reconciled on reconnect. A rejected-send regression checks placeholder removal and draft recovery.
 
 Full matrix: **138/138**, **12/236 Classic IDs**, 224 unmapped, with all shared cases unmapped. See [ADR-0013](../../docs/adr/0013-queue-sse-reconciliation.md). Context usage, search preservation and version-drift reconnect criteria remain open; these tests do not map them.
+
+## Session-local model selection: 2026-09-22
+
+`models.spec.mjs` maps `021` and compaction `008`: late model responses stay with their origin, and `/model` resolves through native validation without creating a prompt turn. Additional tests verify pointer/keyboard mutation, reload persistence, unchanged draft/media, rejected choices and A→B→A catalogue isolation. The parity test catalogue includes the native `test-model`/`bootstrap` shell models plus an unusable entry; production provider configuration is untouched.
+
+Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases remain unmapped. Native model selection has no measured context usage, so `020`, compaction `006/007` and shared model/context criteria remain open. [ADR-0014](../../docs/adr/0014-session-model-selection.md) records selection/runtime metadata separation and terminal gaps.

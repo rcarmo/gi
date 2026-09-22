@@ -16,7 +16,7 @@ export function sessionPickerAgents(sessions: any[]) {
             parent_branch_id: session.parent_session_id || null,
             parent_chat_jid: session.parent_session_id ? `gi:${session.parent_session_id}` : null,
             root_chat_jid: `gi:${root.id}`,
-            model: session.state?.model || '',
+            model: session.state?.selected_model || session.state?.model || '',
             is_active: session.state?.status === 'running' || session.state?.status === 'queued' || Number(session.state?.queue_count || 0) > 0,
             archived_at: session.state?.archived_at || null,
             pinned: session.state?.pinned === true,

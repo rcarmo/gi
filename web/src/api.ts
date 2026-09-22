@@ -216,10 +216,8 @@ export async function setAgentThoughtVisibility(_agentId: string, _visible: bool
 }
 
 export async function getAgentModels(chatJid: string | null = null) {
+    if (chatJid?.startsWith('gi:')) return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/model`);
     const data = await request('/api/runtime/config');
-    const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
-    const session = sessionId ? await request(`/api/sessions/${encodeURIComponent(sessionId)}`) : null;
-    const state = session?.state || {};
     const modelOptions = Array.isArray(data.model_options) ? data.model_options : [];
     const models: any[] = modelOptions.length > 0
         ? modelOptions
@@ -232,10 +230,15 @@ export async function getAgentModels(chatJid: string | null = null) {
         models,
         model_options: modelOptions,
         provider_options: Array.isArray(data.provider_options) ? data.provider_options : [],
-        current: state.model || data.current || data.default_model || '',
-        thinking_level: state.thinking_level || data.default_thinking_level || data.thinking_level || '',
-        supports_thinking: Boolean(models.find((model: any) => model.label === state.model || model.id === state.model)?.reasoning),
+        current: data.current || data.default_model || '',
+        thinking_level: data.default_thinking_level || data.thinking_level || '',
+        supports_thinking: Boolean(data.supports_thinking),
     };
+}
+
+export async function selectAgentModel(chatJid: string, model: string) {
+    if (!chatJid?.startsWith('gi:')) throw new Error('No model destination session');
+    return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/model`, { method: 'PATCH', body: JSON.stringify({ model }) });
 }
 
 export async function getAgentQueueState(chatJid: string | null = null) {

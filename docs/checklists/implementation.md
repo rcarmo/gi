@@ -17,7 +17,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Fix pooled SQLite configuration exposed by the session matrix; existing functional web suite passes 70/70.
 - [x] Map searchable picker/focus (`013`) and native keyboard navigation; combined matrix 36/36 with pinned helper provenance.
 - [x] Prevent runner startup before submission-event persistence; reproduced regression and full 70/70 functional suite.
-- [ ] Map the remaining 224 frozen scenarios and all 42 shared interaction cases; full scope in `docs/internal/full-web-tui-parity-plan.md`.
+- [ ] Map the remaining 222 frozen scenarios and all 42 shared interaction cases; full scope in `docs/internal/full-web-tui-parity-plan.md`.
 - [x] Complete capability-gated rename, pin, archive and restore with persisted native metadata and failure-safe picker actions (`015`); 48/48 matrix, 70/70 functional, Go/race/Bun checks.
 - [x] Persist per-session browser text/media/reference drafts and unacknowledged submissions; recover on reload without automatic resend (browser-local IndexedDB).
 - [x] Capture background-send ownership, merge failed submissions with newer origin drafts and report storage failures (`ux-compose-001`, `002`, `003`, `006`); 102/102 matrix, 70/70 functional.
@@ -25,7 +25,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 - [x] Wire reorder/removal error recovery and session-owned late responses (`018`); 120/120 matrix, 70/70 functional, Go/race/Bun tests.
 - [x] Complete `016` accepted/SSE queue reconciliation, disconnect transient clearing (`ux-reconnect-001`) and connection-generation guards; 138/138 matrix, 70/70 functional, Go/race/Bun checks.
 - [ ] Complete return/Steer and remaining reconnect criteria separately; preserve contradictory Classic/shared assertions.
-- [ ] Complete durable queue-return/steer, model and reconnect ownership (separate acceptance evidence).
+- [x] Add authoritative session-local model commands/mutations with catalogue validation, persistence, failed-switch retention and late-response guards (`021`, compaction `008`); 168/168 matrix, 70/70 functional, Go/race/Bun checks.
+- [ ] Complete durable queue-return/Steer, measured context compatibility and remaining reconnect ownership (separate acceptance evidence).
 - [x] Implement per-session terminal editor/history state, generation-owned event/submit delivery and cancel-safe forwarding; unit/race coverage.
 - [x] Bound the temporary terminal session selector to six results; live tmux verifies cancel/resize/zero added idle rows at 60×18, 100×22 and 140×36 (`make test-tui-sessions`).
 - [ ] Complete remaining terminal adaptations in `docs/internal/web-session-parity.md` (mutation submenus/media/queue acceptance still separate).

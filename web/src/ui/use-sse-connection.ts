@@ -55,17 +55,24 @@ export function bindSseWakeLifecycle({ sse, onWake }, runtime = {}) {
     handleVisibleReturn();
   };
 
+  const handlePageHide = () => {
+    pendingWake = true;
+    sse.disconnect?.();
+  };
+
   const handleVisibilityChange = () => {
     handleVisibleReturn();
   };
 
   win.addEventListener('focus', handleWindowFocus);
   win.addEventListener('pageshow', handlePageShow);
+  win.addEventListener('pagehide', handlePageHide);
   doc.addEventListener('visibilitychange', handleVisibilityChange);
 
   return () => {
     win.removeEventListener('focus', handleWindowFocus);
     win.removeEventListener('pageshow', handlePageShow);
+    win.removeEventListener('pagehide', handlePageHide);
     doc.removeEventListener('visibilitychange', handleVisibilityChange);
   };
 }

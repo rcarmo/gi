@@ -84,6 +84,16 @@ Current totals: **138/138 matrix executions**, **12/236 Classic IDs**, 224 unmap
 
 Other reconnect cases, context/search/version-drift behaviour and queue return/Steer remain open. Terminal adaptation uses topic invalidations to refresh a bounded on-demand queue list; the existing footer handles nonzero counts and transient warnings. No additional idle rows are needed, and this slice adds no terminal implementation credit.
 
+## Authoritative session-local model selection
+
+Native model GET/PATCH and `/model` commands now validate the configured/provider catalogue and persist only the target session. New prompts use its selected model; old runtime metadata cannot replace the separately stored selection. Picker changes do not submit the user's draft or change global defaults. Errors retain the previous selection and composer contents.
+
+Host model revisions and component mount guards reject late polls/catalogues/mutations, including A→B→A. Keyboard Enter activates the focused option; Tab traverses controls, and list changes no longer steal focus. `pagehide` explicitly closes SSE before navigation.
+
+`021` and compaction `008` are verified, with additional pointer/keyboard/reload/failure tests. Current totals: **168/168 matrix executions**, **14/236 Classic IDs**, 222 unmapped, all 42 shared cases still unmapped, and **70/70** existing functional tests. Native API/command tests and focused three-run race checks pass. See [ADR-0014](../adr/0014-session-model-selection.md).
+
+Measured context usage, context-fit blocking and richer picker contracts remain open, so `020` and compaction `006/007` are not counted. Terminal adaptation should reuse its bounded model selector and existing footer, with session-local persistence and shared validation. The current terminal model command still writes global defaults; that gap is not fixed here.
+
 ## Terminal session slice: implemented and separately tested
 
 `Alt-S` opens the existing session selector without replacing unsent input. It uses at most six results plus two temporary title/search rows, no box border, and no added idle rows. Filtering keeps full session IDs; display truncation is UTF-8-safe and terminal-cell bounded. Up/Down wrap, Enter selects and Escape restores the editor. Resizing keeps the selected row visible.
