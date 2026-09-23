@@ -322,6 +322,40 @@ test('@ux-mobile-001 Eligible timeline swipe selects adjacent session and wraps 
  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(last);await expect(input).toHaveValue('wrap draft');
 });
 
+test('@ux-mobile-005 Primarily vertical movement cancels the current timeline swipe',async({page,request},info)=>{
+ const scenario=loadCorpus().find(row=>row.id==='@ux-mobile-005');expect(scenario).toBeTruthy();
+ await info.attach('gherkin',{body:scenario.steps.join('\n'),contentType:'text/plain'});
+ const token=`vertical-${info.project.name}-${Date.now()}`;
+ const create=async name=>{const response=await request.post('/api/sessions',{data:{agent_id:`${token}-${name}`,title:`@${token}-${name}`}});expect(response.status()).toBe(201);return (await response.json()).id;};
+ await create('other');const current=await create('current');
+ const sessions=(await(await request.get('/api/sessions')).json()).sessions;
+ const ordered=sessions.filter(s=>!s.state?.archived_at).sort((a,b)=>{
+  const active=s=>s.state?.status==='running'||s.state?.status==='queued'||Number(s.state?.queue_count||0)>0;
+  return Number(active(b))-Number(active(a))||`gi:${a.id}`.localeCompare(`gi:${b.id}`);
+ }).map(s=>s.id);
+ expect(ordered).toContain(current);expect(ordered.length).toBeGreaterThan(1);
+ const adjacent=ordered[(ordered.indexOf(current)+1)%ordered.length];expect(adjacent).not.toBe(current);
+ await page.addInitScript(id=>{localStorage.setItem('gi_session_id',id);Object.defineProperty(navigator,'userAgent',{configurable:true,value:'iPhone Safari'});},current);
+ await page.goto('/');const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('vertical draft');
+ const timeline=page.locator('.timeline').first();await expect(timeline).toBeVisible();
+ const gesture=async points=>timeline.evaluate((el,points)=>{
+  for(const [name,x,y] of points){
+   const touch={identifier:1,target:el,clientX:x,clientY:y},event=new Event(name,{bubbles:true,cancelable:true});
+   Object.defineProperty(event,'touches',{value:name==='touchend'?[]:[touch]});
+   Object.defineProperty(event,'changedTouches',{value:[touch]});el.dispatchEvent(event);
+  }
+ },points);
+ const selected=()=>page.evaluate(()=>localStorage.getItem('gi_session_id'));
+ expect(await page.evaluate(()=>window.getSelection()?.toString()||'')).toBe('');
+ // A vertical first move cancels this contact, even if a later move is far enough to be horizontal.
+ await gesture([['touchstart',190,150],['touchmove',180,190],['touchmove',60,190],['touchend',60,190]]);
+ await page.waitForTimeout(500); // Allow any erroneous async session switch to settle before the negative assertion.
+ await expect.poll(selected).toBe(current);await expect(input).toHaveValue('vertical draft');
+ // Prove the same native timeline listener still navigates for a fresh eligible contact.
+ await gesture([['touchstart',190,150],['touchmove',85,150],['touchend',85,150]]);
+ await expect.poll(selected).toBe(adjacent);await expect(input).toHaveValue('');
+});
+
 test('@ux-session-003 Filter session entries using their search metadata', async ({ page, request }, info) => {
   const frozen = loadCorpus().find(row => row.id === '@ux-session-003'); expect(frozen).toBeTruthy();
   await info.attach('gherkin', { body: frozen.steps.join('\n'), contentType: 'text/plain' });
