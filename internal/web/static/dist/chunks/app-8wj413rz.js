@@ -9636,6 +9636,94 @@ ${mediaIds.map((id, index) => {
     `;
 }
 
+// web/src/gi-preview-overflow.ts
+function usePreviewOverflow(draft, thought, expanded) {
+  const [overflow, setOverflow] = F_({ draft: false, thought: false });
+  const nodes = Q_({ draft: null, thought: null });
+  const schedule = Q_(() => {});
+  const refs = Q_(null);
+  if (!refs.current)
+    refs.current = Object.fromEntries(["draft", "thought"].map((key) => [key, (node) => {
+      nodes.current[key] = node;
+      schedule.current();
+    }]));
+  W_(() => {
+    let frame = 0, live = true;
+    const measure = () => {
+      frame = 0;
+      if (!live)
+        return;
+      setOverflow((previous) => {
+        const next = { ...previous };
+        for (const key of ["draft", "thought"]) {
+          const node = nodes.current[key];
+          if (!node?.isConnected) {
+            next[key] = false;
+            continue;
+          }
+          if (node.closest(".agent-thinking")?.getAttribute("data-expanded") === "true")
+            continue;
+          if (!node.getClientRects().length)
+            continue;
+          next[key] = node.scrollHeight > node.clientHeight + 1;
+        }
+        return next.draft === previous.draft && next.thought === previous.thought ? previous : next;
+      });
+    };
+    const enqueue = () => {
+      if (live && !frame)
+        frame = requestAnimationFrame(measure);
+    };
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(enqueue) : null;
+    const layoutObserver = !observer && typeof MutationObserver === "function" ? new MutationObserver(enqueue) : null;
+    const observe = () => {
+      observer?.disconnect();
+      layoutObserver?.disconnect();
+      const ancestors = new Set;
+      for (const node of Object.values(nodes.current)) {
+        if (!node)
+          continue;
+        observer?.observe(node);
+        for (const child of node.children)
+          observer?.observe(child);
+        if (layoutObserver) {
+          for (let parent = node.parentElement;parent; parent = parent.parentElement) {
+            if (!ancestors.has(parent)) {
+              ancestors.add(parent);
+              layoutObserver.observe(parent, { attributes: true, attributeFilter: ["class", "style"] });
+            }
+            if (parent.classList.contains("app-shell"))
+              break;
+          }
+        }
+      }
+      enqueue();
+    };
+    schedule.current = observe;
+    observe();
+    window.addEventListener("resize", enqueue);
+    if (layoutObserver)
+      window.addEventListener("transitionend", enqueue);
+    document.fonts?.addEventListener("loadingdone", enqueue);
+    return () => {
+      live = false;
+      schedule.current = () => {};
+      observer?.disconnect();
+      layoutObserver?.disconnect();
+      if (frame)
+        cancelAnimationFrame(frame);
+      window.removeEventListener("resize", enqueue);
+      if (layoutObserver)
+        window.removeEventListener("transitionend", enqueue);
+      document.fonts?.removeEventListener("loadingdone", enqueue);
+    };
+  }, []);
+  W_(() => {
+    schedule.current();
+  }, [draft, thought, expanded]);
+  return { overflow, refs: refs.current };
+}
+
 // web/src/ui/tool-git-context.ts
 function readTrimmedString(...values) {
   for (const value of values) {
@@ -9876,6 +9964,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
   const hasCorePanels = Boolean(status || hasDraft || hasPlan || hasThought || pendingRequest || intent);
   const hasExtensionPanels = Array.isArray(extensionPanels) && extensionPanels.length > 0;
   const [expandedPanels, setExpandedPanels] = F_(new Set);
+  const previewOverflow = usePreviewOverflow(draft, thought, expandedPanels);
   const [hoveredSeriesPoint, setHoveredSeriesPoint] = F_(null);
   const [nowMs, setNowMs] = F_(() => Date.now());
   const toggleExpand = (key) => setExpandedPanels((prev) => {
@@ -10007,6 +10096,7 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
     const truncated = isCollapsible ? truncateLines(sourceText, maxLines, totalLines) : { text: sourceText || "", omitted: 0, totalLines: Number.isFinite(totalLines) ? totalLines : 0 };
     if (!sourceText && !(Number.isFinite(truncated.totalLines) && truncated.totalLines > 0))
       return null;
+    const canDisclose = truncated.omitted > 0 || previewOverflow.overflow[panelKey] === true;
     const bodyClass = `agent-thinking-body${isCollapsible ? " agent-thinking-body-collapsible" : ""}`;
     const bodyStyle = isCollapsible ? `--agent-thinking-collapsed-lines: ${maxLines};` : "";
     return fe`
@@ -10030,16 +10120,17 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
                     `}
                 </div>
                 <div
+                    ref=${previewOverflow.refs[panelKey]}
                     class=${bodyClass}
                     style=${bodyStyle}
                     dangerouslySetInnerHTML=${{ __html: renderThinkingMarkdown(sourceText) }}
                 />
-                ${!isExpanded && truncated.omitted > 0 && fe`
+                ${!isExpanded && canDisclose && fe`
                     <button class="agent-thinking-truncation" onClick=${() => toggleExpand(panelKey)}>
-                        ▸ ${truncated.omitted} more lines
+                        ${truncated.omitted > 0 ? `▸ ${truncated.omitted} more lines` : "▸ Show more"}
                     </button>
                 `}
-                ${isExpanded && truncated.omitted > 0 && fe`
+                ${isExpanded && canDisclose && fe`
                     <button class="agent-thinking-truncation" onClick=${() => toggleExpand(panelKey)}>
                         ▴ show less
                     </button>
@@ -17768,10 +17859,10 @@ function guardQuickActionsTyping(event) {
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-v4w4sf7p.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-bjbpq0vg.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-x0s9qgvf.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-zgrz74ma.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-5sckvw4p.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-fyqs77v5.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-3fjtdrxd.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-fr7gj2sn.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20105,5 +20196,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=30F580C8D046760164756E2164756E21
-//# sourceMappingURL=app-sj47t0fe.js.map
+//# debugId=5B96CB0816C033B064756E2164756E21
+//# sourceMappingURL=app-8wj413rz.js.map

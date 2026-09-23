@@ -72,6 +72,12 @@ func main() {
 		content := "provider checkpoint"
 		if strings.Contains(string(raw), "UX preview expand") && len(match) > 1 {
 			lines := func(kind string, start, end int) string {
+				if strings.Contains(string(raw), "UX preview wrapped") {
+					if start == 1 {
+						return kind + " " + strings.Repeat("wrapped ", 65) + "end-initial"
+					}
+					return " " + strings.Repeat("streamed ", 300) + "end-streamed"
+				}
 				var text strings.Builder
 				for i := start; i <= end; i++ {
 					if i > start {
@@ -101,7 +107,11 @@ func main() {
 					}
 				}
 			}
-			delta("\n"+lines("Thought", 13, 16), "\n"+lines("Draft", 13, 16))
+			separator := "\n"
+			if strings.Contains(string(raw), "UX preview wrapped") {
+				separator = ""
+			}
+			delta(separator+lines("Thought", 13, 16), separator+lines("Draft", 13, 16))
 			content = ""
 		} else if strings.Contains(string(raw), "UX status panels") {
 			// Interactive links reach the unchanged status component through the

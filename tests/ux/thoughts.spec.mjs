@@ -87,3 +87,45 @@ test('@gi-preview-001 Expansion and buffers reset across session switches and na
     await f.finish();
   }
 });
+
+for (const fallback of [false,true]) test(`${fallback?'@gi-preview-003':'@ux-thoughts-001'} Wrapped paragraph disclosure follows real overflow on resize and streaming${fallback?' without ResizeObserver':''}`,async({page,request},info)=>{
+  if(!fallback){const source=loadCorpus().find(row=>row.id==='@ux-thoughts-001');await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});}
+  const token=`wrapped-${fallback}-${info.project.name}-${Date.now()}`,gate=resolve('test-results/ux-parity/queue-gates',token);mkdirSync(resolve(gate,'..'),{recursive:true});
+  const created=await request.post('/api/sessions',{data:{agent_id:token,title:token}});expect(created.status()).toBe(201);const id=(await created.json()).id;
+  await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),id);await page.goto('/');
+  const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();
+  // The rest of the supplied app requires RO. Remove it only for the newly
+  // mounted turn's Gi measurement hook to exercise its resize/text fallback.
+  if(fallback)await page.evaluate(()=>{window.ResizeObserver=undefined;});
+  const posted=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname===`/api/sessions/${id}/prompt`);
+  await input.fill(`UX preview expand UX preview wrapped UX steer gate:${token}`);await input.press('Enter');expect((await posted).status()).toBe(202);await expect(input).toHaveValue('');await input.fill('wrapped unsent draft');
+  const thought=page.locator('.agent-thinking').filter({has:page.locator('.agent-thinking-title').filter({hasText:'Thoughts'})});
+  const body=thought.locator('.agent-thinking-body'),more=thought.getByRole('button',{name:'▸ Show more',exact:true});
+  try {
+    await expect(body).toContainText('end-initial');
+    for(const width of [1200,390,1200,390]) {
+      await page.setViewportSize({width,height:900});
+      const overflow=await body.evaluate(el=>el.scrollHeight>el.clientHeight+1);
+      if(width===390){expect(overflow).toBe(true);await expect(more).toBeVisible();}else{expect(overflow).toBe(false);await expect(more).toHaveCount(0);}
+      await expect(thought).toHaveAttribute('data-expanded','false');
+    }
+    const before=await body.textContent();expect(before.trimEnd().split('\n')).toHaveLength(1);
+    await more.click();await expect(thought).toHaveAttribute('data-expanded','true');await expect(body).toHaveCSS('max-height','none');await expect(body).toHaveText(before);
+    await page.setViewportSize({width:1200,height:900});await expect(thought.getByRole('button',{name:'▴ show less',exact:true})).toBeVisible();
+    await thought.getByRole('button',{name:'▴ show less',exact:true}).click();await expect(more).toHaveCount(0);
+    // Container-only resizing must also work without window.resize, including
+    // the fallback path used by constrained embedded browsers.
+    const viewport=page.viewportSize();
+    await page.locator('.container').evaluate(el=>{el.style.minWidth='0';el.style.maxWidth='350px';});await expect(more).toBeVisible();
+    await page.locator('.container').evaluate(el=>{el.style.minWidth='';el.style.maxWidth='';});await expect(more).toHaveCount(0);
+    expect(page.viewportSize()).toEqual(viewport);
+    writeFileSync(gate+'.more','release');await expect(body).toContainText('end-streamed');await expect(more).toBeVisible();
+    await expect(thought).toHaveAttribute('data-expanded','false');
+    expect(await body.evaluate(el=>el.scrollHeight>el.clientHeight+1)).toBe(true);
+    await more.click();await expect(body).toContainText('end-streamed');await thought.locator('.agent-thinking-title').click();await page.keyboard.press('Escape');await expect(thought).toHaveAttribute('data-expanded','false');await expect(more).toBeVisible();
+    await expect(input).toHaveValue('wrapped unsent draft');
+    if(process.env.GI_THOUGHTS_CAPTURE&&!fallback&&info.project.name.startsWith('chromium-')){await page.setViewportSize(info.project.use.viewport);mkdirSync('test-results/thought-captures',{recursive:true});await page.screenshot({path:`test-results/thought-captures/wrapped-${info.project.name}.png`});}
+  } finally {
+    writeFileSync(gate+'.more','release');writeFileSync(gate,'release');await expect.poll(async()=>((await(await request.get(`/api/sessions/${id}/turns`)).json()).turns||[]).every(t=>t.status==='completed'),{timeout:15000}).toBe(true);
+  }
+});

@@ -22,3 +22,13 @@ Feature: Gi streamed preview ownership and bounds
     Then the status region stays within forty percent of the conversation height and scrolls
     And the full preview text and unsent composer draft remain accessible
     And no terminal panel or idle row is added
+
+  @gi-preview-003
+  Scenario: Wrapped paragraph disclosure follows rendered overflow without false line counts
+    Given a native streamed paragraph has no internal newline
+    When its collapsed body clips at the current width
+    Then a generic Show more control appears without changing the source or line metadata
+    And widening the collapsed body removes the control if the full content now fits
+    And stream updates recheck clipping even when the collapsed box does not grow
+    And expansion retains a collapse action through width changes
+    And window resize and stream updates still work when ResizeObserver is absent

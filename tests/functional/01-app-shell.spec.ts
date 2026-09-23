@@ -232,6 +232,9 @@ test('native status-panel surface shares session swipe navigation without submit
   const panel = page.locator('.agent-status-panel'); await expect(panel).toBeVisible();
   await expect(page.locator('link[href^="/css/gi-status.css"]')).toHaveCount(1);
   await expect(panel).toHaveCSS('max-height', '40%'); await expect(panel).toHaveCSS('overflow-y','auto');
+  // Measuring preview overflow must not add disclosure chrome for an idle
+  // status that has no streamed thought/draft content.
+  await expect(panel.getByRole('button', { name: /Show more|more lines/ })).toHaveCount(0);
   const size = await panel.boundingBox(), host = await page.locator('.container').boundingBox();
   expect(size!.height).toBeLessThanOrEqual(host!.height * 0.4 + 1);
   await panel.evaluate(el => { for(const [name,x] of [['touchstart',190],['touchmove',85],['touchend',85]] as const) { const point={identifier:1,target:el,clientX:x,clientY:150},event=new Event(name,{bubbles:true,cancelable:true});Object.defineProperty(event,'touches',{value:name==='touchend'?[]:[point]});Object.defineProperty(event,'changedTouches',{value:[point]});el.dispatchEvent(event); } });
