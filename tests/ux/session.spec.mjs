@@ -74,6 +74,50 @@ test('@ux-original-013 Open the session picker from pointer or keyboard and clos
   await info.attach('checkpoint', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
+test('@ux-session-006 Dismiss the session picker without choosing an entry', async ({ page, request }, info) => {
+  const frozen = loadCorpus().find(row => row.id === '@ux-session-006');
+  expect(frozen).toBeTruthy();
+  await info.attach('gherkin', { body: frozen.steps.join('\n'), contentType: 'text/plain' });
+  const token = `${info.project.name}-${Date.now()}`;
+  const create = async name => {
+    const res = await request.post('/api/sessions', { data: { agent_id: name, title: `@${name}` } });
+    expect(res.status()).toBe(201);
+    return res.json();
+  };
+  const main = await create(`dismiss-main-${token}`), other = await create(`dismiss-other-${token}`);
+  const prompt = await request.post(`/api/sessions/${main.id}/prompt`, { data: { prompt: `retained history ${token}`, model: 'test-model' } });
+  expect(prompt.status()).toBe(202);
+  const { turn_id } = await prompt.json();
+  await expect.poll(async () => ((await (await request.get(`/api/sessions/${main.id}/turns`)).json()).turns || []).find(turn => turn.id === turn_id)?.status).toBe('completed');
+  const before = (await (await request.get(`/api/sessions/${main.id}/messages`)).json()).messages;
+  await page.addInitScript(id => localStorage.setItem('gi_session_id', id), main.id);
+  await page.goto('/');
+  const input = page.getByRole('textbox', { name: inputName, exact: true });
+  const triggers = page.getByRole('button', { name: /Manage sessions for/ });
+  const search = page.getByRole('searchbox', { name: 'Search sessions', exact: true });
+  const popup = page.getByRole('menu', { name: 'Sessions and agents', exact: true });
+  await expect(input).toBeVisible(); await input.fill('unsent dismissal draft');
+  for (const trigger of [triggers.first(), triggers.last()]) {
+    await trigger.click(); await expect(search).toBeFocused();
+    await search.pressSequentially(other.id);
+    await expect(popup.getByRole('menuitem')).toHaveCount(1);
+    await expect(popup.getByRole('menuitem')).toContainText(other.id);
+    await page.keyboard.press('Escape');
+    await expect(search).toHaveCount(0); await expect(trigger).toBeFocused();
+    await expect(input).toHaveValue('unsent dismissal draft');
+    expect(await page.evaluate(() => localStorage.getItem('gi_session_id'))).toBe(main.id);
+    await trigger.click(); await expect(search).toBeFocused();
+    await expect(search).toHaveValue('');
+    await expect(popup.getByRole('menuitem').filter({ hasText: `gi:${other.id}` })).toBeVisible();
+    // The dismissed search and typeahead must not preselect the old result.
+    await expect(popup.getByRole('group', { name: 'Current', exact: true }).getByRole('menuitem')).toContainText(main.id);
+    await page.keyboard.press('Escape'); await expect(trigger).toBeFocused();
+  }
+  expect((await (await request.get(`/api/sessions/${main.id}/messages`)).json()).messages).toEqual(before);
+  await expect(page.locator('.post-content').filter({ hasText: `retained history ${token}` }).first()).toBeVisible();
+  await expect(input).toHaveValue('unsent dismissal draft');
+});
+
 test('Gi filtered picker keeps native text editing, Tab and keyboard selection', async ({ page, request }, info) => {
   const rootName = `keyboard-root-${info.project.name}`, leafName = `keyboard-leaf-${info.project.name}`;
   const response = await request.post('/api/sessions', { data: { title: `@${rootName}`, agent_id: rootName } });
