@@ -10,6 +10,9 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Frozen mobile004 native pinned/active/ordinary order and archive/dedup acceptance: dedicated6/mixed30/session96/functional83/helpers47/Go-vet-build-hook; Classic75/236+shared3/42 unmapped161/39. Test-only, no runtime restart or new TUI credit. Gesture assertions wait for visible native catalogue activation.
+- [ ] Investigate rapid back-to-back swipes during session activation: localStorage selection precedes listener/catalogue readiness; mobile004 covers stable activated order only.
+
 - [x] Settings header/responsive004: pinned 860/720 client-width classes, header model filter/focus and per-visit Apply lock; shell90/regression216/functional83/helpers44/Go-vet-build-hook pass, Classic74/236+shared3/42 unmapped162/39. Pushed6df80e3/restart8090; live phone/tablet/desktop header filtering/focus/classes, 61sessions/integrity/FK OK, no writes/page errors. TUI Alt-M unchanged/no idle rows.
 - [x] Model pane re-entry freshness: captured-session settlement invalidation/refetch, synchronous read generations, preserved newer drafts, separate read/action errors and explicit Refresh; browser234/functional83/helpers46/Go-vet-build-hook/HTTP graph pass, keyed-session review verified. Pushed78d1e68/restart8090; read-only live Refresh/query preservation at3sizes, no writes/page errors, 61sessions/integrity/FK OK. No broader settings008/009/010 or TUI credit.
 

@@ -759,3 +759,80 @@ test('Gi new-session action allocates a distinct child chat', async ({ page, req
   const stored = await (await request.get(`/api/sessions/${child}`)).json();
   expect(stored.parent_session_id).toBe(main.id);
 });
+
+test('@ux-mobile-004 Native pinned and active overlap yields one stable active-first carousel', async ({ page, request }, info) => {
+  test.setTimeout(60000);
+  const scenario = loadCorpus().find(row => row.id === '@ux-mobile-004'); expect(scenario).toBeTruthy();
+  await info.attach('gherkin', { body: scenario.steps.join('\n'), contentType: 'text/plain' });
+  const token = `order-${info.project.name}-${Date.now()}`;
+  const create = async name => {
+    const response = await request.post('/api/sessions', { data: { agent_id: `${token}-${name}`, title: `@${token}-${name}` } });
+    expect(response.status()).toBe(201); return (await response.json()).id;
+  };
+  const ordinary = await create('ordinary'), pinnedIdle = await create('pinned'), activeA = await create('active-a'), activeB = await create('active-b');
+  for (const id of [pinnedIdle, activeB]) expect((await request.patch(`/api/sessions/${id}`, { data: { action: 'pin', pinned: true } })).status()).toBe(200);
+  const fork = await request.post(`/api/sessions/${ordinary}/fork`, { data: { agent_id: `${token}-archived`, title: `@${token}-archived` } });
+  expect(fork.status()).toBe(201); const archived = (await fork.json()).branch.chat_jid.slice(3);
+  expect((await request.patch(`/api/sessions/${archived}`, { data: { action: 'archive' } })).status()).toBe(200);
+  const runs = [];
+  const selected = () => page.evaluate(() => localStorage.getItem('gi_session_id'));
+  const swipe = async delta => page.locator('.timeline').first().evaluate((el, delta) => {
+    for (const [name, x] of [['touchstart', 190], ['touchmove', 190 + delta], ['touchend', 190 + delta]]) {
+      const touch = { identifier: 1, target: el, clientX: x, clientY: 150 }, event = new Event(name, { bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'touches', { value: name === 'touchend' ? [] : [touch] });
+      Object.defineProperty(event, 'changedTouches', { value: [touch] }); el.dispatchEvent(event);
+    }
+  }, delta);
+  try {
+    for (const [index, id] of [activeA, activeB].entries()) {
+      const key = `${token}-gate-${index}`, gate = resolve('test-results/ux-parity/queue-gates', key); mkdirSync(resolve(gate, '..'), { recursive: true });
+      const response = await request.post(`/api/sessions/${id}/prompt`, { data: { prompt: `UX queue gate:${key}`, model: 'test-model' } });
+      expect(response.status()).toBe(202); runs.push({ id, gate, turn: (await response.json()).turn_id });
+      await expect.poll(async () => (await (await request.get(`/api/sessions/${id}`)).json()).state.status).toBe('running');
+    }
+    const sessions = (await (await request.get('/api/sessions')).json()).sessions;
+    expect(sessions.find(s => s.id === activeB).state.pinned).toBe(true);
+    expect(sessions.find(s => s.id === pinnedIdle).state.pinned).toBe(true);
+    expect(sessions.find(s => s.id === archived).state.archived_at).toBeTruthy();
+    const active = s => s.state?.status === 'running' || s.state?.status === 'queued' || Number(s.state?.queue_count || 0) > 0;
+    const ordered = sessions.filter(s => !s.state?.archived_at).sort((a,b) => Number(active(b)) - Number(active(a)) || `gi:${a.id}`.localeCompare(`gi:${b.id}`)).map(s => s.id);
+    expect(ordered.slice(0,2)).toEqual([activeA, activeB].sort((a,b) => `gi:${a}`.localeCompare(`gi:${b}`)));
+    expect(new Set(ordered).size).toBe(ordered.length); expect(ordered).not.toContain(archived);
+    await page.addInitScript(id => { localStorage.setItem('gi_session_id', id); Object.defineProperty(navigator, 'userAgent', { configurable: true, value: 'iPhone Safari' }); }, activeB);
+    await page.goto('/'); const input = page.getByRole('textbox', { name: inputName, exact: true }); await expect(input).toBeVisible(); await input.fill('pinned active draft');
+    const ready = async id => {
+      // localStorage changes before session activation/catalogue refresh. Use
+      // the actual populated picker as readiness, not an arbitrary sleep.
+      await page.getByRole('button', { name: /Manage sessions for/ }).last().click();
+      const popup = page.locator('.compose-session-popup');
+      await popup.getByRole('searchbox', { name: 'Search sessions', exact: true }).fill('');
+      await expect(popup.locator('[data-session-jid]')).toHaveCount(sessions.length);
+      await expect(popup.locator(`[data-session-jid="gi:${id}"] [role="menuitem"]`)).toHaveAttribute('aria-current', 'true');
+      await page.keyboard.press('Escape'); await expect(popup).toHaveCount(0);
+    };
+    const pick = async id => {
+      await page.getByRole('button', { name: /Manage sessions for/ }).last().click();
+      const popup = page.locator('.compose-session-popup'); await popup.getByRole('searchbox', { name: 'Search sessions', exact: true }).fill(id);
+      const row = popup.locator(`[data-session-jid="gi:${id}"]`).getByRole('menuitem'); await expect(row).toBeVisible(); await row.click(); await expect.poll(selected).toBe(id); await ready(id);
+    };
+    // Overlap is real persisted state: activeB belongs to pinned, active and
+    // ordinary catalogue membership. Both directions must visit it once, never
+    // stop at a duplicate; current selection must not reorder the carousel.
+    await ready(activeB);
+    for (const id of [activeA, activeB, ordinary, pinnedIdle, ordered.at(-1)]) {
+      if (await selected() !== id) await pick(id);
+      const next = ordered[(ordered.indexOf(id) + 1) % ordered.length];
+      await swipe(-105); await expect.poll(selected).toBe(next); await ready(next);
+      await swipe(105); await expect.poll(selected).toBe(id); await ready(id);
+    }
+    await pick(activeB); await expect(input).toHaveValue('pinned active draft');
+    // Pin changes affect picker grouping, not active/JID carousel precedence.
+    expect((await request.patch(`/api/sessions/${activeB}`, { data: { action: 'pin', pinned: false } })).status()).toBe(200);
+    await page.reload(); await expect(input).toHaveValue('pinned active draft'); await ready(activeB);
+    await swipe(-105); await expect.poll(selected).toBe(ordered[(ordered.indexOf(activeB) + 1) % ordered.length]);
+    expect(await selected()).not.toBe(archived);
+  } finally {
+    for (const run of runs) writeFileSync(run.gate, 'release');
+    for (const run of runs) await expect.poll(async () => ((await (await request.get(`/api/sessions/${run.id}/turns`)).json()).turns || []).find(t => t.id === run.turn)?.status, { timeout: 15000 }).toBe('completed');
+  }
+});
