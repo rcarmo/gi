@@ -11,7 +11,10 @@ import (
 //go:embed migrations/001_scoped_workspace_index.sql
 var scopedWorkspaceSchemaV1 string
 
-const workspaceSchemaVersion = 1
+//go:embed migrations/002_scope_invalidation.sql
+var scopedWorkspaceSchemaV2 string
+
+var workspaceMigrations = []string{scopedWorkspaceSchemaV1, scopedWorkspaceSchemaV2}
 
 // Migrate runs inside the caller's existing startup transaction. It never
 // commits, creates workspace identities, scans files or imports legacy rows.
@@ -27,8 +30,7 @@ func Migrate(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("read workspace migration ledger: %w", err)
 	}
-	applied := false
-	sum := fmt.Sprintf("%x", sha256.Sum256([]byte(scopedWorkspaceSchemaV1)))
+	applied := 0
 	for rows.Next() {
 		var version int
 		var checksum string
@@ -36,38 +38,48 @@ func Migrate(tx *sql.Tx) error {
 			rows.Close()
 			return err
 		}
-		if version != workspaceSchemaVersion {
+		if version < 1 || version > len(workspaceMigrations) {
 			rows.Close()
 			return fmt.Errorf("unsupported workspace index schema version %d", version)
 		}
-		if checksum != sum {
+		if version != applied+1 {
+			rows.Close()
+			return fmt.Errorf("workspace migration ledger gap at %d", version)
+		}
+		if checksum != fmt.Sprintf("%x", sha256.Sum256([]byte(workspaceMigrations[version-1]))) {
 			rows.Close()
 			return fmt.Errorf("workspace index schema v%d checksum mismatch", version)
 		}
-		applied = true
+		applied = version
 	}
 	err = rows.Err()
 	rows.Close()
 	if err != nil {
 		return err
 	}
-	if !applied {
-		// CREATE without IF NOT EXISTS detects unversioned partial/candidate tables.
-		// They cannot silently be adopted as a complete migrated schema.
-		if _, err = tx.Exec(scopedWorkspaceSchemaV1); err != nil {
-			return fmt.Errorf("apply workspace index schema v1: %w", err)
-		}
-		if _, err = tx.Exec("INSERT INTO workspace_index_migrations(version,checksum) VALUES (?,?)", workspaceSchemaVersion, sum); err != nil {
+	if applied > 0 {
+		if err := validateWorkspaceSchema(tx, applied); err != nil {
 			return err
 		}
 	}
-	return validateWorkspaceSchema(tx)
+	for version := applied + 1; version <= len(workspaceMigrations); version++ {
+		// CREATE without IF NOT EXISTS detects unversioned partial/candidate tables.
+		// They cannot silently be adopted as a complete migrated schema.
+		ddl := workspaceMigrations[version-1]
+		if _, err = tx.Exec(ddl); err != nil {
+			return fmt.Errorf("apply workspace index schema v%d: %w", version, err)
+		}
+		if _, err = tx.Exec("INSERT INTO workspace_index_migrations(version,checksum) VALUES (?,?)", version, fmt.Sprintf("%x", sha256.Sum256([]byte(ddl)))); err != nil {
+			return err
+		}
+	}
+	return validateWorkspaceSchema(tx, len(workspaceMigrations))
 }
 
 // The ledger authenticates migration history, not arbitrary later DDL. Validate
 // required columns and objects on reopen as well; do not silently recreate a
 // missing trigger and leave existing FTS rows inconsistent.
-func validateWorkspaceSchema(tx *sql.Tx) error {
+func validateWorkspaceSchema(tx *sql.Tx, version int) error {
 	projections := map[string]string{
 		"workspace_index_workspaces":    "id,root_identity",
 		"workspace_index_scopes":        "workspace_id,scope,config_hash,roots_json,state,committed_generation,indexed_file_count,last_indexed_at_ms,updated_at_ms,last_error",
@@ -77,6 +89,9 @@ func validateWorkspaceSchema(tx *sql.Tx) error {
 		"workspace_index_chunks":        "id,document_id,chunk_index,start_byte,end_byte,start_line,end_line,heading,content",
 		"workspace_index_chunk_content": "id,content,heading,path,language",
 		"workspace_index_fts":           "rowid,content,heading,path,language",
+	}
+	if version >= 2 {
+		projections["workspace_index_invalidations"] = "workspace_id,scope,requested_revision,acknowledged_revision"
 	}
 	for table, columns := range projections {
 		rows, err := tx.Query("SELECT " + columns + " FROM " + table + " LIMIT 0")
@@ -94,6 +109,10 @@ func validateWorkspaceSchema(tx *sql.Tx) error {
 		"workspace_index_chunks_before_update": "trigger", "workspace_index_chunks_after_update": "trigger",
 		"workspace_index_documents_delete": "trigger", "workspace_index_documents_before_rename": "trigger", "workspace_index_documents_after_rename": "trigger",
 	}
+	if version >= 2 {
+		objects["workspace_index_invalidations"] = "table"
+	}
+	declarations := strings.Join(workspaceMigrations[:version], "\n")
 	for name, kind := range objects {
 		var actual, ddl string
 		if err := tx.QueryRow("SELECT type,sql FROM sqlite_schema WHERE name=?", name).Scan(&actual, &ddl); err != nil {
@@ -105,7 +124,7 @@ func validateWorkspaceSchema(tx *sql.Tx) error {
 		// sqlite_schema stores the original declaration without its trailing ';'.
 		// Compare the whole declaration so a no-op replacement trigger fails closed.
 		compact := strings.Join(strings.Fields(ddl), " ")
-		if !strings.Contains(strings.Join(strings.Fields(scopedWorkspaceSchemaV1), " "), compact+";") {
+		if !strings.Contains(strings.Join(strings.Fields(declarations), " "), compact+";") {
 			return fmt.Errorf("workspace schema object %s definition mismatch", name)
 		}
 	}

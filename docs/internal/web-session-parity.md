@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Durable index invalidation prerequisite (2026-09-23)
+
+[ADR-0048](../adr/0048-durable-index-invalidation.md) adds v2 requested/acknowledged scope revisions so changes during refresh remain pending after publication. Native races, failure/reopen, held-worker tests and copied dev database 30-table/v1-ledger preservation pass. Go/vet/build/hook, 76 functional, 32 helpers, store/indexer race ×3, focused 24 browser and TUI smoke/Gherkin pass. Watcher/mutation delivery and scheduling remain disconnected; 18 derived proposals remain separate. No UI change or new frozen credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**.
+
 ## Index startup settings and optional roots (2026-09-23)
 
 [ADR-0047](../adr/0047-index-settings-and-optional-roots.md) wires extra roots/extensions and explicit optional roots from `.pi/settings.json`. Native/browser evidence covers initial absence, changed configurations and retained index/drafts on populated-root disappearance with explicit retry. **498 browser**, **76 functional**, **32 helpers**, Go/vet/build/hook and config/search/web race ×3 pass. Meter capability timing is now gated on native claim cleanup without weaker assertions.

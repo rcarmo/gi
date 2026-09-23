@@ -28,21 +28,24 @@ type RefreshStore struct{ db *sql.DB }
 func NewRefreshStore(db *sql.DB) *RefreshStore { return &RefreshStore{db: db} }
 
 type Refresh struct {
-	store       *RefreshStore
-	workspaceID int64
-	token       string
-	config      ScopeConfig
+	store                *RefreshStore
+	workspaceID          int64
+	token                string
+	config               ScopeConfig
+	invalidationRevision int64
 }
 
 type ScopeStatus struct {
-	State            string
-	ConfigHash       string
-	Roots            []string
-	Generation       int64
-	IndexedFileCount int
-	LastIndexedAtMS  sql.NullInt64
-	UpdatedAtMS      int64
-	LastError        string
+	State                string
+	ConfigHash           string
+	Roots                []string
+	Generation           int64
+	IndexedFileCount     int
+	LastIndexedAtMS      sql.NullInt64
+	UpdatedAtMS          int64
+	LastError            string
+	RequestedRevision    int64
+	AcknowledgedRevision int64
 }
 
 func (s *RefreshStore) Status(ctx context.Context, c ScopeConfig) (ScopeStatus, error) {
@@ -52,9 +55,10 @@ func (s *RefreshStore) Status(ctx context.Context, c ScopeConfig) (ScopeStatus, 
 	status := ScopeStatus{State: "never_indexed", Roots: c.Roots(), ConfigHash: c.fingerprint}
 	var roots string
 	var leaseActive bool
-	err := s.db.QueryRowContext(ctx, `SELECT sc.state,sc.config_hash,sc.roots_json,sc.committed_generation,sc.indexed_file_count,sc.last_indexed_at_ms,sc.updated_at_ms,sc.last_error,
+	err := s.db.QueryRowContext(ctx, `SELECT sc.state,sc.config_hash,sc.roots_json,sc.committed_generation,sc.indexed_file_count,sc.last_indexed_at_ms,sc.updated_at_ms,sc.last_error,coalesce(iv.requested_revision,0),coalesce(iv.acknowledged_revision,0),
  EXISTS(SELECT 1 FROM workspace_index_leases l WHERE l.workspace_id=sc.workspace_id AND l.expires_at_ms>`+indexNowMS+`)
- FROM workspace_index_scopes sc JOIN workspace_index_workspaces w ON w.id=sc.workspace_id WHERE w.root_identity=? AND sc.scope=?`, c.workspace, c.scope).Scan(&status.State, &status.ConfigHash, &roots, &status.Generation, &status.IndexedFileCount, &status.LastIndexedAtMS, &status.UpdatedAtMS, &status.LastError, &leaseActive)
+ FROM workspace_index_scopes sc JOIN workspace_index_workspaces w ON w.id=sc.workspace_id
+ LEFT JOIN workspace_index_invalidations iv ON iv.workspace_id=sc.workspace_id AND iv.scope=sc.scope WHERE w.root_identity=? AND sc.scope=?`, c.workspace, c.scope).Scan(&status.State, &status.ConfigHash, &roots, &status.Generation, &status.IndexedFileCount, &status.LastIndexedAtMS, &status.UpdatedAtMS, &status.LastError, &status.RequestedRevision, &status.AcknowledgedRevision, &leaseActive)
 	if errors.Is(err, sql.ErrNoRows) {
 		return status, nil
 	}
@@ -67,6 +71,9 @@ func (s *RefreshStore) Status(ctx context.Context, c ScopeConfig) (ScopeStatus, 
 	if status.State == "indexing" && !leaseActive {
 		status.State = "stale"
 		status.LastError = "Index refresh interrupted or expired"
+	}
+	if status.State == "ready" && status.RequestedRevision > status.AcknowledgedRevision {
+		status.State = "stale"
 	}
 	if status.ConfigHash != c.fingerprint && status.State != "indexing" {
 		status.State = "stale"
@@ -113,6 +120,12 @@ func (s *RefreshStore) Begin(ctx context.Context, c ScopeConfig, ttl time.Durati
 	roots, _ := json.Marshal(c.roots)
 	if _, err = tx.ExecContext(ctx, `INSERT INTO workspace_index_scopes(workspace_id,scope,config_hash,roots_json,state,updated_at_ms) VALUES(?,?,?,?,'indexing',`+indexNowMS+`)
  ON CONFLICT(workspace_id,scope) DO UPDATE SET state='indexing',last_error='',updated_at_ms=excluded.updated_at_ms`, r.workspaceID, c.scope, c.fingerprint, string(roots)); err != nil {
+		return nil, err
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO workspace_index_invalidations(workspace_id,scope) VALUES(?,?) ON CONFLICT(workspace_id,scope) DO NOTHING`, r.workspaceID, c.scope); err != nil {
+		return nil, err
+	}
+	if err = tx.QueryRowContext(ctx, `SELECT requested_revision FROM workspace_index_invalidations WHERE workspace_id=? AND scope=?`, r.workspaceID, c.scope).Scan(&r.invalidationRevision); err != nil {
 		return nil, err
 	}
 	if err = tx.Commit(); err != nil {
@@ -328,8 +341,19 @@ func (r *Refresh) Commit(ctx context.Context, snapshot CompleteSnapshot) error {
 	if _, err = tx.ExecContext(ctx, `DELETE FROM workspace_index_documents WHERE workspace_id=? AND NOT EXISTS(SELECT 1 FROM workspace_index_memberships m WHERE m.document_id=workspace_index_documents.id)`, r.workspaceID); err != nil {
 		return err
 	}
+	var requested int64
+	if err = tx.QueryRowContext(ctx, `SELECT requested_revision FROM workspace_index_invalidations WHERE workspace_id=? AND scope=?`, r.workspaceID, r.config.scope).Scan(&requested); err != nil {
+		return err
+	}
+	state := "ready"
+	if requested > r.invalidationRevision {
+		state = "stale"
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE workspace_index_invalidations SET acknowledged_revision=? WHERE workspace_id=? AND scope=?`, r.invalidationRevision, r.workspaceID, r.config.scope); err != nil {
+		return err
+	}
 	roots, _ := json.Marshal(r.config.roots)
-	if _, err = tx.ExecContext(ctx, `UPDATE workspace_index_scopes SET state='ready',config_hash=?,roots_json=?,committed_generation=?,indexed_file_count=?,last_indexed_at_ms=`+indexNowMS+`,updated_at_ms=`+indexNowMS+`,last_error='' WHERE workspace_id=? AND scope=?`, r.config.fingerprint, string(roots), generation, len(snapshot.Documents), r.workspaceID, r.config.scope); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE workspace_index_scopes SET state=?,config_hash=?,roots_json=?,committed_generation=?,indexed_file_count=?,last_indexed_at_ms=`+indexNowMS+`,updated_at_ms=`+indexNowMS+`,last_error='' WHERE workspace_id=? AND scope=?`, state, r.config.fingerprint, string(roots), generation, len(snapshot.Documents), r.workspaceID, r.config.scope); err != nil {
 		return err
 	}
 	if err = r.guard(ctx, tx); err != nil {
@@ -364,7 +388,12 @@ func (r *Refresh) putDocument(ctx context.Context, tx *sql.Tx, doc RefreshDocume
 	} else if changed {
 		// Overlapping scopes see shared document edits but must revalidate their own
 		// inventories/configuration before advertising ready again.
-		if _, err = tx.ExecContext(ctx, `UPDATE workspace_index_scopes SET state='stale',updated_at_ms=`+indexNowMS+` WHERE workspace_id=? AND scope<>? AND scope IN (SELECT scope FROM workspace_index_memberships WHERE document_id=?)`, r.workspaceID, r.config.scope, id); err != nil {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO workspace_index_invalidations(workspace_id,scope,requested_revision)
+ SELECT workspace_id,scope,1 FROM workspace_index_memberships WHERE document_id=? AND scope<>?
+ ON CONFLICT(workspace_id,scope) DO UPDATE SET requested_revision=requested_revision+1`, id, r.config.scope); err != nil {
+			return err
+		}
+		if _, err = tx.ExecContext(ctx, `UPDATE workspace_index_scopes SET state=CASE WHEN state='failed' THEN state ELSE 'stale' END,updated_at_ms=`+indexNowMS+` WHERE workspace_id=? AND scope<>? AND scope IN (SELECT scope FROM workspace_index_memberships WHERE document_id=?)`, r.workspaceID, r.config.scope, id); err != nil {
 			return err
 		}
 		if _, err = tx.ExecContext(ctx, "DELETE FROM workspace_index_chunks WHERE document_id=?", id); err != nil {

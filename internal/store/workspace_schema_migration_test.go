@@ -77,7 +77,7 @@ func TestWorkspaceMigrationPreservesLegacySearchAndRuntimeData(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, name := range []string{"fts", "memberships", "chunks", "documents", "leases", "scopes", "workspaces", "migrations"} {
+	for _, name := range []string{"invalidations", "fts", "memberships", "chunks", "documents", "leases", "scopes", "workspaces", "migrations"} {
 		if _, err := db.Exec("DROP TABLE workspace_index_" + name); err != nil {
 			t.Fatal(err)
 		}

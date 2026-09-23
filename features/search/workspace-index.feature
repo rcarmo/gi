@@ -156,3 +156,15 @@ Feature: Scoped workspace indexing lifecycle
     And the previous content, count, generation and successful timestamp remain intact
     When the root is restored and an explicit retry succeeds
     Then the scope publishes one new generation
+
+  @index-derived-018 @gi-strengthening
+  Scenario: Invalidation during refresh cannot be acknowledged by an older scan
+    Given a refresh captures the scope's requested invalidation revision before scanning
+    When a new relevant path change is durably recorded before or during publication
+    Then the scope's requested revision advances without altering committed results
+    And successful publication acknowledges only the revision captured before scanning
+    And a newer pending revision leaves the published scope stale
+    And a subsequent successful refresh can acknowledge that newer revision
+    When scanning, publication or failure cleanup fails
+    Then no pending revision is acknowledged
+    And reopening the database retains the pending revision and committed index

@@ -472,3 +472,57 @@ func TestWorkerNativeRenewalErrorStopsScanAndReleasesOwnership(t *testing.T) {
 		t.Fatal("renewal error changed committed data")
 	}
 }
+
+func TestWorkerEventAfterScanRemainsPendingUntilNextRefresh(t *testing.T) {
+	db, s, c, _ := workerFixture(t)
+	w := NewWorker(s)
+	if err := w.Run(t.Context(), c); err != nil {
+		t.Fatal(err)
+	}
+	scanned, release := make(chan struct{}), make(chan struct{})
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	w.scan = func(ctx context.Context, c searchstore.ScopeConfig) (searchstore.CompleteSnapshot, error) {
+		snapshot, err := ScanScope(ctx, c)
+		if err != nil {
+			return snapshot, err
+		}
+		close(scanned)
+		select {
+		case <-release:
+			return snapshot, nil
+		case <-ctx.Done():
+			return searchstore.CompleteSnapshot{}, ctx.Err()
+		}
+	}
+	result := make(chan error, 1)
+	go func() { result <- w.Run(ctx, c) }()
+	awaitSignal(t, scanned)
+	if err := os.WriteFile(filepath.Join(c.Workspace(), "notes/a.md"), []byte("new dahlia"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := s.Invalidate(t.Context(), c, []string{"notes/a.md"}); err != nil || !ok {
+		t.Fatal(ok, err)
+	}
+	close(release)
+	if err := awaitWorker(t, result); err != nil {
+		t.Fatal(err)
+	}
+	stale := workerStatus(t, s, c)
+	if stale.State != "stale" || stale.RequestedRevision != 1 || stale.AcknowledgedRevision != 0 || stale.Generation != 2 {
+		t.Fatal(stale)
+	}
+	if workerMatches(t, db, "orchid") != 1 {
+		t.Fatal("captured snapshot unexpectedly changed")
+	}
+	if err := NewWorker(s).Run(t.Context(), c); err != nil {
+		t.Fatal(err)
+	}
+	ready := workerStatus(t, s, c)
+	if ready.State != "ready" || ready.RequestedRevision != 1 || ready.AcknowledgedRevision != 1 || ready.Generation != 3 {
+		t.Fatal(ready)
+	}
+	if workerMatches(t, db, "dahlia") != 1 || workerMatches(t, db, "orchid") != 0 {
+		t.Fatal("follow-up refresh wrong")
+	}
+}
