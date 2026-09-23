@@ -1,6 +1,6 @@
 # Gi settings
 
-Gi settings reuse Piclaw's modal layout while exposing Gi's own capabilities. The derived scenarios are in `tests/features/settings/gi-settings.feature`; they never increase frozen Classic/shared coverage.
+Gi settings reuse Piclaw's modal layout while exposing Gi's own capabilities. The derived scenarios are in `tests/features/settings/gi-settings.feature`; they never increase frozen Classic/shared coverage. Independent whole-criterion frozen acceptance lives in `tests/ux/settings-shell.spec.mjs`.
 
 ## Implemented sections
 
@@ -28,7 +28,9 @@ The General/Models hierarchy, fixed half-opaque backdrop, sidebar-to-tabs respon
 
 ## Frozen-spec relationship
 
-`settings-dialog.feature`, `settings-layering.feature` and canonical `core-settings.feature` inform the shell and interaction tests. Frozen assumptions about General autosave, pane imports, provider authentication, broad model filters and services do not automatically hold for Gi. Keep every existing frozen row unchanged and unmapped unless its entire criterion independently passes.
+`settings-dialog.feature`, `settings-layering.feature` and canonical `core-settings.feature` inform the shell and interaction tests. Frozen assumptions about General autosave, pane imports, provider authentication, broad model filters and services do not automatically hold for Gi. Keep frozen source files unchanged; map a row only when its entire criterion independently passes.
+
+Independent shell acceptance now covers `@ux-settings-layering-001`–`004` and `@ux-settings-dialog-001/003/004`: actual workspace pointer blocking/recovery, viewport/portal/dimming, rapid keyboard open, immediate loading shell/General-first response within two seconds, and typed numeric input. Frozen six-project matrix **42/42**, combined shell/Gi regression **132/132**, rapid-open tablet repeat **10/10**. A first-paint Escape race was fixed by attaching modal focus/inert/keyboard handling in `useLayoutEffect`. Cached reopen (`dialog-002`) remains unmapped because not all Settings data is cached; lazy-pane imports (`dialog-005`) remain unmapped because panes are statically imported. Overall coverage is **71/236 Classic**, **3/42 shared**, **165/39 unmapped**; browser layering adds no terminal claim.
 
 ## Refinement decisions
 

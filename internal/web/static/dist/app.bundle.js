@@ -18392,7 +18392,7 @@ function Appearance() {
 function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied }) {
   const [section, setSection] = F_("general");
   const dialog = Q_(null);
-  K_(() => {
+  W_(() => {
     const app = document.getElementById("app");
     const previousInert = app?.inert;
     if (app)
@@ -20432,5 +20432,5 @@ function ComposeTransfer({ sessionId, hidden }) {
 window.addEventListener("keydown", guardQuickActionsTyping, true);
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=EB7222BC8BE9DE8D64756E2164756E21
+//# debugId=AD3BDBD14885D66A64756E2164756E21
 //# sourceMappingURL=app.js.map

@@ -1,6 +1,6 @@
 // Gi-owned adaptation of Piclaw 70d33bc93 settings-dialog.ts (MIT).
 // Native capabilities only; no Piclaw settings service calls.
-import { html, useState, useEffect, useRef } from './vendor/preact-htm.js';
+import { html, useState, useEffect, useLayoutEffect, useRef } from './vendor/preact-htm.js';
 import { BodyPortal } from './components/body-portal.js';
 import { getGiSettingsSnapshot, getGiIdentity, saveGiIdentity, getAgentModels, selectAgentModel } from './api.js';
 import { modelContextBlocked } from './gi-context-usage.js';
@@ -199,7 +199,8 @@ function Appearance() {
 function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied }) {
     const [section, setSection] = useState('general');
     const dialog = useRef<HTMLDivElement>(null);
-    useEffect(() => {
+    // Make the first painted shell modal, including focus and Escape handling.
+    useLayoutEffect(() => {
         const app = document.getElementById('app');
         const previousInert = app?.inert;
         if (app) app.inert = true;
