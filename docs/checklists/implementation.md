@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [ ] Gi identity (`gi-settings-012`/`013`): revision-checked atomic name save preserving config keys/avatars, rooted file checks, cross-process lock and restart-required General UI. Settings 72/72, Settings/Models 102/102, reviewed identity 18/18, functional 83/83, helpers 43, Go/vet/build/hook/config-web race ×3 pass. No avatar/credential edits, auto-restart, frozen credit or TUI chrome. Commit/deployment pending.
+- [x] Gi identity (`gi-settings-012`/`013`): revision-checked atomic name save preserving config keys/avatars, rooted file checks, cross-process lock and restart-required General UI. Settings 72/72, Settings/Models 102/102, reviewed identity 18/18, functional 83/83, helpers 43, Go/vet/build/hook/config-web race ×3 pass. No avatar/credential edits, auto-restart, frozen credit or TUI chrome. Push ccc2e53/restart 8090: live GET/form matches without changing operator identity, 61 sessions, integrity/FK OK.
 
 - [x] Gi Appearance (`gi-settings-009`–`011`): explicit browser-local save/reset, validated hex tint, storage denial/retry, reload/session/tab scope and dirty cross-tab drafts. Unchanged supplied renderer via narrow build export; settings/models 90/90, functional 83/83, helpers 43, Go/vet/build/hook pass. No server/TUI writes or frozen credit (64/236 + 3/42 unchanged). Push 7917cb8/restart 8090: live save/reload proof, 61 sessions, integrity/FK OK.
 
