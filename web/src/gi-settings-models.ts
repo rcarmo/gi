@@ -1,24 +1,27 @@
 // Gi-owned lazy Models pane; native data is fetched on each mount.
-import { html, useState, useEffect, useRef } from "./vendor/preact-htm.js";
+import { html, useState, useEffect, useLayoutEffect, useRef } from "./vendor/preact-htm.js";
 import { getAgentModels, selectAgentModel } from "./api.js";
 import { modelContextBlocked } from "./gi-context-usage.js";
 
-export function Models({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
+export function Models({ chatJid, filter = '', onMutationStart, onMutationEnd, onApplied }) {
     const [data, setData] = useState<any>(null);
     const [chosen, setChosen] = useState('');
-    const [filter, setFilter] = useState('');
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [busy, setBusy] = useState(false);
     const [attempt, setAttempt] = useState(0);
     const mounted = useRef(false);
     const saving = useRef(false);
-    const searchRef = useRef<HTMLInputElement>(null);
+    const previousFilter = useRef(filter);
     useEffect(() => {
         mounted.current = true;
-        searchRef.current?.focus();
         return () => { mounted.current = false; };
     }, []);
+    useLayoutEffect(() => {
+        if (previousFilter.current !== filter) {
+            previousFilter.current = filter; setChosen(''); setNotice('');
+        }
+    }, [filter]);
     useEffect(() => {
         let live = true;
         setData(null); setError(''); setNotice('');
@@ -52,7 +55,6 @@ export function Models({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
         <h2 id="gi-models-title">Models</h2>
         <p>Session settings · <code>${chatJid}</code></p>
         <p>Changes affect this session only. Instance defaults and other sessions are unchanged.</p>
-        <label>Filter models<input ref=${searchRef} type="search" aria-label="Filter models" disabled=${busy} value=${filter} onInput=${e => { setFilter(e.target.value); setChosen(''); setNotice(''); }} /></label>
         ${!data && !error && html`<p role="status">Loading models…</p>`}
         ${error && html`<div role="alert">${error}${!data && html` <button onClick=${() => setAttempt(x => x + 1)}>Retry</button>`}</div>`}
         ${data && html`

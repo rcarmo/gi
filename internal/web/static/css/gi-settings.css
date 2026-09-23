@@ -194,3 +194,20 @@
     .settings-content { padding: 14px; }
 }
 .settings-content input.gi-policy-checkbox { display: inline-block; width: auto; margin: 0 8px 0 0; }
+
+/* Pinned Piclaw settings.css header filter; min-width permits narrow dialogs. */
+.settings-header-filter {
+    flex: 1;
+    min-width: 0;
+    max-width: 320px;
+    padding: 5px 10px;
+    margin: 0 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 12px;
+    outline: none;
+}
+.settings-header-filter:focus { border-color: var(--accent-color); }
+.settings-dialog-narrow .settings-header-filter { max-width: none; min-height: 44px; }

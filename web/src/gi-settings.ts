@@ -1,6 +1,6 @@
 // Gi-owned adaptation of Piclaw 70d33bc93 settings-dialog.ts (MIT).
 // Native capabilities only; no Piclaw settings service calls.
-import { html, useState, useEffect, useLayoutEffect, useRef } from './vendor/preact-htm.js';
+import { html, useState, useEffect, useLayoutEffect, useRef, useMemo } from './vendor/preact-htm.js';
 import { BodyPortal } from './components/body-portal.js';
 import { getGiSettingsSnapshot, getGiIdentity, saveGiIdentity } from './api.js';
 import { LazySettingsPane } from './gi-settings-lazy.js';
@@ -87,6 +87,34 @@ function General() {
 function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied }) {
     const [section, setSection] = useState('general');
     const dialog = useRef<HTMLDivElement>(null);
+    const filterRef = useRef<HTMLInputElement>(null);
+    const [filter, setFilter] = useState('');
+    const [busyScope, setBusyScope] = useState<object | null>(null);
+    const searchScope = useMemo(() => ({}), [section, chatJid]);
+    const [layoutMode, setLayoutMode] = useState({ compact: false, narrow: false });
+    // Match the pinned shell's element-width thresholds (not viewport guesses).
+    useLayoutEffect(() => {
+        const element = dialog.current;
+        if (!element) return;
+        const update = () => {
+            const width = element.clientWidth || 0;
+            setLayoutMode(previous => {
+                const next = { compact: width > 0 && width <= 860, narrow: width > 0 && width <= 720 };
+                return previous.compact === next.compact && previous.narrow === next.narrow ? previous : next;
+            });
+        };
+        update();
+        if (typeof ResizeObserver === 'function') {
+            const observer = new ResizeObserver(update); observer.observe(element);
+            return () => observer.disconnect();
+        }
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
+    }, []);
+    useLayoutEffect(() => {
+        setFilter('');
+        if (section === 'models') filterRef.current?.focus();
+    }, [section, chatJid]);
     // Make the first painted shell modal, including focus and Escape handling.
     useLayoutEffect(() => {
         const app = document.getElementById('app');
@@ -121,13 +149,14 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
         };
     }, []);
     return html`<div class="settings-dialog-backdrop" onClick=${e => { if (e.target === e.currentTarget) onClose(); }}>
-        <div ref=${dialog} class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="gi-settings-title" onKeyDown=${e => e.stopPropagation()}>
+        <div ref=${dialog} class=${`settings-dialog${layoutMode.compact ? ' settings-dialog-compact' : ''}${layoutMode.narrow ? ' settings-dialog-narrow' : ''}`} role="dialog" aria-modal="true" aria-labelledby="gi-settings-title" onKeyDown=${e => e.stopPropagation()}>
             <header class="settings-dialog-header"><span class="settings-dialog-title" id="gi-settings-title">Gi Settings</span>
+                ${section === 'models' && html`<input ref=${filterRef} type="search" class="settings-header-filter" aria-label="Filter models" placeholder="Filter models…" value=${filter} disabled=${busyScope === searchScope} onInput=${e => setFilter(e.target.value)} />`}
                 <button class="settings-dialog-close" aria-label="Close settings" onClick=${onClose}>✕</button></header>
             <div class="settings-dialog-body"><nav class="settings-nav" aria-label="Settings sections">
                 ${['general', 'models', 'appearance', 'compaction', 'providers'].map(id => html`<button class=${`settings-nav-item ${section === id ? 'active' : ''}`} aria-current=${section === id ? 'page' : undefined} onClick=${() => setSection(id)}>${{ general: 'General', models: 'Models', appearance: 'Appearance', compaction: 'Compaction', providers: 'Providers' }[id]}</button>`)}
             </nav><main class="settings-content">
-                ${section === 'general' ? html`<${General} />` : html`<${LazySettingsPane} key=${section} section=${section} chatJid=${chatJid} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`}
+                ${section === 'general' ? html`<${General} />` : html`<${LazySettingsPane} key=${section} section=${section} chatJid=${chatJid} filter=${filter} onMutationStart=${() => { setBusyScope(searchScope); return onMutationStart(); }} onMutationEnd=${token => { setBusyScope(previous => previous === searchScope ? null : previous); onMutationEnd(token); }} onApplied=${onApplied} />`}
             </main></div>
         </div>
     </div>`;

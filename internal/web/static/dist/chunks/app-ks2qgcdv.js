@@ -17743,10 +17743,10 @@ function guardQuickActionsTyping(event) {
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-s77jm0ef.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-6gemac2q.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-kqgcm8f3.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-x8jvmsmv.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-1fcfs9ee.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-t94xjryh.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-xh8xss9z.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-fmbrbggd.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -17767,7 +17767,7 @@ function load(section) {
   pending.set(section, promise);
   return promise;
 }
-function LazySettingsPane({ section, chatJid, onMutationStart, onMutationEnd, onApplied }) {
+function LazySettingsPane({ section, chatJid, filter, onMutationStart, onMutationEnd, onApplied }) {
   const [component, setComponent] = F_(() => components.get(section) || null);
   const [error, setError] = F_(false);
   K_(() => {
@@ -17788,7 +17788,7 @@ function LazySettingsPane({ section, chatJid, onMutationStart, onMutationEnd, on
     return fe`<div role="alert">Unable to load ${labels[section]}. Close Settings and try again. If the app was updated, save your work and reload the page.</div>`;
   if (!component)
     return fe`<div role="status" class="settings-loading-pane">Loading ${labels[section]} pane…</div>`;
-  return fe`<${component} key=${chatJid} chatJid=${chatJid} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`;
+  return fe`<${component} key=${chatJid} chatJid=${chatJid} filter=${filter} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`;
 }
 
 // web/src/gi-settings.ts
@@ -17912,6 +17912,36 @@ function General() {
 function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied }) {
   const [section, setSection] = F_("general");
   const dialog = Q_(null);
+  const filterRef = Q_(null);
+  const [filter, setFilter] = F_("");
+  const [busyScope, setBusyScope] = F_(null);
+  const searchScope = u_(() => ({}), [section, chatJid]);
+  const [layoutMode, setLayoutMode] = F_({ compact: false, narrow: false });
+  W_(() => {
+    const element = dialog.current;
+    if (!element)
+      return;
+    const update = () => {
+      const width = element.clientWidth || 0;
+      setLayoutMode((previous) => {
+        const next = { compact: width > 0 && width <= 860, narrow: width > 0 && width <= 720 };
+        return previous.compact === next.compact && previous.narrow === next.narrow ? previous : next;
+      });
+    };
+    update();
+    if (typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver(update);
+      observer.observe(element);
+      return () => observer.disconnect();
+    }
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  W_(() => {
+    setFilter("");
+    if (section === "models")
+      filterRef.current?.focus();
+  }, [section, chatJid]);
   W_(() => {
     const app = document.getElementById("app");
     const previousInert = app?.inert;
@@ -17952,13 +17982,20 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
     if (e.target === e.currentTarget)
       onClose();
   }}>
-        <div ref=${dialog} class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="gi-settings-title" onKeyDown=${(e) => e.stopPropagation()}>
+        <div ref=${dialog} class=${`settings-dialog${layoutMode.compact ? " settings-dialog-compact" : ""}${layoutMode.narrow ? " settings-dialog-narrow" : ""}`} role="dialog" aria-modal="true" aria-labelledby="gi-settings-title" onKeyDown=${(e) => e.stopPropagation()}>
             <header class="settings-dialog-header"><span class="settings-dialog-title" id="gi-settings-title">Gi Settings</span>
+                ${section === "models" && fe`<input ref=${filterRef} type="search" class="settings-header-filter" aria-label="Filter models" placeholder="Filter models…" value=${filter} disabled=${busyScope === searchScope} onInput=${(e) => setFilter(e.target.value)} />`}
                 <button class="settings-dialog-close" aria-label="Close settings" onClick=${onClose}>✕</button></header>
             <div class="settings-dialog-body"><nav class="settings-nav" aria-label="Settings sections">
                 ${["general", "models", "appearance", "compaction", "providers"].map((id) => fe`<button class=${`settings-nav-item ${section === id ? "active" : ""}`} aria-current=${section === id ? "page" : undefined} onClick=${() => setSection(id)}>${{ general: "General", models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" }[id]}</button>`)}
             </nav><main class="settings-content">
-                ${section === "general" ? fe`<${General} />` : fe`<${LazySettingsPane} key=${section} section=${section} chatJid=${chatJid} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`}
+                ${section === "general" ? fe`<${General} />` : fe`<${LazySettingsPane} key=${section} section=${section} chatJid=${chatJid} filter=${filter} onMutationStart=${() => {
+    setBusyScope(searchScope);
+    return onMutationStart();
+  }} onMutationEnd=${(token) => {
+    setBusyScope((previous) => previous === searchScope ? null : previous);
+    onMutationEnd(token);
+  }} onApplied=${onApplied} />`}
             </main></div>
         </div>
     </div>`;
@@ -19986,6 +20023,7 @@ G_(fe`<${GiApp} />`, document.getElementById("app"));
 export {
   F_,
   K_,
+  W_,
   Q_,
   fe,
   getAgentStatus,
@@ -20009,5 +20047,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=C09763278850EF4F64756E2164756E21
-//# sourceMappingURL=app-crshampx.js.map
+//# debugId=2C0AE811ED83176A64756E2164756E21
+//# sourceMappingURL=app-ks2qgcdv.js.map

@@ -30,7 +30,7 @@ async function setup(page, request, info) {
     await expect(input).toHaveValue('frozen settings draft');
     expect((await (await request.get(`/api/sessions/${id}/turns`)).json()).turns || []).toHaveLength(0);
   };
-  return { filename, input, row, target, reads, dialog, open, unchanged };
+  return { id, filename, input, row, target, reads, dialog, open, unchanged };
 }
 
 for (const id of ['@ux-settings-layering-001', '@ux-settings-layering-002', '@ux-settings-layering-003', '@ux-settings-layering-004']) {
@@ -182,4 +182,86 @@ test('@gi-settings-024 A pane import completing after close cannot reopen Settin
     await f.open(); await f.dialog.getByRole('button', { name: 'Appearance', exact: true }).click();
     await expect(f.dialog.getByRole('heading', { name: 'Appearance', exact: true })).toBeVisible();
   } finally { release(); }
+});
+
+test('@ux-settings-004 Searchable header focuses and dialog width changes layout without resetting native state', async ({ page, request }, info) => {
+  await source(info, '@ux-settings-004');
+  const f = await setup(page, request, info); let reads = 0; const writes = [];
+  page.on('request', req => { if (new URL(req.url()).pathname === `/api/sessions/${f.id}/model`) { if (req.method() === 'GET') reads++; else writes.push(req.method()); } });
+  await f.open(); await f.dialog.getByRole('button', { name: 'Models', exact: true }).click();
+  const filter = f.dialog.locator('header').getByRole('searchbox', { name: 'Filter models', exact: true });
+  await expect(filter).toBeFocused(); await expect(filter).toHaveAttribute('placeholder', 'Filter models…');
+  await expect(f.dialog.getByTestId('settings-current-model')).toBeVisible();
+  const select = f.dialog.getByRole('combobox', { name: 'Session model', exact: true });
+  await filter.fill('bootstrap'); await expect(select.locator('option:not([disabled])')).toHaveText(['test/bootstrap']);
+  await select.selectOption('test/bootstrap'); await expect(f.dialog.getByRole('button', { name: 'Apply model', exact: true })).toBeEnabled();
+  await filter.focus(); const readCount = reads; expect(readCount).toBeGreaterThan(0);
+  // Change actual dialog geometry, not DOM classes or application state.
+  await page.setViewportSize({ width: 1200, height: 950 });
+  for (const [width, compact, narrow] of [[900,false,false],[860,true,false],[861,false,false],[720,true,true],[721,true,false],[640,true,true],[900,false,false]]) {
+    await f.dialog.evaluate((element, width) => { element.style.width = `${width + (element.getBoundingClientRect().width - element.clientWidth)}px`; }, width);
+    await expect.poll(() => f.dialog.evaluate(element => element.clientWidth)).toBe(width);
+    await expect.poll(() => f.dialog.evaluate(element => [element.classList.contains('settings-dialog-compact'), element.classList.contains('settings-dialog-narrow')])).toEqual([compact,narrow]);
+    await expect(filter).toBeVisible(); await expect(filter).toBeFocused(); await expect(filter).toHaveValue('bootstrap');
+    await expect(select).toHaveValue('test/bootstrap'); await expect(select.locator('option:not([disabled])')).toHaveText(['test/bootstrap']);
+    await expect(f.dialog.getByTestId('settings-current-model')).toContainText('test/test-model');
+  }
+  expect(reads).toBe(readCount); expect(writes).toEqual([]);
+  await filter.fill('no-model-matches'); await expect(f.dialog.getByText('No matching models.', { exact: true })).toBeVisible();
+  await f.dialog.getByRole('button', { name: 'General', exact: true }).click(); await expect(filter).toHaveCount(0);
+  await f.dialog.getByRole('button', { name: 'Models', exact: true }).click();
+  await expect(filter).toBeFocused(); await expect(filter).toHaveValue('');
+  await expect(f.dialog.getByTestId('settings-current-model')).toBeVisible();
+  await page.keyboard.press('Escape'); await f.unchanged();
+});
+
+test('@gi-settings-025 A late Apply from an earlier pane cannot enable the current header during another Apply', async ({ page, request }, info) => {
+  const f = await setup(page, request, info); await f.open();
+  await f.dialog.getByRole('button', { name: 'Models', exact: true }).click();
+  const select = f.dialog.getByLabel('Session model', { exact: true });
+  const filter = f.dialog.locator('header').getByLabel('Filter models', { exact: true });
+  await expect(f.dialog.getByTestId('settings-current-model')).toHaveText('test/test-model');
+  const releases = [], completed = []; let admitted = 0;
+  await page.route(`**/api/sessions/${f.id}/model`, async route => {
+    if (route.request().method() !== 'PATCH') return route.continue();
+    const index = admitted++;
+    const gate = new Promise(resolve => { releases[index] = resolve; });
+    const response = await route.fetch(); completed[index] = true;
+    await gate; await route.fulfill({ response });
+  });
+  try {
+    await select.selectOption('test/bootstrap'); await f.dialog.getByRole('button', { name: 'Apply model', exact: true }).click();
+    await expect.poll(() => completed[0]).toBe(true); await expect(filter).toBeDisabled();
+    await f.dialog.getByRole('button', { name: 'General', exact: true }).click();
+    await f.dialog.getByRole('button', { name: 'Models', exact: true }).click();
+    await expect(filter).toBeFocused(); await expect(filter).toBeEnabled();
+    await expect(f.dialog.getByTestId('settings-current-model')).toHaveText('test/bootstrap');
+    await select.selectOption('test/test-model'); await f.dialog.getByRole('button', { name: 'Apply model', exact: true }).click();
+    await expect.poll(() => completed[1]).toBe(true); await expect(filter).toBeDisabled();
+    const delivered = page.waitForResponse(r => r.request().method() === 'PATCH' && new URL(r.url()).pathname === `/api/sessions/${f.id}/model`);
+    releases[0](); await delivered; await page.waitForTimeout(100);
+    await expect(filter).toBeDisabled(); await expect(f.dialog.getByRole('button', { name: 'Applying…' })).toBeDisabled();
+    releases[1](); await expect(f.dialog.getByTestId('settings-current-model')).toHaveText('test/test-model'); await expect(filter).toBeEnabled();
+    await page.keyboard.press('Escape'); await f.unchanged();
+  } finally { releases.forEach(release => release()); }
+});
+
+test('@gi-settings-025 Window resize fallback keeps the header usable without ResizeObserver', async ({ page, request }, info) => {
+  const f = await setup(page, request, info);
+  // Disable only after the application has mounted its own unrelated observers.
+  await page.evaluate(() => { window.ResizeObserver = undefined; });
+  await f.open();
+  await f.dialog.getByRole('button', { name: 'Models', exact: true }).click();
+  const filter = f.dialog.locator('header').getByLabel('Filter models', { exact: true });
+  await expect(filter).toBeFocused(); await filter.fill('bootstrap');
+  for (const width of [1000, 800, 500, 1000]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect.poll(() => f.dialog.evaluate(element => {
+      const width = element.clientWidth;
+      return element.classList.contains('settings-dialog-compact') === (width > 0 && width <= 860) && element.classList.contains('settings-dialog-narrow') === (width > 0 && width <= 720);
+    })).toBe(true);
+    await expect(filter).toBeFocused(); await expect(filter).toHaveValue('bootstrap');
+    await expect(f.dialog.getByLabel('Session model', { exact: true }).locator('option:not([disabled])')).toHaveText(['test/bootstrap']);
+  }
+  await page.keyboard.press('Escape'); await f.unchanged();
 });

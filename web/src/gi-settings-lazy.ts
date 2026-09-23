@@ -22,7 +22,7 @@ function load(section: string) {
 
 // Mount keyed by section: late imports may populate the code cache but cannot
 // render into another section. Never cache form drafts or native API snapshots.
-export function LazySettingsPane({ section, chatJid, onMutationStart, onMutationEnd, onApplied }) {
+export function LazySettingsPane({ section, chatJid, filter, onMutationStart, onMutationEnd, onApplied }) {
     const [component, setComponent] = useState(() => components.get(section) || null);
     const [error, setError] = useState(false);
     useEffect(() => {
@@ -32,5 +32,5 @@ export function LazySettingsPane({ section, chatJid, onMutationStart, onMutation
     }, []);
     if (error) return html`<div role="alert">Unable to load ${labels[section]}. Close Settings and try again. If the app was updated, save your work and reload the page.</div>`;
     if (!component) return html`<div role="status" class="settings-loading-pane">Loading ${labels[section]} pane…</div>`;
-    return html`<${component} key=${chatJid} chatJid=${chatJid} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`;
+    return html`<${component} key=${chatJid} chatJid=${chatJid} filter=${filter} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`;
 }

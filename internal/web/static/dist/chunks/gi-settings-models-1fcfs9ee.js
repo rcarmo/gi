@@ -1,32 +1,38 @@
 import {
   F_,
   K_,
+  W_,
   Q_,
   fe,
   getAgentModels,
   selectAgentModel,
   modelContextBlocked
-} from "./app-crshampx.js";
+} from "./app-ks2qgcdv.js";
 
 // web/src/gi-settings-models.ts
-function Models({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
+function Models({ chatJid, filter = "", onMutationStart, onMutationEnd, onApplied }) {
   const [data, setData] = F_(null);
   const [chosen, setChosen] = F_("");
-  const [filter, setFilter] = F_("");
   const [error, setError] = F_("");
   const [notice, setNotice] = F_("");
   const [busy, setBusy] = F_(false);
   const [attempt, setAttempt] = F_(0);
   const mounted = Q_(false);
   const saving = Q_(false);
-  const searchRef = Q_(null);
+  const previousFilter = Q_(filter);
   K_(() => {
     mounted.current = true;
-    searchRef.current?.focus();
     return () => {
       mounted.current = false;
     };
   }, []);
+  W_(() => {
+    if (previousFilter.current !== filter) {
+      previousFilter.current = filter;
+      setChosen("");
+      setNotice("");
+    }
+  }, [filter]);
   K_(() => {
     let live = true;
     setData(null);
@@ -79,11 +85,6 @@ function Models({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
         <h2 id="gi-models-title">Models</h2>
         <p>Session settings · <code>${chatJid}</code></p>
         <p>Changes affect this session only. Instance defaults and other sessions are unchanged.</p>
-        <label>Filter models<input ref=${searchRef} type="search" aria-label="Filter models" disabled=${busy} value=${filter} onInput=${(e) => {
-    setFilter(e.target.value);
-    setChosen("");
-    setNotice("");
-  }} /></label>
         ${!data && !error && fe`<p role="status">Loading models…</p>`}
         ${error && fe`<div role="alert">${error}${!data && fe` <button onClick=${() => setAttempt((x) => x + 1)}>Retry</button>`}</div>`}
         ${data && fe`
@@ -109,5 +110,5 @@ export {
   Models
 };
 
-//# debugId=EFC91F8CD36DB71564756E2164756E21
-//# sourceMappingURL=gi-settings-models-s77jm0ef.js.map
+//# debugId=2C01FA557241079164756E2164756E21
+//# sourceMappingURL=gi-settings-models-1fcfs9ee.js.map

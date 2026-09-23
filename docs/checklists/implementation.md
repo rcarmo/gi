@@ -10,6 +10,9 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [ ] Settings header/responsive004: pinned 860/720 client-width classes, header model filter/focus and per-visit Apply lock; shell90/regression216/functional83/helpers44/Go-vet-build-hook pass, Classic74/236+shared3/42 unmapped162/39. Commit/deploy pending; TUI Alt-M unchanged/no idle rows.
+- [ ] Model pane re-entry freshness: a commit after the re-entered pane's GET can leave it stale; define captured-session invalidation/refetch without accepting closed-view success into newer drafts. Pre-existing review gap, no broader settings008/009/010 credit.
+
 - [x] Settings lazy modules: static General, hashed non-General panes on selection, loading/error/module cache with native data still fresh; bootstrap/hashed-app graph prevents duplicate init. Frozen dialog005/settings003 pass; shell72/regression186/compaction96/providers36/functional83/helpers44, Go/vet/build/hook. Stable bootstrap no-store, native HTTP graph/404/explicit reload proof and independent review pass. Classic73/236+shared3/42, unmapped163/39. Cached-data gap/TUI unchanged. Pushed0958a89/restarted8090; live one app/four deferred pane requests with cache-only revisits, no settings writes/page errors, 61sessions/integrity/FK OK.
 
 - [x] Verify frozen Settings layering001–004 and dialog001/003/004: real workspace pointer blocking/recovery, portal geometry/dimming, rapid shortcut, held loading and typed numeric fields; fix first-paint Escape via layout effect. Frozen42/42 + shell/Gi132/132 + rapid tablet10/10, functional83/83, helpers43, Go/vet/build/hook pass. Classic71/236+shared3/42, unmapped165/39. Cached/lazy cases unmapped; no TUI credit. Push018fd83/restart8090: live rapid open/Escape, 61sessions/integrity/FK OK.

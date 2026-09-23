@@ -98,8 +98,10 @@ test('@gi-settings-004 @gi-settings-005 @gi-settings-006 Native model confirmati
   try {
     await dialog.getByRole('button', { name: 'Apply model' }).click(); await expect.poll(() => entered).toBe(true);
     await expect(dialog.getByRole('button', { name: 'Applying…' })).toBeDisabled();
+    await expect(dialog.locator('header').getByLabel('Filter models', { exact: true })).toBeDisabled();
     await expect(dialog.getByTestId('settings-current-model')).toHaveText('test/test-model');
     release(); await expect(dialog.getByTestId('settings-current-model')).toHaveText('test/bootstrap');
+    await expect(dialog.getByLabel('Filter models', { exact: true })).toBeEnabled();
   } finally { release(); }
   await page.unroute(`**/api/sessions/${a}/model`);
   await dialog.getByLabel('Filter models', { exact: true }).fill(''); await select.selectOption('test/unavailable-model');

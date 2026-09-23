@@ -251,6 +251,18 @@ Feature: Gi settings backed by native capabilities
     And late imports cannot replace a newer section or reopen a closed dialog
     And a failed module load shows a bounded error without a blank page or automatic reload
 
+  @gi-settings-025
+  Scenario: Search from the responsive Settings header without remounting the active pane
+    Given Models is the active native Settings section
+    Then the header filter has the model-specific placeholder and receives focus
+    And filtering is disabled during an in-flight model Apply
+    When the dialog width crosses 860 and 720 pixels
+    Then matching compact and narrow layout classes change without resetting the query or selected model
+    And native catalogue data is not fetched again merely because the dialog resized
+    When I return from another section
+    Then the Models header filter is cleared and focused
+    And a late Apply response from an earlier visit cannot unlock a newer pending Apply
+
   @proposal @gi-settings-next-004
   Scenario: Add browser OAuth only with provider-specific native login and refresh lifecycle
     Given a provider has a supported browser login contract with bounded lifetime and cancellation
