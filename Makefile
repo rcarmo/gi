@@ -248,6 +248,9 @@ test-ux-context-fit:
 test-ux-index-config:
 	$(MAKE) --no-print-directory test-ux-steer UX_LOCAL_ENV=GI_UX_INDEX_CONFIG=1 UX_LOCAL_SPEC=tests/ux/workspace-index-config.spec.mjs
 
+test-ux-shared-copy-delete:
+	$(MAKE) --no-print-directory test-ux-steer UX_LOCAL_ENV=GI_UX_SHARED_COPY_DELETE=1 UX_LOCAL_SPEC=tests/ux/shared-copy-delete.spec.mjs
+
 test-ux-steer: build-web
 	@mkdir -p $(dir $(UX_LOCAL_BIN)) test-results/ux-parity/queue-gates
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server

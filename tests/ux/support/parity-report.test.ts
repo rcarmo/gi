@@ -15,7 +15,7 @@ test('parity report keeps shared evidence separate and requires every project',(
   execFileSync(process.execPath,[script,input],{cwd:dir});
   const report=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
   expect(report.scenarios).toBe(236);expect(report.sharedContractCases).toBe(42);
-  expect(report.sharedCounts).toEqual({unmapped:40,pass:1,'not-run':1});expect(report.counts.pass).toBeUndefined();
+  expect(report.sharedCounts).toEqual({unmapped:39,pass:1,'not-run':2});expect(report.counts.pass).toBeUndefined();
   expect(report.rows.find((row:any)=>row.id==='@ux-original-001').status).toBe('partial-matrix');
   expect(report.rows.some((row:any)=>row.id==='@shared-28')).toBe(false);
   expect(report.sharedRows.find((row:any)=>row.id==='@shared-28').status).toBe('pass');
@@ -23,7 +23,13 @@ test('parity report keeps shared evidence separate and requires every project',(
   const steer=join(dir,'steer.json');writeFileSync(steer,JSON.stringify({suites:[{specs:[spec('@shared-30',6)]}]}));
   execFileSync(process.execPath,[script,input,steer],{cwd:dir});
   const combined=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
-  expect(combined.sharedCounts).toEqual({unmapped:40,pass:2});
+  expect(combined.sharedCounts).toEqual({unmapped:39,pass:2,'not-run':1});
+  const sharedDeletion=join(dir,'shared-delete.json');writeFileSync(sharedDeletion,JSON.stringify({suites:[{specs:[spec('@shared-37',6)]}]}));
+  execFileSync(process.execPath,[script,input,steer,sharedDeletion],{cwd:dir});
+  const withDeletion=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
+  expect(withDeletion.sharedCounts).toEqual({unmapped:39,pass:3});
+  expect(withDeletion.sharedRows.find((row:any)=>row.id==='@shared-37').status).toBe('pass');
+  expect(withDeletion.rows.find((row:any)=>row.id==='@ux-original-024').status).toBe('unmapped');
   const fit=join(dir,'fit.json');writeFileSync(fit,JSON.stringify({suites:[{specs:[spec('@ux-compaction-006',6),spec('@ux-compaction-007',6)]}]}));
   execFileSync(process.execPath,[script,input,steer,fit],{cwd:dir});
   const all=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
@@ -96,5 +102,6 @@ test('parity report keeps shared evidence separate and requires every project',(
   execFileSync(process.execPath,[script,steer,steer],{cwd:dir});
   const repeated=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
   expect(repeated.sharedRows.find((row:any)=>row.id==='@shared-30').status).toBe('partial-matrix');
+  expect(repeated.sharedRows.find((row:any)=>row.id==='@shared-37').status).toBe('not-run');
  }finally{rmSync(dir,{recursive:true,force:true});}
 });

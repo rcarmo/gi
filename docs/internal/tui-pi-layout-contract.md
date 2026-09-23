@@ -38,7 +38,7 @@ Independent three-size acceptance must cover first-file/partial-batch failure, n
 
 ## Selected-message deletion (2026-09-23; design)
 
-[ADR-0056](../adr/0056-idle-single-message-deletion.md) verifies a flat idle-only browser deletion for timeline-017. Keep the terminal idle layout unchanged: a future temporary bounded action on a selected stable message ID should ask for explicit confirmation and report success/failure in the existing transient notice, never a persistent button or row. Require native idle admission, origin ownership, reflow/regular-scrollback identity, draft/cursor/reader preservation and three-size fullscreen/regular tests. Do not infer reply-cascade or terminal parity from the web slice.
+[ADR-0056](../adr/0056-idle-single-message-deletion.md) verifies a flat idle-only browser deletion for timeline-017. [ADR-0057](../adr/0057-integrated-message-copy-delete.md) verifies the separate shared-37 browser copy/delete contract; it adds no terminal deletion or source-copy credit. Keep the terminal idle layout unchanged: a future temporary bounded action on a selected stable message ID should ask for explicit confirmation and report success/failure in the existing transient notice, never a persistent button or row. Require native idle admission, origin ownership, reflow/regular-scrollback identity, draft/cursor/reader preservation and three-size fullscreen/regular tests. Do not infer reply-cascade or terminal parity from the web slice.
 
 ## Whole-message source copy (2026-09-23; design)
 
