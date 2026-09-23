@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Explicit scoped indexing: 2026-09-22
+
+`workspace-preview.spec.mjs` adds a Gi-only native Reindex/lexical-query case: stored notes/skills, real missing-root scan failure, persisted status and hits, explicit retry after changed bytes, retained drafts/files across reload/session switches, and native Refresh. No new frozen mappings; workspace-005 still has unsatisfied compound menu criteria. [ADR-0046](../../docs/adr/0046-native-workspace-index-api.md).
+
+Latest **492/492 browser** (330 main + 162 specialised), **75/75 functional**, **32 helpers**, Go/vet/build/hook and search-store/indexer/web race ×3. Coverage **45/236 Classic**, **2/42 shared**, **191/40 unmapped**. ENOSPC artifact relocation and unchanged WebKit reload/reconnect reruns are documented. Background freshness, optional roots and terminal controls remain unverified.
+
 ## Hidden files and native subtrees: 2026-09-22
 
 `workspace-preview.spec.mjs` maps workspace-004 with native nested files, on/off/on toggle through the visible global menu, observed root/all-expanded requests, reload persistence and retained text/files. A production host bridge invokes the supplied explorer's own stateful toggle; tests use normal user clicks and real responses. [ADR-0041](../../docs/adr/0041-workspace-hidden-subtrees.md).

@@ -65,3 +65,43 @@ test('@ux-workspace-004 Hidden toggle persists and reloads root plus every expan
  await expect(row(`.root-${info.project.name}.txt`)).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('workspaceShowHidden'))).toBe('true');
  expect((await (await request.get(`/api/sessions/${session.id}/messages`)).json()).messages ?? []).toEqual([]);
 });
+
+test('Gi scoped index reindex/query and missing-root failure preserve session drafts',async({page,request},info)=>{
+ const id=info.project.name.replaceAll('-',''),filename=`notes/${id}.md`;
+ const write=async(path,content)=>{const r=await request.post('/api/tools/execute',{data:{tool:'write',input:{path,content}}});expect((await r.json()).error).toBeFalsy();};
+ await write(filename,`orchid${id} stored source`);await write(`.pi/skills/${id}/SKILL.md`,`violet${id} skill`);
+ const root=(await (await request.get('/api/runtime/config')).json()).workspace_root;
+ const quote=s=>"'"+s.replaceAll("'","'\\''")+"'";
+ const shell=async command=>{const r=await request.post('/api/tools/execute',{data:{tool:'shell',input:{command:`cd ${quote(root)} && ${command}`}}});expect((await r.json()).error).toBeFalsy();};
+ const session=await (await request.post('/api/sessions',{data:{title:id,agent_id:id}})).json();
+ const child=(await (await request.post(`/api/sessions/${session.id}/fork`,{data:{title:'other-index',agent_id:`other-${id}`}})).json()).branch.chat_jid.slice(3);
+ await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),session.id);await page.goto('/');const input=page.getByRole('textbox',{name:inputName,exact:true});await input.fill('index draft retained');
+ await page.locator('.compose-box input[type=file]').setInputFiles({name:'index-unsent.txt',mimeType:'text/plain',buffer:Buffer.from('retain')});
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
+ const state=async()=>(await (await request.get('/api/workspace/index?scope=all')).json());
+ const query=async(q,scope='all')=>(await (await request.get(`/api/workspace/search?scope=${scope}&q=${encodeURIComponent(q)}`)).json());
+ const run=async()=>{await page.getByTestId('hamburger').click();const result=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname==='/api/workspace/index');await page.getByRole('menuitem',{name:'Reindex workspace',exact:true}).click();return result;};
+ const result=await run();expect(result.status()).toBe(200);const ready=await result.json();expect(ready.state).toBe('ready');expect(ready.indexed_file_count).toBeGreaterThanOrEqual(2);expect(ready.last_indexed_at).toBeTruthy();
+ expect((await query(`orchid${id}`)).hits.map(h=>h.path)).toEqual([filename]);expect((await query(`violet${id}`)).hits.map(h=>h.path)).toEqual([`.pi/skills/${id}/SKILL.md`]);expect((await state()).generation).toBe(ready.generation);
+ await expect(page.locator('.workspace-index-status-row')).toHaveCount(0);
+ // Removing a required scope root induces the real native scanner failure.
+ await shell(`mv notes notes-index-held`);
+ try {
+  const failed=await run();expect(failed.status()).toBe(500);await expect(page.locator('.workspace-index-status-row')).toContainText('Workspace index failed');
+  const saved=await state();expect(saved.state).toBe('failed');expect(saved.generation).toBe(ready.generation);expect(saved.last_indexed_at).toBe(ready.last_indexed_at);
+  expect((await query(`orchid${id}`)).hits.map(h=>h.path)).toEqual([filename]);expect((await state()).state).toBe('failed');
+  await expect(input).toHaveValue('index draft retained');await expect(page.locator('.compose-file-pill').filter({hasText:'index-unsent.txt'})).toBeVisible();
+  await page.screenshot({path:info.outputPath('workspace-index-failure.png')});
+  await page.reload();await expect(input).toHaveValue('index draft retained');expect((await state()).state).toBe('failed');
+  await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();await expect(page.locator('.workspace-index-status-row')).toContainText('Workspace index failed');
+ } finally {await shell('mv notes-index-held notes')}
+ await write(filename,`changed${id} new source`);const retried=await run();expect(retried.status()).toBe(200);expect((await retried.json()).generation).toBe(ready.generation+1);expect((await query(`orchid${id}`)).hits).toEqual([]);expect((await query(`changed${id}`)).hits.map(h=>h.path)).toEqual([filename]);
+ await expect(input).toHaveValue('index draft retained');
+ await page.locator('.workspace-toggle-tab.open').click();
+ const select=async target=>{await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${target}"]`).getByRole('menuitem').click();};
+ await select(child);await input.fill('other draft');await select(session.id);await expect(input).toHaveValue('index draft retained');await expect(page.locator('.compose-file-pill').filter({hasText:'index-unsent.txt'})).toBeVisible();
+ expect((await (await request.get(`/api/sessions/${session.id}/messages`)).json()).messages??[]).toEqual([]);
+ // The visible Refresh action reaches the explorer's existing refresh handler.
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
+ await write(`fresh-${id}.txt`,'tree refresh');await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Refresh tree',exact:true}).click();await expect(page.locator(`.workspace-row[data-path="fresh-${id}.txt"]`)).toBeVisible();
+});

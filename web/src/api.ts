@@ -482,12 +482,12 @@ export async function getWorkspaceFile(path: string, maxBytes = 20000) {
     return request(`/api/workspace/file?path=${encodeURIComponent(path)}&max_bytes=${maxBytes}`);
 }
 
-export async function getWorkspaceIndexStatus(_chatJid: string | null = null) {
-    return { status: 'ready', indexed_at: null };
+export async function getWorkspaceIndexStatus(scope = 'all') {
+    return request(`/api/workspace/index?scope=${encodeURIComponent(scope)}`);
 }
 
-export async function reindexWorkspace(_chatJid: string | null = null) {
-    return null;
+export async function reindexWorkspace(scope = 'all') {
+    return request(`/api/workspace/index?scope=${encodeURIComponent(scope)}`, { method: 'POST' });
 }
 
 export async function createWorkspaceFile(path: string, content: string, _chatJid: string | null = null) {

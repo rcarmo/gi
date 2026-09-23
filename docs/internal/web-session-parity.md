@@ -1,5 +1,11 @@
 # Web session selection and compact TUI adaptation
 
+## Explicit native index API and web controls (2026-09-22)
+
+[ADR-0046](../adr/0046-native-workspace-index-api.md) connects authenticated scoped status/query/POST reindex to the verified worker and supplied Refresh/Reindex controls. Missing-root failure, durable retained results, explicit retry and draft/session/reload preservation pass natively and in all six browser projects. **492/492 browser**, **75/75 functional**, **32 helpers**, Go/vet/build/hook and search-store/indexer/web race ×3 pass. ENOSPC and WebKit reruns are documented.
+
+No new frozen mapping: workspace-005 is still compound/incomplete, and background freshness, settings/optional roots, vectors and terminal controls remain gaps. Coverage stays **45/236 Classic**, **2/42 shared**, **191/40 unmapped**. Failure screenshots attached at desktop/tablet/phone sizes.
+
 ## Explicit index worker prerequisite (2026-09-22)
 
 [ADR-0045](../adr/0045-index-refresh-worker.md) connects lease acquisition/renewal to native scan/commit/failure cleanup, without automatic scheduling. Tests cover cancellation, write/renewal failures, two-store takeover and killed-process expiry/recovery. Go/vet/build/hook, 74 functional, 32 helpers and worker/store race ×3 pass. No application index controls or terminal UI are connected, and coverage remains **45/236 Classic**, **2/42 shared**, **191/40 unmapped**.

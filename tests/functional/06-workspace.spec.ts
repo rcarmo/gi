@@ -72,3 +72,15 @@ test('workspace subtree queries honour depth and hidden files through the visibl
  await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show hidden files',exact:true}).click();
  await expect(page.locator(`.workspace-row[data-path="${folder}/.hidden.txt"]`)).toBeVisible();
 });
+
+test('explicit native workspace reindex supplies scoped lexical results without chat submission',async({page,request})=>{
+ for(const [path,content] of [['notes/functional-index.md','functionalorchid source'],['.pi/skills/functional/SKILL.md','functionalviolet skill']]){
+  const r=await request.post(`${BASE_URL}/api/tools/execute`,{data:{tool:'write',input:{path,content}}});expect((await r.json()).error).toBeFalsy();
+ }
+ await page.goto(BASE_URL);await waitForAppShell(page);await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
+ const response=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname==='/api/workspace/index');
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Reindex workspace',exact:true}).click();
+ const indexed=await response;expect(indexed.status()).toBe(200);const ready=await indexed.json();expect(ready.state).toBe('ready');expect(ready.indexed_file_count).toBeGreaterThanOrEqual(2);
+ const result=await (await request.get(`${BASE_URL}/api/workspace/search?scope=all&q=functionalorchid`)).json();expect(result.mode).toBe('fts');expect(result.hits.map((h:any)=>h.path)).toEqual(['notes/functional-index.md']);expect(result.hits[0].start_line).toBe(1);
+ const saved=await (await request.get(`${BASE_URL}/api/workspace/index`)).json();expect(saved.generation).toBe(ready.generation);await expect(page.locator('.workspace-index-status-row')).toHaveCount(0);
+});

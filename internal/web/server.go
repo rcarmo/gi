@@ -166,6 +166,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/runtime/inbound-work/discard", guard(s.handleRuntimeInboundWorkDiscard))
 	s.mux.HandleFunc("/api/frontend/log", guard(s.handleFrontendLog))
 	s.mux.HandleFunc("/api/workspace/tree", guard(s.handleWorkspaceTree))
+	s.mux.HandleFunc("/api/workspace/index", guard(s.handleWorkspaceIndex))
+	s.mux.HandleFunc("/api/workspace/search", guard(s.handleWorkspaceSearch))
 	s.mux.HandleFunc("/api/workspace/file", guard(s.handleWorkspaceFile))
 	s.mux.HandleFunc("/api/workspace/raw", guard(s.handleWorkspaceRaw))
 	s.mux.HandleFunc("/sse/stream", guard(s.handleSSEStream))

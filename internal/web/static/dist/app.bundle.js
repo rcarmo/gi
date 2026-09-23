@@ -1107,11 +1107,11 @@ async function getWorkspaceTree(path = "", depth = 1, showHidden = false) {
 async function getWorkspaceFile(path, maxBytes = 20000) {
   return request(`/api/workspace/file?path=${encodeURIComponent(path)}&max_bytes=${maxBytes}`);
 }
-async function getWorkspaceIndexStatus(_chatJid = null) {
-  return { status: "ready", indexed_at: null };
+async function getWorkspaceIndexStatus(scope = "all") {
+  return request(`/api/workspace/index?scope=${encodeURIComponent(scope)}`);
 }
-async function reindexWorkspace(_chatJid = null) {
-  return null;
+async function reindexWorkspace(scope = "all") {
+  return request(`/api/workspace/index?scope=${encodeURIComponent(scope)}`, { method: "POST" });
 }
 async function createWorkspaceFile(path, content, _chatJid = null) {
   return request("/api/workspace/file", { method: "POST", body: JSON.stringify({ path, content }) }).catch(() => null);
@@ -16923,19 +16923,33 @@ function restoreTimelineAnchor(anchor) {
 // web/src/gi-workspace-visibility.ts
 function bindWorkspaceVisibility(sidebar) {
   let desired = null;
+  let action = null;
   let scheduled = false;
   let disposed = false;
   const sync = () => {
     scheduled = false;
-    if (disposed || desired === null)
+    if (disposed || desired === null && action === null)
       return;
     const menuButton = sidebar.querySelector(".workspace-menu-button");
     if (!menuButton)
       return;
-    const toggle = Array.from(sidebar.querySelectorAll(".workspace-menu-dropdown .workspace-menu-item")).find((button) => ["Show hidden files", "Hide hidden files"].includes(button.textContent?.trim() || ""));
+    const buttons = Array.from(sidebar.querySelectorAll(".workspace-menu-dropdown .workspace-menu-item"));
+    const toggle = buttons.find((button) => ["Show hidden files", "Hide hidden files"].includes(button.textContent?.trim() || ""));
     if (!toggle) {
       if (menuButton.getAttribute("aria-expanded") !== "true")
         menuButton.click();
+      return;
+    }
+    if (action) {
+      const label = action === "refresh" ? "Refresh tree" : "Reindex workspace";
+      action = null;
+      const target = buttons.find((button) => button.textContent?.trim() === label);
+      if (target && !target.disabled)
+        target.click();
+      else
+        menuButton.click();
+      if (desired !== null)
+        schedule();
       return;
     }
     const current = toggle.textContent?.trim() === "Hide hidden files";
@@ -16961,11 +16975,20 @@ function bindWorkspaceVisibility(sidebar) {
     desired = value;
     schedule();
   };
+  const onAction = (event) => {
+    const value = event.detail?.action;
+    if (value !== "refresh" && value !== "reindex")
+      return;
+    action = value;
+    schedule();
+  };
   window.addEventListener("piclaw:toggle-hidden-files", onToggle);
+  window.addEventListener("piclaw:workspace-action", onAction);
   return () => {
     disposed = true;
     observer.disconnect();
     window.removeEventListener("piclaw:toggle-hidden-files", onToggle);
+    window.removeEventListener("piclaw:workspace-action", onAction);
   };
 }
 
@@ -18188,5 +18211,5 @@ function GiApp() {
 }
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=23DC00043BC9EBEB64756E2164756E21
+//# debugId=D5191FD58DF98C3B64756E2164756E21
 //# sourceMappingURL=app.js.map
