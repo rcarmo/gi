@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [ ] Recover pre-canonical Gi session identities from the retained legacy scope and aliases in one schema transaction; preserve session and turn history and reject ambiguous/incomplete rows. The 8090 database has 61 sessions (36 with `{}` legacy scopes), no identity rows and a 500 from `/api/sessions`. A backed-up 61-session DB returns 200 on `/api/sessions` with unchanged session/message/turn/event hashes, integrity and foreign-key checks; live reopen still required. No frozen parity or TUI credit.
+- [x] Recover pre-canonical Gi session identities from retained legacy scope/aliases in one schema transaction; incomplete/colliding scope, late rollback, reopened current-schema missing-identity guards and race×3 pass. Copy and live 8090 return 200 for 61 sessions/61 scoped identities after restart; original session/message/turn/event table hashes match, 146 messages/51 turns/317 events preserved, SQLite integrity and FK checks pass. 80 functional, Go/vet/build/hook; push d3d3c6c/restart 8090. No frozen parity or TUI credit.
 
 - [x] Upgrade go-ai to accepted upstream-v0.87.1/c2d0231 independently of stashed deletion WIP; retain all other pins including go-tui v0.18.2; 80 functional, 38 helpers, 30 model and 66 context/compaction browser executions, Go/vet/race, three-size terminal suites and Linux/macOS amd64/arm64 builds pass. No new frozen parity or terminal feature credit.
 
