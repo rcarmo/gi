@@ -745,7 +745,9 @@ function GiApp() {
         setSessionError(null);
     }, [sessionId, fileRefs, messageRefs]);
 
-    useEffect(() => {
+    // Native listeners snapshot the selected chat. Replace them in the commit
+    // phase so a fresh contact on the next frame cannot use the previous chat.
+    useLayoutEffect(() => {
         if (!ready || !currentChatJid || !timelineRef.current) return;
         const timeline = timelineRef.current;
         // Existing text selections belong to the reader, not the chat carousel.

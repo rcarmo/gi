@@ -195,3 +195,27 @@ test('KaTeX renderer uses matching local CSS and fonts', async ({ page, request 
   expect(result.family).toContain('KaTeX_Main');
   expect(result.fonts).toBeGreaterThan(0);
 });
+
+test('rapid reverse timeline swipe restores its originating session draft', async ({ page, request }) => {
+  const create = async (name: string) => { const response = await request.post('/api/sessions', { data: { agent_id: `functional-swipe-${name}-${Date.now()}` } }); expect(response.status()).toBe(201); return (await response.json()).id; };
+  const a = await create('a'), b = await create('b');
+  await page.addInitScript(id => { localStorage.setItem('gi_session_id',id); Object.defineProperty(navigator,'userAgent',{configurable:true,value:'iPhone Safari'}); },a);
+  await page.goto(BASE_URL); await waitForAppShell(page);
+  const input = page.getByRole('textbox', { name: 'Message (Enter to send, Shift+Enter for newline)...', exact: true }); await input.fill('functional rapid draft');
+  await page.getByRole('button', { name: /Manage sessions for/ }).last().click();
+  await expect(page.locator(`.compose-session-popup [data-session-jid="gi:${b}"]`)).toBeVisible(); await page.keyboard.press('Escape');
+  const visits = await page.evaluate(async () => {
+    const result: string[] = [];
+    for(const delta of [-105,105]) {
+      const el = document.querySelector('.timeline')!;
+      for(const [name,x] of [['touchstart',190],['touchmove',190+delta],['touchend',190+delta]] as const) {
+        const touch = { identifier: 1, target: el, clientX: x, clientY: 150 }, event = new Event(name,{bubbles:true,cancelable:true});
+        Object.defineProperty(event,'touches',{value:name==='touchend'?[]:[touch]});Object.defineProperty(event,'changedTouches',{value:[touch]});el.dispatchEvent(event);
+      }
+      result.push(localStorage.getItem('gi_session_id')!); await new Promise(requestAnimationFrame);
+    }
+    return result;
+  });
+  expect(visits).toEqual([b,a]); await expect(input).toHaveValue('functional rapid draft');
+  for(const id of [a,b]) expect((await (await request.get(`/api/sessions/${id}/turns`)).json()).turns || []).toHaveLength(0);
+});

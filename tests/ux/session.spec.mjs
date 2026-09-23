@@ -836,3 +836,66 @@ test('@ux-mobile-004 Native pinned and active overlap yields one stable active-f
     for (const run of runs) await expect.poll(async () => ((await (await request.get(`/api/sessions/${run.id}/turns`)).json()).turns || []).find(t => t.id === run.turn)?.status, { timeout: 15000 }).toBe('completed');
   }
 });
+
+test('@gi-swipe-001 @gi-swipe-002 Gi rapid reverse swipe uses the committed session while catalogue responses are held', async ({ page, request }, info) => {
+  const token = `rapid-${info.project.name}-${Date.now()}`;
+  const create = async name => { const r = await request.post('/api/sessions', { data: { agent_id: `${token}-${name}`, title: `${token}-${name}` } }); expect(r.status()).toBe(201); return (await r.json()).id; };
+  const a = await create('first'), b = await create('last');
+  for (const [id, marker] of [[a, 'A'], [b, 'B']]) {
+    expect((await request.post(`/api/sessions/${id}/prompt`, { data: { prompt: `${token} native ${marker}`, model: 'test-model' } })).status()).toBe(202);
+    await expect.poll(async () => ((await (await request.get(`/api/sessions/${id}/turns`)).json()).turns || [])[0]?.status).toBe('completed');
+  }
+  const sessions = (await (await request.get('/api/sessions')).json()).sessions;
+  const active = s => s.state?.status === 'running' || s.state?.status === 'queued' || Number(s.state?.queue_count || 0) > 0;
+  const order = sessions.filter(s => !s.state?.archived_at).sort((x,y) => Number(active(y))-Number(active(x)) || `gi:${x.id}`.localeCompare(`gi:${y.id}`)).map(s => s.id);
+  expect(order[(order.indexOf(a)+1)%order.length]).toBe(b);
+  await page.addInitScript(id => { localStorage.setItem('gi_session_id',id); Object.defineProperty(navigator,'userAgent',{configurable:true,value:'iPhone Safari'}); },a);
+  await page.goto('/'); const input = page.getByRole('textbox',{name:inputName,exact:true}); await expect(input).toBeVisible(); await input.fill('rapid A draft');
+  await expect(page.locator('.timeline .post-content').filter({ hasText: `${token} native A` }).first()).toBeVisible();
+  await page.locator('.compose-box input[type=file]').setInputFiles({ name: 'rapid.txt', mimeType: 'text/plain', buffer: Buffer.from('rapid native attachment') });
+  await expect(page.locator('.compose-file-pill[title="rapid.txt"]')).toBeVisible();
+  // Establish initial catalogue using visible native picker, then never open it
+  // during the rapid gestures or wait for target HTTP/catalogue completion.
+  await page.getByRole('button',{name:/Manage sessions for/}).last().click();
+  await expect(page.locator('.compose-session-popup [data-session-jid]')).toHaveCount(sessions.length);
+  await page.keyboard.press('Escape');
+  let release; const gate = new Promise(r => { release = r; }); let held = 0, heldB = 0, delivered = 0;
+  const hold = async route => { const response = await route.fetch(); held++; if (new URL(route.request().url()).pathname === `/api/sessions/${b}/messages`) heldB++; await gate; await route.fulfill({response}); delivered++; };
+  await page.route('**/api/sessions',hold);
+  await page.route(`**/api/sessions/${b}/messages**`,hold);
+  const gestureSequence = async deltas => page.evaluate(async deltas => {
+    const swipe = delta => {
+      const el = document.querySelector('.timeline');
+      for(const [name,x] of [['touchstart',190],['touchmove',190+delta],['touchend',190+delta]]) {
+        const touch={identifier:1,target:el,clientX:x,clientY:150},event=new Event(name,{bubbles:true,cancelable:true});
+        Object.defineProperty(event,'touches',{value:name==='touchend'?[]:[touch]});Object.defineProperty(event,'changedTouches',{value:[touch]});el.dispatchEvent(event);
+      }
+    };
+    const frames = [];
+    for(const delta of deltas) {
+      swipe(delta); frames.push(localStorage.getItem('gi_session_id'));
+      // One rendered frame: current selection has committed, passive effects
+      // may not yet have run. This is a fresh contact, not two swipes in one task.
+      await new Promise(requestAnimationFrame);
+    }
+    return frames;
+  },deltas);
+  try {
+    const transitions = await gestureSequence(Array.from({length:4},()=>[-105,105]).flat());
+    expect(transitions).toEqual(Array.from({length:4},()=>[b,a]).flat());
+    await expect(input).toHaveValue('rapid A draft');
+    expect(await gestureSequence([-105])).toEqual([b]);
+    await expect.poll(() => heldB).toBeGreaterThan(0);
+    await input.fill('rapid B draft');
+    expect(await gestureSequence([105])).toEqual([a]);
+    await expect(input).toHaveValue('rapid A draft');
+    const count = held; release(); await expect.poll(() => delivered).toBeGreaterThanOrEqual(count);
+    await page.unroute('**/api/sessions',hold); await page.unroute(`**/api/sessions/${b}/messages**`,hold);
+    await expect(page.locator('.timeline .post-content').filter({ hasText: `${token} native A` }).first()).toBeVisible();
+    await expect(page.locator('.timeline .post-content').filter({ hasText: `${token} native B` })).toHaveCount(0);
+    expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(a);
+    await expect(input).toHaveValue('rapid A draft');
+    await expect(page.locator('.compose-file-pill[title="rapid.txt"]')).toBeVisible();
+    for (const id of [a,b]) expect((await (await request.get(`/api/sessions/${id}/turns`)).json()).turns || []).toHaveLength(1);
+  } finally { release(); }
+});

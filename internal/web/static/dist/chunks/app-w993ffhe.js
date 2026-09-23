@@ -17768,10 +17768,10 @@ function guardQuickActionsTyping(event) {
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-d2yntfj8.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-wya17n2j.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-vwm9pn9g.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-b03b1kam.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-09885kdb.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-8h12rmzn.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-p7x8yf3s.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-af06455p.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -19525,7 +19525,7 @@ function GiApp() {
     setModelUsage(null);
     setSessionError(null);
   }, [sessionId, fileRefs, messageRefs]);
-  K_(() => {
+  W_(() => {
     if (!ready || !currentChatJid || !timelineRef.current)
       return;
     const timeline = timelineRef.current;
@@ -20073,5 +20073,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=C5540B723A1D0BB064756E2164756E21
-//# sourceMappingURL=app-pzycpm5c.js.map
+//# debugId=A74A6C6EC75AA40764756E2164756E21
+//# sourceMappingURL=app-w993ffhe.js.map
