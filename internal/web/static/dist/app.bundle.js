@@ -1172,6 +1172,12 @@ async function pruneChatBranch(chatJid) {
 async function restoreChatBranch(chatJid, _options = {}) {
   return mutateChatSession(chatJid, { action: "restore" });
 }
+async function deletePost(postId, cascade = false, chatJid = null) {
+  const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
+  if (!sessionId)
+    throw new Error("No message destination session");
+  return request(`/api/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(postId)}?cascade=${cascade}`, { method: "DELETE" });
+}
 async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = [], mode = null, chatJid = null, options = {}) {
   const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
   if (!sessionId)
@@ -17633,6 +17639,28 @@ function guardQuickActionsTyping(event) {
     event.stopImmediatePropagation();
 }
 
+// web/src/gi-message-deletion.ts
+function createMessageDeletionState() {
+  const removed = new Set;
+  const pending = new Set;
+  return {
+    begin(id) {
+      if (pending.has(id) || removed.has(id))
+        return false;
+      pending.add(id);
+      return true;
+    },
+    finish(id, success) {
+      pending.delete(id);
+      if (success)
+        removed.add(id);
+    },
+    filter(rows, animating = new Set) {
+      return rows.filter((row) => !removed.has(row.id) || animating.has(row.id));
+    }
+  };
+}
+
 // web/src/gi-queue-return.ts
 async function recoverQueueDraft(item, parsed, fetcher = fetch) {
   if (!item?.chat_jid?.startsWith("gi:") || !item?.id)
@@ -18111,6 +18139,10 @@ function GiApp() {
   const editorOpen = tabs.length > 0;
   const [posts, setPosts] = F_([]);
   const [hasMore, setHasMore] = F_(false);
+  const deletions = Q_(createMessageDeletionState()).current;
+  const deletingAnimation = Q_(new Set);
+  const [removingPostIds, setRemovingPostIds] = F_(new Set);
+  const [deleteError, setDeleteError] = F_("");
   const messageWindow = Q_(newMessageWindow());
   const pageRequest = Q_(null);
   const pageRefreshPending = Q_(false);
@@ -18328,7 +18360,7 @@ function GiApp() {
           const root = timelineRef.current;
           scrollRestore.current = { scope, view, connection, anchor: captureTimelineAnchor(root, readingAnchor.current), bottom: !older && (initial || !root || Math.abs(root.scrollTop) < 80) };
           const incoming = data.posts || [];
-          setPosts((prev) => mergeMessagePages(prev, incoming));
+          setPosts((prev) => deletions.filter(mergeMessagePages(prev, incoming), deletingAnimation.current));
           if (initial) {
             messageWindow.current = { loaded: true, before: data.before, after: data.after, hasMore: data.hasMore };
           } else if (older) {
@@ -18403,7 +18435,7 @@ function GiApp() {
       const result = await searchPosts(view.query, 50, 0, sessionToChatJid2(owner.sessionId), view.scope);
       if (!selection.isCurrent(owner) || !searchView.isCurrent(view) || !timelineRevision.accepts(request) || connection !== connectionRevision.current || streamDisconnected.current)
         return;
-      setPosts(dedupePosts(result.posts || []));
+      setPosts(deletions.filter(dedupePosts(result.posts || []), deletingAnimation.current));
       setHasMore(false);
     } catch (error) {
       if (selection.isCurrent(owner) && searchView.isCurrent(view) && timelineRevision.accepts(request) && connection === connectionRevision.current && !streamDisconnected.current)
@@ -18430,6 +18462,38 @@ function GiApp() {
     setSearchState(searchView.close());
     setSearchError("");
     loadPosts();
+  };
+  const handleDeletePost = async (post) => {
+    const id = post?.id, owner = selection.capture(), view = searchView.capture();
+    const destination = post?.chat_jid;
+    if (typeof id !== "string" || !destination?.startsWith("gi:") || !deletions.begin(id))
+      return;
+    setDeleteError("");
+    try {
+      await deletePost(id, false, destination);
+      deletions.finish(id, true);
+      const current = () => selection.isCurrent(owner) && searchView.isCurrent(view);
+      if (!current())
+        return;
+      timelineRevision.invalidate();
+      pageRequest.current = null;
+      pageRefreshPending.current = false;
+      deletingAnimation.current.add(id);
+      setRemovingPostIds(new Set(deletingAnimation.current));
+      await new Promise((resolve) => setTimeout(resolve, 220));
+      deletingAnimation.current.delete(id);
+      if (!current())
+        return;
+      const root = timelineRef.current;
+      scrollRestore.current = { scope: owner, view, connection: connectionRevision.current, anchor: captureTimelineAnchor(root, readingAnchor.current), bottom: false };
+      setRemovingPostIds(new Set(deletingAnimation.current));
+      setPosts((prev) => deletions.filter(prev, deletingAnimation.current));
+      refreshSelectedState();
+    } catch (error) {
+      deletions.finish(id, false);
+      if (selection.isCurrent(owner) && searchView.isCurrent(view))
+        setDeleteError(`Delete failed: ${error.message}`);
+    }
   };
   const scrollToBottom = Y_(() => {
     const el = timelineRef.current;
@@ -18652,6 +18716,9 @@ function GiApp() {
       drafts.update(sessionId, { fileRefs, messageRefs });
     selection.select(nextSessionId);
     resetQuickActionsReadiness();
+    deletingAnimation.current.clear();
+    setRemovingPostIds(new Set);
+    setDeleteError("");
     setComposePrefill(null);
     const linkedURL = new URL(location.href);
     if (linkedURL.searchParams.has("chat_jid")) {
@@ -18953,14 +19020,14 @@ function GiApp() {
                     onScrollToMessage=${() => {}}
                     onFileRef=${openEditor}
                     onPostClick=${undefined}
-                    onDeletePost=${() => {}}
+                    onDeletePost=${handleDeletePost}
                     onOpenWidget=${(w) => setFloatingWidget(w)}
                     onOpenAttachmentPreview=${setAttachmentPreview}
                     emptyMessage=${searchState.active ? searchState.query ? "No matching messages." : "Enter a search query." : "Send a message to get started."}
                     agents=${agents}
                     user=${userProfile}
                     reverse=${true}
-                    removingPostIds=${new Set}
+                    removingPostIds=${removingPostIds}
                     searchQuery=${searchState.active ? searchState.query : ""}
                 />
                 <${AgentStatus}
@@ -19001,6 +19068,7 @@ function GiApp() {
                 ${queueError && fe`<div role="alert">${queueError}</div>`}
                 ${newUIVersion && fe`<div role="status" class="gi-version-warning">New UI available. Reload manually when ready; unsaved editor work may be lost.</div>`}
                 ${sessionError && fe`<div role="alert">${sessionError}</div>`}
+                ${deleteError && fe`<div role="alert">${deleteError}</div>`}
                 ${searchError && fe`<div role="alert">${searchError}</div>`}
                 ${searchState.active && fe`<div role="status">Search${searchState.query ? `: ${searchState.query}` : ""} · ${searchState.scope} · up to 50 results</div>`}
                 ${stopError && fe`<div role="alert">${stopError}</div>`}
@@ -19188,5 +19256,5 @@ function ComposeTransfer({ sessionId, hidden }) {
 window.addEventListener("keydown", guardQuickActionsTyping, true);
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=AAE1C5662B4A41BC64756E2164756E21
+//# debugId=216FD8256C678F3764756E2164756E21
 //# sourceMappingURL=app.js.map

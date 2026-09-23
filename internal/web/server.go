@@ -273,7 +273,13 @@ func (s *Server) handleSessionSubroutes(w http.ResponseWriter, r *http.Request) 
 	case "search":
 		s.handleSessionSearch(w, r, sessionID)
 	case "messages":
-		s.handleMessages(w, r, sessionID)
+		if len(parts) == 3 && parts[2] != "" {
+			s.handleMessageDelete(w, r, sessionID, parts[2])
+		} else if len(parts) == 2 {
+			s.handleMessages(w, r, sessionID)
+		} else {
+			http.NotFound(w, r)
+		}
 	case "media":
 		s.handleMedia(w, r, sessionID, parts[2:])
 	case "prompt":

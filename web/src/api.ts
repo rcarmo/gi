@@ -421,8 +421,10 @@ export async function createReply(threadId: number, content: string, _mediaIds: 
     return createPost(content, [], chatJid, options);
 }
 
-export async function deletePost(postId: string, _cascade = false, _chatJid: string | null = null) {
-    return null;
+export async function deletePost(postId: string, cascade = false, chatJid: string | null = null) {
+    const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
+    if (!sessionId) throw new Error('No message destination session');
+    return request(`/api/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(postId)}?cascade=${cascade}`, { method: 'DELETE' });
 }
 
 export async function sendAgentMessage(agentId: string, content: string, _threadId: number | null = null, _mediaIds: number[] = [], mode: string | null = null, chatJid: string | null = null, options: any = {}) {

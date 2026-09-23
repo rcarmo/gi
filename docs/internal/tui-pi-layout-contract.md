@@ -36,6 +36,10 @@ Keep file selection and uploaded IDs in session-owned draft state. Use an explic
 
 Independent three-size acceptance must cover first-file/partial-batch failure, newer text/cursor, switched-session isolation, persisted media pairing and retry without automatic sends. Browser original-026 is verified by [ADR-0038](../adr/0038-native-upload-failure-recovery.md). Terminal implementation remains open; compose-005 browser progress is verified separately in ADR-0053.
 
+## Selected-message deletion (2026-09-23; design)
+
+[ADR-0056](../adr/0056-idle-single-message-deletion.md) verifies a flat idle-only browser deletion for timeline-017. Keep the terminal idle layout unchanged: a future temporary bounded action on a selected stable message ID should ask for explicit confirmation and report success/failure in the existing transient notice, never a persistent button or row. Require native idle admission, origin ownership, reflow/regular-scrollback identity, draft/cursor/reader preservation and three-size fullscreen/regular tests. Do not infer reply-cascade or terminal parity from the web slice.
+
 ## Whole-message source copy (2026-09-23; design)
 
 [ADR-0055](../adr/0055-message-copy-clipboard-safety.md) verifies browser native Markdown/rich clipboard and truthful failure only. Existing `/copy` uses stored assistant content; fullscreen selection copies rendered cells and visual-row breaks. Keep those contracts separate. A per-message source action needs an explicit shortcut or bounded selector, existing transient feedback, native/OSC52 opt-in policy and no permanent row/button. Exact source whitespace, denied/missing helpers, session/draft/cursor/reader isolation and three-size fullscreen/regular evidence are required before source-copy terminal credit.

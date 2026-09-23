@@ -72,6 +72,7 @@ import { SystemMetersHud } from './components/system-meters-hud.js';
 import { TimelineMenu } from './components/timeline-menu.js';
 import { TimelineQuickActions } from './components/timeline-quick-actions.js';
 import { guardQuickActionsTyping } from './gi-quick-actions.js';
+import { createMessageDeletionState } from './gi-message-deletion.js';
 import { createSelectionScope } from './gi-session-state.js';
 import { createDraftRepository, indexedDraftStorage, emptyDraft } from './gi-drafts.js';
 import { recoverQueueDraft } from './gi-queue-return.js';
@@ -262,6 +263,10 @@ function GiApp() {
     // Timeline
     const [posts, setPosts] = useState<any[]>([]);
     const [hasMore, setHasMore] = useState(false);
+    const deletions=useRef(createMessageDeletionState()).current;
+    const deletingAnimation=useRef(new Set<string>());
+    const [removingPostIds,setRemovingPostIds]=useState(new Set<string>());
+    const [deleteError,setDeleteError]=useState('');
     const messageWindow=useRef(newMessageWindow());
     const pageRequest=useRef<any>(null);
     const pageRefreshPending=useRef(false);
@@ -438,7 +443,7 @@ function GiApp() {
                     const root=timelineRef.current;
                     scrollRestore.current={scope,view,connection,anchor:captureTimelineAnchor(root,readingAnchor.current),bottom:!older&&(initial||!root||Math.abs(root.scrollTop)<80)};
                     const incoming=data.posts||[];
-                    setPosts(prev=>mergeMessagePages(prev,incoming));
+                    setPosts(prev=>deletions.filter(mergeMessagePages(prev,incoming),deletingAnimation.current));
                     if(initial){messageWindow.current={loaded:true,before:data.before,after:data.after,hasMore:data.hasMore};}
                     else if(older){messageWindow.current.before=data.before||cursor;messageWindow.current.hasMore=data.hasMore;}
                     else {messageWindow.current.after=data.after||cursor;}
@@ -479,11 +484,38 @@ function GiApp() {
         try{
             const result=await searchPosts(view.query,50,0,sessionToChatJid(owner.sessionId),view.scope);
             if(!selection.isCurrent(owner)||!searchView.isCurrent(view)||!timelineRevision.accepts(request)||connection!==connectionRevision.current||streamDisconnected.current)return;
-            setPosts(dedupePosts(result.posts||[]));setHasMore(false);
+            setPosts(deletions.filter(dedupePosts(result.posts||[]),deletingAnimation.current));setHasMore(false);
         }catch(error){if(selection.isCurrent(owner)&&searchView.isCurrent(view)&&timelineRevision.accepts(request)&&connection===connectionRevision.current&&!streamDisconnected.current)setSearchError(`Search failed: ${error.message}`);}
     };
     const enterSearch = () => {timelineRevision.invalidate();readingAnchor.current=null;pageRequest.current=null;pageRefreshPending.current=false;scrollRestore.current=null;setSearchState(searchView.enter());setPosts([]);setHasMore(false);setSearchError('');};
     const exitSearch = () => {timelineRevision.invalidate();setPosts([]);messageWindow.current=newMessageWindow();pageRequest.current=null;pageRefreshPending.current=false;setSearchState(searchView.close());setSearchError('');void loadPosts();};
+
+    const handleDeletePost = async (post: any) => {
+        const id=post?.id,owner=selection.capture(),view=searchView.capture();
+        const destination=post?.chat_jid;
+        if(typeof id!=='string'||!destination?.startsWith('gi:')||!deletions.begin(id))return;
+        setDeleteError('');
+        try {
+            await deletePost(id,false,destination);
+            deletions.finish(id,true);
+            const current=()=>selection.isCurrent(owner)&&searchView.isCurrent(view);
+            if(!current())return;
+            // Fence in-flight reads; subsequent reads are filtered too. Do not
+            // discard retained pages or reset the editor/reading anchor.
+            timelineRevision.invalidate();pageRequest.current=null;pageRefreshPending.current=false;
+            deletingAnimation.current.add(id);setRemovingPostIds(new Set(deletingAnimation.current));
+            await new Promise(resolve=>setTimeout(resolve,220));
+            deletingAnimation.current.delete(id);
+            if(!current())return;
+            const root=timelineRef.current;
+            scrollRestore.current={scope:owner,view,connection:connectionRevision.current,anchor:captureTimelineAnchor(root,readingAnchor.current),bottom:false};
+            setRemovingPostIds(new Set(deletingAnimation.current));setPosts(prev=>deletions.filter(prev,deletingAnimation.current));
+            void refreshSelectedState();
+        } catch(error) {
+            deletions.finish(id,false);
+            if(selection.isCurrent(owner)&&searchView.isCurrent(view))setDeleteError(`Delete failed: ${error.message}`);
+        }
+    };
 
     const scrollToBottom = useCallback(() => {
         const el = timelineRef.current;
@@ -679,6 +711,7 @@ function GiApp() {
         // Advance synchronously, before rendering, to invalidate already pending work.
         selection.select(nextSessionId);
         resetQuickActionsReadiness();
+        deletingAnimation.current.clear();setRemovingPostIds(new Set());setDeleteError('');
         setComposePrefill(null);
         const linkedURL=new URL(location.href);
         if(linkedURL.searchParams.has('chat_jid')){linkedURL.searchParams.set('chat_jid',sessionToChatJid(nextSessionId));history.replaceState(null,'',linkedURL);}
@@ -920,14 +953,14 @@ function GiApp() {
                     onScrollToMessage=${() => {}}
                     onFileRef=${openEditor}
                     onPostClick=${undefined}
-                    onDeletePost=${() => {}}
+                    onDeletePost=${handleDeletePost}
                     onOpenWidget=${(w: any) => setFloatingWidget(w)}
                     onOpenAttachmentPreview=${setAttachmentPreview}
                     emptyMessage=${searchState.active ? (searchState.query ? 'No matching messages.' : 'Enter a search query.') : 'Send a message to get started.'}
                     agents=${agents}
                     user=${userProfile}
                     reverse=${true}
-                    removingPostIds=${new Set()}
+                    removingPostIds=${removingPostIds}
                     searchQuery=${searchState.active ? searchState.query : ''}
                 />
                 <${AgentStatus}
@@ -968,6 +1001,7 @@ function GiApp() {
                 ${queueError && html`<div role="alert">${queueError}</div>`}
                 ${newUIVersion && html`<div role="status" class="gi-version-warning">New UI available. Reload manually when ready; unsaved editor work may be lost.</div>`}
                 ${sessionError && html`<div role="alert">${sessionError}</div>`}
+                ${deleteError && html`<div role="alert">${deleteError}</div>`}
                 ${searchError && html`<div role="alert">${searchError}</div>`}
                 ${searchState.active && html`<div role="status">Search${searchState.query ? `: ${searchState.query}` : ''} · ${searchState.scope} · up to 50 results</div>`}
                 ${stopError && html`<div role="alert">${stopError}</div>`}
