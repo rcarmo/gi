@@ -10,9 +10,9 @@ test('frozen Piclaw sources and shared Vibes/Tau contract retain their exact has
 
 test('imported Piclaw component sources retain their upstream hashes', () => {
   const root = resolve(uxRoot, '../..');
-  for (const name of ['piclaw-menu-70d33bc93.json', 'piclaw-session-picker-70d33bc93.json']) {
+  for (const name of ['piclaw-menu-70d33bc93.json', 'piclaw-session-picker-70d33bc93.json', 'piclaw-quick-actions-70d33bc93.json']) {
     const manifest = JSON.parse(readFileSync(resolve(root, 'web/upstream', name), 'utf8'));
-    for (const file of manifest.files) {
+    for (const file of [...manifest.files,...(manifest.css?[manifest.css]:[])]) {
       const hash = createHash('sha256').update(readFileSync(resolve(root, file.destination))).digest('hex');
       expect(hash).toBe(file.sha256);
     }
@@ -38,4 +38,10 @@ test('all frozen scenarios and outline examples are inventoried, not just mapped
   for (const id of sharedMappedIds) expect(shared.some(item => item.id === id)).toBe(true);
   expect(shared.find(row => row.id === '@shared-28')?.name).toBe('Return a queued item to the latest editor draft');
   expect(shared.find(row => row.id === '@shared-30')?.name).toBe('Steer only a matching active run');
+});
+
+test('Quick Actions provenance includes unchanged pinned sources and the exact CSS region',()=>{
+ const root=resolve(uxRoot,'../..');const manifest=JSON.parse(readFileSync(resolve(root,'web/upstream/piclaw-quick-actions-70d33bc93.json'),'utf8'));
+ expect(manifest.commit).toBe('70d33bc93ab540845bbcf5f80503ca8125c71594');expect(manifest.files).toHaveLength(3);
+ expect(manifest.css.start).toBe('.timeline-quick-actions-overlay {');expect(manifest.css.endBefore).toBe('.compose-submit-spinner {');
 });

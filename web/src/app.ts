@@ -43,6 +43,7 @@ import {
     stopAutoresearch,
     dismissAutoresearch,
     getAgentModels,
+    resetQuickActionsReadiness,
     completeInstanceOobe,
     getActiveChatAgents,
     getChatBranches,
@@ -69,6 +70,8 @@ import { FloatingWidgetPane } from './components/floating-widget-pane.js';
 import { AttachmentPreviewModal } from './components/attachment-preview-modal.js';
 import { SystemMetersHud } from './components/system-meters-hud.js';
 import { TimelineMenu } from './components/timeline-menu.js';
+import { TimelineQuickActions } from './components/timeline-quick-actions.js';
+import { guardQuickActionsTyping } from './gi-quick-actions.js';
 import { createSelectionScope } from './gi-session-state.js';
 import { createDraftRepository, indexedDraftStorage, emptyDraft } from './gi-drafts.js';
 import { recoverQueueDraft } from './gi-queue-return.js';
@@ -183,6 +186,12 @@ function sessionToChatJid(id: string) {
 }
 
 async function ensureDefaultSession() {
+    const linked=new URLSearchParams(location.search).get('chat_jid');
+    if(linked?.startsWith('gi:')){
+        const id=linked.slice(3);
+        const response=await fetch(`/api/sessions/${encodeURIComponent(id)}`);
+        if(response.ok){setLocalStorageItem(SESSION_KEY,id);return id;}
+    }
     const stored = getLocalStorageItem(SESSION_KEY);
     if (stored) {
         // Verify it still exists
@@ -235,6 +244,7 @@ function GiApp() {
     const [sessionError, setSessionError] = useState<string | null>(null);
     const [draftStorageError, setDraftStorageError] = useState('');
     const [draftRestore, setDraftRestore] = useState<any>(null);
+    const [composePrefill,setComposePrefill]=useState<any>(null);
     const draftsRef = useRef<any>(null);
     if (!draftsRef.current) draftsRef.current = createDraftRepository(indexedDraftStorage(), error => setDraftStorageError(`Draft not saved: ${error.message}`));
     const drafts = draftsRef.current;
@@ -668,6 +678,10 @@ function GiApp() {
         if (sessionId) drafts.update(sessionId, { fileRefs, messageRefs });
         // Advance synchronously, before rendering, to invalidate already pending work.
         selection.select(nextSessionId);
+        resetQuickActionsReadiness();
+        setComposePrefill(null);
+        const linkedURL=new URL(location.href);
+        if(linkedURL.searchParams.has('chat_jid')){linkedURL.searchParams.set('chat_jid',sessionToChatJid(nextSessionId));history.replaceState(null,'',linkedURL);}
         activationRefresh.select(selection.capture().generation);streamDisconnected.current=true;setConnectionStatus('disconnected');
         setSearchState(searchView.close());setSearchError('');
         messageWindow.current=newMessageWindow();readingAnchor.current=null;pageRequest.current=null;pageRefreshPending.current=false;scrollRestore.current=null;
@@ -829,6 +843,19 @@ function GiApp() {
         <div class=${appShellClass}>
             <style>${`.app-shell .post-content:has(table) { overflow-x: auto; } .app-shell .post-content table { display: table; width: 100%; table-layout: auto; }`}</style>
             <${SystemMetersHud} mode="overlay" />
+            ${!searchState.active && html`<${TimelineQuickActions}
+                key=${sessionId}
+                currentChatJid=${currentChatJid}
+                activeChatAgents=${activeChatAgents}
+                workspaceOpen=${workspaceOpen}
+                chatOnlyMode=${false}
+                onToggleWorkspace=${() => setWorkspaceOpen((v: boolean) => !v)}
+                onSwitchChat=${handleSwitchChat}
+                onPrefillCompose=${(command: string) => {
+                    if (!selection.isCurrent(renderedSelection)) return;
+                    setComposePrefill({sessionId,token:crypto.randomUUID(),text:command.trim()+' '});
+                }}
+            />`}
             <${TimelineMenu}
                 workspaceOpen=${workspaceOpen}
                 toggleWorkspace=${() => setWorkspaceOpen((v: boolean) => !v)}
@@ -950,11 +977,12 @@ function GiApp() {
                 <${ComposeTransfer} sessionId=${sessionId} hidden=${searchState.active} />
                 <${ComposeBox}
                     statusNotice=${notice}
+                    prefillRequest=${composePrefill?.sessionId===sessionId?composePrefill:null}
                     showQueueStack=${false}
                     key=${`${sessionId}:${draftRestore?.sessionId === sessionId ? draftRestore.token : ''}`}
                     draftValue=${getDraft(sessionId).text}
                     draftMediaFiles=${getDraft(sessionId).media}
-                    onContentChange=${(text: string) => drafts.update(sessionId, { text })}
+                    onContentChange=${(text: string) => { drafts.update(sessionId, { text }); setComposePrefill(null); }}
                     onDraftMediaChange=${(media: File[]) => drafts.update(sessionId, { media })}
                     focusRestoredDraft=${draftRestore?.sessionId === sessionId}
                     onCaptureDraft=${(draft: any) => drafts.begin(sessionId, draft)}
@@ -1097,4 +1125,5 @@ function ComposeTransfer({ sessionId, hidden }) {
     </div>`;
 }
 
+window.addEventListener('keydown', guardQuickActionsTyping, true);
 render(html`<${GiApp} />`, document.getElementById('app'));

@@ -1,0 +1,27 @@
+{
+  "commit": "70d33bc93ab540845bbcf5f80503ca8125c71594",
+  "files": [
+    {
+      "source": "runtime/web/src/components/timeline-quick-actions.ts",
+      "destination": "web/src/components/timeline-quick-actions.ts",
+      "sha256": "809acb9f348d17f669d65ad7df01bc140a321801fc4392398a5851f1a47676c0"
+    },
+    {
+      "source": "runtime/web/src/ui/timeline-quick-actions.ts",
+      "destination": "web/src/ui/timeline-quick-actions.ts",
+      "sha256": "a075535cc44169938fbfd648cce0c458b49c1cd3e33390b238b633b023a1c27c"
+    },
+    {
+      "source": "runtime/web/src/ui/keyboard-shortcuts.ts",
+      "destination": "web/src/ui/keyboard-shortcuts.ts",
+      "sha256": "54dd9a91e6e90e7f25b7e6f524a2acc67fabb6cc27c29ad2c87f3acfd7504ccb"
+    }
+  ],
+  "css": {
+    "source": "runtime/web/static/classic/css/chat.css",
+    "start": ".timeline-quick-actions-overlay {",
+    "endBefore": ".compose-submit-spinner {",
+    "destination": "internal/web/static/css/gi-quick-actions.css",
+    "sha256": "fe18f489d193029002e2ee2a3b4a739c13004fd56730187cba3abbdb27d194b9"
+  }
+}

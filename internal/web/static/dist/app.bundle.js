@@ -514,6 +514,16 @@ function getLocalStorageNumber(key, defaultValue = null) {
   const parsed = parseInt(raw, 10);
   return Number.isFinite(parsed) ? parsed : defaultValue;
 }
+function getLocalStorageJSON(key) {
+  const raw = getLocalStorageItem(key);
+  if (!raw)
+    return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
 
 // web/src/ui/timeline-utils.ts
 var dedupePosts = (items) => {
@@ -926,6 +936,28 @@ async function request(url, options = {}) {
     throw Object.assign(new Error(err.error || `HTTP ${response.status}`), { status: response.status });
   }
   return response.json();
+}
+var quickActionsReady = false;
+var quickActionsRevision = 0;
+var isQuickActionsReady = () => quickActionsReady;
+function resetQuickActionsReadiness() {
+  quickActionsReady = false;
+  ++quickActionsRevision;
+}
+async function getQuickActionsSettings() {
+  const revision = ++quickActionsRevision;
+  quickActionsReady = false;
+  try {
+    return { settings: await request("/api/quick-actions") };
+  } catch {
+    return { settings: { workspaceCommands: [], slashCommands: [] } };
+  } finally {
+    if (revision === quickActionsRevision)
+      quickActionsReady = true;
+  }
+}
+async function getAgentCommands(_chatJid = null) {
+  return request("/api/quick-actions").then((data) => ({ commands: data.commands || [] }));
 }
 var DEFAULT_CHAT_JID = "web:default";
 function sessionToChatJid(sessionId) {
@@ -7684,8 +7716,8 @@ function ComposeBox({
       return [];
     }
   };
-  const saveHistory = (history, storageKey = historyStorageKey) => {
-    setLocalStorageItem(storageKey, JSON.stringify(history));
+  const saveHistory = (history2, storageKey = historyStorageKey) => {
+    setLocalStorageItem(storageKey, JSON.stringify(history2));
   };
   const historyRef = Q_(loadHistory(historyStorageKey));
   const historyIndexRef = Q_(-1);
@@ -8549,27 +8581,27 @@ ${mediaIds.map((id, index) => {
       const atStart = textarea.selectionStart === 0 && textarea.selectionEnd === 0;
       const atEnd = textarea.selectionStart === value.length && textarea.selectionEnd === value.length;
       if (e.key === "ArrowUp" && atStart || e.key === "ArrowDown" && atEnd) {
-        const history = historyRef.current;
-        if (!history.length)
+        const history2 = historyRef.current;
+        if (!history2.length)
           return;
         e.preventDefault();
         let idx = historyIndexRef.current;
         if (e.key === "ArrowUp") {
           if (idx === -1) {
             historyDraftRef.current = value;
-            idx = history.length - 1;
+            idx = history2.length - 1;
           } else if (idx > 0) {
             idx -= 1;
           }
           historyIndexRef.current = idx;
-          updateValue(history[idx] || "");
+          updateValue(history2[idx] || "");
         } else {
           if (idx === -1)
             return;
-          if (idx < history.length - 1) {
+          if (idx < history2.length - 1) {
             idx += 1;
             historyIndexRef.current = idx;
-            updateValue(history[idx] || "");
+            updateValue(history2[idx] || "");
           } else {
             historyIndexRef.current = -1;
             updateValue(historyDraftRef.current || "");
@@ -16511,6 +16543,9 @@ function translate(key, vars, locale = getLocale()) {
   const template = fromLocale ?? EN[key] ?? key;
   return interpolate(template, vars);
 }
+function t(key, vars) {
+  return translate(key, vars);
+}
 function useLocale() {
   const [locale, setLocaleState] = F_(getLocale());
   K_(() => {
@@ -16830,6 +16865,768 @@ function TimelineMenu({
       G_(content, portalRef.current);
   });
   return null;
+}
+
+// web/src/ui/keyboard-shortcuts.ts
+var STORAGE_KEY = "piclaw_keyboard_shortcuts_v1";
+var KEYBOARD_SHORTCUT_ACTIONS = [
+  {
+    id: "openHelp",
+    label: "Open keyboard help",
+    description: "Open Settings → Keyboard. Default: question mark and quote when focus is outside compose and other editable fields.",
+    defaultBindings: ["?", '"']
+  },
+  {
+    id: "openSettings",
+    label: "Open settings",
+    description: "Open the settings dialog.",
+    defaultBindings: ["ctrl+,", "meta+,", "alt+,"]
+  },
+  {
+    id: "previousChat",
+    label: "Previous session",
+    description: "Switch to the previous visible chat/session.",
+    defaultBindings: ["["]
+  },
+  {
+    id: "nextChat",
+    label: "Next session",
+    description: "Switch to the next visible chat/session.",
+    defaultBindings: ["]"]
+  },
+  {
+    id: "toggleDock",
+    label: "Toggle dock",
+    description: "Show or hide the bottom dock panes.",
+    defaultBindings: ["ctrl+`"]
+  },
+  {
+    id: "toggleZenMode",
+    label: "Toggle zen mode",
+    description: "Collapse surrounding chrome for a focused chat view.",
+    defaultBindings: ["ctrl+shift+z", "meta+shift+z"]
+  }
+];
+var ACTION_MAP = new Map(KEYBOARD_SHORTCUT_ACTIONS.map((action) => [action.id, action]));
+var MODIFIER_ALIASES = {
+  cmd: "meta",
+  command: "meta",
+  meta: "meta",
+  super: "meta",
+  ctrl: "ctrl",
+  control: "ctrl",
+  alt: "alt",
+  option: "alt",
+  shift: "shift"
+};
+var KEY_ALIASES = {
+  esc: "escape",
+  return: "enter",
+  spacebar: "space"
+};
+var NAMED_KEYS = new Set([
+  "tab",
+  "enter",
+  "space",
+  "backspace",
+  "delete",
+  "insert",
+  "clear",
+  "home",
+  "end",
+  "pageup",
+  "pagedown",
+  "up",
+  "down",
+  "left",
+  "right"
+]);
+function normalizeKeyToken(token) {
+  const trimmed = String(token || "").trim().toLowerCase();
+  if (!trimmed)
+    return null;
+  const aliased = KEY_ALIASES[trimmed] || trimmed;
+  if (/^f(?:[1-9]|1[0-2])$/.test(aliased))
+    return aliased;
+  if (NAMED_KEYS.has(aliased))
+    return aliased;
+  if (aliased.length === 1)
+    return aliased;
+  if (/^[a-z0-9]+$/.test(aliased))
+    return aliased;
+  return null;
+}
+function normalizeShortcutBindingString(value) {
+  const raw = String(value || "").trim();
+  if (!raw)
+    return null;
+  const parts = raw.split("+").map((part) => part.trim()).filter(Boolean);
+  if (!parts.length)
+    return null;
+  const parsed = {
+    ctrl: false,
+    meta: false,
+    alt: false,
+    shift: false,
+    key: ""
+  };
+  for (const part of parts) {
+    const normalizedPart = part.toLowerCase();
+    const modifier = MODIFIER_ALIASES[normalizedPart];
+    if (modifier) {
+      parsed[modifier] = true;
+      continue;
+    }
+    if (parsed.key)
+      return null;
+    const key = normalizeKeyToken(part);
+    if (!key || key === "escape")
+      return null;
+    parsed.key = key;
+  }
+  if (!parsed.key)
+    return null;
+  const segments = [];
+  if (parsed.ctrl)
+    segments.push("ctrl");
+  if (parsed.meta)
+    segments.push("meta");
+  if (parsed.alt)
+    segments.push("alt");
+  if (parsed.shift)
+    segments.push("shift");
+  segments.push(parsed.key);
+  return segments.join("+");
+}
+function readStoredShortcutConfig() {
+  const stored = getLocalStorageJSON(STORAGE_KEY);
+  if (!stored || typeof stored !== "object")
+    return {};
+  const next = {};
+  for (const action of KEYBOARD_SHORTCUT_ACTIONS) {
+    const raw = stored[action.id];
+    if (!Array.isArray(raw))
+      continue;
+    const normalized = raw.map((entry) => normalizeShortcutBindingString(String(entry || ""))).filter((entry) => Boolean(entry));
+    next[action.id] = [...new Set(normalized)];
+  }
+  return next;
+}
+function getKeyboardShortcutAction(actionId) {
+  return ACTION_MAP.get(actionId);
+}
+function getKeyboardShortcutBindings(actionId) {
+  const stored = readStoredShortcutConfig()[actionId];
+  if (Array.isArray(stored))
+    return stored;
+  return [...getKeyboardShortcutAction(actionId).defaultBindings];
+}
+function normalizeEventKey(key) {
+  const raw = typeof key === "string" ? key : "";
+  if (!raw)
+    return "";
+  if (raw.length === 1)
+    return raw.toLowerCase();
+  return normalizeKeyToken(raw) || raw.toLowerCase();
+}
+function parseNormalizedBinding(binding) {
+  const normalized = normalizeShortcutBindingString(binding);
+  if (!normalized)
+    return null;
+  const parsed = {
+    ctrl: false,
+    meta: false,
+    alt: false,
+    shift: false,
+    key: ""
+  };
+  for (const part of normalized.split("+")) {
+    if (part === "ctrl" || part === "meta" || part === "alt" || part === "shift") {
+      parsed[part] = true;
+      continue;
+    }
+    parsed.key = part;
+  }
+  return parsed.key ? parsed : null;
+}
+function matchesShortcutBinding(event, binding) {
+  const parsed = parseNormalizedBinding(binding);
+  if (!parsed)
+    return false;
+  const normalizedEventKey = normalizeEventKey(event?.key);
+  if (normalizedEventKey !== parsed.key)
+    return false;
+  const symbolKeyAllowsImplicitShift = !parsed.shift && parsed.key.length === 1 && /[^a-z0-9]/i.test(parsed.key);
+  return Boolean(event?.ctrlKey) === parsed.ctrl && Boolean(event?.metaKey) === parsed.meta && Boolean(event?.altKey) === parsed.alt && (symbolKeyAllowsImplicitShift || Boolean(event?.shiftKey) === parsed.shift);
+}
+function matchesKeyboardShortcutAction(event, actionId) {
+  return getKeyboardShortcutBindings(actionId).some((binding) => matchesShortcutBinding(event, binding));
+}
+
+// web/src/ui/timeline-quick-actions.ts
+var WORKSPACE_QUICK_ACTIONS_CATALOG = [
+  {
+    id: "toggle-workspace",
+    label: "Toggle workspace",
+    description: "Show or hide the workspace sidebar.",
+    keywords: ["workspace", "sidebar", "explorer"]
+  },
+  {
+    id: "open-explorer",
+    label: "Open explorer",
+    description: "Open the workspace explorer sidebar.",
+    keywords: ["workspace", "explorer", "sidebar"]
+  },
+  {
+    id: "toggle-chat-only",
+    label: "Chat-only mode",
+    description: "Toggle chat-only mode.",
+    keywords: ["chat", "mode", "layout"]
+  },
+  {
+    id: "open-terminal-tab",
+    label: "Open terminal in tab",
+    description: "Open the terminal pane in a workspace tab.",
+    keywords: ["terminal", "shell", "tab"]
+  },
+  {
+    id: "open-vnc-tab",
+    label: "Open VNC in tab",
+    description: "Open the VNC viewer in a workspace tab.",
+    keywords: ["vnc", "remote", "desktop", "tab"]
+  },
+  {
+    id: "open-settings",
+    label: "Settings",
+    description: "Open the settings dialog.",
+    keywords: ["settings", "preferences", "config"]
+  }
+];
+function normalizeToken(value) {
+  return String(value || "").toLowerCase().replace(/^[@/]+/, "").replace(/\s+/g, " ").trim();
+}
+function hasTrimmedString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+function matchesTimelineQuickActionQuery(query, ...parts) {
+  const normalizedQuery = normalizeToken(query);
+  if (!normalizedQuery)
+    return true;
+  const haystack = parts.map((part) => normalizeToken(part)).filter(Boolean);
+  for (const value of haystack) {
+    if (value.startsWith(normalizedQuery) || value.includes(normalizedQuery)) {
+      return true;
+    }
+  }
+  return false;
+}
+function dedupeStringList(values) {
+  if (!Array.isArray(values))
+    return null;
+  const out = [];
+  const seen = new Set;
+  for (const value of values) {
+    const normalized = String(value || "").trim();
+    if (!normalized)
+      continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key))
+      continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+}
+function normalizeTimelineQuickActionsSettingsData(data) {
+  const source = data && typeof data === "object" ? data : {};
+  return {
+    workspaceCommands: dedupeStringList(source.workspaceCommands),
+    slashCommands: dedupeStringList(source.slashCommands)
+  };
+}
+function isEnabledBySelection(selection, value) {
+  if (!Array.isArray(selection))
+    return true;
+  return selection.some((entry) => entry.toLowerCase() === value.toLowerCase());
+}
+function buildWorkspaceQuickActionItems(options) {
+  const commands = Array.isArray(options?.commands) ? options.commands : [];
+  const settings = normalizeTimelineQuickActionsSettingsData(options?.settings);
+  const query = String(options?.query || "");
+  return commands.filter((command) => isEnabledBySelection(settings.workspaceCommands, command.id)).filter((command) => matchesTimelineQuickActionQuery(query, command.label, command.description, ...command.keywords || [])).map((command) => ({
+    key: `workspace:${command.id}`,
+    kind: "workspace",
+    title: command.label,
+    subtitle: command.description,
+    searchText: `${command.label} ${command.description} ${(command.keywords || []).join(" ")}`.trim(),
+    visualHint: command.label.slice(0, 1).toUpperCase() || "W",
+    categoryLabel: "Workspace",
+    actionHint: "Run",
+    commandId: command.id
+  }));
+}
+function buildAgentQuickActionItems(options) {
+  const agents = Array.isArray(options?.agents) ? options.agents : [];
+  const query = String(options?.query || "");
+  const seen = new Set;
+  return agents.filter((agent) => {
+    const chatJid = hasTrimmedString(agent?.chat_jid) ? agent.chat_jid.trim() : "";
+    if (!chatJid || seen.has(chatJid))
+      return false;
+    if (agent?.archived_at)
+      return false;
+    seen.add(chatJid);
+    return true;
+  }).filter((agent) => matchesTimelineQuickActionQuery(query, `@${String(agent?.agent_name || "").trim()}`, agent?.session_name, agent?.chat_jid)).map((agent) => {
+    const agentName = hasTrimmedString(agent?.agent_name) ? agent.agent_name.trim() : String(agent?.chat_jid || "").replace(/^[^:]+:/, "");
+    const sessionName = hasTrimmedString(agent?.session_name) ? agent.session_name.trim() : "";
+    const chatJid = String(agent?.chat_jid || "").trim();
+    return {
+      key: `agent:${chatJid}`,
+      kind: "agent",
+      title: `@${agentName}`,
+      subtitle: sessionName || chatJid,
+      searchText: `@${agentName} ${sessionName} ${chatJid}`.trim(),
+      visualHint: agentName.slice(0, 1).toUpperCase() || "@",
+      categoryLabel: "Agent",
+      actionHint: "Open",
+      chatJid
+    };
+  });
+}
+function buildSlashQuickActionItems(options) {
+  const slashCommands = Array.isArray(options?.slashCommands) ? options.slashCommands : [];
+  const settings = normalizeTimelineQuickActionsSettingsData(options?.settings);
+  const query = String(options?.query || "");
+  const seen = new Set;
+  return slashCommands.filter((command) => {
+    const name = hasTrimmedString(command?.name) ? command.name.trim() : "";
+    if (!name || seen.has(name.toLowerCase()))
+      return false;
+    seen.add(name.toLowerCase());
+    return isEnabledBySelection(settings.slashCommands, name);
+  }).filter((command) => matchesTimelineQuickActionQuery(query, command?.name, command?.description, command?.source)).map((command) => {
+    const name = String(command?.name || "").trim();
+    const description = hasTrimmedString(command?.description) ? command.description.trim() : "slash command";
+    const source = hasTrimmedString(command?.source) ? command.source.trim() : "";
+    return {
+      key: `slash:${name}`,
+      kind: "slash",
+      title: name,
+      subtitle: description,
+      searchText: `${name} ${description} ${String(command?.source || "")}`.trim(),
+      visualHint: "/",
+      categoryLabel: source || "Slash",
+      actionHint: "Insert",
+      commandName: name
+    };
+  });
+}
+function buildTimelineQuickActionItems(options) {
+  return [
+    ...buildAgentQuickActionItems({ agents: options?.agents, query: options?.query }),
+    ...buildWorkspaceQuickActionItems({ commands: options?.workspaceCommands, settings: options?.settings, query: options?.query }),
+    ...buildSlashQuickActionItems({ slashCommands: options?.slashCommands, settings: options?.settings, query: options?.query })
+  ];
+}
+
+// web/src/components/timeline-quick-actions.ts
+function isEditableTarget(target) {
+  if (!target || typeof target !== "object")
+    return false;
+  if (target.isContentEditable)
+    return true;
+  if (typeof target.closest !== "function")
+    return false;
+  return Boolean(target.closest([
+    "input",
+    "textarea",
+    "select",
+    '[contenteditable="true"]',
+    ".compose-box",
+    ".compose-model-popup",
+    ".compose-session-popup",
+    ".settings-dialog",
+    ".workspace-sidebar",
+    ".workspace-explorer",
+    ".editor-pane-container",
+    ".dock-panel",
+    ".timeline-menu-dropdown",
+    ".rename-branch-overlay",
+    ".agent-request-modal",
+    ".attachment-preview-modal",
+    ".vnc-pane-shell",
+    ".kanban-plugin"
+  ].join(", ")));
+}
+function isEligibleTimelineTarget(target) {
+  if (!target || typeof target !== "object")
+    return true;
+  if (isEditableTarget(target))
+    return false;
+  const tagName = String(target.tagName || "").toUpperCase();
+  if (tagName === "BODY" || tagName === "HTML")
+    return true;
+  if (typeof target.closest !== "function")
+    return true;
+  return Boolean(target.closest(".container, .timeline, .post, .post-body, .post-content, .agent-status-panel"));
+}
+function shouldOpenTimelineQuickActionsFromKeyEvent(event) {
+  if (!isPopupTypeaheadKey(event))
+    return false;
+  if (!isEligibleTimelineTarget(event?.target))
+    return false;
+  const matchesShortcut = KEYBOARD_SHORTCUT_ACTIONS.some((action) => matchesKeyboardShortcutAction(event, action.id));
+  return !matchesShortcut;
+}
+function toggleChatOnlyMode(chatOnlyMode) {
+  const url = new URL(window.location.href);
+  if (chatOnlyMode) {
+    url.searchParams.delete("chat_only");
+  } else {
+    url.searchParams.set("chat_only", "1");
+  }
+  window.location.href = url.toString();
+}
+function buildWorkspaceCommands(options) {
+  const commands = [];
+  const byId = new Map(WORKSPACE_QUICK_ACTIONS_CATALOG.map((entry) => [entry.id, entry]));
+  const add = (id, overrides = {}) => {
+    const base = byId.get(id);
+    if (!base)
+      return;
+    commands.push({ ...base, ...overrides });
+  };
+  add("toggle-workspace", {
+    label: options.workspaceOpen ? t("palette.hideWorkspace") : t("palette.showWorkspace"),
+    description: options.workspaceOpen ? t("palette.hideWorkspaceDesc") : t("palette.showWorkspaceDesc")
+  });
+  if (!options.workspaceOpen && !options.chatOnlyMode) {
+    add("open-explorer");
+  }
+  add("toggle-chat-only", {
+    label: options.chatOnlyMode ? t("palette.exitChatOnly") : t("palette.chatOnly"),
+    description: options.chatOnlyMode ? t("palette.exitChatOnlyDesc") : t("palette.chatOnlyDesc")
+  });
+  if (typeof options.onOpenTerminalTab === "function")
+    add("open-terminal-tab");
+  if (typeof options.onOpenVncTab === "function")
+    add("open-vnc-tab");
+  add("open-settings");
+  return commands;
+}
+function sectionLabel(kind) {
+  if (kind === "agent")
+    return t("palette.groupAgents");
+  if (kind === "workspace")
+    return t("palette.groupWorkspace");
+  return t("palette.groupSlash");
+}
+function renderQuickActionMedia(item) {
+  if (item?.imageUrl) {
+    return fe`<img class="timeline-quick-actions-item-avatar" src=${item.imageUrl} alt="" aria-hidden="true" />`;
+  }
+  return fe`<span class="timeline-quick-actions-item-placeholder" aria-hidden="true">${item?.visualHint || ""}</span>`;
+}
+function renderKeyboardHint(label, value) {
+  return fe`
+        <span class="timeline-quick-actions-keyhint">
+            <kbd>${value}</kbd>
+            <span>${label}</span>
+        </span>
+    `;
+}
+function openInNewTab(chatJid) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("chat_jid", chatJid);
+  url.searchParams.set("chat_only", "1");
+  const a = document.createElement("a");
+  a.href = url.toString();
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+function TimelineQuickActions({
+  activeChatAgents = [],
+  currentChatJid = "web:default",
+  workspaceOpen = false,
+  chatOnlyMode = false,
+  onSwitchChat,
+  onToggleWorkspace,
+  onOpenTerminalTab,
+  onOpenVncTab,
+  onPrefillCompose
+}) {
+  const [open, setOpen] = F_(false);
+  const [query, setQuery] = F_("");
+  const [highlightIndex, setHighlightIndex] = F_(0);
+  const [slashCommands, setSlashCommands] = F_([]);
+  const [settings, setSettings] = F_({ workspaceCommands: null, slashCommands: null });
+  const rootRef = Q_(null);
+  const inputRef = Q_(null);
+  const loadSettings = Y_(async () => {
+    try {
+      const payload = await getQuickActionsSettings();
+      setSettings(normalizeTimelineQuickActionsSettingsData(payload?.settings));
+    } catch {
+      setSettings({ workspaceCommands: null, slashCommands: null });
+    }
+  }, []);
+  K_(() => {
+    loadSettings();
+  }, [loadSettings]);
+  K_(() => {
+    let cancelled = false;
+    getAgentCommands(currentChatJid).then((payload) => {
+      if (cancelled)
+        return;
+      setSlashCommands(Array.isArray(payload?.commands) ? payload.commands : []);
+    }).catch(() => {
+      if (cancelled)
+        return;
+      setSlashCommands([]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentChatJid]);
+  const workspaceCommands = u_(() => buildWorkspaceCommands({
+    workspaceOpen,
+    chatOnlyMode,
+    onOpenTerminalTab,
+    onOpenVncTab
+  }), [chatOnlyMode, onOpenTerminalTab, onOpenVncTab, workspaceOpen]);
+  const items = u_(() => buildTimelineQuickActionItems({
+    agents: activeChatAgents,
+    workspaceCommands,
+    slashCommands,
+    settings,
+    query
+  }), [activeChatAgents, query, settings, slashCommands, workspaceCommands]);
+  K_(() => {
+    if (items.length === 0) {
+      setHighlightIndex(-1);
+      return;
+    }
+    if (!query.trim()) {
+      setHighlightIndex(0);
+      return;
+    }
+    const normalizedQuery = query.toLowerCase().replace(/^[@/]+/, "").trim();
+    if (!normalizedQuery) {
+      setHighlightIndex(0);
+      return;
+    }
+    let bestIndex = 0;
+    let bestScore = 0;
+    for (let i = 0;i < items.length; i++) {
+      const item = items[i];
+      const title = (item.title || "").toLowerCase().replace(/^[@/]+/, "");
+      if (title === normalizedQuery) {
+        bestIndex = i;
+        break;
+      }
+      let score = 0;
+      if (title.startsWith(normalizedQuery)) {
+        score = 3;
+      } else if (title.includes(normalizedQuery)) {
+        score = 2;
+      } else if ((item.subtitle || "").toLowerCase().includes(normalizedQuery)) {
+        score = 1;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = i;
+      }
+    }
+    setHighlightIndex(bestIndex);
+  }, [items, query]);
+  K_(() => {
+    if (!open)
+      return;
+    requestAnimationFrame(() => inputRef.current?.focus?.());
+  }, [open]);
+  K_(() => {
+    const onKeyDown = (event) => {
+      if (!open) {
+        if (!shouldOpenTimelineQuickActionsFromKeyEvent(event))
+          return;
+        event.preventDefault();
+        setQuery(String(event.key || ""));
+        setHighlightIndex(0);
+        setOpen(true);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        setQuery("");
+        return;
+      }
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setHighlightIndex((prev) => items.length > 0 ? (prev + 1 + items.length) % items.length : 0);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setHighlightIndex((prev) => items.length > 0 ? (prev - 1 + items.length) % items.length : 0);
+        return;
+      }
+      if (event.key === "Enter" && items[highlightIndex]) {
+        event.preventDefault();
+        const current = items[highlightIndex];
+        const popOut = event.altKey;
+        if (current) {
+          if (current.kind === "agent" && current.chatJid) {
+            if (popOut) {
+              openInNewTab(current.chatJid);
+            } else {
+              onSwitchChat?.(current.chatJid);
+            }
+          } else if (current.kind === "workspace" && current.commandId) {
+            if (current.commandId === "toggle-workspace" || current.commandId === "open-explorer")
+              onToggleWorkspace?.();
+            if (current.commandId === "toggle-chat-only")
+              toggleChatOnlyMode(chatOnlyMode);
+            if (current.commandId === "open-terminal-tab")
+              onOpenTerminalTab?.();
+            if (current.commandId === "open-vnc-tab")
+              onOpenVncTab?.();
+            if (current.commandId === "open-settings")
+              window.dispatchEvent(new CustomEvent("piclaw:open-settings"));
+          } else if (current.kind === "slash" && current.commandName) {
+            onPrefillCompose?.(current.commandName);
+          }
+        }
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    const onPointerDown = (event) => {
+      if (!open)
+        return;
+      if (rootRef.current?.contains(event.target))
+        return;
+      setOpen(false);
+      setQuery("");
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+    };
+  }, [chatOnlyMode, highlightIndex, items, onOpenTerminalTab, onOpenVncTab, onPrefillCompose, onSwitchChat, onToggleWorkspace, open]);
+  K_(() => {
+    const handleSettingsSaved = (event) => {
+      const nextSettings = normalizeTimelineQuickActionsSettingsData(event?.detail?.settings);
+      if (event?.detail?.settings) {
+        setSettings(nextSettings);
+        return;
+      }
+      loadSettings();
+    };
+    window.addEventListener("focus", handleSettingsSaved);
+    window.addEventListener("piclaw:quick-actions-settings-updated", handleSettingsSaved);
+    return () => {
+      window.removeEventListener("focus", handleSettingsSaved);
+      window.removeEventListener("piclaw:quick-actions-settings-updated", handleSettingsSaved);
+    };
+  }, [loadSettings]);
+  if (!open)
+    return null;
+  let lastKind = null;
+  return fe`
+        <div class="timeline-quick-actions-portal">
+            <div class="timeline-quick-actions-overlay">
+                <div class="timeline-quick-actions" ref=${rootRef}>
+                    <div class="timeline-quick-actions-header">
+                        <div class="timeline-quick-actions-search-row">
+                            <input
+                                ref=${inputRef}
+                                class="timeline-quick-actions-input"
+                                type="text"
+                                value=${query}
+                                placeholder=${t("palette.placeholder")}
+                                onInput=${(event) => {
+    setQuery(event.currentTarget?.value || "");
+    setHighlightIndex(0);
+  }}
+                            />
+                            <div class="timeline-quick-actions-hints" aria-hidden="true">
+                                ${renderKeyboardHint(t("palette.hintMove"), "↑↓")}
+                                ${renderKeyboardHint(t("palette.hintSelect"), "↵")}
+                                ${renderKeyboardHint(t("palette.hintPopOut"), "Alt+↵")}
+                                ${renderKeyboardHint(t("palette.hintClose"), "Esc")}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="timeline-quick-actions-list">
+                        ${items.length === 0 && fe`<div class="timeline-quick-actions-empty">No quick actions match.</div>`}
+                        ${items.map((item, index) => {
+    const showSection = item.kind !== lastKind;
+    lastKind = item.kind;
+    return fe`
+                                ${showSection && fe`<div class="timeline-quick-actions-section">${sectionLabel(item.kind)}</div>`}
+                                <button
+                                    key=${item.key}
+                                    type="button"
+                                    class=${`timeline-quick-actions-item timeline-quick-actions-item-${item.kind}${index === highlightIndex ? " active" : ""}`}
+                                    onMouseEnter=${null}
+                                    onClick=${() => {
+      if (item.kind === "agent" && item.chatJid)
+        onSwitchChat?.(item.chatJid);
+      if (item.kind === "workspace" && item.commandId === "toggle-workspace")
+        onToggleWorkspace?.();
+      if (item.kind === "workspace" && item.commandId === "open-explorer")
+        onToggleWorkspace?.();
+      if (item.kind === "workspace" && item.commandId === "toggle-chat-only")
+        toggleChatOnlyMode(chatOnlyMode);
+      if (item.kind === "workspace" && item.commandId === "open-terminal-tab")
+        onOpenTerminalTab?.();
+      if (item.kind === "workspace" && item.commandId === "open-vnc-tab")
+        onOpenVncTab?.();
+      if (item.kind === "workspace" && item.commandId === "open-settings")
+        window.dispatchEvent(new CustomEvent("piclaw:open-settings"));
+      if (item.kind === "slash" && item.commandName)
+        onPrefillCompose?.(item.commandName);
+      setOpen(false);
+      setQuery("");
+    }}
+                                >
+                                    <span class="timeline-quick-actions-item-media">
+                                        ${renderQuickActionMedia(item)}
+                                    </span>
+                                    <span class="timeline-quick-actions-item-copy">
+                                        <span class="timeline-quick-actions-item-title-row">
+                                            <span class="timeline-quick-actions-item-title">${item.title}</span>
+                                            ${item.actionHint ? fe`<span class="timeline-quick-actions-item-action-hint">${item.actionHint}</span>` : null}
+                                        </span>
+                                        <span class="timeline-quick-actions-item-subtitle">${item.subtitle}</span>
+                                    </span>
+                                    <span class="timeline-quick-actions-item-category">${item.categoryLabel || sectionLabel(item.kind)}</span>
+                                </button>
+                            `;
+  })}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// web/src/gi-quick-actions.ts
+function guardQuickActionsTyping(event) {
+  if (!isPopupTypeaheadKey(event) || !isEligibleTimelineTarget(event.target))
+    return;
+  const target = event.target;
+  const interactive = target?.closest?.('button, a, [role="button"], [role="menuitem"], .monaco-editor, .terminal-pane, .post-reply');
+  if (!isQuickActionsReady() || event.defaultPrevented || event.repeat || interactive)
+    event.stopImmediatePropagation();
 }
 
 // web/src/gi-queue-return.ts
@@ -17241,6 +18038,15 @@ function sessionToChatJid2(id) {
   return `gi:${id}`;
 }
 async function ensureDefaultSession() {
+  const linked = new URLSearchParams(location.search).get("chat_jid");
+  if (linked?.startsWith("gi:")) {
+    const id = linked.slice(3);
+    const response = await fetch(`/api/sessions/${encodeURIComponent(id)}`);
+    if (response.ok) {
+      setLocalStorageItem(SESSION_KEY, id);
+      return id;
+    }
+  }
   const stored = getLocalStorageItem(SESSION_KEY);
   if (stored) {
     try {
@@ -17286,6 +18092,7 @@ function GiApp() {
   const [sessionError, setSessionError] = F_(null);
   const [draftStorageError, setDraftStorageError] = F_("");
   const [draftRestore, setDraftRestore] = F_(null);
+  const [composePrefill, setComposePrefill] = F_(null);
   const draftsRef = Q_(null);
   if (!draftsRef.current)
     draftsRef.current = createDraftRepository(indexedDraftStorage(), (error) => setDraftStorageError(`Draft not saved: ${error.message}`));
@@ -17840,6 +18647,13 @@ function GiApp() {
     if (sessionId)
       drafts.update(sessionId, { fileRefs, messageRefs });
     selection.select(nextSessionId);
+    resetQuickActionsReadiness();
+    setComposePrefill(null);
+    const linkedURL = new URL(location.href);
+    if (linkedURL.searchParams.has("chat_jid")) {
+      linkedURL.searchParams.set("chat_jid", sessionToChatJid2(nextSessionId));
+      history.replaceState(null, "", linkedURL);
+    }
     activationRefresh.select(selection.capture().generation);
     streamDisconnected.current = true;
     setConnectionStatus("disconnected");
@@ -18052,6 +18866,20 @@ function GiApp() {
         <div class=${appShellClass}>
             <style>${`.app-shell .post-content:has(table) { overflow-x: auto; } .app-shell .post-content table { display: table; width: 100%; table-layout: auto; }`}</style>
             <${SystemMetersHud} mode="overlay" />
+            ${!searchState.active && fe`<${TimelineQuickActions}
+                key=${sessionId}
+                currentChatJid=${currentChatJid}
+                activeChatAgents=${activeChatAgents}
+                workspaceOpen=${workspaceOpen}
+                chatOnlyMode=${false}
+                onToggleWorkspace=${() => setWorkspaceOpen((v) => !v)}
+                onSwitchChat=${handleSwitchChat}
+                onPrefillCompose=${(command) => {
+    if (!selection.isCurrent(renderedSelection))
+      return;
+    setComposePrefill({ sessionId, token: crypto.randomUUID(), text: command.trim() + " " });
+  }}
+            />`}
             <${TimelineMenu}
                 workspaceOpen=${workspaceOpen}
                 toggleWorkspace=${() => setWorkspaceOpen((v) => !v)}
@@ -18178,11 +19006,15 @@ function GiApp() {
                 <${ComposeTransfer} sessionId=${sessionId} hidden=${searchState.active} />
                 <${ComposeBox}
                     statusNotice=${notice}
+                    prefillRequest=${composePrefill?.sessionId === sessionId ? composePrefill : null}
                     showQueueStack=${false}
                     key=${`${sessionId}:${draftRestore?.sessionId === sessionId ? draftRestore.token : ""}`}
                     draftValue=${getDraft(sessionId).text}
                     draftMediaFiles=${getDraft(sessionId).media}
-                    onContentChange=${(text) => drafts.update(sessionId, { text })}
+                    onContentChange=${(text) => {
+    drafts.update(sessionId, { text });
+    setComposePrefill(null);
+  }}
                     onDraftMediaChange=${(media) => drafts.update(sessionId, { media })}
                     focusRestoredDraft=${draftRestore?.sessionId === sessionId}
                     onCaptureDraft=${(draft) => drafts.begin(sessionId, draft)}
@@ -18349,7 +19181,8 @@ function ComposeTransfer({ sessionId, hidden }) {
         ${state.sending > 0 && fe`<div class="gi-compose-sending" role="status" aria-live="polite">Sending${state.sending > 1 ? ` ${state.sending} messages` : " message"}…</div>`}
     </div>`;
 }
+window.addEventListener("keydown", guardQuickActionsTyping, true);
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=6C1F14CB03D69BD164756E2164756E21
+//# debugId=0828CC3AA50EA94964756E2164756E21
 //# sourceMappingURL=app.js.map

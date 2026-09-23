@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Import unchanged pinned Quick Actions with native capability catalogue, typing guard and session-owned compose prefill; original003/005/006/007, 564 browser/79 functional/36 helpers/web race×3/Go-vet-build-hook plus48 capture+24 transition stress; ADR-0054, frozen50/236+2/42/unmapped186/40; 004/008 and conflicting queue replacement remain gaps, TUI design only.
+
 - [x] Close compose-005 with native XHR upload-byte progress and separate session-owned sending button state; real gates/bytes/overlap/rejection/reload/newer-draft proof, supplied files unchanged; ADR-0053, 516 browser/78 functional/34 helpers/Go-vet-build-hook; frozen46/236+2/42, unmapped190/40; terminal adaptation design only.
 
 - [x] Repair legacy startup: atomically create tables, apply additive columns, then build indexes; rollback/idempotence tests, real-copy migration, 70/70 functional and Go/vet/race checks. Dev instance restarted on 8090; two-way backup comparisons preserve 51 turns, 146 messages, 317 events and existing session fields.

@@ -58,6 +58,22 @@ async function request(url: string, options: RequestInit = {}) {
     return response.json();
 }
 
+// Same frozen component contract; conservative failure hides unsupported rows.
+let quickActionsReady = false;
+let quickActionsRevision = 0;
+export const isQuickActionsReady = () => quickActionsReady;
+export function resetQuickActionsReadiness() { quickActionsReady = false; ++quickActionsRevision; }
+export async function getQuickActionsSettings() {
+    const revision = ++quickActionsRevision;
+    quickActionsReady = false;
+    try { return { settings: await request('/api/quick-actions') }; }
+    catch { return { settings: { workspaceCommands: [], slashCommands: [] } }; }
+    finally { if (revision === quickActionsRevision) quickActionsReady = true; }
+}
+export async function getAgentCommands(_chatJid: string | null = null) {
+    return request('/api/quick-actions').then(data => ({ commands: data.commands || [] }));
+}
+
 // ── SSE helper ────────────────────────────────────────────────────────────
 
 function parseEventStreamBlock(block: string) {

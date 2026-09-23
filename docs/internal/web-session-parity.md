@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Native Quick Actions (2026-09-23)
+
+[ADR-0054](../adr/0054-native-quick-actions.md) imports unchanged pinned Classic sources and adds native supported commands, session/workspace actions, guarded typing and compose prefill. Original-003/005/006/007 pass; 004's complete surface outline and 008's skills remain gaps. **564 browser**, **79 functional**, **36 helpers**, Go/vet/build/hook and web race×3 pass, plus a final48 capture and24 transition stress run. Coverage: **50/236 Classic**, **2/42 shared**, **186/40 unmapped**. Screenshots cover all three browser sizes. Terminal combined-chooser adaptation is design-only; regular typing remains editor input and no idle rows are planned.
+
 ## Upload progress and distinct sending state (2026-09-23)
 
 [ADR-0053](../adr/0053-compose-upload-and-send-progress.md) closes frozen compose-005 through native byte events, separate upload/prompt lifetimes and a host-owned sending-button state. Real multipart bytes, origin/session/newer-draft preservation, overlapping operations and native rejection pass without supplied component edits. **516 browser**, **78 functional**, **34 helpers**, Go/vet/build/hook pass. Frozen coverage is now **46/236 Classic**, **2/42 shared**, **190/40 unmapped**. Screenshots cover phone/tablet/desktop upload and send states; terminal adaptation is design-only.

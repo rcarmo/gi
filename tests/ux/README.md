@@ -247,3 +247,11 @@ The report now includes separate shared rows/counts. Full matrix: **192/192** ex
 Current complete run: **516 browser executions** (348 main, 54 reconnect, 66 compaction, 18 Steer/admission, 12 fit, 12 meter, 6 index config), **78 functional**, **34 helpers**. Combined mapping is **46/236 Classic**, **2/42 shared**, **190/40 unmapped**. See [ADR-0053](../../docs/adr/0053-compose-upload-and-send-progress.md). Terminal media progress remains design-only.
 
 Use `UX_LOCAL_BIN=/tmp/gi-scheduler-bin/gi-ux-steer` for isolated local/reconnect binaries when workspace disk space is low. Reconnect forwards that path as `GI_UX_SERVER_BIN`; defaults are unchanged.
+
+## Native Quick Actions — 2026-09-23
+
+`quick-actions.spec.mjs` maps original-003/005/006/007 to pinned Classic typing/navigation, excluded key events, dismissal and native command prefill. Eight tests across six projects add 48 browser executions. The native catalogue exposes only workspace visibility, `/model` and `/compact`; session actions use real stored sessions. Full excluded surfaces (004) and loaded skill commands (008) remain unmapped. Shared queue merge evidence does not satisfy incompatible Classic replace-and-clear criteria.
+
+The complete main suite now contains **396 executions**. Three disjoint project batches passed and their saved reports combine with **168 supplementary executions** for **564 browser checks**, **50/236 Classic**, **2/42 shared**, **186/40 unmapped**. Final capture48 and transition-stress24 checks are additional, not duplicated in the combined report. Go/vet/build/hook, 79 functional, 36 helpers and web race×3 pass. See [ADR-0054](../../docs/adr/0054-native-quick-actions.md).
+
+When splitting a matrix, pass each project's report exactly once to `ux-parity-report.mjs`. Interrupted or repeated reports cannot supply complete-matrix credit. The current main reports are `/tmp/gi-quick-main-{chromium-mobile,mixed,webkit-large}.json`.
