@@ -62,7 +62,13 @@ const appBuild = await Bun.build({
   entrypoints: [`${webSrc}/app.ts`], outdir: webSrc,
   target: 'browser', format: 'esm', sourcemap: 'linked',
   external: ['/editor-vendor/codemirror.js'],
-  plugins: [{ name: 'gi-clipboard-safety', setup(build) {
+  plugins: [{ name: 'gi-appearance-renderer', setup(build) {
+    // Export only the existing catalogue and renderer; leave supplied source bytes unchanged.
+    build.onLoad({ filter: /[\\/]ui[\\/]theme\.ts$/ }, async args => ({
+      contents: await Bun.file(args.path).text() + '\nexport { THEME_PRESETS as giThemePresets, applyThemeState as giApplyThemeState };\n',
+      loader: 'ts',
+    }));
+  } }, { name: 'gi-clipboard-safety', setup(build) {
     build.onResolve({filter: /^\.\/post-runtime-safety\.js$/}, args => {
       if (args.importer === resolve(webSrc, 'components/post.ts')) {
         return { path: resolve(webSrc, 'gi-clipboard-safety.ts') };

@@ -18,7 +18,7 @@ Feature: Gi settings backed by native capabilities
   Scenario: Show only implemented settings sections and explicit scopes
     When I open Gi Settings
     Then General is selected and contains read-only instance identity and startup defaults
-    And Models is the only other enabled section in this slice
+    And Models and Appearance are the other enabled sections
     And General explains that startup settings are loaded from files and require restart
     And no credential, environment, budget, recording or add-on write controls are present
     And Models identifies its destination session and does not edit global defaults
@@ -87,11 +87,34 @@ Feature: Gi settings backed by native capabilities
     Then success reports the applied snapshot and any restart requirement
     And failure retains the draft without claiming live application
 
-  @proposal @gi-settings-next-002
-  Scenario: Separate browser appearance from session and instance policies
-    Given a Gi appearance storage contract has been chosen
-    When I edit a supported browser preference
-    Then its browser-local scope is explicit and no global or TUI policy is changed
+  @gi-settings-009
+  Scenario: Explicitly save browser-local appearance without changing server settings
+    Given Appearance is open and labelled as applying to this browser across sessions
+    When I select a supported preset or enter a default-theme hex tint
+    Then only the unsaved fields change until I press Save appearance
+    When I save successfully
+    Then a single versioned browser preference is persisted before the theme is rendered
+    And the page palette and theme metadata reflect the selection
+    And changing session or reloading retains the preference
+    And no server mutation, legacy per-chat theme write or TUI change occurs
+
+  @gi-settings-010
+  Scenario: Reject invalid appearance input and report storage failure honestly
+    Given Appearance is open
+    When I enter a tint other than an empty value or a three- or six-digit hex colour
+    Then Save reports a validation error without changing storage or the rendered theme
+    When storage denies a valid save
+    Then Settings retains the fields and reports failure without changing the rendered theme
+    And retry can persist and apply the same fields
+
+  @gi-settings-011
+  Scenario: Reset local appearance and synchronise other tabs
+    Given a saved browser appearance and another tab on the same origin
+    When I save another preset or use Reset appearance
+    Then the other tab renders the new preference without a reload
+    And Reset persists the default theme with no tint and follows the system colour mode
+    And a dirty Appearance form reports an external change without discarding its fields
+    And malformed saved preference data is ignored without crashing startup
 
   @proposal @gi-settings-next-003
   Scenario: Expose provider and compaction controls only with native write contracts

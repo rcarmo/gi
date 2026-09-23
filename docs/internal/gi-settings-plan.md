@@ -2,12 +2,13 @@
 
 Gi settings reuse Piclaw's modal layout while exposing Gi's own capabilities. The derived scenarios are in `tests/features/settings/gi-settings.feature`; they never increase frozen Classic/shared coverage.
 
-## First slice
+## Implemented sections
 
 | Section | Scope | Native source | Editing |
 |---|---|---|---|
 | General | Instance, loaded at startup | Authenticated `GET /api/runtime/config` | Read-only identity, workspace and model/thinking defaults; file/restart guidance |
 | Models | Captured session | Authenticated `GET/PATCH /api/sessions/:id/model` | Explicit Apply, native validation, context-fit guard, no global writes |
+| Appearance | Browser profile and origin, all sessions | One `gi_browser_appearance_v1` localStorage record | Explicit save/reset, preset and default-theme hex tint; no server/TUI writes |
 
 Piclaw scaffold: commit `70d33bc93ab540845bbcf5f80503ca8125c71594`, `runtime/web/src/components/settings-dialog.ts`, `runtime/web/static/classic/css/settings.css`, keyboard `openSettings` bindings. Gi owns its derived dialog and CSS; supplied components remain unchanged. `BodyPortal` and the existing timeline `piclaw:open-settings` event are reused.
 
@@ -21,7 +22,7 @@ The General/Models hierarchy, fixed half-opaque backdrop, sidebar-to-tabs respon
 - Manual compaction is session-bound. Piclaw policy, watchdog and backoff settings are not equivalent to Gi's startup configuration.
 - Workspace indexing is explicitly configured at startup; the existing index actions are distinct from settings writes.
 - Budget, scheduled tasks, recordings, environment overrides, keychain CRUD, add-on management and browser shortcut editing lack the Piclaw backend contracts. No placeholder enabled navigation entries.
-- Appearance and editor preferences need scope decisions and separate local-storage acceptance. Existing theme utilities are not evidence of working Settings persistence.
+- Appearance has a Gi-owned browser storage contract and uses the supplied theme catalogue/renderer through build-time exports. Editor preferences still need separate scope and acceptance.
 
 ## Frozen-spec relationship
 
@@ -47,4 +48,18 @@ Terminal adaptation: keep existing `/model`, Alt-M and context footer. Instance 
 
 Final settings matrix: **36/36** (six Chromium/WebKit viewport projects). Native large-catalogue/context suite: **24/24**, including existing compaction checks. Existing model/session plus earlier settings matrix: **156/156**. Fresh functional suite: **82/82**. Support tests: **40/40**. Go tests, vet, web build/hook checks and targeted auth/model race tests ×3 pass. Captures are in `test-results/gi-settings-captures/`.
 
-The three `@proposal` cases remain unimplemented. Frozen parity remains **64/236 Classic**, **3/42 shared**, **172/39 unmapped**. No supplied component or terminal code changed. Scaffold hashes are recorded in `web/upstream/piclaw-settings-scaffold-70d33bc93.json`.
+The initial three proposals included Appearance; it is implemented below. Identity and provider/compaction write proposals remain unimplemented. Frozen parity remains **64/236 Classic**, **3/42 shared**, **172/39 unmapped**. No supplied component or terminal code changed. Scaffold hashes are recorded in `web/upstream/piclaw-settings-scaffold-70d33bc93.json`.
+
+## Browser appearance contract — 2026-09-23
+
+`gi-settings-009`–`011` replace the appearance proposal; the file now contains 11 executable-scope Gi scenarios and two future proposals. The operator chooses a supplied preset and optional default-theme hex tint. Fields are drafts until Save. Changing preset clears the tint draft. Reset saves default/no tint and follows system light/dark mode; it does not remove the record or revive a legacy chat override.
+
+Storage is one versioned `{version:1, theme, tint}` record at `gi_browser_appearance_v1`. Validation precedes one `setItem`, and rendering follows successful persistence. Invalid/unsupported data is ignored at startup. Denied storage reports an error without changing the visual theme, and the draft remains available for retry. No configuration, server model or legacy Piclaw theme key is written. An explicit Gi record wins over legacy theme selection at startup; absent records retain legacy startup behaviour.
+
+Same-origin tabs receive storage events and apply valid preferences immediately. A clean Appearance form updates; a dirty one preserves fields and announces the external change. Saving that form explicitly overwrites the current preference. Scope is this browser profile/origin across sessions, not accounts, devices or terminals. Clearing browser storage resets this preference. No credentials are stored here.
+
+`build.js` exports `THEME_PRESETS` and `applyThemeState` from the unchanged supplied `ui/theme.ts` during bundling. Gi calls the renderer with `persist:false`, avoiding its per-chat writes and swallowed storage errors. No duplicate palette list or copy of theme algorithms is maintained. Tint accepts only empty, `#RGB` or `#RRGGBB`, normalised to six lowercase digits; arbitrary CSS expressions are rejected.
+
+Evidence: Settings/Models matrix **90/90** (54 Gi settings tests + 36 existing model tests), functional **83/83**, support **43/43**, Go/vet/build/hook pass. Browser tests exercise no-pre-save changes, exact persisted records, unchanged legacy keys, zero server mutations, session/reload scope, tint round-trip, storage denial/retry, malformed startup data, cross-tab dirty drafts and system colour changes. Captures: `test-results/gi-settings-captures/appearance-*.png`. Frozen counts remain **64/236**, shared **3/42**, unmapped **172/39**.
+
+Terminal disposition: browser tint and CSS presets do not alter the TUI. A future terminal theme selector should be an explicit bounded choice using terminal palettes and separate PTY tests, never a persistent sidebar or added idle row.

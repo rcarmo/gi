@@ -14,6 +14,7 @@ import { useAgentState } from './ui/use-agent-state.js';
 import { useSseConnection } from './ui/use-sse-connection.js';
 import { handleAppSseEvent } from './ui/app-sse-events.js';
 import { initTheme } from './ui/theme.js';
+import { initGiAppearance } from './gi-appearance.js';
 import { installPwaDisplayScaleSync } from './ui/pwa-display-scale.js';
 import {
     LAST_ACTIVITY_TTL_MS,
@@ -380,6 +381,7 @@ function GiApp() {
 
     useEffect(() => {
         const cleanupTheme = initTheme();
+        const cleanupAppearance = initGiAppearance();
         const cleanupDisplayScale = installPwaDisplayScaleSync();
         // Enable meters by default until /meters slash command exists
         if (getLocalStorageItem('piclaw_system_meters_enabled') === null) {
@@ -411,7 +413,7 @@ function GiApp() {
         }).catch((err) => {
             console.error('[gi] Bootstrap failed:', err);
         });
-        return () => { cleanupTheme?.(); cleanupDisplayScale(); };
+        return () => { cleanupTheme?.(); cleanupAppearance(); cleanupDisplayScale(); };
     }, []);
 
     // ── Timeline loading ─────────────────────────────────────────────────────

@@ -45,6 +45,19 @@ test.describe('App shell', () => {
     await expect(input).toHaveValue('functional settings draft');
   });
 
+  test('Gi appearance saves only a browser preference and restores it after reload', async ({ page }) => {
+    await page.goto(BASE_URL); await waitForAppShell(page);
+    await page.keyboard.press('Control+,');
+    const dialog = page.getByRole('dialog', { name: 'Gi Settings', exact: true });
+    await dialog.getByRole('button', { name: 'Appearance', exact: true }).click();
+    await dialog.getByLabel('Theme preset').selectOption('monokai');
+    await dialog.getByRole('button', { name: 'Save appearance' }).click();
+    await expect(dialog.getByRole('status')).toContainText('saved in this browser');
+    await page.reload(); await waitForAppShell(page);
+    await expect(page.locator('html')).toHaveAttribute('data-color-theme', 'monokai');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('gi_browser_appearance_v1') || 'null'))).toEqual({ version: 1, theme: 'monokai', tint: '' });
+  });
+
   test('page loads without JS errors', async ({ page }) => {
     const errors = await loadPageCollectingErrors(page);
     expect(errors).toEqual([]);

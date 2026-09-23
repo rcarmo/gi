@@ -2104,6 +2104,84 @@ function getThemeMode() {
   return resolveSystemMode();
 }
 
+// web/src/gi-appearance-state.ts
+var APPEARANCE_KEY = "gi_browser_appearance_v1";
+var defaultAppearance = { version: 1, theme: "default", tint: "" };
+function validateAppearance(value, presets) {
+  if (!value || value.version !== 1 || typeof value.theme !== "string" || !presets.includes(value.theme)) {
+    throw new Error("Choose a supported theme preset.");
+  }
+  if (typeof value.tint !== "string")
+    throw new Error("Tint must be a hex colour.");
+  let tint = value.tint.trim().toLowerCase();
+  if (tint && !/^#[0-9a-f]{3}([0-9a-f]{3})?$/.test(tint))
+    throw new Error("Use #RGB or #RRGGBB for the tint, or leave it empty.");
+  if (tint.length === 4)
+    tint = "#" + [...tint.slice(1)].map((c) => c + c).join("");
+  return { version: 1, theme: value.theme, tint: value.theme === "default" ? tint : "" };
+}
+function readAppearance(storage, presets) {
+  try {
+    const raw = storage.getItem(APPEARANCE_KEY);
+    return raw ? validateAppearance(JSON.parse(raw), presets) : null;
+  } catch {
+    return null;
+  }
+}
+function saveAppearance(storage, value, presets) {
+  const next = validateAppearance(value, presets);
+  storage.setItem(APPEARANCE_KEY, JSON.stringify(next));
+  return next;
+}
+
+// web/src/gi-appearance.ts
+var appearancePresets = Object.keys(THEME_PRESETS);
+var changeEvent = "gi:appearance-changed";
+function readStoredAppearance() {
+  try {
+    return readAppearance(window.localStorage, appearancePresets);
+  } catch {
+    return null;
+  }
+}
+function currentAppearance() {
+  const stored = readStoredAppearance();
+  if (stored)
+    return stored;
+  const theme = document.documentElement.dataset.colorTheme || "default";
+  return { version: 1, theme: appearancePresets.includes(theme) ? theme : "default", tint: document.documentElement.dataset.tint || "" };
+}
+function render(value) {
+  applyThemeState(value, { persist: false });
+  window.dispatchEvent(new CustomEvent(changeEvent, { detail: value }));
+}
+function persistAppearance(value) {
+  const saved = saveAppearance(window.localStorage, value, appearancePresets);
+  render(saved);
+  return saved;
+}
+function subscribeAppearance(onChange) {
+  const listener = (event) => onChange(event.detail);
+  window.addEventListener(changeEvent, listener);
+  return () => window.removeEventListener(changeEvent, listener);
+}
+function initGiAppearance() {
+  const saved = readStoredAppearance();
+  if (saved)
+    render(saved);
+  const storage = (event) => {
+    if (event.storageArea !== window.localStorage || event.key !== APPEARANCE_KEY && event.key !== null)
+      return;
+    const next = readStoredAppearance();
+    if (next)
+      render(next);
+    else if (event.newValue === null)
+      render(defaultAppearance);
+  };
+  window.addEventListener("storage", storage);
+  return () => window.removeEventListener("storage", storage);
+}
+
 // web/src/ui/chat-window.ts
 function isStandaloneWebAppMode(runtime = {}) {
   const win = runtime.window ?? (typeof window !== "undefined" ? window : null);
@@ -17776,6 +17854,58 @@ function Models({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
         `}
     </section>`;
 }
+function Appearance() {
+  const [draft, setDraft] = F_(currentAppearance);
+  const [error, setError] = F_("");
+  const [notice, setNotice] = F_("");
+  const dirty = Q_(false);
+  const ownSave = Q_(false);
+  K_(() => subscribeAppearance((value) => {
+    if (ownSave.current)
+      return;
+    if (dirty.current)
+      setNotice("Appearance changed in another tab. Your unsaved fields are unchanged. Save to overwrite or reset to defaults.");
+    else {
+      setDraft(value);
+      setNotice("Appearance updated from another tab.");
+    }
+  }), []);
+  const update = (patch) => {
+    dirty.current = true;
+    setDraft((previous) => ({ ...previous, ...patch }));
+    setError("");
+    setNotice("");
+  };
+  const save = (value) => {
+    setError("");
+    setNotice("");
+    ownSave.current = true;
+    try {
+      const saved = persistAppearance(value);
+      dirty.current = false;
+      setDraft(saved);
+      setNotice("Appearance saved in this browser.");
+    } catch (error) {
+      setError(`Appearance was not saved: ${error.message}`);
+    } finally {
+      ownSave.current = false;
+    }
+  };
+  return fe`<section aria-labelledby="gi-appearance-title">
+        <h2 id="gi-appearance-title">Appearance</h2>
+        <p>Browser settings · this origin, across all sessions</p>
+        <p>Only this browser profile changes. Server configuration, other devices and the terminal theme are unchanged. Default follows your system colour mode.</p>
+        <label>Theme preset<select aria-label="Theme preset" value=${draft.theme} onChange=${(e) => update({ theme: e.target.value, tint: "" })}>
+            ${appearancePresets.map((theme) => fe`<option value=${theme}>${theme}</option>`)}
+        </select></label>
+        <label>Custom tint<input aria-label="Custom tint" type="text" placeholder="#RRGGBB" maxLength="7" disabled=${draft.theme !== "default"} value=${draft.tint} onInput=${(e) => update({ tint: e.target.value })} /></label>
+        <p>Default theme only. Use #RGB or #RRGGBB, or leave empty for no tint.</p>
+        <button onClick=${() => save(draft)}>Save appearance</button>
+        <button onClick=${() => save(defaultAppearance)}>Reset appearance</button>
+        ${error && fe`<p role="alert">${error}</p>`}
+        ${notice && fe`<p role="status">${notice}</p>`}
+    </section>`;
+}
 function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied }) {
   const [section, setSection] = F_("general");
   const dialog = Q_(null);
@@ -17823,9 +17953,9 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
             <header class="settings-dialog-header"><span class="settings-dialog-title" id="gi-settings-title">Gi Settings</span>
                 <button class="settings-dialog-close" aria-label="Close settings" onClick=${onClose}>✕</button></header>
             <div class="settings-dialog-body"><nav class="settings-nav" aria-label="Settings sections">
-                ${["general", "models"].map((id) => fe`<button class=${`settings-nav-item ${section === id ? "active" : ""}`} aria-current=${section === id ? "page" : undefined} onClick=${() => setSection(id)}>${id === "general" ? "General" : "Models"}</button>`)}
+                ${["general", "models", "appearance"].map((id) => fe`<button class=${`settings-nav-item ${section === id ? "active" : ""}`} aria-current=${section === id ? "page" : undefined} onClick=${() => setSection(id)}>${{ general: "General", models: "Models", appearance: "Appearance" }[id]}</button>`)}
             </nav><main class="settings-content">
-                ${section === "general" ? fe`<${General} />` : fe`<${Models} key=${chatJid} chatJid=${chatJid} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`}
+                ${section === "general" ? fe`<${General} />` : section === "appearance" ? fe`<${Appearance} />` : fe`<${Models} key=${chatJid} chatJid=${chatJid} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`}
             </main></div>
         </div>
     </div>`;
@@ -18828,6 +18958,7 @@ function GiApp() {
   const renderedSelection = selection.capture();
   K_(() => {
     const cleanupTheme = initTheme();
+    const cleanupAppearance = initGiAppearance();
     const cleanupDisplayScale = installPwaDisplayScaleSync();
     if (getLocalStorageItem("piclaw_system_meters_enabled") === null) {
       setLocalStorageItem("piclaw_system_meters_enabled", "true");
@@ -18860,6 +18991,7 @@ function GiApp() {
     });
     return () => {
       cleanupTheme?.();
+      cleanupAppearance();
       cleanupDisplayScale();
     };
   }, []);
@@ -19849,5 +19981,5 @@ function ComposeTransfer({ sessionId, hidden }) {
 window.addEventListener("keydown", guardQuickActionsTyping, true);
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=8387280F7B35EBDF64756E2164756E21
+//# debugId=4B28773EE83E829A64756E2164756E21
 //# sourceMappingURL=app.js.map
