@@ -9,6 +9,7 @@ import (
 )
 
 func (s *Server) handleSessionCompaction(w http.ResponseWriter, r *http.Request, sessionID string) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	if _, err := s.store.GetSession(r.Context(), sessionID); err != nil {
 		writeJSON(w, 404, map[string]any{"error": err.Error()})
 		return

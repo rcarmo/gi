@@ -9,6 +9,7 @@ Gi settings reuse Piclaw's modal layout while exposing Gi's own capabilities. Th
 | General | Instance, loaded at startup | Authenticated `GET /api/runtime/config`, `GET/PATCH /api/settings/identity` | Active values read-only; explicit saved display-name writes requiring restart |
 | Models | Captured session | Authenticated `GET/PATCH /api/sessions/:id/model` | Explicit Apply, native validation, context-fit guard, no global writes |
 | Appearance | Browser profile and origin, all sessions | One `gi_browser_appearance_v1` localStorage record | Explicit save/reset, preset and default-theme hex tint; no server/TUI writes |
+| Compaction | Effective startup policy + captured session action | Authenticated session compaction/activity endpoints | Policy read-only; explicit Compact/Refresh and matching-turn Stop |
 
 Piclaw scaffold: commit `70d33bc93ab540845bbcf5f80503ca8125c71594`, `runtime/web/src/components/settings-dialog.ts`, `runtime/web/static/classic/css/settings.css`, keyboard `openSettings` bindings. Gi owns its derived dialog and CSS; supplied components remain unchanged. `BodyPortal` and the existing timeline `piclaw:open-settings` event are reused.
 
@@ -19,7 +20,7 @@ The General/Models hierarchy, fixed half-opaque backdrop, sidebar-to-tabs respon
 - `internal/config/config.go` loads `.piclaw/config.json` identity and `.pi/settings.json` runtime defaults. The narrow identity endpoint edits only assistant/user names; Piclaw General autosave and other global writes are unsupported.
 - `internal/web/session_model.go` validates model changes through `inference.SelectSessionModel`; session choices persist in SQLite. It reports current model, thinking, context usage and available model metadata.
 - Provider auth currently loads native credentials; no browser provider sign-in/key storage API is available.
-- Manual compaction is session-bound. Piclaw policy, watchdog and backoff settings are not equivalent to Gi's startup configuration.
+- Compaction displays the engine's effective startup policy and session-bound actions. Piclaw policy writes, remote models, watchdog and backoff settings remain unsupported.
 - Workspace indexing is explicitly configured at startup; the existing index actions are distinct from settings writes.
 - Budget, scheduled tasks, recordings, environment overrides, keychain CRUD, add-on management and browser shortcut editing lack the Piclaw backend contracts. No placeholder enabled navigation entries.
 - Appearance has a Gi-owned browser storage contract and uses the supplied theme catalogue/renderer through build-time exports. Editor preferences still need separate scope and acceptance.
@@ -77,3 +78,17 @@ Save writes a unique temporary file, syncs it, checks the revision again, rename
 Evidence: native preservation/validation/oversize/symlink/directory/FIFO tests, stale/concurrent revisions, cross-process locking, fresh-process config activation, authenticated routes, cross-origin/method/body rejection, and real browser filesystem failure/retry. Six-project Settings matrix **72/72**; earlier Settings/Models combined **102/102**; functional **83/83**, support **43/43**, Go/vet/build/hook and targeted config/web race ×3 pass. Closing a held save cannot announce success in a new view. Captures: `test-results/gi-settings-captures/identity-*.png`.
 
 Terminal disposition: these names load on the next process start without additional terminal UI. A future explicit identity command must share this storage contract and state the restart requirement; no idle rows or terminal acceptance are added here. Frozen parity remains **64/236 Classic**, **3/42 shared**, **172/39 unmapped**.
+
+## Compaction inspection and session actions — 2026-09-23
+
+`gi-settings-014`–`017` add Compaction to the modal: 17 Gi scenarios plus one future provider/policy-write proposal. `GET /api/sessions/:id/compaction` includes the engine's effective startup policy and `policy_scope:"startup"`, with private/no-store caching. A test intentionally supplies different web-server config to ensure the engine remains authoritative. General config is not reloaded or mutated by this pane.
+
+The pane shows automatic enablement, configured context window/threshold/reserve/recent-token budget and strategy label as read-only values. The current engine uses a local compactor and configured hooks; no remote compaction model, native-provider mode, watchdog, suppression reset or policy-save controls are exposed.
+
+Compact now posts the captured history token to the existing idle-only admission path. Stop turn posts the displayed active compaction's turn ID; for automatic compaction it cancels the entire owning turn, not merely the compaction phase. Admission and cancellation responses are acknowledgements, never completion. The activity endpoint supplies matching occurrence progress and terminal state. History remains visible; drafts/media/model selection are untouched.
+
+A one-second, non-overlapping refresh runs only while the pane is mounted. Polling continues during a delayed action response but actions stay disabled until it settles and state is refreshed. Reads are fenced by a revision; each dialog/session mounts its own lifecycle. Failed reads disable actions and recover on a successful refresh. Action errors remain until Refresh or another explicit action. Native token/run checks handle work arriving between a poll and a click without inventing an atomic browser snapshot.
+
+Evidence: full real-provider compaction suite **96/96**, including **30** Gi-pane browser tests across six projects, plus Settings/Models **108/108**, functional **83/83**, support **43/43**, Go/vet/build/hook and targeted web/turn race ×3. Tests cover native read failure, stale-token 409, Stop failure/retry/cancellation, durable history-preserving completion, closed-view/session fences for held reads and actions, and authoritative completion before a delayed admission response. Captures: `test-results/gi-settings-captures/compaction-*.png`.
+
+Terminal adaptation remains `/compact`, `/compact info`, Alt-C and focused Escape, with their earlier independent PTY evidence. No terminal change or new frozen credit: Classic **64/236**, shared **3/42**, unmapped **172/39**. Editing automatic policy still needs its own validated persistence and restart contract.

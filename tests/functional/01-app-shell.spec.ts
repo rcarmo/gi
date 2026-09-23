@@ -44,6 +44,9 @@ test.describe('App shell', () => {
     await expect(dialog.getByRole('button', { name: 'Save names', exact: true })).toBeEnabled();
     await dialog.getByRole('button', { name: 'Models', exact: true }).click();
     await expect(dialog.getByTestId('settings-current-model')).toContainText('test-model');
+    await dialog.getByRole('button', { name: 'Compaction', exact: true }).click();
+    await expect(dialog.getByTestId('compaction-policy')).toContainText('Trigger threshold');
+    await expect(dialog.getByRole('button', { name: 'Compact now', exact: true })).toBeVisible();
     await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
     await expect(input).toHaveValue('functional settings draft');
   });

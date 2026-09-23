@@ -36,6 +36,9 @@ func TestGiSettingsRoutesPreserveAuthentication(t *testing.T) {
 		{"GET", "/api/settings/identity", ""},
 		{"PATCH", "/api/settings/identity", "not json"},
 		{"GET", "/api/sessions/missing/model", ""},
+		{"GET", "/api/sessions/missing/compaction", ""},
+		{"POST", "/api/sessions/missing/compaction", "not json"},
+		{"POST", "/api/sessions/missing/activity", "not json"},
 		{"PATCH", "/api/sessions/missing/model", "not json"},
 	} {
 		rec := httptest.NewRecorder()

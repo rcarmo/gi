@@ -17,7 +17,11 @@ func (e *Engine) ManualCompactionState(ctx context.Context, sessionID string) (m
 	if err != nil {
 		return nil, err
 	}
-	state := map[string]any{"available": false, "reason": "Not enough eligible context", "token": store.ContextToken(snapshot)}
+	state := map[string]any{
+		"available": false, "reason": "Not enough eligible context", "token": store.ContextToken(snapshot),
+		// Expose the engine's effective policy, not a second config load or UI defaults.
+		"policy": e.runtimeCfg.Compaction, "policy_scope": "startup",
+	}
 	busy, err := e.store.CompactionBusy(ctx, sessionID)
 	if err != nil {
 		return nil, err

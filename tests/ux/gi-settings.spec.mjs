@@ -36,7 +36,7 @@ test('@gi-settings-001 @gi-settings-002 Single scoped modal, responsive backdrop
   await input.focus();
   await open(); await page.keyboard.press('Control+,'); await page.keyboard.press('Control+,');
   await expect(dialogFor(page)).toHaveCount(1);
-  await expect(dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button')).toHaveText(['General', 'Models', 'Appearance']);
+  await expect(dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button')).toHaveText(['General', 'Models', 'Appearance', 'Compaction']);
   await expect(dialog.getByText('Active instance settings · read-only')).toBeVisible();
   await expect(dialog.getByText(/Edit the files and restart Gi/)).toBeVisible();
   await expect(dialog.locator('input, select')).toHaveCount(2);

@@ -18,7 +18,7 @@ Feature: Gi settings backed by native capabilities
   Scenario: Show only implemented settings sections and explicit scopes
     When I open Gi Settings
     Then General is selected and separates active instance values from saved display-name fields
-    And Models and Appearance are the other enabled sections
+    And Models, Appearance and Compaction are the other enabled sections
     And General explains that startup settings are loaded from files and require restart
     And only assistant and user display names are editable as instance settings
     And no credential, environment, budget, recording or add-on write controls are present
@@ -134,6 +134,43 @@ Feature: Gi settings backed by native capabilities
     And Reset persists the default theme with no tint and follows the system colour mode
     And a dirty Appearance form reports an external change without discarding its fields
     And malformed saved preference data is ignored without crashing startup
+
+  @gi-settings-014
+  Scenario: Inspect effective compaction policy and session capability without changing it
+    When I open Compaction in Gi Settings
+    Then the effective engine startup policy is displayed read-only with restart guidance
+    And the destination session and authoritative manual capability or disabled reason are visible
+    And no provider-model, watchdog, backoff or policy-save controls are advertised
+    And a failed read disables actions and offers Refresh without using stale capability
+
+  @gi-settings-015
+  Scenario: Compact with an explicit snapshot and report authoritative completion
+    Given the destination session is idle with eligible native context
+    When I press Compact now
+    Then the captured context token is posted once and controls wait for admission
+    And admission is labelled as accepted rather than completed
+    When authoritative progress and completion arrive
+    Then the matching compaction state is displayed
+    And the durable context boundary is persisted without deleting timeline or submitting my draft
+    And draft text, attachments and the selected model remain unchanged
+
+  @gi-settings-016
+  Scenario: Stop the displayed compaction turn and recover from stale capability
+    Given a matching active compaction is displayed in Settings
+    When I press Stop turn
+    Then cancellation targets that exact turn identifier and waits for authoritative state
+    And a cancellation failure reports an error without clearing draft state
+    When context or active work changes after a manual capability read
+    Then native admission rejects the stale request without a duplicate or queued compaction
+    And Settings refreshes capability and retains explicit failure feedback
+
+  @gi-settings-017
+  Scenario: Fence Compaction reads and actions by dialog and session
+    Given a Compaction read or action response for session A is held
+    When I close Settings, switch to B and reopen Compaction
+    And the response for A arrives
+    Then B's capability, progress, error feedback and draft are unchanged
+    And accepted work on A remains bound to A
 
   @proposal @gi-settings-next-003
   Scenario: Expose provider and compaction controls only with native write contracts

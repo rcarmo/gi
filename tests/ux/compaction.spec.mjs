@@ -160,3 +160,115 @@ test('Gi manual Compact failure, stale token and cancellation never submit the d
   const messages=(await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages;expect(messages.some(m=>m.content==='never submit me')).toBe(false);expect(messages.filter(m=>m.payload?.turn_id===manual.turn_id&&m.payload?.kind==='compaction')).toHaveLength(0);
  }finally{writeFileSync(gate,'go');}
 });
+
+async function settingsManualFixture(page,request,info){
+ const token=`settings-compact-${info.project.name}-${Date.now()}`;
+ const main=(await(await request.post('/api/sessions',{data:{agent_id:token,title:token}})).json()).id;
+ const child=(await(await request.post('/api/sessions',{data:{agent_id:token+'-other',title:'other'}})).json()).id;
+ const turns=async()=> (await(await request.get(`/api/sessions/${main}/turns`)).json()).turns||[];
+ for(let i=0;i<2;i++){
+  const run=await(await request.post(`/api/sessions/${main}/prompt`,{data:{prompt:`Settings compaction history ${i}`,model:'ux-local/gate'}})).json();
+  await expect.poll(async()=> (await turns()).find(t=>t.id===run.turn_id)?.status).toBe('completed');
+ }
+ await expect.poll(async()=> (await(await request.get(`/api/sessions/${main}/compaction`)).json()).available).toBe(true);
+ await page.addInitScript(id=>{if(!localStorage.getItem('gi_session_id'))localStorage.setItem('gi_session_id',id);},main);
+ await page.goto('/');const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('settings compaction draft');
+ await page.locator('.compose-box input[type=file]').setInputFiles({name:'settings-compact.txt',mimeType:'text/plain',buffer:Buffer.from('preserve settings media')});
+ const dialog=page.getByRole('dialog',{name:'Gi Settings',exact:true});
+ const open=async()=>{await page.keyboard.press('Control+,');await dialog.getByRole('button',{name:'Compaction',exact:true}).click();await expect(dialog.getByTestId('compaction-policy')).toBeVisible();};
+ const gate=resolve('test-results/ux-parity/queue-gates',`manual-${main}`);mkdirSync(resolve(gate,'..'),{recursive:true});
+ return{main,child,input,dialog,open,turns,release:()=>writeFileSync(gate,'go')};
+}
+
+test('@gi-settings-014 @gi-settings-015 Read-only policy and explicit manual compaction follow native progress',async({page,request},info)=>{
+ const{main,input,dialog,open,turns,release}=await settingsManualFixture(page,request,info);
+ const before=(await(await request.get(`/api/sessions/${main}/messages`)).json()).messages;
+ const model=(await(await request.get(`/api/sessions/${main}/model`)).json()).current;
+ try{
+  await open();await expect(dialog.getByTestId('compaction-policy')).toContainText('Enabled');await expect(dialog.getByText(/policy is read-only/)).toBeVisible();
+  await expect(dialog.locator('input,select')).toHaveCount(0);
+  const capability=await(await request.get(`/api/sessions/${main}/compaction`)).json();expect(capability.policy_scope).toBe('startup');
+  await expect(dialog.getByTestId('compaction-policy')).toContainText(String(capability.policy.threshold_tokens));
+  const sent=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main}/compaction`)&&r.request().method()==='POST');
+  await dialog.getByRole('button',{name:'Compact now',exact:true}).click();const response=await sent;expect(response.status()).toBe(202);const run=await response.json();
+  expect(response.request().postDataJSON()).toEqual({token:capability.token});
+  await expect(dialog.getByTestId('settings-compaction-progress')).toContainText('Compacting context');
+  await expect(dialog.getByRole('button',{name:'Compact now',exact:true})).toBeDisabled();
+  await expect(dialog.getByRole('status')).toContainText('accepted');
+  release();await expect.poll(async()=> (await turns()).find(t=>t.id===run.turn_id)?.status).toBe('completed');
+  await expect(dialog.getByTestId('settings-compaction-progress')).toContainText('Context compacted');
+  await expect(dialog.getByRole('status')).toContainText('Authoritative state: Context compacted');
+  const after=(await(await request.get(`/api/sessions/${main}/messages`)).json()).messages;for(const item of before)expect(after.find(m=>m.id===item.id)).toEqual(item);
+  expect(after.some(m=>m.payload?.turn_id===run.turn_id&&m.payload?.durable_context)).toBe(true);expect(after.filter(m=>m.role==='user')).toHaveLength(2);
+  expect((await(await request.get(`/api/sessions/${main}/model`)).json()).current).toBe(model);
+  if(process.env.GI_SETTINGS_CAPTURE&&info.project.name.startsWith('chromium-')){mkdirSync('test-results/gi-settings-captures',{recursive:true});await page.screenshot({path:`test-results/gi-settings-captures/compaction-${info.project.name}.png`});}
+  await page.keyboard.press('Escape');await expect(input).toHaveValue('settings compaction draft');await expect(page.locator('.compose-file-pill[title="settings-compact.txt"]')).toBeVisible();
+ }finally{release();}
+});
+
+test('@gi-settings-014 @gi-settings-016 Read failure, stale token and run-bound Stop retain draft',async({page,request},info)=>{
+ const{main,input,dialog,open,turns,release}=await settingsManualFixture(page,request,info);
+ let unblock,held=false;const gate=new Promise(resolve=>unblock=resolve);
+ try{
+  await page.route(`**/api/sessions/${main}/compaction`,route=>route.request().method()==='GET'?route.abort():route.continue());
+  await page.keyboard.press('Control+,');await dialog.getByRole('button',{name:'Compaction',exact:true}).click();
+  await expect(dialog.getByRole('alert')).toContainText('Refresh failed');await expect(dialog.getByRole('button',{name:'Compact now',exact:true})).toBeDisabled();
+  await page.unroute(`**/api/sessions/${main}/compaction`);await dialog.getByRole('button',{name:'Refresh compaction'}).click();await expect(dialog.getByRole('button',{name:'Compact now',exact:true})).toBeEnabled();
+  await page.route(`**/api/sessions/${main}/compaction`,async route=>{if(route.request().method()!=='POST')return route.continue();held=true;await gate;await route.continue();});
+  const rejected=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main}/compaction`)&&r.request().method()==='POST');
+  await dialog.getByRole('button',{name:'Compact now',exact:true}).click();await expect.poll(()=>held).toBe(true);
+  const added=await(await request.post(`/api/sessions/${main}/prompt`,{data:{prompt:'Changes the context after capability read',model:'ux-local/gate'}})).json();await expect.poll(async()=> (await turns()).find(t=>t.id===added.turn_id)?.status).toBe('completed');
+  unblock();expect((await rejected).status()).toBe(409);await expect(dialog.getByRole('alert')).toContainText('Compact failed');expect(await turns()).toHaveLength(3);
+  await page.unroute(`**/api/sessions/${main}/compaction`);await dialog.getByRole('button',{name:'Refresh compaction'}).click();await expect(dialog.getByRole('button',{name:'Compact now',exact:true})).toBeEnabled();
+  const accepted=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main}/compaction`)&&r.request().method()==='POST');await dialog.getByRole('button',{name:'Compact now',exact:true}).click();const run=await(await accepted).json();
+  await expect(dialog.getByRole('button',{name:'Stop turn',exact:true})).toBeVisible();
+  let fail=true;await page.route(`**/api/sessions/${main}/activity`,route=>route.request().method()==='POST'&&fail?route.abort():route.continue());
+  await dialog.getByRole('button',{name:'Stop turn',exact:true}).click();await expect(dialog.getByRole('alert')).toContainText('Stop failed');fail=false;
+  const stopped=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main}/activity`)&&r.request().method()==='POST');
+  await dialog.getByRole('button',{name:'Stop turn',exact:true}).click();const result=await stopped;expect(result.request().postDataJSON()).toEqual({turn_id:run.turn_id});expect(result.status()).toBe(200);
+  await expect.poll(async()=> (await turns()).find(t=>t.id===run.turn_id)?.status).toBe('cancelled');
+  await expect(dialog.getByTestId('settings-compaction-progress')).toContainText('Compaction cancelled');
+  await page.keyboard.press('Escape');await expect(input).toHaveValue('settings compaction draft');await expect(page.locator('.compose-file-pill[title="settings-compact.txt"]')).toBeVisible();
+ }finally{unblock();release();}
+});
+
+test('@gi-settings-017 Late accepted compaction response stays with its closed originating session',async({page,request},info)=>{
+ const{main,child,input,dialog,open,turns,release}=await settingsManualFixture(page,request,info);
+ let unblock,held=false,done,turnId;const gate=new Promise(resolve=>unblock=resolve),delivered=new Promise(resolve=>done=resolve);
+ await page.route(`**/api/sessions/${main}/compaction`,async route=>{if(route.request().method()!=='POST')return route.continue();const response=await route.fetch();turnId=(await response.json()).turn_id;held=true;await gate;await route.fulfill({response});done();});
+ try{
+  await open();await dialog.getByRole('button',{name:'Compact now',exact:true}).click();await expect.poll(()=>held).toBe(true);
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${child}"]`).getByRole('menuitem').click();await input.fill('target compaction draft');
+  await open();await expect(dialog).toContainText(`gi:${child}`);await expect(dialog.getByTestId('compaction-capability')).toContainText('Not enough eligible context');
+  unblock();await delivered;release();await expect.poll(async()=> (await turns()).find(t=>t.id===turnId)?.status).toBe('completed');
+  await expect(dialog.getByTestId('settings-compaction-progress')).toHaveCount(0);await expect(dialog.getByRole('alert')).toHaveCount(0);await expect(dialog.getByRole('button',{name:'Compact now',exact:true})).toBeDisabled();
+  await page.keyboard.press('Escape');await expect(input).toHaveValue('target compaction draft');
+ }finally{unblock();release();}
+});
+
+test('@gi-settings-017 A held compaction read cannot enable actions in a different session',async({page,request},info)=>{
+ const{main,child,input,dialog,open,release}=await settingsManualFixture(page,request,info);
+ let unblock,held=false,done;const gate=new Promise(resolve=>unblock=resolve),delivered=new Promise(resolve=>done=resolve);
+ await page.route(`**/api/sessions/${main}/compaction`,async route=>{if(route.request().method()!=='GET'||held)return route.continue();const response=await route.fetch();held=true;await gate;await route.fulfill({response});done();});
+ try{
+  await page.keyboard.press('Control+,');await dialog.getByRole('button',{name:'Compaction',exact:true}).click();await expect.poll(()=>held).toBe(true);
+  await expect(dialog.getByRole('button',{name:'Compact now',exact:true})).toBeDisabled();
+  await page.keyboard.press('Escape');await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${child}"]`).getByRole('menuitem').click();await input.fill('held-read target draft');await open();
+  unblock();await delivered;await expect(dialog.getByTestId('compaction-capability')).toContainText('Not enough eligible context');await expect(dialog.getByRole('button',{name:'Compact now',exact:true})).toBeDisabled();
+  await page.keyboard.press('Escape');await expect(input).toHaveValue('held-read target draft');
+ }finally{unblock();release();}
+});
+
+test('@gi-settings-015 A held admission response does not freeze authoritative completion',async({page,request},info)=>{
+ const{main,dialog,open,turns,release}=await settingsManualFixture(page,request,info);
+ let unblock,held=false,turnId;const gate=new Promise(resolve=>unblock=resolve);
+ await page.route(`**/api/sessions/${main}/compaction`,async route=>{if(route.request().method()!=='POST')return route.continue();const response=await route.fetch();turnId=(await response.json()).turn_id;held=true;await gate;await route.fulfill({response});});
+ try{
+  await open();await dialog.getByRole('button',{name:'Compact now',exact:true}).click();await expect.poll(()=>held).toBe(true);
+  release();await expect.poll(async()=> (await turns()).find(t=>t.id===turnId)?.status).toBe('completed');
+  await expect(dialog.getByTestId('settings-compaction-progress')).toContainText('Context compacted');
+  await expect(dialog.getByRole('button',{name:'Working…',exact:true})).toBeDisabled();
+  unblock();await expect(dialog.getByRole('status')).toContainText('Authoritative state: Context compacted');
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+ }finally{unblock();release();}
+});
