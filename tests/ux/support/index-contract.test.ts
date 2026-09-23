@@ -10,9 +10,9 @@ test('derived index contract parses separately without adding frozen parity cred
  const envelopes=generateMessages(readFileSync(path,'utf8'),path,'text/x.cucumber.gherkin+plain',{newId:IdGenerator.incrementing(),includeGherkinDocument:true,includePickles:true});
  expect(envelopes.filter(e=>e.parseError)).toEqual([]);
  const pickles=envelopes.filter(e=>e.pickle).map(e=>e.pickle!);
- expect(pickles).toHaveLength(18);
+ expect(pickles).toHaveLength(20);
  const ids=pickles.map(p=>p.tags.find(t=>t.name.startsWith('@index-derived-'))?.name);
- expect(new Set(ids).size).toBe(18);expect(ids.every(Boolean)).toBe(true);
+ expect(new Set(ids).size).toBe(20);expect(ids.every(Boolean)).toBe(true);
  expect(pickles.every(p=>p.tags.some(t=>t.name==='@proposal'))).toBe(true);
  expect(pickles.some(p=>p.tags.some(t=>t.name.startsWith('@ux-')))).toBe(false);
  const classic=loadCorpus();expect(classic).toHaveLength(256);expect(new Set(classic.map(row=>row.id)).size).toBe(236);

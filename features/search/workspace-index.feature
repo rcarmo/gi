@@ -168,3 +168,29 @@ Feature: Scoped workspace indexing lifecycle
     When scanning, publication or failure cleanup fails
     Then no pending revision is acknowledged
     And reopening the database retains the pending revision and committed index
+
+  @index-derived-019 @gi-strengthening
+  Scenario: Coalesce bounded refresh work without hiding pending revisions
+    Given a scheduler owns a fixed set of scopes for one workspace
+    When concurrent callers request the same scope
+    Then they share one bounded refresh batch and completion outcome
+    And at most one local worker runs across those scopes at a time
+    And a caller cancelling its wait does not cancel other callers' work
+    When a successful scan leaves a newer invalidation pending
+    Then the scheduler requests a follow-up within the same attempt budget
+    And it reports success only after observing ready status with acknowledged revisions
+    When another process owns the workspace lease
+    Then retry delays are capped and attempts are bounded
+    And a newer matching peer publication can satisfy the batch without a duplicate scan
+    When a scan fails or the attempt budget is exhausted
+    Then the batch returns an error without clearing durable failure or pending revisions
+
+  @index-derived-020 @gi-strengthening
+  Scenario: Stop scheduler work before closing the database
+    Given a scheduler has active and queued refresh requests
+    When its application owner cancels and closes it
+    Then active scanning and retry waits are cancelled
+    And close waits for worker renewal and failure cleanup to finish
+    And every queued caller receives a terminal result
+    And requests after cancellation are rejected
+    And no scheduler database operation occurs after close returns

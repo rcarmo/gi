@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Bounded internal index scheduler (2026-09-23)
+
+[ADR-0049](../adr/0049-bounded-index-scheduler.md) adds fixed-scope coalescing, shared completion tickets, revision-aware peer/follow-up completion, bounded retries and cancel/join shutdown. It has no production caller yet. Go/vet/build/hook, 76 functional, 32 helpers, store/indexer race ×3 and scheduler race ×10 pass; 20 derived proposals parse separately. Build output moved to `/tmp` after ENOSPC without removing backups/screenshots. No browser/terminal matrix or new frozen credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**. Query GET remains read-only; application/watcher wiring is next.
+
 ## Durable index invalidation prerequisite (2026-09-23)
 
 [ADR-0048](../adr/0048-durable-index-invalidation.md) adds v2 requested/acknowledged scope revisions so changes during refresh remain pending after publication. Native races, failure/reopen, held-worker tests and copied dev database 30-table/v1-ledger preservation pass. Go/vet/build/hook, 76 functional, 32 helpers, store/indexer race ×3, focused 24 browser and TUI smoke/Gherkin pass. Watcher/mutation delivery and scheduling remain disconnected; 18 derived proposals remain separate. No UI change or new frozen credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**.

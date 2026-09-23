@@ -18,7 +18,7 @@ This enables model-friendly retrieval paths and source linking without requiring
 
 ## Source-backed indexing design
 
-[Piclaw/Tau/Vibes comparison and implementation gate](indexing-lineage-20260922.md) pins the inspected revisions and derives non-frozen Gherkin scenarios (now 18 proposals, including root policy and durable invalidation). [Candidate SQL](workspace-index-candidate.sql) is the historical design. Its scoped tables are now installed by the versioned [startup migration](../../adr/0042-versioned-workspace-index-schema.md), with migration/rollback/preservation and chunk/FTS tests. [Scoped refresh storage APIs](../../adr/0043-scoped-index-refresh-transactions.md) now use them for deterministic configuration, fenced ownership and atomic complete-snapshot commits. The [rooted scanner and line chunker](../../adr/0044-rooted-index-scanning.md) now produce validated complete snapshots internally. An [explicit lease-renewing worker](../../adr/0045-index-refresh-worker.md) now connects the scanner to fenced commits internally. [Authenticated status/reindex/lexical query endpoints](../../adr/0046-native-workspace-index-api.md) now expose it, and the web Reindex/Refresh actions call the native path. No background scheduling or filesystem invalidation is connected yet. The provisional whole-workspace rebuild is stashed; runtime workspace status/reindex uses the scoped worker; the provisional unscoped implementation remains shelved. Piclaw supplies the workspace lifecycle, Tau supplies transactional entity identity, and Vibes supplies trigger-maintained external-content FTS. ADR-0008 remains the hybrid target; lexical prototype work does not establish vector support.
+[Piclaw/Tau/Vibes comparison and implementation gate](indexing-lineage-20260922.md) pins the inspected revisions and derives non-frozen Gherkin scenarios (now 20 proposals, including root policy, durable invalidation and bounded scheduler lifecycle). [Candidate SQL](workspace-index-candidate.sql) is the historical design. Its scoped tables are now installed by the versioned [startup migration](../../adr/0042-versioned-workspace-index-schema.md), with migration/rollback/preservation and chunk/FTS tests. [Scoped refresh storage APIs](../../adr/0043-scoped-index-refresh-transactions.md) now use them for deterministic configuration, fenced ownership and atomic complete-snapshot commits. The [rooted scanner and line chunker](../../adr/0044-rooted-index-scanning.md) now produce validated complete snapshots internally. An [explicit lease-renewing worker](../../adr/0045-index-refresh-worker.md) now connects the scanner to fenced commits internally. [Authenticated status/reindex/lexical query endpoints](../../adr/0046-native-workspace-index-api.md) now expose it, and the web Reindex/Refresh actions call the native path. No background scheduling or filesystem invalidation is connected yet. The provisional whole-workspace rebuild is stashed; runtime workspace status/reindex uses the scoped worker; the provisional unscoped implementation remains shelved. Piclaw supplies the workspace lifecycle, Tau supplies transactional entity identity, and Vibes supplies trigger-maintained external-content FTS. ADR-0008 remains the hybrid target; lexical prototype work does not establish vector support.
 
 ## Current implementation status
 
@@ -32,13 +32,14 @@ Implemented now:
 - query classification and hybrid rank helper scaffolding
 - deterministic UTF-8 line chunker and bounded rooted scanner with change detection and scan→commit tests
 - explicit lease-renewing worker with cancellation, failure cleanup, takeover and killed-process recovery tests
+- [internal bounded scheduler](../../adr/0049-bounded-index-scheduler.md): fixed-scope coalescing, revision-aware completion, contention/follow-up budgets and cancel/join shutdown; no production caller yet
 - authenticated GET status/query and explicit POST reindex, plus supplied web Reindex/Refresh action routing
 - [startup workspaceIndex settings and optional roots](../../adr/0047-index-settings-and-optional-roots.md): extra roots/extensions, explicit safe initial absence, transactional rejection of populated-root disappearance
 - embed/vector/indexer interfaces
 
 Still pending:
 
-- application scheduling, watcher/mutation delivery to durable invalidation, nonblocking background refresh and terminal/query consumers
+- application ownership/wiring of the internal scheduler, watcher/mutation delivery to durable invalidation, nonblocking background refresh and terminal/query consumers
 - heading/symbol-aware chunking beyond the implemented literal line chunks
 - real `gte-go` embedding implementation
 - real `sqlite-vec` backend implementation
