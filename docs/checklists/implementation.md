@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [ ] Gi Providers (`gi-settings-020`–`023`): OpenAI/Anthropic key save/confirmed remove, metadata-only OAuth/custom rows, private atomic native auth store shared by TUI logout; auth/origin/TLS-or-loopback-peer+Host/CAS/no-secret/failure/reopen proof. Local-provider six-project36, Settings/Models126, functional83, helpers43, Go/vet/build/hook/race×3/Darwin compile pass. No operator key writes, frozen credit or TUI rows. Commit/deployment pending.
+- [x] Gi Providers (`gi-settings-020`–`023`): OpenAI/Anthropic key save/confirmed remove, metadata-only OAuth/custom rows, private atomic native auth store shared by TUI logout; auth/origin/TLS-or-loopback-peer+Host/CAS/no-secret/failure/reopen proof. Local-provider six-project36, Settings/Models126, functional83, helpers43, Go/vet/build/hook/race×3/Darwin compile pass. No operator key writes, frozen credit or TUI rows. Push3829f55/restart8090: metadata/pane read-only smoke, 7 provider rows/61sessions/integrity/FK OK.
 
 - [x] Gi automatic policy (`gi-settings-018`/`019`): shared atomic locked Pi settings writers, revision-bound save/restart semantics, unknown-field preservation and concurrent/process/unsafe-file/failure proof. Settings/Models126, compaction96, functional83, helpers43, Go/vet/build/hook/race×3, Darwin config compile and three-size TUI compaction pass. No provider credentials, auto-restart, frozen credit or idle rows. Pushf81a3ca/restart8090: read-only live policy/form match, unchanged threshold108000, 61sessions/integrity/FK OK.
 
