@@ -1,0 +1,8 @@
+/* Gi host bound: full streamed previews scroll without displacing compose. */
+.app-shell .container > .agent-status-panel {
+    max-height: 40%;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+}
+.app-shell .container > .agent-status-panel > * { flex-shrink: 0; }

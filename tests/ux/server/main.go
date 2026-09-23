@@ -70,7 +70,40 @@ func main() {
 		w.Header().Set("Content-Type", "text/event-stream")
 		emit := func(v any) { b, _ := json.Marshal(v); fmt.Fprintf(w, "data: %s\n\n", b); w.(http.Flusher).Flush() }
 		content := "provider checkpoint"
-		if strings.Contains(string(raw), "UX status panels") {
+		if strings.Contains(string(raw), "UX preview expand") && len(match) > 1 {
+			lines := func(kind string, start, end int) string {
+				var text strings.Builder
+				for i := start; i <= end; i++ {
+					if i > start {
+						text.WriteString("\n")
+					}
+					fmt.Fprintf(&text, "%s line %02d  ", kind, i)
+				}
+				return text.String()
+			}
+			delta := func(thought, draft string) {
+				emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"role": "assistant", "reasoning_content": thought, "content": draft}, "finish_reason": nil}}})
+			}
+			delta(lines("Thought", 1, 12), lines("Draft", 1, 12))
+			tick := time.NewTicker(20 * time.Millisecond)
+			defer tick.Stop()
+			deadline := time.After(55 * time.Second)
+		stage:
+			for {
+				select {
+				case <-r.Context().Done():
+					return
+				case <-deadline:
+					return
+				case <-tick.C:
+					if _, err := os.Stat(filepath.Join(gates, match[1]+".more")); err == nil {
+						break stage
+					}
+				}
+			}
+			delta("\n"+lines("Thought", 13, 16), "\n"+lines("Draft", 13, 16))
+			content = ""
+		} else if strings.Contains(string(raw), "UX status panels") {
 			// Interactive links reach the unchanged status component through the
 			// real provider parser and native thought/draft SSE path.
 			emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"role": "assistant", "reasoning_content": "Native thought [details](https://example.invalid/thought)"}, "finish_reason": nil}}})
@@ -87,6 +120,7 @@ func main() {
 				deadline := time.After(55 * time.Second)
 				tick := time.NewTicker(20 * time.Millisecond)
 				defer tick.Stop()
+				updatedPreview := false
 			wait:
 				for {
 					select {
@@ -95,6 +129,12 @@ func main() {
 					case <-deadline:
 						break wait
 					case <-tick.C:
+						if strings.Contains(string(raw), "UX preview expand") && !updatedPreview {
+							if _, err := os.Stat(filepath.Join(gates, token+".expanded")); err == nil {
+								emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"reasoning_content": "\nThought line 17  \nThought line 18  \nThought line 19  \nThought line 20  ", "content": "\nDraft line 17  \nDraft line 18  \nDraft line 19  \nDraft line 20  "}, "finish_reason": nil}}})
+								updatedPreview = true
+							}
+						}
 						if _, err := os.Stat(filepath.Join(gates, token)); err == nil {
 							break wait
 						}

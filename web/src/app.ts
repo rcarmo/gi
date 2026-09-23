@@ -581,16 +581,30 @@ function GiApp() {
         if (eventType === 'agent_status') {
             setAgentStatus(data);
             const active = data?.status === 'running' || data?.status === 'cancelling';
+            if (active && data.turn_id && currentTurnIdRef.current !== data.turn_id) {
+                currentTurnIdRef.current = data.turn_id; setCurrentTurnId(data.turn_id);
+                draftBufferRef.current = ''; thoughtBufferRef.current = '';
+                setAgentDraft(null); setAgentThought(null);
+            }
             setIsAgentTurnActive(active);
             isAgentRunningRef.current = active;
         }
 
+        // Native tagged deltas belong to the active preview occurrence. A
+        // reconnect may receive content before its next status frame; adopt
+        // that ID only when no current turn is known, never replace a live one.
+        if (eventType === 'agent_draft_delta' || eventType === 'agent_thought_delta') {
+            if (data.turn_id && currentTurnIdRef.current && data.turn_id !== currentTurnIdRef.current) return;
+            if (data.turn_id && !currentTurnIdRef.current) {
+                currentTurnIdRef.current = data.turn_id; setCurrentTurnId(data.turn_id);
+            }
+        }
         // Handle draft deltas for streaming display
         if (eventType === 'agent_draft_delta') {
             const delta = data?.delta || '';
             if (delta) {
                 draftBufferRef.current = (draftBufferRef.current || '') + delta;
-                setAgentDraft({ text: draftBufferRef.current, totalLines: 0, fullText: draftBufferRef.current });
+                setAgentDraft(draftBufferRef.current);
             }
         }
 
@@ -599,12 +613,13 @@ function GiApp() {
             const delta = data?.delta || '';
             if (delta) {
                 thoughtBufferRef.current = (thoughtBufferRef.current || '') + delta;
-                setAgentThought({ text: thoughtBufferRef.current, totalLines: 0, fullText: thoughtBufferRef.current });
+                setAgentThought(thoughtBufferRef.current);
             }
         }
 
         // Clear draft/thought on agent_response (turn complete)
         if (eventType === 'agent_response') {
+            currentTurnIdRef.current = null; setCurrentTurnId(null);
             draftBufferRef.current = '';
             thoughtBufferRef.current = '';
             setAgentDraft(null);
@@ -670,6 +685,11 @@ function GiApp() {
             }
             setAgentStatus(status);
             const running = status?.status === 'running' || status?.status === 'cancelling';
+            if (running && status.turn_id && currentTurnIdRef.current !== status.turn_id) {
+                currentTurnIdRef.current = status.turn_id; setCurrentTurnId(status.turn_id);
+                draftBufferRef.current = ''; thoughtBufferRef.current = '';
+                setAgentDraft(null); setAgentThought(null);
+            }
             setIsAgentTurnActive(running);
             isAgentRunningRef.current = running;
             setSessionError(null);
@@ -1017,7 +1037,7 @@ function GiApp() {
                     removingPostIds=${removingPostIds}
                     searchQuery=${searchState.active ? searchState.query : ''}
                 />
-                <${AgentStatus}
+                <${AgentStatus} key=${`${sessionId}:${currentTurnId || ''}`}
                     status=${isCompactionStatus(agentStatus) ? null : agentStatus}
                     draft=${agentDraft}
                     plan=${agentPlan}
@@ -1026,7 +1046,6 @@ function GiApp() {
                     intent=${null}
                     turnId=${currentTurnId}
                     steerQueued=${Boolean(steerQueuedTurnId)}
-                    onPanelToggle=${() => {}}
                     showExtensionPanels=${false}
                 />
                 <${FloatingWidgetPane}

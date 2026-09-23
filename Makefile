@@ -236,7 +236,10 @@ test-ux-reconnect: build-web
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
 	GI_UX_RECONNECT=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config=playwright.ux.config.mjs tests/ux/reconnect.spec.mjs $(UX_PARITY_ARGS)
 
-.PHONY: test-ux-status-swipes
+.PHONY: test-ux-status-swipes test-ux-thoughts
+test-ux-thoughts:
+	$(MAKE) test-ux-steer UX_LOCAL_ENV=GI_UX_THOUGHTS=1 UX_LOCAL_SPEC=tests/ux/thoughts.spec.mjs
+
 test-ux-status-swipes:
 	$(MAKE) test-ux-steer UX_LOCAL_ENV=GI_UX_STATUS_SWIPES=1 UX_LOCAL_SPEC=tests/ux/status-swipes.spec.mjs
 

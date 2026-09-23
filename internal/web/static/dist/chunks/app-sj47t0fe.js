@@ -17768,10 +17768,10 @@ function guardQuickActionsTyping(event) {
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-v9pycwd3.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-33d8gqv1.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-fya9m844.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-gk1mzxk8.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-v4w4sf7p.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-bjbpq0vg.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-x0s9qgvf.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-zgrz74ma.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -19299,24 +19299,42 @@ function GiApp() {
     if (eventType === "agent_status") {
       setAgentStatus(data);
       const active = data?.status === "running" || data?.status === "cancelling";
+      if (active && data.turn_id && currentTurnIdRef.current !== data.turn_id) {
+        currentTurnIdRef.current = data.turn_id;
+        setCurrentTurnId(data.turn_id);
+        draftBufferRef.current = "";
+        thoughtBufferRef.current = "";
+        setAgentDraft(null);
+        setAgentThought(null);
+      }
       setIsAgentTurnActive(active);
       isAgentRunningRef.current = active;
+    }
+    if (eventType === "agent_draft_delta" || eventType === "agent_thought_delta") {
+      if (data.turn_id && currentTurnIdRef.current && data.turn_id !== currentTurnIdRef.current)
+        return;
+      if (data.turn_id && !currentTurnIdRef.current) {
+        currentTurnIdRef.current = data.turn_id;
+        setCurrentTurnId(data.turn_id);
+      }
     }
     if (eventType === "agent_draft_delta") {
       const delta = data?.delta || "";
       if (delta) {
         draftBufferRef.current = (draftBufferRef.current || "") + delta;
-        setAgentDraft({ text: draftBufferRef.current, totalLines: 0, fullText: draftBufferRef.current });
+        setAgentDraft(draftBufferRef.current);
       }
     }
     if (eventType === "agent_thought_delta") {
       const delta = data?.delta || "";
       if (delta) {
         thoughtBufferRef.current = (thoughtBufferRef.current || "") + delta;
-        setAgentThought({ text: thoughtBufferRef.current, totalLines: 0, fullText: thoughtBufferRef.current });
+        setAgentThought(thoughtBufferRef.current);
       }
     }
     if (eventType === "agent_response") {
+      currentTurnIdRef.current = null;
+      setCurrentTurnId(null);
       draftBufferRef.current = "";
       thoughtBufferRef.current = "";
       setAgentDraft(null);
@@ -19411,6 +19429,14 @@ function GiApp() {
       }
       setAgentStatus(status);
       const running = status?.status === "running" || status?.status === "cancelling";
+      if (running && status.turn_id && currentTurnIdRef.current !== status.turn_id) {
+        currentTurnIdRef.current = status.turn_id;
+        setCurrentTurnId(status.turn_id);
+        draftBufferRef.current = "";
+        thoughtBufferRef.current = "";
+        setAgentDraft(null);
+        setAgentThought(null);
+      }
       setIsAgentTurnActive(running);
       isAgentRunningRef.current = running;
       setSessionError(null);
@@ -19827,7 +19853,7 @@ function GiApp() {
                     removingPostIds=${removingPostIds}
                     searchQuery=${searchState.active ? searchState.query : ""}
                 />
-                <${AgentStatus}
+                <${AgentStatus} key=${`${sessionId}:${currentTurnId || ""}`}
                     status=${isCompactionStatus(agentStatus) ? null : agentStatus}
                     draft=${agentDraft}
                     plan=${agentPlan}
@@ -19836,7 +19862,6 @@ function GiApp() {
                     intent=${null}
                     turnId=${currentTurnId}
                     steerQueued=${Boolean(steerQueuedTurnId)}
-                    onPanelToggle=${() => {}}
                     showExtensionPanels=${false}
                 />
                 <${FloatingWidgetPane}
@@ -20080,5 +20105,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=D71E0A0BAC8EE25F64756E2164756E21
-//# sourceMappingURL=app-vjt3p2fy.js.map
+//# debugId=30F580C8D046760164756E2164756E21
+//# sourceMappingURL=app-sj47t0fe.js.map

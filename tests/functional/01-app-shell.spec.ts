@@ -230,6 +230,10 @@ test('native status-panel surface shares session swipe navigation without submit
   const input = page.locator('.compose-box textarea'); await input.fill('unsent status draft');
   await page.getByRole('button', { name: /Manage sessions for/ }).last().click(); await expect(page.locator(`.compose-session-popup [data-session-jid="gi:${b}"]`)).toBeVisible(); await page.keyboard.press('Escape');
   const panel = page.locator('.agent-status-panel'); await expect(panel).toBeVisible();
+  await expect(page.locator('link[href^="/css/gi-status.css"]')).toHaveCount(1);
+  await expect(panel).toHaveCSS('max-height', '40%'); await expect(panel).toHaveCSS('overflow-y','auto');
+  const size = await panel.boundingBox(), host = await page.locator('.container').boundingBox();
+  expect(size!.height).toBeLessThanOrEqual(host!.height * 0.4 + 1);
   await panel.evaluate(el => { for(const [name,x] of [['touchstart',190],['touchmove',85],['touchend',85]] as const) { const point={identifier:1,target:el,clientX:x,clientY:150},event=new Event(name,{bubbles:true,cancelable:true});Object.defineProperty(event,'touches',{value:name==='touchend'?[]:[point]});Object.defineProperty(event,'changedTouches',{value:[point]});el.dispatchEvent(event); } });
   await expect.poll(() => page.evaluate(() => localStorage.getItem('gi_session_id'))).toBe(b); await expect(input).toHaveValue('');
   expect((await (await request.get(`/api/sessions/${a}/turns`)).json()).turns || []).toHaveLength(1);
