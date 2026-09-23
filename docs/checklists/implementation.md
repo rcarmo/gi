@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [ ] Status swipe mobile003: bounded conversation-host listener admits timeline/direct-child status only; native draft/thought links, selection/vertical/composer/Settings and excluded pen/default proof. Panels12/session102/steer18/functional85/helpers48/Go-vet-build-hook pass; Classic76/236+shared3/42 unmapped160/39. Commit/deploy pending; TUI unchanged/no idle rows.
+- [x] Status swipe mobile003: bounded conversation-host listener admits timeline/direct-child status only; native draft/thought links, selection/vertical/composer/Settings and excluded pen/default proof. Panels12/session102/steer18/functional85/helpers48/Go-vet-build-hook pass; Classic76/236+shared3/42 unmapped160/39. Push28996cf/restart8090 live status+4rapid transitions/draft retained/no writes/errors/61sessions/integrityOK; TUI unchanged/no idle rows.
 - [ ] Streaming status expansion: host supplies totalLines=0 and no-op toggle for preview panels; derive native line-count/expanded-state contract before claiming truncation/expansion parity. Links, not absent buttons, provide current swipe passthrough evidence.
 
 - [x] Frozen mobile004 native pinned/active/ordinary order and archive/dedup acceptance: dedicated6/mixed30/session96/functional83/helpers47/Go-vet-build-hook; Classic75/236+shared3/42 unmapped161/39. Test-only, no runtime restart or new TUI credit. Gesture assertions wait for visible native catalogue activation.
