@@ -298,6 +298,9 @@ test('@ux-mobile-001 Eligible timeline swipe selects adjacent session and wraps 
  const first=await create('first'),last=await create('last');
  const read=await request.post(`/api/sessions/${last}/prompt`,{data:{prompt:`Wrap source ${token}`,model:'test-model'}});expect(read.status()).toBe(202);
  await expect.poll(async()=>((await(await request.get(`/api/sessions/${last}/messages`)).json()).messages||[]).some(message=>message.role==='assistant')).toBe(true);
+ // The final assistant message precedes native claim/session cleanup. Wait
+ // for authoritative idle before asserting this new ID ends the idle group.
+ await expect.poll(async()=>(await(await request.get(`/api/sessions/${last}`)).json()).state.status).toBe('idle');
  const sessions=(await(await request.get('/api/sessions')).json()).sessions;
  const ordered=sessions.filter(s=>!s.state?.archived_at).sort((a,b)=>{
   const active=s=>s.state?.status==='running'||s.state?.status==='queued'||Number(s.state?.queue_count||0)>0;
@@ -898,4 +901,44 @@ test('@gi-swipe-001 @gi-swipe-002 Gi rapid reverse swipe uses the committed sess
     await expect(page.locator('.compose-file-pill[title="rapid.txt"]')).toBeVisible();
     for (const id of [a,b]) expect((await (await request.get(`/api/sessions/${id}/turns`)).json()).turns || []).toHaveLength(1);
   } finally { release(); }
+});
+
+for(const [id,method] of [['@shared-23','pointer'],['@shared-24','keyboard']]) test(`${id} Session picker ${method} opening focuses before first visible frame and keeps its composer anchor`,async({page,request},info)=>{
+  const source=loadCorpus('shared').find(row=>row.id===id);expect(source).toBeTruthy();expect(source.steps.join('\n')).toContain(method);await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
+  const token=`shared-picker-${info.project.name}-${method}-${Date.now()}`;
+  const create=async title=>{const response=await request.post('/api/sessions',{data:{agent_id:`${token}-${title}`,title}});expect(response.status()).toBe(201);return(await response.json()).id;};
+  const main=await create('main'),research=await create('research');
+  await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main);await page.goto('/');
+  const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('shared picker draft');
+  const triggerButtons=page.locator('.compose-session-trigger-group button');await expect(triggerButtons).toHaveCount(2);
+  for(let index=0;index<2;index++){
+    const trigger=triggerButtons.nth(index);await expect(trigger).toBeEnabled();
+    // Observation only: no focus, style or event handlers in application code
+    // are replaced. Capture insertion-time and first-frame focus separately.
+    await page.evaluate(()=>{
+      window.__pickerFrame=null;window.__pickerInsertion=null;
+      const observer=new MutationObserver(()=>{
+        const popup=document.querySelector('.compose-session-popup');if(!popup)return;
+        observer.disconnect();const search=popup.querySelector('input[type="search"]');
+        window.__pickerInsertion={focused:document.activeElement===search};
+        requestAnimationFrame(()=>{const box=popup.getBoundingClientRect(),style=getComputedStyle(popup);window.__pickerFrame={focused:document.activeElement===search,visible:box.width>0&&box.height>0&&style.display!=='none'&&style.visibility!=='hidden',count:document.querySelectorAll('.compose-session-popup').length};});
+      });observer.observe(document.body,{childList:true,subtree:true});window.__pickerObserver=observer;
+    });
+    if(method==='pointer')await trigger.click();else{await trigger.focus();await trigger.press('Enter');}
+    await expect.poll(()=>page.evaluate(()=>window.__pickerFrame)).not.toBeNull();
+    expect(await page.evaluate(()=>window.__pickerInsertion)).toEqual({focused:true});expect(await page.evaluate(()=>window.__pickerFrame)).toEqual({focused:true,visible:true,count:1});
+    const popup=page.locator('.compose-session-popup'),search=popup.getByRole('searchbox',{name:'Search sessions',exact:true});
+    const anchor=async()=>{
+      const geometry=await popup.evaluate(el=>{const p=el.getBoundingClientRect(),host=el.closest('.compose-input-main'),a=host?.getBoundingClientRect();return {position:getComputedStyle(el).position,anchor:!!host,left:p.left,bottom:p.bottom,right:p.right,anchorLeft:a?.left,anchorTop:a?.top,viewport:innerWidth};});
+      expect(geometry.position).toBe('absolute');expect(geometry.anchor).toBe(true);expect(Math.abs(geometry.left-geometry.anchorLeft)).toBeLessThanOrEqual(1);
+      expect(Math.abs(geometry.bottom-(geometry.anchorTop-6))).toBeLessThanOrEqual(1);expect(geometry.left).toBeGreaterThanOrEqual(0);expect(geometry.right).toBeLessThanOrEqual(geometry.viewport+1);
+    };
+    await anchor();for(const sid of [main,research])await expect(popup.locator(`[data-session-jid="gi:${sid}"]`)).toBeVisible();
+    await search.fill(`gi:${research}`);await expect(popup.locator(`[data-session-jid="gi:${research}"]`)).toBeVisible();await expect(popup.locator(`[data-session-jid="gi:${main}"]`)).toHaveCount(0);
+    const width=info.project.use.viewport.width;await page.setViewportSize({width:width<700?820:390,height:900});await anchor();await expect(search).toHaveValue(`gi:${research}`);await expect(search).toBeFocused();
+    await page.keyboard.press('Escape');await expect(popup).toHaveCount(0);await expect(trigger).toBeFocused();await expect(input).toHaveValue('shared picker draft');
+    expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(main);await page.setViewportSize(info.project.use.viewport);
+    await page.evaluate(()=>window.__pickerObserver?.disconnect());
+  }
+  for(const sid of [main,research])expect((await(await request.get(`/api/sessions/${sid}/turns`)).json()).turns||[]).toHaveLength(0);
 });
