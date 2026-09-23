@@ -206,6 +206,90 @@ test('@ux-session-002 Group picker entries using current native session metadata
   }
 });
 
+test('@ux-session-005 Touch swipe keeps native carousel order and target/selection exclusions', async ({ page, request }, info) => {
+  const frozen=loadCorpus().find(row=>row.id==='@ux-session-005');expect(frozen).toBeTruthy();
+  await info.attach('gherkin',{body:frozen.steps.join('\n'),contentType:'text/plain'});
+  const token=`swipe-${info.project.name}-${Date.now()}`;
+  const create=async(name)=>{
+    const response=await request.post('/api/sessions',{data:{agent_id:`${token}-${name}`,title:`@${token}-${name}`}});
+    expect(response.status()).toBe(201);return (await response.json()).id;
+  };
+  const other=await create('other'),current=await create('current'),next=await create('active');
+  const archive=(await request.post(`/api/sessions/${current}/fork`,{data:{agent_id:`${token}-child`,title:'swipe archived child'}}));
+  expect(archive.status()).toBe(201);const child=(await archive.json()).branch.chat_jid.slice(3);
+  const archivedResult=await request.patch(`/api/sessions/${child}`,{data:{action:'archive'}});expect(archivedResult.status()).toBe(200);
+  const read=await request.post(`/api/sessions/${current}/prompt`,{data:{prompt:`Swipe selectable text ${token}`,model:'test-model'}});
+  expect(read.status()).toBe(202);
+  await expect.poll(async()=>((await(await request.get(`/api/sessions/${current}/messages`)).json()).messages||[]).some(message=>message.role==='assistant')).toBe(true);
+  const gate=resolve('test-results/ux-parity/queue-gates',`${token}-busy`);mkdirSync(resolve(gate,'..'),{recursive:true});
+  const run=await request.post(`/api/sessions/${next}/prompt`,{data:{prompt:`UX queue gate:${token}-busy`,model:'test-model'}});
+  expect(run.status()).toBe(202);const {turn_id}=await run.json();
+  const selected=()=>page.evaluate(()=>localStorage.getItem('gi_session_id'));
+  const gesture=async(target,delta=-105,type='touch')=>{
+    await target.evaluate((el,{delta,type})=>{
+      if(type==='wheel'){
+        el.dispatchEvent(new WheelEvent('wheel',{bubbles:true,cancelable:true,deltaX:-delta,deltaY:0}));return;
+      }
+      const point=(x)=>({identifier:1,target:el,clientX:x,clientY:150,pageX:x,pageY:150,screenX:x,screenY:150});
+      const dispatch=(name,x)=>{
+        const touch=point(x), event=new Event(name,{bubbles:true,cancelable:true});
+        Object.defineProperty(event,'touches',{value:name==='touchend'?[]:[touch]});
+        Object.defineProperty(event,'changedTouches',{value:[touch]});
+        el.dispatchEvent(event);
+      };
+      dispatch('touchstart',190);dispatch('touchmove',190+delta);dispatch('touchend',190+delta);
+    },{delta,type});
+  };
+  try {
+    await expect.poll(async()=> (await(await request.get(`/api/sessions/${next}`)).json()).state.status).toBe('running');
+    await page.addInitScript(id=>{
+      localStorage.setItem('gi_session_id',id);
+      Object.defineProperty(navigator,'userAgent',{configurable:true,value:'iPhone Safari'});
+    },current);
+    await page.goto('/');
+    const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('swipe draft');
+    const timeline=page.locator('.timeline').first();await expect(timeline).toBeVisible();
+    await expect(timeline.locator('.post-content').filter({hasText:`Swipe selectable text ${token}`}).first()).toBeVisible();
+    const copy=timeline.getByRole('button',{name:'Copy message',exact:true}).first();await expect(copy).toBeVisible();
+    // Use the full persisted catalogue: Playwright projects share one test server.
+    const sessions=(await(await request.get('/api/sessions')).json()).sessions;
+    const archivedRow=sessions.find(session=>session.id===child);
+    expect(archivedRow.state.archived_at).toBeTruthy();
+    const candidates=sessions.filter(session=>!session.state?.archived_at).sort((a,b)=>{
+      const active=s=>s.state?.status==='running'||s.state?.status==='queued'||Number(s.state?.queue_count||0)>0;
+      return Number(active(b))-Number(active(a))||`gi:${a.id}`.localeCompare(`gi:${b.id}`);
+    }).map(session=>session.id);
+    expect(candidates).not.toContain(child);
+    expect(candidates[0]).toBe(next);
+    const neighbour=id=>candidates[(candidates.indexOf(id)+1)%candidates.length];
+    // Reader selection, interactive targets and archived rows cannot enter the carousel.
+    await gesture(copy);await expect.poll(selected).toBe(current);
+    await gesture(input);await expect.poll(selected).toBe(current);
+    await page.evaluate(()=>{
+      const text=document.querySelector('.timeline .post-content');
+      if(text){const range=document.createRange();range.selectNodeContents(text);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);}
+    });
+    await expect.poll(()=>page.evaluate(()=>window.getSelection()?.toString())).toContain('Swipe selectable text');
+    await gesture(timeline);await expect.poll(selected).toBe(current);
+    await page.evaluate(()=>window.getSelection()?.removeAllRanges());
+    expect(neighbour(current)).toBe(next);
+    await gesture(timeline);
+    await expect.poll(selected).toBe(next);
+    await expect(input).toHaveValue('');
+    const following=neighbour(next);
+    await gesture(page.locator('.timeline').first());
+    await expect.poll(selected).toBe(following);
+    expect(following).not.toBe(child);
+    await page.getByRole('button',{name:/Manage sessions for/}).last().click();
+    await page.locator(`[data-session-jid="gi:${current}"]`).getByRole('menuitem').click();
+    await expect.poll(selected).toBe(current);
+    await expect(input).toHaveValue('swipe draft');
+  } finally {
+    writeFileSync(gate,'release');
+    await expect.poll(async()=>((await(await request.get(`/api/sessions/${next}/turns`)).json()).turns||[]).find(turn=>turn.id===turn_id)?.status,{timeout:15000}).toBe('completed');
+  }
+});
+
 test('@ux-session-003 Filter session entries using their search metadata', async ({ page, request }, info) => {
   const frozen = loadCorpus().find(row => row.id === '@ux-session-003'); expect(frozen).toBeTruthy();
   await info.attach('gherkin', { body: frozen.steps.join('\n'), contentType: 'text/plain' });

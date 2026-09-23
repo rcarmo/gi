@@ -74,6 +74,7 @@ import { TimelineQuickActions } from './components/timeline-quick-actions.js';
 import { guardQuickActionsTyping } from './gi-quick-actions.js';
 import { createMessageDeletionState } from './gi-message-deletion.js';
 import { createSelectionScope } from './gi-session-state.js';
+import { attachChatSwipeNavigation } from './ui/chat-swipe-navigation.js';
 import { createDraftRepository, indexedDraftStorage, emptyDraft } from './gi-drafts.js';
 import { recoverQueueDraft } from './gi-queue-return.js';
 
@@ -739,6 +740,27 @@ function GiApp() {
         setAgentModelsPayload(null); setContextUsage(null); setModelUsage(null);
         setSessionError(null);
     }, [sessionId, fileRefs, messageRefs]);
+
+    useEffect(() => {
+        if (!ready || !currentChatJid || !timelineRef.current) return;
+        const timeline = timelineRef.current;
+        // Existing text selections belong to the reader, not the chat carousel.
+        // Capture before the supplied listener; leave its target and ordering rules intact.
+        const preserveSelection = (event: Event) => {
+            if (window.getSelection()?.toString()) event.stopImmediatePropagation();
+        };
+        timeline.addEventListener('touchstart', preserveSelection, true);
+        timeline.addEventListener('wheel', preserveSelection, true);
+        const detach = attachChatSwipeNavigation({
+            timelineRef, activeChatAgents, currentChatJid,
+            onSwitch: handleSwitchChat, isIOSDevice,
+        });
+        return () => {
+            detach();
+            timeline.removeEventListener('touchstart', preserveSelection, true);
+            timeline.removeEventListener('wheel', preserveSelection, true);
+        };
+    }, [ready, currentChatJid, activeChatAgents, handleSwitchChat, posts.length === 0]);
 
     const handleCreateSession = useCallback(async () => {
         if (!sessionId) return;

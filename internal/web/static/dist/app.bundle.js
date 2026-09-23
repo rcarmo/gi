@@ -17661,6 +17661,305 @@ function createMessageDeletionState() {
   };
 }
 
+// web/src/ui/chat-swipe-navigation.ts
+function hasClosest(target) {
+  return Boolean(target && typeof target.closest === "function");
+}
+function createChatSwipeTouchState() {
+  return {
+    active: false,
+    horizontalLocked: false,
+    cancelled: false,
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    lastY: 0,
+    startedAt: 0
+  };
+}
+function createChatSwipeWheelState() {
+  return {
+    lastTriggeredAt: 0,
+    accumX: 0
+  };
+}
+function resetChatSwipeTouchState(state) {
+  if (!state)
+    return;
+  state.active = false;
+  state.horizontalLocked = false;
+  state.cancelled = false;
+  state.startX = 0;
+  state.startY = 0;
+  state.lastX = 0;
+  state.lastY = 0;
+  state.startedAt = 0;
+}
+var INTERACTIVE_SELECTOR = [
+  "input",
+  "textarea",
+  "select",
+  "button",
+  "label",
+  "a[href]",
+  '[contenteditable="true"]',
+  '[role="button"]',
+  "[data-no-chat-swipe]",
+  ".compose-box",
+  ".compose-model-popup",
+  ".compose-session-popup",
+  ".workspace-explorer",
+  ".editor-pane-container",
+  ".dock-panel",
+  ".terminal-pane-content",
+  ".attachment-preview-modal",
+  ".rename-branch-overlay",
+  ".agent-request-modal",
+  ".adaptive-card-container input",
+  ".adaptive-card-container textarea",
+  ".adaptive-card-container select",
+  ".adaptive-card-container button"
+].join(", ");
+var SWIPE_PASSTHROUGH_ANCESTOR = [
+  ".agent-thinking",
+  ".agent-status-panel",
+  ".agent-thinking-intent"
+].join(", ");
+function isEligibleChatSwipeTarget(target) {
+  if (!target || !hasClosest(target))
+    return false;
+  const interactiveMatch = target.closest(INTERACTIVE_SELECTOR);
+  if (!interactiveMatch)
+    return true;
+  return Boolean(interactiveMatch.closest(SWIPE_PASSTHROUGH_ANCESTOR));
+}
+function resolveSwipeableChatAgents(candidates, currentChatJid) {
+  if (!Array.isArray(candidates))
+    return currentChatJid ? [currentChatJid] : [];
+  const seen = new Set;
+  const candidateRows = candidates.filter((candidate) => Boolean(candidate && typeof candidate === "object")).filter((candidate) => {
+    const chatJid = typeof candidate.chat_jid === "string" ? candidate.chat_jid.trim() : "";
+    if (!chatJid || seen.has(chatJid))
+      return false;
+    if (candidate.archived_at)
+      return false;
+    seen.add(chatJid);
+    return true;
+  });
+  candidateRows.sort((a, b) => {
+    if (Boolean(a.is_active) !== Boolean(b.is_active))
+      return a.is_active ? -1 : 1;
+    return String(a.chat_jid).localeCompare(String(b.chat_jid));
+  });
+  const rows = candidateRows.map((candidate) => String(candidate.chat_jid).trim());
+  if (currentChatJid && !seen.has(currentChatJid)) {
+    rows.unshift(currentChatJid);
+  }
+  return rows;
+}
+function candidateName(candidates, chatJid) {
+  const c = candidates.find((x) => x.chat_jid === chatJid);
+  if (!c)
+    return chatJid.replace(/^[^:]+:/, "");
+  const raw = typeof c.agent_name === "string" ? c.agent_name.trim() : "";
+  return raw || chatJid.replace(/^[^:]+:/, "");
+}
+function resolveSwipeNeighbours(options) {
+  const rows = resolveSwipeableChatAgents(options.candidates, options.currentChatJid);
+  if (rows.length <= 1)
+    return { prev: null, next: null };
+  const idx = rows.indexOf(options.currentChatJid);
+  if (idx < 0)
+    return { prev: null, next: null };
+  const prevJid = rows[(idx - 1 + rows.length) % rows.length];
+  const nextJid = rows[(idx + 1) % rows.length];
+  return {
+    prev: { chatJid: prevJid, name: candidateName(options.candidates, prevJid) },
+    next: { chatJid: nextJid, name: candidateName(options.candidates, nextJid) }
+  };
+}
+function shouldTriggerTouchChatSwipe(options) {
+  const minDistancePx = Number.isFinite(options.minDistancePx) ? Number(options.minDistancePx) : 72;
+  const axisRatio = Number.isFinite(options.axisRatio) ? Number(options.axisRatio) : 1.35;
+  return Math.abs(options.dx) >= minDistancePx && Math.abs(options.dx) > Math.abs(options.dy) * axisRatio;
+}
+function ensureIndicatorElement(_container) {
+  let indicator = document.querySelector(".chat-swipe-indicator");
+  if (!indicator) {
+    indicator = document.createElement("div");
+    indicator.className = "chat-swipe-indicator";
+    indicator.innerHTML = '<span class="chat-swipe-chevron"></span>' + '<span class="chat-swipe-name"></span>';
+    document.body.appendChild(indicator);
+  }
+  return indicator;
+}
+function showIndicator(indicator, dx, _containerWidth, neighbours) {
+  const absDx = Math.abs(dx);
+  const progress = Math.min(absDx / 100, 1);
+  const willTrigger = absDx >= 72;
+  indicator.style.display = "flex";
+  indicator.style.opacity = String(Math.min(progress * 2.5, 1));
+  indicator.classList.toggle("chat-swipe-indicator--ready", willTrigger);
+  const isNext = dx < 0;
+  const target = isNext ? neighbours.next : neighbours.prev;
+  const chevron = indicator.querySelector(".chat-swipe-chevron");
+  if (chevron) {
+    chevron.textContent = isNext ? "›" : "‹";
+    chevron.style.order = isNext ? "2" : "0";
+  }
+  const nameEl = indicator.querySelector(".chat-swipe-name");
+  if (nameEl)
+    nameEl.textContent = target?.name ?? "";
+}
+function hideIndicator(indicator) {
+  indicator.style.display = "none";
+  indicator.style.opacity = "0";
+}
+function attachChatSwipeNavigation(options) {
+  const {
+    timelineRef,
+    activeChatAgents,
+    currentChatJid,
+    onSwitch,
+    isIOSDevice: checkIOS,
+    isLikelySafari
+  } = options;
+  const el = timelineRef.current;
+  if (!el)
+    return () => {};
+  const isIOS = checkIOS();
+  const isSafari = typeof isLikelySafari === "function" ? isLikelySafari() : false;
+  if (!isIOS && !isSafari)
+    return () => {};
+  const state = createChatSwipeTouchState();
+  const wheelState = createChatSwipeWheelState();
+  let indicator = null;
+  let neighbours = { prev: null, next: null };
+  let lastPointerDownWasPen = false;
+  function refreshNeighbours() {
+    neighbours = resolveSwipeNeighbours({
+      candidates: activeChatAgents,
+      currentChatJid
+    });
+  }
+  refreshNeighbours();
+  function getIndicator() {
+    if (!indicator) {
+      indicator = ensureIndicatorElement(el);
+    }
+    return indicator;
+  }
+  function doSwitch(direction) {
+    const target = direction === "next" ? neighbours.next : neighbours.prev;
+    if (target)
+      onSwitch(target.chatJid);
+  }
+  function onPointerDown(event) {
+    lastPointerDownWasPen = String(event.pointerType || "").toLowerCase() === "pen";
+  }
+  function onTouchStart(event) {
+    resetChatSwipeTouchState(state);
+    refreshNeighbours();
+    if (!isIOS)
+      return;
+    if (event.touches.length !== 1)
+      return;
+    if (lastPointerDownWasPen)
+      return;
+    if (!isEligibleChatSwipeTarget(event.target))
+      return;
+    const touch = event.touches[0];
+    state.active = true;
+    state.startX = touch.clientX;
+    state.startY = touch.clientY;
+    state.lastX = touch.clientX;
+    state.lastY = touch.clientY;
+    state.startedAt = Date.now();
+  }
+  function onTouchMove(event) {
+    if (!state.active || state.cancelled)
+      return;
+    const touch = event.touches[0];
+    if (!touch)
+      return;
+    state.lastX = touch.clientX;
+    state.lastY = touch.clientY;
+    const dx = state.lastX - state.startX;
+    const dy = state.lastY - state.startY;
+    if (!state.horizontalLocked) {
+      if (Math.abs(dy) > 16 && Math.abs(dy) >= Math.abs(dx)) {
+        state.cancelled = true;
+        hideIndicator(getIndicator());
+        return;
+      }
+      if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.15) {
+        state.horizontalLocked = true;
+      }
+    }
+    if (state.horizontalLocked) {
+      if (event.cancelable)
+        event.preventDefault();
+      showIndicator(getIndicator(), dx, el.clientWidth, neighbours);
+    }
+  }
+  function onTouchEnd() {
+    if (!state.active)
+      return;
+    const dx = state.lastX - state.startX;
+    const dy = state.lastY - state.startY;
+    const shouldNavigate = !state.cancelled && shouldTriggerTouchChatSwipe({ dx, dy });
+    hideIndicator(getIndicator());
+    resetChatSwipeTouchState(state);
+    if (shouldNavigate) {
+      doSwitch(dx < 0 ? "next" : "prev");
+    }
+  }
+  function onTouchCancel() {
+    hideIndicator(getIndicator());
+    resetChatSwipeTouchState(state);
+  }
+  function onWheel(event) {
+    if (isIOS)
+      return;
+    if (!isSafari)
+      return;
+    if (!isEligibleChatSwipeTarget(event.target))
+      return;
+    const deltaX = event.deltaX;
+    const deltaY = event.deltaY;
+    if (!Number.isFinite(deltaX) || Math.abs(deltaX) < 72)
+      return;
+    if (Math.abs(deltaX) <= Math.abs(deltaY) * 1.35)
+      return;
+    if (event.cancelable)
+      event.preventDefault();
+    const now = Date.now();
+    if (now - wheelState.lastTriggeredAt < 450)
+      return;
+    wheelState.lastTriggeredAt = now;
+    doSwitch(deltaX > 0 ? "next" : "prev");
+  }
+  el.addEventListener("pointerdown", onPointerDown, { passive: true });
+  el.addEventListener("touchstart", onTouchStart, { passive: true });
+  el.addEventListener("touchmove", onTouchMove, { passive: false });
+  el.addEventListener("touchend", onTouchEnd, { passive: true });
+  el.addEventListener("touchcancel", onTouchCancel, { passive: true });
+  el.addEventListener("wheel", onWheel, { passive: false });
+  return () => {
+    el.removeEventListener("pointerdown", onPointerDown);
+    el.removeEventListener("touchstart", onTouchStart);
+    el.removeEventListener("touchmove", onTouchMove);
+    el.removeEventListener("touchend", onTouchEnd);
+    el.removeEventListener("touchcancel", onTouchCancel);
+    el.removeEventListener("wheel", onWheel);
+    if (indicator) {
+      hideIndicator(indicator);
+      indicator.remove();
+      indicator = null;
+    }
+  };
+}
+
 // web/src/gi-queue-return.ts
 async function recoverQueueDraft(item, parsed, fetcher = fetch) {
   if (!item?.chat_jid?.startsWith("gi:") || !item?.id)
@@ -18783,6 +19082,29 @@ function GiApp() {
     setModelUsage(null);
     setSessionError(null);
   }, [sessionId, fileRefs, messageRefs]);
+  K_(() => {
+    if (!ready || !currentChatJid || !timelineRef.current)
+      return;
+    const timeline = timelineRef.current;
+    const preserveSelection = (event) => {
+      if (window.getSelection()?.toString())
+        event.stopImmediatePropagation();
+    };
+    timeline.addEventListener("touchstart", preserveSelection, true);
+    timeline.addEventListener("wheel", preserveSelection, true);
+    const detach = attachChatSwipeNavigation({
+      timelineRef,
+      activeChatAgents,
+      currentChatJid,
+      onSwitch: handleSwitchChat,
+      isIOSDevice
+    });
+    return () => {
+      detach();
+      timeline.removeEventListener("touchstart", preserveSelection, true);
+      timeline.removeEventListener("wheel", preserveSelection, true);
+    };
+  }, [ready, currentChatJid, activeChatAgents, handleSwitchChat, posts.length === 0]);
   const handleCreateSession = Y_(async () => {
     if (!sessionId)
       return;
@@ -19256,5 +19578,5 @@ function ComposeTransfer({ sessionId, hidden }) {
 window.addEventListener("keydown", guardQuickActionsTyping, true);
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=216FD8256C678F3764756E2164756E21
+//# debugId=03342677B64D361A64756E2164756E21
 //# sourceMappingURL=app.js.map
