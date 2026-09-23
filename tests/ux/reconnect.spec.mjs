@@ -69,6 +69,36 @@ test('@ux-reconnect-002 Refresh authoritative chat state after reconnect',async(
  }finally{unblock();await env.close();}
 });
 
+test('@ux-original-023 Reconnect refresh and run-bound Stop await authoritative turn state',async({page},info)=>{
+ await source(info,'@ux-original-023');const env=await environment(page,info);const{main,input,api}=env;
+ try{
+  const oldToken=`original-old-${Date.now()}`;
+  const old=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:`UX steer gate:${oldToken}`,model:'ux-local/gate'});
+  await expect(page.getByRole('button',{name:'Stop response',exact:true})).toBeEnabled();
+  await input.fill('original reconnect draft');
+  await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});
+  await expect(page.getByRole('button',{name:'Stop response',exact:true})).toHaveCount(0);
+  env.release(oldToken);
+  await expect.poll(async()=> (await api(`/api/sessions/${main.id}/turns`)).turns.find(t=>t.id===old.turn_id).status).toBe('completed');
+  const token=`original-new-${Date.now()}`;
+  const active=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:`UX steer gate:${token}`,model:'ux-local/gate'});
+  const queued=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:'authoritative reconnect follow-up',intent:'queue',model:'ux-local/gate'});
+  const refreshed=new Set();page.on('request',r=>{if(r.method()==='GET')for(const suffix of ['/messages','/activity','/queue'])if(new URL(r.url()).pathname===`/api/sessions/${main.id}${suffix}`)refreshed.add(suffix);});
+  env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});
+  await expect.poll(()=>refreshed.size).toBe(3);
+  await expect(page.getByText(`UX steer gate:${token}`,{exact:true})).toBeVisible();
+  await expect(page.locator(`[data-queue-id="${queued.turn_id}"]`)).toBeVisible();
+  const stop=page.getByRole('button',{name:'Stop response',exact:true});await expect(stop).toBeEnabled();
+  const cancel=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main.id}/activity`)&&r.request().method()==='POST');
+  await stop.click();const response=await cancel;expect(response.request().postDataJSON().turn_id).toBe(active.turn_id);expect(response.status()).toBe(200);
+  await expect.poll(async()=> (await api(`/api/sessions/${main.id}/turns`)).turns.find(t=>t.id===active.turn_id).status).toBe('cancelled');
+  await expect(stop).toHaveCount(0);
+  await expect(page.locator(`[data-queue-id="${queued.turn_id}"]`)).toBeVisible();
+  await expect(input).toHaveValue('original reconnect draft');
+  env.release(token);
+ }finally{await env.close();}
+});
+
 test('@ux-reconnect-004 Show version drift without automatically reloading',async({page},info)=>{
  await source(info,'@ux-reconnect-004');const env=await environment(page,info);const{input}=env;
  try{

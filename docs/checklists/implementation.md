@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [ ] Verify frozen `@ux-original-023`: real SSE outage/reconnect refreshes selected timeline/activity/queue; visible Stop posts captured active turn ID and authoritative state reports cancellation, leaving older run unable to retake control or lose draft. Six projects, reconnect regression 60/60, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 60/236, shared 3/42, unmapped 176/39. Deployment pending; terminal `/cancel` evidence remains separate.
+
 - [x] Verify frozen `@ux-original-022`: native sparse model without reasoning/context metadata renders its reported label only, unknown context shows `?` and unavailable provenance, and delayed superseded-chat response leaves target model/draft unchanged; six projects, model regression 36/36, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 59/236, shared 3/42, unmapped 177/39. Push 8afcd36/restart 8090: 61 sessions, integrity/FK OK; terminal model/footer evidence remains separate.
 
 - [x] Verify frozen `@ux-original-020` through supplied model picker: native captured-session PATCH, accepted model and context fields, persisted reload/keyboard selection, rejected 400 warning and untouched draft/media pass six projects; model regression 30/30, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 58/236, shared 3/42, unmapped 178/39. Push 14f63b6/restart 8090: 61 sessions, integrity/FK OK. Terminal Alt-M and `/model` evidence remains separate.
