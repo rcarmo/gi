@@ -229,6 +229,8 @@ UX_PARITY_ARGS ?=
 # Real local inference checkpoints (no paid provider).
 UX_LOCAL_ENV ?= GI_UX_STEER=1
 UX_LOCAL_SPEC ?= tests/ux/queue-steer.spec.mjs
+UX_LOCAL_BIN ?= bin/gi-ux-steer
+UX_LOCAL_PORT ?= 19092
 test-ux-reconnect: build-web
 	$(GO) build -o bin/gi-ux-steer ./tests/ux/server
 	GI_UX_RECONNECT=1 $(PLAYWRIGHT) test --config=playwright.ux.config.mjs tests/ux/reconnect.spec.mjs $(UX_PARITY_ARGS)
@@ -246,14 +248,14 @@ test-ux-index-config:
 	$(MAKE) --no-print-directory test-ux-steer UX_LOCAL_ENV=GI_UX_INDEX_CONFIG=1 UX_LOCAL_SPEC=tests/ux/workspace-index-config.spec.mjs
 
 test-ux-steer: build-web
-	@mkdir -p bin test-results/ux-parity/queue-gates
-	$(GO) build -o bin/gi-ux-steer ./tests/ux/server
+	@mkdir -p $(dir $(UX_LOCAL_BIN)) test-results/ux-parity/queue-gates
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
 	@set -e; \
-	PATH=$(abspath tests/ux/shell):$$PATH $(UX_LOCAL_ENV) GI_UX_QUEUE_GATES=$(abspath test-results/ux-parity/queue-gates) bin/gi-ux-steer >test-results/ux-parity/steer-server.log 2>&1 & pid=$$!; \
+	PATH=$(abspath tests/ux/shell):$$PATH $(UX_LOCAL_ENV) GI_UX_LISTEN=127.0.0.1:$(UX_LOCAL_PORT) GI_UX_QUEUE_GATES=$(abspath test-results/ux-parity/queue-gates) $(UX_LOCAL_BIN) >test-results/ux-parity/steer-server.log 2>&1 & pid=$$!; \
 	trap 'kill $$pid 2>/dev/null || true; wait $$pid 2>/dev/null || true' EXIT; \
-	ready=0; for i in $$(seq 1 100); do kill -0 $$pid || exit 1; if curl -fsS http://127.0.0.1:19092/api/runtime/config >/dev/null 2>&1; then ready=1; break; fi; sleep .1; done; \
+	ready=0; for i in $$(seq 1 100); do kill -0 $$pid || exit 1; if curl -fsS http://127.0.0.1:$(UX_LOCAL_PORT)/api/runtime/config >/dev/null 2>&1; then ready=1; break; fi; sleep .1; done; \
 	test $$ready -eq 1; \
-	$(UX_LOCAL_ENV) GI_TEST_URL=http://127.0.0.1:19092 $(PLAYWRIGHT) test --config=playwright.ux.config.mjs $(UX_LOCAL_SPEC) $(UX_PARITY_ARGS)
+	$(UX_LOCAL_ENV) GI_TEST_URL=http://127.0.0.1:$(UX_LOCAL_PORT) $(PLAYWRIGHT) test --config=playwright.ux.config.mjs $(UX_LOCAL_SPEC) $(UX_PARITY_ARGS)
 ux-parity-inventory:
 	$(BUN) test tests/ux/support/
 	$(BUN) scripts/ux-parity-report.mjs

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -20,6 +19,7 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 
 	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/httpserver"
 	"github.com/rcarmo/gi/internal/store"
 	storecache "github.com/rcarmo/gi/internal/store/cache"
 	gitui "github.com/rcarmo/gi/internal/tui"
@@ -45,6 +45,12 @@ func configureTUILogging(logFile string) {
 }
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	if len(os.Args) == 1 {
 		workspaceRoot := config.DefaultWorkspaceRoot()
 		dbPath := config.DefaultTUIDBPath()
@@ -55,7 +61,7 @@ func main() {
 		if err := gitui.Run(dbPath, workspaceRoot, ""); err != nil {
 			log.Fatalf("tui: %v", err)
 		}
-		return
+		return nil
 	}
 
 	listen := flag.String("listen", "", "HTTP listen address (overrides -bind/-port)")
@@ -82,7 +88,7 @@ func main() {
 		if err := gitui.RunMode(*dbPath, *workspace, *model, *tuiLayout); err != nil {
 			log.Fatalf("tui: %v", err)
 		}
-		return
+		return nil
 	}
 
 	effectiveListen := *listen
@@ -127,32 +133,28 @@ func main() {
 	defer engine.Close()
 	server := giweb.New(s, engine, runtimeCfg)
 	server.StartInboundWorkDispatcher(processCtx)
+	if err := server.StartWorkspaceIndex(processCtx); err != nil {
+		log.Printf("workspace index disabled: %v", err)
+	}
+	defer server.CloseWorkspaceIndex()
 
 	handler := server.Handler()
-	runHTTPServer := func(srv *http.Server, serve func() error, label string) {
-		go func() {
-			<-processCtx.Done()
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := srv.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				log.Printf("shutdown %s: %v", label, err)
-			}
-		}()
-		if err := serve(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("listen %s: %v", label, err)
-		}
+	var listeners []httpserver.Listener
+	runHTTPServer := func(srv *http.Server, serve func() error, label string) error {
+		listeners = append(listeners, httpserver.Listener{Server: srv, Serve: serve, Label: label})
+		return httpserver.Run(processCtx, stop, 5*time.Second, listeners...)
 	}
 	if *acmeDomains != "" {
 		domains := splitCSV(*acmeDomains)
 		if len(domains) == 0 {
-			log.Fatalf("acme-domains must include at least one domain")
+			return fmt.Errorf("acme-domains must include at least one domain")
 		}
 		cache, cacheLabel, err := acmeCacheFor(*acmeCache, s)
 		if err != nil {
-			log.Fatalf("acme cache: %v", err)
+			return fmt.Errorf("acme cache: %w", err)
 		}
 		if !*acmeAcceptTOS {
-			log.Fatalf("ACME requires -acme-accept-tos")
+			return fmt.Errorf("ACME requires -acme-accept-tos")
 		}
 		manager := &autocert.Manager{
 			Cache:      cache,
@@ -162,28 +164,24 @@ func main() {
 		}
 		if *acmeHTTPListen != "" {
 			acmeSrv := &http.Server{Addr: *acmeHTTPListen, Handler: manager.HTTPHandler(nil)}
-			go func() {
-				log.Printf("Gi ACME HTTP-01/redirect listener on %s for %s", *acmeHTTPListen, strings.Join(domains, ","))
-				runHTTPServer(acmeSrv, func() error { return acmeSrv.ListenAndServe() }, "acme-http")
-			}()
+			log.Printf("Gi ACME HTTP-01/redirect listener on %s for %s", *acmeHTTPListen, strings.Join(domains, ","))
+			listeners = append(listeners, httpserver.Listener{Server: acmeSrv, Serve: acmeSrv.ListenAndServe, Label: "acme-http"})
 		}
 		log.Printf("Gi HTTPS listening on %s using ACME domains=%s db=%s cache=%s", effectiveListen, strings.Join(domains, ","), *dbPath, cacheLabel)
 		srv := &http.Server{Addr: effectiveListen, Handler: handler, TLSConfig: manager.TLSConfig()}
-		runHTTPServer(srv, func() error { return srv.ListenAndServeTLS("", "") }, "https/acme")
-		return
+		return runHTTPServer(srv, func() error { return srv.ListenAndServeTLS("", "") }, "https/acme")
 	}
 	if *certFile != "" || *keyFile != "" {
 		if *certFile == "" || *keyFile == "" {
-			log.Fatalf("both -tls-cert and -tls-key are required for static HTTPS")
+			return fmt.Errorf("both -tls-cert and -tls-key are required for static HTTPS")
 		}
 		log.Printf("Gi HTTPS listening on %s using %s", effectiveListen, *dbPath)
 		srv := &http.Server{Addr: effectiveListen, Handler: handler, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12}}
-		runHTTPServer(srv, func() error { return srv.ListenAndServeTLS(*certFile, *keyFile) }, "https")
-		return
+		return runHTTPServer(srv, func() error { return srv.ListenAndServeTLS(*certFile, *keyFile) }, "https")
 	}
 	log.Printf("Gi HTTP listening on %s using %s", effectiveListen, *dbPath)
 	srv := &http.Server{Addr: effectiveListen, Handler: handler}
-	runHTTPServer(srv, func() error { return srv.ListenAndServe() }, "http")
+	return runHTTPServer(srv, func() error { return srv.ListenAndServe() }, "http")
 }
 
 func acmeCacheFor(value string, s *store.Store) (autocert.Cache, string, error) {

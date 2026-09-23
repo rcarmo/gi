@@ -26,11 +26,24 @@ type workspaceIndexStatus struct {
 }
 
 func (s *Server) workspaceScope(r *http.Request) (searchstore.ScopeConfig, error) {
+	scope := r.URL.Query().Get("scope")
+	if scope == "" {
+		scope = "all"
+	}
+	s.indexMu.Lock()
+	config, ok := s.indexConfigs[scope]
+	s.indexMu.Unlock()
+	if ok {
+		return config, nil
+	}
+	return s.configuredWorkspaceScope(scope)
+}
+
+func (s *Server) configuredWorkspaceScope(scope string) (searchstore.ScopeConfig, error) {
 	root := s.cfg.WorkspaceRoot
 	if root == "" {
 		root = "/workspace"
 	}
-	scope := r.URL.Query().Get("scope")
 	if scope == "" {
 		scope = "all"
 	}
@@ -39,6 +52,10 @@ func (s *Server) workspaceScope(r *http.Request) (searchstore.ScopeConfig, error
 }
 func (s *Server) indexStatus(r *http.Request, c searchstore.ScopeConfig) (workspaceIndexStatus, error) {
 	stored, err := searchstore.NewRefreshStore(s.store.DB()).Status(r.Context(), c)
+	return projectIndexStatus(c, stored), err
+}
+
+func projectIndexStatus(c searchstore.ScopeConfig, stored searchstore.ScopeStatus) workspaceIndexStatus {
 	result := workspaceIndexStatus{Scope: c.Scope(), State: stored.State, Roots: stored.Roots, IndexedFileCount: stored.IndexedFileCount, LastError: stored.LastError, Generation: stored.Generation, ConfigHash: stored.ConfigHash, RequiredRoots: len(c.OptionalRoots()) == 0, OptionalRoots: c.OptionalRoots()}
 	if stored.LastIndexedAtMS.Valid {
 		result.LastIndexedAt = time.UnixMilli(stored.LastIndexedAtMS.Int64).UTC().Format(time.RFC3339Nano)
@@ -46,7 +63,7 @@ func (s *Server) indexStatus(r *http.Request, c searchstore.ScopeConfig) (worksp
 	if stored.UpdatedAtMS != 0 {
 		result.UpdatedAt = time.UnixMilli(stored.UpdatedAtMS).UTC().Format(time.RFC3339Nano)
 	}
-	return result, err
+	return result
 }
 func (s *Server) handleWorkspaceIndex(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "private, no-store")
@@ -60,15 +77,30 @@ func (s *Server) handleWorkspaceIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodPost {
-		worker := indexer.NewWorker(searchstore.NewRefreshStore(s.store.DB()))
-		if err = worker.Run(r.Context(), config); err != nil {
+		// A disconnected HTTP caller only stops waiting. The application owns
+		// the shared bounded batch, including cleanup during process shutdown.
+		var ticket *indexer.RefreshTicket
+		if err = r.Context().Err(); err == nil {
+			ticket, err = s.requestWorkspaceRefresh(config.Scope())
+		}
+		var committed searchstore.ScopeStatus
+		if err == nil {
+			committed, err = ticket.Wait(r.Context())
+		}
+		if err != nil {
 			code := 500
-			if errors.Is(err, searchstore.ErrRefreshBusy) || errors.Is(err, searchstore.ErrRefreshLost) {
+			if errors.Is(err, indexer.ErrSchedulerClosed) {
+				code = 503
+			} else if errors.Is(err, indexer.ErrRefreshPending) || errors.Is(err, searchstore.ErrRefreshBusy) || errors.Is(err, searchstore.ErrRefreshLost) {
 				code = 409
 			}
 			writeJSON(w, code, map[string]any{"error": err.Error()})
 			return
 		}
+		// Return the verified batch observation, not a later unrelated refresh's
+		// indexing/failure status read after our ticket completed.
+		writeJSON(w, 200, projectIndexStatus(config, committed))
+		return
 	}
 	status, err := s.indexStatus(r, config)
 	if err != nil {

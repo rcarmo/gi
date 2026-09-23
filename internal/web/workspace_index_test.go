@@ -13,7 +13,6 @@ import (
 	"github.com/rcarmo/gi/internal/search/chunking"
 	searchstore "github.com/rcarmo/gi/internal/search/store"
 	"github.com/rcarmo/gi/internal/store"
-	"github.com/rcarmo/gi/internal/turn"
 )
 
 func TestWorkspaceIndexAPIRefreshQueriesFailureAndAuth(t *testing.T) {
@@ -22,7 +21,7 @@ func TestWorkspaceIndexAPIRefreshQueriesFailureAndAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer s.Close()
+	t.Cleanup(func() { s.Close() })
 	write := func(path, text string) {
 		t.Helper()
 		full := filepath.Join(root, path)
@@ -35,7 +34,7 @@ func TestWorkspaceIndexAPIRefreshQueriesFailureAndAuth(t *testing.T) {
 	}
 	write("notes/a.md", "native orchid")
 	write(".pi/skills/test/SKILL.md", "native violet")
-	srv := New(s, turn.New(s), config.RuntimeConfig{WorkspaceRoot: root})
+	srv := newIndexTestServer(t, s, config.RuntimeConfig{WorkspaceRoot: root})
 	call := func(method, path string) *httptest.ResponseRecorder {
 		t.Helper()
 		res := httptest.NewRecorder()
@@ -139,7 +138,8 @@ func TestWorkspaceIndexAPIRefreshQueriesFailureAndAuth(t *testing.T) {
 	}
 	// New server instance reads the same durable status; no implicit rebuild.
 	generation := status().Generation
-	srv = New(s, turn.New(s), config.RuntimeConfig{WorkspaceRoot: root})
+	srv.CloseWorkspaceIndex()
+	srv = newIndexTestServer(t, s, config.RuntimeConfig{WorkspaceRoot: root})
 	if status().Generation != generation {
 		t.Fatal("server recreation mutated generation")
 	}
@@ -167,7 +167,7 @@ func TestWorkspaceIndexStartupSettingsOptionalPolicyAndConfigIsolation(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer s.Close()
+	t.Cleanup(func() { s.Close() })
 	write := func(path, text string) {
 		t.Helper()
 		full := filepath.Join(root, path)
@@ -180,7 +180,7 @@ func TestWorkspaceIndexStartupSettingsOptionalPolicyAndConfigIsolation(t *testin
 	}
 	write(".pi/settings.json", `{"workspaceIndex":{"extraRoots":["docs"],"extraExtensions":["nim"],"optionalRoots":["notes",".pi/skills"]}}`)
 	write("docs/sample.nim", "nimorchid evidence")
-	srv := New(s, turn.New(s), config.Load(root))
+	srv := newIndexTestServer(t, s, config.Load(root))
 	call := func(method, path string) *httptest.ResponseRecorder {
 		t.Helper()
 		res := httptest.NewRecorder()
@@ -216,7 +216,8 @@ func TestWorkspaceIndexStartupSettingsOptionalPolicyAndConfigIsolation(t *testin
 		t.Fatal("hot config unexpectedly changed", st)
 	}
 	write("other/new.nim", "newviolet content")
-	srv = New(s, turn.New(s), config.Load(root))
+	srv.CloseWorkspaceIndex()
+	srv = newIndexTestServer(t, s, config.Load(root))
 	if st := current(); st.State != "stale" {
 		t.Fatal(st)
 	}
@@ -254,7 +255,8 @@ func TestWorkspaceIndexStartupSettingsOptionalPolicyAndConfigIsolation(t *testin
 	}
 	// Invalid options fail requests; no silently broadened all-scope fallback.
 	write(".pi/settings.json", `{"workspaceIndex":{"extraRoots":["../escape"]}}`)
-	srv = New(s, turn.New(s), config.Load(root))
+	srv.CloseWorkspaceIndex()
+	srv = newIndexTestServer(t, s, config.Load(root))
 	for _, method := range []string{"GET", "POST"} {
 		if res := call(method, "/api/workspace/index"); res.Code != 400 {
 			t.Fatal(res.Code)

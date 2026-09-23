@@ -194,3 +194,15 @@ Feature: Scoped workspace indexing lifecycle
     And every queued caller receives a terminal result
     And requests after cancellation are rejected
     And no scheduler database operation occurs after close returns
+
+  @index-derived-021 @gi-strengthening
+  Scenario: Explicit web refresh shares application-owned work
+    Given application startup owns the configured scope scheduler
+    Then startup and GET status or search do not scan or request refresh
+    When concurrent authenticated Reindex requests wait for the same scope
+    Then they share a bounded refresh batch
+    And disconnecting one caller cancels only its wait
+    And successful responses follow committed matching ready status
+    When application shutdown or a listener failure stops the server
+    Then new refresh requests are rejected
+    And HTTP handlers and index cleanup are joined before closing the database

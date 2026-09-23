@@ -20,6 +20,8 @@ import (
 	giauth "github.com/rcarmo/gi/internal/auth"
 	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/inference"
+	"github.com/rcarmo/gi/internal/search/indexer"
+	searchstore "github.com/rcarmo/gi/internal/search/store"
 	gisession "github.com/rcarmo/gi/internal/session"
 	"github.com/rcarmo/gi/internal/store"
 	storeaudit "github.com/rcarmo/gi/internal/store/audit"
@@ -40,6 +42,10 @@ type Server struct {
 	scriptTool            *tools.ScriptTool
 	auth                  *giauth.Manager
 	inboundDispatcherOnce sync.Once
+	indexMu               sync.Mutex
+	indexScheduler        *indexer.Scheduler
+	indexConfigs          map[string]searchstore.ScopeConfig
+	indexClosed           bool
 }
 
 func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {

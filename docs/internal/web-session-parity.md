@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Application-owned explicit index refresh (2026-09-23)
+
+[ADR-0050](../adr/0050-application-owned-index-refresh.md) wires POST reindex to shared bounded batches, isolates caller disconnects and joins HTTP/index shutdown before SQLite closes. Startup and GET remain scan-free; watcher/mutation delivery and automatic freshness are not enabled. Go/vet/build/hook, 77 functional, 32 helpers, focused 24 browser, lifecycle race ×10 and full HTTP/web/indexer race ×3 pass. Built-process SIGTERM/bind-failure cleanup also passes. No supplied UI/TUI change, no new frozen credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**; 21 derived proposals remain separate.
+
 ## Bounded internal index scheduler (2026-09-23)
 
 [ADR-0049](../adr/0049-bounded-index-scheduler.md) adds fixed-scope coalescing, shared completion tickets, revision-aware peer/follow-up completion, bounded retries and cancel/join shutdown. It has no production caller yet. Go/vet/build/hook, 76 functional, 32 helpers, store/indexer race ×3 and scheduler race ×10 pass; 20 derived proposals parse separately. Build output moved to `/tmp` after ENOSPC without removing backups/screenshots. No browser/terminal matrix or new frozen credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**. Query GET remains read-only; application/watcher wiring is next.

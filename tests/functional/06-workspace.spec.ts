@@ -91,3 +91,18 @@ test('workspace index runtime defaults are strict with no implicit extra roots',
  const state=await (await request.get(`${BASE_URL}/api/workspace/index`)).json();
  expect(state.required_roots).toBe(true);expect(state.optional_roots).toBeNull();expect(state.roots).toEqual(['.pi/skills','notes']);
 });
+
+test('workspace index reads keep edited bytes stale until the next explicit application refresh',async({request})=>{
+ const path='notes/lifecycle-snapshot.md';
+ const write=async(content:string)=>{const r=await request.post(`${BASE_URL}/api/tools/execute`,{data:{tool:'write',input:{path,content}}});expect((await r.json()).error).toBeFalsy();};
+ const refresh=async()=>{const r=await request.post(`${BASE_URL}/api/workspace/index?scope=notes`);expect(r.status()).toBe(200);return r.json();};
+ const search=async(q:string)=>(await request.get(`${BASE_URL}/api/workspace/search?scope=notes&q=${q}`)).json();
+ await write('lifecycleoldorchid');const before=await refresh();expect(before.state).toBe('ready');
+ await write('lifecyclenewviolet');
+ expect((await search('lifecycleoldorchid')).hits.map((h:any)=>h.path)).toEqual([path]);
+ expect((await search('lifecyclenewviolet')).hits).toEqual([]);
+ const unchanged=await (await request.get(`${BASE_URL}/api/workspace/index?scope=notes`)).json();
+ expect(unchanged.generation).toBe(before.generation);expect(unchanged.last_indexed_at).toBe(before.last_indexed_at);
+ const after=await refresh();expect(after.generation).toBe(before.generation+1);expect(after.state).toBe('ready');
+ expect((await search('lifecyclenewviolet')).hits.map((h:any)=>h.path)).toEqual([path]);expect((await search('lifecycleoldorchid')).hits).toEqual([]);
+});

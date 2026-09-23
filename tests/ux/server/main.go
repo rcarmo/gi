@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/rcarmo/gi/internal/config"
+	"github.com/rcarmo/gi/internal/httpserver"
 	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/store"
 	"github.com/rcarmo/gi/internal/turn"
@@ -259,8 +260,11 @@ func main() {
 	httpServer := &http.Server{Addr: addr, Handler: server.Handler()}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
-	go func() { <-ctx.Done(); httpServer.Close() }()
-	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Print(err)
+	if err := server.StartWorkspaceIndex(ctx); err != nil {
+		log.Fatal(err)
+	}
+	defer server.CloseWorkspaceIndex()
+	if err := httpserver.Run(ctx, stop, 5*time.Second, httpserver.Listener{Server: httpServer, Serve: httpServer.ListenAndServe, Label: "ux"}); err != nil {
+		log.Printf("UX HTTP stopped: %v", err)
 	}
 }
