@@ -59,8 +59,9 @@ buildVendor('codemirror-entry.ts', editorVendorDir, 'codemirror.js');
 
 // ── App bundle ────────────────────────────────────────────────────────────
 const appBuild = await Bun.build({
-  entrypoints: [`${webSrc}/app.ts`], outdir: webSrc,
-  target: 'browser', format: 'esm', sourcemap: 'linked',
+  entrypoints: [`${webSrc}/gi-bootstrap.ts`], outdir: distDir,
+  target: 'browser', format: 'esm', sourcemap: 'linked', splitting: true, modulePreload: false,
+  naming: { entry: 'app.bundle.[ext]', chunk: 'chunks/[name]-[hash].[ext]', asset: 'assets/[name]-[hash].[ext]' },
   external: ['/editor-vendor/codemirror.js'],
   plugins: [{ name: 'gi-appearance-renderer', setup(build) {
     // Export only the existing catalogue and renderer; leave supplied source bytes unchanged.
@@ -77,8 +78,13 @@ const appBuild = await Bun.build({
   } }],
 });
 if (!appBuild.success) { console.error(appBuild.logs); process.exit(1); }
-move(`${webSrc}/app.js`,     `${distDir}/app.bundle.js`);
-move(`${webSrc}/app.js.map`, `${distDir}/app.bundle.js.map`);
+// Retain only this build's hashed chunks. Old open clients receive a pane-load
+// error after deployment rather than executing a mismatched module.
+const outputPaths = new Set(appBuild.outputs.map(output => resolve(output.path)));
+for (const entry of new Bun.Glob('chunks/**/*').scanSync({ cwd: distDir, onlyFiles: true })) {
+  const path = resolve(distDir, entry);
+  if (!outputPaths.has(path)) rmSync(path);
+}
 
 // No post-processing needed — vendor scripts are loaded as modules.
 

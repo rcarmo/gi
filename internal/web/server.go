@@ -160,6 +160,11 @@ func (s *Server) routes() {
 			s.serveIndex(w, r)
 			return
 		}
+		// The stable bootstrap points to this binary's hashed module graph. Even
+		// a same-version rebuild must not reuse a bootstrap from an older binary.
+		if r.URL.Path == "/dist/app.bundle.js" || r.URL.Path == "/dist/app.bundle.js.map" {
+			w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		}
 		fileServer.ServeHTTP(w, r)
 	})
 	s.mux.HandleFunc("/api/auth/status", s.handleAuthStatus)

@@ -31,6 +31,8 @@ test.describe('App shell', () => {
   });
 
   test('Gi settings opens from the menu and shows scoped native model settings', async ({ page, request }) => {
+    const chunks: string[] = [];
+    page.on('request', req => { if (/\/dist\/chunks\/gi-settings-.*\.js$/.test(new URL(req.url()).pathname)) chunks.push(req.url()); });
     await page.goto(BASE_URL); await waitForAppShell(page);
     const input = page.getByRole('textbox', { name: 'Message (Enter to send, Shift+Enter for newline)...', exact: true });
     await input.fill('functional settings draft');
@@ -42,8 +44,10 @@ test.describe('App shell', () => {
     const identity = await (await request.get('/api/settings/identity')).json();
     await expect(dialog.getByLabel('Assistant display name')).toHaveValue(identity.saved.assistant_name);
     await expect(dialog.getByRole('button', { name: 'Save names', exact: true })).toBeEnabled();
+    expect(chunks).toEqual([]);
     await dialog.getByRole('button', { name: 'Models', exact: true }).click();
     await expect(dialog.getByTestId('settings-current-model')).toContainText('test-model');
+    expect(chunks.filter(url => url.includes('gi-settings-models-'))).toHaveLength(1);
     await dialog.getByRole('button', { name: 'Compaction', exact: true }).click();
     await expect(dialog.getByTestId('compaction-policy')).toContainText('Trigger threshold');
     const savedPolicy = await (await request.get('/api/settings/compaction')).json();

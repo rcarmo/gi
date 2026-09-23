@@ -2,12 +2,8 @@
 // Native capabilities only; no Piclaw settings service calls.
 import { html, useState, useEffect, useLayoutEffect, useRef } from './vendor/preact-htm.js';
 import { BodyPortal } from './components/body-portal.js';
-import { getGiSettingsSnapshot, getGiIdentity, saveGiIdentity, getAgentModels, selectAgentModel } from './api.js';
-import { modelContextBlocked } from './gi-context-usage.js';
-import { appearancePresets, currentAppearance, persistAppearance, subscribeAppearance } from './gi-appearance.js';
-import { defaultAppearance } from './gi-appearance-state.js';
-import { GiSettingsCompaction } from './gi-settings-compaction.js';
-import { GiSettingsProviders } from './gi-settings-providers.js';
+import { getGiSettingsSnapshot, getGiIdentity, saveGiIdentity } from './api.js';
+import { LazySettingsPane } from './gi-settings-lazy.js';
 
 let generalCache: any = null;
 
@@ -88,114 +84,6 @@ function General() {
     </section>`;
 }
 
-function Models({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
-    const [data, setData] = useState<any>(null);
-    const [chosen, setChosen] = useState('');
-    const [filter, setFilter] = useState('');
-    const [error, setError] = useState('');
-    const [notice, setNotice] = useState('');
-    const [busy, setBusy] = useState(false);
-    const [attempt, setAttempt] = useState(0);
-    const mounted = useRef(false);
-    const saving = useRef(false);
-    const searchRef = useRef<HTMLInputElement>(null);
-    useEffect(() => {
-        mounted.current = true;
-        searchRef.current?.focus();
-        return () => { mounted.current = false; };
-    }, []);
-    useEffect(() => {
-        let live = true;
-        setData(null); setError(''); setNotice('');
-        getAgentModels(chatJid).then(snapshot => {
-            if (live) { setData(snapshot); setChosen(snapshot.current); }
-        }).catch(error => { if (live) setError(error.message); });
-        return () => { live = false; };
-    }, [chatJid, attempt]);
-    const options = data?.model_options || data?.models || [];
-    const matching = options.filter(option => `${option.label || option.id} ${option.provider || ''}`.toLowerCase().includes(filter.trim().toLowerCase()));
-    const selected = options.find(option => (option.label || option.id) === chosen);
-    const blocked = modelContextBlocked({ contextWindow: selected?.context_window ?? selected?.contextWindow }, data?.context_usage);
-    async function apply() {
-        if (saving.current || !data || !selected || blocked || chosen === data.current) return;
-        saving.current = true; setBusy(true); setError(''); setNotice('');
-        const token = onMutationStart();
-        try {
-            const result = await selectAgentModel(chatJid, chosen);
-            if (mounted.current) {
-                setData(previous => ({ ...previous, ...result })); setChosen(result.current);
-                setNotice('Model applied to this session.'); onApplied(result, token);
-            }
-        } catch (error) {
-            if (mounted.current) setError(error.message);
-        } finally {
-            onMutationEnd(token); saving.current = false;
-            if (mounted.current) setBusy(false);
-        }
-    }
-    return html`<section aria-labelledby="gi-models-title">
-        <h2 id="gi-models-title">Models</h2>
-        <p>Session settings · <code>${chatJid}</code></p>
-        <p>Changes affect this session only. Instance defaults and other sessions are unchanged.</p>
-        <label>Filter models<input ref=${searchRef} type="search" aria-label="Filter models" disabled=${busy} value=${filter} onInput=${e => { setFilter(e.target.value); setChosen(''); setNotice(''); }} /></label>
-        ${!data && !error && html`<p role="status">Loading models…</p>`}
-        ${error && html`<div role="alert">${error}${!data && html` <button onClick=${() => setAttempt(x => x + 1)}>Retry</button>`}</div>`}
-        ${data && html`
-            <dl class="gi-settings-values"><dt>Current model</dt><dd data-testid="settings-current-model">${data.current}</dd>
-            <dt>Thinking (read-only)</dt><dd>${data.thinking_level || 'Unknown'}</dd>
-            <dt>Context capacity</dt><dd data-testid="settings-context-capacity">${Number.isFinite(data.context_window) && data.context_window > 0 ? data.context_window : 'Unknown'}</dd></dl>
-            <label>Session model<select aria-label="Session model" value=${chosen} disabled=${busy} onChange=${e => { setChosen(e.target.value); setNotice(''); }}>
-                <option value="" disabled>Choose a model</option>
-                ${matching.slice(0, 50).map(option => html`<option value=${option.label || option.id}>${option.label || option.id}</option>`)}
-            </select></label>
-            ${matching.length > 50 && html`<p>Showing 50 of ${matching.length} models. Refine the filter.</p>`}
-            ${matching.length === 0 && html`<p>No matching models.</p>`}
-            ${blocked && html`<p role="status">This model cannot fit the measured context. Compact the session before changing models.</p>`}
-            <button disabled=${busy || !selected || blocked || chosen === data.current} onClick=${apply}>${busy ? 'Applying…' : 'Apply model'}</button>
-            ${notice && html`<p role="status">${notice}</p>`}
-        `}
-    </section>`;
-}
-
-function Appearance() {
-    const [draft, setDraft] = useState(currentAppearance);
-    const [error, setError] = useState('');
-    const [notice, setNotice] = useState('');
-    const dirty = useRef(false);
-    const ownSave = useRef(false);
-    useEffect(() => subscribeAppearance(value => {
-        if (ownSave.current) return;
-        if (dirty.current) setNotice('Appearance changed in another tab. Your unsaved fields are unchanged. Save to overwrite or reset to defaults.');
-        else { setDraft(value); setNotice('Appearance updated from another tab.'); }
-    }), []);
-    const update = patch => {
-        dirty.current = true; setDraft(previous => ({ ...previous, ...patch })); setError(''); setNotice('');
-    };
-    const save = value => {
-        setError(''); setNotice(''); ownSave.current = true;
-        try {
-            const saved = persistAppearance(value);
-            dirty.current = false; setDraft(saved); setNotice('Appearance saved in this browser.');
-        } catch (error) {
-            setError(`Appearance was not saved: ${error.message}`);
-        } finally { ownSave.current = false; }
-    };
-    return html`<section aria-labelledby="gi-appearance-title">
-        <h2 id="gi-appearance-title">Appearance</h2>
-        <p>Browser settings · this origin, across all sessions</p>
-        <p>Only this browser profile changes. Server configuration, other devices and the terminal theme are unchanged. Default follows your system colour mode.</p>
-        <label>Theme preset<select aria-label="Theme preset" value=${draft.theme} onChange=${e => update({ theme: e.target.value, tint: '' })}>
-            ${appearancePresets.map(theme => html`<option value=${theme}>${theme}</option>`)}
-        </select></label>
-        <label>Custom tint<input aria-label="Custom tint" type="text" placeholder="#RRGGBB" maxLength="7" disabled=${draft.theme !== 'default'} value=${draft.tint} onInput=${e => update({ tint: e.target.value })} /></label>
-        <p>Default theme only. Use #RGB or #RRGGBB, or leave empty for no tint.</p>
-        <button onClick=${() => save(draft)}>Save appearance</button>
-        <button onClick=${() => save(defaultAppearance)}>Reset appearance</button>
-        ${error && html`<p role="alert">${error}</p>`}
-        ${notice && html`<p role="status">${notice}</p>`}
-    </section>`;
-}
-
 function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied }) {
     const [section, setSection] = useState('general');
     const dialog = useRef<HTMLDivElement>(null);
@@ -239,7 +127,7 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
             <div class="settings-dialog-body"><nav class="settings-nav" aria-label="Settings sections">
                 ${['general', 'models', 'appearance', 'compaction', 'providers'].map(id => html`<button class=${`settings-nav-item ${section === id ? 'active' : ''}`} aria-current=${section === id ? 'page' : undefined} onClick=${() => setSection(id)}>${{ general: 'General', models: 'Models', appearance: 'Appearance', compaction: 'Compaction', providers: 'Providers' }[id]}</button>`)}
             </nav><main class="settings-content">
-                ${section === 'general' ? html`<${General} />` : section === 'appearance' ? html`<${Appearance} />` : section === 'providers' ? html`<${GiSettingsProviders} />` : section === 'compaction' ? html`<${GiSettingsCompaction} key=${chatJid} chatJid=${chatJid} />` : html`<${Models} key=${chatJid} chatJid=${chatJid} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`}
+                ${section === 'general' ? html`<${General} />` : html`<${LazySettingsPane} key=${section} section=${section} chatJid=${chatJid} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`}
             </main></div>
         </div>
     </div>`;

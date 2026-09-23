@@ -240,6 +240,17 @@ Feature: Gi settings backed by native capabilities
     When a save or read response arrives after closing Providers
     Then it cannot update a reopened view or restore a cleared secret field
 
+  @gi-settings-024
+  Scenario: Load non-General pane code on demand without caching native state
+    Given General is available in the app module
+    When I select an unopened pane
+    Then its content-hashed module is requested and a pane loading status appears
+    And unopened pane modules are not requested
+    When I return to a visited pane
+    Then the browser reuses its module but native data follows its existing refresh contract
+    And late imports cannot replace a newer section or reopen a closed dialog
+    And a failed module load shows a bounded error without a blank page or automatic reload
+
   @proposal @gi-settings-next-004
   Scenario: Add browser OAuth only with provider-specific native login and refresh lifecycle
     Given a provider has a supported browser login contract with bounded lifetime and cancellation

@@ -89,3 +89,97 @@ test('@ux-settings-dialog-004 Numeric policy stepper accepts typed 128000 withou
   await expect(field).toBeVisible(); await field.focus(); await field.fill('128000'); await expect(field).toHaveValue('128000');
   expect(mutations).toEqual([]); await page.keyboard.press('Escape'); await f.unchanged();
 });
+
+test('@gi-settings-024 Missing upgrade chunk reports failure and explicit reload gets the current graph', async ({ page, request }, info) => {
+  const bootstraps = [], mutations = [];
+  page.on('response', response => { if (new URL(response.url()).pathname === '/dist/app.bundle.js') bootstraps.push(response); });
+  page.on('request', req => { if (new URL(req.url()).pathname.startsWith('/api/settings/') && req.method() !== 'GET') mutations.push(req.url()); });
+  const f = await setup(page, request, info); await f.open();
+  // Use the native missing-file response to simulate an old tab's unloaded
+  // module being removed by deployment. Never forge settings/backend data.
+  const pattern = /\/dist\/chunks\/gi-settings-providers-[^/]+\.js$/;
+  let missingStatus;
+  await page.route(pattern, async route => {
+    const response = await route.fetch({ url: new URL('/dist/chunks/gi-settings-providers-removed-build.js', page.url()).href });
+    missingStatus = response.status(); await route.fulfill({ response });
+  });
+  await f.dialog.getByRole('button', { name: 'Providers', exact: true }).click();
+  await expect(f.dialog.getByRole('alert')).toContainText('Unable to load Providers');
+  await expect(f.dialog.getByRole('alert')).toContainText('reload the page');
+  expect(missingStatus).toBe(404); expect(bootstraps).toHaveLength(1);
+  await expect(page.locator('.app-shell')).toHaveCount(1);
+  await page.keyboard.press('Escape'); await f.unchanged();
+  await page.unroute(pattern); await page.reload(); await f.open();
+  await f.dialog.getByRole('button', { name: 'Providers', exact: true }).click();
+  await expect(f.dialog.getByRole('heading', { name: 'Providers', exact: true })).toBeVisible();
+  await expect(f.dialog.getByRole('button', { name: 'Refresh providers', exact: true })).toBeEnabled();
+  expect(bootstraps).toHaveLength(2);
+  for (const response of bootstraps) expect(response.headers()['cache-control']).toBe('no-cache, no-store, must-revalidate');
+  expect(mutations).toEqual([]); await page.keyboard.press('Escape'); await f.unchanged();
+});
+
+const settingsChunk = url => /\/dist\/chunks\/gi-settings-(models|appearance|compaction|providers)-[^/]+\.js$/.test(new URL(url).pathname);
+for (const id of ['@ux-settings-dialog-005', '@ux-settings-003']) {
+  test(`${id} General is immediate and pane modules load only on visit with cached revisits`, async ({ page, request }, info) => {
+    await source(info, id);
+    const chunks = [], appRequests = []; let runtimeReads = 0;
+    page.on('request', r => { if (settingsChunk(r.url())) chunks.push(r.url()); if (/\/dist\/chunks\/app-[^/]+\.js$/.test(new URL(r.url()).pathname)) appRequests.push(r.url()); if (new URL(r.url()).pathname === '/api/runtime/config') runtimeReads++; });
+    const f = await setup(page, request, info); await f.open();
+    await expect(f.dialog.getByRole('heading', { name: 'General', exact: true })).toBeVisible();
+    await expect(f.dialog.locator('.gi-settings-values')).toBeVisible(); expect(chunks).toEqual([]);
+    const sequence = [['Models', 'models'], ['Appearance', 'appearance'], ['Compaction', 'compaction'], ['Providers', 'providers']];
+    for (let i = 0; i < sequence.length; i++) {
+      const [label, slug] = sequence[i]; let release, held = false; const gate = new Promise(r => { release = r; });
+      const pattern = new RegExp(`/dist/chunks/gi-settings-${slug}-[^/]+\\.js$`);
+      await page.route(pattern, async route => { const response = await route.fetch(); held = true; await gate; await route.fulfill({ response }); });
+      try {
+        await f.dialog.getByRole('button', { name: label, exact: true }).click(); await expect.poll(() => held).toBe(true);
+        await expect(f.dialog.getByRole('status').filter({ hasText: `Loading ${label} pane…` })).toBeVisible();
+        await expect(f.dialog.getByRole('heading', { name: label, exact: true })).toHaveCount(0);
+        for (const [, unopened] of sequence.slice(i + 1)) expect(chunks.some(url => url.includes(`gi-settings-${unopened}-`))).toBe(false);
+        release(); await expect(f.dialog.getByRole('heading', { name: label, exact: true })).toBeVisible();
+      } finally { release(); await page.unroute(pattern); }
+      const loaded = [...chunks]; await f.dialog.getByRole('button', { name: 'General', exact: true }).click();
+      await f.dialog.getByRole('button', { name: label, exact: true }).click();
+      await expect(f.dialog.getByRole('heading', { name: label, exact: true })).toBeVisible(); expect(chunks).toEqual(loaded);
+    }
+    expect(chunks).toHaveLength(4); expect(appRequests).toHaveLength(1); await expect(page.locator('.app-shell')).toHaveCount(1);
+    expect(runtimeReads).toBeGreaterThan(0);
+    await page.keyboard.press('Escape'); await f.unchanged();
+  });
+}
+
+test('@gi-settings-024 Late imports and failed module loads cannot replace the selected pane or blank the shell', async ({ page, request }, info) => {
+  const f = await setup(page, request, info); await f.open();
+  let release, held = false, done; const gate = new Promise(r => { release = r; }), delivered = new Promise(r => { done = r; });
+  const modelPattern = /\/dist\/chunks\/gi-settings-models-[^/]+\.js$/;
+  await page.route(modelPattern, async route => { const response = await route.fetch(); held = true; await gate; await route.fulfill({ response }); done(); });
+  try {
+    await f.dialog.getByRole('button', { name: 'Models', exact: true }).click(); await expect.poll(() => held).toBe(true);
+    await f.dialog.getByRole('button', { name: 'Appearance', exact: true }).click(); await expect(f.dialog.getByRole('heading', { name: 'Appearance', exact: true })).toBeVisible();
+    release(); await delivered;
+    await expect(f.dialog.getByRole('heading', { name: 'Models', exact: true })).toHaveCount(0);
+    await expect(f.dialog.getByRole('heading', { name: 'Appearance', exact: true })).toBeVisible();
+  } finally { release(); }
+  await page.route(/\/dist\/chunks\/gi-settings-providers-[^/]+\.js$/, route => route.abort());
+  await f.dialog.getByRole('button', { name: 'Providers', exact: true }).click(); await expect(f.dialog.getByRole('alert')).toContainText('Unable to load Providers');
+  await expect(page.locator('.app-shell')).toHaveCount(1);
+  await page.keyboard.press('Escape'); await expect(f.dialog).toHaveCount(0); await f.unchanged();
+  // A failed ESM fetch may remain cached by the browser; no false retry promise or forced reload.
+  await f.open(); await expect(f.dialog.getByRole('heading', { name: 'General', exact: true })).toBeVisible();
+});
+
+test('@gi-settings-024 A pane import completing after close cannot reopen Settings', async ({ page, request }, info) => {
+  const f = await setup(page, request, info); await f.open();
+  let release, held = false, done; const gate = new Promise(r => { release = r; }), delivered = new Promise(r => { done = r; });
+  await page.route(/\/dist\/chunks\/gi-settings-appearance-[^/]+\.js$/, async route => {
+    const response = await route.fetch(); held = true; await gate; await route.fulfill({ response }); done();
+  });
+  try {
+    await f.dialog.getByRole('button', { name: 'Appearance', exact: true }).click(); await expect.poll(() => held).toBe(true);
+    await page.keyboard.press('Escape'); await expect(f.dialog).toHaveCount(0); release(); await delivered;
+    await page.waitForTimeout(150); await expect(f.dialog).toHaveCount(0); await f.unchanged();
+    await f.open(); await f.dialog.getByRole('button', { name: 'Appearance', exact: true }).click();
+    await expect(f.dialog.getByRole('heading', { name: 'Appearance', exact: true })).toBeVisible();
+  } finally { release(); }
+});
