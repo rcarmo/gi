@@ -13,7 +13,7 @@ async function environment(page,info,options={}){
  mkdirSync(resolve('test-results/ux-parity'),{recursive:true});
  const log=createWriteStream(resolve('test-results/ux-parity',`reconnect-${info.project.name}-${Date.now()}.log`));
  const start=async()=>{
-  child=spawn(resolve('bin/gi-ux-steer'),[],{env:{...process.env,GI_UX_STATE_DIR:dir,GI_UX_LISTEN:`127.0.0.1:${port}`,GI_UX_QUEUE_GATES:dir},stdio:['ignore','pipe','pipe']});child.stdout.pipe(log,{end:false});child.stderr.pipe(log,{end:false});
+  child=spawn(resolve(process.env.GI_UX_SERVER_BIN||'bin/gi-ux-steer'),[],{env:{...process.env,GI_UX_STATE_DIR:dir,GI_UX_LISTEN:`127.0.0.1:${port}`,GI_UX_QUEUE_GATES:dir},stdio:['ignore','pipe','pipe']});child.stdout.pipe(log,{end:false});child.stderr.pipe(log,{end:false});
   await expect.poll(async()=>{try{return (await fetch(origin+'/api/runtime/config')).status}catch{return 0}},{timeout:10000}).toBe(200);
  };
  const stop=async()=>{if(!child||child.exitCode!==null)return;const done=new Promise(r=>child.once('exit',r));child.kill('SIGTERM');await done;};

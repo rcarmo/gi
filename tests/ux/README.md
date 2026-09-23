@@ -239,3 +239,11 @@ The combined report has **15/236 Classic** and **2/42 shared** passes (221 and 4
 `queue-return.spec.mjs` maps `@shared-28` (the immutable shared corpus's ordinal ID), with a name assertion preventing mapping drift. Return merges the latest origin draft/media/refs and persists recovery before DELETE. Tests hold real media responses, inspect committed state at DELETE, inject quota/transport failures, reload/retry and verify no duplicate recovery. Separate regressions cover already-consumed items and session switches.
 
 The report now includes separate shared rows/counts. Full matrix: **192/192** executions; Classic **15/236** passing (221 unmapped), shared **1/42** passing (41 unmapped). Classic `017` and compose `004` prescribe replacement/media clearing and remain unmapped; their frozen assertions were not weakened. See [ADR-0017](../../docs/adr/0017-durable-queue-return.md).
+
+## Compose transport progress — 2026-09-23
+
+`@ux-compose-005` now has native upload/prompt phase evidence in `drafts.spec.mjs` across all six projects. XHR provides real byte progress; separate per-session operations drive host status and a send-button ring without altering the supplied composer. Tests preserve exact multipart bytes, newer typing/caret, origin session, failure recovery and concurrent operations. Browser interception holds real responses; it never fabricates success or progress. Direct upload coverage separately records real computable progress events.
+
+Current complete run: **516 browser executions** (348 main, 54 reconnect, 66 compaction, 18 Steer/admission, 12 fit, 12 meter, 6 index config), **78 functional**, **34 helpers**. Combined mapping is **46/236 Classic**, **2/42 shared**, **190/40 unmapped**. See [ADR-0053](../../docs/adr/0053-compose-upload-and-send-progress.md). Terminal media progress remains design-only.
+
+Use `UX_LOCAL_BIN=/tmp/gi-scheduler-bin/gi-ux-steer` for isolated local/reconnect binaries when workspace disk space is low. Reconnect forwards that path as `GI_UX_SERVER_BIN`; defaults are unchanged.

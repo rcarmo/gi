@@ -639,3 +639,82 @@ for (const successfulPrefix of [0, 1]) {
     } finally { release(); await page.unroute(routePattern); }
   });
 }
+
+test('@ux-compose-005 Upload progress ends before distinct sending state and stays with the origin session',async({page,request},info)=>{
+ await evidence(info,'@ux-compose-005');
+ const {main,child,input,switchTo}=await fixture(page,request,info);
+ let releaseUpload,releaseSend,uploadHeld=false,sendHeld=false;
+ const uploadGate=new Promise(r=>releaseUpload=r),sendGate=new Promise(r=>releaseSend=r);
+ const file={name:'progress-native.txt',mimeType:'text/plain',buffer:Buffer.alloc(512*1024,'p')};
+ let posted;
+ await page.route(`**/api/sessions/${main.id}/media`,async route=>{const raw=route.request().postDataBuffer();expect(raw?.length).toBeGreaterThan(file.buffer.length);const response=await route.fetch({postData:raw});expect(response.status()).toBe(201);uploadHeld=true;await uploadGate;await route.fulfill({response});});
+ await page.route(`**/api/sessions/${main.id}/prompt`,async route=>{posted=route.request().postDataJSON();expect(await page.locator('.gi-compose-upload').count()).toBe(0);sendHeld=true;await sendGate;const response=await route.fetch();await route.fulfill({response});});
+ const button=page.locator('.compose-send-stack .send-btn'),upload=page.locator('.gi-compose-upload'),sending=page.locator('.gi-compose-sending');
+ try{
+  await input.fill('native progress message');await page.locator('.compose-box input[type=file]').setInputFiles(file);await input.press('Enter');
+  await expect.poll(()=>uploadHeld).toBe(true);await expect(upload).toContainText('Uploading');await expect(page.getByRole('progressbar',{name:'Attachment upload progress'})).toBeVisible();
+  await expect(sending).toHaveCount(0);await expect(button).not.toHaveAttribute('data-gi-sending','true');expect(sendHeld).toBe(false);
+  await input.fill('newer draft');await input.evaluate(el=>el.setSelectionRange(3,3));await page.screenshot({path:info.outputPath('compose-upload-progress.png')});
+  await switchTo(child);await input.fill('child draft');await expect(upload).toHaveCount(0);await expect(sending).toHaveCount(0);await expect(button).not.toHaveAttribute('aria-busy','true');
+  await switchTo(main.id);await expect(input).toHaveValue('newer draft');await expect(upload).toBeVisible();
+  await input.evaluate(el=>{el.focus();el.setSelectionRange(3,3)});
+  releaseUpload();await expect.poll(()=>sendHeld).toBe(true);
+  await expect(upload).toHaveCount(0);await expect(sending).toContainText('Sending message');await expect(button).toHaveAttribute('data-gi-sending','true');await expect(button).toHaveAttribute('aria-busy','true');
+  await expect(input).toHaveValue('newer draft');expect(await input.evaluate(el=>el.selectionStart)).toBe(3);await expect(button).toBeEnabled();
+  expect(await button.evaluate(el=>getComputedStyle(el,'::after').content)).not.toBe('none');
+  expect(posted.prompt).toContain('native progress message');expect(posted.prompt).not.toContain('newer');expect(posted.media).toHaveLength(1);
+  const bytes=await request.get(`/api/sessions/${main.id}/media/${posted.media[0].media_id}`);expect(Buffer.from(await bytes.body())).toEqual(file.buffer);
+  await page.screenshot({path:info.outputPath('compose-message-sending.png')});
+  await switchTo(child);await expect(input).toHaveValue('child draft');await expect(sending).toHaveCount(0);await expect(button).not.toHaveAttribute('data-gi-sending','true');
+  releaseSend();await expect.poll(async()=>((await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages??[]).filter(m=>m.role==='user').length).toBe(1);
+  await switchTo(main.id);await expect(input).toHaveValue('newer draft');await expect(upload).toHaveCount(0);await expect(sending).toHaveCount(0);await expect(button).not.toHaveAttribute('aria-busy','true');
+  await page.reload();await expect(input).toHaveValue('newer draft');await expect(page.locator('.gi-compose-transfer')).toBeHidden();
+ }finally{releaseUpload();releaseSend()}
+});
+
+test('Gi native upload transport retains bytes and emits real progress without browser routing',async({page,request},info)=>{
+ await page.addInitScript(()=>{
+  window.__uploadProgress=[];
+  const open=XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open=function(method,url,...rest){
+   if(String(url).endsWith('/media'))this.upload.addEventListener('progress',e=>window.__uploadProgress.push({loaded:e.loaded,total:e.total,computable:e.lengthComputable}));
+   return open.call(this,method,url,...rest);
+  };
+ });
+ const {main,input}=await fixture(page,request,info);
+ const file={name:'unrouted.txt',mimeType:'text/plain',buffer:Buffer.alloc(512*1024,'p')};
+ await input.fill('unrouted bytes');await page.locator('.compose-box input[type=file]').setInputFiles(file);await input.press('Enter');
+ await expect.poll(async()=>((await(await request.get(`/api/sessions/${main.id}/media`)).json()).media??[]).length).toBe(1);
+ const {media}=await(await request.get(`/api/sessions/${main.id}/media`)).json();
+ expect(await(await request.get(`/api/sessions/${main.id}/media/${media[0].id}`)).body()).toEqual(file.buffer);
+ await expect.poll(()=>page.evaluate(()=>window.__uploadProgress.some(p=>p.computable&&p.loaded>0&&p.total>512*1024))).toBe(true);
+ await expect(page.locator('.gi-compose-transfer')).toBeHidden();
+});
+
+test('Gi overlapping upload and send operations complete independently and clear on native rejection',async({page,request},info)=>{
+ const {main,input}=await fixture(page,request,info);
+ let releaseUpload,releaseFirst,releaseSecond,uploadHeld=false,firstHeld=false,secondHeld=false;
+ const uploadGate=new Promise(r=>releaseUpload=r),firstGate=new Promise(r=>releaseFirst=r),secondGate=new Promise(r=>releaseSecond=r);
+ await page.route(`**/api/sessions/${main.id}/media`,async route=>{const response=await route.fetch({postData:route.request().postDataBuffer()});uploadHeld=true;await uploadGate;await route.fulfill({response});});
+ await page.route(`**/api/sessions/${main.id}/prompt`,async route=>{
+  const body=route.request().postDataJSON();
+  if(body.prompt.startsWith('first attachment')){firstHeld=true;await firstGate;}else{secondHeld=true;await secondGate;}
+  const response=await route.fetch();await route.fulfill({response});
+ });
+ try{
+  await input.fill('first attachment');await page.locator('.compose-box input[type=file]').setInputFiles(attachment('concurrent.txt'));await input.press('Enter');await expect.poll(()=>uploadHeld).toBe(true);
+  await input.fill('second plain');await input.press('Enter');await expect.poll(()=>secondHeld).toBe(true);
+  await expect(page.locator('.gi-compose-upload')).toBeVisible();await expect(page.locator('.gi-compose-sending')).toHaveText('Sending message…');
+  releaseUpload();await expect.poll(()=>firstHeld).toBe(true);await expect(page.locator('.gi-compose-upload')).toHaveCount(0);await expect(page.locator('.gi-compose-sending')).toHaveText('Sending 2 messages…');
+  releaseFirst();await expect(page.locator('.gi-compose-sending')).toHaveText('Sending message…');await expect(page.locator('.compose-send-stack .send-btn')).toHaveAttribute('aria-busy','true');
+  releaseSecond();await expect(page.locator('.gi-compose-transfer')).toBeHidden();
+  await expect.poll(async()=>((await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages??[]).filter(m=>m.role==='user').length).toBe(2);
+  await page.unroute(`**/api/sessions/${main.id}/media`);await page.unroute(`**/api/sessions/${main.id}/prompt`);
+  // Corrupt only the HTTP header; the real Go multipart parser rejects it.
+  let rejected=0;
+  await page.route(`**/api/sessions/${main.id}/media`,async route=>{const response=await route.fetch({headers:{...route.request().headers(),'content-type':'multipart/form-data'}});rejected=response.status();await route.fulfill({response});});
+  await input.fill('retry draft');await page.locator('.compose-box input[type=file]').setInputFiles(attachment('reject.txt'));await input.press('Enter');
+  await expect.poll(()=>rejected).toBe(400);await expect(input).toHaveValue('retry draft');await expect(page.locator('.gi-compose-transfer')).toBeHidden();await expect(page.locator('.compose-send-stack .send-btn')).not.toHaveAttribute('aria-busy','true');
+  await expect(page.getByRole('alert')).toContainText('no multipart boundary');
+ }finally{releaseUpload();releaseFirst();releaseSecond()}
+});

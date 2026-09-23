@@ -84,6 +84,7 @@ import {createSearchView} from './gi-search-state.js';
 import {newMessageWindow,mergeMessagePages,captureTimelineAnchor,restoreTimelineAnchor} from './gi-message-pages.js';
 
 import {bindWorkspaceVisibility} from './gi-workspace-visibility.js';
+import { composeTransfers, bindComposeSending } from './gi-compose-transfer.js';
 
 const DEFAULT_SESSION_TITLE = 'default';
 const SESSION_KEY = 'gi_session_id';
@@ -946,6 +947,7 @@ function GiApp() {
                 ${compactError && html`<div role="alert">${compactError}</div>`}
                 ${draftStorageError && html`<div role="alert">${draftStorageError}</div>`}
                 ${drafts.error(sessionId) && html`<div role="alert">${drafts.error(sessionId)}</div>`}
+                <${ComposeTransfer} sessionId=${sessionId} hidden=${searchState.active} />
                 <${ComposeBox}
                     statusNotice=${notice}
                     showQueueStack=${false}
@@ -1072,6 +1074,27 @@ function GiApp() {
             </div>
         </div>
     `;
+}
+
+// Host-owned transport status, independent of provider activity and drafts.
+function ComposeTransfer({ sessionId, hidden }) {
+    const [, repaint] = useState(0);
+    const ref = useRef(null);
+    useEffect(() => composeTransfers.subscribe(() => repaint(n => n + 1)), []);
+    const state = composeTransfers.snapshot(sessionId);
+    useLayoutEffect(() => {
+        const root = ref.current?.parentElement;
+        if (!root) return;
+        return bindComposeSending(root, !hidden && state.sending > 0);
+    }, [sessionId, hidden, state.sending]);
+    const percent = state.computable && state.total > 0 ? Math.floor(state.loaded * 100 / state.total) : null;
+    return html`<div ref=${ref} class="gi-compose-transfer" hidden=${hidden || (!state.uploads && !state.sending)}>
+        ${state.uploads > 0 && html`<div class="gi-compose-upload" role="status" aria-live="polite">
+            <span>Uploading ${state.uploads === 1 ? 'attachment' : `${state.uploads} attachments`}${percent === null ? '…' : ` · ${percent}%${percent === 100 ? ' · awaiting server' : ''}`}</span>
+            <progress aria-label="Attachment upload progress" max="100" value=${percent === null ? undefined : percent}></progress>
+        </div>`}
+        ${state.sending > 0 && html`<div class="gi-compose-sending" role="status" aria-live="polite">Sending${state.sending > 1 ? ` ${state.sending} messages` : ' message'}…</div>`}
+    </div>`;
 }
 
 render(html`<${GiApp} />`, document.getElementById('app'));

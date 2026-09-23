@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Upload progress and distinct sending state (2026-09-23)
+
+[ADR-0053](../adr/0053-compose-upload-and-send-progress.md) closes frozen compose-005 through native byte events, separate upload/prompt lifetimes and a host-owned sending-button state. Real multipart bytes, origin/session/newer-draft preservation, overlapping operations and native rejection pass without supplied component edits. **516 browser**, **78 functional**, **34 helpers**, Go/vet/build/hook pass. Frozen coverage is now **46/236 Classic**, **2/42 shared**, **190/40 unmapped**. Screenshots cover phone/tablet/desktop upload and send states; terminal adaptation is design-only.
+
 ## Compact terminal index actions (2026-09-23)
 
 [ADR-0052](../adr/0052-compact-terminal-index-actions.md) verifies Alt-I Status/Reindex independently at 60×18, 100×22 and 140×36 in fullscreen and regular modes. Five temporary rows, no idle growth; native bytes/failure/retry, late-result guards, draft/cursor/reader/resize/multiline/history and subsequent selector transitions pass. Regular temporary alternate screen retains the inline renderer to avoid `ESC[3J` history loss. Existing regular/search/smoke/Gherkin, Go/vet/build/hook, 77 functional, 32 helpers and TUI/indexer race×3 pass. No new frozen web credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**; 23 derived proposals stay separate. Automatic freshness is disabled.

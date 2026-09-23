@@ -649,6 +649,95 @@ function projectMessageMedia(payload, sessionId) {
   };
 }
 
+// web/src/gi-compose-transfer.ts
+function createComposeTransfers() {
+  const sessions = new Map;
+  const listeners = new Set;
+  const emit = () => {
+    for (const listener of listeners)
+      listener();
+  };
+  return {
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    snapshot(session) {
+      const value = { uploads: 0, sending: 0, loaded: 0, total: 0, computable: true };
+      for (const op of sessions.get(session)?.values() || []) {
+        if (op.phase === "send") {
+          value.sending++;
+          continue;
+        }
+        value.uploads++;
+        value.loaded += op.loaded;
+        value.total += op.total;
+        value.computable &&= op.computable;
+      }
+      return value;
+    },
+    begin(session, phase) {
+      const token = Symbol(phase), op = { phase, loaded: 0, total: 0, computable: false };
+      let pending = sessions.get(session);
+      if (!pending) {
+        pending = new Map;
+        sessions.set(session, pending);
+      }
+      pending.set(token, op);
+      emit();
+      let ended = false;
+      return {
+        progress(loaded, total, computable) {
+          if (ended || phase !== "upload")
+            return;
+          op.computable = computable && Number.isFinite(total) && total > 0;
+          op.total = op.computable ? total : 0;
+          op.loaded = Number.isFinite(loaded) ? Math.max(0, op.computable ? Math.min(loaded, total) : loaded) : 0;
+          emit();
+        },
+        end() {
+          if (ended)
+            return;
+          ended = true;
+          pending.delete(token);
+          if (!pending.size)
+            sessions.delete(session);
+          emit();
+        }
+      };
+    }
+  };
+}
+var composeTransfers = createComposeTransfers();
+function bindComposeSending(root, sending) {
+  const owned = new Set;
+  const paint = () => {
+    const button = root.querySelector(".compose-send-stack .send-btn");
+    if (!button)
+      return;
+    if (sending) {
+      button.dataset.giSending = "true";
+      button.setAttribute("aria-busy", "true");
+      owned.add(button);
+    } else {
+      delete button.dataset.giSending;
+      button.removeAttribute("aria-busy");
+    }
+  };
+  paint();
+  const observer = new MutationObserver(paint);
+  observer.observe(root, { childList: true, subtree: true });
+  return () => {
+    observer.disconnect();
+    for (const button of owned) {
+      delete button.dataset.giSending;
+      button.removeAttribute("aria-busy");
+    }
+  };
+}
+
 // web/src/gi-sse-client.ts
 var API_BASE = "";
 
@@ -1067,10 +1156,15 @@ async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = 
   if (options?.parent_turn_id) {
     payload.parent_turn_id = options.parent_turn_id;
   }
-  return request(`/api/sessions/${encodeURIComponent(sessionId)}/prompt`, {
-    method: "POST",
-    body: JSON.stringify(payload)
-  });
+  const activity = composeTransfers.begin(sessionId, "send");
+  try {
+    return await request(`/api/sessions/${encodeURIComponent(sessionId)}/prompt`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+  } finally {
+    activity.end();
+  }
 }
 async function uploadMedia(file, chatJid = null) {
   const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
@@ -1078,15 +1172,40 @@ async function uploadMedia(file, chatJid = null) {
     throw new Error("No attachment destination session");
   if (file.size > 10 * 1024 * 1024)
     throw new Error("Media exceeds 10 MiB limit");
-  const form = new FormData;
-  form.append("file", file, file.name);
-  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/media`, { method: "POST", body: form });
-  const data = await response.json();
-  if (!response.ok)
-    throw new Error(data.error || `Upload failed: HTTP ${response.status}`);
-  if (!data.media?.id)
-    throw new Error("Upload returned no media identifier");
-  return { ...data.media, id: data.media.id };
+  const activity = composeTransfers.begin(sessionId, "upload");
+  try {
+    const form = new FormData;
+    form.append("file", file, file.name);
+    const encoded = new Response(form);
+    const contentType = encoded.headers.get("content-type");
+    const body = await encoded.arrayBuffer();
+    return await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest;
+      xhr.open("POST", `/api/sessions/${encodeURIComponent(sessionId)}/media`);
+      xhr.setRequestHeader("Content-Type", contentType);
+      xhr.upload.onprogress = (event) => activity.progress(event.loaded, event.total, event.lengthComputable);
+      xhr.onerror = () => reject(new TypeError("Upload network request failed"));
+      xhr.onabort = () => reject(new DOMException("Upload aborted", "AbortError"));
+      xhr.onload = () => {
+        let data = {};
+        try {
+          data = JSON.parse(xhr.responseText);
+        } catch {}
+        if (xhr.status < 200 || xhr.status >= 300) {
+          reject(new Error(data.error || `Upload failed: HTTP ${xhr.status}`));
+          return;
+        }
+        if (!data.media?.id) {
+          reject(new Error("Upload returned no media identifier"));
+          return;
+        }
+        resolve({ ...data.media, id: data.media.id });
+      };
+      xhr.send(body);
+    });
+  } finally {
+    activity.end();
+  }
 }
 async function getMediaInfo(mediaId) {
   return request(`/api/media/${mediaId}`).catch(() => null);
@@ -18056,6 +18175,7 @@ function GiApp() {
                 ${compactError && fe`<div role="alert">${compactError}</div>`}
                 ${draftStorageError && fe`<div role="alert">${draftStorageError}</div>`}
                 ${drafts.error(sessionId) && fe`<div role="alert">${drafts.error(sessionId)}</div>`}
+                <${ComposeTransfer} sessionId=${sessionId} hidden=${searchState.active} />
                 <${ComposeBox}
                     statusNotice=${notice}
                     showQueueStack=${false}
@@ -18209,7 +18329,27 @@ function GiApp() {
         </div>
     `;
 }
+function ComposeTransfer({ sessionId, hidden }) {
+  const [, repaint] = F_(0);
+  const ref = Q_(null);
+  K_(() => composeTransfers.subscribe(() => repaint((n) => n + 1)), []);
+  const state = composeTransfers.snapshot(sessionId);
+  W_(() => {
+    const root = ref.current?.parentElement;
+    if (!root)
+      return;
+    return bindComposeSending(root, !hidden && state.sending > 0);
+  }, [sessionId, hidden, state.sending]);
+  const percent = state.computable && state.total > 0 ? Math.floor(state.loaded * 100 / state.total) : null;
+  return fe`<div ref=${ref} class="gi-compose-transfer" hidden=${hidden || !state.uploads && !state.sending}>
+        ${state.uploads > 0 && fe`<div class="gi-compose-upload" role="status" aria-live="polite">
+            <span>Uploading ${state.uploads === 1 ? "attachment" : `${state.uploads} attachments`}${percent === null ? "…" : ` · ${percent}%${percent === 100 ? " · awaiting server" : ""}`}</span>
+            <progress aria-label="Attachment upload progress" max="100" value=${percent === null ? undefined : percent}></progress>
+        </div>`}
+        ${state.sending > 0 && fe`<div class="gi-compose-sending" role="status" aria-live="polite">Sending${state.sending > 1 ? ` ${state.sending} messages` : " message"}…</div>`}
+    </div>`;
+}
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=D5191FD58DF98C3B64756E2164756E21
+//# debugId=6C1F14CB03D69BD164756E2164756E21
 //# sourceMappingURL=app.js.map

@@ -1,0 +1,14 @@
+/* Gi transport activity: no idle height and no changes to supplied controls. */
+.gi-compose-transfer[hidden] { display: none; }
+.gi-compose-transfer { flex: 0 0 auto; padding: 4px 12px; color: var(--text-secondary); font-size: 12px; }
+.gi-compose-upload { display: flex; align-items: center; gap: 10px; }
+.gi-compose-upload progress { width: 72px; height: 4px; accent-color: var(--accent-color, #7dd3fc); }
+.gi-compose-sending { padding: 2px 0; }
+.compose-send-stack .send-btn[data-gi-sending="true"] { position: relative; }
+.compose-send-stack .send-btn[data-gi-sending="true"]::after {
+    content: ''; position: absolute; inset: -3px; border: 2px solid transparent;
+    border-top-color: currentColor; border-right-color: currentColor;
+    border-radius: 50%; animation: gi-send-pending 0.9s linear infinite; pointer-events: none;
+}
+@keyframes gi-send-pending { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .compose-send-stack .send-btn[data-gi-sending="true"]::after { animation: none; } }

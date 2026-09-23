@@ -232,8 +232,9 @@ UX_LOCAL_SPEC ?= tests/ux/queue-steer.spec.mjs
 UX_LOCAL_BIN ?= bin/gi-ux-steer
 UX_LOCAL_PORT ?= 19092
 test-ux-reconnect: build-web
-	$(GO) build -o bin/gi-ux-steer ./tests/ux/server
-	GI_UX_RECONNECT=1 $(PLAYWRIGHT) test --config=playwright.ux.config.mjs tests/ux/reconnect.spec.mjs $(UX_PARITY_ARGS)
+	@mkdir -p $(dir $(UX_LOCAL_BIN))
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_RECONNECT=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config=playwright.ux.config.mjs tests/ux/reconnect.spec.mjs $(UX_PARITY_ARGS)
 
 test-ux-compaction:
 	$(MAKE) --no-print-directory test-ux-steer UX_LOCAL_ENV=GI_UX_COMPACTION=1 UX_LOCAL_SPEC=tests/ux/compaction.spec.mjs

@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Close compose-005 with native XHR upload-byte progress and separate session-owned sending button state; real gates/bytes/overlap/rejection/reload/newer-draft proof, supplied files unchanged; ADR-0053, 516 browser/78 functional/34 helpers/Go-vet-build-hook; frozen46/236+2/42, unmapped190/40; terminal adaptation design only.
+
 - [x] Repair legacy startup: atomically create tables, apply additive columns, then build indexes; rollback/idempotence tests, real-copy migration, 70/70 functional and Go/vet/race checks. Dev instance restarted on 8090; two-way backup comparisons preserve 51 turns, 146 messages, 317 events and existing session fields.
 
 - [x] Vendor the frozen Vibes/Tau Classic corpus and shared interaction contract with hash checks.

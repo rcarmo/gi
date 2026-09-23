@@ -58,3 +58,20 @@ test.describe('Compose interaction', () => {
     expect(posts).toBeGreaterThanOrEqual(2);
   });
 });
+
+test('native attachment transport displays upload then sending without blocking newer typing',async({page,request})=>{
+ const session=await(await request.post(`${BASE_URL}/api/sessions`,{data:{title:'transfer functional',agent_id:'transfer-functional'}})).json();
+ await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),session.id);await page.goto(BASE_URL);await waitForAppShell(page);
+ const input=page.getByRole('textbox',{name:'Message (Enter to send, Shift+Enter for newline)...',exact:true});
+ let releaseUpload,releaseSend,held=false,sending=false;
+ const uploadGate=new Promise(r=>releaseUpload=r),sendGate=new Promise(r=>releaseSend=r);
+ await page.route(`**/api/sessions/${session.id}/media`,async route=>{const response=await route.fetch({postData:route.request().postDataBuffer()});held=true;await uploadGate;await route.fulfill({response});});
+ await page.route(`**/api/sessions/${session.id}/prompt`,async route=>{sending=true;await sendGate;await route.fulfill({response:await route.fetch()});});
+ try{
+  await input.fill('functional transfer');await page.locator('.compose-box input[type=file]').setInputFiles({name:'transport.txt',mimeType:'text/plain',buffer:Buffer.from('native transfer bytes')});await input.press('Enter');
+  await expect.poll(()=>held).toBe(true);await expect(page.getByRole('progressbar',{name:'Attachment upload progress'})).toBeVisible();await expect(page.locator('.gi-compose-sending')).toHaveCount(0);
+  await input.fill('newer functional draft');releaseUpload();await expect.poll(()=>sending).toBe(true);
+  await expect(page.locator('.gi-compose-upload')).toHaveCount(0);await expect(page.locator('.compose-send-stack .send-btn')).toHaveAttribute('aria-busy','true');await expect(input).toHaveValue('newer functional draft');
+  releaseSend();await expect(page.locator('.gi-compose-transfer')).toBeHidden();await expect(input).toHaveValue('newer functional draft');
+ }finally{releaseUpload();releaseSend()}
+});

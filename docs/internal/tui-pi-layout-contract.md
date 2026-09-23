@@ -22,6 +22,10 @@ Use an explicit temporary, height-bounded read-only viewer with filename/type/si
 
 Use an explicit attachment action and temporary bounded filename/type/size selector. Escape restores the draft, cursor and reader; unrelated keys never submit. External open/download must be explicit and capability-gated. Add no persistent image panel or idle rows; retain transcript padding. Inline graphics and browser backdrop/touch gestures have no mandatory terminal equivalent. Verify dismiss, selection, lookup failure and explicit opening at all three sizes before terminal credit. Browser timeline-013–016 is verified in [ADR-0039](../adr/0039-native-media-lightbox.md); no terminal implementation changed.
 
+## Upload/submission progress (2026-09-23; design)
+
+[ADR-0053](../adr/0053-compose-upload-and-send-progress.md) verifies browser compose-005 only. Terminal transfer/submission labels must use an existing temporary status slot, stay owned by the captured session/draft, and disappear at idle. Only show byte progress from real transfer events; otherwise use indeterminate status. Preserve newer typing, cursor and reader. Pending-media byte pairing, failure/retry/cancellation and three-size PTY tests are still required; no terminal implementation or acceptance comes from the browser tests.
+
 ## Pending media and upload failure (2026-09-22; design)
 
 Keep file selection and uploaded IDs in session-owned draft state. Use an explicit attach action with a temporary bounded chooser, preserving editor text/cursor on dismissal. Show transient upload progress/errors in existing status space; add no permanent rows or panels and retain Pi transcript padding. Capture destination/files before asynchronous work; require valid IDs for the entire batch before sending. Failed upload restores/merges only the originating draft and requires explicit retry, including after reload/reopen.

@@ -13,6 +13,7 @@
 import { recordAppPerfRequest } from './ui/app-perf-tracing.js';
 import { sessionPickerAgents } from './gi-session-state.js';
 import { projectMessageMedia } from './gi-message-media.js';
+import { composeTransfers } from './gi-compose-transfer.js';
 
 const API_BASE = '';
 
@@ -423,10 +424,12 @@ export async function sendAgentMessage(agentId: string, content: string, _thread
     if (options?.parent_turn_id) {
         payload.parent_turn_id = options.parent_turn_id;
     }
-    return request(`/api/sessions/${encodeURIComponent(sessionId)}/prompt`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-    });
+    const activity = composeTransfers.begin(sessionId, 'send');
+    try {
+        return await request(`/api/sessions/${encodeURIComponent(sessionId)}/prompt`, {
+            method: 'POST', body: JSON.stringify(payload),
+        });
+    } finally { activity.end(); }
 }
 
 export async function streamSidePrompt(content: string, chatJid: string | null = null, _options: any = {}) {
@@ -439,13 +442,34 @@ export async function uploadMedia(file: File, chatJid: string | null = null) {
     const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
     if (!sessionId) throw new Error('No attachment destination session');
     if (file.size > 10 * 1024 * 1024) throw new Error('Media exceeds 10 MiB limit');
-    const form = new FormData();
-    form.append('file', file, file.name);
-    const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/media`, { method: 'POST', body: form });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || `Upload failed: HTTP ${response.status}`);
-    if (!data.media?.id) throw new Error('Upload returned no media identifier');
-    return { ...data.media, id: data.media.id };
+    const activity = composeTransfers.begin(sessionId, 'upload');
+    try {
+        const form = new FormData();
+        form.append('file', file, file.name);
+        // Materialise the browser-generated multipart body within the existing
+        // 10 MiB file bound. This also avoids WebKit file-backed XHR bodies
+        // becoming empty when a service/automation interceptor forwards them.
+        const encoded = new Response(form);
+        const contentType = encoded.headers.get('content-type');
+        const body = await encoded.arrayBuffer();
+        // XHR exposes real upload bytes; fetch does not.
+        return await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `/api/sessions/${encodeURIComponent(sessionId)}/media`);
+            xhr.setRequestHeader('Content-Type', contentType);
+            xhr.upload.onprogress = event => activity.progress(event.loaded, event.total, event.lengthComputable);
+            xhr.onerror = () => reject(new TypeError('Upload network request failed'));
+            xhr.onabort = () => reject(new DOMException('Upload aborted', 'AbortError'));
+            xhr.onload = () => {
+                let data = {};
+                try { data = JSON.parse(xhr.responseText); } catch {}
+                if (xhr.status < 200 || xhr.status >= 300) { reject(new Error(data.error || `Upload failed: HTTP ${xhr.status}`)); return; }
+                if (!data.media?.id) { reject(new Error('Upload returned no media identifier')); return; }
+                resolve({ ...data.media, id: data.media.id });
+            };
+            xhr.send(body);
+        });
+    } finally { activity.end(); }
 }
 
 export async function getMediaInfo(mediaId: number) {
