@@ -1,0 +1,185 @@
+// Gi-owned adaptation of Piclaw 70d33bc93 settings-dialog.ts (MIT).
+// Native capabilities only; no Piclaw settings service calls.
+import { html, useState, useEffect, useRef } from './vendor/preact-htm.js';
+import { BodyPortal } from './components/body-portal.js';
+import { getGiSettingsSnapshot, getAgentModels, selectAgentModel } from './api.js';
+import { modelContextBlocked } from './gi-context-usage.js';
+
+let generalCache: any = null;
+
+function General() {
+    const [data, setData] = useState(generalCache);
+    const [error, setError] = useState('');
+    const [attempt, setAttempt] = useState(0);
+    useEffect(() => {
+        let live = true;
+        setError('');
+        getGiSettingsSnapshot().then(snapshot => {
+            if (live) { generalCache = snapshot; setData(snapshot); }
+        }).catch(error => { if (live) setError(error.message); });
+        return () => { live = false; };
+    }, [attempt]);
+    return html`<section aria-labelledby="gi-general-title">
+        <h2 id="gi-general-title">General</h2>
+        <p>Instance settings · read-only</p>
+        <p>Loaded at startup from <code>.piclaw/config.json</code> and <code>.pi/settings.json</code>. Edit the files and restart Gi to change these defaults.</p>
+        ${error && html`<div role="alert">${error} <button onClick=${() => setAttempt(x => x + 1)}>Retry</button></div>`}
+        ${!data && !error && html`<p role="status">Loading settings…</p>`}
+        ${data && html`<dl class="gi-settings-values">
+            <dt>Assistant</dt><dd>${data.assistant_name}</dd>
+            <dt>User</dt><dd>${data.user_name}</dd>
+            <dt>Workspace</dt><dd>${data.workspace}</dd>
+            <dt>Default model</dt><dd>${data.current || data.default_model}</dd>
+            <dt>Default thinking</dt><dd>${data.default_thinking_level || 'Unknown'}</dd>
+            <dt>Build</dt><dd>${data.version || 'Unknown'}</dd>
+        </dl>`}
+    </section>`;
+}
+
+function Models({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
+    const [data, setData] = useState<any>(null);
+    const [chosen, setChosen] = useState('');
+    const [filter, setFilter] = useState('');
+    const [error, setError] = useState('');
+    const [notice, setNotice] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [attempt, setAttempt] = useState(0);
+    const mounted = useRef(false);
+    const saving = useRef(false);
+    const searchRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+        mounted.current = true;
+        searchRef.current?.focus();
+        return () => { mounted.current = false; };
+    }, []);
+    useEffect(() => {
+        let live = true;
+        setData(null); setError(''); setNotice('');
+        getAgentModels(chatJid).then(snapshot => {
+            if (live) { setData(snapshot); setChosen(snapshot.current); }
+        }).catch(error => { if (live) setError(error.message); });
+        return () => { live = false; };
+    }, [chatJid, attempt]);
+    const options = data?.model_options || data?.models || [];
+    const matching = options.filter(option => `${option.label || option.id} ${option.provider || ''}`.toLowerCase().includes(filter.trim().toLowerCase()));
+    const selected = options.find(option => (option.label || option.id) === chosen);
+    const blocked = modelContextBlocked({ contextWindow: selected?.context_window ?? selected?.contextWindow }, data?.context_usage);
+    async function apply() {
+        if (saving.current || !data || !selected || blocked || chosen === data.current) return;
+        saving.current = true; setBusy(true); setError(''); setNotice('');
+        const token = onMutationStart();
+        try {
+            const result = await selectAgentModel(chatJid, chosen);
+            if (mounted.current) {
+                setData(previous => ({ ...previous, ...result })); setChosen(result.current);
+                setNotice('Model applied to this session.'); onApplied(result, token);
+            }
+        } catch (error) {
+            if (mounted.current) setError(error.message);
+        } finally {
+            onMutationEnd(token); saving.current = false;
+            if (mounted.current) setBusy(false);
+        }
+    }
+    return html`<section aria-labelledby="gi-models-title">
+        <h2 id="gi-models-title">Models</h2>
+        <p>Session settings · <code>${chatJid}</code></p>
+        <p>Changes affect this session only. Instance defaults and other sessions are unchanged.</p>
+        <label>Filter models<input ref=${searchRef} type="search" aria-label="Filter models" disabled=${busy} value=${filter} onInput=${e => { setFilter(e.target.value); setChosen(''); setNotice(''); }} /></label>
+        ${!data && !error && html`<p role="status">Loading models…</p>`}
+        ${error && html`<div role="alert">${error}${!data && html` <button onClick=${() => setAttempt(x => x + 1)}>Retry</button>`}</div>`}
+        ${data && html`
+            <dl class="gi-settings-values"><dt>Current model</dt><dd data-testid="settings-current-model">${data.current}</dd>
+            <dt>Thinking (read-only)</dt><dd>${data.thinking_level || 'Unknown'}</dd>
+            <dt>Context capacity</dt><dd data-testid="settings-context-capacity">${Number.isFinite(data.context_window) && data.context_window > 0 ? data.context_window : 'Unknown'}</dd></dl>
+            <label>Session model<select aria-label="Session model" value=${chosen} disabled=${busy} onChange=${e => { setChosen(e.target.value); setNotice(''); }}>
+                <option value="" disabled>Choose a model</option>
+                ${matching.slice(0, 50).map(option => html`<option value=${option.label || option.id}>${option.label || option.id}</option>`)}
+            </select></label>
+            ${matching.length > 50 && html`<p>Showing 50 of ${matching.length} models. Refine the filter.</p>`}
+            ${matching.length === 0 && html`<p>No matching models.</p>`}
+            ${blocked && html`<p role="status">This model cannot fit the measured context. Compact the session before changing models.</p>`}
+            <button disabled=${busy || !selected || blocked || chosen === data.current} onClick=${apply}>${busy ? 'Applying…' : 'Apply model'}</button>
+            ${notice && html`<p role="status">${notice}</p>`}
+        `}
+    </section>`;
+}
+
+function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied }) {
+    const [section, setSection] = useState('general');
+    const dialog = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const app = document.getElementById('app');
+        const previousInert = app?.inert;
+        if (app) app.inert = true;
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        dialog.current?.querySelector<HTMLButtonElement>('.settings-dialog-close')?.focus();
+        const key = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                event.preventDefault(); event.stopImmediatePropagation(); onClose(); return;
+            }
+            if (event.key === 'Tab') {
+                const nodes = [...(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]') || [])].filter(node => node.getClientRects().length);
+                const first = nodes[0], last = nodes.at(-1);
+                if (event.shiftKey && (document.activeElement === first || !dialog.current?.contains(document.activeElement))) {
+                    event.preventDefault(); last?.focus();
+                } else if (!event.shiftKey && (document.activeElement === last || !dialog.current?.contains(document.activeElement))) {
+                    event.preventDefault(); first?.focus();
+                }
+            }
+            // Background popups register document-capture keys; inert alone does
+            // not disable those listeners. Native input/select defaults still run.
+            event.stopPropagation();
+        };
+        // Capture Escape even if a pending write disabled the focused button.
+        window.addEventListener('keydown', key, true);
+        return () => {
+            window.removeEventListener('keydown', key, true);
+            if (app) app.inert = previousInert || false;
+            document.body.style.overflow = previousOverflow;
+        };
+    }, []);
+    return html`<div class="settings-dialog-backdrop" onClick=${e => { if (e.target === e.currentTarget) onClose(); }}>
+        <div ref=${dialog} class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="gi-settings-title" onKeyDown=${e => e.stopPropagation()}>
+            <header class="settings-dialog-header"><span class="settings-dialog-title" id="gi-settings-title">Gi Settings</span>
+                <button class="settings-dialog-close" aria-label="Close settings" onClick=${onClose}>✕</button></header>
+            <div class="settings-dialog-body"><nav class="settings-nav" aria-label="Settings sections">
+                ${['general', 'models'].map(id => html`<button class=${`settings-nav-item ${section === id ? 'active' : ''}`} aria-current=${section === id ? 'page' : undefined} onClick=${() => setSection(id)}>${id === 'general' ? 'General' : 'Models'}</button>`)}
+            </nav><main class="settings-content">
+                ${section === 'general' ? html`<${General} />` : html`<${Models} key=${chatJid} chatJid=${chatJid} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`}
+            </main></div>
+        </div>
+    </div>`;
+}
+
+export function GiSettings({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
+    const [open, setOpen] = useState(false);
+    const opener = useRef<HTMLElement>(null);
+    const isOpen = useRef(false);
+    const close = () => {
+        isOpen.current = false; setOpen(false);
+        requestAnimationFrame(() => {
+            if (isOpen.current) return;
+            const original = opener.current;
+            const target = original?.isConnected && original !== document.body && !original.closest('[inert]')
+                ? original : document.querySelector<HTMLElement>('.compose-box textarea');
+            target?.focus({ preventScroll: true });
+        });
+    };
+    useEffect(() => {
+        const show = () => {
+            if (!isOpen.current) opener.current = document.activeElement as HTMLElement;
+            isOpen.current = true; setOpen(true);
+        };
+        const shortcut = (event: KeyboardEvent) => {
+            if (event.key === ',' && (event.ctrlKey || event.metaKey || event.altKey)) {
+                event.preventDefault(); event.stopImmediatePropagation(); show();
+            }
+        };
+        window.addEventListener('piclaw:open-settings', show);
+        window.addEventListener('keydown', shortcut, true);
+        return () => { window.removeEventListener('piclaw:open-settings', show); window.removeEventListener('keydown', shortcut, true); };
+    }, []);
+    return open && html`<${BodyPortal} className="settings-portal"><${Dialog} chatJid=${chatJid} onClose=${close} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} /><//>`;
+}

@@ -242,6 +242,10 @@ export async function setAgentThoughtVisibility(_agentId: string, _visible: bool
     return null;
 }
 
+export async function getGiSettingsSnapshot() {
+    return request('/api/runtime/config');
+}
+
 export async function getAgentModels(chatJid: string | null = null) {
     if (chatJid?.startsWith('gi:')) return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/model`);
     const data = await request('/api/runtime/config');

@@ -144,6 +144,13 @@ func main() {
 			cfg.EnabledModels = append(cfg.EnabledModels, "ux-local/"+entry.id)
 		}
 	}
+	if os.Getenv("GI_UX_SETTINGS_CATALOGUE") != "" {
+		for i := 0; i < 60; i++ {
+			id := fmt.Sprintf("settings-%02d", i)
+			goai.RegisterModel(&goai.Model{ID: id, Name: id, Provider: goai.Provider("ux-local"), Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, Input: []string{"text"}, ContextWindow: 32000, MaxTokens: 32})
+			cfg.EnabledModels = append(cfg.EnabledModels, "ux-local/"+id)
+		}
+	}
 	if os.Getenv("GI_UX_METER") != "" {
 		goai.RegisterModel(&goai.Model{ID: "meter", Name: "Meter", Provider: goai.Provider("ux-local"), Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, Input: []string{"text"}, ContextWindow: 2_000_000, MaxTokens: 32})
 		cfg.EnabledModels = append(cfg.EnabledModels, "ux-local/meter")

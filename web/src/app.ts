@@ -72,6 +72,7 @@ import { SystemMetersHud } from './components/system-meters-hud.js';
 import { TimelineMenu } from './components/timeline-menu.js';
 import { TimelineQuickActions } from './components/timeline-quick-actions.js';
 import { guardQuickActionsTyping } from './gi-quick-actions.js';
+import { GiSettings } from './gi-settings.js';
 import { createMessageDeletionState } from './gi-message-deletion.js';
 import { createSelectionScope } from './gi-session-state.js';
 import { attachChatSwipeNavigation } from './ui/chat-swipe-navigation.js';
@@ -900,6 +901,22 @@ function GiApp() {
         <div class=${appShellClass}>
             <style>${`.app-shell .post-content:has(table) { overflow-x: auto; } .app-shell .post-content table { display: table; width: 100%; table-layout: auto; }`}</style>
             <${SystemMetersHud} mode="overlay" />
+            <${GiSettings}
+                chatJid=${currentChatJid}
+                onMutationStart=${() => {
+                    const token = { scope: selection.capture() };
+                    ++modelRevision.current; modelMutation.current = token; return token;
+                }}
+                onMutationEnd=${token => {
+                    if (modelMutation.current === token) { ++modelRevision.current; modelMutation.current = null; }
+                }}
+                onApplied=${(state, token) => {
+                    if (!selection.isCurrent(token.scope) || modelMutation.current !== token) return;
+                    setAgentModelsPayload(previous => ({ ...previous, ...state }));
+                    setActiveModel(state.current); setActiveThinkingLevel(state.thinking_level);
+                    setSupportsThinking(state.supports_thinking); setContextUsage(state.context_usage || null);
+                }}
+            />
             ${!searchState.active && html`<${TimelineQuickActions}
                 key=${sessionId}
                 currentChatJid=${currentChatJid}

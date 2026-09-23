@@ -56,3 +56,43 @@ test('@ux-compaction-007 Refresh model information after an accepted switch',asy
  await page.reload();await expect(modelButton).toHaveText('ux-local/large');await expect(input).toHaveValue('retained after accepted switch');await expect(page.locator('.compose-file-pill[title="draft.txt"]')).toHaveCount(1);
  await switchTo(child);expect((await state(child)).context_usage.tokens).toBeNull();await switchTo(main.id);await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label','Context: 100 / 200 tokens (50%)');
 });
+
+test('@gi-settings-006 Settings model fit uses measured native context and keeps unknowns selectable',async({page,request},info)=>{
+ const{input,state,child,switchTo}=await fixture(page,request,info);
+ await input.fill('settings measured draft');
+ await page.keyboard.press('Control+,');
+ const dialog=page.getByRole('dialog',{name:'Gi Settings',exact:true});
+ await dialog.getByRole('button',{name:'Models',exact:true}).click();
+ const choice=dialog.getByLabel('Session model',{exact:true});await expect(choice).toBeVisible();
+ await dialog.getByLabel('Filter models',{exact:true}).fill('ux-local/small');
+ await choice.selectOption('ux-local/small');
+ await expect(dialog.getByRole('button',{name:'Apply model'})).toBeDisabled();
+ await expect(dialog.getByRole('status')).toContainText('cannot fit the measured context');
+ expect((await state()).current).toBe('ux-local/gate');
+ await dialog.getByLabel('Filter models',{exact:true}).fill('ux-local/equal');
+ await choice.selectOption('ux-local/equal');await dialog.getByRole('button',{name:'Apply model'}).click();
+ await expect(dialog.getByTestId('settings-current-model')).toHaveText('ux-local/equal');
+ await page.keyboard.press('Escape');await expect(input).toHaveValue('settings measured draft');
+ await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label','Context: 100 / 100 tokens (100%)');
+ await switchTo(child);expect((await state(child)).context_usage.tokens).toBeNull();
+ await page.keyboard.press('Control+,');await dialog.getByRole('button',{name:'Models',exact:true}).click();
+ await dialog.getByLabel('Filter models',{exact:true}).fill('ux-local/small');
+ await choice.selectOption('ux-local/small');await expect(dialog.getByRole('button',{name:'Apply model'})).toBeEnabled();
+ await dialog.getByRole('button',{name:'Apply model'}).click();await expect(dialog.getByTestId('settings-current-model')).toHaveText('ux-local/small');
+});
+
+if(process.env.GI_UX_SETTINGS_CATALOGUE){
+ test('@gi-settings-004 Settings caps a real native catalogue and filters beyond the first page',async({page,request},info)=>{
+  const{input,state}=await fixture(page,request,info);
+  expect((await state()).model_options.length).toBeGreaterThan(50);
+  await input.fill('bounded catalogue draft');await page.keyboard.press('Control+,');
+  const dialog=page.getByRole('dialog',{name:'Gi Settings',exact:true});await dialog.getByRole('button',{name:'Models',exact:true}).click();
+  const select=dialog.getByLabel('Session model',{exact:true});await expect(select).toBeVisible();
+  await expect(select.locator('option:not([disabled])')).toHaveCount(50);await expect(dialog.getByText(/Refine the filter/)).toBeVisible();
+  await dialog.getByLabel('Filter models',{exact:true}).fill('settings-59');await expect(select.locator('option:not([disabled])')).toHaveCount(1);
+  await expect(dialog.getByRole('button',{name:'Apply model'})).toBeDisabled();
+  await select.selectOption('ux-local/settings-59');await dialog.getByRole('button',{name:'Apply model'}).click();
+  await expect(dialog.getByTestId('settings-current-model')).toHaveText('ux-local/settings-59');
+  await page.keyboard.press('Escape');await expect(input).toHaveValue('bounded catalogue draft');
+ });
+}

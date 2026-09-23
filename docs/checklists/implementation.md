@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [ ] Gi-specific settings: 8 derived scenarios + 3 future proposals in `tests/features/settings/gi-settings.feature`; General read-only instance snapshot + explicit session Models edits. Settings 36/36, native catalogue/context 24/24, model/session regression 156/156, functional 82/82, helpers 40, Go/vet/build/hook and auth/model race ×3 pass. No frozen credit (64/236 + 3/42, unmapped 172/39), no TUI idle rows. Commit/deployment pending; see `docs/internal/gi-settings-plan.md`.
+
 - [x] Implement frozen `@ux-pwa-001`: linked `/manifest.json` declares any/maskable 192/512 PNGs and its `/static/icon-*.png` URLs resolve to embedded images. Go GET/HEAD, six-project browser + swipe regression 30/30, functional 81/81, 39 helpers, Go/vet/build/hook pass; Classic 64/236, shared 3/42, unmapped 172/39. Push de3349d/restart 8090: 61 sessions and manifest/icons HTTP 200, integrity/FK OK. Avatar-dependent `002/003/006` and Apple/favicons `004/005` need separate evidence; PWA installation has no TUI equivalent.
 
 - [x] Verify frozen `@ux-mobile-006`: wire native Safari detection for horizontal wheel listener; Chrome and iOS do not navigate, desktop Safari positive control switches adjacent persisted session. Six-project swipe 24/24, picker 90/90, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 63/236, shared 3/42, unmapped 173/39. Push d50e2f8/restart 8090: 61 sessions, integrity/FK OK. Browser-only gesture; terminal Alt-S separate; `002/003/004` unmapped.

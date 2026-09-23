@@ -1,0 +1,18 @@
+{
+  "repository": "https://github.com/rcarmo/piclaw",
+  "commit": "70d33bc93ab540845bbcf5f80503ca8125c71594",
+  "license": "MIT (see PICLAW-LICENSE)",
+  "mode": "Gi-owned adaptation; supplied Piclaw components remain unchanged",
+  "sources": [
+    {
+      "path": "runtime/web/src/components/settings-dialog.ts",
+      "sha256": "dd4da55337d3ed8880b996245e744951241a69b90020012ac8c37998707dda13",
+      "adaptation": "web/src/gi-settings.ts: portal/header/nav/content structure and open event; native Gi General/Models contracts"
+    },
+    {
+      "path": "runtime/web/static/classic/css/settings.css",
+      "sha256": "48b047227039cfd819fcd9603f755479b39ae8315b6460f620b5a8bf38da920d",
+      "adaptation": "internal/web/static/css/gi-settings.css: lines 1-175 plus Gi form and viewport rules"
+    }
+  ]
+}

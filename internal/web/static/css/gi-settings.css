@@ -1,0 +1,195 @@
+/* Gi-owned scaffold from Piclaw 70d33bc93 classic/css/settings.css lines 1-175 (MIT). */
+/* Settings dialog — floating overlay */
+.settings-portal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    /* Must stay above workspace/editor drag previews and tab context menus. */
+    z-index: 12000;
+}
+
+.settings-dialog-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 12000;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: settings-fade-in 0.15s ease-out;
+}
+
+@keyframes settings-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.settings-dialog {
+    width: min(1120px, 96vw);
+    height: min(720px, 90vh);
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-color, rgba(128,128,128,0.2));
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: settings-slide-up 0.2s ease-out;
+}
+
+.settings-dialog-compact .settings-nav {
+    width: 168px;
+    min-width: 168px;
+}
+
+.settings-dialog-compact .settings-content {
+    padding: 16px 18px;
+}
+
+.settings-dialog-narrow .settings-dialog-body {
+    flex-direction: column;
+}
+
+.settings-dialog-narrow .settings-nav {
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    max-height: 54px;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color, rgba(128,128,128,0.2));
+    flex-shrink: 0;
+}
+
+.settings-dialog-narrow .settings-nav-item {
+    width: auto;
+    flex: 0 0 auto;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color, rgba(128,128,128,0.18));
+    border-radius: 999px;
+    background: var(--bg-primary);
+}
+
+.settings-dialog-narrow .settings-nav-separator {
+    display: none;
+}
+
+.settings-dialog-narrow .settings-content {
+    padding: 14px;
+}
+
+@keyframes settings-slide-up {
+    from { transform: translateY(16px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.settings-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-color, rgba(128,128,128,0.2));
+    background: var(--bg-secondary, var(--bg-primary));
+    border-radius: 12px 12px 0 0;
+    flex-shrink: 0;
+}
+
+.settings-dialog-title {
+    font-size: 1.05em;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.settings-dialog-close {
+    width: 28px; height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 1.1em;
+    cursor: pointer;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+}
+
+.settings-dialog-close:hover {
+    background: var(--bg-hover, rgba(128,128,128,0.15));
+    color: var(--text-primary);
+}
+
+.settings-dialog-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.settings-nav {
+    width: 190px; min-width: 190px;
+    border-right: 1px solid var(--border-color, rgba(128,128,128,0.2));
+    padding: 12px 0;
+    overflow-y: auto;
+    background: var(--bg-secondary, var(--bg-primary));
+}
+
+.settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.88em;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s, color 0.15s;
+}
+
+.settings-nav-item:hover {
+    background: var(--bg-hover, rgba(128,128,128,0.1));
+    color: var(--text-primary);
+}
+
+.settings-nav-item.active {
+    background: color-mix(in srgb, var(--accent-color, #1d9bf0) 12%, transparent);
+    color: var(--accent-color, #1d9bf0);
+    font-weight: 600;
+}
+
+.settings-nav-icon {
+    display: flex;
+    align-items: center;
+    width: 20px;
+    flex-shrink: 0;
+}
+
+.settings-nav-icon svg { width: 16px; height: 16px; }
+
+.settings-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 28px;
+}
+/* Gi's smaller capability set and browser-native form controls. */
+.settings-content { min-width: 0; color: var(--text-primary); overflow-wrap: anywhere; }
+.settings-content h2 { font-size: 1.1em; margin: 0 0 14px; }
+.settings-content p { font-size: .9em; margin: 10px 0; }
+.settings-content label { display: block; margin: 16px 0; }
+.settings-content input, .settings-content select { display: block; box-sizing: border-box; width: 100%; max-width: 100%; margin-top: 6px; }
+.settings-content input, .settings-content select, .settings-content button { padding: 7px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font: inherit; }
+.settings-content button { cursor: pointer; }
+.settings-content button:disabled { opacity: .5; cursor: default; }
+.settings-content [role="alert"] { color: var(--danger-color, #e55); }
+.gi-settings-values { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(0, 2fr); gap: 10px 16px; font-size: .9em; }
+.gi-settings-values dt { color: var(--text-secondary); }
+.gi-settings-values dd { margin: 0; }
+@media (max-width: 720px) {
+    .settings-dialog-body { flex-direction: column; }
+    .settings-nav { width: auto; min-width: 0; display: flex; flex-shrink: 0; padding: 8px; border-right: 0; border-bottom: 1px solid var(--border-color); }
+    .settings-nav-item { width: auto; border-radius: 6px; }
+    .settings-content { padding: 14px; }
+}
