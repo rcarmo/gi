@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [ ] Verify frozen Settings layering001–004 and dialog001/003/004: real workspace pointer blocking/recovery, portal geometry/dimming, rapid shortcut, held loading and typed numeric fields; fix first-paint Escape via layout effect. Frozen42/42 + shell/Gi132/132 + rapid tablet10/10, functional83/83, helpers43, Go/vet/build/hook pass. Classic71/236+shared3/42, unmapped165/39. Cached/lazy cases unmapped; no TUI credit. Commit/deployment pending.
+- [x] Verify frozen Settings layering001–004 and dialog001/003/004: real workspace pointer blocking/recovery, portal geometry/dimming, rapid shortcut, held loading and typed numeric fields; fix first-paint Escape via layout effect. Frozen42/42 + shell/Gi132/132 + rapid tablet10/10, functional83/83, helpers43, Go/vet/build/hook pass. Classic71/236+shared3/42, unmapped165/39. Cached/lazy cases unmapped; no TUI credit. Push018fd83/restart8090: live rapid open/Escape, 61sessions/integrity/FK OK.
 
 - [x] Gi Providers (`gi-settings-020`–`023`): OpenAI/Anthropic key save/confirmed remove, metadata-only OAuth/custom rows, private atomic native auth store shared by TUI logout; auth/origin/TLS-or-loopback-peer+Host/CAS/no-secret/failure/reopen proof. Local-provider six-project36, Settings/Models126, functional83, helpers43, Go/vet/build/hook/race×3/Darwin compile pass. No operator key writes, frozen credit or TUI rows. Push3829f55/restart8090: metadata/pane read-only smoke, 7 provider rows/61sessions/integrity/FK OK.
 
