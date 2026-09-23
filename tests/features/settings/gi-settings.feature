@@ -17,9 +17,10 @@ Feature: Gi settings backed by native capabilities
   @gi-settings-002
   Scenario: Show only implemented settings sections and explicit scopes
     When I open Gi Settings
-    Then General is selected and contains read-only instance identity and startup defaults
+    Then General is selected and separates active instance values from saved display-name fields
     And Models and Appearance are the other enabled sections
     And General explains that startup settings are loaded from files and require restart
+    And only assistant and user display names are editable as instance settings
     And no credential, environment, budget, recording or add-on write controls are present
     And Models identifies its destination session and does not edit global defaults
 
@@ -80,12 +81,30 @@ Feature: Gi settings backed by native capabilities
     Then the existing authentication boundary denies the request
     And the settings UX introduces no new secret disclosure or unauthenticated mutation route
 
-  @proposal @gi-settings-next-001
-  Scenario: Edit instance identity with explicit validated persistence
-    Given a dedicated native settings write API with revision checks and atomic file preservation exists
-    When I save instance identity
-    Then success reports the applied snapshot and any restart requirement
-    And failure retains the draft without claiming live application
+  @gi-settings-012
+  Scenario: Save display names explicitly and require restart for activation
+    Given General shows active instance names and saved names with a revision
+    When I edit assistant and user display names
+    Then nothing is written until I activate Save names
+    When the native server confirms the save
+    Then only those names are changed in the workspace Piclaw config
+    And unrelated keys, avatars and runtime configuration are preserved
+    And General shows a restart-required notice while active names remain unchanged
+    And reload retains the saved names without automatically restarting or changing sessions
+    When a fresh instance loads that config
+    Then the saved names become its active names
+
+  @gi-settings-013
+  Scenario: Protect identity saves against conflict and invalid or unsafe configuration
+    Given General holds a revision of the saved config
+    When another writer changes that config before I save
+    Then my save is rejected as a conflict and my draft remains visible
+    And Reload saved names explicitly discards my draft and obtains the new revision
+    When a name is empty, exceeds 128 characters or contains control characters
+    Then no write occurs and a validation error appears
+    And corrupt, oversized, nonregular or symlinked configuration is not silently replaced
+    And write failure leaves the original file intact and reports failure without success
+    And unauthenticated writes and cross-origin browser writes are denied before parsing
 
   @gi-settings-009
   Scenario: Explicitly save browser-local appearance without changing server settings

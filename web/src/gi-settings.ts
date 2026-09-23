@@ -2,12 +2,59 @@
 // Native capabilities only; no Piclaw settings service calls.
 import { html, useState, useEffect, useRef } from './vendor/preact-htm.js';
 import { BodyPortal } from './components/body-portal.js';
-import { getGiSettingsSnapshot, getAgentModels, selectAgentModel } from './api.js';
+import { getGiSettingsSnapshot, getGiIdentity, saveGiIdentity, getAgentModels, selectAgentModel } from './api.js';
 import { modelContextBlocked } from './gi-context-usage.js';
 import { appearancePresets, currentAppearance, persistAppearance, subscribeAppearance } from './gi-appearance.js';
 import { defaultAppearance } from './gi-appearance-state.js';
 
 let generalCache: any = null;
+
+function Identity() {
+    const [snapshot, setSnapshot] = useState<any>(null);
+    const [draft, setDraft] = useState({ assistant_name: '', user_name: '' });
+    const [error, setError] = useState('');
+    const [notice, setNotice] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [attempt, setAttempt] = useState(0);
+    const live = useRef(false);
+    const saving = useRef(false);
+    useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
+    useEffect(() => {
+        let active = true; setError(''); setNotice(''); setSnapshot(null);
+        getGiIdentity().then(value => {
+            if (active) { setSnapshot(value); setDraft({ assistant_name: value.saved.assistant_name, user_name: value.saved.user_name }); }
+        }).catch(err => { if (active) setError(err.message); });
+        return () => { active = false; };
+    }, [attempt]);
+    async function save() {
+        if (!snapshot || saving.current) return;
+        setError(''); setNotice('');
+        if ([draft.assistant_name, draft.user_name].some(name => !name.trim() || [...name].length > 128 || /[\u0000-\u001f\u007f-\u009f]/.test(name))) {
+            setError('Names must contain 1–128 characters without control characters.'); return;
+        }
+        saving.current = true; setBusy(true);
+        try {
+            const value = await saveGiIdentity({ ...draft, revision: snapshot.saved.revision });
+            if (live.current) {
+                setSnapshot(value); setDraft({ assistant_name: value.saved.assistant_name, user_name: value.saved.user_name });
+                setNotice(value.restart_required ? 'Names saved. Restart Gi manually to activate them.' : 'Names saved. Active names already match.');
+            }
+        } catch (err) { if (live.current) setError(err.message); }
+        finally { saving.current = false; if (live.current) setBusy(false); }
+    }
+    return html`<section aria-label="Saved display names">
+        <h3>Saved display names</h3>
+        <p>Instance-wide · saved to .piclaw/config.json. Active names above stay unchanged until you restart Gi manually.</p>
+        ${!snapshot && !error && html`<p role="status">Loading saved names…</p>`}
+        ${snapshot && html`<label>Assistant display name<input aria-label="Assistant display name" type="text" value=${draft.assistant_name} disabled=${busy} onInput=${e => { setDraft(d => ({ ...d, assistant_name: e.target.value })); setNotice(''); }} /></label>
+            <label>User display name<input aria-label="User display name" type="text" value=${draft.user_name} disabled=${busy} onInput=${e => { setDraft(d => ({ ...d, user_name: e.target.value })); setNotice(''); }} /></label>
+            ${snapshot.restart_required && html`<p data-testid="identity-restart-required">Restart required to activate the saved names.</p>`}
+            <button disabled=${busy} onClick=${save}>${busy ? 'Saving names…' : 'Save names'}</button>`}
+        <button disabled=${busy} onClick=${() => setAttempt(n => n + 1)}>Reload saved names</button>
+        ${error && html`<p role="alert">${error}</p>`}
+        ${notice && html`<p role="status">${notice}</p>`}
+    </section>`;
+}
 
 function General() {
     const [data, setData] = useState(generalCache);
@@ -23,18 +70,19 @@ function General() {
     }, [attempt]);
     return html`<section aria-labelledby="gi-general-title">
         <h2 id="gi-general-title">General</h2>
-        <p>Instance settings · read-only</p>
+        <p>Active instance settings · read-only</p>
         <p>Loaded at startup from <code>.piclaw/config.json</code> and <code>.pi/settings.json</code>. Edit the files and restart Gi to change these defaults.</p>
         ${error && html`<div role="alert">${error} <button onClick=${() => setAttempt(x => x + 1)}>Retry</button></div>`}
         ${!data && !error && html`<p role="status">Loading settings…</p>`}
         ${data && html`<dl class="gi-settings-values">
             <dt>Assistant</dt><dd>${data.assistant_name}</dd>
             <dt>User</dt><dd>${data.user_name}</dd>
-            <dt>Workspace</dt><dd>${data.workspace}</dd>
+            <dt>Workspace</dt><dd>${data.workspace_root}</dd>
             <dt>Default model</dt><dd>${data.current || data.default_model}</dd>
             <dt>Default thinking</dt><dd>${data.default_thinking_level || 'Unknown'}</dd>
             <dt>Build</dt><dd>${data.version || 'Unknown'}</dd>
         </dl>`}
+        <${Identity} />
     </section>`;
 }
 

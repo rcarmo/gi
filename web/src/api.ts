@@ -242,6 +242,14 @@ export async function setAgentThoughtVisibility(_agentId: string, _visible: bool
     return null;
 }
 
+export async function getGiIdentity() {
+    return request('/api/settings/identity');
+}
+
+export async function saveGiIdentity(value: { revision: string; assistant_name: string; user_name: string }) {
+    return request('/api/settings/identity', { method: 'PATCH', body: JSON.stringify(value) });
+}
+
 export async function getGiSettingsSnapshot() {
     return request('/api/runtime/config');
 }

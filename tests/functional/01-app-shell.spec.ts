@@ -30,15 +30,18 @@ test.describe('App shell', () => {
     }
   });
 
-  test('Gi settings opens from the menu and shows scoped native model settings', async ({ page }) => {
+  test('Gi settings opens from the menu and shows scoped native model settings', async ({ page, request }) => {
     await page.goto(BASE_URL); await waitForAppShell(page);
     const input = page.getByRole('textbox', { name: 'Message (Enter to send, Shift+Enter for newline)...', exact: true });
     await input.fill('functional settings draft');
     await page.getByRole('button', { name: 'Menu', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Settings', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Gi Settings', exact: true });
-    await expect(dialog.getByText('Instance settings · read-only')).toBeVisible();
+    await expect(dialog.getByText('Active instance settings · read-only')).toBeVisible();
     await expect(dialog.locator('.gi-settings-values')).toContainText('test-model');
+    const identity = await (await request.get('/api/settings/identity')).json();
+    await expect(dialog.getByLabel('Assistant display name')).toHaveValue(identity.saved.assistant_name);
+    await expect(dialog.getByRole('button', { name: 'Save names', exact: true })).toBeEnabled();
     await dialog.getByRole('button', { name: 'Models', exact: true }).click();
     await expect(dialog.getByTestId('settings-current-model')).toContainText('test-model');
     await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);

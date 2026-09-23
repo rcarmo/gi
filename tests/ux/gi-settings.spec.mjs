@@ -37,9 +37,9 @@ test('@gi-settings-001 @gi-settings-002 Single scoped modal, responsive backdrop
   await open(); await page.keyboard.press('Control+,'); await page.keyboard.press('Control+,');
   await expect(dialogFor(page)).toHaveCount(1);
   await expect(dialog.getByRole('navigation', { name: 'Settings sections' }).getByRole('button')).toHaveText(['General', 'Models', 'Appearance']);
-  await expect(dialog.getByText('Instance settings · read-only')).toBeVisible();
-  await expect(dialog.getByText(/restart Gi/)).toBeVisible();
-  await expect(dialog.locator('input, select')).toHaveCount(0);
+  await expect(dialog.getByText('Active instance settings · read-only')).toBeVisible();
+  await expect(dialog.getByText(/Edit the files and restart Gi/)).toBeVisible();
+  await expect(dialog.locator('input, select')).toHaveCount(2);
   await expect(dialog.locator('.gi-settings-values')).toContainText('test-model');
   expect(await page.locator('#app').evaluate(el => el.inert)).toBe(true);
   expect(await page.locator('.settings-dialog-backdrop').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0.5)');
@@ -49,7 +49,7 @@ test('@gi-settings-001 @gi-settings-002 Single scoped modal, responsive backdrop
   expect(box.x + box.width).toBeLessThanOrEqual(viewport.width); expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
   expect(await dialog.evaluate(el => { const box = el.getBoundingClientRect(); return el.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)); })).toBe(true);
   await dialog.getByRole('button', { name: 'Close settings' }).focus(); await page.keyboard.press('Shift+Tab');
-  await expect(dialog.getByRole('button', { name: 'Appearance', exact: true })).toBeFocused();
+  await expect(dialog.getByRole('button', { name: 'Reload saved names', exact: true })).toBeFocused();
   await page.keyboard.press('Tab'); await expect(dialog.getByRole('button', { name: 'Close settings' })).toBeFocused();
   await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0); await expect(input).toBeFocused();
   expect(await page.locator('#app').evaluate(el => el.inert)).toBe(false);
@@ -66,7 +66,7 @@ test('@gi-settings-003 Loading shell, native read failure and retry', async ({ p
   let release, entered = false; const gate = new Promise(resolve => { release = resolve; });
   await page.route('**/api/runtime/config', async route => { entered = true; await gate; await route.abort(); });
   try {
-    await open(); await expect.poll(() => entered).toBe(true); await expect(dialog.getByRole('status')).toHaveText('Loading settings…');
+    await open(); await expect.poll(() => entered).toBe(true); await expect(dialog.getByRole('status').filter({ hasText: 'Loading settings…' })).toBeVisible();
     release(); await expect(dialog.getByRole('alert')).toBeVisible();
     await page.unroute('**/api/runtime/config'); await dialog.getByRole('button', { name: 'Retry' }).click();
     await expect(dialog.locator('.gi-settings-values')).toContainText('test-model');
@@ -267,4 +267,95 @@ test('@gi-settings-011 Reset follows system mode and cross-tab updates preserve 
     await page.keyboard.press('Escape'); await expect(input).toHaveValue('settings draft');
     expect(await page.evaluate(() => localStorage.getItem('gi_session_id'))).toBe(a);
   } finally { await other.close(); }
+});
+
+test('@gi-settings-012 Explicit identity save persists but active names require restart', async ({ page, request }, info) => {
+  const { a, input, open, dialog } = await setup(page, request, info);
+  const previous = await (await request.get('/api/settings/identity')).json();
+  const restore = async () => { const latest = await (await request.get('/api/settings/identity')).json(); expect((await request.patch('/api/settings/identity', { data: { ...previous.saved, revision: latest.saved.revision } })).status()).toBe(200); };
+  try {
+    await open(); const assistant = dialog.getByLabel('Assistant display name'), user = dialog.getByLabel('User display name');
+    await expect(assistant).toHaveValue(previous.saved.assistant_name);
+    const name = `Gi ${info.project.name}`, userName = 'Settings Reader';
+    await assistant.fill(name); await user.fill(userName);
+    expect((await (await request.get('/api/settings/identity')).json()).saved).toEqual(previous.saved);
+    let release, held = false; const gate = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/settings/identity', async route => {
+      if (route.request().method() !== 'PATCH') return route.continue();
+      const response = await route.fetch(); held = true; await gate; await route.fulfill({ response });
+    });
+    try {
+      await dialog.getByRole('button', { name: 'Save names', exact: true }).click(); await expect.poll(() => held).toBe(true);
+      await expect(dialog.getByRole('button', { name: 'Saving names…' })).toBeDisabled(); await expect(assistant).toBeDisabled();
+      await expect(dialog.getByTestId('identity-restart-required')).toHaveCount(previous.restart_required ? 1 : 0);
+      release(); await expect(dialog.getByTestId('identity-restart-required')).toBeVisible();
+      await expect(dialog.getByRole('status')).toContainText('Restart Gi manually');
+    } finally { release(); }
+    await page.unroute('**/api/settings/identity');
+    const saved = await (await request.get('/api/settings/identity')).json();
+    expect(saved.saved.assistant_name).toBe(name); expect(saved.saved.user_name).toBe(userName); expect(saved.active).toEqual(previous.active);
+    await expect(dialog.locator('.gi-settings-values')).toContainText(previous.active.assistant_name);
+    await page.keyboard.press('Escape'); await expect(input).toHaveValue('settings draft');
+    await page.reload(); await expect(input).toHaveValue('settings draft'); await open(); await expect(assistant).toHaveValue(name);
+    await expect(dialog.getByTestId('identity-restart-required')).toBeVisible(); expect(await page.evaluate(() => localStorage.getItem('gi_session_id'))).toBe(a);
+    if (process.env.GI_SETTINGS_CAPTURE && info.project.name.startsWith('chromium-')) {
+      mkdirSync('test-results/gi-settings-captures', { recursive: true }); await page.screenshot({ path: `test-results/gi-settings-captures/identity-${info.project.name}.png` });
+    }
+  } finally { await restore(); }
+});
+
+test('@gi-settings-013 Conflict, validation and failed identity writes retain the draft', async ({ page, request }, info) => {
+  const { input, open, dialog } = await setup(page, request, info);
+  const previous = await (await request.get('/api/settings/identity')).json();
+  try {
+    await open(); const assistant = dialog.getByLabel('Assistant display name'); await expect(assistant).toHaveValue(previous.saved.assistant_name);
+    await assistant.fill('My unsaved name');
+    expect((await request.patch('/api/settings/identity', { data: { ...previous.saved, assistant_name: 'Other writer' } })).status()).toBe(200);
+    await dialog.getByRole('button', { name: 'Save names', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('configuration changed');
+    await expect(assistant).toHaveValue('My unsaved name');
+    await dialog.getByRole('button', { name: 'Reload saved names' }).click(); await expect(assistant).toHaveValue('Other writer');
+    await assistant.fill(''); await dialog.getByRole('button', { name: 'Save names', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('1–128');
+    expect((await (await request.get('/api/settings/identity')).json()).saved.assistant_name).toBe('Other writer');
+    await assistant.fill('Retry name');
+    // Native storage failure: the isolated test workspace's lock path becomes nonregular.
+    const config = await (await request.get('/api/runtime/config')).json();
+    const { join } = await import('node:path'); const { rmSync } = await import('node:fs');
+    const lock = join(config.workspace_root, '.piclaw', '.gi-identity.lock');
+    // Never use this fault against an operator workspace.
+    expect(config.workspace_root.replaceAll('\\', '/')).toContain('/.gi-ux-parity/workspace');
+    rmSync(lock, { force: true }); mkdirSync(lock);
+    try {
+      await dialog.getByRole('button', { name: 'Save names', exact: true }).click(); await expect(dialog.getByRole('alert')).toContainText('Cannot save identity');
+      await expect(assistant).toHaveValue('Retry name'); expect((await (await request.get('/api/settings/identity')).json()).saved.assistant_name).toBe('Other writer');
+    } finally { rmSync(lock, { recursive: true, force: true }); }
+    await dialog.getByRole('button', { name: 'Save names', exact: true }).click(); await expect(dialog.getByRole('status')).toContainText('Names saved');
+    await page.keyboard.press('Escape'); await expect(input).toHaveValue('settings draft');
+  } finally {
+    const latest = await (await request.get('/api/settings/identity')).json();
+    expect((await request.patch('/api/settings/identity', { data: { ...previous.saved, revision: latest.saved.revision } })).status()).toBe(200);
+  }
+});
+
+test('@gi-settings-012 Closing a pending identity save does not announce success in a new view', async ({ page, request }, info) => {
+  const { b, input, open, switchTo, dialog } = await setup(page, request, info);
+  const previous = await (await request.get('/api/settings/identity')).json();
+  let release, held = false, done; const gate = new Promise(resolve => { release = resolve; }), delivered = new Promise(resolve => { done = resolve; });
+  await page.route('**/api/settings/identity', async route => {
+    if (route.request().method() !== 'PATCH') return route.continue();
+    const response = await route.fetch(); held = true; await gate; await route.fulfill({ response }); done();
+  });
+  try {
+    await open(); const assistant = dialog.getByLabel('Assistant display name'); await expect(assistant).toHaveValue(previous.saved.assistant_name);
+    await assistant.fill('Saved while closing'); await dialog.getByRole('button', { name: 'Save names', exact: true }).click(); await expect.poll(() => held).toBe(true);
+    await page.keyboard.press('Escape'); await switchTo(b); await input.fill('new view draft'); await open();
+    await expect(assistant).toHaveValue('Saved while closing');
+    release(); await delivered;
+    await expect(dialog.getByRole('status').filter({ hasText: 'Names saved' })).toHaveCount(0);
+    await expect(dialog.locator('.gi-settings-values')).toContainText(previous.active.assistant_name);
+    await page.keyboard.press('Escape'); await expect(input).toHaveValue('new view draft');
+  } finally {
+    release();
+    const latest = await (await request.get('/api/settings/identity')).json();
+    expect((await request.patch('/api/settings/identity', { data: { ...previous.saved, revision: latest.saved.revision } })).status()).toBe(200);
+  }
 });

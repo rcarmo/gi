@@ -6,7 +6,7 @@ Gi settings reuse Piclaw's modal layout while exposing Gi's own capabilities. Th
 
 | Section | Scope | Native source | Editing |
 |---|---|---|---|
-| General | Instance, loaded at startup | Authenticated `GET /api/runtime/config` | Read-only identity, workspace and model/thinking defaults; file/restart guidance |
+| General | Instance, loaded at startup | Authenticated `GET /api/runtime/config`, `GET/PATCH /api/settings/identity` | Active values read-only; explicit saved display-name writes requiring restart |
 | Models | Captured session | Authenticated `GET/PATCH /api/sessions/:id/model` | Explicit Apply, native validation, context-fit guard, no global writes |
 | Appearance | Browser profile and origin, all sessions | One `gi_browser_appearance_v1` localStorage record | Explicit save/reset, preset and default-theme hex tint; no server/TUI writes |
 
@@ -16,7 +16,7 @@ The General/Models hierarchy, fixed half-opaque backdrop, sidebar-to-tabs respon
 
 ## Capability audit
 
-- `internal/config/config.go` loads `.piclaw/config.json` identity and `.pi/settings.json` runtime defaults. There is no General HTTP write contract. Do not route Piclaw General autosave to a fabricated endpoint.
+- `internal/config/config.go` loads `.piclaw/config.json` identity and `.pi/settings.json` runtime defaults. The narrow identity endpoint edits only assistant/user names; Piclaw General autosave and other global writes are unsupported.
 - `internal/web/session_model.go` validates model changes through `inference.SelectSessionModel`; session choices persist in SQLite. It reports current model, thinking, context usage and available model metadata.
 - Provider auth currently loads native credentials; no browser provider sign-in/key storage API is available.
 - Manual compaction is session-bound. Piclaw policy, watchdog and backoff settings are not equivalent to Gi's startup configuration.
@@ -48,7 +48,7 @@ Terminal adaptation: keep existing `/model`, Alt-M and context footer. Instance 
 
 Final settings matrix: **36/36** (six Chromium/WebKit viewport projects). Native large-catalogue/context suite: **24/24**, including existing compaction checks. Existing model/session plus earlier settings matrix: **156/156**. Fresh functional suite: **82/82**. Support tests: **40/40**. Go tests, vet, web build/hook checks and targeted auth/model race tests ×3 pass. Captures are in `test-results/gi-settings-captures/`.
 
-The initial three proposals included Appearance; it is implemented below. Identity and provider/compaction write proposals remain unimplemented. Frozen parity remains **64/236 Classic**, **3/42 shared**, **172/39 unmapped**. No supplied component or terminal code changed. Scaffold hashes are recorded in `web/upstream/piclaw-settings-scaffold-70d33bc93.json`.
+The initial three proposals included Appearance; it is implemented below. Identity is implemented below; the provider/compaction write proposal remains unimplemented. Frozen parity remains **64/236 Classic**, **3/42 shared**, **172/39 unmapped**. No supplied component or terminal code changed. Scaffold hashes are recorded in `web/upstream/piclaw-settings-scaffold-70d33bc93.json`.
 
 ## Browser appearance contract — 2026-09-23
 
@@ -63,3 +63,17 @@ Same-origin tabs receive storage events and apply valid preferences immediately.
 Evidence: Settings/Models matrix **90/90** (54 Gi settings tests + 36 existing model tests), functional **83/83**, support **43/43**, Go/vet/build/hook pass. Browser tests exercise no-pre-save changes, exact persisted records, unchanged legacy keys, zero server mutations, session/reload scope, tint round-trip, storage denial/retry, malformed startup data, cross-tab dirty drafts and system colour changes. Captures: `test-results/gi-settings-captures/appearance-*.png`. Frozen counts remain **64/236**, shared **3/42**, unmapped **172/39**.
 
 Terminal disposition: browser tint and CSS presets do not alter the TUI. A future terminal theme selector should be an explicit bounded choice using terminal palettes and separate PTY tests, never a persistent sidebar or added idle row.
+
+## Saved instance names — 2026-09-23
+
+`gi-settings-012`/`013` replace the identity proposal. General displays active startup values and separate editable saved names. Save is explicit; a successful response returns the stored revision and `restart_required`. Reload saved names explicitly discards the form draft. The process does not update its startup config or restart itself. The next Gi process loads the names from the usual Piclaw file. There are now 13 Gi scenarios and one provider/compaction proposal.
+
+`GET/PATCH /api/settings/identity` reuses authentication and returns only names/revision/activation state, never unrelated configuration or avatars. PATCH requires JSON, a bounded single request object and Go's cross-origin protection check. Names must be valid UTF-8, nonblank, no more than 128 Unicode characters, and free of control characters; whitespace is trimmed on save. Existing legacy strings remain readable so operators can repair them; all new writes must pass validation.
+
+Storage is `.piclaw/config.json`, preserving unknown/nested keys and number values through `json.RawMessage`, plus existing permission bits. Reads reject malformed/nonobject JSON, invalid object sections, files over 1 MiB, symlinks and nonregular files. Rooted filesystem operations and opened-object checks protect the config-directory/lock path. In-process writers are serialised; Linux/macOS cooperating processes use a nonblocking advisory lock. The revision is a hash of the whole input file. A stale revision or held lock yields 409; the draft remains visible. Unsupported operating systems reject writes rather than proceeding without a lock.
+
+Save writes a unique temporary file, syncs it, checks the revision again, renames atomically and syncs the directory. Pre-rename failures leave the original file intact; a post-rename directory-sync failure reports uncertainty and requires a reload to verify. Existing file ownership/ACL/xattrs are not guaranteed to survive atomic replacement; regular mode bits are preserved. New files use 0600. The `.gi-identity.lock` file intentionally remains. Noncooperating external editors can still race the final revision check/rename: this is not an OS-level compare-and-swap. Do not share this config directory with hostile local writers.
+
+Evidence: native preservation/validation/oversize/symlink/directory/FIFO tests, stale/concurrent revisions, cross-process locking, fresh-process config activation, authenticated routes, cross-origin/method/body rejection, and real browser filesystem failure/retry. Six-project Settings matrix **72/72**; earlier Settings/Models combined **102/102**; functional **83/83**, support **43/43**, Go/vet/build/hook and targeted config/web race ×3 pass. Closing a held save cannot announce success in a new view. Captures: `test-results/gi-settings-captures/identity-*.png`.
+
+Terminal disposition: these names load on the next process start without additional terminal UI. A future explicit identity command must share this storage contract and state the restart requirement; no idle rows or terminal acceptance are added here. Frozen parity remains **64/236 Classic**, **3/42 shared**, **172/39 unmapped**.

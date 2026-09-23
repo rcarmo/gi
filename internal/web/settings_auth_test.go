@@ -33,6 +33,8 @@ func TestGiSettingsRoutesPreserveAuthentication(t *testing.T) {
 	srv := New(st, turn.New(st), config.RuntimeConfig{WorkspaceRoot: workspace})
 	for _, item := range []struct{ method, path, body string }{
 		{"GET", "/api/runtime/config", ""},
+		{"GET", "/api/settings/identity", ""},
+		{"PATCH", "/api/settings/identity", "not json"},
 		{"GET", "/api/sessions/missing/model", ""},
 		{"PATCH", "/api/sessions/missing/model", "not json"},
 	} {
