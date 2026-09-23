@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Shared25 coherent keyboard session switch: held native timeline/model/queue/activity/compaction reads cannot replace the selected history, durable queue IDs, context or draft/media. Context/shared36/session114/functional85/helpers51/Go-vet-build-hook; Classic81/236+shared9/42 unmapped155/33. Independent review passed; test-only/no restart. Alt-S adaptation stays bounded, terminal queue/media acceptance separate.
+
 - [x] Shared31/32 native model-picker pointer/keyboard typeahead, real registry32K/200ctx and measured100tokens, held PATCH200 confirmation, retained text/media/file/exact message refs, reload/other-session isolation. Six-project context+shared30/functional85/helpers51/Go-vet-build-hook; Classic81/236+shared8/42 unmapped155/34. Test-only/no restart; Alt-M evidence separate/no idle rows.
 
 - [x] Shared23/24 session-picker pointer/Enter opening: insertion/first-frame focus, both native triggers, composer-relative geometry/resize, native-ID search/Escape restore/draft and session unchanged. Dedicated12/fullsession114/functional85/helpers51/Go-vet-build-hook; Classic81/236+shared6/42 unmapped155/36. Test-only/no restart or new Alt-S credit. Mobile001 fixture now waits for native idle before tail-order assertion.

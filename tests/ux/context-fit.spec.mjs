@@ -1,4 +1,6 @@
 import {test,expect} from '@playwright/test';
+import {mkdirSync,writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
 import {loadCorpus} from './support/catalogue.mjs';
 const inputName='Message (Enter to send, Shift+Enter for newline)...';
 const file={name:'draft.txt',mimeType:'text/plain',buffer:Buffer.from('keep these bytes')};
@@ -143,4 +145,89 @@ for(const [id,method] of [['@shared-31','pointer'],['@shared-32','keyboard']]) t
   await switchTo(main.id);await expect(input).toHaveValue('shared model unsent text');await expect(modelButton).toHaveText('ux-local/large');expect(await page.locator('.compose-file-pill').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('title')))).toEqual(draftLabels);await expect(page.locator('.compose-file-pill[title^="Message reference:"]')).toHaveCount(1);
   expect((await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns).toHaveLength(1);expect((await(await request.get(`/api/sessions/${child}/turns`)).json()).turns||[]).toHaveLength(0);
  } finally {release();}
+});
+
+test('@shared-25 Select one coherent session view despite late native responses',async({page,request},info)=>{
+ const source=loadCorpus('shared').find(row=>row.id==='@shared-25');expect(source.name).toBe('Select one coherent session view');
+ await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
+ const token=`coherent-${info.project.name}-${Date.now()}`;
+ const get=async(id,part)=>{const r=await request.get(`/api/sessions/${id}/${part}${part==='messages'?'?limit=50':''}`);expect(r.status()).toBe(200);return r.json();};
+ const prompt=async(id,text,intent)=>{const r=await request.post(`/api/sessions/${id}/prompt`,{data:{prompt:text,...(intent?{intent}:{})}});expect(r.status()).toBe(202);return r.json();};
+ const gates=[];
+ const setup=async(name,model)=>{
+  const created=await request.post('/api/sessions',{data:{agent_id:`${token}-${name}`,title:`${token}-${name}`}});expect(created.status()).toBe(201);
+  const {id}=await created.json();
+  const measured=await prompt(id,`${name} measured history ${token}`);
+  await expect.poll(async()=>(await get(id,'turns')).turns.find(t=>t.id===measured.turn_id)?.status).toBe('completed');
+  await expect.poll(async()=>(await get(id,'compaction')).reason).not.toBe('Session has active or queued work');
+  expect((await get(id,'model')).context_usage).toMatchObject({tokens:100,source:'provider_request',measurement:{turn_id:measured.turn_id}});
+  const patch=await request.patch(`/api/sessions/${id}/model`,{data:{model}});expect(patch.status()).toBe(200);
+  const path=resolve('test-results/ux-parity/queue-gates',`${token}-${name}`);mkdirSync(resolve(path,'..'),{recursive:true});gates.push(path);
+  const active=await prompt(id,`UX steer gate:${token}-${name}`);
+  await expect.poll(async()=>(await get(id,'activity')).turn_id).toBe(active.turn_id);
+  const queued=await prompt(id,`${name} durable queued follow-up ${token}`,'queue');
+  const messages=await get(id,'messages');expect(messages.has_more).toBe(false);
+  const queue=await get(id,'queue');expect(queue.items.map(t=>t.id)).toEqual([queued.turn_id]);expect(queue.active_turn_id).toBe(active.turn_id);
+  return{id,name,model,active,queued,messages,queue,modelState:await get(id,'model'),draft:`${name} unsent draft`,media:`${name}-draft.txt`};
+ };
+ const held=[];let hold=true;
+ try {
+  const main=await setup('main','ux-local/gate'),research=await setup('research','ux-local/large');
+  await page.addInitScript(id=>{if(!localStorage.getItem('gi_session_id'))localStorage.setItem('gi_session_id',id);},main.id);
+  await page.goto('/');const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();
+  const trigger=page.getByRole('button',{name:/Manage sessions for/}).last();
+  const picker=page.getByRole('menu',{name:'Sessions and agents',exact:true});
+  const switchTo=async session=>{
+   await trigger.focus();await trigger.press('Enter');
+   const search=page.getByRole('searchbox',{name:'Search sessions',exact:true});await expect(search).toBeFocused();await search.fill(session.id);
+   await expect(picker.getByRole('menuitem')).toHaveCount(1);
+   await search.press('ArrowDown');await expect(picker.locator('.active')).toContainText(`gi:${session.id}`);await page.keyboard.press('Enter');
+   await expect(picker).toHaveCount(0);await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(session.id);
+  };
+  const view=async(session,other)=>{
+   // Positive research-only markers on every surface, never acceptance of an
+   // empty transitional view. Timeline fixture is one native initial page.
+   await expect.poll(()=>page.locator('.post').evaluateAll(nodes=>nodes.map(n=>n.id))).toEqual(session.messages.messages.map(m=>`post-${m.id}`));
+   await expect(page.locator(`[data-queue-id="${session.queued.turn_id}"]`)).toBeVisible();
+   await expect(page.locator(`[data-queue-id="${session.queued.turn_id}"]`)).toContainText(`${session.name} durable queued follow-up`);
+   await expect(page.locator(`[data-queue-id="${other.queued.turn_id}"]`)).toHaveCount(0);
+   await expect(page.getByRole('button',{name:'Open model picker',exact:true})).toHaveText(session.model);
+   await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label',session===main?'Context: 100 / 32K tokens (0%)':'Context: 100 / 200 tokens (50%)');
+   await expect(input).toHaveValue(session.draft);
+   await expect(page.locator('.compose-file-pill')).toHaveCount(1);await expect(page.locator(`.compose-file-pill[title="${session.media}"]`)).toBeVisible();
+  };
+  const draft=async session=>{await input.fill(session.draft);await page.locator('.compose-box input[type=file]').setInputFiles({name:session.media,mimeType:'text/plain',buffer:Buffer.from(`${session.name} native draft bytes`)});};
+  await draft(main);await view(main,research);await switchTo(research);await draft(research);await view(research,main);
+  const parts=['messages','model','queue','activity','compaction'];
+  const pattern=new RegExp(`/api/sessions/${main.id}/(${parts.join('|')})(?:\\?|$)`);
+  await page.route(pattern,async route=>{
+   if(!hold)return route.continue();
+   const response=await route.fetch();expect(response.status()).toBe(200);
+   const part=new URL(route.request().url()).pathname.split('/').pop(),body=await response.json();
+   if(part==='messages'){expect(body).toEqual(main.messages);expect(body.has_more).toBe(false);expect(new URL(route.request().url()).searchParams.has('after')).toBe(false);}
+   if(part==='model')expect(body).toEqual(main.modelState);
+   if(part==='queue')expect(body).toEqual(main.queue);
+   let release;const gate=new Promise(r=>release=r);const item={part,release,request:route.request(),body};held.push(item);
+   await gate;await route.fulfill({response});
+  });
+  await switchTo(main);await expect.poll(()=>new Set(held.map(h=>h.part)).size).toBe(parts.length);
+  await switchTo(research);await view(research,main);
+  research.draft+=' typed while old reads are pending';await input.fill(research.draft);
+  // Deliver each real old-session response, allowing response consumption and
+  // paint between deliveries. Hold *all* matching requests, not just the first.
+  let delivered=0;
+  for(const part of parts){
+   for(const item of held.filter(h=>h.part===part)){
+    const finished=page.waitForEvent('requestfinished',{predicate:r=>r===item.request});item.release();await finished;delivered++;
+    await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await view(research,main);
+   }
+  }
+  expect(delivered).toBe(held.length);expect(held.filter(h=>h.part==='messages')).toHaveLength(1);
+  hold=false;await page.unroute(pattern);
+  await page.reload();await view(research,main);await switchTo(main);await view(main,research);await switchTo(research);await view(research,main);
+  for(const session of [main,research]){
+   expect(await get(session.id,'messages')).toEqual(session.messages);expect(await get(session.id,'queue')).toEqual(session.queue);expect(await get(session.id,'model')).toEqual(session.modelState);
+   expect((await get(session.id,'turns')).turns).toHaveLength(3);
+  }
+ }finally{hold=false;for(const item of held)item.release();for(const path of gates)writeFileSync(path,'release');}
 });
