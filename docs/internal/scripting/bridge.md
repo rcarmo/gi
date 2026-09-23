@@ -3,6 +3,8 @@
 ## Status
 Implemented for path resolution (`readFile`, `writeFile`, `listDir`) with shared resolver and `vfs://` support.
 
+`WriteFile` / `gi.writeFile` uses the same [native write implementation](../tools/write.md) as HTTP and engine tools. Regular filesystem writes invalidate affected index scopes before and after mutation without refreshing. Existing symlink components/nonregular targets are rejected; VFS writes remain independent. Post-notification errors can follow changed bytes and require explicit reindex; see [ADR-0051](../../adr/0051-native-write-index-invalidation.md) for cancellation and crash limits.
+
 Implemented: event hooks, raw sockets, websocket transport, and HTTP request APIs are now functional in the script bridge for JavaScript (Goja) via `buildBridge` in `ScriptTool`.
 
 Networking and transport callbacks are now exercised in `internal/tools/script_test.go`.

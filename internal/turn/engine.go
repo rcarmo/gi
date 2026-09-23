@@ -3784,7 +3784,7 @@ func (e *Engine) registerDefaultTools() {
 		Weight:      "lightweight",
 		Activation:  "default",
 		Executor: func(ctx context.Context, rt tools.ToolRuntime, call goai.ToolCall) (string, error) {
-			return tools.ExecuteWrite(ctx, rt.WorkspaceRoot, rt.Store, call)
+			return tools.ExecuteWrite(ctx, e.runtimeCfg, rt.Store, call)
 		},
 	})
 	if def := scriptTool.Definition(); def != nil {

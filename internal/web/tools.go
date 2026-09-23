@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"mime"
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -153,34 +151,10 @@ func executeReadTool(ctx context.Context, s *Server, path string) toolOutput {
 }
 
 func executeWriteTool(ctx context.Context, s *Server, path string, content string) (string, error) {
-	resolved, err := tools.ResolveToolPath(s.cfg.WorkspaceRoot, path, true)
-	if err != nil {
-		return "", err
-	}
-	if resolved.IsVFS() {
-		_, err := s.store.SaveVFSFile(ctx, resolved.VFSNamespace, resolved.VFSPath,
-			inferContentTypeFromFilename(resolved.VFSPath), []byte(content), map[string]any{})
-		if err != nil {
-			return "", err
-		}
-		return "written", nil
-	}
-	dir := filepath.Dir(resolved.WorkspacePath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(resolved.WorkspacePath, []byte(content), 0o644); err != nil {
+	if err := tools.WriteFile(ctx, s.cfg, s.store, path, content); err != nil {
 		return "", err
 	}
 	return "written", nil
-}
-
-func inferContentTypeFromFilename(path string) string {
-	ext := strings.ToLower(filepath.Ext(path))
-	if extType := mime.TypeByExtension(ext); extType != "" {
-		return extType
-	}
-	return "text/plain"
 }
 
 func executeShellTool(ctx context.Context, command string) toolOutput {

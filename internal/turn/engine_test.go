@@ -760,6 +760,7 @@ func TestLaunchTurnLockedSurvivesCanceledCallerContext(t *testing.T) {
 		t.Fatalf("create queued turn: %v", err)
 	}
 	engine := New(s)
+	defer engine.Close()
 	runner := engine.runner("session_launch_ctx")
 	cancelCtx, cancel := context.WithCancel(ctx)
 	cancel()
@@ -781,6 +782,12 @@ func TestLaunchTurnLockedSurvivesCanceledCallerContext(t *testing.T) {
 	if turnRec.Status != "completed" {
 		t.Fatalf("expected launched turn to complete, got %#v", turnRec)
 	}
+	// FinishedAt is written before cleanupTurnRun releases the claim. Wait for
+	// that cleanup boundary before asserting the exact absence of active work.
+	waitForCondition(t, 2*time.Second, func() bool {
+		_, _, err := s.GetSessionActiveTurn(ctx, "session_launch_ctx")
+		return err == sql.ErrNoRows
+	}, "launched turn claim cleanup")
 	if _, _, err := s.GetSessionActiveTurn(ctx, "session_launch_ctx"); err != sql.ErrNoRows {
 		t.Fatalf("expected no lingering active turn after launched completion, got err=%v", err)
 	}
@@ -8604,5 +8611,28 @@ func TestExtensionCommandRegistryPublishesAndInvokes(t *testing.T) {
 		if !seen[want] {
 			t.Fatalf("missing topic type %q, seen=%#v", want, seen)
 		}
+	}
+}
+
+func TestRegisteredWriteToolRecordsScopedInvalidation(t *testing.T) {
+	db, openErr := store.Open(filepath.Join(t.TempDir(), "write-index.db"))
+	if openErr != nil {
+		t.Fatal(openErr)
+	}
+	defer db.Close()
+	cfg := config.RuntimeConfig{WorkspaceRoot: t.TempDir(), DefaultModel: "test-model"}
+	e := NewWithRuntimeConfig(db, cfg, "")
+	defer e.Close()
+	runner := &sessionRunner{engine: e, store: db}
+	result, err := runner.executeTool(context.Background(), goai.ToolCall{Name: "write", Arguments: map[string]any{"path": "notes/native.md", "content": "registered write"}}, "", "")
+	if err != nil || result != "written" {
+		t.Fatal(result, err)
+	}
+	var count int
+	if err := db.DB().QueryRow("SELECT count(*) FROM workspace_index_invalidations WHERE scope IN ('all','notes') AND requested_revision=2 AND acknowledged_revision=0").Scan(&count); err != nil || count != 2 {
+		t.Fatal(count, err)
+	}
+	if err := db.DB().QueryRow("SELECT count(*) FROM workspace_index_scopes WHERE committed_generation<>0").Scan(&count); err != nil || count != 0 {
+		t.Fatal("write scheduled refresh", count, err)
 	}
 }

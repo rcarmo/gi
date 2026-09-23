@@ -102,7 +102,7 @@ test('workspace index reads keep edited bytes stale until the next explicit appl
  expect((await search('lifecycleoldorchid')).hits.map((h:any)=>h.path)).toEqual([path]);
  expect((await search('lifecyclenewviolet')).hits).toEqual([]);
  const unchanged=await (await request.get(`${BASE_URL}/api/workspace/index?scope=notes`)).json();
- expect(unchanged.generation).toBe(before.generation);expect(unchanged.last_indexed_at).toBe(before.last_indexed_at);
+ expect(unchanged.state).toBe('stale');expect(unchanged.generation).toBe(before.generation);expect(unchanged.last_indexed_at).toBe(before.last_indexed_at);
  const after=await refresh();expect(after.generation).toBe(before.generation+1);expect(after.state).toBe('ready');
  expect((await search('lifecyclenewviolet')).hits.map((h:any)=>h.path)).toEqual([path]);expect((await search('lifecycleoldorchid')).hits).toEqual([]);
 });

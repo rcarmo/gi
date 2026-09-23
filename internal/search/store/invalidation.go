@@ -13,8 +13,21 @@ import (
 // No filesystem lookup, scan, automatic retry, or writer-lease acquisition occurs.
 // Returning true means a revision was durably recorded, not that refresh ran.
 func (s *RefreshStore) Invalidate(ctx context.Context, c ScopeConfig, paths []string) (bool, error) {
-	if c.fingerprint == "" {
-		return false, fmt.Errorf("unresolved scope config")
+	return s.InvalidateScopes(ctx, []ScopeConfig{c}, paths)
+}
+
+// InvalidateScopes atomically fans one event out to a bounded set of configured
+// scopes for one workspace. Failure in any scope rolls back the entire event.
+func (s *RefreshStore) InvalidateScopes(ctx context.Context, configs []ScopeConfig, paths []string) (bool, error) {
+	if len(configs) == 0 || len(configs) > 3 {
+		return false, fmt.Errorf("invalidation requires 1–3 scopes")
+	}
+	seen := map[string]bool{}
+	for _, c := range configs {
+		if c.fingerprint == "" || c.workspace != configs[0].workspace || seen[c.scope] {
+			return false, fmt.Errorf("invalid invalidation scope set")
+		}
+		seen[c.scope] = true
 	}
 	if len(paths) > 10000 {
 		return false, fmt.Errorf("invalidation path limit exceeded")
@@ -29,11 +42,26 @@ func (s *RefreshStore) Invalidate(ctx context.Context, c ScopeConfig, paths []st
 		return false, err
 	}
 	defer tx.Rollback()
+	affected := false
+	for _, c := range configs {
+		hit, err := invalidateScope(ctx, tx, c, paths)
+		if err != nil {
+			return false, err
+		}
+		affected = affected || hit
+	}
+	if err = tx.Commit(); err != nil {
+		return false, err
+	}
+	return affected, nil
+}
+
+func invalidateScope(ctx context.Context, tx *sql.Tx, c ScopeConfig, paths []string) (bool, error) {
 	roots := c.Roots()
 	// Include the last committed roots during a configuration transition, so a
 	// change to an old root cannot be hidden before the replacement commits.
 	var persisted string
-	err = tx.QueryRowContext(ctx, `SELECT sc.roots_json FROM workspace_index_scopes sc JOIN workspace_index_workspaces w ON w.id=sc.workspace_id WHERE w.root_identity=? AND sc.scope=?`, c.workspace, c.scope).Scan(&persisted)
+	err := tx.QueryRowContext(ctx, `SELECT sc.roots_json FROM workspace_index_scopes sc JOIN workspace_index_workspaces w ON w.id=sc.workspace_id WHERE w.root_identity=? AND sc.scope=?`, c.workspace, c.scope).Scan(&persisted)
 	if err != nil && err != sql.ErrNoRows {
 		return false, err
 	}
@@ -73,9 +101,6 @@ func (s *RefreshStore) Invalidate(ctx context.Context, c ScopeConfig, paths []st
 	// Preserve live ownership and error detail. Neither a change event nor reads
 	// clear a prior failure; the scheduler can use revision counters to retry.
 	if _, err = tx.ExecContext(ctx, `UPDATE workspace_index_scopes SET state=CASE WHEN state='ready' THEN 'stale' ELSE state END,updated_at_ms=`+indexNowMS+` WHERE workspace_id=? AND scope=?`, id, c.scope); err != nil {
-		return false, err
-	}
-	if err = tx.Commit(); err != nil {
 		return false, err
 	}
 	return true, nil

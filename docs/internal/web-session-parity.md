@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Native write index invalidation (2026-09-23)
+
+[ADR-0051](../adr/0051-native-write-index-invalidation.md) connects engine/HTTP/script regular filesystem writes to atomic scoped invalidation before/after mutation, without automatic refresh. Native tests cover partial errors, cancellation, scope/VFS isolation and pending revisions; shell/external/watch delivery and crash recovery remain gaps. Go/vet/build/hook, 77 functional, 32 helpers, focused24 browser, tools/store/web/turn race ×3 and Darwin arm64 cross-compilation pass. An existing cancellation fixture now waits for claim cleanup before its unchanged absence assertion. No UI/TUI or frozen credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**; 22 derived proposals stay separate.
+
 ## Application-owned explicit index refresh (2026-09-23)
 
 [ADR-0050](../adr/0050-application-owned-index-refresh.md) wires POST reindex to shared bounded batches, isolates caller disconnects and joins HTTP/index shutdown before SQLite closes. Startup and GET remain scan-free; watcher/mutation delivery and automatic freshness are not enabled. Go/vet/build/hook, 77 functional, 32 helpers, focused 24 browser, lifecycle race ×10 and full HTTP/web/indexer race ×3 pass. Built-process SIGTERM/bind-failure cleanup also passes. No supplied UI/TUI change, no new frozen credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**; 21 derived proposals remain separate.

@@ -206,3 +206,16 @@ Feature: Scoped workspace indexing lifecycle
     When application shutdown or a listener failure stops the server
     Then new refresh requests are rejected
     And HTTP handlers and index cleanup are joined before closing the database
+
+  @index-derived-022 @gi-strengthening
+  Scenario: Native filesystem writes record invalidation without automatic refresh
+    Given a native tool, HTTP tool or script bridge writes a regular workspace file
+    Then affected configured scopes record an atomic invalidation before mutation
+    And a failed pre-notification prevents the filesystem write
+    And a second bounded notification follows an attempted write even after caller cancellation
+    And later publication cannot acknowledge a revision captured before that second notification
+    And unrelated scopes and VFS writes do not advance filesystem index revisions
+    And GET queries retain the committed snapshot until explicit refresh
+    When post-notification fails
+    Then the error reports that bytes may have changed and explicit reindex is required
+    And this protocol does not claim crash-atomic filesystem and database mutation

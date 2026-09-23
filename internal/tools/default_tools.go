@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
+	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/rtk"
 	"github.com/rcarmo/gi/internal/store"
 	goai "github.com/rcarmo/go-ai"
@@ -60,28 +60,13 @@ func ExecuteRead(ctx context.Context, workspaceRoot string, s *store.Store, call
 	return string(content), nil
 }
 
-func ExecuteWrite(ctx context.Context, workspaceRoot string, s *store.Store, call goai.ToolCall) (string, error) {
+func ExecuteWrite(ctx context.Context, cfg config.RuntimeConfig, s *store.Store, call goai.ToolCall) (string, error) {
 	path, _ := call.Arguments["path"].(string)
 	content, _ := call.Arguments["content"].(string)
 	if path == "" {
 		return "", fmt.Errorf("write: path is required")
 	}
-	resolved, err := ResolveToolPath(workspaceRoot, path, true)
-	if err != nil {
-		return "", err
-	}
-	if resolved.IsVFS() {
-		_, err := s.SaveVFSFile(ctx, resolved.VFSNamespace, resolved.VFSPath, "text/plain", []byte(content), map[string]any{})
-		if err != nil {
-			return "", err
-		}
-		return "written", nil
-	}
-	dir := filepath.Dir(resolved.WorkspacePath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(resolved.WorkspacePath, []byte(content), 0o644); err != nil {
+	if err := WriteFile(ctx, cfg, s, path, content); err != nil {
 		return "", err
 	}
 	return "written", nil

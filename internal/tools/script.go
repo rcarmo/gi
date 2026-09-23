@@ -392,19 +392,7 @@ func (t *ScriptTool) buildBridge(sessionID string) *scripting.Bridge {
 			return string(data), nil
 		},
 		WriteFile: func(ctx context.Context, path, content string) error {
-			resolved, err := ResolveToolPath(t.cfg.WorkspaceRoot, path, true)
-			if err != nil {
-				return err
-			}
-			if resolved.IsVFS() {
-				_, err := t.store.SaveVFSFile(ctx, resolved.VFSNamespace, resolved.VFSPath, inferContentTypeFromFilename(resolved.VFSPath), []byte(content), map[string]any{})
-				return err
-			}
-			dir := filepath.Dir(resolved.WorkspacePath)
-			if err := os.MkdirAll(dir, 0o755); err != nil {
-				return err
-			}
-			return os.WriteFile(resolved.WorkspacePath, []byte(content), 0o644)
+			return WriteFile(ctx, t.cfg, t.store, path, content)
 		},
 		ListDir: func(ctx context.Context, path string) ([]map[string]any, error) {
 			resolved, err := ResolveToolPath(t.cfg.WorkspaceRoot, path, false)
