@@ -290,6 +290,38 @@ test('@ux-session-005 Touch swipe keeps native carousel order and target/selecti
   }
 });
 
+test('@ux-mobile-001 Eligible timeline swipe selects adjacent session and wraps at the catalogue end',async({page,request},info)=>{
+ const scenario=loadCorpus().find(row=>row.id==='@ux-mobile-001');expect(scenario).toBeTruthy();
+ await info.attach('gherkin',{body:scenario.steps.join('\n'),contentType:'text/plain'});
+ const token=`mobile-${info.project.name}-${Date.now()}`;
+ const create=async name=>{const response=await request.post('/api/sessions',{data:{agent_id:`${token}-${name}`,title:`@${token}-${name}`}});expect(response.status()).toBe(201);return (await response.json()).id;};
+ const first=await create('first'),last=await create('last');
+ const read=await request.post(`/api/sessions/${last}/prompt`,{data:{prompt:`Wrap source ${token}`,model:'test-model'}});expect(read.status()).toBe(202);
+ await expect.poll(async()=>((await(await request.get(`/api/sessions/${last}/messages`)).json()).messages||[]).some(message=>message.role==='assistant')).toBe(true);
+ const sessions=(await(await request.get('/api/sessions')).json()).sessions;
+ const ordered=sessions.filter(s=>!s.state?.archived_at).sort((a,b)=>{
+  const active=s=>s.state?.status==='running'||s.state?.status==='queued'||Number(s.state?.queue_count||0)>0;
+  return Number(active(b))-Number(active(a))||`gi:${a.id}`.localeCompare(`gi:${b.id}`);
+ }).map(s=>s.id);
+ expect(ordered).toContain(first);expect(ordered.at(-1)).toBe(last);
+ await page.addInitScript(id=>{localStorage.setItem('gi_session_id',id);Object.defineProperty(navigator,'userAgent',{configurable:true,value:'iPhone Safari'});},last);
+ await page.goto('/');const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('wrap draft');
+ const timeline=page.locator('.timeline').first();await expect(timeline.locator('.post-content').filter({hasText:`Wrap source ${token}`}).first()).toBeVisible();
+ const swipe=async()=>timeline.evaluate(el=>{
+  const point=x=>({identifier:1,target:el,clientX:x,clientY:150});
+  for(const [name,x] of [['touchstart',190],['touchmove',85],['touchend',85]]){
+   const touch=point(x),event=new Event(name,{bubbles:true,cancelable:true});
+   Object.defineProperty(event,'touches',{value:name==='touchend'?[]:[touch]});
+   Object.defineProperty(event,'changedTouches',{value:[touch]});el.dispatchEvent(event);
+  }
+ });
+ expect(await page.evaluate(()=>window.getSelection()?.toString()||'')).toBe('');
+ await swipe();await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(ordered[0]);
+ await expect(input).toHaveValue('');
+ await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${last}"]`).getByRole('menuitem').click();
+ await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(last);await expect(input).toHaveValue('wrap draft');
+});
+
 test('@ux-session-003 Filter session entries using their search metadata', async ({ page, request }, info) => {
   const frozen = loadCorpus().find(row => row.id === '@ux-session-003'); expect(frozen).toBeTruthy();
   await info.attach('gherkin', { body: frozen.steps.join('\n'), contentType: 'text/plain' });

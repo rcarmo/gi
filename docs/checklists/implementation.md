@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [ ] Verify frozen `@ux-mobile-001`: eligible horizontal finger gesture on supplied timeline selects adjacent persisted non-archived candidate and wraps from catalogue end, without active text selection; six projects, picker regression 78/78, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 61/236, shared 3/42, unmapped 175/39. Deployment pending. Touch is browser-only; terminal Alt-S evidence separate.
+
 - [ ] `@ux-workspace-005` remains unmapped: six-project probe cannot find the workspace-header menu because `internal/web/static/css/timeline-menu.css` hides `.workspace-header-left > .workspace-menu-wrap` in favour of the timeline menu. Frozen criterion requires the header menu; do not credit the replacement. Repair without duplicate idle chrome, then test Refresh/Reindex/hidden/create/upload and absence of in-pane file search. Terminal Alt-I evidence is separate.
 
 - [x] Verify frozen `@ux-original-023`: real SSE outage/reconnect refreshes selected timeline/activity/queue; visible Stop posts captured active turn ID and authoritative state reports cancellation, leaving older run unable to retake control or lose draft. Six projects, reconnect regression 60/60, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 60/236, shared 3/42, unmapped 176/39. Push 4ca897f/restart 8090: 61 sessions, integrity/FK OK; terminal `/cancel` evidence remains separate.
