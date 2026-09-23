@@ -1,4 +1,6 @@
 import { test, expect } from '@playwright/test';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { loadCorpus } from './support/catalogue.mjs';
 
 const inputName = 'Message (Enter to send, Shift+Enter for newline)...';
@@ -160,6 +162,50 @@ test('Gi filtered picker keeps native text editing, Tab and keyboard selection',
   await expect.poll(() => page.evaluate(() => localStorage.getItem('gi_session_id'))).toBe(main.id);
 });
 
+test('@ux-session-002 Group picker entries using current native session metadata', async ({ page, request }, info) => {
+  const frozen=loadCorpus().find(row=>row.id==='@ux-session-002');expect(frozen).toBeTruthy();
+  await info.attach('gherkin',{body:frozen.steps.join('\n'),contentType:'text/plain'});
+  const token=`groups-${info.project.name}-${Date.now()}`;
+  const create=async(agent,parent=null)=>{
+    const response=parent
+      ?await request.post(`/api/sessions/${parent}/fork`,{data:{agent_id:agent,title:`@${agent}`}})
+      :await request.post('/api/sessions',{data:{agent_id:agent,title:`@${agent}`}});
+    expect(response.status()).toBe(201);
+    const body=await response.json();return parent?body.branch.chat_jid.slice(3):body.id;
+  };
+  const main=await create(`${token}-main`),pinned=await create(`${token}-pinned`),active=await create(`${token}-active`);
+  const tree=await create(`${token}-tree`,main),archived=await create(`${token}-archived`,main);
+  const other=await create(`${token}-other`);
+  const mutation=async(id,body)=>{const response=await request.patch(`/api/sessions/${id}`,{data:body});expect(response.status()).toBe(200);};
+  await mutation(pinned,{action:'pin',pinned:true});await mutation(archived,{action:'archive'});
+  const gate=resolve('test-results/ux-parity/queue-gates',`${token}-busy`);mkdirSync(resolve(gate,'..'),{recursive:true});
+  const run=await request.post(`/api/sessions/${active}/prompt`,{data:{prompt:`UX queue gate:${token}-busy`,model:'test-model'}});
+  expect(run.status()).toBe(202);const {turn_id}=await run.json();
+  const stored=async id=>(await(await request.get(`/api/sessions/${id}`)).json());
+  try {
+    await expect.poll(async()=> (await stored(active)).state.status).toBe('running');
+    await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main);await page.goto('/');
+    const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('grouping draft');
+    await page.getByRole('button',{name:/Manage sessions for/}).last().click();
+    const popup=page.getByRole('menu',{name:'Sessions and agents',exact:true});
+    const row=id=>popup.locator(`[data-session-jid="gi:${id}"]`);
+    const groups=[['Current',main],['Pinned',pinned],['Active',active],['This session tree',tree],['Other sessions',other],['Archived',archived]];
+    for(const [label,id] of groups){
+      const group=popup.getByRole('group',{name:label,exact:true});await expect(group).toBeVisible();await expect(group.locator(`[data-session-jid="gi:${id}"]`)).toBeVisible();
+      await expect(row(id).getByRole('menuitem')).toContainText(id);
+    }
+    const order=await popup.getByRole('group').evaluateAll(elements=>elements.map(el=>el.getAttribute('aria-label')));
+    expect(order).toEqual(groups.map(([label])=>label));
+    await expect(row(main).getByRole('menuitem')).toHaveAttribute('aria-current','true');
+    await expect(popup.locator('[role="menuitem"][aria-current="true"]')).toHaveCount(1);
+    await expect(row(active).getByRole('button',{name:/^Archive /})).toHaveCount(0);
+    await expect(input).toHaveValue('grouping draft');expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(main);
+  } finally {
+    writeFileSync(gate,'release');
+    await expect.poll(async()=>((await(await request.get(`/api/sessions/${active}/turns`)).json()).turns||[]).find(turn=>turn.id===turn_id)?.status,{timeout:15000}).toBe('completed');
+  }
+});
+
 test('@ux-session-003 Filter session entries using their search metadata', async ({ page, request }, info) => {
   const frozen = loadCorpus().find(row => row.id === '@ux-session-003'); expect(frozen).toBeTruthy();
   await info.attach('gherkin', { body: frozen.steps.join('\n'), contentType: 'text/plain' });
@@ -249,7 +295,7 @@ test('@ux-original-014 Select another session through the picker', async ({ page
   const paths = [];
   page.on('request', req => paths.push(new URL(req.url()).pathname));
   await trigger.click();
-  const target = popup.getByRole('menuitem', { name: /research/ }).first();
+  const target = popup.locator(`[data-session-jid="gi:${research.id}"]`).getByRole('menuitem');
   await expect(target).toBeVisible();
   await target.focus();
   await page.keyboard.press('Enter');
@@ -267,10 +313,10 @@ test('@ux-original-014 Select another session through the picker', async ({ page
   await expect(page.locator('.post-content').filter({ hasText: mainText })).toHaveCount(0);
   await expect(page.locator('.post-content').filter({ hasText: researchText }).first()).toBeVisible();
   await trigger.click();
-  await popup.getByRole('menuitem', { name: /web/ }).first().click();
+  await popup.locator(`[data-session-jid="gi:${main.id}"]`).getByRole('menuitem').click();
   await expect(input).toHaveValue('Main unsent draft');
   await trigger.click();
-  await popup.getByRole('menuitem', { name: /research/ }).first().click();
+  await popup.locator(`[data-session-jid="gi:${research.id}"]`).getByRole('menuitem').click();
   await expect(input).toHaveValue('Research unsent draft');
   const messages = await request.get(`/api/sessions/${research.id}/messages`);
   expect((await messages.json()).messages.map(message => message.content)).toEqual([researchText, `Gi received: ${researchText}`]);

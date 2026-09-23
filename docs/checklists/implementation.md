@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [ ] Verify frozen `@ux-session-002`: native current, pinned, live active, same-tree, other and archived entries group in order through the unchanged picker; sole current row, preserved draft/chat pass six projects; picker regression 66/66, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 56/236, shared 3/42, unmapped 180/39. Deployment pending. Terminal Alt-S keeps separate evidence and no added idle rows.
+
 - [x] Verify frozen `@ux-session-004` through supplied picker and native child archive/restore PATCH: held accepted response, authoritative regrouping, transport failure and unchanged origin draft/chat pass six projects; picker regression 60/60, functional 80/80, helpers 39, Go/vet/build/hook pass. Classic 55/236, shared 3/42, unmapped 181/39. Push 11ab7de/restart 8090 (61 sessions, integrity/FK OK); terminal mutation submenus still design-only.
 
 - [x] Verify `@ux-session-001` selected-chat timeline and superseded generation with persisted native posts, a held real HTTP response and visible picker: six-project pass, combined picker 54/54, 80 functional, 39 helpers, Go/vet/build/hook; two drafts isolated. Aggregated 54/236 Classic, 3/42 shared, 182/39 unmapped. Push 49f00d9/restart 8090 (61 sessions, integrity/FK OK); compact terminal session selection has separate evidence, no new terminal credit.
