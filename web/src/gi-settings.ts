@@ -7,6 +7,7 @@ import { modelContextBlocked } from './gi-context-usage.js';
 import { appearancePresets, currentAppearance, persistAppearance, subscribeAppearance } from './gi-appearance.js';
 import { defaultAppearance } from './gi-appearance-state.js';
 import { GiSettingsCompaction } from './gi-settings-compaction.js';
+import { GiSettingsProviders } from './gi-settings-providers.js';
 
 let generalCache: any = null;
 
@@ -235,9 +236,9 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
             <header class="settings-dialog-header"><span class="settings-dialog-title" id="gi-settings-title">Gi Settings</span>
                 <button class="settings-dialog-close" aria-label="Close settings" onClick=${onClose}>✕</button></header>
             <div class="settings-dialog-body"><nav class="settings-nav" aria-label="Settings sections">
-                ${['general', 'models', 'appearance', 'compaction'].map(id => html`<button class=${`settings-nav-item ${section === id ? 'active' : ''}`} aria-current=${section === id ? 'page' : undefined} onClick=${() => setSection(id)}>${{ general: 'General', models: 'Models', appearance: 'Appearance', compaction: 'Compaction' }[id]}</button>`)}
+                ${['general', 'models', 'appearance', 'compaction', 'providers'].map(id => html`<button class=${`settings-nav-item ${section === id ? 'active' : ''}`} aria-current=${section === id ? 'page' : undefined} onClick=${() => setSection(id)}>${{ general: 'General', models: 'Models', appearance: 'Appearance', compaction: 'Compaction', providers: 'Providers' }[id]}</button>`)}
             </nav><main class="settings-content">
-                ${section === 'general' ? html`<${General} />` : section === 'appearance' ? html`<${Appearance} />` : section === 'compaction' ? html`<${GiSettingsCompaction} key=${chatJid} chatJid=${chatJid} />` : html`<${Models} key=${chatJid} chatJid=${chatJid} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`}
+                ${section === 'general' ? html`<${General} />` : section === 'appearance' ? html`<${Appearance} />` : section === 'providers' ? html`<${GiSettingsProviders} />` : section === 'compaction' ? html`<${GiSettingsCompaction} key=${chatJid} chatJid=${chatJid} />` : html`<${Models} key=${chatJid} chatJid=${chatJid} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} />`}
             </main></div>
         </div>
     </div>`;

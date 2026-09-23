@@ -94,16 +94,17 @@ func AuthFilePath() string {
 }
 
 func loadAuthEntries() (map[string]authEntry, error) {
-	data, err := os.ReadFile(AuthFilePath())
+	d, err := readCredentials()
 	if err != nil {
-		return nil, fmt.Errorf("read auth.json: %w", err)
+		return nil, err
 	}
-	var entries map[string]authEntry
-	if err := json.Unmarshal(data, &entries); err != nil {
-		return nil, fmt.Errorf("parse auth.json: %w", err)
-	}
-	if entries == nil {
-		entries = map[string]authEntry{}
+	entries := map[string]authEntry{}
+	for id, raw := range d.entries {
+		var entry authEntry
+		if err := json.Unmarshal(raw, &entry); err != nil {
+			return nil, fmt.Errorf("invalid credential fields")
+		}
+		entries[id] = entry
 	}
 	return entries, nil
 }
@@ -160,22 +161,15 @@ func RemoveAuthEntry(provider string) (bool, error) {
 	if provider == "" {
 		return false, fmt.Errorf("provider is required")
 	}
-	entries, err := loadAuthEntries()
-	if err != nil {
-		return false, err
-	}
-	if _, ok := entries[provider]; !ok {
-		return false, nil
-	}
-	delete(entries, provider)
-	blob, err := json.MarshalIndent(entries, "", "  ")
-	if err != nil {
-		return false, err
-	}
-	if err := os.WriteFile(AuthFilePath(), blob, 0o600); err != nil {
-		return false, fmt.Errorf("write auth.json: %w", err)
-	}
-	return true, nil
+	removed := false
+	_, err := updateCredentials("", func(entries map[string]json.RawMessage) error {
+		if _, ok := entries[provider]; ok {
+			delete(entries, provider)
+			removed = true
+		}
+		return nil
+	})
+	return removed, err
 }
 
 func authEntryToOAuthCredentials(entry authEntry) *oauth.Credentials {

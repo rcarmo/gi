@@ -171,6 +171,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/runtime/config", guard(s.handleRuntimeConfig))
 	s.mux.HandleFunc("/api/settings/identity", guard(s.handleSettingsIdentity))
 	s.mux.HandleFunc("/api/settings/compaction", guard(s.handleCompactionPolicy))
+	s.mux.HandleFunc("/api/settings/providers", guard(s.handleProviderSettings))
 	s.mux.HandleFunc("/api/runtime/inbound-work", guard(s.handleRuntimeInboundWork))
 	s.mux.HandleFunc("/api/runtime/inbound-work/drain", guard(s.handleRuntimeInboundWorkDrain))
 	s.mux.HandleFunc("/api/runtime/inbound-work/requeue", guard(s.handleRuntimeInboundWorkRequeue))

@@ -242,6 +242,18 @@ export async function setAgentThoughtVisibility(_agentId: string, _visible: bool
     return null;
 }
 
+export async function getGiProviders() {
+    return request('/api/settings/providers');
+}
+
+export async function saveGiProviderKey(provider: string, revision: string, key: string) {
+    return request('/api/settings/providers', { method: 'PATCH', body: JSON.stringify({ provider, revision, key }) });
+}
+
+export async function removeGiProviderKey(provider: string, revision: string) {
+    return request('/api/settings/providers', { method: 'DELETE', body: JSON.stringify({ provider, revision }) });
+}
+
 export async function getGiCompactionPolicy() {
     return request('/api/settings/compaction');
 }

@@ -52,6 +52,10 @@ func main() {
 	seen := map[string]bool{}
 	gatePattern := regexp.MustCompile(`UX steer gate:([a-zA-Z0-9_-]+)`)
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("GI_UX_PROVIDERS") != "" && r.Header.Get("Authorization") != "Bearer gi-fixture-provider-key" {
+			http.Error(w, "fixture credential missing", http.StatusUnauthorized)
+			return
+		}
 		var body map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, err.Error(), 400)
@@ -157,6 +161,12 @@ func main() {
 		cfg.DefaultModel = "ux-local/meter"
 	}
 	cfg.DefaultProvider = "ux-local"
+	if os.Getenv("GI_UX_PROVIDERS") != "" {
+		goai.RegisterModel(&goai.Model{ID: "gi-key-fixture", Name: "Local key fixture", Provider: goai.Provider("openai"), Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, Input: []string{"text"}, ContextWindow: 32000, MaxTokens: 1024})
+		cfg.EnabledModels = []string{"openai/gi-key-fixture"}
+		cfg.DefaultProvider = "openai"
+		cfg.DefaultModel = "openai/gi-key-fixture"
+	}
 	cfg.SystemPrompt = "Local acceptance fixture. Answer user messages."
 	cfg.WorkspaceRoot = dir
 	s, err := store.Open(filepath.Join(dir, "gi.db"))

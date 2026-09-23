@@ -18,10 +18,11 @@ Feature: Gi settings backed by native capabilities
   Scenario: Show only implemented settings sections and explicit scopes
     When I open Gi Settings
     Then General is selected and separates active instance values from saved display-name fields
-    And Models, Appearance and Compaction are the other enabled sections
+    And Models, Appearance, Compaction and Providers are the other enabled sections
     And General explains that startup settings are loaded from files and require restart
-    And only assistant and user display names are editable as instance settings
-    And no credential, environment, budget, recording or add-on write controls are present
+    And General edits only assistant and user display names
+    And credential controls are confined to supported Providers entries
+    And no environment, budget, recording or add-on write controls are present
     And Models identifies its destination session and does not edit global defaults
 
   @gi-settings-003
@@ -196,8 +197,52 @@ Feature: Gi settings backed by native capabilities
     And reads and writes require existing authentication and writes reject cross-origin requests
     And closing a pending save cannot report success in a reopened dialog
 
-  @proposal @gi-settings-next-003
-  Scenario: Expose provider controls only with native write contracts
-    Given Gi supports a validated provider credential or compaction policy operation
-    When its settings section is enabled
-    Then it exposes only implemented controls with secret-safe failure and persistence tests
+  @gi-settings-020
+  Scenario: Inspect provider credential metadata without secrets or network probing
+    When I open Providers
+    Then OpenAI and Anthropic show explicit API-key setup capability
+    And existing OAuth or other credential entries are read-only with native setup guidance
+    And stored means present locally rather than verified by the provider
+    And no key, access token, refresh token or credential-file content is returned
+    And credential writes require existing authentication plus HTTPS or a loopback connection
+
+  @gi-settings-021
+  Scenario: Save a supported provider key explicitly and use it in native inference
+    Given an isolated native provider fixture and no key for its allowlisted provider
+    When I enter its API key in the password field
+    Then no mutation occurs before Save key
+    When the server confirms Save key
+    Then the input is cleared and only metadata confirms it was stored, not verified
+    And only that provider entry changes atomically with private file permissions
+    And a subsequent native inference request consumes the saved key
+    And session model and draft are unchanged by the save
+    And the secret is never written to browser storage or returned in API responses
+
+  @gi-settings-022
+  Scenario: Reject unsafe, stale and failed credential changes without overwriting other entries
+    Given Providers holds a revision of the credential store
+    When another writer updates it before my save or remove
+    Then the stale revision is rejected and no entry is overwritten
+    And errors contain no secrets and permit metadata refresh and explicit retry
+    And empty, oversized, whitespace-containing keys and unsupported providers are rejected
+    And an existing OAuth or token entry cannot be overwritten by an API-key control
+    And corrupt, nonregular or symlinked credential files are not replaced
+    And unauthenticated or cross-origin writes are rejected before parsing
+
+  @gi-settings-023
+  Scenario: Remove only the confirmed API-key entry and ignore closed-view responses
+    Given a supported API-key entry is stored
+    When I cancel Remove key confirmation
+    Then no delete request is sent
+    When I confirm removal with its current revision
+    Then only that entry is removed and its configured state refreshes
+    And unrelated credentials and session state remain intact
+    When a save or read response arrives after closing Providers
+    Then it cannot update a reopened view or restore a cleared secret field
+
+  @proposal @gi-settings-next-004
+  Scenario: Add browser OAuth only with provider-specific native login and refresh lifecycle
+    Given a provider has a supported browser login contract with bounded lifetime and cancellation
+    When its OAuth controls are enabled
+    Then callback ownership, refresh persistence and sign-out are tested separately
+    And unsupported custom authentication fields remain absent

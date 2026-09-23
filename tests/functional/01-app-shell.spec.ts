@@ -50,6 +50,10 @@ test.describe('App shell', () => {
     await expect(dialog.getByLabel('Saved trigger threshold')).toHaveValue(String(savedPolicy.saved.policy.threshold_tokens));
     await expect(dialog.getByRole('button', { name: 'Save policy', exact: true })).toBeEnabled();
     await expect(dialog.getByRole('button', { name: 'Compact now', exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Providers', exact: true }).click();
+    await expect(dialog.getByRole('region', { name: 'Provider openai', exact: true })).toBeVisible();
+    await expect(dialog.getByText(/not verified remotely/)).toBeVisible();
+    await expect(dialog.getByRole('region', { name: 'Provider anthropic', exact: true })).toBeVisible();
     await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
     await expect(input).toHaveValue('functional settings draft');
   });
