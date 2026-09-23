@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Upgrade go-ai to accepted upstream-v0.87.1/c2d0231 independently of stashed deletion WIP; retain all other pins including go-tui v0.18.2; 80 functional, 38 helpers, 30 model and 66 context/compaction browser executions, Go/vet/race, three-size terminal suites and Linux/macOS amd64/arm64 builds pass. No new frozen parity or terminal feature credit.
+
 - [x] Verify native whole-message Markdown/rich clipboard bytes, fallback/denial/reset and late-session/draft/media preservation; fix absent API false success via narrow build adapter, supplied files unchanged; ADR-0055, 594 browser/80 functional/38 helpers/Go-vet-build-hook; copy/delete original-024/shared-37 remain unmapped, no terminal credit.
 
 - [x] Import unchanged pinned Quick Actions with native capability catalogue, typing guard and session-owned compose prefill; original003/005/006/007, 564 browser/79 functional/36 helpers/web race×3/Go-vet-build-hook plus48 capture+24 transition stress; ADR-0054, frozen50/236+2/42/unmapped186/40; 004/008 and conflicting queue replacement remain gaps, TUI design only.

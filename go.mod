@@ -5,7 +5,7 @@ go 1.26.8
 require (
 	github.com/dop251/goja v0.0.0-20260917113740-793a2a65c13b
 	github.com/grindlemire/go-tui v0.18.2
-	github.com/rcarmo/go-ai v0.80.11-0.20260921210723-c51fb076ad9f
+	github.com/rcarmo/go-ai v0.80.11-0.20260922224840-c2d0231d8bef
 	github.com/rcarmo/go-joker v1.8.1-0.20260529215339-bc07acfdb01c
 	github.com/yuin/goldmark v1.8.6
 	golang.org/x/crypto v0.57.0
