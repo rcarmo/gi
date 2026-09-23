@@ -9,6 +9,26 @@ import { test, expect } from '@playwright/test';
 import { BASE_URL, loadPageCollectingErrors, waitForAppShell } from './helpers';
 
 test.describe('App shell', () => {
+  test('serves a linked manifest with resolvable built-in PWA icons', async ({ page, request }) => {
+    await page.goto('/');
+    await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.json');
+    const response = await request.get('/manifest.json');
+    expect(response.status()).toBe(200);
+    const manifest = await response.json();
+    expect(manifest.name).toBeTruthy();
+    expect(manifest.display).toBe('standalone');
+    for (const size of [192, 512]) {
+      const src = `/static/icon-${size}.png`;
+      expect(manifest.icons).toEqual(expect.arrayContaining([
+        expect.objectContaining({ src, sizes: `${size}x${size}`, type: 'image/png', purpose: 'any' }),
+        expect.objectContaining({ src, sizes: `${size}x${size}`, type: 'image/png', purpose: 'maskable' }),
+      ]));
+      const image = await request.get(src);
+      expect(image.status()).toBe(200);
+      expect(image.headers()['content-type']).toContain('image/png');
+      expect((await image.body()).subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    }
+  });
 
   test('page loads without JS errors', async ({ page }) => {
     const errors = await loadPageCollectingErrors(page);

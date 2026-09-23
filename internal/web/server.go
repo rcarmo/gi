@@ -152,6 +152,9 @@ func (s *Server) routes() {
 		panic(err)
 	}
 	fileServer := http.FileServer(http.FS(staticRoot))
+	s.mux.HandleFunc("/manifest.json", s.serveManifest)
+	s.mux.Handle("/static/icon-192.png", http.StripPrefix("/static", fileServer))
+	s.mux.Handle("/static/icon-512.png", http.StripPrefix("/static", fileServer))
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
 			s.serveIndex(w, r)
@@ -1066,6 +1069,47 @@ func (s *Server) handleRuntimeInboundWorkDiscard(w http.ResponseWriter, r *http.
 	}
 	s.turns.PublishRuntimeInboundWorkEvent("inbound_work_discarded", item, nil)
 	writeJSON(w, http.StatusOK, map[string]any{"item": item})
+}
+
+func (s *Server) serveManifest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	name := s.cfg.AssistantName
+	if name == "" {
+		name = "PiClaw"
+	}
+	icons := []map[string]string{}
+	for _, size := range []string{"192", "512"} {
+		for _, purpose := range []string{"any", "maskable"} {
+			icons = append(icons, map[string]string{
+				"src": "/static/icon-" + size + ".png", "sizes": size + "x" + size,
+				"type": "image/png", "purpose": purpose,
+			})
+		}
+	}
+	body, err := json.Marshal(map[string]any{
+		"name": name, "short_name": name,
+		"description": "Slack-like interface for coding agents",
+		"start_url":   "/", "display": "standalone",
+		"display_override": []string{"window-controls-overlay"},
+		"background_color": "#ffffff", "theme_color": "#ffffff", "color_scheme": "dark light",
+		"icons": icons,
+	})
+	if err != nil {
+		http.Error(w, "manifest encoding failed", http.StatusInternalServerError)
+		return
+	}
+	body = append(body, '\n')
+	w.Header().Set("Content-Type", "application/manifest+json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.WriteHeader(http.StatusOK)
+	if r.Method == http.MethodGet {
+		_, _ = w.Write(body)
+	}
 }
 
 func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {

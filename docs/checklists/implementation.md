@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [ ] Implement frozen `@ux-pwa-001`: linked `/manifest.json` declares any/maskable 192/512 PNGs and its `/static/icon-*.png` URLs resolve to embedded images. Go GET/HEAD, six-project browser + swipe regression 30/30, functional 81/81, 39 helpers, Go/vet/build/hook pass; Classic 64/236, shared 3/42, unmapped 172/39. Deployment pending. Avatar-dependent `002/003/006` and Apple/favicons `004/005` need separate evidence; PWA installation has no TUI equivalent.
+
 - [x] Verify frozen `@ux-mobile-006`: wire native Safari detection for horizontal wheel listener; Chrome and iOS do not navigate, desktop Safari positive control switches adjacent persisted session. Six-project swipe 24/24, picker 90/90, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 63/236, shared 3/42, unmapped 173/39. Push d50e2f8/restart 8090: 61 sessions, integrity/FK OK. Browser-only gesture; terminal Alt-S separate; `002/003/004` unmapped.
 
 - [x] Verify frozen `@ux-mobile-005`: a primarily vertical first move cancels a touch despite later horizontal movement, then a fresh eligible timeline gesture navigates the adjacent native candidate. Six-project browser and picker 84/84, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 62/236, shared 3/42, unmapped 174/39. Push f88f1ce/restart 8090: 61 sessions, integrity/FK OK. Browser-only touch, terminal Alt-S evidence separate; `002/003/004/006` unmapped.
