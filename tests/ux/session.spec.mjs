@@ -277,6 +277,50 @@ test('@ux-original-014 Select another session through the picker', async ({ page
   await info.attach('checkpoint', { body: await page.screenshot(), contentType: 'image/png' });
 });
 
+test('@ux-session-001 Show the selected chat timeline and ignore a superseded read', async ({ page, request }, info) => {
+  const frozen = loadCorpus().find(row => row.id === '@ux-session-001'); expect(frozen).toBeTruthy();
+  await info.attach('gherkin', { body: frozen.steps.join('\n'), contentType: 'text/plain' });
+  const token = `${info.project.name}-${Date.now()}`;
+  const create = async agent => {
+    const response = await request.post('/api/sessions', { data: { agent_id: agent, title: `@${agent}` } });
+    expect(response.status()).toBe(201); return response.json();
+  };
+  const main = await create(`timeline-main-${token}`), research = await create(`timeline-research-${token}`);
+  const posts = [[main,`Main timeline ${token}`],[research,`Research timeline ${token}`]];
+  for (const [session,prompt] of posts) {
+    const response = await request.post(`/api/sessions/${session.id}/prompt`, { data: { prompt, model: 'test-model' } });
+    expect(response.status()).toBe(202); const { turn_id } = await response.json();
+    await expect.poll(async () => ((await (await request.get(`/api/sessions/${session.id}/turns`)).json()).turns || []).find(turn => turn.id === turn_id)?.status).toBe('completed');
+  }
+  const [mainText,researchText] = posts.map(([,text])=>text);
+  await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main.id);await page.goto('/');
+  const input=page.getByRole('textbox',{name:inputName,exact:true}); await expect(input).toBeVisible();
+  const mainPost=page.locator('.post-content').filter({hasText:mainText}).first();
+  const researchPost=page.locator('.post-content').filter({hasText:researchText}).first();
+  await expect(mainPost).toBeVisible();await expect(researchPost).toHaveCount(0);await input.fill('main draft');
+  let release,held=false,delivered;const gate=new Promise(resolve=>release=resolve),done=new Promise(resolve=>delivered=resolve);
+  const pattern=`**/api/sessions/${main.id}/messages?*`;
+  await page.route(pattern,async route=>{const response=await route.fetch();if(!held){held=true;await gate;await route.fulfill({response});delivered();}else await route.fulfill({response});});
+  const seen=[];page.on('request',req=>seen.push(new URL(req.url()).pathname));
+  try {
+    await expect.poll(()=>held,{timeout:15000}).toBe(true);
+    const picker=page.getByRole('button',{name:/Manage sessions for/}).last();await picker.click();
+    await page.locator(`[data-session-jid="gi:${research.id}"]`).getByRole('menuitem').click();
+    await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(research.id);
+    await expect.poll(()=>seen.includes(`/api/sessions/${research.id}/messages`)).toBe(true);
+    await expect(researchPost).toBeVisible();await expect(mainPost).toHaveCount(0);
+    await expect(input).toHaveValue('');await input.fill('research draft');
+    release();await done;await page.unroute(pattern);
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    await expect(researchPost).toBeVisible();await expect(mainPost).toHaveCount(0);await expect(input).toHaveValue('research draft');
+    await picker.click();await page.locator(`[data-session-jid="gi:${main.id}"]`).getByRole('menuitem').click();
+    await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(main.id);
+    await expect(mainPost).toBeVisible();await expect(researchPost).toHaveCount(0);await expect(input).toHaveValue('main draft');
+    const response = await request.get(`/api/sessions/${research.id}/messages`);
+    expect((await response.json()).messages.some(message=>message.content===researchText)).toBe(true);
+  } finally { release(); }
+});
+
 test('@ux-original-015 Use the session actions actually supplied by the client', async ({ page, request }, info) => {
   const scenario = loadCorpus().find(row => row.id === '@ux-original-015');
   await info.attach('gherkin', { body: scenario.steps.join('\n'), contentType: 'text/plain' });
