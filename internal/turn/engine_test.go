@@ -5344,10 +5344,43 @@ func TestProcessDirectSteeringNormalizesUnexpectedIngressRole(t *testing.T) {
 }
 
 func TestProcessSystemDirectWhileActiveSteersSameSession(t *testing.T) {
-	s := openTestStore(t)
+	// A repeated test invocation must not share a still-open memory database
+	// with a previous runner. Keep this fixture isolated without changing the
+	// store semantics used by other tests.
+	s, err := store.Open(filepath.Join(t.TempDir(), "steering.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer s.Close()
 	ctx := context.Background()
 	engine := New(s)
+	defer engine.Close()
+	// Bootstrap uses the shell runner, not the provider stub. Hold setup before
+	// that runner can consume the row whose admission/role this test inspects.
+	started, release := make(chan struct{}), make(chan struct{})
+	var once sync.Once
+	engine.beforeSetupHook = func(ctx context.Context, _, _ string) {
+		once.Do(func() { close(started) })
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+	}
+	defer func() {
+		close(release)
+		runner := engine.runner("session_system_steer")
+		// FinishedAt and active-claim release precede the end of cleanup. Taking
+		// the runner lock also joins its final queue/session normalization writes.
+		waitForCondition(t, 5*time.Second, func() bool {
+			runner.mu.Lock()
+			defer runner.mu.Unlock()
+			if runner.current != nil {
+				return false
+			}
+			_, _, err := s.GetSessionActiveTurn(ctx, "session_system_steer")
+			return err == sql.ErrNoRows
+		}, "system steering runner cleanup")
+	}()
 	alloc := gisession.AllocateDefaultSession("agent", "gi", "default", "session_system_steer")
 	sess, _, err := s.ResolveOrCreateMainSessionFromAllocation(ctx, store.ResolveOrCreateSessionFromAllocationInput{ID: "session_system_steer", Title: "@agent", State: map[string]any{"status": "idle", "queue_count": 0, "model": "bootstrap"}, Allocation: alloc})
 	if err != nil {
@@ -5356,6 +5389,11 @@ func TestProcessSystemDirectWhileActiveSteersSameSession(t *testing.T) {
 	first, err := engine.SubmitPrompt(ctx, RunInput{SessionID: sess.ID, Prompt: "first", Model: "bootstrap"})
 	if err != nil {
 		t.Fatalf("submit first prompt: %v", err)
+	}
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first turn did not reach the setup gate")
 	}
 	second, err := engine.ProcessSystemDirect(ctx, DirectInput{Kind: DirectKindPrompt, SessionID: sess.ID, Prompt: "system steer", Model: "bootstrap", Origin: DirectOrigin{SourceID: "scheduler:active"}})
 	if err != nil {
