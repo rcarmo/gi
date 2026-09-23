@@ -15,11 +15,17 @@ async function setup(page,request,info){
 }
 async function model(request,id){return(await(await request.get(`/api/sessions/${id}/model`)).json()).current;}
 
-test('Gi authoritative model selection persists only in the captured session without submitting its draft',async({page,request},info)=>{
+test('@ux-original-020 Select a model for the captured chat without submitting its draft',async({page,request},info)=>{
+ const scenario=loadCorpus().find(row=>row.id==='@ux-original-020');expect(scenario).toBeTruthy();
+ await info.attach('gherkin',{body:scenario.steps.join('\n'),contentType:'text/plain'});
  const{main,child,input,modelButton,option}=await setup(page,request,info);
  await input.fill('unsent model draft');
  await page.locator('.compose-box input[type=file]').setInputFiles({name:'draft.txt',mimeType:'text/plain',buffer:Buffer.from('draft')});
+ const accepted=page.waitForResponse(res=>res.url().endsWith(`/api/sessions/${main.id}/model`)&&res.request().method()==='PATCH');
  await modelButton.click();await option('test/bootstrap').click();
+ const chosen=await accepted;expect(chosen.status()).toBe(200);
+ const payload=await chosen.json();expect(payload.current).toBe('test/bootstrap');
+ expect(payload).toHaveProperty('context_window');expect(payload).toHaveProperty('context_usage');
  await expect(modelButton).toHaveText('test/bootstrap');await expect(input).toHaveValue('unsent model draft');
  await expect(page.locator('.compose-file-pill[title="draft.txt"]')).toBeVisible();
  expect(await model(request,child)).toBe('test/test-model');
@@ -27,7 +33,9 @@ test('Gi authoritative model selection persists only in the captured session wit
  // Native keyboard selection follows the same mutation path.
  await modelButton.focus();await page.keyboard.press('Enter');await option('test/test-model').focus();await page.keyboard.press('Enter');
  await expect(modelButton).toHaveText('test/test-model');expect(await model(request,main.id)).toBe('test/test-model');
+ const rejected=page.waitForResponse(res=>res.url().endsWith(`/api/sessions/${main.id}/model`)&&res.request().method()==='PATCH');
  await modelButton.click();await option('test/unavailable-model').click();
+ expect((await rejected).status()).toBe(400);
  await expect(page.getByRole('alert')).toContainText('unavailable or lacks credentials');
  expect(await model(request,main.id)).toBe('test/test-model');await expect(input).toHaveValue('unsent model draft');
  const{turns}=await(await request.get(`/api/sessions/${main.id}/turns`)).json();expect(turns||[]).toHaveLength(0);

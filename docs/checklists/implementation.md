@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [ ] Verify frozen `@ux-original-020` through supplied model picker: native captured-session PATCH, accepted model and context fields, persisted reload/keyboard selection, rejected 400 warning and untouched draft/media pass six projects; model regression 30/30, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 58/236, shared 3/42, unmapped 178/39. Deployment pending. Terminal Alt-M and `/model` evidence remains separate.
+
 - [x] Verify frozen `@ux-session-005`: Gi adapter wires supplied timeline swipe; native active-first/JID order and archived exclusion, real interactive and text-selection guards, draft preservation pass six projects; picker regression 72/72, session family 36/36, functional 80/80, helpers 39, Go/vet/build/hook pass. Classic 57/236, shared 3/42, unmapped 179/39. Push 4b6d88a/restart 8090: 61 sessions, integrity/FK OK. Touch remains browser-only; TUI Alt-S stays bounded with no idle rows.
 
 - [x] Verify frozen `@ux-session-002`: native current, pinned, live active, same-tree, other and archived entries group in order through the unchanged picker; sole current row, preserved draft/chat pass six projects; picker regression 66/66, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 56/236, shared 3/42, unmapped 180/39. Push a5a93f6/restart 8090: 61 sessions, integrity/FK OK. Terminal Alt-S keeps separate evidence and no added idle rows.
