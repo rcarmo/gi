@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [ ] Verify frozen `@ux-mobile-006`: wire native Safari detection for horizontal wheel listener; Chrome and iOS do not navigate, desktop Safari positive control switches adjacent persisted session. Six-project swipe 24/24 and picker 90/90 pass; 39 helpers. Classic 63/236, shared 3/42, unmapped 173/39. Go/functional checks and deployment pending. Browser-only gesture; terminal Alt-S remains separate; `002/003/004` unmapped.
+- [x] Verify frozen `@ux-mobile-006`: wire native Safari detection for horizontal wheel listener; Chrome and iOS do not navigate, desktop Safari positive control switches adjacent persisted session. Six-project swipe 24/24, picker 90/90, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 63/236, shared 3/42, unmapped 173/39. Push d50e2f8/restart 8090: 61 sessions, integrity/FK OK. Browser-only gesture; terminal Alt-S separate; `002/003/004` unmapped.
 
 - [x] Verify frozen `@ux-mobile-005`: a primarily vertical first move cancels a touch despite later horizontal movement, then a fresh eligible timeline gesture navigates the adjacent native candidate. Six-project browser and picker 84/84, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 62/236, shared 3/42, unmapped 174/39. Push f88f1ce/restart 8090: 61 sessions, integrity/FK OK. Browser-only touch, terminal Alt-S evidence separate; `002/003/004/006` unmapped.
 
