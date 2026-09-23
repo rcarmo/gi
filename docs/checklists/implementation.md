@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Preserve exact stored latest-assistant source bytes in terminal `/copy` with truthful byte count and native/OSC 52 opt-in; six fullscreen/regular PTYs at 60×18/100×22/140×36 verify emitted bytes, clipboard-off fallback, draft and zero idle-row growth. Go/vet, TUI race×3, selection/regular/search/compaction/smoke/Gherkin and 39 helpers pass; ADR-0058. Selected-message deletion remains blocked on rendered-row identity, no feature-file credit.
+
 - [x] Verify `@shared-37` as one integrated native copy/delete flow across all six browser projects: stored Markdown/code clipboard bytes, success/failure glyph reset, real busy-run 409 then 200 for the captured ID, unaffected other session/message reference/draft. Focused 6/6, 80 functional, 39 helpers, Go/vet/build/hook pass; aggregated 51/236 Classic, 3/42 shared, 185/39 unmapped. Push e05873d/restart 8090; 61 sessions/identities, HTTP 200, integrity/FK OK. Terminal source-copy and selected-message deletion remain separate zero-idle-row designs.
 
 - [x] Add idle-only single-message native DELETE with atomic checkpoint version invalidation, retained audit/media and success-only timeline animation; focused 24 browser, full six-project 450 browser executions, 80 functional, 39 helpers, Go/vet/race and hook checks pass. Aggregated Classic 51/236, shared 2/42, unmapped 185/40; push dadd34b/start 8090 (61 sessions/61 identities, 146 messages/51 turns/317 events, SQLite integrity/FK OK). Reply/cascade and terminal credit excluded; ADR-0056.

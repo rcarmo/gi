@@ -1367,7 +1367,7 @@ func TestCopyLastAssistantLinesOSC52OptInDoesNotStoreEscapeInTranscript(t *testi
 	if !strings.Contains(out.String(), "\x1b]52;c;") {
 		t.Fatalf("OSC 52 sequence not written: %q", out.String())
 	}
-	if strings.Contains(lines, "\x1b]52") || !strings.Contains(lines, "copy: sent 6 chars using OSC 52") {
+	if strings.Contains(lines, "\x1b]52") || !strings.Contains(lines, "copy: sent 6 bytes using OSC 52") {
 		t.Fatalf("unexpected copy lines: %q", lines)
 	}
 }
@@ -1398,6 +1398,53 @@ func TestCopyLastAssistantLinesNativeOptInUsesInjectedRunner(t *testing.T) {
 	lines := strings.Join(c.copyLastAssistantLines("--native"), "\n")
 	if runContent != "answer" || !strings.Contains(lines, "native clipboard helper") {
 		t.Fatalf("native copy failed content=%q lines=%s", runContent, lines)
+	}
+}
+
+func TestCopyLastAssistantSourceRetainsWhitespaceAndModeFailure(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := t.Context()
+	if _, err = s.CreateSession(ctx, "source", "@agent", nil); err != nil {
+		t.Fatal(err)
+	}
+	source := "\n  # Title  \n\n```js\n  const value = \"世界\";\n```\n\n"
+	if err = s.AddMessage(ctx, "older", "source", "assistant", "earlier", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.AddMessage(ctx, "source-id", "source", "assistant", source, nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"--osc52", "--native"} {
+		t.Run(mode, func(t *testing.T) {
+			var osc strings.Builder
+			native := ""
+			c := &chatTUI{store: s, sessionID: "source", osc52Writer: &osc, clipboardLookPath: func(name string) (string, error) {
+				if name == "pbcopy" || name == "wl-copy" || name == "xclip" || name == "xsel" || name == "clip.exe" {
+					return "/bin/" + name, nil
+				}
+				return "", os.ErrNotExist
+			}, clipboardRun: func(_ context.Context, _ string, _ []string, content string) error { native = content; return nil }}
+			lines := strings.Join(c.copyLastAssistantLines(mode), "\n")
+			if mode == "--osc52" {
+				want, _ := osc52Sequence(source)
+				if osc.String() != want || native != "" {
+					t.Fatal("source bytes changed", osc.String(), native)
+				}
+			} else if native != source {
+				t.Fatalf("native source=%q want=%q", native, source)
+			}
+			if !strings.Contains(lines, fmt.Sprintf("%d bytes", len(source))) {
+				t.Fatal(lines)
+			}
+		})
+	}
+	c := &chatTUI{store: s, sessionID: "source", clipboardLookPath: func(string) (string, error) { return "", os.ErrNotExist }}
+	if got := strings.Join(c.copyLastAssistantLines("--native"), "\n"); !strings.Contains(got, "native clipboard failed") || !strings.Contains(got, "# Title") || !strings.Contains(got, "const value") {
+		t.Fatal(got)
 	}
 }
 

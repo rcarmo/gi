@@ -2857,7 +2857,8 @@ func (c *chatTUI) copyLastAssistantLines(args ...string) []string {
 		if messages[i].Role != "assistant" || strings.TrimSpace(messages[i].Content) == "" {
 			continue
 		}
-		content := strings.TrimSpace(messages[i].Content)
+		// Copy the persisted source, not a rendered or trimmed projection.
+		content := messages[i].Content
 		mode, persist, usage := c.copyModeFromArgs(args)
 		if usage != "" {
 			return []string{usage}
@@ -2872,11 +2873,11 @@ func (c *chatTUI) copyLastAssistantLines(args ...string) []string {
 			if err := c.writeOSC52(content); err != nil {
 				return c.copyFallbackLines(content, fmt.Sprintf("OSC 52 failed: %v", err))
 			}
-			return []string{fmt.Sprintf("copy: sent %d chars using OSC 52", len(content))}
+			return []string{fmt.Sprintf("copy: sent %d bytes using OSC 52", len(content))}
 		}
 		if mode == "native" || mode == "auto" {
 			if err := c.copyNative(content); err == nil {
-				return []string{fmt.Sprintf("copy: sent %d chars using native clipboard helper", len(content))}
+				return []string{fmt.Sprintf("copy: sent %d bytes using native clipboard helper", len(content))}
 			} else if mode == "native" {
 				return c.copyFallbackLines(content, fmt.Sprintf("native clipboard failed: %v", err))
 			}
