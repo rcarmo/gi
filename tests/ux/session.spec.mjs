@@ -399,6 +399,65 @@ test('@ux-original-015 Use the session actions actually supplied by the client',
   expect(messages.messages || []).toEqual([]);
 });
 
+test('@ux-session-004 Archive and restore through the supplied session actions', async ({ page, request }, info) => {
+  const frozen=loadCorpus().find(row=>row.id==='@ux-session-004');expect(frozen).toBeTruthy();
+  await info.attach('gherkin',{body:frozen.steps.join('\n'),contentType:'text/plain'});
+  const token=`archive-${info.project.name}-${Date.now()}`;
+  const mainResponse=await request.post('/api/sessions',{data:{agent_id:token,title:`@${token}`}});expect(mainResponse.status()).toBe(201);
+  const main=await mainResponse.json();
+  const branchResponse=await request.post(`/api/sessions/${main.id}/fork`,{data:{agent_id:`${token}-child`,title:`@${token}-child`}});expect(branchResponse.status()).toBe(201);
+  const child=(await branchResponse.json()).branch.chat_jid.slice(3);
+  const stored=async()=>(await(await request.get(`/api/sessions/${child}`)).json());
+  await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main.id);await page.goto('/');
+  const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('origin archive draft');
+  const trigger=page.getByRole('button',{name:/Manage sessions for/}).last();await trigger.click();
+  const row=page.locator(`[data-session-jid="gi:${child}"]`);await expect(row).toBeVisible();
+  const path=`**/api/sessions/${child}`;
+  let release,held=false,delivered;const gate=new Promise(resolve=>release=resolve),done=new Promise(resolve=>delivered=resolve);
+  await page.route(path,async route=>{
+    if(route.request().method()!=='PATCH')return route.continue();
+    const response=await route.fetch();held=true;await gate;await route.fulfill({response});delivered();
+  });
+  try {
+    await row.getByRole('button',{name:/^Archive /}).click();
+    const accepted=page.waitForResponse(response=>response.url().endsWith(`/api/sessions/${child}`)&&response.request().method()==='PATCH');
+    await page.getByRole('button',{name:'Confirm archive',exact:true}).click();
+    await expect.poll(()=>held).toBe(true);
+    // Real accepted native mutation is held at the browser delivery boundary;
+    // the picker must not present an optimistic Archived group or success.
+    await expect(page.getByRole('group',{name:'Archived',exact:true}).locator(`[data-session-jid="gi:${child}"]`)).toHaveCount(0);
+    await expect(page.getByRole('status').filter({hasText:'Archived session.'})).toHaveCount(0);
+    release();await done;const archivedResponse=await accepted;expect(archivedResponse.status()).toBe(200);
+    expect(archivedResponse.request().postDataJSON()).toMatchObject({action:'archive'});await page.unroute(path);
+    await expect(page.getByRole('group',{name:'Archived',exact:true}).locator(`[data-session-jid="gi:${child}"]`)).toBeVisible();
+    await expect.poll(async()=>Boolean((await stored()).state.archived_at)).toBe(true);
+    await expect(input).toHaveValue('origin archive draft');
+    await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(main.id);
+    const restored=page.waitForResponse(response=>response.url().endsWith(`/api/sessions/${child}`)&&response.request().method()==='PATCH');
+    await row.getByRole('button',{name:/^Restore /}).click();const restoredResponse=await restored;
+    expect(restoredResponse.status()).toBe(200);expect(restoredResponse.request().postDataJSON()).toMatchObject({action:'restore'});
+    await expect(page.getByRole('group',{name:'This session tree',exact:true}).locator(`[data-session-jid="gi:${child}"]`)).toBeVisible();
+    await expect.poll(async()=> (await stored()).state.archived_at||null).toBe(null);
+    await expect(input).toHaveValue('origin archive draft');
+    // A transport failure rejects the captured native callback without
+    // inventing a successful response or changing the authoritative row.
+    await row.getByRole('button',{name:/^Archive /}).click();
+    let rejected=false;
+    await page.route(path,async route=>{if(route.request().method()!=='PATCH')return route.continue();
+      expect(route.request().postDataJSON()).toMatchObject({action:'archive'});
+      rejected=true;await route.abort('failed');});
+    await page.getByRole('button',{name:'Confirm archive',exact:true}).click();
+    await expect.poll(()=>rejected).toBe(true);
+    await expect(page.locator('.compose-session-mutation-error[role="alert"]')).toBeVisible();
+    await expect(page.locator('.compose-session-mutation-error')).toContainText(/Load failed|Failed to fetch/);
+    await expect.poll(async()=> (await stored()).state.archived_at||null).toBe(null);
+    await expect(row).toBeVisible();await expect(page.getByRole('group',{name:'Archived',exact:true}).locator(`[data-session-jid="gi:${child}"]`)).toHaveCount(0);
+    await expect(input).toHaveValue('origin archive draft');
+    expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(main.id);
+    await page.unroute(path);
+  } finally {release();}
+});
+
 test('Gi delayed mutation failure stays with its originating picker', async ({ page, request }, info) => {
   const agent = `mutation-race-${info.project.name}`;
   const main = await (await request.post('/api/sessions', { data: { title: `@${agent}`, agent_id: agent } })).json();
