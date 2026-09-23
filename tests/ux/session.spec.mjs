@@ -942,3 +942,77 @@ for(const [id,method] of [['@shared-23','pointer'],['@shared-24','keyboard']]) t
   }
   for(const sid of [main,research])expect((await(await request.get(`/api/sessions/${sid}/turns`)).json()).turns||[]).toHaveLength(0);
 });
+
+test('@shared-26 Expose only native session mutations and recover a rejected edit',async({page,request},info)=>{
+ const source=loadCorpus('shared').find(s=>s.id==='@shared-26');expect(source.name).toBe('Expose only supported session mutations');await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
+ const token=`capabilities-${info.project.name}-${Date.now()}`;
+ const created=await request.post('/api/sessions',{data:{agent_id:token,title:token}});expect(created.status()).toBe(201);const main=(await created.json()).id;
+ const fork=async name=>{const r=await request.post(`/api/sessions/${main}/fork`,{data:{agent_id:`${token}-${name}`,title:`${token}-${name}`}});expect(r.status()).toBe(201);return(await r.json()).branch.chat_jid.slice(3);};
+ const research=await fork('research'),busy=await fork('busy');
+ const get=async id=>{const r=await request.get(`/api/sessions/${id}`);expect(r.status()).toBe(200);return r.json();};
+ const gate=resolve('test-results/ux-parity/queue-gates',token);mkdirSync(resolve(gate,'..'),{recursive:true});
+ const reject=async(id,data)=>{const before=await get(id),r=await request.patch(`/api/sessions/${id}`,{data});expect(r.status()).toBe(409);expect((await r.json()).error).toContain('session mutation conflicts');expect(await get(id)).toEqual(before);};
+ const idempotent=async(id,action)=>{const {updated_at:beforeTime,...before}=await get(id),r=await request.patch(`/api/sessions/${id}`,{data:{action}});expect(r.status()).toBe(200);const {updated_at:afterTime,...after}=await r.json();expect(after).toEqual(before);};
+ try {
+  const running=await request.post(`/api/sessions/${busy}/prompt`,{data:{prompt:`UX queue gate:${token}`,model:'test-model'}});expect(running.status()).toBe(202);const turn=(await running.json()).turn_id;
+  await expect.poll(async()=>(await get(busy)).state.status).toBe('running');
+  await reject(main,{action:'archive'});await reject(busy,{action:'archive'});
+  // Restore-on-idle is supported and idempotent, but needs no visible action.
+  await idempotent(research,'restore');const initial=await get(research);
+  // Native session records genuinely have no message counts. Do not remove
+  // metadata in interception just to manufacture the unknown-count condition.
+  const catalogue=(await(await request.get('/api/sessions')).json()).sessions;
+  for(const id of [main,research,busy]){
+   const entry=catalogue.find(s=>s.id===id);expect(entry).toBeTruthy();
+   for(const key of ['message_count','messageCount']){expect(entry).not.toHaveProperty(key);expect(entry.state).not.toHaveProperty(key);}
+   const before=await get(id),denied=await request.delete(`/api/sessions/${id}`);expect(denied.status()).toBe(405);expect(denied.headers().allow).toBe('GET, PATCH');expect(await get(id)).toEqual(before);
+  }
+  await page.addInitScript(id=>{if(!localStorage.getItem('gi_session_id'))localStorage.setItem('gi_session_id',id);},main);await page.goto('/');
+  const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('main capability draft');
+  await page.locator('.compose-box input[type=file]').setInputFiles({name:'capability-draft.txt',mimeType:'text/plain',buffer:Buffer.from('retained capability draft bytes')});
+  const trigger=page.getByRole('button',{name:/Manage sessions for/}).last(),picker=page.locator('.compose-session-popup');
+  const row=id=>picker.locator(`[data-session-jid="gi:${id}"]`);
+  const action=(id,name)=>row(id).getByRole('button',{name:new RegExp(`^${name} @`)});
+  const selection=async id=>{await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(id);};
+  const noDelete=async()=>{await expect(picker.getByRole('button',{name:/^Delete /})).toHaveCount(0);await expect(picker.locator('.compose-model-popup-item-delete')).toHaveCount(0);};
+  const mutate=async(id,body,activate,status=200)=>{
+   const result=page.waitForResponse(r=>r.request().method()==='PATCH'&&new URL(r.url()).pathname===`/api/sessions/${id}`);
+   await activate();const r=await result;expect(r.status()).toBe(status);expect(r.request().postDataJSON()).toEqual(body);return r.json();
+  };
+  const draft=async()=>{await expect(input).toHaveValue('main capability draft');await expect(page.locator('.compose-input-main .compose-file-pill[title="capability-draft.txt"]')).toHaveCount(1);};
+  let deletes=0;page.on('request',r=>{if(r.method()==='DELETE'&&/\/api\/sessions\/[^/]+$/.test(new URL(r.url()).pathname))deletes++;});
+  await trigger.click();await noDelete();
+  await expect(action(main,'Archive')).toHaveCount(0);await expect(action(research,'Archive')).toBeEnabled();await expect(action(research,'Restore')).toHaveCount(0);
+  await expect(action(busy,'Archive')).toHaveCount(0);await expect(action(busy,'Pin')).toBeEnabled();await expect(action(busy,'Rename')).toBeEnabled();
+  // Check deletion absence when the running branch and unknown-count idle
+  // branch are each current, covering the header action as well as row actions.
+  for(const id of [busy,research,main]){await row(id).getByRole('menuitem').click();await selection(id);await trigger.click();await noDelete();}
+  await draft();
+  await mutate(research,{action:'pin',pinned:true},()=>action(research,'Pin').click());
+  await expect(picker.getByRole('group',{name:'Pinned',exact:true}).locator(`[data-session-jid="gi:${research}"]`)).toBeVisible();expect((await get(research)).state.pinned).toBe(true);
+  await action(research,'Rename').click();const name=picker.getByRole('textbox',{name:'Session name',exact:true});await expect(name).toBeFocused();await name.fill('   ');
+  const rejected=await mutate(research,{action:'rename',title:'   '},()=>picker.getByRole('button',{name:'Save name',exact:true}).click(),400);
+  expect(rejected.error).toContain('title must be');await expect(picker.getByRole('alert')).toContainText('title must be');await expect(name).toHaveValue('   ');await expect(picker).toBeVisible();await selection(main);await draft();expect((await get(research)).title).toBe(initial.title);
+  const title=`${token}-renamed`;await name.fill(title);await mutate(research,{action:'rename',title},()=>picker.getByRole('button',{name:'Save name',exact:true}).click());
+  await expect(row(research).getByRole('menuitem')).toContainText(title);await expect(picker.getByRole('alert')).toHaveCount(0);expect((await get(research)).title).toBe(title);
+  await action(research,'Archive').click();await mutate(research,{action:'archive'},()=>picker.getByRole('button',{name:'Confirm archive',exact:true}).click());
+  await expect(picker.getByRole('group',{name:'Archived',exact:true}).locator(`[data-session-jid="gi:${research}"]`)).toBeVisible();
+  for(const name of ['Pin','Unpin','Rename','Archive'])await expect(action(research,name)).toHaveCount(0);
+  await expect(action(research,'Restore')).toBeEnabled();await noDelete();expect((await get(research)).state.archived_at).toBeTruthy();await selection(main);await draft();
+  await reject(research,{action:'rename',title:'must remain archived'});await reject(research,{action:'pin',pinned:true});await reject(research,{action:'pin',pinned:false});
+  // Repeated archive retains the stored archive timestamp and identity.
+  await idempotent(research,'archive');
+  await page.keyboard.press('Escape');await page.reload();await draft();await trigger.click();await expect(action(research,'Restore')).toBeEnabled();await noDelete();
+  await mutate(research,{action:'restore'},()=>action(research,'Restore').click());await expect(action(research,'Unpin')).toBeEnabled();expect((await get(research)).state.archived_at||null).toBe(null);
+  await mutate(research,{action:'pin',pinned:false},()=>action(research,'Unpin').click());await expect(action(research,'Pin')).toBeEnabled();expect((await get(research)).state.pinned).toBe(false);
+  const after=await get(research);expect(after.scope).toEqual(initial.scope);expect(after.parent_session_id).toBe(main);expect(after.title).toBe(title);
+  // The enabled New action must allocate a real child and preserve the origin
+  // draft. No callback or branch identity is fabricated in the browser.
+  const newSession=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname===`/api/sessions/${main}/fork`);
+  await expect(picker.getByRole('button',{name:'New',exact:true})).toBeEnabled();await picker.getByRole('button',{name:'New',exact:true}).click();
+  const response=await newSession;expect(response.status()).toBe(201);const child=(await response.json()).branch.chat_jid.slice(3);expect([main,research,busy]).not.toContain(child);await selection(child);expect((await get(child)).parent_session_id).toBe(main);await expect(input).toHaveValue('');await expect(page.locator('.compose-input-main .compose-file-pill')).toHaveCount(0);
+  await trigger.click();await noDelete();await row(main).getByRole('menuitem').click();await selection(main);await draft();await page.reload();await draft();
+  for(const id of [main,research,child])expect((await(await request.get(`/api/sessions/${id}/turns`)).json()).turns||[]).toEqual([]);
+  const turns=(await(await request.get(`/api/sessions/${busy}/turns`)).json()).turns;expect(turns).toHaveLength(1);expect(turns[0]).toMatchObject({id:turn,status:'running'});expect(deletes).toBe(0);
+ }finally{writeFileSync(gate,'release');}
+});

@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Shared26 native session capability gating: delete absent for root/running/unknown-count selections with native405, archive/edit conflicts409, blank rename400/retry, persistent pin/archive/restore/unpin and actual child creation; draft/media preserved. Sessions120/functional85/helpers51/Go-vet-build-hook; Classic81/236+shared11/42 unmapped155/31. Test-only/no restart; terminal mutation submenus remain separate work.
+
 - [x] Shared27 two native composer follow-ups: active-turn checks, held POST/SSE ID reconciliation, distinct request tokens, exact text/file/folder/message refs and media bytes, reload/FIFO consumption and research isolation. Queue48/functional85/helpers51/Go-vet-build-hook; Classic81/236+shared10/42 unmapped155/32. Test-only/no restart; compact terminal queue/media actions still require separate implementation and acceptance.
 
 - [x] Shared25 coherent keyboard session switch: held native timeline/model/queue/activity/compaction reads cannot replace the selected history, durable queue IDs, context or draft/media. Context/shared36/session114/functional85/helpers51/Go-vet-build-hook; Classic81/236+shared9/42 unmapped155/33. Independent review passed; test-only/no restart. Alt-S adaptation stays bounded, terminal queue/media acceptance separate.
