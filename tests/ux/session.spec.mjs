@@ -160,6 +160,50 @@ test('Gi filtered picker keeps native text editing, Tab and keyboard selection',
   await expect.poll(() => page.evaluate(() => localStorage.getItem('gi_session_id'))).toBe(main.id);
 });
 
+test('@ux-session-003 Filter session entries using their search metadata', async ({ page, request }, info) => {
+  const frozen = loadCorpus().find(row => row.id === '@ux-session-003'); expect(frozen).toBeTruthy();
+  await info.attach('gherkin', { body: frozen.steps.join('\n'), contentType: 'text/plain' });
+  const token = `${info.project.name}-${Date.now()}`;
+  const create = async (agent,title) => {
+    const result=await request.post('/api/sessions',{data:{agent_id:agent,title}});expect(result.status()).toBe(201);return result.json();
+  };
+  const main=await create(`filter-main-${token}`,`@filter-main-${token}`);
+  const sibling=await create(`filter-sibling-${token}`,`@filter-sibling-${token}`);
+  const outsider=await create(`outside-${token}`,`@outside-${token}`);
+  const selected=await request.patch(`/api/sessions/${sibling.id}/model`,{data:{model:'test/bootstrap'}});
+  expect(selected.status()).toBe(200);
+  const storedSibling=await(await request.get(`/api/sessions/${sibling.id}`)).json();
+  expect(storedSibling.state.selected_model).toBe('bootstrap');
+  await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main.id);await page.goto('/');
+  const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('metadata search draft');
+  const trigger=page.getByRole('button',{name:/Manage sessions for/}).last();await trigger.click();
+  const search=page.getByRole('searchbox',{name:'Search sessions',exact:true});
+  const popup=page.getByRole('menu',{name:'Sessions and agents',exact:true});
+  await expect(search).toBeFocused();
+  await search.fill(`GI:${sibling.id}`.toUpperCase());await expect(popup.getByRole('menuitem')).toHaveCount(1);
+  await expect(popup.getByRole('menuitem')).toContainText(sibling.id);
+  // Session metadata is refreshed by the native 10-second safety poll. Wait
+  // for the accepted external model change; do not fabricate picker records.
+  await search.fill(`bootstrap ${sibling.id}`);
+  await expect(popup.getByRole('menuitem')).toHaveCount(1,{timeout:16000});
+  await expect(popup.getByRole('menuitem')).toContainText(sibling.id);
+  await search.fill(`filter ${token}`);await expect(popup.getByRole('menuitem')).toHaveCount(2);
+  const active=popup.locator('[data-session-entry-key].active');
+  await expect(active).toContainText(main.id);
+  await search.press('ArrowDown');await expect(active).toContainText(sibling.id);
+  await search.press('ArrowDown');await expect(active).toContainText(main.id);
+  await search.press('ArrowUp');await expect(active).toContainText(sibling.id);
+  expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(main.id);
+  await expect(input).toHaveValue('metadata search draft');
+  await search.fill(outsider.id);await expect(popup.getByRole('menuitem')).toHaveCount(1);
+  await expect(popup.getByRole('menuitem')).toContainText(outsider.id);
+  await search.press('Enter');await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(outsider.id);
+  await expect(input).toHaveValue('');
+  await trigger.click();await search.fill(main.id);await search.press('Enter');
+  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(main.id);
+  await expect(input).toHaveValue('metadata search draft');
+});
+
 test('@ux-original-014 Select another session through the picker', async ({ page, request }, info) => {
   await info.attach('gherkin', { body: scenario.steps.join('\n'), contentType: 'text/plain' });
   const create = async agent => {

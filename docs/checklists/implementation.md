@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [ ] Verify frozen `@ux-session-003` through native session ID, persisted model and two-term handle search: six-project filtered keyboard navigation, draft and current chat unchanged until Enter; picker regression 48/48, 80 functional, 39 helpers, Go/vet/build/hook pass. Aggregated 53/236 Classic, 3/42 shared, 183/39 unmapped; deployment pending. Status matching remains helper-only; terminal Alt-S acceptance is separate.
+
 - [x] Verify frozen `@ux-session-006` with the supplied picker: Escape clears search/typeahead, restores both initiating triggers and activates no session; focused 6/6 and picker regression 42/42 pass with repeated reopen, persisted history and unsent draft. 80 functional/39 helpers, Go/vet/build/hook pass; aggregated 52/236 Classic, 3/42 shared, 184/39 unmapped. Push ad62a57/restart 8090 (61 sessions, integrity/FK OK); terminal Alt-S dismissal has separate evidence and gains no new credit.
 
 - [x] Preserve exact stored latest-assistant source bytes in terminal `/copy` with truthful byte count and native/OSC 52 opt-in; six fullscreen/regular PTYs at 60×18/100×22/140×36 verify emitted bytes, clipboard-off fallback, draft and zero idle-row growth. Go/vet, TUI race×3, selection/regular/search/compaction/smoke/Gherkin and 39 helpers pass; ADR-0058. Selected-message deletion remains blocked on rendered-row identity, no feature-file credit.
