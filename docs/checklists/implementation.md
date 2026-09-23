@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [ ] Gi Appearance (`gi-settings-009`–`011`): explicit browser-local save/reset, validated hex tint, storage denial/retry, reload/session/tab scope and dirty cross-tab drafts. Unchanged supplied renderer via narrow build export; settings/models 90/90, functional 83/83, helpers 43, Go/vet/build/hook pass. No server/TUI writes or frozen credit (64/236 + 3/42 unchanged). Commit/deployment pending.
+- [x] Gi Appearance (`gi-settings-009`–`011`): explicit browser-local save/reset, validated hex tint, storage denial/retry, reload/session/tab scope and dirty cross-tab drafts. Unchanged supplied renderer via narrow build export; settings/models 90/90, functional 83/83, helpers 43, Go/vet/build/hook pass. No server/TUI writes or frozen credit (64/236 + 3/42 unchanged). Push 7917cb8/restart 8090: live save/reload proof, 61 sessions, integrity/FK OK.
 
 - [x] Gi-specific settings: 8 derived scenarios + 3 future proposals in `tests/features/settings/gi-settings.feature`; General read-only instance snapshot + explicit session Models edits. Settings 36/36, native catalogue/context 24/24, model/session regression 156/156, functional 82/82, helpers 40, Go/vet/build/hook and auth/model race ×3 pass. No frozen credit (64/236 + 3/42, unmapped 172/39), no TUI idle rows. Push 5179a19/restart 8090: live General/Models open and close, 61 sessions, integrity/FK OK; see `docs/internal/gi-settings-plan.md`.
 
