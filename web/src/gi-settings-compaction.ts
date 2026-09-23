@@ -2,6 +2,7 @@
 import { html, useState, useEffect, useRef } from './vendor/preact-htm.js';
 import { getSessionCompaction, getAgentStatus, compactSession, cancelSessionRun } from './api.js';
 import { compactionNotice, compactionElapsed } from './gi-compaction-state.js';
+import { GiSettingsCompactionPolicy } from './gi-settings-compaction-policy.js';
 
 export function GiSettingsCompaction({ chatJid }) {
     const [snapshot, setSnapshot] = useState<any>(null);
@@ -78,7 +79,7 @@ export function GiSettingsCompaction({ chatJid }) {
     return html`<section aria-labelledby="gi-compaction-title">
         <h2 id="gi-compaction-title">Compaction</h2>
         <p>Session actions · <code>${chatJid}</code></p>
-        <p>Automatic policy is read-only and loaded at startup from .pi/settings.json. Edit the file and restart Gi to change it.</p>
+        <p>Active automatic policy is read-only and loaded at startup from .pi/settings.json. Saved policy below takes effect only after a manual restart.</p>
         ${policy && html`<dl class="gi-settings-values" data-testid="compaction-policy">
             <dt>Automatic compaction</dt><dd>${policy.enabled ? 'Enabled' : 'Disabled'}</dd>
             <dt>Context window</dt><dd>${policy.context_window}</dd>
@@ -97,5 +98,6 @@ export function GiSettingsCompaction({ chatJid }) {
         <button disabled=${busy || reading.current} onClick=${() => { readError.current = false; setError(''); setNotice(''); setFresh(false); void refresh(); }}>Refresh compaction</button>
         <button disabled=${!available} onClick=${() => act('compact')}>${busy ? 'Working…' : 'Compact now'}</button>
         ${active && html`<button disabled=${busy || activity.status === 'cancelling'} onClick=${() => act('stop')}>Stop turn</button>`}
+        <${GiSettingsCompactionPolicy} />
     </section>`;
 }

@@ -6,9 +6,13 @@ import (
 	goai "github.com/rcarmo/go-ai"
 
 	"github.com/rcarmo/gi/internal/compaction"
+	"github.com/rcarmo/gi/internal/config"
 	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/store"
 )
+
+// CompactionPolicy is the immutable policy loaded when this engine started.
+func (e *Engine) CompactionPolicy() config.CompactionSettings { return e.runtimeCfg.Compaction }
 
 // ManualCompactionState is advisory. Admission checks busy state and the exact
 // history token again under the runner lock and in the store transaction.

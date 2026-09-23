@@ -54,6 +54,10 @@ func validateIdentity(names IdentityNames) (IdentityNames, error) {
 }
 
 func openIdentityRoot(workspace string, create bool) (*os.Root, error) {
+	return openConfigDirectory(workspace, ".piclaw", create)
+}
+
+func openConfigDirectory(workspace, name string, create bool) (*os.Root, error) {
 	if strings.TrimSpace(workspace) == "" {
 		return nil, errors.New("workspace root is required")
 	}
@@ -62,25 +66,25 @@ func openIdentityRoot(workspace string, create bool) (*os.Root, error) {
 		return nil, err
 	}
 	defer root.Close()
-	info, err := root.Lstat(".piclaw")
+	info, err := root.Lstat(name)
 	if errors.Is(err, os.ErrNotExist) && create {
-		if err = root.Mkdir(".piclaw", 0700); err != nil && !errors.Is(err, os.ErrExist) {
+		if err = root.Mkdir(name, 0700); err != nil && !errors.Is(err, os.ErrExist) {
 			return nil, err
 		}
-		info, err = root.Lstat(".piclaw")
+		info, err = root.Lstat(name)
 	}
 	if err != nil {
 		return nil, err
 	}
 	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return nil, errors.New(".piclaw must be a real directory")
+		return nil, fmt.Errorf("%s must be a real directory", name)
 	}
-	configRoot, err := root.OpenRoot(".piclaw")
+	configRoot, err := root.OpenRoot(name)
 	if err != nil {
 		return nil, err
 	}
 	opened, err := configRoot.Stat(".")
-	current, currentErr := root.Lstat(".piclaw")
+	current, currentErr := root.Lstat(name)
 	if err != nil || currentErr != nil || !current.IsDir() || !os.SameFile(info, opened) || !os.SameFile(opened, current) {
 		configRoot.Close()
 		return nil, ErrIdentityConflict

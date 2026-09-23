@@ -34,6 +34,8 @@ func TestGiSettingsRoutesPreserveAuthentication(t *testing.T) {
 	for _, item := range []struct{ method, path, body string }{
 		{"GET", "/api/runtime/config", ""},
 		{"GET", "/api/settings/identity", ""},
+		{"GET", "/api/settings/compaction", ""},
+		{"PATCH", "/api/settings/compaction", "not json"},
 		{"PATCH", "/api/settings/identity", "not json"},
 		{"GET", "/api/sessions/missing/model", ""},
 		{"GET", "/api/sessions/missing/compaction", ""},

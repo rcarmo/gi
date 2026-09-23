@@ -242,6 +242,14 @@ export async function setAgentThoughtVisibility(_agentId: string, _visible: bool
     return null;
 }
 
+export async function getGiCompactionPolicy() {
+    return request('/api/settings/compaction');
+}
+
+export async function saveGiCompactionPolicy(value: any) {
+    return request('/api/settings/compaction', { method: 'PATCH', body: JSON.stringify(value) });
+}
+
 export async function getGiIdentity() {
     return request('/api/settings/identity');
 }

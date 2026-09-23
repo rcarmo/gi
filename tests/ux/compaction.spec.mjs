@@ -186,7 +186,8 @@ test('@gi-settings-014 @gi-settings-015 Read-only policy and explicit manual com
  const model=(await(await request.get(`/api/sessions/${main}/model`)).json()).current;
  try{
   await open();await expect(dialog.getByTestId('compaction-policy')).toContainText('Enabled');await expect(dialog.getByText(/policy is read-only/)).toBeVisible();
-  await expect(dialog.locator('input,select')).toHaveCount(0);
+  await expect(dialog.getByRole('region',{name:'Saved automatic policy'}).getByLabel('Saved context window')).toBeVisible();
+  await expect(dialog.getByTestId('compaction-policy').locator('input,select')).toHaveCount(0);
   const capability=await(await request.get(`/api/sessions/${main}/compaction`)).json();expect(capability.policy_scope).toBe('startup');
   await expect(dialog.getByTestId('compaction-policy')).toContainText(String(capability.policy.threshold_tokens));
   const sent=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main}/compaction`)&&r.request().method()==='POST');

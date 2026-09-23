@@ -46,6 +46,9 @@ test.describe('App shell', () => {
     await expect(dialog.getByTestId('settings-current-model')).toContainText('test-model');
     await dialog.getByRole('button', { name: 'Compaction', exact: true }).click();
     await expect(dialog.getByTestId('compaction-policy')).toContainText('Trigger threshold');
+    const savedPolicy = await (await request.get('/api/settings/compaction')).json();
+    await expect(dialog.getByLabel('Saved trigger threshold')).toHaveValue(String(savedPolicy.saved.policy.threshold_tokens));
+    await expect(dialog.getByRole('button', { name: 'Save policy', exact: true })).toBeEnabled();
     await expect(dialog.getByRole('button', { name: 'Compact now', exact: true })).toBeVisible();
     await page.keyboard.press('Escape'); await expect(dialog).toHaveCount(0);
     await expect(input).toHaveValue('functional settings draft');

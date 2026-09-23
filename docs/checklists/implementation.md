@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [ ] Gi automatic policy (`gi-settings-018`/`019`): shared atomic locked Pi settings writers, revision-bound save/restart semantics, unknown-field preservation and concurrent/process/unsafe-file/failure proof. Settings/Models126, compaction96, functional83, helpers43, Go/vet/build/hook/race×3, Darwin config compile and three-size TUI compaction pass. No provider credentials, auto-restart, frozen credit or idle rows. Commit/deployment pending.
+
 - [x] Gi Compaction (`gi-settings-014`–`017`): effective engine policy read-only, token-bound Compact, matching-turn Stop, authoritative progress during delayed POST, read/action failure and close/switch guards. Native six-project compaction 96/96, Settings/Models108/108, functional83/83, helpers43, Go/vet/build/hook/web-turn race×3 pass. No policy writes, unsupported Piclaw controls, frozen credit or TUI rows. Push12de67b/restart8090: live read-only policy/pane smoke, 61 sessions, integrity/FK OK.
 
 - [x] Gi identity (`gi-settings-012`/`013`): revision-checked atomic name save preserving config keys/avatars, rooted file checks, cross-process lock and restart-required General UI. Settings 72/72, Settings/Models 102/102, reviewed identity 18/18, functional 83/83, helpers 43, Go/vet/build/hook/config-web race ×3 pass. No avatar/credential edits, auto-restart, frozen credit or TUI chrome. Push ccc2e53/restart 8090: live GET/form matches without changing operator identity, 61 sessions, integrity/FK OK.

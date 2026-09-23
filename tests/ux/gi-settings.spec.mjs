@@ -359,3 +359,96 @@ test('@gi-settings-012 Closing a pending identity save does not announce success
     expect((await request.patch('/api/settings/identity', { data: { ...previous.saved, revision: latest.saved.revision } })).status()).toBe(200);
   }
 });
+
+const policyBody = saved => ({ revision: saved.revision, enabled: saved.policy.enabled, context_window: saved.policy.context_window, reserve_tokens: saved.policy.reserve_tokens, keep_recent_tokens: saved.policy.keep_recent_tokens, threshold_tokens: saved.policy.threshold_tokens });
+async function savedPolicyControls(page) {
+  const dialog = dialogFor(page); await dialog.getByRole('button', { name: 'Compaction', exact: true }).click();
+  const region = dialog.getByRole('region', { name: 'Saved automatic policy' });
+  await expect(region.getByLabel('Saved context window')).toBeVisible(); return { dialog, region };
+}
+
+test('@gi-settings-018 Explicit policy save retains active policy until restart and survives reload', async ({ page, request }, info) => {
+  const { input, open } = await setup(page, request, info);
+  const before = await (await request.get('/api/settings/compaction')).json();
+  try {
+    await open(); const { dialog, region } = await savedPolicyControls(page);
+    await region.getByLabel('Saved automatic compaction').setChecked(!before.saved.policy.enabled);
+    await region.getByLabel('Saved context window').fill('128000');
+    await region.getByLabel('Saved reserved tokens').fill('10000');
+    await region.getByLabel('Saved keep recent tokens').fill('12000');
+    await region.getByLabel('Saved trigger threshold').fill('90000');
+    expect((await (await request.get('/api/settings/compaction')).json()).saved).toEqual(before.saved);
+    let release, held = false; const gate = new Promise(resolve => { release = resolve; });
+    await page.route('**/api/settings/compaction', async route => {
+      if (route.request().method() !== 'PATCH') return route.continue();
+      const response = await route.fetch(); expect(response.status()).toBe(200); held = true; await gate; await route.fulfill({ response });
+    });
+    try {
+      await region.getByRole('button', { name: 'Save policy', exact: true }).click(); await expect.poll(() => held).toBe(true);
+      await expect(region.getByRole('button', { name: 'Saving policy…' })).toBeDisabled();
+      await expect(region.getByLabel('Saved trigger threshold')).toBeDisabled();
+      release(); await expect(region.getByRole('status')).toContainText('Restart Gi manually');
+    } finally { release(); }
+    await page.unroute('**/api/settings/compaction');
+    const saved = await (await request.get('/api/settings/compaction')).json();
+    expect(saved.active).toEqual(before.active); expect(saved.saved.policy.threshold_tokens).toBe(90000); expect(saved.restart_required).toBe(true);
+    await expect(dialog.getByTestId('compaction-policy')).toContainText(String(before.active.threshold_tokens));
+    await page.keyboard.press('Escape'); await expect(input).toHaveValue('settings draft');
+    await page.reload(); await expect(input).toHaveValue('settings draft'); await open(); const next = await savedPolicyControls(page);
+    await expect(next.region.getByLabel('Saved trigger threshold')).toHaveValue('90000'); await expect(next.region.getByTestId('compaction-policy-restart')).toBeVisible();
+    if (process.env.GI_SETTINGS_CAPTURE && info.project.name.startsWith('chromium-')) {
+      mkdirSync('test-results/gi-settings-captures', { recursive: true }); await next.region.scrollIntoViewIfNeeded(); await page.screenshot({ path: `test-results/gi-settings-captures/policy-${info.project.name}.png` });
+    }
+  } finally {
+    const latest = await (await request.get('/api/settings/compaction')).json();
+    expect((await request.patch('/api/settings/compaction', { data: { ...policyBody(before.saved), revision: latest.saved.revision } })).status()).toBe(200);
+  }
+});
+
+test('@gi-settings-019 Policy validation, conflict and native write failure preserve unsaved fields', async ({ page, request }, info) => {
+  const { input, open } = await setup(page, request, info);
+  const before = await (await request.get('/api/settings/compaction')).json();
+  try {
+    await open(); const { region } = await savedPolicyControls(page);
+    const threshold = region.getByLabel('Saved trigger threshold'); await threshold.fill('1.5');
+    await region.getByRole('button', { name: 'Save policy', exact: true }).click(); await expect(region.getByRole('alert')).toContainText('whole-number');
+    expect((await (await request.get('/api/settings/compaction')).json()).saved).toEqual(before.saved);
+    await threshold.fill('80000');
+    expect((await request.patch('/api/settings/compaction', { data: { ...policyBody(before.saved), threshold_tokens: 85000 } })).status()).toBe(200);
+    await region.getByRole('button', { name: 'Save policy', exact: true }).click(); await expect(region.getByRole('alert')).toContainText('Pi settings changed'); await expect(threshold).toHaveValue('80000');
+    await region.getByRole('button', { name: 'Reload saved policy' }).click(); await expect(threshold).toHaveValue('85000'); await threshold.fill('80000');
+    const cfg = await (await request.get('/api/runtime/config')).json(); expect(cfg.workspace_root.replaceAll('\\', '/')).toContain('/.gi-ux-parity/workspace');
+    const { join } = await import('node:path'), { rmSync } = await import('node:fs'); const lock = join(cfg.workspace_root, '.pi', '.gi-settings.lock');
+    rmSync(lock, { force: true }); mkdirSync(lock);
+    try {
+      await region.getByRole('button', { name: 'Save policy', exact: true }).click(); await expect(region.getByRole('alert')).toContainText('Cannot save compaction policy');
+      await expect(threshold).toHaveValue('80000'); expect((await (await request.get('/api/settings/compaction')).json()).saved.policy.threshold_tokens).toBe(85000);
+    } finally { rmSync(lock, { recursive: true, force: true }); }
+    await region.getByRole('button', { name: 'Save policy', exact: true }).click(); await expect(region.getByRole('status')).toContainText('Policy saved');
+    await page.keyboard.press('Escape'); await expect(input).toHaveValue('settings draft');
+  } finally {
+    const latest = await (await request.get('/api/settings/compaction')).json();
+    expect((await request.patch('/api/settings/compaction', { data: { ...policyBody(before.saved), revision: latest.saved.revision } })).status()).toBe(200);
+  }
+});
+
+test('@gi-settings-019 A closed policy save cannot announce success in a new session view', async ({ page, request }, info) => {
+  const { b, input, open, switchTo } = await setup(page, request, info);
+  const before = await (await request.get('/api/settings/compaction')).json();
+  let release, held = false, done; const gate = new Promise(resolve => { release = resolve; }), delivered = new Promise(resolve => { done = resolve; });
+  await page.route('**/api/settings/compaction', async route => {
+    if (route.request().method() !== 'PATCH') return route.continue(); const response = await route.fetch(); held = true; await gate; await route.fulfill({ response }); done();
+  });
+  try {
+    await open(); const { region } = await savedPolicyControls(page); await region.getByLabel('Saved trigger threshold').fill('85000');
+    await region.getByRole('button', { name: 'Save policy', exact: true }).click(); await expect.poll(() => held).toBe(true);
+    await page.keyboard.press('Escape'); await switchTo(b); await input.fill('policy target draft'); await open(); const reopened = await savedPolicyControls(page);
+    await expect(reopened.region.getByLabel('Saved trigger threshold')).toHaveValue('85000'); release(); await delivered;
+    await expect(reopened.region.getByRole('status').filter({ hasText: 'Policy saved' })).toHaveCount(0);
+    await expect(reopened.dialog.getByTestId('compaction-policy')).toContainText(String(before.active.threshold_tokens));
+    await page.keyboard.press('Escape'); await expect(input).toHaveValue('policy target draft');
+  } finally {
+    release(); const latest = await (await request.get('/api/settings/compaction')).json();
+    expect((await request.patch('/api/settings/compaction', { data: { ...policyBody(before.saved), revision: latest.saved.revision } })).status()).toBe(200);
+  }
+});

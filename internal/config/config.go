@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -197,67 +196,28 @@ func Load(workspaceRoot string) RuntimeConfig {
 }
 
 func PersistModelSelection(workspaceRoot, provider, model, thinking string, enabledModels []string) error {
-	if strings.TrimSpace(workspaceRoot) == "" {
-		return errors.New("workspace root is required")
-	}
-	piDir := filepath.Join(workspaceRoot, ".pi")
-	if err := os.MkdirAll(piDir, 0o755); err != nil {
-		return err
-	}
-	settingsPath := filepath.Join(piDir, "settings.json")
-	settings := map[string]any{}
-	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
-		if err := json.Unmarshal(data, &settings); err != nil {
-			return fmt.Errorf("decode settings.json: %w", err)
-		}
-	}
+	fields := map[string]any{}
 	if strings.TrimSpace(provider) != "" {
-		settings["defaultProvider"] = provider
+		fields["defaultProvider"] = strings.TrimSpace(provider)
 	}
 	if strings.TrimSpace(model) != "" {
-		settings["defaultModel"] = model
+		fields["defaultModel"] = strings.TrimSpace(model)
 	}
 	if strings.TrimSpace(thinking) != "" {
-		settings["defaultThinkingLevel"] = thinking
+		fields["defaultThinkingLevel"] = strings.TrimSpace(thinking)
 	}
 	models := append([]string(nil), enabledModels...)
 	if strings.TrimSpace(model) != "" && !contains(models, model) {
 		models = append(models, model)
 	}
 	if len(models) > 0 {
-		settings["enabledModels"] = models
+		fields["enabledModels"] = models
 	}
-	blob, err := json.MarshalIndent(settings, "", "  ")
-	if err != nil {
-		return err
-	}
-	blob = append(blob, '\n')
-	return os.WriteFile(settingsPath, blob, 0o644)
+	return persistPiFields(workspaceRoot, fields)
 }
 
 func PersistClipboardMode(workspaceRoot, mode string) error {
-	mode = normalizeClipboardMode(mode)
-	if strings.TrimSpace(workspaceRoot) == "" {
-		return errors.New("workspace root is required")
-	}
-	piDir := filepath.Join(workspaceRoot, ".pi")
-	if err := os.MkdirAll(piDir, 0o755); err != nil {
-		return err
-	}
-	settingsPath := filepath.Join(piDir, "settings.json")
-	settings := map[string]any{}
-	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
-		if err := json.Unmarshal(data, &settings); err != nil {
-			return fmt.Errorf("decode settings.json: %w", err)
-		}
-	}
-	settings["tuiClipboardMode"] = mode
-	blob, err := json.MarshalIndent(settings, "", "  ")
-	if err != nil {
-		return err
-	}
-	blob = append(blob, '\n')
-	return os.WriteFile(settingsPath, blob, 0o644)
+	return persistPiFields(workspaceRoot, map[string]any{"tuiClipboardMode": normalizeClipboardMode(mode)})
 }
 
 func normalizeClipboardMode(mode string) string {
@@ -270,81 +230,21 @@ func normalizeClipboardMode(mode string) string {
 }
 
 func PersistScrollbackLimit(workspaceRoot string, limit int) error {
-	if strings.TrimSpace(workspaceRoot) == "" {
-		return errors.New("workspace root is required")
-	}
 	if limit <= 0 {
 		return errors.New("scrollback limit must be > 0")
 	}
-	piDir := filepath.Join(workspaceRoot, ".pi")
-	if err := os.MkdirAll(piDir, 0o755); err != nil {
-		return err
-	}
-	settingsPath := filepath.Join(piDir, "settings.json")
-	settings := map[string]any{}
-	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
-		if err := json.Unmarshal(data, &settings); err != nil {
-			return fmt.Errorf("decode settings.json: %w", err)
-		}
-	}
-	settings["tuiScrollbackLimit"] = limit
-	blob, err := json.MarshalIndent(settings, "", "  ")
-	if err != nil {
-		return err
-	}
-	blob = append(blob, '\n')
-	return os.WriteFile(settingsPath, blob, 0o644)
+	return persistPiFields(workspaceRoot, map[string]any{"tuiScrollbackLimit": limit})
 }
 
 func PersistTUIScrollbar(workspaceRoot string, enabled bool) error {
-	if strings.TrimSpace(workspaceRoot) == "" {
-		return errors.New("workspace root is required")
-	}
-	piDir := filepath.Join(workspaceRoot, ".pi")
-	if err := os.MkdirAll(piDir, 0o755); err != nil {
-		return err
-	}
-	settingsPath := filepath.Join(piDir, "settings.json")
-	settings := map[string]any{}
-	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
-		if err := json.Unmarshal(data, &settings); err != nil {
-			return fmt.Errorf("decode settings.json: %w", err)
-		}
-	}
-	settings["tuiScrollbar"] = enabled
-	blob, err := json.MarshalIndent(settings, "", "  ")
-	if err != nil {
-		return err
-	}
-	blob = append(blob, '\n')
-	return os.WriteFile(settingsPath, blob, 0o644)
+	return persistPiFields(workspaceRoot, map[string]any{"tuiScrollbar": enabled})
 }
 
 func PersistTUIHistoryLimit(workspaceRoot string, limit int) error {
-	if strings.TrimSpace(workspaceRoot) == "" {
-		return errors.New("workspace root is required")
-	}
 	if limit <= 0 {
 		return errors.New("history limit must be > 0")
 	}
-	piDir := filepath.Join(workspaceRoot, ".pi")
-	if err := os.MkdirAll(piDir, 0o755); err != nil {
-		return err
-	}
-	settingsPath := filepath.Join(piDir, "settings.json")
-	settings := map[string]any{}
-	if data, err := os.ReadFile(settingsPath); err == nil && len(data) > 0 {
-		if err := json.Unmarshal(data, &settings); err != nil {
-			return fmt.Errorf("decode settings.json: %w", err)
-		}
-	}
-	settings["tuiHistoryLimit"] = limit
-	blob, err := json.MarshalIndent(settings, "", "  ")
-	if err != nil {
-		return err
-	}
-	blob = append(blob, '\n')
-	return os.WriteFile(settingsPath, blob, 0o644)
+	return persistPiFields(workspaceRoot, map[string]any{"tuiHistoryLimit": limit})
 }
 
 func applyInboundWorkDefaults(settings *InboundWorkSettings) {

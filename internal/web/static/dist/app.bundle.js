@@ -1048,6 +1048,12 @@ async function cancelSessionRun(chatJid, turnId) {
     throw new Error("No active run to stop");
   return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/activity`, { method: "POST", body: JSON.stringify({ turn_id: turnId }) });
 }
+async function getGiCompactionPolicy() {
+  return request("/api/settings/compaction");
+}
+async function saveGiCompactionPolicy(value) {
+  return request("/api/settings/compaction", { method: "PATCH", body: JSON.stringify(value) });
+}
 async function getGiIdentity() {
   return request("/api/settings/identity");
 }
@@ -17758,6 +17764,98 @@ function compactionElapsed(notice, now = Date.now()) {
   return Number.isFinite(elapsed) ? `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}` : "0:00";
 }
 
+// web/src/gi-settings-compaction-policy.ts
+var fields = [
+  ["context_window", "Saved context window"],
+  ["reserve_tokens", "Saved reserved tokens"],
+  ["keep_recent_tokens", "Saved keep recent tokens"],
+  ["threshold_tokens", "Saved trigger threshold"]
+];
+var toDraft = (policy) => ({ enabled: policy.enabled, ...Object.fromEntries(fields.map(([key]) => [key, String(policy[key])])) });
+function GiSettingsCompactionPolicy() {
+  const [snapshot, setSnapshot] = F_(null);
+  const [draft, setDraft] = F_({});
+  const [error, setError] = F_("");
+  const [notice, setNotice] = F_("");
+  const [busy, setBusy] = F_(false);
+  const [attempt, setAttempt] = F_(0);
+  const alive = Q_(false), saving = Q_(false);
+  K_(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  K_(() => {
+    let live = true;
+    setSnapshot(null);
+    setError("");
+    setNotice("");
+    getGiCompactionPolicy().then((value) => {
+      if (live) {
+        setSnapshot(value);
+        setDraft(toDraft(value.saved.policy));
+      }
+    }).catch((err) => {
+      if (live)
+        setError(err.message);
+    });
+    return () => {
+      live = false;
+    };
+  }, [attempt]);
+  async function save() {
+    if (!snapshot || saving.current)
+      return;
+    setError("");
+    setNotice("");
+    const numeric = Object.fromEntries(fields.map(([key]) => [key, Number(draft[key])]));
+    const { context_window: window2, reserve_tokens: reserve, keep_recent_tokens: keep, threshold_tokens: threshold } = numeric;
+    if (fields.some(([key]) => !/^\d+$/.test(draft[key])) || Object.values(numeric).some((n) => !Number.isSafeInteger(n) || n < 1) || window2 > 16777216 || reserve >= window2 || keep > threshold || threshold > window2 - reserve) {
+      setError("Use positive whole-number budgets: context at most 16777216; reserve below context; keep recent ≤ threshold ≤ context minus reserve.");
+      return;
+    }
+    saving.current = true;
+    setBusy(true);
+    try {
+      const result = await saveGiCompactionPolicy({ revision: snapshot.saved.revision, enabled: draft.enabled, ...numeric });
+      if (alive.current) {
+        setSnapshot(result);
+        setDraft(toDraft(result.saved.policy));
+        setNotice(result.restart_required ? "Policy saved. Restart Gi manually to activate it." : "Policy saved. Active policy already matches.");
+      }
+    } catch (err) {
+      if (alive.current)
+        setError(err.message);
+    } finally {
+      saving.current = false;
+      if (alive.current)
+        setBusy(false);
+    }
+  }
+  return fe`<section aria-label="Saved automatic policy">
+        <h3>Saved automatic policy</h3>
+        <p>Instance-wide · .pi/settings.json. Saving changes the next startup only; manual actions still use the active engine policy above.</p>
+        ${!snapshot && !error && fe`<p role="status">Loading saved policy…</p>`}
+        ${snapshot && fe`
+            <label><input class="gi-policy-checkbox" type="checkbox" aria-label="Saved automatic compaction" checked=${draft.enabled} disabled=${busy} onChange=${(e) => {
+    setDraft((d) => ({ ...d, enabled: e.target.checked }));
+    setNotice("");
+  }} />Automatic compaction after restart</label>
+            ${fields.map(([key, label]) => fe`<label>${label}<input type="number" min="1" max="16777216" step="1" aria-label=${label} disabled=${busy} value=${draft[key]} onInput=${(e) => {
+    setDraft((d) => ({ ...d, [key]: e.target.value }));
+    setNotice("");
+  }} /></label>`)}
+            <p>Strategy label is preserved: ${snapshot.saved.policy.strategy || "default"}. No provider model or remote compaction setting is changed.</p>
+            ${snapshot.restart_required && fe`<p data-testid="compaction-policy-restart">Restart required to activate the saved policy.</p>`}
+            <button disabled=${busy} onClick=${save}>${busy ? "Saving policy…" : "Save policy"}</button>
+        `}
+        <button disabled=${busy} onClick=${() => setAttempt((x) => x + 1)}>Reload saved policy</button>
+        ${error && fe`<p role="alert">${error}</p>`}
+        ${notice && fe`<p role="status">${notice}</p>`}
+    </section>`;
+}
+
 // web/src/gi-settings-compaction.ts
 function GiSettingsCompaction({ chatJid }) {
   const [snapshot, setSnapshot] = F_(null);
@@ -17873,7 +17971,7 @@ function GiSettingsCompaction({ chatJid }) {
   return fe`<section aria-labelledby="gi-compaction-title">
         <h2 id="gi-compaction-title">Compaction</h2>
         <p>Session actions · <code>${chatJid}</code></p>
-        <p>Automatic policy is read-only and loaded at startup from .pi/settings.json. Edit the file and restart Gi to change it.</p>
+        <p>Active automatic policy is read-only and loaded at startup from .pi/settings.json. Saved policy below takes effect only after a manual restart.</p>
         ${policy && fe`<dl class="gi-settings-values" data-testid="compaction-policy">
             <dt>Automatic compaction</dt><dd>${policy.enabled ? "Enabled" : "Disabled"}</dd>
             <dt>Context window</dt><dd>${policy.context_window}</dd>
@@ -17898,6 +17996,7 @@ function GiSettingsCompaction({ chatJid }) {
   }}>Refresh compaction</button>
         <button disabled=${!available} onClick=${() => act("compact")}>${busy ? "Working…" : "Compact now"}</button>
         ${active && fe`<button disabled=${busy || activity.status === "cancelling"} onClick=${() => act("stop")}>Stop turn</button>`}
+        <${GiSettingsCompactionPolicy} />
     </section>`;
 }
 
@@ -20210,5 +20309,5 @@ function ComposeTransfer({ sessionId, hidden }) {
 window.addEventListener("keydown", guardQuickActionsTyping, true);
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=75FE551DA6EDE7B664756E2164756E21
+//# debugId=60E0D3E53FEF2A1F64756E2164756E21
 //# sourceMappingURL=app.js.map

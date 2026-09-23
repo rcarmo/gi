@@ -138,9 +138,9 @@ Feature: Gi settings backed by native capabilities
   @gi-settings-014
   Scenario: Inspect effective compaction policy and session capability without changing it
     When I open Compaction in Gi Settings
-    Then the effective engine startup policy is displayed read-only with restart guidance
+    Then the effective engine startup policy is displayed separately from saved policy fields with restart guidance
     And the destination session and authoritative manual capability or disabled reason are visible
-    And no provider-model, watchdog, backoff or policy-save controls are advertised
+    And no provider-model, watchdog or backoff controls are advertised
     And a failed read disables actions and offers Refresh without using stale capability
 
   @gi-settings-015
@@ -172,8 +172,32 @@ Feature: Gi settings backed by native capabilities
     Then B's capability, progress, error feedback and draft are unchanged
     And accepted work on A remains bound to A
 
+  @gi-settings-018
+  Scenario: Explicitly save automatic compaction policy for the next restart
+    Given Compaction shows active engine policy and a saved file revision
+    When I change automatic enablement or token budgets
+    Then the engine policy is unchanged and no write occurs until Save policy
+    When the server confirms Save policy
+    Then the saved snapshot and restart-required notice are shown
+    And only supported compaction fields change in Pi settings while unknown fields and strategy remain intact
+    And model and TUI preference writers share the atomic settings-file lock
+    When a fresh process starts
+    Then it loads the saved policy without an automatic restart or policy change in the old process
+
+  @gi-settings-019
+  Scenario: Reject conflicting or invalid automatic compaction policy saves
+    Given another writer changed Pi settings after my policy read
+    When I save my policy
+    Then the stale revision is rejected and the unsaved fields are preserved
+    And Reload saved policy explicitly discards those fields and reads the new revision
+    When values are non-integers or budgets are out of bounds or inconsistent
+    Then validation reports failure and the file remains unchanged
+    And file failures preserve the original settings with no success notice
+    And reads and writes require existing authentication and writes reject cross-origin requests
+    And closing a pending save cannot report success in a reopened dialog
+
   @proposal @gi-settings-next-003
-  Scenario: Expose provider and compaction controls only with native write contracts
+  Scenario: Expose provider controls only with native write contracts
     Given Gi supports a validated provider credential or compaction policy operation
     When its settings section is enabled
     Then it exposes only implemented controls with secret-safe failure and persistence tests
