@@ -73,6 +73,37 @@ test('Gi superseded model catalogue cannot undo an accepted choice on an A-B-A r
  }finally{release();}
 });
 
+test('@ux-original-022 Sparse model metadata and superseded catalogue stay truthful',async({page,request},info)=>{
+ const scenario=loadCorpus().find(row=>row.id==='@ux-original-022');expect(scenario).toBeTruthy();
+ await info.attach('gherkin',{body:scenario.steps.join('\n'),contentType:'text/plain'});
+ const{main,child,input,modelButton,menu,switchTo}=await setup(page,request,info);
+ const catalogue=await(await request.get(`/api/sessions/${main.id}/model`)).json();
+ const sparse=catalogue.model_options.find(option=>option.label==='test/unavailable-model');
+ expect(sparse).toBeTruthy();expect(sparse.context_window).toBeUndefined();expect(sparse.reasoning).toBeUndefined();
+ expect(catalogue.context_usage.tokens).toBeNull();expect(catalogue.context_usage.source).toBe('unavailable');
+ await input.fill('main sparse-metadata draft');await modelButton.click();
+ const sparseRow=menu.getByRole('menuitem').filter({hasText:'test/unavailable-model'});
+ await expect(sparseRow).toBeVisible();await expect(sparseRow).toHaveText('test/unavailable-model');
+ await expect(sparseRow).toHaveAttribute('title','test/unavailable-model');
+ await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label',/Context: \? \/ \? tokens \(\?%\)/);
+ await menu.press('Escape');
+ const choice=await request.patch(`/api/sessions/${main.id}/model`,{data:{model:'test/bootstrap'}});expect(choice.status()).toBe(200);
+ await page.reload();await expect(modelButton).toHaveText('test/bootstrap');await expect(input).toHaveValue('main sparse-metadata draft');
+ let release,held=false,done;const gate=new Promise(resolve=>{release=resolve;});const delivered=new Promise(resolve=>{done=resolve;});
+ await page.route(`**/api/sessions/${main.id}/model`,async route=>{
+  if(held||route.request().method()!=='GET')return route.continue();
+  const response=await route.fetch();held=true;await gate;await route.fulfill({response});done();
+ });
+ try{
+  await modelButton.click();await expect.poll(()=>held).toBe(true);
+  await switchTo(child);await input.fill('child sparse-metadata draft');
+  release();await delivered;
+  await expect(modelButton).toHaveText('test/test-model');await expect(input).toHaveValue('child sparse-metadata draft');
+  expect(await model(request,child)).toBe('test/test-model');
+  await switchTo(main.id);await expect(modelButton).toHaveText('test/bootstrap');await expect(input).toHaveValue('main sparse-metadata draft');
+ }finally{release();}
+});
+
 test('Gi failed model mutation after switching sessions reports no false success in the target',async({page,request},info)=>{
  const{main,child,input,modelButton,option,switchTo}=await setup(page,request,info);
  let release,held=false,done;const gate=new Promise(resolve=>{release=resolve;});const delivered=new Promise(resolve=>{done=resolve;});
