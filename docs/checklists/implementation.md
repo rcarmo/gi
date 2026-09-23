@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [ ] Verify frozen `@ux-mobile-005`: a primarily vertical first move cancels a touch despite later horizontal movement, then a fresh eligible timeline gesture navigates the adjacent native candidate. Six-project browser and picker 84/84 pass; 39 helpers. Classic 62/236, shared 3/42, unmapped 174/39. Go/functional checks and deployment pending. Browser-only touch, terminal Alt-S evidence separate; `002/003/004/006` unmapped.
+- [x] Verify frozen `@ux-mobile-005`: a primarily vertical first move cancels a touch despite later horizontal movement, then a fresh eligible timeline gesture navigates the adjacent native candidate. Six-project browser and picker 84/84, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 62/236, shared 3/42, unmapped 174/39. Push f88f1ce/restart 8090: 61 sessions, integrity/FK OK. Browser-only touch, terminal Alt-S evidence separate; `002/003/004/006` unmapped.
 
 - [x] Verify frozen `@ux-mobile-001`: eligible horizontal finger gesture on supplied timeline selects adjacent persisted non-archived candidate and wraps from catalogue end, without active text selection; six projects, picker regression 78/78, functional 80/80, 39 helpers, Go/vet/build/hook pass. Classic 61/236, shared 3/42, unmapped 175/39. Push 0ef320a/restart 8090: 61 sessions, integrity/FK OK. Touch is browser-only; terminal Alt-S evidence separate.
 
