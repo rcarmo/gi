@@ -263,3 +263,88 @@ test('@shared-29 Reorder only the captured queue and reconcile native removal of
     if(childTurn)await expect.poll(async()=>((await(await request.get(`/api/sessions/${child}/turns`)).json()).turns||[]).every(t=>t.status==='completed'),{timeout:15000}).toBe(true);
   }
 });
+
+test('@shared-27 Queue two native composer follow-ups exactly once with media and references',async({page,request},info)=>{
+ const source=loadCorpus('shared').find(r=>r.id==='@shared-27');expect(source.name).toBe('Queue two follow-ups exactly once');await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
+ const {main,child,input,active,queue,release,switchTo}=await setup(page,request,info);
+ const get=async(id,part)=>{const r=await request.get(`/api/sessions/${id}/${part}`);expect(r.status()).toBe(200);return r.json();};
+ const token=`shared27-${info.project.name}-${Date.now()}`,folder=`${token}-folder`,path=`${folder}/reference.txt`;
+ let deliver=()=>{};
+ try {
+  // Give research real history and a persisted local draft; an empty session
+  // alone would be a weak isolation control.
+  const other=await request.post(`/api/sessions/${child}/prompt`,{data:{prompt:`research history ${token}`,model:'test-model'}});expect(other.status()).toBe(202);const otherTurn=(await other.json()).turn_id;
+  await expect.poll(async()=>(await get(child,'turns')).turns.find(t=>t.id===otherTurn)?.status).toBe('completed');
+  const otherBefore={messages:await get(child,'messages'),turns:await get(child,'turns'),model:await get(child,'model'),queue:await get(child,'queue'),media:await get(child,'media')};
+  await switchTo(child);await input.fill('research unsent draft');
+  await page.locator('.compose-box input[type=file]').setInputFiles({name:'research-pending.txt',mimeType:'text/plain',buffer:Buffer.from('research unsent bytes')});
+  await switchTo(main.id);await expect(input).toHaveValue('');
+  const reference=page.locator('.post .post-time').first();const referenceId=(await reference.getAttribute('href')).replace(/^#msg-/,'');expect(referenceId).toBeTruthy();
+  const written=await request.post('/api/tools/execute',{data:{tool:'write',input:{path,content:'native workspace reference bytes'}}});expect(written.ok()).toBe(true);expect((await written.json()).error).toBeFalsy();
+  const sent=[],uploads=[];
+  page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname===`/api/sessions/${main.id}/prompt`)sent.push(r.postDataJSON());});
+  let accepted,held=false;
+  const gate=new Promise(r=>deliver=r);
+  await page.route(`**/api/sessions/${main.id}/prompt`,async route=>{
+   const response=await route.fetch();expect(response.status()).toBe(202);
+   if(!held){accepted=await response.json();expect(accepted.queued).toBe(true);held=true;await gate;}
+   await route.fulfill({response});
+  });
+  const submitted=[];
+  for(const n of [1,2]){
+   expect((await get(main.id,'turns')).turns.find(t=>t.id===active.turn_id)?.status).toBe('running');
+   expect((await get(main.id,'queue')).active_turn_id).toBe(active.turn_id);
+   await expect(page.getByRole('button',{name:'Stop response',exact:true})).toBeVisible();
+   await page.locator(`#post-${referenceId} .post-time`).click();
+   await page.getByRole('button',{name:'Menu',exact:true}).click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
+   await page.locator(`.workspace-row[data-path="${folder}"] .workspace-caret`).click();
+   await page.getByRole('button',{name:'Reference selected folder',exact:true}).click();
+   await page.locator(`.workspace-row[data-path="${path}"]`).click();
+   // Restore the closed folder before the next composition. Use its caret
+   // on reopening because clicking the already-selected label does not toggle.
+   await page.locator(`.workspace-row[data-path="${folder}"]`).click();
+   await expect(page.locator(`.workspace-row[data-path="${path}"]`)).toHaveCount(0);
+   await page.locator('.workspace-toggle-tab.open').click();
+   const filename=`follow-up-${n}.txt`,bytes=Buffer.from(`follow-up ${n} native media bytes\n第二行`);
+   await page.locator('.compose-box input[type=file]').setInputFiles({name:filename,mimeType:'text/plain',buffer:bytes});
+   await expect(page.locator('.compose-input-main .compose-file-pill')).toHaveCount(4);
+   await input.fill(`canonical follow-up ${n}\nsecond line`);
+   const uploaded=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname===`/api/sessions/${main.id}/media`);
+   const response=page.waitForResponse(r=>r.request().method()==='POST'&&new URL(r.url()).pathname===`/api/sessions/${main.id}/prompt`);
+   await input.press('Enter');const upload=await uploaded;expect(upload.status()).toBe(201);const media=await upload.json();uploads.push(media);
+   const expected=`canonical follow-up ${n}\nsecond line\n\nFiles:\n- ${folder}\n- ${path}\n\nReferenced messages:\n- message:${referenceId}\n\nAttachments:\n- attachment:${media.media.id} (${filename})`;
+   if(n===1){
+    await expect.poll(()=>held).toBe(true);
+    // SSE supplies the durable ID while the POST acknowledgement is still
+    // held. No optimistic ID may survive as a duplicate row.
+    await expect.poll(()=>ids(page)).toEqual([accepted.turn_id]);expect((await queue()).map(t=>t.id)).toEqual([accepted.turn_id]);deliver();
+   }
+   const ack=await response;expect(ack.status()).toBe(202);const body=await ack.json();expect(body.queued).toBe(true);
+   const posted=sent[n-1];expect(posted.prompt).toBe(expected);expect(posted.intent).toBe('queue');expect(posted.client_request_id).toBeTruthy();expect(posted.media).toEqual([{media_id:media.media.id,session_id:main.id}]);
+   submitted.push({id:body.turn_id,prompt:expected,ref:media.ref,bytes});
+   await expect.poll(()=>ids(page)).toEqual(submitted.map(t=>t.id));await expect(input).toHaveValue('');await expect(page.locator('.compose-input-main .compose-file-pill')).toHaveCount(0);
+  }
+  await page.unroute(`**/api/sessions/${main.id}/prompt`);
+  expect(sent).toHaveLength(2);expect(new Set(sent.map(s=>s.client_request_id)).size).toBe(2);expect(new Set(submitted.map(t=>t.id)).size).toBe(2);
+  const stored=await queue();expect(stored.map(t=>t.id)).toEqual(submitted.map(t=>t.id));
+  for(const [i,t] of stored.entries()){
+   expect(t.prompt).toBe(submitted[i].prompt);expect(t.metadata.client_request_id).toBe(sent[i].client_request_id);expect(t.metadata.media).toHaveLength(1);
+   const {created_at,...ref}=t.metadata.media[0];expect(ref).toEqual(submitted[i].ref);expect(Number.isFinite(Date.parse(created_at))).toBe(true);
+   await expect(row(page,t.id).locator('.compose-queue-stack-text')).toContainText(`canonical follow-up ${i+1}`);
+   const raw=await request.get(`/api/sessions/${main.id}/media/${submitted[i].ref.media_id}`);expect(raw.status()).toBe(200);expect(await raw.body()).toEqual(submitted[i].bytes);
+  }
+  expect((await get(main.id,'media')).media.map(m=>m.id).sort((a,b)=>a-b)).toEqual(uploads.map(m=>m.media.id).sort((a,b)=>a-b));
+  expect((await get(main.id,'turns')).turns).toHaveLength(3);
+  await input.fill('main newer unsent draft');await page.reload();await expect.poll(()=>ids(page)).toEqual(submitted.map(t=>t.id));await expect(input).toHaveValue('main newer unsent draft');expect(await queue()).toEqual(stored);
+  await switchTo(child);await expect(input).toHaveValue('research unsent draft');await expect(page.locator('.compose-input-main .compose-file-pill[title="research-pending.txt"]')).toHaveCount(1);await expect(page.locator('[data-queue-id]')).toHaveCount(0);
+  await page.reload();await expect(input).toHaveValue('research unsent draft');await expect(page.locator('.compose-input-main .compose-file-pill[title="research-pending.txt"]')).toHaveCount(1);
+  await switchTo(main.id);await expect(input).toHaveValue('main newer unsent draft');await expect(page.locator('.compose-input-main .compose-file-pill')).toHaveCount(0);await expect.poll(()=>ids(page)).toEqual(submitted.map(t=>t.id));
+  release();await expect.poll(async()=>(await get(main.id,'turns')).turns.filter(t=>submitted.some(s=>s.id===t.id)).map(t=>t.status),{timeout:15000}).toEqual(['completed','completed']);
+  await expect(page.locator('[data-queue-id]')).toHaveCount(0);
+  const finalTurns=(await get(main.id,'turns')).turns;expect(finalTurns).toHaveLength(3);
+  const users=(await get(main.id,'messages')).messages.filter(m=>m.role==='user');expect(users).toHaveLength(3);expect(users.slice(1).map(m=>m.content)).toEqual(submitted.map(t=>t.prompt));
+  for(const [i,t] of submitted.entries())expect(finalTurns.find(row=>row.id===t.id)).toMatchObject({prompt:t.prompt,metadata:{client_request_id:sent[i].client_request_id,media:[t.ref]}});
+  expect(await get(child,'messages')).toEqual(otherBefore.messages);expect(await get(child,'turns')).toEqual(otherBefore.turns);expect(await get(child,'model')).toEqual(otherBefore.model);expect(await get(child,'queue')).toEqual(otherBefore.queue);expect(await get(child,'media')).toEqual(otherBefore.media);
+  expect(sent).toHaveLength(2);await expect(input).toHaveValue('main newer unsent draft');
+ }finally{deliver();release();}
+});
