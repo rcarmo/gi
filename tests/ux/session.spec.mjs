@@ -356,6 +356,45 @@ test('@ux-mobile-005 Primarily vertical movement cancels the current timeline sw
  await expect.poll(selected).toBe(adjacent);await expect(input).toHaveValue('');
 });
 
+test('@ux-mobile-006 Horizontal wheel only navigates on desktop Safari, never non-Safari or iOS',async({page,request},info)=>{
+ const scenario=loadCorpus().find(row=>row.id==='@ux-mobile-006');expect(scenario).toBeTruthy();
+ await info.attach('gherkin',{body:scenario.steps.join('\n'),contentType:'text/plain'});
+ const token=`wheel-${info.project.name}-${Date.now()}`;
+ const create=async name=>{const response=await request.post('/api/sessions',{data:{agent_id:`${token}-${name}`,title:`@${token}-${name}`}});expect(response.status()).toBe(201);return (await response.json()).id;};
+ await create('other');const current=await create('current');
+ const response=await request.post(`/api/sessions/${current}/prompt`,{data:{prompt:`Wheel timeline ${token}`,model:'test-model'}});expect(response.status()).toBe(202);
+ await expect.poll(async()=>((await(await request.get(`/api/sessions/${current}/messages`)).json()).messages||[]).some(message=>message.role==='assistant')).toBe(true);
+ const sessions=(await(await request.get('/api/sessions')).json()).sessions;
+ const ordered=sessions.filter(s=>!s.state?.archived_at).sort((a,b)=>{
+  const active=s=>s.state?.status==='running'||s.state?.status==='queued'||Number(s.state?.queue_count||0)>0;
+  return Number(active(b))-Number(active(a))||`gi:${a.id}`.localeCompare(`gi:${b.id}`);
+ }).map(s=>s.id);
+ expect(ordered).toContain(current);expect(ordered.length).toBeGreaterThan(1);
+ const adjacent=ordered[(ordered.indexOf(current)+1)%ordered.length];expect(adjacent).not.toBe(current);
+ await page.addInitScript(id=>{
+  localStorage.setItem('gi_session_id',id);
+  const mode=localStorage.getItem('wheel_browser_mode')||'chrome';
+  const userAgent=mode==='ios'?'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0) AppleWebKit/605.1.15 Safari/604.1':mode==='safari'?'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0 Safari/537.36';
+  Object.defineProperty(navigator,'userAgent',{configurable:true,value:userAgent});
+  Object.defineProperty(navigator,'platform',{configurable:true,value:'Win32'});
+  Object.defineProperty(navigator,'maxTouchPoints',{configurable:true,value:0});
+ },current);
+ const selected=()=>page.evaluate(()=>localStorage.getItem('gi_session_id'));
+ const wheel=async()=>page.locator('.timeline').first().evaluate(el=>el.dispatchEvent(new WheelEvent('wheel',{bubbles:true,cancelable:true,deltaX:110,deltaY:0})));
+ await page.goto('/');const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('wheel draft');
+ await expect(page.locator('.timeline .post-content').filter({hasText:`Wheel timeline ${token}`}).first()).toBeVisible();
+ for(const mode of ['chrome','ios']){
+  await page.evaluate(value=>localStorage.setItem('wheel_browser_mode',value),mode);
+  await page.reload();await expect(input).toHaveValue('wheel draft');
+  await wheel();await page.waitForTimeout(550);await expect.poll(selected).toBe(current);
+  await expect(input).toHaveValue('wheel draft');
+ }
+ // Positive control: the same native listener can navigate with the same wheel delta on desktop Safari.
+ await page.evaluate(()=>localStorage.setItem('wheel_browser_mode','safari'));
+ await page.reload();await expect(input).toHaveValue('wheel draft');
+ await wheel();await expect.poll(selected).toBe(adjacent);await expect(input).toHaveValue('');
+});
+
 test('@ux-session-003 Filter session entries using their search metadata', async ({ page, request }, info) => {
   const frozen = loadCorpus().find(row => row.id === '@ux-session-003'); expect(frozen).toBeTruthy();
   await info.attach('gherkin', { body: frozen.steps.join('\n'), contentType: 'text/plain' });
@@ -393,9 +432,13 @@ test('@ux-session-003 Filter session entries using their search metadata', async
   await expect(input).toHaveValue('metadata search draft');
   await search.fill(outsider.id);await expect(popup.getByRole('menuitem')).toHaveCount(1);
   await expect(popup.getByRole('menuitem')).toContainText(outsider.id);
+  await expect(active).toContainText(outsider.id);
   await search.press('Enter');await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(outsider.id);
   await expect(input).toHaveValue('');
-  await trigger.click();await search.fill(main.id);await search.press('Enter');
+  await trigger.click();await search.fill(main.id);
+  await expect(popup.getByRole('menuitem')).toHaveCount(1);
+  await expect(active).toContainText(main.id);
+  await search.press('Enter');
   await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(main.id);
   await expect(input).toHaveValue('metadata search draft');
 });

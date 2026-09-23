@@ -17960,6 +17960,22 @@ function attachChatSwipeNavigation(options) {
   };
 }
 
+// web/src/panes/pane-host-transfer.ts
+var PANE_HOST_TRANSFER_TTL_MS = 5 * 60 * 1000;
+
+// web/src/ui/app-pane-runtime-orchestration.ts
+function isLikelySafariBrowser(runtimeNavigator = typeof navigator !== "undefined" ? navigator : null) {
+  if (!runtimeNavigator)
+    return false;
+  const userAgent = String(runtimeNavigator.userAgent || "");
+  const vendor = String(runtimeNavigator.vendor || "");
+  const isAppleWebKit = /AppleWebKit/i.test(userAgent);
+  const isSafariToken = /Safari/i.test(userAgent);
+  const isExcluded = /Chrome|Chromium|CriOS|EdgiOS|EdgA|Edg\//i.test(userAgent);
+  const isFirefoxiOS = /FxiOS/i.test(userAgent);
+  return isAppleWebKit && (vendor.includes("Apple") || isSafariToken) && !isExcluded && !isFirefoxiOS;
+}
+
 // web/src/gi-queue-return.ts
 async function recoverQueueDraft(item, parsed, fetcher = fetch) {
   if (!item?.chat_jid?.startsWith("gi:") || !item?.id)
@@ -19097,7 +19113,8 @@ function GiApp() {
       activeChatAgents,
       currentChatJid,
       onSwitch: handleSwitchChat,
-      isIOSDevice
+      isIOSDevice,
+      isLikelySafari: isLikelySafariBrowser
     });
     return () => {
       detach();
@@ -19578,5 +19595,5 @@ function ComposeTransfer({ sessionId, hidden }) {
 window.addEventListener("keydown", guardQuickActionsTyping, true);
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=03342677B64D361A64756E2164756E21
+//# debugId=EFD77F6ADEF496B764756E2164756E21
 //# sourceMappingURL=app.js.map

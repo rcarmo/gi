@@ -75,6 +75,7 @@ import { guardQuickActionsTyping } from './gi-quick-actions.js';
 import { createMessageDeletionState } from './gi-message-deletion.js';
 import { createSelectionScope } from './gi-session-state.js';
 import { attachChatSwipeNavigation } from './ui/chat-swipe-navigation.js';
+import { isLikelySafariBrowser } from './ui/app-pane-runtime-orchestration.js';
 import { createDraftRepository, indexedDraftStorage, emptyDraft } from './gi-drafts.js';
 import { recoverQueueDraft } from './gi-queue-return.js';
 
@@ -754,6 +755,7 @@ function GiApp() {
         const detach = attachChatSwipeNavigation({
             timelineRef, activeChatAgents, currentChatJid,
             onSwitch: handleSwitchChat, isIOSDevice,
+            isLikelySafari: isLikelySafariBrowser,
         });
         return () => {
             detach();
