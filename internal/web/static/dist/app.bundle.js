@@ -4893,14 +4893,6 @@ function FilePill({
 }
 
 // web/src/components/post-runtime-safety.ts
-async function writeClipboardTextBestEffort(clipboard, value) {
-  try {
-    await clipboard?.writeText?.(value);
-    return true;
-  } catch (_error) {
-    return false;
-  }
-}
 function writeClipboardDataViaExecCommand(documentLike, payload) {
   const text = typeof payload?.text === "string" ? payload.text : "";
   const html = typeof payload?.html === "string" ? payload.html : "";
@@ -5015,6 +5007,18 @@ function resolveLinkPreviewSiteName(siteName, safeUrl) {
     return new URL(safeUrl).hostname;
   } catch (_error) {
     return safeUrl;
+  }
+}
+
+// web/src/gi-clipboard-safety.ts
+async function writeClipboardTextBestEffort(clipboard, value) {
+  try {
+    if (typeof clipboard?.writeText !== "function")
+      return false;
+    await clipboard.writeText(value);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -19184,5 +19188,5 @@ function ComposeTransfer({ sessionId, hidden }) {
 window.addEventListener("keydown", guardQuickActionsTyping, true);
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 
-//# debugId=0828CC3AA50EA94964756E2164756E21
+//# debugId=AAE1C5662B4A41BC64756E2164756E21
 //# sourceMappingURL=app.js.map

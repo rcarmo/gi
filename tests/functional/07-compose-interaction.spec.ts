@@ -85,3 +85,18 @@ test('quick actions prefill native model command without submitting',async({page
  await expect(input).toHaveValue('/model ');await expect(input).toBeFocused();expect(await input.evaluate(el=>el.selectionStart)).toBe(7);
  expect((await(await request.get(`${BASE_URL}/api/sessions/${session.id}/turns`)).json()).turns??[]).toEqual([]);
 });
+
+test('message copy preserves original Markdown and reports unavailable clipboard honestly',async({page,request})=>{
+ const session=await(await request.post(`${BASE_URL}/api/sessions`,{data:{agent_id:'functional-copy',title:'copy'}})).json();
+ await request.post(`${BASE_URL}/api/sessions/${session.id}/prompt`,{data:{prompt:'**functional source**',model:'test-model'}});
+ let messages;
+ await expect.poll(async()=>{messages=(await(await request.get(`${BASE_URL}/api/sessions/${session.id}/messages`)).json()).messages??[];return messages.filter(m=>m.role==='assistant').length;}).toBe(1);
+ const stored=messages.find(m=>m.role==='assistant');
+ await page.addInitScript(id=>{localStorage.setItem('gi_session_id',id);window.__copies=[];document.addEventListener('copy',event=>window.__copies.push({text:event.clipboardData?.getData('text/plain'),trusted:event.isTrusted}));},session.id);
+ await page.goto(BASE_URL);await waitForAppShell(page);const post=page.locator(`[id="post-${stored.id}"]`);
+ await post.getByRole('button',{name:'Copy message',exact:true}).click();await expect(post.getByRole('button',{name:'Copied',exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>window.__copies.at(-1))).toEqual({text:stored.content.trimEnd(),trusted:true});
+ await expect(post.getByRole('button',{name:'Copy message',exact:true})).toBeVisible({timeout:5000});
+ await page.evaluate(()=>{document.execCommand=()=>false;Object.defineProperty(navigator,'clipboard',{configurable:true,value:undefined});});
+ await post.getByRole('button',{name:'Copy message',exact:true}).click();await expect(post.getByRole('button',{name:'Copy failed',exact:true})).toBeVisible();
+});

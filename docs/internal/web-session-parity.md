@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Whole-message clipboard safety (2026-09-23)
+
+[ADR-0055](../adr/0055-message-copy-clipboard-safety.md) verifies native source Markdown/rich clipboard payload and fallback/denial/reset with retained drafts/media and late-session isolation. A narrow build adapter fixes false success when Clipboard API is absent; supplied files are unchanged. **594 browser**, **80 functional**, **38 helpers**, Go/vet/build/hook pass. Combined copy/delete original-024/shared-37 still lack deletion evidence, so coverage stays **50/236 Classic**, **2/42 shared**, **186/40 unmapped**. No terminal implementation credit.
+
 ## Native Quick Actions (2026-09-23)
 
 [ADR-0054](../adr/0054-native-quick-actions.md) imports unchanged pinned Classic sources and adds native supported commands, session/workspace actions, guarded typing and compose prefill. Original-003/005/006/007 pass; 004's complete surface outline and 008's skills remain gaps. **564 browser**, **79 functional**, **36 helpers**, Go/vet/build/hook and web race×3 pass, plus a final48 capture and24 transition stress run. Coverage: **50/236 Classic**, **2/42 shared**, **186/40 unmapped**. Screenshots cover all three browser sizes. Terminal combined-chooser adaptation is design-only; regular typing remains editor input and no idle rows are planned.

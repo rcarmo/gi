@@ -34,7 +34,11 @@ Use an explicit attachment action and temporary bounded filename/type/size selec
 
 Keep file selection and uploaded IDs in session-owned draft state. Use an explicit attach action with a temporary bounded chooser, preserving editor text/cursor on dismissal. Show transient upload progress/errors in existing status space; add no permanent rows or panels and retain Pi transcript padding. Capture destination/files before asynchronous work; require valid IDs for the entire batch before sending. Failed upload restores/merges only the originating draft and requires explicit retry, including after reload/reopen.
 
-Independent three-size acceptance must cover first-file/partial-batch failure, newer text/cursor, switched-session isolation, persisted media pairing and retry without automatic sends. Browser original-026 is verified by [ADR-0038](../adr/0038-native-upload-failure-recovery.md). Terminal implementation remains open; compose-005 separate browser progress is also unverified.
+Independent three-size acceptance must cover first-file/partial-batch failure, newer text/cursor, switched-session isolation, persisted media pairing and retry without automatic sends. Browser original-026 is verified by [ADR-0038](../adr/0038-native-upload-failure-recovery.md). Terminal implementation remains open; compose-005 browser progress is verified separately in ADR-0053.
+
+## Whole-message source copy (2026-09-23; design)
+
+[ADR-0055](../adr/0055-message-copy-clipboard-safety.md) verifies browser native Markdown/rich clipboard and truthful failure only. Existing `/copy` uses stored assistant content; fullscreen selection copies rendered cells and visual-row breaks. Keep those contracts separate. A per-message source action needs an explicit shortcut or bounded selector, existing transient feedback, native/OSC52 opt-in policy and no permanent row/button. Exact source whitespace, denied/missing helpers, session/draft/cursor/reader isolation and three-size fullscreen/regular evidence are required before source-copy terminal credit.
 
 ## Table/code/source-copy adaptation (2026-09-22; design)
 

@@ -58,14 +58,19 @@ buildVendor('mermaid-entry.ts',    vendorDir,  'beautiful-mermaid.js');
 buildVendor('codemirror-entry.ts', editorVendorDir, 'codemirror.js');
 
 // ── App bundle ────────────────────────────────────────────────────────────
-run([
-  'bun', 'build',
-  `${webSrc}/app.ts`,
-  '--target=browser',
-  '--format=esm',
-  '--sourcemap',
-  '--external', '/editor-vendor/codemirror.js',
-]);
+const appBuild = await Bun.build({
+  entrypoints: [`${webSrc}/app.ts`], outdir: webSrc,
+  target: 'browser', format: 'esm', sourcemap: 'linked',
+  external: ['/editor-vendor/codemirror.js'],
+  plugins: [{ name: 'gi-clipboard-safety', setup(build) {
+    build.onResolve({filter: /^\.\/post-runtime-safety\.js$/}, args => {
+      if (args.importer === resolve(webSrc, 'components/post.ts')) {
+        return { path: resolve(webSrc, 'gi-clipboard-safety.ts') };
+      }
+    });
+  } }],
+});
+if (!appBuild.success) { console.error(appBuild.logs); process.exit(1); }
 move(`${webSrc}/app.js`,     `${distDir}/app.bundle.js`);
 move(`${webSrc}/app.js.map`, `${distDir}/app.bundle.js.map`);
 

@@ -99,14 +99,19 @@ test('Gi Quick Actions switches native sessions and gates unsupported actions',a
 
 test('Gi Quick Actions capability failure stays conservative and delayed responses cannot reopen another session',async({page,request},info)=>{
  const {main,child,input,palette,query,open,turns}=await fixture(page,request,info);
- let release,held=false;const gate=new Promise(r=>release=r);
- await page.route('**/api/quick-actions',async route=>{const response=await route.fetch();held=true;await gate;await route.fulfill({response});});
+ let release,held=false,deny=false,inFlight=0,denied=0;const gate=new Promise(r=>release=r);
+ // Keep one route registered across reload. Replacing routes while held
+ // callbacks are draining can let a reload's requests bypass the new handler.
+ await page.route('**/api/quick-actions',async route=>{
+  if(deny){denied++;await route.abort('failed');return;}
+  inFlight++;
+  try{const response=await route.fetch();held=true;await gate;await route.fulfill({response});}finally{inFlight--;}
+ });
  try{
   await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${child.id}"]`).getByRole('menuitem').click();await expect.poll(()=>held).toBe(true);
   await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${main.id}"]`).getByRole('menuitem').click();release();await expect(input).toHaveValue('untouched draft');await expect(palette).toHaveCount(0);
-  await page.unrouteAll({behavior:'wait'});
-  await page.route('**/api/quick-actions',route=>route.abort('failed'));
-  await page.reload();await expect(input).toHaveValue('untouched draft');await open('m');await query.fill('');
+  await expect.poll(()=>inFlight).toBe(0);deny=true;
+  await page.reload();await expect.poll(()=>denied).toBeGreaterThanOrEqual(2);await expect(input).toHaveValue('untouched draft');await open('m');await query.fill('');
   await expect(page.locator('.timeline-quick-actions-item-workspace')).toHaveCount(0);await expect(page.locator('.timeline-quick-actions-item-slash')).toHaveCount(0);await expect(page.locator('.timeline-quick-actions-item-agent')).not.toHaveCount(0);
   await query.press('Escape');expect(await turns()).toEqual([]);
  }finally{release()}

@@ -255,3 +255,9 @@ Use `UX_LOCAL_BIN=/tmp/gi-scheduler-bin/gi-ux-steer` for isolated local/reconnec
 The complete main suite now contains **396 executions**. Three disjoint project batches passed and their saved reports combine with **168 supplementary executions** for **564 browser checks**, **50/236 Classic**, **2/42 shared**, **186/40 unmapped**. Final capture48 and transition-stress24 checks are additional, not duplicated in the combined report. Go/vet/build/hook, 79 functional, 36 helpers and web race×3 pass. See [ADR-0054](../../docs/adr/0054-native-quick-actions.md).
 
 When splitting a matrix, pass each project's report exactly once to `ux-parity-report.mjs`. Interrupted or repeated reports cannot supply complete-matrix credit. The current main reports are `/tmp/gi-quick-main-{chromium-mobile,mixed,webkit-large}.json`.
+
+## Whole-message clipboard safety — 2026-09-23
+
+`message-copy.spec.mjs` adds five tests × six projects for native stored-source Markdown/rich copy, unavailable APIs, rich-to-plain fallback, denial/reset and late session-switch failure. Success observes trusted browser copy events synchronously; failure injection does not count as OS clipboard evidence. The bundled Post helper override is exercised directly without editing supplied sources.
+
+**594 browser executions** pass (426 main + 168 supplementary), plus **80 functional** and **38 helpers**. Coverage stays **50/236 Classic**, **2/42 shared**, **186/40 unmapped**: original-024/shared-37 also require native deletion/cascade behaviour. [ADR-0055](../../docs/adr/0055-message-copy-clipboard-safety.md) records the fix and terminal boundaries. Main reports: `/tmp/gi-message-copy-main-{chromium-mobile,mixed,webkit-large}.json`.
