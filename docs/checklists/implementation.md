@@ -10,6 +10,9 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Shared3 native workspace show/hide and narrow backdrop: real pointer blocking over textarea/Send, exact stored text/media bytes/file/message refs and session/history preserved. Workspace24/functional85/helpers51/Go-vet-build-hook; Classic81/236+shared12/42 unmapped155/30. Test-only/no restart or Plan/TUI credit.
+- [ ] Shared39 requires an explicit native upload Cancel action; progress and failed-upload recovery alone do not satisfy cancellation/retry/source-removal acceptance. Current XHR abort handler has no exposed cancel control.
+
 - [x] Shared26 native session capability gating: delete absent for root/running/unknown-count selections with native405, archive/edit conflicts409, blank rename400/retry, persistent pin/archive/restore/unpin and actual child creation; draft/media preserved. Sessions120/functional85/helpers51/Go-vet-build-hook; Classic81/236+shared11/42 unmapped155/31. Test-only/no restart; terminal mutation submenus remain separate work.
 
 - [x] Shared27 two native composer follow-ups: active-turn checks, held POST/SSE ID reconciliation, distinct request tokens, exact text/file/folder/message refs and media bytes, reload/FIFO consumption and research isolation. Queue48/functional85/helpers51/Go-vet-build-hook; Classic81/236+shared10/42 unmapped155/32. Test-only/no restart; compact terminal queue/media actions still require separate implementation and acceptance.

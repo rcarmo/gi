@@ -105,3 +105,57 @@ test('Gi scoped index reindex/query and missing-root failure preserve session dr
  await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
  await write(`fresh-${id}.txt`,'tree refresh');await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Refresh tree',exact:true}).click();await expect(page.locator(`.workspace-row[data-path="fresh-${id}.txt"]`)).toBeVisible();
 });
+
+test('@shared-3 Workspace show/hide and narrow backdrop preserve the native composer',async({page,request},info)=>{
+ const source=loadCorpus('shared').find(s=>s.id==='@shared-3');expect(source.name).toBe('Show and hide the native workspace');await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
+ const token=`workspace-shared-${info.project.name}-${Date.now()}`,path=`${token}.txt`;
+ const write=await request.post('/api/tools/execute',{data:{tool:'write',input:{path,content:'native tree file'}}});expect(write.ok()).toBe(true);expect((await write.json()).error).toBeFalsy();
+ const create=async agent=>{const r=await request.post('/api/sessions',{data:{agent_id:agent,title:agent}});expect(r.status()).toBe(201);return r.json();};
+ const main=await create(token),research=await create(`${token}-research`);
+ const sent=await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:'native workspace reference history',model:'test-model'}});expect(sent.status()).toBe(202);const turn=(await sent.json()).turn_id;
+ const get=async(id,part)=>{const r=await request.get(`/api/sessions/${id}/${part}`);expect(r.status()).toBe(200);return r.json();};
+ await expect.poll(async()=>(await get(main.id,'turns')).turns.find(t=>t.id===turn)?.status).toBe('completed');
+ const before={messages:await get(main.id,'messages'),turns:await get(main.id,'turns'),other:await get(research.id,'messages')};
+ await page.addInitScript(id=>{if(!localStorage.getItem('gi_session_id'))localStorage.setItem('gi_session_id',id);},main.id);await page.goto('/');
+ const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();
+ const toggle=async show=>{await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:show?'Show workspace':'Hide workspace',exact:true}).click();await expect(page.locator('.timeline-menu-dropdown')).toHaveCount(0);};
+ await toggle(true);await page.locator(`.workspace-row[data-path="${path}"]`).click();await toggle(false);
+ const link=page.locator('.post .post-time').first(),messageId=(await link.getAttribute('href')).replace(/^#msg-/,'');await link.click();
+ const text='workspace draft\nretain text and references',bytes='native unsent attachment bytes';
+ await input.fill(text);await page.locator('.compose-box input[type=file]').setInputFiles({name:'workspace-unsent.txt',mimeType:'text/plain',buffer:Buffer.from(bytes)});
+ const titles=()=>page.locator('.compose-input-main .compose-file-pill').evaluateAll(nodes=>nodes.map(n=>n.title));
+ const expected=[`Message reference: ${messageId}`,path,'workspace-unsent.txt'];await expect.poll(titles).toEqual(expected);
+ const stored=()=>page.evaluate(async id=>{
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const s=r.result;if(!s)return resolve(null);resolve({...s,draft:{...s.draft,media:s.draft.media.map(f=>({...f,bytes:Array.from(new Uint8Array(f.bytes))}))}});};tx.onerror=()=>reject(tx.error);});
+ },main.id);
+ await expect.poll(stored).toMatchObject({draft:{text,fileRefs:[path],messageRefs:[messageId],media:[{name:'workspace-unsent.txt',bytes:Array.from(Buffer.from(bytes))}]},pending:[]});const draftBefore=await stored();
+ const unchanged=async()=>{await expect(input).toHaveValue(text);await expect.poll(titles).toEqual(expected);expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(main.id);expect(await stored()).toEqual(draftBefore);};
+ let posts=0;page.on('request',r=>{if(r.method()==='POST'&&/\/(prompt|queue|steer)$/.test(new URL(r.url()).pathname))posts++;});
+ await toggle(true);await expect(page.locator('.workspace-sidebar')).toBeVisible();await expect(page.locator(`.workspace-row[data-path="${path}"]`)).toBeVisible();await unchanged();
+ // Gi has no Plan opener. Its absence is explicit; this negative backdrop
+ // criterion does not grant any Plan editing or submission feature credit.
+ await expect(page.getByRole('button',{name:/^(Open |Show )?Plan$/i})).toHaveCount(0);await expect(page.getByRole('menuitem',{name:/^(Open |Show )?Plan$/i})).toHaveCount(0);
+ await toggle(false);await expect(page.locator('.app-shell')).toHaveClass(/workspace-collapsed/);await unchanged();
+ const drawer=await page.evaluate(()=>matchMedia('(max-width: 1023px), (orientation: portrait)').matches);
+ if(drawer){
+  // Observers count real controls' click handlers, without changing DOM,
+  // dispatching synthetic clicks or making unsupported controls actionable.
+  await page.locator('.compose-box').evaluate(el=>{window.__workspaceComposerClicks=0;el.addEventListener('click',()=>window.__workspaceComposerClicks++);});
+  // Use controls in the exposed backdrop strip; left-hand picker controls
+  // lie under the sidebar itself on a phone and are not backdrop targets.
+  for(const target of [input,page.getByRole('button',{name:'Send message',exact:true})]){
+   const box=await target.boundingBox();expect(box).toBeTruthy();const point={x:box.x+box.width-8,y:box.y+box.height/2};
+   expect(await target.evaluate((el,p)=>el.contains(document.elementFromPoint(p.x,p.y)),point)).toBe(true);
+   await toggle(true);await expect(page.locator('.workspace-drawer-backdrop')).toBeVisible();
+   await expect.poll(()=>page.evaluate(p=>document.elementFromPoint(p.x,p.y)?.classList.contains('workspace-drawer-backdrop'),point)).toBe(true);
+   await page.mouse.click(point.x,point.y);await expect(page.locator('.workspace-drawer-backdrop')).toHaveCount(0);await expect(page.locator('.app-shell')).toHaveClass(/workspace-collapsed/);
+   expect(await page.evaluate(()=>window.__workspaceComposerClicks)).toBe(0);
+   await expect(page.locator('.compose-session-popup,.compose-model-popup')).toHaveCount(0);await expect(input).not.toBeFocused();await unchanged();expect(posts).toBe(0);
+  }
+ }else{
+  await toggle(true);await expect(page.locator('.workspace-drawer-backdrop')).toBeHidden();await expect(page.locator('.workspace-sidebar')).toBeVisible();await toggle(false);await unchanged();
+ }
+ await page.reload();await unchanged();expect(posts).toBe(0);
+ expect(await get(main.id,'messages')).toEqual(before.messages);expect(await get(main.id,'turns')).toEqual(before.turns);expect(await get(research.id,'messages')).toEqual(before.other);expect((await get(research.id,'turns')).turns||[]).toEqual([]);
+});
