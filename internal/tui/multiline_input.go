@@ -17,6 +17,7 @@ type multilineInput struct {
 	textStyle        gotui.Style
 	cursorRune       rune
 	autoFocus        bool
+	suspended        bool
 	onSubmit         func(string)
 	onShiftEnter     func()
 	onNewline        func()
@@ -59,8 +60,8 @@ func (m *multilineInput) SetText(s string) {
 	m.notifyChanged()
 }
 func (m *multilineInput) Clear()            { m.SetText("") }
-func (m *multilineInput) IsFocusable() bool { return true }
-func (m *multilineInput) IsTabStop() bool   { return true }
+func (m *multilineInput) IsFocusable() bool { return !m.suspended }
+func (m *multilineInput) IsTabStop() bool   { return !m.suspended }
 func (m *multilineInput) IsFocused() bool   { return m.focused }
 func (m *multilineInput) Focus() {
 	m.focused = true
@@ -83,6 +84,9 @@ func (m *multilineInput) Watchers() []gotui.Watcher {
 }
 
 func (m *multilineInput) KeyMap() gotui.KeyMap {
+	if m.suspended {
+		return nil
+	}
 	return gotui.KeyMap{
 		gotui.OnFocused(gotui.AnyRune, m.insertRune),
 		gotui.OnFocused(gotui.KeyBackspace, func(ke gotui.KeyEvent) { m.backspace() }),
@@ -160,8 +164,8 @@ func (m *multilineInput) Render(app *gotui.App) *gotui.Element {
 		gotui.WithDirection(gotui.Column),
 		gotui.WithWidth(m.width),
 		gotui.WithHeight(totalHeight),
-		gotui.WithFocusable(true),
-		gotui.WithAutoFocus(m.autoFocus),
+		gotui.WithFocusable(!m.suspended),
+		gotui.WithAutoFocus(m.autoFocus && !m.suspended),
 		gotui.WithBorder(m.border),
 	)
 	root.SetOnFocus(func(e *gotui.Element) { m.Focus() })

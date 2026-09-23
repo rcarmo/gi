@@ -1,5 +1,9 @@
 # Web session selection and compact TUI adaptation
 
+## Compact terminal index actions (2026-09-23)
+
+[ADR-0052](../adr/0052-compact-terminal-index-actions.md) verifies Alt-I Status/Reindex independently at 60×18, 100×22 and 140×36 in fullscreen and regular modes. Five temporary rows, no idle growth; native bytes/failure/retry, late-result guards, draft/cursor/reader/resize/multiline/history and subsequent selector transitions pass. Regular temporary alternate screen retains the inline renderer to avoid `ESC[3J` history loss. Existing regular/search/smoke/Gherkin, Go/vet/build/hook, 77 functional, 32 helpers and TUI/indexer race×3 pass. No new frozen web credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**; 23 derived proposals stay separate. Automatic freshness is disabled.
+
 ## Native write index invalidation (2026-09-23)
 
 [ADR-0051](../adr/0051-native-write-index-invalidation.md) connects engine/HTTP/script regular filesystem writes to atomic scoped invalidation before/after mutation, without automatic refresh. Native tests cover partial errors, cancellation, scope/VFS isolation and pending revisions; shell/external/watch delivery and crash recovery remain gaps. Go/vet/build/hook, 77 functional, 32 helpers, focused24 browser, tools/store/web/turn race ×3 and Darwin arm64 cross-compilation pass. An existing cancellation fixture now waits for claim cleanup before its unchanged absence assertion. No UI/TUI or frozen credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**; 22 derived proposals stay separate.

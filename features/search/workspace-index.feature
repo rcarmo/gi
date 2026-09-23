@@ -219,3 +219,17 @@ Feature: Scoped workspace indexing lifecycle
     When post-notification fails
     Then the error reports that bytes may have changed and explicit reindex is required
     And this protocol does not claim crash-atomic filesystem and database mutation
+
+  @index-derived-023 @tui-design @gi-strengthening
+  Scenario: Explicit terminal index actions preserve editor and terminal history
+    Given an unsent draft and a scrolled transcript in fullscreen or regular mode
+    When Alt-I opens the five-row index surface
+    Then its default action reads status without refreshing
+    And left or right selects all, notes or skills while up or down selects Status or Reindex
+    And only Enter on Reindex requests a bounded native refresh
+    And ordinary keys and pointer events cannot submit or change the draft
+    When Escape closes the surface during or after an operation
+    Then editor text, cursor and reading state are restored without extra idle rows
+    And late results cannot enter a reopened surface or a different session
+    And regular mode restores main-screen history after its temporary alternate screen
+    And separate resize and native failure-retry acceptance runs at all three terminal sizes

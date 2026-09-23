@@ -275,7 +275,10 @@ test-tui-compaction:
 	$(GO) test -c -o bin/gi-tui-compaction-test ./internal/tui
 	$(BUN) scripts/test-tui-compaction.mjs
 
-.PHONY: test-tui-reading test-tui-outcomes test-tui-regular test-tui-search test-tui-selection
+.PHONY: test-tui-reading test-tui-outcomes test-tui-regular test-tui-search test-tui-selection test-tui-index
+
+test-tui-index: build
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-index.mjs
 test-tui-selection: build
 	$(BUN) scripts/test-tui-selection.mjs
 

@@ -6,6 +6,10 @@ Status: active layout contract for the Pi/PiClaw UX convergence track.
 
 Retain go-tui 0.18.2. Attempts with 0.22.1 and 0.19.0 erase a completed native-scrollback response after resize; the existing regular acceptance catches this at 60×18. All three-size suites pass after restoring 0.18.2 with upgraded go-ai/Go dependencies. [Upgrade evidence](dependency-upgrade-20260922.md). Do not exchange history integrity for a newer dependency or weaken the history assertions.
 
+## Explicit workspace index (2026-09-23; verified)
+
+[ADR-0052](../adr/0052-compact-terminal-index-actions.md): Alt-I opens five temporary rows with scope, state, bounded detail and Status/Reindex. Status is the default; Escape preserves draft/cursor/reader and closes without cancelling shared work. Fullscreen reserves five rows only while open. Regular mode uses a temporary alternate screen with inline rendering, avoiding the pinned renderer's scrollback-clearing full redraw. Three-size native PTYs in both modes verify resize, native bytes/failure/retry, busy dismissal, multiline restoration, subsequent session selector and preserved history; no extra idle rows. Automatic freshness and terminal search consumers remain gaps.
+
 ## Hidden files in a temporary chooser (2026-09-22; design)
 
 A height-bounded chooser may toggle hidden files through its own key hints. Keep visibility local, reload only its current directory, preserve the highlighted path when possible and restore editor/cursor/reader on Escape. No permanent sidebar, hidden badge or additional idle rows; retain transcript padding. Verify hidden-only/empty folders, inaccessible paths, nested selection, resize and dismiss at all three sizes before terminal credit. [ADR-0041](../adr/0041-workspace-hidden-subtrees.md) verifies browser workspace-004 only.

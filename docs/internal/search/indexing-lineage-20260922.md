@@ -69,7 +69,7 @@ Vector storage is deliberately absent from this lexical schema experiment. ADR-0
 
 ## Derived Gherkin and test ownership
 
-[`features/search/workspace-index.feature`](../../../features/search/workspace-index.feature) now has 22 `@index-derived-*` scenarios, all marked `@proposal`; ADR-0047 adds root policy, ADR-0048 durable invalidation, ADR-0049 bounded scheduling, ADR-0050 application ownership and ADR-0051 native write producers. They cover configuration, incremental identity, scoped cleanup, nonblocking/background and explicit refresh, status, atomic failure, bounded scanning, fenced ownership, lexical query fallback, FTS integrity, configuration/version changes, draft isolation and a compact terminal surface.
+[`features/search/workspace-index.feature`](../../../features/search/workspace-index.feature) now has 23 `@index-derived-*` scenarios, all marked `@proposal`; ADR-0047–0051 add root policy, durable invalidation, scheduling, application ownership and native writes; ADR-0052 adds independently verified explicit terminal actions. They cover configuration, incremental identity, scoped cleanup, nonblocking/background and explicit refresh, status, atomic failure, bounded scanning, fenced ownership, lexical query fallback, FTS integrity, configuration/version changes, draft isolation and a compact terminal surface.
 
 Tags identify Piclaw-derived expectations, Tau/Vibes schema patterns, and Gi strengthening. The parser test verifies all scenarios parse and that the frozen 236 Classic/42 shared catalogue is unchanged. **It is not a Gherkin step runner and confers no behaviour pass.** The schema test supports the SQL portions of derived-011/012 and lease-token storage, not their complete acceptance.
 
@@ -85,7 +85,7 @@ Workspace-005 remains unmapped: its visible creation/upload controls and menu co
 6. **Native/web surface implemented by ADR-0046:** authenticated scoped status/query reads and explicit POST reindex with host Reindex/Refresh actions. Reads do not refresh; tool/TUI query consumers and background scheduling remain open. Semantic capability remains absent pending independent vector/embedding integration.
 7. Run step-owned Go/native/browser acceptance, migration/race tests and separate three-size TUI tests; only then integrate UI mappings that satisfy complete frozen criteria.
 
-Terminal adaptation uses an explicit status/reindex action and transient bounded detail/error surface, preserving draft/cursor/reader and existing Pi padding. No persistent indexing badge, tree sidebar or additional idle row is required.
+[ADR-0052](../../adr/0052-compact-terminal-index-actions.md) implements explicit Alt-I status/reindex with five temporary rows, preserving draft/cursor/reader and existing Pi padding. Native three-size fullscreen/regular tests pass. No persistent indexing badge, tree sidebar or additional idle row is added; automatic freshness and terminal search-result navigation remain separate.
 
 ## Local verification
 

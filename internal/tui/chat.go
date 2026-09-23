@@ -169,6 +169,7 @@ type chatTUI struct {
 	running                     bool
 	status                      string
 	compaction                  terminalCompaction
+	workspaceIndex              terminalIndex
 	draft                       string
 	inputActive                 bool
 	eventCh                     chan sessionEvent
@@ -468,6 +469,7 @@ func (c *chatTUI) toggleSelectedTranscriptBlock() {
 }
 
 func (c *chatTUI) Init() func() {
+	c.initWorkspaceIndex()
 	c.eventCh = make(chan sessionEvent, 64)
 	c.bindSession(c.sessionID)
 	c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
@@ -491,10 +493,11 @@ func (c *chatTUI) Init() func() {
 		})
 	}
 
-	return c.stopSessionSubscription
+	return func() { c.stopSessionSubscription(); c.stopWorkspaceIndex() }
 }
 
 func (c *chatTUI) bindSession(sessionID string) {
+	c.closeWorkspaceIndex()
 	c.modelDefaults()
 	if c.eventCh == nil {
 		c.eventCh = make(chan sessionEvent, 64)
@@ -531,6 +534,9 @@ func (c *chatTUI) bindSession(sessionID string) {
 
 func (c *chatTUI) Watchers() []gotui.Watcher {
 	watchers := []gotui.Watcher{gotui.NewChannelWatcher(c.eventCh, c.handleSessionEvent)}
+	if c.workspaceIndex.results != nil {
+		watchers = append(watchers, gotui.NewChannelWatcher(c.workspaceIndex.results, c.handleWorkspaceIndexResult))
+	}
 	if c.topicEventCh != nil {
 		watchers = append(watchers, gotui.NewChannelWatcher(c.topicEventCh, c.handleSessionTopicEvent))
 	}
@@ -1521,6 +1527,9 @@ func floatFromAny(v any) float64 {
 }
 
 func (c *chatTUI) KeyMap() gotui.KeyMap {
+	if c.workspaceIndex.active {
+		return c.workspaceIndexKeys()
+	}
 	if c.search.active {
 		return c.transcriptSearchKeys()
 	}
@@ -1595,6 +1604,7 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 		gotui.OnPreemptStop(gotui.Rune('l').Alt(), func(ke gotui.KeyEvent) { c.cycleModel(-1) }),
 		gotui.OnPreemptStop(gotui.KeyCtrlT, func(ke gotui.KeyEvent) { c.cycleThinking(1) }),
 		gotui.OnPreemptStop(gotui.KeyCtrlR, func(ke gotui.KeyEvent) { c.searchHistoryBackward() }),
+		gotui.OnPreemptStop(gotui.Rune('i').Alt(), func(gotui.KeyEvent) { c.openWorkspaceIndex() }),
 		gotui.OnPreemptStop(gotui.Rune('s').Alt(), func(ke gotui.KeyEvent) { c.openSessionMenu() }),
 		gotui.OnPreemptStop(gotui.Rune('c').Alt(), func(ke gotui.KeyEvent) { c.startCompaction() }),
 		gotui.OnPreemptStop(gotui.Rune('m').Alt(), func(ke gotui.KeyEvent) { c.openModelMenu() }),
@@ -2084,6 +2094,9 @@ func (c *chatTUI) recallHistory(delta int) {
 }
 
 func (c *chatTUI) HandleMouse(me gotui.MouseEvent) bool {
+	if c.workspaceIndex.active {
+		return true
+	}
 	if c.handleTranscriptSelection(me) {
 		return true
 	}
@@ -2155,6 +2168,9 @@ func (c *chatTUI) handleTranscriptScrollEvent(me gotui.MouseEvent) bool {
 }
 
 func (c *chatTUI) focusInput() {
+	if c.workspaceIndex.active {
+		return
+	}
 	c.inputActive = true
 	if c.app != nil && c.app.Focused() == nil {
 		c.app.FocusNext()
@@ -2176,10 +2192,16 @@ func (c *chatTUI) restoreQueuedDraft() {
 }
 
 func (c *chatTUI) onSubmit(text string) {
+	if c.workspaceIndex.active {
+		return
+	}
 	c.submitWithMetadata(text, nil)
 }
 
 func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
+	if c.workspaceIndex.active {
+		return
+	}
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return
@@ -2564,6 +2586,7 @@ func (c *chatTUI) helpLines() []string {
 		"/model     choose model · type to filter · ctrl-l cycles",
 		"alt-s      session picker · keeps unsent drafts · esc cancels",
 		"alt-c      compact context · keeps draft · esc requests stop",
+		"alt-i      workspace index · status/reindex · esc closes",
 		"alt-m      model picker · session-local · keeps unsent drafts",
 		"/session   details for this chat",
 		"/where     compact context",
@@ -2633,7 +2656,7 @@ func (c *chatTUI) logoutLines(fields []string) []string {
 // hotkeyLines is the PiSwift-style `/hotkeys` reference, grouped by purpose.
 func (c *chatTUI) hotkeyLines() []string {
 	if c.regularMode {
-		return []string{"hotkeys · regular mode", "Terminal wheel/selection/copy owns printed history; Home/End edit the draft", "Enter send · Shift+Enter newline · Alt-S sessions · Alt-M models · Alt-C compact", "Printed output is immutable; use -tui-mode fullscreen for in-app paging and tool toggles"}
+		return []string{"hotkeys · regular mode", "Terminal wheel/selection/copy owns printed history; Home/End edit the draft", "Enter send · Shift+Enter newline · Alt-S sessions · Alt-M models · Alt-C compact · Alt-I index", "Printed output is immutable; use -tui-mode fullscreen for in-app paging and tool toggles"}
 	}
 	return []string{
 		"hotkeys",
@@ -2645,6 +2668,7 @@ func (c *chatTUI) hotkeyLines() []string {
 		"runtime:",
 		"  Ctrl+L/Alt+L cycle model · Ctrl+T/Alt+T cycle thinking",
 		"  /model selector · /sessions selector · /thinking level",
+		"  Alt+I workspace index · ←/→ scope · ↑/↓ action · Enter run · Esc close",
 		"transcript:",
 		"  Ctrl+O expand/collapse tool output · F6/F7 select block · F8 expand/collapse · click toggle",
 		"  PgUp/PgDn transcript page · Home/End top/bottom (also while editing) · mouse wheel",
@@ -3709,6 +3733,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 
 	c.ensureInput()
 	c.input.width = contentWidth
+	c.input.suspended = c.workspaceIndex.active || c.modelMenuOpen
 	activeInput := c.input
 	inputSlot := 0
 	if c.search.active {
@@ -3726,7 +3751,7 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	if c.editorAskActive {
 		widgetLines = append(widgetLines, "? "+c.editorAskPrompt+"  (Enter submit · Esc cancel)")
 	}
-	menuHeight := c.modelMenuHeight()
+	menuHeight := c.modelMenuHeight() + c.workspaceIndexHeight()
 	reservedHeight := (padding * 2) + len(footerLines) + len(widgetLines) + inputHeight + 2 + menuHeight
 	transcriptHeight := h - reservedHeight
 	if transcriptHeight < 4 {
@@ -3776,6 +3801,9 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	root.AddChild(transcript)
 	if c.modelMenuOpen {
 		root.AddChild(c.renderModelMenu(contentWidth))
+	}
+	if c.workspaceIndex.active {
+		root.AddChild(c.renderWorkspaceIndex(contentWidth))
 	}
 
 	if len(widgetLines) > 0 {
