@@ -213,3 +213,53 @@ test('Gi queue responses and cancellation remain owned by their origin selection
   await expect(page.getByRole('alert')).toHaveCount(0);
  } finally {deliver();release();}
 });
+
+test('@shared-29 Reorder only the captured queue and reconcile native removal of a consumed ID', async ({page,request},info)=>{
+  const source=loadCorpus('shared').find(row=>row.id==='@shared-29');expect(source).toBeTruthy();await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
+  const {main,child,input,queue,enqueue,release,switchTo}=await setup(page,request,info);
+  const token=`shared29-${info.project.name}-${Date.now()}`;
+  const childGate=resolve('test-results/ux-parity/queue-gates',token+'-child'),targetGate=resolve('test-results/ux-parity/queue-gates',token+'-target');mkdirSync(resolve(childGate,'..'),{recursive:true});
+  let releaseDelete=()=>{},childTurn;
+  const childQueue=async()=>(await(await request.get(`/api/sessions/${child}/queue`)).json()).items;
+  try {
+    const busy=await request.post(`/api/sessions/${child}/prompt`,{data:{prompt:`UX queue gate:${token}-child`,model:'test-model'}});expect(busy.status()).toBe(202);childTurn=(await busy.json()).turn_id;
+    await expect.poll(async()=>(await(await request.get(`/api/sessions/${child}`)).json()).state.status).toBe('running');
+    for(const text of ['research first','research second'])expect((await request.post(`/api/sessions/${child}/prompt`,{data:{prompt:text,intent:'queue',model:'test-model'}})).status()).toBe(202);
+    const childBefore=await childQueue();expect(childBefore).toHaveLength(2);
+    await switchTo(child);await input.fill('research draft stays');await switchTo(main.id);
+    const first=await enqueue('main first'),target=await enqueue(`UX queue gate:${token}-target`),last=await enqueue('main last');
+    const before=await queue();expect(before.map(t=>t.id)).toEqual([first,target,last]);
+    await input.fill('main newer draft stays');
+    const moved=page.waitForResponse(r=>r.request().method()==='PATCH'&&new URL(r.url()).pathname===`/api/sessions/${main.id}/queue`);
+    await row(page,target).getByRole('button',{name:'Move up in queue',exact:true}).click();const move=await moved;expect(move.status()).toBe(200);
+    expect(move.request().postDataJSON()).toEqual({expected:[first,target,last],order:[target,first,last]});
+    await expect.poll(()=>ids(page)).toEqual([target,first,last]);
+    expect(await queue()).toEqual([before[1],before[0],before[2]]);expect(await childQueue()).toEqual(childBefore);
+    await page.reload();await expect.poll(()=>ids(page)).toEqual([target,first,last]);await expect(input).toHaveValue('main newer draft stays');
+    // Hold the real user DELETE before admission. Let the native runner consume
+    // precisely that ID, then submit the held request against an active turn.
+    let held=false;const deletionGate=new Promise(r=>{releaseDelete=r;});
+    await page.route(`**/api/sessions/${main.id}/queue/${target}`,async route=>{held=true;await deletionGate;await route.continue();});
+    const rejected=page.waitForResponse(r=>r.request().method()==='DELETE'&&new URL(r.url()).pathname===`/api/sessions/${main.id}/queue/${target}`);
+    await row(page,target).getByRole('button',{name:'Cancel queued message',exact:true}).click();await expect.poll(()=>held).toBe(true);
+    release();
+    await expect.poll(async()=>((await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns||[]).find(t=>t.id===target)?.status,{timeout:15000}).toBe('running');
+    releaseDelete();expect((await rejected).status()).toBe(409);
+    await expect(page.getByRole('alert').filter({hasText:'Queue action failed'})).toBeVisible();
+    await expect.poll(()=>ids(page)).toEqual([first,last]);expect((await queue()).map(t=>t.id)).toEqual([first,last]);
+    // Rejection cannot cancel the now-active ID, and other persisted work is
+    // byte-for-byte unchanged while its independent provider stays gated.
+    expect((await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns.find(t=>t.id===target).status).toBe('running');
+    expect(await childQueue()).toEqual(childBefore);await expect(input).toHaveValue('main newer draft stays');
+    await switchTo(child);await expect(input).toHaveValue('research draft stays');await expect.poll(()=>ids(page)).toEqual(childBefore.map(t=>t.id));
+    await switchTo(main.id);await expect(input).toHaveValue('main newer draft stays');await expect.poll(()=>ids(page)).toEqual([first,last]);
+    writeFileSync(targetGate,'release');
+    await expect.poll(async()=>((await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns||[]).filter(t=>[target,first,last].includes(t.id)).every(t=>t.status==='completed'),{timeout:15000}).toBe(true);
+    const messages=(await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages;
+    expect(messages.filter(m=>m.role==='user').map(m=>m.content).slice(1)).toEqual([`UX queue gate:${token}-target`,'main first','main last']);
+    expect(await childQueue()).toEqual(childBefore);
+  } finally {
+    releaseDelete();release();writeFileSync(targetGate,'release');writeFileSync(childGate,'release');
+    if(childTurn)await expect.poll(async()=>((await(await request.get(`/api/sessions/${child}/turns`)).json()).turns||[]).every(t=>t.status==='completed'),{timeout:15000}).toBe(true);
+  }
+});
