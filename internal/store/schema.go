@@ -1,11 +1,14 @@
 package store
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	searchstore "github.com/rcarmo/gi/internal/search/store"
+	gisession "github.com/rcarmo/gi/internal/session"
 )
 
 func initSchema(db *sql.DB) error {
@@ -357,11 +360,109 @@ func initSchema(db *sql.DB) error {
 			return fmt.Errorf("create schema index: %w", err)
 		}
 	}
+	if err := migrateLegacySessionIdentities(tx); err != nil {
+		return fmt.Errorf("migrate legacy session identities: %w", err)
+	}
 	if err := searchstore.Migrate(tx); err != nil {
 		return fmt.Errorf("migrate workspace index: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit schema upgrade: %w", err)
+	}
+	return nil
+}
+
+// Only databases retaining the historical scope_json column can recover
+// legacy identities. Current-schema rows deliberately lacking identity remain
+// inaccessible; this must not become a general fallback for untrusted rows.
+func migrateLegacySessionIdentities(tx *sql.Tx) error {
+	columns, err := tx.Query(`pragma table_info(sessions)`)
+	if err != nil {
+		return err
+	}
+	hasScope := false
+	for columns.Next() {
+		var cid, notNull, pk int
+		var name, typ string
+		var defaultValue sql.NullString
+		if err := columns.Scan(&cid, &name, &typ, &notNull, &defaultValue, &pk); err != nil {
+			columns.Close()
+			return err
+		}
+		if name == "scope_json" {
+			hasScope = true
+		}
+	}
+	err = columns.Err()
+	columns.Close()
+	if err != nil || !hasScope {
+		return err
+	}
+	// Existing canonical identities mean this database has already crossed
+	// the allocation boundary. A missing row then needs explicit repair, not
+	// a synthetic identity on every reopen.
+	var existing int
+	if err := tx.QueryRow(`select count(*) from session_identities`).Scan(&existing); err != nil {
+		return err
+	}
+	if existing != 0 {
+		return nil
+	}
+
+	rows, err := tx.Query(`select s.id,s.scope_json,s.aliases_json from sessions s left join session_identities i on i.session_id=s.id where i.session_id is null order by s.id`)
+	if err != nil {
+		return err
+	}
+	type legacy struct{ id, scope, aliases string }
+	var missing []legacy
+	for rows.Next() {
+		var item legacy
+		if err := rows.Scan(&item.id, &item.scope, &item.aliases); err != nil {
+			rows.Close()
+			return err
+		}
+		missing = append(missing, item)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	store := &Store{}
+	for _, item := range missing {
+		alloc := gisession.AllocateDefaultSession("gi", "gi", "default", item.id)
+		scope := alloc.Scope
+		if strings.TrimSpace(item.scope) != "{}" {
+			scope = gisession.SessionScope{}
+			if err := json.Unmarshal([]byte(item.scope), &scope); err != nil {
+				return fmt.Errorf("session %q scope: %w", item.id, err)
+			}
+			if scope.Version != gisession.ScopeVersionV1 || scope.AgentID == "" || scope.Channel == "" || scope.Account == "" || len(scope.Dimensions) == 0 {
+				return fmt.Errorf("session %q has incomplete legacy scope", item.id)
+			}
+			for _, dimension := range scope.Dimensions {
+				if strings.TrimSpace(scope.Values[dimension]) == "" {
+					return fmt.Errorf("session %q has empty scope dimension %q", item.id, dimension)
+				}
+			}
+		}
+		var aliases []string
+		if err := json.Unmarshal([]byte(item.aliases), &aliases); err != nil {
+			return fmt.Errorf("session %q aliases: %w", item.id, err)
+		}
+		for _, alias := range normalizeSessionAliases(aliases) {
+			var owner string
+			err := tx.QueryRow(`select session_id from session_aliases where alias=?`, alias).Scan(&owner)
+			if err == nil && owner != item.id {
+				return fmt.Errorf("session alias %q belongs to %q, not %q", alias, owner, item.id)
+			}
+			if err != nil && err != sql.ErrNoRows {
+				return err
+			}
+		}
+		if err := store.upsertSessionIdentityTx(context.Background(), tx, item.id, &scope, aliases, ""); err != nil {
+			return fmt.Errorf("session %q: %w", item.id, err)
+		}
 	}
 	return nil
 }
