@@ -20,10 +20,9 @@ import (
 var ErrScanChanged = errors.New("workspace changed during index scan")
 var ErrScanLimit = errors.New("workspace index scan limit exceeded")
 
-// ScanScope requires every configured root to exist as a real directory. In
-// particular, missing notes or skills roots are errors, never an empty inventory.
-// Callers can choose a custom scope with only required existing roots. Background
-// refresh and optional-root policy must be added explicitly by a later worker.
+// ScanScope requires roots to exist unless explicitly configured as optional.
+// Missing optional roots are rechecked and reported, never silently treated as
+// deletions: scoped publication checks their previous memberships transactionally.
 func ScanScope(ctx context.Context, config searchstore.ScopeConfig) (searchstore.CompleteSnapshot, error) {
 	return scanScope(ctx, config, defaultScanLimits(), nil)
 }
@@ -55,6 +54,7 @@ func scanScope(ctx context.Context, config searchstore.ScopeConfig, limits scanL
 	}
 	defer root.Close()
 	var docs []searchstore.RefreshDocument
+	var missingRoots []string
 	var observed []observation
 	entries, readBytes, chunkCount := 0, 0, 0
 	check := func() error { return ctx.Err() }
@@ -165,6 +165,7 @@ func scanScope(ctx context.Context, config searchstore.ScopeConfig, limits scanL
 	// Inspect every ancestor of an explicitly selected root, so an in-workspace
 	// symlink cannot silently alias another configured subtree.
 	ancestors := map[string]bool{}
+roots:
 	for _, scopeRoot := range config.Roots() {
 		parent := "."
 		if scopeRoot != "." {
@@ -173,14 +174,18 @@ func scanScope(ctx context.Context, config searchstore.ScopeConfig, limits scanL
 				if ancestors[parent] {
 					continue
 				}
-				ancestors[parent] = true
 				info, err := root.Lstat(parent)
 				if err != nil {
+					if errors.Is(err, os.ErrNotExist) && config.IsOptionalRoot(scopeRoot) {
+						missingRoots = append(missingRoots, scopeRoot)
+						continue roots
+					}
 					return fail(err)
 				}
 				if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || excludedIndexDir(segment) {
 					return fail(fmt.Errorf("invalid index root ancestor: %s", parent))
 				}
+				ancestors[parent] = true
 				observe(parent, info, nil)
 			}
 		}
@@ -216,6 +221,15 @@ func scanScope(ctx context.Context, config searchstore.ScopeConfig, limits scanL
 			}
 		}
 	}
+	for _, missing := range missingRoots {
+		absent, err := absentScopeRoot(root, missing)
+		if err != nil {
+			return fail(err)
+		}
+		if !absent {
+			return fail(fmt.Errorf("%w: optional root appeared: %s", ErrScanChanged, missing))
+		}
+	}
 	// Check the workspace name still resolves to the opened directory.
 	current, err := os.OpenRoot(config.Workspace())
 	if err != nil {
@@ -233,7 +247,25 @@ func scanScope(ctx context.Context, config searchstore.ScopeConfig, limits scanL
 	if err := check(); err != nil {
 		return fail(err)
 	}
-	return searchstore.CompleteSnapshot{Complete: true, Documents: docs}, nil
+	return searchstore.CompleteSnapshot{Complete: true, Documents: docs, MissingRoots: missingRoots}, nil
+}
+
+func absentScopeRoot(root *os.Root, name string) (bool, error) {
+	parent := "."
+	for _, part := range strings.Split(name, "/") {
+		parent = path.Join(parent, part)
+		info, err := root.Lstat(parent)
+		if errors.Is(err, os.ErrNotExist) {
+			return true, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || excludedIndexDir(part) {
+			return false, fmt.Errorf("invalid optional index root ancestor: %s", parent)
+		}
+	}
+	return false, nil
 }
 
 func excludedIndexDir(name string) bool {

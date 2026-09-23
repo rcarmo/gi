@@ -194,6 +194,9 @@ type CompleteSnapshot struct {
 	// optional root must be an explicit scanner policy, not an ignored IO error.
 	Complete  bool
 	Documents []RefreshDocument
+	// Optional roots absent during both inventory and final verification. Commit
+	// rejects their disappearance if they own any previous scope memberships.
+	MissingRoots []string
 }
 
 func (r *Refresh) validate(snapshot CompleteSnapshot) error {
@@ -203,11 +206,23 @@ func (r *Refresh) validate(snapshot CompleteSnapshot) error {
 	if len(snapshot.Documents) > MaxSnapshotFiles {
 		return fmt.Errorf("index file limit exceeded")
 	}
+	missing := map[string]bool{}
+	for _, root := range snapshot.MissingRoots {
+		if !r.config.IsOptionalRoot(root) || missing[root] {
+			return fmt.Errorf("invalid missing root %q", root)
+		}
+		missing[root] = true
+	}
 	seen := map[string]bool{}
 	total, chunks, indexedBytes := 0, 0, 0
 	for _, doc := range snapshot.Documents {
 		if !r.config.eligible(doc.Path) || seen[doc.Path] {
 			return fmt.Errorf("invalid, duplicate or out-of-scope path %q", doc.Path)
+		}
+		for root := range missing {
+			if underIndexRoot(doc.Path, root) {
+				return fmt.Errorf("document belongs to absent root %q", root)
+			}
 		}
 		seen[doc.Path] = true
 		total += len(doc.Content)
@@ -269,6 +284,30 @@ func (r *Refresh) Commit(ctx context.Context, snapshot CompleteSnapshot) error {
 	defer tx.Rollback()
 	if err = r.guard(ctx, tx); err != nil {
 		return err
+	}
+	if len(snapshot.MissingRoots) > 0 {
+		rows, err := tx.QueryContext(ctx, `SELECT d.path FROM workspace_index_documents d JOIN workspace_index_memberships m ON m.document_id=d.id WHERE m.workspace_id=? AND m.scope=?`, r.workspaceID, r.config.scope)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var path string
+			if err := rows.Scan(&path); err != nil {
+				rows.Close()
+				return err
+			}
+			for _, root := range snapshot.MissingRoots {
+				if underIndexRoot(path, root) {
+					rows.Close()
+					return fmt.Errorf("optional root %q disappeared with committed documents; index retained", root)
+				}
+			}
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
+			return err
+		}
 	}
 	var generation int64
 	if err = tx.QueryRowContext(ctx, "SELECT committed_generation FROM workspace_index_scopes WHERE workspace_id=? AND scope=?", r.workspaceID, r.config.scope).Scan(&generation); err != nil {

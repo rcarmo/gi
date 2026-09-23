@@ -135,3 +135,24 @@ Feature: Scoped workspace indexing lifecycle
     And ordinary keys never submit the draft through that surface
     And idle editor, footer and transcript padding keep their existing row counts
     And separate acceptance is required at 60 by 18, 100 by 22 and 140 by 36
+
+  @index-derived-016 @gi-strengthening
+  Scenario: Load index root policy explicitly at startup
+    Given workspaceIndex settings specify extra roots, extra extensions and optional roots
+    When the server loads that workspace configuration
+    Then extra roots widen only the all scope
+    And notes and skills retain their own root ownership
+    And invalid or covered optional roots are rejected instead of widening the scope
+    And changing root policy requires configuration reload and changes its fingerprint
+    And old results do not match queries under an incompatible fingerprint
+
+  @index-derived-017 @gi-strengthening
+  Scenario: Optional root absence cannot erase previously committed content
+    Given a scope explicitly marks a distinct root optional
+    When that root is absent during inventory and final verification
+    Then it may be reported missing in a complete scan
+    But publication checks missing-root memberships in its commit transaction
+    And if that root owns committed documents in this scope publication fails
+    And the previous content, count, generation and successful timestamp remain intact
+    When the root is restored and an explicit retry succeeds
+    Then the scope publishes one new generation

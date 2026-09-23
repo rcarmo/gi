@@ -16,7 +16,11 @@ async function fixture(page,request,info){
   await expect.poll(async()=> (await state()).context_usage.measurement?.turn_id).toBe(turn.turn_id);
   const usage=(await state()).context_usage;expect(usage).toMatchObject({tokens,contextWindow:2_000_000,percent:tokens/20000,source:'provider_request'});
   await expect(pie).toHaveAttribute('aria-label',label,{timeout:15000});
-  const cap=(await(await request.get(`/api/sessions/${main.id}/compaction`)).json());
+  // Measurement arrives before native claim cleanup. The capability's busy
+  // reason includes the durable claim; idle display/queue state does not.
+  const capability=async()=>(await(await request.get(`/api/sessions/${main.id}/compaction`)).json());
+  await expect.poll(async()=> (await capability()).reason).not.toBe('Session has active or queued work');
+  const cap=await capability();
   const title=label+' — latest measured provider request'+(cap.available?' — Compact context':' — Context usage');
   await expect(pie).toHaveAttribute('title',title);
   await expect(pie).toHaveAttribute('data-tooltip',title);

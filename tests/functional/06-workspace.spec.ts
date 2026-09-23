@@ -84,3 +84,10 @@ test('explicit native workspace reindex supplies scoped lexical results without 
  const result=await (await request.get(`${BASE_URL}/api/workspace/search?scope=all&q=functionalorchid`)).json();expect(result.mode).toBe('fts');expect(result.hits.map((h:any)=>h.path)).toEqual(['notes/functional-index.md']);expect(result.hits[0].start_line).toBe(1);
  const saved=await (await request.get(`${BASE_URL}/api/workspace/index`)).json();expect(saved.generation).toBe(ready.generation);await expect(page.locator('.workspace-index-status-row')).toHaveCount(0);
 });
+
+test('workspace index runtime defaults are strict with no implicit extra roots',async({request})=>{
+ const runtime=await (await request.get(`${BASE_URL}/api/runtime/config`)).json();
+ expect(runtime.workspace_index).toEqual({extraRoots:null,extraExtensions:null,optionalRoots:null});
+ const state=await (await request.get(`${BASE_URL}/api/workspace/index`)).json();
+ expect(state.required_roots).toBe(true);expect(state.optional_roots).toBeNull();expect(state.roots).toEqual(['.pi/skills','notes']);
+});

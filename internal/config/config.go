@@ -12,30 +12,31 @@ import (
 )
 
 type RuntimeConfig struct {
-	WorkspaceRoot        string              `json:"workspace_root"`
-	AssistantName        string              `json:"assistant_name"`
-	AssistantAvatar      string              `json:"assistant_avatar"`
-	UserName             string              `json:"user_name"`
-	UserAvatar           string              `json:"user_avatar"`
-	UserAvatarBackground string              `json:"user_avatar_background"`
-	DefaultProvider      string              `json:"default_provider"`
-	DefaultModel         string              `json:"default_model"`
-	DefaultThinkingLevel string              `json:"default_thinking_level"`
-	EnabledModels        []string            `json:"enabled_models"`
-	Agents               AgentsConfig        `json:"agents"`
-	Session              SessionConfig       `json:"session"`
-	Routing              ModelRoutingConfig  `json:"routing"`
-	MaxIterations        int                 `json:"max_iterations"`
-	ScrollbackLimit      int                 `json:"scrollback_limit"`
-	TUIHistoryLimit      int                 `json:"tui_history_limit"`
-	TUIClipboardMode     string              `json:"tui_clipboard_mode"`
-	TUIScrollbar         bool                `json:"tui_scrollbar"`
-	Compaction           CompactionSettings  `json:"compaction"`
-	Hooks                HookSettings        `json:"hooks"`
-	Peering              PeeringSettings     `json:"peering"`
-	InboundWork          InboundWorkSettings `json:"inbound_work"`
-	SystemPrompt         string              `json:"-"`
-	Discovery            skills.Discovery    `json:"-"`
+	WorkspaceRoot        string                 `json:"workspace_root"`
+	AssistantName        string                 `json:"assistant_name"`
+	AssistantAvatar      string                 `json:"assistant_avatar"`
+	UserName             string                 `json:"user_name"`
+	UserAvatar           string                 `json:"user_avatar"`
+	UserAvatarBackground string                 `json:"user_avatar_background"`
+	DefaultProvider      string                 `json:"default_provider"`
+	DefaultModel         string                 `json:"default_model"`
+	DefaultThinkingLevel string                 `json:"default_thinking_level"`
+	EnabledModels        []string               `json:"enabled_models"`
+	Agents               AgentsConfig           `json:"agents"`
+	Session              SessionConfig          `json:"session"`
+	Routing              ModelRoutingConfig     `json:"routing"`
+	MaxIterations        int                    `json:"max_iterations"`
+	ScrollbackLimit      int                    `json:"scrollback_limit"`
+	TUIHistoryLimit      int                    `json:"tui_history_limit"`
+	TUIClipboardMode     string                 `json:"tui_clipboard_mode"`
+	TUIScrollbar         bool                   `json:"tui_scrollbar"`
+	Compaction           CompactionSettings     `json:"compaction"`
+	Hooks                HookSettings           `json:"hooks"`
+	Peering              PeeringSettings        `json:"peering"`
+	InboundWork          InboundWorkSettings    `json:"inbound_work"`
+	WorkspaceIndex       WorkspaceIndexSettings `json:"workspace_index"`
+	SystemPrompt         string                 `json:"-"`
+	Discovery            skills.Discovery       `json:"-"`
 }
 
 type piclawConfig struct {
@@ -81,23 +82,32 @@ type InboundWorkSettings struct {
 	LeaseTTLMS int    `json:"lease_ttl_ms"`
 }
 
+// WorkspaceIndexSettings is startup-only. All roots are required unless listed
+// explicitly as optional; validation is performed when resolving an index scope.
+type WorkspaceIndexSettings struct {
+	ExtraRoots      []string `json:"extraRoots"`
+	ExtraExtensions []string `json:"extraExtensions"`
+	OptionalRoots   []string `json:"optionalRoots"`
+}
+
 type piSettings struct {
-	DefaultProvider      string               `json:"defaultProvider"`
-	DefaultModel         string               `json:"defaultModel"`
-	DefaultThinkingLevel string               `json:"defaultThinkingLevel"`
-	EnabledModels        []string             `json:"enabledModels"`
-	MaxIterations        int                  `json:"maxIterations"`
-	TUIScrollbackLimit   int                  `json:"tuiScrollbackLimit"`
-	TUIHistoryLimit      int                  `json:"tuiHistoryLimit"`
-	TUIClipboardMode     string               `json:"tuiClipboardMode"`
-	TUIScrollbar         bool                 `json:"tuiScrollbar"`
-	Compaction           CompactionSettings   `json:"compaction"`
-	Hooks                HookSettings         `json:"hooks"`
-	Peering              PeeringSettings      `json:"peering"`
-	InboundWork          *InboundWorkSettings `json:"inboundWork"`
-	Agents               AgentsConfig         `json:"agents"`
-	Session              SessionConfig        `json:"session"`
-	Routing              ModelRoutingConfig   `json:"routing"`
+	DefaultProvider      string                 `json:"defaultProvider"`
+	DefaultModel         string                 `json:"defaultModel"`
+	DefaultThinkingLevel string                 `json:"defaultThinkingLevel"`
+	EnabledModels        []string               `json:"enabledModels"`
+	MaxIterations        int                    `json:"maxIterations"`
+	TUIScrollbackLimit   int                    `json:"tuiScrollbackLimit"`
+	TUIHistoryLimit      int                    `json:"tuiHistoryLimit"`
+	TUIClipboardMode     string                 `json:"tuiClipboardMode"`
+	TUIScrollbar         bool                   `json:"tuiScrollbar"`
+	Compaction           CompactionSettings     `json:"compaction"`
+	Hooks                HookSettings           `json:"hooks"`
+	Peering              PeeringSettings        `json:"peering"`
+	InboundWork          *InboundWorkSettings   `json:"inboundWork"`
+	WorkspaceIndex       WorkspaceIndexSettings `json:"workspaceIndex"`
+	Agents               AgentsConfig           `json:"agents"`
+	Session              SessionConfig          `json:"session"`
+	Routing              ModelRoutingConfig     `json:"routing"`
 }
 
 func Load(workspaceRoot string) RuntimeConfig {
@@ -134,6 +144,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.Agents = ps.Agents
 		cfg.Session = ps.Session
 		cfg.Routing = ps.Routing
+		cfg.WorkspaceIndex = ps.WorkspaceIndex
 	}
 	if discovery, err := skills.Discover(workspaceRoot); err == nil {
 		cfg.Discovery = discovery

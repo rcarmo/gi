@@ -121,6 +121,16 @@ func main() {
 	defer provider.Close()
 	inference.Init()
 	goai.RegisterModel(&goai.Model{ID: "gate", Name: "Local UX Gate", Provider: goai.Provider("ux-local"), Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, Input: []string{"text"}, ContextWindow: 32000, MaxTokens: 1024})
+	if os.Getenv("GI_UX_INDEX_CONFIG") != "" {
+		// Seed an actual startup settings file; do not fabricate index state or
+		// bypass config.Load/production scan, worker, or HTTP routes.
+		if err := os.MkdirAll(filepath.Join(dir, "docs"), 0700); err != nil {
+			log.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, ".pi", "settings.json"), []byte(`{"workspaceIndex":{"extraRoots":["docs"],"extraExtensions":["nim"],"optionalRoots":["notes",".pi/skills"]}}`), 0600); err != nil {
+			log.Fatal(err)
+		}
+	}
 	cfg := config.Load(dir)
 	cfg.DefaultModel = "ux-local/gate"
 	cfg.EnabledModels = []string{"ux-local/gate", "test-model", "bootstrap"}

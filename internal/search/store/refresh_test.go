@@ -421,3 +421,73 @@ func TestRefreshHandleCommitsAtMostOnce(t *testing.T) {
 		t.Fatal(success, lost, status(t, s, c))
 	}
 }
+
+func TestConfiguredOptionalRootsFingerprintAndMissingPublication(t *testing.T) {
+	db, s, root, _ := dbFixture(t)
+	strict, err := search.ConfiguredScopeConfig(root, "all", nil, nil, nil, "lines-v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := config(t, root, "all")
+	if strict.Fingerprint() != old.Fingerprint() {
+		t.Fatal("strict fingerprint changed")
+	}
+	optional, err := search.ConfiguredScopeConfig(root, "all", []string{"docs"}, []string{"nim"}, []string{"notes", ".pi/skills"}, "lines-v1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if optional.Fingerprint() == strict.Fingerprint() {
+		t.Fatal("optional policy not fingerprinted")
+	}
+	for _, roots := range [][]string{{"missing"}, {"notes/sub"}, {"."}, {"../escape"}} {
+		if _, err := search.ConfiguredScopeConfig(root, "all", nil, nil, roots, "lines-v1"); err == nil {
+			t.Fatal(roots)
+		}
+	}
+	if _, err := search.ConfiguredScopeConfig(root, "all", []string{"."}, nil, []string{"notes"}, "lines-v1"); err == nil {
+		t.Fatal("covered optional root")
+	}
+	r := begin(t, s, optional)
+	snap := search.CompleteSnapshot{Complete: true, MissingRoots: []string{"notes", ".pi/skills"}, Documents: []search.RefreshDocument{document("docs/main.nim", "echo native")}}
+	if err := r.Commit(t.Context(), snap); err != nil {
+		t.Fatal(err)
+	}
+	if st := status(t, s, optional); st.State != "ready" || st.IndexedFileCount != 1 {
+		t.Fatal(st)
+	}
+	r = begin(t, s, optional)
+	bad := snap
+	bad.MissingRoots = []string{"docs"}
+	if err := r.Commit(t.Context(), bad); err == nil {
+		t.Fatal("required root declared absent")
+	}
+	bad = snap
+	bad.Documents = []search.RefreshDocument{document("notes/fake.md", "fake")}
+	if err := r.Commit(t.Context(), bad); err == nil {
+		t.Fatal("absent root supplied content")
+	}
+	commit(t, r, document("docs/main.nim", "echo native"), document("notes/kept.md", "retained history"))
+	before := status(t, s, optional)
+	r = begin(t, s, optional)
+	if err := r.Commit(t.Context(), snap); err == nil || !strings.Contains(err.Error(), "disappeared") {
+		t.Fatal("disappearing root erased data", err)
+	}
+	if err := r.Fail(t.Context(), errors.New("optional root disappeared")); err != nil {
+		t.Fatal(err)
+	}
+	if st := status(t, s, optional); st.Generation != before.Generation || st.LastIndexedAtMS != before.LastIndexedAtMS || st.IndexedFileCount != before.IndexedFileCount {
+		t.Fatal(st)
+	}
+	if matches(t, db, "retained") != 1 {
+		t.Fatal("missing root lost content")
+	}
+	notes, err := search.ConfiguredScopeConfig(root, "notes", []string{"docs"}, []string{"nim"}, []string{"notes", ".pi/skills"}, "lines-v1")
+	if err != nil || !reflect.DeepEqual(notes.OptionalRoots(), []string{"notes"}) {
+		t.Fatal(notes.OptionalRoots(), err)
+	}
+	copy := optional.OptionalRoots()
+	copy[0] = "other"
+	if optional.OptionalRoots()[0] == "other" {
+		t.Fatal("mutable option")
+	}
+}

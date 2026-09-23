@@ -57,7 +57,7 @@ endef
 	build-web build \
 	run start stop restart status logs \
 	test vet bun-checks check \
-	test-instance-start test-instance-stop test-ux test-ux-parity ux-parity-inventory test-tui-smoke test-tui-gherkin test-tui-sessions \
+	test-instance-start test-instance-stop test-ux test-ux-parity test-ux-index-config ux-parity-inventory test-tui-smoke test-tui-gherkin test-tui-sessions \
 	clean
 
 # ── Help and bootstrap ──────────────────────────────────────────────────
@@ -241,6 +241,9 @@ test-ux-context-meter:
 
 test-ux-context-fit:
 	$(MAKE) --no-print-directory test-ux-steer UX_LOCAL_ENV=GI_UX_CONTEXT=1 UX_LOCAL_SPEC=tests/ux/context-fit.spec.mjs
+
+test-ux-index-config:
+	$(MAKE) --no-print-directory test-ux-steer UX_LOCAL_ENV=GI_UX_INDEX_CONFIG=1 UX_LOCAL_SPEC=tests/ux/workspace-index-config.spec.mjs
 
 test-ux-steer: build-web
 	@mkdir -p bin test-results/ux-parity/queue-gates

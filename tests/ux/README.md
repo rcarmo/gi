@@ -75,6 +75,12 @@ Full matrix: **168/168**, **14/236 Classic IDs**, 222 unmapped; shared cases rem
 
 Native tests cover provider-loop recording, latest input/cache values versus cumulative turn totals, storage/reopen, session isolation, model-fit validation and unchanged TUI footer row count. `context-usage.test.ts` uses supplied numbers for formatting, thresholds and fit predicates; it does not map measured browser scenarios. [ADR-0016](../../docs/adr/0016-measured-request-context.md) lists the remaining evidence gaps.
 
+## Index startup settings: 2026-09-23
+
+`make test-ux-index-config` runs `workspace-index-config.spec.mjs` against a local server seeded with a real `.pi/settings.json`. Six projects verify extra root/extension indexing, optional initial absence, retained content/status on populated-root disappearance, reload/draft safety and retry. Results: `test-results/ux-parity/index-config-results.json`. [ADR-0047](../../docs/adr/0047-index-settings-and-optional-roots.md).
+
+Latest **498 browser** (330 main + 168 specialised), **76 functional**, **32 helpers**, Go/vet/build/hook/config-search-web race ×3. Coverage **45/236 Classic**, **2/42 shared**, **191/40 unmapped**; 17 derived index proposals are not frozen mappings. Meter tests now wait on native compaction claim cleanup before sampling capability, retaining exact assertions; two full meter passes after the repair. Background freshness and terminal consumers remain open.
+
 ## Explicit scoped indexing: 2026-09-22
 
 `workspace-preview.spec.mjs` adds a Gi-only native Reindex/lexical-query case: stored notes/skills, real missing-root scan failure, persisted status and hits, explicit retry after changed bytes, retained drafts/files across reload/session switches, and native Refresh. No new frozen mappings; workspace-005 still has unsatisfied compound menu criteria. [ADR-0046](../../docs/adr/0046-native-workspace-index-api.md).

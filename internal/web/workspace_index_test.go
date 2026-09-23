@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -156,5 +157,107 @@ func TestWorkspaceIndexAPIRefreshQueriesFailureAndAuth(t *testing.T) {
 	}
 	if call("GET", "/api/workspace/search?q=native").Code != 401 {
 		t.Fatal("unguarded search")
+	}
+}
+
+func TestWorkspaceIndexStartupSettingsOptionalPolicyAndConfigIsolation(t *testing.T) {
+	root := t.TempDir()
+	dbPath := filepath.Join(t.TempDir(), "settings.db")
+	s, err := store.Open(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	write := func(path, text string) {
+		t.Helper()
+		full := filepath.Join(root, path)
+		if err := os.MkdirAll(filepath.Dir(full), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(text), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(".pi/settings.json", `{"workspaceIndex":{"extraRoots":["docs"],"extraExtensions":["nim"],"optionalRoots":["notes",".pi/skills"]}}`)
+	write("docs/sample.nim", "nimorchid evidence")
+	srv := New(s, turn.New(s), config.Load(root))
+	call := func(method, path string) *httptest.ResponseRecorder {
+		t.Helper()
+		res := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(res, httptest.NewRequest(method, path, nil))
+		return res
+	}
+	current := func() workspaceIndexStatus {
+		t.Helper()
+		r := call("GET", "/api/workspace/index")
+		if r.Code != 200 {
+			t.Fatal(r.Code, r.Body.String())
+		}
+		var st workspaceIndexStatus
+		if err := json.Unmarshal(r.Body.Bytes(), &st); err != nil {
+			t.Fatal(err)
+		}
+		return st
+	}
+	if res := call("POST", "/api/workspace/index"); res.Code != 200 {
+		t.Fatal(res.Code, res.Body.String())
+	}
+	before := current()
+	if before.RequiredRoots || len(before.OptionalRoots) != 2 || before.IndexedFileCount != 1 {
+		t.Fatal(before)
+	}
+	if res := call("GET", "/api/workspace/search?q=nimorchid"); res.Code != 200 || !strings.Contains(res.Body.String(), "docs/sample.nim") {
+		t.Fatal(res.Code, res.Body.String())
+	}
+	// A caller cannot override roots by query parameters. A settings edit requires
+	// a reload/new server, and new fingerprints hide the previous configuration.
+	write(".pi/settings.json", `{"workspaceIndex":{"extraRoots":["other"],"extraExtensions":["nim"],"optionalRoots":["notes",".pi/skills"]}}`)
+	if st := current(); st.ConfigHash != before.ConfigHash || st.State != "ready" {
+		t.Fatal("hot config unexpectedly changed", st)
+	}
+	write("other/new.nim", "newviolet content")
+	srv = New(s, turn.New(s), config.Load(root))
+	if st := current(); st.State != "stale" {
+		t.Fatal(st)
+	}
+	var hits struct {
+		Hits []any `json:"hits"`
+	}
+	res := call("GET", "/api/workspace/search?q=nimorchid")
+	if err := json.Unmarshal(res.Body.Bytes(), &hits); err != nil || len(hits.Hits) != 0 {
+		t.Fatal(hits, err)
+	}
+	if res := call("POST", "/api/workspace/index"); res.Code != 200 {
+		t.Fatal(res.Code, res.Body.String())
+	}
+	after := current()
+	if after.ConfigHash == before.ConfigHash || after.Generation != before.Generation+1 {
+		t.Fatal(after)
+	}
+	write("notes/kept.md", "retained optional content")
+	if res := call("POST", "/api/workspace/index"); res.Code != 200 {
+		t.Fatal(res.Code, res.Body.String())
+	}
+	kept := current()
+	if err := os.Rename(filepath.Join(root, "notes"), filepath.Join(root, "held")); err != nil {
+		t.Fatal(err)
+	}
+	if res := call("POST", "/api/workspace/index"); res.Code != 500 || !strings.Contains(res.Body.String(), "disappeared") {
+		t.Fatal(res.Code, res.Body.String())
+	}
+	failed := current()
+	if failed.Generation != kept.Generation || failed.LastIndexedAt != kept.LastIndexedAt || failed.IndexedFileCount != kept.IndexedFileCount || failed.State != "failed" {
+		t.Fatal(failed)
+	}
+	if res := call("GET", "/api/workspace/search?q=retained"); !strings.Contains(res.Body.String(), "notes/kept.md") {
+		t.Fatal(res.Body.String())
+	}
+	// Invalid options fail requests; no silently broadened all-scope fallback.
+	write(".pi/settings.json", `{"workspaceIndex":{"extraRoots":["../escape"]}}`)
+	srv = New(s, turn.New(s), config.Load(root))
+	for _, method := range []string{"GET", "POST"} {
+		if res := call(method, "/api/workspace/index"); res.Code != 400 {
+			t.Fatal(res.Code)
+		}
 	}
 }

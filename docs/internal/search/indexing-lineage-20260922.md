@@ -2,7 +2,7 @@
 
 Piclaw supplies the closest working workspace-index lifecycle. Tau and Vibes supply useful database consistency patterns for conversation search. Gi must keep these domains distinct when adapting their schemas and acceptance criteria.
 
-The provisional Gi full-workspace lexical rebuild is **stashed and not deployed**. It was tested locally, but its single global status row, whole-index replacement and exclusion of all dot directories do not implement Piclaw's roots/scopes or skills indexing. Runtime scoped explicit reindex is now implemented by [ADR-0046](../../adr/0046-native-workspace-index-api.md); automatic freshness and optional-root policy remain gaps. The comparison below records the design at `80ab58c`. [ADR-0042](../../adr/0042-versioned-workspace-index-schema.md) subsequently promotes the scoped candidate into a versioned, additive startup migration; no worker/query/status implementation is enabled and the derived scenarios remain proposals.
+The provisional Gi full-workspace lexical rebuild is **stashed and not deployed**. It was tested locally, but its single global status row, whole-index replacement and exclusion of all dot directories do not implement Piclaw's roots/scopes or skills indexing. Runtime scoped explicit reindex is now implemented by [ADR-0046](../../adr/0046-native-workspace-index-api.md); automatic freshness remains a gap; explicit startup/optional-root policy is now implemented by [ADR-0047](../../adr/0047-index-settings-and-optional-roots.md). The comparison below records the design at `80ab58c`. [ADR-0042](../../adr/0042-versioned-workspace-index-schema.md) subsequently promotes the scoped candidate into a versioned, additive startup migration; no worker/query/status implementation is enabled and the derived scenarios remain proposals.
 
 ## Pinned sources
 
@@ -69,7 +69,7 @@ Vector storage is deliberately absent from this lexical schema experiment. ADR-0
 
 ## Derived Gherkin and test ownership
 
-[`features/search/workspace-index.feature`](../../../features/search/workspace-index.feature) has 15 `@index-derived-*` scenarios, all marked `@proposal`. They cover configuration, incremental identity, scoped cleanup, nonblocking/background and explicit refresh, status, atomic failure, bounded scanning, fenced ownership, lexical query fallback, FTS integrity, configuration/version changes, draft isolation and a compact terminal surface.
+[`features/search/workspace-index.feature`](../../../features/search/workspace-index.feature) now has 17 `@index-derived-*` scenarios, all marked `@proposal`; ADR-0047 adds startup-policy and optional-disappearance cases. They cover configuration, incremental identity, scoped cleanup, nonblocking/background and explicit refresh, status, atomic failure, bounded scanning, fenced ownership, lexical query fallback, FTS integrity, configuration/version changes, draft isolation and a compact terminal surface.
 
 Tags identify Piclaw-derived expectations, Tau/Vibes schema patterns, and Gi strengthening. The parser test verifies all scenarios parse and that the frozen 236 Classic/42 shared catalogue is unchanged. **It is not a Gherkin step runner and confers no behaviour pass.** The schema test supports the SQL portions of derived-011/012 and lease-token storage, not their complete acceptance.
 
@@ -77,7 +77,7 @@ Workspace-005 remains unmapped: its visible creation/upload controls and menu co
 
 ## Implementation and migration sequence
 
-1. Agree resolved root/scope configuration, supported extensions and limits; capture a configuration fingerprint. Preserve Piclaw's skills-root eligibility. No duplicate overlapping-root scans.
+1. **Startup settings implemented by ADR-0047:** extra roots/extensions and exact optional roots feed deterministic fingerprints. Default strictness/skills eligibility and overlapping-root deduplication remain. Absent optional roots with committed memberships fail atomically rather than erasing old content.
 2. **Schema installed by ADR-0042:** explicit versioned SQLite migration with collision/version/object checks, preserving chat/session/media and old scaffold rows. New scoped tables start empty; the forthcoming explicit refresh must rebuild derived content rather than guess old ownership. Rollback/reopen/history preservation is tested.
 3. **Storage API implemented by ADR-0043:** stable unchanged chunk/document IDs, transactional FTS maintenance, scope membership cleanup and rollback on incomplete/invalid snapshots. **Scanner/chunker added by ADR-0044:** bounded rooted traversal, required roots, deterministic UTF-8 lines, rehash/change detection and scan→commit tests. This is observed consistency, not an atomic filesystem snapshot; optional-root policy and worker integration remain open.
 4. **Storage protocol implemented by ADR-0043:** per-workspace token/expiry fences, renewal, failure reporting and stale projection/takeover recovery, tested with two stores. **Explicit worker added by ADR-0045:** periodic renewal during scanning, joined heartbeat before commit, bounded separate failure cleanup and killed-process recovery acceptance. Application scheduling, invalidation and public controls are not yet wired.

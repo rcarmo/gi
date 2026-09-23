@@ -894,6 +894,7 @@ func (s *Server) handleRuntimeConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"workspace_root":         s.cfg.WorkspaceRoot,
+		"workspace_index":        s.cfg.WorkspaceIndex,
 		"assistant_name":         s.cfg.AssistantName,
 		"assistant_avatar":       s.cfg.AssistantAvatar,
 		"user_name":              s.cfg.UserName,

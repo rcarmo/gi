@@ -22,6 +22,7 @@ type workspaceIndexStatus struct {
 	Generation       int64    `json:"generation"`
 	ConfigHash       string   `json:"config_hash"`
 	RequiredRoots    bool     `json:"required_roots"`
+	OptionalRoots    []string `json:"optional_roots"`
 }
 
 func (s *Server) workspaceScope(r *http.Request) (searchstore.ScopeConfig, error) {
@@ -33,11 +34,12 @@ func (s *Server) workspaceScope(r *http.Request) (searchstore.ScopeConfig, error
 	if scope == "" {
 		scope = "all"
 	}
-	return searchstore.DefaultScopeConfig(root, scope, nil, nil, chunking.LineVersion)
+	settings := s.cfg.WorkspaceIndex
+	return searchstore.ConfiguredScopeConfig(root, scope, settings.ExtraRoots, settings.ExtraExtensions, settings.OptionalRoots, chunking.LineVersion)
 }
 func (s *Server) indexStatus(r *http.Request, c searchstore.ScopeConfig) (workspaceIndexStatus, error) {
 	stored, err := searchstore.NewRefreshStore(s.store.DB()).Status(r.Context(), c)
-	result := workspaceIndexStatus{Scope: c.Scope(), State: stored.State, Roots: stored.Roots, IndexedFileCount: stored.IndexedFileCount, LastError: stored.LastError, Generation: stored.Generation, ConfigHash: stored.ConfigHash, RequiredRoots: true}
+	result := workspaceIndexStatus{Scope: c.Scope(), State: stored.State, Roots: stored.Roots, IndexedFileCount: stored.IndexedFileCount, LastError: stored.LastError, Generation: stored.Generation, ConfigHash: stored.ConfigHash, RequiredRoots: len(c.OptionalRoots()) == 0, OptionalRoots: c.OptionalRoots()}
 	if stored.LastIndexedAtMS.Valid {
 		result.LastIndexedAt = time.UnixMilli(stored.LastIndexedAtMS.Int64).UTC().Format(time.RFC3339Nano)
 	}

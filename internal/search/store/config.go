@@ -22,6 +22,7 @@ const MaxSnapshotChunks = 20000
 type ScopeConfig struct {
 	workspace, scope, fingerprint, chunker string
 	roots, extensions                      []string
+	optionalRoots                          []string
 }
 
 func NewScopeConfig(workspace, scope string, roots, extensions []string, chunker string) (ScopeConfig, error) {
@@ -84,12 +85,7 @@ func NewScopeConfig(workspace, scope string, roots, extensions []string, chunker
 	if len(c.extensions) == 0 {
 		return c, fmt.Errorf("scope requires supported extensions")
 	}
-	raw, _ := json.Marshal(struct {
-		Roots, Extensions []string
-		Chunker           string
-		MaxBytes          int
-	}{c.roots, c.extensions, c.chunker, MaxDocumentBytes})
-	c.fingerprint = fmt.Sprintf("%x", sha256.Sum256(raw))
+	c.setFingerprint()
 	return c, nil
 }
 
@@ -110,6 +106,49 @@ func DefaultScopeConfig(workspace, scope string, extraRoots, extraExtensions []s
 	extensions := []string{".md", ".txt", ".ts", ".tsx", ".js", ".jsx", ".json", ".yaml", ".yml", ".sh", ".csv", ".xml", ".toml", ".env", ".py", ".go", ".rs"}
 	return NewScopeConfig(workspace, scope, roots, append(extensions, extraExtensions...), chunker)
 }
+
+// ConfiguredScopeConfig validates global optional roots against the all-scope
+// configuration, then applies only roots relevant to the requested scope. A
+// subroot cannot be optional under a scanned required parent (ambiguous cleanup).
+func ConfiguredScopeConfig(workspace, scope string, extraRoots, extraExtensions, optionalRoots []string, chunker string) (ScopeConfig, error) {
+	all, err := DefaultScopeConfig(workspace, "all", extraRoots, extraExtensions, chunker)
+	if err != nil {
+		return ScopeConfig{}, err
+	}
+	if len(optionalRoots) > 128 {
+		return ScopeConfig{}, fmt.Errorf("optional root limit exceeded")
+	}
+	for _, root := range optionalRoots {
+		if !localIndexPath(root) || root == "." || !slices.Contains(all.roots, root) {
+			return ScopeConfig{}, fmt.Errorf("optional root %q must be a distinct configured root", root)
+		}
+	}
+	c, err := DefaultScopeConfig(workspace, scope, extraRoots, extraExtensions, chunker)
+	if err != nil {
+		return c, err
+	}
+	for _, root := range optionalRoots {
+		if slices.Contains(c.roots, root) {
+			c.optionalRoots = append(c.optionalRoots, root)
+		}
+	}
+	slices.Sort(c.optionalRoots)
+	c.optionalRoots = slices.Compact(c.optionalRoots)
+	c.setFingerprint()
+	return c, nil
+}
+func (c *ScopeConfig) setFingerprint() {
+	raw, _ := json.Marshal(struct {
+		Roots, Extensions []string
+		Chunker           string
+		MaxBytes          int
+		OptionalRoots     []string `json:",omitempty"`
+	}{c.roots, c.extensions, c.chunker, MaxDocumentBytes, c.optionalRoots})
+	c.fingerprint = fmt.Sprintf("%x", sha256.Sum256(raw))
+}
+func (c ScopeConfig) OptionalRoots() []string         { return slices.Clone(c.optionalRoots) }
+func (c ScopeConfig) IsOptionalRoot(root string) bool { return slices.Contains(c.optionalRoots, root) }
+
 func localIndexPath(p string) bool {
 	return p != "" && len(p) <= 4096 && utf8.ValidString(p) && !strings.ContainsAny(p, "\\\x00") && !strings.Contains(p, ":") && !path.IsAbs(p) && path.Clean(p) != ".." && !strings.HasPrefix(path.Clean(p), "../") && path.Clean(p) == p
 }

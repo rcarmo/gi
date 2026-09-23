@@ -146,3 +146,37 @@ func TestLoadWrapsAgentsInstructionsInRuntimePrompt(t *testing.T) {
 		t.Fatalf("runtime guidance missing from prompt:\n%s", cfg.SystemPrompt)
 	}
 }
+
+func TestLoadWorkspaceIndexSettingsAreStartupOnlyAndPreserved(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".pi"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, ".pi/settings.json")
+	raw := []byte(`{"defaultModel":"test","workspaceIndex":{"extraRoots":["docs"],"extraExtensions":["nim"],"optionalRoots":["notes",".pi/skills"]}}`)
+	if err := os.WriteFile(path, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := Load(root)
+	if strings.Join(cfg.WorkspaceIndex.ExtraRoots, ",") != "docs" || strings.Join(cfg.WorkspaceIndex.ExtraExtensions, ",") != "nim" || len(cfg.WorkspaceIndex.OptionalRoots) != 2 {
+		t.Fatal(cfg.WorkspaceIndex)
+	}
+	if err := PersistModelSelection(root, "test", "test", "low", []string{"test"}); err != nil {
+		t.Fatal(err)
+	}
+	if next := Load(root); strings.Join(next.WorkspaceIndex.OptionalRoots, ",") != "notes,.pi/skills" {
+		t.Fatal("model save lost index settings", next.WorkspaceIndex)
+	}
+	if err := os.WriteFile(path, []byte(`{"workspaceIndex":{"extraRoots":["other"]}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.WorkspaceIndex.ExtraRoots[0] != "docs" {
+		t.Fatal("existing config mutated")
+	}
+	if next := Load(root); next.WorkspaceIndex.ExtraRoots[0] != "other" || len(next.WorkspaceIndex.OptionalRoots) != 0 {
+		t.Fatal(next.WorkspaceIndex)
+	}
+	if cfg := Load(t.TempDir()); len(cfg.WorkspaceIndex.ExtraRoots) != 0 || len(cfg.WorkspaceIndex.OptionalRoots) != 0 {
+		t.Fatal("non-strict defaults")
+	}
+}

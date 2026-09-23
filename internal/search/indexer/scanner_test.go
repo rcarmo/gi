@@ -367,3 +367,62 @@ func TestScanSuccessfulEmptyInventoryCleansOnlyItsScope(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestOptionalRootsAbsentAppearAndDisappear(t *testing.T) {
+	root, write := scanFixture(t)
+	write("docs/test.nim", "echo configured")
+	c, err := searchstore.ConfiguredScopeConfig(root, "all", []string{"docs"}, []string{"nim"}, []string{"notes", ".pi/skills"}, chunking.LineVersion)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap, err := ScanScope(t.Context(), c)
+	if err != nil || !snap.Complete || !reflect.DeepEqual(snap.MissingRoots, []string{".pi/skills", "notes"}) || len(snap.Documents) != 1 {
+		t.Fatal(snap, err)
+	}
+	// A missing ancestor is not recorded as visited; shared missing roots must
+	// each remain optional, and symlink replacements never qualify as missing.
+	snap, err = scanScope(t.Context(), c, defaultScanLimits(), func() { write("notes/new.md", "newly appeared") })
+	if err == nil || snap.Complete {
+		t.Fatal("appearance accepted", err)
+	}
+	write(".pi/skills/demo/SKILL.md", "skills work")
+	snap, err = ScanScope(t.Context(), c)
+	if err != nil || len(snap.MissingRoots) != 0 || len(snap.Documents) != 3 {
+		t.Fatal(snap, err)
+	}
+	db, err := core.Open(filepath.Join(t.TempDir(), "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	s := searchstore.NewRefreshStore(db.DB())
+	w := NewWorker(s)
+	if err := w.Run(t.Context(), c); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(root, "notes"), filepath.Join(root, "held")); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Run(t.Context(), c); err == nil || !strings.Contains(err.Error(), "disappeared") {
+		t.Fatal(err)
+	}
+	st, err := s.Status(t.Context(), c)
+	if err != nil || st.State != "failed" || st.Generation != 1 || st.IndexedFileCount != 3 {
+		t.Fatal(st, err)
+	}
+	if err := os.Rename(filepath.Join(root, "held"), filepath.Join(root, "notes")); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Run(t.Context(), c); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(root, ".pi")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(t.TempDir(), filepath.Join(root, ".pi")); err != nil {
+		t.Fatal(err)
+	}
+	if snap, err := ScanScope(t.Context(), c); err == nil || snap.Complete {
+		t.Fatal("symlink optional ancestor accepted")
+	}
+}

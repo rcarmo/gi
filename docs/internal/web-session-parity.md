@@ -1,5 +1,11 @@
 # Web session selection and compact TUI adaptation
 
+## Index startup settings and optional roots (2026-09-23)
+
+[ADR-0047](../adr/0047-index-settings-and-optional-roots.md) wires extra roots/extensions and explicit optional roots from `.pi/settings.json`. Native/browser evidence covers initial absence, changed configurations and retained index/drafts on populated-root disappearance with explicit retry. **498 browser**, **76 functional**, **32 helpers**, Go/vet/build/hook and config/search/web race ×3 pass. Meter capability timing is now gated on native claim cleanup without weaker assertions.
+
+No frozen credit: **45/236 Classic**, **2/42 shared**, **191/40 unmapped**. Background freshness, query consumers and terminal controls remain gaps; 17 derived proposals stay separate. Screenshots attached at all three browser sizes.
+
 ## Explicit native index API and web controls (2026-09-22)
 
 [ADR-0046](../adr/0046-native-workspace-index-api.md) connects authenticated scoped status/query/POST reindex to the verified worker and supplied Refresh/Reindex controls. Missing-root failure, durable retained results, explicit retry and draft/session/reload preservation pass natively and in all six browser projects. **492/492 browser**, **75/75 functional**, **32 helpers**, Go/vet/build/hook and search-store/indexer/web race ×3 pass. ENOSPC and WebKit reruns are documented.
