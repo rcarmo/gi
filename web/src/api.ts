@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { notifyModelSettlement } from './gi-model-invalidation.js';
 /**
  * api.ts — Gi API adapter.
  *
@@ -297,7 +298,13 @@ export async function getAgentModels(chatJid: string | null = null) {
 
 export async function selectAgentModel(chatJid: string, model: string) {
     if (!chatJid?.startsWith('gi:')) throw new Error('No model destination session');
-    return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/model`, { method: 'PATCH', body: JSON.stringify({ model }) });
+    try {
+        return await request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/model`, { method: 'PATCH', body: JSON.stringify({ model }) });
+    } finally {
+        // A transport failure can follow a committed native write. Notify only
+        // the captured session; consumers reread rather than replay responses.
+        notifyModelSettlement(chatJid);
+    }
 }
 
 export async function getAgentQueueState(chatJid: string | null = null) {

@@ -51,6 +51,9 @@ test.describe('App shell', () => {
     await expect(dialog.getByTestId('settings-current-model')).toContainText('test-model');
     await filter.fill('no-matching-model'); await expect(dialog.getByText('No matching models.', { exact: true })).toBeVisible();
     await filter.fill('');
+    const refresh = page.waitForResponse(r => r.url().includes('/model') && r.request().method() === 'GET');
+    await dialog.getByRole('button', { name: 'Refresh models', exact: true }).click(); await refresh;
+    await expect(dialog.getByRole('button', { name: 'Refresh models', exact: true })).toBeEnabled();
     expect(chunks.filter(url => url.includes('gi-settings-models-'))).toHaveLength(1);
     await dialog.getByRole('button', { name: 'Compaction', exact: true }).click();
     await expect(dialog.getByTestId('compaction-policy')).toContainText('Trigger threshold');

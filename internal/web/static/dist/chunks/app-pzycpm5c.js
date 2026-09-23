@@ -589,6 +589,27 @@ function useAgentState() {
   };
 }
 
+// web/src/gi-model-invalidation.ts
+var listeners = new Map;
+function subscribeModelSettlement(chatJid, listener) {
+  let scoped = listeners.get(chatJid);
+  if (!scoped)
+    listeners.set(chatJid, scoped = new Set);
+  scoped.add(listener);
+  return () => {
+    scoped.delete(listener);
+    if (!scoped.size && listeners.get(chatJid) === scoped)
+      listeners.delete(chatJid);
+  };
+}
+function notifyModelSettlement(chatJid) {
+  for (const listener of [...listeners.get(chatJid) || []]) {
+    try {
+      listener();
+    } catch {}
+  }
+}
+
 // web/src/gi-session-state.ts
 function sessionPickerAgents(sessions) {
   const byId = new Map(sessions.map((session) => [session.id, session]));
@@ -1094,7 +1115,11 @@ async function getAgentModels(chatJid = null) {
 async function selectAgentModel(chatJid, model) {
   if (!chatJid?.startsWith("gi:"))
     throw new Error("No model destination session");
-  return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/model`, { method: "PATCH", body: JSON.stringify({ model }) });
+  try {
+    return await request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/model`, { method: "PATCH", body: JSON.stringify({ model }) });
+  } finally {
+    notifyModelSettlement(chatJid);
+  }
 }
 async function getAgentQueueState(chatJid = null) {
   const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
@@ -17743,10 +17768,10 @@ function guardQuickActionsTyping(event) {
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-1fcfs9ee.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-t94xjryh.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-xh8xss9z.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-fmbrbggd.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-d2yntfj8.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-wya17n2j.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-vwm9pn9g.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-b03b1kam.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20026,6 +20051,7 @@ export {
   W_,
   Q_,
   fe,
+  subscribeModelSettlement,
   getAgentStatus,
   getSessionCompaction,
   compactSession,
@@ -20047,5 +20073,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=2C0AE811ED83176A64756E2164756E21
-//# sourceMappingURL=app-ks2qgcdv.js.map
+//# debugId=C5540B723A1D0BB064756E2164756E21
+//# sourceMappingURL=app-pzycpm5c.js.map

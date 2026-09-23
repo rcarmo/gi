@@ -119,7 +119,7 @@ test('@gi-settings-004 @gi-settings-005 @gi-settings-006 Native model confirmati
   expect((await (await request.get(`/api/sessions/${a}/turns`)).json()).turns || []).toHaveLength(0);
 });
 
-test('@gi-settings-007 A closed model write cannot overwrite another session settings or draft', async ({ page, request }, info) => {
+test('@gi-settings-007 @gi-settings-026 A closed model write cannot overwrite another session settings or draft', async ({ page, request }, info) => {
   const { a, b, input, open, models, switchTo, dialog } = await setup(page, request, info);
   await open(); await models(); await dialog.getByLabel('Session model', { exact: true }).selectOption('test/bootstrap');
   let release, entered = false, done; const gate = new Promise(resolve => { release = resolve; }), delivered = new Promise(resolve => { done = resolve; });
@@ -130,7 +130,11 @@ test('@gi-settings-007 A closed model write cannot overwrite another session set
   try {
     await dialog.getByRole('button', { name: 'Apply model' }).click(); await expect.poll(() => entered).toBe(true);
     await page.keyboard.press('Escape'); await switchTo(b); await input.fill('other settings draft');
-    await open(); await models(); release(); await delivered;
+    await open(); await models();
+    let crossReads = 0;
+    page.on('request', req => { if (req.method() === 'GET' && new URL(req.url()).pathname === `/api/sessions/${b}/model`) crossReads++; });
+    release(); await delivered; await page.waitForTimeout(100);
+    expect(crossReads).toBe(0);
     await expect(dialog.getByTestId('settings-current-model')).toHaveText('test/test-model'); await expect(dialog.getByRole('alert')).toHaveCount(0);
     if (process.env.GI_SETTINGS_CAPTURE && info.project.name.startsWith('chromium-')) {
       mkdirSync('test-results/gi-settings-captures', { recursive: true });
@@ -453,4 +457,74 @@ test('@gi-settings-019 A closed policy save cannot announce success in a new ses
     release(); const latest = await (await request.get('/api/settings/compaction')).json();
     expect((await request.patch('/api/settings/compaction', { data: { ...policyBody(before.saved), revision: latest.saved.revision } })).status()).toBe(200);
   }
+});
+
+test('@gi-settings-026 A commit after pane re-entry refreshes native state without replacing newer drafts', async ({ page, request }, info) => {
+  const { a, b, input, open, models, dialog } = await setup(page, request, info);
+  await open(); await models();
+  let release, entered = false; const gate = new Promise(resolve => { release = resolve; }); let reads = 0;
+  await page.route(`**/api/sessions/${a}/model`, async route => {
+    if (route.request().method() === 'GET') { reads++; return route.continue(); }
+    entered = true; await gate; await route.continue(); // Hold before native commit.
+  });
+  try {
+    await dialog.getByLabel('Session model', { exact: true }).selectOption('test/bootstrap');
+    await dialog.getByRole('button', { name: 'Apply model', exact: true }).click(); await expect.poll(() => entered).toBe(true);
+    await page.keyboard.press('Escape'); await open(); await models();
+    await expect(dialog.getByTestId('settings-current-model')).toHaveText('test/test-model');
+    const filter = dialog.getByLabel('Filter models', { exact: true }), select = dialog.getByLabel('Session model', { exact: true });
+    await filter.fill('test/'); await select.selectOption('test/unavailable-model');
+    const before = reads; release();
+    await expect(dialog.getByTestId('settings-current-model')).toHaveText('test/bootstrap'); expect(reads).toBeGreaterThan(before);
+    await expect(filter).toHaveValue('test/'); await expect(select).toHaveValue('test/unavailable-model');
+    await expect(dialog.getByText('Model applied to this session.', { exact: true })).toHaveCount(0);
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    expect((await (await request.get(`/api/sessions/${b}/model`)).json()).current).toBe('test/test-model');
+    await page.keyboard.press('Escape'); await expect(input).toHaveValue('settings draft');
+  } finally { release(); }
+});
+
+test('@gi-settings-026 Settlement fences an older held catalogue while a re-entered pane is loading', async ({ page, request }, info) => {
+  const { a, open, models, dialog } = await setup(page, request, info); await open(); await models();
+  let releaseWrite, releaseRead, writing = false, held = false, stale = false, done;
+  const writeGate = new Promise(r => { releaseWrite = r; }), readGate = new Promise(r => { releaseRead = r; }), delivered = new Promise(r => { done = r; });
+  await page.route(`**/api/sessions/${a}/model`, async route => {
+    if (route.request().method() === 'PATCH') { writing = true; await writeGate; return route.continue(); }
+    if (stale && !held) { const response = await route.fetch(); held = true; await readGate; await route.fulfill({ response }); done(); return; }
+    return route.continue();
+  });
+  try {
+    await dialog.getByLabel('Session model', { exact: true }).selectOption('test/bootstrap'); await dialog.getByRole('button', { name: 'Apply model', exact: true }).click(); await expect.poll(() => writing).toBe(true);
+    await dialog.getByRole('button', { name: 'General', exact: true }).click(); stale = true;
+    await dialog.getByRole('button', { name: 'Models', exact: true }).click(); await expect.poll(() => held).toBe(true);
+    await dialog.getByLabel('Filter models', { exact: true }).fill('bootstrap'); releaseWrite();
+    await expect(dialog.getByTestId('settings-current-model')).toHaveText('test/bootstrap');
+    releaseRead(); await delivered; await page.waitForTimeout(100);
+    await expect(dialog.getByTestId('settings-current-model')).toHaveText('test/bootstrap');
+    await expect(dialog.getByLabel('Filter models', { exact: true })).toHaveValue('bootstrap');
+    await expect(dialog.getByText('Model applied to this session.', { exact: true })).toHaveCount(0);
+  } finally { releaseWrite(); releaseRead(); }
+});
+
+test('@gi-settings-027 Lost accepted response and failed reread retain action errors until explicit recovery', async ({ page, request }, info) => {
+  const { a, open, models, dialog } = await setup(page, request, info); await open(); await models();
+  let failRead = false;
+  await page.route(`**/api/sessions/${a}/model`, async route => {
+    if (route.request().method() === 'PATCH') { const response = await route.fetch(); expect(response.status()).toBe(200); failRead = true; return route.abort(); }
+    if (failRead) return route.abort();
+    return route.continue();
+  });
+  await dialog.getByLabel('Session model', { exact: true }).selectOption('test/bootstrap'); await dialog.getByRole('button', { name: 'Apply model', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toHaveCount(2);
+  await expect(dialog.getByRole('button', { name: 'Apply model', exact: true })).toBeDisabled();
+  expect((await (await request.get(`/api/sessions/${a}/model`)).json()).current).toBe('test/bootstrap');
+  await dialog.getByLabel('Filter models', { exact: true }).fill('test/');
+  await dialog.getByLabel('Session model', { exact: true }).selectOption('test/unavailable-model');
+  failRead = false; await dialog.getByRole('button', { name: 'Retry', exact: true }).click();
+  await expect(dialog.getByTestId('settings-current-model')).toHaveText('test/bootstrap');
+  await expect(dialog.getByLabel('Session model', { exact: true })).toHaveValue('test/unavailable-model');
+  await expect(dialog.getByLabel('Filter models', { exact: true })).toHaveValue('test/');
+  await expect(dialog.getByRole('alert')).toHaveCount(1);
+  await expect(dialog.getByText('Model applied to this session.', { exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'Apply model', exact: true })).toBeEnabled();
 });

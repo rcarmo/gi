@@ -263,6 +263,27 @@ Feature: Gi settings backed by native capabilities
     Then the Models header filter is cleared and focused
     And a late Apply response from an earlier visit cannot unlock a newer pending Apply
 
+  @gi-settings-026
+  Scenario: Refresh a re-entered Models pane when a captured native write settles
+    Given a model Apply is pending for session A
+    And I reopen Models for A before that write commits
+    When the original request settles
+    Then the mounted pane reads A's authoritative model catalogue again
+    And it rejects catalogue replies started before that settlement
+    And newer filter and selected-model drafts remain unchanged
+    And no closed-pane success or error is replayed into the new pane
+    And a pane for another session is not refreshed by A's settlement
+
+  @gi-settings-027
+  Scenario: Reconcile uncertain writes and overlapping reads without false success
+    Given a native model write commits but its response is lost
+    When the originating request settles with an error
+    Then the mounted pane rereads native state and retains its separate action error
+    And a failed read disables Apply until an explicit Retry or Refresh succeeds
+    And read recovery does not clear action errors or newer model drafts
+    And a later overlapping write or session switch supersedes earlier reads
+    And unmounted panes retain no listener or cached model snapshot
+
   @proposal @gi-settings-next-004
   Scenario: Add browser OAuth only with provider-specific native login and refresh lifecycle
     Given a provider has a supported browser login contract with bounded lifetime and cancellation

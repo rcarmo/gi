@@ -4,10 +4,11 @@ import {
   W_,
   Q_,
   fe,
+  subscribeModelSettlement,
   getAgentModels,
   selectAgentModel,
   modelContextBlocked
-} from "./app-ks2qgcdv.js";
+} from "./app-pzycpm5c.js";
 
 // web/src/gi-settings-models.ts
 function Models({ chatJid, filter = "", onMutationStart, onMutationEnd, onApplied }) {
@@ -17,46 +18,74 @@ function Models({ chatJid, filter = "", onMutationStart, onMutationEnd, onApplie
   const [notice, setNotice] = F_("");
   const [busy, setBusy] = F_(false);
   const [attempt, setAttempt] = F_(0);
+  const [reading, setReading] = F_(true);
+  const [readError, setReadError] = F_("");
+  const generation = Q_(0);
+  const readPending = Q_(true);
+  const dirty = Q_(false);
   const mounted = Q_(false);
   const saving = Q_(false);
   const previousFilter = Q_(filter);
-  K_(() => {
+  W_(() => {
     mounted.current = true;
+    const unsubscribe = subscribeModelSettlement(chatJid, () => {
+      generation.current++;
+      readPending.current = true;
+      setReading(true);
+      setAttempt((value) => value + 1);
+    });
     return () => {
       mounted.current = false;
+      generation.current++;
+      unsubscribe();
     };
-  }, []);
+  }, [chatJid]);
   W_(() => {
     if (previousFilter.current !== filter) {
       previousFilter.current = filter;
+      dirty.current = true;
       setChosen("");
       setNotice("");
     }
   }, [filter]);
   K_(() => {
-    let live = true;
-    setData(null);
-    setError("");
-    setNotice("");
+    if (saving.current)
+      return;
+    const request = ++generation.current;
+    readPending.current = true;
+    setReading(true);
+    setReadError("");
     getAgentModels(chatJid).then((snapshot) => {
-      if (live) {
+      if (mounted.current && request === generation.current) {
         setData(snapshot);
-        setChosen(snapshot.current);
+        if (!dirty.current)
+          setChosen(snapshot.current);
+        readPending.current = false;
+        setReading(false);
       }
     }).catch((error) => {
-      if (live)
-        setError(error.message);
+      if (mounted.current && request === generation.current) {
+        setReadError(error.message);
+        setReading(false);
+      }
     });
     return () => {
-      live = false;
+      if (request === generation.current)
+        generation.current++;
     };
-  }, [chatJid, attempt]);
+  }, [chatJid, attempt, busy]);
+  function refresh() {
+    generation.current++;
+    readPending.current = true;
+    setReading(true);
+    setAttempt((value) => value + 1);
+  }
   const options = data?.model_options || data?.models || [];
   const matching = options.filter((option) => `${option.label || option.id} ${option.provider || ""}`.toLowerCase().includes(filter.trim().toLowerCase()));
   const selected = options.find((option) => (option.label || option.id) === chosen);
   const blocked = modelContextBlocked({ contextWindow: selected?.context_window ?? selected?.contextWindow }, data?.context_usage);
   async function apply() {
-    if (saving.current || !data || !selected || blocked || chosen === data.current)
+    if (saving.current || readPending.current || !data || !selected || blocked || chosen === data.current)
       return;
     saving.current = true;
     setBusy(true);
@@ -66,7 +95,7 @@ function Models({ chatJid, filter = "", onMutationStart, onMutationEnd, onApplie
     try {
       const result = await selectAgentModel(chatJid, chosen);
       if (mounted.current) {
-        setData((previous) => ({ ...previous, ...result }));
+        dirty.current = false;
         setChosen(result.current);
         setNotice("Model applied to this session.");
         onApplied(result, token);
@@ -85,13 +114,16 @@ function Models({ chatJid, filter = "", onMutationStart, onMutationEnd, onApplie
         <h2 id="gi-models-title">Models</h2>
         <p>Session settings · <code>${chatJid}</code></p>
         <p>Changes affect this session only. Instance defaults and other sessions are unchanged.</p>
-        ${!data && !error && fe`<p role="status">Loading models…</p>`}
-        ${error && fe`<div role="alert">${error}${!data && fe` <button onClick=${() => setAttempt((x) => x + 1)}>Retry</button>`}</div>`}
+        ${reading && fe`<p role="status">${data ? "Refreshing models…" : "Loading models…"}</p>`}
+        ${readError && fe`<div role="alert">${readError} <button disabled=${busy || reading} onClick=${refresh}>Retry</button></div>`}
+        ${error && fe`<div role="alert">${error}</div>`}
+        <button disabled=${busy || reading} onClick=${refresh}>Refresh models</button>
         ${data && fe`
             <dl class="gi-settings-values"><dt>Current model</dt><dd data-testid="settings-current-model">${data.current}</dd>
             <dt>Thinking (read-only)</dt><dd>${data.thinking_level || "Unknown"}</dd>
             <dt>Context capacity</dt><dd data-testid="settings-context-capacity">${Number.isFinite(data.context_window) && data.context_window > 0 ? data.context_window : "Unknown"}</dd></dl>
             <label>Session model<select aria-label="Session model" value=${chosen} disabled=${busy} onChange=${(e) => {
+    dirty.current = true;
     setChosen(e.target.value);
     setNotice("");
   }}>
@@ -101,7 +133,7 @@ function Models({ chatJid, filter = "", onMutationStart, onMutationEnd, onApplie
             ${matching.length > 50 && fe`<p>Showing 50 of ${matching.length} models. Refine the filter.</p>`}
             ${matching.length === 0 && fe`<p>No matching models.</p>`}
             ${blocked && fe`<p role="status">This model cannot fit the measured context. Compact the session before changing models.</p>`}
-            <button disabled=${busy || !selected || blocked || chosen === data.current} onClick=${apply}>${busy ? "Applying…" : "Apply model"}</button>
+            <button disabled=${busy || reading || !!readError || !selected || blocked || chosen === data.current} onClick=${apply}>${busy ? "Applying…" : "Apply model"}</button>
             ${notice && fe`<p role="status">${notice}</p>`}
         `}
     </section>`;
@@ -110,5 +142,5 @@ export {
   Models
 };
 
-//# debugId=2C01FA557241079164756E2164756E21
-//# sourceMappingURL=gi-settings-models-1fcfs9ee.js.map
+//# debugId=1F115AFE0558409064756E2164756E21
+//# sourceMappingURL=gi-settings-models-d2yntfj8.js.map
