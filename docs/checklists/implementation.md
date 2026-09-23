@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Shared31/32 native model-picker pointer/keyboard typeahead, real registry32K/200ctx and measured100tokens, held PATCH200 confirmation, retained text/media/file/exact message refs, reload/other-session isolation. Six-project context+shared30/functional85/helpers51/Go-vet-build-hook; Classic81/236+shared8/42 unmapped155/34. Test-only/no restart; Alt-M evidence separate/no idle rows.
+
 - [x] Shared23/24 session-picker pointer/Enter opening: insertion/first-frame focus, both native triggers, composer-relative geometry/resize, native-ID search/Escape restore/draft and session unchanged. Dedicated12/fullsession114/functional85/helpers51/Go-vet-build-hook; Classic81/236+shared6/42 unmapped155/36. Test-only/no restart or new Alt-S credit. Mobile001 fixture now waits for native idle before tail-order assertion.
 
 - [x] Shared29 durable adjacent queue reorder and native consumed-active DELETE409 reconciliation: other-session queue equality/two drafts/reload/final FIFO proof; dedicated6/fullqueue42/functional85/helpers51/Go-vet-build-hook. Classic81/236+shared4/42 unmapped155/38. Test-only, no restart/TUI credit; compact terminal queue actions remain design-only.

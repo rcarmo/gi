@@ -96,3 +96,51 @@ if(process.env.GI_UX_SETTINGS_CATALOGUE){
   await page.keyboard.press('Escape');await expect(input).toHaveValue('bounded catalogue draft');
  });
 }
+
+for(const [id,method] of [['@shared-31','pointer'],['@shared-32','keyboard']]) test(`${id} Search native model capabilities and accept a session-only change using ${method}`,async({page,request},info)=>{
+ const source=loadCorpus('shared').find(row=>row.id===id);expect(source).toBeTruthy();expect(source.steps.join('\n')).toContain(method);await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
+ const{main,child,input,state,modelButton,menu,option,switchTo}=await fixture(page,request,info);
+ await expect.poll(async()=>(await(await request.get(`/api/sessions/${main.id}`)).json()).state.status).toBe('idle');
+ const initial=await state(),otherBefore=await state(child);
+ const find=label=>initial.model_options.find(o=>o.label===label);
+ expect(find('ux-local/gate')).toMatchObject({provider:'ux-local',context_window:32000,authenticated:true});
+ expect(find('ux-local/large')).toMatchObject({provider:'ux-local',context_window:200,authenticated:true});
+ const filename=`shared-model-${method}-${info.project.name}.txt`;
+ const written=await request.post('/api/tools/execute',{data:{tool:'write',input:{path:filename,content:'retain file reference bytes'}}});expect(written.ok()).toBe(true);expect((await written.json()).error).toBeFalsy();
+ await page.getByRole('button',{name:'Menu',exact:true}).click();
+ const show=page.getByRole('menuitem',{name:'Show workspace',exact:true});if(await show.count())await show.click();else await page.keyboard.press('Escape');
+ await page.locator(`.workspace-row[data-path="${filename}"]`).click();
+ await page.locator('.workspace-toggle-tab.open').click();
+ const referenceLink=page.locator('.post .post-time').first();
+ const referenceId=(await referenceLink.getAttribute('href')).replace(/^#msg-/,'');expect(referenceId).toBeTruthy();
+ await referenceLink.click();
+ await page.locator('.compose-box input[type=file]').setInputFiles({name:'shared-model-draft.txt',mimeType:'text/plain',buffer:Buffer.from('shared model retained media')});
+ await input.fill('shared model unsent text');
+ const draftLabels=await page.locator('.compose-file-pill').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('title')));
+ expect(draftLabels).toContain(filename);expect(draftLabels).toContain('shared-model-draft.txt');expect(draftLabels).toContain(`Message reference: ${referenceId}`);await expect(page.locator('.compose-file-pill[title^="Message reference:"]')).toHaveCount(1);
+ let release,held=false;const gate=new Promise(r=>{release=r;});let patches=0;
+ await page.route(`**/api/sessions/${main.id}/model`,async route=>{
+  if(route.request().method()!=='PATCH')return route.continue();
+  patches++;expect(route.request().postDataJSON()).toEqual({model:'ux-local/large'});
+  const response=await route.fetch();expect(response.status()).toBe(200);expect(await response.json()).toMatchObject({current:'ux-local/large',context_window:200});held=true;await gate;await route.fulfill({response});
+ });
+ try {
+  if(method==='pointer')await modelButton.click();else{await modelButton.focus();await modelButton.press('Enter');}
+  await expect(menu).toBeVisible();await expect(option('ux-local/gate')).toBeVisible();await expect(option('ux-local/gate')).toHaveAttribute('title','ux-local/gate • 32K ctx');await expect(option('ux-local/large')).toBeVisible();
+  // The supplied picker performs incremental native typeahead, not a fabricated
+  // filter field. Nonmatching catalogue rows remain visible and unmodified.
+  await page.keyboard.type('large');await expect(menu.locator('.compose-model-popup-item.active')).toContainText('ux-local/large');
+  await expect(option('ux-local/large')).toHaveAttribute('title','ux-local/large • 200 ctx');
+  if(method==='pointer')await option('ux-local/large').click();else await page.keyboard.press('Enter');
+  await expect.poll(()=>held).toBe(true);expect(patches).toBe(1);
+  await expect(modelButton).toHaveText('Switching…');await expect(modelButton).toBeDisabled();await expect(menu.locator('.current-model')).toContainText('ux-local/gate');await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label','Context: 100 / 32K tokens (0%)');
+  release();await expect(menu).toHaveCount(0);await expect(modelButton).toHaveText('ux-local/large');await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label','Context: 100 / 200 tokens (50%)');
+  expect((await state()).current).toBe('ux-local/large');expect((await state()).context_usage).toMatchObject({tokens:100,contextWindow:200});expect(await state(child)).toEqual(otherBefore);
+  await expect(input).toHaveValue('shared model unsent text');expect(await page.locator('.compose-file-pill').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('title')))).toEqual(draftLabels);await expect(page.locator('.compose-file-pill[title^="Message reference:"]')).toHaveCount(1);
+  await page.unroute(`**/api/sessions/${main.id}/model`);await page.reload();await expect(modelButton).toHaveText('ux-local/large');await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label','Context: 100 / 200 tokens (50%)');
+  await expect(input).toHaveValue('shared model unsent text');expect(await page.locator('.compose-file-pill').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('title')))).toEqual(draftLabels);await expect(page.locator('.compose-file-pill[title^="Message reference:"]')).toHaveCount(1);
+  await switchTo(child);await expect(modelButton).toHaveText(otherBefore.current);await expect(input).toHaveValue('');await expect(page.locator('.compose-file-pill')).toHaveCount(0);
+  await switchTo(main.id);await expect(input).toHaveValue('shared model unsent text');await expect(modelButton).toHaveText('ux-local/large');expect(await page.locator('.compose-file-pill').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('title')))).toEqual(draftLabels);await expect(page.locator('.compose-file-pill[title^="Message reference:"]')).toHaveCount(1);
+  expect((await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns).toHaveLength(1);expect((await(await request.get(`/api/sessions/${child}/turns`)).json()).turns||[]).toHaveLength(0);
+ } finally {release();}
+});
