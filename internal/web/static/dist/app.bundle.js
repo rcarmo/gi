@@ -1,5 +1,5 @@
 // web/src/gi-bootstrap.ts
-import("./chunks/app-w993ffhe.js").catch(() => {
+import("./chunks/app-vjt3p2fy.js").catch(() => {
   const host = document.getElementById("app");
   if (host)
     host.textContent = "Unable to load Gi. Reload the page to retry.";

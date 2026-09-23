@@ -17768,10 +17768,10 @@ function guardQuickActionsTyping(event) {
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-09885kdb.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-8h12rmzn.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-p7x8yf3s.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-af06455p.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-v9pycwd3.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-33d8gqv1.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-fya9m844.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-gk1mzxk8.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -19529,14 +19529,20 @@ function GiApp() {
     if (!ready || !currentChatJid || !timelineRef.current)
       return;
     const timeline = timelineRef.current;
+    const surface = containerRef.current;
+    if (!surface || timeline.parentElement !== surface)
+      return;
     const preserveSelection = (event) => {
-      if (window.getSelection()?.toString())
+      const target = event.target instanceof Element ? event.target : null;
+      const eligibleSurface = target && (timeline.contains(target) || target.closest(".agent-status-panel")?.parentElement === surface);
+      if (!eligibleSurface || window.getSelection()?.toString())
         event.stopImmediatePropagation();
     };
-    timeline.addEventListener("touchstart", preserveSelection, true);
-    timeline.addEventListener("wheel", preserveSelection, true);
+    surface.addEventListener("pointerdown", preserveSelection);
+    surface.addEventListener("touchstart", preserveSelection);
+    surface.addEventListener("wheel", preserveSelection);
     const detach = attachChatSwipeNavigation({
-      timelineRef,
+      timelineRef: { current: surface },
       activeChatAgents,
       currentChatJid,
       onSwitch: handleSwitchChat,
@@ -19545,8 +19551,9 @@ function GiApp() {
     });
     return () => {
       detach();
-      timeline.removeEventListener("touchstart", preserveSelection, true);
-      timeline.removeEventListener("wheel", preserveSelection, true);
+      surface.removeEventListener("pointerdown", preserveSelection);
+      surface.removeEventListener("touchstart", preserveSelection);
+      surface.removeEventListener("wheel", preserveSelection);
     };
   }, [ready, currentChatJid, activeChatAgents, handleSwitchChat, posts.length === 0]);
   const handleCreateSession = Y_(async () => {
@@ -20073,5 +20080,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=A74A6C6EC75AA40764756E2164756E21
-//# sourceMappingURL=app-w993ffhe.js.map
+//# debugId=D71E0A0BAC8EE25F64756E2164756E21
+//# sourceMappingURL=app-vjt3p2fy.js.map

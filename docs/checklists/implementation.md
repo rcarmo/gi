@@ -10,6 +10,9 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [ ] Status swipe mobile003: bounded conversation-host listener admits timeline/direct-child status only; native draft/thought links, selection/vertical/composer/Settings and excluded pen/default proof. Panels12/session102/steer18/functional85/helpers48/Go-vet-build-hook pass; Classic76/236+shared3/42 unmapped160/39. Commit/deploy pending; TUI unchanged/no idle rows.
+- [ ] Streaming status expansion: host supplies totalLines=0 and no-op toggle for preview panels; derive native line-count/expanded-state contract before claiming truncation/expansion parity. Links, not absent buttons, provide current swipe passthrough evidence.
+
 - [x] Frozen mobile004 native pinned/active/ordinary order and archive/dedup acceptance: dedicated6/mixed30/session96/functional83/helpers47/Go-vet-build-hook; Classic75/236+shared3/42 unmapped161/39. Test-only, no runtime restart or new TUI credit. Gesture assertions wait for visible native catalogue activation.
 - [x] Rapid swipe activation: host layout-effect listener replacement fixes previous-session closure on next-frame reverse; supplied helper/draft/generation code unchanged. Red→green6/browser102/functional84/helpers48/Go-vet-build-hook; held B timeline/media/drafts proof; pushbb92551/restart8090, live4transitions/draft restored/no writes/errors,61sessions/integrity/FK OK. No new parity/TUI credit.
 - [x] Stabilise TestProcessSystemDirectWhileActiveSteersSameSession fixture: isolated temporary DB, setup gate and runner-lock cleanup join; original same-turn/role/metadata assertions intact. Repeat100/race50/fullGo-vet-build-hook/support48/functional84 pass; review found no issues. Test-only, no production scheduling or parity/TUI change.

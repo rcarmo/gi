@@ -19,3 +19,13 @@ Feature: Gi swipe listener ownership during session activation
     Then A's timeline, draft and attachment remain selected
     And no B message is rendered into A's timeline
     And no additional turn is submitted to either session
+
+  @gi-swipe-003
+  Scenario: Streaming status passthrough stays inside the conversation surfaces
+    Given native draft and thought streams render interactive links in their status panels
+    When an eligible horizontal contact begins on either link
+    Then the unchanged swipe resolver selects the adjacent native session
+    And selected text and vertical contacts still prevent navigation
+    And composer and Settings controls cannot initiate session navigation
+    And excluded input targets retain their own touch and wheel handlers and defaults
+    And the originating unsent draft returns unchanged

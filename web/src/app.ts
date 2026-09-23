@@ -750,22 +750,31 @@ function GiApp() {
     useLayoutEffect(() => {
         if (!ready || !currentChatJid || !timelineRef.current) return;
         const timeline = timelineRef.current;
-        // Existing text selections belong to the reader, not the chat carousel.
-        // Capture before the supplied listener; leave its target and ordering rules intact.
+        const surface = containerRef.current as HTMLElement;
+        if (!surface || timeline.parentElement !== surface) return;
+        // Status panels are timeline siblings. Delegate through their common
+        // host, but admit starts only on those surfaces, never composer, queue,
+        // search or workspace chrome. Supplied target/direction rules still run.
         const preserveSelection = (event: Event) => {
-            if (window.getSelection()?.toString()) event.stopImmediatePropagation();
+            const target = event.target instanceof Element ? event.target : null;
+            const eligibleSurface = target && (timeline.contains(target) || target.closest('.agent-status-panel')?.parentElement === surface);
+            if (!eligibleSurface || window.getSelection()?.toString()) event.stopImmediatePropagation();
         };
-        timeline.addEventListener('touchstart', preserveSelection, true);
-        timeline.addEventListener('wheel', preserveSelection, true);
+        // Run on this host before the supplied listeners, after target handlers
+        // so excluded inputs keep their own touch/wheel behaviour.
+        surface.addEventListener('pointerdown', preserveSelection);
+        surface.addEventListener('touchstart', preserveSelection);
+        surface.addEventListener('wheel', preserveSelection);
         const detach = attachChatSwipeNavigation({
-            timelineRef, activeChatAgents, currentChatJid,
+            timelineRef: { current: surface }, activeChatAgents, currentChatJid,
             onSwitch: handleSwitchChat, isIOSDevice,
             isLikelySafari: isLikelySafariBrowser,
         });
         return () => {
             detach();
-            timeline.removeEventListener('touchstart', preserveSelection, true);
-            timeline.removeEventListener('wheel', preserveSelection, true);
+            surface.removeEventListener('pointerdown', preserveSelection);
+            surface.removeEventListener('touchstart', preserveSelection);
+            surface.removeEventListener('wheel', preserveSelection);
         };
     }, [ready, currentChatJid, activeChatAgents, handleSwitchChat, posts.length === 0]);
 

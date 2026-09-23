@@ -69,7 +69,14 @@ func main() {
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		emit := func(v any) { b, _ := json.Marshal(v); fmt.Fprintf(w, "data: %s\n\n", b); w.(http.Flusher).Flush() }
-		emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"role": "assistant", "content": "provider checkpoint"}, "finish_reason": nil}}})
+		content := "provider checkpoint"
+		if strings.Contains(string(raw), "UX status panels") {
+			// Interactive links reach the unchanged status component through the
+			// real provider parser and native thought/draft SSE path.
+			emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"role": "assistant", "reasoning_content": "Native thought [details](https://example.invalid/thought)"}, "finish_reason": nil}}})
+			content = "Native draft [details](https://example.invalid/draft)"
+		}
+		emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"role": "assistant", "content": content}, "finish_reason": nil}}})
 		if len(match) > 1 {
 			token := match[1]
 			mu.Lock()
