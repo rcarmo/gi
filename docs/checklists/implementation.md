@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-24
 
+- [x] Verify Settings002 independently: uncached shell/header/navigation/General before held native snapshot, native values after release,503Retry recovery and exact persisted draft/media/session/no-write protection.216Settings browser/98standard functional (2seed-dependent cases skipped)/96helpers1175assertions/Go-vet-hook/review pass. Coverage96/236+30/42 unmapped140/12; test-only/no restart or terminal/pane-behaviour credit.
+
 - [x] Persist recovered final-response marker from exact session/turn native stale-claim requeue events; successful shell and inference share stored/live blocks, ordinary/held/terminal-release recovery excluded. Guarded Post adapter places existing chips after timestamp. Timeline026 six-project geometry/reload/search/draft-media proof:54browser+1seededfunctional/98standardfunctional/96helpers1170assertions/Go-vet-hook/recovery race x3/sixTUI timing regressions pass. Coverage95/236+30/42 unmapped141/12; timeout semantics and terminal outcome display separate.
 
 - [x] Project bounded stored HTTP(S) resource-link and text-only preview metadata through supplied Post cards; reject credentials/executable schemes, omit remote images, retain existing media/card handling. Timeline025 actual pointer/keyboard popup opener/referrer and reload/search/draft-media proof passes6projects;60browser +1seeded functional/98standard functional (seed case separately skipped)/95helpers1159assertions/Go-vet-hook pass. Coverage94/236+30/42 unmapped142/12; no URL discovery/fetch/general block safety or terminal credit.

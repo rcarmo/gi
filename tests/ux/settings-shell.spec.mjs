@@ -300,3 +300,34 @@ for(const id of ['@ux-settings-001','@ux-settings-dialog-002']) test(`${id} Nati
  }finally{release();}
  expect(mutations).toEqual([]);await page.reload();await f.unchanged();await expect(page.locator('.compose-file-pill[title="settings-cache.txt"]')).toHaveCount(1);expect(await stored()).toEqual(draft);
 });
+
+test('@ux-settings-002 uncached General keeps the native loading shell and recovers a failed shared read',async({page,request},info)=>{
+ await source(info,'@ux-settings-002');const f=await setup(page,request,info);
+ const bytes=Buffer.from('settings loading retained β');await page.locator('.compose-box input[type=file]').setInputFiles({name:'loading-ref.txt',mimeType:'text/plain',buffer:bytes});
+ const initial=(await(await request.get(`/api/sessions/${f.id}`)).json());const native=(await(await request.get('/api/runtime/config')).json());
+ const mutations=[];page.on('request',r=>{if(!['GET','HEAD'].includes(r.method())&&/\/api\/(sessions|settings)/.test(new URL(r.url()).pathname))mutations.push(r.url());});
+ let release;const gate=new Promise(r=>release=r);let held=false;
+ await page.route('**/api/runtime/config',async route=>{const response=await route.fetch();expect(response.status()).toBe(200);held=true;await gate;await route.fulfill({response});},{times:1});
+ const dialog=page.getByRole('dialog',{name:'Gi Settings',exact:true});
+ try{
+  const opened=Date.now();await page.keyboard.press('Control+,');await expect(dialog).toBeVisible();await expect.poll(()=>held).toBe(true);await expect(dialog.getByRole('status').filter({hasText:'Loading settings…'})).toBeVisible();expect(Date.now()-opened).toBeLessThan(1000);
+  await expect(dialog.locator('.settings-dialog-header')).toBeVisible();await expect(dialog.getByRole('navigation',{name:'Settings sections'})).toBeVisible();await expect(dialog.locator('.settings-nav-item.active')).toHaveText('General');await expect(dialog.getByRole('heading',{name:'General',exact:true})).toBeVisible();await expect(dialog.locator('.gi-settings-values')).toHaveCount(0);
+  release();await expect(dialog.locator('.gi-settings-values')).toBeVisible();await expect(dialog.getByText('Loading settings…',{exact:true})).toHaveCount(0);await expect(dialog.locator('.settings-nav-item.active')).toHaveText('General');
+  const values=dialog.locator('.gi-settings-values');for(const value of [native.assistant_name,native.user_name,native.workspace_root,native.current||native.default_model])await expect(values).toContainText(value);
+  await info.attach('settings-loaded',{body:await page.screenshot(),contentType:'image/png'});await page.keyboard.press('Escape');await expect(f.input).toHaveValue('frozen settings draft');
+ }finally{release();await page.unrouteAll({behavior:'wait'});}
+ // A fresh document clears the code-local General cache. Fail only the
+ // explicit Settings read after bootstrap, then retry against the native API.
+ await page.reload();await expect(f.input).toBeVisible();await page.route('**/api/runtime/config',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'fixture snapshot unavailable'})}),{times:1});
+ await page.keyboard.press('Control+,');await expect(dialog).toBeVisible();await expect(dialog.getByRole('alert')).toContainText('fixture snapshot unavailable');await expect(dialog.locator('.settings-nav-item.active')).toHaveText('General');await expect(dialog.locator('.gi-settings-values')).toHaveCount(0);
+ await dialog.getByRole('button',{name:'Retry',exact:true}).click();await expect(dialog.locator('.gi-settings-values')).toContainText(native.workspace_root);await expect(dialog.getByRole('alert')).toHaveCount(0);await page.keyboard.press('Escape');
+ await expect(f.input).toHaveValue('frozen settings draft');await expect(page.locator('.compose-box')).toContainText('loading-ref.txt');
+ const saved=await page.evaluate(id=>new Promise((resolve,reject)=>{
+  const db=indexedDB.open('gi-session-drafts',1);db.onsuccess=()=>{
+   const q=db.result.transaction('drafts').objectStore('drafts').get(id);
+   q.onsuccess=()=>{try{const d=q.result.draft;const media=d.media.map(m=>({name:m.name,bytes:Array.from(new Uint8Array(m.bytes))}));db.result.close();resolve({text:d.text,media});}catch(error){reject(error);}};
+   q.onerror=()=>reject(q.error);
+  };db.onerror=()=>reject(db.error);
+ }),f.id);
+ expect(saved).toEqual({text:'frozen settings draft',media:[{name:'loading-ref.txt',bytes:[...bytes]}]});expect(mutations).toEqual([]);expect((await(await request.get(`/api/sessions/${f.id}`)).json())).toEqual(initial);expect((await(await request.get(`/api/sessions/${f.id}/turns`)).json()).turns||[]).toEqual([]);
+});
