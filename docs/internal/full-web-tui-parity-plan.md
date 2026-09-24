@@ -841,3 +841,9 @@ pending refs keep their independent admission/detach behaviour; multipart retry
 reuse adds no terminal rows, functionality or acceptance credit. Evidence logs:
 `/workspace/tmp/gi-media-reuse-{regression-final,functional,standard,race-full,process,support}.log`;
 `test-results/ux-parity/media-retry-results.json` includes six-project shared39.
+
+Deployed `7a79e11` to port 8090 (PID 1202304). Guarded six-size Chromium/WebKit
+read-only preview/pin/draft smoke passed with zero API mutation attempts/page
+errors. Session API returned 200/62 sessions; SQLite integrity `ok`, FK check
+empty, working tree clean. No live media upload/deduplication was exercised.
+Results attached as `/workspace/tmp/gi-media-reuse-evidence.tar.gz`.
