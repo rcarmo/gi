@@ -14716,6 +14716,49 @@ function SystemMetersHud({ mode = "overlay" }) {
     `;
 }
 
+// web/src/gi-menu-dismissal.ts
+function bindMenuDismissal(menu, trigger, close) {
+  const doc = menu.ownerDocument;
+  const inside = (event) => event.composedPath().some((node) => node === menu || node === trigger);
+  const finish = () => {
+    close();
+    if (trigger.isConnected && !trigger.hasAttribute("disabled"))
+      trigger.focus({ preventScroll: true });
+  };
+  const outsideStart = (event) => {
+    if (inside(event))
+      return;
+    if (event.type === "mousedown")
+      event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  const click = (event) => {
+    if (inside(event))
+      return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    finish();
+  };
+  const key = (event) => {
+    if (event.key !== "Escape" || event.isComposing)
+      return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    finish();
+  };
+  const events = ["pointerdown", "pointerup", "mousedown", "mouseup", "touchstart", "touchend"];
+  for (const name of events)
+    doc.addEventListener(name, outsideStart, true);
+  doc.addEventListener("click", click, true);
+  doc.addEventListener("keydown", key, true);
+  return () => {
+    for (const name of events)
+      doc.removeEventListener(name, outsideStart, true);
+    doc.removeEventListener("click", click, true);
+    doc.removeEventListener("keydown", key, true);
+  };
+}
+
 // web/src/ui/recent-files.ts
 var RECENT_FILES_KEY = "piclaw_recent_files";
 var MAX_RECENT_FILES = 5;
@@ -16921,29 +16964,6 @@ function TimelineMenu({
     s.right = "auto";
   }, [pos]);
   K_(() => {
-    if (!open)
-      return;
-    const onClick = (e) => {
-      if (menuRef.current?.contains(e.target))
-        return;
-      if (btnRef.current?.contains(e.target))
-        return;
-      setOpen(false);
-    };
-    document.addEventListener("mousedown", onClick, true);
-    return () => document.removeEventListener("mousedown", onClick, true);
-  }, [open]);
-  K_(() => {
-    if (!open)
-      return;
-    const onKey = (e) => {
-      if (e.key === "Escape")
-        setOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
-  K_(() => {
     setOpen(false);
   }, [workspaceOpen]);
   K_(() => {
@@ -17092,6 +17112,11 @@ function TimelineMenu({
     if (portalRef.current)
       G_(content, portalRef.current);
   });
+  W_(() => {
+    if (!open || !menuRef.current || !btnRef.current)
+      return;
+    return bindMenuDismissal(menuRef.current, btnRef.current, () => setOpen(false));
+  }, [open]);
   return null;
 }
 
@@ -17859,10 +17884,10 @@ function guardQuickActionsTyping(event) {
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-5sckvw4p.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-fyqs77v5.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-3fjtdrxd.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-fr7gj2sn.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-7wakxv26.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-9633hxhm.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-kbdyzp6p.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-8q92g8hr.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20196,5 +20221,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=5B96CB0816C033B064756E2164756E21
-//# sourceMappingURL=app-8wj413rz.js.map
+//# debugId=99DF80FCFBE4D28264756E2164756E21
+//# sourceMappingURL=app-2bmzx68j.js.map
