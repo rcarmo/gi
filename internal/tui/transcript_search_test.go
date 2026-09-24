@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	gotui "github.com/grindlemire/go-tui"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -53,7 +54,8 @@ func TestTranscriptSearchIndexesVisibleRenderingAndRestoresEditor(t *testing.T) 
 			c.renderTranscriptSearchRows(el)
 			buf := gotui.NewBuffer(width, 30)
 			el.Render(buf, width, 30)
-			if buf.Cell(0, c.search.matches[0]).Style.Bg != piText {
+			match := c.search.matches[0]
+			if buf.Cell(match.start, match.row).Style.Bg != piText {
 				t.Fatal("current match highlight absent")
 			}
 			c.closeTranscriptSearch()
@@ -155,5 +157,116 @@ func TestTranscriptSearchRowsMatchActualScrollLayout(t *testing.T) {
 		if c.transcriptScroll != promptRows[0] {
 			t.Fatal("prompt position not synchronized")
 		}
+	}
+}
+
+func TestTranscriptSearchOccurrencesDisplayCellsAndNavigation(t *testing.T) {
+	for _, width := range []int{60, 100, 140} {
+		t.Run(fmt.Sprint(width), func(t *testing.T) {
+			c := sessionTestChat(t)
+			c.outputWidth = width
+			c.ensureInput()
+			c.input.SetText("draft 中文")
+			c.input.cursorPos = 3
+			c.transcript = []string{"sys: İ界 e\u0301 İ界 e\u0301 aaAAA [x](https://example.invalid/aaa)"}
+			c.toggleTranscriptSearch()
+			c.refreshTranscriptSearch(width)
+			cases := []struct {
+				query string
+				want  []transcriptSearchMatch
+			}{
+				{"i", []transcriptSearchMatch{{0, 5, 6}, {0, 11, 12}, {0, 43, 44}, {0, 48, 49}}},
+				{"界", []transcriptSearchMatch{{0, 6, 8}, {0, 12, 14}}},
+				{"e\u0301", []transcriptSearchMatch{{0, 9, 10}, {0, 15, 16}}},
+				{"\u0301", []transcriptSearchMatch{{0, 9, 10}, {0, 15, 16}}},
+				{"aa", []transcriptSearchMatch{{0, 17, 19}, {0, 19, 21}, {0, 51, 53}}},
+			}
+			// The short prefix remains on one row even at the smallest width.
+			for _, tc := range cases {
+				c.updateTranscriptSearchQuery(tc.query)
+				if !reflect.DeepEqual(c.search.matches, tc.want) {
+					t.Fatalf("%q: %#v want %#v", tc.query, c.search.matches, tc.want)
+				}
+			}
+			c.updateTranscriptSearchQuery("界")
+			first := c.search.matches[0]
+			c.moveTranscriptSearch(1)
+			second := c.search.matches[1]
+			if c.search.selected != 1 || first.row != second.row {
+				t.Fatal("same-row next skipped")
+			}
+			el := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidth(width), gotui.WithHeight(4))
+			c.renderTranscriptSearchRows(el)
+			buf := gotui.NewBuffer(width, 4)
+			el.Render(buf, width, 4)
+			if buf.Cell(second.start, 0).Style.Bg != piText || buf.Cell(second.start+1, 0).Style.Bg != piText {
+				t.Fatal("wide active match incomplete")
+			}
+			if buf.Cell(first.start, 0).Style.Bg != piUserBg {
+				t.Fatal("inactive occurrence not distinguished")
+			}
+			if buf.Cell(0, 0).Style != c.search.rows[0].spans[0].Style {
+				t.Fatal("unmatched cells restyled")
+			}
+			if buf.Cell(29, 0).Link != "https://example.invalid/aaa" {
+				t.Fatal("link metadata lost")
+			}
+			c.updateTranscriptSearchQuery("example")
+			linked := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidth(width), gotui.WithHeight(4))
+			c.renderTranscriptSearchRows(linked)
+			linked.Render(buf, width, 4)
+			match := c.search.matches[0]
+			if buf.Cell(match.start, 0).Link != "https://example.invalid/aaa" || buf.Cell(match.start, 0).Style.Bg != piText {
+				t.Fatal("highlighted URL lost link metadata")
+			}
+			c.updateTranscriptSearchQuery("界")
+			c.moveTranscriptSearch(1)
+			// Appending output preserves the second occurrence on this unchanged row.
+			c.transcript = append(c.transcript, "sys: later 界")
+			c.refreshTranscriptSearch(width)
+			if c.search.selected != 1 || c.search.matches[1] != second {
+				t.Fatal("append reset occurrence")
+			}
+			c.moveTranscriptSearch(-1)
+			if c.search.selected != 0 {
+				t.Fatal("previous failed")
+			}
+			c.moveTranscriptSearch(-1)
+			if c.search.selected != 2 {
+				t.Fatal("reverse wrap failed")
+			}
+			c.moveTranscriptSearch(1)
+			if c.search.selected != 0 {
+				t.Fatal("forward wrap failed")
+			}
+			c.closeTranscriptSearch()
+			if c.input.Text() != "draft 中文" || c.input.cursorPos != 3 {
+				t.Fatal("editor changed")
+			}
+		})
+	}
+}
+
+func TestTranscriptSearchOccurrencesIgnorePaddingAndCrossRows(t *testing.T) {
+	c := sessionTestChat(t)
+	c.outputWidth = 60
+	c.transcript = []string{"sys: AAAAA", "sys: z"}
+	c.toggleTranscriptSearch()
+	c.refreshTranscriptSearch(60)
+	c.updateTranscriptSearchQuery("aa")
+	if len(c.search.matches) != 2 {
+		t.Fatal("non-overlapping matches", c.search.matches)
+	}
+	c.updateTranscriptSearchQuery("     ")
+	if len(c.search.matches) != 0 {
+		t.Fatal("phantom right padding matches")
+	}
+	c.updateTranscriptSearchQuery("A\nsys:")
+	if len(c.search.matches) != 0 {
+		t.Fatal("cross-row result advertised")
+	}
+	c.updateTranscriptSearchQuery("")
+	if len(c.search.matches) != 0 || c.search.selected != -1 {
+		t.Fatal("empty query did not reset")
 	}
 }

@@ -22,7 +22,7 @@ for(const mode of ['fullscreen','regular'])for(const [width,height]of [[60,18],[
   const baseline=footprint();type(`Visit [DOC](${url})`);keys('Enter');await wait(()=>sql("select count(*) from turns where status='completed';")==='1'&&sql('select count(*) from session_active_turns;')==='0','native response');await wait(()=>raw().includes(sequence),'OSC8 target emitted');
   type('kept draft β');keys('Left','Left');await sleep(160);assert(footprint()===baseline,'idle footprint changed');
   if(mode==='fullscreen'){
-   const offset=raw().length;keys('-H','1b','5b','31','30','32','3b','36','75');await wait(()=>cap().includes('Search '),'search open');type('DOC');await wait(()=>/Search \d+\/\d+/.test(cap()),'search query');await wait(()=>raw().slice(offset).includes(sequence),'OSC8 lost in search');shot('search');keys('Escape');await wait(()=>!cap().includes('Search '),'search closes');
+   const offset=raw().length;keys('-H','1b','5b','31','30','32','3b','36','75');await wait(()=>cap().includes('Search '),'search open');type('example');await wait(()=>cap().includes('Search 1/2'),'search query');await wait(()=>raw().slice(offset).includes(sequence),'OSC8 lost in search');shot('search');keys('Escape');await wait(()=>!cap().includes('Search '),'search closes');
    const rows=cap().split('\n'),y=rows.findIndex(l=>l.includes(url));assert(y>=0,'visible link');const x=[...rows[y].slice(0,rows[y].indexOf(url))].length;
    const prior=history();sgr(0,x,y);sgr(0,x,y,'m');await sleep(140);assert(history()===prior,'stationary link click altered transcript');
    sgr(0,x,y);sgr(32,x+5,y);sgr(0,x+5,y,'m');await wait(()=>{try{return tm('show-buffer')==='https';}catch{return false;}},'link drag visible-text copy');keys('Escape');

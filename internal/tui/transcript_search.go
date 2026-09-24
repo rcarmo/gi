@@ -15,11 +15,17 @@ type transcriptSearchRow struct {
 	blockKey string // pointer hit identity for tool rows, including their padding
 }
 
+// Match columns are half-open display-cell boundaries, not UTF-8 offsets.
+// A substring inside a combining/wide grapheme highlights the complete cell.
+type transcriptSearchMatch struct {
+	row, start, end int
+}
+
 type transcriptSearch struct {
 	active      bool
 	input       *multilineInput
 	rows        []transcriptSearchRow
-	matches     []int
+	matches     []transcriptSearchMatch
 	selected    int
 	width       int
 	viewport    int
@@ -141,16 +147,15 @@ func (c *chatTUI) updateTranscriptSearchQuery(query string) {
 	c.search.query = query
 	c.search.selected = -1
 	c.search.matches = nil
-	if query != "" {
+	needle := strings.ToLower(query)
+	if needle != "" {
 		for row, value := range c.search.rows {
-			if strings.Contains(strings.ToLower(value.text), strings.ToLower(query)) {
-				c.search.matches = append(c.search.matches, row)
-			}
+			c.search.matches = append(c.search.matches, transcriptRowMatches(row, value, needle)...)
 		}
 	}
 	if len(c.search.matches) > 0 {
 		c.search.selected = 0
-		c.setTranscriptPosition(c.search.matches[0])
+		c.setTranscriptPosition(c.search.matches[0].row)
 	}
 	if c.app != nil {
 		c.app.MarkDirty()
@@ -164,9 +169,9 @@ func (c *chatTUI) refreshTranscriptSearch(width int) {
 	if c.search.width == width && c.search.viewport == c.transcriptViewportHeight() && reflect.DeepEqual(c.search.source, c.transcript) && reflect.DeepEqual(c.search.expanded, c.transcriptExpanded) {
 		return
 	}
-	previousRow := -1
+	previous := transcriptSearchMatch{row: -1}
 	if c.search.selected >= 0 && c.search.selected < len(c.search.matches) {
-		previousRow = c.search.matches[c.search.selected]
+		previous = c.search.matches[c.search.selected]
 	}
 	c.search.rows = c.renderedTranscriptRows(width)
 	c.search.width = width
@@ -177,14 +182,14 @@ func (c *chatTUI) refreshTranscriptSearch(width int) {
 		c.search.expanded[key] = value
 	}
 	c.updateTranscriptSearchQuery(c.search.query)
-	if previousRow >= 0 && len(c.search.matches) > 0 {
-		for i, row := range c.search.matches {
-			if row >= previousRow {
+	if previous.row >= 0 && len(c.search.matches) > 0 {
+		for i, match := range c.search.matches {
+			if match.row > previous.row || (match.row == previous.row && match.start >= previous.start) {
 				c.search.selected = i
 				break
 			}
 		}
-		c.setTranscriptPosition(c.search.matches[c.search.selected])
+		c.setTranscriptPosition(c.search.matches[c.search.selected].row)
 	}
 }
 
@@ -193,7 +198,7 @@ func (c *chatTUI) moveTranscriptSearch(delta int) {
 		return
 	}
 	c.search.selected = (c.search.selected + delta + len(c.search.matches)) % len(c.search.matches)
-	c.setTranscriptPosition(c.search.matches[c.search.selected])
+	c.setTranscriptPosition(c.search.matches[c.search.selected].row)
 	c.stickToBottom = false
 	if c.app != nil {
 		c.app.MarkDirty()
@@ -208,21 +213,63 @@ func (c *chatTUI) transcriptSearchLabel(width int) string {
 	return truncate(label, width)
 }
 
+// Lowercasing can change UTF-8 byte lengths (for example İ -> i). Map every
+// folded byte back to its rendered grapheme's full display-cell interval.
+// Search remains row-local and non-overlapping; trimmed padding is not content.
+func transcriptRowMatches(row int, value transcriptSearchRow, needle string) []transcriptSearchMatch {
+	if needle == "" {
+		return nil
+	}
+	var folded strings.Builder
+	var starts, ends []int
+	col := 0
+	for _, span := range value.spans {
+		text, width := strings.ToLower(span.Text), gotui.StringWidth(span.Text)
+		folded.WriteString(text)
+		for range len(text) {
+			starts = append(starts, col)
+			ends = append(ends, col+width)
+		}
+		col += width
+	}
+	text := strings.TrimRight(folded.String(), " ")
+	var matches []transcriptSearchMatch
+	for offset := 0; offset < len(text); {
+		i := strings.Index(text[offset:], needle)
+		if i < 0 {
+			break
+		}
+		i += offset
+		matches = append(matches, transcriptSearchMatch{row: row, start: starts[i], end: ends[i+len(needle)-1]})
+		offset = i + len(needle)
+	}
+	return matches
+}
+
 func (c *chatTUI) renderTranscriptSearchRows(transcript *gotui.Element) {
-	match := map[int]bool{}
-	for _, row := range c.search.matches {
-		match[row] = true
+	matches := map[int][]transcriptSearchMatch{}
+	for _, match := range c.search.matches {
+		matches[match.row] = append(matches[match.row], match)
+	}
+	selected := transcriptSearchMatch{row: -1}
+	if c.search.selected >= 0 && c.search.selected < len(c.search.matches) {
+		selected = c.search.matches[c.search.selected]
 	}
 	for i, row := range c.search.rows {
 		spans := append([]gotui.TextSpan(nil), row.spans...)
-		selected := c.search.selected >= 0 && c.search.selected < len(c.search.matches) && c.search.matches[c.search.selected] == i
+		col := 0
 		for j := range spans {
-			if match[i] {
-				spans[j].Style = spans[j].Style.Background(piUserBg).Underline()
+			end := col + gotui.StringWidth(spans[j].Text)
+			for _, match := range matches[i] {
+				if col < match.end && end > match.start {
+					spans[j].Style = spans[j].Style.Background(piUserBg).Underline()
+					break
+				}
 			}
-			if selected {
+			if selected.row == i && col < selected.end && end > selected.start {
 				spans[j].Style = spans[j].Style.Background(piText).Foreground(piUserBg).Bold()
 			}
+			col = end
 		}
 		transcript.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithHeight(1), gotui.WithWrap(false), gotui.WithRichText(spans...)))
 	}

@@ -27,17 +27,24 @@ for(const [width,height] of [[60,18],[100,22],[140,36]]){
  try{
   tmux('new-session','-d','-s',session,'-x',String(width),'-y',String(height),`cd '${dir}' && PATH='${root}/tests/ux/shell':"$PATH" GI_UX_QUEUE_GATES='${dir}' TERM=xterm-256color COLORTERM=truecolor '${bin}' -tui -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'`);
   tmux('set-option','-t',session,'status','off');await wait(()=>capture().includes('m0/t0'),'startup');
-  for(let i=1;i<=24;i++){type(`Prompt ${String(i).padStart(2,'0')} nebula`);keys('Enter');await wait(()=>idle()&&sql("select count(*) from turns where status='completed';")===String(i),'history turn');}
+  for(let i=1;i<=24;i++){type(`Prompt ${String(i).padStart(2,'0')} nebula nebula`);keys('Enter');await wait(()=>idle()&&sql("select count(*) from turns where status='completed';")===String(i),'history turn');}
   type('unsent editor draft');keys('Left','Left','Left');keys('PageUp','PageUp');await sleep(180);
   const original=shot('before'),idleBars=bars(original),anchor=original.split('\n').find(line=>line.includes('Prompt '))?.replace(/[│█]\s*$/,'').trim();
   search();await wait(()=>capture().includes('Search 0/0'),'search opens');
   assert(!capture().includes('unsent editor'),'main draft visible in search');
-  type('NEBULA');await wait(()=>capture().includes('Search 1/48'),'all rendered matches');
+  type('NEBULA');await wait(()=>capture().includes('Search 1/96'),'all rendered occurrences');
   const active=shot('matches');assert(active.split('\n').length<=height,'search grew terminal footprint');
   assert(ansi().includes('48;2;212;212;212'),'current match not highlighted');
-  keys('Enter');await wait(()=>capture().includes('Search 2/48'),'next match');
-  sequence('\x1b[13;2u');await wait(()=>capture().includes('Search 1/48'),'previous match');
-  keys('C-g');await wait(()=>capture().includes('Search 2/48'),'next shortcut');
+  const textOnly=s=>s.replace(/\x1b\[[0-9;]*m/g,'');
+  const matchedRow=()=>ansi().split('\n').find(row=>textOnly(row).includes('Prompt 01'));
+  const firstOccurrence=matchedRow();assert(firstOccurrence,'first prompt absent');
+  keys('Enter');await wait(()=>capture().includes('Search 2/96'),'same-row next occurrence');
+  const secondOccurrence=matchedRow();assert(secondOccurrence&&secondOccurrence!==firstOccurrence,'same-row active highlight did not move');
+  assert(textOnly(firstOccurrence)===textOnly(secondOccurrence),'next occurrence changed visible text');
+  shot('second-occurrence');sequence('\x1b[13;2u');await wait(()=>capture().includes('Search 1/96'),'previous occurrence');
+  assert(matchedRow()===firstOccurrence,'previous occurrence did not restore styles');
+  sequence('\x1b[13;2u');await wait(()=>capture().includes('Search 96/96'),'reverse occurrence wrap');keys('Enter');await wait(()=>capture().includes('Search 1/96'),'forward occurrence wrap');
+  keys('C-g');await wait(()=>capture().includes('Search 2/96'),'next shortcut');
   keys('C-a','C-k');type('absent-query');await wait(()=>capture().includes('Search: no matches'),'no results');
   keys('Enter');assert(sql('select count(*) from turns;')==='24','search submitted a turn');
   keys('C-a','C-k');type('Prompt 07');await wait(()=>capture().includes('Search 1/2'),'specific query');
@@ -60,7 +67,7 @@ for(const [width,height] of [[60,18],[100,22],[140,36]]){
   keys('C-o');await wait(()=>capture().includes('F8 collapse'),'tool expanded');search();await wait(()=>capture().includes('Search 0/0'),'expanded search');type('TOOL-LINE-01');await wait(()=>capture().includes('Search 1/1'),'expanded text found');
   keys('C-a','C-k');type('中文🙂');await wait(()=>capture().includes('Search 1/25'),'unicode rendered matches');shot('unicode-tool');keys('Escape');
   await wait(()=>capture().includes('tool reader draft'),'tool editor restored');assert(sql('select count(*) from turns;')==='25','tool search submitted query');
-  results.push(`${width}x${height}: rendered literal/case-insensitive/Unicode search, highlight/next/previous/no-match, collapsed/expanded tools, live output/resize/reopen, draft/cursor/history restoration, marked-prompt jumps; no idle-row growth or query submissions`);
+  results.push(`${width}x${height}: per-occurrence literal/case-insensitive/Unicode search, same-row precise highlight/next/previous/wrap/no-match, collapsed/expanded tools, live output/resize/reopen, draft/cursor/history restoration, marked-prompt jumps; no idle-row growth or query submissions`);
  }catch(error){try{shot('failure')}catch{};try{writeFileSync(join(artifacts,`${width}-runtime.log`),readFileSync(join(dir,'runtime.log')))}catch{};throw error;}
  finally{try{tmux('kill-session','-t',session)}catch{};rmSync(dir,{recursive:true,force:true});}
 }
