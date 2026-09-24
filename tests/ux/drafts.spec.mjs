@@ -718,3 +718,41 @@ test('Gi overlapping upload and send operations complete independently and clear
   await expect(page.getByRole('alert')).toContainText('no multipart boundary');
  }finally{releaseUpload();releaseFirst();releaseSecond()}
 });
+
+test('Gi Cancel uploads aborts captured batch before send, keeps exact draft/files and retries once',async({page,request},info)=>{
+ const {main,child,input,switchTo}=await fixture(page,request,info);
+ let release,held=false,uploadRequests=0,prompts=0;const gate=new Promise(r=>release=r);
+ await page.addInitScript(()=>{window.__uploadAborts=0;const open=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(method,url,...args){if(String(url).endsWith('/media'))this.addEventListener('abort',()=>window.__uploadAborts++);return open.call(this,method,url,...args);};});
+ await page.reload();await expect(input).toBeVisible();
+ // Native response is already durable when cancelled; no fictitious rollback.
+ await page.route(`**/api/sessions/${main.id}/media`,async route=>{uploadRequests++;const response=await route.fetch({postData:route.request().postDataBuffer()});expect(response.status()).toBe(201);held=true;await gate;try{await route.fulfill({response});}catch{}});
+ page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname.endsWith('/prompt'))prompts++;});
+ const files=[attachment('cancel-a.txt','exact α bytes'),attachment('cancel-b.txt','exact β bytes')];
+ const exact=()=>page.evaluate(async id=>{const db=await new Promise((ok,no)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});const value=await new Promise((ok,no)=>{const r=db.transaction('drafts').objectStore('drafts').get(id);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});db.close();return {text:value?.draft.text,files:value?.draft.media.map(f=>({name:f.name,bytes:Array.from(new Uint8Array(f.bytes))})),pending:value?.pending.length};},main.id);
+ try{
+  await input.fill('cancel draft 中文');await page.locator('.compose-box input[type=file]').setInputFiles(files);await expect.poll(exact).toMatchObject({text:'cancel draft 中文',files:files.map(f=>({name:f.name,bytes:[...f.buffer]})),pending:0});const before=await exact();
+  await input.press('Enter');await expect.poll(()=>held).toBe(true);await expect(page.getByRole('button',{name:'Cancel uploads',exact:true})).toBeVisible();
+  await switchTo(child);await input.fill('independent child');await expect(page.getByRole('button',{name:'Cancel uploads',exact:true})).toHaveCount(0);await switchTo(main.id);
+  await page.getByRole('button',{name:'Cancel uploads',exact:true}).click();await expect.poll(()=>page.evaluate(()=>window.__uploadAborts)).toBe(1);await expect(input).toHaveValue('cancel draft 中文');await expect(page.getByRole('alert')).toContainText('Upload cancelled');await expect(page.locator('.gi-compose-transfer')).toBeHidden();await expect.poll(exact).toEqual(before);expect(prompts).toBe(0);expect(uploadRequests).toBe(1);
+  release();await page.unroute(`**/api/sessions/${main.id}/media`);await page.reload();await expect(input).toHaveValue('cancel draft 中文');await expect(page.locator('.compose-box').getByText('cancel-a.txt',{exact:true})).toBeVisible();await expect(page.locator('.compose-box').getByText('cancel-b.txt',{exact:true})).toBeVisible();await expect.poll(exact).toEqual(before);
+  await input.press('Enter');await expect.poll(async()=> (await messages(request,main.id)).filter(m=>m.role==='user').length).toBe(1);const user=(await messages(request,main.id)).find(m=>m.role==='user');expect(user.payload.media).toHaveLength(2);expect(new Set(user.payload.media.map(m=>m.media_id)).size).toBe(2);
+  for(const [index,media]of user.payload.media.entries())expect(await(await request.get(`/api/sessions/${main.id}/media/${media.media_id}`)).body()).toEqual(files[index].buffer);
+  expect(prompts).toBe(1);expect((await messages(request,child)).length).toBe(0);await switchTo(child);await expect(input).toHaveValue('independent child');await switchTo(main.id);await page.reload();expect((await messages(request,main.id)).filter(m=>m.role==='user')).toHaveLength(1);
+  await page.screenshot({path:info.outputPath('cancelled-upload-retry.png')});
+ }finally{release();}
+});
+
+test('Gi upload cancellation merges newer draft and leaves another session upload and a dispatched send alone',async({page,request},info)=>{
+ const {main,child,input,switchTo}=await fixture(page,request,info);
+ let releaseUploads,releaseSend;const uploadGate=new Promise(r=>releaseUploads=r),sendGate=new Promise(r=>releaseSend=r);const uploads=[];let sending=false;
+ await page.route('**/api/sessions/*/media',async route=>{if(route.request().method()!=='POST')return route.continue();const response=await route.fetch({postData:route.request().postDataBuffer()});uploads.push(route.request().url());await uploadGate;try{await route.fulfill({response});}catch{}});
+ await page.route(`**/api/sessions/${child}/prompt`,async route=>{sending=true;await sendGate;const response=await route.fetch();await route.fulfill({response});});
+ try{
+  await input.fill('origin captured');await page.locator('.compose-box input[type=file]').setInputFiles(attachment('origin.txt'));await input.press('Enter');await expect.poll(()=>uploads.length).toBe(1);
+  await input.fill('newer origin');await page.locator('.compose-box input[type=file]').setInputFiles(attachment('newer.txt'));
+  await switchTo(child);await input.fill('child captured');await page.locator('.compose-box input[type=file]').setInputFiles(attachment('child.txt'));await input.press('Enter');await expect.poll(()=>uploads.length).toBe(2);await input.fill('newer child');
+  await switchTo(main.id);await page.getByRole('button',{name:'Cancel uploads',exact:true}).click();await expect(input).toHaveValue('origin captured\n\nnewer origin');await expect.poll(()=>storedDraft(page,main.id)).toMatchObject({media:['origin.txt','newer.txt'],pending:0});
+  await switchTo(child);await expect(input).toHaveValue('newer child');await expect(page.getByRole('button',{name:'Cancel uploads',exact:true})).toBeVisible();releaseUploads();await expect.poll(()=>sending).toBe(true);await expect(page.getByRole('button',{name:'Cancel uploads',exact:true})).toHaveCount(0);await expect(page.locator('.gi-compose-sending')).toBeVisible();
+  releaseSend();await expect.poll(async()=> (await messages(request,child)).filter(m=>m.role==='user').length).toBe(1);expect((await messages(request,main.id)).length).toBe(0);await expect(input).toHaveValue('newer child');await switchTo(main.id);await expect(input).toHaveValue('origin captured\n\nnewer origin');await page.reload();await expect(input).toHaveValue('origin captured\n\nnewer origin');
+ }finally{releaseUploads();releaseSend();}
+});

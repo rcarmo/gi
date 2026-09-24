@@ -22,3 +22,11 @@ test('unknown byte totals remain indeterminate and fresh reload has no work',()=
  expect(createComposeTransfers().snapshot('a')).toMatchObject({uploads:0,sending:0});
  op.end();expect(s.snapshot('a')).toMatchObject({uploads:0,sending:0});
 });
+
+test('upload batch cancellation is session-scoped, one-shot and cannot abort sending or newer batches',()=>{
+ const transfers=createComposeTransfers(),a=transfers.beginUploadBatch('A'),b=transfers.beginUploadBatch('A'),other=transfers.beginUploadBatch('B');
+ let later:any,events=0;a.signal.addEventListener('abort',()=>{events++;later=transfers.beginUploadBatch('A');});
+ transfers.cancelUploads('A');expect(a.signal.aborted).toBe(true);expect(b.signal.aborted).toBe(true);expect(other.signal.aborted).toBe(false);expect(later.signal.aborted).toBe(false);expect(events).toBe(1);
+ a.end();a.end();b.end();later.end();transfers.cancelUploads('A');expect(later.signal.aborted).toBe(false);
+ const sending=transfers.beginUploadBatch('B');sending.end();transfers.cancelUploads('B');expect(sending.signal.aborted).toBe(false);expect(other.signal.aborted).toBe(true);
+});

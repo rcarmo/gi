@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-24
 
+- [x] Add session-owned Cancel uploads for captured batches: native XHR abort/pre-dispatch fencing, exact IndexedDB draft/media recovery and explicit retry, other-session/newer-draft/send isolation.30 final focused/204 regression browser/94 functional/85 helpers1034assertions/Go-vet-hook; bounded review no blocker. Supplied composer unchanged via guarded build adapter. Shared39 remains unmapped: stored orphan cleanup and full source-removal/no-duplication contract not established; no new terminal credit.
+
 - [x] Stage ≤6 terminal media refs per source session; /attachments and /detach expose pending-only review/removal, native admission claims recover rejection and hold uncertain DB reads. Native pre/post-INSERT fault tests prevent automatic duplicate attachment; no-model/directed sends preserve draft; regular-mode rejection clears thinking. Six fullscreen/regular PTYs preserve A/B Unicode cursor/multiline/resize/settings/session refs with exact stored bytes and zero idle rows; existing TUI/race×3/Go-vet-hook/93functional/82helpers pass. Process restart, queue-draft media restoration and cross-process idempotency remain separate; browser coverage88/236+27/42 unchanged.
 
 - [x] Use supplied tab-store MRU/pin semantics in the read-only host; map workspace-011 with pinned-before-MRU and bulk-close/draft/media proof across six projects. Guarded menu adapter hides unsupported CSV popout, bounds touch targets and registers Escape before paint; Settings owns Gi tab shortcuts, browser shortcuts stay native. 186 browser/93 functional/82 helpers1004 assertions/Go-vet-hook pass; coverage88/236+27/42, unmapped148/15. No editing/dirty/pin persistence or terminal credit.

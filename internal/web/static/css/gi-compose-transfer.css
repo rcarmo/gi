@@ -12,3 +12,5 @@
 }
 @keyframes gi-send-pending { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .compose-send-stack .send-btn[data-gi-sending="true"]::after { animation: none; } }
+.gi-upload-cancel { color: var(--text-primary); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 5px; min-height: 32px; padding: 4px 8px; cursor: pointer; }
+@media (pointer: coarse) { .gi-upload-cancel { min-height: 44px; } }

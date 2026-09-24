@@ -2,10 +2,26 @@
 export type TransferSnapshot = { uploads: number; sending: number; loaded: number; total: number; computable: boolean };
 type Operation = { phase: 'upload' | 'send'; loaded: number; total: number; computable: boolean };
 export function createComposeTransfers() {
+    const uploadBatches = new Map<string, Set<AbortController>>();
     const sessions = new Map<string, Map<symbol, Operation>>();
     const listeners = new Set<() => void>();
     const emit = () => { for (const listener of listeners) listener(); };
     return {
+        beginUploadBatch(session: string) {
+            const controller = new AbortController();
+            let batches = uploadBatches.get(session);
+            if (!batches) { batches = new Set(); uploadBatches.set(session, batches); }
+            batches.add(controller);
+            let ended = false;
+            return { signal: controller.signal, end() {
+                if (ended) return; ended = true;
+                batches!.delete(controller); if (!batches!.size) uploadBatches.delete(session);
+            } };
+        },
+        cancelUploads(session: string) {
+            // Capture this occurrence set: an abort listener may start new work.
+            for (const batch of [...(uploadBatches.get(session) || [])]) batch.abort();
+        },
         subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
         snapshot(session: string): TransferSnapshot {
             const value = { uploads: 0, sending: 0, loaded: 0, total: 0, computable: true };

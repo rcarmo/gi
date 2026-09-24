@@ -10,7 +10,9 @@ Scope confirmed 2026-09-21: finish the whole imported corpus, not just the curre
 - Terminal: implement suitable functional equivalents separately, preserving transcript/editor/footer and zero new idle rows. Browser-only properties (touch, PWA installation, CSS layering) need a documented terminal disposition, not a fictitious terminal pass.
 - Delivery: small tested commits, source provenance, truthful capability/error paths and current evidence reports. Full completion requires no unexplained unmapped cases.
 
-Latest terminal adaptation (2026-09-24): `/attach` and `/paste-image` stage up to six process-local media references per session for the next ordinary prompt. `/attachments` and `/detach` provide explicit review/removal with no idle row. Native pre/post-admission failure tests, six PTYs, existing TUI regressions, race ×3, 93 functional and 82 support tests pass. No browser coverage change; restart durability and queued-draft media recovery remain open. Details below.
+Latest browser repair (2026-09-24): session-owned Cancel uploads aborts captured media batches before message dispatch and restores exact draft/media bytes through existing recovery. Other sessions, newer typing and already-dispatched sends remain independent. 30 final focused/204 regression browser cases, 94 functional and 85 support tests/1,034 assertions pass; Go/vet/hook and bounded review pass. Shared39 remains open; coverage **88/236 + 27/42** unchanged. Details below.
+
+Earlier terminal adaptation (2026-09-24): `/attach` and `/paste-image` stage up to six process-local media references per session for the next ordinary prompt. `/attachments` and `/detach` provide explicit review/removal with no idle row. Native pre/post-admission failure tests, six PTYs, existing TUI regressions, race ×3, 93 functional and 82 support tests pass. No browser coverage change; restart durability and queued-draft media recovery remain open. Details below.
 
 Earlier browser acceptance (2026-09-24): read-only tabs use the supplied tab store's MRU and pin semantics. Workspace-011 passes all six projects with pinned-before-MRU, bulk-close protection and exact draft/media retention; 186 combined browser, 93 functional and 82 support tests/1,004 assertions pass alongside Go/vet/hook checks. Coverage is **88/236 Classic + 27/42 shared**, leaving **148/15** unmapped. No editing, dirty/save, durable pin or terminal credit.
 
@@ -723,3 +725,54 @@ mutations or page errors. `/api/sessions` returned 200 and 62 sessions; SQLite
 integrity `ok`, foreign-key check empty; binary symlink restored and tree clean.
 No live terminal session was manipulated. Successful six-PTY captures, native
 media records and logs are attached as `/workspace/tmp/gi-tui-media-evidence.tar.gz`.
+
+## Session-owned upload cancellation (2026-09-24)
+
+The transient upload status now has a Cancel uploads button. It aborts a snapshot
+of captured upload batches belonging to the visible session, not another
+session's transport and not a message already being submitted. The button exists
+only during upload work; idle composer geometry is unchanged.
+
+Each captured media submission registers its own AbortController. The guarded
+build adapter checks its signal before the sequential upload loop and again
+before constructing/dispatching the message, passes it to each native XHR, and
+unregisters before message dispatch and in final cleanup. Supplied composer source
+bytes stay unchanged. Cancellation uses the existing captured-draft failure path:
+restore exact file bytes/references and merge newer typing/media in the origin,
+even if the user switched sessions. Retry is explicit; the browser does not
+submit a cancelled message or resume its remaining files automatically.
+
+The API adapter checks cancellation before and after bounded multipart encoding,
+removes abort listeners and progress handlers on settlement, ignores late XHR
+callbacks, and cleans up synchronous open/header/send errors. Encoding itself
+cannot be interrupted; cancellation fences the later network start. The short gap
+between sequential files remains batch-owned. Once message dispatch can start,
+cancellation is no longer offered rather than falsely implying recall.
+
+Verification: 12 dedicated cancellation cases (two tests × six projects), 30 final
+focused transport cases, 204 draft/Classic/shell regressions, 94 functional tests,
+85 support tests/1,034 assertions, Go/vet and hook checks pass. Native responses are
+held after the real server stores multipart bytes: Cancel produces a real XHR
+abort, no message POST, no second-file upload, exact IndexedDB recovery/reload and
+one explicit retry with the expected native media refs/bytes. Concurrent session
+uploads, newer origin files/text and already-dispatched sends remain independent.
+Helper tests cover early abort, listener disposal, stale completion, synchronous
+XHR failure and new work created during cancellation callbacks. A missing test
+locator and functional BASE_URL constant were corrected before the passing runs.
+
+A file-based delegated review timed out; a smaller inline lifecycle review found
+no blocker within this stated scope. Optional oxlint was unavailable and mjs has
+no diagnostics validator; builds/tests remain the validation evidence.
+
+This is not storage rollback. If the server accepted a file before cancellation,
+its unreferenced stored media may remain, as in the pre-existing partial-failure
+path. Shared39's full source-removal/durability/no-duplication contract is therefore
+not claimed. Its missing Cancel control is repaired, but it stays unmapped;
+coverage remains **88/236 Classic + 27/42 shared**, **148/15** unmapped. Do not
+reinterpret cancellation as changing active-turn Stop or queued-follow-up policy.
+
+Terminal disposition: process-local `/detach` removes staged refs before
+admission, while in-flight native admission remains held until settled. There is
+no browser XHR progress/cancel analogue to reproduce as permanent terminal UI.
+This web slice adds no terminal code, idle rows or terminal acceptance credit.
+Logs: `/workspace/tmp/gi-upload-cancel-{browser-final,regression,functional-final,helpers-final,standard-final}.log`.

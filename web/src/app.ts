@@ -1239,6 +1239,7 @@ function ComposeTransfer({ sessionId, hidden }) {
         ${state.uploads > 0 && html`<div class="gi-compose-upload" role="status" aria-live="polite">
             <span>Uploading ${state.uploads === 1 ? 'attachment' : `${state.uploads} attachments`}${percent === null ? '…' : ` · ${percent}%${percent === 100 ? ' · awaiting server' : ''}`}</span>
             <progress aria-label="Attachment upload progress" max="100" value=${percent === null ? undefined : percent}></progress>
+            <button type="button" class="gi-upload-cancel" onClick=${() => composeTransfers.cancelUploads(sessionId)}>Cancel uploads</button>
         </div>`}
         ${state.sending > 0 && html`<div class="gi-compose-sending" role="status" aria-live="polite">Sending${state.sending > 1 ? ` ${state.sending} messages` : ' message'}…</div>`}
     </div>`;

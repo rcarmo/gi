@@ -688,6 +688,7 @@ function projectMessageMedia(payload, sessionId) {
 
 // web/src/gi-compose-transfer.ts
 function createComposeTransfers() {
+  const uploadBatches = new Map;
   const sessions = new Map;
   const listeners = new Set;
   const emit = () => {
@@ -695,6 +696,28 @@ function createComposeTransfers() {
       listener();
   };
   return {
+    beginUploadBatch(session) {
+      const controller = new AbortController;
+      let batches = uploadBatches.get(session);
+      if (!batches) {
+        batches = new Set;
+        uploadBatches.set(session, batches);
+      }
+      batches.add(controller);
+      let ended = false;
+      return { signal: controller.signal, end() {
+        if (ended)
+          return;
+        ended = true;
+        batches.delete(controller);
+        if (!batches.size)
+          uploadBatches.delete(session);
+      } };
+    },
+    cancelUploads(session) {
+      for (const batch of [...uploadBatches.get(session) || []])
+        batch.abort();
+    },
     subscribe(listener) {
       listeners.add(listener);
       return () => {
@@ -1259,7 +1282,9 @@ async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = 
     activity.end();
   }
 }
-async function uploadMedia(file, chatJid = null) {
+async function uploadMedia(file, chatJid = null, options = {}) {
+  const signal = options.signal;
+  signal?.throwIfAborted();
   const sessionId = chatJid?.startsWith("gi:") ? chatJid.slice(3) : null;
   if (!sessionId)
     throw new Error("No attachment destination session");
@@ -1272,29 +1297,57 @@ async function uploadMedia(file, chatJid = null) {
     const encoded = new Response(form);
     const contentType = encoded.headers.get("content-type");
     const body = await encoded.arrayBuffer();
+    signal?.throwIfAborted();
     return await new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest;
-      xhr.open("POST", `/api/sessions/${encodeURIComponent(sessionId)}/media`);
-      xhr.setRequestHeader("Content-Type", contentType);
+      let settled = false;
+      const abort = () => {
+        finish(new DOMException("Upload aborted", "AbortError"));
+        xhr.abort();
+      };
+      const finish = (error, value) => {
+        if (settled)
+          return;
+        settled = true;
+        signal?.removeEventListener("abort", abort);
+        xhr.upload.onprogress = null;
+        error ? reject(error) : resolve(value);
+      };
+      signal?.addEventListener("abort", abort, { once: true });
+      if (signal?.aborted) {
+        abort();
+        return;
+      }
+      try {
+        xhr.open("POST", `/api/sessions/${encodeURIComponent(sessionId)}/media`);
+        xhr.setRequestHeader("Content-Type", contentType);
+      } catch (error) {
+        finish(error);
+        return;
+      }
       xhr.upload.onprogress = (event) => activity.progress(event.loaded, event.total, event.lengthComputable);
-      xhr.onerror = () => reject(new TypeError("Upload network request failed"));
-      xhr.onabort = () => reject(new DOMException("Upload aborted", "AbortError"));
+      xhr.onerror = () => finish(new TypeError("Upload network request failed"));
+      xhr.onabort = () => finish(new DOMException("Upload aborted", "AbortError"));
       xhr.onload = () => {
         let data = {};
         try {
           data = JSON.parse(xhr.responseText);
         } catch {}
         if (xhr.status < 200 || xhr.status >= 300) {
-          reject(new Error(data.error || `Upload failed: HTTP ${xhr.status}`));
+          finish(new Error(data.error || `Upload failed: HTTP ${xhr.status}`));
           return;
         }
         if (!data.media?.id) {
-          reject(new Error("Upload returned no media identifier"));
+          finish(new Error("Upload returned no media identifier"));
           return;
         }
-        resolve({ ...data.media, id: data.media.id });
+        finish(undefined, { ...data.media, id: data.media.id });
       };
-      xhr.send(body);
+      try {
+        xhr.send(body);
+      } catch (error) {
+        finish(error);
+      }
     });
   } finally {
     activity.end();
@@ -8466,6 +8519,7 @@ function ComposeBox({
     const baseContent = currentContent.trim();
     const capturedDraft = { text: baseContent, media: capturedMediaFiles, fileRefs: capturedFileRefs, messageRefs: capturedMessageRefs };
     const capturedChatJid = currentChatJid;
+    const uploadBatch = capturedMediaFiles.length ? composeTransfers.beginUploadBatch(capturedChatJid?.replace(/^gi:/, "") || "") : null;
     const mode = resolveSubmitMode(submitMode);
     const capture = clearAfterSubmit ? onCaptureDraft?.(capturedDraft) : null;
     const queueToken = mode === "queue" ? capture?.token || crypto.randomUUID() : null;
@@ -8533,11 +8587,14 @@ function ComposeBox({
           onPost?.(intercepted);
           return;
         }
+        uploadBatch?.signal.throwIfAborted();
         const mediaIds = [];
         for (const file of capturedMediaFiles) {
-          const result = await uploadMedia(file, capturedChatJid);
+          const result = await uploadMedia(file, capturedChatJid, { signal: uploadBatch?.signal });
           mediaIds.push(result.id);
         }
+        uploadBatch?.signal.throwIfAborted();
+        uploadBatch?.end();
         const fileBlock = capturedFileRefs.length ? `Files:
 ${capturedFileRefs.map((path) => `- ${path}`).join(`
 `)}` : "";
@@ -8573,7 +8630,7 @@ ${mediaIds.map((id, index) => {
         setSubmitNotice(resolveUiOnlyCommandNotice(baseContent, response));
         onPost?.(response);
       } catch (error) {
-        const detail = error?.message || "Failed to send message.";
+        const detail = uploadBatch?.signal.aborted ? "Upload cancelled. Draft and attachments retained; send again to retry." : error?.message || "Failed to send message.";
         if (requestAcknowledged) {
           if (mountedRef.current)
             setSubmitError(`Send acknowledged, but refresh failed: ${detail}`);
@@ -8591,6 +8648,7 @@ ${mediaIds.map((id, index) => {
         onSubmitError?.(message);
         console.error("Failed to post:", error);
       } finally {
+        uploadBatch?.end();
         if (queueToken)
           onQueuedSubmissionEnd?.(queueToken);
       }
@@ -18107,10 +18165,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-1q2h4h00.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-1gkxtm3j.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-6x6evdd0.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-g7shmbrs.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-e3tdc5nn.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-tcfnx9qm.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-39c2cb1h.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-maaav4z2.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20422,6 +20480,7 @@ function ComposeTransfer({ sessionId, hidden }) {
         ${state.uploads > 0 && fe`<div class="gi-compose-upload" role="status" aria-live="polite">
             <span>Uploading ${state.uploads === 1 ? "attachment" : `${state.uploads} attachments`}${percent === null ? "…" : ` · ${percent}%${percent === 100 ? " · awaiting server" : ""}`}</span>
             <progress aria-label="Attachment upload progress" max="100" value=${percent === null ? undefined : percent}></progress>
+            <button type="button" class="gi-upload-cancel" onClick=${() => composeTransfers.cancelUploads(sessionId)}>Cancel uploads</button>
         </div>`}
         ${state.sending > 0 && fe`<div class="gi-compose-sending" role="status" aria-live="polite">Sending${state.sending > 1 ? ` ${state.sending} messages` : " message"}…</div>`}
     </div>`;
@@ -20455,5 +20514,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=C7FAF70CC170F93764756E2164756E21
-//# sourceMappingURL=app-s2e9hdgc.js.map
+//# debugId=984DADCF139D0AC564756E2164756E21
+//# sourceMappingURL=app-2dtk4y14.js.map

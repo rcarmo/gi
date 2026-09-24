@@ -495,7 +495,9 @@ export async function streamSidePrompt(content: string, chatJid: string | null =
 
 // ── Media ─────────────────────────────────────────────────────────────────
 
-export async function uploadMedia(file: File, chatJid: string | null = null) {
+export async function uploadMedia(file: File, chatJid: string | null = null, options: { signal?: AbortSignal } = {}) {
+    const signal = options.signal;
+    signal?.throwIfAborted();
     const sessionId = chatJid?.startsWith('gi:') ? chatJid.slice(3) : null;
     if (!sessionId) throw new Error('No attachment destination session');
     if (file.size > 10 * 1024 * 1024) throw new Error('Media exceeds 10 MiB limit');
@@ -509,22 +511,35 @@ export async function uploadMedia(file: File, chatJid: string | null = null) {
         const encoded = new Response(form);
         const contentType = encoded.headers.get('content-type');
         const body = await encoded.arrayBuffer();
+        signal?.throwIfAborted();
         // XHR exposes real upload bytes; fetch does not.
         return await new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', `/api/sessions/${encodeURIComponent(sessionId)}/media`);
-            xhr.setRequestHeader('Content-Type', contentType);
+            let settled = false;
+            const abort = () => { finish(new DOMException('Upload aborted', 'AbortError')); xhr.abort(); };
+            const finish = (error?: unknown, value?: unknown) => {
+                if (settled) return; settled = true;
+                signal?.removeEventListener('abort', abort);
+                xhr.upload.onprogress = null;
+                error ? reject(error) : resolve(value);
+            };
+            signal?.addEventListener('abort', abort, { once: true });
+            if (signal?.aborted) { abort(); return; }
+            try {
+                xhr.open('POST', `/api/sessions/${encodeURIComponent(sessionId)}/media`);
+                xhr.setRequestHeader('Content-Type', contentType);
+            } catch (error) { finish(error); return; }
             xhr.upload.onprogress = event => activity.progress(event.loaded, event.total, event.lengthComputable);
-            xhr.onerror = () => reject(new TypeError('Upload network request failed'));
-            xhr.onabort = () => reject(new DOMException('Upload aborted', 'AbortError'));
+            xhr.onerror = () => finish(new TypeError('Upload network request failed'));
+            xhr.onabort = () => finish(new DOMException('Upload aborted', 'AbortError'));
             xhr.onload = () => {
                 let data = {};
                 try { data = JSON.parse(xhr.responseText); } catch {}
-                if (xhr.status < 200 || xhr.status >= 300) { reject(new Error(data.error || `Upload failed: HTTP ${xhr.status}`)); return; }
-                if (!data.media?.id) { reject(new Error('Upload returned no media identifier')); return; }
-                resolve({ ...data.media, id: data.media.id });
+                if (xhr.status < 200 || xhr.status >= 300) { finish(new Error(data.error || `Upload failed: HTTP ${xhr.status}`)); return; }
+                if (!data.media?.id) { finish(new Error('Upload returned no media identifier')); return; }
+                finish(undefined, { ...data.media, id: data.media.id });
             };
-            xhr.send(body);
+            try { xhr.send(body); } catch (error) { finish(error); }
         });
     } finally { activity.end(); }
 }

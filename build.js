@@ -7,6 +7,7 @@ import { patchWorkspaceReadonly } from './scripts/patch-workspace-readonly.mjs';
 import { patchTabReadonly } from './scripts/patch-tab-readonly.mjs';
 import { patchQuickActionKeys, patchComposePopupKeys } from './scripts/patch-popup-keys.mjs';
 import { patchModelPicker } from './scripts/patch-model-picker.mjs';
+import { patchUploadCancel } from './scripts/patch-upload-cancel.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 process.chdir(__dirname);
@@ -74,7 +75,7 @@ const appBuild = await Bun.build({
       contents: patchQuickActionKeys(await Bun.file(args.path).text()), loader: 'ts',
     }));
     build.onLoad({ filter: /[\\/]components[\\/]compose-box\.ts$/ }, async args => ({
-      contents: patchModelPicker(patchComposePopupKeys(await Bun.file(args.path).text())), loader: 'ts',
+      contents: patchUploadCancel(patchModelPicker(patchComposePopupKeys(await Bun.file(args.path).text()))), loader: 'ts',
     }));
   } }, { name: 'gi-workspace-readonly', setup(build) {
     build.onLoad({ filter: /[\\/]components[\\/]tab-strip\.ts$/ }, async args => ({
