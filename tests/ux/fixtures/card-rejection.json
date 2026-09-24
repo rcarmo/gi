@@ -1,0 +1,8 @@
+{
+ "type":"adaptive_card","card_id":"gi-unsupported-submit","schema_version":"1.5","state":"active",
+ "payload":{"type":"AdaptiveCard","version":"1.5","body":[
+  {"type":"TextBlock","text":"Card submission capability check"},
+  {"type":"Input.Text","id":"answer","label":"Card answer","placeholder":"Type a retained answer"},
+  {"type":"Input.Toggle","id":"confirmed","title":"Keep this choice","value":"false"}
+ ],"actions":[{"type":"Action.Submit","title":"Submit answer","data":{"fixture":"card-rejection"}}]}
+}

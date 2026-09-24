@@ -559,7 +559,9 @@ export function getThumbnailUrl(mediaId: number) {
 }
 
 export async function submitAdaptiveCardAction(_payload: unknown) {
-    return null;
+    // Rendering is supported; accepting card actions requires a native identity,
+    // authorization and persistence contract. Never acknowledge a no-op submit.
+    throw new Error('Card submissions are not supported by Gi yet. Your inputs have not been submitted.');
 }
 
 // ── Workspace ─────────────────────────────────────────────────────────────

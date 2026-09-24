@@ -1691,7 +1691,7 @@ function getThumbnailUrl(mediaId) {
   return getMediaUrl(mediaId);
 }
 async function submitAdaptiveCardAction(_payload) {
-  return null;
+  throw new Error("Card submissions are not supported by Gi yet. Your inputs have not been submitted.");
 }
 async function getWorkspaceTree(path = "", depth = 1, showHidden = false) {
   const query = new URLSearchParams({ path: path || ".", depth: String(depth), show_hidden: String(showHidden) });
@@ -18442,10 +18442,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-3hzd66xd.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-esqmpn0z.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-xadc6ygq.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-rxe1meck.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-5bbpdhna.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-xex6apkb.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-fyw1px1w.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-kqahp0ra.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20824,5 +20824,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=519E05A4C4F4AADC64756E2164756E21
-//# sourceMappingURL=app-2z2v78z3.js.map
+//# debugId=1ACACFAA6F808C3A64756E2164756E21
+//# sourceMappingURL=app-nncvtcga.js.map

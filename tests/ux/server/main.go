@@ -344,6 +344,25 @@ func main() {
 			}
 		}
 	}
+	if os.Getenv("GI_UX_CARD_REJECTION") != "" {
+		var card map[string]any
+		raw, err := os.ReadFile("tests/ux/fixtures/card-rejection.json")
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := json.Unmarshal(raw, &card); err != nil {
+			log.Fatal(err)
+		}
+		ctx := context.Background()
+		for _, sessionID := range []string{"card-rejection-main", "card-rejection-other"} {
+			if _, err := s.CreateSession(ctx, sessionID, sessionID, map[string]any{"model": "test-model"}); err != nil {
+				log.Fatal(err)
+			}
+			if err := s.AddMessage(ctx, sessionID+"-post", sessionID, "assistant", "Native card rejection fixture", map[string]any{"content_blocks": []any{card}}); err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
 	if os.Getenv("GI_UX_SPEECH") != "" {
 		// Seed valid empty assistant history in this isolated DB. Production
 		// HTTP projection and supplied Post rendering still handle the rows.

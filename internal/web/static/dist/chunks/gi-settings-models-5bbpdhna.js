@@ -8,7 +8,7 @@ import {
   getAgentModels,
   selectAgentModel,
   modelContextBlocked
-} from "./app-2z2v78z3.js";
+} from "./app-nncvtcga.js";
 
 // web/src/gi-settings-models.ts
 function Models({ chatJid, filter = "", onMutationStart, onMutationEnd, onApplied }) {
@@ -143,4 +143,4 @@ export {
 };
 
 //# debugId=1F115AFE0558409064756E2164756E21
-//# sourceMappingURL=gi-settings-models-3hzd66xd.js.map
+//# sourceMappingURL=gi-settings-models-5bbpdhna.js.map
