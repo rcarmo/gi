@@ -1293,10 +1293,16 @@ func TestStartupRecoveryRequeuesCompactingTurn(t *testing.T) {
 	defer s.Close()
 	ctx := context.Background()
 	started := make(chan struct{}, 1)
+	release := make(chan struct{})
 	withStreamWithToolsStub(t, func(ctx context.Context, modelID string, convCtx *goai.Context, broadcast func(map[string]any)) (*inference.StreamResult, error) {
 		select {
 		case started <- struct{}{}:
 		default:
+		}
+		select {
+		case <-release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		}
 		return &inference.StreamResult{Message: &goai.Message{Role: goai.RoleAssistant, StopReason: goai.StopReasonStop, Content: []goai.ContentBlock{{Type: "text", Text: "recovered done"}}}}, nil
 	})
@@ -1320,7 +1326,11 @@ func TestStartupRecoveryRequeuesCompactingTurn(t *testing.T) {
 		t.Fatalf("age active turn claim: %v", err)
 	}
 
-	_ = New(s)
+	engine := New(s)
+	defer engine.Close()
+	updates := engine.Subscribe("session_recover_compact")
+	defer engine.Unsubscribe("session_recover_compact", updates)
+	close(release)
 
 	select {
 	case <-started:
@@ -1347,6 +1357,47 @@ func TestStartupRecoveryRequeuesCompactingTurn(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected compaction recovery event, got %#v", events)
+	}
+	messages, err := s.ListMessages(ctx, "session_recover_compact")
+	if err != nil {
+		t.Fatal(err)
+	}
+	marked := false
+	for _, msg := range messages {
+		if msg.Role == "assistant" && msg.Content == "recovered done" {
+			blocks, ok := msg.Payload["content_blocks"].([]any)
+			if !ok || len(blocks) != 1 {
+				t.Fatal(msg.Payload)
+			}
+			marker, _ := blocks[0].(map[string]any)
+			if marker["type"] != "recovery_marker" || marker["attempts_used"] != float64(2) {
+				t.Fatal(marker)
+			}
+			marked = true
+		}
+	}
+	if !marked {
+		t.Fatal("recovered response missing marker")
+	}
+selectLoop:
+	for {
+		select {
+		case update := <-updates:
+			if update["type"] != "new_post" {
+				continue
+			}
+			data, _ := update["data"].(map[string]any)
+			if data["content"] != "recovered done" {
+				continue
+			}
+			blocks, _ := data["content_blocks"].([]any)
+			if len(blocks) != 1 || blocks[0].(map[string]any)["recovered"] != true {
+				t.Fatal(data)
+			}
+			break selectLoop
+		case <-time.After(time.Second):
+			t.Fatal("live recovered response marker missing")
+		}
 	}
 }
 

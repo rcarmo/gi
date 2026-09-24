@@ -10,6 +10,7 @@ import { patchModelPicker } from './scripts/patch-model-picker.mjs';
 import { patchUploadCancel } from './scripts/patch-upload-cancel.mjs';
 import { patchSkillPrefill } from './scripts/patch-skill-prefill.mjs';
 import { patchPostSpeech } from './scripts/patch-post-speech.mjs';
+import { patchPostOutcomes } from './scripts/patch-post-outcomes.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 process.chdir(__dirname);
@@ -74,7 +75,7 @@ const appBuild = await Bun.build({
   external: ['/editor-vendor/codemirror.js'],
   plugins: [{ name: 'gi-post-speech', setup(build) {
     build.onLoad({ filter: /[\\/]components[\\/]post\.ts$/ }, async args => ({
-      contents: patchPostSpeech(await Bun.file(args.path).text()), loader: 'ts',
+      contents: patchPostOutcomes(patchPostSpeech(await Bun.file(args.path).text())), loader: 'ts',
     }));
   } }, { name: 'gi-popup-key-ownership', setup(build) {
     build.onLoad({ filter: /[\\/]components[\\/]timeline-quick-actions\.ts$/ }, async args => ({

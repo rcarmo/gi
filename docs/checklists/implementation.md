@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-24
 
+- [x] Persist recovered final-response marker from exact session/turn native stale-claim requeue events; successful shell and inference share stored/live blocks, ordinary/held/terminal-release recovery excluded. Guarded Post adapter places existing chips after timestamp. Timeline026 six-project geometry/reload/search/draft-media proof:54browser+1seededfunctional/98standardfunctional/96helpers1170assertions/Go-vet-hook/recovery race x3/sixTUI timing regressions pass. Coverage95/236+30/42 unmapped141/12; timeout semantics and terminal outcome display separate.
+
 - [x] Project bounded stored HTTP(S) resource-link and text-only preview metadata through supplied Post cards; reject credentials/executable schemes, omit remote images, retain existing media/card handling. Timeline025 actual pointer/keyboard popup opener/referrer and reload/search/draft-media proof passes6projects;60browser +1seeded functional/98standard functional (seed case separately skipped)/95helpers1159assertions/Go-vet-hook pass. Coverage94/236+30/42 unmapped142/12; no URL discovery/fetch/general block safety or terminal credit.
 
 - [x] Scope terminal tool-call blocks by turn+call ID and make retained terminal occurrences immutable against late starts and duplicate/conflicting ends. Missing-start timing stays unknown. Six fullscreen/regular timing PTYs match native event timestamps, freeze success/failure duration and retain draft/cursor through resize with zero idle growth;18media/session/model PTY regressions/98functional/6browser/92helpers1129assertions/Go-vet-hook/TUI race x3 pass. Existing headers/colours/layout unchanged; no eviction/restart deduplication or new browser mapping.

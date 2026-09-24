@@ -6376,6 +6376,12 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                 <div class="post-meta">
                     <span class="post-author">${displayName}</span>
                     ${showSearchChatAgentTag && fe`<span class="post-chat-agent-tag" title=${`Chat: ${searchChatAgentName}`}>@${searchChatAgentName}</span>`}
+                    <a class="post-time" href=${`#msg-${post.id}`} onClick=${(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onMessageRef)
+      onMessageRef(post.id);
+  }}>${formatTime(post.timestamp)}</a>
                     ${recoveryMarker && fe`
                         <span
                             class="post-recovery-chip"
@@ -6392,12 +6398,6 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
                             timeout
                         </span>
                     `}
-                    <a class="post-time" href=${`#msg-${post.id}`} onClick=${(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onMessageRef)
-      onMessageRef(post.id);
-  }}>${formatTime(post.timestamp)}</a>
                 </div>
                 ${isHardTruncated && truncatedInfo && fe`
                     <div class="post-content truncated">
@@ -18367,10 +18367,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-ayj5y1gh.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-ymmses4x.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-9d2en9m7.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-c4865tkc.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-7kkb2bnx.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-9jhcqx9m.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-n5f8bren.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-kaj9xdm2.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20749,5 +20749,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=143D5813F2FD527A64756E2164756E21
-//# sourceMappingURL=app-pz6z3xb2.js.map
+//# debugId=38B7C077B198704564756E2164756E21
+//# sourceMappingURL=app-bvpx69qb.js.map

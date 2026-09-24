@@ -243,6 +243,24 @@ func main() {
 		log.Fatal(err)
 	}
 	defer s.Close()
+	if os.Getenv("GI_UX_OUTCOMES") != "" {
+		ctx := context.Background()
+		if _, err := s.CreateSession(ctx, "outcome-fixture", "Outcome", map[string]any{"model": "test-model"}); err != nil {
+			log.Fatal(err)
+		}
+		if _, err := s.CreateTurnWithStatus(ctx, "outcome-turn", "outcome-fixture", "running", "Native recovered outcome proof", map[string]any{"intent": "prompt", "model": "test-model"}); err != nil {
+			log.Fatal(err)
+		}
+		if err := s.UpdateTurnStatusAndPhase(ctx, "outcome-turn", "running", "compacting"); err != nil {
+			log.Fatal(err)
+		}
+		if ok, err := s.ClaimSessionActiveTurn(ctx, "outcome-fixture", "outcome-turn", "old-process", "outcome-claim"); err != nil || !ok {
+			log.Fatal("claim fixture: ", err)
+		}
+		if _, err := s.DB().ExecContext(ctx, `update session_active_turns set updated_at='2000-01-01T00:00:00Z' where session_id='outcome-fixture'`); err != nil {
+			log.Fatal(err)
+		}
+	}
 	if os.Getenv("GI_UX_LINKS") != "" {
 		if _, err := s.CreateSession(context.Background(), "links-fixture", "Remote links", map[string]any{"model": "test-model"}); err != nil {
 			log.Fatal(err)

@@ -4021,12 +4021,11 @@ func (r *sessionRunner) runAgentLoop(ctx context.Context, s *store.Store, turnID
 			r.persistUsage(s, turnID, sessionID, &totalUsage, iter)
 
 			msgID := store.NowID("msg")
-			logutil.WarnIfErr("add assistant inference message", s.AddMessage(ctx, msgID, sessionID, "assistant", textContent, map[string]any{
-				"kind": "chat", "source": "inference", "model": model,
-				"turn_id": turnID, "agent_id": agentID, "iterations": iter,
-			}))
+			messagePayload := map[string]any{"kind": "chat", "source": "inference", "model": model, "turn_id": turnID, "agent_id": agentID, "iterations": iter}
+			r.addRecoveryMarker(ctx, sessionID, turnID, messagePayload)
+			logutil.WarnIfErr("add assistant inference message", s.AddMessage(ctx, msgID, sessionID, "assistant", textContent, messagePayload))
 
-			r.broadcastPost(sessionID, turnID, msgID, textContent, agentID)
+			r.broadcastPost(sessionID, turnID, msgID, textContent, agentID, messagePayload["content_blocks"])
 			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookMessageEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"chars": len(textContent)}})
 			_, _ = r.engine.emitHook(ctx, HookRequest{Name: HookTurnEnd, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Model: model, Iteration: iter, Payload: map[string]any{"status": "completed"}})
 			r.finishTurnOK(s, turnID, sessionID, agentID, model, iter)
@@ -4132,12 +4131,24 @@ func (r *sessionRunner) persistUsage(s *store.Store, turnID, sessionID string, u
 }
 
 // broadcastPost sends a new_post SSE event for the final assistant message.
-func (r *sessionRunner) broadcastPost(sessionID, turnID, msgID, content, agentID string) {
+func (r *sessionRunner) addRecoveryMarker(ctx context.Context, sessionID, turnID string, payload map[string]any) {
+	marker, err := r.engine.store.RecoveryMarker(ctx, sessionID, turnID)
+	logutil.WarnIfErr("read final response recovery marker", err)
+	if err == nil && marker != nil {
+		payload["content_blocks"] = []any{marker}
+	}
+}
+
+func (r *sessionRunner) broadcastPost(sessionID, turnID, msgID, content, agentID string, blocks ...any) {
+	var contentBlocks any
+	if len(blocks) > 0 {
+		contentBlocks = blocks[0]
+	}
 	r.engine.broadcast(sessionID, map[string]any{
 		"type": "new_post", "turn_id": turnID, "id": msgID, "chat_jid": "gi:" + sessionID,
 		"content": content, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
 		"sender": "agent", "is_bot_message": true,
-		"data": map[string]any{"type": "agent_response", "content": content, "agent_id": agentID},
+		"data": map[string]any{"type": "agent_response", "content": content, "agent_id": agentID, "content_blocks": contentBlocks},
 	})
 	r.engine.broadcast(sessionID, map[string]any{"type": "agent_response", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "id": msgID})
 }
@@ -5220,12 +5231,14 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	logutil.WarnIfErr("append shell tool.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "output_length": len(out)}))
 	r.engine.broadcast(run.sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + run.sessionID, "turn_id": run.turnID})
 	msgID := store.NowID("msg")
-	logutil.WarnIfErr("add shell assistant message", s.AddMessage(bgCtx, msgID, run.sessionID, "assistant", out, map[string]any{"kind": "chat", "source": "shell", "turn_id": run.turnID, "agent_id": run.agentID}))
+	messagePayload := map[string]any{"kind": "chat", "source": "shell", "turn_id": run.turnID, "agent_id": run.agentID}
+	r.addRecoveryMarker(bgCtx, run.sessionID, run.turnID, messagePayload)
+	logutil.WarnIfErr("add shell assistant message", s.AddMessage(bgCtx, msgID, run.sessionID, "assistant", out, messagePayload))
 	r.engine.broadcast(run.sessionID, map[string]any{
 		"type": "new_post", "turn_id": run.turnID, "id": msgID, "chat_jid": "gi:" + run.sessionID,
 		"content": out, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
 		"sender": "agent", "is_bot_message": true,
-		"data": map[string]any{"type": "agent_response", "content": out, "agent_id": run.agentID},
+		"data": map[string]any{"type": "agent_response", "content": out, "agent_id": run.agentID, "content_blocks": messagePayload["content_blocks"]},
 	})
 	completionPayload := map[string]any{"reason": "completed", "completion_kind": "response"}
 	logutil.WarnIfErr("append turn.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "turn.finished", map[string]any{"phase": "turn", "checkpoint": true, "status": "completed", "reason": "completed", "failure_kind": "", "completion_kind": "response"}))
