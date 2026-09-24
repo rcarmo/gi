@@ -105,3 +105,16 @@ test('Gi standalone display scale persists and applies only to mobile capability
   await expect(viewport).toHaveAttribute('content',scaled(95));await f.hamburger.click();await expect(control).toHaveValue('95');await expect(control).toHaveAttribute('aria-label','PWA display scale percentage, currently 95%');await choose(100);await expect(peer).toHaveValue('100');await page.keyboard.press('Escape');await f.unchanged();
  }finally{await other.close();}
 });
+
+// Additional user-reported regression, not new frozen feature credit. Exercise
+// three desktop widths in both engines; restore each project's drawer viewport.
+import { checkWorkspaceMotion } from './support/workspace-motion.mjs';
+test('Gi workspace closes towards the left edge without a chat or toggle jump',async({page,request},info)=>{
+ const original=page.viewportSize();
+ const width=original.width<500?1024:original.width<1000?1440:1920;
+ await page.setViewportSize({width,height:900});
+ const f=await fixture(page,request,info,'@ux-shell-005');
+ await checkWorkspaceMotion(page,info,f.unchanged);
+ await f.workspace(false);await page.setViewportSize(original);
+ await f.workspace(true);await f.unchanged();await f.workspace(false);await f.unchanged();
+});

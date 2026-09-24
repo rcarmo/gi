@@ -131,3 +131,16 @@ test('Read-only pinned workspace tab survives Close All and preserves draft', as
  await a.click({button:'right'});await menu.getByRole('button',{name:'Close All',exact:true}).click();await expect(page.locator('.tab-item')).toHaveCount(1);await expect(a).toHaveClass(/active/);
  await a.getByRole('button',{name:`Close ${paths[0]}`,exact:true}).click();await expect(tabs).toHaveCount(0);await expect(input).toHaveValue('pin keeps draft');await expect(input).toBeFocused();
 });
+
+import { checkWorkspaceMotion } from '../ux/support/workspace-motion.mjs';
+test('workspace close stays left-anchored throughout the animation', async ({ page }, info) => {
+  await page.setViewportSize({width:1440,height:900});
+  await page.goto('/');
+  const input=page.locator('.compose-box textarea');
+  await expect(input).toBeVisible();
+  const text='workspace motion must not submit this draft';
+  await input.fill(text);
+  let posts=0;
+  page.on('request',r=>{if(r.method()==='POST'&&/\/api\/sessions\/[^/]+\/(prompt|queue|steer)$/.test(new URL(r.url()).pathname))posts++;});
+  await checkWorkspaceMotion(page,info,async()=>{await expect(input).toHaveValue(text);expect(posts).toBe(0);});
+});

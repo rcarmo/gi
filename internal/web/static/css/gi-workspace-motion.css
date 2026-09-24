@@ -1,0 +1,48 @@
+/* Desktop chat-only-column layout: centre the chat, not the flex row containing
+   the still-collapsing sidebar. Keep one flex basis throughout the transition.
+   Drawer and editor layouts retain their supplied layout rules. */
+@media (min-width: 1024px) and (orientation: landscape) {
+    /* Match the specificity of the supplied collapsed-state selectors. */
+    .app-shell:not(.editor-open):not(.chat-only):not(.pane-popout),
+    .app-shell.workspace-collapsed:not(.editor-open):not(.chat-only):not(.pane-popout) {
+        justify-content: flex-start;
+    }
+
+    .app-shell:not(.editor-open):not(.chat-only):not(.pane-popout) > .container,
+    .app-shell.workspace-collapsed:not(.editor-open):not(.chat-only):not(.pane-popout) > .container {
+        flex: 1 1 0%;
+        width: auto;
+        min-width: 0;
+        max-width: none;
+        margin: 0;
+        transition: margin-left var(--ui-transition-fast), margin-right var(--ui-transition-fast);
+    }
+
+    .app-shell.workspace-collapsed:not(.editor-open):not(.chat-only):not(.pane-popout) > .container {
+        margin-inline: max(0px, calc((100% - var(--chat-max-width, 900px)) / 2));
+    }
+
+    .app-shell:not(.editor-open):not(.chat-only):not(.pane-popout) > .workspace-sidebar {
+        transform: none;
+    }
+
+    .app-shell:not(.editor-open):not(.chat-only):not(.pane-popout) > .workspace-toggle-tab {
+        transition: left var(--ui-transition-fast), background-color var(--ui-transition-fast), color var(--ui-transition-fast), border-color var(--ui-transition-fast), box-shadow var(--ui-transition-fast);
+    }
+
+    .app-shell.sidebar-resizing:not(.editor-open):not(.chat-only):not(.pane-popout) > .container,
+    .app-shell.sidebar-resizing:not(.editor-open):not(.chat-only):not(.pane-popout) > .workspace-toggle-tab {
+        transition: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-shell > .workspace-sidebar,
+    .app-shell > .workspace-splitter,
+    .app-shell:not(.editor-open):not(.chat-only):not(.pane-popout) > .workspace-toggle-tab,
+    .app-shell > .workspace-toggle-tab > .workspace-toggle-tab-icon,
+    .app-shell:not(.editor-open):not(.chat-only):not(.pane-popout) > .container,
+    .app-shell.workspace-collapsed:not(.editor-open):not(.chat-only):not(.pane-popout) > .container {
+        transition: none;
+    }
+}
