@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [x] Shared13/14 Quick Actions dismissal: focusable native Conversation region, captured-opener restoration, cancelled/fenced focus rAF and consumed trusted outside clicks; exact draft/media bytes/file/message refs, touch and Alt+Enter regression. Browser234/functional87/helpers61/Go-vet-build-hook; Classic81/236+shared23/42 unmapped155/19. Supplied sources unchanged; deployment below, no TUI rows. Shared15 close control absent/uncredited.
+- [x] Shared13/14 Quick Actions dismissal: focusable native Conversation region, captured-opener restoration, cancelled/fenced focus rAF and consumed trusted outside clicks; exact draft/media bytes/file/message refs, touch and Alt+Enter regression. Browser234/functional87/helpers61/Go-vet-build-hook; Classic81/236+shared23/42 unmapped155/19. Push5353392/restart8090; live6browser-size Escape/mouse/touch focus+draft/zero writes/errors/61sessions/integrityOK. Supplied sources unchanged/no TUI rows. Shared15 close control absent/uncredited.
 
 - [x] Shared7/9/10 target event delivery: replace swallowing global Quick Actions guard with non-consuming predicate; Settings normal keys reach controls, background popups suspend keys/pointers, composing Escape/Tab wrap verified. Supplied sources unchanged via guarded adapter; browser216+108/functional86/helpers58/Go-vet-build-hook. Classic81/236+shared21/42 unmapped155/21; push4ae11da/restart8090 live6browser-size target keys/modal focus/draft retained, zero writes/errors,61sessions/integrityOK; terminal unchanged.
 
