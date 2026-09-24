@@ -1,3 +1,5 @@
+import { settingsOwnsKeyboard } from './gi-quick-actions.js';
+
 // Consume only an open menu's outside gesture. Keep it mounted until click so
 // the matching click cannot land on the newly exposed composer. Touch defaults
 // remain enabled (scroll/pointercancel); mouse-down alone suppresses focus.
@@ -9,16 +11,16 @@ export function bindMenuDismissal(menu: HTMLElement, trigger: HTMLElement, close
         if (trigger.isConnected && !trigger.hasAttribute('disabled')) trigger.focus({ preventScroll: true });
     };
     const outsideStart = (event: Event) => {
-        if (inside(event)) return;
+        if (settingsOwnsKeyboard(doc) || inside(event)) return;
         if (event.type === 'mousedown') event.preventDefault();
         event.stopImmediatePropagation();
     };
     const click = (event: MouseEvent) => {
-        if (inside(event)) return;
+        if (settingsOwnsKeyboard(doc) || inside(event)) return;
         event.preventDefault(); event.stopImmediatePropagation(); finish();
     };
     const key = (event: KeyboardEvent) => {
-        if (event.key !== 'Escape' || event.isComposing) return;
+        if (settingsOwnsKeyboard(doc) || event.key !== 'Escape' || event.isComposing) return;
         event.preventDefault(); event.stopImmediatePropagation(); finish();
     };
     const events = ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend'];

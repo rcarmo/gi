@@ -124,6 +124,7 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
         document.body.style.overflow = 'hidden';
         dialog.current?.querySelector<HTMLButtonElement>('.settings-dialog-close')?.focus();
         const key = (event: KeyboardEvent) => {
+            if (event.isComposing) return;
             if (event.key === 'Escape') {
                 event.preventDefault(); event.stopImmediatePropagation(); onClose(); return;
             }
@@ -136,9 +137,9 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
                     event.preventDefault(); first?.focus();
                 }
             }
-            // Background popups register document-capture keys; inert alone does
-            // not disable those listeners. Native input/select defaults still run.
-            event.stopPropagation();
+            // Trapped keys stay modal; ordinary keys reach the target and its
+            // handlers. Background popup listeners independently stand down.
+            if (event.defaultPrevented) event.stopImmediatePropagation();
         };
         // Capture Escape even if a pending write disabled the focused button.
         window.addEventListener('keydown', key, true);

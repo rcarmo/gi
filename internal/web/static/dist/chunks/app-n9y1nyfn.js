@@ -6487,6 +6487,15 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     `;
 }
 
+// web/src/gi-quick-actions.ts
+function settingsOwnsKeyboard(doc = document) {
+  return Boolean(doc.querySelector?.('.settings-dialog[aria-modal="true"]'));
+}
+function blocksQuickActions(event, ready) {
+  const target = event.target;
+  return !ready || event.defaultPrevented || event.repeat || Boolean(target?.closest?.('button, a, [role="button"], [role="menuitem"], .monaco-editor, .terminal-pane, .post-reply'));
+}
+
 // web/src/gi-drafts.ts
 var emptyDraft = () => ({ text: "", media: [], fileRefs: [], messageRefs: [] });
 var copy = (d) => ({ text: d.text, media: [...d.media], fileRefs: [...d.fileRefs], messageRefs: [...d.messageRefs] });
@@ -8525,6 +8534,8 @@ ${mediaIds.map((id, index) => {
     onInjectQueuedFollowup?.(queuedItem);
   };
   const handlePopupKeyboardEvent = Y_((e) => {
+    if (settingsOwnsKeyboard())
+      return false;
     if (searchMode || !showModelPopup && !showSessionPopup || e?.isComposing)
       return false;
     const consume = () => {
@@ -8932,6 +8943,8 @@ ${mediaIds.map((id, index) => {
     if (!showModelPopup)
       return;
     const onPointerDown = (event) => {
+      if (settingsOwnsKeyboard())
+        return;
       const popup = modelPopupRef.current;
       const hint = modelHintRef.current;
       const target = event.target;
@@ -8948,6 +8961,8 @@ ${mediaIds.map((id, index) => {
     if (!showSessionPopup)
       return;
     const onPointerDown = (event) => {
+      if (settingsOwnsKeyboard())
+        return;
       const popup = sessionPopupRef.current;
       const trigger = sessionTriggerRef.current;
       const target = event.target;
@@ -14726,21 +14741,21 @@ function bindMenuDismissal(menu, trigger, close) {
       trigger.focus({ preventScroll: true });
   };
   const outsideStart = (event) => {
-    if (inside(event))
+    if (settingsOwnsKeyboard(doc) || inside(event))
       return;
     if (event.type === "mousedown")
       event.preventDefault();
     event.stopImmediatePropagation();
   };
   const click = (event) => {
-    if (inside(event))
+    if (settingsOwnsKeyboard(doc) || inside(event))
       return;
     event.preventDefault();
     event.stopImmediatePropagation();
     finish();
   };
   const key = (event) => {
-    if (event.key !== "Escape" || event.isComposing)
+    if (settingsOwnsKeyboard(doc) || event.key !== "Escape" || event.isComposing)
       return;
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -17525,6 +17540,8 @@ function isEligibleTimelineTarget(target) {
   return Boolean(target.closest(".container, .timeline, .post, .post-body, .post-content, .agent-status-panel"));
 }
 function shouldOpenTimelineQuickActionsFromKeyEvent(event) {
+  if (blocksQuickActions(event, isQuickActionsReady()))
+    return false;
   if (!isPopupTypeaheadKey(event))
     return false;
   if (!isEligibleTimelineTarget(event?.target))
@@ -17704,6 +17721,8 @@ function TimelineQuickActions({
   }, [open]);
   K_(() => {
     const onKeyDown = (event) => {
+      if (settingsOwnsKeyboard())
+        return;
       if (!open) {
         if (!shouldOpenTimelineQuickActionsFromKeyEvent(event))
           return;
@@ -17760,6 +17779,8 @@ function TimelineQuickActions({
       }
     };
     const onPointerDown = (event) => {
+      if (settingsOwnsKeyboard())
+        return;
       if (!open)
         return;
       if (rootRef.current?.contains(event.target))
@@ -17872,22 +17893,12 @@ function TimelineQuickActions({
     `;
 }
 
-// web/src/gi-quick-actions.ts
-function guardQuickActionsTyping(event) {
-  if (!isPopupTypeaheadKey(event) || !isEligibleTimelineTarget(event.target))
-    return;
-  const target = event.target;
-  const interactive = target?.closest?.('button, a, [role="button"], [role="menuitem"], .monaco-editor, .terminal-pane, .post-reply');
-  if (!isQuickActionsReady() || event.defaultPrevented || event.repeat || interactive)
-    event.stopImmediatePropagation();
-}
-
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-7wakxv26.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-9633hxhm.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-kbdyzp6p.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-8q92g8hr.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-92nqqpac.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-ntchgye1.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-yajqpatn.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-zrdxm51p.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -18092,6 +18103,8 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
     document.body.style.overflow = "hidden";
     dialog.current?.querySelector(".settings-dialog-close")?.focus();
     const key = (event) => {
+      if (event.isComposing)
+        return;
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -18109,7 +18122,8 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
           first?.focus();
         }
       }
-      event.stopPropagation();
+      if (event.defaultPrevented)
+        event.stopImmediatePropagation();
     };
     window.addEventListener("keydown", key, true);
     return () => {
@@ -20191,7 +20205,6 @@ function ComposeTransfer({ sessionId, hidden }) {
         ${state.sending > 0 && fe`<div class="gi-compose-sending" role="status" aria-live="polite">Sending${state.sending > 1 ? ` ${state.sending} messages` : " message"}…</div>`}
     </div>`;
 }
-window.addEventListener("keydown", guardQuickActionsTyping, true);
 G_(fe`<${GiApp} />`, document.getElementById("app"));
 export {
   F_,
@@ -20221,5 +20234,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=99DF80FCFBE4D28264756E2164756E21
-//# sourceMappingURL=app-2bmzx68j.js.map
+//# debugId=494D8EF5C778F9FA64756E2164756E21
+//# sourceMappingURL=app-n9y1nyfn.js.map

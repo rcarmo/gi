@@ -72,7 +72,6 @@ import { AttachmentPreviewModal } from './components/attachment-preview-modal.js
 import { SystemMetersHud } from './components/system-meters-hud.js';
 import { TimelineMenu } from './components/timeline-menu.js';
 import { TimelineQuickActions } from './components/timeline-quick-actions.js';
-import { guardQuickActionsTyping } from './gi-quick-actions.js';
 import { GiSettings } from './gi-settings.js';
 import { createMessageDeletionState } from './gi-message-deletion.js';
 import { createSelectionScope } from './gi-session-state.js';
@@ -1232,5 +1231,4 @@ function ComposeTransfer({ sessionId, hidden }) {
     </div>`;
 }
 
-window.addEventListener('keydown', guardQuickActionsTyping, true);
 render(html`<${GiApp} />`, document.getElementById('app'));

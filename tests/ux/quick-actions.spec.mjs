@@ -182,3 +182,54 @@ test('@shared-12 Consumed modified repeated and composing timeline keys cannot a
   await f.open();await f.close();await f.unchanged();
  }
 });
+
+for(const [id,surface] of [['@shared-7','button or link'],['@shared-9','workspace sidebar'],['@shared-10','open modal dialog']])test(`${id} Native ${surface} receives printable keys without palette interception`,async({page,request},info)=>{
+ const f=await sharedTypingFixture(page,request,info,id);
+ const receives=async target=>{
+  await target.focus();await expect(target).toBeFocused();
+  await target.evaluate(el=>{window.__nativeGuardKeys=[];el.addEventListener('keydown',e=>window.__nativeGuardKeys.push({key:e.key,prevented:e.defaultPrevented,trusted:e.isTrusted}));});
+  await target.press('q');await f.frames();await expect(f.palette).toHaveCount(0);await expect(target).toBeFocused();
+  expect(await page.evaluate(()=>window.__nativeGuardKeys)).toEqual([{key:'q',prevented:false,trusted:true}]);
+ };
+ if(id==='@shared-7'){
+  // Both controls already exist in the native timeline: no dummy interactive
+  // element and no DOM-only palette suppression can satisfy event delivery.
+  await receives(page.locator('.post').first().getByRole('button',{name:'Copy message',exact:true}));
+  await receives(page.locator('.post .post-time').first());await f.unchanged();
+ }else if(id==='@shared-9'){
+  await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();
+  const tree=page.locator('.workspace-tree-list');await expect(tree).toBeVisible();const rows=await tree.locator('.workspace-row').evaluateAll(nodes=>nodes.map(n=>({path:n.dataset.path,selected:n.classList.contains('selected')})));
+  await receives(tree);expect(await tree.locator('.workspace-row').evaluateAll(nodes=>nodes.map(n=>({path:n.dataset.path,selected:n.classList.contains('selected')})))).toEqual(rows);
+  await page.locator('.workspace-toggle-tab.open').click();
+ }else{
+  await page.keyboard.press('Control+,');const dialog=page.getByRole('dialog',{name:'Gi Settings',exact:true});await expect(dialog).toBeVisible();await expect(dialog).toHaveAttribute('aria-modal','true');
+  const name=dialog.getByLabel('Assistant display name',{exact:true}),value=await name.inputValue();await name.focus();await name.press('End');await receives(name);await expect(name).toHaveValue(value+'q');
+  await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await page.keyboard.press('Control+,');await expect(name).toHaveValue(value);await page.keyboard.press('Escape');
+ }
+ await f.unchanged();await f.open();await f.close();await f.unchanged();
+});
+
+test('Gi Settings delivers target keys while native background popups remain suspended',async({page,request},info)=>{
+ const f=await sharedTypingFixture(page,request,info,'@shared-10');
+ const dialog=page.getByRole('dialog',{name:'Gi Settings',exact:true});
+ for(const background of ['model','session','palette','menu']){
+  let popup,open;
+  if(background==='model'){popup=page.locator('.compose-model-popup-menu[aria-label="Model picker"]');open=()=>page.getByRole('button',{name:'Open model picker',exact:true}).click();}
+  if(background==='session'){popup=page.getByRole('menu',{name:'Sessions and agents',exact:true});open=()=>page.getByRole('button',{name:/Manage sessions for/}).last().click();}
+  if(background==='palette'){popup=f.palette;open=f.open;}
+  if(background==='menu'){popup=page.locator('.timeline-menu-dropdown');open=()=>page.getByTestId('hamburger').click();}
+  await open();await expect(popup).toBeVisible();
+  if(background==='model')await expect(popup.locator('.current-model')).toContainText('test/test-model');
+  if(background!=='menu')await expect(popup.locator('.active')).toHaveCount(1);
+  const active=()=>popup.locator('.active').evaluateAll(nodes=>nodes.map(n=>n.textContent));const before=await active();
+  await page.keyboard.press('Control+,');await expect(dialog).toBeVisible();
+  const input=dialog.getByLabel('Assistant display name',{exact:true});await input.click();await input.press('End');const original=await input.inputValue();
+  await input.evaluate(el=>{window.__modalTargetKeys=[];el.addEventListener('keydown',e=>window.__modalTargetKeys.push({key:e.key,prevented:e.defaultPrevented}));});
+  await input.press('q');await input.press('ArrowDown');await input.press('Home');await f.frames();await expect(input).toHaveValue(original+'q');
+  expect(await page.evaluate(()=>window.__modalTargetKeys)).toEqual([{key:'q',prevented:false},{key:'ArrowDown',prevented:false},{key:'Home',prevented:false}]);expect(await active()).toEqual(before);
+  await input.dispatchEvent('keydown',{key:'Escape',isComposing:true});await expect(dialog).toBeVisible();await expect(input).toBeFocused();expect(await page.evaluate(()=>window.__modalTargetKeys.at(-1))).toEqual({key:'Escape',prevented:false});
+  const close=dialog.getByRole('button',{name:'Close settings',exact:true}),last=dialog.getByRole('button',{name:'Reload saved names',exact:true});await close.focus();await page.keyboard.press('Shift+Tab');await expect(last).toBeFocused();await page.keyboard.press('Tab');await expect(close).toBeFocused();expect(await active()).toEqual(before);
+  await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(popup).toBeVisible();expect(await active()).toEqual(before);
+  await page.keyboard.press('Escape');await expect(popup).toHaveCount(0);await f.frames();await f.unchanged();
+ }
+});

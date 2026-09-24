@@ -242,3 +242,19 @@ test('native status-panel surface shares session swipe navigation without submit
   expect((await (await request.get(`/api/sessions/${a}/turns`)).json()).turns || []).toHaveLength(1);
   expect((await (await request.get(`/api/sessions/${b}/turns`)).json()).turns || []).toHaveLength(0);
 });
+
+test('native timeline controls and modal fields receive their own keyboard events', async ({ page, request }) => {
+  const create = await request.post('/api/sessions', {data:{agent_id:`functional-keys-${Date.now()}`}}); expect(create.status()).toBe(201); const {id} = await create.json();
+  const sent = await request.post(`/api/sessions/${id}/prompt`, {data:{prompt:'functional native key target',model:'test-model'}}); expect(sent.status()).toBe(202);
+  await expect.poll(async () => (await (await request.get(`/api/sessions/${id}/turns`)).json()).turns?.[0]?.status).toBe('completed');
+  await page.addInitScript(id => localStorage.setItem('gi_session_id',id),id); await page.goto(BASE_URL); await waitForAppShell(page);
+  const copy=page.locator('.post').first().getByRole('button',{name:'Copy message',exact:true});await copy.focus();
+  await copy.evaluate(el=>{(window as any).__functionalKeys=[];el.addEventListener('keydown',e=>(window as any).__functionalKeys.push(e.key));});
+  await copy.press('q');expect(await page.evaluate(()=>(window as any).__functionalKeys)).toEqual(['q']);await expect(page.locator('.timeline-quick-actions')).toHaveCount(0);
+  await page.getByRole('button',{name:'Open model picker',exact:true}).click();const popup=page.getByRole('menu',{name:'Model picker',exact:true});await expect(popup).toBeVisible();
+  const active=await popup.locator('.active').textContent();await page.keyboard.press('Control+,');const dialog=page.getByRole('dialog',{name:'Gi Settings',exact:true}),name=dialog.getByLabel('Assistant display name',{exact:true});await name.focus();
+  await name.evaluate(el=>{(window as any).__functionalKeys=[];el.addEventListener('keydown',e=>(window as any).__functionalKeys.push(e.key));});
+  await name.press('q');await name.press('ArrowDown');expect(await page.evaluate(()=>(window as any).__functionalKeys)).toEqual(['q','ArrowDown']);expect(await popup.locator('.active').textContent()).toBe(active);
+  await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(popup).toBeVisible();await page.keyboard.press('Escape');await expect(popup).toHaveCount(0);
+  expect((await (await request.get(`/api/sessions/${id}/turns`)).json()).turns).toHaveLength(1);
+});

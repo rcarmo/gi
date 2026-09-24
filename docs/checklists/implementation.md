@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Shared7/9/10 target event delivery: replace swallowing global Quick Actions guard with non-consuming predicate; Settings normal keys reach controls, background popups suspend keys/pointers, composing Escape/Tab wrap verified. Supplied sources unchanged via guarded adapter; browser216+108/functional86/helpers58/Go-vet-build-hook. Classic81/236+shared21/42 unmapped155/21; deployment below, terminal unchanged.
+
 - [x] Shared5/6/11/12 independent native composer Unicode/editing, Settings filter suffix, session-ID typing/Escape and rejected timeline key metadata with positive real-key controls after every rejection. Combined192/functional85/helpers55/Go-vet-build-hook; Classic81/236+shared18/42 unmapped155/24. Test-only/no restart, unsupported editor/dismissal cases uncredited; terminal keyboard ownership separate.
 
 - [x] Shared1/2 menu safety: fix outside-click Send activation and Escape focus loss via guarded dismissal-only build adapter; supplied source unchanged. Tab access, pointer/keyboard dismissal, trusted touch/next gesture and cancel-path checks; combined192/functional85/helpers55/Go-vet-build-hook. Classic81/236+shared14/42 unmapped155/28. Push8580f57/restart8090; live Chromium/WebKit three sizes, mouse/touch/Escape focus+draft retained, zero writes/errors,61sessions/integrityOK; no terminal UI change.

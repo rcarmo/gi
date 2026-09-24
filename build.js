@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync, rmSync,
 import { fileURLToPath } from 'url';
 import { patchStatusPreview } from './scripts/patch-status-preview.mjs';
 import { patchTimelineMenu } from './scripts/patch-timeline-menu.mjs';
+import { patchQuickActionKeys, patchComposePopupKeys } from './scripts/patch-popup-keys.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 process.chdir(__dirname);
@@ -65,7 +66,14 @@ const appBuild = await Bun.build({
   target: 'browser', format: 'esm', sourcemap: 'linked', splitting: true, modulePreload: false,
   naming: { entry: 'app.bundle.[ext]', chunk: 'chunks/[name]-[hash].[ext]', asset: 'assets/[name]-[hash].[ext]' },
   external: ['/editor-vendor/codemirror.js'],
-  plugins: [{ name: 'gi-timeline-menu-dismissal', setup(build) {
+  plugins: [{ name: 'gi-popup-key-ownership', setup(build) {
+    build.onLoad({ filter: /[\\/]components[\\/]timeline-quick-actions\.ts$/ }, async args => ({
+      contents: patchQuickActionKeys(await Bun.file(args.path).text()), loader: 'ts',
+    }));
+    build.onLoad({ filter: /[\\/]components[\\/]compose-box\.ts$/ }, async args => ({
+      contents: patchComposePopupKeys(await Bun.file(args.path).text()), loader: 'ts',
+    }));
+  } }, { name: 'gi-timeline-menu-dismissal', setup(build) {
     build.onLoad({ filter: /[\\/]components[\\/]timeline-menu\.ts$/ }, async args => ({
       contents: patchTimelineMenu(await Bun.file(args.path).text()), loader: 'ts',
     }));

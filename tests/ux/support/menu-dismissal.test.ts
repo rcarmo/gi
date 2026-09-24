@@ -37,3 +37,9 @@ test('menu preserves inside/trigger events and composing keys; Escape restores c
  expect(f.fire('keydown',[],{key:'Escape'}).defaultPrevented).toBe(true);expect(f.counts()).toEqual([1,1]);
  f.trigger.isConnected=false;f.fire('keydown',[],{key:'Escape'});expect(f.counts()).toEqual([2,1]);f.cleanup();
 });
+test('background menu leaves Settings keys and pointer events alone',()=>{
+ const doc=new EventTarget() as any;doc.querySelector=()=>({});let closed=0;
+ const clean=bindMenuDismissal({ownerDocument:doc} as any,{isConnected:true,hasAttribute:()=>false,focus:()=>{throw Error('stole modal focus');}} as any,()=>closed++);
+ for(const type of ['mousedown','pointerdown','click','keydown']){const e=new Event(type,{cancelable:true});Object.assign(e,{key:'Escape'});doc.dispatchEvent(e);expect(e.defaultPrevented).toBe(false);}
+ expect(closed).toBe(0);clean();
+});
