@@ -1,5 +1,7 @@
 # Piclaw web interaction parity
 
+> **Audit warning (2026-09-24):** the historical passing totals below do not prove current Piclaw visual or interaction parity. See [the full UX test audit](../../docs/internal/ux-test-audit-2026-09-24.md) and its [per-file inventory](../../docs/internal/ux-test-audit-2026-09-24.csv). CI runs no Playwright suites, `make check` excludes this parity runner, and some specialised cases need manual environment flags. The current source maps 101 Classic / 30 shared IDs, with Classic 008's skill-prefill claim disputed. Composer/new-chat keyboard paths, picker/reference geometry and workspace transitions require revalidation before broader parity claims.
+
 Gi vendors the same frozen Classic Gherkin baseline used for the Tau/Vibes audit:
 
 - Piclaw commit `70d33bc93ab540845bbcf5f80503ca8125c71594`.

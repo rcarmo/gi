@@ -578,3 +578,13 @@ Direct port of Piclaw's `/meters` functionality. On by default until slash comma
 - [x] Replace snapshots with bounded private, synced temp files; preserve unknown top-level fields; reject unsafe paths, corrupt/oversized state and commit conflicts. Linux/macOS sync both parent and state directories; Windows uses Go's rooted replacement without a sudden-power-loss durability guarantee.
 - [x] Test 24 concurrent logins plus revoke/read, four child writers, killed-lock release, single-winner enrolment, final-token revocation, unknown-field preservation, symlink and pathname swaps, and unchanged failed-write bytes. Auth race ×10, web/auth race ×3, 18 browser regressions, 99 functional / 5 skipped, 103 helpers / 1321 assertions, Go/vet/hook and five cross-builds pass. Native three-OS CI evidence follows.
 - [ ] Browser logout/passkey credential removal still require their own API/UI and acceptance work; this internal revocation primitive grants no frozen parity credit or terminal rows.
+
+### User-directed full UX audit and remediation (2026-09-24)
+- [x] Review all 39 browser specs, 17 functional specs, 47 helper tests, 17 TUI test files, 20 terminal scripts and 37 feature files plus harnesses; record 200-file inventory and ranked evidence gaps in `docs/internal/ux-test-audit-2026-09-24.{md,csv}`. Review is source-level, not an all-suite rerun.
+- [x] Compare deployed Gi/Piclaw composer and both pickers with mutation-blocked live probes; confirm responsive geometry/component differences and Escape-to-composer mismatch. Keep exact Return-to-start and workspace transition complaints open rather than disproving them with old tests.
+- [ ] Add and enforce genuine clean-start/new-chat/Return, composer/slash/picker/Quick Actions and Settings user journeys; remove vacuous functional assertions.
+- [ ] Reconcile component+CSS+host provenance with current Piclaw and add controlled visual/geometry oracles before claiming look-and-feel parity.
+- [ ] Resolve Classic008/shared17 skill-prefill conflict; current Classic mapping is disputed, not newly verified.
+- [ ] Wire every specialised suite/flag into an explicit all-suite manifest with provenance and skip accounting; establish CI UX gates.
+- [ ] Reproduce and fix workspace-tab direction/transition semantics, touch and keyboard focus against the reference.
+- [ ] Auth persistence `56079fe` remains undeployed: native macOS/Windows CI `36063764465` failed. User-directed UI remediation takes priority; do not deploy HEAD until failures are resolved or the slice is safely isolated.
