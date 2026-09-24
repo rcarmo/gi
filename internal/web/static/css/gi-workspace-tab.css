@@ -16,3 +16,6 @@
 .gi-readonly-tabs .tab-item { flex-shrink: 0; }
 .gi-readonly-tabs .tab-strip { padding-left: 44px; }
 .editor-open:has(.gi-readonly-tabs) .system-meters-hud-overlay { display: none; }
+/* Context actions exist only while requested; touch targets fit narrow screens. */
+.gi-readonly-tabs .tab-context-menu { min-width: 140px; max-height: calc(100dvh - 8px); overflow-y: auto; }
+.gi-readonly-tabs .tab-context-menu button { min-height: 44px; }

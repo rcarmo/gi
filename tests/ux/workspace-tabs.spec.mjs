@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import {loadCorpus} from './support/catalogue.mjs';
 const inputName='Message (Enter to send, Shift+Enter for newline)...';
 async function setup(page,request,info){
- const token=`tabs-${info.project.name}-${Date.now()}`,paths=[`${token}-a.md`,`${token}-b.txt`,`${token}-c.md`];
+ const token=`tabs-${info.project.name}-${Date.now()}`,paths=[`${token}-a.md`,`${token}-b.csv`,`${token}-c.md`];
  const bodies=['# First native tab\n\n**alpha** and `inline code`','<script>window.__tabUnsafe=true</script>\nplain β text','# Third native tab\n\ncharlie'];
  for(let i=0;i<paths.length;i++){const r=await request.post('/api/tools/execute',{data:{tool:'write',input:{path:paths[i],content:bodies[i]}}});expect(r.ok()).toBe(true);expect((await r.json()).error).toBeFalsy();}
  const created=await request.post('/api/sessions',{data:{agent_id:token,title:token}});const session=await created.json();await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),session.id);await page.goto('/');
@@ -35,7 +35,7 @@ test('@ux-shell-007 Closing background native read-only tabs never activates the
  await close(a,false);await expect.poll(activePaths).toEqual([c]);await expect(f.preview.getByRole('heading',{name:'Third native tab'})).toBeVisible();expect(reads).toEqual([]);
  await close(b,true);await expect.poll(activePaths).toEqual([c]);expect(reads).toEqual([]);await f.untouched();expect(await f.stored()).toEqual(saved);
  await page.screenshot({path:info.outputPath('readonly-workspace-tab.png')});
- await f.tab(c).click({button:'right'});await expect(page.locator('.tab-context-menu')).toHaveCount(0);
+ await f.tab(c).click({button:'right'});await expect(page.locator('.tab-context-menu button')).toHaveText(['Close','Close Others','Close All','Pin']);await page.keyboard.press('Escape');await expect(page.locator('.tab-context-menu')).toHaveCount(0);
  await f.preview.getByRole('button',{name:'Close preview',exact:true}).click();await expect(f.tabs).toHaveCount(0);await expect(f.input).toBeVisible();await expect(f.input).toBeFocused();await expect(f.input).toHaveValue('tabs keep this draft');await expect(page.locator('.compose-file-pill[title="tabs-unsent.txt"]')).toHaveCount(1);await f.untouched();
  await page.reload();await expect(f.input).toHaveValue('tabs keep this draft');await expect(page.locator('.compose-file-pill[title="tabs-unsent.txt"]')).toHaveCount(1);expect(await f.stored()).toEqual(saved);
 });
@@ -71,5 +71,40 @@ test('Gi last preview close cannot steal focus from Settings opened in the same 
   requestAnimationFrame(()=>requestAnimationFrame(resolve));
  })));
  const settings=page.getByRole('dialog',{name:'Gi Settings',exact:true});await expect(settings).toBeVisible();await expect(settings.getByRole('button',{name:'Close settings',exact:true})).toBeFocused();await expect(f.tabs).toHaveCount(0);
- await page.keyboard.press('Escape');await expect(settings).toHaveCount(0);await expect(f.input).toHaveValue('tabs keep this draft');await f.preserved();await f.untouched();
+ await page.keyboard.press('Escape');await expect(settings).toHaveCount(0);await expect(f.input).toBeFocused();await expect(f.input).toHaveValue('tabs keep this draft');await f.preserved();await f.untouched();
+});
+
+test('@ux-workspace-011 Native read-only tab MRU and bulk close preserve pinned tabs',async({page,request},info)=>{
+ const source=loadCorpus().find(s=>s.id==='@ux-workspace-011');await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
+ const f=await setup(page,request,info),[a,b,c]=f.paths;
+ for(const path of f.paths)await f.open(path);await f.settle();
+ const menu=page.locator('.tab-context-menu');
+ const action=async(path,label)=>{await f.tab(path).click({button:'right'});await expect(menu).toBeVisible();await menu.getByRole('button',{name:label,exact:true}).click();await expect(menu).toHaveCount(0);};
+ await action(a,'Pin');await expect(f.tab(a)).toHaveClass(/pinned/);
+ // With a pinned, insertion order is a,b,c; MRU must still choose a, not c.
+ await f.tab(a).click();await expect(f.tab(a)).toHaveClass(/active/);await f.tab(b).click();await expect(f.tab(b)).toHaveClass(/active/);
+ await f.tab(b).getByRole('button',{name:`Close ${b}`,exact:true}).click();await expect(f.tab(a)).toHaveClass(/active/);await expect(f.preview.getByRole('heading',{name:'First native tab'})).toBeVisible();
+ await f.open(b);await f.settle();
+ // CSV would expose a standalone viewer action in the unadapted component.
+ await f.tab(b).click({button:'right'});await expect(menu.getByRole('button')).toHaveText(['Close','Close Others','Close All','Pin']);await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);
+ await action(c,'Close Others');await expect(f.tab(a)).toHaveCount(1);await expect(f.tab(c)).toHaveCount(1);await expect(f.tab(b)).toHaveCount(0);await expect(f.tab(c)).toHaveClass(/active/);
+ await action(c,'Close All');await expect(f.tab(a)).toHaveCount(1);await expect(f.tab(a)).toHaveClass(/active/);await expect(f.tab(c)).toHaveCount(0);await expect(f.preview.getByRole('heading',{name:'First native tab'})).toBeVisible();
+ await f.tab(a).click({button:'right'});await expect(menu.getByRole('button')).toHaveText(['Close','Close Others','Close All','Unpin']);await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);await f.preserved();await f.untouched();
+ await page.screenshot({path:info.outputPath('pinned-readonly-tab.png')});
+ // Pins protect bulk closes, not an explicit individual close.
+ await f.tab(a).getByRole('button',{name:`Close ${a}`,exact:true}).click();await expect(f.tabs).toHaveCount(0);await expect(f.input).toBeFocused();await expect(f.input).toHaveValue('tabs keep this draft');await f.preserved();
+});
+
+test('Gi read-only context actions clamp to viewport and Settings owns tab shortcuts',async({page,request},info)=>{
+ const f=await setup(page,request,info),[a,b,c]=f.paths;for(const path of f.paths)await f.open(path);await f.settle();
+ const menu=page.locator('.tab-context-menu');
+ const size=page.viewportSize();
+ // Coordinate stress complements the trusted right-click path in frozen011.
+ await f.tab(c).dispatchEvent('contextmenu',{clientX:size.width-1,clientY:size.height-1});await expect(menu).toBeVisible();const box=await menu.boundingBox();expect(box.x).toBeGreaterThanOrEqual(0);expect(box.y).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(size.width);expect(box.y+box.height).toBeLessThanOrEqual(size.height);
+ // Focused keyboard activation also reaches the pin callback once.
+ await menu.getByRole('button',{name:'Pin',exact:true}).focus();await page.keyboard.press('Enter');await expect(f.tab(c)).toHaveClass(/pinned/);await expect(menu).toHaveCount(0);
+ await f.tab(c).click({button:'right'});await page.keyboard.press('Control+,');const settings=page.getByRole('dialog',{name:'Gi Settings',exact:true});await expect(settings).toBeVisible();
+ await page.keyboard.press('Control+Tab');await expect(f.tab(c)).toHaveClass(/active/);await page.keyboard.press('Control+Shift+Tab');await expect(f.tab(c)).toHaveClass(/active/);await page.keyboard.press('Escape');await expect(settings).toHaveCount(0);await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);
+ await f.tab(c).click({button:'right'});await menu.getByRole('button',{name:'Unpin',exact:true}).click();await expect(f.tab(c)).not.toHaveClass(/pinned/);
+ await f.tab(c).click({button:'right'});await menu.getByRole('button',{name:'Close All',exact:true}).click();await expect(f.tabs).toHaveCount(0);await expect(f.input).toBeFocused();await f.preserved();await f.untouched();
 });

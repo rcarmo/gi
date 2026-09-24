@@ -261,10 +261,19 @@ function GiApp() {
 
     // Workspace / pane state
     const [workspaceOpen, setWorkspaceOpen] = useState(false);
-    const [tabs, setTabs] = useState<any[]>([]);
-    const [activeTabId, setActiveTabId] = useState<string | null>(null);
+    const [tabSnapshot, setTabSnapshot] = useState(() => ({ tabs: tabStore.getTabs(), activeId: tabStore.getActiveId() }));
+    const { tabs, activeId: activeTabId } = tabSnapshot;
     const tabFocusEpoch = useRef(0);
     const editorOpen = tabs.length > 0;
+    useLayoutEffect(() => tabStore.onChange((nextTabs, activeId) => {
+        const epoch = ++tabFocusEpoch.current;
+        setTabSnapshot({ tabs: nextTabs, activeId });
+        if (!nextTabs.length) requestAnimationFrame(() => {
+            if (tabFocusEpoch.current !== epoch || tabStore.size || document.activeElement !== document.body ||
+                document.querySelector('.settings-dialog[aria-modal="true"]')) return;
+            document.querySelector<HTMLTextAreaElement>('.compose-box textarea')?.focus({ preventScroll: true });
+        });
+    }), []);
 
     // Timeline
     const [posts, setPosts] = useState<any[]>([]);
@@ -899,26 +908,10 @@ function GiApp() {
     const openEditor = useCallback((path: string) => {
         ++tabFocusEpoch.current;
         if (window.matchMedia('(max-width: 1023px), (orientation: portrait)').matches) setWorkspaceOpen(false);
-        const existing = tabs.find((t: any) => t.id === path || t.path === path);
-        if (existing) { setActiveTabId(existing.id); return; }
-        setTabs((prev: any[]) => [...prev, { id: path, path, label: path.split('/').pop() || path, dirty: false, pinned: false }]);
-        setActiveTabId(path);
-    }, [tabs]);
+        tabStore.open(path);
+    }, []);
 
-    const handleTabClose = useCallback((id: string) => {
-        setTabs((prev: any[]) => {
-            const next = prev.filter((t: any) => t.id !== id);
-            if (activeTabId === id) setActiveTabId(next[next.length - 1]?.id || null);
-            if (!next.length) {
-                const epoch = ++tabFocusEpoch.current;
-                requestAnimationFrame(() => {
-                    if (epoch !== tabFocusEpoch.current || document.activeElement !== document.body || document.querySelector('.settings-dialog[aria-modal="true"]')) return;
-                    document.querySelector<HTMLTextAreaElement>('.compose-box textarea')?.focus({ preventScroll: true });
-                });
-            }
-            return next;
-        });
-    }, [activeTabId]);
+    const handleTabClose = useCallback((id: string) => { tabStore.close(id); }, []);
 
     // ── Shell class ───────────────────────────────────────────────────────────
 
@@ -1015,15 +1008,16 @@ function GiApp() {
             </button>
             <div class="workspace-splitter"></div>
             ${editorOpen && html`
-                <div class="editor-pane-container gi-readonly-tabs" onContextMenuCapture=${e => { if (e.target.closest('.tab-item')) { e.preventDefault(); e.stopPropagation(); } }}>
+                <div class="editor-pane-container gi-readonly-tabs">
                     <${TabStrip}
                         tabs=${tabs}
                         activeId=${activeTabId}
-                        onActivate=${(id: string) => setActiveTabId(id)}
+                        readOnlyHost=${true}
+                        onActivate=${(id: string) => tabStore.activate(id)}
                         onClose=${handleTabClose}
-                        onCloseOthers=${(id: string) => setTabs((p: any[]) => p.filter((t: any) => t.id === id))}
-                        onCloseAll=${() => { setTabs([]); setActiveTabId(null); }}
-                        onTogglePin=${() => {}}
+                        onCloseOthers=${(id: string) => { if (tabStore.get(id)) tabStore.closeOthers(id); }}
+                        onCloseAll=${() => tabStore.closeAll()}
+                        onTogglePin=${(id: string) => tabStore.togglePin(id)}
                     />
                     <div class="editor-pane-host">
                         ${activeTabId && html`<${WorkspaceTab} key=${activeTabId} path=${activeTabId} onClose=${() => handleTabClose(activeTabId)} />`}

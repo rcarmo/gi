@@ -115,3 +115,18 @@ test('Read-only workspace tab mounts native content and closes back to the draft
  await preview.getByRole('button',{name:'Refresh preview',exact:true}).click();await expect(preview.getByRole('heading',{name:'Refreshed tab bytes'})).toBeVisible();await expect(preview.getByRole('heading',{name:'Native tab proof'})).toHaveCount(0);
  await preview.getByRole('button',{name:'Close preview',exact:true}).click();await expect(preview).toHaveCount(0);await expect(input).toHaveValue('retained tab draft');
 });
+
+test('Read-only pinned workspace tab survives Close All and preserves draft', async ({page,request}) => {
+ const token=`pin-${Date.now()}`,paths=[`${token}-a.md`,`${token}-b.csv`];
+ for(const path of paths){const r=await request.post(`${BASE_URL}/api/tools/execute`,{data:{tool:'write',input:{path,content:'# Pinned native file'}}});expect((await r.json()).error).toBeFalsy();}
+ await page.goto(BASE_URL);const input=page.getByRole('textbox',{name:'Message (Enter to send, Shift+Enter for newline)...',exact:true});await input.fill('pin keeps draft');
+ const tabs=page.getByRole('tablist',{name:'Editor tabs',exact:true}),menu=page.locator('.tab-context-menu');
+ for(const path of paths){
+  await page.getByTestId('hamburger').click();const show=page.getByRole('menuitem',{name:'Show workspace',exact:true});if(await show.count())await show.click();else await page.keyboard.press('Escape');
+  await page.locator('.workspace-tree').getByText(path,{exact:true}).click();await page.getByRole('button',{name:'Open read-only tab',exact:true}).click();
+ }
+ if(!await page.locator('.app-shell.workspace-collapsed').count()){await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Hide workspace',exact:true}).click();}
+ const a=page.locator('.tab-item').filter({has:page.locator('.tab-label',{hasText:paths[0]})});await a.click({button:'right'});await menu.getByRole('button',{name:'Pin',exact:true}).click();await expect(a).toHaveClass(/pinned/);
+ await a.click({button:'right'});await menu.getByRole('button',{name:'Close All',exact:true}).click();await expect(page.locator('.tab-item')).toHaveCount(1);await expect(a).toHaveClass(/active/);
+ await a.getByRole('button',{name:`Close ${paths[0]}`,exact:true}).click();await expect(tabs).toHaveCount(0);await expect(input).toHaveValue('pin keeps draft');await expect(input).toBeFocused();
+});

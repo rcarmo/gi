@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { patchStatusPreview } from './scripts/patch-status-preview.mjs';
 import { patchTimelineMenu } from './scripts/patch-timeline-menu.mjs';
 import { patchWorkspaceReadonly } from './scripts/patch-workspace-readonly.mjs';
+import { patchTabReadonly } from './scripts/patch-tab-readonly.mjs';
 import { patchQuickActionKeys, patchComposePopupKeys } from './scripts/patch-popup-keys.mjs';
 import { patchModelPicker } from './scripts/patch-model-picker.mjs';
 
@@ -76,6 +77,9 @@ const appBuild = await Bun.build({
       contents: patchModelPicker(patchComposePopupKeys(await Bun.file(args.path).text())), loader: 'ts',
     }));
   } }, { name: 'gi-workspace-readonly', setup(build) {
+    build.onLoad({ filter: /[\\/]components[\\/]tab-strip\.ts$/ }, async args => ({
+      contents: patchTabReadonly(await Bun.file(args.path).text()), loader: 'ts',
+    }));
     build.onLoad({ filter: /[\\/]components[\\/]workspace-explorer\.ts$/ }, async args => ({
       contents: patchWorkspaceReadonly(await Bun.file(args.path).text()), loader: 'ts',
     }));

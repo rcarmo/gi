@@ -10,7 +10,9 @@ Scope confirmed 2026-09-21: finish the whole imported corpus, not just the curre
 - Terminal: implement suitable functional equivalents separately, preserving transcript/editor/footer and zero new idle rows. Browser-only properties (touch, PWA installation, CSS layering) need a documented terminal disposition, not a fictitious terminal pass.
 - Delivery: small tested commits, source provenance, truthful capability/error paths and current evidence reports. Full completion requires no unexplained unmapped cases.
 
-Latest terminal selector fix (2026-09-24): Alt-S uses the existing bounded temporary screen in regular mode; resize cannot leave selector rows in history. Captured-generation acceptance keeps failed switches open for retry, and closes only after success. Six session-picker PTYs plus six model-picker regressions, existing TUI suites,92functional/75helpers/Go-vet-build-hook/TUI race ×3 pass. Browser coverage remains **87/236 Classic**, **27/42 shared**; no idle rows added.
+Latest browser acceptance (2026-09-24): read-only tabs use the supplied tab store's MRU and pin semantics. Workspace-011 passes all six projects with pinned-before-MRU, bulk-close protection and exact draft/media retention; 186 combined browser, 93 functional and 82 support tests/1,004 assertions pass alongside Go/vet/hook checks. Coverage is **88/236 Classic + 27/42 shared**, leaving **148/15** unmapped. No editing, dirty/save, durable pin or terminal credit.
+
+Earlier terminal selector fix (2026-09-24): Alt-S uses the existing bounded temporary screen in regular mode; resize cannot leave selector rows in history. Captured-generation acceptance keeps failed switches open for retry, and closes only after success. Six session-picker PTYs plus six model-picker regressions, existing TUI suites,92functional/75helpers/Go-vet-build-hook/TUI race ×3 pass. Browser coverage remains **87/236 Classic**, **27/42 shared**; no idle rows added.
 
 Earlier read-only tab slice (2026-09-24): the formerly empty workspace tab host now mounts native bounded previews with loading, retry and stale-read/disposal guards. Shell007 background close preserves active content; pointer/keyboard/mobile/focus/draft checks pass: **18/18** focused, **168/168** regressions, **92/92** functional, **75/75** helpers, Go/vet/build/hook. Coverage **87/236 Classic**, **27/42 shared**, unmapped **149/15**. No editing, dirty-tab, pin/pop-out or terminal credit.
 
@@ -591,3 +593,51 @@ preservation, zero API mutations and zero page errors. `/api/sessions` returned
 200 with 62 sessions; read-only SQLite integrity returned `ok`, foreign-key
 check returned no rows. Logs: `/workspace/tmp/gi-pane-live.log`; bundled results:
 `/workspace/tmp/gi-pane-host-evidence.tar.gz`.
+
+## Read-only tab MRU and pinning (2026-09-24)
+
+Gi now subscribes to the supplied Piclaw tab store rather than maintaining a
+second tab array with insertion-order fallback. Opening/activating records MRU;
+closing the active tab chooses the most recently used remaining tab. Close
+Others and Close All preserve pinned tabs, while an explicit single-tab close
+can remove a pin. Pin state is page-local, not persisted or session-owned.
+Every store change publishes tabs and active ID together. Last-close focus
+restoration is fenced by epoch, remaining tabs and modal ownership.
+
+The supplied tab-strip/store bytes are unchanged. An opt-in exact-anchor build
+adapter exposes only Close, Close Others, Close All and Pin/Unpin, suppressing
+standalone-viewer routes (tested with CSV), and positions the requested menu
+inside the viewport. Touch targets are 44px. The outside-click/Escape listener
+now installs before paint; a fast Escape previously left the menu open.
+Settings blocks Gi's background tab shortcuts. Browser-reserved shortcuts stay
+native rather than being globally swallowed. Settings dismissal already restores
+the connected opener or composer; the same-frame last-close test now explicitly
+checks composer focus after Escape.
+
+Frozen workspace-011 first failed the insertion-order fallback. Final coverage
+pins A before A→B→close B, checks A instead of insertion-tail C, then tests both
+bulk closes with the pin intact and explicit pin closure. Exact IndexedDB
+text/media bytes, selected session, empty turns and reference preservation remain
+asserted. Synthetic edge-position stress supplements, but does not replace,
+trusted context-menu interaction. A focused independent review raised these
+coverage gaps; the strengthened fixtures pass, and a bounded follow-up review
+accepted the described resolution and explicit browser shortcut policy.
+
+Validation: 186/186 combined pane/workspace/shell/settings cases across Chromium
+and WebKit at phone/tablet/desktop sizes; 93/93 functional cases; 82/82 support
+tests with 1,004 assertions; Go tests/vet and hook checks. Helper syntax/optional-
+callback expectations and a functional hamburger locator were corrected before
+these final runs. Five-project evidence remains partial; the report maps only
+workspace-011 after the full matrix. Logs: `/workspace/tmp/gi-tab-mru-*.log`;
+native result snapshot: `test-results/ux-parity/workspace-mru-results.json`.
+
+Workspace-005 stays open: its hidden header menu also requires unavailable create
+and upload actions. Editing/dirty-save/retained pane instances/pop-out remain
+separate unsupported work, not inferred from pinning.
+
+Terminal disposition: MRU/session navigation can reuse temporary ≤6-result
+pickers; a pin is a navigation preference, not justification for persistent tab
+chrome. File-preview pin/MRU support is not implemented in the TUI. Any future
+adaptation must preserve logical cursor, Unicode/multiline drafts, history and
+session ownership in both modes at all three PTY sizes, with no extra idle rows.
+This browser slice changes no terminal code and claims no terminal acceptance.
