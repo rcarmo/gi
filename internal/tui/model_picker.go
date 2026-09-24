@@ -86,6 +86,7 @@ func (c *chatTUI) closeModelPickerScreen() {
 		c.app.PrintAboveln("sys: terminal resized to %dx%d", w, h)
 	}
 	c.modelMenuResized = false
+	c.modelMenuRenderedHeight = 0
 }
 
 func (c *chatTUI) resetModelMenuMetadata() {

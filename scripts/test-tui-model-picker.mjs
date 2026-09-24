@@ -5,10 +5,11 @@ import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 const binary=process.env.GI_TUI_MODEL_BIN||resolve('bin/gi-tui-model-picker'),artifacts=resolve('test-results/tui-model-picker');mkdirSync(artifacts,{recursive:true});
-const socket=`gi-model-${process.pid}`,tmux=(...args)=>execFileSync('tmux',['-L',socket,...args],{encoding:'utf8'}),sleep=ms=>new Promise(r=>setTimeout(r,ms)),assert=(v,m)=>{if(!v)throw Error(m)};
+let socket;const tmux=(...args)=>execFileSync('tmux',['-L',socket,...args],{encoding:'utf8'}),sleep=ms=>new Promise(r=>setTimeout(r,ms)),assert=(v,m)=>{if(!v)throw Error(m)};
 const wait=async(fn,label)=>{for(let i=0;i<150;i++){if(fn())return;await sleep(60)}throw Error(`timeout: ${label}`)};
 const results=[];
 for(const mode of ['fullscreen','regular'])for(const [width,height]of [[60,18],[100,22],[140,36]]){
+ socket=`gi-model-${process.pid}-${mode}-${width}`;
  const dir=mkdtempSync(join(tmpdir(),'gi-model-picker-')),db=join(dir,'gi.db'),session=`${mode}-${width}`,pane=session+':0.0';mkdirSync(join(dir,'.pi'));
  const enabled=['test/test-model','opencode-zen/picker-small','opencode-zen/picker-pine','test/unavailable','opencode-zen/picker-piper',...Array.from({length:6},(_,i)=>`opencode-zen/picker-oak${i+1}`),'test/bootstrap'];
  const settings=JSON.stringify({defaultProvider:'test',defaultModel:'test-model',enabledModels:enabled});writeFileSync(join(dir,'.pi/settings.json'),settings);
@@ -24,7 +25,7 @@ for(const mode of ['fullscreen','regular'])for(const [width,height]of [[60,18],[
   keys('Home','Down');await wait(()=>choice().includes('picker-pine'),'skip small');keys('Down');await wait(()=>choice().includes('picker-piper'),'skip unavailable');keys('Home','PPage');await wait(()=>choice().includes('test/test-model'),'page up clamp');keys('NPage');await wait(()=>choice().includes('picker-oak3'),'page enabled');keys('End');await wait(()=>choice().includes('test/bootstrap'),'end');keys('Down');await wait(()=>choice().includes('test/test-model'),'wrap');keys('Up');await wait(()=>choice().includes('test/bootstrap'),'reverse wrap');
   await filter('forest pine');assert(choice().includes('picker-pine'),'display-name filter');assert(!capture().includes('picker-oak'),'nonmatching rows');
   await filter('32k ctx reasoning');assert(choice().includes('picker-pine')&&!capture().includes('picker-piper'),'capability search');shot('filtered');
-  tmux('resize-window','-t',session,'-x',String(width+8),'-y',String(height+3));await sleep(130);tmux('resize-window','-t',session,'-x',String(width),'-y',String(height));await sleep(130);assert(capture().includes('32k ctx reasoning'),'resize query');
+  tmux('resize-window','-t',session,'-x',String(width+8),'-y',String(height+3));await sleep(300);tmux('resize-window','-t',session,'-x',String(width),'-y',String(height));await sleep(300);await wait(()=>capture().includes('32k ctx reasoning'),'resize query');
   await filter('picker-small');assert(!choice(),'disabled-only selected');keys('Enter');await wait(()=>capture().includes('context too small'),'blocked reason');assert(sql("select coalesce(json_extract(state_json,'$.selected_model'),'') from sessions where id='picker-main'")==='','blocked mutation');shot('blocked');
   await filter('no-match-xyz');await wait(()=>capture().includes('no matching models'),'empty');keys('Enter');assert(capture().includes('Select model'),'empty accepted');
   await close();assert(JSON.stringify(bars())===JSON.stringify(idle),'idle footprint');// The renderer hides the hardware cursor; verify the logical insertion point below.

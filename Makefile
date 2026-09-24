@@ -303,6 +303,14 @@ test-tool-activity:
 
 .PHONY: test-terminal-tool-identity test-tui-tool-timing
 .PHONY: test-terminal-links
+.PHONY: test-tui-session-actions
+test-tui-session-actions: build
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-session-actions.mjs
+
+.PHONY: test-session-actions
+test-session-actions:
+	$(GO) test -race -count=3 ./internal/tui ./internal/store -run 'SessionActions|SessionDisplayCapabilities|SessionPicker'
+
 test-terminal-links:
 	$(GO) test -race -count=3 ./internal/tui -run 'TranscriptLink|TranscriptSelection|TranscriptSearch'
 

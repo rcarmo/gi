@@ -225,10 +225,12 @@ type chatTUI struct {
 	modelMenuKind               string
 	modelMenuValues             map[string]string
 	modelMenuMetadata           map[string]modelPickerMetadata
+	sessionActions              sessionActions
 	modelMenuSession            sessionScope
 	modelMenuAltScreen          bool
 	modelMenuResized            bool
 	modelMenuInlineHeight       int
+	modelMenuRenderedHeight     int
 	modelMenuChoices            []string
 	modelMenuAll                []string
 	modelMenuQuery              string
@@ -1554,7 +1556,13 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 	if c.modelMenuOpen {
 		return gotui.KeyMap{
 			gotui.OnStop(gotui.KeyCtrlC, func(ke gotui.KeyEvent) { c.app.Stop() }),
-			gotui.OnPreemptStop(gotui.KeyEscape, func(ke gotui.KeyEvent) { c.closeModelMenu() }),
+			gotui.OnPreemptStop(gotui.KeyEscape, func(ke gotui.KeyEvent) { c.backFromSessionActions() }),
+			gotui.OnPreemptStop(gotui.KeyRight, func(ke gotui.KeyEvent) { c.openSessionActions() }),
+			gotui.OnPreemptStop(gotui.KeyLeft, func(ke gotui.KeyEvent) {
+				if c.modelMenuKind == "session-actions" {
+					c.backFromSessionActions()
+				}
+			}),
 			gotui.OnPreemptStop(gotui.KeyUp, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(-1) }),
 			gotui.OnPreemptStop(gotui.KeyDown, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(1) }),
 			gotui.OnPreemptStop(gotui.KeyPageUp, func(ke gotui.KeyEvent) { c.moveModelMenuSelection(-5) }),
@@ -1688,14 +1696,7 @@ func (c *chatTUI) openSessionMenu() {
 	selected := 0
 	for i := range sessions {
 		sess := sessions[i]
-		status, _ := sess.State["status"].(string)
-		if status == "" {
-			status = "idle"
-		}
-		if archived, _ := sess.State["archived_at"].(string); archived != "" {
-			status = "archived"
-		}
-		label := fmt.Sprintf("@%s %s (%s) · %s", c.agentIDForSession(&sess), strings.TrimSpace(sess.Title), sess.ID, status)
+		label := c.sessionPickerLabel(&sess)
 		labels = append(labels, label)
 		values[label] = sess.ID
 		if sess.ID == c.sessionID {
@@ -1771,6 +1772,9 @@ func (c *chatTUI) applyModelMenuFilter() {
 }
 
 func (c *chatTUI) modelMenuTypeRune(r rune) {
+	if c.modelMenuKind == "session-actions" {
+		return
+	}
 	if r == 0 {
 		return
 	}
@@ -1780,6 +1784,9 @@ func (c *chatTUI) modelMenuTypeRune(r rune) {
 }
 
 func (c *chatTUI) modelMenuBackspace() {
+	if c.modelMenuKind == "session-actions" {
+		return
+	}
 	if c.modelMenuQuery == "" {
 		return
 	}
@@ -1792,6 +1799,7 @@ func (c *chatTUI) modelMenuBackspace() {
 func (c *chatTUI) closeModelMenu() {
 	// Hide before the screen-restore resize is dispatched.
 	c.modelMenuOpen = false
+	c.sessionActions = sessionActions{}
 	c.closeModelPickerScreen()
 	c.resetModelMenuMetadata()
 	c.modelMenuError = ""
@@ -1926,6 +1934,10 @@ func (c *chatTUI) ensureModelMenuSelectionVisible() {
 }
 
 func (c *chatTUI) acceptModelMenuSelection() {
+	if c.modelMenuKind == "session-actions" {
+		c.applySessionAction()
+		return
+	}
 	if c.modelMenuOpen && (c.modelMenuKind == "model" || c.modelMenuKind == "session") {
 		if !c.ownsScope(c.modelMenuSession) {
 			c.modelMenuError = "session changed; reopen picker"
@@ -2037,7 +2049,13 @@ func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
 	if width < 72 {
 		title = "Select " + noun + " · ↑/↓ Enter Esc"
 	}
-	if c.modelMenuKind != "session" && c.modelMenuKind != "thinking" && current != "" {
+	if c.modelMenuKind == "session" {
+		title = "Select session · ↑↓ Enter · → actions · Esc"
+	}
+	if c.modelMenuKind == "session-actions" {
+		title = "Session actions · ↑↓ Enter · Esc back"
+	}
+	if c.modelMenuKind == "model" && current != "" {
 		title += " · current " + compactMaybe(current, c.compactOutput(), 28)
 	}
 	menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(selectorText(title, width)), gotui.WithTextStyle(gotui.NewStyle().Bold())))
@@ -2046,6 +2064,9 @@ func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
 		search = "search: (type to filter)"
 	} else {
 		search += fmt.Sprintf("  (%d match)", len(c.modelMenuChoices))
+	}
+	if c.modelMenuKind == "session-actions" {
+		search = "target: " + c.sessionActions.targetLabel
 	}
 	if c.modelMenuError != "" {
 		search = "error: " + c.modelMenuError

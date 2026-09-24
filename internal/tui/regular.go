@@ -73,8 +73,7 @@ func (c *chatTUI) renderRegular(app *gotui.App) *gotui.Element {
 	}
 	if c.modelMenuAltScreen && c.regularWidth != 0 && (w != c.regularWidth || h != c.regularHeight) {
 		c.modelMenuResized = true
-		// Terminal reflow can leave old selector rows above the inline region.
-		// Clear only the temporary visible screen, never main scrollback (3J).
+		// Clear only the temporary visible screen, never main scrollback.
 		app.Terminal().SetCursor(0, 0)
 		app.Terminal().ClearToEnd()
 	}
@@ -95,8 +94,16 @@ func (c *chatTUI) renderRegular(app *gotui.App) *gotui.Element {
 	if c.modelMenuAltScreen {
 		// Preserve the main-screen inline dock while a temporary selector owns
 		// this screen, as with the bounded workspace-index panel above.
-		app.SetInlineHeight(max(c.modelMenuInlineHeight, c.modelMenuHeight()))
-		root := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidthPercent(100), gotui.WithHeight(c.modelMenuHeight()))
+		// Keep the largest temporary selector region until close. The buffer
+		// clears its unused rows when switching to a shorter action submenu,
+		// rather than stranding old rows above a shrunken inline region.
+		if c.modelMenuKind == "session" || c.modelMenuKind == "session-actions" {
+			c.modelMenuRenderedHeight = max(c.modelMenuRenderedHeight, c.modelMenuHeight())
+		} else {
+			c.modelMenuRenderedHeight = c.modelMenuHeight()
+		}
+		app.SetInlineHeight(max(c.modelMenuInlineHeight, c.modelMenuRenderedHeight))
+		root := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidthPercent(100), gotui.WithHeight(c.modelMenuRenderedHeight))
 		root.AddChild(c.renderModelMenu(w))
 		return root
 	}
