@@ -296,6 +296,10 @@ test-terminal-links:
 test-tui-links: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-links.mjs
 
+.PHONY: test-tui-selection-edge
+test-tui-selection-edge: build
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-selection-edge.mjs
+
 test-terminal-tool-identity:
 	$(GO) test -race -count=3 ./internal/tui -run 'ToolRuntime|ToolEndWithout|RenderToolEvent|BuildTranscriptRenderable'
 

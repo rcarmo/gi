@@ -16,6 +16,7 @@ type transcriptSelection struct {
 	expanded                      map[string]bool
 	scope                         sessionScope
 	width, height                 int
+	contentWidth                  int
 	terminalWidth, terminalHeight int
 	query                         string
 	searchActive                  bool
@@ -79,7 +80,18 @@ func (c *chatTUI) selectionPoint(x, y int) transcriptPoint {
 	if rows == 0 {
 		return transcriptPoint{}
 	}
-	return transcriptPoint{row: min(rows-1, max(0, offset+min(r.Height-1, max(0, y-r.Y)))), col: min(max(0, x-r.X), c.textSelection.width-1)}
+	width := c.textSelection.contentWidth
+	if width <= 0 {
+		width = c.textSelection.width
+	}
+	col := min(max(0, x-r.X), width)
+	// Interior endpoints retain the existing half-open cell convention. The
+	// final content cell acts as the outer boundary so it can be selected
+	// without an out-of-window mouse coordinate. Reverse drags use it too.
+	if col >= width-1 {
+		col = width
+	}
+	return transcriptPoint{row: min(rows-1, max(0, offset+min(r.Height-1, max(0, y-r.Y)))), col: col}
 }
 
 // Return ordered half-open positions. Display columns are converted to complete
@@ -160,7 +172,13 @@ func (c *chatTUI) handleTranscriptSelection(me gotui.MouseEvent) bool {
 		}
 		r := c.transcriptRegion.Rect()
 		viewWidth, _ := c.transcriptRegion.ViewportSize()
-		if me.X >= r.X+viewWidth {
+		// go-tui's ViewportSize includes its visible scrollbar column even
+		// though child layout reserves that cell when vertical overflow exists.
+		_, maxScroll := c.transcriptRegion.MaxScroll()
+		if maxScroll > 0 {
+			viewWidth--
+		}
+		if viewWidth < 1 || me.X >= r.X+viewWidth {
 			return false
 		} // scrollbar retains its own hit region
 		c.clearTranscriptSelection()
@@ -176,6 +194,7 @@ func (c *chatTUI) handleTranscriptSelection(me gotui.MouseEvent) bool {
 		s.rows = rows
 		s.scope = c.selectionScope()
 		s.width, s.height = r.Width, r.Height
+		s.contentWidth = viewWidth
 		if c.app != nil {
 			s.terminalWidth, s.terminalHeight = c.app.Size()
 		}
@@ -192,7 +211,7 @@ func (c *chatTUI) handleTranscriptSelection(me gotui.MouseEvent) bool {
 		s.pointerX, s.pointerY = me.X, me.Y
 		s.start = c.selectionPoint(me.X, me.Y)
 		s.clickKey = rows[s.start.row].blockKey
-		s.pressLink = transcriptRowLinkAt(rows[s.start.row], s.start.col)
+		s.pressLink = transcriptRowLinkAt(rows[s.start.row], min(s.start.col, s.contentWidth-1))
 		s.end = s.start
 		s.previousFollow = c.stickToBottom
 		c.stickToBottom = false

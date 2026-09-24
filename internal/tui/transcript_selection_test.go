@@ -228,3 +228,96 @@ func TestTranscriptSelectionNativeCopyHasSinglePendingSlot(t *testing.T) {
 		t.Fatal("selection reset freed in-flight clipboard slot")
 	}
 }
+
+func TestTranscriptSelectionIncludesFinalContentCellWithoutScrollbarPress(t *testing.T) {
+	for _, width := range []int{60, 100, 140} {
+		for _, scrollbar := range []bool{false, true} {
+			for _, suffix := range []string{"Z", "界", "e\u0301"} {
+				t.Run(fmt.Sprintf("%d-scroll%v-%s", width, scrollbar, suffix), func(t *testing.T) {
+					c := sessionTestChat(t)
+					c.outputWidth = width
+					c.cfg.TUIClipboardMode = "osc52"
+					var clipboard bytes.Buffer
+					c.osc52Writer = &clipboard
+					contentWidth := width
+					if scrollbar {
+						contentWidth--
+					}
+					text := strings.Repeat("a", contentWidth-gotui.StringWidth(suffix)) + suffix
+					c.transcript = []string{text}
+					if scrollbar {
+						for i := 0; i < 20; i++ {
+							c.transcript = append(c.transcript, text)
+						}
+					}
+					layoutSearchChat(t, c, width, 6)
+					r := c.transcriptRegion.Rect()
+					view, _ := c.transcriptRegion.ViewportSize()
+					_, overflow := c.transcriptRegion.MaxScroll()
+					if overflow > 0 {
+						view--
+					}
+					if view != contentWidth {
+						t.Fatal(view, contentWidth)
+					}
+					send := func(action gotui.MouseAction, x int) bool {
+						return c.handleTranscriptSelection(gotui.MouseEvent{Action: action, Button: gotui.MouseLeft, X: r.X + x, Y: r.Y + 2})
+					}
+					y := r.Y
+					if scrollbar {
+						y = r.Y + 2
+					}
+					point := func(action gotui.MouseAction, x int) bool {
+						return c.handleTranscriptSelection(gotui.MouseEvent{Action: action, Button: gotui.MouseLeft, X: r.X + x, Y: y})
+					}
+					point(gotui.MousePress, 0)
+					point(gotui.MouseDrag, contentWidth-1)
+					point(gotui.MouseRelease, contentWidth-1)
+					if got := c.textSelection.text(); got != text {
+						t.Fatalf("forward %q want %q", got, text)
+					}
+					sequence, err := osc52Sequence(text)
+					if err != nil || clipboard.String() != sequence {
+						t.Fatal("clipboard differs from selected cells")
+					}
+					c.clearTranscriptSelection()
+					clipboard.Reset()
+					point(gotui.MousePress, contentWidth-1)
+					point(gotui.MouseDrag, 0)
+					point(gotui.MouseRelease, 0)
+					if got := c.textSelection.text(); got != text {
+						t.Fatalf("reverse %q want %q", got, text)
+					}
+					if clipboard.String() != sequence {
+						t.Fatal("reverse release did not copy selected cells")
+					}
+					c.clearTranscriptSelection()
+					clipboard.Reset()
+					point(gotui.MousePress, contentWidth-1)
+					point(gotui.MouseRelease, contentWidth-1)
+					if c.textSelection.active || clipboard.Len() != 0 {
+						t.Fatal("stationary edge click selected or copied text")
+					}
+					// A new press in the actual scrollbar remains go-tui's responsibility.
+					if scrollbar && send(gotui.MousePress, contentWidth) {
+						t.Fatal("scrollbar press consumed")
+					}
+					c.clearTranscriptSelection()
+					point(gotui.MousePress, 0)
+					point(gotui.MouseDrag, 5)
+					point(gotui.MouseRelease, 5)
+					if got := c.textSelection.text(); got != "aaaaa" {
+						t.Fatal("interior half-open convention changed", got)
+					}
+					c.clearTranscriptSelection()
+					point(gotui.MousePress, 0)
+					point(gotui.MouseDrag, width+10)
+					point(gotui.MouseRelease, width+10)
+					if got := c.textSelection.text(); got != text {
+						t.Fatal("outside drag did not clamp", got)
+					}
+				})
+			}
+		}
+	}
+}
