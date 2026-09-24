@@ -776,3 +776,9 @@ admission, while in-flight native admission remains held until settled. There is
 no browser XHR progress/cancel analogue to reproduce as permanent terminal UI.
 This web slice adds no terminal code, idle rows or terminal acceptance credit.
 Logs: `/workspace/tmp/gi-upload-cancel-{browser-final,regression,functional-final,helpers-final,standard-final}.log`.
+
+Deployed `318f23c` on port 8090, PID 1146944. Guarded six-size Chromium/WebKit
+read-only smoke passed preview/pin/bulk-close/draft checks with zero API mutation
+attempts/page errors; session API 200/62, SQLite integrity `ok`, FK check empty.
+Upload cancellation was exercised only in isolated fixtures, not live sessions.
+Results/logs attached as `/workspace/tmp/gi-upload-cancel-evidence.tar.gz`.
