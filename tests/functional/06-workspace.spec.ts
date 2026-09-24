@@ -108,9 +108,10 @@ test('workspace index reads keep edited bytes stale until the next explicit appl
 });
 
 test('Read-only workspace tab mounts native content and closes back to the draft',async({page,request})=>{
- const path=`functional-tab-${Date.now()}.md`;const written=await request.post(`${BASE_URL}/api/tools/execute`,{data:{tool:'write',input:{path,content:'# Native tab proof'}}});expect(written.ok()).toBe(true);expect((await written.json()).error).toBeFalsy();
+ const path=`functional-tab-${Date.now()}.md`;const written=await request.post(`${BASE_URL}/api/tools/execute`,{data:{tool:'write',input:{path,content:'# Native tab proof\n\nUse `inline proof` as code.'}}});expect(written.ok()).toBe(true);expect((await written.json()).error).toBeFalsy();
  await page.goto(BASE_URL);const input=page.locator('textarea').last();await expect(input).toBeVisible();await input.fill('retained tab draft');await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();await page.locator(`.workspace-row[data-path="${path}"] .workspace-label-text`).click();await page.getByRole('button',{name:'Open read-only tab',exact:true}).click();
  const preview=page.getByRole('region',{name:`Read-only preview: ${path}`,exact:true});await expect(preview.getByRole('heading',{name:'Native tab proof',exact:true})).toBeVisible();await expect(preview.locator('[contenteditable=true],textarea')).toHaveCount(0);
+ const code=preview.locator('.workspace-preview-text p code');await expect(code).toHaveText('inline proof');expect(await code.evaluate(el=>getComputedStyle(el).fontFamily)).toContain('monospace');expect(await code.evaluate(el=>getComputedStyle(el).fontFamily===getComputedStyle(el.parentElement!).fontFamily)).toBe(false);
  const updated=await request.post(`${BASE_URL}/api/tools/execute`,{data:{tool:'write',input:{path,content:'# Refreshed tab bytes\n\nγ'}}});expect((await updated.json()).error).toBeFalsy();
  await preview.getByRole('button',{name:'Refresh preview',exact:true}).click();await expect(preview.getByRole('heading',{name:'Refreshed tab bytes'})).toBeVisible();await expect(preview.getByRole('heading',{name:'Native tab proof'})).toHaveCount(0);
  await preview.getByRole('button',{name:'Close preview',exact:true}).click();await expect(preview).toHaveCount(0);await expect(input).toHaveValue('retained tab draft');

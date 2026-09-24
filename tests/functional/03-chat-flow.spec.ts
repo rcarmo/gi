@@ -95,3 +95,11 @@ test.describe('Chat flow', () => {
     expect(value).toBe('');
   });
 });
+
+test('horizontal table scrolling keeps selected session and draft even with Safari swipe enabled',async({page,request})=>{
+ const session=await(await request.post('/api/sessions',{data:{title:'scroll owner',agent_id:`scroll-${Date.now()}`}})).json();await request.post('/api/sessions',{data:{title:'scroll neighbour',agent_id:`neighbour-${Date.now()}`}});
+ const source='| '+Array.from({length:12},(_,i)=>`Column ${i}`).join(' | ')+' |\n| '+Array(12).fill('---').join(' | ')+' |\n| '+Array(12).fill('wide_column_'+ 'abcdefgh'.repeat(8)).join(' | ')+' |';
+ const sent=await(await request.post(`/api/sessions/${session.id}/prompt`,{data:{prompt:source,model:'test-model'}})).json();await expect.poll(async()=>((await(await request.get(`/api/sessions/${session.id}/turns`)).json()).turns||[]).find(t=>t.id===sent.turn_id)?.status).toBe('completed');
+ await page.addInitScript(id=>{localStorage.setItem('gi_session_id',id);Object.defineProperty(navigator,'userAgent',{configurable:true,value:'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15'});},session.id);
+ await page.goto('/');const input=page.getByRole('textbox',{name:'Message (Enter to send, Shift+Enter for newline)...',exact:true});await input.fill('scroll draft');const table=page.locator('.post:not(.agent-post) table').first();await expect(table).toBeVisible();await table.locator('td').first().hover();await page.mouse.wheel(10000,0);await expect.poll(()=>table.evaluate(el=>el.closest('.post-content')!.scrollLeft)).toBeGreaterThan(0);expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(session.id);await expect(input).toHaveValue('scroll draft');
+});

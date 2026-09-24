@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-24
 
+- [x] Align read-only Markdown tab code with configured mono font; verify glyph widths/native Appearance/reload/draft-media across6projects. Repair Safari swipe interception of horizontal table scrollers incl edge wheel;210browser+30swipe/95functional clean rerun/86helpers1047assertions/Go-vet-hook pass. One unchanged session-typeahead timing failure recorded. Shell009 stays unmapped (no editable editor); shared41 conflicts with Classic SVG source-only; coverage88/236+28/42 unchanged, no TUI rows/credit.
+
 - [x] Reuse byte-identical multipart browser uploads within session/name/MIME under SQLite write transaction; native/JSON still create (reserved web hash stripped). Map shared39 attach-file cancel/retry/source unlink/reload same-ID/one-media delivery across six projects; supplementary DOM drop/paste not physical clipboard.198browser/94functional/85helpers1039assertions/Go-vet-hook/store-web race×3/twoStore16writers/four-process race/review pass. Coverage88/236+28/42 unmapped148/14; no general message idempotency, orphan GC, legacy upload migration or new TUI credit.
 
 - [x] Add session-owned Cancel uploads for captured batches: native XHR abort/pre-dispatch fencing, exact IndexedDB draft/media recovery and explicit retry, other-session/newer-draft/send isolation.30 final focused/204 regression browser/94 functional/85 helpers1034assertions/Go-vet-hook; bounded review no blocker. Supplied composer unchanged via guarded build adapter. Shared39 remains unmapped: stored orphan cleanup and full source-removal/no-duplication contract not established; no new terminal credit.

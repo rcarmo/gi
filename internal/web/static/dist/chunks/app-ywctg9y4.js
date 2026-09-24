@@ -18165,10 +18165,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-e3tdc5nn.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-tcfnx9qm.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-39c2cb1h.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-maaav4z2.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-t0g41p9f.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-tfjerg0q.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-j5qx4x8w.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-q6h28nmt.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -19080,6 +19080,15 @@ function bindWorkspaceVisibility(sidebar) {
   };
 }
 
+// web/src/gi-scroll-gesture.ts
+function ownsHorizontalGesture(target, boundary) {
+  for (let element = target;element && element !== boundary; element = element.parentElement) {
+    if (element.clientWidth > 0 && element.scrollWidth > element.clientWidth + 1 && /^(auto|scroll)$/.test(getComputedStyle(element).overflowX))
+      return true;
+  }
+  return false;
+}
+
 // web/src/app.ts
 paneRegistry.register(workspacePreviewPaneExtension);
 paneRegistry.register(workspaceMarkdownPreviewPaneExtension);
@@ -19975,7 +19984,7 @@ function GiApp() {
     const preserveSelection = (event) => {
       const target = event.target instanceof Element ? event.target : null;
       const eligibleSurface = target && (timeline.contains(target) || target.closest(".agent-status-panel")?.parentElement === surface);
-      if (!eligibleSurface || window.getSelection()?.toString())
+      if (!eligibleSurface || ownsHorizontalGesture(target, surface) || window.getSelection()?.toString())
         event.stopImmediatePropagation();
     };
     surface.addEventListener("pointerdown", preserveSelection);
@@ -20514,5 +20523,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=984DADCF139D0AC564756E2164756E21
-//# sourceMappingURL=app-2dtk4y14.js.map
+//# debugId=8C87DC9DB0364EC364756E2164756E21
+//# sourceMappingURL=app-ywctg9y4.js.map

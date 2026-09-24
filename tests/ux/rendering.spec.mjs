@@ -65,7 +65,7 @@ test('@ux-original-029 Fenced SVG remains source code and copies without becomin
 test('Gi wide Markdown tables stay inside the timeline and preserve the draft after reload',async({page,request},info)=>{
  const headers=Array.from({length:12},(_,i)=>`Column ${i+1}`);
  const markdown='| '+headers.join(' | ')+' |\n| '+headers.map(()=> '---').join(' | ')+' |\n| '+headers.map((_,i)=>`payload_${i}_${'abcdef'.repeat(8)}`).join(' | ')+' |';
- const {post,input,stored}=await fixture(page,request,info,markdown);
+ const {post,input,stored,session}=await fixture(page,request,info,markdown);
  const table=post.locator('.post-content table');await expect(table).toBeVisible();
  const measurements=async()=>table.evaluate(el=>({display:getComputedStyle(el).display,layout:getComputedStyle(el).tableLayout,body:document.body.scrollWidth,viewport:innerWidth,content:el.closest('.post-content').getBoundingClientRect().width,table:el.getBoundingClientRect().width}));
  expect((await measurements()).body).toBeLessThanOrEqual((await measurements()).viewport);
@@ -77,6 +77,10 @@ test('Gi wide Markdown tables stay inside the timeline and preserve the draft af
  await table.locator('td').first().hover();await page.mouse.wheel(10000,0);
  await expect.poll(()=>table.evaluate(el=>el.closest('.post-content').scrollLeft)).toBeGreaterThan(0);
  await expect.poll(()=>table.locator('td').last().evaluate(el=>{const cell=el.getBoundingClientRect(),content=el.closest('.post-content').getBoundingClientRect();return cell.right<=content.right+1&&cell.left<content.right})).toBe(true);
+ expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(session.id);
+ // Native edge gestures also belong to this table, not session navigation.
+ await table.locator('td').last().hover();await page.mouse.wheel(10000,0);await page.waitForTimeout(500);await page.mouse.wheel(10000,0);await page.waitForTimeout(500);
+ expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(session.id);
  await expect(table.locator('td')).toHaveCount(12);await expect(input).toHaveValue('rendering draft retained');
  await page.reload();await expect(page.locator(`#post-${stored.id} table td`)).toHaveCount(12);await expect(input).toHaveValue('rendering draft retained');
 });

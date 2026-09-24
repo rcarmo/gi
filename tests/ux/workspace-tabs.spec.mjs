@@ -108,3 +108,16 @@ test('Gi read-only context actions clamp to viewport and Settings owns tab short
  await f.tab(c).click({button:'right'});await menu.getByRole('button',{name:'Unpin',exact:true}).click();await expect(f.tab(c)).not.toHaveClass(/pinned/);
  await f.tab(c).click({button:'right'});await menu.getByRole('button',{name:'Close All',exact:true}).click();await expect(f.tabs).toHaveCount(0);await expect(f.input).toBeFocused();await f.preserved();await f.untouched();
 });
+
+test('Gi read-only editor-pane inline code uses the code font across native appearance changes',async({page,request},info)=>{
+ const f=await setup(page,request,info);await f.open(f.paths[0]);await f.settle();const code=f.preview.locator('.workspace-preview-text p code');await expect(code).toHaveText('inline code');
+ const fonts=()=>code.evaluate(el=>{
+  const host=el.closest('.editor-pane'),probe=document.createElement('span');probe.textContent='iiiWWW';probe.style.fontFamily='var(--font-family-mono)';host.append(probe);const expected=getComputedStyle(probe).fontFamily;probe.remove();
+  const font=getComputedStyle(el).fontFamily,parent=getComputedStyle(el.parentElement).fontFamily;
+  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');ctx.font=`20px ${font}`;return{font,parent,expected,narrow:ctx.measureText('iiiiii').width,wide:ctx.measureText('WWWWWW').width};
+ });
+ const check=async()=>{const value=await fonts();expect(value.font).toBe(value.expected);expect(value.font).not.toBe(value.parent);expect(Math.abs(value.narrow-value.wide)).toBeLessThan(0.2);};
+ await check();
+ await page.keyboard.press('Control+,');const settings=page.getByRole('dialog',{name:'Gi Settings',exact:true});await expect(settings).toBeVisible();await settings.getByRole('button',{name:'Appearance',exact:true}).click();await settings.getByLabel('Theme preset',{exact:true}).selectOption('monokai');await settings.getByRole('button',{name:'Save appearance',exact:true}).click();await expect(page.locator('html')).toHaveAttribute('data-color-theme','monokai');await page.keyboard.press('Escape');await expect(settings).toHaveCount(0);await check();await f.preserved();await f.untouched();
+ await page.reload();await expect(f.input).toHaveValue('tabs keep this draft');await f.open(f.paths[0]);await f.settle();await expect(page.locator('html')).toHaveAttribute('data-color-theme','monokai');await check();await f.preserved();await f.untouched();await page.screenshot({path:info.outputPath('preview-code-font.png')});
+});

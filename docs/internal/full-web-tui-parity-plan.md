@@ -10,7 +10,9 @@ Scope confirmed 2026-09-21: finish the whole imported corpus, not just the curre
 - Terminal: implement suitable functional equivalents separately, preserving transcript/editor/footer and zero new idle rows. Browser-only properties (touch, PWA installation, CSS layering) need a documented terminal disposition, not a fictitious terminal pass.
 - Delivery: small tested commits, source provenance, truthful capability/error paths and current evidence reports. Full completion requires no unexplained unmapped cases.
 
-Latest shared acceptance (2026-09-24): shared39 now passes the attach-file route across all six browser projects: visible upload, cancel retaining draft, explicit retry reusing the native media ID, one media item/user message, original file unlink and reload/raw-byte/render durability. Multipart uploads atomically reuse exact session/name/MIME/bytes. 198 browser/94 functional/85 support tests with 1,039 assertions, Go/vet/hook, store+web race ×3 and concurrent process/store proof pass. Coverage **88/236 Classic + 28/42 shared**, **148/14** unmapped. No general message idempotency or new TUI credit; details below.
+Latest browser repairs (2026-09-24): read-only Markdown inline code uses the configured mono stack; horizontal table scrollers keep their gestures instead of switching Safari sessions. 210 combined browser +30 swipe regressions, 95 functional on clean unchanged rerun, 86 helpers/1,047 assertions and Go/vet/hook pass. Shell009 precondition and shared41 SVG conflict remain gaps; no mapping/TUI change. Details below.
+
+Earlier shared acceptance (2026-09-24): shared39 now passes the attach-file route across all six browser projects: visible upload, cancel retaining draft, explicit retry reusing the native media ID, one media item/user message, original file unlink and reload/raw-byte/render durability. Multipart uploads atomically reuse exact session/name/MIME/bytes. 198 browser/94 functional/85 support tests with 1,039 assertions, Go/vet/hook, store+web race ×3 and concurrent process/store proof pass. Coverage **88/236 Classic + 28/42 shared**, **148/14** unmapped. No general message idempotency or new TUI credit; details below.
 
 Earlier browser repair (2026-09-24): session-owned Cancel uploads aborts captured media batches before message dispatch and restores exact draft/media bytes through existing recovery. Other sessions, newer typing and already-dispatched sends remain independent. 30 final focused/204 regression browser cases, 94 functional and 85 support tests/1,034 assertions pass; Go/vet/hook and bounded review pass. Shared39 remains open; coverage **88/236 + 27/42** unchanged. Details below.
 
@@ -847,3 +849,52 @@ read-only preview/pin/draft smoke passed with zero API mutation attempts/page
 errors. Session API returned 200/62 sessions; SQLite integrity `ok`, FK check
 empty, working tree clean. No live media upload/deduplication was exercised.
 Results attached as `/workspace/tmp/gi-media-reuse-evidence.tar.gz`.
+
+## Preview fonts and nested horizontal gestures (2026-09-24)
+
+Read-only Markdown tabs used the browser's generic monospace default rather than
+the configured editor code-font stack. A host-only CSS rule now applies
+`--font-family-mono` to their code elements. Six browser projects compare computed
+fonts and equal i/W glyph widths, change Appearance through native controls,
+reload/reopen, and preserve exact session draft/media state. The supplied pane and
+CSS sources remain unchanged. This proves preview typography, not an editable
+Markdown document: independent scope review kept shell009 unmapped because its
+Given requires an editor.
+
+The broader regression run exposed an existing Safari interaction bug: the
+session-swipe listener intercepted horizontal wheel events on wide Markdown
+tables. The host now yields gestures to nested `overflow-x: auto/scroll` elements
+whose content actually exceeds their width. The guard runs before the supplied
+swipe listener, calls only `stopImmediatePropagation`, and leaves native scrolling
+to the browser. It covers the full gesture, including at scroller edges; wheel
+input over a table must not change sessions just because the last column is
+visible. Event targets are already normalised to Element; shadow-root scrollers
+are not part of this shipped renderer contract. Supplied navigation code is intact.
+
+Verification: 24 rendering cases now pass, including WebKit's three previously
+failing native wheel checks; the final column is reachable and repeated edge
+wheel input preserves the selected session/draft. Thirty ordinary swipe cases
+still pass, including desktop Safari's positive wheel control, Chrome/iOS
+exclusions, vertical cancellation, target exclusions and rapid reverse swipes.
+The full workspace/preview/shell/settings/rendering run passed 210/210 cases.
+Functional coverage checks the native user table with Safari detection enabled;
+95/95 passed on a clean rerun. The preceding run hit the unchanged session-
+typeahead active-class assertion after native focus moved correctly; that timing
+failure was recorded, not weakened. Earlier wrong preview/functional selectors
+were corrected before these results. Go/vet/hook and 86 helpers/1,047 assertions
+pass. A bounded inline review found no major issue and confirmed listener ordering
+is part of the host contract. Diagnostics lacked optional oxlint/mjs validation.
+
+There is a separate frozen-policy conflict: Classic original029 requires fenced
+SVG to remain source-only, while shared41 requires safe SVG rendered inline. Both
+cannot be satisfied by silently changing the same renderer. Shared41 remains
+unmapped pending explicit policy reconciliation. Shell009 also remains unmapped;
+coverage stays **88/236 Classic + 28/42 shared**, **148/14** unmapped.
+
+Terminal disposition: terminal font selection belongs to the emulator; no web
+font setting or persistent preview pane should be copied into the TUI. Existing
+terminal reader/selection/picker gestures retain their separately tested ownership.
+This slice changes no terminal code or idle rows and grants no terminal credit.
+Logs: `/workspace/tmp/gi-preview-font-{regression-final,standard-final,support-final,functional-rerun}.log`
+and `/workspace/tmp/gi-scroll-gesture-{browser,swipe}.log`; screenshots are under
+`test-results/ux-parity/artifacts/workspace-tabs-Gi-read-onl-*/preview-code-font.png`.
