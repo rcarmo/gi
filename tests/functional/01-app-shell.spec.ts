@@ -278,3 +278,13 @@ test('session typeahead moves native focus from a substring to a prefix without 
  const row=(id:string)=>page.locator(`.compose-session-popup [data-session-jid="gi:${id}"]`).getByRole('menuitem');await row(substring.id).focus();await row(substring.id).press('a');await expect(row(prefix.id)).toBeFocused();await expect(row(prefix.id)).toHaveClass(/active/);await expect(search).toHaveValue(token);
  await page.keyboard.press('Enter');await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(prefix.id);await expect(input).toHaveValue('');await trigger.click();await row(main.id).click();await expect(input).toHaveValue('functional typeahead draft');expect((await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns||[]).toEqual([]);
 });
+
+test('Model search preserves native editing, empty-result cancellation and composer draft',async({page})=>{
+ await page.goto('/');const input=page.locator('textarea').last();await expect(input).toBeVisible();await input.fill('model filter preserved draft');
+ const trigger=page.getByRole('button',{name:'Open model picker',exact:true});await expect(trigger).toBeEnabled();await trigger.click();
+ const search=page.getByRole('searchbox',{name:'Search models',exact:true});await search.fill('no such native model');
+ await expect(page.getByRole('menu',{name:'Model picker'}).getByRole('menuitem')).toHaveCount(0);
+ await search.press('Home');await search.press('X');await expect(search).toHaveValue('Xno such native model');await search.press('Enter');
+ await expect(search).toBeVisible();await search.press('Escape');await expect(search).toHaveCount(0);await expect(trigger).toBeFocused();await expect(input).toHaveValue('model filter preserved draft');
+ await trigger.click();await expect(search).toHaveValue('');
+});

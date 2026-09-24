@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { patchStatusPreview } from './scripts/patch-status-preview.mjs';
 import { patchTimelineMenu } from './scripts/patch-timeline-menu.mjs';
 import { patchQuickActionKeys, patchComposePopupKeys } from './scripts/patch-popup-keys.mjs';
+import { patchModelPicker } from './scripts/patch-model-picker.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 process.chdir(__dirname);
@@ -71,7 +72,7 @@ const appBuild = await Bun.build({
       contents: patchQuickActionKeys(await Bun.file(args.path).text()), loader: 'ts',
     }));
     build.onLoad({ filter: /[\\/]components[\\/]compose-box\.ts$/ }, async args => ({
-      contents: patchComposePopupKeys(await Bun.file(args.path).text()), loader: 'ts',
+      contents: patchModelPicker(patchComposePopupKeys(await Bun.file(args.path).text())), loader: 'ts',
     }));
   } }, { name: 'gi-timeline-menu-dismissal', setup(build) {
     build.onLoad({ filter: /[\\/]components[\\/]timeline-menu\.ts$/ }, async args => ({

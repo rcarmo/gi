@@ -231,3 +231,46 @@ test('@shared-25 Select one coherent session view despite late native responses'
   }
  }finally{hold=false;for(const item of held)item.release();for(const path of gates)writeFileSync(path,'release');}
 });
+
+if(process.env.GI_UX_MODEL_PICKER) test('@shared-34 Filter native models and navigate enabled results without duplicate activation',async({page,request},info)=>{
+ const source=loadCorpus('shared').find(row=>row.id==='@shared-34');await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
+ const{main,child,input,state,modelButton,menu,option,switchTo}=await fixture(page,request,info);
+ const draft='model filter durable draft';await input.fill(draft);await page.locator('.compose-box input[type=file]').setInputFiles(file);
+ await page.locator('.post .post-time').first().click();
+ await expect(page.locator('.compose-file-pill[title^="Message reference:"]')).toHaveCount(1);
+ const storedDraft=()=>page.evaluate(async id=>{
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const s=r.result;resolve(s?{...s,draft:{...s.draft,media:s.draft.media.map(f=>({...f,bytes:Array.from(new Uint8Array(f.bytes))}))}}:null);};tx.onerror=()=>reject(tx.error);});
+ },main.id);
+ await expect.poll(storedDraft).toMatchObject({draft:{text:draft,media:[{name:file.name,type:file.mimeType,bytes:Array.from(file.buffer)}]},pending:[]});const savedDraft=await storedDraft();expect(savedDraft.draft.messageRefs).toHaveLength(1);
+ const before=await state(),catalogue=before.model_options;
+ expect(catalogue.some(x=>x.name==='Forest pine')).toBe(true);
+ let mutations=0;page.on('request',r=>{if(r.method()==='PATCH'&&r.url().endsWith(`/api/sessions/${main.id}/model`))mutations++;});
+ await modelButton.click();const search=page.getByRole('searchbox',{name:'Search models',exact:true});await expect(search).toBeVisible();
+ const labels=()=>menu.getByRole('menuitem').evaluateAll(nodes=>nodes.map(n=>n.title.startsWith('Blocked: ')?n.title.slice(9).split(' context window')[0]:n.title.split(' • ')[0]));
+ const all=await labels();expect(all).toEqual(catalogue.map(x=>x.label).sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'})));
+ for(const [query,expected] of [['ux-local/pine',all.filter(x=>x.includes('ux-local/pine'))],['Forest pine',all.filter(x=>x==='ux-local/pine'||x==='ux-local/pine-small')],['32K ctx',catalogue.filter(x=>x.context_window===32000).map(x=>x.label).sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}))]]){
+  await search.fill(query);await expect.poll(labels).toEqual(expected);await expect(search).toBeFocused();
+ }
+ await search.fill('no matching native model');await expect(menu.getByRole('menuitem')).toHaveCount(0);await search.press('Enter');expect(mutations).toBe(0);
+ await search.fill('Forest pine-small');await expect(menu.getByRole('menuitem')).toHaveCount(1);await expect(menu.getByRole('menuitem')).toBeDisabled();await search.press('ArrowDown');await search.press('Enter');expect(mutations).toBe(0);
+ await search.fill('Forest pine');await search.press('Home');await search.press('X');await expect(search).toHaveValue('XForest pine');await search.press('Backspace');await expect(search).toHaveValue('Forest pine');await search.press('End');await search.press(' ');await expect(search).toHaveValue('Forest pine ');
+ await search.fill('');const substring=option('aux-local/ux-local/pine-shadow');await substring.focus();
+ await page.keyboard.type('ux-local/pi',{delay:10});const pine=option('ux-local/pine •');await expect(pine).toHaveClass(/active/);await expect(pine).toBeFocused();await expect(search).toHaveValue('');
+ await page.keyboard.type('per',{delay:10});const piper=option('ux-local/piper');await expect(piper).toBeFocused();await expect(piper).toHaveClass(/active/);
+ const enabled=await menu.getByRole('menuitem').evaluateAll(nodes=>nodes.filter(n=>!n.disabled).map(n=>n.textContent.trim()));
+ const focused=()=>menu.getByRole('menuitem').evaluateAll(nodes=>nodes.filter(n=>n===document.activeElement).map(n=>n.textContent.trim()));
+ await page.keyboard.press('Home');await expect.poll(focused).toEqual([enabled[0]]);
+ for(const [key,index] of [['PageDown',8],['PageUp',0],['End',enabled.length-1],['ArrowDown',0],['ArrowUp',enabled.length-1]]){await page.keyboard.press(key);await expect.poll(focused).toEqual([enabled[index]]);}
+ await pine.focus();await page.keyboard.press('ArrowDown');await expect(piper).toBeFocused(); // skip the disabled pine-small row
+ await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);await expect(modelButton).toBeFocused();expect(mutations).toBe(0);expect((await state()).current).toBe(before.current);await expect(input).toHaveValue(draft);
+ await modelButton.click();await expect(search).toHaveValue('');await search.fill('ux-local/piper');await search.press('Enter');await expect(menu).toHaveCount(0);await expect(modelButton).toHaveText('ux-local/piper');expect(mutations).toBe(1);expect((await state()).current).toBe('ux-local/piper');
+ // Actual result buttons own Enter and Space even if the old highlight differs.
+ for(const [label,key,count] of [['ux-local/pine •','Enter',2],['ux-local/large','Space',3]]){
+  await modelButton.click();await option(label).focus();await page.keyboard.press(key);await expect(menu).toHaveCount(0);expect(mutations).toBe(count);
+ }
+ await expect.poll(storedDraft).toEqual(savedDraft);
+ await page.reload();await expect(modelButton).toHaveText('ux-local/large');await expect(input).toHaveValue(draft);await expect(page.locator('.compose-file-pill[title="draft.txt"]')).toHaveCount(1);await expect(page.locator('.compose-file-pill[title^="Message reference:"]')).toHaveCount(1);expect(await storedDraft()).toEqual(savedDraft);
+ await switchTo(child);expect((await state(child)).current).toBe(before.current);await switchTo(main.id);await expect(input).toHaveValue(draft);await expect(page.locator('.compose-file-pill[title="draft.txt"]')).toHaveCount(1);expect(await storedDraft()).toEqual(savedDraft);
+ expect((await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns).toHaveLength(1);
+});

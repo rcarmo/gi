@@ -205,6 +205,18 @@ func main() {
 			cfg.EnabledModels = append(cfg.EnabledModels, "ux-local/"+entry.id)
 		}
 	}
+	if os.Getenv("GI_UX_MODEL_PICKER") != "" {
+		for _, id := range []string{"pine", "piper", "pine-small", "oak-01", "oak-02", "oak-03", "oak-04", "oak-05", "oak-06", "oak-07", "oak-08"} {
+			window := 32000
+			if id == "pine-small" {
+				window = 80
+			}
+			goai.RegisterModel(&goai.Model{ID: id, Name: "Forest " + id, Provider: goai.Provider("ux-local"), Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, Input: []string{"text"}, ContextWindow: window, MaxTokens: 32})
+			cfg.EnabledModels = append(cfg.EnabledModels, "ux-local/"+id)
+		}
+		goai.RegisterModel(&goai.Model{ID: "ux-local/pine-shadow", Name: "Substring match", Provider: goai.Provider("aux-local"), Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, Input: []string{"text"}, ContextWindow: 32000, MaxTokens: 32})
+		cfg.EnabledModels = append(cfg.EnabledModels, "aux-local/ux-local/pine-shadow")
+	}
 	if os.Getenv("GI_UX_SETTINGS_CATALOGUE") != "" {
 		for i := 0; i < 60; i++ {
 			id := fmt.Sprintf("settings-%02d", i)

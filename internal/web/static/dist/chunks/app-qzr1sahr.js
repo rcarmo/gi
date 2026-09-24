@@ -6487,26 +6487,150 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     `;
 }
 
-// web/src/gi-quick-actions.ts
-function settingsOwnsKeyboard(doc = document) {
-  return Boolean(doc.querySelector?.('.settings-dialog[aria-modal="true"]'));
+// web/src/ui/compose-session-switcher.ts
+var SECTION_LABELS = {
+  current: "Current",
+  pinned: "Pinned",
+  active: "Active",
+  tree: "This session tree",
+  other: "Other sessions",
+  archived: "Archived"
+};
+function clean(value) {
+  return typeof value === "string" ? value.trim() : "";
 }
-function blocksQuickActions(event, ready) {
-  const target = event.target;
-  return !ready || event.defaultPrevented || event.repeat || Boolean(target?.closest?.('button, a, [role="button"], [role="menuitem"], .monaco-editor, .terminal-pane, .post-reply'));
+function buildSessionPickerSearchDocument(chat) {
+  const archived = Boolean(chat?.archived_at);
+  const active = Boolean(chat?.is_active) && !archived;
+  return [
+    clean(chat?.agent_name) ? `@${clean(chat.agent_name)}` : "",
+    clean(chat?.agent_name),
+    clean(chat?.chat_jid),
+    clean(chat?.root_chat_jid),
+    clean(chat?.model),
+    clean(chat?.model_label),
+    clean(chat?.provider),
+    archived ? "archived" : active ? "active" : "idle",
+    clean(chat?.parent_branch_id),
+    clean(chat?.branch_id)
+  ].filter(Boolean).join(" ").toLocaleLowerCase();
+}
+function matchesSessionPickerSearch(chat, query) {
+  const terms = clean(query).toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0)
+    return true;
+  const document2 = buildSessionPickerSearchDocument(chat);
+  return terms.every((term) => document2.includes(term));
+}
+function getSessionPickerHandleMatchRank(chat, query) {
+  if (!matchesSessionPickerSearch(chat, query))
+    return 4;
+  const handle = clean(chat?.agent_name).toLocaleLowerCase();
+  const terms = clean(query).toLocaleLowerCase().split(/\s+/).map((term) => term.replace(/^@/, "")).filter(Boolean);
+  if (!handle || terms.length === 0)
+    return 3;
+  if (terms.some((term) => handle === term))
+    return 0;
+  if (terms.some((term) => handle.startsWith(term)))
+    return 1;
+  if (terms.some((term) => handle.includes(term)))
+    return 2;
+  return 3;
+}
+function resolveSessionPickerSearchInitialIndex(chats, query) {
+  let bestIndex = 0;
+  let bestRank = Number.POSITIVE_INFINITY;
+  for (let index = 0;index < chats.length; index += 1) {
+    const rank = getSessionPickerHandleMatchRank(chats[index], query);
+    if (rank >= bestRank)
+      continue;
+    bestIndex = index;
+    bestRank = rank;
+    if (rank === 0)
+      break;
+  }
+  return bestIndex;
+}
+function filterSessionPickerChats(chats, query) {
+  const normalized = clean(query).toLocaleLowerCase();
+  if (!normalized)
+    return chats;
+  const matches = new Set(chats.filter((chat) => matchesSessionPickerSearch(chat, normalized)).map((chat) => clean(chat.chat_jid)));
+  const byBranchId = new Map(chats.map((chat) => [clean(chat.branch_id), chat]).filter(([id]) => Boolean(id)));
+  for (const chat of chats) {
+    if (!matches.has(clean(chat.chat_jid)))
+      continue;
+    let parentId = clean(chat.parent_branch_id);
+    while (parentId) {
+      const parent = byBranchId.get(parentId);
+      if (!parent)
+        break;
+      matches.add(clean(parent.chat_jid));
+      parentId = clean(parent.parent_branch_id);
+    }
+  }
+  return chats.filter((chat) => matches.has(clean(chat.chat_jid)));
+}
+function groupSessionPickerChats(chats, currentChatJid, pinnedChatJids = []) {
+  const current = clean(currentChatJid);
+  const currentChat = chats.find((chat) => clean(chat.chat_jid) === current);
+  const currentRoot = clean(currentChat?.root_chat_jid) || current;
+  const pinned = new Set(Array.from(pinnedChatJids, clean).filter(Boolean));
+  const buckets = new Map([
+    ["current", []],
+    ["pinned", []],
+    ["active", []],
+    ["tree", []],
+    ["other", []],
+    ["archived", []]
+  ]);
+  for (const chat of chats) {
+    const jid = clean(chat.chat_jid);
+    const archived = Boolean(chat.archived_at);
+    const section = archived ? "archived" : jid === current ? "current" : pinned.has(jid) ? "pinned" : Boolean(chat.is_active) ? "active" : (clean(chat.root_chat_jid) || jid) === currentRoot ? "tree" : "other";
+    buckets.get(section).push(chat);
+  }
+  return ["current", "pinned", "active", "tree", "other", "archived"].map((key) => ({ key, label: SECTION_LABELS[key], items: buckets.get(key) })).filter((section) => section.items.length > 0);
+}
+function moveSessionPickerIndex(current, length, key, pageSize = 8) {
+  if (length <= 0)
+    return 0;
+  const index = Math.max(0, Math.min(current, length - 1));
+  if (key === "Home")
+    return 0;
+  if (key === "End")
+    return length - 1;
+  if (key === "ArrowDown")
+    return (index + 1) % length;
+  if (key === "ArrowUp")
+    return (index - 1 + length) % length;
+  if (key === "PageDown")
+    return Math.min(length - 1, index + pageSize);
+  if (key === "PageUp")
+    return Math.max(0, index - pageSize);
+  return index;
+}
+function canUseComposeSessionSwitcher(options = {}) {
+  if (options.searchMode)
+    return false;
+  return Boolean(options.showSessionSwitcherButton);
+}
+function shouldOpenSessionSwitcherFromBlankCompose(event, value, options = {}) {
+  if (!event || event.isComposing)
+    return false;
+  if (!canUseComposeSessionSwitcher(options))
+    return false;
+  if (event.ctrlKey || event.metaKey || event.altKey)
+    return false;
+  if (event.key !== "@")
+    return false;
+  return String(value || "") === "";
 }
 
 // web/src/ui/popup-typeahead.ts
 var POPUP_TYPEAHEAD_RESET_MS = 700;
 function normalize2(value) {
   return String(value || "").toLowerCase().replace(/^@/, "").replace(/\s+/g, " ").trim();
-}
-function labelMatchesQuery(label, query) {
-  const normalizedLabel = normalize2(label);
-  const normalizedQuery = normalize2(query);
-  if (!normalizedQuery)
-    return false;
-  return normalizedLabel.startsWith(normalizedQuery) || normalizedLabel.includes(normalizedQuery);
 }
 function isPopupTypeaheadKey(event) {
   if (!event)
@@ -6557,16 +6681,6 @@ function findPopupTypeaheadMatch(items, query, startIndex = 0, getLabel = (item)
   }
   return -1;
 }
-function resolvePopupTypeaheadMatch(items, query, currentIndex = -1, getLabel = (item) => item) {
-  const list = Array.isArray(items) ? items : [];
-  if (currentIndex >= 0 && currentIndex < list.length) {
-    const currentLabel = getLabel(list[currentIndex]);
-    if (labelMatchesQuery(currentLabel, query)) {
-      return currentIndex;
-    }
-  }
-  return findPopupTypeaheadMatch(list, query, 0, getLabel);
-}
 
 // web/src/gi-session-typeahead.ts
 function sessionTypeahead(event, entries, previous) {
@@ -6576,6 +6690,43 @@ function sessionTypeahead(event, entries, previous) {
   const enabled = entries.map((entry, index) => ({ entry, index })).filter((item) => !item.entry.disabled);
   const match = findPopupTypeaheadMatch(enabled, buffer.value, 0, (item) => item.entry.label);
   return { buffer, index: match < 0 ? -1 : enabled[match].index };
+}
+
+// web/src/gi-model-picker.ts
+function filterModelOptions(options, query, label) {
+  const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  return options.filter((option) => terms.every((term) => label(option).toLowerCase().includes(term)));
+}
+function modelPickerKey(event, entries, current, previous) {
+  if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.metaKey || event.altKey)
+    return null;
+  const target = event.target;
+  const editing = Boolean(target?.closest?.('input, textarea, select, [contenteditable="true"]'));
+  const nativeButton = target?.closest?.("button");
+  const focused = target?.closest?.("[data-model-index]")?.getAttribute("data-model-index");
+  const index = focused == null ? current : Number(focused);
+  const enabled = entries.map((entry, index) => ({ entry, index })).filter((item) => !item.entry.disabled);
+  const buffer = { value: "", updatedAt: 0 };
+  if (["ArrowDown", "ArrowUp", "PageDown", "PageUp"].includes(event.key) || !editing && ["Home", "End"].includes(event.key)) {
+    const selected = enabled.findIndex((item) => item.index === index);
+    return { index: enabled[moveSessionPickerIndex(selected, enabled.length, event.key)]?.index ?? -1, buffer, activate: false, focus: !editing };
+  }
+  if (event.key === "Enter") {
+    if (nativeButton && !event.repeat)
+      return null;
+    return { index, buffer, activate: !event.repeat && Boolean(entries[index] && !entries[index].disabled), focus: false };
+  }
+  const typed = sessionTypeahead(event, entries, previous);
+  return typed ? { ...typed, activate: false, focus: true } : null;
+}
+
+// web/src/gi-quick-actions.ts
+function settingsOwnsKeyboard(doc = document) {
+  return Boolean(doc.querySelector?.('.settings-dialog[aria-modal="true"]'));
+}
+function blocksQuickActions(event, ready) {
+  const target = event.target;
+  return !ready || event.defaultPrevented || event.repeat || Boolean(target?.closest?.('button, a, [role="button"], [role="menuitem"], .monaco-editor, .terminal-pane, .post-reply'));
 }
 
 // web/src/gi-drafts.ts
@@ -6817,146 +6968,6 @@ function filterMentionAgents(agents, value, options = {}) {
 function buildMentionValue(agentName) {
   const handle = normalizeAgentName(agentName);
   return handle ? `@${handle} ` : "";
-}
-
-// web/src/ui/compose-session-switcher.ts
-var SECTION_LABELS = {
-  current: "Current",
-  pinned: "Pinned",
-  active: "Active",
-  tree: "This session tree",
-  other: "Other sessions",
-  archived: "Archived"
-};
-function clean(value) {
-  return typeof value === "string" ? value.trim() : "";
-}
-function buildSessionPickerSearchDocument(chat) {
-  const archived = Boolean(chat?.archived_at);
-  const active = Boolean(chat?.is_active) && !archived;
-  return [
-    clean(chat?.agent_name) ? `@${clean(chat.agent_name)}` : "",
-    clean(chat?.agent_name),
-    clean(chat?.chat_jid),
-    clean(chat?.root_chat_jid),
-    clean(chat?.model),
-    clean(chat?.model_label),
-    clean(chat?.provider),
-    archived ? "archived" : active ? "active" : "idle",
-    clean(chat?.parent_branch_id),
-    clean(chat?.branch_id)
-  ].filter(Boolean).join(" ").toLocaleLowerCase();
-}
-function matchesSessionPickerSearch(chat, query) {
-  const terms = clean(query).toLocaleLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.length === 0)
-    return true;
-  const document2 = buildSessionPickerSearchDocument(chat);
-  return terms.every((term) => document2.includes(term));
-}
-function getSessionPickerHandleMatchRank(chat, query) {
-  if (!matchesSessionPickerSearch(chat, query))
-    return 4;
-  const handle = clean(chat?.agent_name).toLocaleLowerCase();
-  const terms = clean(query).toLocaleLowerCase().split(/\s+/).map((term) => term.replace(/^@/, "")).filter(Boolean);
-  if (!handle || terms.length === 0)
-    return 3;
-  if (terms.some((term) => handle === term))
-    return 0;
-  if (terms.some((term) => handle.startsWith(term)))
-    return 1;
-  if (terms.some((term) => handle.includes(term)))
-    return 2;
-  return 3;
-}
-function resolveSessionPickerSearchInitialIndex(chats, query) {
-  let bestIndex = 0;
-  let bestRank = Number.POSITIVE_INFINITY;
-  for (let index = 0;index < chats.length; index += 1) {
-    const rank = getSessionPickerHandleMatchRank(chats[index], query);
-    if (rank >= bestRank)
-      continue;
-    bestIndex = index;
-    bestRank = rank;
-    if (rank === 0)
-      break;
-  }
-  return bestIndex;
-}
-function filterSessionPickerChats(chats, query) {
-  const normalized = clean(query).toLocaleLowerCase();
-  if (!normalized)
-    return chats;
-  const matches = new Set(chats.filter((chat) => matchesSessionPickerSearch(chat, normalized)).map((chat) => clean(chat.chat_jid)));
-  const byBranchId = new Map(chats.map((chat) => [clean(chat.branch_id), chat]).filter(([id]) => Boolean(id)));
-  for (const chat of chats) {
-    if (!matches.has(clean(chat.chat_jid)))
-      continue;
-    let parentId = clean(chat.parent_branch_id);
-    while (parentId) {
-      const parent = byBranchId.get(parentId);
-      if (!parent)
-        break;
-      matches.add(clean(parent.chat_jid));
-      parentId = clean(parent.parent_branch_id);
-    }
-  }
-  return chats.filter((chat) => matches.has(clean(chat.chat_jid)));
-}
-function groupSessionPickerChats(chats, currentChatJid, pinnedChatJids = []) {
-  const current = clean(currentChatJid);
-  const currentChat = chats.find((chat) => clean(chat.chat_jid) === current);
-  const currentRoot = clean(currentChat?.root_chat_jid) || current;
-  const pinned = new Set(Array.from(pinnedChatJids, clean).filter(Boolean));
-  const buckets = new Map([
-    ["current", []],
-    ["pinned", []],
-    ["active", []],
-    ["tree", []],
-    ["other", []],
-    ["archived", []]
-  ]);
-  for (const chat of chats) {
-    const jid = clean(chat.chat_jid);
-    const archived = Boolean(chat.archived_at);
-    const section = archived ? "archived" : jid === current ? "current" : pinned.has(jid) ? "pinned" : Boolean(chat.is_active) ? "active" : (clean(chat.root_chat_jid) || jid) === currentRoot ? "tree" : "other";
-    buckets.get(section).push(chat);
-  }
-  return ["current", "pinned", "active", "tree", "other", "archived"].map((key) => ({ key, label: SECTION_LABELS[key], items: buckets.get(key) })).filter((section) => section.items.length > 0);
-}
-function moveSessionPickerIndex(current, length, key, pageSize = 8) {
-  if (length <= 0)
-    return 0;
-  const index = Math.max(0, Math.min(current, length - 1));
-  if (key === "Home")
-    return 0;
-  if (key === "End")
-    return length - 1;
-  if (key === "ArrowDown")
-    return (index + 1) % length;
-  if (key === "ArrowUp")
-    return (index - 1 + length) % length;
-  if (key === "PageDown")
-    return Math.min(length - 1, index + pageSize);
-  if (key === "PageUp")
-    return Math.max(0, index - pageSize);
-  return index;
-}
-function canUseComposeSessionSwitcher(options = {}) {
-  if (options.searchMode)
-    return false;
-  return Boolean(options.showSessionSwitcherButton);
-}
-function shouldOpenSessionSwitcherFromBlankCompose(event, value, options = {}) {
-  if (!event || event.isComposing)
-    return false;
-  if (!canUseComposeSessionSwitcher(options))
-    return false;
-  if (event.ctrlKey || event.metaKey || event.altKey)
-    return false;
-  if (event.key !== "@")
-    return false;
-  return String(value || "") === "";
 }
 
 // web/src/ui/branch-lifecycle.ts
@@ -7815,6 +7826,12 @@ function ComposeBox({
   const [showSessionPopup, setShowSessionPopup] = F_(false);
   const [modelOptions, setModelOptions] = F_([]);
   const [modelPopupIndex, setModelPopupIndex] = F_(0);
+  const [modelQuery, setModelQuery] = F_("");
+  const visibleModels = u_(() => filterModelOptions(modelOptions, modelQuery, getModelPickerOptionSearchLabel), [modelOptions, modelQuery]);
+  const modelEntries = u_(() => visibleModels.map((option) => ({
+    label: getModelPickerOptionSearchLabel(option),
+    disabled: switchingModel || modelContextBlocked(option, contextUsage)
+  })), [visibleModels, switchingModel, contextUsage]);
   const [sessionPopupIndex, setSessionPopupIndex] = F_(0);
   const [sessionPopupQuery, setSessionPopupQuery] = F_("");
   const [sessionMutationPending, setSessionMutationPending] = F_("");
@@ -8365,6 +8382,7 @@ function ComposeBox({
     event.stopPropagation();
     popupTypeaheadRef.current = { value: "", updatedAt: 0 };
     setShowSessionPopup(false);
+    setModelQuery("");
     setShowModelPopup((prev) => !prev);
   };
   const handleContextCompact = async () => {
@@ -8574,36 +8592,18 @@ ${mediaIds.map((id, index) => {
         closeSessionPopup(true);
       return true;
     }
-    if (showModelPopup) {
-      if (e.key === "ArrowDown") {
+    if (showModelPopup && modelPopupRef.current?.contains(e.target)) {
+      const action = modelPickerKey(e, modelEntries, modelPopupIndex, popupTypeaheadRef.current);
+      if (action) {
         consume();
-        resetPopupTypeahead();
-        if (modelOptions.length > 0)
-          setModelPopupIndex((idx) => (idx + 1) % modelOptions.length);
-        return true;
-      }
-      if (e.key === "ArrowUp") {
-        consume();
-        resetPopupTypeahead();
-        if (modelOptions.length > 0)
-          setModelPopupIndex((idx) => (idx - 1 + modelOptions.length) % modelOptions.length);
-        return true;
-      }
-      if (e.key === "Tab" || e.key === "Enter" && e.target?.closest?.("button"))
-        return false;
-      if (e.key === "Enter" && modelOptions.length > 0) {
-        consume();
-        resetPopupTypeahead();
-        handleSelectModel(modelOptions[Math.max(0, Math.min(modelPopupIndex, modelOptions.length - 1))]);
-        return true;
-      }
-      if (isPopupTypeaheadKey(e) && modelOptions.length > 0) {
-        consume();
-        const nextBuffer = updatePopupTypeaheadBuffer(popupTypeaheadRef.current, e.key);
-        popupTypeaheadRef.current = nextBuffer;
-        const match = resolvePopupTypeaheadMatch(modelOptions, nextBuffer.value, modelPopupIndex, (item) => getModelPickerOptionSearchLabel(item));
-        if (match >= 0)
-          setModelPopupIndex(match);
+        popupTypeaheadRef.current = action.buffer;
+        if (action.index >= 0) {
+          setModelPopupIndex(action.index);
+          if (action.focus)
+            modelPopupRef.current?.querySelector('[data-model-index="' + action.index + '"]')?.focus({ preventScroll: true });
+          if (action.activate)
+            handleSelectModel(visibleModels[action.index]);
+        }
         return true;
       }
     }
@@ -8648,7 +8648,8 @@ ${mediaIds.map((id, index) => {
     searchMode,
     showModelPopup,
     showSessionPopup,
-    modelOptions,
+    visibleModels,
+    modelEntries,
     modelPopupIndex,
     sessionPopupEntries,
     sessionPopupIndex,
@@ -8949,12 +8950,12 @@ ${mediaIds.map((id, index) => {
       setShowSessionPopup(false);
     }
   }, [showSessionPopup, showSessionSwitcherButton]);
-  K_(() => {
+  W_(() => {
     if (!showModelPopup)
       return;
-    const activeIndex = modelOptions.findIndex((model) => model?.label === activeModel);
-    setModelPopupIndex(activeIndex >= 0 ? activeIndex : 0);
-  }, [showModelPopup, modelOptions, activeModel]);
+    const activeIndex = visibleModels.findIndex((model, index) => model?.label === activeModel && !modelEntries[index].disabled);
+    setModelPopupIndex(activeIndex >= 0 ? activeIndex : modelEntries.findIndex((entry) => !entry.disabled));
+  }, [showModelPopup, visibleModels, activeModel, modelEntries]);
   K_(() => {
     if (!showSessionPopup)
       return;
@@ -9290,20 +9291,26 @@ ${mediaIds.map((id, index) => {
                     ${showModelPopup && !searchMode && fe`
                         <div class="compose-model-popup" ref=${modelPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
                             <div class="compose-model-popup-title">Select model</div>
+                            <input type="search" class="compose-session-search" aria-label="Search models" placeholder="Search models"
+                                value=${modelQuery} onInput=${(event) => {
+    popupTypeaheadRef.current = { value: "", updatedAt: 0 };
+    setModelQuery(event.currentTarget.value);
+  }} />
                             <div class="compose-model-popup-menu" role="menu" aria-label="Model picker">
                                 ${loadingModels && fe`
                                     <div class="compose-model-popup-empty">Loading models…</div>
                                 `}
-                                ${!loadingModels && modelOptions.length === 0 && fe`
-                                    <div class="compose-model-popup-empty">No models available.</div>
+                                ${!loadingModels && visibleModels.length === 0 && fe`
+                                    <div class="compose-model-popup-empty">${modelQuery ? "No models match your search." : "No models available."}</div>
                                 `}
-                                ${!loadingModels && modelOptions.map((modelOption, index) => {
+                                ${!loadingModels && visibleModels.map((modelOption, index) => {
     const modelLabel = typeof modelOption?.label === "string" ? modelOption.label : "";
     const contextWindowLabel = formatModelPickerContextWindow(modelOption?.contextWindow);
     const blocked = modelContextBlocked(modelOption, contextUsage);
     return fe`
                                         <button
                                             key=${modelLabel}
+                                            data-model-index=${index}
                                             type="button"
                                             role="menuitem"
                                             class=${`compose-model-popup-item compose-model-popup-model-item${modelPopupIndex === index ? " active" : ""}${activeModel === modelLabel ? " current-model" : ""}`}
@@ -17949,10 +17956,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-qsq92nkm.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-39tpfmbh.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-m6ndxzp6.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-w28matby.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-zn5w1fha.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-vr00h4r3.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-chdxny05.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-919akhs5.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20288,5 +20295,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=E81FD8EE834D925064756E2164756E21
-//# sourceMappingURL=app-hf717hye.js.map
+//# debugId=5B6EB7703CA3CCAA64756E2164756E21
+//# sourceMappingURL=app-qzr1sahr.js.map

@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Shared34: filtered native model search, enabled-only Arrow/Home/End/Page navigation and prefix-first typeahead through a guarded adapter. Native Enter/Space once, native editing, cancellation and exact durable draft/media/reference checks pass: models42/regressions294/functional89/helpers67/Go-vet-build-hook. Classic81/236 + shared27/42, unmapped155/15. Supplied sources unchanged; deployment below and terminal Alt-M acceptance independent.
+
 - [x] Shared33 session-picker non-search typeahead: strict prefix-first enabled match/full-index mapping, actual entry focus for single Enter, native ID/name/model search, Arrow/Home/End/Page navigation and Escape/draft recovery. Sessions126/regression204/functional88/helpers64/Go-vet-build-hook; Classic81/236+shared26/42 unmapped155/16. Pushb39b182/restart8090 live6browser-size native prefix focus/Escape/draft/zero writes-errors/61sessions/integrityOK. Supplied bytes unchanged; terminal Alt-S separate.
 - [ ] Resolve frozen command-prefill conflict before shared16 credit: Classic original007 requires replacing the draft, shared16 requires preserving it. No criterion or current replacement behaviour changed; failed activation/recovery acceptance also remains open.
 
