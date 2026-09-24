@@ -7,7 +7,6 @@ import (
 	"io"
 	"os/exec"
 	"sync"
-	"syscall"
 
 	"github.com/rcarmo/gi/internal/logutil"
 )
@@ -15,7 +14,7 @@ import (
 func RunShellPrompt(ctx context.Context, prompt string, onStart func(*exec.Cmd), onDelta func(string)) (string, error, bool) {
 	cmd := exec.Command("sh", "-c", "printf 'Gi received: %s' \"$GI_PROMPT\"")
 	cmd.Env = append(cmd.Environ(), "GI_PROMPT="+prompt)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	configureShellProcess(cmd)
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return "", err, false
@@ -60,17 +59,17 @@ func RunShellPrompt(ctx context.Context, prompt string, onStart func(*exec.Cmd),
 	go func() {
 		// StdoutPipe/StderrPipe must be drained before Wait: Wait closes their
 		// descriptors once the child exits and can otherwise discard buffered data.
-		// Cancellation below still kills the process group to unblock both readers.
+		// Cancellation below terminates the platform's process group/tree.
 		readWG.Wait()
 		waitCh <- cmd.Wait()
 	}()
 	select {
 	case <-ctx.Done():
-		if cmd.Process != nil {
-			if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); err != nil {
-				logutil.WarnIfErr("kill timed out shell process group", err)
-			}
-		}
+		killShellProcess(cmd)
+		// A descendant outside the group/tree may retain inherited handles.
+		// Close our readers on cancellation so waiting for EOF cannot hang.
+		_ = stdoutPipe.Close()
+		_ = stderrPipe.Close()
 		<-waitCh
 		readWG.Wait()
 		return stdout.String(), nil, true

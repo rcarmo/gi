@@ -21,7 +21,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/rcarmo/gi/internal/config"
@@ -87,8 +86,6 @@ type sessionRunner struct {
 type runningTurn struct {
 	turnID string
 	cancel context.CancelFunc
-	cmd    *exec.Cmd
-	cmdMu  sync.Mutex
 }
 
 type ExtensionInfo struct {
@@ -678,14 +675,9 @@ func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queue
 		e.PublishRuntimeTurnEvent("turn_cancelling", turnSessionID, turnID, agentID, "cancelling", "cancelling", map[string]any{"reason": "cancel_requested", "failure_kind": ""})
 		runner.emitTurnStateHook(opCtx, turnSessionID, turnID, agentID, model, "cancelling", "cancelling", map[string]any{"reason": "cancel_requested", "failure_kind": ""})
 		runner.emitSessionStateHook(opCtx, turnSessionID, agentID, model, "running", map[string]any{"reason": "cancel_requested", "failure_kind": "", "active_turn_id": turnID, "turn_id": turnID, "turn_status": "cancelling", "turn_phase": "cancelling"})
+		// The shell runtime owns platform-specific termination and output-reader
+		// teardown. Cancel once here rather than racing a second process kill.
 		runner.current.cancel()
-		runner.current.cmdMu.Lock()
-		if runner.current.cmd != nil && runner.current.cmd.Process != nil {
-			if err := syscall.Kill(-runner.current.cmd.Process.Pid, syscall.SIGKILL); err != nil {
-				logutil.WarnIfErr("kill running command process group", err)
-			}
-		}
-		runner.current.cmdMu.Unlock()
 		return nil
 	}
 	if turn.Status == "queued" {
@@ -5167,15 +5159,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	logutil.WarnIfErr("append shell tool.started event", s.AppendTurnEvent(ctx, run.turnID, run.sessionID, "tool.started", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "command": []string{"sh", "-c", "printf 'Gi received: %s' \"$GI_PROMPT\""}}))
 	r.engine.broadcast(run.sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + run.sessionID, "turn_id": run.turnID})
 
-	out, runErr, cancelled := tools.RunShellPrompt(ctx, run.prompt, func(cmd *exec.Cmd) {
-		r.mu.Lock()
-		if r.current != nil && r.current.turnID == run.turnID {
-			r.current.cmdMu.Lock()
-			r.current.cmd = cmd
-			r.current.cmdMu.Unlock()
-		}
-		r.mu.Unlock()
-	}, func(delta string) {
+	out, runErr, cancelled := tools.RunShellPrompt(ctx, run.prompt, nil, func(delta string) {
 		if strings.TrimSpace(delta) == "" {
 			return
 		}

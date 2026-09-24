@@ -25,3 +25,27 @@ func TestRunShellPromptDrainsOutputBeforeWait(t *testing.T) {
 		t.Fatalf("output truncated: returned=%d streamed=%d expected=%d", len(out), streamed.Len(), len(want))
 	}
 }
+
+func TestRunShellPromptCancellationReturnsAfterReadersClose(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan struct{})
+	var output string
+	var runErr error
+	var cancelled bool
+	go func() {
+		defer close(done)
+		output, runErr, cancelled = RunShellPrompt(ctx, strings.Repeat("cancel-output-", 2000), nil, func(string) { cancel() })
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("cancellation blocked on output reader or child wait")
+	}
+	if runErr != nil || !cancelled {
+		t.Fatalf("cancelled=%v err=%v", cancelled, runErr)
+	}
+	if !strings.HasPrefix(output, "Gi received: ") {
+		t.Fatalf("lost observed output: %q", output)
+	}
+}

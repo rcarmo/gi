@@ -180,6 +180,20 @@ logs:
 test:
 	$(GO) test ./...
 
+.PHONY: test-shell-runtime check-cross-build
+
+test-shell-runtime:
+	$(GO) test -race -count=3 ./internal/tools -run 'RunShellPrompt|KillShellProcess'
+	$(GO) test -race -count=3 ./internal/turn -run 'CancelTurn|Cancelled|CancelQueuedTurn'
+
+# Keep portable compilation reproducible outside GitHub Actions too.
+check-cross-build:
+	@set -eu; out=$$(mktemp -d); trap 'rm -rf "$$out"' EXIT; \
+	for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64; do \
+		os=$${target%/*}; arch=$${target#*/}; echo "Building $$target"; \
+		GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 $(GO) build -o "$$out/gi-$$os-$$arch" ./cmd/gi; \
+	done
+
 vet:
 	$(GO) vet ./...
 
