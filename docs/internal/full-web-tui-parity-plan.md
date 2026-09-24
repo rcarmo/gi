@@ -10,7 +10,9 @@ Scope confirmed 2026-09-21: finish the whole imported corpus, not just the curre
 - Terminal: implement suitable functional equivalents separately, preserving transcript/editor/footer and zero new idle rows. Browser-only properties (touch, PWA installation, CSS layering) need a documented terminal disposition, not a fictitious terminal pass.
 - Delivery: small tested commits, source provenance, truthful capability/error paths and current evidence reports. Full completion requires no unexplained unmapped cases.
 
-Latest browser acceptance (2026-09-24): read-only tabs use the supplied tab store's MRU and pin semantics. Workspace-011 passes all six projects with pinned-before-MRU, bulk-close protection and exact draft/media retention; 186 combined browser, 93 functional and 82 support tests/1,004 assertions pass alongside Go/vet/hook checks. Coverage is **88/236 Classic + 27/42 shared**, leaving **148/15** unmapped. No editing, dirty/save, durable pin or terminal credit.
+Latest terminal adaptation (2026-09-24): `/attach` and `/paste-image` stage up to six process-local media references per session for the next ordinary prompt. `/attachments` and `/detach` provide explicit review/removal with no idle row. Native pre/post-admission failure tests, six PTYs, existing TUI regressions, race ×3, 93 functional and 82 support tests pass. No browser coverage change; restart durability and queued-draft media recovery remain open. Details below.
+
+Earlier browser acceptance (2026-09-24): read-only tabs use the supplied tab store's MRU and pin semantics. Workspace-011 passes all six projects with pinned-before-MRU, bulk-close protection and exact draft/media retention; 186 combined browser, 93 functional and 82 support tests/1,004 assertions pass alongside Go/vet/hook checks. Coverage is **88/236 Classic + 27/42 shared**, leaving **148/15** unmapped. No editing, dirty/save, durable pin or terminal credit.
 
 Earlier terminal selector fix (2026-09-24): Alt-S uses the existing bounded temporary screen in regular mode; resize cannot leave selector rows in history. Captured-generation acceptance keeps failed switches open for retry, and closes only after success. Six session-picker PTYs plus six model-picker regressions, existing TUI suites,92functional/75helpers/Go-vet-build-hook/TUI race ×3 pass. Browser coverage remains **87/236 Classic**, **27/42 shared**; no idle rows added.
 
@@ -648,3 +650,69 @@ explicitly closed it with the draft/session intact. No API mutation attempts or
 page errors; session API 200/62 sessions, SQLite integrity `ok`, no foreign-key
 violations. Logs: `/workspace/tmp/gi-tab-mru-{deploy,live}.log`. Terminal sessions
 were untouched. Supplied files and frozen feature source remain unchanged.
+
+## Terminal pending attachments (2026-09-24)
+
+`/attach <path>` and `/paste-image` used to store a file without including it in
+the next prompt. They now stage native references in a map owned by the source
+session. The optional inline prompt uses the same path. `/attachments` lists up
+to six pending refs; `/detach <media:id|all>` removes pending references, not
+stored files. Six slots include in-flight refs, so staging while admission is
+pending cannot overflow the limit on rejection. File reads are bounded at 10 MiB
+and reject non-regular files before reading.
+
+This is a process-local terminal adaptation, not a persistent attachment tray.
+The editor/footer layout is unchanged. Commands print ordinary transcript
+feedback; no added idle row, tab strip, pane or modal is needed. Session switches
+preserve staged refs and the existing Unicode/multiline draft and logical cursor.
+No-model and directed `@agent` sends with pending refs are rejected before clearing
+the editor. Slash commands and local `!!` shell commands do not consume refs.
+
+An ordinary submission moves refs into one captured claim, blocking a second
+ordinary submission from that source until settlement. Claimed media uses native
+same-session `SubmitPrompt`, not implicit peer routing. This avoids creating or
+switching a peer session before media ownership is checked. No-media prompts keep
+the existing routed path; queue/steering policy is unchanged. Pending attachments
+are restored after a confirmed rejected admission, but submitted prompt text is
+not restored over newer input. Retry is explicit: review refs, then re-enter or
+recall the desired prompt. Already accepted queued refs belong to the native turn;
+the existing text-only queued-draft restoration is not extended by this slice.
+
+Claim completion runs on the UI loop even if another session is selected, and
+only the exact claim can settle. A rejected submission is checked against native
+turn/steering/message metadata with a source-session token. The native call
+returns after its SQLite write or rollback; this is not HTTP or eventual-consistency
+reasoning. A durable match consumes refs even if launch/queue-count sync returned
+an error. A failed authority read holds the claim and blocks resend;
+`/attachments` explicitly retries a bounded one-second check. It does not
+silently assume rejection or delete media. Ordinary input/cursor and another
+session's refs are untouched by background settlements, including A→B→A.
+
+The regular renderer exposed an existing rejection bug: the thinking indicator
+remained active after admission failed, preventing final transcript output.
+The error path now finishes that indicator before reporting failure. Independent
+PTY failure/retry checks cover both terminal renderers.
+
+Validation: six PTYs at 60x18, 100x22 and 140x36 cover A/B pending refs, Unicode
+cursor insertion, multiline resize, real SQLite-triggered pre-admission rejection,
+explicit retry with exact native file bytes/metadata, next prompt without reuse,
+other-session non-submission, detach preserving stored bytes and unchanged settings
+and five-row idle dock. The harness waits for resize settlement and measures the
+current dock, not historic separators in terminal-owned scrollback. Separate Go
+tests inject a real post-INSERT queue-count failure, check no reattachment, hold
+unknown reads until authority returns, exercise slot reservation and clipboard
+staging. Go tests/vet/hook checks, TUI race ×3, existing sessions/regular/outcomes/
+smoke/Gherkin suites, 93 functional browser cases and 82 helpers/1,004 assertions
+pass. Diagnostics have no Go/mjs validator; compiler/tests are the evidence.
+
+A file-based delegated review timed out. A bounded inline review questioned
+read-after-error ordering; source inspection and native post-INSERT fault proof
+resolved that issue, and a follow-up reviewer found no demonstrated duplicate-send
+path within this model. This is not crash/restart, remote delivery or cross-process
+idempotency. Staged refs are lost on process exit, while their stored media bytes
+remain. Unknown DB reads deliberately trade availability for no automatic resend.
+
+Evidence: `/workspace/tmp/gi-tui-media-{pty-final,standard-final,race-final,regression,functional,support}.log`
+and `test-results/tui-pending-media/` captures/native records. Coverage remains
+**88/236 Classic + 27/42 shared**, **148/15** unmapped. Terminal mutation submenus,
+restart-durable media drafts and queue recovery still need their own acceptance.

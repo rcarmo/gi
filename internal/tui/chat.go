@@ -185,6 +185,8 @@ type chatTUI struct {
 	textSelection               transcriptSelection
 	nativeSelectionCopyPending  bool
 	queuedDrafts                []string
+	pendingMedia                map[string][]store.MediaRef
+	mediaClaims                 map[string]*mediaClaim
 	inputRegion                 *gotui.Element
 	transcriptRegion            *gotui.Element
 	transcriptRef               *gotui.Ref
@@ -2313,6 +2315,14 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 		c.completeEditorAsk(text)
 		return
 	}
+	if ordinaryMediaPrompt(text) && (len(c.pendingMedia[c.sessionID]) > 0 || c.mediaClaims[c.sessionID] != nil) {
+		// Preserve text/cursor until it is safe to claim refs. Files belong to
+		// this session, not a directed peer or a second in-flight submission.
+		if c.mediaClaims[c.sessionID] != nil || strings.HasPrefix(text, "@") || strings.TrimSpace(c.cfg.DefaultModel) == "" {
+			c.appendTranscript("attachments: retained; wait for admission, choose a model, or /detach all before a directed send")
+			return
+		}
+	}
 	c.history = append(c.history, text)
 	c.applyHistoryLimit()
 	c.histIdx = -1
@@ -2340,6 +2350,15 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 		text = fmt.Sprintf("Run this shell command and summarize the result: %s", cmd)
 	}
 	scope := c.selectionScope()
+	claim := c.claimPendingMedia()
+	if claim != nil {
+		merged := make(map[string]any, len(metadata)+2)
+		for key, value := range metadata {
+			merged[key] = value
+		}
+		merged["media"], merged["tui_media_claim"] = claim.refs, claim.token
+		metadata = merged
+	}
 	input := turn.RunInput{SessionID: scope.id, Prompt: text, Intent: "prompt", Model: c.cfg.DefaultModel, Metadata: metadata}
 	if c.running {
 		c.queuedDrafts = append(c.queuedDrafts, text)
@@ -2351,7 +2370,7 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 			c.app.MarkDirty()
 		}
 		go func() {
-			_, err := c.engine.SubmitPromptRouted(context.Background(), input)
+			_, err := c.submitMediaInput(scope, input, claim)
 			if err != nil {
 				c.applySessionCompletion(scope, func() { c.appendTranscript(fmt.Sprintf("error: queue follow-up: %v", err)) })
 			}
@@ -2382,9 +2401,10 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 	}
 
 	go func() {
-		result, err := c.engine.SubmitPromptRouted(context.Background(), input)
+		result, err := c.submitMediaInput(scope, input, claim)
 		if err != nil {
 			c.applySessionCompletion(scope, func() {
+				c.finishThinkingTranscript(time.Now())
 				c.clearDraftTranscriptLine()
 				c.appendTranscript(fmt.Sprintf("error: %v", err))
 				c.running = false
@@ -2440,6 +2460,10 @@ func (c *chatTUI) handleCommand(text string) {
 		c.appendTranscript(c.cloneSessionLines(fields)...)
 	case "/copy":
 		c.appendTranscript(c.copyLastAssistantLines(fields[1:]...)...)
+	case "/attachments":
+		c.appendTranscript(c.pendingMediaLines(fields)...)
+	case "/detach":
+		c.appendTranscript(c.detachMediaLines(fields)...)
 	case "/attach":
 		c.appendTranscript(c.attachCommand(text, fields)...)
 	case "/paste-image", "/paste":
@@ -2555,7 +2579,7 @@ func (c *chatTUI) handleCommand(text string) {
 		if lines, handled := c.extensionCommandLines(text, fields); handled {
 			c.appendTranscript(lines...)
 		} else {
-			c.appendTranscript("sys: commands: /help, /hotkeys, /commands [query], /session, /sessions, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /attach <path> [prompt], /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /history-limit [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
+			c.appendTranscript("sys: commands: /help, /hotkeys, /commands [query], /session, /sessions, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /attach <path> [prompt], /attachments, /detach <media:id|all>, /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /history-limit [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
 		}
 	}
 	c.running = false
@@ -2625,7 +2649,9 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 		{"/sessions", "searchable session resume selector"},
 		{"/clone [@agentN]", "clone active branch/session"},
 		{"/copy [--osc52|--native|--auto|--fallback]", "copy last assistant message with opt-in target"},
-		{"/attach <path> [prompt]", "attach local media and optionally submit a prompt"},
+		{"/attach <path> [prompt]", "stage up to six session media refs for next prompt"},
+		{"/attachments", "list pending refs (this process only)"},
+		{"/detach <media:id|all>", "remove pending refs; keep stored files"},
 		{"/paste-image [prompt]", "paste a clipboard image and optionally submit a prompt"},
 		{"/login [provider]", "show OAuth/credential auth status"},
 		{"/logout <provider>", "remove stored provider credentials"},
@@ -2693,7 +2719,8 @@ func (c *chatTUI) helpLines() []string {
 		"alt-m      model picker · session-local · keeps unsent drafts",
 		"/session   details for this chat",
 		"/where     compact context",
-		"/attach    add media",
+		"/attach    stage session media (up to 6)",
+		"/attachments | /detach <media:id|all> list/remove pending refs",
 		"ctrl-r     search command history (current input is query)",
 		"!cmd       ask model about shell · !!cmd run locally",
 	}

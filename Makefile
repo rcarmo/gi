@@ -323,6 +323,10 @@ test-tui-reading: build
 test-tui-sessions: build
 	$(BUN) scripts/test-tui-sessions.mjs
 
+.PHONY: test-tui-pending-media
+test-tui-pending-media: build
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-pending-media.mjs
+
 .PHONY: test-tui-session-picker
 test-tui-session-picker: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-session-picker.mjs

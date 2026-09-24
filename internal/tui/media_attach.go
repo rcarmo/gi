@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -21,11 +22,29 @@ func (c *chatTUI) attachCommand(text string, fields []string) []string {
 	if c.store == nil || c.engine == nil || strings.TrimSpace(c.sessionID) == "" {
 		return []string{"error: /attach requires an active session"}
 	}
+	if c.mediaSlotsUsed() >= maxPendingMedia {
+		return []string{"error: attach: pending limit 6; /attachments or /detach first"}
+	}
 	path := fields[1]
 	if !filepath.IsAbs(path) && strings.TrimSpace(c.cfg.WorkspaceRoot) != "" {
 		path = filepath.Join(c.cfg.WorkspaceRoot, path)
 	}
-	raw, err := os.ReadFile(path)
+	info, err := os.Stat(path)
+	if err != nil {
+		return []string{fmt.Sprintf("error: attach: %v", err)}
+	}
+	if !info.Mode().IsRegular() {
+		return []string{"error: attach: regular file required"}
+	}
+	if info.Size() > 10<<20 {
+		return []string{"error: attach: media exceeds 10 MiB limit"}
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return []string{fmt.Sprintf("error: attach: %v", err)}
+	}
+	defer file.Close()
+	raw, err := io.ReadAll(io.LimitReader(file, (10<<20)+1))
 	if err != nil {
 		return []string{fmt.Sprintf("error: attach: %v", err)}
 	}
@@ -39,12 +58,12 @@ func (c *chatTUI) attachCommand(text string, fields []string) []string {
 		return []string{fmt.Sprintf("error: attach: %v", err)}
 	}
 	ref := store.MediaRef{ID: store.MediaRefID(media.ID), MediaID: media.ID, SessionID: media.SessionID, Filename: media.Filename, ContentType: media.ContentType, Size: media.OriginalSize, SHA256: stringMetadata(media.Metadata, "sha256"), Source: "tui", CreatedAt: media.CreatedAt}
+	c.stageMedia(ref)
 	prompt := strings.TrimSpace(strings.TrimPrefix(text, fields[0]+" "+fields[1]))
-	if prompt == "" {
-		return []string{fmt.Sprintf("attach: %s as %s (%s, %d bytes)", filename, ref.ID, contentType, len(raw))}
+	if prompt != "" {
+		c.submitWithMetadata(prompt, nil)
 	}
-	c.submitWithMetadata(prompt, map[string]any{"media": []store.MediaRef{ref}})
-	return []string{fmt.Sprintf("attach: submitted %s as %s (%s, %d bytes)", filename, ref.ID, contentType, len(raw))}
+	return []string{fmt.Sprintf("attach: %s as %s (%s, %d bytes); staged for prompt admission", filename, ref.ID, contentType, len(raw))}
 }
 
 // pasteImageCommand reads an image from the system clipboard, stores it in the
@@ -54,6 +73,9 @@ func (c *chatTUI) attachCommand(text string, fields []string) []string {
 func (c *chatTUI) pasteImageCommand(text string, fields []string) []string {
 	if c.store == nil || c.engine == nil || strings.TrimSpace(c.sessionID) == "" {
 		return []string{"error: /paste-image requires an active session"}
+	}
+	if c.mediaSlotsUsed() >= maxPendingMedia {
+		return []string{"error: paste-image: pending limit 6; /attachments or /detach first"}
 	}
 	reader := c.clipboardImageReader
 	if reader == nil {
@@ -81,12 +103,12 @@ func (c *chatTUI) pasteImageCommand(text string, fields []string) []string {
 		return []string{fmt.Sprintf("error: paste-image: %v", err)}
 	}
 	ref := store.MediaRef{ID: store.MediaRefID(media.ID), MediaID: media.ID, SessionID: media.SessionID, Filename: media.Filename, ContentType: media.ContentType, Size: media.OriginalSize, SHA256: stringMetadata(media.Metadata, "sha256"), Source: "tui-paste", CreatedAt: media.CreatedAt}
+	c.stageMedia(ref)
 	prompt := strings.TrimSpace(strings.TrimPrefix(text, fields[0]))
-	if prompt == "" {
-		return []string{fmt.Sprintf("paste-image: %s as %s (%s, %d bytes) · use /paste-image <prompt> to send", filename, ref.ID, contentType, len(raw))}
+	if prompt != "" {
+		c.submitWithMetadata(prompt, nil)
 	}
-	c.submitWithMetadata(prompt, map[string]any{"media": []store.MediaRef{ref}})
-	return []string{fmt.Sprintf("paste-image: submitted %s as %s (%s, %d bytes)", filename, ref.ID, contentType, len(raw))}
+	return []string{fmt.Sprintf("paste-image: %s as %s (%s, %d bytes); staged for prompt admission", filename, ref.ID, contentType, len(raw))}
 }
 
 func imageExtForMime(mime string) string {
