@@ -265,3 +265,38 @@ test('@gi-settings-025 Window resize fallback keeps the header usable without Re
   }
   await page.keyboard.press('Escape'); await f.unchanged();
 });
+
+for(const id of ['@ux-settings-001','@ux-settings-dialog-002']) test(`${id} Native settings reopen shows cached General before the fresh read finishes`,async({page,request},info)=>{
+ await source(info,id);const f=await setup(page,request,info);
+ const bytes=Array.from(Buffer.from('settings cached reopen bytes'));
+ await page.locator('.compose-box input[type=file]').setInputFiles({name:'settings-cache.txt',mimeType:'text/plain',buffer:Buffer.from(bytes)});
+ const stored=()=>page.evaluate(async id=>{
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const s=r.result;resolve(s?{...s,draft:{...s.draft,media:s.draft.media.map(f=>({...f,bytes:Array.from(new Uint8Array(f.bytes))}))}}:null);};tx.onerror=()=>reject(tx.error);});
+ },f.id);
+ await expect.poll(stored).toMatchObject({draft:{text:'frozen settings draft',media:[{name:'settings-cache.txt',bytes}]},pending:[]});const draft=await stored();
+ const mutations=[];page.on('request',r=>{if(!['GET','HEAD'].includes(r.method())&&/^\/api\/(settings|sessions)/.test(new URL(r.url()).pathname))mutations.push(r.url());});
+ const snapshot=await(await request.get('/api/runtime/config')).json();
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Settings',exact:true}).click();await expect(f.dialog).toBeVisible();
+ const nav=f.dialog.getByRole('navigation',{name:'Settings sections',exact:true});
+ await expect(f.dialog.locator('.settings-dialog-header')).toBeVisible();await expect(f.dialog.locator('.settings-dialog-header')).toContainText('Gi Settings');await expect(nav).toBeVisible();
+ await expect(nav.getByRole('button').first()).toHaveText('General');await expect(nav.getByRole('button',{name:'General',exact:true})).toHaveAttribute('aria-current','page');
+ const values=f.dialog.locator('.gi-settings-values');await expect(values).toContainText(snapshot.assistant_name);await expect(values).toContainText(snapshot.workspace_root);await expect(values).toContainText(snapshot.current||snapshot.default_model);
+ // Visit every supported navigation target. Pane-specific functionality and
+ // unsupported sections do not acquire acceptance credit from this case.
+ for(const section of ['Models','Appearance','Compaction','Providers']){
+  const button=nav.getByRole('button',{name:section,exact:true});await button.click();await expect(button).toHaveAttribute('aria-current','page');await expect(f.dialog.getByRole('heading',{name:section,exact:true})).toBeVisible();
+ }
+ await nav.getByRole('button',{name:'General',exact:true}).click();await expect(values).toContainText(snapshot.workspace_root);const cached=await values.textContent();
+ await f.dialog.getByRole('button',{name:'Close settings',exact:true}).click();await expect(f.dialog).toHaveCount(0);await f.unchanged();expect(await stored()).toEqual(draft);
+ let release,held=false,delivered;const gate=new Promise(r=>release=r),done=new Promise(r=>delivered=r);
+ const pattern='**/api/runtime/config';
+ await page.route(pattern,async route=>{const response=await route.fetch();expect(response.status()).toBe(200);held=true;await gate;await route.fulfill({response});delivered();});
+ try{
+  await f.input.focus();const start=Date.now();await page.keyboard.press('Control+,');await expect(f.dialog).toBeVisible({timeout:1000});await expect(values).toHaveText(cached,{timeout:1000});expect(Date.now()-start).toBeLessThan(1000);
+  await expect(nav.getByRole('button',{name:'General',exact:true})).toHaveAttribute('aria-current','page');await expect.poll(()=>held).toBe(true);
+  await expect(f.dialog.getByText('Loading settings…',{exact:true})).toHaveCount(0);await expect(f.dialog).toHaveCount(1);await expect(page.locator('.settings-portal')).toHaveCount(1);
+  release();await done;await page.unroute(pattern);await expect(values).toHaveText(cached);await page.keyboard.press('Escape');await expect(f.input).toBeFocused();await f.unchanged();expect(await stored()).toEqual(draft);
+ }finally{release();}
+ expect(mutations).toEqual([]);await page.reload();await f.unchanged();await expect(page.locator('.compose-file-pill[title="settings-cache.txt"]')).toHaveCount(1);expect(await stored()).toEqual(draft);
+});
