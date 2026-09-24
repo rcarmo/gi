@@ -641,3 +641,10 @@ chrome. File-preview pin/MRU support is not implemented in the TUI. Any future
 adaptation must preserve logical cursor, Unicode/multiline drafts, history and
 session ownership in both modes at all three PTY sizes, with no extra idle rows.
 This browser slice changes no terminal code and claims no terminal acceptance.
+
+Deployed `2dd52fc` on port 8090 (PID 1047425). Six guarded live browser/size
+checks opened existing `AGENTS.md`, pinned it, kept it through Close All and
+explicitly closed it with the draft/session intact. No API mutation attempts or
+page errors; session API 200/62 sessions, SQLite integrity `ok`, no foreign-key
+violations. Logs: `/workspace/tmp/gi-tab-mru-{deploy,live}.log`. Terminal sessions
+were untouched. Supplied files and frozen feature source remain unchanged.
