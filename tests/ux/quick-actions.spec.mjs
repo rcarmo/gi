@@ -125,3 +125,60 @@ test('Gi Quick Actions linked agent tab selects the native destination without m
   await expect(input).toHaveValue('untouched draft');expect(await turns()).toEqual([]);
  }finally{await linked.close()}
 });
+
+async function sharedTypingFixture(page,request,info,id){
+ const source=loadCorpus('shared').find(s=>s.id===id);expect(source).toBeTruthy();await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
+ const f=await fixture(page,request,info);
+ const posted=await request.post(`/api/sessions/${f.main.id}/prompt`,{data:{prompt:`native key guard history ${id}`,model:'test-model'}});expect(posted.status()).toBe(202);const turn=(await posted.json()).turn_id;
+ await expect.poll(async()=>(await f.turns()).find(t=>t.id===turn)?.status).toBe('completed');
+ await page.reload();await expect(f.input).toHaveValue('untouched draft');
+ await page.locator('.compose-box input[type=file]').setInputFiles({name:'guard-unsent.txt',mimeType:'text/plain',buffer:Buffer.from('guard native bytes')});
+ const history=page.locator('.post-content p').filter({hasText:`native key guard history ${id}`}).first();await expect(history).toBeVisible();
+ const state=async()=>({turns:await f.turns(),messages:await(await request.get(`/api/sessions/${f.main.id}/messages`)).json(),model:await(await request.get(`/api/sessions/${f.main.id}/model`)).json()});
+ const before=await state();let mutations=0;page.on('request',r=>{if(!['GET','HEAD'].includes(r.method())&&new URL(r.url()).pathname.startsWith('/api/sessions'))mutations++;});
+ const frames=()=>page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+ const open=async()=>{await history.click();await page.keyboard.press('m');await expect(f.palette).toHaveCount(1);await expect(f.query).toBeFocused();await expect(f.query).toHaveValue('m');};
+ const close=async()=>{await f.query.press('Escape');await expect(f.palette).toHaveCount(0);await frames();};
+ const unchanged=async(text='untouched draft')=>{await expect(f.input).toHaveValue(text);await expect(page.locator('.compose-input-main .compose-file-pill[title="guard-unsent.txt"]')).toHaveCount(1);expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(f.main.id);expect(await state()).toEqual(before);expect(mutations).toBe(0);};
+ // Prove the native palette is loaded and capable of opening before checking
+ // that another surface or key prevents it. Never pass on an unready listener.
+ await open();await close();await unchanged();
+ return{...f,history,open,close,frames,unchanged};
+}
+
+for(const [id,surface] of [['@shared-5','composer textarea'],['@shared-6','input or select'],['@shared-11','session or model picker']])test(`${id} Native ${surface} keeps its typing without Quick Actions`,async({page,request},info)=>{
+ const f=await sharedTypingFixture(page,request,info,id);let text='untouched draft';
+ if(id==='@shared-5'){
+  await f.input.focus();await f.input.press('End');await f.input.pressSequentially('é文');await f.frames();
+  await expect(f.input).toHaveValue(text+'é文');expect(await f.input.evaluate(el=>[el.selectionStart,el.selectionEnd])).toEqual([text.length+2,text.length+2]);await expect(f.palette).toHaveCount(0);
+  await f.input.press('Backspace');await f.input.pressSequentially('ß');text+='éß';await expect(f.input).toHaveValue(text);await expect(f.input).toBeFocused();
+ }else if(id==='@shared-6'){
+  await page.keyboard.press('Control+,');const dialog=page.getByRole('dialog',{name:'Gi Settings',exact:true});await dialog.getByRole('button',{name:'Models',exact:true}).click();
+  const filter=dialog.getByLabel('Filter models',{exact:true}),select=dialog.getByLabel('Session model',{exact:true});await expect(select).toBeVisible();await expect(filter).toBeFocused();
+  await filter.pressSequentially('boot');await expect(filter).toHaveValue('boot');await filter.pressSequentially('strap');await expect(filter).toHaveValue('bootstrap');await expect(filter).toBeFocused();
+  await expect(select.locator('option:not([disabled])')).toHaveCount(1);await expect(select.locator('option:not([disabled])')).toHaveText(/test\/bootstrap/);await expect(dialog.getByTestId('settings-current-model')).toHaveText('test/test-model');await expect(dialog.getByRole('button',{name:'Apply model',exact:true})).toBeDisabled();await expect(f.palette).toHaveCount(0);
+  await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);
+ }else{
+  const trigger=page.getByRole('button',{name:/Manage sessions for/}).last();await trigger.click();const search=page.getByRole('searchbox',{name:'Search sessions',exact:true});await expect(search).toBeFocused();await search.pressSequentially(f.child.id);
+  await expect(search).toHaveValue(f.child.id);await expect(search).toBeFocused();const picker=page.getByRole('menu',{name:'Sessions and agents',exact:true});await expect(picker.getByRole('menuitem')).toHaveCount(1);await expect(picker.getByRole('menuitem')).toContainText(`gi:${f.child.id}`);await expect(f.palette).toHaveCount(0);
+  await search.press('Escape');await expect(picker).toHaveCount(0);await expect(trigger).toBeFocused();
+ }
+ await f.frames();await expect(f.palette).toHaveCount(0);await f.unchanged(text);
+ await f.open();await f.close();await f.unchanged(text);
+ expect((await(await request.get(`/api/sessions/${f.child.id}/turns`)).json()).turns||[]).toEqual([]);
+});
+
+test('@shared-12 Consumed modified repeated and composing timeline keys cannot activate Quick Actions',async({page,request},info)=>{
+ const f=await sharedTypingFixture(page,request,info,'@shared-12');
+ for(const options of [{key:'m',prevented:true},{key:'m',repeat:true},{key:'m',isComposing:true},{key:' '},{key:'m',ctrlKey:true},{key:'m',metaKey:true},{key:'m',altKey:true}]){
+  await f.history.click();
+  // Native content remains the target. Event metadata fixtures exercise IME,
+  // consumed and repeat states without inventing DOM or claiming physical IME.
+  const observed=await f.history.evaluate((el,options)=>{const {prevented,...init}=options;const event=new KeyboardEvent('keydown',{bubbles:true,cancelable:true,...init});if(prevented)event.preventDefault();el.dispatchEvent(event);return{key:event.key,repeat:event.repeat,isComposing:event.isComposing,ctrlKey:event.ctrlKey,metaKey:event.metaKey,altKey:event.altKey,defaultPrevented:event.defaultPrevented};},options);
+  expect(observed.key).toBe(options.key);for(const key of ['repeat','isComposing','ctrlKey','metaKey','altKey'])expect(observed[key]).toBe(Boolean(options[key]));if(options.prevented)expect(observed.defaultPrevented).toBe(true);
+  await f.frames();await expect(f.palette).toHaveCount(0);await f.unchanged();
+  // Positive real-key control after *each* rejected event, not just once at
+  // setup: the guard must not pass by leaving the palette listener detached.
+  await f.open();await f.close();await f.unchanged();
+ }
+});
