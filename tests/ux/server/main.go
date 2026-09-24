@@ -243,6 +243,18 @@ func main() {
 		log.Fatal(err)
 	}
 	defer s.Close()
+	if os.Getenv("GI_UX_SPEECH") != "" {
+		// Seed valid empty assistant history in this isolated DB. Production
+		// HTTP projection and supplied Post rendering still handle the rows.
+		if _, err := s.CreateSession(context.Background(), "speech-empty-fixture", "Empty speech fixture", map[string]any{"model": "test-model"}); err != nil {
+			log.Fatal(err)
+		}
+		for i, content := range []string{"", " \n\t "} {
+			if err := s.AddMessage(context.Background(), fmt.Sprintf("speech-empty-%d", i), "speech-empty-fixture", "assistant", content, nil); err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
 	if os.Getenv("GI_UX_COMPACTION") != "" {
 		cfg.Compaction = config.CompactionSettings{Enabled: true, ThresholdTokens: 30, KeepRecentTokens: 10}
 		cfg.Hooks.TimeoutMS = 55000

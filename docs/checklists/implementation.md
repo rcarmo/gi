@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-24
 
+- [x] Verify timeline027 native empty/whitespace assistant and API capability gates, plus independent original028/shared42 integrated code-copy and playback ownership. Real stored code bytes/trusted clipboard events, synchronous cancel/late callbacks, draft/media/reload/other-session protection;90browser/97functional/91helpers1115assertions/Go-vet-hook/review pass. Test-only isolated DB seed; coverage92/236+30/42 unmapped144/12. No physical-audio or terminal change.
+
 - [x] Restore frozen Piclaw read-aloud via guarded Post adapter, <=1600-character Markdown-derived text, API capability checks and per-mount/session ownership. Timeline028 transfers/cancels playback with stale same-post callbacks fenced; error/pagehide/visibility/session draft-media safety.72browser/97functional/91helpers1103assertions/Go-vet-hook pass. Coverage90/236+29/42 unmapped146/13; browser OS speech boundary controlled in tests, no physical audio proof. Timeline027 empty-assistant gate and original028/shared42 integrated copy remain uncredited; no terminal controls or idle rows.
 
 - [x] Verify Classic original008 independently against real loaded skills, description filtering, Slash commands-only grouping and shared composer-prefill path; separate Classic/shared17 executions preserve strict reporter semantics.18browser/96functional/87helpers1069assertions/Go-vet-hook pass; coverage89/236+29/42, unmapped147/13. Test-only; terminal load-only behaviour unchanged. Shared35 lacks positive local-estimate labelling proof; read-aloud cases lack implementation and stay unmapped.
