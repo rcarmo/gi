@@ -100,3 +100,7 @@ test('message copy preserves original Markdown and reports unavailable clipboard
  await page.evaluate(()=>{document.execCommand=()=>false;Object.defineProperty(navigator,'clipboard',{configurable:true,value:undefined});});
  await post.getByRole('button',{name:'Copy message',exact:true}).click();await expect(post.getByRole('button',{name:'Copy failed',exact:true})).toBeVisible();
 });
+
+test('unknown native skill fails recoverably without creating a turn',async({page,request})=>{
+ const session=await(await request.post('/api/sessions',{data:{agent_id:`unknown-skill-${Date.now()}`,title:'unknown skill'}})).json();await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),session.id);await page.goto('/');const input=page.getByRole('textbox',{name:'Message (Enter to send, Shift+Enter for newline)...',exact:true});await input.fill('/skill:not-loaded retain β');await input.press('Enter');await expect(page.getByRole('alert')).toContainText('unknown or unavailable loaded skill');await expect(input).toHaveValue('/skill:not-loaded retain β');expect((await(await request.get(`/api/sessions/${session.id}/turns`)).json()).turns||[]).toEqual([]);
+});

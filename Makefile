@@ -200,6 +200,7 @@ test-instance-start: build
 	@mkdir -p $(TEST_WORKSPACE)/.piclaw $(TEST_WORKSPACE)/.pi
 	@printf '%s\n' '$(TEST_PICLAW_CONFIG_JSON)' > $(TEST_WORKSPACE)/.piclaw/config.json
 	@printf '%s\n' '$(TEST_PI_SETTINGS_JSON)' > $(TEST_WORKSPACE)/.pi/settings.json
+	@if [ -n "$(TEST_FIXTURES_DIR)" ]; then cp -R "$(TEST_FIXTURES_DIR)/." "$(TEST_WORKSPACE)/"; fi
 	$(abspath $(BIN)) $(TEST_SERVER_ARGS) >$(TEST_DIR)/process.log 2>&1 </dev/null &
 	@for _ in 1 2 3 4 5 6 7 8 9 10; do \
 		if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null && curl -fsS http://127.0.0.1:$(TEST_PORT)/api/sessions >/dev/null; then \
@@ -271,10 +272,21 @@ ux-parity-inventory:
 	$(BUN) test tests/ux/support/
 	$(BUN) scripts/ux-parity-report.mjs
 
+.PHONY: ux-parity-report
+ux-parity-report:
+	$(BUN) scripts/ux-parity-report.mjs $(UX_PARITY_REPORT_ARGS)
+
 .PHONY: build-pane-host-fixture
 build-pane-host-fixture:
 	@mkdir -p test-results
 	$(BUN) scripts/build-pane-host-fixture.mjs
+
+.PHONY: test-web-skills test-ux-skills
+test-web-skills:
+	$(GO) test -race -count=3 ./internal/web -run 'LoadedWebSkill|WebSkillOpen|QuickActions'
+
+test-ux-skills:
+	GI_UX_SKILLS=1 $(MAKE) test-ux-parity TEST_FIXTURES_DIR=tests/ux/fixtures/skills UX_PARITY_ARGS='tests/ux/skills.spec.mjs'
 
 test-ux-parity:
 	@mkdir -p test-results/ux-parity/queue-gates

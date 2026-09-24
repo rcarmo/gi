@@ -8014,11 +8014,17 @@ function ComposeBox({
     if (!resolved.shouldApply)
       return;
     lastPrefillTokenRef.current = resolved.nextToken;
+    const skillPrefill = /^\/skill:[A-Za-z0-9][A-Za-z0-9_-]{0,63}\s*$/.test(resolved.text);
+    if (skillPrefill) {
+      resolved.text = resolved.text.trim() + " " + content;
+    }
     setSubmitError(null);
     setContent(resolved.text);
     updateSlashAutocomplete(resolved.text);
     updateMentionAutocomplete(resolved.text);
     requestAnimationFrame(() => {
+      if (skillPrefill && (!mountedRef.current || document.querySelector('.settings-dialog[aria-modal="true"]')))
+        return;
       resizeTextarea();
       const textarea = textareaRef.current;
       if (!textarea)
@@ -18165,10 +18171,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-t0g41p9f.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-tfjerg0q.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-j5qx4x8w.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-q6h28nmt.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-pwx15m2c.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-38h60v11.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-vt6fbmga.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-x1893h99.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20523,5 +20529,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=8C87DC9DB0364EC364756E2164756E21
-//# sourceMappingURL=app-ywctg9y4.js.map
+//# debugId=5E7224F5C309738364756E2164756E21
+//# sourceMappingURL=app-vaf9802h.js.map

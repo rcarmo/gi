@@ -10,7 +10,9 @@ Scope confirmed 2026-09-21: finish the whole imported corpus, not just the curre
 - Terminal: implement suitable functional equivalents separately, preserving transcript/editor/footer and zero new idle rows. Browser-only properties (touch, PWA installation, CSS layering) need a documented terminal disposition, not a fictitious terminal pass.
 - Delivery: small tested commits, source provenance, truthful capability/error paths and current evidence reports. Full completion requires no unexplained unmapped cases.
 
-Latest browser repairs (2026-09-24): read-only Markdown inline code uses the configured mono stack; horizontal table scrollers keep their gestures instead of switching Safari sessions. 210 combined browser +30 swipe regressions, 95 functional on clean unchanged rerun, 86 helpers/1,047 assertions and Go/vet/hook pass. Shell009 precondition and shared41 SVG conflict remain gaps; no mapping/TUI change. Details below.
+Latest shared acceptance (2026-09-24): shared17 passes with startup-loaded `/skill:<name>` entries, draft-preserving insertion, captured-session native expansion and recoverable unknown/stale commands. Final12 browser cases across six projects, session126/QuickActions138 regressions, functional96/helpers87 (1,062 assertions), Go/vet/hook and targeted race x3 pass. Coverage **88/236 Classic + 29/42 shared**, **148/13** unmapped. Terminal invocation is still load-only. Details and limitations below.
+
+Earlier browser repairs (2026-09-24): read-only Markdown inline code uses the configured mono stack; horizontal table scrollers keep their gestures instead of switching Safari sessions. 210 combined browser +30 swipe regressions, 95 functional on clean unchanged rerun, 86 helpers/1,047 assertions and Go/vet/hook pass. Shell009 precondition and shared41 SVG conflict remain gaps; no mapping/TUI change. Details below.
 
 Earlier shared acceptance (2026-09-24): shared39 now passes the attach-file route across all six browser projects: visible upload, cancel retaining draft, explicit retry reusing the native media ID, one media item/user message, original file unlink and reload/raw-byte/render durability. Multipart uploads atomically reuse exact session/name/MIME/bytes. 198 browser/94 functional/85 support tests with 1,039 assertions, Go/vet/hook, store+web race ×3 and concurrent process/store proof pass. Coverage **88/236 Classic + 28/42 shared**, **148/14** unmapped. No general message idempotency or new TUI credit; details below.
 
@@ -904,3 +906,21 @@ Chromium/WebKit preview/pin/draft smoke passed with zero API mutations/page
 errors; session API 200/62 sessions, SQLite integrity `ok`, FK check empty. This
 live smoke is not substituted for isolated wheel/appearance evidence. Captures
 and logs attached as `/workspace/tmp/gi-preview-gesture-evidence.tar.gz`.
+
+## Startup-loaded browser skills (2026-09-24)
+
+The browser catalogue uses the native startup discovery order (`.gi` before `.pi`, case-insensitive name deduplication). Command names use 1-64 ASCII letters, digits, underscores or hyphens, starting with a letter or digit. Eligible skills appear once as `/skill:<name>` under Slash commands and can be filtered by name or description. All sessions share the instance catalogue; there are no per-agent overrides or runtime discovery updates.
+
+The server records each eligible file's relative path and SHA-256 at startup. Invocation rereads at most100KiB of regular UTF-8 content through `os.Root`, then checks the hash before admitting a turn. Workspace escapes fail; links resolving inside the root are allowed. Linux/macOS non-blocking opens and descriptor checks reject a swapped FIFO without hanging the request. Other platforms fail closed. Unknown, missing, invalid or changed files return400 before admission. Restoring the original bytes permits explicit retry; loading a changed or new skill requires restarting Gi.
+
+A guarded build adapter prepends the selected skill command and a space to the existing draft without submitting, replacing media, or changing ordinary slash-command semantics. Settings and unmount checks fence late focus. The captured native session, model, media and submission token follow the existing prompt path; explicit cross-agent skill requests fail. Expanded skill content and arguments reach the native engine, with original command/name/hash stored as turn metadata. Skill content remains user-level workspace input, not a system instruction or plugin execution environment.
+
+Verification:
+
+* `make test-ux-skills BIN_DIR=/tmp/gi-media-bin`:12/12 across six projects. The tagged shared17 case combines canonical listing, both filters, exact prefix/draft/media retention, held POST across a session switch, native assistant marker/media bytes, unknown/stale draft recovery, reload and explicit retry. A separate keyboard/focus test preserves the trailing space and later Settings ownership. Earlier18-case runs split the tagged success/recovery steps and produced a strict-report partial matrix; merging them preserves the assertions and earns one full pass per project without changing the reporter.
+* Fresh session126/126 and QuickActions138/138 regressions pass. The earlier combined run had263 passes and one WebKit held-route error in the rapid-swipe fixture; assertions and swipe sources were unchanged for the successful fresh reruns.
+* Functional96/96, helpers87/87 with1,062 assertions, `make test vet bun-checks`, and `make test-web-skills` (targeted race x3) pass. The pre-boundary full web race x3 also passed; the final targeted run covers the added FIFO test. Bounded file-based review found no concrete blocker after an earlier review timed out.
+
+Coverage is88/236 Classic and29/42 shared, leaving148/13 unmapped. Shared16's ordinary command-prefill conflict and shared36's cancellation/queue policy are unchanged.
+
+Terminal adaptation: keep discovery inside existing slash completion, with at most six results and no idle panel, row or status badge. A future invocation path should insert the command into the existing editor without submitting, retain draft/cursor/media per captured session, and use the same bounded/hash-checked expansion at explicit submission. Escape should restore the editor without output, and errors should use the existing transient status. Fullscreen and regular mode require independent60x18,100x22,140x36 native execution, failure, resize and zero-idle-growth tests. The current terminal `/skill:` loads text only; this browser slice changes no terminal behaviour and earns no terminal invocation credit.

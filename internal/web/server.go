@@ -46,6 +46,7 @@ type Server struct {
 	indexScheduler        *indexer.Scheduler
 	indexConfigs          map[string]searchstore.ScopeConfig
 	indexClosed           bool
+	webSkills             map[string]loadedWebSkill
 }
 
 func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
@@ -58,6 +59,7 @@ func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 		scriptTool: tools.NewScriptTool(s, cfg),
 		auth:       giauth.NewManager(cfg.WorkspaceRoot),
 	}
+	srv.webSkills = loadWebSkills(cfg)
 	srv.configureScriptConnectivity()
 	srv.routes()
 	return srv
@@ -656,6 +658,11 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 	if s.handleModelCommand(w, r, sessionID, req.Prompt) {
 		return
 	}
+	expandedPrompt, skillMetadata, skillErr := s.expandWebSkill(req.Prompt)
+	if skillErr != nil {
+		writeJSON(w, 400, map[string]any{"error": skillErr.Error()})
+		return
+	}
 	model := req.Model
 	if model == "" {
 		if session, err := s.store.GetSession(r.Context(), sessionID); err == nil {
@@ -680,10 +687,17 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 	if identity, identityErr := s.store.RequireSessionIdentityRuntime(submitCtx, sessionID); identityErr == nil {
 		currentAgentID = identity.AgentID
 	}
+	if skillMetadata != nil && targetAgentID != "" && targetAgentID != "default" && targetAgentID != currentAgentID {
+		writeJSON(w, 400, map[string]any{"error": "skill invocation must use the selected session"})
+		return
+	}
 	if targetAgentID != "" && targetAgentID != "default" && targetAgentID != currentAgentID {
 		result, err = s.turns.SubmitPeerMessage(submitCtx, sessionID, targetAgentID, req.Prompt, req.Intent, model, req.ParentTurnID)
 	} else {
-		metadata := map[string]any{}
+		metadata := skillMetadata
+		if metadata == nil {
+			metadata = map[string]any{}
+		}
 		if len(req.ClientRequestID) > 128 {
 			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "client_request_id too long"})
 			return
@@ -694,7 +708,7 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 		if len(req.Media) > 0 {
 			metadata["media"] = req.Media
 		}
-		input := turn.RunInput{SessionID: sessionID, Prompt: req.Prompt, Intent: req.Intent, Model: model, ParentTurnID: req.ParentTurnID, Metadata: metadata}
+		input := turn.RunInput{SessionID: sessionID, Prompt: expandedPrompt, Intent: req.Intent, Model: model, ParentTurnID: req.ParentTurnID, Metadata: metadata}
 		if strings.HasPrefix(strings.TrimSpace(req.Prompt), "@") {
 			result, err = s.turns.SubmitPromptRouted(submitCtx, input)
 		} else {
