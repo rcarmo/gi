@@ -47,7 +47,7 @@ func TestSessionActionsCapabilitiesAndDraftOwnership(t *testing.T) {
 	c.stickToBottom = false
 	selectActionSession(t, c, "A")
 	c.openSessionActions()
-	if !reflect.DeepEqual(c.modelMenuChoices, []string{"Pin"}) {
+	if !reflect.DeepEqual(c.modelMenuChoices, []string{"Pin", "Rename"}) {
 		t.Fatal("main capabilities", c.modelMenuChoices)
 	}
 	c.backFromSessionActions()
@@ -56,7 +56,7 @@ func TestSessionActionsCapabilitiesAndDraftOwnership(t *testing.T) {
 	selected := c.modelMenuSelected
 	source := c.selectionScope()
 	c.openSessionActions()
-	if !reflect.DeepEqual(c.modelMenuChoices, []string{"Pin", "Archive"}) {
+	if !reflect.DeepEqual(c.modelMenuChoices, []string{"Pin", "Archive", "Rename"}) {
 		t.Fatal(c.modelMenuChoices)
 	}
 	c.modelMenuTypeRune('x')
@@ -120,7 +120,7 @@ func TestSessionActionsStaleScopeAndArchiveRace(t *testing.T) {
 		t.Fatal("archive race accepted")
 	}
 	c.openSessionActions()
-	if !reflect.DeepEqual(c.modelMenuChoices, []string{"Pin"}) {
+	if !reflect.DeepEqual(c.modelMenuChoices, []string{"Pin", "Rename"}) {
 		t.Fatal("busy archive advertised")
 	}
 	c.closeModelMenu()

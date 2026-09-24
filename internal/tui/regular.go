@@ -97,7 +97,7 @@ func (c *chatTUI) renderRegular(app *gotui.App) *gotui.Element {
 		// Keep the largest temporary selector region until close. The buffer
 		// clears its unused rows when switching to a shorter action submenu,
 		// rather than stranding old rows above a shrunken inline region.
-		if c.modelMenuKind == "session" || c.modelMenuKind == "session-actions" {
+		if c.modelMenuKind == "session" || c.modelMenuKind == "session-actions" || c.modelMenuKind == "session-rename" {
 			c.modelMenuRenderedHeight = max(c.modelMenuRenderedHeight, c.modelMenuHeight())
 		} else {
 			c.modelMenuRenderedHeight = c.modelMenuHeight()

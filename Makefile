@@ -312,7 +312,7 @@ test-tui-session-actions: build
 
 .PHONY: test-session-actions
 test-session-actions:
-	$(GO) test -race -count=3 ./internal/tui ./internal/store -run 'SessionActions|SessionDisplayCapabilities|SessionPicker'
+	$(GO) test -race -count=3 ./internal/tui ./internal/store -run 'SessionActions|SessionRename|SessionDisplayCapabilities|SessionPicker'
 
 test-terminal-links:
 	$(GO) test -race -count=3 ./internal/tui -run 'TranscriptLink|TranscriptSelection|TranscriptSearch'

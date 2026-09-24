@@ -31,6 +31,7 @@ type sessionActions struct {
 	query            string
 	selected, scroll int
 	mutations        map[string]store.SessionMutation
+	renameInput      *multilineInput
 }
 
 func (c *chatTUI) openSessionActions() {
@@ -67,6 +68,10 @@ func (c *chatTUI) openSessionActions() {
 		labels = append(labels, "Restore")
 		state.mutations["Restore"] = store.SessionMutation{Action: "restore"}
 	}
+	if caps.CanRename {
+		labels = append(labels, "Rename")
+		state.mutations["Rename"] = store.SessionMutation{Action: "rename"}
+	}
 	c.sessionActions = state
 	c.modelMenuKind = "session-actions"
 	c.modelMenuAll = labels
@@ -82,6 +87,15 @@ func (c *chatTUI) openSessionActions() {
 }
 
 func (c *chatTUI) backFromSessionActions() {
+	if c.modelMenuKind == "session-rename" {
+		c.sessionActions.renameInput = nil
+		c.modelMenuKind = "session-actions"
+		c.modelMenuError = ""
+		if c.app != nil {
+			c.app.MarkDirty()
+		}
+		return
+	}
 	if c.modelMenuKind != "session-actions" {
 		c.closeModelMenu()
 		return
@@ -113,6 +127,10 @@ func (c *chatTUI) applySessionAction() {
 	if !ok {
 		return
 	}
+	if mutation.Action == "rename" {
+		c.openSessionRename()
+		return
+	}
 	if err := c.store.MutateSession(context.Background(), c.sessionActions.target, mutation); err != nil {
 		// Return to the original picker selection. A fresh Right re-reads capabilities,
 		// so a concurrent archive/claim cannot leave a stale action retry loop.
@@ -124,7 +142,12 @@ func (c *chatTUI) applySessionAction() {
 		}
 		return
 	}
+	c.finishSessionMutation()
+}
+
+func (c *chatTUI) finishSessionMutation() {
 	target := c.sessionActions.target
+	c.modelMenuKind = "session-actions"
 	c.backFromSessionActions()
 	// Update only the captured target's label, without reordering or filtering
 	// away the selected row. Preserve the query and viewport for the next action.

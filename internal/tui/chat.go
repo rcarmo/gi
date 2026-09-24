@@ -1553,6 +1553,9 @@ func (c *chatTUI) KeyMap() gotui.KeyMap {
 	if c.search.active {
 		return c.transcriptSearchKeys()
 	}
+	if c.modelMenuOpen && c.modelMenuKind == "session-rename" {
+		return c.sessionRenameKeys()
+	}
 	if c.modelMenuOpen {
 		return gotui.KeyMap{
 			gotui.OnStop(gotui.KeyCtrlC, func(ke gotui.KeyEvent) { c.app.Stop() }),
@@ -2013,6 +2016,9 @@ func (c *chatTUI) acceptModelMenuSelection() {
 }
 
 func (c *chatTUI) modelMenuHeight() int {
+	if c.modelMenuOpen && c.modelMenuKind == "session-rename" {
+		return 4
+	}
 	if !c.modelMenuOpen {
 		return 0
 	}
@@ -2025,6 +2031,9 @@ func (c *chatTUI) modelMenuHeight() int {
 }
 
 func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
+	if c.modelMenuKind == "session-rename" {
+		return c.renderSessionRename(width)
+	}
 	c.ensureModelMenuSelectionVisible()
 	rows := c.modelMenuVisibleRows()
 	start := c.modelMenuScroll
@@ -2231,6 +2240,9 @@ func (c *chatTUI) recallHistory(delta int) {
 }
 
 func (c *chatTUI) HandleMouse(me gotui.MouseEvent) bool {
+	if c.modelMenuOpen && c.modelMenuKind == "session-rename" {
+		return true
+	}
 	if c.workspaceIndex.active {
 		return true
 	}

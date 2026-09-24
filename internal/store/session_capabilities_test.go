@@ -20,7 +20,7 @@ func TestSessionDisplayCapabilitiesMatchMutationRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	caps, err := s.SessionDisplayCapabilities(ctx, "root")
-	if err != nil || !caps.CanPin || caps.CanArchive || caps.CanRestore {
+	if err != nil || !caps.CanPin || !caps.CanRename || caps.CanArchive || caps.CanRestore {
 		t.Fatal(caps, err)
 	}
 	check := func(archive bool) {
@@ -59,7 +59,7 @@ func TestSessionDisplayCapabilitiesMatchMutationRules(t *testing.T) {
 		t.Fatal(err)
 	}
 	caps, err = s.SessionDisplayCapabilities(ctx, "child")
-	if err != nil || caps.CanPin || caps.CanArchive || !caps.CanRestore || !caps.Pinned {
+	if err != nil || caps.CanPin || caps.CanRename || caps.CanArchive || !caps.CanRestore || !caps.Pinned {
 		t.Fatal(caps, err)
 	}
 	if _, err = s.SessionDisplayCapabilities(ctx, "missing"); err == nil {

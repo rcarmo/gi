@@ -10,6 +10,7 @@ import (
 type SessionDisplayCapabilities struct {
 	Pinned     bool
 	CanPin     bool
+	CanRename  bool
 	CanArchive bool
 	CanRestore bool
 }
@@ -30,5 +31,5 @@ func (s *Store) SessionDisplayCapabilities(ctx context.Context, id string) (Sess
 	}
 	archived, _ := state["archived_at"].(string)
 	pinned, _ := state["pinned"].(bool)
-	return SessionDisplayCapabilities{Pinned: pinned, CanPin: archived == "", CanArchive: archived == "" && child && !busy, CanRestore: archived != ""}, nil
+	return SessionDisplayCapabilities{Pinned: pinned, CanPin: archived == "", CanRename: archived == "", CanArchive: archived == "" && child && !busy, CanRestore: archived != ""}, nil
 }
