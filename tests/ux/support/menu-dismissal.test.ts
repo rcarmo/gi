@@ -15,11 +15,14 @@ test('menu build adapter fails closed on missing, duplicate or already-patched a
  for(const source of ['',original+original,original.replace('const onKey =','const changed ='),patchTimelineMenu(original)])expect(()=>patchTimelineMenu(source)).toThrow('anchor changed');
 });
 function fixture(){
- const doc=new EventTarget();let closed=0,focused=0;
+ const listeners=new Map<string,Function>();
+ const doc={addEventListener:(name:string,fn:Function)=>listeners.set(name,fn),removeEventListener:(name:string)=>listeners.delete(name)};let closed=0,focused=0;
  const menu={ownerDocument:doc},trigger={isConnected:true,hasAttribute:()=>false,focus:()=>focused++};
  const cleanup=bindMenuDismissal(menu as any,trigger as any,()=>closed++);
  const fire=(type:string,path:any[]=[],props:any={})=>{
-  const e=new Event(type,{cancelable:true});Object.defineProperty(e,'composedPath',{value:()=>path});Object.assign(e,props);doc.dispatchEvent(e);return e;
+  // Unit callback fixture, not a DOM event: isTrusted is nonconfigurable on
+  // real events. Browser tests supply trusted mouse/touch events separately.
+  const e={type,isTrusted:props.trusted!==false,composedPath:()=>path,defaultPrevented:false,preventDefault(){this.defaultPrevented=true;},stopImmediatePropagation(){},...props};listeners.get(type)?.(e);return e;
  };
  return{menu,trigger,cleanup,fire,counts:()=>[closed,focused]};
 }
@@ -28,6 +31,7 @@ test('menu consumes outside mouse click once, preserves touch defaults and clean
  expect(f.fire('pointerdown',[],{pointerType:'touch'}).defaultPrevented).toBe(false);
  f.fire('pointercancel');expect(f.counts()).toEqual([0,0]);
  expect(f.fire('mousedown').defaultPrevented).toBe(true);expect(f.counts()).toEqual([0,0]);
+ expect(f.fire('click',[],{trusted:false}).defaultPrevented).toBe(false);expect(f.counts()).toEqual([0,0]);
  expect(f.fire('click').defaultPrevented).toBe(true);expect(f.counts()).toEqual([1,1]);
  f.cleanup();expect(f.fire('mousedown').defaultPrevented).toBe(false);expect(f.fire('click').defaultPrevented).toBe(false);expect(f.counts()).toEqual([1,1]);
 });

@@ -233,3 +233,41 @@ test('Gi Settings delivers target keys while native background popups remain sus
   await page.keyboard.press('Escape');await expect(popup).toHaveCount(0);await f.frames();await f.unchanged();
  }
 });
+
+for(const [id,dismissal] of [['@shared-13','Escape'],['@shared-14','outside pointer']])test(`${id} Quick Actions ${dismissal} returns to the native Conversation trigger without changing draft references`,async({page,request},info)=>{
+ const f=await sharedTypingFixture(page,request,info,id);
+ const filename=`dismiss-${info.project.name}-${id.slice(1)}.txt`;
+ const write=await request.post('/api/tools/execute',{data:{tool:'write',input:{path:filename,content:'retained workspace reference'}}});expect((await write.json()).error).toBeFalsy();
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();await page.locator(`.workspace-row[data-path="${filename}"]`).click();await page.locator('.workspace-toggle-tab.open').click();
+ const link=page.locator('.post .post-time').first(),messageId=(await link.getAttribute('href')).replace(/^#msg-/,'');await link.click();
+ const titles=()=>page.locator('.compose-input-main .compose-file-pill').evaluateAll(nodes=>nodes.map(n=>n.title));
+ const labels=[`Message reference: ${messageId}`,filename,'guard-unsent.txt'];await expect.poll(titles).toEqual(labels);
+ const stored=()=>page.evaluate(async id=>{
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const s=r.result;resolve(s?{...s,draft:{...s.draft,media:s.draft.media.map(f=>({...f,bytes:Array.from(new Uint8Array(f.bytes))}))}}:null);};tx.onerror=()=>reject(tx.error);});
+ },f.main.id);
+ await expect.poll(stored).toMatchObject({draft:{text:'untouched draft',fileRefs:[filename],messageRefs:[messageId],media:[{name:'guard-unsent.txt',bytes:Array.from(Buffer.from('guard native bytes'))}]},pending:[]});const before=await stored();
+ const conversation=page.getByRole('region',{name:'Conversation',exact:true});await expect(conversation).toBeVisible();await conversation.focus();await expect(conversation).toBeFocused();await conversation.press('m');await expect(f.query).toBeFocused();await expect(f.palette).toHaveCount(1);await expect(f.query).toHaveValue('m');await f.query.fill('no-action-chosen');
+ await page.locator('.compose-box').evaluate(el=>{window.__dismissComposerClicks=0;el.addEventListener('click',()=>window.__dismissComposerClicks++);});
+ if(dismissal==='Escape')await f.query.press('Escape');else{
+  const send=page.getByRole('button',{name:'Send message',exact:true}),box=await send.boundingBox(),point={x:box.x+box.width/2,y:box.y+box.height/2};
+  // The supplied overlay is pointer-transparent. The enabled Send control is
+  // the actual hit target; dismissal must consume its whole gesture.
+  expect(await send.evaluate((el,p)=>el.contains(document.elementFromPoint(p.x,p.y)),point)).toBe(true);await page.mouse.click(point.x,point.y);
+ }
+ await expect(f.palette).toHaveCount(0);await expect(conversation).toBeFocused();await f.frames();await expect(conversation).toBeFocused();expect(await page.evaluate(()=>window.__dismissComposerClicks)).toBe(0);await f.unchanged();await expect.poll(titles).toEqual(labels);expect(await stored()).toEqual(before);
+ // Reopen from the restored trigger with native typing and dismiss again;
+ // no stale focus callback or old query may survive the previous occurrence.
+ await page.keyboard.press('q');await expect(f.query).toBeFocused();await expect(f.query).toHaveValue('q');await f.query.press('Escape');await expect(conversation).toBeFocused();
+ await page.reload();await f.unchanged();await expect.poll(titles).toEqual(labels);expect(await stored()).toEqual(before);expect((await(await request.get(`/api/sessions/${f.child.id}/turns`)).json()).turns||[]).toEqual([]);
+});
+
+test.describe('Gi Quick Actions trusted touch dismissal',()=>{
+ test.use({hasTouch:true});
+ test('Gi palette touch dismissal consumes Send and restores Conversation without stale gesture capture',async({page,request},info)=>{
+  const f=await sharedTypingFixture(page,request,info,'@shared-14'),conversation=page.getByRole('region',{name:'Conversation',exact:true});
+  await conversation.focus();await conversation.press('m');await expect(f.query).toBeFocused();const send=page.getByRole('button',{name:'Send message',exact:true}),box=await send.boundingBox();
+  await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);await expect(f.palette).toHaveCount(0);await expect(conversation).toBeFocused();await f.unchanged();await f.input.tap();await expect(f.input).toBeFocused();
+  await conversation.focus();await conversation.press('q');await expect(f.query).toBeFocused();await f.query.dispatchEvent('keydown',{key:'Escape',isComposing:true});await expect(f.palette).toBeVisible();await f.query.press('Escape');await expect(conversation).toBeFocused();await f.unchanged();
+ });
+});

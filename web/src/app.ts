@@ -1012,7 +1012,7 @@ function GiApp() {
                 </div>
                 <div class="editor-splitter"></div>
             `}
-            <div class="container" ref=${containerRef}>
+            <div class="container" ref=${containerRef} tabIndex="0" role="region" aria-label="Conversation">
                 <${Timeline}
                     posts=${posts}
                     hasMore=${false}

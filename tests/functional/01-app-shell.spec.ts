@@ -258,3 +258,10 @@ test('native timeline controls and modal fields receive their own keyboard event
   await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(popup).toBeVisible();await page.keyboard.press('Escape');await expect(popup).toHaveCount(0);
   expect((await (await request.get(`/api/sessions/${id}/turns`)).json()).turns).toHaveLength(1);
 });
+
+test('Quick Actions dismissal restores Conversation without submitting the draft',async({page,request})=>{
+ const created=await request.post('/api/sessions',{data:{agent_id:`functional-dismiss-${Date.now()}`}});expect(created.status()).toBe(201);const {id}=await created.json();await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),id);
+ await page.goto(BASE_URL);await waitForAppShell(page);const input=page.getByRole('textbox',{name:'Message (Enter to send, Shift+Enter for newline)...',exact:true}),conversation=page.getByRole('region',{name:'Conversation',exact:true}),palette=page.locator('.timeline-quick-actions'),query=page.locator('.timeline-quick-actions-input');await input.fill('functional dismissal draft');
+ await conversation.focus();await conversation.press('m');await expect(query).toBeFocused();await query.press('Escape');await expect(palette).toHaveCount(0);await expect(conversation).toBeFocused();
+ await page.keyboard.press('q');await expect(query).toHaveValue('q');await expect(query).toBeFocused();const b=await page.getByRole('button',{name:'Send message',exact:true}).boundingBox();await page.mouse.click(b!.x+b!.width/2,b!.y+b!.height/2);await expect(palette).toHaveCount(0);await expect(conversation).toBeFocused();await expect(input).toHaveValue('functional dismissal draft');expect((await(await request.get(`/api/sessions/${id}/turns`)).json()).turns||[]).toEqual([]);
+});

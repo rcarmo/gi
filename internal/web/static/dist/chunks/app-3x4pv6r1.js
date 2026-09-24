@@ -14737,7 +14737,7 @@ function bindMenuDismissal(menu, trigger, close) {
   const inside = (event) => event.composedPath().some((node) => node === menu || node === trigger);
   const finish = () => {
     close();
-    if (trigger.isConnected && !trigger.hasAttribute("disabled"))
+    if (trigger?.isConnected && !trigger.hasAttribute("disabled"))
       trigger.focus({ preventScroll: true });
   };
   const outsideStart = (event) => {
@@ -14748,7 +14748,7 @@ function bindMenuDismissal(menu, trigger, close) {
     event.stopImmediatePropagation();
   };
   const click = (event) => {
-    if (settingsOwnsKeyboard(doc) || inside(event))
+    if (!event.isTrusted || settingsOwnsKeyboard(doc) || inside(event))
       return;
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -17135,6 +17135,37 @@ function TimelineMenu({
   return null;
 }
 
+// web/src/gi-quick-actions-focus.ts
+function quickActionsOpener(doc = document) {
+  const active = doc.activeElement;
+  if (active && active !== doc.body && active !== doc.documentElement && !active.closest("[inert]"))
+    return active;
+  return doc.querySelector('.container[aria-label="Conversation"]');
+}
+function bindQuickActionsFocus(root, input, opener, close) {
+  const view = root.ownerDocument.defaultView;
+  let closed = false;
+  const restore = () => {
+    if (opener?.isConnected && !opener.closest("[inert]") && !opener.hasAttribute("disabled") && opener.getClientRects().length)
+      opener.focus({ preventScroll: true });
+  };
+  const frame = view.requestAnimationFrame(() => {
+    if (!closed && !settingsOwnsKeyboard(root.ownerDocument) && input.isConnected && !root.closest("[inert]"))
+      input.focus({ preventScroll: true });
+  });
+  const detach = bindMenuDismissal(root, null, () => {
+    closed = true;
+    view.cancelAnimationFrame(frame);
+    close();
+    restore();
+  });
+  return () => {
+    closed = true;
+    view.cancelAnimationFrame(frame);
+    detach();
+  };
+}
+
 // web/src/ui/keyboard-shortcuts.ts
 var STORAGE_KEY = "piclaw_keyboard_shortcuts_v1";
 var KEYBOARD_SHORTCUT_ACTIONS = [
@@ -17636,6 +17667,7 @@ function TimelineQuickActions({
   const [slashCommands, setSlashCommands] = F_([]);
   const [settings, setSettings] = F_({ workspaceCommands: null, slashCommands: null });
   const rootRef = Q_(null);
+  const openerRef = Q_(null);
   const inputRef = Q_(null);
   const loadSettings = Y_(async () => {
     try {
@@ -17714,10 +17746,13 @@ function TimelineQuickActions({
     }
     setHighlightIndex(bestIndex);
   }, [items, query]);
-  K_(() => {
-    if (!open)
+  W_(() => {
+    if (!open || !rootRef.current || !inputRef.current)
       return;
-    requestAnimationFrame(() => inputRef.current?.focus?.());
+    return bindQuickActionsFocus(rootRef.current, inputRef.current, openerRef.current, () => {
+      setOpen(false);
+      setQuery("");
+    });
   }, [open]);
   K_(() => {
     const onKeyDown = (event) => {
@@ -17727,17 +17762,14 @@ function TimelineQuickActions({
         if (!shouldOpenTimelineQuickActionsFromKeyEvent(event))
           return;
         event.preventDefault();
+        openerRef.current = quickActionsOpener();
         setQuery(String(event.key || ""));
         setHighlightIndex(0);
         setOpen(true);
         return;
       }
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setOpen(false);
-        setQuery("");
+      if (event.key === "Escape")
         return;
-      }
       if (event.key === "ArrowDown") {
         event.preventDefault();
         setHighlightIndex((prev) => items.length > 0 ? (prev + 1 + items.length) % items.length : 0);
@@ -17778,21 +17810,9 @@ function TimelineQuickActions({
         setQuery("");
       }
     };
-    const onPointerDown = (event) => {
-      if (settingsOwnsKeyboard())
-        return;
-      if (!open)
-        return;
-      if (rootRef.current?.contains(event.target))
-        return;
-      setOpen(false);
-      setQuery("");
-    };
     window.addEventListener("keydown", onKeyDown, true);
-    document.addEventListener("pointerdown", onPointerDown, true);
     return () => {
       window.removeEventListener("keydown", onKeyDown, true);
-      document.removeEventListener("pointerdown", onPointerDown, true);
     };
   }, [chatOnlyMode, highlightIndex, items, onOpenTerminalTab, onOpenVncTab, onPrefillCompose, onSwitchChat, onToggleWorkspace, open]);
   K_(() => {
@@ -17895,10 +17915,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-92nqqpac.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-ntchgye1.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-yajqpatn.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-zrdxm51p.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-r4wc13ka.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-ja03hmrf.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-z5bmwpep.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-5pr4n5es.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -19958,7 +19978,7 @@ function GiApp() {
                 </div>
                 <div class="editor-splitter"></div>
             `}
-            <div class="container" ref=${containerRef}>
+            <div class="container" ref=${containerRef} tabIndex="0" role="region" aria-label="Conversation">
                 <${Timeline}
                     posts=${posts}
                     hasMore=${false}
@@ -20234,5 +20254,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=494D8EF5C778F9FA64756E2164756E21
-//# sourceMappingURL=app-n9y1nyfn.js.map
+//# debugId=B72A688ED51F8D7864756E2164756E21
+//# sourceMappingURL=app-3x4pv6r1.js.map
