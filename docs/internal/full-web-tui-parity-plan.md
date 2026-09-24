@@ -583,3 +583,11 @@ Coverage remains **87/236 Classic + 27/42 shared**, **149/15** unmapped. No edit
 dirty/save, retained instance, dock/pop-out or general-extension claim. Terminal
 preview adaptation is design-only: temporary bounded surface, Escape restoration,
 no idle rows/tab strip/dock; six independent PTY checks are required before credit.
+
+Deployment: pushed `34d163f`, rebuilt/restarted the Gi dev instance on port 8090
+(PID 988953). The guarded read-only live check passed Chromium/WebKit at
+390x844, 820x1180 and 1440x900: preview open/close, draft and selected-session
+preservation, zero API mutations and zero page errors. `/api/sessions` returned
+200 with 62 sessions; read-only SQLite integrity returned `ok`, foreign-key
+check returned no rows. Logs: `/workspace/tmp/gi-pane-live.log`; bundled results:
+`/workspace/tmp/gi-pane-host-evidence.tar.gz`.
