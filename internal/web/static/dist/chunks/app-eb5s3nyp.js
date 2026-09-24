@@ -2399,6 +2399,38 @@ function installPwaDisplayScaleSync(runtime = typeof window !== "undefined" ? wi
   };
 }
 
+// web/src/gi-display-scale.ts
+function installGiDisplayScale(runtime = window) {
+  const cleanupScale = installPwaDisplayScaleSync(runtime);
+  const sync = () => runtime.document.documentElement.classList.toggle("gi-standalone-display", isStandaloneWebAppMode({ window: runtime, navigator: runtime.navigator }));
+  const media = ["standalone", "fullscreen", "minimal-ui"].map((mode) => {
+    try {
+      return runtime.matchMedia?.(`(display-mode: ${mode})`);
+    } catch {
+      return null;
+    }
+  }).filter(Boolean);
+  sync();
+  runtime.addEventListener("focus", sync);
+  for (const query of media) {
+    if (query.addEventListener)
+      query.addEventListener("change", sync);
+    else
+      query.addListener?.(sync);
+  }
+  return () => {
+    cleanupScale?.();
+    runtime.removeEventListener("focus", sync);
+    for (const query of media) {
+      if (query.removeEventListener)
+        query.removeEventListener("change", sync);
+      else
+        query.removeListener?.(sync);
+    }
+    runtime.document.documentElement.classList.remove("gi-standalone-display");
+  };
+}
+
 // web/src/ui/status-duration.ts
 function parseStatusStartedAt(status) {
   if (!status || typeof status !== "object")
@@ -17962,10 +17994,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-cy7x3exh.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-3zdztbxc.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-0q9ed8de.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-4g39ma4e.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-70cjga6m.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-9k61ws9a.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-9560c87m.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-k42wrg5f.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -19221,7 +19253,7 @@ function GiApp() {
   K_(() => {
     const cleanupTheme = initTheme();
     const cleanupAppearance = initGiAppearance();
-    const cleanupDisplayScale = installPwaDisplayScaleSync();
+    const cleanupDisplayScale = installGiDisplayScale();
     if (getLocalStorageItem("piclaw_system_meters_enabled") === null) {
       setLocalStorageItem("piclaw_system_meters_enabled", "true");
     }
@@ -20304,5 +20336,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=0716E0ED6EE5E59264756E2164756E21
-//# sourceMappingURL=app-70f50bqn.js.map
+//# debugId=A0F88CB8EE88915A64756E2164756E21
+//# sourceMappingURL=app-eb5s3nyp.js.map

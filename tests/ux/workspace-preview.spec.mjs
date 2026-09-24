@@ -115,6 +115,10 @@ test('@shared-3 Workspace show/hide and narrow backdrop preserve the native comp
  const sent=await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:'native workspace reference history',model:'test-model'}});expect(sent.status()).toBe(202);const turn=(await sent.json()).turn_id;
  const get=async(id,part)=>{const r=await request.get(`/api/sessions/${id}/${part}`);expect(r.status()).toBe(200);return r.json();};
  await expect.poll(async()=>(await get(main.id,'turns')).turns.find(t=>t.id===turn)?.status).toBe('completed');
+ // Terminal status is persisted before final timestamps/claim cleanup. Capture
+ // the stable native fixture, not an intermediate completion snapshot.
+ await expect.poll(async()=>Boolean((await get(main.id,'turns')).turns.find(t=>t.id===turn)?.finished_at)).toBe(true);
+ await expect.poll(async()=>(await get(main.id,'activity')).status).toBe('idle');
  const before={messages:await get(main.id,'messages'),turns:await get(main.id,'turns'),other:await get(research.id,'messages')};
  await page.addInitScript(id=>{if(!localStorage.getItem('gi_session_id'))localStorage.setItem('gi_session_id',id);},main.id);await page.goto('/');
  const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();

@@ -288,3 +288,11 @@ test('Model search preserves native editing, empty-result cancellation and compo
  await expect(search).toBeVisible();await search.press('Escape');await expect(search).toHaveCount(0);await expect(trigger).toBeFocused();await expect(input).toHaveValue('model filter preserved draft');
  await trigger.click();await expect(search).toHaveValue('');
 });
+
+test('Standalone capability exposes the saved display scale without editing the composer',async({page})=>{
+ await page.addInitScript(()=>{Object.defineProperty(navigator,'standalone',{configurable:true,value:true});Object.defineProperty(navigator,'maxTouchPoints',{configurable:true,value:5});localStorage.setItem('piclawPwaDisplayScalePercent','90');});
+ await page.goto('/');const input=page.locator('textarea').last();await expect(input).toBeVisible();await input.fill('scale draft');await page.getByTestId('hamburger').click();
+ const scale=page.getByRole('spinbutton',{name:/PWA display scale percentage/});await expect(scale).toHaveValue('90');await scale.fill('85');await scale.press('Enter');
+ await expect(page.locator('meta[name="viewport"]')).toHaveAttribute('content',/initial-scale=0\.85/);expect(await page.evaluate(()=>localStorage.getItem('piclawPwaDisplayScalePercent'))).toBe('85');await expect(input).toHaveValue('scale draft');
+ await page.keyboard.press('Escape');await expect(page.getByTestId('hamburger')).toBeFocused();
+});

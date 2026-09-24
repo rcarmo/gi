@@ -16,7 +16,7 @@ import { useSseConnection } from './ui/use-sse-connection.js';
 import { handleAppSseEvent } from './ui/app-sse-events.js';
 import { initTheme } from './ui/theme.js';
 import { initGiAppearance } from './gi-appearance.js';
-import { installPwaDisplayScaleSync } from './ui/pwa-display-scale.js';
+import { installGiDisplayScale } from './gi-display-scale.js';
 import {
     LAST_ACTIVITY_TTL_MS,
     SILENCE_FINALIZE_MS,
@@ -382,7 +382,7 @@ function GiApp() {
     useEffect(() => {
         const cleanupTheme = initTheme();
         const cleanupAppearance = initGiAppearance();
-        const cleanupDisplayScale = installPwaDisplayScaleSync();
+        const cleanupDisplayScale = installGiDisplayScale();
         // Enable meters by default until /meters slash command exists
         if (getLocalStorageItem('piclaw_system_meters_enabled') === null) {
             setLocalStorageItem('piclaw_system_meters_enabled', 'true');

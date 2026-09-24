@@ -1,0 +1,4 @@
+/* Host fallback for navigator.standalone without CSS display-mode support. */
+.gi-standalone-display .workspace-menu-scale-control {
+    display: flex;
+}
