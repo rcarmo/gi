@@ -24,7 +24,7 @@ async function fixture(page,request,info) {
   let submits=0; page.on('request',r=>{if(r.method()==='POST'&&/\/(prompt|queue)$/.test(new URL(r.url()).pathname))submits++});
   const open=async()=>{await image.click();await expect(page.locator('.image-modal')).toBeVisible();await expect.poll(()=>page.locator('.image-modal img').evaluate(el=>el.complete&&el.naturalWidth===320)).toBe(true)};
   const preserved=async()=>{await expect(input).toHaveValue('unsent image review draft');await expect(page.locator('.compose-file-pill').filter({hasText:'keep.txt'})).toBeVisible();expect(submits).toBe(0);};
-  return {main,input,post,image,id,open,preserved};
+  return {main,input,post,image,id,bytes,open,preserved};
 }
 async function evidence(info,id) {await info.attach('gherkin',{body:loadCorpus().find(row=>row.id===id).steps.join('\n'),contentType:'text/plain'});}
 
@@ -45,6 +45,36 @@ test('@ux-timeline-015 Both backdrop and image clicks dismiss the lightbox',asyn
 });
 test.describe('touch surface',()=>{
   test.use({hasTouch:true});
+  // Partial timeline-006 contract only: Gi has no iPad-positive annotator path.
+  // Keep the frozen ID out of this title until the device-gating clause is proven.
+  test('Gi non-iPad pointer and touch activation opens only the native lightbox',async({page,request},info)=>{
+    await evidence(info,'@ux-timeline-006');const f=await fixture(page,request,info),writes=[];
+    // Inspect real runtime identity; never stub device detection to force a branch.
+    const device=await page.evaluate(()=>({ua:navigator.userAgent,platform:navigator.platform,touch:navigator.maxTouchPoints}));
+    expect(/iPad/i.test(device.ua)||(device.platform==='MacIntel'&&device.touch>1)).toBe(false);
+    const before=await(await request.get(`/api/sessions/${f.main.id}/messages`)).json();
+    const draft=()=>page.evaluate(id=>new Promise((resolve,reject)=>{const open=indexedDB.open('gi-session-drafts',1);open.onerror=()=>reject(open.error);open.onsuccess=()=>{const db=open.result,get=db.transaction('drafts').objectStore('drafts').get(id);get.onerror=()=>reject(get.error);get.onsuccess=()=>{const record=get.result;db.close();resolve(record?{...record,draft:{...record.draft,media:(record.draft.media||[]).map(a=>({...a,bytes:[...new Uint8Array(a.bytes)]}))}}:null);};};}),f.main.id);
+    await expect.poll(draft).toMatchObject({draft:{text:'unsent image review draft',media:[{name:'keep.txt',bytes:[...Buffer.from('retained')]}]},pending:[]});
+    const saved=await draft();
+    page.on('request',r=>{if(new URL(r.url()).pathname.startsWith('/api/')&&!['GET','HEAD'].includes(r.method()))writes.push([r.method(),new URL(r.url()).pathname]);});
+    await page.evaluate(()=>{window.__imageActivations=[];for(const type of ['click','touchstart'])document.addEventListener(type,e=>{if(e.target instanceof Element&&e.target.closest('.media-preview'))window.__imageActivations.push({type,trusted:e.isTrusted});},true);});
+    const assertLightbox=async()=>{
+      const modal=page.locator('.image-modal');await expect(modal).toBeVisible();await expect(page.locator('.image-modal-portal-root')).toHaveCount(1);
+      expect(new URL(await modal.locator('img').getAttribute('src'),page.url()).pathname).toBe(`/api/media/${f.id}/raw`);
+      await expect.poll(()=>modal.locator('img').evaluate(el=>[el.naturalWidth,el.naturalHeight])).toEqual([320,160]);
+      await expect(page.locator('canvas, .image-annotator, .inline-annotator, [class*="annotation-toolbar"], [class*="annotator-overlay"]')).toHaveCount(0);
+      await expect(page.getByRole('button',{name:/^(Pen|Highlighter|Rectangle|Crop|Undo|Done|Discard)$/i})).toHaveCount(0);
+      expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(f.main.id);expect(await draft()).toEqual(saved);
+    };
+    await f.image.click();await assertLightbox();await page.keyboard.press('Escape');await expect(page.locator('.image-modal')).toHaveCount(0);
+    await f.image.tap();await assertLightbox();await page.locator('.image-modal img').tap();await expect(page.locator('.image-modal')).toHaveCount(0);
+    const events=await page.evaluate(()=>window.__imageActivations);expect(events.some(e=>e.type==='click'&&e.trusted)).toBe(true);expect(events.some(e=>e.type==='touchstart'&&e.trusted)).toBe(true);
+    await f.preserved();expect(writes).toEqual([]);expect(await(await request.get(`/api/sessions/${f.main.id}/messages`)).json()).toEqual(before);
+    expect(await(await request.get(`/api/media/${f.id}/raw`)).body()).toEqual(f.bytes);
+    await page.reload();await f.preserved();await f.image.click();await assertLightbox();
+    await info.attach('non-ipad-lightbox',{body:await page.screenshot(),contentType:'image/png'});await info.attach('device',{body:JSON.stringify(device),contentType:'application/json'});
+    await page.keyboard.press('Escape');await f.preserved();expect(writes).toEqual([]);
+  });
   test('@ux-timeline-016 Native touch taps dismiss the stored-image lightbox',async({page,request},info)=>{
     await evidence(info,'@ux-timeline-016');const f=await fixture(page,request,info);
     // Playwright WebKit on Linux can report maxTouchPoints=0 despite touch
