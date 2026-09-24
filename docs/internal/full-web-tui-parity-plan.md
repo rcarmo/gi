@@ -898,3 +898,9 @@ This slice changes no terminal code or idle rows and grants no terminal credit.
 Logs: `/workspace/tmp/gi-preview-font-{regression-final,standard-final,support-final,functional-rerun}.log`
 and `/workspace/tmp/gi-scroll-gesture-{browser,swipe}.log`; screenshots are under
 `test-results/ux-parity/artifacts/workspace-tabs-Gi-read-onl-*/preview-code-font.png`.
+
+Deployed `bda0e24` on port 8090 (PID 1259900). Guarded read-only six-size
+Chromium/WebKit preview/pin/draft smoke passed with zero API mutations/page
+errors; session API 200/62 sessions, SQLite integrity `ok`, FK check empty. This
+live smoke is not substituted for isolated wheel/appearance evidence. Captures
+and logs attached as `/workspace/tmp/gi-preview-gesture-evidence.tar.gz`.
