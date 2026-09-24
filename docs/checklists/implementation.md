@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [x] Mount native read-only workspace tabs with bounded20K preview/late-read fence/disposal/native404 Retry; truthful guarded labels, touch close targets and narrow layout. Shell007 close does not activate background tabs; exact draft/media/refs, active/last/keyboard close and Settings focus race pass:18focused/168regression/92functional/75helpers/Go-vet-build-hook/bounded review. Classic87/236+shared27/42 unmapped149/15; no editor/dirty/pin/popout/TUI credit. Deployment below.
+- [x] Mount native read-only workspace tabs with bounded20K preview/late-read fence/disposal/native404 Retry; truthful guarded labels, touch close targets and narrow layout. Shell007 close does not activate background tabs; exact draft/media/refs, active/last/keyboard close and Settings focus race pass:18focused/168regression/92functional/75helpers/Go-vet-build-hook/bounded review. Pushf0db954/restart8090 guarded6size live existing-file preview/close/draft/zero API writes-errors/62sessions/integrityOK; screenshots attached. Classic87/236+shared27/42 unmapped149/15; no editor/dirty/pin/popout/TUI credit.
 
 - [x] Verify/map Settings001 native menu/shortcut/header/navigation/General-first and dialog002 cached reopen<1s while real refresh held; exact draft/media/no writes/reload.12focused/234regression/91functional/72helpers/Go-vet-build-hook; criterion review with explicit header/nav assertions rerun. Classic86/236+shared27/42 unmapped150/15. Test-only/no restart/live62sessions/integrityOK; no pane functionality/offline/TUI cache credit.
 
