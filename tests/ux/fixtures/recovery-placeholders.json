@@ -1,0 +1,336 @@
+[
+  {
+    "id": "empty-info",
+    "hidden": true,
+    "role": "assistant",
+    "content": "",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "id": "authored-text",
+    "hidden": false,
+    "role": "assistant",
+    "content": "Recovery authored text stays visible",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "id": "whitespace",
+    "hidden": false,
+    "role": "assistant",
+    "content": " \n\t ",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "id": "warning",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "warning"
+      }
+    ]
+  },
+  {
+    "id": "error",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "error"
+      }
+    ]
+  },
+  {
+    "id": "other-kind",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "timeout",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "id": "missing-severity",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery"
+      }
+    ]
+  },
+  {
+    "id": "wrong-marker",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "blocks": [
+      {
+        "type": "recovery_marker",
+        "kind": "recovery",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "id": "user",
+    "hidden": false,
+    "role": "user",
+    "content": "",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "id": "no-metadata",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "blocks": []
+  },
+  {
+    "id": "first-warning",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "warning"
+      },
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "id": "file",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "media": true,
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "id": "card",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      },
+      {
+        "type": "adaptive_card",
+        "card_id": "recovery-info-card",
+        "schema_version": "1.5",
+        "state": "active",
+        "payload": {
+          "type": "AdaptiveCard",
+          "version": "1.5",
+          "body": [
+            {
+              "type": "TextBlock",
+              "text": "Recovery retained card"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "card-fallback",
+    "hidden": false,
+    "role": "assistant",
+    "content": "Recovery card fallback",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      },
+      {
+        "type": "adaptive_card",
+        "card_id": "recovery-fallback-card",
+        "schema_version": "1.5",
+        "state": "active",
+        "fallback_text": "Recovery card fallback",
+        "payload": {
+          "type": "AdaptiveCard",
+          "version": "1.5",
+          "body": [
+            {
+              "type": "TextBlock",
+              "text": "Recovery fallback retained card"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "submission",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      },
+      {
+        "type": "adaptive_card_submission",
+        "card_id": "recovery-info-card",
+        "submitted_at": "2026-01-01T00:00:00Z",
+        "source_post_id": 1,
+        "action_type": "Action.Submit",
+        "title": "Keep recovery answer",
+        "data": {
+          "answer": "retained"
+        }
+      }
+    ]
+  },
+  {
+    "id": "first-timeout",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "timeout",
+        "severity": "warning"
+      },
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "id": "file-ref",
+    "hidden": false,
+    "role": "assistant",
+    "content": "Files:\n- keep.md",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "id": "message-ref",
+    "hidden": false,
+    "role": "assistant",
+    "content": "Referenced messages:\n- message:recovery-placeholder-authored-text",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "id": "attachment-ref",
+    "hidden": false,
+    "role": "assistant",
+    "content": "Attachments:\n- retained-name.txt",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      }
+    ]
+  },
+  {
+    "id": "resource",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      },
+      {
+        "type": "resource",
+        "uri": "text://recovery",
+        "name": "Retained recovery resource",
+        "mimeType": "text/plain",
+        "text": "Resource bytes stay visible"
+      }
+    ]
+  },
+  {
+    "id": "text-annotation",
+    "hidden": false,
+    "role": "assistant",
+    "content": "",
+    "blocks": [
+      {
+        "type": "turn_outcome_marker",
+        "kind": "recovery",
+        "severity": "info"
+      },
+      {
+        "type": "text",
+        "annotations": {
+          "priority": 0.5
+        }
+      }
+    ]
+  }
+]

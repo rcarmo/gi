@@ -157,6 +157,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/manifest.json", s.serveManifest)
 	s.mux.Handle("/static/icon-192.png", http.StripPrefix("/static", fileServer))
 	s.mux.Handle("/static/icon-512.png", http.StripPrefix("/static", fileServer))
+	// Supplied Adaptive Card renderer's lazy SDK URL (public static asset).
+	s.mux.Handle("/static/js/vendor/adaptivecards.min.js", http.StripPrefix("/static", fileServer))
 	s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
 			s.serveIndex(w, r)

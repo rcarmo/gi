@@ -310,6 +310,40 @@ func main() {
 			}
 		}
 	}
+	if os.Getenv("GI_UX_RECOVERY_PLACEHOLDERS") != "" {
+		var fixtures []struct {
+			ID      string `json:"id"`
+			Role    string `json:"role"`
+			Content string `json:"content"`
+			Blocks  []any  `json:"blocks"`
+			Media   bool   `json:"media"`
+		}
+		raw, err := os.ReadFile("tests/ux/fixtures/recovery-placeholders.json")
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := json.Unmarshal(raw, &fixtures); err != nil {
+			log.Fatal(err)
+		}
+		ctx := context.Background()
+		const sessionID = "recovery-placeholders-fixture"
+		if _, err := s.CreateSession(ctx, sessionID, "Recovery placeholder display", map[string]any{"model": "test-model"}); err != nil {
+			log.Fatal(err)
+		}
+		for _, fixture := range fixtures {
+			payload := map[string]any{"content_blocks": fixture.Blocks}
+			if fixture.Media {
+				media, err := s.CreateMedia(ctx, sessionID, "recovery-retained.txt", "text/plain", []byte("recovery attachment bytes"), nil)
+				if err != nil {
+					log.Fatal(err)
+				}
+				payload["media"] = []any{map[string]any{"media_id": media.ID, "session_id": sessionID, "filename": media.Filename, "content_type": media.ContentType}}
+			}
+			if err := s.AddMessage(ctx, "recovery-placeholder-"+fixture.ID, sessionID, fixture.Role, fixture.Content, payload); err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
 	if os.Getenv("GI_UX_SPEECH") != "" {
 		// Seed valid empty assistant history in this isolated DB. Production
 		// HTTP projection and supplied Post rendering still handle the rows.

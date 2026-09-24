@@ -5297,6 +5297,17 @@ function getProtectedRecoveryControlIntent(contentBlocks) {
   return null;
 }
 
+// web/src/gi-recovery-placeholder.ts
+function isSilentRecoveryPlaceholder({
+  isAgent,
+  contentBlocks,
+  hasRenderableContent,
+  hasVisibleExtras
+}) {
+  const marker = Array.isArray(contentBlocks) ? contentBlocks.find((block) => block && typeof block === "object" && block.type === "turn_outcome_marker") : null;
+  return Boolean(isAgent && marker?.kind === "recovery" && marker?.severity === "info" && !hasRenderableContent && !hasVisibleExtras);
+}
+
 // web/src/components/file-pill.ts
 function FilePill({
   prefix = "file",
@@ -6391,6 +6402,13 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
     }
   }, [cardBlocksKey, post.id]);
   if (getProtectedRecoveryControlIntent(data.content_blocks))
+    return null;
+  if (isSilentRecoveryPlaceholder({
+    isAgent,
+    contentBlocks: data.content_blocks,
+    hasRenderableContent: shouldRenderContent,
+    hasVisibleExtras: Boolean(mediaIds.length || cardBlocks.length || submissionBlocks.length || fileRefs.length || messageRefs.length || attachments.length || data.link_previews?.length || generatedWidgets.length || resources.length || resourceLinks.length || textAnnotations.length)
+  }))
     return null;
   return fe`
         <div id=${`post-${post.id}`} class="post ${isAgent ? "agent-post" : ""} ${isThreadReply ? "thread-reply" : ""} ${isThreadPrev ? "thread-prev" : ""} ${isThreadNext ? "thread-next" : ""} ${isRemoving ? "removing" : ""}" onClick=${onClick}>
@@ -18424,10 +18442,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-hyc8t129.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-dmrkb6z9.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-mft8khg4.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-nyprdbx9.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-3hzd66xd.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-esqmpn0z.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-xadc6ygq.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-rxe1meck.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20806,5 +20824,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=E3D3EEE52BC4720C64756E2164756E21
-//# sourceMappingURL=app-xkhp9ad6.js.map
+//# debugId=519E05A4C4F4AADC64756E2164756E21
+//# sourceMappingURL=app-2z2v78z3.js.map
