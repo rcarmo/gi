@@ -271,10 +271,16 @@ ux-parity-inventory:
 	$(BUN) test tests/ux/support/
 	$(BUN) scripts/ux-parity-report.mjs
 
+.PHONY: build-pane-host-fixture
+build-pane-host-fixture:
+	@mkdir -p test-results
+	$(BUN) scripts/build-pane-host-fixture.mjs
+
 test-ux-parity:
 	@mkdir -p test-results/ux-parity/queue-gates
 	PATH="$(abspath tests/ux/shell):$$PATH" GI_UX_QUEUE_GATES="$(abspath test-results/ux-parity/queue-gates)" $(MAKE) --no-print-directory test-instance-start TEST_PORT=$(UX_PARITY_PORT) TEST_DIR=.gi-ux-parity TEST_ENABLED_MODELS='["test-model","bootstrap","test/unavailable-model"]'
 	@trap '$(MAKE) --no-print-directory test-instance-stop TEST_DIR=.gi-ux-parity' EXIT; \
+		$(MAKE) --no-print-directory build-pane-host-fixture || exit 1; \
 		rm -f test-results/ux-parity/results.json; \
 		GI_TEST_URL=http://127.0.0.1:$(UX_PARITY_PORT) $(PLAYWRIGHT) test -c playwright.ux.config.mjs $(UX_PARITY_ARGS); \
 		rc=$$?; \

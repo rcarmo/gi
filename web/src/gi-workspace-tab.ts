@@ -8,7 +8,10 @@ export function WorkspaceTab({ path, onClose }) {
     const host = useRef<HTMLElement>(null);
     const [state, setState] = useState({ loading: true, error: '' });
     const [attempt, setAttempt] = useState(0);
-    useLayoutEffect(() => mountWorkspaceTab(host.current!, path, setState, getWorkspaceFile, paneRegistry), [path, attempt]);
+    const close = useRef(onClose);
+    useLayoutEffect(() => { close.current = onClose; });
+    useLayoutEffect(() => mountWorkspaceTab(host.current!, path, setState, getWorkspaceFile, paneRegistry,
+        { close: () => close.current?.() }), [path, attempt]);
     return html`<section class="gi-workspace-tab editor-pane" role="region" aria-label=${`Read-only preview: ${path}`}>
         <div class="gi-workspace-tab-toolbar"><span>Read-only preview</span>
             <button onClick=${() => setAttempt(value => value + 1)} disabled=${state.loading}>Refresh preview</button>

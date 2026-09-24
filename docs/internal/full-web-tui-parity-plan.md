@@ -562,3 +562,24 @@ All six session PTYs and six model PTY regressions pass. Existing session/model,
 This is independent terminal selector acceptance, not browser credit or terminal mutation-submenu support. No toolbar, persistent tab strip, queue pane or idle status row was added.
 
 Deployment: pushed `4797dad`, restarted8090 using `/tmp/gi-scheduler-bin` (PID915887). The guarded existing-session/file live probe passed both browsers at three sizes with zero API write attempts/errors and retained preview-close/draft behaviour. HTTP200/62sessions, integrity `ok`, foreign-key check empty, deterministic build/clean tree. Evidence `/workspace/tmp/gi-session-picker-live.log`; terminal text/ANSI snapshots and summary attached as `gi-session-picker-evidence.tar.gz`. Live TUI sessions were not touched; terminal proof uses isolated PTYs/databases.
+
+## Read-only Piclaw pane host conformance (2026-09-24)
+
+The [named subset contract](pane-host-subset.md) pins Piclaw bfc34e4eb rather than
+implying general compatibility from copied interfaces. Native bounded text,
+mtime/full-size metadata, capability rejection, resize and captured pane-close
+callbacks now have independent conformance fixtures. Refresh remounts and stale
+callbacks cannot dispose a newer occurrence. Asynchronous reads do not steal
+focus. Supplied pane bytes and frozen features are unchanged.
+
+Validation: 24 focused and 174 combined workspace/shell/settings cases across all
+six browser projects, 92 functional cases, 80 support tests/963 assertions,
+Go tests/vet and hook checks. The interrupted regression run was discarded;
+the fresh full run passed. Independent review raised arbitrary host callback
+failure/reentrancy assumptions; the contract now states that these internal
+Preact/shell callbacks are trusted, distinct from guarded extension hooks.
+
+Coverage remains **87/236 Classic + 27/42 shared**, **149/15** unmapped. No editor,
+dirty/save, retained instance, dock/pop-out or general-extension claim. Terminal
+preview adaptation is design-only: temporary bounded surface, Escape restoration,
+no idle rows/tab strip/dock; six independent PTY checks are required before credit.

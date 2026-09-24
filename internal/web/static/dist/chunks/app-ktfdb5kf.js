@@ -13418,34 +13418,92 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
 }
 
 // web/src/gi-workspace-tab-lifecycle.ts
-function mountWorkspaceTab(container, path, changed, read, registry) {
-  let live = true, instance = null;
-  changed({ loading: true, error: "" });
-  read(path, 20000).then((preview) => {
-    if (!live)
-      return;
-    try {
-      const context = { path, mode: "view", preview };
-      const extension = registry.resolve(context);
-      if (!extension)
-        throw new Error("No read-only preview available.");
-      instance = extension.mount(container, context);
-      changed({ loading: false, error: "" });
-    } catch (error) {
-      container.replaceChildren();
-      changed({ loading: false, error: error.message || "Preview failed." });
-    }
-  }, (error) => {
-    if (live)
-      changed({ loading: false, error: error.message || "Preview failed." });
-  });
-  return () => {
+function observeWorkspaceTab(container, resized) {
+  const view = container.ownerDocument?.defaultView;
+  if (!view)
+    return () => {};
+  if (view.ResizeObserver) {
+    const observer = new view.ResizeObserver(resized);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }
+  view.addEventListener("resize", resized);
+  return () => view.removeEventListener("resize", resized);
+}
+function mountWorkspaceTab(container, path, changed, read, registry, options = {}) {
+  let live = true, instance = null, unobserve = null;
+  const stop = () => {
     if (!live)
       return;
     live = false;
-    instance?.dispose();
+    const mounted = instance, disconnect = unobserve;
+    instance = null;
+    unobserve = null;
+    try {
+      disconnect?.();
+    } catch {}
+    try {
+      mounted?.dispose();
+    } catch {}
     container.replaceChildren();
   };
+  const fail = (error) => {
+    if (!live)
+      return;
+    stop();
+    changed({ loading: false, error: error instanceof Error ? error.message : "Preview failed." });
+  };
+  changed({ loading: true, error: "" });
+  (async () => {
+    try {
+      const preview = await read(path, 20000);
+      if (!live)
+        return;
+      const context = { path, mode: "view", preview };
+      if (preview?.kind === "text" && typeof preview.text === "string")
+        context.content = preview.text;
+      if (typeof preview?.mtime === "string")
+        context.mtime = preview.mtime;
+      if (Number.isFinite(preview?.size) && preview.size >= 0)
+        context.size = preview.size;
+      const extension = registry.resolve(context);
+      if (!extension)
+        throw new Error("No read-only preview available.");
+      if (extension.placement !== "tabs" || !extension.capabilities?.length || extension.capabilities.some((capability) => capability !== "readonly" && capability !== "preview")) {
+        throw new Error("This pane requires capabilities outside Gi’s read-only preview host.");
+      }
+      instance = extension.mount(container, context);
+      instance.onClose?.(() => {
+        if (!live)
+          return;
+        stop();
+        options.close?.();
+      });
+      if (!live)
+        return;
+      const resized = () => {
+        if (!live)
+          return;
+        try {
+          instance?.resize?.();
+        } catch (error) {
+          fail(error);
+        }
+      };
+      const disconnect = (options.observeResize ?? observeWorkspaceTab)(container, resized);
+      if (!live) {
+        disconnect();
+        return;
+      }
+      unobserve = disconnect;
+      resized();
+      if (live)
+        changed({ loading: false, error: "" });
+    } catch (error) {
+      fail(error);
+    }
+  })();
+  return stop;
 }
 
 // web/src/gi-workspace-tab.ts
@@ -13453,7 +13511,11 @@ function WorkspaceTab({ path, onClose }) {
   const host = Q_(null);
   const [state, setState] = F_({ loading: true, error: "" });
   const [attempt, setAttempt] = F_(0);
-  W_(() => mountWorkspaceTab(host.current, path, setState, getWorkspaceFile, paneRegistry), [path, attempt]);
+  const close = Q_(onClose);
+  W_(() => {
+    close.current = onClose;
+  });
+  W_(() => mountWorkspaceTab(host.current, path, setState, getWorkspaceFile, paneRegistry, { close: () => close.current?.() }), [path, attempt]);
   return fe`<section class="gi-workspace-tab editor-pane" role="region" aria-label=${`Read-only preview: ${path}`}>
         <div class="gi-workspace-tab-toolbar"><span>Read-only preview</span>
             <button onClick=${() => setAttempt((value) => value + 1)} disabled=${state.loading}>Refresh preview</button>
@@ -18041,10 +18103,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-qf1862ep.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-kr2mzwbf.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-y57ffb9s.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-35y3ywha.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-wq929588.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-3nkkfng3.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-8eztqbag.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-0be8zmt2.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20402,5 +20464,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=BC794C546513BA6464756E2164756E21
-//# sourceMappingURL=app-ne1rt5dr.js.map
+//# debugId=692CF69AE67CEA9764756E2164756E21
+//# sourceMappingURL=app-ktfdb5kf.js.map

@@ -2,7 +2,9 @@
 
 Status: Active
 Date: 2026-04-22
-Last updated: 2026-09-21
+Last updated: 2026-09-24
+
+- [x] Pin and verify the [Piclaw read-only pane host subset](../internal/pane-host-subset.md): bounded context, capability rejection, resize/close callbacks, disposal and stale-response fences. Piclaw bfc34e4eb source hashes unchanged; 24 focused/174 regression browser cases, 92 functional, 80 support tests/963 assertions and Go/vet/hook checks pass. No new frozen mapping or terminal credit; editing/docks/transfers stay unsupported.
 
 This checklist is organized by **subsystem** and grouped by **phase**.
 
