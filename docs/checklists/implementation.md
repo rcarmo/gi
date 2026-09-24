@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [x] Shared1/2 menu safety: fix outside-click Send activation and Escape focus loss via guarded dismissal-only build adapter; supplied source unchanged. Tab access, pointer/keyboard dismissal, trusted touch/next gesture and cancel-path checks; combined192/functional85/helpers55/Go-vet-build-hook. Classic81/236+shared14/42 unmapped155/28. Runtime deployment recorded below; no terminal UI change.
+- [x] Shared1/2 menu safety: fix outside-click Send activation and Escape focus loss via guarded dismissal-only build adapter; supplied source unchanged. Tab access, pointer/keyboard dismissal, trusted touch/next gesture and cancel-path checks; combined192/functional85/helpers55/Go-vet-build-hook. Classic81/236+shared14/42 unmapped155/28. Push8580f57/restart8090; live Chromium/WebKit three sizes, mouse/touch/Escape focus+draft retained, zero writes/errors,61sessions/integrityOK; no terminal UI change.
 
 - [x] Shared3 native workspace show/hide and narrow backdrop: real pointer blocking over textarea/Send, exact stored text/media bytes/file/message refs and session/history preserved. Workspace24/functional85/helpers51/Go-vet-build-hook; Classic81/236+shared12/42 unmapped155/30. Test-only/no restart or Plan/TUI credit.
 - [ ] Shared39 requires an explicit native upload Cancel action; progress and failed-upload recovery alone do not satisfy cancellation/retry/source-removal acceptance. Current XHR abort handler has no exposed cancel control.
