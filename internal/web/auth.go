@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	giauth "github.com/rcarmo/gi/internal/auth"
@@ -115,6 +116,11 @@ func (s *Server) handleAuthEnrollVerify(w http.ResponseWriter, r *http.Request) 
 		switch err.Error() {
 		case "no pending enrollment for user", "pending enrollment expired", "invalid TOTP code":
 			status = http.StatusBadRequest
+		case "enrollment is already complete":
+			status = http.StatusConflict
+		}
+		if errors.Is(err, giauth.ErrStateConflict) {
+			status = http.StatusConflict
 		}
 		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
@@ -141,6 +147,9 @@ func (s *Server) handleAuthTOTPVerify(w http.ResponseWriter, r *http.Request) {
 		switch err.Error() {
 		case "invalid user", "TOTP is not enrolled", "invalid TOTP code":
 			status = http.StatusUnauthorized
+		}
+		if errors.Is(err, giauth.ErrStateConflict) {
+			status = http.StatusConflict
 		}
 		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return

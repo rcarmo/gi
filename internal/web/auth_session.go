@@ -2,12 +2,15 @@ package web
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"mime"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	giauth "github.com/rcarmo/gi/internal/auth"
 )
 
 const browserSessionCookie = "gi_session"
@@ -82,6 +85,9 @@ func (s *Server) handleAuthSession(w http.ResponseWriter, r *http.Request) {
 		switch err.Error() {
 		case "invalid user", "TOTP is not enrolled", "invalid TOTP code":
 			status, message = 401, "Invalid authentication code"
+		}
+		if errors.Is(err, giauth.ErrStateConflict) {
+			status, message = 409, "Sign-in state changed; try again"
 		}
 		writeJSON(w, status, map[string]any{"error": message})
 		return

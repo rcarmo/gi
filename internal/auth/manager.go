@@ -22,6 +22,7 @@ type State struct {
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 	Sessions    []Session `json:"sessions,omitempty"`
+	extra       map[string]json.RawMessage
 }
 
 type Session struct {
@@ -86,54 +87,61 @@ func (m *Manager) StartEnrollment(username string) (PendingEnrollment, error) {
 func (m *Manager) VerifyEnrollment(username, code string) (State, error) {
 	username = strings.TrimSpace(username)
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	pending, ok := m.pending[username]
-	m.mu.Unlock()
 	if !ok {
 		return State{}, fmt.Errorf("no pending enrollment for user")
 	}
 	if time.Since(pending.CreatedAt) > 10*time.Minute {
-		m.mu.Lock()
 		m.pruneExpiredPendingLocked(time.Now().UTC())
-		m.mu.Unlock()
 		return State{}, fmt.Errorf("pending enrollment expired")
 	}
 	if !VerifyTOTP(pending.Secret, code, time.Now().UTC(), 1) {
 		return State{}, fmt.Errorf("invalid TOTP code")
 	}
-	now := time.Now().UTC()
-	state := State{Username: username, TOTPSecret: pending.Secret, TOTPEnabled: true, CreatedAt: now, UpdatedAt: now}
-	if err := m.save(state); err != nil {
+	var enrolled State
+	if err := m.updateState(func(state *State, _ bool) error {
+		if state.TOTPEnabled || state.Username != "" {
+			return fmt.Errorf("enrollment is already complete")
+		}
+		now := time.Now().UTC()
+		state.Username, state.TOTPSecret, state.TOTPEnabled = username, pending.Secret, true
+		state.CreatedAt, state.UpdatedAt = now, now
+		enrolled = *state
+		return nil
+	}); err != nil {
 		return State{}, err
 	}
-	m.mu.Lock()
 	delete(m.pending, username)
-	m.mu.Unlock()
-	return state, nil
+	return enrolled, nil
 }
 
 func (m *Manager) VerifyLogin(username, code string) (string, time.Time, error) {
-	state, err := m.load()
+	var token string
+	var expires time.Time
+	err := m.updateState(func(state *State, _ bool) error {
+		if username != "" && username != state.Username {
+			return fmt.Errorf("invalid user")
+		}
+		if !state.TOTPEnabled || state.TOTPSecret == "" {
+			return fmt.Errorf("TOTP is not enrolled")
+		}
+		now := time.Now().UTC()
+		if !VerifyTOTP(state.TOTPSecret, code, now, 1) {
+			return fmt.Errorf("invalid TOTP code")
+		}
+		var hash string
+		var err error
+		token, hash, err = newToken()
+		if err != nil {
+			return err
+		}
+		expires = now.Add(12 * time.Hour)
+		state.Sessions = append(pruneSessions(state.Sessions, now), Session{TokenHash: hash, CreatedAt: now, ExpiresAt: expires})
+		state.UpdatedAt = now
+		return nil
+	})
 	if err != nil {
-		return "", time.Time{}, err
-	}
-	if username != "" && username != state.Username {
-		return "", time.Time{}, fmt.Errorf("invalid user")
-	}
-	if !state.TOTPEnabled || state.TOTPSecret == "" {
-		return "", time.Time{}, fmt.Errorf("TOTP is not enrolled")
-	}
-	if !VerifyTOTP(state.TOTPSecret, code, time.Now().UTC(), 1) {
-		return "", time.Time{}, fmt.Errorf("invalid TOTP code")
-	}
-	token, hash, err := newToken()
-	if err != nil {
-		return "", time.Time{}, err
-	}
-	now := time.Now().UTC()
-	expires := now.Add(12 * time.Hour)
-	state.Sessions = append(pruneSessions(state.Sessions, now), Session{TokenHash: hash, CreatedAt: now, ExpiresAt: expires})
-	state.UpdatedAt = now
-	if err := m.save(state); err != nil {
 		return "", time.Time{}, err
 	}
 	return token, expires, nil
@@ -189,27 +197,28 @@ func (m *Manager) Enrolled() (bool, error) {
 	return state.TOTPEnabled && state.Username != "", nil
 }
 
-func (m *Manager) load() (State, error) {
-	var state State
-	data, err := os.ReadFile(m.path)
-	if err != nil {
-		return state, err
+// RevokeToken removes only the captured opaque token, never another device's
+// session. An already-absent token is idempotent; HTTP callers must authenticate
+// and enforce origin/transport policy before exposing this operation.
+func (m *Manager) RevokeToken(token string) error {
+	if strings.TrimSpace(token) == "" {
+		return fmt.Errorf("token required")
 	}
-	if err := json.Unmarshal(data, &state); err != nil {
-		return state, err
-	}
-	return state, nil
-}
-
-func (m *Manager) save(state State) error {
-	if err := os.MkdirAll(filepath.Dir(m.path), 0o700); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(m.path, data, 0o600)
+	return m.updateState(func(state *State, exists bool) error {
+		if !exists {
+			return os.ErrNotExist
+		}
+		hash := hashToken(token)
+		sessions := state.Sessions[:0]
+		for _, session := range state.Sessions {
+			if !constantTimeString(session.TokenHash, hash) {
+				sessions = append(sessions, session)
+			}
+		}
+		state.Sessions = sessions
+		state.UpdatedAt = time.Now().UTC()
+		return nil
+	})
 }
 
 func (m *Manager) pruneExpiredPendingLocked(now time.Time) {

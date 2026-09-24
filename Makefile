@@ -449,3 +449,7 @@ test-ux-auth: build-web
 .PHONY: test-browser-auth-race
 test-browser-auth-race:
 	$(GO) test -race ./internal/web ./internal/auth -count=3
+
+.PHONY: test-auth-state
+test-auth-state:
+	$(GO) test -race ./internal/auth -count=10

@@ -141,3 +141,38 @@ func TestAuthEnrollStartReturnsInternalServerErrorForCorruptState(t *testing.T) 
 		t.Fatalf("expected 500 for corrupt auth state, got %d body=%s", res.Code, res.Body.String())
 	}
 }
+
+func TestAuthStaleEnrollmentReturnsConflictWithoutReplacingAccount(t *testing.T) {
+	root := t.TempDir()
+	a := New(nil, nil, config.Load(root))
+	b := New(nil, nil, config.Load(root))
+	pa, err := a.auth.StartEnrollment("alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pb, err := b.auth.StartEnrollment("bob")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = a.auth.VerifyEnrollment("alice", webTestTOTPCode(pa.Secret)); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(filepath.Join(root, ".gi", "auth.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest("POST", "/api/auth/enroll/verify", bytes.NewBufferString(`{"username":"bob","code":"`+webTestTOTPCode(pb.Secret)+`"}`))
+	request.RemoteAddr = "127.0.0.1:9999"
+	response := httptest.NewRecorder()
+	b.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusConflict {
+		t.Fatalf("status=%d %s", response.Code, response.Body)
+	}
+	after, err := os.ReadFile(filepath.Join(root, ".gi", "auth.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("stale HTTP enrollment replaced account")
+	}
+}
