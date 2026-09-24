@@ -1,0 +1,7 @@
+/* One bounded summary in the existing status area, never tool output panes. */
+.gi-tool-activity { display: flex; align-items: center; gap: 8px; padding: 6px 12px; min-width: 0; }
+.gi-tool-activity .agent-status-text { flex: 1; min-width: 0; display: flex; gap: 8px; align-items: baseline; }
+.gi-tool-activity code { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.gi-tool-elapsed { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gi-tool-activity[data-tool-state="failed"] .gi-tool-glyph { color: var(--error-color, #ef4444); }
+@media (prefers-reduced-motion: reduce) { .gi-tool-activity .spinner { animation: none; } }

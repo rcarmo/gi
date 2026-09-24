@@ -329,7 +329,8 @@ test('@shared-27 Queue two native composer follow-ups exactly once with media an
   const stored=await queue();expect(stored.map(t=>t.id)).toEqual(submitted.map(t=>t.id));
   for(const [i,t] of stored.entries()){
    expect(t.prompt).toBe(submitted[i].prompt);expect(t.metadata.client_request_id).toBe(sent[i].client_request_id);expect(t.metadata.media).toHaveLength(1);
-   const {created_at,...ref}=t.metadata.media[0];expect(ref).toEqual(submitted[i].ref);expect(Number.isFinite(Date.parse(created_at))).toBe(true);
+   const {created_at,...ref}=t.metadata.media[0];const {created_at:submittedAt,...submittedRef}=submitted[i].ref;
+   expect(ref).toEqual(submittedRef);expect(created_at).toBe(submittedAt);expect(Number.isFinite(Date.parse(created_at))).toBe(true);
    await expect(row(page,t.id).locator('.compose-queue-stack-text')).toContainText(`canonical follow-up ${i+1}`);
    const raw=await request.get(`/api/sessions/${main.id}/media/${submitted[i].ref.media_id}`);expect(raw.status()).toBe(200);expect(await raw.body()).toEqual(submitted[i].bytes);
   }

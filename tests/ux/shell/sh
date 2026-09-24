@@ -16,4 +16,7 @@ case "${GI_PROMPT-}" in
     fi
     ;;
 esac
+case "${GI_PROMPT-}" in
+  'UX tool fail:'*) printf 'native tool fixture failure\n' >&2; exit 7 ;;
+esac
 exec /bin/sh "$@"

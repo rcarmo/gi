@@ -730,6 +730,37 @@ function l_(e) {
 }
 var fe = l_.bind(e_);
 
+// web/src/gi-tool-activity.ts
+function toolElapsed(tool, now = Date.now()) {
+  const start = Date.parse(tool?.started_at);
+  const ms = tool?.state === "running" ? now - start : tool?.duration_ms;
+  if (typeof ms !== "number" || !Number.isFinite(ms) || ms < 0)
+    return "?";
+  return `${Math.floor(ms / 1000)}s`;
+}
+function ToolActivity({ tool }) {
+  const [now, setNow] = F_(Date.now);
+  K_(() => {
+    if (tool?.state !== "running")
+      return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [tool?.turn_id, tool?.start_seq, tool?.state]);
+  if (!tool)
+    return null;
+  const label = { running: "Running", completed: "Completed", failed: "Failed", interrupted: "Interrupted" }[tool.state] || "Unknown";
+  const terminal = tool.state !== "running";
+  return fe`<div class="agent-status-panel gi-tool-activity" data-tool-call-id=${tool.tool_call_id} data-tool-state=${tool.state} data-turn-id=${tool.turn_id}>
+        <span class=${terminal ? "gi-tool-glyph" : "spinner"} aria-hidden="true">${terminal ? tool.state === "completed" ? "✓" : "✕" : ""}</span>
+        <div class="agent-status-text" aria-label=${`${tool.name}: ${label}`}>
+            <span>${label}: ${tool.name}</span>
+            ${tool.preview && fe`<code class="agent-tool-argument" title=${tool.preview}>${tool.preview}</code>`}
+        </div>
+        <span class="gi-tool-elapsed" aria-label=${terminal ? "Tool duration" : "Tool elapsed"}>${toolElapsed(tool, now)}</span>
+    </div>`;
+}
+
 // web/src/utils/storage.ts
 function getLocalStorageItem(key) {
   if (typeof window === "undefined" || !window.localStorage)
@@ -1115,6 +1146,7 @@ class SSEClient {
     bindJsonEvent("agent_followup_consumed");
     bindJsonEvent("agent_followup_removed");
     bindJsonEvent("queue_changed");
+    bindJsonEvent("tool_activity_changed");
     for (const event of ["compaction_started", "compaction_completed", "compaction_cancelled", "compaction_suppressed", "compaction_failed"])
       bindJsonEvent(event);
     bindJsonEvent("workspace_update");
@@ -18281,10 +18313,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-p5e66s3b.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-5tnq8853.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-wp39vbmg.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-3ekembhj.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-waz8m8bj.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-crh3dd00.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-eg0f0x4e.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-7wyz3mh8.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -19831,6 +19863,11 @@ function GiApp() {
     if (eventType === "connected" && versionGuard.observe(data?.app_asset_version))
       setNewUIVersion(data.app_asset_version);
     const staleTerminal = staleTerminalEvent(eventType, data, currentTurnIdRef.current);
+    if (eventType === "tool_activity_changed") {
+      activityRevision.invalidate();
+      refreshAfterConnection.current();
+      return;
+    }
     if (!staleTerminal && (eventType === "agent_status" || eventType.startsWith("compaction_") || ["queue_changed", "agent_response"].includes(eventType))) {
       activityRevision.invalidate();
       setActivityFresh(false);
@@ -20405,8 +20442,9 @@ function GiApp() {
                     removingPostIds=${removingPostIds}
                     searchQuery=${searchState.active ? searchState.query : ""}
                 />
+                ${activityFresh && activity?.tool && !activity?.compaction?.active && fe`<${ToolActivity} tool=${activity.tool} />`}
                 <${AgentStatus} key=${`${sessionId}:${currentTurnId || ""}`}
-                    status=${isCompactionStatus(agentStatus) ? null : agentStatus}
+                    status=${activity?.tool || isCompactionStatus(agentStatus) ? null : agentStatus}
                     draft=${agentDraft}
                     plan=${agentPlan}
                     thought=${agentThought}
@@ -20657,5 +20695,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=F6346C0025189AB064756E2164756E21
-//# sourceMappingURL=app-snjmam2q.js.map
+//# debugId=C3BC2615F14550C364756E2164756E21
+//# sourceMappingURL=app-rfbg1bbr.js.map

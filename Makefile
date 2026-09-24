@@ -282,6 +282,10 @@ build-pane-host-fixture:
 	$(BUN) scripts/build-pane-host-fixture.mjs
 
 .PHONY: test-web-skills test-ux-skills
+.PHONY: test-tool-activity
+test-tool-activity:
+	$(GO) test -race -count=3 ./internal/store ./internal/web -run 'ToolActivity|ToolPreview|SessionActivity'
+
 test-web-skills:
 	$(GO) test -race -count=3 ./internal/web -run 'LoadedWebSkill|WebSkillOpen|QuickActions'
 

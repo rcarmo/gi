@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { staleTerminalEvent } from './gi-turn-event.js';
 import { speechPlayback } from './gi-post-speech.js';
+import { ToolActivity } from './gi-tool-activity.js';
 /**
  * app.ts — Gi entry point.
  *
@@ -584,6 +585,12 @@ function GiApp() {
         if (!selection.current() || data?.chat_jid !== sessionToChatJid(selection.current()!)) return;
         if(eventType==='connected'&&versionGuard.observe(data?.app_asset_version))setNewUIVersion(data.app_asset_version);
         const staleTerminal = staleTerminalEvent(eventType, data, currentTurnIdRef.current);
+        if (eventType === 'tool_activity_changed') {
+            // Invalidate only: the persisted occurrence owns state and timing.
+            activityRevision.invalidate();
+            refreshAfterConnection.current();
+            return;
+        }
         if (!staleTerminal && (eventType === 'agent_status' || eventType.startsWith('compaction_') || ['queue_changed', 'agent_response'].includes(eventType))) { activityRevision.invalidate(); setActivityFresh(false); }
         if (eventType.startsWith('compaction_') || ['new_post', 'agent_status', 'agent_response', 'queue_changed', 'agent_followup_queued', 'agent_followup_consumed', 'agent_followup_removed'].includes(eventType)) {
             ++queueRevision.current;
@@ -1062,8 +1069,9 @@ function GiApp() {
                     removingPostIds=${removingPostIds}
                     searchQuery=${searchState.active ? searchState.query : ''}
                 />
+                ${activityFresh && activity?.tool && !activity?.compaction?.active && html`<${ToolActivity} tool=${activity.tool} />`}
                 <${AgentStatus} key=${`${sessionId}:${currentTurnId || ''}`}
-                    status=${isCompactionStatus(agentStatus) ? null : agentStatus}
+                    status=${activity?.tool || isCompactionStatus(agentStatus) ? null : agentStatus}
                     draft=${agentDraft}
                     plan=${agentPlan}
                     thought=${agentThought}

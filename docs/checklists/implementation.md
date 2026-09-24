@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-24
 
+- [x] Project latest native tool occurrence from a consistent SQLite snapshot: call identity, bounded command/path/query preview, start/end and fixed terminal duration. Run-owned SSE invalidation refreshes the existing status area; interrupted calls retain unknown timing. Original027 passes6projects including held old reads, reload/session/draft-media, native shell completion/failure.60tool-queue-context+96compaction+48thought browser/98functional/92helpers1129assertions/Go-vet-hook/targeted race x3/sixTUI media PTYs pass. Coverage93/236+30/42 unmapped143/12; shared40 expandable lifecycle remains open, no terminal UI change.
+
 - [x] Verify timeline027 native empty/whitespace assistant and API capability gates, plus independent original028/shared42 integrated code-copy and playback ownership. Real stored code bytes/trusted clipboard events, synchronous cancel/late callbacks, draft/media/reload/other-session protection;90browser/97functional/91helpers1115assertions/Go-vet-hook/review pass. Test-only isolated DB seed; coverage92/236+30/42 unmapped144/12. No physical-audio or terminal change.
 
 - [x] Restore frozen Piclaw read-aloud via guarded Post adapter, <=1600-character Markdown-derived text, API capability checks and per-mount/session ownership. Timeline028 transfers/cancels playback with stale same-post callbacks fenced; error/pagehide/visibility/session draft-media safety.72browser/97functional/91helpers1103assertions/Go-vet-hook pass. Coverage90/236+29/42 unmapped146/13; browser OS speech boundary controlled in tests, no physical audio proof. Timeline027 empty-assistant gate and original028/shared42 integrated copy remain uncredited; no terminal controls or idle rows.

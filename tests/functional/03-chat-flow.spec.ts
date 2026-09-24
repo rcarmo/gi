@@ -118,3 +118,11 @@ test('native assistant read-aloud toggles and clears on audio failure without su
  expect(await page.evaluate(()=>(window as any).__utterances[0].text)).toContain('Native spoken message');await page.evaluate(()=>(window as any).__utterances[0].onerror());
  await expect(page.getByRole('button',{name:'Read aloud',exact:true})).toHaveAttribute('aria-pressed','false');await expect(input).toHaveValue('unsent draft');expect((await(await request.get(`/api/sessions/${session.id}/turns`)).json()).turns).toHaveLength(1);
 });
+
+test('native completed shell status has persisted identity and frozen duration',async({page,request})=>{
+ const session=await(await request.post('/api/sessions',{data:{agent_id:`tool-status-${Date.now()}`,title:'tool status'}})).json();
+ const response=await request.post(`/api/sessions/${session.id}/prompt`,{data:{prompt:'tool timing proof',model:'test-model'}});expect(response.status()).toBe(202);const {turn_id}=await response.json();
+ await expect.poll(async()=>((await(await request.get(`/api/sessions/${session.id}/activity`)).json()).tool?.state)).toBe('completed');
+ const activity=await(await request.get(`/api/sessions/${session.id}/activity`)).json();expect(activity.tool.turn_id).toBe(turn_id);expect(activity.tool.tool_call_id).toBeTruthy();expect(activity.tool.duration_ms).toBeGreaterThanOrEqual(0);
+ await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),session.id);await page.goto(BASE_URL);await getComposeInput(page).fill('unsent tool draft');const status=page.locator('.gi-tool-activity');await expect(status).toHaveAttribute('data-tool-call-id',activity.tool.tool_call_id);await expect(status.getByLabel('shell: Completed')).toBeVisible();await expect(status.getByLabel('Tool duration')).toHaveText(`${Math.floor(activity.tool.duration_ms/1000)}s`);await expect(status.locator('.spinner')).toHaveCount(0);await expect(getComposeInput(page)).toHaveValue('unsent tool draft');
+});

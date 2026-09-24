@@ -71,6 +71,7 @@ export class SSEClient {
         bindJsonEvent('agent_followup_consumed');
         bindJsonEvent('agent_followup_removed');
         bindJsonEvent('queue_changed');
+        bindJsonEvent('tool_activity_changed');
         for (const event of ['compaction_started', 'compaction_completed', 'compaction_cancelled', 'compaction_suppressed', 'compaction_failed']) bindJsonEvent(event);
         bindJsonEvent('workspace_update');
         bindJsonEvent('agent_draft');
