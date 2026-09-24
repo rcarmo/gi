@@ -175,6 +175,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/auth/enroll/start", s.handleAuthEnrollStart)
 	s.mux.HandleFunc("/api/auth/enroll/verify", s.handleAuthEnrollVerify)
 	s.mux.HandleFunc("/api/auth/totp/verify", s.handleAuthTOTPVerify)
+	s.mux.HandleFunc("/api/auth/session", s.handleAuthSession)
 
 	guard := s.withAuth
 	s.mux.HandleFunc("/api/runtime/config", guard(s.handleRuntimeConfig))

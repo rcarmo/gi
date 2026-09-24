@@ -1,0 +1,10 @@
+.gi-auth { display: grid; place-items: center; min-height: 100dvh; padding: 24px; box-sizing: border-box; }
+.gi-auth-card { width: 100%; max-width: 360px; padding: 24px; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-secondary); }
+.gi-auth-card h1 { font-size: 1.4rem; margin: 0 0 20px; }
+.gi-auth-card form { display: flex; flex-direction: column; gap: 12px; }
+.gi-auth-card input, .gi-auth-card button { font: inherit; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); background: var(--bg-primary); }
+.gi-auth-card input { min-width: 0; letter-spacing: .15em; }
+.gi-auth-card button { cursor: pointer; }
+.gi-auth-card button:disabled { opacity: .6; cursor: default; }
+.gi-auth-card :focus-visible { outline: 2px solid var(--accent-color, #79b8ff); outline-offset: 2px; }
+.gi-auth-card [role="alert"] { color: var(--error-color, #f88); }

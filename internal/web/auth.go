@@ -11,6 +11,8 @@ func (s *Server) requireAuthenticatedRequest(w http.ResponseWriter, r *http.Requ
 	if s == nil || s.auth == nil {
 		return true
 	}
+	// Cookie-authorised data must never enter shared or browser HTTP caches.
+	w.Header().Set("Cache-Control", "private, no-store")
 	enrolled, err := s.auth.Enrolled()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
@@ -19,7 +21,7 @@ func (s *Server) requireAuthenticatedRequest(w http.ResponseWriter, r *http.Requ
 	if !enrolled {
 		return true
 	}
-	ok, err := s.auth.ValidateBearerRequestWithError(r)
+	ok, err := s.authenticatedRequest(r)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return false
@@ -41,6 +43,7 @@ func (s *Server) withAuth(handler http.HandlerFunc) http.HandlerFunc {
 }
 
 func (s *Server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "private, no-store")
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -50,6 +53,14 @@ func (s *Server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
+	ok, err := s.authenticatedRequest(r)
+	if err != nil {
+		writeJSON(w, 500, map[string]any{"error": "Cannot read authentication policy"})
+		return
+	}
+	status["authenticated"] = ok
+	status["mode"] = "single-user"
+	status["browser_login_available"] = providerWriteTransport(r)
 	writeJSON(w, http.StatusOK, status)
 }
 

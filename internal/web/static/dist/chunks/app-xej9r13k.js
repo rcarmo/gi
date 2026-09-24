@@ -18442,10 +18442,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-5bbpdhna.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-xex6apkb.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-fyw1px1w.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-kqahp0ra.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-kymjc2bn.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-ds6x07ey.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-xj263ybh.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-yjjeqc6e.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -18717,7 +18717,7 @@ function GiSettings({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
       target?.focus({ preventScroll: true });
     });
   };
-  K_(() => {
+  W_(() => {
     const show = () => {
       if (!isOpen.current)
         opener.current = document.activeElement;
@@ -18739,6 +18739,113 @@ function GiSettings({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
     };
   }, []);
   return open && fe`<${BodyPortal} className="settings-portal"><${Dialog} chatJid=${chatJid} onClose=${close} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} /><//>`;
+}
+
+// web/src/gi-auth-policy.ts
+function parseAuthPolicy(value) {
+  const p = value;
+  if (!p || p.mode !== "single-user" || typeof p.enrolled !== "boolean" || typeof p.authenticated !== "boolean" || typeof p.totp_enabled !== "boolean" || typeof p.browser_login_available !== "boolean" || p.enrolled && !p.totp_enabled) {
+    throw new Error("Invalid authentication policy");
+  }
+  return p;
+}
+
+// web/src/gi-auth.ts
+async function policyRequest(signal) {
+  const response = await fetch("/api/auth/status", { cache: "no-store", credentials: "same-origin", signal });
+  if (!response.ok)
+    throw new Error("Cannot load sign-in options.");
+  return parseAuthPolicy(await response.json());
+}
+function GiAuthGate({ children }) {
+  const [policy, setPolicy] = F_(null);
+  const [error, setError] = F_("");
+  const [code, setCode] = F_("");
+  const [busy, setBusy] = F_(false);
+  const [attempt, setAttempt] = F_(0);
+  const flight = Q_(null);
+  const input = Q_(null);
+  K_(() => {
+    const controller = new AbortController;
+    flight.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    let disposed = false;
+    setPolicy(null);
+    setError("");
+    policyRequest(controller.signal).then((value) => {
+      if (!disposed)
+        setPolicy(value);
+    }).catch(() => {
+      if (!disposed)
+        setError("Cannot load sign-in options. Check your connection and try again.");
+    }).finally(() => {
+      clearTimeout(timeout);
+      if (flight.current === controller)
+        flight.current = null;
+    });
+    return () => {
+      disposed = true;
+      clearTimeout(timeout);
+      controller.abort();
+      flight.current?.abort();
+      flight.current = null;
+    };
+  }, [attempt]);
+  K_(() => {
+    if (policy?.enrolled && !policy.authenticated)
+      input.current?.focus();
+  }, [policy]);
+  const submit = async (event) => {
+    event.preventDefault();
+    if (flight.current || !policy?.enrolled || !policy.browser_login_available || !/^\d{6}$/.test(code))
+      return;
+    const controller = new AbortController;
+    flight.current = controller;
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ code }),
+        signal: controller.signal
+      });
+      if (!response.ok)
+        throw new Error(response.status === 401 ? "Invalid authentication code. Try again." : "Sign-in failed. Try again.");
+      const confirmed = await policyRequest(controller.signal);
+      if (!confirmed.authenticated)
+        throw new Error("Sign-in could not be confirmed. Check that cookies are enabled and try again.");
+      if (flight.current !== controller)
+        return;
+      setCode("");
+      setPolicy(confirmed);
+    } catch (failure) {
+      if (flight.current !== controller)
+        return;
+      setError(failure instanceof TypeError || controller.signal.aborted ? "Unable to reach the server. Check your connection and try again." : failure.message || "Sign-in failed. Try again.");
+    } finally {
+      clearTimeout(timeout);
+      if (flight.current === controller) {
+        flight.current = null;
+        setBusy(false);
+      }
+    }
+  };
+  if (policy && (!policy.enrolled || policy.authenticated))
+    return children;
+  return fe`<main class="gi-auth" aria-labelledby="gi-auth-title"><section class="gi-auth-card">
+        <h1 id="gi-auth-title">Sign in to Gi</h1>
+        ${error && fe`<p role="alert">${error}</p>`}
+        ${!policy ? error ? fe`<button type="button" onClick=${() => setAttempt((n) => n + 1)}>Retry</button>` : fe`<p role="status">Loading sign-in options…</p>` : !policy.browser_login_available ? fe`<p>Open Gi over HTTPS or localhost to sign in.</p>` : fe`<form onSubmit=${submit} aria-busy=${busy}>
+                <label for="gi-auth-code">Authentication code</label>
+                <input ref=${input} id="gi-auth-code" type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength="6"
+                    autoComplete="one-time-code" required value=${code} disabled=${busy}
+                    onInput=${(event) => setCode(event.currentTarget.value)} />
+                <button type="submit" disabled=${busy || !/^\d{6}$/.test(code)}>${busy ? "Signing in…" : "Sign in"}</button>
+            </form>`}
+    </section></main>`;
 }
 
 // web/src/gi-message-deletion.ts
@@ -20795,7 +20902,9 @@ function ComposeTransfer({ sessionId, hidden }) {
         ${state.sending > 0 && fe`<div class="gi-compose-sending" role="status" aria-live="polite">Sending${state.sending > 1 ? ` ${state.sending} messages` : " message"}…</div>`}
     </div>`;
 }
-G_(fe`<${GiApp} />`, document.getElementById("app"));
+var appRoot = document.getElementById("app");
+appRoot.replaceChildren();
+G_(fe`<${GiAuthGate}><${GiApp} /><//>`, appRoot);
 export {
   F_,
   K_,
@@ -20824,5 +20933,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=1ACACFAA6F808C3A64756E2164756E21
-//# sourceMappingURL=app-nncvtcga.js.map
+//# debugId=5A6EAD6CC3A6E77164756E2164756E21
+//# sourceMappingURL=app-xej9r13k.js.map

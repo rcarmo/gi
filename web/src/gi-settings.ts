@@ -177,7 +177,9 @@ export function GiSettings({ chatJid, onMutationStart, onMutationEnd, onApplied 
             target?.focus({ preventScroll: true });
         });
     };
-    useEffect(() => {
+    // Install opening controls before first paint, including the auth gate's
+    // asynchronous application mount. A visible composer must be interactive.
+    useLayoutEffect(() => {
         const show = () => {
             if (!isOpen.current) opener.current = document.activeElement as HTMLElement;
             isOpen.current = true; setOpen(true);

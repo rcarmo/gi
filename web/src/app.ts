@@ -77,6 +77,7 @@ import { SystemMetersHud } from './components/system-meters-hud.js';
 import { TimelineMenu } from './components/timeline-menu.js';
 import { TimelineQuickActions } from './components/timeline-quick-actions.js';
 import { GiSettings } from './gi-settings.js';
+import { GiAuthGate } from './gi-auth.js';
 import { createMessageDeletionState } from './gi-message-deletion.js';
 import { createSelectionScope } from './gi-session-state.js';
 import { attachChatSwipeNavigation } from './ui/chat-swipe-navigation.js';
@@ -1266,4 +1267,8 @@ function ComposeTransfer({ sessionId, hidden }) {
     </div>`;
 }
 
-render(html`<${GiApp} />`, document.getElementById('app'));
+const appRoot = document.getElementById('app');
+// This is a client-only mount, not hydration. The auth gate's initial <main>
+// must not leave the server's unowned loading <div> beside the application.
+appRoot.replaceChildren();
+render(html`<${GiAuthGate}><${GiApp} /><//>`, appRoot);

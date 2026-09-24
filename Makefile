@@ -437,3 +437,15 @@ test-tui-gherkin: build
 clean:
 	rm -rf $(RUN_DIR) $(BIN_DIR) $(TEST_DIR) $(TUI_TEST_DIR) $(TEST_RESULTS)
 	rm -f gi gi-tui
+
+.PHONY: test-browser-auth test-ux-auth
+test-browser-auth:
+	$(GO) test ./internal/web ./internal/auth -run 'Test(Browser|ProtectedEndpoint|Auth)' -count=1
+
+test-ux-auth: build-web
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_AUTH=1 GI_UX_SERVER_BIN=$(UX_LOCAL_BIN) $(BUN) x playwright test --config playwright.ux.config.mjs tests/ux/auth.spec.mjs
+
+.PHONY: test-browser-auth-race
+test-browser-auth-race:
+	$(GO) test -race ./internal/web ./internal/auth -count=3
