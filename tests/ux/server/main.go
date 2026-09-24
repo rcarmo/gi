@@ -279,6 +279,37 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+	if os.Getenv("GI_UX_RECOVERY_CONTROLS") != "" {
+		var fixtures []struct {
+			ID     string         `json:"id"`
+			Fields map[string]any `json:"fields"`
+		}
+		raw, err := os.ReadFile("tests/ux/fixtures/recovery-controls.json")
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := json.Unmarshal(raw, &fixtures); err != nil {
+			log.Fatal(err)
+		}
+		ctx := context.Background()
+		const sessionID = "recovery-controls-fixture"
+		if _, err := s.CreateSession(ctx, sessionID, "Recovery control display", map[string]any{"model": "test-model"}); err != nil {
+			log.Fatal(err)
+		}
+		for _, fixture := range fixtures {
+			blocks := []any{}
+			if fixture.Fields != nil {
+				block := map[string]any{"type": "control_intent", "intent": "protected_recovery_continuation", "schema_version": 1, "source_message_id": "source", "source_row_id": 1, "thread_id": 1}
+				for key, value := range fixture.Fields {
+					block[key] = value
+				}
+				blocks = append(blocks, block)
+			}
+			if err := s.AddMessage(ctx, "recovery-control-"+fixture.ID, sessionID, "assistant", "Recovery probe "+fixture.ID+" protected_recovery_continuation Recovery resumed with execution tools", map[string]any{"content_blocks": blocks}); err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
 	if os.Getenv("GI_UX_SPEECH") != "" {
 		// Seed valid empty assistant history in this isolated DB. Production
 		// HTTP projection and supplied Post rendering still handle the rows.

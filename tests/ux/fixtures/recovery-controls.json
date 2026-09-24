@@ -1,0 +1,212 @@
+[
+  {
+    "id": "valid-legacy",
+    "hidden": true,
+    "fields": {}
+  },
+  {
+    "id": "valid-typed",
+    "hidden": true,
+    "fields": {
+      "handoff_depth": 2,
+      "reason": "tools_required",
+      "compaction": "not_attempted",
+      "tools_required": true,
+      "retryable": false,
+      "recovery_attempts": 0
+    }
+  },
+  {
+    "id": "valid-timeout",
+    "hidden": true,
+    "fields": {
+      "reason": "compaction_failed",
+      "compaction": "failed",
+      "tools_required": true,
+      "retryable": false,
+      "recovery_attempts": 1,
+      "primary_failure_category": "timeout",
+      "primary_failure_detail": "Timed out after 30s.",
+      "primary_failure_elapsed_ms": 30000,
+      "primary_failure_tool_executions": 2,
+      "primary_failure_had_partial_output": false,
+      "primary_failure_had_tool_activity": true,
+      "primary_failure_execution_tools": true
+    }
+  },
+  {
+    "id": "wrong-type",
+    "hidden": false,
+    "fields": {
+      "type": "note"
+    }
+  },
+  {
+    "id": "wrong-intent",
+    "hidden": false,
+    "fields": {
+      "intent": "ordinary_note"
+    }
+  },
+  {
+    "id": "wrong-schema",
+    "hidden": false,
+    "fields": {
+      "schema_version": 2
+    }
+  },
+  {
+    "id": "source-blank",
+    "hidden": false,
+    "fields": {
+      "source_message_id": " "
+    }
+  },
+  {
+    "id": "row-zero",
+    "hidden": false,
+    "fields": {
+      "source_row_id": 0
+    }
+  },
+  {
+    "id": "thread-negative",
+    "hidden": false,
+    "fields": {
+      "thread_id": -1
+    }
+  },
+  {
+    "id": "depth-zero",
+    "hidden": false,
+    "fields": {
+      "handoff_depth": 0
+    }
+  },
+  {
+    "id": "partial-typed",
+    "hidden": false,
+    "fields": {
+      "reason": "tools_required"
+    }
+  },
+  {
+    "id": "unknown-reason",
+    "hidden": false,
+    "fields": {
+      "reason": "invented",
+      "compaction": "not_attempted",
+      "tools_required": true,
+      "retryable": false,
+      "recovery_attempts": 0
+    }
+  },
+  {
+    "id": "wrong-compaction",
+    "hidden": false,
+    "fields": {
+      "reason": "compaction_failed",
+      "compaction": "completed",
+      "tools_required": true,
+      "retryable": false,
+      "recovery_attempts": 1
+    }
+  },
+  {
+    "id": "string-boolean",
+    "hidden": false,
+    "fields": {
+      "reason": "tools_required",
+      "compaction": "not_attempted",
+      "tools_required": "true",
+      "retryable": false,
+      "recovery_attempts": 0
+    }
+  },
+  {
+    "id": "attempts-negative",
+    "hidden": false,
+    "fields": {
+      "reason": "tools_required",
+      "compaction": "not_attempted",
+      "tools_required": true,
+      "retryable": false,
+      "recovery_attempts": -1
+    }
+  },
+  {
+    "id": "partial-failure",
+    "hidden": false,
+    "fields": {
+      "reason": "tools_required",
+      "compaction": "not_attempted",
+      "tools_required": true,
+      "retryable": false,
+      "recovery_attempts": 1,
+      "primary_failure_category": "timeout"
+    }
+  },
+  {
+    "id": "label-only",
+    "hidden": false,
+    "fields": null
+  },
+  {
+    "id": "legacy-partial-failure",
+    "hidden": false,
+    "fields": {
+      "primary_failure_category": "timeout"
+    }
+  },
+  {
+    "id": "legacy-bad-failure",
+    "hidden": false,
+    "fields": {
+      "primary_failure_detail": "not a timeout"
+    }
+  },
+  {
+    "id": "false-tools-required",
+    "hidden": false,
+    "fields": {
+      "reason": "tools_required",
+      "compaction": "not_attempted",
+      "tools_required": false,
+      "retryable": false,
+      "recovery_attempts": 0
+    }
+  },
+  {
+    "id": "failure-not-attempted",
+    "hidden": false,
+    "fields": {
+      "reason": "compaction_failed",
+      "compaction": "not_attempted",
+      "tools_required": true,
+      "retryable": false,
+      "recovery_attempts": 0
+    }
+  },
+  {
+    "id": "post-compaction-no-tools",
+    "hidden": false,
+    "fields": {
+      "reason": "post_compaction_tools_required",
+      "compaction": "succeeded",
+      "tools_required": false,
+      "retryable": false,
+      "recovery_attempts": 0
+    }
+  },
+  {
+    "id": "unresolved-no-tools",
+    "hidden": false,
+    "fields": {
+      "reason": "unresolved_tool_execution",
+      "compaction": "not_attempted",
+      "tools_required": false,
+      "retryable": false,
+      "recovery_attempts": 0
+    }
+  }
+]

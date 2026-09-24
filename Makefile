@@ -315,6 +315,11 @@ test-ux-skills:
 .PHONY: test-recovery-marker test-ux-outcomes
 test-recovery-marker:
 	$(GO) test -race -count=3 ./internal/store ./internal/turn -run 'RecoveryMarker|StartupRecoveryRequeuesCompactingTurn'
+.PHONY: test-ux-recovery-controls
+test-ux-recovery-controls:
+	$(MAKE) test-ux-steer UX_LOCAL_ENV='GI_UX_RECOVERY_CONTROLS=1' UX_LOCAL_SPEC='tests/ux/recovery-controls.spec.mjs tests/ux/message-copy.spec.mjs tests/ux/message-delete.spec.mjs' UX_LOCAL_FUNCTIONAL=tests/functional/14-recovery-controls.spec.ts
+	$(MAKE) ux-parity-report UX_PARITY_REPORT_ARGS=test-results/ux-parity/results.json
+
 test-ux-outcomes:
 	$(MAKE) test-ux-steer UX_LOCAL_ENV='GI_UX_OUTCOMES=1' UX_LOCAL_SPEC='tests/ux/outcomes.spec.mjs tests/ux/message-copy.spec.mjs tests/ux/speech.spec.mjs' UX_LOCAL_FUNCTIONAL=tests/functional/13-outcomes.spec.ts
 	$(MAKE) ux-parity-report UX_PARITY_REPORT_ARGS=test-results/ux-parity/results.json
