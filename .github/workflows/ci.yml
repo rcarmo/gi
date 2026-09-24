@@ -41,6 +41,9 @@ jobs:
       - name: Shell cancellation race checks
         run: make test-shell-runtime
 
+      - name: Active steering repeat checks
+        run: make test-active-steering
+
       - name: Go vet
         run: go vet ./...
 

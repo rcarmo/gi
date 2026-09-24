@@ -476,7 +476,10 @@ func TestSubmitPromptSteeringSurvivesCanceledCallerContext(t *testing.T) {
 }
 
 func TestSubmitPromptSteersSecondPromptToActiveTurn(t *testing.T) {
-	s := openTestStore(t)
+	s, openErr := store.Open(filepath.Join(t.TempDir(), "active-steering.db"))
+	if openErr != nil {
+		t.Fatal(openErr)
+	}
 	defer s.Close()
 	ctx := context.Background()
 	_, err := s.CreateSession(ctx, "session_1", "Test", map[string]any{"model": "bootstrap"})
@@ -484,10 +487,38 @@ func TestSubmitPromptSteersSecondPromptToActiveTurn(t *testing.T) {
 		t.Fatalf("create session: %v", err)
 	}
 	engine := New(s)
+	defer engine.Close()
+	started, release := make(chan struct{}), make(chan struct{})
+	var startedOnce, releaseOnce sync.Once
+	engine.beforeSetupHook = func(ctx context.Context, _, _ string) {
+		startedOnce.Do(func() { close(started) })
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+	}
+	join := func() {
+		runner := engine.runner("session_1")
+		waitForCondition(t, 5*time.Second, func() bool {
+			runner.mu.Lock()
+			defer runner.mu.Unlock()
+			if runner.current != nil {
+				return false
+			}
+			_, _, err := s.GetSessionActiveTurn(ctx, "session_1")
+			return err == sql.ErrNoRows
+		}, "steering runner cleanup")
+	}
+	defer func() { releaseOnce.Do(func() { close(release) }); join() }()
 
 	first, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_1", Prompt: "one", Model: "bootstrap"})
 	if err != nil {
 		t.Fatalf("submit first: %v", err)
+	}
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first turn did not reach setup gate")
 	}
 	second, err := engine.SubmitPrompt(ctx, RunInput{SessionID: "session_1", Prompt: "two", Model: "bootstrap"})
 	if err != nil {
@@ -522,7 +553,8 @@ func TestSubmitPromptSteersSecondPromptToActiveTurn(t *testing.T) {
 		t.Fatalf("expected active turn %s, got %s", first.TurnID, activeTurnID)
 	}
 
-	time.Sleep(2500 * time.Millisecond)
+	releaseOnce.Do(func() { close(release) })
+	join()
 	turns, err := s.ListTurns(ctx, "session_1")
 	if err != nil {
 		t.Fatalf("list turns: %v", err)

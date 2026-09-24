@@ -180,7 +180,10 @@ logs:
 test:
 	$(GO) test ./...
 
-.PHONY: test-shell-runtime check-cross-build
+.PHONY: test-shell-runtime check-cross-build test-active-steering
+
+test-active-steering:
+	$(GO) test -race -count=50 ./internal/turn -run '^TestSubmitPromptSteersSecondPromptToActiveTurn$$'
 
 test-shell-runtime:
 	$(GO) test -race -count=3 ./internal/tools -run 'RunShellPrompt|KillShellProcess'
