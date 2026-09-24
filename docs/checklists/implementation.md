@@ -2,7 +2,7 @@
 
 Status: Active
 Date: 2026-04-22
-Last updated: 2026-09-24
+Last updated: 2026-09-25
 
 - [x] Decorate intact parenthesised HTTP(S) terminal URLs with safe OSC8 metadata, preserve targets through search, and give linked tool-body clicks precedence over block toggling. Visible text/drag-copy unchanged; credentials/control targets rejected, terminal-client activation only.6link PTYs+9selection/search/regular regressions/98standardfunctional/96helpers1175assertions/Go-vet-hook/TUI race x3 pass; no idle rows or browser mapping. Wrapped/complex URL spans, word selection and right-edge selection semantics remain separate. Older PTY scripts now accept isolated GI_TUI_BIN instead of building through the live binary symlink.
 
@@ -599,6 +599,10 @@ Direct port of Piclaw's `/meters` functionality. On by default until slash comma
 - [x] Separate exclusive first lock creation from existing-lock open; treat a disappearing lock pathname as a retryable conflict while retaining inode/type/root checks. Add sixteen concurrent first opens with same-inode and independent-handle exclusivity checks. Local auth race x10, web/auth race x3, Go/vet/hook, five cross-builds, eighteen auth browser tests and100 functional/five existing skips pass.
 - [ ] Native macOS/Windows CI must validate the repair before deployment. Cross-builds and Linux results cannot establish native filesystem behaviour.
 - [x] Native CI36071594429 for `6bc5c08` passed Linux/macOS/Windows auth-state jobs, main Test and all five builds. Deployed workspace repair `f33b466` plus auth repair `6bc5c08` via `make restart BIN_DIR=/tmp/gi-scheduler-bin BIND=0.0.0.0 PORT=8090`; PID2404942. Six guarded live motion probes1024/1440/1920×Chromium/WebKit and six phone/tablet/desktop status/draft checks passed with zero API writes/browser errors. Auth remains unenrolled; database integrity ok,62sessions/51turns/146messages, before/after dump hashes identical excluding runtime lease renewal only (`792e8258…ded00`). No new frozen or TUI credit.
+
+### Public feature and parity documentation (2026-09-25)
+- [x] Update README, docs indexes and `docs/feature-parity.md` with shipped browser/runtime features, bounded pi-tui adaptations, known workflow gaps and planned multi-passkey/tsnet/Iroh/MCP work. Replace blanket Piclaw/source compatibility claims; correct Go prerequisites and document unenrolled-instance exposure and Make binding defaults.
+- [x] Mark May fit-gap and earlier session reports as historical; distinguish101/236 Classic +30/42 shared source mappings, disputedClassic008 and26 unimplemented additive passkey scenarios. Validate118 local Markdown link targets, frozen hashes,103 helper tests/1321 assertions and diff whitespace; independent read-only review found no blockers. Documentation-only, no runtime changes or deployment.
 
 ### Working multi-passkey enrolment requirement (2026-09-25)
 - [x] Record the owner's explicit multi-passkey requirement and concrete acceptance gate in `tests/ux/features/additions/piclaw-2026-09-24/README.md`; preserve the pinned26-scenario contract byte-for-byte. Current Gi remains TOTP-only, with no WebAuthn implementation or new parity credit.

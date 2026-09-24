@@ -13,6 +13,18 @@ The sources came from `/workspace/evidence/piclaw-classic-70d33bc93` and `/works
 
 The Classic and shared contracts differ in places, including command-prefill and idle-Steer safety semantics. Both are preserved. Passing a Classic case does not imply passing the stronger shared contract.
 
+## Current status (2026-09-25)
+
+The [feature and parity matrix](../../docs/feature-parity.md) separates shipped
+behaviour, known gaps and planned integrations. Source mappings are 101/236
+Classic IDs and 30/42 shared cases; they are not a full-suite pass. Classic008 is
+disputed. All 26 separately pinned passkey scenarios/outlines are unimplemented.
+Workspace-collapse motion and native auth persistence repairs have shipped.
+
+The dated sections below retain historical run totals. Do not add them together
+or interpret an old "unmapped" statement as the current inventory. No browser
+suite runs in CI yet, and specialised fixture suites need separate targets/flags.
+
 ## Run
 
 ```sh
@@ -25,7 +37,7 @@ The parity target uses `.gi-ux-parity/` and loopback port 19091, seeds determini
 
 `@cucumber/gherkin` parses the original features and expands examples. `classic.spec.mjs` supplies Gi-native browser steps for mapped IDs, attaches the original steps to each result, and drives visible enabled controls. Native APIs only seed fixtures and verify persistence; they do not substitute for tested user actions. No DOM injection, forced clicks, automatic resubmission, navigation fallback, retries, or inherited Tau/Vibes pass statuses.
 
-`support/catalogue.mjs` rejects modified source hashes. The report always inventories every frozen scenario. A scenario passes only when all expanded cases pass in Chromium and WebKit at 390×844, 820×1180, and 1440×900. Unmapped scenarios are reported as `unmapped`, not skipped or passed. The shared contract is inventoried separately and has no Gi step mappings yet.
+`support/catalogue.mjs` rejects modified source hashes. The report always inventories every frozen scenario. A scenario passes only when all expanded cases pass in Chromium and WebKit at 390×844, 820×1180, and 1440×900. Unmapped scenarios are reported as `unmapped`, not skipped or passed. The shared contract is inventoried separately; 30 of its 42 cases currently have source mappings.
 
 ## First slice: 2026-09-21
 

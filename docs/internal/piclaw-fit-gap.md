@@ -1,6 +1,14 @@
 # Gi / PiClaw fit-gap
 
-Date: 2026-05-27
+Date: 2026-05-27 (historical snapshot)
+
+> Superseded for current feature status by the
+> [2026-09-25 feature and parity matrix](../feature-parity.md).
+> Later work added timeline media/lightboxes, card rendering, session/model
+> controls, compact terminal selectors/actions, context measurements, browser
+> TOTP sign-in and native auth persistence. The gaps below describe May's code,
+> not the current release. The [September UX audit](ux-test-audit-2026-09-24.md)
+> records outstanding interaction and visual gaps.
 
 Scope: compare Gi's current runtime, web, TUI, tools, extension, media, and CI posture against the PiClaw environment used by the coding-agent harness. This is an implementation planning note, not a compatibility promise.
 

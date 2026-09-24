@@ -1,11 +1,17 @@
 # Internal reference
 
-This subtree is the **canonical internal documentation surface** for gi runtime features that the agent can use or extend.
+This subtree contains Gi's shipped internal reference for runtime features that the agent can use or extend.
+
+For the current product comparison, see [features and Piclaw parity](../feature-parity.md).
+The [full web/TUI plan](full-web-tui-parity-plan.md) and
+[UX audit](ux-test-audit-2026-09-24.md) distinguish implemented slices from
+remaining browser and terminal work. Older dated fit-gap notes below retain
+their historical scope.
 
 It is written for:
 - the agent running inside gi
 - humans extending gi
-- future packaging into a read-only embedded reference tree such as `vfs://reference/...`
+- agents reading the embedded read-only `vfs://reference/...` tree
 
 ## Contract
 
@@ -43,7 +49,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - `runtime-package-inventory.md` — package/file ownership map for runtime refactor surfaces (`turn`, `session`, `routing`, `store`, `web`, `tui`, script bridge)
 - `runtime-surfaces.md` — living index for the top runtime surfaces and their canonical docs/owners
 - `picoclaw-parity-status.md` — private/internal parity audit for PicoClaw-inspired runtime semantics that Gi has ported, adapted, or intentionally rejected
-- `piclaw-fit-gap.md` — current Gi / PiClaw fit-gap across runtime, web, TUI, media, extensions, and CI
+- `piclaw-fit-gap.md` -- historical May 2026 Gi/Piclaw comparison; current status is in `docs/feature-parity.md`
 - `repo-structure-refactor.md` — interim repository-structure reassessment and functional regrouping plan for the runtime refactor
 - `subturn-runtime.md` — concrete sub-turn runtime contract, limits, store APIs, and current implementation status
 - `tui-stack-evaluation.md` — decision record for keeping the current Gi TUI stack instead of switching to PicoClaw/Pi's launcher/TUI stack now
@@ -73,7 +79,7 @@ The `search/` subtree is the canonical reference for the current hybrid workspac
 
 `media-ingestion-contract.md` defines the shared media ingestion boundary that web, TUI, API/direct ingress, steering, messages, turns, tools, and provider projection must use before image/media paste work proceeds.
 
-`tui-picker-collapse-widgets.md` records the current Go TUI widget audit: numbered textual pickers remain the safe baseline for model/command selection, while modal overlays and collapse toggles stay deferred until key handling and transcript grouping can be made deterministic.
+`tui-picker-collapse-widgets.md` records the earlier Go TUI widget audit. The current terminal has bounded Alt-S/Alt-M selectors, session action/rename controls and fullscreen tool folding; regular-mode selectors use temporary alternate-screen views.
 
 `deferred-tui-parity-closure.md` closes the post-clipboard deferred parity work with implemented/adapted/deferred behavior and final validation results.
 
@@ -96,15 +102,13 @@ Current interim structure status:
 
 ## Current status
 
-This subtree is being bootstrapped. When internal surfaces are implemented before full docs exist, add at least a minimal placeholder page and update it as the implementation stabilizes.
+Update the relevant contract when runtime behaviour changes. Dated plans and slice logs are retained for provenance; use the current feature matrix for release status.
 
 Current search status:
-- architecture chosen: **vec + FTS**
-- ADR written
-- internal design written
-- Go package scaffold added under `internal/search/`
-- runtime read-only `fts://` namespace is implemented for model/tool retrieval workflows
-- full `internal/search` backend wiring and advanced index pipeline work remains pending
+* Scoped SQLite metadata, FTS indexing, bounded filesystem scanning and explicit reindex/query/status APIs are implemented.
+* Browser controls and the transient terminal Alt-I action invoke explicit indexing. Native write paths record invalidations.
+* Read-only `fts://` retrieval exists for model/tool workflows.
+* Automatic external/shell/watch freshness and vector/embedding integration are incomplete. The vec + FTS design is broader than the implemented lexical path.
 
 Current topic/runtime publication status:
 - the in-memory topic bus is live and now carries bridged turn/session notices plus runtime-critical steering and subturn lifecycle topics

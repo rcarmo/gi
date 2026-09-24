@@ -1,5 +1,12 @@
 # Web session selection and compact TUI adaptation
 
+> Historical slice log. Its counts describe the named runs, not current overall
+> parity. As of 2026-09-25 the source maps 101/236 Classic IDs and 30/42 shared
+> cases; Classic008's prefill mapping is disputed. See the
+> [current feature matrix](../feature-parity.md),
+> [UX audit](ux-test-audit-2026-09-24.md) and
+> [full plan](full-web-tui-parity-plan.md) for current gaps and subsequent work.
+
 ## Whole-message clipboard safety (2026-09-23)
 
 [ADR-0055](../adr/0055-message-copy-clipboard-safety.md) verifies native source Markdown/rich clipboard payload and fallback/denial/reset with retained drafts/media and late-session isolation. A narrow build adapter fixes false success when Clipboard API is absent; supplied files are unchanged. **594 browser**, **80 functional**, **38 helpers**, Go/vet/build/hook pass. Combined copy/delete original-024/shared-37 still lack deletion evidence, so coverage stays **50/236 Classic**, **2/42 shared**, **186/40 unmapped**. No terminal implementation credit.
