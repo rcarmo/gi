@@ -20,8 +20,12 @@ export function bindQuickActionsFocus(root: HTMLElement, input: HTMLInputElement
     const frame = view.requestAnimationFrame(() => {
         if (!closed && !settingsOwnsKeyboard(root.ownerDocument) && input.isConnected && !root.closest('[inert]')) input.focus({ preventScroll: true });
     });
-    const detach = bindMenuDismissal(root, null, () => {
+    const dismiss = () => {
+        if (closed || settingsOwnsKeyboard(root.ownerDocument)) return;
         closed = true; view.cancelAnimationFrame(frame); close(); restore();
-    });
-    return () => { closed = true; view.cancelAnimationFrame(frame); detach(); };
+    };
+    const detach = bindMenuDismissal(root, null, dismiss);
+    const button = root.querySelector<HTMLButtonElement>('.gi-quick-actions-close');
+    button?.addEventListener('click', dismiss);
+    return () => { closed = true; view.cancelAnimationFrame(frame); detach(); button?.removeEventListener('click', dismiss); };
 }

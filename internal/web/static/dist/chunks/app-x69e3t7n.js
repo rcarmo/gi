@@ -17153,16 +17153,22 @@ function bindQuickActionsFocus(root, input, opener, close) {
     if (!closed && !settingsOwnsKeyboard(root.ownerDocument) && input.isConnected && !root.closest("[inert]"))
       input.focus({ preventScroll: true });
   });
-  const detach = bindMenuDismissal(root, null, () => {
+  const dismiss = () => {
+    if (closed || settingsOwnsKeyboard(root.ownerDocument))
+      return;
     closed = true;
     view.cancelAnimationFrame(frame);
     close();
     restore();
-  });
+  };
+  const detach = bindMenuDismissal(root, null, dismiss);
+  const button = root.querySelector(".gi-quick-actions-close");
+  button?.addEventListener("click", dismiss);
   return () => {
     closed = true;
     view.cancelAnimationFrame(frame);
     detach();
+    button?.removeEventListener("click", dismiss);
   };
 }
 
@@ -17754,9 +17760,11 @@ function TimelineQuickActions({
       setQuery("");
     });
   }, [open]);
-  K_(() => {
+  W_(() => {
     const onKeyDown = (event) => {
       if (settingsOwnsKeyboard())
+        return;
+      if (rootRef.current?.contains(event.target) && event.target?.closest?.("button"))
         return;
       if (!open) {
         if (!shouldOpenTimelineQuickActionsFromKeyEvent(event))
@@ -17851,6 +17859,7 @@ function TimelineQuickActions({
     setHighlightIndex(0);
   }}
                             />
+                            <button type="button" class="gi-quick-actions-close" aria-label="Close quick actions" title="Close quick actions"><span aria-hidden="true">×</span></button>
                             <div class="timeline-quick-actions-hints" aria-hidden="true">
                                 ${renderKeyboardHint(t("palette.hintMove"), "↑↓")}
                                 ${renderKeyboardHint(t("palette.hintSelect"), "↵")}
@@ -17915,10 +17924,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-r4wc13ka.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-ja03hmrf.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-z5bmwpep.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-5pr4n5es.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-ezrk2mzq.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-8t863brt.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-e378g0ad.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-v3f7cahj.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20254,5 +20263,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=B72A688ED51F8D7864756E2164756E21
-//# sourceMappingURL=app-3x4pv6r1.js.map
+//# debugId=4B8C15E69A91EFDF64756E2164756E21
+//# sourceMappingURL=app-x69e3t7n.js.map

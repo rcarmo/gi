@@ -1,0 +1,24 @@
+/* Explicit dismissal within the existing transient palette header. */
+.timeline-quick-actions-search-row { grid-template-columns: minmax(0, 1fr) 28px auto; }
+@media (max-width: 640px) {
+    .timeline-quick-actions-search-row { gap: 8px; }
+    .timeline-quick-actions-keyhint span { display: none; }
+    .timeline-quick-actions-hints { gap: 4px; }
+}
+.gi-quick-actions-close {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-muted);
+    background: transparent;
+    font: inherit;
+    font-size: 20px;
+    cursor: pointer;
+}
+.gi-quick-actions-close:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+.gi-quick-actions-close:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }

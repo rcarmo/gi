@@ -234,7 +234,7 @@ test('Gi Settings delivers target keys while native background popups remain sus
  }
 });
 
-for(const [id,dismissal] of [['@shared-13','Escape'],['@shared-14','outside pointer']])test(`${id} Quick Actions ${dismissal} returns to the native Conversation trigger without changing draft references`,async({page,request},info)=>{
+for(const [id,dismissal] of [['@shared-13','Escape'],['@shared-14','outside pointer'],['@shared-15','close control']])test(`${id} Quick Actions ${dismissal} returns to the native Conversation trigger without changing draft references`,async({page,request},info)=>{
  const f=await sharedTypingFixture(page,request,info,id);
  const filename=`dismiss-${info.project.name}-${id.slice(1)}.txt`;
  const write=await request.post('/api/tools/execute',{data:{tool:'write',input:{path:filename,content:'retained workspace reference'}}});expect((await write.json()).error).toBeFalsy();
@@ -249,7 +249,13 @@ for(const [id,dismissal] of [['@shared-13','Escape'],['@shared-14','outside poin
  await expect.poll(stored).toMatchObject({draft:{text:'untouched draft',fileRefs:[filename],messageRefs:[messageId],media:[{name:'guard-unsent.txt',bytes:Array.from(Buffer.from('guard native bytes'))}]},pending:[]});const before=await stored();
  const conversation=page.getByRole('region',{name:'Conversation',exact:true});await expect(conversation).toBeVisible();await conversation.focus();await expect(conversation).toBeFocused();await conversation.press('m');await expect(f.query).toBeFocused();await expect(f.palette).toHaveCount(1);await expect(f.query).toHaveValue('m');await f.query.fill('no-action-chosen');
  await page.locator('.compose-box').evaluate(el=>{window.__dismissComposerClicks=0;el.addEventListener('click',()=>window.__dismissComposerClicks++);});
- if(dismissal==='Escape')await f.query.press('Escape');else{
+ if(dismissal==='Escape')await f.query.press('Escape');else if(dismissal==='close control'){
+  const close=f.palette.getByRole('button',{name:'Close quick actions',exact:true});await expect(close).toHaveCount(1);await expect(close).toBeVisible();await expect(close).toBeEnabled();
+  const b=await close.boundingBox();expect(b.width).toBeGreaterThanOrEqual(28);expect(b.height).toBeGreaterThanOrEqual(28);
+  const geometry=await f.palette.locator('.timeline-quick-actions-search-row').evaluate(el=>{const input=el.querySelector('input').getBoundingClientRect(),button=el.querySelector('button').getBoundingClientRect(),hints=el.querySelector('.timeline-quick-actions-hints').getBoundingClientRect(),row=el.getBoundingClientRect();return{input:input.toJSON(),button:button.toJSON(),hints:hints.toJSON(),row:row.toJSON(),scroll:el.scrollWidth,client:el.clientWidth};});
+  expect(geometry.input.width).toBeGreaterThan(100);expect(geometry.scroll).toBeLessThanOrEqual(geometry.client);expect(Math.abs(geometry.button.y+geometry.button.height/2-(geometry.hints.y+geometry.hints.height/2))).toBeLessThan(2);expect(geometry.hints.right).toBeLessThanOrEqual(geometry.row.right+1);
+  await f.query.fill('model');await expect(f.palette.locator('.timeline-quick-actions-item.active')).toContainText('/model');await page.screenshot({path:info.outputPath('quick-actions-close.png')});await info.attach('quick-actions-close',{path:info.outputPath('quick-actions-close.png'),contentType:'image/png'});await close.click();
+ }else{
   const send=page.getByRole('button',{name:'Send message',exact:true}),box=await send.boundingBox(),point={x:box.x+box.width/2,y:box.y+box.height/2};
   // The supplied overlay is pointer-transparent. The enabled Send control is
   // the actual hit target; dismissal must consume its whole gesture.
@@ -259,6 +265,12 @@ for(const [id,dismissal] of [['@shared-13','Escape'],['@shared-14','outside poin
  // Reopen from the restored trigger with native typing and dismiss again;
  // no stale focus callback or old query may survive the previous occurrence.
  await page.keyboard.press('q');await expect(f.query).toBeFocused();await expect(f.query).toHaveValue('q');await f.query.press('Escape');await expect(conversation).toBeFocused();
+ if(dismissal==='close control')for(const key of ['Enter','Space']){
+  // Keep an enabled action highlighted: pressing the focused Close button
+  // must not execute that action through the palette's global Enter handler.
+  await conversation.press('m');await expect(f.query).toBeFocused();await f.query.fill('Open explorer');await expect(f.palette.locator('.timeline-quick-actions-item.active')).toContainText('Open explorer');await f.frames();
+  await f.query.press('Tab');const close=f.palette.getByRole('button',{name:'Close quick actions',exact:true});await expect(close).toBeFocused();await close.press(key);await expect(f.palette).toHaveCount(0);await expect(conversation).toBeFocused();await expect(page.locator('.app-shell')).toHaveClass(/workspace-collapsed/);await f.unchanged();expect(await stored()).toEqual(before);
+ }
  await page.reload();await f.unchanged();await expect.poll(titles).toEqual(labels);expect(await stored()).toEqual(before);expect((await(await request.get(`/api/sessions/${f.child.id}/turns`)).json()).turns||[]).toEqual([]);
 });
 
@@ -270,4 +282,22 @@ test.describe('Gi Quick Actions trusted touch dismissal',()=>{
   await page.touchscreen.tap(box.x+box.width/2,box.y+box.height/2);await expect(f.palette).toHaveCount(0);await expect(conversation).toBeFocused();await f.unchanged();await f.input.tap();await expect(f.input).toBeFocused();
   await conversation.focus();await conversation.press('q');await expect(f.query).toBeFocused();await f.query.dispatchEvent('keydown',{key:'Escape',isComposing:true});await expect(f.palette).toBeVisible();await f.query.press('Escape');await expect(conversation).toBeFocused();await f.unchanged();
  });
+});
+
+test.describe('Gi Quick Actions close control touch',()=>{
+ test.use({hasTouch:true});
+ test('Gi Close button accepts trusted tap with actions still available',async({page,request},info)=>{
+  const f=await sharedTypingFixture(page,request,info,'@shared-15'),conversation=page.getByRole('region',{name:'Conversation',exact:true});
+  await conversation.focus();await conversation.press('m');await expect(f.query).toBeFocused();const close=f.palette.getByRole('button',{name:'Close quick actions',exact:true});await close.tap();await expect(f.palette).toHaveCount(0);await expect(conversation).toBeFocused();await f.unchanged();await f.input.tap();await expect(f.input).toBeFocused();
+ });
+});
+
+test('Gi focused palette action button activates its own row rather than the search highlight',async({page,request},info)=>{
+ const f=await sharedTypingFixture(page,request,info,'@shared-15'),conversation=page.getByRole('region',{name:'Conversation',exact:true});
+ for(const key of ['Enter','Space']){
+  await conversation.focus();await conversation.press('m');await expect(f.query).toBeFocused();await f.query.fill('');await expect(f.palette.locator('.timeline-quick-actions-item.active')).toHaveCount(1);await f.frames();
+  const target=f.palette.getByRole('button').filter({has:page.locator('.timeline-quick-actions-item-title',{hasText:/^Open explorer$/})});await expect(target).toHaveCount(1);await expect(target).not.toHaveClass(/active/);await target.focus();
+  let toggles=0;await page.locator('.app-shell').evaluate(el=>{window.__workspaceOpens=0;const o=new MutationObserver(records=>{for(const r of records)if(r.oldValue?.includes('workspace-collapsed')&&!el.classList.contains('workspace-collapsed'))window.__workspaceOpens++;});o.observe(el,{attributes:true,attributeFilter:['class'],attributeOldValue:true});window.__workspaceObserver=o;});
+  await target.press(key);await expect(f.palette).toHaveCount(0);await expect(page.locator('.app-shell')).not.toHaveClass(/workspace-collapsed/);toggles=await page.evaluate(()=>{window.__workspaceObserver.disconnect();return window.__workspaceOpens;});expect(toggles).toBe(1);await page.locator('.workspace-toggle-tab.open').click();await f.unchanged();
+ }
 });

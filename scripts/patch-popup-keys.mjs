@@ -1,4 +1,6 @@
 // Event ownership and dismissal adaptation; supplied source bytes stay intact.
+export const quickActionsCloseMarkup = `                            <button type="button" class="gi-quick-actions-close" aria-label="Close quick actions" title="Close quick actions"><span aria-hidden="true">×</span></button>
+`;
 function replace(source, from, to) {
   if (source.split(from).length !== 2) throw new Error(`Popup key adapter anchor changed: ${from}`);
   return source.replace(from, to);
@@ -33,7 +35,13 @@ export function patchQuickActionKeys(source) {
         };`, '');
   source = replace(source, "        document.addEventListener('pointerdown', onPointerDown, true);", '');
   source = replace(source, "            document.removeEventListener('pointerdown', onPointerDown, true);", '');
-  return replace(source, '        const onKeyDown = (event) => {', '        const onKeyDown = (event) => {\n            if (settingsOwnsKeyboard()) return;');
+  source = replace(source, '                            <div class="timeline-quick-actions-hints"', quickActionsCloseMarkup + '                            <div class="timeline-quick-actions-hints"');
+  return replace(source, '    useEffect(() => {\n        const onKeyDown = (event) => {', `    useLayoutEffect(() => {
+        const onKeyDown = (event) => {
+            if (settingsOwnsKeyboard()) return;
+            // Focused native buttons own Enter/Space, including Close and
+            // action rows. Search-field navigation retains the supplied path.
+            if (rootRef.current?.contains(event.target) && event.target?.closest?.('button')) return;`);
 }
 export function patchComposePopupKeys(source) {
   source = replace(source, '    const handlePopupKeyboardEvent = useCallback((e) => {\n        if (searchMode', '    const handlePopupKeyboardEvent = useCallback((e) => {\n        if (settingsOwnsKeyboard()) return false;\n        if (searchMode');
