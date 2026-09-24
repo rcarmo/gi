@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Verify/map Classic shell002/003/005 independently: native hidden-file setting/event/reload, disabled workspace actions while hidden, composer available-width geometry across drawer/sidebar/resize/reload. Exact draft/media retention;18focused/162regression/90functional/68helpers/Go-vet-build-hook pass; reviewed. Classic84/236+shared27/42, unmapped152/15. Test-only, no restart; live61sessions/integrityOK. No URL chat-only, mobile-safe-area, scale or new terminal credit.
+
 - [x] Terminal Alt-M: metadata-aware search, enabled-only navigation, explicit unavailable retry and generation-owned native selection in the existing ≤6-result selector. Temporary regular-mode screen prevents resize fragments entering history; Escape restores multiline draft/cursor and unchanged idle rows. Six fullscreen/regular PTYs, Go/vet/build-hook/race×3, existing TUI suites,90functional/68helpers pass. Push5ae2196/restart8090 read-only six-size browser smoke,61sessions/integrityOK/zero writes-errors; terminal captures attached. Web coverage unchanged81/236+27/42.
 
 - [x] Fence stale terminal SSE frames with native turn IDs: captured Stop/reconnect, duplicate old idle/completion replay with held authority reads, newer Stop/preview retention and stale Stop409. Reconnect66/functional90/helpers68/Go-vet-build-hook/race×3/three-size TUI regressions pass. Push73613d4/restart8090: six-browser-size read-only shell/model/focus/draft smoke, zero writes/errors,61sessions/integrityOK. Native stale-frame proof stays isolated; no idle UI or frozen credit.
