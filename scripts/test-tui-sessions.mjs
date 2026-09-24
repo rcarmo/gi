@@ -33,7 +33,7 @@ async function snapshot(name) {
   return screen;
 }
 function assert(condition, detail) { if (!condition) throw new Error(detail); }
-function selectorRows(screen) { return screen.split('\n').filter(line => /^\s*[›*]?\s*\d+\. /.test(line)); }
+function selectorRows(screen) { return screen.split('\n').filter(line => /^\s*[›*×]?\s*\d+\. /.test(line)); }
 function separators(screen) { return screen.split('\n').map((line,index)=>({line,index})).filter(({line})=>/^\s*[─━-]{10,}\s*$/.test(line)).map(({index})=>index); }
 function withoutCursor(screen) { return screen.replaceAll('▌',' ').split('\n').map(line=>line.trimEnd()).join('\n'); }
 

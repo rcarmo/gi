@@ -289,6 +289,12 @@ test-tui-compaction:
 test-tui-source-copy: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-source-copy.mjs
 
+.PHONY: test-tui-model-picker
+test-tui-model-picker:
+	mkdir -p $(BIN_DIR)
+	$(GO) build -o $(BIN_DIR)/gi-tui-model-picker ./tests/tui-model-picker
+	GI_TUI_MODEL_BIN=$(abspath $(BIN_DIR)/gi-tui-model-picker) $(BUN) scripts/test-tui-model-picker.mjs
+
 .PHONY: test-tui-reading test-tui-outcomes test-tui-regular test-tui-search test-tui-selection test-tui-index
 
 test-tui-index: build

@@ -36,7 +36,7 @@ func (c *chatTUI) regularPending() []string {
 }
 
 func (c *chatTUI) flushRegularTranscript() {
-	if !c.regularMode || c.app == nil || c.workspaceIndex.active {
+	if !c.regularMode || c.app == nil || c.workspaceIndex.active || c.modelMenuAltScreen {
 		return
 	}
 	if c.regularSessionPending {
@@ -71,7 +71,10 @@ func (c *chatTUI) renderRegular(app *gotui.App) *gotui.Element {
 	if c.workspaceIndex.active && c.regularWidth != 0 && (w != c.regularWidth || h != c.regularHeight) {
 		c.workspaceIndex.resized = true
 	}
-	if !c.workspaceIndex.active && c.regularWidth != 0 && (w != c.regularWidth || h != c.regularHeight) {
+	if c.modelMenuAltScreen && c.regularWidth != 0 && (w != c.regularWidth || h != c.regularHeight) {
+		c.modelMenuResized = true
+	}
+	if !c.workspaceIndex.active && !c.modelMenuAltScreen && c.regularWidth != 0 && (w != c.regularWidth || h != c.regularHeight) {
 		// The inline renderer invalidates history geometry on width changes.
 		// Re-establish it conservatively before any dynamic dock growth.
 		app.PrintAboveln("sys: terminal resized to %dx%d", w, h)
@@ -83,6 +86,14 @@ func (c *chatTUI) renderRegular(app *gotui.App) *gotui.Element {
 		// temporary, including multiline editor height. Only five rows contain UI.
 		root := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidthPercent(100), gotui.WithHeight(5))
 		root.AddChild(c.renderWorkspaceIndex(w))
+		return root
+	}
+	if c.modelMenuAltScreen {
+		// Preserve the main-screen inline dock while a temporary selector owns
+		// this screen, as with the bounded workspace-index panel above.
+		app.SetInlineHeight(max(c.modelMenuInlineHeight, c.modelMenuHeight()))
+		root := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidthPercent(100), gotui.WithHeight(c.modelMenuHeight()))
+		root.AddChild(c.renderModelMenu(w))
 		return root
 	}
 	c.ensureInput()

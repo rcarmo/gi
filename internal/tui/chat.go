@@ -222,6 +222,11 @@ type chatTUI struct {
 	modelMenuOpen               bool
 	modelMenuKind               string
 	modelMenuValues             map[string]string
+	modelMenuMetadata           map[string]modelPickerMetadata
+	modelMenuSession            sessionScope
+	modelMenuAltScreen          bool
+	modelMenuResized            bool
+	modelMenuInlineHeight       int
 	modelMenuChoices            []string
 	modelMenuAll                []string
 	modelMenuQuery              string
@@ -493,7 +498,7 @@ func (c *chatTUI) Init() func() {
 		})
 	}
 
-	return func() { c.stopSessionSubscription(); c.stopWorkspaceIndex() }
+	return func() { c.stopSessionSubscription(); c.stopWorkspaceIndex(); c.closeModelPickerScreen() }
 }
 
 func (c *chatTUI) bindSession(sessionID string) {
@@ -1639,6 +1644,8 @@ func (c *chatTUI) openModelMenu() {
 	c.modelMenuError = ""
 	c.modelMenuOpen = true
 	c.modelMenuKind = "model"
+	c.captureModelPickerMetadata()
+	c.openModelPickerScreen()
 	c.modelMenuValues = nil
 	c.modelMenuAll = choices
 	c.modelMenuQuery = ""
@@ -1730,8 +1737,17 @@ func filterModelMenuChoices(all []string, query string) []string {
 
 func (c *chatTUI) applyModelMenuFilter() {
 	c.modelMenuChoices = filterModelMenuChoices(c.modelMenuAll, c.modelMenuQuery)
+	if c.modelMenuKind == "model" {
+		c.modelMenuChoices = nil
+		for _, label := range c.modelMenuAll {
+			if fuzzyMatch(c.modelMenuQuery, label+" "+c.modelMenuMetadata[label].search) {
+				c.modelMenuChoices = append(c.modelMenuChoices, label)
+			}
+		}
+	}
 	c.modelMenuSelected = 0
 	c.modelMenuScroll = 0
+	c.setModelMenuSelection(0)
 	c.ensureModelMenuSelectionVisible()
 	if c.app != nil {
 		c.app.MarkDirty()
@@ -1758,8 +1774,11 @@ func (c *chatTUI) modelMenuBackspace() {
 }
 
 func (c *chatTUI) closeModelMenu() {
-	c.modelMenuError = ""
+	// Hide before the screen-restore resize is dispatched.
 	c.modelMenuOpen = false
+	c.closeModelPickerScreen()
+	c.resetModelMenuMetadata()
+	c.modelMenuError = ""
 	c.modelMenuKind = ""
 	c.modelMenuValues = nil
 	c.modelMenuChoices = nil
@@ -1767,6 +1786,10 @@ func (c *chatTUI) closeModelMenu() {
 	c.modelMenuQuery = ""
 	c.modelMenuSelected = 0
 	c.modelMenuScroll = 0
+	if c.input != nil {
+		c.input.suspended = false
+		c.input.Focus()
+	}
 	c.focusInput()
 	if c.app != nil {
 		c.app.MarkDirty()
@@ -1774,6 +1797,26 @@ func (c *chatTUI) closeModelMenu() {
 }
 
 func (c *chatTUI) moveModelMenuSelection(delta int) {
+	if c.modelMenuKind == "model" {
+		enabled := c.enabledModelMenuIndices()
+		if len(enabled) == 0 {
+			return
+		}
+		position := 0
+		for i, index := range enabled {
+			if index == c.modelMenuSelected {
+				position = i
+				break
+			}
+		}
+		position += delta
+		if delta == 1 || delta == -1 {
+			position = (position + len(enabled)) % len(enabled)
+		}
+		position = max(0, min(position, len(enabled)-1))
+		c.setModelMenuSelection(enabled[position])
+		return
+	}
 	index := c.modelMenuSelected + delta
 	if len(c.modelMenuChoices) > 0 && (delta == 1 || delta == -1) {
 		index = (index + len(c.modelMenuChoices)) % len(c.modelMenuChoices)
@@ -1782,6 +1825,21 @@ func (c *chatTUI) moveModelMenuSelection(delta int) {
 }
 
 func (c *chatTUI) setModelMenuSelection(idx int) {
+	if c.modelMenuKind == "model" {
+		enabled := c.enabledModelMenuIndices()
+		if len(enabled) == 0 {
+			c.modelMenuSelected = -1
+			return
+		}
+		selected := enabled[len(enabled)-1]
+		for _, index := range enabled {
+			if index >= idx {
+				selected = index
+				break
+			}
+		}
+		idx = selected
+	}
 	if len(c.modelMenuChoices) == 0 {
 		return
 	}
@@ -1825,6 +1883,13 @@ func (c *chatTUI) modelMenuVisibleRows() int {
 }
 
 func (c *chatTUI) ensureModelMenuSelectionVisible() {
+	if c.modelMenuKind == "model" && c.modelMenuSelected >= 0 && c.modelMenuSelected < len(c.modelMenuChoices) && c.modelPickerUnavailable(c.modelMenuChoices[c.modelMenuSelected]) != "" {
+		c.modelMenuSelected = -1
+		for _, index := range c.enabledModelMenuIndices() {
+			c.modelMenuSelected = index
+			break
+		}
+	}
 	rows := c.modelMenuVisibleRows()
 	if c.modelMenuSelected < c.modelMenuScroll {
 		c.modelMenuScroll = c.modelMenuSelected
@@ -1845,6 +1910,33 @@ func (c *chatTUI) ensureModelMenuSelectionVisible() {
 }
 
 func (c *chatTUI) acceptModelMenuSelection() {
+	if c.modelMenuOpen && c.modelMenuKind == "model" {
+		if !c.ownsScope(c.modelMenuSession) {
+			c.modelMenuError = "session changed; reopen picker"
+			if c.app != nil {
+				c.app.MarkDirty()
+			}
+			return
+		}
+		if len(c.modelMenuChoices) > 0 {
+			label := c.modelMenuChoices[max(0, min(c.modelMenuSelected, len(c.modelMenuChoices)-1))]
+			if c.modelPickerUnavailable(label) != "" {
+				// Enter on a blocked-only result is an explicit metadata retry.
+				// Recovery only highlights it; a second Enter is required to apply.
+				c.captureModelPickerMetadata()
+				if reason := c.modelPickerUnavailable(label); reason != "" {
+					c.modelMenuError = "model unavailable: " + reason
+				} else {
+					c.modelMenuError = ""
+					c.setModelMenuSelection(max(0, c.modelMenuSelected))
+				}
+				if c.app != nil {
+					c.app.MarkDirty()
+				}
+				return
+			}
+		}
+	}
 	if !c.modelMenuOpen || len(c.modelMenuChoices) == 0 || c.modelMenuSelected < 0 || c.modelMenuSelected >= len(c.modelMenuChoices) {
 		return
 	}
@@ -1955,6 +2047,10 @@ func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
 			style = style.Foreground(gotui.Cyan)
 		}
 		label := fmt.Sprintf("%s%d. %s", prefix, i+1, model)
+		if reason := c.modelPickerUnavailable(model); reason != "" {
+			label = fmt.Sprintf("× %d. %s · %s", i+1, model, reason)
+			style = gotui.NewStyle().Dim()
+		}
 		menu.AddChild(gotui.New(gotui.WithWidthPercent(100), gotui.WithText(selectorText(label, width)), gotui.WithTextStyle(style)))
 	}
 	return menu

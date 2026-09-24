@@ -10,6 +10,8 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Terminal Alt-M: metadata-aware search, enabled-only navigation, explicit unavailable retry and generation-owned native selection in the existing ≤6-result selector. Temporary regular-mode screen prevents resize fragments entering history; Escape restores multiline draft/cursor and unchanged idle rows. Six fullscreen/regular PTYs, Go/vet/build-hook/race×3, existing TUI suites,90functional/68helpers pass. Web coverage unchanged81/236+27/42; deployment below.
+
 - [x] Fence stale terminal SSE frames with native turn IDs: captured Stop/reconnect, duplicate old idle/completion replay with held authority reads, newer Stop/preview retention and stale Stop409. Reconnect66/functional90/helpers68/Go-vet-build-hook/race×3/three-size TUI regressions pass. Push73613d4/restart8090: six-browser-size read-only shell/model/focus/draft smoke, zero writes/errors,61sessions/integrityOK. Native stale-frame proof stays isolated; no idle UI or frozen credit.
 - [ ] Shared36 remains unmapped: engine cleanup automatically starts the next queued turn after cancellation, so the queue is not preserved unchanged. Resolve that policy explicitly before claiming the full contract. Shared35 capability/estimate evidence remains open.
 
