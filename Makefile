@@ -288,6 +288,14 @@ test-tool-activity:
 	$(GO) test -race -count=3 ./internal/store ./internal/web -run 'ToolActivity|ToolPreview|SessionActivity'
 
 .PHONY: test-terminal-tool-identity test-tui-tool-timing
+.PHONY: test-terminal-links
+test-terminal-links:
+	$(GO) test -race -count=3 ./internal/tui -run 'TranscriptLink|TranscriptSelection|TranscriptSearch'
+
+.PHONY: test-tui-links
+test-tui-links: build
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-links.mjs
+
 test-terminal-tool-identity:
 	$(GO) test -race -count=3 ./internal/tui -run 'ToolRuntime|ToolEndWithout|RenderToolEvent|BuildTranscriptRenderable'
 
@@ -347,13 +355,13 @@ test-tui-model-picker:
 test-tui-index: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-index.mjs
 test-tui-selection: build
-	$(BUN) scripts/test-tui-selection.mjs
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-selection.mjs
 
 test-tui-search: build
-	$(BUN) scripts/test-tui-search.mjs
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-search.mjs
 
 test-tui-regular: build
-	$(BUN) scripts/test-tui-regular.mjs
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-regular.mjs
 
 test-tui-outcomes: build
 	$(BUN) scripts/test-tui-outcomes.mjs

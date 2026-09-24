@@ -6,7 +6,7 @@ import {spawnSync} from 'node:child_process';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
-const root=process.cwd(),artifacts=resolve('test-results/tui-regular');mkdirSync(artifacts,{recursive:true});
+const root=process.cwd(),bin=process.env.GI_TUI_BIN||resolve('bin/gi'),artifacts=resolve('test-results/tui-regular');mkdirSync(artifacts,{recursive:true});
 const run=(cmd,args)=>{const r=spawnSync(cmd,args,{encoding:'utf8',timeout:15000});if(r.status!==0)throw Error(`${cmd} ${args.join(' ')}\n${r.stderr}`);return r.stdout;};
 const tmux=(...args)=>run('tmux',args),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const wait=async(fn,label)=>{const end=Date.now()+15000;while(Date.now()<end){if(await fn())return;await sleep(80)}throw Error('Timed out: '+label);};
@@ -25,7 +25,7 @@ for(const [width,height] of [[60,18],[100,22],[140,36]]){
  const bars=text=>text.split('\n').map((line,i)=>/^\s*─{10,}\s*$/.test(line)?i:-1).filter(i=>i>=0);
  const idle=()=>sql('select count(*) from session_active_turns;')==='0';
  const intact=label=>{const text=history().replace(/\s+/g,' ');assert(JSON.stringify([...text.matchAll(/Gi received: Native regular (\d+)\b/g)].map(m=>Number(m[1])))===JSON.stringify(Array.from({length:12},(_,i)=>i+1)),`${label}: lost, duplicated or reordered native history`);assert(text.includes('Gi received: UX queue gate:regular'),`${label}: lost gate response`);};
- const launch=()=>tmux('new-session','-d','-s',session,'-x',String(width),'-y',String(height),`cd '${dir}' && printf 'PREEXISTING SHELL OUTPUT\\n' && PATH='${root}/tests/ux/shell':"$PATH" GI_UX_QUEUE_GATES='${dir}' TERM=xterm-256color COLORTERM=truecolor '${root}/bin/gi' -tui -tui-mode regular -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'; printf '\\nREGULAR EXITED\\n'; sleep 60`);
+ const launch=()=>tmux('new-session','-d','-s',session,'-x',String(width),'-y',String(height),`cd '${dir}' && printf 'PREEXISTING SHELL OUTPUT\\n' && PATH='${root}/tests/ux/shell':"$PATH" GI_UX_QUEUE_GATES='${dir}' TERM=xterm-256color COLORTERM=truecolor '${bin}' -tui -tui-mode regular -db '${db}' -workspace '${dir}' -model test-model 2>'${dir}/runtime.log'; printf '\\nREGULAR EXITED\\n'; sleep 60`);
  try{
   launch();tmux('set-option','-t',session,'status','off');await wait(()=>capture().includes('m0/t0'),'startup');
   assert(flags()==='0 0 0','regular enabled alternate screen or mouse capture');assert(history().includes('PREEXISTING SHELL OUTPUT'),'startup erased shell history');

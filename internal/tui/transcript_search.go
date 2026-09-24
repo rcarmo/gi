@@ -67,7 +67,7 @@ func (c *chatTUI) transcriptRowsAtWidth(width int) []transcriptSearchRow {
 					value = " "
 				}
 				text.WriteString(value)
-				spans = append(spans, gotui.TextSpan{Text: value, Style: cell.Style})
+				spans = append(spans, gotui.TextSpan{Text: value, Style: cell.Style, Link: cell.Link})
 			}
 			key := ""
 			separator, _, _ := transcriptSpacing(block.Kind)

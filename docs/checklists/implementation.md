@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-24
 
+- [x] Decorate intact parenthesised HTTP(S) terminal URLs with safe OSC8 metadata, preserve targets through search, and give linked tool-body clicks precedence over block toggling. Visible text/drag-copy unchanged; credentials/control targets rejected, terminal-client activation only.6link PTYs+9selection/search/regular regressions/98standardfunctional/96helpers1175assertions/Go-vet-hook/TUI race x3 pass; no idle rows or browser mapping. Wrapped/complex URL spans, word selection and right-edge selection semantics remain separate. Older PTY scripts now accept isolated GI_TUI_BIN instead of building through the live binary symlink.
+
 - [x] Verify Settings002 independently: uncached shell/header/navigation/General before held native snapshot, native values after release,503Retry recovery and exact persisted draft/media/session/no-write protection.216Settings browser/98standard functional (2seed-dependent cases skipped)/96helpers1175assertions/Go-vet-hook/review pass. Coverage96/236+30/42 unmapped140/12; test-only/no restart or terminal/pane-behaviour credit.
 
 - [x] Persist recovered final-response marker from exact session/turn native stale-claim requeue events; successful shell and inference share stored/live blocks, ordinary/held/terminal-release recovery excluded. Guarded Post adapter places existing chips after timestamp. Timeline026 six-project geometry/reload/search/draft-media proof:54browser+1seededfunctional/98standardfunctional/96helpers1170assertions/Go-vet-hook/recovery race x3/sixTUI timing regressions pass. Coverage95/236+30/42 unmapped141/12; timeout semantics and terminal outcome display separate.

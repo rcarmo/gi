@@ -4552,8 +4552,7 @@ func (c *chatTUI) renderInlineStyledLine(line string, style gotui.Style) *gotui.
 	if len(segments) == 1 && !segments[0].Code {
 		return gotui.New(
 			gotui.WithWidthPercent(100),
-			gotui.WithText(segments[0].Text),
-			gotui.WithTextStyle(style),
+			gotui.WithRichText(transcriptLinkSpans(segments[0].Text, style)...),
 		)
 	}
 	row := gotui.New(
@@ -4569,10 +4568,11 @@ func (c *chatTUI) renderInlineStyledLine(line string, style gotui.Style) *gotui.
 		if seg.Code {
 			segStyle = gotui.NewStyle().Foreground(gotui.BrightBlack).Dim()
 		}
-		row.AddChild(gotui.New(
-			gotui.WithText(seg.Text),
-			gotui.WithTextStyle(segStyle),
-		))
+		spans := []gotui.TextSpan{{Text: seg.Text, Style: segStyle}}
+		if !seg.Code {
+			spans = transcriptLinkSpans(seg.Text, segStyle)
+		}
+		row.AddChild(gotui.New(gotui.WithRichText(spans...)))
 	}
 	return row
 }

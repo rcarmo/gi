@@ -23,6 +23,7 @@ type transcriptSelection struct {
 	start, end                    transcriptPoint
 	pressX, pressY                int
 	clickKey                      string
+	pressLink                     string
 	previousFollow                bool
 	pointerX, pointerY            int
 	generation                    uint64
@@ -125,6 +126,22 @@ func (s *transcriptSelection) text() string {
 	return strings.Join(lines, "\n")
 }
 
+// Columns are display cells, including both cells of a wide grapheme.
+func transcriptRowLinkAt(row transcriptSearchRow, column int) string {
+	if column < 0 {
+		return ""
+	}
+	x := 0
+	for _, span := range row.spans {
+		width := gotui.StringWidth(span.Text)
+		if column >= x && column < x+width {
+			return span.Link
+		}
+		x += width
+	}
+	return ""
+}
+
 func (c *chatTUI) handleTranscriptSelection(me gotui.MouseEvent) bool {
 	if c.regularMode || c.modelMenuOpen || c.transcriptRegion == nil {
 		return false
@@ -175,6 +192,7 @@ func (c *chatTUI) handleTranscriptSelection(me gotui.MouseEvent) bool {
 		s.pointerX, s.pointerY = me.X, me.Y
 		s.start = c.selectionPoint(me.X, me.Y)
 		s.clickKey = rows[s.start.row].blockKey
+		s.pressLink = transcriptRowLinkAt(rows[s.start.row], s.start.col)
 		s.end = s.start
 		s.previousFollow = c.stickToBottom
 		c.stickToBottom = false
@@ -197,10 +215,12 @@ func (c *chatTUI) handleTranscriptSelection(me gotui.MouseEvent) bool {
 		s.moved = s.moved || s.end != s.start
 		s.dragging = false
 		if !s.moved {
-			key, follow := s.clickKey, s.previousFollow
+			key, follow, linked := s.clickKey, s.previousFollow, s.pressLink != ""
 			c.clearTranscriptSelection()
 			c.stickToBottom = follow
-			if key != "" {
+			// OSC 8 activation belongs to the terminal client (usually a
+			// modified click). Never also toggle the containing tool block.
+			if key != "" && !linked {
 				c.toggleTranscriptBlock(key)
 			}
 		} else {
