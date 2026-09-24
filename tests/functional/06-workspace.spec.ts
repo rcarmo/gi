@@ -106,3 +106,10 @@ test('workspace index reads keep edited bytes stale until the next explicit appl
  const after=await refresh();expect(after.generation).toBe(before.generation+1);expect(after.state).toBe('ready');
  expect((await search('lifecyclenewviolet')).hits.map((h:any)=>h.path)).toEqual([path]);expect((await search('lifecycleoldorchid')).hits).toEqual([]);
 });
+
+test('Read-only workspace tab mounts native content and closes back to the draft',async({page,request})=>{
+ const path=`functional-tab-${Date.now()}.md`;const written=await request.post(`${BASE_URL}/api/tools/execute`,{data:{tool:'write',input:{path,content:'# Native tab proof'}}});expect(written.ok()).toBe(true);expect((await written.json()).error).toBeFalsy();
+ await page.goto(BASE_URL);const input=page.locator('textarea').last();await expect(input).toBeVisible();await input.fill('retained tab draft');await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();await page.locator(`.workspace-row[data-path="${path}"] .workspace-label-text`).click();await page.getByRole('button',{name:'Open read-only tab',exact:true}).click();
+ const preview=page.getByRole('region',{name:`Read-only preview: ${path}`,exact:true});await expect(preview.getByRole('heading',{name:'Native tab proof',exact:true})).toBeVisible();await expect(preview.locator('[contenteditable=true],textarea')).toHaveCount(0);
+ await preview.getByRole('button',{name:'Close preview',exact:true}).click();await expect(preview).toHaveCount(0);await expect(input).toHaveValue('retained tab draft');
+});

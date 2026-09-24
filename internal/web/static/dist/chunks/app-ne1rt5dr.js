@@ -12004,7 +12004,7 @@ function WorkspaceExplorer({
     });
   }, [selectedPath, selectedIsDir, showHidden, isDarkTheme]);
   const canEdit = Boolean(preview && preview.kind === "text" && !selectedIsDir && (!preview.size || preview.size <= 256 * 1024));
-  const editTitle = canEdit ? "Open in editor" : preview?.size > 256 * 1024 ? "File too large to edit" : "File is not editable";
+  const editTitle = canEdit ? "Open read-only tab" : preview?.size > 256 * 1024 ? "File too large for a read-only tab" : "File preview only";
   const selectedHasOpenableTab = Boolean(selectedPath && !selectedIsDir && hasOpenableWorkspaceTab(selectedPath));
   const selectedCanRename = Boolean(selectedPath && selectedPath !== ".");
   const selectedCanDelete = Boolean(selectedPath && !selectedIsDir);
@@ -12855,7 +12855,7 @@ function WorkspaceExplorer({
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuOpenTab}>Open in tab</button>
                                 `}
                                 ${selectedPath && !selectedIsDir && fe`
-                                    <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuOpenEditor} disabled=${!canEdit}>Open in editor</button>
+                                    <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuOpenEditor} disabled=${!canEdit}>Open read-only tab</button>
                                 `}
                                 ${selectedCanRename && fe`
                                     <button class="workspace-menu-item" role="menuitem" onClick=${handleMenuRename}>Rename selected</button>
@@ -13415,6 +13415,53 @@ function TabStrip({ tabs, activeId, onActivate, onClose, onCloseOthers, onCloseA
             </div>
         `}
     `;
+}
+
+// web/src/gi-workspace-tab-lifecycle.ts
+function mountWorkspaceTab(container, path, changed, read, registry) {
+  let live = true, instance = null;
+  changed({ loading: true, error: "" });
+  read(path, 20000).then((preview) => {
+    if (!live)
+      return;
+    try {
+      const context = { path, mode: "view", preview };
+      const extension = registry.resolve(context);
+      if (!extension)
+        throw new Error("No read-only preview available.");
+      instance = extension.mount(container, context);
+      changed({ loading: false, error: "" });
+    } catch (error) {
+      container.replaceChildren();
+      changed({ loading: false, error: error.message || "Preview failed." });
+    }
+  }, (error) => {
+    if (live)
+      changed({ loading: false, error: error.message || "Preview failed." });
+  });
+  return () => {
+    if (!live)
+      return;
+    live = false;
+    instance?.dispose();
+    container.replaceChildren();
+  };
+}
+
+// web/src/gi-workspace-tab.ts
+function WorkspaceTab({ path, onClose }) {
+  const host = Q_(null);
+  const [state, setState] = F_({ loading: true, error: "" });
+  const [attempt, setAttempt] = F_(0);
+  W_(() => mountWorkspaceTab(host.current, path, setState, getWorkspaceFile, paneRegistry), [path, attempt]);
+  return fe`<section class="gi-workspace-tab editor-pane" role="region" aria-label=${`Read-only preview: ${path}`}>
+        <div class="gi-workspace-tab-toolbar"><span>Read-only preview</span>
+            <button onClick=${() => setAttempt((value) => value + 1)} disabled=${state.loading}>Refresh preview</button>
+            <button onClick=${onClose}>Close preview</button></div>
+        ${state.loading && fe`<p role="status">Loading preview…</p>`}
+        ${state.error && fe`<p role="alert">${state.error} <button onClick=${() => setAttempt((value) => value + 1)}>Retry preview</button></p>`}
+        <div class="workspace-preview-body gi-workspace-tab-body" ref=${host}></div>
+    </section>`;
 }
 
 // web/src/components/generated-widget-host-bridge.ts
@@ -17994,10 +18041,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-70cjga6m.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-9k61ws9a.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-9560c87m.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-k42wrg5f.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-qf1862ep.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-kr2mzwbf.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-y57ffb9s.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-35y3ywha.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -19105,6 +19152,7 @@ function GiApp() {
   const [workspaceOpen, setWorkspaceOpen] = F_(false);
   const [tabs, setTabs] = F_([]);
   const [activeTabId, setActiveTabId] = F_(null);
+  const tabFocusEpoch = Q_(0);
   const editorOpen = tabs.length > 0;
   const [posts, setPosts] = F_([]);
   const [hasMore, setHasMore] = F_(false);
@@ -19926,6 +19974,9 @@ function GiApp() {
     }
   };
   const openEditor = Y_((path) => {
+    ++tabFocusEpoch.current;
+    if (window.matchMedia("(max-width: 1023px), (orientation: portrait)").matches)
+      setWorkspaceOpen(false);
     const existing = tabs.find((t) => t.id === path || t.path === path);
     if (existing) {
       setActiveTabId(existing.id);
@@ -19939,6 +19990,14 @@ function GiApp() {
       const next = prev.filter((t) => t.id !== id);
       if (activeTabId === id)
         setActiveTabId(next[next.length - 1]?.id || null);
+      if (!next.length) {
+        const epoch = ++tabFocusEpoch.current;
+        requestAnimationFrame(() => {
+          if (epoch !== tabFocusEpoch.current || document.activeElement !== document.body || document.querySelector('.settings-dialog[aria-modal="true"]'))
+            return;
+          document.querySelector(".compose-box textarea")?.focus({ preventScroll: true });
+        });
+      }
       return next;
     });
   }, [activeTabId]);
@@ -20043,7 +20102,12 @@ function GiApp() {
             </button>
             <div class="workspace-splitter"></div>
             ${editorOpen && fe`
-                <div class="editor-pane-container">
+                <div class="editor-pane-container gi-readonly-tabs" onContextMenuCapture=${(e) => {
+    if (e.target.closest(".tab-item")) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }}>
                     <${TabStrip}
                         tabs=${tabs}
                         activeId=${activeTabId}
@@ -20056,7 +20120,9 @@ function GiApp() {
   }}
                         onTogglePin=${() => {}}
                     />
-                    <div class="editor-pane-host"></div>
+                    <div class="editor-pane-host">
+                        ${activeTabId && fe`<${WorkspaceTab} key=${activeTabId} path=${activeTabId} onClose=${() => handleTabClose(activeTabId)} />`}
+                    </div>
                 </div>
                 <div class="editor-splitter"></div>
             `}
@@ -20336,5 +20402,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=A0F88CB8EE88915A64756E2164756E21
-//# sourceMappingURL=app-eb5s3nyp.js.map
+//# debugId=BC794C546513BA6464756E2164756E21
+//# sourceMappingURL=app-ne1rt5dr.js.map

@@ -68,6 +68,7 @@ import { ComposeBox, QueuedFollowupStack, parseQueuedContent } from './component
 import { AgentStatus, AgentRequestModal } from './components/status.js';
 import { WorkspaceExplorer } from './components/workspace-explorer.js';
 import { TabStrip } from './components/tab-strip.js';
+import { WorkspaceTab } from './gi-workspace-tab.js';
 import { FloatingWidgetPane } from './components/floating-widget-pane.js';
 import { AttachmentPreviewModal } from './components/attachment-preview-modal.js';
 import { SystemMetersHud } from './components/system-meters-hud.js';
@@ -262,6 +263,7 @@ function GiApp() {
     const [workspaceOpen, setWorkspaceOpen] = useState(false);
     const [tabs, setTabs] = useState<any[]>([]);
     const [activeTabId, setActiveTabId] = useState<string | null>(null);
+    const tabFocusEpoch = useRef(0);
     const editorOpen = tabs.length > 0;
 
     // Timeline
@@ -895,6 +897,8 @@ function GiApp() {
     // ── Pane helpers ──────────────────────────────────────────────────────────
 
     const openEditor = useCallback((path: string) => {
+        ++tabFocusEpoch.current;
+        if (window.matchMedia('(max-width: 1023px), (orientation: portrait)').matches) setWorkspaceOpen(false);
         const existing = tabs.find((t: any) => t.id === path || t.path === path);
         if (existing) { setActiveTabId(existing.id); return; }
         setTabs((prev: any[]) => [...prev, { id: path, path, label: path.split('/').pop() || path, dirty: false, pinned: false }]);
@@ -905,6 +909,13 @@ function GiApp() {
         setTabs((prev: any[]) => {
             const next = prev.filter((t: any) => t.id !== id);
             if (activeTabId === id) setActiveTabId(next[next.length - 1]?.id || null);
+            if (!next.length) {
+                const epoch = ++tabFocusEpoch.current;
+                requestAnimationFrame(() => {
+                    if (epoch !== tabFocusEpoch.current || document.activeElement !== document.body || document.querySelector('.settings-dialog[aria-modal="true"]')) return;
+                    document.querySelector<HTMLTextAreaElement>('.compose-box textarea')?.focus({ preventScroll: true });
+                });
+            }
             return next;
         });
     }, [activeTabId]);
@@ -1004,7 +1015,7 @@ function GiApp() {
             </button>
             <div class="workspace-splitter"></div>
             ${editorOpen && html`
-                <div class="editor-pane-container">
+                <div class="editor-pane-container gi-readonly-tabs" onContextMenuCapture=${e => { if (e.target.closest('.tab-item')) { e.preventDefault(); e.stopPropagation(); } }}>
                     <${TabStrip}
                         tabs=${tabs}
                         activeId=${activeTabId}
@@ -1014,7 +1025,9 @@ function GiApp() {
                         onCloseAll=${() => { setTabs([]); setActiveTabId(null); }}
                         onTogglePin=${() => {}}
                     />
-                    <div class="editor-pane-host"></div>
+                    <div class="editor-pane-host">
+                        ${activeTabId && html`<${WorkspaceTab} key=${activeTabId} path=${activeTabId} onClose=${() => handleTabClose(activeTabId)} />`}
+                    </div>
                 </div>
                 <div class="editor-splitter"></div>
             `}

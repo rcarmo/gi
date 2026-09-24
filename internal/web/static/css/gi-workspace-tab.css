@@ -1,0 +1,18 @@
+.gi-workspace-tab { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.gi-workspace-tab-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; font-size: 12px; border-bottom: 1px solid var(--border-color); }
+.gi-workspace-tab-toolbar span { flex: 1; color: var(--text-secondary); }
+.gi-workspace-tab-body { flex: 1; min-height: 0; overflow: auto; padding: 12px; }
+.gi-workspace-tab [role="status"], .gi-workspace-tab [role="alert"] { margin: 8px; }
+/* On drawer layouts, only the open preview owns the chat column. Closing its
+   final tab restores the existing composer; no new idle layout is introduced. */
+@media (max-width: 1023px), (orientation: portrait) {
+    .editor-open .gi-readonly-tabs { width: 100%; max-width: 100%; min-width: 0; }
+    .editor-open:has(.gi-readonly-tabs) > .container,
+    .editor-open:has(.gi-readonly-tabs) > .editor-splitter { display: none; }
+}
+/* Read-only tabs must have usable close targets without hover (touch/keyboard),
+   and must not sit beneath the chat's floating menu or meters. */
+.gi-readonly-tabs .tab-close { opacity: 1; pointer-events: auto; flex-shrink: 0; }
+.gi-readonly-tabs .tab-item { flex-shrink: 0; }
+.gi-readonly-tabs .tab-strip { padding-left: 44px; }
+.editor-open:has(.gi-readonly-tabs) .system-meters-hud-overlay { display: none; }
