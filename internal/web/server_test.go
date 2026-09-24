@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1512,5 +1513,55 @@ func TestWorkspaceEndpointsRequireAuthWhenEnrolled(t *testing.T) {
 	srv.Handler().ServeHTTP(treeRes, treeReq)
 	if treeRes.Code != http.StatusUnauthorized {
 		t.Fatalf("expected unauthorized workspace tree without bearer token, got %d body=%s", treeRes.Code, treeRes.Body.String())
+	}
+}
+
+func TestMultipartUploadRetriesReuseOnlyExactSessionFile(t *testing.T) {
+	s, err := store.Open(filepath.Join(t.TempDir(), "media.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	e := turn.New(s)
+	defer e.Close()
+	ctx := context.Background()
+	a, _ := s.CreateSession(ctx, store.NowID("s"), "A", nil)
+	b, _ := s.CreateSession(ctx, store.NowID("s"), "B", nil)
+	srv := New(s, e, config.RuntimeConfig{DefaultModel: "test-model"})
+	upload := func(session, name, content string) int64 {
+		t.Helper()
+		var body bytes.Buffer
+		writer := multipart.NewWriter(&body)
+		part, err := writer.CreateFormFile("file", name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		part.Write([]byte(content))
+		writer.Close()
+		req := httptest.NewRequest(http.MethodPost, "/api/sessions/"+session+"/media", &body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		w := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(w, req)
+		if w.Code != 201 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+		var result struct {
+			Media store.Media `json:"media"`
+		}
+		if err = json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		return result.Media.ID
+	}
+	id := upload(a.ID, "file.txt", "original α")
+	if upload(a.ID, "file.txt", "original α") != id {
+		t.Fatal("retry created duplicate")
+	}
+	if upload(a.ID, "other.txt", "original α") == id || upload(a.ID, "file.txt", "different β") == id || upload(b.ID, "file.txt", "original α") == id {
+		t.Fatal("distinct file/session collapsed")
+	}
+	_, content, err := s.GetMediaContent(ctx, id)
+	if err != nil || string(content) != "original α" {
+		t.Fatal(string(content), err)
 	}
 }

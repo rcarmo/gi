@@ -63,6 +63,9 @@ func (s *Store) CreateMedia(ctx context.Context, sessionID, filename, contentTyp
 		return nil, fmt.Errorf("create media: compress: %w", err)
 	}
 	meta := copyMetadata(metadata)
+	// Reserved server provenance; caller metadata cannot enroll native/API
+	// creates in the browser-only reuse path.
+	delete(meta, "web_upload_sha256")
 	meta["size"] = len(raw)
 	if _, ok := meta["sha256"]; !ok {
 		sum := sha256.Sum256(raw)

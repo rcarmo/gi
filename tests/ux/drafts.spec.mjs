@@ -622,14 +622,14 @@ for (const successfulPrefix of [0, 1]) {
       expect(turns[0].metadata.media.map(({filename})=>filename)).toEqual([...files,newer].map(f=>f.name));
       expect(submissions).toBe(1);
       const persisted = (await (await request.get(mediaPath)).json()).media;
-      // A pre-failure successful upload is retained, not attached by the retry.
-      // Garbage collection/deduplication is a separate, currently absent contract.
-      expect(persisted).toHaveLength(successfulPrefix + 3);
+      // Exact multipart retry reuses the accepted prefix in this session.
+      // Distinct newer files still receive their own native media IDs.
+      expect(persisted).toHaveLength(3);
       for (let i=0;i<ids.length;i++) {
         expect(persisted.find(m=>m.id===ids[i]).filename).toBe([...files,newer][i].name);
         expect(await (await request.get(`${mediaPath}/${ids[i]}`)).body()).toEqual([...files,newer][i].buffer);
       }
-      expect(ids).not.toContain(before[0]?.id);
+      if (successfulPrefix) expect(ids).toContain(before[0].id);
       await expect.poll(() => storedDraft(page,main.id)).toMatchObject({text:'',media:[],pending:0});
       if (successfulPrefix) {
         await switchTo(child); await expect(input).toHaveValue('independent B draft');
@@ -737,7 +737,7 @@ test('Gi Cancel uploads aborts captured batch before send, keeps exact draft/fil
   release();await page.unroute(`**/api/sessions/${main.id}/media`);await page.reload();await expect(input).toHaveValue('cancel draft 中文');await expect(page.locator('.compose-box').getByText('cancel-a.txt',{exact:true})).toBeVisible();await expect(page.locator('.compose-box').getByText('cancel-b.txt',{exact:true})).toBeVisible();await expect.poll(exact).toEqual(before);
   await input.press('Enter');await expect.poll(async()=> (await messages(request,main.id)).filter(m=>m.role==='user').length).toBe(1);const user=(await messages(request,main.id)).find(m=>m.role==='user');expect(user.payload.media).toHaveLength(2);expect(new Set(user.payload.media.map(m=>m.media_id)).size).toBe(2);
   for(const [index,media]of user.payload.media.entries())expect(await(await request.get(`/api/sessions/${main.id}/media/${media.media_id}`)).body()).toEqual(files[index].buffer);
-  expect(prompts).toBe(1);expect((await messages(request,child)).length).toBe(0);await switchTo(child);await expect(input).toHaveValue('independent child');await switchTo(main.id);await page.reload();expect((await messages(request,main.id)).filter(m=>m.role==='user')).toHaveLength(1);
+  expect((await(await request.get(`/api/sessions/${main.id}/media`)).json()).media).toHaveLength(2);expect(prompts).toBe(1);expect((await messages(request,child)).length).toBe(0);await switchTo(child);await expect(input).toHaveValue('independent child');await switchTo(main.id);await page.reload();expect((await messages(request,main.id)).filter(m=>m.role==='user')).toHaveLength(1);
   await page.screenshot({path:info.outputPath('cancelled-upload-retry.png')});
  }finally{release();}
 });
@@ -755,4 +755,31 @@ test('Gi upload cancellation merges newer draft and leaves another session uploa
   await switchTo(child);await expect(input).toHaveValue('newer child');await expect(page.getByRole('button',{name:'Cancel uploads',exact:true})).toBeVisible();releaseUploads();await expect.poll(()=>sending).toBe(true);await expect(page.getByRole('button',{name:'Cancel uploads',exact:true})).toHaveCount(0);await expect(page.locator('.gi-compose-sending')).toBeVisible();
   releaseSend();await expect.poll(async()=> (await messages(request,child)).filter(m=>m.role==='user').length).toBe(1);expect((await messages(request,main.id)).length).toBe(0);await expect(input).toHaveValue('newer child');await switchTo(main.id);await expect(input).toHaveValue('origin captured\n\nnewer origin');await page.reload();await expect(input).toHaveValue('origin captured\n\nnewer origin');
  }finally{releaseUploads();releaseSend();}
+});
+
+for(const method of ['attach','drop','paste'])test(`${method==='attach'?'@shared-39':'Gi'} durable attachment retry via ${method} survives source removal without duplicate media`,async({page,request},info)=>{
+ if(method==='attach'){const scenario=loadCorpus('shared').find(s=>s.id==='@shared-39');await info.attach('gherkin',{body:scenario.steps.join('\n'),contentType:'text/plain'});}
+ const {mkdtempSync,writeFileSync,unlinkSync,existsSync,rmSync}=await import('node:fs'),{tmpdir}=await import('node:os'),{join}=await import('node:path');
+ const {main,child,input,switchTo}=await fixture(page,request,info);await switchTo(child);await input.fill('source-owner draft');await switchTo(main.id);
+ const base64=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=73;c.height=29;c.getContext('2d').fillRect(0,0,73,29);return c.toDataURL('image/png').split(',')[1]});
+ const raw=Buffer.from(base64,'base64'),dir=mkdtempSync(join(tmpdir(),'gi-source-')),path=join(dir,'durable.png');writeFileSync(path,raw);
+ let release,held=false,prompts=0;const gate=new Promise(r=>release=r);
+ await page.route(`**/api/sessions/${main.id}/media`,async route=>{const response=await route.fetch({postData:route.request().postDataBuffer()});expect(response.status()).toBe(201);held=true;await gate;try{await route.fulfill({response});}catch{}});
+ page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname.endsWith('/prompt'))prompts++;});
+ try{
+  await input.fill('durable retry caption');
+  if(method==='attach')await page.locator('.compose-box input[type=file]').setInputFiles(path);
+  else await page.locator(method==='drop'?'.compose-input-wrapper':'.compose-box textarea').evaluate((el,{method,bytes})=>{const data=new DataTransfer();data.items.add(new File([new Uint8Array(bytes)],'durable.png',{type:'image/png'}));el.dispatchEvent(method==='drop'?new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:data}):new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:data}));},{method,bytes:[...raw]});
+  await expect(page.locator('.compose-box').getByText('durable.png',{exact:true})).toBeVisible();await input.press('Enter');await expect.poll(()=>held).toBe(true);await expect(page.getByRole('progressbar',{name:'Attachment upload progress'})).toBeVisible();await expect(page.locator('.gi-compose-upload')).toContainText('Uploading');
+  const before=(await(await request.get(`/api/sessions/${main.id}/media`)).json()).media;expect(before).toHaveLength(1);const id=before[0].id;
+  await page.getByRole('button',{name:'Cancel uploads',exact:true}).click();await expect(input).toHaveValue('durable retry caption');await expect(page.getByRole('alert')).toContainText('Upload cancelled');await expect(page.locator('.gi-compose-transfer')).toBeHidden();expect(prompts).toBe(0);expect(await messages(request,main.id)).toEqual([]);
+  release();await page.unroute(`**/api/sessions/${main.id}/media`);unlinkSync(path);expect(existsSync(path)).toBe(false);await page.reload();await expect(input).toHaveValue('durable retry caption');await expect(page.locator('.compose-box').getByText('durable.png',{exact:true})).toBeVisible();
+  await input.press('Enter');await expect.poll(async()=> (await messages(request,main.id)).filter(m=>m.role==='user').length).toBe(1);
+  const user=(await messages(request,main.id)).find(m=>m.role==='user');expect(user.payload.media).toHaveLength(1);expect(user.payload.media[0]).toMatchObject({media_id:id,session_id:main.id});expect(user.content).toBe(`durable retry caption\n\nAttachments:\n- attachment:${id} (durable.png)`);
+  expect((await(await request.get(`/api/sessions/${main.id}/media`)).json()).media).toHaveLength(1);expect(prompts).toBe(1);
+  const image=page.locator('.media-preview img');await expect(image).toHaveCount(1);await expect.poll(()=>image.evaluate(el=>el.naturalWidth)).toBe(73);
+  await page.reload();await expect(image).toHaveCount(1);await expect.poll(()=>image.evaluate(el=>el.naturalWidth)).toBe(73);expect(await(await request.get(`/api/media/${id}/raw`)).body()).toEqual(raw);expect(existsSync(path)).toBe(false);
+  await switchTo(child);await expect(input).toHaveValue('source-owner draft');expect(await messages(request,child)).toEqual([]);expect((await(await request.get(`/api/sessions/${child}/media`)).json()).media).toEqual([]);
+  if(method==='attach')await info.attach('durable-media-proof',{body:JSON.stringify({id,sourceRemoved:true,bytes:raw.length,session:main.id}),contentType:'application/json'});
+ }finally{release();rmSync(dir,{recursive:true,force:true});}
 });

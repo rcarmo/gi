@@ -24,5 +24,8 @@ test('cancelled composer upload retains native file and draft without message di
   await page.goto('/');const input=page.getByRole('textbox',{name:'Message (Enter to send, Shift+Enter for newline)...',exact:true});await input.fill('retained cancellation draft');await page.locator('.compose-box input[type=file]').setInputFiles({name:'cancel.txt',mimeType:'text/plain',buffer:Buffer.from('native cancellation bytes')});await input.press('Enter');await expect.poll(()=>held).toBe(true);
   await page.getByRole('button',{name:'Cancel uploads',exact:true}).click();await expect(input).toHaveValue('retained cancellation draft');await expect(page.locator('.compose-box').getByText('cancel.txt',{exact:true})).toBeVisible();await expect(page.locator('.gi-compose-transfer')).toBeHidden();
   expect((await(await request.get(`/api/sessions/${created.id}/turns`)).json()).turns||[]).toEqual([]);
+  const before=(await(await request.get(`/api/sessions/${created.id}/media`)).json()).media;expect(before).toHaveLength(1);release();await page.unroute(`**/api/sessions/${created.id}/media`);await input.press('Enter');
+  await expect.poll(async()=>((await(await request.get(`/api/sessions/${created.id}/messages`)).json()).messages||[]).filter(m=>m.role==='user').length).toBe(1);
+  expect((await(await request.get(`/api/sessions/${created.id}/media`)).json()).media.map(m=>m.id)).toEqual([before[0].id]);
  }finally{release();}
 });

@@ -468,6 +468,7 @@ func (s *Server) createMediaFromRequest(r *http.Request, sessionID string) (*sto
 		if err := r.ParseMultipartForm(10 << 20); err != nil {
 			return nil, err
 		}
+		defer r.MultipartForm.RemoveAll()
 		file, header, err := r.FormFile("file")
 		if err != nil {
 			return nil, err
@@ -482,7 +483,7 @@ func (s *Server) createMediaFromRequest(r *http.Request, sessionID string) (*sto
 		}
 		filename := header.Filename
 		partContentType := header.Header.Get("Content-Type")
-		return s.store.CreateMedia(r.Context(), sessionID, filename, partContentType, raw, metadata)
+		return s.store.CreateOrReuseWebMedia(r.Context(), sessionID, filename, partContentType, raw)
 	}
 	var req struct {
 		Filename    string         `json:"filename"`

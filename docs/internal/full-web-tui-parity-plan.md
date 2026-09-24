@@ -10,7 +10,9 @@ Scope confirmed 2026-09-21: finish the whole imported corpus, not just the curre
 - Terminal: implement suitable functional equivalents separately, preserving transcript/editor/footer and zero new idle rows. Browser-only properties (touch, PWA installation, CSS layering) need a documented terminal disposition, not a fictitious terminal pass.
 - Delivery: small tested commits, source provenance, truthful capability/error paths and current evidence reports. Full completion requires no unexplained unmapped cases.
 
-Latest browser repair (2026-09-24): session-owned Cancel uploads aborts captured media batches before message dispatch and restores exact draft/media bytes through existing recovery. Other sessions, newer typing and already-dispatched sends remain independent. 30 final focused/204 regression browser cases, 94 functional and 85 support tests/1,034 assertions pass; Go/vet/hook and bounded review pass. Shared39 remains open; coverage **88/236 + 27/42** unchanged. Details below.
+Latest shared acceptance (2026-09-24): shared39 now passes the attach-file route across all six browser projects: visible upload, cancel retaining draft, explicit retry reusing the native media ID, one media item/user message, original file unlink and reload/raw-byte/render durability. Multipart uploads atomically reuse exact session/name/MIME/bytes. 198 browser/94 functional/85 support tests with 1,039 assertions, Go/vet/hook, store+web race ×3 and concurrent process/store proof pass. Coverage **88/236 Classic + 28/42 shared**, **148/14** unmapped. No general message idempotency or new TUI credit; details below.
+
+Earlier browser repair (2026-09-24): session-owned Cancel uploads aborts captured media batches before message dispatch and restores exact draft/media bytes through existing recovery. Other sessions, newer typing and already-dispatched sends remain independent. 30 final focused/204 regression browser cases, 94 functional and 85 support tests/1,034 assertions pass; Go/vet/hook and bounded review pass. Shared39 remains open; coverage **88/236 + 27/42** unchanged. Details below.
 
 Earlier terminal adaptation (2026-09-24): `/attach` and `/paste-image` stage up to six process-local media references per session for the next ordinary prompt. `/attachments` and `/detach` provide explicit review/removal with no idle row. Native pre/post-admission failure tests, six PTYs, existing TUI regressions, race ×3, 93 functional and 82 support tests pass. No browser coverage change; restart durability and queued-draft media recovery remain open. Details below.
 
@@ -782,3 +784,60 @@ read-only smoke passed preview/pin/bulk-close/draft checks with zero API mutatio
 attempts/page errors; session API 200/62, SQLite integrity `ok`, FK check empty.
 Upload cancellation was exercised only in isolated fixtures, not live sessions.
 Results/logs attached as `/workspace/tmp/gi-upload-cancel-evidence.tar.gz`.
+
+## Shared39: durable attachment retry (2026-09-24)
+
+Multipart browser uploads now use a separate create-or-reuse store operation.
+Within the same session, an identical filename, MIME type and original byte
+sequence returns the existing native media ID. Different files, names, types or
+sessions remain distinct. JSON API and tool/TUI `CreateMedia` callers still create
+new rows; only the reserved web-upload hash field is stripped from caller metadata.
+There is no schema migration or retroactive enrolment of old uploads.
+
+The lookup and insert share a SQLite write transaction. File stores use immediate
+transactions; a no-op write reserves deferred in-memory connections before reading.
+A server-only hash narrows candidates, then exact original bytes decide reuse,
+with bounded gzip decompression. Response metadata is read before Commit, so a
+post-commit caller cancellation cannot turn success into a second database-query
+error. Corrupt compressed candidates fail closed without replacing identity or
+changing bytes already referenced by messages. Explicit repair is required;
+no silent auto-healing or duplication. Multipart temporary files are removed.
+
+Shared39 is mapped through its disjunctive attach-file path, not inferred from
+other tests. The six-project case selects a real local PNG, sees queued filename
+and upload progress, holds an actual native 201 response, cancels with no prompt
+or message, restores the draft, unlinks the source file, reloads, and retries from
+IndexedDB. The server returns the original media ID, stores exactly one media
+row, and receives exactly one successful message with that ID/session. The image
+renders at its native width after reload; raw bytes still match the removed
+source. Another session's draft, media and messages remain untouched. Additional
+drop/paste DOM-handler tests pass but are not physical OS clipboard evidence.
+
+Earlier partial-upload failure coverage now requires reuse of the accepted
+prefix rather than expecting duplicate stored rows. That is a deliberate native
+behaviour improvement; frozen source assertions and supplied component/pane bytes
+are unchanged. Cancellation without a later retry may still leave unreferenced
+media. Reuse avoids another row on retry, but is not garbage collection, general
+message-send idempotency or crash-safe queue recovery. The shared wording does
+not require those additional guarantees.
+
+Validation: 198/198 combined draft/lightbox browser cases, 94/94 functional cases,
+85 helpers/1,039 assertions, Go tests/vet/hook checks, full store+web race ×3.
+Native tests cover 16 simultaneous writes from two Store instances, reopen, four
+independent child processes under race, distinct-key isolation, cancelled/failed
+transactions, compressed exact bytes, reserved metadata and corrupt candidates.
+All repeated process/store tests pass. Initial browser failures were incorrect
+image/drop/paste targets and an evidence-loader name; corrected fixtures retain
+the assertions, and the clean full rerun passed.
+
+The implementation review found the post-commit read hazard, fixed above. The
+reviewer's suggested corruption fallback was deliberately rejected in favour of
+explicit failure; a follow-up accepted that documented policy. A separate
+criterion review accepted the attach-only tag because the trigger wording is OR,
+while requiring limits on physical clipboard and broader delivery claims.
+
+Coverage is **88/236 Classic + 28/42 shared**, leaving **148/14** unmapped. Terminal
+pending refs keep their independent admission/detach behaviour; multipart retry
+reuse adds no terminal rows, functionality or acceptance credit. Evidence logs:
+`/workspace/tmp/gi-media-reuse-{regression-final,functional,standard,race-full,process,support}.log`;
+`test-results/ux-parity/media-retry-results.json` includes six-project shared39.
