@@ -716,3 +716,10 @@ Evidence: `/workspace/tmp/gi-tui-media-{pty-final,standard-final,race-final,regr
 and `test-results/tui-pending-media/` captures/native records. Coverage remains
 **88/236 Classic + 27/42 shared**, **148/15** unmapped. Terminal mutation submenus,
 restart-durable media drafts and queue recovery still need their own acceptance.
+
+Deployed `ef65ccd` on port 8090, PID 1108465. The existing six-size Chromium/WebKit
+read-only smoke passed pin/bulk-close/preview/draft preservation with zero API
+mutations or page errors. `/api/sessions` returned 200 and 62 sessions; SQLite
+integrity `ok`, foreign-key check empty; binary symlink restored and tree clean.
+No live terminal session was manipulated. Successful six-PTY captures, native
+media records and logs are attached as `/workspace/tmp/gi-tui-media-evidence.tar.gz`.
