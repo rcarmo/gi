@@ -44,9 +44,27 @@ export function patchQuickActionKeys(source) {
             if (rootRef.current?.contains(event.target) && event.target?.closest?.('button')) return;`);
 }
 export function patchComposePopupKeys(source) {
+  source = replace(source, '            const inSearch = e.target === sessionSearchRef.current;', `            const inSearch = e.target === sessionSearchRef.current;
+            if (!inSearch) {
+                const typed = sessionTypeahead(e, sessionPopupEntries, popupTypeaheadRef.current);
+                if (typed) {
+                    consume(); popupTypeaheadRef.current = typed.buffer;
+                    if (typed.index >= 0) {
+                        setSessionPopupIndex(typed.index);
+                        const entry = sessionPopupEntries[typed.index];
+                        const target = Array.from(sessionPopupRef.current.querySelectorAll('[data-session-entry-key]'))
+                            .find(node => node.dataset.sessionEntryKey === entry.key);
+                        target?.focus({ preventScroll: true });
+                    }
+                    return true;
+                }
+            }`);
+  source = replace(source, `            if (navigation && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                consume();`, `            if (navigation && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                consume(); resetPopupTypeahead();`);
   source = replace(source, '    const handlePopupKeyboardEvent = useCallback((e) => {\n        if (searchMode', '    const handlePopupKeyboardEvent = useCallback((e) => {\n        if (settingsOwnsKeyboard()) return false;\n        if (searchMode');
   for (const ref of ['modelPopupRef', 'sessionPopupRef']) {
     source = replace(source, `        const onPointerDown = (event) => {\n            const popup = ${ref}.current;`, `        const onPointerDown = (event) => {\n            if (settingsOwnsKeyboard()) return;\n            const popup = ${ref}.current;`);
   }
-  return "import { settingsOwnsKeyboard } from '../gi-quick-actions.js';\n" + source;
+  return "import { settingsOwnsKeyboard } from '../gi-quick-actions.js';\nimport { sessionTypeahead } from '../gi-session-typeahead.js';\n" + source;
 }

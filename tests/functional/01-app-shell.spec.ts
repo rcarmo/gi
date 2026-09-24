@@ -266,3 +266,15 @@ test('Quick Actions dismissal restores Conversation without submitting the draft
  for(const key of ['Enter','Space']){await conversation.press('m');await expect(query).toBeFocused();await query.press('Tab');const close=palette.getByRole('button',{name:'Close quick actions',exact:true});await expect(close).toBeFocused();await close.press(key);await expect(palette).toHaveCount(0);await expect(conversation).toBeFocused();await expect(input).toHaveValue('functional dismissal draft');}
  await page.keyboard.press('q');await expect(query).toHaveValue('q');await expect(query).toBeFocused();const b=await page.getByRole('button',{name:'Send message',exact:true}).boundingBox();await page.mouse.click(b!.x+b!.width/2,b!.y+b!.height/2);await expect(palette).toHaveCount(0);await expect(conversation).toBeFocused();await expect(input).toHaveValue('functional dismissal draft');expect((await(await request.get(`/api/sessions/${id}/turns`)).json()).turns||[]).toEqual([]);
 });
+
+test('session typeahead moves native focus from a substring to a prefix without sending',async({page,request})=>{
+ const token=`functional-typeahead-${Date.now()}`;
+ const create=async(title:string)=>{const r=await request.post('/api/sessions',{data:{agent_id:title,title}});expect(r.status()).toBe(201);return r.json();};
+ const main=await create(token),substring=await create(`z-alpha-${token}`),prefix=await create(`alpha-${token}`);
+ expect((await request.patch(`/api/sessions/${substring.id}`,{data:{action:'pin',pinned:true}})).status()).toBe(200);
+ await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main.id);await page.goto(BASE_URL);await waitForAppShell(page);
+ const input=page.getByRole('textbox',{name:'Message (Enter to send, Shift+Enter for newline)...',exact:true});await input.fill('functional typeahead draft');
+ const trigger=page.getByRole('button',{name:/Manage sessions for/}).last();await trigger.click();const search=page.getByRole('searchbox',{name:'Search sessions',exact:true});await search.fill(token);
+ const row=(id:string)=>page.locator(`.compose-session-popup [data-session-jid="gi:${id}"]`).getByRole('menuitem');await row(substring.id).focus();await row(substring.id).press('a');await expect(row(prefix.id)).toBeFocused();await expect(row(prefix.id)).toHaveClass(/active/);await expect(search).toHaveValue(token);
+ await page.keyboard.press('Enter');await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(prefix.id);await expect(input).toHaveValue('');await trigger.click();await row(main.id).click();await expect(input).toHaveValue('functional typeahead draft');expect((await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns||[]).toEqual([]);
+});

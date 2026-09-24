@@ -6496,6 +6496,88 @@ function blocksQuickActions(event, ready) {
   return !ready || event.defaultPrevented || event.repeat || Boolean(target?.closest?.('button, a, [role="button"], [role="menuitem"], .monaco-editor, .terminal-pane, .post-reply'));
 }
 
+// web/src/ui/popup-typeahead.ts
+var POPUP_TYPEAHEAD_RESET_MS = 700;
+function normalize2(value) {
+  return String(value || "").toLowerCase().replace(/^@/, "").replace(/\s+/g, " ").trim();
+}
+function labelMatchesQuery(label, query) {
+  const normalizedLabel = normalize2(label);
+  const normalizedQuery = normalize2(query);
+  if (!normalizedQuery)
+    return false;
+  return normalizedLabel.startsWith(normalizedQuery) || normalizedLabel.includes(normalizedQuery);
+}
+function isPopupTypeaheadKey(event) {
+  if (!event)
+    return false;
+  if (event.isComposing)
+    return false;
+  if (event.ctrlKey || event.metaKey || event.altKey)
+    return false;
+  return typeof event.key === "string" && event.key.length === 1 && /\S/.test(event.key);
+}
+function updatePopupTypeaheadBuffer(previous, key, now = Date.now(), resetMs = POPUP_TYPEAHEAD_RESET_MS) {
+  const prior = previous && typeof previous === "object" ? previous : { value: "", updatedAt: 0 };
+  const char = String(key || "").trim().toLowerCase();
+  if (!char)
+    return { value: "", updatedAt: now };
+  const shouldReset = !prior.value || !Number.isFinite(prior.updatedAt) || now - prior.updatedAt > resetMs;
+  return {
+    value: shouldReset ? char : `${prior.value}${char}`,
+    updatedAt: now
+  };
+}
+function rotatedIndices(length, startIndex) {
+  const size = Math.max(0, Number(length) || 0);
+  if (size <= 0)
+    return [];
+  const start = Number.isInteger(startIndex) ? startIndex : 0;
+  const normalizedStart = (start % size + size) % size;
+  const out = [];
+  for (let i = 0;i < size; i += 1) {
+    out.push((normalizedStart + i) % size);
+  }
+  return out;
+}
+function findPopupTypeaheadMatch(items, query, startIndex = 0, getLabel = (item) => item) {
+  const normalizedQuery = normalize2(query);
+  if (!normalizedQuery)
+    return -1;
+  const list = Array.isArray(items) ? items : [];
+  const indices = rotatedIndices(list.length, startIndex);
+  const labels = list.map((item) => normalize2(getLabel(item)));
+  for (const idx of indices) {
+    if (labels[idx].startsWith(normalizedQuery))
+      return idx;
+  }
+  for (const idx of indices) {
+    if (labels[idx].includes(normalizedQuery))
+      return idx;
+  }
+  return -1;
+}
+function resolvePopupTypeaheadMatch(items, query, currentIndex = -1, getLabel = (item) => item) {
+  const list = Array.isArray(items) ? items : [];
+  if (currentIndex >= 0 && currentIndex < list.length) {
+    const currentLabel = getLabel(list[currentIndex]);
+    if (labelMatchesQuery(currentLabel, query)) {
+      return currentIndex;
+    }
+  }
+  return findPopupTypeaheadMatch(list, query, 0, getLabel);
+}
+
+// web/src/gi-session-typeahead.ts
+function sessionTypeahead(event, entries, previous) {
+  if (event.defaultPrevented || event.repeat || !isPopupTypeaheadKey(event) || event.target?.closest?.('input, textarea, select, [contenteditable="true"]'))
+    return null;
+  const buffer = updatePopupTypeaheadBuffer(previous, event.key);
+  const enabled = entries.map((entry, index) => ({ entry, index })).filter((item) => !item.entry.disabled);
+  const match = findPopupTypeaheadMatch(enabled, buffer.value, 0, (item) => item.entry.label);
+  return { buffer, index: match < 0 ? -1 : enabled[match].index };
+}
+
 // web/src/gi-drafts.ts
 var emptyDraft = () => ({ text: "", media: [], fileRefs: [], messageRefs: [] });
 var copy = (d) => ({ text: d.text, media: [...d.media], fileRefs: [...d.fileRefs], messageRefs: [...d.messageRefs] });
@@ -6696,78 +6778,6 @@ function contextPresentation(usage, canCompact = false) {
 }
 function modelContextBlocked(option, usage) {
   return known(usage?.tokens) && known(option?.contextWindow) && option.contextWindow > 0 && usage.tokens > option.contextWindow;
-}
-
-// web/src/ui/popup-typeahead.ts
-var POPUP_TYPEAHEAD_RESET_MS = 700;
-function normalize2(value) {
-  return String(value || "").toLowerCase().replace(/^@/, "").replace(/\s+/g, " ").trim();
-}
-function labelMatchesQuery(label, query) {
-  const normalizedLabel = normalize2(label);
-  const normalizedQuery = normalize2(query);
-  if (!normalizedQuery)
-    return false;
-  return normalizedLabel.startsWith(normalizedQuery) || normalizedLabel.includes(normalizedQuery);
-}
-function isPopupTypeaheadKey(event) {
-  if (!event)
-    return false;
-  if (event.isComposing)
-    return false;
-  if (event.ctrlKey || event.metaKey || event.altKey)
-    return false;
-  return typeof event.key === "string" && event.key.length === 1 && /\S/.test(event.key);
-}
-function updatePopupTypeaheadBuffer(previous, key, now = Date.now(), resetMs = POPUP_TYPEAHEAD_RESET_MS) {
-  const prior = previous && typeof previous === "object" ? previous : { value: "", updatedAt: 0 };
-  const char = String(key || "").trim().toLowerCase();
-  if (!char)
-    return { value: "", updatedAt: now };
-  const shouldReset = !prior.value || !Number.isFinite(prior.updatedAt) || now - prior.updatedAt > resetMs;
-  return {
-    value: shouldReset ? char : `${prior.value}${char}`,
-    updatedAt: now
-  };
-}
-function rotatedIndices(length, startIndex) {
-  const size = Math.max(0, Number(length) || 0);
-  if (size <= 0)
-    return [];
-  const start = Number.isInteger(startIndex) ? startIndex : 0;
-  const normalizedStart = (start % size + size) % size;
-  const out = [];
-  for (let i = 0;i < size; i += 1) {
-    out.push((normalizedStart + i) % size);
-  }
-  return out;
-}
-function findPopupTypeaheadMatch(items, query, startIndex = 0, getLabel = (item) => item) {
-  const normalizedQuery = normalize2(query);
-  if (!normalizedQuery)
-    return -1;
-  const list = Array.isArray(items) ? items : [];
-  const indices = rotatedIndices(list.length, startIndex);
-  const labels = list.map((item) => normalize2(getLabel(item)));
-  for (const idx of indices) {
-    if (labels[idx].startsWith(normalizedQuery))
-      return idx;
-  }
-  for (const idx of indices) {
-    if (labels[idx].includes(normalizedQuery))
-      return idx;
-  }
-  return -1;
-}
-function resolvePopupTypeaheadMatch(items, query, currentIndex = -1, getLabel = (item) => item) {
-  const list = Array.isArray(items) ? items : [];
-  if (currentIndex >= 0 && currentIndex < list.length) {
-    const currentLabel = getLabel(list[currentIndex]);
-    if (labelMatchesQuery(currentLabel, query)) {
-      return currentIndex;
-    }
-  }
-  return findPopupTypeaheadMatch(list, query, 0, getLabel);
 }
 
 // web/src/ui/agent-mentions.ts
@@ -8599,9 +8609,24 @@ ${mediaIds.map((id, index) => {
     }
     if (showSessionPopup && !sessionEdit && !sessionMutationPending && sessionPopupRef.current?.contains(e.target)) {
       const inSearch = e.target === sessionSearchRef.current;
+      if (!inSearch) {
+        const typed = sessionTypeahead(e, sessionPopupEntries, popupTypeaheadRef.current);
+        if (typed) {
+          consume();
+          popupTypeaheadRef.current = typed.buffer;
+          if (typed.index >= 0) {
+            setSessionPopupIndex(typed.index);
+            const entry = sessionPopupEntries[typed.index];
+            const target = Array.from(sessionPopupRef.current.querySelectorAll("[data-session-entry-key]")).find((node) => node.dataset.sessionEntryKey === entry.key);
+            target?.focus({ preventScroll: true });
+          }
+          return true;
+        }
+      }
       const navigation = ["ArrowDown", "ArrowUp", "PageDown", "PageUp"].includes(e.key) || !inSearch && ["Home", "End"].includes(e.key);
       if (navigation && !e.ctrlKey && !e.metaKey && !e.altKey) {
         consume();
+        resetPopupTypeahead();
         const enabled = sessionPopupEntries.map((entry, index) => ({ entry, index })).filter(({ entry }) => !entry.disabled);
         const focusedKey = e.target?.closest?.("[data-session-entry-key]")?.dataset.sessionEntryKey;
         setSessionPopupIndex((current) => {
@@ -17924,10 +17949,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-ezrk2mzq.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-8t863brt.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-e378g0ad.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-v3f7cahj.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-qsq92nkm.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-39tpfmbh.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-m6ndxzp6.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-w28matby.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20263,5 +20288,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=4B8C15E69A91EFDF64756E2164756E21
-//# sourceMappingURL=app-x69e3t7n.js.map
+//# debugId=E81FD8EE834D925064756E2164756E21
+//# sourceMappingURL=app-hf717hye.js.map

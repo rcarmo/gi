@@ -1016,3 +1016,44 @@ test('@shared-26 Expose only native session mutations and recover a rejected edi
   const turns=(await(await request.get(`/api/sessions/${busy}/turns`)).json()).turns;expect(turns).toHaveLength(1);expect(turns[0]).toMatchObject({id:turn,status:'running'});expect(deletes).toBe(0);
  }finally{writeFileSync(gate,'release');}
 });
+
+test('@shared-33 Native session picker searches and activates enabled entries with incremental typeahead',async({page,request},info)=>{
+ const source=loadCorpus('shared').find(s=>s.id==='@shared-33');expect(source.steps.join('\n')).toContain('session picker');await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
+ const token=`typeahead-${info.project.name}-${Date.now()}`;
+ const create=async(title,agent)=>{const r=await request.post('/api/sessions',{data:{agent_id:agent,title}});expect(r.status()).toBe(201);return r.json();};
+ const main=await create(`${token}-main`,`${token}-main`),substring=await create(`z-alpha-${token}`,`${token}-substring`),alpha=await create(`alpha-${token}`,`${token}-alpha`),alpine=await create(`alpine-${token}`,`${token}-alpine`);
+ const others=[];for(let i=0;i<8;i++)others.push(await create(`other-${i}-${token}`,`${token}-${i}`));
+ expect((await request.patch(`/api/sessions/${substring.id}`,{data:{action:'pin',pinned:true}})).status()).toBe(200);
+ expect((await request.patch(`/api/sessions/${alpha.id}/model`,{data:{model:'test/bootstrap'}})).status()).toBe(200);
+ await page.addInitScript(id=>{if(!localStorage.getItem('gi_session_id'))localStorage.setItem('gi_session_id',id);},main.id);await page.goto('/');
+ const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('typeahead unsent draft');await page.locator('.compose-box input[type=file]').setInputFiles({name:'typeahead.txt',mimeType:'text/plain',buffer:Buffer.from('retained bytes')});
+ const trigger=page.getByRole('button',{name:/Manage sessions for/}).last(),popup=page.locator('.compose-session-popup'),search=page.getByRole('searchbox',{name:'Search sessions',exact:true});
+ const row=id=>popup.locator(`[data-session-jid="gi:${id}"]`).getByRole('menuitem');
+ const visible=()=>popup.locator('[data-session-jid]').evaluateAll(nodes=>nodes.map(n=>n.dataset.sessionJid));
+ const highlighted=()=>popup.locator('[data-session-entry-key].active').getAttribute('data-session-entry-key');
+ let writes=0;page.on('request',r=>{if(!['GET','HEAD'].includes(r.method())&&new URL(r.url()).pathname.startsWith('/api/sessions'))writes++;});
+ await trigger.click();await expect(search).toBeFocused();await search.fill(token);
+ const native=(await(await request.get('/api/sessions')).json()).sessions.filter(s=>s.title.includes(token));
+ const expected=[main.id,...native.filter(s=>s.id!==main.id&&s.state?.pinned).map(s=>s.id),...native.filter(s=>s.id!==main.id&&!s.state?.pinned).map(s=>s.id)].map(id=>`gi:${id}`);
+ await expect.poll(visible).toEqual(expected);
+ for(const [query,result] of [[alpha.id,[`gi:${alpha.id}`]],[`alpha-${token}`,[`gi:${substring.id}`,`gi:${alpha.id}`]],[`${token} bootstrap`,[`gi:${alpha.id}`]]]){
+  await search.fill(query);await expect.poll(visible).toEqual(result);await expect(search).toBeFocused();
+ }
+ await search.fill(token);await expect.poll(visible).toEqual(expected.filter(id=>[main,substring,alpha,alpine,...others].some(s=>`gi:${s.id}`===id)));
+ const filtered=await visible();expect(filtered.length).toBe(12);await expect(popup.getByRole('button',{name:/^Delete /})).toHaveCount(0);
+ // Begin on a pinned substring match. Prefix matching must beat it, then the
+ // second/third character must resolve among two similar prefix names.
+ await row(substring.id).focus();await row(substring.id).press('a');await expect.poll(highlighted).toBe(`session:gi:${alpha.id}`);await expect(row(alpha.id)).toBeFocused();
+ await page.keyboard.type('lp');await expect(row(alpha.id)).toBeFocused();await page.keyboard.press('i');await expect.poll(highlighted).toBe(`session:gi:${alpine.id}`);await expect(row(alpine.id)).toBeFocused();await expect(search).toHaveValue(token);expect(await visible()).toEqual(filtered);
+ // Navigation stays inside enabled filtered results, including page steps.
+ await row(alpha.id).focus();await page.keyboard.press('Home');await expect.poll(highlighted).toBe(`session:${filtered[0]}`);await expect(search).toBeFocused();
+ await search.press('ArrowUp');await expect.poll(highlighted).toBe(`session:${filtered.at(-1)}`);await search.press('ArrowDown');await expect.poll(highlighted).toBe(`session:${filtered[0]}`);
+ await search.press('PageDown');await expect.poll(highlighted).toBe(`session:${filtered[8]}`);await search.press('PageUp');await expect.poll(highlighted).toBe(`session:${filtered[0]}`);
+ await row(alpha.id).focus();await page.keyboard.press('End');await expect.poll(highlighted).toBe(`session:${filtered.at(-1)}`);
+ await page.keyboard.press('Escape');await expect(popup).toHaveCount(0);await expect(trigger).toBeFocused();expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(main.id);await expect(input).toHaveValue('typeahead unsent draft');
+ await trigger.click();await search.fill(token);await row(substring.id).focus();await page.keyboard.type('alpi');await expect(row(alpine.id)).toBeFocused();await expect.poll(highlighted).toBe(`session:gi:${alpine.id}`);
+ await page.evaluate(()=>{window.__typeaheadSelections=[];const original=Storage.prototype.setItem;Storage.prototype.setItem=function(k,v){if(k==='gi_session_id')window.__typeaheadSelections.push(v);return original.call(this,k,v);};});
+ await page.keyboard.press('Enter');await expect(popup).toHaveCount(0);await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(alpine.id);await expect(input).toHaveValue('');expect(await page.evaluate(()=>window.__typeaheadSelections)).toEqual([alpine.id]);
+ await trigger.click();await row(main.id).click();await expect(input).toHaveValue('typeahead unsent draft');await expect(page.locator('.compose-input-main .compose-file-pill[title="typeahead.txt"]')).toHaveCount(1);await page.reload();await expect(input).toHaveValue('typeahead unsent draft');await expect(page.locator('.compose-input-main .compose-file-pill[title="typeahead.txt"]')).toHaveCount(1);
+ expect(writes).toBe(0);for(const id of [main.id,alpha.id,alpine.id])expect((await(await request.get(`/api/sessions/${id}/turns`)).json()).turns||[]).toEqual([]);
+});

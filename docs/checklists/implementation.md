@@ -10,6 +10,9 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Shared33 session-picker non-search typeahead: strict prefix-first enabled match/full-index mapping, actual entry focus for single Enter, native ID/name/model search, Arrow/Home/End/Page navigation and Escape/draft recovery. Sessions126/regression204/functional88/helpers64/Go-vet-build-hook; Classic81/236+shared26/42 unmapped155/16. Supplied bytes unchanged/deployment below; terminal Alt-S separate.
+- [ ] Resolve frozen command-prefill conflict before shared16 credit: Classic original007 requires replacing the draft, shared16 requires preserving it. No criterion or current replacement behaviour changed; failed activation/recovery acceptance also remains open.
+
 - [x] Shared4 independent native idle typing/grouping/ranking: initial character filtered groups, exact/prefix/non-title multiple-result fallback, arrow wrap and Enter workspace activation once, exact durable draft/media bytes/file/message refs preserved. Browser258/functional87/helpers62/Go-vet-build-hook; Classic81/236+shared25/42 unmapped155/17. Test-only/no restart; shared16 slash/failure contract and terminal acceptance separate.
 
 - [x] Shared15 compact Quick Actions Close: pointer/Tab Enter/Space/trusted touch use one-shot dismissal; exact drafts/refs/media bytes preserved, focused action rows activate once, layout-effect reopens reliably. Header geometry/no wrap; pinned source/CSS unchanged, separate Gi stylesheet. Browser252/functional87/helpers62/Go-vet-build-hook; Classic81/236+shared24/42 unmapped155/18; pushd0b209e/restart8090 live6browser-size mouse/touch/Enter/Space/Escape focus+draft/zero writes/errors/61sessions/integrityOK; captures attached, no idle/TUI rows.
