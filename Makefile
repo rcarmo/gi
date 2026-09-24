@@ -317,6 +317,10 @@ test-tui-reading: build
 test-tui-sessions: build
 	$(BUN) scripts/test-tui-sessions.mjs
 
+.PHONY: test-tui-session-picker
+test-tui-session-picker: build
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-session-picker.mjs
+
 test-tui-smoke: build
 	chmod +x scripts/test-tui-smoke.sh
 	ARTIFACT_DIR=$(abspath $(TEST_RESULTS))/tui-smoke TEST_DIR=$(abspath $(TUI_TEST_DIR)) scripts/test-tui-smoke.sh

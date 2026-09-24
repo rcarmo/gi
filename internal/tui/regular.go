@@ -73,6 +73,10 @@ func (c *chatTUI) renderRegular(app *gotui.App) *gotui.Element {
 	}
 	if c.modelMenuAltScreen && c.regularWidth != 0 && (w != c.regularWidth || h != c.regularHeight) {
 		c.modelMenuResized = true
+		// Terminal reflow can leave old selector rows above the inline region.
+		// Clear only the temporary visible screen, never main scrollback (3J).
+		app.Terminal().SetCursor(0, 0)
+		app.Terminal().ClearToEnd()
 	}
 	if !c.workspaceIndex.active && !c.modelMenuAltScreen && c.regularWidth != 0 && (w != c.regularWidth || h != c.regularHeight) {
 		// The inline renderer invalidates history geometry on width changes.

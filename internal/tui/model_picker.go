@@ -58,8 +58,9 @@ func (c *chatTUI) enabledModelMenuIndices() []int {
 	return indices
 }
 
-// Keep go-tui's inline renderer while using a temporary screen; switching the
-// renderer itself invokes a full clear that can erase terminal-owned history.
+// Model and session selectors share this bounded temporary-screen lifecycle.
+// Keep go-tui's inline renderer: switching renderers invokes a full clear that
+// can erase terminal-owned history.
 func (c *chatTUI) openModelPickerScreen() {
 	if !c.regularMode || c.app == nil || c.modelMenuAltScreen {
 		return

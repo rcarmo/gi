@@ -1689,8 +1689,11 @@ func (c *chatTUI) openSessionMenu() {
 			selected = i
 		}
 	}
+	c.modelMenuError = ""
 	c.modelMenuOpen = true
 	c.modelMenuKind = "session"
+	c.modelMenuSession = c.selectionScope()
+	c.openModelPickerScreen()
 	c.modelMenuValues = values
 	c.modelMenuAll = labels
 	c.modelMenuQuery = ""
@@ -1910,7 +1913,7 @@ func (c *chatTUI) ensureModelMenuSelectionVisible() {
 }
 
 func (c *chatTUI) acceptModelMenuSelection() {
-	if c.modelMenuOpen && c.modelMenuKind == "model" {
+	if c.modelMenuOpen && (c.modelMenuKind == "model" || c.modelMenuKind == "session") {
 		if !c.ownsScope(c.modelMenuSession) {
 			c.modelMenuError = "session changed; reopen picker"
 			if c.app != nil {
@@ -1918,7 +1921,7 @@ func (c *chatTUI) acceptModelMenuSelection() {
 			}
 			return
 		}
-		if len(c.modelMenuChoices) > 0 {
+		if c.modelMenuKind == "model" && len(c.modelMenuChoices) > 0 {
 			label := c.modelMenuChoices[max(0, min(c.modelMenuSelected, len(c.modelMenuChoices)-1))]
 			if c.modelPickerUnavailable(label) != "" {
 				// Enter on a blocked-only result is an explicit metadata retry.
@@ -1959,17 +1962,21 @@ func (c *chatTUI) acceptModelMenuSelection() {
 		c.closeModelMenu()
 		return
 	}
-	c.modelMenuOpen = false
-	c.modelMenuKind = ""
-	c.modelMenuValues = nil
-	c.modelMenuChoices = nil
-	c.modelMenuAll = nil
-	c.modelMenuQuery = ""
-	c.modelMenuScroll = 0
-	c.focusInput()
+	if kind == "session" {
+		// Switch performs the authoritative read before touching the origin.
+		// Keep the selector/screen until that single validation succeeds.
+		if !c.switchSession(value) {
+			c.modelMenuError = "session unavailable; Enter to retry or Esc to close"
+			if c.app != nil {
+				c.app.MarkDirty()
+			}
+			return
+		}
+		c.closeModelMenu()
+		return
+	}
+	c.closeModelMenu()
 	switch kind {
-	case "session":
-		c.switchSession(value)
 	case "thinking":
 		c.appendTranscript(c.thinkingCommand([]string{"/thinking", value})...)
 	default:
