@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [x] Gi standalone scale visibility fallback shares navigator/display-mode capability with supplied viewport writer; native control/storage/cross-tab/reload/draft proof, unsupported-query cleanup.168browser/91functional/72helpers/Go-vet-build-hook/review pass. Frozen shell008 remains unmapped: wording lacks standalone visibility precondition; no physical-PWA/TUI scale credit.
+- [x] Gi standalone scale visibility fallback shares navigator/display-mode capability with supplied viewport writer; native control/storage/cross-tab/reload/draft proof, unsupported-query cleanup.168browser/91functional/72helpers/Go-vet-build-hook/review pass. Pusha3f6c8a/restart8090 read-only6browser-size capability smoke/zero API writes-errors/62sessions/integrityOK. Frozen shell008 remains unmapped: wording lacks standalone visibility precondition; no physical-PWA/TUI scale credit.
 
 - [x] Verify/map Classic shell002/003/005 independently: native hidden-file setting/event/reload, disabled workspace actions while hidden, composer available-width geometry across drawer/sidebar/resize/reload. Exact draft/media retention;18focused/162regression/90functional/68helpers/Go-vet-build-hook pass; reviewed. Classic84/236+shared27/42, unmapped152/15. Test-only, no restart; live61sessions/integrityOK. No URL chat-only, mobile-safe-area, scale or new terminal credit.
 
