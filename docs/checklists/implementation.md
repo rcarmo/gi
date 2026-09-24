@@ -10,7 +10,7 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
-- [x] Alt-S reuses temporary regular-mode selector screen; resize clears only its visible surface, acceptance closes only after successful captured-generation switch, failures remain retryable.6session+6model PTYs/existingTUI/92functional/75helpers/Go-vet-build-hook/race×3/review pass; A/B Unicode drafts/cursor/multiline/history/exit and≤6rows/no idle growth. Browser87/236+27/42 unchanged; deployment below.
+- [x] Alt-S reuses temporary regular-mode selector screen; resize clears only its visible surface, acceptance closes only after successful captured-generation switch, failures remain retryable.6session+6model PTYs/existingTUI/92functional/75helpers/Go-vet-build-hook/race×3/review pass; A/B Unicode drafts/cursor/multiline/history/exit and≤6rows/no idle growth. Push4797dad/restart8090 read-only6browser-size smoke/62sessions/integrityOK/zero writes-errors; captures attached. Browser87/236+27/42 unchanged.
 
 - [x] Mount native read-only workspace tabs with bounded20K preview/late-read fence/disposal/native404 Retry; truthful guarded labels, touch close targets and narrow layout. Shell007 close does not activate background tabs; exact draft/media/refs, active/last/keyboard close and Settings focus race pass:18focused/168regression/92functional/75helpers/Go-vet-build-hook/bounded review. Pushf0db954/restart8090 guarded6size live existing-file preview/close/draft/zero API writes-errors/62sessions/integrityOK; screenshots attached. Classic87/236+shared27/42 unmapped149/15; no editor/dirty/pin/popout/TUI credit.
 
