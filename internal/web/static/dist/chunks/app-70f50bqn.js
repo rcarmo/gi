@@ -1,3 +1,9 @@
+// web/src/gi-turn-event.ts
+function staleTerminalEvent(type, data, currentTurn) {
+  const terminal = type === "agent_response" || type === "agent_status" && !["running", "cancelling"].includes(data?.status);
+  return Boolean(terminal && currentTurn && data?.turn_id !== currentTurn);
+}
+
 // web/src/vendor/preact-htm.js
 var q;
 var d;
@@ -17956,10 +17962,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-zn5w1fha.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-vr00h4r3.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-chdxny05.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-919akhs5.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-cy7x3exh.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-3zdztbxc.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-0q9ed8de.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-4g39ma4e.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -19467,7 +19473,8 @@ function GiApp() {
       return;
     if (eventType === "connected" && versionGuard.observe(data?.app_asset_version))
       setNewUIVersion(data.app_asset_version);
-    if (eventType === "agent_status" || eventType.startsWith("compaction_") || ["queue_changed", "agent_response"].includes(eventType)) {
+    const staleTerminal = staleTerminalEvent(eventType, data, currentTurnIdRef.current);
+    if (!staleTerminal && (eventType === "agent_status" || eventType.startsWith("compaction_") || ["queue_changed", "agent_response"].includes(eventType))) {
       activityRevision.invalidate();
       setActivityFresh(false);
     }
@@ -19487,6 +19494,8 @@ function GiApp() {
         scrollToBottom();
       }
     }
+    if (staleTerminal)
+      return;
     if (eventType === "agent_status") {
       setAgentStatus(data);
       const active = data?.status === "running" || data?.status === "cancelling";
@@ -20295,5 +20304,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=5B6EB7703CA3CCAA64756E2164756E21
-//# sourceMappingURL=app-qzr1sahr.js.map
+//# debugId=0716E0ED6EE5E59264756E2164756E21
+//# sourceMappingURL=app-70f50bqn.js.map

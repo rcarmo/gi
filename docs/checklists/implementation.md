@@ -10,6 +10,9 @@ This checklist is organized by **subsystem** and grouped by **phase**.
 
 ## Piclaw Classic web parity — 2026-09-21
 
+- [x] Fence stale terminal SSE frames with native turn IDs: captured Stop/reconnect, duplicate old idle/completion replay with held authority reads, newer Stop/preview retention and stale Stop409. Reconnect66/functional90/helpers68/Go-vet-build-hook/race×3/three-size TUI regressions pass. No idle UI or frozen credit; deployment below.
+- [ ] Shared36 remains unmapped: engine cleanup automatically starts the next queued turn after cancellation, so the queue is not preserved unchanged. Resolve that policy explicitly before claiming the full contract. Shared35 capability/estimate evidence remains open.
+
 - [x] Shared34: filtered native model search, enabled-only Arrow/Home/End/Page navigation and prefix-first typeahead through a guarded adapter. Native Enter/Space once, native editing, cancellation and exact durable draft/media/reference checks pass: models42/regressions294/functional89/helpers67/Go-vet-build-hook. Classic81/236 + shared27/42, unmapped155/15. Push9b745d1/restart8090: live six-browser-size filter/editing/navigation/Escape/draft checks, zero writes/errors, 61sessions/integrityOK. Supplied sources unchanged; terminal Alt-M acceptance independent.
 
 - [x] Shared33 session-picker non-search typeahead: strict prefix-first enabled match/full-index mapping, actual entry focus for single Enter, native ID/name/model search, Arrow/Home/End/Page navigation and Escape/draft recovery. Sessions126/regression204/functional88/helpers64/Go-vet-build-hook; Classic81/236+shared26/42 unmapped155/16. Pushb39b182/restart8090 live6browser-size native prefix focus/Escape/draft/zero writes-errors/61sessions/integrityOK. Supplied bytes unchanged; terminal Alt-S separate.

@@ -82,3 +82,20 @@ test.describe('SSE and streaming', () => {
     expect(eventTypes).toContain('turn.finished');
   });
 });
+
+test('Native terminal SSE frames retain their session and turn identity',async({page,request})=>{
+ const created=await request.post(`${BASE_URL}/api/sessions`,{data:{agent_id:`sse-identity-${Date.now()}`,title:'SSE identity'}});expect(created.ok()).toBe(true);const session=await created.json();
+ await page.goto(BASE_URL);
+ await page.evaluate(id=>new Promise<void>((resolve,reject)=>{
+  const source=new EventSource(`/sse/stream?chat_jid=gi:${id}`);(window as any).__identitySource=source;(window as any).__identityFrames=[];
+  for(const type of ['new_post','agent_response','agent_status'])source.addEventListener(type,(event:MessageEvent)=>(window as any).__identityFrames.push({type,data:JSON.parse(event.data)}));
+  source.addEventListener('connected',()=>resolve(),{once:true});source.onerror=()=>reject(new Error('SSE connection failed'));
+ }),session.id);
+ try{
+  const accepted=await request.post(`${BASE_URL}/api/sessions/${session.id}/prompt`,{data:{prompt:'SSE identity proof',model:'test-model'}});expect(accepted.ok()).toBe(true);const turn=await accepted.json();
+  await expect.poll(()=>page.evaluate(()=>(window as any).__identityFrames.some((frame:any)=>frame.type==='new_post'&&frame.data.is_bot_message))).toBe(true);
+  const frames=await page.evaluate(()=>(window as any).__identityFrames);
+  const reply=frames.find((frame:any)=>frame.type==='new_post'&&frame.data.is_bot_message);
+  expect(reply.data).toMatchObject({turn_id:turn.turn_id,chat_jid:'gi:'+session.id});
+ }finally{await page.evaluate(()=>(window as any).__identitySource.close());}
+});

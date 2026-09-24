@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { staleTerminalEvent } from './gi-turn-event.js';
 /**
  * app.ts — Gi entry point.
  *
@@ -558,7 +559,8 @@ function GiApp() {
     const handleSseEvent = useCallback((eventType: string, data: any) => {
         if (!selection.current() || data?.chat_jid !== sessionToChatJid(selection.current()!)) return;
         if(eventType==='connected'&&versionGuard.observe(data?.app_asset_version))setNewUIVersion(data.app_asset_version);
-        if (eventType === 'agent_status' || eventType.startsWith('compaction_') || ['queue_changed', 'agent_response'].includes(eventType)) { activityRevision.invalidate(); setActivityFresh(false); }
+        const staleTerminal = staleTerminalEvent(eventType, data, currentTurnIdRef.current);
+        if (!staleTerminal && (eventType === 'agent_status' || eventType.startsWith('compaction_') || ['queue_changed', 'agent_response'].includes(eventType))) { activityRevision.invalidate(); setActivityFresh(false); }
         if (eventType.startsWith('compaction_') || ['new_post', 'agent_status', 'agent_response', 'queue_changed', 'agent_followup_queued', 'agent_followup_consumed', 'agent_followup_removed'].includes(eventType)) {
             ++queueRevision.current;
             if (!refreshTimer.current) refreshTimer.current = setTimeout(() => {
@@ -575,6 +577,10 @@ function GiApp() {
                 scrollToBottom();
             }
         }
+
+        // Old completion notifications still refresh durable history above,
+        // but cannot invalidate a newer run's controls or transient previews.
+        if (staleTerminal) return;
 
         // Handle agent status events
         if (eventType === 'agent_status') {

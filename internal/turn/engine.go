@@ -4134,12 +4134,12 @@ func (r *sessionRunner) persistUsage(s *store.Store, turnID, sessionID string, u
 // broadcastPost sends a new_post SSE event for the final assistant message.
 func (r *sessionRunner) broadcastPost(sessionID, turnID, msgID, content, agentID string) {
 	r.engine.broadcast(sessionID, map[string]any{
-		"type": "new_post", "id": msgID, "chat_jid": "gi:" + sessionID,
+		"type": "new_post", "turn_id": turnID, "id": msgID, "chat_jid": "gi:" + sessionID,
 		"content": content, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
 		"sender": "agent", "is_bot_message": true,
 		"data": map[string]any{"type": "agent_response", "content": content, "agent_id": agentID},
 	})
-	r.engine.broadcast(sessionID, map[string]any{"type": "agent_response", "chat_jid": "gi:" + sessionID, "id": msgID})
+	r.engine.broadcast(sessionID, map[string]any{"type": "agent_response", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "id": msgID})
 }
 
 func (r *sessionRunner) broadcastSystemPost(sessionID, turnID, msgID, content string) {
@@ -4259,7 +4259,7 @@ func (r *sessionRunner) finishTurnWithPayload(s *store.Store, turnID, sessionID,
 	sessionHookPayload["turn_status"] = status
 	sessionHookPayload["turn_phase"] = phase
 	r.emitSessionStateHookOnly(bgCtx, sessionID, agentID, model, "idle", sessionHookPayload)
-	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "title": "", "status": "idle"})
+	r.engine.broadcast(sessionID, map[string]any{"type": "agent_status", "chat_jid": "gi:" + sessionID, "turn_id": turnID, "title": "", "status": "idle"})
 }
 
 func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID, status string) {
@@ -5216,7 +5216,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	msgID := store.NowID("msg")
 	logutil.WarnIfErr("add shell assistant message", s.AddMessage(bgCtx, msgID, run.sessionID, "assistant", out, map[string]any{"kind": "chat", "source": "shell", "turn_id": run.turnID, "agent_id": run.agentID}))
 	r.engine.broadcast(run.sessionID, map[string]any{
-		"type": "new_post", "id": msgID, "chat_jid": "gi:" + run.sessionID,
+		"type": "new_post", "turn_id": run.turnID, "id": msgID, "chat_jid": "gi:" + run.sessionID,
 		"content": out, "timestamp": time.Now().UTC().Format(time.RFC3339Nano),
 		"sender": "agent", "is_bot_message": true,
 		"data": map[string]any{"type": "agent_response", "content": out, "agent_id": run.agentID},

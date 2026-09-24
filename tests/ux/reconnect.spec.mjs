@@ -17,14 +17,19 @@ async function environment(page,info,options={}){
   await expect.poll(async()=>{try{return (await fetch(origin+'/api/runtime/config')).status}catch{return 0}},{timeout:10000}).toBe(200);
  };
  const stop=async()=>{if(!child||child.exitCode!==null)return;const done=new Promise(r=>child.once('exit',r));child.kill('SIGTERM');await done;};
- let blocked=false;const connections=new Set();
+ let blocked=false;const connections=new Set(),frames=[];
  let releaseInitial;const initialReady=new Promise(r=>releaseInitial=r);
  if(!options.holdInitial)releaseInitial();
  const proxy=createServer(async(req,res)=>{
   await initialReady;if(res.destroyed)return;
   res.setHeader('Access-Control-Allow-Origin','*');if(blocked){res.writeHead(503);res.end();return;}
   connections.add(res);res.on('close',()=>connections.delete(res));
-  const upstream=httpRequest(new URL(req.url,origin),source=>{res.writeHead(source.statusCode,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Access-Control-Allow-Origin':'*'});source.on('aborted',()=>res.destroy());source.on('error',()=>res.destroy());source.pipe(res);});
+  const upstream=httpRequest(new URL(req.url,origin),source=>{
+   res.writeHead(source.statusCode,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Access-Control-Allow-Origin':'*'});source.on('aborted',()=>res.destroy());source.on('error',()=>res.destroy());
+   if(options.observeFrames){
+    let pending='';source.setEncoding('utf8');source.on('data',chunk=>{pending+=chunk;let end;while((end=pending.indexOf('\n\n'))>=0){const raw=pending.slice(0,end+2);pending=pending.slice(end+2);const type=raw.match(/^event: (.+)$/m)?.[1],json=raw.match(/^data: (.+)$/m)?.[1];if(type&&json)frames.push({type,data:JSON.parse(json),raw});}res.write(chunk);});source.on('end',()=>res.end());
+   }else source.pipe(res);
+  });
   upstream.on('error',()=>res.destroy());res.on('close',()=>upstream.destroy());upstream.end();
  });
  await new Promise(r=>proxy.listen(0,'127.0.0.1',r));
@@ -35,7 +40,7 @@ async function environment(page,info,options={}){
  await page.addInitScript(id=>{if(!localStorage.getItem('gi_session_id'))localStorage.setItem('gi_session_id',id);},main.id);
  await page.goto(origin);const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();
  await expect(page.locator('.compose-connection-status')).toHaveCount(0);
- return {origin,main,input,api,ready:()=>releaseInitial(),release:token=>writeFileSync(join(dir,token),'go'),async drop(){await expect.poll(()=>connections.size).toBeGreaterThan(0);blocked=true;for(const res of connections)res.destroy();},resume(){blocked=false;},stop,start,
+ return {origin,main,input,api,frames,replay(frame){for(const res of connections)res.write(frame.raw);},ready:()=>releaseInitial(),release:token=>writeFileSync(join(dir,token),'go'),async drop(){await expect.poll(()=>connections.size).toBeGreaterThan(0);blocked=true;for(const res of connections)res.destroy();},resume(){blocked=false;},stop,start,
   async close(){await page.close();releaseInitial();for(const res of connections)res.destroy();await new Promise(r=>proxy.close(r));await stop();log.end();rmSync(dir,{recursive:true,force:true});}};
 }
 async function source(info,id){const scenario=loadCorpus().find(x=>x.id===id);await info.attach('gherkin',{body:scenario.steps.join('\n'),contentType:'text/plain'});}
@@ -272,4 +277,61 @@ test('Gi bounded timeline pages preserve viewport and catch up after outage',asy
   for(let i=0;i<8&&(await ids()).length<persisted.length;i++){await timeline.hover();await page.mouse.wheel(0,-100000);await page.waitForTimeout(250);}
   await expect.poll(()=>ids()).toEqual(persisted.map(m=>m.id));expect(responses.every(r=>r.messages.length<=50)).toBe(true);
  }finally{await env.close();}
+});
+
+test('Gi captured Stop survives reconnect and old native terminal frames cannot clear a newer run',async({page},info)=>{
+ test.setTimeout(60000);
+ const source=loadCorpus('shared').find(x=>x.id==='@shared-36');await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
+ const env=await environment(page,info,{observeFrames:true});const{main,input,api}=env;
+ let releaseActivity;const activityGate=new Promise(r=>releaseActivity=r);let heldReads=0;
+ const stop=page.getByRole('button',{name:'Stop response',exact:true});
+ const state=()=>api(`/api/sessions/${main.id}/activity`),queue=()=>api(`/api/sessions/${main.id}/queue`);
+ try{
+  const warmup=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:'completed native frame source',model:'ux-local/gate'});
+  await expect.poll(()=>env.frames.some(f=>f.type==='agent_response'&&f.data.turn_id===warmup.turn_id)).toBe(true);
+  await expect.poll(async()=>(await state()).status).toBe('idle');
+  const completed=env.frames.find(f=>f.type==='agent_response'&&f.data.turn_id===warmup.turn_id);
+  const firstToken=`shared-stop-first-${Date.now()}`,newToken=`shared-stop-new-${Date.now()}`;
+  const first=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:`UX steer gate:${firstToken}`,model:'ux-local/gate'});
+  await expect(stop).toBeEnabled();const captured=await state();expect(captured).toMatchObject({turn_id:first.turn_id,status:'running'});const runtime=env.frames.find(f=>f.type==='connected').data.app_asset_version;expect(runtime).toBeTruthy();
+  await input.fill('captured stop draft');await page.locator('.compose-box input[type=file]').setInputFiles({name:'stop.txt',mimeType:'text/plain',buffer:Buffer.from('stop draft bytes')});
+  const other=await api('/api/sessions','POST',{agent_id:`other-stop-${Date.now()}`,title:'research'});
+  const otherToken=`other-stop-${Date.now()}`;const foreign=await api(`/api/sessions/${other.id}/prompt`,'POST',{prompt:`UX steer gate:${otherToken}`,model:'ux-local/gate'});
+  await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});await expect(stop).toHaveCount(0);
+  const queued=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:`UX preview expand UX steer gate:${newToken}`,intent:'queue',model:'ux-local/gate'});
+  const tail=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:'retained queued tail',intent:'queue',model:'ux-local/gate'});
+  const beforeQueue=await queue();expect(beforeQueue.items.map(x=>x.id)).toEqual([queued.turn_id,tail.turn_id]);
+  env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});await expect(stop).toBeEnabled();expect(await state()).toEqual(captured);
+  const mutations=[];page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith(`/api/sessions/${main.id}/activity`))mutations.push(r.postDataJSON());});
+  const cancel=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main.id}/activity`)&&r.request().method()==='POST');await stop.click();expect((await cancel).status()).toBe(200);
+  expect(mutations).toEqual([{turn_id:first.turn_id}]);
+  await expect.poll(async()=> (await api(`/api/sessions/${main.id}/turns`)).turns.find(t=>t.id===first.turn_id).status).toBe('cancelled');
+  // Current engine policy advances the queue after cancellation. This is not
+  // shared36 queue-preservation credit: assert native FIFO without discarding.
+  await expect.poll(async()=>(await state()).turn_id).toBe(queued.turn_id);await expect(stop).toBeEnabled();
+  expect((await queue()).items).toEqual(beforeQueue.items.filter(x=>x.id===tail.turn_id));await expect(page.locator(`[data-queue-id="${tail.turn_id}"]`)).toBeVisible();await expect(input).toHaveValue('captured stop draft');await expect(page.locator('.compose-file-pill[title="stop.txt"]')).toHaveCount(1);
+  expect((await api(`/api/sessions/${other.id}/activity`)).turn_id).toBe(foreign.turn_id);
+  await expect.poll(()=>env.frames.some(f=>f.type==='agent_status'&&f.data.status==='idle')).toBe(true);
+  const terminal=env.frames.findLast(f=>f.type==='agent_status'&&f.data.status==='idle');
+  const newer=queued;expect(terminal.data.turn_id).toBe(first.turn_id);
+  // Reconnect intentionally drops transient text. Emit a fresh delta only once
+  // the native second connection has delivered its readiness frame.
+  await expect.poll(()=>env.frames.filter(f=>f.type==='connected').length).toBeGreaterThanOrEqual(2);
+  env.release(newToken+'.more');
+  const draftPreview=page.locator('.agent-thinking').filter({has:page.locator('.agent-thinking-title').filter({hasText:'Draft'})});
+  await expect(draftPreview).toContainText('Draft line 16');
+  const latest=await state();expect(latest.turn_id).toBe(newer.turn_id);expect(env.frames.filter(f=>f.type==='connected').every(f=>f.data.app_asset_version===runtime)).toBe(true);
+  await page.route(`**/api/sessions/${main.id}/activity`,async route=>{if(route.request().method()!=='GET')return route.continue();heldReads++;await activityGate;await route.continue();});
+  // Replay the exact recorded native wire frame, not a fabricated client event.
+  for(const frame of [terminal,completed,terminal,completed]){
+   const before=heldReads;env.replay(frame);await expect.poll(()=>heldReads).toBeGreaterThan(before);
+   await expect(stop).toBeEnabled();await expect(draftPreview).toContainText('Draft line 16');
+  }
+  expect((await state()).turn_id).toBe(newer.turn_id);expect(mutations).toHaveLength(1);
+  releaseActivity();await page.unrouteAll({behavior:'wait'});await expect(stop).toBeEnabled();await expect(input).toHaveValue('captured stop draft');
+  const stale=await fetch(env.origin+`/api/sessions/${main.id}/activity`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({turn_id:first.turn_id})});expect(stale.status).toBe(409);expect((await state()).turn_id).toBe(newer.turn_id);
+  env.release(firstToken);env.release(newToken);env.release(otherToken);
+  await expect.poll(async()=>(await state()).status).toBe('idle');
+  await expect.poll(async()=>(await api(`/api/sessions/${other.id}/activity`)).status).toBe('idle');
+ }finally{releaseActivity();await env.close();}
 });
