@@ -1,7 +1,8 @@
 // Native media references are ordered and session-owned. Keep the supplied
 // Post component's parallel media_ids/content_blocks projection in one place.
+import { projectResourceLinks } from './gi-message-links.js';
 export function projectMessageMedia(payload: any, sessionId: string) {
-    const blocks = Array.isArray(payload?.content_blocks) ? payload.content_blocks : [];
+    const blocks = projectResourceLinks(Array.isArray(payload?.content_blocks) ? payload.content_blocks : []);
     const refs = Array.isArray(payload?.media) ? payload.media.filter((ref: any) =>
         Number.isSafeInteger(ref?.media_id) && ref.media_id > 0 &&
         (!ref.session_id || ref.session_id === sessionId)) : [];

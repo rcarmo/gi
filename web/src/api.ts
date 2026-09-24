@@ -14,6 +14,7 @@ import { notifyModelSettlement } from './gi-model-invalidation.js';
 import { recordAppPerfRequest } from './ui/app-perf-tracing.js';
 import { sessionPickerAgents } from './gi-session-state.js';
 import { projectMessageMedia } from './gi-message-media.js';
+import { projectLinkPreviews } from './gi-message-links.js';
 import { composeTransfers } from './gi-compose-transfer.js';
 
 const API_BASE = '';
@@ -149,7 +150,7 @@ export async function getTimeline(limit = 50, beforeId: string | null = null, ch
                 agent_id: m.payload?.agent_id || (m.role === 'assistant' ? 'agent' : null),
                 ...projectMessageMedia(m.payload, sessionId),
                 content_meta: null,
-                link_previews: null,
+                link_previews: projectLinkPreviews(m.payload),
                 kind: m.payload?.kind || null,
                 source: m.payload?.source || null,
                 clipped: m.payload?.clipped || false,
@@ -172,7 +173,7 @@ export async function searchPosts(query: string, limit = 50, offset = 0, chatJid
         id: m.id, chat_jid: sessionToChatJid(m.session_id), content: m.content, timestamp: m.created_at,
         sender: m.role === 'user' ? 'user' : 'agent',
         is_from_me: m.role === 'user', is_bot_message: m.role === 'assistant',
-        data: { type: m.role === 'assistant' ? 'agent_response' : 'user_message', content: m.content, thread_id: null, agent_id: m.payload?.agent_id || (m.role === 'assistant' ? 'agent' : null), ...projectMessageMedia(m.payload, m.session_id) },
+        data: { type: m.role === 'assistant' ? 'agent_response' : 'user_message', content: m.content, thread_id: null, agent_id: m.payload?.agent_id || (m.role === 'assistant' ? 'agent' : null), ...projectMessageMedia(m.payload, m.session_id), link_previews: projectLinkPreviews(m.payload) },
     })) };
 }
 

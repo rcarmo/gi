@@ -267,7 +267,8 @@ test-ux-steer: build-web
 	trap 'kill $$pid 2>/dev/null || true; wait $$pid 2>/dev/null || true' EXIT; \
 	ready=0; for i in $$(seq 1 100); do kill -0 $$pid || exit 1; if curl -fsS http://127.0.0.1:$(UX_LOCAL_PORT)/api/runtime/config >/dev/null 2>&1; then ready=1; break; fi; sleep .1; done; \
 	test $$ready -eq 1; \
-	$(UX_LOCAL_ENV) GI_TEST_URL=http://127.0.0.1:$(UX_LOCAL_PORT) $(PLAYWRIGHT) test --config=playwright.ux.config.mjs $(UX_LOCAL_SPEC) $(UX_PARITY_ARGS)
+	$(UX_LOCAL_ENV) GI_TEST_URL=http://127.0.0.1:$(UX_LOCAL_PORT) $(PLAYWRIGHT) test --config=playwright.ux.config.mjs $(UX_LOCAL_SPEC) $(UX_PARITY_ARGS); \
+	if [ -n "$(UX_LOCAL_FUNCTIONAL)" ]; then $(UX_LOCAL_ENV) GI_TEST_URL=http://127.0.0.1:$(UX_LOCAL_PORT) $(PLAYWRIGHT) test --config=playwright.config.ts --output=test-results/local-functional-artifacts $(UX_LOCAL_FUNCTIONAL); fi
 ux-parity-inventory:
 	$(BUN) test tests/ux/support/
 	$(BUN) scripts/ux-parity-report.mjs
@@ -298,6 +299,11 @@ test-web-skills:
 
 test-ux-skills:
 	GI_UX_SKILLS=1 $(MAKE) test-ux-parity TEST_FIXTURES_DIR=tests/ux/fixtures/skills UX_PARITY_ARGS='tests/ux/skills.spec.mjs'
+
+.PHONY: test-ux-links
+test-ux-links:
+	$(MAKE) test-ux-steer UX_LOCAL_ENV='GI_UX_LINKS=1' UX_LOCAL_SPEC='tests/ux/remote-links.spec.mjs tests/ux/rendering.spec.mjs tests/ux/lightbox.spec.mjs' UX_LOCAL_FUNCTIONAL=tests/functional/12-remote-links.spec.ts
+	$(MAKE) ux-parity-report UX_PARITY_REPORT_ARGS=test-results/ux-parity/results.json
 
 .PHONY: test-ux-speech-contract
 test-ux-speech-contract:

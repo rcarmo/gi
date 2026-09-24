@@ -243,6 +243,24 @@ func main() {
 		log.Fatal(err)
 	}
 	defer s.Close()
+	if os.Getenv("GI_UX_LINKS") != "" {
+		if _, err := s.CreateSession(context.Background(), "links-fixture", "Remote links", map[string]any{"model": "test-model"}); err != nil {
+			log.Fatal(err)
+		}
+		payload := map[string]any{
+			"content_blocks": []any{
+				map[string]any{"type": "resource_link", "uri": "https://resource.example.invalid/report?q=beta", "title": "Native resource β", "description": "Stored resource metadata", "mimeType": "text/plain", "size": 42},
+				map[string]any{"type": "resource_link", "uri": "javascript:alert(1)", "title": "Unsafe resource"},
+			},
+			"link_previews": []any{
+				map[string]any{"url": "http://preview.example.invalid/article", "title": "Native preview β", "description": "Stored preview metadata", "image": "https://tracker.example.invalid/pixel.png"},
+				map[string]any{"url": "data:text/html,unsafe", "title": "Unsafe preview"},
+			},
+		}
+		if err := s.AddMessage(context.Background(), "links-message", "links-fixture", "assistant", "Native remote-link proof remains authored text.", payload); err != nil {
+			log.Fatal(err)
+		}
+	}
 	if os.Getenv("GI_UX_SPEECH") != "" {
 		// Seed valid empty assistant history in this isolated DB. Production
 		// HTTP projection and supplied Post rendering still handle the rows.

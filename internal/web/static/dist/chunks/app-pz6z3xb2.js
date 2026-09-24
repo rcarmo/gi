@@ -942,9 +942,63 @@ function createSelectionScope() {
   };
 }
 
+// web/src/gi-message-links.ts
+var MAX_LINKS = 8;
+function text(value, max) {
+  return typeof value === "string" ? value.slice(0, max) : "";
+}
+function remoteLinkUrl(value) {
+  if (typeof value !== "string" || value.length > 2048 || /[\s\\\u0000-\u001f\u007f]/.test(value))
+    return null;
+  try {
+    const url = new URL(value);
+    return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+function projectResourceLinks(blocks) {
+  let count = 0;
+  return blocks.flatMap((block) => {
+    if (block?.type !== "resource_link")
+      return [block];
+    const uri = remoteLinkUrl(block.uri);
+    if (!uri || count++ >= MAX_LINKS)
+      return [];
+    return [{
+      type: "resource_link",
+      uri,
+      title: text(block.title || block.name, 200),
+      description: text(block.description, 1000),
+      mimeType: text(block.mimeType, 100),
+      ...Number.isSafeInteger(block.size) && block.size >= 0 ? { size: block.size } : {}
+    }];
+  });
+}
+function projectLinkPreviews(payload) {
+  if (!Array.isArray(payload?.link_previews))
+    return null;
+  const seen = new Set, previews = [];
+  for (const entry of payload.link_previews) {
+    const url = remoteLinkUrl(entry?.url);
+    if (!url || seen.has(url))
+      continue;
+    seen.add(url);
+    previews.push({
+      url,
+      title: text(entry.title, 200),
+      description: text(entry.description, 1000),
+      site_name: new URL(url).hostname
+    });
+    if (previews.length === MAX_LINKS)
+      break;
+  }
+  return previews.length ? previews : null;
+}
+
 // web/src/gi-message-media.ts
 function projectMessageMedia(payload, sessionId) {
-  const blocks = Array.isArray(payload?.content_blocks) ? payload.content_blocks : [];
+  const blocks = projectResourceLinks(Array.isArray(payload?.content_blocks) ? payload.content_blocks : []);
   const refs = Array.isArray(payload?.media) ? payload.media.filter((ref) => Number.isSafeInteger(ref?.media_id) && ref.media_id > 0 && (!ref.session_id || ref.session_id === sessionId)) : [];
   if (!refs.length)
     return { media_ids: [], content_blocks: blocks.length ? blocks : null };
@@ -1317,7 +1371,7 @@ async function getTimeline(limit = 50, beforeId = null, chatJid = null, after = 
         agent_id: m.payload?.agent_id || (m.role === "assistant" ? "agent" : null),
         ...projectMessageMedia(m.payload, sessionId),
         content_meta: null,
-        link_previews: null,
+        link_previews: projectLinkPreviews(m.payload),
         kind: m.payload?.kind || null,
         source: m.payload?.source || null,
         clipped: m.payload?.clipped || false
@@ -1340,7 +1394,7 @@ async function searchPosts(query, limit = 50, offset = 0, chatJid = null, scope 
     sender: m.role === "user" ? "user" : "agent",
     is_from_me: m.role === "user",
     is_bot_message: m.role === "assistant",
-    data: { type: m.role === "assistant" ? "agent_response" : "user_message", content: m.content, thread_id: null, agent_id: m.payload?.agent_id || (m.role === "assistant" ? "agent" : null), ...projectMessageMedia(m.payload, m.session_id) }
+    data: { type: m.role === "assistant" ? "agent_response" : "user_message", content: m.content, thread_id: null, agent_id: m.payload?.agent_id || (m.role === "assistant" ? "agent" : null), ...projectMessageMedia(m.payload, m.session_id), link_previews: projectLinkPreviews(m.payload) }
   })) };
 }
 async function getSystemMetrics() {
@@ -18313,10 +18367,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-waz8m8bj.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-crh3dd00.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-eg0f0x4e.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-7wyz3mh8.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-ayj5y1gh.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-ymmses4x.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-9d2en9m7.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-c4865tkc.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -20695,5 +20749,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=C3BC2615F14550C364756E2164756E21
-//# sourceMappingURL=app-rfbg1bbr.js.map
+//# debugId=143D5813F2FD527A64756E2164756E21
+//# sourceMappingURL=app-pz6z3xb2.js.map
