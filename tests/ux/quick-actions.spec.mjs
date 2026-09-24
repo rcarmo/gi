@@ -301,3 +301,55 @@ test('Gi focused palette action button activates its own row rather than the sea
   await target.press(key);await expect(f.palette).toHaveCount(0);await expect(page.locator('.app-shell')).not.toHaveClass(/workspace-collapsed/);toggles=await page.evaluate(()=>{window.__workspaceObserver.disconnect();return window.__workspaceOpens;});expect(toggles).toBe(1);await page.locator('.workspace-toggle-tab.open').click();await f.unchanged();
  }
 });
+
+test('@shared-4 Idle typing ranks native Quick Actions and activates the highlighted action once',async({page,request},info)=>{
+ const f=await sharedTypingFixture(page,request,info,'@shared-4');
+ const stem=`rank${info.project.name.replaceAll('-','')}${Date.now()}`;
+ const exact=`${stem}model`,prefix=`${stem}model-extra`,substring=`z-${stem}model`;
+ for(const title of [exact,prefix,substring]){const r=await request.post('/api/sessions',{data:{agent_id:title,title}});expect(r.status()).toBe(201);}
+ // File and native message references give activation a nontrivial composer
+ // to preserve; no fabricated catalogue or DOM rows participate in ranking.
+ const filename=`${stem}.txt`,written=await request.post('/api/tools/execute',{data:{tool:'write',input:{path:filename,content:'native ranking reference'}}});expect((await written.json()).error).toBeFalsy();
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();await page.locator(`.workspace-row[data-path="${filename}"]`).click();await page.locator('.workspace-toggle-tab.open').click();
+ const time=page.locator('.post .post-time').first(),messageId=(await time.getAttribute('href')).replace(/^#msg-/,'');await time.click();
+ const labels=()=>page.locator('.compose-input-main .compose-file-pill').evaluateAll(nodes=>nodes.map(n=>n.title)),expectedLabels=[`Message reference: ${messageId}`,filename,'guard-unsent.txt'];await expect.poll(labels).toEqual(expectedLabels);
+ const stored=()=>page.evaluate(async id=>{
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const s=r.result;resolve(s?{...s,draft:{...s.draft,media:s.draft.media.map(f=>({...f,bytes:Array.from(new Uint8Array(f.bytes))}))}}:null);};tx.onerror=()=>reject(tx.error);});
+ },f.main.id);
+ // Pill rendering precedes the asynchronous IndexedDB commit. Establish the
+ // durable fixture before reload rather than relying on rendering/timing.
+ await expect.poll(stored).toMatchObject({draft:{text:'untouched draft',fileRefs:[filename],messageRefs:[messageId],media:[{name:'guard-unsent.txt',bytes:Array.from(Buffer.from('guard native bytes'))}]},pending:[]});const draftBefore=await stored();
+ // Reload fetches the actual updated session catalogue and restores the draft.
+ await page.reload();await f.unchanged();await expect.poll(labels).toEqual(expectedLabels);
+ const native=(await(await request.get('/api/sessions')).json()).sessions.filter(s=>!s.state?.archived_at);
+ const config=await(await request.get('/api/quick-actions')).json();expect(config).toMatchObject({workspaceCommands:['toggle-workspace','open-explorer'],slashCommands:['/model','/compact']});expect(config.commands.map(c=>c.source)).toEqual(['native','native']);
+ const conversation=page.getByRole('region',{name:'Conversation',exact:true});await expect(page.getByRole('button',{name:'Send message',exact:true})).toBeVisible();
+ await conversation.focus();await expect(conversation).toBeFocused();await conversation.press('o');await expect(f.palette).toHaveCount(1);await expect(f.query).toBeFocused();await expect(f.query).toHaveValue('o');
+ const titles=f.palette.locator('.timeline-quick-actions-item-title'),active=f.palette.locator('.timeline-quick-actions-item.active .timeline-quick-actions-item-title');
+ const initialAgents=native.filter(s=>[s.title,`gi:${s.id}`].some(value=>value.toLowerCase().includes('o')));
+ const initialCommands=config.commands.filter(c=>[c.name,c.description,c.source].some(value=>value.toLowerCase().includes('o')));
+ expect(initialAgents.length).toBeGreaterThan(0);expect(initialCommands).toHaveLength(2);
+ await expect(f.palette.locator('.timeline-quick-actions-section')).toHaveText(['Agents','Workspace','Slash commands']);
+ await expect(titles).toHaveText([...initialAgents.map(s=>'@'+s.title.replace(/^@/,'')),'Show workspace','Open explorer',...initialCommands.map(c=>c.name)]);
+ await expect(f.palette.locator('.timeline-quick-actions-item-agent .timeline-quick-actions-item-subtitle')).toHaveText(initialAgents.map(s=>`gi:${s.id}`));
+ await f.query.fill('');await expect(f.palette.locator('.timeline-quick-actions-section')).toHaveText(['Agents','Workspace','Slash commands']);
+ await expect(f.palette.locator('.timeline-quick-actions-item-agent .timeline-quick-actions-item-title')).toHaveText(native.map(s=>'@'+(s.title?s.title.replace(/^@/,''):s.scope.agent_id)));
+ await expect(f.palette.locator('.timeline-quick-actions-item-agent .timeline-quick-actions-item-subtitle')).toHaveText(native.map(s=>`gi:${s.id}`));
+ await expect(f.palette.locator('.timeline-quick-actions-item-workspace .timeline-quick-actions-item-title')).toHaveText(['Show workspace','Open explorer']);await expect(f.palette.locator('.timeline-quick-actions-item-slash .timeline-quick-actions-item-title')).toHaveText(config.commands.map(c=>c.name));
+ expect(await f.palette.locator('.timeline-quick-actions-item').evaluateAll(nodes=>nodes.map(n=>n.classList.contains('timeline-quick-actions-item-agent')?'agent':n.classList.contains('timeline-quick-actions-item-workspace')?'workspace':'slash'))).toEqual([...native.map(()=>'agent'),'workspace','workspace','slash','slash']);
+ await f.query.fill(exact);await expect(titles).toHaveText(['@'+substring,'@'+prefix,'@'+exact]);await expect(active).toHaveText('@'+exact);
+ await f.query.fill(stem+'mo');await expect(titles).toHaveText(['@'+substring,'@'+prefix,'@'+exact]);await expect(active).toHaveText('@'+prefix);
+ // Every native JID matches, but no title contains this query: multiple
+ // results force the first-result fallback rather than a single-item default.
+ expect(native.length).toBeGreaterThan(3);expect(native.every(s=>!s.title.toLowerCase().includes('gi:'))).toBe(true);
+ await f.query.fill('gi:');await expect(titles).toHaveText(native.map(s=>'@'+s.title.replace(/^@/,'')));await expect(active).toHaveText(await titles.first().textContent());
+ // Navigation wraps only the filtered three-row catalogue; focus stays in
+ // search and navigation itself cannot activate a session or change drafts.
+ await f.query.fill(exact);await expect(active).toHaveText('@'+exact);await f.query.press('ArrowDown');await expect(active).toHaveText('@'+substring);await f.query.press('ArrowUp');await expect(active).toHaveText('@'+exact);await expect(f.query).toBeFocused();await f.unchanged();expect(await labels()).toEqual(expectedLabels);
+ await f.query.fill('Open explorer');await expect(titles).toHaveText(['Open explorer']);await expect(active).toHaveText('Open explorer');await expect(page.locator('.app-shell')).toHaveClass(/workspace-collapsed/);
+ await page.locator('.app-shell').evaluate(el=>{window.__rankOpens=0;window.__rankObserver=new MutationObserver(records=>{for(const r of records)if(r.oldValue?.includes('workspace-collapsed')&&!el.classList.contains('workspace-collapsed'))window.__rankOpens++;});window.__rankObserver.observe(el,{attributes:true,attributeFilter:['class'],attributeOldValue:true});});
+ await f.query.press('Enter');await expect(f.palette).toHaveCount(0);await expect(page.locator('.workspace-sidebar')).toBeVisible();await expect(page.locator(`.workspace-row[data-path="${filename}"]`)).toBeVisible();await f.frames();expect(await page.evaluate(()=>{window.__rankObserver.disconnect();return window.__rankOpens;})).toBe(1);await f.unchanged();expect(await labels()).toEqual(expectedLabels);
+ expect(await stored()).toEqual(draftBefore);
+ await page.locator('.workspace-toggle-tab.open').click();await page.reload();await f.unchanged();await expect.poll(labels).toEqual(expectedLabels);expect(await stored()).toEqual(draftBefore);expect((await(await request.get(`/api/sessions/${f.child.id}/turns`)).json()).turns||[]).toEqual([]);
+});
