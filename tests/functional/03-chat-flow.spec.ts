@@ -103,3 +103,18 @@ test('horizontal table scrolling keeps selected session and draft even with Safa
  await page.addInitScript(id=>{localStorage.setItem('gi_session_id',id);Object.defineProperty(navigator,'userAgent',{configurable:true,value:'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15'});},session.id);
  await page.goto('/');const input=page.getByRole('textbox',{name:'Message (Enter to send, Shift+Enter for newline)...',exact:true});await input.fill('scroll draft');const table=page.locator('.post:not(.agent-post) table').first();await expect(table).toBeVisible();await table.locator('td').first().hover();await page.mouse.wheel(10000,0);await expect.poll(()=>table.evaluate(el=>el.closest('.post-content')!.scrollLeft)).toBeGreaterThan(0);expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(session.id);await expect(input).toHaveValue('scroll draft');
 });
+
+test('native assistant read-aloud toggles and clears on audio failure without submitting draft', async ({page,request})=>{
+ await page.addInitScript(()=>{
+  (window as any).__utterances=[];
+  Object.defineProperty(window,'SpeechSynthesisUtterance',{configurable:true,value:class {text:string;constructor(text:string){this.text=text;}}});
+  Object.defineProperty(window,'speechSynthesis',{configurable:true,value:{speak(u:any){(window as any).__utterances.push(u);},cancel(){}}});
+ });
+ const session=await(await request.post('/api/sessions',{data:{agent_id:`speech-${Date.now()}`,title:'speech functional'}})).json();
+ const accepted=await request.post(`/api/sessions/${session.id}/prompt`,{data:{prompt:'Native spoken message',model:'test-model'}});expect(accepted.status()).toBe(202);
+ await expect.poll(async()=>((await(await request.get(`/api/sessions/${session.id}/turns`)).json()).turns||[])[0]?.status).toBe('completed');
+ await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),session.id);await page.goto(BASE_URL);const input=getComposeInput(page);await input.fill('unsent draft');
+ await page.getByRole('button',{name:'Read aloud',exact:true}).click();await expect(page.getByRole('button',{name:'Stop reading aloud',exact:true})).toHaveAttribute('aria-pressed','true');
+ expect(await page.evaluate(()=>(window as any).__utterances[0].text)).toContain('Native spoken message');await page.evaluate(()=>(window as any).__utterances[0].onerror());
+ await expect(page.getByRole('button',{name:'Read aloud',exact:true})).toHaveAttribute('aria-pressed','false');await expect(input).toHaveValue('unsent draft');expect((await(await request.get(`/api/sessions/${session.id}/turns`)).json()).turns).toHaveLength(1);
+});

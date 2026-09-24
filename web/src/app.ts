@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { staleTerminalEvent } from './gi-turn-event.js';
+import { speechPlayback } from './gi-post-speech.js';
 /**
  * app.ts — Gi entry point.
  *
@@ -387,6 +388,17 @@ function GiApp() {
     } = useAgentState();
 
     const currentChatJid = useMemo(() => sessionId ? sessionToChatJid(sessionId) : '', [sessionId]);
+    useLayoutEffect(() => {
+        speechPlayback.setScope(currentChatJid);
+        return () => speechPlayback.setScope(null);
+    }, [currentChatJid]);
+    useEffect(() => {
+        const stop = () => speechPlayback.stop();
+        const hidden = () => { if (document.hidden) stop(); };
+        window.addEventListener('pagehide', stop);
+        document.addEventListener('visibilitychange', hidden);
+        return () => { window.removeEventListener('pagehide', stop); document.removeEventListener('visibilitychange', hidden); stop(); };
+    }, []);
     const renderedSelection = selection.capture();
 
     // ── Bootstrap ────────────────────────────────────────────────────────────

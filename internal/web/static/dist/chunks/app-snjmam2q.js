@@ -4,6 +4,248 @@ function staleTerminalEvent(type, data, currentTurn) {
   return Boolean(terminal && currentTurn && data?.turn_id !== currentTurn);
 }
 
+// web/src/ui/adaptive-card-submission.ts
+function formatSubmissionValue(value) {
+  if (value == null)
+    return "";
+  if (typeof value === "string")
+    return value.trim();
+  if (typeof value === "number")
+    return String(value);
+  if (typeof value === "boolean")
+    return value ? "yes" : "no";
+  if (Array.isArray(value)) {
+    return value.map((item) => formatSubmissionValue(item)).filter(Boolean).join(", ");
+  }
+  if (typeof value === "object") {
+    return Object.entries(value).filter(([key]) => !key.startsWith("__")).map(([key, inner]) => `${key}: ${formatSubmissionValue(inner)}`).filter((entry) => !entry.endsWith(": ")).join(", ");
+  }
+  return String(value).trim();
+}
+function getSubmissionFields(data) {
+  if (!(typeof data === "object") || data == null || Array.isArray(data))
+    return [];
+  return Object.entries(data).filter(([key]) => !key.startsWith("__")).map(([key, value]) => ({ key, value: formatSubmissionValue(value) })).filter((entry) => entry.value);
+}
+function isAdaptiveCardSubmissionBlock(block) {
+  if (!block || typeof block !== "object")
+    return false;
+  const candidate = block;
+  return candidate.type === "adaptive_card_submission" && typeof candidate.card_id === "string" && typeof candidate.source_post_id === "number" && typeof candidate.submitted_at === "string";
+}
+function extractAdaptiveCardSubmissionBlocks(contentBlocks) {
+  if (!Array.isArray(contentBlocks))
+    return [];
+  return contentBlocks.filter(isAdaptiveCardSubmissionBlock);
+}
+function buildAdaptiveCardSubmissionFallbackText(block) {
+  const label = String(block.title || block.card_id || "card").trim() || "card";
+  const data = block.data;
+  if (data == null)
+    return `Card submission: ${label}`;
+  if (typeof data === "string" || typeof data === "number" || typeof data === "boolean") {
+    const formatted = formatSubmissionValue(data);
+    return formatted ? `Card submission: ${label} — ${formatted}` : `Card submission: ${label}`;
+  }
+  if (typeof data === "object") {
+    const fields = getSubmissionFields(data);
+    const entries = fields.map(({ key, value }) => `${key}: ${value}`);
+    return entries.length > 0 ? `Card submission: ${label} — ${entries.join(", ")}` : `Card submission: ${label}`;
+  }
+  return `Card submission: ${label}`;
+}
+function describeAdaptiveCardSubmission(block) {
+  const title = String(block.title || block.card_id || "Card submission").trim() || "Card submission";
+  const allFields = getSubmissionFields(block.data);
+  const summary = allFields.length > 0 ? allFields.slice(0, 2).map(({ key, value }) => `${key}: ${value}`).join(", ") : formatSubmissionValue(block.data) || null;
+  const fieldCount = allFields.length;
+  return {
+    title,
+    summary,
+    fields: allFields,
+    fieldCount,
+    submittedAt: block.submitted_at
+  };
+}
+
+// web/src/utils/post-copy-markdown.ts
+function cleanString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+function joinSections(sections) {
+  return sections.map((section) => String(section || "").trim()).filter(Boolean).join(`
+
+`).replace(/\n{3,}/g, `
+
+`).trim();
+}
+function buildStructuredBlocksMarkdown(blocks, mediaIds) {
+  const sections = [];
+  const attachmentLines = [];
+  const imageLines = [];
+  blocks.forEach((block, index) => {
+    if (!block || typeof block !== "object")
+      return;
+    const type = cleanString(block.type);
+    if (type === "text") {
+      const text = cleanString(block.text) || cleanString(block.content);
+      if (text)
+        sections.push(text);
+      return;
+    }
+    if (type === "resource_link") {
+      const uri = cleanString(block.uri);
+      const title = cleanString(block.title) || cleanString(block.name) || uri;
+      if (uri && title) {
+        sections.push(title === uri ? uri : `[${title}](${uri})`);
+      }
+      return;
+    }
+    if (type === "resource") {
+      const title = cleanString(block.title) || cleanString(block.name) || cleanString(block.uri) || "Embedded resource";
+      const text = cleanString(block.text);
+      if (text) {
+        sections.push(`### ${title}
+
+\`\`\`
+${text}
+\`\`\``);
+      } else {
+        sections.push(`### ${title}`);
+      }
+      return;
+    }
+    if (type === "generated_widget") {
+      const title = cleanString(block.title) || cleanString(block.name) || "Generated widget";
+      const description = cleanString(block.description) || cleanString(block.subtitle);
+      sections.push(joinSections([`### ${title}`, description]));
+      return;
+    }
+    if (type === "adaptive_card" && cleanString(block.fallback_text)) {
+      sections.push(cleanString(block.fallback_text));
+      return;
+    }
+    if (type === "adaptive_card_submission") {
+      const fallback = buildAdaptiveCardSubmissionFallbackText(block);
+      if (cleanString(fallback))
+        sections.push(cleanString(fallback));
+      return;
+    }
+    if (type === "file") {
+      const label = cleanString(block.name) || cleanString(block.filename) || cleanString(block.title) || `attachment:${mediaIds[index] ?? index + 1}`;
+      attachmentLines.push(`- ${label}`);
+      return;
+    }
+    if (type === "image" || !type) {
+      const label = cleanString(block.name) || cleanString(block.filename) || cleanString(block.title) || `attachment:${mediaIds[index] ?? index + 1}`;
+      imageLines.push(`- ${label}`);
+    }
+  });
+  if (imageLines.length > 0)
+    sections.push(`Images:
+${imageLines.join(`
+`)}`);
+  if (attachmentLines.length > 0)
+    sections.push(`Attachments:
+${attachmentLines.join(`
+`)}`);
+  return joinSections(sections);
+}
+function buildPostMarkdownCopyPayload(post) {
+  const data = post?.data || {};
+  const rawContent = typeof data.content === "string" ? data.content.replace(/\r\n/g, `
+`).replace(/\r/g, `
+`).trimEnd() : "";
+  if (rawContent.trim())
+    return rawContent;
+  const blocks = Array.isArray(data.content_blocks) ? data.content_blocks : [];
+  const mediaIds = Array.isArray(data.media_ids) ? data.media_ids : [];
+  return buildStructuredBlocksMarkdown(blocks, mediaIds);
+}
+
+// web/src/gi-post-speech.ts
+function buildSpeakablePostText(post) {
+  const raw = buildPostMarkdownCopyPayload(post);
+  if (!raw)
+    return "";
+  return String(raw).replace(/```[\s\S]*?```/g, " Code block omitted. ").replace(/`([^`]+)`/g, "$1").replace(/!\[([^\]]*)\]\(([^)]+)\)/g, "$1").replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1").replace(/^#{1,6}\s+/gm, "").replace(/^>\s?/gm, "").replace(/^[-*+]\s+/gm, "• ").replace(/\n{3,}/g, `
+
+`).replace(/\n\n+/g, ". ").replace(/\s+/g, " ").replace(/\s+([.,;:!?])/g, "$1").trim().slice(0, 1600);
+}
+function createSpeechPlayback(runtime = () => typeof window === "undefined" ? null : window) {
+  let scope = null, token = 0, active = null;
+  const listeners = new Set;
+  const state = () => ({ owner: active?.owner ?? null, speaking: Boolean(active) });
+  const emit = () => {
+    for (const listener of listeners)
+      listener(state());
+  };
+  const supported = () => {
+    const win = runtime();
+    return Boolean(win && typeof win.SpeechSynthesisUtterance === "function" && typeof win.speechSynthesis?.speak === "function" && typeof win.speechSynthesis?.cancel === "function");
+  };
+  const stop = (owner) => {
+    if (owner !== undefined && active?.owner !== owner)
+      return;
+    const previous = active;
+    ++token;
+    active = null;
+    if (previous) {
+      try {
+        previous.synth.cancel();
+      } catch {}
+    }
+    emit();
+  };
+  return {
+    state,
+    supported,
+    stop,
+    setScope(next) {
+      if (scope !== next) {
+        stop();
+        scope = next;
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      listener(state());
+      return () => listeners.delete(listener);
+    },
+    speak(owner, text) {
+      if (!scope || !supported())
+        return false;
+      const value = String(text || "").trim().slice(0, 1600);
+      if (!value)
+        return false;
+      stop();
+      const win = runtime(), synth = win.speechSynthesis, current = ++token;
+      try {
+        const utterance = new win.SpeechSynthesisUtterance(value);
+        const finish = () => {
+          if (current === token) {
+            active = null;
+            emit();
+          }
+        };
+        utterance.onend = finish;
+        utterance.onerror = finish;
+        active = { owner, synth, utterance };
+        emit();
+        synth.speak(utterance);
+        return true;
+      } catch {
+        if (current === token) {
+          active = null;
+          emit();
+        }
+        return false;
+      }
+    }
+  };
+}
+var speechPlayback = createSpeechPlayback();
+
 // web/src/vendor/preact-htm.js
 var q;
 var d;
@@ -3891,165 +4133,6 @@ class TabStoreImpl {
   }
 }
 var tabStore = new TabStoreImpl;
-// web/src/ui/adaptive-card-submission.ts
-function formatSubmissionValue(value) {
-  if (value == null)
-    return "";
-  if (typeof value === "string")
-    return value.trim();
-  if (typeof value === "number")
-    return String(value);
-  if (typeof value === "boolean")
-    return value ? "yes" : "no";
-  if (Array.isArray(value)) {
-    return value.map((item) => formatSubmissionValue(item)).filter(Boolean).join(", ");
-  }
-  if (typeof value === "object") {
-    return Object.entries(value).filter(([key]) => !key.startsWith("__")).map(([key, inner]) => `${key}: ${formatSubmissionValue(inner)}`).filter((entry) => !entry.endsWith(": ")).join(", ");
-  }
-  return String(value).trim();
-}
-function getSubmissionFields(data) {
-  if (!(typeof data === "object") || data == null || Array.isArray(data))
-    return [];
-  return Object.entries(data).filter(([key]) => !key.startsWith("__")).map(([key, value]) => ({ key, value: formatSubmissionValue(value) })).filter((entry) => entry.value);
-}
-function isAdaptiveCardSubmissionBlock(block) {
-  if (!block || typeof block !== "object")
-    return false;
-  const candidate = block;
-  return candidate.type === "adaptive_card_submission" && typeof candidate.card_id === "string" && typeof candidate.source_post_id === "number" && typeof candidate.submitted_at === "string";
-}
-function extractAdaptiveCardSubmissionBlocks(contentBlocks) {
-  if (!Array.isArray(contentBlocks))
-    return [];
-  return contentBlocks.filter(isAdaptiveCardSubmissionBlock);
-}
-function buildAdaptiveCardSubmissionFallbackText(block) {
-  const label = String(block.title || block.card_id || "card").trim() || "card";
-  const data = block.data;
-  if (data == null)
-    return `Card submission: ${label}`;
-  if (typeof data === "string" || typeof data === "number" || typeof data === "boolean") {
-    const formatted = formatSubmissionValue(data);
-    return formatted ? `Card submission: ${label} — ${formatted}` : `Card submission: ${label}`;
-  }
-  if (typeof data === "object") {
-    const fields = getSubmissionFields(data);
-    const entries = fields.map(({ key, value }) => `${key}: ${value}`);
-    return entries.length > 0 ? `Card submission: ${label} — ${entries.join(", ")}` : `Card submission: ${label}`;
-  }
-  return `Card submission: ${label}`;
-}
-function describeAdaptiveCardSubmission(block) {
-  const title = String(block.title || block.card_id || "Card submission").trim() || "Card submission";
-  const allFields = getSubmissionFields(block.data);
-  const summary = allFields.length > 0 ? allFields.slice(0, 2).map(({ key, value }) => `${key}: ${value}`).join(", ") : formatSubmissionValue(block.data) || null;
-  const fieldCount = allFields.length;
-  return {
-    title,
-    summary,
-    fields: allFields,
-    fieldCount,
-    submittedAt: block.submitted_at
-  };
-}
-
-// web/src/utils/post-copy-markdown.ts
-function cleanString(value) {
-  return typeof value === "string" ? value.trim() : "";
-}
-function joinSections(sections) {
-  return sections.map((section) => String(section || "").trim()).filter(Boolean).join(`
-
-`).replace(/\n{3,}/g, `
-
-`).trim();
-}
-function buildStructuredBlocksMarkdown(blocks, mediaIds) {
-  const sections = [];
-  const attachmentLines = [];
-  const imageLines = [];
-  blocks.forEach((block, index) => {
-    if (!block || typeof block !== "object")
-      return;
-    const type = cleanString(block.type);
-    if (type === "text") {
-      const text = cleanString(block.text) || cleanString(block.content);
-      if (text)
-        sections.push(text);
-      return;
-    }
-    if (type === "resource_link") {
-      const uri = cleanString(block.uri);
-      const title = cleanString(block.title) || cleanString(block.name) || uri;
-      if (uri && title) {
-        sections.push(title === uri ? uri : `[${title}](${uri})`);
-      }
-      return;
-    }
-    if (type === "resource") {
-      const title = cleanString(block.title) || cleanString(block.name) || cleanString(block.uri) || "Embedded resource";
-      const text = cleanString(block.text);
-      if (text) {
-        sections.push(`### ${title}
-
-\`\`\`
-${text}
-\`\`\``);
-      } else {
-        sections.push(`### ${title}`);
-      }
-      return;
-    }
-    if (type === "generated_widget") {
-      const title = cleanString(block.title) || cleanString(block.name) || "Generated widget";
-      const description = cleanString(block.description) || cleanString(block.subtitle);
-      sections.push(joinSections([`### ${title}`, description]));
-      return;
-    }
-    if (type === "adaptive_card" && cleanString(block.fallback_text)) {
-      sections.push(cleanString(block.fallback_text));
-      return;
-    }
-    if (type === "adaptive_card_submission") {
-      const fallback = buildAdaptiveCardSubmissionFallbackText(block);
-      if (cleanString(fallback))
-        sections.push(cleanString(fallback));
-      return;
-    }
-    if (type === "file") {
-      const label = cleanString(block.name) || cleanString(block.filename) || cleanString(block.title) || `attachment:${mediaIds[index] ?? index + 1}`;
-      attachmentLines.push(`- ${label}`);
-      return;
-    }
-    if (type === "image" || !type) {
-      const label = cleanString(block.name) || cleanString(block.filename) || cleanString(block.title) || `attachment:${mediaIds[index] ?? index + 1}`;
-      imageLines.push(`- ${label}`);
-    }
-  });
-  if (imageLines.length > 0)
-    sections.push(`Images:
-${imageLines.join(`
-`)}`);
-  if (attachmentLines.length > 0)
-    sections.push(`Attachments:
-${attachmentLines.join(`
-`)}`);
-  return joinSections(sections);
-}
-function buildPostMarkdownCopyPayload(post) {
-  const data = post?.data || {};
-  const rawContent = typeof data.content === "string" ? data.content.replace(/\r\n/g, `
-`).replace(/\r/g, `
-`).trimEnd() : "";
-  if (rawContent.trim())
-    return rawContent;
-  const blocks = Array.isArray(data.content_blocks) ? data.content_blocks : [];
-  const mediaIds = Array.isArray(data.media_ids) ? data.media_ids : [];
-  return buildStructuredBlocksMarkdown(blocks, mediaIds);
-}
-
 // web/src/ui/agent-utils.ts
 var DEFAULT_AGENT_NAME = "PiClaw";
 var AGENT_AVATAR_URL = "/static/icon-192.png";
@@ -5938,6 +6021,24 @@ function highlightHtml(html, query) {
 function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, agentName, agentAvatarUrl, userName, userAvatarUrl, userAvatarBackground, onDelete, isThreadReply, isThreadPrev, isThreadNext, isRemoving, highlightQuery, onFileRef, onOpenWidget, onOpenAttachmentPreview }) {
   const [zoomedImage, setZoomedImage] = F_(null);
   const [copyState, setCopyState] = F_("idle");
+  const speechOwner = u_(() => ({}), [post.id]);
+  const [speechState, setSpeechState] = F_(speechPlayback.state);
+  const speakableText = u_(() => buildSpeakablePostText(post), [post]);
+  const speechSupported = speechPlayback.supported();
+  const isSpeakingThisPost = speechState.speaking && speechState.owner === speechOwner;
+  K_(() => speechPlayback.subscribe(setSpeechState), []);
+  K_(() => () => speechPlayback.stop(speechOwner), [speechOwner]);
+  K_(() => {
+    speechPlayback.stop(speechOwner);
+  }, [speechOwner, speakableText, post.data?.content]);
+  const handleSpeakClick = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (isSpeakingThisPost)
+      speechPlayback.stop(speechOwner);
+    else
+      speechPlayback.speak(speechOwner, speakableText);
+  };
   const contentRef = Q_(null);
   const copyResetTimerRef = Q_(null);
   const data = post.data;
@@ -6155,6 +6256,15 @@ function Post({ post, onClick, onHashtagClick, onMessageRef, onScrollToMessage, 
             </div>
             <div class="post-body">
                 <div class="post-actions">
+                    ${isAgent && speechSupported && speakableText && fe`
+                        <button type="button" class=${"post-action-btn post-speak-btn" + (isSpeakingThisPost ? " is-active" : "")}
+                            onClick=${handleSpeakClick}
+                            title=${isSpeakingThisPost ? "Stop reading aloud" : "Read aloud"}
+                            aria-label=${isSpeakingThisPost ? "Stop reading aloud" : "Read aloud"}
+                            aria-pressed=${isSpeakingThisPost}>
+                            ${isSpeakingThisPost ? fe`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="10" height="10" rx="1"/></svg>` : fe`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>`}
+                        </button>
+                    `}
                     <button
                         class=${`post-action-btn post-copy-btn${copyState === "success" ? " is-success" : copyState === "error" ? " is-error" : ""}`}
                         type="button"
@@ -18171,10 +18281,10 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-pwx15m2c.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-38h60v11.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-vt6fbmga.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-x1893h99.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-p5e66s3b.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-5tnq8853.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-wp39vbmg.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-3ekembhj.js").then((module) => module.GiSettingsProviders)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
 var components = new Map;
@@ -19446,6 +19556,24 @@ function GiApp() {
     draftExpandedRef
   } = useAgentState();
   const currentChatJid = u_(() => sessionId ? sessionToChatJid2(sessionId) : "", [sessionId]);
+  W_(() => {
+    speechPlayback.setScope(currentChatJid);
+    return () => speechPlayback.setScope(null);
+  }, [currentChatJid]);
+  K_(() => {
+    const stop = () => speechPlayback.stop();
+    const hidden = () => {
+      if (document.hidden)
+        stop();
+    };
+    window.addEventListener("pagehide", stop);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      window.removeEventListener("pagehide", stop);
+      document.removeEventListener("visibilitychange", hidden);
+      stop();
+    };
+  }, []);
   const renderedSelection = selection.capture();
   K_(() => {
     const cleanupTheme = initTheme();
@@ -20529,5 +20657,5 @@ export {
   compactionElapsed
 };
 
-//# debugId=5E7224F5C309738364756E2164756E21
-//# sourceMappingURL=app-vaf9802h.js.map
+//# debugId=F6346C0025189AB064756E2164756E21
+//# sourceMappingURL=app-snjmam2q.js.map
