@@ -1322,7 +1322,10 @@ func (c *chatTUI) toolRuntimeBlockKey(payload map[string]any, toolName string) s
 	turnID, _ := payload["turn_id"].(string)
 	iteration := intFromAny(payload["iteration"])
 	if strings.TrimSpace(toolCallID) != "" {
-		return "toolcall:" + toolCallID
+		// Providers can reuse a call ID in a later turn. The tuple is local to
+		// this session's transcript; length encoding avoids delimiter collisions.
+		turnID, _ := payload["turn_id"].(string)
+		return fmt.Sprintf("toolcall:%d:%s:%s", len(turnID), turnID, toolCallID)
 	}
 	return fmt.Sprintf("tool:%s:%s:%d", strings.TrimSpace(turnID), strings.TrimSpace(toolName), iteration)
 }
@@ -1397,6 +1400,15 @@ func (c *chatTUI) renderToolEvent(payload map[string]any, ts time.Time) {
 	startedAt := normalizeBlockTimestamp(ts)
 	toolKey := c.toolRuntimeBlockKey(payload, toolName)
 	blockKey := c.transcriptToolBlocks[toolKey]
+	var previous transcriptBlockMeta
+	if span, ok := c.transcriptBlockSpans[blockKey]; ok && span.HeaderIndex >= 0 && span.HeaderIndex < len(c.transcript) {
+		previous, _ = parseTranscriptBlockMarker(c.transcript[span.HeaderIndex])
+		// A terminal occurrence is immutable. Late starts and duplicate or
+		// conflicting ends must not reopen it, append output, or move its time.
+		if previous.EndedAt != "" {
+			return
+		}
+	}
 	meta := transcriptBlockMeta{Key: blockKey, Kind: "tool", Title: toolName}
 	body := c.toolInvocationBody(toolName, payload)
 	switch typ {
@@ -1427,9 +1439,8 @@ func (c *chatTUI) renderToolEvent(payload map[string]any, ts time.Time) {
 				meta.StartedAt = oldMeta.StartedAt
 			}
 		}
-		if meta.StartedAt == "" {
-			meta.StartedAt = startedAt.Format(time.RFC3339Nano)
-		}
+		// An end without its start has no measured duration. Keep it unknown
+		// instead of inventing a zero-length call.
 		meta.EndedAt = startedAt.Format(time.RFC3339Nano)
 		if len(existingBody) > 0 {
 			body = append([]string(nil), existingBody...)

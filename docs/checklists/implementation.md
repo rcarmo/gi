@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-24
 
+- [x] Scope terminal tool-call blocks by turn+call ID and make retained terminal occurrences immutable against late starts and duplicate/conflicting ends. Missing-start timing stays unknown. Six fullscreen/regular timing PTYs match native event timestamps, freeze success/failure duration and retain draft/cursor through resize with zero idle growth;18media/session/model PTY regressions/98functional/6browser/92helpers1129assertions/Go-vet-hook/TUI race x3 pass. Existing headers/colours/layout unchanged; no eviction/restart deduplication or new browser mapping.
+
 - [x] Project latest native tool occurrence from a consistent SQLite snapshot: call identity, bounded command/path/query preview, start/end and fixed terminal duration. Run-owned SSE invalidation refreshes the existing status area; interrupted calls retain unknown timing. Original027 passes6projects including held old reads, reload/session/draft-media, native shell completion/failure.60tool-queue-context+96compaction+48thought browser/98functional/92helpers1129assertions/Go-vet-hook/targeted race x3/sixTUI media PTYs pass. Coverage93/236+30/42 unmapped143/12; shared40 expandable lifecycle remains open, no terminal UI change.
 
 - [x] Verify timeline027 native empty/whitespace assistant and API capability gates, plus independent original028/shared42 integrated code-copy and playback ownership. Real stored code bytes/trusted clipboard events, synchronous cancel/late callbacks, draft/media/reload/other-session protection;90browser/97functional/91helpers1115assertions/Go-vet-hook/review pass. Test-only isolated DB seed; coverage92/236+30/42 unmapped144/12. No physical-audio or terminal change.

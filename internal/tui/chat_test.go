@@ -2702,3 +2702,58 @@ func TestLoginAndLogoutCommands(t *testing.T) {
 		t.Fatalf("expected copilot to be deauthenticated:\n%s", again)
 	}
 }
+
+func TestToolRuntimeIdentityIncludesTurnAndTerminalIsImmutable(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Gi"}, sessionID: "A"}
+	start := time.Date(2026, 9, 24, 10, 0, 0, 0, time.UTC)
+	event := func(kind, turnID, output string) map[string]any {
+		return map[string]any{"type": kind, "tool": "shell", "turn_id": turnID, "tool_call_id": "reused", "arguments": map[string]any{"command": "echo β"}, "output": output}
+	}
+	c.renderToolEvent(event("tool_started", "old", ""), start)
+	c.renderToolEvent(event("tool_finished", "old", "old output"), start.Add(1500*time.Millisecond))
+	oldKey := c.transcriptToolBlocks[c.toolRuntimeBlockKey(event("tool_started", "old", ""), "shell")]
+	oldBody := strings.Join(c.readTranscriptBlockBody(oldKey), "\n")
+	oldMeta, _ := parseTranscriptBlockMarker(c.transcript[c.transcriptBlockSpans[oldKey].HeaderIndex])
+	c.renderToolEvent(event("tool_started", "new", ""), start.Add(2*time.Second))
+	newKey := c.transcriptToolBlocks[c.toolRuntimeBlockKey(event("tool_started", "new", ""), "shell")]
+	if oldKey == newKey {
+		t.Fatal("provider call ID reused across turns")
+	}
+	before := strings.Join(c.transcript, "\n")
+	for _, kind := range []string{"tool_started", "tool_finished", "tool_failed", "tool_skipped"} {
+		c.renderToolEvent(event(kind, "old", "late duplicate"), start.Add(3*time.Second))
+	}
+	if strings.Join(c.transcript, "\n") != before {
+		t.Fatal("late event modified terminal occurrence")
+	}
+	c.renderToolEvent(event("tool_failed", "new", "new error"), start.Add(4500*time.Millisecond))
+	after := strings.Join(c.transcript, "\n")
+	c.renderToolEvent(event("tool_failed", "new", "new error"), start.Add(5*time.Second))
+	if strings.Join(c.transcript, "\n") != after {
+		t.Fatal("duplicate result appended output or changed time")
+	}
+	meta, _ := parseTranscriptBlockMarker(c.transcript[c.transcriptBlockSpans[newKey].HeaderIndex])
+	if meta.Status != "error" || formatBlockElapsed(meta.StartedAt, meta.EndedAt) != "2.5s" {
+		t.Fatal(meta)
+	}
+	if formatBlockElapsed(oldMeta.StartedAt, oldMeta.EndedAt) != "1.5s" || strings.Join(c.readTranscriptBlockBody(oldKey), "\n") != oldBody {
+		t.Fatal("old call changed")
+	}
+}
+
+func TestToolEndWithoutStartHasUnknownDurationAndLateStartCannotReopen(t *testing.T) {
+	c := &chatTUI{cfg: config.RuntimeConfig{AssistantName: "Gi"}}
+	end := map[string]any{"type": "tool_finished", "tool": "read", "turn_id": "turn", "tool_call_id": "call", "output": "result"}
+	c.renderToolEvent(end, time.Now())
+	key := c.transcriptToolBlocks[c.toolRuntimeBlockKey(end, "read")]
+	meta, _ := parseTranscriptBlockMarker(c.transcript[c.transcriptBlockSpans[key].HeaderIndex])
+	if meta.StartedAt != "" || meta.EndedAt == "" || formatBlockElapsed(meta.StartedAt, meta.EndedAt) != "" {
+		t.Fatal(meta)
+	}
+	before := strings.Join(c.transcript, "\n")
+	end["type"] = "tool_started"
+	c.renderToolEvent(end, time.Now().Add(-time.Second))
+	if strings.Join(c.transcript, "\n") != before {
+		t.Fatal("orphan terminal reopened")
+	}
+}

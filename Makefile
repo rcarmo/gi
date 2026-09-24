@@ -286,6 +286,13 @@ build-pane-host-fixture:
 test-tool-activity:
 	$(GO) test -race -count=3 ./internal/store ./internal/web -run 'ToolActivity|ToolPreview|SessionActivity'
 
+.PHONY: test-terminal-tool-identity test-tui-tool-timing
+test-terminal-tool-identity:
+	$(GO) test -race -count=3 ./internal/tui -run 'ToolRuntime|ToolEndWithout|RenderToolEvent|BuildTranscriptRenderable'
+
+test-tui-tool-timing: build
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-tool-timing.mjs
+
 test-web-skills:
 	$(GO) test -race -count=3 ./internal/web -run 'LoadedWebSkill|WebSkillOpen|QuickActions'
 
