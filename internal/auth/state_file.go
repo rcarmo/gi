@@ -127,6 +127,21 @@ func encodeState(state State) ([]byte, error) {
 	return data, nil
 }
 
+// Separate first creation from opening an existing lock. Concurrent initial
+// creators must converge on one inode; never truncate or replace the lock.
+func openStateLock(root *os.Root) (*os.File, error) {
+	lock, err := root.OpenFile("auth.lock", os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+	if os.IsExist(err) {
+		lock, err = root.OpenFile("auth.lock", os.O_RDWR, 0)
+	}
+	// A disappearing pathname (including a concurrent first-open race on
+	// Darwin) is retryable. Each retry reopens and revalidates the rooted path.
+	if os.IsNotExist(err) {
+		return nil, ErrStateConflict
+	}
+	return lock, err
+}
+
 // All production mutators must use this transaction. Lockless readers see one
 // complete snapshot. A validation already in flight may see the previous token
 // set; a fresh validation after a committed revoke observes its removal.
@@ -144,7 +159,7 @@ func (m *Manager) updateState(change func(*State, bool) error) error {
 	if err == nil && !lockInfo.Mode().IsRegular() {
 		return errors.New("auth lock must be a regular file")
 	}
-	lock, err := root.OpenFile("auth.lock", os.O_CREATE|os.O_RDWR, 0600)
+	lock, err := openStateLock(root)
 	if err != nil {
 		return err
 	}

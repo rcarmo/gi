@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -307,7 +308,11 @@ func TestAuthStateProcessHelper(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(dir, "held"), []byte("held"), 0600); err != nil {
 				return err
 			}
-			select {}
+			// A bare select{} lets the runtime declare the standalone helper
+			// deadlocked and exit, releasing the very lock being tested.
+			for {
+				time.Sleep(time.Hour)
+			}
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -338,6 +343,8 @@ func TestAuthStateCrossProcessAndCrashRelease(t *testing.T) {
 	}
 	holder := exec.Command(binary, "-test.run=^TestAuthStateProcessHelper$")
 	holder.Env = append(os.Environ(), "GI_AUTH_TEST_PROCESS="+dir, "GI_AUTH_TEST_HOLD=1")
+	var holderOutput bytes.Buffer
+	holder.Stdout, holder.Stderr = &holderOutput, &holderOutput
 	if err = holder.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -357,8 +364,15 @@ func TestAuthStateCrossProcessAndCrashRelease(t *testing.T) {
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	if err = m.RevokeToken("none"); !errors.Is(err, ErrStateConflict) {
-		t.Fatalf("process lock not exclusive: %v", err)
+	// The lock must stay held beyond the startup marker. The previous bare
+	// select could exit between that marker and the parent's first attempt.
+	for range 10 {
+		if err = m.RevokeToken("none"); !errors.Is(err, ErrStateConflict) {
+			_ = holder.Process.Kill()
+			_ = holder.Wait()
+			t.Fatalf("process lock not exclusive: %v; child output: %s", err, holderOutput.String())
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 	_ = holder.Process.Kill()
 	_ = holder.Wait()
@@ -492,4 +506,65 @@ func TestAuthStateConcurrentEnrollmentHasOneWinner(t *testing.T) {
 // Used by package fixtures; production writes use updateState with a mutation.
 func (m *Manager) save(state State) error {
 	return m.updateState(func(current *State, _ bool) error { state.extra = current.extra; *current = state; return nil })
+}
+
+func TestAuthStateConcurrentFirstLockOpen(t *testing.T) {
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	const count = 16
+	files := make(chan *os.File, count)
+	errs := make(chan error, count)
+	start := make(chan struct{})
+	for range count {
+		go func() {
+			<-start
+			var f *os.File
+			err := retryState(func() error { var e error; f, e = openStateLock(root); return e })
+			files <- f
+			errs <- err
+		}()
+	}
+	close(start)
+	var all []*os.File
+	defer func() {
+		for _, f := range all {
+			if f != nil {
+				f.Close()
+			}
+		}
+	}()
+	for range count {
+		all = append(all, <-files)
+	}
+	for range count {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+	info, err := all[0].Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range all[1:] {
+		other, err := f.Stat()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !os.SameFile(info, other) {
+			t.Fatal("concurrent creators opened different lock files")
+		}
+	}
+	if err := lockStateFile(all[0]); err != nil {
+		t.Fatal(err)
+	}
+	defer unlockStateFile(all[0])
+	for _, f := range all[1:] {
+		if err := lockStateFile(f); !errors.Is(err, ErrStateConflict) {
+			t.Fatalf("independent first-open handle bypassed lock: %v", err)
+		}
+	}
 }
