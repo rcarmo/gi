@@ -1,6 +1,11 @@
 # Piclaw web interaction parity
 
-> **Audit warning (2026-09-24):** the historical passing totals below do not prove current Piclaw visual or interaction parity. See [the full UX test audit](../../docs/internal/ux-test-audit-2026-09-24.md) and its [per-file inventory](../../docs/internal/ux-test-audit-2026-09-24.csv). CI runs no Playwright suites, `make check` excludes this parity runner, and some specialised cases need manual environment flags. The current source maps 101 Classic / 30 shared IDs, with Classic 008's skill-prefill claim disputed. Composer/new-chat keyboard paths, picker/reference geometry and workspace transitions require revalidation before broader parity claims.
+## Compose/panel pixel gate
+
+`PICLAW_PIXEL_ROOT=/path/to/pinned/runtime make pixel-baseline` captures the matched-state phone/tablet/desktop × light/dark matrix, twice per host. `PIXEL_RUN_DIR=/path/to/run make pixel-compare` re-evaluates saved evidence; `make test-pixel-helpers` tests exact-RGBA and fail-closed handling. All 72 captures completed, but all 18 cross-host pairs differ and 13/36 same-host pairs are unstable in the final run (20 in the preceding run). No cases are skipped and no mask/tolerance applies. The pixel gate is failing, separate from the green behaviour/geometry gates. See [inputs, results and limitations](../../docs/internal/compose-pixel-baseline.md).
+
+
+> **Audit warning (2026-09-24):** the historical passing totals below do not prove current Piclaw visual or interaction parity. See [the full UX test audit](../../docs/internal/ux-test-audit-2026-09-24.md) and its [per-file inventory](../../docs/internal/ux-test-audit-2026-09-24.csv). At the audit date CI ran no Playwright suites. CI now requires passkey and startup/picker/slash/workspace journey gates; `make check` still excludes this parity runner, and some specialised cases need manual environment flags. The current source maps 101 Classic / 30 shared IDs, with Classic 008's skill-prefill claim disputed. Composer/new-chat keyboard paths, picker/reference geometry and workspace transitions require revalidation before broader parity claims.
 
 Gi vendors the same frozen Classic Gherkin baseline used for the Tau/Vibes audit:
 

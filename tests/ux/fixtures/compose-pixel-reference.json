@@ -1,0 +1,47 @@
+{
+  "release": "piclaw-3.2.2-linux-x64-baseline",
+  "sourceCommit": "0afe5366ced9bca8246abd99a0feb1875a6ffbcc",
+  "assetVersion": "15958f2c3dc9",
+  "files": {
+    "/": {
+      "relativePath": "web/static/classic/index.html",
+      "sha256": "7fba6edf4eb12f4eb0514bbece843dd689ef69dc4801e87f131dc6ffb9682871",
+      "bytes": 11462
+    },
+    "/static/classic/dist/app.bundle.css": {
+      "relativePath": "web/static/classic/dist/app.bundle.css",
+      "sha256": "7b15354aa12e18c71d9c4fbde74c49d935c72a69683fd9ab1ecc9c127d9913c4",
+      "bytes": 687780
+    },
+    "/static/common/js/marked.min.js": {
+      "relativePath": "web/static/common/js/marked.min.js",
+      "sha256": "94ee39ac79f7ac39a7fdfb4dc5d166c6f7902b69b33adf13a7e8c41cf7e85ff6",
+      "bytes": 42623
+    },
+    "/static/classic/dist/app.bundle.js": {
+      "relativePath": "web/static/classic/dist/app.bundle.js",
+      "sha256": "0285e1a12008855724305817793005b4b262ad734025407bf9aa2e9c413d4f9d",
+      "bytes": 1379458
+    },
+    "/editor-vendor/codemirror.js": {
+      "relativePath": "extensions/viewers/editor/vendor/codemirror.js",
+      "sha256": "c96806050d7a1e33ef1c119528e9df8251d7f83f6edd48efff9b3dadc161df26",
+      "bytes": 1413631
+    },
+    "/static/classic/dist/editor.bundle.js": {
+      "relativePath": "web/static/classic/dist/editor.bundle.js",
+      "sha256": "2f4a4163028d48d4daa6f09ea93845528169e68ad7d3d4833f19c5319853d8ec",
+      "bytes": 146263
+    },
+    "/favicon.ico": {
+      "relativePath": "web/static/favicon.ico",
+      "sha256": "0bbeb37b64eb49a1522339b2b104ebcbfce1cf626b1694c9ae065b6499595a71",
+      "bytes": 105574
+    },
+    "/manifest.json": {
+      "relativePath": "web/static/manifest.json",
+      "sha256": "c58eb53410f1969264cee4f0a148d253dc8cd348025986b4e8d75892cc7b499d",
+      "bytes": 843
+    }
+  }
+}

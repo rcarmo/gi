@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "now": "2026-01-01T12:00:00.000Z",
+  "locale": "en-US",
+  "timezoneId": "UTC",
+  "deviceScaleFactor": 1,
+  "themes": ["light", "dark"],
+  "sessionId": "gi:main",
+  "sessionLabel": "Fixture session",
+  "userName": "Rui",
+  "agentName": "Gi",
+  "compose": "Compare compose and panels",
+  "composeHeightPreference": 80,
+  "model": {
+    "current": "test/fixture",
+    "model": "test/fixture",
+    "name": "fixture",
+    "provider": "test",
+    "supports_thinking": true,
+    "thinking_level": "medium",
+    "thinking_levels": ["off", "low", "medium", "high"],
+    "context_usage": {"tokens": 0, "context_window": 65536, "percent": 0},
+    "model_options": [{"label":"test/fixture","provider":"test","id":"fixture","name":"fixture","context_window":65536,"reasoning":true,"thinking_levels":["off","low","medium","high"]}]
+  },
+  "commands": [{"name":"/model","description":"Show or set model"},{"name":"/compact","description":"Compact context"}],
+  "metrics": {"hostname":"fixture","platform":"linux","available":true,"cpu_percent":0,"ram_percent":0,"sampled_at":1767268800000},
+  "viewports": {"phone":{"width":390,"height":844},"tablet":{"width":820,"height":1180},"desktop":{"width":1440,"height":900}},
+  "scenarios": ["compose", "models", "sessions"],
+  "limits": "Render-only, empty timeline, one model/session, light/dark Classic. Routes project this shared fixture into native wire shapes; no live production traffic or runtime behaviour credit. Exact RGBA/no masks. Native inference, mutations, other panel states, physical devices and Visual require separate evidence."
+}

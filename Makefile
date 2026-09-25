@@ -438,6 +438,22 @@ clean:
 	rm -rf $(RUN_DIR) $(BIN_DIR) $(TEST_DIR) $(TUI_TEST_DIR) $(TEST_RESULTS)
 	rm -f gi gi-tui
 
+.PHONY: pixel-install pixel-baseline pixel-compare test-pixel-helpers
+# Build-time screenshot decoding only; not part of the native runtime.
+pixel-install:
+	$(BUN) install
+
+# Exits nonzero until repeated captures are stable and cross-host pixels match.
+# PICLAW_PIXEL_ROOT must point to the pinned installed runtime tree.
+pixel-baseline: build-web
+	xvfb-run -a -s '-screen 0 1920x1200x24' $(BUN) scripts/compose-pixel-baseline.mjs
+
+pixel-compare:
+	$(BUN) scripts/compose-pixel-compare.mjs
+
+test-pixel-helpers:
+	$(BUN) test tests/ux/support/pixel-*.test.mjs
+
 .PHONY: test-ux-workspace-tabs
 test-ux-workspace-tabs:
 	$(MAKE) test-ux-parity UX_PARITY_ARGS='tests/ux/workspace-tabs.spec.mjs'

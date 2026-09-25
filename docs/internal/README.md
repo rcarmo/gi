@@ -37,6 +37,8 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 
 ## Current structure
 
+- [compose-pixel-baseline.md](compose-pixel-baseline.md) — pinned capture matrix, exact comparison gate and current failures
+
 - [workspace-tab-transitions.md](workspace-tab-transitions.md) — retained read-only preview/conversation transitions and keyboard/touch ownership
 - [compose-command-ownership.md](compose-command-ownership.md) — native slash catalogue and composer/Quick Actions keyboard boundaries
 - [picker-geometry.md](picker-geometry.md) — pinned Classic responsive bounds, mobile dismissal and explicit containment adaptation

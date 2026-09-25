@@ -35,6 +35,9 @@ jobs:
       - name: Build web assets
         run: bun run build:web
 
+      - name: Pixel evidence helper tests
+        run: make test-pixel-helpers
+
       - name: Go test
         run: go test ./...
 
