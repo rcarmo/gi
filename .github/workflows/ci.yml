@@ -64,6 +64,13 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium
       - run: make test-ux-passkeys
+      - name: Retain native passkey fixture diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-passkey-browser-evidence
+          path: test-results/ux-parity
+          retention-days: 3
 
   browser-journey:
     name: Startup and Return browser journeys

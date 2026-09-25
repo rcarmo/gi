@@ -30,8 +30,21 @@ import (
 )
 
 func main() {
+	// Bind once before choosing fixture-only passkey origins or loading config.
+	addr := os.Getenv("GI_UX_LISTEN")
+	if addr == "" {
+		addr = "127.0.0.1:19092"
+	}
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("UX listen: %v", err)
+	}
+	defer listener.Close()
+	origin := "http://" + listener.Addr().String()
+	if os.Getenv("GI_UX_PASSKEY_ORIGIN") == "localhost" {
+		origin = fmt.Sprintf("http://localhost:%d", listener.Addr().(*net.TCPAddr).Port)
+	}
 	dir := os.Getenv("GI_UX_STATE_DIR")
-	var err error
 	if dir == "" {
 		dir, err = os.MkdirTemp("", "gi-steer-ux-")
 		if err != nil {
@@ -195,6 +208,10 @@ func main() {
 		}
 	}
 	cfg := config.Load(dir)
+	if os.Getenv("GI_UX_PASSKEY_ORIGIN") == "localhost" {
+		cfg.Passkeys.RPID = "localhost"
+		cfg.Passkeys.Origins = []string{origin}
+	}
 	cfg.DefaultModel = "ux-local/gate"
 	cfg.EnabledModels = []string{"ux-local/gate", "test-model", "bootstrap"}
 	if os.Getenv("GI_UX_CONTEXT") != "" {
@@ -472,18 +489,8 @@ func main() {
 		}
 	}
 	server := web.New(s, engine, cfg)
-	addr := os.Getenv("GI_UX_LISTEN")
-	if addr == "" {
-		addr = "127.0.0.1:19092"
-	}
-	// Keep ownership of the bound port from allocation through serving.
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		log.Fatalf("UX listen: %v", err)
-	}
-	defer listener.Close()
 	if readyFile := os.Getenv("GI_UX_READY_FILE"); readyFile != "" {
-		if err := os.WriteFile(readyFile, []byte("http://"+listener.Addr().String()), 0600); err != nil {
+		if err := os.WriteFile(readyFile, []byte(origin), 0600); err != nil {
 			log.Fatalf("UX ready file: %v", err)
 		}
 	}
