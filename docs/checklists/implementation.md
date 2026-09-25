@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-25
 
+- [x] Deploy contrasta25140f afterCI36197537050 (ninejobs); separate-session Makefile launch PID304534 PGID/SID304361 on8090. Six guarded Chromium/WebKit probes pass contrast/padding and prior panel behaviours,zero writes/errors;DB62/51/146+integrity/FKs and normalizedSQL unchanged except leases,auth absent. Prior process shutdown cause unproven; new launch alive across subsequent tools, restartdurability not claimed. Raster diagnostic flags still leave12/36unstable and were not adopted; official16/36remains.
+
 - [x] Deploy compose/model/session panel stack through8f97f08 after CI36193525146 succeeds (nine jobs, release skipped), including authlistener9cec426. Port8090 restored PID202980. Six read-only Chromium/WebKit×viewport probes pass resize, Models-settings handoff, session metadata/search and draft/focus retention; zero HTTP writes/page errors. DB62/51/146 integrity/FKs OK, normalizedSQL unchanged except runtimeleases SHA256300ce679…653d; authfile absent before/after. Pixel/physical/Visual and unsupported capability gaps remain open.
 
 - [x] Repair isolated journey-server reserve/release port race exposed by CI36162988558 (downloaded fixture log: bind address already in use). Native fixture binds port0 and retains listener, publishing its address in a private readiness file. No timeout increase;42startup/72slash/24geometry and Go/vet pass. Workspace0feba2c and port repair8ed87ca deployed after CI36164916153 passed; six read-only Chromium/WebKit transition probes retained drafts/session/focus with no writes or page errors. This deployment record predates the current host upgrade; it is not a new live acceptance run.

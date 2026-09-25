@@ -29,4 +29,12 @@ Final pixel run: `run-1790375609940-255818`. All 72 captures completed without f
 | Tablet | 952 / 1,502 |
 | Desktop | 933 / 1,735 |
 
-The earlier surface run measured 1,514–2,438 changed compose pixels. Counts are diagnostics while repeat instability persists. Full pixel, physical-device and Visual acceptance remain open. Frozen feature files and mapping counts are unchanged; CI must pass before deployment.
+The earlier surface run measured 1,514–2,438 changed compose pixels. Counts are diagnostics while repeat instability persists. Full pixel, physical-device and Visual acceptance remain open. Frozen feature files and mapping counts are unchanged.
+
+## Deployment and raster follow-up
+
+Commit `a25140f` passed CI36197537050 (nine jobs; release skipped) and is deployed on port8090, PID304534. Six guarded Chromium/WebKit × viewport probes confirm black text/padding, resize, Models-settings handoff, session metadata and draft/focus retention with zero HTTP writes or page errors. Database integrity/FKs pass:62sessions/51turns/146messages. The normalized SQL dump is unchanged apart from runtime leases (SHA256 `300ce6794c6fe9b8fb93c826fcfecf093676a6cf369f4be4e11dd624a829653d`); auth state file absent before/after.
+
+The previous dev process was no longer serving when checked. Piclaw had restarted and the Makefile's background launch shared a process group, but the actual shutdown cause was not logged. This deployment ran `setsid --wait make start BIN_DIR=/tmp/gi-scheduler-bin BIND=0.0.0.0 PORT=8090`; Gi's recorded PGID/SID is304361, separate from the invoking tool. Subsequent tool calls and the browser probe found it alive. Restart durability is not yet proven.
+
+Separate diagnostic run `run-1790375955509-279541` added `--disable-lcd-text --font-render-hinting=none` to the unchanged application captures. All72captured, but12/36repeat pairs still differed (one5,049-pixel mismatch). These flags were not adopted and this diagnostic does not replace the official16-unstable-pair result.
