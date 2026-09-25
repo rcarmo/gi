@@ -62,6 +62,32 @@ jobs:
       - run: bun x playwright install --with-deps chromium
       - run: make test-ux-passkeys
 
+  browser-journey:
+    name: Startup and Return browser journeys
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install web dependencies
+        run: bun install
+      - name: Install Chromium and WebKit
+        run: bun x playwright install --with-deps chromium webkit
+      - name: Verify clean boot, new chat and first Return
+        run: make test-ux-journey
+      - name: Upload journey evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: startup-return-browser-evidence
+          path: test-results/ux-parity
+          retention-days: 3
+
   auth-state:
     name: Auth state ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -83,7 +109,7 @@ jobs:
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest
-    needs: [test, auth-state, passkey-browser]
+    needs: [test, auth-state, passkey-browser, browser-journey]
     strategy:
       fail-fast: false
       matrix:

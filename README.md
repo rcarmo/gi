@@ -94,6 +94,7 @@ That installs Go/Bun dependencies, installs Playwright Chromium, and builds `gi`
 | `make bun-checks` | Hook TDZ checker |
 | `make check` | Go tests, vet, web build, hook checks and functional browser tests; excludes the parity matrix |
 | `make test-ux` | Functional browser/API tests against an isolated instance |
+| `make test-ux-journey` | Empty-store startup/new-chat/Return and retry journeys; Chromium/WebKit at three sizes; required CI gate |
 | `make ux-parity-inventory` | Check frozen feature hashes and generate the scenario inventory |
 | `make test-ux-parity` | Default browser parity suite in Chromium/WebKit at three viewport sizes; specialised suites have separate targets/flags |
 | `make test-ux-auth` | Isolated TOTP/browser-auth regression suite |
@@ -147,7 +148,7 @@ The current TUI uses `go-tui`, supports terminal resize handling through the run
 
 The web UI reuses pinned Piclaw component sources. Gi supplies `web/src/api.ts`, `web/src/app.ts`, auth/Settings modules and CSS overrides; narrowly guarded build adapters also change selected bundled behaviour without editing supplied components. Component provenance and runtime parity are separate checks.
 
-Workspace tabs are read-only previews: editable documents, dirty-buffer workflows, popouts and docking are not implemented. Current composer/picker styling differs from Piclaw, and the fresh-chat/Return report is still unresolved. The [UX audit][audit] records those gaps and the limits of existing tests.
+Workspace tabs are read-only previews: editable documents, dirty-buffer workflows, popouts and docking are not implemented. Current composer/picker styling differs from Piclaw. The reproduced startup/new-chat focus and loading-retry failures are fixed and covered by [first-Return journeys](docs/internal/startup-return-journeys.md); broader keyboard and visual parity remains open. The [UX audit][audit] records those gaps and the limits of existing tests.
 
 ### Authentication and exposure
 
@@ -194,7 +195,7 @@ make check      # standard verification suite
 
 The `test-ux` target creates a fresh database, workspace and configuration for each run. It excludes `tests/ux/`, which has a separate runner and specialised fixture targets; see [the browser suite guide][ux].
 
-The frozen catalogue contains 236 Classic scenario IDs (256 expanded cases) and 42 shared cases. Mapped scenarios and successful test executions are tracked separately in the [parity matrix][parity]. CI runs native tests, cross-platform builds and the isolated Chromium passkey API and UI suite. A general browser UX regression gate is still needed.
+The frozen catalogue contains 236 Classic scenario IDs (256 expanded cases) and 42 shared cases. Mapped scenarios and successful test executions are tracked separately in the [parity matrix][parity]. CI gates Linux/macOS builds on native tests, the isolated Chromium passkey suite and six-project Chromium/WebKit startup/Return journeys. The complete browser UX matrix is not yet a CI gate.
 
 The `test-tui-smoke` target launches `gi -tui` inside tmux, captures the pane, submits input, verifies blur handling, exercises transcript scrolling keys, resizes the terminal, and writes pane captures plus session artifacts under `test-results/tui-smoke/`. Mouse click focus is covered in unit tests.
 

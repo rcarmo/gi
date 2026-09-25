@@ -249,7 +249,22 @@ async function getRuntimeConfig() {
 function GiApp() {
     const containerRef = useRef(null);
     const [ready, setReady] = useState(false);
+    const [bootstrapError, setBootstrapError] = useState(false);
+    const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
+    const pendingComposerFocus = useRef<string | null>(null);
     const [sessionId, setSessionId] = useState<string | null>(null);
+    // New-chat selection remounts the supplied composer. Focus its committed
+    // node only for startup/new-chat; leave other controls and modals alone.
+    useLayoutEffect(() => {
+        if (!ready || pendingComposerFocus.current !== sessionId) return;
+        const frame = requestAnimationFrame(() => {
+            if (pendingComposerFocus.current !== sessionId) return;
+            pendingComposerFocus.current = null;
+            if (document.activeElement !== document.body || document.querySelector('[aria-modal="true"]')) return;
+            document.querySelector<HTMLTextAreaElement>('.compose-box textarea')?.focus({preventScroll:true});
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [ready, sessionId]);
     const selection = useRef(createSelectionScope()).current;
     const [sessionError, setSessionError] = useState<string | null>(null);
     const [draftStorageError, setDraftStorageError] = useState('');
@@ -413,12 +428,16 @@ function GiApp() {
         if (getLocalStorageItem('piclaw_system_meters_enabled') === null) {
             setLocalStorageItem('piclaw_system_meters_enabled', 'true');
         }
+        let cancelled = false;
+        setBootstrapError(false);
         Promise.all([
             ensureDefaultSession(),
             getRuntimeConfig(),
-            drafts.load().catch(error => setDraftStorageError(`Draft recovery unavailable: ${error.message}`)),
+            drafts.load().catch(error => { if (!cancelled) setDraftStorageError(`Draft recovery unavailable: ${error.message}`); }),
         ]).then(([sid, cfg]) => {
+            if (cancelled) return;
             selection.select(sid);
+            pendingComposerFocus.current = sid;
             setSessionId(sid);
             setFileRefs(getDraft(sid).fileRefs);
             setMessageRefs(getDraft(sid).messageRefs);
@@ -437,10 +456,12 @@ function GiApp() {
             setAgentModelsPayload(cfg);
             setReady(true);
         }).catch((err) => {
+            if (cancelled) return;
             console.error('[gi] Bootstrap failed:', err);
+            setBootstrapError(true);
         });
-        return () => { cleanupTheme?.(); cleanupAppearance(); cleanupDisplayScale(); };
-    }, []);
+        return () => { cancelled = true; cleanupTheme?.(); cleanupAppearance(); cleanupDisplayScale(); };
+    }, [bootstrapAttempt]);
 
     // ── Timeline loading ─────────────────────────────────────────────────────
 
@@ -843,6 +864,7 @@ function GiApp() {
             const created = await forkChatBranch(sessionToChatJid(sessionId));
             if (!selection.isCurrent(scope)) return;
             if (!created?.branch?.chat_jid) throw new Error('Missing created chat identifier');
+            pendingComposerFocus.current = created.branch.chat_jid.slice(3);
             handleSwitchChat(created.branch.chat_jid);
         } catch (error) {
             if (selection.isCurrent(scope)) setSessionError(error.message || 'Failed to create session');
@@ -957,7 +979,9 @@ function GiApp() {
     // ── Render ────────────────────────────────────────────────────────────────
 
     if (!ready) {
-        return html`<div id="app"><div style="padding:20px;text-align:center;color:var(--text-secondary,#888)">Loading…</div></div>`;
+        return html`<div id="app"><div style="padding:20px;text-align:center;color:var(--text-secondary,#888)">${bootstrapError
+            ? html`<p role="alert">Unable to open a chat. Retry when the server is available.</p><button onClick=${() => { setBootstrapError(false); setBootstrapAttempt(n => n + 1); }}>Retry opening chat</button>`
+            : html`<p role="status">Loading…</p>`}</div></div>`;
     }
 
     return html`

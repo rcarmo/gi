@@ -438,6 +438,12 @@ clean:
 	rm -rf $(RUN_DIR) $(BIN_DIR) $(TEST_DIR) $(TUI_TEST_DIR) $(TEST_RESULTS)
 	rm -f gi gi-tui
 
+.PHONY: test-ux-journey
+test-ux-journey: build-web
+	mkdir -p $(dir $(UX_LOCAL_BIN)) test-results/ux-parity
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_JOURNEY=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(BUN) x playwright test --config=playwright.ux.config.mjs $(UX_PARITY_ARGS)
+
 .PHONY: test-browser-auth test-ux-auth
 test-browser-auth:
 	$(GO) test ./internal/web ./internal/auth -run 'Test(Browser|ProtectedEndpoint|Auth)' -count=1

@@ -18442,11 +18442,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-gtn80wmz.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-sqjg8t8b.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-j11jf47f.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-ync38wta.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-4cafqspr.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-m7n8jafw.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-hmbqpcpm.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-gcz9bscr.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-e6pd3dkd.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-h31y8s1k.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -19795,7 +19795,23 @@ async function getRuntimeConfig() {
 function GiApp() {
   const containerRef = Q_(null);
   const [ready, setReady] = F_(false);
+  const [bootstrapError, setBootstrapError] = F_(false);
+  const [bootstrapAttempt, setBootstrapAttempt] = F_(0);
+  const pendingComposerFocus = Q_(null);
   const [sessionId, setSessionId] = F_(null);
+  W_(() => {
+    if (!ready || pendingComposerFocus.current !== sessionId)
+      return;
+    const frame = requestAnimationFrame(() => {
+      if (pendingComposerFocus.current !== sessionId)
+        return;
+      pendingComposerFocus.current = null;
+      if (document.activeElement !== document.body || document.querySelector('[aria-modal="true"]'))
+        return;
+      document.querySelector(".compose-box textarea")?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [ready, sessionId]);
   const selection = Q_(createSelectionScope()).current;
   const [sessionError, setSessionError] = F_(null);
   const [draftStorageError, setDraftStorageError] = F_("");
@@ -19993,12 +20009,20 @@ function GiApp() {
     if (getLocalStorageItem("piclaw_system_meters_enabled") === null) {
       setLocalStorageItem("piclaw_system_meters_enabled", "true");
     }
+    let cancelled = false;
+    setBootstrapError(false);
     Promise.all([
       ensureDefaultSession(),
       getRuntimeConfig(),
-      drafts.load().catch((error) => setDraftStorageError(`Draft recovery unavailable: ${error.message}`))
+      drafts.load().catch((error) => {
+        if (!cancelled)
+          setDraftStorageError(`Draft recovery unavailable: ${error.message}`);
+      })
     ]).then(([sid, cfg]) => {
+      if (cancelled)
+        return;
       selection.select(sid);
+      pendingComposerFocus.current = sid;
       setSessionId(sid);
       setFileRefs(getDraft(sid).fileRefs);
       setMessageRefs(getDraft(sid).messageRefs);
@@ -20017,14 +20041,18 @@ function GiApp() {
       setAgentModelsPayload(cfg);
       setReady(true);
     }).catch((err) => {
+      if (cancelled)
+        return;
       console.error("[gi] Bootstrap failed:", err);
+      setBootstrapError(true);
     });
     return () => {
+      cancelled = true;
       cleanupTheme?.();
       cleanupAppearance();
       cleanupDisplayScale();
     };
-  }, []);
+  }, [bootstrapAttempt]);
   W_(() => {
     const pending = scrollRestore.current;
     scrollRestore.current = null;
@@ -20565,6 +20593,7 @@ function GiApp() {
         return;
       if (!created?.branch?.chat_jid)
         throw new Error("Missing created chat identifier");
+      pendingComposerFocus.current = created.branch.chat_jid.slice(3);
       handleSwitchChat(created.branch.chat_jid);
     } catch (error) {
       if (selection.isCurrent(scope))
@@ -20695,7 +20724,10 @@ function GiApp() {
     setFileRefs(refs);
   });
   if (!ready) {
-    return fe`<div id="app"><div style="padding:20px;text-align:center;color:var(--text-secondary,#888)">Loading…</div></div>`;
+    return fe`<div id="app"><div style="padding:20px;text-align:center;color:var(--text-secondary,#888)">${bootstrapError ? fe`<p role="alert">Unable to open a chat. Retry when the server is available.</p><button onClick=${() => {
+      setBootstrapError(false);
+      setBootstrapAttempt((n) => n + 1);
+    }}>Retry opening chat</button>` : fe`<p role="status">Loading…</p>`}</div></div>`;
   }
   return fe`
         <div class=${appShellClass}>
@@ -21080,5 +21112,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=E07969ED91F1A71664756E2164756E21
-//# sourceMappingURL=app-a4hyse72.js.map
+//# debugId=0B94D80C3488862B64756E2164756E21
+//# sourceMappingURL=app-epdyrjr5.js.map

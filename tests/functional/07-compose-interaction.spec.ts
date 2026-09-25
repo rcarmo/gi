@@ -13,12 +13,12 @@ test.describe('Compose interaction', () => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
     const input = getComposeInput(page);
+    const admissions:string[]=[];page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/prompt'))admissions.push(r.url());});
     await input.fill('line one');
     await input.press('Shift+Enter');
-    await page.waitForTimeout(500);
-    // Input should still have text (not submitted)
-    const value = await input.inputValue();
-    expect(value.length).toBeGreaterThan(0);
+    await input.type('line two');
+    await expect(input).toHaveValue('line one\nline two');
+    expect(admissions).toEqual([]);
   });
 
   test('empty input does not submit on Enter', async ({ page }) => {
@@ -37,10 +37,8 @@ test.describe('Compose interaction', () => {
   test('typing reaches the compose input', async ({ page }) => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
-    await page.waitForTimeout(2000);
-    // Click on the compose area first to ensure focus
     const input = getComposeInput(page);
-    await input.click();
+    await expect(input).toBeFocused();
     await page.keyboard.type('focus test');
     const value = await input.inputValue();
     expect(value).toContain('focus test');

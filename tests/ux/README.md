@@ -26,7 +26,8 @@ Workspace-collapse motion and native auth persistence repairs have shipped.
 
 The dated sections below retain historical run totals. Do not add them together
 or interpret an old "unmapped" statement as the current inventory. The isolated
-passkey API browser suite now gates CI builds; general browser UX still does not.
+passkey suite and startup/Return journeys now gate CI builds; the complete browser
+UX suite still does not.
 Specialised fixture suites need separate targets/flags.
 
 ## Run
@@ -42,6 +43,24 @@ The parity target uses `.gi-ux-parity/` and loopback port 19091, seeds determini
 `@cucumber/gherkin` parses the original features and expands examples. `classic.spec.mjs` supplies Gi-native browser steps for mapped IDs, attaches the original steps to each result, and drives visible enabled controls. Native APIs only seed fixtures and verify persistence; they do not substitute for tested user actions. No DOM injection, forced clicks, automatic resubmission, navigation fallback, retries, or inherited Tau/Vibes pass statuses.
 
 `support/catalogue.mjs` rejects modified source hashes. The report always inventories every frozen scenario. A scenario passes only when all expanded cases pass in Chromium and WebKit at 390×844, 820×1180, and 1440×900. Unmapped scenarios are reported as `unmapped`, not skipped or passed. The shared contract is inventoried separately; 30 of its 42 cases currently have source mappings.
+
+## Startup/Return CI gate — 2026-09-25
+
+`make test-ux-journey` runs seven untagged user journeys (42 executions) in
+Chromium/WebKit at all three configured sizes. Each case starts its own native
+process and empty database; the page creates its first session without API or
+localStorage seeding. It uses deterministic local inference with production
+HTTP/SSE/admission/storage. `GI_UX_JOURNEY=1` selects only this suite and writes
+`test-results/ux-parity/journey-results.json`.
+
+The journeys cover first Return, exact session/turn and message identity,
+Shift+Enter, new-chat focus, parent draft retention, held/rejected admissions,
+explicit startup retry, lost create replies, partial bootstrap success and
+Settings focus during delayed fork completion. The host focus/retry repairs and
+limits are in [startup-return-journeys.md](../../docs/internal/startup-return-journeys.md).
+The dedicated CI job requires both browsers and gates Linux/macOS builds; no new
+Classic/shared mapping is assigned by these tests. This is a bounded journey gate,
+not a full browser or visual-parity result.
 
 ## First slice: 2026-09-21
 
