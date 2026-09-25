@@ -2,6 +2,8 @@
 
 ## Compose/panel pixel gate
 
+`make test-ux-voice-input` runs 30 controlled browser recognition cases. See [voice-input boundaries](../../docs/internal/voice-input.md): no real audio/native permission acceptance, no new frozen mapping. Its 72-image run still has 18 differing cross-host frames and 12 unstable repeats.
+
 The [contrast adaptation](../../docs/internal/compose-contrast.md) expands `make test-ux-compose-surface` to 30 cases and matches pinned foreground selection/pill padding. Its 72-image run has compose diffs of 930–1,735 pixels, 18 failing cross-host frames and 16 unstable repeats. Missing voice-input/notification controls remain explicit gaps.
 
 `make test-ux-session-panel` adds 12 native metadata/pin/focus and pre-paint query-navigation cases. The [session-panel adaptation](../../docs/internal/session-panel.md) matches six outer rectangles; its 72-image run still has 18 failing cross-host frames and 15 unstable repeats. Original auth CI readiness failure is tracked in [auth fixture listener](../../docs/internal/auth-fixture-listener.md); repair `9cec426` is green in CI.

@@ -454,6 +454,15 @@ pixel-compare:
 test-pixel-helpers:
 	$(BUN) test tests/ux/support/pixel-*.test.mjs
 
+.PHONY: test-voice-input-helpers test-ux-voice-input
+test-voice-input-helpers:
+	$(BUN) test tests/ux/support/voice-input.test.ts tests/ux/support/voice-adapter.test.ts
+
+test-ux-voice-input: build-web
+	mkdir -p $(dir $(UX_LOCAL_BIN))
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_VOICE_INPUT=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config=playwright.ux.config.mjs tests/ux/voice-input.spec.mjs
+
 .PHONY: test-ux-session-panel test-session-panel-helpers
 test-session-panel-helpers:
 	$(BUN) test tests/ux/support/session-panel.test.ts

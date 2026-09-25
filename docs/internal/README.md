@@ -37,6 +37,8 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 
 ## Current structure
 
+- [voice-input.md](voice-input.md) — capability-gated browser recognition, draft ownership and explicit microphone/device acceptance limits
+
 - [compose-contrast.md](compose-contrast.md) — pinned accent foreground rule, session-pill padding and missing compose controls
 
 - [session-panel.md](session-panel.md) — native session layout, committed pin state and pre-paint query-highlight ownership

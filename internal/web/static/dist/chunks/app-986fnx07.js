@@ -6853,6 +6853,328 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     `;
 }
 
+// web/src/gi-voice-input-state.ts
+function voiceSupport(win, nav) {
+  const ios = /iPad|iPhone/.test(String(nav?.userAgent || "")) || nav?.platform === "MacIntel" && Number(nav?.maxTouchPoints) > 1;
+  const standalone = Boolean(nav?.standalone || win?.matchMedia?.("(display-mode: standalone)").matches);
+  const ctor = win?.SpeechRecognition || win?.webkitSpeechRecognition;
+  if (!win?.isSecureContext)
+    return { mode: "unavailable", ctor: null, detail: "Voice input requires HTTPS or localhost." };
+  if (ios && (standalone || !ctor))
+    return { mode: "fallback", ctor: null, detail: "Focus the message box and use the keyboard dictation microphone. In-page recognition is unavailable or unreliable in this iPhone/iPad mode." };
+  if (!ctor)
+    return { mode: "unavailable", ctor: null, detail: "This browser does not expose speech recognition." };
+  return { mode: "native", ctor, detail: "Browser speech recognition may use an external service. Start only when you want to dictate." };
+}
+function voiceText(results) {
+  let final = "", interim = "";
+  for (let i = 0;i < Number(results?.length || 0); i++) {
+    const result = results[i], text = String(result?.[0]?.transcript || "").trim();
+    if (!text)
+      continue;
+    if (result.isFinal)
+      final = [final, text].filter(Boolean).join(" ");
+    else
+      interim = [interim, text].filter(Boolean).join(" ");
+  }
+  return [final, interim].filter(Boolean).join(" ");
+}
+function mergeVoice(base, speech) {
+  return speech ? base + (base && !/\s$/.test(base) ? " " : "") + speech : base;
+}
+function voiceError(code) {
+  return { "not-allowed": "Microphone or speech-recognition permission was denied.", "service-not-allowed": "Microphone or speech-recognition permission was denied.", "no-speech": "No speech was detected. Try again after the listening indicator appears.", "audio-capture": "The browser could not access a microphone.", network: "The browser speech-recognition service reported a network or service failure.", aborted: "Voice input was stopped." }[code] || "Voice input failed.";
+}
+function createVoiceInput({ read, apply, notify, language = "en-US", timers = globalThis }) {
+  let run = null, disposed = false;
+  const clear = (r) => {
+    timers.clearTimeout(r.startTimer);
+    timers.clearTimeout(r.stopTimer);
+    timers.clearTimeout(r.limitTimer);
+  };
+  const detach = (r) => {
+    for (const key of ["onstart", "onresult", "onerror", "onend"])
+      r.recognition[key] = null;
+  };
+  const cancel = (message = "", publish = true) => {
+    const r = run;
+    run = null;
+    if (r) {
+      clear(r);
+      detach(r);
+      try {
+        r.recognition.abort();
+      } catch {}
+    }
+    if (publish && !disposed)
+      notify({ phase: "idle", message });
+  };
+  const valid = (r) => {
+    const state = read();
+    return !disposed && r === run && state.allowed && state.owner === r.owner && state.text === r.last;
+  };
+  const owns = (r) => {
+    if (valid(r))
+      return true;
+    if (run === r)
+      cancel();
+    return false;
+  };
+  const stop = () => {
+    const r = run;
+    if (!r || r.stopping)
+      return;
+    if (!owns(r))
+      return;
+    r.stopping = true;
+    notify({ phase: "stopping", message: "Finishing voice input…" });
+    r.stopTimer = timers.setTimeout(() => {
+      if (run === r)
+        cancel("Voice input stopped; browser completion timed out.");
+    }, 5000);
+    if (r.started)
+      try {
+        r.recognition.stop();
+      } catch {
+        cancel("Voice input could not finish. Draft retained.");
+      }
+  };
+  return {
+    start(ctor) {
+      if (disposed || run || !ctor)
+        return false;
+      const state = read();
+      if (!state.allowed)
+        return false;
+      let recognition;
+      try {
+        recognition = new ctor;
+      } catch {
+        notify({ phase: "error", message: "Voice input could not start." });
+        return false;
+      }
+      try {
+        recognition.lang = language;
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        if ("maxAlternatives" in recognition)
+          recognition.maxAlternatives = 1;
+      } catch {
+        try {
+          recognition.abort();
+        } catch {}
+        notify({ phase: "error", message: "Voice input could not be configured." });
+        return false;
+      }
+      const r = { recognition, owner: state.owner, base: state.text, last: state.text, started: false, stopping: false };
+      run = r;
+      recognition.onstart = () => {
+        if (!owns(r))
+          return;
+        r.started = true;
+        timers.clearTimeout(r.startTimer);
+        if (r.stopping) {
+          try {
+            recognition.stop();
+          } catch {
+            cancel("Voice input could not finish. Draft retained.");
+          }
+        } else
+          notify({ phase: "listening", message: "Listening… Speak now." });
+      };
+      recognition.onresult = (event) => {
+        if (!owns(r))
+          return;
+        const next = mergeVoice(r.base, voiceText(event.results));
+        r.last = next;
+        if (!apply(next, r.owner)) {
+          cancel();
+          return;
+        }
+      };
+      recognition.onerror = (event) => {
+        if (!owns(r))
+          return;
+        const message = voiceError(String(event.error || ""));
+        cancel("", false);
+        notify({ phase: "error", message });
+      };
+      recognition.onend = () => {
+        if (!owns(r))
+          return;
+        run = null;
+        clear(r);
+        detach(r);
+        notify({ phase: "idle", message: r.last === r.base ? "Voice input ended without a transcript." : "Voice input added to draft." });
+      };
+      notify({ phase: "starting", message: "Allow microphone or speech recognition in the browser prompt." });
+      r.startTimer = timers.setTimeout(() => {
+        if (run === r && !r.started)
+          cancel("Voice input timed out waiting for browser permission.");
+      }, 15000);
+      r.limitTimer = timers.setTimeout(() => {
+        if (run === r)
+          cancel("Voice input reached its time limit. Draft retained.");
+      }, 90000);
+      try {
+        recognition.start();
+        return true;
+      } catch {
+        cancel("", false);
+        notify({ phase: "error", message: "Voice input could not start. Check browser permission and try again." });
+        return false;
+      }
+    },
+    stop,
+    cancel,
+    reconcile() {
+      if (run && !valid(run))
+        cancel();
+    },
+    active: () => Boolean(run),
+    dispose() {
+      disposed = true;
+      cancel("", false);
+    }
+  };
+}
+
+// web/src/gi-voice-input.ts
+function useGiVoiceInput(readProps, textareaRef) {
+  const latest = Q_(readProps);
+  latest.current = readProps;
+  const [state, setState] = F_({ phase: "idle", message: "" });
+  const active = ["starting", "listening", "stopping"].includes(state.phase);
+  const support = voiceSupport(window, navigator), controller = Q_(null), pointer = Q_(null), suppressClick = Q_(0);
+  const read = () => {
+    const props = latest.current(), textarea = textareaRef.current;
+    return {
+      owner: props.owner,
+      text: textarea?.value ?? props.content,
+      allowed: !props.searchMode && !props.disabled && document.visibilityState !== "hidden" && textarea?.isConnected && textarea.getClientRects().length > 0 && getComputedStyle(textarea).visibility === "visible" && !document.querySelector('[role="dialog"][aria-modal="true"]')
+    };
+  };
+  if (!controller.current)
+    controller.current = createVoiceInput({ read, language: navigator.language || "en-US", notify: setState, apply: (text, owner) => {
+      const props = latest.current();
+      if (read().owner !== owner || !read().allowed)
+        return false;
+      props.setContent(text);
+      textareaRef.current.value = text;
+      props.resize(textareaRef.current);
+      return true;
+    } });
+  const voice = controller.current;
+  const cancel = () => {
+    pointer.current = null;
+    voice.cancel();
+  };
+  const props = readProps();
+  W_(() => {
+    voice.reconcile();
+  }, [props.owner, props.searchMode, props.disabled, props.content]);
+  W_(() => () => voice.dispose(), []);
+  W_(() => {
+    if (!active)
+      return;
+    const hide = () => {
+      if (document.visibilityState === "hidden")
+        cancel();
+    }, exit = () => cancel(), resize = () => voice.reconcile();
+    const observer = new MutationObserver(() => voice.reconcile());
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "inert", "aria-modal", "style", "class"] });
+    const releaseOutside = (event) => {
+      if (pointer.current === event.pointerId) {
+        pointer.current = null;
+        suppressClick.current = Date.now() + 800;
+        if (event.type === "pointercancel")
+          voice.cancel();
+        else
+          voice.stop();
+      }
+    };
+    document.addEventListener("visibilitychange", hide);
+    window.addEventListener("pagehide", exit);
+    window.addEventListener("resize", resize);
+    document.addEventListener("pointerup", releaseOutside);
+    document.addEventListener("pointercancel", releaseOutside);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", hide);
+      window.removeEventListener("pagehide", exit);
+      window.removeEventListener("resize", resize);
+      document.removeEventListener("pointerup", releaseOutside);
+      document.removeEventListener("pointercancel", releaseOutside);
+    };
+  }, [active]);
+  const toggle = () => {
+    if (!read().allowed)
+      return;
+    if (voice.active()) {
+      voice.stop();
+      return;
+    }
+    if (support.mode === "fallback") {
+      setState({ phase: "idle", message: support.detail });
+      textareaRef.current?.focus();
+      return;
+    }
+    if (support.mode === "native") {
+      latest.current().onStart();
+      voice.start(support.ctor);
+    }
+  };
+  const release = (event) => {
+    if (pointer.current == null || event.pointerId !== pointer.current)
+      return;
+    pointer.current = null;
+    suppressClick.current = Date.now() + 800;
+    if (event.type === "pointercancel")
+      voice.cancel();
+    else
+      voice.stop();
+  };
+  const title = active ? "Stop voice input" : support.mode === "fallback" ? "Use keyboard dictation" : "Start voice input";
+  const button = !props.searchMode && !props.disabled && support.mode !== "unavailable" ? fe`
+  <button class=${`icon-btn voice-input-btn${active ? " active" : ""}${support.mode === "fallback" ? " fallback" : ""}`} type="button"
+   title=${active ? title : support.mode === "native" ? `${title}. Browser recognition may use an external service.` : title} aria-label=${title} aria-pressed=${active ? "true" : "false"}
+   onClick=${() => {
+    if (Date.now() < suppressClick.current) {
+      suppressClick.current = 0;
+      return;
+    }
+    toggle();
+  }}
+   onPointerDown=${(event) => {
+    if (event.pointerType === "mouse" || event.button !== 0 || support.mode !== "native")
+      return;
+    event.preventDefault();
+    pointer.current = event.pointerId;
+    suppressClick.current = Date.now() + 800;
+    toggle();
+  }}
+   onPointerUp=${release} onPointerCancel=${release} onPointerLeave=${release}>
+   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/>
+   </svg>
+  </button>` : null;
+  const status = !props.searchMode && state.message ? fe`<div class=${`compose-inline-status compose-speech-status ${state.phase === "error" ? "compose-speech-status-error" : ""}`} role=${state.phase === "error" ? "alert" : "status"} aria-live="polite">
+  <div class="compose-inline-status-row"><span class="compose-inline-status-title">${state.message}</span><button type="button" class="gi-voice-dismiss" aria-label=${active ? "Cancel voice input" : "Dismiss voice input status"} onClick=${() => {
+    voice.cancel("", false);
+    setState({ phase: "idle", message: "" });
+  }}>×</button></div>
+ </div>` : null;
+  return { button, status, cancel, beforeKey: (event) => {
+    if (event.key === "Escape" && voice.active()) {
+      event.preventDefault();
+      event.stopPropagation();
+      voice.cancel();
+      return true;
+    }
+    return false;
+  } };
+}
+
 // web/src/ui/branch-lifecycle.ts
 function normalizeHandle(value) {
   const normalized = normalizeHandleName(value);
@@ -8355,6 +8677,20 @@ function ComposeBox({
   const [extensionWorkingFrameIndex, setExtensionWorkingFrameIndex] = F_(0);
   const textareaRef = Q_(null);
   const giComposeSurface = useGiComposeSurface(textareaRef);
+  const giVoice = useGiVoiceInput(() => ({
+    owner: currentChatJid,
+    content,
+    searchMode,
+    disabled: statusNotice?.type === "compaction",
+    setContent,
+    resize: giComposeSurface.resize,
+    onStart: () => {
+      setShowModelPopup(false);
+      setShowSessionPopup(false);
+      setShowSlash(false);
+      setShowMention(false);
+    }
+  }), textareaRef);
   const slashRef = Q_(null);
   const mentionRef = Q_(null);
   const modelPopupRef = Q_(null);
@@ -8917,6 +9253,7 @@ function ComposeBox({
     return isAgentActive ? "queue" : undefined;
   };
   const handleSubmit = async (overrideContent, submitMode, submitOptions = {}) => {
+    giVoice.cancel();
     const {
       includeMedia = true,
       includeFileRefs = true,
@@ -9177,6 +9514,8 @@ ${mediaIds.map((id, index) => {
   ]);
   const handleKeyDown = (e) => {
     if (declineComposeKey(e))
+      return;
+    if (giVoice.beforeKey(e))
       return;
     if (searchMode && e.key === "Escape") {
       e.preventDefault();
@@ -9607,6 +9946,7 @@ ${mediaIds.map((id, index) => {
     };
   }, [searchMode, activeModel, currentSessionAgent?.agent_name, showSessionSwitcherButton, contextUsage?.percent]);
   const handleInput = (e) => {
+    giVoice.cancel();
     const value = e.target.value;
     setSubmitError(null);
     setSubmitNotice(null);
@@ -9648,6 +9988,7 @@ ${mediaIds.map((id, index) => {
                 aria-valuemin=${giComposeSurface.min} aria-valuemax=${giComposeSurface.max} aria-valuenow=${giComposeSurface.value}
                 tabIndex="0" onMouseDown=${giComposeSurface.onMouseDown} onTouchStart=${giComposeSurface.onTouchStart}
                 onKeyDown=${giComposeSurface.onKeyDown} onDblClick=${giComposeSurface.reset}></div>
+            ${giVoice.status}
             ${showQueueStack && !searchMode && fe`
                 <${QueuedFollowupStack}
                     items=${followupQueueItems}
@@ -10151,6 +10492,7 @@ ${mediaIds.map((id, index) => {
                             </svg>
                         </button>
                     `}
+                    ${giVoice.button}
                     ${notificationsAvailable && !searchMode && fe`
                         <button
                             class=${`icon-btn notification-btn${notificationActive ? " active" : ""}`}
@@ -18692,11 +19034,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-j6n75hqe.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-1r704bwe.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-m3mgzhtv.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-77qrxgw4.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-s9zyg6n9.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-rvpt9rer.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-h4xacdyp.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-hssb19nv.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-m2qx5zv2.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-r1911kx5.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -21391,5 +21733,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=9CA951D0876624BC64756E2164756E21
-//# sourceMappingURL=app-mwsqva9z.js.map
+//# debugId=825C85035848FAAA64756E2164756E21
+//# sourceMappingURL=app-986fnx07.js.map

@@ -1,6 +1,6 @@
 # Compose and panel pixel baseline
 
-The cross-UI pixel gate fails. The original baseline captured 72 images with no route or page errors, but all 18 Gi/Piclaw comparisons differed and 13 of 36 same-host comparisons were unstable. The latest [compose contrast run](compose-contrast.md) also captured 72 images; all 18 cross-host pairs differ and 16/36 same-host pairs are unstable. Compose-region differences are 930–1,735 pixels; voice-input/notification controls and raster stability remain open. Geometry tests and successful screenshot capture do not establish pixel parity.
+The cross-UI pixel gate fails. The original baseline captured 72 images with no route or page errors, but all 18 Gi/Piclaw comparisons differed and 13 of 36 same-host comparisons were unstable. The latest [voice-input run](voice-input.md) also captured 72 images; all 18 cross-host pairs differ and 12/36 same-host pairs are unstable. Compose-region differences are 950–1,785 pixels. Voice event contracts are tested; real recognition, notification controls and raster stability remain open. Geometry tests and successful screenshot capture do not establish pixel parity.
 
 ## Run
 

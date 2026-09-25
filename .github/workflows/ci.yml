@@ -36,7 +36,7 @@ jobs:
         run: bun run build:web
 
       - name: Pixel evidence helper tests
-        run: make test-pixel-helpers test-compose-surface-helpers test-model-panel-helpers test-session-panel-helpers
+        run: make test-pixel-helpers test-compose-surface-helpers test-model-panel-helpers test-session-panel-helpers test-voice-input-helpers
 
       - name: Go test
         run: go test ./...
@@ -102,6 +102,8 @@ jobs:
         run: make test-ux-model-panel
       - name: Verify native session panel and first-frame navigation
         run: make test-ux-session-panel
+      - name: Verify browser voice-input ownership contract
+        run: make test-ux-voice-input
       - name: Upload journey evidence
         if: always()
         uses: actions/upload-artifact@v7

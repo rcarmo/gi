@@ -1,0 +1,10 @@
+/* Host-owned browser voice control, pinned Classic speech status styling. */
+.compose-speech-status { margin-top: 0; }
+.compose-speech-status-error {
+    border-color: color-mix(in srgb, var(--danger-color) 35%, transparent);
+    background: color-mix(in srgb, var(--danger-color) 10%, transparent);
+}
+.compose-speech-status .compose-inline-status-title { flex: 1; }
+.gi-voice-dismiss { border: 0; color: var(--text-secondary); background: transparent; cursor: pointer; min-width: 28px; min-height: 28px; font-size: 18px; }
+.voice-input-btn.active { color: var(--accent-color); background: var(--bg-hover); }
+@media (max-width: 639px) { .gi-voice-dismiss { min-width: 44px; min-height: 44px; } }
