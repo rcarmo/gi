@@ -144,7 +144,7 @@ Lost responses require an authoritative refresh before a new attempt.
 
 ## Test scope and remaining work
 
-`make test-ux-passkeys` runs 30 integration tests across three Chromium viewport
+`make test-ux-passkeys` runs 35 integration tests across three Chromium viewport
 projects and is required by CI before build jobs. Two narrow-interaction tests
 create390px contexts explicitly in every project; their six executions repeat
 phone-width acceptance rather than extending the geometry matrix. The tests cover two distinct credentials,
@@ -154,7 +154,7 @@ wrong session, revoked session, stale proof/reauth, cancellation, expiry, altere
 origin, correctly signed wrong-RP assertion, duplicate-ID protection and uncertain
 successful registration. Fixtures seed specific policy/error states explicitly.
 
-Twenty-six tests drive actual Classic Settings/login controls: two-key enrolment,
+Thirty-one tests drive actual Classic Settings/login controls: two-key enrolment,
 independent sign-in after restart, retained drafts/media, rename/remove/cancel,
 passkey-only reauth/add/login, failed reads/writes, uncertain finish and unmount
 cancellation, policy changes, stale revisions and a policy change during removal
@@ -193,6 +193,14 @@ taps reach rename/removal cancellation without writes. Associated input labels,
 accessible button names and status/alert roles are checked; screen-reader speech
 and Visual-skin behaviour are not. The touch case uses programmatic focus only
 for the separate asynchronous outside-pane focus-retention assertion.
+
+Five unavailable-state cases disable the WebAuthn constructor, credentials
+container, create or get method after native login/enrolment, or change the
+native policy to TOTP-only. Refresh and pane re-entry preserve the stored owner
+and keys, show the explanation and make no credential calls or auth writes.
+Restoring the same APIs/policy permits a real assertion and new registration,
+verifying the observers with positive controls. These capability overrides do
+not establish old-browser compatibility or the actual insecure-host branch.
 
 The suite uses HTTP localhost, not the pinned feature Background's HTTPS host.
 Synthetic blur tests application ownership only, not OS prompt focus. A separate

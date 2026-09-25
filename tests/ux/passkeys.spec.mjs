@@ -516,6 +516,58 @@ for(const inputMode of ['keyboard','touch'])test(`Classic narrow passkeys avoid 
  }finally{release();await auth.cdp.detach();await env.close();await context.close();}
 });
 
+for(const missing of ['PublicKeyCredential','credentials','create','get','totp-only'])test(`Settings unavailable ${missing} never starts a credential operation and recovers explicitly`,async({page},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Existing laptop');
+  if(missing==='totp-only')await changePolicy(page,'totp-only');
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();
+  const before=savedAuth(env);const writes=[];
+  page.on('request',r=>{if(!['GET','HEAD','OPTIONS'].includes(r.method())&&new URL(r.url()).pathname.startsWith('/api/auth/'))writes.push(new URL(r.url()).pathname);});
+  await page.evaluate(missing=>{
+   const container=navigator.credentials,constructor=window.PublicKeyCredential;
+   const ownContainer=Object.getOwnPropertyDescriptor(navigator,'credentials');
+   const create=container.create.bind(container),get=container.get.bind(container);
+   window.__capabilityCalls=[];
+   const wrappedCreate=(...args)=>{window.__capabilityCalls.push('create');return create(...args);};
+   const wrappedGet=(...args)=>{window.__capabilityCalls.push('get');return get(...args);};
+   container.create=wrappedCreate;container.get=wrappedGet;
+   window.__restoreCredentialAPI=()=>{
+    window.PublicKeyCredential=constructor;
+    if(ownContainer)Object.defineProperty(navigator,'credentials',ownContainer);else delete navigator.credentials;
+    container.create=wrappedCreate;container.get=wrappedGet;
+   };
+   if(missing==='PublicKeyCredential')window.PublicKeyCredential=undefined;
+   if(missing==='credentials')Object.defineProperty(navigator,'credentials',{configurable:true,value:undefined});
+   if(missing==='create')container.create=undefined;
+   if(missing==='get')container.get=undefined;
+  },missing);
+  await openAuthentication(page);
+  const explanation=missing==='totp-only'?'Passkeys are disabled by policy or are not configured for this origin.':'This browser cannot use passkeys.';
+  await expect(page.getByText(explanation,{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Add passkey',exact:true})).toBeDisabled();await expect(page.getByRole('textbox',{name:'New passkey name',exact:true})).toBeDisabled();
+  await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Existing laptop']);
+  for(const action of ['Rename Existing laptop','Remove Existing laptop'])await expect(page.getByRole('button',{name:action,exact:true})).toBeDisabled();
+  if(missing==='totp-only')await expect(page.getByRole('button',{name:'Verify with passkey',exact:true})).toHaveCount(0);else await expect(page.getByRole('button',{name:'Verify with passkey',exact:true})).toBeDisabled();
+  // Read-only refresh/re-entry must not turn a capability failure into a prompt
+  // or drop an existing credential. Native policy is not mocked here.
+  await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'General',exact:true}).click();await page.getByRole('button',{name:'Authentication',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();
+  await expect(page.getByText(explanation,{exact:true})).toBeVisible();await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Existing laptop']);
+  expect(await page.evaluate(()=>window.__capabilityCalls)).toEqual([]);expect(writes).toEqual([]);expect(savedAuth(env)).toEqual(before);
+  await page.evaluate(()=>window.__restoreCredentialAPI());
+  if(missing==='totp-only')await changePolicy(page,'either');else{await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();}
+  await expect(page.getByText(explanation,{exact:true})).toHaveCount(0);
+  expect(writes).toEqual(missing==='totp-only'?['/api/auth/policy']:[]);writes.length=0;
+  // Same call observer now sees a genuine assertion and creation, using the
+  // restored native APIs. This is not a mock success/always-zero counter.
+  await page.getByRole('button',{name:'Verify with passkey',exact:true}).click();await expect(page.getByText('Authentication verified.',{exact:true})).toBeVisible();
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await addFromSettings(page,'Recovered API key');
+  expect(await page.evaluate(()=>window.__capabilityCalls)).toEqual(['get','create']);expect(writes).toEqual(['/api/auth/passkeys/reauth/start','/api/auth/passkeys/reauth/finish','/api/auth/passkeys/register/start','/api/auth/passkeys/register/finish']);
+  await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Existing laptop','Recovered API key']);
+  expect(savedAuth(env).passkeys[0].credential.id).toBe(before.passkeys[0].credential.id);expect(savedAuth(env).passkeys[0].credential.publicKey).toBe(before.passkeys[0].credential.publicKey);
+ }finally{await auth.cdp.detach();await env.close();}
+});
+
 async function changePolicy(page,value){
  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);
  await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();
