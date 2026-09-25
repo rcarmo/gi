@@ -98,7 +98,7 @@ That installs Go/Bun dependencies, installs Playwright Chromium, and builds `gi`
 | `make test-ux-parity` | Default browser parity suite in Chromium/WebKit at three viewport sizes; specialised suites have separate targets/flags |
 | `make test-ux-auth` | Isolated TOTP/browser-auth regression suite |
 | `make test-ux-passkeys` | Real Chromium WebAuthn API and Settings/login journeys at three sizes; virtual authenticators, no physical-device claim |
-| `make check-cross-build` | Pure-Go builds for Linux/macOS amd64/arm64 and Windows amd64 |
+| `make check-cross-build` | Optional local pure-Go builds for Linux/macOS amd64/arm64 and Windows amd64; Windows is excluded from CI |
 | `make test-tui-smoke` | tmux-driven TUI smoke test (artifacts under `test-results/tui-smoke/`) |
 | `make test-tui-gherkin` | TUI gherkin harness |
 | `make test-tui-regular` | Three-size native scrollback, selection/copy, draft/resize/session/exit/reopen checks |

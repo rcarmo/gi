@@ -142,10 +142,12 @@ not compare against a controlled current-Piclaw visual baseline.
 | `make test-ux-auth` | Isolated native TOTP/browser authentication. |
 | `make test-ux-passkeys` | Chromium virtual-authenticator WebAuthn API and Settings/login tests at three sizes; required in CI. |
 | `make test-tui-smoke test-tui-gherkin` | Terminal smoke and Gherkin checks; specialised PTY suites are separate Make targets. |
-| `make check-cross-build` | Linux/macOS amd64/arm64 and Windows amd64 with `CGO_ENABLED=0`. |
+| `make check-cross-build` | Optional local Linux/macOS amd64/arm64 and Windows amd64 builds with `CGO_ENABLED=0`; Windows is excluded from CI. |
 
-CI now gates builds on the isolated passkey browser suite. It does not run the
-general browser UX matrix. Remaining priorities include the fresh-chat/Return
+CI gates builds on the isolated passkey browser suite and native Linux/macOS auth
+checks. It builds Linux/macOS amd64/arm64 artifacts. Windows CI tests, builds and
+release artifacts were removed at the owner's request; local cross-build support
+remains. CI does not run the general browser UX matrix. Remaining priorities include the fresh-chat/Return
 journey, current-Piclaw composer/picker geometry, slash/Quick Actions and Settings
 focus, workspace tab transitions, the disputed skill-prefill mapping, and an
 explicit full-suite runner with skip accounting. See the [suite guide][ux] and
