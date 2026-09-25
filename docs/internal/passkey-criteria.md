@@ -3,10 +3,12 @@
 The [JSON ledger](passkey-criteria.json) links all 26 additive scenarios to
 individual assertions or named gaps. It records 169 scenario steps, four shared
 Background steps and 40 example rows. Gherkin expansion produces 56 cases.
-These counts describe the source contract; the latest browser suite has 135
+These counts describe the source contract; the latest browser suite has 141
 executions and uses a different test grouping.
 
-Baseline: `e7d9b0450db9dc2c103dc06797dd5387ab9f81d7`. Source hash:
+Initial source-evidence baseline: `e7d9b0450db9dc2c103dc06797dd5387ab9f81d7`.
+Later tested changes update individual dispositions and anchors in the ledger.
+Source hash:
 `bd48cab9126778763cab3ddfd8ee04a89bd8c29da62e3bc4188cf24dc3a55b82`.
 The [frozen feature](../../tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature)
 is unchanged. All 26 full-scenario mappings remain unawarded. Classic/shared
@@ -49,8 +51,10 @@ Initial owner bootstrap and the production RP choice are separate work.
   real native focus transfer.
 - 012 tests duplicate protection through API fixtures, without the complete
   Settings duplicate journey.
-- 014 loses a successful finish response, then explicitly refreshes. It does not
-  leave and return to the Passkeys pane as required by the feature.
+- 014 now has both pane-return and Settings-reopen evidence: native finish is
+  committed but its response lost, then an automatic held inventory GET gates
+  reconciliation. Second return and reload issue no additional auth POST. This
+  closes the earlier Refresh-only gap within the common fixture limits.
 - 015 still lacks the actual insecure non-localhost origin example. Capability
   overrides are not old-browser compatibility evidence.
 - 017's native guard matrix concentrates on registration start. The exact list,

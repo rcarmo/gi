@@ -7,8 +7,8 @@ are added by this document. Frozen Classic/shared counts are unchanged.
 The [criterion ledger](passkey-criteria.md) records exact source steps/examples,
 named assertion anchors and the gaps below; it does not award full mappings.
 
-The current passkey suite has 45 tests in Chromium across three viewport projects
-(135 executions). Two narrow-interaction tests explicitly create390px touch-capable
+The current passkey suite has 47 tests in Chromium across three viewport projects
+(141 executions). Two narrow-interaction tests explicitly create390px touch-capable
 contexts in every project; those six executions repeat390px coverage rather than
 establishing tablet/desktop geometry. CDP virtual authenticators sign real browser ceremonies on
 HTTP localhost, not the frozen Background's `https://piclaw.test` origin.
@@ -42,7 +42,7 @@ outline example lacks direct evidence. A physical-device gap stays manual.
 | 011 | Synthetic blur during pending UI ceremony leaves it pending. | Manual: real OS/browser focus transfer and successful completion without duplicate prompt. |
 | 012 | Browser creation exclusions and independently enforced duplicate finish409; stored keys unchanged. | Partial: full duplicate path via Settings, rather than native API integration only. |
 | 013 | UI `Settings … failure retains confirmed state…`: list/rename/remove each fail with503 and pre-delivery network abort. Role alerts, last-confirmed snapshot, no success/empty list, disabled writes and unchanged native state; explicit Refresh then deliberate native retry succeeds. | Candidate: six Classic fault/recovery cases; no post-commit lost-write inference from pre-delivery faults. |
-| 014 | Lost successful finish, UI uncertain-result explanation, explicit list refresh adds one row, no immediate second finish. | Partial: the frozen journey returns to Passkeys; the test clicks Refresh without leaving/re-entering the pane. |
+| 014 | UI `Settings … reconciles a lost registration response without replay`: native commit then lost response; leave via pane switch or close Settings. Returning automatically fetches inventory; held GET gates rows with no false empty state. Key appears once; second return and reload preserve exact committed state with no further auth POST. | Candidate: the explicit-return gap is closed for Classic/localhost/CDP. Draft and attachment pill retained; attachment-byte equality not established by this case. |
 | 015 | UI `Settings unavailable…`: constructor/container/create/get overrides after native login and enrolment, plus native TOTP-only policy. Exact explanation, disabled controls, zero credential calls/auth writes and full state equality through refresh/re-entry; restored APIs/policy then real assertion and creation as positive controls. Auth UI separately covers unenrolled/unconfigured states. | Partial: actual insecure non-localhost origin remains untested; capability overrides do not establish old-browser compatibility or all outline examples in one mapped contract. |
 | 016 | UI `Classic narrow passkeys avoid horizontal clipping…`:390px,80-code-point name, metadata/button/error bounds, associated input labels and accessible button names. Tab/Enter reaches rename/remove/cancel; trusted tap repeats those actions, without writes. Status/alert roles and held-read outside-focus retention checked. | Partial: Visual skin and physical assistive-technology announcements unverified. Touch path uses programmatic focus for the outside-pane focus guard only; action activation uses real taps. |
 | 017 | HTTP no-cookie, bearer/query, foreign origin, other-account field and transport denial; session binding. | Partial: all operations/examples, including explicit family-mode denial, plus no inventory leakage. |

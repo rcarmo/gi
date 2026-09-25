@@ -708,6 +708,47 @@ test('Settings confirmed removal rejects a fresh removed-key assertion and accep
  }finally{release();await auth.cdp.detach();await env.close();}
 });
 
+for(const returnVia of ['pane switch','Settings reopen'])test(`Settings ${returnVia} reconciles a lost registration response without replay`,async({page},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ let release;const readGate=new Promise(resolve=>release=resolve);
+ try{
+  await loginTOTP(page,env);const composer=page.locator('.compose-box textarea');await composer.fill('Uncertain enrolment keeps this draft Ω');
+  await page.locator('.compose-box input[type=file]').setInputFiles({name:'reconcile.txt',mimeType:'text/plain',buffer:Buffer.from('Retained uncertain-enrolment bytes')});await expect(page.locator('.compose-file-pill[title="reconcile.txt"]')).toBeVisible();
+  await openAuthentication(page);await addFromSettings(page,'Laptop');const original=savedAuth(env).passkeys[0];
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});
+  const writes=[];let committed;
+  page.on('request',request=>{if(request.method()==='POST'&&new URL(request.url()).pathname.startsWith('/api/auth/'))writes.push(new URL(request.url()).pathname);});
+  await page.route('**/api/auth/passkeys/register/finish',async route=>{
+   const response=await route.fetch();expect(response.status()).toBe(200);expect(await response.json()).toEqual({ok:true});committed=savedAuth(env);await route.abort('failed');
+  });
+  await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('Uncertain key');await page.getByRole('button',{name:'Add passkey',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('could not be confirmed');await expect(page.getByText('Passkey registered.',{exact:true})).toHaveCount(0);await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Laptop']);
+  expect(committed.passkeys.map(k=>k.name)).toEqual(['Laptop','Uncertain key']);expect(committed.passkeys[0]).toEqual(original);
+  const newID=Buffer.from(committed.passkeys[1].credential.id,'base64').toString('base64url');
+  expect((await auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:auth.id})).credentials).toHaveLength(1);
+  // Leave before installing the held inventory read. Never click Refresh: a
+  // fresh pane must ask the native server itself, not reuse the prior snapshot.
+  if(returnVia==='pane switch'){await page.getByRole('button',{name:'General',exact:true}).click();await expect(page.getByRole('heading',{name:'General',exact:true})).toBeVisible();}
+  else{await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(composer).toHaveValue('Uncertain enrolment keeps this draft Ω');}
+  await expect(page.locator('.gi-authentication-pane')).toHaveCount(0);let reads=0;
+  await page.route('**/api/auth/passkeys',async route=>{expect(route.request().method()).toBe('GET');reads++;await readGate;await route.continue();});
+  if(returnVia==='Settings reopen'){await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Settings',exact:true}).click();}
+  await page.getByRole('button',{name:'Authentication',exact:true}).click();await expect.poll(()=>reads).toBe(1);
+  await expect(page.getByRole('status').filter({hasText:'Loading passkeys…'})).toBeVisible();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeDisabled();
+  await expect(page.locator('.gi-passkey-row')).toHaveCount(0);await expect(page.getByText('No passkeys registered.',{exact:true})).toHaveCount(0);await expect(page.getByText('Passkey registered.',{exact:true})).toHaveCount(0);
+  expect(writes).toEqual(['/api/auth/passkeys/register/start','/api/auth/passkeys/register/finish']);expect(savedAuth(env)).toEqual(committed);
+  release();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Laptop','Uncertain key']);await expect(credentialRow(page,newID)).toHaveCount(1);await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(reads).toBe(1);expect(savedAuth(env)).toEqual(committed);expect(writes).toEqual(['/api/auth/passkeys/register/start','/api/auth/passkeys/register/finish']);
+  // A second return and full-page reload are further reconciliation boundaries,
+  // not timing-only observations. Neither may replay the consumed ceremony.
+  await page.getByRole('button',{name:'General',exact:true}).click();await expect(page.locator('.gi-authentication-pane')).toHaveCount(0);await page.getByRole('button',{name:'Authentication',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();await expect(credentialRow(page,newID)).toHaveCount(1);expect(reads).toBe(2);
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();await page.reload();await expect(composer).toHaveValue('Uncertain enrolment keeps this draft Ω');await expect(page.locator('.compose-file-pill[title="reconcile.txt"]')).toBeVisible();
+  await openAuthentication(page);await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Laptop','Uncertain key']);await expect(credentialRow(page,newID)).toHaveCount(1);expect(reads).toBe(3);
+  expect(savedAuth(env)).toEqual(committed);expect(writes).toEqual(['/api/auth/passkeys/register/start','/api/auth/passkeys/register/finish']);
+ }finally{release();await page.unrouteAll({behavior:'wait'});await auth.cdp.detach();await env.close();}
+});
+
 async function changePolicy(page,value){
  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);
  await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();

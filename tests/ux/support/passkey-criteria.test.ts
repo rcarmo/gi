@@ -67,7 +67,10 @@ test('passkey criterion evidence points to named tests or a declared fixture, no
  }
  // Known gaps must not silently acquire complete-looking dispositions.
  const criterion=(id:string,index:number)=>ledger.scenarios.find((s:any)=>s.id.endsWith(id)).criteria[index-1];
- expect(criterion('014',3).state).toBe('gap');
+ // Return/reopen evidence closes014's explicit-return gap, without awarding
+ // full-scenario credit or changing the inherited HTTPS/skin substitutions.
+ expect(criterion('014',3).state).toBe('bounded');
+ expect(criterion('014',3).evidence).toEqual(['return-reconcile']);
  expect(criterion('017',2).state).toBe('partial');
  expect(criterion('020',7).state).toBe('gap');
  expect(criterion('021',5).state).toBe('partial');

@@ -192,6 +192,11 @@
       "file": "internal/auth/passkeys_test.go",
       "anchor": "func TestAuthPasskeyMetadataAndAtomicLastFactor",
       "scope": "Native metadata/rename/concurrent last-factor safety; existing token remains valid immediately."
+    },
+    "return-reconcile": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings ${returnVia} reconciles a lost registration response without replay",
+      "scope": "Classic HTTP localhost/CDP; pane switch and Settings reopen; authoritative held inventory GET; no physical prompt/Visual credit. Draft text and attachment pill retention, not attachment byte equality."
     }
   },
   "scenarios": [
@@ -1362,9 +1367,9 @@
           "text": "the server has stored a newly created passkey",
           "state": "bounded",
           "evidence": [
-            "failures"
+            "return-reconcile"
           ],
-          "note": "Native finish stored once and response lost; explicit Refresh reconciliation exists."
+          "note": "Native finish commits then response is lost; leave and return via pane switch or Settings reopen. Held automatic inventory GET gates rows. Key appears once; two further reconciliation boundaries make no auth POST and preserve exact committed auth state."
         },
         {
           "line": 180,
@@ -1372,29 +1377,29 @@
           "text": "the registration response does not reach the browser",
           "state": "bounded",
           "evidence": [
-            "failures"
+            "return-reconcile"
           ],
-          "note": "Native finish stored once and response lost; explicit Refresh reconciliation exists."
+          "note": "Native finish commits then response is lost; leave and return via pane switch or Settings reopen. Held automatic inventory GET gates rows. Key appears once; two further reconciliation boundaries make no auth POST and preserve exact committed auth state."
         },
         {
           "line": 181,
           "keyword": "When",
           "text": "I return to the Passkeys section",
-          "state": "gap",
+          "state": "bounded",
           "evidence": [
-            "failures"
+            "return-reconcile"
           ],
-          "note": "Existing test clicks Refresh without leaving/re-entering Passkeys."
+          "note": "Native finish commits then response is lost; leave and return via pane switch or Settings reopen. Held automatic inventory GET gates rows. Key appears once; two further reconciliation boundaries make no auth POST and preserve exact committed auth state."
         },
         {
           "line": 182,
           "keyword": "Then",
           "text": "Settings refreshes the credential list from the server",
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "failures"
+            "return-reconcile"
           ],
-          "note": "Explicit Refresh tested; automatic fetch on return is not directly exercised."
+          "note": "Native finish commits then response is lost; leave and return via pane switch or Settings reopen. Held automatic inventory GET gates rows. Key appears once; two further reconciliation boundaries make no auth POST and preserve exact committed auth state."
         },
         {
           "line": 183,
@@ -1402,19 +1407,19 @@
           "text": "the new credential appears once",
           "state": "bounded",
           "evidence": [
-            "failures"
+            "return-reconcile"
           ],
-          "note": "Native finish stored once and response lost; explicit Refresh reconciliation exists."
+          "note": "Native finish commits then response is lost; leave and return via pane switch or Settings reopen. Held automatic inventory GET gates rows. Key appears once; two further reconciliation boundaries make no auth POST and preserve exact committed auth state."
         },
         {
           "line": 184,
           "keyword": "And",
           "text": "the application does not automatically repeat registration with the consumed challenge",
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "failures"
+            "return-reconcile"
           ],
-          "note": "No immediate replay after fault/Refresh; return path not exercised."
+          "note": "Native finish commits then response is lost; leave and return via pane switch or Settings reopen. Held automatic inventory GET gates rows. Key appears once; two further reconciliation boundaries make no auth POST and preserve exact committed auth state."
         }
       ],
       "examples": []
