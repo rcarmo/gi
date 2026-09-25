@@ -5,8 +5,8 @@ native WebAuthn, Classic Settings/login and sign-in policy controls. This is a
 source-to-test review, not an automated per-case pass report. No new mappings
 are added by this document. Frozen Classic/shared counts are unchanged.
 
-The current passkey suite has 42 tests in Chromium across three viewport projects
-(126 executions). Two narrow-interaction tests explicitly create390px touch-capable
+The current passkey suite has 45 tests in Chromium across three viewport projects
+(135 executions). Two narrow-interaction tests explicitly create390px touch-capable
 contexts in every project; those six executions repeat390px coverage rather than
 establishing tablet/desktop geometry. CDP virtual authenticators sign real browser ceremonies on
 HTTP localhost, not the frozen Background's `https://piclaw.test` origin.
@@ -28,13 +28,13 @@ outline example lacks direct evidence. A physical-device gap stays manual.
 | ID suffix | Current test evidence | Remaining gap / classification |
 |---|---|---|
 | 001 | UI `Classic Settings shows native credential metadata…`: named used/unused credentials, full IDs and creation/use dates matched to native records, Never used label and enabled controls. Actual cookie, TOTP secret, user handle, public keys and token hashes absent from DOM/storage/URL and inventory JSON. | Partial: Classic verified; Visual skin absent. No synthetic enrolment-token canary is created by this flow. |
-| 002 | UI first Settings enrolment after TOTP login; native verification and persisted list. | Partial: explicitly assert retained TOTP login and no enrolment token in URLs/chat. |
-| 003 | UI passkey-only reauth and further enrolment with no TOTP; distinct virtual credential material. | Partial: narrowly map one-existing-key to second-key journey and no chat-link prompt. |
+| 002 | UI `Settings first passkey waits…`: zero initial keys, recent TOTP proof, native finish held with no success/row/store mutation; release verifies registration, unchanged TOTP/session records, fresh cookie-free TOTP sign-in. Chat messages unchanged, POSTs limited to registration, captured challenge/ceremony/secret absent from navigation/chat. | Candidate: standalone Classic journey; enrolment-token flow is absent rather than simulated. |
+| 003 | UI `Settings adds a second distinct key…`: exactly one existing key, native passkey-only policy, TOTP-disabled disposable precondition; fresh passkey login then second distinct key. Existing record/session unchanged, no TOTP controls/chat-link/extra POST, second key signs in. | Candidate: standalone Classic journey. Virtual credential selection and seeded TOTP removal do not establish physical authenticator selection or TOTP-removal UI. |
 | 004 | API and UI two-key sign-in after server restart with fresh cookies; only used key's last-used time advances. | Candidate: both passkey examples, virtual-authenticator scope only. |
 | 005 | Data model stores credentials, not physical devices. | Manual: one synced credential used on two physical devices, one row retained. |
 | 006 | UI `Settings renames one of two unnamed credentials…`: two canonical empty names seeded in the disposable store; identify one row by credential ID, save Tablet, compare full credential records and reload Settings. | Candidate: bounded Classic/localhost evidence; all authentication material and the other unnamed row remain unchanged. |
 | 007 | UI `Settings rename validates…`: separate blank, whitespace,81-code-point, control and literal-HTML cases. Exact request/error or saved text, full record equality before sign-in, then cookie-free sign-in with that same authenticator and persisted name. | Candidate: all name examples through Classic; literal markup neither renders nor executes. |
-| 008 | UI confirmation/remove, native removed-key rejection and remaining-key sign-in. | Partial: confirmation identifier and zero removal request before confirmation. |
+| 008 | UI `Settings confirmed removal rejects…`: confirmation name/ID, zero POST before confirm, held native removal with no optimistic success; session records and survivor unchanged. Client allow-list alteration produces a real removed-key assertion rejected400/no cookie/protected401; surviving key signs in200 with ID/name/RP/public key retained. | Candidate: complete bounded Classic removal journey; altered client options exercise native rejection rather than physical prompt affordances. |
 | 009 | UI `Settings removal cancellation sends no request…`: pointer Cancel and Escape preserve both stored records and restore the identified opener. Zero remove requests before/after cancellation and refresh; positive control observes one confirmed removal. | Candidate: bounded Classic cancellation journey; no request-count credit inferred from inventory alone. |
 | 010 | UI Escape/app cancel, no finish/auto-repeat, unchanged list and explicit new attempt. | Partial: application AbortSignal cancellation is covered; physical native-prompt cancel behaviour needs manual testing. |
 | 011 | Synthetic blur during pending UI ceremony leaves it pending. | Manual: real OS/browser focus transfer and successful completion without duplicate prompt. |

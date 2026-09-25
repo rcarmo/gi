@@ -642,6 +642,72 @@ for(const fault of ['expired','consumed','other-session','origin','rp','proof','
  }finally{await otherAuth?.cdp.detach();await otherContext?.close();await auth.cdp.detach();await env.close();}
 });
 
+test('Settings first passkey waits for native confirmation and retains fresh TOTP sign-in without chat enrolment',async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);let release;const gate=new Promise(r=>release=r);
+ try{
+  await loginTOTP(page,env);const before=savedAuth(env);expect(before.passkeys||[]).toHaveLength(0);
+  const messages=()=>page.evaluate(async id=>{const response=await fetch(`/api/sessions/${id}/messages`);if(!response.ok)throw new Error('Cannot read fixture messages');return response.json();},env.main.id);const chatBefore=await messages();
+  const paths=[],urls=[];page.on('request',r=>{if(r.method()==='POST')paths.push(new URL(r.url()).pathname);if(r.isNavigationRequest())urls.push(r.url());});
+  await page.locator('.compose-box textarea').fill('First passkey draft');await openAuthentication(page);let held=false;
+  await page.route('**/api/auth/passkeys/register/finish',async route=>{held=true;await gate;await route.continue();});
+  const startResponse=page.waitForResponse(r=>r.url().endsWith('/api/auth/passkeys/register/start'));await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('Laptop');await page.getByRole('button',{name:'Add passkey',exact:true}).click();
+  const started=await startResponse;expect(started.status()).toBe(200);const start=await started.json();await expect.poll(()=>held).toBe(true);
+  await expect(page.locator('.gi-passkey-row')).toHaveCount(0);await expect(page.getByText('Passkey registered.',{exact:true})).toHaveCount(0);expect(savedAuth(env).passkeys||[]).toHaveLength(0);
+  release();await expect(page.getByText('Passkey registered.',{exact:true})).toBeVisible();await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Laptop']);
+  const after=savedAuth(env);expect(after.totp_enabled).toBe(true);expect(after.totp_secret).toBe(before.totp_secret);expect(after.sessions).toEqual(before.sessions);expect(after.passkeys).toHaveLength(1);
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('First passkey draft');expect(await messages()).toEqual(chatBefore);
+  expect(paths).toEqual(['/api/auth/passkeys/register/start','/api/auth/passkeys/register/finish']);expect(new URL(page.url()).search).toBe('');expect(new URL(page.url()).hash).toBe('');
+  for(const value of [env.secret,start.ceremony_id,start.options.publicKey.challenge]){expect(JSON.stringify(urls)).not.toContain(value);expect(JSON.stringify(await messages())).not.toContain(value);}
+  // TOTP availability is tested with a fresh cookie-free sign-in, not only
+  // the policy flag or an already authenticated session.
+  await context.clearCookies();await page.reload();await expect(page.getByRole('button',{name:'Sign in with passkey',exact:true})).toBeVisible();
+  await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('First passkey draft');
+  await openAuthentication(page);await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Laptop']);expect(savedAuth(env).passkeys).toEqual(after.passkeys);
+ }finally{release();await auth.cdp.detach();await env.close();}
+});
+
+test('Settings adds a second distinct key with passkey-only proof and no configured TOTP',async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Laptop');await changePolicy(page,'passkey-only');
+  // No TOTP-removal UI is claimed: seed this precondition only in the private
+  // disposable owner store, then obtain real fresh passkey proof by signing in.
+  const state=savedAuth(env);state.totp_enabled=false;state.totp_secret='';writeFileSync(env.authPath,JSON.stringify(state));
+  await context.clearCookies();await page.reload();await expect(page.getByRole('textbox',{name:'Authentication code',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();await expect(page.locator('.compose-box textarea')).toBeVisible();
+  await openAuthentication(page);await expect(page.getByRole('button',{name:'Verify code',exact:true})).toHaveCount(0);await expect(page.getByRole('textbox',{name:'Reauthentication code',exact:true})).toHaveCount(0);
+  const before=savedAuth(env);expect(before.passkeys).toHaveLength(1);expect(before.totp_enabled).toBe(false);expect(before.totp_secret||'').toBe('');const key=(await list(page)).body.passkeys[0];const writes=[];
+  page.on('request',r=>{if(r.method()==='POST')writes.push(new URL(r.url()).pathname);});
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await addFromSettings(page,'Backup key');
+  await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Laptop','Backup key']);await expect(credentialRow(page,key.id).locator('strong')).toHaveText('Laptop');
+  const after=savedAuth(env);expect(after.passkeys).toHaveLength(2);expect(after.passkeys[0]).toEqual(before.passkeys[0]);expect(after.passkeys[1].credential.id).not.toBe(before.passkeys[0].credential.id);expect(after.passkeys[1].credential.publicKey).not.toBe(before.passkeys[0].credential.publicKey);expect(after.sessions).toEqual(before.sessions);expect(after.login_policy).toBe('passkey-only');expect(after.totp_enabled).toBe(false);expect(after.totp_secret||'').toBe('');
+  expect(writes).toEqual(['/api/auth/passkeys/register/start','/api/auth/passkeys/register/finish']);await expect(page.locator('.gi-authentication-pane a')).toHaveCount(0);expect(new URL(page.url()).search).toBe('');
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();await context.clearCookies();await page.reload();await expect(page.getByRole('textbox',{name:'Authentication code',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();await expect(page.locator('.compose-box textarea')).toBeVisible();
+  await openAuthentication(page);await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Laptop','Backup key']);
+ }finally{await auth.cdp.detach();await env.close();}
+});
+
+test('Settings confirmed removal rejects a fresh removed-key assertion and accepts only the surviving key',async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);let release;const gate=new Promise(r=>release=r);
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Laptop');const laptop=(await auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:auth.id})).credentials[0];
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await addFromSettings(page,'Backup key');const backup=(await auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:auth.id})).credentials[0];
+  const before=savedAuth(env),keys=(await list(page)).body.passkeys;let removes=0,held=false;
+  await page.route('**/api/auth/passkeys/remove',async route=>{removes++;expect(route.request().postDataJSON()).toEqual({id:keys[0].id});held=true;await gate;await route.continue();});
+  await page.getByRole('button',{name:'Remove Laptop',exact:true}).click();await expect(page.getByRole('group',{name:'Confirm passkey removal'})).toContainText(`Laptop (${keys[0].id})`);expect(removes).toBe(0);
+  await page.getByRole('button',{name:'Confirm removal',exact:true}).click();await expect.poll(()=>held).toBe(true);await expect(page.locator('.gi-passkey-row')).toHaveCount(2);await expect(page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toHaveCount(0);expect(savedAuth(env)).toEqual(before);
+  release();await expect(page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toBeVisible();await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Backup key']);expect(savedAuth(env).passkeys).toEqual([before.passkeys[1]]);expect(savedAuth(env).sessions).toEqual(before.sessions);expect(removes).toBe(1);await page.unrouteAll({behavior:'wait'});
+  await context.clearCookies();await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await auth.cdp.send('WebAuthn.addCredential',{authenticatorId:auth.id,credential:laptop});await page.reload();
+  // Normal allowCredentials excludes the removed key. Alter only the options
+  // sent to the authenticator so it signs a genuine assertion from that key;
+  // the native server still uses its own surviving credential inventory.
+  await page.route('**/api/auth/passkeys/login/start',async route=>{const response=await route.fetch();expect(response.status()).toBe(200);const body=await response.json();expect(body.options.publicKey.allowCredentials.map(c=>c.id)).toEqual([keys[1].id]);body.options.publicKey.allowCredentials=[{type:'public-key',id:keys[0].id}];await route.fulfill({response,json:body});});
+  const rejected=page.waitForResponse(r=>r.url().endsWith('/api/auth/passkeys/login/finish'));await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();expect((await rejected).status()).toBe(400);await expect(page.getByRole('alert')).toBeVisible();await expect(page.locator('.compose-box textarea')).toHaveCount(0);expect((await context.cookies()).find(c=>c.name==='gi_session')).toBeUndefined();expect(await page.evaluate(async()=>(await fetch('/api/sessions')).status)).toBe(401);expect(savedAuth(env).passkeys).toEqual([before.passkeys[1]]);
+  await page.unrouteAll({behavior:'wait'});await context.clearCookies();await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await auth.cdp.send('WebAuthn.addCredential',{authenticatorId:auth.id,credential:backup});await page.reload();
+  const accepted=page.waitForResponse(r=>r.url().endsWith('/api/auth/passkeys/login/finish'));await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();expect((await accepted).status()).toBe(200);await expect(page.locator('.compose-box textarea')).toBeVisible();await openAuthentication(page);await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Backup key']);
+  const surviving=savedAuth(env).passkeys;expect(surviving).toHaveLength(1);expect(surviving[0].name).toBe(before.passkeys[1].name);expect(surviving[0].rp_id).toBe(before.passkeys[1].rp_id);expect(surviving[0].credential.id).toBe(before.passkeys[1].credential.id);expect(surviving[0].credential.publicKey).toBe(before.passkeys[1].credential.publicKey);
+ }finally{release();await auth.cdp.detach();await env.close();}
+});
+
 async function changePolicy(page,value){
  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);
  await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();

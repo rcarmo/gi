@@ -144,7 +144,7 @@ Lost responses require an authoritative refresh before a new attempt.
 
 ## Test scope and remaining work
 
-`make test-ux-passkeys` runs 42 integration tests across three Chromium viewport
+`make test-ux-passkeys` runs 45 integration tests across three Chromium viewport
 projects and is required by CI before build jobs. Two narrow-interaction tests
 create390px contexts explicitly in every project; their six executions repeat
 phone-width acceptance rather than extending the geometry matrix. The tests cover two distinct credentials,
@@ -154,7 +154,7 @@ wrong session, revoked session, stale proof/reauth, cancellation, expiry, altere
 origin, correctly signed wrong-RP assertion, duplicate-ID protection and uncertain
 successful registration. Fixtures seed specific policy/error states explicitly.
 
-Thirty-eight tests drive actual Classic Settings/login controls: two-key enrolment,
+Forty-one tests drive actual Classic Settings/login controls: two-key enrolment,
 independent sign-in after restart, retained drafts/media, rename/remove/cancel,
 passkey-only reauth/add/login, failed reads/writes, uncertain finish and unmount
 cancellation, policy changes, stale revisions and a policy change during removal
@@ -211,6 +211,16 @@ native error responses. Foreign proof succeeds unchanged in its own session
 after rejection in the wrong session. RP mutation preserves attestation length
 and CBOR structure; it does not isolate verifier-check ordering. Revocation is
 after native creation but before finish delivery, not during a physical prompt.
+
+Standalone enrolment/removal journeys hold native requests to rule out optimistic
+success. First-key enrolment retains a fresh TOTP sign-in, unchanged chat messages
+and no ceremony/secret values in navigation/chat. A separate one-key passkey-only
+fixture disables TOTP in its disposable store, signs in by passkey and adds a
+second distinct credential without changing the first. Confirmed removal is
+followed by a genuine removed-key assertion (client allow-list altered only),
+which the server rejects without issuing a cookie; the surviving key then signs
+in with its identity/name/RP/public key intact. Seeded TOTP removal and virtual
+credential selection are not browser TOTP-removal or physical-device UI evidence.
 
 The suite uses HTTP localhost, not the pinned feature Background's HTTPS host.
 Synthetic blur tests application ownership only, not OS prompt focus. A separate
