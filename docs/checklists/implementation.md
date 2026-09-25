@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-25
 
+- [x] Deploycfef4d8 removal explanations after CI36113841805: eight Linux/macOS test/build jobs green (no Windows).8090 PID3145609; six guarded live browser/size checks zero writes/errors/draft loss. Live still unenrolled/passkeys disabled. DB62/51/146, integrity/FKs OK and full SQL equal except runtime lease (SHA256300ce679…53d). No production enrolment/policy change or TUI rows.
+
 - [x] Derive removal reason/remaining_method under the atomic writer lock; preserve legacy error text409/errors.Is/wrapper and return no success result on failure. Settings renders fixed known reasons and post-confirmation fallback, clears details on next work, tolerates absent optional fields. Seven native/browser cases (six supported outline plus defensive disabled secret),165passkey/36auth/216Settings/107functional (five existing skips)/106helpers2911/Go-vet-hook/auth+web race×3/review pass.020pending-ownerTOTP still unsupported; seeded disabled secret is not that flow. No live auth/TUI rows.
 
 - [x] Deploy07692d9 inventory-query refusal after Linux/macOS-only CI36110032772: eight test/build jobs green including144browser/ledger, no Windows jobs.8090 PID3062406, six guarded live Chromium/WebKit checks zero writes/errors/drafts retained. Still unenrolled/passkeys disabled; no production auth writes. DB62sessions/51turns/146messages, integrity/FKs OK, full SQL equal except runtime lease (SHA256300ce679…53d). Prior server-readiness failure preserved in evidence; runtime test timeout unchanged.
