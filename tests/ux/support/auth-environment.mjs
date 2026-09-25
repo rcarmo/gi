@@ -16,7 +16,7 @@ export function totp(secret) {
 }
 
 // One native process/workspace per case; no production auth files or database.
-export async function authEnvironment(page,info,{passkeys=false}={}) {
+export async function authEnvironment(page,info,{passkeys=false,enrolled=true}={}) {
  const dir=mkdtempSync(join(tmpdir(),'gi-auth-'));
  const reserve=createServer();await new Promise(r=>reserve.listen(0,'127.0.0.1',r));const port=reserve.address().port;await new Promise(r=>reserve.close(r));
  const origin=`http://${passkeys?'localhost':'127.0.0.1'}:${port}`;
@@ -33,13 +33,17 @@ export async function authEnvironment(page,info,{passkeys=false}={}) {
   await expect.poll(async()=>{try{return(await fetch(origin+'/api/auth/status')).status}catch{return 0}},{timeout:10000}).toBe(200);
   const api=async(path,body)=>{const response=await fetch(origin+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});expect(response.ok).toBe(true);return response.json();};
   const main=await api('/api/sessions',{agent_id:'auth-browser',title:'Auth fixture'});
-  const pending=await api('/api/auth/enroll/start',{username:'admin'});
-  await api('/api/auth/enroll/verify',{username:'admin',code:totp(pending.secret)});
+  let secret;
+  if(enrolled){
+   const pending=await api('/api/auth/enroll/start',{username:'admin'});
+   await api('/api/auth/enroll/verify',{username:'admin',code:totp(pending.secret)});
+   secret=pending.secret;
+  }
   await page.addInitScript(id=>{
    localStorage.setItem('gi_session_id',id);
    const Native=window.EventSource;window.__authConnected=0;
    window.EventSource=class extends Native{constructor(url,options){super(url,options);this.addEventListener('connected',()=>window.__authConnected++);}};
   },main.id);
-  return {origin,main,secret:pending.secret,authPath:join(dir,'.gi','auth.json'),restart,close};
+  return {origin,main,secret,authPath:join(dir,'.gi','auth.json'),restart,close};
  } catch(error){await close();throw error;}
 }

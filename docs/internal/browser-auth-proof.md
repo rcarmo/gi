@@ -48,6 +48,13 @@ factor strings do not grant freshness.
 Only the server supplies proof timestamps. Loading Settings or reloading a page
 cannot refresh them.
 
+## Initial owner setup
+
+The [browser-bound bootstrap API](browser-bootstrap.md) creates a verified TOTP
+owner and fresh browser-owner session in one transaction. It has a separate,
+short-lived setup cookie and stricter loopback-only transport checks. Settings
+setup controls are not implemented yet.
+
 ## Explicit browser logout
 
 `POST /api/auth/session/logout` accepts only an empty JSON object (maximum1024

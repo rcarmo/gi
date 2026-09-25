@@ -1,9 +1,45 @@
 import {test,expect} from '@playwright/test';
-import {readFileSync,writeFileSync} from 'node:fs';
+import {existsSync,readFileSync,writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {authEnvironment,totp} from './support/auth-environment.mjs';
 import {loadCorpus} from './support/catalogue.mjs';
 const composerName='Message (Enter to send, Shift+Enter for newline)...';
 async function source(info,id){await info.attach('gherkin',{body:loadCorpus().find(x=>x.id===id).steps.join('\n'),contentType:'text/plain'});}
+
+// Browser bootstrap API prerequisites only: no setup controls or automatic
+// enrolment. This does not earn the frozen first-owner Settings journey.
+const setupAPI=(page,operation,body={})=>page.evaluate(async({operation,body})=>{const r=await fetch('/api/auth/setup/'+operation,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return {status:r.status,body:await r.json(),cache:r.headers.get('cache-control')};},{operation,body});
+
+test('Browser-bound setup atomically creates one owner and resists stale other-browser finish',async({page,context,browser},info)=>{
+ const env=await authEnvironment(page,info,{enrolled:false});const otherContext=await browser.newContext();const other=await otherContext.newPage();
+ try{
+  await other.addInitScript(id=>localStorage.setItem('gi_session_id',id),env.main.id);
+  await page.goto(env.origin);await other.goto(env.origin);await expect(page.locator('.compose-box textarea')).toBeVisible();
+  await page.locator('.compose-box textarea').fill('Bootstrap prerequisite retains draft Ω');
+  const a=await setupAPI(page,'start'),b=await setupAPI(other,'start');expect(a.status).toBe(200);expect(b.status).toBe(200);expect(a.cache).toBe('private, no-store');expect(a.body.username).toBe('admin');expect(a.body.expires_in_seconds).toBe(600);expect(a.body.secret).not.toBe(b.body.secret);expect(existsSync(env.authPath)).toBe(false);
+  const setup=(await context.cookies()).find(c=>c.name==='gi_setup');expect(setup).toMatchObject({httpOnly:true,sameSite:'Strict',path:'/api/auth/setup',secure:false});expect(setup.value).toHaveLength(64);
+  expect(await page.evaluate(()=>document.cookie)).not.toContain('gi_setup');
+  const otherCookie=(await otherContext.cookies()).find(c=>c.name==='gi_setup');expect(otherCookie.value).not.toBe(setup.value);
+  const finish=await setupAPI(page,'finish',{code:totp(a.body.secret)});expect(finish).toEqual({status:200,body:{ok:true},cache:'private, no-store'});
+  const cookies=await context.cookies();expect(cookies.find(c=>c.name==='gi_setup')).toBeUndefined();const owner=cookies.find(c=>c.name==='gi_session');expect(owner).toMatchObject({httpOnly:true,sameSite:'Strict',path:'/'});
+  const saved=readFileSync(env.authPath,'utf8'),state=JSON.parse(saved);expect(state.sessions).toHaveLength(1);expect(state.sessions[0]).toMatchObject({token_hash:createHash('sha256').update(owner.value).digest('hex'),purpose:'browser-owner',auth_factor:'totp'});expect(state.totp_secret).toBe(a.body.secret);expect(saved).not.toContain(owner.value);expect(saved).not.toContain(setup.value);expect(saved).not.toContain(b.body.secret);
+  expect(await page.evaluate(async()=>(await(await fetch('/api/auth/session/proof')).json()).reauth_required)).toBe(false);
+  expect(await other.evaluate(async()=>(await fetch('/api/sessions')).status)).toBe(401);
+  expect((await setupAPI(other,'finish',{code:totp(b.body.secret)})).status).toBe(409);expect((await otherContext.cookies()).find(c=>c.name==='gi_session')).toBeUndefined();expect(readFileSync(env.authPath,'utf8')).toBe(saved);
+  await env.restart();await page.reload();await expect(page.locator('.compose-box textarea')).toHaveValue('Bootstrap prerequisite retains draft Ω');expect((await setupAPI(page,'start')).status).toBe(409);expect(readFileSync(env.authPath,'utf8')).toBe(saved);
+  expect(await page.evaluate(({secret,token,binding})=>{const storage=JSON.stringify({local:{...localStorage},session:{...sessionStorage}});return [secret,token,binding].every(s=>!storage.includes(s));},{secret:a.body.secret,token:owner.value,binding:setup.value})).toBe(true);
+ }finally{await otherContext.close();await env.close();}
+});
+
+test('Browser setup cancellation, replay and process restart leave no owner until a new finish',async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{enrolled:false});
+ try{
+  await page.goto(env.origin);await expect(page.locator('.compose-box textarea')).toBeVisible();
+  const a=await setupAPI(page,'start');expect(a.status).toBe(200);expect((await setupAPI(page,'cancel')).status).toBe(200);expect((await context.cookies()).find(c=>c.name==='gi_setup')).toBeUndefined();expect((await setupAPI(page,'finish',{code:totp(a.body.secret)})).status).toBe(401);expect(existsSync(env.authPath)).toBe(false);
+  const b=await setupAPI(page,'start');expect(b.status).toBe(200);await env.restart();expect((await setupAPI(page,'finish',{code:totp(b.body.secret)})).status).toBe(400);expect(existsSync(env.authPath)).toBe(false);expect((await context.cookies()).find(c=>c.name==='gi_setup')).toBeUndefined();
+  const c=await setupAPI(page,'start');expect(c.status).toBe(200);expect((await setupAPI(page,'finish',{code:totp(c.body.secret)})).status).toBe(200);const saved=readFileSync(env.authPath,'utf8');expect((await setupAPI(page,'finish',{code:totp(c.body.secret)})).status).toBe(401);expect(readFileSync(env.authPath,'utf8')).toBe(saved);
+ }finally{await env.close();}
+});
 
 test('@ux-auth-002 Single-user code-only native sign-in opens cookie-authenticated application',async({page,context},info)=>{
  await source(info,'@ux-auth-002');const env=await authEnvironment(page,info);

@@ -174,6 +174,11 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/auth/status", s.handleAuthStatus)
 	s.mux.HandleFunc("/api/auth/enroll/start", s.handleAuthEnrollStart)
 	s.mux.HandleFunc("/api/auth/enroll/verify", s.handleAuthEnrollVerify)
+	for _, operation := range []string{"start", "finish", "cancel"} {
+		s.mux.HandleFunc("/api/auth/setup/"+operation, func(w http.ResponseWriter, r *http.Request) {
+			s.handleBrowserSetup(w, r, operation)
+		})
+	}
 	s.mux.HandleFunc("/api/auth/totp/verify", s.handleAuthTOTPVerify)
 	s.mux.HandleFunc("/api/auth/session", s.handleAuthSession)
 	s.mux.HandleFunc("/api/auth/session/logout", s.handleAuthLogout)

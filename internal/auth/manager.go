@@ -49,11 +49,12 @@ type PendingEnrollment struct {
 }
 
 type Manager struct {
-	mu            sync.Mutex
-	path          string
-	issuer        string
-	pending       map[string]PendingEnrollment
-	passkeyConfig PasskeyConfig
+	mu             sync.Mutex
+	path           string
+	issuer         string
+	pending        map[string]PendingEnrollment
+	browserPending map[string]PendingEnrollment
+	passkeyConfig  PasskeyConfig
 }
 
 func NewManager(workspaceRoot string) *Manager {

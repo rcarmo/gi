@@ -105,6 +105,20 @@ test('Explicit browser logout returns to sign-in without discarding the composer
  }finally{await env.close();}
 });
 
+test('Browser-bound setup creates owner authority only after verification',async({page,context},info)=>{
+ test.skip(!process.env.GI_UX_SERVER_BIN,'Requires the isolated auth fixture binary built by make test-ux-auth');
+ const env=await authEnvironment(page,info,{enrolled:false});
+ try{
+  await page.goto(env.origin);await expect(page.locator('.compose-box textarea')).toBeVisible();
+  const setup=async(operation,body={})=>page.evaluate(async({operation,body})=>{const r=await fetch('/api/auth/setup/'+operation,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return {status:r.status,body:await r.json()};},{operation,body});
+  const pending=await setup('start');expect(pending.status).toBe(200);expect((await context.cookies()).find(c=>c.name==='gi_setup')).toMatchObject({httpOnly:true,path:'/api/auth/setup',sameSite:'Strict'});
+  expect(await page.evaluate(async()=>(await(await fetch('/api/auth/status')).json()).enrolled)).toBe(false);
+  expect(await setup('finish',{code:totp(pending.body.secret)})).toEqual({status:200,body:{ok:true}});
+  expect((await context.cookies()).find(c=>c.name==='gi_setup')).toBeUndefined();expect((await context.cookies()).find(c=>c.name==='gi_session')).toMatchObject({httpOnly:true,path:'/',sameSite:'Strict'});
+  expect(await page.evaluate(async()=>(await(await fetch('/api/auth/status')).json()).authenticated)).toBe(true);expect((await setup('start')).status).toBe(409);
+ }finally{await env.close();}
+});
+
 test('Unenrolled users cannot read or change authentication policy through owner routes',async({page,request})=>{
  const before=await(await request.get('/api/auth/status')).json();
  await page.goto('/');await expect(page.locator('.compose-box textarea')).toBeVisible();

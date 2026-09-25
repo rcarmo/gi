@@ -4,6 +4,10 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-25
 
+- [x] Add browser-bound bootstrap backend prerequisite: loopback Host/peer plus exact Origin, ten-minute hashed setup bindings (maximum eight), single-use finish, atomic default-owner/session creation, cancellation, stale and concurrent browser/legacy rejection. Legacy API unchanged. Native auth and race×3, 54 Chromium/WebKit auth cases, 186 passkey cases, 109 functional cases (five existing skips), full Go/vet/hooks and 106 helpers/2,958 assertions pass. Focused review found no blocker after an initial delegate timeout. No Settings setup controls, new formal mappings, production enrolment or TUI rows.
+
+- [ ] Add first-owner Settings controls using the browser-bound bootstrap API, including secret lifetime, native status confirmation, cancellation, lost-response reconciliation, draft retention and the first usable passkey journey. Do not enrol the live instance or select its production RP.
+
 - [x] Verify real HTTPgi-insecure.test mappedonlytoloopback with ChromiumsecureContextfalse, validcopiedownercookie refused, no authforms/Settings/credentialcalls/UIwrites; native negativeAPI401/403/fullauthstateequal thenlocalhostsametoken/keypositivecontrol.186passkey/108functional (five existing skips)/106helpers2958/Go-vet-nativeauth/hook/finalreview pass.015remains partial: secure guidance appears at authgate, not AddwithinSettings. No trust/propertyoverride or runtimechange/deployment/liveauth/TUI rows; initial explorationdelegate timedout, boundedreview passed.
 
 - [x] Deploy556299c browser logout after CI36120572780: eight Linux/macOS test/build jobs green including183passkey+ledger.8090 PID3263425; six guarded live checks show unenrolled setup/no sign-out control, zero writes/errors and retained drafts. DB62/51/146, integrity/FKs OK, complete SQL equal except runtime lease (SHA256300ce679…53d). Production credentials/RP/policy unchanged; no live logout/TUI rows.

@@ -1,8 +1,9 @@
 # Multi-passkey authentication
 
 Status: opt-in native backend, passkey login and Settings > Authentication.
-Settings includes lockout-safe sign-in policy controls. Initial owner bootstrap
-and physical-device validation are not implemented in the browser. The
+Settings includes lockout-safe sign-in policy controls. The [cookie-bound
+bootstrap API](browser-bootstrap.md) supplies a first-owner prerequisite;
+initial-owner Settings controls and physical-device validation are not implemented. The
 [26-scenario review](passkey-scenario-review.md) records partial and manual gaps.
 
 The backend uses `github.com/go-webauthn/webauthn` v0.18.2 for WebAuthn verification
