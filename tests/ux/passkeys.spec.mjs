@@ -932,6 +932,19 @@ test('Actual insecure host blocks browser authority before Settings without weak
  }finally{await insecureBrowser?.close();await auth.cdp.detach();await env.close();}
 });
 
+test('Settings first-owner setup enables a real first passkey without chat enrolment',async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true,enrolled:false});const auth=await authenticator(page);
+ try{
+  await page.goto(env.origin);await expect(page.locator('.compose-box textarea')).toBeVisible();await page.locator('.compose-box textarea').fill('First owner then first key Ω');await openAuthentication(page);
+  const writes=[];page.on('request',r=>{if(r.method()==='POST')writes.push(new URL(r.url()).pathname);});
+  await page.getByRole('button',{name:'Set up owner',exact:true}).click();const key=page.getByLabel('Authenticator setup key',{exact:true});await expect(key).toBeVisible();const secret=await key.innerText();await page.getByRole('textbox',{name:'Setup verification code',exact:true}).fill(totp(secret));await page.getByRole('button',{name:'Verify and enable authentication',exact:true}).click();await expect(page.getByText('Owner authentication enabled.',{exact:true})).toBeVisible();await expect(key).toHaveCount(0);
+  await expect(page.getByText('No passkeys registered.',{exact:true})).toBeVisible();await addFromSettings(page,'First laptop');const before=savedAuth(env);expect(before.totp_enabled).toBe(true);expect(before.totp_secret).toBe(secret);expect(before.passkeys).toHaveLength(1);
+  expect(writes).toEqual(['/api/auth/setup/start','/api/auth/setup/finish','/api/auth/passkeys/register/start','/api/auth/passkeys/register/finish']);
+  await context.clearCookies();await page.reload();await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('First owner then first key Ω');await openAuthentication(page);await expect(page.locator('.gi-passkey-row strong')).toHaveText(['First laptop']);
+  await context.clearCookies();await page.reload();await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('First owner then first key Ω');
+ }finally{await auth.cdp.detach();await env.close();}
+});
+
 async function changePolicy(page,value){
  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);
  await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();

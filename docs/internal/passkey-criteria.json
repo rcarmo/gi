@@ -242,6 +242,11 @@
       "file": "tests/ux/passkeys.spec.mjs",
       "anchor": "Actual insecure host blocks browser authority before Settings without weakening the secure-context boundary",
       "scope": "RealChromium HTTPgi-insecure.test mappedonlytoloopback, isSecureContextfalse, copiedvalidownercookie. No trust/propertyoverride. GateblocksSettings; UIzeroPOST/calls, directAPI401/403/fullauthstateequal andlocalhosttoken/keypositivecontrol. Not frozenSettingsleveljourney."
+    },
+    "owner-setup-ui": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings first-owner setup enables a real first passkey without chat enrolment",
+      "scope": "Classic localhost/CDP: starts unenrolled, manually enters displayed TOTP key into test authenticator generator, verifies through Settings then creates actual first virtual passkey; fresh passkey and TOTP login. No QR scan/physical device/Visual acceptance."
     }
   },
   "scenarios": [
@@ -377,9 +382,10 @@
           "text": "the login policy accepts TOTP and passkeys",
           "state": "bounded",
           "evidence": [
-            "first"
+            "first",
+            "owner-setup-ui"
           ],
-          "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
+          "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login. An additional journey begins unenrolled and creates owner TOTP through Settings before first-passkey creation; no setup via chat or seeded owner."
         },
         {
           "line": 42,
@@ -387,7 +393,8 @@
           "text": "no passkeys are registered",
           "state": "bounded",
           "evidence": [
-            "first"
+            "first",
+            "owner-setup-ui"
           ],
           "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
         },
@@ -427,7 +434,8 @@
           "text": "the server verifies the registration before reporting success",
           "state": "bounded",
           "evidence": [
-            "first"
+            "first",
+            "owner-setup-ui"
           ],
           "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
         },
@@ -437,7 +445,8 @@
           "text": "Settings lists one passkey named \"Laptop\"",
           "state": "bounded",
           "evidence": [
-            "first"
+            "first",
+            "owner-setup-ui"
           ],
           "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
         },
@@ -447,7 +456,8 @@
           "text": "TOTP sign-in remains available",
           "state": "bounded",
           "evidence": [
-            "first"
+            "first",
+            "owner-setup-ui"
           ],
           "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
         },

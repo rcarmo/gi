@@ -18442,11 +18442,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-ypdcj5c0.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-dcn0s664.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-cydvva6w.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-681n407s.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-d7j2032y.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-gtn80wmz.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-sqjg8t8b.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-j11jf47f.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-ync38wta.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-4cafqspr.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -18749,11 +18749,12 @@ function GiSettings({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
 // web/src/gi-auth-policy.ts
 function parseAuthPolicy(value) {
   const p = value;
-  if (!p || p.mode !== "single-user" || typeof p.enrolled !== "boolean" || typeof p.authenticated !== "boolean" || typeof p.totp_enabled !== "boolean" || typeof p.browser_login_available !== "boolean" || p.totp_login_available !== undefined && typeof p.totp_login_available !== "boolean" || p.passkeys_enabled !== undefined && typeof p.passkeys_enabled !== "boolean" || p.passkey_login_available !== undefined && typeof p.passkey_login_available !== "boolean" || p.passkey_login_available === true && p.passkeys_enabled !== true || p.enrolled && !p.totp_enabled && p.passkeys_enabled === undefined) {
+  if (!p || p.mode !== "single-user" || typeof p.enrolled !== "boolean" || typeof p.authenticated !== "boolean" || typeof p.totp_enabled !== "boolean" || typeof p.browser_login_available !== "boolean" || p.totp_login_available !== undefined && typeof p.totp_login_available !== "boolean" || p.passkeys_enabled !== undefined && typeof p.passkeys_enabled !== "boolean" || p.passkey_login_available !== undefined && typeof p.passkey_login_available !== "boolean" || p.setup_available !== undefined && typeof p.setup_available !== "boolean" || p.setup_available === true && p.enrolled || p.passkey_login_available === true && p.passkeys_enabled !== true || p.enrolled && !p.totp_enabled && p.passkeys_enabled === undefined) {
     throw new Error("Invalid authentication policy");
   }
   return {
     ...p,
+    setup_available: p.setup_available ?? false,
     totp_login_available: p.totp_login_available ?? p.totp_enabled,
     passkeys_enabled: p.passkeys_enabled ?? false,
     passkey_login_available: p.passkey_login_available ?? false
@@ -21079,5 +21080,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=591426C13484238964756E2164756E21
-//# sourceMappingURL=app-9w5kvpvv.js.map
+//# debugId=E07969ED91F1A71664756E2164756E21
+//# sourceMappingURL=app-a4hyse72.js.map

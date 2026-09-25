@@ -53,7 +53,7 @@ cannot refresh them.
 The [browser-bound bootstrap API](browser-bootstrap.md) creates a verified TOTP
 owner and fresh browser-owner session in one transaction. It has a separate,
 short-lived setup cookie and stricter loopback-only transport checks. Settings
-setup controls are not implemented yet.
+provides manual TOTP setup, explicit cancellation and status reconciliation.
 
 ## Explicit browser logout
 

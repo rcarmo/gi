@@ -3,7 +3,7 @@
 The [JSON ledger](passkey-criteria.json) links all 26 additive scenarios to
 individual assertions or named gaps. It records 169 scenario steps, four shared
 Background steps and 40 example rows. Gherkin expansion produces 56 cases.
-These counts describe the source contract; the latest browser suite has 186
+These counts describe the source contract; the latest browser suite has 189
 executions and uses a different test grouping.
 
 Initial source-evidence baseline: `e7d9b0450db9dc2c103dc06797dd5387ab9f81d7`.
@@ -41,7 +41,10 @@ run, and `bounded` does not mean a complete scenario passes. Every
 Common substitutions apply even to rows labelled bounded: current ceremonies run
 on HTTP localhost rather than the pinned HTTPS RP, UI evidence is Classic only,
 and CDP virtual authenticators do not establish physical or synced devices.
-Initial owner bootstrap and the production RP choice are separate work.
+A separate Classic first-owner journey now enables TOTP in Settings from an
+unenrolled instance, registers the first virtual passkey and signs in with each
+factor. Its setup recovery tests also run in WebKit. This adds prerequisite
+evidence to002 without a full mapping. The production RP choice remains open.
 
 ## Findings that determine the next work
 

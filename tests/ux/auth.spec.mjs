@@ -41,6 +41,95 @@ test('Browser setup cancellation, replay and process restart leave no owner unti
  }finally{await env.close();}
 });
 
+async function openSetup(page){await page.keyboard.press('Control+,');await page.getByRole('button',{name:'Authentication',exact:true}).click();await expect(page.getByRole('button',{name:'Set up owner',exact:true})).toBeEnabled();}
+async function startSetupUI(page){await page.getByRole('button',{name:'Set up owner',exact:true}).click();const key=page.getByLabel('Authenticator setup key',{exact:true});await expect(key).toBeVisible();const secret=await key.innerText();expect(secret).toMatch(/^[A-Z2-7]{32}$/);return secret;}
+
+test('Settings owner setup verifies before enabling authentication and hides local secrets on exit',async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{enrolled:false});let release=()=>{};
+ try{
+  await page.goto(env.origin);const composer=page.locator('.compose-box textarea');await expect(composer).toBeVisible();await composer.fill('Owner setup draft Ω');await page.locator('.compose-box input[type=file]').setInputFiles({name:'setup.txt',mimeType:'text/plain',buffer:Buffer.from('setup retained media')});await expect(page.locator('.compose-file-pill[title="setup.txt"]')).toBeVisible();
+  await openSetup(page);const writes=[];page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/api/auth/setup/'))writes.push(new URL(r.url()).pathname);});
+  const abandoned=await startSetupUI(page);await page.getByRole('button',{name:'General',exact:true}).click();await expect(page.getByLabel('Authenticator setup key')).toHaveCount(0);expect(writes).toEqual(['/api/auth/setup/start']);
+  await page.getByRole('button',{name:'Authentication',exact:true}).click();await expect(page.getByRole('button',{name:'Set up owner',exact:true})).toBeEnabled();const secret=await startSetupUI(page);expect(secret).not.toBe(abandoned);expect(existsSync(env.authPath)).toBe(false);
+  await expect(page.getByRole('textbox',{name:'Setup verification code',exact:true})).toBeFocused();
+  const storage=await page.evaluate(()=>JSON.stringify({local:{...localStorage},session:{...sessionStorage}}));expect(storage).not.toContain(secret);expect(storage).not.toContain(abandoned);expect(await page.evaluate(()=>document.cookie)).not.toContain('gi_setup');
+  let held=false;const gate=new Promise(r=>release=r);await page.route('**/api/auth/setup/finish',async route=>{held=true;await gate;await route.continue();});
+  await page.getByRole('textbox',{name:'Setup verification code',exact:true}).fill(totp(secret));await page.getByRole('button',{name:'Verify and enable authentication',exact:true}).click();await expect.poll(()=>held).toBe(true);await expect(page.getByLabel('Authenticator setup key')).toHaveCount(0);expect(existsSync(env.authPath)).toBe(false);await expect(page.getByText('Owner authentication enabled.',{exact:true})).toHaveCount(0);
+  release();await expect(page.getByText('Owner authentication enabled.',{exact:true})).toBeVisible();await expect(page.getByRole('heading',{name:'Set up instance owner',exact:true})).toHaveCount(0);expect((await context.cookies()).find(c=>c.name==='gi_session')).toBeDefined();expect(JSON.parse(readFileSync(env.authPath,'utf8')).totp_secret).toBe(secret);
+  expect(writes).toEqual(['/api/auth/setup/start','/api/auth/setup/start','/api/auth/setup/finish']);await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(composer).toHaveValue('Owner setup draft Ω');await expect(page.locator('.compose-file-pill[title="setup.txt"]')).toBeVisible();await page.reload();await expect(composer).toHaveValue('Owner setup draft Ω');
+ }finally{release();await page.unrouteAll({behavior:'wait'});await env.close();}
+});
+
+test('Settings setup cancel and client expiry erase secrets without enrolment',async({page},info)=>{
+ const env=await authEnvironment(page,info,{enrolled:false});
+ try{
+  await page.goto(env.origin);await expect(page.locator('.compose-box textarea')).toBeVisible();await openSetup(page);const writes=[];page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/api/auth/setup/'))writes.push(new URL(r.url()).pathname);});
+  await startSetupUI(page);await page.keyboard.press('Escape');await expect(page.getByText('Setup cancelled. No owner was created.',{exact:true})).toBeVisible();await expect(page.getByLabel('Authenticator setup key')).toHaveCount(0);await expect(page.locator('.settings-dialog')).toBeVisible();await expect(page.getByRole('button',{name:'Set up owner',exact:true})).toBeFocused();expect(existsSync(env.authPath)).toBe(false);expect(writes).toEqual(['/api/auth/setup/start','/api/auth/setup/cancel']);
+  await page.clock.install();await startSetupUI(page);await page.clock.fastForward(600001);await expect(page.getByLabel('Authenticator setup key')).toHaveCount(0);await expect(page.getByRole('alert')).toContainText('Setup key expired');expect(writes).toEqual(['/api/auth/setup/start','/api/auth/setup/cancel','/api/auth/setup/start']);expect(existsSync(env.authPath)).toBe(false);
+  await page.getByRole('button',{name:'Check setup status',exact:true}).click();await expect(page.getByRole('button',{name:'Set up owner',exact:true})).toBeEnabled();
+ }finally{await env.close();}
+});
+
+for(const fault of ['invalid code','server error','false success','lost response','lost cookie'])test(`Settings setup ${fault} requires explicit status reconciliation`,async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{enrolled:false});
+ try{
+  await page.goto(env.origin);await expect(page.locator('.compose-box textarea')).toBeVisible();await page.locator('.compose-box textarea').fill('Uncertain setup draft');await openSetup(page);const secret=await startSetupUI(page);let finishes=0;page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/api/auth/setup/finish'))finishes++;});
+  if(fault!=='invalid code')await page.route('**/api/auth/setup/finish',async route=>{
+   if(fault.startsWith('lost')){const result=await route.fetch();expect(result.status()).toBe(200);await route.abort('failed');}
+   else await route.fulfill({status:fault==='server error'?503:200,contentType:'application/json',body:fault==='server error'?JSON.stringify({error:secret}):'{"ok":true}'});
+  });
+  const code=totp(secret);await page.getByRole('textbox',{name:'Setup verification code',exact:true}).fill(fault==='invalid code'?String((Number(code)+500000)%1000000).padStart(6,'0'):code);await page.getByRole('button',{name:'Verify and enable authentication',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Check setup status');await expect(page.getByLabel('Authenticator setup key')).toHaveCount(0);await expect(page.getByText('Owner authentication enabled.',{exact:true})).toHaveCount(0);expect(await page.locator('.settings-dialog').innerText()).not.toContain(secret);expect(finishes).toBe(1);
+  await page.unrouteAll({behavior:'wait'});if(fault==='lost cookie')await context.clearCookies();
+  await page.getByRole('button',{name:'Check setup status',exact:true}).click();
+  if(fault==='lost response'){await expect(page.getByText('Owner authentication enabled.',{exact:true})).toBeVisible();}
+  else if(fault==='lost cookie'){
+   await expect(page.getByRole('textbox',{name:'Authentication code',exact:true})).toBeVisible();await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('Uncertain setup draft');
+  }else{
+   expect(existsSync(env.authPath)).toBe(false);await expect(page.getByRole('button',{name:'Set up owner',exact:true})).toBeEnabled();const next=await startSetupUI(page);expect(next).not.toBe(secret);await page.getByRole('textbox',{name:'Setup verification code',exact:true}).fill(totp(next));await page.getByRole('button',{name:'Verify and enable authentication',exact:true}).click();await expect(page.getByText('Owner authentication enabled.',{exact:true})).toBeVisible();
+  }
+  expect(finishes).toBe(fault.startsWith('lost')?1:2);
+ }finally{await env.close();}
+});
+
+for(const operation of ['start','finish'])test(`Settings setup ${operation} cancellation and late replies cannot replace another pane`,async({page},info)=>{
+ const env=await authEnvironment(page,info,{enrolled:false});let release=()=>{};
+ try{
+  await page.goto(env.origin);await expect(page.locator('.compose-box textarea')).toBeVisible();await openSetup(page);
+  let secret;if(operation==='finish')secret=await startSetupUI(page);
+  let committed=false;const gate=new Promise(r=>release=r);let posts=0;
+  page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/api/auth/setup/'+operation))posts++;});
+  await page.route('**/api/auth/setup/'+operation,async route=>{const response=await route.fetch();expect(response.status()).toBe(200);committed=true;await gate;try{await route.fulfill({response});}catch{/* cancelled navigation/request */}});
+  if(operation==='start')await page.getByRole('button',{name:'Set up owner',exact:true}).click();else{await page.getByRole('textbox',{name:'Setup verification code',exact:true}).fill(totp(secret));await page.getByRole('button',{name:'Verify and enable authentication',exact:true}).click();}
+  await expect.poll(()=>committed).toBe(true);await page.getByRole('button',{name:'Cancel owner setup',exact:true}).click();await expect(page.getByRole('button',{name:'Check setup status',exact:true})).toBeEnabled();await expect(page.getByLabel('Authenticator setup key')).toHaveCount(0);
+  await page.getByRole('button',{name:'General',exact:true}).click();release();await page.unrouteAll({behavior:'wait'});await expect(page.getByRole('button',{name:'General',exact:true})).toBeFocused();await expect(page.getByLabel('Authenticator setup key')).toHaveCount(0);expect(posts).toBe(1);
+  await page.getByRole('button',{name:'Authentication',exact:true}).click();
+  if(operation==='start'){await expect(page.getByRole('button',{name:'Set up owner',exact:true})).toBeEnabled();expect(existsSync(env.authPath)).toBe(false);}
+  else{await expect(page.getByRole('button',{name:'Sign out this browser',exact:true})).toBeEnabled();expect(JSON.parse(readFileSync(env.authPath,'utf8')).totp_secret).toBe(secret);}
+ }finally{release();await page.unrouteAll({behavior:'wait'});await env.close();}
+});
+
+test('Settings setup cancels its server binding while the parent refresh is pending',async({page},info)=>{
+ const env=await authEnvironment(page,info,{enrolled:false});let release=()=>{};
+ try{
+  await page.goto(env.origin);await expect(page.locator('.compose-box textarea')).toBeVisible();await openSetup(page);await startSetupUI(page);
+  const gate=new Promise(r=>release=r);let held=false,cancels=0;await page.route('**/api/auth/status',async route=>{held=true;await gate;await route.continue();});page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/api/auth/setup/cancel'))cancels++;});
+  await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect.poll(()=>held).toBe(true);await page.getByRole('button',{name:'Cancel owner setup',exact:true}).click();await expect.poll(()=>cancels).toBe(1);await expect(page.getByLabel('Authenticator setup key')).toHaveCount(0);release();await expect(page.getByText('Setup cancelled. No owner was created.',{exact:true})).toBeVisible();expect(existsSync(env.authPath)).toBe(false);
+ }finally{release();await page.unrouteAll({behavior:'wait'});await env.close();}
+});
+
+test('Settings setup handles another tab replacing the shared setup cookie and owner creation elsewhere',async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{enrolled:false});const second=await context.newPage();
+ try{
+  await page.goto(env.origin);await expect(page.locator('.compose-box textarea')).toBeVisible();await openSetup(page);const first=await startSetupUI(page);
+  await second.goto(env.origin);await expect(second.locator('.compose-box textarea')).toBeVisible();await openSetup(second);let next=await startSetupUI(second);expect(next).not.toBe(first);
+  // A shared cookie is replaced by the second explicit start. Do not let a
+  // stale first tab submit a now-unbound secret successfully.
+  await page.getByRole('textbox',{name:'Setup verification code',exact:true}).fill(totp(first));await page.getByRole('button',{name:'Verify and enable authentication',exact:true}).click();await expect(page.getByRole('button',{name:'Check setup status',exact:true})).toBeEnabled();expect(existsSync(env.authPath)).toBe(false);
+  await second.getByRole('button',{name:'Cancel owner setup',exact:true}).click();await expect(second.getByRole('button',{name:'Check setup status',exact:true})).toBeEnabled();await second.getByRole('button',{name:'Check setup status',exact:true}).click();next=await startSetupUI(second);await second.getByRole('textbox',{name:'Setup verification code',exact:true}).fill(totp(next));await second.getByRole('button',{name:'Verify and enable authentication',exact:true}).click();await expect(second.getByText('Owner authentication enabled.',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Check setup status',exact:true}).click();await expect(page.getByText('Owner authentication enabled.',{exact:true})).toBeVisible();expect(JSON.parse(readFileSync(env.authPath,'utf8')).sessions).toHaveLength(1);
+ }finally{await second.close();await env.close();}
+});
+
 test('@ux-auth-002 Single-user code-only native sign-in opens cookie-authenticated application',async({page,context},info)=>{
  await source(info,'@ux-auth-002');const env=await authEnvironment(page,info);
  const writes=[],errors=[];page.on('request',r=>{if(r.method()==='POST')writes.push(r);});page.on('pageerror',e=>errors.push(e.message));

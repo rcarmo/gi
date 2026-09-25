@@ -38,7 +38,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 ## Current structure
 
 - `browser-auth-proof.md` -- browser-owner provenance and session-scoped recent proof
-- [browser-bootstrap.md](browser-bootstrap.md) — loopback, cookie-bound initial owner setup API; Settings controls not yet implemented
+- [browser-bootstrap.md](browser-bootstrap.md) — loopback, cookie-bound initial owner Settings setup and status reconciliation
 - [passkeys.md](passkeys.md) — native WebAuthn and browser management contract
 - [passkey-scenario-review.md](passkey-scenario-review.md) — compact 26-scenario evidence/gap review
 - [passkey-criteria.md](passkey-criteria.md) — validated per-step/example ledger and browser-only terminal adaptation

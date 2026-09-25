@@ -62,6 +62,7 @@ func (s *Server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	status["authenticated"] = ok
 	status["mode"] = "single-user"
 	status["browser_login_available"] = providerWriteTransport(r)
+	status["setup_available"] = status["enrolled"] == false && browserSetupTransport(r) && browserSameOrigin(r)
 	writeJSON(w, http.StatusOK, status)
 }
 

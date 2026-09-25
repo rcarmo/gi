@@ -321,6 +321,47 @@ func TestBrowserSetupHTTPInvalidCodeCancelAndStaleFinish(t *testing.T) {
 	}
 }
 
+func TestBrowserSetupAvailabilityIsAdvisoryAndLocal(t *testing.T) {
+	for _, tc := range []struct {
+		name, host, peer       string
+		secure, enrolled, want bool
+	}{
+		{"local", "localhost", "127.0.0.1:2", false, false, true},
+		{"local-tls", "localhost", "127.0.0.1:2", true, false, true},
+		{"remote-tls", "localhost", "192.0.2.1:2", true, false, false},
+		{"foreign-host", "gi.example", "127.0.0.1:2", false, false, false},
+		{"owner-exists", "localhost", "127.0.0.1:2", false, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := setupServer(t)
+			if tc.enrolled {
+				p, err := s.auth.StartEnrollment("admin")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err = s.auth.VerifyEnrollment("admin", webTestTOTPCode(p.Secret)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			scheme := "http"
+			if tc.secure {
+				scheme = "https"
+			}
+			r := httptest.NewRequest("GET", scheme+"://"+tc.host+"/api/auth/status", nil)
+			r.RemoteAddr = tc.peer
+			if tc.secure {
+				r.TLS = &tls.ConnectionState{}
+			}
+			w := httptest.NewRecorder()
+			s.Handler().ServeHTTP(w, r)
+			var body map[string]any
+			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &body) != nil || body["setup_available"] != tc.want {
+				t.Fatalf("availability: %d %s", w.Code, w.Body)
+			}
+		})
+	}
+}
+
 func TestBrowserSetupTransportLoopbackHostAndPeer(t *testing.T) {
 	for _, host := range []string{"localhost", "LOCALHOST:9876", "127.0.0.1:9876", "[::1]:9876", "[::1]"} {
 		r := httptest.NewRequest("POST", "http://localhost", nil)

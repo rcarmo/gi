@@ -1,6 +1,7 @@
 import { html, useEffect, useLayoutEffect, useRef, useState } from './vendor/preact-htm.js';
 import { authJSON, passkeyUnavailable, runPasskey } from './gi-passkeys.js';
 import { parseAuthPolicy } from './gi-auth-policy.js';
+import { GiSettingsSetup } from './gi-settings-setup.js';
 
 const removalReasons = new Map([
     ['other-rp', 'The other passkey cannot sign in here because it is registered for another relying party.'],
@@ -21,6 +22,7 @@ export function GiSettingsAuthentication() {
     const [keys, setKeys] = useState(null);
     const [fresh, setFresh] = useState(false);
     const [busy, setBusy] = useState('');
+    const [setupBusy, setSetupBusy] = useState(false);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [removalDetail, setRemovalDetail] = useState('');
@@ -46,6 +48,7 @@ export function GiSettingsAuthentication() {
         if (!live.current) return;
         setPolicy(p);
         if (!p.enrolled) { setProof(null); setKeys(null); setLoginPolicy(null); return; }
+        if (!p.authenticated) { window.dispatchEvent(new Event('gi-auth-status-changed')); return; }
         const [nextProof, settings] = await Promise.all([
             authJSON('/api/auth/session/proof', undefined, signal), authJSON('/api/auth/policy', undefined, signal),
         ]);
@@ -123,12 +126,14 @@ export function GiSettingsAuthentication() {
         ${confirmLogout && html`<div role="group" aria-label="Confirm browser sign-out"><p>Sign out this browser? Other login sessions and registered credentials stay unchanged. Local drafts and attachments are kept.</p>
             <button disabled=${!!busy} onClick=${() => logout()}>Confirm sign out</button><button disabled=${!!busy} onClick=${cancel}>Cancel sign out</button></div>`}
         ${logoutUncertain && html`<button disabled=${!!busy} onClick=${() => logout(true)}>Check sign-in status</button>`}
+        ${policy && !policy.enrolled && html`<${GiSettingsSetup} available=${policy.setup_available} disabled=${!!busy} onBusy=${setSetupBusy}
+            onComplete=${() => work('Loading owner authentication…', async () => {}, 'Owner authentication enabled.')} />`}
         <h3>Passkeys</h3>
         ${busy && html`<p role="status">${busy}</p>`}
         ${error && html`<p role="alert">${error}</p>`}
         ${notice && html`<p role="status">${notice}</p>`}
         ${removalDetail && html`<p role="status">${removalDetail}</p>`}
-        <button disabled=${!!busy} onClick=${() => work('Refreshing passkeys…', async () => {})}>Refresh passkeys</button>
+        <button disabled=${!!busy || setupBusy} onClick=${() => work('Refreshing passkeys…', async () => {})}>Refresh passkeys</button>
         ${busy && html`<button onClick=${cancel}>Cancel pending operation</button>`}
         ${policy && unavailable && html`<p>${unavailable}</p>`}
         ${keys && !fresh && html`<p role="status">The displayed list is the last confirmed snapshot. Refresh before making changes.</p>`}

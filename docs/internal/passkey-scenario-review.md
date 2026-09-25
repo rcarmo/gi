@@ -7,8 +7,8 @@ are added by this document. Frozen Classic/shared counts are unchanged.
 The [criterion ledger](passkey-criteria.md) records exact source steps/examples,
 named assertion anchors and the gaps below; it does not award full mappings.
 
-The current passkey suite has 62 tests in Chromium across three viewport projects
-(186 executions). Two narrow-interaction tests explicitly create390px touch-capable
+The current passkey suite has 63 tests in Chromium across three viewport projects
+(189 executions). Two narrow-interaction tests explicitly create390px touch-capable
 contexts in every project; those six executions repeat390px coverage rather than
 establishing tablet/desktop geometry. CDP virtual authenticators sign real browser ceremonies on
 HTTP localhost, not the frozen Background's `https://piclaw.test` origin.
@@ -16,6 +16,11 @@ Physical/native focus, synced credentials and the Visual skin are not verified.
 The auth regression runs Chromium and WebKit but does not establish WebKit
 passkey ceremonies. Candidate rows below are bounded automated evidence, not
 full-contract passes or formal mappings.
+
+Initial-owner Settings setup now has a separate end-to-end journey from an
+unenrolled instance through manual TOTP verification and first CDP passkey,
+including fresh sign-in with both factors. Setup recovery/lifetime/cancellation
+runs across Chromium and WebKit. QR, physical devices and Visual remain untested.
 
 Abbreviations: **UI** = `tests/ux/passkeys.spec.mjs`, **Auth UI** =
 `tests/ux/auth.spec.mjs`, **Native** = `internal/auth/passkeys_test.go`,

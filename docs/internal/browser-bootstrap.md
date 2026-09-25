@@ -1,8 +1,8 @@
 # Browser-bound initial owner setup
 
-Gi has a browser-bound TOTP setup API for the first owner. Settings controls are
-not implemented yet. The existing `/api/auth/enroll/start` and `/verify` API
-remains available with its existing behaviour.
+Settings > Authentication provides initial TOTP setup for the instance owner
+through a browser-bound API. The existing `/api/auth/enroll/start` and `/verify`
+API remains available with its existing behaviour.
 
 ## HTTP boundary
 
@@ -70,7 +70,43 @@ A write can commit before durability confirmation fails or its HTTP response is
 lost. The caller must read `/api/auth/status` before starting again. If the owner
 now exists without a usable browser cookie, normal TOTP sign-in uses the verified
 secret. Never automatically repeat finish or assume an error means no owner was
-created. This slice does not implement that Settings recovery UI.
+created. Settings implements this status reconciliation explicitly.
+
+## Settings interaction
+
+`GET /api/auth/status` supplies an advisory `setup_available` boolean. It is true
+only for an unenrolled instance on the loopback peer/Host boundary with accepted
+same-origin metadata. Older servers without the field leave setup unavailable.
+The POST endpoints always enforce their own authority checks.
+
+The lazy Authentication pane offers **Set up owner**. A separate mounted component
+holds the setup key and code; neither is written to browser storage, chat, URLs
+or telemetry. It displays the 32-character Base32 key for manual entry into a
+six-digit SHA1/30-second authenticator entry for `gi / admin`. There is no QR
+service, external link or automatic clipboard operation. The ten-minute display
+lifetime starts before the request, so network delay cannot extend it.
+
+Verification clears the displayed key and code before sending finish. Success
+requires native status to confirm enrolment and the browser session, followed by
+fresh owner proof/policy reads. The owner can then add a passkey immediately.
+If enrolment completed without a usable cookie, the auth gate rechecks status and
+offers normal TOTP sign-in. Fixed error text never interpolates server bodies or
+secret values. False success, wrong codes, lost responses and cancellation of an
+in-flight request offer **Check setup status**, a read-only action; no write is
+automatically repeated.
+
+Cancelling a ready setup sends the native cancel request and confirms status.
+Escape cancels setup before closing Settings. Cancelling an in-flight request
+immediately hides its key, aborts locally and requires status reconciliation;
+abort cannot undo a committed server write. Cancel remains usable while a parent
+refresh is pending. Leaving the pane discards its local key and aborts requests
+without a background cancel POST. Server pending state expires or is replaced by
+the next explicit start. Late responses cannot update another pane.
+
+Tabs share the setup cookie: starting in a second tab invalidates the first
+pending binding. A stale code fails rather than creating a second owner; each
+pane must reconcile before another attempt. Draft text, selected session and
+attachment pills survive successful setup. Their storage is not cleared.
 
 ## Verification and limits
 
@@ -80,13 +116,18 @@ owner/session issuance, stale finishes, concurrent browser and legacy enrolment,
 origin/transport/body guards and cookie scope. Refused finishes preserve existing
 auth-file bytes and return no authority.
 
-`tests/ux/auth.spec.mjs` exercises browser-origin fetches in Chromium and WebKit
-at three viewport sizes. It verifies HttpOnly cookie behaviour, fresh proof,
-other-browser rejection, persistent owner authority after restart, cancellation,
-replay and draft retention. The fixture starts unenrolled and uses only disposable
-stores. No Settings setup journey, QR scanner, physical authenticator or passkey
-bootstrap is accepted by these API tests. The frozen passkey criteria and formal
-mapping counts are unchanged.
+`tests/ux/auth.spec.mjs` exercises API and Settings journeys in Chromium and WebKit
+at three viewport sizes. It covers cookie scope, fresh proof, independent browsers,
+shared-cookie tabs, cancellation during parent refresh, unmount/late replies,
+client-display expiry, wrong codes, false success, lost responses/cookies and
+draft retention. Native tests separately cover server TTL. The Settings test in
+`tests/ux/passkeys.spec.mjs` starts unenrolled, enables TOTP and registers a real
+CDP virtual passkey, then verifies fresh login with both factors. The functional
+suite also verifies the setup controls. All fixtures use disposable stores.
+
+Manual TOTP generation and CDP credentials do not exercise QR scanning, physical
+or synced authenticators, Visual skin or the pinned HTTPS RP. Full-scenario
+formal mappings remain unawarded.
 
 This interface trusts the local machine boundary. It does not defend against a
 hostile local process capable of forging HTTP headers or accessing the auth

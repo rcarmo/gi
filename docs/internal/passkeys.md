@@ -1,9 +1,9 @@
 # Multi-passkey authentication
 
 Status: opt-in native backend, passkey login and Settings > Authentication.
-Settings includes lockout-safe sign-in policy controls. The [cookie-bound
-bootstrap API](browser-bootstrap.md) supplies a first-owner prerequisite;
-initial-owner Settings controls and physical-device validation are not implemented. The
+Settings includes lockout-safe sign-in policy controls and [loopback first-owner
+TOTP setup](browser-bootstrap.md), followed by passkey registration. Physical-device
+validation is outstanding. The
 [26-scenario review](passkey-scenario-review.md) records partial and manual gaps.
 
 The backend uses `github.com/go-webauthn/webauthn` v0.18.2 for WebAuthn verification
@@ -159,7 +159,7 @@ Lost responses require an authoritative refresh before a new attempt.
 
 ## Test scope and remaining work
 
-`make test-ux-passkeys` runs 62 integration tests across three Chromium viewport
+`make test-ux-passkeys` runs 63 integration tests across three Chromium viewport
 projects and is required by CI before build jobs. Two narrow-interaction tests
 create390px contexts explicitly in every project; their six executions repeat
 phone-width acceptance rather than extending the geometry matrix. The tests cover two distinct credentials,
@@ -169,7 +169,7 @@ wrong session, revoked session, stale proof/reauth, cancellation, expiry, altere
 origin, correctly signed wrong-RP assertion, duplicate-ID protection and uncertain
 successful registration. Fixtures seed specific policy/error states explicitly.
 
-Fifty-eight tests drive actual Classic Settings/login controls: two-key enrolment,
+Fifty-nine tests drive actual Classic Settings/login controls: two-key enrolment,
 independent sign-in after restart, retained drafts/media, rename/remove/cancel,
 passkey-only reauth/add/login, failed reads/writes, uncertain finish and unmount
 cancellation, policy changes, stale revisions and a policy change during removal
@@ -300,6 +300,8 @@ WebKit and physical native prompts are not covered by this passkey suite.
 
 The 26 pinned [Settings scenarios](../../tests/ux/features/additions/piclaw-2026-09-24/README.md)
 include Visual-skin, device and policy cases not established by the current tests.
-Next work is completing the per-scenario gaps, initial-owner bootstrap,
-full accessibility and physical/synced-device validation.
+The first-owner journey now starts unenrolled, verifies a manually entered TOTP
+key in Settings, registers a CDP passkey, then signs in afresh with both factors.
+Next work includes per-scenario gaps, full accessibility, Visual skin and
+physical/synced-device validation.
 Choose a stable production HTTPS hostname/RP before enrolling real credentials.

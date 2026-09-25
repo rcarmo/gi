@@ -105,6 +105,14 @@ test('Explicit browser logout returns to sign-in without discarding the composer
  }finally{await env.close();}
 });
 
+test('First owner Settings setup retains drafts and clears the setup key after verification',async({page},info)=>{
+ test.skip(!process.env.GI_UX_SERVER_BIN,'Requires the isolated auth fixture binary built by make test-ux-auth');const env=await authEnvironment(page,info,{enrolled:false});
+ try{
+  await page.goto(env.origin);const composer=page.locator('.compose-box textarea');await expect(composer).toBeVisible();await composer.fill('Settings bootstrap functional draft');await page.keyboard.press('Control+,');await page.getByRole('button',{name:'Authentication',exact:true}).click();await page.getByRole('button',{name:'Set up owner',exact:true}).click();const key=page.getByLabel('Authenticator setup key',{exact:true});await expect(key).toBeVisible();const secret=await key.innerText();
+  await page.getByRole('textbox',{name:'Setup verification code',exact:true}).fill(totp(secret));await page.getByRole('button',{name:'Verify and enable authentication',exact:true}).click();await expect(page.getByText('Owner authentication enabled.',{exact:true})).toBeVisible();await expect(key).toHaveCount(0);await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(composer).toHaveValue('Settings bootstrap functional draft');await page.reload();await expect(composer).toHaveValue('Settings bootstrap functional draft');
+ }finally{await env.close();}
+});
+
 test('Browser-bound setup creates owner authority only after verification',async({page,context},info)=>{
  test.skip(!process.env.GI_UX_SERVER_BIN,'Requires the isolated auth fixture binary built by make test-ux-auth');
  const env=await authEnvironment(page,info,{enrolled:false});
