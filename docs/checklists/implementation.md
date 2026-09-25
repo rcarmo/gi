@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-25
 
+- [x] Deploy `af4ab28` bootstrap API prerequisite after CI36128019772: eight Linux/macOS jobs passed; port8090 PID3352646. Six guarded Chromium/WebKit live checks passed with no writes/errors and retained drafts. Auth file absent before/after; live still unenrolled/passkeys disabled. DB62 sessions/51 turns/146 messages, integrity/FKs OK, complete SQL unchanged except runtime lease (SHA256300ce679…53d). No live setup call, production RP decision or TUI change.
+
 - [x] Add browser-bound bootstrap backend prerequisite: loopback Host/peer plus exact Origin, ten-minute hashed setup bindings (maximum eight), single-use finish, atomic default-owner/session creation, cancellation, stale and concurrent browser/legacy rejection. Legacy API unchanged. Native auth and race×3, 54 Chromium/WebKit auth cases, 186 passkey cases, 109 functional cases (five existing skips), full Go/vet/hooks and 106 helpers/2,958 assertions pass. Focused review found no blocker after an initial delegate timeout. No Settings setup controls, new formal mappings, production enrolment or TUI rows.
 
 - [ ] Add first-owner Settings controls using the browser-bound bootstrap API, including secret lifetime, native status confirmation, cancellation, lost-response reconciliation, draft retention and the first usable passkey journey. Do not enrol the live instance or select its production RP.
