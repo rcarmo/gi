@@ -37,6 +37,9 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 
 ## Current structure
 
+- [session-panel.md](session-panel.md) — native session layout, committed pin state and pre-paint query-highlight ownership
+- [auth-fixture-listener.md](auth-fixture-listener.md) — disposable auth listener ownership and CI startup diagnostics
+
 - [model-panel.md](model-panel.md) — supported model catalogue layout, Settings handoff and explicit native capability gaps
 
 - [compose-surface.md](compose-surface.md) — host-only compose geometry, resize persistence and keyboard/modal ownership

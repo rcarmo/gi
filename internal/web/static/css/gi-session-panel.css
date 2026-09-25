@@ -1,0 +1,201 @@
+/* Gi-owned session-panel presentation adapted from Classic 0afe5366ced9.
+   Native edit/confirmation/actions remain; supplied styles are unchanged. */
+.compose-session-popup-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.compose-session-search-heading {
+    align-self: center;
+}
+
+.compose-session-popup-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.compose-session-popup-close:hover,
+.compose-session-popup-close:focus-visible {
+    border-color: var(--border-color);
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.compose-session-search {
+    width: 100%;
+    min-height: 36px;
+    padding: 7px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: 12px var(--font-family-mono);
+}
+
+.compose-session-popup-results {
+    flex: 1 1 auto;
+    min-height: 180px;
+    max-height: 430px;
+}
+
+.compose-session-section-heading {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 5px 8px 3px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.compose-session-row-content {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.compose-session-row-main {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-direction: column;
+}
+
+.compose-session-row-label,
+.compose-session-row-meta {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.compose-session-row-meta {
+    margin-top: 2px;
+    color: var(--text-tertiary, var(--text-secondary));
+    font-size: 9.5px;
+    font-weight: 400;
+}
+
+.compose-session-row-pills {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+}
+
+.compose-session-status-pill {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+    border-radius: 999px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.35;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+}
+
+.compose-session-status-pill.active {
+    color: var(--success-color, #10b981);
+    border-color: color-mix(in srgb, var(--success-color, #10b981) 36%, transparent);
+    background: color-mix(in srgb, var(--success-color, #10b981) 14%, transparent);
+}
+
+.compose-session-status-pill.compacting {
+    color: var(--warning-color, #f59e0b);
+    border-color: color-mix(in srgb, var(--warning-color, #f59e0b) 42%, transparent);
+    background: color-mix(in srgb, var(--warning-color, #f59e0b) 15%, transparent);
+}
+
+.compose-session-status-pill.current {
+    color: var(--accent-color);
+    border-color: color-mix(in srgb, var(--accent-color) 36%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+}
+
+.compose-session-status-pill.archived {
+    color: var(--text-secondary);
+    border-color: color-mix(in srgb, var(--text-secondary) 26%, transparent);
+    background: color-mix(in srgb, var(--text-secondary) 10%, transparent);
+}
+
+.compose-session-row-pin-spacer {
+    flex: 0 0 28px;
+    width: 28px;
+}
+
+.compose-session-row-pin {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm, 4px);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.compose-session-row-pin.pinned,
+.compose-session-row-pin:hover,
+.compose-session-row-pin:focus-visible {
+    opacity: 1;
+    color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent-color) 24%, transparent);
+    outline: none;
+}
+
+
+.compose-session-popup .compose-session-search { margin: 0; }
+.compose-session-popup .compose-model-popup-menu { max-height: 430px; }
+.compose-session-popup .compose-session-popup-close { flex: 0 0 auto; }
+.compose-session-popup .compose-session-popup-results { min-height: 180px; flex-shrink: 0; }
+.compose-session-popup .compose-model-popup-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 4px; min-height: 28px; box-sizing: border-box;
+    font: 400 12px/15px var(--font-family); white-space: nowrap;
+}
+.compose-session-popup .compose-model-popup-item-row { flex-wrap: nowrap; }
+.compose-session-popup .compose-session-row-actions { flex-basis: auto; flex-wrap: nowrap; padding: 0 4px; }
+.compose-session-popup .compose-session-row-actions .compose-model-popup-btn { padding: 4px 6px; }
+.compose-session-popup button { appearance: none; -webkit-appearance: none; line-height: 1.25; }
+@media (max-width: 639px) {
+ .compose-session-popup .compose-session-search, .compose-session-popup .compose-model-popup-btn { min-height: 44px; }
+ .compose-session-popup .compose-session-popup-close { width: 44px; height: 44px; }
+ .compose-session-popup .compose-session-popup-results { min-height: 0; max-height: none; flex-shrink: 1; }
+ .compose-session-popup .compose-session-row-pin, .compose-session-popup .compose-session-row-pin-spacer { flex: 0 0 44px; width: 44px; min-width: 44px; min-height: 44px; }
+ /* Gi's confirmed per-row actions have no exact reference equivalent. Keep
+    them reachable on a second line rather than clipping session metadata. */
+ .compose-session-popup .compose-model-popup-item-row { flex-wrap: wrap; }
+ .compose-session-popup .compose-session-row-actions { flex-basis: 100%; padding: 2px 8px 5px 44px; flex-wrap: wrap; }
+}
+@supports (-webkit-touch-callout: none) {
+ .compose-session-popup .compose-session-search { font-size: 16px; }
+}

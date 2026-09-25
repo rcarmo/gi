@@ -2,6 +2,8 @@
 
 ## Compose/panel pixel gate
 
+`make test-ux-session-panel` adds 12 native metadata/pin/focus and pre-paint query-navigation cases. The [session-panel adaptation](../../docs/internal/session-panel.md) matches six outer rectangles; its 72-image run still has 18 failing cross-host frames and 15 unstable repeats. Original auth CI readiness failure is tracked in [auth fixture listener](../../docs/internal/auth-fixture-listener.md); repair `9cec426` is green in CI.
+
 `make test-ux-model-panel` adds 12 native search/Settings handoff cases. The [model-panel adaptation](../../docs/internal/model-panel.md) matches all six outer rectangles but retains explicit unsupported controls and a 44px mobile Close difference. Its latest 72-capture run has 18 failing cross-host pairs and 9/36 unstable repeats.
 
 `make test-ux-compose-surface` adds 18 required Chromium/WebKit resize/persistence/focus cases. The [host surface adaptation](../../docs/internal/compose-surface.md) matches compose/textarea bounds in all six viewport/theme captures; exact pixels and panel internals still fail.

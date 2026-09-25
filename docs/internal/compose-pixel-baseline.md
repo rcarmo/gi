@@ -1,6 +1,6 @@
 # Compose and panel pixel baseline
 
-The cross-UI pixel gate fails. The original baseline captured 72 images with no route or page errors, but all 18 Gi/Piclaw comparisons differed and 13 of 36 same-host comparisons were unstable. The latest [model-panel run](model-panel.md) also captured 72 images; all 18 cross-host pairs differ and 9/36 same-host pairs are unstable. Geometry tests and successful screenshot capture do not establish pixel parity.
+The cross-UI pixel gate fails. The original baseline captured 72 images with no route or page errors, but all 18 Gi/Piclaw comparisons differed and 13 of 36 same-host comparisons were unstable. The latest [session-panel run](session-panel.md) also captured 72 images; all 18 cross-host pairs differ and 15/36 same-host pairs are unstable. Geometry tests and successful screenshot capture do not establish pixel parity.
 
 ## Run
 
@@ -46,7 +46,7 @@ The reference model panel has a search/count header, separate model metadata, re
 
 Same-host differences range from 2 to 5,048 pixels in the final run, chiefly at antialiased borders. Identical DOM geometry and computed styles did not establish the cause. Earlier all-zero desktop repeats did not generalise to the full matrix. No antialias tolerance or automatic waiver applies. The previous full run had 20 unstable pairs; the final run still fails despite the lower count.
 
-Next work: isolate repeat instability, close remaining compose control/type differences, implement the model-panel capability gaps and adapt the session-panel structure without losing existing keyboard, session and draft ownership. Then expand model counts, filtering, loading/error/disabled states, media and focus states. Frozen Visual criteria, physical devices, native authentication prompts, feature mappings and TUI acceptance remain separate.
+Next work: isolate repeat instability, close remaining compose control/type differences and model/session capability gaps without losing existing keyboard, session and draft ownership. The [session-panel adaptation](session-panel.md) matches all six outer rectangles and retains native mutation semantics; exact pixels and unsupported reference actions remain open. Then expand model counts, filtering, loading/error/disabled states, media and focus states. Frozen Visual criteria, physical devices, native authentication prompts, feature mappings and TUI acceptance remain separate.
 
 ## Regression and skip accounting
 

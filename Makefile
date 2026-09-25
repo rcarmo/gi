@@ -454,6 +454,15 @@ pixel-compare:
 test-pixel-helpers:
 	$(BUN) test tests/ux/support/pixel-*.test.mjs
 
+.PHONY: test-ux-session-panel test-session-panel-helpers
+test-session-panel-helpers:
+	$(BUN) test tests/ux/support/session-panel.test.ts
+
+test-ux-session-panel: build-web
+	mkdir -p $(dir $(UX_LOCAL_BIN))
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_SESSION_PANEL=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config=playwright.ux.config.mjs tests/ux/session-panel.spec.mjs
+
 .PHONY: test-ux-model-panel test-model-panel-helpers
 test-model-panel-helpers:
 	$(BUN) test tests/ux/support/model-panel.test.ts tests/ux/support/model-picker.test.ts

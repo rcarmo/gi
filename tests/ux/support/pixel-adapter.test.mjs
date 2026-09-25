@@ -15,7 +15,7 @@ async function fixture(host,run){const page=new Page(),adapter=await installPixe
 test('native snapshot has array errors and equal model/session identities',()=>fixture('piclaw',async(page,a)=>{
  const {response}=await page.request(a.origin,'/agent/status?chat_jid=gi%3Amain&ui=1');
  expect(response.json.errors).toEqual([]);expect(response.json.model).toEqual(state.model);expect(response.json.agent_name).toBe(state.agentName);
- const sessions=await page.request(a.origin,'/agent/active-chats');expect(sessions.response.json.chats[0].agent_name).toBe(state.sessionLabel);
+ const sessions=await page.request(a.origin,'/agent/active-chats');expect(sessions.response.json.chats[0].agent_name).toBe(state.sessionLabel);expect(sessions.response.json.chats[0].model).toBe(state.model.current);
  expect(a.failures).toEqual([]);
 }));
 test('undeclared writes, origins and wrong session scopes fail closed',()=>fixture('gi',async(page,a)=>{

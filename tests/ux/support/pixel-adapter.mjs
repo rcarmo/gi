@@ -20,7 +20,7 @@ export async function installPixelHost({page,host,root,state,reference}){
  const context={tokens:0,contextWindow:65536,percent:0,compact_command:'/compact'};
  // Piclaw agent_name is the session handle here, not the global assistant
  // identity; Gi's sessionToActiveChat projects session.title the same way.
- const chat={chat_jid:state.sessionId,name:state.sessionLabel,agent_name:state.sessionLabel,parent_chat_jid:null,root_chat_jid:state.sessionId,created_at:state.now,updated_at:state.now,is_archived:false,is_pinned:false,is_running:false,message_count:0,session_kind:'root'};
+ const chat={chat_jid:state.sessionId,name:state.sessionLabel,agent_name:state.sessionLabel,model:state.model.current,parent_chat_jid:null,root_chat_jid:state.sessionId,created_at:state.now,updated_at:state.now,is_archived:false,is_pinned:false,is_running:false,message_count:0,session_kind:'root'};
  const piclaw={
   '/agent/active-chats':{chats:[chat]},'/agent/branches':{chats:[chat]},'/agent/picker-pins':{pins:[]},
   '/agent/roster':{agents:[{id:'default',name:state.agentName}],user:{name:state.userName}},

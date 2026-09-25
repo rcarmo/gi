@@ -155,6 +155,10 @@ test('Gi filtered picker keeps native text editing, Tab and keyboard selection',
   await expect(root).toBeVisible();
   await expect(search).toBeFocused();
   await page.keyboard.press('Tab');
+  // The reference row leads with Pin; preserve native sequential focus.
+  await expect(popup.getByRole('button',{name:`Pin @${rootName}`,exact:true})).toBeFocused();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('gi_session_id'))).toBe(child);
+  await page.keyboard.press('Tab');
   await expect(root).toBeFocused();
   // Tab must only move focus, never switch a chat.
   await expect.poll(() => page.evaluate(() => localStorage.getItem('gi_session_id'))).toBe(child);

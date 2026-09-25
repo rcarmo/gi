@@ -6849,6 +6849,35 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     `;
 }
 
+// web/src/ui/branch-lifecycle.ts
+function normalizeHandle(value) {
+  const normalized = normalizeHandleName(value);
+  return normalized ? `@${normalized}` : "";
+}
+function normalizeHandleName(value) {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").replace(/-{2,}/g, "-");
+}
+function getBranchLifecycleBadges(chat, options = {}) {
+  const badges = [];
+  const currentChatJid = typeof options.currentChatJid === "string" ? options.currentChatJid.trim() : "";
+  const chatJid = typeof chat?.chat_jid === "string" ? chat.chat_jid.trim() : "";
+  if (currentChatJid && chatJid === currentChatJid) {
+    badges.push("current");
+  }
+  if (chat?.archived_at) {
+    badges.push("archived");
+  } else if (chat?.is_active) {
+    badges.push("active");
+  }
+  return badges;
+}
+function formatBranchPickerLabel(chat, options = {}) {
+  const handle = normalizeHandle(chat?.agent_name) || String(chat?.chat_jid || "").trim();
+  const chatJid = typeof chat?.chat_jid === "string" && chat.chat_jid.trim() ? chat.chat_jid.trim() : "unknown-chat";
+  const badges = getBranchLifecycleBadges(chat, options);
+  return badges.length > 0 ? `${handle} — ${chatJid} • ${badges.join(" • ")}` : `${handle} — ${chatJid}`;
+}
+
 // web/src/gi-model-panel.ts
 function modelPanelRows(rows, current) {
   return [...rows.filter((row) => row.label === current), ...rows.filter((row) => row.label !== current)];
@@ -7525,35 +7554,6 @@ function filterMentionAgents(agents, value, options = {}) {
 function buildMentionValue(agentName) {
   const handle = normalizeAgentName(agentName);
   return handle ? `@${handle} ` : "";
-}
-
-// web/src/ui/branch-lifecycle.ts
-function normalizeHandle(value) {
-  const normalized = normalizeHandleName(value);
-  return normalized ? `@${normalized}` : "";
-}
-function normalizeHandleName(value) {
-  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").replace(/-{2,}/g, "-");
-}
-function getBranchLifecycleBadges(chat, options = {}) {
-  const badges = [];
-  const currentChatJid = typeof options.currentChatJid === "string" ? options.currentChatJid.trim() : "";
-  const chatJid = typeof chat?.chat_jid === "string" ? chat.chat_jid.trim() : "";
-  if (currentChatJid && chatJid === currentChatJid) {
-    badges.push("current");
-  }
-  if (chat?.archived_at) {
-    badges.push("archived");
-  } else if (chat?.is_active) {
-    badges.push("active");
-  }
-  return badges;
-}
-function formatBranchPickerLabel(chat, options = {}) {
-  const handle = normalizeHandle(chat?.agent_name) || String(chat?.chat_jid || "").trim();
-  const chatJid = typeof chat?.chat_jid === "string" && chat.chat_jid.trim() ? chat.chat_jid.trim() : "unknown-chat";
-  const badges = getBranchLifecycleBadges(chat, options);
-  return badges.length > 0 ? `${handle} — ${chatJid} • ${badges.join(" • ")}` : `${handle} — ${chatJid}`;
 }
 
 // web/src/ui/status-dot.js
@@ -9470,7 +9470,7 @@ ${mediaIds.map((id, index) => {
     const activeIndex = visibleModels.findIndex((model, index) => model?.label === activeModel && !modelEntries[index].disabled);
     setModelPopupIndex(activeIndex >= 0 ? activeIndex : modelEntries.findIndex((entry) => !entry.disabled));
   }, [showModelPopup, visibleModels, activeModel, modelEntries]);
-  K_(() => {
+  W_(() => {
     if (!showSessionPopup)
       return;
     const preferred = resolveSessionPickerSearchInitialIndex(orderedSessionChats, sessionPopupQuery);
@@ -9895,8 +9895,10 @@ ${mediaIds.map((id, index) => {
                     `}
                     ${showSessionPopup && !searchMode && fe`
                         <div class="compose-model-popup compose-session-popup" ref=${sessionPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
-                            <button type="button" class="gi-picker-close" aria-label="Close session picker" onClick=${() => closeSessionPopup(true)}>Close</button>
-                            <div class="compose-model-popup-title">Manage sessions & agents</div>
+                            <div class="compose-session-popup-header">
+                                <label class="compose-model-popup-title compose-session-search-heading" for="gi-session-search">Search sessions</label>
+                                <button type="button" class="compose-session-popup-close" aria-label="Close session picker" onClick=${() => closeSessionPopup(true)}>×</button>
+                            </div>
                             ${sessionMutationError && fe`<div role="alert" class="compose-session-mutation-error">${sessionMutationError}</div>`}
                             ${sessionMutationNotice && fe`<div role="status" class="compose-session-mutation-notice">${sessionMutationNotice}</div>`}
                             ${sessionMutationPending && fe`<div role="status">Saving session…</div>`}
@@ -9922,6 +9924,7 @@ ${mediaIds.map((id, index) => {
                             `}
                             <input
                                 ref=${sessionSearchRef}
+                                id="gi-session-search"
                                 type="search"
                                 class="compose-session-search"
                                 aria-label="Search sessions"
@@ -9931,13 +9934,13 @@ ${mediaIds.map((id, index) => {
                                 disabled=${Boolean(sessionMutationPending)}
                                 onInput=${(event) => setSessionPopupQuery(event.currentTarget.value)}
                             />
-                            <div id="compose-session-results" class="compose-model-popup-menu" role="menu" aria-label="Sessions and agents">
+                            <div id="compose-session-results" class="compose-model-popup-menu compose-session-popup-results" role="menu" aria-label="Sessions and agents">
                                 ${orderedSessionChats.length === 0 && fe`
                                     <div class="compose-model-popup-empty" role="status">No sessions match your search.</div>
                                 `}
                                 ${sessionPopupGroups.map((group) => fe`
                                 <div role="group" aria-label=${group.label}>
-                                <div class="compose-session-section-label">${group.label}</div>
+                                <div class="compose-session-section-heading" role="presentation">${group.label}</div>
                                 ${group.items.map((chat) => {
     const listIndex = sessionPopupEntries.findIndex((entry) => entry.key === `session:${chat.chat_jid}`);
     const archived = Boolean(chat.archived_at);
@@ -9946,11 +9949,20 @@ ${mediaIds.map((id, index) => {
     const label = formatBranchPickerLabel(chat, { currentChatJid });
     return fe`
                                         <div key=${chat.chat_jid} data-session-jid=${chat.chat_jid} class=${`compose-model-popup-item-row${archived ? " archived" : ""}`}>
+                                            ${!archived && chat.capabilities?.pin !== false && typeof onPinSession === "function" ? fe`
+                                                <button type="button" class=${`compose-session-row-pin${chat.pinned ? " pinned" : ""}`} disabled=${Boolean(sessionMutationPending)}
+                                                    aria-label=${`${chat.pinned ? "Unpin" : "Pin"} @${chat.agent_name}`} aria-pressed=${chat.pinned ? "true" : "false"}
+                                                    onClick=${() => {
+      runSessionMutation(chat, "pin", !chat.pinned);
+    }}>${chat.pinned ? "★" : "☆"}</button>
+                                            ` : fe`<span class="compose-session-row-pin-spacer" aria-hidden="true"></span>`}
+
                                             <button
                                                 type="button"
                                                 role="menuitem"
                                                 class=${`compose-model-popup-item${archived ? " archived" : ""}${sessionPopupIndex === listIndex ? " active" : ""}`}
                                                 data-session-entry-key=${`session:${chat.chat_jid}`}
+                                                aria-label=${label}
                                                 aria-current=${chat.chat_jid === currentChatJid ? "true" : undefined}
                                                 onClick=${() => {
       if (archived) {
@@ -9962,16 +9974,18 @@ ${mediaIds.map((id, index) => {
                                                 disabled=${Boolean(sessionMutationPending) || (archived ? !canRestoreSession || chat.capabilities?.restore === false : !canSwitchSession)}
                                                 title=${archived ? `Restore archived ${`@${chat.agent_name}`}` : `Switch to ${`@${chat.agent_name}`}`}
                                             >
-                                                ${label}
+                                                <span class="compose-session-row-content">
+                                                    <span class="compose-session-row-main">
+                                                        <span class="compose-session-row-label">${normalizeHandle(chat.agent_name) || chat.chat_jid}</span>
+                                                        <span class="compose-session-row-meta"><span class="compose-session-row-jid">${chat.chat_jid}</span>${(chat.model || chat.model_label) && fe`<span> · ${chat.model || chat.model_label}</span>`}</span>
+                                                    </span>
+                                                    <span class="compose-session-row-pills">
+                                                        ${chat.chat_jid === currentChatJid && fe`<span class="compose-session-status-pill current">current</span>`}
+                                                        ${archived ? fe`<span class="compose-session-status-pill archived">archived</span>` : chat.is_active && fe`<span class="compose-session-status-pill active">active</span>`}
+                                                    </span>
+                                                </span>
                                             </button>
                                             <div class="compose-session-row-actions">
-                                                ${!archived && chat.capabilities?.pin !== false && typeof onPinSession === "function" && fe`
-                                                    <button type="button" class="compose-model-popup-btn" disabled=${Boolean(sessionMutationPending)}
-                                                        aria-label=${`${chat.pinned ? "Unpin" : "Pin"} @${chat.agent_name}`}
-                                                        onClick=${() => {
-      runSessionMutation(chat, "pin", !chat.pinned);
-    }}>${chat.pinned ? "Unpin" : "Pin"}</button>
-                                                `}
                                                 ${!archived && chat.capabilities?.rename !== false && typeof onRenameSession === "function" && fe`
                                                     <button type="button" class="compose-model-popup-btn" disabled=${Boolean(sessionMutationPending)}
                                                         aria-label=${`Rename @${chat.agent_name}`} onClick=${() => beginSessionEdit(chat, "rename")}>Rename</button>
@@ -18674,11 +18688,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-7q2g4zfm.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-13ve0ayx.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-6qqspsaa.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-wynb0f1c.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-jbkwrsvg.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-29sjn1j0.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-pysck60g.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-q22629hm.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-k0f9pckb.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-hn517m5y.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -21373,5 +21387,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=75CF21BE0CB20CFB64756E2164756E21
-//# sourceMappingURL=app-dzdgyv2t.js.map
+//# debugId=7D76CC2CB93FF62064756E2164756E21
+//# sourceMappingURL=app-rdd531hd.js.map

@@ -8,7 +8,7 @@ import {
   currentAppearance,
   persistAppearance,
   subscribeAppearance
-} from "./app-dzdgyv2t.js";
+} from "./app-rdd531hd.js";
 
 // web/src/gi-settings-appearance.ts
 function Appearance() {
@@ -68,4 +68,4 @@ export {
 };
 
 //# debugId=458DF4723E18513B64756E2164756E21
-//# sourceMappingURL=gi-settings-appearance-13ve0ayx.js.map
+//# sourceMappingURL=gi-settings-appearance-pysck60g.js.map
