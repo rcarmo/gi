@@ -129,11 +129,15 @@ for(const [id,method] of [['@shared-31','pointer'],['@shared-32','keyboard']]) t
  try {
   if(method==='pointer')await modelButton.click();else{await modelButton.focus();await modelButton.press('Enter');}
   await expect(menu).toBeVisible();await expect(option('ux-local/gate')).toBeVisible();await expect(option('ux-local/gate')).toHaveAttribute('title','ux-local/gate • 32K ctx');await expect(option('ux-local/large')).toBeVisible();
-  // The supplied picker performs incremental native typeahead, not a fabricated
-  // filter field. Nonmatching catalogue rows remain visible and unmodified.
-  await page.keyboard.type('large');await expect(menu.locator('.compose-model-popup-item.active')).toContainText('ux-local/large');
-  await expect(option('ux-local/large')).toHaveAttribute('title','ux-local/large • 200 ctx');
-  if(method==='pointer')await option('ux-local/large').click();else await page.keyboard.press('Enter');
+  // The pinned panel focuses its real search field. Search filters rows;
+  // clear it before selection so the pending-write current-row guard is visible.
+  const search=page.getByRole('searchbox',{name:'Search models',exact:true});await expect(search).toBeFocused();
+  await page.keyboard.type('large');await expect(menu.locator('.compose-model-catalogue-option.active')).toContainText('ux-local/large');
+  await expect(option('ux-local/large')).toHaveAttribute('title','ux-local/large • 200 ctx');await expect(option('ux-local/gate')).toHaveCount(0);
+  await search.fill('');await expect(option('ux-local/gate')).toBeVisible();
+  if(method==='pointer')await option('ux-local/large').click();else{
+   await option('ux-local/large').focus();await page.keyboard.press('Enter');
+  }
   await expect.poll(()=>held).toBe(true);expect(patches).toBe(1);
   await expect(modelButton).toHaveText('Switching…');await expect(modelButton).toBeDisabled();await expect(menu.locator('.current-model')).toContainText('ux-local/gate');await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label','Context: 100 / 32K tokens (0%)');
   release();await expect(menu).toHaveCount(0);await expect(modelButton).toHaveText('ux-local/large');await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label','Context: 100 / 200 tokens (50%)');

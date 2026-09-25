@@ -6849,6 +6849,27 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     `;
 }
 
+// web/src/gi-model-panel.ts
+function modelPanelRows(rows, current) {
+  return [...rows.filter((row) => row.label === current), ...rows.filter((row) => row.label !== current)];
+}
+function modelPanelName(option) {
+  return String(option?.name || option?.id || option?.label || "");
+}
+function modelPanelContext(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0)
+    return "";
+  if (n >= 1e6)
+    return `${(n / 1e6).toFixed(n % 1e6 === 0 ? 0 : 1).replace(/\.0$/, "")}M context`;
+  if (n >= 1000)
+    return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1).replace(/\.0$/, "")}K context`;
+  return `${Math.round(n)} context`;
+}
+function openModelSettings(opener) {
+  window.dispatchEvent(new CustomEvent("piclaw:open-settings", { detail: { section: "models", opener } }));
+}
+
 // web/src/gi-compose-height.ts
 function composeHeightBounds(width, height) {
   const min = width >= 1024 ? 70 : 50;
@@ -8308,7 +8329,7 @@ function ComposeBox({
   const [modelOptions, setModelOptions] = F_([]);
   const [modelPopupIndex, setModelPopupIndex] = F_(0);
   const [modelQuery, setModelQuery] = F_("");
-  const visibleModels = u_(() => filterModelOptions(modelOptions, modelQuery, getModelPickerOptionSearchLabel), [modelOptions, modelQuery]);
+  const visibleModels = u_(() => modelPanelRows(filterModelOptions(modelOptions, modelQuery, getModelPickerOptionSearchLabel), activeModel), [modelOptions, modelQuery, activeModel]);
   const modelEntries = u_(() => visibleModels.map((option) => ({
     label: getModelPickerOptionSearchLabel(option),
     disabled: switchingModel || modelContextBlocked(option, contextUsage)
@@ -9505,13 +9526,13 @@ ${mediaIds.map((id, index) => {
   }, [searchMode, showModelPopup, showSessionPopup, handlePopupKeyboardEvent]);
   W_(() => {
     if (showModelPopup)
-      modelPopupRef.current?.focus();
+      modelPopupRef.current?.querySelector("input[type=search]")?.focus({ preventScroll: true });
   }, [showModelPopup]);
   K_(() => {
     if (!showModelPopup)
       return;
     const popup = modelPopupRef.current;
-    const active = popup?.querySelector?.(".compose-model-popup-item.active");
+    const active = popup?.querySelector?.(".compose-model-catalogue-option.active");
     active?.scrollIntoView?.({ block: "nearest" });
   }, [showModelPopup, modelPopupIndex, modelOptions]);
   W_(() => {
@@ -9797,21 +9818,31 @@ ${mediaIds.map((id, index) => {
                         </div>
                     `}
                     ${showModelPopup && !searchMode && fe`
-                        <div class="compose-model-popup" ref=${modelPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
-                            <button type="button" class="gi-picker-close" aria-label="Close model picker" onClick=${() => {
+                        <div class="compose-model-popup compose-model-catalogue" ref=${modelPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
+                            <div class="compose-model-catalogue-header">
+                                <div class="gi-model-panel-heading"><label class="compose-model-catalogue-search-label" for="gi-model-search">Search models</label>
+                                    <button type="button" class="gi-picker-close" aria-label="Close model picker" onClick=${() => {
     setShowModelPopup(false);
     requestAnimationFrame(() => {
       if (document.activeElement === document.body)
         modelHintRef.current?.focus();
     });
   }}>Close</button>
-                            <div class="compose-model-popup-title">Select model</div>
-                            <input type="search" class="compose-session-search" aria-label="Search models" placeholder="Search models"
-                                value=${modelQuery} onInput=${(event) => {
+                                </div>
+                                <div class="compose-model-catalogue-search-row">
+                                    <input id="gi-model-search" type="search" class="compose-model-catalogue-search" aria-label="Search models" placeholder="Search models…"
+                                        value=${modelQuery} onInput=${(event) => {
     popupTypeaheadRef.current = { value: "", updatedAt: 0 };
     setModelQuery(event.currentTarget.value);
   }} />
-                            <div class="compose-model-popup-menu" role="menu" aria-label="Model picker">
+                                    ${modelQuery && fe`<button type="button" class="compose-model-catalogue-clear" aria-label="Clear model search" onClick=${() => {
+    setModelQuery("");
+    modelPopupRef.current?.querySelector("input")?.focus();
+  }}>×</button>`}
+                                </div>
+                                <div class="compose-model-catalogue-summary" aria-live="polite"><span>${visibleModels.length} ${visibleModels.length === 1 ? "model" : "models"}</span>${loadingModels && fe`<span>Refreshing…</span>`}</div>
+                            </div>
+                            <div class="compose-model-popup-menu compose-model-catalogue-results" role="menu" aria-label="Model picker">
                                 ${loadingModels && fe`
                                     <div class="compose-model-popup-empty">Loading models…</div>
                                 `}
@@ -9822,35 +9853,43 @@ ${mediaIds.map((id, index) => {
     const modelLabel = typeof modelOption?.label === "string" ? modelOption.label : "";
     const contextWindowLabel = formatModelPickerContextWindow(modelOption?.contextWindow);
     const blocked = modelContextBlocked(modelOption, contextUsage);
+    const current = activeModel === modelLabel;
+    const sectionStart = index === 0 || visibleModels[index - 1]?.label === activeModel !== current;
+    const sectionCount = current ? 1 : visibleModels.filter((option) => option.label !== activeModel).length;
     return fe`
+                                        ${sectionStart && fe`<div class="compose-model-catalogue-section-heading" role="presentation"><span>${current ? "Current" : "Available models"}</span><span>${sectionCount}</span></div>`}
                                         <button
                                             key=${modelLabel}
                                             data-model-index=${index}
                                             type="button"
                                             role="menuitem"
-                                            class=${`compose-model-popup-item compose-model-popup-model-item${modelPopupIndex === index ? " active" : ""}${activeModel === modelLabel ? " current-model" : ""}`}
+                                            class=${`compose-model-catalogue-option compose-model-popup-model-item${modelPopupIndex === index ? " active focused" : ""}${activeModel === modelLabel ? " current-model selected" : ""}${blocked ? " blocked" : ""}`}
+                                            aria-label=${formatModelPickerDisplayLabel(modelLabel, modelOption?.contextWindow)}
                                             onClick=${() => {
       handleSelectModel(modelOption);
     }}
                                             disabled=${switchingModel || blocked}
                                             title=${blocked ? `Blocked: ${modelLabel} context window is smaller than latest measured request` : [modelLabel, contextWindowLabel].filter(Boolean).join(" • ")}
                                         >
-                                            <span class="compose-model-popup-model-label">${formatModelPickerDisplayLabel(modelLabel, modelOption?.contextWindow)}</span>
+                                            <span class="gi-model-pin-unavailable" aria-hidden="true" title="Model pinning is not available"></span>
+                                            <span class="compose-model-catalogue-option-content">
+                                                <span class="compose-model-catalogue-option-primary"><span class="compose-model-catalogue-option-name">${modelPanelName(modelOption)}</span></span>
+                                                ${modelPanelName(modelOption) !== modelLabel && fe`<span class="compose-model-catalogue-option-key">${modelLabel}</span>`}
+                                                <span class="compose-model-catalogue-option-badges">${modelPanelContext(modelOption?.contextWindow) && fe`<span class="compose-model-catalogue-badge">${modelPanelContext(modelOption.contextWindow)}</span>`}${modelOption?.reasoning && fe`<span class="compose-model-catalogue-badge">reasoning</span>`}</span>
+                                                ${blocked && fe`<span class="compose-model-catalogue-option-note">Context window is smaller than the latest measured request.</span>`}
+                                            </span>
                                         </button>
                                     `;
   })}
                             </div>
-                            <div class="compose-model-popup-actions">
-                                <button
-                                    type="button"
-                                    class="compose-model-popup-btn"
-                                    onClick=${() => {
-    handleCycleModel();
-  }}
-                                    disabled=${switchingModel}
-                                >
-                                    Next model
-                                </button>
+                            <div class="compose-model-catalogue-footer">
+                                <div class="compose-model-catalogue-footer-start">
+                                    ${supportsThinking && thinkingLevel && fe`<label class="compose-model-catalogue-thinking" title="Thinking level is read-only in Gi"><span>Thinking</span><select aria-label="Thinking level (read-only)" disabled><option value=${thinkingLevel}>${thinkingLevel}</option></select></label>`}
+                                </div>
+                                <button type="button" class="compose-model-popup-btn primary" disabled=${switchingModel} onClick=${() => {
+    setShowModelPopup(false);
+    openModelSettings(modelHintRef.current);
+  }}>Open Models settings</button>
                             </div>
                         </div>
                     `}
@@ -18635,11 +18674,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-4x2gfc09.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-hnjgk9tx.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-pgmb2fxx.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-dkev0gww.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-4bakanq6.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-7q2g4zfm.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-13ve0ayx.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-6qqspsaa.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-wynb0f1c.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-jbkwrsvg.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -18802,8 +18841,8 @@ function General() {
         <${Identity} />
     </section>`;
 }
-function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied }) {
-  const [section, setSection] = F_("general");
+function Dialog({ chatJid, initialSection = "general", onClose, onMutationStart, onMutationEnd, onApplied }) {
+  const [section, setSection] = F_(initialSection);
   const dialog = Q_(null);
   const filterRef = Q_(null);
   const [filter, setFilter] = F_("");
@@ -18902,6 +18941,7 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
 }
 function GiSettings({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
   const [open, setOpen] = F_(false);
+  const [initialSection, setInitialSection] = F_("general");
   const opener = Q_(null);
   const isOpen = Q_(false);
   const close = () => {
@@ -18916,9 +18956,13 @@ function GiSettings({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
     });
   };
   W_(() => {
-    const show = () => {
-      if (!isOpen.current)
-        opener.current = document.activeElement;
+    const show = (event) => {
+      if (isOpen.current)
+        return;
+      const detail = event instanceof CustomEvent ? event.detail : null;
+      const requested = detail?.section;
+      setInitialSection(["general", "models", "appearance", "compaction", "providers", "authentication"].includes(requested) ? requested : "general");
+      opener.current = detail?.opener instanceof HTMLElement && detail.opener.isConnected ? detail.opener : document.activeElement;
       isOpen.current = true;
       setOpen(true);
     };
@@ -18936,7 +18980,7 @@ function GiSettings({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
       window.removeEventListener("keydown", shortcut, true);
     };
   }, []);
-  return open && fe`<${BodyPortal} className="settings-portal"><${Dialog} chatJid=${chatJid} onClose=${close} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} /><//>`;
+  return open && fe`<${BodyPortal} className="settings-portal"><${Dialog} chatJid=${chatJid} initialSection=${initialSection} onClose=${close} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} /><//>`;
 }
 
 // web/src/gi-auth-policy.ts
@@ -21329,5 +21373,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=A2C8862BF4CD6C7764756E2164756E21
-//# sourceMappingURL=app-218tz4ay.js.map
+//# debugId=75CF21BE0CB20CFB64756E2164756E21
+//# sourceMappingURL=app-dzdgyv2t.js.map

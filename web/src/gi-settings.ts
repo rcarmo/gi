@@ -84,8 +84,8 @@ function General() {
     </section>`;
 }
 
-function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied }) {
-    const [section, setSection] = useState('general');
+function Dialog({ chatJid, initialSection = 'general', onClose, onMutationStart, onMutationEnd, onApplied }) {
+    const [section, setSection] = useState(initialSection);
     const dialog = useRef<HTMLDivElement>(null);
     const filterRef = useRef<HTMLInputElement>(null);
     const [filter, setFilter] = useState('');
@@ -168,6 +168,7 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
 
 export function GiSettings({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
     const [open, setOpen] = useState(false);
+    const [initialSection, setInitialSection] = useState('general');
     const opener = useRef<HTMLElement>(null);
     const isOpen = useRef(false);
     const close = () => {
@@ -183,8 +184,12 @@ export function GiSettings({ chatJid, onMutationStart, onMutationEnd, onApplied 
     // Install opening controls before first paint, including the auth gate's
     // asynchronous application mount. A visible composer must be interactive.
     useLayoutEffect(() => {
-        const show = () => {
-            if (!isOpen.current) opener.current = document.activeElement as HTMLElement;
+        const show = (event?: Event) => {
+            if (isOpen.current) return;
+            const detail = event instanceof CustomEvent ? event.detail : null;
+            const requested = detail?.section;
+            setInitialSection(['general','models','appearance','compaction','providers','authentication'].includes(requested) ? requested : 'general');
+            opener.current = detail?.opener instanceof HTMLElement && detail.opener.isConnected ? detail.opener : document.activeElement as HTMLElement;
             isOpen.current = true; setOpen(true);
         };
         const shortcut = (event: KeyboardEvent) => {
@@ -196,5 +201,5 @@ export function GiSettings({ chatJid, onMutationStart, onMutationEnd, onApplied 
         window.addEventListener('keydown', shortcut, true);
         return () => { window.removeEventListener('piclaw:open-settings', show); window.removeEventListener('keydown', shortcut, true); };
     }, []);
-    return open && html`<${BodyPortal} className="settings-portal"><${Dialog} chatJid=${chatJid} onClose=${close} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} /><//>`;
+    return open && html`<${BodyPortal} className="settings-portal"><${Dialog} chatJid=${chatJid} initialSection=${initialSection} onClose=${close} onMutationStart=${onMutationStart} onMutationEnd=${onMutationEnd} onApplied=${onApplied} /><//>`;
 }

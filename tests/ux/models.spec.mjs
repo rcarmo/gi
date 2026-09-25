@@ -85,7 +85,11 @@ test('@ux-original-022 Sparse model metadata and superseded catalogue stay truth
  expect(catalogue.context_usage.tokens).toBeNull();expect(catalogue.context_usage.source).toBe('unavailable');
  await input.fill('main sparse-metadata draft');await modelButton.click();
  const sparseRow=menu.getByRole('menuitem').filter({hasText:'test/unavailable-model'});
- await expect(sparseRow).toBeVisible();await expect(sparseRow).toHaveText('test/unavailable-model');
+ await expect(sparseRow).toBeVisible();
+ // Reference catalogue separates display name/key; unknown metadata stays absent.
+ await expect(sparseRow.locator('.compose-model-catalogue-option-name')).toHaveText('unavailable-model');
+ await expect(sparseRow.locator('.compose-model-catalogue-option-key')).toHaveText('test/unavailable-model');
+ await expect(sparseRow.locator('.compose-model-catalogue-badge')).toHaveCount(0);
  await expect(sparseRow).toHaveAttribute('title','test/unavailable-model');
  await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label',/Context: \? \/ \? tokens \(\?%\)/);
  await menu.press('Escape');

@@ -1,0 +1,328 @@
+/* Gi-owned model-panel styles adapted from pinned Classic 0afe5366ced9.
+   Supplied CSS remains unchanged. Unsupported pins/pricing are not controls. */
+.compose-model-catalogue {
+    right: auto;
+    width: min(680px, calc(100vw - 24px));
+    max-height: min(70vh, 620px);
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+}
+
+.compose-model-catalogue-header {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+}
+
+.compose-model-catalogue-search-label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.compose-model-catalogue-search-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.compose-model-catalogue-search {
+    width: 100%;
+    min-height: 36px;
+    padding: 7px 34px 7px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: 12px var(--font-family-mono);
+}
+
+.compose-model-catalogue-search:focus {
+    outline: 2px solid color-mix(in srgb, var(--accent-color) 50%, transparent);
+    outline-offset: -1px;
+}
+
+.compose-model-catalogue-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    position: absolute;
+    right: 4px;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.compose-model-catalogue-clear:hover,
+.compose-model-catalogue-clear:focus-visible {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    outline: none;
+}
+
+.compose-model-catalogue-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 6px;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+.compose-model-catalogue .compose-model-catalogue-results {
+    flex: 1 1 auto;
+    max-height: min(48vh, 430px);
+    min-height: 110px;
+    border: 0;
+    border-radius: 0;
+}
+
+.compose-model-catalogue-section + .compose-model-catalogue-section {
+    border-top: 1px solid color-mix(in srgb, var(--border-color) 75%, transparent);
+}
+
+.compose-model-catalogue-section-heading,
+.compose-model-catalogue-group-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--text-secondary);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+}
+
+.compose-model-catalogue-section-heading {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 7px 10px 5px;
+    background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
+    backdrop-filter: blur(8px);
+}
+
+.compose-model-catalogue-group-heading {
+    padding: 6px 10px 4px 30px;
+    background: color-mix(in srgb, var(--bg-secondary) 64%, transparent);
+}
+
+.compose-model-catalogue-option {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    border-left: 3px solid transparent;
+    border-bottom: 1px solid color-mix(in srgb, var(--border-color) 82%, var(--text-secondary) 18%);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+}
+
+.compose-model-catalogue-option:hover,
+.compose-model-catalogue-option.focused {
+    background: var(--bg-hover);
+}
+
+.compose-model-catalogue-option.focused {
+    border-left-color: var(--accent-color);
+}
+
+.compose-model-catalogue-option.selected {
+    color: var(--accent-color);
+    background: color-mix(in srgb, var(--accent-color) 15%, var(--bg-secondary));
+}
+
+.compose-model-catalogue-option.blocked {
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    opacity: 0.78;
+}
+
+.compose-model-catalogue-option:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--accent-color) 55%, transparent);
+    outline-offset: -2px;
+}
+
+.compose-model-catalogue-pin {
+    display: inline-flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-width: 32px;
+    padding: 9px 4px;
+    border-right: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+}
+
+.compose-model-catalogue-pin:hover,
+.compose-model-catalogue-pin.pinned {
+    color: var(--accent-color);
+}
+
+.compose-model-catalogue-option-content {
+    padding: 8px 10px 8px 4px;
+}
+
+.compose-model-catalogue-option-content {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.compose-model-catalogue-option-primary {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.compose-model-catalogue-option-name,
+.compose-model-catalogue-option-key,
+.compose-model-catalogue-option-price {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.compose-model-catalogue-option-name {
+    min-width: 0;
+    font: 12px var(--font-family-mono);
+    font-weight: 650;
+}
+
+.compose-model-catalogue-option-key,
+.compose-model-catalogue-option-price {
+    color: var(--text-secondary);
+    font: 10px var(--font-family-mono);
+}
+
+.compose-model-catalogue-option-price {
+    flex: 0 0 auto;
+    text-align: right;
+}
+
+.compose-model-catalogue-option-badges {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0;
+    overflow: hidden;
+    margin-top: 1px;
+    color: var(--text-secondary);
+    font-size: 9px;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.compose-model-catalogue-badge {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.compose-model-catalogue-badge + .compose-model-catalogue-badge::before {
+    content: " · ";
+    padding: 0 3px;
+    opacity: 0.72;
+}
+
+.compose-model-catalogue-option-note {
+    margin-top: 3px;
+    color: var(--warning-color);
+    font-size: 10px;
+    line-height: 1.35;
+}
+
+.compose-model-catalogue-limit-note {
+    padding: 9px 10px;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 10px;
+    text-align: center;
+}
+
+.compose-model-catalogue-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+}
+
+.compose-model-catalogue-footer-start {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.compose-model-catalogue-thinking {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+.compose-model-catalogue-thinking select {
+    box-sizing: border-box;
+    font: 400 12px/15px var(--font-family);
+    padding: 4px 8px;
+    height: 32px;
+    max-width: 140px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+
+.gi-model-panel-heading { display: flex; justify-content: space-between; align-items: start; }
+.compose-model-catalogue .gi-picker-close { margin-left: 8px; }
+.gi-model-pin-unavailable { min-width: 32px; border-right: 1px solid color-mix(in srgb, var(--border-color) 80%, transparent); }
+.compose-model-catalogue .compose-model-catalogue-option:disabled { cursor: not-allowed; }
+/* Keep the established keyboard accessibility and mobile dismissal/containment. */
+@media (max-width: 639px) {
+ .compose-model-popup.compose-model-catalogue { padding: 0; }
+ .compose-model-catalogue-header { padding: 7px 8px; }
+ /* Gi retains its explicit 44px mobile dismissal control, unlike this
+    reference. Its extra header height remains visible in pixel evidence. */
+ .compose-model-catalogue-search-label { margin-bottom: 4px; }
+ .compose-model-catalogue-search { min-height: 44px; }
+ .compose-model-catalogue .compose-model-catalogue-results { min-height: 0; max-height: none; }
+ .compose-model-catalogue-section-heading { padding: 5px 8px 3px; }
+ .compose-model-catalogue-group-heading { padding: 4px 8px 3px 26px; }
+ .compose-model-catalogue-option { grid-template-columns: 44px minmax(0, 1fr); min-height: 44px; }
+ .gi-model-pin-unavailable { min-width: 44px; min-height: 44px; }
+ .compose-model-catalogue-option-content { gap: 1px; padding: 5px 8px 5px 2px; }
+ .compose-model-catalogue-option-primary { align-items: center; gap: 6px; }
+ .compose-model-catalogue-option-name { font-size: 11px; }
+ .compose-model-catalogue-option-key, .compose-model-catalogue-option-price { font-size: 9px; }
+ .compose-model-catalogue-option-badges { font-size: 8px; }
+ .compose-model-catalogue-footer { align-items: stretch; flex-direction: column; }
+ .compose-model-catalogue-footer-start, .compose-model-catalogue-footer .compose-model-popup-btn { flex: 1; }
+ .compose-model-catalogue-footer .compose-model-popup-btn, .compose-model-catalogue-thinking select { min-height: 44px; }
+ .compose-model-catalogue-thinking { justify-content: space-between; width: 100%; }
+}

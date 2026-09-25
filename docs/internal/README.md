@@ -37,6 +37,8 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 
 ## Current structure
 
+- [model-panel.md](model-panel.md) — supported model catalogue layout, Settings handoff and explicit native capability gaps
+
 - [compose-surface.md](compose-surface.md) — host-only compose geometry, resize persistence and keyboard/modal ownership
 - [compose-pixel-baseline.md](compose-pixel-baseline.md) — pinned capture matrix, exact comparison gate and current failures
 
