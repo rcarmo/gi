@@ -364,6 +364,88 @@ test('Settings proof in one browser leaves another stale for add rename and remo
  }finally{await otherContext.close();await auth.cdp.detach();await env.close();}
 });
 
+for(const operation of ['list','rename','remove'])for(const fault of ['server','network'])test(`Settings ${operation} ${fault} failure retains confirmed state until explicit native retry`,async({page},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Laptop');
+  const before=savedAuth(env);const id=(await list(page)).body.passkeys[0].id;const row=credentialRow(page,id);
+  const path='/api/auth/passkeys'+(operation==='list'?'':`/${operation}`);const method=operation==='list'?'GET':'POST';let attempts=0;
+  page.on('request',r=>{if(new URL(r.url()).pathname===path&&r.method()===method)attempts++;});
+  // Both faults prevent delivery to the server. Lost responses after a commit
+  // are a separate uncertainty case, not evidence from this fixture.
+  await page.route(`**${path}`,route=>fault==='server'?route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:`${operation} unavailable`})}):route.abort('failed'));
+  if(operation==='list')await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();
+  if(operation==='rename'){
+   await row.getByRole('button',{name:'Rename Laptop',exact:true}).click();await row.getByRole('textbox',{name:'Rename passkey',exact:true}).fill('Retry laptop');await row.getByRole('button',{name:'Save passkey name',exact:true}).click();
+  }
+  if(operation==='remove'){await row.getByRole('button',{name:'Remove Laptop',exact:true}).click();await page.getByRole('button',{name:'Confirm removal',exact:true}).click();}
+  const alert=page.getByRole('alert');await expect(alert).toBeVisible();await expect(alert).not.toBeEmpty();if(fault==='server')await expect(alert).toHaveText(`${operation} unavailable`);
+  for(const notice of ['Passkey registered.','Name saved.','Passkey removed. Existing login sessions are not signed out.'])await expect(page.getByText(notice,{exact:true})).toHaveCount(0);
+  await expect(page.getByText('The displayed list is the last confirmed snapshot. Refresh before making changes.',{exact:true})).toBeVisible();await expect(page.getByText('No passkeys registered.',{exact:true})).toHaveCount(0);
+  await expect(page.locator('.gi-passkey-row')).toHaveCount(1);await expect(row.locator('strong')).toHaveText('Laptop');await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();
+  await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('Not authorised from stale list');
+  for(const action of ['Add passkey','Rename Laptop','Remove Laptop'])await expect(page.getByRole('button',{name:action,exact:true})).toBeDisabled();
+  await page.waitForTimeout(200);expect(attempts).toBe(1);expect(savedAuth(env)).toEqual(before);
+  await page.unroute(`**${path}`);await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(row.getByRole('button',{name:'Rename Laptop',exact:true})).toBeEnabled();await expect(alert).toHaveCount(0);
+  await expect(page.getByText('The displayed list is the last confirmed snapshot. Refresh before making changes.',{exact:true})).toHaveCount(0);expect(savedAuth(env)).toEqual(before);
+  if(operation==='list'){expect(attempts).toBe(2);await expect(row.locator('strong')).toHaveText('Laptop');}
+  if(operation==='rename'){
+   expect(attempts).toBe(1);await expect(row.getByRole('textbox',{name:'Rename passkey',exact:true})).toHaveValue('Retry laptop');
+   await row.getByRole('button',{name:'Save passkey name',exact:true}).click();await expect(page.getByText('Name saved.',{exact:true})).toBeVisible();await expect(row.locator('strong')).toHaveText('Retry laptop');
+   expect(attempts).toBe(2);expect(savedAuth(env).passkeys).toEqual([{...before.passkeys[0],name:'Retry laptop'}]);
+  }
+  if(operation==='remove'){
+   expect(attempts).toBe(1);await page.getByRole('button',{name:'Cancel removal',exact:true}).click();await row.getByRole('button',{name:'Remove Laptop',exact:true}).click();
+   await page.getByRole('button',{name:'Confirm removal',exact:true}).click();await expect(page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toBeVisible();await expect(page.locator('.gi-passkey-row')).toHaveCount(0);
+   expect(attempts).toBe(2);expect(savedAuth(env).passkeys||[]).toEqual([]);
+  }
+  expect(savedAuth(env).sessions).toEqual(before.sessions);
+ }finally{await auth.cdp.detach();await env.close();}
+});
+
+for(const operation of ['add','rename','remove'])test(`Settings cancelled reauthentication cannot authorise ${operation} before fresh proof`,async({page},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ try{
+  await loginTOTP(page,env);await page.locator('.compose-box textarea').fill(`Keep ${operation} draft Ω`);await openAuthentication(page);await addFromSettings(page,'Laptop');
+  // Whole-second fixture times retain exact representation through Go's
+  // RFC3339 serialisation; equality must still catch real proof/expiry changes.
+  const state=savedAuth(env);for(const s of state.sessions){s.created_at=new Date(Math.floor(Date.now()/1000)*1000-3600000).toISOString().replace('.000Z','Z');s.authenticated_at=new Date(Math.floor(Date.now()/1000)*1000-360000).toISOString().replace('.000Z','Z');}writeFileSync(env.authPath,JSON.stringify(state));
+  const proof=()=>page.evaluate(async()=>(await(await fetch('/api/auth/session/proof')).json()));const stale=await proof();expect(stale.reauth_required).toBe(true);
+  await page.reload();await expect(page.locator('.compose-box textarea')).toHaveValue(`Keep ${operation} draft Ω`);await openAuthentication(page);await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();
+  await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('After proof');const action=operation==='add'?'Add passkey':`${operation==='rename'?'Rename':'Remove'} Laptop`;
+  await expect(page.getByRole('button',{name:action,exact:true})).toBeDisabled();expect(await proof()).toEqual(stale);
+  const id=(await list(page)).body.passkeys[0].id;const path=operation==='add'?'/register/start':`/${operation}`;const body=operation==='add'?{name:'Before proof'}:{id,...(operation==='rename'?{name:'Before proof'}:{})};
+  expect(await post(page,path,body)).toEqual({status:403,body:{error:'recent authentication required'}});expect(savedAuth(env)).toEqual(state);
+  const changes=[];let starts=0,finishes=0;page.on('request',r=>{
+   if(r.method()!=='POST')return;const path=new URL(r.url()).pathname;
+   if(path==='/api/auth/passkeys/reauth/start')starts++;if(path==='/api/auth/passkeys/reauth/finish')finishes++;
+   if(['/api/auth/passkeys/register/start','/api/auth/passkeys/register/finish','/api/auth/passkeys/rename','/api/auth/passkeys/remove'].includes(path))changes.push(path);
+  });
+  // Observe entry without replacing the native credential promise/signature.
+  await page.evaluate(()=>{const get=navigator.credentials.get.bind(navigator.credentials);window.__reauthGets=0;navigator.credentials.get=(...args)=>{window.__reauthGets++;return get(...args);};});
+  const ceremonies=[];
+  for(const [index,cancel]of ['button','Escape'].entries()){
+   await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:false});
+   const response=page.waitForResponse(r=>r.url().endsWith('/api/auth/passkeys/reauth/start')&&r.request().method()==='POST');await page.getByRole('button',{name:'Verify with passkey',exact:true}).click();const started=await response;expect(started.status()).toBe(200);ceremonies.push((await started.json()).ceremony_id);
+   await expect.poll(()=>page.evaluate(()=>window.__reauthGets)).toBe(index+1);await expect(page.getByRole('button',{name:'Cancel pending operation',exact:true})).toBeVisible();
+   if(cancel==='button')await page.getByRole('button',{name:'Cancel pending operation',exact:true}).click();else await page.keyboard.press('Escape');
+   await expect(page.getByRole('alert')).toContainText('cancelled');await expect(page.getByRole('dialog',{name:'Gi Settings',exact:true})).toBeVisible();await expect(page.getByText('Authentication verified.',{exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:'Verify with passkey',exact:true})).toBeFocused();
+   // Presence after cancellation cannot complete the abandoned ceremony.
+   await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:true});await page.waitForTimeout(150);
+   expect(starts).toBe(index+1);expect(finishes).toBe(0);expect(changes).toEqual([]);expect(await proof()).toEqual(stale);expect(savedAuth(env).passkeys).toEqual(state.passkeys);expect(savedAuth(env).sessions).toEqual(state.sessions);
+   await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();await expect(page.getByRole('button',{name:action,exact:true})).toBeDisabled();
+   expect(await post(page,path,body)).toEqual({status:403,body:{error:'recent authentication required'}});changes.length=0;
+  }
+  const response=page.waitForResponse(r=>r.url().endsWith('/api/auth/passkeys/reauth/start')&&r.request().method()==='POST');await page.getByRole('button',{name:'Verify with passkey',exact:true}).click();const started=await response;expect(started.status()).toBe(200);ceremonies.push((await started.json()).ceremony_id);
+  await expect(page.getByText('Authentication verified.',{exact:true})).toBeVisible();expect(new Set(ceremonies).size).toBe(3);expect(starts).toBe(3);expect(finishes).toBe(1);expect(changes).toEqual([]);await expect(page.getByRole('button',{name:action,exact:true})).toBeEnabled();
+  expect((await proof()).reauth_required).toBe(false);expect((await proof()).expires_at).toBe(stale.expires_at);
+  if(operation==='add'){await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await addFromSettings(page,'After proof');await expect(page.locator('.gi-passkey-row')).toHaveCount(2);expect(changes).toEqual(['/api/auth/passkeys/register/start','/api/auth/passkeys/register/finish']);}
+  if(operation==='rename'){await page.getByRole('button',{name:action,exact:true}).click();await page.getByRole('textbox',{name:'Rename passkey',exact:true}).fill('After proof');await page.getByRole('button',{name:'Save passkey name',exact:true}).click();await expect(page.getByText('Name saved.',{exact:true})).toBeVisible();expect(savedAuth(env).passkeys[0].name).toBe('After proof');expect(changes).toEqual(['/api/auth/passkeys/rename']);}
+  if(operation==='remove'){await page.getByRole('button',{name:action,exact:true}).click();await page.getByRole('button',{name:'Confirm removal',exact:true}).click();await expect(page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toBeVisible();expect(savedAuth(env).passkeys||[]).toEqual([]);expect(changes).toEqual(['/api/auth/passkeys/remove']);}
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue(`Keep ${operation} draft Ω`);
+ }finally{await auth.cdp.detach();await env.close();}
+});
+
 async function changePolicy(page,value){
  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);
  await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();

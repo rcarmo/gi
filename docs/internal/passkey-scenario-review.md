@@ -5,8 +5,8 @@ native WebAuthn, Classic Settings/login and sign-in policy controls. This is a
 source-to-test review, not an automated per-case pass report. No new mappings
 are added by this document. Frozen Classic/shared counts are unchanged.
 
-The current passkey suite has 18 tests in Chromium at three viewport sizes
-(54 executions). CDP virtual authenticators sign real browser ceremonies on
+The current passkey suite has 27 tests in Chromium at three viewport sizes
+(81 executions). CDP virtual authenticators sign real browser ceremonies on
 HTTP localhost, not the frozen Background's `https://piclaw.test` origin.
 Physical/native focus, synced credentials and the Visual skin are not verified.
 The auth regression runs Chromium and WebKit but does not establish WebKit
@@ -37,13 +37,13 @@ outline example lacks direct evidence. A physical-device gap stays manual.
 | 010 | UI Escape/app cancel, no finish/auto-repeat, unchanged list and explicit new attempt. | Partial: application AbortSignal cancellation is covered; physical native-prompt cancel behaviour needs manual testing. |
 | 011 | Synthetic blur during pending UI ceremony leaves it pending. | Manual: real OS/browser focus transfer and successful completion without duplicate prompt. |
 | 012 | Browser creation exclusions and independently enforced duplicate finish409; stored keys unchanged. | Partial: full duplicate path via Settings, rather than native API integration only. |
-| 013 | UI list/rename/remove faults retain confirmed rows and show alerts; Refresh is available. | Partial: explicit accessible retry/no-success assertions for every outline example. |
+| 013 | UI `Settings … failure retains confirmed state…`: list/rename/remove each fail with503 and pre-delivery network abort. Role alerts, last-confirmed snapshot, no success/empty list, disabled writes and unchanged native state; explicit Refresh then deliberate native retry succeeds. | Candidate: six Classic fault/recovery cases; no post-commit lost-write inference from pre-delivery faults. |
 | 014 | Lost successful finish, UI uncertain-result explanation, explicit list refresh adds one row, no second finish. | Candidate: authoritative reconciliation without blind replay. |
 | 015 | Native origin/config/policy gates; UI TOTP-only Add disabled; Auth UI unconfigured/unenrolled explanations. | Partial: all unavailable-browser/insecure-origin outline explanations plus zero credential API calls. |
 | 016 | Three viewports, roles/labels, overflow check and keyboard cancellation. | Partial: Visual skin,80-character visible names, complete keyboard/touch traversal and live-announcement/focus checks. |
 | 017 | HTTP no-cookie, bearer/query, foreign origin, other-account field and transport denial; session binding. | Partial: all operations/examples, including explicit family-mode denial, plus no inventory leakage. |
 | 018 | Native/browser expired/consumed/other-session/revoked/origin/RP/signature failures. | Partial: explicit rendered-failure secret/challenge non-disclosure assertions. |
-| 019 | Stale add/remove native checks; UI TOTP/passkey reauthentication and current-policy proof rejection. | Partial: stale rename and cancel-reauth/no-write evidence for each operation. |
+| 019 | UI `Settings cancelled reauthentication cannot authorise…`: separate add/rename/remove cases; reload/Refresh preserve stale proof, direct403, button/Escape abort real credential.get without finish or credential mutation; presence restoration cannot complete it. Third explicit ceremony refreshes proof without extending expiry and permits the intended change. Verification focus returns to the same logical action after rendering. | Candidate: all three operations with application cancellation in Classic/CDP; physical OS prompt interaction stays unverified. |
 | 020 | Native current-RP/policy/factor removal matrix; UI last-key refusal. | Partial: active-session-only and pending-unverified-TOTP examples, exact UI explanation for each case. |
 | 021 | UI `Two Settings views concurrently remove different keys…`: both POSTs held, no optimistic removal, then one200/one409; both refresh to the same surviving key, with no automatic retry. Explicit retry returns exact last-factor409; cookies/sessions survive and the remaining key signs in afresh. | Partial: the non-blocking auth writer lock can refuse the concurrent loser with a state-conflict409 before the factor check. The frozen scenario requires refusal by the write-time lockout check; the later explicit retry proves that check separately. |
 | 022 | UI `Policy changes reject stale browser revisions…`: removal confirmation predates other browser's passkey-only change, removal refused at commit, refresh reconciles. | Candidate: direct UI policy/removal ordering plus native race tests. |

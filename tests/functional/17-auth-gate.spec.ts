@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {authEnvironment,totp} from '../ux/support/auth-environment.mjs';
 
 test('Native auth policy failure blocks bootstrap until Retry without changing sessions',async({page,request})=>{
  const before=await(await request.get('/api/sessions')).json();
@@ -46,6 +47,22 @@ test('Authentication settings explains unavailable enrollment without disturbing
  await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Authentication',exact:true}).click();
  await expect(page.getByText('Authentication must be configured first.',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Add passkey',exact:true})).toBeDisabled();
  await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(input).toHaveValue('Authentication pane keeps draft');expect(writes).toEqual([]);
+});
+
+test('Authentication verification restores its replaced control without stealing focus outside the pane',async({page},info)=>{
+ test.skip(!process.env.GI_UX_SERVER_BIN,'Requires the isolated auth fixture binary built by make test-ux-auth');
+ const env=await authEnvironment(page,info);let release:()=>void=()=>{};
+ try{
+  await page.goto(env.origin);await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();
+  const composer=page.locator('.compose-box textarea');await expect(composer).toBeVisible();await composer.fill('Authentication focus draft');await page.keyboard.press('Control+,');await page.getByRole('button',{name:'Authentication',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();
+  const code=page.getByRole('textbox',{name:'Reauthentication code',exact:true}),verify=page.getByRole('button',{name:'Verify code',exact:true});
+  await code.fill(String((Number(totp(env.secret))+1)%1000000).padStart(6,'0'));await verify.click();await expect(page.getByRole('alert')).toBeVisible();await expect(verify).toBeFocused();await expect(page.getByText('Authentication verified.',{exact:true})).toHaveCount(0);
+  let held=false;const gate=new Promise<void>(r=>release=r);
+  await page.route('**/api/auth/session/reauth/totp',async route=>{held=true;await gate;await route.continue();});
+  await code.fill(totp(env.secret));await verify.click();await expect.poll(()=>held).toBe(true);
+  const close=page.getByRole('button',{name:'Close settings',exact:true});await close.focus();release();await page.unrouteAll({behavior:'wait'});
+  await expect(page.getByText('Authentication verified.',{exact:true})).toBeVisible();await expect(close).toBeFocused();await close.click();await expect(composer).toHaveValue('Authentication focus draft');
+ }finally{release();await env.close();}
 });
 
 test('Unenrolled users cannot read or change authentication policy through owner routes',async({page,request})=>{

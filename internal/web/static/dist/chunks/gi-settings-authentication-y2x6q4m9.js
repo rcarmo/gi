@@ -8,7 +8,7 @@ import {
   passkeyUnavailable,
   runPasskey,
   parseAuthPolicy
-} from "./app-7ecazemx.js";
+} from "./app-00ekd5y9.js";
 
 // web/src/gi-settings-authentication.ts
 function GiSettingsAuthentication() {
@@ -85,6 +85,7 @@ function GiSettingsAuthentication() {
     const controller = new AbortController;
     flight.current = controller;
     const trigger = document.activeElement;
+    const triggerAction = trigger?.getAttribute("data-auth-action");
     setBusy(label);
     setError("");
     setNotice("");
@@ -108,7 +109,8 @@ function GiSettingsAuthentication() {
           requestAnimationFrame(() => {
             if (!live.current || !root.current?.closest(".settings-dialog"))
               return;
-            const target = trigger?.isConnected && !trigger.hasAttribute("disabled") ? trigger : root.current?.querySelector("button:not(:disabled)");
+            const replacement = triggerAction ? root.current.querySelector(`[data-auth-action="${CSS.escape(triggerAction)}"]:not(:disabled)`) : null;
+            const target = trigger?.isConnected && !trigger.hasAttribute("disabled") ? trigger : replacement || root.current.querySelector("button:not(:disabled)");
             if (target && (root.current.contains(document.activeElement) || document.activeElement === document.body))
               target.focus({ preventScroll: true });
           });
@@ -166,12 +168,12 @@ function GiSettingsAuthentication() {
         ${policy?.enrolled && fe`<div class="gi-passkey-proof">
             <p>${recentlyVerified ? "Recently authenticated for credential changes." : "Verify an accepted factor before changing passkeys."}</p>
             ${policy.totp_login_available && fe`<label>Authentication code<input aria-label="Reauthentication code" type="text" inputMode="numeric" autoComplete="one-time-code" value=${code} disabled=${!!busy} onInput=${(e) => setCode(e.target.value)} /></label>
-                <button disabled=${!!busy || !/^\d{6}$/.test(code)} onClick=${() => work("Verifying authentication…", async (signal) => {
+                <button data-auth-action="verify-totp" disabled=${!!busy || !/^\d{6}$/.test(code)} onClick=${() => work("Verifying authentication…", async (signal) => {
     await authJSON("/api/auth/session/reauth/totp", { code }, signal);
     if (live.current)
       setCode("");
   }, "Authentication verified.")}>Verify code</button>`}
-            ${policy.passkey_login_available && fe`<button disabled=${!!busy || !!passkeyUnavailable()} onClick=${() => work("Waiting for passkey verification…", (signal) => runPasskey("reauth", signal), "Authentication verified.")}>Verify with passkey</button>`}
+            ${policy.passkey_login_available && fe`<button data-auth-action="verify-passkey" disabled=${!!busy || !!passkeyUnavailable()} onClick=${() => work("Waiting for passkey verification…", (signal) => runPasskey("reauth", signal), "Authentication verified.")}>Verify with passkey</button>`}
         </div>`}
         ${loginPolicy && fe`<div class="gi-signin-policy"><h3>Sign-in policy</h3>
             <p>Current policy: ${loginPolicy.policy}. Changing accepted factors does not remove credentials or sign out existing sessions.</p>
@@ -217,5 +219,5 @@ export {
   GiSettingsAuthentication
 };
 
-//# debugId=644032874FF51DCE64756E2164756E21
-//# sourceMappingURL=gi-settings-authentication-4gkx3cak.js.map
+//# debugId=15A13A15E078F87C64756E2164756E21
+//# sourceMappingURL=gi-settings-authentication-y2x6q4m9.js.map

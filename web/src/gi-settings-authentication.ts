@@ -49,12 +49,16 @@ export function GiSettingsAuthentication() {
         if (flight.current) return;
         const controller = new AbortController(); flight.current = controller;
         const trigger = document.activeElement as HTMLElement;
+        const triggerAction = trigger?.getAttribute('data-auth-action');
         setBusy(label); setError(''); setNotice('');
         try { await action(controller.signal); if (live.current) { await refresh(controller.signal); if (message && live.current) setNotice(message); } }
         catch (e) { if (live.current) { setFresh(false); setError(e.message || 'Request failed. Refresh before retrying.'); } }
         finally { if (flight.current === controller) { flight.current = null; if (live.current) { setBusy(''); requestAnimationFrame(() => {
             if (!live.current || !root.current?.closest('.settings-dialog')) return;
-            const target = trigger?.isConnected && !trigger.hasAttribute('disabled') ? trigger : root.current?.querySelector('button:not(:disabled)');
+            // Conditional progress/error rows can replace the proof controls. Resolve
+            // the same action in this pane instead of falling back to Refresh.
+            const replacement = triggerAction ? root.current.querySelector(`[data-auth-action="${CSS.escape(triggerAction)}"]:not(:disabled)`) : null;
+            const target = trigger?.isConnected && !trigger.hasAttribute('disabled') ? trigger : replacement || root.current.querySelector('button:not(:disabled)');
             if (target && (root.current.contains(document.activeElement) || document.activeElement === document.body)) target.focus({preventScroll:true});
         }); } } }
     };
@@ -92,8 +96,8 @@ export function GiSettingsAuthentication() {
         ${policy?.enrolled && html`<div class="gi-passkey-proof">
             <p>${recentlyVerified ? 'Recently authenticated for credential changes.' : 'Verify an accepted factor before changing passkeys.'}</p>
             ${policy.totp_login_available && html`<label>Authentication code<input aria-label="Reauthentication code" type="text" inputMode="numeric" autoComplete="one-time-code" value=${code} disabled=${!!busy} onInput=${e => setCode(e.target.value)} /></label>
-                <button disabled=${!!busy || !/^\d{6}$/.test(code)} onClick=${() => work('Verifying authentication…', async signal => { await authJSON('/api/auth/session/reauth/totp', {code}, signal); if (live.current) setCode(''); }, 'Authentication verified.')}>Verify code</button>`}
-            ${policy.passkey_login_available && html`<button disabled=${!!busy || !!passkeyUnavailable()} onClick=${() => work('Waiting for passkey verification…', signal => runPasskey('reauth', signal), 'Authentication verified.')}>Verify with passkey</button>`}
+                <button data-auth-action="verify-totp" disabled=${!!busy || !/^\d{6}$/.test(code)} onClick=${() => work('Verifying authentication…', async signal => { await authJSON('/api/auth/session/reauth/totp', {code}, signal); if (live.current) setCode(''); }, 'Authentication verified.')}>Verify code</button>`}
+            ${policy.passkey_login_available && html`<button data-auth-action="verify-passkey" disabled=${!!busy || !!passkeyUnavailable()} onClick=${() => work('Waiting for passkey verification…', signal => runPasskey('reauth', signal), 'Authentication verified.')}>Verify with passkey</button>`}
         </div>`}
         ${loginPolicy && html`<div class="gi-signin-policy"><h3>Sign-in policy</h3>
             <p>Current policy: ${loginPolicy.policy}. Changing accepted factors does not remove credentials or sign out existing sessions.</p>

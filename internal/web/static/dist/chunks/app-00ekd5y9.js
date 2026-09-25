@@ -18442,11 +18442,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-wta65c76.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-258k9233.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-djnzbkvr.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-2mb8qp3f.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-4gkx3cak.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-smnhvedz.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-9prwrhfh.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-372q3czt.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-9bezygbv.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-y2x6q4m9.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -21070,4 +21070,4 @@ export {
 };
 
 //# debugId=7B7EA144580A6CA564756E2164756E21
-//# sourceMappingURL=app-7ecazemx.js.map
+//# sourceMappingURL=app-00ekd5y9.js.map

@@ -144,7 +144,7 @@ Lost responses require an authoritative refresh before a new attempt.
 
 ## Test scope and remaining work
 
-`make test-ux-passkeys` runs 18 integration tests at three Chromium viewport sizes
+`make test-ux-passkeys` runs 27 integration tests at three Chromium viewport sizes
 and is required by CI before build jobs. The tests cover two distinct credentials,
 server restart, independent cookie-free sign-ins, passkey-only further enrolment,
 rename material preservation, removed-key rejection, last-factor refusal, replay,
@@ -152,7 +152,7 @@ wrong session, revoked session, stale proof/reauth, cancellation, expiry, altere
 origin, correctly signed wrong-RP assertion, duplicate-ID protection and uncertain
 successful registration. Fixtures seed specific policy/error states explicitly.
 
-Fourteen tests drive actual Classic Settings/login controls: two-key enrolment,
+Twenty-three tests drive actual Classic Settings/login controls: two-key enrolment,
 independent sign-in after restart, retained drafts/media, rename/remove/cancel,
 passkey-only reauth/add/login, failed reads/writes, uncertain finish and unmount
 cancellation, policy changes, stale revisions and a policy change during removal
@@ -173,6 +173,15 @@ check. Both views refresh to the same inventory without automatic retry; an
 explicit retry must return the exact last-factor409. Existing sessions survive,
 and the remaining credential permits a fresh sign-in. This covers Gi's conflict
 and retry behaviour; scenario021's direct lockout-refusal requirement stays partial.
+
+Six failure/recovery cases cover list, rename and removal with server503 and
+pre-delivery network errors. They retain the last confirmed rows, announce errors,
+clear success messages and require explicit Refresh before a deliberate retry.
+Three more cases cancel passkey reauthentication with the button and Escape before
+add, rename or removal. No finish or credential write occurs, proof remains stale,
+and only a new accepted ceremony enables the requested change. Verification focus
+returns to the same action when rendering replaces its DOM node. A functional
+TOTP test also verifies that completion does not steal focus from the close button.
 
 The suite uses HTTP localhost, not the pinned feature Background's HTTPS host.
 Synthetic blur tests application ownership only, not OS prompt focus. A separate
