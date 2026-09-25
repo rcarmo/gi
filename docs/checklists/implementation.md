@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-25
 
+- [x] Deploy07692d9 inventory-query refusal after Linux/macOS-only CI36110032772: eight test/build jobs green including144browser/ledger, no Windows jobs.8090 PID3062406, six guarded live Chromium/WebKit checks zero writes/errors/drafts retained. Still unenrolled/passkeys disabled; no production auth writes. DB62sessions/51turns/146messages, integrity/FKs OK, full SQL equal except runtime lease (SHA256300ce679…53d). Prior server-readiness failure preserved in evidence; runtime test timeout unchanged.
+
 - [x] Reject unexpected passkey inventory queries instead of silently ignoring account selectors (four native200→400 regressions). Ten native authority cases cover missing-owner list, automation register, expired/revoked rename, foreign-origin remove and selector variants; complete auth-file equality/no inventory/cookie disclosure and owner-list control. Real-key browser query/refetch proof,144passkey/106functional (five existing skips)/106helpers2885/Go-vet-hook/auth+web race×3/review pass.017firstfive examples bounded; family mode still unsupported/fullMappingfalse. No live auth changes or TUI rows. Prior Linux/macOS-only CI36108460455 failed disposable server readiness before assertions; cause unestablished, no timeout changes.
 
 - [x] Resolve auth test contention retry exhaustion as59db473 after failed CI36106302597: preserve25 writers and all token/revoke assertions; test-only10s elapsed budget/capped backoff, error propagation/exhaustion tests, no post-deadline retry. Auth race×10/Go-vet/review and native CI36107268256 green. Runtime locking unchanged; no deployment.
