@@ -61,6 +61,12 @@ func (s *Server) handlePasskeyList(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	// Single-owner inventory has no query options or account selector. Do not
+	// silently return the owner's credentials for a request naming another user.
+	if r.URL.RawQuery != "" {
+		writeJSON(w, 400, map[string]any{"error": "Passkey inventory does not accept query parameters"})
+		return
+	}
 	list, err := s.auth.ListPasskeys(token, passkeyOrigin(r))
 	if err != nil {
 		writePasskeyError(w, err)

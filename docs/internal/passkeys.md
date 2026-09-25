@@ -72,7 +72,7 @@ These routes are under `/api/auth/passkeys` and return `private, no-store`.
 
 | Route | Method and body |
 |---|---|
-| `/api/auth/passkeys` | GET; public metadata for current-RP credentials only. |
+| `/api/auth/passkeys` | GET without query parameters; public metadata for current-RP credentials only. Account selectors and other queries return400. |
 | `/register/start` | POST `{"name":"Laptop"}`; recent owner proof required. |
 | `/register/finish` | POST `{"ceremony_id":"...","credential":{...}}`; native registration response. |
 | `/login/start` | POST `{}`; returns allowed credentials and sets a short-lived HttpOnly ceremony cookie. |
@@ -144,7 +144,7 @@ Lost responses require an authoritative refresh before a new attempt.
 
 ## Test scope and remaining work
 
-`make test-ux-passkeys` runs 47 integration tests across three Chromium viewport
+`make test-ux-passkeys` runs 48 integration tests across three Chromium viewport
 projects and is required by CI before build jobs. Two narrow-interaction tests
 create390px contexts explicitly in every project; their six executions repeat
 phone-width acceptance rather than extending the geometry matrix. The tests cover two distinct credentials,
@@ -154,7 +154,7 @@ wrong session, revoked session, stale proof/reauth, cancellation, expiry, altere
 origin, correctly signed wrong-RP assertion, duplicate-ID protection and uncertain
 successful registration. Fixtures seed specific policy/error states explicitly.
 
-Forty-three tests drive actual Classic Settings/login controls: two-key enrolment,
+Forty-four tests drive actual Classic Settings/login controls: two-key enrolment,
 independent sign-in after restart, retained drafts/media, rename/remove/cancel,
 passkey-only reauth/add/login, failed reads/writes, uncertain finish and unmount
 cancellation, policy changes, stale revisions and a policy change during removal
@@ -228,6 +228,14 @@ inventory GET is held to verify that neither a row nor an empty-state claim appe
 before authority returns. The new key appears once. A second pane return and full
 reload issue no additional auth POST and preserve the committed owner state.
 Draft text and the attachment pill survive; these cases do not compare file bytes.
+
+Inventory rejects unexpected query parameters instead of silently ignoring an
+account selector. A native authority matrix covers missing owner authority for
+list, automation register-start, expired/revoked rename and foreign-origin
+removal. It compares the entire auth file byte-for-byte, excludes inventory and
+secret canaries from refusals, checks no cookie changes and includes an authorised
+nonempty list control. Browser tests use a real registered key for account-query
+variants and unchanged Settings refresh. Family-shared mode remains unsupported.
 
 The suite uses HTTP localhost, not the pinned feature Background's HTTPS host.
 Synthetic blur tests application ownership only, not OS prompt focus. A separate

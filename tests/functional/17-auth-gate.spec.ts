@@ -65,6 +65,17 @@ test('Authentication verification restores its replaced control without stealing
  }finally{release();await env.close();}
 });
 
+test('Owner passkey inventory rejects account selection and keeps its normal list available',async({page},info)=>{
+ test.skip(!process.env.GI_UX_SERVER_BIN,'Requires the isolated auth fixture binary built by make test-ux-auth');
+ const env=await authEnvironment(page,info,{passkeys:true});
+ try{
+  await page.goto(env.origin);await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.locator('.compose-box textarea')).toBeVisible();
+  const query=async path=>page.evaluate(async path=>{const response=await fetch(path);return {status:response.status,body:await response.json()};},path);
+  const before=await query('/api/auth/passkeys');expect(before).toEqual({status:200,body:{passkeys:[]}});
+  expect(await query('/api/auth/passkeys?account=another')).toEqual({status:400,body:{error:'Passkey inventory does not accept query parameters'}});expect(await query('/api/auth/passkeys')).toEqual(before);
+ }finally{await env.close();}
+});
+
 test('Unenrolled users cannot read or change authentication policy through owner routes',async({page,request})=>{
  const before=await(await request.get('/api/auth/status')).json();
  await page.goto('/');await expect(page.locator('.compose-box textarea')).toBeVisible();

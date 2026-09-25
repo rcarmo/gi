@@ -749,6 +749,20 @@ for(const returnVia of ['pane switch','Settings reopen'])test(`Settings ${return
  }finally{release();await page.unrouteAll({behavior:'wait'});await auth.cdp.detach();await env.close();}
 });
 
+test('Passkey inventory refuses account queries without disclosing or changing the owner credentials',async({page},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Private laptop');const before=savedAuth(env);const inventory=await list(page);expect(inventory.status).toBe(200);expect(inventory.body.passkeys).toHaveLength(1);
+  for(const query of ['account=another','username=another','account=','account=admin&account=another','account_id=another','%61ccount=another','unused=1']){
+   const response=await page.evaluate(async query=>{const r=await fetch('/api/auth/passkeys?'+query);return {status:r.status,body:await r.json(),cache:r.headers.get('cache-control')};},query);
+   expect(response).toEqual({status:400,body:{error:'Passkey inventory does not accept query parameters'},cache:'private, no-store'});
+   expect(savedAuth(env)).toEqual(before);
+  }
+  await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Private laptop']);
+  expect(await list(page)).toEqual(inventory);expect(savedAuth(env)).toEqual(before);
+ }finally{await auth.cdp.detach();await env.close();}
+});
+
 async function changePolicy(page,value){
  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);
  await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();

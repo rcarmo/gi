@@ -197,6 +197,16 @@
       "file": "tests/ux/passkeys.spec.mjs",
       "anchor": "Settings ${returnVia} reconciles a lost registration response without replay",
       "scope": "Classic HTTP localhost/CDP; pane switch and Settings reopen; authoritative held inventory GET; no physical prompt/Visual credit. Draft text and attachment pill retention, not attachment byte equality."
+    },
+    "http-authority": {
+      "file": "internal/web/auth_passkeys_test.go",
+      "anchor": "func TestBrowserPasskeyManagementAuthority",
+      "scope": "Native HTTP handler with real owner/automation tokens and seeded nonempty credential; no ceremony verification or family mode credit. Exact refusal/state-byte equality/no cookie/no inventory canaries plus normal owner-list positive control."
+    },
+    "query-ui": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Passkey inventory refuses account queries without disclosing or changing the owner credentials",
+      "scope": "Classic localhost/CDP real registration; seven account/unexpected query variants400; unchanged full auth store, ordinary owner-list/Settings refresh positive control."
     }
   },
   "scenarios": [
@@ -1742,9 +1752,10 @@
           "text": "<request_context>",
           "state": "partial",
           "evidence": [
-            "http-start"
+            "http-authority",
+            "query-ui"
           ],
-          "note": "Bearer/query/foreign-origin guards exist; expired rename/family mode exact examples incomplete."
+          "note": "Exact no-cookie list, automation register, expired/revoked rename, foreign-origin remove and account-selected list refusals verified with full auth-file equality/no inventory or cookie disclosure. Family-shared mode remains unsupported."
         },
         {
           "line": 232,
@@ -1752,9 +1763,10 @@
           "text": "a caller directly requests <operation>",
           "state": "partial",
           "evidence": [
-            "http-start"
+            "http-authority",
+            "query-ui"
           ],
-          "note": "Register-start matrix does not establish all listed operations."
+          "note": "Exact no-cookie list, automation register, expired/revoked rename, foreign-origin remove and account-selected list refusals verified with full auth-file equality/no inventory or cookie disclosure. Family-shared mode remains unsupported."
         },
         {
           "line": 233,
@@ -1762,9 +1774,10 @@
           "text": "the server refuses the operation",
           "state": "partial",
           "evidence": [
-            "http-start"
+            "http-authority",
+            "query-ui"
           ],
-          "note": "Refusal demonstrated for start, not all outline operations."
+          "note": "Exact no-cookie list, automation register, expired/revoked rename, foreign-origin remove and account-selected list refusals verified with full auth-file equality/no inventory or cookie disclosure. Family-shared mode remains unsupported."
         },
         {
           "line": 234,
@@ -1772,9 +1785,10 @@
           "text": "no credential or login policy is changed",
           "state": "partial",
           "evidence": [
-            "http-start"
+            "http-authority",
+            "query-ui"
           ],
-          "note": "Guard test compares ceremonies; not full credentials/policy equality for every example."
+          "note": "Exact no-cookie list, automation register, expired/revoked rename, foreign-origin remove and account-selected list refusals verified with full auth-file equality/no inventory or cookie disclosure. Family-shared mode remains unsupported."
         },
         {
           "line": 235,
@@ -1782,9 +1796,10 @@
           "text": "the response reveals no other account's passkey inventory",
           "state": "partial",
           "evidence": [
-            "http-start"
+            "http-authority",
+            "query-ui"
           ],
-          "note": "No complete per-example inventory non-disclosure assertion."
+          "note": "Exact no-cookie list, automation register, expired/revoked rename, foreign-origin remove and account-selected list refusals verified with full auth-file equality/no inventory or cookie disclosure. Family-shared mode remains unsupported."
         }
       ],
       "examples": [
@@ -1794,11 +1809,11 @@
             "request_context": "no valid owner login session",
             "operation": "list passkeys"
           },
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "http-start"
+            "http-authority"
           ],
-          "note": "No-cookie start refusal, but required operation is list."
+          "note": "No-cookie GET list401 with full auth-file equality, nonempty inventory canaries absent and normal-owner positive control."
         },
         {
           "line": 240,
@@ -1808,9 +1823,9 @@
           },
           "state": "bounded",
           "evidence": [
-            "http-start"
+            "http-authority"
           ],
-          "note": "Bearer-only register-start refusal."
+          "note": "Automation token supplied in Authorization403 and as cookie401 on registration start; real tokens; unchanged auth file."
         },
         {
           "line": 241,
@@ -1818,11 +1833,11 @@
             "request_context": "an expired or revoked owner login session",
             "operation": "rename a passkey"
           },
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "invalid"
+            "http-authority"
           ],
-          "note": "Revoked registration rejection, not expired/revoked rename."
+          "note": "Native expired and revoked owner cookies each reject rename401; fresh owner can still list the seeded key."
         },
         {
           "line": 242,
@@ -1830,11 +1845,11 @@
             "request_context": "an authenticated request from an unapproved origin",
             "operation": "remove a passkey"
           },
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "http-start"
+            "http-authority"
           ],
-          "note": "Unapproved-origin register-start rejection, not remove."
+          "note": "Valid owner cookie with unapproved origin rejects remove403; unchanged credentials/policy/sessions and no inventory in error."
         },
         {
           "line": 243,
@@ -1842,11 +1857,12 @@
             "request_context": "a single-user management request selecting another account",
             "operation": "list that account's passkeys"
           },
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "http-start"
+            "http-authority",
+            "query-ui"
           ],
-          "note": "Unknown account field rejected on start; account-selected list absent."
+          "note": "Owner-selected account/username query rejected400; empty, duplicate, encoded selector and arbitrary query browser variants; bare GET remains available."
         },
         {
           "line": 244,

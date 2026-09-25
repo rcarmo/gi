@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-25
 
+- [x] Reject unexpected passkey inventory queries instead of silently ignoring account selectors (four native200→400 regressions). Ten native authority cases cover missing-owner list, automation register, expired/revoked rename, foreign-origin remove and selector variants; complete auth-file equality/no inventory/cookie disclosure and owner-list control. Real-key browser query/refetch proof,144passkey/106functional (five existing skips)/106helpers2885/Go-vet-hook/auth+web race×3/review pass.017firstfive examples bounded; family mode still unsupported/fullMappingfalse. No live auth changes or TUI rows. Prior Linux/macOS-only CI36108460455 failed disposable server readiness before assertions; cause unestablished, no timeout changes.
+
 - [x] Resolve auth test contention retry exhaustion as59db473 after failed CI36106302597: preserve25 writers and all token/revoke assertions; test-only10s elapsed budget/capped backoff, error propagation/exhaustion tests, no post-deadline retry. Auth race×10/Go-vet/review and native CI36107268256 green. Runtime locking unchanged; no deployment.
 
 - [x] Remove Windows auth-state job and build/release artifact target from CI at the owner's request; retain Linux/macOS native auth and four Linux/macOS architecture builds. Remove obsolete .exe/ZIP workflow branches. Windows runtime code and optional local cross-build target remain. Condense the session sidebar to outstanding work; repository completion evidence retained.
