@@ -19,8 +19,9 @@ The [feature and parity matrix](../../docs/feature-parity.md) separates shipped
 behaviour, known gaps and planned integrations. Source mappings are 101/236
 Classic IDs and 30/42 shared cases; they are not a full-suite pass. Classic008 is
 disputed. All 26 separately pinned passkey Settings scenarios/outlines are unmapped;
-`make test-ux-passkeys` now verifies a native API subset using real Chromium WebAuthn
-and virtual authenticators, without Settings/login or physical-device credit.
+`make test-ux-passkeys` verifies native APIs and Settings/login journeys using real
+Chromium WebAuthn and virtual authenticators. Full per-case mapping, Visual-skin
+and physical-device evidence are outstanding.
 Workspace-collapse motion and native auth persistence repairs have shipped.
 
 The dated sections below retain historical run totals. Do not add them together

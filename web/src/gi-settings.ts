@@ -126,7 +126,10 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
         const key = (event: KeyboardEvent) => {
             if (event.isComposing) return;
             if (event.key === 'Escape') {
-                event.preventDefault(); event.stopImmediatePropagation(); onClose(); return;
+                event.preventDefault(); event.stopImmediatePropagation();
+                const auth = dialog.current?.querySelector('[data-auth-escape="true"]');
+                if (auth) auth.dispatchEvent(new Event('gi-auth-escape')); else onClose();
+                return;
             }
             if (event.key === 'Tab') {
                 const nodes = [...(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]') || [])].filter(node => node.getClientRects().length);
@@ -155,7 +158,7 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
                 ${section === 'models' && html`<input ref=${filterRef} type="search" class="settings-header-filter" aria-label="Filter models" placeholder="Filter models…" value=${filter} disabled=${busyScope === searchScope} onInput=${e => setFilter(e.target.value)} />`}
                 <button class="settings-dialog-close" aria-label="Close settings" onClick=${onClose}>✕</button></header>
             <div class="settings-dialog-body"><nav class="settings-nav" aria-label="Settings sections">
-                ${['general', 'models', 'appearance', 'compaction', 'providers'].map(id => html`<button class=${`settings-nav-item ${section === id ? 'active' : ''}`} aria-current=${section === id ? 'page' : undefined} onClick=${() => setSection(id)}>${{ general: 'General', models: 'Models', appearance: 'Appearance', compaction: 'Compaction', providers: 'Providers' }[id]}</button>`)}
+                ${['general', 'models', 'appearance', 'compaction', 'providers', 'authentication'].map(id => html`<button class=${`settings-nav-item ${section === id ? 'active' : ''}`} aria-current=${section === id ? 'page' : undefined} onClick=${() => setSection(id)}>${{ general: 'General', models: 'Models', appearance: 'Appearance', compaction: 'Compaction', providers: 'Providers', authentication: 'Authentication' }[id]}</button>`)}
             </nav><main class="settings-content">
                 ${section === 'general' ? html`<${General} />` : html`<${LazySettingsPane} key=${section} section=${section} chatJid=${chatJid} filter=${filter} onMutationStart=${() => { setBusyScope(searchScope); return onMutationStart(); }} onMutationEnd=${token => { setBusyScope(previous => previous === searchScope ? null : previous); onMutationEnd(token); }} onApplied=${onApplied} />`}
             </main></div>

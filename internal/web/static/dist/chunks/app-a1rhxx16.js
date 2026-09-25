@@ -18442,12 +18442,13 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-kymjc2bn.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-ds6x07ey.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-xj263ybh.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-yjjeqc6e.js").then((module) => module.GiSettingsProviders)
+  models: () => import("./gi-settings-models-8ezmaqzd.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-ack6ar10.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-57cg6967.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-h5ytqt2j.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-pc61xepf.js").then((module) => module.GiSettingsAuthentication)
 };
-var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" };
+var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
 var pending = new Map;
 function load(section) {
@@ -18655,7 +18656,11 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopImmediatePropagation();
-        onClose();
+        const auth = dialog.current?.querySelector('[data-auth-escape="true"]');
+        if (auth)
+          auth.dispatchEvent(new Event("gi-auth-escape"));
+        else
+          onClose();
         return;
       }
       if (event.key === "Tab") {
@@ -18689,7 +18694,7 @@ function Dialog({ chatJid, onClose, onMutationStart, onMutationEnd, onApplied })
                 ${section === "models" && fe`<input ref=${filterRef} type="search" class="settings-header-filter" aria-label="Filter models" placeholder="Filter models…" value=${filter} disabled=${busyScope === searchScope} onInput=${(e) => setFilter(e.target.value)} />`}
                 <button class="settings-dialog-close" aria-label="Close settings" onClick=${onClose}>✕</button></header>
             <div class="settings-dialog-body"><nav class="settings-nav" aria-label="Settings sections">
-                ${["general", "models", "appearance", "compaction", "providers"].map((id) => fe`<button class=${`settings-nav-item ${section === id ? "active" : ""}`} aria-current=${section === id ? "page" : undefined} onClick=${() => setSection(id)}>${{ general: "General", models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers" }[id]}</button>`)}
+                ${["general", "models", "appearance", "compaction", "providers", "authentication"].map((id) => fe`<button class=${`settings-nav-item ${section === id ? "active" : ""}`} aria-current=${section === id ? "page" : undefined} onClick=${() => setSection(id)}>${{ general: "General", models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" }[id]}</button>`)}
             </nav><main class="settings-content">
                 ${section === "general" ? fe`<${General} />` : fe`<${LazySettingsPane} key=${section} section=${section} chatJid=${chatJid} filter=${filter} onMutationStart=${() => {
     setBusyScope(searchScope);
@@ -18744,10 +18749,101 @@ function GiSettings({ chatJid, onMutationStart, onMutationEnd, onApplied }) {
 // web/src/gi-auth-policy.ts
 function parseAuthPolicy(value) {
   const p = value;
-  if (!p || p.mode !== "single-user" || typeof p.enrolled !== "boolean" || typeof p.authenticated !== "boolean" || typeof p.totp_enabled !== "boolean" || typeof p.browser_login_available !== "boolean" || p.enrolled && !p.totp_enabled) {
+  if (!p || p.mode !== "single-user" || typeof p.enrolled !== "boolean" || typeof p.authenticated !== "boolean" || typeof p.totp_enabled !== "boolean" || typeof p.browser_login_available !== "boolean" || p.totp_login_available !== undefined && typeof p.totp_login_available !== "boolean" || p.passkeys_enabled !== undefined && typeof p.passkeys_enabled !== "boolean" || p.passkey_login_available !== undefined && typeof p.passkey_login_available !== "boolean" || p.passkey_login_available === true && p.passkeys_enabled !== true || p.enrolled && !p.totp_enabled && p.passkeys_enabled === undefined) {
     throw new Error("Invalid authentication policy");
   }
-  return p;
+  return {
+    ...p,
+    totp_login_available: p.totp_login_available ?? p.totp_enabled,
+    passkeys_enabled: p.passkeys_enabled ?? false,
+    passkey_login_available: p.passkey_login_available ?? false
+  };
+}
+
+// web/src/gi-passkeys.ts
+class AuthAPIError extends Error {
+  status;
+  constructor(message, status = 0) {
+    super(message);
+    this.status = status;
+  }
+}
+async function authJSON(path, body, signal) {
+  const timeout = AbortSignal.timeout(15000);
+  const response = await fetch(path, {
+    method: body === undefined ? "GET" : "POST",
+    credentials: "same-origin",
+    cache: "no-store",
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+    ...body === undefined ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok)
+    throw new AuthAPIError(data?.error || "Authentication request failed", response.status);
+  if (!data || typeof data !== "object")
+    throw new AuthAPIError("Invalid authentication response");
+  return data;
+}
+function passkeyUnavailable() {
+  if (!window.isSecureContext)
+    return "Passkeys require a secure HTTPS or localhost origin.";
+  if (!window.PublicKeyCredential || !navigator.credentials?.create || !navigator.credentials?.get)
+    return "This browser cannot use passkeys.";
+  return "";
+}
+function decode(value) {
+  return Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+}
+function encode(value) {
+  if (value === null)
+    return null;
+  return btoa(Array.from(new Uint8Array(value), (b) => String.fromCharCode(b)).join("")).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+async function runPasskey(operation, signal, name) {
+  const unavailable = passkeyUnavailable();
+  if (unavailable)
+    throw new Error(unavailable);
+  let created = false, finishing = false;
+  try {
+    const start = await authJSON(`/api/auth/passkeys/${operation}/start`, name === undefined ? {} : { name }, signal);
+    const pub = start.options?.publicKey;
+    if (typeof start.ceremony_id !== "string" || !pub?.challenge)
+      throw new Error("Invalid passkey options");
+    pub.challenge = decode(pub.challenge);
+    if (operation === "register") {
+      pub.user.id = decode(pub.user.id);
+      pub.excludeCredentials = (pub.excludeCredentials || []).map((c) => ({ ...c, id: decode(c.id) }));
+    } else
+      pub.allowCredentials = (pub.allowCredentials || []).map((c) => ({ ...c, id: decode(c.id) }));
+    const credential = await (operation === "register" ? navigator.credentials.create({ publicKey: pub, signal }) : navigator.credentials.get({ publicKey: pub, signal }));
+    if (!credential)
+      throw new Error("No passkey response");
+    created = operation === "register";
+    const response = credential.response;
+    const data = {
+      id: credential.id,
+      rawId: encode(credential.rawId),
+      type: credential.type,
+      authenticatorAttachment: credential.authenticatorAttachment,
+      clientExtensionResults: credential.getClientExtensionResults(),
+      response: operation === "register" ? { clientDataJSON: encode(response.clientDataJSON), attestationObject: encode(response.attestationObject), transports: response.getTransports?.() || [] } : { clientDataJSON: encode(response.clientDataJSON), authenticatorData: encode(response.authenticatorData), signature: encode(response.signature), userHandle: encode(response.userHandle) }
+    };
+    finishing = true;
+    const result = await authJSON(`/api/auth/passkeys/${operation}/finish`, { ceremony_id: start.ceremony_id, credential: data }, signal);
+    if (result.ok !== true)
+      throw new Error("Completion could not be confirmed");
+  } catch (error) {
+    if (!finishing && (error.name === "AbortError" || error.name === "NotAllowedError"))
+      throw new Error("Passkey prompt cancelled or timed out. Retry explicitly when ready.");
+    if (created) {
+      if (error instanceof AuthAPIError && error.status >= 400 && error.status < 500)
+        throw new Error(`${error.message}. Not registered on the server. A local credential may remain in your authenticator or password manager; Gi has not removed it.`);
+      throw new Error("Registration result could not be confirmed. Refresh the list before trying again. A local credential may remain in your authenticator or password manager.");
+    }
+    if (finishing)
+      throw new Error("Passkey sign-in result could not be confirmed. Refresh status before trying again.");
+    throw error;
+  }
 }
 
 // web/src/gi-auth.ts
@@ -18765,6 +18861,12 @@ function GiAuthGate({ children }) {
   const [attempt, setAttempt] = F_(0);
   const flight = Q_(null);
   const input = Q_(null);
+  const passkeyFlight = Q_(null);
+  const passkeyButton = Q_(null);
+  K_(() => () => {
+    passkeyFlight.current?.abort();
+    passkeyFlight.current = null;
+  }, []);
   K_(() => {
     const controller = new AbortController;
     flight.current = controller;
@@ -18797,7 +18899,7 @@ function GiAuthGate({ children }) {
   }, [policy]);
   const submit = async (event) => {
     event.preventDefault();
-    if (flight.current || !policy?.enrolled || !policy.browser_login_available || !/^\d{6}$/.test(code))
+    if (flight.current || passkeyFlight.current || !policy?.totp_login_available || !policy?.enrolled || !policy.browser_login_available || !/^\d{6}$/.test(code))
       return;
     const controller = new AbortController;
     flight.current = controller;
@@ -18833,17 +18935,47 @@ function GiAuthGate({ children }) {
       }
     }
   };
+  const passkeyLogin = async () => {
+    if (flight.current || passkeyFlight.current || !policy?.passkey_login_available)
+      return;
+    const controller = new AbortController;
+    passkeyFlight.current = controller;
+    setBusy(true);
+    setError("");
+    try {
+      await runPasskey("login", controller.signal);
+      const confirmed = await policyRequest(AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]));
+      if (passkeyFlight.current !== controller)
+        return;
+      if (!confirmed.authenticated)
+        throw new Error("Sign-in could not be confirmed. Refresh status before trying again.");
+      setPolicy(confirmed);
+    } catch (failure) {
+      if (passkeyFlight.current === controller)
+        setError(failure.message || "Passkey sign-in failed.");
+    } finally {
+      if (passkeyFlight.current === controller) {
+        passkeyFlight.current = null;
+        setBusy(false);
+        requestAnimationFrame(() => passkeyButton.current?.focus());
+      }
+    }
+  };
   if (policy && (!policy.enrolled || policy.authenticated))
     return children;
   return fe`<main class="gi-auth" aria-labelledby="gi-auth-title"><section class="gi-auth-card">
         <h1 id="gi-auth-title">Sign in to Gi</h1>
         ${error && fe`<p role="alert">${error}</p>`}
         ${!policy ? error ? fe`<button type="button" onClick=${() => setAttempt((n) => n + 1)}>Retry</button>` : fe`<p role="status">Loading sign-in options…</p>` : !policy.browser_login_available ? fe`<p>Open Gi over HTTPS or localhost to sign in.</p>` : fe`<form onSubmit=${submit} aria-busy=${busy}>
-                <label for="gi-auth-code">Authentication code</label>
+                ${policy.totp_login_available && fe`<label for="gi-auth-code">Authentication code</label>
                 <input ref=${input} id="gi-auth-code" type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength="6"
                     autoComplete="one-time-code" required value=${code} disabled=${busy}
                     onInput=${(event) => setCode(event.currentTarget.value)} />
-                <button type="submit" disabled=${busy || !/^\d{6}$/.test(code)}>${busy ? "Signing in…" : "Sign in"}</button>
+                <button type="submit" disabled=${busy || !/^\d{6}$/.test(code)}>${busy ? "Signing in…" : "Sign in"}</button>`}
+                ${policy.passkey_login_available && fe`<button ref=${passkeyButton} type="button" disabled=${busy || !!passkeyUnavailable()} onClick=${passkeyLogin}>Sign in with passkey</button>${passkeyUnavailable() && fe`<p>${passkeyUnavailable()}</p>`}`}
+                ${passkeyFlight.current && fe`<p role="status">Waiting for passkey sign-in…</p><button type="button" onClick=${() => passkeyFlight.current?.abort()}>Cancel passkey prompt</button>`}
+                ${!policy.totp_login_available && !policy.passkey_login_available && fe`<p role="alert">No sign-in method is available for this origin. Check the instance authentication configuration.</p>`}
+                ${error && fe`<button type="button" disabled=${busy} onClick=${() => setAttempt((n) => n + 1)}>Refresh sign-in status</button>`}
             </form>`}
     </section></main>`;
 }
@@ -20930,8 +21062,12 @@ export {
   subscribeAppearance,
   modelContextBlocked,
   compactionNotice,
-  compactionElapsed
+  compactionElapsed,
+  authJSON,
+  passkeyUnavailable,
+  runPasskey,
+  parseAuthPolicy
 };
 
-//# debugId=5A6EAD6CC3A6E77164756E2164756E21
-//# sourceMappingURL=app-xej9r13k.js.map
+//# debugId=7B7EA144580A6CA564756E2164756E21
+//# sourceMappingURL=app-a1rhxx16.js.map

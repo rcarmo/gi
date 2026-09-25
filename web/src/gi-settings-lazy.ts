@@ -5,8 +5,9 @@ const loaders = {
     appearance: () => import('./gi-settings-appearance.js').then(module => module.Appearance),
     compaction: () => import('./gi-settings-compaction.js').then(module => module.GiSettingsCompaction),
     providers: () => import('./gi-settings-providers.js').then(module => module.GiSettingsProviders),
+    authentication: () => import('./gi-settings-authentication.js').then(module => module.GiSettingsAuthentication),
 };
-const labels = { models: 'Models', appearance: 'Appearance', compaction: 'Compaction', providers: 'Providers' };
+const labels = { models: 'Models', appearance: 'Appearance', compaction: 'Compaction', providers: 'Providers', authentication: 'Authentication' };
 const components = new Map<string, any>();
 const pending = new Map<string, Promise<any>>();
 

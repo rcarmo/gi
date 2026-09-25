@@ -3,7 +3,7 @@
 Gi distinguishes ordinary API authentication from authority to manage the owner's
 credentials. This prerequisite implements session provenance and recent TOTP
 proof. The [opt-in WebAuthn backend](passkeys.md) now uses the same session boundary;
-passkey Settings/login controls are not implemented yet.
+passkey Settings/login controls now use it for owner authentication and recent proof.
 
 ## Session records
 

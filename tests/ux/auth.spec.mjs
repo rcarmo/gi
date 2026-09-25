@@ -112,3 +112,14 @@ test('Browser owner proof is isolated from other cookies and bearer tokens witho
   expect(await proof(page)).toMatchObject({status:200,body:{reauth_required:false}});
  }finally{await otherContext.close();await env.close();}
 });
+
+test('Authentication pane explains unavailable passkeys and preserves drafts across narrow keyboard navigation',async({page},info)=>{
+ const env=await authEnvironment(page,info);
+ try{
+  await page.goto(env.origin);await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();
+  const input=page.locator('.compose-box textarea');await expect(input).toBeVisible();await input.fill('Unavailable passkeys draft');await input.focus();await page.keyboard.press('Control+,');
+  await page.getByRole('button',{name:'Authentication',exact:true}).click();await expect(page.getByText('Passkeys are disabled by policy or are not configured for this origin.',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Add passkey',exact:true})).toBeDisabled();
+  await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();expect(await page.locator('.settings-dialog').evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
+  await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Gi Settings',exact:true})).toHaveCount(0);await expect(input).toHaveValue('Unavailable passkeys draft');
+ }finally{await env.close();}
+});

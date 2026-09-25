@@ -211,3 +211,14 @@
 }
 .settings-header-filter:focus { border-color: var(--accent-color); }
 .settings-dialog-narrow .settings-header-filter { max-width: none; min-height: 44px; }
+
+.gi-authentication-pane { min-width: 0; }
+.gi-authentication-pane p, .gi-passkey-row { overflow-wrap: anywhere; }
+.gi-authentication-pane button { min-height: 36px; margin: 4px 6px 4px 0; }
+.gi-authentication-pane label { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+.gi-authentication-pane input { width: 100%; max-width: 420px; box-sizing: border-box; padding: 8px; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-color); }
+.gi-passkey-list { list-style: none; padding: 0; }
+.gi-passkey-row { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+.gi-passkey-row small { color: var(--text-secondary); }
+.gi-passkey-confirm, .gi-passkey-edit { border: 1px solid var(--border-color); padding: 10px; }
+@media(max-width: 600px) { .gi-authentication-pane button { min-height: 44px; } }

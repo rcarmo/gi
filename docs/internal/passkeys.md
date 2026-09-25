@@ -1,8 +1,8 @@
-# Native multi-passkey backend
+# Multi-passkey authentication
 
-Status: opt-in backend and browser API integration. Settings controls, passkey
-login UI, policy controls and physical-device validation are not implemented.
-No complete additive passkey scenario is mapped yet.
+Status: opt-in native backend, passkey login and Settings > Authentication.
+Policy controls, initial owner bootstrap and physical-device validation are not
+implemented in the browser. Full additive scenario mappings have not been audited.
 
 The backend uses `github.com/go-webauthn/webauthn` v0.18.2 for WebAuthn verification
 with required user verification. Runtime code is Go; tests use Chromium's virtual
@@ -39,8 +39,8 @@ management authority. The local terminal gains no extra controls or idle rows.
 Persisted `login_policy` accepts `either`, `totp-only` or `passkey-only`. Empty
 preserves TOTP and allows explicitly configured passkeys; unknown policy fails
 closed. There is no public policy setter yet. Tests modify only disposable
-stores to exercise passkey-only and commit-time policy changes. Operators should
-not hand-edit production auth state to activate an unfinished UI workflow.
+stores to exercise passkey-only and commit-time policy changes. Tests exercise these policies in disposable accounts. Do not hand-edit production
+auth state; a supported policy-management workflow is separate work.
 
 ## API
 
@@ -97,9 +97,30 @@ A reported signature-counter clone warning is rejected; authenticators that legi
 use zero counters follow the library's handling. Physical synced credentials need their
 own device results.
 
+## Browser controls
+
+The login gate uses server capability flags for TOTP/passkey buttons. A successful
+finish must be followed by confirmed cookie authentication before the app mounts.
+A failed or uncertain result offers explicit status refresh; no automatic ceremony
+retry occurs. Missing browser WebAuthn/secure-context support has an explanation.
+
+Authentication is a lazy Settings pane. It lists names, complete distinguishing
+IDs, creation and last-used times, with Never used for unused credentials. TOTP or
+passkey reauthentication refreshes the current session before changes. Rename and
+removal remain inline, with explicit cancellation and focus return. Removal explains
+that future sign-ins are blocked while existing sessions remain valid.
+
+Native prompt work is abortable on explicit cancellation, pane change or close;
+blur alone does not cancel it. Escape cancels local authentication work/confirmation
+before closing Settings. Late completions cannot replace another pane. Reads and
+writes keep the last confirmed list, disable mutations until refresh after failure,
+and never repeat a consumed ceremony. If registration finish is rejected, the UI
+explains that an unregistered local credential may remain in the authenticator.
+Lost responses require an authoritative refresh before a new attempt.
+
 ## Test scope and remaining work
 
-`make test-ux-passkeys` runs four integration tests at three Chromium viewport sizes
+`make test-ux-passkeys` runs seven integration tests at three Chromium viewport sizes
 and is required by CI before build jobs. The tests cover two distinct credentials,
 server restart, independent cookie-free sign-ins, passkey-only further enrolment,
 rename material preservation, removed-key rejection, last-factor refusal, replay,
@@ -107,13 +128,20 @@ wrong session, revoked session, stale proof/reauth, cancellation, expiry, altere
 origin, correctly signed wrong-RP assertion, duplicate-ID protection and uncertain
 successful registration. Fixtures seed specific policy/error states explicitly.
 
+Three of the tests drive actual Settings/login controls: two-key enrolment,
+independent sign-in after restart, retained drafts/media, rename/remove/cancel,
+passkey-only reauth/add/login, failed reads/writes, uncertain finish and unmount
+cancellation. Synthetic blur tests application ownership only, not OS prompt focus.
+A separate six-project auth regression verifies unavailable-state messaging in
+Chromium and WebKit. No WebKit passkey ceremony is claimed.
+
 Go tests cover config, fresh proof and RP/policy checks, ceremony bounds/consumption,
 concurrent removal, native route authority and failed-write preservation. Existing
 TOTP/browser suites remain separate. CDP supplies virtual authenticator operations;
 WebKit and physical native prompts are not covered by this passkey suite.
 
 The 26 pinned [Settings scenarios](../../tests/ux/features/additions/piclaw-2026-09-24/README.md)
-include controls, focus, user-facing errors and manual-device cases that these API
-tests do not establish. Next work is the Settings pane and login UI, safe policy
-configuration, cancellation/uncertain-result presentation and device validation.
+include Visual-skin, device and policy cases not established by the current tests.
+Next work is per-scenario mapping, safe policy configuration, full accessibility
+and physical/synced-device validation.
 Choose a stable production HTTPS hostname/RP before enrolling real credentials.

@@ -39,3 +39,11 @@ test('Unconfigured passkey backend is unavailable without changing owner enrollm
  expect((await request.post('/api/auth/passkeys/login/start',{data:{}})).status()).toBe(403);
  expect(await(await request.get('/api/auth/status')).json()).toEqual(before);
 });
+
+test('Authentication settings explains unavailable enrollment without disturbing the composer',async({page})=>{
+ await page.goto('/');const input=page.locator('.compose-box textarea');await expect(input).toBeVisible();await input.fill('Authentication pane keeps draft');
+ const writes:string[]=[];page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname.startsWith('/api/auth/'))writes.push(r.url())});
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Settings',exact:true}).click();await page.getByRole('button',{name:'Authentication',exact:true}).click();
+ await expect(page.getByText('Authentication must be configured first.',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Add passkey',exact:true})).toBeDisabled();
+ await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(input).toHaveValue('Authentication pane keeps draft');expect(writes).toEqual([]);
+});

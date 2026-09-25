@@ -63,7 +63,7 @@ func TestSettingsModuleHTTPGraph(t *testing.T) {
 		}
 	}
 	visit(path.Join("/dist", app[1]))
-	for _, pane := range []string{"models", "appearance", "compaction", "providers"} {
+	for _, pane := range []string{"models", "appearance", "compaction", "providers", "authentication"} {
 		count := 0
 		for url := range seen {
 			if strings.HasPrefix(url, "/dist/chunks/gi-settings-"+pane+"-") {

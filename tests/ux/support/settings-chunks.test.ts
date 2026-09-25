@@ -11,7 +11,7 @@ test('hashed settings graph resolves embedded chunks without reinitialising the 
   const files = readdirSync(join(root, 'chunks')).filter(file => file.endsWith('.js'));
   expect(files.filter(file => file.startsWith('app-'))).toEqual([app!]);
   const appSource = readFileSync(join(root, 'chunks', app!), 'utf8');
-  for (const section of ['models', 'appearance', 'compaction', 'providers']) {
+  for (const section of ['models', 'appearance', 'compaction', 'providers', 'authentication']) {
     const matches = files.filter(file => file.startsWith(`gi-settings-${section}-`)); expect(matches).toHaveLength(1);
     expect(appSource).toContain(`import("./${matches[0]}")`);
   }

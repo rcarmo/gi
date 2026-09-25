@@ -118,7 +118,7 @@ test('@gi-settings-024 Missing upgrade chunk reports failure and explicit reload
   expect(mutations).toEqual([]); await page.keyboard.press('Escape'); await f.unchanged();
 });
 
-const settingsChunk = url => /\/dist\/chunks\/gi-settings-(models|appearance|compaction|providers)-[^/]+\.js$/.test(new URL(url).pathname);
+const settingsChunk = url => /\/dist\/chunks\/gi-settings-(models|appearance|compaction|providers|authentication)-[^/]+\.js$/.test(new URL(url).pathname);
 for (const id of ['@ux-settings-dialog-005', '@ux-settings-003']) {
   test(`${id} General is immediate and pane modules load only on visit with cached revisits`, async ({ page, request }, info) => {
     await source(info, id);
@@ -127,7 +127,7 @@ for (const id of ['@ux-settings-dialog-005', '@ux-settings-003']) {
     const f = await setup(page, request, info); await f.open();
     await expect(f.dialog.getByRole('heading', { name: 'General', exact: true })).toBeVisible();
     await expect(f.dialog.locator('.gi-settings-values')).toBeVisible(); expect(chunks).toEqual([]);
-    const sequence = [['Models', 'models'], ['Appearance', 'appearance'], ['Compaction', 'compaction'], ['Providers', 'providers']];
+    const sequence = [['Models', 'models'], ['Appearance', 'appearance'], ['Compaction', 'compaction'], ['Providers', 'providers'], ['Authentication', 'authentication']];
     for (let i = 0; i < sequence.length; i++) {
       const [label, slug] = sequence[i]; let release, held = false; const gate = new Promise(r => { release = r; });
       const pattern = new RegExp(`/dist/chunks/gi-settings-${slug}-[^/]+\\.js$`);
@@ -143,7 +143,7 @@ for (const id of ['@ux-settings-dialog-005', '@ux-settings-003']) {
       await f.dialog.getByRole('button', { name: label, exact: true }).click();
       await expect(f.dialog.getByRole('heading', { name: label, exact: true })).toBeVisible(); expect(chunks).toEqual(loaded);
     }
-    expect(chunks).toHaveLength(4); expect(appRequests).toHaveLength(1); await expect(page.locator('.app-shell')).toHaveCount(1);
+    expect(chunks).toHaveLength(sequence.length); expect(appRequests).toHaveLength(1); await expect(page.locator('.app-shell')).toHaveCount(1);
     expect(runtimeReads).toBeGreaterThan(0);
     await page.keyboard.press('Escape'); await f.unchanged();
   });
@@ -284,7 +284,7 @@ for(const id of ['@ux-settings-001','@ux-settings-dialog-002']) test(`${id} Nati
  const values=f.dialog.locator('.gi-settings-values');await expect(values).toContainText(snapshot.assistant_name);await expect(values).toContainText(snapshot.workspace_root);await expect(values).toContainText(snapshot.current||snapshot.default_model);
  // Visit every supported navigation target. Pane-specific functionality and
  // unsupported sections do not acquire acceptance credit from this case.
- for(const section of ['Models','Appearance','Compaction','Providers']){
+ for(const section of ['Models','Appearance','Compaction','Providers','Authentication']){
   const button=nav.getByRole('button',{name:section,exact:true});await button.click();await expect(button).toHaveAttribute('aria-current','page');await expect(f.dialog.getByRole('heading',{name:section,exact:true})).toBeVisible();
  }
  await nav.getByRole('button',{name:'General',exact:true}).click();await expect(values).toContainText(snapshot.workspace_root);const cached=await values.textContent();

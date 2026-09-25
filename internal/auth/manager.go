@@ -59,15 +59,25 @@ func NewManager(workspaceRoot string) *Manager {
 	return &Manager{path: filepath.Join(workspaceRoot, ".gi", "auth.json"), issuer: "gi", pending: make(map[string]PendingEnrollment)}
 }
 
-func (m *Manager) Status() (map[string]any, error) {
+func (m *Manager) Status() (map[string]any, error) { return m.StatusForOrigin("") }
+
+func (m *Manager) StatusForOrigin(origin string) (map[string]any, error) {
 	state, err := m.load()
 	if os.IsNotExist(err) {
-		return map[string]any{"enrolled": false, "enrollment_required": true, "totp_enabled": false}, nil
+		return map[string]any{"enrolled": false, "enrollment_required": true, "totp_enabled": false, "totp_login_available": false, "passkeys_enabled": false, "passkey_login_available": false}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"enrolled": stateEnrolled(state), "enrollment_required": !stateEnrolled(state), "username": state.Username, "totp_enabled": state.TOTPEnabled}, nil
+	configured := m.PasskeysAvailable(origin) && passkeyAccepted(&state)
+	usable := false
+	for _, p := range state.Passkeys {
+		if p.RPID == m.passkeyConfig.RPID {
+			usable = true
+			break
+		}
+	}
+	return map[string]any{"enrolled": stateEnrolled(state), "enrollment_required": !stateEnrolled(state), "username": state.Username, "totp_enabled": state.TOTPEnabled, "totp_login_available": totpAccepted(&state) && state.TOTPEnabled && state.TOTPSecret != "", "passkeys_enabled": configured, "passkey_login_available": configured && usable}, nil
 }
 
 func (m *Manager) StartEnrollment(username string) (PendingEnrollment, error) {

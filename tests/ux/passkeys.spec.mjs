@@ -152,3 +152,102 @@ test('native duplicate registration does not replace keys and lost finish respon
   expect((await uncertain.finish()).status).toBe(400);expect((await list(page)).body.passkeys).toHaveLength(2);
  }finally{await auth.cdp.detach();await env.close();}
 });
+
+async function openAuthentication(page){
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Settings',exact:true}).click();
+ await page.getByRole('button',{name:'Authentication',exact:true}).click();await expect(page.getByRole('heading',{name:'Passkeys',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();
+}
+async function addFromSettings(page,name){
+ await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill(name);
+ await page.getByRole('button',{name:'Add passkey',exact:true}).click();
+ await expect(page.locator('.gi-passkey-row').filter({has:page.locator('strong',{hasText:name})})).toHaveCount(1);
+ await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();
+}
+test('Settings enrolls two passkeys and fresh login accepts each after restart without replacing drafts',async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ try{
+  await loginTOTP(page,env);await page.locator('.compose-box textarea').fill('Passkey settings preserve draft Ω');
+  await page.locator('.compose-box input[type=file]').setInputFiles({name:'keep.txt',mimeType:'text/plain',buffer:Buffer.from('passkey settings bytes')});
+  await expect(page.locator('.compose-file-pill[title="keep.txt"]')).toBeVisible();
+  await openAuthentication(page);await addFromSettings(page,'Laptop');
+  const laptop=(await auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:auth.id})).credentials[0];
+  const original=JSON.parse(readFileSync(env.authPath,'utf8')).passkeys[0];
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await addFromSettings(page,'Backup key');
+  const backup=(await auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:auth.id})).credentials[0];
+  expect(JSON.parse(readFileSync(env.authPath,'utf8')).passkeys[0]).toEqual(original);
+  expect(await page.locator('.settings-dialog').evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();await env.restart();
+  for(const key of [laptop,backup]){
+   await context.clearCookies();await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await auth.cdp.send('WebAuthn.addCredential',{authenticatorId:auth.id,credential:key});
+   await page.reload();await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();
+   await expect(page.locator('.compose-box textarea')).toHaveValue('Passkey settings preserve draft Ω');await expect(page.locator('.compose-file-pill[title="keep.txt"]')).toBeVisible();
+   await openAuthentication(page);await expect(page.locator('.gi-passkey-row')).toHaveCount(2);await page.getByRole('button',{name:'Close settings',exact:true}).click();
+  }
+  await openAuthentication(page);
+  await page.getByRole('button',{name:'Rename Laptop',exact:true}).click();await page.getByRole('textbox',{name:'Rename passkey',exact:true}).fill('Laptop Ω');await page.getByRole('button',{name:'Save passkey name',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Remove Laptop Ω',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Remove Laptop Ω',exact:true}).click();await expect(page.getByRole('group',{name:'Confirm passkey removal'})).toContainText('Existing login sessions are not signed out');
+  await page.getByRole('button',{name:'Cancel removal',exact:true}).click();await expect(page.getByRole('button',{name:'Remove Laptop Ω',exact:true})).toBeFocused();expect(JSON.parse(readFileSync(env.authPath,'utf8')).passkeys).toHaveLength(2);
+  await page.getByRole('button',{name:'Remove Laptop Ω',exact:true}).click();await page.getByRole('button',{name:'Confirm removal',exact:true}).click();await expect(page.locator('.gi-passkey-row')).toHaveCount(1);
+  // Owner can add using recent passkey proof with TOTP disabled and no code UI.
+  const state=JSON.parse(readFileSync(env.authPath,'utf8'));state.login_policy='passkey-only';state.totp_enabled=false;state.totp_secret='';for(const s of state.sessions){s.created_at=new Date(Date.now()-3600000).toISOString();s.authenticated_at=new Date(Date.now()-360000).toISOString()};writeFileSync(env.authPath,JSON.stringify(state));
+  await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Verify code',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Verify with passkey',exact:true}).click();await expect(page.getByText('Authentication verified.',{exact:true})).toBeVisible();
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await addFromSettings(page,'Third key');await expect(page.locator('.gi-passkey-row')).toHaveCount(2);
+  await page.screenshot({path:info.outputPath('passkey-settings.png')});
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('Passkey settings preserve draft Ω');
+  await context.clearCookies();await page.reload();await expect(page.getByRole('textbox',{name:'Authentication code',exact:true})).toHaveCount(0);
+  await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:false});await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();await expect(page.getByRole('button',{name:'Cancel passkey prompt',exact:true})).toBeVisible();await page.waitForTimeout(100);await page.getByRole('button',{name:'Cancel passkey prompt',exact:true}).click();await expect(page.getByRole('alert')).toContainText('cancelled');await expect(page.getByRole('button',{name:'Sign in with passkey',exact:true})).toBeFocused();
+  await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:true});await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('Passkey settings preserve draft Ω');
+ }finally{await auth.cdp.detach();await env.close();}
+});
+
+test('Settings owns cancellation, reauth and failed or uncertain writes without replacing confirmed rows',async({page},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Laptop');
+  const first=JSON.parse(readFileSync(env.authPath,'utf8')).passkeys[0];
+  // Stale proof requires explicit factor verification in this pane.
+  let state=JSON.parse(readFileSync(env.authPath,'utf8'));for(const s of state.sessions){s.created_at=new Date(Date.now()-3600000).toISOString();s.authenticated_at=new Date(Date.now()-360000).toISOString()};writeFileSync(env.authPath,JSON.stringify(state));
+  await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('Cancelled');await expect(page.getByRole('button',{name:'Add passkey',exact:true})).toBeDisabled();
+  await page.getByRole('textbox',{name:'Reauthentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Verify code',exact:true}).click();await expect(page.getByRole('button',{name:'Add passkey',exact:true})).toBeEnabled();
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:false});
+  let starts=0,finishes=0;page.on('request',r=>{if(r.url().endsWith('/register/start'))starts++;if(r.url().endsWith('/register/finish'))finishes++;});
+  await page.getByRole('button',{name:'Add passkey',exact:true}).click();await expect.poll(()=>starts).toBe(1);await page.waitForTimeout(100);
+  // Native prompts may blur the page. This synthetic notification tests only
+  // app blur ownership; physical OS prompt focus remains manual evidence.
+  await page.evaluate(()=>window.dispatchEvent(new Event('blur')));await expect(page.getByRole('button',{name:'Cancel pending operation',exact:true})).toBeVisible();expect(finishes).toBe(0);
+  await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Gi Settings',exact:true})).toBeVisible();await expect(page.getByRole('alert')).toContainText('cancelled');expect(finishes).toBe(0);expect(starts).toBe(1);
+  await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Add passkey',exact:true})).toBeEnabled();
+  await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:true});await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('After cancellation');await page.getByRole('button',{name:'Add passkey',exact:true}).click();await expect(page.locator('.gi-passkey-row')).toHaveCount(2);expect(starts).toBe(2);
+  await page.getByRole('button',{name:'Rename Laptop',exact:true}).click();await page.getByRole('textbox',{name:'Rename passkey',exact:true}).fill('Bad network rename');
+  await page.route('**/api/auth/passkeys/rename',route=>route.fulfill({status:503,contentType:'application/json',body:'{"error":"Rename unavailable"}'}));await page.getByRole('button',{name:'Save passkey name',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Rename unavailable');await expect(page.locator('.gi-passkey-row strong',{hasText:'Laptop'})).toHaveCount(1);await page.unroute('**/api/auth/passkeys/rename');
+  await page.getByRole('button',{name:'Cancel rename',exact:true}).click();await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Remove Laptop',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Remove Laptop',exact:true}).click();await page.route('**/api/auth/passkeys/remove',route=>route.fulfill({status:503,contentType:'application/json',body:'{"error":"Removal unavailable"}'}));await page.getByRole('button',{name:'Confirm removal',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Removal unavailable');await expect(page.locator('.gi-passkey-row')).toHaveCount(2);await page.unroute('**/api/auth/passkeys/remove');await page.getByRole('button',{name:'Cancel removal',exact:true}).click();
+  await page.route('**/api/auth/passkeys',route=>route.fulfill({status:503,contentType:'application/json',body:'{"error":"List unavailable"}'}));await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('alert')).toContainText('List unavailable');await expect(page.locator('.gi-passkey-row')).toHaveCount(2);await expect(page.getByText('No passkeys registered.',{exact:true})).toHaveCount(0);await page.unroute('**/api/auth/passkeys');
+  await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Remove Laptop',exact:true})).toBeEnabled();
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});
+  await page.route('**/api/auth/passkeys/register/finish',async route=>{const r=await route.fetch();expect(r.status()).toBe(200);await route.abort('failed');});
+  await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('Uncertain');await page.getByRole('button',{name:'Add passkey',exact:true}).click();await expect(page.getByRole('alert')).toContainText('could not be confirmed');await expect(page.getByRole('alert')).toContainText('local credential may remain');const count=finishes;await page.waitForTimeout(200);expect(finishes).toBe(count);
+  await page.unroute('**/api/auth/passkeys/register/finish');await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.locator('.gi-passkey-row')).toHaveCount(3);expect(finishes).toBe(count);
+  expect(JSON.parse(readFileSync(env.authPath,'utf8')).passkeys[0]).toEqual(first);expect(errors).toEqual([]);
+ }finally{await auth.cdp.detach();await env.close();}
+});
+
+test('Settings explains rejected local credentials and closing pending ceremony cannot update another pane',async({page},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);
+  await page.route('**/api/auth/passkeys/register/finish',route=>route.fulfill({status:400,contentType:'application/json',body:'{"error":"Passkey verification failed"}'}));
+  await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('Not registered');await page.getByRole('button',{name:'Add passkey',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Not registered on the server');await expect(page.getByRole('alert')).toContainText('Gi has not removed it');
+  expect((await auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:auth.id})).credentials).toHaveLength(1);expect(JSON.parse(readFileSync(env.authPath,'utf8')).passkeys||[]).toHaveLength(0);
+  await page.unroute('**/api/auth/passkeys/register/finish');await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:false});
+  await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('Close during prompt');await page.getByRole('button',{name:'Add passkey',exact:true}).click();await expect(page.getByRole('button',{name:'Cancel pending operation',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'General',exact:true}).click();await expect(page.getByRole('heading',{name:'General',exact:true})).toBeVisible();
+  await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:true});await page.waitForTimeout(150);expect(JSON.parse(readFileSync(env.authPath,'utf8')).passkeys||[]).toHaveLength(0);
+  await page.getByRole('button',{name:'Authentication',exact:true}).click();await expect(page.getByText('No passkeys registered.',{exact:true})).toBeVisible();await expect(page.getByRole('alert')).toHaveCount(0);
+  await addFromSettings(page,'Fresh attempt');await expect(page.locator('.gi-passkey-row')).toHaveCount(1);
+ }finally{await auth.cdp.detach();await env.close();}
+});

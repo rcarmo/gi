@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	wa "github.com/go-webauthn/webauthn/webauthn"
 	"os"
@@ -242,5 +243,28 @@ func TestAuthPasskeyCeremonyBoundsDoNotBlockOwner(t *testing.T) {
 	}
 	if _, err := m.consumeCeremony(owner.ID, "register", token, testPasskeyOrigin); err != nil {
 		t.Fatal("login traffic evicted owner ceremony", err)
+	}
+}
+
+func TestAuthPasskeyPolicyStatusDoesNotExposeCredentialInventory(t *testing.T) {
+	m := passkeyManager(t)
+	setPasskeyState(t, m, func(s *State) {
+		s.Passkeys = []Passkey{fakePasskey("private-id", "localhost")}
+		s.LoginPolicy = "passkey-only"
+	})
+	p, err := m.StatusForOrigin(testPasskeyOrigin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p["totp_login_available"] != false || p["passkeys_enabled"] != true || p["passkey_login_available"] != true {
+		t.Fatalf("policy %+v", p)
+	}
+	raw, _ := json.Marshal(p)
+	if strings.Contains(string(raw), "private-id") || strings.Contains(string(raw), "public_key") {
+		t.Fatal("inventory exposed")
+	}
+	p, err = m.StatusForOrigin("https://wrong.example")
+	if err != nil || p["passkeys_enabled"] != false || p["enrolled"] != true {
+		t.Fatalf("wrong origin %+v %v", p, err)
 	}
 }

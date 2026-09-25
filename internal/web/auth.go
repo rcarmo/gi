@@ -49,7 +49,7 @@ func (s *Server) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	status, err := s.auth.Status()
+	status, err := s.auth.StatusForOrigin(passkeyOrigin(r))
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return

@@ -4,7 +4,7 @@ Copied verbatim from Piclaw commit `b531ea3a8cb38ba8f1e0729f8b6d0439f63cb5f1` (2
 
 SHA-256: `bd48cab9126778763cab3ddfd8ee04a89bd8c29da62e3bc4188cf24dc3a55b82`.
 
-The 26 scenarios/outlines describe **upstream** implementation and browser evidence, not Gi support. Gi now has an opt-in native WebAuthn store, one-use challenges, registration/assertion verification and multi-key management APIs. Its Chromium API tests do not drive Settings/login controls. All 26 complete scenarios remain unmapped. The upstream `@implemented` and `@browser-verified` tags are retained as source text, not Gi credit. See the [backend contract](../../../../../docs/internal/passkeys.md).
+The 26 scenarios/outlines describe **upstream** implementation and browser evidence, not Gi support. Gi now has an opt-in native WebAuthn store, one-use challenges, registration/assertion verification and multi-key management APIs. Its Chromium virtual-authenticator tests now also drive Settings enrolment/management and passkey login. All 26 complete scenarios remain unmapped pending a per-case audit; Visual skin, physical devices and policy controls are not covered. The upstream `@implemented` and `@browser-verified` tags are retained as source text, not Gi credit. See the [backend contract](../../../../../docs/internal/passkeys.md).
 
 This additive contract does not replace or expand the frozen 236 Classic / 42 shared inventory. Track it separately until a runner and per-case Gi evidence exist. Upstream design and evidence are at the same commit:
 
@@ -13,7 +13,7 @@ This additive contract does not replace or expand the frozen 236 Classic / 42 sh
 
 Implementation prerequisites: persistent per-credential IDs/public keys/counters/names; RP/origin-bound, expiring one-use registration/assertion challenges; five-minute recent-auth proof; atomic lockout-safe remove/recheck; owned rename/delete; duplicate/uncertain-registration recovery; policy-aware login; accessible browser-owned prompt cancellation/focus; no secret-bearing browser storage. Removal must block future credential assertions without silently revoking existing sessions. Physical/synced authenticators remain manual-device evidence.
 
-The current browser gate still has only TOTP controls. Passkey login and Settings controls need their own native ceremony/focus/error integration. The local TUI does not use HTTP authentication: do not add idle login rows or passkey-management chrome. Any future terminal action should open the authenticated browser Settings, not emulate browser WebAuthn or bypass recent proof.
+The browser gate now offers accepted TOTP and configured passkeys, and Settings > Authentication manages credentials with explicit proof, cancellation and error recovery. Tests verify the Classic host with Chromium virtual authenticators; native physical prompt behaviour remains separate. The local TUI does not use HTTP authentication: do not add idle login rows or passkey-management chrome. Any future terminal action should open the authenticated browser Settings, not emulate browser WebAuthn or bypass recent proof.
 
 ## Required multi-passkey acceptance
 

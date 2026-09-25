@@ -17,7 +17,7 @@ Piclaw parity is partial. Gi reuses pinned Piclaw components and implements its 
 * The terminal offers fullscreen transcript navigation or native-scrollback mode, draft-preserving session/model selectors, compact session actions and file attachments. The regular-mode idle editor/footer uses five rows; selectors and actions are temporary.
 * Single-user TOTP sign-in uses an HttpOnly browser cookie and transactional auth storage. Tools and extensions run through Go, embedded Joker/JavaScript or explicitly configured subprocesses, with workspace files and managed `vfs://` references.
 
-**Passkeys have an opt-in native backend; Settings enrolment and login controls are not available yet.** Browser API tests verify two independent credentials after restart, further enrolment without TOTP and lockout-safe removal. See the [backend contract](docs/internal/passkeys.md) for configuration and limits. tsnet web access, Iroh inter-instance chat and a token-saving MCP gateway are planned; the tsnet manager scaffold has no HTTP listener wiring. These integrations keep Gi's runtime pure Go and add no idle terminal rows.
+**Passkeys are opt-in, with login and Settings enrolment controls.** Settings can add, list, rename and remove credentials after recent authentication. Browser tests verify two independent keys after restart, further enrolment without TOTP, cancellation and lockout-safe removal. Physical-device and synced-key checks are still outstanding. See the [backend contract](docs/internal/passkeys.md) for configuration and limits. tsnet web access, Iroh inter-instance chat and a token-saving MCP gateway are planned; the tsnet manager scaffold has no HTTP listener wiring. These integrations keep Gi's runtime pure Go and add no idle terminal rows.
 
 ## Goals
 
@@ -97,7 +97,7 @@ That installs Go/Bun dependencies, installs Playwright Chromium, and builds `gi`
 | `make ux-parity-inventory` | Check frozen feature hashes and generate the scenario inventory |
 | `make test-ux-parity` | Default browser parity suite in Chromium/WebKit at three viewport sizes; specialised suites have separate targets/flags |
 | `make test-ux-auth` | Isolated TOTP/browser-auth regression suite |
-| `make test-ux-passkeys` | Real Chromium WebAuthn API integration at three sizes; no physical-device or Settings UI claim |
+| `make test-ux-passkeys` | Real Chromium WebAuthn API and Settings/login journeys at three sizes; virtual authenticators, no physical-device claim |
 | `make check-cross-build` | Pure-Go builds for Linux/macOS amd64/arm64 and Windows amd64 |
 | `make test-tui-smoke` | tmux-driven TUI smoke test (artifacts under `test-results/tui-smoke/`) |
 | `make test-tui-gherkin` | TUI gherkin harness |
@@ -151,7 +151,7 @@ Workspace tabs are read-only previews: editable documents, dirty-buffer workflow
 
 ### Authentication and exposure
 
-TOTP browser sign-in is available after owner enrolment through the loopback-only API. Browser cookies require direct TLS or a loopback peer and Host, with same-origin checks. The opt-in passkey backend implements registration/assertion verification and multi-key APIs; passkey browser controls, browser enrolment, family accounts and the complete logout/session-management UI are not implemented.
+TOTP browser sign-in is available after owner enrolment through the loopback-only API. Browser cookies require direct TLS or a loopback peer and Host, with same-origin checks. Configured passkeys can sign in and be managed under Settings > Authentication. Initial owner bootstrap, family accounts, policy editing and the complete logout/session-management UI are not implemented in the browser.
 
 **The application permits access before enrolment.** Keep an unconfigured instance on loopback or a protected network. The CLI defaults to loopback, but `make start` defaults to `BIND=0.0.0.0`; use `make start BIND=127.0.0.1` for local development. TLS support alone does not enrol an owner or enable authentication.
 
@@ -194,7 +194,7 @@ make check      # standard verification suite
 
 The `test-ux` target creates a fresh database, workspace and configuration for each run. It excludes `tests/ux/`, which has a separate runner and specialised fixture targets; see [the browser suite guide][ux].
 
-The frozen catalogue contains 236 Classic scenario IDs (256 expanded cases) and 42 shared cases. Mapped scenarios and successful test executions are tracked separately in the [parity matrix][parity]. CI runs native tests, cross-platform builds and the isolated Chromium passkey API integration suite. A general browser UX regression gate is still needed.
+The frozen catalogue contains 236 Classic scenario IDs (256 expanded cases) and 42 shared cases. Mapped scenarios and successful test executions are tracked separately in the [parity matrix][parity]. CI runs native tests, cross-platform builds and the isolated Chromium passkey API and UI suite. A general browser UX regression gate is still needed.
 
 The `test-tui-smoke` target launches `gi -tui` inside tmux, captures the pane, submits input, verifies blur handling, exercises transcript scrolling keys, resizes the terminal, and writes pane captures plus session artifacts under `test-results/tui-smoke/`. Mouse click focus is covered in unit tests.
 
