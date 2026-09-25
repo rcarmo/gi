@@ -1,6 +1,6 @@
 // Native browser ceremonies only. Nothing is cached in storage or sent to chat.
 export class AuthAPIError extends Error {
-    constructor(message: string, public status = 0) { super(message); }
+    constructor(message: string, public status = 0, public reason = '') { super(message); }
 }
 export async function authJSON(path: string, body?: unknown, signal?: AbortSignal) {
     const timeout = AbortSignal.timeout(15000);
@@ -8,7 +8,7 @@ export async function authJSON(path: string, body?: unknown, signal?: AbortSigna
         credentials: 'same-origin', cache: 'no-store', signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
         ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) });
     const data = await response.json().catch(() => null);
-    if (!response.ok) throw new AuthAPIError(data?.error || 'Authentication request failed', response.status);
+    if (!response.ok) throw new AuthAPIError(data?.error || 'Authentication request failed', response.status, typeof data?.reason === 'string' ? data.reason : '');
     if (!data || typeof data !== 'object') throw new AuthAPIError('Invalid authentication response');
     return data;
 }

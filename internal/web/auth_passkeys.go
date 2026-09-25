@@ -37,7 +37,12 @@ func writePasskeyError(w http.ResponseWriter, err error) {
 	case errors.Is(err, giauth.ErrPasskeysUnavailable):
 		writeJSON(w, 403, map[string]any{"error": "Passkeys unavailable"})
 	case errors.Is(err, giauth.ErrLastFactor):
-		writeJSON(w, 409, map[string]any{"error": err.Error()})
+		body := map[string]any{"error": err.Error()}
+		var refusal *giauth.PasskeyRemovalError
+		if errors.As(err, &refusal) {
+			body["reason"] = refusal.Reason
+		}
+		writeJSON(w, 409, body)
 	case errors.Is(err, giauth.ErrPasskeyNotFound):
 		writeJSON(w, 404, map[string]any{"error": err.Error()})
 	case errors.Is(err, giauth.ErrDuplicateCredential):
@@ -210,7 +215,13 @@ func (s *Server) handlePasskeyMutation(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, 400, map[string]any{"error": "Invalid passkey request"})
 			return
 		}
-		err = s.auth.RemovePasskey(token, passkeyOrigin(r), body.ID)
+		result, removeErr := s.auth.RemovePasskeyWithResult(token, passkeyOrigin(r), body.ID)
+		if removeErr != nil {
+			writePasskeyError(w, removeErr)
+			return
+		}
+		writeJSON(w, 200, map[string]any{"ok": true, "remaining_method": result.RemainingMethod})
+		return
 	}
 	if err != nil {
 		writePasskeyError(w, err)

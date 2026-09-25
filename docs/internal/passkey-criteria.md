@@ -3,7 +3,7 @@
 The [JSON ledger](passkey-criteria.json) links all 26 additive scenarios to
 individual assertions or named gaps. It records 169 scenario steps, four shared
 Background steps and 40 example rows. Gherkin expansion produces 56 cases.
-These counts describe the source contract; the latest browser suite has 144
+These counts describe the source contract; the latest browser suite has 165
 executions and uses a different test grouping.
 
 Initial source-evidence baseline: `e7d9b0450db9dc2c103dc06797dd5387ab9f81d7`.
@@ -62,8 +62,9 @@ Initial owner bootstrap and the production RP choice are separate work.
   positive control. Family-shared mode is unsupported; that example stays open.
 - 018's revocation test holds the completed credential before finish delivery;
   it does not revoke while a physical prompt is open.
-- 020 has native safety coverage but lacks the complete Settings decision matrix
-  and the distinct session-only, old-RP, TOTP-fallback and unverified-TOTP reasons.
+- 020 has native/Settings decision and explanation coverage for its six supported
+  examples. Pending TOTP addition to an established owner is unsupported; the
+  defensive stored-disabled-secret test cannot substitute for that workflow.
 - 021 can reject the concurrent loser at the non-blocking writer lock. A later
   deliberate retry proves the factor check, not the required direct refusal.
 - 023 has no legacy passkey-delete command with Settings guidance.

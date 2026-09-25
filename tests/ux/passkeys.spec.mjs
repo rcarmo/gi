@@ -763,6 +763,47 @@ test('Passkey inventory refuses account queries without disclosing or changing t
  }finally{await auth.cdp.detach();await env.close();}
 });
 
+const removalCases=[
+ {name:'another current-RP key',policy:'passkey-only',other:true,enabled:false,secret:false,remaining:'passkey',detail:'Another passkey remains available for sign-in.'},
+ {name:'TOTP excluded by policy',policy:'passkey-only',enabled:true,secret:true,reason:'policy-excludes-totp',detail:'No other sign-in method is accepted by the current policy. Configured TOTP is not accepted in passkey-only mode.'},
+ {name:'only existing sessions',policy:'passkey-only',enabled:false,secret:false,reason:'sessions-not-factors',detail:'An active session is not a future sign-in method. Add another passkey before removing this key.'},
+ {name:'other RP only',policy:'passkey-only',other:true,oldRP:true,enabled:false,secret:false,reason:'other-rp',detail:'The other passkey cannot sign in here because it is registered for another relying party.'},
+ {name:'accepted TOTP fallback',policy:'either',enabled:true,secret:true,remaining:'totp',detail:'TOTP remains available for sign-in.'},
+ {name:'no other accepted factor',policy:'either',enabled:false,secret:false,reason:'no-other-method',detail:'Add another sign-in method before removing this key. No other accepted factor is configured.'},
+ // Stored disabled secret is a defensive state, not an owner-side pending
+ // enrolment flow (Gi currently only supports initial TOTP enrolment).
+ {name:'stored disabled TOTP secret',policy:'either',enabled:false,secret:true,reason:'totp-not-enabled',detail:'TOTP is not enabled and cannot be used for sign-in. An unverified setup is not a sign-in method.'},
+];
+for(const example of removalCases)test(`Settings removal explains ${example.name} from the committed native decision`,async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Laptop');const laptop=(await auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:auth.id})).credentials[0];
+  if(example.other){await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await addFromSettings(page,'Backup key');await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await auth.cdp.send('WebAuthn.addCredential',{authenticatorId:auth.id,credential:laptop});}
+  if(example.policy!=='either')await changePolicy(page,example.policy);
+  await page.getByRole('button',{name:'Verify with passkey',exact:true}).click();await expect(page.getByText('Authentication verified.',{exact:true})).toBeVisible();
+  // Seed only the unsupported configuration preconditions in the disposable
+  // file, after obtaining actual accepted passkey proof via the browser.
+  const state=savedAuth(env);state.totp_enabled=example.enabled;if(!example.secret)state.totp_secret='';if(example.oldRP)state.passkeys[1].rp_id='old.localhost';writeFileSync(env.authPath,JSON.stringify(state));
+  await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Remove Laptop',exact:true})).toBeEnabled();
+  const before=savedAuth(env),cookies=await context.cookies();let release;const gate=new Promise(r=>release=r);let held=false;
+  await page.route('**/api/auth/passkeys/remove',async route=>{held=true;await gate;await route.continue();});
+  try{
+   const response=page.waitForResponse(r=>r.url().endsWith('/api/auth/passkeys/remove'));
+   await page.getByRole('button',{name:'Remove Laptop',exact:true}).click();await page.getByRole('button',{name:'Confirm removal',exact:true}).click();await expect.poll(()=>held).toBe(true);
+   expect(savedAuth(env)).toEqual(before);await expect(page.getByText(example.detail,{exact:true})).toHaveCount(0);release();const result=await response;
+   if(example.remaining){
+    expect(result.status()).toBe(200);expect(await result.json()).toEqual({ok:true,remaining_method:example.remaining});
+    await expect(page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toBeVisible();await expect(page.getByRole('status').filter({hasText:example.detail})).toHaveText(example.detail);
+    expect(savedAuth(env).passkeys||[]).toEqual(before.passkeys.slice(1));
+   }else{
+    expect(result.status()).toBe(409);expect(await result.json()).toEqual({error:'add another accepted sign-in method before removing this passkey',reason:example.reason});
+    await expect(page.getByRole('alert')).toHaveText(`add another accepted sign-in method before removing this passkey ${example.detail}`);await expect(page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toHaveCount(0);expect(savedAuth(env)).toEqual(before);
+   }
+   expect(savedAuth(env).sessions).toEqual(before.sessions);expect(await context.cookies()).toEqual(cookies);expect(await page.evaluate(async()=>(await fetch('/api/sessions')).status)).toBe(200);
+  }finally{release();await page.unrouteAll({behavior:'wait'});}
+ }finally{await auth.cdp.detach();await env.close();}
+});
+
 async function changePolicy(page,value){
  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);
  await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();
@@ -829,9 +870,9 @@ test('Two Settings views concurrently remove different keys without deleting the
   // The non-blocking state-file lock may reject simultaneous writers before
   // the factor check. A serialised arrival instead reaches last-factor safety.
   // Keep those outcomes distinct; require last-factor refusal on explicit retry.
-  const failure=await finished[loser.index].json();expect([{error:'Authentication state changed; retry'},{error:'add another accepted sign-in method before removing this passkey'}]).toContainEqual(failure);
+  const failure=await finished[loser.index].json();expect([{error:'Authentication state changed; retry'},{error:'add another accepted sign-in method before removing this passkey',reason:'policy-excludes-totp'}]).toContainEqual(failure);
   await expect(winner.page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toBeVisible();await expect(winner.page.locator('.gi-passkey-row')).toHaveCount(1);
-  await expect(loser.page.getByRole('alert')).toHaveText(failure.error);await expect(loser.page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toHaveCount(0);
+  await expect(loser.page.getByRole('alert')).toContainText(failure.error);await expect(loser.page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toHaveCount(0);
   await expect(loser.page.getByText('The displayed list is the last confirmed snapshot. Refresh before making changes.',{exact:true})).toBeVisible();await expect(loser.page.locator('.gi-passkey-row')).toHaveCount(2);
   const survivor=keys[loser.index];expect(savedAuth(env).passkeys).toEqual([before.passkeys[loser.index]]);expect(savedAuth(env).sessions).toEqual(before.sessions);
   expect(await page.context().cookies()).toEqual(cookies);expect(await otherContext.cookies()).toEqual(otherCookies);
@@ -844,7 +885,7 @@ test('Two Settings views concurrently remove different keys without deleting the
   await loser.page.getByRole('button',{name:`Remove ${survivor.name}`,exact:true}).click();
   const retry=loser.page.waitForResponse(r=>r.url().endsWith('/api/auth/passkeys/remove')&&r.request().method()==='POST');
   await loser.page.getByRole('button',{name:'Confirm removal',exact:true}).click();const refused=await retry;
-  expect(refused.status()).toBe(409);expect(await refused.json()).toEqual({error:'add another accepted sign-in method before removing this passkey'});
+  expect(refused.status()).toBe(409);expect(await refused.json()).toEqual({error:'add another accepted sign-in method before removing this passkey',reason:'policy-excludes-totp'});
   await expect(loser.page.getByRole('alert')).toContainText('another accepted sign-in method');expect(requests).toHaveLength(3);
   expect(savedAuth(env).passkeys).toEqual([before.passkeys[loser.index]]);expect(savedAuth(env).sessions).toEqual(before.sessions);
   // Copy the current virtual counter, not the pre-reauth snapshot, into the

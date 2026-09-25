@@ -2,6 +2,14 @@ import { html, useEffect, useLayoutEffect, useRef, useState } from './vendor/pre
 import { authJSON, passkeyUnavailable, runPasskey } from './gi-passkeys.js';
 import { parseAuthPolicy } from './gi-auth-policy.js';
 
+const removalReasons = new Map([
+    ['other-rp', 'The other passkey cannot sign in here because it is registered for another relying party.'],
+    ['policy-excludes-totp', 'No other sign-in method is accepted by the current policy. Configured TOTP is not accepted in passkey-only mode.'],
+    ['totp-not-enabled', 'TOTP is not enabled and cannot be used for sign-in. An unverified setup is not a sign-in method.'],
+    ['sessions-not-factors', 'An active session is not a future sign-in method. Add another passkey before removing this key.'],
+    ['no-other-method', 'Add another sign-in method before removing this key. No other accepted factor is configured.'],
+]);
+
 export function GiSettingsAuthentication() {
     const [policy, setPolicy] = useState(null);
     const [proof, setProof] = useState(null);
@@ -13,6 +21,7 @@ export function GiSettingsAuthentication() {
     const [busy, setBusy] = useState('');
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
+    const [removalDetail, setRemovalDetail] = useState('');
     const [name, setName] = useState('');
     const [code, setCode] = useState('');
     const [editing, setEditing] = useState(null);
@@ -45,14 +54,14 @@ export function GiSettingsAuthentication() {
             || typeof settings.revision !== 'string' || !['either','totp-only','passkey-only'].includes(settings.policy)) throw new Error('Invalid authentication response');
         if (live.current) { setProof(nextProof); setLoginPolicy(settings); setPolicyChoice(settings.policy); setConfirmPolicy(false); setKeys(list?.passkeys ?? null); setFresh(true); }
     };
-    const work = async (label: string, action: (signal: AbortSignal) => Promise<void>, message = '') => {
+    const work = async (label: string, action: (signal: AbortSignal) => Promise<void | string>, message = '') => {
         if (flight.current) return;
         const controller = new AbortController(); flight.current = controller;
         const trigger = document.activeElement as HTMLElement;
         const triggerAction = trigger?.getAttribute('data-auth-action');
-        setBusy(label); setError(''); setNotice('');
-        try { await action(controller.signal); if (live.current) { await refresh(controller.signal); if (message && live.current) setNotice(message); } }
-        catch (e) { if (live.current) { setFresh(false); setError(e.message || 'Request failed. Refresh before retrying.'); } }
+        setBusy(label); setError(''); setNotice(''); setRemovalDetail('');
+        try { const detail = await action(controller.signal); if (live.current) { await refresh(controller.signal); if (live.current) { if (message) setNotice(message); if (typeof detail === 'string') setRemovalDetail(detail); } } }
+        catch (e) { if (live.current) { setFresh(false); const reason = label === 'Removing passkey…' ? removalReasons.get(e.reason) : ''; setError([e.message || 'Request failed. Refresh before retrying.', reason].filter(Boolean).join(' ')); } }
         finally { if (flight.current === controller) { flight.current = null; if (live.current) { setBusy(''); requestAnimationFrame(() => {
             if (!live.current || !root.current?.closest('.settings-dialog')) return;
             // Conditional progress/error rows can replace the proof controls. Resolve
@@ -73,6 +82,10 @@ export function GiSettingsAuthentication() {
         const result = await authJSON(`/api/auth/passkeys/${kind}`, { id: row.id, ...(kind === 'rename' ? { name: newName } : {}) }, signal);
         if (result.ok !== true) throw new Error('Change could not be confirmed. Refresh before trying again.');
         if (live.current) { setEditing(null); setRemoving(null); restore(); }
+        if (kind === 'remove') {
+            if (result.remaining_method === 'totp') return 'TOTP remains available for sign-in.';
+            if (result.remaining_method === 'passkey') return 'Another passkey remains available for sign-in.';
+        }
     }, kind === 'rename' ? 'Name saved.' : 'Passkey removed. Existing login sessions are not signed out.');
     const policyAllowed = loginPolicy && ((policyChoice !== 'passkey-only' && loginPolicy.totp_configured)
         || (policyChoice !== 'totp-only' && loginPolicy.passkey_usable));
@@ -89,6 +102,7 @@ export function GiSettingsAuthentication() {
         ${busy && html`<p role="status">${busy}</p>`}
         ${error && html`<p role="alert">${error}</p>`}
         ${notice && html`<p role="status">${notice}</p>`}
+        ${removalDetail && html`<p role="status">${removalDetail}</p>`}
         <button disabled=${!!busy} onClick=${() => work('Refreshing passkeys…', async () => {})}>Refresh passkeys</button>
         ${busy && html`<button onClick=${cancel}>Cancel pending operation</button>`}
         ${policy && unavailable && html`<p>${unavailable}</p>`}

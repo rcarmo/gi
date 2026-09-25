@@ -18442,11 +18442,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-smnhvedz.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-9prwrhfh.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-372q3czt.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-9bezygbv.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-y2x6q4m9.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-bdj4hp6r.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-jk4jt3hb.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-x57x0a1r.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-txye2yw3.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-w4nxdc7b.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -18763,9 +18763,11 @@ function parseAuthPolicy(value) {
 // web/src/gi-passkeys.ts
 class AuthAPIError extends Error {
   status;
-  constructor(message, status = 0) {
+  reason;
+  constructor(message, status = 0, reason = "") {
     super(message);
     this.status = status;
+    this.reason = reason;
   }
 }
 async function authJSON(path, body, signal) {
@@ -18779,7 +18781,7 @@ async function authJSON(path, body, signal) {
   });
   const data = await response.json().catch(() => null);
   if (!response.ok)
-    throw new AuthAPIError(data?.error || "Authentication request failed", response.status);
+    throw new AuthAPIError(data?.error || "Authentication request failed", response.status, typeof data?.reason === "string" ? data.reason : "");
   if (!data || typeof data !== "object")
     throw new AuthAPIError("Invalid authentication response");
   return data;
@@ -21069,5 +21071,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=7B7EA144580A6CA564756E2164756E21
-//# sourceMappingURL=app-00ekd5y9.js.map
+//# debugId=4E11BECF67E78C7964756E2164756E21
+//# sourceMappingURL=app-14c0x7hx.js.map

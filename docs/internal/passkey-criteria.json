@@ -207,6 +207,16 @@
       "file": "tests/ux/passkeys.spec.mjs",
       "anchor": "Passkey inventory refuses account queries without disclosing or changing the owner credentials",
       "scope": "Classic localhost/CDP real registration; seven account/unexpected query variants400; unchanged full auth store, ordinary owner-list/Settings refresh positive control."
+    },
+    "removal-reasons": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings removal explains ${example.name} from the committed native decision",
+      "scope": "Classic localhost/CDP: real accepted passkey proof; seven native decision/explanation cases with held requests. Unsupported TOTP/RP preconditions seeded in disposable store; disabled secret is NOT pending owner enrolment."
+    },
+    "removal-native": {
+      "file": "internal/auth/passkeys_test.go",
+      "anchor": "func TestAuthPasskeyRemovalExplainsCommittedFactors",
+      "scope": "Seeded native factor matrix, recent owner proof; errors.Is compatibility, zero result/refusal byte-equality, unchanged sessions and legacy wrapper. Decision/reason/outcome share transaction."
     }
   },
   "scenarios": [
@@ -2214,12 +2224,12 @@
           "line": 299,
           "keyword": "Given",
           "text": "I have recently proved possession of an accepted factor",
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "native-factor",
-            "policy"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "Accepted-factor proof exists in selected cases, not full seven-row UI matrix."
+          "note": "Supported first six policy/fallback examples have exact native decision and Settings explanation, held-request no optimism, retained sessions and unchanged refusal state. Pending-owner TOTP workflow is unsupported; disabled stored secret covered only as defensive state."
         },
         {
           "line": 300,
@@ -2227,21 +2237,21 @@
           "text": "\"Laptop\" is the selected registered passkey for \"piclaw.test\"",
           "state": "substituted",
           "evidence": [
-            "native-factor",
-            "policy"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "Localhost RP, not pinned piclaw.test."
+          "note": "Localhost and old.localhost fixture RPs substitute for pinned HTTPS piclaw.test/old.piclaw.test."
         },
         {
           "line": 301,
           "keyword": "And",
           "text": "the login policy is \"<policy>\"",
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "native-factor",
-            "policy"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "Policy values covered across separate tests; complete UI matrix not run."
+          "note": "Supported first six policy/fallback examples have exact native decision and Settings explanation, held-request no optimism, retained sessions and unchanged refusal state. Pending-owner TOTP workflow is unsupported; disabled stored secret covered only as defensive state."
         },
         {
           "line": 302,
@@ -2249,21 +2259,21 @@
           "text": "<remaining_method>",
           "state": "partial",
           "evidence": [
-            "native-factor",
-            "policy"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "Pending-unverified TOTP and session-only UI preconditions not exercised."
+          "note": "Supported first six policy/fallback examples have exact native decision and Settings explanation, held-request no optimism, retained sessions and unchanged refusal state. Pending-owner TOTP workflow is unsupported; disabled stored secret covered only as defensive state."
         },
         {
           "line": 303,
           "keyword": "When",
           "text": "I request removal of \"Laptop\"",
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "native-factor",
-            "policy"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "Selected native/UI removals, not all seven examples through Settings."
+          "note": "Supported first six policy/fallback examples have exact native decision and Settings explanation, held-request no optimism, retained sessions and unchanged refusal state. Pending-owner TOTP workflow is unsupported; disabled stored secret covered only as defensive state."
         },
         {
           "line": 304,
@@ -2271,20 +2281,21 @@
           "text": "the server <decision> removal",
           "state": "partial",
           "evidence": [
-            "native-factor",
-            "policy"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "Policy/RP refusal safety evidence; exact entire outline missing."
+          "note": "Supported first six policy/fallback examples have exact native decision and Settings explanation, held-request no optimism, retained sessions and unchanged refusal state. Pending-owner TOTP workflow is unsupported; disabled stored secret covered only as defensive state."
         },
         {
           "line": 305,
           "keyword": "And",
           "text": "Settings explains <explanation>",
-          "state": "gap",
+          "state": "partial",
           "evidence": [
-            "policy"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "UI currently gives generic last-factor refusal; distinct session/old-RP/unverified-TOTP/fallback explanations absent."
+          "note": "Supported first six policy/fallback examples have exact native decision and Settings explanation, held-request no optimism, retained sessions and unchanged refusal state. Pending-owner TOTP workflow is unsupported; disabled stored secret covered only as defensive state."
         }
       ],
       "examples": [
@@ -2298,9 +2309,10 @@
           },
           "state": "bounded",
           "evidence": [
-            "race"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "One of two accepted local keys removed in concurrent UI path."
+          "note": "Native removal decision and exact Settings reason/fallback are exercised under held request; other-RP/disabled-TOTP preconditions are seeded only in isolated store. Inherited localhost/Classic/CDP substitutions remain."
         },
         {
           "line": 310,
@@ -2312,9 +2324,10 @@
           },
           "state": "bounded",
           "evidence": [
-            "policy"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "Passkey-only last key refused despite configured TOTP."
+          "note": "Native removal decision and exact Settings reason/fallback are exercised under held request; other-RP/disabled-TOTP preconditions are seeded only in isolated store. Inherited localhost/Classic/CDP substitutions remain."
         },
         {
           "line": 311,
@@ -2324,11 +2337,12 @@
             "decision": "refuses",
             "explanation": "a session is not a future sign-in method"
           },
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "native-remove"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "Active sessions survive last-factor refusal; exact session-only UI explanation absent."
+          "note": "Native removal decision and exact Settings reason/fallback are exercised under held request; other-RP/disabled-TOTP preconditions are seeded only in isolated store. Inherited localhost/Classic/CDP substitutions remain."
         },
         {
           "line": 312,
@@ -2338,11 +2352,12 @@
             "decision": "refuses",
             "explanation": "the other passkey cannot sign in here"
           },
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "native-factor"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "Other-RP fallback rejected natively; exact UI reason absent."
+          "note": "Native removal decision and exact Settings reason/fallback are exercised under held request; other-RP/disabled-TOTP preconditions are seeded only in isolated store. Inherited localhost/Classic/CDP substitutions remain."
         },
         {
           "line": 313,
@@ -2352,11 +2367,12 @@
             "decision": "allows",
             "explanation": "TOTP remains available for sign-in"
           },
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "remove"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "Removal with TOTP fallback succeeds; TOTP-specific explanation absent."
+          "note": "Native removal decision and exact Settings reason/fallback are exercised under held request; other-RP/disabled-TOTP preconditions are seeded only in isolated store. Inherited localhost/Classic/CDP substitutions remain."
         },
         {
           "line": 314,
@@ -2366,11 +2382,12 @@
             "decision": "refuses",
             "explanation": "add another sign-in method before removing this key"
           },
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "native-factor"
+            "removal-reasons",
+            "removal-native"
           ],
-          "note": "Native refusal; entire no-fallback UI path/reason not separately verified."
+          "note": "Native removal decision and exact Settings reason/fallback are exercised under held request; other-RP/disabled-TOTP preconditions are seeded only in isolated store. Inherited localhost/Classic/CDP substitutions remain."
         },
         {
           "line": 315,
@@ -2380,9 +2397,12 @@
             "decision": "refuses",
             "explanation": "unverified TOTP setup is not a sign-in method"
           },
-          "state": "gap",
-          "evidence": [],
-          "note": "Pending unverified TOTP UI decision and explanation missing."
+          "state": "unsupported",
+          "evidence": [
+            "removal-reasons",
+            "removal-native"
+          ],
+          "note": "No pending TOTP enrolment flow exists for an established owner. Disabled stored secret returns totp-not-enabled; this defensive case is not the frozen pending workflow."
         }
       ]
     },

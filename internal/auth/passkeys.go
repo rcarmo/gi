@@ -422,7 +422,7 @@ func (m *Manager) FinishPasskeyAssertion(id, operation, binding, origin string, 
 }
 
 // Empty policy preserves existing TOTP behaviour and permits configured
-// passkeys. Unknown policies fail closed. No policy mutation UI is exposed yet.
+// passkeys. Unknown policies fail closed.
 func totpAccepted(s *State) bool {
 	return s.LoginPolicy == "" || s.LoginPolicy == "either" || s.LoginPolicy == "totp-only"
 }
@@ -432,6 +432,19 @@ func passkeyAccepted(s *State) bool {
 
 var ErrLastFactor = errors.New("add another accepted sign-in method before removing this passkey")
 var ErrPasskeyNotFound = errors.New("passkey not found")
+
+// Removal metadata is derived under the same writer lock as the decision. It
+// is explanatory only; it never grants authority for a later request.
+type PasskeyRemovalResult struct {
+	RemainingMethod string `json:"remaining_method"`
+}
+
+type PasskeyRemovalError struct {
+	Reason string
+}
+
+func (e *PasskeyRemovalError) Error() string { return ErrLastFactor.Error() }
+func (e *PasskeyRemovalError) Unwrap() error { return ErrLastFactor }
 
 func (m *Manager) RenamePasskey(token, origin, id, name string) error {
 	if _, err := m.passkeyVerifier(origin); err != nil {
@@ -459,10 +472,16 @@ func (m *Manager) RenamePasskey(token, origin, id, name string) error {
 	})
 }
 func (m *Manager) RemovePasskey(token, origin, id string) error {
+	_, err := m.RemovePasskeyWithResult(token, origin, id)
+	return err
+}
+
+func (m *Manager) RemovePasskeyWithResult(token, origin, id string) (PasskeyRemovalResult, error) {
 	if _, err := m.passkeyVerifier(origin); err != nil {
-		return err
+		return PasskeyRemovalResult{}, err
 	}
-	return m.updateState(func(s *State, _ bool) error {
+	var result PasskeyRemovalResult
+	err := m.updateState(func(s *State, _ bool) error {
 		if !passkeyAccepted(s) {
 			return ErrPasskeysUnavailable
 		}
@@ -470,9 +489,10 @@ func (m *Manager) RemovePasskey(token, origin, id string) error {
 			return err
 		}
 		index := -1
-		other := false
+		other, otherRP := false, false
 		for i, p := range s.Passkeys {
 			if p.RPID != m.passkeyConfig.RPID {
+				otherRP = true
 				continue
 			}
 			if credentialID(p.Credential) == id {
@@ -484,11 +504,31 @@ func (m *Manager) RemovePasskey(token, origin, id string) error {
 		if index < 0 {
 			return ErrPasskeyNotFound
 		}
-		if !other && !(totpAccepted(s) && s.TOTPEnabled && s.TOTPSecret != "") {
-			return ErrLastFactor
+		totp := totpAccepted(s) && s.TOTPEnabled && s.TOTPSecret != ""
+		if !other && !totp {
+			reason := "no-other-method"
+			switch {
+			case otherRP:
+				reason = "other-rp"
+			case s.TOTPEnabled && s.TOTPSecret != "" && !totpAccepted(s):
+				reason = "policy-excludes-totp"
+			case s.TOTPSecret != "" && !s.TOTPEnabled:
+				reason = "totp-not-enabled"
+			case s.LoginPolicy == "passkey-only":
+				reason = "sessions-not-factors"
+			}
+			return &PasskeyRemovalError{Reason: reason}
+		}
+		result.RemainingMethod = "passkey"
+		if !other {
+			result.RemainingMethod = "totp"
 		}
 		s.Passkeys = append(s.Passkeys[:index], s.Passkeys[index+1:]...)
 		s.UpdatedAt = time.Now().UTC()
 		return nil
 	})
+	if err != nil {
+		return PasskeyRemovalResult{}, err
+	}
+	return result, nil
 }

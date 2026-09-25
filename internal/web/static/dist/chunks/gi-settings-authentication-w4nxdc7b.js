@@ -8,9 +8,16 @@ import {
   passkeyUnavailable,
   runPasskey,
   parseAuthPolicy
-} from "./app-00ekd5y9.js";
+} from "./app-14c0x7hx.js";
 
 // web/src/gi-settings-authentication.ts
+var removalReasons = new Map([
+  ["other-rp", "The other passkey cannot sign in here because it is registered for another relying party."],
+  ["policy-excludes-totp", "No other sign-in method is accepted by the current policy. Configured TOTP is not accepted in passkey-only mode."],
+  ["totp-not-enabled", "TOTP is not enabled and cannot be used for sign-in. An unverified setup is not a sign-in method."],
+  ["sessions-not-factors", "An active session is not a future sign-in method. Add another passkey before removing this key."],
+  ["no-other-method", "Add another sign-in method before removing this key. No other accepted factor is configured."]
+]);
 function GiSettingsAuthentication() {
   const [policy, setPolicy] = F_(null);
   const [proof, setProof] = F_(null);
@@ -22,6 +29,7 @@ function GiSettingsAuthentication() {
   const [busy, setBusy] = F_("");
   const [error, setError] = F_("");
   const [notice, setNotice] = F_("");
+  const [removalDetail, setRemovalDetail] = F_("");
   const [name, setName] = F_("");
   const [code, setCode] = F_("");
   const [editing, setEditing] = F_(null);
@@ -89,17 +97,23 @@ function GiSettingsAuthentication() {
     setBusy(label);
     setError("");
     setNotice("");
+    setRemovalDetail("");
     try {
-      await action(controller.signal);
+      const detail = await action(controller.signal);
       if (live.current) {
         await refresh(controller.signal);
-        if (message && live.current)
-          setNotice(message);
+        if (live.current) {
+          if (message)
+            setNotice(message);
+          if (typeof detail === "string")
+            setRemovalDetail(detail);
+        }
       }
     } catch (e) {
       if (live.current) {
         setFresh(false);
-        setError(e.message || "Request failed. Refresh before retrying.");
+        const reason = label === "Removing passkey…" ? removalReasons.get(e.reason) : "";
+        setError([e.message || "Request failed. Refresh before retrying.", reason].filter(Boolean).join(" "));
       }
     } finally {
       if (flight.current === controller) {
@@ -142,6 +156,12 @@ function GiSettingsAuthentication() {
       setRemoving(null);
       restore();
     }
+    if (kind === "remove") {
+      if (result.remaining_method === "totp")
+        return "TOTP remains available for sign-in.";
+      if (result.remaining_method === "passkey")
+        return "Another passkey remains available for sign-in.";
+    }
   }, kind === "rename" ? "Name saved." : "Passkey removed. Existing login sessions are not signed out.");
   const policyAllowed = loginPolicy && (policyChoice !== "passkey-only" && loginPolicy.totp_configured || policyChoice !== "totp-only" && loginPolicy.passkey_usable);
   const savePolicy = () => work("Saving sign-in policy…", async (signal) => {
@@ -161,6 +181,7 @@ function GiSettingsAuthentication() {
         ${busy && fe`<p role="status">${busy}</p>`}
         ${error && fe`<p role="alert">${error}</p>`}
         ${notice && fe`<p role="status">${notice}</p>`}
+        ${removalDetail && fe`<p role="status">${removalDetail}</p>`}
         <button disabled=${!!busy} onClick=${() => work("Refreshing passkeys…", async () => {})}>Refresh passkeys</button>
         ${busy && fe`<button onClick=${cancel}>Cancel pending operation</button>`}
         ${policy && unavailable && fe`<p>${unavailable}</p>`}
@@ -219,5 +240,5 @@ export {
   GiSettingsAuthentication
 };
 
-//# debugId=15A13A15E078F87C64756E2164756E21
-//# sourceMappingURL=gi-settings-authentication-y2x6q4m9.js.map
+//# debugId=D693D4B8B060CA2E64756E2164756E21
+//# sourceMappingURL=gi-settings-authentication-w4nxdc7b.js.map

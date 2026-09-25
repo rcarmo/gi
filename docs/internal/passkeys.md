@@ -112,7 +112,21 @@ registration; removing a credential prevents later assertions and invalidates
 recent proof based on that credential without silently revoking existing sessions.
 
 Removal counts only other credentials for the current RP, or verified TOTP accepted
-by the current policy. The check and removal share the writer lock. Concurrent
+by the current policy. The check, reason and removal outcome share the writer lock.
+HTTP409 keeps the existing error text and adds a bounded `reason`: `other-rp`,
+`policy-excludes-totp`, `totp-not-enabled`, `sessions-not-factors` or
+`no-other-method`. No RP, credential or session identifiers enter those fields.
+Successful removal adds `remaining_method` (`passkey` or `totp`) to `ok:true`.
+When both remain, the response names the passkey; it is not an exhaustive list.
+The existing `RemovePasskey` error-only wrapper and `errors.Is(ErrLastFactor)`
+behaviour remain. Errors return no success metadata.
+
+Settings maps known reasons to fixed explanatory text and shows the remaining
+method only after success and inventory refresh. Older responses without the
+optional fields keep the existing generic message. Starting another operation
+clears the extra notice. A disabled stored TOTP secret never counts; Gi has no
+pending TOTP addition flow for an established owner, so that frozen example is
+still unsupported. Concurrent
 removals cannot delete both last usable keys. Changing RP configuration does not
 turn an account with stored credentials into an unenrolled, public instance.
 
@@ -144,7 +158,7 @@ Lost responses require an authoritative refresh before a new attempt.
 
 ## Test scope and remaining work
 
-`make test-ux-passkeys` runs 48 integration tests across three Chromium viewport
+`make test-ux-passkeys` runs 55 integration tests across three Chromium viewport
 projects and is required by CI before build jobs. Two narrow-interaction tests
 create390px contexts explicitly in every project; their six executions repeat
 phone-width acceptance rather than extending the geometry matrix. The tests cover two distinct credentials,
@@ -154,7 +168,7 @@ wrong session, revoked session, stale proof/reauth, cancellation, expiry, altere
 origin, correctly signed wrong-RP assertion, duplicate-ID protection and uncertain
 successful registration. Fixtures seed specific policy/error states explicitly.
 
-Forty-four tests drive actual Classic Settings/login controls: two-key enrolment,
+Fifty-one tests drive actual Classic Settings/login controls: two-key enrolment,
 independent sign-in after restart, retained drafts/media, rename/remove/cancel,
 passkey-only reauth/add/login, failed reads/writes, uncertain finish and unmount
 cancellation, policy changes, stale revisions and a policy change during removal
@@ -236,6 +250,14 @@ removal. It compares the entire auth file byte-for-byte, excludes inventory and
 secret canaries from refusals, checks no cookie changes and includes an authorised
 nonempty list control. Browser tests use a real registered key for account-query
 variants and unchanged Settings refresh. Family-shared mode remains unsupported.
+
+Seven removal-reason cases use real passkey proof with disposable factor/RP
+preconditions and held native writes. They cover current-RP fallback, excluded
+TOTP, session-only, old-RP, accepted TOTP, no other factor and a stored disabled
+TOTP secret. Refusals preserve complete state; successes preserve sessions and
+identify the accepted fallback. The disabled-secret case is not pending-enrolment
+workflow evidence. Functional coverage changes policy, refuses last-key removal,
+then allows removal with TOTP and clears the old success detail on Refresh.
 
 The suite uses HTTP localhost, not the pinned feature Background's HTTPS host.
 Synthetic blur tests application ownership only, not OS prompt focus. A separate

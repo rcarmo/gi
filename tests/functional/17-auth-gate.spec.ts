@@ -76,6 +76,25 @@ test('Owner passkey inventory rejects account selection and keeps its normal lis
  }finally{await env.close();}
 });
 
+test('Settings explains last-key refusal and the accepted fallback after native removal',async({page,context},info)=>{
+ test.skip(!process.env.GI_UX_SERVER_BIN,'Requires the isolated auth fixture binary built by make test-ux-auth');
+ const env=await authEnvironment(page,info,{passkeys:true});const cdp=await context.newCDPSession(page);
+ try{
+  await cdp.send('WebAuthn.enable');await cdp.send('WebAuthn.addVirtualAuthenticator',{options:{protocol:'ctap2',transport:'usb',hasResidentKey:true,hasUserVerification:true,isUserVerified:true,automaticPresenceSimulation:true}});
+  await page.goto(env.origin);await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();const composer=page.locator('.compose-box textarea');await expect(composer).toBeVisible();await composer.fill('Removal reason retains draft');
+  await page.keyboard.press('Control+,');await page.getByRole('button',{name:'Authentication',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();
+  await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('Laptop');await page.getByRole('button',{name:'Add passkey',exact:true}).click();await expect(page.getByRole('button',{name:'Remove Laptop',exact:true})).toBeEnabled();
+  const policy=async value=>{await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();await page.getByRole('button',{name:'Confirm policy change',exact:true}).click();await expect(page.getByText('Sign-in policy saved. Existing login sessions are unchanged.',{exact:true})).toBeVisible();};
+  await policy('passkey-only');await page.getByRole('button',{name:'Verify with passkey',exact:true}).click();await expect(page.getByText('Authentication verified.',{exact:true})).toBeVisible();
+  const remove=async()=>{await page.getByRole('button',{name:'Remove Laptop',exact:true}).click();await page.getByRole('button',{name:'Confirm removal',exact:true}).click();};
+  await remove();await expect(page.getByRole('alert')).toContainText('Configured TOTP is not accepted in passkey-only mode.');await expect(page.locator('.gi-passkey-row')).toHaveCount(1);
+  await page.getByRole('button',{name:'Cancel removal',exact:true}).click();await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Remove Laptop',exact:true})).toBeEnabled();await policy('either');await remove();
+  await expect(page.getByRole('status').filter({hasText:'TOTP remains available for sign-in.'})).toBeVisible();await expect(page.locator('.gi-passkey-row')).toHaveCount(0);
+  await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();await expect(page.getByText('TOTP remains available for sign-in.',{exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(composer).toHaveValue('Removal reason retains draft');
+ }finally{await cdp.detach();await env.close();}
+});
+
 test('Unenrolled users cannot read or change authentication policy through owner routes',async({page,request})=>{
  const before=await(await request.get('/api/auth/status')).json();
  await page.goto('/');await expect(page.locator('.compose-box textarea')).toBeVisible();

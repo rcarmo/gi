@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -111,6 +112,83 @@ func TestAuthPasskeyCeremonyOwnershipConsumptionAndRestart(t *testing.T) {
 		}
 	}
 }
+func TestAuthPasskeyRemovalExplainsCommittedFactors(t *testing.T) {
+	for _, tc := range []struct {
+		name, policy, reason, remaining string
+		other, oldRP, enabled, secret   bool
+	}{
+		{"other-key", "passkey-only", "", "passkey", true, false, false, false},
+		{"excluded-totp", "passkey-only", "policy-excludes-totp", "", false, false, true, true},
+		{"session-only", "passkey-only", "sessions-not-factors", "", false, false, false, false},
+		{"old-rp", "passkey-only", "other-rp", "", false, true, false, false},
+		{"accepted-totp", "either", "", "totp", false, false, true, true},
+		{"no-factor", "either", "no-other-method", "", false, false, false, false},
+		{"disabled-secret", "either", "totp-not-enabled", "", false, false, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := passkeyManager(t)
+			token := browserSession(t, m)
+			id := []byte("selected-key")
+			if err := m.updateState(func(s *State, _ bool) error {
+				s.LoginPolicy = tc.policy
+				s.TOTPEnabled = tc.enabled
+				if !tc.secret {
+					s.TOTPSecret = ""
+				}
+				s.Passkeys = []Passkey{{Name: "Laptop", RPID: "localhost", Credential: wa.Credential{ID: id, PublicKey: []byte("public-key")}}}
+				if tc.other || tc.oldRP {
+					rp := "localhost"
+					if tc.oldRP {
+						rp = "old.localhost"
+					}
+					s.Passkeys = append(s.Passkeys, Passkey{Name: "Backup", RPID: rp, Credential: wa.Credential{ID: []byte("backup-key")}})
+				}
+				for i := range s.Sessions {
+					s.Sessions[i].AuthFactor = "webauthn"
+					s.Sessions[i].AuthCredentialID = base64.RawURLEncoding.EncodeToString(id)
+					s.Sessions[i].AuthRPID = "localhost"
+				}
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+			before, err := os.ReadFile(m.path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			state, _ := m.load()
+			result, err := m.RemovePasskeyWithResult(token, testPasskeyOrigin, base64.RawURLEncoding.EncodeToString(id))
+			if tc.reason != "" {
+				var refusal *PasskeyRemovalError
+				if !errors.Is(err, ErrLastFactor) || !errors.As(err, &refusal) || refusal.Reason != tc.reason || err.Error() != ErrLastFactor.Error() || result.RemainingMethod != "" {
+					t.Fatalf("result=%+v err=%v refusal=%+v", result, err, refusal)
+				}
+				after, _ := os.ReadFile(m.path)
+				if !bytes.Equal(before, after) {
+					t.Fatal("refusal changed state")
+				}
+				if err = m.RemovePasskey(token, testPasskeyOrigin, base64.RawURLEncoding.EncodeToString(id)); !errors.Is(err, ErrLastFactor) {
+					t.Fatal("legacy wrapper lost sentinel")
+				}
+			} else {
+				if err != nil || result.RemainingMethod != tc.remaining {
+					t.Fatalf("result=%+v err=%v", result, err)
+				}
+				after, _ := m.load()
+				if len(after.Passkeys) != len(state.Passkeys)-1 || !reflect.DeepEqual(after.Sessions, state.Sessions) {
+					t.Fatal("incorrect removal/session change")
+				}
+			}
+		})
+	}
+	m := passkeyManager(t)
+	token := browserSession(t, m)
+	result, err := m.RemovePasskeyWithResult(token, testPasskeyOrigin, "not-a-key")
+	if !errors.Is(err, ErrPasskeyNotFound) || result.RemainingMethod != "" {
+		t.Fatal("uncommitted success detail")
+	}
+}
+
 func TestAuthPasskeyMetadataAndAtomicLastFactor(t *testing.T) {
 	m := passkeyManager(t)
 	token := browserSession(t, m)
