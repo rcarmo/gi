@@ -5,8 +5,8 @@ native WebAuthn, Classic Settings/login and sign-in policy controls. This is a
 source-to-test review, not an automated per-case pass report. No new mappings
 are added by this document. Frozen Classic/shared counts are unchanged.
 
-The current passkey suite has 17 tests in Chromium at three viewport sizes
-(51 executions). CDP virtual authenticators sign real browser ceremonies on
+The current passkey suite has 18 tests in Chromium at three viewport sizes
+(54 executions). CDP virtual authenticators sign real browser ceremonies on
 HTTP localhost, not the frozen Background's `https://piclaw.test` origin.
 Physical/native focus, synced credentials and the Visual skin are not verified.
 The auth regression runs Chromium and WebKit but does not establish WebKit
@@ -45,7 +45,7 @@ outline example lacks direct evidence. A physical-device gap stays manual.
 | 018 | Native/browser expired/consumed/other-session/revoked/origin/RP/signature failures. | Partial: explicit rendered-failure secret/challenge non-disclosure assertions. |
 | 019 | Stale add/remove native checks; UI TOTP/passkey reauthentication and current-policy proof rejection. | Partial: stale rename and cancel-reauth/no-write evidence for each operation. |
 | 020 | Native current-RP/policy/factor removal matrix; UI last-key refusal. | Partial: active-session-only and pending-unverified-TOTP examples, exact UI explanation for each case. |
-| 021 | Native simultaneous removal has one winner; one key remains and sessions survive. | Partial: two Settings views concurrently remove and refresh to the same final inventory. |
+| 021 | UI `Two Settings views concurrently remove different keys…`: both POSTs held, no optimistic removal, then one200/one409; both refresh to the same surviving key, with no automatic retry. Explicit retry returns exact last-factor409; cookies/sessions survive and the remaining key signs in afresh. | Partial: the non-blocking auth writer lock can refuse the concurrent loser with a state-conflict409 before the factor check. The frozen scenario requires refusal by the write-time lockout check; the later explicit retry proves that check separately. |
 | 022 | UI `Policy changes reject stale browser revisions…`: removal confirmation predates other browser's passkey-only change, removal refused at commit, refresh reconciles. | Candidate: direct UI policy/removal ordering plus native race tests. |
 | 023 | No implemented legacy passkey-delete command workflow established. | Unsupported: explicit command refusal/Settings guidance test. |
 | 024 | UI removal explains future sign-ins versus existing sessions; native session validity retained. | Partial: normal expiry and explicit logout lifecycle after removal. |

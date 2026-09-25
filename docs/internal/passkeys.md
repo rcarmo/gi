@@ -144,7 +144,7 @@ Lost responses require an authoritative refresh before a new attempt.
 
 ## Test scope and remaining work
 
-`make test-ux-passkeys` runs17 integration tests at three Chromium viewport sizes
+`make test-ux-passkeys` runs 18 integration tests at three Chromium viewport sizes
 and is required by CI before build jobs. The tests cover two distinct credentials,
 server restart, independent cookie-free sign-ins, passkey-only further enrolment,
 rename material preservation, removed-key rejection, last-factor refusal, replay,
@@ -152,7 +152,7 @@ wrong session, revoked session, stale proof/reauth, cancellation, expiry, altere
 origin, correctly signed wrong-RP assertion, duplicate-ID protection and uncertain
 successful registration. Fixtures seed specific policy/error states explicitly.
 
-Thirteen tests drive actual Classic Settings/login controls: two-key enrolment,
+Fourteen tests drive actual Classic Settings/login controls: two-key enrolment,
 independent sign-in after restart, retained drafts/media, rename/remove/cancel,
 passkey-only reauth/add/login, failed reads/writes, uncertain finish and unmount
 cancellation, policy changes, stale revisions and a policy change during removal
@@ -165,6 +165,14 @@ A two-browser test ages both proof records, reauthenticates only the first and
 renames there. Reloading the second leaves its controls disabled; direct add,
 rename and remove requests fail without any auth-state change. Only its own
 reauthentication enables a successful write. All fixtures are disposable.
+
+A two-view removal test releases both native requests together and requires one
+success, one refusal and an unchanged surviving credential. The non-blocking
+writer lock can reject the loser with a state-conflict409 before the factor
+check. Both views refresh to the same inventory without automatic retry; an
+explicit retry must return the exact last-factor409. Existing sessions survive,
+and the remaining credential permits a fresh sign-in. This covers Gi's conflict
+and retry behaviour; scenario021's direct lockout-refusal requirement stays partial.
 
 The suite uses HTTP localhost, not the pinned feature Background's HTTPS host.
 Synthetic blur tests application ownership only, not OS prompt focus. A separate

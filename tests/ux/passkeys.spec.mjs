@@ -397,6 +397,67 @@ test('Settings changes accepted factors without lockout and reauthenticates unde
  }finally{await auth.cdp.detach();await env.close();}
 });
 
+test('Two Settings views concurrently remove different keys without deleting the last sign-in factor',async({page,browser},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);const otherContext=await browser.newContext();const other=await otherContext.newPage();const otherAuth=await authenticator(other);
+ let release;const gate=new Promise(resolve=>release=resolve);
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Laptop');
+  const laptop=(await auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:auth.id})).credentials[0];
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await addFromSettings(page,'Backup key');
+  const backup=(await auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:auth.id})).credentials[0];
+  await other.addInitScript(id=>localStorage.setItem('gi_session_id',id),env.main.id);await loginTOTP(other,env);
+  await changePolicy(page,'passkey-only');
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await auth.cdp.send('WebAuthn.addCredential',{authenticatorId:auth.id,credential:laptop});
+  await otherAuth.cdp.send('WebAuthn.addCredential',{authenticatorId:otherAuth.id,credential:backup});await openAuthentication(other);
+  for(const p of [page,other]){
+   await p.getByRole('button',{name:'Verify with passkey',exact:true}).click();await expect(p.getByText('Authentication verified.',{exact:true})).toBeVisible();await expect(p.locator('.gi-passkey-row')).toHaveCount(2);
+  }
+  const before=savedAuth(env);expect(before.login_policy).toBe('passkey-only');const keys=(await list(page)).body.passkeys;
+  const cookies=await page.context().cookies(),otherCookies=await otherContext.cookies();
+  const views=[{page,auth,index:0},{page:other,auth:otherAuth,index:1}];const requests=[];
+  for(const view of views){
+   await view.page.route('**/api/auth/passkeys/remove',async route=>{requests.push({view:view.index,body:route.request().postDataJSON()});await gate;await route.continue();});
+   // Each browser uses the credential it attempts to remove: the loser's
+   // proof remains valid for a later explicit retry, independent of ordering.
+   await credentialRow(view.page,keys[view.index].id).getByRole('button',{name:`Remove ${keys[view.index].name}`,exact:true}).click();
+  }
+  const responses=Promise.all(views.map(view=>view.page.waitForResponse(r=>r.url().endsWith('/api/auth/passkeys/remove')&&r.request().method()==='POST')));
+  await Promise.all(views.map(view=>view.page.getByRole('button',{name:'Confirm removal',exact:true}).click()));
+  await expect.poll(()=>requests.length).toBe(2);expect(requests.sort((a,b)=>a.view-b.view)).toEqual(keys.map((key,index)=>({view:index,body:{id:key.id}})));
+  expect(savedAuth(env)).toEqual(before);for(const view of views){await expect(view.page.locator('.gi-passkey-row')).toHaveCount(2);await expect(view.page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toHaveCount(0);}
+  release();const finished=await responses;expect(finished.map(r=>r.status()).sort()).toEqual([200,409]);
+  const winner=views[finished.findIndex(r=>r.status()===200)],loser=views[finished.findIndex(r=>r.status()===409)];
+  // The non-blocking state-file lock may reject simultaneous writers before
+  // the factor check. A serialised arrival instead reaches last-factor safety.
+  // Keep those outcomes distinct; require last-factor refusal on explicit retry.
+  const failure=await finished[loser.index].json();expect([{error:'Authentication state changed; retry'},{error:'add another accepted sign-in method before removing this passkey'}]).toContainEqual(failure);
+  await expect(winner.page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toBeVisible();await expect(winner.page.locator('.gi-passkey-row')).toHaveCount(1);
+  await expect(loser.page.getByRole('alert')).toHaveText(failure.error);await expect(loser.page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toHaveCount(0);
+  await expect(loser.page.getByText('The displayed list is the last confirmed snapshot. Refresh before making changes.',{exact:true})).toBeVisible();await expect(loser.page.locator('.gi-passkey-row')).toHaveCount(2);
+  const survivor=keys[loser.index];expect(savedAuth(env).passkeys).toEqual([before.passkeys[loser.index]]);expect(savedAuth(env).sessions).toEqual(before.sessions);
+  expect(await page.context().cookies()).toEqual(cookies);expect(await otherContext.cookies()).toEqual(otherCookies);
+  for(const view of views){
+   await view.page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(view.page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();
+   await expect(view.page.locator('.gi-passkey-row')).toHaveCount(1);await expect(credentialRow(view.page,survivor.id).locator('strong')).toHaveText(survivor.name);await expect(view.page.getByRole('alert')).toHaveCount(0);
+   expect((await list(view.page)).body.passkeys).toEqual([survivor]);expect(await view.page.evaluate(async()=>(await fetch('/api/sessions')).status)).toBe(200);
+  }
+  expect(requests).toHaveLength(2); // refresh never retries a removal
+  await loser.page.getByRole('button',{name:`Remove ${survivor.name}`,exact:true}).click();
+  const retry=loser.page.waitForResponse(r=>r.url().endsWith('/api/auth/passkeys/remove')&&r.request().method()==='POST');
+  await loser.page.getByRole('button',{name:'Confirm removal',exact:true}).click();const refused=await retry;
+  expect(refused.status()).toBe(409);expect(await refused.json()).toEqual({error:'add another accepted sign-in method before removing this passkey'});
+  await expect(loser.page.getByRole('alert')).toContainText('another accepted sign-in method');expect(requests).toHaveLength(3);
+  expect(savedAuth(env).passkeys).toEqual([before.passkeys[loser.index]]);expect(savedAuth(env).sessions).toEqual(before.sessions);
+  // Copy the current virtual counter, not the pre-reauth snapshot, into the
+  // removed-key browser and prove a genuinely fresh login with the survivor.
+  const credential=(await loser.auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:loser.auth.id})).credentials[0];
+  await winner.auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:winner.auth.id});await winner.auth.cdp.send('WebAuthn.addCredential',{authenticatorId:winner.auth.id,credential});
+  await winner.page.context().clearCookies();await winner.page.reload();await expect(winner.page.getByRole('textbox',{name:'Authentication code',exact:true})).toHaveCount(0);
+  await winner.page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();await expect(winner.page.locator('.compose-box textarea')).toBeVisible();await openAuthentication(winner.page);
+  await expect(winner.page.locator('.gi-passkey-row')).toHaveCount(1);await expect(credentialRow(winner.page,survivor.id).locator('strong')).toHaveText(survivor.name);
+ }finally{release();await otherAuth.cdp.detach();await otherContext.close();await auth.cdp.detach();await env.close();}
+});
+
 test('Policy changes reject stale browser revisions and protect a pending last-key removal',async({page,browser},info)=>{
  const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);const otherContext=await browser.newContext();const other=await otherContext.newPage();
  try{
