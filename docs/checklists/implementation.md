@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-25
 
+- [x] Verify Settings duplicate path with real first/second creation and native exclusion list; crafted original none-attestation+fresh client-data finish returns exact post-verification409 without server collision seed. Original full credential/sessions unchanged, no success/second row/replay through refresh/re-entry, original key signs in.168passkey/107functional (five existing skips)/106helpers2918/Go-vet-nativeauth/hook/review pass.012bounded candidate, crafted-client substitution explicit/no physical duplicate or attestation-forgery/full mapping credit. Test/docs only/no deployment/live auth/TUI rows.
+
 - [x] Deploycfef4d8 removal explanations after CI36113841805: eight Linux/macOS test/build jobs green (no Windows).8090 PID3145609; six guarded live browser/size checks zero writes/errors/draft loss. Live still unenrolled/passkeys disabled. DB62/51/146, integrity/FKs OK and full SQL equal except runtime lease (SHA256300ce679…53d). No production enrolment/policy change or TUI rows.
 
 - [x] Derive removal reason/remaining_method under the atomic writer lock; preserve legacy error text409/errors.Is/wrapper and return no success result on failure. Settings renders fixed known reasons and post-confirmation fallback, clears details on next work, tolerates absent optional fields. Seven native/browser cases (six supported outline plus defensive disabled secret),165passkey/36auth/216Settings/107functional (five existing skips)/106helpers2911/Go-vet-hook/auth+web race×3/review pass.020pending-ownerTOTP still unsupported; seeded disabled secret is not that flow. No live auth/TUI rows.

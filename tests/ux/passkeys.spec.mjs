@@ -804,6 +804,43 @@ for(const example of removalCases)test(`Settings removal explains ${example.name
  }finally{await auth.cdp.detach();await env.close();}
 });
 
+test('Settings rejects a verified duplicate credential without replacing the original key',async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);
+  const firstFinish=page.waitForRequest(r=>r.url().endsWith('/api/auth/passkeys/register/finish'));
+  await addFromSettings(page,'Laptop');const originalProof=(await firstFinish).postDataJSON();const before=savedAuth(env);
+  const originalID=(await list(page)).body.passkeys[0].id;const laptop=(await auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:auth.id})).credentials[0];
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});
+  const writes=[];page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname.startsWith('/api/auth/'))writes.push(new URL(r.url()).pathname);});
+  let rejection;
+  await page.route('**/api/auth/passkeys/register/finish',async route=>{
+   const body=route.request().postDataJSON();expect(body.credential.id).not.toBe(originalID);
+   // Reuse the original none-attestation credential material with this real
+   // new creation's client data/challenge. No server state is seeded. This is
+   // a deliberately crafted client, not a physical authenticator workflow.
+   const duplicate=structuredClone(body);
+   duplicate.credential.id=originalProof.credential.id;duplicate.credential.rawId=originalProof.credential.rawId;
+   duplicate.credential.response.attestationObject=originalProof.credential.response.attestationObject;
+   expect(JSON.parse(Buffer.from(duplicate.credential.response.clientDataJSON,'base64url')).challenge).not.toBe(JSON.parse(Buffer.from(originalProof.credential.response.clientDataJSON,'base64url')).challenge);
+   const response=await route.fetch({postData:JSON.stringify(duplicate)});rejection={status:response.status(),body:await response.json()};await route.fulfill({response});
+  });
+  const startResponse=page.waitForResponse(r=>r.url().endsWith('/api/auth/passkeys/register/start'));
+  await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('Duplicate name');await page.getByRole('button',{name:'Add passkey',exact:true}).click();
+  const start=await startResponse;expect(start.status()).toBe(200);const options=await start.json();expect(options.options.publicKey.excludeCredentials.map(c=>c.id)).toEqual([originalID]);
+  await expect(page.getByRole('alert')).toContainText('passkey is already registered');expect(rejection).toEqual({status:409,body:{error:'passkey is already registered'}});
+  await expect(page.getByRole('alert')).toContainText('Gi has not removed it');await expect(page.getByText('Passkey registered.',{exact:true})).toHaveCount(0);await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Laptop']);
+  expect(savedAuth(env).passkeys).toEqual(before.passkeys);expect(savedAuth(env).sessions).toEqual(before.sessions);
+  expect((savedAuth(env).webauthn_ceremonies||[]).some(c=>c.id===options.ceremony_id)).toBe(false);
+  expect(writes).toEqual(['/api/auth/passkeys/register/start','/api/auth/passkeys/register/finish']);
+  await page.unrouteAll({behavior:'wait'});await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Laptop']);
+  await page.getByRole('button',{name:'General',exact:true}).click();await page.getByRole('button',{name:'Authentication',exact:true}).click();await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();await expect(credentialRow(page,originalID)).toHaveCount(1);
+  expect(writes).toEqual(['/api/auth/passkeys/register/start','/api/auth/passkeys/register/finish']);expect(savedAuth(env).passkeys).toEqual(before.passkeys);
+  await context.clearCookies();await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await auth.cdp.send('WebAuthn.addCredential',{authenticatorId:auth.id,credential:laptop});await page.reload();await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();await expect(page.locator('.compose-box textarea')).toBeVisible();
+  await openAuthentication(page);await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Laptop']);await expect(credentialRow(page,originalID)).toHaveCount(1);expect(savedAuth(env).passkeys[0].credential.publicKey).toBe(before.passkeys[0].credential.publicKey);
+ }finally{await auth.cdp.detach();await env.close();}
+});
+
 async function changePolicy(page,value){
  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);
  await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();

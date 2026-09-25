@@ -217,6 +217,11 @@
       "file": "internal/auth/passkeys_test.go",
       "anchor": "func TestAuthPasskeyRemovalExplainsCommittedFactors",
       "scope": "Seeded native factor matrix, recent owner proof; errors.Is compatibility, zero result/refusal byte-equality, unchanged sessions and legacy wrapper. Decision/reason/outcome share transaction."
+    },
+    "duplicate-ui": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings rejects a verified duplicate credential without replacing the original key",
+      "scope": "Classic localhost/CDP original none-attestation material paired with fresh genuine clientData; crafted finish reaches native409 duplicate after verifier. No server collision seed or physical authenticator duplicate/forgery acceptance."
     }
   },
   "scenarios": [
@@ -1221,10 +1226,9 @@
           "text": "\"Laptop\" is registered for \"piclaw.test\"",
           "state": "bounded",
           "evidence": [
-            "restart-api",
-            "duplicate"
+            "duplicate-ui"
           ],
-          "note": "API creation exclusions and independently seeded duplicate guard; complete Settings path absent."
+          "note": "Actual Settings first key then native exclusion list, verified duplicate409, no extra row/success, original full record unchanged and fresh key sign-in; refresh/re-entry do not replay registration."
         },
         {
           "line": 157,
@@ -1232,10 +1236,9 @@
           "text": "I start adding another passkey",
           "state": "bounded",
           "evidence": [
-            "restart-api",
-            "duplicate"
+            "duplicate-ui"
           ],
-          "note": "API creation exclusions and independently seeded duplicate guard; complete Settings path absent."
+          "note": "Actual Settings first key then native exclusion list, verified duplicate409, no extra row/success, original full record unchanged and fresh key sign-in; refresh/re-entry do not replay registration."
         },
         {
           "line": 158,
@@ -1243,10 +1246,9 @@
           "text": "creation options exclude existing credentials for this owner and relying party",
           "state": "bounded",
           "evidence": [
-            "restart-api",
-            "duplicate"
+            "duplicate-ui"
           ],
-          "note": "API creation exclusions and independently seeded duplicate guard; complete Settings path absent."
+          "note": "Actual Settings first key then native exclusion list, verified duplicate409, no extra row/success, original full record unchanged and fresh key sign-in; refresh/re-entry do not replay registration."
         },
         {
           "line": 159,
@@ -1254,27 +1256,29 @@
           "text": "a duplicate credential is nevertheless submitted to the server",
           "state": "substituted",
           "evidence": [
-            "duplicate"
+            "duplicate-ui"
           ],
-          "note": "Seeds a collision record before finishing a newly created credential, rather than re-registering existing key."
+          "note": "Crafted client finish combines original ID/rawId/none-attestation material with fresh client data/challenge. Native409 distinguishes duplicate guard from malformed proof; server inventory is never seeded or replaced."
         },
         {
           "line": 160,
           "keyword": "Then",
           "text": "the server rejects the duplicate without replacing the existing row",
-          "state": "partial",
+          "state": "bounded",
           "evidence": [
-            "duplicate"
+            "duplicate-ui"
           ],
-          "note": "Native409 and stored equality with seeded collision; not Settings."
+          "note": "Actual Settings first key then native exclusion list, verified duplicate409, no extra row/success, original full record unchanged and fresh key sign-in; refresh/re-entry do not replay registration."
         },
         {
           "line": 161,
           "keyword": "And",
           "text": "Settings does not report a second registered passkey",
-          "state": "gap",
-          "evidence": [],
-          "note": "No duplicate-specific Settings result assertion."
+          "state": "bounded",
+          "evidence": [
+            "duplicate-ui"
+          ],
+          "note": "Actual Settings first key then native exclusion list, verified duplicate409, no extra row/success, original full record unchanged and fresh key sign-in; refresh/re-entry do not replay registration."
         }
       ],
       "examples": []

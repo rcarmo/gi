@@ -3,7 +3,7 @@
 The [JSON ledger](passkey-criteria.json) links all 26 additive scenarios to
 individual assertions or named gaps. It records 169 scenario steps, four shared
 Background steps and 40 example rows. Gherkin expansion produces 56 cases.
-These counts describe the source contract; the latest browser suite has 165
+These counts describe the source contract; the latest browser suite has 168
 executions and uses a different test grouping.
 
 Initial source-evidence baseline: `e7d9b0450db9dc2c103dc06797dd5387ab9f81d7`.
@@ -49,8 +49,10 @@ Initial owner bootstrap and the production RP choice are separate work.
   failed attempt also requires Refresh before Add becomes available.
 - 011 has synthetic blur ownership checks, without successful completion after
   real native focus transfer.
-- 012 tests duplicate protection through API fixtures, without the complete
-  Settings duplicate journey.
+- 012 now has a Settings duplicate journey with the real exclusion list and a
+  crafted client finish accepted by verification then refused by the duplicate
+  guard. Server credentials are not seeded. The crafted none-attestation proof
+  remains a substitution for physical authenticator behaviour.
 - 014 now has both pane-return and Settings-reopen evidence: native finish is
   committed but its response lost, then an automatic held inventory GET gates
   reconciliation. Second return and reload issue no additional auth POST. This
