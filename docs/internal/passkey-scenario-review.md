@@ -5,10 +5,13 @@ native WebAuthn, Classic Settings/login and sign-in policy controls. This is a
 source-to-test review, not an automated per-case pass report. No new mappings
 are added by this document. Frozen Classic/shared counts are unchanged.
 
-The current passkey suite has nine tests in Chromium at three viewport sizes.
-CDP virtual authenticators sign real browser ceremonies; physical/native focus,
-synced credentials and the Visual skin are not verified. The auth regression
-runs Chromium and WebKit but does not establish WebKit passkey ceremonies.
+The current passkey suite has 17 tests in Chromium at three viewport sizes
+(51 executions). CDP virtual authenticators sign real browser ceremonies on
+HTTP localhost, not the frozen Background's `https://piclaw.test` origin.
+Physical/native focus, synced credentials and the Visual skin are not verified.
+The auth regression runs Chromium and WebKit but does not establish WebKit
+passkey ceremonies. Candidate rows below are bounded automated evidence, not
+full-contract passes or formal mappings.
 
 Abbreviations: **UI** = `tests/ux/passkeys.spec.mjs`, **Auth UI** =
 `tests/ux/auth.spec.mjs`, **Native** = `internal/auth/passkeys_test.go`,
@@ -27,10 +30,10 @@ outline example lacks direct evidence. A physical-device gap stays manual.
 | 003 | UI passkey-only reauth and further enrolment with no TOTP; distinct virtual credential material. | Partial: narrowly map one-existing-key to second-key journey and no chat-link prompt. |
 | 004 | API and UI two-key sign-in after server restart with fresh cookies; only used key's last-used time advances. | Candidate: both passkey examples, virtual-authenticator scope only. |
 | 005 | Data model stores credentials, not physical devices. | Manual: one synced credential used on two physical devices, one row retained. |
-| 006 | Native rename preserves material; UI rename of named key. | Partial: previously unnamed keys and explicit reload-persistence UI assertion. |
-| 007 | Native blank/long/control names rejected, literal markup accepted without changing material. | Partial: all validation examples through UI and subsequent sign-in with the key. |
+| 006 | UI `Settings renames one of two unnamed credentials…`: two canonical empty names seeded in the disposable store; identify one row by credential ID, save Tablet, compare full credential records and reload Settings. | Candidate: bounded Classic/localhost evidence; all authentication material and the other unnamed row remain unchanged. |
+| 007 | UI `Settings rename validates…`: separate blank, whitespace,81-code-point, control and literal-HTML cases. Exact request/error or saved text, full record equality before sign-in, then cookie-free sign-in with that same authenticator and persisted name. | Candidate: all name examples through Classic; literal markup neither renders nor executes. |
 | 008 | UI confirmation/remove, native removed-key rejection and remaining-key sign-in. | Partial: confirmation identifier and zero removal request before confirmation. |
-| 009 | UI cancel preserves rows and restores invoking control focus. | Partial: explicit zero-request assertion on cancellation. |
+| 009 | UI `Settings removal cancellation sends no request…`: pointer Cancel and Escape preserve both stored records and restore the identified opener. Zero remove requests before/after cancellation and refresh; positive control observes one confirmed removal. | Candidate: bounded Classic cancellation journey; no request-count credit inferred from inventory alone. |
 | 010 | UI Escape/app cancel, no finish/auto-repeat, unchanged list and explicit new attempt. | Partial: application AbortSignal cancellation is covered; physical native-prompt cancel behaviour needs manual testing. |
 | 011 | Synthetic blur during pending UI ceremony leaves it pending. | Manual: real OS/browser focus transfer and successful completion without duplicate prompt. |
 | 012 | Browser creation exclusions and independently enforced duplicate finish409; stored keys unchanged. | Partial: full duplicate path via Settings, rather than native API integration only. |
@@ -47,7 +50,12 @@ outline example lacks direct evidence. A physical-device gap stays manual.
 | 023 | No implemented legacy passkey-delete command workflow established. | Unsupported: explicit command refusal/Settings guidance test. |
 | 024 | UI removal explains future sign-ins versus existing sessions; native session validity retained. | Partial: normal expiry and explicit logout lifecycle after removal. |
 | 025 | UI failed finish says not registered, local credential may remain and Gi did not remove it; native authenticator/store checks. | Candidate: local-orphan explanation without false cleanup. |
-| 026 | Auth UI proof refresh affects only one browser; other browser stays stale; native binding tests. | Partial: directly reject add/rename/remove from the other stale browser after proof refresh. |
+| 026 | UI `Settings proof in one browser leaves another stale…`: two different owner cookies aged beyond five minutes; first reauthenticates and renames, second reloads with Add/Rename/Remove disabled. Direct register-start/rename/remove return recent-proof403 with whole auth-state equality. Second succeeds only after its own proof. | Candidate: direct isolated-browser and native write-boundary evidence, without production authentication changes. |
+
+The first unnamed-credential run failed because a missing `name` property was
+serialised as `""` on the next Go write. The fixture now uses canonical empty
+names; full-record equality assertions remain. This is not a runtime repair.
+No frozen feature bytes, mappings or terminal behaviour changed.
 
 Initial owner bootstrap and production RP/domain selection are separate deployment
 work. The operator's live instance has not been enrolled or had its policy changed.
