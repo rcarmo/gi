@@ -70,3 +70,45 @@ test('Browser gate rejects malformed policy and false-success login without moun
   await page.unroute('**/api/auth/session');await code.fill(totp(env.secret));await code.press('Enter');await expect(page.getByRole('textbox',{name:composerName,exact:true})).toBeVisible();
  }finally{await env.close();}
 });
+
+// Browser-origin API integration prerequisite only. There are no passkey
+// controls/ceremonies yet and this does not map any additive passkey scenario.
+test('Browser owner proof is isolated from other cookies and bearer tokens without changing drafts',async({page,browser,context},info)=>{
+ const env=await authEnvironment(page,info);const otherContext=await browser.newContext(),other=await otherContext.newPage();
+ const login=async p=>{await p.goto(env.origin);const code=p.getByRole('textbox',{name:'Authentication code',exact:true});await expect(code).toBeVisible();await code.fill(totp(env.secret));await p.getByRole('button',{name:'Sign in',exact:true}).click();await expect(p.getByRole('textbox',{name:composerName,exact:true})).toBeVisible();};
+ const proof=p=>p.evaluate(async()=>{const r=await fetch('/api/auth/session/proof');return {status:r.status,body:await r.json(),cache:r.headers.get('cache-control')};});
+ try{
+  await other.addInitScript(id=>localStorage.setItem('gi_session_id',id),env.main.id);
+  await login(page);await login(other);
+  const input=page.getByRole('textbox',{name:composerName,exact:true});await input.fill('Proof refresh keeps this draft Ω');
+  await page.locator('.compose-box input[type=file]').setInputFiles({name:'proof.txt',mimeType:'text/plain',buffer:Buffer.from('proof bytes')});
+  await expect(page.locator('.compose-file-pill[title="proof.txt"]')).toBeVisible();
+  const cookieBefore=(await context.cookies()).find(c=>c.name==='gi_session');
+  const state=JSON.parse(readFileSync(env.authPath,'utf8'));
+  for(const session of state.sessions){expect(session.purpose).toBe('browser-owner');session.created_at=new Date(Date.now()-3600000).toISOString();session.authenticated_at=new Date(Date.now()-360000).toISOString();}
+  writeFileSync(env.authPath,JSON.stringify(state));
+  const staleBytes=readFileSync(env.authPath,'utf8');
+  expect(await proof(page)).toMatchObject({status:200,cache:'private, no-store',body:{reauth_required:true}});
+  expect(await proof(other)).toMatchObject({status:200,body:{reauth_required:true}});
+  await page.reload();await expect(input).toHaveValue('Proof refresh keeps this draft Ω');
+  expect(await proof(page)).toMatchObject({body:{reauth_required:true}});expect(readFileSync(env.authPath,'utf8')).toBe(staleBytes);
+  const reauth=await page.evaluate(async code=>{const r=await fetch('/api/auth/session/reauth/totp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});return {status:r.status,body:await r.json()};},totp(env.secret));
+  expect(reauth).toMatchObject({status:200,body:{reauth_required:false}});
+  expect(await proof(other)).toMatchObject({status:200,body:{reauth_required:true}});
+  expect((await context.cookies()).find(c=>c.name==='gi_session')).toEqual(cookieBefore);
+  const renewed=JSON.parse(readFileSync(env.authPath,'utf8'));expect(renewed.sessions).toHaveLength(2);
+  const beforeByHash=new Map(state.sessions.map(s=>[s.token_hash,s]));
+  // Go normalises equivalent RFC3339 forms (for example .000Z to Z).
+  // Compare instants and captured token identities, never array position/text.
+  expect(renewed.sessions.filter(s=>Date.parse(s.authenticated_at)!==Date.parse(beforeByHash.get(s.token_hash).authenticated_at))).toHaveLength(1);
+  for(const session of renewed.sessions){const before=beforeByHash.get(session.token_hash);expect(before).toBeTruthy();expect(Date.parse(session.expires_at)).toBe(Date.parse(before.expires_at));}
+  // Native API tokens remain ordinary credentials even copied into a cookie.
+  const r=await fetch(env.origin+'/api/auth/totp/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:totp(env.secret)})});expect(r.status).toBe(200);const {token}=await r.json();
+  expect(await page.evaluate(async token=>(await fetch('/api/auth/session/proof',{headers:{Authorization:`Bearer ${token}`}})).status,token)).toBe(403);
+  await otherContext.addCookies([{name:'gi_session',value:token,url:env.origin,httpOnly:true,sameSite:'Strict'}]);
+  expect(await other.evaluate(async()=>(await fetch('/api/sessions')).status)).toBe(200);
+  expect(await proof(other)).toMatchObject({status:401});
+  await page.reload();await expect(input).toHaveValue('Proof refresh keeps this draft Ω');await expect(page.locator('.compose-file-pill[title="proof.txt"]')).toBeVisible();
+  expect(await proof(page)).toMatchObject({status:200,body:{reauth_required:false}});
+ }finally{await otherContext.close();await env.close();}
+});

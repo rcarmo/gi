@@ -26,9 +26,12 @@ type State struct {
 }
 
 type Session struct {
-	TokenHash string    `json:"token_hash"`
-	CreatedAt time.Time `json:"created_at"`
-	ExpiresAt time.Time `json:"expires_at"`
+	TokenHash       string    `json:"token_hash"`
+	CreatedAt       time.Time `json:"created_at"`
+	ExpiresAt       time.Time `json:"expires_at"`
+	Purpose         string    `json:"purpose,omitempty"`
+	AuthFactor      string    `json:"auth_factor,omitempty"`
+	AuthenticatedAt time.Time `json:"authenticated_at,omitempty"`
 }
 
 type PendingEnrollment struct {
@@ -116,7 +119,18 @@ func (m *Manager) VerifyEnrollment(username, code string) (State, error) {
 	return enrolled, nil
 }
 
+// VerifyLogin issues native/bearer credentials. Copying one into a browser
+// cookie does not grant owner credential-management authority.
 func (m *Manager) VerifyLogin(username, code string) (string, time.Time, error) {
+	return m.verifyLogin(username, code, "")
+}
+
+// VerifyBrowserSessionLogin is for the guarded browser login endpoint only.
+func (m *Manager) VerifyBrowserSessionLogin(code string) (string, time.Time, error) {
+	return m.verifyLogin("", code, browserOwnerPurpose)
+}
+
+func (m *Manager) verifyLogin(username, code, purpose string) (string, time.Time, error) {
 	var token string
 	var expires time.Time
 	err := m.updateState(func(state *State, _ bool) error {
@@ -137,7 +151,11 @@ func (m *Manager) VerifyLogin(username, code string) (string, time.Time, error) 
 			return err
 		}
 		expires = now.Add(12 * time.Hour)
-		state.Sessions = append(pruneSessions(state.Sessions, now), Session{TokenHash: hash, CreatedAt: now, ExpiresAt: expires})
+		session := Session{TokenHash: hash, CreatedAt: now, ExpiresAt: expires, Purpose: purpose}
+		if purpose == browserOwnerPurpose {
+			session.AuthFactor, session.AuthenticatedAt = "totp", now
+		}
+		state.Sessions = append(pruneSessions(state.Sessions, now), session)
 		state.UpdatedAt = now
 		return nil
 	})

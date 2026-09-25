@@ -18,3 +18,17 @@ test('Native auth policy failure blocks bootstrap until Retry without changing s
  await expect(page.getByRole('textbox',{name:'Message (Enter to send, Shift+Enter for newline)...',exact:true})).toBeVisible();
  await expect(page.getByRole('heading',{name:'Sign in to Gi'})).toHaveCount(0);
 });
+
+test('Unenrolled browsing cannot acquire browser-owner proof authority',async({page,request})=>{
+ const before=await(await request.get('/api/sessions')).json();
+ if(before.sessions?.length)await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),before.sessions[0].id);
+ await page.goto('/');await expect(page.locator('.compose-box textarea')).toBeVisible();
+ const results=await page.evaluate(async()=>{
+  const get=await fetch('/api/auth/session/proof');
+  const post=await fetch('/api/auth/session/reauth/totp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:'123456'})});
+  return Promise.all([get,post].map(async r=>({status:r.status,cache:r.headers.get('cache-control'),body:await r.json()})));
+ });
+ expect(results).toEqual(Array(2).fill({status:401,cache:'private, no-store',body:{error:'browser owner sign-in required'}}));
+ expect(await(await request.get('/api/auth/status')).json()).toMatchObject({enrolled:false});
+ await expect(page.locator('.compose-box textarea')).toBeVisible();
+});

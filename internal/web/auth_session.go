@@ -78,7 +78,7 @@ func (s *Server) handleAuthSession(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 400, map[string]any{"error": "Expected one JSON object"})
 		return
 	}
-	token, expires, err := s.auth.VerifyLogin("", body.Code)
+	token, expires, err := s.auth.VerifyBrowserSessionLogin(body.Code)
 	if err != nil {
 		status := 500
 		message := "Cannot verify sign-in; try again"

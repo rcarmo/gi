@@ -38,7 +38,7 @@ found missing user journeys, weak assertions and tests tied to Gi's older layout
 | Workspace | Partial: rooted tree/hidden files, bounded previews, read-only tabs, MRU/pinning/context actions and explicit scoped lexical index/reindex. | No document editing, dirty-buffer save, popouts or docking. Automatic external-change freshness and vector search are not complete. |
 | Workspace motion | Implemented: desktop collapse stays left-anchored; chat and toggle interpolate together, including rapid reversal and reduced motion. | Deliberate correction of an inherited Piclaw CSS defect. It does not close broader workspace-tab workflow gaps. |
 | Settings | Partial: General identity, session Models, local Appearance, compaction controls/policy and guarded OpenAI/Anthropic API-key management. | Other/custom provider setup and browser OAuth flows, richer panes and remaining focus paths are incomplete. |
-| Browser authentication | Partial: single-user code-only TOTP sign-in, HttpOnly/SameSite Strict cookie, transport/origin checks and transactional cross-process auth persistence. | Initial enrolment is an API workflow restricted to loopback. No browser enrolment, complete logout/session UI, family mode or WebAuthn. |
+| Browser authentication | Partial: single-user code-only TOTP sign-in, HttpOnly/SameSite Strict cookie, transport/origin checks, transactional cross-process auth persistence and browser-owner session proof APIs. | Initial enrolment is an API workflow restricted to loopback. No browser enrolment, complete logout/session UI, family mode or WebAuthn. |
 | Multiple passkeys | Planned: add/list/rename/remove several RP-scoped credentials with fresh proof and atomic last-factor protection. | All 26 additive scenarios/outlines are unimplemented. Two independent credentials must sign in after restart; a second passkey must be addable without TOTP in passkey-only mode. |
 | Skills, tools and scripting | Partial: native tools, embedded Joker/JavaScript bridges, process extensions/hooks, skills, managed VFS and browser skill commands. | No general Piclaw/Pi package or extension compatibility. Classic skill-prefill semantics are disputed against the shared contract. |
 | Operator integrations | Partial backend routing/topics/inbound-work primitives. | The complete Piclaw plan, scheduled-task, dashboard, SSH/Proxmox/Portainer and remote-agent operator surfaces are not ported. |
@@ -88,6 +88,11 @@ Piclaw references are its remote-peer add-on 0.3.4 and shipping
 default and avoids the adapter's first-cache connect-all behaviour. OAuth,
 resources/prompts, Apps, sampling and elicitation need separate scope and tests;
 implementing `tools/call` alone will not establish full adapter parity.
+
+The [browser-owner proof prerequisite](internal/browser-auth-proof.md) distinguishes
+browser sessions from bearer/legacy tokens and refreshes five-minute TOTP proof
+for one session without extending login expiry. It adds no passkey controls or
+WebAuthn verification.
 
 Choose the production HTTPS hostname/RP before enrolling real passkeys. A key
 registered for localhost generally cannot sign in at a future tailnet hostname.

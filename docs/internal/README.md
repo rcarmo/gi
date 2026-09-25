@@ -37,6 +37,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 
 ## Current structure
 
+- `browser-auth-proof.md` -- browser-owner provenance and session-scoped recent TOTP proof; WebAuthn management prerequisite only
 - `tools/` — built-in tool contracts
 - `scripting/` — scripting runtimes and bridge docs
 - `hooks/` — hook and lifecycle docs
