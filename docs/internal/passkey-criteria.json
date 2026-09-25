@@ -222,6 +222,21 @@
       "file": "tests/ux/passkeys.spec.mjs",
       "anchor": "Settings rejects a verified duplicate credential without replacing the original key",
       "scope": "Classic localhost/CDP original none-attestation material paired with fresh genuine clientData; crafted finish reaches native409 duplicate after verifier. No server collision seed or physical authenticator duplicate/forgery acceptance."
+    },
+    "session-end": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Removing a passkey preserves sessions until explicit ${ending}",
+      "scope": "Classic localhost/CDP: passkey-proof owner and independent TOTP session; removal preserves exact session/cookie state, logout only captured session, accelerated2sserver-clock expiry fixture. Draft text/attachment pill retained; no byte equality or12hphysicalwait."
+    },
+    "logout-ui": {
+      "file": "tests/ux/auth.spec.mjs",
+      "anchor": "TOTP browser sign-out waits for native status and preserves drafts and other sessions",
+      "scope": "Chromium/WebKitthreeviewports; native logout, held status read, confirmation Escape cancel, ownercookie cleared, independent browser unaffected, fresh login restores draft/pill/session selection."
+    },
+    "logout-native": {
+      "file": "internal/auth/browser_proof_test.go",
+      "anchor": "func TestBrowserLogoutIsSessionBoundWithoutFreshProof",
+      "scope": "Atomic browser-owner-only revocation; removed/stale proof accepted for logout, only captured token removed; bearer/expired/revoked authority refused without changing state."
     }
   },
   "scenarios": [
@@ -2591,10 +2606,10 @@
           "text": "I have recently proved possession of an accepted factor",
           "state": "bounded",
           "evidence": [
-            "remove",
-            "restart-api"
+            "session-end",
+            "remove"
           ],
-          "note": "Confirmation and immediate preserved sessions are verified."
+          "note": "Native removal preserves sessions/cookies exactly; ordinary access remains200. Explicit owner logout revokes only that browser without fresh proof; another browser remainsvalid. Independent expiry path crosses real server clock at accelerated deadline."
         },
         {
           "line": 346,
@@ -2602,10 +2617,10 @@
           "text": "another usable sign-in method will remain",
           "state": "bounded",
           "evidence": [
-            "remove",
-            "restart-api"
+            "session-end",
+            "remove"
           ],
-          "note": "Confirmation and immediate preserved sessions are verified."
+          "note": "Native removal preserves sessions/cookies exactly; ordinary access remains200. Explicit owner logout revokes only that browser without fresh proof; another browser remainsvalid. Independent expiry path crosses real server clock at accelerated deadline."
         },
         {
           "line": 347,
@@ -2613,10 +2628,10 @@
           "text": "I open the confirmation to remove \"Laptop\"",
           "state": "bounded",
           "evidence": [
-            "remove",
-            "restart-api"
+            "session-end",
+            "remove"
           ],
-          "note": "Confirmation and immediate preserved sessions are verified."
+          "note": "Native removal preserves sessions/cookies exactly; ordinary access remains200. Explicit owner logout revokes only that browser without fresh proof; another browser remainsvalid. Independent expiry path crosses real server clock at accelerated deadline."
         },
         {
           "line": 348,
@@ -2624,10 +2639,10 @@
           "text": "the confirmation says removal blocks future sign-ins with that credential",
           "state": "bounded",
           "evidence": [
-            "remove",
-            "restart-api"
+            "session-end",
+            "remove"
           ],
-          "note": "Confirmation and immediate preserved sessions are verified."
+          "note": "Native removal preserves sessions/cookies exactly; ordinary access remains200. Explicit owner logout revokes only that browser without fresh proof; another browser remainsvalid. Independent expiry path crosses real server clock at accelerated deadline."
         },
         {
           "line": 349,
@@ -2635,10 +2650,10 @@
           "text": "it says existing login sessions are not signed out by this action",
           "state": "bounded",
           "evidence": [
-            "remove",
-            "restart-api"
+            "session-end",
+            "remove"
           ],
-          "note": "Confirmation and immediate preserved sessions are verified."
+          "note": "Native removal preserves sessions/cookies exactly; ordinary access remains200. Explicit owner logout revokes only that browser without fresh proof; another browser remainsvalid. Independent expiry path crosses real server clock at accelerated deadline."
         },
         {
           "line": 350,
@@ -2646,21 +2661,22 @@
           "text": "removal succeeds",
           "state": "bounded",
           "evidence": [
-            "remove",
-            "restart-api"
+            "session-end",
+            "remove"
           ],
-          "note": "Confirmation and immediate preserved sessions are verified."
+          "note": "Native removal preserves sessions/cookies exactly; ordinary access remains200. Explicit owner logout revokes only that browser without fresh proof; another browser remainsvalid. Independent expiry path crosses real server clock at accelerated deadline."
         },
         {
           "line": 351,
           "keyword": "Then",
           "text": "an already authenticated session remains subject to its normal expiry and explicit logout",
-          "state": "partial",
+          "state": "substituted",
           "evidence": [
-            "remove",
-            "restart-api"
+            "session-end",
+            "logout-ui",
+            "logout-native"
           ],
-          "note": "Existing sessions unchanged/usable immediately. Normal expiry and explicit logout after removal are not covered."
+          "note": "Expiry deadline shortened in disposable store then crossed by actual serverclock; no twelve-hour wall-clockwait. Explicit logout fullynativeUI/API, removed-factor proof does not block it, otherbrowserunchanged. Both boundaries restore draft/pill after newlogin."
         }
       ],
       "examples": []

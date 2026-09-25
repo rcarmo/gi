@@ -95,6 +95,16 @@ test('Settings explains last-key refusal and the accepted fallback after native 
  }finally{await cdp.detach();await env.close();}
 });
 
+test('Explicit browser logout returns to sign-in without discarding the composer draft',async({page,context},info)=>{
+ test.skip(!process.env.GI_UX_SERVER_BIN,'Requires the isolated auth fixture binary built by make test-ux-auth');const env=await authEnvironment(page,info);
+ try{
+  await page.goto(env.origin);await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();const composer=page.locator('.compose-box textarea');await expect(composer).toBeVisible();await composer.fill('Functional logout draft');
+  await page.keyboard.press('Control+,');await page.getByRole('button',{name:'Authentication',exact:true}).click();await page.getByRole('button',{name:'Sign out this browser',exact:true}).click();await page.getByRole('button',{name:'Confirm sign out',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'Authentication code',exact:true})).toBeVisible();expect((await context.cookies()).find(c=>c.name==='gi_session')).toBeUndefined();
+  await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(composer).toHaveValue('Functional logout draft');
+ }finally{await env.close();}
+});
+
 test('Unenrolled users cannot read or change authentication policy through owner routes',async({page,request})=>{
  const before=await(await request.get('/api/auth/status')).json();
  await page.goto('/');await expect(page.locator('.compose-box textarea')).toBeVisible();

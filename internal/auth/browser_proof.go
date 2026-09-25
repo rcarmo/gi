@@ -90,6 +90,29 @@ func (m *Manager) BrowserSessionProof(token string) (BrowserProof, error) {
 	return proof, nil
 }
 
+// LogoutBrowserSession revokes only a valid browser-owner session. Authority
+// and removal share a transaction; stale or removed-factor proof is irrelevant
+// to signing out. Bearer/legacy tokens cannot acquire this authority.
+func (m *Manager) LogoutBrowserSession(token string) error {
+	return m.updateState(func(state *State, _ bool) error {
+		now := time.Now().UTC()
+		session, err := requireBrowserOwnerSession(state, token, now, false)
+		if err != nil {
+			return err
+		}
+		hash := session.TokenHash
+		remaining := state.Sessions[:0]
+		for _, candidate := range state.Sessions {
+			if !constantTimeString(candidate.TokenHash, hash) {
+				remaining = append(remaining, candidate)
+			}
+		}
+		state.Sessions = remaining
+		state.UpdatedAt = now
+		return nil
+	})
+}
+
 // ReauthenticateBrowserTOTP refreshes only this existing browser session. It
 // never mints/rotates a token, changes expiry or authorises another browser.
 func (m *Manager) ReauthenticateBrowserTOTP(token, code string) (BrowserProof, error) {

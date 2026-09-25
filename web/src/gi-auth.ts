@@ -41,6 +41,13 @@ export function GiAuthGate({ children }) {
         return () => { disposed = true; clearTimeout(timeout); controller.abort(); flight.current?.abort(); flight.current = null; };
     }, [attempt]);
 
+    // A confirmed Settings logout invalidates the gate's snapshot. Re-read
+    // native authority; never accept authentication state in an event payload.
+    useEffect(() => {
+        const changed = () => { setPolicy(null); setAttempt(n => n + 1); };
+        window.addEventListener('gi-auth-status-changed', changed);
+        return () => window.removeEventListener('gi-auth-status-changed', changed);
+    }, []);
     useEffect(() => { if (policy?.enrolled && !policy.authenticated) input.current?.focus(); }, [policy]);
 
     const submit = async (event: Event) => {

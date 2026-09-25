@@ -48,13 +48,41 @@ factor strings do not grant freshness.
 Only the server supplies proof timestamps. Loading Settings or reloading a page
 cannot refresh them.
 
-## Future credential mutations
+## Explicit browser logout
 
-The proof response is advisory. A future add/rename/remove operation must invoke
+`POST /api/auth/session/logout` accepts only an empty JSON object (maximum1024
+bytes) and a single valid browser-owner cookie. It requires the exact Origin
+and the same TLS/loopback boundary; bearer/query authority, duplicate cookies,
+unknown fields, null/arrays and trailing JSON are refused. Responses are private,
+no-store. Admission errors never clear cookies or revoke sessions.
+
+`LogoutBrowserSession` validates purpose/token/expiry and removes that same
+session inside one `updateState` transaction. It does not require recent proof:
+a removed passkey or old proof must not prevent signing out. Other sessions,
+factor records and their expiries stay unchanged. Success clears the host-only
+HttpOnly Strict `/` cookie (Secure on TLS) and returns only `ok:true`.
+Expired/revoked/legacy/bearer cookies return401; contention returns409.
+There is no logout-all operation.
+
+Settings offers confirmation and cancellation. After a successful POST it reads
+native status before telling the gate to recheck; the gate also fetches status
+rather than accepting authority from an event. Failed, lost or uncertain replies
+offer a read-only `Check sign-in status` action. Logout is never automatically
+replayed. Local drafts/media are not cleared.
+
+Native tests verify authority, transaction-bound scope, cookie attributes and
+stale/removed-factor logout. Browser tests cover other-session isolation,
+held-status gating, false success, failed/lost responses, post-removal expiry
+and draft/attachment-pill retention. Those checks do not compare media bytes
+or establish physical device state.
+
+## Credential mutations
+
+The proof response is advisory. Add/rename/remove operations must invoke
 `requireBrowserOwnerSession` with `fresh=true` against the same `State` snapshot
 being changed inside `updateState`. This rechecks revocation, expiry, purpose and
 factor proof at write time. It must also check the current RP/origin/login policy
-and last-usable-factor rule in that transaction. None of those future WebAuthn
+and last-usable-factor rule in that transaction. None of those WebAuthn
 checks can be replaced by a successful proof-status request.
 
 Tests cover independent sessions, exact five-minute boundaries, legacy/bearer
@@ -65,4 +93,4 @@ real cookies while preserving drafts and attachments. They do not simulate a
 passkey ceremony or establish any of the additive passkey scenario mappings.
 
 The terminal does not acquire owner proof or gain new login rows. Passkey
-management will belong in authenticated browser Settings.
+management belongs in authenticated browser Settings.

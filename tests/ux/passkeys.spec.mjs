@@ -841,6 +841,58 @@ test('Settings rejects a verified duplicate credential without replacing the ori
  }finally{await auth.cdp.detach();await env.close();}
 });
 
+for(const ending of ['logout','expiry'])test(`Removing a passkey preserves sessions until explicit ${ending}`,async({page,browser,context},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);const otherContext=await browser.newContext();const other=await otherContext.newPage();
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Laptop');
+  await page.getByRole('button',{name:'Verify with passkey',exact:true}).click();await expect(page.getByText('Authentication verified.',{exact:true})).toBeVisible();
+  await other.addInitScript(id=>localStorage.setItem('gi_session_id',id),env.main.id);await loginTOTP(other,env);
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();await page.locator('.compose-box textarea').fill('Removal keeps draft Ω');await page.locator('.compose-box input[type=file]').setInputFiles({name:'logout.txt',mimeType:'text/plain',buffer:Buffer.from('Retained logout bytes')});await expect(page.locator('.compose-file-pill[title="logout.txt"]')).toBeVisible();await openAuthentication(page);
+  const before=savedAuth(env),cookies=await context.cookies(),otherCookies=await otherContext.cookies();const ownerHash=createHash('sha256').update(cookies.find(c=>c.name==='gi_session').value).digest('hex');
+  expect(before.sessions.find(s=>s.token_hash===ownerHash).auth_factor).toBe('webauthn');
+  await page.getByRole('button',{name:'Remove Laptop',exact:true}).click();await expect(page.getByRole('group',{name:'Confirm passkey removal'})).toContainText('Existing login sessions are not signed out');await page.getByRole('button',{name:'Confirm removal',exact:true}).click();await expect(page.locator('.gi-passkey-row')).toHaveCount(0);await expect(page.getByText('Passkey removed. Existing login sessions are not signed out.',{exact:true})).toBeVisible();
+  expect(savedAuth(env).sessions).toEqual(before.sessions);expect(await context.cookies()).toEqual(cookies);expect(await otherContext.cookies()).toEqual(otherCookies);
+  for(const p of [page,other])expect(await p.evaluate(async()=>(await fetch('/api/sessions')).status)).toBe(200);
+  expect(await page.evaluate(async()=>(await(await fetch('/api/auth/session/proof')).json()).reauth_required)).toBe(true);
+  const removed=savedAuth(env);
+  if(ending==='logout'){
+   const writes=[];page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/api/auth/session/logout'))writes.push(r);});
+   await page.getByRole('button',{name:'Sign out this browser',exact:true}).click();await page.getByRole('button',{name:'Cancel sign out',exact:true}).click();expect(writes).toHaveLength(0);expect(savedAuth(env)).toEqual(removed);
+   await page.getByRole('button',{name:'Sign out this browser',exact:true}).click();await page.getByRole('button',{name:'Confirm sign out',exact:true}).click();await expect(page.getByRole('textbox',{name:'Authentication code',exact:true})).toBeVisible();expect(writes).toHaveLength(1);expect((await context.cookies()).find(c=>c.name==='gi_session')).toBeUndefined();
+   expect(savedAuth(env).sessions).toEqual(removed.sessions.filter(s=>s.token_hash!==ownerHash));
+  }else{
+   // Accelerated fixture lifetime: exercise the actual server clock crossing
+   // expiry, not a twelve-hour physical wait or a mocked auth status response.
+   const state=savedAuth(env);state.sessions.find(s=>s.token_hash===ownerHash).expires_at=new Date(Date.now()+2000).toISOString();writeFileSync(env.authPath,JSON.stringify(state));
+   expect(await page.evaluate(async()=>(await fetch('/api/sessions')).status)).toBe(200);await expect.poll(()=>page.evaluate(async()=>(await fetch('/api/sessions')).status),{timeout:6000}).toBe(401);await page.reload();await expect(page.getByRole('textbox',{name:'Authentication code',exact:true})).toBeVisible();
+  }
+  expect(await page.evaluate(async()=>(await fetch('/api/sessions')).status)).toBe(401);expect(await other.evaluate(async()=>(await fetch('/api/sessions')).status)).toBe(200);expect(await otherContext.cookies()).toEqual(otherCookies);
+  expect(savedAuth(env).totp_secret).toBe(removed.totp_secret);expect(savedAuth(env).passkeys||[]).toEqual([]);
+  await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('Removal keeps draft Ω');await expect(page.locator('.compose-file-pill[title="logout.txt"]')).toBeVisible();
+ }finally{await otherContext.close();await auth.cdp.detach();await env.close();}
+});
+
+for(const fault of ['server error','false success','lost response'])test(`Settings logout ${fault} requires explicit reconciliation without replay`,async({page},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});
+ try{
+  await loginTOTP(page,env);await page.locator('.compose-box textarea').fill('Uncertain logout draft');await openAuthentication(page);const before=savedAuth(env);let posts=0;
+  page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/api/auth/session/logout'))posts++;});
+  await page.route('**/api/auth/session/logout',async route=>{
+   if(fault==='lost response'){const response=await route.fetch();expect(response.status()).toBe(200);await route.abort('failed');}
+   else await route.fulfill({status:fault==='server error'?503:200,contentType:'application/json',body:fault==='server error'?'{"error":"Sign-out unavailable"}':'{"ok":true}'});
+  });
+  await page.getByRole('button',{name:'Sign out this browser',exact:true}).click();await page.getByRole('button',{name:'Confirm sign out',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();await expect(page.getByRole('button',{name:'Check sign-in status',exact:true})).toBeEnabled();expect(posts).toBe(1);await expect(page.locator('.settings-dialog')).toBeVisible();
+  if(fault!=='lost response')expect(savedAuth(env)).toEqual(before);else expect(savedAuth(env).sessions||[]).toEqual([]);
+  await page.unrouteAll({behavior:'wait'});await page.getByRole('button',{name:'Check sign-in status',exact:true}).click();
+  if(fault!=='lost response'){
+   await expect(page.getByRole('alert')).toContainText('still signed in');expect(posts).toBe(1);expect(savedAuth(env)).toEqual(before);
+   await page.getByRole('button',{name:'Confirm sign out',exact:true}).click();
+  }
+  await expect(page.getByRole('textbox',{name:'Authentication code',exact:true})).toBeVisible();expect(posts).toBe(fault==='lost response'?1:2);
+  await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('Uncertain logout draft');
+ }finally{await env.close();}
+});
+
 async function changePolicy(page,value){
  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);
  await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();

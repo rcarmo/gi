@@ -8,7 +8,7 @@ import {
   passkeyUnavailable,
   runPasskey,
   parseAuthPolicy
-} from "./app-14c0x7hx.js";
+} from "./app-9w5kvpvv.js";
 
 // web/src/gi-settings-authentication.ts
 var removalReasons = new Map([
@@ -24,6 +24,8 @@ function GiSettingsAuthentication() {
   const [loginPolicy, setLoginPolicy] = F_(null);
   const [policyChoice, setPolicyChoice] = F_("either");
   const [confirmPolicy, setConfirmPolicy] = F_(false);
+  const [confirmLogout, setConfirmLogout] = F_(false);
+  const [logoutUncertain, setLogoutUncertain] = F_(false);
   const [keys, setKeys] = F_(null);
   const [fresh, setFresh] = F_(false);
   const [busy, setBusy] = F_("");
@@ -52,6 +54,7 @@ function GiSettingsAuthentication() {
     setEditing(null);
     setRemoving(null);
     setConfirmPolicy(false);
+    setConfirmLogout(false);
     restore();
   };
   W_(() => {
@@ -173,10 +176,56 @@ function GiSettingsAuthentication() {
       restore();
     }
   }, "Sign-in policy saved. Existing login sessions are unchanged.");
+  const logout = async (checkOnly = false) => {
+    if (flight.current)
+      return;
+    const controller = new AbortController;
+    flight.current = controller;
+    setBusy(checkOnly ? "Checking sign-in status…" : "Signing out…");
+    setError("");
+    setNotice("");
+    setRemovalDetail("");
+    try {
+      if (!checkOnly) {
+        const result = await authJSON("/api/auth/session/logout", {}, controller.signal);
+        if (result.ok !== true)
+          throw new Error("Sign-out could not be confirmed. Check sign-in status before retrying.");
+      }
+      const status = parseAuthPolicy(await authJSON("/api/auth/status", undefined, controller.signal));
+      if (!live.current)
+        return;
+      if (status.authenticated)
+        throw new Error("This browser is still signed in. Retry sign-out explicitly when ready.");
+      setConfirmLogout(false);
+      setLogoutUncertain(false);
+      window.dispatchEvent(new Event("gi-auth-status-changed"));
+    } catch (e) {
+      if (live.current) {
+        setLogoutUncertain(true);
+        setError(e.message || "Sign-out could not be confirmed. Check sign-in status before retrying.");
+      }
+    } finally {
+      if (flight.current === controller) {
+        flight.current = null;
+        if (live.current)
+          setBusy("");
+      }
+    }
+  };
   const date = (value) => !value || value.startsWith("0001-") ? "Never used" : new Date(value).toLocaleString();
-  return fe`<section ref=${root} class="gi-authentication-pane" aria-labelledby="gi-authentication-heading" data-auth-escape=${busy || editing || removing || confirmPolicy ? "true" : undefined}>
+  return fe`<section ref=${root} class="gi-authentication-pane" aria-labelledby="gi-authentication-heading" data-auth-escape=${busy || editing || removing || confirmPolicy || confirmLogout ? "true" : undefined}>
         <h2 id="gi-authentication-heading">Authentication</h2>
         <p>Manage passkeys for this instance owner. Each row is one credential, not an inventory of devices.</p>
+        ${proof && fe`<button disabled=${!!busy} onClick=${(e) => {
+    opener.current = e.currentTarget;
+    setConfirmLogout(true);
+    setEditing(null);
+    setRemoving(null);
+    setConfirmPolicy(false);
+  }}>Sign out this browser</button>`}
+        ${confirmLogout && fe`<div role="group" aria-label="Confirm browser sign-out"><p>Sign out this browser? Other login sessions and registered credentials stay unchanged. Local drafts and attachments are kept.</p>
+            <button disabled=${!!busy} onClick=${() => logout()}>Confirm sign out</button><button disabled=${!!busy} onClick=${cancel}>Cancel sign out</button></div>`}
+        ${logoutUncertain && fe`<button disabled=${!!busy} onClick=${() => logout(true)}>Check sign-in status</button>`}
         <h3>Passkeys</h3>
         ${busy && fe`<p role="status">${busy}</p>`}
         ${error && fe`<p role="alert">${error}</p>`}
@@ -240,5 +289,5 @@ export {
   GiSettingsAuthentication
 };
 
-//# debugId=D693D4B8B060CA2E64756E2164756E21
-//# sourceMappingURL=gi-settings-authentication-w4nxdc7b.js.map
+//# debugId=420B5C7C85F2C84264756E2164756E21
+//# sourceMappingURL=gi-settings-authentication-d7j2032y.js.map

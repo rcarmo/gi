@@ -18442,11 +18442,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-bdj4hp6r.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-jk4jt3hb.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-x57x0a1r.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-txye2yw3.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-w4nxdc7b.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-ypdcj5c0.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-dcn0s664.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-cydvva6w.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-681n407s.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-d7j2032y.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -18895,6 +18895,14 @@ function GiAuthGate({ children }) {
       flight.current = null;
     };
   }, [attempt]);
+  K_(() => {
+    const changed = () => {
+      setPolicy(null);
+      setAttempt((n) => n + 1);
+    };
+    window.addEventListener("gi-auth-status-changed", changed);
+    return () => window.removeEventListener("gi-auth-status-changed", changed);
+  }, []);
   K_(() => {
     if (policy?.enrolled && !policy.authenticated)
       input.current?.focus();
@@ -21071,5 +21079,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=4E11BECF67E78C7964756E2164756E21
-//# sourceMappingURL=app-14c0x7hx.js.map
+//# debugId=591426C13484238964756E2164756E21
+//# sourceMappingURL=app-9w5kvpvv.js.map

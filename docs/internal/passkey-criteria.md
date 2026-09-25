@@ -3,7 +3,7 @@
 The [JSON ledger](passkey-criteria.json) links all 26 additive scenarios to
 individual assertions or named gaps. It records 169 scenario steps, four shared
 Background steps and 40 example rows. Gherkin expansion produces 56 cases.
-These counts describe the source contract; the latest browser suite has 168
+These counts describe the source contract; the latest browser suite has 183
 executions and uses a different test grouping.
 
 Initial source-evidence baseline: `e7d9b0450db9dc2c103dc06797dd5387ab9f81d7`.
@@ -70,8 +70,10 @@ Initial owner bootstrap and the production RP choice are separate work.
 - 021 can reject the concurrent loser at the non-blocking writer lock. A later
   deliberate retry proves the factor check, not the required direct refusal.
 - 023 has no legacy passkey-delete command with Settings guidance.
-- 024 preserves sessions immediately after removal, without post-removal expiry
-  and explicit-logout lifecycle evidence.
+- 024 now preserves sessions through removal, then exercises explicit logout
+  and native expiry independently. Expiry crosses a two-second fixture deadline;
+  it does not wait twelve hours. Logout is cookie-owner-only and leaves the other
+  browser signed in even when the selected session's proof key was removed.
 
 The [scenario review](passkey-scenario-review.md) is the compact index. The
 criterion ledger supplies the exact missing step or example behind a partial

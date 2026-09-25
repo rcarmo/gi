@@ -75,5 +75,6 @@ test('passkey criterion evidence points to named tests or a declared fixture, no
  expect(criterion('020',7).state).toBe('partial');
  expect(ledger.scenarios.find((s:any)=>s.id.endsWith('020')).examples[6].state).toBe('unsupported');
  expect(criterion('021',5).state).toBe('partial');
- expect(criterion('024',7).state).toBe('partial');
+ expect(criterion('024',7).state).toBe('substituted'); // accelerated native expiry, explicit logout
+ expect(criterion('024',7).evidence).toContain('session-end');
 });

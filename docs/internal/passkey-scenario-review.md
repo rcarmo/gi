@@ -7,8 +7,8 @@ are added by this document. Frozen Classic/shared counts are unchanged.
 The [criterion ledger](passkey-criteria.md) records exact source steps/examples,
 named assertion anchors and the gaps below; it does not award full mappings.
 
-The current passkey suite has 56 tests in Chromium across three viewport projects
-(168 executions). Two narrow-interaction tests explicitly create390px touch-capable
+The current passkey suite has 61 tests in Chromium across three viewport projects
+(183 executions). Two narrow-interaction tests explicitly create390px touch-capable
 contexts in every project; those six executions repeat390px coverage rather than
 establishing tablet/desktop geometry. CDP virtual authenticators sign real browser ceremonies on
 HTTP localhost, not the frozen Background's `https://piclaw.test` origin.
@@ -52,7 +52,7 @@ outline example lacks direct evidence. A physical-device gap stays manual.
 | 021 | UI `Two Settings views concurrently remove different keys…`: both POSTs held, no optimistic removal, then one200/one409; both refresh to the same surviving key, with no automatic retry. Explicit retry returns exact last-factor409; cookies/sessions survive and the remaining key signs in afresh. | Partial: the non-blocking auth writer lock can refuse the concurrent loser with a state-conflict409 before the factor check. The frozen scenario requires refusal by the write-time lockout check; the later explicit retry proves that check separately. |
 | 022 | UI `Policy changes reject stale browser revisions…`: removal confirmation predates other browser's passkey-only change, removal refused at commit, refresh reconciles. | Candidate: direct UI policy/removal ordering plus native race tests. |
 | 023 | No implemented legacy passkey-delete command workflow established. | Unsupported: explicit command refusal/Settings guidance test. |
-| 024 | UI removal explains future sign-ins versus existing sessions; native session validity retained. | Partial: normal expiry and explicit logout lifecycle after removal. |
+| 024 | UI `Removing a passkey preserves sessions until explicit…`: removal retains exact sessions/cookies; one browser logs out despite removed-factor proof while another stays valid, or crosses a shortened native expiry deadline. New login retains draft/pill. Separate Chromium/WebKit logout checks gate transition on native status and cancel without writes. | Candidate: native session-end paths verified. Expiry uses an accelerated two-second fixture deadline, not a twelve-hour wall-clock wait; inherited scope substitutions remain. |
 | 025 | UI failed finish says not registered, local credential may remain and Gi did not remove it; native authenticator/store checks. | Candidate: local-orphan explanation without false cleanup. |
 | 026 | UI `Settings proof in one browser leaves another stale…`: two different owner cookies aged beyond five minutes; first reauthenticates and renames, second reloads with Add/Rename/Remove disabled. Direct register-start/rename/remove return recent-proof403 with whole auth-state equality. Second succeeds only after its own proof. | Candidate: direct isolated-browser and native write-boundary evidence, without production authentication changes. |
 

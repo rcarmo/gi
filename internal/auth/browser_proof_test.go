@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -23,6 +24,78 @@ func browserSession(t *testing.T, m *Manager) string {
 		t.Fatal(err)
 	}
 	return token
+}
+
+func TestBrowserLogoutIsSessionBoundWithoutFreshProof(t *testing.T) {
+	m, secret := enrolledManager(t)
+	owner, other := browserSession(t, m), browserSession(t, m)
+	bearer, _, err := m.VerifyLogin("", totpCode(secret, time.Now().Unix()/30))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = m.updateState(func(s *State, _ bool) error {
+		for i := range s.Sessions {
+			if s.Sessions[i].TokenHash == hashToken(owner) {
+				s.Sessions[i].AuthFactor = "webauthn"
+				s.Sessions[i].AuthCredentialID = "removed-key"
+				s.Sessions[i].AuthRPID = "localhost"
+				s.Sessions[i].AuthenticatedAt = time.Now().Add(-time.Hour)
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	proof, err := m.BrowserSessionProof(owner)
+	if err != nil || !proof.ReauthRequired {
+		t.Fatalf("proof=%+v err=%v", proof, err)
+	}
+	before, _ := m.load()
+	if err = m.LogoutBrowserSession(owner); err != nil {
+		t.Fatal(err)
+	}
+	if m.ValidateToken(owner) || !m.ValidateToken(other) || !m.ValidateToken(bearer) {
+		t.Fatal("logout revoked wrong sessions")
+	}
+	after, _ := m.load()
+	if len(after.Sessions) != len(before.Sessions)-1 || after.TOTPSecret != before.TOTPSecret || after.TOTPEnabled != before.TOTPEnabled {
+		t.Fatal("logout changed factors")
+	}
+	for _, s := range before.Sessions {
+		if s.TokenHash == hashToken(owner) {
+			continue
+		}
+		found := false
+		for _, a := range after.Sessions {
+			if a == s {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("other session changed")
+		}
+	}
+	saved, _ := os.ReadFile(m.path)
+	for _, token := range []string{owner, bearer, ""} {
+		if err = m.LogoutBrowserSession(token); !errors.Is(err, ErrBrowserSessionRequired) {
+			t.Fatalf("unexpected authority: %v", err)
+		}
+		data, _ := os.ReadFile(m.path)
+		if !bytes.Equal(data, saved) {
+			t.Fatal("refusal changed state")
+		}
+	}
+	if err = m.updateState(func(s *State, _ bool) error {
+		for i := range s.Sessions {
+			s.Sessions[i].ExpiresAt = time.Now().Add(-time.Second)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err = m.LogoutBrowserSession(other); !errors.Is(err, ErrBrowserSessionRequired) {
+		t.Fatal("expired owner accepted")
+	}
 }
 
 func TestBrowserProofIssuanceAndLegacy(t *testing.T) {

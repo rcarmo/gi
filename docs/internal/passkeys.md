@@ -158,7 +158,7 @@ Lost responses require an authoritative refresh before a new attempt.
 
 ## Test scope and remaining work
 
-`make test-ux-passkeys` runs 56 integration tests across three Chromium viewport
+`make test-ux-passkeys` runs 61 integration tests across three Chromium viewport
 projects and is required by CI before build jobs. Two narrow-interaction tests
 create390px contexts explicitly in every project; their six executions repeat
 phone-width acceptance rather than extending the geometry matrix. The tests cover two distinct credentials,
@@ -168,7 +168,7 @@ wrong session, revoked session, stale proof/reauth, cancellation, expiry, altere
 origin, correctly signed wrong-RP assertion, duplicate-ID protection and uncertain
 successful registration. Fixtures seed specific policy/error states explicitly.
 
-Fifty-two tests drive actual Classic Settings/login controls: two-key enrolment,
+Fifty-seven tests drive actual Classic Settings/login controls: two-key enrolment,
 independent sign-in after restart, retained drafts/media, rename/remove/cancel,
 passkey-only reauth/add/login, failed reads/writes, uncertain finish and unmount
 cancellation, policy changes, stale revisions and a policy change during removal
@@ -266,6 +266,16 @@ post-verification duplicate409. Its original credential and sessions remain
 unchanged, Settings shows no second row or success, and the original key still
 signs in. No server-side collision is seeded. This exercises an adversarial client;
 it does not establish physical duplicate UX or attestation-forgery resistance.
+
+Post-removal session tests preserve exact existing session/cookie records and
+ordinary access, then exercise explicit browser logout or a shortened expiry
+crossed by the real server clock. Logout requires no fresh factor proof and
+revokes only the captured browser session. A second browser stays authenticated.
+Settings confirms status before transitioning to sign-in and offers read-only
+reconciliation after failed/false/lost replies, without automatically replaying
+the POST. TOTP logout also runs in Chromium/WebKit at three sizes. Draft text,
+selected session and attachment pills survive fresh sign-in. Details are in the
+[browser-owner contract](browser-auth-proof.md#explicit-browser-logout).
 
 The suite uses HTTP localhost, not the pinned feature Background's HTTPS host.
 Synthetic blur tests application ownership only, not OS prompt focus. A separate

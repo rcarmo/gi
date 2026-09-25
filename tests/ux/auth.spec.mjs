@@ -124,6 +124,23 @@ test('Authentication pane explains unavailable passkeys and preserves drafts acr
  }finally{await env.close();}
 });
 
+test('TOTP browser sign-out waits for native status and preserves drafts and other sessions',async({page,browser,context},info)=>{
+ const env=await authEnvironment(page,info);const otherContext=await browser.newContext();const other=await otherContext.newPage();let release;const gate=new Promise(r=>release=r);
+ const login=async p=>{await p.goto(env.origin);await p.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await p.getByRole('button',{name:'Sign in',exact:true}).click();await expect(p.locator('.compose-box textarea')).toBeVisible();};
+ try{
+  await login(page);await other.addInitScript(id=>localStorage.setItem('gi_session_id',id),env.main.id);await login(other);const otherCookies=await otherContext.cookies();
+  await page.locator('.compose-box textarea').fill('Logout keeps draft and selection Ω');await page.locator('.compose-box input[type=file]').setInputFiles({name:'signout.txt',mimeType:'text/plain',buffer:Buffer.from('Stored logout attachment')});await expect(page.locator('.compose-file-pill[title="signout.txt"]')).toBeVisible();
+  await page.keyboard.press('Control+,');await page.getByRole('button',{name:'Authentication',exact:true}).click();await expect(page.getByRole('button',{name:'Sign out this browser',exact:true})).toBeEnabled();
+  let posts=0,held=false;page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/api/auth/session/logout'))posts++;});
+  await page.getByRole('button',{name:'Sign out this browser',exact:true}).click();await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Gi Settings',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Sign out this browser',exact:true})).toBeFocused();expect(posts).toBe(0);
+  await page.route('**/api/auth/status',async route=>{held=true;await gate;await route.continue();});
+  await page.getByRole('button',{name:'Sign out this browser',exact:true}).click();await page.getByRole('button',{name:'Confirm sign out',exact:true}).click();await expect.poll(()=>held).toBe(true);
+  await expect(page.locator('.settings-dialog')).toBeVisible();await expect(page.getByRole('heading',{name:'Sign in to Gi',exact:true})).toHaveCount(0);expect(posts).toBe(1);expect((await context.cookies()).find(c=>c.name==='gi_session')).toBeUndefined();
+  release();await expect(page.getByRole('textbox',{name:'Authentication code',exact:true})).toBeVisible();expect(await otherContext.cookies()).toEqual(otherCookies);expect(await other.evaluate(async()=>(await fetch('/api/sessions')).status)).toBe(200);expect(await page.evaluate(async()=>(await fetch('/api/sessions')).status)).toBe(401);
+  await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('Logout keeps draft and selection Ω');await expect(page.locator('.compose-file-pill[title="signout.txt"]')).toBeVisible();expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(env.main.id);
+ }finally{release();await page.unrouteAll({behavior:'wait'});await otherContext.close();await env.close();}
+});
+
 test('TOTP owner changes policy without passkey configuration and a lost policy response requires refresh',async({page},info)=>{
  const env=await authEnvironment(page,info);
  try{

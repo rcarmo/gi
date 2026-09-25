@@ -16,6 +16,8 @@ export function GiSettingsAuthentication() {
     const [loginPolicy, setLoginPolicy] = useState(null);
     const [policyChoice, setPolicyChoice] = useState('either');
     const [confirmPolicy, setConfirmPolicy] = useState(false);
+    const [confirmLogout, setConfirmLogout] = useState(false);
+    const [logoutUncertain, setLogoutUncertain] = useState(false);
     const [keys, setKeys] = useState(null);
     const [fresh, setFresh] = useState(false);
     const [busy, setBusy] = useState('');
@@ -32,7 +34,7 @@ export function GiSettingsAuthentication() {
     const restore = () => requestAnimationFrame(() => { if (live.current) (opener.current?.isConnected ? opener.current : root.current?.querySelector('button'))?.focus(); });
     const cancel = () => {
         if (flight.current) { flight.current.abort(); return; }
-        setEditing(null); setRemoving(null); setConfirmPolicy(false); restore();
+        setEditing(null); setRemoving(null); setConfirmPolicy(false); setConfirmLogout(false); restore();
     };
     useLayoutEffect(() => {
         const el = root.current; el.addEventListener('gi-auth-escape', cancel);
@@ -94,10 +96,33 @@ export function GiSettingsAuthentication() {
         if (result.policy !== policyChoice || typeof result.revision !== 'string') throw new Error('Policy change could not be confirmed. Refresh before trying again.');
         if (live.current) { setConfirmPolicy(false); restore(); }
     }, 'Sign-in policy saved. Existing login sessions are unchanged.');
+    // Logout must remain usable with stale/removed-factor proof. An uncertain
+    // POST is never replayed: the separate check reads status only.
+    const logout = async (checkOnly = false) => {
+        if (flight.current) return;
+        const controller = new AbortController(); flight.current = controller;
+        setBusy(checkOnly ? 'Checking sign-in status…' : 'Signing out…'); setError(''); setNotice(''); setRemovalDetail('');
+        try {
+            if (!checkOnly) {
+                const result = await authJSON('/api/auth/session/logout', {}, controller.signal);
+                if (result.ok !== true) throw new Error('Sign-out could not be confirmed. Check sign-in status before retrying.');
+            }
+            const status = parseAuthPolicy(await authJSON('/api/auth/status', undefined, controller.signal));
+            if (!live.current) return;
+            if (status.authenticated) throw new Error('This browser is still signed in. Retry sign-out explicitly when ready.');
+            setConfirmLogout(false); setLogoutUncertain(false);
+            window.dispatchEvent(new Event('gi-auth-status-changed'));
+        } catch (e) { if (live.current) { setLogoutUncertain(true); setError(e.message || 'Sign-out could not be confirmed. Check sign-in status before retrying.'); } }
+        finally { if (flight.current === controller) { flight.current = null; if (live.current) setBusy(''); } }
+    };
     const date = value => !value || value.startsWith('0001-') ? 'Never used' : new Date(value).toLocaleString();
-    return html`<section ref=${root} class="gi-authentication-pane" aria-labelledby="gi-authentication-heading" data-auth-escape=${busy || editing || removing || confirmPolicy ? 'true' : undefined}>
+    return html`<section ref=${root} class="gi-authentication-pane" aria-labelledby="gi-authentication-heading" data-auth-escape=${busy || editing || removing || confirmPolicy || confirmLogout ? 'true' : undefined}>
         <h2 id="gi-authentication-heading">Authentication</h2>
         <p>Manage passkeys for this instance owner. Each row is one credential, not an inventory of devices.</p>
+        ${proof && html`<button disabled=${!!busy} onClick=${e => {opener.current=e.currentTarget;setConfirmLogout(true);setEditing(null);setRemoving(null);setConfirmPolicy(false);}}>Sign out this browser</button>`}
+        ${confirmLogout && html`<div role="group" aria-label="Confirm browser sign-out"><p>Sign out this browser? Other login sessions and registered credentials stay unchanged. Local drafts and attachments are kept.</p>
+            <button disabled=${!!busy} onClick=${() => logout()}>Confirm sign out</button><button disabled=${!!busy} onClick=${cancel}>Cancel sign out</button></div>`}
+        ${logoutUncertain && html`<button disabled=${!!busy} onClick=${() => logout(true)}>Check sign-in status</button>`}
         <h3>Passkeys</h3>
         ${busy && html`<p role="status">${busy}</p>`}
         ${error && html`<p role="alert">${error}</p>`}

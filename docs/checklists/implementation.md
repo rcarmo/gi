@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-25
 
+- [x] Add cookie-only explicit browser logout with exact Origin/transport/empty-JSON guards and transactional purpose/token/expiry validation, no fresh-proof requirement or other-session/factor mutation. Settings confirms POST plus native status before gate recheck; lost/false/failed replies offer read-only Check sign-in status, no replay.183passkey/42auth/216Settings/108functional (five existing skips)/106helpers2943/Go-vet-hook/web-auth race×3/review pass. Post-removal logout and accelerated2s real-clock expiry retain other browser, drafts/pills/selection; media byte equality and12hwait not claimed.024bounded with expiry substitution; no live logout or TUI rows.
+
 - [x] Verify Settings duplicate path with real first/second creation and native exclusion list; crafted original none-attestation+fresh client-data finish returns exact post-verification409 without server collision seed. Original full credential/sessions unchanged, no success/second row/replay through refresh/re-entry, original key signs in.168passkey/107functional (five existing skips)/106helpers2918/Go-vet-nativeauth/hook/review pass.012bounded candidate, crafted-client substitution explicit/no physical duplicate or attestation-forgery/full mapping credit. Test/docs only/no deployment/live auth/TUI rows.
 
 - [x] Deploycfef4d8 removal explanations after CI36113841805: eight Linux/macOS test/build jobs green (no Windows).8090 PID3145609; six guarded live browser/size checks zero writes/errors/draft loss. Live still unenrolled/passkeys disabled. DB62/51/146, integrity/FKs OK and full SQL equal except runtime lease (SHA256300ce679…53d). No production enrolment/policy change or TUI rows.
