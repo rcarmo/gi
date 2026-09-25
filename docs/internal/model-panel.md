@@ -42,4 +42,4 @@ Verification:
 
 Sparse-row and active-row tests now inspect the reference name/key structure and catalogue class. Shared31/shared32 search tests exercise the real filtering field, clear it before selection, and retain the pending-write current-row check. Frozen feature files and mapping counts are unchanged. Early failed assertions about first-row DOM focus or hidden filtered rows were harness assumptions, not relaxed product criteria.
 
-CI must pass before deployment. The preceding compose-surface commit `75da410` passed CI36180760610; it was not deployed while these model-panel changes were unverified in the working tree. No terminal chrome was added.
+The compose-surface commit `75da410` passed CI36180760610; deployment was held while panel changes were unverified. The stack through `8f97f08` is now [deployed and read-only verified](session-panel.md#verification-and-release-state) after CI36193525146. Exact pixel and capability gaps above remain open. No terminal chrome was added.
