@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-25
 
+- [ ] Resolve Windows CI36106302597 auth-state retry exhaustion in TestAuthConcurrentLoginRevokeAndReaders: preserve25 contending writers and all persisted-token/revoke assertions; replace test-only fixed500×2ms polling with bounded elapsed retry/backoff and explicit helper tests. Runtime nonblocking locks unchanged; no deployment until native CI is green.
+
 - [x] Verify lost successful registration after pane switch and Settings close/reopen: automatic held native inventory GET, no invented row/empty state before release, new credential once, no auth POST replay through second return/full reload, exact committed auth state retained. Draft text/attachment pill survive (not byte equality).141 passkey/105 functional (five existing skips)/106 helpers2864/Go-vet-nativeauth/review pass;014explicit-return gap now bounded in criterion ledger, fullMappingfalse/global fixture limits retained. Test/docs only/no deployment/live auth/TUI rows.
 
 - [x] Add validated passkey criterion ledger:26 scenarios/169 steps/4 Background steps/40 example rows/56 expanded cases, exact pinned source+named test declarations, bounded/substituted/partial/gap/manual/unsupported dispositions and zero-row browser-only terminal adaptation. No full-scenario mappings awarded. Correct014 Refresh≠return and020generic-reason gaps;017matrix/021lockcontention/024lifecycle explicit.106 helpers2854/Go-vet-build-hook/105functional (five existing skips) pass. Initial two stale anchor names corrected; review tightened declaration uniqueness,236IDs versus256expanded and disputed008 membership. Source semantics remain human-reviewed, not validator proof.

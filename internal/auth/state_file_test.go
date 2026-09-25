@@ -28,14 +28,62 @@ func enrolledManager(t *testing.T) (*Manager, string) {
 	return m, p.Secret
 }
 func retryState(fn func() error) error {
-	for i := 0; i < 500; i++ {
+	return retryStateWithin(10*time.Second, fn)
+}
+
+// This is test-only admission retry, not a runtime lock policy. A fixed count
+// of 2ms retries can expire under Windows CI filesystem contention before the
+// other writers finish. Use an elapsed budget and capped backoff instead; all
+// successful-login, revoke and final-state assertions remain mandatory.
+func retryStateWithin(budget time.Duration, fn func() error) error {
+	started := time.Now()
+	deadline := started.Add(budget)
+	delay := 2 * time.Millisecond
+	for attempts := 1; ; attempts++ {
 		err := fn()
 		if !errors.Is(err, ErrStateConflict) {
 			return err
 		}
-		time.Sleep(time.Millisecond * 2)
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return fmt.Errorf("lock conflict retry exhausted after %d attempts in %s: %w", attempts, time.Since(started), err)
+		}
+		time.Sleep(min(delay, remaining))
+		if !time.Now().Before(deadline) {
+			return fmt.Errorf("lock conflict retry exhausted after %d attempts in %s: %w", attempts, time.Since(started), err)
+		}
+		delay = min(delay*2, 20*time.Millisecond)
 	}
-	return fmt.Errorf("lock conflict retry exhausted")
+}
+
+func TestAuthStateRetryOnlyConflicts(t *testing.T) {
+	calls := 0
+	if err := retryStateWithin(time.Second, func() error {
+		calls++
+		if calls < 3 {
+			return fmt.Errorf("busy: %w", ErrStateConflict)
+		}
+		return nil
+	}); err != nil || calls != 3 {
+		t.Fatalf("eventual success: calls=%d err=%v", calls, err)
+	}
+	permanent := errors.New("not a lock conflict")
+	calls = 0
+	if err := retryStateWithin(time.Second, func() error { calls++; return permanent }); err != permanent || calls != 1 {
+		t.Fatalf("permanent error retried or hidden: calls=%d err=%v", calls, err)
+	}
+}
+
+func TestAuthStateRetryExhaustionIsBounded(t *testing.T) {
+	started := time.Now()
+	calls := 0
+	err := retryStateWithin(10*time.Millisecond, func() error { calls++; return ErrStateConflict })
+	if !errors.Is(err, ErrStateConflict) || !strings.Contains(err.Error(), "retry exhausted") || calls < 1 {
+		t.Fatalf("missing exhaustion/error identity: calls=%d err=%v", calls, err)
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("short retry budget took %s", elapsed)
+	}
 }
 func loginState(t *testing.T, m *Manager, secret string) string {
 	t.Helper()
