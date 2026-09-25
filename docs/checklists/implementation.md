@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-25
 
+- [x] Verify real HTTPgi-insecure.test mappedonlytoloopback with ChromiumsecureContextfalse, validcopiedownercookie refused, no authforms/Settings/credentialcalls/UIwrites; native negativeAPI401/403/fullauthstateequal thenlocalhostsametoken/keypositivecontrol.186passkey/108functional (five existing skips)/106helpers2958/Go-vet-nativeauth/hook/finalreview pass.015remains partial: secure guidance appears at authgate, not AddwithinSettings. No trust/propertyoverride or runtimechange/deployment/liveauth/TUI rows; initial explorationdelegate timedout, boundedreview passed.
+
 - [x] Deploy556299c browser logout after CI36120572780: eight Linux/macOS test/build jobs green including183passkey+ledger.8090 PID3263425; six guarded live checks show unenrolled setup/no sign-out control, zero writes/errors and retained drafts. DB62/51/146, integrity/FKs OK, complete SQL equal except runtime lease (SHA256300ce679…53d). Production credentials/RP/policy unchanged; no live logout/TUI rows.
 
 - [x] Add cookie-only explicit browser logout with exact Origin/transport/empty-JSON guards and transactional purpose/token/expiry validation, no fresh-proof requirement or other-session/factor mutation. Settings confirms POST plus native status before gate recheck; lost/false/failed replies offer read-only Check sign-in status, no replay.183passkey/42auth/216Settings/108functional (five existing skips)/106helpers2943/Go-vet-hook/web-auth race×3/review pass. Post-removal logout and accelerated2s real-clock expiry retain other browser, drafts/pills/selection; media byte equality and12hwait not claimed.024bounded with expiry substitution; no live logout or TUI rows.

@@ -3,7 +3,7 @@
 The [JSON ledger](passkey-criteria.json) links all 26 additive scenarios to
 individual assertions or named gaps. It records 169 scenario steps, four shared
 Background steps and 40 example rows. Gherkin expansion produces 56 cases.
-These counts describe the source contract; the latest browser suite has 183
+These counts describe the source contract; the latest browser suite has 186
 executions and uses a different test grouping.
 
 Initial source-evidence baseline: `e7d9b0450db9dc2c103dc06797dd5387ab9f81d7`.
@@ -57,8 +57,10 @@ Initial owner bootstrap and the production RP choice are separate work.
   committed but its response lost, then an automatic held inventory GET gates
   reconciliation. Second return and reload issue no additional auth POST. This
   closes the earlier Refresh-only gap within the common fixture limits.
-- 015 still lacks the actual insecure non-localhost origin example. Capability
-  overrides are not old-browser compatibility evidence.
+- 015 now has actual insecure non-localhost origin evidence: the login gate
+  blocks even a copied valid cookie before Settings opens. The frozen journey
+  asks for unavailable Add inside Settings, so this stronger entry boundary
+  remains an explicit difference. Capability overrides are not old-browser proof.
 - 017 now checks the exact list/register/rename/remove/account-query refusals
   with a nonempty native inventory, immutable auth state and an owner-list
   positive control. Family-shared mode is unsupported; that example stays open.

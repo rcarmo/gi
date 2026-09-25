@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect,chromium} from '@playwright/test';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {createHash,createPrivateKey,sign} from 'node:crypto';
 import {authEnvironment,totp} from './support/auth-environment.mjs';
@@ -891,6 +891,45 @@ for(const fault of ['server error','false success','lost response'])test(`Settin
   await expect(page.getByRole('textbox',{name:'Authentication code',exact:true})).toBeVisible();expect(posts).toBe(fault==='lost response'?1:2);
   await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('Uncertain logout draft');
  }finally{await env.close();}
+});
+
+test('Actual insecure host blocks browser authority before Settings without weakening the secure-context boundary',async({page},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);let insecureBrowser;
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Localhost key');const before=savedAuth(env),cookie=(await page.context().cookies()).find(c=>c.name==='gi_session');
+  const url=new URL(env.origin);url.hostname='gi-insecure.test';const origin=url.origin;
+  // DNS mapping changes only routing. Do not mark the origin trustworthy or
+  // fake status/capabilities: Chromium must itself classify HTTP as insecure.
+  insecureBrowser=await chromium.launch({args:['--host-resolver-rules=MAP gi-insecure.test 127.0.0.1','--no-proxy-server']});
+  const context=await insecureBrowser.newContext({viewport:info.project.use.viewport});const remote=await context.newPage();const observed=[];
+  await context.addCookies([{name:'gi_session',value:cookie.value,url:origin,httpOnly:true,sameSite:'Strict'}]);
+  await remote.addInitScript(()=>{
+   window.__insecureCredentialCalls=[];
+   // Observe only APIs the browser actually exposes; never fabricate missing
+   // credential methods or a secure-context property for the test.
+   const credentials=navigator.credentials;
+   if(credentials)for(const kind of ['create','get'])if(typeof credentials[kind]==='function'){
+    const native=credentials[kind].bind(credentials);credentials[kind]=(...args)=>{window.__insecureCredentialCalls.push(kind);return native(...args);};
+   }
+  });
+  remote.on('request',r=>{if(!['GET','HEAD','OPTIONS'].includes(r.method()))observed.push(new URL(r.url()).pathname);});
+  await remote.goto(origin);expect(await remote.evaluate(()=>({origin:location.origin,secure:isSecureContext}))).toEqual({origin,secure:false});
+  await expect(remote.getByText('Open Gi over HTTPS or localhost to sign in.',{exact:true})).toBeVisible();await expect(remote.locator('.compose-box textarea')).toHaveCount(0);await expect(remote.getByRole('button',{name:'Sign in with passkey',exact:true})).toHaveCount(0);await expect(remote.getByRole('textbox',{name:'Authentication code',exact:true})).toHaveCount(0);
+  await remote.keyboard.press('Control+,');await expect(remote.locator('.settings-dialog')).toHaveCount(0);expect(await remote.evaluate(()=>window.__insecureCredentialCalls)).toEqual([]);expect(observed).toEqual([]);
+  const status=await remote.evaluate(async()=>(await(await fetch('/api/auth/status')).json()));expect(status).toMatchObject({enrolled:true,authenticated:false,browser_login_available:false,passkeys_enabled:false,passkey_login_available:false});
+  // Explicit negative API probes, not UI attempts: a real browser Origin/Host
+  // plus copied valid cookie must not grant the localhost management authority.
+  const denied=await remote.evaluate(async()=>{
+   const requests=[['/api/sessions','GET'],['/api/auth/passkeys','GET'],['/api/auth/session/proof','GET'],['/api/auth/passkeys/register/start','POST'],['/api/auth/session/logout','POST']];
+   const results=[];for(const [path,method]of requests){const r=await fetch(path,{method,...(method==='POST'?{headers:{'Content-Type':'application/json'},body:'{}'}:{})});results.push({path,status:r.status,body:await r.json()});}return results;
+  });
+  expect(denied.map(r=>[r.path,r.status])).toEqual([['/api/sessions',401],['/api/auth/passkeys',403],['/api/auth/session/proof',403],['/api/auth/passkeys/register/start',403],['/api/auth/session/logout',403]]);
+  for(const r of denied){expect(Object.keys(r.body)).toEqual(['error']);expect(JSON.stringify(r.body)).not.toContain('Localhost key');expect(JSON.stringify(r.body)).not.toContain(cookie.value);}
+  expect(savedAuth(env)).toEqual(before);expect((await context.cookies()).find(c=>c.name==='gi_session').value).toBe(cookie.value);expect(await remote.evaluate(()=>window.__insecureCredentialCalls)).toEqual([]);
+  // Same token and persisted key remain usable at the actual configured origin.
+  expect(await page.evaluate(()=>isSecureContext)).toBe(true);expect((await list(page)).body.passkeys.map(k=>k.name)).toEqual(['Localhost key']);
+  await page.getByRole('button',{name:'Verify with passkey',exact:true}).click();await expect(page.getByText('Authentication verified.',{exact:true})).toBeVisible();
+ }finally{await insecureBrowser?.close();await auth.cdp.detach();await env.close();}
 });
 
 async function changePolicy(page,value){

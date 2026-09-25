@@ -237,6 +237,11 @@
       "file": "internal/auth/browser_proof_test.go",
       "anchor": "func TestBrowserLogoutIsSessionBoundWithoutFreshProof",
       "scope": "Atomic browser-owner-only revocation; removed/stale proof accepted for logout, only captured token removed; bearer/expired/revoked authority refused without changing state."
+    },
+    "insecure-host": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Actual insecure host blocks browser authority before Settings without weakening the secure-context boundary",
+      "scope": "RealChromium HTTPgi-insecure.test mappedonlytoloopback, isSecureContextfalse, copiedvalidownercookie. No trust/propertyoverride. GateblocksSettings; UIzeroPOST/calls, directAPI401/403/fullauthstateequal andlocalhosttoken/keypositivecontrol. Not frozenSettingsleveljourney."
     }
   },
   "scenarios": [
@@ -1561,20 +1566,22 @@
           "state": "partial",
           "evidence": [
             "unavailable",
-            "unenrolled"
+            "unenrolled",
+            "insecure-host"
           ],
-          "note": "Insecure non-localhost example absent; browser APIs deliberately overridden, not old-browser execution."
+          "note": "API absence/nativeTOTP-only/unenrolled fixtures plus actual insecure non-localhost origin. API absence uses runtime overrides, not old-browser execution."
         },
         {
           "line": 199,
           "keyword": "When",
           "text": "I open Settings then Authentication",
-          "state": "bounded",
+          "state": "partial",
           "evidence": [
             "unavailable",
-            "unenrolled"
+            "unenrolled",
+            "insecure-host"
           ],
-          "note": "Four missing-API overrides/native TOTP-only controls; unenrolled explanation in separate functional test."
+          "note": "Settings opens for accepted contexts; actual insecure host is blocked by the login gate before Authentication can open."
         },
         {
           "line": 200,
@@ -1583,9 +1590,10 @@
           "state": "partial",
           "evidence": [
             "unavailable",
-            "unenrolled"
+            "unenrolled",
+            "insecure-host"
           ],
-          "note": "Missing APIs/TOTP-only/unenrolled explanations; actual insecure-origin explanation not exercised."
+          "note": "MissingAPI/policy/unenrolled explanations within Settings; actual insecurehost has HTTPS/localhost guidance atlogin, not unavailableAdd withinSettings."
         },
         {
           "line": 201,
@@ -1593,9 +1601,10 @@
           "text": "no native credential-creation call is attempted",
           "state": "partial",
           "evidence": [
-            "unavailable"
+            "unavailable",
+            "insecure-host"
           ],
-          "note": "Zero create/get positive controls for API and policy cases; not instrumented in unenrolled test, insecure case absent."
+          "note": "No create/getorUIPOST on actual insecurehost; missing APIs cannot be instrumented, exposedmethods wrappedonly. OtherAPI/policycases retainnativepositivecontrols; unenrolled case checksnoPOST."
         },
         {
           "line": 202,
@@ -1604,9 +1613,10 @@
           "state": "partial",
           "evidence": [
             "unavailable",
-            "unenrolled"
+            "unenrolled",
+            "insecure-host"
           ],
-          "note": "Full state equality for API/policy; no auth POSTs for unenrolled; insecure case absent."
+          "note": "Fullauthstateequal for actualinsecurehostandAPI/policycases; explicitnegativeAPIprobesreject. UnenrolledcasehasnoauthPOST."
         }
       ],
       "examples": [
@@ -1616,9 +1626,11 @@
             "condition": "the page is an insecure non-localhost origin",
             "explanation": "passkey creation requires a secure origin"
           },
-          "state": "gap",
-          "evidence": [],
-          "note": "Actual insecure non-localhost origin untested."
+          "state": "partial",
+          "evidence": [
+            "insecure-host"
+          ],
+          "note": "Actual insecure non-localhost origin verified. Gi login gate refuses copied owner cookie and prevents opening Settings, so HTTPS guidance is at login rather than unavailable Add within Authentication. No security bypass to force frozen journey."
         },
         {
           "line": 207,
