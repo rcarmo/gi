@@ -29,7 +29,9 @@ A completed run exits 1 for pixel differences and 2 for incomplete capture evide
 
 The raw originals, warmups, DOM geometry/style metadata, request traces, image hashes, full-frame diffs and overlays are retained. Compose/panel reports use the union of both elements' viewport bounds, preserving displacement. These regions supplement the mandatory full-frame result; they cannot turn a failing frame into a pass. Missing finalisation, missing images, changed image hashes and missing/duplicate repeats fail closed. Comparison can resume from saved finalised evidence after interruption.
 
-## Measured differences
+## Baseline differences before the surface adaptation
+
+The [compose surface adaptation](compose-surface.md) now matches the six compose/textarea rectangles and reduces compose-region differences to 1,514–2,438 pixels. The table below retains the pre-adaptation measurements; panel structure and exact pixels still fail.
 
 Latest desktop/light captures:
 
@@ -44,7 +46,7 @@ The reference model panel has a search/count header, separate model metadata, re
 
 Same-host differences range from 2 to 5,048 pixels in the final run, chiefly at antialiased borders. Identical DOM geometry and computed styles did not establish the cause. Earlier all-zero desktop repeats did not generalise to the full matrix. No antialias tolerance or automatic waiver applies. The previous full run had 20 unstable pairs; the final run still fails despite the lower count.
 
-Next work: isolate the repeat instability; repair compose height/padding and metadata order; adapt the model/session panel structure without losing existing keyboard, session and draft ownership. Then expand model counts, filtering, loading/error/disabled states, media and focus states. Frozen Visual criteria, physical devices, native authentication prompts, feature mappings and TUI acceptance remain separate.
+Next work: isolate the repeat instability, close remaining compose control/type differences and adapt the model/session panel structure without losing existing keyboard, session and draft ownership. Then expand model counts, filtering, loading/error/disabled states, media and focus states. Frozen Visual criteria, physical devices, native authentication prompts, feature mappings and TUI acceptance remain separate.
 
 ## Regression and skip accounting
 

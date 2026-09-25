@@ -1,0 +1,62 @@
+/* Host adaptation of pinned Classic 0afe5366ced9 compose surface.
+   Supplied chat/responsive CSS is unchanged. */
+.compose-input-wrapper { flex: 0 0 auto; padding-bottom: 0; }
+.compose-box textarea {
+    /* The old component's flex-basis:0 otherwise discards automatic height. */
+    flex: 0 0 auto;
+    max-width: 100%;
+    max-height: min(50vh, 520px);
+    field-sizing: fixed;
+    padding: 0;
+    overflow-y: auto;
+}
+.compose-resize-handle {
+    flex: 0 0 auto;
+    width: 100%;
+    height: 14px;
+    margin-top: calc(var(--spacing-sm) * -1);
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: row-resize;
+    touch-action: none;
+    user-select: none;
+    position: relative;
+    z-index: 1;
+}
+.compose-resize-handle::before {
+    content: '';
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--border-color) 75%, var(--text-secondary) 25%);
+    transition: background-color var(--ui-transition-fast), transform var(--ui-transition-fast);
+}
+.compose-resize-handle:hover::before,
+.compose-resize-handle.dragging::before,
+.compose-resize-handle:focus-visible::before,
+.compose-box:focus-within .compose-resize-handle::before { background: var(--accent-color); }
+.compose-resize-handle.dragging::before { transform: scaleX(1.08); }
+.compose-session-trigger-top {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    z-index: 5;
+    max-width: min(34vw, 140px);
+}
+.compose-session-trigger-top + .compose-input-main textarea { padding-top: 2px; }
+.compose-session-trigger-top .compose-current-agent-label {
+    font: 600 12px/16px var(--font-family-mono, monospace);
+}
+@media (max-width: 639px) {
+    .compose-box textarea { max-height: min(30vh, 200px); }
+    .compose-resize-handle { height: 8px; margin-top: -2px; margin-bottom: 0; }
+    .compose-resize-handle::before { width: 28px; height: 3px; }
+}
+@media (max-width: 639px), (max-width: 900px) and (orientation: portrait) {
+    .compose-session-trigger-top { top: 4px; right: 6px; z-index: 7; max-width: min(42vw, 148px); }
+    .compose-session-trigger-top + .compose-input-main textarea {
+        padding-right: max(calc(var(--spacing-xs) + 28px), min(44vw, 156px));
+    }
+}

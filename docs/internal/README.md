@@ -37,6 +37,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 
 ## Current structure
 
+- [compose-surface.md](compose-surface.md) — host-only compose geometry, resize persistence and keyboard/modal ownership
 - [compose-pixel-baseline.md](compose-pixel-baseline.md) — pinned capture matrix, exact comparison gate and current failures
 
 - [workspace-tab-transitions.md](workspace-tab-transitions.md) — retained read-only preview/conversation transitions and keyboard/touch ownership

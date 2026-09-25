@@ -2,6 +2,8 @@
 
 ## Compose/panel pixel gate
 
+`make test-ux-compose-surface` adds 18 required Chromium/WebKit resize/persistence/focus cases. The [host surface adaptation](../../docs/internal/compose-surface.md) matches compose/textarea bounds in all six viewport/theme captures; exact pixels and panel internals still fail.
+
 `PICLAW_PIXEL_ROOT=/path/to/pinned/runtime make pixel-baseline` captures the matched-state phone/tablet/desktop × light/dark matrix, twice per host. `PIXEL_RUN_DIR=/path/to/run make pixel-compare` re-evaluates saved evidence; `make test-pixel-helpers` tests exact-RGBA and fail-closed handling. All 72 captures completed, but all 18 cross-host pairs differ and 13/36 same-host pairs are unstable in the final run (20 in the preceding run). No cases are skipped and no mask/tolerance applies. The pixel gate is failing, separate from the green behaviour/geometry gates. See [inputs, results and limitations](../../docs/internal/compose-pixel-baseline.md).
 
 

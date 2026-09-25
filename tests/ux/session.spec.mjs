@@ -910,8 +910,11 @@ for(const [id,method] of [['@shared-23','pointer'],['@shared-24','keyboard']]) t
   const main=await create('main'),research=await create('research');
   await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main);await page.goto('/');
   const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('shared picker draft');
-  const triggerButtons=page.locator('.compose-session-trigger-group button');await expect(triggerButtons).toHaveCount(2);
-  for(let index=0;index<2;index++){
+  // Pinned Classic exposes one top session pill. The old two-trigger footer
+  // was a Gi layout detail, not a frozen shared23/shared24 requirement.
+  const triggerButtons=page.locator('.compose-session-trigger-group button');await expect(triggerButtons).toHaveCount(1);
+  await expect(triggerButtons).toHaveClass(/compose-session-trigger-pill/);
+  for(let index=0;index<1;index++){
     const trigger=triggerButtons.nth(index);await expect(trigger).toBeEnabled();
     // Observation only: no focus, style or event handlers in application code
     // are replaced. Capture insertion-time and first-frame focus separately.

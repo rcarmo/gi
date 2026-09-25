@@ -36,7 +36,7 @@ jobs:
         run: bun run build:web
 
       - name: Pixel evidence helper tests
-        run: make test-pixel-helpers
+        run: make test-pixel-helpers test-compose-surface-helpers
 
       - name: Go test
         run: go test ./...
@@ -89,6 +89,8 @@ jobs:
         run: make test-ux-slash
       - name: Verify read-only workspace tab transitions
         run: make test-ux-workspace-tabs
+      - name: Verify compose surface and resize ownership
+        run: make test-ux-compose-surface
       - name: Upload journey evidence
         if: always()
         uses: actions/upload-artifact@v7

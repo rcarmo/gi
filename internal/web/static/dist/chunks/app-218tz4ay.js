@@ -6849,6 +6849,159 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     `;
 }
 
+// web/src/gi-compose-height.ts
+function composeHeightBounds(width, height) {
+  const min = width >= 1024 ? 70 : 50;
+  return { min, autoMax: Math.max(min, Math.min(Math.floor(height * 0.4), 300)), manualMax: Math.max(min, Math.min(Math.floor(height * 0.5), 520)) };
+}
+function clampComposeHeight(value, width, height) {
+  const { min, manualMax } = composeHeightBounds(width, height);
+  return Math.max(min, Math.min(manualMax, Math.round(Number.isFinite(value) ? value : min)));
+}
+function readComposeHeight(value) {
+  if (value == null || !value.trim())
+    return null;
+  const height = Number(value);
+  return Number.isFinite(height) && height > 0 ? height : null;
+}
+
+// web/src/gi-compose-surface.ts
+var storageKey = "piclaw_compose_height";
+function useGiComposeSurface(textareaRef) {
+  const manual = Q_(null), initialised = Q_(false), stop = Q_(null);
+  const mounted = Q_(true);
+  const [, renderHeight] = F_(0);
+  const changed = () => {
+    if (mounted.current)
+      renderHeight((n) => n + 1);
+  };
+  const ownsSurface = () => textareaRef.current?.isConnected && textareaRef.current.getClientRects().length > 0 && !document.querySelector('[role="dialog"][aria-modal="true"]');
+  if (!initialised.current) {
+    initialised.current = true;
+    try {
+      manual.current = readComposeHeight(localStorage.getItem(storageKey));
+    } catch {}
+  }
+  const resize = (target) => {
+    const textarea = target || textareaRef.current;
+    if (!textarea)
+      return;
+    const bounds = composeHeightBounds(innerWidth, innerHeight);
+    textarea.style.minHeight = "";
+    textarea.style.height = "auto";
+    const next = manual.current == null ? Math.max(bounds.min, Math.min(textarea.scrollHeight, bounds.autoMax)) : clampComposeHeight(manual.current, innerWidth, innerHeight);
+    if (manual.current != null)
+      textarea.style.minHeight = `${next}px`;
+    textarea.style.height = `${next}px`;
+    textarea.style.overflowY = textarea.scrollHeight > next ? "auto" : "hidden";
+  };
+  const persist = () => {
+    try {
+      if (manual.current == null)
+        localStorage.removeItem(storageKey);
+      else
+        localStorage.setItem(storageKey, String(manual.current));
+    } catch {}
+  };
+  const reset = () => {
+    if (!ownsSurface())
+      return;
+    stop.current?.(false);
+    manual.current = null;
+    persist();
+    resize();
+    changed();
+  };
+  const start = (event, touch) => {
+    const textarea = textareaRef.current, point = touch ? event.touches?.[0] : event;
+    if (!textarea || !point || !ownsSurface() || event.defaultPrevented || !touch && event.button !== 0)
+      return;
+    event.preventDefault();
+    stop.current?.(false);
+    const handle = event.currentTarget, startY = point.clientY, startHeight = textarea.getBoundingClientRect().height, previous = manual.current;
+    const cursor = document.body.style.cursor, selection = document.body.style.userSelect;
+    handle.classList.add("dragging");
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+    const move = (e) => {
+      if (!ownsSurface()) {
+        finish(false);
+        return;
+      }
+      const point = touch ? e.touches?.[0] : e;
+      if (!point)
+        return;
+      if (touch)
+        e.preventDefault();
+      manual.current = clampComposeHeight(startHeight + startY - point.clientY, innerWidth, innerHeight);
+      resize();
+    };
+    const finish = (commit) => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", end);
+      document.removeEventListener("touchmove", move);
+      document.removeEventListener("touchend", end);
+      document.removeEventListener("touchcancel", cancel);
+      document.removeEventListener("keydown", key, true);
+      window.removeEventListener("blur", cancel);
+      handle.classList.remove("dragging");
+      document.body.style.cursor = cursor;
+      document.body.style.userSelect = selection;
+      stop.current = null;
+      if (commit)
+        persist();
+      else
+        manual.current = previous;
+      resize();
+      changed();
+    };
+    const end = () => finish(true), cancel = () => finish(false), key = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        cancel();
+      }
+    };
+    stop.current = finish;
+    document.addEventListener(touch ? "touchmove" : "mousemove", move, { passive: false });
+    document.addEventListener(touch ? "touchend" : "mouseup", end);
+    if (touch)
+      document.addEventListener("touchcancel", cancel);
+    document.addEventListener("keydown", key, true);
+    window.addEventListener("blur", cancel);
+  };
+  K_(() => {
+    mounted.current = true;
+    const onResize = () => {
+      resize();
+      changed();
+    };
+    window.addEventListener("resize", onResize);
+    resize();
+    return () => {
+      mounted.current = false;
+      stop.current?.(false);
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
+  const onKeyDown = (event) => {
+    if (!ownsSurface() || event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !["ArrowUp", "ArrowDown", "Home"].includes(event.key))
+      return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.key === "Home") {
+      reset();
+      return;
+    }
+    manual.current = clampComposeHeight((textareaRef.current?.getBoundingClientRect().height || 0) + (event.key === "ArrowUp" ? 10 : -10), innerWidth, innerHeight);
+    persist();
+    resize();
+    changed();
+  };
+  const bounds = composeHeightBounds(innerWidth, innerHeight);
+  return { min: bounds.min, max: bounds.manualMax, value: clampComposeHeight(textareaRef.current?.getBoundingClientRect().height || manual.current || bounds.min, innerWidth, innerHeight), resize, onMouseDown: (e) => start(e, false), onTouchStart: (e) => start(e, true), onKeyDown, reset };
+}
+
 // web/src/gi-compose-commands.ts
 function normaliseComposeCommands(data) {
   const commands = data?.commands;
@@ -8176,6 +8329,7 @@ function ComposeBox({
   const [statusNoticeNowMs, setStatusNoticeNowMs] = F_(() => Date.now());
   const [extensionWorkingFrameIndex, setExtensionWorkingFrameIndex] = F_(0);
   const textareaRef = Q_(null);
+  const giComposeSurface = useGiComposeSurface(textareaRef);
   const slashRef = Q_(null);
   const mentionRef = Q_(null);
   const modelPopupRef = Q_(null);
@@ -8388,14 +8542,7 @@ function ComposeBox({
       onModelChange(modelLabel);
     }
   };
-  const resizeTextarea = (target) => {
-    const textarea = target || textareaRef.current;
-    if (!textarea)
-      return;
-    textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
-    textarea.style.overflowY = "hidden";
-  };
+  const resizeTextarea = giComposeSurface.resize;
   const updateSlashAutocomplete = (value) => {
     if (!value.startsWith("/") || value.includes(`
 `)) {
@@ -9471,6 +9618,11 @@ ${mediaIds.map((id, index) => {
   }, [mentionAgents, currentChatJid, content, searchMode]);
   return fe`
         <div class="compose-box">
+            <div class="compose-resize-handle" role="separator" aria-orientation="horizontal"
+                aria-label="Resize message input" title="Drag to resize; double-click or Home to reset"
+                aria-valuemin=${giComposeSurface.min} aria-valuemax=${giComposeSurface.max} aria-valuenow=${giComposeSurface.value}
+                tabIndex="0" onMouseDown=${giComposeSurface.onMouseDown} onTouchStart=${giComposeSurface.onTouchStart}
+                onKeyDown=${giComposeSurface.onKeyDown} onDblClick=${giComposeSurface.reset}></div>
             ${showQueueStack && !searchMode && fe`
                 <${QueuedFollowupStack}
                     items=${followupQueueItems}
@@ -9517,6 +9669,15 @@ ${mediaIds.map((id, index) => {
                 onDragLeave=${handleDragLeave}
                 onDrop=${handleDrop}
             >
+                ${showSessionSwitcherButton && currentSessionAgent?.agent_name && fe`
+                    <div ref=${sessionTriggerRef} class="compose-session-trigger-group compose-session-trigger-top">
+                        <button type="button" class=${`compose-session-trigger compose-session-trigger-pill${showSessionPopup ? " active" : ""}`}
+                            onClick=${toggleSessionPopup} title=${currentSessionAgent?.chat_jid || currentChatJid}
+                            aria-label=${`Manage sessions for @${currentSessionAgent.agent_name}`} aria-expanded=${showSessionPopup ? "true" : "false"}>
+                            <span class="compose-current-agent-label active">@${currentSessionAgent.agent_name}</span>
+                        </button>
+                    </div>
+                `}
                 <div class="compose-input-main">
                     ${hasAttachments && fe`
                         <div class="compose-file-refs">
@@ -9889,40 +10050,6 @@ ${mediaIds.map((id, index) => {
                     </div>
                     `}
                     <div class="compose-actions ${searchMode ? "search-mode" : ""}">
-                    ${showSessionSwitcherButton && fe`
-                        <div
-                            ref=${sessionTriggerRef}
-                            class="compose-session-trigger-group"
-                        >
-                            ${currentSessionAgent?.agent_name && fe`
-                                <button
-                                    type="button"
-                                    class=${`compose-session-trigger compose-session-trigger-pill${showSessionPopup ? " active" : ""}`}
-                                    onClick=${toggleSessionPopup}
-                                    title=${currentSessionAgent?.chat_jid || currentChatJid}
-                                    aria-label=${`Manage sessions for @${currentSessionAgent.agent_name}`}
-                                    aria-expanded=${showSessionPopup ? "true" : "false"}
-                                >
-                                    <span class="compose-current-agent-label active">@${currentSessionAgent.agent_name}</span>
-                                </button>
-                            `}
-                            <button
-                                type="button"
-                                class=${`compose-session-trigger compose-session-trigger-icon-btn${showSessionPopup ? " active" : ""}`}
-                                onClick=${toggleSessionPopup}
-                                title=${currentSessionAgent?.chat_jid || currentChatJid}
-                                aria-label=${currentSessionAgent?.agent_name ? `Manage sessions for @${currentSessionAgent.agent_name}` : "Manage Sessions/Agents"}
-                                aria-expanded=${showSessionPopup ? "true" : "false"}
-                            >
-                                <span class="compose-session-trigger-icon" aria-hidden="true">
-                                    <svg class="compose-mention-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" focusable="false">
-                                        <circle cx="12" cy="12" r="4.25" />
-                                        <path d="M16.25 7.75v5.4a2.1 2.1 0 0 0 4.2 0V12a8.45 8.45 0 1 0-4.2 7.33" />
-                                    </svg>
-                                </span>
-                            </button>
-                        </div>
-                    `}
                     ${searchMode && fe`
                         <label class="compose-search-scope-wrap" title="Search scope">
                             <span class="compose-search-scope-label">Scope</span>
@@ -10569,11 +10696,11 @@ function AgentStatus({ status, draft, plan, thought, pendingRequest, intent, ext
   };
   const projectSeriesPoint = (point, width, height, minValue, maxValue, minRun, maxRun, paddingX = 8, paddingY = 8) => {
     const range = Math.max(maxValue - minValue, 0.000000001);
-    const innerWidth = Math.max(width - paddingX * 2, 1);
-    const innerHeight = Math.max(height - paddingY * 2, 1);
+    const innerWidth2 = Math.max(width - paddingX * 2, 1);
+    const innerHeight2 = Math.max(height - paddingY * 2, 1);
     const runSpan = Math.max(maxRun - minRun, 1);
-    const x = maxRun === minRun ? width / 2 : paddingX + (point.run - minRun) / runSpan * innerWidth;
-    const y = paddingY + (innerHeight - (point.value - minValue) / range * innerHeight);
+    const x = maxRun === minRun ? width / 2 : paddingX + (point.run - minRun) / runSpan * innerWidth2;
+    const y = paddingY + (innerHeight2 - (point.value - minValue) / range * innerHeight2);
     return { x, y };
   };
   const buildLinePath = (points, width, height, minValue, maxValue, minRun, maxRun, paddingX = 8, paddingY = 8) => {
@@ -18508,11 +18635,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-9m3448b9.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-3mmgdr40.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-f9bk8ytk.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-dpagwcd0.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-y7ncec25.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-4x2gfc09.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-hnjgk9tx.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-pgmb2fxx.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-dkev0gww.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-4bakanq6.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -21202,5 +21329,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=ECA01A34A13D5A9064756E2164756E21
-//# sourceMappingURL=app-se5cyk8b.js.map
+//# debugId=A2C8862BF4CD6C7764756E2164756E21
+//# sourceMappingURL=app-218tz4ay.js.map

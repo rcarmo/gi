@@ -454,6 +454,15 @@ pixel-compare:
 test-pixel-helpers:
 	$(BUN) test tests/ux/support/pixel-*.test.mjs
 
+.PHONY: test-ux-compose-surface test-compose-surface-helpers
+test-compose-surface-helpers:
+	$(BUN) test tests/ux/support/compose-surface.test.ts
+
+test-ux-compose-surface: build-web
+	mkdir -p $(dir $(UX_LOCAL_BIN))
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_COMPOSE_SURFACE=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config=playwright.ux.config.mjs tests/ux/compose-surface.spec.mjs
+
 .PHONY: test-ux-workspace-tabs
 test-ux-workspace-tabs:
 	$(MAKE) test-ux-parity UX_PARITY_ARGS='tests/ux/workspace-tabs.spec.mjs'
