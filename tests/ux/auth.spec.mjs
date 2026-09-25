@@ -123,3 +123,17 @@ test('Authentication pane explains unavailable passkeys and preserves drafts acr
   await page.keyboard.press('Escape');await expect(page.getByRole('dialog',{name:'Gi Settings',exact:true})).toHaveCount(0);await expect(input).toHaveValue('Unavailable passkeys draft');
  }finally{await env.close();}
 });
+
+test('TOTP owner changes policy without passkey configuration and a lost policy response requires refresh',async({page},info)=>{
+ const env=await authEnvironment(page,info);
+ try{
+  await page.goto(env.origin);await page.getByRole('textbox',{name:'Authentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.locator('.compose-box textarea')).toBeVisible();await page.keyboard.press('Control+,');await page.getByRole('button',{name:'Authentication',exact:true}).click();
+  const choice=page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true});await expect(choice).toHaveValue('either');
+  await choice.selectOption('passkey-only');await expect(page.getByRole('button',{name:'Change sign-in policy',exact:true})).toBeDisabled();
+  await choice.selectOption('totp-only');await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();
+  let posts=0;await page.route('**/api/auth/policy',async route=>{if(route.request().method()!=='POST')return route.continue();posts++;const response=await route.fetch();expect(response.status()).toBe(200);await route.abort('failed');});
+  await page.getByRole('button',{name:'Confirm policy change',exact:true}).click();await expect(page.getByRole('alert')).toBeVisible();expect(posts).toBe(1);expect(JSON.parse(readFileSync(env.authPath,'utf8')).login_policy).toBe('totp-only');
+  await page.unroute('**/api/auth/policy');await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(choice).toHaveValue('totp-only');expect(posts).toBe(1);await expect(page.getByRole('button',{name:'Verify code',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();await page.reload();await expect(page.locator('.compose-box textarea')).toBeVisible();
+ }finally{await env.close();}
+});

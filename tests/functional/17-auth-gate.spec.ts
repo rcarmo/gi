@@ -47,3 +47,13 @@ test('Authentication settings explains unavailable enrollment without disturbing
  await expect(page.getByText('Authentication must be configured first.',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Add passkey',exact:true})).toBeDisabled();
  await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(input).toHaveValue('Authentication pane keeps draft');expect(writes).toEqual([]);
 });
+
+test('Unenrolled users cannot read or change authentication policy through owner routes',async({page,request})=>{
+ const before=await(await request.get('/api/auth/status')).json();
+ await page.goto('/');await expect(page.locator('.compose-box textarea')).toBeVisible();
+ const results=await page.evaluate(async()=>{
+  const read=await fetch('/api/auth/policy');const write=await fetch('/api/auth/policy',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({policy:'passkey-only',revision:'initial'})});
+  return {read:read.status,write:write.status};
+ });
+ expect(results).toEqual({read:401,write:401});expect(await(await request.get('/api/auth/status')).json()).toEqual(before);
+});

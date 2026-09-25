@@ -177,6 +177,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/auth/totp/verify", s.handleAuthTOTPVerify)
 	s.mux.HandleFunc("/api/auth/session", s.handleAuthSession)
 	s.mux.HandleFunc("/api/auth/session/proof", s.handleBrowserProof)
+	s.mux.HandleFunc("/api/auth/policy", s.handleLoginPolicy)
 	s.mux.HandleFunc("/api/auth/session/reauth/totp", s.handleBrowserReauthTOTP)
 	s.mux.HandleFunc("/api/auth/passkeys", s.handlePasskeyList)
 	s.mux.HandleFunc("/api/auth/passkeys/rename", s.handlePasskeyMutation)

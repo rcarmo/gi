@@ -2,7 +2,8 @@
 
 Updated: 2026-09-25. This describes the repository after the workspace-motion and
 native auth persistence repairs. Multi-passkey APIs and Settings/login controls now have browser integration tests;
-physical devices, policy controls, remote networking and MCP have work outstanding.
+lockout-safe policy controls are implemented; physical devices, remote networking
+and MCP have work outstanding.
 
 Gi shares pinned Piclaw browser components and configuration conventions, but has
 its own Go runtime, SQLite state and terminal UI. It is not a drop-in Piclaw
@@ -39,7 +40,7 @@ found missing user journeys, weak assertions and tests tied to Gi's older layout
 | Workspace motion | Implemented: desktop collapse stays left-anchored; chat and toggle interpolate together, including rapid reversal and reduced motion. | Deliberate correction of an inherited Piclaw CSS defect. It does not close broader workspace-tab workflow gaps. |
 | Settings | Partial: General identity, session Models, local Appearance, compaction controls/policy and guarded OpenAI/Anthropic API-key management. | Other/custom provider setup and browser OAuth flows, richer panes and remaining focus paths are incomplete. |
 | Browser authentication | Partial: single-user code-only TOTP sign-in, HttpOnly/SameSite Strict cookie, transport/origin checks, transactional cross-process auth persistence and browser-owner session proof APIs. | Initial enrolment is an API workflow restricted to loopback. No initial-owner enrolment UI, complete logout/session UI or family mode. Opt-in WebAuthn APIs are tested separately. |
-| Multiple passkeys | Partial: pure-Go WebAuthn registration/login/reauth APIs, RP-scoped storage, add/list/rename/remove with fresh proof and atomic last-factor protection. Real Chromium API tests verify independent credentials after restart and further passkey-only enrolment. | Settings add/list/rename/remove/reauth and login controls pass Chromium virtual-authenticator journeys. Policy UI, WebKit ceremonies, Visual skin and physical-device validation are outstanding. All 26 complete additive Settings scenarios/outlines await audited mapping. |
+| Multiple passkeys | Partial: pure-Go WebAuthn registration/login/reauth APIs, RP-scoped storage, add/list/rename/remove with fresh proof and atomic last-factor protection. Real Chromium API tests verify independent credentials after restart and further passkey-only enrolment. | Settings add/list/rename/remove/reauth and login controls pass Chromium virtual-authenticator journeys. Policy UI now enforces fresh current-policy proof, revision checks and write-time usable factors. WebKit ceremonies, Visual skin and physical-device validation are outstanding. The [26-scenario review](internal/passkey-scenario-review.md) records remaining gaps; formal mappings are outstanding. |
 | Skills, tools and scripting | Partial: native tools, embedded Joker/JavaScript bridges, process extensions/hooks, skills, managed VFS and browser skill commands. | No general Piclaw/Pi package or extension compatibility. Classic skill-prefill semantics are disputed against the shared contract. |
 | Operator integrations | Partial backend routing/topics/inbound-work primitives. | The complete Piclaw plan, scheduled-task, dashboard, SSH/Proxmox/Portainer and remote-agent operator surfaces are not ported. |
 
@@ -75,7 +76,7 @@ and [clipboard/media contract][media].
 | tsnet remote access | Scaffold: `internal/peering` wraps `tailscale.com/tsnet` and exposes status. No runtime start/listener wiring provides remote UI access. | Opt-in tailnet HTTPS for the existing UI/API/SSE, persistent node state, secret references, joined shutdown and existing app authentication. No public exposure/Funnel by default. |
 | Iroh inter-instance chat | Planned; no Iroh transport in Gi. `tmc/go-iroh` is a candidate requiring version-pinned interoperability tests. | Explicit pairing, receiver-owned policies, signed bounded messages/files, epochs/revocation, durable retries/deduplication and one-hop peer/agent addresses. Gi-to-Piclaw interoperability scope still needs confirmation. |
 | Token-saving MCP | Planned; no MCP client/gateway in Gi. The official Go SDK is the first transport candidate. | One model-visible gateway, compact paginated search/list, explicit schema describe, lazy stdio/Streamable HTTP connections, auth/config-aware metadata cache and bounded recoverable outputs. Measure actual model request size and total discovery/call cost. |
-| Multi-passkey management | Partial: native backend plus Settings/login controls; [contract](internal/passkeys.md). Policy controls and physical-device validation are outstanding. | Native Go WebAuthn verification, session-bound five-minute proof, one-use challenges, two-key independent sign-in after restart and concurrent last-key protection. Virtual and physical authenticator results reported separately. |
+| Multi-passkey management | Partial: native backend plus Settings/login controls; [contract](internal/passkeys.md). Lockout-safe policy controls exist; initial owner bootstrap and physical-device validation are outstanding. | Native Go WebAuthn verification, session-bound five-minute proof, one-use challenges, two-key independent sign-in after restart and concurrent last-key protection. Virtual and physical authenticator results reported separately. |
 
 These are separate integrations. tsnet carries operator web access; Iroh carries
 peer messages; MCP connects tools. None may silently grant the authority of

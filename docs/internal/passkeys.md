@@ -1,8 +1,9 @@
 # Multi-passkey authentication
 
 Status: opt-in native backend, passkey login and Settings > Authentication.
-Policy controls, initial owner bootstrap and physical-device validation are not
-implemented in the browser. Full additive scenario mappings have not been audited.
+Settings includes lockout-safe sign-in policy controls. Initial owner bootstrap
+and physical-device validation are not implemented in the browser. The
+[26-scenario review](passkey-scenario-review.md) records partial and manual gaps.
 
 The backend uses `github.com/go-webauthn/webauthn` v0.18.2 for WebAuthn verification
 with required user verification. Runtime code is Go; tests use Chromium's virtual
@@ -38,13 +39,36 @@ management authority. The local terminal gains no extra controls or idle rows.
 
 Persisted `login_policy` accepts `either`, `totp-only` or `passkey-only`. Empty
 preserves TOTP and allows explicitly configured passkeys; unknown policy fails
-closed. There is no public policy setter yet. Tests modify only disposable
-stores to exercise passkey-only and commit-time policy changes. Tests exercise these policies in disposable accounts. Do not hand-edit production
-auth state; a supported policy-management workflow is separate work.
+closed. Settings > Authentication can change this policy after recent proof and
+explicit confirmation. The current policy must accept that proof; for example,
+a preceding TOTP login cannot authorise changes after switching to passkey-only.
+Stored credentials and existing login sessions are not deleted or extended.
 
-## API
+## Policy API
 
-All routes are under `/api/auth/passkeys` and return `private, no-store`.
+`GET /api/auth/policy` returns the effective policy, revision and booleans for
+configured TOTP, usable passkeys and passkey origin configuration. It requires a
+browser-owner cookie but not fresh proof. It works even when passkeys are disabled
+or unconfigured; reads never renew authentication or modify the store.
+
+`POST /api/auth/policy` accepts `{"policy":"passkey-only","revision":"..."}`.
+It requires the same cookie/transport/origin boundary, an explicit Origin header,
+strict JSON up to1024 bytes and fresh proof accepted under the current policy.
+A legacy empty revision is read as `initial`; each successful change creates a
+new opaque revision. A stale revision returns409. The server rechecks authority,
+revision and usable target factors inside the same transaction used by credential
+removal. An unsafe target returns409 without a write. A passkey from another RP,
+a pending/unverified factor or an active session is not a usable sign-in method.
+
+The target must accept verified configured TOTP or a registered credential for
+the currently configured RP and origin. A policy/removal race cannot leave
+passkey-only with no usable key. A lost response requires explicit refresh before
+another attempt; no write is retried automatically. TOTP-only still shows the
+configured RP's credential inventory but disables passkey mutations/ceremonies.
+
+## Passkey API
+
+These routes are under `/api/auth/passkeys` and return `private, no-store`.
 
 | Route | Method and body |
 |---|---|
@@ -120,7 +144,7 @@ Lost responses require an authoritative refresh before a new attempt.
 
 ## Test scope and remaining work
 
-`make test-ux-passkeys` runs seven integration tests at three Chromium viewport sizes
+`make test-ux-passkeys` runs nine integration tests at three Chromium viewport sizes
 and is required by CI before build jobs. The tests cover two distinct credentials,
 server restart, independent cookie-free sign-ins, passkey-only further enrolment,
 rename material preservation, removed-key rejection, last-factor refusal, replay,
@@ -128,10 +152,11 @@ wrong session, revoked session, stale proof/reauth, cancellation, expiry, altere
 origin, correctly signed wrong-RP assertion, duplicate-ID protection and uncertain
 successful registration. Fixtures seed specific policy/error states explicitly.
 
-Three of the tests drive actual Settings/login controls: two-key enrolment,
+Five of the tests drive actual Settings/login controls: two-key enrolment,
 independent sign-in after restart, retained drafts/media, rename/remove/cancel,
 passkey-only reauth/add/login, failed reads/writes, uncertain finish and unmount
-cancellation. Synthetic blur tests application ownership only, not OS prompt focus.
+cancellation, policy changes, stale revisions and a policy change during removal
+confirmation. Synthetic blur tests application ownership only, not OS prompt focus.
 A separate six-project auth regression verifies unavailable-state messaging in
 Chromium and WebKit. No WebKit passkey ceremony is claimed.
 
@@ -142,6 +167,6 @@ WebKit and physical native prompts are not covered by this passkey suite.
 
 The 26 pinned [Settings scenarios](../../tests/ux/features/additions/piclaw-2026-09-24/README.md)
 include Visual-skin, device and policy cases not established by the current tests.
-Next work is per-scenario mapping, safe policy configuration, full accessibility
-and physical/synced-device validation.
+Next work is completing the per-scenario gaps, initial-owner bootstrap,
+full accessibility and physical/synced-device validation.
 Choose a stable production HTTPS hostname/RP before enrolling real credentials.

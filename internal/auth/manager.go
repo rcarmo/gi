@@ -20,6 +20,7 @@ type State struct {
 	TOTPSecret     string     `json:"totp_secret"`
 	TOTPEnabled    bool       `json:"totp_enabled"`
 	LoginPolicy    string     `json:"login_policy,omitempty"`
+	PolicyRevision string     `json:"policy_revision,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 	Sessions       []Session  `json:"sessions,omitempty"`

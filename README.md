@@ -151,7 +151,7 @@ Workspace tabs are read-only previews: editable documents, dirty-buffer workflow
 
 ### Authentication and exposure
 
-TOTP browser sign-in is available after owner enrolment through the loopback-only API. Browser cookies require direct TLS or a loopback peer and Host, with same-origin checks. Configured passkeys can sign in and be managed under Settings > Authentication. Initial owner bootstrap, family accounts, policy editing and the complete logout/session-management UI are not implemented in the browser.
+TOTP browser sign-in is available after owner enrolment through the loopback-only API. Browser cookies require direct TLS or a loopback peer and Host, with same-origin checks. Configured passkeys can sign in and be managed under Settings > Authentication. Settings also provides revision-checked TOTP-only, passkey-only or either sign-in policy, refusing changes that leave no usable factor. Initial owner bootstrap, family accounts and the complete logout/session-management UI are not implemented in the browser.
 
 **The application permits access before enrolment.** Keep an unconfigured instance on loopback or a protected network. The CLI defaults to loopback, but `make start` defaults to `BIND=0.0.0.0`; use `make start BIND=127.0.0.1` for local development. TLS support alone does not enrol an owner or enable authentication.
 

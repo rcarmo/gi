@@ -251,3 +251,58 @@ test('Settings explains rejected local credentials and closing pending ceremony 
   await addFromSettings(page,'Fresh attempt');await expect(page.locator('.gi-passkey-row')).toHaveCount(1);
  }finally{await auth.cdp.detach();await env.close();}
 });
+
+async function changePolicy(page,value){
+ await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);
+ await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();
+ await page.getByRole('button',{name:'Confirm policy change',exact:true}).click();
+ await expect(page.getByText(`Current policy: ${value}. Changing accepted factors does not remove credentials or sign out existing sessions.`,{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Refresh passkeys',exact:true})).toBeEnabled();
+}
+
+test('Settings changes accepted factors without lockout and reauthenticates under the current policy',async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ try{
+  await loginTOTP(page,env);await page.locator('.compose-box textarea').fill('Policy changes retain this draft');await openAuthentication(page);
+  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption('passkey-only');await expect(page.getByRole('button',{name:'Change sign-in policy',exact:true})).toBeDisabled();
+  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption('either');await addFromSettings(page,'Laptop');
+  const before=JSON.parse(readFileSync(env.authPath,'utf8'));const cookies=await context.cookies();
+  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption('passkey-only');await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();await page.getByRole('button',{name:'Cancel policy change',exact:true}).click();
+  expect(JSON.parse(readFileSync(env.authPath,'utf8')).login_policy||'either').toBe('either');await expect(page.getByRole('button',{name:'Change sign-in policy',exact:true})).toBeFocused();
+  await changePolicy(page,'passkey-only');expect(await context.cookies()).toEqual(cookies);await expect(page.getByRole('button',{name:'Verify code',exact:true})).toHaveCount(0);
+  expect(JSON.parse(readFileSync(env.authPath,'utf8')).sessions).toEqual(before.sessions);
+  // The former TOTP proof cannot manage a passkey-only account.
+  await expect(page.getByRole('button',{name:'Remove Laptop',exact:true})).toBeDisabled();await page.getByRole('button',{name:'Verify with passkey',exact:true}).click();await expect(page.getByRole('button',{name:'Remove Laptop',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Remove Laptop',exact:true}).click();await page.getByRole('button',{name:'Confirm removal',exact:true}).click();await expect(page.getByRole('alert')).toContainText('another accepted sign-in method');await expect(page.locator('.gi-passkey-row')).toHaveCount(1);await page.getByRole('button',{name:'Cancel removal',exact:true}).click();await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Remove Laptop',exact:true})).toBeEnabled();await changePolicy(page,'totp-only');
+  // The pane remains usable with passkey actions disabled by policy.
+  await expect(page.getByRole('button',{name:'Verify code',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Add passkey',exact:true})).toBeDisabled();await expect(page.locator('.gi-passkey-row')).toHaveCount(1);await expect(page.getByRole('button',{name:'Remove Laptop',exact:true})).toBeDisabled();
+  await page.getByRole('textbox',{name:'Reauthentication code',exact:true}).fill(totp(env.secret));await page.getByRole('button',{name:'Verify code',exact:true}).click();await expect(page.getByText('Authentication verified.',{exact:true})).toBeVisible();
+  await changePolicy(page,'either');expect(JSON.parse(readFileSync(env.authPath,'utf8')).passkeys[0].credential.publicKey).toEqual(before.passkeys[0].credential.publicKey);
+  await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('Policy changes retain this draft');
+  await env.restart();await context.clearCookies();await page.reload();await expect(page.getByRole('button',{name:'Sign in with passkey',exact:true})).toBeVisible();await expect(page.getByRole('textbox',{name:'Authentication code',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('Policy changes retain this draft');
+ }finally{await auth.cdp.detach();await env.close();}
+});
+
+test('Policy changes reject stale browser revisions and protect a pending last-key removal',async({page,browser},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);const otherContext=await browser.newContext();const other=await otherContext.newPage();
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Laptop');
+  await other.addInitScript(id=>localStorage.setItem('gi_session_id',id),env.main.id);await loginTOTP(other,env);await openAuthentication(other);
+  await other.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption('totp-only');await other.getByRole('button',{name:'Change sign-in policy',exact:true}).click();
+  await changePolicy(page,'totp-only');await changePolicy(page,'either');
+  await other.getByRole('button',{name:'Confirm policy change',exact:true}).click();await expect(other.getByRole('alert')).toContainText('state changed');expect(JSON.parse(readFileSync(env.authPath,'utf8')).login_policy).toBe('either');
+  await other.getByRole('button',{name:'Cancel policy change',exact:true}).click();await other.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(other.getByRole('button',{name:'Remove Laptop',exact:true})).toBeEnabled();
+  await page.getByRole('button',{name:'Verify with passkey',exact:true}).click();await expect(page.getByText('Authentication verified.',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Remove Laptop',exact:true}).click();
+  await changePolicy(other,'passkey-only');
+  await page.getByRole('button',{name:'Confirm removal',exact:true}).click();await expect(page.getByRole('alert')).toContainText('another accepted sign-in method');await expect(page.locator('.gi-passkey-row')).toHaveCount(1);
+  expect(JSON.parse(readFileSync(env.authPath,'utf8')).passkeys).toHaveLength(1);
+  await page.getByRole('button',{name:'Cancel removal',exact:true}).click();await page.getByRole('button',{name:'Refresh passkeys',exact:true}).click();await expect(page.getByRole('button',{name:'Remove Laptop',exact:true})).toBeEnabled();
+  // A failed policy write never displays optimistic acceptance.
+  await page.route('**/api/auth/policy',route=>route.request().method()==='POST'?route.fulfill({status:503,contentType:'application/json',body:'{"error":"Policy unavailable"}'}):route.continue());
+  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption('either');await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();await page.getByRole('button',{name:'Confirm policy change',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Policy unavailable');expect(JSON.parse(readFileSync(env.authPath,'utf8')).login_policy).toBe('passkey-only');
+  await page.unroute('**/api/auth/policy');
+ }finally{await otherContext.close();await auth.cdp.detach();await env.close();}
+});

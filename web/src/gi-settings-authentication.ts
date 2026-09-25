@@ -5,6 +5,9 @@ import { parseAuthPolicy } from './gi-auth-policy.js';
 export function GiSettingsAuthentication() {
     const [policy, setPolicy] = useState(null);
     const [proof, setProof] = useState(null);
+    const [loginPolicy, setLoginPolicy] = useState(null);
+    const [policyChoice, setPolicyChoice] = useState('either');
+    const [confirmPolicy, setConfirmPolicy] = useState(false);
     const [keys, setKeys] = useState(null);
     const [fresh, setFresh] = useState(false);
     const [busy, setBusy] = useState('');
@@ -20,7 +23,7 @@ export function GiSettingsAuthentication() {
     const restore = () => requestAnimationFrame(() => { if (live.current) (opener.current?.isConnected ? opener.current : root.current?.querySelector('button'))?.focus(); });
     const cancel = () => {
         if (flight.current) { flight.current.abort(); return; }
-        setEditing(null); setRemoving(null); restore();
+        setEditing(null); setRemoving(null); setConfirmPolicy(false); restore();
     };
     useLayoutEffect(() => {
         const el = root.current; el.addEventListener('gi-auth-escape', cancel);
@@ -31,10 +34,16 @@ export function GiSettingsAuthentication() {
         const p = parseAuthPolicy(await authJSON('/api/auth/status', undefined, signal));
         if (!live.current) return;
         setPolicy(p);
-        if (!p.enrolled || !p.passkeys_enabled) { setProof(null); setKeys(null); return; }
-        const [nextProof, list] = await Promise.all([authJSON('/api/auth/session/proof', undefined, signal), authJSON('/api/auth/passkeys', undefined, signal)]);
-        if (!Array.isArray(list.passkeys) || typeof nextProof.reauth_required !== 'boolean') throw new Error('Invalid authentication response');
-        if (live.current) { setProof(nextProof); setKeys(list.passkeys); setFresh(true); }
+        if (!p.enrolled) { setProof(null); setKeys(null); setLoginPolicy(null); return; }
+        const [nextProof, settings] = await Promise.all([
+            authJSON('/api/auth/session/proof', undefined, signal), authJSON('/api/auth/policy', undefined, signal),
+        ]);
+        // Keep the current-RP inventory visible in TOTP-only mode. Policy
+        // disables mutations/ceremonies, not metadata for the signed-in owner.
+        const list = settings.passkey_configured ? await authJSON('/api/auth/passkeys', undefined, signal) : null;
+        if ((list && !Array.isArray(list.passkeys)) || typeof nextProof.reauth_required !== 'boolean'
+            || typeof settings.revision !== 'string' || !['either','totp-only','passkey-only'].includes(settings.policy)) throw new Error('Invalid authentication response');
+        if (live.current) { setProof(nextProof); setLoginPolicy(settings); setPolicyChoice(settings.policy); setConfirmPolicy(false); setKeys(list?.passkeys ?? null); setFresh(true); }
     };
     const work = async (label: string, action: (signal: AbortSignal) => Promise<void>, message = '') => {
         if (flight.current) return;
@@ -61,8 +70,15 @@ export function GiSettingsAuthentication() {
         if (result.ok !== true) throw new Error('Change could not be confirmed. Refresh before trying again.');
         if (live.current) { setEditing(null); setRemoving(null); restore(); }
     }, kind === 'rename' ? 'Name saved.' : 'Passkey removed. Existing login sessions are not signed out.');
+    const policyAllowed = loginPolicy && ((policyChoice !== 'passkey-only' && loginPolicy.totp_configured)
+        || (policyChoice !== 'totp-only' && loginPolicy.passkey_usable));
+    const savePolicy = () => work('Saving sign-in policy…', async signal => {
+        const result = await authJSON('/api/auth/policy', {policy:policyChoice,revision:loginPolicy.revision}, signal);
+        if (result.policy !== policyChoice || typeof result.revision !== 'string') throw new Error('Policy change could not be confirmed. Refresh before trying again.');
+        if (live.current) { setConfirmPolicy(false); restore(); }
+    }, 'Sign-in policy saved. Existing login sessions are unchanged.');
     const date = value => !value || value.startsWith('0001-') ? 'Never used' : new Date(value).toLocaleString();
-    return html`<section ref=${root} class="gi-authentication-pane" aria-labelledby="gi-authentication-heading" data-auth-escape=${busy || editing || removing ? 'true' : undefined}>
+    return html`<section ref=${root} class="gi-authentication-pane" aria-labelledby="gi-authentication-heading" data-auth-escape=${busy || editing || removing || confirmPolicy ? 'true' : undefined}>
         <h2 id="gi-authentication-heading">Authentication</h2>
         <p>Manage passkeys for this instance owner. Each row is one credential, not an inventory of devices.</p>
         <h3>Passkeys</h3>
@@ -73,11 +89,20 @@ export function GiSettingsAuthentication() {
         ${busy && html`<button onClick=${cancel}>Cancel pending operation</button>`}
         ${policy && unavailable && html`<p>${unavailable}</p>`}
         ${keys && !fresh && html`<p role="status">The displayed list is the last confirmed snapshot. Refresh before making changes.</p>`}
-        ${policy?.enrolled && policy?.passkeys_enabled && html`<div class="gi-passkey-proof">
+        ${policy?.enrolled && html`<div class="gi-passkey-proof">
             <p>${recentlyVerified ? 'Recently authenticated for credential changes.' : 'Verify an accepted factor before changing passkeys.'}</p>
             ${policy.totp_login_available && html`<label>Authentication code<input aria-label="Reauthentication code" type="text" inputMode="numeric" autoComplete="one-time-code" value=${code} disabled=${!!busy} onInput=${e => setCode(e.target.value)} /></label>
                 <button disabled=${!!busy || !/^\d{6}$/.test(code)} onClick=${() => work('Verifying authentication…', async signal => { await authJSON('/api/auth/session/reauth/totp', {code}, signal); if (live.current) setCode(''); }, 'Authentication verified.')}>Verify code</button>`}
             ${policy.passkey_login_available && html`<button disabled=${!!busy || !!passkeyUnavailable()} onClick=${() => work('Waiting for passkey verification…', signal => runPasskey('reauth', signal), 'Authentication verified.')}>Verify with passkey</button>`}
+        </div>`}
+        ${loginPolicy && html`<div class="gi-signin-policy"><h3>Sign-in policy</h3>
+            <p>Current policy: ${loginPolicy.policy}. Changing accepted factors does not remove credentials or sign out existing sessions.</p>
+            <label>Accepted sign-in methods<select aria-label="Accepted sign-in methods" value=${policyChoice} disabled=${!!busy || !fresh} onChange=${e => { setPolicyChoice(e.target.value); setConfirmPolicy(false); }}>
+                <option value="either">TOTP or passkey</option><option value="totp-only">TOTP only</option><option value="passkey-only">Passkeys only</option></select></label>
+            ${!policyAllowed && html`<p>The selected policy needs a configured, usable sign-in method. Enrol a passkey for this origin or keep verified TOTP enabled.</p>`}
+            <button disabled=${!!busy || !recentlyVerified || !policyAllowed || policyChoice === loginPolicy.policy} onClick=${e => {opener.current=e.currentTarget;setConfirmPolicy(true);setRemoving(null);setEditing(null);}}>Change sign-in policy</button>
+            ${confirmPolicy && html`<div role="group" aria-label="Confirm sign-in policy"><p>Use ${policyChoice} for future sign-ins? Existing sessions and stored factors will not be removed.</p>
+                <button disabled=${!!busy || !recentlyVerified || !policyAllowed} onClick=${savePolicy}>Confirm policy change</button><button disabled=${!!busy} onClick=${cancel}>Cancel policy change</button></div>`}
         </div>`}
         <div class="gi-passkey-add"><label>Passkey name<input aria-label="New passkey name" value=${name} disabled=${!!busy || !!unavailable} onInput=${e => setName(e.target.value)} /></label>
             <button disabled=${!!busy || !!unavailable || !recentlyVerified || !name.trim()} onClick=${add}>Add passkey</button></div>
@@ -85,12 +110,12 @@ export function GiSettingsAuthentication() {
         ${keys && html`<ul class="gi-passkey-list">${keys.map(row => html`<li key=${row.id} class="gi-passkey-row" data-credential-id=${row.id}>
             <strong>${row.name || 'Unnamed passkey'}</strong><small>Identifier: ${row.id}</small>
             <small>Created: ${date(row.created_at)}</small><small>Last used: ${date(row.last_used_at)}</small>
-            <div><button disabled=${!!busy || !recentlyVerified} onClick=${e => { opener.current=e.currentTarget; setRemoving(null); setEditing({id:row.id,name:row.name}); }}>Rename ${row.name || 'passkey'}</button>
-                <button disabled=${!!busy || !recentlyVerified} onClick=${e => { opener.current=e.currentTarget; setEditing(null); setRemoving(row.id); }}>Remove ${row.name || 'passkey'}</button></div>
+            <div><button disabled=${!!busy || !recentlyVerified || !!unavailable} onClick=${e => { opener.current=e.currentTarget; setRemoving(null); setEditing({id:row.id,name:row.name}); }}>Rename ${row.name || 'passkey'}</button>
+                <button disabled=${!!busy || !recentlyVerified || !!unavailable} onClick=${e => { opener.current=e.currentTarget; setEditing(null); setRemoving(row.id); }}>Remove ${row.name || 'passkey'}</button></div>
             ${editing?.id === row.id && html`<div class="gi-passkey-edit"><label>New name<input aria-label="Rename passkey" value=${editing.name} disabled=${!!busy} onInput=${e => setEditing({...editing,name:e.target.value})} /></label>
-                <button disabled=${!!busy || !recentlyVerified} onClick=${() => mutation('rename',row,editing.name)}>Save passkey name</button><button disabled=${!!busy} onClick=${cancel}>Cancel rename</button></div>`}
+                <button disabled=${!!busy || !recentlyVerified || !!unavailable} onClick=${() => mutation('rename',row,editing.name)}>Save passkey name</button><button disabled=${!!busy} onClick=${cancel}>Cancel rename</button></div>`}
             ${removing === row.id && html`<div class="gi-passkey-confirm" role="group" aria-label="Confirm passkey removal"><p>Remove ${row.name || 'passkey'} (${row.id})? This blocks future sign-ins with this credential. Existing login sessions are not signed out.</p>
-                <button disabled=${!!busy || !recentlyVerified} onClick=${() => mutation('remove',row)}>Confirm removal</button><button disabled=${!!busy} onClick=${cancel}>Cancel removal</button></div>`}
+                <button disabled=${!!busy || !recentlyVerified || !!unavailable} onClick=${() => mutation('remove',row)}>Confirm removal</button><button disabled=${!!busy} onClick=${cancel}>Cancel removal</button></div>`}
         </li>`)}</ul>`}
     </section>`;
 }
