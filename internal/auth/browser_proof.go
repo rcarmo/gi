@@ -49,10 +49,16 @@ func requireBrowserOwnerSession(state *State, token string, now time.Time, fresh
 }
 
 func hasRecentBrowserProof(state *State, session *Session, now time.Time) bool {
-	// Only TOTP is implemented today. Future factors must be explicitly accepted
-	// by current policy; unknown factor strings cannot become a grant.
-	return session.AuthFactor == "totp" && state.TOTPEnabled && state.TOTPSecret != "" &&
-		!session.AuthenticatedAt.IsZero() && !session.AuthenticatedAt.Before(session.CreatedAt) &&
+	validFactor := session.AuthFactor == "totp" && totpAccepted(state) && state.TOTPEnabled && state.TOTPSecret != ""
+	if session.AuthFactor == "webauthn" && passkeyAccepted(state) {
+		for _, p := range state.Passkeys {
+			if p.RPID == session.AuthRPID && credentialID(p.Credential) == session.AuthCredentialID {
+				validFactor = true
+				break
+			}
+		}
+	}
+	return validFactor && !session.AuthenticatedAt.IsZero() && !session.AuthenticatedAt.Before(session.CreatedAt) &&
 		!session.AuthenticatedAt.After(now) && now.Before(session.AuthenticatedAt.Add(recentProofWindow))
 }
 
@@ -77,7 +83,11 @@ func (m *Manager) BrowserSessionProof(token string) (BrowserProof, error) {
 	if err != nil {
 		return BrowserProof{}, err
 	}
-	return browserProof(&state, session, now), nil
+	proof := browserProof(&state, session, now)
+	if session.AuthFactor == "webauthn" && (session.AuthRPID != m.passkeyConfig.RPID || len(m.passkeyConfig.Origins) == 0) {
+		proof.ReauthRequired = true
+	}
+	return proof, nil
 }
 
 // ReauthenticateBrowserTOTP refreshes only this existing browser session. It
@@ -90,7 +100,7 @@ func (m *Manager) ReauthenticateBrowserTOTP(token, code string) (BrowserProof, e
 		if err != nil {
 			return err
 		}
-		if !state.TOTPEnabled || state.TOTPSecret == "" || !VerifyTOTP(state.TOTPSecret, code, now, 1) {
+		if !totpAccepted(state) || !state.TOTPEnabled || state.TOTPSecret == "" || !VerifyTOTP(state.TOTPSecret, code, now, 1) {
 			return ErrInvalidFactorProof
 		}
 		session.AuthFactor, session.AuthenticatedAt = "totp", now

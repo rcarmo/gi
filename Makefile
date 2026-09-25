@@ -442,6 +442,11 @@ clean:
 test-browser-auth:
 	$(GO) test ./internal/web ./internal/auth -run 'Test(Browser|ProtectedEndpoint|Auth)' -count=1
 
+.PHONY: test-ux-passkeys
+test-ux-passkeys: build-web
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_PASSKEYS=1 GI_UX_SERVER_BIN=$(UX_LOCAL_BIN) $(BUN) x playwright test --config playwright.ux.config.mjs tests/ux/passkeys.spec.mjs --project=chromium-phone --project=chromium-tablet --project=chromium-desktop
+
 test-ux-auth: build-web
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
 	GI_UX_AUTH=1 GI_UX_SERVER_BIN=$(UX_LOCAL_BIN) $(BUN) x playwright test --config playwright.ux.config.mjs tests/ux/auth.spec.mjs

@@ -2,7 +2,8 @@
 
 Gi distinguishes ordinary API authentication from authority to manage the owner's
 credentials. This prerequisite implements session provenance and recent TOTP
-proof. WebAuthn verification and passkey management are not implemented yet.
+proof. The [opt-in WebAuthn backend](passkeys.md) now uses the same session boundary;
+passkey Settings/login controls are not implemented yet.
 
 ## Session records
 
@@ -41,7 +42,9 @@ and storage failures (500). Storage errors return a generic message.
 
 Recent proof lasts strictly less than five minutes and never outlives the login
 session. Missing, future or pre-session timestamps are not fresh. TOTP must still
-be enabled and configured; unsupported factor strings do not grant freshness.
+be enabled, configured and accepted by policy. WebAuthn proof must reference a
+still-registered credential for the current RP and accepted policy; unsupported
+factor strings do not grant freshness.
 Only the server supplies proof timestamps. Loading Settings or reloading a page
 cannot refresh them.
 

@@ -95,7 +95,7 @@ func readState(root *os.Root) (State, []byte, error) {
 	}
 	// Known optional keys must not be reintroduced from the old document (notably
 	// an omitted empty sessions list after revoking its final token).
-	for _, key := range []string{"username", "totp_secret", "totp_enabled", "created_at", "updated_at", "sessions"} {
+	for _, key := range []string{"username", "totp_secret", "totp_enabled", "created_at", "updated_at", "sessions", "webauthn_user_id", "passkeys", "webauthn_ceremonies", "login_policy"} {
 		delete(object, key)
 	}
 	state.extra = object

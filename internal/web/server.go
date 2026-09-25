@@ -57,7 +57,7 @@ func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 		mux:        http.NewServeMux(),
 		version:    fmt.Sprintf("%x", time.Now().UnixNano()),
 		scriptTool: tools.NewScriptTool(s, cfg),
-		auth:       giauth.NewManager(cfg.WorkspaceRoot),
+		auth:       giauth.NewManagerWithPasskeys(cfg.WorkspaceRoot, giauth.PasskeyConfig{RPID: cfg.Passkeys.RPID, Origins: cfg.Passkeys.Origins}),
 	}
 	srv.webSkills = loadWebSkills(cfg)
 	srv.configureScriptConnectivity()
@@ -178,6 +178,13 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/api/auth/session", s.handleAuthSession)
 	s.mux.HandleFunc("/api/auth/session/proof", s.handleBrowserProof)
 	s.mux.HandleFunc("/api/auth/session/reauth/totp", s.handleBrowserReauthTOTP)
+	s.mux.HandleFunc("/api/auth/passkeys", s.handlePasskeyList)
+	s.mux.HandleFunc("/api/auth/passkeys/rename", s.handlePasskeyMutation)
+	s.mux.HandleFunc("/api/auth/passkeys/remove", s.handlePasskeyMutation)
+	for _, operation := range []string{"register", "login", "reauth"} {
+		s.mux.HandleFunc("/api/auth/passkeys/"+operation+"/start", func(w http.ResponseWriter, r *http.Request) { s.handlePasskeyCeremony(w, r, operation, false) })
+		s.mux.HandleFunc("/api/auth/passkeys/"+operation+"/finish", func(w http.ResponseWriter, r *http.Request) { s.handlePasskeyCeremony(w, r, operation, true) })
+	}
 
 	guard := s.withAuth
 	s.mux.HandleFunc("/api/runtime/config", guard(s.handleRuntimeConfig))

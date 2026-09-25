@@ -16,22 +16,28 @@ import (
 )
 
 type State struct {
-	Username    string    `json:"username"`
-	TOTPSecret  string    `json:"totp_secret"`
-	TOTPEnabled bool      `json:"totp_enabled"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	Sessions    []Session `json:"sessions,omitempty"`
-	extra       map[string]json.RawMessage
+	Username       string     `json:"username"`
+	TOTPSecret     string     `json:"totp_secret"`
+	TOTPEnabled    bool       `json:"totp_enabled"`
+	LoginPolicy    string     `json:"login_policy,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	Sessions       []Session  `json:"sessions,omitempty"`
+	WebAuthnUserID []byte     `json:"webauthn_user_id,omitempty"`
+	Passkeys       []Passkey  `json:"passkeys,omitempty"`
+	Ceremonies     []Ceremony `json:"webauthn_ceremonies,omitempty"`
+	extra          map[string]json.RawMessage
 }
 
 type Session struct {
-	TokenHash       string    `json:"token_hash"`
-	CreatedAt       time.Time `json:"created_at"`
-	ExpiresAt       time.Time `json:"expires_at"`
-	Purpose         string    `json:"purpose,omitempty"`
-	AuthFactor      string    `json:"auth_factor,omitempty"`
-	AuthenticatedAt time.Time `json:"authenticated_at,omitempty"`
+	TokenHash        string    `json:"token_hash"`
+	CreatedAt        time.Time `json:"created_at"`
+	ExpiresAt        time.Time `json:"expires_at"`
+	Purpose          string    `json:"purpose,omitempty"`
+	AuthFactor       string    `json:"auth_factor,omitempty"`
+	AuthCredentialID string    `json:"auth_credential_id,omitempty"`
+	AuthRPID         string    `json:"auth_rp_id,omitempty"`
+	AuthenticatedAt  time.Time `json:"authenticated_at,omitempty"`
 }
 
 type PendingEnrollment struct {
@@ -42,10 +48,11 @@ type PendingEnrollment struct {
 }
 
 type Manager struct {
-	mu      sync.Mutex
-	path    string
-	issuer  string
-	pending map[string]PendingEnrollment
+	mu            sync.Mutex
+	path          string
+	issuer        string
+	pending       map[string]PendingEnrollment
+	passkeyConfig PasskeyConfig
 }
 
 func NewManager(workspaceRoot string) *Manager {
@@ -60,7 +67,7 @@ func (m *Manager) Status() (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"enrolled": state.TOTPEnabled && state.Username != "", "enrollment_required": !(state.TOTPEnabled && state.Username != ""), "username": state.Username, "totp_enabled": state.TOTPEnabled}, nil
+	return map[string]any{"enrolled": stateEnrolled(state), "enrollment_required": !stateEnrolled(state), "username": state.Username, "totp_enabled": state.TOTPEnabled}, nil
 }
 
 func (m *Manager) StartEnrollment(username string) (PendingEnrollment, error) {
@@ -137,7 +144,7 @@ func (m *Manager) verifyLogin(username, code, purpose string) (string, time.Time
 		if username != "" && username != state.Username {
 			return fmt.Errorf("invalid user")
 		}
-		if !state.TOTPEnabled || state.TOTPSecret == "" {
+		if !totpAccepted(state) || !state.TOTPEnabled || state.TOTPSecret == "" {
 			return fmt.Errorf("TOTP is not enrolled")
 		}
 		now := time.Now().UTC()
@@ -212,7 +219,13 @@ func (m *Manager) Enrolled() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return state.TOTPEnabled && state.Username != "", nil
+	return stateEnrolled(state), nil
+}
+
+// Stored passkeys keep authentication enabled even if their RP configuration is
+// later removed. Configuration changes must never reopen an enrolled instance.
+func stateEnrolled(state State) bool {
+	return state.Username != "" && (state.TOTPEnabled || len(state.Passkeys) > 0)
 }
 
 // RevokeToken removes only the captured opaque token, never another device's

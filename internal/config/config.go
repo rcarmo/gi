@@ -32,6 +32,7 @@ type RuntimeConfig struct {
 	Compaction           CompactionSettings     `json:"compaction"`
 	Hooks                HookSettings           `json:"hooks"`
 	Peering              PeeringSettings        `json:"peering"`
+	Passkeys             PasskeySettings        `json:"passkeys"`
 	InboundWork          InboundWorkSettings    `json:"inbound_work"`
 	WorkspaceIndex       WorkspaceIndexSettings `json:"workspace_index"`
 	SystemPrompt         string                 `json:"-"`
@@ -63,6 +64,11 @@ type HookSettings struct {
 	TimeoutMS int    `json:"timeout_ms"`
 	OnError   string `json:"on_error"`
 	OnTimeout string `json:"on_timeout"`
+}
+
+type PasskeySettings struct {
+	RPID    string   `json:"rp_id"`
+	Origins []string `json:"origins"`
 }
 
 type PeeringSettings struct {
@@ -102,6 +108,7 @@ type piSettings struct {
 	Compaction           CompactionSettings     `json:"compaction"`
 	Hooks                HookSettings           `json:"hooks"`
 	Peering              PeeringSettings        `json:"peering"`
+	Passkeys             PasskeySettings        `json:"passkeys"`
 	InboundWork          *InboundWorkSettings   `json:"inboundWork"`
 	WorkspaceIndex       WorkspaceIndexSettings `json:"workspaceIndex"`
 	Agents               AgentsConfig           `json:"agents"`
@@ -137,6 +144,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 		cfg.Compaction = ps.Compaction
 		cfg.Hooks = ps.Hooks
 		cfg.Peering = ps.Peering
+		cfg.Passkeys = ps.Passkeys
 		if ps.InboundWork != nil {
 			cfg.InboundWork = *ps.InboundWork
 		}

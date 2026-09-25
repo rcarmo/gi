@@ -47,6 +47,21 @@ jobs:
       - name: Go vet
         run: go vet ./...
 
+  passkey-browser:
+    name: Native passkey browser integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun x playwright install --with-deps chromium
+      - run: make test-ux-passkeys
+
   auth-state:
     name: Auth state ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -68,7 +83,7 @@ jobs:
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest
-    needs: [test, auth-state]
+    needs: [test, auth-state, passkey-browser]
     strategy:
       fail-fast: false
       matrix:

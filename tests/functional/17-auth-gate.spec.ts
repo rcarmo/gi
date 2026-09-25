@@ -32,3 +32,10 @@ test('Unenrolled browsing cannot acquire browser-owner proof authority',async({p
  expect(await(await request.get('/api/auth/status')).json()).toMatchObject({enrolled:false});
  await expect(page.locator('.compose-box textarea')).toBeVisible();
 });
+
+test('Unconfigured passkey backend is unavailable without changing owner enrollment',async({request})=>{
+ const before=await(await request.get('/api/auth/status')).json();
+ expect((await request.get('/api/auth/passkeys')).status()).toBe(403);
+ expect((await request.post('/api/auth/passkeys/login/start',{data:{}})).status()).toBe(403);
+ expect(await(await request.get('/api/auth/status')).json()).toEqual(before);
+});

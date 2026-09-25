@@ -18,12 +18,15 @@ The Classic and shared contracts differ in places, including command-prefill and
 The [feature and parity matrix](../../docs/feature-parity.md) separates shipped
 behaviour, known gaps and planned integrations. Source mappings are 101/236
 Classic IDs and 30/42 shared cases; they are not a full-suite pass. Classic008 is
-disputed. All 26 separately pinned passkey scenarios/outlines are unimplemented.
+disputed. All 26 separately pinned passkey Settings scenarios/outlines are unmapped;
+`make test-ux-passkeys` now verifies a native API subset using real Chromium WebAuthn
+and virtual authenticators, without Settings/login or physical-device credit.
 Workspace-collapse motion and native auth persistence repairs have shipped.
 
 The dated sections below retain historical run totals. Do not add them together
-or interpret an old "unmapped" statement as the current inventory. No browser
-suite runs in CI yet, and specialised fixture suites need separate targets/flags.
+or interpret an old "unmapped" statement as the current inventory. The isolated
+passkey API browser suite now gates CI builds; general browser UX still does not.
+Specialised fixture suites need separate targets/flags.
 
 ## Run
 

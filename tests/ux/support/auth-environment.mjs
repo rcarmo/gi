@@ -1,6 +1,6 @@
 import {expect} from '@playwright/test';
 import {spawn} from 'node:child_process';
-import {mkdtempSync,mkdirSync,rmSync,createWriteStream} from 'node:fs';
+import {mkdtempSync,mkdirSync,rmSync,createWriteStream,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {resolve,join} from 'node:path';
 import {createServer} from 'node:http';
@@ -16,15 +16,19 @@ export function totp(secret) {
 }
 
 // One native process/workspace per case; no production auth files or database.
-export async function authEnvironment(page,info) {
+export async function authEnvironment(page,info,{passkeys=false}={}) {
  const dir=mkdtempSync(join(tmpdir(),'gi-auth-'));
  const reserve=createServer();await new Promise(r=>reserve.listen(0,'127.0.0.1',r));const port=reserve.address().port;await new Promise(r=>reserve.close(r));
- const origin=`http://127.0.0.1:${port}`;
+ const origin=`http://${passkeys?'localhost':'127.0.0.1'}:${port}`;
+ if(passkeys){mkdirSync(join(dir,'.pi'),{recursive:true});writeFileSync(join(dir,'.pi','settings.json'),JSON.stringify({passkeys:{rp_id:'localhost',origins:[origin]}}));}
  mkdirSync(resolve('test-results/ux-parity'),{recursive:true});
  const log=createWriteStream(resolve('test-results/ux-parity',`auth-${info.project.name}-${Date.now()}.log`));
- const child=spawn(resolve(process.env.GI_UX_SERVER_BIN||'bin/gi-ux-steer'),[],{env:{...process.env,GI_UX_STATE_DIR:dir,GI_UX_LISTEN:`127.0.0.1:${port}`,GI_UX_QUEUE_GATES:dir},stdio:['ignore','pipe','pipe']});
- child.stdout.pipe(log,{end:false});child.stderr.pipe(log,{end:false});
- const close=async()=>{await page.close();if(child.exitCode===null){const done=new Promise(r=>child.once('exit',r));child.kill('SIGTERM');await done;}log.end();rmSync(dir,{recursive:true,force:true});};
+ const start=()=>{const p=spawn(resolve(process.env.GI_UX_SERVER_BIN||'bin/gi-ux-steer'),[],{env:{...process.env,GI_UX_STATE_DIR:dir,GI_UX_LISTEN:`127.0.0.1:${port}`,GI_UX_QUEUE_GATES:dir},stdio:['ignore','pipe','pipe']});p.stdout.pipe(log,{end:false});p.stderr.pipe(log,{end:false});return p;};
+ let child=start();
+ const stop=async()=>{if(child.exitCode===null){const done=new Promise(r=>child.once('exit',r));child.kill('SIGTERM');await done;}};
+ const ready=()=>expect.poll(async()=>{try{return(await fetch(origin+'/api/auth/status')).status}catch{return 0}},{timeout:10000}).toBe(200);
+ const restart=async()=>{await stop();child=start();await ready();};
+ const close=async()=>{await page.close();await stop();log.end();rmSync(dir,{recursive:true,force:true});};
  try {
   await expect.poll(async()=>{try{return(await fetch(origin+'/api/auth/status')).status}catch{return 0}},{timeout:10000}).toBe(200);
   const api=async(path,body)=>{const response=await fetch(origin+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});expect(response.ok).toBe(true);return response.json();};
@@ -36,6 +40,6 @@ export async function authEnvironment(page,info) {
    const Native=window.EventSource;window.__authConnected=0;
    window.EventSource=class extends Native{constructor(url,options){super(url,options);this.addEventListener('connected',()=>window.__authConnected++);}};
   },main.id);
-  return {origin,main,secret:pending.secret,authPath:join(dir,'.gi','auth.json'),close};
+  return {origin,main,secret:pending.secret,authPath:join(dir,'.gi','auth.json'),restart,close};
  } catch(error){await close();throw error;}
 }

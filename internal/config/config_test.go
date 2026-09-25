@@ -180,3 +180,20 @@ func TestLoadWorkspaceIndexSettingsAreStartupOnlyAndPreserved(t *testing.T) {
 		t.Fatal("non-strict defaults")
 	}
 }
+
+func TestLoadPasskeyRelyingPartyConfiguration(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".pi"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".pi", "settings.json"), []byte(`{"passkeys":{"rp_id":"gi.example.com","origins":["https://gi.example.com"]}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg := Load(dir)
+	if cfg.Passkeys.RPID != "gi.example.com" || len(cfg.Passkeys.Origins) != 1 || cfg.Passkeys.Origins[0] != "https://gi.example.com" {
+		t.Fatalf("passkeys %+v", cfg.Passkeys)
+	}
+	if empty := Load(t.TempDir()).Passkeys; empty.RPID != "" || len(empty.Origins) != 0 {
+		t.Fatal("passkeys enabled by default")
+	}
+}

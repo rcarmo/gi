@@ -2,8 +2,9 @@
 
 Start with [features and Piclaw parity](feature-parity.md) for the current browser,
 terminal and integration status. It separates shipped behaviour from partial
-support, source-test mappings and planned work. Multi-passkey enrolment, tsnet web
-access, Iroh chat and the token-saving MCP gateway are not implemented yet.
+support, source-test mappings and planned work. Multi-passkey APIs have an opt-in
+native backend; Settings/login controls, tsnet web access, Iroh chat and the
+token-saving MCP gateway are not implemented yet.
 
 ## Structure
 
@@ -29,7 +30,8 @@ access, Iroh chat and the token-saving MCP gateway are not implemented yet.
 * [Browser suite guide](../tests/ux/README.md) -- frozen contracts, runners and specialised fixtures.
 * [UX audit](internal/ux-test-audit-2026-09-24.md) -- source review and gaps in interaction/visual testing.
 * [Full web/TUI plan](internal/full-web-tui-parity-plan.md) -- scoped implementation and verification work.
-* [Multi-passkey contract](../tests/ux/features/additions/piclaw-2026-09-24/README.md) -- required enrolment, sign-in and lockout-safety tests; no Gi implementation yet.
+* [Multi-passkey contract](../tests/ux/features/additions/piclaw-2026-09-24/README.md) -- required enrolment, sign-in and lockout-safety tests; native API subset exists, full Settings journeys are unmapped.
+* [Passkey backend](internal/passkeys.md) -- opt-in RP/origin config, APIs, storage and browser-test limits.
 * [tsnet plan](internal/peering-tsnet-plan.md) -- existing scaffold and remote-access work.
 
 ### Internal reference
