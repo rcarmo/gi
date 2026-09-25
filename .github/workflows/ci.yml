@@ -82,6 +82,8 @@ jobs:
         run: make test-ux-journey
       - name: Verify pinned composer and picker geometry
         run: make test-ux-picker-geometry
+      - name: Verify slash and Quick Actions keyboard ownership
+        run: make test-ux-slash
       - name: Upload journey evidence
         if: always()
         uses: actions/upload-artifact@v7

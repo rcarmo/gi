@@ -9,6 +9,13 @@ import { BASE_URL, waitForAppShell, getComposeInput, sendMessage } from './helpe
 
 test.describe('Compose interaction', () => {
 
+  test('native slash suggestions own Tab and Escape without invoking Quick Actions or sending',async({page})=>{
+    await page.goto(BASE_URL);await waitForAppShell(page);const input=getComposeInput(page);const posts:string[]=[];page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/prompt'))posts.push(r.url());});
+    await input.fill('/');await expect(page.locator('.slash-name')).toContainText(['/model','/compact']);await expect(page.locator('.slash-name').filter({hasText:'/shutdown'})).toHaveCount(0);await expect(page.locator('.timeline-quick-actions')).toHaveCount(0);
+    await input.fill('/m preserved argument');await expect(page.locator('.slash-autocomplete')).toBeVisible();await input.press('Tab');await expect(input).toHaveValue('/model preserved argument');await expect(input).toBeFocused();expect(posts).toEqual([]);
+    await input.fill('/m');await input.press('Escape');await expect(page.locator('.slash-autocomplete')).toHaveCount(0);await expect(input).toHaveValue('/m');expect(posts).toEqual([]);
+  });
+
   test('mobile picker geometry exposes touch-sized dismissal without sending', async ({page})=>{
     await page.setViewportSize({width:390,height:700});await page.goto(BASE_URL);await waitForAppShell(page);const input=getComposeInput(page);await input.fill('Mobile picker functional draft');
     const writes:string[]=[];page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/prompt'))writes.push(r.url());});

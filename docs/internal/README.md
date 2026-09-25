@@ -37,6 +37,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 
 ## Current structure
 
+- [compose-command-ownership.md](compose-command-ownership.md) — native slash catalogue and composer/Quick Actions keyboard boundaries
 - [picker-geometry.md](picker-geometry.md) — pinned Classic responsive bounds, mobile dismissal and explicit containment adaptation
 - [startup-return-journeys.md](startup-return-journeys.md) — empty-store keyboard journeys, focus/loading repairs and required browser CI gate
 - `browser-auth-proof.md` -- browser-owner provenance and session-scoped recent proof

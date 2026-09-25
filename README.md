@@ -96,6 +96,7 @@ That installs Go/Bun dependencies, installs Playwright Chromium, and builds `gi`
 | `make test-ux` | Functional browser/API tests against an isolated instance |
 | `make test-ux-journey` | Empty-store startup/new-chat/Return and retry journeys; Chromium/WebKit at three sizes; required CI gate |
 | `make test-ux-picker-geometry` | Pinned Classic composer/picker bounds, responsive transitions and dismissal; required browser CI step |
+| `make test-ux-slash` | Native command catalogue and composer/Quick Actions keyboard ownership; required browser CI step |
 | `make ux-parity-inventory` | Check frozen feature hashes and generate the scenario inventory |
 | `make test-ux-parity` | Default browser parity suite in Chromium/WebKit at three viewport sizes; specialised suites have separate targets/flags |
 | `make test-ux-auth` | Isolated TOTP/browser-auth regression suite |

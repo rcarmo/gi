@@ -438,6 +438,12 @@ clean:
 	rm -rf $(RUN_DIR) $(BIN_DIR) $(TEST_DIR) $(TUI_TEST_DIR) $(TEST_RESULTS)
 	rm -f gi gi-tui
 
+.PHONY: test-ux-slash
+test-ux-slash: build-web
+	mkdir -p $(dir $(UX_LOCAL_BIN)) test-results/ux-parity
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_SLASH=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(BUN) x playwright test --config=playwright.ux.config.mjs $(UX_PARITY_ARGS)
+
 .PHONY: test-ux-picker-geometry
 test-ux-picker-geometry: build-web
 	mkdir -p $(dir $(UX_LOCAL_BIN)) test-results/ux-parity

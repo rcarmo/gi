@@ -78,6 +78,17 @@ from a mobile model picker dismiss the covering panel first. No mappings are
 added. See [picker-geometry.md](../../docs/internal/picker-geometry.md) for source
 hashes, measurements and remaining structural/visual gaps.
 
+## Direct slash ownership — 2026-09-25
+
+`make test-ux-slash` runs72 Chromium/WebKit cases from fresh native fixtures and
+is required in the browser CI job. The composer now reads Gi's native catalogue,
+without the unserved Piclaw endpoint or56-command fallback. Cases cover Tab,
+bare-fragment Enter, literal arguments, Escape/newline, synthetic repeat/consumed/
+IME boundaries with native positive controls, failed/delayed catalogue reads and
+Settings/search/Quick Actions exclusion. See [compose-command-ownership.md](../../docs/internal/compose-command-ownership.md).
+Physical IME, modifier-command semantics and shared16/Classic008 policy conflicts
+are separate. The suite carries no new frozen tags or mappings.
+
 ## First slice: 2026-09-21
 
 - `@ux-original-001`: menu open/dismiss, pointer and keyboard/Escape/outside-click checks.

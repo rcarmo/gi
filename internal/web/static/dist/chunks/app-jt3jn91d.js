@@ -6849,6 +6849,27 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     `;
 }
 
+// web/src/gi-compose-commands.ts
+function normaliseComposeCommands(data) {
+  const commands = data?.commands;
+  if (!Array.isArray(commands))
+    throw new Error("Invalid command catalogue");
+  const seen = new Set;
+  return commands.map((command) => {
+    if (typeof command?.name !== "string" || !/^\/[a-z][a-z0-9:_-]*$/i.test(command.name) || command.description !== undefined && typeof command.description !== "string")
+      throw new Error("Invalid command catalogue");
+    return { name: command.name, description: command.description || "" };
+  }).filter((command) => {
+    if (seen.has(command.name))
+      return false;
+    seen.add(command.name);
+    return true;
+  });
+}
+function declineComposeKey(event) {
+  return event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.repeat && (event.key === "Enter" || event.key === "Tab");
+}
+
 // web/src/ui/compose-session-switcher.ts
 var SECTION_LABELS = {
   current: "Current",
@@ -7486,64 +7507,6 @@ async function refreshAgentModelStateBestEffort(getAgentModels, chatJid, emitMod
 }
 
 // web/src/components/compose-box.ts
-var SLASH_COMMANDS = [
-  { name: "/model", description: "Select model or list available models" },
-  { name: "/cycle-model", description: "Cycle to the next available model" },
-  { name: "/thinking", description: "Show or set thinking/effort level" },
-  { name: "/effort", description: "Show or set thinking/effort level (alias for /thinking)" },
-  { name: "/cycle-thinking", description: "Cycle thinking level" },
-  { name: "/theme", description: "Set UI theme (no name to show available themes)" },
-  { name: "/meters", description: "Toggle the top-right CPU/RAM HUD (/meters on|off|toggle)" },
-  { name: "/route-events", description: "Toggle routing event visibility in the timeline (/route-events on|off|toggle)" },
-  { name: "/tint", description: "Tint default light/dark UI (usage: /tint #hex or /tint off)" },
-  { name: "/btw", description: "Open a side conversation panel without interrupting the main chat" },
-  { name: "/state", description: "Show current session state" },
-  { name: "/stats", description: "Show session token and cost stats" },
-  { name: "/context", description: "Show context window usage" },
-  { name: "/last", description: "Show last assistant response" },
-  { name: "/compact", description: "Manually compact the session" },
-  { name: "/auto-compact", description: "Toggle auto-compaction" },
-  { name: "/auto-retry", description: "Toggle auto-retry" },
-  { name: "/abort", description: "Abort the current response" },
-  { name: "/abort-retry", description: "Abort retry backoff" },
-  { name: "/abort-bash", description: "Abort running bash command" },
-  { name: "/shell", description: "Run a shell command and return output" },
-  { name: "/bash", description: "Run a shell command and add output to context" },
-  { name: "/queue", description: "Queue a follow-up message (one-at-a-time)" },
-  { name: "/queue-all", description: "Queue a follow-up message (batch all)" },
-  { name: "/steer", description: "Steer the current response" },
-  { name: "/steering-mode", description: "Set steering mode (all|one)" },
-  { name: "/followup-mode", description: "Set follow-up mode (all|one)" },
-  { name: "/session-name", description: "Set or show the session name" },
-  { name: "/new-session", description: "Start a new session" },
-  { name: "/switch-session", description: "Switch to a session file" },
-  { name: "/session-rotate", description: "Rotate the current persisted session into an archived file" },
-  { name: "/clone", description: "Duplicate the current active branch into a new session" },
-  { name: "/fork", description: "Fork from a previous message" },
-  { name: "/forks", description: "List forkable messages" },
-  { name: "/tree", description: "List the session tree" },
-  { name: "/label", description: "Set or clear a label on a tree entry" },
-  { name: "/labels", description: "List labeled entries" },
-  { name: "/agent-name", description: "Set or show the agent display name" },
-  { name: "/agent-avatar", description: "Set or show the agent avatar URL" },
-  { name: "/user-name", description: "Set or show your display name" },
-  { name: "/user-avatar", description: "Set or show your avatar URL" },
-  { name: "/user-github", description: "Set name/avatar from GitHub profile" },
-  { name: "/export-html", description: "Export session to HTML" },
-  { name: "/passkey", description: "Manage passkeys (enrol/list/delete)" },
-  { name: "/totp", description: "Show a TOTP enrolment QR code" },
-  { name: "/qr", description: "Generate a QR code for text or URL" },
-  { name: "/search", description: "Search notes and skills in the workspace" },
-  { name: "/dream", description: "Run Dream memory maintenance over recent days (default 7)" },
-  { name: "/tasks", description: "List scheduled tasks" },
-  { name: "/scheduled", description: "List scheduled tasks" },
-  { name: "/restart", description: "Restart the agent and stop subprocesses" },
-  { name: "/exit", description: "Exit the current piclaw process immediately (Supervisor will restart it)" },
-  { name: "/login", description: "Login to an AI model provider (OAuth or API key)" },
-  { name: "/logout", description: "Logout from an AI model provider" },
-  { name: "/commands", description: "List available commands" },
-  { name: "/skill:", description: "Run a workspace skill (e.g. /skill:visual-artifact-generator, /skill:web-search)" }
-];
 var COMPOSE_HISTORY_STORAGE_KEY = "piclaw_compose_history";
 function resolveComposePrefillRequest(prefillRequest, lastHandledToken, searchMode = false) {
   if (searchMode)
@@ -8179,7 +8142,10 @@ function ComposeBox({
   const [slashMatches, setSlashMatches] = F_([]);
   const [slashIndex, setSlashIndex] = F_(0);
   const [showSlash, setShowSlash] = F_(false);
-  const dynamicCommandsRef = Q_(null);
+  const dynamicCommandsRef = Q_([]);
+  const commandSearchModeRef = Q_(searchMode);
+  commandSearchModeRef.current = searchMode;
+  const [commandCatalogueError, setCommandCatalogueError] = F_(false);
   const [mentionMatches, setMentionMatches] = F_([]);
   const [mentionIndex, setMentionIndex] = F_(0);
   const [showMention, setShowMention] = F_(false);
@@ -8265,16 +8231,23 @@ function ComposeBox({
   }, [historyStorageKey]);
   K_(() => {
     let cancelled = false;
-    const chatJid = currentChatJid || "web:default";
-    fetch(`/agent/commands?chat_jid=${encodeURIComponent(chatJid)}`).then((r) => r.ok ? r.json() : null).then((data) => {
-      if (cancelled || !data?.commands)
+    dynamicCommandsRef.current = [];
+    setShowSlash(false);
+    setSlashMatches([]);
+    setCommandCatalogueError(false);
+    getAgentCommands(currentChatJid).then((data) => {
+      if (cancelled)
         return;
-      dynamicCommandsRef.current = data.commands.map((c) => ({
-        name: c.name,
-        description: c.description || ""
-      }));
-    }).catch((e) => {
-      console.debug("[compose] failed to fetch dynamic commands", e);
+      dynamicCommandsRef.current = normaliseComposeCommands(data);
+      if (!settingsOwnsKeyboard() && !commandSearchModeRef.current)
+        updateSlashAutocomplete(textareaRef.current?.value || "");
+    }).catch(() => {
+      if (cancelled)
+        return;
+      dynamicCommandsRef.current = [];
+      setShowSlash(false);
+      setSlashMatches([]);
+      setCommandCatalogueError(true);
     });
     return () => {
       cancelled = true;
@@ -8436,7 +8409,7 @@ function ComposeBox({
       setSlashMatches([]);
       return;
     }
-    const commandList = dynamicCommandsRef.current || SLASH_COMMANDS;
+    const commandList = dynamicCommandsRef.current;
     const matches = commandList.filter((cmd) => cmd.name.startsWith(prefix) || cmd.name.replace(/-/g, "").startsWith(prefix.replace(/-/g, "")));
     if (matches.length > 0 && !(matches.length === 1 && matches[0].name === prefix)) {
       setShowMention(false);
@@ -8935,7 +8908,7 @@ ${mediaIds.map((id, index) => {
     onInjectQueuedFollowup?.(queuedItem);
   };
   const handlePopupKeyboardEvent = Y_((e) => {
-    if (settingsOwnsKeyboard())
+    if (settingsOwnsKeyboard() || declineComposeKey(e))
       return false;
     if (searchMode || !showModelPopup && !showSessionPopup || e?.isComposing)
       return false;
@@ -9031,7 +9004,7 @@ ${mediaIds.map((id, index) => {
     handleSelectModel
   ]);
   const handleKeyDown = (e) => {
-    if (e.isComposing)
+    if (declineComposeKey(e))
       return;
     if (searchMode && e.key === "Escape") {
       e.preventDefault();
@@ -9530,6 +9503,7 @@ ${mediaIds.map((id, index) => {
                     ${statusNoticeDetail && fe`<div class="compose-inline-status-detail">${statusNoticeDetail}</div>`}
                 </div>
             `}
+            ${commandCatalogueError && fe`<div class="compose-submit-notice" role="status">Command suggestions unavailable. Reopen this chat or reload to retry.</div>`}
             ${submitError && fe`<div class="compose-submit-error" role="alert">${submitError}</div>`}
             ${submitNotice && fe`
                 <div class="compose-inline-status compose-command-notice" role="status" aria-live="polite">
@@ -18450,11 +18424,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-0f92h0xr.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-2nnnrzh4.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-104cbdab.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-phxxvt6n.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-bc6xdb6f.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-t3qacrte.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-23m8xjxa.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-5r56ns4y.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-wfcg9x52.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-0b1134bq.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -21120,5 +21094,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=D5D6350ECB2C56DC64756E2164756E21
-//# sourceMappingURL=app-mgmcszr0.js.map
+//# debugId=C7E5D4B43EED3D6C64756E2164756E21
+//# sourceMappingURL=app-jt3jn91d.js.map
