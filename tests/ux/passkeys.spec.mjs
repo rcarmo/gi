@@ -446,6 +446,76 @@ for(const operation of ['add','rename','remove'])test(`Settings cancelled reauth
  }finally{await auth.cdp.detach();await env.close();}
 });
 
+test('Classic Settings shows native credential metadata without exposing authentication material',async({page,context},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Laptop');
+  await page.getByRole('button',{name:'Verify with passkey',exact:true}).click();await expect(page.getByText('Authentication verified.',{exact:true})).toBeVisible();
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await addFromSettings(page,'Backup key');
+  const stored=savedAuth(env);const inventory=await list(page);expect(inventory.status).toBe(200);expect(inventory.body.passkeys).toHaveLength(2);
+  for(const [index,key]of inventory.body.passkeys.entries()){
+   const row=credentialRow(page,key.id);await expect(row).toHaveCount(1);await expect(row.locator('strong')).toHaveText(key.name);
+   expect(key.id).toBe(Buffer.from(stored.passkeys[index].credential.id,'base64').toString('base64url'));expect(Date.parse(key.created_at)).toBe(Date.parse(stored.passkeys[index].created_at));
+   const date=await page.evaluate(value=>new Date(value).toLocaleString(),key.created_at);await expect(row.locator('small')).toContainText([`Identifier: ${key.id}`,`Created: ${date}`]);
+   if(index===0){expect(Date.parse(key.last_used_at)).toBeGreaterThan(0);expect(Date.parse(key.last_used_at)).toBe(Date.parse(stored.passkeys[index].last_used_at));await expect(row.getByText(`Last used: ${await page.evaluate(value=>new Date(value).toLocaleString(),key.last_used_at)}`,{exact:true})).toBeVisible();}
+   else{expect(!key.last_used_at||key.last_used_at.startsWith('0001-')).toBe(true);await expect(row.getByText('Last used: Never used',{exact:true})).toBeVisible();}
+   await expect(row.getByRole('button',{name:`Rename ${key.name}`,exact:true})).toBeEnabled();await expect(row.getByRole('button',{name:`Remove ${key.name}`,exact:true})).toBeEnabled();
+  }
+  await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('Visible add control');await expect(page.getByRole('button',{name:'Add passkey',exact:true})).toBeEnabled();
+  const cookie=(await context.cookies()).find(c=>c.name==='gi_session');expect(cookie.httpOnly).toBe(true);
+  const snapshot=await page.evaluate(()=>JSON.stringify({html:document.documentElement.outerHTML,local:{...localStorage},session:{...sessionStorage},url:location.href,cookie:document.cookie}));
+  // Actual nonempty canaries from this disposable owner and its credentials;
+  // public credential identifiers intentionally remain visible.
+  for(const secret of [env.secret,cookie.value,stored.webauthn_user_id,...stored.passkeys.map(k=>k.credential.publicKey),...stored.sessions.map(s=>s.token_hash)]){
+   expect(typeof secret).toBe('string');expect(secret.length).toBeGreaterThan(10);expect(snapshot).not.toContain(secret);expect(JSON.stringify(inventory.body)).not.toContain(secret);
+  }
+  expect(new URL(page.url()).search).toBe('');expect(new URL(page.url()).hash).toBe('');await page.screenshot({path:info.outputPath('passkey-metadata.png')});
+ }finally{await auth.cdp.detach();await env.close();}
+});
+
+for(const inputMode of ['keyboard','touch'])test(`Classic narrow passkeys avoid horizontal clipping and retain ${inputMode} cancellation ownership`,async({browser},info)=>{
+ const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true});const page=await context.newPage();const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ const name='Long name '+'界'.repeat(70);expect([...name]).toHaveLength(80);
+ const reach=async target=>{
+  if(inputMode==='touch'){await target.tap();return;}
+  // Use only Tab and Enter from the currently focused control. Do not focus
+  // the target directly: this proves real reachability through the focus trap.
+  for(let i=0;i<45;i++){if(await target.evaluate(el=>document.activeElement===el)){await page.keyboard.press('Enter');return;}await page.keyboard.press('Tab');}
+  throw new Error('Control not reachable by Tab');
+ };
+ let release;const gate=new Promise(r=>release=r);
+ try{
+  await loginTOTP(page,env);await page.locator('.compose-box textarea').fill('Narrow authentication draft Ω');await openAuthentication(page);await addFromSettings(page,name);
+  const before=savedAuth(env),key=(await list(page)).body.passkeys[0],row=credentialRow(page,key.id);const rename=row.getByRole('button',{name:`Rename ${name}`,exact:true}),remove=row.getByRole('button',{name:`Remove ${name}`,exact:true});
+  const geometry=async()=>{
+   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);expect(await page.locator('.settings-dialog').evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
+   for(const el of [row.locator('strong'),row.locator('small').nth(0),row.locator('small').nth(1),row.locator('small').nth(2),rename,remove]){
+    const box=await el.boundingBox();expect(box.width).toBeGreaterThan(0);expect(box.x).toBeGreaterThanOrEqual(0);expect(box.x+box.width).toBeLessThanOrEqual(391);expect(await el.evaluate(e=>e.scrollWidth-e.clientWidth)).toBeLessThanOrEqual(1);
+   }
+  };
+  await geometry();await expect(row.locator('strong')).toHaveText(name);
+  // Inputs have actual labels; all enabled buttons have an accessible name.
+  for(const [accessible,label]of [['New passkey name','Passkey name'],['Reauthentication code','Authentication code']]){
+   const input=page.getByRole('textbox',{name:accessible,exact:true});await expect(input).toBeVisible();expect(await input.evaluate(el=>Array.from(el.labels||[],l=>l.textContent))).toEqual([label]);
+  }
+  for(const button of await page.locator('.gi-authentication-pane button').all())await expect(button).toHaveAccessibleName(/\S/);
+  const writes=[];page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname.startsWith('/api/auth/passkeys/'))writes.push(new URL(r.url()).pathname);});
+  await reach(rename);await expect(page.getByRole('textbox',{name:'Rename passkey',exact:true})).toBeVisible();expect(await page.getByRole('textbox',{name:'Rename passkey',exact:true}).evaluate(el=>Array.from(el.labels||[],l=>l.textContent))).toEqual(['New name']);await reach(page.getByRole('button',{name:'Cancel rename',exact:true}));await expect(rename).toBeFocused();
+  await reach(remove);await expect(page.getByRole('group',{name:'Confirm passkey removal'})).toContainText(key.id);await reach(page.getByRole('button',{name:'Cancel removal',exact:true}));await expect(remove).toBeFocused();expect(writes).toEqual([]);expect(savedAuth(env)).toEqual(before);
+  // Status and alert semantics are observable; physical screen-reader speech
+  // is not. Hold a read, move focus outside the pane, then surface a long error.
+  let held=false;const error='Passkey inventory unavailable. '.repeat(5);
+  await page.route('**/api/auth/passkeys',async route=>{held=true;await gate;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error})});});
+  await reach(page.getByRole('button',{name:'Refresh passkeys',exact:true}));await expect.poll(()=>held).toBe(true);await expect(page.getByRole('status',{exact:true}).filter({hasText:'Refreshing passkeys…'})).toBeVisible();
+  const close=page.getByRole('button',{name:'Close settings',exact:true});
+  if(inputMode==='keyboard'){for(let i=0;i<45&&!await close.evaluate(el=>document.activeElement===el);i++)await page.keyboard.press('Tab');await expect(close).toBeFocused();}else await close.focus();
+  release();const alert=page.getByRole('alert');await expect(alert).toHaveText(error.trim());await expect(close).toBeFocused();await geometry();
+  const errorBox=await alert.boundingBox();expect(errorBox.x).toBeGreaterThanOrEqual(0);expect(errorBox.x+errorBox.width).toBeLessThanOrEqual(391);expect(await alert.evaluate(el=>el.scrollWidth-el.clientWidth)).toBeLessThanOrEqual(1);
+  expect(writes).toEqual([]);expect(savedAuth(env)).toEqual(before);
+  await page.screenshot({path:info.outputPath(`passkey-narrow-${inputMode}.png`)});await reach(close);await expect(page.locator('.compose-box textarea')).toHaveValue('Narrow authentication draft Ω');
+ }finally{release();await auth.cdp.detach();await env.close();await context.close();}
+});
+
 async function changePolicy(page,value){
  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);
  await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();
