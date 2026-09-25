@@ -1,3 +1,9 @@
+.gi-readonly-tabs[hidden], .editor-splitter[hidden] { display: none !important; }
+.gi-workspace-view-controls { padding: 6px 8px 6px 44px; }
+.gi-workspace-view-controls button { min-height: 36px; color: var(--text-primary); background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); font: inherit; cursor: pointer; }
+.gi-workspace-show-tabs { flex: 0 0 auto; }
+.gi-readonly-tabs [role="tab"]:focus-visible { outline: 2px solid var(--accent-color); outline-offset: -2px; }
+@media (pointer: coarse) { .gi-workspace-view-controls button, .gi-workspace-tab-toolbar button, .gi-readonly-tabs .tab-close { min-width: 44px; min-height: 44px; } }
 .gi-workspace-tab { display: flex; flex-direction: column; min-height: 0; height: 100%; }
 .gi-workspace-tab-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; font-size: 12px; border-bottom: 1px solid var(--border-color); }
 .gi-workspace-tab-toolbar span { flex: 1; color: var(--text-secondary); }

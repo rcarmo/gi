@@ -3,6 +3,12 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {tabStore, type TabStore} from '../../../web/src/panes/tab-store';
 import {patchTabReadonly} from '../../../scripts/patch-tab-readonly.mjs';
+import {readonlyTabDestination} from '../../../web/src/gi-readonly-tab-focus';
+test('read-only tab navigation wraps and ignores unrelated keys',()=>{
+ expect(readonlyTabDestination('Home',2,3)).toBe(0);expect(readonlyTabDestination('End',0,3)).toBe(2);
+ expect(readonlyTabDestination('ArrowRight',2,3)).toBe(0);expect(readonlyTabDestination('ArrowLeft',0,3)).toBe(2);
+ expect(readonlyTabDestination('Enter',1,3)).toBeNull();expect(readonlyTabDestination('Home',0,0)).toBeNull();expect(readonlyTabDestination('ArrowRight',-1,3)).toBeNull();
+});
 
 test('supplied tab store preserves pinned MRU, atomic snapshots and individual close',()=>{
  const store = new (tabStore.constructor as {new():TabStore})();

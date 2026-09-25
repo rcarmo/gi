@@ -89,6 +89,17 @@ Settings/search/Quick Actions exclusion. See [compose-command-ownership.md](../.
 Physical IME, modifier-command semantics and shared16/Classic008 policy conflicts
 are separate. The suite carries no new frozen tags or mappings.
 
+## Read-only workspace transitions — 2026-09-25
+
+`make test-ux-workspace-tabs` runs72 cases in the required browser CI job and saves
+`workspace-tabs-results.json`. New journeys cover roving tab navigation, keyboard
+context menus, hide/reopen without file re-read, retained draft/media state,
+hidden-read/Settings focus isolation and trusted touch background-close. Six
+executions repeat390px touch contexts. Existing MRU/pin/late-read/font checks stay.
+See [workspace-tab-transitions.md](../../docs/internal/workspace-tab-transitions.md).
+The slice fixes read-only host interactions; editor/docking and full Piclaw
+transition equivalence remain open. Frozen mappings are unchanged.
+
 ## First slice: 2026-09-21
 
 - `@ux-original-001`: menu open/dismiss, pointer and keyboard/Escape/outside-click checks.

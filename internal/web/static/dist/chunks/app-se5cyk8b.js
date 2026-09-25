@@ -13410,6 +13410,69 @@ function WorkspaceExplorer({
     `;
 }
 
+// web/src/gi-readonly-tab-focus.ts
+function readonlyTabDestination(key, index, count) {
+  if (count < 1 || index < 0)
+    return null;
+  switch (key) {
+    case "Home":
+      return 0;
+    case "End":
+      return count - 1;
+    case "ArrowRight":
+      return (index + 1) % count;
+    case "ArrowLeft":
+      return (index - 1 + count) % count;
+    default:
+      return null;
+  }
+}
+function bindReadonlyTabKeys(root, activate, menu) {
+  const onKey = (e) => {
+    if (e.defaultPrevented || e.isComposing || e.keyCode === 229 || root.closest("[hidden]") || document.querySelector('.settings-dialog[aria-modal="true"]'))
+      return;
+    const target = e.target;
+    if (target?.getAttribute("role") !== "tab")
+      return;
+    const tabs = Array.from(root.querySelectorAll('[role="tab"]')), index = tabs.indexOf(target);
+    if (index < 0)
+      return;
+    if (e.shiftKey && e.key === "F10" || e.key === "ContextMenu") {
+      e.preventDefault();
+      e.stopPropagation();
+      const r = target.getBoundingClientRect();
+      menu(target.dataset.readonlyTabId, r.left, r.bottom);
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey)
+      return;
+    const next = readonlyTabDestination(e.key, index, tabs.length);
+    if (next !== null) {
+      e.preventDefault();
+      e.stopPropagation();
+      activate(tabs[next].dataset.readonlyTabId);
+      tabs[next].focus({ preventScroll: true });
+    }
+  };
+  root.addEventListener("keydown", onKey);
+  return () => root.removeEventListener("keydown", onKey);
+}
+function bindReadonlyTabMenu(menu, strip, id) {
+  const restore = () => {
+    if (document.querySelector('.settings-dialog[aria-modal="true"]') || strip.closest("[hidden]"))
+      return;
+    const active = document.activeElement;
+    if (active !== document.body && !menu.contains(active))
+      return;
+    const tabs = Array.from(strip.querySelectorAll('[role="tab"]'));
+    const target = tabs.find((t) => t.dataset.readonlyTabId === id) || tabs.find((t) => t.getAttribute("aria-selected") === "true");
+    target?.focus({ preventScroll: true });
+  };
+  if (!document.querySelector('.settings-dialog[aria-modal="true"]'))
+    menu.querySelector("button:not(:disabled)")?.focus({ preventScroll: true });
+  return () => requestAnimationFrame(restore);
+}
+
 // web/src/ui/tab-source-editor.ts
 var SOURCE_EDITABLE_PANE_IDS = new Set(["html-viewer", "kanban-editor", "mindmap-editor"]);
 function resolveEffectiveTabPaneId(path, paneOverrideId, resolvePane) {
@@ -13466,9 +13529,24 @@ function getStandaloneTabUrl(path, { hasPopOutTab = false } = {}) {
   }
   return null;
 }
-function TabStrip({ readOnlyHost = false, tabs, activeId, onActivate, onClose, onCloseOthers, onCloseAll, onTogglePin, onTogglePreview, onToggleDiff, onEditSource, previewTabs, diffTabs, paneOverrides, detachedTabs, onReattachTab, onToggleDock, dockVisible, onToggleZen, zenMode, onPopOutTab }) {
+function TabStrip({ readOnlyHost = false, hostVisible = true, tabs, activeId, onActivate, onClose, onCloseOthers, onCloseAll, onTogglePin, onTogglePreview, onToggleDiff, onEditSource, previewTabs, diffTabs, paneOverrides, detachedTabs, onReattachTab, onToggleDock, dockVisible, onToggleZen, zenMode, onPopOutTab }) {
   const [contextMenu, setContextMenu] = F_(null);
   const stripRef = Q_(null);
+  const contextRef = Q_(null);
+  W_(() => {
+    if (readOnlyHost && !hostVisible)
+      setContextMenu(null);
+  }, [readOnlyHost, hostVisible]);
+  W_(() => {
+    if (!readOnlyHost || !stripRef.current)
+      return;
+    return bindReadonlyTabKeys(stripRef.current, (id) => onActivate?.(id), (id, x, y) => setContextMenu({ id, x, y }));
+  }, [readOnlyHost, tabs, onActivate]);
+  W_(() => {
+    if (!readOnlyHost || !contextMenu || !contextRef.current || !stripRef.current)
+      return;
+    return bindReadonlyTabMenu(contextRef.current, stripRef.current, contextMenu.id);
+  }, [readOnlyHost, contextMenu]);
   W_(() => {
     if (!contextMenu)
       return;
@@ -13486,7 +13564,7 @@ function TabStrip({ readOnlyHost = false, tabs, activeId, onActivate, onClose, o
   }, [contextMenu]);
   K_(() => {
     const onKeyDown = (e) => {
-      if (readOnlyHost && document.querySelector('.settings-dialog[aria-modal="true"]'))
+      if (readOnlyHost && (e.defaultPrevented || e.isComposing || e.keyCode === 229 || stripRef.current?.closest("[hidden]") || document.querySelector('.settings-dialog[aria-modal="true"]')))
         return;
       if (e.ctrlKey && e.key === "Tab") {
         e.preventDefault();
@@ -13532,6 +13610,10 @@ function TabStrip({ readOnlyHost = false, tabs, activeId, onActivate, onClose, o
     setContextMenu({ id, x: e.clientX, y: e.clientY });
   }, []);
   const handleClosePointerDown = Y_((e) => {
+    if (readOnlyHost && e.pointerType === "touch") {
+      e.stopPropagation();
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
   }, []);
@@ -13597,6 +13679,8 @@ function TabStrip({ readOnlyHost = false, tabs, activeId, onActivate, onClose, o
                     key=${tab.id}
                     class=${`tab-item${tab.id === activeId ? " active" : ""}${tab.dirty ? " dirty" : ""}${tab.pinned ? " pinned" : ""}`}
                     role="tab"
+                    tabIndex=${readOnlyHost ? tab.id === activeId ? 0 : -1 : undefined}
+                    data-readonly-tab-id=${readOnlyHost ? tab.id : undefined}
                     aria-selected=${tab.id === activeId}
                     title=${tab.path}
                     onMouseDown=${(e) => handleTabMouseDown(e, tab.id)}
@@ -13661,7 +13745,7 @@ function TabStrip({ readOnlyHost = false, tabs, activeId, onActivate, onClose, o
             `}
         </div>
         ${contextMenu && fe`
-            <div class="tab-context-menu" style=${{ left: (readOnlyHost ? Math.max(4, Math.min(contextMenu.x, window.innerWidth - 148)) : contextMenu.x) + "px", top: (readOnlyHost ? Math.max(4, Math.min(contextMenu.y, window.innerHeight - 208)) : contextMenu.y) + "px" }}>
+            <div class="tab-context-menu" ref=${contextRef} style=${{ left: (readOnlyHost ? Math.max(4, Math.min(contextMenu.x, window.innerWidth - 148)) : contextMenu.x) + "px", top: (readOnlyHost ? Math.max(4, Math.min(contextMenu.y, window.innerHeight - 208)) : contextMenu.y) + "px" }}>
                 <button onClick=${() => {
     onClose?.(contextMenu.id);
     setContextMenu(null);
@@ -18424,11 +18508,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-t3qacrte.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-23m8xjxa.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-5r56ns4y.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-wfcg9x52.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-0b1134bq.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-9m3448b9.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-3mmgdr40.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-f9bk8ytk.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-dpagwcd0.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-y7ncec25.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -19811,10 +19895,24 @@ function GiApp() {
   const [tabSnapshot, setTabSnapshot] = F_(() => ({ tabs: tabStore.getTabs(), activeId: tabStore.getActiveId() }));
   const { tabs, activeId: activeTabId } = tabSnapshot;
   const tabFocusEpoch = Q_(0);
-  const editorOpen = tabs.length > 0;
+  const [previewVisible, setPreviewVisible] = F_(false);
+  const editorOpen = tabs.length > 0 && previewVisible;
+  const restoreWorkspaceFocus = (preview) => {
+    requestAnimationFrame(() => {
+      if (document.querySelector('.settings-dialog[aria-modal="true"]'))
+        return;
+      const active = document.activeElement;
+      if (active !== document.body && !active?.closest(".gi-workspace-view-controls"))
+        return;
+      const selector = preview ? '.gi-readonly-tabs:not([hidden]) [role="tab"][aria-selected="true"]' : ".compose-box textarea";
+      document.querySelector(selector)?.focus({ preventScroll: true });
+    });
+  };
   W_(() => tabStore.onChange((nextTabs, activeId) => {
     const epoch = ++tabFocusEpoch.current;
     setTabSnapshot({ tabs: nextTabs, activeId });
+    if (!nextTabs.length)
+      setPreviewVisible(false);
     if (!nextTabs.length)
       requestAnimationFrame(() => {
         if (tabFocusEpoch.current !== epoch || tabStore.size || document.activeElement !== document.body || document.querySelector('.settings-dialog[aria-modal="true"]'))
@@ -20682,6 +20780,7 @@ function GiApp() {
     if (window.matchMedia("(max-width: 1023px), (orientation: portrait)").matches)
       setWorkspaceOpen(false);
     tabStore.open(path);
+    setPreviewVisible(true);
   }, []);
   const handleTabClose = Y_((id) => {
     tabStore.close(id);
@@ -20789,12 +20888,17 @@ function GiApp() {
                 </svg>
             </button>
             <div class="workspace-splitter"></div>
-            ${editorOpen && fe`
-                <div class="editor-pane-container gi-readonly-tabs">
+            ${tabs.length > 0 && fe`
+                <div class="editor-pane-container gi-readonly-tabs" hidden=${!previewVisible}>
+                    <div class="gi-workspace-view-controls"><button onClick=${() => {
+    setPreviewVisible(false);
+    restoreWorkspaceFocus(false);
+  }}>Return to conversation</button></div>
                     <${TabStrip}
                         tabs=${tabs}
                         activeId=${activeTabId}
                         readOnlyHost=${true}
+                        hostVisible=${previewVisible}
                         onActivate=${(id) => tabStore.activate(id)}
                         onClose=${handleTabClose}
                         onCloseOthers=${(id) => {
@@ -20808,9 +20912,13 @@ function GiApp() {
                         ${activeTabId && fe`<${WorkspaceTab} key=${activeTabId} path=${activeTabId} onClose=${() => handleTabClose(activeTabId)} />`}
                     </div>
                 </div>
-                <div class="editor-splitter"></div>
+                <div class="editor-splitter" hidden=${!previewVisible}></div>
             `}
             <div class="container" ref=${containerRef} tabIndex="0" role="region" aria-label="Conversation">
+                ${tabs.length > 0 && !previewVisible && fe`<div class="gi-workspace-view-controls gi-workspace-show-tabs"><button onClick=${() => {
+    setPreviewVisible(true);
+    restoreWorkspaceFocus(true);
+  }}>Show read-only tabs</button></div>`}
                 <${Timeline}
                     posts=${posts}
                     hasMore=${false}
@@ -21094,5 +21202,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=C7E5D4B43EED3D6C64756E2164756E21
-//# sourceMappingURL=app-jt3jn91d.js.map
+//# debugId=ECA01A34A13D5A9064756E2164756E21
+//# sourceMappingURL=app-se5cyk8b.js.map

@@ -65,7 +65,7 @@ jobs:
   browser-journey:
     name: Startup and Return browser journeys
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
@@ -84,6 +84,8 @@ jobs:
         run: make test-ux-picker-geometry
       - name: Verify slash and Quick Actions keyboard ownership
         run: make test-ux-slash
+      - name: Verify read-only workspace tab transitions
+        run: make test-ux-workspace-tabs
       - name: Upload journey evidence
         if: always()
         uses: actions/upload-artifact@v7

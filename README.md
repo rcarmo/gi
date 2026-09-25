@@ -97,6 +97,7 @@ That installs Go/Bun dependencies, installs Playwright Chromium, and builds `gi`
 | `make test-ux-journey` | Empty-store startup/new-chat/Return and retry journeys; Chromium/WebKit at three sizes; required CI gate |
 | `make test-ux-picker-geometry` | Pinned Classic composer/picker bounds, responsive transitions and dismissal; required browser CI step |
 | `make test-ux-slash` | Native command catalogue and composer/Quick Actions keyboard ownership; required browser CI step |
+| `make test-ux-workspace-tabs` | Read-only preview/conversation transitions, keyboard/touch tabs and lifecycle; required browser CI step |
 | `make ux-parity-inventory` | Check frozen feature hashes and generate the scenario inventory |
 | `make test-ux-parity` | Default browser parity suite in Chromium/WebKit at three viewport sizes; specialised suites have separate targets/flags |
 | `make test-ux-auth` | Isolated TOTP/browser-auth regression suite |
@@ -150,7 +151,7 @@ The current TUI uses `go-tui`, supports terminal resize handling through the run
 
 The web UI reuses pinned Piclaw component sources. Gi supplies `web/src/api.ts`, `web/src/app.ts`, auth/Settings modules and CSS overrides; narrowly guarded build adapters also change selected bundled behaviour without editing supplied components. Component provenance and runtime parity are separate checks.
 
-Workspace tabs are read-only previews: editable documents, dirty-buffer workflows, popouts and docking are not implemented. Composer padding and picker outer bounds follow a [pinned Classic reference](docs/internal/picker-geometry.md), with a documented narrow-desktop containment correction. Session-strip/catalogue structure and full visual styling still differ from Piclaw. The reproduced startup/new-chat focus and loading-retry failures are fixed and covered by [first-Return journeys](docs/internal/startup-return-journeys.md); broader keyboard and visual parity remains open. The [UX audit][audit] records those gaps and the limits of existing tests.
+Workspace tabs are read-only previews with [retained conversation return and keyboard/touch navigation](docs/internal/workspace-tab-transitions.md). Editable documents, dirty-buffer workflows, popouts and docking are not implemented. Composer padding and picker outer bounds follow a [pinned Classic reference](docs/internal/picker-geometry.md), with a documented narrow-desktop containment correction. Session-strip/catalogue structure and full visual styling still differ from Piclaw. The reproduced startup/new-chat focus and loading-retry failures are fixed and covered by [first-Return journeys](docs/internal/startup-return-journeys.md); broader keyboard and visual parity remains open. The [UX audit][audit] records those gaps and the limits of existing tests.
 
 ### Authentication and exposure
 

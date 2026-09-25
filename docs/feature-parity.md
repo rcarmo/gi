@@ -36,7 +36,7 @@ found missing user journeys, weak assertions and tests tied to Gi's older layout
 | Compaction | Implemented: automatic/manual native compaction, persisted context checkpoints, progress/cancel and shared browser/terminal engine behaviour. | Broad Settings parity and every upstream compaction workflow are not complete. |
 | Timeline and media | Partial: Markdown/tables/code copy, image lightbox, stored media/resource links, tool timing, recovered-response labels, idle single-message deletion and browser speech controls. | No iPad annotation workflow. Speech tests use a controlled browser boundary; physical audio is not verified. |
 | Cards and widgets | Partial: supplied Adaptive Cards rendering and truthful rejection of unsupported Submit. | Accepted card actions and the full agent-authored widget/attachment tool surface are not implemented. |
-| Workspace | Partial: rooted tree/hidden files, bounded previews, read-only tabs, MRU/pinning/context actions and explicit scoped lexical index/reindex. | No document editing, dirty-buffer save, popouts or docking. Automatic external-change freshness and vector search are not complete. |
+| Workspace | Partial: rooted tree/hidden files, bounded previews, read-only tabs, retained preview/conversation switching, keyboard/touch tab navigation, MRU/pinning/context actions and explicit scoped lexical index/reindex. | No document editing, dirty-buffer save, popouts or docking. Automatic external-change freshness and vector search are not complete. |
 | Workspace motion | Implemented: desktop collapse stays left-anchored; chat and toggle interpolate together, including rapid reversal and reduced motion. | Deliberate correction of an inherited Piclaw CSS defect. It does not close broader workspace-tab workflow gaps. |
 | Settings | Partial: General identity, session Models, local Appearance, compaction controls/policy and guarded OpenAI/Anthropic API-key management. | Other/custom provider setup and browser OAuth flows, richer panes and remaining focus paths are incomplete. |
 | Browser authentication | Partial: single-user TOTP sign-in, HttpOnly/Strict cookie, transport/origin checks, transactional auth persistence and browser-owner proof. Settings logout revokes only this browser, confirms native status and reconciles uncertain results without replay; drafts and other sessions stay intact. | Initial owner Settings setup uses a manual TOTP key with a ten-minute display lifetime, atomic owner/session creation and explicit uncertain-response recovery, restricted to loopback. QR/physical setup, broader session-management UI and family mode are not implemented. Opt-in WebAuthn APIs are tested separately. |
@@ -143,16 +143,18 @@ not compare against a controlled current-Piclaw visual baseline.
 | `make test-ux-journey` | Empty-store startup/new-chat/Return and explicit recovery; Chromium/WebKit at three sizes, required in CI. |
 | `make test-ux-picker-geometry` | Pinned composer/picker outer geometry and dismissal; required browser CI step. |
 | `make test-ux-slash` | Native slash catalogue and keyboard ownership with Quick Actions/Settings/search; required browser CI step. |
+| `make test-ux-workspace-tabs` | Read-only tab keyboard/touch/lifecycle and conversation return; required browser CI step. |
 | `make test-ux-passkeys` | Chromium virtual-authenticator WebAuthn API and Settings/login tests at three sizes; required in CI. |
 | `make test-tui-smoke test-tui-gherkin` | Terminal smoke and Gherkin checks; specialised PTY suites are separate Make targets. |
 | `make check-cross-build` | Optional local Linux/macOS amd64/arm64 and Windows amd64 builds with `CGO_ENABLED=0`; Windows is excluded from CI. |
 
 CI gates builds on the isolated passkey browser suite, startup/Return Chromium/WebKit
-journeys, pinned picker geometry, slash-key ownership and native Linux/macOS auth checks. It builds Linux/macOS amd64/arm64 artifacts. Windows CI tests, builds and
+journeys, pinned picker geometry, slash-key ownership, read-only workspace tabs and native Linux/macOS auth checks. It builds Linux/macOS amd64/arm64 artifacts. Windows CI tests, builds and
 release artifacts were removed at the owner's request; local cross-build support
 remains. CI does not run the full browser UX matrix. Remaining priorities include
 remaining current-Piclaw composer/picker structure and styling, conversation shortcuts,
-Settings focus, workspace tab transitions, disputed command/skill-prefill policies, and an
+Settings focus, full Piclaw editor/workspace equivalence beyond read-only transitions,
+disputed command/skill-prefill policies, and an
 explicit full-suite runner with skip accounting. See the [suite guide][ux] and
 [full web/TUI plan][plan].
 

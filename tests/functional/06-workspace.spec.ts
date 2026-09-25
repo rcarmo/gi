@@ -7,6 +7,13 @@
 import { test, expect } from '@playwright/test';
 import { BASE_URL, waitForAppShell, apiGet } from './helpers';
 
+test('Read-only workspace preview returns to conversation without closing retained tabs',async({page,request})=>{
+ const path=`functional-transition-${Date.now()}.md`;const created=await request.post('/api/tools/execute',{data:{tool:'write',input:{path,content:'# Functional preview'}}});expect((await created.json()).error).toBeFalsy();
+ await page.setViewportSize({width:390,height:844});await page.goto(BASE_URL);await waitForAppShell(page);const input=page.locator('.compose-box textarea');await input.fill('Functional retained conversation');
+ await page.getByTestId('hamburger').click();await page.getByRole('menuitem',{name:'Show workspace',exact:true}).click();await page.locator(`.workspace-row[data-path="${path}"] .workspace-label-text`).click();await page.getByRole('button',{name:'Open read-only tab',exact:true}).click();const preview=page.getByRole('region',{name:`Read-only preview: ${path}`,exact:true});await expect(preview.getByRole('heading',{name:'Functional preview',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Return to conversation',exact:true}).click();await expect(preview).toBeHidden();await expect(input).toBeFocused();await expect(input).toHaveValue('Functional retained conversation');await page.getByRole('button',{name:'Show read-only tabs',exact:true}).click();await expect(preview).toBeVisible();await expect(page.getByRole('tab')).toBeFocused();await preview.getByRole('button',{name:'Close preview',exact:true}).click();await expect(input).toBeFocused();await expect(input).toHaveValue('Functional retained conversation');
+});
+
 test.describe('Workspace', () => {
 
   test('workspace tree API returns valid structure', async ({ request }) => {

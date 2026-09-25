@@ -283,10 +283,21 @@ function GiApp() {
     const [tabSnapshot, setTabSnapshot] = useState(() => ({ tabs: tabStore.getTabs(), activeId: tabStore.getActiveId() }));
     const { tabs, activeId: activeTabId } = tabSnapshot;
     const tabFocusEpoch = useRef(0);
-    const editorOpen = tabs.length > 0;
+    const [previewVisible, setPreviewVisible] = useState(false);
+    const editorOpen = tabs.length > 0 && previewVisible;
+    const restoreWorkspaceFocus = (preview:boolean) => {
+        requestAnimationFrame(() => {
+            if (document.querySelector('.settings-dialog[aria-modal="true"]')) return;
+            const active = document.activeElement as HTMLElement;
+            if (active !== document.body && !active?.closest('.gi-workspace-view-controls')) return;
+            const selector = preview ? '.gi-readonly-tabs:not([hidden]) [role="tab"][aria-selected="true"]' : '.compose-box textarea';
+            document.querySelector<HTMLElement>(selector)?.focus({preventScroll:true});
+        });
+    };
     useLayoutEffect(() => tabStore.onChange((nextTabs, activeId) => {
         const epoch = ++tabFocusEpoch.current;
         setTabSnapshot({ tabs: nextTabs, activeId });
+        if (!nextTabs.length) setPreviewVisible(false);
         if (!nextTabs.length) requestAnimationFrame(() => {
             if (tabFocusEpoch.current !== epoch || tabStore.size || document.activeElement !== document.body ||
                 document.querySelector('.settings-dialog[aria-modal="true"]')) return;
@@ -952,6 +963,7 @@ function GiApp() {
         ++tabFocusEpoch.current;
         if (window.matchMedia('(max-width: 1023px), (orientation: portrait)').matches) setWorkspaceOpen(false);
         tabStore.open(path);
+        setPreviewVisible(true);
     }, []);
 
     const handleTabClose = useCallback((id: string) => { tabStore.close(id); }, []);
@@ -1052,12 +1064,14 @@ function GiApp() {
                 </svg>
             </button>
             <div class="workspace-splitter"></div>
-            ${editorOpen && html`
-                <div class="editor-pane-container gi-readonly-tabs">
+            ${tabs.length > 0 && html`
+                <div class="editor-pane-container gi-readonly-tabs" hidden=${!previewVisible}>
+                    <div class="gi-workspace-view-controls"><button onClick=${() => { setPreviewVisible(false); restoreWorkspaceFocus(false); }}>Return to conversation</button></div>
                     <${TabStrip}
                         tabs=${tabs}
                         activeId=${activeTabId}
                         readOnlyHost=${true}
+                        hostVisible=${previewVisible}
                         onActivate=${(id: string) => tabStore.activate(id)}
                         onClose=${handleTabClose}
                         onCloseOthers=${(id: string) => { if (tabStore.get(id)) tabStore.closeOthers(id); }}
@@ -1068,9 +1082,10 @@ function GiApp() {
                         ${activeTabId && html`<${WorkspaceTab} key=${activeTabId} path=${activeTabId} onClose=${() => handleTabClose(activeTabId)} />`}
                     </div>
                 </div>
-                <div class="editor-splitter"></div>
+                <div class="editor-splitter" hidden=${!previewVisible}></div>
             `}
             <div class="container" ref=${containerRef} tabIndex="0" role="region" aria-label="Conversation">
+                ${tabs.length > 0 && !previewVisible && html`<div class="gi-workspace-view-controls gi-workspace-show-tabs"><button onClick=${() => { setPreviewVisible(true); restoreWorkspaceFocus(true); }}>Show read-only tabs</button></div>`}
                 <${Timeline}
                     posts=${posts}
                     hasMore=${false}

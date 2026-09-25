@@ -438,6 +438,11 @@ clean:
 	rm -rf $(RUN_DIR) $(BIN_DIR) $(TEST_DIR) $(TUI_TEST_DIR) $(TEST_RESULTS)
 	rm -f gi gi-tui
 
+.PHONY: test-ux-workspace-tabs
+test-ux-workspace-tabs:
+	$(MAKE) test-ux-parity UX_PARITY_ARGS='tests/ux/workspace-tabs.spec.mjs'
+	cp test-results/ux-parity/results.json test-results/ux-parity/workspace-tabs-results.json
+
 .PHONY: test-ux-slash
 test-ux-slash: build-web
 	mkdir -p $(dir $(UX_LOCAL_BIN)) test-results/ux-parity

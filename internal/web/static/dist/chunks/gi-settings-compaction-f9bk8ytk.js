@@ -11,7 +11,7 @@ import {
   saveGiCompactionPolicy,
   compactionNotice,
   compactionElapsed
-} from "./app-jt3jn91d.js";
+} from "./app-se5cyk8b.js";
 
 // web/src/gi-settings-compaction-policy.ts
 var fields = [
@@ -253,4 +253,4 @@ export {
 };
 
 //# debugId=9EE789BB5CB57A2664756E2164756E21
-//# sourceMappingURL=gi-settings-compaction-5r56ns4y.js.map
+//# sourceMappingURL=gi-settings-compaction-f9bk8ytk.js.map
