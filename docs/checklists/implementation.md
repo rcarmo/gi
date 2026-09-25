@@ -4,6 +4,9 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-25
 
+- [x] Repair isolated journey-server reserve/release port race exposed by CI36162988558 (downloaded fixture log: bind address already in use). Native fixture binds port0 and retains listener, publishing its address in a private readiness file. No timeout increase;42startup/72slash/24geometry and Go/vet pass. Workspace0feba2c remains undeployed pending newCI.
+- [ ] Raise composer/panel acceptance to user-requested pixel parity: matched-state pinned Piclaw reference renders, typography/assets/controls together, repeated exact RGBA comparisons and preserved diff evidence. Existing outer-bound tests alone do not satisfy this requirement.
+
 - [x] Add read-only workspace Return/Show controls retaining mounted preview, tabs and exact draft/media; hidden panes suppress shortcuts and clear contextmenus. Roving Arrow/Home/End tab focus and ShiftF10 contextmenu restorefocus; WebKit touchclose fixed via pointerdefault preservation without backgroundactivation.72tab/54preview-shell/42startup/24geometry/72slash/113functional (fiveexisting skips), Go-vet-hook/113helpers3020 pass. Initial12transition and3WebKit failures reproduced; review-hiddenmenu fix verified. Firstfunctional run sessiontypeahead classflake retained (unchanged rerun green, not fixed). RequiredCI targetadded; suppliedsource/storeunchanged, no new mappings/editor/docking/TUIrows.
 
 - [x] Deploy `cec9147` native slash catalogue/key ownership after CI36157033453: nine jobs green, required browser gate includes72slash+42startup+24geometry plus189passkey separately. Port8090 PID3756871; six guarded live checks show29native commands/skills, Tab/Escape draft retention, palette/Settings exclusion, zero writes/obsoleteendpointcalls/errors. DB62/51/146, integrity/FKs OK, fullSQL equal except runtimelease (SHA256300ce679…53d); authfile absentbefore/after. No live command submit, enrolment or TUI change.

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -475,6 +476,17 @@ func main() {
 	if addr == "" {
 		addr = "127.0.0.1:19092"
 	}
+	// Keep ownership of the bound port from allocation through serving.
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("UX listen: %v", err)
+	}
+	defer listener.Close()
+	if readyFile := os.Getenv("GI_UX_READY_FILE"); readyFile != "" {
+		if err := os.WriteFile(readyFile, []byte("http://"+listener.Addr().String()), 0600); err != nil {
+			log.Fatalf("UX ready file: %v", err)
+		}
+	}
 	httpServer := &http.Server{Addr: addr, Handler: server.Handler()}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, os.Interrupt)
 	defer stop()
@@ -482,7 +494,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer server.CloseWorkspaceIndex()
-	if err := httpserver.Run(ctx, stop, 5*time.Second, httpserver.Listener{Server: httpServer, Serve: httpServer.ListenAndServe, Label: "ux"}); err != nil {
+	if err := httpserver.Run(ctx, stop, 5*time.Second, httpserver.Listener{Server: httpServer, Serve: func() error { return httpServer.Serve(listener) }, Label: "ux"}); err != nil {
 		log.Printf("UX HTTP stopped: %v", err)
 	}
 }
