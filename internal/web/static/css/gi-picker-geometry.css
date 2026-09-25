@@ -1,0 +1,69 @@
+/* Geometry reference: Piclaw Classic 0afe5366ced9, chat.css b6d3da5e…
+   Full provenance and bounded acceptance: tests/ux/fixtures/picker-geometry-reference.json.
+   Host override only; supplied CSS/component bytes are retained. */
+.compose-box {
+    padding-left: 0;
+    padding-right: 0;
+}
+.compose-session-popup {
+    width: auto;
+    min-height: 300px;
+    max-height: min(72vh, 620px);
+}
+.compose-model-popup:not(.compose-session-popup) {
+    right: auto;
+    width: min(680px, calc(100vw - 24px));
+    /* Piclaw overflows at 640px with a sidebar. Keep this case inside the
+       composer anchor; wider desktop and fixed-mobile rules match reference. */
+    max-width: 100%;
+    max-height: min(70vh, 620px);
+}
+.compose-model-popup > .compose-model-popup-menu {
+    min-height: 0;
+    flex-shrink: 1;
+}
+.compose-session-popup > .compose-model-popup-menu {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 430px;
+}
+.gi-picker-close {
+    display: none;
+}
+@media (max-width: 639px) {
+    .compose-model-popup,
+    .compose-model-popup:not(.compose-session-popup) {
+        position: fixed;
+        inset: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)) 8px;
+        width: auto;
+        min-height: 0;
+        max-height: none;
+        max-width: none;
+        border-radius: var(--radius-md);
+    }
+    .compose-model-popup > .compose-model-popup-menu {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
+    }
+    .compose-model-popup .compose-session-search,
+    .compose-model-popup .compose-model-popup-item,
+    .compose-model-popup .compose-model-popup-btn {
+        min-height: 44px;
+    }
+    .gi-picker-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        align-self: flex-end;
+        min-width: 44px;
+        min-height: 44px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-sm);
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        font: inherit;
+        cursor: pointer;
+    }
+}

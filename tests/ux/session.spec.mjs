@@ -930,8 +930,12 @@ for(const [id,method] of [['@shared-23','pointer'],['@shared-24','keyboard']]) t
     const popup=page.locator('.compose-session-popup'),search=popup.getByRole('searchbox',{name:'Search sessions',exact:true});
     const anchor=async()=>{
       const geometry=await popup.evaluate(el=>{const p=el.getBoundingClientRect(),host=el.closest('.compose-input-main'),a=host?.getBoundingClientRect();return {position:getComputedStyle(el).position,anchor:!!host,left:p.left,bottom:p.bottom,right:p.right,anchorLeft:a?.left,anchorTop:a?.top,viewport:innerWidth};});
-      expect(geometry.position).toBe('absolute');expect(geometry.anchor).toBe(true);expect(Math.abs(geometry.left-geometry.anchorLeft)).toBeLessThanOrEqual(1);
-      expect(Math.abs(geometry.bottom-(geometry.anchorTop-6))).toBeLessThanOrEqual(1);expect(geometry.left).toBeGreaterThanOrEqual(0);expect(geometry.right).toBeLessThanOrEqual(geometry.viewport+1);
+      expect(geometry.anchor).toBe(true);
+      // Current Classic reference uses fixed mobile bounds; desktop retains
+      // the composer anchor and six-pixel gap. Focus/query checks stay intact.
+      if(geometry.viewport<=639){expect(geometry.position).toBe('fixed');expect(Math.abs(geometry.left-8)).toBeLessThanOrEqual(1);expect(Math.abs(geometry.right-(geometry.viewport-8))).toBeLessThanOrEqual(1);}
+      else{expect(geometry.position).toBe('absolute');expect(Math.abs(geometry.left-geometry.anchorLeft)).toBeLessThanOrEqual(1);expect(Math.abs(geometry.bottom-(geometry.anchorTop-6))).toBeLessThanOrEqual(1);}
+      expect(geometry.left).toBeGreaterThanOrEqual(0);expect(geometry.right).toBeLessThanOrEqual(geometry.viewport+1);
     };
     await anchor();for(const sid of [main,research])await expect(popup.locator(`[data-session-jid="gi:${sid}"]`)).toBeVisible();
     await search.fill(`gi:${research}`);await expect(popup.locator(`[data-session-jid="gi:${research}"]`)).toBeVisible();await expect(popup.locator(`[data-session-jid="gi:${main}"]`)).toHaveCount(0);

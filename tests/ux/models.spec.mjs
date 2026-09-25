@@ -9,7 +9,9 @@ async function setup(page,request,info){
  await page.goto('/');const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();
  const modelButton=page.getByRole('button',{name:'Open model picker',exact:true});
  const menu=page.getByRole('menu',{name:'Model picker',exact:true});
- const switchTo=async id=>{await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${id}"]`).getByRole('menuitem').click();await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(id);};
+ // Fixed mobile panels cover the footer. Dismiss them with their real control
+ // before switching; held response and stale-model assertions remain unchanged.
+ const switchTo=async id=>{if(page.viewportSize().width<=639 && await page.locator('.compose-model-popup:not(.compose-session-popup)').count())await page.getByRole('button',{name:'Close model picker',exact:true}).click();await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${id}"]`).getByRole('menuitem').click();await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(id);};
  const option=name=>menu.getByRole('menuitem').filter({hasText:name});
  return{main,child,input,modelButton,menu,switchTo,option};
 }

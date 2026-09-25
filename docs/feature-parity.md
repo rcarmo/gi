@@ -29,9 +29,9 @@ found missing user journeys, weak assertions and tests tied to Gi's older layout
 |---|---|---|
 | Runtime and distribution | Implemented: one pure-Go binary, embedded browser assets, SQLite/WAL sessions, messages, turn events and recovery; `go-ai` inference. | Gi owns its runtime and storage. Piclaw extensions are not automatically compatible. Bun is build-time only. |
 | Chat and streaming | Implemented: native prompt admission, SSE status/draft/thought updates, reconnect reconciliation, bounded timeline paging and scoped search. Startup/new-chat focus and explicit loading-retry repairs have an empty-store, six-project browser gate. | The [first-Return journeys](internal/startup-return-journeys.md) verify exact session/turn identity. Conversation-level shortcut ownership and current-Piclaw visual equivalence remain open. |
-| Composer and drafts | Partial: persistent browser-local text/media/references, failed-send recovery, file/folder/message references, upload progress/cancel/retry and byte-identical upload reuse. | Composer layout differs from current Piclaw; direct slash-menu and Quick Actions integration need stronger end-to-end tests. |
-| Sessions | Partial: selection, child creation, grouping/search/typeahead, capability-gated pin/rename/archive/restore and draft isolation. | Picker geometry differs from current Piclaw. Session deletion and the complete session-management UI are not covered. |
-| Models and context | Partial: session-local model selection, registry/context metadata, fit checks, usage meter and model commands. | Missing local-estimate labelling and remaining model/picker workflows; unavailable metadata stays unknown. |
+| Composer and drafts | Partial: persistent browser-local text/media/references, failed-send recovery, file/folder/message references, upload progress/cancel/retry and byte-identical upload reuse. | Composer inline padding now follows the pinned Classic reference; session-strip structure and full visual styling still differ. Direct slash-menu and Quick Actions integration need stronger end-to-end tests. |
+| Sessions | Partial: selection, child creation, grouping/search/typeahead, capability-gated pin/rename/archive/restore and draft isolation. | Session picker outer bounds now follow the pinned Classic reference, including fixed mobile panels. Row structure/styles and complete session-management UI remain incomplete. |
+| Models and context | Partial: session-local model selection, registry/context metadata, fit checks, usage meter and model commands. | Model picker outer geometry follows the pinned reference with an explicit intermediate-width containment correction. Catalogue structure and remaining workflows/local-estimate labelling are incomplete; unavailable metadata stays unknown. |
 | Queue and Stop | Partial: durable browser follow-ups, reorder/cancel, run-bound steering, queue return-to-draft, reconciliation and run-bound Stop. | Stop can advance the next queued turn, conflicting with shared-36's unchanged-queue criterion. That case is unmapped. |
 | Compaction | Implemented: automatic/manual native compaction, persisted context checkpoints, progress/cancel and shared browser/terminal engine behaviour. | Broad Settings parity and every upstream compaction workflow are not complete. |
 | Timeline and media | Partial: Markdown/tables/code copy, image lightbox, stored media/resource links, tool timing, recovered-response labels, idle single-message deletion and browser speech controls. | No iPad annotation workflow. Speech tests use a controlled browser boundary; physical audio is not verified. |
@@ -141,15 +141,16 @@ not compare against a controlled current-Piclaw visual baseline.
 | `make test-ux-parity` | Default six-project browser suite; specialised suites require their own flags/targets. |
 | `make test-ux-auth` | Isolated native TOTP/browser authentication. |
 | `make test-ux-journey` | Empty-store startup/new-chat/Return and explicit recovery; Chromium/WebKit at three sizes, required in CI. |
+| `make test-ux-picker-geometry` | Pinned composer/picker outer geometry and dismissal; required browser CI step. |
 | `make test-ux-passkeys` | Chromium virtual-authenticator WebAuthn API and Settings/login tests at three sizes; required in CI. |
 | `make test-tui-smoke test-tui-gherkin` | Terminal smoke and Gherkin checks; specialised PTY suites are separate Make targets. |
 | `make check-cross-build` | Optional local Linux/macOS amd64/arm64 and Windows amd64 builds with `CGO_ENABLED=0`; Windows is excluded from CI. |
 
 CI gates builds on the isolated passkey browser suite, startup/Return Chromium/WebKit
-journeys and native Linux/macOS auth checks. It builds Linux/macOS amd64/arm64 artifacts. Windows CI tests, builds and
+journeys, pinned picker-geometry checks and native Linux/macOS auth checks. It builds Linux/macOS amd64/arm64 artifacts. Windows CI tests, builds and
 release artifacts were removed at the owner's request; local cross-build support
 remains. CI does not run the full browser UX matrix. Remaining priorities include
-current-Piclaw composer/picker geometry, slash/Quick Actions and Settings
+remaining current-Piclaw composer/picker structure and styling, slash/Quick Actions and Settings
 focus, workspace tab transitions, the disputed skill-prefill mapping, and an
 explicit full-suite runner with skip accounting. See the [suite guide][ux] and
 [full web/TUI plan][plan].

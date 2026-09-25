@@ -62,6 +62,22 @@ The dedicated CI job requires both browsers and gates Linux/macOS builds; no new
 Classic/shared mapping is assigned by these tests. This is a bounded journey gate,
 not a full browser or visual-parity result.
 
+## Pinned picker geometry — 2026-09-25
+
+`make test-ux-picker-geometry` adds24 executions to the required browser CI job.
+It pins current Classic CSS provenance and observed bounds separately from the
+frozen feature files. Tests cover composer padding, responsive session/model
+picker bounds,639/640 transitions, long session-list scrolling, touch/keyboard
+Close, Escape and retained focus/query/draft. Half the executions explicitly use
+390px touch contexts, repeated across projects.
+
+The reference model panel overflows at640px; Gi caps it to the anchor as an
+explicit containment correction. Shared23/24 now use fixed-mobile geometry while
+retaining desktop anchor and interaction assertions. Tests that switch sessions
+from a mobile model picker dismiss the covering panel first. No mappings are
+added. See [picker-geometry.md](../../docs/internal/picker-geometry.md) for source
+hashes, measurements and remaining structural/visual gaps.
+
 ## First slice: 2026-09-21
 
 - `@ux-original-001`: menu open/dismiss, pointer and keyboard/Escape/outside-click checks.

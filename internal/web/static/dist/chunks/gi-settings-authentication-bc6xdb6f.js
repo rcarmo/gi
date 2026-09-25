@@ -8,7 +8,7 @@ import {
   passkeyUnavailable,
   runPasskey,
   parseAuthPolicy
-} from "./app-epdyrjr5.js";
+} from "./app-mgmcszr0.js";
 
 // web/src/gi-settings-setup.ts
 function GiSettingsSetup({ available, disabled, onComplete, onBusy }) {
@@ -434,4 +434,4 @@ export {
 };
 
 //# debugId=576DF8EA583E52EB64756E2164756E21
-//# sourceMappingURL=gi-settings-authentication-h31y8s1k.js.map
+//# sourceMappingURL=gi-settings-authentication-bc6xdb6f.js.map

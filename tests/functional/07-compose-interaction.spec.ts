@@ -9,6 +9,17 @@ import { BASE_URL, waitForAppShell, getComposeInput, sendMessage } from './helpe
 
 test.describe('Compose interaction', () => {
 
+  test('mobile picker geometry exposes touch-sized dismissal without sending', async ({page})=>{
+    await page.setViewportSize({width:390,height:700});await page.goto(BASE_URL);await waitForAppShell(page);const input=getComposeInput(page);await input.fill('Mobile picker functional draft');
+    const writes:string[]=[];page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/prompt'))writes.push(r.url());});
+    for(const kind of ['session','model']){
+      const trigger=kind==='session'?page.getByRole('button',{name:/Manage sessions for/}).last():page.locator('.compose-model-hint-btn');await trigger.click();const popup=page.locator('.compose-model-popup');await expect(popup).toBeVisible();
+      const g=await popup.evaluate(e=>({x:e.getBoundingClientRect().x,width:e.getBoundingClientRect().width,position:getComputedStyle(e).position}));expect(g).toEqual({x:8,width:374,position:'fixed'});
+      await page.getByRole('button',{name:`Close ${kind} picker`,exact:true}).click();await expect(popup).toHaveCount(0);await expect(trigger).toBeFocused();await expect(input).toHaveValue('Mobile picker functional draft');
+    }
+    expect(writes).toEqual([]);
+  });
+
   test('Shift+Enter does not submit', async ({ page }) => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);

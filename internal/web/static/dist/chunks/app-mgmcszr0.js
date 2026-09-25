@@ -9663,6 +9663,13 @@ ${mediaIds.map((id, index) => {
                     `}
                     ${showModelPopup && !searchMode && fe`
                         <div class="compose-model-popup" ref=${modelPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
+                            <button type="button" class="gi-picker-close" aria-label="Close model picker" onClick=${() => {
+    setShowModelPopup(false);
+    requestAnimationFrame(() => {
+      if (document.activeElement === document.body)
+        modelHintRef.current?.focus();
+    });
+  }}>Close</button>
                             <div class="compose-model-popup-title">Select model</div>
                             <input type="search" class="compose-session-search" aria-label="Search models" placeholder="Search models"
                                 value=${modelQuery} onInput=${(event) => {
@@ -9714,6 +9721,7 @@ ${mediaIds.map((id, index) => {
                     `}
                     ${showSessionPopup && !searchMode && fe`
                         <div class="compose-model-popup compose-session-popup" ref=${sessionPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
+                            <button type="button" class="gi-picker-close" aria-label="Close session picker" onClick=${() => closeSessionPopup(true)}>Close</button>
                             <div class="compose-model-popup-title">Manage sessions & agents</div>
                             ${sessionMutationError && fe`<div role="alert" class="compose-session-mutation-error">${sessionMutationError}</div>`}
                             ${sessionMutationNotice && fe`<div role="status" class="compose-session-mutation-notice">${sessionMutationNotice}</div>`}
@@ -18442,11 +18450,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-m7n8jafw.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-hmbqpcpm.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-gcz9bscr.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-e6pd3dkd.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-h31y8s1k.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-0f92h0xr.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-2nnnrzh4.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-104cbdab.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-phxxvt6n.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-bc6xdb6f.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -21112,5 +21120,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=0B94D80C3488862B64756E2164756E21
-//# sourceMappingURL=app-epdyrjr5.js.map
+//# debugId=D5D6350ECB2C56DC64756E2164756E21
+//# sourceMappingURL=app-mgmcszr0.js.map

@@ -37,6 +37,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 
 ## Current structure
 
+- [picker-geometry.md](picker-geometry.md) — pinned Classic responsive bounds, mobile dismissal and explicit containment adaptation
 - [startup-return-journeys.md](startup-return-journeys.md) — empty-store keyboard journeys, focus/loading repairs and required browser CI gate
 - `browser-auth-proof.md` -- browser-owner provenance and session-scoped recent proof
 - [browser-bootstrap.md](browser-bootstrap.md) — loopback, cookie-bound initial owner Settings setup and status reconciliation

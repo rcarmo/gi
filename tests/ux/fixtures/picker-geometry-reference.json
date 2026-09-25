@@ -1,0 +1,30 @@
+{
+  "reference": {
+    "project": "rcarmo/piclaw",
+    "commit": "0afe5366ced9bca8246abd99a0feb1875a6ffbcc",
+    "installedRelease": "piclaw-3.2.2-linux-x64-baseline",
+    "skin": "classic",
+    "observedAsset": "15958f2c3dc9",
+    "chatCSS": "runtime/web/static/classic/css/chat.css",
+    "chatSHA256": "b6d3da5e2b0aff389efe095a20fe7388c37fe679bfa1ba04bc12ca4f4680597b",
+    "responsiveCSS": "runtime/web/static/classic/css/responsive.css",
+    "responsiveSHA256": "752164b9406576add5fd160569259414a46f2551f429ffbf5dd59fddf25e1b82"
+  },
+  "rules": {
+    "composerInlinePadding": 0,
+    "mobileMaxWidth": 639,
+    "mobileInset": 8,
+    "desktopGap": 6,
+    "modelMaxWidth": 680,
+    "modelViewportGutter": 24
+  },
+  "observed": [
+    {"width":390,"height":900,"sessionWidth":374,"modelWidth":374,"pickerHeight":884,"position":"fixed"},
+    {"width":639,"height":900,"sessionWidth":623,"modelWidth":623,"pickerHeight":884,"position":"fixed"},
+    {"width":640,"height":900,"sessionWidth":554,"modelWidth":616,"position":"absolute"},
+    {"width":820,"height":900,"sessionWidth":716,"modelWidth":680,"position":"absolute"},
+    {"width":1440,"height":900,"sessionWidth":878,"modelWidth":680,"position":"absolute"}
+  ],
+  "adaptations": {"desktopModelMaxAnchorWidth":true,"reason":"Measured Piclaw model popup at640px extends fromx80 to696 beyond viewport640. Gi caps width to its composer anchor to preserve containment; no exact reference parity credited at this intermediate width."},
+  "limits": "Geometry contract only. Desktop session width is relative to its composer anchor, which varies with sidebar and scaling. Desktop heights depend on inventory; content, footer controls, catalogue structure, themes/fonts and full pixels are not accepted here. Mobile safe-area emulation uses zero insets; physical keyboard/device behaviour requires manual validation."
+}
