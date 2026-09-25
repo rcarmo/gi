@@ -568,6 +568,80 @@ for(const missing of ['PublicKeyCredential','credentials','create','get','totp-o
  }finally{await auth.cdp.detach();await env.close();}
 });
 
+for(const fault of ['expired','consumed','other-session','origin','rp','proof','revoked'])test(`Settings native registration ${fault} failure hides proof and retains usable credentials`,async({page,context,browser},info)=>{
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);let otherContext,otherAuth;
+ try{
+  await loginTOTP(page,env);await openAuthentication(page);await addFromSettings(page,'Retained laptop');
+  const original=savedAuth(env);const laptop=(await auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:auth.id})).credentials[0];
+  const cookie=(await context.cookies()).find(c=>c.name==='gi_session');const canaries=[env.secret,cookie.value,original.webauthn_user_id,original.passkeys[0].credential.publicKey];
+  let foreign;
+  if(fault==='other-session'){
+   otherContext=await browser.newContext();const other=await otherContext.newPage();await other.addInitScript(id=>localStorage.setItem('gi_session_id',id),env.main.id);await loginTOTP(other,env);
+   otherAuth=await authenticator(other);foreign=await ceremony(other,'register',otherAuth,'Other browser');
+   canaries.push(foreign.start.body.ceremony_id,foreign.start.body.options.publicKey.challenge,foreign.credential.response.attestationObject,foreign.credential.response.clientDataJSON);
+  }
+  await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});
+  if(fault==='revoked'){
+   // Hold delivery of a genuine created credential before the app can POST
+   // finish. This is not a claim about a physical prompt remaining open.
+   await page.evaluate(()=>{const create=navigator.credentials.create.bind(navigator.credentials);window.__registrationCreated=false;const held=new Promise(resolve=>window.__releaseRegistration=resolve);navigator.credentials.create=async(...args)=>{const credential=await create(...args);window.__registrationCreated=true;await held;return credential;};});
+  }
+  let nativeStatus,nativeBody,finishes=0;const sent=[];
+  await page.route('**/api/auth/passkeys/register/finish',async route=>{
+   finishes++;const body=route.request().postDataJSON();sent.push(body.ceremony_id);const modified=structuredClone(body);
+   canaries.push(body.credential.response.attestationObject,body.credential.response.clientDataJSON,body.credential.id,body.credential.rawId);
+   if(fault==='expired'){const state=savedAuth(env);state.webauthn_ceremonies.find(c=>c.id===body.ceremony_id).expires_at='2000-01-01T00:00:00Z';writeFileSync(env.authPath,JSON.stringify(state));}
+   if(fault==='consumed'){
+    const invalid=structuredClone(body);invalid.credential.response.attestationObject='AAAA';
+    const consumed=await route.fetch({postData:JSON.stringify(invalid)});expect(consumed.status()).toBe(400);expect(savedAuth(env).passkeys).toEqual(original.passkeys);
+   }
+   if(fault==='other-session'){modified.ceremony_id=foreign.start.body.ceremony_id;modified.credential=foreign.credential;}
+   if(fault==='origin'){
+    const client=JSON.parse(Buffer.from(modified.credential.response.clientDataJSON,'base64url'));client.origin='https://evil.example';modified.credential.response.clientDataJSON=Buffer.from(JSON.stringify(client)).toString('base64url');
+   }
+   if(fault==='rp'){
+    // Replace only the RP hash in a real, otherwise unchanged CBOR attestation.
+    // Same length preserves CBOR structure; no malformed-blob shortcut.
+    const rp=original.passkeys[0].rp_id;expect(rp).toBeTruthy();
+    const attestation=Buffer.from(modified.credential.response.attestationObject,'base64url'),hash=createHash('sha256').update(rp).digest();
+    const offset=attestation.indexOf(hash);expect(offset).toBeGreaterThan(0);expect(attestation.indexOf(hash,offset+1)).toBe(-1);
+    createHash('sha256').update('evil.example').digest().copy(attestation,offset);modified.credential.response.attestationObject=attestation.toString('base64url');
+   }
+   if(fault==='proof')modified.credential.response.attestationObject='AAAA';
+   const response=await route.fetch({postData:JSON.stringify(modified)});nativeStatus=response.status();nativeBody=await response.json();await route.fulfill({response});
+  });
+  const startResponse=page.waitForResponse(r=>r.url().endsWith('/api/auth/passkeys/register/start')&&r.request().method()==='POST');
+  await page.getByRole('textbox',{name:'New passkey name',exact:true}).fill('Rejected key');await page.getByRole('button',{name:'Add passkey',exact:true}).click();
+  const start=await startResponse;expect(start.status()).toBe(200);const options=await start.json();canaries.push(options.ceremony_id,options.options.publicKey.challenge);
+  if(fault==='revoked'){
+   await expect.poll(()=>page.evaluate(()=>window.__registrationCreated)).toBe(true);const state=savedAuth(env);state.sessions=[];writeFileSync(env.authPath,JSON.stringify(state));
+   await page.evaluate(()=>window.__releaseRegistration());
+  }
+  await expect(page.getByRole('alert')).toContainText('Not registered on the server');expect(nativeStatus).toBe(fault==='revoked'?401:400);expect(finishes).toBe(1);
+  const error=fault==='revoked'?'browser owner sign-in required':['expired','consumed','other-session'].includes(fault)?'passkey ceremony expired, consumed or invalid':'passkey verification failed';
+  expect(nativeBody).toEqual({error});await expect(page.getByRole('alert')).toContainText('local credential may remain');await expect(page.getByText('Passkey registered.',{exact:true})).toHaveCount(0);
+  await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Retained laptop']);expect(savedAuth(env).passkeys).toEqual(original.passkeys);
+  if(fault==='other-session'){
+   // Neither the foreign binding nor the unused local ceremony is consumed.
+   const ids=savedAuth(env).webauthn_ceremonies.map(c=>c.id);expect(ids).toContain(foreign.start.body.ceremony_id);expect(ids).toContain(options.ceremony_id);
+  }
+  else if(fault!=='revoked')expect((savedAuth(env).webauthn_ceremonies||[]).some(c=>c.id===options.ceremony_id)).toBe(false);
+  const local=(await auth.cdp.send('WebAuthn.getCredentials',{authenticatorId:auth.id})).credentials;expect(local).toHaveLength(1);canaries.push(local[0].privateKey);
+  const surface=await page.evaluate(()=>JSON.stringify({html:document.documentElement.outerHTML,url:location.href,local:{...localStorage},session:{...sessionStorage}}));
+  for(const value of canaries){expect(typeof value).toBe('string');expect(value.length).toBeGreaterThan(10);expect(surface).not.toContain(value);expect(JSON.stringify(nativeBody)).not.toContain(value);}
+  await page.waitForTimeout(150);expect(finishes).toBe(1);expect(sent).toEqual([options.ceremony_id]);await page.unrouteAll({behavior:'wait'});
+  // Every rejection retains a genuinely usable earlier key, not only a row.
+  await context.clearCookies();await auth.cdp.send('WebAuthn.clearCredentials',{authenticatorId:auth.id});await auth.cdp.send('WebAuthn.addCredential',{authenticatorId:auth.id,credential:laptop});
+  await page.reload();await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();await expect(page.locator('.compose-box textarea')).toBeVisible();await openAuthentication(page);await expect(page.locator('.gi-passkey-row strong')).toHaveText(['Retained laptop']);
+  expect(savedAuth(env).passkeys[0].credential.id).toBe(original.passkeys[0].credential.id);expect(savedAuth(env).passkeys[0].credential.publicKey).toBe(original.passkeys[0].credential.publicKey);
+  if(fault==='other-session'){
+   // Identical foreign proof is valid in its own owner session. A malformed
+   // or mismatched challenge cannot make the cross-session rejection pass.
+   expect((await foreign.finish()).status).toBe(200);expect(savedAuth(env).passkeys.map(k=>k.name)).toEqual(['Retained laptop','Other browser']);
+  }
+ }finally{await otherAuth?.cdp.detach();await otherContext?.close();await auth.cdp.detach();await env.close();}
+});
+
 async function changePolicy(page,value){
  await page.getByRole('combobox',{name:'Accepted sign-in methods',exact:true}).selectOption(value);
  await page.getByRole('button',{name:'Change sign-in policy',exact:true}).click();

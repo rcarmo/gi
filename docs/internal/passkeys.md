@@ -144,7 +144,7 @@ Lost responses require an authoritative refresh before a new attempt.
 
 ## Test scope and remaining work
 
-`make test-ux-passkeys` runs 35 integration tests across three Chromium viewport
+`make test-ux-passkeys` runs 42 integration tests across three Chromium viewport
 projects and is required by CI before build jobs. Two narrow-interaction tests
 create390px contexts explicitly in every project; their six executions repeat
 phone-width acceptance rather than extending the geometry matrix. The tests cover two distinct credentials,
@@ -154,7 +154,7 @@ wrong session, revoked session, stale proof/reauth, cancellation, expiry, altere
 origin, correctly signed wrong-RP assertion, duplicate-ID protection and uncertain
 successful registration. Fixtures seed specific policy/error states explicitly.
 
-Thirty-one tests drive actual Classic Settings/login controls: two-key enrolment,
+Thirty-eight tests drive actual Classic Settings/login controls: two-key enrolment,
 independent sign-in after restart, retained drafts/media, rename/remove/cancel,
 passkey-only reauth/add/login, failed reads/writes, uncertain finish and unmount
 cancellation, policy changes, stale revisions and a policy change during removal
@@ -201,6 +201,16 @@ and keys, show the explanation and make no credential calls or auth writes.
 Restoring the same APIs/policy permits a real assertion and new registration,
 verifying the observers with positive controls. These capability overrides do
 not establish old-browser compatibility or the actual insecure-host branch.
+
+Seven Settings registration-failure cases send genuine browser credentials to
+native finish verification with expired/consumed/foreign-session ceremonies,
+altered origin/RP, invalid attestation or revoked authority. Stored keys remain
+unchanged and the earlier key signs in after each failure. Captured challenge,
+ceremony, cookie, secret and proof values are absent from DOM/storage/URL and
+native error responses. Foreign proof succeeds unchanged in its own session
+after rejection in the wrong session. RP mutation preserves attestation length
+and CBOR structure; it does not isolate verifier-check ordering. Revocation is
+after native creation but before finish delivery, not during a physical prompt.
 
 The suite uses HTTP localhost, not the pinned feature Background's HTTPS host.
 Synthetic blur tests application ownership only, not OS prompt focus. A separate
