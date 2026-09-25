@@ -6,7 +6,7 @@ SHA-256: `bd48cab9126778763cab3ddfd8ee04a89bd8c29da62e3bc4188cf24dc3a55b82`.
 
 The 26 scenarios/outlines describe **upstream** implementation and browser evidence, not Gi support. Gi now has an opt-in native WebAuthn store, one-use challenges, registration/assertion verification and multi-key management APIs. Its Chromium virtual-authenticator tests now also drive Settings enrolment/management and passkey login. All 26 complete scenarios remain formally unmapped; a [per-case review](../../../../../docs/internal/passkey-scenario-review.md) distinguishes candidate, partial and manual gaps. Policy controls now have native race and browser confirmation coverage; Visual skin and physical devices are not covered. The upstream `@implemented` and `@browser-verified` tags are retained as source text, not Gi credit. See the [backend contract](../../../../../docs/internal/passkeys.md).
 
-This additive contract does not replace or expand the frozen 236 Classic / 42 shared inventory. Track it separately until a runner and per-case Gi evidence exist. Upstream design and evidence are at the same commit:
+The [criterion ledger](../../../../../docs/internal/passkey-criteria.md) links every Background/scenario step and example row to named evidence or an explicit gap. These source links do not award full mappings or pass counts. This additive contract does not replace or expand the frozen 236 Classic / 42 shared inventory. Upstream design and evidence are at the same commit:
 
 - `docs/design/single-user-passkey-settings.md`
 - `docs/reviews/single-user-passkey-settings.md`

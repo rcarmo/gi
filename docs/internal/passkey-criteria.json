@@ -1,0 +1,2624 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "e7d9b0450db9dc2c103dc06797dd5387ab9f81d7",
+  "source": {
+    "path": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature",
+    "sha256": "bd48cab9126778763cab3ddfd8ee04a89bd8c29da62e3bc4188cf24dc3a55b82"
+  },
+  "limits": [
+    "Source-to-assertion links only; no new test execution or frozen full-scenario pass credit.",
+    "Every scenario inherits the Background substitutions. Classic only; Visual and physical/native/synced device acceptance remain separate.",
+    "bounded means a direct assertion within its stated fixture scope. It never implies full scenario completion."
+  ],
+  "terminal": {
+    "adaptation": "Browser-only WebAuthn and credential management. Terminal must not collect WebAuthn proof, enrolment secrets or emulate native prompts.",
+    "idleRows": 0,
+    "status": "No new terminal implementation or acceptance credit."
+  },
+  "background": [
+    {
+      "line": 15,
+      "keyword": "Given",
+      "text": "a disposable instance uses single-user authentication",
+      "state": "bounded",
+      "evidence": [
+        "fixture"
+      ],
+      "note": "Disposable native owner verified through TOTP API."
+    },
+    {
+      "line": 16,
+      "keyword": "And",
+      "text": "the instance has an enabled default owner account",
+      "state": "bounded",
+      "evidence": [
+        "fixture"
+      ],
+      "note": "Disposable native owner verified through TOTP API."
+    },
+    {
+      "line": 17,
+      "keyword": "And",
+      "text": "the configured relying party ID is \"piclaw.test\"",
+      "state": "substituted",
+      "evidence": [
+        "fixture"
+      ],
+      "note": "Tests use HTTP localhost RP/origin, not frozen piclaw.test HTTPS."
+    },
+    {
+      "line": 18,
+      "keyword": "And",
+      "text": "the configured origin is \"https://piclaw.test\"",
+      "state": "substituted",
+      "evidence": [
+        "fixture"
+      ],
+      "note": "Tests use HTTP localhost RP/origin, not frozen piclaw.test HTTPS."
+    }
+  ],
+  "evidence": {
+    "metadata": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Classic Settings shows native credential metadata without exposing authentication material",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "first": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings first passkey waits for native confirmation and retains fresh TOTP sign-in without chat enrolment",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "second": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings adds a second distinct key with passkey-only proof and no configured TOTP",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "restart-api": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "native WebAuthn keeps two independent keys across restart and permits passkey-only further enrollment",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "restart-ui": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings enrolls two passkeys and fresh login accepts each after restart without replacing drafts",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "unnamed": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings renames one of two unnamed credentials without changing material and retains it after reload",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "names": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings rename validates ${example.label} and the same credential still signs in",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "remove": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings confirmed removal rejects a fresh removed-key assertion and accepts only the surviving key",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "cancel": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings removal cancellation sends no request and restores the exact identified control",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "failures": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings owns cancellation, reauth and failed or uncertain writes without replacing confirmed rows",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "duplicate": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "native duplicate registration does not replace keys and lost finish response reconciles once",
+      "scope": "API/CDP only; duplicate-ID guard seeded by inserting collision record into disposable store."
+    },
+    "retry": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings ${operation} ${fault} failure retains confirmed state until explicit native retry",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "orphan": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings explains rejected local credentials and closing pending ceremony cannot update another pane",
+      "scope": "Classic UI with mocked finish rejection and empty inventory; native rejection with an existing key is separately covered by invalid."
+    },
+    "unavailable": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings unavailable ${missing} never starts a credential operation and recovers explicitly",
+      "scope": "Runtime capability overrides after real login/enrolment and native TOTP-only policy; not old-browser or insecure-origin proof."
+    },
+    "narrow": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Classic narrow passkeys avoid horizontal clipping and retain ${inputMode} cancellation ownership",
+      "scope": "Explicit390px contexts, keyboard Tab/Enter and trusted taps; touch variant programmatically focuses Close for outside-focus assertion. Roles, not screen-reader speech."
+    },
+    "invalid": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings native registration ${fault} failure hides proof and retains usable credentials",
+      "scope": "Native errors using real credential creation; origin/RP tampered payload; revocation after create before finish delivery, not prompt-open."
+    },
+    "reauth": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings cancelled reauthentication cannot authorise ${operation} before fresh proof",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "isolation": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings proof in one browser leaves another stale for add rename and remove",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "policy": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Settings changes accepted factors without lockout and reauthenticates under the current policy",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "race": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Two Settings views concurrently remove different keys without deleting the last sign-in factor",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "policy-race": {
+      "file": "tests/ux/passkeys.spec.mjs",
+      "anchor": "Policy changes reject stale browser revisions and protect a pending last-key removal",
+      "scope": "Classic, HTTP localhost, Chromium CDP virtual authenticator; no physical prompt or Visual acceptance."
+    },
+    "fixture": {
+      "file": "tests/ux/support/auth-environment.mjs",
+      "anchor": "export async function authEnvironment",
+      "scope": "Disposable single-user owner created and verified through native TOTP endpoints; HTTP localhost RP."
+    },
+    "auth-unconfigured": {
+      "file": "tests/ux/auth.spec.mjs",
+      "anchor": "Authentication pane explains unavailable passkeys and preserves drafts across narrow keyboard navigation",
+      "scope": "Chromium/WebKit, configured TOTP owner without passkey RP."
+    },
+    "unenrolled": {
+      "file": "tests/functional/17-auth-gate.spec.ts",
+      "anchor": "Authentication settings explains unavailable enrollment without disturbing the composer",
+      "scope": "Native unenrolled isolated instance; no credential-API call instrumentation."
+    },
+    "http-start": {
+      "file": "internal/web/auth_passkeys_test.go",
+      "anchor": "func TestBrowserPasskeyRoutesDisabledAndGuarded",
+      "scope": "Native register-start route guard matrix; not every management operation or family mode."
+    },
+    "native-factor": {
+      "file": "internal/auth/passkeys_test.go",
+      "anchor": "func TestAuthPasskeyLastFactorUsesPolicyRPAndSessionAtWriteTime",
+      "scope": "Native policy/RP/stale proof checks using seeded records."
+    },
+    "native-remove": {
+      "file": "internal/auth/passkeys_test.go",
+      "anchor": "func TestAuthPasskeyMetadataAndAtomicLastFactor",
+      "scope": "Native metadata/rename/concurrent last-factor safety; existing token remains valid immediately."
+    }
+  },
+  "scenarios": [
+    {
+      "id": "@ux-single-passkeys-001",
+      "title": "Open the same passkey controls in either Settings skin",
+      "line": 23,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 24,
+          "keyword": "Given",
+          "text": "I am signed in as the owner",
+          "state": "bounded",
+          "evidence": [
+            "metadata"
+          ],
+          "note": "Classic native inventory and controls; actual secret canaries. Global RP/skin limits apply."
+        },
+        {
+          "line": 25,
+          "keyword": "And",
+          "text": "passkeys are enabled by the login policy",
+          "state": "bounded",
+          "evidence": [
+            "metadata"
+          ],
+          "note": "Classic native inventory and controls; actual secret canaries. Global RP/skin limits apply."
+        },
+        {
+          "line": 26,
+          "keyword": "And",
+          "text": "\"Laptop\" and \"Backup key\" are registered for \"piclaw.test\"",
+          "state": "bounded",
+          "evidence": [
+            "metadata"
+          ],
+          "note": "Classic native inventory and controls; actual secret canaries. Global RP/skin limits apply."
+        },
+        {
+          "line": 27,
+          "keyword": "When",
+          "text": "I open Settings then Authentication in <skin>",
+          "state": "partial",
+          "evidence": [
+            "metadata"
+          ],
+          "note": "Classic only; Visual example is absent."
+        },
+        {
+          "line": 28,
+          "keyword": "Then",
+          "text": "the Passkeys section lists both registered credentials",
+          "state": "bounded",
+          "evidence": [
+            "metadata"
+          ],
+          "note": "Classic native inventory and controls; actual secret canaries. Global RP/skin limits apply."
+        },
+        {
+          "line": 29,
+          "keyword": "And",
+          "text": "each row shows its name, a distinguishing identifier, creation time and last-used time",
+          "state": "bounded",
+          "evidence": [
+            "metadata"
+          ],
+          "note": "Classic native inventory and controls; actual secret canaries. Global RP/skin limits apply."
+        },
+        {
+          "line": 30,
+          "keyword": "And",
+          "text": "a credential with no recorded use is labelled \"Never used\"",
+          "state": "bounded",
+          "evidence": [
+            "metadata"
+          ],
+          "note": "Classic native inventory and controls; actual secret canaries. Global RP/skin limits apply."
+        },
+        {
+          "line": 31,
+          "keyword": "And",
+          "text": "I can find Add passkey, Rename and Remove controls without a slash command",
+          "state": "bounded",
+          "evidence": [
+            "metadata"
+          ],
+          "note": "Classic native inventory and controls; actual secret canaries. Global RP/skin limits apply."
+        },
+        {
+          "line": 32,
+          "keyword": "And",
+          "text": "credential public keys, login cookies and enrolment tokens are not displayed",
+          "state": "partial",
+          "evidence": [
+            "metadata"
+          ],
+          "note": "Actual public keys and cookies excluded. This flow issues no enrolment token; no nonempty enrolment-token canary."
+        }
+      ],
+      "examples": [
+        {
+          "line": 36,
+          "values": {
+            "skin": "Classic"
+          },
+          "state": "bounded",
+          "evidence": [
+            "metadata"
+          ],
+          "note": "Classic native inventory and controls; actual secret canaries. Global RP/skin limits apply."
+        },
+        {
+          "line": 37,
+          "values": {
+            "skin": "Visual"
+          },
+          "state": "gap",
+          "evidence": [],
+          "note": "Visual skin not implemented/verified."
+        }
+      ]
+    },
+    {
+      "id": "@ux-single-passkeys-002",
+      "title": "Add a first passkey from an authenticated TOTP session",
+      "line": 40,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 41,
+          "keyword": "Given",
+          "text": "the login policy accepts TOTP and passkeys",
+          "state": "bounded",
+          "evidence": [
+            "first"
+          ],
+          "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
+        },
+        {
+          "line": 42,
+          "keyword": "And",
+          "text": "no passkeys are registered",
+          "state": "bounded",
+          "evidence": [
+            "first"
+          ],
+          "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
+        },
+        {
+          "line": 43,
+          "keyword": "And",
+          "text": "I have recently proved possession of the configured TOTP factor",
+          "state": "bounded",
+          "evidence": [
+            "first"
+          ],
+          "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
+        },
+        {
+          "line": 44,
+          "keyword": "When",
+          "text": "I add a passkey named \"Laptop\" from Settings",
+          "state": "bounded",
+          "evidence": [
+            "first"
+          ],
+          "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
+        },
+        {
+          "line": 45,
+          "keyword": "And",
+          "text": "I complete the browser's native passkey creation prompt",
+          "state": "substituted",
+          "evidence": [
+            "first"
+          ],
+          "note": "Real navigator.create with CDP virtual presence; no physical prompt completion."
+        },
+        {
+          "line": 46,
+          "keyword": "Then",
+          "text": "the server verifies the registration before reporting success",
+          "state": "bounded",
+          "evidence": [
+            "first"
+          ],
+          "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
+        },
+        {
+          "line": 47,
+          "keyword": "And",
+          "text": "Settings lists one passkey named \"Laptop\"",
+          "state": "bounded",
+          "evidence": [
+            "first"
+          ],
+          "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
+        },
+        {
+          "line": 48,
+          "keyword": "And",
+          "text": "TOTP sign-in remains available",
+          "state": "bounded",
+          "evidence": [
+            "first"
+          ],
+          "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
+        },
+        {
+          "line": 49,
+          "keyword": "And",
+          "text": "no enrolment token is put in a navigation URL or posted to chat",
+          "state": "bounded",
+          "evidence": [
+            "first"
+          ],
+          "note": "First-key Settings journey with held native finish, exact state and subsequent cookie-free TOTP login."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-003",
+      "title": "Add another passkey without a TOTP prerequisite",
+      "line": 52,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 53,
+          "keyword": "Given",
+          "text": "the login policy is passkey-only",
+          "state": "bounded",
+          "evidence": [
+            "second"
+          ],
+          "note": "Exactly-one-key passkey-only journey; old record unchanged and second key signs in."
+        },
+        {
+          "line": 54,
+          "keyword": "And",
+          "text": "no TOTP factor is configured",
+          "state": "substituted",
+          "evidence": [
+            "second"
+          ],
+          "note": "TOTP disabled directly in disposable state; no TOTP-removal UI acceptance."
+        },
+        {
+          "line": 55,
+          "keyword": "And",
+          "text": "\"Laptop\" is already registered for \"piclaw.test\"",
+          "state": "bounded",
+          "evidence": [
+            "second"
+          ],
+          "note": "Exactly-one-key passkey-only journey; old record unchanged and second key signs in."
+        },
+        {
+          "line": 56,
+          "keyword": "And",
+          "text": "I have recently proved possession of \"Laptop\"",
+          "state": "bounded",
+          "evidence": [
+            "second"
+          ],
+          "note": "Exactly-one-key passkey-only journey; old record unchanged and second key signs in."
+        },
+        {
+          "line": 57,
+          "keyword": "When",
+          "text": "I add a passkey named \"Backup key\" from Settings",
+          "state": "bounded",
+          "evidence": [
+            "second"
+          ],
+          "note": "Exactly-one-key passkey-only journey; old record unchanged and second key signs in."
+        },
+        {
+          "line": 58,
+          "keyword": "And",
+          "text": "I select a different authenticator in the browser's native prompt",
+          "state": "substituted",
+          "evidence": [
+            "second"
+          ],
+          "note": "Distinct virtual credential generated by clearing authenticator storage; no physical prompt selection."
+        },
+        {
+          "line": 59,
+          "keyword": "And",
+          "text": "the server verifies the new registration",
+          "state": "bounded",
+          "evidence": [
+            "second"
+          ],
+          "note": "Exactly-one-key passkey-only journey; old record unchanged and second key signs in."
+        },
+        {
+          "line": 60,
+          "keyword": "Then",
+          "text": "Settings lists both \"Laptop\" and \"Backup key\"",
+          "state": "bounded",
+          "evidence": [
+            "second"
+          ],
+          "note": "Exactly-one-key passkey-only journey; old record unchanged and second key signs in."
+        },
+        {
+          "line": 61,
+          "keyword": "And",
+          "text": "the existing \"Laptop\" credential is unchanged",
+          "state": "bounded",
+          "evidence": [
+            "second"
+          ],
+          "note": "Exactly-one-key passkey-only journey; old record unchanged and second key signs in."
+        },
+        {
+          "line": 62,
+          "keyword": "And",
+          "text": "I am not asked to configure TOTP or use a chat enrolment link",
+          "state": "bounded",
+          "evidence": [
+            "second"
+          ],
+          "note": "Exactly-one-key passkey-only journey; old record unchanged and second key signs in."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-004",
+      "title": "Either passkey can independently sign in after a restart",
+      "line": 65,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 66,
+          "keyword": "Given",
+          "text": "\"Laptop\" and \"Backup key\" are registered for \"piclaw.test\"",
+          "state": "bounded",
+          "evidence": [
+            "restart-api",
+            "restart-ui"
+          ],
+          "note": "Both named-key examples covered by restart, cookie-free login, inventory and per-key last-used checks."
+        },
+        {
+          "line": 67,
+          "keyword": "And",
+          "text": "the instance restarts with its persistent store intact",
+          "state": "bounded",
+          "evidence": [
+            "restart-api",
+            "restart-ui"
+          ],
+          "note": "Both named-key examples covered by restart, cookie-free login, inventory and per-key last-used checks."
+        },
+        {
+          "line": 68,
+          "keyword": "And",
+          "text": "a browser profile has no active login session",
+          "state": "bounded",
+          "evidence": [
+            "restart-api",
+            "restart-ui"
+          ],
+          "note": "Both named-key examples covered by restart, cookie-free login, inventory and per-key last-used checks."
+        },
+        {
+          "line": 69,
+          "keyword": "When",
+          "text": "I sign in using only \"<passkey>\"",
+          "state": "bounded",
+          "evidence": [
+            "restart-api",
+            "restart-ui"
+          ],
+          "note": "Both named-key examples covered by restart, cookie-free login, inventory and per-key last-used checks."
+        },
+        {
+          "line": 70,
+          "keyword": "Then",
+          "text": "I am authenticated as the default owner",
+          "state": "bounded",
+          "evidence": [
+            "restart-api",
+            "restart-ui"
+          ],
+          "note": "Both named-key examples covered by restart, cookie-free login, inventory and per-key last-used checks."
+        },
+        {
+          "line": 71,
+          "keyword": "And",
+          "text": "both passkeys remain registered with their names intact",
+          "state": "bounded",
+          "evidence": [
+            "restart-api",
+            "restart-ui"
+          ],
+          "note": "Both named-key examples covered by restart, cookie-free login, inventory and per-key last-used checks."
+        },
+        {
+          "line": 72,
+          "keyword": "And",
+          "text": "only the used credential's last-used time advances",
+          "state": "bounded",
+          "evidence": [
+            "restart-api",
+            "restart-ui"
+          ],
+          "note": "Both named-key examples covered by restart, cookie-free login, inventory and per-key last-used checks."
+        }
+      ],
+      "examples": [
+        {
+          "line": 76,
+          "values": {
+            "passkey": "Laptop"
+          },
+          "state": "bounded",
+          "evidence": [
+            "restart-api",
+            "restart-ui"
+          ],
+          "note": "Both named-key examples covered by restart, cookie-free login, inventory and per-key last-used checks."
+        },
+        {
+          "line": 77,
+          "values": {
+            "passkey": "Backup key"
+          },
+          "state": "bounded",
+          "evidence": [
+            "restart-api",
+            "restart-ui"
+          ],
+          "note": "Both named-key examples covered by restart, cookie-free login, inventory and per-key last-used checks."
+        }
+      ]
+    },
+    {
+      "id": "@ux-single-passkeys-005",
+      "title": "A synced credential is not displayed as several physical devices",
+      "line": 80,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 81,
+          "keyword": "Given",
+          "text": "\"Synced key\" represents one credential available on two devices",
+          "state": "manual",
+          "evidence": [],
+          "note": "Requires one synced credential on two real devices."
+        },
+        {
+          "line": 82,
+          "keyword": "When",
+          "text": "each device successfully signs in with that credential",
+          "state": "manual",
+          "evidence": [],
+          "note": "Requires successful sign-in from both devices."
+        },
+        {
+          "line": 83,
+          "keyword": "Then",
+          "text": "Settings continues to show one row for \"Synced key\"",
+          "state": "manual",
+          "evidence": [],
+          "note": "No synced-device run to inspect."
+        },
+        {
+          "line": 84,
+          "keyword": "And",
+          "text": "Settings does not claim to inventory the devices holding that credential",
+          "state": "partial",
+          "evidence": [
+            "metadata"
+          ],
+          "note": "UI says one row per credential; device scenario absent."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-006",
+      "title": "Rename an existing or previously unnamed credential",
+      "line": 87,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 88,
+          "keyword": "Given",
+          "text": "two passkeys have no saved names",
+          "state": "substituted",
+          "evidence": [
+            "unnamed"
+          ],
+          "note": "Legacy unnamed state seeded as canonical empty strings in disposable store."
+        },
+        {
+          "line": 89,
+          "keyword": "And",
+          "text": "I have recently proved possession of an accepted factor",
+          "state": "bounded",
+          "evidence": [
+            "unnamed"
+          ],
+          "note": "Two unnamed records seeded, one identified row renamed; full material equality and Settings reload."
+        },
+        {
+          "line": 90,
+          "keyword": "When",
+          "text": "I rename one identified credential to \"Tablet\"",
+          "state": "bounded",
+          "evidence": [
+            "unnamed"
+          ],
+          "note": "Two unnamed records seeded, one identified row renamed; full material equality and Settings reload."
+        },
+        {
+          "line": 91,
+          "keyword": "And",
+          "text": "the server confirms the change",
+          "state": "bounded",
+          "evidence": [
+            "unnamed"
+          ],
+          "note": "Two unnamed records seeded, one identified row renamed; full material equality and Settings reload."
+        },
+        {
+          "line": 92,
+          "keyword": "Then",
+          "text": "only that credential is named \"Tablet\"",
+          "state": "bounded",
+          "evidence": [
+            "unnamed"
+          ],
+          "note": "Two unnamed records seeded, one identified row renamed; full material equality and Settings reload."
+        },
+        {
+          "line": 93,
+          "keyword": "And",
+          "text": "the name remains after I reload Settings",
+          "state": "bounded",
+          "evidence": [
+            "unnamed"
+          ],
+          "note": "Two unnamed records seeded, one identified row renamed; full material equality and Settings reload."
+        },
+        {
+          "line": 94,
+          "keyword": "And",
+          "text": "its credential ID, relying party ID, public key and sign counter are unchanged",
+          "state": "bounded",
+          "evidence": [
+            "unnamed"
+          ],
+          "note": "Two unnamed records seeded, one identified row renamed; full material equality and Settings reload."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-007",
+      "title": "Validate names without changing authentication material",
+      "line": 97,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 98,
+          "keyword": "Given",
+          "text": "I have recently proved possession of an accepted factor",
+          "state": "bounded",
+          "evidence": [
+            "names"
+          ],
+          "note": "Blank/whitespace/81-code-point/control/literal-markup variants; unchanged material and fresh same-key sign-in after each."
+        },
+        {
+          "line": 99,
+          "keyword": "And",
+          "text": "I am editing the name of \"Laptop\"",
+          "state": "bounded",
+          "evidence": [
+            "names"
+          ],
+          "note": "Blank/whitespace/81-code-point/control/literal-markup variants; unchanged material and fresh same-key sign-in after each."
+        },
+        {
+          "line": 100,
+          "keyword": "When",
+          "text": "I submit <name>",
+          "state": "bounded",
+          "evidence": [
+            "names"
+          ],
+          "note": "Blank/whitespace/81-code-point/control/literal-markup variants; unchanged material and fresh same-key sign-in after each."
+        },
+        {
+          "line": 101,
+          "keyword": "Then",
+          "text": "Settings shows <result>",
+          "state": "bounded",
+          "evidence": [
+            "names"
+          ],
+          "note": "Blank/whitespace/81-code-point/control/literal-markup variants; unchanged material and fresh same-key sign-in after each."
+        },
+        {
+          "line": 102,
+          "keyword": "And",
+          "text": "the credential remains usable for sign-in",
+          "state": "bounded",
+          "evidence": [
+            "names"
+          ],
+          "note": "Blank/whitespace/81-code-point/control/literal-markup variants; unchanged material and fresh same-key sign-in after each."
+        }
+      ],
+      "examples": [
+        {
+          "line": 106,
+          "values": {
+            "name": "a blank or whitespace-only name",
+            "result": "a validation error with the old name intact"
+          },
+          "state": "bounded",
+          "evidence": [
+            "names"
+          ],
+          "note": "Blank/whitespace/81-code-point/control/literal-markup variants; unchanged material and fresh same-key sign-in after each."
+        },
+        {
+          "line": 107,
+          "values": {
+            "name": "a name longer than 80 Unicode characters",
+            "result": "a validation error with the old name intact"
+          },
+          "state": "bounded",
+          "evidence": [
+            "names"
+          ],
+          "note": "Blank/whitespace/81-code-point/control/literal-markup variants; unchanged material and fresh same-key sign-in after each."
+        },
+        {
+          "line": 108,
+          "values": {
+            "name": "a name containing a control character",
+            "result": "a validation error with the old name intact"
+          },
+          "state": "bounded",
+          "evidence": [
+            "names"
+          ],
+          "note": "Blank/whitespace/81-code-point/control/literal-markup variants; unchanged material and fresh same-key sign-in after each."
+        },
+        {
+          "line": 109,
+          "values": {
+            "name": "a name containing HTML markup",
+            "result": "the saved name as literal text"
+          },
+          "state": "bounded",
+          "evidence": [
+            "names"
+          ],
+          "note": "Blank/whitespace/81-code-point/control/literal-markup variants; unchanged material and fresh same-key sign-in after each."
+        }
+      ]
+    },
+    {
+      "id": "@ux-single-passkeys-008",
+      "title": "Confirm removal of one key without touching the other",
+      "line": 112,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 113,
+          "keyword": "Given",
+          "text": "\"Laptop\" and \"Backup key\" are registered for \"piclaw.test\"",
+          "state": "bounded",
+          "evidence": [
+            "remove"
+          ],
+          "note": "Captured ID, held native removal, survivor equality and independent sign-in outcomes."
+        },
+        {
+          "line": 114,
+          "keyword": "And",
+          "text": "I have recently proved possession of an accepted factor",
+          "state": "bounded",
+          "evidence": [
+            "remove"
+          ],
+          "note": "Captured ID, held native removal, survivor equality and independent sign-in outcomes."
+        },
+        {
+          "line": 115,
+          "keyword": "When",
+          "text": "I choose Remove for \"Laptop\"",
+          "state": "bounded",
+          "evidence": [
+            "remove"
+          ],
+          "note": "Captured ID, held native removal, survivor equality and independent sign-in outcomes."
+        },
+        {
+          "line": 116,
+          "keyword": "Then",
+          "text": "a confirmation identifies \"Laptop\" and its distinguishing identifier",
+          "state": "bounded",
+          "evidence": [
+            "remove"
+          ],
+          "note": "Captured ID, held native removal, survivor equality and independent sign-in outcomes."
+        },
+        {
+          "line": 117,
+          "keyword": "And",
+          "text": "no removal has been sent yet",
+          "state": "bounded",
+          "evidence": [
+            "remove"
+          ],
+          "note": "Captured ID, held native removal, survivor equality and independent sign-in outcomes."
+        },
+        {
+          "line": 118,
+          "keyword": "When",
+          "text": "I confirm removal",
+          "state": "bounded",
+          "evidence": [
+            "remove"
+          ],
+          "note": "Captured ID, held native removal, survivor equality and independent sign-in outcomes."
+        },
+        {
+          "line": 119,
+          "keyword": "Then",
+          "text": "success is shown only after the server confirms removal",
+          "state": "bounded",
+          "evidence": [
+            "remove"
+          ],
+          "note": "Captured ID, held native removal, survivor equality and independent sign-in outcomes."
+        },
+        {
+          "line": 120,
+          "keyword": "And",
+          "text": "a fresh sign-in using \"Laptop\" is rejected",
+          "state": "substituted",
+          "evidence": [
+            "remove"
+          ],
+          "note": "Client allow-list altered to obtain genuine removed-key assertion; server rejects it400/no cookie/protected401."
+        },
+        {
+          "line": 121,
+          "keyword": "And",
+          "text": "a fresh sign-in using \"Backup key\" succeeds",
+          "state": "bounded",
+          "evidence": [
+            "remove"
+          ],
+          "note": "Captured ID, held native removal, survivor equality and independent sign-in outcomes."
+        },
+        {
+          "line": 122,
+          "keyword": "And",
+          "text": "\"Backup key\" has not been renamed or replaced",
+          "state": "bounded",
+          "evidence": [
+            "remove"
+          ],
+          "note": "Captured ID, held native removal, survivor equality and independent sign-in outcomes."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-009",
+      "title": "Cancel a destructive confirmation",
+      "line": 125,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 126,
+          "keyword": "Given",
+          "text": "\"Laptop\" and \"Backup key\" are registered",
+          "state": "bounded",
+          "evidence": [
+            "cancel"
+          ],
+          "note": "Cancel button and Escape, zero removal requests, identical records, exact opener focus; confirmed-removal positive control."
+        },
+        {
+          "line": 127,
+          "keyword": "When",
+          "text": "I choose Remove for \"Laptop\"",
+          "state": "bounded",
+          "evidence": [
+            "cancel"
+          ],
+          "note": "Cancel button and Escape, zero removal requests, identical records, exact opener focus; confirmed-removal positive control."
+        },
+        {
+          "line": 128,
+          "keyword": "And",
+          "text": "I cancel the confirmation",
+          "state": "bounded",
+          "evidence": [
+            "cancel"
+          ],
+          "note": "Cancel button and Escape, zero removal requests, identical records, exact opener focus; confirmed-removal positive control."
+        },
+        {
+          "line": 129,
+          "keyword": "Then",
+          "text": "no removal request is sent",
+          "state": "bounded",
+          "evidence": [
+            "cancel"
+          ],
+          "note": "Cancel button and Escape, zero removal requests, identical records, exact opener focus; confirmed-removal positive control."
+        },
+        {
+          "line": 130,
+          "keyword": "And",
+          "text": "both credentials remain registered",
+          "state": "bounded",
+          "evidence": [
+            "cancel"
+          ],
+          "note": "Cancel button and Escape, zero removal requests, identical records, exact opener focus; confirmed-removal positive control."
+        },
+        {
+          "line": 131,
+          "keyword": "And",
+          "text": "keyboard focus returns to the control that opened the confirmation",
+          "state": "bounded",
+          "evidence": [
+            "cancel"
+          ],
+          "note": "Cancel button and Escape, zero removal requests, identical records, exact opener focus; confirmed-removal positive control."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-010",
+      "title": "Cancel native passkey creation and retry deliberately",
+      "line": 136,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 137,
+          "keyword": "Given",
+          "text": "I have recently proved possession of an accepted factor",
+          "state": "bounded",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Application cancellation and deliberate retry have bounded evidence."
+        },
+        {
+          "line": 138,
+          "keyword": "And",
+          "text": "one passkey is registered",
+          "state": "bounded",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Application cancellation and deliberate retry have bounded evidence."
+        },
+        {
+          "line": 139,
+          "keyword": "When",
+          "text": "I start adding another passkey",
+          "state": "bounded",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Application cancellation and deliberate retry have bounded evidence."
+        },
+        {
+          "line": 140,
+          "keyword": "And",
+          "text": "I cancel the browser's native creation prompt",
+          "state": "manual",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Uses app AbortSignal via Escape/Cancel, not the native prompt Cancel button."
+        },
+        {
+          "line": 141,
+          "keyword": "Then",
+          "text": "Settings reports cancellation without claiming a server registration",
+          "state": "bounded",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Application cancellation and deliberate retry have bounded evidence."
+        },
+        {
+          "line": 142,
+          "keyword": "And",
+          "text": "the registered passkey list is unchanged",
+          "state": "bounded",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Application cancellation and deliberate retry have bounded evidence."
+        },
+        {
+          "line": 143,
+          "keyword": "And",
+          "text": "Add passkey is available for an explicit retry with a fresh ceremony",
+          "state": "partial",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Current error marks list stale; explicit Refresh precedes re-enabling Add."
+        },
+        {
+          "line": 144,
+          "keyword": "And",
+          "text": "the application does not reopen the native prompt automatically",
+          "state": "partial",
+          "evidence": [
+            "failures"
+          ],
+          "note": "No immediate automatic repeat observed; no physical prompt or unbounded timing proof."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-011",
+      "title": "The native prompt may temporarily take focus away from the page",
+      "line": 147,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 148,
+          "keyword": "Given",
+          "text": "an authorised passkey creation ceremony is pending",
+          "state": "bounded",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Native create pending on virtual authenticator."
+        },
+        {
+          "line": 149,
+          "keyword": "When",
+          "text": "the browser's native prompt takes focus away from Settings",
+          "state": "manual",
+          "evidence": [],
+          "note": "Real OS/browser prompt focus transfer not exercised."
+        },
+        {
+          "line": 150,
+          "keyword": "And",
+          "text": "I complete that prompt before the ceremony expires",
+          "state": "manual",
+          "evidence": [],
+          "note": "Synthetic blur path cancels instead of completing prompt."
+        },
+        {
+          "line": 151,
+          "keyword": "Then",
+          "text": "the registration can complete once",
+          "state": "gap",
+          "evidence": [],
+          "note": "No once-only successful completion after real focus transfer."
+        },
+        {
+          "line": 152,
+          "keyword": "And",
+          "text": "page blur alone has not cancelled the ceremony or opened another prompt",
+          "state": "partial",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Synthetic blur keeps pending work; no physical focus result."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-012",
+      "title": "A duplicate credential never replaces the existing passkey",
+      "line": 155,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 156,
+          "keyword": "Given",
+          "text": "\"Laptop\" is registered for \"piclaw.test\"",
+          "state": "bounded",
+          "evidence": [
+            "restart-api",
+            "duplicate"
+          ],
+          "note": "API creation exclusions and independently seeded duplicate guard; complete Settings path absent."
+        },
+        {
+          "line": 157,
+          "keyword": "When",
+          "text": "I start adding another passkey",
+          "state": "bounded",
+          "evidence": [
+            "restart-api",
+            "duplicate"
+          ],
+          "note": "API creation exclusions and independently seeded duplicate guard; complete Settings path absent."
+        },
+        {
+          "line": 158,
+          "keyword": "Then",
+          "text": "creation options exclude existing credentials for this owner and relying party",
+          "state": "bounded",
+          "evidence": [
+            "restart-api",
+            "duplicate"
+          ],
+          "note": "API creation exclusions and independently seeded duplicate guard; complete Settings path absent."
+        },
+        {
+          "line": 159,
+          "keyword": "When",
+          "text": "a duplicate credential is nevertheless submitted to the server",
+          "state": "substituted",
+          "evidence": [
+            "duplicate"
+          ],
+          "note": "Seeds a collision record before finishing a newly created credential, rather than re-registering existing key."
+        },
+        {
+          "line": 160,
+          "keyword": "Then",
+          "text": "the server rejects the duplicate without replacing the existing row",
+          "state": "partial",
+          "evidence": [
+            "duplicate"
+          ],
+          "note": "Native409 and stored equality with seeded collision; not Settings."
+        },
+        {
+          "line": 161,
+          "keyword": "And",
+          "text": "Settings does not report a second registered passkey",
+          "state": "gap",
+          "evidence": [],
+          "note": "No duplicate-specific Settings result assertion."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-013",
+      "title": "Show failed reads and writes truthfully",
+      "line": 164,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 165,
+          "keyword": "Given",
+          "text": "Settings previously loaded a passkey named \"Laptop\"",
+          "state": "bounded",
+          "evidence": [
+            "retry"
+          ],
+          "note": "All three operations with503 and pre-delivery abort retain confirmed state, show role alert, clear success and recover only explicitly."
+        },
+        {
+          "line": 166,
+          "keyword": "When",
+          "text": "<operation> fails with a server or network error",
+          "state": "bounded",
+          "evidence": [
+            "retry"
+          ],
+          "note": "All three operations with503 and pre-delivery abort retain confirmed state, show role alert, clear success and recover only explicitly."
+        },
+        {
+          "line": 167,
+          "keyword": "Then",
+          "text": "Settings shows an accessible error with an explicit retry action",
+          "state": "bounded",
+          "evidence": [
+            "retry"
+          ],
+          "note": "All three operations with503 and pre-delivery abort retain confirmed state, show role alert, clear success and recover only explicitly."
+        },
+        {
+          "line": 168,
+          "keyword": "And",
+          "text": "it does not show a success message",
+          "state": "bounded",
+          "evidence": [
+            "retry"
+          ],
+          "note": "All three operations with503 and pre-delivery abort retain confirmed state, show role alert, clear success and recover only explicitly."
+        },
+        {
+          "line": 169,
+          "keyword": "And",
+          "text": "<preserved_state>",
+          "state": "bounded",
+          "evidence": [
+            "retry"
+          ],
+          "note": "All three operations with503 and pre-delivery abort retain confirmed state, show role alert, clear success and recover only explicitly."
+        }
+      ],
+      "examples": [
+        {
+          "line": 173,
+          "values": {
+            "operation": "refreshing the list",
+            "preserved_state": "the list is not represented as empty or freshly confirmed"
+          },
+          "state": "bounded",
+          "evidence": [
+            "retry"
+          ],
+          "note": "All three operations with503 and pre-delivery abort retain confirmed state, show role alert, clear success and recover only explicitly."
+        },
+        {
+          "line": 174,
+          "values": {
+            "operation": "saving a new name",
+            "preserved_state": "the last confirmed name remains visible"
+          },
+          "state": "bounded",
+          "evidence": [
+            "retry"
+          ],
+          "note": "All three operations with503 and pre-delivery abort retain confirmed state, show role alert, clear success and recover only explicitly."
+        },
+        {
+          "line": 175,
+          "values": {
+            "operation": "sending a removal",
+            "preserved_state": "the row is not silently removed from the displayed list"
+          },
+          "state": "bounded",
+          "evidence": [
+            "retry"
+          ],
+          "note": "All three operations with503 and pre-delivery abort retain confirmed state, show role alert, clear success and recover only explicitly."
+        }
+      ]
+    },
+    {
+      "id": "@ux-single-passkeys-014",
+      "title": "Reconcile an uncertain registration result without blindly retrying",
+      "line": 178,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 179,
+          "keyword": "Given",
+          "text": "the server has stored a newly created passkey",
+          "state": "bounded",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Native finish stored once and response lost; explicit Refresh reconciliation exists."
+        },
+        {
+          "line": 180,
+          "keyword": "But",
+          "text": "the registration response does not reach the browser",
+          "state": "bounded",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Native finish stored once and response lost; explicit Refresh reconciliation exists."
+        },
+        {
+          "line": 181,
+          "keyword": "When",
+          "text": "I return to the Passkeys section",
+          "state": "gap",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Existing test clicks Refresh without leaving/re-entering Passkeys."
+        },
+        {
+          "line": 182,
+          "keyword": "Then",
+          "text": "Settings refreshes the credential list from the server",
+          "state": "partial",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Explicit Refresh tested; automatic fetch on return is not directly exercised."
+        },
+        {
+          "line": 183,
+          "keyword": "And",
+          "text": "the new credential appears once",
+          "state": "bounded",
+          "evidence": [
+            "failures"
+          ],
+          "note": "Native finish stored once and response lost; explicit Refresh reconciliation exists."
+        },
+        {
+          "line": 184,
+          "keyword": "And",
+          "text": "the application does not automatically repeat registration with the consumed challenge",
+          "state": "partial",
+          "evidence": [
+            "failures"
+          ],
+          "note": "No immediate replay after fault/Refresh; return path not exercised."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-025",
+      "title": "Explain an unregistered credential left on the authenticator",
+      "line": 187,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 188,
+          "keyword": "Given",
+          "text": "the native authenticator has created a new local credential",
+          "state": "bounded",
+          "evidence": [
+            "invalid",
+            "orphan"
+          ],
+          "note": "Native rejected finishes with retained key and local authenticator credential; explicit local-orphan wording via UI."
+        },
+        {
+          "line": 189,
+          "keyword": "But",
+          "text": "the server rejects its registration finish request",
+          "state": "bounded",
+          "evidence": [
+            "invalid",
+            "orphan"
+          ],
+          "note": "Native rejected finishes with retained key and local authenticator credential; explicit local-orphan wording via UI."
+        },
+        {
+          "line": 190,
+          "keyword": "When",
+          "text": "Settings reports the failed enrolment",
+          "state": "bounded",
+          "evidence": [
+            "invalid",
+            "orphan"
+          ],
+          "note": "Native rejected finishes with retained key and local authenticator credential; explicit local-orphan wording via UI."
+        },
+        {
+          "line": 191,
+          "keyword": "Then",
+          "text": "it says the credential was not registered on the server",
+          "state": "bounded",
+          "evidence": [
+            "invalid",
+            "orphan"
+          ],
+          "note": "Native rejected finishes with retained key and local authenticator credential; explicit local-orphan wording via UI."
+        },
+        {
+          "line": 192,
+          "keyword": "And",
+          "text": "it explains that a local credential may remain in the authenticator or password manager",
+          "state": "bounded",
+          "evidence": [
+            "invalid",
+            "orphan"
+          ],
+          "note": "Native rejected finishes with retained key and local authenticator credential; explicit local-orphan wording via UI."
+        },
+        {
+          "line": 193,
+          "keyword": "And",
+          "text": "it does not claim to have removed that local credential",
+          "state": "bounded",
+          "evidence": [
+            "orphan"
+          ],
+          "note": "Explicit Gi has not removed it wording asserted with mocked rejection; native invalid cases assert local credential remains."
+        },
+        {
+          "line": 194,
+          "keyword": "And",
+          "text": "existing registered credentials are unchanged",
+          "state": "bounded",
+          "evidence": [
+            "invalid",
+            "orphan"
+          ],
+          "note": "Native rejected finishes with retained key and local authenticator credential; explicit local-orphan wording via UI."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-015",
+      "title": "Explain unavailable passkey creation",
+      "line": 197,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 198,
+          "keyword": "Given",
+          "text": "<condition>",
+          "state": "partial",
+          "evidence": [
+            "unavailable",
+            "unenrolled"
+          ],
+          "note": "Insecure non-localhost example absent; browser APIs deliberately overridden, not old-browser execution."
+        },
+        {
+          "line": 199,
+          "keyword": "When",
+          "text": "I open Settings then Authentication",
+          "state": "bounded",
+          "evidence": [
+            "unavailable",
+            "unenrolled"
+          ],
+          "note": "Four missing-API overrides/native TOTP-only controls; unenrolled explanation in separate functional test."
+        },
+        {
+          "line": 200,
+          "keyword": "Then",
+          "text": "Add passkey is unavailable with <explanation>",
+          "state": "partial",
+          "evidence": [
+            "unavailable",
+            "unenrolled"
+          ],
+          "note": "Missing APIs/TOTP-only/unenrolled explanations; actual insecure-origin explanation not exercised."
+        },
+        {
+          "line": 201,
+          "keyword": "And",
+          "text": "no native credential-creation call is attempted",
+          "state": "partial",
+          "evidence": [
+            "unavailable"
+          ],
+          "note": "Zero create/get positive controls for API and policy cases; not instrumented in unenrolled test, insecure case absent."
+        },
+        {
+          "line": 202,
+          "keyword": "And",
+          "text": "no login policy or stored credential is changed",
+          "state": "partial",
+          "evidence": [
+            "unavailable",
+            "unenrolled"
+          ],
+          "note": "Full state equality for API/policy; no auth POSTs for unenrolled; insecure case absent."
+        }
+      ],
+      "examples": [
+        {
+          "line": 206,
+          "values": {
+            "condition": "the page is an insecure non-localhost origin",
+            "explanation": "passkey creation requires a secure origin"
+          },
+          "state": "gap",
+          "evidence": [],
+          "note": "Actual insecure non-localhost origin untested."
+        },
+        {
+          "line": 207,
+          "values": {
+            "condition": "the browser has no WebAuthn credential API",
+            "explanation": "this browser cannot create passkeys"
+          },
+          "state": "substituted",
+          "evidence": [
+            "unavailable"
+          ],
+          "note": "Four capability overrides plus restored native positive controls, not old-browser compatibility."
+        },
+        {
+          "line": 208,
+          "values": {
+            "condition": "the login policy is TOTP-only",
+            "explanation": "passkeys are disabled by the login policy"
+          },
+          "state": "bounded",
+          "evidence": [
+            "unavailable",
+            "unenrolled"
+          ],
+          "note": "Four missing-API overrides/native TOTP-only controls; unenrolled explanation in separate functional test."
+        },
+        {
+          "line": 209,
+          "values": {
+            "condition": "single-user authentication is not configured",
+            "explanation": "authentication must be configured first"
+          },
+          "state": "partial",
+          "evidence": [
+            "unenrolled"
+          ],
+          "note": "Explained/disabled/no auth POST; no create-call observer."
+        }
+      ]
+    },
+    {
+      "id": "@ux-single-passkeys-016",
+      "title": "Settings remains operable at narrow widths and with a keyboard",
+      "line": 212,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 213,
+          "keyword": "Given",
+          "text": "I am signed in as the owner in <skin>",
+          "state": "partial",
+          "evidence": [
+            "narrow"
+          ],
+          "note": "Classic only; Visual absent."
+        },
+        {
+          "line": 214,
+          "keyword": "And",
+          "text": "the viewport is 390 CSS pixels wide",
+          "state": "bounded",
+          "evidence": [
+            "narrow"
+          ],
+          "note": "390px80-code-point name; geometry/labels/names/Tab/tap cancellation and role semantics."
+        },
+        {
+          "line": 215,
+          "keyword": "And",
+          "text": "a passkey has an 80-character name",
+          "state": "bounded",
+          "evidence": [
+            "narrow"
+          ],
+          "note": "390px80-code-point name; geometry/labels/names/Tab/tap cancellation and role semantics."
+        },
+        {
+          "line": 216,
+          "keyword": "When",
+          "text": "I use the Passkeys section with a keyboard or touch input",
+          "state": "bounded",
+          "evidence": [
+            "narrow"
+          ],
+          "note": "390px80-code-point name; geometry/labels/names/Tab/tap cancellation and role semantics."
+        },
+        {
+          "line": 217,
+          "keyword": "Then",
+          "text": "names, dates, errors and actions remain readable without page-level horizontal scrolling",
+          "state": "partial",
+          "evidence": [
+            "narrow"
+          ],
+          "note": "Horizontal bounds/clipping checked; physical readability/assistive-device testing absent."
+        },
+        {
+          "line": 218,
+          "keyword": "And",
+          "text": "every input has a label and every action has an accessible name",
+          "state": "bounded",
+          "evidence": [
+            "narrow"
+          ],
+          "note": "390px80-code-point name; geometry/labels/names/Tab/tap cancellation and role semantics."
+        },
+        {
+          "line": 219,
+          "keyword": "And",
+          "text": "I can reach Rename, Remove and cancellation controls without hover",
+          "state": "bounded",
+          "evidence": [
+            "narrow"
+          ],
+          "note": "390px80-code-point name; geometry/labels/names/Tab/tap cancellation and role semantics."
+        },
+        {
+          "line": 220,
+          "keyword": "And",
+          "text": "progress and error messages are announced without stealing focus",
+          "state": "partial",
+          "evidence": [
+            "narrow"
+          ],
+          "note": "Status/alert roles and outside-focus guard; no screen-reader speech proof."
+        }
+      ],
+      "examples": [
+        {
+          "line": 224,
+          "values": {
+            "skin": "Classic"
+          },
+          "state": "bounded",
+          "evidence": [
+            "narrow"
+          ],
+          "note": "390px80-code-point name; geometry/labels/names/Tab/tap cancellation and role semantics."
+        },
+        {
+          "line": 225,
+          "values": {
+            "skin": "Visual"
+          },
+          "state": "gap",
+          "evidence": [],
+          "note": "Visual skin unimplemented/unverified."
+        }
+      ]
+    },
+    {
+      "id": "@ux-single-passkeys-017",
+      "title": "Reject requests outside the management authority",
+      "line": 230,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 231,
+          "keyword": "Given",
+          "text": "<request_context>",
+          "state": "partial",
+          "evidence": [
+            "http-start"
+          ],
+          "note": "Bearer/query/foreign-origin guards exist; expired rename/family mode exact examples incomplete."
+        },
+        {
+          "line": 232,
+          "keyword": "When",
+          "text": "a caller directly requests <operation>",
+          "state": "partial",
+          "evidence": [
+            "http-start"
+          ],
+          "note": "Register-start matrix does not establish all listed operations."
+        },
+        {
+          "line": 233,
+          "keyword": "Then",
+          "text": "the server refuses the operation",
+          "state": "partial",
+          "evidence": [
+            "http-start"
+          ],
+          "note": "Refusal demonstrated for start, not all outline operations."
+        },
+        {
+          "line": 234,
+          "keyword": "And",
+          "text": "no credential or login policy is changed",
+          "state": "partial",
+          "evidence": [
+            "http-start"
+          ],
+          "note": "Guard test compares ceremonies; not full credentials/policy equality for every example."
+        },
+        {
+          "line": 235,
+          "keyword": "And",
+          "text": "the response reveals no other account's passkey inventory",
+          "state": "partial",
+          "evidence": [
+            "http-start"
+          ],
+          "note": "No complete per-example inventory non-disclosure assertion."
+        }
+      ],
+      "examples": [
+        {
+          "line": 239,
+          "values": {
+            "request_context": "no valid owner login session",
+            "operation": "list passkeys"
+          },
+          "state": "partial",
+          "evidence": [
+            "http-start"
+          ],
+          "note": "No-cookie start refusal, but required operation is list."
+        },
+        {
+          "line": 240,
+          "values": {
+            "request_context": "only an internal automation token",
+            "operation": "register a passkey"
+          },
+          "state": "bounded",
+          "evidence": [
+            "http-start"
+          ],
+          "note": "Bearer-only register-start refusal."
+        },
+        {
+          "line": 241,
+          "values": {
+            "request_context": "an expired or revoked owner login session",
+            "operation": "rename a passkey"
+          },
+          "state": "partial",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Revoked registration rejection, not expired/revoked rename."
+        },
+        {
+          "line": 242,
+          "values": {
+            "request_context": "an authenticated request from an unapproved origin",
+            "operation": "remove a passkey"
+          },
+          "state": "partial",
+          "evidence": [
+            "http-start"
+          ],
+          "note": "Unapproved-origin register-start rejection, not remove."
+        },
+        {
+          "line": 243,
+          "values": {
+            "request_context": "a single-user management request selecting another account",
+            "operation": "list that account's passkeys"
+          },
+          "state": "partial",
+          "evidence": [
+            "http-start"
+          ],
+          "note": "Unknown account field rejected on start; account-selected list absent."
+        },
+        {
+          "line": 244,
+          "values": {
+            "request_context": "the instance is in family-shared mode",
+            "operation": "use the single-user management route"
+          },
+          "state": "unsupported",
+          "evidence": [],
+          "note": "Family-shared runtime not implemented; cannot claim exact single-user-route denial in family mode."
+        }
+      ]
+    },
+    {
+      "id": "@ux-single-passkeys-018",
+      "title": "Fail closed when registration proof or its binding is invalid",
+      "line": 247,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 248,
+          "keyword": "Given",
+          "text": "an authenticated owner has started a registration ceremony",
+          "state": "bounded",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Seven native failures, existing records equal and retained key signs in; actual secret/challenge/proof canaries absent."
+        },
+        {
+          "line": 249,
+          "keyword": "When",
+          "text": "the finish request contains <invalid_condition>",
+          "state": "partial",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Six direct altered/invalid cases; revoked after real create before finish substitutes for prompt-open timing."
+        },
+        {
+          "line": 250,
+          "keyword": "Then",
+          "text": "no credential is added or replaced",
+          "state": "bounded",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Seven native failures, existing records equal and retained key signs in; actual secret/challenge/proof canaries absent."
+        },
+        {
+          "line": 251,
+          "keyword": "And",
+          "text": "existing passkeys continue to work",
+          "state": "bounded",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Seven native failures, existing records equal and retained key signs in; actual secret/challenge/proof canaries absent."
+        },
+        {
+          "line": 252,
+          "keyword": "And",
+          "text": "any displayed failure contains no credential secrets or challenge tokens",
+          "state": "bounded",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Seven native failures, existing records equal and retained key signs in; actual secret/challenge/proof canaries absent."
+        }
+      ],
+      "examples": [
+        {
+          "line": 256,
+          "values": {
+            "invalid_condition": "an expired challenge"
+          },
+          "state": "bounded",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Seven native failures, existing records equal and retained key signs in; actual secret/challenge/proof canaries absent."
+        },
+        {
+          "line": 257,
+          "values": {
+            "invalid_condition": "an already consumed challenge"
+          },
+          "state": "bounded",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Seven native failures, existing records equal and retained key signs in; actual secret/challenge/proof canaries absent."
+        },
+        {
+          "line": 258,
+          "values": {
+            "invalid_condition": "a challenge issued to another login session"
+          },
+          "state": "bounded",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Seven native failures, existing records equal and retained key signs in; actual secret/challenge/proof canaries absent."
+        },
+        {
+          "line": 259,
+          "values": {
+            "invalid_condition": "a mismatched origin"
+          },
+          "state": "bounded",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Seven native failures, existing records equal and retained key signs in; actual secret/challenge/proof canaries absent."
+        },
+        {
+          "line": 260,
+          "values": {
+            "invalid_condition": "a mismatched relying party ID"
+          },
+          "state": "bounded",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Seven native failures, existing records equal and retained key signs in; actual secret/challenge/proof canaries absent."
+        },
+        {
+          "line": 261,
+          "values": {
+            "invalid_condition": "an invalid attestation or credential proof"
+          },
+          "state": "bounded",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Seven native failures, existing records equal and retained key signs in; actual secret/challenge/proof canaries absent."
+        },
+        {
+          "line": 262,
+          "values": {
+            "invalid_condition": "a session revoked while the native prompt was open"
+          },
+          "state": "substituted",
+          "evidence": [
+            "invalid"
+          ],
+          "note": "Revoke after real creation but before result delivery/finish; not while native prompt is open."
+        }
+      ]
+    },
+    {
+      "id": "@ux-single-passkeys-019",
+      "title": "Refresh authentication before changing a passkey",
+      "line": 269,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 270,
+          "keyword": "Given",
+          "text": "I have a valid owner session with authentication older than five minutes",
+          "state": "bounded",
+          "evidence": [
+            "reauth",
+            "policy"
+          ],
+          "note": "Each operation disabled/stale403 through refresh/reload; new accepted proof succeeds; no credential changes after app cancellation."
+        },
+        {
+          "line": 271,
+          "keyword": "When",
+          "text": "I attempt to <operation>",
+          "state": "bounded",
+          "evidence": [
+            "reauth",
+            "policy"
+          ],
+          "note": "Each operation disabled/stale403 through refresh/reload; new accepted proof succeeds; no credential changes after app cancellation."
+        },
+        {
+          "line": 272,
+          "keyword": "Then",
+          "text": "I must prove possession of a factor accepted by the current login policy",
+          "state": "bounded",
+          "evidence": [
+            "reauth",
+            "policy"
+          ],
+          "note": "Each operation disabled/stale403 through refresh/reload; new accepted proof succeeds; no credential changes after app cancellation."
+        },
+        {
+          "line": 273,
+          "keyword": "And",
+          "text": "no write is authorised until that proof succeeds for this session",
+          "state": "bounded",
+          "evidence": [
+            "reauth",
+            "policy"
+          ],
+          "note": "Each operation disabled/stale403 through refresh/reload; new accepted proof succeeds; no credential changes after app cancellation."
+        },
+        {
+          "line": 274,
+          "keyword": "And",
+          "text": "opening Settings or refreshing the page does not renew authentication freshness",
+          "state": "bounded",
+          "evidence": [
+            "reauth",
+            "policy"
+          ],
+          "note": "Each operation disabled/stale403 through refresh/reload; new accepted proof succeeds; no credential changes after app cancellation."
+        },
+        {
+          "line": 275,
+          "keyword": "When",
+          "text": "I cancel re-authentication",
+          "state": "substituted",
+          "evidence": [
+            "reauth"
+          ],
+          "note": "App button/Escape aborts real credential.get with CDP presence disabled; no physical prompt cancellation."
+        },
+        {
+          "line": 276,
+          "keyword": "Then",
+          "text": "no credential change occurs",
+          "state": "bounded",
+          "evidence": [
+            "reauth",
+            "policy"
+          ],
+          "note": "Each operation disabled/stale403 through refresh/reload; new accepted proof succeeds; no credential changes after app cancellation."
+        }
+      ],
+      "examples": [
+        {
+          "line": 280,
+          "values": {
+            "operation": "add a passkey"
+          },
+          "state": "bounded",
+          "evidence": [
+            "reauth",
+            "policy"
+          ],
+          "note": "Each operation disabled/stale403 through refresh/reload; new accepted proof succeeds; no credential changes after app cancellation."
+        },
+        {
+          "line": 281,
+          "values": {
+            "operation": "rename a passkey"
+          },
+          "state": "bounded",
+          "evidence": [
+            "reauth",
+            "policy"
+          ],
+          "note": "Each operation disabled/stale403 through refresh/reload; new accepted proof succeeds; no credential changes after app cancellation."
+        },
+        {
+          "line": 282,
+          "values": {
+            "operation": "remove a passkey"
+          },
+          "state": "bounded",
+          "evidence": [
+            "reauth",
+            "policy"
+          ],
+          "note": "Each operation disabled/stale403 through refresh/reload; new accepted proof succeeds; no credential changes after app cancellation."
+        }
+      ]
+    },
+    {
+      "id": "@ux-single-passkeys-026",
+      "title": "Fresh proof in one browser does not authorise another browser",
+      "line": 285,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 286,
+          "keyword": "Given",
+          "text": "two browser sessions belong to the same owner",
+          "state": "bounded",
+          "evidence": [
+            "isolation"
+          ],
+          "note": "Two separate stale owner cookies; first proof+rename, second stale after reload with three403/full-state equality; own proof then success."
+        },
+        {
+          "line": 287,
+          "keyword": "And",
+          "text": "neither session has recent authentication",
+          "state": "bounded",
+          "evidence": [
+            "isolation"
+          ],
+          "note": "Two separate stale owner cookies; first proof+rename, second stale after reload with three403/full-state equality; own proof then success."
+        },
+        {
+          "line": 288,
+          "keyword": "When",
+          "text": "I successfully re-authenticate in the first session",
+          "state": "bounded",
+          "evidence": [
+            "isolation"
+          ],
+          "note": "Two separate stale owner cookies; first proof+rename, second stale after reload with three403/full-state equality; own proof then success."
+        },
+        {
+          "line": 289,
+          "keyword": "Then",
+          "text": "the first session can request authorised passkey changes",
+          "state": "bounded",
+          "evidence": [
+            "isolation"
+          ],
+          "note": "Two separate stale owner cookies; first proof+rename, second stale after reload with three403/full-state equality; own proof then success."
+        },
+        {
+          "line": 290,
+          "keyword": "But",
+          "text": "add, rename and remove requests from the second session still require its own fresh proof",
+          "state": "bounded",
+          "evidence": [
+            "isolation"
+          ],
+          "note": "Two separate stale owner cookies; first proof+rename, second stale after reload with three403/full-state equality; own proof then success."
+        },
+        {
+          "line": 291,
+          "keyword": "And",
+          "text": "a direct write request from the second session is refused without changing credentials",
+          "state": "bounded",
+          "evidence": [
+            "isolation"
+          ],
+          "note": "Two separate stale owner cookies; first proof+rename, second stale after reload with three403/full-state equality; own proof then success."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-020",
+      "title": "Decide last-key removal from effective login methods",
+      "line": 298,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 299,
+          "keyword": "Given",
+          "text": "I have recently proved possession of an accepted factor",
+          "state": "partial",
+          "evidence": [
+            "native-factor",
+            "policy"
+          ],
+          "note": "Accepted-factor proof exists in selected cases, not full seven-row UI matrix."
+        },
+        {
+          "line": 300,
+          "keyword": "And",
+          "text": "\"Laptop\" is the selected registered passkey for \"piclaw.test\"",
+          "state": "substituted",
+          "evidence": [
+            "native-factor",
+            "policy"
+          ],
+          "note": "Localhost RP, not pinned piclaw.test."
+        },
+        {
+          "line": 301,
+          "keyword": "And",
+          "text": "the login policy is \"<policy>\"",
+          "state": "partial",
+          "evidence": [
+            "native-factor",
+            "policy"
+          ],
+          "note": "Policy values covered across separate tests; complete UI matrix not run."
+        },
+        {
+          "line": 302,
+          "keyword": "And",
+          "text": "<remaining_method>",
+          "state": "partial",
+          "evidence": [
+            "native-factor",
+            "policy"
+          ],
+          "note": "Pending-unverified TOTP and session-only UI preconditions not exercised."
+        },
+        {
+          "line": 303,
+          "keyword": "When",
+          "text": "I request removal of \"Laptop\"",
+          "state": "partial",
+          "evidence": [
+            "native-factor",
+            "policy"
+          ],
+          "note": "Selected native/UI removals, not all seven examples through Settings."
+        },
+        {
+          "line": 304,
+          "keyword": "Then",
+          "text": "the server <decision> removal",
+          "state": "partial",
+          "evidence": [
+            "native-factor",
+            "policy"
+          ],
+          "note": "Policy/RP refusal safety evidence; exact entire outline missing."
+        },
+        {
+          "line": 305,
+          "keyword": "And",
+          "text": "Settings explains <explanation>",
+          "state": "gap",
+          "evidence": [
+            "policy"
+          ],
+          "note": "UI currently gives generic last-factor refusal; distinct session/old-RP/unverified-TOTP/fallback explanations absent."
+        }
+      ],
+      "examples": [
+        {
+          "line": 309,
+          "values": {
+            "policy": "passkey-only",
+            "remaining_method": "another passkey is registered for piclaw.test",
+            "decision": "allows",
+            "explanation": "the selected key was removed"
+          },
+          "state": "bounded",
+          "evidence": [
+            "race"
+          ],
+          "note": "One of two accepted local keys removed in concurrent UI path."
+        },
+        {
+          "line": 310,
+          "values": {
+            "policy": "passkey-only",
+            "remaining_method": "a TOTP secret exists but there is no other passkey",
+            "decision": "refuses",
+            "explanation": "no other sign-in method is accepted"
+          },
+          "state": "bounded",
+          "evidence": [
+            "policy"
+          ],
+          "note": "Passkey-only last key refused despite configured TOTP."
+        },
+        {
+          "line": 311,
+          "values": {
+            "policy": "passkey-only",
+            "remaining_method": "only an active browser session remains",
+            "decision": "refuses",
+            "explanation": "a session is not a future sign-in method"
+          },
+          "state": "partial",
+          "evidence": [
+            "native-remove"
+          ],
+          "note": "Active sessions survive last-factor refusal; exact session-only UI explanation absent."
+        },
+        {
+          "line": 312,
+          "values": {
+            "policy": "passkey-only",
+            "remaining_method": "the only other passkey is registered for old.piclaw.test",
+            "decision": "refuses",
+            "explanation": "the other passkey cannot sign in here"
+          },
+          "state": "partial",
+          "evidence": [
+            "native-factor"
+          ],
+          "note": "Other-RP fallback rejected natively; exact UI reason absent."
+        },
+        {
+          "line": 313,
+          "values": {
+            "policy": "either",
+            "remaining_method": "a TOTP factor is configured and accepted",
+            "decision": "allows",
+            "explanation": "TOTP remains available for sign-in"
+          },
+          "state": "partial",
+          "evidence": [
+            "remove"
+          ],
+          "note": "Removal with TOTP fallback succeeds; TOTP-specific explanation absent."
+        },
+        {
+          "line": 314,
+          "values": {
+            "policy": "either",
+            "remaining_method": "no other accepted factor is configured",
+            "decision": "refuses",
+            "explanation": "add another sign-in method before removing this key"
+          },
+          "state": "partial",
+          "evidence": [
+            "native-factor"
+          ],
+          "note": "Native refusal; entire no-fallback UI path/reason not separately verified."
+        },
+        {
+          "line": 315,
+          "values": {
+            "policy": "either",
+            "remaining_method": "a pending TOTP enrolment exists but has not been verified",
+            "decision": "refuses",
+            "explanation": "unverified TOTP setup is not a sign-in method"
+          },
+          "state": "gap",
+          "evidence": [],
+          "note": "Pending unverified TOTP UI decision and explanation missing."
+        }
+      ]
+    },
+    {
+      "id": "@ux-single-passkeys-021",
+      "title": "Two concurrent removals cannot delete both remaining usable keys",
+      "line": 318,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 319,
+          "keyword": "Given",
+          "text": "\"Laptop\" and \"Backup key\" are the only accepted sign-in methods",
+          "state": "bounded",
+          "evidence": [
+            "race"
+          ],
+          "note": "Two browser sessions race through native removals and reconcile survivor."
+        },
+        {
+          "line": 320,
+          "keyword": "And",
+          "text": "two recently authenticated browser sessions display both keys",
+          "state": "bounded",
+          "evidence": [
+            "race"
+          ],
+          "note": "Two browser sessions race through native removals and reconcile survivor."
+        },
+        {
+          "line": 321,
+          "keyword": "When",
+          "text": "one session requests removal of \"Laptop\" as the other requests removal of \"Backup key\"",
+          "state": "bounded",
+          "evidence": [
+            "race"
+          ],
+          "note": "Two browser sessions race through native removals and reconcile survivor."
+        },
+        {
+          "line": 322,
+          "keyword": "Then",
+          "text": "exactly one removal succeeds",
+          "state": "bounded",
+          "evidence": [
+            "race"
+          ],
+          "note": "Two browser sessions race through native removals and reconcile survivor."
+        },
+        {
+          "line": 323,
+          "keyword": "And",
+          "text": "the other is refused by the server's write-time lockout check",
+          "state": "partial",
+          "evidence": [
+            "race"
+          ],
+          "note": "Nonblocking writer lock can reject409 before factor check. Only explicit retry proves last-factor check; frozen requirement is direct lockout refusal."
+        },
+        {
+          "line": 324,
+          "keyword": "And",
+          "text": "both lists can refresh to show the one remaining key",
+          "state": "bounded",
+          "evidence": [
+            "race"
+          ],
+          "note": "Two browser sessions race through native removals and reconcile survivor."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-022",
+      "title": "Recheck policy and recovery methods at commit time",
+      "line": 327,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 328,
+          "keyword": "Given",
+          "text": "a removal confirmation was opened while TOTP was an accepted fallback",
+          "state": "bounded",
+          "evidence": [
+            "policy-race"
+          ],
+          "note": "Stale confirmation followed by native policy change, exact last-factor refusal and explicit refreshed inventory."
+        },
+        {
+          "line": 329,
+          "keyword": "And",
+          "text": "the effective policy changes to passkey-only before removal is committed",
+          "state": "bounded",
+          "evidence": [
+            "policy-race"
+          ],
+          "note": "Stale confirmation followed by native policy change, exact last-factor refusal and explicit refreshed inventory."
+        },
+        {
+          "line": 330,
+          "keyword": "When",
+          "text": "I confirm removal of the last passkey usable for \"piclaw.test\"",
+          "state": "bounded",
+          "evidence": [
+            "policy-race"
+          ],
+          "note": "Stale confirmation followed by native policy change, exact last-factor refusal and explicit refreshed inventory."
+        },
+        {
+          "line": 331,
+          "keyword": "Then",
+          "text": "the server refuses removal",
+          "state": "bounded",
+          "evidence": [
+            "policy-race"
+          ],
+          "note": "Stale confirmation followed by native policy change, exact last-factor refusal and explicit refreshed inventory."
+        },
+        {
+          "line": 332,
+          "keyword": "And",
+          "text": "Settings refreshes the reason instead of trusting the earlier enabled button",
+          "state": "bounded",
+          "evidence": [
+            "policy-race"
+          ],
+          "note": "Stale confirmation followed by native policy change, exact last-factor refusal and explicit refreshed inventory."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-023",
+      "title": "Slash commands cannot bypass the last-factor guard",
+      "line": 335,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 336,
+          "keyword": "Given",
+          "text": "\"Laptop\" is the only sign-in method accepted by the current policy",
+          "state": "unsupported",
+          "evidence": [],
+          "note": "Legacy delete command with authenticated Settings guidance is not implemented."
+        },
+        {
+          "line": 337,
+          "keyword": "When",
+          "text": "an authenticated owner submits a legacy passkey delete command for \"Laptop\"",
+          "state": "unsupported",
+          "evidence": [],
+          "note": "Legacy delete command with authenticated Settings guidance is not implemented."
+        },
+        {
+          "line": 338,
+          "keyword": "Then",
+          "text": "the command refuses removal and directs me to authenticated Settings",
+          "state": "unsupported",
+          "evidence": [],
+          "note": "Legacy delete command with authenticated Settings guidance is not implemented."
+        },
+        {
+          "line": 339,
+          "keyword": "And",
+          "text": "the command does not report success",
+          "state": "unsupported",
+          "evidence": [],
+          "note": "Legacy delete command with authenticated Settings guidance is not implemented."
+        }
+      ],
+      "examples": []
+    },
+    {
+      "id": "@ux-single-passkeys-024",
+      "title": "Explain the difference between removing a passkey and signing out a device",
+      "line": 344,
+      "formalMapping": false,
+      "criteria": [
+        {
+          "line": 345,
+          "keyword": "Given",
+          "text": "I have recently proved possession of an accepted factor",
+          "state": "bounded",
+          "evidence": [
+            "remove",
+            "restart-api"
+          ],
+          "note": "Confirmation and immediate preserved sessions are verified."
+        },
+        {
+          "line": 346,
+          "keyword": "And",
+          "text": "another usable sign-in method will remain",
+          "state": "bounded",
+          "evidence": [
+            "remove",
+            "restart-api"
+          ],
+          "note": "Confirmation and immediate preserved sessions are verified."
+        },
+        {
+          "line": 347,
+          "keyword": "When",
+          "text": "I open the confirmation to remove \"Laptop\"",
+          "state": "bounded",
+          "evidence": [
+            "remove",
+            "restart-api"
+          ],
+          "note": "Confirmation and immediate preserved sessions are verified."
+        },
+        {
+          "line": 348,
+          "keyword": "Then",
+          "text": "the confirmation says removal blocks future sign-ins with that credential",
+          "state": "bounded",
+          "evidence": [
+            "remove",
+            "restart-api"
+          ],
+          "note": "Confirmation and immediate preserved sessions are verified."
+        },
+        {
+          "line": 349,
+          "keyword": "And",
+          "text": "it says existing login sessions are not signed out by this action",
+          "state": "bounded",
+          "evidence": [
+            "remove",
+            "restart-api"
+          ],
+          "note": "Confirmation and immediate preserved sessions are verified."
+        },
+        {
+          "line": 350,
+          "keyword": "When",
+          "text": "removal succeeds",
+          "state": "bounded",
+          "evidence": [
+            "remove",
+            "restart-api"
+          ],
+          "note": "Confirmation and immediate preserved sessions are verified."
+        },
+        {
+          "line": 351,
+          "keyword": "Then",
+          "text": "an already authenticated session remains subject to its normal expiry and explicit logout",
+          "state": "partial",
+          "evidence": [
+            "remove",
+            "restart-api"
+          ],
+          "note": "Existing sessions unchanged/usable immediately. Normal expiry and explicit logout after removal are not covered."
+        }
+      ],
+      "examples": []
+    }
+  ]
+}

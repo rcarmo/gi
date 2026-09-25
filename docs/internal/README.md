@@ -37,7 +37,10 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 
 ## Current structure
 
-- `browser-auth-proof.md` -- browser-owner provenance and session-scoped recent TOTP proof; WebAuthn management prerequisite only
+- `browser-auth-proof.md` -- browser-owner provenance and session-scoped recent proof
+- [passkeys.md](passkeys.md) — native WebAuthn and browser management contract
+- [passkey-scenario-review.md](passkey-scenario-review.md) — compact 26-scenario evidence/gap review
+- [passkey-criteria.md](passkey-criteria.md) — validated per-step/example ledger and browser-only terminal adaptation
 - `tools/` — built-in tool contracts
 - `scripting/` — scripting runtimes and bridge docs
 - `hooks/` — hook and lifecycle docs
