@@ -72,3 +72,23 @@ test.describe('Touch-capable surface',()=>{
 });
 
 });
+
+for(const theme of ['light','dark'])test(`Active session pill uses reference padding and maximum contrast in ${theme} mode`,async({page},info)=>{
+ const env=await journeyEnvironment(info);
+ try{
+  await page.emulateMedia({colorScheme:theme});await page.addInitScript(theme=>{localStorage.setItem('piclaw_theme',theme);localStorage.setItem('vibes-theme',theme);},theme);
+  await page.goto(env.origin);const input=page.locator('.compose-box textarea');await expect(input).toBeFocused();await input.fill('Contrast retained draft Ω');
+  const pill=page.locator('.compose-current-agent-label.active');await expect(pill).toHaveCSS('padding','0px 8px');await expect(pill).toHaveCSS('color','rgb(0, 0, 0)');
+  const sample=()=>pill.evaluate(e=>{const c=getComputedStyle(e);const rgb=(s)=>s.match(/\d+(?:\.\d+)?/g).slice(0,3).map(Number);const lum=s=>{const a=rgb(s).map(v=>{v/=255;return v<=.03928?v/12.92:((v+.055)/1.055)**2.4;});return .2126*a[0]+.7152*a[1]+.0722*a[2];};const a=lum(c.color),b=lum(c.backgroundColor);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05);});
+  expect(await sample()).toBeGreaterThanOrEqual(4.5);
+  await page.keyboard.press('Control+,');const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'Appearance',exact:true}).click();
+  const tint=dialog.getByRole('textbox',{name:'Custom tint',exact:true}),save=dialog.getByRole('button',{name:'Save appearance',exact:true});
+  // Blue requires white, a pale custom tint requires black. The native saved
+  // browser appearance changes, never a server write or a screenshot override.
+  for(const [value,color]of [['#000066','rgb(255, 255, 255)'],['#ffee00','rgb(0, 0, 0)']]){
+   await tint.fill(value);await save.click();await expect(pill).toHaveCSS('color',color);expect(await sample()).toBeGreaterThanOrEqual(4.5);
+  }
+  await dialog.getByRole('button',{name:'Reset appearance',exact:true}).click();await page.keyboard.press('Escape');await expect(input).toHaveValue('Contrast retained draft Ω');await expect(input).toBeFocused();
+  await expect(pill).toHaveCSS('color','rgb(15, 20, 25)');expect(await sample()).toBeGreaterThanOrEqual(4.5);
+ }finally{await env.close();}
+});

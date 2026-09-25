@@ -12,6 +12,7 @@ import { patchComposeCommands } from './scripts/patch-compose-commands.mjs';
 import { patchComposeSurface } from './scripts/patch-compose-surface.mjs';
 import { patchModelPanel } from './scripts/patch-model-panel.mjs';
 import { patchSessionPanel } from './scripts/patch-session-panel.mjs';
+import { patchAccentContrast } from './scripts/patch-accent-contrast.mjs';
 import { patchUploadCancel } from './scripts/patch-upload-cancel.mjs';
 import { patchSkillPrefill } from './scripts/patch-skill-prefill.mjs';
 import { patchPostSpeech } from './scripts/patch-post-speech.mjs';
@@ -106,9 +107,9 @@ const appBuild = await Bun.build({
       contents: patchStatusPreview(await Bun.file(args.path).text()), loader: 'ts',
     }));
   } }, { name: 'gi-appearance-renderer', setup(build) {
-    // Export only the existing catalogue and renderer; leave supplied source bytes unchanged.
+    // Adapt accent contrast at build time; keep the supplied source bytes unchanged.
     build.onLoad({ filter: /[\\/]ui[\\/]theme\.ts$/ }, async args => ({
-      contents: await Bun.file(args.path).text() + '\nexport { THEME_PRESETS as giThemePresets, applyThemeState as giApplyThemeState };\n',
+      contents: patchAccentContrast(await Bun.file(args.path).text()) + '\nexport { THEME_PRESETS as giThemePresets, applyThemeState as giApplyThemeState };\n',
       loader: 'ts',
     }));
   } }, { name: 'gi-clipboard-safety', setup(build) {

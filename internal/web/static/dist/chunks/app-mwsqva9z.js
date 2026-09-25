@@ -1870,6 +1870,17 @@ function useSseConnection({ handleSseEvent, handleConnectionStatusChange, loadPo
   }, [chatJid, selectionKey]);
 }
 
+// web/src/gi-accent-contrast.ts
+function accentForeground({ r, g, b }) {
+  const luminance = [r, g, b].map((value) => {
+    const channel = value / 255;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  const l = luminance[0] * 0.2126 + luminance[1] * 0.7152 + luminance[2] * 0.0722;
+  const black = (l + 0.05) / 0.05, white = 1.05 / (l + 0.05);
+  return black > white ? "#000000" : "#ffffff";
+}
+
 // web/src/ui/theme.ts
 var THEME_STORAGE_KEY = "piclaw_theme";
 var TINT_STORAGE_KEY = "piclaw_tint";
@@ -2259,15 +2270,8 @@ function mixColors(base, overlay, ratio) {
 function rgbaColor(color, alpha) {
   return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
 }
-function relativeLuminance(c) {
-  const rs = c.r / 255, gs = c.g / 255, bs = c.b / 255;
-  const r = rs <= 0.03928 ? rs / 12.92 : Math.pow((rs + 0.055) / 1.055, 2.4);
-  const g = gs <= 0.03928 ? gs / 12.92 : Math.pow((gs + 0.055) / 1.055, 2.4);
-  const b = bs <= 0.03928 ? bs / 12.92 : Math.pow((bs + 0.055) / 1.055, 2.4);
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
 function contrastTextColor(bg) {
-  return relativeLuminance(bg) > 0.4 ? "#000000" : "#ffffff";
+  return accentForeground(bg);
 }
 function resolveSystemMode() {
   if (typeof window === "undefined")
@@ -4479,7 +4483,7 @@ function parseRgbColor(input) {
 function parseColor2(input) {
   return parseHexColor2(input) || parseRgbColor(input);
 }
-function relativeLuminance2(color) {
+function relativeLuminance(color) {
   const toLinear = (channel) => {
     const value = channel / 255;
     return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
@@ -4490,8 +4494,8 @@ function relativeLuminance2(color) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 function contrastRatio(a, b) {
-  const lighter = Math.max(relativeLuminance2(a), relativeLuminance2(b));
-  const darker = Math.min(relativeLuminance2(a), relativeLuminance2(b));
+  const lighter = Math.max(relativeLuminance(a), relativeLuminance(b));
+  const darker = Math.min(relativeLuminance(a), relativeLuminance(b));
   return (lighter + 0.05) / (darker + 0.05);
 }
 function pickHighestContrastColor(background, candidates, fallback = "#ffffff") {
@@ -18688,11 +18692,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-29sjn1j0.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-pysck60g.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-q22629hm.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-k0f9pckb.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-hn517m5y.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-j6n75hqe.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-1r704bwe.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-m3mgzhtv.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-77qrxgw4.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-s9zyg6n9.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -21387,5 +21391,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=7D76CC2CB93FF62064756E2164756E21
-//# sourceMappingURL=app-rdd531hd.js.map
+//# debugId=9CA951D0876624BC64756E2164756E21
+//# sourceMappingURL=app-mwsqva9z.js.map

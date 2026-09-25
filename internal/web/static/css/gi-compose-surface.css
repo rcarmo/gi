@@ -48,6 +48,7 @@
 .compose-session-trigger-top + .compose-input-main textarea { padding-top: 2px; }
 .compose-session-trigger-top .compose-current-agent-label {
     font: 600 12px/16px var(--font-family-mono, monospace);
+    padding: 0 8px;
 }
 @media (max-width: 639px) {
     .compose-box textarea { max-height: min(30vh, 200px); }
