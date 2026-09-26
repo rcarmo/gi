@@ -24,4 +24,10 @@ Home/end editing, insertion, undo/yank, submission and queued/session drafts ret
 - `make test-ux`:107passes,11existing fixture-dependent skips. Browser code is unchanged.
 - Initial PTY failure counted old regular-mode separators retained in terminal scrollback; it now measures the active dock's last two separators. No test removed or timeout increased. A read-only delegated review timed out without a result.
 
-Artifacts are under `test-results/tui-editor-viewport`, `tui-model-picker`, `tui-search` and `tui-regular`. Physical/emulator-wide acceptance, broader Markdown/link/selection limits, light theme and stable reflow anchors remain open. Whole CI and deployment are separate gates; live sessions were not used for testing.
+Artifacts are under `test-results/tui-editor-viewport`, `tui-model-picker`, `tui-search` and `tui-regular`. Physical/emulator-wide acceptance, broader Markdown/link/selection limits, light theme and stable reflow anchors remain open.
+
+## Deployment
+
+Exact `08605d3` passed whole CI36218202980 and was rebuilt from detached `/workspace/tmp/gi-editor-viewport-08605d3`. It is deployed on8090 PID919699,PGID/SID919599. It includes prior soft-wrap search, word/line selection, safe wrapped links and the voice CI split. The cache follow-up `b4ccaed` is excluded pending its CI.
+
+Six read-only Chromium/WebKit × viewport probes pass previous theme/context/model/Settings/resize/draft contracts. No writes, page errors or permission requests. DB62sessions/51turns/146messages, integrity/FKs clean, auth absent; SQL excluding runtime leases unchanged SHA256 `300ce6794c6fe9b8fb93c826fcfecf093676a6cf369f4be4e11dd624a829653d`. No terminal client was opened against live data: terminal acceptance remains the disposable PTY evidence above.
