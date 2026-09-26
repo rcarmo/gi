@@ -92,3 +92,27 @@ for(const theme of ['light','dark'])test(`Active session pill uses reference pad
   await expect(pill).toHaveCSS('color','rgb(15, 20, 25)');expect(await sample()).toBeGreaterThanOrEqual(4.5);
  }finally{await env.close();}
 });
+
+test('Pinned theme text contrast adjusts primary and secondary without changing draft or palette choices',async({page},info)=>{
+ const env=await journeyEnvironment(info);
+ try{
+  await page.emulateMedia({colorScheme:'dark'});await page.goto(env.origin);const input=page.locator('.compose-box textarea');await expect(input).toBeFocused();await input.fill('Palette contrast draft Ω');
+  const colours=()=>page.evaluate(()=>{
+   const root=getComputedStyle(document.documentElement),keys=['--text-primary','--text-secondary','--bg-primary','--bg-secondary','--bg-hover'];
+   const resolve=name=>{const e=document.createElement('span');e.style.color=root.getPropertyValue(name);document.body.append(e);const rgb=getComputedStyle(e).color;e.remove();return rgb;};
+   return Object.fromEntries(keys.map(k=>[k,resolve(k)]));
+  });
+  await expect.poll(async()=> (await colours())['--text-secondary']).toBe('rgb(130, 134, 139)');await expect(page.getByRole('button',{name:'Open model picker',exact:true})).toHaveCSS('color','rgb(130, 134, 139)');
+  await page.emulateMedia({colorScheme:'light'});await expect.poll(async()=> (await colours())['--text-secondary']).toBe('rgb(83, 100, 113)');
+  const ratio=(a,b)=>{const lum=s=>{const v=s.match(/[\d.]+/g).slice(0,3).map(Number).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;});return .2126*v[0]+.7152*v[1]+.0722*v[2];};const x=lum(a),y=lum(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+  await page.keyboard.press('Control+,');const dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'Appearance',exact:true}).click();
+  for(const [preset,tint,mode]of [['monokai','','dark'],['solarized','','light'],['default','#8040aa','dark'],['default','#cc8800','light']]){
+   await page.emulateMedia({colorScheme:mode});await dialog.getByRole('combobox',{name:'Theme preset',exact:true}).selectOption(preset);
+   if(preset==='default')await dialog.getByRole('textbox',{name:'Custom tint',exact:true}).fill(tint);
+   await dialog.getByRole('button',{name:'Save appearance',exact:true}).click();await expect(dialog.getByRole('status')).toHaveText('Appearance saved in this browser.');
+   const c=await colours();for(const text of ['--text-primary','--text-secondary'])for(const bg of ['--bg-primary','--bg-secondary','--bg-hover'])expect(ratio(c[text],c[bg]),`${preset}/${mode}/${text}/${bg}`).toBeGreaterThanOrEqual(4.5);
+   await expect(dialog.getByRole('button',{name:'Save appearance',exact:true})).toBeFocused();await expect(input).toHaveValue('Palette contrast draft Ω');
+  }
+  await dialog.getByRole('button',{name:'Reset appearance',exact:true}).click();await page.keyboard.press('Escape');await expect(input).toBeFocused();await expect(input).toHaveValue('Palette contrast draft Ω');await expect.poll(async()=> (await colours())['--text-secondary']).toBe('rgb(83, 100, 113)');
+ }finally{await env.close();}
+});

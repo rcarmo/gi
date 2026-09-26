@@ -13,6 +13,7 @@ import { patchComposeSurface } from './scripts/patch-compose-surface.mjs';
 import { patchModelPanel } from './scripts/patch-model-panel.mjs';
 import { patchSessionPanel } from './scripts/patch-session-panel.mjs';
 import { patchAccentContrast } from './scripts/patch-accent-contrast.mjs';
+import { patchThemeTextContrast } from './scripts/patch-theme-text-contrast.mjs';
 import { patchVoiceInput } from './scripts/patch-voice-input.mjs';
 import { patchModelAccessibility } from './scripts/patch-model-accessibility.mjs';
 import { patchUploadCancel } from './scripts/patch-upload-cancel.mjs';
@@ -111,7 +112,7 @@ const appBuild = await Bun.build({
   } }, { name: 'gi-appearance-renderer', setup(build) {
     // Adapt accent contrast at build time; keep the supplied source bytes unchanged.
     build.onLoad({ filter: /[\\/]ui[\\/]theme\.ts$/ }, async args => ({
-      contents: patchAccentContrast(await Bun.file(args.path).text()) + '\nexport { THEME_PRESETS as giThemePresets, applyThemeState as giApplyThemeState };\n',
+      contents: patchThemeTextContrast(patchAccentContrast(await Bun.file(args.path).text())) + '\nexport { THEME_PRESETS as giThemePresets, applyThemeState as giApplyThemeState };\n',
       loader: 'ts',
     }));
   } }, { name: 'gi-clipboard-safety', setup(build) {

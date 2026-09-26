@@ -2445,6 +2445,59 @@ function useSseConnection({ handleSseEvent, handleConnectionStatusChange, loadPo
   }, [chatJid, selectionKey]);
 }
 
+// web/src/gi-theme-text-contrast.ts
+var hex = (value) => {
+  const input = String(value || "").trim();
+  if (!input.startsWith("#"))
+    return null;
+  const raw = input.slice(1);
+  if (!/^(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw))
+    return null;
+  const full = raw.length === 3 ? [...raw].map((c) => c + c).join("") : raw;
+  const n = parseInt(full, 16);
+  return { r: n >> 16 & 255, g: n >> 8 & 255, b: n & 255 };
+};
+var colour = (value) => {
+  const direct = hex(value);
+  if (direct)
+    return direct;
+  const m = String(value || "").trim().match(/^rgba?\(\s*([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:\s*[,/]\s*[\d.]+)?\s*\)$/i);
+  if (!m)
+    return null;
+  const [r, g, b] = m.slice(1, 4).map(Number);
+  return { r, g, b };
+};
+var mix = (a, b, t) => ({ r: Math.round(a.r * (1 - t) + b.r * t), g: Math.round(a.g * (1 - t) + b.g * t), b: Math.round(a.b * (1 - t) + b.b * t) });
+var encode = (c) => `#${[c.r, c.g, c.b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+var luminance = (c) => {
+  const linear = (v) => {
+    v /= 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * linear(c.r) + 0.7152 * linear(c.g) + 0.0722 * linear(c.b);
+};
+function themeTextContrastRatio(a, b) {
+  const x = luminance(a), y = luminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+function readableThemeText(value, target, backgrounds, minimum = 4.5) {
+  const base = colour(value), end = colour(target), surfaces = backgrounds.map(colour);
+  if (!base || !end || surfaces.some((c) => !c))
+    return value;
+  const meets = (c) => surfaces.every((bg) => themeTextContrastRatio(c, bg) >= minimum);
+  for (let step = 0;step <= 100; step++) {
+    const candidate = mix(base, end, step / 100);
+    if (meets(candidate))
+      return encode(candidate);
+  }
+  return target;
+}
+function themeTextColours(palette, mode) {
+  const backgrounds = [palette.bgPrimary, palette.bgSecondary, palette.bgHover || palette.bgSecondary];
+  const primary = readableThemeText(palette.textPrimary, palette.monochrome ? palette.textPrimary : mode === "dark" ? "#ffffff" : "#000000", backgrounds);
+  return { primary, secondary: readableThemeText(palette.textSecondary, primary, backgrounds) };
+}
+
 // web/src/gi-accent-contrast.ts
 function accentForeground({ r, g, b }) {
   const luminance = [r, g, b].map((value) => {
@@ -2921,12 +2974,13 @@ function applyCssVariables(palette, mode) {
   const accentContrastText = accentHex ? contrastTextColor(accentHex) : mode === "dark" ? "#000000" : "#ffffff";
   const accentColorAlpha = accentHex ? rgbaColor(accentHex, mode === "dark" ? 0.35 : 0.25) : "rgba(29, 155, 240, 0.25)";
   const warningColor = resolveWarningColor(palette, mode);
+  const textColours = themeTextColours(palette, mode);
   const vars = {
     "--bg-primary": palette.bgPrimary,
     "--bg-secondary": palette.bgSecondary,
     "--bg-hover": palette.bgHover,
-    "--text-primary": palette.textPrimary,
-    "--text-secondary": palette.textSecondary,
+    "--text-primary": textColours.primary,
+    "--text-secondary": textColours.secondary,
     "--border-color": palette.borderColor,
     "--accent-color": accentColor,
     "--accent-hover": palette.accentHover || accentColor,
@@ -3058,6 +3112,9 @@ function applyThemeState(nextTheme, options = {}) {
   }
   if (themeName === "default" && !tint) {
     clearCssVariables();
+    const textColours = themeTextColours(palette, mode);
+    root.style.setProperty("--text-primary", textColours.primary);
+    root.style.setProperty("--text-secondary", textColours.secondary);
   } else {
     applyCssVariables(palette, mode);
   }
@@ -19638,11 +19695,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-dkm10cj4.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-g14y7pme.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-847gasjg.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-rmgwgwmb.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-7s5x68gx.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-m2f0jjvm.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-f81ngsvs.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-b5ekmzka.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-4mhbwm5b.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-7dgx68ka.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -19998,7 +20055,7 @@ function passkeyUnavailable() {
 function decode(value) {
   return Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 }
-function encode(value) {
+function encode2(value) {
   if (value === null)
     return null;
   return btoa(Array.from(new Uint8Array(value), (b) => String.fromCharCode(b)).join("")).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -20026,11 +20083,11 @@ async function runPasskey(operation, signal, name) {
     const response = credential.response;
     const data = {
       id: credential.id,
-      rawId: encode(credential.rawId),
+      rawId: encode2(credential.rawId),
       type: credential.type,
       authenticatorAttachment: credential.authenticatorAttachment,
       clientExtensionResults: credential.getClientExtensionResults(),
-      response: operation === "register" ? { clientDataJSON: encode(response.clientDataJSON), attestationObject: encode(response.attestationObject), transports: response.getTransports?.() || [] } : { clientDataJSON: encode(response.clientDataJSON), authenticatorData: encode(response.authenticatorData), signature: encode(response.signature), userHandle: encode(response.userHandle) }
+      response: operation === "register" ? { clientDataJSON: encode2(response.clientDataJSON), attestationObject: encode2(response.attestationObject), transports: response.getTransports?.() || [] } : { clientDataJSON: encode2(response.clientDataJSON), authenticatorData: encode2(response.authenticatorData), signature: encode2(response.signature), userHandle: encode2(response.userHandle) }
     };
     finishing = true;
     const result = await authJSON(`/api/auth/passkeys/${operation}/finish`, { ceremony_id: start.ceremony_id, credential: data }, signal);
@@ -22364,5 +22421,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=ED9CC1EB3BAE6DB464756E2164756E21
-//# sourceMappingURL=app-nn14stbw.js.map
+//# debugId=C97BEAA93D4D283664756E2164756E21
+//# sourceMappingURL=app-42jecs31.js.map

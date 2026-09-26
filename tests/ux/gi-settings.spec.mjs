@@ -171,7 +171,7 @@ test('@gi-settings-004 @gi-settings-007 A held catalogue loads on demand and can
 test('@gi-settings-001 Modal keyboard input cannot activate a background model picker', async ({ page, request }, info) => {
   const { a, input, open, dialog } = await setup(page, request, info);
   await page.getByRole('button', { name: 'Open model picker', exact: true }).click();
-  await expect(page.getByRole('menu', { name: 'Model picker', exact: true })).toBeVisible();
+  await expect(page.getByRole('listbox', { name: 'Models', exact: true })).toBeVisible();
   await open();
   await dialog.getByRole('button', { name: 'Close settings' }).focus();
   await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');

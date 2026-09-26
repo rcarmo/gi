@@ -496,7 +496,7 @@ test-ux-model-panel: build-web
 
 .PHONY: test-ux-compose-surface test-compose-surface-helpers
 test-compose-surface-helpers:
-	$(BUN) test tests/ux/support/compose-surface.test.ts tests/ux/support/accent-contrast.test.ts
+	$(BUN) test tests/ux/support/compose-surface.test.ts tests/ux/support/accent-contrast.test.ts tests/ux/support/theme-text-contrast.test.ts
 
 test-ux-compose-surface: build-web
 	mkdir -p $(dir $(UX_LOCAL_BIN))

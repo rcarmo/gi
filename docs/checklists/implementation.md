@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Match pinned Classic primary/secondary text contrast through guarded theme adapter, including default/no-tint bypass: first1%roundedRGB step meeting4.5:1 across three surfaces. Seven helpers/36compose/216Settings/107functional(11existing skips)+core/vet/hooks/15pixelhelpers pass. Full72captures run1790392290634:18cross failures+15/36unstable repeats,compose226–298px, dark model label now exact computed rgb130/134/139. CI/deploy pending; no blanket accessibility/Visual/TUI acceptance. [Evidence](../internal/theme-text-contrast.md).
+
 - [x] Explain disabled context-control availability with native reason, accessible description and pending/refresh/disconnect state; no action enabling, extra chrome or changed token/session/draft guards. Five helpers,18meter+96compaction+6unknown+6reconnect cases and107functional(11existing skips) pass; core/vet/hooks+15pixelhelpers green. Required separate15mcontext CI job added; deployment held for whole CI. [Evidence and limits](../internal/context-control.md).
 
 - [x] Deploy exact daa8371 after whole CI36211878091;8090PID713370/PGID713270. Six guarded real-catalogue browser probes pass including overflowing list Tab order/read-only thinking, linked model semantics, Settings/focus/draft and prior capabilities. Zero writes/errors/permission requests. DB62/51/146+SQL/auth unchanged. Fixture-only4e81eef separately corrects native contextWindow and adds post-frame style metadata: latest72captures fail18/18cross+16/36repeats,compose242–1025px;15pixelhelpers pass. [Deployment](../internal/model-panel.md#guarded-deployment-of-the-overflow-fix), [pixel limits](../internal/compose-pixel-baseline.md#context-fixture-correction-and-control-diagnostics).
