@@ -307,8 +307,12 @@ test('Gi captured Stop survives reconnect and old native terminal frames cannot 
   const cancel=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main.id}/activity`)&&r.request().method()==='POST');await stop.click();expect((await cancel).status()).toBe(200);
   expect(mutations).toEqual([{turn_id:first.turn_id}]);
   await expect.poll(async()=> (await api(`/api/sessions/${main.id}/turns`)).turns.find(t=>t.id===first.turn_id).status).toBe('cancelled');
-  // Current engine policy advances the queue after cancellation. This is not
-  // shared36 queue-preservation credit: assert native FIFO without discarding.
+  // Stop preserves the exact queue until the user explicitly resumes it.
+  await expect.poll(async()=>(await state()).status).toBe('idle');
+  expect((await state()).queue_hold_turn_id).toBe(first.turn_id);expect((await queue()).items).toEqual(beforeQueue.items);
+  await expect(input).toHaveValue('captured stop draft');await expect(page.locator('.compose-file-pill[title="stop.txt"]')).toHaveCount(1);
+  const resume=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main.id}/resume-queue`)&&r.request().method()==='POST');
+  await page.getByRole('button',{name:'Resume queue',exact:true}).click();expect((await resume).status()).toBe(200);
   await expect.poll(async()=>(await state()).turn_id).toBe(queued.turn_id);await expect(stop).toBeEnabled();
   expect((await queue()).items).toEqual(beforeQueue.items.filter(x=>x.id===tail.turn_id));await expect(page.locator(`[data-queue-id="${tail.turn_id}"]`)).toBeVisible();await expect(input).toHaveValue('captured stop draft');await expect(page.locator('.compose-file-pill[title="stop.txt"]')).toHaveCount(1);
   expect((await api(`/api/sessions/${other.id}/activity`)).turn_id).toBe(foreign.turn_id);

@@ -10,6 +10,8 @@ same-session lost-ack reconciliation and attachment/Stop/reconnect checks.
 recovery without chat-history scans; it is not submission idempotency.
 [Cross-tab draft write fencing](web-cross-tab-drafts.md) defines revision conflicts,
 version-2 IndexedDB migration and full-reload recovery.
+[Web Stop and Resume queue](web-stop-queue.md) describes captured-run cancellation,
+durable queued-work preservation and explicit fenced resume.
 
 For the current product comparison, see [features and Piclaw parity](../feature-parity.md).
 The [full web/TUI plan](full-web-tui-parity-plan.md) and

@@ -6,6 +6,33 @@ import (
 	"net/http"
 )
 
+func (s *Server) handleSessionResume(w http.ResponseWriter, r *http.Request, sessionID string) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", "POST")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		StopTurnID string `json:"stop_turn_id"`
+	}
+	d := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&req); err != nil || req.StopTurnID == "" {
+		writeJSON(w, 400, map[string]any{"error": "Expected stop_turn_id"})
+		return
+	}
+	if err := d.Decode(new(any)); err != io.EOF {
+		writeJSON(w, 400, map[string]any{"error": "Expected one resume"})
+		return
+	}
+	continued, err := s.turns.ResumeWebQueue(r.Context(), sessionID, req.StopTurnID)
+	if err != nil {
+		writeJSON(w, 409, map[string]any{"error": "Queue state changed; refresh before resuming"})
+		return
+	}
+	writeJSON(w, 200, map[string]any{"continued": continued})
+}
+
 func (s *Server) handleSessionActivity(w http.ResponseWriter, r *http.Request, sessionID string) {
 	if _, err := s.store.GetSession(r.Context(), sessionID); err != nil {
 		writeJSON(w, 404, map[string]any{"error": err.Error()})
@@ -27,7 +54,7 @@ func (s *Server) handleSessionActivity(w http.ResponseWriter, r *http.Request, s
 			writeJSON(w, 400, map[string]any{"error": "Expected one cancellation"})
 			return
 		}
-		// CancelActiveTurn validates the immutable session/turn pair under runner lock.
+		// StopWebActiveTurn validates the immutable session/turn pair under runner lock.
 		// It cannot resolve a different run if this one has just finished.
 		turn, err := s.store.GetTurn(r.Context(), req.TurnID)
 		if err != nil || turn.SessionID != sessionID {
@@ -39,7 +66,7 @@ func (s *Server) handleSessionActivity(w http.ResponseWriter, r *http.Request, s
 			writeJSON(w, 409, map[string]any{"error": "Active run changed"})
 			return
 		}
-		if err := s.turns.CancelActiveTurn(r.Context(), sessionID, req.TurnID); err != nil {
+		if err := s.turns.StopWebActiveTurn(r.Context(), sessionID, req.TurnID); err != nil {
 			writeJSON(w, 409, map[string]any{"error": err.Error()})
 			return
 		}

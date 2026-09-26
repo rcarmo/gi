@@ -654,19 +654,24 @@ func (e *Engine) submitPrompt(ctx context.Context, in RunInput, retry *store.Hel
 }
 
 func (e *Engine) CancelQueuedTurn(ctx context.Context, sessionID, turnID string) error {
-	return e.cancelTurn(ctx, sessionID, turnID, true, false)
+	return e.cancelTurn(ctx, sessionID, turnID, true, false, false)
 }
 
 func (e *Engine) CancelTurn(ctx context.Context, sessionID, turnID string) error {
-	return e.cancelTurn(ctx, sessionID, turnID, false, false)
+	return e.cancelTurn(ctx, sessionID, turnID, false, false, false)
 }
 
 // CancelActiveTurn never falls back to queued cancellation after a run ends.
 func (e *Engine) CancelActiveTurn(ctx context.Context, sessionID, turnID string) error {
-	return e.cancelTurn(ctx, sessionID, turnID, false, true)
+	return e.cancelTurn(ctx, sessionID, turnID, false, true, false)
 }
 
-func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queuedOnly, activeOnly bool) error {
+// StopWebActiveTurn preserves pending work until an explicit fenced web resume.
+func (e *Engine) StopWebActiveTurn(ctx context.Context, sessionID, turnID string) error {
+	return e.cancelTurn(ctx, sessionID, turnID, false, true, true)
+}
+
+func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queuedOnly, activeOnly, preserveQueue bool) error {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	turn, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
@@ -706,7 +711,15 @@ func (e *Engine) cancelTurn(ctx context.Context, sessionID, turnID string, queue
 		if err := e.store.AppendTurnEvent(opCtx, turnID, turnSessionID, "turn.cancelling", map[string]any{"phase": "cancel", "checkpoint": true, "reason": "cancel_requested", "status": "cancelling", "turn_phase": "cancelling", "failure_kind": ""}); err != nil {
 			return err
 		}
-		if err := e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "cancelling", "cancelling"); err != nil {
+		if preserveQueue {
+			_, token, err := e.store.GetSessionActiveTurn(opCtx, turnSessionID)
+			if err != nil {
+				return err
+			}
+			if err := e.store.StopWebActiveTurn(opCtx, turnSessionID, turnID, token); err != nil {
+				return err
+			}
+		} else if err := e.store.UpdateTurnStatusAndPhase(opCtx, turnID, "cancelling", "cancelling"); err != nil {
 			return err
 		}
 		e.PublishRuntimeTurnEvent("turn_cancelling", turnSessionID, turnID, agentID, "cancelling", "cancelling", map[string]any{"reason": "cancel_requested", "failure_kind": ""})
@@ -826,12 +839,21 @@ func (e *Engine) runner(sessionID string) *sessionRunner {
 }
 
 func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, sessionID, turnID string) (bool, error) {
+	return e.launchTurnWithWebResumeLocked(ctx, runner, sessionID, turnID, "")
+}
+func (e *Engine) launchTurnWithWebResumeLocked(ctx context.Context, runner *sessionRunner, sessionID, turnID, stopTurnID string) (bool, error) {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if hook := e.beforeLaunchClaimHook; hook != nil {
 		hook(opCtx, sessionID, turnID)
 	}
 	claimToken := turnID
-	claimed, err := e.store.ClaimSessionActiveTurn(opCtx, sessionID, turnID, "runner", claimToken)
+	var claimed bool
+	var err error
+	if stopTurnID == "" {
+		claimed, err = e.store.ClaimSessionActiveTurn(opCtx, sessionID, turnID, "runner", claimToken)
+	} else {
+		claimed, err = e.store.ClaimWebResumedTurn(opCtx, sessionID, turnID, "runner", claimToken, stopTurnID)
+	}
 	if err != nil {
 		return false, err
 	}
@@ -912,6 +934,14 @@ func (e *Engine) launchTurnLocked(ctx context.Context, runner *sessionRunner, se
 			return false, errors.Join(err, cleanupErr)
 		}
 		return false, err
+	}
+	if stopTurnID != "" {
+		if err := e.store.ResumeWebQueue(opCtx, sessionID, stopTurnID); err != nil {
+			if cleanupErr := releaseClaim(true); cleanupErr != nil {
+				return false, errors.Join(err, cleanupErr)
+			}
+			return false, err
+		}
 	}
 	logutil.WarnIfErr("sync queue count after launch", e.store.SyncSessionQueueCount(opCtx, sessionID))
 	go func() {
@@ -2155,6 +2185,9 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 }
 
 func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionRunner, sessionID string) (bool, error) {
+	if hold, err := e.store.WebQueueHold(ctx, sessionID); err != nil || hold != "" {
+		return false, err
+	}
 	if sessionID == "" {
 		return false, nil
 	}
@@ -2372,9 +2405,20 @@ func steeringMetadataFromMessages(msgs []store.SteeringMessage) map[string]any {
 }
 
 func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID string) (bool, string, error) {
+	return e.stageQueuedSteeringWithResume(ctx, sessionID, "")
+}
+
+func (e *Engine) stageQueuedSteeringWithResume(ctx context.Context, sessionID, stopTurnID string) (bool, string, error) {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	turnID := store.NowID("turn")
-	turnRec, msgs, err := e.store.StageSteeringContinuation(opCtx, sessionID, turnID)
+	var turnRec *store.Turn
+	var msgs []store.SteeringMessage
+	var err error
+	if stopTurnID == "" {
+		turnRec, msgs, err = e.store.StageSteeringContinuation(opCtx, sessionID, turnID)
+	} else {
+		turnRec, msgs, err = e.store.StageWebSteeringContinuation(opCtx, sessionID, turnID, stopTurnID)
+	}
 	if err == sql.ErrNoRows {
 		return false, "", nil
 	}
@@ -2394,6 +2438,9 @@ func (e *Engine) stageQueuedSteeringContinuation(ctx context.Context, sessionID 
 }
 
 func (e *Engine) continueQueuedSteeringLocked(ctx context.Context, runner *sessionRunner, sessionID string) (bool, error) {
+	if hold, err := e.store.WebQueueHold(ctx, sessionID); err != nil || hold != "" {
+		return false, err
+	}
 	staged, turnID, err := e.stageQueuedSteeringContinuation(ctx, sessionID)
 	if err != nil {
 		return false, err
@@ -2436,10 +2483,61 @@ func (e *Engine) continueQueuedSteering(ctx context.Context, sessionID string) (
 }
 
 func (e *Engine) ContinueSession(ctx context.Context, sessionID string) (bool, error) {
+	return e.continueSession(ctx, sessionID)
+}
+
+func (e *Engine) ResumeWebQueue(ctx context.Context, sessionID, stopTurnID string) (bool, error) {
+	if stopTurnID == "" {
+		return false, store.ErrQueueConflict
+	}
+	runner := e.runner(sessionID)
+	runner.mu.Lock()
+	defer runner.mu.Unlock()
+	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
+	hold, err := e.store.WebQueueHold(opCtx, sessionID)
+	if err != nil {
+		return false, err
+	}
+	if hold != stopTurnID {
+		return false, store.ErrQueueConflict
+	}
+	if _, _, err := e.store.GetSessionActiveTurn(opCtx, sessionID); err == nil {
+		return false, store.ErrQueueConflict
+	} else if err != sql.ErrNoRows {
+		return false, err
+	}
+	next, err := e.store.GetNextQueuedTurn(opCtx, sessionID)
+	if err == sql.ErrNoRows {
+		staged, id, stageErr := e.stageQueuedSteeringWithResume(opCtx, sessionID, stopTurnID)
+		if stageErr != nil {
+			return false, stageErr
+		}
+		if staged {
+			next, err = e.store.GetTurn(opCtx, id)
+		}
+	}
+	if err == sql.ErrNoRows {
+		if err := e.store.ResumeWebQueue(opCtx, sessionID, stopTurnID); err != nil {
+			return false, err
+		}
+		return false, e.normalizeInactiveSessionState(opCtx, sessionID, "idle", "", true)
+	}
+	if err != nil {
+		return false, err
+	}
+	return e.launchTurnWithWebResumeLocked(opCtx, runner, sessionID, next.ID, stopTurnID)
+}
+
+func (e *Engine) continueSession(ctx context.Context, sessionID string) (bool, error) {
 	runner := e.runner(sessionID)
 	runner.mu.Lock()
 	defer runner.mu.Unlock()
 	coordCtx := store.CoordinationContext(ctx, e.backgroundContext())
+	if hold, err := e.store.WebQueueHold(coordCtx, sessionID); err != nil {
+		return false, err
+	} else if hold != "" {
+		return false, store.ErrQueueConflict
+	}
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
 		if err := e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, ""); err != nil {
 			return false, err

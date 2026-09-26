@@ -10,7 +10,7 @@ func (s *Store) AdmitManualCompaction(ctx context.Context, sessionID, turnID, ex
 	}
 	defer tx.Rollback()
 	var busy bool
-	if err = tx.QueryRowContext(ctx, `select exists(select 1 from session_active_turns where session_id=?) or exists(select 1 from turns where session_id=? and status in ('queued','steering','running','cancelling')) or exists(select 1 from steering_queue where session_id=? and status in ('queued','claimed'))`, sessionID, sessionID, sessionID).Scan(&busy); err != nil {
+	if err = tx.QueryRowContext(ctx, `select exists(select 1 from session_active_turns where session_id=?) or exists(select 1 from turns where session_id=? and status in ('queued','steering','running','cancelling')) or exists(select 1 from steering_queue where session_id=? and status in ('queued','claimed')) or exists(select 1 from web_queue_holds where session_id=?)`, sessionID, sessionID, sessionID, sessionID).Scan(&busy); err != nil {
 		return err
 	}
 	if busy {
@@ -45,6 +45,6 @@ func (s *Store) AdmitManualCompaction(ctx context.Context, sessionID, turnID, ex
 
 func (s *Store) CompactionBusy(ctx context.Context, sessionID string) (bool, error) {
 	var busy bool
-	err := s.db.QueryRowContext(ctx, `select exists(select 1 from session_active_turns where session_id=?) or exists(select 1 from turns where session_id=? and status in ('queued','steering','running','cancelling')) or exists(select 1 from steering_queue where session_id=? and status in ('queued','claimed'))`, sessionID, sessionID, sessionID).Scan(&busy)
+	err := s.db.QueryRowContext(ctx, `select exists(select 1 from session_active_turns where session_id=?) or exists(select 1 from turns where session_id=? and status in ('queued','steering','running','cancelling')) or exists(select 1 from steering_queue where session_id=? and status in ('queued','claimed')) or exists(select 1 from web_queue_holds where session_id=?)`, sessionID, sessionID, sessionID, sessionID).Scan(&busy)
 	return busy, err
 }

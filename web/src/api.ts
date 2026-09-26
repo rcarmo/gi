@@ -229,6 +229,11 @@ export async function compactSession(chatJid: string, token: string) {
     return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/compaction`, {method:'POST',body:JSON.stringify({token})});
 }
 
+export async function resumeSessionQueue(chatJid: string, stopTurnId: string) {
+    if (!chatJid?.startsWith('gi:') || !stopTurnId) throw new Error('No stopped queue to resume');
+    return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/resume-queue`, {method:'POST', body:JSON.stringify({stop_turn_id:stopTurnId})});
+}
+
 export async function cancelSessionRun(chatJid: string, turnId: string) {
     if (!chatJid?.startsWith('gi:') || !turnId) throw new Error('No active run to stop');
     return request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/activity`, {method:'POST', body:JSON.stringify({turn_id:turnId})});

@@ -38,9 +38,10 @@ type SteeringMessage struct {
 func (s *Store) ClaimSessionActiveTurn(ctx context.Context, sessionID, turnID, workerID, claimToken string) (bool, error) {
 	res, err := s.db.ExecContext(ctx, `
 		insert into session_active_turns (session_id, turn_id, worker_id, claim_token, claimed_at, updated_at)
-		values (?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`)
+		select ?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`
+		where not exists(select 1 from web_queue_holds where session_id=?)
 		on conflict(session_id) do nothing
-	`, sessionID, turnID, internalx.NilIfEmpty(workerID), claimToken)
+	`, sessionID, turnID, internalx.NilIfEmpty(workerID), claimToken, sessionID)
 	if err != nil {
 		return false, fmt.Errorf("claim session active turn: %w", err)
 	}
@@ -261,11 +262,40 @@ func steeringMessagesToContinuationMetadata(msgs []SteeringMessage) map[string]a
 }
 
 func (s *Store) StageSteeringContinuation(ctx context.Context, sessionID, turnID string) (*Turn, []SteeringMessage, error) {
+	return s.stageSteeringContinuation(ctx, sessionID, turnID, "")
+}
+func (s *Store) StageWebSteeringContinuation(ctx context.Context, sessionID, turnID, stopTurnID string) (*Turn, []SteeringMessage, error) {
+	if stopTurnID == "" {
+		return nil, nil, ErrQueueConflict
+	}
+	return s.stageSteeringContinuation(ctx, sessionID, turnID, stopTurnID)
+}
+func (s *Store) stageSteeringContinuation(ctx context.Context, sessionID, turnID, stopTurnID string) (*Turn, []SteeringMessage, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("stage steering continuation begin tx: %w", err)
 	}
 	defer tx.Rollback()
+	// Acquire the writer slot before inspecting the durable web-stop fence.
+	if _, err := tx.ExecContext(ctx, "update sessions set id=id where id=?", sessionID); err != nil {
+		return nil, nil, err
+	}
+	var held bool
+	if err := tx.QueryRowContext(ctx, "select exists(select 1 from web_queue_holds where session_id=?)", sessionID).Scan(&held); err != nil {
+		return nil, nil, err
+	}
+	if stopTurnID == "" && held {
+		return nil, nil, sql.ErrNoRows
+	}
+	if stopTurnID != "" {
+		var allowed bool
+		if err := tx.QueryRowContext(ctx, "select exists(select 1 from web_queue_holds where session_id=? and stop_turn_id=?) and not exists(select 1 from session_active_turns where session_id=?)", sessionID, stopTurnID, sessionID).Scan(&allowed); err != nil {
+			return nil, nil, err
+		}
+		if !allowed {
+			return nil, nil, ErrQueueConflict
+		}
+	}
 	row := tx.QueryRowContext(ctx, `select count(*) from turns where session_id = ? and status = 'queued' and phase != 'steer_returned'`, sessionID)
 	var queuedCount int
 	if err := row.Scan(&queuedCount); err != nil {

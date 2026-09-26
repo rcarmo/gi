@@ -165,6 +165,12 @@ func initSchema(db *sql.DB) error {
 			foreign key(turn_id) references turns(id) on delete cascade
 		);`,
 		`create index if not exists idx_session_active_turns_turn on session_active_turns(turn_id);`,
+		// A web Stop with pending work must survive cleanup and process restart.
+		`create table if not exists web_queue_holds (
+			session_id text primary key references sessions(id) on delete cascade,
+			stop_turn_id text not null,
+			created_at text not null
+		);`,
 
 		`create table if not exists turn_failures (
 			turn_id text primary key,

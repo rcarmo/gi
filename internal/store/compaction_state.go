@@ -18,6 +18,13 @@ func (s *Store) SessionActivity(ctx context.Context, sessionID string) (map[stri
 		return nil, err
 	}
 	defer tx.Rollback()
+	var stopTurnID string
+	if err := tx.QueryRowContext(ctx, `select stop_turn_id from web_queue_holds where session_id=?`, sessionID).Scan(&stopTurnID); err != nil && err != sql.ErrNoRows {
+		return nil, err
+	}
+	if stopTurnID != "" {
+		result["queue_hold_turn_id"] = stopTurnID
+	}
 	err = tx.QueryRowContext(ctx, `select t.id,t.status,t.phase,e.event_type,e.seq,e.payload_json,e.created_at,exists(select 1 from session_active_turns where session_id=t.session_id and turn_id=t.id)
  from turns t
  left join turn_events e on e.id=(select id from turn_events where turn_id=t.id and session_id=t.session_id and event_type in ('compaction.started','compaction.completed','compaction.cancelled','compaction.failed','compaction.suppressed') order by seq desc limit 1)

@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [-] Shared36 web Stop/queue preservation implemented: durable captured-stop hold with DB claim/staging/compaction guards, explicit fenced Resume queue (only while held), unchanged generic/TUI cancellation. Resume retains hold until durable launch; failed launch/restart keeps resume available, returnedSteer rows never auto-run/trap hold. Native race×3/36HTTPcontrols/66reconnect/139functional(11skips)/core/vet/hooks pass; review blockers corrected/final scope accepted. Whole-product CI/deploy and mapping review pending. [Contract](../internal/web-stop-queue.md).
+
 - [x] Deploy exact003b9e6 after productCI36233054266: lostsame-sessionack fix+modelsend acceptance;8090PID1403292/PGID1403282. Four blocked HTTP send probes+6readonlyUI pass;DB62/51/146 integrity/FKs+normalisedSQL/auth unchanged. Failedacb069eCI not accepted;later5fa51a6 testfix excluded. [Deployment](../internal/web-delivery-recovery.md#deployment);reloadtabs,no live chat mutations.
 
 - [x] Correct passkey prompt-cancel fixture after CI36232554338 failed: old100mssleep could abort /login/start before credentials.get,then real409 on immediate retry. Observe actual forwarded credentials.get call before cancelling;9repeat/189fullpasskey+121functional(11skips)+core/vet/hooks/review pass,no timeouts/security changes. Rapid cancel-during-start remains a separate open UX gap,not fixed by this test correction.

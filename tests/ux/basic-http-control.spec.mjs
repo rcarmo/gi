@@ -76,3 +76,39 @@ test('HTTP lost steering acknowledgement confirms the source receipt without res
   expect((await h.read(`/api/sessions/${h.id}/turns`)).turns).toHaveLength(1);await page.reload();await expect(h.input).toHaveValue(newer);expect(posts).toBe(1);
  }finally{release();await h.close()}
 });
+
+test('HTTP captured Stop preserves FIFO until explicit fenced Resume queue, including reload',async({page},info)=>{
+ const h=await setup(page,info);try{
+  const queued=[];
+  for(const prompt of ['queued first','queued second']){const response=await page.request.post(h.origin+`/api/sessions/${h.id}/prompt`,{data:{prompt,model:'test-model',intent:'queue'}});expect(response.status()).toBe(202);queued.push(await response.json());}
+  const before=(await h.read(`/api/sessions/${h.id}/queue`)).items;
+  await h.input.fill('unsent after stop Ω');
+  await page.locator('.compose-box input[type=file]').setInputFiles({name:'resume-keep.txt',mimeType:'text/plain',buffer:Buffer.from('resume preserves attachment')});
+  const stop=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${h.id}/activity`));await page.getByRole('button',{name:'Stop response',exact:true}).click();expect((await stop).status()).toBe(200);
+  await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/activity`)).status).toBe('idle');
+  expect((await h.read(`/api/sessions/${h.id}/activity`)).queue_hold_turn_id).toBe(h.turn);
+  expect((await h.read(`/api/sessions/${h.id}/queue`)).items).toEqual(before);
+  await expect(page.getByRole('button',{name:'Resume queue',exact:true})).toBeEnabled();await expect(h.input).toHaveValue('unsent after stop Ω');await expect(page.locator('.compose-file-pill[title="resume-keep.txt"]')).toBeVisible();
+  await page.reload();await expect(page.getByRole('button',{name:'Resume queue',exact:true})).toBeEnabled();await expect(h.input).toHaveValue('unsent after stop Ω');
+  expect((await page.request.post(h.origin+`/api/sessions/${h.id}/resume-queue`,{data:{stop_turn_id:'stale'}})).status()).toBe(409);
+  expect((await page.request.post(h.origin+`/api/sessions/${h.id}/continue`,{data:{}})).status()).toBe(400);
+  expect((await h.read(`/api/sessions/${h.id}/queue`)).items).toEqual(before);
+  const resumed=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${h.id}/resume-queue`));await page.getByRole('button',{name:'Resume queue',exact:true}).click();const response=await resumed;expect(response.status()).toBe(200);expect(response.request().postDataJSON()).toEqual({stop_turn_id:h.turn});
+  await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/turns`)).turns.filter(t=>queued.some(q=>q.turn_id===t.id)&&t.status==='completed').length).toBe(2);
+  await expect(page.getByRole('button',{name:'Resume queue',exact:true})).toHaveCount(0);
+  await expect(h.input).toHaveValue('unsent after stop Ω');await expect(page.locator('.compose-file-pill[title="resume-keep.txt"]')).toBeVisible();
+  expect((await page.request.post(h.origin+`/api/sessions/${h.id}/resume-queue`,{data:{stop_turn_id:h.turn}})).status()).toBe(409);
+  expect((await h.read(`/api/sessions/${h.id}/turns`)).turns).toHaveLength(3);
+ }finally{await h.close()}
+});
+
+test('HTTP lost Resume acknowledgement reconciles without replay or clearing next draft',async({page},info)=>{
+ const h=await setup(page,info);try{
+  const response=await page.request.post(h.origin+`/api/sessions/${h.id}/prompt`,{data:{prompt:'resume once',intent:'queue',model:'test-model'}});expect(response.status()).toBe(202);const next=await response.json();
+  await h.input.fill('keep after lost resume');await page.getByRole('button',{name:'Stop response',exact:true}).click();await expect(page.getByRole('button',{name:'Resume queue',exact:true})).toBeEnabled();
+  let posts=0;await page.route(`**/api/sessions/${h.id}/resume-queue`,async r=>{posts++;const accepted=await r.fetch();expect(accepted.status()).toBe(200);await r.abort('failed')});
+  await page.getByRole('button',{name:'Resume queue',exact:true}).click();await expect(page.getByText(/Resume not confirmed/)).toBeVisible();
+  await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/turns`)).turns.find(t=>t.id===next.turn_id)?.status).toBe('completed');await expect(page.getByRole('button',{name:'Resume queue',exact:true})).toHaveCount(0);await expect(h.input).toHaveValue('keep after lost resume');expect(posts).toBe(1);
+  await page.reload();await expect(h.input).toHaveValue('keep after lost resume');expect(posts).toBe(1);expect((await h.read(`/api/sessions/${h.id}/turns`)).turns).toHaveLength(2);
+ }finally{await h.close()}
+});
