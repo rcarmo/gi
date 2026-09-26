@@ -16,6 +16,21 @@ queued-draft restart persistence still need a journal/ownership contract that
 cannot offer already-accepted work as unsent after a crash. Generic submission
 failure recovery and unavailable-provider validation remain separate work.
 
+## Deployment
+
+Exact `c8450508f54fa452b1bc98baae9e1d66ed515cc7` passed product
+[CI36225264763](https://github.com/rcarmo/gi/actions/runs/36225264763), including
+terminal submit/retry PTYs and all four platform builds. Run36225411598 was an
+Actions-cleanup workflow, not product CI; it supplies no deployment acceptance.
+
+Detached-source Makefile build/restart runs on8090, PID1130830,
+PGID/SID1130724. Six read-only Chromium/WebKit probes at390/820/1440 pass existing
+composer/model/session/context/theme/focus/draft checks with zero HTTP writes,
+errors or permission requests. DB62sessions/51turns/146messages, integrity/FKs,
+normalised SQL excluding runtime leases, and absent auth remain unchanged.
+Newer plaintext/paired journal code is excluded. Terminal submission acceptance
+uses disposable PTYs, not live mutations or physical/Visual acceptance.
+
 ## Verification
 
 - `make test-tui-submit-guards`: race checks, three repeats. Covers idle/busy,
