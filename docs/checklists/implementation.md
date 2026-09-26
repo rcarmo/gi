@@ -4,6 +4,9 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Add unwired native plaintext journal: revision-CAS Unicode text/cursor, random256bit claim tokens, held unknown outcomes, confirmed receipts and rejected-snapshot restore/discard without newer-edit overwrite. Race×3two-client/reopen/largeUnicode/corruption/fault/ABA/exhaustion tests+core/vet/hooks+107functional(11skips)pass. Review findings fixed/tested; [contract](../internal/tui-text-journal.md). No autosave/UI/queued-recall persistence yet;CI/deploy separate.
+- [ ] Wire plaintext journal only after callback/session-visit conflicts, text+media claims, token provenance and routed admission are guarded; prove crash/restart with disposable PTYs, no implicit replay/extra idle UI. Accepted-work queued recall remains separate.
+
 - [x] Preserve plaintext draft/cursor/undo/history/queued shortcuts when no model is selected, before admission/media mutation, idle or busy. Six fullscreen/regularPTYs prove repeatedReturn retention, Alt-M no-submit then exactUnicode one-turn admission/noidle growth; race×3/core/vet/hooks+107functional(11skips) pass,requiredCI updated. [Evidence](../internal/tui-submit-guards.md);review timeout not acceptance,CI/deploy pending. Durable text/queued-draft persistence remains separate.
 
 - [x] Deploy exactee4e9c2 after wholeCI36221007199 from detached source; includes cache/media/queue, excludes retry9e49ad8.8090PID1047653/PGID1047547; six read-only Chromium/WebKit probes pass,zero writes/errors/permissions. DB62/51/146 integrity/FKs+normalisedSQL/auth unchanged. DisposablePTY evidence retained; no live terminal mutations or physical/Visual acceptance. [Deployment](../internal/tui-queue-commands.md#deployment).

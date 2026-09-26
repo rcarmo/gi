@@ -10,6 +10,8 @@ their historical scope. [Held-turn retry admission](held-turn-retry.md)
 records exclusive reservations and atomic recovery. [Terminal held retry](tui-held-retry.md)
 records bounded check/run/release commands, session guards and PTY acceptance.
 [Terminal pre-admission guards](tui-submit-guards.md) records no-model draft retention.
+[Plaintext journal prerequisite](tui-text-journal.md) records revision/claim storage;
+terminal autosave is not wired yet.
 [Explicit terminal queue commands](tui-queue-commands.md)
 records bounded durable inspection/removal/steering. [Durable terminal attachment references](tui-media-journal.md)
 records transactional staging and conservative admission recovery. [Reuse unchanged terminal editor layout](tui-editor-layout-cache.md)
