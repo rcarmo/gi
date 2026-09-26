@@ -1,6 +1,20 @@
 # Compose and panel pixel baseline
 
-The cross-UI pixel gate fails. The original baseline captured 72 images with no route or page errors, but all 18 Gi/Piclaw comparisons differed and 13 of 36 same-host comparisons were unstable. The latest model-accessibility run, `run-1790388645020-660300`, captured all 72 images from source `b991e4e` (web changes through `497e264`), with no capture errors. All 18 cross-host frames differ and 14/36 same-host pairs are unstable. Compose-region differences are 243–1,135 pixels: phone light/dark 243/754, tablet 286/816, desktop 298/1,135. Explicit `PIXEL_RUN_DIR` comparison confirms the failure. The preceding [local-notification run](local-notifications.md) measured 242–1,048 pixels; neither run establishes parity. Voice/local-notification event contracts are tested; real audio/OS prompts, background delivery and raster stability remain open. Geometry tests and successful screenshot capture do not establish pixel parity.
+The cross-UI pixel gate fails. The original baseline captured 72 images with no route or page errors, but all 18 Gi/Piclaw comparisons differed and 13 of 36 same-host comparisons were unstable. The previous model-accessibility run, `run-1790388645020-660300`, captured all 72 images from source `b991e4e` (web changes through `497e264`), with no capture errors. All 18 cross-host frames differ and 14/36 same-host pairs are unstable. Compose-region differences are 243–1,135 pixels: phone light/dark 243/754, tablet 286/816, desktop 298/1,135. Explicit `PIXEL_RUN_DIR` comparison confirms the failure. The preceding [local-notification run](local-notifications.md) measured 242–1,048 pixels; neither run establishes parity. Voice/local-notification event contracts are tested; real audio/OS prompts, background delivery and raster stability remain open. Geometry tests and successful screenshot capture do not establish pixel parity.
+
+## Context fixture correction and control diagnostics
+
+Latest full run `run-1790389852956-701432` captures all 72 frames without capture errors. All 18 cross-host frames differ and 16/36 repeat pairs are unstable. Compose-region differences are phone light/dark 243/760, tablet 242/865 and desktop 308/1,025 pixels. Explicit saved-run comparison still fails. This supersedes the counts above without invalidating their retained evidence.
+
+The fixture used `context_window` inside Gi's context usage object, whereas `SessionContextUsage` emits `contextWindow`. This made Gi display an unknown capacity against Piclaw's 66K. The fixture now uses the native camelCase field, and both host adapters derive context from that one object. A new helper checks equal capacity/tokens/percent. All 15 pixel helpers pass. No application capability or UI styling changed.
+
+Read-only post-screenshot metadata now records each compose control's bounds, SVG, computed styles and ancestor opacity/filter. It cannot affect captured pixels or acceptance. Desktop-only diagnostic run `run-1790389697219-698188` was explicitly partial; it found these differences:
+
+- The context control opacity is 0.7 in Piclaw and 0.3 in Gi. After the fixture correction both show 66K, but Piclaw exposes compaction and Gi's composer hook is disabled. This remains a capability difference, not a reason to force-enable or recolour a disabled action.
+- The dark model hint computes `rgb(130, 134, 139)` in Piclaw and `rgb(113, 118, 123)` in Gi, despite matching outer geometry. Its cascade cause is not established.
+- Desktop session-trigger x/width differ by 1/64px. The labels and nominal outer compose rectangles match; this does not establish a raster cause.
+
+Original images, failure reports and subset disclosures are preserved. No masks, tolerances, font flags, image resizing or pass selection were introduced. A delegated pixel review timed out without findings. Screen-reader/device/Visual acceptance remains separate.
 
 ## Run
 

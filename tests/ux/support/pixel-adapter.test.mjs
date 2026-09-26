@@ -18,6 +18,14 @@ test('native snapshot has array errors and equal model/session identities',()=>f
  const sessions=await page.request(a.origin,'/agent/active-chats');expect(sessions.response.json.chats[0].agent_name).toBe(state.sessionLabel);expect(sessions.response.json.chats[0].model).toBe(state.model.current);
  expect(a.failures).toEqual([]);
 }));
+test('both pixel hosts receive identical known context capacity using native camelCase',async()=>{
+ let native,classic;
+ await fixture('gi',async(page,a)=>{native=(await page.request(a.origin,'/api/sessions/main/model')).response.json.context_usage;});
+ await fixture('piclaw',async(page,a)=>{classic=(await page.request(a.origin,'/agent/context')).response.json;});
+ expect(native).toEqual({tokens:0,contextWindow:65536,percent:0});
+ expect(classic.contextWindow).toBe(native.contextWindow);expect(classic.tokens).toBe(native.tokens);expect(classic.percent).toBe(native.percent);
+ expect(native.context_window).toBeUndefined();
+});
 test('undeclared writes, origins and wrong session scopes fail closed',()=>fixture('gi',async(page,a)=>{
  await page.request(a.origin,'/api/sessions','POST');await page.request('https://example.invalid','/api/sessions');await page.request(a.origin,'/api/sessions?chat_jid=wrong');
  expect(a.failures).toHaveLength(3);expect(()=>a.assert()).toThrow();

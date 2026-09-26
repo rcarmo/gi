@@ -91,7 +91,18 @@ for(const viewportName of viewports)for(const theme of themes)for(const scenario
    record.sha256=hash(await readFile(resolve(runDir,record.file)));
    adapter.assert();
    for(const [url,asset]of Object.entries(adapter.assets))if(host==='gi'&&candidate[relative(candidateRoot,asset.path)]?.sha256!==asset.sha256)throw Error(`Candidate asset changed: ${url}`);
-   record.paint=await page.evaluate(()=>{const e=document.querySelector('.compose-input-wrapper'),c=getComputedStyle(e);return {active:document.activeElement?.outerHTML?.slice(0,180),border:c.border,background:c.background,transform:c.transform,zoom:c.zoom,animations:document.getAnimations().map(a=>({time:a.currentTime,state:a.playState,timing:a.effect?.getComputedTiming()}))};});
+   // Read-only diagnostics after the final frame: inspect inherited and ancestor
+   // paint independently from geometry. These fields never alter acceptance.
+   record.paint=await page.evaluate(()=>{
+    const style=e=>{const c=getComputedStyle(e);return {color:c.color,background:c.background,opacity:c.opacity,filter:c.filter,backdropFilter:c.backdropFilter,fill:c.fill,stroke:c.stroke,font:c.font,border:c.border,boxShadow:c.boxShadow,transform:c.transform,zoom:c.zoom};};
+    const controls=[...document.querySelectorAll('.compose-box button, .compose-box select, .compose-context-usage')].map(e=>({
+     tag:e.tagName,class:e.className,label:e.getAttribute('aria-label'),title:e.getAttribute('title'),disabled:e.disabled??null,text:e.textContent,
+     rect:e.getBoundingClientRect().toJSON(),style:style(e),svg:e.querySelector('svg')?.outerHTML,
+     ancestors:(()=>{const rows=[];for(let p=e.parentElement;p&&rows.length<5;p=p.parentElement)rows.push({tag:p.tagName,class:p.className,style:style(p)});return rows;})(),
+    }));
+    const e=document.querySelector('.compose-input-wrapper'),c=getComputedStyle(e);
+    return {active:document.activeElement?.outerHTML?.slice(0,180),border:c.border,background:c.background,transform:c.transform,zoom:c.zoom,controls,animations:document.getAnimations().map(a=>({time:a.currentTime,state:a.playState,timing:a.effect?.getComputedTiming()}))};
+   });
    record.status='captured';
   }catch(e){record.error=e.message;failures.push(`${key}/${host}/${repeat}: ${e.message}`);if(page)await page.screenshot({path:resolve(runDir,`${key}-${host}-${repeat}-failure.png`),animations:'disabled'}).catch(()=>{});console.error(failures.at(-1));}
   finally{

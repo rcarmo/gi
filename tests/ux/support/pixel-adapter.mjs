@@ -17,7 +17,7 @@ export async function installPixelHost({page,host,root,state,reference}){
  const server=createServer((req,res)=>{const u=new URL(req.url,'http://fixture');if(req.method!=='GET'||!['/sse/stream','/sse/topics'].includes(u.pathname)){failures.push(`Unexpected native request ${req.method} ${u.pathname}`);res.writeHead(404);res.end();return;}res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-store'});res.write(': pixel fixture\n\n');streams.set(res,u.pathname);res.on('close',()=>streams.delete(res));});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));const origin=`http://127.0.0.1:${server.address().port}`;
  const session={id:'main',title:state.sessionLabel,scope:{agent_id:'web'},state:{selected_model:state.model.current},created_at:state.now,updated_at:state.now,status:'idle',parent_session_id:null};
- const context={tokens:0,contextWindow:65536,percent:0,compact_command:'/compact'};
+ const context={...state.model.context_usage,compact_command:'/compact'};
  // Piclaw agent_name is the session handle here, not the global assistant
  // identity; Gi's sessionToActiveChat projects session.title the same way.
  const chat={chat_jid:state.sessionId,name:state.sessionLabel,agent_name:state.sessionLabel,model:state.model.current,parent_chat_jid:null,root_chat_jid:state.sessionId,created_at:state.now,updated_at:state.now,is_archived:false,is_pinned:false,is_running:false,message_count:0,session_kind:'root'};
