@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { staleTerminalEvent } from './gi-turn-event.js';
 import { speechPlayback } from './gi-post-speech.js';
+import { useGiNotifications } from './gi-notifications.js';
 import { ToolActivity } from './gi-tool-activity.js';
 /**
  * app.ts — Gi entry point.
@@ -416,6 +417,9 @@ function GiApp() {
     } = useAgentState();
 
     const currentChatJid = useMemo(() => sessionId ? sessionToChatJid(sessionId) : '', [sessionId]);
+    const localNotifications = useGiNotifications(currentChatJid, chat => {
+        if (chat.startsWith('gi:')) void handleSwitchChat(chat);
+    });
     useLayoutEffect(() => {
         speechPlayback.setScope(currentChatJid);
         return () => speechPlayback.setScope(null);
@@ -616,6 +620,7 @@ function GiApp() {
 
     const handleSseEvent = useCallback((eventType: string, data: any) => {
         if (!selection.current() || data?.chat_jid !== sessionToChatJid(selection.current()!)) return;
+        void localNotifications.event(eventType, data);
         if(eventType==='connected'&&versionGuard.observe(data?.app_asset_version))setNewUIVersion(data.app_asset_version);
         const staleTerminal = staleTerminalEvent(eventType, data, currentTurnIdRef.current);
         if (eventType === 'tool_activity_changed') {
@@ -1154,6 +1159,7 @@ function GiApp() {
                 ${compactError && html`<div role="alert">${compactError}</div>`}
                 ${draftStorageError && html`<div role="alert">${draftStorageError}</div>`}
                 ${drafts.error(sessionId) && html`<div role="alert">${drafts.error(sessionId)}</div>`}
+                ${localNotifications.notice && html`<div class="gi-notification-status" role="status"><span>${localNotifications.notice}</span><button type="button" aria-label="Dismiss notification status" onClick=${localNotifications.dismiss}>×</button></div>`}
                 <${ComposeTransfer} sessionId=${sessionId} hidden=${searchState.active} />
                 <${ComposeBox}
                     statusNotice=${notice}
@@ -1273,8 +1279,9 @@ function GiApp() {
                     thinkingLevel=${activeThinkingLevel}
                     supportsThinking=${supportsThinking}
                     followupQueueCount=${followupQueueItems.length}
-                    notificationsEnabled=${false}
-                    notificationPermission="default"
+                    notificationsEnabled=${localNotifications.enabled}
+                    notificationPermission=${localNotifications.permission}
+                    onToggleNotifications=${localNotifications.supported ? localNotifications.toggle : undefined}
                     onComposeSubmitError=${() => {}}
                     pendingRequestRef=${pendingRequestRef}
                     setPendingRequest=${setPendingRequest}

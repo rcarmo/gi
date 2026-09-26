@@ -2,6 +2,7 @@ import { html, useEffect, useLayoutEffect, useRef, useState } from './vendor/pre
 import { authJSON, passkeyUnavailable, runPasskey } from './gi-passkeys.js';
 import { parseAuthPolicy } from './gi-auth-policy.js';
 import { GiSettingsSetup } from './gi-settings-setup.js';
+import { cleanupLocalNotifications } from './gi-notifications-state.js';
 
 const removalReasons = new Map([
     ['other-rp', 'The other passkey cannot sign in here because it is registered for another relying party.'],
@@ -107,6 +108,8 @@ export function GiSettingsAuthentication() {
         setBusy(checkOnly ? 'Checking sign-in status…' : 'Signing out…'); setError(''); setNotice(''); setRemovalDetail('');
         try {
             if (!checkOnly) {
+                await cleanupLocalNotifications(window);
+                if (!live.current || controller.signal.aborted) return;
                 const result = await authJSON('/api/auth/session/logout', {}, controller.signal);
                 if (result.ok !== true) throw new Error('Sign-out could not be confirmed. Check sign-in status before retrying.');
             }

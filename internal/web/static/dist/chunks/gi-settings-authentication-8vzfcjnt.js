@@ -4,11 +4,12 @@ import {
   W_,
   Q_,
   fe,
+  cleanupLocalNotifications,
   authJSON,
   passkeyUnavailable,
   runPasskey,
   parseAuthPolicy
-} from "./app-986fnx07.js";
+} from "./app-30sc0ntf.js";
 
 // web/src/gi-settings-setup.ts
 function GiSettingsSetup({ available, disabled, onComplete, onBusy }) {
@@ -329,6 +330,9 @@ function GiSettingsAuthentication() {
     setRemovalDetail("");
     try {
       if (!checkOnly) {
+        await cleanupLocalNotifications(window);
+        if (!live.current || controller.signal.aborted)
+          return;
         const result = await authJSON("/api/auth/session/logout", {}, controller.signal);
         if (result.ok !== true)
           throw new Error("Sign-out could not be confirmed. Check sign-in status before retrying.");
@@ -433,5 +437,5 @@ export {
   GiSettingsAuthentication
 };
 
-//# debugId=576DF8EA583E52EB64756E2164756E21
-//# sourceMappingURL=gi-settings-authentication-r1911kx5.js.map
+//# debugId=DCCCDA564AA2829E64756E2164756E21
+//# sourceMappingURL=gi-settings-authentication-8vzfcjnt.js.map

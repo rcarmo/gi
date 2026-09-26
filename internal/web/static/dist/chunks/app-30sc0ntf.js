@@ -730,6 +730,581 @@ function l_(e) {
 }
 var fe = l_.bind(e_);
 
+// web/src/ui/notification-delivery-coordinator.ts
+var DEVICE_ID_KEY = "piclaw.notifications.deviceId";
+var CLIENT_ID_KEY = "piclaw.notifications.clientId";
+var PRESENCE_KEY_PREFIX = "piclaw.notifications.presence.";
+var LOCAL_NOTIFICATION_PRESENCE_TTL_MS = 120000;
+function safeStorageGet(storage, key) {
+  if (!storage || !key)
+    return null;
+  try {
+    return storage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function safeStorageSet(storage, key, value) {
+  if (!storage || !key)
+    return;
+  try {
+    storage.setItem(key, value);
+  } catch {
+    return;
+  }
+}
+function safeStorageRemove(storage, key) {
+  if (!storage || !key)
+    return;
+  try {
+    storage.removeItem(key);
+  } catch {
+    return;
+  }
+}
+function createRandomId(prefix = "piclaw") {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return `${prefix}-${crypto.randomUUID()}`;
+    }
+  } catch (error) {
+    console.debug("[notification-delivery-coordinator] crypto.randomUUID threw; falling back to Math.random-based id.", error);
+  }
+  return `${prefix}-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+}
+function getOrCreateNotificationDeviceId(runtimeWindow = typeof window !== "undefined" ? window : null) {
+  const storage = runtimeWindow?.localStorage;
+  const existing = safeStorageGet(storage, DEVICE_ID_KEY);
+  if (existing)
+    return existing;
+  const created = createRandomId("device");
+  safeStorageSet(storage, DEVICE_ID_KEY, created);
+  return safeStorageGet(storage, DEVICE_ID_KEY) || created;
+}
+function getOrCreateNotificationClientId(runtimeWindow = typeof window !== "undefined" ? window : null) {
+  const sessionStorage2 = runtimeWindow?.sessionStorage;
+  const existing = safeStorageGet(sessionStorage2, CLIENT_ID_KEY);
+  if (existing)
+    return existing;
+  const fallbackExisting = runtimeWindow?.__PICLAW_NOTIFICATION_CLIENT_ID__;
+  if (typeof fallbackExisting === "string" && fallbackExisting.trim())
+    return fallbackExisting.trim();
+  const created = createRandomId("client");
+  safeStorageSet(sessionStorage2, CLIENT_ID_KEY, created);
+  if (runtimeWindow) {
+    runtimeWindow.__PICLAW_NOTIFICATION_CLIENT_ID__ = safeStorageGet(sessionStorage2, CLIENT_ID_KEY) || created;
+  }
+  return runtimeWindow?.__PICLAW_NOTIFICATION_CLIENT_ID__ || created;
+}
+function getPresenceStorageKey(deviceId, clientId) {
+  return `${PRESENCE_KEY_PREFIX}${String(deviceId || "").trim()}:${String(clientId || "").trim()}`;
+}
+function createLocalNotificationPresenceSnapshot(options = {}) {
+  const runtimeWindow = options.runtimeWindow ?? (typeof window !== "undefined" ? window : null);
+  const runtimeDocument = options.runtimeDocument ?? (typeof document !== "undefined" ? document : null);
+  const chatJid = typeof options.chatJid === "string" && options.chatJid.trim() ? options.chatJid.trim() : "";
+  const deviceId = typeof options.deviceId === "string" && options.deviceId.trim() ? options.deviceId.trim() : getOrCreateNotificationDeviceId(runtimeWindow);
+  const clientId = typeof options.clientId === "string" && options.clientId.trim() ? options.clientId.trim() : getOrCreateNotificationClientId(runtimeWindow);
+  const updatedAtMs = Number.isFinite(options.updatedAtMs) ? Number(options.updatedAtMs) : Date.now();
+  const hasFocus = Boolean(typeof runtimeDocument?.hasFocus === "function" ? runtimeDocument.hasFocus() : true);
+  const rawVisibility = String(runtimeDocument?.visibilityState || "").trim().toLowerCase();
+  const visibilityState = rawVisibility === "hidden" ? "hidden" : "visible";
+  return {
+    deviceId,
+    clientId,
+    chatJid,
+    visibilityState,
+    hasFocus,
+    updatedAtMs
+  };
+}
+function publishLocalNotificationPresence(snapshot, runtimeWindow = typeof window !== "undefined" ? window : null) {
+  const storage = runtimeWindow?.localStorage;
+  const deviceId = typeof snapshot?.deviceId === "string" ? snapshot.deviceId.trim() : "";
+  const clientId = typeof snapshot?.clientId === "string" ? snapshot.clientId.trim() : "";
+  const chatJid = typeof snapshot?.chatJid === "string" ? snapshot.chatJid.trim() : "";
+  if (!storage || !deviceId || !clientId || !chatJid)
+    return false;
+  safeStorageSet(storage, getPresenceStorageKey(deviceId, clientId), JSON.stringify({
+    deviceId,
+    clientId,
+    chatJid,
+    visibilityState: snapshot.visibilityState === "hidden" ? "hidden" : "visible",
+    hasFocus: Boolean(snapshot.hasFocus),
+    updatedAtMs: Number.isFinite(snapshot.updatedAtMs) ? Number(snapshot.updatedAtMs) : Date.now()
+  }));
+  return true;
+}
+function withdrawLocalNotificationPresence(value, runtimeWindow = typeof window !== "undefined" ? window : null) {
+  const storage = runtimeWindow?.localStorage;
+  const deviceId = typeof value?.deviceId === "string" ? value.deviceId.trim() : "";
+  const clientId = typeof value?.clientId === "string" ? value.clientId.trim() : "";
+  if (!storage || !deviceId || !clientId)
+    return false;
+  safeStorageRemove(storage, getPresenceStorageKey(deviceId, clientId));
+  return true;
+}
+function listLiveLocalNotificationPresence(options = {}) {
+  const runtimeWindow = options.runtimeWindow ?? (typeof window !== "undefined" ? window : null);
+  const storage = runtimeWindow?.localStorage;
+  const deviceId = typeof options.deviceId === "string" && options.deviceId.trim() ? options.deviceId.trim() : getOrCreateNotificationDeviceId(runtimeWindow);
+  const nowMs = Number.isFinite(options.nowMs) ? Number(options.nowMs) : Date.now();
+  const ttlMs = Number.isFinite(options.ttlMs) ? Number(options.ttlMs) : LOCAL_NOTIFICATION_PRESENCE_TTL_MS;
+  if (!storage || !deviceId)
+    return [];
+  const keyPrefix = `${PRESENCE_KEY_PREFIX}${deviceId}:`;
+  const live = [];
+  const staleKeys = [];
+  for (let index = 0;index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (!key || !key.startsWith(keyPrefix))
+      continue;
+    const raw = safeStorageGet(storage, key);
+    if (!raw) {
+      staleKeys.push(key);
+      continue;
+    }
+    try {
+      const parsed = JSON.parse(raw);
+      const updatedAtMs = Number(parsed?.updatedAtMs);
+      if (!Number.isFinite(updatedAtMs) || nowMs - updatedAtMs > ttlMs) {
+        staleKeys.push(key);
+        continue;
+      }
+      const chatJid = typeof parsed?.chatJid === "string" ? parsed.chatJid.trim() : "";
+      const clientId = typeof parsed?.clientId === "string" ? parsed.clientId.trim() : "";
+      if (!chatJid || !clientId) {
+        staleKeys.push(key);
+        continue;
+      }
+      live.push({
+        deviceId,
+        clientId,
+        chatJid,
+        visibilityState: parsed?.visibilityState === "hidden" ? "hidden" : "visible",
+        hasFocus: Boolean(parsed?.hasFocus),
+        updatedAtMs
+      });
+    } catch {
+      staleKeys.push(key);
+    }
+  }
+  staleKeys.forEach((key) => safeStorageRemove(storage, key));
+  return live.sort((left, right) => left.clientId.localeCompare(right.clientId));
+}
+function shouldNotifyLocallyForChat(options = {}) {
+  const snapshot = createLocalNotificationPresenceSnapshot(options);
+  const chatJid = snapshot.chatJid;
+  if (!chatJid)
+    return false;
+  const entries = listLiveLocalNotificationPresence({
+    runtimeWindow: options.runtimeWindow,
+    deviceId: snapshot.deviceId,
+    nowMs: snapshot.updatedAtMs,
+    ttlMs: options.ttlMs
+  }).filter((entry) => entry.chatJid === chatJid && entry.clientId !== snapshot.clientId);
+  const candidates = [snapshot, ...entries];
+  if (candidates.some((entry) => entry.visibilityState === "visible")) {
+    return false;
+  }
+  const leader = [...candidates].sort((left, right) => left.clientId.localeCompare(right.clientId))[0] || null;
+  return Boolean(leader && leader.clientId === snapshot.clientId);
+}
+
+// web/src/gi-notifications-state.ts
+var NOTIFICATION_PREFERENCE = "gi_notifications_v1";
+var NOTIFICATION_SEEN = "gi_notifications_seen_v1";
+var LOCK = "gi-notification-delivery";
+var MAX_AGE = 120000;
+var MAX_SEEN = 256;
+async function cleanupLocalNotifications(win) {
+  const pending = [];
+  win.dispatchEvent(new win.CustomEvent("gi-notification-cleanup", { detail: { waitUntil: (promise) => pending.push(Promise.resolve(promise)) } }));
+  await Promise.all(pending);
+}
+function notificationCandidate(type, data, chat, now, since) {
+  if (type !== "new_post" || data?.chat_jid !== chat || !data?.id || data?.is_bot_message !== true || data?.is_from_me === true || data?.sender === "system" || data?.data?.type !== "agent_response")
+    return null;
+  const timestamp = Date.parse(data.timestamp);
+  if (!Number.isFinite(timestamp) || timestamp < since || timestamp < now - MAX_AGE || timestamp > now + 5000)
+    return null;
+  const payload = data.data;
+  if (payload.content_blocks?.length || data.content_blocks?.length || payload.kind || data.kind || payload.suppress_notification || data.suppress_notification)
+    return null;
+  const text = typeof payload.content === "string" ? payload.content : "";
+  if (!text.trim())
+    return null;
+  return { key: JSON.stringify([chat, String(data.id)]), timestamp };
+}
+function notificationCapability(win) {
+  if (!win?.isSecureContext)
+    return "Local notifications require HTTPS or localhost.";
+  if (typeof win.Notification !== "function")
+    return "This browser has no local notification API.";
+  if (!win.navigator?.locks?.request)
+    return "This browser lacks the locking required for duplicate-safe local notifications.";
+  return "";
+}
+function createLocalNotifications({ win, doc, now = () => Date.now(), notify, selectChat, focus, timers = globalThis }) {
+  let disposed = false, paused = false, generation = 0, chat = "", enabled = false, permission = "default", notice = "", requesting = false, interval;
+  let started = now(), device = "", client = "", permissionCancel = null;
+  const open = new Set, pendingLocks = new Set;
+  const retire = () => {
+    generation++;
+    requesting = false;
+    permissionCancel?.();
+    permissionCancel = null;
+    for (const controller of pendingLocks)
+      controller.abort();
+    pendingLocks.clear();
+  };
+  const capability = notificationCapability(win);
+  const storage = () => win.localStorage;
+  const report = () => {
+    if (!disposed)
+      notify({ supported: !capability, enabled, permission, notice, requesting });
+  };
+  const close = () => {
+    for (const n of open) {
+      n.onclick = null;
+      n.onclose = null;
+      try {
+        n.close();
+      } catch {}
+    }
+    open.clear();
+  };
+  const withdraw = () => {
+    try {
+      if (device && client)
+        withdrawLocalNotificationPresence({ deviceId: device, clientId: client }, win);
+    } catch {}
+  };
+  const fail = (message) => {
+    enabled = false;
+    notice = message;
+    close();
+    try {
+      storage().setItem(NOTIFICATION_PREFERENCE, "false");
+    } catch {}
+    report();
+  };
+  const publish = () => {
+    if (disposed || paused || capability || !chat)
+      return false;
+    try {
+      const storedDevice = storage().getItem("piclaw.notifications.deviceId");
+      if (!storedDevice)
+        throw Error("device identity missing");
+      if (storedDevice !== device) {
+        withdraw();
+        device = storedDevice;
+      }
+      const snapshot = createLocalNotificationPresenceSnapshot({ runtimeWindow: win, runtimeDocument: doc, deviceId: device, clientId: client, chatJid: chat, updatedAtMs: now() });
+      publishLocalNotificationPresence(snapshot, win);
+      const saved = JSON.parse(storage().getItem(`piclaw.notifications.presence.${device}:${client}`) || "null");
+      if (saved?.chatJid !== chat || saved?.updatedAtMs !== snapshot.updatedAtMs)
+        throw Error("presence write");
+      return true;
+    } catch {
+      fail("Local notifications unavailable: browser storage could not retain coordination state.");
+      return false;
+    }
+  };
+  const readPreference = () => {
+    try {
+      const value = storage().getItem(NOTIFICATION_PREFERENCE);
+      if (value !== null && value !== "true" && value !== "false")
+        throw Error("invalid preference");
+      return value === "true";
+    } catch {
+      fail("Local notifications unavailable: browser storage could not be read.");
+      return false;
+    }
+  };
+  const sync = () => {
+    if (disposed)
+      return;
+    permission = win.Notification?.permission || "default";
+    if (paused) {
+      enabled = false;
+      report();
+      return;
+    }
+    enabled = !capability && permission === "granted" && readPreference();
+    if (!enabled)
+      close();
+    publish();
+    report();
+  };
+  if (!capability) {
+    try {
+      device = storage().getItem("piclaw.notifications.deviceId") || `device-${win.crypto.randomUUID()}`;
+      storage().setItem("piclaw.notifications.deviceId", device);
+      device = storage().getItem("piclaw.notifications.deviceId");
+      client = `client-${win.crypto.randomUUID()}`;
+    } catch {
+      notice = "Local notifications unavailable: browser storage or identity creation failed.";
+    }
+  }
+  const available = () => !capability && !!device && !!client;
+  const stateChange = () => sync(), hide = () => {
+    paused = true;
+    retire();
+    withdraw();
+    close();
+    report();
+  }, show = () => {
+    paused = false;
+    started = now();
+    sync();
+  };
+  const storageChange = (event) => {
+    if (event.key === "piclaw.notifications.deviceId") {
+      publish();
+      return;
+    }
+    if (event.key === NOTIFICATION_PREFERENCE || event.key === null) {
+      retire();
+      sync();
+    }
+  };
+  const cleanup = async () => {
+    retire();
+    enabled = false;
+    paused = true;
+    close();
+    withdraw();
+    try {
+      storage().setItem(NOTIFICATION_PREFERENCE, "false");
+    } catch {}
+    report();
+    if (!available())
+      return;
+    const controller = new AbortController, timeout = timers.setTimeout(() => controller.abort(), 5000);
+    try {
+      await win.navigator.locks.request(LOCK, { signal: controller.signal }, () => {});
+    } finally {
+      timers.clearTimeout(timeout);
+    }
+  };
+  const cleanupEvent = (event) => {
+    const barrier = cleanup();
+    if (typeof event.detail?.waitUntil === "function")
+      event.detail.waitUntil(barrier);
+    else
+      barrier.catch(() => {});
+  };
+  if (available()) {
+    permission = win.Notification.permission;
+    enabled = permission === "granted" && readPreference();
+    interval = timers.setInterval(() => publish(), 15000);
+    doc.addEventListener("visibilitychange", stateChange);
+    win.addEventListener("focus", stateChange);
+    win.addEventListener("pageshow", show);
+    win.addEventListener("pagehide", hide);
+    win.addEventListener("storage", storageChange);
+    win.addEventListener("gi-notification-cleanup", cleanupEvent);
+  }
+  report();
+  return {
+    setChat(value) {
+      if (chat === value)
+        return;
+      retire();
+      withdraw();
+      close();
+      chat = value;
+      started = now();
+      publish();
+      report();
+    },
+    async toggle() {
+      if (disposed || requesting)
+        return;
+      if (paused) {
+        paused = false;
+        started = now();
+      }
+      if (!available()) {
+        notice = capability || notice || "Local notifications unavailable.";
+        report();
+        return;
+      }
+      if (win.Notification.permission === "denied") {
+        permission = "denied";
+        fail("Notifications are blocked. Change browser permission to enable them.");
+        return;
+      }
+      const version = ++generation;
+      requesting = true;
+      notice = "";
+      report();
+      try {
+        let nextPermission = win.Notification.permission;
+        if (nextPermission === "default")
+          nextPermission = await new Promise((resolve, reject) => {
+            let settled = false;
+            const finish = (value, error) => {
+              if (settled)
+                return;
+              settled = true;
+              timers.clearTimeout(timeout);
+              permissionCancel = null;
+              if (error)
+                reject(error);
+              else
+                resolve(value);
+            };
+            const timeout = timers.setTimeout(() => finish("default", Error("permission timeout")), 15000);
+            permissionCancel = () => finish("default");
+            try {
+              Promise.resolve(win.Notification.requestPermission()).then((value) => finish(value || "default"), (error) => finish("default", error));
+            } catch (error) {
+              finish("default", error);
+            }
+          });
+        if (disposed || paused || version !== generation)
+          return;
+        permission = nextPermission || "default";
+        const next = permission === "granted" && !enabled;
+        storage().setItem(NOTIFICATION_PREFERENCE, String(next));
+        if (storage().getItem(NOTIFICATION_PREFERENCE) !== String(next))
+          throw Error("preference not retained");
+        enabled = next;
+        started = now();
+        if (!enabled)
+          close();
+        if (!publish())
+          return;
+        notice = next ? "Local notifications enabled for this browser. Matching chat tabs must remain open; Web Push and closed-tab delivery are not available." : permission === "denied" ? "Notifications were denied. Change browser permission to retry." : permission === "default" ? "Permission was not granted. Local notifications remain off." : "Local notifications disabled.";
+      } catch {
+        if (!disposed && version === generation)
+          fail("Local notification permission or storage failed. Retry explicitly; no delivery was enabled.");
+      } finally {
+        if (!disposed && version === generation) {
+          requesting = false;
+          report();
+        }
+      }
+    },
+    async event(type, data) {
+      if (disposed || paused || !available() || !enabled || win.Notification.permission !== "granted")
+        return false;
+      const candidate = notificationCandidate(type, data, chat, now(), started);
+      if (!candidate)
+        return false;
+      const version = generation, target = chat, controller = new AbortController;
+      pendingLocks.add(controller);
+      const timeout = timers.setTimeout(() => controller.abort(), 5000);
+      try {
+        return await win.navigator.locks.request(LOCK, { signal: controller.signal }, async () => {
+          if (disposed || paused || version !== generation || target !== chat || win.Notification.permission !== "granted" || !readPreference() || !notificationCandidate(type, data, chat, now(), started) || !publish())
+            return false;
+          const visible = doc.visibilityState !== "hidden" || listLiveLocalNotificationPresence({ runtimeWindow: win, deviceId: device, nowMs: now() }).some((entry) => entry.chatJid === chat && entry.visibilityState === "visible");
+          if (!visible && !shouldNotifyLocallyForChat({ runtimeWindow: win, runtimeDocument: doc, chatJid: chat, deviceId: device, clientId: client, updatedAtMs: now() }))
+            return false;
+          const raw = storage().getItem(NOTIFICATION_SEEN);
+          if (raw && raw.length > 300000)
+            throw Error("oversized dedupe state");
+          const parsed = raw === null ? [] : JSON.parse(raw);
+          if (!Array.isArray(parsed) || parsed.some((row) => !row || typeof row.key !== "string" || !Number.isFinite(row.timestamp)))
+            throw Error("invalid dedupe state");
+          const live = parsed.filter((row) => row.timestamp >= now() - MAX_AGE && row.timestamp <= now() + 5000);
+          if (live.some((row) => row.key === candidate.key) || live.length >= MAX_SEEN)
+            return false;
+          live.push(candidate);
+          const serialised = JSON.stringify(live);
+          storage().setItem(NOTIFICATION_SEEN, serialised);
+          if (storage().getItem(NOTIFICATION_SEEN) !== serialised)
+            throw Error("dedupe write");
+          if (visible || !readPreference() || version !== generation)
+            return false;
+          const n = new win.Notification("Gi", { body: "An assistant reply is ready.", tag: `gi-${String(data.id)}` });
+          open.add(n);
+          n.onclick = () => {
+            if (disposed || paused || version !== generation)
+              return;
+            focus();
+            selectChat(target);
+            try {
+              n.close();
+            } catch {}
+            open.delete(n);
+          };
+          n.onclose = () => open.delete(n);
+          if (open.size > 8) {
+            const oldest = open.values().next().value;
+            try {
+              oldest.onclick = null;
+              oldest.close();
+            } catch {}
+            open.delete(oldest);
+          }
+          return true;
+        });
+      } catch {
+        if (!disposed && version === generation)
+          fail("Local notification delivery failed. The browser may require Web Push, which Gi does not provide.");
+        return false;
+      } finally {
+        timers.clearTimeout(timeout);
+        pendingLocks.delete(controller);
+      }
+    },
+    dismiss() {
+      notice = "";
+      report();
+    },
+    cleanup,
+    dispose() {
+      if (disposed)
+        return;
+      disposed = true;
+      retire();
+      timers.clearInterval(interval);
+      withdraw();
+      close();
+      doc.removeEventListener("visibilitychange", stateChange);
+      win.removeEventListener("focus", stateChange);
+      win.removeEventListener("pageshow", show);
+      win.removeEventListener("pagehide", hide);
+      win.removeEventListener("storage", storageChange);
+      win.removeEventListener("gi-notification-cleanup", cleanupEvent);
+    }
+  };
+}
+
+// web/src/ui/notification-focus.ts
+function focusWindowBestEffort(runtime) {
+  try {
+    runtime?.focus?.();
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+// web/src/gi-notifications.ts
+function useGiNotifications(chatJid, onSelect) {
+  const [state, setState] = F_({ supported: !notificationCapability(window), enabled: false, permission: "default", notice: "", requesting: false });
+  const controller = Q_(null), select = Q_(onSelect);
+  select.current = onSelect;
+  W_(() => {
+    const c = createLocalNotifications({ win: window, doc: document, notify: setState, focus: () => focusWindowBestEffort(window), selectChat: (chat) => select.current(chat) });
+    controller.current = c;
+    c.setChat(chatJid);
+    return () => {
+      controller.current = null;
+      c.dispose();
+    };
+  }, []);
+  W_(() => {
+    controller.current?.setChat(chatJid);
+  }, [chatJid]);
+  return { ...state, toggle: () => controller.current?.toggle(), event: (type, data) => controller.current?.event(type, data), dismiss: () => controller.current?.dismiss() };
+}
+
 // web/src/gi-tool-activity.ts
 function toolElapsed(tool, now = Date.now()) {
   const start = Date.parse(tool?.started_at);
@@ -19034,11 +19609,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-rvpt9rer.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-h4xacdyp.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-hssb19nv.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-m2qx5zv2.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-r1911kx5.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-16annava.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-2mvc7j0g.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-vsvjj70k.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-ha0f7fff.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-8vzfcjnt.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -20594,6 +21169,10 @@ function GiApp() {
     draftExpandedRef
   } = useAgentState();
   const currentChatJid = u_(() => sessionId ? sessionToChatJid2(sessionId) : "", [sessionId]);
+  const localNotifications = useGiNotifications(currentChatJid, (chat) => {
+    if (chat.startsWith("gi:"))
+      handleSwitchChat(chat);
+  });
   W_(() => {
     speechPlayback.setScope(currentChatJid);
     return () => speechPlayback.setScope(null);
@@ -20878,6 +21457,7 @@ function GiApp() {
   const handleSseEvent = Y_((eventType, data) => {
     if (!selection.current() || data?.chat_jid !== sessionToChatJid2(selection.current()))
       return;
+    localNotifications.event(eventType, data);
     if (eventType === "connected" && versionGuard.observe(data?.app_asset_version))
       setNewUIVersion(data.app_asset_version);
     const staleTerminal = staleTerminalEvent(eventType, data, currentTurnIdRef.current);
@@ -21519,6 +22099,7 @@ function GiApp() {
                 ${compactError && fe`<div role="alert">${compactError}</div>`}
                 ${draftStorageError && fe`<div role="alert">${draftStorageError}</div>`}
                 ${drafts.error(sessionId) && fe`<div role="alert">${drafts.error(sessionId)}</div>`}
+                ${localNotifications.notice && fe`<div class="gi-notification-status" role="status"><span>${localNotifications.notice}</span><button type="button" aria-label="Dismiss notification status" onClick=${localNotifications.dismiss}>×</button></div>`}
                 <${ComposeTransfer} sessionId=${sessionId} hidden=${searchState.active} />
                 <${ComposeBox}
                     statusNotice=${notice}
@@ -21667,8 +22248,9 @@ function GiApp() {
                     thinkingLevel=${activeThinkingLevel}
                     supportsThinking=${supportsThinking}
                     followupQueueCount=${followupQueueItems.length}
-                    notificationsEnabled=${false}
-                    notificationPermission="default"
+                    notificationsEnabled=${localNotifications.enabled}
+                    notificationPermission=${localNotifications.permission}
+                    onToggleNotifications=${localNotifications.supported ? localNotifications.toggle : undefined}
                     onComposeSubmitError=${() => {}}
                     pendingRequestRef=${pendingRequestRef}
                     setPendingRequest=${setPendingRequest}
@@ -21707,6 +22289,7 @@ export {
   W_,
   Q_,
   fe,
+  cleanupLocalNotifications,
   subscribeModelSettlement,
   getAgentStatus,
   getSessionCompaction,
@@ -21733,5 +22316,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=825C85035848FAAA64756E2164756E21
-//# sourceMappingURL=app-986fnx07.js.map
+//# debugId=D028FF7400C99EEA64756E2164756E21
+//# sourceMappingURL=app-30sc0ntf.js.map

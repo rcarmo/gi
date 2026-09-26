@@ -2,6 +2,8 @@
 
 ## Compose/panel pixel gate
 
+`make test-ux-notifications` runs24native reply/auth cases with controlled browser notification/visibility APIs. See [local-only boundaries](../../docs/internal/local-notifications.md): no OS prompt/Web Push/family acceptance or new frozen mapping. Its72-image run still fails18crossframes and14/36repeats; compose diffs242–1048px.
+
 `make test-ux-voice-input` runs 30 controlled browser recognition cases. See [voice-input boundaries](../../docs/internal/voice-input.md): no real audio/native permission acceptance, no new frozen mapping. Its 72-image run still has 18 differing cross-host frames and 12 unstable repeats.
 
 The [contrast adaptation](../../docs/internal/compose-contrast.md) expands `make test-ux-compose-surface` to 30 cases and matches pinned foreground selection/pill padding. Its 72-image run has compose diffs of 930–1,735 pixels, 18 failing cross-host frames and 16 unstable repeats. Missing voice-input/notification controls remain explicit gaps.

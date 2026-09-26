@@ -1,0 +1,5 @@
+/* Shown only for explicit opt-in outcomes/failures; no idle notification row. */
+.gi-notification-status { display: flex; align-items: center; gap: 6px; padding: 4px 12px; font-size: 12px; color: var(--text-secondary); }
+.gi-notification-status span { flex: 1; }
+.gi-notification-status button { border: 0; background: transparent; color: inherit; min-width: 28px; min-height: 28px; cursor: pointer; }
+@media (max-width: 639px) { .gi-notification-status button { min-width: 44px; min-height: 44px; } }
