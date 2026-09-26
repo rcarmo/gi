@@ -94,3 +94,71 @@ func TestToolPreviewExcludesOutputAndArbitraryArguments(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestToolActivityExplicitStoppedOccurrenceRejectsLateReusedCall(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "tool-terminal.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ctx := context.Background()
+	if _, err = s.CreateSession(ctx, "A", "A", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.CreateTurnWithStatus(ctx, "t", "A", "running", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := s.ClaimSessionActiveTurn(ctx, "A", "t", "owner", "claim"); err != nil || !ok {
+		t.Fatal(ok, err)
+	}
+	event := func(kind, occurrence string) {
+		t.Helper()
+		if err := s.AppendTurnEvent(ctx, "t", "A", kind, map[string]any{"tool": "same", "tool_call_id": "reused", "occurrence_id": occurrence}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	snapshot := func() map[string]any {
+		t.Helper()
+		a, err := s.SessionActivity(ctx, "A")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return a["tool"].(map[string]any)
+	}
+	event("tool.started", "old")
+	event("tool.finished", "old")
+	event("tool.started", "new")
+	event("tool.cancelled", "old")
+	event("tool.finished", "")
+	if got := snapshot(); got["state"] != "running" || got["duration_ms"] != nil {
+		t.Fatal(got)
+	}
+	event("tool.cancelled", "new")
+	if _, err := s.DB().Exec(`update turn_events set created_at=case event_type when 'tool.started' then '2026-01-01T00:00:00Z' else '2026-01-01T00:00:02.250Z' end where json_extract(payload_json,'$.occurrence_id')='new'`); err != nil {
+		t.Fatal(err)
+	}
+	got := snapshot()
+	if got["state"] != "cancelled" || got["duration_ms"] != int64(2250) || got["occurrence_id"] != "new" {
+		t.Fatal(got)
+	}
+	event("tool.finished", "new")
+	event("tool.aborted", "new")
+	if later := snapshot(); later["state"] != "cancelled" || later["duration_ms"] != got["duration_ms"] {
+		t.Fatal(later)
+	}
+	event("tool.started", "third")
+	event("tool.aborted", "third")
+	if got := snapshot(); got["state"] != "aborted" || got["duration_ms"] == nil {
+		t.Fatal(got)
+	}
+	event("tool.started", "unknown")
+	if err := s.AppendTurnEvent(ctx, "t", "A", "turn.finished", map[string]any{"status": "cancelled"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.UpdateTurnStatus(ctx, "t", "cancelled"); err != nil {
+		t.Fatal(err)
+	}
+	if got := snapshot(); got["state"] != "interrupted" || got["duration_ms"] != nil || got["finished_at"] != "" {
+		t.Fatal(got)
+	}
+}

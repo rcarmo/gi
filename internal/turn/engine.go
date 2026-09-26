@@ -4981,6 +4981,9 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 					"tool_call_id":  call.ID,
 					"output_length": len(injectedResult),
 					"source":        "hook",
+					// No execution/start event: keep this synthetic result from
+					// terminating an older occurrence with a reused call ID.
+					"occurrence_id": store.NowID("tool"),
 					"hook_phase":    "tool_call",
 				}))
 				goai.AppendToolResult(convCtx, call.ID, call.Name, displayResult, false)
@@ -5055,12 +5058,13 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			}
 		}
 
+		toolOccurrenceID := store.NowID("tool")
 		logutil.WarnIfErr("update turn waiting_on_tools phase", s.UpdateTurnStatusAndPhase(ctx, turnID, "running", "waiting_on_tools"))
 		r.emitTurnStateHook(ctx, sessionID, turnID, agentID, model, "running", "waiting_on_tools", map[string]any{"reason": "tool_execution", "tool": call.Name, "iteration": iter})
 		r.engine.PublishRuntimeToolEvent("tool_started", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "arguments": call.Arguments})
 		logutil.WarnIfErr("append tool.started event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.started", map[string]any{
 			"phase": "tool", "tool": call.Name, "checkpoint": true,
-			"tool_call_id": call.ID, "iteration": iter, "preview": store.ToolActivityPreview(call.Arguments),
+			"tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "iteration": iter, "preview": store.ToolActivityPreview(call.Arguments),
 		}))
 		r.engine.broadcast(sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 
@@ -5072,6 +5076,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 		toolResult, toolErr := r.executeTool(ctx, call, sessionID, turnID)
 		if toolErr != nil {
 			if ctx.Err() != nil || isCancellationError(toolErr) {
+				r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "cancelled")
 				r.finishTurn(s, turnID, sessionID, agentID, model, "cancelled", "Turn cancelled during tool execution", "")
 				outcome.terminated = true
 				return outcome
@@ -5082,7 +5087,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			r.engine.PublishRuntimeToolEvent("tool_failed", sessionID, turnID, agentID, call.Name, call.ID, iter, toolErr, map[string]any{"phase": "tool", "arguments": call.Arguments, "output": errText})
 			logutil.WarnIfErr("append tool.failed event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.failed", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
-				"tool_call_id": call.ID, "error": toolErr.Error(),
+				"tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "error": toolErr.Error(),
 			}))
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 			goai.AppendToolResult(convCtx, call.ID, call.Name, errText, true)
@@ -5103,6 +5108,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 				log.Printf("hook tool_result error: %v", err)
 			} else {
 				if abortErr := hookAbortFromResponse(resp, fmt.Sprintf("tool %s result aborted by hook", call.Name)); abortErr != nil {
+					r.persistStoppedTool(s, sessionID, turnID, call, toolOccurrenceID, "aborted")
 					r.engine.PublishRuntimeHookDecisionEvent("hook_abort", HookRequest{Name: HookToolResult, SessionID: sessionID, TurnID: turnID, AgentID: agentID, Iteration: iter, ToolCall: &call}, map[string]any{"phase": "tool_result", "reason": abortErr.Error()})
 					r.finishTurn(s, turnID, sessionID, agentID, model, "aborted", abortErr.Error(), "hook_abort")
 					outcome.terminated = true
@@ -5121,7 +5127,7 @@ func (r *sessionRunner) executeToolCallsPhase(ctx context.Context, s *store.Stor
 			r.engine.PublishRuntimeToolEvent("tool_finished", sessionID, turnID, agentID, call.Name, call.ID, iter, nil, map[string]any{"phase": "tool", "arguments": call.Arguments, "output_length": len(toolResult), "output": displayResult})
 			logutil.WarnIfErr("append tool.finished event", s.AppendTurnEvent(ctx, turnID, sessionID, "tool.finished", map[string]any{
 				"phase": "tool", "tool": call.Name, "checkpoint": true,
-				"tool_call_id": call.ID, "output_length": len(toolResult),
+				"tool_call_id": call.ID, "occurrence_id": toolOccurrenceID, "output_length": len(toolResult),
 			}))
 			r.engine.broadcast(sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + sessionID, "turn_id": turnID})
 			goai.AppendToolResult(convCtx, call.ID, call.Name, displayResult, false)
@@ -5345,11 +5351,12 @@ func (r *sessionRunner) runPreparedTurn(ctx context.Context, s *store.Store, run
 }
 
 func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *preparedTurnRun) {
+	toolOccurrenceID := store.NowID("tool")
 	if len(run.initialSteering) > 0 {
 		r.persistSteeringMessages(ctx, run.sessionID, run.turnID, run.initialSteering)
 	}
 	r.engine.PublishRuntimeToolEvent("tool_started", run.sessionID, run.turnID, run.agentID, "shell", "", 0, nil, map[string]any{"phase": "tool", "command": []string{"sh", "-c", "printf 'Gi received: %s' \"$GI_PROMPT\""}})
-	logutil.WarnIfErr("append shell tool.started event", s.AppendTurnEvent(ctx, run.turnID, run.sessionID, "tool.started", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "command": []string{"sh", "-c", "printf 'Gi received: %s' \"$GI_PROMPT\""}}))
+	logutil.WarnIfErr("append shell tool.started event", s.AppendTurnEvent(ctx, run.turnID, run.sessionID, "tool.started", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "occurrence_id": toolOccurrenceID, "command": []string{"sh", "-c", "printf 'Gi received: %s' \"$GI_PROMPT\""}}))
 	r.engine.broadcast(run.sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + run.sessionID, "turn_id": run.turnID})
 
 	out, runErr, cancelled := tools.RunShellPrompt(ctx, run.prompt, nil, func(delta string) {
@@ -5364,6 +5371,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 		})
 	})
 	if cancelled {
+		r.persistStoppedTool(s, run.sessionID, run.turnID, goai.ToolCall{Name: "shell"}, toolOccurrenceID, "cancelled")
 		bgCtx := r.engine.backgroundContext()
 		r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
 		logutil.WarnIfErr("append turn.cancelled event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "turn.cancelled", map[string]any{"phase": "cancel", "checkpoint": true, "reason": "cancelled", "status": "cancelled", "turn_phase": "aborted", "failure_kind": ""}))
@@ -5386,7 +5394,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 		r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
 		logutil.WarnIfErr("turn failure mark", s.MarkTurnFailureWithFallbackErr(bgCtx, nil, run.turnID, run.sessionID, "shell_error", "none", runErr.Error()))
 		r.engine.PublishRuntimeToolEvent("tool_failed", run.sessionID, run.turnID, run.agentID, "shell", "", 0, runErr, map[string]any{"phase": "tool"})
-		logutil.WarnIfErr("append shell tool.failed event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "error": runErr.Error(), "failure_kind": "shell_error"}))
+		logutil.WarnIfErr("append shell tool.failed event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.failed", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "occurrence_id": toolOccurrenceID, "error": runErr.Error(), "failure_kind": "shell_error"}))
 		r.engine.broadcast(run.sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + run.sessionID, "turn_id": run.turnID})
 		msgID := store.NowID("msg")
 		logutil.WarnIfErr("add shell failure system message", s.AddMessage(bgCtx, msgID, run.sessionID, "system", fmt.Sprintf("Shell tool failed: %v", runErr), map[string]any{"kind": "status", "turn_id": run.turnID, "source": "system", "failure_kind": "shell_error"}))
@@ -5405,7 +5413,7 @@ func (r *sessionRunner) runShellTurn(ctx context.Context, s *store.Store, run *p
 	bgCtx := r.engine.backgroundContext()
 	r.appendFinalSteeringCheckpoint(s, run.turnID, run.sessionID)
 	r.engine.PublishRuntimeToolEvent("tool_finished", run.sessionID, run.turnID, run.agentID, "shell", "", 0, nil, map[string]any{"phase": "tool", "output_length": len(out)})
-	logutil.WarnIfErr("append shell tool.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "output_length": len(out)}))
+	logutil.WarnIfErr("append shell tool.finished event", s.AppendTurnEvent(bgCtx, run.turnID, run.sessionID, "tool.finished", map[string]any{"phase": "tool", "tool": "shell", "checkpoint": true, "occurrence_id": toolOccurrenceID, "output_length": len(out)}))
 	r.engine.broadcast(run.sessionID, map[string]any{"type": "tool_activity_changed", "chat_jid": "gi:" + run.sessionID, "turn_id": run.turnID})
 	msgID := store.NowID("msg")
 	messagePayload := map[string]any{"kind": "chat", "source": "shell", "turn_id": run.turnID, "agent_id": run.agentID}

@@ -18,8 +18,9 @@ func latestToolActivity(ctx context.Context, tx *sql.Tx, turnID string, claimed 
 	var seq int64
 	err := tx.QueryRowContext(ctx, `select a.seq,a.payload_json,a.created_at,b.created_at,b.event_type,t.status
  from turns t join turn_events a on a.id=(select id from turn_events where turn_id=t.id and event_type='tool.started' order by seq desc limit 1)
- left join turn_events b on b.id=(select id from turn_events where turn_id=t.id and seq>a.seq and event_type in ('tool.finished','tool.failed')
- and coalesce(json_extract(payload_json,'$.tool_call_id'),'')=coalesce(json_extract(a.payload_json,'$.tool_call_id'),'') order by seq asc limit 1)
+ left join turn_events b on b.id=(select id from turn_events where turn_id=t.id and seq>a.seq and event_type in ('tool.finished','tool.failed','tool.cancelled','tool.aborted')
+ and coalesce(json_extract(payload_json,'$.tool_call_id'),'')=coalesce(json_extract(a.payload_json,'$.tool_call_id'),'')
+ and coalesce(json_extract(payload_json,'$.occurrence_id'),'')=coalesce(json_extract(a.payload_json,'$.occurrence_id'),'') order by seq asc limit 1)
  where t.id=?`, turnID).Scan(&seq, &startRaw, &started, &ended, &endType, &status)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -46,9 +47,14 @@ func latestToolActivity(ctx context.Context, tx *sql.Tx, turnID string, claimed 
 	finished := ""
 	if ended.Valid {
 		finished = ended.String
-		if endType.String == "tool.failed" {
+		switch endType.String {
+		case "tool.failed":
 			state = "failed"
-		} else {
+		case "tool.cancelled":
+			state = "cancelled"
+		case "tool.aborted":
+			state = "aborted"
+		default:
 			state = "completed"
 		}
 	} else if !claimed || status != "running" && status != "cancelling" {
@@ -56,7 +62,8 @@ func latestToolActivity(ctx context.Context, tx *sql.Tx, turnID string, claimed 
 		// Do not invent terminal timing from unrelated turn updates.
 		state = "interrupted"
 	}
-	result := map[string]any{"turn_id": turnID, "tool_call_id": callID, "start_seq": seq, "name": name, "preview": preview, "state": state, "started_at": started, "finished_at": finished, "duration_ms": nil}
+	occurrenceID, _ := payload["occurrence_id"].(string)
+	result := map[string]any{"occurrence_id": occurrenceID, "turn_id": turnID, "tool_call_id": callID, "start_seq": seq, "name": name, "preview": preview, "state": state, "started_at": started, "finished_at": finished, "duration_ms": nil}
 	if finished != "" {
 		a, e1 := time.Parse(time.RFC3339Nano, started)
 		b, e2 := time.Parse(time.RFC3339Nano, finished)

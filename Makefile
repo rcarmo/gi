@@ -352,7 +352,12 @@ build-pane-host-fixture:
 .PHONY: test-web-skills test-ux-skills
 .PHONY: test-tool-activity
 test-tool-activity:
-	$(GO) test -race -count=3 ./internal/store ./internal/web -run 'ToolActivity|ToolPreview|SessionActivity'
+	$(GO) test -race -count=3 ./internal/store ./internal/web ./internal/turn -run 'ToolActivity|ToolPreview|SessionActivity|ToolTerminal'
+	$(BUN) test tests/ux/support/tool-activity.test.ts
+
+.PHONY: test-ux-tool-terminal
+test-ux-tool-terminal: test-tool-activity
+	$(MAKE) test-ux-parity UX_PARITY_ARGS='tests/ux/tool-activity.spec.mjs'
 
 .PHONY: test-terminal-tool-identity test-tui-tool-timing
 .PHONY: test-terminal-links

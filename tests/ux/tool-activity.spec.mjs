@@ -32,3 +32,24 @@ test('@ux-original-027 native tool activity has owned preview, elapsed and termi
   await info.attach('tool-status',{body:await page.screenshot(),contentType:'image/png'});
  }finally{release?.();writeFileSync(resolve(gates,token),'release');await page.unrouteAll({behavior:'wait'});}
 });
+
+test('Gi tool cancellation has occurrence-bound terminal timing and reload reconstruction',async({page,request},info)=>{
+ const token=`tool-cancel-${info.project.name}-${Date.now()}`;mkdirSync(gates,{recursive:true});
+ const r=await request.post('/api/sessions',{data:{agent_id:token,title:token}});expect(r.ok()).toBe(true);const main=await r.json();
+ await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main.id);await page.goto('/');
+ const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('cancel tool draft β');
+ const activity=async()=>(await(await request.get(`/api/sessions/${main.id}/activity`)).json());
+ const region=page.locator('.gi-tool-activity');
+ try{
+  const submitted=await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:`UX queue gate:${token}`,model:'test-model'}});expect(submitted.status()).toBe(202);const {turn_id}=await submitted.json();
+  await expect(region).toHaveAttribute('data-tool-state','running');const running=await activity();expect(running.tool.occurrence_id).toBeTruthy();
+  await page.getByRole('button',{name:'Stop response',exact:true}).click();
+  await expect(region).toHaveAttribute('data-tool-state','cancelled');await expect(region.getByLabel('shell: Cancelled')).toBeVisible();await expect(region.locator('.spinner')).toHaveCount(0);
+  const stopped=await activity();expect(stopped.tool.turn_id).toBe(turn_id);expect(stopped.tool.occurrence_id).toBe(running.tool.occurrence_id);expect(stopped.tool.duration_ms).toBeGreaterThanOrEqual(0);
+  const events=(await(await request.get(`/api/turns/${turn_id}/events`)).json()).events;
+  expect(events.filter(e=>e.type==='tool.cancelled'&&e.payload.occurrence_id===running.tool.occurrence_id)).toHaveLength(1);
+  expect(events.some(e=>e.type==='tool.finished'&&e.payload.occurrence_id===running.tool.occurrence_id)).toBe(false);
+  await page.reload();await expect(input).toHaveValue('cancel tool draft β');await expect(region).toHaveAttribute('data-tool-state','cancelled');await expect(region.getByLabel('Tool duration')).toHaveText(`${Math.floor(stopped.tool.duration_ms/1000)}s`);
+  expect((await activity()).tool).toEqual(stopped.tool);
+ }finally{writeFileSync(resolve(gates,token),'release');}
+});

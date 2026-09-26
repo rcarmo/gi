@@ -16,7 +16,7 @@ export function ToolActivity({tool}) {
         return () => clearInterval(timer);
     }, [tool?.turn_id, tool?.start_seq, tool?.state]);
     if (!tool) return null;
-    const label = {running:'Running',completed:'Completed',failed:'Failed',interrupted:'Interrupted'}[tool.state] || 'Unknown';
+    const label = {running:'Running',completed:'Completed',failed:'Failed',cancelled:'Cancelled',aborted:'Aborted',interrupted:'Interrupted'}[tool.state] || 'Unknown';
     const terminal = tool.state !== 'running';
     return html`<div class="agent-status-panel gi-tool-activity" data-tool-call-id=${tool.tool_call_id} data-tool-state=${tool.state} data-turn-id=${tool.turn_id}>
         <span class=${terminal ? 'gi-tool-glyph' : 'spinner'} aria-hidden="true">${terminal ? tool.state === 'completed' ? '✓' : '✕' : ''}</span>
