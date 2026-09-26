@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -68,6 +69,9 @@ func TestQueuedTurnOrderPersistsWithoutRewritingHistory(t *testing.T) {
 	if _, err := s.ClaimSessionActiveTurn(ctx, "A", "three", "test", "claim"); err != nil {
 		t.Fatal(err)
 	}
+	if err := s.ReorderQueuedTurns(ctx, "A", []string{"three", "one", "two", "four"}, []string{"one", "three", "two", "four"}); !errors.Is(err, ErrQueueConflict) {
+		t.Fatalf("claimed reorder accepted: %v", err)
+	}
 	if err := s.CancelQueuedTurn(ctx, "A", "three"); !errors.Is(err, ErrQueueConflict) {
 		t.Fatal("claimed turn cancelled")
 	}
@@ -76,5 +80,59 @@ func TestQueuedTurnOrderPersistsWithoutRewritingHistory(t *testing.T) {
 	}
 	if err := s.CancelQueuedTurn(ctx, "A", "two"); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestQueuedTurnReorderConcurrentSnapshotsSerialize(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "concurrent.db")
+	a, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	b, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	if _, err = a.CreateSession(ctx, "A", "A", nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"one", "two", "three"} {
+		if _, err = a.CreateTurnWithStatus(ctx, id, "A", "queued", id, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	var wg sync.WaitGroup
+	for i, s := range []*Store{a, b} {
+		wg.Add(1)
+		go func(i int, s *Store) {
+			defer wg.Done()
+			<-start
+			order := []string{"three", "one", "two"}
+			if i == 1 {
+				order = []string{"two", "three", "one"}
+			}
+			results <- s.ReorderQueuedTurns(ctx, "A", []string{"one", "two", "three"}, order)
+		}(i, s)
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	wins, conflicts := 0, 0
+	for err := range results {
+		if err == nil {
+			wins++
+		} else if errors.Is(err, ErrQueueConflict) {
+			conflicts++
+		} else {
+			t.Fatal("unexpected concurrency error", err)
+		}
+	}
+	if wins != 1 || conflicts != 1 {
+		t.Fatal(wins, conflicts)
 	}
 }

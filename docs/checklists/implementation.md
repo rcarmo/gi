@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Add `/queue move <id> before|after <target-id>` on last successful current-visit snapshot/native exact-order transaction. Mutation/conflict invalidates; stale/foreign/claimed/noop/self guards preserve history/no prompt dispatch. Race×3incltwo-connection contention+core+6queuePTY+48webqueue+107functional(11skips) pass,no idlechrome. Retry/queuedtext/Stop-policy separate; [evidence](../internal/tui-queue-commands.md#relative-move-verification),CI/deploy pending.
+
 - [x] Add on-demand six-row durable `/queue [page]`, guarded remove byID and Steer by queued+activeIDs; no new-prompt fallback/idlechrome. Regular responses print above dock without flushing partial output. Race×3/core/vet/hooks+6queue+9regular/mediaPTYs+107functional(11skips) pass;restart reads/stale/cross-session/claim/media/event guards verified. Reorder/retry/queuedtext persistence/Stop-policy remain open. [Evidence](../internal/tui-queue-commands.md);CI/deploy pending.
 
 - [x] Persist terminal media refs/claims in transactional per-sessionSQLite journal; staged refs recover, confirmed admissions consume, ambiguous restarted claims hold without resend. Explicit token-guarded `/detach unresolved` discards refs only; six-item/concurrent-client/native-session guards intact, no idle rows. Race×3+core/vet/hooks+6restartPTYs+107functional(11skips) pass; claim-write failure keeps draft/cursor/history. Text/queue restart recovery and automatic ambiguous replay separate. [Evidence](../internal/tui-media-journal.md);CI/deploy pending.

@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -117,5 +118,67 @@ func TestTUIQueueCommandsRunBoundSteerRetainsMetadataAndNoFallback(t *testing.T)
 	later, _ := c.store.GetTurn(ctx, "later")
 	if later.Status != "queued" {
 		t.Fatal("failed steer consumed row")
+	}
+}
+
+func TestTUIQueueMoveSnapshotOwnershipAndPreservedHistory(t *testing.T) {
+	c := sessionTestChat(t)
+	ctx := context.Background()
+	for _, id := range []string{"one", "two", "three"} {
+		if _, err := c.store.CreateTurnWithStatus(ctx, id, c.sessionID, "queued", id, map[string]any{"media": []string{"media:1"}, "custom": "kept"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	c.input.SetText("retain editor Ω")
+	c.input.cursorPos = 4
+	before, _ := c.store.GetTurn(ctx, "one")
+	move := []string{"/queue", "move", "three", "before", "one"}
+	if !strings.Contains(c.queueCommand(move)[0], "inspect /queue") {
+		t.Fatal("move without snapshot")
+	}
+	c.queueCommand([]string{"/queue"})
+	if !strings.Contains(c.queueCommand(move)[0], "moved three before one") {
+		t.Fatal("move")
+	}
+	if c.queueSnapshot != nil {
+		t.Fatal("success retained snapshot")
+	}
+	rows, _ := c.store.ListQueuedTurns(ctx, c.sessionID)
+	if rows[0].ID != "three" || rows[1].ID != "one" || rows[2].ID != "two" {
+		t.Fatal(rows)
+	}
+	after, _ := c.store.GetTurn(ctx, "one")
+	if before.CreatedAt != after.CreatedAt || before.UpdatedAt != after.UpdatedAt || before.Prompt != after.Prompt || !reflect.DeepEqual(before.Metadata, after.Metadata) {
+		t.Fatal("history/metadata rewritten")
+	}
+	c.queueCommand([]string{"/queue"})
+	c.sessionGeneration += 2 // A-B-A must not reuse the first visit's display.
+	if !strings.Contains(c.queueCommand([]string{"/queue", "move", "one", "before", "three"})[0], "inspect /queue") {
+		t.Fatal("old visit reordered")
+	}
+	c.queueCommand([]string{"/queue"})
+	c.store.CreateTurnWithStatus(ctx, "later", c.sessionID, "queued", "later", nil)
+	if !strings.Contains(c.queueCommand([]string{"/queue", "move", "one", "before", "three"})[0], "move failed") {
+		t.Fatal("stale queue reordered")
+	}
+	if c.queueSnapshot != nil {
+		t.Fatal("conflict kept snapshot")
+	}
+	c.queueCommand([]string{"/queue"})
+	if !strings.Contains(c.queueCommand([]string{"/queue", "move", "three", "after", "two"})[0], "moved") {
+		t.Fatal("after move")
+	}
+	c.queueCommand([]string{"/queue"})
+	if !strings.Contains(c.queueCommand([]string{"/queue", "move", "later", "after", "two"})[0], "moved") {
+		t.Fatal("tail move")
+	}
+	for _, fields := range [][]string{{"/queue", "move", "one", "before", "one"}, {"/queue", "move", "missing", "before", "one"}, {"/queue", "move", "one", "around", "two"}} {
+		c.queueCommand([]string{"/queue"})
+		if strings.Contains(c.queueCommand(fields)[0], "queue: moved") {
+			t.Fatal("invalid move")
+		}
+	}
+	if c.input.Text() != "retain editor Ω" || c.input.cursorPos != 4 {
+		t.Fatal("draft touched")
 	}
 }

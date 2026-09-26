@@ -1,10 +1,11 @@
 # Explicit terminal queue commands
 
-`/queue` now inspects the native durable queue. Removal and steering require full turn IDs; there is no implicit resend, retry or idle-submit fallback. Responses appear only when requested, with no permanent queue panel or extra idle rows.
+`/queue` now inspects the native durable queue. Removal, steering and relative moves require full turn IDs; there is no implicit resend, retry or idle-submit fallback. Responses appear only when requested, with no permanent queue panel or extra idle rows.
 
 ## Commands
 
 - `/queue [page]` reads queued turns in native queue order, six rows per page. It shows total count, page count and the current running turn ID when available. IDs are complete; prompt previews are control-sanitised and limited to40display cells.
+- `/queue move <turn-id> before|after <target-id>` reorders the last successful `/queue` snapshot for the current session visit. Both IDs must belong to it. Self/no-op moves are rejected. Native exact-order/permutation and claimed-row guards run in the transaction. Mutation success or conflict clears the snapshot; `/queue` must refresh before another move. Restart and A → B → A visits cannot reuse the old snapshot. Timestamps, prompts, media and metadata remain unchanged.
 - `/queue remove <turn-id>` calls `CancelQueuedTurn`. Only an unclaimed queued row belonging to this session can be cancelled. Accepted history and stored media remain. Success publishes the same `session.queue` change notice used by the web adapter.
 - `/queue steer <queued-id> <active-id>` calls `Engine.SteerQueuedTurn`, preserving runner locking, transactional source/target validation and native checkpoint admission. Stale, foreign, claimed or non-running IDs fail without creating another prompt. Existing structured media and claim metadata remain in the native steering payload.
 
@@ -24,6 +25,14 @@ Commands use the normal command editor path. Typing a command replaces the edito
 
 Initial fixture code used wrong store method/signature assumptions; these were corrected before passing tests. PTY testing then exposed regular-mode command responses being held behind active work. Direct print-above output fixes that without committing partial transcript content. No tests removed or timeouts increased. A read-only delegated review timed out; no independent result is claimed.
 
+## Relative move verification
+
+The move follow-up passes `make test-terminal-queue` under race detection with three repeats, core/vet/hooks, six queue PTYs, 48 browser queue regressions and107functional checks (11existing skips). PTYs verify before/after order, restart persistence, timestamp/metadata preservation, rejection after external reorder, fresh-snapshot retry, and no added turns or idle rows.
+
+The shared native reorder transaction now rejects a queued row already claimed by a runner. Unit tests cover that boundary, current-visit snapshot ownership, A → B → A, invalid/no-op IDs and unchanged direct-call editor state. A two-connection file-backed contention test verifies exactly one reorder winner and one `ErrQueueConflict` for simultaneous reads of the same expected order.
+
+Read-only review raised a possible deferred-transaction upgrade error. Inspection confirmed file-backed `store.Open` applies `_txlock=immediate`; the contention test passes. The issue was not reproduced on that supported path. General database failures remain reported without automatic retry; no timeout or test criteria were relaxed.
+
 ## Open work
 
-This slice adds durable inspection/removal/steering only. Queue reordering UI, explicit retry controls, persistent queued text drafts and the unresolved Stop/queue policy remain separate. The native Steer checkpoint/recovery path is covered by existing engine tests; the PTY fixture verifies command admission, not external-provider behaviour. Physical terminal/emulator acceptance and the broader web/terminal parity goal remain open. Whole CI and deployment are separate gates; live data was not mutated.
+This slice adds durable inspection/removal/steering and snapshot-bound relative reorder. Explicit retry controls, persistent queued text drafts and the unresolved Stop/queue policy remain separate. The native Steer checkpoint/recovery path is covered by existing engine tests; the PTY fixture verifies command admission, not external-provider behaviour. Physical terminal/emulator acceptance and the broader web/terminal parity goal remain open. Whole CI and deployment are separate gates; live data was not mutated.

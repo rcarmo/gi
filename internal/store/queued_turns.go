@@ -57,6 +57,13 @@ func (s *Store) ReorderQueuedTurns(ctx context.Context, sessionID string, expect
 		return err
 	}
 	defer tx.Rollback()
+	var claimed bool
+	if err := tx.QueryRowContext(ctx, `select exists(select 1 from turns t join session_active_turns a on a.turn_id=t.id where t.session_id=? and t.status='queued')`, sessionID).Scan(&claimed); err != nil {
+		return err
+	}
+	if claimed {
+		return ErrQueueConflict
+	}
 	rows, err := tx.QueryContext(ctx, `select id from turns where session_id = ? and status = 'queued' order by queue_position, created_at, id`, sessionID)
 	if err != nil {
 		return err
@@ -95,7 +102,7 @@ func (s *Store) ReorderQueuedTurns(ctx context.Context, sessionID string, expect
 		return ErrQueueConflict
 	}
 	for i, id := range order {
-		result, err := tx.ExecContext(ctx, `update turns set queue_position = ? where id = ? and session_id = ? and status = 'queued'`, i+1, id, sessionID)
+		result, err := tx.ExecContext(ctx, `update turns set queue_position = ? where id = ? and session_id = ? and status = 'queued' and not exists(select 1 from session_active_turns where turn_id=?)`, i+1, id, sessionID, id)
 		if err != nil {
 			return err
 		}

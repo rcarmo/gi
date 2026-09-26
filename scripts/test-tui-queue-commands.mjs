@@ -1,4 +1,4 @@
-/** @description Explicit durable queue list/remove/steer, restart and native guards in six PTYs. */
+/** @description Explicit durable queue list/move/remove/steer, restart and native guards in six PTYs. */
 import{execFileSync}from'node:child_process';
 import{mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync}from'node:fs';
 import{tmpdir}from'node:os';import{join,resolve}from'node:path';
@@ -16,8 +16,13 @@ for(const mode of ['fullscreen','regular'])for(const[width,height]of[[60,18],[10
   for(let i=0;i<8;i++)sql(`INSERT INTO turns(id,session_id,status,phase,prompt,metadata_json,queue_position,created_at,updated_at) VALUES('q${i}','${id}','queued','queued','native fixture ${i}','{"custom":"retained"}',${i+1},datetime('now'),datetime('now'))`);
   await command('/queue');await wait(()=>all().includes('8 queued'),'durable list');shot('list');
   await command('/queue 2');await wait(()=>all().includes('page 2/2'),'second page');shot('page2');
+  const chronology=sql("SELECT group_concat(id||':'||created_at||':'||updated_at||':'||metadata_json,'|') FROM turns ORDER BY id"),order=()=>sql("SELECT group_concat(id,',') FROM (SELECT id FROM turns WHERE status='queued' ORDER BY queue_position,created_at,id)");
+  await command('/queue move q7 before q0');await wait(()=>order()==='q7,q0,q1,q2,q3,q4,q5,q6','move before');assert(sql("SELECT group_concat(id||':'||created_at||':'||updated_at||':'||metadata_json,'|') FROM turns ORDER BY id")===chronology,'reorder rewrote history');shot('moved');
   keys('C-c');await wait(()=>cap().includes('EXIT'),'exit');tm('kill-session','-t','proof');launch();await wait(()=>cap().includes('test-model'),'reopen');
+  await command('/queue move q7 after q6');await wait(()=>all().includes('inspect /queue'),'restart requires fresh snapshot');assert(order()==='q7,q0,q1,q2,q3,q4,q5,q6','restart order changed');
   await command('/queue');await wait(()=>all().includes('8 queued'),'restart queue');
+  sql("UPDATE turns SET queue_position=0 WHERE id='q6'");const staleOrder=order();await command('/queue move q7 after q6');await wait(()=>all().includes('move failed'),'stale order rejected');assert(order()===staleOrder,'stale mutation changed order');
+  await command('/queue');await command('/queue move q7 after q5');await wait(()=>order()==='q6,q0,q1,q2,q3,q4,q5,q7','move after refreshed snapshot');
   await command('/queue remove q0');await wait(()=>sql("SELECT status FROM turns WHERE id='q0'")==='cancelled','remove');await command('/queue remove q0');await wait(()=>all().includes('remove failed'),'stale removal');
   sql(`INSERT INTO turns(id,session_id,status,phase,prompt,metadata_json,created_at,updated_at) VALUES('run','${id}','running','requesting_model','active','{}',datetime('now'),datetime('now')); INSERT INTO session_active_turns(session_id,turn_id,worker_id,claim_token,claimed_at,updated_at) VALUES('${id}','run','fixture','fixture-token',datetime('now'),datetime('now'));`);
   await command('/queue steer q1 stale');await wait(()=>all().includes('steer failed'),'stale steer');assert(sql("SELECT status FROM turns WHERE id='q1'")==='queued','failed steer consumed');
@@ -27,7 +32,7 @@ for(const mode of ['fullscreen','regular'])for(const[width,height]of[[60,18],[10
   type('unsent queue draft 中文🙂');await sleep(140);shot('after');assert(cap().replaceAll('▌','').includes('unsent queue draft 中文🙂'),'draft lost');assert(readFileSync(join(dir,'.pi/settings.json'),'utf8')===settings,'settings mutated');
   const screen=cap().trimEnd().split('\n'),bars=screen.map((x,i)=>/─{10}/.test(x)?i:-1).filter(i=>i>=0);assert(bars.at(-1)-bars.at(-2)===2,'extra editor rows');
   if(mode==='regular')assert(tm('display-message','-p','-t',pane,'#{alternate_on} #{mouse_any_flag}').trim()==='0 0','regular ownership');
-  results.push({mode,width,height,restartQueue:true,nativeRemoveSteer:true,staleRejected:true,noNewTurns:true,metadataPreserved:true,zeroIdleRows:true});
+  results.push({mode,width,height,restartQueue:true,exactSnapshotMove:true,chronologyPreserved:true,nativeRemoveSteer:true,staleRejected:true,noNewTurns:true,metadataPreserved:true,zeroIdleRows:true});
  }catch(error){try{shot('failure')}catch{}throw error}finally{try{tm('kill-server')}catch{}rmSync(dir,{recursive:true,force:true})}
 }
 writeFileSync(join(out,'summary.json'),JSON.stringify(results,null,2));console.log(JSON.stringify(results,null,2));

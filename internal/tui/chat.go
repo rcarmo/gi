@@ -187,6 +187,8 @@ type chatTUI struct {
 	selectionClickSnapshot      transcriptSelection
 	nativeSelectionCopyPending  bool
 	queuedDrafts                []string
+	queueSnapshot               []string
+	queueSnapshotScope          sessionScope
 	pendingMedia                map[string][]store.MediaRef
 	mediaClaims                 map[string]*mediaClaim
 	inputRegion                 *gotui.Element
@@ -2647,7 +2649,7 @@ func (c *chatTUI) handleCommand(text string) {
 		if lines, handled := c.extensionCommandLines(text, fields); handled {
 			c.appendTranscript(lines...)
 		} else {
-			c.appendTranscript("sys: commands: /help, /hotkeys, /commands [query], /session, /sessions, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /attach <path> [prompt], /attachments, /detach <media:id|all|unresolved>, /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /history-limit [n], /settings, /approvals, /queue [page|remove|steer], /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
+			c.appendTranscript("sys: commands: /help, /hotkeys, /commands [query], /session, /sessions, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /attach <path> [prompt], /attachments, /detach <media:id|all|unresolved>, /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /history-limit [n], /settings, /approvals, /queue [page|remove|steer|move], /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
 		}
 	}
 	c.running = false
@@ -2718,7 +2720,7 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 		{"/clone [@agentN]", "clone active branch/session"},
 		{"/copy [--osc52|--native|--auto|--fallback]", "copy last assistant message with opt-in target"},
 		{"/attach <path> [prompt]", "stage up to six session media refs for next prompt"},
-		{"/queue [page|remove|steer]", "inspect durable queue; mutate by full turn IDs"},
+		{"/queue [page|remove|steer|move]", "inspect durable queue; mutate by full turn IDs"},
 		{"/attachments", "list durable refs / held admissions"},
 		{"/detach <media:id|all|unresolved>", "remove pending refs; keep stored files"},
 		{"/paste-image [prompt]", "paste a clipboard image and optionally submit a prompt"},
