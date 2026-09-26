@@ -90,7 +90,23 @@ Bun's default five-second limit. The helper is now split into five independent
 cases. All assertion lines and subprocess calls are preserved; seven report/ledger
 tests pass with 1954 assertions. No runtime code or timeout changed for this fix.
 
-Whole-product CI and exact-source deployment are still required. Shared35 remains
-unmapped: this fixes the thinking prerequisite but does not resolve its positive
-local-estimate labelling clause. Context stays measured-provider or unavailable;
-no synthetic estimate, physical-device or exact-pixel acceptance is added.
+## Deployment
+
+Exact source `53ef988e93b496d8ab51b4d1a0fe8bbc286fcaf6` passed whole-product CI
+[36254837868](https://github.com/rcarmo/gi/actions/runs/36254837868), including the
+new thinking job and all four builds, then replaced `caa83c7` on port 8090.
+Live PID `520574`, process group/session `520566`; binary SHA-256
+`7b19afd2e3fee57a11933925f730303827ffacd0e16b93b70632ad9f5fd54597`.
+
+Four blocked non-localhost HTTP send probes and six read-only UI probes passed.
+Full SQL matches after excluding only the dispatcher lease; counts remain 62
+sessions, 51 turns, 146 messages, zero active turns, with clean integrity/FKs.
+Auth hashes and isolated TUI WIP HEAD/diff match. No live thinking mutations or
+chat writes occurred. Mutating provider acceptance used disposable environments.
+Reload existing tabs for the new bundle. Evidence is in
+`/workspace/tmp/gi-thinking-deploy-53ef988`; DB dumps and auth hashes stay local-only.
+
+Shared35 remains unmapped: this fixes the thinking prerequisite but does not
+resolve its positive local-estimate labelling clause. Context stays measured-provider
+or unavailable; no synthetic estimate, physical-device or exact-pixel acceptance
+is added.
