@@ -4,8 +4,37 @@
  * Tests the complete send → process → display cycle including compose box
  * interaction, message persistence, timeline rendering, and content visibility.
  */
-import { test, expect } from '@playwright/test';
-import { BASE_URL, waitForAppShell, getComposeInput, sendMessage, waitForPostCount, apiGet, findSessionForMessage } from './helpers';
+import { test, expect, type Page } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+import { BASE_URL, waitForAppShell, getComposeInput, sendMessage, apiGet } from './helpers';
+
+// Existing history must not satisfy a send assertion. Capture this unique
+// request and correlate native admission, stored prompt and rendered response.
+async function sendExact(page: Page, label: string) {
+  const prompt = `${label} ${randomUUID()}`;
+  const sessionId = await page.evaluate(() => localStorage.getItem('gi_session_id'));
+  expect(sessionId).toBeTruthy();
+  const before = await apiGet(page.request, `/api/sessions/${sessionId}/turns`);
+  const response = page.waitForResponse(r => r.request().method() === 'POST' && r.url().endsWith(`/api/sessions/${sessionId}/prompt`));
+  await sendMessage(page, prompt);
+  const accepted = await response;
+  expect(accepted.status()).toBe(202);
+  const admission = await accepted.json();
+  expect(admission.session_id).toBe(sessionId);
+  expect(admission.turn_id).toBeTruthy();
+  await expect.poll(async () => {
+    const data = await apiGet(page.request, `/api/sessions/${sessionId}/turns`);
+    return (data.turns || []).find((turn: any) => turn.id === admission.turn_id)?.status;
+  }).toBe('completed');
+  const turns = (await apiGet(page.request, `/api/sessions/${sessionId}/turns`)).turns || [];
+  expect(turns).toHaveLength((before.turns || []).length + 1);
+  expect(turns.filter((turn: any) => turn.prompt === prompt)).toHaveLength(1);
+  expect(turns.find((turn: any) => turn.id === admission.turn_id)?.prompt).toBe(prompt);
+  const user = page.locator('.post:not(.agent-post)').filter({ has: page.locator('.post-content').filter({ hasText: prompt }) });
+  const assistant = page.locator('.post.agent-post').filter({ has: page.locator('.post-content').filter({ hasText: `Gi received: ${prompt}` }) });
+  await expect(user).toHaveCount(1); await expect(assistant).toHaveCount(1);
+  return { prompt, sessionId, admission, user, assistant };
+}
 
 test.describe('Chat flow', () => {
 
@@ -21,78 +50,60 @@ test.describe('Chat flow', () => {
   test('Enter submits a message', async ({ page }) => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
-    await sendMessage(page, 'Enter submit test');
-    // User message should appear as a post
-    await waitForPostCount(page, 1);
+    await sendExact(page, 'Enter submit test');
   });
 
   test('assistant responds to a message', async ({ page }) => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
-    await sendMessage(page, 'Hello from functional test');
-    // Wait for both user + assistant posts
-    await waitForPostCount(page, 2, 15000);
+    await sendExact(page, 'Hello from functional test');
   });
 
   test('user message content is visible in post-content', async ({ page }) => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
-    await sendMessage(page, 'visible content check');
-    await page.waitForTimeout(3000);
-    await expect(
-      page.locator('.post-content').filter({ hasText: 'visible content check' }).first()
-    ).toBeVisible({ timeout: 10000 });
+    const { user } = await sendExact(page, 'visible content check');
+    await expect(user.locator('.post-content')).toBeVisible();
   });
 
   test('assistant response content is visible in post-content', async ({ page }) => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
-    await sendMessage(page, 'assistant content check');
-    // The test instance shell stub responds with "Gi received: ..."
-    await expect(
-      page.locator('.post-content').filter({ hasText: 'Gi received' }).first()
-    ).toBeVisible({ timeout: 15000 });
+    const { assistant } = await sendExact(page, 'assistant content check');
+    await expect(assistant.locator('.post-content')).toBeVisible();
   });
 
   test('messages are persisted in the database', async ({ page, request }) => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
-    await sendMessage(page, 'persistence check');
-    await page.waitForTimeout(5000);
-    // Fetch sessions and messages via API
-    const session = await findSessionForMessage(request, 'persistence check');
-    const msgs = await apiGet(request, `/api/sessions/${session.id}/messages`);
-    const contents = msgs.messages.map((m: any) => m.content);
-    expect(contents.some((c: string) => c.includes('persistence check'))).toBeTruthy();
+    const { prompt, sessionId } = await sendExact(page, 'persistence check');
+    const msgs = await apiGet(request, `/api/sessions/${sessionId}/messages`);
+    expect(msgs.messages.filter((m: any) => m.role === 'user' && m.content === prompt)).toHaveLength(1);
+    expect(msgs.messages.filter((m: any) => m.role === 'assistant' && m.content.includes(`Gi received: ${prompt}`))).toHaveLength(1);
+    await page.reload(); await waitForAppShell(page);
+    await expect(page.locator('.post.agent-post .post-content').filter({ hasText: `Gi received: ${prompt}` })).toHaveCount(1);
   });
 
   test('posts have avatar elements', async ({ page }) => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
-    await sendMessage(page, 'avatar check');
-    await waitForPostCount(page, 2, 15000);
-    const avatars = page.locator('.post-avatar');
-    expect(await avatars.count()).toBeGreaterThan(0);
+    const { user, assistant } = await sendExact(page, 'avatar check');
+    await expect(user.locator('.post-avatar')).toBeVisible();
+    await expect(assistant.locator('.post-avatar')).toBeVisible();
   });
 
   test('agent posts have agent-avatar class', async ({ page }) => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
-    await sendMessage(page, 'agent avatar class check');
-    await waitForPostCount(page, 2, 15000);
-    await expect(page.locator('.post-avatar.agent-avatar').first()).toBeVisible({ timeout: 5000 });
+    const { assistant } = await sendExact(page, 'agent avatar class check');
+    await expect(assistant.locator('.post-avatar.agent-avatar')).toBeVisible();
   });
 
   test('compose box clears after submit', async ({ page }) => {
     await page.goto(BASE_URL);
     await waitForAppShell(page);
-    const input = getComposeInput(page);
-    await input.fill('will be cleared');
-    await input.press('Enter');
-    await page.waitForTimeout(500);
-    // Input should be empty after submit
-    const value = await input.inputValue();
-    expect(value).toBe('');
+    await sendExact(page, 'will be cleared');
+    await expect(getComposeInput(page)).toHaveValue('');
   });
 });
 

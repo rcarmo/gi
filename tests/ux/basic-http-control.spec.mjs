@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import http from 'node:http';import{networkInterfaces}from'node:os';
 import{journeyEnvironment}from'./support/journey-environment.mjs';
 
-async function setup(page,info){
+async function setup(page,info,startTurn=true){
  const fixture=await journeyEnvironment(info),address=Object.values(networkInterfaces()).flat().find(x=>x?.family==='IPv4'&&!x.internal)?.address;if(!address)throw Error('Nonloopback interface required');
  let blockSSE=false;const streams=new Set();
  const server=http.createServer((req,res)=>{
@@ -12,8 +12,9 @@ async function setup(page,info){
  });await new Promise(r=>server.listen(0,'0.0.0.0',r));const origin=`http://${address}:${server.address().port}`;
  const read=async path=>{const r=await page.request.get(origin+path);expect(r.status()).toBe(200);return r.json()};
  await page.goto(origin);const input=page.locator('.compose-box textarea');await expect(input).toBeFocused();expect(await page.evaluate(()=>isSecureContext)).toBe(false);const id=await page.evaluate(()=>localStorage.getItem('gi_session_id'));
- const token=`basic-${info.project.name}-${Date.now()}`;const accepted=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${id}/prompt`));await input.fill(`UX steer gate:${token}`);await input.press('Enter');const response=await accepted;expect(response.status()).toBe(202);const turn=(await response.json()).turn_id;
- await expect.poll(async()=>(await read(`/api/sessions/${id}/turns`)).turns.find(x=>x.id===turn)?.status).toBe('running');await expect(page.getByRole('button',{name:'Stop response',exact:true})).toBeEnabled();
+ const token=`basic-${info.project.name}-${Date.now()}`;let turn;
+ if(startTurn){const accepted=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${id}/prompt`));await input.fill(`UX steer gate:${token}`);await input.press('Enter');const response=await accepted;expect(response.status()).toBe(202);turn=(await response.json()).turn_id;
+ await expect.poll(async()=>(await read(`/api/sessions/${id}/turns`)).turns.find(x=>x.id===turn)?.status).toBe('running');await expect(page.getByRole('button',{name:'Stop response',exact:true})).toBeEnabled();}
  return{origin,input,id,turn,read,release:()=>fixture.release(token),drop(){blockSSE=true;for(const r of streams)r.destroy()},resume(){blockSSE=false},async close(){fixture.release(token);server.closeAllConnections();await new Promise(r=>server.close(r));await fixture.close()}};
 }
 
@@ -35,5 +36,29 @@ test('HTTP SSE disconnect and reconnect preserves draft and recovers native comp
   h.release();await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/turns`)).turns.find(t=>t.id===h.turn)?.status).toBe('completed');h.resume();await expect(page.getByText('Reconnecting',{exact:true})).toHaveCount(0);
   await expect(h.input).toHaveValue('offline draft 中文');await expect(page.locator('.post.agent-post')).toHaveCount(1);expect((await h.read(`/api/sessions/${h.id}/turns`)).turns).toHaveLength(1);
   await page.reload();await expect(h.input).toHaveValue('offline draft 中文');await expect(page.locator('.post.agent-post')).toHaveCount(1);
+ }finally{await h.close()}
+});
+
+test('HTTP model selection governs actual provider requests after reload; rejection keeps last choice and draft',async({page},info)=>{
+ const h=await setup(page,info,false);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ try{
+  const trigger=page.getByRole('button',{name:'Open model picker',exact:true});const option=id=>page.getByRole('listbox',{name:'Models',exact:true}).getByRole('option').filter({hasText:id});
+  const draft=`model choice ${info.project.name} 中文🙂`;await h.input.fill(draft);
+  const selected=page.waitForResponse(r=>r.request().method()==='PATCH'&&r.url().endsWith(`/api/sessions/${h.id}/model`));
+  await trigger.click();await option('ux-local/alternate').click();expect((await selected).status()).toBe(200);await expect(trigger).toHaveText('ux-local/alternate');await expect(h.input).toHaveValue(draft);
+  expect((await h.read(`/api/sessions/${h.id}/turns`)).turns||[]).toHaveLength(0);await page.reload();await expect(trigger).toHaveText('ux-local/alternate');await expect(h.input).toHaveValue(draft);
+  async function sendAndAssert(text,model){
+   await h.input.fill(text);const response=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${h.id}/prompt`));await h.input.press('Enter');const res=await response;expect(res.status()).toBe(202);const id=(await res.json()).turn_id;
+   await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/turns`)).turns.find(t=>t.id===id)?.status).toBe('completed');
+   const turn=(await h.read(`/api/sessions/${h.id}/turns`)).turns.find(t=>t.id===id);expect(turn.prompt).toBe(text);expect(turn.metadata.model).toBe(`ux-local/${model}`);
+   const expected=`Provider model ${model}:`;await expect(page.locator('.post.agent-post .post-content').filter({hasText:expected}).filter({hasText:text})).toBeVisible();await expect(h.input).toHaveValue('');return id;
+  }
+  await sendAndAssert(draft,'alternate');
+  const next='keep draft after model failure';await h.input.fill(next);
+  await page.route(`**/api/sessions/${h.id}/model`,r=>r.request().method()==='PATCH'?r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Model selection unavailable'})}):r.continue());
+  await trigger.click();await option('ux-local/gate').click();await expect(page.getByRole('alert')).toContainText('Model selection unavailable');await expect(trigger).toHaveText('ux-local/alternate');await expect(h.input).toHaveValue(next);expect((await h.read(`/api/sessions/${h.id}/model`)).current).toBe('ux-local/alternate');
+  await page.unroute(`**/api/sessions/${h.id}/model`);await page.reload();await expect(trigger).toHaveText('ux-local/alternate');await expect(h.input).toHaveValue(next);await sendAndAssert(next,'alternate');
+  await trigger.click();await option('ux-local/gate').click();await expect(trigger).toHaveText('ux-local/gate');await sendAndAssert('send after changing model again','gate');
+  const turns=(await h.read(`/api/sessions/${h.id}/turns`)).turns;expect(turns).toHaveLength(3);expect(new Set(turns.map(t=>t.id)).size).toBe(3);expect(errors).toEqual([]);
  }finally{await h.close()}
 });

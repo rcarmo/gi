@@ -133,6 +133,9 @@ func main() {
 			emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"role": "assistant", "reasoning_content": "Native thought [details](https://example.invalid/thought)"}, "finish_reason": nil}}})
 			content = "Native draft [details](https://example.invalid/draft)"
 		}
+		if os.Getenv("GI_UX_BASIC_HTTP") != "" {
+			content = fmt.Sprintf("Provider model %v: %s", body["model"], content)
+		}
 		emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"role": "assistant", "content": content}, "finish_reason": nil}}})
 		if len(match) > 1 {
 			token := match[1]
@@ -214,6 +217,10 @@ func main() {
 	}
 	cfg.DefaultModel = "ux-local/gate"
 	cfg.EnabledModels = []string{"ux-local/gate", "test-model", "bootstrap"}
+	if os.Getenv("GI_UX_BASIC_HTTP") != "" {
+		goai.RegisterModel(&goai.Model{ID: "alternate", Name: "UX Alternate", Provider: "ux-local", Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, ContextWindow: 32000, MaxTokens: 1024})
+		cfg.EnabledModels = append(cfg.EnabledModels, "ux-local/alternate")
+	}
 	if os.Getenv("GI_UX_CONTEXT") != "" {
 		for _, entry := range []struct {
 			id     string

@@ -51,13 +51,21 @@ secure-context or crypto overrides. Both Chromium and WebKit are covered.
 - New session, child send, parent draft return/reload and child history return
   preserve the correct session and content.
 
-`make test-web-basic-controls` runs12checks (two engines × three sizes):
+`make test-web-basic-controls` now runs18checks (three journeys × two engines ×
+three sizes):
 
 - Stop posts the exact active turn ID to the native activity endpoint, cancels
   that turn without creating another, preserves the next draft through reload,
   and permits the next send to complete.
 - Severing real SSE sockets shows Reconnecting, keeps the draft, then restores
   the native completed response after reconnection with one turn and no resend.
+
+- Model selection persists without submitting the draft; reload keeps the
+  selection. Subsequent native turns use the selected model, proven by both
+  turn metadata and the deterministic provider's actual request-body model.
+  A503selection failure keeps the visible label, stored choice and draft;
+  reload and the next send still use that prior model. A later successful
+  change reaches the other model. Each case creates exactly three turns.
 
 These checks are included in required basic-web CI, gating all platform builds.
 The provider is deterministic; live Copilot availability was verified separately
@@ -74,5 +82,16 @@ increased, pixel criterion relaxed or supplied component modified.
 
 Live remains the preceding exact HTTP-send release until this follow-up has
 whole product CI and a separately recorded deployment. TUI/autosave work stays
-paused. Model selection, routed/lost-reload delivery and older weak post-count
-tests remain on the basic-workflow backlog.
+paused. Routed/lost-reload delivery and remaining weak post-count tests outside the
+chat-flow suite remain on the basic-workflow backlog.
+
+The model follow-up also replaces the original chat-flow suite's broad post
+counts and fixed sleeps with unique per-test prompts, exact native admission
+IDs, one-new-turn checks, matching user/assistant messages and reload proof.
+Avatar and cleared-composer assertions now refer to the new admission rather
+than existing history. All18control/model cases and121functional checks pass
+(11existing skips), plus core/vet/hooks and13helpers/50assertions. A focused
+review found one missing immediate label assertion after failed model selection;
+that assertion was added and passed. No runtime production code changed in this
+acceptance follow-up; the two-model provider fixture is enabled only under
+`GI_UX_BASIC_HTTP`.
