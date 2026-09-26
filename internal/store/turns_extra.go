@@ -28,22 +28,31 @@ func turnPhaseForStatus(status string) string {
 }
 
 func (s *Store) CreateTurnWithStatus(ctx context.Context, id, sessionID, status, prompt string, metadata map[string]any) (*Turn, error) {
-	metadataJSON, err := marshalJSON(metadata)
-	if err != nil {
+	if err := insertTurn(ctx, s.db, id, sessionID, status, prompt, metadata); err != nil {
 		return nil, err
-	}
-	phase := turnPhaseForStatus(status)
-	_, err = s.db.ExecContext(ctx, `
-		insert into turns (id, session_id, status, phase, prompt, metadata_json, created_at, updated_at, queue_position)
-		values (?, ?, ?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`, (select coalesce(max(queue_position), 0)+1 from turns where session_id = ?))
-	`, id, sessionID, status, phase, prompt, metadataJSON, sessionID)
-	if err != nil {
-		return nil, fmt.Errorf("create turn with status: %w", err)
 	}
 	if err := s.SyncSessionQueueCount(ctx, sessionID); err != nil {
 		return nil, err
 	}
 	return s.GetTurn(ctx, id)
+}
+
+func insertTurn(ctx context.Context, db interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, id, sessionID, status, prompt string, metadata map[string]any) error {
+	metadataJSON, err := marshalJSON(metadata)
+	if err != nil {
+		return err
+	}
+	phase := turnPhaseForStatus(status)
+	_, err = db.ExecContext(ctx, `
+		insert into turns (id, session_id, status, phase, prompt, metadata_json, created_at, updated_at, queue_position)
+		values (?, ?, ?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`, (select coalesce(max(queue_position), 0)+1 from turns where session_id = ?))
+	`, id, sessionID, status, phase, prompt, metadataJSON, sessionID)
+	if err != nil {
+		return fmt.Errorf("create turn with status: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) DeleteTurn(ctx context.Context, turnID string) error {

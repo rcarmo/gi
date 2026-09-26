@@ -2,26 +2,36 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 )
 
 func (s *Store) CreateSubTurn(ctx context.Context, parentTurnID, parentSessionID, childTurnID, childSessionID, deliveryMode string, depth int, metadata map[string]any) (*SubTurn, error) {
+	if err := insertSubTurn(ctx, s.db, parentTurnID, parentSessionID, childTurnID, childSessionID, deliveryMode, depth, metadata); err != nil {
+		return nil, err
+	}
+	return s.GetSubTurnByChild(ctx, childTurnID)
+}
+
+func insertSubTurn(ctx context.Context, db interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}, parentTurnID, parentSessionID, childTurnID, childSessionID, deliveryMode string, depth int, metadata map[string]any) error {
 	deliveryMode = strings.ToLower(strings.TrimSpace(deliveryMode))
 	if deliveryMode == "" {
 		deliveryMode = "sync"
 	}
 	if deliveryMode != "sync" && deliveryMode != "async" {
-		return nil, fmt.Errorf("create subturn: invalid delivery mode: %s", deliveryMode)
+		return fmt.Errorf("create subturn: invalid delivery mode: %s", deliveryMode)
 	}
 	if depth <= 0 {
 		depth = 1
 	}
 	metadataJSON, err := marshalJSON(metadata)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	_, err = s.db.ExecContext(ctx, `
+	_, err = db.ExecContext(ctx, `
 		insert into subturns (
 			parent_turn_id, parent_session_id, child_turn_id, child_session_id,
 			delivery_mode, status, depth, metadata_json, created_at, updated_at
@@ -29,9 +39,9 @@ func (s *Store) CreateSubTurn(ctx context.Context, parentTurnID, parentSessionID
 		values (?, ?, ?, ?, ?, 'running', ?, ?, `+defaultNow+`, `+defaultNow+`)
 	`, parentTurnID, parentSessionID, childTurnID, childSessionID, deliveryMode, depth, metadataJSON)
 	if err != nil {
-		return nil, fmt.Errorf("create subturn: %w", err)
+		return fmt.Errorf("create subturn: %w", err)
 	}
-	return s.GetSubTurnByChild(ctx, childTurnID)
+	return nil
 }
 
 func (s *Store) GetSubTurnByChild(ctx context.Context, childTurnID string) (*SubTurn, error) {

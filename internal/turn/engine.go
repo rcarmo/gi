@@ -371,6 +371,10 @@ func (e *Engine) PeeringStatus() peering.Status {
 }
 
 func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, error) {
+	return e.submitPrompt(ctx, in, nil)
+}
+
+func (e *Engine) submitPrompt(ctx context.Context, in RunInput, retry *store.HeldRetryAdmission) (*SubmitResult, error) {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if in.Intent == "" {
 		in.Intent = "prompt"
@@ -486,6 +490,10 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	}
 	subTurnToolsRestricted = restrictedTools
 	for k, v := range in.Metadata {
+		// Admission receipts are engine-owned, not arbitrary caller metadata.
+		if retry == nil && strings.HasPrefix(k, "retry_") {
+			continue
+		}
 		if k == "effective_tools" || k == "subturn_tools_restricted" || k == "media" || k == "operation" || k == "context_token" {
 			continue
 		}
@@ -495,21 +503,36 @@ func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, 
 	if in.ParentTurnID != "" {
 		metadata["subturn_tools_restricted"] = subTurnToolsRestricted
 	}
-	if _, err := e.store.CreateTurnWithStatus(opCtx, turnID, in.SessionID, "queued", in.Prompt, metadata); err != nil {
+	subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth, "max_depth": subTurnMaxDepth, "max_concurrency": subTurnMaxConcurrency, "delivery_mode": subTurnDeliveryMode, "subturn_critical": subTurnCritical, "effective_tools": effectiveTools, "subturn_tools_restricted": subTurnToolsRestricted}
+	if retry != nil {
+		var sub *store.RetrySubTurn
+		if in.ParentTurnID != "" && parentSessionID != "" {
+			if hook := e.beforeCreateSubTurnErrorHook; hook != nil {
+				if err := hook(opCtx, in.ParentTurnID, turnID); err != nil {
+					return nil, err
+				}
+			}
+			sub = &store.RetrySubTurn{ParentTurnID: in.ParentTurnID, ParentSessionID: parentSessionID, DeliveryMode: subTurnDeliveryMode, Depth: subTurnDepth, Metadata: subturnMetadata}
+		}
+		if err := e.store.AdmitHeldRetry(opCtx, *retry, turnID, in.SessionID, in.Prompt, metadata, sub); err != nil {
+			return nil, err
+		}
+	} else if _, err := e.store.CreateTurnWithStatus(opCtx, turnID, in.SessionID, "queued", in.Prompt, metadata); err != nil {
 		return nil, err
 	}
 	durableCtx := e.backgroundContext()
 	if in.ParentTurnID != "" && parentSessionID != "" {
-		subturnMetadata := map[string]any{"intent": in.Intent, "model": in.Model, "depth": subTurnDepth, "max_depth": subTurnMaxDepth, "max_concurrency": subTurnMaxConcurrency, "delivery_mode": subTurnDeliveryMode, "subturn_critical": subTurnCritical, "effective_tools": effectiveTools, "subturn_tools_restricted": subTurnToolsRestricted}
-		if hook := e.beforeCreateSubTurnErrorHook; hook != nil {
-			if err := hook(durableCtx, in.ParentTurnID, turnID); err != nil {
-				logutil.WarnIfErr("rollback turn after create subturn hook failure", e.store.DeleteTurn(durableCtx, turnID))
+		if retry == nil {
+			if hook := e.beforeCreateSubTurnErrorHook; hook != nil {
+				if err := hook(durableCtx, in.ParentTurnID, turnID); err != nil {
+					logutil.WarnIfErr("rollback turn after create subturn hook failure", e.store.DeleteTurn(durableCtx, turnID))
+					return nil, err
+				}
+			}
+			if _, err := e.store.CreateSubTurn(durableCtx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, subTurnDeliveryMode, subTurnDepth, subturnMetadata); err != nil {
+				logutil.WarnIfErr("rollback turn after create subturn failure", e.store.DeleteTurn(durableCtx, turnID))
 				return nil, err
 			}
-		}
-		if _, err := e.store.CreateSubTurn(durableCtx, in.ParentTurnID, parentSessionID, turnID, in.SessionID, subTurnDeliveryMode, subTurnDepth, subturnMetadata); err != nil {
-			logutil.WarnIfErr("rollback turn after create subturn failure", e.store.DeleteTurn(durableCtx, turnID))
-			return nil, err
 		}
 		e.broadcast(parentSessionID, map[string]any{
 			"type":             "subturn_created",
@@ -1151,7 +1174,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 	if err != nil {
 		return nil, err
 	}
-	if failureRec.ResolutionState == "retry_pending" {
+	if failureRec.ResolutionState == "retry_pending" || (failureRec.ResolutionState == "retried" && failureRec.RetryAdmissionVersion == 1) {
 		admitted, err := e.store.ReconcileHeldRetry(opCtx, turnID, failureRec.RetryAdmissionToken, summary)
 		if err != nil {
 			return nil, err
@@ -1167,7 +1190,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 		return nil, fmt.Errorf("retry held turn: turn %s is not currently held", turnID)
 	}
 	token := store.NowID("retry")
-	reserved, err := e.store.ReserveHeldRetry(opCtx, turnID, token)
+	reserved, err := e.store.ReserveAtomicHeldRetry(opCtx, turnID, token)
 	if err != nil {
 		return nil, err
 	}
@@ -1180,7 +1203,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 	metadata["retry_hold_state"] = failureRec.HoldState
 	metadata["failure_resolution"] = "retry"
 	metadata["retry_admission_token"] = token
-	result, err := e.SubmitPrompt(opCtx, RunInput{
+	result, err := e.submitPrompt(opCtx, RunInput{
 		SessionID: turnRec.SessionID,
 		Prompt:    turnRec.Prompt,
 		// A retry is a durable follow-on, never implicit steering into other work.
@@ -1188,7 +1211,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 		Model:        internalx.StringValue(turnRec.Metadata["model"], ""),
 		ParentTurnID: internalx.StringValue(turnRec.Metadata["parent_turn_id"], ""),
 		Metadata:     metadata,
-	})
+	}, &store.HeldRetryAdmission{OriginalTurnID: turnID, Token: token, Summary: summary})
 	admitted, reconcileErr := e.store.FinishHeldRetry(opCtx, turnID, token, summary, err != nil)
 	if reconcileErr != nil {
 		return nil, fmt.Errorf("retry admission requires reconciliation: %w", reconcileErr)

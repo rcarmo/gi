@@ -10,18 +10,19 @@ import (
 )
 
 type TurnFailure struct {
-	TurnID              string `json:"turn_id"`
-	SessionID           string `json:"session_id"`
-	FailureKind         string `json:"failure_kind"`
-	HoldState           string `json:"hold_state"`
-	Summary             string `json:"summary"`
-	ResolutionState     string `json:"resolution_state,omitempty"`
-	ResolutionSummary   string `json:"resolution_summary,omitempty"`
-	ResolvedAt          string `json:"resolved_at,omitempty"`
-	ResolvedTurnID      string `json:"resolved_turn_id,omitempty"`
-	RetryAdmissionToken string `json:"retry_admission_token,omitempty"`
-	CreatedAt           string `json:"created_at"`
-	UpdatedAt           string `json:"updated_at"`
+	TurnID                string `json:"turn_id"`
+	SessionID             string `json:"session_id"`
+	FailureKind           string `json:"failure_kind"`
+	HoldState             string `json:"hold_state"`
+	Summary               string `json:"summary"`
+	ResolutionState       string `json:"resolution_state,omitempty"`
+	ResolutionSummary     string `json:"resolution_summary,omitempty"`
+	ResolvedAt            string `json:"resolved_at,omitempty"`
+	ResolvedTurnID        string `json:"resolved_turn_id,omitempty"`
+	RetryAdmissionToken   string `json:"retry_admission_token,omitempty"`
+	RetryAdmissionVersion int    `json:"retry_admission_version,omitempty"`
+	CreatedAt             string `json:"created_at"`
+	UpdatedAt             string `json:"updated_at"`
 }
 
 func normalizeTurnFailureKind(kind string) string {
@@ -67,6 +68,7 @@ func upsertTurnFailure(ctx context.Context, db interface {
 			resolved_at = null,
 			resolved_turn_id = null,
 			retry_admission_token = '',
+			retry_admission_version = 0,
 			updated_at = `+defaultNow+`
 		where coalesce(turn_failures.resolution_state,'') = ''
 	`, turnID, sessionID, failureKind, holdState, summary)
@@ -103,12 +105,12 @@ func (s *Store) ClearTurnFailure(ctx context.Context, turnID string) error {
 func (s *Store) GetTurnFailure(ctx context.Context, turnID string) (*TurnFailure, error) {
 	row := s.db.QueryRowContext(ctx, `
 		select turn_id, session_id, failure_kind, hold_state, summary,
-		       coalesce(resolution_state,''), coalesce(resolution_summary,''), coalesce(resolved_at,''), coalesce(resolved_turn_id,''), coalesce(retry_admission_token,''),
+		       coalesce(resolution_state,''), coalesce(resolution_summary,''), coalesce(resolved_at,''), coalesce(resolved_turn_id,''), coalesce(retry_admission_token,''), retry_admission_version,
 		       created_at, updated_at
 		from turn_failures where turn_id = ?
 	`, turnID)
 	var out TurnFailure
-	if err := row.Scan(&out.TurnID, &out.SessionID, &out.FailureKind, &out.HoldState, &out.Summary, &out.ResolutionState, &out.ResolutionSummary, &out.ResolvedAt, &out.ResolvedTurnID, &out.RetryAdmissionToken, &out.CreatedAt, &out.UpdatedAt); err != nil {
+	if err := row.Scan(&out.TurnID, &out.SessionID, &out.FailureKind, &out.HoldState, &out.Summary, &out.ResolutionState, &out.ResolutionSummary, &out.ResolvedAt, &out.ResolvedTurnID, &out.RetryAdmissionToken, &out.RetryAdmissionVersion, &out.CreatedAt, &out.UpdatedAt); err != nil {
 		return nil, err
 	}
 	return &out, nil

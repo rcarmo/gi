@@ -117,41 +117,27 @@ func TestRetryHeldGuardFailuresBeforeAndAfterAdmission(t *testing.T) {
 				t.Fatal(err)
 			}
 			result, err := e.RetryHeldTurn(ctx, "old", "retry")
-			if boundary == "post-insert" {
-				if err != nil || result == nil {
-					t.Fatal("durable admission not recovered", result, err)
-				}
-			} else if err == nil {
-				t.Fatal("expected failure", boundary)
+			if err == nil || result != nil {
+				t.Fatal("atomic fault must roll back admission", boundary, result, err)
 			}
 			if _, err := s.DB().Exec(`DROP TRIGGER retry_fail`); err != nil {
 				t.Fatal(err)
 			}
-			if boundary == "before" {
-				if retryCount(t, s) != 0 {
-					t.Fatal("before wrote turn")
-				}
-				f, _ := s.GetTurnFailure(ctx, "old")
-				if f.ResolutionState != "" || f.HoldState != "review" {
-					t.Fatal("reservation not released", f)
-				}
-			} else {
-				if retryCount(t, s) != 1 {
-					t.Fatal("admission missing")
-				}
+			if retryCount(t, s) != 0 {
+				t.Fatal("rollback left an admission")
 			}
-			if boundary != "post-insert" {
-				result, err = e.RetryHeldTurn(ctx, "old", "recover")
-				if err != nil || result == nil {
-					t.Fatal(result, err)
-				}
+			f, getErr := s.GetTurnFailure(ctx, "old")
+			if getErr != nil || f.ResolutionState != "" || f.HoldState != "review" {
+				t.Fatal("reservation not released", f, getErr)
+			}
+			result, err = e.RetryHeldTurn(ctx, "old", "recover")
+			if err != nil || result == nil {
+				t.Fatal(result, err)
 			}
 			if retryCount(t, s) != 1 {
 				t.Fatal("duplicate on recover")
 			}
-			if boundary != "post-insert" {
-				waitRetryDone(t, s, result.TurnID)
-			}
+			waitRetryDone(t, s, result.TurnID)
 		})
 	}
 }
@@ -301,8 +287,8 @@ func TestRetryHeldGuardDoesNotReplayContinuationOrRoutingMetadata(t *testing.T) 
 			t.Fatal("rehold reopened resolution", err)
 		}
 	}
-	if _, err = e.RetryHeldTurn(ctx, "old", "again"); err == nil {
-		t.Fatal("resolved retried again")
+	if recovered, err := e.RetryHeldTurn(ctx, "old", "again"); err != nil || recovered.TurnID != result.TurnID {
+		t.Fatal("resolved admission not recovered", recovered, err)
 	}
 	if retryCount(t, s) != 1 {
 		t.Fatal("duplicate retry")
@@ -335,8 +321,13 @@ func TestRetryHeldGuardConcurrentObserverCannotResolveRollbackableSubturn(t *tes
 	}
 	go func() { _, err := e.RetryHeldTurn(ctx, "old", "owner"); done <- err }()
 	<-inserted
-	// Observer must not report success from the visible INSERT which the owner
-	// can still delete while finishing subturn setup.
+	// Subturn validation now precedes the atomic admission; the observer must
+	// see no provisional turn while the owner is paused here.
+	if retryCount(t, s) != 0 {
+		close(release)
+		<-done
+		t.Fatal("provisional retry visible")
+	}
 	result, observerErr := other.RetryHeldTurn(ctx, "old", "observer")
 	close(release)
 	ownerErr := <-done
@@ -352,11 +343,11 @@ func TestRetryHeldGuardConcurrentObserverCannotResolveRollbackableSubturn(t *tes
 	}
 }
 
-func TestRetryHeldGuardMissingSubmissionAuditRemainsHeldAfterReopen(t *testing.T) {
+func TestRetryHeldGuardMissingSubmissionAuditRecoversAtomicAdmissionAfterReopen(t *testing.T) {
 	e, s, path := heldRetryFixture(t)
 	ctx := context.Background()
 	// Keep follow-on queued so no background execution can confound the audit
-	// failure. Fail both warning-only submission audit and failure resolution.
+	// failure. Failed resolution now rolls back the whole admission.
 	if _, err := s.CreateTurnWithStatus(ctx, "active", "A", "running", "active", nil); err != nil {
 		t.Fatal(err)
 	}
@@ -374,8 +365,18 @@ func TestRetryHeldGuardMissingSubmissionAuditRemainsHeldAfterReopen(t *testing.T
 	if result, err := e.RetryHeldTurn(ctx, "old", "owner"); err == nil || result != nil {
 		t.Fatal("expected unresolved result", result, err)
 	}
+	if retryCount(t, s) != 0 {
+		t.Fatal("resolution failure left a retry turn")
+	}
+	if _, err := s.DB().Exec(`DROP TRIGGER lose_retry_resolution`); err != nil {
+		t.Fatal(err)
+	}
+	admitted, err := e.RetryHeldTurn(ctx, "old", "owner")
+	if err != nil || admitted == nil {
+		t.Fatal(admitted, err)
+	}
 	if retryCount(t, s) != 1 {
-		t.Fatal("missing durable turn")
+		t.Fatal("missing atomic admission")
 	}
 	e.Close()
 	s.Close()
@@ -386,18 +387,95 @@ func TestRetryHeldGuardMissingSubmissionAuditRemainsHeldAfterReopen(t *testing.T
 	defer reopened.Close()
 	recovery := New(reopened)
 	defer recovery.Close()
-	for _, trigger := range []string{"lose_retry_audit", "lose_retry_resolution"} {
+	for _, trigger := range []string{"lose_retry_audit"} {
 		if _, err = reopened.DB().Exec(`DROP TRIGGER ` + trigger); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if result, err := recovery.RetryHeldTurn(ctx, "old", "recover"); !errors.Is(err, store.ErrRetryPending) || result != nil {
-		t.Fatal("unknown admission replayed", result, err)
+	if result, err := recovery.RetryHeldTurn(ctx, "old", "recover"); err != nil || result == nil || result.TurnID != admitted.TurnID {
+		t.Fatal("committed admission not recovered", result, err)
 	}
-	if err := recovery.SkipHeldTurn(ctx, "old", "skip"); !errors.Is(err, store.ErrFailureConflict) {
-		t.Fatal("unknown admission discarded", err)
+	if err := recovery.SkipHeldTurn(ctx, "old", "skip"); err == nil {
+		t.Fatal("resolved admission skipped")
+	}
+	var audits int
+	if err = reopened.DB().QueryRow(`select count(*) from turn_events where turn_id=? and event_type='turn.submitted'`, admitted.TurnID).Scan(&audits); err != nil || audits != 0 {
+		t.Fatal("audit failure not exercised", audits, err)
 	}
 	if retryCount(t, reopened) != 1 {
 		t.Fatal("duplicate admission")
+	}
+}
+
+func TestRetryHeldGuardExplicitReleaseFencesPausedSubmitter(t *testing.T) {
+	e, s, path := heldRetryFixture(t)
+	ctx := context.Background()
+	if _, err := s.CreateTurnWithStatus(ctx, "parent", "A", "completed", "parent", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.DB().Exec(`UPDATE turns SET metadata_json=json_set(metadata_json,'$.parent_turn_id','parent') WHERE id='old'`); err != nil {
+		t.Fatal(err)
+	}
+	other, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer other.Close()
+	paused := make(chan struct{})
+	resume := make(chan struct{})
+	done := make(chan error, 1)
+	e.beforeCreateSubTurnErrorHook = func(context.Context, string, string) error { close(paused); <-resume; return nil }
+	go func() { _, err := e.RetryHeldTurn(ctx, "old", "owner"); done <- err }()
+	<-paused
+	f, readErr := other.GetTurnFailure(ctx, "old")
+	if readErr != nil {
+		close(resume)
+		<-done
+		t.Fatal(readErr)
+	}
+	releaseErr := other.ReleaseUnadmittedHeldRetry(ctx, "A", "old", f.RetryAdmissionToken)
+	close(resume)
+	ownerErr := <-done
+	if releaseErr != nil || !errors.Is(ownerErr, store.ErrFailureConflict) {
+		t.Fatal("fence failure", releaseErr, ownerErr)
+	}
+	if retryCount(t, s) != 0 {
+		t.Fatal("late caller admitted")
+	}
+	e.beforeCreateSubTurnErrorHook = nil
+	result, err := e.RetryHeldTurn(ctx, "old", "new explicit retry")
+	if err != nil || result == nil {
+		t.Fatal(result, err)
+	}
+	waitRetryDone(t, s, result.TurnID)
+	if retryCount(t, s) != 1 {
+		t.Fatal("duplicate after release")
+	}
+}
+
+func TestRetryHeldGuardPublicSubmissionCannotForgeReceipt(t *testing.T) {
+	e, s, _ := heldRetryFixture(t)
+	ctx := context.Background()
+	ok, err := s.ReserveAtomicHeldRetry(ctx, "old", "private-token")
+	if err != nil || !ok {
+		t.Fatal(ok, err)
+	}
+	result, err := e.SubmitPrompt(ctx, RunInput{SessionID: "A", Prompt: "ordinary", Intent: "queue", Model: "bootstrap", Metadata: map[string]any{"retry_of_turn_id": "old", "retry_admission_token": "private-token", "custom": "preserved"}})
+	if err != nil || result == nil {
+		t.Fatal(result, err)
+	}
+	waitRetryDone(t, s, result.TurnID)
+	row, err := s.GetTurn(ctx, result.TurnID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.Metadata["retry_of_turn_id"] != nil || row.Metadata["retry_admission_token"] != nil || row.Metadata["custom"] != "preserved" {
+		t.Fatal(row.Metadata)
+	}
+	if retryCount(t, s) != 0 {
+		t.Fatal("public submit forged retry receipt")
+	}
+	if err = s.ReleaseUnadmittedHeldRetry(ctx, "A", "old", "private-token"); err != nil {
+		t.Fatal(err)
 	}
 }

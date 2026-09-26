@@ -12,10 +12,19 @@ var ErrFailureConflict = errors.New("failure state changed; refresh before retry
 // Reserve the existing held terminal failure atomically. The resolution turn ID
 // is kept separate from the opaque token until a follow-on turn is durable.
 func (s *Store) ReserveHeldRetry(ctx context.Context, turnID, token string) (bool, error) {
+	return s.reserveHeldRetry(ctx, turnID, token, 0)
+}
+
+// ReserveAtomicHeldRetry opts into fenced, all-or-nothing turn admission.
+func (s *Store) ReserveAtomicHeldRetry(ctx context.Context, turnID, token string) (bool, error) {
+	return s.reserveHeldRetry(ctx, turnID, token, 1)
+}
+
+func (s *Store) reserveHeldRetry(ctx context.Context, turnID, token string, version int) (bool, error) {
 	if token == "" {
 		return false, ErrFailureConflict
 	}
-	result, err := s.db.ExecContext(ctx, `UPDATE turn_failures SET resolution_state='retry_pending',resolution_summary='',retry_admission_token=?,resolved_at=NULL,updated_at=`+defaultNow+` WHERE turn_id=? AND hold_state<>'none' AND coalesce(resolution_state,'')='' AND EXISTS(SELECT 1 FROM turns t WHERE t.id=turn_failures.turn_id AND t.session_id=turn_failures.session_id AND t.status IN ('failed','aborted','cancelled'))`, token, turnID)
+	result, err := s.db.ExecContext(ctx, `UPDATE turn_failures SET resolution_state='retry_pending',resolution_summary='',retry_admission_token=?,retry_admission_version=?,resolved_at=NULL,updated_at=`+defaultNow+` WHERE turn_id=? AND hold_state<>'none' AND coalesce(resolution_state,'')='' AND EXISTS(SELECT 1 FROM turns t WHERE t.id=turn_failures.turn_id AND t.session_id=turn_failures.session_id AND t.status IN ('failed','aborted','cancelled'))`, token, version, turnID)
 	if err != nil {
 		return false, err
 	}
@@ -43,7 +52,8 @@ func (s *Store) reconcileHeldRetry(ctx context.Context, turnID, token, summary s
 	}
 	defer tx.Rollback()
 	var session, state, current, resolved string
-	if err = tx.QueryRowContext(ctx, `SELECT session_id,coalesce(resolution_state,''),retry_admission_token,coalesce(resolved_turn_id,'') FROM turn_failures WHERE turn_id=?`, turnID).Scan(&session, &state, &current, &resolved); err != nil {
+	var version int
+	if err = tx.QueryRowContext(ctx, `SELECT session_id,coalesce(resolution_state,''),retry_admission_token,coalesce(resolved_turn_id,''),retry_admission_version FROM turn_failures WHERE turn_id=?`, turnID).Scan(&session, &state, &current, &resolved, &version); err != nil {
 		return "", err
 	}
 	if state == "retried" && current == token {
@@ -67,8 +77,13 @@ func (s *Store) reconcileHeldRetry(ctx context.Context, turnID, token, summary s
 		if !releaseAbsent {
 			return "", ErrRetryPending
 		}
-		_, err = tx.ExecContext(ctx, `UPDATE turn_failures SET resolution_state='',resolution_summary='',retry_admission_token='',updated_at=`+defaultNow+` WHERE turn_id=? AND resolution_state='retry_pending' AND retry_admission_token=?`, turnID, token)
+		_, err = tx.ExecContext(ctx, `UPDATE turn_failures SET resolution_state='',resolution_summary='',retry_admission_token='',retry_admission_version=0,updated_at=`+defaultNow+` WHERE turn_id=? AND resolution_state='retry_pending' AND retry_admission_token=?`, turnID, token)
 	} else {
+		// New-protocol admissions always resolve in the insert transaction.
+		// A pending row plus receipt cannot be inferred safe (e.g. legacy writer).
+		if version != 0 {
+			return "", ErrRetryPending
+		}
 		if !submitReturned {
 			var confirmed int
 			// turn.submitted is written after subturn setup/rollback completes.
