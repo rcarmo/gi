@@ -2345,6 +2345,15 @@ async function getAgentModels(chatJid = null) {
     supports_thinking: Boolean(data.supports_thinking)
   };
 }
+async function selectAgentThinking(chatJid, model, level, token) {
+  if (!chatJid?.startsWith("gi:"))
+    throw new Error("No destination session");
+  try {
+    return await request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/model`, { method: "PATCH", body: JSON.stringify({ model, thinking_level: level, thinking_token: token }) });
+  } finally {
+    notifyModelSettlement(chatJid);
+  }
+}
 async function selectAgentModel(chatJid, model) {
   if (!chatJid?.startsWith("gi:"))
     throw new Error("No model destination session");
@@ -19832,11 +19841,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-hdggfpb1.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-75tksa8m.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-s2sakm31.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-241y75n2.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-rrgdajfm.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-xpxvdv4z.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-6gvz6qq3.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-frx0v45j.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-r25xej0p.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-yh5b7g8c.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -22594,6 +22603,7 @@ export {
   getGiCompactionPolicy,
   saveGiCompactionPolicy,
   getAgentModels,
+  selectAgentThinking,
   selectAgentModel,
   defaultAppearance,
   appearancePresets,
@@ -22609,5 +22619,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=E8A958DB8165528F64756E2164756E21
-//# sourceMappingURL=app-mbtajdwk.js.map
+//# debugId=8969FC5DA2D391AE64756E2164756E21
+//# sourceMappingURL=app-1cbkkm0j.js.map

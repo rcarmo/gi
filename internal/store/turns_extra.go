@@ -221,16 +221,32 @@ func (s *Store) TouchSessionState(ctx context.Context, sessionID string, patch m
 	if len(patch) == 0 {
 		return nil
 	}
+	// Legacy writers (including TUI /thinking) cannot silently reuse a web
+	// model binding and thereby change provider behaviour for future turns.
+	if _, changesThinking := patch["thinking_level"]; changesThinking {
+		if _, bound := patch["thinking_model"]; !bound {
+			copied := make(map[string]any, len(patch)+1)
+			for k, v := range patch {
+				copied[k] = v
+			}
+			copied["thinking_model"] = ""
+			patch = copied
+		}
+	}
 	patchJSON, err := marshalJSON(patch)
 	if err != nil {
 		return err
 	}
-	res, err := s.db.ExecContext(ctx, `
-		update sessions
-		set state_json = json_patch(coalesce(nullif(state_json, ''), '{}'), json(?)),
-		    updated_at = `+defaultNow+`
-		where id = ?
-	`, patchJSON, sessionID)
+	expression := "json_patch(coalesce(nullif(state_json, ''), '{}'), json(?))"
+	// Selection writes (not runtime model labels) invalidate stale model/thinking
+	// snapshots even if a user switches away and back to the same value.
+	for _, key := range []string{"selected_model", "selected_provider", "thinking_level", "thinking_model"} {
+		if _, ok := patch[key]; ok {
+			expression = "json_set(" + expression + ", '$.selection_revision', coalesce(json_extract(state_json, '$.selection_revision'), 0)+1)"
+			break
+		}
+	}
+	res, err := s.db.ExecContext(ctx, `update sessions set state_json=`+expression+`, updated_at=`+defaultNow+` where id=?`, patchJSON, sessionID)
 	if err != nil {
 		return fmt.Errorf("touch session state: %w", err)
 	}

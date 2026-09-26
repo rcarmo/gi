@@ -84,9 +84,10 @@ func SelectSessionModel(ctx context.Context, s *store.Store, sessionID string, o
 		model = match.ID
 	}
 	state := map[string]any{"model": model, "provider": match.Provider, "selected_model": model, "selected_provider": match.Provider}
-	if !match.Reasoning {
-		state["thinking_level"] = ""
-	}
+	// Model Apply atomically resets thinking to provider default; never carry a
+	// stale read of a concurrently changed choice across model selection.
+	state["thinking_level"] = ""
+	state["thinking_model"] = ""
 	if err := s.TouchSessionState(ctx, sessionID, state); err != nil {
 		return nil, err
 	}

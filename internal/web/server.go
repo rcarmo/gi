@@ -692,14 +692,14 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 	}
 	model := req.Model
 	if model == "" {
+		choice := inference.SessionModelChoice{Model: s.cfg.DefaultModel, Provider: s.cfg.DefaultProvider}
 		if session, err := s.store.GetSession(r.Context(), sessionID); err == nil {
-			model, _ = session.State["selected_model"].(string)
-			if model == "" {
-				model, _ = session.State["model"].(string)
-			}
+			choice = inference.SessionModel(session.State, choice)
 		}
-		if model == "" {
-			model = s.cfg.DefaultModel
+		model = choice.Label()
+		// Native deterministic fixtures use bare sentinels, not provider calls.
+		if choice.Provider == "test" && (choice.Model == "test-model" || choice.Model == "bootstrap") {
+			model = choice.Model
 		}
 	}
 	var (

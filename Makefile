@@ -177,6 +177,14 @@ logs:
 
 # ── Checks and tests ────────────────────────────────────────────────────
 
+.PHONY: test-session-thinking test-ux-thinking
+test-session-thinking:
+	$(GO) test -race -count=3 ./internal/store ./internal/inference ./internal/turn ./internal/web -run SessionThinking
+
+test-ux-thinking: build-web test-session-thinking
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_THINKING=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config playwright.ux.config.mjs tests/ux/session-thinking.spec.mjs
+
 .PHONY: test-web-queue-hold
 test-web-queue-hold:
 	$(GO) test -race -count=3 ./internal/store ./internal/turn ./internal/web -run WebQueueHold

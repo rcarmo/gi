@@ -12,6 +12,8 @@ recovery without chat-history scans; it is not submission idempotency.
 version-2 IndexedDB migration and full-reload recovery.
 [Web Stop and Resume queue](web-stop-queue.md) describes captured-run cancellation,
 durable queued-work preservation and explicit fenced resume.
+[Session thinking](session-thinking.md) covers validated Settings choices, captured
+turn ownership and provider request evidence.
 
 For the current product comparison, see [features and Piclaw parity](../feature-parity.md).
 The [full web/TUI plan](full-web-tui-parity-plan.md) and

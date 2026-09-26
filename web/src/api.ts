@@ -305,6 +305,13 @@ export async function getAgentModels(chatJid: string | null = null) {
     };
 }
 
+export async function selectAgentThinking(chatJid: string, model: string, level: string, token: string) {
+    if (!chatJid?.startsWith('gi:')) throw new Error('No destination session');
+    try {
+        return await request(`/api/sessions/${encodeURIComponent(chatJid.slice(3))}/model`, {method:'PATCH',body:JSON.stringify({model,thinking_level:level,thinking_token:token})});
+    } finally { notifyModelSettlement(chatJid); }
+}
+
 export async function selectAgentModel(chatJid: string, model: string) {
     if (!chatJid?.startsWith('gi:')) throw new Error('No model destination session');
     try {

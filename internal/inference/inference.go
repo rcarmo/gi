@@ -397,6 +397,8 @@ type StreamResult struct {
 }
 
 type StreamHooks struct {
+	// Validated immutable turn choice; empty leaves the provider default unset.
+	Thinking   string
 	OnPayload  func(payload any, model *goai.Model) (any, error)
 	OnResponse func(status int, headers map[string]string, model *goai.Model)
 }
@@ -417,6 +419,14 @@ func StreamWithToolsWithHooks(ctx context.Context, modelID string, convCtx *goai
 	if model == nil {
 		return nil, fmt.Errorf("model not found: %s/%s", provider, modelName)
 	}
+	if hooks != nil && hooks.Thinking != "" {
+		if err := ValidateThinking(modelID, hooks.Thinking); err != nil {
+			return nil, err
+		}
+		if provider == "opencode-zen" {
+			return nil, fmt.Errorf("thinking configuration unavailable for this transport")
+		}
+	}
 	if provider == "opencode-zen" {
 		return streamOpenCodeZen(ctx, model, convCtx, broadcast, hooks)
 	}
@@ -435,6 +445,10 @@ func StreamWithToolsWithHooks(ctx context.Context, modelID string, convCtx *goai
 	if hooks != nil {
 		opts.OnPayload = hooks.OnPayload
 		opts.OnResponse = hooks.OnResponse
+		if hooks.Thinking != "" {
+			level := goai.ThinkingLevel(hooks.Thinking)
+			opts.Reasoning = &level
+		}
 	}
 	if provider == "github-copilot" {
 		opts.Headers = goai.CopilotHeaders()

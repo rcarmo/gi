@@ -84,8 +84,10 @@ test('@gi-settings-004 @gi-settings-005 @gi-settings-006 Native model confirmati
   await open(); await models();
   const select = dialog.getByLabel('Session model', { exact: true });
   await expect(dialog.getByLabel('Filter models', { exact: true })).toBeFocused();
-  await expect(dialog).toContainText(`gi:${a}`); await expect(dialog).toContainText('Thinking (read-only)');
+  await expect(dialog).toContainText(`gi:${a}`);
   const modelState = await (await request.get(`/api/sessions/${a}/model`)).json();
+  expect(modelState.supports_thinking).toBe(false);
+  await expect(dialog.getByRole('combobox',{name:'Session thinking level',exact:true})).toHaveCount(0);
   await expect(dialog.getByTestId('settings-context-capacity')).toHaveText(modelState.context_window > 0 ? String(modelState.context_window) : 'Unknown');
   await dialog.getByLabel('Filter models', { exact: true }).fill('bootstrap');
   await expect(select.locator('option')).toHaveCount(2); await select.selectOption('test/bootstrap');

@@ -136,6 +136,13 @@ func main() {
 		if os.Getenv("GI_UX_BASIC_HTTP") != "" {
 			content = fmt.Sprintf("Provider model %v: %s", body["model"], content)
 		}
+		if os.Getenv("GI_UX_THINKING") != "" {
+			effort, ok := body["reasoning_effort"]
+			if !ok {
+				effort = "absent"
+			}
+			content = fmt.Sprintf("Provider model %v thinking %v: %s", body["model"], effort, content)
+		}
 		emit(map[string]any{"id": "fixture", "object": "chat.completion.chunk", "choices": []any{map[string]any{"index": 0, "delta": map[string]any{"role": "assistant", "content": content}, "finish_reason": nil}}})
 		if len(match) > 1 {
 			token := match[1]
@@ -220,6 +227,14 @@ func main() {
 	if os.Getenv("GI_UX_BASIC_HTTP") != "" {
 		goai.RegisterModel(&goai.Model{ID: "alternate", Name: "UX Alternate", Provider: "ux-local", Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, ContextWindow: 32000, MaxTokens: 1024})
 		cfg.EnabledModels = append(cfg.EnabledModels, "ux-local/alternate")
+	}
+	if os.Getenv("GI_UX_THINKING") != "" {
+		low, high := "low", "high"
+		goai.RegisterModel(&goai.Model{ID: "reasoner", Name: "Local reasoning fixture", Provider: "ux-local", Api: goai.ApiOpenAICompletions, BaseURL: provider.URL, ContextWindow: 32000, MaxTokens: 1024, Reasoning: true, ThinkingLevelMap: map[goai.ModelThinkingLevel]*string{"off": nil, "minimal": nil, "low": &low, "medium": nil, "high": &high}})
+		cfg.EnabledModels = append(cfg.EnabledModels, "ux-local/reasoner")
+		if os.Getenv("GI_UX_THINKING_DEFAULT") != "" {
+			cfg.DefaultModel = "reasoner"
+		}
 	}
 	if os.Getenv("GI_UX_CONTEXT") != "" {
 		for _, entry := range []struct {

@@ -252,7 +252,7 @@ func steeringMessagesToContinuationMetadata(msgs []SteeringMessage) map[string]a
 	}
 	metadata["initial_steering"] = items
 	if len(msgs) > 0 && msgs[0].Payload != nil {
-		for _, key := range []string{"intent", "model", "parent_turn_id", "source_session_id", "source_agent_id", "target_agent_id", "route_mode", "route_matched_by"} {
+		for _, key := range []string{"intent", "model", "parent_turn_id", "source_session_id", "source_agent_id", "target_agent_id", "route_mode", "route_matched_by", "selected_thinking_level", "selected_thinking_model"} {
 			if value, ok := msgs[0].Payload[key]; ok {
 				metadata[key] = value
 			}

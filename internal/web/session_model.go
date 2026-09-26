@@ -3,6 +3,8 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -18,7 +20,8 @@ func (s *Server) modelCatalogue() []inference.ModelOption {
 
 func (s *Server) sessionModelPayload(ctx context.Context, session *store.Session) (map[string]any, error) {
 	choice := inference.SessionModel(session.State, inference.SessionModelChoice{Model: s.cfg.DefaultModel, Provider: s.cfg.DefaultProvider})
-	current, thinking := choice.Label(), choice.Thinking
+	current := choice.Label()
+	thinking := inference.CapturedSessionThinking(session, current)
 	options := s.modelCatalogue()
 	var selected inference.ModelOption
 	for _, option := range options {
@@ -31,7 +34,8 @@ func (s *Server) sessionModelPayload(ctx context.Context, session *store.Session
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"model_options": options, "models": options, "model": current, "current": current, "thinking_level": thinking, "thinking_level_label": thinking, "supports_thinking": selected.Reasoning, "context_window": selected.ContextWindow, "context_usage": usage}, nil
+	levels := inference.ThinkingLevels(current)
+	return map[string]any{"thinking_levels": levels, "thinking_token": store.SessionThinkingToken(session.ID, session.State), "thinking_configurable": len(levels) > 0, "model_options": options, "models": options, "model": current, "current": current, "thinking_level": thinking, "thinking_level_label": thinking, "supports_thinking": selected.Reasoning, "context_window": selected.ContextWindow, "context_usage": usage}, nil
 }
 
 func (s *Server) selectSessionModel(r *http.Request, sessionID, requested string) (map[string]any, error) {
@@ -62,7 +66,9 @@ func (s *Server) handleSessionModel(w http.ResponseWriter, r *http.Request, sess
 		return
 	}
 	var req struct {
-		Model string `json:"model"`
+		Model    string          `json:"model"`
+		Thinking json.RawMessage `json:"thinking_level"`
+		Token    string          `json:"thinking_token"`
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
 	decoder.DisallowUnknownFields()
@@ -74,9 +80,28 @@ func (s *Server) handleSessionModel(w http.ResponseWriter, r *http.Request, sess
 		writeJSON(w, 400, map[string]any{"error": "Expected one model selection"})
 		return
 	}
-	payload, err := s.selectSessionModel(r, sessionID, req.Model)
+	var payload map[string]any
+	if req.Thinking != nil {
+		var level string
+		if string(req.Thinking) == "null" || json.Unmarshal(req.Thinking, &level) != nil {
+			writeJSON(w, 400, map[string]any{"error": "thinking_level must be a string"})
+			return
+		}
+		session, err = inference.SelectThinking(r.Context(), s.store, sessionID, req.Token, req.Model, level, s.modelCatalogue(), inference.SessionModelChoice{Model: s.cfg.DefaultModel, Provider: s.cfg.DefaultProvider})
+		if err == nil {
+			payload, err = s.sessionModelPayload(r.Context(), session)
+		}
+	} else if req.Token != "" {
+		err = fmt.Errorf("thinking_level required with thinking_token")
+	} else {
+		payload, err = s.selectSessionModel(r, sessionID, req.Model)
+	}
 	if err != nil {
-		writeJSON(w, 400, map[string]any{"error": err.Error()})
+		status := 400
+		if errors.Is(err, store.ErrContextChanged) {
+			status = 409
+		}
+		writeJSON(w, status, map[string]any{"error": err.Error()})
 		return
 	}
 	writeJSON(w, 200, payload)

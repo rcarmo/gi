@@ -508,10 +508,20 @@ func (e *Engine) submitPrompt(ctx context.Context, in RunInput, retry *store.Hel
 		if retry == nil && strings.HasPrefix(k, "retry_") {
 			continue
 		}
-		if k == "effective_tools" || k == "subturn_tools_restricted" || k == "media" || k == "operation" || k == "context_token" {
+		if k == "effective_tools" || k == "subturn_tools_restricted" || k == "media" || k == "operation" || k == "context_token" || k == "selected_thinking_level" || k == "selected_thinking_model" {
 			continue
 		}
 		metadata[k] = v
+	}
+	// Snapshot validated session thinking once at admission. Caller metadata
+	// cannot change active/queued turns, and runtime never rereads mutable settings.
+	selectedSession, err := e.store.GetSession(opCtx, in.SessionID)
+	if err != nil {
+		return nil, err
+	}
+	if level := inference.CapturedSessionThinking(selectedSession, in.Model); level != "" {
+		metadata["selected_thinking_level"] = level
+		metadata["selected_thinking_model"] = in.Model
 	}
 	metadata["effective_tools"] = effectiveTools
 	if in.ParentTurnID != "" {
@@ -2343,7 +2353,20 @@ func (e *Engine) submitSteeringPrompt(ctx context.Context, sessionID, activeTurn
 		payload["parent_turn_id"] = in.ParentTurnID
 	}
 	for k, v := range in.Metadata {
+		if k == "selected_thinking_level" || k == "selected_thinking_model" {
+			continue
+		}
 		payload[k] = v
+	}
+	// A deferred steering continuation keeps the request's validated choice;
+	// steering consumed by the current turn cannot alter that turn's options.
+	selectedSession, err := e.store.GetSession(opCtx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if level := inference.CapturedSessionThinking(selectedSession, in.Model); level != "" {
+		payload["selected_thinking_level"] = level
+		payload["selected_thinking_model"] = in.Model
 	}
 	media := steeringMediaFromMetadata(in.Metadata)
 	queueMode := internalx.StringValue(in.Metadata["steering_mode"], "one-at-a-time")
@@ -2395,7 +2418,7 @@ func steeringMetadataFromMessages(msgs []store.SteeringMessage) map[string]any {
 		"continue":         true,
 	}
 	if len(msgs) > 0 && msgs[0].Payload != nil {
-		for _, key := range []string{"intent", "model", "parent_turn_id", "source_session_id", "source_agent_id", "target_agent_id", "route_mode", "route_matched_by"} {
+		for _, key := range []string{"intent", "model", "parent_turn_id", "source_session_id", "source_agent_id", "target_agent_id", "route_mode", "route_matched_by", "selected_thinking_level", "selected_thinking_model"} {
 			if value, ok := msgs[0].Payload[key]; ok {
 				metadata[key] = value
 			}
@@ -4841,6 +4864,14 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 		"title": fmt.Sprintf("Thinking… (%d)", iter), "status": "running", "turn_id": turnID,
 	})
 
+	turnSnapshot, err := s.GetTurn(ctx, turnID)
+	if err != nil {
+		return nil, err
+	}
+	thinking := ""
+	if turnSnapshot.Metadata["selected_thinking_model"] == model {
+		thinking, _ = turnSnapshot.Metadata["selected_thinking_level"].(string)
+	}
 	responseObserved := false
 	result, inferErr := streamWithToolsWithHooks(ctx, model, requestCtx, func(ev map[string]any) {
 		ev["chat_jid"] = "gi:" + sessionID
@@ -4863,6 +4894,7 @@ func (r *sessionRunner) runProviderIteration(ctx context.Context, s *store.Store
 			r.engine.broadcast(sessionID, ev)
 		}
 	}, &inference.StreamHooks{
+		Thinking: thinking,
 		OnPayload: func(payload any, modelDef *goai.Model) (any, error) {
 			hookPayload := map[string]any{"ok": true, "request": payload, "stage": "payload"}
 			if modelDef != nil {

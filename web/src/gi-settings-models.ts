@@ -1,13 +1,15 @@
 // Gi-owned lazy Models pane; LazySettingsPane keys this component by chatJid.
 // A session change must remount all draft/write refs, never reuse this instance.
 import { html, useState, useEffect, useLayoutEffect, useRef } from "./vendor/preact-htm.js";
-import { getAgentModels, selectAgentModel } from "./api.js";
+import { getAgentModels, selectAgentModel, selectAgentThinking } from "./api.js";
 import { modelContextBlocked } from "./gi-context-usage.js";
 import { subscribeModelSettlement } from './gi-model-invalidation.js';
 
 export function Models({ chatJid, filter = '', onMutationStart, onMutationEnd, onApplied }) {
     const [data, setData] = useState<any>(null);
     const [chosen, setChosen] = useState('');
+    const [thinking, setThinking] = useState('');
+    const thinkingDirty = useRef(false);
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [busy, setBusy] = useState(false);
@@ -43,6 +45,7 @@ export function Models({ chatJid, filter = '', onMutationStart, onMutationEnd, o
             if (mounted.current && request === generation.current) {
                 setData(snapshot);
                 if (!dirty.current) setChosen(snapshot.current);
+                if (!thinkingDirty.current) setThinking(snapshot.thinking_level || '');
                 readPending.current = false; setReading(false);
             }
         }).catch(error => {
@@ -68,7 +71,7 @@ export function Models({ chatJid, filter = '', onMutationStart, onMutationEnd, o
         try {
             const result = await selectAgentModel(chatJid, chosen);
             if (mounted.current) {
-                dirty.current = false; setChosen(result.current);
+                dirty.current = false; thinkingDirty.current = false; setChosen(result.current); setThinking(result.thinking_level || '');
                 setNotice('Model applied to this session.'); onApplied(result, token);
             }
         } catch (error) {
@@ -77,6 +80,19 @@ export function Models({ chatJid, filter = '', onMutationStart, onMutationEnd, o
             onMutationEnd(token); saving.current = false;
             if (mounted.current) setBusy(false);
         }
+    }
+    async function applyThinking() {
+        if (saving.current || readPending.current || !data?.thinking_configurable || chosen !== data.current || thinking === (data.thinking_level || '') || (thinking && !data.thinking_levels?.includes(thinking))) return;
+        saving.current = true; setBusy(true); setError(''); setNotice('');
+        const token = onMutationStart();
+        try {
+            const result = await selectAgentThinking(chatJid, data.current, thinking, data.thinking_token);
+            if (mounted.current) {
+                thinkingDirty.current = false; setThinking(result.thinking_level || '');
+                setNotice('Thinking applied to future turns in this session.'); onApplied(result, token);
+            }
+        } catch (error) { if (mounted.current) setError(error.message); }
+        finally { onMutationEnd(token); saving.current = false; if (mounted.current) setBusy(false); }
     }
     return html`<section aria-labelledby="gi-models-title">
         <h2 id="gi-models-title">Models</h2>
@@ -88,7 +104,7 @@ export function Models({ chatJid, filter = '', onMutationStart, onMutationEnd, o
         <button disabled=${busy || reading} onClick=${refresh}>Refresh models</button>
         ${data && html`
             <dl class="gi-settings-values"><dt>Current model</dt><dd data-testid="settings-current-model">${data.current}</dd>
-            <dt>Thinking (read-only)</dt><dd>${data.thinking_level || 'Unknown'}</dd>
+            ${data.supports_thinking && html`<dt>Thinking</dt><dd>${data.thinking_level || 'Provider default'}</dd>`}
             <dt>Context capacity</dt><dd data-testid="settings-context-capacity">${Number.isFinite(data.context_window) && data.context_window > 0 ? data.context_window : 'Unknown'}</dd></dl>
             <label>Session model<select aria-label="Session model" value=${chosen} disabled=${busy} onChange=${e => { dirty.current = true; setChosen(e.target.value); setNotice(''); }}>
                 <option value="" disabled>Choose a model</option>
@@ -98,6 +114,11 @@ export function Models({ chatJid, filter = '', onMutationStart, onMutationEnd, o
             ${matching.length === 0 && html`<p>No matching models.</p>`}
             ${blocked && html`<p role="status">This model cannot fit the measured context. Compact the session before changing models.</p>`}
             <button disabled=${busy || reading || !!readError || !selected || blocked || chosen === data.current} onClick=${apply}>${busy ? 'Applying…' : 'Apply model'}</button>
+            ${data.thinking_configurable && html`<label>Thinking for current model<select aria-label="Session thinking level" value=${thinking} disabled=${busy || reading || !!readError || chosen !== data.current} onChange=${e => {thinkingDirty.current = true;setThinking(e.target.value);setNotice('');}}>
+                <option value="">Provider default</option>
+                ${(data.thinking_levels || []).map(level => html`<option value=${level}>${level}</option>`)}
+            </select></label>
+            <button disabled=${busy || reading || !!readError || chosen !== data.current || thinking === (data.thinking_level || '') || (!!thinking && !data.thinking_levels?.includes(thinking))} onClick=${applyThinking}>Apply thinking</button>`}
             ${notice && html`<p role="status">${notice}</p>`}
         `}
     </section>`;

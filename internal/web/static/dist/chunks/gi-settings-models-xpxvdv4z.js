@@ -6,14 +6,17 @@ import {
   fe,
   subscribeModelSettlement,
   getAgentModels,
+  selectAgentThinking,
   selectAgentModel,
   modelContextBlocked
-} from "./app-mbtajdwk.js";
+} from "./app-1cbkkm0j.js";
 
 // web/src/gi-settings-models.ts
 function Models({ chatJid, filter = "", onMutationStart, onMutationEnd, onApplied }) {
   const [data, setData] = F_(null);
   const [chosen, setChosen] = F_("");
+  const [thinking, setThinking] = F_("");
+  const thinkingDirty = Q_(false);
   const [error, setError] = F_("");
   const [notice, setNotice] = F_("");
   const [busy, setBusy] = F_(false);
@@ -60,6 +63,8 @@ function Models({ chatJid, filter = "", onMutationStart, onMutationEnd, onApplie
         setData(snapshot);
         if (!dirty.current)
           setChosen(snapshot.current);
+        if (!thinkingDirty.current)
+          setThinking(snapshot.thinking_level || "");
         readPending.current = false;
         setReading(false);
       }
@@ -96,8 +101,36 @@ function Models({ chatJid, filter = "", onMutationStart, onMutationEnd, onApplie
       const result = await selectAgentModel(chatJid, chosen);
       if (mounted.current) {
         dirty.current = false;
+        thinkingDirty.current = false;
         setChosen(result.current);
+        setThinking(result.thinking_level || "");
         setNotice("Model applied to this session.");
+        onApplied(result, token);
+      }
+    } catch (error) {
+      if (mounted.current)
+        setError(error.message);
+    } finally {
+      onMutationEnd(token);
+      saving.current = false;
+      if (mounted.current)
+        setBusy(false);
+    }
+  }
+  async function applyThinking() {
+    if (saving.current || readPending.current || !data?.thinking_configurable || chosen !== data.current || thinking === (data.thinking_level || "") || thinking && !data.thinking_levels?.includes(thinking))
+      return;
+    saving.current = true;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    const token = onMutationStart();
+    try {
+      const result = await selectAgentThinking(chatJid, data.current, thinking, data.thinking_token);
+      if (mounted.current) {
+        thinkingDirty.current = false;
+        setThinking(result.thinking_level || "");
+        setNotice("Thinking applied to future turns in this session.");
         onApplied(result, token);
       }
     } catch (error) {
@@ -120,7 +153,7 @@ function Models({ chatJid, filter = "", onMutationStart, onMutationEnd, onApplie
         <button disabled=${busy || reading} onClick=${refresh}>Refresh models</button>
         ${data && fe`
             <dl class="gi-settings-values"><dt>Current model</dt><dd data-testid="settings-current-model">${data.current}</dd>
-            <dt>Thinking (read-only)</dt><dd>${data.thinking_level || "Unknown"}</dd>
+            ${data.supports_thinking && fe`<dt>Thinking</dt><dd>${data.thinking_level || "Provider default"}</dd>`}
             <dt>Context capacity</dt><dd data-testid="settings-context-capacity">${Number.isFinite(data.context_window) && data.context_window > 0 ? data.context_window : "Unknown"}</dd></dl>
             <label>Session model<select aria-label="Session model" value=${chosen} disabled=${busy} onChange=${(e) => {
     dirty.current = true;
@@ -134,6 +167,15 @@ function Models({ chatJid, filter = "", onMutationStart, onMutationEnd, onApplie
             ${matching.length === 0 && fe`<p>No matching models.</p>`}
             ${blocked && fe`<p role="status">This model cannot fit the measured context. Compact the session before changing models.</p>`}
             <button disabled=${busy || reading || !!readError || !selected || blocked || chosen === data.current} onClick=${apply}>${busy ? "Applying…" : "Apply model"}</button>
+            ${data.thinking_configurable && fe`<label>Thinking for current model<select aria-label="Session thinking level" value=${thinking} disabled=${busy || reading || !!readError || chosen !== data.current} onChange=${(e) => {
+    thinkingDirty.current = true;
+    setThinking(e.target.value);
+    setNotice("");
+  }}>
+                <option value="">Provider default</option>
+                ${(data.thinking_levels || []).map((level) => fe`<option value=${level}>${level}</option>`)}
+            </select></label>
+            <button disabled=${busy || reading || !!readError || chosen !== data.current || thinking === (data.thinking_level || "") || !!thinking && !data.thinking_levels?.includes(thinking)} onClick=${applyThinking}>Apply thinking</button>`}
             ${notice && fe`<p role="status">${notice}</p>`}
         `}
     </section>`;
@@ -142,5 +184,5 @@ export {
   Models
 };
 
-//# debugId=1F115AFE0558409064756E2164756E21
-//# sourceMappingURL=gi-settings-models-hdggfpb1.js.map
+//# debugId=30EE3FC2B02152C064756E2164756E21
+//# sourceMappingURL=gi-settings-models-xpxvdv4z.js.map
