@@ -111,7 +111,11 @@ func (s *Store) GetNextQueuedTurn(ctx context.Context, sessionID string) (*Turn,
 }
 
 func (s *Store) UpdateTurnStatusAndPhase(ctx context.Context, turnID, status, phase string) error {
-	res, err := s.db.ExecContext(ctx, `update turns set status = ?, phase = ?, updated_at = `+defaultNow+` where id = ?`, status, phase, turnID)
+	res, err := s.db.ExecContext(ctx, `update turns set status = ?, phase = ?, updated_at = `+defaultNow+` where id = ?
+		and (? not in ('queued','running','completed') or not exists (
+			select 1 from turn_failures f where f.turn_id = turns.id
+			and (f.hold_state <> 'none' or coalesce(f.resolution_state,'') <> '')
+		))`, status, phase, turnID, status)
 	if err != nil {
 		return fmt.Errorf("update turn status and phase: %w", err)
 	}
@@ -120,6 +124,9 @@ func (s *Store) UpdateTurnStatusAndPhase(ctx context.Context, turnID, status, ph
 		return fmt.Errorf("update turn status and phase rows: %w", err)
 	}
 	if rows == 0 {
+		if _, err := s.GetTurn(ctx, turnID); err == nil {
+			return ErrFailureConflict
+		}
 		return fmt.Errorf("update turn status and phase: %w", sql.ErrNoRows)
 	}
 	turnRec, err := s.GetTurn(ctx, turnID)

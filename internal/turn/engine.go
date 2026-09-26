@@ -1151,45 +1151,61 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 	if err != nil {
 		return nil, err
 	}
+	if failureRec.ResolutionState == "retry_pending" {
+		admitted, err := e.store.ReconcileHeldRetry(opCtx, turnID, failureRec.RetryAdmissionToken, summary)
+		if err != nil {
+			return nil, err
+		}
+		result, err := e.recoveredRetryResult(opCtx, turnRec.SessionID, admitted)
+		if err != nil {
+			return nil, err
+		}
+		e.publishRetryResolution(opCtx, turnRec, result.TurnID)
+		return result, nil
+	}
 	if failureRec.HoldState == "none" {
 		return nil, fmt.Errorf("retry held turn: turn %s is not currently held", turnID)
 	}
-	metadata := map[string]any{}
-	for k, v := range turnRec.Metadata {
-		metadata[k] = v
+	token := store.NowID("retry")
+	reserved, err := e.store.ReserveHeldRetry(opCtx, turnID, token)
+	if err != nil {
+		return nil, err
 	}
+	if !reserved {
+		return nil, store.ErrFailureConflict
+	}
+	metadata := retryMetadata(turnRec.Metadata)
 	metadata["retry_of_turn_id"] = turnID
 	metadata["retry_failure_kind"] = failureRec.FailureKind
 	metadata["retry_hold_state"] = failureRec.HoldState
 	metadata["failure_resolution"] = "retry"
+	metadata["retry_admission_token"] = token
 	result, err := e.SubmitPrompt(opCtx, RunInput{
-		SessionID:    turnRec.SessionID,
-		Prompt:       turnRec.Prompt,
-		Intent:       internalx.StringValue(turnRec.Metadata["intent"], "prompt"),
+		SessionID: turnRec.SessionID,
+		Prompt:    turnRec.Prompt,
+		// A retry is a durable follow-on, never implicit steering into other work.
+		Intent:       "queue",
 		Model:        internalx.StringValue(turnRec.Metadata["model"], ""),
 		ParentTurnID: internalx.StringValue(turnRec.Metadata["parent_turn_id"], ""),
 		Metadata:     metadata,
 	})
-	if err != nil {
-		return nil, err
+	admitted, reconcileErr := e.store.FinishHeldRetry(opCtx, turnID, token, summary, err != nil)
+	if reconcileErr != nil {
+		return nil, fmt.Errorf("retry admission requires reconciliation: %w", reconcileErr)
 	}
-	if err := e.store.ResolveTurnFailure(opCtx, turnID, "retried", summary, result.TurnID); err != nil {
-		return nil, err
+	if admitted == "" {
+		if err != nil {
+			return nil, err
+		}
+		return nil, store.ErrRetryPending
 	}
-	phase := turnRec.Phase
-	if phase == "held_for_retry_or_skip" {
-		phase = store.RuntimeTurnPhaseForStatus(turnRec.Status)
+	if result == nil || result.TurnID != admitted {
+		result, err = e.recoveredRetryResult(opCtx, turnRec.SessionID, admitted)
+		if err != nil {
+			return nil, err
+		}
 	}
-	payload := map[string]any{
-		"phase":              "recovery",
-		"checkpoint":         true,
-		"reason":             "failure_resolved",
-		"resolution_state":   "retried",
-		"resolution_summary": summary,
-		"resolved_turn_id":   result.TurnID,
-	}
-	logutil.WarnIfErr("append turn.failure_resolved event", e.store.AppendTurnEvent(opCtx, turnID, turnRec.SessionID, "turn.failure_resolved", payload))
-	e.PublishRuntimeTurnEvent("turn_failure_resolved", turnRec.SessionID, turnID, "", turnRec.Status, phase, payload)
+	e.publishRetryResolution(opCtx, turnRec, result.TurnID)
 	return result, nil
 }
 
@@ -2003,7 +2019,7 @@ func recoveryDispositionForClaim(claim store.ActiveTurnClaim) string {
 		return "hold_for_retry_or_skip_after_tool_checkpoint"
 	case "cancelling":
 		return "abort_cancelling"
-	case "completed", "failed", "aborted", "cancelled":
+	case "completed", "failed", "aborted", "cancelled", "held_for_retry_or_skip":
 		return "release_terminal"
 	default:
 		if claim.Phase == "compacting" {
@@ -2033,8 +2049,8 @@ func (e *Engine) recoverInterruptedTurn(ctx context.Context, claim store.ActiveT
 		status = "aborted"
 		phase = "aborted"
 		markFinished = true
-	case "completed", "failed", "aborted", "cancelled":
-		// Terminal turn with a stale claim: just release the claim.
+	case "completed", "failed", "aborted", "cancelled", "held_for_retry_or_skip":
+		// Held and terminal turns are never replayed by stale-claim recovery.
 	default:
 		status = "queued"
 		phase = "queued"

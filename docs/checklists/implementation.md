@@ -4,6 +4,9 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Harden native held-turn retry admission with a separate durable reservation token, queue-only follow-on, transactional resolution and no resend from unknown recovery. Protect resolved/pending holds from rehold/clear/stale-claim replay; strip prior routing/continuation metadata. Race×3/core/vet/hooks+107functional(11existing skips) pass, including two-client rollback boundary and schema/reopen/fault tests. Review-found missing submission-audit recovery remains blocked, not silently released. [Contract/evidence](../internal/held-turn-retry.md);CI/deploy pending,no new UI.
+- [ ] Complete held-retry recovery before TUI exposure: a crash before admission or missing warning-only submission audit plus lost resolution can leave retry_pending indefinitely. Add safely fenced confirmed-admission/explicit recovery protocol; no ambiguous resend or inferred discard.
+
 - [x] Add `/queue move <id> before|after <target-id>` on last successful current-visit snapshot/native exact-order transaction. Mutation/conflict invalidates; stale/foreign/claimed/noop/self guards preserve history/no prompt dispatch. Race×3incltwo-connection contention+core+6queuePTY+48webqueue+107functional(11skips) pass,no idlechrome. Retry/queuedtext/Stop-policy separate; [evidence](../internal/tui-queue-commands.md#relative-move-verification),CI/deploy pending.
 
 - [x] Add on-demand six-row durable `/queue [page]`, guarded remove byID and Steer by queued+activeIDs; no new-prompt fallback/idlechrome. Regular responses print above dock without flushing partial output. Race×3/core/vet/hooks+6queue+9regular/mediaPTYs+107functional(11skips) pass;restart reads/stale/cross-session/claim/media/event guards verified. Reorder/retry/queuedtext persistence/Stop-policy remain open. [Evidence](../internal/tui-queue-commands.md);CI/deploy pending.

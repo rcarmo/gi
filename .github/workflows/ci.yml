@@ -41,8 +41,8 @@ jobs:
       - name: Go test
         run: go test ./...
 
-      - name: Durable terminal media and queue race checks
-        run: make test-tui-media-journal test-terminal-queue
+      - name: Durable media, queue and held-retry race checks
+        run: make test-tui-media-journal test-terminal-queue test-held-retry
 
       - name: Shell cancellation race checks
         run: make test-shell-runtime
