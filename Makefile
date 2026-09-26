@@ -429,6 +429,13 @@ test-tui-sessions: build
 test-tui-media-journal:
 	$(GO) test -race -count=3 ./internal/store ./internal/tui -run 'TUIMediaDraft|PendingMedia|AttachCommand|PasteImage'
 
+.PHONY: test-tui-queue-commands test-terminal-queue
+test-terminal-queue:
+	$(GO) test -race -count=3 ./internal/tui ./internal/store ./internal/turn -run 'TUIQueue|QueueSteer|QueuedTurn|QueueOrder'
+
+test-tui-queue-commands: build
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-queue-commands.mjs
+
 test-tui-pending-media: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-pending-media.mjs
 
