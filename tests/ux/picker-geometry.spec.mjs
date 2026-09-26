@@ -42,7 +42,7 @@ for(const kind of ['session','model'])test(`Pinned Classic ${kind} picker geomet
   await page.route('**/*',route=>{if(!['GET','HEAD','OPTIONS'].includes(route.request().method())){writes.push(new URL(route.request().url()).pathname);return route.abort();}return route.continue();});
   const trigger=kind==='session'?page.getByRole('button',{name:/Manage sessions for/}).last():page.locator('.compose-model-hint-btn');
   await trigger.click();const popup=page.locator('.compose-model-popup');await expect(popup).toBeVisible();
-  const search=page.getByRole('searchbox',{name:kind==='session'?'Search sessions':'Search models',exact:true});await expect(search).toBeVisible();
+  const search=page.getByRole(kind==='session'?'searchbox':'combobox',{name:kind==='session'?'Search sessions':'Search models',exact:true});await expect(search).toBeVisible();
   await assertGeometry(page,kind);await search.fill('zz-no-match');await search.focus();
   for(const width of [639,640,390,820]){await page.setViewportSize({width,height:900});await assertGeometry(page,kind);await expect(search).toHaveValue('zz-no-match');await expect(search).toBeFocused();}
   await page.keyboard.press('Escape');await expect(popup).toHaveCount(0);await expect(trigger).toBeFocused();

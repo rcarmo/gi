@@ -214,7 +214,7 @@ test('Gi Settings delivers target keys while native background popups remain sus
  const dialog=page.getByRole('dialog',{name:'Gi Settings',exact:true});
  for(const background of ['model','session','palette','menu']){
   let popup,open;
-  if(background==='model'){popup=page.locator('.compose-model-popup-menu[aria-label="Model picker"]');open=()=>page.getByRole('button',{name:'Open model picker',exact:true}).click();}
+  if(background==='model'){popup=page.getByRole('listbox',{name:'Models',exact:true});open=()=>page.getByRole('button',{name:'Open model picker',exact:true}).click();}
   if(background==='session'){popup=page.getByRole('menu',{name:'Sessions and agents',exact:true});open=()=>page.getByRole('button',{name:/Manage sessions for/}).last().click();}
   if(background==='palette'){popup=f.palette;open=f.open;}
   if(background==='menu'){popup=page.locator('.timeline-menu-dropdown');open=()=>page.getByTestId('hamburger').click();}

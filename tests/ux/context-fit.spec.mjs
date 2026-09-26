@@ -18,8 +18,8 @@ async function fixture(page,request,info){
  await expect(page.locator('.compose-context-pie')).toHaveAttribute('aria-label','Context: 100 / 32K tokens (0%)',{timeout:15000});
  // Measurement provenance is exposed by the real model API, never seeded in DB.
  expect((await state()).context_usage.measurement).toMatchObject({turn_id:turn.turn_id,model:'ux-local/gate',iteration:1});
- const modelButton=page.getByRole('button',{name:'Open model picker',exact:true});const menu=page.getByRole('menu',{name:'Model picker',exact:true});
- const option=name=>menu.getByRole('menuitem').filter({hasText:name});
+ const modelButton=page.getByRole('button',{name:'Open model picker',exact:true});const menu=page.getByRole('listbox',{name:'Models',exact:true});
+ const option=name=>menu.getByRole('option').filter({hasText:name});
  const switchTo=async id=>{await page.getByRole('button',{name:/Manage sessions for/}).last().click();await page.locator(`[data-session-jid="gi:${id}"]`).getByRole('menuitem').click();};
  return{main,child,input,state,turn,modelButton,menu,option,switchTo};
 }
@@ -29,7 +29,7 @@ test('@ux-compaction-006 Check model context compatibility before switching',asy
  const{main,child,input,state,modelButton,menu,option,switchTo}=await fixture(page,request,info);
  await input.fill('unsent retained');await page.locator('.compose-box input[type=file]').setInputFiles(file);
  let mutations=0;page.on('request',r=>{if(r.method()==='PATCH'&&r.url().endsWith(`/api/sessions/${main.id}/model`))mutations++;});
- await modelButton.click();const small=option('ux-local/small');await expect(small).toBeDisabled();await expect(small).toHaveAttribute('title','Blocked: ux-local/small context window is smaller than latest measured request');
+ await modelButton.click();const small=option('ux-local/small');await expect(small).toBeDisabled();await expect(small).toHaveAttribute('aria-disabled','true');await expect(small).toHaveAccessibleDescription('Context window is smaller than the latest measured request.');await expect(small).toHaveAttribute('title','Blocked: ux-local/small context window is smaller than latest measured request');
  const box=await small.boundingBox();await page.mouse.click(box.x+box.width/2,box.y+box.height/2);expect(mutations).toBe(0);
  await page.keyboard.press('Escape');await expect(modelButton).toHaveText('ux-local/gate');await expect(input).toHaveValue('unsent retained');
  const denied=await request.patch(`/api/sessions/${main.id}/model`,{data:{model:'ux-local/small'}});expect(denied.status()).toBe(400);expect((await denied.json()).error).toContain('context window 80 is smaller than latest measured request (100 tokens)');
@@ -131,7 +131,7 @@ for(const [id,method] of [['@shared-31','pointer'],['@shared-32','keyboard']]) t
   await expect(menu).toBeVisible();await expect(option('ux-local/gate')).toBeVisible();await expect(option('ux-local/gate')).toHaveAttribute('title','ux-local/gate • 32K ctx');await expect(option('ux-local/large')).toBeVisible();
   // The pinned panel focuses its real search field. Search filters rows;
   // clear it before selection so the pending-write current-row guard is visible.
-  const search=page.getByRole('searchbox',{name:'Search models',exact:true});await expect(search).toBeFocused();
+  const search=page.getByRole('combobox',{name:'Search models',exact:true});await expect(search).toBeFocused();
   await page.keyboard.type('large');await expect(menu.locator('.compose-model-catalogue-option.active')).toContainText('ux-local/large');
   await expect(option('ux-local/large')).toHaveAttribute('title','ux-local/large • 200 ctx');await expect(option('ux-local/gate')).toHaveCount(0);
   await search.fill('');await expect(option('ux-local/gate')).toBeVisible();
@@ -185,7 +185,7 @@ test('@shared-25 Select one coherent session view despite late native responses'
    await trigger.focus();await trigger.press('Enter');
    const search=page.getByRole('searchbox',{name:'Search sessions',exact:true});await expect(search).toBeFocused();await search.fill(session.id);
    await expect(picker.getByRole('menuitem')).toHaveCount(1);
-   await search.press('ArrowDown');await expect(picker.locator('.active')).toContainText(`gi:${session.id}`);await page.keyboard.press('Enter');
+   await search.press('ArrowDown');await expect(picker.locator('[role="menuitem"].active')).toContainText(`gi:${session.id}`);await page.keyboard.press('Enter');
    await expect(picker).toHaveCount(0);await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(session.id);
   };
   const view=async(session,other)=>{
@@ -250,20 +250,20 @@ if(process.env.GI_UX_MODEL_PICKER) test('@shared-34 Filter native models and nav
  const before=await state(),catalogue=before.model_options;
  expect(catalogue.some(x=>x.name==='Forest pine')).toBe(true);
  let mutations=0;page.on('request',r=>{if(r.method()==='PATCH'&&r.url().endsWith(`/api/sessions/${main.id}/model`))mutations++;});
- await modelButton.click();const search=page.getByRole('searchbox',{name:'Search models',exact:true});await expect(search).toBeVisible();
- const labels=()=>menu.getByRole('menuitem').evaluateAll(nodes=>nodes.map(n=>n.title.startsWith('Blocked: ')?n.title.slice(9).split(' context window')[0]:n.title.split(' • ')[0]));
+ await modelButton.click();const search=page.getByRole('combobox',{name:'Search models',exact:true});await expect(search).toBeVisible();
+ const labels=()=>menu.getByRole('option').evaluateAll(nodes=>nodes.map(n=>n.title.startsWith('Blocked: ')?n.title.slice(9).split(' context window')[0]:n.title.split(' • ')[0]));
  const all=await labels();expect(all).toEqual(catalogue.map(x=>x.label).sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'})));
  for(const [query,expected] of [['ux-local/pine',all.filter(x=>x.includes('ux-local/pine'))],['Forest pine',all.filter(x=>x==='ux-local/pine'||x==='ux-local/pine-small')],['32K ctx',catalogue.filter(x=>x.context_window===32000).map(x=>x.label).sort((a,b)=>a.localeCompare(b,undefined,{sensitivity:'base'}))]]){
   await search.fill(query);await expect.poll(labels).toEqual(expected);await expect(search).toBeFocused();
  }
- await search.fill('no matching native model');await expect(menu.getByRole('menuitem')).toHaveCount(0);await search.press('Enter');expect(mutations).toBe(0);
- await search.fill('Forest pine-small');await expect(menu.getByRole('menuitem')).toHaveCount(1);await expect(menu.getByRole('menuitem')).toBeDisabled();await search.press('ArrowDown');await search.press('Enter');expect(mutations).toBe(0);
+ await search.fill('no matching native model');await expect(menu.getByRole('option')).toHaveCount(0);await search.press('Enter');expect(mutations).toBe(0);
+ await search.fill('Forest pine-small');await expect(menu.getByRole('option')).toHaveCount(1);await expect(menu.getByRole('option')).toBeDisabled();await expect(menu.getByRole('option')).toHaveAccessibleDescription('Context window is smaller than the latest measured request.');await expect(search).not.toHaveAttribute('aria-activedescendant',/.+/);await search.press('ArrowDown');await search.press('Enter');expect(mutations).toBe(0);
  await search.fill('Forest pine');await search.press('Home');await search.press('X');await expect(search).toHaveValue('XForest pine');await search.press('Backspace');await expect(search).toHaveValue('Forest pine');await search.press('End');await search.press(' ');await expect(search).toHaveValue('Forest pine ');
  await search.fill('');const substring=option('aux-local/ux-local/pine-shadow');await substring.focus();
  await page.keyboard.type('ux-local/pi',{delay:10});const pine=option('ux-local/pine •');await expect(pine).toHaveClass(/active/);await expect(pine).toBeFocused();await expect(search).toHaveValue('');
  await page.keyboard.type('per',{delay:10});const piper=option('ux-local/piper');await expect(piper).toBeFocused();await expect(piper).toHaveClass(/active/);
- const enabled=await menu.getByRole('menuitem').evaluateAll(nodes=>nodes.filter(n=>!n.disabled).map(n=>n.textContent.trim()));
- const focused=()=>menu.getByRole('menuitem').evaluateAll(nodes=>nodes.filter(n=>n===document.activeElement).map(n=>n.textContent.trim()));
+ const enabled=await menu.getByRole('option').evaluateAll(nodes=>nodes.filter(n=>!n.disabled).map(n=>n.textContent.trim()));
+ const focused=()=>menu.getByRole('option').evaluateAll(nodes=>nodes.filter(n=>n===document.activeElement).map(n=>n.textContent.trim()));
  await page.keyboard.press('Home');await expect.poll(focused).toEqual([enabled[0]]);
  for(const [key,index] of [['PageDown',8],['PageUp',0],['End',enabled.length-1],['ArrowDown',0],['ArrowUp',enabled.length-1]]){await page.keyboard.press(key);await expect.poll(focused).toEqual([enabled[index]]);}
  await pine.focus();await page.keyboard.press('ArrowDown');await expect(piper).toBeFocused(); // skip the disabled pine-small row

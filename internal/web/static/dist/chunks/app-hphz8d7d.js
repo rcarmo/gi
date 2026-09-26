@@ -7428,6 +7428,15 @@ function Timeline({ posts, hasMore, onLoadMore, onPostClick, onHashtagClick, onM
     `;
 }
 
+// web/src/gi-model-accessibility.ts
+var sequence = 0;
+function nextModelPanelId() {
+  return `gi-model-panel-${++sequence}`;
+}
+function modelPanelOptionId(panel, label) {
+  return `${panel}-option-${encodeURIComponent(label)}`;
+}
+
 // web/src/gi-voice-input-state.ts
 function voiceSupport(win, nav) {
   const ios = /iPad|iPhone/.test(String(nav?.userAgent || "")) || nav?.platform === "MacIntel" && Number(nav?.maxTouchPoints) > 1;
@@ -9229,12 +9238,6 @@ function ComposeBox({
   const [showSessionPopup, setShowSessionPopup] = F_(false);
   const [modelOptions, setModelOptions] = F_([]);
   const [modelPopupIndex, setModelPopupIndex] = F_(0);
-  const [modelQuery, setModelQuery] = F_("");
-  const visibleModels = u_(() => modelPanelRows(filterModelOptions(modelOptions, modelQuery, getModelPickerOptionSearchLabel), activeModel), [modelOptions, modelQuery, activeModel]);
-  const modelEntries = u_(() => visibleModels.map((option) => ({
-    label: getModelPickerOptionSearchLabel(option),
-    disabled: switchingModel || modelContextBlocked(option, contextUsage)
-  })), [visibleModels, switchingModel, contextUsage]);
   const [sessionPopupIndex, setSessionPopupIndex] = F_(0);
   const [sessionPopupQuery, setSessionPopupQuery] = F_("");
   const [sessionMutationPending, setSessionMutationPending] = F_("");
@@ -9245,6 +9248,12 @@ function ComposeBox({
   const sessionPopupEpoch = Q_(0);
   const sessionEditRef = Q_(null);
   const [loadingModels, setLoadingModels] = F_(false);
+  const [modelQuery, setModelQuery] = F_("");
+  const visibleModels = u_(() => modelPanelRows(filterModelOptions(modelOptions, modelQuery, getModelPickerOptionSearchLabel), activeModel), [modelOptions, modelQuery, activeModel]);
+  const modelEntries = u_(() => visibleModels.map((option) => ({
+    label: getModelPickerOptionSearchLabel(option),
+    disabled: loadingModels || switchingModel || modelContextBlocked(option, contextUsage)
+  })), [visibleModels, loadingModels, switchingModel, contextUsage]);
   const [footerWidth, setFooterWidth] = F_(0);
   const [submitError, setSubmitError] = F_(null);
   const [submitNotice, setSubmitNotice] = F_(null);
@@ -9269,6 +9278,9 @@ function ComposeBox({
   const slashRef = Q_(null);
   const mentionRef = Q_(null);
   const modelPopupRef = Q_(null);
+  const modelPanelIdRef = Q_(null);
+  if (!modelPanelIdRef.current)
+    modelPanelIdRef.current = nextModelPanelId();
   const modelHintRef = Q_(null);
   const sessionPopupRef = Q_(null);
   const sessionTriggerRef = Q_(null);
@@ -9763,8 +9775,15 @@ function ComposeBox({
       const state = await selectAgentModel(currentChatJid, modelLabel);
       if (!mountedRef.current)
         return;
+      const ownedModelFocus = modelPopupRef.current?.contains(document.activeElement);
+      const modelOpener = modelHintRef.current;
       emitModelState(state);
       setShowModelPopup(false);
+      if (ownedModelFocus)
+        requestAnimationFrame(() => {
+          if (mountedRef.current && modelOpener?.isConnected && document.activeElement === document.body && !settingsOwnsKeyboard())
+            modelOpener.focus({ preventScroll: true });
+        });
     } catch (error) {
       if (mountedRef.current)
         setSubmitError(`Model selection failed: ${error.message}`);
@@ -10740,7 +10759,7 @@ ${mediaIds.map((id, index) => {
                     ${showModelPopup && !searchMode && fe`
                         <div class="compose-model-popup compose-model-catalogue" ref=${modelPopupRef} tabIndex="-1" onKeyDown=${handlePopupKeyboardEvent}>
                             <div class="compose-model-catalogue-header">
-                                <div class="gi-model-panel-heading"><label class="compose-model-catalogue-search-label" for="gi-model-search">Search models</label>
+                                <div class="gi-model-panel-heading"><label class="compose-model-catalogue-search-label" for=${modelPanelIdRef.current + "-search"}>Search models</label>
                                     <button type="button" class="gi-picker-close" aria-label="Close model picker" onClick=${() => {
     setShowModelPopup(false);
     requestAnimationFrame(() => {
@@ -10750,7 +10769,9 @@ ${mediaIds.map((id, index) => {
   }}>Close</button>
                                 </div>
                                 <div class="compose-model-catalogue-search-row">
-                                    <input id="gi-model-search" type="search" class="compose-model-catalogue-search" aria-label="Search models" placeholder="Search models…"
+                                    <input id=${modelPanelIdRef.current + "-search"} type="search" role="combobox" class="compose-model-catalogue-search" aria-label="Search models" placeholder="Search models…"
+                                        aria-autocomplete="list" aria-expanded="true" aria-controls=${modelPanelIdRef.current + "-results"}
+                                        aria-activedescendant=${!loadingModels && visibleModels[modelPopupIndex] && !modelEntries[modelPopupIndex]?.disabled ? modelPanelOptionId(modelPanelIdRef.current, visibleModels[modelPopupIndex].label) : undefined}
                                         value=${modelQuery} onInput=${(event) => {
     popupTypeaheadRef.current = { value: "", updatedAt: 0 };
     setModelQuery(event.currentTarget.value);
@@ -10762,7 +10783,7 @@ ${mediaIds.map((id, index) => {
                                 </div>
                                 <div class="compose-model-catalogue-summary" aria-live="polite"><span>${visibleModels.length} ${visibleModels.length === 1 ? "model" : "models"}</span>${loadingModels && fe`<span>Refreshing…</span>`}</div>
                             </div>
-                            <div class="compose-model-popup-menu compose-model-catalogue-results" role="menu" aria-label="Model picker">
+                            <div id=${modelPanelIdRef.current + "-results"} class="compose-model-popup-menu compose-model-catalogue-results" role="listbox" aria-label="Models" aria-busy=${loadingModels ? "true" : "false"}>
                                 ${loadingModels && fe`
                                     <div class="compose-model-popup-empty">Loading models…</div>
                                 `}
@@ -10781,8 +10802,14 @@ ${mediaIds.map((id, index) => {
                                         <button
                                             key=${modelLabel}
                                             data-model-index=${index}
+                                            id=${modelPanelOptionId(modelPanelIdRef.current, modelLabel)}
                                             type="button"
-                                            role="menuitem"
+                                            role="option"
+                                            tabIndex="-1"
+                                            aria-selected=${current ? "true" : "false"}
+                                            aria-disabled=${switchingModel || blocked ? "true" : "false"}
+                                            aria-describedby=${blocked ? modelPanelOptionId(modelPanelIdRef.current, modelLabel) + "-blocked" : undefined}
+                                            onMouseDown=${(event) => event.preventDefault()}
                                             class=${`compose-model-catalogue-option compose-model-popup-model-item${modelPopupIndex === index ? " active focused" : ""}${activeModel === modelLabel ? " current-model selected" : ""}${blocked ? " blocked" : ""}`}
                                             aria-label=${formatModelPickerDisplayLabel(modelLabel, modelOption?.contextWindow)}
                                             onClick=${() => {
@@ -10796,7 +10823,7 @@ ${mediaIds.map((id, index) => {
                                                 <span class="compose-model-catalogue-option-primary"><span class="compose-model-catalogue-option-name">${modelPanelName(modelOption)}</span></span>
                                                 ${modelPanelName(modelOption) !== modelLabel && fe`<span class="compose-model-catalogue-option-key">${modelLabel}</span>`}
                                                 <span class="compose-model-catalogue-option-badges">${modelPanelContext(modelOption?.contextWindow) && fe`<span class="compose-model-catalogue-badge">${modelPanelContext(modelOption.contextWindow)}</span>`}${modelOption?.reasoning && fe`<span class="compose-model-catalogue-badge">reasoning</span>`}</span>
-                                                ${blocked && fe`<span class="compose-model-catalogue-option-note">Context window is smaller than the latest measured request.</span>`}
+                                                ${blocked && fe`<span id=${modelPanelOptionId(modelPanelIdRef.current, modelLabel) + "-blocked"} class="compose-model-catalogue-option-note">Context window is smaller than the latest measured request.</span>`}
                                             </span>
                                         </button>
                                     `;
@@ -11003,6 +11030,8 @@ ${mediaIds.map((id, index) => {
                                     class="compose-model-hint compose-model-hint-btn"
                                     title=${modelHintTitle}
                                     aria-label="Open model picker"
+                                    aria-haspopup="listbox" aria-expanded=${showModelPopup ? "true" : "false"}
+                                    aria-controls=${showModelPopup ? modelPanelIdRef.current + "-results" : undefined}
                                     onClick=${toggleModelPopup}
                                     disabled=${switchingModel}
                                 >
@@ -19609,11 +19638,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-16annava.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-2mvc7j0g.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-vsvjj70k.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-ha0f7fff.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-8vzfcjnt.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-19735t1m.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-p8pjdnp1.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-23pckbmc.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-ftrgj2pz.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-gpf5v54v.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -22316,5 +22345,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=D028FF7400C99EEA64756E2164756E21
-//# sourceMappingURL=app-30sc0ntf.js.map
+//# debugId=B62BF4DECE5527F164756E2164756E21
+//# sourceMappingURL=app-hphz8d7d.js.map

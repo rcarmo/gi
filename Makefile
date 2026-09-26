@@ -483,7 +483,7 @@ test-ux-session-panel: build-web
 
 .PHONY: test-ux-model-panel test-model-panel-helpers
 test-model-panel-helpers:
-	$(BUN) test tests/ux/support/model-panel.test.ts tests/ux/support/model-picker.test.ts
+	$(BUN) test tests/ux/support/model-panel.test.ts tests/ux/support/model-picker.test.ts tests/ux/support/model-accessibility.test.ts
 
 test-ux-model-panel: build-web
 	mkdir -p $(dir $(UX_LOCAL_BIN))

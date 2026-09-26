@@ -8,9 +8,29 @@ Gi's model panel now matches the pinned Classic outer bounds in phone, tablet an
 
 Filtering preserves option identity and the order of non-current models. The existing component owns selection, context-fit blocking, mutation tokens, stale responses and model-state reconciliation. Unknown context/reasoning values produce no metadata badges. The old cycle button is replaced by the reference's Settings action; native model-cycle commands remain available.
 
-The real search field receives initial focus. Arrows change the highlighted enabled entry while focus stays in the search field; Enter accepts that entry. Keyboard navigation from list rows retains native button focus. Existing menu/menuitem roles are retained; the reference's listbox/combobox contract needs a separate accessibility acceptance pass.
+The real search field receives initial focus. Arrows change the highlighted enabled entry while focus stays in the search field; Enter accepts that entry. Keyboard navigation from programmatically focused list rows retains native button behaviour. The guarded `patch-model-accessibility.mjs` adapter adds the reference combobox/listbox contract; options are excluded from sequential Tab navigation.
 
 The Models-settings action closes the panel and dispatches `piclaw:open-settings` with a validated section name and the model trigger as the return-focus target. Unknown sections use General. Existing shortcuts still open General; requests cannot replace an already open modal. Closing Settings restores the trigger without changing session, draft, media or references.
+
+## Model accessibility
+
+The search combobox and trigger control one listbox with a per-composer ID. Option IDs encode model labels and remain stable across filtering and reopening. `aria-selected` follows the accepted current model; `aria-activedescendant` follows the enabled keyboard highlight. Empty, loading, all-blocked and switching states have no active descendant. Blocked options remain visible with `aria-disabled` and an accessible context-fit description. The listbox reports loading with `aria-busy`.
+
+Mouse selection retains search focus while the native PATCH is pending. Rejection restores an enabled highlight and leaves the panel usable. Accepted selection returns focus to the connected trigger only when the panel still owned focus at completion, the document has no focused control and Settings does not own the keyboard. A delayed response cannot take focus from the composer or Settings.
+
+Refreshing previously left cached rows available to keyboard Enter even though they were not rendered. `patch-model-picker.mjs` now includes `loadingModels` in its disabled-entry projection. The injected hooks follow the loading-state declaration to avoid a temporal-dead-zone error. Supplied sources, native mutation/context guards and stale-session response handling are unchanged.
+
+Accessibility verification on 2026-09-26:
+
+- Eight model helper tests and 14 pixel helper tests pass; `make test vet bun-checks` passes.
+- `make test-ux-model-panel`: 36 passes across Chromium/WebKit and three viewports. Covers unique/stable IDs, current versus highlighted option, Tab order, empty/loading/switching states, pointer focus, rejection recovery, accepted-selection return focus and delayed-response focus ownership.
+- `make test-ux-context-fit`: 36 passes, including blocked-option descriptions and no descendant for an all-blocked filter. An older broad `.active` session assertion now targets `[role="menuitem"].active` because status badges also use `.active`.
+- `make test-ux-picker-geometry`: 24 passes. Models/Quick Actions: 174 passes. `make test-ux`: 107 passes, with the existing 11 fixture-dependent skips.
+- A read-only delegated review timed out; no independent review result is available for this slice.
+
+The initial expanded tests caught missing post-selection return focus. An intermediate loading guard also exposed an injected-hook ordering error; both were repaired before the final passing runs. One concurrent Go/build run failed while the bundler replaced embedded chunks; the sequential core run passed. Evidence retains those failures. No tests were removed or timeouts increased.
+
+This verifies browser DOM and keyboard behaviour. Screen-reader announcements, physical-device interaction and exact full-frame pixels have not been accepted. The existing pixel failures below are historical measurements; this semantic slice has no new pixel capture claim. Live Gi remains on `dcc8c16` until the new source passes CI and deployment checks. No terminal code or idle chrome changed.
 
 ## Explicit capability differences
 

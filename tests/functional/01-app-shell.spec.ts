@@ -251,7 +251,7 @@ test('native timeline controls and modal fields receive their own keyboard event
   const copy=page.locator('.post').first().getByRole('button',{name:'Copy message',exact:true});await copy.focus();
   await copy.evaluate(el=>{(window as any).__functionalKeys=[];el.addEventListener('keydown',e=>(window as any).__functionalKeys.push(e.key));});
   await copy.press('q');expect(await page.evaluate(()=>(window as any).__functionalKeys)).toEqual(['q']);await expect(page.locator('.timeline-quick-actions')).toHaveCount(0);
-  await page.getByRole('button',{name:'Open model picker',exact:true}).click();const popup=page.getByRole('menu',{name:'Model picker',exact:true});await expect(popup).toBeVisible();
+  await page.getByRole('button',{name:'Open model picker',exact:true}).click();const popup=page.getByRole('listbox',{name:'Models',exact:true});await expect(popup).toBeVisible();
   const active=await popup.locator('.active').textContent();await page.keyboard.press('Control+,');const dialog=page.getByRole('dialog',{name:'Gi Settings',exact:true}),name=dialog.getByLabel('Assistant display name',{exact:true});await name.focus();
   await name.evaluate(el=>{(window as any).__functionalKeys=[];el.addEventListener('keydown',e=>(window as any).__functionalKeys.push(e.key));});
   await name.press('q');await name.press('ArrowDown');expect(await page.evaluate(()=>(window as any).__functionalKeys)).toEqual(['q','ArrowDown']);expect(await popup.locator('.active').textContent()).toBe(active);
@@ -282,8 +282,8 @@ test('session typeahead moves native focus from a substring to a prefix without 
 test('Model search preserves native editing, empty-result cancellation and composer draft',async({page})=>{
  await page.goto('/');const input=page.locator('textarea').last();await expect(input).toBeVisible();await input.fill('model filter preserved draft');
  const trigger=page.getByRole('button',{name:'Open model picker',exact:true});await expect(trigger).toBeEnabled();await trigger.click();
- const search=page.getByRole('searchbox',{name:'Search models',exact:true});await search.fill('no such native model');
- await expect(page.getByRole('menu',{name:'Model picker'}).getByRole('menuitem')).toHaveCount(0);
+ const search=page.getByRole('combobox',{name:'Search models',exact:true});await search.fill('no such native model');
+ await expect(page.getByRole('listbox',{name:'Models'}).getByRole('option')).toHaveCount(0);
  await search.press('Home');await search.press('X');await expect(search).toHaveValue('Xno such native model');await search.press('Enter');
  await expect(search).toBeVisible();await search.press('Escape');await expect(search).toHaveCount(0);await expect(trigger).toBeFocused();await expect(input).toHaveValue('model filter preserved draft');
  await trigger.click();await expect(search).toHaveValue('');

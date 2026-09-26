@@ -4,13 +4,13 @@ function replace(source, from, to) {
     return source.replace(from, to);
 }
 export function patchModelPicker(source) {
-    source = replace(source, '    const [modelPopupIndex, setModelPopupIndex] = useState(0);', `    const [modelPopupIndex, setModelPopupIndex] = useState(0);
+    source = replace(source, '    const [loadingModels, setLoadingModels] = useState(false);', `    const [loadingModels, setLoadingModels] = useState(false);
     const [modelQuery, setModelQuery] = useState('');
     const visibleModels = useMemo(() => filterModelOptions(modelOptions, modelQuery, getModelPickerOptionSearchLabel), [modelOptions, modelQuery]);
     const modelEntries = useMemo(() => visibleModels.map(option => ({
         label: getModelPickerOptionSearchLabel(option),
-        disabled: switchingModel || modelContextBlocked(option, contextUsage),
-    })), [visibleModels, switchingModel, contextUsage]);`);
+        disabled: loadingModels || switchingModel || modelContextBlocked(option, contextUsage),
+    })), [visibleModels, loadingModels, switchingModel, contextUsage]);`);
     source = replace(source, `        setShowModelPopup((prev) => !prev);`, `        setModelQuery('');
         setShowModelPopup((prev) => !prev);`);
     const oldKeys = `        if (showModelPopup) {
