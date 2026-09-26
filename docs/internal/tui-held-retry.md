@@ -45,6 +45,21 @@ Acceptance is native/session fault coverage plus both terminal modes at three
 sizes, existing queue/regular regressions and the isolated functional suite.
 Whole CI, deployment and physical terminal acceptance remain separate gates.
 
+## Deployment
+
+Exact `5e595d79def539e8b880cb09610a650990cb87d2` passed whole CI
+[36224693623](https://github.com/rcarmo/gi/actions/runs/36224693623), including
+required terminal PTYs and four platform builds. Detached-source Makefile build
+and restart runs on8090, PID1103331, PGID/SID1103224. Newer no-model guard and
+unwired plaintext journal are excluded.
+
+Six read-only Chromium/WebKit probes at390/820/1440 pass existing composer,
+model/session picker, context, theme, focus and draft checks with zero HTTP
+writes/errors and no permissions requested. SQLite remains62sessions/51turns/
+146messages; integrity/FKs clean. Full normalised dumps differ only by the two
+expected additive retry columns, excluding the runtime lease. Auth remains
+absent. No live terminal mutation or physical/Visual acceptance is claimed.
+
 ## Verification
 
 - `make test-held-retry test vet bun-checks` passes. The focused race gate runs
