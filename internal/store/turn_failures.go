@@ -84,22 +84,21 @@ func upsertTurnFailure(ctx context.Context, db interface {
 }
 
 func (s *Store) ClearTurnFailure(ctx context.Context, turnID string) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
+	// One guarded write avoids a deferred read→write upgrade deadlock on
+	// shared-memory SQLite while preserving held/resolved rows atomically.
+	if _, err := s.db.ExecContext(ctx, `delete from turn_failures where turn_id = ? and hold_state = 'none' and coalesce(resolution_state,'') = ''`, turnID); err != nil {
+		return fmt.Errorf("clear turn failure: %w", err)
 	}
-	defer tx.Rollback()
+	// If another writer installs a hold after the delete, conservatively report
+	// conflict; never erase that newer state. Absence is already success.
 	var protected int
-	if err = tx.QueryRowContext(ctx, `select count(*) from turn_failures where turn_id = ? and (hold_state <> 'none' or coalesce(resolution_state,'') <> '')`, turnID).Scan(&protected); err != nil {
+	if err := s.db.QueryRowContext(ctx, `select count(*) from turn_failures where turn_id = ? and (hold_state <> 'none' or coalesce(resolution_state,'') <> '')`, turnID).Scan(&protected); err != nil {
 		return err
 	}
 	if protected != 0 {
 		return ErrFailureConflict
 	}
-	if _, err = tx.ExecContext(ctx, `delete from turn_failures where turn_id = ?`, turnID); err != nil {
-		return fmt.Errorf("clear turn failure: %w", err)
-	}
-	return tx.Commit()
+	return nil
 }
 
 func (s *Store) GetTurnFailure(ctx context.Context, turnID string) (*TurnFailure, error) {

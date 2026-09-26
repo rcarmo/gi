@@ -24,10 +24,11 @@ type TUITextSnapshot struct {
 }
 type TUITextClaim struct {
 	TUITextSnapshot
-	Token    string `json:"token"`
-	Revision int64  `json:"revision"`           // editable revision immediately after claiming
-	Rejected bool   `json:"rejected,omitempty"` // live caller proved admission absent
-	Media    bool   `json:"media,omitempty"`    // must settle together with media journal
+	Token      string `json:"token"`
+	Revision   int64  `json:"revision"`             // editable revision immediately after claiming
+	Rejected   bool   `json:"rejected,omitempty"`   // live caller proved admission absent
+	Media      bool   `json:"media,omitempty"`      // must settle together with media journal
+	Dispatched bool   `json:"dispatched,omitempty"` // only one caller may enter submission
 }
 type TUITextDraft struct {
 	TUITextSnapshot

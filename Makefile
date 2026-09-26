@@ -425,9 +425,12 @@ test-tui-sessions: build
 	$(BUN) scripts/test-tui-sessions.mjs
 
 .PHONY: test-tui-pending-media
-.PHONY: test-tui-text-journal
+.PHONY: test-tui-text-journal test-concurrent-session-submit
+test-concurrent-session-submit:
+	$(GO) test -race -count=10 ./internal/turn -run '^TestConcurrentSubmitDifferentSessionsRunsConcurrently$$'
+
 test-tui-text-journal:
-	$(GO) test -race -count=3 ./internal/store -run 'TUITextDraft|TUIComposerDraft'
+	$(GO) test -race -count=3 ./internal/store ./internal/turn -run 'TUITextDraft|TUIComposerDraft|TUIComposerSubmit'
 
 .PHONY: test-tui-media-journal
 test-tui-media-journal:

@@ -63,14 +63,38 @@ discard removes the old snapshot/references, not newer text or stored media
 bytes. An inconsistent pair fails closed. This API is also unwired: there is no
 new terminal command or automatic restore.
 
+## Engine submission and token ownership
+
+`SubmitTUIComposer(sessionID, token, revision, model)` accepts no caller prompt,
+attachments or arbitrary metadata. It validates the stored pair and previews
+routing without allocating a target session. Missing models, local/slash
+commands and cross-agent routes fail before dispatch. Session-local routes use
+the native routing metadata; `!` keeps the existing explicit shell-request
+transformation. This adapter is not yet called by the terminal composer.
+
+`BeginTUIComposerSubmission` atomically records `Claim.Dispatched` under the
+expected revision. Only one live caller may enter submission. A second engine,
+restarted caller or stale revision cannot resubmit the token. Dispatch advances
+the rejection-restoration fence only if there were no newer text edits. A crash
+after dispatch without confirmed admission remains held, not automatically
+retried. Only the dispatch owner calls Finish after synchronous submission.
+
+Public `SubmitPrompt`/routed submissions strip both `tui_text_claim` and
+`tui_media_claim` before active steering as well as queued turn insertion. The
+private internal submission path adds validated tokens afterwards. The existing
+media-only TUI now uses `SubmitTUIMediaPrompt`, which loads the current stored
+non-paired claim and its references instead of trusting metadata. Wrong tokens
+and paired claims are refused. This preserves its existing behaviour; it does
+not establish new cross-client media-only dispatch fencing.
+
 ## Integration limits
 
 This is not restart-persistence acceptance for the TUI. Frontend integration
 still needs callback ordering, session-visit ownership, failure visibility and
-explicit conflict handling. The private claim token must not become forgeable
-through arbitrary prompt metadata. Paired claim/settlement storage is now
-available, but the frontend must use it before exposing combined sends;
-directed routing must preserve session ownership. Missing submission audits may leave a crash-recovered claim held;
+explicit conflict handling. Token provenance and session-local engine admission
+are now guarded, but the frontend must use those APIs before enabling autosave.
+Cross-session durable-draft routing is explicitly unsupported for now. Missing
+submission audits may leave a crash-recovered claim held;
 there is no forced discard or automatic replay of that uncertainty.
 
 The existing `queuedDrafts` stack recalls already-submitted work. It is not an
@@ -104,3 +128,22 @@ Media race regressions, core/vet/hooks and107functional tests (11existing skips)
 pass. A focused read-only review found no blocker in pair atomicity, old-API
 split prevention, receipt ownership, newer-edit safety or capacity handling;
 earlier timeout/file-access failures supply no evidence.
+
+The engine-adapter follow-up adds race×3 tests for two engines producing one
+native steering receipt, public metadata forgery on turn/steering paths,
+read-only route/command/model/session rejection, restart after dispatch,
+newer-edit fences, stored media, write/admission/settlement faults and explicit
+shell requests. A review-found media-token poisoning path was fixed by stripping
+both public tokens and using the validated media-only adapter; rereview timed
+out, so no independent final approval is claimed. Six media/restart PTYs and six
+retry PTYs pass, as do core/vet/hooks and107functional tests (11existing skips).
+
+A core run exposed a shared-memory SQLite read-to-write upgrade deadlock in
+`ClearTurnFailure`. It now uses a conditional delete that atomically preserves
+held/resolved rows, followed by conservative conflict inspection. Ten repeated
+race runs of concurrent different-session submission pass. No timeout changed.
+An initial parallel PTY/functional build attempt shared generated asset paths
+and the browser could not load the shell; that run is excluded. Serial rebuild,
+PTY and functional reruns passed with generated assets unchanged. The media PTY
+already covers restart; an initially requested nonexistent restart target was
+corrected, not counted as a gate.

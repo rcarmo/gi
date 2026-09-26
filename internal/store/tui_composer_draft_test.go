@@ -414,3 +414,36 @@ func TestTUIComposerDraftTextOnlyDoesNotCreateMediaRow(t *testing.T) {
 		t.Fatal("spurious media row", n, err)
 	}
 }
+
+func TestTUIComposerDraftDispatchPreservesNewerEditsAndFencesRestart(t *testing.T) {
+	s, path, original, _ := composerDraftFixture(t)
+	ctx := context.Background()
+	pair := claimComposer(t, s, original)
+	token := pair.Text.Claim.Token
+	newer, err := s.SaveTUITextDraft(ctx, "A", pair.Text.Revision, TUITextSnapshot{Text: "new edit", Cursor: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.BeginTUIComposerSubmission(ctx, "A", token, pair.Text.Revision); !errors.Is(err, ErrTUIDraftConflict) {
+		t.Fatal("stale dispatch accepted", err)
+	}
+	begun, err := s.BeginTUIComposerSubmission(ctx, "A", token, newer.Revision)
+	if err != nil || !begun.Text.Claim.Dispatched || begun.Text.Text != "new edit" {
+		t.Fatal(begun, err)
+	}
+	if err = s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err = Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if _, err = s.BeginTUIComposerSubmission(ctx, "A", token, begun.Text.Revision); !errors.Is(err, ErrTUIDraftHeld) {
+		t.Fatal("restarted dispatch accepted", err)
+	}
+	rejected, err := s.FinishTUIComposerDraft(ctx, "A", token, true)
+	if err != nil || rejected.Text.Text != "new edit" || rejected.Text.Claim == nil || !rejected.Text.Claim.Rejected || rejected.Media.Claim == nil {
+		t.Fatal("dispatch reset newer-edit fence", rejected, err)
+	}
+}

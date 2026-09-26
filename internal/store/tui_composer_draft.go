@@ -69,6 +69,29 @@ func (s *Store) ClaimTUIComposerDraft(ctx context.Context, sessionID string, exp
 	})
 }
 
+// Begin dispatch is durable before submission starts. A duplicate/restarted
+// caller cannot use the token to resend; only confirmed recovery may settle it.
+func (s *Store) BeginTUIComposerSubmission(ctx context.Context, sessionID, token string, expected int64) (TUIComposerDraft, error) {
+	return s.updateTUIComposerDraft(ctx, sessionID, func(_ *sql.Tx, text *TUITextDraft, media *TUIMediaDraft) error {
+		if err := checkTUIComposerClaim(text, media, token); err != nil {
+			return err
+		}
+		if text.Revision != expected {
+			return ErrTUIDraftConflict
+		}
+		if text.Claim.Dispatched || text.Claim.Rejected {
+			return ErrTUIDraftHeld
+		}
+		// Dispatch is coordination, not an edit: advance the snapshot fence only
+		// when the user has not edited since claiming. A rejection may restore it.
+		if text.Revision == text.Claim.Revision {
+			text.Claim.Revision++
+		}
+		text.Claim.Dispatched = true
+		return nil
+	})
+}
+
 func checkTUIComposerClaim(text *TUITextDraft, media *TUIMediaDraft, token string) error {
 	if text.Claim == nil || text.Claim.Token != token {
 		return ErrTUIDraftConflict

@@ -371,16 +371,30 @@ func (e *Engine) PeeringStatus() peering.Status {
 }
 
 func (e *Engine) SubmitPrompt(ctx context.Context, in RunInput) (*SubmitResult, error) {
-	return e.submitPrompt(ctx, in, nil)
+	return e.submitPrompt(ctx, in, nil, "", "")
 }
 
-func (e *Engine) submitPrompt(ctx context.Context, in RunInput, retry *store.HeldRetryAdmission) (*SubmitResult, error) {
+func (e *Engine) submitPrompt(ctx context.Context, in RunInput, retry *store.HeldRetryAdmission, composerToken, mediaToken string) (*SubmitResult, error) {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
 	if in.Intent == "" {
 		in.Intent = "prompt"
 	}
+	// Sanitize before steering too, not just before queued-turn insertion.
+	// Only SubmitTUIComposer may supply the engine-owned text receipt token.
+	in.Metadata = cloneMap(in.Metadata)
 	if in.Metadata == nil {
 		in.Metadata = map[string]any{}
+	}
+	delete(in.Metadata, "tui_text_claim")
+	delete(in.Metadata, "tui_media_claim")
+	if composerToken != "" {
+		in.Metadata["tui_text_claim"] = composerToken
+	}
+	if mediaToken != "" {
+		in.Metadata["tui_media_claim"] = mediaToken
+	}
+	if opCtx == nil {
+		return nil, context.Canceled
 	}
 	recovered, err := e.recoverInterruptedTurns(ctx, in.SessionID)
 	if err != nil {
@@ -1214,7 +1228,7 @@ func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*Su
 		Model:        internalx.StringValue(turnRec.Metadata["model"], ""),
 		ParentTurnID: internalx.StringValue(turnRec.Metadata["parent_turn_id"], ""),
 		Metadata:     metadata,
-	}, &store.HeldRetryAdmission{OriginalTurnID: turnID, Token: token, Summary: summary})
+	}, &store.HeldRetryAdmission{OriginalTurnID: turnID, Token: token, Summary: summary}, "", "")
 	admitted, reconcileErr := e.store.FinishHeldRetry(opCtx, turnID, token, summary, err != nil)
 	if reconcileErr != nil {
 		return nil, fmt.Errorf("retry admission requires reconciliation: %w", reconcileErr)

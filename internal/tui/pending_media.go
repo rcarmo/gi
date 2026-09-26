@@ -125,7 +125,7 @@ func (c *chatTUI) submitMediaInput(scope sessionScope, input turn.RunInput, clai
 	if claim == nil {
 		return c.engine.SubmitPromptRouted(context.Background(), input)
 	}
-	result, err := c.engine.SubmitPrompt(context.Background(), input)
+	result, err := c.engine.SubmitTUIMediaPrompt(context.Background(), input, claim.token)
 	c.settleMediaClaim(scope, claim, err != nil)
 	return result, err
 }
