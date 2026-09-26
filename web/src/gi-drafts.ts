@@ -1,3 +1,4 @@
+import { randomClientId } from "./gi-random-id.js";
 // Browser-local session drafts. File bytes use IndexedDB ArrayBuffers; never
 // serialise attachment bytes to localStorage or silently drop failed writes.
 export type Draft = { text: string; media: File[]; fileRefs: string[]; messageRefs: any[] };
@@ -101,7 +102,7 @@ export function createDraftRepository(storage: DraftStorage, onError: (error: Er
             void persist(id).catch(() => {});
         },
         begin(id: string, draft: Draft) {
-            const token = crypto.randomUUID();
+            const token = randomClientId();
             const row = record(id);
             row.pending.push({ id: token, draft: copy(draft) });
             row.draft = emptyDraft();

@@ -2,6 +2,9 @@
 
 This subtree contains Gi's shipped internal reference for runtime features that the agent can use or extend.
 
+Priority incident: [basic web send on HTTP hosts](web-http-send.md) records the
+secure-context UUID failure, repair and native end-to-end acceptance.
+
 For the current product comparison, see [features and Piclaw parity](../feature-parity.md).
 The [full web/TUI plan](full-web-tui-parity-plan.md) and
 [UX audit](ux-test-audit-2026-09-24.md) distinguish implemented slices from

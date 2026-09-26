@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { randomClientId } from "./gi-random-id.js";
 import { staleTerminalEvent } from './gi-turn-event.js';
 import { speechPlayback } from './gi-post-speech.js';
 import { useGiNotifications } from './gi-notifications.js';
@@ -929,7 +930,7 @@ function GiApp() {
                 // flight then writes on top of it instead of replacing it.
                 if (selection.current() === scope.sessionId) {
                     setFileRefs(prepared.draft.fileRefs); setMessageRefs(prepared.draft.messageRefs);
-                    setDraftRestore({sessionId: scope.sessionId, ...prepared.draft, token: crypto.randomUUID()});
+                    setDraftRestore({sessionId: scope.sessionId, ...prepared.draft, token: randomClientId()});
                 }
                 await prepared.ready;
                 await drafts.flushStable();
@@ -1035,7 +1036,7 @@ function GiApp() {
                 onSwitchChat=${handleSwitchChat}
                 onPrefillCompose=${(command: string) => {
                     if (!selection.isCurrent(renderedSelection)) return;
-                    setComposePrefill({sessionId,token:crypto.randomUUID(),text:command.trim()+' '});
+                    setComposePrefill({sessionId,token:randomClientId(),text:command.trim()+' '});
                 }}
             />`}
             <${TimelineMenu}
@@ -1190,7 +1191,7 @@ function GiApp() {
                         const draft = drafts.failed(sessionId, token, error);
                         if (selection.current() === sessionId) {
                             setFileRefs(draft.fileRefs); setMessageRefs(draft.messageRefs);
-                            setDraftRestore({ sessionId, ...draft, token: crypto.randomUUID() });
+                            setDraftRestore({ sessionId, ...draft, token: randomClientId() });
                         }
                     }}
                     onDraftStorageError=${(error: any) => setDraftStorageError(`Send acknowledged, but draft cleanup failed: ${error.message}. Reload recovery may contain already-delivered text.`)}

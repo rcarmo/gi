@@ -227,6 +227,30 @@ jobs:
             test-results/tui-unselected-model/
           if-no-files-found: ignore
 
+  basic-web-send:
+    name: Basic web send on HTTP and localhost
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium webkit
+      - run: make test-web-http-helpers test-web-basic-send
+      - name: Preserve basic send evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: basic-web-send-evidence
+          path: test-results/basic-http-send/
+          if-no-files-found: ignore
+
   auth-state:
     name: Auth state ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -248,7 +272,7 @@ jobs:
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest
-    needs: [test, auth-state, passkey-browser, browser-journey, compose-browser, voice-browser, context-browser, notification-browser, terminal-retry]
+    needs: [test, auth-state, passkey-browser, browser-journey, compose-browser, voice-browser, context-browser, notification-browser, terminal-retry, basic-web-send]
     strategy:
       fail-fast: false
       matrix:

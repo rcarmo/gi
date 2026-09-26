@@ -177,6 +177,14 @@ logs:
 
 # ── Checks and tests ────────────────────────────────────────────────────
 
+.PHONY: test-web-http-helpers test-web-basic-send
+test-web-http-helpers:
+	$(BUN) test tests/ux/support/random-id.test.ts tests/ux/support/drafts.test.ts
+
+test-web-basic-send: test-instance-start
+	@GI_TEST_URL=http://127.0.0.1:$(TEST_PORT) $(PLAYWRIGHT) test tests/functional/18-basic-http-send.spec.ts --reporter=line --output=$(TEST_RESULTS)/basic-http-send; \
+	status=$$?; $(MAKE) test-instance-stop; exit $$status
+
 test:
 	$(GO) test ./...
 
