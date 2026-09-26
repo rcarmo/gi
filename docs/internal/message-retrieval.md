@@ -92,7 +92,20 @@ assertions, then approved the strengthened source after all six projects passed.
 pass and Shared38 cannot earn Classic025 credit. Only `@shared-38` is newly mapped:
 33/42 shared mappings and 101/236 Classic mappings. This is not a full-suite pass,
 all-chat/family authorization, TUI, physical-device or pixel acceptance. Frozen
-feature sources and supplied components are unchanged. Mapping CI is pending.
+feature sources and supplied components are unchanged.
+
+Mapping revision `8196355033dbf95e7f443a33deef27763b1d4347` passed whole-product
+[CI 36265284691](https://github.com/rcarmo/gi/actions/runs/36265284691) on its first
+attempt, including all four builds. Local canonical evidence: six browser passes,
+race×3, nine report/ledger tests with 1,969 assertions, core tests, vet and hook
+checks. The focused report is one shared pass, 32 not-run, nine unmapped; it does
+not borrow unrelated evidence. Report fixtures were corrected to use the actual
+Playwright suites/specs shape, not an unsupported flat result shape.
+
+Production directories and module/build inputs have no diff against deployed
+`05e287f`; the mapping-only revision did not require a restart or another migration.
+Live PID `776843` / process group `776835` remains unchanged. Mapping evidence is
+in `/workspace/tmp/gi-shared38-evidence`.
 
 ## Deployment
 
