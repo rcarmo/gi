@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Deploy exact003b9e6 after productCI36233054266: lostsame-sessionack fix+modelsend acceptance;8090PID1403292/PGID1403282. Four blocked HTTP send probes+6readonlyUI pass;DB62/51/146 integrity/FKs+normalisedSQL/auth unchanged. Failedacb069eCI not accepted;later5fa51a6 testfix excluded. [Deployment](../internal/web-delivery-recovery.md#deployment);reloadtabs,no live chat mutations.
+
 - [x] Correct passkey prompt-cancel fixture after CI36232554338 failed: old100mssleep could abort /login/start before credentials.get,then real409 on immediate retry. Observe actual forwarded credentials.get call before cancelling;9repeat/189fullpasskey+121functional(11skips)+core/vet/hooks/review pass,no timeouts/security changes. Rapid cancel-during-start remains a separate open UX gap,not fixed by this test correction.
 - [ ] P1 auth cancellation: reproduce/repair immediate retry after cancelling pending /passkeys/login/start without auto-auth replay or weakened writer conflict guards. Trace from CI36232554338 retained; prompt-start observation is not physical OS-sheet acceptance.
 

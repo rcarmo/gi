@@ -85,6 +85,23 @@ for this scenario. Rapid cancellation during the server start and immediate
 retry remains a separate UX gap. No physical OS-sheet or race-fix claim is made.
 The failed run/trace are retained and no timeout was increased.
 
+## Deployment
+
+Exact `003b9e669682b3aafda9621ec976fbb12ac4ddb8` passed whole product
+[CI36233054266](https://github.com/rcarmo/gi/actions/runs/36233054266), including
+all14basicHTTP journeys,18control/model checks and four platform builds. It
+contains the delivery fix from `acb069e`, whose own CI36232554338 failed the
+prompt-cancel case above; that failed run was not used as deployment evidence.
+The later cancellation test correction `5fa51a6` is excluded from this release.
+
+Detached-source Makefile deployment runs on8090, PID1403292, PGID/SID1403282.
+Four blocked-send HTTP probes (Chromium/WebKit×Return/Send) reach the exact
+native endpoint and preserve unknown-delivery feedback/drafts without native
+writes. Six read-only UI probes pass. DB62sessions/51turns/146messages,
+integrity/FKs, normalised SQL excluding runtime leases and absent auth remain
+unchanged. Existing tabs need reload. Lost-success/model/Stop/reconnect acceptance
+uses the isolated native fixtures; no live chat mutation is claimed.
+
 ## Verification and exclusions
 
 Core/vet/hooks and13helper tests/50assertions pass. Full isolated functional
