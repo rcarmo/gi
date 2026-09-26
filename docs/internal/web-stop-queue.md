@@ -98,5 +98,8 @@ in mapping CI `36249440286` exhausted the existing ten-minute job budget; its
 cancelled run is not approval. The focused six-project gate passed locally in
 28.8 seconds plus three report/ledger tests. No timeout or assertion changed.
 The full reconnect suite remains available and passed locally as recorded above.
-Frozen feature files and manifests are unchanged. This adds no physical-device, accessibility-matrix,
+The correction `057486b` passed whole-product CI
+[36250171919](https://github.com/rcarmo/gi/actions/runs/36250171919), including all
+four builds. Runtime files match deployed `caa83c7`; the mapping follow-up needed
+no live restart. Frozen feature files and manifests are unchanged. This adds no physical-device, accessibility-matrix,
 exact-pixel or TUI acceptance. TUI WIP `2a87a79` stays isolated.
