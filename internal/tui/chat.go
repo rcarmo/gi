@@ -2096,7 +2096,8 @@ func (c *chatTUI) renderModelMenu(width int) *gotui.Element {
 			prefix = "* "
 			style = style.Foreground(gotui.Cyan)
 		}
-		label := fmt.Sprintf("%s%d. %s", prefix, i+1, model)
+		prefix = fmt.Sprintf("%s%d. ", prefix, i+1)
+		label := prefix + c.modelPickerRowLabel(model, width-gotui.StringWidth(prefix))
 		if reason := c.modelPickerUnavailable(model); reason != "" {
 			label = fmt.Sprintf("× %d. %s · %s", i+1, model, reason)
 			style = gotui.NewStyle().Dim()

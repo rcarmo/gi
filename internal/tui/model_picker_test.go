@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	gotui "github.com/grindlemire/go-tui"
 	"github.com/rcarmo/gi/internal/inference"
 	"github.com/rcarmo/gi/internal/store"
 	goai "github.com/rcarmo/go-ai"
@@ -40,6 +41,24 @@ func TestModelPickerMetadataEnabledNavigationAndOwnership(t *testing.T) {
 	measure(100)
 	before := *c.input
 	c.openModelMenu()
+	openInput := *c.input // Opening deliberately blurs the editor; rendering must not change it.
+	for _, width := range []int{28, 60, 100, 140} {
+		rows := collectElementTexts(c.renderModelMenu(width))
+		for _, row := range rows {
+			if gotui.StringWidth(row) > width {
+				t.Fatalf("width %d overflow: %q", width, row)
+			}
+		}
+		if width >= 60 {
+			text := strings.Join(rows, "\n")
+			if !strings.Contains(text, "opencode-zen/picker-pine · 32K ctx") || !strings.Contains(text, "opencode-zen/picker-small · context too small") || strings.Contains(text, "80 ctx") {
+				t.Fatalf("metadata/blocked priority: %s", text)
+			}
+		}
+		if c.modelMenuVisibleRows() > 6 || c.modelMenuHeight() > 8 || openInput.text != c.input.text || openInput.cursorPos != c.input.cursorPos || openInput.undoText != c.input.undoText || openInput.yankText != c.input.yankText || openInput.focused != c.input.focused {
+			t.Fatal("metadata changed footprint or editor")
+		}
+	}
 	for _, check := range []struct {
 		query string
 		want  []string
@@ -168,5 +187,35 @@ func TestModelPickerContextReadFailureStaysRecoverable(t *testing.T) {
 	c.acceptModelMenuSelection()
 	if c.modelMenuOpen || c.cfg.DefaultModel != "bootstrap" {
 		t.Fatal("did not recover")
+	}
+}
+
+func TestModelPickerInlineContextPreservesIdentityAndWidth(t *testing.T) {
+	c := &chatTUI{modelMenuKind: "model", modelMenuMetadata: map[string]modelPickerMetadata{
+		"provider/pine":       {context: "32K ctx"},
+		"provider/中文🙂e\u0301": {context: "1.0M ctx"},
+		"provider/blocked":    {context: "80 ctx", unavailable: "context too small"},
+	}}
+	for _, key := range []string{"provider/pine", "provider/中文🙂e\u0301", "provider/blocked", "provider/unknown"} {
+		for _, width := range []int{0, 1, 8, 20, 28, 60, 100, 140} {
+			got := c.modelPickerRowLabel(key, width)
+			if gotui.StringWidth(got) > width || strings.ContainsAny(got, "\r\n\x1b") {
+				t.Fatalf("width %d: %q", width, got)
+			}
+			meta := c.modelMenuMetadata[key]
+			want := key
+			full := key + " · " + meta.context
+			if meta.context != "" && meta.unavailable == "" && gotui.StringWidth(full) <= width {
+				want = full
+			}
+			if got != selectorText(want, width) {
+				t.Fatalf("width %d got %q want %q", width, got, selectorText(want, width))
+			}
+		}
+	}
+	// Other selectors share the renderer but must never inherit model metadata.
+	c.modelMenuKind = "session"
+	if got := c.modelPickerRowLabel("provider/pine", 100); got != "provider/pine" {
+		t.Fatal(got)
 	}
 }

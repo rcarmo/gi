@@ -8,7 +8,7 @@ import (
 	"github.com/rcarmo/gi/internal/inference"
 )
 
-type modelPickerMetadata struct{ search, unavailable string }
+type modelPickerMetadata struct{ search, context, unavailable string }
 
 // Snapshot metadata while Alt-M is open or an unavailable row is retried.
 // Enabled acceptance revalidates credentials/context through chooseSessionModel.
@@ -18,8 +18,10 @@ func (c *chatTUI) captureModelPickerMetadata() {
 	usage, err := c.store.LatestContextMeasurement(context.Background(), c.sessionID)
 	for _, option := range c.sessionModelCatalogue() {
 		search := []string{option.Label, option.Provider, option.ID, option.Name}
+		contextLabel := ""
 		if option.ContextWindow > 0 {
-			search = append(search, formatTokenCount(option.ContextWindow)+" ctx")
+			contextLabel = formatTokenCount(option.ContextWindow) + " ctx"
+			search = append(search, contextLabel)
 		}
 		if option.Reasoning {
 			search = append(search, "reasoning")
@@ -33,7 +35,7 @@ func (c *chatTUI) captureModelPickerMetadata() {
 		case usage != nil && option.ContextWindow > 0 && usage.Tokens > option.ContextWindow:
 			reason = "context too small"
 		}
-		c.modelMenuMetadata[option.Label] = modelPickerMetadata{strings.Join(search, " "), reason}
+		c.modelMenuMetadata[option.Label] = modelPickerMetadata{search: strings.Join(search, " "), context: contextLabel, unavailable: reason}
 	}
 }
 
@@ -46,6 +48,21 @@ func (c *chatTUI) modelPickerUnavailable(label string) string {
 		return "unavailable or lacks credentials"
 	}
 	return metadata.unavailable
+}
+
+// Context is advisory metadata, shown only when the complete identity and
+// suffix fit. Never shorten a model key merely to make room for a badge.
+func (c *chatTUI) modelPickerRowLabel(label string, width int) string {
+	if c.modelMenuKind == "model" {
+		metadata := c.modelMenuMetadata[label]
+		if metadata.unavailable == "" && metadata.context != "" {
+			full := label + " · " + metadata.context
+			if gotui.StringWidth(full) <= width {
+				return selectorText(full, width)
+			}
+		}
+	}
+	return selectorText(label, width)
 }
 
 func (c *chatTUI) enabledModelMenuIndices() []int {

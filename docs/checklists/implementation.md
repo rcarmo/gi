@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Add known context to existing Alt-M rows only when the full key and suffix fit; retain blocked reasons, six-result limit and zero idle rows. `make test vet` and six fullscreen/regular PTYs pass (60×18, 100×22, 140×36), covering visible metadata, resize, draft/cursor, native persistence and scrollback. [TUI metadata evidence](../internal/tui-model-metadata.md); no general terminal/physical acceptance claim.
+
 - [x] Deploy exact green runtime dcc8c16 afterCI36207372088 from isolated detached checkout (CI-onlyf8ea747 verification separate).8090PID553455 PGID/SID553342. Six read-only Chromium/WebKit checks pass capability-gated voice/bell,default-off opt-in,panel/focus/draft behaviour;zeroHTTPwrites/errors,no permissions requested. DB62/51/146 integrity/FKs+normalizedSQL unchanged except leases SHA256300ce679…653d;authabsent. Real mic/OSdelivery/Visual still unverified.
 
 - [x] Split required compose/panel/voice CI from startup/geometry/slash/workspace after run36206444743 hit the15-minute job limit (annotation108303890554). Notification/passkey/core jobs were green. Retain all targets,15-minute limits/artifacts and build dependencies; no timeout increase/skip. Follow-up CI36207485990 is green; live runtime remains the separately verified dcc8c16.
