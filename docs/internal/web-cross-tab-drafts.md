@@ -72,5 +72,22 @@ canonical parity-fixture results above supersede those harness failures. One
 outer shell cutoff interrupted the long draft suite; its standalone run passed.
 No browser timeout or assertion was weakened. Evidence: `/workspace/tmp/gi-cross-tab`.
 
-Whole-product CI and exact-source deployment are still required. Live `a1be540`
-is unchanged while this slice is packaged.
+## Deployment
+
+Exact source `9c01b5dde0760b25e7cdc47b17f5666c176645c5` passed whole-product CI
+[36244076781](https://github.com/rcarmo/gi/actions/runs/36244076781), including all
+four builds, then replaced `a1be540` on port 8090. Live PID `192481`, process
+group/session `192474`; binary SHA-256
+`5229bd0aff98ec5cbbde1aecfe5a16d03a96e2e6a90a48429db6fa11c51e2e9f`.
+
+Four blocked non-localhost HTTP send probes and six read-only UI probes passed.
+Before/after DB counts are 62 sessions, 51 turns, 146 messages, zero active turns;
+integrity/FKs clean. Full SQL including receipts matches except for the runtime
+dispatcher lease. Auth hashes and local-only TUI WIP HEAD/diff are unchanged.
+No live chat writes occurred. Deployment evidence is in
+`/workspace/tmp/gi-cross-tab-deploy-9c01b5d`; DB dumps/auth hashes remain local-only.
+
+Copy unsaved edits before reloading older tabs. Version-1 tabs cannot continue
+saving once the database is upgraded; a blocking old connection must be closed.
+This migration preserves persisted rows but cannot recover edits that an old tab
+never saved. Do not roll back to version-1 assets after upgrading the browser DB.
