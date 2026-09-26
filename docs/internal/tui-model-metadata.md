@@ -16,6 +16,7 @@ On 2026-09-26:
 
 - `make test vet` passes. Unit tests cover full key priority, exact-width suffix admission, omitted unknown/blocked metadata, Unicode labels and zero/narrow/wide widths. The shared renderer does not leak model metadata into session selectors.
 - `make test-tui-model-picker` passes in six real tmux PTYs: fullscreen/regular at 60×18, 100×22 and 140×36. Captures include the inline context, blocked-reason priority, metadata filtering, resize, native model persistence, draft/cursor restoration, unchanged global settings and other-session state, and unchanged idle rows. Regular-mode checks retain prior scrollback and exclude the temporary picker from history.
+- `make test-tui-session-picker BIN_DIR=/tmp/gi-tui-regression-bin` also passes all six fullscreen/regular PTYs. The shared selector renderer preserves session navigation, Unicode drafts/cursors, temporary-screen history and idle rows.
 - An initial test compared whole editor structs, including function fields, and failed. It now compares the relevant draft, cursor, undo, yank and focus fields. The existing open/close lifecycle intentionally blurs and restores the editor.
 
 Text/ANSI captures are in `test-results/tui-model-picker`. They verify these renderer/PTY configurations, not every terminal emulator or physical-device acceptance. Broader queue/media persistence, search/reflow/link/selection and light-theme gaps remain in the parity ledger.
