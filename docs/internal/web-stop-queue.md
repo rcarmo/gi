@@ -92,6 +92,11 @@ it is not a complete matrix run. Classic mappings remain 101/236.
 The report tests reject five-project and duplicate-file evidence and do not grant
 Classic original023 or Shared35 credit from Shared36-only input. A duplicate local
 variable in the new report fixture was corrected before those tests passed.
-CI now runs this evidence gate and preserves its report. Frozen feature files and
-manifests are unchanged. This adds no physical-device, accessibility-matrix,
+CI now runs this evidence gate with `UX_PARITY_ARGS='--grep @shared-36'` and
+preserves its report. Adding the entire 66-case reconnect suite after HTTP tests
+in mapping CI `36249440286` exhausted the existing ten-minute job budget; its
+cancelled run is not approval. The focused six-project gate passed locally in
+28.8 seconds plus three report/ledger tests. No timeout or assertion changed.
+The full reconnect suite remains available and passed locally as recorded above.
+Frozen feature files and manifests are unchanged. This adds no physical-device, accessibility-matrix,
 exact-pixel or TUI acceptance. TUI WIP `2a87a79` stays isolated.

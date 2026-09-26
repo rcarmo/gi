@@ -247,7 +247,7 @@ jobs:
       - run: bunx playwright install --with-deps chromium webkit
       - run: make test-web-http-helpers test-web-basic-send test-web-basic-controls
       - name: Verify captured Stop shared-contract evidence
-        run: make test-shared-stop-evidence
+        run: make test-shared-stop-evidence UX_PARITY_ARGS='--grep @shared-36'
       - name: Preserve basic send evidence
         if: always()
         uses: actions/upload-artifact@v4
