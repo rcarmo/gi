@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Cache one immutable current editor layout keyed by text/effectivewidth/cursor/focus/marker; viewport height/scroll independent and append-capacity safe. Warm1MiB layout lookup5.1ns/0alloc vs24.9ms/7.2MB baseline (microbenchmark only); cursor/edit/resize still full rebuild. Core/vet/hooks+24editor/model/session/search/regularPTYs+107functional(11skips) pass. [Evidence](../internal/tui-editor-layout-cache.md);CI pending,no new UI/draft limits.
+
 - [x] Bound terminal editor viewport with pi-tui30%/five-line policy clamped to dock/menu space; cursor-following grapheme/cell rows, unchanged full draft and idle size. Go/vet/hooks+18editor/model/search/regularPTYs+107functional(11skips) pass. Six long-draft PTYs verify exact Unicode bytes after one explicit submission, zero navigation writes, resize/menu/cursor retention. Whole-draft layout latency and extreme tiny/widget cases remain;CI/deploy pending. [Evidence](../internal/tui-editor-viewport.md).
 
 - [x] Preserve complete validated parenthesised HTTP(S) tokens (including ordinary trailing punctuation) until go-tui wraps OSC8 spans; no fragment reconstruction/validator relaxation/idle rows. Race×3+Go/vet/hooks+6link/3search/3selectionPTYS+107functional(11existing skips) pass. Review-found punctuation gap repaired; physical activation/complex inline-code/table and prewrappedMarkdown search remain open. [Evidence](../internal/tui-wrapped-links.md);CI/deploy pending.

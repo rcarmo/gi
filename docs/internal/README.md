@@ -6,7 +6,8 @@ For the current product comparison, see [features and Piclaw parity](../feature-
 The [full web/TUI plan](full-web-tui-parity-plan.md) and
 [UX audit](ux-test-audit-2026-09-24.md) distinguish implemented slices from
 remaining browser and terminal work. Older dated fit-gap notes below retain
-their historical scope. [Bounded terminal editor viewport](tui-editor-viewport.md)
+their historical scope. [Reuse unchanged terminal editor layout](tui-editor-layout-cache.md)
+records cache ownership, benchmarks and PTY evidence. [Bounded terminal editor viewport](tui-editor-viewport.md)
 records cursor-following height limits and exact-draft PTY checks. [Complete link targets across terminal wraps](tui-wrapped-links.md)
 records OSC8 projection, safety and PTY scope. [Fullscreen word and line selection](tui-word-selection.md)
 records multiclick ownership and PTY evidence. [Search across renderer soft wraps](tui-search-wrap.md)

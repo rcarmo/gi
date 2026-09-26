@@ -14,6 +14,7 @@ type multilineInput struct {
 	width            int
 	maxLines         int // zero leaves standalone inputs unbounded
 	scrollRow        int
+	layoutCache      *editorLayoutCache // immutable, one entry per input snapshot
 	border           gotui.BorderStyle
 	placeholder      string
 	placeholderStyle gotui.Style
@@ -188,8 +189,22 @@ type renderedLine struct {
 	placeholder bool
 }
 
+type editorLayoutKey struct {
+	text          string
+	width, cursor int
+	focused       bool
+	marker        rune
+}
+type editorLayoutCache struct {
+	key       editorLayoutKey
+	lines     []renderedLine
+	cursorRow int
+}
+
 func (m *multilineInput) renderLines() []renderedLine {
 	if m.text == "" {
+		m.layoutCache = nil
+		m.scrollRow = 0
 		if m.focused {
 			return []renderedLine{{text: string(m.cursorRune), placeholder: true}}
 		}
@@ -202,6 +217,31 @@ func (m *multilineInput) renderLines() []renderedLine {
 	if visibleWidth < 1 {
 		visibleWidth = 1
 	}
+	key := editorLayoutKey{text: m.text, width: visibleWidth, cursor: m.cursorPos, focused: m.focused, marker: m.cursorRune}
+	cached := m.layoutCache
+	if cached == nil || cached.key != key {
+		lines, cursorRow := m.layoutLines(visibleWidth)
+		cached = &editorLayoutCache{key: key, lines: lines, cursorRow: cursorRow}
+		m.layoutCache = cached
+	}
+	lines, cursorRow := cached.lines, cached.cursorRow
+	limit := m.maxLines
+	if limit <= 0 || len(lines) <= limit {
+		m.scrollRow = 0
+		return lines[:len(lines):len(lines)]
+	}
+	if cursorRow < m.scrollRow {
+		m.scrollRow = cursorRow
+	}
+	if cursorRow >= m.scrollRow+limit {
+		m.scrollRow = cursorRow - limit + 1
+	}
+	m.scrollRow = max(0, min(m.scrollRow, len(lines)-limit))
+	// Limit capacity so Render's optional append cannot overwrite cached rows.
+	return lines[m.scrollRow : m.scrollRow+limit : m.scrollRow+limit]
+}
+
+func (m *multilineInput) layoutLines(visibleWidth int) ([]renderedLine, int) {
 	lines := []renderedLine{}
 	var line strings.Builder
 	column, runeOffset, cursorRow := 0, 0, -1
@@ -252,19 +292,7 @@ func (m *multilineInput) renderLines() []renderedLine {
 		}
 	}
 	flush()
-	limit := m.maxLines
-	if limit <= 0 || len(lines) <= limit {
-		m.scrollRow = 0
-		return lines
-	}
-	if cursorRow < m.scrollRow {
-		m.scrollRow = cursorRow
-	}
-	if cursorRow >= m.scrollRow+limit {
-		m.scrollRow = cursorRow - limit + 1
-	}
-	m.scrollRow = max(0, min(m.scrollRow, len(lines)-limit))
-	return lines[m.scrollRow : m.scrollRow+limit]
+	return lines, cursorRow
 }
 
 func (m *multilineInput) helpLine() string {

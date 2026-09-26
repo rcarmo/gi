@@ -401,6 +401,10 @@ test-tui-index: build
 test-tui-selection: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-selection.mjs
 
+.PHONY: bench-tui-editor-layout
+bench-tui-editor-layout:
+	$(GO) test ./internal/tui -run '^$$' -bench '^BenchmarkEditorLayout$$' -benchmem -benchtime=100ms
+
 .PHONY: test-tui-editor-viewport
 test-tui-editor-viewport: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-editor-viewport.mjs

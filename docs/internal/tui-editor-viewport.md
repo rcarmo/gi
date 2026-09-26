@@ -10,7 +10,7 @@ The installed pi-tui editor uses `max(5, floor(terminalRows * 0.3))` visible lin
 
 `multiline_input.go` wraps grapheme clusters by display-cell width instead of rune count. Rendered rows disable a second word-wrap pass. The cursor remains rune-indexed for existing editing commands; if its index falls inside a combining cluster, the marker is displayed before the intact cluster. A two-cell grapheme in a one-column viewport uses a replacement display cell, without changing the draft. CRLF remains one visible line break.
 
-The viewport neither truncates storage nor imposes a new paste-size limit. It still lays out the whole in-memory draft to locate the cursor; large-input latency and richer grapheme-aware editing remain separate concerns. Extremely short terminals with more fixed widgets than available rows are not covered by a universal layout guarantee.
+The viewport neither truncates storage nor imposes a new paste-size limit. The [layout-cache follow-up](tui-editor-layout-cache.md) reuses unchanged redraw layouts. Changes to text, cursor, width or focus still lay out the whole in-memory draft; large-input editing latency and richer grapheme-aware editing remain separate concerns. Extremely short terminals with more fixed widgets than available rows are not covered by a universal layout guarantee.
 
 ## Ownership
 
