@@ -431,7 +431,11 @@ test-tui-media-journal:
 
 .PHONY: test-held-retry
 test-held-retry:
-	$(GO) test -race -count=3 ./internal/store ./internal/turn -run 'RetryHeld|HeldRetry|HoldAndResolve|HoldResolution|SkipHeld'
+	$(GO) test -race -count=3 ./internal/store ./internal/turn ./internal/tui -run 'TUIRetry|RetryHeld|HeldRetry|HoldAndResolve|HoldResolution|SkipHeld'
+
+.PHONY: test-tui-retry-commands
+test-tui-retry-commands: build
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-retry-commands.mjs
 
 .PHONY: test-tui-queue-commands test-terminal-queue
 test-terminal-queue:

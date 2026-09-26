@@ -1165,6 +1165,9 @@ func (e *Engine) HoldTurnFailure(ctx context.Context, turnID, holdState, summary
 
 func (e *Engine) RetryHeldTurn(ctx context.Context, turnID, summary string) (*SubmitResult, error) {
 	opCtx := store.CoordinationContext(ctx, e.backgroundContext())
+	if opCtx == nil {
+		return nil, context.Canceled
+	}
 	summary = normalizeHoldResolutionSummary(summary)
 	turnRec, err := e.store.GetTurn(opCtx, turnID)
 	if err != nil {
@@ -2142,6 +2145,9 @@ func (e *Engine) startNextQueuedTurnLocked(ctx context.Context, runner *sessionR
 		return false, nil
 	}
 	coordCtx := store.CoordinationContext(ctx, e.backgroundContext())
+	if coordCtx == nil {
+		return false, context.Canceled
+	}
 	if activeTurnID, _, err := e.store.GetSessionActiveTurn(coordCtx, sessionID); err == nil {
 		if err := e.normalizeRunningSessionState(coordCtx, sessionID, activeTurnID, true, ""); err != nil {
 			return false, err

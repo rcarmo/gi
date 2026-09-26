@@ -7,7 +7,8 @@ The [full web/TUI plan](full-web-tui-parity-plan.md) and
 [UX audit](ux-test-audit-2026-09-24.md) distinguish implemented slices from
 remaining browser and terminal work. Older dated fit-gap notes below retain
 their historical scope. [Held-turn retry admission](held-turn-retry.md)
-records exclusive reservations and conservative recovery limits without new UI.
+records exclusive reservations and atomic recovery. [Terminal held retry](tui-held-retry.md)
+records bounded check/run/release commands, session guards and PTY acceptance.
 [Explicit terminal queue commands](tui-queue-commands.md)
 records bounded durable inspection/removal/steering. [Durable terminal attachment references](tui-media-journal.md)
 records transactional staging and conservative admission recovery. [Reuse unchanged terminal editor layout](tui-editor-layout-cache.md)

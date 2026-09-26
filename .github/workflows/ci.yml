@@ -201,6 +201,30 @@ jobs:
           path: test-results/ux-parity
           retention-days: 3
 
+  terminal-retry:
+    name: Terminal held retry
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: sudo apt-get update && sudo apt-get install -y tmux sqlite3
+      - run: bun install
+      - run: make test-tui-retry-commands
+      - name: Upload terminal retry evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terminal-retry-evidence
+          path: test-results/tui-retry-commands/
+          if-no-files-found: ignore
+
   auth-state:
     name: Auth state ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -222,7 +246,7 @@ jobs:
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest
-    needs: [test, auth-state, passkey-browser, browser-journey, compose-browser, voice-browser, context-browser, notification-browser]
+    needs: [test, auth-state, passkey-browser, browser-journey, compose-browser, voice-browser, context-browser, notification-browser, terminal-retry]
     strategy:
       fail-fast: false
       matrix:

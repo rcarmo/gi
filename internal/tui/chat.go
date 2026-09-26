@@ -2528,6 +2528,8 @@ func (c *chatTUI) handleCommand(text string) {
 		c.appendTranscript(c.cloneSessionLines(fields)...)
 	case "/copy":
 		c.appendTranscript(c.copyLastAssistantLines(fields[1:]...)...)
+	case "/retry":
+		c.showQueueCommand(c.retryCommand(fields))
 	case "/queue":
 		c.showQueueCommand(c.queueCommand(fields))
 	case "/attachments":
@@ -2649,7 +2651,7 @@ func (c *chatTUI) handleCommand(text string) {
 		if lines, handled := c.extensionCommandLines(text, fields); handled {
 			c.appendTranscript(lines...)
 		} else {
-			c.appendTranscript("sys: commands: /help, /hotkeys, /commands [query], /session, /sessions, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /attach <path> [prompt], /attachments, /detach <media:id|all|unresolved>, /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /history-limit [n], /settings, /approvals, /queue [page|remove|steer|move], /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
+			c.appendTranscript("sys: commands: /help, /hotkeys, /commands [query], /session, /sessions, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /attach <path> [prompt], /attachments, /detach <media:id|all|unresolved>, /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /history-limit [n], /settings, /approvals, /queue [page|remove|steer|move], /retry [page|check|run|release], /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
 		}
 	}
 	c.running = false
@@ -2720,6 +2722,7 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 		{"/clone [@agentN]", "clone active branch/session"},
 		{"/copy [--osc52|--native|--auto|--fallback]", "copy last assistant message with opt-in target"},
 		{"/attach <path> [prompt]", "stage up to six session media refs for next prompt"},
+		{"/retry [page|check|run|release]", "inspect held failures; full ID/token guarded actions"},
 		{"/queue [page|remove|steer|move]", "inspect durable queue; mutate by full turn IDs"},
 		{"/attachments", "list durable refs / held admissions"},
 		{"/detach <media:id|all|unresolved>", "remove pending refs; keep stored files"},

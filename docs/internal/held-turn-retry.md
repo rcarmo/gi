@@ -1,7 +1,8 @@
 # Held-turn retry admission
 
 `Engine.RetryHeldTurn` uses a durable reservation before submitting follow-on
-work. This is native API hardening, not a new web or terminal control.
+work. The native API is also used by [explicit terminal retry commands](tui-held-retry.md);
+there is no new browser recovery control.
 
 ## Contract
 
@@ -63,9 +64,9 @@ stop old writers before upgrade. There is no token-forced legacy discard.
 
 The new atomic path no longer relies on `turn.submitted` for correctness. Tests
 fail that audit and resolution independently, reopen the database, and recover
-the same committed ID without replay. No new web or terminal recovery controls
-are exposed yet; session guards, full-ID command design and PTY acceptance
-remain separate work.
+the same committed ID without replay. Terminal commands now expose explicit
+check/run/release with session guards and full IDs; see their separate PTY
+acceptance. Browser controls and broader recovery workflows remain separate.
 
 ## Verification
 
@@ -90,4 +91,5 @@ SQLite contention or physical terminal acceptance.
 
 The focused race gate is included in required CI. Whole-CI status and deployment
 are tracked separately; this document does not claim deployment or new feature
-mappings. No terminal rows, controls, shortcuts or clipboard behaviour change.
+mappings. Native admission itself changes no terminal rows, shortcuts or
+clipboard behaviour; terminal command acceptance is recorded separately.

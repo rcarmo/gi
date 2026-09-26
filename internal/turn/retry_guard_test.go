@@ -479,3 +479,23 @@ func TestRetryHeldGuardPublicSubmissionCannotForgeReceipt(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestRetryHeldGuardShutdownDoesNotPassNilContextToQueueHandoff(t *testing.T) {
+	e, _, _ := heldRetryFixture(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	e.Close()
+	runner := e.runner("A")
+	runner.mu.Lock()
+	launched, err := e.startNextQueuedTurnLocked(ctx, runner, "A")
+	runner.mu.Unlock()
+	if launched || !errors.Is(err, context.Canceled) {
+		t.Fatal(launched, err)
+	}
+	if _, err = e.RetryHeldTurn(ctx, "old", "shutdown"); !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
+	}
+	if err = e.ReleaseHeldRetryInSession(ctx, "A", "old", "token"); !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
+	}
+}
