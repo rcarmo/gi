@@ -33,6 +33,21 @@ The shared native reorder transaction now rejects a queued row already claimed b
 
 Read-only review raised a possible deferred-transaction upgrade error. Inspection confirmed file-backed `store.Open` applies `_txlock=immediate`; the contention test passes. The issue was not reproduced on that supported path. General database failures remain reported without automatic retry; no timeout or test criteria were relaxed.
 
+## Deployment
+
+Exact `ee4e9c2b7d63405cdab115590ef3ee667c1dc59e` passed whole CI
+[36221007199](https://github.com/rcarmo/gi/actions/runs/36221007199) before
+building from a detached worktree. It includes cache, media-journal and queue
+slices; native retry/schema changes in `9e49ad8` are excluded.
+
+The Makefile restart on port8090 runs PID1047653, PGID/SID1047547. Six read-only
+Chromium/WebKit probes at390/820/1440 passed the existing composer, model/session
+picker, context explanation, theme, focus and draft checks, with zero HTTP
+writes/errors and no permissions requested. SQLite remains62sessions/51turns/
+146messages, integrity/FKs clean. Full SQL dumps match after excluding runtime
+lease rows; auth remains absent. Terminal mutations were tested on disposable
+PTYs, not live data. This deployment does not add physical/Visual acceptance.
+
 ## Open work
 
 This slice adds durable inspection/removal/steering and snapshot-bound relative reorder. Explicit retry controls, persistent queued text drafts and the unresolved Stop/queue policy remain separate. The native Steer checkpoint/recovery path is covered by existing engine tests; the PTY fixture verifies command admission, not external-provider behaviour. Physical terminal/emulator acceptance and the broader web/terminal parity goal remain open. Whole CI and deployment are separate gates; live data was not mutated.

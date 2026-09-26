@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Deploy exactee4e9c2 after wholeCI36221007199 from detached source; includes cache/media/queue, excludes retry9e49ad8.8090PID1047653/PGID1047547; six read-only Chromium/WebKit probes pass,zero writes/errors/permissions. DB62/51/146 integrity/FKs+normalisedSQL/auth unchanged. DisposablePTY evidence retained; no live terminal mutations or physical/Visual acceptance. [Deployment](../internal/tui-queue-commands.md#deployment).
+
 - [x] Harden native held-turn retry admission with a separate durable reservation token, queue-only follow-on, transactional resolution and no resend from unknown recovery. Protect resolved/pending holds from rehold/clear/stale-claim replay; strip prior routing/continuation metadata. Race×3/core/vet/hooks+107functional(11existing skips) pass, including two-client rollback boundary and schema/reopen/fault tests. Review-found missing submission-audit recovery remains blocked, not silently released. [Contract/evidence](../internal/held-turn-retry.md);CI/deploy pending,no new UI.
 - [ ] Complete held-retry recovery before TUI exposure: a crash before admission or missing warning-only submission audit plus lost resolution can leave retry_pending indefinitely. Add safely fenced confirmed-admission/explicit recovery protocol; no ambiguous resend or inferred discard.
 
