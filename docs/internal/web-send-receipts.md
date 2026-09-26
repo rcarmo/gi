@@ -91,4 +91,27 @@ snapshots are in `/workspace/tmp/gi-receipts-deploy` and must not be published.
 Rui authorised OS/NVIDIA maintenance and a host reboot. Work is paused, the goal
 loop is stopped without completion, and no automatic continuation is authorised.
 Resume only when Rui asks. The separate `/workspace/projects/gi` autosave changes
-remain uncommitted and untouched; the tracked diff matches its preservation patch.
+were subsequently saved unchanged in local-only WIP `2a87a79` on branch
+`wip/maintenance-tui-autosave-20260926`. That unfinished work is not published or
+deployed; the original worktree is clean.
+
+## Post-reboot deployment
+
+Rui resumed the goal and the maintenance coordinator cleared it after successful
+host checks. The exact CI-approved `d62967f` checkout was rebuilt with
+`CGO_ENABLED=0`, verified clean, then started through `make -o build start` in a
+separate process session. The previous process had stopped during reboot.
+
+- Port 8090: PID `11493`, process group/session `11486`.
+- Binary SHA-256: `f0bf0769e1943496192d57d4fcf417dd8aab1d0c4e659ecbd19be8d693f8f16d`.
+- Four non-localhost HTTP Return/Send probes and six read-only UI probes passed
+  across Chromium/WebKit. All prompt POSTs were blocked before live admission.
+- Before/after: 62 sessions, 51 turns, 146 messages, zero active turns; integrity
+  and foreign keys clean. Existing table schemas/data matched after excluding
+  only the runtime dispatcher lease. Auth hashes and paused WIP HEAD/diff matched.
+- The additive receipt table exists with zero rows. No live chat writes occurred.
+
+Deployment evidence: `/workspace/tmp/gi-receipts-deploy-postboot`. Database dumps
+and auth hashes stay local and are excluded from the downloadable archive.
+Reload existing tabs for the new bundle. Mutating acceptance remains the isolated
+HTTP/native test evidence above; blocked probes only establish deployed transport.
