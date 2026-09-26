@@ -277,7 +277,7 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium webkit
-      - run: make test-ux-thinking
+      - run: make test-shared-capability-evidence
       - name: Preserve thinking request evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -285,6 +285,8 @@ jobs:
           name: session-thinking-evidence
           path: |
             test-results/ux-parity/results.json
+            test-results/ux-parity/matrix.json
+            test-results/ux-parity/matrix.md
             test-results/ux-parity/artifacts/
           if-no-files-found: ignore
 

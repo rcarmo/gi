@@ -77,3 +77,40 @@ test('late origin thinking acknowledgement cannot update a different selected se
   expect((await h.read(`/api/sessions/${h.id}/turns`)).turns||[]).toHaveLength(0);expect((await h.read(`/api/sessions/${other.id}/turns`)).turns||[]).toHaveLength(0);
  }finally{release();await page.unrouteAll({behavior:'wait'});await h.close()}
 });
+
+test('@shared-35 Configure thinking and context controls only from advertised capabilities',async({page},info)=>{
+ const previous=process.env.GI_UX_COMPACTION;process.env.GI_UX_COMPACTION='1';let h;
+ try{
+  h=await setup(page,info);const pie=page.locator('.compose-context-pie');const initial=await h.model();
+  expect(initial.context_usage.tokens).toBeNull();expect(initial.context_usage.percent).toBeNull();expect(initial.context_usage.source).toBe('unavailable');
+  await expect(pie).toHaveAttribute('aria-label',/Context: \? .*\(\?%\)/);await expect(pie).toHaveAttribute('data-tooltip',/usage unavailable/);
+  const unavailable=await h.read(`/api/sessions/${h.id}/compaction`);expect(unavailable.available).toBe(false);expect(unavailable.reason).toBe('Not enough eligible context');expect(unavailable.token).toBeTruthy();expect(unavailable.policy).toBeTruthy();await expect(pie).toBeDisabled();
+  let compactions=0;page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/compaction'))compactions++});await pie.dispatchEvent('click');expect(compactions).toBe(0);
+  await h.open();await expect(page.getByRole('combobox',{name:'Session thinking level',exact:true})).toHaveCount(0);expect(initial.supports_thinking).toBe(false);
+  await page.getByRole('combobox',{name:'Session model',exact:true}).selectOption('ux-local/reasoner');await page.getByRole('button',{name:'Apply model',exact:true}).click();
+  const levels=page.getByRole('combobox',{name:'Session thinking level',exact:true});await expect(levels).toBeEnabled();const capable=await h.model();expect(capable.supports_thinking).toBe(true);expect(capable.thinking_levels).toEqual(['low','high']);await levels.selectOption('low');await page.getByRole('button',{name:'Apply thinking',exact:true}).click();await expect(page.getByText('Thinking applied to future turns in this session.',{exact:true})).toBeVisible();await h.closeSettings();
+  for(let i=0;i<2;i++){
+   const response=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${h.id}/prompt`));await h.input.fill(`shared35 native history ${i}`);await h.input.press('Enter');const turn=await(await response).json();
+   await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/turns`)).turns.find(t=>t.id===turn.turn_id)?.status).toBe('completed');
+   await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/compaction`)).reason).not.toBe('Session has active or queued work');
+  }
+  await expect(page.locator('.post').filter({hasText:'Provider model reasoner thinking low:'})).toHaveCount(2);
+  const measured=(await h.model()).context_usage;expect(measured.source).toBe('provider_request');expect(measured.tokens).toBeGreaterThan(0);
+  const native=await h.read(`/api/sessions/${h.id}/compaction`);expect(native.available).toBe(true);expect(native.reason).toBe('');expect(native.token).toBeTruthy();expect(native.policy).toEqual(unavailable.policy);await expect(pie).toBeEnabled();
+  await h.input.fill('Shared35 unsent draft Ω');await page.locator('.compose-box input[type=file]').setInputFiles({name:'shared35.txt',mimeType:'text/plain',buffer:Buffer.from('keep context attachment')});
+  const compact=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${h.id}/compaction`));await pie.click();const response=await compact;expect(response.status()).toBe(202);expect(response.request().postDataJSON()).toEqual({token:native.token});const turn=await response.json();
+  await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/activity`)).compaction?.active).toBe(true);const event=(await h.read(`/api/sessions/${h.id}/activity`)).compaction;
+  expect(event.tokens_source).toBe('estimate');expect(Number.isSafeInteger(event.tokens_before)).toBe(true);expect(event.tokens_before).toBeGreaterThan(0);
+  await expect(pie).toHaveAttribute('data-tooltip',new RegExp(`estimated history: ${event.tokens_before} tokens`));await expect(pie).toHaveAttribute('aria-label',/estimated history:/);await expect(pie).toHaveAttribute('data-tooltip',/latest measured provider request/);
+  expect((await h.model()).context_usage).toEqual(measured);await expect(pie).toBeDisabled();await pie.dispatchEvent('click');expect(compactions).toBe(1);
+  // Older activity payloads can omit estimate provenance; the real count must
+  // then disappear from the estimate label without changing measured usage.
+  await page.route(`**/api/sessions/${h.id}/activity`,async route=>{
+   if(route.request().method()!=='GET')return route.continue();const response=await route.fetch(),data=await response.json();if(data.compaction)delete data.compaction.tokens_source;await route.fulfill({response,json:data});
+  });
+  await page.reload();await expect(pie).toHaveClass(/is-compacting/);await expect(pie).not.toHaveAttribute('data-tooltip',/estimated history:/);await expect(pie).not.toHaveAttribute('aria-label',/estimated history:/);await expect(pie).toHaveAttribute('data-tooltip',/latest measured provider request/);expect((await h.model()).context_usage).toEqual(measured);await expect(h.input).toHaveValue('Shared35 unsent draft Ω');
+  await page.unrouteAll({behavior:'wait'});
+  h.release('manual-'+h.id);await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/turns`)).turns.find(t=>t.id===turn.turn_id)?.status).toBe('completed');
+  await expect(pie).not.toHaveAttribute('data-tooltip',/estimated history:/);expect((await h.model()).context_usage).toEqual(measured);await expect(h.input).toHaveValue('Shared35 unsent draft Ω');await expect(page.locator('.compose-file-pill[title="shared35.txt"]')).toBeVisible();
+ }finally{if(previous===undefined)delete process.env.GI_UX_COMPACTION;else process.env.GI_UX_COMPACTION=previous;if(h){h.release('manual-'+h.id);await h.close()}}
+});

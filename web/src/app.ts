@@ -92,7 +92,7 @@ import { recoverQueueDraft } from './gi-queue-return.js';
 // Piclaw components expect chat_jid strings. We map Gi sessions onto that
 // model: the default session becomes 'gi:default'.
 
-import { createActivityRevision, compactionNotice, compactionElapsed, compactionUnavailableReason } from './gi-compaction-state.js';
+import { createActivityRevision, compactionNotice, compactionElapsed, compactionEstimateLabel, compactionUnavailableReason } from './gi-compaction-state.js';
 import { contextPresentation } from './gi-context-usage.js';
 import {createActivationRefreshGate,createTimelineRevision,createAssetVersionGuard,loadedAssetVersion} from './gi-refresh-guards.js';
 import {createSearchView} from './gi-search-state.js';
@@ -164,8 +164,10 @@ function useContextTooltip(root: any, usage: any, notice: any, now: number, canS
                 const canCompact = typeof compact === 'function' && !active;
                 if (button.disabled === canCompact) button.disabled = !canCompact;
                 const reason = !canCompact && unavailable ? ` — ${unavailable}` : '';
-                const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}` : normal.title + reason;
-                const label = active ? `${notice.title} — ${normal.label}` : normal.label;
+                const estimate = active ? compactionEstimateLabel(notice) : '';
+                const detail = estimate ? ` — ${estimate}` : '';
+                const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}${detail} — ${contextPresentation(usage).title}` : normal.title + reason;
+                const label = active ? `${notice.title}${detail} — ${normal.label}` : normal.label;
                 if (button.getAttribute('title') !== title) button.setAttribute('title', title);
                 if (button.getAttribute('aria-label') !== label) button.setAttribute('aria-label', label);
                 if (button.getAttribute('data-tooltip') !== title) button.setAttribute('data-tooltip', title);

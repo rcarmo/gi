@@ -106,7 +106,8 @@ chat writes occurred. Mutating provider acceptance used disposable environments.
 Reload existing tabs for the new bundle. Evidence is in
 `/workspace/tmp/gi-thinking-deploy-53ef988`; DB dumps and auth hashes stay local-only.
 
-Shared35 remains unmapped: this fixes the thinking prerequisite but does not
-resolve its positive local-estimate labelling clause. Context stays measured-provider
-or unavailable; no synthetic estimate, physical-device or exact-pixel acceptance
-is added.
+At this thinking-only deployment Shared35 was still unmapped. The follow-up
+[context estimate provenance slice](context-estimate-provenance.md) supplies its
+positive native-estimate clause and the canonical combined web proof. Measured
+context remains provider-sourced or unavailable; no synthetic estimate, TUI,
+physical-device or exact-pixel acceptance is added.

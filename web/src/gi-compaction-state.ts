@@ -10,6 +10,7 @@ export function compactionNotice(activity:any, now=Date.now()) {
  if (c.active && ['running','cancelling'].includes(activity.status)) return {
   type:'intent',intent_key:'compaction',title:activity.status==='cancelling'?'Cancelling compaction':'Compacting context',
   started_at:c.timestamp,turn_id:activity.turn_id,started_seq:c.seq,
+  tokens_before:c.tokens_before,tokens_source:c.tokens_source,
  };
  const age=now-Date.parse(c.timestamp);
  if (!Number.isFinite(age)||age<0||age>10000) return null;
@@ -28,6 +29,12 @@ export function compactionUnavailableReason({fresh, disconnected, pending, statu
  if(status!=='idle')return 'Session has active or queued work';
  if(capability?.available)return '';
  return typeof capability?.reason==='string'&&capability.reason.trim()?capability.reason.trim():'Compaction is unavailable';
+}
+// Locally estimated history is separate from measured provider request usage.
+export function compactionEstimateLabel(notice:any):string {
+ const n=notice?.tokens_before;
+ if(notice?.intent_key!=='compaction'||notice?.tokens_source!=='estimate'||typeof n!=='number'||!Number.isSafeInteger(n)||n<0)return '';
+ return `estimated history: ${n} tokens`;
 }
 export function compactionElapsed(notice:any, now=Date.now()) {
  const elapsed=Math.max(0,Math.floor((now-Date.parse(notice?.started_at))/1000));

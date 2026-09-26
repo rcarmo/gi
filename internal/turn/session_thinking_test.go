@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -15,7 +16,10 @@ import (
 
 func TestSessionThinkingCapturedAtAdmissionNotRuntimeOrCallerMetadata(t *testing.T) {
 	ctx := context.Background()
-	s := openTestStore(t)
+	s, err := store.Open(filepath.Join(t.TempDir(), "thinking.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer s.Close()
 	e := New(s)
 	defer e.Close()
@@ -23,7 +27,7 @@ func TestSessionThinkingCapturedAtAdmissionNotRuntimeOrCallerMetadata(t *testing
 	low, high := "low", "high"
 	model := "thinking-test/reasoner"
 	goai.RegisterModel(&goai.Model{ID: "reasoner", Provider: "thinking-test", Api: goai.ApiOpenAICompletions, ContextWindow: 32000, MaxTokens: 1024, Reasoning: true, ThinkingLevelMap: map[goai.ModelThinkingLevel]*string{"off": nil, "minimal": nil, "low": &low, "medium": nil, "high": &high}})
-	_, err := s.CreateSession(ctx, "A", "A", map[string]any{"selected_model": model, "thinking_model": model, "thinking_level": "low"})
+	_, err = s.CreateSession(ctx, "A", "A", map[string]any{"selected_model": model, "thinking_model": model, "thinking_level": "low"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +87,15 @@ func TestSessionThinkingCapturedAtAdmissionNotRuntimeOrCallerMetadata(t *testing
 	}
 	once.Do(func() { close(release) })
 	waitForCondition(t, 3*time.Second, func() bool { row, err := s.GetTurn(ctx, second.TurnID); return err == nil && row.Status == "completed" }, "queued completion")
-	waitForCondition(t, 3*time.Second, func() bool { _, _, err := s.GetSessionActiveTurn(ctx, "A"); return errors.Is(err, sql.ErrNoRows) }, "cleanup")
+	waitForCondition(t, 3*time.Second, func() bool {
+		// Claim release is early in cleanup. Taking the runner lock also waits
+		// for its final DB writes before deferred store closure.
+		runner := e.runner("A")
+		runner.mu.Lock()
+		defer runner.mu.Unlock()
+		_, _, err := s.GetSessionActiveTurn(ctx, "A")
+		return errors.Is(err, sql.ErrNoRows)
+	}, "cleanup")
 	mu.Lock()
 	defer mu.Unlock()
 	if len(levels) != 2 || levels[0] != "low" || levels[1] != "high" {

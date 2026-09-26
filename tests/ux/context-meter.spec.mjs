@@ -24,6 +24,7 @@ async function fixture(page,request,info){
   const title=label+' — latest measured provider request'+(cap.available?' — Compact context':` — ${cap.reason}`);
   await expect(pie).toHaveAttribute('title',title);
   await expect(pie).toHaveAttribute('data-tooltip',title);
+  await expect(pie).not.toHaveAttribute('data-tooltip',/estimated history/);
   const values=(await arc.getAttribute('stroke-dasharray')).split(' ').map(Number);
   expect(values[0]).toBeCloseTo(circumference*fill/100,8);expect(values[1]).toBeCloseTo(circumference,8);
   await expect(page.getByRole('button',{name:'Send message',exact:true})).toBeVisible();

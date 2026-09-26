@@ -32,11 +32,16 @@ for(const id of ['@ux-compaction-001','@ux-compaction-002','@ux-compaction-004',
   await source(info,id);const{main,turn,input,activity,turns,release}=await fixture(page,request,info);
   try{
    const pie=page.locator('.compose-context-pie');await expect(pie).toHaveAttribute('aria-label',/Compacting context/);await expect(pie).toHaveAttribute('data-tooltip',/Compacting context — \d+:\d\d/);
+   const native=(await activity()).compaction;expect(native.tokens_source).toBe('estimate');expect(Number.isSafeInteger(native.tokens_before)).toBe(true);expect(native.tokens_before).toBeGreaterThan(0);
+   const estimate=`estimated history: ${native.tokens_before} tokens`;
+   await expect(pie).toHaveAttribute('data-tooltip',new RegExp(estimate));await expect(pie).toHaveAttribute('aria-label',new RegExp(estimate));
+   await expect(pie).toHaveAttribute('data-tooltip',/latest measured provider request/);
+   const measured=(await(await request.get(`/api/sessions/${main.id}/model`)).json()).context_usage;expect(measured.source).toBe('provider_request');expect(measured.tokens).not.toBe(native.tokens_before);
    await expect(page.locator('.gi-compaction-elapsed')).toHaveText(/\d+:\d\d/);await expect(page.getByRole('button',{name:'Compacting context — Stop response',exact:true})).toBeVisible();
    await expect(pie).toBeDisabled(); // manual compaction capability still absent
    const first=await page.locator('.gi-compaction-elapsed').textContent();await expect.poll(()=>page.locator('.gi-compaction-elapsed').textContent(),{timeout:4000}).not.toBe(first);
    release();await expect.poll(async()=> (await turns()).find(t=>t.id===turn.turn_id).status).toBe('completed');
-   await expect(pie).not.toHaveClass(/is-compacting/);await expect(page.locator('.gi-compaction-elapsed')).toHaveCount(0);
+   await expect(pie).not.toHaveClass(/is-compacting/);await expect(page.locator('.gi-compaction-elapsed')).toHaveCount(0);await expect(pie).not.toHaveAttribute('data-tooltip',/estimated history/);
    await expect(pie).toHaveAttribute('aria-label','Context: 180 / 32K tokens (1%)',{timeout:15000});
    await expect(input).toHaveValue('preserved draft during compaction');await expect(page.locator('.compose-file-pill[title="keep.txt"]')).toBeVisible();
    const messages=(await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages;
@@ -275,4 +280,21 @@ test('@gi-settings-015 A held admission response does not freeze authoritative c
   unblock();await expect(dialog.getByRole('status')).toContainText('Authoritative state: Context compacted');
   await expect(dialog.getByRole('alert')).toHaveCount(0);
  }finally{unblock();release();}
+});
+
+test('Active legacy compaction without estimate provenance keeps usage unavailable or measured, never invents history estimate',async({page,request},info)=>{
+ const {main,input,activity,release}=await fixture(page,request,info);
+ try{
+  const native=(await activity()).compaction;expect(native.tokens_source).toBe('estimate');expect(native.tokens_before).toBeGreaterThan(0);
+  // Emulate an older read-only activity response by removing provenance from
+  // the real native event. Do not create a new count or change native state.
+  await page.route(`**/api/sessions/${main.id}/activity`,async route=>{
+   if(route.request().method()!=='GET')return route.continue();
+   const response=await route.fetch(),data=await response.json();
+   if(data.compaction)delete data.compaction.tokens_source;
+   await route.fulfill({response,json:data});
+  });
+  await page.reload();const pie=page.locator('.compose-context-pie');await expect(pie).toHaveClass(/is-compacting/);await expect(pie).toHaveAttribute('data-tooltip',/Compacting context — \d+:\d\d/);await expect(pie).not.toHaveAttribute('data-tooltip',/estimated history/);await expect(pie).not.toHaveAttribute('aria-label',/estimated history/);await expect(pie).toHaveAttribute('data-tooltip',/latest measured provider request/);await expect(input).toHaveValue('preserved draft during compaction');
+  expect((await activity()).compaction.tokens_source).toBe('estimate');expect((await activity()).compaction.tokens_before).toBe(native.tokens_before);
+ }finally{release();await page.unrouteAll({behavior:'wait'})}
 });

@@ -19841,11 +19841,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-xpxvdv4z.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-6gvz6qq3.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-frx0v45j.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-r25xej0p.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-yh5b7g8c.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-78fx6prv.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-fxe9dw8y.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-axv3z51d.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-9hsjxa4v.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-k35m18r5.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -20801,7 +20801,9 @@ function compactionNotice(activity, now = Date.now()) {
       title: activity.status === "cancelling" ? "Cancelling compaction" : "Compacting context",
       started_at: c.timestamp,
       turn_id: activity.turn_id,
-      started_seq: c.seq
+      started_seq: c.seq,
+      tokens_before: c.tokens_before,
+      tokens_source: c.tokens_source
     };
   const age = now - Date.parse(c.timestamp);
   if (!Number.isFinite(age) || age < 0 || age > 1e4)
@@ -20824,6 +20826,12 @@ function compactionUnavailableReason({ fresh, disconnected, pending, status, cap
   if (capability?.available)
     return "";
   return typeof capability?.reason === "string" && capability.reason.trim() ? capability.reason.trim() : "Compaction is unavailable";
+}
+function compactionEstimateLabel(notice) {
+  const n = notice?.tokens_before;
+  if (notice?.intent_key !== "compaction" || notice?.tokens_source !== "estimate" || typeof n !== "number" || !Number.isSafeInteger(n) || n < 0)
+    return "";
+  return `estimated history: ${n} tokens`;
 }
 function compactionElapsed(notice, now = Date.now()) {
   const elapsed = Math.max(0, Math.floor((now - Date.parse(notice?.started_at)) / 1000));
@@ -21131,8 +21139,10 @@ function useContextTooltip(root, usage, notice, now, canStop, stop, compact, una
         if (button.disabled === canCompact)
           button.disabled = !canCompact;
         const reason = !canCompact && unavailable ? ` — ${unavailable}` : "";
-        const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}` : normal.title + reason;
-        const label = active ? `${notice.title} — ${normal.label}` : normal.label;
+        const estimate = active ? compactionEstimateLabel(notice) : "";
+        const detail = estimate ? ` — ${estimate}` : "";
+        const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}${detail} — ${contextPresentation(usage).title}` : normal.title + reason;
+        const label = active ? `${notice.title}${detail} — ${normal.label}` : normal.label;
         if (button.getAttribute("title") !== title)
           button.setAttribute("title", title);
         if (button.getAttribute("aria-label") !== label)
@@ -22619,5 +22629,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=8969FC5DA2D391AE64756E2164756E21
-//# sourceMappingURL=app-1cbkkm0j.js.map
+//# debugId=8F50D70973D4A36064756E2164756E21
+//# sourceMappingURL=app-r5wpse0h.js.map

@@ -14,6 +14,8 @@ version-2 IndexedDB migration and full-reload recovery.
 durable queued-work preservation and explicit fenced resume.
 [Session thinking](session-thinking.md) covers validated Settings choices, captured
 turn ownership and provider request evidence.
+[Context estimate provenance](context-estimate-provenance.md) separates native
+compaction history estimates from measured request usage and records Shared35 evidence.
 
 For the current product comparison, see [features and Piclaw parity](../feature-parity.md).
 The [full web/TUI plan](full-web-tui-parity-plan.md) and

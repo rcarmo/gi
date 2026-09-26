@@ -36,7 +36,7 @@ The Classic and shared contracts differ in places, including command-prefill and
 
 The [feature and parity matrix](../../docs/feature-parity.md) separates shipped
 behaviour, known gaps and planned integrations. Source mappings are 101/236
-Classic IDs and 31/42 shared cases; they are not a full-suite pass. Classic008 is
+Classic IDs and 32/42 shared cases; they are not a full-suite pass. Classic008 is
 disputed. All 26 separately pinned passkey Settings scenarios/outlines are unmapped;
 `make test-ux-passkeys` verifies native APIs and Settings/login journeys using real
 Chromium WebAuthn and virtual authenticators. Full per-case mapping, Visual-skin
@@ -369,3 +369,14 @@ The focused run passes 66 reconnect tests. Its shared report has one pass, 30
 mapped-but-not-run cases and 11 unmapped cases. It grants no new Classic, TUI,
 physical-device, Visual-skin or exact-pixel acceptance. Implementation `caa83c7`
 is deployed after whole-product CI; see [the Stop contract](../../docs/internal/web-stop-queue.md).
+
+### Shared35: advertised thinking/context capabilities
+
+`make test-shared-capability-evidence` runs the thinking suite with one canonical
+`@shared-35` journey, validates report/ledger assertions and generates its matrix.
+It proves supported-only thinking through actual provider payloads, unavailable
+unknown usage, native compaction capability/token ownership and labelled native
+history estimates distinct from measured provider usage. A missing-provenance
+response adds no estimate label. The focused report has one shared pass, 31
+mapped-but-not-run cases and ten unmapped cases. See
+[provenance and acceptance scope](../../docs/internal/context-estimate-provenance.md).

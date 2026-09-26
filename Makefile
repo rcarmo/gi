@@ -177,13 +177,17 @@ logs:
 
 # ── Checks and tests ────────────────────────────────────────────────────
 
-.PHONY: test-session-thinking test-ux-thinking
+.PHONY: test-session-thinking test-ux-thinking test-shared-capability-evidence
+test-shared-capability-evidence: test-ux-thinking
+	$(BUN) test tests/ux/support/parity-report.test.ts tests/ux/support/passkey-criteria.test.ts
+	$(BUN) scripts/ux-parity-report.mjs test-results/ux-parity/results.json
+
 test-session-thinking:
 	$(GO) test -race -count=3 ./internal/store ./internal/inference ./internal/turn ./internal/web -run SessionThinking
 
 test-ux-thinking: build-web test-session-thinking
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
-	GI_UX_THINKING=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config playwright.ux.config.mjs tests/ux/session-thinking.spec.mjs
+	GI_UX_THINKING=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config playwright.ux.config.mjs tests/ux/session-thinking.spec.mjs $(UX_PARITY_ARGS)
 
 .PHONY: test-web-queue-hold
 test-web-queue-hold:

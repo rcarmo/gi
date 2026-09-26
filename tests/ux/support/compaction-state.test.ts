@@ -1,5 +1,5 @@
 import {test,expect} from 'bun:test';
-import {compactionNotice,compactionElapsed,createActivityRevision,compactionUnavailableReason} from '../../../web/src/gi-compaction-state';
+import {compactionNotice,compactionElapsed,compactionEstimateLabel,createActivityRevision,compactionUnavailableReason} from '../../../web/src/gi-compaction-state';
 test('disabled compaction reasons prefer connection and freshness over stale capability',()=>{
  const state={fresh:true,disconnected:false,pending:false,status:'idle',capability:{available:false,reason:'  Context is too short to compact  '}};
  expect(compactionUnavailableReason(state)).toBe('Context is too short to compact');
@@ -20,4 +20,18 @@ test('native compaction snapshot owns notice; stale revisions and foreign runs c
  expect(compactionNotice({turn_id:'one',status:'idle',compaction:c},now)).toBeNull();
  const suppressed={turn_id:'one',status:'idle',compaction:{...c,active:false,event_type:'compaction.suppressed',detail:'hook policy'}};
  expect(compactionNotice(suppressed,now).detail).toBe('hook policy');expect(compactionNotice(suppressed,now+11000)).toBeNull();
+});
+
+test('estimated history requires native provenance, finite integer count and matching active ownership',()=>{
+ const snapshot={turn_id:'one',status:'running',compaction:{active:true,turn_id:'one',seq:1,timestamp:new Date().toISOString(),tokens_source:'estimate',tokens_before:1234}};
+ expect(compactionEstimateLabel(compactionNotice(snapshot))).toBe('estimated history: 1234 tokens');
+ expect(compactionEstimateLabel(compactionNotice({...snapshot,turn_id:'other'}))).toBe('');
+ expect(compactionEstimateLabel(compactionNotice({...snapshot,status:'idle'}))).toBe('');
+ for(const count of [undefined,null,'1234',NaN,Infinity,-1,1.5,Number.MAX_SAFE_INTEGER+1]){
+  expect(compactionEstimateLabel(compactionNotice({...snapshot,compaction:{...snapshot.compaction,tokens_before:count}}))).toBe('');
+ }
+ for(const source of [undefined,null,'provider_request','unknown']){
+  expect(compactionEstimateLabel(compactionNotice({...snapshot,compaction:{...snapshot.compaction,tokens_source:source}}))).toBe('');
+ }
+ expect(compactionEstimateLabel(compactionNotice({...snapshot,compaction:{...snapshot.compaction,tokens_before:0}}))).toBe('estimated history: 0 tokens');
 });
