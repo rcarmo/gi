@@ -384,6 +384,9 @@ func initSchema(db *sql.DB) error {
 	if err := migrateLegacySessionIdentities(tx); err != nil {
 		return fmt.Errorf("migrate legacy session identities: %w", err)
 	}
+	if err := migrateMessageRows(tx); err != nil {
+		return fmt.Errorf("migrate message rows: %w", err)
+	}
 	if err := searchstore.Migrate(tx); err != nil {
 		return fmt.Errorf("migrate workspace index: %w", err)
 	}

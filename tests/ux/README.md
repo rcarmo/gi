@@ -1,5 +1,12 @@
 # Piclaw web interaction parity
 
+`make test-ux-message-retrieval` runs race×3 native tests and six disposable-browser
+projects for runtime-scoped numeric message retrieval. Provider tool calls, store
+results, continuation, bounds, rejected scope overrides, quoted rendering and reload
+cross native paths. Shared38/Classic025 remain unmapped; this prerequisite does not
+prove all-chat/family authorization or full scenario acceptance. See
+[the contract](../../docs/internal/message-retrieval.md).
+
 ## Compose/panel pixel gate
 
 `make test-ux-model-panel` runs 42 browser cases, including the combobox/listbox contract, loading and switching guards, focus ownership after delayed mutations, and Tab order for an overflowing 43-model catalogue with read-only thinking. `make test-model-panel-helpers` runs eight guarded-adapter/helper tests. See [model accessibility](../../docs/internal/model-panel.md#model-accessibility) for the passing matrix and screen-reader/device/pixel limits.

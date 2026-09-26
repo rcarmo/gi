@@ -83,6 +83,9 @@ func main() {
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		emit := func(v any) { b, _ := json.Marshal(v); fmt.Fprintf(w, "data: %s\n\n", b); w.(http.Flusher).Flush() }
+		if os.Getenv("GI_UX_MESSAGE_RETRIEVAL") != "" && serveMessageRetrieval(w, body, emit) {
+			return
+		}
 		content := "provider checkpoint"
 		if strings.Contains(string(raw), "UX preview expand") && len(match) > 1 {
 			lines := func(kind string, start, end int) string {
@@ -401,6 +404,11 @@ func main() {
 			if err := s.AddMessage(ctx, sessionID+"-post", sessionID, "assistant", "Native card rejection fixture", map[string]any{"content_blocks": []any{card}}); err != nil {
 				log.Fatal(err)
 			}
+		}
+	}
+	if os.Getenv("GI_UX_MESSAGE_RETRIEVAL") != "" {
+		if err := seedMessageRetrieval(s, gates); err != nil {
+			log.Fatal(err)
 		}
 	}
 	if os.Getenv("GI_UX_SPEECH") != "" {

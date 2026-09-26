@@ -12,6 +12,8 @@ recovery without chat-history scans; it is not submission idempotency.
 version-2 IndexedDB migration and full-reload recovery.
 [Web Stop and Resume queue](web-stop-queue.md) describes captured-run cancellation,
 durable queued-work preservation and explicit fenced resume.
+[Bounded message retrieval](message-retrieval.md) covers durable numeric identities,
+runtime-session scope, bounded content and chronological pagination.
 [Session thinking](session-thinking.md) covers validated Settings choices, captured
 turn ownership and provider request evidence.
 [Context estimate provenance](context-estimate-provenance.md) separates native

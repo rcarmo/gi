@@ -3935,6 +3935,7 @@ func (e *Engine) registerDefaultTools() {
 		},
 	})
 	registerDiscoveredTools()
+	must(tools.MessagesTool())
 	must(tools.RegisteredTool{
 		Name:        "read",
 		Description: "Read text content from a workspace file. Supports workspace-relative paths and vfs:// paths.",

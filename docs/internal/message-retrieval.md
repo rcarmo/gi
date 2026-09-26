@@ -1,0 +1,76 @@
+# Bounded current-session message retrieval
+
+The native `messages` tool reads historical messages from the runtime's current
+session. It does not accept a session identifier, all-chat scope, SQL, or write
+actions. This is a prerequisite for Shared38, not full Shared38 or Classic025
+acceptance. Classic025's all-chat and family-owned authorization remain separate.
+
+## Identity and migration
+
+Existing message UUIDs, HTTP history responses and UUID cursors are unchanged.
+`message_rows` maps each UUID to an explicit SQLite `INTEGER PRIMARY KEY
+AUTOINCREMENT` identity. Legacy rows are assigned in `(created_at,id)` order inside
+the schema-upgrade transaction. An insert trigger assigns identities to every new
+message, including transactional compaction writes. Trigger failure rolls back the
+message insert. Foreign-key cascades remove mappings when messages are deleted.
+
+Committed numeric IDs survive reopen and VACUUM and are not reused after deletion.
+New IDs reflect allocation order, not necessarily chronological order. They are
+local to this database, not portable identifiers across independent databases or
+restores. Retain `message_rows` and `sqlite_sequence` in backups. Do not drop the
+mapping table as a rollback strategy after numeric IDs have been exposed.
+
+## Queries and bounds
+
+An empty query returns the earliest messages. To retrieve specific anchors, pass
+`row_ids` (1–100 distinct positive safe JSON integers) and optionally
+`context_before`/`context_after` (0–10 each). Neighbours are selected within the
+current session in `(created_at,id)` order and deduplicated. Missing and foreign
+anchors both appear only in `missing_row_ids`; neither expands context.
+
+Alternatively, use exclusive `after_row` and/or `before_row` numeric bounds.
+Numeric bounds filter allocation IDs; returned rows still use chronological order.
+Do not combine explicit IDs with numeric bounds or use context without anchors.
+
+`limit` is 1–100 (default 50). `content_bytes` is 1–2048 per message (default 2048).
+SQL clips content before transferring it to Go. UTF-8 clipping does not split a
+code point. Each row reports the original byte count and `content_truncated`.
+The encoded message-array budget is 80 KB, accounting for JSON escaping; rows may
+fill that budget before `limit`. Metadata too large to fit fails rather than
+silently dropping a row. Total output stays below the engine's 100 KB display cap.
+Payloads and attachments are not included.
+
+`returned` is the actual row count. `has_more` means another matching row was
+observed beyond the count or byte budget. When true, `next_cursor` continues with
+the same query. Cursors bind the session and normalized query to the last returned
+chronological tuple; a deleted cursor row does not prevent continuation. Changing
+the query or session rejects the cursor. Cursors are not authorization tokens:
+the SQL session predicate applies even to a forged cursor.
+
+Each read uses one database snapshot. Multiple pages are not a frozen export:
+concurrent inserts/deletes may change later pages, and newly inserted historical
+rows before the cursor will not appear on subsequent pages. Explicit missing IDs
+are calculated against each read's snapshot, independently of output pagination.
+
+Unknown arguments, nulls, fractional IDs, duplicate IDs, overflow, invalid limits,
+oversized cursors and ambiguous modes fail without fallback to another scope.
+
+## Quoted data, not execution
+
+Responses are JSON tool results with an explicit quoted-data notice. Historical
+roles are row fields, not new provider instructions. Reading instruction-like text
+or stored tool metadata does not execute it or replay a tool call. This boundary
+does not claim to make a language model immune to prompt injection.
+
+## Verification
+
+`make test-message-retrieval` runs migration, store, argument and native-dispatch
+tests with the race detector three times. `make test-ux-message-retrieval` adds six
+browser projects against disposable databases and a deterministic local provider.
+The provider emits real `messages` calls through the production parser and engine,
+then returns the received tool JSON. Browser assertions cover ID/context and window
+queries, pagination, truncation, foreign isolation, native error lifecycle, quoted
+rendering, reload and unsent draft retention. Live chats and auth are not test data.
+
+No frozen catalogue mappings or supplied UI components are changed. Whole-product
+CI, exact-source deployment and the remaining scenario clauses are separate gates.

@@ -262,6 +262,30 @@ jobs:
             test-results/ux-parity/artifacts/
           if-no-files-found: ignore
 
+  message-retrieval-browser:
+    name: Bounded session message retrieval
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - run: go mod download
+      - run: bun x playwright install --with-deps chromium webkit
+      - name: Run native and six-project message retrieval gates
+        run: make test-ux-message-retrieval
+      - name: Preserve message retrieval evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: message-retrieval-evidence
+          path: test-results/ux-parity
+          if-no-files-found: ignore
+          retention-days: 3
+
   thinking-browser:
     name: Session thinking provider-request ownership
     runs-on: ubuntu-latest
@@ -311,7 +335,7 @@ jobs:
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest
-    needs: [test, auth-state, passkey-browser, browser-journey, compose-browser, voice-browser, context-browser, notification-browser, terminal-retry, basic-web-send, thinking-browser]
+    needs: [test, auth-state, passkey-browser, browser-journey, compose-browser, voice-browser, context-browser, notification-browser, terminal-retry, basic-web-send, thinking-browser, message-retrieval-browser]
     strategy:
       fail-fast: false
       matrix:

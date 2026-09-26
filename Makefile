@@ -182,6 +182,15 @@ test-shared-capability-evidence: test-ux-thinking
 	$(BUN) test tests/ux/support/parity-report.test.ts tests/ux/support/passkey-criteria.test.ts
 	$(BUN) scripts/ux-parity-report.mjs test-results/ux-parity/results.json
 
+.PHONY: test-message-retrieval
+test-message-retrieval:
+	$(GO) test -race ./internal/store ./internal/tools ./internal/turn -run 'TestMessageRows|TestMessageRetrieval' -count=3
+
+.PHONY: test-ux-message-retrieval
+test-ux-message-retrieval: build-web test-message-retrieval
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_MESSAGE_RETRIEVAL=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test -c playwright.ux.config.mjs tests/ux/message-retrieval.spec.mjs $(UX_PARITY_ARGS)
+
 test-session-thinking:
 	$(GO) test -race -count=3 ./internal/store ./internal/inference ./internal/turn ./internal/web -run SessionThinking
 
