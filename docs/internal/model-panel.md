@@ -38,7 +38,15 @@ This verifies browser DOM and keyboard behaviour. Screen-reader announcements, p
 
 The accessibility adapter now sets `tabIndex="-1"` on the listbox itself as well as its options. Six new browser cases supply 43 catalogue entries and read-only thinking. They check actual overflow, search → Settings and reverse Tab order, clear-button order with a query, empty results and no writes. The panel suite passes 42 cases, geometry passes 24, functional tests pass 107 with 11 existing skips, and Go/vet/hooks/model/pixel helpers pass. No CSS, supplied sources, tests or timeout limits were relaxed.
 
-The failed live attempt was rolled back to exact `dcc8c16` on port 8090, PID681390, PGID/SID681291. Normalised before/after SQL excluding runtime leases is identical (SHA256 `300ce6794c6fe9b8fb93c826fcfecf093676a6cf369f4be4e11dd624a829653d`); DB counts stay 62 sessions, 51 turns, 146 messages, integrity/FKs clean, auth file absent. Probes block all non-read requests and request no microphone/notification permission. Deployment acceptance for the accessibility slice is incomplete; the overflow guard needs green CI before another deployment.
+The failed live attempt was rolled back to exact `dcc8c16` on port 8090, PID681390, PGID/SID681291. Normalised before/after SQL excluding runtime leases is identical (SHA256 `300ce6794c6fe9b8fb93c826fcfecf093676a6cf369f4be4e11dd624a829653d`); DB counts stay 62 sessions, 51 turns, 146 messages, integrity/FKs clean, auth file absent. Probes block all non-read requests and request no microphone/notification permission. This attempt failed deployment acceptance. The subsequent guarded deployment below supersedes the rollback.
+
+## Guarded deployment of the overflow fix
+
+Exact `daa8371` passed whole CI36211878091 and was rebuilt from detached checkout `/workspace/tmp/gi-model-tab-daa8371`. It is deployed on port 8090 as PID713370, PGID/SID713270. The fixture-only follow-up `4e81eef` was not included in the deployed source.
+
+All six Chromium/WebKit × phone/tablet/desktop read-only probes pass against the real catalogue: linked combobox/listbox IDs, current selection, enabled active descendant, no option/listbox Tab stops, read-only-thinking coexistence, Settings handoff, draft retention, session-panel metadata and previous resize/voice/notification capability checks. All non-read requests are blocked; recorded writes/errors are empty. No model change, session/auth mutation, microphone/notification permission request or prompt was sent.
+
+Before/after DB counts remain 62/51/146; integrity/FKs pass. SQL excluding runtime leases matches the same SHA256 above, and auth remains absent. Evidence includes the live probe, screenshots, CI metadata and preservation hashes; database/SQL snapshots are excluded from downloads. This verifies the deployment's read-only browser behaviour. Physical/screen-reader/Visual acceptance and exact pixel equality remain open.
 
 ## Explicit capability differences
 
