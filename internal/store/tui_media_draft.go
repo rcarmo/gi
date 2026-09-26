@@ -15,6 +15,7 @@ const MaxTUIPendingMedia = 6
 type TUIMediaClaim struct {
 	Refs  []MediaRef `json:"refs"`
 	Token string     `json:"token"`
+	Text  bool       `json:"text,omitempty"` // owned by paired text/media settlement
 }
 type TUIMediaDraft struct {
 	Pending []MediaRef     `json:"pending"`
@@ -33,8 +34,20 @@ func (s *Store) updateTUIMediaDraft(ctx context.Context, sessionID string, chang
 		return state, err
 	}
 	defer tx.Rollback()
+	state, err = updateTUIMediaDraftTx(ctx, tx, sessionID, change)
+	if err != nil {
+		return TUIMediaDraft{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return TUIMediaDraft{}, err
+	}
+	return state, nil
+}
+
+func updateTUIMediaDraftTx(ctx context.Context, tx *sql.Tx, sessionID string, change func(*sql.Tx, *TUIMediaDraft) error) (TUIMediaDraft, error) {
+	var state TUIMediaDraft
 	var raw []byte
-	err = tx.QueryRowContext(ctx, `SELECT value FROM kv_store WHERE namespace=? AND key=?`, tuiMediaNamespace, sessionID).Scan(&raw)
+	err := tx.QueryRowContext(ctx, `SELECT value FROM kv_store WHERE namespace=? AND key=?`, tuiMediaNamespace, sessionID).Scan(&raw)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return state, err
 	}
@@ -69,9 +82,6 @@ func (s *Store) updateTUIMediaDraft(ctx context.Context, sessionID string, chang
 		return TUIMediaDraft{}, err
 	}
 	if string(before) == string(after) {
-		if err = tx.Commit(); err != nil {
-			return TUIMediaDraft{}, err
-		}
 		return state, nil
 	}
 	if len(state.Pending) == 0 && state.Claim == nil {
@@ -85,9 +95,6 @@ func (s *Store) updateTUIMediaDraft(ctx context.Context, sessionID string, chang
 		_, err = tx.ExecContext(ctx, `INSERT INTO kv_store(namespace,key,value,created_at,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(namespace,key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at`, tuiMediaNamespace, sessionID, raw, now, now)
 	}
 	if err != nil {
-		return TUIMediaDraft{}, err
-	}
-	if err = tx.Commit(); err != nil {
 		return TUIMediaDraft{}, err
 	}
 	return state, nil
@@ -106,7 +113,7 @@ func tuiMediaAdmitted(ctx context.Context, tx *sql.Tx, sessionID, token string) 
 // proof of rejection; only confirmed admission can automatically retire a claim.
 func (s *Store) LoadTUIMediaDraft(ctx context.Context, sessionID string) (TUIMediaDraft, error) {
 	return s.updateTUIMediaDraft(ctx, sessionID, func(tx *sql.Tx, state *TUIMediaDraft) error {
-		if state.Claim == nil {
+		if state.Claim == nil || state.Claim.Text {
 			return nil
 		}
 		yes, err := tuiMediaAdmitted(ctx, tx, sessionID, state.Claim.Token)
@@ -159,6 +166,9 @@ func (s *Store) DetachTUIMedia(ctx context.Context, sessionID, selector, expecte
 	removed := 0
 	state, err := s.updateTUIMediaDraft(ctx, sessionID, func(_ *sql.Tx, state *TUIMediaDraft) error {
 		if selector == "unresolved" {
+			if state.Claim != nil && state.Claim.Text {
+				return ErrTUIDraftHeld
+			}
 			if state.Claim != nil && state.Claim.Token != expectedClaim {
 				return errors.New("admission changed; inspect /attachments before detaching")
 			}
@@ -192,6 +202,9 @@ func (s *Store) SettleTUIMedia(ctx context.Context, sessionID, token string, rej
 	state, err := s.updateTUIMediaDraft(ctx, sessionID, func(tx *sql.Tx, state *TUIMediaDraft) error {
 		if state.Claim == nil || state.Claim.Token != token {
 			return nil
+		}
+		if state.Claim.Text {
+			return ErrTUIDraftHeld
 		}
 		if rejected {
 			yes, err := tuiMediaAdmitted(ctx, tx, sessionID, token)

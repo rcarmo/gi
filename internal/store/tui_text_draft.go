@@ -27,6 +27,7 @@ type TUITextClaim struct {
 	Token    string `json:"token"`
 	Revision int64  `json:"revision"`           // editable revision immediately after claiming
 	Rejected bool   `json:"rejected,omitempty"` // live caller proved admission absent
+	Media    bool   `json:"media,omitempty"`    // must settle together with media journal
 }
 type TUITextDraft struct {
 	TUITextSnapshot
@@ -78,7 +79,19 @@ func (s *Store) updateTUITextDraft(ctx context.Context, sessionID string, change
 		return TUITextDraft{}, err
 	}
 	defer tx.Rollback()
+	state, err := updateTUITextDraftTx(ctx, tx, sessionID, change)
+	if err != nil {
+		return TUITextDraft{}, err
+	}
+	if err = tx.Commit(); err != nil {
+		return TUITextDraft{}, err
+	}
+	return state, nil
+}
+
+func updateTUITextDraftTx(ctx context.Context, tx *sql.Tx, sessionID string, change func(*sql.Tx, *TUITextDraft) error) (TUITextDraft, error) {
 	var owner string
+	var err error
 	if err = tx.QueryRowContext(ctx, `select id from sessions where id=?`, sessionID).Scan(&owner); err != nil {
 		return TUITextDraft{}, err
 	}
@@ -118,9 +131,6 @@ func (s *Store) updateTUITextDraft(ctx context.Context, sessionID string, change
 			return TUITextDraft{}, err
 		}
 	}
-	if err = tx.Commit(); err != nil {
-		return TUITextDraft{}, err
-	}
 	return state, nil
 }
 
@@ -143,24 +153,25 @@ func (s *Store) SaveTUITextDraft(ctx context.Context, sessionID string, expected
 // Claim must commit before the frontend clears its editor or calls submission.
 // Its token belongs in native admission metadata as tui_text_claim.
 func (s *Store) ClaimTUITextDraft(ctx context.Context, sessionID string, expected int64) (TUITextDraft, error) {
-	return s.updateTUITextDraft(ctx, sessionID, func(_ *sql.Tx, state *TUITextDraft) error {
-		if state.Revision != expected {
-			return ErrTUIDraftConflict
-		}
-		if state.Claim != nil {
-			return ErrTUIDraftHeld
-		}
-		if state.Text == "" || state.Revision >= math.MaxInt64-2 {
-			return errors.New("nonempty claimable draft with revision capacity required")
-		}
-		var token [32]byte
-		if _, err := rand.Read(token[:]); err != nil {
-			return err
-		}
-		state.Claim = &TUITextClaim{TUITextSnapshot: state.TUITextSnapshot, Token: "tui-text-" + hex.EncodeToString(token[:]), Revision: state.Revision + 1}
-		state.TUITextSnapshot = TUITextSnapshot{}
-		return nil
-	})
+	return s.updateTUITextDraft(ctx, sessionID, func(_ *sql.Tx, state *TUITextDraft) error { return claimTUIText(state, expected) })
+}
+func claimTUIText(state *TUITextDraft, expected int64) error {
+	if state.Revision != expected {
+		return ErrTUIDraftConflict
+	}
+	if state.Claim != nil {
+		return ErrTUIDraftHeld
+	}
+	if state.Text == "" || state.Revision >= math.MaxInt64-2 {
+		return errors.New("nonempty claimable draft with revision capacity required")
+	}
+	var token [32]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return err
+	}
+	state.Claim = &TUITextClaim{TUITextSnapshot: state.TUITextSnapshot, Token: "tui-text-" + hex.EncodeToString(token[:]), Revision: state.Revision + 1}
+	state.TUITextSnapshot = TUITextSnapshot{}
+	return nil
 }
 
 // A turn INSERT may still be rolled back during subturn setup. Only its
@@ -182,6 +193,9 @@ func (s *Store) ReconcileTUITextDraft(ctx context.Context, sessionID, token stri
 		if state.Claim == nil || state.Claim.Token != token {
 			return ErrTUIDraftConflict
 		}
+		if state.Claim.Media {
+			return ErrTUIDraftHeld
+		}
 		admitted, err := tuiTextAdmitted(ctx, tx, sessionID, token, false)
 		if err != nil {
 			return err
@@ -200,6 +214,9 @@ func (s *Store) FinishTUITextDraft(ctx context.Context, sessionID, token string,
 	return s.updateTUITextDraft(ctx, sessionID, func(tx *sql.Tx, state *TUITextDraft) error {
 		if state.Claim == nil || state.Claim.Token != token {
 			return ErrTUIDraftConflict
+		}
+		if state.Claim.Media {
+			return ErrTUIDraftHeld
 		}
 		admitted, err := tuiTextAdmitted(ctx, tx, sessionID, token, !rejected)
 		if err != nil {
@@ -238,7 +255,7 @@ func (s *Store) RestoreRejectedTUITextDraft(ctx context.Context, sessionID, toke
 		if state.Revision != expected || state.Text != "" || state.Claim == nil || state.Claim.Token != token {
 			return ErrTUIDraftConflict
 		}
-		if !state.Claim.Rejected {
+		if !state.Claim.Rejected || state.Claim.Media {
 			return ErrTUIDraftHeld
 		}
 		state.TUITextSnapshot = state.Claim.TUITextSnapshot
@@ -254,7 +271,7 @@ func (s *Store) DiscardRejectedTUITextDraft(ctx context.Context, sessionID, toke
 		if state.Revision != expected || state.Claim == nil || state.Claim.Token != token {
 			return ErrTUIDraftConflict
 		}
-		if !state.Claim.Rejected {
+		if !state.Claim.Rejected || state.Claim.Media {
 			return ErrTUIDraftHeld
 		}
 		state.Claim = nil

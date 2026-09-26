@@ -427,7 +427,7 @@ test-tui-sessions: build
 .PHONY: test-tui-pending-media
 .PHONY: test-tui-text-journal
 test-tui-text-journal:
-	$(GO) test -race -count=3 ./internal/store -run TUITextDraft
+	$(GO) test -race -count=3 ./internal/store -run 'TUITextDraft|TUIComposerDraft'
 
 .PHONY: test-tui-media-journal
 test-tui-media-journal:
