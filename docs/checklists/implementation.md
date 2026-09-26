@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Repair overflowing model-list Tab order exposed by read-only deployment of green 497e264/CI36210237405. Listbox now explicitly `tabIndex=-1`; six 43-model/read-only-thinking regressions pass, panel total42, geometry24, functional107/11existing skips, core/helpers green. Deployment attempt failed acceptance and rolled back to dcc8c16 on8090PID681390/PGID681291; DB62/51/146, normalisedSQL/auth unchanged. Await guard CI before redeploy. See [rollback evidence](../internal/model-panel.md#overflow-tab-order-regression-and-rollback).
+
 - [x] Add known context to existing Alt-M rows only when the full key and suffix fit; retain blocked reasons, six-result limit and zero idle rows. `make test vet` and six fullscreen/regular PTYs pass (60×18, 100×22, 140×36), covering visible metadata, resize, draft/cursor, native persistence and scrollback. [TUI metadata evidence](../internal/tui-model-metadata.md); no general terminal/physical acceptance claim.
 
 - [x] Deploy exact green runtime dcc8c16 afterCI36207372088 from isolated detached checkout (CI-onlyf8ea747 verification separate).8090PID553455 PGID/SID553342. Six read-only Chromium/WebKit checks pass capability-gated voice/bell,default-off opt-in,panel/focus/draft behaviour;zeroHTTPwrites/errors,no permissions requested. DB62/51/146 integrity/FKs+normalizedSQL unchanged except leases SHA256300ce679…653d;authabsent. Real mic/OSdelivery/Visual still unverified.

@@ -10783,7 +10783,7 @@ ${mediaIds.map((id, index) => {
                                 </div>
                                 <div class="compose-model-catalogue-summary" aria-live="polite"><span>${visibleModels.length} ${visibleModels.length === 1 ? "model" : "models"}</span>${loadingModels && fe`<span>Refreshing…</span>`}</div>
                             </div>
-                            <div id=${modelPanelIdRef.current + "-results"} class="compose-model-popup-menu compose-model-catalogue-results" role="listbox" aria-label="Models" aria-busy=${loadingModels ? "true" : "false"}>
+                            <div id=${modelPanelIdRef.current + "-results"} class="compose-model-popup-menu compose-model-catalogue-results" role="listbox" tabIndex="-1" aria-label="Models" aria-busy=${loadingModels ? "true" : "false"}>
                                 ${loadingModels && fe`
                                     <div class="compose-model-popup-empty">Loading models…</div>
                                 `}
@@ -19638,11 +19638,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-19735t1m.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-p8pjdnp1.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-23pckbmc.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-ftrgj2pz.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-gpf5v54v.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-kzbyy9ca.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-8wpkvz3f.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-zd3crn4x.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-dfawx5pn.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-dsgy2kr8.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -22345,5 +22345,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=B62BF4DECE5527F164756E2164756E21
-//# sourceMappingURL=app-hphz8d7d.js.map
+//# debugId=A4C43B263CF141B864756E2164756E21
+//# sourceMappingURL=app-kg3ewg7a.js.map

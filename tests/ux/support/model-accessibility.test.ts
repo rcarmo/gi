@@ -24,6 +24,7 @@ test('guarded semantic adapter leaves source bytes and native mutation guards in
  for(const text of ['role="combobox"','role="listbox"','role="option"','tabIndex="-1"','aria-activedescendant=','aria-selected=${current','aria-disabled=${switchingModel || blocked','disabled=${switchingModel || blocked}','void handleSelectModel(modelOption)'])expect(result).toContain(text);
  expect(result.indexOf('const [loadingModels, setLoadingModels]')).toBeLessThan(result.indexOf('const modelEntries = useMemo'));
  expect(result).toContain('disabled: loadingModels || switchingModel || modelContextBlocked');
+ expect(result).toContain('role="listbox" tabIndex="-1"');
  expect(result).toContain('if (ownedModelFocus) requestAnimationFrame');
  expect(result).toContain('modelOpener?.isConnected && document.activeElement === document.body && !settingsOwnsKeyboard()');
  expect(()=>patchModelAccessibility(result)).toThrow();expect(()=>patchModelAccessibility('drift')).toThrow();expect(readFileSync(path,'utf8')).toBe(source);

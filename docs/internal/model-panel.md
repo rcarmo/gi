@@ -30,7 +30,15 @@ Accessibility verification on 2026-09-26:
 
 The initial expanded tests caught missing post-selection return focus. An intermediate loading guard also exposed an injected-hook ordering error; both were repaired before the final passing runs. One concurrent Go/build run failed while the bundler replaced embedded chunks; the sequential core run passed. Evidence retains those failures. No tests were removed or timeouts increased.
 
-This verifies browser DOM and keyboard behaviour. Screen-reader announcements, physical-device interaction and exact full-frame pixels have not been accepted. The existing pixel failures below are historical measurements; this semantic slice has no new pixel capture claim. Live Gi remains on `dcc8c16` until the new source passes CI and deployment checks. No terminal code or idle chrome changed.
+This verifies browser DOM and keyboard behaviour. Screen-reader announcements, physical-device interaction and exact full-frame pixels have not been accepted. The existing pixel failures below are historical measurements; this semantic slice has no new pixel capture claim. The deployment attempt and rollback below supersede the original hold on `dcc8c16`. No terminal code or idle chrome changed.
+
+## Overflow Tab-order regression and rollback
+
+`497e264` passed whole CI36210237405 and was deployed from an isolated checkout on 2026-09-26. The read-only live probe failed before completing its first browser/viewport: Chromium made the overflowing listbox an implicit Tab stop. The small journey catalogue did not overflow and missed this case. The first probe also counted the native option in the read-only thinking selector; model option assertions now scope to the model listbox.
+
+The accessibility adapter now sets `tabIndex="-1"` on the listbox itself as well as its options. Six new browser cases supply 43 catalogue entries and read-only thinking. They check actual overflow, search → Settings and reverse Tab order, clear-button order with a query, empty results and no writes. The panel suite passes 42 cases, geometry passes 24, functional tests pass 107 with 11 existing skips, and Go/vet/hooks/model/pixel helpers pass. No CSS, supplied sources, tests or timeout limits were relaxed.
+
+The failed live attempt was rolled back to exact `dcc8c16` on port 8090, PID681390, PGID/SID681291. Normalised before/after SQL excluding runtime leases is identical (SHA256 `300ce6794c6fe9b8fb93c826fcfecf093676a6cf369f4be4e11dd624a829653d`); DB counts stay 62 sessions, 51 turns, 146 messages, integrity/FKs clean, auth file absent. Probes block all non-read requests and request no microphone/notification permission. Deployment acceptance for the accessibility slice is incomplete; the overflow guard needs green CI before another deployment.
 
 ## Explicit capability differences
 
