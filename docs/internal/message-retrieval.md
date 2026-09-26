@@ -72,5 +72,34 @@ then returns the received tool JSON. Browser assertions cover ID/context and win
 queries, pagination, truncation, foreign isolation, native error lifecycle, quoted
 rendering, reload and unsent draft retention. Live chats and auth are not test data.
 
-No frozen catalogue mappings or supplied UI components are changed. Whole-product
-CI, exact-source deployment and the remaining scenario clauses are separate gates.
+No frozen catalogue mappings or supplied UI components are changed. The remaining
+scenario clauses and broader authorization are separate gates.
+
+## Deployment
+
+Exact source `05e287fb6e76f0090f2ac66ea303e6450efb4e25` passed whole-product
+[CI 36263310102](https://github.com/rcarmo/gi/actions/runs/36263310102) on its first
+attempt, including the new retrieval gate and all four builds. Local evidence:
+race×3, six browser projects plus 12 repeat cases, 139 functional passes with 11
+existing skips, core tests, vet and hook checks. Scoped source review found no
+blocker. Early browser harness failures were corrected to use isolated fixture
+origins, actual selectors, the events envelope and native `tool.failed` lifecycle;
+no assertion/timeouts were relaxed. A core test's chronological-position assumption
+was replaced by identifying the tool-result role.
+
+The approved detached source replaced `d415541` on port 8090, PID `776843`, process
+group/session `776835`. Release binary SHA-256:
+`6702d8eaf3f3f7be0671261c496cea07b2fb73af6563a9859c08674d37813e47`.
+
+All 146 messages were mapped with the expected chronological backfill; no unmapped
+or mismatched rows remain. Every pre-existing table's data and schema match, apart
+from the dispatcher runtime lease. Existing sequence entries match; the new sequence
+is 146. Database integrity and foreign keys are clean. Counts remain 62 sessions,
+51 turns, 146 messages, zero active turns. Auth hashes and the isolated local-only
+TUI WIP HEAD/diff match. Four blocked-send and six read-only UI probes passed with
+no live chat/auth writes. The additive migration is the only intended data change.
+
+Evidence: `/workspace/tmp/gi-message-retrieval` and
+`/workspace/tmp/gi-retrieval-deploy-05e287f`. Database backups, dumps and auth hashes
+stay local and are excluded from the downloadable archive. This deployment does
+not establish physical-device, pixel or TUI acceptance.
