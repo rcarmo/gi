@@ -54,5 +54,20 @@ case 85, without a reported test failure. The full suite passed when run separat
 no Playwright timeout or assertion changed. Evidence is retained in
 `/workspace/tmp/gi-passkey-login-boundary`.
 
-Whole-product CI and deployment are separate gates. Live receipt source `d62967f`
-is unchanged while this fix awaits approval.
+## Deployment
+
+Exact source `a1be540836363b85168ce14002f66fd32e1cd76b` passed whole-product CI
+[36241463237](https://github.com/rcarmo/gi/actions/runs/36241463237), including all
+four release builds, then replaced the receipt-only `d62967f` process on port 8090.
+Live PID `74444`, process group/session `74437`; executable SHA-256
+`f3e528a037b89ca0c02677b8d194733338c87e11c3eb31e6993a7f437464b218`.
+
+Four blocked non-localhost HTTP send probes and six read-only UI probes passed.
+DB counts remain 62 sessions, 51 turns, 146 messages and zero active turns; integrity
+and foreign keys are clean. Full SQL dumps including receipts match after removing
+only the dispatcher lease. Auth hashes and isolated local-only TUI WIP HEAD/diff
+match. No live auth changes or chat writes occurred; passkey mutation acceptance
+comes from the disposable tests above. Reload existing tabs for the new bundle.
+
+Deployment evidence: `/workspace/tmp/gi-passkey-deploy-a1be540`. Database dumps and
+auth hashes are retained locally and excluded from the archive.
