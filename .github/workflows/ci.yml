@@ -105,7 +105,7 @@ jobs:
           retention-days: 3
 
   compose-browser:
-    name: Compose surfaces, panels and voice ownership
+    name: Compose surfaces and panels
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -124,12 +124,33 @@ jobs:
         run: make test-ux-model-panel
       - name: Verify native session panel and first-frame navigation
         run: make test-ux-session-panel
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-panel-voice-evidence
+          path: test-results/ux-parity
+          retention-days: 3
+
+  voice-browser:
+    name: Voice input ownership
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun x playwright install --with-deps chromium webkit
       - name: Verify browser voice-input ownership contract
         run: make test-ux-voice-input
       - if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: compose-panel-voice-evidence
+          name: voice-ownership-evidence
           path: test-results/ux-parity
           retention-days: 3
 
@@ -198,7 +219,7 @@ jobs:
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest
-    needs: [test, auth-state, passkey-browser, browser-journey, compose-browser, context-browser, notification-browser]
+    needs: [test, auth-state, passkey-browser, browser-journey, compose-browser, voice-browser, context-browser, notification-browser]
     strategy:
       fail-fast: false
       matrix:
