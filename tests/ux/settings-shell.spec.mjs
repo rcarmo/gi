@@ -271,7 +271,7 @@ for(const id of ['@ux-settings-001','@ux-settings-dialog-002']) test(`${id} Nati
  const bytes=Array.from(Buffer.from('settings cached reopen bytes'));
  await page.locator('.compose-box input[type=file]').setInputFiles({name:'settings-cache.txt',mimeType:'text/plain',buffer:Buffer.from(bytes)});
  const stored=()=>page.evaluate(async id=>{
-  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
   return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const s=r.result;resolve(s?{...s,draft:{...s.draft,media:s.draft.media.map(f=>({...f,bytes:Array.from(new Uint8Array(f.bytes))}))}}:null);};tx.onerror=()=>reject(tx.error);});
  },f.id);
  await expect.poll(stored).toMatchObject({draft:{text:'frozen settings draft',media:[{name:'settings-cache.txt',bytes}]},pending:[]});const draft=await stored();
@@ -323,7 +323,7 @@ test('@ux-settings-002 uncached General keeps the native loading shell and recov
  await dialog.getByRole('button',{name:'Retry',exact:true}).click();await expect(dialog.locator('.gi-settings-values')).toContainText(native.workspace_root);await expect(dialog.getByRole('alert')).toHaveCount(0);await page.keyboard.press('Escape');
  await expect(f.input).toHaveValue('frozen settings draft');await expect(page.locator('.compose-box')).toContainText('loading-ref.txt');
  const saved=await page.evaluate(id=>new Promise((resolve,reject)=>{
-  const db=indexedDB.open('gi-session-drafts',1);db.onsuccess=()=>{
+  const db=indexedDB.open('gi-session-drafts');db.onsuccess=()=>{
    const q=db.result.transaction('drafts').objectStore('drafts').get(id);
    q.onsuccess=()=>{try{const d=q.result.draft;const media=d.media.map(m=>({name:m.name,bytes:Array.from(new Uint8Array(m.bytes))}));db.result.close();resolve({text:d.text,media});}catch(error){reject(error);}};
    q.onerror=()=>reject(q.error);

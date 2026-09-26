@@ -9,7 +9,7 @@ async function fixture(page,request,info,id){
  const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();const text='shell draft\nkeep native media';await input.fill(text);
  const bytes=Array.from(Buffer.from('exact shell attachment bytes'));await page.locator('.compose-box input[type=file]').setInputFiles({name:'shell-draft.txt',mimeType:'text/plain',buffer:Buffer.from(bytes)});
  const stored=()=>page.evaluate(async id=>{
-  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
   return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const s=r.result;resolve(s?{...s,draft:{...s.draft,media:s.draft.media.map(f=>({...f,bytes:Array.from(new Uint8Array(f.bytes))}))}}:null);};tx.onerror=()=>reject(tx.error);});
  },session.id);
  await expect.poll(stored).toMatchObject({draft:{text,media:[{name:'shell-draft.txt',bytes}]},pending:[]});const before=await stored();

@@ -84,7 +84,7 @@ for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
    heldPath=`/api/sessions/${id}/prompt`;held={gate,admitted:null,count:0};heldReplies.set(heldPath,held);
    await input.fill(text);await input.press('Enter');await expect.poll(()=>held!.admitted?.turn_id).toBeTruthy();await input.fill(newer);
    const acceptedTurn=(await(await context.request.get(`${origin}/api/sessions/${id}/turns`)).json()).turns.find((t:any)=>t.id===held!.admitted.turn_id);
-   const saved=()=>page.evaluate(id=>new Promise<any>((resolve,reject)=>{const open=indexedDB.open('gi-session-drafts',1);open.onerror=()=>reject(open.error);open.onsuccess=()=>{const db=open.result;const read=db.transaction('drafts','readonly').objectStore('drafts').get(id);read.onsuccess=()=>{resolve(read.result);db.close()};read.onerror=()=>reject(read.error)};}),id);
+   const saved=()=>page.evaluate(id=>new Promise<any>((resolve,reject)=>{const open=indexedDB.open('gi-session-drafts');open.onerror=()=>reject(open.error);open.onsuccess=()=>{const db=open.result;const read=db.transaction('drafts','readonly').objectStore('drafts').get(id);read.onsuccess=()=>{resolve(read.result);db.close()};read.onerror=()=>reject(read.error)};}),id);
    await expect.poll(async()=>{const row=await saved();return [row?.draft?.text,row?.pending?.[0]?.id]}).toEqual([newer,acceptedTurn.metadata.client_request_id]);
    await expect(page.locator('.post.agent-post .post-content').filter({hasText:text})).toHaveCount(1);await page.close();release();
    page=await context.newPage();const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(origin);input=page.locator('.compose-box textarea');await expect(input).toHaveValue(newer);await expect(page.locator('.compose-box .compose-file-pill')).toHaveCount(0);await expect(page.locator('.post.agent-post .post-content').filter({hasText:text})).toHaveCount(1);
@@ -120,5 +120,79 @@ for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
    const turns=(await(await context.request.get(`${origin}/api/sessions/${held.admitted.session_id}/turns`)).json()).turns;expect(turns.filter((t:any)=>t.id===held.admitted.turn_id)).toHaveLength(1);
    expect((await(await context.request.get(`${origin}/api/sessions/${id}/turns`)).json()).turns||[]).toHaveLength(before.length);
   }finally{release();heldReplies.delete(path);await context.close();await browser.close()}
+ });
+}
+
+async function storedDraft(page:any,id:string){
+ return page.evaluate((id:string)=>new Promise((resolve,reject)=>{const open=indexedDB.open('gi-session-drafts');open.onerror=()=>reject(open.error);open.onsuccess=()=>{const db=open.result,tx=db.transaction('drafts','readonly'),read=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();resolve(read.result)};tx.onabort=()=>{db.close();reject(tx.error)}}}),id);
+}
+for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
+ test(`${name} HTTP stale tab cannot erase pending capture or dispatch after draft conflict`,async()=>{
+  const browser=await type.launch(),context=await browser.newContext();let a=await context.newPage(),b=await context.newPage();let release!:()=>void;const gate=new Promise<void>(r=>release=r);let path='';
+  try{
+   await a.goto(origin);const input=a.locator('.compose-box textarea');await expect(input).toBeVisible();const id=await a.evaluate(()=>localStorage.getItem('gi_session_id'));await b.goto(origin);const other=b.locator('.compose-box textarea');await expect(other).toBeVisible();
+   const text=`cross-tab-${name}-${Date.now()}`,bytes=Buffer.from('cross tab attachment bytes Ω');
+   await a.locator('.compose-box input[type=file]').setInputFiles({name:'cross-tab.txt',mimeType:'text/plain',buffer:bytes});await input.fill(text);
+   path=`/api/sessions/${id}/prompt`;const held={gate,admitted:null as any,count:0};heldReplies.set(path,held);
+   await input.press('Enter');await expect.poll(()=>held.admitted?.turn_id).toBeTruthy();
+   await expect.poll(async()=>(await storedDraft(a,id))?.pending?.length).toBe(1);
+   await other.fill('other tab unsaved');await expect(b.getByText(/Draft not saved:.*another tab/)).toBeVisible();
+   let otherPosts=0;b.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/prompt'))otherPosts++});
+   await other.press('Enter');await expect(other).toHaveValue('other tab unsaved');await expect(b.getByRole('status').filter({hasText:'Sending message'})).toHaveCount(0);expect(otherPosts).toBe(0);
+   const row:any=await storedDraft(b,id);expect(row.pending).toHaveLength(1);expect(row.pending[0].draft.text).toBe(text);expect(row.pending[0].draft.media).toHaveLength(1);
+   await a.close();await b.close();release();
+   a=await context.newPage();await a.route(`**/api/sessions/${id}/send-receipt?*`,r=>r.fulfill({status:503,contentType:'application/json',body:'{"error":"unavailable"}'}));await a.goto(origin);
+   await expect(a.locator('.compose-box textarea')).toHaveValue(text);await expect(a.locator('.compose-file-pill[title="cross-tab.txt"]')).toBeVisible();await expect(a.getByText(/Recovered an unacknowledged send/)).toBeVisible();
+   const restored=await a.evaluate(async(id:string)=>{const db=await new Promise<IDBDatabase>((resolve,reject)=>{const q=indexedDB.open('gi-session-drafts');q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error)});const row:any=await new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(id);tx.oncomplete=()=>resolve(r.result);tx.onabort=()=>reject(tx.error)});db.close();return Array.from(new Uint8Array(row.draft.media[0].bytes))},id);expect(restored).toEqual([...bytes]);expect(held.count).toBe(1);
+  }finally{release();heldReplies.delete(path);await context.close();await browser.close()}
+ });
+ test(`${name} HTTP stale unknown recovery cannot restore after another tab confirms`,async()=>{
+  const browser=await type.launch(),context=await browser.newContext(),a=await context.newPage(),b=await context.newPage();let releaseAck!:()=>void,releaseRead!:()=>void;
+  const ack=new Promise<void>(r=>releaseAck=r),read=new Promise<void>(r=>releaseRead=r);let path='',reading=false;
+  try{
+   await a.goto(origin);const input=a.locator('.compose-box textarea');await expect(input).toBeVisible();const id=await a.evaluate(()=>localStorage.getItem('gi_session_id'));
+   path=`/api/sessions/${id}/prompt`;const held={gate:ack,admitted:null as any,count:0};heldReplies.set(path,held);await input.fill(`confirmed-${name}-${Date.now()}`);await input.press('Enter');await expect.poll(()=>held.admitted?.turn_id).toBeTruthy();
+   await b.route(`**/api/sessions/${id}/send-receipt?*`,async r=>{reading=true;await read;await r.fulfill({status:200,contentType:'application/json',body:'{"confirmed":false}'})});
+   await b.goto(origin);await expect.poll(()=>reading).toBe(true);releaseAck();
+   await expect.poll(async()=>(await storedDraft(a,id))?.pending?.length).toBe(0);const committed:any=await storedDraft(a,id);releaseRead();
+   await expect(b.getByText(/Draft recovery unavailable:.*another tab/)).toBeVisible();await expect(b.locator('.compose-box textarea')).toHaveValue('');
+   expect((await storedDraft(a,id))?.revision).toBe(committed.revision);expect((await storedDraft(a,id))?.draft.text).toBe('');expect(held.count).toBe(1);
+   await b.unrouteAll({behavior:'wait'});await b.reload();await expect(b.locator('.compose-box textarea')).toHaveValue('');await expect(b.getByText(/Recovered an unacknowledged send/)).toHaveCount(0);
+  }finally{releaseAck();releaseRead();heldReplies.delete(path);await context.close();await browser.close()}
+ });
+ test(`${name} draft storage upgrade fences old writers and preserves version-one media`,async()=>{
+  const browser=await type.launch(),context=await browser.newContext(),page=await context.newPage();
+  try{
+   // Seed a real v1 database before loading the application.
+   await page.goto(origin+'/favicon.ico');await page.evaluate(async()=>{const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onupgradeneeded=()=>r.result.createObjectStore('drafts',{keyPath:'sessionId'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});await new Promise<void>((resolve,reject)=>{const tx=db.transaction('drafts','readwrite');tx.objectStore('drafts').put({sessionId:'legacy',draft:{text:'legacy Ω',media:[{name:'old.txt',type:'text/plain',lastModified:1,bytes:new Uint8Array([1,2,3]).buffer}],fileRefs:['one'],messageRefs:[]},pending:[]});tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error)});db.close()});
+   await page.goto(origin);await expect(page.locator('.compose-box textarea')).toBeVisible();
+   const state=await page.evaluate(async()=>{const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});const version=db.version;const row:any=await new Promise(resolve=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get('legacy');tx.oncomplete=()=>resolve(r.result)});db.close();const old=await new Promise(resolve=>{const r=indexedDB.open('gi-session-drafts',1);r.onerror=()=>resolve(r.error?.name);r.onsuccess=()=>{r.result.close();resolve('unexpected success')}});return{version,text:row.draft.text,bytes:Array.from(new Uint8Array(row.draft.media[0].bytes)),old}});
+   expect(state).toEqual({version:2,text:'legacy Ω',bytes:[1,2,3],old:'VersionError'});
+  }finally{await context.close();await browser.close()}
+ });
+}
+
+for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
+ for(const closes of [true,false])test(`${name} old draft writer ${closes?'closes on upgrade':'blocks upgrade without losing data'}`,async()=>{
+  const browser=await type.launch(),context=await browser.newContext(),old=await context.newPage(),page=await context.newPage();
+  try{
+   await old.goto(origin+'/favicon.ico');await old.evaluate(async closes=>{
+    const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onupgradeneeded=()=>r.result.createObjectStore('drafts',{keyPath:'sessionId'});r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
+    (window as any).__oldDraftDB=db;(window as any).__versionChanged=false;
+    db.onversionchange=()=>{(window as any).__versionChanged=true;if(closes)db.close()};
+    await new Promise<void>((resolve,reject)=>{const tx=db.transaction('drafts','readwrite');tx.objectStore('drafts').put({sessionId:'legacy',draft:{text:'old durable',media:[],fileRefs:[],messageRefs:[]},pending:[]});tx.oncomplete=()=>resolve();tx.onabort=()=>reject(tx.error)});
+   },closes);
+   await page.goto(origin);await expect.poll(()=>old.evaluate(()=>(window as any).__versionChanged)).toBe(true);
+   if(closes){
+    await expect(page.locator('.compose-box textarea')).toBeVisible();
+    expect(await old.evaluate(()=>{try{(window as any).__oldDraftDB.transaction('drafts','readwrite');return 'unsafe'}catch(e){return e.name}})).toBe('InvalidStateError');
+   }else{
+    await expect(page.getByText(/Draft recovery unavailable:.*upgrade blocked/)).toBeVisible();
+    const input=page.locator('.compose-box textarea');await input.fill('unsaved during blocked upgrade');let posts=0;page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/prompt'))posts++});
+    await input.press('Enter');await expect(input).toHaveValue('unsaved during blocked upgrade');await expect(page.getByRole('status').filter({hasText:'Sending message'})).toHaveCount(0);expect(posts).toBe(0);
+    await old.evaluate(()=>(window as any).__oldDraftDB.close());await page.reload();await expect(page.getByText(/Draft recovery unavailable/)).toHaveCount(0);await expect(input).toBeVisible();
+   }
+   expect((await storedDraft(page,'legacy'))?.draft.text).toBe('old durable');
+  }finally{await context.close();await browser.close()}
  });
 }

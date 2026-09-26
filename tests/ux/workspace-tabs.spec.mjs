@@ -8,7 +8,7 @@ async function setup(page,request,info){
  const created=await request.post('/api/sessions',{data:{agent_id:token,title:token}});const session=await created.json();await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),session.id);await page.goto('/');
  const input=page.getByRole('textbox',{name:inputName,exact:true});await expect(input).toBeVisible();await input.fill('tabs keep this draft');await page.locator('.compose-box input[type=file]').setInputFiles({name:'tabs-unsent.txt',mimeType:'text/plain',buffer:Buffer.from('tabs retained bytes')});
  const stored=()=>page.evaluate(async id=>{
-  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
   return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const s=r.result;resolve(s?{...s,draft:{...s.draft,media:s.draft.media.map(f=>({...f,bytes:Array.from(new Uint8Array(f.bytes))}))}}:null);};tx.onerror=()=>reject(tx.error);});
  },session.id);
  await expect.poll(stored).toMatchObject({draft:{text:'tabs keep this draft',media:[{name:'tabs-unsent.txt',bytes:Array.from(Buffer.from('tabs retained bytes'))}]},pending:[]});const initial=await stored();

@@ -17,7 +17,7 @@ async function fixture(page,request,info){
  const queued=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt,intent:'queue',model:'test-model',media:[media.ref]}})).json();
  const row=page.locator(`[data-queue-id="${queued.turn_id}"]`);await expect(row).toBeVisible();
  const stored=async()=>page.evaluate(async id=>{
-  const db=await new Promise((resolve,reject)=>{const req=indexedDB.open('gi-session-drafts',1);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+  const db=await new Promise((resolve,reject)=>{const req=indexedDB.open('gi-session-drafts');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
   return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly');const req=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const row=req.result;resolve({text:row?.draft.text,media:row?.draft.media.map(x=>x.name),fileRefs:row?.draft.fileRefs,messageRefs:row?.draft.messageRefs,recovery:row?.queueReturns});};tx.onerror=()=>reject(tx.error);});
  },main.id);
  return{main,child,queued,media,input,row,stored,release};

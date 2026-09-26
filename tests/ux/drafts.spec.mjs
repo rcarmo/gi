@@ -22,7 +22,7 @@ async function fixture(page, request, info) {
 async function storedDraft(page, id) {
   return page.evaluate(async id => {
     const db = await new Promise((resolve,reject) => {
-      const request = indexedDB.open('gi-session-drafts',1);
+      const request = indexedDB.open('gi-session-drafts');
       request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
     });
     return new Promise((resolve,reject) => {
@@ -728,7 +728,7 @@ test('Gi Cancel uploads aborts captured batch before send, keeps exact draft/fil
  await page.route(`**/api/sessions/${main.id}/media`,async route=>{uploadRequests++;const response=await route.fetch({postData:route.request().postDataBuffer()});expect(response.status()).toBe(201);held=true;await gate;try{await route.fulfill({response});}catch{}});
  page.on('request',r=>{if(r.method()==='POST'&&new URL(r.url()).pathname.endsWith('/prompt'))prompts++;});
  const files=[attachment('cancel-a.txt','exact α bytes'),attachment('cancel-b.txt','exact β bytes')];
- const exact=()=>page.evaluate(async id=>{const db=await new Promise((ok,no)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});const value=await new Promise((ok,no)=>{const r=db.transaction('drafts').objectStore('drafts').get(id);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});db.close();return {text:value?.draft.text,files:value?.draft.media.map(f=>({name:f.name,bytes:Array.from(new Uint8Array(f.bytes))})),pending:value?.pending.length};},main.id);
+ const exact=()=>page.evaluate(async id=>{const db=await new Promise((ok,no)=>{const r=indexedDB.open('gi-session-drafts');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});const value=await new Promise((ok,no)=>{const r=db.transaction('drafts').objectStore('drafts').get(id);r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error);});db.close();return {text:value?.draft.text,files:value?.draft.media.map(f=>({name:f.name,bytes:Array.from(new Uint8Array(f.bytes))})),pending:value?.pending.length};},main.id);
  try{
   await input.fill('cancel draft 中文');await page.locator('.compose-box input[type=file]').setInputFiles(files);await expect.poll(exact).toMatchObject({text:'cancel draft 中文',files:files.map(f=>({name:f.name,bytes:[...f.buffer]})),pending:0});const before=await exact();
   await input.press('Enter');await expect.poll(()=>held).toBe(true);await expect(page.getByRole('button',{name:'Cancel uploads',exact:true})).toBeVisible();

@@ -243,7 +243,7 @@ if(process.env.GI_UX_MODEL_PICKER) test('@shared-34 Filter native models and nav
  await page.locator('.post .post-time').first().click();
  await expect(page.locator('.compose-file-pill[title^="Message reference:"]')).toHaveCount(1);
  const storedDraft=()=>page.evaluate(async id=>{
-  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
   return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const s=r.result;resolve(s?{...s,draft:{...s.draft,media:s.draft.media.map(f=>({...f,bytes:Array.from(new Uint8Array(f.bytes))}))}}:null);};tx.onerror=()=>reject(tx.error);});
  },main.id);
  await expect.poll(storedDraft).toMatchObject({draft:{text:draft,media:[{name:file.name,type:file.mimeType,bytes:Array.from(file.buffer)}]},pending:[]});const savedDraft=await storedDraft();expect(savedDraft.draft.messageRefs).toHaveLength(1);

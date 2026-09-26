@@ -243,7 +243,7 @@ for(const [id,dismissal] of [['@shared-13','Escape'],['@shared-14','outside poin
  const titles=()=>page.locator('.compose-input-main .compose-file-pill').evaluateAll(nodes=>nodes.map(n=>n.title));
  const labels=[`Message reference: ${messageId}`,filename,'guard-unsent.txt'];await expect.poll(titles).toEqual(labels);
  const stored=()=>page.evaluate(async id=>{
-  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
   return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const s=r.result;resolve(s?{...s,draft:{...s.draft,media:s.draft.media.map(f=>({...f,bytes:Array.from(new Uint8Array(f.bytes))}))}}:null);};tx.onerror=()=>reject(tx.error);});
  },f.main.id);
  await expect.poll(stored).toMatchObject({draft:{text:'untouched draft',fileRefs:[filename],messageRefs:[messageId],media:[{name:'guard-unsent.txt',bytes:Array.from(Buffer.from('guard native bytes'))}]},pending:[]});const before=await stored();
@@ -314,7 +314,7 @@ test('@shared-4 Idle typing ranks native Quick Actions and activates the highlig
  const time=page.locator('.post .post-time').first(),messageId=(await time.getAttribute('href')).replace(/^#msg-/,'');await time.click();
  const labels=()=>page.locator('.compose-input-main .compose-file-pill').evaluateAll(nodes=>nodes.map(n=>n.title)),expectedLabels=[`Message reference: ${messageId}`,filename,'guard-unsent.txt'];await expect.poll(labels).toEqual(expectedLabels);
  const stored=()=>page.evaluate(async id=>{
-  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts',1);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('gi-session-drafts');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
   return new Promise((resolve,reject)=>{const tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(id);tx.oncomplete=()=>{db.close();const s=r.result;resolve(s?{...s,draft:{...s.draft,media:s.draft.media.map(f=>({...f,bytes:Array.from(new Uint8Array(f.bytes))}))}}:null);};tx.onerror=()=>reject(tx.error);});
  },f.main.id);
  // Pill rendering precedes the asynchronous IndexedDB commit. Establish the

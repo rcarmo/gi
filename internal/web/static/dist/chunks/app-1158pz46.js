@@ -1713,6 +1713,18 @@ function bindComposeSending(root, sending) {
 }
 
 // web/src/gi-drafts.ts
+class DraftConflictError extends Error {
+  constructor() {
+    super("Draft changed in another tab. Copy your unsaved text and attachments before reloading; sending is blocked in this tab.");
+    this.name = "DraftConflictError";
+  }
+}
+function revision(row) {
+  const value = row?.revision ?? 0;
+  if (!Number.isSafeInteger(value) || value < 0)
+    throw new Error("Invalid draft revision");
+  return value;
+}
 var emptyDraft = () => ({ text: "", media: [], fileRefs: [], messageRefs: [] });
 var copy = (d) => ({ text: d.text, media: [...d.media], fileRefs: [...d.fileRefs], messageRefs: [...d.messageRefs] });
 var key = (value) => typeof value === "object" ? JSON.stringify(value) : String(value);
@@ -1737,17 +1749,28 @@ function indexedDraftStorage(factory = indexedDB) {
     return encodedFiles.get(file);
   };
   const database = new Promise((resolve, reject) => {
-    const request = factory.open("gi-session-drafts", 1);
+    const request = factory.open("gi-session-drafts", 2);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains("drafts"))
         request.result.createObjectStore("drafts", { keyPath: "sessionId" });
     };
+    let abandoned = false;
     request.onsuccess = () => {
+      if (abandoned) {
+        request.result.close();
+        return;
+      }
       request.result.onversionchange = () => request.result.close();
       resolve(request.result);
     };
-    request.onerror = () => reject(request.error || new Error("Draft database unavailable"));
-    request.onblocked = () => reject(new Error("Draft database upgrade blocked by another tab"));
+    request.onerror = () => {
+      abandoned = true;
+      reject(request.error || new Error("Draft database unavailable"));
+    };
+    request.onblocked = () => {
+      abandoned = true;
+      reject(new Error("Draft database upgrade blocked by another tab. Close older Gi tabs, copy any unsaved edits, then reload."));
+    };
   });
   return {
     async load() {
@@ -1762,15 +1785,30 @@ function indexedDraftStorage(factory = indexedDB) {
         tx.onabort = tx.onerror = () => reject(tx.error || new Error("Could not load drafts"));
       });
     },
-    async put(record) {
+    async put(record, expectedRevision) {
       const db = await database;
       const encode = async (draft) => ({ ...draft, media: await Promise.all(draft.media.map(encodeFile)) });
       const stored = { ...record, draft: await encode(record.draft), pending: await Promise.all(record.pending.map(async (pending) => ({ ...pending, draft: await encode(pending.draft) }))) };
       return new Promise((resolve, reject) => {
         const tx = db.transaction("drafts", "readwrite");
-        tx.objectStore("drafts").put(stored);
-        tx.oncomplete = () => resolve();
-        tx.onabort = tx.onerror = () => reject(tx.error || new Error("Could not save draft"));
+        const store = tx.objectStore("drafts");
+        let failure;
+        const current = store.get(record.sessionId);
+        current.onsuccess = () => {
+          try {
+            if (revision(current.result) !== expectedRevision)
+              throw new DraftConflictError;
+            if (expectedRevision === Number.MAX_SAFE_INTEGER)
+              throw new Error("Draft revision exhausted; copy unsaved edits before recovery.");
+            stored.revision = expectedRevision + 1;
+            store.put(stored);
+          } catch (error) {
+            failure = error;
+            tx.abort();
+          }
+        };
+        tx.oncomplete = () => resolve(stored.revision);
+        tx.onabort = tx.onerror = () => reject(failure || tx.error || new Error("Could not save draft"));
       });
     }
   };
@@ -1778,6 +1816,9 @@ function indexedDraftStorage(factory = indexedDB) {
 var pendingSendKey = (sessionId, token) => JSON.stringify([sessionId, token]);
 function createDraftRepository(storage, onError = () => {}, recover) {
   const records = new Map;
+  const revisions = new Map;
+  const conflicts = new Map;
+  let loadFailure;
   let tail = Promise.resolve();
   const record = (id) => {
     if (!records.has(id))
@@ -1787,33 +1828,58 @@ function createDraftRepository(storage, onError = () => {}, recover) {
   const persist = (id) => {
     const source = record(id);
     const snapshot = { ...source, queueReturns: Object.fromEntries(Object.entries(source.queueReturns || {}).map(([id, entry]) => [id, { ...entry }])), draft: copy(source.draft), pending: source.pending.map((p) => ({ id: p.id, draft: copy(p.draft) })) };
-    const write = tail.catch(() => {}).then(() => storage.put(snapshot));
+    const write = tail.catch(() => {}).then(async () => {
+      if (loadFailure)
+        throw loadFailure;
+      if (conflicts.has(id))
+        throw conflicts.get(id);
+      revisions.set(id, await storage.put(snapshot, revisions.get(id) ?? 0));
+    });
     tail = write;
-    write.catch((error) => onError(error));
+    write.catch((error) => {
+      if (error instanceof DraftConflictError) {
+        conflicts.set(id, error);
+        record(id).error = error.message;
+      }
+      onError(error);
+    });
     return write;
   };
   return {
     async load() {
-      const rows = await storage.load();
-      for (const row of rows)
-        records.set(row.sessionId, row);
-      let confirmed = new Set;
-      if (recover) {
-        try {
-          confirmed = await recover(rows.flatMap((row) => row.pending.map((p) => ({ sessionId: row.sessionId, token: p.id }))));
-        } catch {}
-      }
-      for (const row of rows) {
-        records.set(row.sessionId, row);
-        if (row.pending.length) {
-          const unknown = row.pending.filter((p) => !confirmed.has(pendingSendKey(row.sessionId, p.id)));
-          for (const pending of [...unknown].reverse())
-            row.draft = mergeDrafts(pending.draft, row.draft);
-          row.pending = [];
-          if (unknown.length)
-            row.error = "Recovered an unacknowledged send. Delivery is unknown; check the timeline before resending.";
-          await persist(row.sessionId);
+      if (loadFailure)
+        throw loadFailure;
+      if (conflicts.size)
+        throw conflicts.values().next().value;
+      try {
+        const rows = await storage.load();
+        let confirmed = new Set;
+        if (recover) {
+          try {
+            confirmed = await recover(rows.flatMap((row) => row.pending.map((p) => ({ sessionId: row.sessionId, token: p.id }))));
+          } catch {}
         }
+        for (const row of rows) {
+          const expected = revision(row);
+          if (row.pending.length) {
+            const unknown = row.pending.filter((p) => !confirmed.has(pendingSendKey(row.sessionId, p.id)));
+            for (const pending of [...unknown].reverse())
+              row.draft = mergeDrafts(pending.draft, row.draft);
+            row.pending = [];
+            if (unknown.length)
+              row.error = "Recovered an unacknowledged send. Delivery is unknown; check the timeline before resending.";
+            row.revision = await storage.put(row, expected);
+          }
+        }
+        for (const row of rows) {
+          records.set(row.sessionId, row);
+          revisions.set(row.sessionId, revision(row));
+        }
+      } catch (error) {
+        loadFailure = error;
+        records.clear();
+        revisions.clear();
+        throw error;
       }
     },
     get(id) {
@@ -19761,11 +19827,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-kqn2ezww.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-wfaga293.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-rpam5pgr.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-a9mhnynn.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-2eftsc07.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-cx23edr5.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-3n2jy5b8.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-sd7q8r9m.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-dp0vgj55.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-fc8fs5aq.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -22505,5 +22571,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=FB47B76EC1D0171F64756E2164756E21
-//# sourceMappingURL=app-b3g0a4vk.js.map
+//# debugId=57F09A5F7578D28564756E2164756E21
+//# sourceMappingURL=app-1158pz46.js.map

@@ -53,7 +53,7 @@ test.describe('touch surface',()=>{
     const device=await page.evaluate(()=>({ua:navigator.userAgent,platform:navigator.platform,touch:navigator.maxTouchPoints}));
     expect(/iPad/i.test(device.ua)||(device.platform==='MacIntel'&&device.touch>1)).toBe(false);
     const before=await(await request.get(`/api/sessions/${f.main.id}/messages`)).json();
-    const draft=()=>page.evaluate(id=>new Promise((resolve,reject)=>{const open=indexedDB.open('gi-session-drafts',1);open.onerror=()=>reject(open.error);open.onsuccess=()=>{const db=open.result,get=db.transaction('drafts').objectStore('drafts').get(id);get.onerror=()=>reject(get.error);get.onsuccess=()=>{const record=get.result;db.close();resolve(record?{...record,draft:{...record.draft,media:(record.draft.media||[]).map(a=>({...a,bytes:[...new Uint8Array(a.bytes)]}))}}:null);};};}),f.main.id);
+    const draft=()=>page.evaluate(id=>new Promise((resolve,reject)=>{const open=indexedDB.open('gi-session-drafts');open.onerror=()=>reject(open.error);open.onsuccess=()=>{const db=open.result,get=db.transaction('drafts').objectStore('drafts').get(id);get.onerror=()=>reject(get.error);get.onsuccess=()=>{const record=get.result;db.close();resolve(record?{...record,draft:{...record.draft,media:(record.draft.media||[]).map(a=>({...a,bytes:[...new Uint8Array(a.bytes)]}))}}:null);};};}),f.main.id);
     await expect.poll(draft).toMatchObject({draft:{text:'unsent image review draft',media:[{name:'keep.txt',bytes:[...Buffer.from('retained')]}]},pending:[]});
     const saved=await draft();
     page.on('request',r=>{if(new URL(r.url()).pathname.startsWith('/api/')&&!['GET','HEAD'].includes(r.method()))writes.push([r.method(),new URL(r.url()).pathname]);});
