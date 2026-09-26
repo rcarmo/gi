@@ -69,5 +69,26 @@ uses the actual Ctrl+Enter shortcut, not the initial incorrect Alt+Enter probe.
 One WebKit startup-focus assertion failed then passed unchanged; no root-cause
 fix is claimed. No timeout/test criteria weakened or supplied components edited.
 
-This slice awaits whole product CI and exact-source deployment. Basic web
-functionality remains the priority; terminal/autosave work stays paused.
+## Maintenance checkpoint, 26 September 2026
+
+Source commit `d62967ff6f5f013b45bd740040f460615b690bb9` is pushed to `main`.
+Whole-product CI [36236155040](https://github.com/rcarmo/gi/actions/runs/36236155040)
+succeeded on attempt 2, including all four Linux/macOS amd64/arm64 builds.
+Attempt 1 failed one WebKit tablet compose reload at the static “Loading Gi…”
+placeholder before auth/session/recovery requests appeared; all other test jobs
+passed and builds were skipped. The unchanged source then passed all 36 compose
+tests locally and the failed CI job on rerun. No timeout or assertion changed,
+and the startup failure's cause is not established. Failed artifacts are retained.
+
+No deployment occurred. Live port 8090 remains on `003b9e6`, PID `1403292` before
+maintenance, with 62 sessions, 51 turns, 146 messages, zero active turns and clean
+integrity/FK checks. Release checkout `/workspace/tmp/gi-receipts-release-d62967f`
+and binary `/tmp/gi-receipts-d62967f-bin/gi` were prepared; rebuild and reverify
+before any later deployment because host maintenance may remove temporary files.
+Evidence is in `/workspace/tmp/gi-send-receipts-d62967f`; local-only deployment
+snapshots are in `/workspace/tmp/gi-receipts-deploy` and must not be published.
+
+Rui authorised OS/NVIDIA maintenance and a host reboot. Work is paused, the goal
+loop is stopped without completion, and no automatic continuation is authorised.
+Resume only when Rui asks. The separate `/workspace/projects/gi` autosave changes
+remain uncommitted and untouched; the tracked diff matches its preservation patch.
