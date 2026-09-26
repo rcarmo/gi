@@ -199,7 +199,12 @@ test('Settings enrolls two passkeys and fresh login accepts each after restart w
   await page.screenshot({path:info.outputPath('passkey-settings.png')});
   await page.getByRole('button',{name:'Close settings',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('Passkey settings preserve draft Ω');
   await context.clearCookies();await page.reload();await expect(page.getByRole('textbox',{name:'Authentication code',exact:true})).toHaveCount(0);
-  await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:false});await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();await expect(page.getByRole('button',{name:'Cancel passkey prompt',exact:true})).toBeVisible();await page.waitForTimeout(100);await page.getByRole('button',{name:'Cancel passkey prompt',exact:true}).click();await expect(page.getByRole('alert')).toContainText('cancelled');await expect(page.getByRole('button',{name:'Sign in with passkey',exact:true})).toBeFocused();
+  await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:false});
+  // Cancel the actual credential prompt, not an in-flight native start write.
+  // The busy button appears before /login/start finishes; sleeping100ms raced
+  // its auth-file writer on CI and made the next start return a real409.
+  await page.evaluate(()=>{window.__loginGetStarted=false;const get=navigator.credentials.get.bind(navigator.credentials);navigator.credentials.get=options=>{window.__loginGetStarted=true;return get(options)};});
+  await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();await expect(page.getByRole('button',{name:'Cancel passkey prompt',exact:true})).toBeVisible();await expect.poll(()=>page.evaluate(()=>window.__loginGetStarted)).toBe(true);await page.getByRole('button',{name:'Cancel passkey prompt',exact:true}).click();await expect(page.getByRole('alert')).toContainText('cancelled');await expect(page.getByRole('button',{name:'Sign in with passkey',exact:true})).toBeFocused();
   await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:true});await page.getByRole('button',{name:'Sign in with passkey',exact:true}).click();await expect(page.locator('.compose-box textarea')).toHaveValue('Passkey settings preserve draft Ω');
  }finally{await auth.cdp.detach();await env.close();}
 });

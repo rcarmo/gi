@@ -4,6 +4,9 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Correct passkey prompt-cancel fixture after CI36232554338 failed: old100mssleep could abort /login/start before credentials.get,then real409 on immediate retry. Observe actual forwarded credentials.get call before cancelling;9repeat/189fullpasskey+121functional(11skips)+core/vet/hooks/review pass,no timeouts/security changes. Rapid cancel-during-start remains a separate open UX gap,not fixed by this test correction.
+- [ ] P1 auth cancellation: reproduce/repair immediate retry after cancelling pending /passkeys/login/start without auto-auth replay or weakened writer conflict guards. Trace from CI36232554338 retained; prompt-start observation is not physical OS-sheet acceptance.
+
 - [x] P1 HTTP fan-out: recover live-page lost same-session ack by exactrequestID+turn.submitted GETs/noPOSTretry,keeping newer draft.14HTTP browser cases inclattachment nativebytes/newsession/lostack/failure;12Stop/reconnect size×engine checks inclnextsend;core/vet/hooks+13helpers50assertions+121functional(11skips)pass. RequiredCI expanded; [contract/limits](../internal/web-delivery-recovery.md). CI/deploy pending; routed/lost-reload/steering uncertainty remains,secondary/TUI paused.
 - [x] P1 HTTP model→send acceptance:18control/model cases(twoengines×3sizes) prove actual provider request model +native metadata, no submit on selection,reload retention,failedselection immediate label+choice/draft retained,nextsend completes. Original chatflow tests now require unique request/exact turn/matching new posts instead of existing counts/sleeps.121functional(11skips)+core/vet/hooks+13helpers50assertions pass;review labelgap fixed,test-only runtime unchanged. [Evidence](../internal/web-delivery-recovery.md);CI pending.
 - [ ] P1 remaining delivery basics: routed/closed-page/steering acknowledgement recovery, bounded receipt lookup and identity assertions beyond chatflow; no general exactly-once claim.

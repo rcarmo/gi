@@ -71,6 +71,20 @@ These checks are included in required basic-web CI, gating all platform builds.
 The provider is deterministic; live Copilot availability was verified separately
 for the preceding HTTP-send fix, not rerun for every case here.
 
+## CI cancellation-test follow-up
+
+Product CI36232554338 failed1of189passkey cases: the login cancellation test
+waited100ms after the busy Cancel button appeared. The trace showed an aborted
+`/login/start`, then409 `Authentication state changed; retry`, rather than a
+cancelled WebAuthn prompt. The button is visible before the server start finishes.
+The test now observes the real forwarded `navigator.credentials.get` invocation
+before cancelling; no credentials, signals, requests or validation are replaced.
+Nine repeat cases and the full189case matrix pass, plus core/vet/hooks and121
+functional tests (11existing skips). Review confirmed the boundary is appropriate
+for this scenario. Rapid cancellation during the server start and immediate
+retry remains a separate UX gap. No physical OS-sheet or race-fix claim is made.
+The failed run/trace are retained and no timeout was increased.
+
 ## Verification and exclusions
 
 Core/vet/hooks and13helper tests/50assertions pass. Full isolated functional

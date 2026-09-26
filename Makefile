@@ -583,6 +583,11 @@ test-browser-auth:
 	$(GO) test ./internal/web ./internal/auth -run 'Test(Browser|ProtectedEndpoint|Auth)' -count=1
 
 .PHONY: test-passkey-criteria test-ux-passkeys
+.PHONY: test-passkey-cancel-repeat
+test-passkey-cancel-repeat: build-web test-passkey-criteria
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_PASSKEYS=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config playwright.ux.config.mjs tests/ux/passkeys.spec.mjs --project=chromium-phone --project=chromium-tablet --project=chromium-desktop --grep 'Settings enrolls two passkeys' --repeat-each=3
+
 test-passkey-criteria:
 	$(BUN) test tests/ux/support/passkey-criteria.test.ts
 
