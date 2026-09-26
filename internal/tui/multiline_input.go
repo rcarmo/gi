@@ -5,12 +5,15 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/clipperhouse/uax29/v2/graphemes"
 	gotui "github.com/grindlemire/go-tui"
 )
 
 type multilineInput struct {
 	app              *gotui.App
 	width            int
+	maxLines         int // zero leaves standalone inputs unbounded
+	scrollRow        int
 	border           gotui.BorderStyle
 	placeholder      string
 	placeholderStyle gotui.Style
@@ -175,7 +178,7 @@ func (m *multilineInput) Render(app *gotui.App) *gotui.Element {
 		if line.placeholder {
 			style = m.placeholderStyle
 		}
-		root.AddChild(gotui.New(gotui.WithText(line.text), gotui.WithTextStyle(style)))
+		root.AddChild(gotui.New(gotui.WithText(line.text), gotui.WithTextStyle(style), gotui.WithHeight(1), gotui.WithWrap(false)))
 	}
 	return root
 }
@@ -199,35 +202,69 @@ func (m *multilineInput) renderLines() []renderedLine {
 	if visibleWidth < 1 {
 		visibleWidth = 1
 	}
-	runes := []rune(m.text)
-	cursorPos := m.cursorPos
-	if cursorPos < 0 {
-		cursorPos = 0
-	}
-	if cursorPos > len(runes) {
-		cursorPos = len(runes)
-	}
-	if m.focused {
-		runes = append(runes[:cursorPos], append([]rune{m.cursorRune}, runes[cursorPos:]...)...)
-	}
-	segments := strings.Split(string(runes), "\n")
-	lines := make([]renderedLine, 0, len(segments))
-	for _, segment := range segments {
-		segmentRunes := []rune(segment)
-		if len(segmentRunes) == 0 {
-			lines = append(lines, renderedLine{text: ""})
-			continue
+	lines := []renderedLine{}
+	var line strings.Builder
+	column, runeOffset, cursorRow := 0, 0, -1
+	cursorPos := max(0, min(m.cursorPos, utf8.RuneCountInString(m.text)))
+	flush := func() { lines = append(lines, renderedLine{text: line.String()}); line.Reset(); column = 0 }
+	emit := func(value string, cursor bool) {
+		width := gotui.StringWidth(value)
+		// A one-column terminal cannot paint a two-cell glyph. Substitute only
+		// its display cell; the draft and logical cursor remain byte-identical.
+		if width > visibleWidth {
+			value = "�"
+			width = 1
 		}
-		for len(segmentRunes) > visibleWidth {
-			lines = append(lines, renderedLine{text: string(segmentRunes[:visibleWidth])})
-			segmentRunes = segmentRunes[visibleWidth:]
+		if column+width > visibleWidth && column > 0 {
+			flush()
 		}
-		lines = append(lines, renderedLine{text: string(segmentRunes)})
+		if cursor {
+			cursorRow = len(lines)
+		}
+		line.WriteString(value)
+		column += width
 	}
-	if len(lines) == 0 {
-		lines = []renderedLine{{text: ""}}
+	it := graphemes.FromString(m.text)
+	for it.Next() {
+		cluster := it.Value()
+		count := utf8.RuneCountInString(cluster)
+		// Cursor movement is still rune-based. If it falls inside a grapheme,
+		// display the marker before that cluster without splitting its bytes.
+		if cursorRow < 0 && cursorPos < runeOffset+count {
+			if m.focused {
+				emit(string(m.cursorRune), true)
+			} else {
+				cursorRow = len(lines)
+			}
+		}
+		if cluster == "\n" || cluster == "\r\n" {
+			flush()
+		} else {
+			emit(cluster, false)
+		}
+		runeOffset += count
 	}
-	return lines
+	if cursorRow < 0 {
+		if m.focused {
+			emit(string(m.cursorRune), true)
+		} else {
+			cursorRow = len(lines)
+		}
+	}
+	flush()
+	limit := m.maxLines
+	if limit <= 0 || len(lines) <= limit {
+		m.scrollRow = 0
+		return lines
+	}
+	if cursorRow < m.scrollRow {
+		m.scrollRow = cursorRow
+	}
+	if cursorRow >= m.scrollRow+limit {
+		m.scrollRow = cursorRow - limit + 1
+	}
+	m.scrollRow = max(0, min(m.scrollRow, len(lines)-limit))
+	return lines[m.scrollRow : m.scrollRow+limit]
 }
 
 func (m *multilineInput) helpLine() string {

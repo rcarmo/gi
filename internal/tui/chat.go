@@ -1904,6 +1904,7 @@ func (c *chatTUI) modelMenuVisibleRows() int {
 	if c.input != nil {
 		input := *c.input
 		input.width = max(1, width-padding)
+		input.maxLines = editorViewportRows(height, height-padding-len(c.footerLines(width))-len(c.extensionWidgetLines())-2-4-3)
 		inputRows = max(1, len(input.renderLines()))
 	}
 	// Leave transcript, editor/separators and the existing footer intact.
@@ -3916,24 +3917,26 @@ func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
 	c.ensureInput()
 	c.input.width = contentWidth
 	c.input.suspended = c.workspaceIndex.active || c.modelMenuOpen
-	activeInput := c.input
-	inputSlot := 0
-	if c.search.active {
-		c.refreshTranscriptSearch(contentWidth)
-		activeInput = c.search.input
-		activeInput.width = contentWidth
-		inputSlot = 1
-	}
-	inputHeight := activeInput.Render(app).HeightForWidth(contentWidth)
-	if inputHeight < 1 {
-		inputHeight = 1
-	}
 	footerLines := c.footerLines(contentWidth)
 	widgetLines := c.extensionWidgetLines()
 	if c.editorAskActive {
 		widgetLines = append(widgetLines, "? "+c.editorAskPrompt+"  (Enter submit · Esc cancel)")
 	}
 	menuHeight := c.modelMenuHeight() + c.workspaceIndexHeight()
+	c.boundEditor(h, padding, len(footerLines), len(widgetLines), menuHeight, false)
+	activeInput := c.input
+	inputSlot := 0
+	if c.search.active {
+		c.refreshTranscriptSearch(contentWidth)
+		activeInput = c.search.input
+		activeInput.width = contentWidth
+		activeInput.maxLines = c.input.maxLines
+		inputSlot = 1
+	}
+	inputHeight := activeInput.Render(app).HeightForWidth(contentWidth)
+	if inputHeight < 1 {
+		inputHeight = 1
+	}
 	reservedHeight := (padding * 2) + len(footerLines) + len(widgetLines) + inputHeight + 2 + menuHeight
 	transcriptHeight := h - reservedHeight
 	if transcriptHeight < 4 {

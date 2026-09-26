@@ -401,6 +401,10 @@ test-tui-index: build
 test-tui-selection: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-selection.mjs
 
+.PHONY: test-tui-editor-viewport
+test-tui-editor-viewport: build
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-editor-viewport.mjs
+
 test-tui-search: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-search.mjs
 

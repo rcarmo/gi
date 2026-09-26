@@ -110,8 +110,6 @@ func (c *chatTUI) renderRegular(app *gotui.App) *gotui.Element {
 	c.ensureInput()
 	c.input.width = w
 	c.input.suspended = c.modelMenuOpen
-	input := app.MountPersistent(c, 0, func() gotui.Component { return c.input })
-	inputHeight := max(1, input.HeightForWidth(w))
 	footer := c.footerLines(w)
 	widgets := c.extensionWidgetLines()
 	if c.editorAskActive {
@@ -125,6 +123,9 @@ func (c *chatTUI) renderRegular(app *gotui.App) *gotui.Element {
 	if len(pending) > 0 && c.regularBusy() {
 		previewHeight = min(3, len(pending))
 	}
+	c.boundEditor(h, 0, len(footer), len(widgets)+previewHeight, menuHeight, true)
+	input := app.MountPersistent(c, 0, func() gotui.Component { return c.input })
+	inputHeight := max(1, input.HeightForWidth(w))
 	dock := min(h-1, 2+inputHeight+len(footer)+len(widgets)+menuHeight+previewHeight)
 	app.SetInlineHeight(max(1, dock))
 	root := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidthPercent(100), gotui.WithHeight(dock))

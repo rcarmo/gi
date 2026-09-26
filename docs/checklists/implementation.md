@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Bound terminal editor viewport with pi-tui30%/five-line policy clamped to dock/menu space; cursor-following grapheme/cell rows, unchanged full draft and idle size. Go/vet/hooks+18editor/model/search/regularPTYs+107functional(11skips) pass. Six long-draft PTYs verify exact Unicode bytes after one explicit submission, zero navigation writes, resize/menu/cursor retention. Whole-draft layout latency and extreme tiny/widget cases remain;CI/deploy pending. [Evidence](../internal/tui-editor-viewport.md).
+
 - [x] Preserve complete validated parenthesised HTTP(S) tokens (including ordinary trailing punctuation) until go-tui wraps OSC8 spans; no fragment reconstruction/validator relaxation/idle rows. Race×3+Go/vet/hooks+6link/3search/3selectionPTYS+107functional(11existing skips) pass. Review-found punctuation gap repaired; physical activation/complex inline-code/table and prewrappedMarkdown search remain open. [Evidence](../internal/tui-wrapped-links.md);CI/deploy pending.
 
 - [x] Add fullscreen word/line multiclick: pi-tui500ms same-word sequence, Unicode display bounds and `/`/`-` joiners, granularity drag/release/edge scroll, zero extra rows. OSC8/tool-click ownership and clipboard/regular/session/reflow guards preserved. Go/vet/hooks+9selection/search/regular PTYs+107functional(11existing skips) pass; held-press redraw race repaired/tested. Locale/cross-wrap segmentation limits explicit;CI/deploy pending. [Evidence](../internal/tui-word-selection.md).
