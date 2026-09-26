@@ -2369,6 +2369,17 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 		c.completeEditorAsk(text)
 		return
 	}
+	// Reject before changing the editor/history or claiming media. A plaintext
+	// draft needs the same preservation as an attached draft, including while
+	// another turn is active. Local/slash commands remain available.
+	if ordinaryMediaPrompt(text) && strings.TrimSpace(c.cfg.DefaultModel) == "" {
+		c.showQueueCommand(c.firstUseModelPromptLines())
+		c.status = "Select a model with /model <name>"
+		if c.app != nil {
+			c.app.MarkDirty()
+		}
+		return
+	}
 	var claim *mediaClaim
 	if ordinaryMediaPrompt(text) {
 		if err := c.refreshPendingMedia(); err != nil {

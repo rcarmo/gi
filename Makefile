@@ -433,6 +433,13 @@ test-tui-media-journal:
 test-held-retry:
 	$(GO) test -race -count=3 ./internal/store ./internal/turn ./internal/tui -run 'TUIRetry|RetryHeld|HeldRetry|HoldAndResolve|HoldResolution|SkipHeld'
 
+.PHONY: test-tui-unselected-model test-tui-submit-guards
+test-tui-submit-guards:
+	$(GO) test -race -count=3 ./internal/tui -run 'TUIUnselectedModel|PendingMediaCommandsLimitsAndNoModelDraft'
+
+test-tui-unselected-model: build
+	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-unselected-model.mjs
+
 .PHONY: test-tui-retry-commands
 test-tui-retry-commands: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-retry-commands.mjs

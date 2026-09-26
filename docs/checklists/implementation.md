@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Preserve plaintext draft/cursor/undo/history/queued shortcuts when no model is selected, before admission/media mutation, idle or busy. Six fullscreen/regularPTYs prove repeatedReturn retention, Alt-M no-submit then exactUnicode one-turn admission/noidle growth; race×3/core/vet/hooks+107functional(11skips) pass,requiredCI updated. [Evidence](../internal/tui-submit-guards.md);review timeout not acceptance,CI/deploy pending. Durable text/queued-draft persistence remains separate.
+
 - [x] Deploy exactee4e9c2 after wholeCI36221007199 from detached source; includes cache/media/queue, excludes retry9e49ad8.8090PID1047653/PGID1047547; six read-only Chromium/WebKit probes pass,zero writes/errors/permissions. DB62/51/146 integrity/FKs+normalisedSQL/auth unchanged. DisposablePTY evidence retained; no live terminal mutations or physical/Visual acceptance. [Deployment](../internal/tui-queue-commands.md#deployment).
 
 - [x] Harden native held-turn retry admission with a separate durable reservation token, queue-only follow-on, transactional resolution and no resend from unknown recovery. Protect resolved/pending holds from rehold/clear/stale-claim replay; strip prior routing/continuation metadata. Race×3/core/vet/hooks+107functional(11existing skips) pass, including two-client rollback boundary and schema/reopen/fault tests. Review-found missing submission-audit recovery remains blocked, not silently released. [Contract/evidence](../internal/held-turn-retry.md);CI/deploy pending,no new UI.

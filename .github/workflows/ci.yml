@@ -42,7 +42,7 @@ jobs:
         run: go test ./...
 
       - name: Durable media, queue and held-retry race checks
-        run: make test-tui-media-journal test-terminal-queue test-held-retry
+        run: make test-tui-media-journal test-terminal-queue test-held-retry test-tui-submit-guards
 
       - name: Shell cancellation race checks
         run: make test-shell-runtime
@@ -202,7 +202,7 @@ jobs:
           retention-days: 3
 
   terminal-retry:
-    name: Terminal held retry
+    name: Terminal retry and submit guards
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -216,13 +216,15 @@ jobs:
           bun-version: latest
       - run: sudo apt-get update && sudo apt-get install -y tmux sqlite3
       - run: bun install
-      - run: make test-tui-retry-commands
+      - run: make test-tui-retry-commands test-tui-unselected-model
       - name: Upload terminal retry evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: terminal-retry-evidence
-          path: test-results/tui-retry-commands/
+          path: |
+            test-results/tui-retry-commands/
+            test-results/tui-unselected-model/
           if-no-files-found: ignore
 
   auth-state:
