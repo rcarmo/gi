@@ -84,6 +84,12 @@ assertion variable typo were corrected, with failures retained in
 timeout or assertion tolerance increased. A separate required ten-minute CI job
 runs thinking acceptance rather than extending an existing job's budget.
 
+CI `36254114983` for initial source `715dfb0` passed the thinking ownership job
+but failed the report helper: one test with 102 CLI subprocess calls exceeded
+Bun's default five-second limit. The helper is now split into five independent
+cases. All assertion lines and subprocess calls are preserved; seven report/ledger
+tests pass with 1954 assertions. No runtime code or timeout changed for this fix.
+
 Whole-product CI and exact-source deployment are still required. Shared35 remains
 unmapped: this fixes the thinking prerequisite but does not resolve its positive
 local-estimate labelling clause. Context stays measured-provider or unavailable;

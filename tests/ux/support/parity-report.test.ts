@@ -6,11 +6,12 @@ import {execFileSync} from 'node:child_process';
 
 const script=resolve(import.meta.dir,'../../../scripts/ux-parity-report.mjs');
 const projects=['chromium-phone','chromium-tablet','chromium-desktop','webkit-phone','webkit-tablet','webkit-desktop'];
+const spec=(id:string,count:number)=>({title:`${id} mapped test`,tests:projects.slice(0,count).map(projectName=>({projectName,results:[{status:'passed'}]}))});
+
 test('parity report keeps shared evidence separate and requires every project',()=>{
  const dir=mkdtempSync(join(tmpdir(),'gi-parity-report-'));
  try{
   const input=join(dir,'results.json');
-  const spec=(id:string,count:number)=>({title:`${id} mapped test`,tests:projects.slice(0,count).map(projectName=>({projectName,results:[{status:'passed'}]}))});
   writeFileSync(input,JSON.stringify({suites:[{specs:[spec('@shared-28',6),spec('@ux-original-001',5)]}]}));
   execFileSync(process.execPath,[script,input],{cwd:dir});
   const report=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
@@ -208,6 +209,15 @@ test('parity report keeps shared evidence separate and requires every project',(
   expect(withReorder.sharedRows.find((row:any)=>row.id==='@shared-27').status).toBe('not-run');
   expect(withDeletion.sharedRows.find((row:any)=>row.id==='@shared-37').status).toBe('pass');
   expect(withDeletion.rows.find((row:any)=>row.id==='@ux-original-024').status).toBe('unmapped');
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+test('parity report combines fit and follow-on classic slices with seeded shared fixtures',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'gi-parity-report-'));
+ try{
+  const input=join(dir,'results.json');
+  writeFileSync(input,JSON.stringify({suites:[{specs:[spec('@shared-28',6),spec('@ux-original-001',5)]}]}));
+  const steer=join(dir,'steer.json');writeFileSync(steer,JSON.stringify({suites:[{specs:[spec('@shared-30',6)]}]}));
   const fit=join(dir,'fit.json');writeFileSync(fit,JSON.stringify({suites:[{specs:[spec('@ux-compaction-006',6),spec('@ux-compaction-007',6)]}]}));
   execFileSync(process.execPath,[script,input,steer,fit],{cwd:dir});
   const all=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
@@ -309,6 +319,12 @@ test('parity report keeps shared evidence separate and requires every project',(
   expect(grouped.rows.find((row:any)=>row.id==='@ux-session-002').status).toBe('pass');
   expect(grouped.rows.find((row:any)=>row.id==='@ux-session-005').status).toBe('not-run');
   expect(grouped.counts.unmapped).toBe(135);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+test('parity report tracks swipe, mobile, settings and quick-action slices independently',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'gi-parity-report-'));
+ try{
   const swipe=join(dir,'session-swipe.json');writeFileSync(swipe,JSON.stringify({suites:[{specs:[spec('@ux-session-005',6)]}]}));
   execFileSync(process.execPath,[script,swipe],{cwd:dir});
   const swiped=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
@@ -402,6 +418,12 @@ test('parity report keeps shared evidence separate and requires every project',(
   const quickActions=JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
   expect(quickActions.counts.pass).toBe(4);expect(quickActions.counts.unmapped).toBe(135);
   for(const id of ['@ux-original-004','@ux-compose-004'])expect(quickActions.rows.find((row:any)=>row.id===id).status).toBe('unmapped');
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+test('parity report requires complete native-shell, cached-settings and tab-close matrices',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'gi-parity-report-'));
+ try{
   const nativeShell=join(dir,'native-shell.json'),shellIds=['@ux-shell-002','@ux-shell-003','@ux-shell-005'];
   writeFileSync(nativeShell,JSON.stringify({suites:[{specs:shellIds.map(id=>spec(id,5))}]}));
   execFileSync(process.execPath,[script,nativeShell],{cwd:dir});
@@ -433,6 +455,13 @@ test('parity report keeps shared evidence separate and requires every project',(
   expect(withTabClose.counts).toEqual({pass:1,'not-run':100,unmapped:135});
   expect(withTabClose.rows.find((row:any)=>row.id==='@ux-shell-007').status).toBe('pass');
   for(const id of ['@ux-workspace-009','@ux-workspace-010','@ux-shell-009'])expect(withTabClose.rows.find((row:any)=>row.id===id).status).toBe('unmapped');
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+test('parity report keeps workspace pin and additive slices isolated from duplicate steer evidence',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'gi-parity-report-'));
+ try{
+  const steer=join(dir,'steer.json');writeFileSync(steer,JSON.stringify({suites:[{specs:[spec('@shared-30',6)]}]}));
   const pin=join(dir,'workspace-pin.json');
   const readPin=()=>JSON.parse(readFileSync(join(dir,'test-results/ux-parity/matrix.json'),'utf8'));
   writeFileSync(pin,JSON.stringify({suites:[{specs:[spec('@ux-workspace-011',5)]}]}));
