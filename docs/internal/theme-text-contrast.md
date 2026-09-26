@@ -34,4 +34,10 @@ Full capture run `run-1790392290634-774386` completed all 72 captures without er
 
 Both desktop/dark model hints compute `rgb(130, 134, 139)`. The preceding full run measured 242–1,025 compose pixels. Raw frames, hashes, requests and failures are retained. No masks, tolerances, image resizing, altered raster flags or repeat-selection rules apply. Full-frame equality remains mandatory; capability differences and unstable rasterisation still block acceptance.
 
-This slice awaits whole CI before deployment. Live Gi remains the verified `daa8371` build. Frozen feature mappings and broader TUI/physical-device acceptance are unchanged.
+## Deployment
+
+Exact `e0ed68a` passed whole rerun CI36215674941 and was rebuilt from detached checkout `/workspace/tmp/gi-theme-context-e0ed68a`. It is deployed on8090 as PID839609, PGID/SID839508. The earlier CI36214891606 exceeded its15-minute compose-job limit during voice tests after surface/model/session tests passed; required voice coverage was split separately in `d2caf16`, without removing targets or raising timeouts. That CI-only change and TUI search `efe1880` are excluded from the deployed source.
+
+Six live Chromium/WebKit × viewport probes pass system light/dark text colours, disabled context reason, existing model listbox/Tab order, Settings handoff, resize, session metadata and draft retention. Writes/errors are empty; no permissions requested or compaction/session/auth mutations. DB62sessions/51turns/146messages, integrity/FKs clean, auth absent before/after. SQL excluding runtime leases is unchanged SHA256 `300ce6794c6fe9b8fb93c826fcfecf093676a6cf369f4be4e11dd624a829653d`.
+
+Frozen feature mappings and broader TUI/physical-device/Visual acceptance are unchanged. The exact pixel failures above remain open.

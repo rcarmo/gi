@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Deploy exact e0ed68a after whole rerunCI36215674941;8090PID839609/PGID839508. Six read-only live probes pass light/dark contrast, native disabled compaction reason, model Tab order/Settings/draft/prior controls;zero writes/errors/permissions,DB62/51/146+SQL/auth unchanged. TUIsearch efe1880 and CI-onlyd2caf16 excluded pending their CI; exactpixel15/36repeat+18cross failures remain. [Evidence](../internal/theme-text-contrast.md#deployment).
+
 - [x] Split voice browser coverage into its own required10mjob after themeCI36214891606 hit the15mcompose limit (annotation108328801340), after surface/model/session steps passed. Original compose15mbudget and every target/artifact retained; no tests/timeouts relaxed. Follow-up workflow pending; no deployment claim.
 
 - [x] Add fullscreen cross-soft-wrap search for source-validated single-paragraph renderer leaves. Hard breaks, leaf/message boundaries and hidden content excluded; mapped grapheme segments preserve one occurrence, draft/scroll and zero idle rows. Go/vet/hooks+3search/3selection PTYs+107functional(11existing skips) pass. Prewrapped Markdown/inline-code layouts and stable reflow anchors remain open. [Scope/evidence](../internal/tui-search-wrap.md); CI/deploy pending.

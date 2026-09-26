@@ -27,4 +27,4 @@ The TUI already provides explicit `/compact` and Alt-C actions and native error 
 
 Initial assertions assumed different native wording and a visible meter during an incomplete initial session refresh; they now assert the actual native reason and coherent no-stale-meter behaviour. The delayed-route fixture was changed to intercept one response and await its completion before removal. A delegated review timed out without a result.
 
-The slice is not deployed until whole CI succeeds. Live Gi remains the verified `daa8371` build on 8090. No new pixel result is claimed; exact parity, physical/screen-reader and Visual acceptance remain open.
+The slice is included in [verified deployment `e0ed68a`](theme-text-contrast.md#deployment) after whole CI36215674941. Six read-only live probes verified the actual `Not enough eligible context` reason without activating compaction or mutating live data. Exact parity, physical/screen-reader and Visual acceptance remain open.
