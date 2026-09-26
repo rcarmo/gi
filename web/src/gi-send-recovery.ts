@@ -1,40 +1,32 @@
 import { pendingSendKey, type PendingSend } from './gi-drafts.js';
 
-// A lost HTTP reply is not a rejected prompt. Confirm only one same-session
-// token-tagged turn past the rollback boundary; never resubmit or match text.
+// Native source-scoped receipts cover returned local/routed/steered admission.
+// Never scan another chat, infer from text, or retry POST. Legacy/no receipt is
+// unknown; duplicate tokens are rejected by the native bounded lookup.
 export async function recoverSubmittedPrompt(
     sessionId: string, token: string, read: (path: string) => Promise<any>,
 ): Promise<any | null> {
     try {
-        const snapshot = await read(`/api/sessions/${encodeURIComponent(sessionId)}/turns`);
-        if (!Array.isArray(snapshot?.turns)) return null;
-        const matches = snapshot.turns.filter((turn: any) =>
-            turn?.session_id === sessionId && turn?.metadata?.client_request_id === token);
-        if (matches.length !== 1 || typeof matches[0].id !== 'string' || !matches[0].id) return null;
-        const turn = matches[0];
-        const audit = await read(`/api/turns/${encodeURIComponent(turn.id)}/events`);
-        if (!Array.isArray(audit?.events) || !audit.events.some((event: any) =>
-            event?.type === 'turn.submitted' && event?.turn_id === turn.id && event?.session_id === sessionId)) return null;
-        return { turn_id: turn.id, session_id: sessionId, status: turn.status, queued: turn.status === 'queued' };
-    } catch { return null; } // failed/absent/ambiguous evidence remains unknown
+        const receipt = await read(`/api/sessions/${encodeURIComponent(sessionId)}/send-receipt?client_request_id=${encodeURIComponent(token)}`);
+        if (receipt?.confirmed !== true || receipt.source_session_id !== sessionId || receipt.client_request_id !== token) return null;
+        const result = receipt.result;
+        if (typeof result?.turn_id !== 'string' || !result.turn_id || typeof result.session_id !== 'string' || !result.session_id) return null;
+        if (result.session_id !== sessionId && (result.source_session_id !== sessionId || result.routed !== true)) return null;
+        return result;
+    } catch { return null; }
 }
 
-// Bound startup network work independently of accumulated local pending rows.
-// One consistent turn snapshot per session, at most six session reads and six
-// receipts, two workers, plus a caller-owned deadline. Unchecked rows stay unknown.
+// At most six indexed receipt reads, two workers and caller-owned deadline.
+// Unchecked captures remain unknown. Native responses are size-bounded too.
 export async function recoverPendingSends(pending: PendingSend[], read: (path: string) => Promise<any>): Promise<Set<string>> {
     const confirmed = new Set<string>();
     const selected = pending.slice(0, 6);
-    const snapshots = new Map<string, Promise<any>>();
     let cursor = 0;
     const worker = async () => {
         while (cursor < selected.length) {
             const item = selected[cursor++];
             if (!item.sessionId || !item.token) continue;
-            const path = `/api/sessions/${encodeURIComponent(item.sessionId)}/turns`;
-            if (!snapshots.has(path)) snapshots.set(path, read(path).catch(() => null));
-            const result = await recoverSubmittedPrompt(item.sessionId, item.token,
-                target => target === path ? snapshots.get(path)! : read(target));
+            const result = await recoverSubmittedPrompt(item.sessionId, item.token, read);
             if (result) confirmed.add(pendingSendKey(item.sessionId, item.token));
         }
     };

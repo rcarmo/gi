@@ -1,5 +1,10 @@
 # Basic HTTP delivery and run-control checks
 
+Follow-up: [bounded native send receipts](web-send-receipts.md) supersedes the
+same-session turn-history lookup below for new sends, covering routed and
+steered results too. This document retains the earlier implementation and its
+acceptance history. Receipt-free legacy admissions remain unknown.
+
 ## Lost acknowledgement
 
 A native prompt keeps running after the browser disconnects. Previously, losing

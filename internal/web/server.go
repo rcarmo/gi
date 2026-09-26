@@ -318,6 +318,8 @@ func (s *Server) handleSessionSubroutes(w http.ResponseWriter, r *http.Request) 
 		s.handlePrompt(w, r, sessionID)
 	case "turns":
 		s.handleTurns(w, r, sessionID)
+	case "send-receipt":
+		s.handleSendReceipt(w, r, sessionID)
 	case "compaction":
 		s.handleSessionCompaction(w, r, sessionID)
 	case "activity":
@@ -674,6 +676,10 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
 		return
 	}
+	if req.ClientRequestID != "" && !store.ValidWebSendToken(req.ClientRequestID) {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid client_request_id"})
+		return
+	}
 	if s.handleModelCommand(w, r, sessionID, req.Prompt) {
 		return
 	}
@@ -717,10 +723,6 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 		if metadata == nil {
 			metadata = map[string]any{}
 		}
-		if len(req.ClientRequestID) > 128 {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "client_request_id too long"})
-			return
-		}
 		if req.ClientRequestID != "" {
 			metadata["client_request_id"] = req.ClientRequestID
 		}
@@ -737,6 +739,13 @@ func (s *Server) handlePrompt(w http.ResponseWriter, r *http.Request, sessionID 
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
+	}
+	if req.ClientRequestID != "" {
+		// Native admission already happened: receipt failure is never a reason
+		// to return rejection or retry the POST. Missing recovery stays unknown.
+		if receiptErr := s.store.RecordWebSendReceipt(submitCtx, sessionID, req.ClientRequestID, result); receiptErr != nil {
+			log.Printf("record web send receipt: %v", receiptErr)
+		}
 	}
 	writeJSON(w, http.StatusAccepted, result)
 }

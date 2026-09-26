@@ -6,6 +6,8 @@ Priority incident: [basic web send on HTTP hosts](web-http-send.md) records the
 secure-context UUID failure, repair and native end-to-end acceptance.
 [HTTP delivery recovery and run controls](web-delivery-recovery.md) records
 same-session lost-ack reconciliation and attachment/Stop/reconnect checks.
+[Bounded native send receipts](web-send-receipts.md) covers routed/steered reply
+recovery without chat-history scans; it is not submission idempotency.
 
 For the current product comparison, see [features and Piclaw parity](../feature-parity.md).
 The [full web/TUI plan](full-web-tui-parity-plan.md) and

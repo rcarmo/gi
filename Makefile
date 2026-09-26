@@ -177,6 +177,10 @@ logs:
 
 # ── Checks and tests ────────────────────────────────────────────────────
 
+.PHONY: test-web-send-receipts
+test-web-send-receipts:
+	$(GO) test -race -count=3 ./internal/store ./internal/web -run WebSendReceipt
+
 .PHONY: test-web-http-helpers test-web-basic-send test-web-basic-controls
 
 test-web-basic-controls:

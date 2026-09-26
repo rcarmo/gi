@@ -62,3 +62,17 @@ test('HTTP model selection governs actual provider requests after reload; reject
   const turns=(await h.read(`/api/sessions/${h.id}/turns`)).turns;expect(turns).toHaveLength(3);expect(new Set(turns.map(t=>t.id)).size).toBe(3);expect(errors).toEqual([]);
  }finally{await h.close()}
 });
+
+test('HTTP lost steering acknowledgement confirms the source receipt without restoring or resending follow-up',async({page},info)=>{
+ const h=await setup(page,info);let release;const gate=new Promise(r=>release=r);let posts=0,admitted,payload;
+ try{
+  const text=`steered once ${info.project.name}`,newer='next unsent after steering';
+  await page.route(`**/api/sessions/${h.id}/prompt`,async r=>{posts++;payload=r.request().postDataJSON();const response=await r.fetch();expect(response.status()).toBe(202);admitted=await response.json();await gate;await r.abort('failed')});
+  // Ctrl+Enter is the supplied explicit steer shortcut, not queued Return.
+  await h.input.fill(text);await h.input.press('Control+Enter');await expect.poll(()=>admitted?.turn_id).toBeTruthy();expect(admitted.turn_id).toBe(h.turn);expect(payload.intent).toBe('steer');await h.input.fill(newer);release();
+  await expect(page.getByRole('status').filter({hasText:'Sending message'})).toHaveCount(0);await expect(h.input).toHaveValue(newer);expect(posts).toBe(1);
+  const receipt=await h.read(`/api/sessions/${h.id}/send-receipt?client_request_id=${encodeURIComponent(payload.client_request_id)}`);expect(receipt.confirmed).toBe(true);expect(receipt.result.turn_id).toBe(h.turn);expect(receipt.result.session_id).toBe(h.id);
+  h.release();await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/turns`)).turns.find(t=>t.id===h.turn)?.status).toBe('completed');
+  expect((await h.read(`/api/sessions/${h.id}/turns`)).turns).toHaveLength(1);await page.reload();await expect(h.input).toHaveValue(newer);expect(posts).toBe(1);
+ }finally{release();await h.close()}
+});

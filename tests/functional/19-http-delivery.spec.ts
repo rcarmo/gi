@@ -53,7 +53,7 @@ for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
   const browser=await type.launch();const context=await browser.newContext();const page=await context.newPage();
   try{
    await page.goto(origin);const input=page.locator('.compose-box textarea');await expect(input).toBeVisible();const id=await page.evaluate(()=>localStorage.getItem('gi_session_id'));const text=`unknown-ack-${name}-${Date.now()}`;let posts=0,receiptReads=0;
-   await page.route(`**/api/sessions/${id}/turns`,r=>{receiptReads++;return r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Receipt lookup unavailable'})})});
+   await page.route(`**/api/sessions/${id}/send-receipt?*`,r=>{receiptReads++;return r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Receipt lookup unavailable'})})});
    await page.route(`**/api/sessions/${id}/prompt`,async r=>{posts++;const accepted=await r.fetch();expect(accepted.status()).toBe(202);await r.abort('failed')});
    await input.fill(text);await input.press('Enter');await expect(page.getByText(/Delivery is unknown/).first()).toBeVisible();await expect(input).toHaveValue(text);expect(receiptReads).toBeGreaterThan(0);expect(posts).toBe(1);
    await expect(page.locator('.post.agent-post .post-content').filter({hasText:text})).toHaveCount(1);const turns=(await(await context.request.get(`${origin}/api/sessions/${id}/turns`)).json()).turns;expect(turns.filter((t:any)=>t.prompt===text)).toHaveLength(1);
@@ -97,8 +97,28 @@ for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
   try{
    await page.goto(origin);let input=page.locator('.compose-box textarea');await expect(input).toBeVisible();const id=await page.evaluate(()=>localStorage.getItem('gi_session_id'));const text=`closed-unknown-${name}-${Date.now()}`;
    heldPath=`/api/sessions/${id}/prompt`;held={gate,admitted:null,count:0};heldReplies.set(heldPath,held);await input.fill(text);await input.press('Enter');await expect.poll(()=>held!.admitted?.turn_id).toBeTruthy();await expect(page.locator('.post.agent-post .post-content').filter({hasText:text})).toHaveCount(1);await page.close();release();
-   page=await context.newPage();await page.route(`**/api/sessions/${id}/turns`,r=>r.fulfill({status:503,contentType:'application/json',body:'{"error":"Receipt unavailable"}'}));await page.goto(origin);input=page.locator('.compose-box textarea');await expect(input).toHaveValue(text);await expect(page.getByText(/Recovered an unacknowledged send. Delivery is unknown/)).toBeVisible();expect(held.count).toBe(1);
+   page=await context.newPage();await page.route(`**/api/sessions/${id}/send-receipt?*`,r=>r.fulfill({status:503,contentType:'application/json',body:'{"error":"Receipt unavailable"}'}));await page.goto(origin);input=page.locator('.compose-box textarea');await expect(input).toHaveValue(text);await expect(page.getByText(/Recovered an unacknowledged send. Delivery is unknown/)).toBeVisible();expect(held.count).toBe(1);
    await page.reload();await expect(input).toHaveValue(text);expect((await(await context.request.get(`${origin}/api/sessions/${id}/turns`)).json()).turns.filter((t:any)=>t.prompt===text)).toHaveLength(1);expect(held.count).toBe(1);
   }finally{release();heldReplies.delete(heldPath);await context.close();await browser.close()}
+ });
+}
+
+for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
+ for(const reopen of [false,true])test(`${name} HTTP routed send ${reopen?'after close':'lost acknowledgement'} recovers source receipt without cross-chat scans`,async()=>{
+  const browser=await type.launch();const context=await browser.newContext();let page=await context.newPage();let release!:()=>void;const gate=new Promise<void>(r=>release=r);let path='';let held:{gate:Promise<void>,admitted:any,count:number};
+  try{
+   await page.goto(origin);let input=page.locator('.compose-box textarea');await expect(input).toBeVisible();const id=await page.evaluate(()=>localStorage.getItem('gi_session_id'));
+   const before=(await(await context.request.get(`${origin}/api/sessions/${id}/turns`)).json()).turns||[];
+   const text=`@peer routed-${name}-${Date.now()}`,newer='source newer draft';path=`/api/sessions/${id}/prompt`;held={gate,admitted:null,count:0};
+   if(reopen)heldReplies.set(path,held);else await page.route(`**${path}`,async r=>{held.count++;const response=await r.fetch();expect(response.status()).toBe(202);held.admitted=await response.json();await gate;await r.abort('failed')});
+   await input.fill(text);await input.press('Enter');await expect.poll(()=>held.admitted?.turn_id).toBeTruthy();expect(held.admitted.routed).toBe(true);expect(held.admitted.source_session_id).toBe(id);expect(held.admitted.session_id).not.toBe(id);await input.fill(newer);
+   await expect.poll(async()=>{const data=await(await context.request.get(`${origin}/api/sessions/${held.admitted.session_id}/turns`)).json();return data.turns.find((t:any)=>t.id===held.admitted.turn_id)?.status}).toBe('completed');
+   if(reopen){await page.close();release();page=await context.newPage();await page.goto(origin);input=page.locator('.compose-box textarea')}
+   else release();
+   await expect(input).toHaveValue(newer);await expect(page.getByRole('status').filter({hasText:'Sending message'})).toHaveCount(0);expect(held.count).toBe(1);expect(await page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe(id);
+   await page.reload();await expect(input).toHaveValue(newer);
+   const turns=(await(await context.request.get(`${origin}/api/sessions/${held.admitted.session_id}/turns`)).json()).turns;expect(turns.filter((t:any)=>t.id===held.admitted.turn_id)).toHaveLength(1);
+   expect((await(await context.request.get(`${origin}/api/sessions/${id}/turns`)).json()).turns||[]).toHaveLength(before.length);
+  }finally{release();heldReplies.delete(path);await context.close();await browser.close()}
  });
 }

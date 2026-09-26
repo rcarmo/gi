@@ -27,6 +27,17 @@ func initSchema(db *sql.DB) error {
 		`create index if not exists idx_sessions_state_active_turn on sessions(json_extract(state_json, '$.active_turn_id'));`,
 		`create index if not exists idx_sessions_state_model on sessions(json_extract(state_json, '$.model'));`,
 
+		// HTTP reply recovery only, not submission idempotency. Every successful
+		// request appends a receipt; reused tokens therefore become ambiguous.
+		`create table if not exists web_send_receipts (
+			id integer primary key autoincrement,
+			source_session_id text not null references sessions(id) on delete cascade,
+			client_request_id text not null,
+			result_json text not null,
+			created_at text not null
+		);`,
+		`create index if not exists idx_web_send_receipts_request on web_send_receipts(source_session_id, client_request_id);`,
+
 		`create table if not exists session_identities (
 			session_id text primary key,
 			agent_id text not null,

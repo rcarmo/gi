@@ -44,6 +44,9 @@ jobs:
       - name: Durable media, queue and held-retry race checks
         run: make test-tui-media-journal test-tui-text-journal test-terminal-queue test-held-retry test-tui-submit-guards test-concurrent-session-submit
 
+      - name: Web send receipt race checks
+        run: make test-web-send-receipts
+
       - name: Shell cancellation race checks
         run: make test-shell-runtime
 

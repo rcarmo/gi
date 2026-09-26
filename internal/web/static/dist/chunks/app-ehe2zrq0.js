@@ -1,3 +1,15 @@
+// web/src/gi-random-id.ts
+function randomClientId(source = globalThis.crypto) {
+  if (!source || typeof source.getRandomValues !== "function") {
+    throw new Error("Secure random generation is unavailable; message not sent.");
+  }
+  const bytes = source.getRandomValues(new Uint8Array(16));
+  bytes[6] = bytes[6] & 15 | 64;
+  bytes[8] = bytes[8] & 63 | 128;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
 // web/src/gi-turn-event.ts
 function staleTerminalEvent(type, data, currentTurn) {
   const terminal = type === "agent_response" || type === "agent_status" && !["running", "cancelling"].includes(data?.status);
@@ -1700,6 +1712,224 @@ function bindComposeSending(root, sending) {
   };
 }
 
+// web/src/gi-drafts.ts
+var emptyDraft = () => ({ text: "", media: [], fileRefs: [], messageRefs: [] });
+var copy = (d) => ({ text: d.text, media: [...d.media], fileRefs: [...d.fileRefs], messageRefs: [...d.messageRefs] });
+var key = (value) => typeof value === "object" ? JSON.stringify(value) : String(value);
+var unique = (values, identity = key) => [...new Map(values.map((value) => [identity(value), value])).values()];
+function mergeDrafts(captured, current) {
+  const text = !captured.text || current.text === captured.text || current.text.startsWith(captured.text + `
+`) ? current.text : [captured.text, current.text].filter(Boolean).join(`
+
+`);
+  return {
+    text,
+    media: unique([...captured.media, ...current.media], (f) => `${f.name}:${f.size}:${f.type}:${f.lastModified}`),
+    fileRefs: unique([...captured.fileRefs, ...current.fileRefs]),
+    messageRefs: unique([...captured.messageRefs, ...current.messageRefs])
+  };
+}
+function indexedDraftStorage(factory = indexedDB) {
+  const encodedFiles = new WeakMap;
+  const encodeFile = (file) => {
+    if (!encodedFiles.has(file))
+      encodedFiles.set(file, file.arrayBuffer().then((bytes) => ({ name: file.name, type: file.type, lastModified: file.lastModified, bytes })));
+    return encodedFiles.get(file);
+  };
+  const database = new Promise((resolve, reject) => {
+    const request = factory.open("gi-session-drafts", 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains("drafts"))
+        request.result.createObjectStore("drafts", { keyPath: "sessionId" });
+    };
+    request.onsuccess = () => {
+      request.result.onversionchange = () => request.result.close();
+      resolve(request.result);
+    };
+    request.onerror = () => reject(request.error || new Error("Draft database unavailable"));
+    request.onblocked = () => reject(new Error("Draft database upgrade blocked by another tab"));
+  });
+  return {
+    async load() {
+      const db = await database;
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("drafts", "readonly");
+        const request = tx.objectStore("drafts").getAll();
+        tx.oncomplete = () => {
+          const decode = (draft) => ({ ...draft, media: draft.media.map((file) => file instanceof File ? file : new File([file.bytes], file.name, { type: file.type, lastModified: file.lastModified })) });
+          resolve(request.result.map((row) => ({ ...row, draft: decode(row.draft), pending: row.pending.map((p) => ({ ...p, draft: decode(p.draft) })) })));
+        };
+        tx.onabort = tx.onerror = () => reject(tx.error || new Error("Could not load drafts"));
+      });
+    },
+    async put(record) {
+      const db = await database;
+      const encode = async (draft) => ({ ...draft, media: await Promise.all(draft.media.map(encodeFile)) });
+      const stored = { ...record, draft: await encode(record.draft), pending: await Promise.all(record.pending.map(async (pending) => ({ ...pending, draft: await encode(pending.draft) }))) };
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction("drafts", "readwrite");
+        tx.objectStore("drafts").put(stored);
+        tx.oncomplete = () => resolve();
+        tx.onabort = tx.onerror = () => reject(tx.error || new Error("Could not save draft"));
+      });
+    }
+  };
+}
+var pendingSendKey = (sessionId, token) => JSON.stringify([sessionId, token]);
+function createDraftRepository(storage, onError = () => {}, recover) {
+  const records = new Map;
+  let tail = Promise.resolve();
+  const record = (id) => {
+    if (!records.has(id))
+      records.set(id, { sessionId: id, draft: emptyDraft(), pending: [] });
+    return records.get(id);
+  };
+  const persist = (id) => {
+    const source = record(id);
+    const snapshot = { ...source, queueReturns: Object.fromEntries(Object.entries(source.queueReturns || {}).map(([id, entry]) => [id, { ...entry }])), draft: copy(source.draft), pending: source.pending.map((p) => ({ id: p.id, draft: copy(p.draft) })) };
+    const write = tail.catch(() => {}).then(() => storage.put(snapshot));
+    tail = write;
+    write.catch((error) => onError(error));
+    return write;
+  };
+  return {
+    async load() {
+      const rows = await storage.load();
+      for (const row of rows)
+        records.set(row.sessionId, row);
+      let confirmed = new Set;
+      if (recover) {
+        try {
+          confirmed = await recover(rows.flatMap((row) => row.pending.map((p) => ({ sessionId: row.sessionId, token: p.id }))));
+        } catch {}
+      }
+      for (const row of rows) {
+        records.set(row.sessionId, row);
+        if (row.pending.length) {
+          const unknown = row.pending.filter((p) => !confirmed.has(pendingSendKey(row.sessionId, p.id)));
+          for (const pending of [...unknown].reverse())
+            row.draft = mergeDrafts(pending.draft, row.draft);
+          row.pending = [];
+          if (unknown.length)
+            row.error = "Recovered an unacknowledged send. Delivery is unknown; check the timeline before resending.";
+          await persist(row.sessionId);
+        }
+      }
+    },
+    get(id) {
+      return record(id).draft;
+    },
+    error(id) {
+      return record(id).error || "";
+    },
+    update(id, patch) {
+      const draft = record(id).draft;
+      if (Object.entries(patch).every(([field, value]) => draft[field] === value))
+        return;
+      Object.assign(draft, patch);
+      persist(id).catch(() => {});
+    },
+    begin(id, draft) {
+      const token = randomClientId();
+      const row = record(id);
+      row.pending.push({ id: token, draft: copy(draft) });
+      row.draft = emptyDraft();
+      row.error = "";
+      return { token, ready: persist(id) };
+    },
+    async accepted(id, token) {
+      const row = record(id);
+      row.pending = row.pending.filter((p) => p.id !== token);
+      await persist(id);
+    },
+    failed(id, token, error) {
+      const row = record(id);
+      const pending = row.pending.find((p) => p.id === token);
+      if (pending)
+        row.draft = mergeDrafts(pending.draft, row.draft);
+      row.pending = row.pending.filter((p) => p.id !== token);
+      row.error = error;
+      persist(id).catch(() => {});
+      return copy(row.draft);
+    },
+    hasQueueReturn(id, queueId) {
+      return Boolean(record(id).queueReturns?.[queueId]);
+    },
+    prepareQueueReturn(id, queueId, captured) {
+      const row = record(id);
+      row.queueReturns ||= {};
+      if (!row.queueReturns[queueId]) {
+        const current = row.draft;
+        row.draft = mergeDrafts(captured, current);
+        row.draft.text = [captured.text, current.text].filter(Boolean).join(`
+
+`);
+        row.queueReturns[queueId] = { state: "prepared", recoveredAt: Date.now() };
+      }
+      return { draft: copy(row.draft), ready: persist(id) };
+    },
+    queueReturnFailed(id, queueId, message) {
+      const row = record(id);
+      if (row.queueReturns?.[queueId]) {
+        row.error = `Queue return incomplete: ${message}. Recovered content is retained; check whether the original turn ran before sending it again.`;
+        persist(id).catch(() => {});
+      }
+    },
+    async completeQueueReturn(id, queueId) {
+      const entry = record(id).queueReturns?.[queueId];
+      if (entry)
+        entry.state = "removed";
+      if (record(id).error?.startsWith("Queue return incomplete:"))
+        record(id).error = "";
+      await persist(id);
+    },
+    async flushStable() {
+      let pending;
+      do {
+        pending = tail;
+        await pending;
+      } while (pending !== tail);
+    },
+    flush() {
+      return tail;
+    }
+  };
+}
+
+// web/src/gi-send-recovery.ts
+async function recoverSubmittedPrompt(sessionId, token, read) {
+  try {
+    const receipt = await read(`/api/sessions/${encodeURIComponent(sessionId)}/send-receipt?client_request_id=${encodeURIComponent(token)}`);
+    if (receipt?.confirmed !== true || receipt.source_session_id !== sessionId || receipt.client_request_id !== token)
+      return null;
+    const result = receipt.result;
+    if (typeof result?.turn_id !== "string" || !result.turn_id || typeof result.session_id !== "string" || !result.session_id)
+      return null;
+    if (result.session_id !== sessionId && (result.source_session_id !== sessionId || result.routed !== true))
+      return null;
+    return result;
+  } catch {
+    return null;
+  }
+}
+async function recoverPendingSends(pending, read) {
+  const confirmed = new Set;
+  const selected = pending.slice(0, 6);
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < selected.length) {
+      const item = selected[cursor++];
+      if (!item.sessionId || !item.token)
+        continue;
+      const result = await recoverSubmittedPrompt(item.sessionId, item.token, read);
+      if (result)
+        confirmed.add(pendingSendKey(item.sessionId, item.token));
+    }
+  };
+  await Promise.all([worker(), worker()]);
+  return confirmed;
+}
+
 // web/src/gi-sse-client.ts
 var API_BASE = "";
 
@@ -2170,7 +2400,7 @@ async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = 
     intent,
     target_agent_id: targetAgentId,
     media: _mediaIds.map((media_id) => ({ media_id, session_id: sessionId })),
-    client_request_id: options?.client_request_id || undefined
+    client_request_id: options?.client_request_id || randomClientId()
   };
   if (options?.parent_turn_id) {
     payload.parent_turn_id = options.parent_turn_id;
@@ -2181,9 +2411,20 @@ async function sendAgentMessage(agentId, content, _threadId = null, _mediaIds = 
       method: "POST",
       body: JSON.stringify(payload)
     });
+  } catch (error) {
+    if (["TypeError", "AbortError"].includes(error?.name)) {
+      const recovered = await recoverSubmittedPrompt(sessionId, payload.client_request_id, (path) => request(path, { signal: AbortSignal.timeout(3000) }));
+      if (recovered)
+        return recovered;
+    }
+    throw error;
   } finally {
     activity.end();
   }
+}
+async function recoverPendingDraftSends(pending) {
+  const signal = AbortSignal.timeout(3000);
+  return recoverPendingSends(pending, (path) => request(path, { signal }));
 }
 async function uploadMedia(file, chatJid = null, options = {}) {
   const signal = options.signal;
@@ -3570,7 +3811,7 @@ class PaneRegistryImpl {
 var paneRegistry = new PaneRegistryImpl;
 // web/src/panes/editor-popout-transfer.ts
 var EDITOR_POPOUT_STATE_TTL_MS = 5 * 60 * 1000;
-// node_modules/@assemblyscript/loader/index.js
+// ../../projects/gi/node_modules/@assemblyscript/loader/index.js
 var ARRAYBUFFERVIEW = 1 << 0;
 var ARRAY = 1 << 1;
 var STATICARRAY = 1 << 2;
@@ -8282,181 +8523,6 @@ function blocksQuickActions(event, ready) {
   return !ready || event.defaultPrevented || event.repeat || Boolean(target?.closest?.('button, a, [role="button"], [role="menuitem"], .monaco-editor, .terminal-pane, .post-reply'));
 }
 
-// web/src/gi-drafts.ts
-var emptyDraft = () => ({ text: "", media: [], fileRefs: [], messageRefs: [] });
-var copy = (d) => ({ text: d.text, media: [...d.media], fileRefs: [...d.fileRefs], messageRefs: [...d.messageRefs] });
-var key = (value) => typeof value === "object" ? JSON.stringify(value) : String(value);
-var unique = (values, identity = key) => [...new Map(values.map((value) => [identity(value), value])).values()];
-function mergeDrafts(captured, current) {
-  const text = !captured.text || current.text === captured.text || current.text.startsWith(captured.text + `
-`) ? current.text : [captured.text, current.text].filter(Boolean).join(`
-
-`);
-  return {
-    text,
-    media: unique([...captured.media, ...current.media], (f) => `${f.name}:${f.size}:${f.type}:${f.lastModified}`),
-    fileRefs: unique([...captured.fileRefs, ...current.fileRefs]),
-    messageRefs: unique([...captured.messageRefs, ...current.messageRefs])
-  };
-}
-function indexedDraftStorage(factory = indexedDB) {
-  const encodedFiles = new WeakMap;
-  const encodeFile = (file) => {
-    if (!encodedFiles.has(file))
-      encodedFiles.set(file, file.arrayBuffer().then((bytes) => ({ name: file.name, type: file.type, lastModified: file.lastModified, bytes })));
-    return encodedFiles.get(file);
-  };
-  const database = new Promise((resolve, reject) => {
-    const request = factory.open("gi-session-drafts", 1);
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains("drafts"))
-        request.result.createObjectStore("drafts", { keyPath: "sessionId" });
-    };
-    request.onsuccess = () => {
-      request.result.onversionchange = () => request.result.close();
-      resolve(request.result);
-    };
-    request.onerror = () => reject(request.error || new Error("Draft database unavailable"));
-    request.onblocked = () => reject(new Error("Draft database upgrade blocked by another tab"));
-  });
-  return {
-    async load() {
-      const db = await database;
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction("drafts", "readonly");
-        const request = tx.objectStore("drafts").getAll();
-        tx.oncomplete = () => {
-          const decode = (draft) => ({ ...draft, media: draft.media.map((file) => file instanceof File ? file : new File([file.bytes], file.name, { type: file.type, lastModified: file.lastModified })) });
-          resolve(request.result.map((row) => ({ ...row, draft: decode(row.draft), pending: row.pending.map((p) => ({ ...p, draft: decode(p.draft) })) })));
-        };
-        tx.onabort = tx.onerror = () => reject(tx.error || new Error("Could not load drafts"));
-      });
-    },
-    async put(record) {
-      const db = await database;
-      const encode = async (draft) => ({ ...draft, media: await Promise.all(draft.media.map(encodeFile)) });
-      const stored = { ...record, draft: await encode(record.draft), pending: await Promise.all(record.pending.map(async (pending) => ({ ...pending, draft: await encode(pending.draft) }))) };
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction("drafts", "readwrite");
-        tx.objectStore("drafts").put(stored);
-        tx.oncomplete = () => resolve();
-        tx.onabort = tx.onerror = () => reject(tx.error || new Error("Could not save draft"));
-      });
-    }
-  };
-}
-function createDraftRepository(storage, onError = () => {}) {
-  const records = new Map;
-  let tail = Promise.resolve();
-  const record = (id) => {
-    if (!records.has(id))
-      records.set(id, { sessionId: id, draft: emptyDraft(), pending: [] });
-    return records.get(id);
-  };
-  const persist = (id) => {
-    const source = record(id);
-    const snapshot = { ...source, queueReturns: Object.fromEntries(Object.entries(source.queueReturns || {}).map(([id, entry]) => [id, { ...entry }])), draft: copy(source.draft), pending: source.pending.map((p) => ({ id: p.id, draft: copy(p.draft) })) };
-    const write = tail.catch(() => {}).then(() => storage.put(snapshot));
-    tail = write;
-    write.catch((error) => onError(error));
-    return write;
-  };
-  return {
-    async load() {
-      const rows = await storage.load();
-      for (const row of rows)
-        records.set(row.sessionId, row);
-      for (const row of rows) {
-        records.set(row.sessionId, row);
-        if (row.pending.length) {
-          for (const pending of [...row.pending].reverse())
-            row.draft = mergeDrafts(pending.draft, row.draft);
-          row.pending = [];
-          row.error = "Recovered an unacknowledged send. Delivery is unknown; check the timeline before resending.";
-          await persist(row.sessionId);
-        }
-      }
-    },
-    get(id) {
-      return record(id).draft;
-    },
-    error(id) {
-      return record(id).error || "";
-    },
-    update(id, patch) {
-      const draft = record(id).draft;
-      if (Object.entries(patch).every(([field, value]) => draft[field] === value))
-        return;
-      Object.assign(draft, patch);
-      persist(id).catch(() => {});
-    },
-    begin(id, draft) {
-      const token = crypto.randomUUID();
-      const row = record(id);
-      row.pending.push({ id: token, draft: copy(draft) });
-      row.draft = emptyDraft();
-      row.error = "";
-      return { token, ready: persist(id) };
-    },
-    async accepted(id, token) {
-      const row = record(id);
-      row.pending = row.pending.filter((p) => p.id !== token);
-      await persist(id);
-    },
-    failed(id, token, error) {
-      const row = record(id);
-      const pending = row.pending.find((p) => p.id === token);
-      if (pending)
-        row.draft = mergeDrafts(pending.draft, row.draft);
-      row.pending = row.pending.filter((p) => p.id !== token);
-      row.error = error;
-      persist(id).catch(() => {});
-      return copy(row.draft);
-    },
-    hasQueueReturn(id, queueId) {
-      return Boolean(record(id).queueReturns?.[queueId]);
-    },
-    prepareQueueReturn(id, queueId, captured) {
-      const row = record(id);
-      row.queueReturns ||= {};
-      if (!row.queueReturns[queueId]) {
-        const current = row.draft;
-        row.draft = mergeDrafts(captured, current);
-        row.draft.text = [captured.text, current.text].filter(Boolean).join(`
-
-`);
-        row.queueReturns[queueId] = { state: "prepared", recoveredAt: Date.now() };
-      }
-      return { draft: copy(row.draft), ready: persist(id) };
-    },
-    queueReturnFailed(id, queueId, message) {
-      const row = record(id);
-      if (row.queueReturns?.[queueId]) {
-        row.error = `Queue return incomplete: ${message}. Recovered content is retained; check whether the original turn ran before sending it again.`;
-        persist(id).catch(() => {});
-      }
-    },
-    async completeQueueReturn(id, queueId) {
-      const entry = record(id).queueReturns?.[queueId];
-      if (entry)
-        entry.state = "removed";
-      if (record(id).error?.startsWith("Queue return incomplete:"))
-        record(id).error = "";
-      await persist(id);
-    },
-    async flushStable() {
-      let pending;
-      do {
-        pending = tail;
-        await pending;
-      } while (pending !== tail);
-    },
-    flush() {
-      return tail;
-    }
-  };
-}
-
 // web/src/gi-context-usage.ts
 var known = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0;
 function formatContextCount(value) {
@@ -9932,7 +9998,7 @@ function ComposeBox({
     const uploadBatch = capturedMediaFiles.length ? composeTransfers.beginUploadBatch(capturedChatJid?.replace(/^gi:/, "") || "") : null;
     const mode = resolveSubmitMode(submitMode);
     const capture = clearAfterSubmit ? onCaptureDraft?.(capturedDraft) : null;
-    const queueToken = mode === "queue" ? capture?.token || crypto.randomUUID() : null;
+    const queueToken = mode === "queue" ? capture?.token || randomClientId() : null;
     if (queueToken)
       onQueuedSubmissionStart?.(queueToken, baseContent || "[attachments]");
     if (recordHistory && baseContent) {
@@ -10022,7 +10088,7 @@ ${mediaIds.map((id, index) => {
 
 `);
         requestDispatched = true;
-        const response = await sendAgentMessage("default", message, null, mediaIds, mode, capturedChatJid, { client_request_id: queueToken });
+        const response = await sendAgentMessage("default", message, null, mediaIds, mode, capturedChatJid, { client_request_id: capture?.token || queueToken });
         requestAcknowledged = true;
         await acknowledge();
         if (!mountedRef.current)
@@ -19695,11 +19761,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-m2f0jjvm.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-f81ngsvs.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-b5ekmzka.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-4mhbwm5b.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-7dgx68ka.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-g6bfrdkh.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-nbajhpmc.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-phyx1t2e.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-erqjyx0x.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-1twsvfzr.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -21096,7 +21162,7 @@ function GiApp() {
   const [composePrefill, setComposePrefill] = F_(null);
   const draftsRef = Q_(null);
   if (!draftsRef.current)
-    draftsRef.current = createDraftRepository(indexedDraftStorage(), (error) => setDraftStorageError(`Draft not saved: ${error.message}`));
+    draftsRef.current = createDraftRepository(indexedDraftStorage(), (error) => setDraftStorageError(`Draft not saved: ${error.message}`), recoverPendingDraftSends);
   const drafts = draftsRef.current;
   const getDraft = (sid) => drafts.get(sid);
   const [runtimeConfig, setRuntimeConfig] = F_({});
@@ -21945,7 +22011,7 @@ function GiApp() {
         if (selection.current() === scope.sessionId) {
           setFileRefs(prepared.draft.fileRefs);
           setMessageRefs(prepared.draft.messageRefs);
-          setDraftRestore({ sessionId: scope.sessionId, ...prepared.draft, token: crypto.randomUUID() });
+          setDraftRestore({ sessionId: scope.sessionId, ...prepared.draft, token: randomClientId() });
         }
         await prepared.ready;
         await drafts.flushStable();
@@ -22065,7 +22131,7 @@ function GiApp() {
                 onPrefillCompose=${(command) => {
     if (!selection.isCurrent(renderedSelection))
       return;
-    setComposePrefill({ sessionId, token: crypto.randomUUID(), text: command.trim() + " " });
+    setComposePrefill({ sessionId, token: randomClientId(), text: command.trim() + " " });
   }}
             />`}
             <${TimelineMenu}
@@ -22237,7 +22303,7 @@ function GiApp() {
     if (selection.current() === sessionId) {
       setFileRefs(draft.fileRefs);
       setMessageRefs(draft.messageRefs);
-      setDraftRestore({ sessionId, ...draft, token: crypto.randomUUID() });
+      setDraftRestore({ sessionId, ...draft, token: randomClientId() });
     }
   }}
                     onDraftStorageError=${(error) => setDraftStorageError(`Send acknowledged, but draft cleanup failed: ${error.message}. Reload recovery may contain already-delivered text.`)}
@@ -22421,5 +22487,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=C97BEAA93D4D283664756E2164756E21
-//# sourceMappingURL=app-42jecs31.js.map
+//# debugId=D08761F94996431C64756E2164756E21
+//# sourceMappingURL=app-ehe2zrq0.js.map
