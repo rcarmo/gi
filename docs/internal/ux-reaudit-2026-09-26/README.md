@@ -9,9 +9,10 @@ Conflicting frozen contracts require explicit resolution; hashes remain unchange
 
 ## Baseline and inventory
 
-Clean source baseline: `5dc6bf77968a1c6da1c14292d2a894085012f7b1`.
-37 tracked feature files, 358 scenario definitions and 421 expanded cases parsed
-successfully with Cucumber. Classic/shared frozen-source hashes verified. Includes
+Initial clean source baseline: `5dc6bf77968a1c6da1c14292d2a894085012f7b1`.
+Its 37 tracked feature files, 358 scenario definitions and 421 expanded cases parsed
+successfully with Cucumber. This baseline is immutable; the separate oracle-only
+feature and corrected Gi settings scenarios are additive work after the inventory. Classic/shared frozen-source hashes verified. Includes
 native TUI/search, additive Gi settings/session specs, passkey additions and all
 Classic/shared contracts—not only the web mapping catalogue.
 
@@ -25,6 +26,39 @@ Four broad and two smaller delegate attempts timed out without usable completed
 reviews. An empty partial JSON was excluded. Their work earns no review credit.
 The lead read the whole compact scenario corpus; clause-by-clause test/code/oracle
 verification remains unfinished. No new runtime pass or parity credit is claimed.
+
+## Work after maintenance clearance
+
+Maintenance hold was explicitly removed; no restart was requested. Piclaw's
+installed release changed during the audit from 3.2.3 to **3.2.4**; the current
+oracle is asset version `990f0c49a932` with the source-map hash pinned in
+`tests/ux/oracle/piclaw-3.2.4-reference.json`. Relevant source-map modules are
+byte-identical to the removed 3.2.3 release. `make test-piclaw-oracle-basic`
+passed against 3.2.4 with hash-checked UI assets, the production-default SVG
+flag substitution and isolated API fixtures; see `oracle-deltas.md` and
+`tests/ux/features/oracle/piclaw-3.2.4-basic-interactions.feature`. The older
+3.2.3 reference is historical. These probes are **not Gi parity tests**.
+
+`scenario-status.csv`/`scenario-inventory.json` contain all 358 baseline definitions.
+Only 12 are currently annotated with qualified oracle/conflict/correction findings;
+346 still await clause audit. `expanded-crosswalk.json` enumerates all 421 cases,
+including the 56-case pinned passkey criteria ledger. It finds 117 direct-tagged
+browser-test candidates; 248 have neither such a candidate nor passkey-ledger
+entry. **A direct tag is not behavioural acceptance**, and zero direct candidates
+does not establish absence of another test. The crosswalk is a
+triage aid, not a completed UX review.
+
+The additive `@gi-settings-004` text was corrected to reflect advertised thinking
+support, with `@gi-settings-028` and `@gi-settings-029` scenario clauses. A new
+six-project native browser test for model-switch reset passed; the earlier supported
+thinking provider-request test is tagged. The broader thinking run was interrupted
+by the command harness after progress through 32/42 tests; its result is unknown.
+
+The basic HTTP run had 31/32 passes, but Chromium initially stayed on Loading Gi
+because static requests failed with `net::ERR_NETWORK_CHANGED` before app boot.
+An unchanged rerun was interrupted at 21/32 by `make: wait: No child processes`.
+Neither run counts as a green gate. Traces and logs are under the local audit
+workspace; no assertion, timeout or production code was changed for that failure.
 
 ## Initial concrete issues to verify against Piclaw
 
@@ -64,7 +98,8 @@ spec, test or production source was changed in this audit worktree.
 Shared40 WIP is separately checkpointed at500e02f on
 `wip/maintenance-tool-terminal-20260926`; it must not be deployed automatically.
 Live runtime remains05e287f on8090. TUI WIP2a87a79 remains local-only and untouched.
-Maintenance HOLD is active; no restart or further work until cleared.
+Maintenance hold is cleared. Continue from this branch without redoing completed
+Shared35/36/38 deployment or touching live data.
 
 Inventory scripts currently retain absolute local audit paths; they are checkpoint
 reproduction aids, not shipped product tooling. Generated candidates need manual

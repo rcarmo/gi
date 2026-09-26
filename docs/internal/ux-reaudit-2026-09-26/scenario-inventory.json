@@ -313,7 +313,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:16",
@@ -356,7 +362,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:24",
@@ -404,7 +416,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:33",
@@ -447,7 +465,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "policy-conflict",
+      "priority": "P1",
+      "finding": "Default background refresh contradicts explicit read-only GET statements at lines199,211; Piclaw search can schedule background work, Gi GET rejects refresh. Clarify scope/policy.",
+      "evidence_link": "oracle-deltas.md",
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "3.2.3 or pinned70d33bc as qualified"
     },
     {
       "key": "features/search/workspace-index.feature:41",
@@ -490,7 +514,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:49",
@@ -550,7 +580,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:61",
@@ -598,7 +634,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:70",
@@ -642,7 +684,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:78",
@@ -689,7 +737,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:87",
@@ -736,7 +790,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:96",
@@ -789,7 +849,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:106",
@@ -834,7 +900,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:114",
@@ -877,7 +949,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:122",
@@ -920,7 +998,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:130",
@@ -971,7 +1055,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:140",
@@ -1022,7 +1112,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:150",
@@ -1077,7 +1173,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:161",
@@ -1136,7 +1238,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:173",
@@ -1211,7 +1319,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:189",
@@ -1262,7 +1376,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/search/workspace-index.feature:199",
@@ -1321,7 +1441,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "policy-conflict",
+      "priority": "P1",
+      "finding": "Explicit Reindex is compatible with immutable GET but conflicts with line33 default auto-refresh for absent/stale scopes.",
+      "evidence_link": "oracle-deltas.md",
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "3.2.3 or pinned70d33bc as qualified"
     },
     {
       "key": "features/search/workspace-index.feature:211",
@@ -1384,7 +1510,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "policy-conflict",
+      "priority": "P1",
+      "finding": "GET retains committed snapshot until explicit refresh by design; line33 requests refresh on search.",
+      "evidence_link": "oracle-deltas.md",
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "3.2.3 or pinned70d33bc as qualified"
     },
     {
       "key": "features/search/workspace-index.feature:224",
@@ -1452,7 +1584,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/tui/assistant_basics.feature:4",
@@ -1486,7 +1624,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/tui/assistant_basics.feature:10",
@@ -1592,7 +1736,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/tui/assistant_basics.feature:34",
@@ -1638,7 +1788,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/tui/keyboard_behavior.feature:4",
@@ -1744,7 +1900,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/tui/pi_like_workflows.feature:4",
@@ -1830,7 +1992,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/tui/pi_like_workflows.feature:23",
@@ -1884,7 +2052,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/tui/plugins.feature:4",
@@ -1926,7 +2100,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/tui/session_workflows.feature:4",
@@ -2028,7 +2208,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/tui/settings_and_approvals.feature:4",
@@ -2094,7 +2280,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "features/tui/tool_controls.feature:4",
@@ -2164,7 +2356,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/sessions/gi-preview.feature:6",
@@ -2242,7 +2440,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/sessions/gi-preview.feature:17",
@@ -2316,7 +2520,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/sessions/gi-preview.feature:27",
@@ -2390,7 +2600,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/sessions/gi-swipe.feature:6",
@@ -2460,7 +2676,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/sessions/gi-swipe.feature:15",
@@ -2530,7 +2752,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/sessions/gi-swipe.feature:24",
@@ -2604,7 +2832,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:7",
@@ -2681,7 +2915,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:18",
@@ -2747,7 +2987,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:29",
@@ -2813,7 +3059,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:40",
@@ -2897,7 +3149,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "corrected-local",
+      "priority": "P1",
+      "finding": "Read-only thinking statement contradicted implemented Apply-thinking. Additive requirement corrected; supported-thinking test tagged and model-reset browser test added (six projects pass).",
+      "evidence_link": "tests/features/settings/gi-settings.feature",
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "3.2.3 or pinned70d33bc as qualified"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:50",
@@ -2967,7 +3225,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:62",
@@ -3036,7 +3300,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:71",
@@ -3101,7 +3371,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:79",
@@ -3139,7 +3415,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:86",
@@ -3224,7 +3506,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:99",
@@ -3294,7 +3582,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:111",
@@ -3360,7 +3654,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:122",
@@ -3418,7 +3718,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:131",
@@ -3476,7 +3782,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:140",
@@ -3541,7 +3853,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:148",
@@ -3618,7 +3936,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:159",
@@ -3680,7 +4004,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:169",
@@ -3745,7 +4075,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:177",
@@ -3815,7 +4151,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:189",
@@ -3896,7 +4238,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:201",
@@ -3976,7 +4324,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:210",
@@ -4046,7 +4400,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:222",
@@ -4123,7 +4483,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:233",
@@ -4211,7 +4577,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:244",
@@ -4299,7 +4671,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:255",
@@ -4380,7 +4758,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:267",
@@ -4468,7 +4852,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:278",
@@ -4530,7 +4920,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/features/settings/gi-settings.feature:288",
@@ -4569,7 +4965,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:23",
@@ -4651,7 +5053,13 @@
       "expanded_count": 2,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:40",
@@ -4718,7 +5126,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:52",
@@ -4789,7 +5203,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:65",
@@ -4863,7 +5283,13 @@
       "expanded_count": 2,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:80",
@@ -4911,7 +5337,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:87",
@@ -4970,7 +5402,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:97",
@@ -5047,7 +5485,13 @@
       "expanded_count": 4,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:112",
@@ -5118,7 +5562,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:125",
@@ -5173,7 +5623,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:136",
@@ -5236,7 +5692,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:147",
@@ -5288,7 +5750,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:155",
@@ -5343,7 +5811,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:164",
@@ -5416,7 +5890,13 @@
       "expanded_count": 3,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:178",
@@ -5471,7 +5951,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:187",
@@ -5530,7 +6016,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:197",
@@ -5607,7 +6099,13 @@
       "expanded_count": 4,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:212",
@@ -5685,7 +6183,13 @@
       "expanded_count": 2,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:230",
@@ -5771,7 +6275,13 @@
       "expanded_count": 6,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:247",
@@ -5853,7 +6363,13 @@
       "expanded_count": 7,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:269",
@@ -5931,7 +6447,13 @@
       "expanded_count": 3,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:285",
@@ -5987,7 +6509,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:298",
@@ -6101,7 +6629,13 @@
       "expanded_count": 7,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:318",
@@ -6158,7 +6692,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:327",
@@ -6210,7 +6750,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:335",
@@ -6259,7 +6805,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature:344",
@@ -6318,7 +6870,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:13",
@@ -6405,7 +6963,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:21",
@@ -6461,7 +7025,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:30",
@@ -6561,7 +7131,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:44",
@@ -6644,7 +7220,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:59",
@@ -6711,7 +7293,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:65",
@@ -6782,7 +7370,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:72",
@@ -6869,7 +7463,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "oracle-conflict",
+      "priority": "P1",
+      "finding": "Piclaw3.2.3 prefill replaces draft with /model (no trailing space); Classic007 expects /model plus space. Browser fixture confirms no POST and focus; Gi spec asserts trailing space.",
+      "evidence_link": "oracle-deltas.md#current-piclaw-oracle-versus-pinned-gherkin",
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "3.2.3 or pinned70d33bc as qualified"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:83",
@@ -6952,7 +7552,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:93",
@@ -7012,7 +7618,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:103",
@@ -7068,7 +7680,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:113",
@@ -7124,7 +7742,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:122",
@@ -7184,7 +7808,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:133",
@@ -7252,7 +7882,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:142",
@@ -7316,7 +7952,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:150",
@@ -7376,7 +8018,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:158",
@@ -7435,7 +8083,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:165",
@@ -7495,7 +8149,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "oracle-confirmed",
+      "priority": "P1",
+      "finding": "Current Piclaw queued-item Edit replaces existing text; tested UI post/queue fixture, then a scoped removal request. Media/error behavior not established.",
+      "evidence_link": "oracle-deltas.md",
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "3.2.3 or pinned70d33bc as qualified"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:176",
@@ -7568,7 +8228,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:186",
@@ -7621,7 +8287,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:196",
@@ -7699,7 +8371,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:205",
@@ -7784,7 +8462,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:219",
@@ -7859,7 +8543,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:227",
@@ -7949,7 +8639,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:237",
@@ -8052,7 +8748,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:249",
@@ -8124,7 +8826,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:260",
@@ -8202,7 +8910,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:270",
@@ -8282,7 +8996,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:280",
@@ -8370,7 +9090,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/canonical-ux.feature:291",
@@ -8446,7 +9172,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "oracle-version-stale",
+      "priority": "P1",
+      "finding": "Pinned70d33bc source-only SVG was superseded by 3.2.3 safe-image preview, default sanitized; unsafe source still inert.",
+      "evidence_link": "oracle-deltas.md",
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "3.2.3 or pinned70d33bc as qualified"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:11",
@@ -8508,7 +9240,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:22",
@@ -8574,7 +9312,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:31",
@@ -8624,7 +9368,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:39",
@@ -8698,7 +9448,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:50",
@@ -8757,7 +9513,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:60",
@@ -8810,7 +9572,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:69",
@@ -8871,7 +9639,13 @@
       "expanded_count": 5,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:82",
@@ -8945,7 +9719,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:96",
@@ -8991,7 +9771,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:103",
@@ -9037,7 +9823,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:110",
@@ -9107,7 +9899,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:123",
@@ -9176,7 +9974,13 @@
       "expanded_count": 3,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:137",
@@ -9230,7 +10034,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-auth.feature:146",
@@ -9284,7 +10094,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-interactions.feature:8",
@@ -9347,7 +10163,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-interactions.feature:21",
@@ -9406,7 +10228,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-interactions.feature:29",
@@ -9472,7 +10300,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-interactions.feature:37",
@@ -9523,7 +10357,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-interactions.feature:46",
@@ -9566,7 +10406,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-interactions.feature:54",
@@ -9617,7 +10463,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-interactions.feature:65",
@@ -9683,7 +10535,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-interactions.feature:72",
@@ -9749,7 +10607,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:11",
@@ -9827,7 +10691,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:20",
@@ -9907,7 +10777,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:27",
@@ -9984,7 +10860,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:36",
@@ -10061,7 +10943,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:45",
@@ -10123,7 +11011,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:53",
@@ -10178,7 +11072,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:62",
@@ -10244,7 +11144,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:71",
@@ -10294,7 +11200,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:79",
@@ -10357,7 +11269,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:87",
@@ -10409,7 +11327,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:95",
@@ -10463,7 +11387,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:104",
@@ -10513,7 +11443,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:112",
@@ -10563,7 +11499,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:120",
@@ -10630,7 +11572,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:132",
@@ -10680,7 +11628,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:140",
@@ -10730,7 +11684,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:148",
@@ -10777,7 +11737,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:155",
@@ -10828,7 +11794,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:163",
@@ -10882,7 +11854,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:173",
@@ -10941,7 +11919,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:183",
@@ -11003,7 +11987,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:194",
@@ -11061,7 +12051,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:205",
@@ -11119,7 +12115,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:216",
@@ -11176,7 +12178,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:226",
@@ -11241,7 +12249,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:238",
@@ -11307,7 +12321,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:250",
@@ -11364,7 +12384,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:260",
@@ -11418,7 +12444,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:270",
@@ -11487,7 +12519,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:283",
@@ -11533,7 +12571,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:291",
@@ -11583,7 +12627,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/core-settings.feature:299",
@@ -11641,7 +12691,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:11",
@@ -11702,7 +12758,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:22",
@@ -11763,7 +12825,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:33",
@@ -11816,7 +12884,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:42",
@@ -11892,7 +12966,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:51",
@@ -11961,7 +13041,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:58",
@@ -12019,7 +13105,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:68",
@@ -12080,7 +13172,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:79",
@@ -12164,7 +13262,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:90",
@@ -12233,7 +13337,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:97",
@@ -12306,7 +13416,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:105",
@@ -12387,7 +13503,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:115",
@@ -12453,7 +13575,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:124",
@@ -12507,7 +13635,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:133",
@@ -12573,7 +13707,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:145",
@@ -12639,7 +13779,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:157",
@@ -12689,7 +13835,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:166",
@@ -12735,7 +13887,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/canonical/workspace-flows.feature:173",
@@ -12797,7 +13955,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compaction-model-switch.feature:6",
@@ -12860,7 +14024,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compaction-model-switch.feature:13",
@@ -12912,7 +14082,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compaction-model-switch.feature:21",
@@ -12975,7 +14151,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compaction-model-switch.feature:28",
@@ -13027,7 +14209,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compaction-model-switch.feature:35",
@@ -13090,7 +14278,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compaction-model-switch.feature:42",
@@ -13164,7 +14358,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compaction-model-switch.feature:49",
@@ -13238,7 +14438,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compaction-model-switch.feature:56",
@@ -13290,7 +14496,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compose-stability.feature:6",
@@ -13346,7 +14558,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compose-stability.feature:14",
@@ -13406,7 +14624,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compose-stability.feature:23",
@@ -13454,7 +14678,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compose-stability.feature:29",
@@ -13510,7 +14740,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "oracle-confirmed",
+      "priority": "P1",
+      "finding": "Current Piclaw return-to-editor replaces text and clears media in source; fixture confirms text, focus, removal request but does not test media.",
+      "evidence_link": "oracle-deltas.md",
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "3.2.3 or pinned70d33bc as qualified"
     },
     {
       "key": "tests/ux/features/classic/compose/compose-stability.feature:37",
@@ -13577,7 +14813,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/compose-stability.feature:45",
@@ -13629,7 +14871,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/context-meter-tooltip.feature:6",
@@ -13714,7 +14962,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/context-meter-tooltip.feature:13",
@@ -13766,7 +15020,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/context-meter-tooltip.feature:20",
@@ -13848,7 +15108,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/context-meter-tooltip.feature:29",
@@ -13904,7 +15170,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/context-meter-tooltip.feature:37",
@@ -13982,7 +15254,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/hamburger-layout-scale.feature:12",
@@ -14040,7 +15318,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/hamburger-layout-scale.feature:20",
@@ -14105,7 +15389,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/hamburger-layout-scale.feature:27",
@@ -14162,7 +15452,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/hamburger-layout-scale.feature:32",
@@ -14212,7 +15508,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/hamburger-layout-scale.feature:40",
@@ -14278,7 +15580,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/hamburger-layout-scale.feature:45",
@@ -14326,7 +15634,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/hamburger-layout-scale.feature:51",
@@ -14385,7 +15699,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/hamburger-layout-scale.feature:58",
@@ -14448,7 +15768,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/hamburger-layout-scale.feature:65",
@@ -14492,7 +15818,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/instant-visibility.feature:7",
@@ -14555,7 +15887,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/instant-visibility.feature:14",
@@ -14618,7 +15956,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/instant-visibility.feature:21",
@@ -14681,7 +16025,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/instant-visibility.feature:28",
@@ -14744,7 +16094,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/instant-visibility.feature:35",
@@ -14807,7 +16163,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/sse-reconnection.feature:6",
@@ -14859,7 +16221,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/sse-reconnection.feature:14",
@@ -14933,7 +16301,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/sse-reconnection.feature:21",
@@ -15007,7 +16381,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/sse-reconnection.feature:28",
@@ -15085,7 +16465,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/sse-reconnection.feature:36",
@@ -15155,7 +16541,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:11",
@@ -15190,7 +16582,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:17",
@@ -15253,7 +16651,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:30",
@@ -15308,7 +16712,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:41",
@@ -15347,7 +16757,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:48",
@@ -15390,7 +16806,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:56",
@@ -15449,7 +16871,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:68",
@@ -15500,7 +16928,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:78",
@@ -15543,7 +16977,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:86",
@@ -15594,7 +17034,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:96",
@@ -15629,7 +17075,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:102",
@@ -15668,7 +17120,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:109",
@@ -15711,7 +17169,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:117",
@@ -15762,7 +17226,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:127",
@@ -15805,7 +17275,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/theme-tint.feature:135",
@@ -15864,7 +17340,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/thoughts-panel.feature:6",
@@ -15927,7 +17409,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/thoughts-panel.feature:13",
@@ -15986,7 +17474,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/thoughts-panel.feature:19",
@@ -16053,7 +17547,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/thoughts-panel.feature:27",
@@ -16116,7 +17616,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/compose/thoughts-panel.feature:34",
@@ -16179,7 +17685,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/editor/editor-stability.feature:14",
@@ -16220,7 +17732,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/editor/editor-stability.feature:22",
@@ -16261,7 +17779,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/editor/editor-stability.feature:30",
@@ -16302,7 +17826,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/editor/editor-stability.feature:40",
@@ -16347,7 +17877,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/editor/editor-stability.feature:49",
@@ -16392,7 +17928,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/mobile/pwa-manifest.feature:7",
@@ -16456,7 +17998,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/mobile/pwa-manifest.feature:14",
@@ -16509,7 +18057,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/mobile/pwa-manifest.feature:21",
@@ -16546,7 +18100,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/mobile/pwa-manifest.feature:27",
@@ -16617,7 +18177,13 @@
       "expanded_count": 4,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/mobile/pwa-manifest.feature:42",
@@ -16658,7 +18224,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/mobile/pwa-manifest.feature:50",
@@ -16695,7 +18267,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/mobile/swipe-independence.feature:7",
@@ -16763,7 +18341,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/mobile/swipe-independence.feature:15",
@@ -16842,7 +18426,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/mobile/swipe-independence.feature:31",
@@ -16906,7 +18496,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/mobile/swipe-independence.feature:38",
@@ -16974,7 +18570,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/mobile/swipe-independence.feature:46",
@@ -17034,7 +18636,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/mobile/swipe-independence.feature:52",
@@ -17094,7 +18702,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:12",
@@ -17134,7 +18748,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:20",
@@ -17174,7 +18794,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:28",
@@ -17210,7 +18836,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:35",
@@ -17250,7 +18882,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:43",
@@ -17286,7 +18924,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:50",
@@ -17322,7 +18966,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:57",
@@ -17362,7 +19012,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:70",
@@ -17407,7 +19063,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:79",
@@ -17448,7 +19110,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:87",
@@ -17501,7 +19169,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:98",
@@ -17546,7 +19220,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:107",
@@ -17583,7 +19263,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:119",
@@ -17624,7 +19310,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:127",
@@ -17665,7 +19357,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:135",
@@ -17710,7 +19408,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:144",
@@ -17751,7 +19455,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/panes/terminal.feature:152",
@@ -17792,7 +19502,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/sessions/session-switching.feature:6",
@@ -17859,7 +19575,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/sessions/session-switching.feature:14",
@@ -17922,7 +19644,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/sessions/session-switching.feature:21",
@@ -17985,7 +19713,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/sessions/session-switching.feature:28",
@@ -18052,7 +19786,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/sessions/session-switching.feature:36",
@@ -18130,7 +19870,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/sessions/session-switching.feature:44",
@@ -18197,7 +19943,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/settings/settings-dialog.feature:11",
@@ -18258,7 +20010,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/settings/settings-dialog.feature:18",
@@ -18338,7 +20096,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/settings/settings-dialog.feature:27",
@@ -18403,7 +20167,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/settings/settings-dialog.feature:35",
@@ -18468,7 +20238,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/settings/settings-dialog.feature:43",
@@ -18537,7 +20313,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/settings/settings-layering.feature:11",
@@ -18592,7 +20374,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/settings/settings-layering.feature:19",
@@ -18651,7 +20439,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/settings/settings-layering.feature:28",
@@ -18702,7 +20496,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/settings/settings-layering.feature:35",
@@ -18769,7 +20569,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/annotation-highlights.feature:13",
@@ -18826,7 +20632,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/annotation-highlights.feature:22",
@@ -18867,7 +20679,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/annotation-highlights.feature:30",
@@ -18916,7 +20734,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/annotation-highlights.feature:40",
@@ -18961,7 +20785,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/annotation-highlights.feature:49",
@@ -19002,7 +20832,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/annotation-highlights.feature:57",
@@ -19059,7 +20895,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/annotation-highlights.feature:66",
@@ -19100,7 +20942,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/annotation-highlights.feature:79",
@@ -19137,7 +20985,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/annotation-highlights.feature:86",
@@ -19182,7 +21036,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/annotation-highlights.feature:95",
@@ -19219,7 +21079,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/annotation-highlights.feature:102",
@@ -19260,7 +21126,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/annotation-highlights.feature:110",
@@ -19297,7 +21169,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/lightbox-dismissal.feature:12",
@@ -19361,7 +21239,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/lightbox-dismissal.feature:20",
@@ -19421,7 +21305,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/lightbox-dismissal.feature:27",
@@ -19481,7 +21371,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/lightbox-dismissal.feature:34",
@@ -19541,7 +21437,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/message-deletion.feature:12",
@@ -19609,7 +21511,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/message-deletion.feature:21",
@@ -19666,7 +21574,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/message-deletion.feature:30",
@@ -19707,7 +21621,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/message-deletion.feature:38",
@@ -19756,7 +21676,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/message-deletion.feature:45",
@@ -19805,7 +21731,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/message-deletion.feature:55",
@@ -19850,7 +21782,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/rendering.feature:11",
@@ -19909,7 +21847,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/rendering.feature:18",
@@ -19972,7 +21916,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/rendering.feature:26",
@@ -20035,7 +21985,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/rendering.feature:34",
@@ -20094,7 +22050,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/rendering.feature:41",
@@ -20157,7 +22119,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/classic/timeline/rendering.feature:49",
@@ -20220,7 +22188,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:15",
@@ -20326,7 +22300,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:31",
@@ -20409,7 +22389,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:41",
@@ -20516,7 +22502,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:57",
@@ -20646,7 +22638,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:74",
@@ -20717,7 +22715,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:81",
@@ -20849,7 +22853,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:96",
@@ -20918,7 +22928,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "oracle-conflict",
+      "priority": "P0",
+      "finding": "Shared16 requires draft preservation, but shipped Piclaw slash insertion replaces it. This is destructive; choose versioned compatibility policy before changing Gi.",
+      "evidence_link": "oracle-deltas.md",
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "3.2.3 or pinned70d33bc as qualified"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:105",
@@ -20999,7 +23015,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "oracle-conflict",
+      "priority": "P1",
+      "finding": "Shared17 skill prefill preserves draft; shipped /model command replaces. Skill-specific behavior needs separate oracle proof; cannot generalize command probe.",
+      "evidence_link": "oracle-deltas.md",
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "3.2.3 or pinned70d33bc as qualified"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:117",
@@ -21071,7 +23093,13 @@
       "expanded_count": 2,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:131",
@@ -21131,7 +23159,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:141",
@@ -21187,7 +23221,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:150",
@@ -21248,7 +23288,13 @@
       "expanded_count": 1,
       "test_candidates": [],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:160",
@@ -21347,7 +23393,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:175",
@@ -21418,7 +23470,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:182",
@@ -21484,7 +23542,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:188",
@@ -21558,7 +23622,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:196",
@@ -21664,7 +23734,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "oracle-conflict",
+      "priority": "P0",
+      "finding": "Shared28 protects concurrent draft/media before delete; shipped Piclaw return replaces text. Gi stronger safety contract differs from oracle. Do not drop data without explicit decision.",
+      "evidence_link": "oracle-deltas.md",
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "3.2.3 or pinned70d33bc as qualified"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:206",
@@ -21740,7 +23816,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:214",
@@ -21856,7 +23938,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:226",
@@ -21955,7 +24043,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:241",
@@ -22075,7 +24169,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:258",
@@ -22174,7 +24274,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:269",
@@ -22268,7 +24374,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:279",
@@ -22377,7 +24489,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:292",
@@ -22466,7 +24584,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:303",
@@ -22540,7 +24664,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:311",
@@ -22635,7 +24765,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:326",
@@ -22708,7 +24844,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "oracle-conflict",
+      "priority": "P1",
+      "finding": "Current Piclaw safe fence uses data-URL img, not inline privileged SVG; unsafe elements cause source fallback rather than sanitized rendering. Needs separately versioned contract.",
+      "evidence_link": "oracle-deltas.md",
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "3.2.3 or pinned70d33bc as qualified"
     },
     {
       "key": "tests/ux/features/shared-canonical-ux.feature:336",
@@ -22783,7 +24925,13 @@
         }
       ],
       "review_status": "not-complete",
-      "oracle_status": "not-yet-compared"
+      "oracle_status": "not-yet-compared",
+      "audit_status": "awaiting-clause-audit",
+      "priority": null,
+      "finding": null,
+      "evidence_link": null,
+      "test_candidates_kind": "lexical-only, not acceptance",
+      "oracle_release": "not-yet-compared"
     }
   ]
 }

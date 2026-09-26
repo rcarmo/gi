@@ -1,0 +1,81 @@
+{
+  "total": 421,
+  "withDirectCandidate": 117,
+  "noDirectCandidate": 304,
+  "withPinnedPasskeyLedger": 56,
+  "withDirectBrowserCandidate": 117,
+  "withoutDirectBrowserCandidateOrLedger": 248,
+  "withoutDirectCandidateOrLedger": 248,
+  "groups": {
+    "native-tui-search": {
+      "expanded": 33,
+      "noDirectCandidate": 33,
+      "withPinnedLedger": 0,
+      "withoutDirectCandidateOrLedger": 33,
+      "syntheticCandidate": 0
+    },
+    "gi-additions": {
+      "expanded": 34,
+      "noDirectCandidate": 34,
+      "withPinnedLedger": 0,
+      "withoutDirectCandidateOrLedger": 34,
+      "syntheticCandidate": 15
+    },
+    "passkey-addition": {
+      "expanded": 56,
+      "noDirectCandidate": 56,
+      "withPinnedLedger": 56,
+      "withoutDirectCandidateOrLedger": 0,
+      "syntheticCandidate": 0
+    },
+    "classic-canonical": {
+      "expanded": 34,
+      "noDirectCandidate": 19,
+      "withPinnedLedger": 0,
+      "withoutDirectCandidateOrLedger": 19,
+      "syntheticCandidate": 7
+    },
+    "classic-auth-settings": {
+      "expanded": 61,
+      "noDirectCandidate": 52,
+      "withPinnedLedger": 0,
+      "withoutDirectCandidateOrLedger": 52,
+      "syntheticCandidate": 3
+    },
+    "classic-core-workspace": {
+      "expanded": 26,
+      "noDirectCandidate": 20,
+      "withPinnedLedger": 0,
+      "withoutDirectCandidateOrLedger": 20,
+      "syntheticCandidate": 5
+    },
+    "classic-compose": {
+      "expanded": 58,
+      "noDirectCandidate": 25,
+      "withPinnedLedger": 0,
+      "withoutDirectCandidateOrLedger": 25,
+      "syntheticCandidate": 7
+    },
+    "classic-editor-media": {
+      "expanded": 50,
+      "noDirectCandidate": 39,
+      "withPinnedLedger": 0,
+      "withoutDirectCandidateOrLedger": 39,
+      "syntheticCandidate": 6
+    },
+    "classic-sessions-mobile": {
+      "expanded": 27,
+      "noDirectCandidate": 15,
+      "withPinnedLedger": 0,
+      "withoutDirectCandidateOrLedger": 15,
+      "syntheticCandidate": 11
+    },
+    "shared": {
+      "expanded": 42,
+      "noDirectCandidate": 11,
+      "withPinnedLedger": 0,
+      "withoutDirectCandidateOrLedger": 11,
+      "syntheticCandidate": 26
+    }
+  }
+}

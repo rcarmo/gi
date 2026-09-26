@@ -419,6 +419,11 @@ test-ux-speech-contract:
 	$(MAKE) test-ux-steer UX_LOCAL_ENV='GI_UX_SPEECH=1' UX_LOCAL_SPEC='tests/ux/speech-contract.spec.mjs tests/ux/speech.spec.mjs tests/ux/message-copy.spec.mjs tests/ux/rendering.spec.mjs'
 	$(MAKE) ux-parity-report UX_PARITY_REPORT_ARGS=test-results/ux-parity/results.json
 
+.PHONY: test-piclaw-oracle-basic
+test-piclaw-oracle-basic:
+	$(BUN) test tests/ux/oracle/piclaw-basic-contract.test.mjs
+	$(BUN) tests/ux/oracle/piclaw-basic-probe.mjs
+
 test-ux-parity:
 	@mkdir -p test-results/ux-parity/queue-gates
 	PATH="$(abspath tests/ux/shell):$$PATH" GI_UX_QUEUE_GATES="$(abspath test-results/ux-parity/queue-gates)" $(MAKE) --no-print-directory test-instance-start TEST_PORT=$(UX_PARITY_PORT) TEST_DIR=.gi-ux-parity TEST_ENABLED_MODELS='["test-model","bootstrap","test/unavailable-model"]'

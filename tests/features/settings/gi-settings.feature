@@ -44,7 +44,27 @@ Feature: Gi settings backed by native capabilities
     And I can filter the native model labels
     And at most 50 matching choices are rendered with a refine-filter hint when truncated
     And unknown context capacity is labelled unknown
-    And the current thinking level is read-only
+    And thinking controls are absent or disabled for a model without advertised reasoning support
+    And supported thinking choices require an explicit Apply action for the current model
+
+  @gi-settings-028
+  Scenario: Apply a supported thinking level without submitting the draft
+    Given the selected session uses a model advertising reasoning levels
+    And the composer contains unsent text and an attachment
+    When I choose a supported level in Models
+    Then no provider request or prompt submission occurs before I activate Apply thinking
+    When the native server confirms Apply thinking for that session
+    Then the selected level survives reload and applies to the next admitted provider request
+    And the default choice leaves the provider reasoning option unset
+    And the composer text and attachment remain unchanged until an explicit send
+
+  @gi-settings-029
+  Scenario: A model switch clears the old model-bound thinking choice
+    Given session "main" has an applied supported thinking level and an unsent composer draft
+    When I select a different model and activate Apply model
+    Then the accepted native model selection resets thinking to provider default
+    And the old model-bound level is not carried into a later provider request
+    And the composer draft remains unsent and unchanged
 
   @gi-settings-005
   Scenario: Apply a model only after server confirmation to its captured session

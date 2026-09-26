@@ -11,7 +11,7 @@ async function setup(page,info){
  return{...env,input,id,read,model,open,closeSettings:close};
 }
 
-test('supported session thinking is explicit, durable and reaches native provider payloads',async({page},info)=>{
+test('@gi-settings-028 supported session thinking is explicit, durable and reaches native provider payloads',async({page},info)=>{
  const h=await setup(page,info);try{
   await h.input.fill('thinking draft Ω');await page.locator('.compose-box input[type=file]').setInputFiles({name:'thinking.txt',mimeType:'text/plain',buffer:Buffer.from('keep thinking media')});
   let prompts=0;page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith('/prompt'))prompts++});
@@ -30,6 +30,27 @@ test('supported session thinking is explicit, durable and reaches native provide
   await h.open();await select.selectOption('');await page.getByRole('button',{name:'Apply thinking',exact:true}).click();await expect(select).toHaveValue('');await expect(page.getByRole('button',{name:'Apply thinking',exact:true})).toBeDisabled();await h.closeSettings();
   await h.input.fill('provider default next');const second=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${h.id}/prompt`));await h.input.press('Enter');const next=await(await second).json();
   await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/turns`)).turns.find(t=>t.id===next.turn_id)?.status).toBe('completed');await expect(page.locator('.post').filter({hasText:'Provider model reasoner thinking absent:'})).toBeVisible();expect(prompts).toBe(2);
+ }finally{await h.close()}
+});
+
+test('@gi-settings-029 model switching resets thinking without dispatching the existing draft',async({page},info)=>{
+ const h=await setup(page,info);try{
+  await h.input.fill('keep this model switch draft Ω');
+  await h.open();const model=page.getByRole('combobox',{name:'Session model',exact:true});
+  await model.selectOption('ux-local/reasoner');await page.getByRole('button',{name:'Apply model',exact:true}).click();
+  const levels=page.getByRole('combobox',{name:'Session thinking level',exact:true});await expect(levels).toBeEnabled();
+  await levels.selectOption('high');await page.getByRole('button',{name:'Apply thinking',exact:true}).click();
+  expect((await h.model()).thinking_level).toBe('high');
+  await model.selectOption('ux-local/gate');await page.getByRole('button',{name:'Apply model',exact:true}).click();
+  await expect(levels).toHaveCount(0);expect((await h.model()).thinking_level).toBe('');
+  expect((await h.read(`/api/sessions/${h.id}/turns`)).turns||[]).toHaveLength(0);
+  await h.closeSettings();await expect(h.input).toHaveValue('keep this model switch draft Ω');
+  await page.reload();await expect(h.input).toHaveValue('keep this model switch draft Ω');
+  await h.open();await model.selectOption('ux-local/reasoner');await page.getByRole('button',{name:'Apply model',exact:true}).click();
+  await expect(levels).toHaveValue('');await h.closeSettings();
+  await h.input.fill('after model switch');const response=page.waitForResponse(r=>r.request().method()==='POST'&&r.url().endsWith(`/api/sessions/${h.id}/prompt`));await h.input.press('Enter');const admitted=await(await response).json();
+  await expect.poll(async()=>(await h.read(`/api/sessions/${h.id}/turns`)).turns.find(t=>t.id===admitted.turn_id)?.status).toBe('completed');
+  await expect(page.locator('.post').filter({hasText:'Provider model reasoner thinking absent:'})).toBeVisible();
  }finally{await h.close()}
 });
 
