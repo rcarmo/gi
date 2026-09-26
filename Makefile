@@ -177,12 +177,15 @@ logs:
 
 # ── Checks and tests ────────────────────────────────────────────────────
 
-.PHONY: test-web-http-helpers test-web-basic-send
+.PHONY: test-web-http-helpers test-web-basic-send test-web-basic-controls
+
+test-web-basic-controls:
+	$(MAKE) test-ux-steer UX_LOCAL_ENV="GI_UX_BASIC_HTTP=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN))" UX_LOCAL_SPEC=tests/ux/basic-http-control.spec.mjs
 test-web-http-helpers:
-	$(BUN) test tests/ux/support/random-id.test.ts tests/ux/support/drafts.test.ts
+	$(BUN) test tests/ux/support/random-id.test.ts tests/ux/support/drafts.test.ts tests/ux/support/send-recovery.test.ts
 
 test-web-basic-send: test-instance-start
-	@GI_TEST_URL=http://127.0.0.1:$(TEST_PORT) $(PLAYWRIGHT) test tests/functional/18-basic-http-send.spec.ts --reporter=line --output=$(TEST_RESULTS)/basic-http-send; \
+	@GI_TEST_URL=http://127.0.0.1:$(TEST_PORT) $(PLAYWRIGHT) test tests/functional/18-basic-http-send.spec.ts tests/functional/19-http-delivery.spec.ts --reporter=line --output=$(TEST_RESULTS)/basic-http-send; \
 	status=$$?; $(MAKE) test-instance-stop; exit $$status
 
 test:

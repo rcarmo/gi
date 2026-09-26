@@ -16,6 +16,8 @@ import { sessionPickerAgents } from './gi-session-state.js';
 import { projectMessageMedia } from './gi-message-media.js';
 import { projectLinkPreviews } from './gi-message-links.js';
 import { composeTransfers } from './gi-compose-transfer.js';
+import { randomClientId } from './gi-random-id.js';
+import { recoverSubmittedPrompt } from './gi-send-recovery.js';
 
 const API_BASE = '';
 
@@ -477,7 +479,7 @@ export async function sendAgentMessage(agentId: string, content: string, _thread
         intent,
         target_agent_id: targetAgentId,
         media: _mediaIds.map(media_id => ({ media_id, session_id: sessionId })),
-        client_request_id: options?.client_request_id || undefined,
+        client_request_id: options?.client_request_id || randomClientId(),
     };
     if (options?.parent_turn_id) {
         payload.parent_turn_id = options.parent_turn_id;
@@ -487,6 +489,15 @@ export async function sendAgentMessage(agentId: string, content: string, _thread
         return await request(`/api/sessions/${encodeURIComponent(sessionId)}/prompt`, {
             method: 'POST', body: JSON.stringify(payload),
         });
+    } catch (error) {
+        // Recover a proven admission after a lost transport reply. No POST retry.
+        // HTTP errors remain explicit failures, not candidates for inference.
+        if (['TypeError', 'AbortError'].includes(error?.name)) {
+            const recovered = await recoverSubmittedPrompt(sessionId, payload.client_request_id,
+                path => request(path, { signal: AbortSignal.timeout(3000) }));
+            if (recovered) return recovered;
+        }
+        throw error;
     } finally { activity.end(); }
 }
 

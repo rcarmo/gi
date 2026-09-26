@@ -242,13 +242,16 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium webkit
-      - run: make test-web-http-helpers test-web-basic-send
+      - run: make test-web-http-helpers test-web-basic-send test-web-basic-controls
       - name: Preserve basic send evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: basic-web-send-evidence
-          path: test-results/basic-http-send/
+          path: |
+            test-results/basic-http-send/
+            test-results/ux-parity/basic-http-results.json
+            test-results/ux-parity/artifacts/
           if-no-files-found: ignore
 
   auth-state:
