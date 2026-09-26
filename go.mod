@@ -3,6 +3,7 @@ module github.com/rcarmo/gi
 go 1.26.8
 
 require (
+	github.com/clipperhouse/uax29/v2 v2.7.0
 	github.com/dop251/goja v0.0.0-20260917113740-793a2a65c13b
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/grindlemire/go-tui v0.18.2
@@ -24,7 +25,6 @@ require (
 	github.com/akutz/memconn v0.1.0 // indirect
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e // indirect
 	github.com/candid82/liner v1.4.0 // indirect
-	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cloudflare/circl v1.6.5 // indirect
 	github.com/coder/websocket v1.8.15 // indirect
 	github.com/creachadair/msync v0.10.1 // indirect

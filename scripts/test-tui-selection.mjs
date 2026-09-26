@@ -33,6 +33,13 @@ try{for(const [width,height] of [[60,18],[100,22],[140,36]]){
   type('newer selection draft');keys('Left','Left','Left');keys('Home');await wait(()=>capture().includes('you: SELECT-01'),'top');
   const baseline=shot('before'),idleBars=bars(baseline),lines=baseline.split('\n'),row=lines.findIndex(l=>l.includes('you: SELECT-01')),col=lines[row].indexOf('you:'),secondRow=lines.findIndex(l=>l.includes('you: SELECT-02'));
   assert(secondRow>row,'second prompt must be visible for padded drag');
+  // Native rapid SGR click sequence: no synthetic click-count field.
+  const wordCol=lines[row].indexOf('SELECT-01')+2;
+  const clickBytes=(x,y)=>`\x1b[<0;${x+1};${y+1}M\x1b[<0;${x+1};${y+1}m`;
+  tmux('set-buffer','word sentinel');sequence(clickBytes(wordCol,row)+clickBytes(wordCol+1,row));await wait(()=>clip()==='SELECT-01','double-click word');shot('word');
+  keys('Escape');await wait(()=>!capture().includes('Selection'),'clear before triple');sequence(clickBytes(wordCol,row).repeat(3));await wait(()=>clip().includes('you: SELECT-01 unicode 中文🙂'),'triple-click line');shot('line');keys('Escape');await wait(()=>!capture().includes('Selection'),'clear word/line');
+  tmux('set-buffer','reverse word sentinel');sequence(clickBytes(wordCol,secondRow)+`\x1b[<0;${wordCol+1};${secondRow+1}M`);mouse(32,wordCol,row);mouse(0,wordCol,row,true);await wait(()=>clip().startsWith('SELECT-01')&&clip().endsWith('SELECT-02'),'reverse word-range drag');keys('Escape');await wait(()=>!capture().includes('Selection'),'clear word drag');
+  assert(JSON.stringify(bars(capture()))===JSON.stringify(idleBars),'word selection added rows');
   tmux('set-buffer','sentinel');await drag(col,row,col+24,secondRow);await wait(()=>capture().includes('Selection copied'),'release copy');
   const copied=clip();assert(copied.includes('SELECT-01')&&copied.includes('SELECT-02'),'copy missing native rows');assert(!copied.includes('\x1b'),'ANSI in copied selection');
   assert(ansi().includes('48;2;212;212;212'),'highlight absent');shot('selected');
@@ -68,7 +75,7 @@ try{for(const [width,height] of [[60,18],[100,22],[140,36]]){
   await drag(col,row,col+12,row+1);await wait(()=>capture().includes('Clipboard off'),'selection before picker');
   keys('M-s');await wait(()=>capture().includes('Select session'),'session picker');keys('Escape');await wait(()=>!capture().includes('Select session'),'picker closed');assert(!capture().includes('Selection'),'picker retained selection');
   assert(capture().replaceAll('▌','').includes('final unsent draft'),'picker lost editor');
-  results.push(`${width}x${height}: native SGR forward/reverse drag, OSC52 release/Ctrl-C/Ctrl-X clipboard, highlight/Escape/editor preservation, held edge autoscroll, resize/new-output invalidation; zero idle rows`);
+  results.push(`${width}x${height}: native SGR double-word/triple-line/reverse-word and forward/reverse drag, OSC52 release/Ctrl-C/Ctrl-X clipboard, highlight/Escape/editor preservation, held edge autoscroll, resize/new-output invalidation; zero idle rows`);
  }catch(error){try{shot('failure')}catch{};try{writeFileSync(join(artifacts,`${width}-runtime.log`),readFileSync(join(dir,'runtime.log')))}catch{};throw error;}
  finally{try{tmux('kill-session','-t',session)}catch{};rmSync(dir,{recursive:true,force:true});}
 }}finally{try{tmux('kill-server')}catch{}}

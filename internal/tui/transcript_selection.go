@@ -22,6 +22,8 @@ type transcriptSelection struct {
 	searchActive                  bool
 	searchMatch                   int
 	start, end                    transcriptPoint
+	granularity                   int // 0 character, 1 word, 2 rendered line
+	initial                       transcriptSelectionRange
 	pressX, pressY                int
 	clickKey                      string
 	pressLink                     string
@@ -35,13 +37,18 @@ type transcriptSelection struct {
 func (c *chatTUI) clearTranscriptSelection() {
 	next := c.textSelection.generation + 1
 	c.textSelection = transcriptSelection{generation: next}
+	c.selectionClicks = transcriptClickSequence{}
+	c.selectionClickSnapshot = transcriptSelection{}
 	if c.app != nil {
 		c.app.MarkDirty()
 	}
 }
 
 func (c *chatTUI) selectionCurrent() bool {
-	s := &c.textSelection
+	return c.selectionSnapshotCurrent(&c.textSelection)
+}
+
+func (c *chatTUI) selectionSnapshotCurrent(s *transcriptSelection) bool {
 	if !s.active || !c.ownsScope(s.scope) || c.regularMode || c.modelMenuOpen {
 		return false
 	}
@@ -65,6 +72,12 @@ func (c *chatTUI) selectionCurrent() bool {
 }
 
 func (c *chatTUI) validateTranscriptSelection(width, height int) {
+	// During a held press the current selection snapshot owns validation; the
+	// released-click snapshot is not installed until release.
+	if !c.textSelection.dragging && c.selectionClicks.valid && (width != c.selectionClickSnapshot.width || height != c.selectionClickSnapshot.height || !c.selectionSnapshotCurrent(&c.selectionClickSnapshot)) {
+		c.selectionClicks = transcriptClickSequence{}
+		c.selectionClickSnapshot = transcriptSelection{}
+	}
 	if !c.textSelection.active {
 		return
 	}
@@ -165,7 +178,7 @@ func (c *chatTUI) handleTranscriptSelection(me gotui.MouseEvent) bool {
 	}
 	if me.Action == gotui.MousePress && me.Button == gotui.MouseLeft {
 		if !c.transcriptRegion.ContainsPoint(me.X, me.Y) {
-			if s.active {
+			if s.active || c.selectionClicks.valid {
 				c.clearTranscriptSelection()
 			}
 			return false
@@ -179,9 +192,16 @@ func (c *chatTUI) handleTranscriptSelection(me gotui.MouseEvent) bool {
 			viewWidth--
 		}
 		if viewWidth < 1 || me.X >= r.X+viewWidth {
+			c.selectionClicks = transcriptClickSequence{}
+			c.selectionClickSnapshot = transcriptSelection{}
 			return false
 		} // scrollbar retains its own hit region
+		clicks := c.selectionClicks
+		if !c.selectionSnapshotCurrent(&c.selectionClickSnapshot) || me.Mod != 0 {
+			clicks = transcriptClickSequence{}
+		}
 		c.clearTranscriptSelection()
+		c.selectionClicks = clicks
 		s = &c.textSelection
 		rows := c.renderedTranscriptRows(r.Width)
 		if c.search.active {
@@ -213,6 +233,21 @@ func (c *chatTUI) handleTranscriptSelection(me gotui.MouseEvent) bool {
 		s.clickKey = rows[s.start.row].blockKey
 		s.pressLink = transcriptRowLinkAt(rows[s.start.row], min(s.start.col, s.contentWidth-1))
 		s.end = s.start
+		// Links and single-click tool controls keep their existing ownership.
+		if s.pressLink == "" && s.clickKey == "" && me.Mod == 0 {
+			if word, ok := transcriptWordRange(s.start.row, rows[s.start.row], min(s.start.col, s.contentWidth-1)); ok {
+				count := c.selectionClicks.next(word, time.Now())
+				if count > 1 {
+					s.granularity = count - 1
+					s.initial = word
+					if count == 3 {
+						s.initial = transcriptLineRange(s.start.row, rows[s.start.row])
+					}
+					s.start, s.end = s.initial.start, s.initial.end
+					s.moved = s.start != s.end
+				}
+			}
+		}
 		s.previousFollow = c.stickToBottom
 		c.stickToBottom = false
 		return true
@@ -222,20 +257,32 @@ func (c *chatTUI) handleTranscriptSelection(me gotui.MouseEvent) bool {
 	}
 	switch me.Action {
 	case gotui.MouseDrag:
+		if me.X != s.pressX || me.Y != s.pressY {
+			c.selectionClicks = transcriptClickSequence{}
+			c.selectionClickSnapshot = transcriptSelection{}
+		}
 		s.pointerX, s.pointerY = me.X, me.Y
-		s.end = c.selectionPoint(me.X, me.Y)
+		s.extend(c.selectionPoint(me.X, me.Y))
 		s.moved = s.moved || s.end != s.start
 		if c.app != nil {
 			c.app.MarkDirty()
 		}
 		return true
 	case gotui.MouseRelease:
-		s.end = c.selectionPoint(me.X, me.Y)
+		if me.X != s.pressX || me.Y != s.pressY {
+			c.selectionClicks = transcriptClickSequence{}
+		}
+		s.extend(c.selectionPoint(me.X, me.Y))
 		s.moved = s.moved || s.end != s.start
 		s.dragging = false
 		if !s.moved {
 			key, follow, linked := s.clickKey, s.previousFollow, s.pressLink != ""
+			clicks, snapshot := c.selectionClicks, *s
 			c.clearTranscriptSelection()
+			if key == "" && !linked {
+				c.selectionClicks = clicks
+				c.selectionClickSnapshot = snapshot
+			}
 			c.stickToBottom = follow
 			// OSC 8 activation belongs to the terminal client (usually a
 			// modified click). Never also toggle the containing tool block.
@@ -243,6 +290,9 @@ func (c *chatTUI) handleTranscriptSelection(me gotui.MouseEvent) bool {
 				c.toggleTranscriptBlock(key)
 			}
 		} else {
+			if c.selectionClicks.valid {
+				c.selectionClickSnapshot = *s
+			}
 			c.copyTranscriptSelection()
 		}
 		return true
@@ -252,7 +302,7 @@ func (c *chatTUI) handleTranscriptSelection(me gotui.MouseEvent) bool {
 
 func (c *chatTUI) tickTranscriptSelection() {
 	s := &c.textSelection
-	if !s.dragging || !s.moved {
+	if !s.dragging || !s.moved || (s.pointerX == s.pressX && s.pointerY == s.pressY) {
 		return
 	}
 	if !c.selectionCurrent() {
@@ -277,7 +327,7 @@ func (c *chatTUI) tickTranscriptSelection() {
 	}
 	c.setTranscriptPosition(next)
 	c.stickToBottom = false
-	s.end = c.selectionPoint(s.pointerX, min(r.Y+r.Height-1, max(r.Y, s.pointerY)))
+	s.extend(c.selectionPoint(s.pointerX, min(r.Y+r.Height-1, max(r.Y, s.pointerY))))
 	s.moved = true
 	if c.app != nil {
 		c.app.MarkDirty()
@@ -366,6 +416,8 @@ func (c *chatTUI) renderTranscriptSelectionRows(root *gotui.Element) {
 }
 
 func (c *chatTUI) handleTranscriptEscape() bool {
+	c.selectionClicks = transcriptClickSequence{}
+	c.selectionClickSnapshot = transcriptSelection{}
 	if c.textSelection.active {
 		c.clearTranscriptSelection()
 		return true

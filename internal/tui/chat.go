@@ -183,6 +183,8 @@ type chatTUI struct {
 	input                       *multilineInput
 	search                      transcriptSearch
 	textSelection               transcriptSelection
+	selectionClicks             transcriptClickSequence
+	selectionClickSnapshot      transcriptSelection
 	nativeSelectionCopyPending  bool
 	queuedDrafts                []string
 	pendingMedia                map[string][]store.MediaRef
@@ -2241,6 +2243,10 @@ func (c *chatTUI) recallHistory(delta int) {
 }
 
 func (c *chatTUI) HandleMouse(me gotui.MouseEvent) bool {
+	if me.Button != gotui.MouseLeft {
+		c.selectionClicks = transcriptClickSequence{}
+		c.selectionClickSnapshot = transcriptSelection{}
+	}
 	if c.modelMenuOpen && c.modelMenuKind == "session-rename" {
 		return true
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	gotui "github.com/grindlemire/go-tui"
 )
@@ -319,5 +320,184 @@ func TestTranscriptSelectionIncludesFinalContentCellWithoutScrollbarPress(t *tes
 				})
 			}
 		}
+	}
+}
+
+func TestTranscriptWordSegmentsAndClickSequence(t *testing.T) {
+	c := &chatTUI{transcript: []string{"sys: file-name/path.txt e\u0301clair 中文 🙂 end"}, outputHeight: 20}
+	rows := c.renderedTranscriptRows(100)
+	row := rows[0]
+	selected := func(col int) string {
+		r, ok := transcriptWordRange(0, row, col)
+		if !ok {
+			return ""
+		}
+		s := transcriptSelection{active: true, moved: true, rows: rows, width: 100, start: r.start, end: r.end}
+		return s.text()
+	}
+	for _, check := range []struct {
+		col  int
+		want string
+	}{{6, "file-name/path.txt"}, {11, "file-name/path.txt"}, {24, "e\u0301clair"}, {36, "🙂"}, {0, "sys"}, {3, ":"}} {
+		if got := selected(check.col); got != check.want {
+			t.Fatalf("col%d got%q want%q row%q", check.col, got, check.want, row.text)
+		}
+	}
+	var seq transcriptClickSequence
+	r, _ := transcriptWordRange(0, row, 6)
+	now := time.Now()
+	for _, want := range []int{1, 2, 3, 1} {
+		if got := seq.next(r, now); got != want {
+			t.Fatal(got, want)
+		}
+		now = now.Add(100 * time.Millisecond)
+	}
+	if seq.next(r, now.Add(time.Second)) != 1 {
+		t.Fatal("expired")
+	}
+	r.start.row++
+	r.end.row++
+	if seq.next(r, now.Add(time.Second)) != 1 {
+		t.Fatal("new row")
+	}
+}
+
+func TestTranscriptMultiClickWordLineDragAndInvalidation(t *testing.T) {
+	c := selectionFixture(t, 60, 18)
+	mouse := func(c *chatTUI, action gotui.MouseAction, x, y int) {
+		t.Helper()
+		if !c.HandleMouse(gotui.MouseEvent{Button: gotui.MouseLeft, Action: action, X: x, Y: y}) {
+			t.Fatal("unhandled mouse")
+		}
+	}
+	before := *c.input
+	click := func(x, y int) {
+		mouse(c, gotui.MousePress, x, y)
+		// Real go-tui may redraw between press and release.
+		c.validateTranscriptSelection(60, 18)
+		mouse(c, gotui.MouseRelease, x, y)
+		c.validateTranscriptSelection(60, 18)
+	}
+	// Same word, different cell: 500ms sequence follows word bounds, not pixels.
+	click(7, 1)
+	click(8, 1)
+	if got := c.textSelection.text(); got != "row-00" || c.textSelection.granularity != 1 {
+		t.Fatalf("double:%q %#v", got, c.selectionClicks)
+	}
+	if !strings.Contains(c.textSelection.notice, "Clipboard off") {
+		t.Fatal("clipboard policy")
+	}
+	click(8, 1)
+	if got := c.textSelection.text(); got != c.textSelection.rows[1].text || c.textSelection.granularity != 2 {
+		t.Fatalf("triple:%q", got)
+	}
+	c.clearTranscriptSelection()
+	click(7, 7)
+	mouse(c, gotui.MousePress, 8, 7)
+	mouse(c, gotui.MouseDrag, 8, 1)
+	mouse(c, gotui.MouseRelease, 8, 1)
+	if got := c.textSelection.text(); !strings.HasPrefix(got, "row-00") || !strings.HasSuffix(got, "row-02") {
+		t.Fatalf("reverse word drag:%q", got)
+	}
+	if before.text != c.input.text || before.cursorPos != c.input.cursorPos || before.undoText != c.input.undoText || before.yankText != c.input.yankText {
+		t.Fatal("editor mutated")
+	}
+	c.clearTranscriptSelection()
+	click(7, 1)
+	c.transcript = append(c.transcript, "sys: new output")
+	click(7, 1)
+	if c.textSelection.active {
+		t.Fatal("stale output counted as second click")
+	}
+	c.clearTranscriptSelection()
+	click(7, 1)
+	c.handleTranscriptEscape()
+	click(7, 1)
+	if c.textSelection.active {
+		t.Fatal("Escape retained multiclick sequence")
+	}
+	c.clearTranscriptSelection()
+	click(7, 1)
+	c.selectionClicks.at = time.Now().Add(-time.Second)
+	click(7, 1)
+	if c.textSelection.active {
+		t.Fatal("slow clicks became double")
+	}
+	c.clearTranscriptSelection()
+	click(7, 1)
+	mouse(c, gotui.MousePress, 8, 1)
+	c.tickTranscriptSelection()
+	if c.transcriptScroll != 0 {
+		t.Fatal("stationary word click scrolled")
+	}
+}
+
+func TestTranscriptMultiClickSequenceOwnership(t *testing.T) {
+	for _, kind := range []string{"session", "generation", "query", "resize", "outside", "wheel", "modifier", "drag"} {
+		t.Run(kind, func(t *testing.T) {
+			c := selectionFixture(t, 60, 13)
+			event := func(action gotui.MouseAction, x, y int) {
+				c.HandleMouse(gotui.MouseEvent{Button: gotui.MouseLeft, Action: action, X: x, Y: y})
+			}
+			click := func() { event(gotui.MousePress, 8, 1); event(gotui.MouseRelease, 8, 1) }
+			click()
+			if !c.selectionClicks.valid {
+				t.Fatal("first click missing")
+			}
+			switch kind {
+			case "session":
+				c.sessionID = "different"
+			case "generation":
+				c.sessionGeneration++
+			case "query":
+				c.search.query = "changed"
+			case "resize":
+				c.validateTranscriptSelection(58, 13)
+			case "outside":
+				event(gotui.MousePress, 70, 20)
+			case "wheel":
+				c.HandleMouse(gotui.MouseEvent{Button: gotui.MouseWheelDown, Action: gotui.MousePress, X: 8, Y: 1})
+			case "modifier":
+				c.HandleMouse(gotui.MouseEvent{Button: gotui.MouseLeft, Action: gotui.MousePress, X: 8, Y: 1, Mod: gotui.ModShift})
+				event(gotui.MouseRelease, 8, 1)
+			case "drag":
+				event(gotui.MousePress, 8, 1)
+				event(gotui.MouseDrag, 18, 1)
+				event(gotui.MouseRelease, 18, 1)
+			}
+			click()
+			if c.textSelection.granularity != 0 {
+				t.Fatalf("%s retained multiclick", kind)
+			}
+		})
+	}
+}
+
+func TestTranscriptWordSelectionWideHalfAndEdgeDrag(t *testing.T) {
+	c := selectionFixture(t, 60, 13)
+	event := func(action gotui.MouseAction, x, y int) {
+		c.HandleMouse(gotui.MouseEvent{Button: gotui.MouseLeft, Action: action, X: x, Y: y})
+	}
+	// First and second cells of the same CJK word segment identify one click unit.
+	event(gotui.MousePress, 13, 1)
+	event(gotui.MouseRelease, 13, 1)
+	event(gotui.MousePress, 14, 1)
+	event(gotui.MouseRelease, 14, 1)
+	if got := c.textSelection.text(); got != "中" {
+		t.Fatalf("wide selection:%q", got)
+	}
+	c.clearTranscriptSelection()
+	event(gotui.MousePress, 8, 4)
+	event(gotui.MouseRelease, 8, 4)
+	event(gotui.MousePress, 8, 4)
+	event(gotui.MouseDrag, 8, 12)
+	for range 3 {
+		c.tickTranscriptSelection()
+	}
+	if c.transcriptScroll < 1 || c.textSelection.granularity != 1 {
+		t.Fatal("word edge scroll")
+	}
+	if c.textSelection.end.col < 1 {
+		t.Fatal("word edge lost range")
 	}
 }

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-09-22. Fullscreen primary-button drag selection, copy and held-edge scrolling work on the padded Pi-style transcript. Regular mode continues to use terminal-owned selection.
+Accepted — 2026-09-22. Fullscreen primary-button drag selection, copy and held-edge scrolling work on the padded Pi-style transcript. Regular mode continues to use terminal-owned selection. The [word/line multiclick extension](../internal/tui-word-selection.md) supersedes the historical double/triple-click limitation below for eligible text rows; OSC8/tool ownership and locale/cross-wrap limits remain explicit.
 
 ## Interaction and footprint
 
