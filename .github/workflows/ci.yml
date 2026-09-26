@@ -96,6 +96,28 @@ jobs:
         run: make test-ux-slash
       - name: Verify read-only workspace tab transitions
         run: make test-ux-workspace-tabs
+      - name: Upload journey evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: startup-return-browser-evidence
+          path: test-results/ux-parity
+          retention-days: 3
+
+  compose-browser:
+    name: Compose surfaces, panels and voice ownership
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun x playwright install --with-deps chromium webkit
       - name: Verify compose surface and resize ownership
         run: make test-ux-compose-surface
       - name: Verify native model panel and Settings handoff
@@ -104,11 +126,10 @@ jobs:
         run: make test-ux-session-panel
       - name: Verify browser voice-input ownership contract
         run: make test-ux-voice-input
-      - name: Upload journey evidence
-        if: always()
-        uses: actions/upload-artifact@v7
+      - if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: startup-return-browser-evidence
+          name: compose-panel-voice-evidence
           path: test-results/ux-parity
           retention-days: 3
 
@@ -155,7 +176,7 @@ jobs:
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest
-    needs: [test, auth-state, passkey-browser, browser-journey, notification-browser]
+    needs: [test, auth-state, passkey-browser, browser-journey, compose-browser, notification-browser]
     strategy:
       fail-fast: false
       matrix:

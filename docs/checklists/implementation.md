@@ -2,7 +2,9 @@
 
 Status: Active
 Date: 2026-04-22
-Last updated: 2026-09-25
+Last updated: 2026-09-26
+
+- [x] Split required compose/panel/voice CI from startup/geometry/slash/workspace after run36206444743 hit the15-minute job limit (annotation108303890554). Notification/passkey/core jobs were green. Retain all targets,15-minute limits/artifacts and build dependencies; no timeout increase/skip. Deployment held for new whole-workflow success.
 
 - [x] Deploy contrasta25140f afterCI36197537050 (ninejobs); separate-session Makefile launch PID304534 PGID/SID304361 on8090. Six guarded Chromium/WebKit probes pass contrast/padding and prior panel behaviours,zero writes/errors;DB62/51/146+integrity/FKs and normalizedSQL unchanged except leases,auth absent. Prior process shutdown cause unproven; new launch alive across subsequent tools, restartdurability not claimed. Raster diagnostic flags still leave12/36unstable and were not adopted; official16/36remains.
 
