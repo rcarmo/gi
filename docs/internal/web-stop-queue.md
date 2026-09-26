@@ -66,6 +66,32 @@ and treating returned Steer items as runnable hold blockers. Final scoped review
 accepted the corrections. Initial native test harness mistakes and superseded
 failing logs remain in `/workspace/tmp/gi-web-queue-hold`; no timeout was increased.
 
-Implementation and local acceptance do not grant automatic Shared36 mapping,
-physical-device, accessibility-matrix or exact-pixel credit. Whole-product CI and
-exact-source deployment remain separate gates. TUI WIP `2a87a79` stays isolated.
+## Deployment and Shared36 mapping
+
+Exact source `caa83c795fa7b092bd923bbbb3bbc5309f0f3359` passed whole-product CI
+[36247821576](https://github.com/rcarmo/gi/actions/runs/36247821576), including all
+four release builds, then replaced `9c01b5d` on port 8090. Live PID `312567`, process
+group/session `312558`; binary SHA-256
+`e8795f746eff8bc9398f175d7e8c6a077be0fb81f4d48a6128b81eb563231595`.
+
+Four blocked non-localhost HTTP sends and six read-only UI probes passed. Before
+and after: 62 sessions, 51 turns, 146 messages, zero active turns; integrity/FKs
+clean. Every pre-existing table, including receipts, matches except for the runtime
+dispatcher lease. Auth hashes and local-only TUI WIP HEAD/diff match. The additive
+hold table is empty. No live chat writes occurred. Deployment evidence is in
+`/workspace/tmp/gi-web-queue-deploy-caa83c7`; DB dumps/auth hashes stay local-only.
+
+Independent clause review accepted the browser evidence for Shared36. The one
+canonical test in `reconnect.spec.mjs` now carries `@shared-36`; supportive HTTP
+and native tests are not tagged a second time. `make test-shared-stop-evidence`
+passed 66 reconnect cases and three catalogue/report tests (1954 assertions),
+then generated six-project Shared36 pass evidence. The focused report has one
+shared pass, 30 mapped-but-not-run and 11 unmapped cases. Mapping coverage is 31/42;
+it is not a complete matrix run. Classic mappings remain 101/236.
+
+The report tests reject five-project and duplicate-file evidence and do not grant
+Classic original023 or Shared35 credit from Shared36-only input. A duplicate local
+variable in the new report fixture was corrected before those tests passed.
+CI now runs this evidence gate and preserves its report. Frozen feature files and
+manifests are unchanged. This adds no physical-device, accessibility-matrix,
+exact-pixel or TUI acceptance. TUI WIP `2a87a79` stays isolated.

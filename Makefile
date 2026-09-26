@@ -268,6 +268,11 @@ UX_LOCAL_ENV ?= GI_UX_STEER=1
 UX_LOCAL_SPEC ?= tests/ux/queue-steer.spec.mjs
 UX_LOCAL_BIN ?= bin/gi-ux-steer
 UX_LOCAL_PORT ?= 19092
+.PHONY: test-shared-stop-evidence
+test-shared-stop-evidence: test-ux-reconnect
+	$(BUN) test tests/ux/support/parity-report.test.ts tests/ux/support/passkey-criteria.test.ts
+	$(BUN) scripts/ux-parity-report.mjs test-results/ux-parity/reconnect-results.json
+
 test-ux-reconnect: build-web
 	@mkdir -p $(dir $(UX_LOCAL_BIN))
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server

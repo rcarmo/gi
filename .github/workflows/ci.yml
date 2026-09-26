@@ -246,6 +246,8 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium webkit
       - run: make test-web-http-helpers test-web-basic-send test-web-basic-controls
+      - name: Verify captured Stop shared-contract evidence
+        run: make test-shared-stop-evidence
       - name: Preserve basic send evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -254,6 +256,9 @@ jobs:
           path: |
             test-results/basic-http-send/
             test-results/ux-parity/basic-http-results.json
+            test-results/ux-parity/reconnect-results.json
+            test-results/ux-parity/matrix.json
+            test-results/ux-parity/matrix.md
             test-results/ux-parity/artifacts/
           if-no-files-found: ignore
 

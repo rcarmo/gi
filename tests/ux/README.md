@@ -32,11 +32,11 @@ The sources came from `/workspace/evidence/piclaw-classic-70d33bc93` and `/works
 
 The Classic and shared contracts differ in places, including command-prefill and idle-Steer safety semantics. Both are preserved. Passing a Classic case does not imply passing the stronger shared contract.
 
-## Current status (2026-09-25)
+## Current status (2026-09-26)
 
 The [feature and parity matrix](../../docs/feature-parity.md) separates shipped
 behaviour, known gaps and planned integrations. Source mappings are 101/236
-Classic IDs and 30/42 shared cases; they are not a full-suite pass. Classic008 is
+Classic IDs and 31/42 shared cases; they are not a full-suite pass. Classic008 is
 disputed. All 26 separately pinned passkey Settings scenarios/outlines are unmapped;
 `make test-ux-passkeys` verifies native APIs and Settings/login journeys using real
 Chromium WebAuthn and virtual authenticators. Full per-case mapping, Visual-skin
@@ -355,3 +355,17 @@ When splitting a matrix, pass each project's report exactly once to `ux-parity-r
 `message-copy.spec.mjs` adds five tests × six projects for native stored-source Markdown/rich copy, unavailable APIs, rich-to-plain fallback, denial/reset and late session-switch failure. Success observes trusted browser copy events synchronously; failure injection does not count as OS clipboard evidence. The bundled Post helper override is exercised directly without editing supplied sources.
 
 **594 browser executions** pass (426 main + 168 supplementary), plus **80 functional** and **38 helpers**. Coverage stays **50/236 Classic**, **2/42 shared**, **186/40 unmapped**: original-024/shared-37 also require native deletion/cascade behaviour. [ADR-0055](../../docs/adr/0055-message-copy-clipboard-safety.md) records the fix and terminal boundaries. Main reports: `/tmp/gi-message-copy-main-{chromium-mobile,mixed,webkit-large}.json`.
+
+### Shared36: captured Stop and queue preservation
+
+`make test-shared-stop-evidence` runs the six-project reconnect suite, validates
+report/ledger tests and generates the focused matrix. Its single canonical
+`@shared-36` test proves captured session/turn/runtime ownership, reconnect refresh,
+visible Stop, exact cancellation, unchanged queue and draft/media, explicit Resume,
+and stale native terminal-frame rejection. Supporting HTTP/native tests cover
+restart, queue order, resume fencing and lost acknowledgements without replay.
+
+The focused run passes 66 reconnect tests. Its shared report has one pass, 30
+mapped-but-not-run cases and 11 unmapped cases. It grants no new Classic, TUI,
+physical-device, Visual-skin or exact-pixel acceptance. Implementation `caa83c7`
+is deployed after whole-product CI; see [the Stop contract](../../docs/internal/web-stop-queue.md).

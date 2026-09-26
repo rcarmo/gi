@@ -280,7 +280,7 @@ test('Gi bounded timeline pages preserve viewport and catch up after outage',asy
  }finally{await env.close();}
 });
 
-test('Gi captured Stop survives reconnect and old native terminal frames cannot clear a newer run',async({page},info)=>{
+test('@shared-36 Captured Stop survives reconnect, preserves queue, and ignores stale terminal frames',async({page},info)=>{
  test.setTimeout(60000);
  const source=loadCorpus('shared').find(x=>x.id==='@shared-36');await info.attach('gherkin',{body:source.steps.join('\n'),contentType:'text/plain'});
  const env=await environment(page,info,{observeFrames:true});const{main,input,api}=env;

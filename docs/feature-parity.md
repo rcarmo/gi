@@ -1,6 +1,6 @@
 # Gi features and Piclaw parity
 
-Updated: 2026-09-25. This describes the repository after the workspace-motion and
+Updated: 2026-09-26. This describes the repository after the workspace-motion and
 native auth persistence repairs. Multi-passkey APIs and Settings/login controls now have browser integration tests;
 lockout-safe policy controls are implemented; physical devices, remote networking
 and MCP have work outstanding.
@@ -32,7 +32,7 @@ found missing user journeys, weak assertions and tests tied to Gi's older layout
 | Composer and drafts | Partial: persistent browser-local text/media/references, failed-send recovery, file/folder/message references, upload progress/cancel/retry and byte-identical upload reuse. | Composer inline padding now follows the pinned Classic reference; session-strip structure and full visual styling still differ. Native slash catalogue, Tab/Enter/Escape and keyboard ownership now have a six-project CI suite. Physical IME and prefill-policy conflicts remain open. |
 | Sessions | Partial: selection, child creation, grouping/search/typeahead, capability-gated pin/rename/archive/restore and draft isolation. | Session picker outer bounds now follow the pinned Classic reference, including fixed mobile panels. Row structure/styles and complete session-management UI remain incomplete. |
 | Models and context | Partial: session-local model selection, registry/context metadata, fit checks, usage meter and model commands. | Model picker outer geometry follows the pinned reference with an explicit intermediate-width containment correction. Catalogue structure and remaining workflows/local-estimate labelling are incomplete; unavailable metadata stays unknown. |
-| Queue and Stop | Partial: durable browser follow-ups, reorder/cancel, run-bound steering, queue return-to-draft, reconciliation and run-bound Stop. | Web Stop now preserves pending work behind durable explicit Resume (local race/HTTP/reconnect gates pass); generic/TUI cancellation still advances. Shared-36 mapping, product CI and deployment review remain pending. |
+| Queue and Stop | Partial: durable browser follow-ups, reorder/cancel, run-bound steering, queue return-to-draft, reconciliation and run-bound Stop. | Web Stop preserves pending work behind durable explicit Resume, deployed at `caa83c7` after product CI. Shared-36 is mapped with six-project reconnect evidence; generic/TUI cancellation still advances. See [contract and evidence](internal/web-stop-queue.md). |
 | Compaction | Implemented: automatic/manual native compaction, persisted context checkpoints, progress/cancel and shared browser/terminal engine behaviour. | Broad Settings parity and every upstream compaction workflow are not complete. |
 | Timeline and media | Partial: Markdown/tables/code copy, image lightbox, stored media/resource links, tool timing, recovered-response labels, idle single-message deletion and browser speech controls. | No iPad annotation workflow. Speech tests use a controlled browser boundary; physical audio is not verified. |
 | Cards and widgets | Partial: supplied Adaptive Cards rendering and truthful rejection of unsupported Submit. | Accepted card actions and the full agent-authored widget/attachment tool surface are not implemented. |
@@ -107,7 +107,7 @@ operator's live authentication policy.
 | Contract | Inventory | Source mappings | Unmapped |
 |---|---:|---:|---:|
 | Piclaw Classic, pinned `70d33bc93ab540845bbcf5f80503ca8125c71594` | 236 IDs / 256 expanded cases | 101 IDs | 135 IDs |
-| Shared Tau/Vibes interaction contract | 42 cases | 30 | 12 |
+| Shared Tau/Vibes interaction contract | 42 cases | 31 | 11 |
 | Additional single-user passkey Settings contract | 26 scenarios/outlines | 0 | 26 |
 
 These are mappings in `tests/ux/support/catalogue.mjs`, not a pass percentage or a
