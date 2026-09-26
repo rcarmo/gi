@@ -32,6 +32,32 @@ composer's queue fallback is adapted at build time by
 Supplied component bytes remain unchanged. Authentication, passkeys, secure
 cookies, origin guards and notification capability gates are untouched.
 
+## Deployment
+
+Exact `f7c969323d4c21347cb131d602d8f71aa8a97e2a` passed product
+[CI36230683412](https://github.com/rcarmo/gi/actions/runs/36230683412), including
+the required HTTP-send job and all four builds. Detached-source deployment runs
+on8090, PID1276518, PGID/SID1276508. Uncommitted autosave work is excluded.
+
+Four deployed non-loopback HTTP checks (Chromium/WebKit × Return/Send) confirm
+insecure context, absent `randomUUID`, the exact POST path/prompt, retained text
+and visible unknown-delivery feedback when the probe blocks the request. No
+native writes occurred. Six existing read-only UI probes also pass. DB remains
+62sessions/51turns/146messages, integrity/FKs clean, normalised SQL excluding
+runtime leases and absent auth unchanged. Existing browser tabs must reload to
+load the fixed asset.
+
+Separately, a disposable instance using the actual configured
+`github-copilot/gpt-5-mini` credentials admitted an HTTP-origin browser send202,
+completed with `WEB_SEND_PROVIDER_OK`, and displayed it before/after reload with
+no browser errors. Its temporary credential copy was removed after shutdown.
+No provider request was made in a live chat. An additional real-HTTP probe in
+both browser engines passed New session→send/response→return to parent draft→
+reload→return to child history. Initial probe selector/response-shape mistakes
+were corrected before the accepted run. Full live-chat mutating acceptance is
+not claimed; the deployed transport, isolated end-to-end and provider evidence
+are distinct.
+
 ## Acceptance
 
 `make test-web-basic-send` starts a disposable native instance and uses a

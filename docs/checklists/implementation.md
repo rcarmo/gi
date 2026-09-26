@@ -4,7 +4,7 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
-- [x] P0 HTTP-host send fix: getRandomValues UUIDv4 for draft/UI IDs and guarded immutable-composer adapter. Six realHTTP/localhost Chromium+WebKit journeys prove Return/Send→exactunique native turn→matching response→reload and rejection/network-loss/explicitretry. Core/vet/hooks+10helpers35assertions+113functional(11existing skips)pass;review no blocker,requiredproductCI gate added. [Incident/evidence](../internal/web-http-send.md); NOT deployed yet. Secondary work paused until live basic journey accepted.
+- [x] P0 HTTP-host send fix: getRandomValues UUIDv4 for draft/UI IDs and guarded immutable-composer adapter. Six realHTTP/localhost Chromium+WebKit journeys prove Return/Send→exactunique native turn→matching response→reload and rejection/network-loss/explicitretry. Core/vet/hooks+10helpers35assertions+113functional(11existing skips)pass;review no blocker,requiredproductCI gate added. [Incident/evidence](../internal/web-http-send.md); exactf7c9693 deployed after wholeCI36230683412,8090PID1276518/PGID1276508. Four deployed HTTP Return/Send probes reach transport (blocked before writes);6UI probes/DB62/51/146+SQL/auth preserved. Isolated realCopilot response+reload and twoengine newchat/switch/reload pass. Existing tabs require reload; secondary work stays paused for human-journey fan-out.
 
 - [x] Repair CI36225954462 shutdown failure: publishSubTurnLifecycle passed nil coordination context to SQLite after cancellation, panicked under SQLmutex and blocked cleanup/Close until10m timeout. Guard absent context; direct regression asserts no stored subturn mutation. Race×3/core/vet/hooks+107functional(11skips)pass,failed trace retained,no timeout increase. CI/deploy pending.
 
