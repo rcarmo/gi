@@ -4315,6 +4315,9 @@ func (r *sessionRunner) publishSubTurnLifecycle(ctx context.Context, childTurnID
 		return
 	}
 	opCtx := store.CoordinationContext(ctx, r.engine.backgroundContext())
+	if opCtx == nil {
+		return
+	}
 	sub, err := r.store.GetSubTurnByChild(opCtx, childTurnID)
 	if err != nil {
 		return

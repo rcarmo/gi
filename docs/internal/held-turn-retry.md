@@ -89,6 +89,14 @@ A focused independent review found no blocker on the file-backed path. The
 race acceptance uses `_txlock=immediate` file-backed stores, not shared-memory
 SQLite contention or physical terminal acceptance.
 
+A later product CI run36225954462 failed during shutdown: subturn lifecycle
+publication passed a nil coordination context to `database/sql`, panicked while
+its mutex was held, then blocked cleanup/Close until the10-minute test timeout.
+Lifecycle publication now returns when both contexts are cancelled; a direct
+regression asserts no stored subturn mutation. Race×3/core/vet/hooks and107
+functional tests (11existing skips) pass. The failed trace is retained; no
+budget or timeout was increased. This fix awaits its own CI/deployment.
+
 The focused race gate is included in required CI. Whole-CI status and deployment
 are tracked separately; this document does not claim deployment or new feature
 mappings. Native admission itself changes no terminal rows, shortcuts or

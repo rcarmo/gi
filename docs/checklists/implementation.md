@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Repair CI36225954462 shutdown failure: publishSubTurnLifecycle passed nil coordination context to SQLite after cancellation, panicked under SQLmutex and blocked cleanup/Close until10m timeout. Guard absent context; direct regression asserts no stored subturn mutation. Race×3/core/vet/hooks+107functional(11skips)pass,failed trace retained,no timeout increase. CI/deploy pending.
+
 - [x] Deploy exactc845050 after productCI36225264763 (not cleanup36225411598);8090PID1130830/PGID1130724. Six read-only probes pass,zeroHTTPwrites/errors/permissions;DB62/51/146 integrity/FKs+normalisedSQL/auth unchanged. Newertext/pairedjournal excluded; [deployment](../internal/tui-submit-guards.md#deployment),no live terminal mutations.
 
 - [x] Deploy exact5e595d7 after wholeCI36224693623 inclrequiredretryPTY+fourbuilds;8090PID1103331/PGID1103224. Six read-only browser probes pass,zeroHTTPwrites/errors/permissions. DB62/51/146 integrity/FKs clean; normalisedSQL only two additive retry columns,auth absent. Newerc845050/493d4ae excluded; [deployment](../internal/tui-held-retry.md#deployment),no live terminal mutations.

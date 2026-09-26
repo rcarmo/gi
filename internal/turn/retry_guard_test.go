@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -497,5 +498,30 @@ func TestRetryHeldGuardShutdownDoesNotPassNilContextToQueueHandoff(t *testing.T)
 	}
 	if err = e.ReleaseHeldRetryInSession(ctx, "A", "old", "token"); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
+	}
+}
+
+func TestRetryHeldGuardShutdownSkipsSubTurnLifecycleWithoutLiveContext(t *testing.T) {
+	e, s, _ := heldRetryFixture(t)
+	ctx := context.Background()
+	if _, err := s.CreateTurnWithStatus(ctx, "parent", "A", "completed", "parent", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateSubTurn(ctx, "parent", "A", "old", "A", "async", 1, nil); err != nil {
+		t.Fatal(err)
+	}
+	before, err := s.GetSubTurnByChild(ctx, "old")
+	if err != nil {
+		t.Fatal(err)
+	}
+	canceled, cancel := context.WithCancel(ctx)
+	cancel()
+	e.Close()
+	// Previously panicked inside database/sql while holding its internal mutex,
+	// then blocked cleanup and Store.Close until the Go test timeout.
+	e.runner("A").publishSubTurnLifecycle(canceled, "old", "completed")
+	after, err := s.GetSubTurnByChild(ctx, "old")
+	if err != nil || !reflect.DeepEqual(before, after) {
+		t.Fatal("shutdown lifecycle mutated stored subturn", after, err)
 	}
 }
