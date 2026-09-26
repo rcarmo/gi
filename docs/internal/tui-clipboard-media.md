@@ -1,4 +1,6 @@
-# TUI clipboard and media parity
+# TUI clipboard and media
+
+Pending reference and admission recovery now use the [durable session journal](tui-media-journal.md). Staged refs survive process reopen; unresolved claims are held without automatic resend. `/detach unresolved` discards only the observed claim references, keeping stored files and any admitted work. parity
 
 Status: clipboard text copy has an opt-in implementation; clipboard image paste is supported via `/paste-image`; `/attach <path> [prompt]` is the terminal-safe file media fallback.
 

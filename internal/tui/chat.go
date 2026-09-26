@@ -2367,11 +2367,26 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 		c.completeEditorAsk(text)
 		return
 	}
+	var claim *mediaClaim
+	if ordinaryMediaPrompt(text) {
+		if err := c.refreshPendingMedia(); err != nil {
+			c.appendTranscript("attachments: pending state unavailable; draft retained: " + err.Error())
+			return
+		}
+	}
 	if ordinaryMediaPrompt(text) && (len(c.pendingMedia[c.sessionID]) > 0 || c.mediaClaims[c.sessionID] != nil) {
 		// Preserve text/cursor until it is safe to claim refs. Files belong to
 		// this session, not a directed peer or a second in-flight submission.
 		if c.mediaClaims[c.sessionID] != nil || strings.HasPrefix(text, "@") || strings.TrimSpace(c.cfg.DefaultModel) == "" {
 			c.appendTranscript("attachments: retained; wait for admission, choose a model, or /detach all before a directed send")
+			return
+		}
+	}
+	if ordinaryMediaPrompt(text) {
+		var err error
+		claim, err = c.claimPendingMedia(!strings.HasPrefix(text, "@") && strings.TrimSpace(c.cfg.DefaultModel) != "")
+		if err != nil {
+			c.appendTranscript("attachments: could not claim references; draft retained: " + err.Error())
 			return
 		}
 	}
@@ -2402,7 +2417,6 @@ func (c *chatTUI) submitWithMetadata(text string, metadata map[string]any) {
 		text = fmt.Sprintf("Run this shell command and summarize the result: %s", cmd)
 	}
 	scope := c.selectionScope()
-	claim := c.claimPendingMedia()
 	if claim != nil {
 		merged := make(map[string]any, len(metadata)+2)
 		for key, value := range metadata {
@@ -2631,7 +2645,7 @@ func (c *chatTUI) handleCommand(text string) {
 		if lines, handled := c.extensionCommandLines(text, fields); handled {
 			c.appendTranscript(lines...)
 		} else {
-			c.appendTranscript("sys: commands: /help, /hotkeys, /commands [query], /session, /sessions, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /attach <path> [prompt], /attachments, /detach <media:id|all>, /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /history-limit [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
+			c.appendTranscript("sys: commands: /help, /hotkeys, /commands [query], /session, /sessions, /new, /name <name>, /resume [index|session_id], /clone [@agentN], /copy [--osc52|--native|--auto|--fallback], /attach <path> [prompt], /attachments, /detach <media:id|all|unresolved>, /reload, /tools [query|active|activate|reset], /skills [query], /skill:name [args], /model [name], /scoped-models [add|remove|set], /thinking [level], /compact, /scrollback [n], /history-limit [n], /settings, /approvals, /cancel, /agents, /tree, /plugins, /fork [@agentN], /switch @agent|session_id, /send @agent message, /where, !cmd, !!cmd")
 		}
 	}
 	c.running = false
@@ -2702,8 +2716,8 @@ func (c *chatTUI) commandPaletteLines(query string) []string {
 		{"/clone [@agentN]", "clone active branch/session"},
 		{"/copy [--osc52|--native|--auto|--fallback]", "copy last assistant message with opt-in target"},
 		{"/attach <path> [prompt]", "stage up to six session media refs for next prompt"},
-		{"/attachments", "list pending refs (this process only)"},
-		{"/detach <media:id|all>", "remove pending refs; keep stored files"},
+		{"/attachments", "list durable refs / held admissions"},
+		{"/detach <media:id|all|unresolved>", "remove pending refs; keep stored files"},
 		{"/paste-image [prompt]", "paste a clipboard image and optionally submit a prompt"},
 		{"/login [provider]", "show OAuth/credential auth status"},
 		{"/logout <provider>", "remove stored provider credentials"},
@@ -2772,7 +2786,7 @@ func (c *chatTUI) helpLines() []string {
 		"/session   details for this chat",
 		"/where     compact context",
 		"/attach    stage session media (up to 6)",
-		"/attachments | /detach <media:id|all> list/remove pending refs",
+		"/attachments | /detach <media:id|all|unresolved> list/remove pending refs",
 		"ctrl-r     search command history (current input is query)",
 		"!cmd       ask model about shell · !!cmd run locally",
 	}

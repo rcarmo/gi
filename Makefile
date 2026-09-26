@@ -425,6 +425,10 @@ test-tui-sessions: build
 	$(BUN) scripts/test-tui-sessions.mjs
 
 .PHONY: test-tui-pending-media
+.PHONY: test-tui-media-journal
+test-tui-media-journal:
+	$(GO) test -race -count=3 ./internal/store ./internal/tui -run 'TUIMediaDraft|PendingMedia|AttachCommand|PasteImage'
+
 test-tui-pending-media: build
 	GI_TUI_BIN=$(abspath $(BIN)) $(BUN) scripts/test-tui-pending-media.mjs
 

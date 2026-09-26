@@ -43,7 +43,18 @@ try{for(const mode of ['fullscreen','regular'])for(const[cols,rows]of [[60,18],[
  type(target,'final draft β');await sleep(100);if(separators(capture(target))!==baseline)throw Error('idle footprint');if(readFileSync(join(root,'.pi/settings.json'),'utf8')!==settings)throw Error('settings mutated');
  if(sql(liveDB,'SELECT COUNT(*) FROM media')!=='2')throw Error('detach deleted stored media');if(sql(liveDB,`SELECT COUNT(*) FROM turns WHERE session_id='${b}'`)!=='0')throw Error('other session submitted');
  writeFileSync(join(root,'after.txt'),capture(target));writeFileSync(join(root,'after.ansi'),tm('capture-pane','-e','-p','-t',target));writeFileSync(join(root,'native.json'),JSON.stringify({turn,bytes},null,2));
- send(target,'C-c');await wait(target,t=>t.includes('media-exit-complete'),'exit');summary.push({mode,cols,rows,sessionRefs:true,rejectedRecovery:true,nativeBytes:true,noDuplicate:true,zeroIdleRows:true});tm('kill-session','-t',name);
+ await command(target,'/attach a.txt');await wait(target,t=>t.includes('staged for prompt admission'),'stage restart');
+ send(target,'C-c');await wait(target,t=>t.includes('media-exit-complete'),'exit');tm('kill-session','-t',name);
+ const relaunch=async()=>{tm('new-session','-d','-s',name,'-x',String(cols),'-y',String(rows),'bash','-c',launch);await wait(target,t=>t.includes('bootstrap'),'restart ready');await command(target,`/switch ${b}`);};
+ await relaunch();await command(target,'/attachments');await wait(target,t=>t.includes('1 pending')&&t.includes('survives restart'),'durable staged refs');
+ // Simulate a crash after durable claim acquisition but before admission.
+ send(target,'C-c');await wait(target,t=>t.includes('media-exit-complete'),'second exit');tm('kill-session','-t',name);
+ sql(liveDB,`UPDATE kv_store SET value=json_object('pending',json('[]'),'claim',json_object('token','pty-unresolved','refs',json_extract(value,'$.pending'))) WHERE namespace='tui_pending_media_v1' AND key='${b}'`);
+ await relaunch();await command(target,'/attachments');await wait(target,t=>t.includes('unresolved admission'),'unresolved held');
+ type(target,'must not resend');send(target,'Enter');await wait(target,t=>t.includes('must not resend')&&t.includes('retained'),'held claim blocks send');if(sql(liveDB,'SELECT COUNT(*) FROM turns')!=='2')throw Error('restart duplicated send');
+ await command(target,'/detach unresolved');await wait(target,t=>t.includes('discarded 1 unresolved'),'explicit discard');await command(target,'/attachments');await wait(target,t=>t.includes('0 pending'),'discarded refs');
+ if(sql(liveDB,'SELECT COUNT(*) FROM media')!=='3')throw Error('discard deleted media');writeFileSync(join(root,'restart.txt'),capture(target));
+ send(target,'C-c');await wait(target,t=>t.includes('media-exit-complete'),'final exit');summary.push({mode,cols,rows,sessionRefs:true,rejectedRecovery:true,nativeBytes:true,noDuplicate:true,restartStaged:true,unresolvedHeld:true,explicitDiscard:true,zeroIdleRows:true});tm('kill-session','-t',name);
  }catch(error){try{writeFileSync(join(root,'failure.txt'),history(target));}catch{}throw error;}
 }}finally{try{execFileSync('tmux',['-L',socket,'kill-server'],{stdio:'ignore'});}catch{}}
 writeFileSync(join(out,'summary.json'),JSON.stringify(summary,null,2));console.log(JSON.stringify(summary,null,2));

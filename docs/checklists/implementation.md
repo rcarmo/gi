@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Persist terminal media refs/claims in transactional per-sessionSQLite journal; staged refs recover, confirmed admissions consume, ambiguous restarted claims hold without resend. Explicit token-guarded `/detach unresolved` discards refs only; six-item/concurrent-client/native-session guards intact, no idle rows. Race×3+core/vet/hooks+6restartPTYs+107functional(11skips) pass; claim-write failure keeps draft/cursor/history. Text/queue restart recovery and automatic ambiguous replay separate. [Evidence](../internal/tui-media-journal.md);CI/deploy pending.
+
 - [x] Deploy exact08605d3 after wholeCI36218202980 from detached source;8090PID919699/PGID919599. Includes softwrap/word/link/editorTUI work, six read-only web regression probes pass,zero writes/errors/permissions,DB62/51/146+SQL/auth unchanged. TUIverified on disposablePTYs,not live data. Cachefollowupb4ccaed excluded pendingCI; [deployment](../internal/tui-editor-viewport.md#deployment).
 
 - [x] Cache one immutable current editor layout keyed by text/effectivewidth/cursor/focus/marker; viewport height/scroll independent and append-capacity safe. Warm1MiB layout lookup5.1ns/0alloc vs24.9ms/7.2MB baseline (microbenchmark only); cursor/edit/resize still full rebuild. Core/vet/hooks+24editor/model/session/search/regularPTYs+107functional(11skips) pass. [Evidence](../internal/tui-editor-layout-cache.md);CI pending,no new UI/draft limits.

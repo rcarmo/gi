@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -47,8 +48,8 @@ func claimedInput(c *chatTUI, claim *mediaClaim) turn.RunInput {
 func TestPendingMediaAdmissionAndRejectedRecovery(t *testing.T) {
 	c := pendingMediaChat(t)
 	ref := pendingRef(t, c, "a.txt")
-	c.stageMedia(ref)
-	claim := c.claimPendingMedia()
+	stageMediaForTest(t, c, ref)
+	claim := claimMediaForTest(t, c)
 	input := claimedInput(c, claim)
 	result, err := c.submitMediaInput(c.selectionScope(), input, claim)
 	if err != nil {
@@ -77,6 +78,7 @@ func TestPendingMediaAdmissionAndRejectedRecovery(t *testing.T) {
 	scope := sessionScope{id: "missing", generation: 90}
 	bad := &mediaClaim{refs: []store.MediaRef{ref}, token: store.NowID("rejected")}
 	c.mediaClaims[scope.id] = bad
+	installClaimJournalForTest(t, c, scope.id, bad)
 	_, err = c.submitMediaInput(scope, turn.RunInput{SessionID: scope.id, Prompt: "rejected", Model: "bootstrap"}, bad)
 	if err == nil {
 		t.Fatal("expected native rejection")
@@ -94,10 +96,10 @@ func TestPendingMediaClaimsSurviveSwitchNewerStageAndUncertainDB(t *testing.T) {
 	id := c.sessionID
 	scope := c.selectionScope()
 	ref := pendingRef(t, c, "old")
-	c.stageMedia(ref)
-	claim := c.claimPendingMedia()
+	stageMediaForTest(t, c, ref)
+	claim := claimMediaForTest(t, c)
 	newer := pendingRef(t, c, "new")
-	c.stageMedia(newer)
+	stageMediaForTest(t, c, newer)
 	// An old callback can't settle a replacement claim, or affect editor/session.
 	c.mediaClaims[id] = &mediaClaim{token: "replacement"}
 	c.settleMediaClaim(scope, claim, true)
@@ -115,12 +117,13 @@ func TestPendingMediaClaimsSurviveSwitchNewerStageAndUncertainDB(t *testing.T) {
 	}
 	c.sessionID = id
 	c.sessionGeneration++
-	claim = c.claimPendingMedia()
+	claim = claimMediaForTest(t, c)
 	scope = c.selectionScope()
 	// Durable post-admission errors must consume, not restore: turn and steering.
 	for _, table := range []string{"turns", "steering_queue", "messages"} {
 		claim = &mediaClaim{refs: []store.MediaRef{ref}, token: store.NowID("admitted")}
 		c.mediaClaims[id] = claim
+		installClaimJournalForTest(t, c, id, claim)
 		switch table {
 		case "turns":
 			_, err := c.store.CreateTurn(context.Background(), store.NowID("t"), id, "accepted", map[string]any{"tui_media_claim": claim.token})
@@ -146,6 +149,7 @@ func TestPendingMediaClaimsSurviveSwitchNewerStageAndUncertainDB(t *testing.T) {
 	// A transient schema-read failure is unknown; retry only after authority works.
 	claim = &mediaClaim{refs: []store.MediaRef{ref}, token: store.NowID("unknown")}
 	c.mediaClaims[id] = claim
+	installClaimJournalForTest(t, c, id, claim)
 	if _, err := c.store.DB().Exec(`ALTER TABLE steering_queue RENAME TO held_steering`); err != nil {
 		t.Fatal(err)
 	}
@@ -211,9 +215,9 @@ func TestPendingMediaCommandsLimitsAndNoModelDraft(t *testing.T) {
 func TestPendingMediaSlotReservationClipboardAndSafeFileLimit(t *testing.T) {
 	c := pendingMediaChat(t)
 	for i := 0; i < 5; i++ {
-		c.stageMedia(pendingRef(t, c, "file"))
+		stageMediaForTest(t, c, pendingRef(t, c, "file"))
 	}
-	claim := c.claimPendingMedia()
+	claim := claimMediaForTest(t, c)
 	c.clipboardImageReader = func() ([]byte, string, error) { return []byte("PNG native"), "image/png", nil }
 	c.pasteImageCommand("/paste-image", []string{"/paste-image"})
 	if c.mediaSlotsUsed() != 6 {
@@ -254,7 +258,7 @@ func TestPendingMediaSlotReservationClipboardAndSafeFileLimit(t *testing.T) {
 func TestPendingMediaNativePostInsertErrorDoesNotRequeue(t *testing.T) {
 	c := pendingMediaChat(t)
 	c.stageMedia(pendingRef(t, c, "accepted-before-error"))
-	claim := c.claimPendingMedia()
+	claim := claimMediaForTest(t, c)
 	// Real SQL write error after turn INSERT, during queue-count synchronization.
 	_, err := c.store.DB().Exec(`CREATE TRIGGER fail_media_sync BEFORE UPDATE ON sessions
  WHEN EXISTS(SELECT 1 FROM turns WHERE session_id=NEW.id)
@@ -275,5 +279,100 @@ func TestPendingMediaNativePostInsertErrorDoesNotRequeue(t *testing.T) {
 	}
 	if _, err = c.store.DB().Exec(`DROP TRIGGER fail_media_sync`); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func stageMediaForTest(t *testing.T, c *chatTUI, ref store.MediaRef) {
+	t.Helper()
+	if err := c.stageMedia(ref); err != nil {
+		t.Fatal(err)
+	}
+}
+func claimMediaForTest(t *testing.T, c *chatTUI) *mediaClaim {
+	t.Helper()
+	claim, err := c.claimPendingMedia(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return claim
+}
+
+// Inject crash/error boundary state, including deliberately missing session
+// identity, without weakening the public staging ownership check.
+func installClaimJournalForTest(t *testing.T, c *chatTUI, id string, claim *mediaClaim) {
+	t.Helper()
+	raw, err := json.Marshal(store.TUIMediaDraft{Claim: &store.TUIMediaClaim{Token: claim.token, Refs: claim.refs}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.store.DB().Exec(`INSERT INTO kv_store(namespace,key,value,created_at,updated_at) VALUES('tui_pending_media_v1',?,?,datetime('now'),datetime('now')) ON CONFLICT(namespace,key) DO UPDATE SET value=excluded.value`, id, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestPendingMediaRecoveredClaimNeverRestoresOnAbsence(t *testing.T) {
+	c := pendingMediaChat(t)
+	ref := pendingRef(t, c, "restart")
+	stageMediaForTest(t, c, ref)
+	old := claimMediaForTest(t, c)
+	// A new frontend has no in-memory evidence that SubmitPrompt returned.
+	reopened := &chatTUI{store: c.store, engine: c.engine, cfg: c.cfg, sessionID: c.sessionID, sessionGeneration: 8}
+	reopened.ensureInput()
+	out := strings.Join(reopened.pendingMediaLines([]string{"/attachments"}), " ")
+	if !strings.Contains(out, "unresolved admission") || !reopened.mediaClaims[c.sessionID].recovered {
+		t.Fatal(out)
+	}
+	reopened.input.SetText("do not resend")
+	reopened.input.cursorPos = 3
+	reopened.onSubmit(reopened.input.Text())
+	if reopened.input.Text() != "do not resend" || reopened.input.cursorPos != 3 {
+		t.Fatal("held draft cleared")
+	}
+	var count int
+	c.store.DB().QueryRow(`SELECT COUNT(*) FROM turns`).Scan(&count)
+	if count != 0 {
+		t.Fatal("recovered claim sent")
+	}
+	// Another client stages a new reference while the old admission is held.
+	newer := pendingRef(t, c, "newer")
+	stageMediaForTest(t, c, newer)
+	reopened.pendingMediaLines([]string{"/attachments"})
+	if len(reopened.pendingMedia[c.sessionID]) != 1 {
+		t.Fatal("new reference lost")
+	}
+	reopened.detachMediaLines([]string{"/detach", "unresolved"})
+	if reopened.mediaClaims[c.sessionID] != nil || len(reopened.pendingMedia[c.sessionID]) != 1 {
+		t.Fatal("discard touched pending")
+	}
+	// A late live callback must not restore an explicitly discarded token.
+	c.settleMediaClaim(c.selectionScope(), old, true)
+	if len(c.pendingMedia[c.sessionID]) != 1 || c.pendingMedia[c.sessionID][0].ID != newer.ID {
+		t.Fatal("late callback restored discarded refs")
+	}
+}
+
+func TestPendingMediaJournalWriteFailurePreservesInputAndStagedFiles(t *testing.T) {
+	c := pendingMediaChat(t)
+	ref := pendingRef(t, c, "draft")
+	stageMediaForTest(t, c, ref)
+	if _, err := c.store.DB().Exec(`CREATE TRIGGER fail_tui_claim BEFORE UPDATE ON kv_store BEGIN SELECT RAISE(ABORT,'journal failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	c.input.SetText("unsent after claim failure")
+	c.input.cursorPos = 5
+	history := len(c.history)
+	c.onSubmit(c.input.Text())
+	if c.input.Text() != "unsent after claim failure" || c.input.cursorPos != 5 || len(c.history) != history {
+		t.Fatal("failed claim mutated editor")
+	}
+	var count int
+	c.store.DB().QueryRow(`SELECT COUNT(*) FROM turns`).Scan(&count)
+	if count != 0 {
+		t.Fatal("failed claim admitted")
+	}
+	c.store.DB().Exec(`DROP TRIGGER fail_tui_claim`)
+	if err := c.refreshPendingMedia(); err != nil || len(c.pendingMedia[c.sessionID]) != 1 {
+		t.Fatal("refs lost", err)
 	}
 }

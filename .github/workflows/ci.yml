@@ -41,6 +41,9 @@ jobs:
       - name: Go test
         run: go test ./...
 
+      - name: Durable terminal media journal race checks
+        run: make test-tui-media-journal
+
       - name: Shell cancellation race checks
         run: make test-shell-runtime
 

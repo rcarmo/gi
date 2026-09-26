@@ -10,17 +10,45 @@ import (
 	"github.com/rcarmo/gi/internal/turn"
 )
 
-// Pending refs live for this TUI process, indexed by source session rather than
-// selection generation. An admission claim owns its refs until native acceptance
-// or rejection; changing the selected session cannot lose or reuse that claim.
-const maxPendingMedia = 6
+// Durable refs are session-local. A live admission claim is owned by its
+// frontend until native SubmitPrompt returns; restarted claims stay held.
+const maxPendingMedia = store.MaxTUIPendingMedia
 
 type mediaClaim struct {
-	refs      []store.MediaRef
-	token     string
-	uncertain bool
+	refs          []store.MediaRef
+	token         string
+	uncertain     bool
+	restoreAbsent bool // only this frontend observed native rejection return
+	recovered     bool
 }
 
+func (c *chatTUI) applyMediaDraft(id string, state store.TUIMediaDraft) {
+	if c.pendingMedia == nil {
+		c.pendingMedia = map[string][]store.MediaRef{}
+	}
+	if c.mediaClaims == nil {
+		c.mediaClaims = map[string]*mediaClaim{}
+	}
+	c.pendingMedia[id] = state.Pending
+	if state.Claim == nil {
+		delete(c.mediaClaims, id)
+		return
+	}
+	if claim := c.mediaClaims[id]; claim != nil && claim.token == state.Claim.Token {
+		return
+	}
+	c.mediaClaims[id] = &mediaClaim{refs: state.Claim.Refs, token: state.Claim.Token, uncertain: true, recovered: true}
+}
+func (c *chatTUI) refreshPendingMedia() error {
+	if c.store == nil || c.sessionID == "" {
+		return nil
+	}
+	state, err := c.store.LoadTUIMediaDraft(context.Background(), c.sessionID)
+	if err == nil {
+		c.applyMediaDraft(c.sessionID, state)
+	}
+	return err
+}
 func (c *chatTUI) mediaSlotsUsed() int {
 	n := len(c.pendingMedia[c.sessionID])
 	if claim := c.mediaClaims[c.sessionID]; claim != nil {
@@ -28,84 +56,100 @@ func (c *chatTUI) mediaSlotsUsed() int {
 	}
 	return n
 }
-
-func (c *chatTUI) stageMedia(ref store.MediaRef) {
-	if c.pendingMedia == nil {
-		c.pendingMedia = map[string][]store.MediaRef{}
+func (c *chatTUI) stageMedia(ref store.MediaRef) error {
+	state, err := c.store.StageTUIMedia(context.Background(), c.sessionID, ref)
+	if err == nil {
+		c.applyMediaDraft(c.sessionID, state)
 	}
-	c.pendingMedia[c.sessionID] = append(c.pendingMedia[c.sessionID], ref)
+	return err
 }
-
 func (c *chatTUI) pendingMediaLines(fields []string) []string {
 	if len(fields) > 1 {
 		return []string{"attachments: usage: /attachments"}
 	}
-	if claim := c.mediaClaims[c.sessionID]; claim != nil && claim.uncertain {
+	// A live failed call can retry proof-of-absence; recovered claims cannot.
+	if claim := c.mediaClaims[c.sessionID]; claim != nil && claim.uncertain && !claim.recovered {
 		c.settleMediaClaim(c.selectionScope(), claim, true)
 	}
+	if err := c.refreshPendingMedia(); err != nil {
+		return []string{"attachments: state unavailable; references held: " + err.Error()}
+	}
 	refs := c.pendingMedia[c.sessionID]
-	lines := []string{fmt.Sprintf("attachments: %d pending (session-local; this process)", len(refs))}
+	lines := []string{fmt.Sprintf("attachments: %d pending (session-local; survives restart)", len(refs))}
 	for _, ref := range refs {
 		lines = append(lines, fmt.Sprintf("  %s %s (%d bytes)", ref.ID, ref.Filename, ref.Size))
 	}
 	if claim := c.mediaClaims[c.sessionID]; claim != nil {
-		lines = append(lines, fmt.Sprintf("attachments: %d awaiting admission; cannot detach yet", len(claim.refs)))
+		if claim.recovered {
+			lines = append(lines, fmt.Sprintf("attachments: %d unresolved admission references; held without resend. /attachments rechecks; /detach unresolved discards references only", len(claim.refs)))
+		} else {
+			lines = append(lines, fmt.Sprintf("attachments: %d awaiting admission; cannot detach yet", len(claim.refs)))
+		}
 	}
 	return lines
 }
-
 func (c *chatTUI) detachMediaLines(fields []string) []string {
 	if len(fields) != 2 {
-		return []string{"detach: usage: /detach <media:id|all> (pending refs only)"}
+		return []string{"detach: usage: /detach <media:id|all|unresolved> (references only)"}
 	}
-	refs := c.pendingMedia[c.sessionID]
-	if fields[1] == "all" {
-		delete(c.pendingMedia, c.sessionID)
-		return []string{fmt.Sprintf("detach: removed %d pending references; stored files kept", len(refs))}
+	if err := c.refreshPendingMedia(); err != nil {
+		return []string{"detach: state unavailable; references held: " + err.Error()}
 	}
-	for i, ref := range refs {
-		if ref.ID == fields[1] {
-			c.pendingMedia[c.sessionID] = append(refs[:i:i], refs[i+1:]...)
-			return []string{"detach: removed " + ref.ID + "; stored file kept"}
+	if fields[1] == "unresolved" {
+		claim := c.mediaClaims[c.sessionID]
+		if claim != nil && !claim.recovered {
+			return []string{"detach: live admission pending; cannot detach yet"}
 		}
+	}
+	expected := ""
+	if claim := c.mediaClaims[c.sessionID]; claim != nil {
+		expected = claim.token
+	}
+	state, n, err := c.store.DetachTUIMedia(context.Background(), c.sessionID, fields[1], expected)
+	if err != nil {
+		return []string{"detach: references unchanged: " + err.Error()}
+	}
+	c.applyMediaDraft(c.sessionID, state)
+	if fields[1] == "all" {
+		return []string{fmt.Sprintf("detach: removed %d pending references; stored files kept", n)}
+	}
+	if fields[1] == "unresolved" {
+		return []string{fmt.Sprintf("detach: discarded %d unresolved references; stored files and any admitted work kept", n)}
+	}
+	if n > 0 {
+		return []string{"detach: removed " + fields[1] + "; stored file kept"}
 	}
 	return []string{"detach: no pending reference " + fields[1]}
 }
-
 func (c *chatTUI) submitMediaInput(scope sessionScope, input turn.RunInput, claim *mediaClaim) (*turn.SubmitResult, error) {
 	if claim == nil {
 		return c.engine.SubmitPromptRouted(context.Background(), input)
 	}
-	// Attachments are explicitly bound to the selected session. Directed text
-	// is rejected before this point; implicit agent routing must not move files
-	// or create a peer session before rejecting ownership.
 	result, err := c.engine.SubmitPrompt(context.Background(), input)
 	c.settleMediaClaim(scope, claim, err != nil)
 	return result, err
 }
-
 func ordinaryMediaPrompt(text string) bool {
 	text = strings.TrimSpace(text)
 	return text != "" && !strings.HasPrefix(text, "/") && !strings.HasPrefix(text, "!!")
 }
-
-func (c *chatTUI) claimPendingMedia() *mediaClaim {
-	refs := c.pendingMedia[c.sessionID]
-	if len(refs) == 0 {
-		return nil
+func (c *chatTUI) claimPendingMedia(allow bool) (*mediaClaim, error) {
+	token := store.NowID("tui-media")
+	state, err := c.store.ClaimTUIMedia(context.Background(), c.sessionID, token, allow)
+	if err != nil {
+		return nil, err
 	}
-	if c.mediaClaims == nil {
-		c.mediaClaims = map[string]*mediaClaim{}
+	c.applyMediaDraft(c.sessionID, state)
+	if state.Claim == nil {
+		return nil, nil
 	}
-	claim := &mediaClaim{refs: append([]store.MediaRef(nil), refs...), token: store.NowID("tui-media")}
+	claim := &mediaClaim{refs: state.Claim.Refs, token: token}
 	c.mediaClaims[c.sessionID] = claim
-	delete(c.pendingMedia, c.sessionID)
-	return claim
+	return claim, nil
 }
 
-// Queue all claim settlement on the UI loop, even for a background session.
-// Do not use applySessionCompletion: dropping a stale selection's error would
-// silently lose its attachments. Only this exact claim can settle its refs.
+// Settle against the exact durable token, merging newer staged refs inside the
+// store transaction. Failure leaves the journal intact for explicit recovery.
 func (c *chatTUI) settleMediaClaim(scope sessionScope, claim *mediaClaim, rejected bool) {
 	if claim == nil {
 		return
@@ -114,40 +158,22 @@ func (c *chatTUI) settleMediaClaim(scope sessionScope, claim *mediaClaim, reject
 		if c.mediaClaims[scope.id] != claim {
 			return
 		}
-		if rejected {
-			// Submit may return an error after storing a turn/steering row. Never
-			// restore refs unless durable absence is confirmed; DB errors hold the claim.
-			var admitted bool
-			// Native SubmitPrompt returns only after its SQLite write/rollback;
-			// no HTTP/eventual-consistency inference is involved in this read.
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-			err := c.store.DB().QueryRowContext(ctx, `SELECT EXISTS (
-    SELECT 1 FROM turns WHERE session_id=? AND json_extract(metadata_json,'$.tui_media_claim')=?
-    UNION ALL SELECT 1 FROM steering_queue WHERE session_id=? AND json_extract(payload_json,'$.tui_media_claim')=?
-    UNION ALL SELECT 1 FROM messages WHERE session_id=? AND json_extract(payload_json,'$.tui_media_claim')=?
-   )`, scope.id, claim.token, scope.id, claim.token, scope.id, claim.token).Scan(&admitted)
-			cancel()
-			if err != nil {
-				claim.uncertain = true
-				if c.ownsScope(scope) {
-					c.appendTranscript("attachments: admission unknown; held to prevent duplicate send. /attachments retries the check")
-				}
-				return
-			}
-			rejected = !admitted
-			if admitted && c.ownsScope(scope) {
-				c.appendTranscript("attachments: stored admission found; files will not be reattached on retry")
-			}
+		if rejected && !claim.recovered {
+			claim.restoreAbsent = true
 		}
-		delete(c.mediaClaims, scope.id)
-		if rejected {
-			if c.pendingMedia == nil {
-				c.pendingMedia = map[string][]store.MediaRef{}
-			}
-			c.pendingMedia[scope.id] = append(claim.refs, c.pendingMedia[scope.id]...)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		state, restored, err := c.store.SettleTUIMedia(ctx, scope.id, claim.token, rejected, claim.restoreAbsent)
+		cancel()
+		if err != nil {
+			claim.uncertain = true
 			if c.ownsScope(scope) {
-				c.appendTranscript("attachments: admission rejected; references retained. /attachments to review before retry")
+				c.appendTranscript("attachments: admission unknown; held to prevent duplicate send. /attachments retries the check")
 			}
+			return
+		}
+		c.applyMediaDraft(scope.id, state)
+		if restored && c.ownsScope(scope) {
+			c.appendTranscript("attachments: admission rejected; references retained. /attachments to review before retry")
 		}
 		if c.app != nil {
 			c.app.MarkDirty()

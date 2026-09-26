@@ -22,6 +22,9 @@ func (c *chatTUI) attachCommand(text string, fields []string) []string {
 	if c.store == nil || c.engine == nil || strings.TrimSpace(c.sessionID) == "" {
 		return []string{"error: /attach requires an active session"}
 	}
+	if err := c.refreshPendingMedia(); err != nil {
+		return []string{"error: attach: pending state unavailable: " + err.Error()}
+	}
 	if c.mediaSlotsUsed() >= maxPendingMedia {
 		return []string{"error: attach: pending limit 6; /attachments or /detach first"}
 	}
@@ -58,7 +61,9 @@ func (c *chatTUI) attachCommand(text string, fields []string) []string {
 		return []string{fmt.Sprintf("error: attach: %v", err)}
 	}
 	ref := store.MediaRef{ID: store.MediaRefID(media.ID), MediaID: media.ID, SessionID: media.SessionID, Filename: media.Filename, ContentType: media.ContentType, Size: media.OriginalSize, SHA256: stringMetadata(media.Metadata, "sha256"), Source: "tui", CreatedAt: media.CreatedAt}
-	c.stageMedia(ref)
+	if err := c.stageMedia(ref); err != nil {
+		return []string{fmt.Sprintf("error: attach: stored %s but staging failed: %v; prompt not sent", ref.ID, err)}
+	}
 	prompt := strings.TrimSpace(strings.TrimPrefix(text, fields[0]+" "+fields[1]))
 	if prompt != "" {
 		c.submitWithMetadata(prompt, nil)
@@ -73,6 +78,9 @@ func (c *chatTUI) attachCommand(text string, fields []string) []string {
 func (c *chatTUI) pasteImageCommand(text string, fields []string) []string {
 	if c.store == nil || c.engine == nil || strings.TrimSpace(c.sessionID) == "" {
 		return []string{"error: /paste-image requires an active session"}
+	}
+	if err := c.refreshPendingMedia(); err != nil {
+		return []string{"error: paste-image: pending state unavailable: " + err.Error()}
 	}
 	if c.mediaSlotsUsed() >= maxPendingMedia {
 		return []string{"error: paste-image: pending limit 6; /attachments or /detach first"}
@@ -103,7 +111,9 @@ func (c *chatTUI) pasteImageCommand(text string, fields []string) []string {
 		return []string{fmt.Sprintf("error: paste-image: %v", err)}
 	}
 	ref := store.MediaRef{ID: store.MediaRefID(media.ID), MediaID: media.ID, SessionID: media.SessionID, Filename: media.Filename, ContentType: media.ContentType, Size: media.OriginalSize, SHA256: stringMetadata(media.Metadata, "sha256"), Source: "tui-paste", CreatedAt: media.CreatedAt}
-	c.stageMedia(ref)
+	if err := c.stageMedia(ref); err != nil {
+		return []string{fmt.Sprintf("error: paste-image: stored %s but staging failed: %v; prompt not sent", ref.ID, err)}
+	}
 	prompt := strings.TrimSpace(strings.TrimPrefix(text, fields[0]))
 	if prompt != "" {
 		c.submitWithMetadata(prompt, nil)
