@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	gotui "github.com/grindlemire/go-tui"
@@ -12,13 +13,15 @@ type transcriptSearchRow struct {
 	text     string
 	spans    []gotui.TextSpan
 	prompt   bool
-	blockKey string // pointer hit identity for tool rows, including their padding
+	blockKey string                // pointer hit identity for tool rows, including their padding
+	wrapped  []transcriptSearchRun // validated soft-wrap runs starting in this row
 }
 
 // Match columns are half-open display-cell boundaries, not UTF-8 offsets.
 // A substring inside a combining/wide grapheme highlights the complete cell.
 type transcriptSearchMatch struct {
 	row, start, end int
+	continuation    []transcriptSearchCell
 }
 
 type transcriptSearch struct {
@@ -60,6 +63,7 @@ func (c *chatTUI) transcriptRowsAtWidth(width int) []transcriptSearchRow {
 		root.AddChild(el)
 		buf := gotui.NewBuffer(width, height)
 		root.Render(buf, width, height)
+		baseRow := len(rows)
 		for y := 0; y < height; y++ {
 			var text strings.Builder
 			spans := make([]gotui.TextSpan, 0, width)
@@ -81,6 +85,13 @@ func (c *chatTUI) transcriptRowsAtWidth(width int) []transcriptSearchRow {
 				key = block.Key
 			}
 			rows = append(rows, transcriptSearchRow{text: strings.TrimRight(text.String(), " "), spans: spans, prompt: block.Kind == "user" && y == 1, blockKey: key})
+		}
+		for _, run := range transcriptWrapRuns(el, rows[baseRow:]) {
+			for i := range run.cells {
+				run.cells[i].row += baseRow
+			}
+			row := run.cells[0].row
+			rows[row].wrapped = append(rows[row].wrapped, run)
 		}
 	}
 	return rows
@@ -149,9 +160,18 @@ func (c *chatTUI) updateTranscriptSearchQuery(query string) {
 	c.search.matches = nil
 	needle := strings.ToLower(query)
 	if needle != "" {
+		var runs []transcriptSearchRun
 		for row, value := range c.search.rows {
 			c.search.matches = append(c.search.matches, transcriptRowMatches(row, value, needle)...)
+			runs = append(runs, value.wrapped...)
 		}
+		// A validated paragraph owns all its occurrences (including same-row
+		// ones), so non-overlap does not restart at a soft line boundary.
+		c.search.matches = transcriptMergeWrappedMatches(c.search.matches, runs, needle)
+		sort.SliceStable(c.search.matches, func(i, j int) bool {
+			a, b := c.search.matches[i], c.search.matches[j]
+			return a.row < b.row || a.row == b.row && a.start < b.start
+		})
 	}
 	if len(c.search.matches) > 0 {
 		c.search.selected = 0
@@ -250,11 +270,15 @@ func (c *chatTUI) renderTranscriptSearchRows(transcript *gotui.Element) {
 	matches := map[int][]transcriptSearchMatch{}
 	for _, match := range c.search.matches {
 		matches[match.row] = append(matches[match.row], match)
+		for _, part := range match.continuation {
+			matches[part.row] = append(matches[part.row], transcriptSearchMatch{row: part.row, start: part.start, end: part.end})
+		}
 	}
 	selected := transcriptSearchMatch{row: -1}
 	if c.search.selected >= 0 && c.search.selected < len(c.search.matches) {
 		selected = c.search.matches[c.search.selected]
 	}
+	selectedParts := append([]transcriptSearchCell{{row: selected.row, start: selected.start, end: selected.end}}, selected.continuation...)
 	for i, row := range c.search.rows {
 		spans := append([]gotui.TextSpan(nil), row.spans...)
 		col := 0
@@ -266,8 +290,11 @@ func (c *chatTUI) renderTranscriptSearchRows(transcript *gotui.Element) {
 					break
 				}
 			}
-			if selected.row == i && col < selected.end && end > selected.start {
-				spans[j].Style = spans[j].Style.Background(piText).Foreground(piUserBg).Bold()
+			for _, part := range selectedParts {
+				if part.row == i && col < part.end && end > part.start {
+					spans[j].Style = spans[j].Style.Background(piText).Foreground(piUserBg).Bold()
+					break
+				}
 			}
 			col = end
 		}

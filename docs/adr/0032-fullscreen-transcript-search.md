@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-09-22. A compact adaptation of Pi's fullscreen search and marked-message navigation. Fullscreen pointer selection/copy/edge autoscroll remain open.
+Accepted — 2026-09-22. Historical first-slice scope. Per-occurrence highlighting/navigation, pointer selection/copy and edge autoscroll have since shipped. The [bounded soft-wrap extension](../internal/tui-search-wrap.md) supersedes the row-local search limitation below for validated single-paragraph text leaves. Prewrapped Markdown, hard boundaries and stable reflow/eviction anchors remain separately scoped.
 
 ## Interaction
 

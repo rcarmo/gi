@@ -175,11 +175,11 @@ func TestTranscriptSearchOccurrencesDisplayCellsAndNavigation(t *testing.T) {
 				query string
 				want  []transcriptSearchMatch
 			}{
-				{"i", []transcriptSearchMatch{{0, 5, 6}, {0, 11, 12}, {0, 43, 44}, {0, 48, 49}}},
-				{"界", []transcriptSearchMatch{{0, 6, 8}, {0, 12, 14}}},
-				{"e\u0301", []transcriptSearchMatch{{0, 9, 10}, {0, 15, 16}}},
-				{"\u0301", []transcriptSearchMatch{{0, 9, 10}, {0, 15, 16}}},
-				{"aa", []transcriptSearchMatch{{0, 17, 19}, {0, 19, 21}, {0, 51, 53}}},
+				{"i", []transcriptSearchMatch{{row: 0, start: 5, end: 6}, {row: 0, start: 11, end: 12}, {row: 0, start: 43, end: 44}, {row: 0, start: 48, end: 49}}},
+				{"界", []transcriptSearchMatch{{row: 0, start: 6, end: 8}, {row: 0, start: 12, end: 14}}},
+				{"e\u0301", []transcriptSearchMatch{{row: 0, start: 9, end: 10}, {row: 0, start: 15, end: 16}}},
+				{"\u0301", []transcriptSearchMatch{{row: 0, start: 9, end: 10}, {row: 0, start: 15, end: 16}}},
+				{"aa", []transcriptSearchMatch{{row: 0, start: 17, end: 19}, {row: 0, start: 19, end: 21}, {row: 0, start: 51, end: 53}}},
 			}
 			// The short prefix remains on one row even at the smallest width.
 			for _, tc := range cases {
@@ -224,7 +224,7 @@ func TestTranscriptSearchOccurrencesDisplayCellsAndNavigation(t *testing.T) {
 			// Appending output preserves the second occurrence on this unchanged row.
 			c.transcript = append(c.transcript, "sys: later 界")
 			c.refreshTranscriptSearch(width)
-			if c.search.selected != 1 || c.search.matches[1] != second {
+			if c.search.selected != 1 || !reflect.DeepEqual(c.search.matches[1], second) {
 				t.Fatal("append reset occurrence")
 			}
 			c.moveTranscriptSearch(-1)
@@ -268,5 +268,97 @@ func TestTranscriptSearchOccurrencesIgnorePaddingAndCrossRows(t *testing.T) {
 	c.updateTranscriptSearchQuery("")
 	if len(c.search.matches) != 0 || c.search.selected != -1 {
 		t.Fatal("empty query did not reset")
+	}
+}
+
+func TestTranscriptSearchAcrossSoftWrapsOnly(t *testing.T) {
+	for _, width := range []int{18, 60, 100, 140} {
+		t.Run(fmt.Sprint(width), func(t *testing.T) {
+			c := &chatTUI{outputWidth: width, outputHeight: 18, inputActive: true, stickToBottom: true}
+			c.ensureInput()
+			c.input.SetText("retained 中文🙂 draft")
+			c.input.cursorPos = 4
+			c.transcript = []string{"sys: " + strings.Repeat("a", width*2) + "界e\u0301suffix", "sys: hard\nbreak", "sys: left", "sys: right"}
+			c.toggleTranscriptSearch()
+			c.refreshTranscriptSearch(width)
+			var runs []transcriptSearchRun
+			for _, r := range c.search.rows {
+				runs = append(runs, r.wrapped...)
+			}
+			if len(runs) != 1 {
+				t.Fatalf("width%d runs=%d rows=%#v", width, len(runs), c.search.rows)
+			}
+			query := strings.Repeat("a", width*2) + "界e\u0301suffix"
+			c.updateTranscriptSearchQuery(query)
+			if len(c.search.matches) != 1 || len(c.search.matches[0].continuation) < 1 {
+				t.Fatalf("missing cross wrap %#v", c.search.matches)
+			}
+			el := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidth(width), gotui.WithHeight(len(c.search.rows)))
+			c.renderTranscriptSearchRows(el)
+			buf := gotui.NewBuffer(width, len(c.search.rows))
+			el.Render(buf, width, len(c.search.rows))
+			match := c.search.matches[0]
+			parts := append([]transcriptSearchCell{{match.row, match.start, match.end}}, match.continuation...)
+			for _, p := range parts {
+				if buf.Cell(p.start, p.row).Style.Bg != piText {
+					t.Fatalf("unhighlighted segment %#v", p)
+				}
+			}
+			for _, q := range []string{"hardbreak", "hard break", "leftsys: right", "left right"} {
+				c.updateTranscriptSearchQuery(q)
+				if len(c.search.matches) != 0 {
+					t.Fatal("joined hard boundary", q)
+				}
+			}
+			c.updateTranscriptSearchQuery("aa")
+			if len(c.search.matches) != width {
+				t.Fatalf("non-overlapping wrapped count%d want%d", len(c.search.matches), width)
+			}
+			c.closeTranscriptSearch()
+			if c.input.Text() != "retained 中文🙂 draft" || c.input.cursorPos != 4 || !c.stickToBottom {
+				t.Fatal("editor/follow changed")
+			}
+		})
+	}
+}
+
+func TestTranscriptSearchWrappedWordsLinksAndCollapsedBoundaries(t *testing.T) {
+	c, _, _ := modelTestChat(t)
+	c.outputHeight = 18
+	query := "visible phrase 中文🙂 e\u0301 ending"
+	c.transcript = []string{"sys: " + query, "sys: [link](https://example.invalid/" + strings.Repeat("long", 25) + ")", "sys: hidden", "sys: neighbour"}
+	c.toggleTranscriptSearch()
+	for _, width := range []int{18, 24, 60, 140} {
+		c.outputWidth = width
+		c.refreshTranscriptSearch(width)
+		c.updateTranscriptSearchQuery(query)
+		if len(c.search.matches) != 1 {
+			t.Fatalf("width %d missing phrase: %#v", width, c.search.matches)
+		}
+		if width < 30 && len(c.search.matches[0].continuation) == 0 {
+			t.Fatal("expected wrapped phrase")
+		}
+	}
+	c.transcript = []string{encodeTranscriptBlockMarker(transcriptBlockMeta{Key: "wrap-tool", Kind: "tool", Title: "shell command", Status: "ok"}), "│ visible top", "│ second line", "│ " + strings.Repeat("x", 80) + "secret"}
+	c.outputWidth = 18
+	c.refreshTranscriptSearch(18)
+	c.updateTranscriptSearchQuery(strings.Repeat("x", 80) + "secret")
+	if len(c.search.matches) != 0 {
+		t.Fatal("hidden wrapped text matched")
+	}
+	c.transcriptExpanded = map[string]bool{"wrap-tool": true}
+	c.refreshTranscriptSearch(18)
+	if len(c.search.matches) != 1 || len(c.search.matches[0].continuation) == 0 {
+		t.Fatal("expanded wrap not matched", c.search.matches)
+	}
+	// Renderer-source mismatch is rejected rather than guessed (prewrapped or
+	// clipped content must never acquire phantom continuations).
+	el := gotui.New(gotui.WithText("abcdef"), gotui.WithWidth(3), gotui.WithHeight(2))
+	root := gotui.New(gotui.WithWidth(3), gotui.WithHeight(2))
+	root.AddChild(el)
+	root.Render(gotui.NewBuffer(3, 2), 3, 2)
+	rows := []transcriptSearchRow{{spans: []gotui.TextSpan{{Text: "abc"}}}, {spans: []gotui.TextSpan{{Text: "xyz"}}}}
+	if len(transcriptWrapRuns(el, rows)) != 0 {
+		t.Fatal("mismatched projection admitted")
 	}
 }

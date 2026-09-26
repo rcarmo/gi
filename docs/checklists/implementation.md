@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Add fullscreen cross-soft-wrap search for source-validated single-paragraph renderer leaves. Hard breaks, leaf/message boundaries and hidden content excluded; mapped grapheme segments preserve one occurrence, draft/scroll and zero idle rows. Go/vet/hooks+3search/3selection PTYs+107functional(11existing skips) pass. Prewrapped Markdown/inline-code layouts and stable reflow anchors remain open. [Scope/evidence](../internal/tui-search-wrap.md); CI/deploy pending.
+
 - [x] Match pinned Classic primary/secondary text contrast through guarded theme adapter, including default/no-tint bypass: first1%roundedRGB step meeting4.5:1 across three surfaces. Seven helpers/36compose/216Settings/107functional(11existing skips)+core/vet/hooks/15pixelhelpers pass. Full72captures run1790392290634:18cross failures+15/36unstable repeats,compose226–298px, dark model label now exact computed rgb130/134/139. CI/deploy pending; no blanket accessibility/Visual/TUI acceptance. [Evidence](../internal/theme-text-contrast.md).
 
 - [x] Explain disabled context-control availability with native reason, accessible description and pending/refresh/disconnect state; no action enabling, extra chrome or changed token/session/draft guards. Five helpers,18meter+96compaction+6unknown+6reconnect cases and107functional(11existing skips) pass; core/vet/hooks+15pixelhelpers green. Required separate15mcontext CI job added; deployment held for whole CI. [Evidence and limits](../internal/context-control.md).
