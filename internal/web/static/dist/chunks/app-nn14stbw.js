@@ -19638,11 +19638,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-kzbyy9ca.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-8wpkvz3f.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-zd3crn4x.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-dfawx5pn.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-dsgy2kr8.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-dkm10cj4.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-g14y7pme.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-847gasjg.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-rmgwgwmb.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-7s5x68gx.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -20591,6 +20591,19 @@ function compactionNotice(activity, now = Date.now()) {
     return { type: "notice", title: "Compaction failed", detail: c.detail || "Context retained", turn_id: activity.turn_id };
   return null;
 }
+function compactionUnavailableReason({ fresh, disconnected, pending, status, capability }) {
+  if (disconnected)
+    return "Reconnect to check compaction availability";
+  if (pending)
+    return "Compaction request pending";
+  if (!fresh)
+    return "Refreshing compaction availability";
+  if (status !== "idle")
+    return "Session has active or queued work";
+  if (capability?.available)
+    return "";
+  return typeof capability?.reason === "string" && capability.reason.trim() ? capability.reason.trim() : "Compaction is unavailable";
+}
 function compactionElapsed(notice, now = Date.now()) {
   const elapsed = Math.max(0, Math.floor((now - Date.parse(notice?.started_at)) / 1000));
   return Number.isFinite(elapsed) ? `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}` : "0:00";
@@ -20880,7 +20893,7 @@ function useWorkspaceFolderReference(visible, sessionId, fileRefs, attach) {
     syncRef.current?.();
   }, [fileRefs]);
 }
-function useContextTooltip(root, usage, notice, now, canStop, stop, compact) {
+function useContextTooltip(root, usage, notice, now, canStop, stop, compact, unavailable) {
   W_(() => {
     const compose = root.current?.querySelector(".compose-box");
     if (!compose)
@@ -20896,7 +20909,8 @@ function useContextTooltip(root, usage, notice, now, canStop, stop, compact) {
         const canCompact = typeof compact === "function" && !active;
         if (button.disabled === canCompact)
           button.disabled = !canCompact;
-        const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}` : normal.title + (canCompact ? "" : " — Context usage");
+        const reason = !canCompact && unavailable ? ` — ${unavailable}` : "";
+        const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}` : normal.title + reason;
         const label = active ? `${notice.title} — ${normal.label}` : normal.label;
         if (button.getAttribute("title") !== title)
           button.setAttribute("title", title);
@@ -20904,6 +20918,11 @@ function useContextTooltip(root, usage, notice, now, canStop, stop, compact) {
           button.setAttribute("aria-label", label);
         if (button.getAttribute("data-tooltip") !== title)
           button.setAttribute("data-tooltip", title);
+        const description = !active && !canCompact ? unavailable : "";
+        if (description && button.getAttribute("aria-description") !== description)
+          button.setAttribute("aria-description", description);
+        if (!description && button.hasAttribute("aria-description"))
+          button.removeAttribute("aria-description");
         if (button.classList.contains("is-compacting") !== active)
           button.classList.toggle("is-compacting", active);
         let elapsed = compose.querySelector(".gi-compaction-elapsed");
@@ -21161,7 +21180,7 @@ function GiApp() {
         refreshAfterConnection.current();
       }
     }
-  }, manualCompact);
+  }, manualCompact, compactionUnavailableReason({ fresh: activityFresh, disconnected: streamDisconnected.current, pending: compactPending, status: activity?.status, capability: compactState }));
   const [activeChatAgents, setActiveChatAgents] = F_([]);
   const sessionListRevision = Q_(0);
   const [currentChatBranches, setCurrentChatBranches] = F_([]);
@@ -22345,5 +22364,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=A4C43B263CF141B864756E2164756E21
-//# sourceMappingURL=app-kg3ewg7a.js.map
+//# debugId=ED9CC1EB3BAE6DB464756E2164756E21
+//# sourceMappingURL=app-nn14stbw.js.map

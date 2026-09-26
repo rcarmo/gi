@@ -21,7 +21,7 @@ async function fixture(page,request,info){
   const capability=async()=>(await(await request.get(`/api/sessions/${main.id}/compaction`)).json());
   await expect.poll(async()=> (await capability()).reason).not.toBe('Session has active or queued work');
   const cap=await capability();
-  const title=label+' — latest measured provider request'+(cap.available?' — Compact context':' — Context usage');
+  const title=label+' — latest measured provider request'+(cap.available?' — Compact context':` — ${cap.reason}`);
   await expect(pie).toHaveAttribute('title',title);
   await expect(pie).toHaveAttribute('data-tooltip',title);
   const values=(await arc.getAttribute('stroke-dasharray')).split(' ').map(Number);
@@ -42,7 +42,7 @@ test('@ux-context-001 Show supplied usage in the context tooltip',async({page,re
  await measure(2500000,'Context: 2.5M / 2.0M tokens (125%)',100);
  await expect(pie).toBeEnabled();await input.fill('preserved over reload');
  await page.reload();await expect(pie).toHaveAttribute('data-tooltip','Context: 2.5M / 2.0M tokens (125%) — latest measured provider request — Compact context');await expect(input).toHaveValue('preserved over reload');
- await switchTo(child);expect((await state(child)).context_usage.tokens).toBeNull();await expect(pie).toHaveAttribute('aria-label','Context: ? / 2.0M tokens (?%)');await expect(pie).toHaveAttribute('data-tooltip','Context: ? / 2.0M tokens (?%) — usage unavailable — Context usage');
+ await switchTo(child);expect((await state(child)).context_usage.tokens).toBeNull();await expect(pie).toHaveAttribute('aria-label','Context: ? / 2.0M tokens (?%)');await expect(pie).toHaveAttribute('data-tooltip','Context: ? / 2.0M tokens (?%) — usage unavailable — Not enough eligible context');
  await switchTo(main.id);await expect(pie).toHaveAttribute('data-tooltip','Context: 2.5M / 2.0M tokens (125%) — latest measured provider request — Compact context');await expect(input).toHaveValue('preserved over reload');
  await measure(0,'Context: 0 / 2.0M tokens (0%)',0);
  // Local providers may explicitly report zero input alongside nonzero output.
@@ -58,4 +58,25 @@ test('@ux-context-005 Apply the coded usage warning colours',async({page,request
   [1800200,'Context: 1.8M / 2.0M tokens (90%)',90.01,'var(--context-red, #ef4444)'],
   [2500000,'Context: 2.5M / 2.0M tokens (125%)',100,'var(--context-red, #ef4444)'],
  ]){await measure(tokens,label,fill);await expect(arc).toHaveAttribute('stroke',color);}
+});
+
+test('Disabled context control explains capability and never applies another session response',async({page,request},info)=>{
+ const{main,child,input,pie,switchTo}=await fixture(page,request,info);
+ await input.fill('context reason draft');await expect(pie).toBeDisabled();await expect(pie).toHaveAccessibleDescription('Not enough eligible context');await expect(pie).toHaveAttribute('data-tooltip',/Not enough eligible context$/);
+ let writes=0;page.on('request',r=>{if(r.method()==='POST'&&r.url().includes('/compaction'))writes++;});
+ await pie.evaluate(e=>e.click());await pie.dispatchEvent('click');expect(writes).toBe(0);await expect(input).toHaveValue('context reason draft');
+ let release,finished;const gate=new Promise(resolve=>{release=resolve;}),handled=new Promise(resolve=>{finished=resolve;});let waiting=false;
+ await page.route(`**/api/sessions/${main.id}/compaction`,async route=>{
+  if(waiting)return route.continue();waiting=true;
+  await gate;await route.fulfill({json:{available:false,reason:'Old session only',token:'never-use'}});finished();
+ });
+ try{
+  await switchTo(child);await expect(pie).toHaveAccessibleDescription('Not enough eligible context');await switchTo(main.id);await expect.poll(()=>waiting).toBe(true);
+  // Session activation commits model/context/capability together: a gated
+  // initial response must not leave the previous session's meter visible.
+  await expect(pie).toHaveCount(0);
+  await switchTo(child);await expect(pie).toHaveAccessibleDescription('Not enough eligible context');release();await handled;await page.unroute(`**/api/sessions/${main.id}/compaction`);await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await expect(pie).toHaveAccessibleDescription('Not enough eligible context');await expect(pie).not.toHaveAttribute('data-tooltip',/Old session only/);expect(writes).toBe(0);
+  await switchTo(main.id);await expect(input).toHaveValue('context reason draft');await expect(pie).toHaveAccessibleDescription('Not enough eligible context');
+ }finally{release?.();}
 });

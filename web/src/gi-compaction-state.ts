@@ -17,6 +17,18 @@ export function compactionNotice(activity:any, now=Date.now()) {
  if (c.event_type==='compaction.failed') return {type:'notice',title:'Compaction failed',detail:c.detail||'Context retained',turn_id:activity.turn_id};
  return null;
 }
+// Explain the disabled action without advertising stale capability. Native
+// admission tokens and server-side context checks still own mutation.
+export function compactionUnavailableReason({fresh, disconnected, pending, status, capability}: {
+ fresh:boolean; disconnected:boolean; pending:boolean; status?:string; capability?:any;
+}):string {
+ if(disconnected)return 'Reconnect to check compaction availability';
+ if(pending)return 'Compaction request pending';
+ if(!fresh)return 'Refreshing compaction availability';
+ if(status!=='idle')return 'Session has active or queued work';
+ if(capability?.available)return '';
+ return typeof capability?.reason==='string'&&capability.reason.trim()?capability.reason.trim():'Compaction is unavailable';
+}
 export function compactionElapsed(notice:any, now=Date.now()) {
  const elapsed=Math.max(0,Math.floor((now-Date.parse(notice?.started_at))/1000));
  return Number.isFinite(elapsed)?`${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,'0')}`:'0:00';

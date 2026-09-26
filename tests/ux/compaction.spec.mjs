@@ -122,14 +122,17 @@ test('@ux-context-003 Manual Compact capability, callback and preserved draft',a
  const turns=async()=>(await(await request.get(`/api/sessions/${main.id}/turns`)).json()).turns||[];
  await page.addInitScript(id=>localStorage.setItem('gi_session_id',id),main.id);await page.goto('/');
  const input=page.getByRole('textbox',{name:inputName,exact:true}),pie=page.locator('.compose-context-pie');
- await expect(pie).toBeDisabled();await expect(pie).toHaveAttribute('data-tooltip',/Context usage/);
+ await expect(pie).toBeDisabled();await expect(pie).toHaveAttribute('data-tooltip',/Not enough eligible context/);
  for(let i=0;i<2;i++){const res=await(await request.post(`/api/sessions/${main.id}/prompt`,{data:{prompt:`manual history ${i}`,model:'ux-local/gate'}})).json();await expect.poll(async()=> (await turns()).find(t=>t.id===res.turn_id).status).toBe('completed');}
- await expect(pie).toBeEnabled({timeout:15000});await expect(pie).toHaveAttribute('data-tooltip',/Compact context/);
+ await expect(pie).toBeEnabled({timeout:15000});await expect(pie).not.toHaveAttribute('aria-description',/.+/);await expect(pie).toHaveAttribute('data-tooltip',/Compact context/);
  await input.fill('unsent manual draft');await page.locator('.compose-box input[type=file]').setInputFiles({name:'manual.txt',mimeType:'text/plain',buffer:Buffer.from('keep')});
  const beforeUsage=(await(await request.get(`/api/sessions/${main.id}/model`)).json()).context_usage;
  const beforeMessages=(await(await request.get(`/api/sessions/${main.id}/messages`)).json()).messages;
+ let releaseRequest;const requestGate=new Promise(resolve=>{releaseRequest=resolve;});let posts=0;
+ await page.route(`**/api/sessions/${main.id}/compaction`,async route=>{if(route.request().method()==='POST'){posts++;await requestGate;}await route.continue();});
  const sent=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main.id}/compaction`)&&r.request().method()==='POST');
- await pie.click();const response=await sent;expect(response.status()).toBe(202);const manual=await response.json();
+ try{await pie.click();await expect(pie).toBeDisabled();await expect(pie).toHaveAccessibleDescription('Compaction request pending');await expect(pie).toHaveAttribute('data-tooltip',/Compaction request pending$/);await pie.dispatchEvent('click');expect(posts).toBe(1);}finally{releaseRequest();}
+ const response=await sent;expect(response.status()).toBe(202);const manual=await response.json();await page.unroute(`**/api/sessions/${main.id}/compaction`);
  const gate=resolve('test-results/ux-parity/queue-gates',`manual-${main.id}`);mkdirSync(resolve(gate,'..'),{recursive:true});
  try{
   await expect(pie).toHaveClass(/is-compacting/);await expect(input).toHaveValue('unsent manual draft');await expect(page.locator('.compose-file-pill[title="manual.txt"]')).toBeVisible();

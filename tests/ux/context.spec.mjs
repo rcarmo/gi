@@ -9,7 +9,7 @@ test('@ux-context-002 Keep unknown usage values visibly unknown',async({page,req
  await page.goto('/');
  const meter=page.locator('.compose-context-pie');
  await expect(meter).toBeVisible();await expect(meter).toBeDisabled();
- await expect(meter).toHaveAttribute('title','Context: ? / ? tokens (?%) — usage unavailable — Context usage');
+ await expect(meter).toHaveAttribute('title','Context: ? / ? tokens (?%) — usage unavailable — Not enough eligible context');
  await expect(meter).toHaveAttribute('aria-label','Context: ? / ? tokens (?%)');
  let state=await(await request.get(`/api/sessions/${session.id}/model`)).json();
  expect(state.context_usage).toMatchObject({tokens:null,percent:null,contextWindow:null,source:'unavailable'});
@@ -19,6 +19,6 @@ test('@ux-context-002 Keep unknown usage values visibly unknown',async({page,req
  await page.reload();await expect(meter).toHaveAttribute('title','Context: ? / ? tokens (?%) — usage unavailable — Compact context');
  state=await(await request.get(`/api/sessions/${session.id}/model`)).json();expect(state.context_usage.tokens).toBeNull();
  await input.fill('draft stays untouched');await page.getByRole('button',{name:'Open model picker',exact:true}).click();
- await page.getByRole('menu',{name:'Model picker',exact:true}).getByRole('menuitem').filter({hasText:'test/bootstrap'}).click();
+ await page.getByRole('listbox',{name:'Models',exact:true}).getByRole('option').filter({hasText:'test/bootstrap'}).click();
  await expect(input).toHaveValue('draft stays untouched');await expect(meter).toBeEnabled();
 });

@@ -36,7 +36,7 @@ jobs:
         run: bun run build:web
 
       - name: Pixel evidence helper tests
-        run: make test-pixel-helpers test-compose-surface-helpers test-model-panel-helpers test-session-panel-helpers test-voice-input-helpers test-notification-helpers
+        run: make test-pixel-helpers test-compose-surface-helpers test-model-panel-helpers test-session-panel-helpers test-voice-input-helpers test-notification-helpers test-context-control-helpers
 
       - name: Go test
         run: go test ./...
@@ -133,6 +133,28 @@ jobs:
           path: test-results/ux-parity
           retention-days: 3
 
+  context-browser:
+    name: Context meter and native compaction ownership
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun x playwright install --with-deps chromium webkit
+      - run: make test-ux-context-meter test-ux-compaction
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: context-compaction-evidence
+          path: test-results/ux-parity
+          retention-days: 3
+
   notification-browser:
     name: Local notification ownership and logout
     runs-on: ubuntu-latest
@@ -176,7 +198,7 @@ jobs:
   build:
     name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
     runs-on: ubuntu-latest
-    needs: [test, auth-state, passkey-browser, browser-journey, compose-browser, notification-browser]
+    needs: [test, auth-state, passkey-browser, browser-journey, compose-browser, context-browser, notification-browser]
     strategy:
       fail-fast: false
       matrix:

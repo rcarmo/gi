@@ -83,6 +83,7 @@ test('@ux-original-023 Reconnect refresh and run-bound Stop await authoritative 
   await input.fill('original reconnect draft');
   await env.drop();await expect(page.locator('.compose-connection-status')).toBeVisible({timeout:15000});
   await expect(page.getByRole('button',{name:'Stop response',exact:true})).toHaveCount(0);
+  await expect(page.locator('.compose-context-pie')).toBeDisabled();await expect(page.locator('.compose-context-pie')).toHaveAccessibleDescription('Reconnect to check compaction availability');
   env.release(oldToken);
   await expect.poll(async()=> (await api(`/api/sessions/${main.id}/turns`)).turns.find(t=>t.id===old.turn_id).status).toBe('completed');
   const token=`original-new-${Date.now()}`;

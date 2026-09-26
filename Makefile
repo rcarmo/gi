@@ -454,6 +454,10 @@ pixel-compare:
 test-pixel-helpers:
 	$(BUN) test tests/ux/support/pixel-*.test.mjs
 
+.PHONY: test-context-control-helpers
+test-context-control-helpers:
+	$(BUN) test tests/ux/support/context-usage.test.ts tests/ux/support/compaction-state.test.ts
+
 .PHONY: test-notification-helpers test-ux-notifications
 test-notification-helpers:
 	$(BUN) test tests/ux/support/notifications.test.ts

@@ -90,7 +90,7 @@ import { recoverQueueDraft } from './gi-queue-return.js';
 // Piclaw components expect chat_jid strings. We map Gi sessions onto that
 // model: the default session becomes 'gi:default'.
 
-import { createActivityRevision, compactionNotice, compactionElapsed } from './gi-compaction-state.js';
+import { createActivityRevision, compactionNotice, compactionElapsed, compactionUnavailableReason } from './gi-compaction-state.js';
 import { contextPresentation } from './gi-context-usage.js';
 import {createActivationRefreshGate,createTimelineRevision,createAssetVersionGuard,loadedAssetVersion} from './gi-refresh-guards.js';
 import {createSearchView} from './gi-search-state.js';
@@ -150,7 +150,7 @@ function useWorkspaceFolderReference(visible:boolean, sessionId:string, fileRefs
 
 // Keep the supplied component untouched. Its native title also supplies the
 // tooltip-data contract; observe child-owned updates (e.g. model selection).
-function useContextTooltip(root: any, usage: any, notice: any, now: number, canStop: boolean, stop: any, compact: any) {
+function useContextTooltip(root: any, usage: any, notice: any, now: number, canStop: boolean, stop: any, compact: any, unavailable: string) {
     useLayoutEffect(() => {
         const compose = root.current?.querySelector('.compose-box');
         if (!compose) return;
@@ -161,11 +161,15 @@ function useContextTooltip(root: any, usage: any, notice: any, now: number, canS
                 const normal = contextPresentation(usage, typeof compact === 'function');
                 const canCompact = typeof compact === 'function' && !active;
                 if (button.disabled === canCompact) button.disabled = !canCompact;
-                const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}` : normal.title + (canCompact ? '' : ' — Context usage');
+                const reason = !canCompact && unavailable ? ` — ${unavailable}` : '';
+                const title = active ? `${notice.title} — ${compactionElapsed(notice, now)}` : normal.title + reason;
                 const label = active ? `${notice.title} — ${normal.label}` : normal.label;
                 if (button.getAttribute('title') !== title) button.setAttribute('title', title);
                 if (button.getAttribute('aria-label') !== label) button.setAttribute('aria-label', label);
                 if (button.getAttribute('data-tooltip') !== title) button.setAttribute('data-tooltip', title);
+                const description = !active && !canCompact ? unavailable : '';
+                if (description && button.getAttribute('aria-description') !== description) button.setAttribute('aria-description', description);
+                if (!description && button.hasAttribute('aria-description')) button.removeAttribute('aria-description');
                 if (button.classList.contains('is-compacting') !== active) button.classList.toggle('is-compacting', active);
                 let elapsed = compose.querySelector('.gi-compaction-elapsed');
                 if (active) {
@@ -384,7 +388,7 @@ function GiApp() {
             if (stopToken.current === token) { stopToken.current = null; setStopPending(false); }
             if (selection.isCurrent(scope)) { activityRevision.invalidate(); setActivityFresh(false); refreshAfterConnection.current(); }
         }
-    }, manualCompact);
+    }, manualCompact, compactionUnavailableReason({fresh:activityFresh,disconnected:streamDisconnected.current,pending:compactPending,status:activity?.status,capability:compactState}));
     const [activeChatAgents, setActiveChatAgents] = useState<any[]>([]);
     const sessionListRevision = useRef(0);
     const [currentChatBranches, setCurrentChatBranches] = useState<any[]>([]);
