@@ -67,7 +67,30 @@ replay assertions unchanged and no timeout increases. Scoped review approved;
 frame identities are attached on each run for diagnosis. Runtime code is unchanged
 by this fixture correction; the failed CI does not approve deployment.
 
-Evidence is retained in `/workspace/tmp/gi-compaction-estimates`. Whole-product CI
-and exact-source deployment are still required. Physical-device, Visual-skin,
-exact-pixel and TUI acceptance are separate. Local-only TUI WIP `2a87a79` stays
-isolated; its generic cancellation/thinking behaviours receive no new parity credit.
+## Deployment
+
+Exact source `d415541e7dfadac7eb5170e36f993b5545ca0f6d` passed whole-product CI
+[36259191352](https://github.com/rcarmo/gi/actions/runs/36259191352), attempt 2,
+including all four builds. Attempt 1 failed WebKit reload with an internal browser
+error and another WebKit initial load before the context control appeared. The
+unchanged revision passed 32 HTTP, 18 meter and 102 compaction tests locally, then
+the failed CI jobs on one rerun. No root-cause fix for those failures is established;
+logs and traces are retained, with no timeout or assertion relaxation.
+
+The approved source replaced `53ef988` on port 8090: PID `668487`, process
+group/session `668479`. The release was rebuilt with `CGO_ENABLED=0` after local
+reproduction tests rebuilt the staging binary. Final executable SHA-256:
+`2e393f0f892bf2c4084625fb2ebe24cee46ba1a68a86650396b670776ec00f16`.
+
+Four blocked non-localhost HTTP sends and six read-only UI probes passed. Full SQL
+matches except for the expected runtime dispatcher lease; counts remain 62 sessions,
+51 turns, 146 messages, zero active turns, with clean integrity/FKs. Auth hashes and
+local-only TUI WIP HEAD/diff match. No live chat, thinking or compaction mutations
+occurred. Reload existing tabs for the new bundle.
+
+Implementation/test evidence is in `/workspace/tmp/gi-compaction-estimates`;
+deployment evidence is in `/workspace/tmp/gi-estimate-deploy-d415541`. Live DB dumps
+and auth hashes stay local-only and are excluded from the downloadable archive.
+Physical-device, Visual-skin, exact-pixel and TUI acceptance are separate. Local-only
+TUI WIP `2a87a79` stays isolated; its generic cancellation/thinking behaviours receive
+no new parity credit.
