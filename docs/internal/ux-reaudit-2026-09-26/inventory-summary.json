@@ -1,0 +1,272 @@
+{
+  "baseline": "5dc6bf77968a1c6da1c14292d2a894085012f7b1",
+  "files": 37,
+  "definitions": 358,
+  "expanded": 421,
+  "groups": {
+    "native-tui-search": {
+      "definitions": 33,
+      "expanded": 33
+    },
+    "gi-additions": {
+      "definitions": 34,
+      "expanded": 34
+    },
+    "passkey-addition": {
+      "definitions": 26,
+      "expanded": 56
+    },
+    "classic-canonical": {
+      "definitions": 29,
+      "expanded": 34
+    },
+    "classic-auth-settings": {
+      "definitions": 55,
+      "expanded": 61
+    },
+    "classic-core-workspace": {
+      "definitions": 26,
+      "expanded": 26
+    },
+    "classic-compose": {
+      "definitions": 58,
+      "expanded": 58
+    },
+    "classic-editor-media": {
+      "definitions": 50,
+      "expanded": 50
+    },
+    "classic-sessions-mobile": {
+      "definitions": 18,
+      "expanded": 27
+    },
+    "shared": {
+      "definitions": 29,
+      "expanded": 42
+    }
+  },
+  "fileSummaries": [
+    {
+      "file": "features/search/workspace-index.feature",
+      "group": "native-tui-search",
+      "definitions": 23,
+      "expanded": 23
+    },
+    {
+      "file": "features/tui/assistant_basics.feature",
+      "group": "native-tui-search",
+      "definitions": 3,
+      "expanded": 3
+    },
+    {
+      "file": "features/tui/keyboard_behavior.feature",
+      "group": "native-tui-search",
+      "definitions": 1,
+      "expanded": 1
+    },
+    {
+      "file": "features/tui/pi_like_workflows.feature",
+      "group": "native-tui-search",
+      "definitions": 2,
+      "expanded": 2
+    },
+    {
+      "file": "features/tui/plugins.feature",
+      "group": "native-tui-search",
+      "definitions": 1,
+      "expanded": 1
+    },
+    {
+      "file": "features/tui/session_workflows.feature",
+      "group": "native-tui-search",
+      "definitions": 1,
+      "expanded": 1
+    },
+    {
+      "file": "features/tui/settings_and_approvals.feature",
+      "group": "native-tui-search",
+      "definitions": 1,
+      "expanded": 1
+    },
+    {
+      "file": "features/tui/tool_controls.feature",
+      "group": "native-tui-search",
+      "definitions": 1,
+      "expanded": 1
+    },
+    {
+      "file": "tests/features/sessions/gi-preview.feature",
+      "group": "gi-additions",
+      "definitions": 3,
+      "expanded": 3
+    },
+    {
+      "file": "tests/features/sessions/gi-swipe.feature",
+      "group": "gi-additions",
+      "definitions": 3,
+      "expanded": 3
+    },
+    {
+      "file": "tests/features/settings/gi-settings.feature",
+      "group": "gi-additions",
+      "definitions": 28,
+      "expanded": 28
+    },
+    {
+      "file": "tests/ux/features/additions/piclaw-2026-09-24/piclaw-single-user-passkey-settings.feature",
+      "group": "passkey-addition",
+      "definitions": 26,
+      "expanded": 56
+    },
+    {
+      "file": "tests/ux/features/classic/canonical/canonical-ux.feature",
+      "group": "classic-canonical",
+      "definitions": 29,
+      "expanded": 34
+    },
+    {
+      "file": "tests/ux/features/classic/canonical/core-auth.feature",
+      "group": "classic-auth-settings",
+      "definitions": 14,
+      "expanded": 20
+    },
+    {
+      "file": "tests/ux/features/classic/canonical/core-interactions.feature",
+      "group": "classic-core-workspace",
+      "definitions": 8,
+      "expanded": 8
+    },
+    {
+      "file": "tests/ux/features/classic/canonical/core-settings.feature",
+      "group": "classic-auth-settings",
+      "definitions": 32,
+      "expanded": 32
+    },
+    {
+      "file": "tests/ux/features/classic/canonical/workspace-flows.feature",
+      "group": "classic-core-workspace",
+      "definitions": 18,
+      "expanded": 18
+    },
+    {
+      "file": "tests/ux/features/classic/compose/compaction-model-switch.feature",
+      "group": "classic-compose",
+      "definitions": 8,
+      "expanded": 8
+    },
+    {
+      "file": "tests/ux/features/classic/compose/compose-stability.feature",
+      "group": "classic-compose",
+      "definitions": 6,
+      "expanded": 6
+    },
+    {
+      "file": "tests/ux/features/classic/compose/context-meter-tooltip.feature",
+      "group": "classic-compose",
+      "definitions": 5,
+      "expanded": 5
+    },
+    {
+      "file": "tests/ux/features/classic/compose/hamburger-layout-scale.feature",
+      "group": "classic-compose",
+      "definitions": 9,
+      "expanded": 9
+    },
+    {
+      "file": "tests/ux/features/classic/compose/instant-visibility.feature",
+      "group": "classic-compose",
+      "definitions": 5,
+      "expanded": 5
+    },
+    {
+      "file": "tests/ux/features/classic/compose/sse-reconnection.feature",
+      "group": "classic-compose",
+      "definitions": 5,
+      "expanded": 5
+    },
+    {
+      "file": "tests/ux/features/classic/compose/theme-tint.feature",
+      "group": "classic-compose",
+      "definitions": 15,
+      "expanded": 15
+    },
+    {
+      "file": "tests/ux/features/classic/compose/thoughts-panel.feature",
+      "group": "classic-compose",
+      "definitions": 5,
+      "expanded": 5
+    },
+    {
+      "file": "tests/ux/features/classic/editor/editor-stability.feature",
+      "group": "classic-editor-media",
+      "definitions": 5,
+      "expanded": 5
+    },
+    {
+      "file": "tests/ux/features/classic/mobile/pwa-manifest.feature",
+      "group": "classic-sessions-mobile",
+      "definitions": 6,
+      "expanded": 9
+    },
+    {
+      "file": "tests/ux/features/classic/mobile/swipe-independence.feature",
+      "group": "classic-sessions-mobile",
+      "definitions": 6,
+      "expanded": 12
+    },
+    {
+      "file": "tests/ux/features/classic/panes/terminal.feature",
+      "group": "classic-editor-media",
+      "definitions": 17,
+      "expanded": 17
+    },
+    {
+      "file": "tests/ux/features/classic/sessions/session-switching.feature",
+      "group": "classic-sessions-mobile",
+      "definitions": 6,
+      "expanded": 6
+    },
+    {
+      "file": "tests/ux/features/classic/settings/settings-dialog.feature",
+      "group": "classic-auth-settings",
+      "definitions": 5,
+      "expanded": 5
+    },
+    {
+      "file": "tests/ux/features/classic/settings/settings-layering.feature",
+      "group": "classic-auth-settings",
+      "definitions": 4,
+      "expanded": 4
+    },
+    {
+      "file": "tests/ux/features/classic/timeline/annotation-highlights.feature",
+      "group": "classic-editor-media",
+      "definitions": 12,
+      "expanded": 12
+    },
+    {
+      "file": "tests/ux/features/classic/timeline/lightbox-dismissal.feature",
+      "group": "classic-editor-media",
+      "definitions": 4,
+      "expanded": 4
+    },
+    {
+      "file": "tests/ux/features/classic/timeline/message-deletion.feature",
+      "group": "classic-editor-media",
+      "definitions": 6,
+      "expanded": 6
+    },
+    {
+      "file": "tests/ux/features/classic/timeline/rendering.feature",
+      "group": "classic-editor-media",
+      "definitions": 6,
+      "expanded": 6
+    },
+    {
+      "file": "tests/ux/features/shared-canonical-ux.feature",
+      "group": "shared",
+      "definitions": 29,
+      "expanded": 42
+    }
+  ]
+}

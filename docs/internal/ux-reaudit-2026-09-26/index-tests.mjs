@@ -1,0 +1,15 @@
+import fs from 'node:fs';import path from 'node:path';import {execFileSync}from'node:child_process';
+const root='/workspace/tmp/gi-ux-reaudit-source',out='/workspace/tmp/gi-ux-reaudit-20260926';
+const inventory=JSON.parse(fs.readFileSync(out+'/inventory.json','utf8'));
+const files=execFileSync('git',['ls-files'],{cwd:root,encoding:'utf8'}).trim().split('\n').filter(f=>/(?:\.(?:spec|test)\.(?:mjs|ts)|_test\.go)$/.test(f));
+const tests=[];
+for(const file of files){const text=fs.readFileSync(root+'/'+file,'utf8');const lines=text.split('\n');const starts=[];
+for(let i=0;i<lines.length;i++)if(/\b(?:test|it)(?:\.(?:skip|fixme|only))?\s*\(/.test(lines[i])||/^func Test\w+\(/.test(lines[i]))starts.push(i);
+for(let j=0;j<starts.length;j++){const start=starts[j],end=starts[j+1]??lines.length;const body=lines.slice(start,end).join('\n');const first=lines[start];const ids=[...new Set(body.match(/@(?:ux-[a-z0-9-]+|shared-\d+|gi-[a-z0-9-]+)/g)||[])];tests.push({file,line:start+1,end,title:first.trim(),ids,assertions:body.split('\n').filter(x=>/expect\(|assert\.|t\.Fatal|t\.Error/.test(x)).length,synthetic:/dispatchEvent|new KeyboardEvent|page\.evaluate/.test(body),sourceOnly:/readFileSync.*(?:web\/src|\.ts)|source\.includes|source\.slice/.test(body),mocked:/page\.route|route\.(?:fulfill|abort)|mock\.|stub/i.test(body),skipped:/test\.(skip|fixme)/.test(first),body});}}
+const ledger=JSON.parse(fs.readFileSync(root+'/docs/internal/passkey-criteria.json','utf8'));
+for(const s of inventory.scenarios){const ids=[...s.canonical_ids,...s.tags];s.test_candidates=tests.filter(t=>t.ids.some(id=>ids.includes(id))).map(t=>({file:t.file,line:t.line,end:t.end,title:t.title,assertions:t.assertions,synthetic:t.synthetic,sourceOnly:t.sourceOnly,mocked:t.mocked,skipped:t.skipped}));if(s.group==='passkey-addition')s.ledger=ledger.scenarios.find(x=>x.line===s.line||x.name===s.name);}
+fs.writeFileSync(out+'/trace-index.json',JSON.stringify({baseline:inventory.summary.baseline,scenarios:inventory.scenarios,testIndex:tests.map(({body,...x})=>x)},null,2));
+fs.mkdirSync(out+'/packs',{recursive:true});
+const groups=Object.keys(inventory.summary.groups);
+for(const group of groups){const rows=inventory.scenarios.filter(s=>s.group===group);for(let i=0;i<rows.length;i+=6){const part=rows.slice(i,i+6);const keys=new Set(part.flatMap(s=>s.test_candidates).map(t=>t.file+':'+t.line));const evidence=tests.filter(t=>keys.has(t.file+':'+t.line));let pack='# Audit batch '+group+' '+(i/6+1)+'\n\nBaseline '+inventory.summary.baseline+'\nSource only, candidate links from lexical tags (not acceptance). Do not assume links cover clauses.\n\n'+JSON.stringify(part,null,2)+'\n\n## Candidate test excerpts\n';for(const t of evidence){pack+='\n### '+t.file+':'+t.line+'-'+t.end+'\n```\n'+t.body.slice(0,8500)+'\n```\n';}fs.writeFileSync(out+'/packs/'+group+'-'+(i/6+1)+'.md',pack);}}
+console.log(JSON.stringify({tests:tests.length,scenarios:inventory.scenarios.length,with_candidates:inventory.scenarios.filter(s=>s.test_candidates.length).length,no_candidates:inventory.scenarios.filter(s=>!s.test_candidates.length).length,packs:fs.readdirSync(out+'/packs').length},null,2));
