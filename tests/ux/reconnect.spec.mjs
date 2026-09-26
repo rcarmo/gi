@@ -302,7 +302,9 @@ test('@shared-36 Captured Stop survives reconnect, preserves queue, and ignores 
   const queued=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:`UX preview expand UX steer gate:${newToken}`,intent:'queue',model:'ux-local/gate'});
   const tail=await api(`/api/sessions/${main.id}/prompt`,'POST',{prompt:'retained queued tail',intent:'queue',model:'ux-local/gate'});
   const beforeQueue=await queue();expect(beforeQueue.items.map(x=>x.id)).toEqual([queued.turn_id,tail.turn_id]);
-  env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});await expect(stop).toBeEnabled();expect(await state()).toEqual(captured);
+  env.resume();await expect(page.locator('.compose-connection-status')).toHaveCount(0,{timeout:15000});await expect(stop).toBeEnabled();
+  await expect.poll(()=>env.frames.filter(f=>f.type==='connected'&&f.data.chat_jid===`gi:${main.id}`).length).toBeGreaterThanOrEqual(2);
+  expect(await state()).toEqual(captured);
   const mutations=[];page.on('request',r=>{if(r.method()==='POST'&&r.url().endsWith(`/api/sessions/${main.id}/activity`))mutations.push(r.postDataJSON());});
   const cancel=page.waitForResponse(r=>r.url().endsWith(`/api/sessions/${main.id}/activity`)&&r.request().method()==='POST');await stop.click();expect((await cancel).status()).toBe(200);
   expect(mutations).toEqual([{turn_id:first.turn_id}]);
@@ -316,12 +318,15 @@ test('@shared-36 Captured Stop survives reconnect, preserves queue, and ignores 
   await expect.poll(async()=>(await state()).turn_id).toBe(queued.turn_id);await expect(stop).toBeEnabled();
   expect((await queue()).items).toEqual(beforeQueue.items.filter(x=>x.id===tail.turn_id));await expect(page.locator(`[data-queue-id="${tail.turn_id}"]`)).toBeVisible();await expect(input).toHaveValue('captured stop draft');await expect(page.locator('.compose-file-pill[title="stop.txt"]')).toHaveCount(1);
   expect((await api(`/api/sessions/${other.id}/activity`)).turn_id).toBe(foreign.turn_id);
-  await expect.poll(()=>env.frames.some(f=>f.type==='agent_status'&&f.data.status==='idle')).toBe(true);
-  const terminal=env.frames.findLast(f=>f.type==='agent_status'&&f.data.status==='idle');
+  // Warm-up has its own idle frame. Wait for the exact cancelled occurrence,
+  // not whichever terminal frame happened to arrive before the next poll.
+  const isStoppedFrame=f=>f.type==='agent_status'&&f.data.status==='idle'&&f.data.chat_jid===`gi:${main.id}`&&f.data.turn_id===first.turn_id;
+  await expect.poll(()=>env.frames.some(isStoppedFrame)).toBe(true);
+  const terminal=env.frames.findLast(isStoppedFrame);
   const newer=queued;expect(terminal.data.turn_id).toBe(first.turn_id);
   // Reconnect intentionally drops transient text. Emit a fresh delta only once
   // the native second connection has delivered its readiness frame.
-  await expect.poll(()=>env.frames.filter(f=>f.type==='connected').length).toBeGreaterThanOrEqual(2);
+  await expect.poll(()=>env.frames.filter(f=>f.type==='connected'&&f.data.chat_jid===`gi:${main.id}`).length).toBeGreaterThanOrEqual(2);
   env.release(newToken+'.more');
   const draftPreview=page.locator('.agent-thinking').filter({has:page.locator('.agent-thinking-title').filter({hasText:'Draft'})});
   await expect(draftPreview).toContainText('Draft line 16');
@@ -338,5 +343,8 @@ test('@shared-36 Captured Stop survives reconnect, preserves queue, and ignores 
   env.release(firstToken);env.release(newToken);env.release(otherToken);
   await expect.poll(async()=>(await state()).status).toBe('idle');
   await expect.poll(async()=>(await api(`/api/sessions/${other.id}/activity`)).status).toBe('idle');
- }finally{releaseActivity();await env.close();}
+ }finally{
+  await info.attach('native-frame-identities',{body:JSON.stringify(env.frames.map(f=>({type:f.type,chat:f.data.chat_jid,turn:f.data.turn_id,status:f.data.status})),null,2),contentType:'application/json'});
+  releaseActivity();await env.close();
+ }
 });

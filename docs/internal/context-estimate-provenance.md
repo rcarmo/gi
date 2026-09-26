@@ -58,6 +58,15 @@ fixture now uses a private file-backed store and waits under the runner lock for
 cleanup to finish. No runtime behaviour, browser assertion or timeout changed for
 that correction. Earlier review timeouts did not count as approval.
 
+Initial CI `36258125176` failed the unrelated Shared36 fixture: it selected any
+idle frame, so the earlier warm-up could satisfy the wait before the cancelled
+turn's frame arrived. Exact session/turn matching exposed a second readiness race;
+the native session-scoped `connected` subscription barrier now precedes Stop.
+Eighteen repeated cases and the full 66-case reconnect suite passed, with all
+replay assertions unchanged and no timeout increases. Scoped review approved;
+frame identities are attached on each run for diagnosis. Runtime code is unchanged
+by this fixture correction; the failed CI does not approve deployment.
+
 Evidence is retained in `/workspace/tmp/gi-compaction-estimates`. Whole-product CI
 and exact-source deployment are still required. Physical-device, Visual-skin,
 exact-pixel and TUI acceptance are separate. Local-only TUI WIP `2a87a79` stays
