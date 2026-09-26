@@ -23,6 +23,13 @@ Historical slice reports contain their own test totals. Those runs are not one
 combined, current full-suite pass. The [UX audit][audit] reviewed 200 files and
 found missing user journeys, weak assertions and tests tied to Gi's older layout.
 
+Shared38 now has a combined six-project web mapping for bounded current-session
+numeric message retrieval: exact cap/continuation, multi-anchor context union,
+window and byte bounds, foreign isolation and quoted-data handling. Runtime
+`05e287f` is deployed; mapping CI is pending. Shared mappings are 33/42; Classic
+remains 101/236, with Classic025's all-chat/family authorization still unmapped.
+See [the retrieval contract](internal/message-retrieval.md).
+
 ## Browser and runtime
 
 | Area | Gi status and available behaviour | Piclaw parity limits / next work |

@@ -19,7 +19,11 @@ func seedMessageRetrieval(s *store.Store, gates string) error {
 		if _, err := s.CreateSession(ctx, sid, sid, map[string]any{"model": "ux-local/gate"}); err != nil {
 			return err
 		}
-		for i := 0; i < 8; i++ {
+		count := 8
+		if sid == "retrieval-main" {
+			count = 120
+		}
+		for i := 0; i < count; i++ {
 			id := fmt.Sprintf("%s-%d", sid, i)
 			content := fmt.Sprintf("history %s %d", sid, i)
 			if sid == "retrieval-main" && i == 4 {
@@ -29,6 +33,10 @@ func seedMessageRetrieval(s *store.Store, gates string) error {
 				content = "FOREIGN_SECRET"
 			}
 			if err := s.AddMessage(ctx, id, sid, "user", content, nil); err != nil {
+				return err
+			}
+			// Tie-free fixture chronology, independent of host insertion speed.
+			if _, err := s.DB().Exec(`update messages set created_at=? where id=?`, fmt.Sprintf("2026-01-01T00:00:%02d.%03dZ", i/1000, i%1000), id); err != nil {
 				return err
 			}
 			var row int64

@@ -1,11 +1,11 @@
 # Piclaw web interaction parity
 
-`make test-ux-message-retrieval` runs race×3 native tests and six disposable-browser
-projects for runtime-scoped numeric message retrieval. Provider tool calls, store
-results, continuation, bounds, rejected scope overrides, quoted rendering and reload
-cross native paths. Shared38/Classic025 remain unmapped; this prerequisite does not
-prove all-chat/family authorization or full scenario acceptance. See
-[the contract](../../docs/internal/message-retrieval.md).
+`make test-shared-message-evidence` runs race×3 native tests, six disposable-browser
+projects and mapping/report guards for Shared38. The combined native tool journey
+asserts exact 100-row cap/continuation, reversed multiple anchors and context union,
+numeric windows, content truncation, missing/foreign IDs, quoted data, and reload.
+Classic025 remains unmapped: all-chat/family authorization is not implemented by
+this current-session tool. See [the contract](../../docs/internal/message-retrieval.md).
 
 ## Compose/panel pixel gate
 
@@ -43,7 +43,7 @@ The Classic and shared contracts differ in places, including command-prefill and
 
 The [feature and parity matrix](../../docs/feature-parity.md) separates shipped
 behaviour, known gaps and planned integrations. Source mappings are 101/236
-Classic IDs and 32/42 shared cases; they are not a full-suite pass. Classic008 is
+Classic IDs and 33/42 shared cases; they are not a full-suite pass. Classic008 is
 disputed. All 26 separately pinned passkey Settings scenarios/outlines are unmapped;
 `make test-ux-passkeys` verifies native APIs and Settings/login journeys using real
 Chromium WebAuthn and virtual authenticators. Full per-case mapping, Visual-skin

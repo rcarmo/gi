@@ -191,6 +191,11 @@ test-ux-message-retrieval: build-web test-message-retrieval
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
 	GI_UX_MESSAGE_RETRIEVAL=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test -c playwright.ux.config.mjs tests/ux/message-retrieval.spec.mjs $(UX_PARITY_ARGS)
 
+.PHONY: test-shared-message-evidence
+test-shared-message-evidence: test-ux-message-retrieval
+	$(BUN) test tests/ux/support/parity-report.test.ts tests/ux/support/passkey-criteria.test.ts
+	$(BUN) scripts/ux-parity-report.mjs test-results/ux-parity/message-retrieval-results.json
+
 test-session-thinking:
 	$(GO) test -race -count=3 ./internal/store ./internal/inference ./internal/turn ./internal/web -run SessionThinking
 

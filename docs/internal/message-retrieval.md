@@ -2,8 +2,8 @@
 
 The native `messages` tool reads historical messages from the runtime's current
 session. It does not accept a session identifier, all-chat scope, SQL, or write
-actions. This is a prerequisite for Shared38, not full Shared38 or Classic025
-acceptance. Classic025's all-chat and family-owned authorization remain separate.
+actions. The combined Shared38 web journey covers the current-session contract.
+Classic025 remains unmapped: all-chat and family-owned authorization are separate.
 
 ## Identity and migration
 
@@ -72,8 +72,27 @@ then returns the received tool JSON. Browser assertions cover ID/context and win
 queries, pagination, truncation, foreign isolation, native error lifecycle, quoted
 rendering, reload and unsent draft retention. Live chats and auth are not test data.
 
-No frozen catalogue mappings or supplied UI components are changed. The remaining
-scenario clauses and broader authorization are separate gates.
+## Shared38 web mapping
+
+The canonical six-project journey now verifies 100 owned anchors with context:
+exact rows 0–99, followed by exact rows 100–109 with no duplicates and no further
+page. A reversed two-anchor request with context, a foreign ID and a missing ID
+returns the exact deduplicated timeline across two pages. A numeric window verifies
+only its three owned rows and the requested byte cap. The fixture seeds 120 owned
+rows with tie-free chronology so newly submitted prompts cannot enter the expected
+context union.
+
+Native tests establish reopen/VACUUM identity durability and encoded-byte budgeting;
+the browser exercises real provider calls, tool dispatch, store output and the next
+provider request. Quoted hostile content is not dispatched or executed in the page.
+The exact-clause review initially withheld approval for incomplete browser order/tail
+assertions, then approved the strengthened source after all six projects passed.
+
+`make test-shared-message-evidence` also verifies incomplete/duplicate matrices cannot
+pass and Shared38 cannot earn Classic025 credit. Only `@shared-38` is newly mapped:
+33/42 shared mappings and 101/236 Classic mappings. This is not a full-suite pass,
+all-chat/family authorization, TUI, physical-device or pixel acceptance. Frozen
+feature sources and supplied components are unchanged. Mapping CI is pending.
 
 ## Deployment
 

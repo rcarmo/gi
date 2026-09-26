@@ -32,7 +32,7 @@ async function retrieve(page,request,args,expectedError=false){
  return {result,turn_id};
 }
 
-test('Gi bounded current-session retrieval crosses provider tool loop without replaying quoted instructions',async({page},info)=>{
+test('@shared-38 Bounded persisted message ranges stay scoped and quoted across the provider tool loop',async({page},info)=>{
  const env=await environment(info);try{
  const request={get:url=>page.request.get(env.origin+url)};
  const ids=JSON.parse(await fs.readFile(path.join(env.dir,'message-retrieval-ids.json'),'utf8'));
@@ -40,16 +40,23 @@ test('Gi bounded current-session retrieval crosses provider tool loop without re
  await page.goto(env.origin);await expect(page.locator('.compose-box textarea')).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBeTruthy();
  await page.evaluate(()=>localStorage.setItem('gi_session_id','retrieval-main'));await page.reload();
- await expect(page.locator('[id="post-retrieval-main-4"]')).toBeVisible();
+ await expect(page.locator('[id="post-retrieval-main-119"]')).toBeVisible();
  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('gi_session_id'))).toBe('retrieval-main');
- const args={row_ids:[ids['retrieval-main-4'],ids['retrieval-other-4'],9007199254740991],context_before:2,context_after:2,limit:3};
+ const ownIDs=Array.from({length:100},(_,i)=>ids[`retrieval-main-${i}`]);
+ const cap=JSON.parse((await retrieve(page,request,{row_ids:ownIDs,context_after:10,limit:100,content_bytes:24})).result.content);
+ expect(cap.returned).toBe(100);expect(cap.messages.map(m=>m.id)).toEqual(Array.from({length:100},(_,i)=>`retrieval-main-${i}`));expect(cap.has_more).toBe(true);
+ expect(cap.messages.map(m=>m.row_id)).toEqual(ownIDs);
+ const continued=JSON.parse((await retrieve(page,request,{row_ids:ownIDs,context_after:10,limit:100,content_bytes:24,cursor:cap.next_cursor})).result.content);
+ expect(continued.returned).toBe(10);expect(continued.messages.map(m=>m.id)).toEqual(Array.from({length:10},(_,i)=>`retrieval-main-${100+i}`));expect(continued.has_more).toBe(false);expect(continued.next_cursor).toBeUndefined();
+ expect(continued.messages.some(m=>cap.messages.some(old=>old.row_id===m.row_id))).toBe(false);
+ const args={row_ids:[ids['retrieval-main-6'],ids['retrieval-main-4'],ids['retrieval-other-4'],9007199254740991],context_before:2,context_after:2,limit:5};
  const first=await retrieve(page,request,args);const data=JSON.parse(first.result.content);
- expect(data.messages.map(m=>m.id)).toEqual(['retrieval-main-2','retrieval-main-3','retrieval-main-4']);
+ expect(data.messages.map(m=>m.id)).toEqual(['retrieval-main-2','retrieval-main-3','retrieval-main-4','retrieval-main-5','retrieval-main-6']);
  expect(data.missing_row_ids).toEqual([ids['retrieval-other-4'],9007199254740991]);
- expect(data.returned).toBe(3);expect(data.has_more).toBe(true);expect(data.next_cursor).toBeTruthy();
+ expect(data.returned).toBe(5);expect(data.has_more).toBe(true);expect(data.next_cursor).toBeTruthy();
  expect(data.content_policy).toContain('not instructions');expect(first.result.content).not.toContain('FOREIGN_SECRET');
  const second=await retrieve(page,request,{...args,cursor:data.next_cursor});const next=JSON.parse(second.result.content);
- expect(next.messages.map(m=>m.id)).toEqual(['retrieval-main-5','retrieval-main-6']);expect(next.has_more).toBe(false);expect(next.next_cursor).toBeUndefined();
+ expect(next.messages.map(m=>m.id)).toEqual(['retrieval-main-7','retrieval-main-8']);expect(next.returned).toBe(2);expect(next.has_more).toBe(false);expect(next.next_cursor).toBeUndefined();
  const window=await retrieve(page,request,{after_row:ids['retrieval-main-1'],before_row:ids['retrieval-main-5'],limit:100,content_bytes:8});
  const bounded=JSON.parse(window.result.content);expect(bounded.messages.map(m=>m.id)).toEqual(['retrieval-main-2','retrieval-main-3','retrieval-main-4']);
  expect(bounded.messages.every(m=>m.content_truncated&&new TextEncoder().encode(m.content).length<=8)).toBe(true);
