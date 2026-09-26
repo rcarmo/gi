@@ -31,3 +31,10 @@ test('immutable composer UUID adapter fails closed on changed anchors',async()=>
  expect(()=>patchComposeRandomId('')).toThrow('anchor changed');
  expect(()=>patchComposeRandomId('crypto.randomUUID(); crypto.randomUUID()')).toThrow('anchor changed');
 });
+
+test('immutable composer uses persisted capture token for idle and queued sends',async()=>{
+ const {patchComposeCaptureToken}=await import('../../../scripts/patch-compose-capture-token.mjs');
+ const source=await Bun.file('web/src/components/compose-box.ts').text();
+ expect(patchComposeCaptureToken(source)).toContain('{ client_request_id: capture?.token || queueToken }');
+ expect(()=>patchComposeCaptureToken('')).toThrow('anchor changed');expect(()=>patchComposeCaptureToken('{ client_request_id: queueToken } { client_request_id: queueToken }')).toThrow('anchor changed');
+});

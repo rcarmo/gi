@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 import { createDraftRepository, emptyDraft, mergeDrafts } from '../../../web/src/gi-drafts';
 
+const draft = (text: string) => ({ ...emptyDraft(), text });
 function storage() {
   const rows = new Map();
   return { rows, load: async () => structuredClone([...rows.values()]), put: async (row: any) => { rows.set(row.sessionId, structuredClone(row)); } };
@@ -88,4 +89,24 @@ test('distinct queue IDs with identical text remain distinct; retry keys do not 
 test('merge recognises already-restored prefix without losing current references', () => {
   expect(mergeDrafts({ ...emptyDraft(), text: 'hello', fileRefs: ['a'] }, { ...emptyDraft(), text: 'hello\n\nnewer', fileRefs: ['b'] }))
     .toMatchObject({ text: 'hello\n\nnewer', fileRefs: ['a','b'] });
+});
+
+test('reopen retires only confirmed exact session tokens and keeps newer draft/media',async()=>{
+ const {pendingSendKey}=await import('../../../web/src/gi-drafts');
+ const db=storage();let repo=createDraftRepository(db);await repo.load();
+ const accepted=repo.begin('A',draft('already delivered'));await accepted.ready;
+ const unknown=repo.begin('A',draft('unknown send'));await unknown.ready;
+ repo.update('A',draft('newer'));await repo.flushStable();
+ let requests:any;
+ repo=createDraftRepository(db,()=>{},async pending=>{requests=pending;return new Set([pendingSendKey('A',accepted.token),pendingSendKey('B',unknown.token)])});await repo.load();
+ expect(requests).toEqual([{sessionId:'A',token:accepted.token},{sessionId:'A',token:unknown.token}]);
+ expect(repo.get('A').text).toBe('unknown send\n\nnewer');expect(repo.error('A')).toContain('Delivery is unknown');expect(db.rows.get('A').pending).toEqual([]);
+ repo=createDraftRepository(db);await repo.load();expect(repo.get('A').text).toBe('unknown send\n\nnewer');
+});
+test('recovery failure preserves legacy unknown draft; confirmed cleanup failure blocks load rather than replay',async()=>{
+ const db=storage();let repo=createDraftRepository(db);await repo.load();const accepted=repo.begin('A',draft('pending'));await accepted.ready;
+ repo=createDraftRepository(db,()=>{},async()=>{throw Error('offline')});await repo.load();expect(repo.get('A').text).toBe('pending');expect(repo.error('A')).toContain('unknown');
+ const next=repo.begin('A',draft('next'));await next.ready;
+ const {pendingSendKey}=await import('../../../web/src/gi-drafts');
+ repo=createDraftRepository({...db,put:async()=>{throw Error('disk')}},()=>{},async()=>new Set([pendingSendKey('A',next.token)]));await expect(repo.load()).rejects.toThrow('disk');expect(repo.get('A').text).toBe('');
 });

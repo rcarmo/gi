@@ -36,6 +36,7 @@ paneRegistry.register(workspacePreviewPaneExtension);
 paneRegistry.register(workspaceMarkdownPreviewPaneExtension);
 import {
     getTimeline,
+    recoverPendingDraftSends,
     searchPosts,
     deletePost,
     getAgents,
@@ -277,7 +278,7 @@ function GiApp() {
     const [draftRestore, setDraftRestore] = useState<any>(null);
     const [composePrefill,setComposePrefill]=useState<any>(null);
     const draftsRef = useRef<any>(null);
-    if (!draftsRef.current) draftsRef.current = createDraftRepository(indexedDraftStorage(), error => setDraftStorageError(`Draft not saved: ${error.message}`));
+    if (!draftsRef.current) draftsRef.current = createDraftRepository(indexedDraftStorage(), error => setDraftStorageError(`Draft not saved: ${error.message}`), recoverPendingDraftSends);
     const drafts = draftsRef.current;
     const getDraft = (sid: string) => drafts.get(sid);
     const [runtimeConfig, setRuntimeConfig] = useState<any>({});

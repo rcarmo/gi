@@ -4,9 +4,16 @@ import { networkInterfaces } from 'node:os';
 import { BASE_URL } from './helpers';
 
 let proxy:http.Server,origin:string;
+// Hold actual upstream acknowledgements, not a route.fetch clone of a paused
+// browser POST (page close can release that original request and send twice).
+const heldReplies=new Map<string,{gate:Promise<void>,admitted:any,count:number}>();
 test.beforeAll(async()=>{
  const address=Object.values(networkInterfaces()).flat().find(x=>x?.family==='IPv4'&&!x.internal)?.address;if(!address)throw Error('Non-loopback IPv4 required');
- proxy=http.createServer((req,res)=>{const up=http.request(new URL(req.url!,BASE_URL),{method:req.method,headers:req.headers},r=>{res.writeHead(r.statusCode!,r.headers);r.pipe(res)});up.on('error',()=>{res.writeHead(502);res.end()});req.pipe(up);res.on('close',()=>up.destroy())});
+ proxy=http.createServer((req,res)=>{const held=req.method==='POST'?heldReplies.get(req.url!):undefined;if(held)held.count++;
+  const up=http.request(new URL(req.url!,BASE_URL),{method:req.method,headers:req.headers},r=>{
+   if(!held){res.writeHead(r.statusCode!,r.headers);r.pipe(res);return}
+   const chunks:Buffer[]=[];r.on('data',chunk=>chunks.push(chunk));r.on('end',()=>{const body=Buffer.concat(chunks);held.admitted=JSON.parse(body.toString());void held.gate.then(()=>{if(!res.destroyed){res.writeHead(r.statusCode!,r.headers);res.end(body)}})});
+  });up.on('error',()=>{if(!res.destroyed){res.writeHead(502);res.end()}});req.pipe(up);res.on('close',()=>up.destroy())});
  await new Promise<void>(resolve=>proxy.listen(0,'0.0.0.0',resolve));origin=`http://${address}:${(proxy.address() as any).port}`;
 });
 test.afterAll(async()=>{proxy?.closeAllConnections();await new Promise<void>(resolve=>proxy.close(()=>resolve()))});
@@ -64,5 +71,34 @@ for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
    await page.locator('.compose-session-trigger-top button').click();await page.locator(`[data-session-jid="gi:${child}"]`).click();await expect(page.locator('.post.agent-post .post-content').filter({hasText:`Gi received: ${text}`})).toHaveCount(1);
    const turns=(await(await context.request.get(`${origin}/api/sessions/${child}/turns`)).json()).turns;expect(turns.filter((t:any)=>t.prompt===text)).toHaveLength(1);
   }finally{await context.close();await browser.close()}
+ });
+}
+
+for(const[name,type]of[['chromium',chromium],['webkit',webkit]] as const){
+ test(`${name} HTTP close before accepted reply reconciles persisted capture without restoring accepted attachments`,async()=>{
+  const browser=await type.launch();const context=await browser.newContext();let page=await context.newPage();let release!:()=>void;const gate=new Promise<void>(r=>release=r);let held:{gate:Promise<void>,admitted:any,count:number}|undefined;let heldPath='';
+  try{
+   await page.goto(origin);let input=page.locator('.compose-box textarea');await expect(input).toBeVisible();const id=await page.evaluate(()=>localStorage.getItem('gi_session_id'));
+   const text=`closed-ack-${name}-${Date.now()}`,newer='new draft survives close 中文🙂';
+   await page.locator('.compose-box input[type=file]').setInputFiles({name:'already-sent.txt',mimeType:'text/plain',buffer:Buffer.from('accepted attachment bytes')});await expect(page.locator('.compose-file-pill')).toHaveCount(1);
+   heldPath=`/api/sessions/${id}/prompt`;held={gate,admitted:null,count:0};heldReplies.set(heldPath,held);
+   await input.fill(text);await input.press('Enter');await expect.poll(()=>held!.admitted?.turn_id).toBeTruthy();await input.fill(newer);
+   const acceptedTurn=(await(await context.request.get(`${origin}/api/sessions/${id}/turns`)).json()).turns.find((t:any)=>t.id===held!.admitted.turn_id);
+   const saved=()=>page.evaluate(id=>new Promise<any>((resolve,reject)=>{const open=indexedDB.open('gi-session-drafts',1);open.onerror=()=>reject(open.error);open.onsuccess=()=>{const db=open.result;const read=db.transaction('drafts','readonly').objectStore('drafts').get(id);read.onsuccess=()=>{resolve(read.result);db.close()};read.onerror=()=>reject(read.error)};}),id);
+   await expect.poll(async()=>{const row=await saved();return [row?.draft?.text,row?.pending?.[0]?.id]}).toEqual([newer,acceptedTurn.metadata.client_request_id]);
+   await expect(page.locator('.post.agent-post .post-content').filter({hasText:text})).toHaveCount(1);await page.close();release();
+   page=await context.newPage();const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(origin);input=page.locator('.compose-box textarea');await expect(input).toHaveValue(newer);await expect(page.locator('.compose-box .compose-file-pill')).toHaveCount(0);await expect(page.locator('.post.agent-post .post-content').filter({hasText:text})).toHaveCount(1);
+   const row=await saved();expect(row.pending).toEqual([]);expect(row.draft.media).toEqual([]);expect(held.count).toBe(1);
+   await page.reload();await expect(input).toHaveValue(newer);const turns=(await(await context.request.get(`${origin}/api/sessions/${id}/turns`)).json()).turns;expect(turns.filter((t:any)=>t.prompt.startsWith(text))).toHaveLength(1);expect(errors).toEqual([]);
+  }finally{release();heldReplies.delete(heldPath);await context.close();await browser.close()}
+ });
+ test(`${name} HTTP reopen with failed receipt lookup keeps unknown text once and never auto-submits`,async()=>{
+  const browser=await type.launch();const context=await browser.newContext();let page=await context.newPage();let release!:()=>void;const gate=new Promise<void>(r=>release=r);let held:{gate:Promise<void>,admitted:any,count:number}|undefined;let heldPath='';
+  try{
+   await page.goto(origin);let input=page.locator('.compose-box textarea');await expect(input).toBeVisible();const id=await page.evaluate(()=>localStorage.getItem('gi_session_id'));const text=`closed-unknown-${name}-${Date.now()}`;
+   heldPath=`/api/sessions/${id}/prompt`;held={gate,admitted:null,count:0};heldReplies.set(heldPath,held);await input.fill(text);await input.press('Enter');await expect.poll(()=>held!.admitted?.turn_id).toBeTruthy();await expect(page.locator('.post.agent-post .post-content').filter({hasText:text})).toHaveCount(1);await page.close();release();
+   page=await context.newPage();await page.route(`**/api/sessions/${id}/turns`,r=>r.fulfill({status:503,contentType:'application/json',body:'{"error":"Receipt unavailable"}'}));await page.goto(origin);input=page.locator('.compose-box textarea');await expect(input).toHaveValue(text);await expect(page.getByText(/Recovered an unacknowledged send. Delivery is unknown/)).toBeVisible();expect(held.count).toBe(1);
+   await page.reload();await expect(input).toHaveValue(text);expect((await(await context.request.get(`${origin}/api/sessions/${id}/turns`)).json()).turns.filter((t:any)=>t.prompt===text)).toHaveLength(1);expect(held.count).toBe(1);
+  }finally{release();heldReplies.delete(heldPath);await context.close();await browser.close()}
  });
 }

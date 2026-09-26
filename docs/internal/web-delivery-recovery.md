@@ -20,6 +20,30 @@ remain unknown. HTTP error responses are not reinterpreted as success. The
 existing warning keeps text available and tells the user to check the timeline;
 unknown delivery is not permission to resend.
 
+## Reopening before acknowledgement
+
+New sends carry the persisted draft-capture token as `client_request_id` for
+both idle and queue modes. A guarded build adapter changes only that payload
+expression; supplied composer source remains untouched. Older idle captures may
+have a different request ID and are not inferred to have succeeded.
+
+On startup, the draft repository asks a read-only recovery helper to check up
+to six pending captures with two workers and one3-second network deadline.
+Session turn snapshots are shared across captures in the same session. Only an
+exact same-session token match plus the matching post-rollback submission event
+confirms a capture. Confirmed text/attachments are retired before unknown
+captures merge into newer draft content. Cleanup persistence is awaited; storage
+failure rejects repository loading and the host surfaces a recovery error.
+
+Actual HTTP proxy tests hold the single native response after admission, close
+the tab, and reopen the same browser storage. They prove newer text survives,
+accepted attachments are not restored, repeated reload does not duplicate, and
+there was one native POST/turn. A failed receipt lookup instead restores unknown
+text once with a warning and makes no automatic POST. An initial Playwright
+`route.fetch` version was discarded: closing the paused page could release the
+original POST after forwarding its clone, creating two native turns. The real
+proxy forwards once, and the exact-one assertion remains unchanged.
+
 ### Limits
 
 This recovers the live page's same-session lost HTTP reply, not general exactly-
@@ -27,8 +51,12 @@ once delivery. Routed turns admitted in another session are not inferred from
 source-session data. Explicit peer-target submissions currently do not carry
 this request token into the target turn. They may remain unknown after a lost
 reply. A review identified that gap; no full routed-delivery acceptance is
-claimed. Closing/reloading before recovery completes still uses the older
-pending-draft warning/recovery path and is separate work. Steering receipts
+claimed. Closing/reloading with a new same-session capture now attempts the bounded
+startup check above. Legacy/mismatched captures, captures beyond the six-check
+budget, failed/late receipts and cross-tab concurrent draft writers remain
+outside confirmed recovery; they retain the existing unknown-delivery fallback.
+The cap bounds request count/concurrency, not the size of the native turn-history
+response. A dedicated bounded receipt endpoint is still future work. Steering receipts
 without a follow-on turn also remain unknown. No automatic replay is added.
 
 ## Human-expectation acceptance
@@ -36,7 +64,7 @@ without a follow-on turn also remain unknown. No automatic replay is added.
 All tests use disposable state and a real non-loopback HTTP origin, without
 secure-context or crypto overrides. Both Chromium and WebKit are covered.
 
-`make test-web-basic-send` now runs14checks:
+`make test-web-basic-send` now runs18checks:
 
 - Return and Send create one exact native turn and matching visible response;
   reload preserves both and a second message works.
@@ -50,6 +78,8 @@ secure-context or crypto overrides. Both Chromium and WebKit are covered.
 - Failed recovery reads remain unknown with one accepted turn, no auto retry.
 - New session, child send, parent draft return/reload and child history return
   preserve the correct session and content.
+- Closing before the accepted reply and reopening preserves newer text without
+  restoring accepted attachments; failed startup reads keep unknown text once.
 
 `make test-web-basic-controls` now runs18checks (three journeys × two engines ×
 three sizes):
@@ -123,6 +153,14 @@ Avatar and cleared-composer assertions now refer to the new admission rather
 than existing history. All18control/model cases and121functional checks pass
 (11existing skips), plus core/vet/hooks and13helpers/50assertions. A focused
 review found one missing immediate label assertion after failed model selection;
-that assertion was added and passed. No runtime production code changed in this
-acceptance follow-up; the two-model provider fixture is enabled only under
-`GI_UX_BASIC_HTTP`.
+that assertion was added and passed. No runtime production code changed in that model-acceptance follow-up; the
+two-model provider fixture is enabled only under `GI_UX_BASIC_HTTP`.
+
+Closed-page follow-up:18HTTP journeys,18controls/model cases,17helpers/68assertions,
+core/vet/hooks and125functional tests (11existing skips) pass. Adapter tests
+reject changed/duplicate source anchors; helper tests cover exact token/session,
+partial/failed proof, cached reads/concurrency cap and persistence failure.
+Two delegated review attempts timed out and supply no independent approval.
+Initial helper-name and proxy-harness mistakes are retained as failed evidence;
+no assertions, timeouts or security gates were relaxed. This follow-up awaits
+its own whole product CI and deployment; live remains003b9e6.

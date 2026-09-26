@@ -17,7 +17,8 @@ import { projectMessageMedia } from './gi-message-media.js';
 import { projectLinkPreviews } from './gi-message-links.js';
 import { composeTransfers } from './gi-compose-transfer.js';
 import { randomClientId } from './gi-random-id.js';
-import { recoverSubmittedPrompt } from './gi-send-recovery.js';
+import { recoverSubmittedPrompt, recoverPendingSends } from './gi-send-recovery.js';
+import type { PendingSend } from './gi-drafts.js';
 
 const API_BASE = '';
 
@@ -499,6 +500,11 @@ export async function sendAgentMessage(agentId: string, content: string, _thread
         }
         throw error;
     } finally { activity.end(); }
+}
+
+export async function recoverPendingDraftSends(pending: PendingSend[]) {
+    const signal = AbortSignal.timeout(3000);
+    return recoverPendingSends(pending, path => request(path, { signal }));
 }
 
 export async function streamSidePrompt(content: string, chatJid: string | null = null, _options: any = {}) {

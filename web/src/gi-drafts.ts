@@ -63,7 +63,11 @@ export function indexedDraftStorage(factory: IDBFactory = indexedDB): DraftStora
     };
 }
 
-export function createDraftRepository(storage: DraftStorage, onError: (error: Error) => void = () => {}) {
+export type PendingSend = { sessionId: string; token: string };
+export type PendingSendRecovery = (pending: PendingSend[]) => Promise<Set<string>>;
+export const pendingSendKey = (sessionId: string, token: string) => JSON.stringify([sessionId, token]);
+
+export function createDraftRepository(storage: DraftStorage, onError: (error: Error) => void = () => {}, recover?: PendingSendRecovery) {
     const records = new Map<string, Record>();
     let tail: Promise<void> = Promise.resolve();
     const record = (id: string) => {
@@ -82,13 +86,21 @@ export function createDraftRepository(storage: DraftStorage, onError: (error: Er
         async load() {
             const rows = await storage.load();
             for (const row of rows) records.set(row.sessionId, row);
+            // No mutation/send on recovery. Old captures may not carry their
+            // token into native admission; failure or no proof remains unknown.
+            let confirmed = new Set<string>();
+            if (recover) {
+                try { confirmed = await recover(rows.flatMap(row => row.pending.map(p => ({ sessionId: row.sessionId, token: p.id })))); }
+                catch { /* Preserve the existing unknown-delivery recovery. */ }
+            }
             for (const row of rows) {
                 // The storage adapter restores File objects from persisted bytes.
                 records.set(row.sessionId, row);
                 if (row.pending.length) {
-                    for (const pending of [...row.pending].reverse()) row.draft = mergeDrafts(pending.draft, row.draft);
+                    const unknown = row.pending.filter(p => !confirmed.has(pendingSendKey(row.sessionId, p.id)));
+                    for (const pending of [...unknown].reverse()) row.draft = mergeDrafts(pending.draft, row.draft);
                     row.pending = [];
-                    row.error = 'Recovered an unacknowledged send. Delivery is unknown; check the timeline before resending.';
+                    if (unknown.length) row.error = 'Recovered an unacknowledged send. Delivery is unknown; check the timeline before resending.';
                     await persist(row.sessionId);
                 }
             }
