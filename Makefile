@@ -590,10 +590,15 @@ test-browser-auth:
 .PHONY: test-passkey-cancel-repeat
 test-passkey-cancel-repeat: build-web test-passkey-criteria
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
-	GI_UX_PASSKEYS=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config playwright.ux.config.mjs tests/ux/passkeys.spec.mjs --project=chromium-phone --project=chromium-tablet --project=chromium-desktop --grep 'Settings enrolls two passkeys' --repeat-each=3
+	GI_UX_PASSKEYS=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config playwright.ux.config.mjs tests/ux/passkeys.spec.mjs --project=chromium-phone --project=chromium-tablet --project=chromium-desktop --grep 'Settings enrolls two passkeys|passkey login cancellation owns' --repeat-each=3
+
+.PHONY: test-passkey-login-boundary
+test-passkey-login-boundary: build-web test-passkey-criteria
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_PASSKEYS=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test --config playwright.ux.config.mjs tests/ux/passkeys.spec.mjs --project=chromium-phone --project=chromium-tablet --project=chromium-desktop --grep 'passkey login cancellation owns'
 
 test-passkey-criteria:
-	$(BUN) test tests/ux/support/passkey-criteria.test.ts
+	$(BUN) test tests/ux/support/passkey-criteria.test.ts tests/ux/support/passkey-lifecycle.test.ts
 
 test-ux-passkeys: build-web test-passkey-criteria
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server

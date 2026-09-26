@@ -1,7 +1,7 @@
 import { html, useEffect, useRef, useState } from './vendor/preact-htm.js';
 
 import { parseAuthPolicy, type AuthPolicy } from "./gi-auth-policy.js";
-import { passkeyUnavailable, runPasskey } from './gi-passkeys.js';
+import { passkeyUnavailable, runPasskey, type PasskeyPhase } from './gi-passkeys.js';
 
 async function policyRequest(signal: AbortSignal): Promise<AuthPolicy> {
     const response = await fetch('/api/auth/status', { cache: 'no-store', credentials: 'same-origin', signal });
@@ -16,10 +16,12 @@ export function GiAuthGate({ children }) {
     const [error, setError] = useState('');
     const [code, setCode] = useState('');
     const [busy, setBusy] = useState(false);
+    const [passkeyPhase, setPasskeyPhase] = useState<PasskeyPhase | null>(null);
     const [attempt, setAttempt] = useState(0);
     const flight = useRef<AbortController | null>(null);
     const input = useRef<HTMLInputElement | null>(null);
     const passkeyFlight = useRef<AbortController | null>(null);
+    const passkeyPrompt = useRef(false);
     const passkeyButton = useRef<HTMLButtonElement | null>(null);
     useEffect(() => () => { passkeyFlight.current?.abort(); passkeyFlight.current = null; }, []);
 
@@ -86,13 +88,18 @@ export function GiAuthGate({ children }) {
         const controller = new AbortController(); passkeyFlight.current = controller;
         setBusy(true); setError('');
         try {
-            await runPasskey('login', controller.signal);
+            await runPasskey('login', controller.signal, undefined, phase => {
+                if (passkeyFlight.current === controller) {
+                    passkeyPrompt.current = phase === 'prompt';
+                    setPasskeyPhase(phase);
+                }
+            });
             const confirmed = await policyRequest(AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]));
             if (passkeyFlight.current !== controller) return;
             if (!confirmed.authenticated) throw new Error('Sign-in could not be confirmed. Refresh status before trying again.');
             setPolicy(confirmed);
         } catch (failure) { if (passkeyFlight.current === controller) setError(failure.message || 'Passkey sign-in failed.'); }
-        finally { if (passkeyFlight.current === controller) { passkeyFlight.current = null; setBusy(false); requestAnimationFrame(() => passkeyButton.current?.focus()); } }
+        finally { if (passkeyFlight.current === controller) { passkeyFlight.current = null; passkeyPrompt.current = false; setPasskeyPhase(null); setBusy(false); requestAnimationFrame(() => passkeyButton.current?.focus()); } }
     };
 
     if (policy && (!policy.enrolled || policy.authenticated)) return children;
@@ -111,7 +118,8 @@ export function GiAuthGate({ children }) {
                     onInput=${(event) => setCode(event.currentTarget.value)} />
                 <button type="submit" disabled=${busy || !/^\d{6}$/.test(code)}>${busy ? 'Signing in…' : 'Sign in'}</button>`}
                 ${policy.passkey_login_available && html`<button ref=${passkeyButton} type="button" disabled=${busy || !!passkeyUnavailable()} onClick=${passkeyLogin}>Sign in with passkey</button>${passkeyUnavailable() && html`<p>${passkeyUnavailable()}</p>`}`}
-                ${passkeyFlight.current && html`<p role="status">Waiting for passkey sign-in…</p><button type="button" onClick=${() => passkeyFlight.current?.abort()}>Cancel passkey prompt</button>`}
+                ${passkeyPhase && html`<p role="status">${passkeyPhase === 'starting' ? 'Starting passkey sign-in…' : passkeyPhase === 'prompt' ? 'Waiting for passkey sign-in…' : 'Confirming passkey sign-in…'}</p>`}
+                ${passkeyPhase === 'prompt' && html`<button type="button" onClick=${() => { if (passkeyPrompt.current) passkeyFlight.current?.abort(); }}>Cancel passkey prompt</button>`}
                 ${!policy.totp_login_available && !policy.passkey_login_available && html`<p role="alert">No sign-in method is available for this origin. Check the instance authentication configuration.</p>`}
                 ${error && html`<button type="button" disabled=${busy} onClick=${() => setAttempt(n => n + 1)}>Refresh sign-in status</button>`}
             </form>`}

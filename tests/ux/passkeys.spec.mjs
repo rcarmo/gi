@@ -1065,3 +1065,53 @@ test('Policy changes reject stale browser revisions and protect a pending last-k
   await page.unroute('**/api/auth/policy');
  }finally{await otherContext.close();await auth.cdp.detach();await env.close();}
 });
+
+for (const hold of ['request', 'response']) test(`passkey login cancellation owns only the browser prompt, with held start ${hold} and finish`, async ({page, context}, info) => {
+ const env=await authEnvironment(page,info,{passkeys:true});const auth=await authenticator(page);
+ let releaseStart, releaseFinish;
+ const startGate=new Promise(resolve=>releaseStart=resolve), finishGate=new Promise(resolve=>releaseFinish=resolve);
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ try {
+  await loginTOTP(page,env);
+  const registration=await ceremony(page,'register',auth,'Boundary key');expect((await registration.finish()).status).toBe(200);
+  await page.locator('.compose-box textarea').fill('login boundary draft Ω');
+  await context.clearCookies();await page.reload();
+  const login=page.getByRole('button',{name:'Sign in with passkey',exact:true}), cancel=page.getByRole('button',{name:'Cancel passkey prompt',exact:true});
+  await expect(login).toBeEnabled();
+  await page.evaluate(()=>{window.__loginGetCount=0;const get=navigator.credentials.get.bind(navigator.credentials);navigator.credentials.get=options=>{window.__loginGetCount++;return get(options)};});
+  await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:false});
+  let starts=0, finishes=0, startHeld=false, finishHeld=false;
+  page.on('request',r=>{if(r.url().endsWith('/login/finish'))finishes++;});
+  await page.route('**/api/auth/passkeys/login/start',async route=>{
+   starts++;
+   if(starts!==1){await route.continue();return;}
+   if(hold==='request'){startHeld=true;await startGate;}
+   const response=await route.fetch();expect(response.status()).toBe(200);
+   if(hold==='response'){startHeld=true;await startGate;}
+   await route.fulfill({response});
+  });
+  await login.click();await expect.poll(()=>startHeld).toBe(true);
+  await expect(login).toBeDisabled();await expect(cancel).toHaveCount(0);
+  await expect(page.getByRole('status')).toContainText('Starting passkey sign-in');
+  expect(await page.evaluate(()=>window.__loginGetCount)).toBe(0);
+  await page.keyboard.press('Escape');expect(starts).toBe(1);expect(finishes).toBe(0);
+  releaseStart();await expect.poll(()=>page.evaluate(()=>window.__loginGetCount)).toBe(1);
+  await expect(cancel).toBeVisible();await cancel.click();await expect(page.getByRole('alert')).toContainText('cancelled');
+  await expect(login).toBeEnabled();await expect(login).toBeFocused();await expect(cancel).toHaveCount(0);
+  expect(starts).toBe(1);expect(finishes).toBe(0);
+  // Hold a successful native finish. A completed prompt is no longer cancellable,
+  // and the gate must not unmount or begin another start before cookie confirmation.
+  await auth.cdp.send('WebAuthn.setAutomaticPresenceSimulation',{authenticatorId:auth.id,enabled:true});
+  await page.route('**/api/auth/passkeys/login/finish',async route=>{
+   const response=await route.fetch();expect(response.status()).toBe(200);finishHeld=true;await finishGate;await route.fulfill({response});
+  });
+  await login.click();await expect.poll(()=>finishHeld).toBe(true);
+  await expect(login).toBeDisabled();await expect(cancel).toHaveCount(0);
+  await expect(page.getByRole('status')).toContainText('Confirming passkey sign-in');
+  await expect(page.locator('.compose-box textarea')).toHaveCount(0);
+  expect(starts).toBe(2);expect(finishes).toBe(1);expect(await page.evaluate(()=>window.__loginGetCount)).toBe(2);
+  releaseFinish();await expect(page.locator('.compose-box textarea')).toHaveValue('login boundary draft Ω');
+  expect(await page.evaluate(async()=>(await(await fetch('/api/auth/status')).json()).authenticated)).toBe(true);
+  expect(starts).toBe(2);expect(finishes).toBe(1);expect(errors).toEqual([]);
+ } finally {releaseStart();releaseFinish();await page.unrouteAll({behavior:'wait'});await auth.cdp.detach();await env.close();}
+});

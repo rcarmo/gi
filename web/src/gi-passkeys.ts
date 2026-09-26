@@ -25,11 +25,15 @@ function encode(value: ArrayBuffer | null): string | null {
     if (value === null) return null;
     return btoa(Array.from(new Uint8Array(value), b => String.fromCharCode(b)).join('')).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
-export async function runPasskey(operation: 'register' | 'login' | 'reauth', signal: AbortSignal, name?: string) {
+export type PasskeyPhase = 'starting' | 'prompt' | 'finishing';
+export async function runPasskey(operation: 'register' | 'login' | 'reauth', signal: AbortSignal, name?: string, onPhase?: (phase: PasskeyPhase) => void) {
     const unavailable = passkeyUnavailable(); if (unavailable) throw new Error(unavailable);
     let created = false, finishing = false;
     try {
+        onPhase?.('starting');
         const start = await authJSON(`/api/auth/passkeys/${operation}/start`, name === undefined ? {} : { name }, signal);
+        // A disposed caller must not open a browser prompt after a late start.
+        signal.throwIfAborted();
         const pub = start.options?.publicKey;
         if (typeof start.ceremony_id !== 'string' || !pub?.challenge) throw new Error('Invalid passkey options');
         pub.challenge = decode(pub.challenge);
@@ -37,9 +41,12 @@ export async function runPasskey(operation: 'register' | 'login' | 'reauth', sig
             pub.user.id = decode(pub.user.id);
             pub.excludeCredentials = (pub.excludeCredentials || []).map(c => ({ ...c, id: decode(c.id) }));
         } else pub.allowCredentials = (pub.allowCredentials || []).map(c => ({ ...c, id: decode(c.id) }));
-        const credential: any = await (operation === 'register'
+        const pending = operation === 'register'
             ? navigator.credentials.create({ publicKey: pub, signal })
-            : navigator.credentials.get({ publicKey: pub, signal }));
+            : navigator.credentials.get({ publicKey: pub, signal });
+        onPhase?.('prompt');
+        const credential: any = await pending;
+        onPhase?.('finishing');
         if (!credential) throw new Error('No passkey response');
         created = operation === 'register';
         // Portable serialisation; older browsers lack PublicKeyCredential.toJSON.

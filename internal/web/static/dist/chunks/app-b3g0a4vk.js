@@ -19761,11 +19761,11 @@ function TimelineQuickActions({
 
 // web/src/gi-settings-lazy.ts
 var loaders = {
-  models: () => import("./gi-settings-models-g6bfrdkh.js").then((module) => module.Models),
-  appearance: () => import("./gi-settings-appearance-nbajhpmc.js").then((module) => module.Appearance),
-  compaction: () => import("./gi-settings-compaction-phyx1t2e.js").then((module) => module.GiSettingsCompaction),
-  providers: () => import("./gi-settings-providers-erqjyx0x.js").then((module) => module.GiSettingsProviders),
-  authentication: () => import("./gi-settings-authentication-1twsvfzr.js").then((module) => module.GiSettingsAuthentication)
+  models: () => import("./gi-settings-models-kqn2ezww.js").then((module) => module.Models),
+  appearance: () => import("./gi-settings-appearance-wfaga293.js").then((module) => module.Appearance),
+  compaction: () => import("./gi-settings-compaction-rpam5pgr.js").then((module) => module.GiSettingsCompaction),
+  providers: () => import("./gi-settings-providers-a9mhnynn.js").then((module) => module.GiSettingsProviders),
+  authentication: () => import("./gi-settings-authentication-2eftsc07.js").then((module) => module.GiSettingsAuthentication)
 };
 var labels = { models: "Models", appearance: "Appearance", compaction: "Compaction", providers: "Providers", authentication: "Authentication" };
 var components = new Map;
@@ -20126,13 +20126,15 @@ function encode2(value) {
     return null;
   return btoa(Array.from(new Uint8Array(value), (b) => String.fromCharCode(b)).join("")).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
-async function runPasskey(operation, signal, name) {
+async function runPasskey(operation, signal, name, onPhase) {
   const unavailable = passkeyUnavailable();
   if (unavailable)
     throw new Error(unavailable);
   let created = false, finishing = false;
   try {
+    onPhase?.("starting");
     const start = await authJSON(`/api/auth/passkeys/${operation}/start`, name === undefined ? {} : { name }, signal);
+    signal.throwIfAborted();
     const pub = start.options?.publicKey;
     if (typeof start.ceremony_id !== "string" || !pub?.challenge)
       throw new Error("Invalid passkey options");
@@ -20142,7 +20144,10 @@ async function runPasskey(operation, signal, name) {
       pub.excludeCredentials = (pub.excludeCredentials || []).map((c) => ({ ...c, id: decode(c.id) }));
     } else
       pub.allowCredentials = (pub.allowCredentials || []).map((c) => ({ ...c, id: decode(c.id) }));
-    const credential = await (operation === "register" ? navigator.credentials.create({ publicKey: pub, signal }) : navigator.credentials.get({ publicKey: pub, signal }));
+    const pending = operation === "register" ? navigator.credentials.create({ publicKey: pub, signal }) : navigator.credentials.get({ publicKey: pub, signal });
+    onPhase?.("prompt");
+    const credential = await pending;
+    onPhase?.("finishing");
     if (!credential)
       throw new Error("No passkey response");
     created = operation === "register";
@@ -20185,10 +20190,12 @@ function GiAuthGate({ children }) {
   const [error, setError] = F_("");
   const [code, setCode] = F_("");
   const [busy, setBusy] = F_(false);
+  const [passkeyPhase, setPasskeyPhase] = F_(null);
   const [attempt, setAttempt] = F_(0);
   const flight = Q_(null);
   const input = Q_(null);
   const passkeyFlight = Q_(null);
+  const passkeyPrompt = Q_(false);
   const passkeyButton = Q_(null);
   K_(() => () => {
     passkeyFlight.current?.abort();
@@ -20278,7 +20285,12 @@ function GiAuthGate({ children }) {
     setBusy(true);
     setError("");
     try {
-      await runPasskey("login", controller.signal);
+      await runPasskey("login", controller.signal, undefined, (phase) => {
+        if (passkeyFlight.current === controller) {
+          passkeyPrompt.current = phase === "prompt";
+          setPasskeyPhase(phase);
+        }
+      });
       const confirmed = await policyRequest(AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]));
       if (passkeyFlight.current !== controller)
         return;
@@ -20291,6 +20303,8 @@ function GiAuthGate({ children }) {
     } finally {
       if (passkeyFlight.current === controller) {
         passkeyFlight.current = null;
+        passkeyPrompt.current = false;
+        setPasskeyPhase(null);
         setBusy(false);
         requestAnimationFrame(() => passkeyButton.current?.focus());
       }
@@ -20308,7 +20322,11 @@ function GiAuthGate({ children }) {
                     onInput=${(event) => setCode(event.currentTarget.value)} />
                 <button type="submit" disabled=${busy || !/^\d{6}$/.test(code)}>${busy ? "Signing in…" : "Sign in"}</button>`}
                 ${policy.passkey_login_available && fe`<button ref=${passkeyButton} type="button" disabled=${busy || !!passkeyUnavailable()} onClick=${passkeyLogin}>Sign in with passkey</button>${passkeyUnavailable() && fe`<p>${passkeyUnavailable()}</p>`}`}
-                ${passkeyFlight.current && fe`<p role="status">Waiting for passkey sign-in…</p><button type="button" onClick=${() => passkeyFlight.current?.abort()}>Cancel passkey prompt</button>`}
+                ${passkeyPhase && fe`<p role="status">${passkeyPhase === "starting" ? "Starting passkey sign-in…" : passkeyPhase === "prompt" ? "Waiting for passkey sign-in…" : "Confirming passkey sign-in…"}</p>`}
+                ${passkeyPhase === "prompt" && fe`<button type="button" onClick=${() => {
+    if (passkeyPrompt.current)
+      passkeyFlight.current?.abort();
+  }}>Cancel passkey prompt</button>`}
                 ${!policy.totp_login_available && !policy.passkey_login_available && fe`<p role="alert">No sign-in method is available for this origin. Check the instance authentication configuration.</p>`}
                 ${error && fe`<button type="button" disabled=${busy} onClick=${() => setAttempt((n) => n + 1)}>Refresh sign-in status</button>`}
             </form>`}
@@ -22487,5 +22505,5 @@ export {
   parseAuthPolicy
 };
 
-//# debugId=D08761F94996431C64756E2164756E21
-//# sourceMappingURL=app-ehe2zrq0.js.map
+//# debugId=FB47B76EC1D0171F64756E2164756E21
+//# sourceMappingURL=app-b3g0a4vk.js.map
