@@ -30,7 +30,23 @@ for(const mode of ['fullscreen','regular'])for(const [width,height]of [[60,18],[
   assert(clean(cap()).includes('kept draft β'),'search/click lost draft');type('X');await sleep(100);assert(clean(cap()).includes('kept draftX β'),'cursor moved');keys('BSpace');
   tm('resize-window','-t','proof','-x','80','-y','24');await sleep(180);tm('resize-window','-t','proof','-x',String(width),'-y',String(height));await sleep(180);assert(clean(cap()).includes('kept draft β'),'resize lost draft');assert(footprint()===baseline,'resize grew idle dock');shot('done');
   assert(sql('select count(*) from turns;')==='1','link gesture submitted a turn');assert(sql("select count(*) from messages where role='user';")==='1','draft dispatched');
-  results.push({mode,width,height,osc8:true,searchPreservesTarget:mode==='fullscreen',dragCopiesVisibleText:mode==='fullscreen',nativeTerminalActivationOnly:true,draftCursorResize:true,zeroIdleRows:true});
+  // Force native Markdown projection, where long targets used to be split
+  // before OSC8 metadata existed. Do not reconstruct targets from fragments.
+  keys('C-a','C-k');const longURL='https://example.invalid/'+('wrapped-path-'.repeat(14))+'end';
+  const longSequence=`\x1b]8;;${longURL}\x1b\\`,longStart=raw().length;
+  type('# Wrapped');keys('C-j','C-j');type(`Read [DOC](${longURL}).`);keys('Enter');
+  await wait(()=>sql("select count(*) from turns where status='completed';")==='2'&&sql('select count(*) from session_active_turns;')==='0','wrapped native response');
+  if(mode==='fullscreen')keys('End'); // prior selection deliberately stopped following
+  await wait(()=>raw().slice(longStart).includes(longSequence),'complete wrapped OSC8 target emitted');
+  type('wrapped link draft');await sleep(120);assert(footprint()===baseline,'wrapped link grew idle dock');shot('wrapped');
+  if(mode==='fullscreen'){
+   const offset=raw().length;keys('-H','1b','5b','31','30','32','3b','36','75');await wait(()=>cap().includes('Search '),'wrapped search open');type('end');await wait(()=>cap().includes('Search 1/2'),'visible wrapped-link suffix occurrences');await wait(()=>raw().slice(offset).includes(longSequence),'complete target survives wrapped search');shot('wrapped-search');keys('Escape');await wait(()=>!cap().includes('Search '),'wrapped search closes');
+  }
+  const resizedAt=raw().length;tm('resize-window','-t','proof','-x',String(width+8),'-y',String(height+3));await sleep(180);tm('resize-window','-t','proof','-x',String(width),'-y',String(height));if(mode==='fullscreen')keys('End');await sleep(180);
+  if(mode==='fullscreen')await wait(()=>raw().slice(resizedAt).includes(longSequence),'wrapped target survives resize');
+  assert(clean(cap()).includes('wrapped link draft'),'wrapped search/resize lost draft');assert(footprint()===baseline,'wrapped resize grew idle dock');
+  assert(sql('select count(*) from turns;')==='2','wrapped rendering submitted extra work');
+  results.push({mode,width,height,osc8:true,wrappedTarget:true,searchPreservesTarget:mode==='fullscreen',dragCopiesVisibleText:mode==='fullscreen',nativeTerminalActivationOnly:true,draftCursorResize:true,zeroIdleRows:true});
  }catch(error){try{shot('failure');writeFileSync(join(out,`${mode}-${width}-runtime.log`),readFileSync(join(dir,'runtime.log')));}catch{}throw error;}
  finally{try{tm('kill-server');}catch{}rmSync(dir,{recursive:true,force:true});}
 }

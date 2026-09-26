@@ -11,8 +11,21 @@ import (
 
 // The Markdown projector displays explicit links as label (URL). Decorate only
 // intact targets, never guess a destination from a clipped/wrapped URL fragment.
-// Visible text and wrapping remain unchanged; the terminal owns activation.
+// Assign metadata before the terminal renderer wraps a validated token, so
+// every visible segment retains its complete target. The terminal owns activation.
 var transcriptURL = regexp.MustCompile(`\((https?://[^()\s]+)\)`)
+
+// Keep complete safe targets intact during Markdown's string projection.
+// Defer soft wrapping until go-tui has attached OSC8 metadata.
+func intactTranscriptLinkToken(token string) bool {
+	match := transcriptURL.FindStringSubmatchIndex(token)
+	if match == nil || match[0] != 0 || !safeTranscriptURL(token[match[2]:match[3]]) {
+		return false
+	}
+	// Sentence punctuation belongs to prose, not the target. Keep the token
+	// intact for projection but link only the validated parenthesised URL.
+	return strings.Trim(token[match[1]:], ".,;:!?") == ""
+}
 
 func safeTranscriptURL(raw string) bool {
 	if len(raw) > 2048 || strings.Contains(raw, "\\") || strings.IndexFunc(raw, unicode.IsControl) >= 0 {

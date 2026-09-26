@@ -347,7 +347,7 @@ func wrapParagraph(text string, width int) []string {
 				continue
 			}
 			lines = append(lines, current)
-			if wordWidth > width && !strings.Contains(word, markdownInlineCodeStart) {
+			if wordWidth > width && !strings.Contains(word, markdownInlineCodeStart) && !intactTranscriptLinkToken(word) {
 				parts := wrapLongRunes(word, width)
 				lines = append(lines, parts[:len(parts)-1]...)
 				current = parts[len(parts)-1]

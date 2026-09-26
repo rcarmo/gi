@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -128,4 +129,126 @@ func layoutSearchChat(t *testing.T, c *chatTUI, width, height int) {
 		}
 	}
 	root.Render(gotui.NewBuffer(width, height), width, height)
+}
+
+func TestTranscriptLinksSurviveMarkdownSoftWrapping(t *testing.T) {
+	target := "https://example.invalid/" + strings.Repeat("long-path-", 18) + "終端?q=β"
+	for _, width := range []int{30, 60, 100, 140} {
+		t.Run(fmt.Sprint(width), func(t *testing.T) {
+			projected := renderMarkdownTranscript("Gi: ", "# Reference\n\nOpen [manual]("+target+").", width)
+			c := sessionTestChat(t)
+			c.cfg.AssistantName = "Gi"
+			c.outputWidth = width
+			c.outputHeight = 24
+			c.transcript = projected
+			rows := c.renderedTranscriptRows(width)
+			var joined strings.Builder
+			linkedRows := 0
+			for _, row := range rows {
+				linked := false
+				for _, span := range row.spans {
+					if span.Link != "" {
+						if span.Link != target {
+							t.Fatal("partial target", span.Link)
+						}
+						joined.WriteString(span.Text)
+						linked = true
+					}
+				}
+				if linked {
+					linkedRows++
+				}
+			}
+			if joined.String() != target || linkedRows < 2 {
+				t.Fatalf("width%d linkedrows%d got%q", width, linkedRows, joined.String())
+			}
+			c.toggleTranscriptSearch()
+			c.refreshTranscriptSearch(width)
+			c.updateTranscriptSearchQuery("long-path-long-path")
+			if len(c.search.matches) == 0 {
+				t.Fatal("linked search missing")
+			}
+			root := gotui.New(gotui.WithDirection(gotui.Column), gotui.WithWidth(width), gotui.WithHeight(len(c.search.rows)))
+			c.renderTranscriptSearchRows(root)
+			buf := gotui.NewBuffer(width, len(c.search.rows))
+			root.Render(buf, width, len(c.search.rows))
+			linked := false
+			for y := 0; y < len(c.search.rows); y++ {
+				for x := 0; x < width; x++ {
+					cell := buf.Cell(x, y)
+					if cell.Link != "" {
+						if cell.Link != target {
+							t.Fatal("search target changed")
+						}
+						linked = true
+					}
+				}
+			}
+			if !linked {
+				t.Fatal("search dropped links")
+			}
+		})
+	}
+	for _, target := range []string{"https://u:p@example.invalid/" + strings.Repeat("x", 90), "https://example.invalid/%1b" + strings.Repeat("x", 90), "https://example.invalid/" + strings.Repeat("x", 2049)} {
+		if intactTranscriptLinkToken("(" + target + ")") {
+			t.Fatal("unsafe exempt from projection", target)
+		}
+	}
+	for _, suffix := range []string{".", ",", ";", ":", "!", "?", "!?"} {
+		if !intactTranscriptLinkToken("(" + target + ")" + suffix) {
+			t.Fatal("punctuated target split", suffix)
+		}
+		spans := transcriptLinkSpans("("+target+")"+suffix, gotui.NewStyle())
+		if spans[len(spans)-1].Link != "" || !strings.HasSuffix(spans[len(spans)-1].Text, suffix) {
+			t.Fatal("punctuation became link", spans)
+		}
+	}
+	for _, token := range []string{"(https://example.invalid/unfinished", "https://example.invalid/", "(javascript:alert)", "prefix(https://example.invalid/)suffix"} {
+		if intactTranscriptLinkToken(token) {
+			t.Fatal("incomplete token", token)
+		}
+	}
+}
+
+func TestTranscriptWrappedLinksKeepClickOwnershipAndVisibleCopy(t *testing.T) {
+	target := "https://example.invalid/" + strings.Repeat("wrapped-", 12) + "end"
+	c := sessionTestChat(t)
+	c.outputWidth = 40
+	c.cfg.AssistantName = "Gi"
+	c.input.SetText("kept link draft")
+	c.transcript = []string{encodeTranscriptBlockMarker(transcriptBlockMeta{Key: "wrapped-tool", Kind: "tool", Title: "read", Status: "ok"}), "│ (" + target + ")", "│ second", "│ hidden"}
+	layoutSearchChat(t, c, 40, 25)
+	rows := c.renderedTranscriptRows(40)
+	linked := []transcriptPoint{}
+	for row, r := range rows {
+		for col := 0; col < 40; col++ {
+			if transcriptRowLinkAt(r, col) == target {
+				linked = append(linked, transcriptPoint{row, col})
+				break
+			}
+		}
+	}
+	if len(linked) < 2 {
+		t.Fatal("no wrapped target")
+	}
+	p := linked[1]
+	rect := c.transcriptRegion.Rect()
+	_, offset := c.transcriptRegion.ScrollOffset()
+	x, y := rect.X+p.col, rect.Y+p.row-offset
+	for range 3 {
+		c.handleTranscriptSelection(gotui.MouseEvent{Action: gotui.MousePress, Button: gotui.MouseLeft, X: x, Y: y})
+		c.handleTranscriptSelection(gotui.MouseEvent{Action: gotui.MouseRelease, Button: gotui.MouseLeft, X: x, Y: y})
+	}
+	if c.textSelection.active || c.transcriptExpanded["wrapped-tool"] {
+		t.Fatal("wrapped link click changed selection/tool")
+	}
+	c.handleTranscriptSelection(gotui.MouseEvent{Action: gotui.MousePress, Button: gotui.MouseLeft, X: x, Y: y})
+	c.handleTranscriptSelection(gotui.MouseEvent{Action: gotui.MouseDrag, Button: gotui.MouseLeft, X: x + 5, Y: y})
+	c.handleTranscriptSelection(gotui.MouseEvent{Action: gotui.MouseRelease, Button: gotui.MouseLeft, X: x + 5, Y: y})
+	if copied := c.textSelection.text(); copied == target || gotui.StringWidth(copied) != 5 || strings.Contains(copied, "\x1b") {
+		t.Fatal("copy not displayed slice", copied)
+	}
+	if c.input.Text() != "kept link draft" {
+		t.Fatal("draft changed")
+	}
 }

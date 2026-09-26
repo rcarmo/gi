@@ -4,6 +4,8 @@ Status: Active
 Date: 2026-04-22
 Last updated: 2026-09-26
 
+- [x] Preserve complete validated parenthesised HTTP(S) tokens (including ordinary trailing punctuation) until go-tui wraps OSC8 spans; no fragment reconstruction/validator relaxation/idle rows. Race×3+Go/vet/hooks+6link/3search/3selectionPTYS+107functional(11existing skips) pass. Review-found punctuation gap repaired; physical activation/complex inline-code/table and prewrappedMarkdown search remain open. [Evidence](../internal/tui-wrapped-links.md);CI/deploy pending.
+
 - [x] Add fullscreen word/line multiclick: pi-tui500ms same-word sequence, Unicode display bounds and `/`/`-` joiners, granularity drag/release/edge scroll, zero extra rows. OSC8/tool-click ownership and clipboard/regular/session/reflow guards preserved. Go/vet/hooks+9selection/search/regular PTYs+107functional(11existing skips) pass; held-press redraw race repaired/tested. Locale/cross-wrap segmentation limits explicit;CI/deploy pending. [Evidence](../internal/tui-word-selection.md).
 
 - [x] Deploy exact e0ed68a after whole rerunCI36215674941;8090PID839609/PGID839508. Six read-only live probes pass light/dark contrast, native disabled compaction reason, model Tab order/Settings/draft/prior controls;zero writes/errors/permissions,DB62/51/146+SQL/auth unchanged. TUIsearch efe1880 and CI-onlyd2caf16 excluded pending their CI; exactpixel15/36repeat+18cross failures remain. [Evidence](../internal/theme-text-contrast.md#deployment).
