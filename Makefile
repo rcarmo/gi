@@ -1049,3 +1049,14 @@ test-tui-table-scroll:
 .PHONY: probe-tui-ghostty
 probe-tui-ghostty:
 	$(GO) run ./tests/tui-ghostty-probe
+
+# Joker codemode prototype (explicit CLI; no running-instance mutations).
+.PHONY: deps-mcp test-codemode codemode
+deps-mcp:
+	$(GO) get github.com/modelcontextprotocol/go-sdk@v1.8.0
+
+test-codemode:
+	$(GO) test ./internal/codemode ./cmd/gi -run 'TestCodemode|TestMCP' -count=1
+
+codemode: build
+	$(BIN) codemode -config "$(MCP_CONFIG)" -script "$(CODEMODE_SCRIPT)"

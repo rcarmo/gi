@@ -1,5 +1,14 @@
 # gi implementation checklist
 
+## Joker MCP codemode prototype
+
+- [ ] ADR and threat model: explicit CLI opt-in, no workspace auto-execution, isolated Joker worker, host-owned MCP authority.
+- [ ] Verify cancellation/isolation before enabling a model-facing tool; pure data API only, no privileged scripting bridge.
+- [ ] Local stdio MCP via official Go SDK; lazy connections, allowlisted tools, compact discovery, explicit schemas, bounded output.
+- [ ] Functional subprocess tests: discovery/describe/call/filter, errors, cancellation, denied capabilities, budget limits, cleanup.
+- [ ] Document prototype usage and gaps; model/turn permission and audit integration, hard memory isolation, HTTP/OAuth and UI remain follow-ups.
+
+
 - [x] Default fullscreen mouse-selection copy to OSC 52 when clipboard mode is unset; preserve explicit off/native/auto and transcript-only `/copy`, report terminal dispatch truthfully, and add fresh-workspace/opt-out regression coverage. Go tests/vet/build/hook checks pass. [Policy and validation limits](../internal/tui-clipboard-media.md#selection-default-regression-coverage).
 - [ ] Rerun selection-default PTY/browser/race acceptance on a provisioned host: current attempts blocked by missing sqlite3, missing Playwright browser binaries and unsupported ARM64 ThreadSanitizer VMA range.
 
