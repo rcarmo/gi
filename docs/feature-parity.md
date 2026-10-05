@@ -15,7 +15,7 @@ Gi shares pinned Piclaw browser components and Pi/Piclaw configuration files, bu
 
 ## Shared browser compliance
 
-`make fixtures-vibes` runs the suite pinned at `references/fixtures-vibes` (`4259e82`) on Chromium and WebKit at phone, tablet and desktop sizes. `tests/fixtures-vibes/profile.json` declares the capabilities Gi claims, and `tests/fixtures-vibes/skips.json` lists every scenario Gi does not pass, with its reason. A failure that is not listed, a capability skip that is not listed, or a listed scenario that now passes fails the report gate.
+`make fixtures-vibes` runs the suite pinned at `references/fixtures-vibes` (v0.2.0, `c28472f`) on Chromium and WebKit at phone, tablet and desktop sizes. `tests/fixtures-vibes/profile.json` declares the capabilities Gi claims, and `tests/fixtures-vibes/skips.json` lists every scenario Gi does not pass, with its reason. A failure that is not listed, a capability skip that is not listed, or a listed scenario that now passes fails the report gate.
 
 The last full run started on 2026-10-04 at 20:46:28 UTC with Gi `5a68f4005a9fdab60d72808579c0c483536f07d1` and fixtures `6e49ae1dfb0c6ca900a9173ecc80817c12fd77cb`. It finished on 2026-10-05 after 388.5 minutes. Playwright recorded 1,233 passed tests, 280 failed, 71 skipped and zero flaky results across the six projects.
 
@@ -28,7 +28,7 @@ The original gate failed because mandatory-core scenarios still used `capability
 
 The earlier 13:24 UTC run on `88e5b13` had a single `@ux-chat-lifecycle-009` WebKit `page.goto` engine error. It passed in the other five projects and in 10 of 10 repeats afterwards. Full4 passes that scenario. Focused checks also passed for `/theme` and `/tint` (90/90), avatar manifest icons (54/54), and confirmed cascade deletion with cancel/retry (36/36).
 
-The current frontend is the accepted Classic handoff at fixtures `4259e82`. Independent focused checks on 2026-10-05 passed Plan/widgets/extra014 in all six projects (66/66), frontend units (189/189), and Gi functional tests (142 passed, 11 skipped). The eight Plan skips are removed; Plan and widgets are implemented. No full browser run has been repeated at this newer pin. See [browser checks](internal/classic-ui-acceptance.md).
+The current suite pin is v0.2.0 (`c28472f`); its Classic sources/static assets are unchanged from the accepted frontend handoff at `4259e82`. Independent focused checks on 2026-10-05 passed Plan/widgets/extra014 in all six projects (66/66), frontend units (189/189), and Gi functional tests (142 passed, 11 skipped). The eight Plan skips are removed; Plan and widgets are implemented. A new full six-project run on v0.2.0 is authorised and being prepared; its gate has no result yet. See [browser checks](internal/classic-ui-acceptance.md).
 
 The `/btw` backend has isolated session-snapshot inference, abortable JSON/SSE routes, explicit retry and normal-prompt injection coverage. Ten focused native checks repeated three times and one isolated Chromium API journey pass. The pinned Classic app still needs its composer/panel/stream wiring; #40, capability claims and shared skips are unchanged. See [side-prompt contract](internal/side-prompt.md).
 

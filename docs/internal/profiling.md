@@ -76,6 +76,12 @@ Every test run is profiled and analysed (AGENTS.md), including focused runs and 
   Focused/repeated/benchmark runs have separate baselines keyed by package set, filter and flags. Specialised Go targets use `testprofile gotest` to preserve their race, count and benchmark options while collecting CPU/allocation profiles.
 - **Script suites and fixtures**: `testprofile run -name …` measures wall time, CPU time and peak RSS of the complete lifecycle and compares them with the previous passing run. `make fixtures-vibes-report` regenerates only the report against saved results under the same profiling wrapper. Script timing/RSS is not allocation profiling; investigate runtime allocations through `GI_PPROF` or browser allocation tooling when needed. After each run, inspect the printed analysis and saved report before publication.
 
+### Fixtures-vibes worker profiles
+
+The disposable `fixtures_vibes` build writes per-worker `cpu.pprof` and cumulative `mem.pprof` files when `GI_FIXTURE_PROFILE_DIR` is set. The Makefile passes `FIXTURES_RUNTIME_PROFILE_DIR` (default `test-results/fixtures-runtime-profile`) to both full and focused targets. Collection starts during fixture model registration and ends after graceful runtime teardown. Inspect CPU plus `alloc_space` and `alloc_objects` after every run; a killed worker without a heap profile fails the profiling check even if its browser tests passed. `make test-fixtures-profile-lifecycle` verifies startup, SIGTERM shutdown and retained profile analysis before a long run.
+
+On 2026-10-05 this check completed in 2.7 seconds including build, with 10 ms sampled CPU, 11.9 MiB sampled allocations and about 70,500 objects. Joker native-variable metadata led object counts (46%); main startup and model/config setup led allocation bytes. This short startup check is separate from compliance workload measurements.
+
 Everything is kept in `~/.cache/gi-test-profile` (`GI_TEST_PROFILE_DIR`,
 `TEST_PROFILE_DIR`): `history.jsonl` (totals of every run), `latest-<suite>.json`
 (baselines) and the last five Go runs (`go-<time>/report.json` plus each

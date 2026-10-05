@@ -276,13 +276,32 @@ bun-checks:
 
 check: test vet build-web bun-checks test-web-adapters test-ux
 
-.PHONY: fixtures-vibes fixtures-vibes-focused
+.PHONY: fixtures-vibes fixtures-vibes-focused test-fixtures-profile-lifecycle
+FIXTURES_RUNTIME_PROFILE_DIR ?= $(CURDIR)/test-results/fixtures-runtime-profile
+
+# Startup/shutdown profiling check before a long frozen compliance run.
+test-fixtures-profile-lifecycle:
+	mkdir -p $(BIN_DIR)
+	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-profile-smoke ./cmd/gi
+	@set -eu; root=$$(mktemp -d /workspace/tmp/gi-fixture-profile-XXXXXX); \
+	trap 'test -z "$${pid:-}" || kill "$${pid}" 2>/dev/null || true' EXIT; \
+	mkdir -p "$$root/home" "$$root/workspace"; \
+	HOME="$$root/home" PI_OFFLINE=1 GI_FIXTURE_PROFILE_DIR="$$root/profiles" FIXTURE_MODEL_URL=http://127.0.0.1:19999/v1 \
+	$(abspath $(BIN_DIR))/gi-fixtures-profile-smoke -web -bind 127.0.0.1 -port 19095 -db "$$root/state.db" -workspace "$$root/workspace" >"$$root/server.log" 2>&1 & pid=$$!; \
+	ready=0; for i in $$(seq 1 100); do if curl -fsS http://127.0.0.1:19095/api/sessions >/dev/null 2>&1; then ready=1; break; fi; sleep .1; done; \
+	test "$$ready" = 1 || { cat "$$root/server.log"; exit 1; }; \
+	kill -TERM $$pid; wait $$pid; pid=; \
+	for p in "$$root"/profiles/*; do test -s "$$p/cpu.pprof"; test -s "$$p/mem.pprof"; \
+	$(GO) tool pprof -top -cum -nodecount=8 "$$p/cpu.pprof"; \
+	$(GO) tool pprof -top -cum -sample_index=alloc_space -nodecount=8 "$$p/mem.pprof"; \
+	$(GO) tool pprof -top -cum -sample_index=alloc_objects -nodecount=8 "$$p/mem.pprof"; done; \
+	echo "Fixture startup/teardown profiles retained: $$root"
 # Focused acceptance does not replace full-run compliance reports.
 fixtures-vibes-focused: build-web
 	@test -n "$(FIXTURES_SPEC_ARGS)" || { echo 'FIXTURES_SPEC_ARGS is required for a focused run'; exit 2; }
 	mkdir -p $(BIN_DIR)
 	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
-	cd references/fixtures-vibes && GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(CURDIR)/tests/fixtures-vibes/profile.json node node_modules/@playwright/test/cli.js test -c suite/playwright.config.ts $(FIXTURES_SPEC_ARGS) --reporter=line
+	cd references/fixtures-vibes && GI_FIXTURE_PROFILE_DIR=$(FIXTURES_RUNTIME_PROFILE_DIR) GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(CURDIR)/tests/fixtures-vibes/profile.json node node_modules/@playwright/test/cli.js test -c suite/playwright.config.ts $(FIXTURES_SPEC_ARGS) --reporter=line
 
 .PHONY: fixtures-vibes-report
 fixtures-vibes-report:
@@ -291,7 +310,7 @@ fixtures-vibes-report:
 fixtures-vibes: build-web
 	mkdir -p $(BIN_DIR)
 	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
-	GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) $(MAKE) -C references/fixtures-vibes deps compliance PROFILE=$(CURDIR)/tests/fixtures-vibes/profile.json $(FIXTURES_VIBES_ARGS)
+	GI_FIXTURE_PROFILE_DIR=$(FIXTURES_RUNTIME_PROFILE_DIR) GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) $(MAKE) -C references/fixtures-vibes deps compliance PROFILE=$(CURDIR)/tests/fixtures-vibes/profile.json $(FIXTURES_VIBES_ARGS)
 
 # ── Isolated UX test instance ───────────────────────────────────────────
 

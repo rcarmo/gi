@@ -63,6 +63,7 @@ func webOnlyFlagsSet() []string {
 }
 
 func main() {
+	defer finishFixtureProfiles()
 	startProfiling()
 	if len(os.Args) > 1 && (os.Args[1] == "-version" || os.Args[1] == "--version") {
 		fmt.Println("gi " + version.String())
