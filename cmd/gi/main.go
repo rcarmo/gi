@@ -162,6 +162,7 @@ func run() error {
 	}
 	defer server.CloseWorkspaceIndex()
 	defer server.CloseTerminals()
+	defer server.CloseVNC()
 
 	handler := server.Handler()
 	var listeners []httpserver.Listener

@@ -25,6 +25,10 @@ name winning: `skills/`, `tools/` (script tool manifests), `extensions/`.
 The workspace index includes `.gi/skills` as a skills root only where it
 exists, so other workspaces keep their index fingerprint.
 
+## VNC target environment
+
+VNC startup configuration uses `GI_WEB_VNC_TARGETS` (JSON target array) and `GI_WEB_VNC_ALLOW_DIRECT` (only literal `true` enables direct host:port access). Defaults disable VNC. These are operator environment settings, not model-editable Pi preferences. See [VNC protocol and security limits](web-vnc.md).
+
 ## Skills (#36)
 
 `internal/skills` ports Pi's `loadSkills`: user skills first

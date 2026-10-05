@@ -73,6 +73,9 @@ type RuntimeConfig struct {
 	Passkeys       PasskeySettings        `json:"passkeys"`
 	InboundWork    InboundWorkSettings    `json:"inbound_work"`
 	WorkspaceIndex WorkspaceIndexSettings `json:"workspace_index"`
+	// VNC is disabled without operator-configured targets or direct opt-in.
+	VNCTargets     []VNCTarget `json:"vnc_targets,omitempty"`
+	VNCAllowDirect bool        `json:"vnc_allow_direct,omitempty"`
 	// SystemPrompt, when set, replaces gi's default preamble, tools, rules
 	// and docs sections (Pi's customPrompt).
 	SystemPrompt string `json:"-"`
@@ -80,6 +83,14 @@ type RuntimeConfig struct {
 	// loadProjectContextFiles).
 	ContextFiles []ContextFile    `json:"-"`
 	Discovery    skills.Discovery `json:"-"`
+}
+
+type VNCTarget struct {
+	ID       string `json:"id"`
+	Label    string `json:"label"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	ReadOnly bool   `json:"readOnly,omitempty"`
 }
 
 type piclawConfig struct {
@@ -252,6 +263,12 @@ func Load(workspaceRoot string) RuntimeConfig {
 		projectHideThinking = ps.HideThinkingBlock
 		projectBranchSummary = ps.BranchSummary
 	}
+	if raw := os.Getenv("GI_WEB_VNC_TARGETS"); raw != "" {
+		if err := json.Unmarshal([]byte(raw), &cfg.VNCTargets); err != nil {
+			cfg.VNCTargets = nil
+		}
+	}
+	cfg.VNCAllowDirect = os.Getenv("GI_WEB_VNC_ALLOW_DIRECT") == "true"
 	applyGlobalPiSettings(&cfg)
 	projectBranchSummary.apply(&cfg)
 	if projectHideThinking != nil {

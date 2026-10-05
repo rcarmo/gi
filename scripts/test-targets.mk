@@ -177,7 +177,11 @@ test-web-basic-send: test-instance-start
 test: $(TESTPROFILE)
 	$(TESTPROFILE) go $(if $(TEST_RUN),-run '$(TEST_RUN)') $(TEST_PKGS)
 
-.PHONY: test-shell-runtime check-cross-build test-active-steering test-web-terminal bench-web-terminal
+.PHONY: test-shell-runtime check-cross-build test-active-steering test-web-terminal bench-web-terminal test-vnc-api
+
+test-vnc-api:
+	$(BUN) scripts/test-vnc-api.mjs
+
 
 test-web-terminal:
 	$(TESTPROFILE) gotest ./internal/web -run TestWebTerminal -count=3

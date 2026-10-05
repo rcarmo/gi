@@ -51,6 +51,7 @@ type Server struct {
 	workspaceWatchMu      sync.Mutex
 	workspaceWatch        *workspaceWatch
 	terminals             *terminalManager
+	vnc                   *vncManager
 	webSkills             map[string]loadedWebSkill
 }
 
@@ -60,6 +61,7 @@ func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 		turns:      t,
 		cfg:        cfg,
 		terminals:  newTerminalManager(),
+		vnc:        newVNCManager(cfg),
 		mux:        http.NewServeMux(),
 		version:    fmt.Sprintf("%x", time.Now().UnixNano()),
 		scriptTool: tools.NewScriptTool(s, cfg),
@@ -235,6 +237,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("/terminal/session", s.handleTerminalSession)
 	s.mux.HandleFunc("/terminal/handoff", s.handleTerminalHandoff)
 	s.mux.HandleFunc("/terminal/ws", s.handleTerminalWebSocket)
+	s.mux.HandleFunc("/vnc/session", s.handleVNCSession)
+	s.mux.HandleFunc("/vnc/handoff", s.handleVNCHandoff)
+	s.mux.HandleFunc("/vnc/ws", s.handleVNCWebSocket)
 	s.mux.HandleFunc("/sse/stream", guard(s.handleSSEStream))
 	s.mux.HandleFunc("/sse/topics", guard(s.handleTopicSSE))
 	s.mux.HandleFunc("/api/system-metrics", guard(s.handleSystemMetrics))
