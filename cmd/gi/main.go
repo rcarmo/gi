@@ -161,6 +161,7 @@ func run() error {
 		log.Printf("workspace index disabled: %v", err)
 	}
 	defer server.CloseWorkspaceIndex()
+	defer server.CloseTerminals()
 
 	handler := server.Handler()
 	var listeners []httpserver.Listener

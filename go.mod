@@ -5,6 +5,8 @@ go 1.27.1
 require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/clipperhouse/uax29/v2 v2.7.0
+	github.com/coder/websocket v1.8.15
+	github.com/creack/pty v1.1.24
 	github.com/dop251/goja v0.0.0-20260930195847-0f92c903ca4a
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-git/go-git/v5 v5.19.2
@@ -36,7 +38,6 @@ require (
 	github.com/alexbrainman/sspi v0.0.0-20250919150558-7d374ff0d59e // indirect
 	github.com/candid82/liner v1.4.0 // indirect
 	github.com/cloudflare/circl v1.6.5 // indirect
-	github.com/coder/websocket v1.8.15 // indirect
 	github.com/creachadair/msync v0.10.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.7.0 // indirect
 	github.com/dblohm7/wingoes v0.0.0-20260526185140-fb298caac7ca // indirect
