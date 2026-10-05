@@ -52,20 +52,22 @@ type Server struct {
 	workspaceWatch        *workspaceWatch
 	terminals             *terminalManager
 	vnc                   *vncManager
+	sidePromptSlots       chan struct{}
 	webSkills             map[string]loadedWebSkill
 }
 
 func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 	srv := &Server{
-		store:      s,
-		turns:      t,
-		cfg:        cfg,
-		terminals:  newTerminalManager(),
-		vnc:        newVNCManager(cfg),
-		mux:        http.NewServeMux(),
-		version:    fmt.Sprintf("%x", time.Now().UnixNano()),
-		scriptTool: tools.NewScriptTool(s, cfg),
-		auth:       giauth.NewManagerWithPasskeys(cfg.WorkspaceRoot, giauth.PasskeyConfig{RPID: cfg.Passkeys.RPID, Origins: cfg.Passkeys.Origins}),
+		store:           s,
+		turns:           t,
+		cfg:             cfg,
+		terminals:       newTerminalManager(),
+		vnc:             newVNCManager(cfg),
+		sidePromptSlots: make(chan struct{}, 4),
+		mux:             http.NewServeMux(),
+		version:         fmt.Sprintf("%x", time.Now().UnixNano()),
+		scriptTool:      tools.NewScriptTool(s, cfg),
+		auth:            giauth.NewManagerWithPasskeys(cfg.WorkspaceRoot, giauth.PasskeyConfig{RPID: cfg.Passkeys.RPID, Origins: cfg.Passkeys.Origins}),
 	}
 	srv.webSkills = loadWebSkills(cfg)
 	srv.configureScriptConnectivity()
@@ -206,6 +208,8 @@ func (s *Server) routes() {
 	}
 
 	guard := s.withAuth
+	s.mux.HandleFunc("/agent/side-prompt", guard(s.handleSidePrompt))
+	s.mux.HandleFunc("/agent/side-prompt/stream", guard(s.handleSidePrompt))
 	s.mux.HandleFunc("/api/runtime/config", guard(s.handleRuntimeConfig))
 	s.mux.HandleFunc("/api/settings/identity", guard(s.handleSettingsIdentity))
 	s.mux.HandleFunc("/api/settings/compaction", guard(s.handleCompactionPolicy))

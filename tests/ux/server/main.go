@@ -30,6 +30,8 @@ import (
 )
 
 func main() {
+	stopProfiles := startSidePromptProfiles()
+	defer stopProfiles()
 	// Bind once before choosing fixture-only passkey origins or loading config.
 	addr := os.Getenv("GI_UX_LISTEN")
 	if addr == "" {
@@ -83,6 +85,9 @@ func main() {
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		emit := func(v any) { b, _ := json.Marshal(v); fmt.Fprintf(w, "data: %s\n\n", b); w.(http.Flusher).Flush() }
+		if os.Getenv("GI_UX_SIDE_PROMPT") != "" && serveSidePrompt(w, r, body, emit) {
+			return
+		}
 		if os.Getenv("GI_UX_MESSAGE_RETRIEVAL") != "" && serveMessageRetrieval(w, body, emit) {
 			return
 		}

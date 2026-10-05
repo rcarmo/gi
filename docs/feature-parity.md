@@ -30,6 +30,8 @@ The earlier 13:24 UTC run on `88e5b13` had a single `@ux-chat-lifecycle-009` Web
 
 The current frontend is the accepted Classic handoff at fixtures `4259e82`. Independent focused checks on 2026-10-05 passed Plan/widgets/extra014 in all six projects (66/66), frontend units (189/189), and Gi functional tests (142 passed, 11 skipped). The eight Plan skips are removed; Plan and widgets are implemented. No full browser run has been repeated at this newer pin. See [browser checks](internal/classic-ui-acceptance.md).
 
+The `/btw` backend has isolated session-snapshot inference, abortable JSON/SSE routes, explicit retry and normal-prompt injection coverage. Ten focused native checks repeated three times and one isolated Chromium API journey pass. The pinned Classic app still needs its composer/panel/stream wiring; #40, capability claims and shared skips are unchanged. See [side-prompt contract](internal/side-prompt.md).
+
 Scenarios Gi does not pass:
 
 | Reason | Scenarios | Detail |

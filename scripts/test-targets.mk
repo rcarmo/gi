@@ -182,6 +182,14 @@ test: $(TESTPROFILE)
 test-vnc-api:
 	$(BUN) scripts/test-vnc-api.mjs
 
+.PHONY: test-side-prompt test-ux-side-prompt-api
+test-side-prompt:
+	$(TESTPROFILE) gotest ./internal/turn ./internal/web -run TestSidePrompt -count=3
+
+test-ux-side-prompt-api: playwright-browsers
+	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
+	GI_UX_SIDE_PROMPT=1 GI_WEB_REGRESSION_LIST_ALL=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(PLAYWRIGHT) test -c playwright.web-regression.config.mjs tests/web-regression/side-prompt-api.spec.mjs --project=chromium-desktop
+
 
 test-web-terminal:
 	$(TESTPROFILE) gotest ./internal/web -run TestWebTerminal -count=3

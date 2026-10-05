@@ -60,6 +60,8 @@ type Engine struct {
 	codemode                          *codemodeState // nil when -builtin:codemode
 	closing                           atomic.Bool    // set by Close: no new launches
 	runs                              sync.WaitGroup // in-flight runTurn goroutines
+	sideMu                            sync.Mutex     // serialises side admission with Close
+	sideRuns                          sync.WaitGroup
 	extensions                        []ExtensionInfo
 	extensionsMu                      sync.RWMutex
 	extensionCommands                 *ExtensionCommandRegistry
@@ -335,10 +337,19 @@ func (e *Engine) Close() error {
 	}
 	if e.closing.CompareAndSwap(false, true) {
 		e.abortActiveTurns(shutdownGrace)
-		// Cancel background work first: an MCP server still connecting holds
-		// its lock until the connect ends, which would delay closing it.
+		// Fence side admission before waiting. Preserve main-turn finalisation
+		// ordering, then cancel background work and independent side requests.
+		e.sideMu.Lock()
 		if e.bgCancel != nil {
 			e.bgCancel()
+		}
+		e.sideMu.Unlock()
+		done := make(chan struct{})
+		go func() { e.sideRuns.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(shutdownGrace):
+			log.Printf("side prompt shutdown exceeded %s", shutdownGrace)
 		}
 		e.closeMCP()
 	}

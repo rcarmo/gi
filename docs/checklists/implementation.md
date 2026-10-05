@@ -33,7 +33,7 @@
 
 Status: Active
 Date: 2026-04-22
-Last updated: 2026-10-04
+Last updated: 2026-10-05
 
 The dated entries below are a working log; their test counts describe the code at the time. Current status and fixtures-vibes results are in [the feature matrix](../feature-parity.md).
 
@@ -45,6 +45,9 @@ The dated entries below are a working log; their test counts describe the code a
   - Tests: owner UX suite migrated onto fixtures-vibes, now pinned at `6e49ae1`; unpassed scenarios listed in `tests/fixtures-vibes/skips.json` with issues.
   - Removed Gi's copies of the shared Gherkin (`features/ux/`), the upstream snapshots and their provenance checks; the passkey ledger reads the suite's feature.
   - Retired the Piclaw 3.2.4 pins: the vendored SVG and status sources are re-pinned to 3.2.5 (only the status panel's `i18n.ts` changed), and the 3.2.4 oracle probes and their `test-piclaw-*` targets are removed.
+
+- [x] gi#40 backend: read-only session-snapshot inference, no tools/main-turn admission or side-answer persistence, abortable authenticated JSON/SSE, bounded concurrency/input/output and joined shutdown. Ten native tests repeated three times, isolated Chromium API journey and vet pass; profiles analysed. [Contract](../internal/side-prompt.md).
+- [ ] gi#40 frontend: receive upstream composer/panel/stream adapter handoff, independently accept retry/abort/injection/session ownership, then remove passing skips and claim the capability.
 
 - [x] gi#48 backend: session Plan Markdown, read/write/edit/patch/update tool, authenticated Plan API and session-scoped change events; front-end acceptance belongs to @fixtures-vibes; gi#48 stays open.
 
