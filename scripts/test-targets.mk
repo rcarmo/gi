@@ -177,7 +177,14 @@ test-web-basic-send: test-instance-start
 test: $(TESTPROFILE)
 	$(TESTPROFILE) go $(if $(TEST_RUN),-run '$(TEST_RUN)') $(TEST_PKGS)
 
-.PHONY: test-shell-runtime check-cross-build test-active-steering
+.PHONY: test-shell-runtime check-cross-build test-active-steering test-web-terminal bench-web-terminal
+
+test-web-terminal:
+	$(TESTPROFILE) gotest ./internal/web -run TestWebTerminal -count=3
+
+bench-web-terminal:
+	$(TESTPROFILE) gotest ./internal/web -run '^$$' -bench BenchmarkWebTerminalReplayRing -benchmem -benchtime=300ms
+
 
 test-active-steering:
 	$(TESTPROFILE) gotest $(RACE) -count=50 ./internal/turn -run '^TestSubmitPromptSteersSecondPromptToActiveTurn$$'
@@ -279,10 +286,11 @@ fixtures-vibes: build-web
 test-instance-start: build
 	@mkdir -p $(TEST_DIR)
 	@if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null; then \
-		kill $$(cat $(TEST_PID)) 2>/dev/null || true; \
-		sleep 1; \
+		pid=$$(cat $(TEST_PID)); kill $$pid 2>/dev/null || true; \
+		for i in $$(seq 1 100); do kill -0 $$pid 2>/dev/null || break; sleep .1; done; \
+		if kill -0 $$pid 2>/dev/null; then kill -KILL $$pid 2>/dev/null || true; fi; \
 	fi
-	@rm -rf $(TEST_WORKSPACE) $(TEST_DB) $(TEST_LOG) $(TEST_PID)
+	@rm -rf $(TEST_WORKSPACE) $(TEST_DB) $(TEST_DB)-wal $(TEST_DB)-shm $(TEST_LOG) $(TEST_PID)
 	@mkdir -p $(TEST_WORKSPACE)/.piclaw $(TEST_WORKSPACE)/.pi
 	@printf '%s\n' '$(TEST_PICLAW_CONFIG_JSON)' > $(TEST_WORKSPACE)/.piclaw/config.json
 	@printf '%s\n' '$(TEST_PI_SETTINGS_JSON)' > $(TEST_WORKSPACE)/.pi/settings.json
@@ -298,7 +306,9 @@ test-instance-start: build
 
 test-instance-stop:
 	@if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null; then \
-		kill $$(cat $(TEST_PID)) && echo "Stopped test instance"; \
+		pid=$$(cat $(TEST_PID)); kill $$pid && echo "Stopping test instance"; \
+		for i in $$(seq 1 100); do kill -0 $$pid 2>/dev/null || break; sleep .1; done; \
+		if kill -0 $$pid 2>/dev/null; then kill -KILL $$pid 2>/dev/null || true; fi; \
 	fi
 	@rm -rf $(TEST_DIR)
 

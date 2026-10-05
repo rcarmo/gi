@@ -235,6 +235,7 @@ func profileGo(patterns []string, run string, flags []string, dir string, hot in
 			return 1
 		}
 		output := consume(out, res)
+		_ = os.WriteFile(filepath.Join(pdir, "test.log"), []byte(output), 0o644)
 		err := cmd.Wait()
 		_ = os.Remove(bin) // profiles carry their symbols; binaries are large
 		res.Elapsed = time.Since(start).Seconds()
@@ -255,6 +256,16 @@ func profileGo(patterns []string, run string, flags []string, dir string, hot in
 			fmt.Printf("FAIL\t%s\t%.3fs\n", pkg, res.TestTime)
 		} else {
 			fmt.Printf("ok  \t%s\t%.3fs\n", pkg, res.TestTime)
+			for _, line := range strings.Split(output, "\n") {
+				if strings.HasPrefix(line, "Benchmark") {
+					fmt.Println(line)
+				}
+			}
+		}
+		for _, profile := range []string{res.CPUProfile, res.MemProfile} {
+			if info, err := os.Stat(profile); err != nil || info.Size() == 0 {
+				fmt.Fprintf(os.Stderr, "MISSING profile (not a profiling pass): %s\n", profile)
+			}
 		}
 		rep.Packages = append(rep.Packages, res)
 	}
