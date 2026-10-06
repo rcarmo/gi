@@ -4,6 +4,10 @@
 
 Accepted — 2026-09-23. Alt-I opens an explicit five-row workspace index surface in fullscreen and regular terminal modes. It uses the native scoped status and application-owned bounded scheduler. No automatic indexing, query-triggered refresh or persistent terminal row is added.
 
+## 2026-10-06 empty-code-workspace guidance
+
+The `all` panel adds three transient rows when a successful status reports zero files and no `extraRoots` are configured. They show a JSON `workspaceIndex.extraRoots` fragment and the merge/restart/Reindex steps. The panel has eight rows only in this state, with unchanged two-action key handling; errors, busy states, explicit roots, nonempty scopes and named scopes keep five rows. Closing still reserves no idle rows and writes no settings. Code-root defaults, scanner exclusions and safety bounds are unchanged; [configuration guidance](../internal/search/README.md#plain-code-repositories) explains narrow roots and the explicit `.` opt-in.
+
 ## Interaction
 
 The five rows contain scope/key hints, state, a single bounded detail line, Status and Reindex. Left/Right cycles `all`, `notes`, `skills`; Up/Down chooses an action. Enter invokes the selected action. Status is selected on opening and after a scope change. Opening reads status asynchronously without scanning. Reindex waits for the native scheduler result, including pending-revision and failure outcomes; errors stay within the detail row. Controls and long Unicode text are sanitised and truncated by terminal-cell width.

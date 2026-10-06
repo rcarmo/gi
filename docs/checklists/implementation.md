@@ -20,6 +20,8 @@
 
 # gi implementation checklist
 
+- [x] gi#22: conservative opt-in for code indexing, with bounded Alt-I empty-state root/restart/reindex guidance and a working `extraRoots` example; verify code query, exclusions/size/symlink safety, named-scope isolation and unchanged editor/modal/lifecycle semantics. [Guide](../internal/search/README.md#plain-code-repositories).
+
 - [x] Tune catalogue-option lookup, batched session-identity hydration and bounded unchanged TUI projection; equivalent benchmarks, invalidation/isolation/race regressions and full Go/vet pass. [Measurements and limits](../internal/runtime-hotspots.md).
 - [x] gi#29: provider-backed MCP HTTP authentication (`auth.provider`), secure endpoint validation, per-request credentials with cancellable refresh/lock waits, rotation/logout and redirect/Host isolation, MCP OAuth exclusion and fake-provider CLI tests. [Contract](../internal/mcp.md#provider-authentication).
 

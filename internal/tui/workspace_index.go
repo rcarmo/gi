@@ -243,14 +243,33 @@ func (c *chatTUI) workspaceIndexLines(width int) []string {
 	}
 	actions := []string{"  Status", "  Reindex"}
 	actions[p.action] = "› " + actions[p.action][2:]
-	lines := []string{fmt.Sprintf("Index · %s · ←/→ scope · Esc close", terminalIndexScopes[p.scope]), "State: " + state, detail, actions[0], actions[1]}
+	lines := []string{fmt.Sprintf("Index · %s · ←/→ scope · Esc close", terminalIndexScopes[p.scope]), "State: " + state, detail}
+	if c.workspaceIndexNeedsRootHint() {
+		lines = append(lines,
+			`Code roots are opt-in; choose only safe-to-search paths.`,
+			`"workspaceIndex": {"extraRoots": ["."]}`,
+			`.gi/settings.json; merge, restart Gi, then Reindex`)
+	}
+	lines = append(lines, actions...)
 	for i := range lines {
 		lines[i] = selectorText(lines[i], width)
 	}
 	return lines
 }
+
+// Extra guidance is transient: it does not widen roots, write settings or
+// schedule a scan. Errors/busy results keep their existing compact surface.
+func (c *chatTUI) workspaceIndexNeedsRootHint() bool {
+	p := &c.workspaceIndex
+	return p.active && p.scope == 0 && !p.busy && p.err == nil && p.status.LastError == "" && p.status.IndexedFileCount == 0 &&
+		(p.status.State == "never_indexed" || p.status.State == "ready") && len(c.cfg.WorkspaceIndex.ExtraRoots) == 0
+}
+
 func (c *chatTUI) workspaceIndexHeight() int {
 	if c.workspaceIndex.active {
+		if c.workspaceIndexNeedsRootHint() {
+			return 8
+		}
 		return 5
 	}
 	return 0

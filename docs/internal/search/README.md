@@ -6,6 +6,30 @@ This document describes the proposed internal layout for gi's hybrid workspace s
 
 Use `.pi/settings.json` → `workspaceIndex` with `extraRoots`, `extraExtensions`, and `optionalRoots` arrays. Settings are captured at startup; restart to apply changes. Defaults stay strict. Extra roots apply only to `all`; optional roots must be exact distinct configured roots. A disappeared populated root cannot erase its committed scope content. See [ADR-0047](../../adr/0047-index-settings-and-optional-roots.md) for the example and failure/recovery rules. These settings do not enable automatic refresh.
 
+## Plain code repositories
+
+Code-root indexing is opt-in. A repository without `notes` or `.pi/skills` produces a successful empty default scan. Alt-I now shows the root setting in the empty `all` panel; it does not edit settings or scan automatically.
+
+Merge this object into project `.gi/settings.json` (or the existing `.pi/settings.json`):
+
+```json
+{
+  "workspaceIndex": { "extraRoots": ["src", "docs"] }
+}
+```
+
+Use `"extraRoots": ["."]` to include the whole workspace. Restart Gi to load the setting, open Alt-I, select **Reindex**, and press Enter. Extra roots widen `all` only; `notes` and `skills` keep their named ownership. Required paths such as `src` must exist; choose roots that are safe to search.
+
+The scanner excludes `.git`, `node_modules`, `.cache` and `generated` directories; skips symlinks, special files, binary/invalid UTF-8 data and documents over 1 MiB; and retains snapshot count/text/depth limits and workspace confinement. It does **not** apply `.gitignore` or a secret-file policy: supported hidden files and `.json`/`.env` extensions can be indexed. Prefer narrow code roots and omit directories containing credentials or private data. Adding `.` is an explicit opt-in, not a new default.
+
+The empty panel uses three temporary guidance rows only after a successful zero-file status with no extra roots. Populated, busy, error, configured and named-scope states keep the compact five-row panel; closing adds no idle rows and leaves drafts/reader state unchanged. Tests cover the actual configuration load, restart-equivalent fresh scope, indexing and query of code content, exclusion/confinement checks, bounded rendered actions, modal isolation and error/late-result behaviour. This resolves [gi#22](https://github.com/rcarmo/gi/issues/22) without widening defaults.
+
+### Verification (2026-10-06)
+
+`env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR make test-code-index-guidance` passes nine tests repeated three times with race detection where supported. Full Go regression passes 2,176 tests across 35 packages; vet and whitespace checks pass. Rendered buffers verify Status/Reindex remain visible at widths 60, 100 and 140. No browser fixtures or frontend pin changed; interactive PTY acceptance was not rerun.
+
+CPU, cumulative `alloc_space` and `alloc_objects` were reviewed for the targeted and full runs. Targeted profiles sampled 990 ms TUI CPU and 520 ms indexer CPU; database/schema fixture setup and regular-expression compilation dominate, with about 75.6 MiB/311k objects in TUI and 20.1 MiB/9.6k objects in the indexer. Guidance adds three constant strings only while the empty panel is visible and performs no configuration reads, scans or settings writes during rendering. No measured speedup is claimed. An initial test build used the wrong query signature and produced no indexer profiles; that failed probe was diagnosed and excluded. Raw captures, test binaries and disposable logs were removed after analysis.
+
 ## Runtime virtual search namespace
 
 In addition to this package-level architecture, gi now exposes a read-only virtual search surface via `fts://...` locators.

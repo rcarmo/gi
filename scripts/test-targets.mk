@@ -177,6 +177,10 @@ test-web-basic-send: test-instance-start
 test: $(TESTPROFILE)
 	$(TESTPROFILE) go $(if $(TEST_RUN),-run '$(TEST_RUN)') $(TEST_PKGS)
 
+.PHONY: test-code-index-guidance
+test-code-index-guidance: $(TESTPROFILE)
+	$(TESTPROFILE) gotest $(RACE) -run 'TestIndexPanel|TestPlainCodeWorkspaceExplicitRootPolicy|TestConfiguredScanWithoutBuiltinRoots|TestOptionalRootsAbsentAppearAndDisappear' -count=3 ./internal/tui ./internal/search/indexer
+
 # Local fake-provider/MCP acceptance; no live credentials or browser fixture.
 .PHONY: test-mcp-provider-auth
 test-mcp-provider-auth: $(TESTPROFILE)

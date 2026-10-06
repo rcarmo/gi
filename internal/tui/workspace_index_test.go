@@ -145,3 +145,125 @@ func TestIndexPanelErrorsAreOneLineAndKeysAreModal(t *testing.T) {
 		t.Fatal("mouse escaped modal")
 	}
 }
+
+func TestIndexPanelEmptyCodeWorkspaceGuidesExplicitRoot(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n// searchable orchid\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(filepath.Join(t.TempDir(), "code.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	c := &chatTUI{store: db, cfg: config.Load(root), sessionID: "code", sessionGeneration: 1, inputActive: true, transcript: []string{"unchanged"}}
+	c.ensureInput()
+	c.input.SetText("draft 世界")
+	c.input.cursorPos = 3
+	c.initWorkspaceIndex()
+	defer c.stopWorkspaceIndex()
+	c.openWorkspaceIndex()
+	indexPanelResult(t, c)
+	if c.workspaceIndexHeight() != 8 {
+		t.Fatal("empty panel missing help", c.workspaceIndexLines(60))
+	}
+	for _, w := range []int{60, 100, 140} {
+		lines := c.workspaceIndexLines(w)
+		if len(lines) != 8 {
+			t.Fatal(lines)
+		}
+		if !strings.Contains(strings.Join(lines, "\n"), `"workspaceIndex": {"extraRoots": ["."]}`) {
+			t.Fatal(lines)
+		}
+		for _, line := range lines {
+			if gotui.StringWidth(line) > w || strings.ContainsAny(line, "\r\n\x1b") {
+				t.Fatal(line)
+			}
+		}
+		buf := gotui.NewBuffer(w, c.workspaceIndexHeight())
+		panel := c.renderWorkspaceIndex(w)
+		panel.RenderTo(buf, w, c.workspaceIndexHeight())
+		if !strings.Contains(bufferRow(buf, 6), "Status") || !strings.Contains(bufferRow(buf, 7), "Reindex") {
+			t.Fatal("guidance clipped actions")
+		}
+	}
+	c.requestWorkspaceIndex(true)
+	indexPanelResult(t, c)
+	if c.workspaceIndex.err != nil || c.workspaceIndex.status.IndexedFileCount != 0 || c.workspaceIndex.status.State != "ready" || c.workspaceIndexHeight() != 8 {
+		t.Fatal(c.workspaceIndex.status, c.workspaceIndex.err)
+	}
+	c.closeWorkspaceIndex()
+	if c.input.Text() != "draft 世界" || c.input.cursorPos != 3 || c.workspaceIndexHeight() != 0 {
+		t.Fatal("guidance changed editor")
+	}
+	if _, err := os.Stat(filepath.Join(root, ".gi")); !os.IsNotExist(err) {
+		t.Fatal("panel wrote settings", err)
+	}
+	// Apply the exact documented root opt-in through startup settings. A fresh
+	// runtime must capture it; the open panel never silently widens its roots.
+	c.stopWorkspaceIndex()
+	if err := os.Mkdir(filepath.Join(root, ".gi"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".gi/settings.json"), []byte(`{"workspaceIndex":{"extraRoots":["."]}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c.cfg = config.Load(root)
+	c.workspaceIndex = terminalIndex{}
+	c.initWorkspaceIndex()
+	c.openWorkspaceIndex()
+	indexPanelResult(t, c)
+	if c.workspaceIndexHeight() != 5 {
+		t.Fatal("help shown after explicit root configuration")
+	}
+	c.requestWorkspaceIndex(true)
+	indexPanelResult(t, c)
+	if c.workspaceIndex.err != nil || c.workspaceIndex.status.IndexedFileCount != 2 {
+		t.Fatal(c.workspaceIndex.status, c.workspaceIndex.err)
+	} // main.go + explicit settings.json
+	var n int
+	if err := db.DB().QueryRow(`select count(*) from workspace_index_documents where path='main.go'`).Scan(&n); err != nil || n != 1 {
+		t.Fatal("code not indexed", n, err)
+	}
+	c.closeWorkspaceIndex()
+}
+
+func TestIndexPanelRootHintOnlyForSuccessfulEmptyAllScope(t *testing.T) {
+	c := indexPanelFixture(t)
+	c.workspaceIndex.active = true
+	for _, state := range []string{"never_indexed", "ready"} {
+		c.workspaceIndex.status = searchstore.ScopeStatus{State: state}
+		if !c.workspaceIndexNeedsRootHint() {
+			t.Fatal(state)
+		}
+	}
+	c.workspaceIndex.status = searchstore.ScopeStatus{State: "ready", IndexedFileCount: 1}
+	if c.workspaceIndexNeedsRootHint() {
+		t.Fatal("populated hint")
+	}
+	c.workspaceIndex.status = searchstore.ScopeStatus{State: "ready"}
+	c.workspaceIndex.busy = true
+	if c.workspaceIndexNeedsRootHint() {
+		t.Fatal("busy hint")
+	}
+	c.workspaceIndex.busy = false
+	c.workspaceIndex.scope = 1
+	if c.workspaceIndexNeedsRootHint() {
+		t.Fatal("notes hint")
+	}
+	c.workspaceIndex.scope = 0
+	c.workspaceIndex.err = errors.New("failed")
+	if c.workspaceIndexNeedsRootHint() {
+		t.Fatal("error hidden")
+	}
+	c.workspaceIndex.err = nil
+	c.workspaceIndex.status.LastError = "failure"
+	if c.workspaceIndexNeedsRootHint() {
+		t.Fatal("refresh failure hidden")
+	}
+	c.workspaceIndex.status.LastError = ""
+	c.cfg.WorkspaceIndex.ExtraRoots = []string{"src"}
+	if c.workspaceIndexNeedsRootHint() {
+		t.Fatal("explicit root misleading hint")
+	}
+}

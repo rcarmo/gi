@@ -454,3 +454,62 @@ func TestConfiguredScanWithoutBuiltinRoots(t *testing.T) {
 		t.Fatal("a missing configured extra root must still fail")
 	}
 }
+
+func TestPlainCodeWorkspaceExplicitRootPolicy(t *testing.T) {
+	root, write := scanFixture(t)
+	write("src/main.go", "package main\n// plaincodeorchid\n")
+	for _, path := range []string{".git/ignored.go", "node_modules/ignored.go", ".cache/ignored.go", "generated/ignored.go"} {
+		write(path, "package excluded")
+	}
+	write("src/oversized.go", strings.Repeat("x", searchstore.MaxDocumentBytes+1))
+	write("src/binary.go", "binary\x00data")
+	if err := os.Symlink(filepath.Join(t.TempDir(), "outside.go"), filepath.Join(root, "outside.go")); err != nil {
+		t.Fatal(err)
+	}
+	defaultCfg, err := searchstore.ConfiguredScopeConfig(root, "all", nil, nil, nil, chunking.LineVersion)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := ScanScope(t.Context(), defaultCfg)
+	if err != nil || len(before.Documents) != 0 {
+		t.Fatal(before, err)
+	}
+	cfg, err := searchstore.ConfiguredScopeConfig(root, "all", []string{"."}, nil, nil, chunking.LineVersion)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := ScanScope(t.Context(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(after.Documents) != 1 || after.Documents[0].Path != "src/main.go" {
+		t.Fatal(after.Documents)
+	}
+	db, err := core.Open(filepath.Join(t.TempDir(), "query.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	storage := searchstore.NewRefreshStore(db.DB())
+	refresh, err := storage.Begin(t.Context(), cfg, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := refresh.Commit(t.Context(), after); err != nil {
+		t.Fatal(err)
+	}
+	result, err := storage.Query(t.Context(), cfg, "plaincodeorchid", 10, 0)
+	if err != nil || len(result.Hits) != 1 || result.Hits[0].Path != "src/main.go" {
+		t.Fatal(result, err)
+	}
+	for _, scope := range []string{"notes", "skills"} {
+		narrow, err := searchstore.ConfiguredScopeConfig(root, scope, []string{"."}, nil, nil, chunking.LineVersion)
+		if err != nil {
+			t.Fatal(err)
+		}
+		snap, err := ScanScope(t.Context(), narrow)
+		if err != nil || len(snap.Documents) != 0 {
+			t.Fatal("opt-in widened named scope", scope, snap, err)
+		}
+	}
+}
