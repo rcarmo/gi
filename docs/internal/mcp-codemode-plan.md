@@ -13,8 +13,7 @@ Pi's MCP and codemode behaviour is documented in its `docs/mcp.md` and in
 - **Config:** `~/.pi/agent/mcp.json`, plus `.pi/mcp.json` in trusted projects.
   The format is `{"mcpServers": {...}}`.
   - stdio servers use `command`, `args`, `env` and `cwd`.
-  - HTTP servers use streamable HTTP with `url`, `headers` and `oauth`. SSE is
-    rejected.
+  - HTTP servers use streamable HTTP with `url`, `headers`, `oauth` or provider-backed `auth.provider` (#29; implemented, [contract](mcp.md#provider-authentication)). SSE is rejected. Provider credentials are read per request; provider-auth servers do not use MCP OAuth.
   - Both accept `timeout`, `enabled`, `description`, `exposure` and
     `toolExposure`.
   - Values can use `${VAR}`, or `!command` when that is the whole value.

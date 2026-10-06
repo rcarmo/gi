@@ -1,6 +1,7 @@
 package inference
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -141,15 +142,46 @@ const piAuthLockStale = 30 * time.Second
 // this writer, which also holds Pi's lock (auth.json.lock) so gi and Pi do
 // not interleave writes. A change returning errCredentialUnchanged skips the
 // write.
-func updateCredentials(expected string, change func(map[string]json.RawMessage) error) (d credentialDocument, err error) {
-	credentialMu.Lock()
+func updateCredentials(expected string, change func(map[string]json.RawMessage) error) (credentialDocument, error) {
+	return updateCredentialsContext(context.Background(), expected, change)
+}
+
+// Cancellable acquisition matters for per-request provider refresh: another
+// process may hold Pi's lock, or another goroutine may be refreshing a token.
+func lockCredentialsContext(ctx context.Context) error {
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if credentialMu.TryLock() {
+			return nil
+		}
+		timer := time.NewTimer(10 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func updateCredentialsContext(ctx context.Context, expected string, change func(map[string]json.RawMessage) error) (d credentialDocument, err error) {
+	if err := lockCredentialsContext(ctx); err != nil {
+		return d, err
+	}
 	defer credentialMu.Unlock()
-	lockErr := lockdir.With(filepath.Join(filepath.Dir(AuthFilePath()), "auth.json.lock"), piAuthLockStale, piAuthLockStale, func() error {
-		d, err = updateCredentialsLocked(expected, change)
+	lockErr := lockdir.WithContext(ctx, filepath.Join(filepath.Dir(AuthFilePath()), "auth.json.lock"), piAuthLockStale, piAuthLockStale, func() error {
+		if err = ctx.Err(); err == nil {
+			d, err = updateCredentialsLocked(expected, change)
+		}
 		return nil
 	})
 	if lockErr != nil {
-		return credentialDocument{}, ErrCredentialConflict
+		if ctx.Err() != nil {
+			return d, ctx.Err()
+		}
+		return d, ErrCredentialConflict
 	}
 	return d, err
 }

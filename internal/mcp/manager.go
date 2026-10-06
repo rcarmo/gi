@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/rcarmo/gi/internal/inference"
 )
 
 // Server connection states, as shown by /mcp.
@@ -499,6 +501,23 @@ func (m *Manager) connectStdio(ctx context.Context, s *server) (*mcp.ClientSessi
 }
 
 func (m *Manager) connectHTTP(ctx context.Context, s *server) (*mcp.ClientSession, func(), error) {
+	// Revalidate explicit in-memory configurations as well as parsed files.
+	if s.cfg.Auth != nil {
+		if err := validateProviderURL(s.cfg.URL); err != nil {
+			return nil, nil, err
+		}
+		if strings.TrimSpace(s.cfg.Auth.Provider) == "" {
+			return nil, nil, errors.New("provider auth requires a provider")
+		}
+		if len(s.cfg.OAuth) > 0 && string(s.cfg.OAuth) != "null" {
+			return nil, nil, errors.New("auth.provider and oauth are mutually exclusive")
+		}
+		for key := range s.cfg.Headers {
+			if strings.EqualFold(key, "Authorization") {
+				return nil, nil, errors.New("auth.provider and Authorization header are mutually exclusive")
+			}
+		}
+	}
 	headers := http.Header{}
 	for key, value := range s.cfg.Headers {
 		expanded, err := expandValue(ctx, value, m.lookupEnv)
@@ -517,6 +536,13 @@ func (m *Manager) connectHTTP(ctx context.Context, s *server) (*mcp.ClientSessio
 		rt = &oauthTransport{base: rt, auth: s.auth, onNeedsAuth: func() { s.needsAuth.Store(true) }}
 	}
 	client := &http.Client{Transport: rt}
+	if s.cfg.Auth != nil {
+		endpoint, _ := url.Parse(s.cfg.URL)
+		client.Transport = providerTransport{base: rt, endpoint: endpoint, provider: s.cfg.Auth.Provider, token: inference.ProviderToken}
+		client.CheckRedirect = func(*http.Request, []*http.Request) error {
+			return errors.New("provider-auth MCP redirects are disabled")
+		}
+	}
 	var lastErr error
 	for attempt := 0; attempt < httpConnectTries; attempt++ {
 		transport := &mcp.StreamableClientTransport{Endpoint: s.cfg.URL, HTTPClient: client}

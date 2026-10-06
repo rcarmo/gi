@@ -72,8 +72,34 @@ Rules, as in Pi:
   (`dcr` or `cimd`; `cimd` excludes `clientId` and `clientName` and needs
   a `/callback` path on localhost or 127.0.0.1) and `authServerMetadataUrl`.
   Golden: `scripts/golden-mcp-cimd.mjs`, `TestOAuthSettingsAndCIMDMatchPi`.
+- **`auth.provider`** reuses current provider credentials from `auth.json`; it is separate from MCP OAuth. See [provider authentication](#provider-authentication).
 - **Invalid entries** are reported (`Config.Errors`) and skipped; the other
   servers still connect.
+
+## Provider authentication
+
+```json
+{
+  "mcpServers": {
+    "radius-tools": {
+      "url": "https://example.com/mcp",
+      "auth": { "provider": "radius" }
+    }
+  }
+}
+```
+
+The provider must already have credentials in the normal Gi/Pi `auth.json`. API-key entries use `key` or legacy `apiKey`; OAuth entries use the registered go-ai provider's token derivation. An unregistered provider can use a stored, unexpired `access` or `token`. MCP never sends refresh credentials or starts a provider sign-in.
+
+Each HTTP request, including stream reconnects and session cleanup, reads the current selected entry. Rotation applies without reconnecting; removed credentials fail before sending a request. Expiring registered OAuth credentials refresh under Pi's shared `auth.json.lock`, re-reading the entry to preserve concurrent rotation/logout, unrelated providers and provider-specific fields. Credential-lock acquisition and supported refreshes honour cancellation. A provider that needs refresh but lacks context-aware refresh fails instead of blocking an MCP call indefinitely. Valid tokens use a read-only path without creating credential locks or rewriting the file.
+
+Provider-authenticated URLs require HTTPS or HTTP on literal loopback IPs or `localhost`. User information and URL fragments are rejected. `auth.provider` cannot coexist with `oauth` or an `Authorization` header and applies only to HTTP servers. Empty/control-character tokens are rejected. Requests must keep the configured scheme, host, path and query; redirects and Host overrides are blocked. Configured non-authentication headers remain available. Provider credential/refresh errors and HTTP transport errors return generic messages without credential contents.
+
+These servers return false from `UsesOAuth()`: `gi mcp login|logout` and `/mcp` OAuth actions cannot create or delete MCP credentials for them. Manage the provider's sign-in through its normal provider controls. Tests use fake credentials and local MCP servers; no live provider sign-in is required.
+
+`env -u PI_CODING_AGENT_DIR -u GI_CODING_AGENT_DIR make test-mcp-provider-auth` runs the provider-auth checks three times with race detection where supported. It covers secure URL validation, current-token rotation/revocation, redirects and endpoint/Host changes, error redaction, cancelled refresh/lock waits, concurrent refresh, provider-specific fields, read-only valid tokens and CLI OAuth exclusion. Go 1.27.1 verification also passed 2,167 tests across 37 packages and vet. Browser/UI fixtures are unchanged.
+
+Focused captures are short: CPU samples are too sparse for throughput comparisons. Fresh MCP server/schema setup and HTTP JSON decoder buffers dominate allocations; provider-token reads stay bounded to the credential file's 1 MiB limit. The valid OAuth path avoids write-lock acquisition and rewriting; concurrent callers re-read after locking so one successful refresh serves the others. No equivalent-workload speed improvement is asserted. CPU, `alloc_space` and `alloc_objects` were inspected; raw captures and disposable logs were deleted after analysis.
 
 ## Lifecycle
 
@@ -310,7 +336,7 @@ no turn runs. Replies are system messages in the session's timeline (kind
 
 This is a port of Pi's MCP OAuth (pi-coding-agent `extensions/mcp/oauth.js`, pi-mcp `oauth/{flow,discovery,provider}.js`).
 
-- **Which servers:** HTTP servers without an `Authorization` header (`ServerConfig.UsesOAuth`).
+- **Which servers:** HTTP servers without `auth.provider` or an `Authorization` header (`ServerConfig.UsesOAuth`).
 - **Credentials:** stored in Pi's `mcp-auth.json`, so gi and Pi share sign-ins. Entries are keyed per server as `<mcp namespace>|<url>` (Pi 1.0), so servers sharing a URL keep separate accounts; entries keyed by URL alone move to the first server that loads them. Writes are guarded by a `<file>.lock` directory; refreshes use per-server `mcp-auth-refresh-<hash>.lock` locks, as in Pi.
 - **Connecting:**
   - The stored access token is sent, refreshed first when it is within 30 s of expiry.

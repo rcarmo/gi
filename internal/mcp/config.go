@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -48,6 +49,7 @@ type ServerConfig struct {
 	URL          string            `json:"url,omitempty"`
 	Headers      map[string]string `json:"headers,omitempty"`
 	OAuth        json.RawMessage   `json:"oauth,omitempty"`
+	Auth         *ProviderAuth     `json:"auth,omitempty"`
 	Timeout      time.Duration     `json:"-"`
 	Enabled      bool              `json:"-"`
 	Description  string            `json:"description,omitempty"`
@@ -62,6 +64,31 @@ type ServerConfig struct {
 	// exposure or toolExposure of this global server (Pi's override).
 	Override string          `json:"-"`
 	raw      json.RawMessage // the entry as written, for overrides
+}
+
+// ProviderAuth reuses provider credentials without an MCP OAuth flow.
+type ProviderAuth struct {
+	Provider string `json:"provider"`
+}
+
+func validateProviderURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Hostname() == "" || u.User != nil || u.Fragment != "" {
+		return fmt.Errorf("auth.provider requires a valid HTTPS or loopback HTTP URL")
+	}
+	if u.Scheme == "https" {
+		return nil
+	}
+	if u.Scheme == "http" {
+		host := strings.ToLower(u.Hostname())
+		if host == "localhost" {
+			return nil
+		}
+		if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+			return nil
+		}
+	}
+	return fmt.Errorf("auth.provider requires HTTPS or loopback HTTP")
 }
 
 // Config is the merged user and (trusted) project configuration.
@@ -112,6 +139,7 @@ type rawServer struct {
 	URL          string            `json:"url"`
 	Headers      map[string]string `json:"headers"`
 	OAuth        json.RawMessage   `json:"oauth"`
+	Auth         json.RawMessage   `json:"auth"`
 	Timeout      *float64          `json:"timeout"`
 	Enabled      *bool             `json:"enabled"`
 	Description  string            `json:"description"`
@@ -266,8 +294,8 @@ func parseServer(name string, raw json.RawMessage, source string) (ServerConfig,
 			return ServerConfig{}, fmt.Errorf("type %q needs a url", r.Type)
 		}
 		s.Transport = "stdio"
-		if len(r.Headers) > 0 || len(r.OAuth) > 0 {
-			return ServerConfig{}, fmt.Errorf("headers and oauth apply only to url servers")
+		if len(r.Headers) > 0 || len(r.OAuth) > 0 || len(r.Auth) > 0 {
+			return ServerConfig{}, fmt.Errorf("headers, oauth and auth apply only to url servers")
 		}
 	default:
 		if s.Transport == "stdio" {
@@ -282,6 +310,30 @@ func parseServer(name string, raw json.RawMessage, source string) (ServerConfig,
 		}
 		if err := validateOAuth(r.OAuth); err != nil {
 			return ServerConfig{}, err
+		}
+		if len(r.Auth) > 0 {
+			var auth ProviderAuth
+			decoder := json.NewDecoder(bytes.NewReader(r.Auth))
+			decoder.DisallowUnknownFields()
+			if err := decoder.Decode(&auth); err != nil || strings.TrimSpace(auth.Provider) == "" {
+				return ServerConfig{}, fmt.Errorf("auth must contain a non-empty provider")
+			}
+			auth.Provider = strings.TrimSpace(auth.Provider)
+			if !serverNamePattern.MatchString(auth.Provider) {
+				return ServerConfig{}, fmt.Errorf("invalid auth provider name")
+			}
+			if len(r.OAuth) > 0 && string(r.OAuth) != "null" {
+				return ServerConfig{}, fmt.Errorf("auth.provider and oauth are mutually exclusive")
+			}
+			for header := range r.Headers {
+				if strings.EqualFold(header, "Authorization") {
+					return ServerConfig{}, fmt.Errorf("auth.provider and Authorization header are mutually exclusive")
+				}
+			}
+			if err := validateProviderURL(s.URL); err != nil {
+				return ServerConfig{}, err
+			}
+			s.Auth = &auth
 		}
 	}
 	if r.Timeout != nil {

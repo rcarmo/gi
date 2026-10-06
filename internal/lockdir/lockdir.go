@@ -5,6 +5,7 @@
 package lockdir
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,11 +17,22 @@ const retry = 100 * time.Millisecond
 // With runs fn holding lockPath, waiting up to wait for another holder; a
 // lock not refreshed for stale was abandoned by a killed process.
 func With(lockPath string, stale, wait time.Duration, fn func() error) error {
+	return WithContext(context.Background(), lockPath, stale, wait, fn)
+}
+
+// WithContext is With with cancellable acquisition; fn owns the acquired lock.
+func WithContext(ctx context.Context, lockPath string, stale, wait time.Duration, fn func() error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(filepath.Dir(lockPath), 0o700); err != nil {
 		return err
 	}
 	deadline := time.Now().Add(wait)
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		err := os.Mkdir(lockPath, 0o700)
 		if err == nil {
 			break
@@ -35,7 +47,13 @@ func With(lockPath string, stale, wait time.Duration, fn func() error) error {
 		if time.Now().After(deadline) {
 			return fmt.Errorf("lock %s is held", lockPath)
 		}
-		time.Sleep(retry)
+		timer := time.NewTimer(retry)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
 	}
 	done := make(chan struct{})
 	go func() { // keep the lock fresh, like proper-lockfile's update

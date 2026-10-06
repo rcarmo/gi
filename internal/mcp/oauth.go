@@ -97,7 +97,7 @@ type OAuthSettings struct {
 // UsesOAuth ports Pi's usesOAuth: HTTP servers without an Authorization
 // header.
 func (s ServerConfig) UsesOAuth() bool {
-	if s.Transport != "http" {
+	if s.Transport != "http" || s.Auth != nil {
 		return false
 	}
 	for key := range s.Headers {
