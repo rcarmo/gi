@@ -251,10 +251,10 @@ github.com/prometheus/client_model v0.6.3 h1:O0jaTVAYNxTHYInEPFJt5I3+sN8zqBtVMPT
 github.com/prometheus/client_model v0.6.3/go.mod h1:gpN5P9S7Rr6Yr92PiQ+Ixvhf6JZEkF1dnxsYL2aPBEM=
 github.com/prometheus/common v0.71.0 h1:9KDAKb7Mj3HEVKyFCK6Dc/HIwlBzZIN2l7/lrHl3KK8=
 github.com/prometheus/common v0.71.0/go.mod h1:CLJ5H8TEsGX8bl31BdMkfhIZ+QmZ9tBPPotUxUbfcmk=
-github.com/rcarmo/go-ai v1.0.1 h1:EF+xaJlJpEqyoO9obXIEPblJUgGO37CGDDyaIQjV8wo=
-github.com/rcarmo/go-ai v1.0.1/go.mod h1:vU8kjo3y3EUZp7S1zyq3pfPcasjUcRCEueUZbOpNF6c=
-github.com/rcarmo/go-joker v1.8.1-0.20260921221227-cd9de78c1f44 h1:kGHe90bVufBKu1y54eS+plZumbmP6PoP02Mki9GEo0w=
-github.com/rcarmo/go-joker v1.8.1-0.20260921221227-cd9de78c1f44/go.mod h1:ql06oj3gA7LHeomrY47M9iP/j6oaCDL9oA7CNb2ZFXo=
+github.com/rcarmo/go-ai v1.0.4 h1:S71RhS1Bdww4mSyzq1X4Awf/V0kGtVt+WUWnxJmZa0s=
+github.com/rcarmo/go-ai v1.0.4/go.mod h1:FMgDJ6x88munjZEs7Yh95Ve56RT4RrkuMTKj49kRbWw=
+github.com/rcarmo/go-joker/v42 v42.12.1 h1:gWc7gXz40QaXDbw3obSXd6/rqkVncAbNRGAfKZGkhg0=
+github.com/rcarmo/go-joker/v42 v42.12.1/go.mod h1:Eu1RZCaGhEf3udxC5eDfz+n8nNJtNRBFq264qYh6iPc=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rogpeppe/go-internal v1.16.0 h1:O9DK+vNMDVGLr2BeZqmpLeMjiMNkuXfcqntWbZV6S5g=

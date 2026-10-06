@@ -11,10 +11,9 @@ import (
 // JokerRunner executes Clojure scripts using the Joker interpreter baked into
 // the gi binary itself.
 //
-// Upstream Joker ships primarily as a CLI and the module source on its own is
-// not directly consumable as an import without generated files. We vendor a
-// generated copy locally and execute it in-process so scripts can access live
-// bridge state in the same runtime.
+// The released go-joker/v42 module includes generated runtime files. Gi
+// imports the pinned release and executes it in-process so trusted scripts can
+// access live bridge state; the historical third_party tree is reference data.
 type JokerRunner struct{}
 
 func NewJokerRunner() *JokerRunner {

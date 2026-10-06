@@ -30,10 +30,11 @@ import (
 // to gi's bridge state. It can run inline scripts or script files from
 // the workspace.
 type ScriptTool struct {
-	store *store.Store
-	cfg   config.RuntimeConfig
-	joker scripting.Runner
-	js    scripting.Runner
+	store   *store.Store
+	cfg     config.RuntimeConfig
+	joker   scripting.Runner
+	js      scripting.Runner
+	quickjs scripting.Runner
 
 	rawSocketMu    sync.Mutex
 	rawSockets     map[string]ownedRawSocket
@@ -85,7 +86,7 @@ type ownedWebSocket struct {
 type ScriptInput struct {
 	Script    string `json:"script,omitempty"`
 	Path      string `json:"path,omitempty"`
-	Engine    string `json:"engine,omitempty"` // "joker" or "js" (default: auto-detect)
+	Engine    string `json:"engine,omitempty"` // joker, goja, quickjs, or configured js (default: auto-detect)
 	SessionID string `json:"session_id,omitempty"`
 }
 
@@ -101,6 +102,7 @@ func NewScriptTool(s *store.Store, cfg config.RuntimeConfig) *ScriptTool {
 		cfg:            cfg,
 		joker:          scripting.NewJokerRunner(),
 		js:             scripting.NewGojaRunner(),
+		quickjs:        scripting.NewQuickJSRunner(),
 		rawSockets:     make(map[string]ownedRawSocket),
 		webSockets:     make(map[string]ownedWebSocket),
 		topicSubs:      make(map[string]topicSubscription),
@@ -159,8 +161,8 @@ func (t *ScriptTool) Definition() map[string]any {
 				},
 				"engine": map[string]any{
 					"type":        "string",
-					"description": "Script engine: 'js' (JavaScript/goja, compiled-in) or 'joker' (Clojure, baked into gi). Default: js for .js files, joker for .joke/.clj, js for inline.",
-					"enum":        []string{"js", "joker"},
+					"description": "Script runtime: 'goja' (native JS), 'quickjs' (isolated JS; await bridge calls), 'joker' (native Clojure), or 'js' (configured javascriptRuntime, default goja). Auto-detect: Joker for .joke/.clj, JS otherwise.",
+					"enum":        []string{"js", "goja", "quickjs", "joker"},
 				},
 			},
 		},
@@ -170,7 +172,10 @@ func (t *ScriptTool) Definition() map[string]any {
 // Execute runs the script and returns the output.
 func (t *ScriptTool) Execute(ctx context.Context, input ScriptInput) ScriptOutput {
 	bridge := t.buildBridge(input.SessionID)
-	runner := t.resolveRunner(input.Engine, input.Path)
+	runner, resolveErr := t.resolveRunner(input.Engine, input.Path)
+	if resolveErr != nil {
+		return ScriptOutput{Error: resolveErr.Error()}
+	}
 
 	var result string
 	var err error
@@ -211,22 +216,30 @@ func (t *ScriptTool) Execute(ctx context.Context, input ScriptInput) ScriptOutpu
 	return ScriptOutput{Result: result}
 }
 
-func (t *ScriptTool) resolveRunner(engine, path string) scripting.Runner {
-	if engine == "joker" {
-		return t.joker
+func (t *ScriptTool) resolveRunner(engine, path string) (scripting.Runner, error) {
+	engine = strings.ToLower(strings.TrimSpace(engine))
+	if engine == "" && (strings.HasSuffix(path, ".joke") || strings.HasSuffix(path, ".clj")) {
+		engine = "joker"
 	}
-	if engine == "js" || engine == "javascript" {
-		return t.js
+	if engine == "" || engine == "js" || engine == "javascript" {
+		engine = strings.ToLower(strings.TrimSpace(t.cfg.JavaScriptRuntime))
+		if engine == "" {
+			engine = "goja"
+		}
+		if engine != "goja" && engine != "quickjs" {
+			return nil, fmt.Errorf("unsupported script runtime %q for JavaScript", engine)
+		}
 	}
-	// Auto-detect from file extension
-	if strings.HasSuffix(path, ".joke") || strings.HasSuffix(path, ".clj") {
-		return t.joker
+	switch engine {
+	case "joker":
+		return t.joker, nil
+	case "goja":
+		return t.js, nil
+	case "quickjs":
+		return t.quickjs, nil
+	default:
+		return nil, fmt.Errorf("unsupported script runtime %q", engine)
 	}
-	if strings.HasSuffix(path, ".js") {
-		return t.js
-	}
-	// Default: JS (compiled-in, no external dependency)
-	return t.js
 }
 
 func (t *ScriptTool) getSessionInfo(ctx context.Context, sessionID string) (map[string]any, error) {

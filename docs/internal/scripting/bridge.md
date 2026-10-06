@@ -9,7 +9,7 @@ Implemented: event hooks, raw sockets, websocket transport, and HTTP request API
 
 Networking and transport callbacks are now exercised in `internal/tools/script_test.go`.
 
-Execution remains implemented for JS via Goja; Joker execution is also active for `.joke`/`.clj` scripts via the Joker runtime. (Shell execution is still unavailable in the scripting bridge.)
+JavaScript selects native Goja or isolated QuickJS through `javascriptRuntime` or explicit `engine`. QuickJS helper calls return promises. Joker executes `.joke`/`.clj` natively and can compile eligible user functions to WASM for wazero machine-code execution; the Joker runtime is never a WASI guest. Shell execution remains unavailable in this bridge.
 
 ## Purpose
 The scripting bridge is the controlled host API exposed to script runtimes.

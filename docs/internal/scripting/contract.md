@@ -3,9 +3,9 @@
 This document is the canonical machine-friendly contract for gi script execution and bridging APIs.
 
 - Tool: `script`
-- Engines: `js` (Goja) and `joker` (embedded Joker/Clojure)
-- `quickjs` is intentionally out of scope for current releases; `js`/`joker` are the supported engines.
-- Engine selection: explicit `engine`, then file extension, otherwise inline defaults to `js`
+- Engines: `goja` (native JS), `quickjs` (isolated JS), `joker` (native Joker/Clojure), or `js`/`javascript` (configured JS runtime; default Goja).
+- Set `javascriptRuntime` to `goja` or `quickjs` in settings; project overrides user settings. Explicit runtime names override this default. Invalid names fail without fallback.
+- Auto-detection selects Joker for `.joke`/`.clj`, configured JS otherwise. QuickJS is the only whole runtime in a wazero isolate; Joker emits user-function WASM from a native host.
 
 ---
 
@@ -14,7 +14,7 @@ This document is the canonical machine-friendly contract for gi script execution
 ### Input (`script` tool)
 - `script` (string) — inline script source
 - `path` (string) — workspace-relative path or `vfs://namespace/path`
-- `engine` ("js" | "joker") — optional
+- `engine` ("js" | "javascript" | "goja" | "quickjs" | "joker") — optional
 - `session_id` (string) — optional
 
 Exactly one of `script` or `path` is required.
@@ -29,7 +29,9 @@ The JSON Schema and TypeScript shapes are available here:
 
 ---
 
-## 2) Goja (`js`) bridge shape
+## 2) JavaScript bridge shape
+
+Goja calls the helpers synchronously. QuickJS exposes the same host-provided values/names, but helpers return promises and must be awaited. Use an async expression/IIFE to produce the completion value. Each QuickJS invocation has a fresh instance, joined cancellation and the same deadline for its host calls; no implicit Goja fallback. Console output takes precedence over the completion value.
 
 A global object `gi` is injected in script context.
 

@@ -29,9 +29,12 @@
           "type": "string",
           "enum": [
             "js",
+            "javascript",
+            "goja",
+            "quickjs",
             "joker"
           ],
-          "description": "Force engine selection. If omitted, auto-detect from file extension; inline defaults to js."
+          "description": "Explicit native or isolated runtime. js/javascript use javascriptRuntime (default goja); .joke/.clj auto-select native Joker. Unknown names fail."
         },
         "session_id": {
           "type": "string",
@@ -41,10 +44,14 @@
       "required": [],
       "anyOf": [
         {
-          "required": ["script"]
+          "required": [
+            "script"
+          ]
         },
         {
-          "required": ["path"]
+          "required": [
+            "path"
+          ]
         }
       ]
     },
@@ -69,7 +76,9 @@
     "EventHookSpec": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
         "name": {
           "type": "string"
@@ -90,7 +99,9 @@
     "RawSocketSpec": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["address"],
+      "required": [
+        "address"
+      ],
       "properties": {
         "protocol": {
           "type": "string",
@@ -114,7 +125,9 @@
     "RawSocketPayload": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["socket_id"],
+      "required": [
+        "socket_id"
+      ],
       "properties": {
         "socket_id": {
           "type": "string"
@@ -135,7 +148,9 @@
     "WebSocketSpec": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["url"],
+      "required": [
+        "url"
+      ],
       "properties": {
         "url": {
           "type": "string"
@@ -161,7 +176,9 @@
     "HTTPBody": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["url"],
+      "required": [
+        "url"
+      ],
       "properties": {
         "method": {
           "type": "string"

@@ -1,7 +1,7 @@
 export type ScriptToolInput = {
   script?: string;
   path?: string;
-  engine?: "js" | "joker";
+  engine?: "js" | "javascript" | "goja" | "quickjs" | "joker";
   session_id?: string;
 };
 

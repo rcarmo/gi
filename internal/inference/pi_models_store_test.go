@@ -1,10 +1,12 @@
 package inference
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	goai "github.com/rcarmo/go-ai"
@@ -13,6 +15,8 @@ import (
 // gi lists the same Copilot models as Pi: Pi's refreshed models-store adds
 // models the compiled-in catalogue lacks, and the account's availableModelIds
 // (recorded by Pi in auth.json) filter the listing.
+var copilotStoreFixtureSeq atomic.Uint64
+
 func TestListRuntimeOptionsMatchesPiCopilotCatalogue(t *testing.T) {
 	Init()
 	root := t.TempDir()
@@ -21,7 +25,7 @@ func TestListRuntimeOptionsMatchesPiCopilotCatalogue(t *testing.T) {
 	if err := os.MkdirAll(agent, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	const newID = "gi-test-copilot-model-9"
+	newID := fmt.Sprintf("gi-test-copilot-model-%d", copilotStoreFixtureSeq.Add(1))
 	store := `{"github-copilot":{"models":[{"id":"` + newID + `","name":"Test Model 9","api":"openai-responses","provider":"github-copilot",
 		"baseUrl":"https://api.individual.githubcopilot.com","reasoning":true,"input":["text"],"contextWindow":400000,"maxTokens":64000,
 		"compat":{"supportsMidConvoSystemMessages":true}}]}}`
@@ -52,7 +56,7 @@ func TestListRuntimeOptionsMatchesPiCopilotCatalogue(t *testing.T) {
 		}
 	}
 	sort.Strings(copilot)
-	if strings.Join(copilot, ",") != "gi-test-copilot-model-9,gpt-5-mini" {
+	if strings.Join(copilot, ",") != newID+",gpt-5-mini" {
 		t.Fatalf("copilot models = %v, want only the account's available catalogue models", copilot)
 	}
 	for _, o := range options {

@@ -25,10 +25,10 @@
 
 - [x] Make `/settings` and `/config` explicitly identify the live runtime summary; preserve full workspace paths, distinguish effective/configured thinking and theme, show wheel scrolling, normalized provider retry policy and complete compaction budgets. [Contract](../internal/tui-settings.md).
 
-- [x] Upgrade Joker and go-ai to pinned upstream commits; add a whole-interpreter WASI evaluation/cancellation smoke target. [Scope and WASI bootstrap fix](../internal/scripting/joker-wasi.md). (Codemode later shipped on QuickJS under wazero; see below.)
-- [x] Split large generated Joker WASI bootstrap initializers via a reproducible build overlay; preserve initialization dependencies and verify evaluation/cancellation on interpreter and ARM64 native compiler backends.
+- [x] Upgrade go-ai to v1.0.4 and native Joker to go-joker/v42 v42.12.1; retire the whole-runtime Joker WASI probe/overlay. Verify native user-function WASM compilation; QuickJS is the only whole-runtime isolate. [Runtime contract](../internal/scripting/README.md).
+- [x] Superseded 2026-10-06: removed whole-Joker WASI bootstrap overlay and guest tests per Rui; native Joker emits user-function WASM only.
 - [x] Replace go-ai Pi 0.99.2 parity commit pin with a proper upstream release tag: `go-ai` v1.0.1 (`4f40216`).
-- [ ] Complete Joker WASI capability isolation, bounded host/output handling and performance evaluation before Joker becomes a codemode engine. Production codemode uses QuickJS under wazero ([codemode](../internal/codemode.md)); MCP shipped separately ([MCP](../internal/mcp.md)).
+- [x] Keep Joker native; internal JavaScript explicitly selects Goja/QuickJS without silent fallback. Production MCP codemode remains QuickJS under wazero ([codemode](../internal/codemode.md)).
 - [x] Retain thinking Markdown source and reproject to the padded inner width on render/resize; cover orphan-word double wrapping, table margins, streaming and completed blocks. [Contract and evidence](../internal/tui-thinking-wrap.md). Full TUI suite has an unrelated rejected-route history failure.
 
 - [x] Default fullscreen mouse-selection copy to OSC 52 when clipboard mode is unset; preserve explicit off/native/auto and transcript-only `/copy`, report terminal dispatch truthfully, and add fresh-workspace/opt-out regression coverage. Go tests/vet/build/hook checks pass. [Policy and validation limits](../internal/tui-clipboard-media.md#selection-default-regression-coverage).

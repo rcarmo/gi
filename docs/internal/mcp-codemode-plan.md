@@ -54,7 +54,6 @@ Pi's MCP and codemode behaviour is documented in its `docs/mcp.md` and in
 
 | Piece | Where | Reuse |
 |---|---|---|
-| wazero v1.12 pinned; Joker built for `wasip1` via a bootstrap-splitting overlay; tests for evaluation and cancellation on both wazero backends | `main`: `tests/joker-wasi`, `scripts/joker-wasi-overlay`, `docs/internal/scripting/joker-wasi.md` | Shows that wazero runs, cancels and isolates guests on this ARM64 host. Joker itself needs a 1,460-helper source overlay just to compile. |
 | stdio MCP broker on the official Go SDK (`modelcontextprotocol/go-sdk` v1.8.0): lazy connections, allowlists, `mcp__server__tool` naming, bounded frames and output, process-group stop | `feat/joker-mcp-codemode`: `internal/codemode` (unformatted prototype; its own config format; no CLI wiring yet) | Rewrite against Pi's `mcp.json` format and move into `internal/mcp`. Keep the bounds and the process handling. |
 | Tool registry and turn pipeline (hooks, events, audit) | `internal/tools`, `internal/turn` | MCP and codemode tools register here, so hooks and permissions apply as in Pi. |
 
@@ -65,8 +64,7 @@ Pi's MCP and codemode behaviour is documented in its `docs/mcp.md` and in
   `quickjs-wasi` 3.6.2 is MIT-licensed and 637 KB. It needs six `env` imports
   (`host_call`, `host_interrupt`, …) and six WASI calls, and exports the
   QuickJS C API.
-- **Joker:** supported later, through the roadmap below, preferably by
-  compiling Joker scripts to WASM with Joker's own compiler.
+- **Joker:** runs natively for internal Clojure scripts. Eligible user functions compile to WASM through Joker and then to machine code through wazero; Joker itself is never a WASI guest.
 - **Toggle:** codemode is optional, as in Pi (see *Toggling codemode*).
 - **Web tests:** for now, browser (Playwright) tests are not run on the
   ChromeOS development laptop. Acceptance there uses Go and terminal (PTY)
@@ -85,41 +83,13 @@ side is shared.
 - **Host-enforced limits:** deadline and cancellation, guest memory ceiling,
   and caps on output and store size. Results are encoded as JSON.
 
-The QuickJS guest maps these onto Pi's JavaScript globals. A Joker guest maps
-them onto a `codemode` namespace. The tool description, declarations and result
-rendering come from the host and are shared by both.
+The QuickJS guest maps these onto Pi's JavaScript globals. Tool descriptions, declarations and result rendering come from the codemode host; native Joker uses the separate internal-script bridge.
 
-## Joker roadmap
+## Runtime boundaries (Rui correction, 2026-10-06)
 
-Joker's compiler today lowers IR to WASM only for **pure numeric functions**
-(`core/wasm` eligibility; `joker.jit/compile-wasm`). There is also an
-`EligibleWithImports` variant that can call host imports. Model-written scripts
-use strings, collections and tool calls, so the backend has to grow first.
+The whole-interpreter Joker WASI probe, generated-bootstrap overlay and J1 guest roadmap are retired. Native embedded Joker handles Clojure scripts; explicitly compiled user-function WASM uses Joker's wazero compiler. No interpreter guest or whole-runtime fallback is allowed.
 
-1. **J1, interim interpreter guest.** Reuse the merged probe: the whole Joker
-   interpreter built for `wasip1` with the bootstrap overlay. Add the shared
-   host interface as WASI host imports and offer it as an engine option
-   (`codemode.engine: "joker"`). This proves the interface works and gives a
-   performance baseline; startup and memory are expected to be heavy.
-2. **J2, extend Joker's WASM backend** (in go-joker).
-   - Represent values in linear memory, or as host handles, so strings,
-     keywords, vectors and maps can be compiled.
-   - Lower calls to `codemode` functions into host imports, building on
-     `EligibleWithImports`.
-   - Define a stable import ABI that matches the host interface above.
-3. **J3, per-script compilation.**
-   - Compile each model-written Joker script into a small WASM module whose
-     only imports are the codemode host functions; no interpreter in the guest.
-   - Scripts the compiler can't handle fall back to the J1 interpreter guest,
-     mirroring Joker's WASM → typed IR → boxed IR → tree-walker chain.
-   - Cache compiled modules by content hash.
-4. **J4, parity and defaults.**
-   - Run the codemode golden tests against both engines.
-   - Add model prompts for Joker scripts.
-   - QuickJS stays the default for Pi parity.
-
-The model-facing tool stays `codemode` with JavaScript unless the engine setting
-selects Joker, in which case its description and declarations switch to Joker.
+QuickJS is the only whole runtime in a wazero isolate. It remains the MCP codemode runtime and is an explicit alternative to Goja for internal JavaScript scripts. Internal scripts select `goja`/`quickjs` or the `javascriptRuntime` default; they use the normal privileged Gi bridge. MCP codemode retains its separate injected-tool-only host and bounds. See [scripting runtimes](scripting/README.md).
 
 ## Toggling codemode
 
@@ -204,7 +174,7 @@ Each phase lands with its own tests, through the Makefile, sequentially.
      forged tool names.
    - Measure startup and per-call latency.
    - Document everything in `docs/internal/` and the README.
-8. **Joker engine: J1–J4** from the roadmap above.
+8. **Native Joker:** verify user-function WASM compilation without a whole-runtime guest; QuickJS remains the MCP codemode engine.
 
 ## Security notes
 

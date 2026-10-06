@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	core "github.com/rcarmo/go-joker/core"
+	core "github.com/rcarmo/go-joker/v42/core"
 )
 
 func TestExecuteEmbeddedJoker(t *testing.T) {
@@ -328,5 +328,29 @@ func TestExecuteEmbeddedJokerSupportsEventHooksAndHTTPRequest(t *testing.T) {
 	}
 	if request.Method != "POST" || request.URL != "https://example.invalid/ok" {
 		t.Fatalf("unexpected request spec: %#v", request)
+	}
+}
+
+// The Joker host is native Go. Only the explicitly compiled user function is
+// emitted as WASM and executed by Joker's wazero compiler runtime.
+func TestEmbeddedJokerNativeWASMCompilation(t *testing.T) {
+	bridge := NewBridge("native-jit-session", BridgeFuncs{})
+	script := `(require '[joker.jit :as jit])
+ (let [source (fn [x y] (+ (* x x) y))
+       compiled (jit/compile-wasm source)]
+   (compiled 6 6))`
+	out, err := ExecuteEmbeddedJoker(context.Background(), script, bridge)
+	if err != nil || out != "42" {
+		t.Fatal(out, err)
+	}
+	// compile-wasm throws for unsupported shapes rather than accepting an
+	// interpreter fallback; no filesystem/native-library action is requested.
+	_, err = ExecuteEmbeddedJoker(context.Background(), `(require '[joker.jit :as jit]) (jit/compile-wasm (fn [x] (str "unsupported" x)))`, bridge)
+	if err == nil {
+		t.Fatal("unsupported function silently fell back")
+	}
+	out, err = ExecuteEmbeddedJoker(context.Background(), `(+ 40 2)`, bridge)
+	if err != nil || out != "42" {
+		t.Fatal("runtime unusable after compile rejection", out, err)
 	}
 }

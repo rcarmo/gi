@@ -98,7 +98,7 @@ Paths under `docs/internal/` should remain stable once referenced by prompts, to
 - [Codemode engine](codemode.md) — QuickJS (WASI) on wazero with Pi's vendored prelude; script API, limits, error kinds
 - [MCP client](mcp.md) — mcp.json format and lookup (.gi then .pi), validation, transports, lifecycle and logging
 - [MCP and codemode plan](mcp-codemode-plan.md) — Pi-parity target, existing branches, engine decision (QuickJS vs Joker on wazero) and phases
-- [Joker WASI feasibility](scripting/joker-wasi.md) — dependency pins, whole-interpreter guest probe, ARM64 bootstrap fix and unimplemented sandbox boundaries
+- [Scripting runtimes](scripting/README.md) — native Joker with compiled user kernels, Goja/QuickJS selection and bridge contracts
 - `hooks/` — hook and lifecycle docs
 - `vfs/` — managed VFS and `vfs://` URL docs (including `vfs://chat` projection)
 - `skills/` — skill/package structure docs

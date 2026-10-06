@@ -313,3 +313,29 @@ func TestLoadTreeSettings(t *testing.T) {
 		t.Fatalf("project: %q %d %v", cfg.TreeFilterMode, cfg.BranchSummaryReserveTokens, cfg.BranchSummarySkipPrompt)
 	}
 }
+
+func TestJavaScriptRuntimeProjectOverridesGlobal(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("GI_CODING_AGENT_DIR", filepath.Join(home, "agent"))
+	t.Setenv("PI_CODING_AGENT_DIR", filepath.Join(home, "agent"))
+	if err := os.MkdirAll(filepath.Join(home, "agent"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, "agent", "settings.json"), []byte(`{"javascriptRuntime":"quickjs"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	project := t.TempDir()
+	if cfg := Load(project); cfg.JavaScriptRuntime != "quickjs" {
+		t.Fatal(cfg.JavaScriptRuntime)
+	}
+	if err := os.Mkdir(filepath.Join(project, ".gi"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(project, ".gi", "settings.json"), []byte(`{"javascriptRuntime":"goja"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if cfg := Load(project); cfg.JavaScriptRuntime != "goja" {
+		t.Fatal(cfg.JavaScriptRuntime)
+	}
+}

@@ -12,6 +12,7 @@ import (
 
 type RuntimeConfig struct {
 	WorkspaceRoot        string             `json:"workspace_root"`
+	JavaScriptRuntime    string             `json:"javascript_runtime,omitempty"`
 	AssistantName        string             `json:"assistant_name"`
 	AssistantAvatar      string             `json:"assistant_avatar"`
 	UserName             string             `json:"user_name"`
@@ -173,6 +174,7 @@ type piSettings struct {
 	BranchSummary        *piBranchSummary `json:"branchSummary"`
 	TreeFilterMode       string           `json:"treeFilterMode"`
 	DefaultProvider      string           `json:"defaultProvider"`
+	JavaScriptRuntime    string           `json:"javascriptRuntime"`
 	DefaultModel         string           `json:"defaultModel"`
 	DefaultThinkingLevel string           `json:"defaultThinkingLevel"`
 	EnabledModels        []string         `json:"enabledModels"`
@@ -232,6 +234,7 @@ func Load(workspaceRoot string) RuntimeConfig {
 	}
 	var ps piSettings
 	if err := readJSON(ProjectConfigFile(workspaceRoot, "settings.json"), &ps); err == nil {
+		cfg.JavaScriptRuntime = strings.TrimSpace(ps.JavaScriptRuntime)
 		cfg.DefaultProvider = ps.DefaultProvider
 		cfg.DefaultModel = ps.DefaultModel
 		cfg.DefaultThinkingLevel = ps.DefaultThinkingLevel
@@ -502,6 +505,9 @@ func applyGlobalPiSettings(cfg *RuntimeConfig) {
 	var global piSettings
 	if err := readJSON(UserConfigFile("settings.json"), &global); err != nil {
 		return
+	}
+	if cfg.JavaScriptRuntime == "" {
+		cfg.JavaScriptRuntime = strings.TrimSpace(global.JavaScriptRuntime)
 	}
 	cfg.ModelCatalogURL = strings.TrimSpace(global.ModelCatalogURL)
 	if global.HideThinkingBlock != nil {

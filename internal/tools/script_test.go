@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -887,5 +889,71 @@ func TestScriptToolHTTPRequest(t *testing.T) {
 	}
 	if !strings.Contains(out.Result, `"code":200`) || !strings.Contains(out.Result, `"body":"echo:hello"`) {
 		t.Fatalf("unexpected response payload: %q", out.Result)
+	}
+}
+
+func TestScriptToolSelectsJavaScriptRuntime(t *testing.T) {
+	s, err := store.Open(filepath.Join(t.TempDir(), "choice.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	session, err := s.CreateSession(context.Background(), "choice", "Choice", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: t.TempDir(), JavaScriptRuntime: "quickjs"})
+	for _, engine := range []string{"", "js", "javascript", "quickjs"} {
+		out := tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Engine: engine, Script: `(async()=>{const s=await gi.getSessionInfo();return s.session.id;})()`})
+		if out.Error != "" || out.Result != session.ID {
+			t.Fatal(engine, out)
+		}
+	}
+	out := tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Engine: "goja", Script: `gi.getSessionInfo().session.id`})
+	if out.Error != "" || out.Result != session.ID {
+		t.Fatal(out)
+	}
+	out = tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Engine: "bogus", Script: `throw 'must not run'`})
+	if !strings.Contains(out.Error, "unsupported script runtime") {
+		t.Fatal(out)
+	}
+	tool.cfg.JavaScriptRuntime = "bogus"
+	out = tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Engine: "js", Script: `42`})
+	if !strings.Contains(out.Error, "unsupported script runtime") {
+		t.Fatal("silently fell back", out)
+	}
+}
+
+func TestScriptToolRuntimeChoiceForFilesPayloadAndNativeJoker(t *testing.T) {
+	s, err := store.Open(filepath.Join(t.TempDir(), "runtimes.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	session, err := s.CreateSession(context.Background(), "runtimes", "Runtimes", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	tool := NewScriptTool(s, config.RuntimeConfig{WorkspaceRoot: root, JavaScriptRuntime: "quickjs"})
+	if err := os.WriteFile(filepath.Join(root, "test.js"), []byte(`gi.sessionId`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	out := tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Path: "test.js"})
+	if out.Error != "" || out.Result != session.ID {
+		t.Fatal(out)
+	}
+	if err := os.WriteFile(filepath.Join(root, "test.joke"), []byte(`(let [f (jit/compile-wasm (fn [x] (+ x 2)))] (f 40))`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	out = tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Path: "test.joke"})
+	if out.Error != "" || out.Result != "42" {
+		t.Fatal(out)
+	}
+	for _, engine := range []string{"quickjs", "goja"} {
+		out = tool.Execute(context.Background(), ScriptInput{SessionID: session.ID, Engine: engine, Script: ScriptWithPayload(engine, "event", map[string]any{"answer": 42}, `gi.event.answer`)})
+		if out.Error != "" || out.Result != "42" {
+			t.Fatal(engine, out)
+		}
 	}
 }
