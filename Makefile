@@ -1,5 +1,24 @@
 .DEFAULT_GOAL := help
 
+# Resolve once, before redirecting child temporary paths. This repository owns
+# the resolver; CI does not depend on a host /workspace helper.
+GO ?= go
+export GOTOOLCHAIN := go1.27.1
+export PROJECT_NAME := gi
+export PROJECT_ORIGINAL_TMPDIR := $(if $(filter undefined,$(origin PROJECT_ORIGINAL_TMPDIR)),$(TMPDIR),$(PROJECT_ORIGINAL_TMPDIR))
+_PROJECT_TMP_RESOLVED := $(shell $(if $(filter-out undefined,$(origin PROJECT_TMP_BASE)),PROJECT_TMP_BASE='$(PROJECT_TMP_BASE)') $(if $(filter-out undefined,$(origin PROJECT_TMP_ROOT)),PROJECT_TMP_ROOT='$(PROJECT_TMP_ROOT)') PROJECT_NAME=gi PROJECT_ORIGINAL_TMPDIR='$(PROJECT_ORIGINAL_TMPDIR)' CI='$(CI)' RUNNER_TEMP='$(RUNNER_TEMP)' bash scripts/project-tmp.sh)
+ifeq ($(_PROJECT_TMP_RESOLVED),)
+$(error Cannot resolve a usable project-owned temporary root)
+endif
+export PROJECT_TMP_ROOT := $(_PROJECT_TMP_RESOLVED)
+GI_WORKTREE := $(notdir $(CURDIR))
+export TMPDIR := $(PROJECT_TMP_ROOT)/runs/make/$(GI_WORKTREE)/tmp
+export TMP := $(TMPDIR)
+export TEMP := $(TMPDIR)
+export BUN_INSTALL_CACHE_DIR := $(PROJECT_TMP_ROOT)/cache/bun
+export npm_config_cache := $(PROJECT_TMP_ROOT)/cache/npm
+export XDG_CACHE_HOME := $(PROJECT_TMP_ROOT)/cache/xdg
+
 # ── CPU throttling ──────────────────────────────────────────────────────
 # Every recipe (builds, tests, the dev server) runs niced and pinned to a
 # CPU subset so the machine stays usable and runs are reproducible. Tune per
@@ -23,30 +42,17 @@ export GOFLAGS += -p=$(CPU_PROCS)
 test%: export GOFLAGS := $(filter-out -p=%,$(GOFLAGS)) -p=1
 
 # ── Build cache ─────────────────────────────────────────────────────────
-# The Go build cache lives on disk, never on tmpfs: /tmp is RAM here, there
-# is no swap, and a pinned multi-GB cache starves the page cache (the VM's
-# memory balloon already takes a large share). It is trimmed back to empty
-# whenever it grows past GO_CACHE_MAX_MB; checked once per make invocation.
-GO_CACHE_MAX_MB ?= 1500
-export GOCACHE := $(or $(GI_GOCACHE),$(HOME)/.cache/go-build)
-# Go's per-build work directories (compile/link temporaries, often 0.5-1 GB
-# each) default to $TMPDIR, which is RAM here; keep them on disk too.
-export GOTMPDIR := $(or $(GI_GOTMPDIR),$(HOME)/.cache/go-tmp)
-$(shell mkdir -p "$(GOTMPDIR)")
-ifneq ($(filter-out help status logs stop,$(or $(MAKECMDGOALS),help)),)
-_GO_CACHE_MB := $(shell du -sm "$(GOCACHE)" 2>/dev/null | cut -f1)
-ifneq ($(_GO_CACHE_MB),)
-ifeq ($(shell [ $(_GO_CACHE_MB) -gt $(GO_CACHE_MAX_MB) ] && echo over),over)
-$(info Go build cache $(_GO_CACHE_MB) MB > $(GO_CACHE_MAX_MB) MB: trimming)
-_ := $(shell GOCACHE="$(GOCACHE)" $(or $(GO),go) clean -cache)
-endif
-endif
-endif
+# Cache and compiler scratch are project-owned. Do not auto-trim shared caches
+# at parse time: another worktree may have an active build.
+export GOCACHE := $(PROJECT_TMP_ROOT)/cache/go-build
+export GOMODCACHE := $(PROJECT_TMP_ROOT)/cache/go-mod
+export GOTMPDIR := $(TMPDIR)/go
+_TMP_INIT := $(shell mkdir -p "$(GOCACHE)" "$(GOMODCACHE)" "$(GOTMPDIR)" "$(BUN_INSTALL_CACHE_DIR)" "$(npm_config_cache)" "$(XDG_CACHE_HOME)")
 
 # The race detector needs a ThreadSanitizer-compatible address layout; some
 # kernels (e.g. 39/42-bit arm64 VMs) lack it. Probe once and drop -race there.
 ifndef RACE
-RACE := $(shell f=/tmp/gi-race-probe; [ -f $$f.ok ] && cat $$f.ok || { printf 'package main\nfunc main(){}\n' > $$f.go; if timeout 60 $(GO) run -race $$f.go >/dev/null 2>&1; then echo -race; fi | tee $$f.ok; })
+RACE := $(shell f='$(PROJECT_TMP_ROOT)/cache/go-race-1.27.1'; [ -f $$f.ok ] && cat $$f.ok || { printf 'package main\nfunc main(){}\n' > $$f.go; if timeout 60 env GOTOOLCHAIN=go1.27.1 GOCACHE='$(GOCACHE)' GOMODCACHE='$(GOMODCACHE)' GOTMPDIR='$(GOTMPDIR)' TMPDIR='$(TMPDIR)' TMP='$(TMP)' TEMP='$(TEMP)' $(GO) run -race $$f.go >/dev/null 2>&1; then echo -race; fi | tee $$f.ok; rm -f $$f.go; })
 endif
 
 # ── Tool commands ───────────────────────────────────────────────────────
@@ -68,7 +74,7 @@ WORKSPACE ?= /workspace
 # ── Local paths ─────────────────────────────────────────────────────────
 
 RUN_DIR ?= .gi-run
-BIN_DIR ?= bin
+BIN_DIR ?= $(PROJECT_TMP_ROOT)/build/$(GI_WORKTREE)
 BIN ?= $(BIN_DIR)/gi
 DB ?= $(RUN_DIR)/gi.db
 LOG ?= $(RUN_DIR)/gi.log
@@ -103,7 +109,7 @@ endef
 # ── Mandatory test profiling ────────────────────────────────────────────
 TEST_PKGS ?= ./...
 TEST_RUN ?=
-TEST_PROFILE_DIR ?= $(HOME)/.cache/gi-test-profile
+TEST_PROFILE_DIR ?= $(PROJECT_TMP_ROOT)/runs/profiling/$(GI_WORKTREE)
 export GI_TEST_PROFILE_DIR := $(TEST_PROFILE_DIR)
 export GO
 TESTPROFILE := $(abspath $(BIN_DIR)/testprofile)

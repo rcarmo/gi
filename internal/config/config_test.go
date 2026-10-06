@@ -122,9 +122,15 @@ func TestLoadUsesCurrentWorkingDirectoryWhenWorkspaceRootEmpty(t *testing.T) {
 	if err := os.Chdir(root); err != nil {
 		t.Fatal(err)
 	}
+	// os.Getwd may return the physical path when the project scratch root
+	// is reached through the operator's /workspace mount alias.
+	wantRoot, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
 	cfg := Load("")
-	if cfg.WorkspaceRoot != root {
-		t.Fatalf("unexpected workspace root: %q", cfg.WorkspaceRoot)
+	if cfg.WorkspaceRoot != wantRoot {
+		t.Fatalf("unexpected workspace root: %q, want cwd %q", cfg.WorkspaceRoot, wantRoot)
 	}
 	if cfg.DefaultProvider != "cwd-provider" || cfg.DefaultModel != "cwd-model" {
 		t.Fatalf("unexpected cwd-loaded config: %#v", cfg)

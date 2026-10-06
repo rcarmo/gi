@@ -124,7 +124,7 @@ jobs:
           submodules: recursive
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.26.x"
+          go-version-file: go.mod
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -320,7 +320,7 @@ jobs:
           submodules: recursive
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - uses: oven-sh/setup-bun@v2
       - run: bun install
       - run: go mod download
@@ -346,7 +346,7 @@ jobs:
           submodules: recursive
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version-file: go.mod
       - uses: oven-sh/setup-bun@v2
       - run: bun install
       - run: go mod download

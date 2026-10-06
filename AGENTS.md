@@ -1,4 +1,28 @@
+<!-- RUI-PROFILE-LIFECYCLE-20261005 -->
+## Current profiling and cleanup rule — supersedes older text below
+
+Rui's explicit rule: **profile and tune during pre-release tests; remove profiling data immediately after analysis/use.** Ordinary development tests do not require profiling on every run. Targeted diagnostic profiling is optional when useful and follows the same disposal rule.
+
+- During pre-release verification, capture CPU and heap/allocation behaviour, analyse hotspots and tune avoidable allocations/repeated work. Compare equivalent workloads without weakening correctness/security/numerical contracts. For Go, inspect CPU, alloc_space and alloc_objects; coverage alone is not profiling.
+- Keep captures and matching artifacts only while the current analysis needs them. Once used, immediately delete raw profiles, traces, matching test binaries, temporary fixtures and disposable logs, including failed/probe artifacts after diagnosis. Retain only concise conclusions and important measurements/limitations. Do not keep indefinite raw archives or copy them into exports/reports/evidence to evade cleanup.
+- Remove all completed disposable cache/build/test/run data promptly. Never delete files still in use: finish or safely pause the owning job and clean at a safe boundary. Preserve source, installed toolchains, durable datasets/checkpoints and intentional release assets. Minimise disk usage; no random exports or redundant snapshots.
+- This rule overrides **every conflicting older paragraph in this file and linked local guidance**, including “profile every test”, “unprofiled tests prohibited”, “retain all raw evidence”, “never delete profiles” and cleanup exclusions based only on an evidence/profiles directory name. Update helper/CI cleanup behaviour accordingly; do not weaken pre-release analysis.
+- Existing no-agent-contact and execution-pause rules remain unchanged. This policy grants no unsolicited coordination or automatic job restart.
+<!-- /RUI-PROFILE-LIFECYCLE-20261005 -->
+
+
+
 # gi
+
+## Go toolchain and project scratch
+
+Gi uses Go **1.27.1** (`GOTOOLCHAIN=go1.27.1` in the Makefile); CI reads the root `go.mod`. Vendored modules keep their own minimum Go directives.
+
+The canonical scratch project is `gi`. The repository-vendored `scripts/project-tmp.sh` resolves an absolute `PROJECT_TMP_BASE` to `<base>/gi`, or accepts a project-named `PROJECT_TMP_ROOT`; both must agree. Invalid/unusable overrides fail. Otherwise CI chooses `RUNNER_TEMP`, original inherited `TMPDIR`, then platform temp, even if `/workspace/tmp` exists; local use chooses writable `/workspace/tmp`, then platform temp. The resolved root propagates to children before changing their temp variables, preventing nested `/gi` suffixes.
+
+Makefile-native Go verification uses `cache/go-build`, `cache/go-mod`, `cache/go-race-1.27.1.ok`, `build/<worktree>`, and `runs/make/<worktree>/tmp/go`. Bun/npm/XDG caches also use `cache/<tool>`. Profiling scratch uses `runs/profiling/<worktree>` and must be removed after analysis/use. Durable `.gi-run` state is not build scratch. Automatic parse-time cache trimming is disabled because other worktrees may have active builds.
+
+Browser/TUI helpers and CI direct-install steps still need the remaining path migration recorded in `notes/gi/path-policy-20261005.md`; do not run those paths until they are migrated. Native Go-focused verification may use the resolved configuration now. No cleanup may delete another project's root, active-job data, source or durable assets. This section supersedes older home-cache/race-probe defaults below.
 
 You are a coding agent working on the gi project: a Go coding agent with a Pi-style terminal UI and a Piclaw-compatible web UI.
 
@@ -89,7 +113,7 @@ Run tests **one at a time, through the Makefile only** (see *CPU throttling* bel
 
 **Every user-visible feature must have corresponding functional tests.**
 
-**Every test run is profiled and analysed, including focused runs, repeats, benchmarks and fixture checks.** The Makefile wraps each test goal's complete lifecycle (prerequisites, startup, tests and cleanup) with `scripts/testprofile`. Full and focused Go tests also collect per-package CPU and allocation profiles; filters and repeat counts have separate comparison baselines. Script suites report wall/CPU time and peak RSS; these metrics do not measure allocations, so inspect the runtime's Go pprof or browser allocation tools when an allocation hot spot needs investigation. After every run, read the report, investigate regressions and hot spots, and report the performance findings before committing. Reports and history are in `~/.cache/gi-test-profile` (see `docs/internal/profiling.md`). Do not bypass profiling with `TEST_PROFILE=0`, `GI_TEST_PROFILE_ACTIVE`, raw test commands or direct submodule test targets. Report-only checks must also use the profiled `fixtures-vibes-report` target.
+Pre-release test runs must be profiled, analysed and tuned. Use `scripts/testprofile` and per-package Go CPU/allocation capture for those runs; ordinary focused development tests may run without profiling. Script wall/CPU/RSS totals do not measure allocations. Inspect application hotspots separately from harness overhead and compare equivalent workloads. Keep concise conclusions in `docs/internal/profiling.md` or the normal report; delete raw captures, test binaries, disposable logs and temporary history immediately after use. Do not disable filesystem isolation or correctness checks.
 
 **For now, web (Playwright) tests are not run on the ChromeOS (Crostini) laptop** used for development: `make test-ux` and the other browser targets are skipped there. Verify web-facing changes on that laptop with Go tests (for example `internal/web` handler tests), and run browser acceptance on another host. This is temporary and specific to that laptop; other machines run the web suites as usual.
 
