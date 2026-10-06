@@ -215,6 +215,11 @@ func TestIndexScopesRemainBoundToStartupWorkspaceIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
+	// Startup canonicalises the root, including an operator /workspace alias.
+	resolvedFirst, err := filepath.EvalSymlinks(first)
+	if err != nil {
+		t.Fatal(err)
+	}
 	srv := newIndexTestServer(t, db, config.RuntimeConfig{WorkspaceRoot: link})
 	if err := os.Remove(link); err != nil {
 		t.Fatal(err)
@@ -223,7 +228,7 @@ func TestIndexScopesRemainBoundToStartupWorkspaceIdentity(t *testing.T) {
 		t.Fatal(err)
 	}
 	c, err := srv.workspaceScope(httptest.NewRequest("GET", "/api/workspace/index", nil))
-	if err != nil || c.Workspace() != first {
+	if err != nil || c.Workspace() != resolvedFirst {
 		t.Fatal("GET/POST config diverged from startup scheduler", c.Workspace(), err)
 	}
 }

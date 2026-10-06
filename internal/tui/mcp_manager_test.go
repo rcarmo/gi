@@ -133,7 +133,8 @@ func TestMCPManagerManagesServers(t *testing.T) {
 	}
 	key(gotui.KeyDown)
 	key(gotui.KeyEnter)
-	if !strings.Contains(rows(), "MCP server zeta") || !strings.Contains(rows(), fake.URL) || !strings.Contains(rows(), "global: "+cfgPath) {
+	// The project-owned scratch path may wrap after the scope label.
+	if !strings.Contains(rows(), "MCP server zeta") || !strings.Contains(rows(), fake.URL) || !strings.Contains(strings.Join(strings.Fields(rows()), " "), "global: "+cfgPath) {
 		t.Fatalf("server menu:\n%s", rows())
 	}
 	labels := func() []string {
