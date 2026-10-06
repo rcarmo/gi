@@ -253,8 +253,8 @@ github.com/prometheus/common v0.71.0 h1:9KDAKb7Mj3HEVKyFCK6Dc/HIwlBzZIN2l7/lrHl3
 github.com/prometheus/common v0.71.0/go.mod h1:CLJ5H8TEsGX8bl31BdMkfhIZ+QmZ9tBPPotUxUbfcmk=
 github.com/rcarmo/go-ai v1.0.4 h1:S71RhS1Bdww4mSyzq1X4Awf/V0kGtVt+WUWnxJmZa0s=
 github.com/rcarmo/go-ai v1.0.4/go.mod h1:FMgDJ6x88munjZEs7Yh95Ve56RT4RrkuMTKj49kRbWw=
-github.com/rcarmo/go-joker/v42 v42.12.1 h1:gWc7gXz40QaXDbw3obSXd6/rqkVncAbNRGAfKZGkhg0=
-github.com/rcarmo/go-joker/v42 v42.12.1/go.mod h1:Eu1RZCaGhEf3udxC5eDfz+n8nNJtNRBFq264qYh6iPc=
+github.com/rcarmo/go-joker/v42 v42.12.2 h1:3fLeZyB/4grISP9idWpAzDJ+Gmo6o8QT/aUm1p5KYz4=
+github.com/rcarmo/go-joker/v42 v42.12.2/go.mod h1:Eu1RZCaGhEf3udxC5eDfz+n8nNJtNRBFq264qYh6iPc=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rogpeppe/go-internal v1.16.0 h1:O9DK+vNMDVGLr2BeZqmpLeMjiMNkuXfcqntWbZV6S5g=

@@ -2,6 +2,8 @@ package scripting
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"testing"
 
 	core "github.com/rcarmo/go-joker/v42/core"
@@ -343,6 +345,7 @@ func TestEmbeddedJokerNativeWASMCompilation(t *testing.T) {
 	if err != nil || out != "42" {
 		t.Fatal(out, err)
 	}
+	assertJokerWASMEngine(t, core.WasmEngineExported())
 	// compile-wasm throws for unsupported shapes rather than accepting an
 	// interpreter fallback; no filesystem/native-library action is requested.
 	_, err = ExecuteEmbeddedJoker(context.Background(), `(require '[joker.jit :as jit]) (jit/compile-wasm (fn [x] (str "unsupported" x)))`, bridge)
@@ -352,5 +355,52 @@ func TestEmbeddedJokerNativeWASMCompilation(t *testing.T) {
 	out, err = ExecuteEmbeddedJoker(context.Background(), `(+ 40 2)`, bridge)
 	if err != nil || out != "42" {
 		t.Fatal("runtime unusable after compile rejection", out, err)
+	}
+}
+
+func assertJokerWASMEngine(t *testing.T, got string) {
+	t.Helper()
+	want := os.Getenv("JOKER_WASM_ENGINE")
+	if want == "native" {
+		want = "compiler"
+	}
+	if want == "compiler" || want == "interpreter" {
+		if got != want {
+			t.Fatalf("requested WASM engine %q, selected %q", want, got)
+		}
+		return
+	}
+	if got != "compiler" && got != "interpreter" {
+		t.Fatalf("invalid actual WASM engine %q", got)
+	}
+}
+
+func TestEmbeddedJokerWASMEngineAndNumericLoop(t *testing.T) {
+	// Independently known sum; the host stays native and only the function's
+	// emitted WASM runs inside Joker's selected wazero execution engine.
+	bridge := NewBridge("wasm-engine-session", BridgeFuncs{})
+	out, err := ExecuteEmbeddedJoker(context.Background(), `
+ (let [sum (jit/compile-wasm
+             (fn [n] (loop [i 0 total 0]
+                       (if (< i n) (recur (+ i 1) (+ total i)) total))))]
+   [(sum 100) (jit/wasm-engine)])`, bridge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result []json.RawMessage
+	if err := json.Unmarshal([]byte(out), &result); err != nil || len(result) != 2 {
+		t.Fatal(out, err)
+	}
+	var sum int
+	var engine string
+	if err := json.Unmarshal(result[0], &sum); err != nil || sum != 4950 {
+		t.Fatal(out, err)
+	}
+	if err := json.Unmarshal(result[1], &engine); err != nil {
+		t.Fatal(out, err)
+	}
+	assertJokerWASMEngine(t, engine)
+	if core.WasmEngineExported() != engine {
+		t.Fatal("script/host engine disagreement")
 	}
 }

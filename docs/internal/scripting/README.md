@@ -35,6 +35,8 @@ The native Joker host provides `joker.jit/compile-wasm`. Eligible user functions
   (kernel 6 6))
 ```
 
+Set `JOKER_WASM_ENGINE=compiler` before starting Gi to require machine-code compilation without fallback; `interpreter` selects WASM interpretation, while `auto` prefers compilation and may fall back. `(jit/wasm-engine)` reports actual selection. The shared engine initialises once. See [Joker execution selection](joker.md#wasm-execution-selection).
+
 Compilation eligibility and integer/float semantics belong to the pinned Joker release. General bridge scripts can use ordinary native Joker evaluation around explicitly compiled kernels. Native Joker remains a trusted scripting surface, not a capability sandbox.
 
 QuickJS is the only whole runtime hosted in a wazero isolate. It also executes MCP codemode through the existing capability-limited codemode host; internal scripts do not gain codemode's MCP tools automatically. See [MCP codemode](../codemode.md), [bridge](bridge.md), [Joker](joker.md), [namespaces](namespaces.md) and [contract](contract.md).

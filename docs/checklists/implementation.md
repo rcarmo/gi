@@ -25,6 +25,7 @@
 
 - [x] Make `/settings` and `/config` explicitly identify the live runtime summary; preserve full workspace paths, distinguish effective/configured thinking and theme, show wheel scrolling, normalized provider retry policy and complete compaction budgets. [Contract](../internal/tui-settings.md).
 
+- [x] Upgrade native Joker to v42.12.2; verify actual explicit compiler/interpreter selection for emitted kernels, sum=4950 and no silent compiler fallback; full 2,173-test Go regression, race repetitions, nested upstream checks, no-cgo build and profile analysis. [Verification](../internal/scripting/joker-v42.12.2.md).
 - [x] Upgrade go-ai to v1.0.4 and native Joker to go-joker/v42 v42.12.1; retire the whole-runtime Joker WASI probe/overlay. Verify native user-function WASM compilation; QuickJS is the only whole-runtime isolate. [Runtime contract](../internal/scripting/README.md).
 - [x] Superseded 2026-10-06: removed whole-Joker WASI bootstrap overlay and guest tests per Rui; native Joker emits user-function WASM only.
 - [x] Replace go-ai Pi 0.99.2 parity commit pin with a proper upstream release tag: `go-ai` v1.0.1 (`4f40216`).
