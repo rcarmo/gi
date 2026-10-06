@@ -45,13 +45,36 @@ func (c *chatTUI) renderedTranscriptRows(width int) []transcriptSearchRow {
 	return c.transcriptRowsAtWidth(width)
 }
 
+// Projection memo retains one bounded width/state snapshot. It uses the
+// existing exact block-generation invalidation, including theme, expansion,
+// selection and replaced streaming lines; running tool rows bypass it.
+type transcriptProjectionMemo struct {
+	generation uint64
+	width      int
+	rows       []transcriptSearchRow
+}
+
+const transcriptProjectionMaxCells = 256 * 1024
+
 func (c *chatTUI) transcriptRowsAtWidth(width int) []transcriptSearchRow {
 	width = max(1, width)
+	blocks := c.transcriptBlocks()
+	generation := c.blocksMemo.generation
+	cacheable := true
+	for _, b := range blocks {
+		if b.Status == "running" {
+			cacheable = false
+			break
+		}
+	}
+	if memo := c.projectionMemo; cacheable && memo != nil && memo.generation == generation && memo.width == width {
+		return memo.rows
+	}
 	refs := c.transcriptBlockRefs
 	defer func() { c.transcriptBlockRefs = refs }()
 	var rows []transcriptSearchRow
 	previousKind := ""
-	for _, block := range c.buildTranscriptRenderableBlocks(c.visibleTranscript()) {
+	for _, block := range blocks {
 		if block.Kind == "thinking_indicator" {
 			continue
 		}
@@ -100,6 +123,11 @@ func (c *chatTUI) transcriptRowsAtWidth(width int) []transcriptSearchRow {
 			row := run.cells[0].row
 			rows[row].wrapped = append(rows[row].wrapped, run)
 		}
+	}
+	if cacheable && len(rows) <= transcriptProjectionMaxCells/width {
+		c.projectionMemo = &transcriptProjectionMemo{generation: generation, width: width, rows: rows}
+	} else {
+		c.projectionMemo = nil
 	}
 	return rows
 }

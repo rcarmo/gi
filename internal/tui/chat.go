@@ -261,8 +261,9 @@ type chatTUI struct {
 	thinkingMemoKey             string                // effectiveThinking's last model+level and answer
 	heldNoticeShown             map[string]bool       // sessions told about held interrupted turns
 	thinkingMemoValue           string
-	blocksMemo                  transcriptBlocksMemo // block list and keys for unchanged transcripts (#34)
-	jumpToLatest                jumpToLatestRect     // where the cue was drawn (none: width 0)
+	blocksMemo                  transcriptBlocksMemo      // block list and keys for unchanged transcripts (#34)
+	projectionMemo              *transcriptProjectionMemo // bounded retained search/selection projection
+	jumpToLatest                jumpToLatestRect          // where the cue was drawn (none: width 0)
 	regularPrinted              int
 	regularSessionPending       bool
 	regularWidth, regularHeight int

@@ -277,21 +277,31 @@ func (s *Store) GetSession(ctx context.Context, id string) (*Session, error) {
 }
 
 func (s *Store) ListSessions(ctx context.Context) ([]Session, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		select id, parent_session_id, title, state_json, aliases_json, created_at, updated_at
-		from sessions
-		order by updated_at desc, created_at desc
+	// One read transaction preserves an identity/dimension snapshot across
+	// the two batched queries, without two extra queries per session.
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, `
+		select s.id, s.parent_session_id, s.title, s.state_json, s.aliases_json, s.created_at, s.updated_at,
+		coalesce(i.agent_id,''), coalesce(i.channel,''), coalesce(i.account,''), coalesce(i.canonical_scope_signature,'')
+		from sessions s left join session_identities i on i.session_id=s.id
+		order by s.updated_at desc, s.created_at desc
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("list sessions: %w", err)
 	}
 	defer rows.Close()
 	var out []Session
+	byID := map[string]int{}
 	for rows.Next() {
 		var item Session
+		var identity SessionIdentityRuntime
 		var parent sql.NullString
 		var stateJSON, aliasesJSON string
-		if err := rows.Scan(&item.ID, &parent, &item.Title, &stateJSON, &aliasesJSON, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &parent, &item.Title, &stateJSON, &aliasesJSON, &item.CreatedAt, &item.UpdatedAt, &identity.AgentID, &identity.Channel, &identity.Account, &identity.CanonicalScopeSignature); err != nil {
 			return nil, err
 		}
 		if parent.Valid {
@@ -301,18 +311,63 @@ func (s *Store) ListSessions(ctx context.Context) ([]Session, error) {
 		if err != nil {
 			return nil, err
 		}
-		snapshot, err := s.RequireSessionIdentitySnapshot(ctx, item.ID)
-		if err != nil {
-			return nil, err
+		identity.AgentID, identity.Channel, identity.Account = normalizeRuntimeIdentityTuple(identity.AgentID, identity.Channel, identity.Account)
+		if identity.AgentID == "" || identity.Channel == "" || identity.Account == "" {
+			return nil, sql.ErrNoRows
 		}
-		item.Scope = s.scopeFromIdentitySnapshot(snapshot)
+		identity.CanonicalScopeSignature = strings.TrimSpace(identity.CanonicalScopeSignature)
+		item.Scope = s.scopeFromIdentitySnapshot(SessionIdentitySnapshot{Runtime: identity, Dimensions: map[string]string{}})
 		item.Aliases, err = unmarshalJSONStringArray(aliasesJSON)
 		if err != nil {
 			return nil, err
 		}
+		byID[item.ID] = len(out)
 		out = append(out, item)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if len(out) > 0 {
+		dimRows, err := tx.QueryContext(ctx, `select session_id,coalesce(dimension_name,''),coalesce(dimension_value,'') from session_identity_dimensions order by session_id,ordinal`)
+		if err != nil {
+			return nil, err
+		}
+		defer dimRows.Close()
+		for dimRows.Next() {
+			var id, name, value string
+			if err := dimRows.Scan(&id, &name, &value); err != nil {
+				return nil, err
+			}
+			i, ok := byID[id]
+			if !ok {
+				continue
+			}
+			name = strings.TrimSpace(strings.ToLower(name))
+			value = strings.TrimSpace(strings.ToLower(value))
+			if name != "" && value != "" {
+				out[i].Scope.Values[name] = value
+			}
+		}
+		if err := dimRows.Err(); err != nil {
+			return nil, err
+		}
+		if err := dimRows.Close(); err != nil {
+			return nil, err
+		}
+		for i := range out {
+			for name := range out[i].Scope.Values {
+				out[i].Scope.Dimensions = append(out[i].Scope.Dimensions, name)
+			}
+			sort.Strings(out[i].Scope.Dimensions)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (s *Store) AddMessage(ctx context.Context, id, sessionID, role, content string, payload map[string]any) error {

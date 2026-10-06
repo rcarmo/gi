@@ -177,6 +177,18 @@ test-web-basic-send: test-instance-start
 test: $(TESTPROFILE)
 	$(TESTPROFILE) go $(if $(TEST_RUN),-run '$(TEST_RUN)') $(TEST_PKGS)
 
+# Local fake-provider/MCP acceptance; no live credentials or browser fixture.
+.PHONY: test-mcp-provider-auth
+test-mcp-provider-auth: $(TESTPROFILE)
+	$(TESTPROFILE) gotest $(RACE) -run 'TestProviderAuth|TestProviderToken' -count=3 ./internal/mcp ./internal/inference
+
+.PHONY: bench-hotspot-targets test-hotspot-regressions
+bench-hotspot-targets: $(TESTPROFILE)
+	$(TESTPROFILE) gotest -run '^$$' -bench 'Benchmark(RuntimeOptions|ListSessions|TranscriptProjection)$$' -benchtime=1s -benchmem ./internal/inference ./internal/store ./internal/tui
+
+test-hotspot-regressions: $(TESTPROFILE)
+	$(TESTPROFILE) gotest $(RACE) -run 'TestRuntimeOptions|TestListSessions|TestSession.*Identity|TestLegacySessionIdentity|TestTranscript(Search|Projection|BlocksMemo|Window)' -count=3 ./internal/inference ./internal/store ./internal/tui
+
 .PHONY: test-shell-runtime check-cross-build test-active-steering test-web-terminal bench-web-terminal test-vnc-api
 
 test-vnc-api:

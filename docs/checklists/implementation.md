@@ -20,6 +20,9 @@
 
 # gi implementation checklist
 
+- [x] Tune catalogue-option lookup, batched session-identity hydration and bounded unchanged TUI projection; equivalent benchmarks, invalidation/isolation/race regressions and full Go/vet pass. [Measurements and limits](../internal/runtime-hotspots.md).
+- [x] gi#29: provider-backed MCP HTTP authentication (`auth.provider`), secure endpoint validation, per-request credentials with cancellable refresh/lock waits, rotation/logout and redirect/Host isolation, MCP OAuth exclusion and fake-provider CLI tests. [Contract](../internal/mcp.md#provider-authentication).
+
 - [x] Make `/settings` and `/config` explicitly identify the live runtime summary; preserve full workspace paths, distinguish effective/configured thinking and theme, show wheel scrolling, normalized provider retry policy and complete compaction budgets. [Contract](../internal/tui-settings.md).
 
 - [x] Upgrade Joker and go-ai to pinned upstream commits; add a whole-interpreter WASI evaluation/cancellation smoke target. [Scope and WASI bootstrap fix](../internal/scripting/joker-wasi.md). (Codemode later shipped on QuickJS under wazero; see below.)

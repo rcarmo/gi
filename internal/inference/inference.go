@@ -321,6 +321,23 @@ func ListRuntimeOptions(defaultProvider, defaultModel string, enabledModels []st
 		addProvider(provider)
 	}
 
+	// GetModel clones an entire provider catalogue before finding one ID.
+	// Snapshot each requested provider once per call; no cross-call cache can
+	// conceal a registry change or an external credential rotation.
+	catalogues := map[string][]*goai.Model{}
+	findModel := func(provider, id string) *goai.Model {
+		list, ok := catalogues[provider]
+		if !ok {
+			list = goai.ListModels(goai.Provider(provider))
+			catalogues[provider] = list
+		}
+		for _, m := range list {
+			if m.ID == id {
+				return m
+			}
+		}
+		return nil
+	}
 	addProvider(defaultProvider)
 	for _, label := range enabledModels {
 		provider, id := splitModelLabel(defaultProvider, label)
@@ -328,14 +345,14 @@ func ListRuntimeOptions(defaultProvider, defaultModel string, enabledModels []st
 		if full != "" {
 			enabledSet[full] = true
 		}
-		if model := goai.GetModel(goai.Provider(provider), id); model != nil {
+		if model := findModel(provider, id); model != nil {
 			addModel(provider, model, true)
 		} else {
 			addSyntheticModel(provider, id, true)
 		}
 	}
 	if provider, id := splitModelLabel(defaultProvider, defaultModel); id != "" {
-		if model := goai.GetModel(goai.Provider(provider), id); model != nil {
+		if model := findModel(provider, id); model != nil {
 			addModel(provider, model, enabledSet[modelLabel(provider, id)])
 		} else {
 			addSyntheticModel(provider, id, enabledSet[modelLabel(provider, id)])
@@ -344,7 +361,11 @@ func ListRuntimeOptions(defaultProvider, defaultModel string, enabledModels []st
 
 	for provider, entry := range authenticatedProviders {
 		addProvider(provider)
-		models := goai.ListModels(goai.Provider(provider))
+		models, ok := catalogues[provider]
+		if !ok {
+			models = goai.ListModels(goai.Provider(provider))
+			catalogues[provider] = models
+		}
 		if p := oauth.GetProvider(provider); p != nil {
 			models = p.ModifyModels(models, authEntryToOAuthCredentials(entry))
 		}
