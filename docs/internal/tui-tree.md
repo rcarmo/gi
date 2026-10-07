@@ -38,7 +38,8 @@ is therefore a session:
   branch's session.
 - Navigating anywhere else copies the session up to that point
   (`store.BranchSessionBefore`). The copy records its source in the
-  `tree_parent` state key.
+  `tree_parent` state key. It keeps the source agent, channel and account,
+  with a fresh logical chat and routing identity.
 - The tree is the branch family: the root session and every session whose
   `tree_parent` chain leads to it. Copied messages carry
   `forked_from_message_id`, so a copy's history maps onto the original
@@ -47,7 +48,58 @@ is therefore a session:
   at each fork, and so does gi.
 
 `/fork` and `/clone` copies drop `tree_parent` and the labels. They start
-their own tree, as Pi's `/fork` and `/clone` start a new session file.
+their own tree, as Pi's `/fork` and `/clone` start a new session file. Both
+keep the source agent by default. `/fork` copies history before the selected
+user message; `/clone` copies all history. Blank titles inherit the source
+name. `/spawn [@agentN]` creates or opens a peer with the existing clipped-context
+behaviour; the legacy `/fork @agentN` form still follows that peer path.
+
+Each copy has its own session ID, opaque key, canonical scope signature and
+aliases, using its new logical chat ID. It does not take the source's main
+session flag or inbound channel binding. `/resume` or `/switch session_id`
+selects an exact copy. `/switch @agent` retains the existing newest-session
+list order when several sessions share an agent. An explicit different agent
+in `/clone @agentN` requests a peer copy; naming the source agent keeps its
+channel and account.
+
+The web fork endpoint and `POST /api/sessions` with `fork_from` use the same
+store contract: an omitted `agent_id` preserves the source agent; a different
+explicit `agent_id` requests a peer copy. The fork response reports the
+stored agent identity.
+
+`make test-session-copy-identity` repeats store, TUI and web checks with the
+race detector. Coverage includes concurrent copies, alias/key resolution,
+main routing, history cutoffs, tree/summary navigation and peer commands.
+
+## Copy profiling (2026-10-07)
+
+On Go 1.27.1/linux-amd64, `make bench-session-copy` copies 100 messages of
+1,024 bytes each into a file-backed SQLite database and deletes the copy to
+bound the database size. Cleanup is timed equally in both runs; race checks
+use a separate workload. Source revision: `ceb9fd2` plus this change.
+
+| 100-message copy | Before batching | Transaction + prepared insert |
+| --- | ---: | ---: |
+| ns/op | 16,406,538 | 3,946,761 |
+| B/op | 353,532 | 333,415 |
+| allocs/op | 6,343 | 5,540 |
+
+Cumulative CPU and both `alloc_space`/`alloc_objects` profiles identified
+per-message SQLite insert and timestamp-update work. Copies now insert the
+session, identity, aliases and messages in one transaction, reuse the message
+insert statement and update the timestamp once. A triggered failure on the
+second message rolls back the destination and its routing identity. Source
+history/state stay unchanged. Remaining allocations mostly come from message
+loading, payload decoding and the SQLite driver; no new cache was added.
+
+Verification: 32 focused tests repeated three times under the race detector,
+2,181 Go tests across 35 packages, vet and `CGO_ENABLED=0 make build` passed.
+Profiling also found a tree-golden test that changed global `time.Local` while
+pprof read the clock. Label times now use the injected clock's location, so
+the golden fixes its clock to UTC without mutating process state. No browser
+or PTY fixture rerun was performed. The review delegate timed out and supplied
+no review result. Raw profiles, test binaries and disposable logs were removed
+after analysis.
 
 Entries are the session messages as Pi session entries (the `/export` JSONL
 mapping in `internal/sessionexport`): user and assistant messages, tool calls

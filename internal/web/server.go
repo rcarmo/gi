@@ -284,16 +284,8 @@ func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
 		id := store.NowID("session")
 		if req.ForkFrom != "" {
 			agentID := req.AgentID
-			if agentID == "" {
-				var err error
-				agentID, err = s.nextForkAgentID(ctx, req.ForkFrom)
-				if err != nil {
-					writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
-					return
-				}
-			}
 			title := req.Title
-			if title == "" {
+			if title == "" && agentID != "" {
 				title = "@" + agentID
 			}
 			session, err := s.store.CloneSession(ctx, req.ForkFrom, id, title, agentID)
@@ -874,16 +866,8 @@ func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request, sessi
 		return
 	}
 	agentID := req.AgentID
-	if agentID == "" {
-		var err error
-		agentID, err = s.nextForkAgentID(r.Context(), sessionID)
-		if err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
-			return
-		}
-	}
 	title := req.Title
-	if title == "" {
+	if title == "" && agentID != "" {
 		title = "@" + agentID
 	}
 	cloned, err := s.store.CloneSession(r.Context(), sessionID, store.NowID("session"), title, agentID)
@@ -891,7 +875,7 @@ func (s *Server) handleSessionFork(w http.ResponseWriter, r *http.Request, sessi
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"branch": map[string]any{"chat_jid": "gi:" + cloned.ID, "label": cloned.Title, "agent_id": agentID, "source_chat_jid": "gi:" + sessionID}})
+	writeJSON(w, http.StatusCreated, map[string]any{"branch": map[string]any{"chat_jid": "gi:" + cloned.ID, "label": cloned.Title, "agent_id": cloned.Scope.AgentID, "source_chat_jid": "gi:" + sessionID}})
 }
 
 const defaultForkAgentID = "agent"

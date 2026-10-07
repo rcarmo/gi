@@ -113,8 +113,7 @@ func (c *chatTUI) acceptForkSelection() {
 		return
 	}
 	messageID, text := c.modelMenuValues[strconv.Itoa(i)], c.modelMenuChoices[i]
-	target := c.nextForkAgentID()
-	forked, err := c.store.CloneSessionBefore(context.Background(), c.sessionID, store.NowID("session"), "@"+target, target, messageID)
+	forked, err := c.store.CloneSessionBefore(context.Background(), c.sessionID, store.NowID("session"), "", "", messageID)
 	if err != nil {
 		c.modelMenuError = "fork failed: " + err.Error()
 		if c.app != nil {

@@ -76,9 +76,6 @@ func TestTreeSelectorMatchesPi(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("HOME", "/home/u") // the golden's home, for ~ paths
-	local := time.Local
-	time.Local = time.UTC // the golden's clock is UTC
-	defer func() { time.Local = local }()
 	now, _ := time.Parse(time.RFC3339, "2026-10-03T21:12:00Z")
 	str := func(p *string) string {
 		if p == nil {

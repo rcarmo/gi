@@ -347,8 +347,7 @@ func (c *chatTUI) finishTreeNavigation(tree *sessionTree, leaf, editorText, summ
 		if source == "" {
 			source = c.sessionID
 		}
-		agent := c.nextForkAgentID()
-		branch, err := c.store.BranchSessionBefore(ctx, source, store.NowID("session"), "@"+agent, agent, before)
+		branch, err := c.store.BranchSessionBefore(ctx, source, store.NowID("session"), "", "", before)
 		if err != nil {
 			c.appendTranscript("error: tree: " + err.Error())
 			return

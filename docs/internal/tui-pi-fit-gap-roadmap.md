@@ -20,7 +20,9 @@ remains as an alias), `/name` with no argument shows the current name,
 `docs/internal/session-import.md`),
 `/compact [instructions]` passes the focus to the before-compact hook and the
 summary, and `/fork` opens Pi's "Fork from Message" selector (history before
-the chosen message goes to a new session; the message returns to the editor).
+the chosen message goes to a new session for the same agent; the message
+returns to the editor). `/clone` copies all history for the same agent. Both
+copies keep the source channel/account and get distinct chat identities.
 gi's former `/fork @agentN` peer session is now `/spawn [@agentN]` (the old
 form still works).
 
@@ -105,7 +107,7 @@ Implemented:
 - detailed `/session` command with queue/steering counts and active turn state;
 - `/new`, `/name`, `/resume`, `/clone`, `/copy`, and `/reload` command/session workflow affordances;
 - Pi's session tree navigator through `/tree` (branches, labels, branch summaries);
-- peer session creation via `/fork`;
+- peer session creation via `/spawn` (legacy `/fork @agentN` still works);
 - session switching via `/switch`;
 - peer message sending via `/send`;
 - topic-native status rendering for runtime turn/tool/hook/routing/session/inbound/dispatcher events;

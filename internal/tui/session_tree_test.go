@@ -66,6 +66,13 @@ func TestTreeNavigatesBranchFamily(t *testing.T) {
 	if err != nil || store.TreeParent(*sess) != "A" {
 		t.Fatalf("branch %+v %v", sess, err)
 	}
+	original, err := c.store.GetSession(context.Background(), "A")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sess.Scope.AgentID != original.Scope.AgentID || sess.Scope.Channel != original.Scope.Channel || sess.Scope.Account != original.Scope.Account || sess.Scope.Values["chat"] == original.Scope.Values["chat"] {
+		t.Fatalf("tree copy changed agent/account or reused chat: %+v", sess.Scope)
+	}
 	c.input.SetText("")
 	treeTestMessage(t, c, branch, "user", "Start with the parser")
 	treeTestMessage(t, c, branch, "assistant", "Parser done")
@@ -119,6 +126,13 @@ func TestTreeNavigatesBranchFamily(t *testing.T) {
 	c.finishTreeNavigation(tree, target, "", "SUMMARY")
 	if c.sessionID == "A" || c.sessionID == branch {
 		t.Fatalf("summary did not get a new copy: %s", c.sessionID)
+	}
+	summarised, err := c.store.GetSession(context.Background(), c.sessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summarised.Scope.AgentID != original.Scope.AgentID || summarised.Scope.Values["chat"] == sess.Scope.Values["chat"] {
+		t.Fatalf("summary copy changed agent or reused chat: %+v", summarised.Scope)
 	}
 	messages, err := c.store.ListMessages(context.Background(), c.sessionID)
 	if err != nil {

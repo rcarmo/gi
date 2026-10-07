@@ -259,7 +259,7 @@ Session selection now advances a generation token before rendering. Timeline, se
 
 The composer is keyed by session ID. Gi retains draft text, browser File references and file/message references in a page-local map. Switching restores that session's draft and clears outgoing streaming/model/context/queue state before fetching the incoming state. The old component's reference callbacks cannot clear the new session's references. This cache does not survive page reloads; it does not upload attachments or persist drafts to SQLite.
 
-The New action uses the existing native fork endpoint. Reposting a main session for `web` returns its existing main session, so it cannot create a distinct chat. Forking creates a child with the store's parent relationship and allocated agent identity; it can include inherited transcript history.
+The New action uses the existing native fork endpoint. Reposting a main session for `web` returns its existing main session, so it cannot create a distinct chat. Forking creates a child with the store's parent relationship and a distinct chat identity, preserving the source agent/channel/account unless a different `agent_id` is explicitly supplied. It can include inherited transcript history.
 
 `getAgentQueueState` now projects actual queued turn IDs and text for the requested session. Reorder, steer and durable queue recovery are not implemented by this slice. The model reader uses selected-session state; model mutation still needs its own parity work. Context usage is cleared on selection and stays unavailable until a native source exists.
 

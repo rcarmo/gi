@@ -42,6 +42,17 @@ func TestForkFromEarlierUserMessage(t *testing.T) {
 	if c.modelMenuOpen || c.sessionID == "A" {
 		t.Fatalf("fork did not switch: open=%v session=%s", c.modelMenuOpen, c.sessionID)
 	}
+	original, err := c.store.GetSession(ctx, "A")
+	if err != nil {
+		t.Fatal(err)
+	}
+	forked, err := c.store.GetSession(ctx, c.sessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if forked.Scope.AgentID != original.Scope.AgentID || forked.Scope.Values["chat"] == original.Scope.Values["chat"] {
+		t.Fatal("fork changed agent or shared routing identity", forked, original)
+	}
 	if c.input.Text() != "second question" {
 		t.Fatalf("editor = %q, want the selected message", c.input.Text())
 	}
@@ -63,5 +74,57 @@ func TestForkWithoutUserMessages(t *testing.T) {
 	c.handleCommand("/fork")
 	if c.modelMenuOpen || !strings.Contains(strings.Join(c.transcript, "\n"), "No messages to fork from") {
 		t.Fatalf("empty fork: open=%v transcript=%v", c.modelMenuOpen, c.transcript)
+	}
+}
+
+func TestCloneDefaultKeepsAgentAndSpawnCreatesPeer(t *testing.T) {
+	c := sessionTestChat(t)
+	source := c.sessionID
+	original, err := c.store.GetSession(context.Background(), source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.store.AddMessage(context.Background(), "clone-message", source, "user", "kept", nil); err != nil {
+		t.Fatal(err)
+	}
+	lines := c.cloneSessionLines([]string{"/clone"})
+	if len(lines) == 0 || strings.HasPrefix(lines[0], "error:") {
+		t.Fatal(lines)
+	}
+	cloned, err := c.store.GetSession(context.Background(), c.sessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cloned.Scope.AgentID != original.Scope.AgentID || cloned.ParentSessionID != source || cloned.Scope.Values["chat"] == original.Scope.Values["chat"] {
+		t.Fatal(original, cloned)
+	}
+	// Agent references keep the existing deterministic session-list order;
+	// exact IDs always let the user choose between same-agent copies.
+	for _, id := range []string{source, cloned.ID} {
+		resolved, err := c.resolveSessionRef(id)
+		if err != nil || resolved.ID != id {
+			t.Fatal("exact session reference misrouted", resolved, err)
+		}
+	}
+	sessionIDs, agentIDs, err := c.loadSessionIdentityIndex(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected, ok := findSessionIDByNormalizedAgentRef(sessionIDs, agentIDs, original.Scope.AgentID)
+	resolved, err := c.resolveSessionRef("@" + original.Scope.AgentID)
+	if !ok || err != nil || resolved.ID != expected {
+		t.Fatal("agent reference changed selection order", resolved, err)
+	}
+	c.handleCommand("/spawn")
+	peer, err := c.store.GetSession(context.Background(), c.sessionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if peer.Scope.AgentID == original.Scope.AgentID {
+		t.Fatal("spawn no longer creates peer", peer)
+	}
+	messages, err := c.store.ListMessages(context.Background(), peer.ID)
+	if err != nil || len(messages) != 2 || messages[0].Content != "kept" || messages[1].Payload["kind"] != "fork" {
+		t.Fatal("spawn lost peer context clipping/provenance", messages, err)
 	}
 }

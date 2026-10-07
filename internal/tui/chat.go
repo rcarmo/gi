@@ -3764,11 +3764,12 @@ func (c *chatTUI) cloneSessionLines(fields []string) []string {
 	if len(fields) > 1 {
 		target = strings.TrimPrefix(strings.TrimSpace(fields[1]), "@")
 	}
-	if target == "" {
-		target = c.nextForkAgentID()
+	title := ""
+	if target != "" {
+		title = "@" + target
 	}
 	newID := store.NowID("session")
-	cloned, err := c.store.CloneSession(context.Background(), c.sessionID, newID, "@"+target, target)
+	cloned, err := c.store.CloneSession(context.Background(), c.sessionID, newID, title, target)
 	if err != nil {
 		return []string{fmt.Sprintf("error: clone session: %v", err)}
 	}

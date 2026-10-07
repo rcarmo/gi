@@ -177,6 +177,14 @@ test-web-basic-send: test-instance-start
 test: $(TESTPROFILE)
 	$(TESTPROFILE) go $(if $(TEST_RUN),-run '$(TEST_RUN)') $(TEST_PKGS)
 
+# Same-agent copies, distinct routing identities and explicit peer creation.
+.PHONY: test-session-copy-identity bench-session-copy
+bench-session-copy: $(TESTPROFILE)
+	$(TESTPROFILE) gotest -run '^$$' -bench '^BenchmarkCloneSession$$' -benchtime=2s -benchmem ./internal/store
+
+test-session-copy-identity: $(TESTPROFILE)
+	$(TESTPROFILE) gotest $(RACE) -run 'TestCloneSession|TestCloneDefault|TestCloneSessionCommand|TestFork|TestCreateSessionForkFrom|TestTree|TestResolveSessionRef|TestHandleCommandFork' -count=3 ./internal/store ./internal/tui ./internal/web
+
 .PHONY: test-code-index-guidance
 test-code-index-guidance: $(TESTPROFILE)
 	$(TESTPROFILE) gotest $(RACE) -run 'TestIndexPanel|TestPlainCodeWorkspaceExplicitRootPolicy|TestConfiguredScanWithoutBuiltinRoots|TestOptionalRootsAbsentAppearAndDisappear' -count=3 ./internal/tui ./internal/search/indexer

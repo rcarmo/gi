@@ -189,40 +189,44 @@ func (s *Store) CreateSessionWithMetadata(ctx context.Context, id, parentSession
 }
 
 func (s *Store) createSessionWithMetadataAndOpaqueKey(ctx context.Context, id, parentSessionID, title string, state map[string]any, scope *session.SessionScope, aliases []string, opaqueKey string) (*Session, error) {
-	stateJSON, err := marshalJSON(state)
-	if err != nil {
-		return nil, err
-	}
-	if scope == nil {
-		return nil, sql.ErrNoRows
-	}
-	aliasesJSON, err := marshalJSONArray(aliases)
-	if err != nil {
-		return nil, err
-	}
-	var parent any
-	if parentSessionID != "" {
-		parent = parentSessionID
-	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create session begin tx: %w", err)
 	}
 	defer tx.Rollback()
-	_, err = tx.ExecContext(ctx, `
-		insert into sessions (id, parent_session_id, title, state_json, aliases_json, created_at, updated_at)
-		values (?, ?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`)
-	`, id, parent, title, stateJSON, aliasesJSON)
-	if err != nil {
-		return nil, fmt.Errorf("create session: %w", err)
-	}
-	if err := s.upsertSessionIdentityTx(ctx, tx, id, scope, aliases, opaqueKey); err != nil {
+	if err := s.insertSessionTx(ctx, tx, id, parentSessionID, title, state, scope, aliases, opaqueKey); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("create session commit: %w", err)
 	}
 	return s.GetSession(ctx, id)
+}
+
+func (s *Store) insertSessionTx(ctx context.Context, tx *sql.Tx, id, parentSessionID, title string, state map[string]any, scope *session.SessionScope, aliases []string, opaqueKey string) error {
+	stateJSON, err := marshalJSON(state)
+	if err != nil {
+		return err
+	}
+	if scope == nil {
+		return sql.ErrNoRows
+	}
+	aliasesJSON, err := marshalJSONArray(aliases)
+	if err != nil {
+		return err
+	}
+	var parent any
+	if parentSessionID != "" {
+		parent = parentSessionID
+	}
+	_, err = tx.ExecContext(ctx, `
+		insert into sessions (id, parent_session_id, title, state_json, aliases_json, created_at, updated_at)
+		values (?, ?, ?, ?, ?, `+defaultNow+`, `+defaultNow+`)
+	`, id, parent, title, stateJSON, aliasesJSON)
+	if err != nil {
+		return fmt.Errorf("create session: %w", err)
+	}
+	return s.upsertSessionIdentityTx(ctx, tx, id, scope, aliases, opaqueKey)
 }
 
 func (s *Store) scopeFromIdentitySnapshot(snapshot SessionIdentitySnapshot) *session.SessionScope {
@@ -614,7 +618,10 @@ func (s *Store) CloneSession(ctx context.Context, sourceSessionID, newID, newTit
 
 // CloneSessionBefore copies the session's history up to, but excluding,
 // beforeMessageID (Pi's /fork from an earlier user message). An empty
-// beforeMessageID copies everything; an unknown one is an error.
+// beforeMessageID copies everything; an unknown one is an error. An empty
+// newAgentID keeps the source agent/channel/account with a fresh logical chat.
+// An explicit different agent ID creates a peer copy; naming the source agent
+// retains its channel and account.
 func (s *Store) CloneSessionBefore(ctx context.Context, sourceSessionID, newID, newTitle, newAgentID, beforeMessageID string) (*Session, error) {
 	source, err := s.GetSession(ctx, sourceSessionID)
 	if err != nil {
@@ -636,7 +643,15 @@ func (s *Store) CloneSessionBefore(ctx context.Context, sourceSessionID, newID, 
 	delete(state, treeParentKey) // a copy starts its own /tree
 	delete(state, treeLabelsKey)
 	logicalChatID := newID
-	alloc := session.AllocateDefaultSession(newAgentID, "gi", "default", logicalChatID)
+	channel, account := "gi", "default"
+	if strings.TrimSpace(newAgentID) == "" || strings.EqualFold(strings.TrimSpace(newAgentID), source.Scope.AgentID) {
+		newAgentID = source.Scope.AgentID
+		channel, account = source.Scope.Channel, source.Scope.Account
+	}
+	alloc := session.AllocateDefaultSession(newAgentID, channel, account, logicalChatID)
+	if strings.TrimSpace(newTitle) == "" {
+		newTitle = source.Title
+	}
 	messages, err := s.ListMessages(ctx, sourceSessionID)
 	if err != nil {
 		return nil, err
@@ -654,21 +669,45 @@ func (s *Store) CloneSessionBefore(ctx context.Context, sourceSessionID, newID, 
 		}
 		messages = messages[:cut]
 	}
-	cloned, err := s.CreateSessionWithMetadata(ctx, newID, sourceSessionID, newTitle, state, &alloc.Scope, alloc.SessionAliases)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
+		return nil, fmt.Errorf("clone session begin tx: %w", err)
+	}
+	defer tx.Rollback()
+	if err := s.insertSessionTx(ctx, tx, newID, sourceSessionID, newTitle, state, &alloc.Scope, alloc.SessionAliases, ""); err != nil {
 		return nil, err
 	}
-	for _, msg := range messages {
-		payload := map[string]any{}
-		for k, v := range msg.Payload {
-			payload[k] = v
+	if len(messages) > 0 {
+		insert, err := tx.PrepareContext(ctx, `
+			insert into messages (id, session_id, role, content, payload_json, created_at)
+			values (?, ?, ?, ?, ?, `+defaultNow+`)
+		`)
+		if err != nil {
+			return nil, fmt.Errorf("clone messages prepare: %w", err)
 		}
-		payload["forked_from_message_id"] = msg.ID
-		if err := s.AddMessage(ctx, NowID("msg"), cloned.ID, msg.Role, msg.Content, payload); err != nil {
+		defer insert.Close()
+		for _, msg := range messages {
+			payload := make(map[string]any, len(msg.Payload)+1)
+			for k, v := range msg.Payload {
+				payload[k] = v
+			}
+			payload["forked_from_message_id"] = msg.ID
+			payloadJSON, err := marshalJSON(payload)
+			if err != nil {
+				return nil, err
+			}
+			if _, err := insert.ExecContext(ctx, NowID("msg"), newID, msg.Role, msg.Content, payloadJSON); err != nil {
+				return nil, fmt.Errorf("clone message: %w", err)
+			}
+		}
+		if _, err := tx.ExecContext(ctx, `update sessions set updated_at = `+defaultNow+` where id = ?`, newID); err != nil {
 			return nil, err
 		}
 	}
-	return s.GetSession(ctx, cloned.ID)
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("clone session commit: %w", err)
+	}
+	return s.GetSession(ctx, newID)
 }
 
 func NowID(prefix string) string {

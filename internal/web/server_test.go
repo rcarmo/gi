@@ -252,7 +252,7 @@ func TestCreateSessionMarksMainSession(t *testing.T) {
 	}
 }
 
-func TestForkSessionCreatesChildAgent(t *testing.T) {
+func TestForkSessionKeepsSourceAgent(t *testing.T) {
 	s, err := store.Open("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("open store: %v", err)
@@ -284,7 +284,7 @@ func TestForkSessionCreatesChildAgent(t *testing.T) {
 	if forkRes.Code != http.StatusCreated {
 		t.Fatalf("unexpected fork status: %d body=%s", forkRes.Code, forkRes.Body.String())
 	}
-	if !bytes.Contains(forkRes.Body.Bytes(), []byte(`"agent_id":"agent1"`)) {
+	if !bytes.Contains(forkRes.Body.Bytes(), []byte(`"agent_id":"agent"`)) {
 		t.Fatalf("unexpected fork response: %s", forkRes.Body.String())
 	}
 
@@ -302,8 +302,12 @@ func TestForkSessionCreatesChildAgent(t *testing.T) {
 			break
 		}
 	}
-	if child == nil || child.Scope == nil || child.Scope.AgentID != "agent1" {
+	if child == nil || child.Scope == nil || child.Scope.AgentID != "agent" {
 		t.Fatalf("unexpected child session: %#v", child)
+	}
+	main, err := s.ResolveMainSessionID(t.Context(), "agent", "gi", "default")
+	if err != nil || main != created.ID {
+		t.Fatal("fork stole source main routing", main, err)
 	}
 	msgs, err := s.ListMessages(t.Context(), child.ID)
 	if err != nil {
@@ -1563,5 +1567,41 @@ func TestMultipartUploadRetriesReuseOnlyExactSessionFile(t *testing.T) {
 	_, content, err := s.GetMediaContent(ctx, id)
 	if err != nil || string(content) != "original α" {
 		t.Fatal(string(content), err)
+	}
+}
+
+func TestCreateSessionForkFromKeepsAgentUnlessExplicitPeer(t *testing.T) {
+	s, err := store.Open("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	alloc := gisession.AllocateDefaultSession("neo", "web", "account-a", "source-copy")
+	source, _, err := s.ResolveOrCreateMainSessionFromAllocation(t.Context(), store.ResolveOrCreateSessionFromAllocationInput{ID: "source-copy", Title: "Source", Allocation: alloc})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := New(s, nil, config.RuntimeConfig{})
+	for _, input := range []struct{ body, agent string }{{`{"fork_from":"source-copy"}`, "neo"}, {`{"fork_from":"source-copy","agent_id":"peer7"}`, "peer7"}} {
+		req := httptest.NewRequest("POST", "/api/sessions", strings.NewReader(input.body))
+		res := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(res, req)
+		if res.Code != http.StatusCreated {
+			t.Fatal(res.Code, res.Body.String())
+		}
+		var copied store.Session
+		if err := json.Unmarshal(res.Body.Bytes(), &copied); err != nil {
+			t.Fatal(err)
+		}
+		if copied.Scope.AgentID != input.agent || copied.ParentSessionID != source.ID {
+			t.Fatal(copied)
+		}
+		if input.agent == "neo" && (copied.Scope.Channel != "web" || copied.Scope.Account != "account-a" || copied.Title != "Source") {
+			t.Fatal("lost source account/title", copied)
+		}
+	}
+	main, err := s.ResolveMainSessionID(t.Context(), "neo", "web", "account-a")
+	if err != nil || main != source.ID {
+		t.Fatal(main, err)
 	}
 }

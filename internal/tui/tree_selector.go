@@ -687,7 +687,8 @@ func (l *treeList) labelTimestamp(ts string) string {
 	if err != nil {
 		return ""
 	}
-	t, now := t.Local(), l.now().Local()
+	now := l.now()
+	t = t.In(now.Location())
 	clock := t.Format("15:04")
 	switch {
 	case t.Year() == now.Year() && t.YearDay() == now.YearDay():
