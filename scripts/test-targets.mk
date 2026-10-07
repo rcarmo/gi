@@ -178,6 +178,11 @@ test: $(TESTPROFILE)
 	$(TESTPROFILE) go $(if $(TEST_RUN),-run '$(TEST_RUN)') $(TEST_PKGS)
 
 # Same-agent copies, distinct routing identities and explicit peer creation.
+# Bounded compatibility checks for the Piclaw v3.3.0 shared UI pin.
+.PHONY: test-ui-pin-compatibility
+test-ui-pin-compatibility: $(TESTPROFILE)
+	$(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestStaticViewerPagesMatchPinnedPolicies|TestSettingsModuleHTTPGraph|TestStaticAssetsServePrecompressedVariants|TestSessionMediaEndpoints|TestMultipartUploadRetriesReuseOnlyExactSessionFile|TestWorkspaceEndpoints|TestWorkspaceFileRejectsSymlinkEscape|TestWorkspaceEditorCompatibility|TestSidePromptHTTP|TestPromptTargetingCurrentAgentStaysInSession|TestForkSessionKeepsSourceAgent|TestCreateSessionForkFromKeepsAgentUnlessExplicitPeer|TestQueueSteer' ./internal/web
+
 .PHONY: test-session-copy-identity bench-session-copy
 bench-session-copy: $(TESTPROFILE)
 	$(TESTPROFILE) gotest -run '^$$' -bench '^BenchmarkCloneSession$$' -benchtime=2s -benchmem ./internal/store
