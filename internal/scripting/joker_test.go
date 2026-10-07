@@ -404,3 +404,51 @@ func TestEmbeddedJokerWASMEngineAndNumericLoop(t *testing.T) {
 		t.Fatal("script/host engine disagreement")
 	}
 }
+
+func TestEmbeddedJokerCheckedWASMBuffers(t *testing.T) {
+	bridge := NewBridge("dense-buffer-session", BridgeFuncs{})
+	out, err := ExecuteEmbeddedJoker(context.Background(), `
+ (let [values (jit/numeric-buffer 4)
+       fill (jit/compile-wasm
+               (fn [a] (loop [i 0]
+                         (if (< i 4)
+                           (do (jit/buffer-set! a i (* i 0.25)) (recur (+ i 1)))
+                           (jit/buffer-get a 3)))) {:buffers [0]})
+       alias (jit/compile-wasm
+                (fn [a b] (do (jit/buffer-set! a 0 9.0) (jit/buffer-get b 0))) {:buffers [0 1]})]
+   (let [filled (fill values)
+         aliased (alias values values)]
+     [filled aliased (jit/buffer-get values 1) (jit/wasm-engine)]))`, bridge)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result []json.RawMessage
+	if err := json.Unmarshal([]byte(out), &result); err != nil || len(result) != 4 {
+		t.Fatal(out, err)
+	}
+	for i, want := range []float64{0.75, 9} {
+		var got float64
+		if err := json.Unmarshal(result[i], &got); err != nil || got != want {
+			t.Fatal(out, err)
+		}
+	}
+	var copiedBack float64
+	var engine string
+	if err := json.Unmarshal(result[2], &copiedBack); err != nil || copiedBack != 0.25 {
+		t.Fatal("buffer write lost", out, err)
+	}
+	if err := json.Unmarshal(result[3], &engine); err != nil {
+		t.Fatal(out, err)
+	}
+	assertJokerWASMEngine(t, engine)
+	_, err = ExecuteEmbeddedJoker(context.Background(), `(def gi-trap-buffer (jit/numeric-buffer 4))
+ (def gi-trap-kernel (jit/compile-wasm (fn [a] (do (jit/buffer-set! a 1 7.0) (jit/buffer-get a 4))) {:buffers [0]}))
+ (gi-trap-kernel gi-trap-buffer)`, bridge)
+	if err == nil {
+		t.Fatal("out-of-bounds kernel accepted")
+	}
+	out, err = ExecuteEmbeddedJoker(context.Background(), `(jit/buffer-get gi-trap-buffer 1)`, bridge)
+	if err != nil || out != "7" {
+		t.Fatal("pre-trap write lost/replayed", out, err)
+	}
+}

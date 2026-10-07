@@ -8,7 +8,7 @@ Joker is gi's Clojure scripting runtime.
 
 In gi, Joker is treated as a baked-in runtime surface:
 - no external `joker` executable is required at deployment time
-- gi imports the released `github.com/rcarmo/go-joker/v42 v42.12.2` module, including its generated runtime files
+- gi imports the released `github.com/rcarmo/go-joker/v42 v42.12.4` module, including its generated runtime files
 - script execution runs in-process inside gi
 
 ## Engine name
@@ -75,6 +75,10 @@ JOKER_WASM_ENGINE=compiler gi
 ```
 
 `make test-joker-wasm-engines` runs Gi's emitted-kernel tests in fresh native test processes for each requested mode, repeating three times with race detection where supported. [v42.12.2 verification](joker-v42.12.2.md) records scope and profile limitations. The upstream standalone `joker compile --native --run` command bundles a native Joker executable and source; Gi does not expose that CLI through its script tool.
+
+## Checked buffer kernels
+
+The `joker.jit` bridge also exposes `numeric-buffer`, `buffer-get`, `buffer-set!` and `compile-wasm` with explicit `{:buffers [argument-indices]}`. This supports bounded f64 kernels and nested loops without importing host functions into the module. [v42.12.4 verification and example](joker-v42.12.4.md) cover native execution, aliasing, bounds traps and pre-trap mutation copy-back. The scalar compiler is unchanged when no buffer options are given.
 
 ## Current file semantics
 Script loading uses the workspace/VFS resolver; both workspace files and `vfs://` scripts are supported.

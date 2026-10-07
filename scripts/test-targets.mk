@@ -858,14 +858,14 @@ test-auth-state:
 
 .PHONY: test-selected-runtimes test-native-joker-compiler test-joker-wasm-engines
 test-joker-wasm-engines: $(TESTPROFILE)
-	JOKER_WASM_ENGINE=compiler $(TESTPROFILE) gotest $(RACE) -run 'TestEmbeddedJoker(NativeWASM|WASMEngine)' -count=3 ./internal/scripting
-	JOKER_WASM_ENGINE=interpreter $(TESTPROFILE) gotest $(RACE) -run 'TestEmbeddedJoker(NativeWASM|WASMEngine)' -count=3 ./internal/scripting
+	JOKER_WASM_ENGINE=compiler $(TESTPROFILE) gotest $(RACE) -run 'TestEmbeddedJoker(NativeWASM|WASMEngine|CheckedWASM)' -count=3 ./internal/scripting
+	JOKER_WASM_ENGINE=interpreter $(TESTPROFILE) gotest $(RACE) -run 'TestEmbeddedJoker(NativeWASM|WASMEngine|CheckedWASM)' -count=3 ./internal/scripting
 
 test-native-joker-compiler: $(TESTPROFILE)
 	$(TESTPROFILE) gotest -run 'TestWasmCompileRetainsModuleBytes|TestWasmRawIntObjectPromotesOutsideNativeRange|TestWasmRawIntRejectsOutOfRangeIndex|TestWasmExecRawIntegerResultUsesNativeRange' -count=1 github.com/rcarmo/go-joker/v42/core
 
 test-selected-runtimes: $(TESTPROFILE)
-	$(TESTPROFILE) gotest $(RACE) -run 'TestQuickJS|TestScriptTool(Selects|RuntimeChoice)|TestJavaScriptRuntime|TestEmbeddedJoker(NativeWASM|WASMEngine)|TestListRuntimeOptionsMatchesPiCopilot|TestExecuteEmbeddedJoker' -count=3 ./internal/scripting ./internal/tools ./internal/config ./internal/inference
+	$(TESTPROFILE) gotest $(RACE) -run 'TestQuickJS|TestScriptTool(Selects|RuntimeChoice)|TestJavaScriptRuntime|TestEmbeddedJoker(NativeWASM|WASMEngine|CheckedWASM)|TestListRuntimeOptionsMatchesPiCopilot|TestExecuteEmbeddedJoker' -count=3 ./internal/scripting ./internal/tools ./internal/config ./internal/inference
 
 # Compare actual tmux cells against ANSI frame diffs while tables enter/leave
 # the viewport. No provider, sqlite3 CLI, Bun, or running Gi instance required.
