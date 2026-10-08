@@ -19,7 +19,7 @@ func TestTransientProviderFailureClassifier(t *testing.T) {
 	cases := []struct {
 		text string
 		want bool
-	}{{`Post "https://api.enterprise.githubcopilot.com/responses": http2: timeout awaiting response headers`, true}, {"HTTP 503: service unavailable", true}, {"HTTP 501: not implemented", false}, {"HTTP 505: version unsupported", false}, {"HTTP 429: slow down", true}, {"HTTP 401: timeout in auth", false}, {"HTTP 400: timeout argument invalid", false}, {"invalid_request_error: schema mismatch", false}, {"Unsupported parameter: max_output_tokens", false}, {"context_length exceeded", false}, {"model not found", false}, {"arbitrary provider error", false}, {"connection reset by peer", true}}
+	}{{`Post "https://api.enterprise.githubcopilot.com/responses": http2: timeout awaiting response headers`, true}, {"HTTP 503: service unavailable", true}, {"HTTP 501: not implemented", false}, {"HTTP 505: version unsupported", false}, {"HTTP 429: slow down", true}, {"HTTP 401: timeout in auth", false}, {"HTTP 400: timeout argument invalid", false}, {"invalid_request_error: schema mismatch", false}, {"Unsupported parameter: max_output_tokens", false}, {"context_length exceeded", false}, {"model not found", false}, {"arbitrary provider error", false}, {"connection reset by peer", true}, {"server_busy", true}, {"servers are currently busy", true}, {"Selected model is at capacity", true}, {"HTTP 400 server_busy", false}, {"unsupported model: selected model is at capacity", false}}
 	for _, tc := range cases {
 		if _, got := transientProviderFailure(errors.New(tc.text)); got != tc.want {
 			t.Errorf("%q retry=%v", tc.text, got)

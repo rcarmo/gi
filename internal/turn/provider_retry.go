@@ -53,7 +53,7 @@ func transientProviderFailure(err error) (string, bool) {
 	if strings.Contains(text, "timeout") || strings.Contains(text, "timed out") {
 		return "timeout", true
 	}
-	for _, s := range []string{"econnreset", "econnrefused", "eai_again", "enotfound", "socket hang up", "connection reset", "connection refused", "connection closed", "connection lost", "fetch failed", "unexpected eof", "service unavailable", "bad gateway", "overloaded"} {
+	for _, s := range []string{"econnreset", "econnrefused", "eai_again", "enotfound", "socket hang up", "connection reset", "connection refused", "connection closed", "connection lost", "fetch failed", "unexpected eof", "service unavailable", "bad gateway", "overloaded", "server_busy", "servers are currently busy", "selected model is at capacity"} {
 		if strings.Contains(text, s) {
 			return "network", true
 		}

@@ -32,11 +32,14 @@ import (
 
 func openTestStore(t *testing.T) *store.Store {
 	t.Helper()
-	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", store.NowID("turn-test"))
 	s, err := store.Open(dsn)
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
+	// LIFO cleanup closes engines before the database; repeated -count runs
+	// get distinct in-memory stores rather than retaining previous test state.
+	t.Cleanup(func() { _ = s.Close() })
 	return s
 }
 

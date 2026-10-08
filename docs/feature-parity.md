@@ -47,7 +47,7 @@ Scenarios with no suite test have no shared browser evidence either way.
 
 | Area | Gi status and behaviour | Differences and open work |
 |---|---|---|
-| Runtime and distribution | Implemented: one pure-Go binary with embedded browser assets; SQLite/WAL sessions, messages, turn events and recovery; `go-ai` 1.0.4 inference. Interrupted turns are held for review, not replayed. | Piclaw extensions do not run in Gi. Bun is build-time only. |
+| Runtime and distribution | Implemented: one pure-Go binary with embedded browser assets; SQLite/WAL sessions, messages, turn events and recovery; `go-ai` 1.1.0 inference. Interrupted turns are held for review, not replayed. | Piclaw extensions do not run in Gi. Bun is build-time only. |
 | Chat and streaming | Implemented: prompt admission, SSE status/draft/thought updates, reconnect reconciliation, bounded timeline paging and scoped search. The timeline follows new replies while pinned to the bottom and keeps the reading position otherwise. | Conversation-level shortcuts and full visual equivalence with Piclaw are not verified. |
 | Composer and drafts | Implemented: persistent browser-local text, media and references; failed-send recovery; file, folder and message references; upload progress, cancel and retry. Message references carry the numeric message row ID (`msg:42`). | Physical IME input is untested. |
 | Sessions | Partial: selection, child sessions, grouping, search and typeahead, pin, rename, archive (except the last main session), restore and per-session drafts. | `/fork` and `/clone` create a new `@agentN` ([gi#20](https://github.com/rcarmo/gi/issues/20)). |
