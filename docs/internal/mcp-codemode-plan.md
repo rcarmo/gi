@@ -1,6 +1,11 @@
 # MCP support and codemode: completion plan
 
-Status: **plan** (2026-10-01). Nothing here is shipped. This plan builds on two
+Status: **historical plan** (2026-10-01). Current implementation and remaining
+acceptance are recorded in [remaining-lane-decisions.md](remaining-lane-decisions.md),
+[mcp.md](mcp.md) and [codemode.md](codemode.md). Web #30 and independent umbrella
+acceptance are still open. The dated original plan follows unchanged.
+
+Original status: nothing here was shipped. This plan builds on two
 pieces of earlier work: `chore/joker-wasm-deps`, which is merged as a
 feasibility probe, and `feat/joker-mcp-codemode`, which is an unmerged
 prototype.
