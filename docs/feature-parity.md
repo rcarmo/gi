@@ -71,7 +71,7 @@ An instance with no enrolled owner permits application access. The CLI binds to 
 
 ## Terminal
 
-The terminal targets Pi 1.1.0's workflows and keyboard handling using Go widgets. The first [1.1.0 alignment slice](internal/tui-pi-1.1.0.md) ports editor Home/End versus transcript Ctrl+Home/Ctrl+End; terminal status, output padding and recorded-duration work are still open. Web overlays do not become permanent terminal panels.
+The terminal targets Pi 1.1.0's workflows and keyboard handling using Go widgets. The first [1.1.0 alignment slice](internal/tui-pi-1.1.0.md) ports editor Home/End versus transcript Ctrl+Home/Ctrl+End; [recorded tool duration](internal/tool-duration.md) now survives live/restored rendering with explicit legacy/projection limits. Terminal status and output padding are still open. Web overlays do not become permanent terminal panels.
 
 | Area | Behaviour | Limits |
 |---|---|---|
