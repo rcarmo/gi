@@ -29,6 +29,19 @@ func TestWorkspaceEditorCompleteReadsWritesAndCompatibilityRoutes(t *testing.T) 
 	srv := New(nil, nil, config.RuntimeConfig{WorkspaceRoot: root})
 	request := func(method, target, body string) *httptest.ResponseRecorder {
 		t.Helper()
+		if method == http.MethodPut {
+			var input map[string]any
+			if json.Unmarshal([]byte(body), &input) == nil {
+				name, _ := input["path"].(string)
+				rw := httptest.NewRecorder()
+				srv.Handler().ServeHTTP(rw, httptest.NewRequest(http.MethodGet, "/workspace/file?mode=edit&path="+url.QueryEscape(name), nil))
+				var loaded map[string]any
+				json.Unmarshal(rw.Body.Bytes(), &loaded)
+				input["expected_revision"] = loaded["revision"]
+				raw, _ := json.Marshal(input)
+				body = string(raw)
+			}
+		}
 		r := httptest.NewRequest(method, target, strings.NewReader(body))
 		r.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()

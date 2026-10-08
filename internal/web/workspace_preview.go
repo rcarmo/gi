@@ -173,6 +173,7 @@ func (s *Server) handleWorkspacePreview(w http.ResponseWriter, r *http.Request) 
 		preview["truncated"] = info.Size() > int64(len(text))
 		if edit {
 			preview["size"], preview["truncated"] = len(raw), false
+			preview["revision"] = workspaceRevision(info, raw)
 		}
 	}
 	if kind == "image" {

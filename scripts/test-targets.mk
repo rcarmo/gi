@@ -979,6 +979,13 @@ test-dashboard-widgets:
 test-session-plan:
 	$(TESTPROFILE) gotest $(RACE) ./internal/plan ./internal/store ./internal/tools ./internal/turn ./internal/web -run Plan
 
+.PHONY: test-revision-preconditions test-agent-file-open
+test-revision-preconditions: $(TESTPROFILE)
+	$(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestSessionPlan|TestWorkspaceRevision|TestWorkspaceEditor|TestWorkspaceWrites' ./internal/store ./internal/web
+
+test-agent-file-open: $(TESTPROFILE)
+	$(TESTPROFILE) gotest $(RACE) -count=3 -timeout=60s -run 'TestAgentFileOpen' ./internal/web
+
 .PHONY: test-project-paths
 test-project-paths:
 	bash scripts/test-project-paths.sh

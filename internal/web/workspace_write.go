@@ -72,6 +72,8 @@ func workspaceEntryName(raw string) (string, bool) {
 }
 
 func (s *Server) withWorkspaceRoot(w http.ResponseWriter, fn func(*os.Root) workspaceResult) {
+	s.workspaceWriteMu.Lock()
+	defer s.workspaceWriteMu.Unlock()
 	root, err := os.OpenRoot(s.workspaceRootPath())
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "Workspace unavailable"})
@@ -92,21 +94,36 @@ func (s *Server) handleWorkspaceFileWrite(w http.ResponseWriter, r *http.Request
 			Name    string  `json:"name"`
 			Content *string `json:"content"`
 		}
-		if err := json.NewDecoder(io.LimitReader(r.Body, workspaceMaxEditBytes*2)).Decode(&req); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid JSON"})
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, workspaceMaxEditBytes*2))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&req); err != nil {
+			writeJSON(w, 400, map[string]any{"error": "Invalid JSON"})
+			return
+		}
+		if decoder.Decode(&struct{}{}) != io.EOF {
+			writeJSON(w, 400, map[string]any{"error": "Invalid trailing JSON"})
 			return
 		}
 		s.withWorkspaceRoot(w, func(root *os.Root) workspaceResult { return s.workspaceCreate(root, req.Path, req.Name, req.Content) })
 	case http.MethodPut:
 		var req struct {
-			Path    string  `json:"path"`
-			Content *string `json:"content"`
+			Path             string  `json:"path"`
+			Content          *string `json:"content"`
+			ExpectedRevision string  `json:"expected_revision"`
 		}
-		if err := json.NewDecoder(io.LimitReader(r.Body, workspaceMaxEditBytes*2)).Decode(&req); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "Invalid JSON"})
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, workspaceMaxEditBytes*2))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&req); err != nil {
+			writeJSON(w, 400, map[string]any{"error": "Invalid JSON"})
 			return
 		}
-		s.withWorkspaceRoot(w, func(root *os.Root) workspaceResult { return s.workspaceUpdate(root, req.Path, req.Content) })
+		if decoder.Decode(&struct{}{}) != io.EOF {
+			writeJSON(w, 400, map[string]any{"error": "Invalid trailing JSON"})
+			return
+		}
+		s.withWorkspaceRoot(w, func(root *os.Root) workspaceResult {
+			return s.workspaceUpdate(root, req.Path, req.Content, req.ExpectedRevision)
+		})
 	case http.MethodDelete:
 		path := r.URL.Query().Get("path")
 		s.withWorkspaceRoot(w, func(root *os.Root) workspaceResult { return s.workspaceDelete(root, path) })
@@ -153,7 +170,7 @@ func (s *Server) workspaceCreate(root *os.Root, dirParam, nameParam string, cont
 	return workspaceResult{200, map[string]any{"path": slashPath(target), "name": name}}
 }
 
-func (s *Server) workspaceUpdate(root *os.Root, pathParam string, content *string) workspaceResult {
+func (s *Server) workspaceUpdate(root *os.Root, pathParam string, content *string, expectedRevision string) workspaceResult {
 	path, ok := s.workspaceRel(pathParam)
 	if !ok || path == "." {
 		return workspaceErr(400, "Invalid path")
@@ -177,19 +194,32 @@ func (s *Server) workspaceUpdate(root *os.Root, pathParam string, content *strin
 	if !info.Mode().IsRegular() {
 		return workspaceErr(400, "File is not editable text")
 	}
-	if info.Size() == int64(len(*content)) {
-		f, err := root.Open(path)
-		if err != nil {
-			return workspaceErr(500, "Failed to read file")
-		}
-		previous, err := io.ReadAll(io.LimitReader(f, workspaceMaxEditBytes+1))
+	if expectedRevision == "" {
+		return workspaceResult{428, map[string]any{"error": "Complete edit revision required", "code": "revision_required"}}
+	}
+	f, err := root.Open(path)
+	if err != nil {
+		return workspaceErr(500, "Failed to read file")
+	}
+	info, err = f.Stat()
+	if err != nil || !info.Mode().IsRegular() || info.Size() > workspaceMaxEditBytes {
 		f.Close()
-		if err != nil {
-			return workspaceErr(500, "Failed to read file")
-		}
-		if string(previous) == *content {
-			return workspaceResult{200, map[string]any{"path": slashPath(path), "name": filepath.Base(path), "size": info.Size(), "mtime": info.ModTime().UTC().Format(time.RFC3339Nano)}}
-		}
+		return workspaceErr(400, "File is not editable text")
+	}
+	previous, err := io.ReadAll(io.LimitReader(f, workspaceMaxEditBytes+1))
+	f.Close()
+	if err != nil {
+		return workspaceErr(500, "Failed to read file")
+	}
+	if len(previous) > workspaceMaxEditBytes || !utf8.Valid(previous) || strings.ContainsRune(string(previous), 0) {
+		return workspaceErr(400, "File is not editable text")
+	}
+	revision := workspaceRevision(info, previous)
+	if revision != expectedRevision {
+		return workspaceResult{409, map[string]any{"error": "File changed since loaded revision", "code": "revision_conflict", "revision": revision}}
+	}
+	if string(previous) == *content {
+		return workspaceResult{200, map[string]any{"path": slashPath(path), "name": filepath.Base(path), "size": info.Size(), "mtime": info.ModTime().UTC().Format(time.RFC3339Nano), "revision": revision}}
 	}
 	if err := root.WriteFile(path, []byte(*content), info.Mode().Perm()); err != nil {
 		return workspaceErr(500, "Failed to write file")
@@ -198,7 +228,7 @@ func (s *Server) workspaceUpdate(root *os.Root, pathParam string, content *strin
 	if err != nil {
 		return workspaceErr(500, "Failed to write file")
 	}
-	return workspaceResult{200, map[string]any{"path": slashPath(path), "name": filepath.Base(path), "size": updated.Size(), "mtime": updated.ModTime().UTC().Format(time.RFC3339Nano)}}
+	return workspaceResult{200, map[string]any{"path": slashPath(path), "name": filepath.Base(path), "size": updated.Size(), "mtime": updated.ModTime().UTC().Format(time.RFC3339Nano), "revision": workspaceRevision(updated, []byte(*content))}}
 }
 
 func (s *Server) workspaceDelete(root *os.Root, pathParam string) workspaceResult {

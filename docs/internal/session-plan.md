@@ -1,6 +1,6 @@
 # Session Plan backend
 
-Gi stores each session's Plan Markdown in `kv_store` under namespace `session_plan`. The `plan` tool and HTTP API use the same transactional mutation code. The front-end sidebar belongs to the fixtures-vibes agent; Gi does not yet claim `@cap-plan-sidebar`.
+Gi stores each session's Plan Markdown in `kv_store` under namespace `session_plan`. The `plan` tool and HTTP API use the same transactional mutation code. The shared frontend sidebar comes from fixtures-vibes; browser saves now require the loaded revision.
 
 ## HTTP
 
@@ -11,6 +11,7 @@ Authenticated `GET /api/sessions/{session}/plan` returns:
   "ok": true,
   "plan": {
     "chat_jid": "gi:session-id",
+    "revision": "plan-v1-opaque-value",
     "markdown": "- [ ] Example",
     "updated_at": "2026-10-04T20:00:00Z",
     "explanation": null,
@@ -21,7 +22,7 @@ Authenticated `GET /api/sessions/{session}/plan` returns:
 
 `updated_at` is null for an unsaved plan. Its initial Markdown is Piclaw's five default checklist items: update the plan, clarify the objective, do the next step, verify the result and report progress.
 
-`POST` to the same route accepts `{"markdown":"..."}` or `{"action":"reset"}` and returns the same envelope. Writes require HTTPS or a loopback URL, same-origin requests and JSON. Unsupported methods return 405; missing sessions return 404; invalid bodies or Markdown return 400. Unknown fields and trailing JSON values are rejected.
+`POST` to the same route accepts `{"markdown":"...","expected_revision":"..."}` or `{"action":"reset","expected_revision":"..."}` and returns the same envelope. Missing revisions return 428 `revision_required`; stale ones return 409 `revision_conflict` without changing the plan. Internal agent mutations advance the revision too. See [revision-safe writes](revision-safe-writes.md). Writes require HTTPS or a loopback URL, same-origin requests and JSON. Unsupported methods return 405; missing sessions return 404; invalid bodies or Markdown return 400. Unknown fields and trailing JSON values are rejected.
 
 Markdown is limited to 256 KiB. CRLF becomes LF, checked markers become lowercase `[x]`, and at most one checklist item may use `[-]`. Headings and other prose survive Markdown write/edit operations. A failed mutation leaves both Markdown and its update timestamp unchanged.
 

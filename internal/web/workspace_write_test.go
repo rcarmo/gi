@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"mime/multipart"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,6 +33,18 @@ func TestWorkspaceWritesFollowPiclawExplorerAPI(t *testing.T) {
 	srv := New(s, turn.New(s), config.RuntimeConfig{WorkspaceRoot: root})
 	call := func(method, target, contentType string, body []byte) (int, map[string]any) {
 		t.Helper()
+		if method == "PUT" && strings.HasPrefix(target, "/api/workspace/file") {
+			var input map[string]any
+			if json.Unmarshal(body, &input) == nil {
+				name, _ := input["path"].(string)
+				rw := httptest.NewRecorder()
+				srv.Handler().ServeHTTP(rw, httptest.NewRequest("GET", "/api/workspace/file?mode=edit&path="+url.QueryEscape(name), nil))
+				var loaded map[string]any
+				json.Unmarshal(rw.Body.Bytes(), &loaded)
+				input["expected_revision"] = loaded["revision"]
+				body, _ = json.Marshal(input)
+			}
+		}
 		req := httptest.NewRequest(method, target, bytes.NewReader(body))
 		if contentType != "" {
 			req.Header.Set("Content-Type", contentType)

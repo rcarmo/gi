@@ -2,7 +2,9 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +13,11 @@ import (
 	"github.com/rcarmo/gi/internal/plan"
 )
 
+var ErrPlanRevisionRequired = errors.New("plan revision required")
+var ErrPlanRevisionConflict = errors.New("plan revision conflict")
+
 type SessionPlan struct {
+	Revision    string      `json:"revision"`
 	ChatJID     string      `json:"chat_jid"`
 	Markdown    string      `json:"markdown"`
 	UpdatedAt   *string     `json:"updated_at"`
@@ -21,7 +27,12 @@ type SessionPlan struct {
 
 func planDetails(session, markdown string, updated *string) SessionPlan {
 	parsed := plan.Parse(markdown)
-	return SessionPlan{"gi:" + session, markdown, updated, parsed.Explanation, parsed.Plan}
+	stamp := ""
+	if updated != nil {
+		stamp = *updated
+	}
+	sum := sha256.Sum256([]byte(session + "\x00" + markdown + "\x00" + stamp))
+	return SessionPlan{Revision: "plan-v1-" + hex.EncodeToString(sum[:]), ChatJID: "gi:" + session, Markdown: markdown, UpdatedAt: updated, Explanation: parsed.Explanation, Plan: parsed.Plan}
 }
 func (s *Store) SessionPlan(ctx context.Context, session string) (SessionPlan, error) {
 	if _, err := s.GetSession(ctx, session); err != nil {
@@ -42,12 +53,29 @@ func (s *Store) SessionPlan(ctx context.Context, session string) (SessionPlan, e
 	return planDetails(session, saved.Markdown, saved.UpdatedAt), nil
 }
 func (s *Store) MutateSessionPlan(ctx context.Context, session string, mutation plan.Mutation) (SessionPlan, error) {
+	return s.mutateSessionPlan(ctx, session, mutation, nil)
+}
+func (s *Store) MutateSessionPlanConditional(ctx context.Context, session string, mutation plan.Mutation, expected string) (SessionPlan, error) {
+	if expected == "" {
+		if _, err := s.GetSession(ctx, session); err != nil {
+			return SessionPlan{}, err
+		}
+		return SessionPlan{}, ErrPlanRevisionRequired
+	}
+	return s.mutateSessionPlan(ctx, session, mutation, &expected)
+}
+func (s *Store) mutateSessionPlan(ctx context.Context, session string, mutation plan.Mutation, expected *string) (SessionPlan, error) {
 	var out SessionPlan
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return out, err
 	}
 	defer tx.Rollback()
+	// Acquire SQLite's writer lock before reading the revision, serialising
+	// browser and agent writes without a read-to-write transaction upgrade.
+	if _, err = tx.ExecContext(ctx, `update sessions set title=title where id=?`, session); err != nil {
+		return out, err
+	}
 	var exists bool
 	if err = tx.QueryRowContext(ctx, "select exists(select 1 from sessions where id=?)", session).Scan(&exists); err != nil {
 		return out, err
@@ -56,6 +84,7 @@ func (s *Store) MutateSessionPlan(ctx context.Context, session string, mutation 
 		return out, sql.ErrNoRows
 	}
 	markdown := plan.DefaultMarkdown
+	var loadedUpdated *string
 	var raw []byte
 	err = tx.QueryRowContext(ctx, "select value from kv_store where namespace='session_plan' and key=?", session).Scan(&raw)
 	if err == nil {
@@ -64,8 +93,13 @@ func (s *Store) MutateSessionPlan(ctx context.Context, session string, mutation 
 			return out, err
 		}
 		markdown = current.Markdown
+		loadedUpdated = current.UpdatedAt
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return out, err
+	}
+	current := planDetails(session, markdown, loadedUpdated)
+	if expected != nil && *expected != current.Revision {
+		return current, ErrPlanRevisionConflict
 	}
 	markdown, err = plan.Apply(markdown, mutation)
 	if err != nil {

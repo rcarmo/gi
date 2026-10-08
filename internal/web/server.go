@@ -48,11 +48,13 @@ type Server struct {
 	indexScheduler        *indexer.Scheduler
 	indexConfigs          map[string]searchstore.ScopeConfig
 	indexClosed           bool
+	workspaceWriteMu      sync.Mutex
 	workspaceWatchMu      sync.Mutex
 	workspaceWatch        *workspaceWatch
 	terminals             *terminalManager
 	vnc                   *vncManager
 	sidePromptSlots       chan struct{}
+	fileOpens             *fileOpenRequests
 	webSkills             map[string]loadedWebSkill
 }
 
@@ -64,6 +66,7 @@ func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 		terminals:       newTerminalManager(),
 		vnc:             newVNCManager(cfg),
 		sidePromptSlots: make(chan struct{}, 4),
+		fileOpens:       newFileOpenRequests(),
 		mux:             http.NewServeMux(),
 		version:         fmt.Sprintf("%x", time.Now().UnixNano()),
 		scriptTool:      tools.NewScriptTool(s, cfg),
@@ -71,6 +74,7 @@ func New(s *store.Store, t *turn.Engine, cfg config.RuntimeConfig) *Server {
 	}
 	srv.webSkills = loadWebSkills(cfg)
 	srv.configureScriptConnectivity()
+	srv.registerFileOpenTool()
 	srv.routes()
 	return srv
 }
@@ -210,6 +214,7 @@ func (s *Server) routes() {
 	guard := s.withAuth
 	s.mux.HandleFunc("/agent/side-prompt", guard(s.handleSidePrompt))
 	s.mux.HandleFunc("/agent/side-prompt/stream", guard(s.handleSidePrompt))
+	s.mux.HandleFunc("/agent/respond", guard(s.handleAgentRespond))
 	s.mux.HandleFunc("/api/runtime/config", guard(s.handleRuntimeConfig))
 	s.mux.HandleFunc("/api/settings/identity", guard(s.handleSettingsIdentity))
 	s.mux.HandleFunc("/api/settings/compaction", guard(s.handleCompactionPolicy))

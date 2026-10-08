@@ -43,6 +43,8 @@ func (s *Server) handleSSEStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+	fileOpenEvents, stopFileOpenEvents := s.subscribeFileOpen(r, sessionID)
+	defer stopFileOpenEvents()
 	workspaceChanges, stopWorkspaceChanges := s.subscribeWorkspaceChanges()
 	defer stopWorkspaceChanges()
 	var lifecycle <-chan topics.Envelope
@@ -63,6 +65,11 @@ func (s *Server) handleSSEStream(w http.ResponseWriter, r *http.Request) {
 			return
 		case <-heartbeat.C:
 			writeSSE(w, "heartbeat", map[string]any{"ts": time.Now().UnixMilli()})
+			flusher.Flush()
+		case event := <-fileOpenEvents:
+			if err := writeSSE(w, "extension_ui_request", event); err != nil {
+				return
+			}
 			flusher.Flush()
 		case paths, ok := <-workspaceChanges:
 			if !ok {

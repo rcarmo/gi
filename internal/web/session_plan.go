@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/rcarmo/gi/internal/plan"
+	"github.com/rcarmo/gi/internal/store"
 )
 
 func (s *Server) handleSessionPlan(w http.ResponseWriter, r *http.Request, session string) {
@@ -34,8 +35,9 @@ func (s *Server) handleSessionPlan(w http.ResponseWriter, r *http.Request, sessi
 		return
 	}
 	var body struct {
-		Markdown *string `json:"markdown"`
-		Action   string  `json:"action"`
+		Markdown         *string `json:"markdown"`
+		Action           string  `json:"action"`
+		ExpectedRevision string  `json:"expected_revision"`
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2*plan.MaxBytes))
 	decoder.DisallowUnknownFields()
@@ -55,8 +57,16 @@ func (s *Server) handleSessionPlan(w http.ResponseWriter, r *http.Request, sessi
 		writeJSON(w, 400, map[string]any{"error": "action must be write or reset"})
 		return
 	}
-	saved, err := s.store.MutateSessionPlan(r.Context(), session, plan.Mutation{Action: action, Markdown: body.Markdown})
+	saved, err := s.store.MutateSessionPlanConditional(r.Context(), session, plan.Mutation{Action: action, Markdown: body.Markdown}, body.ExpectedRevision)
 	if err != nil {
+		if errors.Is(err, store.ErrPlanRevisionRequired) {
+			writeJSON(w, 428, map[string]any{"error": err.Error(), "code": "revision_required"})
+			return
+		}
+		if errors.Is(err, store.ErrPlanRevisionConflict) {
+			writeJSON(w, 409, map[string]any{"error": err.Error(), "code": "revision_conflict", "revision": saved.Revision})
+			return
+		}
 		code := 500
 		if errors.Is(err, sql.ErrNoRows) {
 			code = 404

@@ -164,6 +164,8 @@ func run() error {
 	defer server.CloseWorkspaceIndex()
 	defer server.CloseTerminals()
 	defer server.CloseVNC()
+	defer server.CloseFileOpenRequests()
+	go func() { <-processCtx.Done(); server.CloseFileOpenRequests() }()
 
 	handler := server.Handler()
 	var listeners []httpserver.Listener

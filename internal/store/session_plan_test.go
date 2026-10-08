@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/rcarmo/gi/internal/plan"
@@ -78,5 +79,58 @@ func TestSessionPlanWriteFailurePreservesSavedState(t *testing.T) {
 	saved, err := db.SessionPlan(t.Context(), "s")
 	if err != nil || saved.Markdown != "- [ ] before" {
 		t.Fatal(saved, err)
+	}
+}
+
+func TestSessionPlanConditionalRevisionConcurrentBrowserAndAgent(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "conditional.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.CreateSession(t.Context(), "s", "s", nil)
+	loaded, err := db.SessionPlan(t.Context(), "s")
+	if err != nil || loaded.Revision == "" {
+		t.Fatal(loaded, err)
+	}
+	text := "- [ ] changed"
+	if _, err := db.MutateSessionPlanConditional(t.Context(), "s", plan.Mutation{Action: "write", Markdown: &text}, ""); !errors.Is(err, ErrPlanRevisionRequired) {
+		t.Fatal(err)
+	}
+	result := make(chan error, 2)
+	var wg sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := db.MutateSessionPlanConditional(t.Context(), "s", plan.Mutation{Action: "write", Markdown: &text}, loaded.Revision)
+			result <- err
+		}()
+	}
+	wg.Wait()
+	close(result)
+	success, conflict := 0, 0
+	for err := range result {
+		if err == nil {
+			success++
+		} else if errors.Is(err, ErrPlanRevisionConflict) {
+			conflict++
+		} else {
+			t.Fatal(err)
+		}
+	}
+	if success != 1 || conflict != 1 {
+		t.Fatal(success, conflict)
+	}
+	current, _ := db.SessionPlan(t.Context(), "s")
+	agent := "- [x] agent update"
+	db.MutateSessionPlan(t.Context(), "s", plan.Mutation{Action: "write", Markdown: &agent})
+	if latest, err := db.MutateSessionPlanConditional(t.Context(), "s", plan.Mutation{Action: "reset"}, current.Revision); !errors.Is(err, ErrPlanRevisionConflict) || latest.Markdown != agent {
+		t.Fatal(latest, err)
+	}
+	latest, _ := db.SessionPlan(t.Context(), "s")
+	reset, err := db.MutateSessionPlanConditional(t.Context(), "s", plan.Mutation{Action: "reset"}, latest.Revision)
+	if err != nil || reset.Revision == latest.Revision || reset.Markdown != plan.DefaultMarkdown {
+		t.Fatal(reset, err)
 	}
 }
