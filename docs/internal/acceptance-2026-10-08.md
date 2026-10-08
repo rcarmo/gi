@@ -1,6 +1,8 @@
 # Gi acceptance and test-path migration
 
 Gi's tracker distinguishes published backend work from browser acceptance.
+The completed frozen v0.2.0 run has a separate
+[final review](frozen-v020-20261005.md); its exit2 gate and profiling gaps remain.
 The current consumer pin is fixtures-vibes `0259e9a4816d3d643159538095fdffc884104598`,
 with Gi backend `78f8f5396a673b4ca2a23d758124c0544dec3668`. The shared editor/Plan
 revision work is adopted; workspace018 does not complete because the shared
