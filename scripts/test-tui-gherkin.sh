@@ -2,9 +2,13 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+source "$ROOT/scripts/project-test-env.sh"
 FEATURE_DIR="${FEATURE_DIR:-$ROOT/features/tui}"
-ARTIFACT_DIR="${ARTIFACT_DIR:-$ROOT/test-results/tui-gherkin}"
-TEST_DIR="${TEST_DIR:-$ROOT/.gi-tui-gherkin}"
+ARTIFACT_DIR="${ARTIFACT_DIR:-$GI_TEST_RUN_ROOT/results/tui-gherkin}"
+TEST_DIR="${TEST_DIR:-$GI_TEST_RUN_ROOT/tui-gherkin}"
+gi_test_path "$ARTIFACT_DIR"
+gi_test_path "$TEST_DIR"
+GI_BIN=${GI_BIN:-$PROJECT_TMP_ROOT/build/$GI_WORKTREE/gi}
 SESSION="gi-tui-gherkin-$$"
 DB="$TEST_DIR/gi.db"
 WORKSPACE="$TEST_DIR/workspace"
@@ -207,13 +211,13 @@ wait_for_tui_ready() {
 
 start_tui() {
   prepare_tui_workspace
-  tmux new-session -d -x 120 -y 28 -s "$SESSION" "cd '$ROOT' && ./bin/gi -tui -db '$DB' -workspace '$WORKSPACE'"
+  tmux new-session -d -x 120 -y 28 -s "$SESSION" "cd '$ROOT' && '$GI_BIN' -tui -db '$DB' -workspace '$WORKSPACE'"
   wait_for_tui_ready
 }
 
 restart_tui() {
   tmux kill-session -t "$SESSION" >/dev/null 2>&1 || true
-  tmux new-session -d -x 120 -y 28 -s "$SESSION" "cd '$ROOT' && ./bin/gi -tui -db '$DB' -workspace '$WORKSPACE'"
+  tmux new-session -d -x 120 -y 28 -s "$SESSION" "cd '$ROOT' && '$GI_BIN' -tui -db '$DB' -workspace '$WORKSPACE'"
   wait_for_tui_ready
 }
 
@@ -243,7 +247,7 @@ start_tui_default() {
   cp -R "$TEST_DIR/.pi" "$home/.pi"
   cp -R "$TEST_DIR/.piclaw" "$home/.piclaw"
   cp "$TEST_DIR/AGENTS.md" "$home/AGENTS.md"
-  tmux new-session -d -x 120 -y 28 -s "$SESSION" "cd '$home' && HOME='$home' XDG_STATE_HOME='$state' '$ROOT/bin/gi'"
+  tmux new-session -d -x 120 -y 28 -s "$SESSION" "cd '$home' && HOME='$home' XDG_STATE_HOME='$state' '$GI_BIN'"
   wait_for_tui_ready
 }
 

@@ -20,9 +20,9 @@ Gi uses Go **1.27.1** (`GOTOOLCHAIN=go1.27.1` in the Makefile); CI reads the roo
 
 The canonical scratch project is `gi`. The repository-vendored `scripts/project-tmp.sh` resolves an absolute `PROJECT_TMP_BASE` to `<base>/gi`, or accepts a project-named `PROJECT_TMP_ROOT`; both must agree. Invalid/unusable overrides fail. Otherwise CI chooses `RUNNER_TEMP`, original inherited `TMPDIR`, then platform temp, even if `/workspace/tmp` exists; local use chooses writable `/workspace/tmp`, then platform temp. The resolved root propagates to children before changing their temp variables, preventing nested `/gi` suffixes.
 
-Makefile-native Go verification uses `cache/go-build`, `cache/go-mod`, `cache/go-race-1.27.1.ok`, `build/<worktree>`, and `runs/make/<worktree>/tmp/go`. Bun/npm/XDG caches also use `cache/<tool>`. Profiling scratch uses `runs/profiling/<worktree>` and must be removed after analysis/use. Durable `.gi-run` state is not build scratch. Automatic parse-time cache trimming is disabled because other worktrees may have active builds.
+Verification uses `cache/go-build`, `cache/go-mod`, `cache/go-race-1.27.1.ok`, `build/<worktree>`, and isolated `runs/tests/<worktree>/<run-id>/tmp/go`. Bun/npm/XDG and new Playwright downloads use `cache/<tool>`. Existing installed browsers may be selected explicitly with `PLAYWRIGHT_BROWSERS_PATH`; they are not relocated during active jobs. Profiling scratch uses `runs/profiling/<worktree>` and is removed automatically after CPU/alloc_space/alloc_objects analysis. `PROFILING=1` is required for pre-release runs; ordinary tests default to no captures. `PROFILE_KEEP=1` retains raw data only for current manual analysis and requires removal afterwards. Durable `.gi-run` state is not build scratch. Automatic parse-time cache trimming is disabled because other worktrees may have active builds.
 
-Browser/TUI helpers and CI direct-install steps still need the remaining path migration recorded in `notes/gi/path-policy-20261005.md`; do not run those paths until they are migrated. Native Go-focused verification may use the resolved configuration now. No cleanup may delete another project's root, active-job data, source or durable assets. This section supersedes older home-cache/race-probe defaults below.
+Browser/TUI helpers source `scripts/project-test-env.sh`; direct commands and CI use `eval "$(make -s test-env RACE=)"` before installs or subprocesses. Per-run instance, fixture, output and temporary paths live beneath `GI_TEST_RUN_ROOT`. Helpers reject symlink, unowned and outside-run mutation targets. `make test-project-paths` checks override agreement, workspace/generic/CI selection and non-nesting. `playwright.fixtures.config.ts` redirects shared fixture results without editing the pinned suite. Completed successful profiled runs dispose their owned scratch; failed/manual runs are kept only until diagnosis. `clean` removes only the selected owned run after its jobs have finished, never durable state, another project or active/shared caches. This section supersedes older home-cache/race-probe defaults below.
 
 You are a coding agent working on the gi project: a Go coding agent with a Pi-style terminal UI and a Piclaw-compatible web UI.
 
@@ -201,8 +201,8 @@ All CPU limiting lives in the Makefile, so every build, test and dev-server run 
 - every recipe runs under `nice -n $(CPU_NICE)` and `taskset -c $(CPU_SET)` (defaults: `10`, `0-1`)
 - `GOMAXPROCS` and Go build parallelism (`-p`) follow `CPU_PROCS` (default `2`)
 - make is `.NOTPARALLEL`; `test*` targets run one Go package at a time (`-p=1`)
-- the Go build cache and Go's per-build temporary work directories stay on disk (`~/.cache/go-build`, `~/.cache/go-tmp`; override with `GI_GOCACHE` / `GI_GOTMPDIR`) and is trimmed when it exceeds `GO_CACHE_MAX_MB` (default 1500); never put caches or large artifacts on `/tmp` — it is RAM (tmpfs) and there is no swap
-- `-race` is used only where the kernel supports ThreadSanitizer (probed once, cached in `/tmp/gi-race-probe.ok`)
+- Go cache/compiler scratch use the resolved project hierarchy; no parse-time cache trimming.
+- `-race` uses the project-owned cached ThreadSanitizer probe.
 
 Tune per invocation instead of bypassing make, e.g. `make test CPU_SET=0-3 CPU_PROCS=4` or `make build CPU_NICE=0`.
 

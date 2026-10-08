@@ -11,13 +11,28 @@ ifeq ($(_PROJECT_TMP_RESOLVED),)
 $(error Cannot resolve a usable project-owned temporary root)
 endif
 export PROJECT_TMP_ROOT := $(_PROJECT_TMP_RESOLVED)
-GI_WORKTREE := $(notdir $(CURDIR))
-export TMPDIR := $(PROJECT_TMP_ROOT)/runs/make/$(GI_WORKTREE)/tmp
+export GI_WORKTREE := $(notdir $(CURDIR))
+ifndef GI_TEST_RUN_ID
+GI_TEST_RUN_ID := $(shell date -u +%Y%m%dT%H%M%SZ)-$(shell echo $$$$)
+endif
+export GI_TEST_RUN_ID
+ifndef GI_TEST_RUN_ROOT
+GI_TEST_RUN_ROOT := $(PROJECT_TMP_ROOT)/runs/tests/$(GI_WORKTREE)/$(GI_TEST_RUN_ID)
+endif
+export GI_TEST_RUN_ROOT
+_TEST_PATH_VALID := $(shell PROJECT_NAME=gi PROJECT_TMP_ROOT='$(PROJECT_TMP_ROOT)' GI_TEST_RUN_ROOT='$(GI_TEST_RUN_ROOT)' bash -c 'source scripts/project-test-env.sh && echo ok')
+ifneq ($(_TEST_PATH_VALID),ok)
+$(error Unsafe project test run root)
+endif
+export TMPDIR := $(GI_TEST_RUN_ROOT)/tmp
 export TMP := $(TMPDIR)
 export TEMP := $(TMPDIR)
 export BUN_INSTALL_CACHE_DIR := $(PROJECT_TMP_ROOT)/cache/bun
 export npm_config_cache := $(PROJECT_TMP_ROOT)/cache/npm
 export XDG_CACHE_HOME := $(PROJECT_TMP_ROOT)/cache/xdg
+export PLAYWRIGHT_BROWSERS_PATH ?= $(PROJECT_TMP_ROOT)/cache/ms-playwright
+export PROFILING ?= 0
+export PROFILE_KEEP ?= 0
 
 # ── CPU throttling ──────────────────────────────────────────────────────
 # Every recipe (builds, tests, the dev server) runs niced and pinned to a
@@ -81,13 +96,13 @@ LOG ?= $(RUN_DIR)/gi.log
 PID ?= $(RUN_DIR)/gi.pid
 
 TEST_PORT ?= 19090
-TEST_DIR ?= .gi-test
+TEST_DIR ?= $(GI_TEST_RUN_ROOT)/instance
 TEST_DB ?= $(TEST_DIR)/gi.db
 TEST_LOG ?= $(TEST_DIR)/gi.log
 TEST_PID ?= $(TEST_DIR)/gi.pid
 TEST_WORKSPACE ?= $(TEST_DIR)/workspace
-TEST_RESULTS ?= test-results
-TUI_TEST_DIR ?= .gi-tui-test
+export TEST_RESULTS ?= $(GI_TEST_RUN_ROOT)/results
+TUI_TEST_DIR ?= $(GI_TEST_RUN_ROOT)/tui
 
 # ── Derived arguments and data ──────────────────────────────────────────
 
@@ -106,7 +121,7 @@ define require-command
 	@command -v $(1) >/dev/null || { echo "$(2)"; exit 1; }
 endef
 
-# ── Mandatory test profiling ────────────────────────────────────────────
+# ── Opt-in pre-release profiling ────────────────────────────────────────────
 TEST_PKGS ?= ./...
 TEST_RUN ?=
 TEST_PROFILE_DIR ?= $(PROJECT_TMP_ROOT)/runs/profiling/$(GI_WORKTREE)
@@ -124,7 +139,7 @@ $(TESTPROFILE): $(wildcard scripts/testprofile/*.go)
 
 # Wrap the whole lifecycle, not just the test command. The recursive make
 # retains CPU limits and command-line overrides; nested suites execute once.
-_PROFILE_GOALS := $(filter-out test-instance-start test-instance-stop test-web-regression-list,$(filter test% fixtures-vibes% bench% profile-tui-complex-tables check,$(MAKECMDGOALS)))
+_PROFILE_GOALS := $(if $(filter 1,$(PROFILING)),$(filter-out test-instance-start test-instance-stop test-web-regression-list,$(filter test% fixtures-vibes% bench% profile-tui-complex-tables check,$(MAKECMDGOALS))))
 ifneq ($(_PROFILE_GOALS),)
 ifeq ($(GI_TEST_PROFILE_ACTIVE),)
 # Dispatch all requested goals so mixed invocations (build test) still work.
@@ -137,3 +152,8 @@ endif
 else
 include scripts/test-targets.mk
 endif
+
+.PHONY: test-env
+# Shell-quoted configuration for direct CI commands; resolve before changing TMPDIR.
+test-env:
+	@printf 'export %s=%q\n' PROJECT_NAME gi PROJECT_TMP_ROOT '$(PROJECT_TMP_ROOT)' PROJECT_ORIGINAL_TMPDIR '$(PROJECT_ORIGINAL_TMPDIR)' GI_TEST_RUN_ROOT '$(GI_TEST_RUN_ROOT)' GI_TEST_RUN_ID '$(GI_TEST_RUN_ID)' GI_WORKTREE '$(GI_WORKTREE)' TMPDIR '$(TMPDIR)' TMP '$(TMP)' TEMP '$(TEMP)' GOTMPDIR '$(GOTMPDIR)' GOCACHE '$(GOCACHE)' GOMODCACHE '$(GOMODCACHE)' BUN_INSTALL_CACHE_DIR '$(BUN_INSTALL_CACHE_DIR)' npm_config_cache '$(npm_config_cache)' XDG_CACHE_HOME '$(XDG_CACHE_HOME)' PLAYWRIGHT_BROWSERS_PATH '$(PLAYWRIGHT_BROWSERS_PATH)' TEST_RESULTS '$(TEST_RESULTS)'

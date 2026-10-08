@@ -139,7 +139,7 @@ func TestWorkspaceEditorRejectsTruncatedBinaryOutsideAndUnauthenticatedAccess(t 
 
 func TestWorkspaceEditorStaticCompatibilityPaths(t *testing.T) {
 	srv := New(nil, nil, config.RuntimeConfig{WorkspaceRoot: t.TempDir()})
-	for _, path := range []string{"/static/css/editor.css", "/static/editor-vendor/codemirror.js", "/static/dist/app.bundle.js"} {
+	for _, path := range []string{"/static/dist/app.bundle.css", "/static/editor-vendor/codemirror.js", "/static/dist/editor.bundle.js", "/dist/editor.bundle.js", "/static/dist/app.bundle.js"} {
 		w := httptest.NewRecorder()
 		srv.Handler().ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
 		if w.Code != 200 || w.Body.Len() == 0 {

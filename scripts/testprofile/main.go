@@ -1,8 +1,7 @@
-// Command testprofile runs gi's test runs with profiling and
-// analysis, so the suites stay lean: every run reports wall and CPU time,
-// peak memory, the slowest packages and tests, CPU and allocation hot spots,
-// and what got slower since the previous run. Reports and a history log are
-// kept under -dir (default ~/.cache/gi-test-profile, on disk).
+// Command testprofile runs tests with optional pre-release profiling.
+// PROFILING=1 captures CPU and allocations, analyses them, then deletes raw
+// data. PROFILE_KEEP=1 retains it only for the current manual investigation.
+// Ordinary tests create no profiles; concise measurements use project scratch.
 //
 //	testprofile go [-run regexp] [packages]   # Go suite, one package at a time
 //	testprofile run -name NAME -- cmd args... # any suite: time, CPU, memory
@@ -65,8 +64,15 @@ func defaultDir() string {
 	if d := os.Getenv("GI_TEST_PROFILE_DIR"); d != "" {
 		return d
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".cache", "gi-test-profile")
+	root := os.Getenv("PROJECT_TMP_ROOT")
+	if root == "" {
+		output, err := exec.Command("bash", "scripts/project-tmp.sh").Output()
+		if err != nil {
+			panic(fmt.Sprintf("cannot resolve project profile root: %v", err))
+		}
+		root = strings.TrimSpace(string(output))
+	}
+	return filepath.Join(root, "runs", "profiling")
 }
 
 func main() {
@@ -114,6 +120,23 @@ func runMode(args []string) int {
 	rep.ExitCode = exitCode(err)
 	prev := lastReport(*dir, reportName)
 	save(*dir, rep)
+	if root := os.Getenv("GI_TEST_RUN_ROOT"); root != "" {
+		if err := analyzeRunCaptures(root); err != nil {
+			fmt.Fprintln(os.Stderr, "capture analysis:", err)
+			rep.ExitCode = 1
+		}
+	}
+	if os.Getenv("PROFILE_KEEP") != "1" && rep.ExitCode == 0 {
+		if root := os.Getenv("GI_TEST_RUN_ROOT"); root != "" {
+			// The helper validates ownership and symlink ancestors before removal.
+			cleanup := exec.Command("bash", "-c", `source scripts/project-test-env.sh && gi_test_path "$GI_TEST_RUN_ROOT" && rm -rf -- "$GI_TEST_RUN_ROOT"`)
+			cleanup.Stdout, cleanup.Stderr = os.Stdout, os.Stderr
+			if err := cleanup.Run(); err != nil {
+				fmt.Fprintln(os.Stderr, "run cleanup:", err)
+				rep.ExitCode = 1
+			}
+		}
+	}
 	fmt.Printf("\n── %s profile ── wall %s · cpu %s · peak RSS %s%s\n", *name, dur(rep.Wall), dur(rep.CPU), mb(rep.PeakRSS), compareTotals(prev, rep))
 	return rep.ExitCode
 }
@@ -190,6 +213,22 @@ func splitGoTestArgs(args []string) (patterns []string, run string, flags []stri
 }
 
 func profileGo(patterns []string, run string, flags []string, dir string, hot int) int {
+	if os.Getenv("PROFILING") != "1" {
+		gobin := os.Getenv("GO")
+		if gobin == "" {
+			gobin = "go"
+		}
+		args := append([]string{"test", "-count=1"}, flags...)
+		if run != "" {
+			args = append(args, "-run", run)
+		}
+		if len(patterns) == 0 {
+			patterns = []string{"./..."}
+		}
+		cmd := exec.Command(gobin, append(args, patterns...)...)
+		cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+		return exitCode(cmd.Run())
+	}
 	if len(patterns) == 0 {
 		patterns = []string{"./..."}
 	}
@@ -210,8 +249,22 @@ func profileGo(patterns []string, run string, flags []string, dir string, hot in
 		name = fmt.Sprintf("go-subset-%08x", h.Sum32())
 	}
 	rep := &report{Name: name, Started: time.Now()}
-	runDir := filepath.Join(dir, "go-"+rep.Started.Format("20060102-150405"))
-	_ = os.MkdirAll(runDir, 0o755)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	runDir, err := os.MkdirTemp(dir, "go-"+rep.Started.Format("20060102-150405")+"-")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer func() {
+		if os.Getenv("PROFILE_KEEP") != "1" {
+			_ = os.RemoveAll(runDir)
+		} else {
+			fmt.Printf("Raw profiles kept for current analysis: %s (remove after use)\n", runDir)
+		}
+	}()
 	var lastCPU float64
 	var lastRSS int64
 	for _, pkg := range strings.Fields(string(list)) {
@@ -265,6 +318,7 @@ func profileGo(patterns []string, run string, flags []string, dir string, hot in
 		for _, profile := range []string{res.CPUProfile, res.MemProfile} {
 			if info, err := os.Stat(profile); err != nil || info.Size() == 0 {
 				fmt.Fprintf(os.Stderr, "MISSING profile (not a profiling pass): %s\n", profile)
+				rep.ExitCode = 1
 			}
 		}
 		rep.Packages = append(rep.Packages, res)
@@ -274,7 +328,7 @@ func profileGo(patterns []string, run string, flags []string, dir string, hot in
 	prev := lastReport(dir, rep.Name)
 	save(dir, rep)
 	analyze(rep, prev, hot, runDir)
-	pruneRuns(dir, "go-", 5)
+	// Never prune another invocation's captures: it may still be active.
 	return rep.ExitCode
 }
 
@@ -401,18 +455,21 @@ func analyze(rep, prev *report, hot int, runDir string) {
 	}
 
 	sort.Slice(pkgs, func(i, j int) bool { return pkgs[i].TestTime > pkgs[j].TestTime })
-	fmt.Println("hot spots (flat CPU, then allocated bytes) in the slowest packages:")
-	for _, p := range pkgs[:min(hot, len(pkgs))] {
+	fmt.Println("hot spots (cumulative CPU, allocated bytes and objects), all packages:")
+	for _, p := range pkgs {
 		fmt.Printf("  %s\n", short(p.Package))
-		for _, line := range pprofTop(p.CPUProfile, nil, 5) {
+		for _, line := range pprofTop(p.CPUProfile, []string{"-cum"}, 5) {
 			fmt.Println("    cpu   " + line)
 		}
-		for _, line := range pprofTop(p.MemProfile, []string{"-sample_index=alloc_space"}, 3) {
+		for _, line := range pprofTop(p.MemProfile, []string{"-sample_index=alloc_space", "-cum"}, 3) {
 			fmt.Println("    alloc " + line)
+		}
+		for _, line := range pprofTop(p.MemProfile, []string{"-sample_index=alloc_objects", "-cum"}, 3) {
+			fmt.Println("    objects " + line)
 		}
 	}
 	fmt.Printf("disk: go build cache %s · go tmp %s · profiles %s\n", dirSize(os.Getenv("GOCACHE")), dirSize(os.Getenv("GOTMPDIR")), dirSize(filepath.Dir(runDir)))
-	fmt.Printf("report: %s\n", filepath.Join(runDir, "report.json"))
+	fmt.Printf("profile scratch: %s (disposed after analysis by default)\n", runDir)
 }
 
 // pprofTop is the top n rows of go tool pprof -top, with samples charged to
@@ -451,9 +508,6 @@ func pprofTop(profile string, extra []string, n int) []string {
 func save(dir string, rep *report) {
 	_ = os.MkdirAll(dir, 0o755)
 	if b, err := json.MarshalIndent(rep, "", " "); err == nil {
-		if strings.HasPrefix(rep.Name, "go") {
-			_ = os.WriteFile(filepath.Join(dir, "go-"+rep.Started.Format("20060102-150405"), "report.json"), b, 0o644)
-		}
 		if rep.ExitCode == 0 { // the baseline for the next run
 			_ = os.WriteFile(filepath.Join(dir, "latest-"+rep.Name+".json"), b, 0o644)
 		}
@@ -478,21 +532,6 @@ func lastReport(dir, name string) *report {
 		return nil
 	}
 	return &r
-}
-
-func pruneRuns(dir, prefix string, keep int) {
-	entries, _ := os.ReadDir(dir)
-	var runs []string
-	for _, e := range entries {
-		if e.IsDir() && strings.HasPrefix(e.Name(), prefix) {
-			runs = append(runs, e.Name())
-		}
-	}
-	sort.Strings(runs)
-	for len(runs) > keep {
-		_ = os.RemoveAll(filepath.Join(dir, runs[0]))
-		runs = runs[1:]
-	}
 }
 
 // ── formatting ──────────────────────────────────────────────────────────
@@ -548,4 +587,47 @@ func dirSize(dir string) string {
 		return nil
 	})
 	return fmt.Sprintf("%d MB", total>>20)
+}
+
+// Runtime and browser captures are analysed before a successful owner run is
+// disposed. Never describe process timing alone as application profiling.
+func analyzeRunCaptures(root string) error {
+	if os.Getenv("PROFILING") != "1" {
+		return nil
+	}
+	return filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink in capture run: %s", path)
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		name := entry.Name()
+		if name == "cpu.pprof" || name == "mem.pprof" {
+			extra := []string{"-cum"}
+			if name == "mem.pprof" {
+				extra = append(extra, "-sample_index=alloc_space")
+			}
+			fmt.Println("capture:", path)
+			for _, line := range pprofTop(path, extra, 8) {
+				fmt.Println(line)
+			}
+			if name == "mem.pprof" {
+				for _, line := range pprofTop(path, []string{"-cum", "-sample_index=alloc_objects"}, 8) {
+					fmt.Println("objects", line)
+				}
+			}
+		}
+		if name == "browser.cpuprofile" || (strings.HasSuffix(name, ".cpuprofile") && strings.Contains(path, "profiles/node")) {
+			cmd := exec.Command("node", "references/fixtures-vibes/tools/profile-summary.mjs", filepath.Dir(path), "5")
+			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+			if err := cmd.Run(); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

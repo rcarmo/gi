@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  PROFILING: "1"
+  PROFILE_KEEP: "0"
+
 jobs:
   test:
     name: Test
@@ -23,12 +27,19 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
 
       - name: Install web dependencies
         run: bun install --frozen-lockfile
@@ -57,13 +68,12 @@ jobs:
       - name: Go vet
         run: make vet
 
-      - name: Upload test profiles
+      - name: Dispose current-run scratch after analysis
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gi-test-profiles
-          path: ~/.cache/gi-test-profile/
-          if-no-files-found: warn
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
 
   classic-compliance:
     name: Shared Classic compliance
@@ -79,16 +89,30 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
       - run: bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium webkit
       - run: make build-web
       - run: make fixtures-vibes
-      - if: always()
-        uses: actions/upload-artifact@v7
+      - name: Retain concise run measurements
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: shared-classic-compliance
-          path: references/fixtures-vibes/test-results/
+          name: shared-classic-compliance-measurements
+          path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
           retention-days: 3
+      - name: Dispose owned diagnostics after analysis
+        if: always()
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
 
   passkey-browser:
     name: Native passkey browser integration
@@ -103,16 +127,29 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
       - run: bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium
       - run: make test-ux-passkeys
-      - name: Retain native passkey fixture diagnostics
+      - name: Retain concise run measurements
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: native-passkey-browser-evidence
-          path: test-results/ux-parity
+          name: native-passkey-browser-evidence-measurements
+          path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
           retention-days: 3
+      - name: Dispose owned diagnostics after analysis
+        if: always()
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
 
   browser-journey:
     name: Startup and Return browser journeys
@@ -128,6 +165,13 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
       - name: Install web dependencies
         run: bun install
       - name: Install Chromium and WebKit
@@ -140,13 +184,19 @@ jobs:
         run: make test-ux-slash
       - name: Verify read-only workspace tab transitions
         run: make test-ux-workspace-tabs
-      - name: Upload journey evidence
+      - name: Retain concise run measurements
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
-          name: startup-return-browser-evidence
-          path: test-results/ux-parity
+          name: startup-return-browser-evidence-measurements
+          path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
           retention-days: 3
+      - name: Dispose owned diagnostics after analysis
+        if: always()
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
 
   compose-browser:
     name: Compose surfaces and panels
@@ -162,6 +212,13 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
       - run: bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium webkit
       - name: Verify compose surface and resize ownership
@@ -170,12 +227,19 @@ jobs:
         run: make test-ux-model-panel
       - name: Verify native session panel and first-frame navigation
         run: make test-ux-session-panel
-      - if: always()
+      - name: Retain concise run measurements
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: compose-panel-voice-evidence
-          path: test-results/ux-parity
+          name: compose-panel-voice-evidence-measurements
+          path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
           retention-days: 3
+      - name: Dispose owned diagnostics after analysis
+        if: always()
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
 
   voice-browser:
     name: Voice input ownership
@@ -191,16 +255,30 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
       - run: bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium webkit
       - name: Verify browser voice-input ownership contract
         run: make test-ux-voice-input
-      - if: always()
+      - name: Retain concise run measurements
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: voice-ownership-evidence
-          path: test-results/ux-parity
+          name: voice-ownership-evidence-measurements
+          path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
           retention-days: 3
+      - name: Dispose owned diagnostics after analysis
+        if: always()
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
 
   context-browser:
     name: Context meter and native compaction ownership
@@ -216,15 +294,29 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
       - run: bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium webkit
       - run: make test-ux-context-meter test-ux-compaction
-      - if: always()
+      - name: Retain concise run measurements
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: context-compaction-evidence
-          path: test-results/ux-parity
+          name: context-compaction-evidence-measurements
+          path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
           retention-days: 3
+      - name: Dispose owned diagnostics after analysis
+        if: always()
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
 
   notification-browser:
     name: Local notification ownership and logout
@@ -240,15 +332,29 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
       - run: bun install --frozen-lockfile
       - run: bun x playwright install --with-deps chromium webkit
       - run: make test-ux-notifications
-      - if: always()
+      - name: Retain concise run measurements
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: local-notification-evidence
-          path: test-results/ux-parity
+          name: local-notification-evidence-measurements
+          path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
           retention-days: 3
+      - name: Dispose owned diagnostics after analysis
+        if: always()
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
 
   terminal-retry:
     name: Terminal retry and submit guards
@@ -261,21 +367,33 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
       - run: sudo apt-get update && sudo apt-get install -y tmux sqlite3
       - run: bun install
       - run: make test-tui-retry-commands test-tui-unselected-model
-      - name: Upload terminal retry evidence
+      - name: Retain concise run measurements
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: terminal-retry-evidence
-          path: |
-            test-results/tui-retry-commands/
-            test-results/tui-unselected-model/
+          name: terminal-retry-evidence-measurements
+          path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
+          retention-days: 3
+      - name: Dispose owned diagnostics after analysis
+        if: always()
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
           if-no-files-found: ignore
 
   basic-web-send:
@@ -289,25 +407,35 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium webkit
       - run: make test-web-http-helpers test-web-basic-send test-web-basic-controls
       - name: Verify captured Stop reconnect evidence without Shared36 parity credit
         run: make test-ux-reconnect UX_PARITY_ARGS='--grep "Gi Stop reconnect retains draft"'
-      - name: Preserve basic send evidence
+      - name: Retain concise run measurements
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: basic-web-send-evidence
-          path: |
-            test-results/basic-http-send/
-            test-results/ux-parity/basic-http-results.json
-            test-results/ux-parity/reconnect-results.json
-            test-results/ux-parity/artifacts/
+          name: basic-web-send-evidence-measurements
+          path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
+          retention-days: 3
+      - name: Dispose owned diagnostics after analysis
+        if: always()
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
           if-no-files-found: ignore
 
   tool-terminal-browser:
@@ -322,17 +450,31 @@ jobs:
         with:
           go-version-file: go.mod
       - uses: oven-sh/setup-bun@v2
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
+
       - run: bun install
       - run: go mod download
       - run: bun x playwright install --with-deps chromium webkit
       - name: Verify explicit tool terminal events and browser reconstruction
         run: make test-ux-tool-terminal
-      - name: Preserve tool terminal evidence
+      - name: Retain concise run measurements
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: tool-terminal-evidence
-          path: test-results/ux-parity
+          name: tool-terminal-evidence-measurements
+          path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
+          retention-days: 3
+      - name: Dispose owned diagnostics after analysis
+        if: always()
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
           if-no-files-found: ignore
           retention-days: 3
 
@@ -348,17 +490,31 @@ jobs:
         with:
           go-version-file: go.mod
       - uses: oven-sh/setup-bun@v2
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
+
       - run: bun install
       - run: go mod download
       - run: bun x playwright install --with-deps chromium webkit
       - name: Run native and six-project message retrieval gates
         run: make test-ux-message-retrieval
-      - name: Preserve message retrieval evidence
+      - name: Retain concise run measurements
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: message-retrieval-evidence
-          path: test-results/ux-parity
+          name: message-retrieval-evidence-measurements
+          path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
+          retention-days: 3
+      - name: Dispose owned diagnostics after analysis
+        if: always()
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
           if-no-files-found: ignore
           retention-days: 3
 
@@ -373,21 +529,33 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium webkit
       - run: make test-ux-thinking
-      - name: Preserve thinking request evidence
+      - name: Retain concise run measurements
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: session-thinking-evidence
-          path: |
-            test-results/ux-parity/results.json
-            test-results/ux-parity/artifacts/
+          name: session-thinking-evidence-measurements
+          path: ${{ env.PROJECT_TMP_ROOT }}/runs/profiling/
+          retention-days: 3
+      - name: Dispose owned diagnostics after analysis
+        if: always()
+        run: |
+          source scripts/project-test-env.sh
+          gi_test_path "$GI_TEST_RUN_ROOT"
+          rm -rf -- "$GI_TEST_RUN_ROOT"
           if-no-files-found: ignore
 
   auth-state:
@@ -406,7 +574,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
       - name: Native auth state locking and replacement
         run: go test ./internal/auth -count=3
 
@@ -443,12 +611,19 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+
+      - name: Resolve project-owned scratch before installs
+        run: |
+          eval "$(make -s test-env RACE=)"
+          for key in PROJECT_NAME PROJECT_TMP_ROOT PROJECT_ORIGINAL_TMPDIR GI_TEST_RUN_ROOT GI_TEST_RUN_ID GI_WORKTREE TMPDIR TMP TEMP GOTMPDIR GOCACHE GOMODCACHE BUN_INSTALL_CACHE_DIR npm_config_cache XDG_CACHE_HOME PLAYWRIGHT_BROWSERS_PATH TEST_RESULTS; do
+            printf '%s=%s\n' "$key" "${!key}" >> "$GITHUB_ENV"
+          done
 
       - name: Install web dependencies
         run: bun install --frozen-lockfile

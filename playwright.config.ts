@@ -13,6 +13,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
+  outputDir: `${process.env.GI_TEST_RUN_ROOT || (() => { throw new Error('Use scripts/run-playwright.sh or make'); })()}/results/artifacts`,
   // Global setup could start the test server, but we use make test-ux for that
-  reporter: [['line'], ['json', { outputFile: 'test-results/results.json' }]],
+  reporter: [['line'], ['json', { outputFile: `${process.env.GI_TEST_RUN_ROOT}/results/results.json` }]],
 });

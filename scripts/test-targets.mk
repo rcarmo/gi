@@ -173,16 +173,16 @@ test-web-basic-send: test-instance-start
 	@GI_TEST_URL=http://127.0.0.1:$(TEST_PORT) $(PLAYWRIGHT) test tests/functional/18-basic-http-send.spec.ts tests/functional/19-http-delivery.spec.ts --reporter=line --output=$(TEST_RESULTS)/basic-http-send; \
 	status=$$?; $(MAKE) test-instance-stop; exit $$status
 
-# Focused and full Go tests always collect CPU/allocation profiles.
+# PROFILING=1 captures CPU/allocation profiles for pre-release analysis.
 test: $(TESTPROFILE)
 	$(TESTPROFILE) go $(if $(TEST_RUN),-run '$(TEST_RUN)') $(TEST_PKGS)
 
-# Same-agent copies, distinct routing identities and explicit peer creation.
 # Bounded compatibility checks for the Piclaw v3.3.0 shared UI pin.
 .PHONY: test-ui-pin-compatibility
 test-ui-pin-compatibility: $(TESTPROFILE)
 	$(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestStaticViewerPagesMatchPinnedPolicies|TestSettingsModuleHTTPGraph|TestStaticAssetsServePrecompressedVariants|TestSessionMediaEndpoints|TestMultipartUploadRetriesReuseOnlyExactSessionFile|TestWorkspaceEndpoints|TestWorkspaceFileRejectsSymlinkEscape|TestWorkspaceEditorCompatibility|TestSidePromptHTTP|TestPromptTargetingCurrentAgentStaysInSession|TestForkSessionKeepsSourceAgent|TestCreateSessionForkFromKeepsAgentUnlessExplicitPeer|TestQueueSteer' ./internal/web
 
+# Same-agent copies, distinct routing identities and explicit peer creation.
 .PHONY: test-session-copy-identity bench-session-copy
 bench-session-copy: $(TESTPROFILE)
 	$(TESTPROFILE) gotest -run '^$$' -bench '^BenchmarkCloneSession$$' -benchtime=2s -benchmem ./internal/store
@@ -244,8 +244,8 @@ check-cross-build:
 
 .PHONY: test-tui-tables
 test-tui-tables: test-pi-table-oracle test-tui-tables-unit
-	mkdir -p bin
-	$(GO) test -c -o bin/gi-tui-table-test ./internal/tui
+	mkdir -p $(BIN_DIR)
+	$(GO) test -c -o $(BIN_DIR)/gi-tui-table-test ./internal/tui
 	$(BUN) scripts/test-tui-tables.mjs
 
 .PHONY: test-pi-table-oracle
@@ -254,7 +254,7 @@ test-pi-table-oracle:
 
 .PHONY: test-tui-tables-unit
 test-tui-tables-unit: test-pi-table-oracle
-	PI_TABLE_ORACLE=$(abspath test-results/tui-tables/pi-oracle.json) $(TESTPROFILE) gotest $(RACE) -count=3 ./internal/tui -run 'TestMarkdownTable'
+	PI_TABLE_ORACLE=$(abspath $(TEST_RESULTS)/tui-tables/pi-oracle.json) $(TESTPROFILE) gotest $(RACE) -count=3 ./internal/tui -run 'TestMarkdownTable'
 
 .PHONY: test-tool-input-contract
 test-tool-input-contract:
@@ -306,13 +306,19 @@ bun-checks:
 check: test vet build-web bun-checks test-web-adapters test-ux
 
 .PHONY: fixtures-vibes fixtures-vibes-focused test-fixtures-profile-lifecycle
-FIXTURES_RUNTIME_PROFILE_DIR ?= $(CURDIR)/test-results/fixtures-runtime-profile
+FIXTURES_RUNTIME_PROFILE_DIR ?= $(GI_TEST_RUN_ROOT)/profiles/runtime
+# The pinned bundle is already built. Rebuild only for explicit frontend work.
+FIXTURES_BUILD_WEB ?= 0
+FIXTURES_PROFILE ?= $(CURDIR)/tests/fixtures-vibes/profile.json
+export FIXTURES_RUN_ROOT := $(GI_TEST_RUN_ROOT)/fixtures
+export FIXTURES_KEEP_ROOTS ?= 0
+export GI_FIXTURE_PROFILE_DIR := $(if $(filter 1,$(PROFILING)),$(FIXTURES_RUNTIME_PROFILE_DIR))
 
 # Startup/shutdown profiling check before a long frozen compliance run.
 test-fixtures-profile-lifecycle:
 	mkdir -p $(BIN_DIR)
 	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-profile-smoke ./cmd/gi
-	@set -eu; root=$$(mktemp -d /workspace/tmp/gi-fixture-profile-XXXXXX); \
+	@set -eu; root=$$(mktemp -d $(TMPDIR)/fixture-profile-XXXXXX); \
 	trap 'test -z "$${pid:-}" || kill "$${pid}" 2>/dev/null || true' EXIT; \
 	mkdir -p "$$root/home" "$$root/workspace"; \
 	HOME="$$root/home" PI_OFFLINE=1 GI_FIXTURE_PROFILE_DIR="$$root/profiles" FIXTURE_MODEL_URL=http://127.0.0.1:19999/v1 \
@@ -324,26 +330,31 @@ test-fixtures-profile-lifecycle:
 	$(GO) tool pprof -top -cum -nodecount=8 "$$p/cpu.pprof"; \
 	$(GO) tool pprof -top -cum -sample_index=alloc_space -nodecount=8 "$$p/mem.pprof"; \
 	$(GO) tool pprof -top -cum -sample_index=alloc_objects -nodecount=8 "$$p/mem.pprof"; done; \
-	echo "Fixture startup/teardown profiles retained: $$root"
+	rm -rf "$$root"; rm -f $(BIN_DIR)/gi-fixtures-profile-smoke; echo 'Fixture profiles analysed and disposed'
 # Focused acceptance does not replace full-run compliance reports.
-fixtures-vibes-focused: build-web
-	@test -n "$(FIXTURES_SPEC_ARGS)" || { echo 'FIXTURES_SPEC_ARGS is required for a focused run'; exit 2; }
+fixtures-vibes-focused: $(if $(filter 1,$(FIXTURES_BUILD_WEB)),build-web)
+	@test -n '$(FIXTURES_SPEC_ARGS)' || { echo 'FIXTURES_SPEC_ARGS is required for a focused run'; exit 2; }
 	mkdir -p $(BIN_DIR)
 	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
-	cd references/fixtures-vibes && GI_FIXTURE_PROFILE_DIR=$(FIXTURES_RUNTIME_PROFILE_DIR) GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(CURDIR)/tests/fixtures-vibes/profile.json node node_modules/@playwright/test/cli.js test -c suite/playwright.config.ts $(FIXTURES_SPEC_ARGS) --reporter=line
+	@mkdir -p $(FIXTURES_RUN_ROOT)
+	$(if $(filter 1,$(PROFILING)),$(BUN) scripts/prepare-profiled-specs.ts)
+	$(if $(filter 1,$(PROFILING)),GI_PROFILED_SPECS=$(GI_TEST_RUN_ROOT)/specs) GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(FIXTURES_PROFILE) $(PLAYWRIGHT) test -c playwright.fixtures.config.ts $(FIXTURES_SPEC_ARGS)
 
 .PHONY: fixtures-vibes-report
 fixtures-vibes-report:
-	$(MAKE) -C references/fixtures-vibes report PROFILE=$(CURDIR)/tests/fixtures-vibes/profile.json SHELL='$(SHELL)'
+	FIXTURES_PROFILE=$(FIXTURES_PROFILE) $(BUN) scripts/fixtures-report.ts
 
-fixtures-vibes: build-web
-	mkdir -p $(BIN_DIR)
+fixtures-vibes: $(if $(filter 1,$(FIXTURES_BUILD_WEB)),build-web)
+	mkdir -p $(BIN_DIR) $(FIXTURES_RUN_ROOT)
 	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
-	GI_FIXTURE_PROFILE_DIR=$(FIXTURES_RUNTIME_PROFILE_DIR) GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) $(MAKE) -C references/fixtures-vibes deps compliance PROFILE=$(CURDIR)/tests/fixtures-vibes/profile.json $(FIXTURES_VIBES_ARGS)
+	$(if $(filter 1,$(PROFILING)),$(BUN) scripts/prepare-profiled-specs.ts)
+	$(if $(filter 1,$(PROFILING)),GI_PROFILED_SPECS=$(GI_TEST_RUN_ROOT)/specs) GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(FIXTURES_PROFILE) $(PLAYWRIGHT) test -c playwright.fixtures.config.ts $(FIXTURES_VIBES_ARGS)
+	$(MAKE) --no-print-directory fixtures-vibes-report
 
 # ── Isolated UX test instance ───────────────────────────────────────────
 
 test-instance-start: build
+	@source scripts/project-test-env.sh; gi_test_path '$(abspath $(TEST_DIR))'; gi_test_path '$(abspath $(TEST_WORKSPACE))'
 	@mkdir -p $(TEST_DIR)
 	@if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null; then \
 		pid=$$(cat $(TEST_PID)); kill $$pid 2>/dev/null || true; \
@@ -365,6 +376,7 @@ test-instance-start: build
 	echo "Test instance failed to start"; cat $(TEST_LOG) 2>/dev/null; exit 1
 
 test-instance-stop:
+	@source scripts/project-test-env.sh; gi_test_path '$(abspath $(TEST_DIR))'
 	@if [ -f $(TEST_PID) ] && kill -0 $$(cat $(TEST_PID)) 2>/dev/null; then \
 		pid=$$(cat $(TEST_PID)); kill $$pid && echo "Stopping test instance"; \
 		for i in $$(seq 1 100); do kill -0 $$pid 2>/dev/null || break; sleep .1; done; \
@@ -386,7 +398,7 @@ UX_PARITY_ARGS ?=
 # Real local inference checkpoints (no paid provider).
 UX_LOCAL_ENV ?= GI_UX_STEER=1
 UX_LOCAL_SPEC ?= tests/web-regression/queue-steer.spec.mjs
-UX_LOCAL_BIN ?= bin/gi-ux-steer
+UX_LOCAL_BIN ?= $(BIN_DIR)/gi-ux-steer
 UX_LOCAL_PORT ?= 19092
 .PHONY: test-shared-stop-evidence
 test-shared-stop-evidence: fixtures-vibes
@@ -425,15 +437,15 @@ test-ux-index-config:
 test-ux-shared-copy-delete: fixtures-vibes
 
 test-ux-steer: build-web
-	@mkdir -p $(dir $(UX_LOCAL_BIN)) test-results/ux-parity/queue-gates
+	@mkdir -p $(dir $(UX_LOCAL_BIN)) $(TEST_RESULTS)/ux-parity/queue-gates
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
 	@set -e; \
-	PATH=$(abspath tests/ux/shell):$$PATH $(UX_LOCAL_ENV) GI_UX_LISTEN=127.0.0.1:$(UX_LOCAL_PORT) GI_UX_QUEUE_GATES=$(abspath test-results/ux-parity/queue-gates) $(UX_LOCAL_BIN) >test-results/ux-parity/steer-server.log 2>&1 & pid=$$!; \
+	PATH=$(abspath tests/ux/shell):$$PATH $(UX_LOCAL_ENV) GI_UX_LISTEN=127.0.0.1:$(UX_LOCAL_PORT) GI_UX_QUEUE_GATES=$(abspath $(TEST_RESULTS)/ux-parity/queue-gates) $(UX_LOCAL_BIN) >$(TEST_RESULTS)/ux-parity/steer-server.log 2>&1 & pid=$$!; \
 	trap 'kill $$pid 2>/dev/null || true; wait $$pid 2>/dev/null || true' EXIT; \
 	ready=0; for i in $$(seq 1 100); do kill -0 $$pid || exit 1; if curl -fsS http://127.0.0.1:$(UX_LOCAL_PORT)/api/runtime/config >/dev/null 2>&1; then ready=1; break; fi; sleep .1; done; \
 	test $$ready -eq 1; \
 	$(UX_LOCAL_ENV) GI_TEST_URL=http://127.0.0.1:$(UX_LOCAL_PORT) $(PLAYWRIGHT) test --config=playwright.web-regression.config.mjs $(UX_LOCAL_SPEC) $(UX_PARITY_ARGS); \
-	if [ -n "$(UX_LOCAL_FUNCTIONAL)" ]; then $(UX_LOCAL_ENV) GI_TEST_URL=http://127.0.0.1:$(UX_LOCAL_PORT) $(PLAYWRIGHT) test --config=playwright.config.ts --output=test-results/local-functional-artifacts $(UX_LOCAL_FUNCTIONAL); fi
+	if [ -n "$(UX_LOCAL_FUNCTIONAL)" ]; then $(UX_LOCAL_ENV) GI_TEST_URL=http://127.0.0.1:$(UX_LOCAL_PORT) $(PLAYWRIGHT) test --config=playwright.config.ts --output=$(TEST_RESULTS)/local-functional-artifacts $(UX_LOCAL_FUNCTIONAL); fi
 test-web-adapters:
 	$(BUN) test ./tests/ux/support/ && $(MAKE) -C $(GI_UI) test
 
@@ -449,7 +461,7 @@ test-web-regression-list:
 
 .PHONY: build-pane-host-fixture
 build-pane-host-fixture:
-	@mkdir -p test-results
+	@mkdir -p $(TEST_RESULTS)
 	$(MAKE) -s -C $(GI_UI) deps && $(BUN) $(GI_UI)/scripts/build-pane-host-fixture.mjs
 
 .PHONY: test-web-skills test-ux-skills
@@ -579,15 +591,15 @@ diagnose-webkit-unload:
 	$(BUN) tests/ux/oracle/webkit-unload-diagnostic.mjs
 
 test-ux-parity-regression:
-	@mkdir -p test-results/ux-parity/queue-gates
-	PATH="$(abspath tests/ux/shell):$$PATH" GI_UX_QUEUE_GATES="$(abspath test-results/ux-parity/queue-gates)" $(MAKE) --no-print-directory test-instance-start TEST_PORT=$(UX_PARITY_PORT) TEST_DIR=.gi-ux-parity TEST_ENABLED_MODELS='["test-model","bootstrap","test/unavailable-model"]'
-	@trap '$(MAKE) --no-print-directory test-instance-stop TEST_DIR=.gi-ux-parity' EXIT; \
+	@mkdir -p $(TEST_RESULTS)/ux-parity/queue-gates
+	PATH="$(abspath tests/ux/shell):$$PATH" GI_UX_QUEUE_GATES="$(abspath $(TEST_RESULTS)/ux-parity/queue-gates)" $(MAKE) --no-print-directory test-instance-start TEST_PORT=$(UX_PARITY_PORT) TEST_DIR=$(GI_TEST_RUN_ROOT)/ux-parity TEST_ENABLED_MODELS='["test-model","bootstrap","test/unavailable-model"]'
+	@trap '$(MAKE) --no-print-directory test-instance-stop TEST_DIR=$(GI_TEST_RUN_ROOT)/ux-parity' EXIT; \
 		$(MAKE) --no-print-directory build-pane-host-fixture || exit 1; \
 		GI_TEST_URL=http://127.0.0.1:$(UX_PARITY_PORT) $(PLAYWRIGHT) test -c playwright.web-regression.config.mjs $(UX_PARITY_ARGS)
 
 test-tui-compaction:
 	@mkdir -p bin
-	$(GO) test -c -o bin/gi-tui-compaction-test ./internal/tui
+	$(GO) test -c -o $(BIN_DIR)/gi-tui-compaction-test ./internal/tui
 	$(BUN) scripts/test-tui-compaction.mjs
 
 
@@ -732,8 +744,8 @@ test-tui-gherkin-features: build $(TESTPROFILE)
 # ── Cleanup ─────────────────────────────────────────────────────────────
 
 clean:
-	rm -rf $(RUN_DIR) $(BIN_DIR) $(TEST_DIR) $(TUI_TEST_DIR) $(TEST_RESULTS)
-	rm -f gi gi-tui
+	@source scripts/project-test-env.sh; gi_test_path '$(GI_TEST_RUN_ROOT)'; rm -rf -- '$(GI_TEST_RUN_ROOT)'
+	@echo 'Removed only this invocation scratch; durable run state, installed tools and active/shared caches are preserved.'
 
 .PHONY: pixel-install pixel-baseline pixel-compare test-pixel-helpers
 # Build-time screenshot decoding only; not part of the native runtime.
@@ -815,23 +827,23 @@ test-ux-compose-surface: build-web
 .PHONY: test-ux-workspace-tabs
 test-ux-workspace-tabs:
 	$(MAKE) test-ux-parity-regression UX_PARITY_ARGS='tests/web-regression/workspace-tabs.spec.mjs'
-	cp test-results/ux-parity/results.json test-results/ux-parity/workspace-tabs-results.json
+	cp $(TEST_RESULTS)/ux-parity/results.json $(TEST_RESULTS)/ux-parity/workspace-tabs-results.json
 
 .PHONY: test-ux-slash
 test-ux-slash: build-web
-	mkdir -p $(dir $(UX_LOCAL_BIN)) test-results/ux-parity
+	mkdir -p $(dir $(UX_LOCAL_BIN)) $(TEST_RESULTS)/ux-parity
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
 	GI_UX_SLASH=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(BUN) x playwright test --config=playwright.web-regression.config.mjs $(UX_PARITY_ARGS)
 
 .PHONY: test-ux-picker-geometry
 test-ux-picker-geometry: build-web
-	mkdir -p $(dir $(UX_LOCAL_BIN)) test-results/ux-parity
+	mkdir -p $(dir $(UX_LOCAL_BIN)) $(TEST_RESULTS)/ux-parity
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
 	GI_UX_PICKER_GEOMETRY=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(BUN) x playwright test --config=playwright.web-regression.config.mjs $(UX_PARITY_ARGS)
 
 .PHONY: test-ux-journey
 test-ux-journey: build-web
-	mkdir -p $(dir $(UX_LOCAL_BIN)) test-results/ux-parity
+	mkdir -p $(dir $(UX_LOCAL_BIN)) $(TEST_RESULTS)/ux-parity
 	$(GO) build -o $(UX_LOCAL_BIN) ./tests/ux/server
 	GI_UX_JOURNEY=1 GI_UX_SERVER_BIN=$(abspath $(UX_LOCAL_BIN)) $(BUN) x playwright test --config=playwright.web-regression.config.mjs $(UX_PARITY_ARGS)
 
@@ -966,3 +978,7 @@ test-dashboard-widgets:
 .PHONY: test-session-plan
 test-session-plan:
 	$(TESTPROFILE) gotest $(RACE) ./internal/plan ./internal/store ./internal/tools ./internal/turn ./internal/web -run Plan
+
+.PHONY: test-project-paths
+test-project-paths:
+	bash scripts/test-project-paths.sh

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GI_BIN="$(pwd)/bin/gi"
-DB="$(pwd)/.gi-run/gi.db"
+GI_source "$(dirname "$0")/project-test-env.sh"
+BIN="$PROJECT_TMP_ROOT/build/$GI_WORKTREE/gi"
+DB="$GI_TEST_RUN_ROOT/tool-matrix.db"
 PORT=8091
 WORKSPACE=/workspace
-RESULTS_FILE="/tmp/tool-matrix-results.md"
+RESULTS_FILE="$GI_TEST_RUN_ROOT/tool-matrix-results.md"
 
 # Test matrix: provider/model
 MODELS=(
@@ -41,7 +42,7 @@ for MODEL in "${MODELS[@]}"; do
   echo "=== Testing: $MODEL ==="
   
   # Start gi
-  "$GI_BIN" -web -bind 127.0.0.1 -port $PORT -model "$MODEL" -db "$DB" -workspace "$WORKSPACE" 2>/tmp/gi-matrix.log &
+  "$GI_BIN" -web -bind 127.0.0.1 -port $PORT -model "$MODEL" -db "$DB" -workspace "$WORKSPACE" 2>$GI_TEST_RUN_ROOT/gi-matrix.log &
   GIPID=$!
   sleep 2
   
@@ -87,8 +88,8 @@ for MODEL in "${MODELS[@]}"; do
   ELAPSED=$((END_T - START_T))
   
   # Extract results from log
-  ITER1=$(grep -o 'iter=1/64.*stop="[^"]*"' /tmp/gi-matrix.log | tail -1 | grep -o 'stop="[^"]*"' || echo "—")
-  ITER2=$(grep -o 'iter=2/64.*stop="[^"]*"\|iter=2/64.*error:.*' /tmp/gi-matrix.log | tail -1 | head -c 80 || echo "—")
+  ITER1=$(grep -o 'iter=1/64.*stop="[^"]*"' $GI_TEST_RUN_ROOT/gi-matrix.log | tail -1 | grep -o 'stop="[^"]*"' || echo "—")
+  ITER2=$(grep -o 'iter=2/64.*stop="[^"]*"\|iter=2/64.*error:.*' $GI_TEST_RUN_ROOT/gi-matrix.log | tail -1 | head -c 80 || echo "—")
   
   # Check if tool result contains our marker
   HAS_MARKER=$(curl -sf "http://127.0.0.1:$PORT/api/sessions/$SESS/messages" 2>/dev/null | \
@@ -100,7 +101,7 @@ print('yes' if found else 'no')
 " 2>/dev/null || echo "unknown")
   
   # Determine API type from log
-  API_TYPE=$(grep -o 'openai-responses\|openai-completions\|anthropic-messages\|openai-codex-responses' /tmp/gi-matrix.log | tail -1 || echo "?")
+  API_TYPE=$(grep -o 'openai-responses\|openai-completions\|anthropic-messages\|openai-codex-responses' $GI_TEST_RUN_ROOT/gi-matrix.log | tail -1 || echo "?")
   if [ -z "$API_TYPE" ]; then
     PROVIDER=$(echo "$MODEL" | cut -d/ -f1)
     MNAME=$(echo "$MODEL" | cut -d/ -f2)
@@ -118,7 +119,7 @@ print('yes' if found else 'no')
   elif [ "$COMPLETED" = "true" ] && [ "$STATUS" = "failed" ]; then
     RESULT="❌ FAIL"
     fail=$((fail+1))
-    ERR=$(grep -o 'error:.*' /tmp/gi-matrix.log | tail -1 | head -c 60 || echo "unknown")
+    ERR=$(grep -o 'error:.*' $GI_TEST_RUN_ROOT/gi-matrix.log | tail -1 | head -c 60 || echo "unknown")
     echo "  FAIL: $ERR (${ELAPSED}s)"
   else
     RESULT="⏱ TIMEOUT"
@@ -130,7 +131,7 @@ print('yes' if found else 'no')
   
   # Cleanup
   kill $GIPID 2>/dev/null; wait $GIPID 2>/dev/null || true
-  > /tmp/gi-matrix.log
+  > $GI_TEST_RUN_ROOT/gi-matrix.log
 done
 
 echo "" >> "$RESULTS_FILE"
