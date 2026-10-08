@@ -43,9 +43,9 @@ selection/click history before replacing the transcript; scoped stale-copy
 completions are fenced. Focused selection/session tests passed. Other 1.1.0
 contracts need separate implementation or verification:
 
-* Recorded tool duration must survive resume and use execution measurements
-  rather than wall-clock timestamp differences. Gi currently calculates live
-  shell time from timestamps and resumed tool results use message timestamps.
+* Recorded tool duration now uses execution measurements for live and resumed
+  results; missing legacy measurements stay unknown. See [tool-duration.md](tool-duration.md)
+  for boundary, projection and verification limits.
 * `outputPad` must apply consistently to tool, shell and summary output. Gi
   does not yet expose this setting across those render paths.
 * OSC 7501 program status needs support negotiation/explicit opt-out, bounded

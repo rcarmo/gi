@@ -45,6 +45,9 @@ func blockHeightKey(block transcriptRenderableBlock, previousKind string, width 
 	write(block.ToolArg)
 	write(block.StartedAt)
 	write(block.EndedAt)
+	if block.DurationMS != nil {
+		write(strconv.FormatInt(*block.DurationMS, 10))
+	}
 	if block.ToolContent != nil {
 		write(*block.ToolContent)
 	}

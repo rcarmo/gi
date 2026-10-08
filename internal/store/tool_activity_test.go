@@ -50,7 +50,7 @@ func TestToolActivityOccurrenceIdentityBoundsAndTerminalTiming(t *testing.T) {
 	if got := get(); got["state"] != "running" || got["tool_call_id"] != "b" {
 		t.Fatal(got)
 	}
-	appendEvent("tool.failed", map[string]any{"tool": "shell", "tool_call_id": "b"})
+	appendEvent("tool.failed", map[string]any{"tool": "shell", "tool_call_id": "b", "duration_ms": 1234})
 	final := get()
 	if final["state"] != "failed" || final["duration_ms"] == nil || final["finished_at"] == "" {
 		t.Fatal(final)
@@ -116,7 +116,7 @@ func TestToolActivityExplicitStoppedOccurrenceRejectsLateReusedCall(t *testing.T
 	}
 	event := func(kind, occurrence string) {
 		t.Helper()
-		if err := s.AppendTurnEvent(ctx, "t", "A", kind, map[string]any{"tool": "same", "tool_call_id": "reused", "occurrence_id": occurrence}); err != nil {
+		if err := s.AppendTurnEvent(ctx, "t", "A", kind, map[string]any{"tool": "same", "tool_call_id": "reused", "occurrence_id": occurrence, "duration_ms": 2250}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -153,6 +153,13 @@ func TestToolActivityExplicitStoppedOccurrenceRejectsLateReusedCall(t *testing.T
 	event("tool.aborted", "third")
 	if got := snapshot(); got["state"] != "aborted" || got["duration_ms"] == nil {
 		t.Fatal(got)
+	}
+	event("tool.started", "legacy")
+	if err := s.AppendTurnEvent(ctx, "t", "A", "tool.finished", map[string]any{"tool_call_id": "reused", "occurrence_id": "legacy"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := snapshot(); got["state"] != "completed" || got["duration_ms"] != nil {
+		t.Fatal("legacy duration fabricated", got)
 	}
 	event("tool.started", "unknown")
 	if err := s.AppendTurnEvent(ctx, "t", "A", "turn.finished", map[string]any{"status": "cancelled"}); err != nil {

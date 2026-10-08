@@ -29,7 +29,7 @@ func TestCodemodeBlockLive(t *testing.T) {
 	if !strings.Contains(live, `… greet {"name":"bob"}`) {
 		t.Fatalf("running call row missing:\n%s", live)
 	}
-	c.renderToolEvent(map[string]any{"type": "tool_finished", "tool": "greet", "tool_call_id": "cm1/1", "turn_id": "t1", "parent_tool_call_id": "cm1"}, now.Add(250*time.Millisecond))
+	c.renderToolEvent(map[string]any{"type": "tool_finished", "tool": "greet", "tool_call_id": "cm1/1", "turn_id": "t1", "parent_tool_call_id": "cm1", "duration_ms": 250}, now.Add(9*time.Second))
 	c.renderToolEvent(map[string]any{"type": "tool_started", "tool": "mcp__x__y", "tool_call_id": "cm1/2", "turn_id": "t1", "parent_tool_call_id": "cm1"}, now)
 	c.renderToolEvent(map[string]any{"type": "tool_failed", "tool": "mcp__x__y", "tool_call_id": "cm1/2", "turn_id": "t1", "parent_tool_call_id": "cm1", "error": "nope"}, now.Add(time.Second))
 	output := "Script completed\nWall time 0.3 seconds\nOutput:\nhello bob"

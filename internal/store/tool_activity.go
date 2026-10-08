@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
 
@@ -14,14 +13,14 @@ import (
 // Joining the end by call ID and sequence prevents equal tool names from mixing.
 func latestToolActivity(ctx context.Context, tx *sql.Tx, turnID string, claimed bool) (map[string]any, error) {
 	var startRaw, started, status string
-	var ended, endType sql.NullString
+	var ended, endType, endRaw sql.NullString
 	var seq int64
-	err := tx.QueryRowContext(ctx, `select a.seq,a.payload_json,a.created_at,b.created_at,b.event_type,t.status
+	err := tx.QueryRowContext(ctx, `select a.seq,a.payload_json,a.created_at,b.created_at,b.event_type,b.payload_json,t.status
  from turns t join turn_events a on a.id=(select id from turn_events where turn_id=t.id and event_type='tool.started' order by seq desc limit 1)
  left join turn_events b on b.id=(select id from turn_events where turn_id=t.id and seq>a.seq and event_type in ('tool.finished','tool.failed','tool.cancelled','tool.aborted')
  and coalesce(json_extract(payload_json,'$.tool_call_id'),'')=coalesce(json_extract(a.payload_json,'$.tool_call_id'),'')
  and coalesce(json_extract(payload_json,'$.occurrence_id'),'')=coalesce(json_extract(a.payload_json,'$.occurrence_id'),'') order by seq asc limit 1)
- where t.id=?`, turnID).Scan(&seq, &startRaw, &started, &ended, &endType, &status)
+ where t.id=?`, turnID).Scan(&seq, &startRaw, &started, &ended, &endType, &endRaw, &status)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -82,15 +81,15 @@ func latestToolActivity(ctx context.Context, tx *sql.Tx, turnID string, claimed 
 		}
 	}
 	if finished != "" {
-		a, e1 := time.Parse(time.RFC3339Nano, started)
-		b, e2 := time.Parse(time.RFC3339Nano, finished)
-		if e1 == nil && e2 == nil {
-			ms := b.Sub(a).Milliseconds()
-			if ms < 0 {
-				ms = 0
+		var terminal map[string]any
+		if endRaw.Valid && json.Unmarshal([]byte(endRaw.String), &terminal) == nil {
+			if ms, ok := terminal["duration_ms"].(float64); ok && ms >= 0 && ms < 9223372036854 && ms == float64(int64(ms)) {
+				result["duration_ms"] = int64(ms)
+				return result, nil
 			}
-			result["duration_ms"] = ms
 		}
+		// Event receipt timestamps are not execution measurements. Older or
+		// malformed terminal payloads retain their state but unknown duration.
 	}
 	return result, nil
 }

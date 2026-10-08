@@ -196,11 +196,16 @@ func (c *chatTUI) renderPiToolBlock(block transcriptRenderableBlock) *gotui.Elem
 		container.AddChild(textRow(gotui.TextSpan{Text: "[" + footer + "]", Style: piFg(piWarning)}))
 	}
 	if shell {
-		if d, ok := blockDuration(block.StartedAt, block.EndedAt); ok {
-			label := "Took"
-			if strings.TrimSpace(block.EndedAt) == "" {
-				label = "Elapsed"
-			}
+		var d time.Duration
+		label := "Took"
+		ok := block.DurationMS != nil
+		if ok {
+			d = time.Duration(*block.DurationMS) * time.Millisecond
+		} else if block.Status == "running" && strings.TrimSpace(block.EndedAt) == "" {
+			d, ok = blockDuration(block.StartedAt, "")
+			label = "Elapsed"
+		}
+		if ok {
 			container.AddChild(blankRow())
 			container.AddChild(textRow(gotui.TextSpan{Text: label + " " + piFormatDuration(d), Style: piFg(piMuted)}))
 		}

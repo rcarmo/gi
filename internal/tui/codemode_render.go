@@ -112,8 +112,11 @@ func (c *chatTUI) updateCodemodeCall(parentID, typ string, payload map[string]an
 			return
 		}
 		row := &meta.Calls[idx]
-		if started, err := time.Parse(time.RFC3339Nano, row.StartedAt); err == nil {
-			row.DurationMs = float64(normalizeBlockTimestamp(ts).Sub(started).Microseconds()) / 1000
+		if row.Status != "running" {
+			return
+		}
+		if ms := recordedToolDuration(payload["duration_ms"]); ms != nil {
+			row.DurationMs = float64(*ms)
 		}
 		row.Status = "ok"
 		if typ == "tool_failed" {

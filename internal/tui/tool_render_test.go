@@ -30,6 +30,8 @@ func TestPiToolBandFollowsStatus(t *testing.T) {
 		meta := transcriptBlockMeta{Key: "t", Kind: "tool", Title: "bash", Detail: "ls -la", Status: status, StartedAt: start}
 		if status != "running" {
 			meta.EndedAt = time.Now().UTC().Format(time.RFC3339Nano)
+			ms := int64(1500)
+			meta.DurationMS = &ms
 		}
 		buf, screen, height := renderToolForTest(t, c, meta, []string{"a", "b"}, 40)
 		// Row 0 is Pi's Spacer; the band (padding included) fills every other cell.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/rcarmo/gi/internal/tools"
 	goai "github.com/rcarmo/go-ai"
@@ -34,6 +35,7 @@ func TestToolTerminalCancellationAndResultAbortPersistOccurrence(t *testing.T) {
 				}
 			}
 			if err := e.RegisterTool(tools.RegisteredTool{Name: "terminal-test", Executor: func(context.Context, tools.ToolRuntime, goai.ToolCall) (string, error) {
+				time.Sleep(5 * time.Millisecond)
 				if state == "cancelled" {
 					cancel()
 					return "", context.Canceled
@@ -95,13 +97,34 @@ func TestToolTerminalCancellationAndResultAbortPersistOccurrence(t *testing.T) {
 			if start == nil || terminal == nil || start["occurrence_id"] == "" || start["occurrence_id"] == nil || start["occurrence_id"] != terminal["occurrence_id"] {
 				t.Fatal(events)
 			}
+			if ms, ok := terminal["duration_ms"].(float64); !ok || ms < 5 {
+				t.Fatalf("missing execution measurement: %#v", terminal)
+			}
 			activity, err := s.SessionActivity(context.Background(), "A")
 			if err != nil {
 				t.Fatal(err)
 			}
 			tool := activity["tool"].(map[string]any)
-			if tool["state"] != state || tool["duration_ms"] == nil || tool["tool_call_id"] != "call" {
+			if tool["state"] != state || tool["duration_ms"] != int64(terminal["duration_ms"].(float64)) || tool["tool_call_id"] != "call" {
 				t.Fatal(tool)
+			}
+			if state == "completed" || state == "failed" {
+				messages, err := s.ListMessages(context.Background(), "A")
+				if err != nil {
+					t.Fatal(err)
+				}
+				found := false
+				for _, m := range messages {
+					if m.Role == "tool_result" {
+						found = true
+						if m.Payload["duration_ms"] != terminal["duration_ms"] || m.Payload["occurrence_id"] != terminal["occurrence_id"] {
+							t.Fatal("persisted timing mismatch", m.Payload, terminal)
+						}
+					}
+				}
+				if !found {
+					t.Fatal("missing result")
+				}
 			}
 		})
 	}

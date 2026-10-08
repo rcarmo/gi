@@ -20,6 +20,8 @@
 
 # gi implementation checklist
 
+- [x] N1: record monotonic tool execution duration, preserve live/restored Took, retain unknown legacy timing, isolate reused occurrences and display stopped boundaries without changing model history. Native/race/profile/PTY checks and limits: [tool duration](../internal/tool-duration.md).
+
 - [x] Native go-joker/v42 v42.12.4: checked dense WASM buffers, actual compiler/interpreter selection, alias/bounds/pre-trap writes tested through Gi; full regression/race/vet/no-cgo build and profile disposal. [Verification](../internal/scripting/joker-v42.12.4.md).
 
 - [x] gi#22: conservative opt-in for code indexing, with bounded Alt-I empty-state root/restart/reindex guidance and a working `extraRoots` example; verify code query, exclusions/size/symlink safety, named-scope isolation and unchanged editor/modal/lifecycle semantics. [Guide](../internal/search/README.md#plain-code-repositories).

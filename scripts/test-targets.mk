@@ -1012,3 +1012,7 @@ test-vnc-viewer:
 	GI_FIXTURE_BIN=$(GI_TEST_RUN_ROOT)/vnc-viewer/gi-fixtures-vnc $(BUN) scripts/test-vnc-viewer.mjs
 	GI_VNC_VIEWER_MODE=interactive GI_FIXTURE_BIN=$(GI_TEST_RUN_ROOT)/vnc-viewer/gi-fixtures-vnc $(BUN) scripts/test-vnc-viewer.mjs
 	GI_VNC_VIEWER_MODE=empty GI_FIXTURE_BIN=$(GI_TEST_RUN_ROOT)/vnc-viewer/gi-fixtures-vnc $(BUN) scripts/test-vnc-viewer.mjs
+
+.PHONY: test-tool-duration-pty
+test-tool-duration-pty:
+	@bash scripts/test-tool-duration-pty.sh

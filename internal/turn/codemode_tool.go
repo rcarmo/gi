@@ -510,6 +510,7 @@ func (e *Engine) runNestedTool(ctx context.Context, rt tools.ToolRuntime, id str
 	}
 	e.PublishRuntimeToolEvent("tool_started", rt.SessionID, rt.TurnID, "", call.Name, call.ID, 0, nil, payload(map[string]any{"phase": "tool"}))
 	nestedRT := tools.ToolRuntime{Store: rt.Store, SessionID: rt.SessionID, TurnID: rt.TurnID, WorkspaceRoot: rt.WorkspaceRoot, ToolCallID: call.ID}
+	executionStart := time.Now()
 	var value json.RawMessage
 	var text string
 	var toolErr error
@@ -518,8 +519,9 @@ func (e *Engine) runNestedTool(ctx context.Context, rt tools.ToolRuntime, id str
 	} else {
 		text, toolErr = tool.Executor(ctx, nestedRT, call)
 	}
+	durationMS := time.Since(executionStart).Milliseconds()
 	if toolErr != nil {
-		e.PublishRuntimeToolEvent("tool_failed", rt.SessionID, rt.TurnID, "", call.Name, call.ID, 0, toolErr, payload(map[string]any{"phase": "tool"}))
+		e.PublishRuntimeToolEvent("tool_failed", rt.SessionID, rt.TurnID, "", call.Name, call.ID, 0, toolErr, payload(map[string]any{"phase": "tool", "duration_ms": durationMS}))
 		msg := toolErr.Error()
 		if msg == "" {
 			msg = fmt.Sprintf("Tool %q failed", call.Name)
@@ -538,7 +540,7 @@ func (e *Engine) runNestedTool(ctx context.Context, rt tools.ToolRuntime, id str
 		}
 		value = json.RawMessage(mustJSON(text))
 	}
-	e.PublishRuntimeToolEvent("tool_finished", rt.SessionID, rt.TurnID, "", call.Name, call.ID, 0, nil, payload(map[string]any{"phase": "tool", "output_length": len(value)}))
+	e.PublishRuntimeToolEvent("tool_finished", rt.SessionID, rt.TurnID, "", call.Name, call.ID, 0, nil, payload(map[string]any{"phase": "tool", "output_length": len(value), "duration_ms": durationMS}))
 	return value, nil
 }
 
@@ -846,4 +848,3 @@ func (l *codemodeCallLog) snapshot() []codemodeCallRecord {
 }
 
 func decodeBase64(s string) ([]byte, error) { return base64.StdEncoding.DecodeString(s) }
-

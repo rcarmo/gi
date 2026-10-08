@@ -138,6 +138,7 @@ type transcriptBlockMeta struct {
 	Status         string  `json:"status,omitempty"`
 	StartedAt      string  `json:"started_at,omitempty"`
 	EndedAt        string  `json:"ended_at,omitempty"`
+	DurationMS     *int64  `json:"duration_ms,omitempty"` // nil means no execution measurement
 	Detail         string  `json:"detail,omitempty"`
 	Footer         string  `json:"footer,omitempty"`
 	MarkdownSource string  `json:"markdown_source,omitempty"`
@@ -193,6 +194,7 @@ type transcriptRenderableBlock struct {
 	FullOutputPath     string
 	ToolArg            string
 	StartedAt, EndedAt string
+	DurationMS         *int64
 }
 
 // bashPreviewLines mirrors Pi's BashExecutionComponent preview window: when
@@ -1008,7 +1010,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 		if c.app != nil {
 			c.app.MarkDirty()
 		}
-	case "tool_started", "tool_finished", "tool_failed", "tool_skipped":
+	case "tool_started", "tool_finished", "tool_failed", "tool_skipped", "tool_cancelled", "tool_aborted":
 		if c.useTopicNativeRuntimeStatus() {
 			return
 		}
@@ -1559,6 +1561,9 @@ func (c *chatTUI) toolRuntimeBlockKey(payload map[string]any, toolName string) s
 	toolCallID, _ := payload["tool_call_id"].(string)
 	turnID, _ := payload["turn_id"].(string)
 	iteration := intFromAny(payload["iteration"])
+	if occurrence, _ := payload["occurrence_id"].(string); occurrence != "" {
+		return fmt.Sprintf("toolocc:%d:%s:%d:%s:%s", len(turnID), turnID, len(toolCallID), toolCallID, occurrence)
+	}
 	if strings.TrimSpace(toolCallID) != "" {
 		// Providers can reuse a call ID in a later turn. The tuple is local to
 		// this session's transcript; length encoding avoids delimiter collisions.
@@ -1686,7 +1691,7 @@ func (c *chatTUI) renderToolEvent(payload map[string]any, ts time.Time) {
 			}
 			c.replaceTranscriptBlock(meta, body)
 		}
-	case "tool_finished", "tool_failed", "tool_skipped":
+	case "tool_finished", "tool_failed", "tool_skipped", "tool_cancelled", "tool_aborted":
 		if meta.Key == "" {
 			meta.Key = fmt.Sprintf("tool:%d:%s", time.Now().UnixNano(), toolName)
 		}
@@ -1699,6 +1704,7 @@ func (c *chatTUI) renderToolEvent(payload map[string]any, ts time.Time) {
 		// An end without its start has no measured duration. Keep it unknown
 		// instead of inventing a zero-length call.
 		meta.EndedAt = startedAt.Format(time.RFC3339Nano)
+		meta.DurationMS = recordedToolDuration(payload["duration_ms"])
 		if len(existingBody) > 0 {
 			body = append([]string(nil), existingBody...)
 		}
@@ -1713,6 +1719,8 @@ func (c *chatTUI) renderToolEvent(payload map[string]any, ts time.Time) {
 			if errText != "" && len(resultBody) == 0 {
 				body = append(body, "error="+truncate(errText, 160))
 			}
+		case "tool_cancelled", "tool_aborted":
+			meta.Status = strings.TrimPrefix(typ, "tool_")
 		case "tool_skipped":
 			meta.Status = "skipped"
 			if reason != "" {
@@ -3518,13 +3526,14 @@ func (c *chatTUI) bashBlockLines(command, output, status string, runErr error, s
 		bodyLines = append(bodyLines, "error: "+truncate(runErr.Error(), 160))
 	}
 	meta := transcriptBlockMeta{
-		Key:       fmt.Sprintf("bash:%d", time.Now().UnixNano()),
-		Kind:      "bash",
-		Title:     "$ " + command,
-		Status:    status,
-		StartedAt: startedAt.Format(time.RFC3339Nano),
-		EndedAt:   endedAt.Format(time.RFC3339Nano),
-		Footer:    footer,
+		Key:        fmt.Sprintf("bash:%d", time.Now().UnixNano()),
+		Kind:       "bash",
+		Title:      "$ " + command,
+		Status:     status,
+		StartedAt:  startedAt.Format(time.RFC3339Nano),
+		EndedAt:    endedAt.Format(time.RFC3339Nano),
+		DurationMS: recordedToolDuration(endedAt.Sub(startedAt).Milliseconds()),
+		Footer:     footer,
 	}
 	lines := []string{encodeTranscriptBlockMarker(meta)}
 	for _, line := range bodyLines {
@@ -5278,7 +5287,7 @@ func (c *chatTUI) buildTranscriptRenderableBlocks(lines []string) []transcriptRe
 				previewTail = true
 				expandable = len(body) > bashPreviewLines
 			}
-			blocks = append(blocks, transcriptRenderableBlock{Key: meta.Key, Kind: meta.Kind, MarkdownSource: meta.MarkdownSource, Header: header, Subheader: subheader, Body: body, Expandable: expandable, Expanded: expanded, PreviewLimit: previewLimit, PreviewTail: previewTail, Footer: strings.TrimSpace(meta.Footer), Status: meta.Status, Selected: c.selectedTranscriptBlock == meta.Key, Border: gotui.BorderRounded, BorderStyle: border, HeaderStyle: headStyle, BodyStyle: bodyStyle, HintStyle: hintStyle, SelectedHint: selectedHint, ToolPath: meta.ToolPath, ToolContent: meta.ToolContent, ToolRange: meta.ToolRange, ToolNotice: meta.ToolNotice, EditDiff: meta.EditDiff, EditError: meta.EditError, Calls: meta.Calls, FullOutputPath: meta.FullOutputPath, ToolArg: strings.TrimSpace(meta.Detail), StartedAt: meta.StartedAt, EndedAt: meta.EndedAt})
+			blocks = append(blocks, transcriptRenderableBlock{Key: meta.Key, Kind: meta.Kind, MarkdownSource: meta.MarkdownSource, Header: header, Subheader: subheader, Body: body, Expandable: expandable, Expanded: expanded, PreviewLimit: previewLimit, PreviewTail: previewTail, Footer: strings.TrimSpace(meta.Footer), Status: meta.Status, Selected: c.selectedTranscriptBlock == meta.Key, Border: gotui.BorderRounded, BorderStyle: border, HeaderStyle: headStyle, BodyStyle: bodyStyle, HintStyle: hintStyle, SelectedHint: selectedHint, ToolPath: meta.ToolPath, ToolContent: meta.ToolContent, ToolRange: meta.ToolRange, ToolNotice: meta.ToolNotice, EditDiff: meta.EditDiff, EditError: meta.EditError, Calls: meta.Calls, FullOutputPath: meta.FullOutputPath, ToolArg: strings.TrimSpace(meta.Detail), StartedAt: meta.StartedAt, EndedAt: meta.EndedAt, DurationMS: meta.DurationMS})
 			i = j - 1
 			continue
 		}
@@ -5637,6 +5646,14 @@ func (c *chatTUI) loadTranscript() []string {
 	if err != nil {
 		return nil
 	}
+	stopped, err := c.store.ListTerminalToolResults(context.Background(), c.sessionID)
+	if err != nil {
+		return nil
+	}
+	if len(stopped) > 0 {
+		msgs = append(msgs, stopped...)
+		sort.SliceStable(msgs, func(i, j int) bool { return msgs[i].CreatedAt < msgs[j].CreatedAt })
+	}
 	out := make([]string, 0, len(msgs))
 	// Calls precede results. Scope IDs to their turn because providers can reuse them.
 	calls := map[string]any{}
@@ -5714,7 +5731,10 @@ func (c *chatTUI) renderToolResultWithArguments(m store.Message, arguments any) 
 	if isErr {
 		status = "error"
 	}
-	meta := transcriptBlockMeta{Key: "msg:" + m.ID, Kind: "tool", Title: toolName, Status: status, StartedAt: strings.TrimSpace(m.CreatedAt), EndedAt: strings.TrimSpace(m.CreatedAt)}
+	if terminal, _ := m.Payload["status"].(string); terminal == "cancelled" || terminal == "aborted" {
+		status = terminal
+	}
+	meta := transcriptBlockMeta{Key: "msg:" + m.ID, Kind: "tool", Title: toolName, Status: status, EndedAt: strings.TrimSpace(m.CreatedAt), DurationMS: recordedToolDuration(m.Payload["duration_ms"])}
 	meta.Detail = toolInvocationText(toolName, arguments)
 	setFileToolArguments(&meta, arguments)
 	setCodemodeArguments(&meta, arguments)
