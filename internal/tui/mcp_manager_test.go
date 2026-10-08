@@ -133,8 +133,10 @@ func TestMCPManagerManagesServers(t *testing.T) {
 	}
 	key(gotui.KeyDown)
 	key(gotui.KeyEnter)
-	// The project-owned scratch path may wrap after the scope label.
-	if !strings.Contains(rows(), "MCP server zeta") || !strings.Contains(rows(), fake.URL) || !strings.Contains(strings.Join(strings.Fields(rows()), " "), "global: "+cfgPath) {
+	// The project-owned scratch path may hard-wrap within a path component.
+	// Compare the displayed path without layout whitespace, keeping the full path.
+	compact := func(s string) string { return strings.Join(strings.Fields(s), "") }
+	if !strings.Contains(rows(), "MCP server zeta") || !strings.Contains(rows(), fake.URL) || !strings.Contains(compact(rows()), compact("global: "+cfgPath)) {
 		t.Fatalf("server menu:\n%s", rows())
 	}
 	labels := func() []string {

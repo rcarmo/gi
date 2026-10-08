@@ -989,3 +989,15 @@ test-agent-file-open: $(TESTPROFILE)
 .PHONY: test-project-paths
 test-project-paths:
 	bash scripts/test-project-paths.sh
+
+.PHONY: test-vnc-viewer test-vnc-focused-native
+test-vnc-focused-native:
+	$(TESTPROFILE) gotest $(RACE) -count=3 -run '^TestVNC' ./internal/web
+
+test-vnc-viewer:
+	@source scripts/project-test-env.sh && gi_test_path "$(GI_TEST_RUN_ROOT)/vnc-viewer"
+	mkdir -p $(GI_TEST_RUN_ROOT)/vnc-viewer
+	$(GO) build -tags fixtures_vibes -o $(GI_TEST_RUN_ROOT)/vnc-viewer/gi-fixtures-vnc ./cmd/gi
+	GI_FIXTURE_BIN=$(GI_TEST_RUN_ROOT)/vnc-viewer/gi-fixtures-vnc $(BUN) scripts/test-vnc-viewer.mjs
+	GI_VNC_VIEWER_MODE=interactive GI_FIXTURE_BIN=$(GI_TEST_RUN_ROOT)/vnc-viewer/gi-fixtures-vnc $(BUN) scripts/test-vnc-viewer.mjs
+	GI_VNC_VIEWER_MODE=empty GI_FIXTURE_BIN=$(GI_TEST_RUN_ROOT)/vnc-viewer/gi-fixtures-vnc $(BUN) scripts/test-vnc-viewer.mjs
