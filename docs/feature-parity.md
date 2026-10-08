@@ -28,15 +28,15 @@ The original gate failed because mandatory-core scenarios still used `capability
 
 The earlier 13:24 UTC run on `88e5b13` had a single `@ux-chat-lifecycle-009` WebKit `page.goto` engine error. It passed in the other five projects and in 10 of 10 repeats afterwards. Full4 passes that scenario. Focused checks also passed for `/theme` and `/tint` (90/90), avatar manifest icons (54/54), and confirmed cascade deletion with cancel/retry (36/36).
 
-The current suite pin is v0.2.0 (`c28472f`); its Classic sources/static assets are unchanged from the accepted frontend handoff at `4259e82`. Independent focused checks on 2026-10-05 passed Plan/widgets/extra014 in all six projects (66/66), frontend units (189/189), and Gi functional tests (142 passed, 11 skipped). The eight Plan skips are removed; Plan and widgets are implemented. A new full six-project run on v0.2.0 is authorised and being prepared; its gate has no result yet. See [browser checks](internal/classic-ui-acceptance.md).
+The current suite/UI pin is `b17ef01` (Piclaw v3.3.0), adopted in `c9e5142`. The historical v0.2.0 run finished on 2026-10-05 with exit 2; final reconciliation remains separate and it has not been rerun. Independent focused checks on 2026-10-05 passed Plan/widgets/extra014 in all six projects (66/66), frontend units (189/189), and Gi functional tests (142 passed, 11 skipped). The eight Plan skips are removed; Plan and widgets are implemented. See [browser checks](internal/classic-ui-acceptance.md) and [current acceptance](internal/acceptance-2026-10-08.md).
 
-The `/btw` backend has isolated session-snapshot inference, abortable JSON/SSE routes, explicit retry and normal-prompt injection coverage. Ten focused native checks repeated three times and one isolated Chromium API journey pass. The pinned Classic app still needs its composer/panel/stream wiring; #40, capability claims and shared skips are unchanged. See [side-prompt contract](internal/side-prompt.md).
+`/btw` has isolated session-snapshot inference, abortable JSON/SSE routes and adopted Classic panel/retry/injection controls. On 2026-10-08 its shared scenario passed all six Chromium/WebKit viewport combinations; ten native checks passed three times. Chromium browser/runtime/runner captures were analysed and disposed; WebKit evidence is functional only. The stale extra001 skip is removed. See [side-prompt contract](internal/side-prompt.md).
 
 Scenarios Gi does not pass:
 
 | Reason | Scenarios | Detail |
 |---|---|---|
-| Not implemented | 42 entries | `/btw` ([gi#40](https://github.com/rcarmo/gi/issues/40)), terminal ([gi#45](https://github.com/rcarmo/gi/issues/45)), CodeMirror/Vim editor ([gi#46](https://github.com/rcarmo/gi/issues/46)) and VNC ([gi#47](https://github.com/rcarmo/gi/issues/47)). |
+| Incomplete acceptance | 41 entries | Terminal ([gi#45](https://github.com/rcarmo/gi/issues/45)), CodeMirror/Vim editor ([gi#46](https://github.com/rcarmo/gi/issues/46)) and VNC ([gi#47](https://github.com/rcarmo/gi/issues/47)). Native backends are published; broader UI/configuration and agent-open checks remain. |
 | Capability absent | 2 entries | `@ux-shell-env-002/007`: Windows builds and shell detection exist, but no Windows host test ([gi#50](https://github.com/rcarmo/gi/issues/50)). |
 
 `@ux-shell-008` is skipped by the suite in all six projects. Adaptive Cards, image annotation and text highlights are removed from this suite pin; their 14 former skip entries are gone.

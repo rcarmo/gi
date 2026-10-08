@@ -1,6 +1,6 @@
-## `/btw` backend
+## `/btw`
 
-The side-prompt API runs one inference request against a read-only snapshot of the selected session. The answer and thinking are returned to the caller and never written to conversation history. The Classic composer, side-answer panel and injection controls need an upstream frontend handoff before `/btw` is accepted as a user-visible feature; issue #40 and its shared-suite skips stay open.
+The side-prompt API runs one inference request against a read-only snapshot of the selected session. The answer and thinking are returned to the caller and never written to conversation history. The adopted Classic UI at fixtures-vibes `b17ef01` provides composer, side-answer panel and injection controls. Independent shared scenario `@ux-extra-001` passes on Chromium/WebKit phone, tablet and desktop on 8 October 2026; its skip is removed.
 
 ## HTTP contract
 
@@ -58,7 +58,7 @@ Cache retention is disabled for the one-off request. Engine shutdown fences new 
 
 ## Verification
 
-`make test-side-prompt` runs the focused engine/HTTP checks uncached three times with CPU and heap profiles. They cover snapshot/session isolation, model/thinking selection, compacted history, input/output bounds, incomplete responses, main Stop isolation, joined engine shutdown, validation/authentication, pool exhaustion, HTTP disconnect, retry and ordinary injection.
+`make PROFILING=1 test-side-prompt` runs the focused engine/HTTP checks uncached three times with CPU and allocation profiles; captures are analysed and disposed automatically. They cover snapshot/session isolation, model/thinking selection, compacted history, input/output bounds, incomplete responses, main Stop isolation, joined engine shutdown, validation/authentication, pool exhaustion, HTTP disconnect, retry and ordinary injection.
 
 `make test-ux-side-prompt-api` runs a disposable local provider/server and one Chromium desktop API journey. Browser fetch uses the real SSE route; SQLite history remains unchanged across side requests and abort/retry, then changes after normal injection. Server CPU/heap profiles cover initialisation through teardown; browser CPU/allocation sampling is retained beside them in `test-results/ux-parity/artifacts/`. This check does not exercise the Classic `/btw` panel.
 
@@ -73,3 +73,16 @@ Cumulative `alloc_space` and `alloc_objects` show model-catalogue initialisation
 The final browser server sampled 110 ms of CPU over 5.9 seconds, with SQLite/HTTP work and catalogue initialisation leading. Catalogue initialisation accounts for about 72% of its sampled allocation objects. Build invalidation raised outer lifecycle CPU/RSS; these are separate from the server profiles. Browser CPU sampling recorded about 5.1 seconds idle in a 5.8-second capture; its 5.0 MiB sampled allocations were concentrated in app/CodeMirror startup. The final full Go run was 5% faster in wall time and 16% lower in CPU than its preceding full baseline. Transcript rendering and model loading remain its largest allocation hotspots.
 
 Earlier failed runs retained profiles and were reviewed. Two turn-test build failures produced no turn CPU/heap files and did not pass the profiling gate. Their web profiles were present. Delegated review attempts timed out; verification above comes from the native/browser checks and direct source review.
+
+### Shared UI acceptance (2026-10-08)
+
+On Gi `2f312c2` and fixtures-vibes `b17ef01`, `make PROFILING=1
+fixtures-vibes-focused FIXTURES_SPEC_ARGS='--grep @ux-extra-001'` passed all six
+Chromium/WebKit viewport combinations with real fixture inference. It checks
+running/completed states, formatting, Retry, exactly one injected user post,
+and an error state with Retry enabled and Inject disabled. Ten native checks
+also passed three times. Native CPU/alloc_space/alloc_objects, Node runner and
+worker profiles, and Chromium browser CPU/sampled allocations were analysed;
+used raw data was removed. WebKit browser profiling is unavailable here and
+its evidence is functional only. Runtime catalogue setup dominates allocations;
+no measured request-speed improvement is claimed.
