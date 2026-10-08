@@ -3,7 +3,9 @@
 Gi's tracker distinguishes published backend work from browser acceptance.
 The current consumer pin is fixtures-vibes `0259e9a4816d3d643159538095fdffc884104598`,
 with Gi backend `78f8f5396a673b4ca2a23d758124c0544dec3668`. The shared editor/Plan
-revision work is adopted; conflict scenario workspace018 still fails. #45/#46/#47
+revision work is adopted; workspace018 does not complete because the shared
+scenario lacks reviewed Overwrite approval, and a lazy-loader refresh drops
+revision metadata. #45/#46/#47
 stay open. BTW alone was accepted and #40 closed, leaving 43 skip entries.
 This adoption removes no additional skips and changes no production capability.
 The shared specs/features and Gi skip IDs/reasons are unchanged.
@@ -106,15 +108,40 @@ isolation. Plan edit/save and dirty remote-update scenarios (shared/original
 are no retries. Twenty-nine selected frontend revision/open/SSE tests pass
 127 assertions; hook-TDZ checks pass.
 
-Workspace018 fails after Reload: the tab close button stays named "Unsaved
-changes" where the shared assertion expects a clean close control. Cleanup
-then exceeds its timeout; the combined run produced no final aggregate report.
-No count from that interrupted run is used as passing acceptance. Overwrite
-and Save Copy in that shared scenario have not passed. The independent HTTP
+Correction after focused tracing: workspace018 passes Reload, including the
+clean close control. Its next Overwrite action opens the required "Review
+overwrite" dialog, which the unchanged shared scenario never approves. The tab
+correctly remains dirty and no PUT is sent. The unmet assertion is at shared
+`editor.spec.ts:265`, after Overwrite, not after Reload. The unanswered modal
+also blocks cleanup. The earlier combined run produced no final aggregate
+report; no count from that interrupted run is used as passing acceptance.
+Overwrite and Save Copy in the shared scenario have not passed. The independent HTTP
 adapter checks pass 4/4 workloads (Chromium desktop/WebKit phone), including
 conditional writes, pending typing, create-only copy, reviewed overwrite,
 missing-revision lockout and conditional Plan reset. Those fixtures do not
 exercise Gi's live persistence. #46 stays open.
+
+Gi-only consumer checks now exercise live persistence separately from the
+shared scenario. `make test-editor-conflict-consumer` runs four zero-retry
+checks on Chromium/WebKit desktop. On `c262b2e` / fixtures `0259e9a`, the
+reviewed conflict workflow passes on Chromium and fails on WebKit at Save Copy
+(no POST). A separate clean external-SSE-refresh test fails on both browsers:
+its text updates correctly, but Save stays disabled after newer typing. Final
+result: one pass, three failures. Shared specs, skip IDs/reasons and capability
+claims are unchanged.
+
+The frontend cause is `LazyEditorInstance.setContent(content, mtime)` in
+`web/src/panes/editor-loader.ts`: the orchestration refresh calls
+`instance.setContent(nextText, nextMtime, revision)`, but the loader forwards
+only two arguments to the real editor. The adapted real editor clears
+`loadedRevision` to null when the third argument is missing. A WebKit diagnostic
+observed a successful reviewed write with a valid acknowledged revision,
+followed by a two-argument clean refresh and `loadedRevision:null`; Save Copy
+then silently returns at its revision guard. Upstream must forward revision
+metadata through this loader boundary and cover it with a mounted regression.
+Gi does not provide an unconditional-write fallback or patch shared UI bytes.
+The separate consumer test also requires Cancel to send no write, checks the
+exact reviewed revision on PUT, and checks create-only POST/copy contents.
 
 The earlier preview008 exit2 was an instrumentation-copy defect: a literal
 `import('../png')` still resolved against scratch. Import relocation now handles
@@ -163,3 +190,10 @@ terminal matrix was also analysed and disposed after confirming its processes
 had stopped. Frozen v0.2.0 output, installed browsers/toolchains, active shared
 caches, source and unrelated Joker guidance were preserved. The bounded review
 delegate timed out and supplied no review findings.
+
+The diagnostic consumer runs reviewed native CPU, alloc_space and alloc_objects,
+Node profiles and Chromium browser CPU/sampled allocations. Startup catalogue,
+HTTP/SQLite handling, runner module loading and idle browser time dominate;
+short CPU samples limit attribution. No optimisation or speedup was measured.
+WebKit is functional-only. Used diagnostic copies, traces, logs, profile captures,
+fixture state and matching binaries were removed after all processes stopped.

@@ -13,7 +13,7 @@ if command -v node >/dev/null 2>&1; then
   fi
   cli="$GI_SCRIPT_ROOT/node_modules/@playwright/test/cli.js"
   for arg in "$@"; do
-    if [[ "$arg" == *playwright.fixtures.config.ts* ]]; then cli="$GI_SCRIPT_ROOT/references/fixtures-vibes/node_modules/@playwright/test/cli.js"; fi
+    if [[ "$arg" == *playwright.fixtures.config.ts* || "$arg" == *playwright.consumer.config.ts* ]]; then cli="$GI_SCRIPT_ROOT/references/fixtures-vibes/node_modules/@playwright/test/cli.js"; fi
   done
   exec node "$cli" "$@"
 fi

@@ -1,6 +1,12 @@
 # Workspace editor backend
 
-Gi supports Piclaw 3.2.5's editor file protocol. The shared Classic UI at fixtures4259e82 still mounts read-only tabs; editor panes, Vim preferences, Markdown split preview and popout lifecycle await the frontend owner's handoff. Issue #46 stays open and `@cap-editor` is unclaimed.
+Gi serves complete editable snapshots and revision-conditional writes. The
+shared Classic frontend is pinned to `0259e9a` (Piclaw v3.3.0); editor saving,
+Plan and agent-open checks are recorded in
+[8 October acceptance](acceptance-2026-10-08.md). Issue #46 stays open: the lazy
+editor loader drops revision metadata on clean SSE refresh, and shared
+conflict018 lacks approval for the new reviewed-Overwrite dialog.
+`@cap-editor` is unclaimed.
 
 ## Files and public assets
 
@@ -10,7 +16,15 @@ Authenticated aliases `/workspace/file`, `/workspace/raw` and `/workspace/stat` 
 
 Without edit mode, preview defaults to 20,000 bytes. Piclaw's `max` parameter clamps to 1 KiB..64 KiB; Gi's existing `max_bytes` parameter keeps its 256 KiB validation bound. Edit mode ignores preview limits to prevent a truncated document from replacing a larger file on save.
 
-`PUT /workspace/file` accepts `{path, content}`. There is no `expected_mtime` or `force` field. Existing regular files only; content is bounded to 256 KiB, permissions are retained, and identical contents return the current mtime without a write. Writes to missing files still return 404. Save copy must create through `POST {path:parent,name:basename,content}`, as agreed with the frontend owner; Piclaw's direct PUT-to-missing-file path is tracked in rcarmo/piclaw#1524. Conflicts use the frontend's stat polling and Reload/Save-copy/Overwrite controls.
+`GET ...?mode=edit` includes an opaque `revision`; `PUT /workspace/file`
+requires `{path, content, expected_revision}`. Missing revisions return 428
+`revision_required`; stale revisions return 409 `revision_conflict`. Existing
+regular files only; content is bounded to 256 KiB, permissions are retained,
+and unchanged contents preserve mtime. Missing files return 404. Save Copy uses
+create-only `POST {path:parent,name:basename,content}`; there is no unconditional
+Overwrite or automatic retry. Overwrite requires review of the exact snapshot
+whose revision authorises the write. See
+[revision-safe writes](revision-safe-writes.md).
 
 Filesystem reads and writes use `os.Root`; path traversal and out-of-root symlinks are rejected. The protocol does not provide a transactional compare-and-swap against concurrent external writers.
 
@@ -36,4 +50,6 @@ Snapshots use the rooted tree reader at depth four for `.` and three for other s
 
 Focused sampled allocations are mainly bounded preview/JSON responses and test response buffers. The text/content aliases share one string allocation. Watch registration uses bounded directory reads and constant-time watch-set membership rather than allocating a complete watch-list copy per directory. No stable browser allocation measurement or race-detector result is claimed.
 
-Local logs: `/workspace/tmp/gi-editor-final-go-profiled.log`, `gi-editor-functional-all.log`, `gi-editor-watch-verified.log`, `gi-editor-functional-final.log`, `gi-editor-final-vet.log`. Profiles/history are in `~/.cache/gi-test-profile`.
+The measurements above are historical. Used raw logs/profiles and matching
+test artifacts are disposable; current runs use project-owned scratch as
+described in [8 October acceptance](acceptance-2026-10-08.md).

@@ -331,6 +331,13 @@ test-fixtures-profile-lifecycle:
 	$(GO) tool pprof -top -cum -sample_index=alloc_space -nodecount=8 "$$p/mem.pprof"; \
 	$(GO) tool pprof -top -cum -sample_index=alloc_objects -nodecount=8 "$$p/mem.pprof"; done; \
 	rm -rf "$$root"; rm -f $(BIN_DIR)/gi-fixtures-profile-smoke; echo 'Fixture profiles analysed and disposed'
+# Gi contracts complement shared assertions without rewriting them.
+.PHONY: test-editor-conflict-consumer
+test-editor-conflict-consumer:
+	mkdir -p $(BIN_DIR)
+	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
+	GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(FIXTURES_PROFILE) $(PLAYWRIGHT) test -c playwright.consumer.config.ts --project chromium-desktop --project webkit-desktop
+
 # Focused acceptance does not replace full-run compliance reports.
 fixtures-vibes-focused: $(if $(filter 1,$(FIXTURES_BUILD_WEB)),build-web)
 	@test -n '$(FIXTURES_SPEC_ARGS)' || { echo 'FIXTURES_SPEC_ARGS is required for a focused run'; exit 2; }
