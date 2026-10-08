@@ -1,6 +1,6 @@
 # Gi features and Piclaw parity
 
-Updated: 2026-10-05, after runtime commit `423e8bf`. Gi's terminal follows Pi 1.0.1 (`@earendil-works/pi-coding-agent`) and its browser follows Piclaw 3.2.5. Browser behaviour is measured with the shared [fixtures-vibes](https://github.com/rcarmo/fixtures-vibes) suite.
+Updated: 2026-10-08. Gi's terminal alignment targets Pi 1.1.0 (`@earendil-works/pi-coding-agent`); its browser follows the pinned Piclaw v3.3.0 Classic UI. Browser behaviour is measured with the shared [fixtures-vibes](https://github.com/rcarmo/fixtures-vibes) suite.
 
 Gi shares pinned Piclaw browser components and Pi/Piclaw configuration files, but has its own Go runtime, SQLite state and terminal UI. It does not replace Piclaw. The browser and the terminal share one turn engine; their interaction coverage is tracked separately.
 
@@ -71,7 +71,7 @@ An instance with no enrolled owner permits application access. The CLI binds to 
 
 ## Terminal
 
-The terminal follows Pi 1.0.1's layout, colours and keyboard handling, using Go widgets. Web overlays do not become permanent terminal panels.
+The terminal targets Pi 1.1.0's workflows and keyboard handling using Go widgets. The first [1.1.0 alignment slice](internal/tui-pi-1.1.0.md) ports editor Home/End versus transcript Ctrl+Home/Ctrl+End; terminal status, output padding and recorded-duration work are still open. Web overlays do not become permanent terminal panels.
 
 | Area | Behaviour | Limits |
 |---|---|---|

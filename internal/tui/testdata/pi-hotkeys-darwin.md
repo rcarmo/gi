@@ -3,8 +3,8 @@
 |-----|--------|
 | `Up` / `Down` / `Left/Ctrl+B` / `Right/Ctrl+F` | Move cursor / browse history |
 | `Option+Left/Ctrl+Left/Option+B` / `Option+Right/Ctrl+Right/Option+F` | Move by word |
-| `Home/Ctrl+Home/Ctrl+A` | Start of line |
-| `End/Ctrl+End/Ctrl+E` | End of line |
+| `Home/Ctrl+A` | Start of line |
+| `End/Ctrl+E` | End of line |
 | `Ctrl+]` | Jump forward to character |
 | `Ctrl+Option+]` | Jump backward to character |
 | `PageUp/Ctrl+PageUp` / `PageDown/Ctrl+PageDown` | Scroll by page |

@@ -148,22 +148,20 @@ func (m *multilineInput) KeyMap() gotui.KeyMap {
 		gotui.OnFocused(gotui.KeyRight.Alt(), reset(m.moveWordRight)),
 		gotui.OnFocused(gotui.KeyRight.Ctrl(), reset(m.moveWordRight)),
 		gotui.OnFocused(gotui.Rune('f').Alt(), reset(m.moveWordRight)),
-		gotui.OnFocused(gotui.KeyHome, reset(func() {
+		gotui.OnFocused(gotui.KeyHome, reset(m.moveHome)),
+		gotui.OnFocused(gotui.KeyEnd, reset(m.moveEnd)),
+		// Pi 1.1.0 reserves Ctrl+Home/End for the fullscreen viewport;
+		// they never move the editor cursor, including in regular mode.
+		gotui.OnFocused(gotui.KeyHome.Ctrl(), reset(func() {
 			if m.onTranscriptTop != nil {
 				m.onTranscriptTop()
-			} else {
-				m.moveHome()
 			}
 		})),
-		gotui.OnFocused(gotui.KeyEnd, reset(func() {
+		gotui.OnFocused(gotui.KeyEnd.Ctrl(), reset(func() {
 			if m.onTranscriptEnd != nil {
 				m.onTranscriptEnd()
-			} else {
-				m.moveEnd()
 			}
 		})),
-		gotui.OnFocused(gotui.KeyHome.Ctrl(), reset(m.moveHome)),
-		gotui.OnFocused(gotui.KeyEnd.Ctrl(), reset(m.moveEnd)),
 		gotui.OnFocused(gotui.KeyCtrlA, reset(m.moveHome)),
 		gotui.OnFocused(gotui.KeyCtrlE, reset(m.moveEnd)),
 		gotui.OnFocused(gotui.KeyCtrlU, keep(m.deleteToLineStart)),

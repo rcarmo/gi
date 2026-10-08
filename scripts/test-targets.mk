@@ -997,6 +997,10 @@ test-agent-file-open: $(TESTPROFILE)
 test-project-paths:
 	bash scripts/test-project-paths.sh
 
+.PHONY: test-pi110-navigation
+test-pi110-navigation:
+	$(TESTPROFILE) gotest $(RACE) -count=3 -run 'TestPi110|TestHotkeys|TestRegularEditorAndSelectorNavigation|TestJumpToLatest|TestEditorKeysMatchPi|TestTranscriptSelection|TestSessionSwitch' ./internal/tui
+
 .PHONY: test-vnc-viewer test-vnc-focused-native
 test-vnc-focused-native:
 	$(TESTPROFILE) gotest $(RACE) -count=3 -run '^TestVNC' ./internal/web

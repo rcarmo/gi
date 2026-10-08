@@ -9,8 +9,8 @@ const piHotkeysTemplate = "**Navigation**\n" +
 	"| Key | Action |\n|-----|--------|\n" +
 	"| `Up` / `Down` / `Left/Ctrl+B` / `Right/Ctrl+F` | Move cursor / browse history |\n" +
 	"| `Alt+Left/Ctrl+Left/Alt+B` / `Alt+Right/Ctrl+Right/Alt+F` | Move by word |\n" +
-	"| `Home/Ctrl+Home/Ctrl+A` | Start of line |\n" +
-	"| `End/Ctrl+End/Ctrl+E` | End of line |\n" +
+	"| `Home/Ctrl+A` | Start of line |\n" +
+	"| `End/Ctrl+E` | End of line |\n" +
 	"| `Ctrl+]` | Jump forward to character |\n" +
 	"| `Ctrl+Alt+]` | Jump backward to character |\n" +
 	"| `PageUp/Ctrl+PageUp` / `PageDown/Ctrl+PageDown` | Scroll by page |\n" +
@@ -50,7 +50,7 @@ const piHotkeysTemplate = "**Navigation**\n" +
 // viewport keys and gi's own, on keys Pi leaves free.
 const giHotkeysTemplate = "\n**gi**\n" +
 	"| Key | Action |\n|-----|--------|\n" +
-	"| `Home` / `End` | Scroll to top / bottom |\n" +
+	"| `Ctrl+Home` / `Ctrl+End` | Scroll to top / bottom |\n" +
 	"| `Ctrl+Up` / `Ctrl+Down` | Previous / next prompt |\n" +
 	"| `{search}` | Search the transcript (`Enter`/`Ctrl+G` next, `Shift+Enter`/`Ctrl+Shift+G` previous) |\n" +
 	"| `F6` / `F7` | Select the previous / next transcript block |\n" +

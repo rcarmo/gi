@@ -1,6 +1,13 @@
 # TUI Pi fit/gap roadmap
 
-## Status
+## Current baseline
+
+Rui set Pi TUI 1.1.0 as the behaviour target on 8 October 2026. The first
+[alignment slice](tui-pi-1.1.0.md) adopts Home/End line editing and
+Ctrl+Home/Ctrl+End transcript navigation. Remaining 1.1.0 gaps are listed there;
+the earlier completed iteration below is historical, not blanket parity.
+
+## Earlier iteration
 
 This is the closure/acceptance note for the Pi-like `gi -tui` iteration. The iteration made the TUI progressively feel closer to Pi while preserving Gi's SQLite-backed runtime architecture, current Go TUI stack, runtime/tool/SSE/topic contracts, and tmux-friendly rendering.
 

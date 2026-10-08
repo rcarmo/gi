@@ -67,7 +67,7 @@ func TestRegularEditorAndSelectorNavigation(t *testing.T) {
 	c.regularMode = false
 	c.ensureInput()
 	if c.input.onTranscriptTop == nil || c.input.onTranscriptEnd == nil {
-		t.Fatal("fullscreen lost transcript Home/End")
+		t.Fatal("fullscreen lost transcript Ctrl+Home/End")
 	}
 }
 func TestRegularSessionSwitchResetsPrintedCursorAndPreservesEditor(t *testing.T) {

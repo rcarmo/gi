@@ -61,7 +61,7 @@ echo "smoke workspace: $WORKSPACE_MODE"
 mkdir -p "$WORKSPACE/.pi"
 
 cat > "$WORKSPACE/.pi/settings.json" <<'JSON'
-{"defaultProvider":"test","defaultModel":"test-model","defaultThinkingLevel":"low","enabledModels":["test-model"]}
+{"defaultProvider":"test","defaultModel":"test-model","defaultThinkingLevel":"low","enabledModels":["test-model"],"quietStartup":true}
 JSON
 cat > "$WORKSPACE/AGENTS.md" <<'MD'
 You are Gi Test.
@@ -91,9 +91,9 @@ if ! grep -q "%/" "$ARTIFACT_DIR/01-start.txt"; then
   echo "TUI did not render bottom-band session counters" >&2
   exit 1
 fi
-# An empty session shows gi's startup header (or, with quietStartup true,
-# the empty-transcript placeholder).
-if ! sed 's/\x1b\[[0-9;]*m//g' "$ARTIFACT_DIR/01-start.txt" | grep -Eq "\(no messages yet\)|Ctrl\+O to show full startup help"; then
+# The isolated quietStartup setting leaves the empty-transcript placeholder;
+# host resource inventories cannot scroll it out of the small smoke viewport.
+if ! sed 's/\x1b\[[0-9;]*m//g' "$ARTIFACT_DIR/01-start.txt" | grep -Eq "\(no messages yet\)"; then
   echo "TUI did not render the empty transcript" >&2
   exit 1
 fi
@@ -173,11 +173,32 @@ fi
 tmux send-keys -t "$SESSION":0 PageUp
 sleep 1
 tmux capture-pane -pe -t "$SESSION":0 > "$ARTIFACT_DIR/04-after-pageup.txt"
-tmux send-keys -t "$SESSION":0 End
+tmux send-keys -t "$SESSION":0 C-End
 sleep 1
-tmux capture-pane -pe -t "$SESSION":0 > "$ARTIFACT_DIR/05-after-end.txt"
-if ! grep -q 'Gi received: pasted line one' "$ARTIFACT_DIR/05-after-end.txt"; then
-  echo "TUI did not restore transcript bottom after End" >&2
+tmux capture-pane -pe -t "$SESSION":0 > "$ARTIFACT_DIR/05-after-ctrl-end.txt"
+if ! grep -q 'Gi received: pasted line one' "$ARTIFACT_DIR/05-after-ctrl-end.txt"; then
+  echo "TUI did not restore transcript bottom after Ctrl+End" >&2
+  exit 1
+fi
+
+# Pi 1.1.0: Home/End edit the current line while Ctrl+Home/End navigate
+# history without moving the draft cursor. A submitted literal verifies both.
+tmux send-keys -t "$SESSION":0 -l 'alpha omega'
+tmux send-keys -t "$SESSION":0 Home
+tmux send-keys -t "$SESSION":0 -l 'prefix '
+tmux send-keys -t "$SESSION":0 End
+tmux send-keys -t "$SESSION":0 -l ' suffix'
+tmux send-keys -t "$SESSION":0 C-Home C-End
+tmux send-keys -t "$SESSION":0 -l '!'
+tmux send-keys -t "$SESSION":0 Enter
+for _ in 1 2 3 4 5; do
+  sleep 1
+  if [[ "$(sqlite3 "$DB" "select count(*) from messages where role='user' and content='prefix alpha omega suffix!';")" == 1 ]]; then
+    break
+  fi
+done
+if [[ "$(sqlite3 "$DB" "select count(*) from messages where role='user' and content='prefix alpha omega suffix!';")" != 1 ]]; then
+  echo "Home/End or Ctrl+Home/End changed the wrong editor/transcript state" >&2
   exit 1
 fi
 
@@ -197,5 +218,17 @@ fi
 
 # Persist final server-side state for inspection.
 sqlite3 "$DB" 'select id, title, state_json from sessions;' > "$ARTIFACT_DIR/07-session-state.txt" 2>/dev/null || true
+
+# Exit through the app so deferred shutdown (and optional runtime profiles)
+# completes before the owning Make wrapper analyses and disposes this run.
+tmux send-keys -t "$SESSION":0 C-d
+for _ in $(seq 1 50); do
+  tmux has-session -t "$SESSION" 2>/dev/null || break
+  sleep .1
+done
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+  echo "TUI did not exit after Ctrl+D on the empty editor" >&2
+  exit 1
+fi
 
 echo "TUI smoke test passed. Artifacts: $ARTIFACT_DIR"

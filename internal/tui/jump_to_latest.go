@@ -8,11 +8,11 @@ import (
 // scrollToEndIndicator, as configured by pi-coding-agent's tui-renderer):
 // while the transcript is scrolled away from its end, a label is drawn
 // centred on the transcript's last row, in the text colour on selectedBg.
-// Clicking it, or pressing End (tui.altScreen.bottom), scrolls to the
+// Clicking it, or pressing Ctrl+End (tui.altScreen.bottom), scrolls to the
 // bottom and resumes following new output.
 
 // jumpToLatestLabel is Pi's label with the default tui.altScreen.bottom key.
-const jumpToLatestLabel = " ↓ Jump to latest message · End "
+const jumpToLatestLabel = " ↓ Jump to latest message · Ctrl+End "
 
 type jumpToLatestRect struct{ row, column, width int }
 

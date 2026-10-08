@@ -1,7 +1,9 @@
 # Keybindings
 
-gi's TUI uses Pi's default keybindings (pi-coding-agent `docs/keybindings.md`,
-`core/keybindings.js` and pi-tui's `keybindings.js`). gi-only actions use keys
+Gi's TUI targets Pi 1.1.0 default keybindings (pi-coding-agent
+`docs/keybindings.md`, `core/keybindings.js` and pi-tui's `keybindings.js`).
+The current bounded alignment and remaining gaps are in
+[Pi 1.1.0 alignment](tui-pi-1.1.0.md). gi-only actions use keys
 that Pi leaves free. `/hotkeys` prints Pi's own `/hotkeys` text, followed by a
 table of gi's extra keys.
 
@@ -35,7 +37,7 @@ Code:
 | `app.message.copy` | Ctrl+X copies the selection, or else the last assistant message |
 | `app.message.followUp` / `dequeue` | Alt+Enter / Alt+Up |
 | `tui.editor.*` | Pi's cursor, word, line, kill ring (Ctrl+W, Alt+Backspace, Alt+D, Alt+Delete, Ctrl+U, Ctrl+K), Ctrl+Y yank, Alt+Y yank-pop, Ctrl+- undo, Ctrl+] and Ctrl+Alt+] character jump |
-| `tui.altScreen.*` | PageUp/PageDown, Home/End (top/bottom), Ctrl+Shift+Up/Down and Ctrl+Up/Down (previous/next prompt), Ctrl+Shift+F (search) |
+| `tui.altScreen.*` | PageUp/PageDown, Ctrl+Home/Ctrl+End (top/bottom), Ctrl+Shift+Up/Down and Ctrl+Up/Down (previous/next prompt), Ctrl+Shift+F (search) |
 
 ### Windows and WSL
 
@@ -89,9 +91,10 @@ Golden tests from Pi's own code:
   TUI settings. Pi saves it to the global settings.
 - History recall (Up/Down) takes an undo snapshot at every step. Pi takes one
   when browsing starts.
-- Home and End scroll the transcript to the top and bottom, as Pi's
-  `tui.altScreen.top` and `bottom` do in its fullscreen viewport. The editor's
-  line start and end stay on Ctrl+A/Ctrl+E and Ctrl+Home/Ctrl+End.
+- Home/End and Ctrl+A/Ctrl+E move to the editor's line start/end. In fullscreen,
+  Ctrl+Home/Ctrl+End navigate the transcript without moving the editor cursor.
+  In regular mode, Ctrl+Home/Ctrl+End do not move the editor cursor; terminal
+  scrollback stays terminal-owned.
 - The external editor's notice says "gi" where Pi's says "Pi".
 - gi-only keys:
   - F6, F7 and F8 select and expand transcript blocks.
