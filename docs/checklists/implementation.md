@@ -1,3 +1,9 @@
+### Web terminal acceptance (#45)
+
+- [x] Pass all 20 unchanged shared terminal scenarios across six browser/viewport projects: 110 passes and 10 source applicability skips, zero retries.
+- [x] Fix the late xterm renderer callback by disposing all addons before the core; pass repeated real teardown/PTY continuity consumers and native race-enabled safety checks without weakening ownership, handoff, replay or shared assertions.
+- [x] Remove 20 obsolete terminal skips; record source skips, profiling findings and remaining limits. [Acceptance](../implementation/web/web-terminal-acceptance.md).
+
 ### Pi environment, startup logo and hook visibility
 
 - [x] Honour Pi transport settings through main, side and summary inference; verify a 40 KiB native SSE event without WebSocket upgrades or managed-file changes.

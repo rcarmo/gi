@@ -1,6 +1,6 @@
 # Web terminal backend
 
-Gi implements Piclaw 3.2.5's terminal session, WebSocket and handoff protocol with a native PTY on Linux and macOS. Windows and other platforms return 503; their existing binary builds are retained. The shared Classic app at fixtures4259e82 still has no terminal host. Issue #45 stays open and `@cap-terminal` is unclaimed until the frontend owner's dock/tab/popout/zen integration passes independent acceptance.
+Gi implements Piclaw 3.2.5's terminal session, WebSocket and handoff protocol with a native PTY on Linux and macOS. Windows and other platforms return 503; their existing binary builds are retained. The adopted shared Classic app supports standalone tabs, dock/splitter/keyboard controls, pop-out/reattach, theme changes, zen mode and reconnect/exit states. Terminal scenarios are core in the current fixture catalogue; the retired `@cap-terminal` tag is not declared.
 
 ## HTTP and WebSocket protocol
 
@@ -24,6 +24,10 @@ The manager permits at most 16 current sessions. Each PTY retains up to 2 MiB of
 A disconnected shell survives three seconds for reconnect; a pending handoff extends this only until the token expires. Reconnecting within grace retains session identity and output. A fresh attach to an already-attached owner replaces that owner's shell. `CloseTerminals` refuses new sessions, closes sockets/PTYs, terminates the shell and discovered descendants/process groups, and joins workers including replaced and grace-expired sessions. The main web process calls it on shutdown. Grace timer callbacks check timer identity so an expired callback cannot terminate a newer detach generation. Process inspection has a two-second timeout.
 
 PTY startup creates a controlling terminal and process session. The master is registered with Go's poller; resize uses `SyscallConn.Control` so it does not change the descriptor to blocking mode. Process cleanup enumerates children with `ps`; independently daemonised/reparented processes are outside the descendant contract. Terminal commands must not be treated as a safe way to run untrusted code.
+
+## Browser client lifecycle
+
+The client disposes all successfully loaded xterm addons in reverse activation order before disposing the terminal core. This prevents addon cleanup from queuing viewport work against a destroyed renderer. Failed activation is not retained; an individual disposer failure cannot stop remaining cleanup. The metadata list of loaded addon names is preserved. This does not weaken ownership/handoff or hide global browser errors.
 
 ## Verification, 2026-10-05
 

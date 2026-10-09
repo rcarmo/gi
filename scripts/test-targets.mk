@@ -221,7 +221,7 @@ test-ux-side-prompt-api: playwright-browsers
 
 
 test-web-terminal:
-	$(TESTPROFILE) gotest ./internal/web -run TestWebTerminal -count=3
+	$(TESTPROFILE) gotest $(RACE) ./internal/web -run TestWebTerminal -count=3
 
 bench-web-terminal:
 	$(TESTPROFILE) gotest ./internal/web -run '^$$' -bench BenchmarkWebTerminalReplayRing -benchmem -benchtime=300ms
@@ -1028,10 +1028,16 @@ test-vnc-viewer:
 test-tool-duration-pty:
 	@bash scripts/test-tool-duration-pty.sh
 
+.PHONY: test-terminal-lifecycle-consumer
+test-terminal-lifecycle-consumer:
+	mkdir -p $(BIN_DIR)
+	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
+	GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(CURDIR)/tests/fixtures-vibes/profile.json $(PLAYWRIGHT) test -c playwright.consumer.config.ts tests/consumer/terminal-lifecycle.spec.ts --project chromium-desktop --project webkit-desktop --repeat-each 3
+
 .PHONY: test-terminal-reattach-consumer
 test-terminal-reattach-consumer: $(TESTPROFILE)
 	mkdir -p $(BIN_DIR)
-	go build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
+	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
 	GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(CURDIR)/tests/fixtures-vibes/profile.json scripts/run-playwright.sh test -c playwright.consumer.config.ts tests/consumer/terminal-reattach.spec.ts --project chromium-desktop --project webkit-desktop --repeat-each 3
 
 .PHONY: test-program-status-reader

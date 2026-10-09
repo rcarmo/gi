@@ -20,6 +20,7 @@ Classic UI adaptations, shared frontend adoption and browser verification.
 - [Native session-panel adaptation](session-panel.md)
 - [Startup and first Return](startup-return-journeys.md)
 - [WebKit terminal reattach adoption](terminal-reattach-adoption.md)
+- [Web terminal acceptance (#45)](web-terminal-acceptance.md)
 - [Pinned theme text contrast](theme-text-contrast.md)
 - [Browser voice input](voice-input.md)
 - [Read-only workspace tab transitions](workspace-tab-transitions.md)
