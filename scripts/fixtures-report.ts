@@ -6,11 +6,12 @@ const run = process.env.GI_TEST_RUN_ROOT;
 if (!run || !process.env.PROJECT_TMP_ROOT || !run.startsWith(process.env.PROJECT_TMP_ROOT + '/runs/')) throw Error('Use make fixtures-vibes-report');
 const repo = resolve('references/fixtures-vibes');
 let source = await Bun.file(join(repo, 'suite/report.ts')).text();
-for (const anchor of ["const root = resolve(import.meta.dir, '..');", "const out = resolve(root, 'test-results');"]) {
+for (const anchor of ["const root = resolve(import.meta.dir, '..');", "const outDir = resolve(root, 'test-results');", "from './runtime'", "from './catalogue'"]) {
   if (!source.includes(anchor)) throw Error('Pinned report path anchor changed: ' + anchor);
 }
 source = source.replace("const root = resolve(import.meta.dir, '..');", `const root = ${JSON.stringify(repo)};`)
-  .replace("const out = resolve(root, 'test-results');", `const out = ${JSON.stringify(join(run, 'results/fixtures'))};`)
+  .replace("const outDir = resolve(root, 'test-results');", `const outDir = ${JSON.stringify(join(run, 'results/fixtures'))};`)
+  .replace("from './runtime'", `from ${JSON.stringify(join(repo, 'suite/runtime.ts'))}`)
   .replace("from './catalogue'", `from ${JSON.stringify(join(repo, 'suite/catalogue.ts'))}`)
   .replace("from '../tools/manifest'", `from ${JSON.stringify(join(repo, 'tools/manifest.ts'))}`);
 mkdirSync(join(run,'report'), {recursive:true});

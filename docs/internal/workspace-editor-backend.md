@@ -1,12 +1,6 @@
 # Workspace editor backend
 
-Gi serves complete editable snapshots and revision-conditional writes. The
-shared Classic frontend is pinned to `0259e9a` (Piclaw v3.3.0); editor saving,
-Plan and agent-open checks are recorded in
-[8 October acceptance](../implementation/maintenance/acceptance-2026-10-08.md). Issue #46 stays open: the lazy
-editor loader drops revision metadata on clean SSE refresh, and shared
-conflict018 lacks approval for the new reviewed-Overwrite dialog.
-`@cap-editor` is unclaimed.
+Gi serves complete editable snapshots and revision-conditional writes through the shared Classic CodeMirror/Vim UI at fixtures-vibes `bb7786f` (Piclaw v3.3.0). [Current acceptance](../implementation/web/workspace-editor-acceptance.md) covers 19 shared scenarios and both desktop consumer checks. Issue #46 stays open for the shared conflict scenario: it does not approve the adopted UI's reviewed-Overwrite dialog. The earlier lazy-loader revision loss is fixed by the adopted frontend. Editor behaviour is core/`@cap-workspace` in the current catalogue; `@cap-editor` is no longer defined.
 
 ## Files and public assets
 
@@ -40,16 +34,12 @@ Changes are coalesced for 100ms, with at most 256 path entries. Overflow asks cl
 
 Snapshots use the rooted tree reader at depth four for `.` and three for other subtrees, with a shared 10,000-node budget. They contain names/metadata, never file contents. A budget failure yields a directory stub with `truncated:true`. The UI uses concrete `changed_paths` to refresh clean editors and `root` to update explorer subtrees. Session streams are authenticated; events apply to the shared workspace, not just the active conversation.
 
-## Verification and performance, 2026-10-05
+## Agent file-open requests
 
-* Seven focused handler/watcher tests pass, including complete reads, size/encoding/path rejection, unchanged-save mtime, compatibility assets, authentication, shared resources, shutdown and external-write SSE snapshots.
-* Full Go suite: 2,127 tests passed, 37 packages; 83.5s wall, 62.2s CPU, 752MB peak RSS including compilation. Versus the preceding run: wall -11%, CPU -2%, RSS -1%; no reported test regression.
-* Functional suite: 144 passed, 11 skipped; complete lifecycle 204.1s wall, 98.5s CPU, 370MB peak RSS. Versus the earlier full run: wall/CPU +19%, RSS -8%, with two new tests and filesystem monitoring. No isolated latency regression is established by that aggregate comparison.
-* The two new functional checks exercise complete edit/save/oversize rejection and tool-written external changes arriving over SSE without contents. Their selected run passed in 1.6s; the 133.5s lifecycle included a cold build after cache trimming.
-* Vet passes. The MCP wrong-issuer test flagged at 1.5s in an intermediate full profile passed its focused profiled check in 8ms; no reproducible slowdown was found.
+The web server registers `open_workspace_file` for existing confined workspace files, with `target=tab|popout` and an optional label. It emits a session-scoped `extension_ui_request` with `options.action=open_workspace_file` and waits up to 15 seconds for the browser outcome. The turn remains cancellable.
 
-Focused sampled allocations are mainly bounded preview/JSON responses and test response buffers. The text/content aliases share one string allocation. Watch registration uses bounded directory reads and constant-time watch-set membership rather than allocating a complete watch-list copy per directory. No stable browser allocation measurement or race-detector result is claimed.
+`POST /agent/respond` accepts `{request_id, chat_jid, outcome}`. The request must belong to the same browser owner, session, path and target, remain unexpired and uncancelled, and receive only one response. Enrolled instances require a valid browser cookie; bearer tokens, cross-origin requests and unsafe non-localhost transport are rejected. Timeout/shutdown cannot turn a late response into a successful open.
 
-The measurements above are historical. Used raw logs/profiles and matching
-test artifacts are disposable; current runs use project-owned scratch as
-described in [8 October acceptance](../implementation/maintenance/acceptance-2026-10-08.md).
+## Verification
+
+[Current browser acceptance](../implementation/web/workspace-editor-acceptance.md) records 19 accepted shared scenarios and the remaining conflict-test mismatch. [Historical backend measurements](../implementation/web/workspace-editor-backend-verification.md) retain the 5 October API/watcher verification.

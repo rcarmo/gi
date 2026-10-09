@@ -1,3 +1,8 @@
+### Workspace editor acceptance (#46)
+
+- [x] Verify the adopted CodeMirror/Vim editor, saves, tab state, preview/popout and agent-open flows against 19 shared scenarios; remove 18 stale skips and repair the pinned report adapter. [Acceptance](../implementation/web/workspace-editor-acceptance.md).
+- [ ] Align shared workspace018 with reviewed-Overwrite approval, then run independent shared conflict acceptance before closing #46.
+
 ### Terminal program status (OSC 7501)
 
 - [x] Port pi-tui status encoding, support negotiation and override; report native runs, compaction and blocking dialogs in both TUI modes; verify input isolation and lifecycle cleanup. [Contract and verification](../implementation/terminal/tui-program-status.md).

@@ -23,3 +23,5 @@ Classic UI adaptations, shared frontend adoption and browser verification.
 - [Pinned theme text contrast](theme-text-contrast.md)
 - [Browser voice input](voice-input.md)
 - [Read-only workspace tab transitions](workspace-tab-transitions.md)
+- [Workspace editor acceptance (#46)](workspace-editor-acceptance.md)
+- [Historical workspace editor backend verification](workspace-editor-backend-verification.md)

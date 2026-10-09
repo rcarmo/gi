@@ -336,7 +336,7 @@ test-fixtures-profile-lifecycle:
 test-editor-conflict-consumer:
 	mkdir -p $(BIN_DIR)
 	$(GO) build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
-	GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(FIXTURES_PROFILE) $(PLAYWRIGHT) test -c playwright.consumer.config.ts --project chromium-desktop --project webkit-desktop
+	GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(FIXTURES_PROFILE) $(PLAYWRIGHT) test -c playwright.consumer.config.ts tests/consumer/editor-conflict.spec.ts tests/consumer/editor-refresh.spec.ts --project chromium-desktop --project webkit-desktop
 
 # Focused acceptance does not replace full-run compliance reports.
 fixtures-vibes-focused: $(if $(filter 1,$(FIXTURES_BUILD_WEB)),build-web)
