@@ -42,4 +42,4 @@ The web server registers `open_workspace_file` for existing confined workspace f
 
 ## Verification
 
-[Current browser acceptance](../implementation/web/workspace-editor-acceptance.md) records 19 accepted shared scenarios and the remaining conflict-test mismatch. [Historical backend measurements](../implementation/web/workspace-editor-backend-verification.md) retain the 5 October API/watcher verification.
+[Current browser acceptance](../implementation/web/workspace-editor-acceptance.md) records the 19-scenario matrix and independent six-project conflict acceptance, with revision-safe native confirmation. [Historical backend measurements](../implementation/web/workspace-editor-backend-verification.md) retain the 5 October API/watcher verification.
