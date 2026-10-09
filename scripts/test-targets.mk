@@ -737,7 +737,7 @@ test-tui-session-picker: build
 
 .PHONY: test-pi-environment-settings
 test-pi-environment-settings: $(TESTPROFILE)
-	$(TESTPROFILE) gotest $(RACE) -count=3 -run 'Test(PiTransport|PiConfiguredSSE|AgentsInTheCloud|ConfiguredTransport|SidePromptContext|SummarizeBranchReads|StartupHeader|HandleTopicEvent.*Hook)' ./internal/config ./internal/skills ./internal/inference ./internal/turn ./internal/tui
+	$(TESTPROFILE) gotest $(RACE) -count=3 -run 'Test(PiTransport|PiConfigured(SSE|WebSocket)|AgentsInTheCloud|ConfiguredTransport|SidePromptContext|SummarizeBranchReads|StartupHeader|HandleTopicEvent.*Hook)' ./internal/config ./internal/skills ./internal/inference ./internal/turn ./internal/tui
 
 .PHONY: test-startup-hooks-pty
 test-startup-hooks-pty:

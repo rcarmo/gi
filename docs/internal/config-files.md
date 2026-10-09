@@ -29,7 +29,7 @@ exists, so other workspaces keep their index fingerprint.
 
 Pi's `transport` setting is read from project settings over user settings and passed to go-ai for normal turns, side prompts, compaction and branch summaries. Values are `auto` (default), `sse`, `websocket` and `websocket-cached`. The legacy `websockets` boolean maps to `websocket` or `sse` when the enum is absent. Reading either form leaves the file unchanged.
 
-AgentsInTheCloud's managed Pi settings use `sse`. Gi honours that preference instead of making a WebSocket attempt first. This avoids coder/websocket's default 32 KiB message limit on that path; it does not raise the limit for an explicit WebSocket selection.
+AgentsInTheCloud's managed Pi settings use `sse`. Gi honours that preference instead of making a WebSocket attempt first. Codex WebSocket connections now explicitly allow incoming messages up to 4 MiB in go-ai, including auto and cached mode, instead of inheriting coder/websocket's 32 KiB default. Larger messages are rejected to bound memory use.
 
 ## VNC target environment
 
