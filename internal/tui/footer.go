@@ -152,6 +152,7 @@ func (c *chatTUI) footerData() tuiContextSummary {
 	}
 	if session, err := c.store.GetSession(context.Background(), c.sessionID); err == nil {
 		data.sessionTitle = session.Title
+		c.programSessionName = session.Title
 		choice := inference.SessionModel(session.State, inference.SessionModelChoice{Model: data.model, Provider: data.provider, Thinking: data.thinking})
 		data.model, data.provider, data.thinking = choice.Model, choice.Provider, choice.Thinking
 		c.applyModelContextWindow(&data)

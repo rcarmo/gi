@@ -1022,3 +1022,7 @@ test-terminal-reattach-consumer: $(TESTPROFILE)
 	mkdir -p $(BIN_DIR)
 	go build -tags fixtures_vibes -o $(BIN_DIR)/gi-fixtures-vibes ./cmd/gi
 	GI_FIXTURE_BIN=$(abspath $(BIN_DIR)/gi-fixtures-vibes) FIXTURES_PROFILE=$(CURDIR)/tests/fixtures-vibes/profile.json scripts/run-playwright.sh test -c playwright.consumer.config.ts tests/consumer/terminal-reattach.spec.ts --project chromium-desktop --project webkit-desktop --repeat-each 3
+
+.PHONY: test-program-status-reader
+test-program-status-reader:
+	cd third_party/go-tui && $(GO) test -p=1 $(RACE) $(if $(TEST_RUN),-run '$(TEST_RUN)') ./...

@@ -116,6 +116,10 @@ func runWithEngineMode(s *store.Store, engine *turn.Engine, cfg config.RuntimeCo
 	}
 	chat.app = app
 	app.SetPasteHandler(chat.handlePaste)
+	chat.programStatus = newProgramStatusTerminal(os.Stdout, os.Getenv("PI_PROGRAM_STATUS"))
+	app.SetTerminalReplyHandler(func(e gotui.TerminalReplyEvent) { chat.programStatus.reply(e.Sequence) })
+	chat.programStatus.start()
+	defer chat.programStatus.stop()
 	cleanup := chat.Init()
 	defer cleanup()
 	chat.watchActiveTheme()
@@ -221,6 +225,10 @@ type chatTUI struct {
 	historyDraftCursor          int
 	historyApplying             bool
 	running                     bool
+	programStatus               *programStatusTerminal
+	programResting              programStatus
+	programWasActive            bool
+	programSessionName          string
 	status                      string
 	compaction                  terminalCompaction
 	workspaceIndex              terminalIndex
@@ -672,6 +680,9 @@ func (c *chatTUI) bindSession(sessionID string) {
 	}
 	c.stopSessionSubscription()
 	c.sessionGeneration++
+	c.programResting = programStatus{State: "idle"}
+	c.programWasActive = false
+	c.programSessionName = ""
 	c.compaction = terminalCompaction{}
 	c.sessionID = sessionID
 	c.regularPrinted = 0
@@ -679,6 +690,7 @@ func (c *chatTUI) bindSession(sessionID string) {
 	if c.store != nil {
 		if session, err := c.store.GetSession(context.Background(), sessionID); err == nil {
 			c.restoreSessionModel(session.State)
+			c.programSessionName = session.Title
 		}
 	}
 	if c.engine == nil {
@@ -768,6 +780,7 @@ func (c *chatTUI) hasRunningTranscriptBlock() bool {
 }
 
 func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
+	defer c.reportProgramStatus()
 	c.invalidateFooter()
 	if env.SessionID != "" && env.SessionID != c.sessionID {
 		return
@@ -848,10 +861,15 @@ func (c *chatTUI) handleTopicEvent(env topics.Envelope) {
 		case "turn_usage":
 			c.updateUsageFromPayload(payload)
 		case "turn_completed":
+			c.programResting = programStatus{State: "done"}
 			c.resetRunningDraftState()
 			c.status = fmt.Sprintf("%s · %s", c.cfg.AssistantName, c.cfg.DefaultModel)
 		case "turn_terminal":
 			if status == "failed" || status == "aborted" || status == "cancelled" {
+				c.programResting = programStatus{State: "idle"}
+				if status == "failed" {
+					c.programResting = programStatus{State: "error", Message: firstProgramStatusLine(stringFromPayload(payload, "error"))}
+				}
 				c.resetRunningDraftState()
 				c.status = fmt.Sprintf("Turn %s", status)
 			}
@@ -961,6 +979,7 @@ func (c *chatTUI) useTopicNativeRuntimeStatus() bool {
 }
 
 func (c *chatTUI) handleEvent(ev map[string]any) {
+	defer c.reportProgramStatus()
 	if !sessionEventMatchesID(ev, c.sessionID) {
 		return
 	}
@@ -1096,6 +1115,7 @@ func (c *chatTUI) handleEvent(ev map[string]any) {
 			c.finishThinkingTranscript(time.Now().UTC())
 			c.appendTranscript("error: " + truncate(msg, 160))
 			c.status = "Error"
+			c.programResting = programStatus{State: "error", Message: firstProgramStatusLine(msg)}
 			if c.app != nil {
 				c.app.MarkDirty()
 			}
@@ -3809,6 +3829,8 @@ func (c *chatTUI) nameSessionLines(text string, fields []string) []string {
 	if err := c.store.UpdateSessionTitle(context.Background(), c.sessionID, name); err != nil {
 		return []string{fmt.Sprintf("error: rename session: %v", err)}
 	}
+	c.programSessionName = name
+	c.reportProgramStatus()
 	return []string{fmt.Sprintf("sys: session renamed to %s", name)}
 }
 
@@ -4536,6 +4558,7 @@ func (c *chatTUI) pluginLines() []string {
 }
 
 func (c *chatTUI) Render(app *gotui.App) *gotui.Element {
+	c.reportProgramStatus()
 	if c.regularMode {
 		return c.renderRegular(app)
 	}

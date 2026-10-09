@@ -10,6 +10,12 @@ package tui
 // Returns true if the event was consumed.
 func (a *App) Dispatch(event Event) bool {
 	switch e := event.(type) {
+	case TerminalReplyEvent:
+		if a.terminalReplyHandler != nil {
+			a.terminalReplyHandler(e)
+		}
+		return true
+
 	case UpdateEvent:
 		if e.fn != nil {
 			e.fn()

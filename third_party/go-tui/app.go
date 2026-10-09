@@ -23,16 +23,17 @@ type Viewable interface {
 
 // App manages the application lifecycle: terminal setup, event loop, and rendering.
 type App struct {
-	terminal        Terminal
-	buffer          *Buffer
-	reader          EventReader
-	focus           *focusManager
-	root            *Element
-	rowRedraw       bool // Opt-in complete changed-row output (fullscreen only).
-	needsFullRedraw bool // Set after resize, cleared after RenderFull
-	dirty           atomic.Bool
-	wake            chan struct{} // signalled by MarkDirty so an idle Run loop renders
-	batch           batchContext
+	terminal             Terminal
+	buffer               *Buffer
+	reader               EventReader
+	terminalReplyHandler func(TerminalReplyEvent)
+	focus                *focusManager
+	root                 *Element
+	rowRedraw            bool // Opt-in complete changed-row output (fullscreen only).
+	needsFullRedraw      bool // Set after resize, cleared after RenderFull
+	dirty                atomic.Bool
+	wake                 chan struct{} // signalled by MarkDirty so an idle Run loop renders
+	batch                batchContext
 
 	// Event loop fields
 	inputEvents      chan Event  // Terminal input events (key, mouse, resize)
@@ -446,6 +447,9 @@ func (a *App) SetGlobalKeyHandler(fn func(KeyEvent) bool) {
 func (a *App) SetPasteHandler(fn func(PasteEvent) bool) {
 	a.pasteHandler = fn
 }
+
+// SetTerminalReplyHandler receives terminal replies on the UI event loop.
+func (a *App) SetTerminalReplyHandler(fn func(TerminalReplyEvent)) { a.terminalReplyHandler = fn }
 
 // Root returns the current root element.
 func (a *App) Root() *Element {

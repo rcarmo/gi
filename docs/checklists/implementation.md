@@ -1,3 +1,7 @@
+### Terminal program status (OSC 7501)
+
+- [x] Port pi-tui status encoding, support negotiation and override; report native runs, compaction and blocking dialogs in both TUI modes; verify input isolation and lifecycle cleanup. [Contract and verification](../implementation/terminal/tui-program-status.md).
+
 ### Complex Markdown table rendering performance
 
 - [x] Add reproducible Unicode/styled table projection, streaming, resize and scroll-frame benchmarks with CPU/allocation profiles.

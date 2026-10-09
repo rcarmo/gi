@@ -108,12 +108,21 @@ func (c *chatTUI) syncCompactionActivity() {
 	switch event {
 	case "compaction.completed":
 		label = "Context compacted"
+		if wasActive && !c.running {
+			c.programResting = programStatus{State: "done"}
+		}
 	case "compaction.cancelled":
 		label = "Compaction cancelled"
+		if wasActive && !c.running {
+			c.programResting = programStatus{State: "idle"}
+		}
 	case "compaction.suppressed":
 		label = "Compaction temporarily suppressed"
 	case "compaction.failed":
 		label = "Compaction failed"
+		if wasActive {
+			c.programResting = programStatus{State: "error", Message: firstProgramStatusLine(detail)}
+		}
 	}
 	if label != "" {
 		if strings.TrimSpace(detail) != "" {
