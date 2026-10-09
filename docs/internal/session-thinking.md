@@ -111,7 +111,7 @@ Reload existing tabs for the new bundle. Evidence is in
 `/workspace/tmp/gi-thinking-deploy-53ef988`; DB dumps and auth hashes stay local-only.
 
 At this thinking-only deployment Shared35 was still unmapped. The follow-up
-[context estimate provenance slice](context-estimate-provenance.md) supplies its
+[context estimate provenance slice](../implementation/web/context-estimate-provenance.md) supplies its
 positive native-estimate clause and the canonical combined web proof. Measured
 context remains provider-sourced or unavailable; no synthetic estimate, TUI,
 physical-device or exact-pixel acceptance is added.

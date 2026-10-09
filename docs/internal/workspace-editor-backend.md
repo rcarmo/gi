@@ -3,7 +3,7 @@
 Gi serves complete editable snapshots and revision-conditional writes. The
 shared Classic frontend is pinned to `0259e9a` (Piclaw v3.3.0); editor saving,
 Plan and agent-open checks are recorded in
-[8 October acceptance](acceptance-2026-10-08.md). Issue #46 stays open: the lazy
+[8 October acceptance](../implementation/maintenance/acceptance-2026-10-08.md). Issue #46 stays open: the lazy
 editor loader drops revision metadata on clean SSE refresh, and shared
 conflict018 lacks approval for the new reviewed-Overwrite dialog.
 `@cap-editor` is unclaimed.
@@ -52,4 +52,4 @@ Focused sampled allocations are mainly bounded preview/JSON responses and test r
 
 The measurements above are historical. Used raw logs/profiles and matching
 test artifacts are disposable; current runs use project-owned scratch as
-described in [8 October acceptance](acceptance-2026-10-08.md).
+described in [8 October acceptance](../implementation/maintenance/acceptance-2026-10-08.md).

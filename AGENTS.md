@@ -96,7 +96,7 @@ Makefile             canonical build/test/run interface
 - Features start in `docs/checklists/implementation.md` — the phased implementation checklist organized by subsystem
 - Architecture decisions are recorded in `docs/adr/` — create a new ADR for significant design choices
 - The original spec conversation is preserved verbatim in `docs/reference/`
-- Internal runtime/tooling/scripting documentation lives in `docs/internal/` and is intended to become a shipped read-only reference tree later (for example `vfs://reference/...`)
+- Agent-facing runtime/tooling/scripting contracts live in `docs/internal/` and ship as the read-only `vfs://reference/...` tree. Feature implementation notes, plans, audits and verification findings live in `docs/implementation/`, grouped by topic; keep them out of the embedded reference.
 - For new feature areas, add checklist items first, then implement
 
 ### 2. Implement

@@ -6,7 +6,7 @@ The agent running inside gi must be able to discover how gi extends itself.
 The internal reference system is the documentation substrate that makes that possible.
 
 ## Source of truth
-Authoring happens in repo Markdown under `docs/internal/`.
+Agent-facing reference contracts are authored under `docs/internal/`. Feature implementation details, plans, audits and verification results belong in `docs/implementation/`; they are not embedded.
 
 This subtree is the canonical source for:
 - tool contracts
@@ -17,13 +17,7 @@ This subtree is the canonical source for:
 - other agent-visible extension points
 
 ## Shipped form
-The long-term shipped form is a read-only embedded documentation tree, likely surfaced as:
-- `vfs://reference/...`
-
-That shipped tree should be:
-- embedded in the gi binary
-- accessible through the same internal path resolver used by other `vfs://` content
-- immutable from normal agent write/edit operations
+`docs/embed.go` embeds the reference Markdown. The store exposes it through the read-only `vfs://reference/...` namespace and the shared VFS resolver. Normal agent write/edit operations cannot change it.
 
 ## Read-only contract
 The reference namespace is for inspection only.

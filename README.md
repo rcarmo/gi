@@ -170,7 +170,7 @@ The current TUI uses `go-tui`, supports terminal resize handling through the run
 
 The web UI reuses pinned Piclaw component sources and is maintained in rcarmo/fixtures-vibes (`ui/classic`), which Gi consumes through its `references/fixtures-vibes` submodule. It supplies `web/src/api.ts`, `web/src/app.ts`, auth/Settings modules and CSS overrides. Build-time patches in `references/fixtures-vibes/ui/classic/scripts/patch-*.mjs` change selected bundled behaviour without editing the supplied components; each patch fails the build if its anchor text changes.
 
-Workspace tabs are read-only previews with [retained conversation return and keyboard/touch navigation](docs/internal/workspace-tab-transitions.md). Editable documents, dirty-buffer workflows, popouts and docking are not implemented. Composer padding and picker outer bounds follow a [pinned Classic reference](docs/internal/picker-geometry.md), with a documented narrow-desktop containment correction. Session-strip/catalogue structure and full visual styling still differ from Piclaw. The reproduced startup/new-chat focus and loading-retry failures are fixed and covered by [first-Return journeys](docs/internal/startup-return-journeys.md); broader keyboard and visual parity remains open. The [UX audit][audit] records those gaps and the limits of existing tests.
+Workspace tabs are read-only previews with [retained conversation return and keyboard/touch navigation](docs/implementation/web/workspace-tab-transitions.md). Editable documents, dirty-buffer workflows, popouts and docking are not implemented. Composer padding and picker outer bounds follow a [pinned Classic reference](docs/implementation/web/picker-geometry.md), with a documented narrow-desktop containment correction. Session-strip/catalogue structure and full visual styling still differ from Piclaw. The reproduced startup/new-chat focus and loading-retry failures are fixed and covered by [first-Return journeys](docs/implementation/web/startup-return-journeys.md); broader keyboard and visual parity remains open. The [UX audit][audit] records those gaps and the limits of existing tests.
 
 ### Authentication and exposure
 
@@ -244,7 +244,7 @@ See the [documentation index][docs], [feature and parity matrix][parity], and [i
 MIT. See [LICENSE](LICENSE).
 
 [parity]: docs/feature-parity.md
-[audit]: docs/internal/ux-test-audit-2026-09-24.md
+[audit]: docs/implementation/audits/ux-test-audit-2026-09-24.md
 [ux]: tests/ux/README.md
 [docs]: docs/README.md
 [checklist]: docs/checklists/implementation.md

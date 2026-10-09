@@ -1,201 +1,89 @@
 # Internal reference
 
-This subtree contains Gi's shipped internal reference for runtime features that the agent can use or extend.
+Gi embeds this tree as the read-only `vfs://reference/...` documentation for agents and runtime developers. Feature implementation notes, plans and verification reports live in [implementation notes](../implementation/README.md). Current release status is in the [feature matrix](../feature-parity.md).
 
-For release status and fixtures-vibes compliance results, see [features and Piclaw parity](../feature-parity.md). Dated plans, audits and slice logs (files with a date in the name, and `ux-reaudit-2026-09-26/`) keep their original scope; the contracts below describe current behaviour.
+## Contract maintenance
 
-### Runtime contracts
+Update the relevant reference when a change affects tools, scripting bridges, hooks, managed VFS behaviour, skill/package structure or other agent-visible extension points. Keep those reference paths stable. Put revision-specific findings and feature implementation history under `docs/implementation/`.
 
-- [MCP client](mcp.md) and [codemode engine](codemode.md) — `mcp.json` lookup, transports, OAuth, deferred tools, `tool_search` and the QuickJS-on-wazero codemode tool; the model reads [codemode scripts](codemode-scripts.md)
-- [Keychain](keychain.md) and [shell environment](shell-environment.md) — Piclaw-format encrypted secrets, shell substitution, environment overrides and shell resolution
-- [Configuration files](config-files.md) and [system prompt](system-prompt.md) — `.gi` then `.pi` lookup, write locations, Pi's structured prompt and context files
-- [Compaction](compaction.md) — Pi's cut point and model-written summaries
-- [Session import, export and sharing](session-import.md) — Pi JSONL v3 and HTML export, `/import` and `/share`
-- [Bounded message retrieval](message-retrieval.md) — numeric message row IDs, session scope, bounded content and pagination
-- [Session thinking](session-thinking.md) — validated choices, captured turn ownership and provider request evidence
-- [Held-turn retry](held-turn-retry.md) — exclusive reservations and atomic recovery of interrupted turns
+## Topic trees
 
-### Web contracts
+- [Tools](tools/README.md) — built-in tool parameters, outputs and side effects
+- [Scripting](scripting/README.md) — native Joker, Goja/QuickJS and bridge APIs
+- [Hooks](hooks/README.md) — lifecycle and mutation rules
+- [VFS](vfs/README.md) — namespaces, resolution and read-only reference URLs
+- [Skills](skills/README.md) — discovery, packaging and conventions
+- [Search](search/README.md) — scoped lexical indexing and the planned hybrid/vector design
 
-- [Basic web send on HTTP hosts](web-http-send.md), [HTTP delivery recovery](web-delivery-recovery.md) and [send receipts](web-send-receipts.md) — secure-context failures, lost-acknowledgement reconciliation and routed/steered reply recovery
-- [Cross-tab draft write fencing](web-cross-tab-drafts.md) — revision conflicts, IndexedDB migration and reload recovery
-- [Web Stop and Resume queue](web-stop-queue.md) — captured-run cancellation and fenced resume
-- [Tool terminal provenance](tool-terminal-provenance.md) — occurrence-bound cancellation and abort timing
-- [Context estimate provenance](context-estimate-provenance.md) — compaction estimates versus measured request usage
-- [Gi settings](gi-settings-plan.md) — Settings dialog layout and Gi-owned panes
+## Runtime
 
-### Terminal contracts
+- [Codemode scripts (gi reference)](codemode-scripts.md)
+- [Codemode engine (`internal/codemode`)](codemode.md)
+- [Compaction (#18)](compaction.md)
+- [Configuration file lookup (#26)](config-files.md)
+- [Connectivity hooks and route registration](connectivity-hooks.md)
+- [Extension command registration semantics](extension-command-semantics.md)
+- [Held-turn retry admission](held-turn-retry.md)
+- [Keychain](keychain.md)
+- [MCP client (`internal/mcp`)](mcp.md)
+- [Shared media ingestion contract](media-ingestion-contract.md)
+- [Bounded current-session message retrieval](message-retrieval.md)
+- [Routing and route-event introspection](routing.md)
+- [ADR: SQLite-backed coordinated runtime model](runtime-refactor-adr.md)
+- [Runtime surfaces living index](runtime-surfaces.md)
+- [Runtime target state](runtime-target-state.md)
+- [Session import, export and sharing](session-import.md)
+- [Session Plan backend](session-plan.md)
+- [Session thinking selection](session-thinking.md)
+- [Shell environment](shell-environment.md)
+- [Sub-turn runtime contract](subturn-runtime.md)
+- [System prompt (#32)](system-prompt.md)
+- [Recorded tool execution duration](tool-duration.md)
+- [Tool terminal provenance](tool-terminal-provenance.md)
+- [Internal topic system design](topic-system.md)
 
-- [Keybindings](keybindings.md), [/settings](tui-settings.md), [/tree](tui-tree.md), [/login and /logout](tui-oauth-login.md) and [searchable selectors](tui-selectors.md)
-- [Terminal-derived themes](tui-terminal-theme.md) — detection, bounded startup probing and Pi's generated system theme
-- [Terminal held retry](tui-held-retry.md), [pre-admission guards](tui-submit-guards.md), [queue commands](tui-queue-commands.md), [plaintext journal](tui-text-journal.md) (terminal autosave is not wired) and [attachment references](tui-media-journal.md)
-- [Editor layout cache](tui-editor-layout-cache.md), [editor viewport](tui-editor-viewport.md), [wrapped links](tui-wrapped-links.md), [word and line selection](tui-word-selection.md), [search across wraps](tui-search-wrap.md), [inline model context in Alt-M](tui-model-metadata.md)
-- [Pinned theme text contrast](theme-text-contrast.md) and [disabled context-control explanations](context-control.md)
+## Terminal
 
-It is written for:
-- the agent running inside gi
-- humans extending gi
-- agents reading the embedded read-only `vfs://reference/...` tree
+- [Keybindings](keybindings.md)
+- [Pi terminal and Piclaw queue contract](pi-tui-piclaw-queue-contract.md)
+- [TUI clipboard and media](tui-clipboard-media.md)
+- [Explicit terminal held retry](tui-held-retry.md)
+- [Durable terminal attachment references](tui-media-journal.md)
+- [TUI /login and /logout](tui-oauth-login.md)
+- [TUI paste](tui-paste.md)
+- [Gi TUI Pi-identical layout contract](tui-pi-layout-contract.md)
+- [Explicit terminal queue commands](tui-queue-commands.md)
+- [Gi TUI searchable selectors (PiSwift port)](tui-selectors.md)
+- [TUI settings](tui-settings.md)
+- [Gi TUI single-line status semantics](tui-status-line-semantics.md)
+- [Terminal theme detection (issues #12, #31)](tui-terminal-theme.md)
+- [Terminal plaintext journal prerequisite](tui-text-journal.md)
+- [TUI /tree](tui-tree.md)
 
-## Contract
+## Web
 
-If a change adds or materially changes any of the following, it must update this subtree in the same change:
-- built-in tools
-- scripting runtimes or bridge APIs
-- hook surfaces
-- managed `vfs://` behavior
-- skill/package structure
-- other agent-visible extension points
+- [Browser-owner session proof](browser-auth-proof.md)
+- [Browser-bound initial owner setup](browser-bootstrap.md)
+- [Dashboard widget backend](dashboard-widgets.md)
+- [Message deletion](message-deletion.md)
+- [Piclaw read-only pane host](pane-host-subset.md)
+- [Single-user passkey Settings contract](passkey-contract.md)
+- [Passkey criterion ledger](passkey-criteria.md)
+- [Passkey login cancellation boundary](passkey-login-cancellation.md)
+- [Multi-passkey authentication](passkeys.md)
+- [Revision-safe editor and Plan writes](revision-safe-writes.md)
+- [`/btw`](side-prompt.md)
+- [Cross-tab draft write fencing](web-cross-tab-drafts.md)
+- [Basic HTTP delivery and run-control checks](web-delivery-recovery.md)
+- [Basic web send on HTTP hosts](web-http-send.md)
+- [Bounded web send receipts](web-send-receipts.md)
+- [Web Stop preserves pending work](web-stop-queue.md)
+- [Web terminal backend](web-terminal.md)
+- [Web VNC backend](web-vnc.md)
+- [Workspace editor backend](workspace-editor-backend.md)
 
-## What belongs here
+## Development
 
-- **tool contracts**: purpose, parameters, outputs, side effects, examples
-- **scripting docs**: engine behavior, bridge globals, file/state access, examples
-- **hook docs**: lifecycle timing, guarantees, mutation rules, examples
-- **VFS docs**: `vfs://` URL semantics, path resolution, read-only namespaces, export/sync model
-- **skill/package docs**: structure, conventions, discovery, packaging
-
-## Stability policy
-
-Paths under `docs/internal/` should remain stable once referenced by prompts, tools, or future `vfs://reference/...` URLs.
-
-## Current structure
-
-- [tui-complex-table-performance.md](tui-complex-table-performance.md) — Unicode width/layout optimizations, benchmarks, cache ownership and table-to-user message boundaries
-
-- [tui-tool-syntax.md](tui-tool-syntax.md) — file-extension highlighting, read/write previews, historical arguments and terminal acceptance
-
-- [local-notifications.md](local-notifications.md) — browser-scoped opt-in, cross-tab local delivery and logout cleanup; no Web Push
-
-- [voice-input.md](voice-input.md) — capability-gated browser recognition, draft ownership and explicit microphone/device acceptance limits
-
-- [compose-contrast.md](compose-contrast.md) — pinned accent foreground rule, session-pill padding and missing compose controls
-
-- [session-panel.md](session-panel.md) — native session layout, committed pin state and pre-paint query-highlight ownership
-- [auth-fixture-listener.md](auth-fixture-listener.md) — disposable auth listener ownership and CI startup diagnostics
-
-- [model-panel.md](model-panel.md) — supported model catalogue layout, Settings handoff and explicit native capability gaps
-
-- [compose-surface.md](compose-surface.md) — host-only compose geometry, resize persistence and keyboard/modal ownership
-- [compose-pixel-baseline.md](compose-pixel-baseline.md) — pinned capture matrix, exact comparison gate and current failures
-
-- [workspace-tab-transitions.md](workspace-tab-transitions.md) — retained read-only preview/conversation transitions and keyboard/touch ownership
-- [compose-command-ownership.md](compose-command-ownership.md) — native slash catalogue and composer/Quick Actions keyboard boundaries
-- [picker-geometry.md](picker-geometry.md) — pinned Classic responsive bounds, mobile dismissal and explicit containment adaptation
-- [startup-return-journeys.md](startup-return-journeys.md) — empty-store keyboard journeys, focus/loading repairs and required browser CI gate
-- `browser-auth-proof.md` -- browser-owner provenance and session-scoped recent proof
-- [browser-bootstrap.md](browser-bootstrap.md) — loopback, cookie-bound initial owner Settings setup and status reconciliation
-- [passkeys.md](passkeys.md) — native WebAuthn and browser management contract
-- [passkey-login-cancellation.md](passkey-login-cancellation.md) — login start/prompt/finish ownership and bounded cancellation tests
-- [passkey-scenario-review.md](passkey-scenario-review.md) — compact 26-scenario evidence/gap review
-- [passkey-criteria.md](passkey-criteria.md) — validated per-step/example ledger and browser-only terminal adaptation
-- [TUI startup header](tui-startup-header.md) — gi's adaptation of Pi's header and loaded-resource listing, quietStartup, version
-- [Profiling](profiling.md) — GI_PPROF, idle CPU and frame-cost work
-- [Thinking transcript wrapping](tui-thinking-wrap.md) — padded width, retained source, resize and regression evidence
-- `tools/` — built-in tool contracts
-- `scripting/` — scripting runtimes and bridge docs
-- [Codemode scripts](codemode-scripts.md) — the script reference the model reads (vfs://reference/codemode-scripts.md): globals, tool calls, store, models API, limits
-- [Codemode engine](codemode.md) — QuickJS (WASI) on wazero with Pi's vendored prelude; script API, limits, error kinds
-- [MCP client](mcp.md) — mcp.json format and lookup (.gi then .pi), validation, transports, lifecycle and logging
-- [MCP and codemode plan](mcp-codemode-plan.md) — Pi-parity target, existing branches, engine decision (QuickJS vs Joker on wazero) and phases
-- [Scripting runtimes](scripting/README.md) — native Joker with compiled user kernels, Goja/QuickJS selection and bridge contracts
-- `hooks/` — hook and lifecycle docs
-- `vfs/` — managed VFS and `vfs://` URL docs (including `vfs://chat` projection)
-- `skills/` — skill/package structure docs
-- `search/` — hybrid workspace search and indexing design (including `fts://` namespace docs)
-- `routing.md` — routing policy, route resolution, and model-routing observability
-- `runtime-target-state.md` — database-backed target state for the core runtime refactor (sessions, turns, steering, hooks, events, IPC, multi-channel bindings)
-- `runtime-refactor-adr.md` — accepted ADR for the SQLite-backed coordinated runtime model, cut-over boundary, and durable/in-memory split
-- `runtime-package-inventory.md` — package/file ownership map for runtime refactor surfaces (`turn`, `session`, `routing`, `store`, `web`, `tui`, script bridge)
-- `runtime-surfaces.md` — living index for the top runtime surfaces and their canonical docs/owners
-- `picoclaw-parity-status.md` — private/internal parity audit for PicoClaw-inspired runtime semantics that Gi has ported, adapted, or intentionally rejected
-- `piclaw-fit-gap.md` -- historical May 2026 Gi/Piclaw comparison; current status is in `docs/feature-parity.md`
-- `repo-structure-refactor.md` — interim repository-structure reassessment and functional regrouping plan for the runtime refactor
-- `subturn-runtime.md` — concrete sub-turn runtime contract, limits, store APIs, and current implementation status
-- `tui-stack-evaluation.md` — decision record for keeping the current Gi TUI stack instead of switching to PicoClaw/Pi's launcher/TUI stack now
-- `tui-pi-fit-gap-roadmap.md` — baseline inventory and acceptance criteria for incremental Pi-like TUI fit/gap work
-- `compaction.md` — Pi's cut point and model-written compaction summaries
-- `config-files.md` — configuration file lookup (.gi, then .pi) and write locations
-- `tui-paste.md` — bracketed paste and Pi's large-paste markers in the editor
-- `system-prompt.md` — Pi's structured system prompt: sections, tool contributions, mid-conversation updates
-- `tui-clipboard-media.md` — TUI clipboard/media parity decisions, including OSC 52 and image paste deferrals
-- `media-ingestion-contract.md` — shared web/TUI/API media reference, storage, limits, and provider-projection contract
-- `tui-picker-collapse-widgets.md` — current Go TUI picker/collapse capability audit and textual-picker policy
-- `tui-pi-layout-contract.md` — Pi-identical TUI row-order/status-line contract for the current convergence track
-- `tui-status-line-semantics.md` — single physical bottom status/notification line semantics and transcript-vs-status rules
-- `deferred-tui-parity-closure.md` — closure summary for the post-clipboard deferred TUI parity plan
-- `extension-command-semantics.md` — design contract for future Joker/JS/process extension TUI command registration
-- `scripting/namespaces.md` — extension-author reference for `gi.state`, `gi.topics`, and `gi.runtime` semantics
-
-The `search/` subtree is the canonical reference for the current hybrid workspace search direction: SQLite metadata + FTS5 + vec + local embeddings, plus the runtime-facing read-only `fts://` locator contract.
-
-`routing.md` is the canonical in-repo reference for routing decisions and route-event persistence.
-
-`runtime-target-state.md` is the canonical schema/state target for the runtime refactor.
-
-`runtime-refactor-adr.md` records the accepted coordinated runtime model and the boundary between durable SQLite state and in-memory execution handles.
-
-`runtime-package-inventory.md` is the current ownership map for packages touched by the refactor.
-
-`runtime-surfaces.md` is the living index for the top runtime surfaces, their canonical contract docs, and their implementation owners.
-
-`tui-pi-fit-gap-roadmap.md` is the current baseline and acceptance note for Pi-like TUI parity work.
-
-`media-ingestion-contract.md` defines the shared media ingestion boundary that web, TUI, API/direct ingress, steering, messages, turns, tools, and provider projection must use before image/media paste work proceeds.
-
-`tui-picker-collapse-widgets.md` records the earlier Go TUI widget audit. The current terminal has bounded Alt-S/Alt-M selectors, session action/rename controls and fullscreen tool folding; regular-mode selectors use temporary alternate-screen views.
-
-`deferred-tui-parity-closure.md` closes the post-clipboard deferred parity work with implemented/adapted/deferred behavior and final validation results.
-
-`extension-command-semantics.md` defines the planned command registration and invocation contract for Joker, JavaScript, and process extensions before the runtime dispatch slice lands.
-
-`picoclaw-parity-status.md` tracks ported/adapted/different PicoClaw runtime semantics without turning them into public compatibility promises.
-
-`hooks/lifecycle.md` is the canonical shipped hook taxonomy and lifecycle contract for runtime, script, and process hooks.
-
-`repo-structure-refactor.md` is the working note for the interim structure-tidying phase that reassesses package/file grouping before deeper runtime changes continue.
-
-Current interim structure status:
-- `internal/store` session identity/allocation code has been regrouped by responsibility (`session_identity.go`, `session_identity_runtime.go`, `session_aliases.go`, `session_main.go`, `session_resolution.go`, `session_channel_bindings.go`) and the older row-returning convenience wrappers were removed in favor of direct ID-first call-site updates, including the former row-returning allocation-resolution APIs
-- `internal/turn` ownership was tightened and de-fragmented: routed session allocation/context now lives in `internal/routing/routedsession`, route-audit publication is flattened at `internal/routing/audit.go`, routing/hook audit persistence now lives under `internal/store/audit`, and turn coordination logic is centralized in `engine.go` instead of spread across many micro-files
-- `internal/tui` session-reference helpers have been split out of `chat.go`
-- tool/extension ownership moved out of `internal/turn`: tool registry/scope now live under `internal/tools`, extension discovery/loading now lives under `internal/tools/extensions.go`, skills tool listing/lookup moved to `internal/skills/tools_tool.go`, and shell execution moved to `internal/tools/shell_runtime.go`
-- generic runtime helper ownership tightened: value coercion and turn-phase/subturn-delivery normalization moved into `internal/store`, turn-failure runtime marking moved into `internal/store/turn_failures_runtime.go`, and coordination-context selection now uses the shared store helper directly
-- follow-up audit fixes tightened identity-read query scope and removed repeated transcript DB reloads from the TUI render path
-- routed/default session allocation now prefers relational identity state over `sessions.scope_json`, including main-session preference, store-boundary `identity_links` normalization, first-pass multi-channel binding reuse / explicit continuation semantics, and fallback-aware route-context/source-agent derivation so canceled callers do not silently regress route preparation to stale scope snapshots
-
-## Current status
-
-Update the relevant contract when runtime behaviour changes. Dated plans and slice logs are retained for provenance; use the current feature matrix for release status.
-
-Current search status:
-* Scoped SQLite metadata, FTS indexing, bounded filesystem scanning and explicit reindex/query/status APIs are implemented.
-* Browser controls and the transient terminal Alt-I action invoke explicit indexing. Native write paths record invalidations.
-* Read-only `fts://` retrieval exists for model/tool workflows.
-* Automatic external/shell/watch freshness and vector/embedding integration are incomplete. The vec + FTS design is broader than the implemented lexical path.
-
-Current topic/runtime publication status:
-- the in-memory topic bus is live and now carries bridged turn/session notices plus runtime-critical steering and subturn lifecycle topics
-- connectivity events are bridged into the topic bus under `connectivity.*`, the bridge subscription now follows engine lifecycle cancellation instead of living on a `context.Background()` subscription, and emitted payload `session_id` / `agent_id` values are promoted into the bridged topic envelope scope
-- inbound queue and dispatcher lifecycle now publish onto the canonical topic bus under `runtime.inbound_work` and `runtime.dispatcher`
-- hook invocation lifecycle plus higher-level hook decision notices now publish under `runtime.hook`, and hook invocation audit persistence, turn-failure persistence (including durable `turn.failure_marked` postmortem markers), turn finalization persistence (including shell-path finalization), explicit cancel-request bookkeeping (`CancelTurn(...)` active/queued branches plus shell-run cancel cleanup), deferred agent-end hook emission, compaction restore cleanup, detached submit/launch cleanup, queued-turn/continuation coordination (including staged continuation submission/launch plus the newer queued-session persistence updates for ordinary queued submit, same-session prompt steering, active/idle/queued continue handoff, queued-turn launch, launch-conflict steering fallback, and cleanup-time re-normalization), active-turn heartbeat refresh, final steering checkpoint / steering-reject bookkeeping, post-turn coordination cleanup, workspace extension loading, subturn result/orphan parent-notice delivery, routing/fork system notices, direct ingress session-key resolution + downstream submit/continue routing, startup interrupted-turn recovery, launch-conflict steering fallback, finalize-time turn identity/model recovery, post-claim inbound-work retry/failure/completion bookkeeping, web inbound-dispatcher lease release, dispatcher nil-context normalization, and `cmd/gi` web-runtime startup/shutdown wiring now use explicit caller context or engine-owned/detached lifecycle context where they must outlive request cancellation without becoming process-lifetime work; `CancelTurn(...)` also now enforces the caller-supplied session boundary instead of trusting turn id alone and keeps post-cancel session state aligned with both queued depth and any still-active claim, while same-server dispatcher startup is now single-shot so repeated calls cannot spawn competing same-owner loops
-- core runtime turn/session lifecycle checkpoints now also publish under `runtime.turn` and `runtime.session` (now including generic shared state notices plus explicit setup, queue-submission, hold-resolution, and terminal/idle transitions, with explicit checkpoints kept non-duplicated, completed paths reported consistently, completed exits carrying explicit completion metadata such as `iterations` / `completion_kind` across both turn and session runtime notices, interrupted-turn recovery publishing both explicit `turn_recovered` checkpoints plus generic recovery `turn_state` / `session_state` notices while also restarting queued follow-up work automatically when stale-claim recovery leaves runnable queued work behind, active cancellation publishing explicit `turn_cancelling` checkpoints plus richer session-state metadata, queued cancellation now publishing explicit terminal turn/session checkpoints when it leaves the session idle while also continuing later queued work when the session remains queued, queued turn creation publishing explicit `turn_submitted` checkpoints, and held-failure review/skip/retry resolution publishing explicit `turn_failure_held` / `turn_failure_resolved` checkpoints rather than remaining DB-audit-only; those hold-resolution notices now publish the post-update phase and normalized held payload fields so the live topic payload matches persisted `turn_failures` state)
-- core runtime tool lifecycle checkpoints now also publish under `runtime.tool` (currently started, finished, failed, and skipped)
-- core runtime routing/allocation decision notices now also publish under `runtime.routing` (currently persisted route-decision and incoming-route notices)
-- the TUI now has a first topic-native consumption slice for canonical topic families on the active session, using `turn.status` / `turn.response` / `turn.draft` / `turn.thought` plus `runtime.tool` / `runtime.hook` / `runtime.turn` / `runtime.session` / `runtime.routing` / `runtime.inbound_work` / `runtime.dispatcher` and `session.compaction` / `session.steering` / `turn.subturn` notices for status and transcript updates; its `runtime.hook` rendering covers invocation errors/timeouts plus abort/deny/modify/respond decisions, its `runtime.inbound_work` / `runtime.dispatcher` rendering covers queue/retry/failure/completion/manual requeue/discard, dispatcher lease/drain/error notices, and retry attempt counts, `turn.draft`, `turn.thought`, `turn.status` running, `runtime.tool` started, `runtime.turn` waiting-on-tools, and `runtime.session` running notices mark the UI as actively running, `runtime.session` queued notices now render a visible queued state, idle/completed/terminal turn/session notices (`turn.status` idle, `runtime.turn`, `runtime.session`) clear stale draft/running UI state, the newer explicit cancel/recovery checkpoints now flow through the same canonical topic families rather than staying DB-audit-only, terminal system messages now broadcast live for all terminal outcomes (not only completed/failed) and therefore flow through the same `turn.response`/system-message bridge the TUI already consumes, both the running-entry and cleanup paths are now centralized in helpers to reduce drift, and routing, tool, hook, inbound-work, dispatcher, compaction, steering, and sub-turn rendering are centralized too so the remaining legacy fallback status/draft/thought plus completion/error cleanup paths still mirror the same entry/reset semantics when topic-native mode is inactive while legacy routing broadcasts render through fallback; when a live topic subscription is active, overlapping legacy broadcast handling acts as fallback rather than the primary source for those families
-- dedicated topic SSE streaming is now live via `/sse/topics`, with monotonic envelope sequences exposed as SSE `id:` plus reconnect gap metadata on `connected`; topic delivery is intentionally a bounded firehose rather than sticky/coalesced state, so durable replay remains store-owned
-- script-facing topic APIs now exist in both script bridges: JS exposes `gi.topics.publish(...)` plus polling-style `gi.topics.subscribe(...)`, `gi.topics.read(...)`, and `gi.topics.unsubscribe(...)`, while embedded Joker exposes `gi-topic-publish`, `gi-topic-subscribe`, `gi-topic-read`, and `gi-topic-unsubscribe`; topic publishes can carry explicit `sequence` values that advance the bus watermark, topic reads include the bus-wide `sequence`, subscriptions accept `after_sequence` to ignore already-seen future events, publish/subscribe/read/unsubscribe are session-bound in both bridges, closed topic subscriptions are dropped eagerly on read, explicit unsubscribe stays idempotent, and raw/websocket close operations follow the same idempotent cleanup contract
-
-Current hook/runtime interception status:
-- provider-level hook parity now reaches the inference layer: `before_provider_request` supports both context mutation and send-time raw request replacement, and `after_provider_response` observes real provider status/headers when available
-- process hooks now run as mounted persistent subprocess sessions per registered handler instead of spawn-per-invocation JSON-RPC calls
-
-Current session/runtime identity status:
-- canonical session identity lookup is store-backed via relational tables rather than runtime/table scans
-- alias resolution, main-session preference, and allocation resolve-or-create now flow through explicit store APIs
-- multi-channel binding support currently covers explicit continuation plus bound reuse; automatic linking of unrelated channel/account/chat identities and automatic outbound fan-out to every bound channel are explicitly not part of the current policy
-- direct/IPC ingress now has a normalized engine-facing envelope (`DirectInput` / `DirectOrigin`) so non-web/TUI callers can reuse the same submit/route/continue runtime paths instead of creating separate execution flows
-- system/internal-origin processing now has explicit engine entrypoints on top of that envelope, and same-session direct/system follow-ups reuse steering instead of spawning competing turns; direct/session-key ingress audit metadata is now aligned across turn metadata, persisted user-message payloads, and `turn.started` audit rows (including `ingress_session_key`, `ingress_channel`, and `ingress_account` when provided), and direct/IPC/system prompt + peer-message + continue actions now also survive already-canceled caller contexts long enough to reach those hardened runtime paths instead of failing before session-key resolution or downstream submit/continue
-- the first durable inbound queue layer is now live via `inbound_work_queue` plus engine enqueue/claim/process/drain helpers; the guarded web runtime now exposes enqueue/list/drain/requeue/discard endpoints, eligibility-aware queue introspection, and a small configurable background dispatcher with bounded retry/backoff state plus store-backed lease ownership, it publishes inbound/dispatcher lifecycle notices onto the canonical topic bus instead of keeping this runtime surface web-local, and once an item is already claimed its retry/failure/completion bookkeeping now survives transient caller cancellation instead of stranding claimed rows
-- web consumers now also have a dedicated `/sse/topics` endpoint for canonical topic-bus streaming by topic pattern and optional session/agent scoping
-- recent runtime audit fixes also tightened a number of previously leaky or misleading bridge/config edges: script-facing connectivity route registration/list/unregister and topic publish/subscribe now enforce the current session boundary, bridge normalization no longer mutates caller-owned maps in place, metrics snapshots no longer alias live collector slices, pending auth enrollments are proactively pruned when stale, enrollment start now surfaces corrupt persisted auth state instead of silently proceeding, connectivity basic auth now honors the generic `keychain` field consistently with the other auth helpers, and `allow_unauthenticated_external=true` now actually bypasses external auth enforcement as documented
+- [Profiling gi](profiling.md)
+- [Shipped internal reference system](reference-system.md)
+- [Runtime package inventory](runtime-package-inventory.md)

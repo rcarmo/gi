@@ -9,7 +9,7 @@
 // the host: it instantiates a fresh VM per execution, relays bridge calls,
 // runs tool calls concurrently and settles their promises, detects scripts
 // waiting on nothing that can resume them, and enforces timeout, cancellation,
-// memory and stack limits. See docs/internal/mcp-codemode-plan.md.
+// memory and stack limits. See docs/implementation/plans/mcp-codemode-plan.md.
 package codemode
 
 import (

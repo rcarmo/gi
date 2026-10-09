@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted — 2026-09-22. This is a storage prerequisite for the [Piclaw/Tau/Vibes-derived indexing design](../internal/search/indexing-lineage-20260922.md). No new frozen web mapping or terminal index capability is implemented. Coverage remains 45/236 Classic and 2/42 shared, with 191/40 unmapped.
+Accepted — 2026-09-22. This is a storage prerequisite for the [Piclaw/Tau/Vibes-derived indexing design](../implementation/plans/indexing-lineage-20260922.md). No new frozen web mapping or terminal index capability is implemented. Coverage remains 45/236 Classic and 2/42 shared, with 191/40 unmapped.
 
 ## Startup migration
 

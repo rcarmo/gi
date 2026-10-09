@@ -2,7 +2,7 @@
 
 Status: the engine is in place (#25, phase 4). The model-facing `codemode`
 tool, its declarations and its toggles are phase 5
-([plan](mcp-codemode-plan.md)).
+([plan](../implementation/plans/mcp-codemode-plan.md)).
 
 ## What it runs
 

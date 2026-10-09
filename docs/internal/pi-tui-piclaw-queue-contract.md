@@ -61,7 +61,7 @@ The PTY fixture verifies admission and eventual completion. A separate Go test q
 - [ ] Queue display and storage: text/media/references, per-session ownership, counts, identifiers, FIFO, one-at-a-time/all modes and reload.
 - [ ] Delivery transitions: idle, streaming, active tool, post-tool model, retry/error, abort, compaction, run-end race and session switch.
 - [ ] Complete dequeue/abort restoration, including active Steer and media-bearing queued turns. Text-only Alt+Up and owned-run Escape now persist the draft and cancel queued turns in one transaction; the Escape subset also requests active cancellation under the exact claim. Conflicts leave delivery intact. Full Pi edit-all, media/Steer return, live provider and physical PTY remain open.
-- [ ] Piclaw web return/remove/reorder/Steer behaviour, including missing rows, restore failure, active-to-idle race and duplicate requests. [Released-claim fallback](ended-queue-steer-2026-09-28.md) now has bounded native coverage; cleanup-owned claim reservation and complete handoff timing still need work.
+- [ ] Piclaw web return/remove/reorder/Steer behaviour, including missing rows, restore failure, active-to-idle race and duplicate requests. [Released-claim fallback](../implementation/audits/ended-queue-steer-2026-09-28.md) now has bounded native coverage; cleanup-owned claim reservation and complete handoff timing still need work.
 - [ ] Differential reference/native PTYs and browser journeys, plus independent contract review before mapping IDs as passing.
 
 No production restart, validation-binary replacement or deployment is part of this change.

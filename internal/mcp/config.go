@@ -2,7 +2,7 @@
 // MCP support (docs/mcp.md): the same mcp.json format and locations, the
 // same validation and value expansion, stdio and streamable-HTTP transports,
 // and Pi's server lifecycle. Tool exposure, tool_search and codemode build on
-// it; see docs/internal/mcp-codemode-plan.md.
+// it; see docs/implementation/plans/mcp-codemode-plan.md.
 package mcp
 
 import (

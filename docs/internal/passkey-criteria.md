@@ -77,7 +77,7 @@ evidence to002 without a full mapping. The production RP choice remains open.
   it does not wait twelve hours. Logout is cookie-owner-only and leaves the other
   browser signed in even when the selected session's proof key was removed.
 
-The [scenario review](passkey-scenario-review.md) is the compact index. The
+The [scenario review](../implementation/audits/passkey-scenario-review.md) is the compact index. The
 criterion ledger supplies the exact missing step or example behind a partial
 classification.
 

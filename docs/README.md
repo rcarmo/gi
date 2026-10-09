@@ -6,7 +6,8 @@
 
 - `adr/` — architecture decision records (0001–0060)
 - `checklists/` — phased implementation checklist by subsystem
-- `internal/` — the shipped internal reference (`vfs://reference/...`) for tools, scripting, hooks, routing, VFS, skills, MCP and runtime contracts
+- [Implementation notes](implementation/README.md) — feature changes, plans, audits and verification results, grouped by topic; not embedded in the binary
+- [Internal reference](internal/README.md) — the shipped `vfs://reference/...` contracts for tools, scripting, hooks, routing, VFS, skills, MCP and runtime behaviour
 - `reference/` — the original specification transcript
 
 ## Documents
@@ -28,10 +29,10 @@ The first eight ADRs set the architecture; 0009–0060 record later decisions on
 
 * [Feature and parity matrix](feature-parity.md) — current implementation, compliance results, limits and requested integrations.
 * [Browser test guide](../tests/ux/README.md) — fixtures-vibes compliance, Gi regressions and runners.
-* [Multi-passkey contract](internal/passkey-contract.md) — required enrolment, sign-in and lockout-safety tests; the [per-case review](internal/passkey-scenario-review.md) records partial and manual gaps.
+* [Multi-passkey contract](internal/passkey-contract.md) — required enrolment, sign-in and lockout-safety tests; the [per-case review](implementation/audits/passkey-scenario-review.md) records partial and manual gaps.
 * [Passkey backend](internal/passkeys.md) — opt-in RP/origin configuration, APIs, storage and browser-test limits.
-* [tsnet plan](internal/peering-tsnet-plan.md) — the existing scaffold and remote-access work.
-* [UX audit](internal/ux-test-audit-2026-09-24.md) and [full web/TUI plan](internal/full-web-tui-parity-plan.md) — dated September 2026 reviews; their test counts and gaps describe the code at that time.
+* [tsnet plan](implementation/plans/peering-tsnet-plan.md) — the existing scaffold and remote-access work.
+* [UX audit](implementation/audits/ux-test-audit-2026-09-24.md) and [full web/TUI plan](implementation/plans/full-web-tui-parity-plan.md) — dated September 2026 reviews; their test counts and gaps describe the code at that time.
 
 ### Internal reference
 
@@ -41,7 +42,7 @@ The first eight ADRs set the architecture; 0009–0060 record later decisions on
 - `internal/keychain.md`, `internal/shell-environment.md`, `internal/config-files.md` — secrets, shell environment and configuration lookup
 - `internal/routing.md` — routing and route-event behaviour
 - `internal/search/` — scoped lexical indexing, plus the planned hybrid/vector design
-- `internal/tui-pi-parity-plan.md`, `internal/tui-pi-scrolling.md`, `internal/tui-clipboard-media.md` — terminal parity plan, scrolling and clipboard/media boundaries
+- `internal/keybindings.md`, `internal/tui-clipboard-media.md` — terminal keybindings and clipboard/media contracts; port details and verification live in [terminal implementation notes](implementation/terminal/README.md)
 - `internal/extension-command-semantics.md` — planned extension command registration contract
 
 ### Checklists

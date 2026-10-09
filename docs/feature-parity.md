@@ -24,11 +24,11 @@ The last full run started on 2026-10-04 at 20:46:28 UTC with Gi `5a68f4005a9fdab
 | Original full4 gate | 316 | 185 | 1 | 3 | 49 | 78 |
 | Same results, reconciled skips on 2026-10-05 | 316 | 185 | 0 | 3 | 50 | 78 |
 
-The original gate failed because mandatory-core scenarios still used `capability-absent`, `@ux-extra-004/005` and `@ux-editor-007` had stale skips despite passing, and Vim scenario `@ux-editor-009` failed in all six projects without an issue-backed entry. The corrected skips file uses `not-implemented` for core workflows, removes those three passing entries and adds editor009 under [gi#46](https://github.com/rcarmo/gi/issues/46). Re-running only `make -C references/fixtures-vibes report` against the existing `compliance.json` gives `Gate: OK`; no browser tests were rerun. This gate accepts the issue-backed failure inventory, not feature completeness. Reports and the raw results are in `references/fixtures-vibes/test-results/`; an archived report is in [full4](internal/fixtures-vibes-full4.md).
+The original gate failed because mandatory-core scenarios still used `capability-absent`, `@ux-extra-004/005` and `@ux-editor-007` had stale skips despite passing, and Vim scenario `@ux-editor-009` failed in all six projects without an issue-backed entry. The corrected skips file uses `not-implemented` for core workflows, removes those three passing entries and adds editor009 under [gi#46](https://github.com/rcarmo/gi/issues/46). Re-running only `make -C references/fixtures-vibes report` against the existing `compliance.json` gives `Gate: OK`; no browser tests were rerun. This gate accepts the issue-backed failure inventory, not feature completeness. Reports and the raw results are in `references/fixtures-vibes/test-results/`; an archived report is in [full4](implementation/maintenance/fixtures-vibes-full4.md).
 
 The earlier 13:24 UTC run on `88e5b13` had a single `@ux-chat-lifecycle-009` WebKit `page.goto` engine error. It passed in the other five projects and in 10 of 10 repeats afterwards. Full4 passes that scenario. Focused checks also passed for `/theme` and `/tint` (90/90), avatar manifest icons (54/54), and confirmed cascade deletion with cancel/retry (36/36).
 
-The current suite/UI pin is `0259e9a4816d3d643159538095fdffc884104598` (Piclaw v3.3.0). It adds revision-safe editor/Plan persistence and agent file-open SSE bindings to the earlier `b17ef01` adoption, preserving shared specs and oracle data. Bounded consumer checks pass for Plan, held-save typing and file-open; the shared conflict scenario lacks reviewed Overwrite approval and clean-editor SSE refresh loses revision metadata in the lazy loader. The historical v0.2.0 run finished on 2026-10-05 with exit 2 and has not been rerun. Its [final review](internal/frozen-v020-20261005.md) records 193 passing scenarios, one unlisted bootstrap failure, 42 listed failures, three skips and 78 without tests; two missing heaps and absent browser profiling are recorded. Independent focused checks on 2026-10-05 passed Plan/widgets/extra014 in all six projects (66/66), frontend units (189/189), and Gi functional tests (142 passed, 11 skipped). The eight Plan skips are removed; Plan and widgets are implemented. See [browser checks](internal/classic-ui-acceptance.md) and [current acceptance](internal/acceptance-2026-10-08.md).
+The current suite/UI pin is `0259e9a4816d3d643159538095fdffc884104598` (Piclaw v3.3.0). It adds revision-safe editor/Plan persistence and agent file-open SSE bindings to the earlier `b17ef01` adoption, preserving shared specs and oracle data. Bounded consumer checks pass for Plan, held-save typing and file-open; the shared conflict scenario lacks reviewed Overwrite approval and clean-editor SSE refresh loses revision metadata in the lazy loader. The historical v0.2.0 run finished on 2026-10-05 with exit 2 and has not been rerun. Its [final review](implementation/maintenance/frozen-v020-20261005.md) records 193 passing scenarios, one unlisted bootstrap failure, 42 listed failures, three skips and 78 without tests; two missing heaps and absent browser profiling are recorded. Independent focused checks on 2026-10-05 passed Plan/widgets/extra014 in all six projects (66/66), frontend units (189/189), and Gi functional tests (142 passed, 11 skipped). The eight Plan skips are removed; Plan and widgets are implemented. See [browser checks](implementation/maintenance/classic-ui-acceptance.md) and [current acceptance](implementation/maintenance/acceptance-2026-10-08.md).
 
 `/btw` has isolated session-snapshot inference, abortable JSON/SSE routes and adopted Classic panel/retry/injection controls. On 2026-10-08 its shared scenario passed all six Chromium/WebKit viewport combinations; ten native checks passed three times. Chromium browser/runtime/runner captures were analysed and disposed; WebKit evidence is functional only. The stale extra001 skip is removed. See [side-prompt contract](internal/side-prompt.md).
 
@@ -71,7 +71,7 @@ An instance with no enrolled owner permits application access. The CLI binds to 
 
 ## Terminal
 
-The terminal targets Pi 1.1.0's workflows and keyboard handling using Go widgets. The first [1.1.0 alignment slice](internal/tui-pi-1.1.0.md) ports editor Home/End versus transcript Ctrl+Home/Ctrl+End; [recorded tool duration](internal/tool-duration.md) now survives live/restored rendering with explicit legacy/projection limits. Terminal status and output padding are still open. Web overlays do not become permanent terminal panels.
+The terminal targets Pi 1.1.0's workflows and keyboard handling using Go widgets. The first [1.1.0 alignment slice](implementation/terminal/tui-pi-1.1.0.md) ports editor Home/End versus transcript Ctrl+Home/Ctrl+End; [recorded tool duration](internal/tool-duration.md) now survives live/restored rendering with explicit legacy/projection limits. Terminal status and output padding are still open. Web overlays do not become permanent terminal panels.
 
 | Area | Behaviour | Limits |
 |---|---|---|
@@ -90,7 +90,7 @@ PTY tests cover fullscreen and regular modes at 60×18, 100×22 and 140×36. Pro
 
 | Workstream | Current state | Acceptance target |
 |---|---|---|
-| tsnet remote access | Scaffold: `internal/peering` wraps `tailscale.com/tsnet` and reports status. Nothing starts a tailnet listener. See [plan](internal/peering-tsnet-plan.md). | Opt-in tailnet HTTPS for the existing UI, API and SSE, with persistent node state, secret references and the existing app authentication. No public exposure by default. |
+| tsnet remote access | Scaffold: `internal/peering` wraps `tailscale.com/tsnet` and reports status. Nothing starts a tailnet listener. See [plan](implementation/plans/peering-tsnet-plan.md). | Opt-in tailnet HTTPS for the existing UI, API and SSE, with persistent node state, secret references and the existing app authentication. No public exposure by default. |
 | Iroh inter-instance chat | Planned; Gi has no Iroh transport. | Explicit pairing, receiver-owned policies, signed bounded messages and files, durable retries and one-hop peer and agent addresses. Interoperability with Piclaw's remote-peer add-on needs confirmation. |
 
 tsnet carries operator web access and Iroh carries peer messages. Neither grants the other's authority. The runtime stays pure Go, without CGO, native Rust libraries or sidecars.
@@ -116,11 +116,11 @@ CI runs only for `v*` release tags. It runs fixtures-vibes compliance, the focus
 
 Dated plans and audits keep their original scope: the [UX audit][audit], the [full web/TUI plan][plan] and the [implementation checklist][checklist].
 
-[audit]: internal/ux-test-audit-2026-09-24.md
-[tui]: internal/tui-pi-parity-plan.md
+[audit]: implementation/audits/ux-test-audit-2026-09-24.md
+[tui]: implementation/plans/tui-pi-parity-plan.md
 [media]: internal/tui-clipboard-media.md
 [checklist]: checklists/implementation.md
-[plan]: internal/full-web-tui-parity-plan.md
+[plan]: implementation/plans/full-web-tui-parity-plan.md
 
 ## Shared front-end ownership
 
